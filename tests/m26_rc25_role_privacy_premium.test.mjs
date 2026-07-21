@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {projectCollectionsForRole,assertClientProjectionSafe,stateFromBootstrap,createProductionState,resolveM26Route,createRouteViewModel,createShellViewModel} from '../src/m26/index.js';
+const own='CLI-OWN-25',other='CLI-OTHER-25';
+const client={id:'USR-CLIENT-25',role:'client',clientId:own,name:'Cliente'};
+function collections(){return {
+ clients:[{id:own,name:'Propio'},{id:other,name:'Ajeno'}],clientProfiles:[{id:own,clientId:own},{id:other,clientId:other}],clientAccess:[],iriAssessments:[],
+ reports:[{id:'r-pub',clientId:own,status:'publicado'},{id:'r-draft',clientId:own,status:'borrador'},{id:'r-other',clientId:other,status:'publicado'}],
+ trainingCycles:[{id:'p-pub',clientId:own,status:'activo'},{id:'p-draft',clientId:own,status:'aprobado'}],
+ sessions:[{id:'s-pub',clientId:own,status:'publicado'},{id:'s-draft',clientId:own,status:'borrador'},{id:'s-hidden',clientId:own,status:'publicado',visibleToClient:false}],
+ sessionExecutions:[],appointments:[{id:'a-own',clientId:own},{id:'a-other',clientId:other}],checkins:[],habits:[],habitLogs:[],
+ privateNotes:[{id:'n1',clientId:own}],intelligenceRuns:[{id:'ia1',clientId:own}],domainEvents:[{id:'e1',clientId:own}],coachAvailability:[{id:'c1'}],
+ wearableConnections:[],wearableDailySummaries:[],wearableSyncRuns:[{id:'w1',clientId:own}],m26Entities:[{id:'m1',clientId:own,visibleToClient:false},{id:'m2',clientId:own,visibleToClient:true}],
+ };}
+test('proyección Cliente elimina datos Coach, ajenos y no publicados',()=>{const p=projectCollectionsForRole(collections(),client);assert.deepEqual(p.clients.map(x=>x.id),[own]);assert.deepEqual(p.reports.map(x=>x.id),['r-pub']);assert.deepEqual(p.trainingCycles.map(x=>x.id),['p-pub']);assert.deepEqual(p.sessions.map(x=>x.id),['s-pub']);assert.deepEqual(p.appointments.map(x=>x.id),['a-own']);assert.deepEqual(p.m26Entities.map(x=>x.id),['m2']);for(const key of ['privateNotes','intelligenceRuns','domainEvents','coachAvailability','wearableSyncRuns'])assert.deepEqual(p[key],[]);assert.equal(assertClientProjectionSafe(p,client),true);});
+test('visibleToClient=false prevalece incluso en registros publicados',()=>{const p=projectCollectionsForRole(collections(),client);assert.equal(p.sessions.some(x=>x.id==='s-hidden'),false);});
+test('Coach conserva sus colecciones completas sin mutar la fuente',()=>{const source=collections(),before=structuredClone(source);const p=projectCollectionsForRole(source,{id:'U2',role:'coach'});assert.deepEqual(p,source);assert.deepEqual(source,before);assert.notEqual(p,source);});
+test('auditor de seguridad rechaza exposición privada y cruce de cliente',()=>{assert.throws(()=>assertClientProjectionSafe({...projectCollectionsForRole(collections(),client),privateNotes:[{id:'x',clientId:own}]},client),/PRIVATE_COLLECTION_EXPOSED/);assert.throws(()=>assertClientProjectionSafe({...projectCollectionsForRole(collections(),client),appointments:[{id:'x',clientId:other}]},client),/CROSS_SCOPE_EXPOSED/);});
+test('bootstrap Cliente aplica la proyección antes de construir el estado',()=>{const state=stateFromBootstrap({user:client,canary:{active:true},data:collections(),remoteRevisions:{[`session:${own}`]:1,[`session:${other}`]:2}},createProductionState());assert.deepEqual(state.collections.sessions.map(x=>x.id),['s-pub']);assert.deepEqual(state.collections.privateNotes,[]);assert.deepEqual(Object.keys(state.remoteRevisions),[`session:${own}`]);});
+test('Cliente no obtiene rutas Coach aunque manipule activeArea',()=>{const state=stateFromBootstrap({user:client,canary:{active:true},data:collections()},createProductionState({activeArea:'clientes'}));for(const area of ['clientes','expediente','iri','inteligencia','notas'])assert.equal(resolveM26Route(state,area).allowed,false);});
+test('ViewModel Cliente solo recibe su contexto y contenido publicado',()=>{const state=stateFromBootstrap({user:client,canary:{active:true},data:collections()},createProductionState());const shell=createShellViewModel({...state,activeArea:'hoy'});const vm=createRouteViewModel(shell,{...state,activeArea:'hoy'});assert.equal(vm.role,'client');assert.deepEqual(vm.clients.map(x=>x.id),[own]);});
+test('la política falla cerrada cuando falta identidad Cliente',()=>{assert.throws(()=>projectCollectionsForRole(collections(),{id:'U',role:'client'}),/CLIENT_IDENTITY_REQUIRED/);});

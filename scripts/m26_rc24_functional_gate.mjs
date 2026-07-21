@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+const checks=[];const add=(name,ok)=>checks.push({name,ok:Boolean(ok)});
+const routeVm=fs.readFileSync('src/m26/modules/route-view-model.js','utf8');
+const render=fs.readFileSync('src/m26/modules/route-render.js','utf8');
+const controller=fs.readFileSync('src/m26/app/workflow-controller.js','utf8');
+add('edad-inteligencia-derivada',routeVm.includes('deriveAgeYears')&&routeVm.includes('ageYears'));
+add('sin-edad-fija-visible',!render.includes('name="ageYears" value="35"'));
+add('bloqueo-sin-fecha-nacimiento',render.includes('Registra primero la fecha de nacimiento'));
+add('biblioteca-completa',routeVm.includes('catalog.map((item)=>clone(item))')&&!routeVm.includes('catalog.slice(0,120)'));
+add('busqueda-sin-limite-120',!controller.includes('limit:120'));
+add('castellano-visible',render.includes('Edad calculada')&&render.includes('ejercicios del catálogo'));
+const failed=checks.filter(x=>!x.ok);console.log(JSON.stringify({gate:'RC24 funcional',checks,passed:checks.length-failed.length,total:checks.length},null,2));if(failed.length)process.exit(1);

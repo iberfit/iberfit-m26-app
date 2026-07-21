@@ -1,0 +1,616 @@
+{
+  "version": "26.0.0-cierre-local-maximo.28",
+  "generated_at": "2026-07-21T01:13:56Z",
+  "passed": 2,
+  "total": 2,
+  "results": [
+    {
+      "role": "coach",
+      "routes": [
+        {
+          "route": "hoy",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Hoy en IBERFIT",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nHoy en IBERFIT\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nIBERFIT · HOY\n\nTu operación de hoy, con criterio\n\nPrioriza sesiones, clientes y decisiones sin perder el contexto del expediente.\n\nESTADO\nConfirmado\nSESIONES HOY\n2\nAgenda confirmada\nPRÓXIMA SESIÓN\n21 jul 2026, 2:13\nSesión guiada A\nCLIENTES VISIBLES\n2\nSegún tus permisos de acceso\nCONFLICTOS\n0\nSin bloqueos\n\nAGENDA\n\nSesiones de hoy\n2 confirmadas\n\n21 JUL 2026, 2:13\n\nSesión guiada A\n\nSin modalidad\n\nConfirmado\n\n21 JUL 2026, 2:13\n\nSesión guiada B\n\nSin modalidad\n\nConfirmado\n\nSIGUIENTE PASO\n\nSesión guiada A\n\n21 jul 2026, 2:13\n\nÚLTIMO IRI\n72\nConfirmado\n\nSEGUIMIENTO\n\nClientes visibles\nVer todos\nC\n\nHÍBRIDO\n\nCliente QA Integrado\n\nActivo · IRI 72\n\nActivo\n21 jul 2026, 2:13\nC\n\nSIN MODALIDAD\n\nCliente ajeno\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nNavegación IBERFIT\nSeleccionar expediente\nAbrir expediente de Cliente QA Integrado\nAbrir expediente de Cliente ajeno",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "clientes",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Clientes",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nClientes\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nCARTERA AUTORIZADA\n\nClientes y seguimiento\n\nSolo se muestran los expedientes autorizados para tu cuenta.\n\n2 clientes\nBuscar cliente\n\nMostrando 2 clientes.\n\nC\n\nHÍBRIDO\n\nCliente QA Integrado\n\nActivo · IRI 72\n\nActivo\n21 jul 2026, 2:13\nC\n\nSIN MODALIDAD\n\nCliente ajeno\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nNavegación IBERFIT\nSeleccionar expediente\nNombre, modalidad o estado\nAbrir expediente de Cliente QA Integrado\nAbrir expediente de Cliente ajeno",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "expediente",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Expediente IBERFIT",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nExpediente IBERFIT\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\nC\n\nEXPEDIENTE IBERFIT\n\nCliente QA Integrado\n\nHíbrido · Activo\n\nActivo\nSESIONES PLANIFICADAS\n4\nEJECUCIONES\n0\nADHERENCIA 28 DÍAS\nSin dato\nSEGUIMIENTO\nSeguimiento activo\n\nDATOS PRINCIPALES\n\nContexto de acompañamiento\nMODALIDAD\nHíbrido\nESTADO\nActivo\nCICLO ACTIVO\nCiclo base de fuerza\nPRÓXIMA SESIÓN\n21 jul 2026, 2:13\n\nDIAGNÓSTICO IRI\n\n72\n\nCompletado\n\nAbrir diagnóstico IRI\n\nRUTA DE TRABAJO\n\nAcciones del expediente\nPlanificación\nSesiones\nProgreso\nRegistros de bienestar y hábitos\nInformes\nNotas privadas\nInteligencia IBERFIT\nNavegación IBERFIT\nSeleccionar expediente",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "iri",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Diagnóstico IRI",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nDiagnóstico IRI\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nDIAGNÓSTICO FUNCIONAL\n\nÍndice de Rendimiento IBERFIT\n\nΔFC, composición corporal y fuerza por patrón con baremos por sexo y edad.\n\nIRI 72\n\nÚLTIMA EVALUACIÓN\n\n72\n\ncompletado\n\nHISTORIAL\n\nEvaluaciones confirmadas\n1 registro\n\nSIN FECHA\n\nRegistro\n\nCompletado\n\nCompletado\n\nEVALUACIÓN\n\nCompletar diagnóstico IRI\nFecha de evaluación\nFecha de nacimiento\nSexo para baremos\nSeleccionar\nMujer\nHombre\nFC al finalizar la prueba de escalón\nFC al minuto\nFlexiones válidas\nLevantarse de la silla durante 30 s\n% grasa corporal\n\nRegistra resultados objetivos; la clasificación solo se habilita cuando existen sexo para baremos, edad, protocolo y evidencia compatibles.\n\nValidar y guardar IRI\nNavegación IBERFIT\nSeleccionar expediente",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "planificacion",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Planificación",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nPlanificación\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nPLANIFICACIÓN\n\nPlanificación y publicación\n\nCada contenido pasa por validación, aprobación y publicación. Aprobar no lo hace visible para el cliente.\n\n4 sesiones\n\nCICLOS\n\nCiclos en gestión\n1 aprobados\n\nSIN FECHA\n\nCiclo base de fuerza\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nCiclo base de fuerza\n\nFuerza y autonomía\n\n1 jul 2026 – 31 ago 2026\n\nGestionar publicación\n\nSIN FECHA\n\nCiclo en revisión\n\nPendiente de aprobación interna.\n\nPendiente de aprobación\n\nASÍ LO VERÁ EL CLIENTE\n\nCiclo en revisión\n\nFuerza\n\nGestionar publicación\n\nSIN FECHA\n\nCiclo aprobado\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nCiclo aprobado\n\nFuerza\n\nGestionar publicación\n\nSESIONES\n\nEstado de las sesiones\n2 publicadas\n\nSIN FECHA\n\nFuerza global aprobada\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global aprobada\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nGestionar publicación\n\nSIN FECHA\n\nFuerza global en borrador\n\nBorrador interno.\n\nBorrador\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global en borrador\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nGestionar publicación\n\nSIN FECHA\n\nFuerza global · Sesión A\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Sesión A\n\nTrabajo global controlado.\n\nContenido completo que recibirá el cliente\n45 min\n1 bloque\nContenido de la sesión\nEjercicio 1\n2 series · 8 · 60 s de descanso\nGestionar publicación\n\nSIN FECHA\n\nFuerza global · Sesión B\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Sesión B\n\nEstabilidad y control.\n\nContenido completo que recibirá el cliente\n40 min\n1 bloque\nContenido de la sesión\nEjercicio 2\n2 series · 10 · 45 s de descanso\nGestionar publicación\n\nENTRENADOR\n\nPreparar ciclo de entrenamiento\n\nValidar crea una versión interna. Después deberá aprobarse y publicarse de forma expresa.\n\nNombre del ciclo\nInicio\nFin\nObjetivo\nValidar borrador\nNavegación IBERFIT\nSeleccionar expediente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "agenda",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Agenda",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nAgenda\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nAGENDA DEL ENTRENADOR\n\nSesiones programadas\n\nLas citas quedan confirmadas únicamente después de una validación segura.\n\n2 citas\n\n21 JUL 2026, 2:13\n\nSesión guiada A\n\nSin modalidad\n\nConfirmado\n\n21 JUL 2026, 2:13\n\nSesión guiada B\n\nSin modalidad\n\nConfirmado\n\nAGENDA\n\nCrear cita\nCliente\nCliente QA Integrado\nCliente ajeno\nModalidad\nPresencial\nGuiada en la aplicación\nEn línea\nInicio\nFin\nUbicación\n\nObligatoria para citas presenciales. En sesiones en línea o guiadas en la aplicación puede quedar vacía.\n\nCrear cita\nNavegación IBERFIT\nSeleccionar expediente",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "sesion",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Sesiones",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nSesiones\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nMOTOR DE SESIONES\n\nConstrucción y publicación de sesiones\n\nConstruye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.\n\nCrear sesión\n\nCICLO DE PUBLICACIÓN\n\nSesiones del expediente\n2 publicadas\n\nSIN FECHA\n\nFuerza global aprobada\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global aprobada\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nGestionar publicación\n\nSIN FECHA\n\nFuerza global en borrador\n\nBorrador interno.\n\nBorrador\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global en borrador\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nGestionar publicación\n\nSIN FECHA\n\nFuerza global · Sesión A\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Sesión A\n\nTrabajo global controlado.\n\nContenido completo que recibirá el cliente\n45 min\n1 bloque\nContenido de la sesión\nEjercicio 1\n2 series · 8 · 60 s de descanso\nGestionar publicación\n\nSIN FECHA\n\nFuerza global · Sesión B\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Sesión B\n\nEstabilidad y control.\n\nContenido completo que recibirá el cliente\n40 min\n1 bloque\nContenido de la sesión\nEjercicio 2\n2 series · 10 · 45 s de descanso\nGestionar publicación\n\nHISTORIAL\n\nEjecuciones confirmadas\nI\nSin ejecuciones confirmadas\n\nNo hay información confirmada dentro del alcance visible.\nNavegación IBERFIT\nSeleccionar expediente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "progreso",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Progreso",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nProgreso\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nSEGUIMIENTO CONFIRMADO\n\nProgreso y adherencia\n\nVentana de 28 días · calidad del dato limitada.\n\nSeguimiento activo\nADHERENCIA\nSin dato\n0 de 0 sesiones\nRPE MEDIO\nSin dato\nSolo ejecuciones confirmadas\nVOLUMEN MEDIO\nSin dato\nCarga × repeticiones cuando existe\nCAMBIO IRI\nSin dato\nActual 72\n\nCRONOLOGÍA\n\nEvolución registrada\n1 eventos\n\n18 JUL 2026\n\nEvaluación IRI\n\nPuntuación 72\n\nRECUPERACIÓN\n\nPromedio de registros de bienestar\nENERGÍA\nSin dato\nSUEÑO\nSin dato\nESTRÉS\nSin dato\nDOLOR\nSin dato\n\nLa aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.\n\nACTIVIDAD DE DISPOSITIVO\n\nTendencia objetiva complementaria\nSin actualización reciente\nPASOS MEDIOS\nSin dato\nMINUTOS ACTIVOS\nSin dato\nSUEÑO DE DISPOSITIVO\nSin dato\nFC EN REPOSO\nSin dato\n\nSe presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.\n\nALERTAS EXPLICABLES\n\nQué requiere atención\n\nCALIDAD DE LOS DATOS\n\nSin historial suficiente de ejecución\n\nTodavía no hay una ejecución confirmada para interpretar progreso o carga.\n\nMantener el dato como ausente; no convertirlo en cero.\nInformación\n\nCALIDAD DE LOS DATOS\n\nDatos todavía limitados\n\nLa interpretación se basa en pocos registros confirmados.\n\nMostrar tendencias con cautela y priorizar recolección consistente.\nInformación\nNavegación IBERFIT\nSeleccionar expediente",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "actividad",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Actividad, hábitos y dispositivos",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nActividad, hábitos y dispositivos\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nACTIVIDAD Y CONTEXTO\n\nRegistros de bienestar, hábitos y dispositivos\n\nEl registro de bienestar sigue siendo la fuente principal de contexto. Los datos de dispositivos aportan tendencias objetivas, nunca diagnósticos ni decisiones automáticas.\n\nÚltimo registro de bienestar disponible\nFunción disponible: Registros de bienestar\n\nEstá preparada para guardar con confirmación segura.\n\nREGISTRO DE BIENESTAR\n\nCómo estás hoy\nEnergía (0–10)\nSueño (0–10)\nEstrés (0–10)\nDolor (0–10)\nObservaciones\nGuardar borrador\nEnviar registro de bienestar\n\nÚLTIMO REGISTRO CONFIRMADO\n\nSin fecha\n\nDisponible entre los registros confirmados.\n\nDATOS DE DISPOSITIVOS\n\nResumen de los últimos 7 días\n\nNo hay conexiones remotas confirmadas.\n\nSin datos\nPASOS MEDIOS\nSin dato\n0 días con datos\nACTIVIDAD\nSin dato\nPromedio diario disponible\nSUEÑO OBJETIVO\nSin dato\nDato de dispositivo, no percepción\nFC EN REPOSO\nSin dato\nCalidad limitada\nVFC MEDIA\nSin dato\nENERGÍA ACTIVA\nSin dato\nENTRENAMIENTO REGISTRADO\nSin dato\nFUENTES\nSin fuentes\n\nIBERFIT muestra procedencia, fecha y calidad. No transforma datos de dispositivos conectados en indicaciones clínicas ni progresa cargas sin revisión del entrenador.\n\nCONTROL DEL CLIENTE\n\nConexiones de dispositivos\n\nEl cliente decide qué fuentes comparte, puede pausar la sincronización y conserva el control de sus permisos. El entrenador recibe únicamente resúmenes confirmados.\n\nARQUITECTURA PREPARADA\n\nPlan gratuito de integraciones\n\nSolo se habilitan rutas sin coste confirmado. Las demás permanecen visibles como arquitectura, pero bloqueadas.\n\nCoste cero\n\nIOS · COSTE CERO\n\nApple Health\n\nArquitectura preservada; activación pausada por la regla de coste cero\n\nEn pausa por coste\n\nANDROID · COSTE CERO\n\nHealth Connect\n\nPreparado para desarrollo gratuito; requiere puente móvil real\n\nPreparación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGarmin Connect\n\nNo se activará mientras requiera acceso de socio o licencia\n\nNo activar\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGoogle Health API · Fitbit y Pixel Watch\n\nLa autorización externa está preparada, pero requiere una revisión antes de activarse\n\nEvaluación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nOura\n\nEn espera hasta confirmar una vía gratuita\n\nEn espera\n\nNAVEGADOR · COSTE CERO\n\nArchivo normalizado IBERFIT\n\nDisponible ahora sin coste adicional\n\nDisponible\nFunción disponible: Hábitos\n\nEstá preparada para guardar con confirmación segura.\n\nENTRENADOR\n\nDefinir hábito\nNombre\nObjetivo\nUnidad\nFrecuencia\nDiario\nSemanal\nDías específicos\nDescripción\nGuardar borrador\nPublicar hábito\n\nSEGUIMIENTO\n\nHábitos activos\n1 hábito\nCaminar\n\nActivo · Sin fecha\n\nActivo\nRegistrar hoy\nNavegación IBERFIT\nSeleccionar expediente\nRegistrar hoy: Caminar",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "informes",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Informes",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nInformes\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nDOCUMENTACIÓN\n\nInformes y publicación\n\nAprobar y publicar son decisiones separadas. Un informe aprobado sigue siendo interno hasta su publicación.\n\n2 informes\n\nSIN FECHA\n\nInforme IRI de julio\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nInforme IRI de julio\n\nEvolución estable durante el periodo.\n\n1 jul 2026 – 20 jul 2026\n\nContenido completo que recibirá el cliente\nConclusiones\n\nLa tolerancia al trabajo ha mejorado.\n\nPróximos pasos\n\nMantener la progresión revisada.\n\nGestionar publicación\n\nSIN FECHA\n\nInforme de evolución aprobado\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nInforme de evolución aprobado\n\nInforme de evolución preparado por tu entrenador.\n\nGestionar publicación\n\nEDICIÓN PROFESIONAL\n\nPreparar informe IBERFIT\n\nEl informe se aprobará como contenido interno. No será visible para el cliente hasta una publicación posterior y expresa.\n\nFormato A4 premium\nTítulo\nInicio del periodo\nFin del periodo\nResumen del periodo\nConclusiones\nRecomendaciones y próximos pasos\n\nREVISIÓN PREVIA\n\nComprobación editorial\n\nConfirma que el texto distingue datos objetivos, interpretación profesional y próximos pasos; evita diagnósticos y afirmaciones no respaldadas.\n\nHe revisado íntegramente el contenido y confirmo que está listo para aprobación interna.\nAprobar informe interno\nNavegación IBERFIT\nSeleccionar expediente\nVista previa para el cliente\nVista previa para el cliente\nCriterios de revisión del informe",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "notas",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Notas privadas del entrenador",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nNotas privadas del entrenador\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nUSO INTERNO\n\nNotas privadas del entrenador\n\nNunca son visibles para el cliente y requieren permisos internos específicos.\n\n1 nota\nFunción disponible: Notas privadas\n\nEstá preparada para guardar con confirmación segura.\n\nSIN FECHA\n\nSeguimiento\n\nContenido protegido para el equipo de entrenamiento y administración.\n\nActivo\nNueva nota\nGuardar nota privada\nNavegación IBERFIT\nSeleccionar expediente",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "inteligencia",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Inteligencia IBERFIT",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nInteligencia IBERFIT\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nMOTOR IBERFIT\n\nInteligencia con criterio\n\nUsa adherencia, recuperación y carga histórica. Nunca publica ni progresa cargas automáticamente.\n\nContexto disponible\n\nLA IA PROPONE\n\nGenerar propuesta de sesión\nObjetivo\nDuración (min)\nExperiencia\nInicial\nIntermedio\nAvanzado\nModalidad\nHíbrido\nEn línea\nPresencial\nEdad calculada\n\nSe calcula automáticamente desde la fecha de nacimiento del expediente.\n\nMaterial\nGenerar propuesta revisable\n\nHISTORIAL\n\nPropuestas confirmadas\nI\nSin propuestas remotas\n\nNo hay información confirmada dentro del alcance visible.\nNavegación IBERFIT\nSeleccionar expediente",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "biblioteca",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Biblioteca visual",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nBiblioteca visual\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nBIBLIOTECA VISUAL\n\nEjercicios IBERFIT\n\nCatálogo validado, sin escritura libre en las sesiones.\n\n367 ejercicios\nBuscar ejercicio\nA\nAbducción de cadera lateral\n\nactivación glúteo · sin equipo\n\nC\nCaminata lateral con banda\n\nactivación glúteo · banda\n\nA\nApertura de cadera en decúbito lateral\n\nactivación glúteo · sin equipo\n\nA\nApertura de cadera en decúbito lateral con banda\n\nactivación glúteo · banda\n\nC\nCaminata en semisentadilla con banda\n\nactivación glúteo · banda\n\nP\nPatada de glúteo en cuadrupedia\n\nactivación glúteo · sin equipo\n\nA\nApretón isométrico de agarre\n\nagarre · ejercitador de agarre\n\nP\nPinza de agarre con discos\n\nagarre · disco\n\nE\nExtensión de muñeca\n\nantebrazo · mancuerna\n\nF\nFlexión de muñeca\n\nantebrazo · mancuerna\n\nP\nPronación y supinación de antebrazo\n\nantebrazo · mancuerna\n\nR\nRueda abdominal desde rodillas\n\nanti-extensión · rueda abdominal\n\nP\nPlancha en cuadrupedia\n\nanti-extensión · sin equipo\n\nS\nSierra corporal\n\nanti-extensión · deslizadores\n\nI\nInsecto muerto\n\nanti-extensión · sin equipo\n\nI\nInsecto muerto con banda\n\nanti-extensión · banda\n\nI\nInsecto muerto con balón de estabilidad\n\nanti-extensión · balón de estabilidad\n\nP\nPosición hueca isométrica\n\nanti-extensión · sin equipo\n\nP\nPosición hueca isométrica adaptada\n\nanti-extensión · sin equipo\n\nB\nBalanceos en posición hueca\n\nanti-extensión · sin equipo\n\nS\nSentado en L asistido\n\nanti-extensión · paralelas\n\nE\nEscalador\n\nanti-extensión · sin equipo\n\nE\nEscalador lento\n\nanti-extensión · sin equipo\n\nP\nPlancha frontal alta\n\nanti-extensión · sin equipo\n\nP\nPlancha frontal antebrazos\n\nanti-extensión · sin equipo\n\nC\nCírculos sobre balón de estabilidad\n\nanti-extensión · balón de estabilidad\n\nP\nPlancha de Copenhague corta\n\nanti-inclinación · banco\n\nP\nPlancha de Copenhague larga\n\nanti-inclinación · banco\n\nT\nTransporte unilateral sobre la cabeza\n\nanti-inclinación · pesa rusa\n\nP\nPlancha lateral\n\nanti-inclinación · sin equipo\n\nP\nPlancha lateral con abducción\n\nanti-inclinación · sin equipo\n\nP\nPlancha lateral con rodillas\n\nanti-inclinación · sin equipo\n\nT\nTransporte unilateral tipo maleta\n\nanti-inclinación · mancuerna\n\nS\nSujeción unilateral tipo maleta\n\nanti-inclinación · mancuerna\n\nP\nPlancha en cuadrupedia con toque de hombro\n\nanti-rotación · sin equipo\n\nE\nExtensión cruzada en cuadrupedia\n\nanti-rotación · sin equipo\n\nE\nExtensión cruzada en cuadrupedia con banda\n\nanti-rotación · banda\n\nE\nExtensión cruzada en cuadrupedia con pausa\n\nanti-rotación · sin equipo\n\nE\nEmpuje Pallof con paso lateral\n\nanti-rotación · banda\n\nE\nEmpuje Pallof de pie\n\nanti-rotación · banda\n\nE\nEmpuje Pallof en polea\n\nanti-rotación · polea\n\nE\nEmpuje Pallof medio arrodillado\n\nanti-rotación · banda\n\nE\nEmpuje Pallof sobre la cabeza\n\nanti-rotación · banda\n\nP\nPlancha frontal con arrastre\n\nanti-rotación · mancuerna\n\nB\nBisagra de cadera a pared\n\nbisagra · pared\n\nB\nBisagra de cadera con palo\n\nbisagra · palo\n\nB\nBuenos días con banda\n\nbisagra · banda\n\nB\nBuenos días con barra\n\nbisagra · barra\n\nB\nBuenos días sentado\n\nbisagra · barra\n\nT\nTracción unilateral entre piernas en polea\n\nbisagra · polea\n\nF\nFlexión femoral con balón de estabilidad\n\nbisagra · balón de estabilidad\n\nF\nFlexión femoral deslizante\n\nbisagra · deslizadores\n\nF\nFlexión femoral en máquina\n\nbisagra · máquina\n\nF\nFlexión femoral unilateral en máquina\n\nbisagra · máquina\n\nE\nExtensión de cadera en banco 45°\n\nbisagra · banco romano\n\nE\nExtensión lumbar en banco 45°\n\nbisagra · banco romano\n\nB\nBisagra de cadera con saco\n\nbisagra · saco\n\nE\nEmpuje de cadera con banda\n\nbisagra · banda\n\nE\nEmpuje de cadera con barra\n\nbisagra · barra\n\nE\nEmpuje de cadera con peso corporal\n\nbisagra · banco\n\nE\nEmpuje de cadera unilateral\n\nbisagra · banco\n\nI\nIsométrico de puente de glúteos\n\nbisagra · sin equipo\n\nB\nBalanceo con pesa rusa\n\nbisagra · pesa rusa\n\nM\nMarcha de puente de glúteos\n\nbisagra · sin equipo\n\nF\nFlexión nórdica de isquiotibiales asistida\n\nbisagra · banda\n\nF\nFlexión nórdica excéntrica de isquiotibiales\n\nbisagra · soporte\n\nP\nPeso muerto con banda\n\nbisagra · banda\n\nP\nPeso muerto con barra hexagonal\n\nbisagra · barra hexagonal\n\nP\nPeso muerto convencional con barra\n\nbisagra · barra\n\nP\nPeso muerto desde bloques\n\nbisagra · barra\n\nP\nPeso muerto con pesa rusa desde el suelo\n\nbisagra · pesa rusa\n\nP\nPeso muerto con barra anclada\n\nbisagra · barra anclada\n\nP\nPeso muerto maleta\n\nbisagra · mancuerna\n\nP\nPeso muerto rumano con barra\n\nbisagra · barra\n\nP\nPeso muerto rumano con pesa rusa\n\nbisagra · pesa rusa\n\nP\nPeso muerto rumano con mancuernas\n\nbisagra · mancuerna\n\nMostrando los 367 ejercicios del catálogo. Escribe para filtrar.\nNavegación IBERFIT\nSeleccionar expediente",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "verificacion",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Centro de verificación",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente QA Integrado\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador QA\n\nENTRENADOR\n\nCentro de verificación\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente QA Integrado\nCliente ajeno\nTodo confirmado\nCerrar sesión\n\nSINCRONIZACIÓN\n\nCentro de verificación\n\nPermite inspeccionar, reintentar o descartar únicamente la copia local. Nunca oculta un conflicto.\n\nSin bloqueos\nPENDIENTES\n0\nCONFLICTOS\n0\nRECHAZADAS\n0\nTOTAL\n0\nI\nTodo confirmado\n\nNo hay operaciones pendientes, conflictos ni rechazos locales.\nNavegación IBERFIT\nSeleccionar expediente",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        }
+      ],
+      "actions": [
+        {
+          "name": "iri",
+          "ok": true
+        },
+        {
+          "name": "plan",
+          "ok": true
+        },
+        {
+          "name": "appointment",
+          "ok": true
+        },
+        {
+          "name": "checkin",
+          "ok": true
+        },
+        {
+          "name": "intelligence",
+          "ok": true
+        },
+        {
+          "name": "library",
+          "ok": true
+        },
+        {
+          "name": "builder",
+          "ok": true
+        },
+        {
+          "name": "approve-plan",
+          "ok": true
+        },
+        {
+          "name": "publish-plan",
+          "ok": true
+        },
+        {
+          "name": "publish-session",
+          "ok": true
+        },
+        {
+          "name": "publish-report",
+          "ok": true
+        },
+        {
+          "name": "approve-report",
+          "ok": true
+        },
+        {
+          "name": "private-note",
+          "ok": true
+        },
+        {
+          "name": "logout-state-cleared",
+          "ok": true
+        }
+      ],
+      "command_count": 10,
+      "privacy": {
+        "role": "coach",
+        "privateNotes": 1,
+        "reports": [
+          "report-1",
+          "report-approved"
+        ],
+        "sessions": [
+          "session-approved",
+          "session-draft",
+          "session-1",
+          "session-2"
+        ],
+        "plans": [
+          "cycle-1",
+          "plan-review",
+          "plan-approved"
+        ],
+        "clientIds": [
+          "57339e70-7a99-48d6-820f-7d4a51f89d9d",
+          "otro-cliente"
+        ],
+        "containsPrivateMarker": true,
+        "containsRaw": true,
+        "identityKeys": [
+          "email",
+          "id",
+          "name",
+          "role"
+        ],
+        "environmentKeys": [
+          "commandRegistry",
+          "name",
+          "reason",
+          "secret",
+          "version"
+        ],
+        "canaryKeys": [
+          "active",
+          "commandRegistry",
+          "scope",
+          "version"
+        ],
+        "remoteRevisionKeys": [
+          "sessions:57339e70-7a99-48d6-820f-7d4a51f89d9d",
+          "sessions:57339e70-7a99-48d6-820f-7d4a51f89d9d0",
+          "sessions:otro-cliente"
+        ],
+        "metricSerial": "{\"checkin\":{\"score\":7},\"progress\":{\"value\":72},\"iri\":{\"score\":72}}",
+        "clientCommandRoles": []
+      },
+      "logout": {
+        "identityCleared": true,
+        "collectionsCleared": true,
+        "operationsCleared": true,
+        "lastAckCleared": true,
+        "privateMarkerAbsent": true,
+        "accessVisible": true
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "screenshot": "qa/rc28_integrated_artifacts/coach_integrated.png",
+      "finalMetrics": {
+        "status": "pass",
+        "overflow": false,
+        "small": 0,
+        "unlabeled": 0,
+        "unnamed": 0,
+        "broken": 0,
+        "placeholders": 0,
+        "route": "",
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "IBERFIT\n\nEntrenamiento personal con criterio\n\nDiagnóstico, planificación, control y seguimiento.\n\nSesión cerrada de forma segura.\n\nCorreo\nContraseña\nEntrar\nAcceso restringido a las cuentas autorizadas para esta revisión.",
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "ok": true
+    },
+    {
+      "role": "client",
+      "routes": [
+        {
+          "route": "hoy",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Hoy en IBERFIT",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nHoy en IBERFIT\nTU ACOMPAÑAMIENTO\nCliente QA Integrado\nHíbrido\nCerrar sesión\n\nIBERFIT · HOY\n\nTu acompañamiento, Cliente QA Integrado\n\nRevisa tu próxima sesión, planificación y evolución confirmada.\n\nESTADO\nConfirmado\nSESIONES HOY\n2\nAgenda confirmada\nPRÓXIMA SESIÓN\n21 jul 2026, 2:13\nSesión guiada A\nTU MODALIDAD\nHíbrido\nSegún tus permisos de acceso\nCONFLICTOS\n0\nSin bloqueos\n\nAGENDA\n\nSesiones de hoy\n2 confirmadas\n\n21 JUL 2026, 2:13\n\nSesión guiada A\n\nSin modalidad\n\nConfirmado\n\n21 JUL 2026, 2:13\n\nSesión guiada B\n\nSin modalidad\n\nConfirmado\n\nSIGUIENTE PASO\n\nSesión guiada A\n\n21 jul 2026, 2:13\n\nÚLTIMO IRI\n72\nConfirmado\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "planificacion",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Planificación",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nPlanificación\nTU ACOMPAÑAMIENTO\nCliente QA Integrado\nHíbrido\nCerrar sesión\n\nPLANIFICACIÓN\n\nTu planificación\n\nAquí tienes tu plan actual y las sesiones que ya están listas para ti.\n\n2 sesiones\n\nCICLOS\n\nTu plan vigente\n\nTU PLAN\n\nCiclo base de fuerza\n\nFuerza y autonomía\n\n1 jul 2026 – 31 ago 2026\n\nSESIONES\n\nSesiones de tu plan\n\nSESIÓN PREPARADA\n\nFuerza global · Sesión A\n\nTrabajo global controlado.\n\nVer detalles de la sesión\nComenzar esta sesión\n\nSESIÓN PREPARADA\n\nFuerza global · Sesión B\n\nEstabilidad y control.\n\nVer detalles de la sesión\nComenzar esta sesión\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "sesion",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Sesiones",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nSesiones\nTU ACOMPAÑAMIENTO\nCliente QA Integrado\nHíbrido\nCerrar sesión\n\nMOTOR DE SESIONES\n\nTus sesiones guiadas\n\nElige la sesión preparada para ti y sigue las indicaciones paso a paso.\n\nIniciar sesión guiada\n\nDISPONIBLES\n\nSesiones para realizar\n\nSESIÓN PREPARADA\n\nFuerza global · Sesión A\n\nTrabajo global controlado.\n\nVer detalles de la sesión\nComenzar esta sesión\n\nSESIÓN PREPARADA\n\nFuerza global · Sesión B\n\nEstabilidad y control.\n\nVer detalles de la sesión\nComenzar esta sesión\n\nHISTORIAL\n\nTus sesiones realizadas\nI\nSin ejecuciones confirmadas\n\nNo hay información confirmada dentro del alcance visible.\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "progreso",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Progreso",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nProgreso\nTU ACOMPAÑAMIENTO\nCliente QA Integrado\nHíbrido\nCerrar sesión\n\nSEGUIMIENTO CONFIRMADO\n\nProgreso y adherencia\n\nVentana de 28 días · calidad del dato limitada.\n\nSeguimiento activo\nADHERENCIA\nSin dato\n0 de 0 sesiones\nRPE MEDIO\nSin dato\nSolo ejecuciones confirmadas\nVOLUMEN MEDIO\nSin dato\nCarga × repeticiones cuando existe\nCAMBIO IRI\nSin dato\nActual 72\n\nCRONOLOGÍA\n\nEvolución registrada\n1 eventos\n\n18 JUL 2026\n\nEvaluación IRI\n\nPuntuación 72\n\nRECUPERACIÓN\n\nPromedio de registros de bienestar\nENERGÍA\nSin dato\nSUEÑO\nSin dato\nESTRÉS\nSin dato\nDOLOR\nSin dato\n\nLa aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.\n\nACTIVIDAD DE DISPOSITIVO\n\nTendencia objetiva complementaria\nSin actualización reciente\nPASOS MEDIOS\nSin dato\nMINUTOS ACTIVOS\nSin dato\nSUEÑO DE DISPOSITIVO\nSin dato\nFC EN REPOSO\nSin dato\n\nSe presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.\n\nALERTAS EXPLICABLES\n\nQué requiere atención\n\nCALIDAD DE LOS DATOS\n\nSin historial suficiente de ejecución\n\nTodavía no hay una ejecución confirmada para interpretar progreso o carga.\n\nMantener el dato como ausente; no convertirlo en cero.\nInformación\n\nCALIDAD DE LOS DATOS\n\nDatos todavía limitados\n\nLa interpretación se basa en pocos registros confirmados.\n\nMostrar tendencias con cautela y priorizar recolección consistente.\nInformación\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "actividad",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Actividad, hábitos y dispositivos",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nActividad, hábitos y dispositivos\nTU ACOMPAÑAMIENTO\nCliente QA Integrado\nHíbrido\nCerrar sesión\n\nACTIVIDAD Y CONTEXTO\n\nRegistros de bienestar, hábitos y dispositivos\n\nEl registro de bienestar sigue siendo la fuente principal de contexto. Los datos de dispositivos aportan tendencias objetivas, nunca diagnósticos ni decisiones automáticas.\n\nÚltimo registro de bienestar disponible\nFunción disponible: Registros de bienestar\n\nEstá preparada para guardar con confirmación segura.\n\nREGISTRO DE BIENESTAR\n\nCómo estás hoy\nEnergía (0–10)\nSueño (0–10)\nEstrés (0–10)\nDolor (0–10)\nObservaciones\nGuardar borrador\nEnviar registro de bienestar\n\nÚLTIMO REGISTRO CONFIRMADO\n\nSin fecha\n\nDisponible entre los registros confirmados.\n\nDATOS DE DISPOSITIVOS\n\nResumen de los últimos 7 días\n\nNo hay conexiones remotas confirmadas.\n\nSin datos\nPASOS MEDIOS\nSin dato\n0 días con datos\nACTIVIDAD\nSin dato\nPromedio diario disponible\nSUEÑO OBJETIVO\nSin dato\nDato de dispositivo, no percepción\nFC EN REPOSO\nSin dato\nCalidad limitada\nVFC MEDIA\nSin dato\nENERGÍA ACTIVA\nSin dato\nENTRENAMIENTO REGISTRADO\nSin dato\nFUENTES\nSin fuentes\n\nIBERFIT muestra procedencia, fecha y calidad. No transforma datos de dispositivos conectados en indicaciones clínicas ni progresa cargas sin revisión del entrenador.\n\nPRIVACIDAD PRIMERO\n\nRevisar una exportación\nSolo vista previa local · gratuito\n\nLa importación local permite revisar el formato sin crear cuentas ni enviar el archivo. Nada se incorpora al expediente hasta una confirmación posterior y explícita.\n\nOrigen del archivo\nArchivo normalizado IBERFIT\nExportación Health Connect\nExportación Apple Health\nExportación Google Health API / Fitbit\nExportación Oura\nExportación Garmin\nArchivo JSON o CSV\nDescargar plantilla\nAnalizar archivo\nLimpiar vista previa\n\nARQUITECTURA PREPARADA\n\nPlan gratuito de integraciones\n\nSolo se habilitan rutas sin coste confirmado. Las demás permanecen visibles como arquitectura, pero bloqueadas.\n\nCoste cero\n\nIOS · COSTE CERO\n\nApple Health\n\nArquitectura preservada; activación pausada por la regla de coste cero\n\nEn pausa por coste\n\nANDROID · COSTE CERO\n\nHealth Connect\n\nPreparado para desarrollo gratuito; requiere puente móvil real\n\nPreparación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGarmin Connect\n\nNo se activará mientras requiera acceso de socio o licencia\n\nNo activar\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGoogle Health API · Fitbit y Pixel Watch\n\nLa autorización externa está preparada, pero requiere una revisión antes de activarse\n\nEvaluación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nOura\n\nEn espera hasta confirmar una vía gratuita\n\nEn espera\n\nNAVEGADOR · COSTE CERO\n\nArchivo normalizado IBERFIT\n\nDisponible ahora sin coste adicional\n\nDisponible\nFunción no disponible todavía: Hábitos\n\nPuedes conservar el borrador en este dispositivo; no se mostrará como confirmado hasta que la función esté disponible.\n\nSEGUIMIENTO\n\nHábitos activos\n1 hábito\nCaminar\n\nActivo · Sin fecha\n\nActivo\nRegistrar hoy\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nRegistrar hoy: Caminar\nNavegación rápida y completa",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        },
+        {
+          "route": "informes",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Informes",
+            "documentLanguage": "es-ES",
+            "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nInformes\nTU ACOMPAÑAMIENTO\nCliente QA Integrado\nHíbrido\nCerrar sesión\n\nDOCUMENTACIÓN\n\nTus informes IBERFIT\n\nConsulta tus informes de evolución y los próximos pasos acordados con tu entrenador.\n\n1 informe\n\nTU INFORME\n\nInforme IRI de julio\n\nEvolución estable durante el periodo.\n\n1 jul 2026 – 20 jul 2026\n\nLeer el informe\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+            "forbiddenLanguageHits": [],
+            "clientEditorialHits": []
+          }
+        }
+      ],
+      "actions": [
+        {
+          "name": "client-checkin",
+          "ok": true
+        },
+        {
+          "name": "selected-session",
+          "ok": true
+        },
+        {
+          "name": "session-start",
+          "ok": true
+        },
+        {
+          "name": "session-finish",
+          "ok": true
+        },
+        {
+          "name": "logout-state-cleared",
+          "ok": true
+        }
+      ],
+      "command_count": 5,
+      "privacy": {
+        "role": "client",
+        "privateNotes": 0,
+        "reports": [
+          "report-1"
+        ],
+        "sessions": [
+          "session-1",
+          "session-2"
+        ],
+        "plans": [
+          "cycle-1"
+        ],
+        "clientIds": [
+          "57339e70-7a99-48d6-820f-7d4a51f89d9d"
+        ],
+        "containsPrivateMarker": false,
+        "containsRaw": false,
+        "identityKeys": [
+          "clientId",
+          "email",
+          "id",
+          "name",
+          "role"
+        ],
+        "environmentKeys": [
+          "commandRegistry",
+          "name",
+          "reason",
+          "version"
+        ],
+        "canaryKeys": [
+          "active",
+          "scope",
+          "version"
+        ],
+        "remoteRevisionKeys": [
+          "sessions:57339e70-7a99-48d6-820f-7d4a51f89d9d"
+        ],
+        "metricSerial": "{\"checkin\":{\"score\":7},\"progress\":{\"value\":72},\"iri\":{\"score\":72}}",
+        "clientCommandRoles": [
+          "cliente",
+          "cliente",
+          "cliente",
+          "cliente",
+          "cliente",
+          "cliente",
+          "cliente",
+          "cliente",
+          "cliente",
+          "cliente"
+        ]
+      },
+      "logout": {
+        "identityCleared": true,
+        "collectionsCleared": true,
+        "operationsCleared": true,
+        "lastAckCleared": true,
+        "privateMarkerAbsent": true,
+        "accessVisible": true
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "screenshot": "qa/rc28_integrated_artifacts/client_integrated.png",
+      "finalMetrics": {
+        "status": "pass",
+        "overflow": false,
+        "small": 0,
+        "unlabeled": 0,
+        "unnamed": 0,
+        "broken": 0,
+        "placeholders": 0,
+        "route": "",
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "IBERFIT\n\nEntrenamiento personal con criterio\n\nDiagnóstico, planificación, control y seguimiento.\n\nSesión cerrada de forma segura.\n\nCorreo\nContraseña\nEntrar\nAcceso restringido a las cuentas autorizadas para esta revisión.",
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "ok": true
+    }
+  ]
+}

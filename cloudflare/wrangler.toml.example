@@ -1,0 +1,8 @@
+name = "iberfit-m26-canary"
+compatibility_date = "2026-07-01"
+pages_build_output_dir = "dist/m26-prepublicacion-infraestructura-candidate"
+
+[vars]
+M26_PROJECT_REF = "pjhmrhejsoofmouedavw"
+M26_QA_ONLY = "true"
+M26_RELEASE = "RC29"

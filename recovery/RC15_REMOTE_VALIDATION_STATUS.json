@@ -1,0 +1,14 @@
+{
+  "version": "26.0.0-launch-candidate.15",
+  "attempted_at": "2026-07-19T18:56:00Z",
+  "mode": "read_only",
+  "project_ref": "pjhmrhejsoofmouedavw",
+  "connector_available": false,
+  "result": "BLOCKED_BY_DISABLED_CONNECTOR",
+  "catalog_remote_validated": false,
+  "authenticated_roles_validated_remotely": false,
+  "engagement_extension_installed": false,
+  "production_modified": false,
+  "production_deployed": false,
+  "statement": "La candidata permanece fail-closed. No se aplicaron migraciones ni cambios de datos o despliegue."
+}

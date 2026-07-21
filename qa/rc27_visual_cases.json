@@ -1,0 +1,242 @@
+[
+  {
+    "name": "coach_hoy_desktop",
+    "role": "coach",
+    "route": "hoy",
+    "width": 1440,
+    "height": 960,
+    "scenario": "normal"
+  },
+  {
+    "name": "coach_clientes_desktop",
+    "role": "coach",
+    "route": "clientes",
+    "width": 1440,
+    "height": 960,
+    "scenario": "normal"
+  },
+  {
+    "name": "coach_expediente_tablet",
+    "role": "coach",
+    "route": "expediente",
+    "width": 820,
+    "height": 1180,
+    "scenario": "normal"
+  },
+  {
+    "name": "coach_progreso_desktop",
+    "role": "coach",
+    "route": "progreso",
+    "width": 1440,
+    "height": 960,
+    "scenario": "normal"
+  },
+  {
+    "name": "coach_actividad_mobile",
+    "role": "coach",
+    "route": "actividad",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "coach_notas_desktop",
+    "role": "coach",
+    "route": "notas",
+    "width": 1440,
+    "height": 960,
+    "scenario": "normal"
+  },
+  {
+    "name": "coach_verificacion_mobile",
+    "role": "coach",
+    "route": "verificacion",
+    "width": 390,
+    "height": 844,
+    "scenario": "conflict"
+  },
+  {
+    "name": "client_hoy_mobile",
+    "role": "client",
+    "route": "hoy",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "client_progreso_tablet",
+    "role": "client",
+    "route": "progreso",
+    "width": 768,
+    "height": 1024,
+    "scenario": "normal"
+  },
+  {
+    "name": "client_actividad_mobile",
+    "role": "client",
+    "route": "actividad",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "builder_desktop",
+    "role": "coach",
+    "route": "builder",
+    "width": 1440,
+    "height": 960,
+    "scenario": "normal"
+  },
+  {
+    "name": "builder_mobile",
+    "role": "coach",
+    "route": "builder",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "execution_mobile",
+    "role": "client",
+    "route": "execution",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "paused_mobile",
+    "role": "client",
+    "route": "paused",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "feedback_mobile",
+    "role": "client",
+    "route": "feedback",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "coach_actividad_wearable_desktop",
+    "role": "coach",
+    "route": "actividad",
+    "width": 1440,
+    "height": 960,
+    "scenario": "normal"
+  },
+  {
+    "name": "client_actividad_wearable_tablet",
+    "role": "client",
+    "route": "actividad",
+    "width": 768,
+    "height": 1100,
+    "scenario": "normal"
+  },
+  {
+    "name": "client_progreso_wearable_mobile",
+    "role": "client",
+    "route": "progreso",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "client_actividad_preview_mobile",
+    "role": "client",
+    "route": "actividad",
+    "width": 390,
+    "height": 844,
+    "scenario": "preview"
+  },
+  {
+    "name": "coach_verificacion_retry_tablet",
+    "role": "coach",
+    "route": "verificacion",
+    "width": 768,
+    "height": 1024,
+    "scenario": "retry"
+  },
+  {
+    "name": "acceso_confirmando_mobile",
+    "role": "client",
+    "route": "acceso",
+    "width": 390,
+    "height": 844,
+    "scenario": "loading"
+  },
+  {
+    "name": "acceso_error_desktop",
+    "role": "coach",
+    "route": "acceso",
+    "width": 1440,
+    "height": 960,
+    "scenario": "access_error"
+  },
+  {
+    "name": "coach_planificacion_publicacion_desktop",
+    "role": "coach",
+    "route": "planificacion",
+    "width": 1440,
+    "height": 1000,
+    "scenario": "normal"
+  },
+  {
+    "name": "coach_planificacion_publicacion_mobile",
+    "role": "coach",
+    "route": "planificacion",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "coach_sesiones_publicacion_desktop",
+    "role": "coach",
+    "route": "sesion",
+    "width": 1440,
+    "height": 1000,
+    "scenario": "normal"
+  },
+  {
+    "name": "coach_informes_publicacion_desktop",
+    "role": "coach",
+    "route": "informes",
+    "width": 1440,
+    "height": 1050,
+    "scenario": "normal"
+  },
+  {
+    "name": "coach_informes_publicacion_mobile",
+    "role": "coach",
+    "route": "informes",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "client_planificacion_publicada_mobile",
+    "role": "client",
+    "route": "planificacion",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "client_sesiones_publicadas_mobile",
+    "role": "client",
+    "route": "sesion",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  },
+  {
+    "name": "client_informes_publicados_mobile",
+    "role": "client",
+    "route": "informes",
+    "width": 390,
+    "height": 844,
+    "scenario": "normal"
+  }
+]

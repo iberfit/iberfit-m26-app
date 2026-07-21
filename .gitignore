@@ -1,0 +1,32 @@
+# Dependencies and generated build output
+node_modules/
+coverage/
+.tmp/
+tmp/
+*.log
+
+# Generated dist is ignored except the small sealed RC15 evidence required by historical regression tests.
+dist/*
+!dist/m26-launch-candidate/
+!dist/m26-launch-candidate/**
+
+# Secrets and environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local QA artifacts
+qa/**/screenshots/
+qa/**/videos/
+recovery/*_OUTPUT.txt
+recovery/RC29_*.json
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

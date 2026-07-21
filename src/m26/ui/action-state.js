@@ -1,0 +1,7 @@
+const VALID=new Set(['idle','loading','success','error','retry']);
+export function createActionState(initial={}){const state={status:'idle',message:'',attempt:0,...initial};if(!VALID.has(state.status))throw new Error('M26_ACTION_STATE_INVALID');return state;}
+export function beginAction(state){state.status='loading';state.message='';state.attempt+=1;return state;}
+export function succeedAction(state,message='Acción completada'){state.status='success';state.message=message;return state;}
+export function failAction(state,error,{retryable=true}={}){state.status=retryable?'retry':'error';state.message=String(error?.message||error||'No fue posible completar la acción');return state;}
+export async function runAction(state,action){beginAction(state);try{const value=await action();succeedAction(state,value?.queued?'Guardado en este dispositivo · pendiente de sincronización':'Acción completada');return {ok:true,value,state};}catch(error){failAction(state,error,{retryable:![400,401,403,409,422].includes(Number(error?.status))});return {ok:false,error,state};}}
+export function renderActionState(state={status:'idle',message:''}){if(state.status==='idle')return '';const busy=state.status==='loading';return `<div class="m26-action-state is-${state.status}" role="${state.status==='error'||state.status==='retry'?'alert':'status'}" aria-live="polite"${busy?' aria-busy="true"':''}>${state.message|| (busy?'Procesando…':'')}</div>`;}

@@ -1,0 +1,15 @@
+import fs from 'node:fs';import path from 'node:path';
+const root=process.cwd();const checks=[];const check=(name,ok,detail='')=>checks.push({name,ok:Boolean(ok),detail});const read=(p)=>fs.readFileSync(path.join(root,p),'utf8');
+const required=['src/m26/engagement/progress-engine.js','src/m26/engagement/adherence-engine.js','src/m26/engagement/conflict-center.js','src/m26/engagement/activity-capabilities.js','src/m26/engagement/activity-drafts.js','src/m26/engagement/engagement-controller.js','tests/m26_rc10_engagement_progress.test.mjs','docs/ENGAGEMENT_AND_PROGRESS_RC10.md','backend/RC10_ENGAGEMENT_COMMAND_CONTRACT.json'];
+for(const file of required)check(`exists:${file}`,fs.existsSync(path.join(root,file)));
+const route=read('src/m26/modules/route-render.js');const vm=read('src/m26/modules/route-view-model.js');const catalog=read('src/m26/command-catalog.js');const ext=read('src/m26/engagement/activity-capabilities.js');const service=read('src/m26/engagement/command-service.js');const css=read('src/m26/shell/shell.css');
+check('routes-progress-activity-notes-verification',['progreso','actividad','notas','verificacion'].every((x)=>vm.includes(`area==='${x}'`)||vm.includes(`area === '${x}'`)));
+check('render-no-inline-handlers',!/onclick\s*=|onchange\s*=|onsubmit\s*=/i.test(route));
+check('no-blocking-dialogs',!/(?:prompt|alert|confirm)\s*\(/.test([route,vm,ext].join('\n')));
+check('canonical-44-not-extended',!catalog.includes('CHECKIN_REGISTRAR')&&!catalog.includes('NOTA_PRIVADA_CREAR'));
+check('extension-gated',ext.includes('engagementCapabilities')&&service.includes('validatedRuntimeRegistry')&&service.includes('requireFeature')&&service.includes('M26_ENGAGEMENT_BACKEND_REQUIRED')&&route.includes('capabilityNotice'));
+check('absence-not-zero',read('src/m26/engagement/progress-engine.js').includes("adherence:round(adherence,3)")&&read('src/m26/engagement/progress-engine.js').includes("iriCurrent:iriScores[0]??null"));
+check('client-private-notes-hidden',read('src/m26/shell/navigation.js').includes("roles: ['admin', 'coach']"));
+check('touch-targets',/min-height:44px/.test(css));
+check('no-direct-supabase-writes',!/(\.from\(|\/rest\/v1\/|supabase\.from)/.test([route,vm,read('src/m26/engagement/engagement-controller.js')].join('\n')));
+const out={ok:checks.every((x)=>x.ok),passed:checks.filter((x)=>x.ok).length,total:checks.length,checks};fs.writeFileSync(path.join(root,'recovery/m26-engagement-gate-results.json'),JSON.stringify(out,null,2));for(const item of checks)console.log(`${item.ok?'PASS':'FAIL'} ${item.name}${item.detail?` · ${item.detail}`:''}`);if(!out.ok)process.exit(1);

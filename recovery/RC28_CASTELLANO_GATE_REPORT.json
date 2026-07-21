@@ -1,0 +1,76 @@
+{
+  "release": "IBERFIT_M26_CIERRE_LOCAL_MAXIMO_RC28",
+  "version": "26.0.0-cierre-local-maximo.28",
+  "generatedAt": "2026-07-21T01:18:38.887Z",
+  "passed": 16,
+  "total": 16,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "version",
+      "ok": true
+    },
+    {
+      "name": "document-language",
+      "ok": true
+    },
+    {
+      "name": "locale-module",
+      "ok": true
+    },
+    {
+      "name": "visible-status-map",
+      "ok": true
+    },
+    {
+      "name": "visible-source-map",
+      "ok": true
+    },
+    {
+      "name": "visible-platform-map",
+      "ok": true
+    },
+    {
+      "name": "visible-operation-map",
+      "ok": true
+    },
+    {
+      "name": "no-legacy-visible-copy",
+      "ok": true
+    },
+    {
+      "name": "required-human-copy",
+      "ok": true
+    },
+    {
+      "name": "exercise-catalog-castilian",
+      "ok": true
+    },
+    {
+      "name": "spanish-download-names",
+      "ok": true
+    },
+    {
+      "name": "visual-castilian",
+      "ok": true
+    },
+    {
+      "name": "access-states-covered",
+      "ok": true
+    },
+    {
+      "name": "integrated-castilian",
+      "ok": true
+    },
+    {
+      "name": "proper-names-preserved",
+      "ok": true
+    },
+    {
+      "name": "service-worker-cache-bumped",
+      "ok": true
+    }
+  ],
+  "ok": true,
+  "note": "Audita únicamente texto visible y atributos accesibles; los identificadores internos y nombres propios de proveedores se conservan."
+}

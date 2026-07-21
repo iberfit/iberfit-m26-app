@@ -1,0 +1,9 @@
+{
+  "version": "M25.2-RECOVERED",
+  "channel": "recovery-baseline-nondeployable",
+  "builtAt": "2026-07-17",
+  "environment": "DEVELOPMENT",
+  "deployable": false,
+  "derivedFrom": "M25",
+  "purpose": "Physical baseline for M26 reconstruction; not a production candidate"
+}

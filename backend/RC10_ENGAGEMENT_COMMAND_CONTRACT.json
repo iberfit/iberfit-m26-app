@@ -1,0 +1,23 @@
+{
+  "version": "26.0.0-rc10-proposal",
+  "status": "proposal_not_installed",
+  "commands": [
+    {"command_type":"CHECKIN_REGISTRAR","entity_type":"checkin","event_name":"REGISTRAR","allowed_roles":["admin","coach","client"],"requires_reason":false,"requires_preview":false},
+    {"command_type":"CHECKIN_ANULAR","entity_type":"checkin","event_name":"ANULAR","allowed_roles":["admin","coach"],"requires_reason":true,"requires_preview":false},
+    {"command_type":"HABITO_DEFINIR","entity_type":"habit","event_name":"DEFINIR","allowed_roles":["admin","coach"],"requires_reason":false,"requires_preview":false},
+    {"command_type":"HABITO_REGISTRAR","entity_type":"habit_log","event_name":"REGISTRAR","allowed_roles":["admin","coach","client"],"requires_reason":false,"requires_preview":false},
+    {"command_type":"HABITO_ARCHIVAR","entity_type":"habit","event_name":"ARCHIVAR","allowed_roles":["admin","coach"],"requires_reason":true,"requires_preview":false},
+    {"command_type":"NOTA_PRIVADA_CREAR","entity_type":"private_note","event_name":"CREAR","allowed_roles":["admin","coach"],"requires_reason":false,"requires_preview":false},
+    {"command_type":"NOTA_PRIVADA_ACTUALIZAR","entity_type":"private_note","event_name":"ACTUALIZAR","allowed_roles":["admin","coach"],"requires_reason":false,"requires_preview":false},
+    {"command_type":"NOTA_PRIVADA_ARCHIVAR","entity_type":"private_note","event_name":"ARCHIVAR","allowed_roles":["admin","coach"],"requires_reason":true,"requires_preview":false}
+  ],
+  "required_backend_work": [
+    "Create canonical entities and revisioned source tables",
+    "Add command registry rows and transition rules",
+    "Extend preflight and execute functions",
+    "Add bootstrap collections filtered by RLS",
+    "Test admin, coach and client permissions",
+    "Verify private_note is never visible to client role",
+    "Add retention and audit policy"
+  ]
+}

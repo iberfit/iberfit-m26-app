@@ -1,0 +1,634 @@
+[
+  {
+    "command_type": "CLIENTE_INVITAR",
+    "entity_type": "client_access",
+    "event_name": "INVITAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CLIENTE_REENVIAR_INVITACION",
+    "entity_type": "client_access",
+    "event_name": "REENVIAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CLIENTE_CANCELAR_INVITACION",
+    "entity_type": "client_access",
+    "event_name": "CANCELAR_INVITACION",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CLIENTE_ACTIVAR",
+    "entity_type": "client_access",
+    "event_name": "ACTIVAR",
+    "allowed_roles": [
+      "admin",
+      "sistema"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CLIENTE_SUSPENDER",
+    "entity_type": "client_access",
+    "event_name": "SUSPENDER",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CLIENTE_REACTIVAR",
+    "entity_type": "client_access",
+    "event_name": "REACTIVAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CLIENTE_REVOCAR",
+    "entity_type": "client_access",
+    "event_name": "REVOCAR",
+    "allowed_roles": [
+      "admin"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CLIENTE_REINVITAR",
+    "entity_type": "client_access",
+    "event_name": "REINVITAR",
+    "allowed_roles": [
+      "admin"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "IRI_COMPLETAR",
+    "entity_type": "iri",
+    "event_name": "COMPLETAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "IRI_REABRIR",
+    "entity_type": "iri",
+    "event_name": "REABRIR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "IRI_APROBAR",
+    "entity_type": "iri",
+    "event_name": "APROBAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "IRI_SUSTITUIR",
+    "entity_type": "iri",
+    "event_name": "SUSTITUIR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "IRI_ANULAR",
+    "entity_type": "iri",
+    "event_name": "ANULAR",
+    "allowed_roles": [
+      "admin"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "INFORME_APROBAR",
+    "entity_type": "report",
+    "event_name": "APROBAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "INFORME_PUBLICAR",
+    "entity_type": "report",
+    "event_name": "PUBLICAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": true,
+    "enabled": true
+  },
+  {
+    "command_type": "INFORME_RETIRAR",
+    "entity_type": "report",
+    "event_name": "RETIRAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "INFORME_ANULAR",
+    "entity_type": "report",
+    "event_name": "ANULAR",
+    "allowed_roles": [
+      "admin"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "PLAN_VALIDAR",
+    "entity_type": "planning",
+    "event_name": "VALIDAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "PLAN_REABRIR",
+    "entity_type": "planning",
+    "event_name": "REABRIR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "PLAN_APROBAR",
+    "entity_type": "planning",
+    "event_name": "APROBAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "PLAN_PUBLICAR",
+    "entity_type": "planning",
+    "event_name": "PUBLICAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": true,
+    "enabled": true
+  },
+  {
+    "command_type": "PLAN_ARCHIVAR",
+    "entity_type": "planning",
+    "event_name": "ARCHIVAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CITA_CREAR",
+    "entity_type": "appointment",
+    "event_name": "CREAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CITA_CONFIRMAR",
+    "entity_type": "appointment",
+    "event_name": "CONFIRMAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "cliente"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CITA_REPROGRAMAR",
+    "entity_type": "appointment",
+    "event_name": "REPROGRAMAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CITA_CANCELAR",
+    "entity_type": "appointment",
+    "event_name": "CANCELAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "cliente"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CITA_COMPLETAR",
+    "entity_type": "appointment",
+    "event_name": "COMPLETAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "SESION_APROBAR",
+    "entity_type": "session",
+    "event_name": "APROBAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "SESION_PUBLICAR",
+    "entity_type": "session",
+    "event_name": "PUBLICAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": true,
+    "enabled": true
+  },
+  {
+    "command_type": "SESION_HABILITAR",
+    "entity_type": "session",
+    "event_name": "HABILITAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "sistema"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "SESION_INICIAR",
+    "entity_type": "session",
+    "event_name": "INICIAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "cliente"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "SESION_COMPLETAR",
+    "entity_type": "session",
+    "event_name": "COMPLETAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "sistema"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "SESION_CANCELAR",
+    "entity_type": "session",
+    "event_name": "CANCELAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "EJECUCION_INICIAR",
+    "entity_type": "session_execution",
+    "event_name": "INICIAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "cliente"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "EJECUCION_GUARDAR_PROGRESO",
+    "entity_type": "session_execution",
+    "event_name": "GUARDAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "cliente"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "EJECUCION_PAUSAR",
+    "entity_type": "session_execution",
+    "event_name": "PAUSAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "cliente"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "EJECUCION_REANUDAR",
+    "entity_type": "session_execution",
+    "event_name": "REANUDAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "cliente"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "EJECUCION_COMPLETAR",
+    "entity_type": "session_execution",
+    "event_name": "COMPLETAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "cliente"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "EJECUCION_CANCELAR",
+    "entity_type": "session_execution",
+    "event_name": "CANCELAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "INTELIGENCIA_GENERAR",
+    "entity_type": "intelligence",
+    "event_name": "GENERAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "INTELIGENCIA_REVISAR",
+    "entity_type": "intelligence",
+    "event_name": "REVISAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "INTELIGENCIA_APROBAR",
+    "entity_type": "intelligence",
+    "event_name": "APROBAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "INTELIGENCIA_DESCARTAR",
+    "entity_type": "intelligence",
+    "event_name": "DESCARTAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "INTELIGENCIA_APLICAR_A_BORRADOR",
+    "entity_type": "intelligence",
+    "event_name": "APLICAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CHECKIN_REGISTRAR",
+    "entity_type": "checkin",
+    "event_name": "REGISTRAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "cliente"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "CHECKIN_ANULAR",
+    "entity_type": "checkin",
+    "event_name": "ANULAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "HABITO_DEFINIR",
+    "entity_type": "habit",
+    "event_name": "DEFINIR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "HABITO_REGISTRAR",
+    "entity_type": "habit_log",
+    "event_name": "REGISTRAR",
+    "allowed_roles": [
+      "admin",
+      "coach",
+      "cliente"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "HABITO_ARCHIVAR",
+    "entity_type": "habit",
+    "event_name": "ARCHIVAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "NOTA_PRIVADA_CREAR",
+    "entity_type": "private_note",
+    "event_name": "CREAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "NOTA_PRIVADA_ACTUALIZAR",
+    "entity_type": "private_note",
+    "event_name": "ACTUALIZAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": false,
+    "requires_preview": false,
+    "enabled": true
+  },
+  {
+    "command_type": "NOTA_PRIVADA_ARCHIVAR",
+    "entity_type": "private_note",
+    "event_name": "ARCHIVAR",
+    "allowed_roles": [
+      "admin",
+      "coach"
+    ],
+    "requires_reason": true,
+    "requires_preview": false,
+    "enabled": true
+  }
+]

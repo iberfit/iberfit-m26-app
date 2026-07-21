@@ -1,0 +1,17 @@
+[
+  {"name":"coach_hoy_desktop","role":"coach","route":"hoy","width":1440,"height":960,"scenario":"normal"},
+  {"name":"coach_clientes_desktop","role":"coach","route":"clientes","width":1440,"height":960,"scenario":"normal"},
+  {"name":"coach_expediente_tablet","role":"coach","route":"expediente","width":820,"height":1180,"scenario":"normal"},
+  {"name":"coach_progreso_desktop","role":"coach","route":"progreso","width":1440,"height":960,"scenario":"normal"},
+  {"name":"coach_actividad_mobile","role":"coach","route":"actividad","width":390,"height":844,"scenario":"normal"},
+  {"name":"coach_notas_desktop","role":"coach","route":"notas","width":1440,"height":960,"scenario":"normal"},
+  {"name":"coach_verificacion_mobile","role":"coach","route":"verificacion","width":390,"height":844,"scenario":"conflict"},
+  {"name":"client_hoy_mobile","role":"client","route":"hoy","width":390,"height":844,"scenario":"normal"},
+  {"name":"client_progreso_tablet","role":"client","route":"progreso","width":768,"height":1024,"scenario":"normal"},
+  {"name":"client_actividad_mobile","role":"client","route":"actividad","width":390,"height":844,"scenario":"normal"},
+  {"name":"builder_desktop","role":"coach","route":"builder","width":1440,"height":960,"scenario":"normal"},
+  {"name":"builder_mobile","role":"coach","route":"builder","width":390,"height":844,"scenario":"normal"},
+  {"name":"execution_mobile","role":"client","route":"execution","width":390,"height":844,"scenario":"normal"},
+  {"name":"paused_mobile","role":"client","route":"paused","width":390,"height":844,"scenario":"normal"},
+  {"name":"feedback_mobile","role":"client","route":"feedback","width":390,"height":844,"scenario":"normal"}
+]

@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+const checks=[];const add=(name,ok)=>checks.push({name,ok:Boolean(ok)});
+const projection=fs.readFileSync('src/m26/security/role-projection.js','utf8');
+const state=fs.readFileSync('src/m26/production-state.js','utf8');
+const sql=fs.readFileSync('backend/RC25_ROLE_SEPARATION_PREFLIGHT_READONLY.sql','utf8');
+add('proyeccion-integrada-en-bootstrap',state.includes('projectCollectionsForRole')&&state.includes('assertClientProjectionSafe'));
+for(const name of ['privateNotes','coachAvailability','intelligenceRuns','domainEvents','wearableSyncRuns'])add(`coleccion-privada-${name}`,projection.includes(`'${name}'`));
+add('publicacion-controlada',projection.includes('PUBLICATION_SCOPED')&&projection.includes('visibleToClient'));
+add('bloqueo-cruce-cliente',projection.includes('M26_CLIENT_CROSS_SCOPE_EXPOSED'));
+add('auditoria-rls-solo-lectura',sql.includes('relrowsecurity')&&sql.includes('auth.uid()'));
+add('sin-mutaciones-sql',!/(insert\s+into|update\s+|delete\s+from|alter\s+table|create\s+policy|drop\s+)/i.test(sql));
+const failed=checks.filter(x=>!x.ok);console.log(JSON.stringify({gate:'RC25 separación por rol y privacidad',passed:checks.length-failed.length,total:checks.length,checks},null,2));if(failed.length)process.exit(1);

@@ -1,0 +1,71 @@
+{
+  "release": "IBERFIT_M26_PREPUBLICACION_INFRA_RC29",
+  "version": "26.0.0-prepublicacion-infraestructura.29",
+  "generatedAt": "2026-07-21T01:49:13.816Z",
+  "status": "not_deployed",
+  "deployable": false,
+  "productionModified": false,
+  "productionDeployed": false,
+  "functionalBaseline": "RC28",
+  "repositoryHardening": "RC29",
+  "uiSourceProvenance": {
+    "release": "IBERFIT_M26_PREPUBLICACION_INFRA_RC29",
+    "functionalBaseline": "RC28",
+    "generatedAt": "2026-07-21T01:45:06.512Z",
+    "compared": 96,
+    "allowedChanges": [
+      "public/m26/runtime-config.js"
+    ],
+    "changed": [],
+    "missing": [],
+    "visibleUiCodeChanged": false,
+    "ok": true
+  },
+  "tests": {
+    "total": 293,
+    "passed": 293,
+    "failed": 0
+  },
+  "prepublicationGate": {
+    "passed": 24,
+    "total": 24,
+    "failed": 0
+  },
+  "visualQaInherited": {
+    "passed": 40,
+    "total": 40,
+    "failed": 0
+  },
+  "integratedQaInherited": {
+    "passed": 2,
+    "total": 2
+  },
+  "castellanoQaInherited": {
+    "passed": 16,
+    "total": 16
+  },
+  "build": {
+    "files": 102,
+    "totalBytes": 1062505,
+    "budgetOk": true,
+    "modules": 64,
+    "missingModules": 0
+  },
+  "baseCommands": 44,
+  "extendedContractCommands": 52,
+  "catalogExercises": 367,
+  "runtimeEnabled": false,
+  "qaOnly": true,
+  "remoteGateMutations": false,
+  "pendingExternalGates": [
+    "Repositorio privado de aplicación",
+    "Acceso Supabase disponible",
+    "Comparación autenticada exacta de 52 comandos",
+    "Cuentas QA Coach y dos Clientes",
+    "RLS y payloads por identidad",
+    "Canario Cloudflare",
+    "Dispositivos físicos",
+    "Rollback real"
+  ],
+  "packageFiles": 2513
+}

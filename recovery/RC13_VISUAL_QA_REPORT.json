@@ -1,0 +1,611 @@
+{
+  "version": "26.0.0-recovery.13",
+  "generated_at": "2026-07-19T18:08:47Z",
+  "chromium": "/usr/bin/chromium",
+  "case_count": 15,
+  "passed": 15,
+  "failed": 0,
+  "contact_sheet": "qa/rc13_visual_artifacts/RC13_CONTACT_SHEET.png",
+  "results": [
+    {
+      "case": {
+        "name": "coach_hoy_desktop",
+        "role": "coach",
+        "route": "hoy",
+        "width": 1440,
+        "height": 960,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_hoy_desktop",
+      "load_ms": 104.1,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 164,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 95.78125,
+        "topbarBottom": 95.78125,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/coach_hoy_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_clientes_desktop",
+        "role": "coach",
+        "route": "clientes",
+        "width": 1440,
+        "height": 960,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_clientes_desktop",
+      "load_ms": 40.53,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 112,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 95.78125,
+        "topbarBottom": 95.78125,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/coach_clientes_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_expediente_tablet",
+        "role": "coach",
+        "route": "expediente",
+        "width": 820,
+        "height": 1180,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_expediente_tablet",
+      "load_ms": 49.76,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 820,
+        "viewportWidth": 820,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 142,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 147.578125,
+        "topbarBottom": 147.578125,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/coach_expediente_tablet.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_progreso_desktop",
+        "role": "coach",
+        "route": "progreso",
+        "width": 1440,
+        "height": 960,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_progreso_desktop",
+      "load_ms": 44.88,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 188,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 95.78125,
+        "topbarBottom": 95.78125,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/coach_progreso_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_actividad_mobile",
+        "role": "coach",
+        "route": "actividad",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_actividad_mobile",
+      "load_ms": 46.42,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 159,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 207.96875,
+        "topbarBottom": 207.96875,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/coach_actividad_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_notas_desktop",
+        "role": "coach",
+        "route": "notas",
+        "width": 1440,
+        "height": 960,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_notas_desktop",
+      "load_ms": 37.05,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 105,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 95.78125,
+        "topbarBottom": 95.78125,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/coach_notas_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_verificacion_mobile",
+        "role": "coach",
+        "route": "verificacion",
+        "width": 390,
+        "height": 844,
+        "scenario": "conflict"
+      },
+      "url": "inline://coach_verificacion_mobile",
+      "load_ms": 55.64,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 129,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 207.96875,
+        "topbarBottom": 207.96875,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/coach_verificacion_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_hoy_mobile",
+        "role": "client",
+        "route": "hoy",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://client_hoy_mobile",
+      "load_ms": 38.95,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 110,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 203.15625,
+        "topbarBottom": 203.15625,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/client_hoy_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_progreso_tablet",
+        "role": "client",
+        "route": "progreso",
+        "width": 768,
+        "height": 1024,
+        "scenario": "normal"
+      },
+      "url": "inline://client_progreso_tablet",
+      "load_ms": 42.84,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 768,
+        "viewportWidth": 768,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 167,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 142.765625,
+        "topbarBottom": 142.765625,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/client_progreso_tablet.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_actividad_mobile",
+        "role": "client",
+        "route": "actividad",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://client_actividad_mobile",
+      "load_ms": 40.92,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 115,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 203.15625,
+        "topbarBottom": 203.15625,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/client_actividad_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "builder_desktop",
+        "role": "coach",
+        "route": "builder",
+        "width": 1440,
+        "height": 960,
+        "scenario": "normal"
+      },
+      "url": "inline://builder_desktop",
+      "load_ms": 48.06,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 187,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 95.78125,
+        "topbarBottom": 95.78125,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/builder_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "builder_mobile",
+        "role": "coach",
+        "route": "builder",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://builder_mobile",
+      "load_ms": 41.53,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 187,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 207.96875,
+        "topbarBottom": 207.96875,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/builder_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "execution_mobile",
+        "role": "client",
+        "route": "execution",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://execution_mobile",
+      "load_ms": 40.54,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 115,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 203.15625,
+        "topbarBottom": 203.15625,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/execution_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "paused_mobile",
+        "role": "client",
+        "route": "paused",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://paused_mobile",
+      "load_ms": 34.41,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 78,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 203.15625,
+        "topbarBottom": 203.15625,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/paused_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "feedback_mobile",
+        "role": "client",
+        "route": "feedback",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://feedback_mobile",
+      "load_ms": 36.84,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 83,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 203.15625,
+        "topbarBottom": 203.15625,
+        "qa": null
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc13_visual_artifacts/feedback_mobile.png",
+      "ok": true
+    }
+  ]
+}

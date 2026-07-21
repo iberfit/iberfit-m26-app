@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+const checks=[];const check=(name,ok,detail='')=>checks.push({name,ok:Boolean(ok),detail});
+const read=(path)=>fs.readFileSync(path,'utf8');
+const files=['src/m26/platform/key-value-store.js','src/m26/platform/offline-command-repository.js','src/m26/workflows/session-recovery.js','src/m26/workflows/session-timer.js','src/m26/qa/authenticated-canary.js','qa/rc9_authenticated_canary.mjs'];
+for(const file of files)check(`Existe ${file}`,fs.existsSync(file));
+const recovery=read('src/m26/workflows/session-recovery.js');const execution=read('src/m26/workflows/session-execution.js');const bus=read('src/m26/command-bus.js');const sw=read('public/m26/sw.js');const ui=read('src/m26/workflows/session-ui.js');
+check('Snapshots prohíben credenciales',/CREDENTIALS_FORBIDDEN/.test(recovery)&&/FORBIDDEN_CREDENTIAL_KEYS/.test(recovery)&&/containsCredentialKeys/.test(recovery)&&/credentialKey/.test(recovery));
+check('Persistencia está aislada por usuario',/M26_RECOVERY_OWNER_REQUIRED/.test(recovery)&&/M26_OPERATION_OWNER_REQUIRED/.test(read('src/m26/platform/offline-command-repository.js')));
+check('Revisión remota superior genera conflicto',/REMOTE_REVISION_AHEAD/.test(recovery));
+check('Cola expone enqueue y flushPending',/async function enqueue/.test(bus)&&/(?:async\s+)?function flushPending/.test(bus));
+check('Estados de cierre pendiente no dicen confirmado',/pendientes de sincronización/.test(ui)&&/syncStatus===\'clean\'/.test(ui));
+check('Payload remoto elimina metadatos locales',/delete out\.syncStatus/.test(execution)&&/delete out\.pendingOperationIds/.test(execution));
+check('Temporizadores usan marcas absolutas',/restUntil/.test(read('src/m26/workflows/session-timer.js'))&&/activeSince/.test(read('src/m26/workflows/session-timer.js')));
+check('Service worker RC9 o posterior y sin mutaciones en caché',/m26-rc(?:9|1[0-9])/.test(sw)&&/request\.method!==\'GET\'/.test(sw));
+check('Harness no contiene contraseñas',!/(password\s*[:=]\s*[\'\"][^$])/.test(read('qa/rc9_authenticated_canary.mjs')));
+check('Sin escrituras directas Supabase',![...files,'src/m26/workflows/session-controller.js'].some((file)=>/supabase\s*\.\s*from\(|\.from\(/.test(read(file))));
+const passed=checks.filter(x=>x.ok).length,failed=checks.length-passed;fs.mkdirSync('recovery',{recursive:true});fs.writeFileSync('recovery/m26-offline-canary-gate-results.json',JSON.stringify({passed,failed,checks},null,2));for(const item of checks)console.log(`${item.ok?'PASS':'FAIL'} ${item.name}`);console.log(`\n${passed}/${checks.length} PASS`);if(failed)process.exit(1);

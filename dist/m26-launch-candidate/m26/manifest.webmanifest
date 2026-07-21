@@ -1,0 +1,44 @@
+{
+  "name": "IBERFIT · Entrenamiento personal con criterio",
+  "short_name": "IBERFIT",
+  "description": "Diagnóstico, planificación, control y seguimiento.",
+  "id": "/m26/",
+  "start_url": "/m26/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#07150f",
+  "theme_color": "#0d2419",
+  "lang": "es-CL",
+  "orientation": "any",
+  "categories": [
+    "fitness",
+    "health",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/m26/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/m26/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/m26/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/m26/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

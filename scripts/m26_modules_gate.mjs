@@ -1,0 +1,28 @@
+import { readFile, readdir } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const modulesRoot = path.join(root, 'src', 'm26', 'modules');
+const shellController = await readFile(path.join(root, 'src', 'm26', 'shell', 'shell-controller.js'), 'utf8');
+const css = await readFile(path.join(root, 'src', 'm26', 'shell', 'shell.css'), 'utf8');
+const entries = await readdir(modulesRoot, { withFileTypes: true });
+const content = Object.fromEntries(await Promise.all(entries.filter(e=>e.isFile()).map(async e=>[e.name, await readFile(path.join(modulesRoot,e.name),'utf8')])));
+const joined = Object.values(content).join('\n');
+const checks=[]; const failed=[];
+function check(name, ok, detail='') { checks.push({name,ok,detail}); if(!ok) failed.push(name); }
+for (const name of ['domain-selectors.js','route-view-model.js','route-render.js','index.js']) check(`Existe ${name}`, Boolean(content[name]));
+check('Hoy usa selectores del store canónico', joined.includes('todayOverview(state'));
+check('Clientes se deriva del bootstrap visible', joined.includes('clientsOverview(state)'));
+check('Expediente se filtra por selectedClientId', joined.includes('clientHealthSummary(state, state.selectedClientId)'));
+check('Cliente filtra por identity.clientId', joined.includes("role === 'client' ? state.identity?.clientId : null"));
+check('No hay fixtures o datos sintéticos activos', !/(CLI-DEMO|USR-DEMO|demo\.iberfit|cliente sint[eé]tico)/i.test(joined));
+check('No hay diálogos bloqueantes', !/\b(prompt|alert|confirm)\s*\(/.test(joined));
+check('No hay manejadores inline', !/onclick\s*=|onchange\s*=/i.test(joined));
+check('No hay acceso directo a tablas Supabase', !/\/rest\/v1\/(?!rpc\/)/.test(joined));
+check('Render escapa contenido remoto', joined.includes('escapeHtml'));
+check('Pendientes no se presentan como confirmados', joined.includes('Ningún cambio se muestra como confirmado'));
+check('Controller abre expediente con guardClientSelection', shellController.includes("[data-m26-select-client]") && shellController.includes("store.navigate('expediente')"));
+check('CSS incluye módulos responsive', css.includes('RC3 · Módulos Hoy, Clientes y Expediente') && css.includes('@media (max-width: 680px)'));
+const report={generatedAt:new Date().toISOString(),pass:failed.length===0,total:checks.length,passed:checks.filter(x=>x.ok).length,failed,checks};
+await import('node:fs/promises').then(({writeFile})=>writeFile(path.join(root,'recovery','m26-modules-gate-results.json'),JSON.stringify(report,null,2)+'\n'));
+console.log(JSON.stringify(report,null,2)); if(failed.length) process.exitCode=1;

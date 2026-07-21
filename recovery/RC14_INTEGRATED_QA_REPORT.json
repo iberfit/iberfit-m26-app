@@ -1,0 +1,348 @@
+{
+  "version": "26.0.0-launch-candidate.15",
+  "generated_at": "2026-07-19T19:03:44Z",
+  "passed": 2,
+  "total": 2,
+  "results": [
+    {
+      "role": "coach",
+      "routes": [
+        {
+          "route": "hoy",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Hoy en IBERFIT"
+          }
+        },
+        {
+          "route": "clientes",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Clientes"
+          }
+        },
+        {
+          "route": "expediente",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Expediente IBERFIT"
+          }
+        },
+        {
+          "route": "iri",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Diagnóstico IRI"
+          }
+        },
+        {
+          "route": "planificacion",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Planificación"
+          }
+        },
+        {
+          "route": "agenda",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Agenda"
+          }
+        },
+        {
+          "route": "sesion",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Sesiones"
+          }
+        },
+        {
+          "route": "progreso",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Progreso"
+          }
+        },
+        {
+          "route": "actividad",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Check-ins y hábitos"
+          }
+        },
+        {
+          "route": "informes",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Informes"
+          }
+        },
+        {
+          "route": "notas",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Notas privadas del Coach"
+          }
+        },
+        {
+          "route": "inteligencia",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Inteligencia IBERFIT"
+          }
+        },
+        {
+          "route": "biblioteca",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Biblioteca visual"
+          }
+        },
+        {
+          "route": "verificacion",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Centro de verificación"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "name": "iri",
+          "ok": true
+        },
+        {
+          "name": "plan",
+          "ok": true
+        },
+        {
+          "name": "appointment",
+          "ok": true
+        },
+        {
+          "name": "checkin",
+          "ok": true
+        },
+        {
+          "name": "intelligence",
+          "ok": true
+        },
+        {
+          "name": "library",
+          "ok": true
+        },
+        {
+          "name": "builder",
+          "ok": true
+        }
+      ],
+      "command_count": 4,
+      "console_errors": [],
+      "page_errors": [],
+      "screenshot": "qa/rc14_integrated_artifacts/coach_integrated.png",
+      "ok": true
+    },
+    {
+      "role": "client",
+      "routes": [
+        {
+          "route": "hoy",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Hoy en IBERFIT"
+          }
+        },
+        {
+          "route": "planificacion",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Planificación"
+          }
+        },
+        {
+          "route": "sesion",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Sesiones"
+          }
+        },
+        {
+          "route": "progreso",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Progreso"
+          }
+        },
+        {
+          "route": "actividad",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Check-ins y hábitos"
+          }
+        },
+        {
+          "route": "informes",
+          "ok": true,
+          "metrics": {
+            "status": "pass",
+            "overflow": false,
+            "small": 0,
+            "unlabeled": 0,
+            "unnamed": 0,
+            "broken": 0,
+            "placeholders": 0,
+            "route": "Informes"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "name": "client-checkin",
+          "ok": true
+        },
+        {
+          "name": "session-start",
+          "ok": true
+        }
+      ],
+      "command_count": 2,
+      "console_errors": [],
+      "page_errors": [],
+      "screenshot": "qa/rc14_integrated_artifacts/client_integrated.png",
+      "ok": true
+    }
+  ]
+}

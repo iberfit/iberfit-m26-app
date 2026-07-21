@@ -1,0 +1,17 @@
+{
+  "version": "26.0.0-recovery.13",
+  "attempted_at": "2026-07-19T18:10:07Z",
+  "project_id": "pjhmrhejsoofmouedavw",
+  "mode": "read_only",
+  "result": "connector_disabled",
+  "production_modified": false,
+  "catalog_remote_validated": false,
+  "engagement_extension_installed": false,
+  "authenticated_role_qa_completed": false,
+  "blocking_reasons": [
+    "The Supabase connector rejected the read-only request because the tool was disabled in this execution.",
+    "The installed 52-command catalog therefore could not be compared against the RC11/RC13 contract.",
+    "No migration or mutation was attempted."
+  ],
+  "safe_next_step": "Repeat the read-only preflight when the connector is available; do not apply the engagement migration before an exact schema and catalog match."
+}

@@ -1,0 +1,89 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { M26_EXTENDED_COMMAND_REGISTRY, validateCommandCatalog, normalizeRegistryRole } from '../../src/m26/command-catalog.js';
+
+const PROJECT_REF='pjhmrhejsoofmouedavw';
+const required=[
+  'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
+  'M26_QA_COACH_EMAIL','M26_QA_COACH_PASSWORD',
+  'M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD',
+  'M26_QA_CLIENT_B_EMAIL','M26_QA_CLIENT_B_PASSWORD',
+];
+const missing=required.filter((name)=>!process.env[name]);
+if(missing.length)throw new Error(`RC29_REMOTE_ENV_MISSING:${missing.join(',')}`);
+const base=process.env.M26_SUPABASE_URL.replace(/\/$/,'');
+if(new URL(base).hostname!==`${PROJECT_REF}.supabase.co`)throw new Error('RC29_REMOTE_PROJECT_MISMATCH');
+const key=process.env.M26_SUPABASE_PUBLISHABLE_KEY;
+if(/service[_-]?role/i.test(key))throw new Error('RC29_SERVICE_ROLE_FORBIDDEN');
+
+async function requestJson(url,options={}){
+  const response=await fetch(url,options);
+  const body=await response.json().catch(()=>null);
+  if(!response.ok)throw new Error(`RC29_REMOTE_REQUEST_FAILED:${response.status}:${new URL(url).pathname}`);
+  return body;
+}
+async function login(email,password){
+  const body=await requestJson(`${base}/auth/v1/token?grant_type=password`,{
+    method:'POST',headers:{apikey:key,'content-type':'application/json'},body:JSON.stringify({email,password}),
+  });
+  if(!body?.access_token||!body?.user?.id)throw new Error(`RC29_AUTH_FAILED:${email}`);
+  return {token:body.access_token,userId:body.user.id};
+}
+async function rpc(name,token,payload={}){
+  return requestJson(`${base}/rest/v1/rpc/${name}`,{
+    method:'POST',headers:{apikey:key,authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify(payload),
+  });
+}
+async function registry(token){
+  const select='command_type,entity_type,event_name,allowed_roles,requires_reason,requires_preview,enabled';
+  return requestJson(`${base}/rest/v1/domain_command_registry_v26?select=${encodeURIComponent(select)}&order=command_type.asc`,{
+    method:'GET',headers:{apikey:key,authorization:`Bearer ${token}`},
+  });
+}
+function walk(value,visit,path=[]){
+  if(Array.isArray(value)){value.forEach((item,index)=>walk(item,visit,[...path,index]));return;}
+  if(value&&typeof value==='object')for(const [key,item] of Object.entries(value)){visit(key,item,[...path,key]);walk(item,visit,[...path,key]);}
+}
+function inspectClientBootstrap(bootstrap,expectedClientId){
+  const forbiddenKeys=[];const clientIds=new Set();
+  const forbidden=/(private.?notes?|coach.?notes?|coach.?availability|intelligence.?runs?|audit|service.?role|password|secret|oauth.?token|access.?token|refresh.?token|raw)/i;
+  walk(bootstrap,(key,value,path)=>{
+    if(forbidden.test(String(key)))forbiddenKeys.push(path.join('.'));
+    if(/^(clientId|client_id)$/i.test(String(key))&&typeof value==='string')clientIds.add(value);
+  });
+  const foreignClientIds=[...clientIds].filter((id)=>id!==expectedClientId);
+  return {forbiddenKeys:[...new Set(forbiddenKeys)].sort(),clientIds:[...clientIds].sort(),foreignClientIds,ok:forbiddenKeys.length===0&&foreignClientIds.length===0};
+}
+
+const accounts=[
+  {name:'coach',expectedRole:'coach',email:process.env.M26_QA_COACH_EMAIL,password:process.env.M26_QA_COACH_PASSWORD},
+  {name:'client_a',expectedRole:'client',email:process.env.M26_QA_CLIENT_A_EMAIL,password:process.env.M26_QA_CLIENT_A_PASSWORD},
+  {name:'client_b',expectedRole:'client',email:process.env.M26_QA_CLIENT_B_EMAIL,password:process.env.M26_QA_CLIENT_B_PASSWORD},
+];
+const sessions=[];
+for(const account of accounts){sessions.push({...account,...await login(account.email,account.password)});}
+const remoteRegistry=await registry(sessions[0].token);
+const registryValidation=validateCommandCatalog(remoteRegistry,M26_EXTENDED_COMMAND_REGISTRY,{strict:true});
+if(!registryValidation.ok||remoteRegistry.length!==52)throw new Error(`RC29_REGISTRY_MISMATCH:${JSON.stringify(registryValidation)}`);
+
+const roles=[];
+for(const session of sessions){
+  const bootstrap=await rpc('iberfit_bootstrap_v26',session.token,{});
+  const reportedRole=normalizeRegistryRole(bootstrap?.user?.role);
+  const expectedRole=normalizeRegistryRole(session.expectedRole);
+  if(reportedRole!==expectedRole)throw new Error(`RC29_ROLE_MISMATCH:${session.name}:${reportedRole}`);
+  const clientId=bootstrap?.user?.clientId||bootstrap?.user?.client_id||null;
+  if(session.expectedRole==='client'&&!clientId)throw new Error(`RC29_CLIENT_ID_MISSING:${session.name}`);
+  const privacy=session.expectedRole==='client'?inspectClientBootstrap(bootstrap,clientId):null;
+  if(privacy&&!privacy.ok)throw new Error(`RC29_CLIENT_BOOTSTRAP_LEAK:${session.name}:${JSON.stringify(privacy)}`);
+  roles.push({name:session.name,userId:session.userId,reportedRole,clientId,canaryActive:bootstrap?.canary?.active===true,environmentName:bootstrap?.environment?.name||bootstrap?.environment||null,privacy});
+}
+const clientIds=roles.filter((x)=>x.name.startsWith('client_')).map((x)=>x.clientId);
+if(new Set(clientIds).size!==2)throw new Error('RC29_QA_CLIENTS_NOT_DISTINCT');
+const evidence={
+  release:'IBERFIT_M26_PREPUBLICACION_INFRA_RC29',generatedAt:new Date().toISOString(),project:PROJECT_REF,
+  mode:'authenticated-readonly',mutationsPerformed:false,expectedCommands:52,remoteCommands:remoteRegistry.length,
+  registryValidation,roles,
+};
+await mkdir('recovery',{recursive:true});
+await writeFile('recovery/RC29_REMOTE_AUTH_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
+console.log(JSON.stringify(evidence,null,2));

@@ -1,0 +1,16 @@
+{
+  "version": "26.0.0-launch-candidate.15",
+  "status": "not_deployed",
+  "productionModified": false,
+  "builtAt": "2026-07-19T19:03:44.839Z",
+  "files": 81,
+  "totalBytes": 869084,
+  "budgets": {
+    "javascriptBytes": 252830,
+    "cssBytes": 26388,
+    "jsonBytes": 304818,
+    "javascriptLimit": 650000,
+    "cssLimit": 120000
+  },
+  "budgetOk": true
+}

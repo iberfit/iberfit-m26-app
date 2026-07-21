@@ -1,0 +1,410 @@
+{
+  "version": "26.0.0-launch-candidate.15",
+  "files": [
+    {
+      "path": "_headers",
+      "size": 939,
+      "sha256": "f62a3be53f84ac5ce8e47db98fb6557ba0a1dfafb477f7f1d5d4a958815a58a2"
+    },
+    {
+      "path": "_redirects",
+      "size": 22,
+      "sha256": "2eb810b4cf4c78717499454873595b317574b764ca7631ff01eb682df085ec1e"
+    },
+    {
+      "path": "baseline_m25_2/exercise-catalog-m25.json",
+      "size": 304818,
+      "sha256": "bf23b1404b281902274c6bb0e7c43cd11874f8605cf84072aacef2af3436ce87"
+    },
+    {
+      "path": "index.html",
+      "size": 1087,
+      "sha256": "8e43784d5be0b4733ece460a7ac604841bc3cbf6b07b529a20a2e17ee6ec6d1c"
+    },
+    {
+      "path": "m26/_headers",
+      "size": 939,
+      "sha256": "f62a3be53f84ac5ce8e47db98fb6557ba0a1dfafb477f7f1d5d4a958815a58a2"
+    },
+    {
+      "path": "m26/_redirects",
+      "size": 22,
+      "sha256": "2eb810b4cf4c78717499454873595b317574b764ca7631ff01eb682df085ec1e"
+    },
+    {
+      "path": "m26/app.js",
+      "size": 161,
+      "sha256": "c12d30c11bcf44744f47df7edbc51ba5b0af77d1114ba785ac400eafa1ea0d10"
+    },
+    {
+      "path": "m26/icons/icon-192.png",
+      "size": 24116,
+      "sha256": "870e6d0615d2da6851403c42841d73e99e2ab60304f5947a65a240ed3743bf7a"
+    },
+    {
+      "path": "m26/icons/icon-512.png",
+      "size": 116383,
+      "sha256": "8ebcc04b5f32420161fa90dc8e49ef7806b03918b8556d1d444a02e13af15bed"
+    },
+    {
+      "path": "m26/icons/icon-maskable-192.png",
+      "size": 17113,
+      "sha256": "ce46dbe050a34ef0a55318bfee1dd487ad917e6a7d9047cb4e247083ef11dab4"
+    },
+    {
+      "path": "m26/icons/icon-maskable-512.png",
+      "size": 83970,
+      "sha256": "286173777f0fed2555aad9abbfd0dab8a11fd31ddfb43b9d7d245e71dc94c14c"
+    },
+    {
+      "path": "m26/index.html",
+      "size": 1087,
+      "sha256": "8e43784d5be0b4733ece460a7ac604841bc3cbf6b07b529a20a2e17ee6ec6d1c"
+    },
+    {
+      "path": "m26/manifest.webmanifest",
+      "size": 994,
+      "sha256": "9b797950a8c786a8c29e15360298c31eb0f2826fe32d611dab502c7e781f9d00"
+    },
+    {
+      "path": "m26/offline.html",
+      "size": 857,
+      "sha256": "2c924851ed820be9d1cb5f14f38b43f7e56e2da2658ce01b6f1ca9e93dfb825e"
+    },
+    {
+      "path": "m26/runtime-config.example.js",
+      "size": 415,
+      "sha256": "40a798593bec2deaf3adab90275a0661e8c8cb3f896271ad101b4297f93401db"
+    },
+    {
+      "path": "m26/runtime-config.js",
+      "size": 339,
+      "sha256": "744837937b9741aa9d212c929ddfe6a12d6e79aea486da7ea6fdbfdaae777b9f"
+    },
+    {
+      "path": "m26/sw.js",
+      "size": 1675,
+      "sha256": "ee075a9cc7ef3788dacacce9f690bfafc75c7ef4fa6809489856dc7b86ac6089"
+    },
+    {
+      "path": "public/isotipo-iberfit.png",
+      "size": 37519,
+      "sha256": "d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa"
+    },
+    {
+      "path": "src/m26/app/access-ui.js",
+      "size": 1260,
+      "sha256": "39e922d9b4a35b8eda6f45056bff530dd1149ddf28f452650ac94684d0785031"
+    },
+    {
+      "path": "src/m26/app/application.js",
+      "size": 11292,
+      "sha256": "3e71616dff8f2e331d010b8643553d341cce06535487300201b7bf8cdfe7a1b5"
+    },
+    {
+      "path": "src/m26/app/index.js",
+      "size": 112,
+      "sha256": "b226fe0dfbddaba167a4ba76f221719e20503b61e782b7e62f818d502d9307fc"
+    },
+    {
+      "path": "src/m26/app/session-vault.js",
+      "size": 1347,
+      "sha256": "60c0b793276e7e18c74204a1ae9b304ad10ef533e6249fb9af8ce120a9baa9dc"
+    },
+    {
+      "path": "src/m26/app/workflow-controller.js",
+      "size": 8507,
+      "sha256": "c526003d40eea509e7c2810d285c574a4f321202c801cf5b87f381286d74d141"
+    },
+    {
+      "path": "src/m26/canonical-store.js",
+      "size": 2032,
+      "sha256": "8d8325b29736e5eb9e703e1ee096cc7aa9b83be7a7a07009a4306574dbbf6077"
+    },
+    {
+      "path": "src/m26/command-bus.js",
+      "size": 7047,
+      "sha256": "6c5c70c9e3aa39bb3b42f144f0c947ec59776b82359b5b89d36e7ea554c10070"
+    },
+    {
+      "path": "src/m26/command-catalog.js",
+      "size": 9806,
+      "sha256": "f7cbba13cd8e4af457c9400fd5a7a3ffc8656a88f49497a78f207b3df674926a"
+    },
+    {
+      "path": "src/m26/engagement/activity-capabilities.js",
+      "size": 3047,
+      "sha256": "805d9d766429a7cf9843f99e2dadaa06f54e787a7bb440299395d6e58ed0220a"
+    },
+    {
+      "path": "src/m26/engagement/activity-drafts.js",
+      "size": 3655,
+      "sha256": "6b5c9bc03fc81ffe63137db7acb09ca5046cb1a8e20be884a9b2ddbfa151b08b"
+    },
+    {
+      "path": "src/m26/engagement/adherence-engine.js",
+      "size": 4225,
+      "sha256": "83f039b9684a7fc3cabaa894de60e09c5879ae6c7d67dc5fa9f4eb831de20bc8"
+    },
+    {
+      "path": "src/m26/engagement/command-builders.js",
+      "size": 4569,
+      "sha256": "140bf252f95bd8e5fd153add0f38fbe87af4c3ed9fe28581ea4c06c00060d715"
+    },
+    {
+      "path": "src/m26/engagement/command-service.js",
+      "size": 3074,
+      "sha256": "abb4e8bc813628f454af3dbbfbe02deb645be9fa2bcde2d2916d76fd5760e6bc"
+    },
+    {
+      "path": "src/m26/engagement/conflict-center.js",
+      "size": 3166,
+      "sha256": "3cceda193c47843f21384b67f8d01f984897b108d5c593e92e0ae1f533da582a"
+    },
+    {
+      "path": "src/m26/engagement/engagement-controller.js",
+      "size": 6952,
+      "sha256": "b5bc22e64320d21c15009302e23f837d8ab5e2c8ad49d4787433bd142c6dac55"
+    },
+    {
+      "path": "src/m26/engagement/index.js",
+      "size": 318,
+      "sha256": "bcbb74737c2f336100b58ce36fa5be99b1cbed4f4f8edfcaf27c4ccac2fa85cf"
+    },
+    {
+      "path": "src/m26/engagement/progress-engine.js",
+      "size": 7509,
+      "sha256": "6edfaf37388519bd916be02c3b14080fba07bf85893f2240f813fc270fe46f8c"
+    },
+    {
+      "path": "src/m26/exercises/catalog.js",
+      "size": 2504,
+      "sha256": "1acaef657357ebe108b2e49ef98108cbc014f05e890c751306771f8d81dff99f"
+    },
+    {
+      "path": "src/m26/exercises/index.js",
+      "size": 30,
+      "sha256": "98d0bf22b0846125ce0c228525ead64c8ff7216c462731010222efcdbc53cf48"
+    },
+    {
+      "path": "src/m26/index.js",
+      "size": 693,
+      "sha256": "ff1d1004ed68402b53a82cf9163c142bfa767b92003e6f7bde06e48b66e4d016"
+    },
+    {
+      "path": "src/m26/intelligence/adaptive-context.js",
+      "size": 4855,
+      "sha256": "5f9d4e73271659528babf86eac42a40c319b96002262b37e5474643bdd53bd5a"
+    },
+    {
+      "path": "src/m26/intelligence/index.js",
+      "size": 76,
+      "sha256": "47f2359e3bcb3ef077fdd55925c73f1b6b9886785a4631868d6a901723da07d2"
+    },
+    {
+      "path": "src/m26/intelligence/session-engine.js",
+      "size": 7614,
+      "sha256": "6c3234b907b83e1252ed040b22e91e027c198fbca2f64ed3ab4db06e48a34dd2"
+    },
+    {
+      "path": "src/m26/modules/domain-selectors.js",
+      "size": 5300,
+      "sha256": "aa0e0f1098489654d5794810f6e8f9887241c2ae5874674f4d269bbe8f146a7a"
+    },
+    {
+      "path": "src/m26/modules/index.js",
+      "size": 113,
+      "sha256": "c7a75433cf9ce25bce8b52538c07d6893637663e6212c02866a8f2f411fc5ef0"
+    },
+    {
+      "path": "src/m26/modules/route-render.js",
+      "size": 32578,
+      "sha256": "adf5016ad5684df1d580cd81010516d6b2999cb631a8c41ea7da06d79b34d4d1"
+    },
+    {
+      "path": "src/m26/modules/route-view-model.js",
+      "size": 9672,
+      "sha256": "ce535c2118066e399592322f5c043a8312284ec849e87245c0dd568bd0b1937c"
+    },
+    {
+      "path": "src/m26/norms/evidence-registry.js",
+      "size": 4432,
+      "sha256": "dec665c9cb462580c9740d4af6380cb589775ad97c4e4cee00c68cb39723050c"
+    },
+    {
+      "path": "src/m26/norms/iri-scoring.js",
+      "size": 1233,
+      "sha256": "7150b0305b2380b89fff69db8b481e3ba0b5d1546f96d35b55935efb9af0d73f"
+    },
+    {
+      "path": "src/m26/norms/norms-engine.js",
+      "size": 3936,
+      "sha256": "2a7f97fc5517afe35e6b93ed5410dd4c6b03408fb6b691147e525c6c82779a84"
+    },
+    {
+      "path": "src/m26/platform/id.js",
+      "size": 351,
+      "sha256": "587f414a4726ae83d66ac2c1cd8a2c2f0a72f82ec341601d1f764dde4b641233"
+    },
+    {
+      "path": "src/m26/platform/index.js",
+      "size": 113,
+      "sha256": "ee7c68a5a0cdbad093170b5491cef41a6dc546d94704088d3310c76b081d5e9d"
+    },
+    {
+      "path": "src/m26/platform/key-value-store.js",
+      "size": 4704,
+      "sha256": "c421573286c375fe365bc2be7703fc785bae28a6d8d648f58b54dd92c86ee06d"
+    },
+    {
+      "path": "src/m26/platform/offline-command-repository.js",
+      "size": 1252,
+      "sha256": "19acf1b69c5b6892615ca8138ba779a3a8f6c805b4d3f06e30f7e23534ee28fe"
+    },
+    {
+      "path": "src/m26/platform/pwa.js",
+      "size": 1706,
+      "sha256": "14f2e5cad26b377efa4233d9a160bb56a6bf4ce8eaaa2199aba91cbb80e164e7"
+    },
+    {
+      "path": "src/m26/production-state.js",
+      "size": 5195,
+      "sha256": "f2057d9f2c62e34426a7a5a8da1181132e554fc64a06a5ea2ae31c907963d069"
+    },
+    {
+      "path": "src/m26/qa/authenticated-canary.js",
+      "size": 1796,
+      "sha256": "e248cfcb9bf74fdeb382deb77646f8a94f514ca723350839b08b229ad71a1303"
+    },
+    {
+      "path": "src/m26/shell/index.js",
+      "size": 214,
+      "sha256": "328ab932f25e8bde7c9c17209c3c93090076a7f46b8d8b8cdd5d37f538ee9c5e"
+    },
+    {
+      "path": "src/m26/shell/navigation.js",
+      "size": 4577,
+      "sha256": "d72e642cf08c19a2ab7e40b977d91d73c5cf073138fbadb6a6f5845a9ec85306"
+    },
+    {
+      "path": "src/m26/shell/role-policy.js",
+      "size": 1662,
+      "sha256": "3a7e819389fea62e17d853fdca32f364983ff81fae38ee5f7726f96871ab8a3c"
+    },
+    {
+      "path": "src/m26/shell/route-guard.js",
+      "size": 1848,
+      "sha256": "7902a8d3da1c817c0def492059669b9264e72dd1b39d5608a476b6c78518ca03"
+    },
+    {
+      "path": "src/m26/shell/shell-controller.js",
+      "size": 2858,
+      "sha256": "2a076d927a0fc0b61c487ef2ee2c1459b1cc3a0d86fbcba91c2a8aea5f5f7fc1"
+    },
+    {
+      "path": "src/m26/shell/shell-render.js",
+      "size": 5313,
+      "sha256": "0948477d70b532b37ccc001c4a4c959d6ba8dd0f5f143062e14c138587106d35"
+    },
+    {
+      "path": "src/m26/shell/shell-view-model.js",
+      "size": 2946,
+      "sha256": "d6bc5ce1ad94aa5756a0f663c42c7694b3f4a4fb88c656a102b9ed0663c434cd"
+    },
+    {
+      "path": "src/m26/shell/shell.css",
+      "size": 26388,
+      "sha256": "c29b3a12c22eeda341724a7517a583adad12d04dccd27ddc1aab843cf103a35c"
+    },
+    {
+      "path": "src/m26/supabase-transport.js",
+      "size": 6261,
+      "sha256": "026d44b5a41957ac15662f864caa6e20ada7b0e5998925b21ae684230d6cdbdb"
+    },
+    {
+      "path": "src/m26/ui/action-state.js",
+      "size": 1445,
+      "sha256": "413c4f6ae507d791cffcd4011f9e46ef222a44ed20685b07d35abfcd27059c57"
+    },
+    {
+      "path": "src/m26/ui/design-system.js",
+      "size": 2663,
+      "sha256": "da330b5acc4aaf56900d93a4fb4dc9264cd4daf5fee27ca2596d1b49f7b38203"
+    },
+    {
+      "path": "src/m26/ui/index.js",
+      "size": 112,
+      "sha256": "97d1123e2c408ea174cc757084903dd44bada8470fdd8e93fafdeb218713d187"
+    },
+    {
+      "path": "src/m26/ui/interactive-audit.js",
+      "size": 3666,
+      "sha256": "a34626bfb4e2495d206a7739a1d8dfbe6bd57373a73f05e9cc6d602e1751e3d6"
+    },
+    {
+      "path": "src/m26/workflows/agenda-workflow.js",
+      "size": 1150,
+      "sha256": "ee9effd3c3905bdcf2abb74c78cc97e6ea00403a9ab17dfd7108d795148b21fc"
+    },
+    {
+      "path": "src/m26/workflows/confirmed-execution.js",
+      "size": 661,
+      "sha256": "907837b9c38f2f0f094545675ef4ee5bbf68b793bb490a45abd58c734401b85c"
+    },
+    {
+      "path": "src/m26/workflows/draft-store.js",
+      "size": 1056,
+      "sha256": "46fae354e2e2d8fbccefecb44e5704dc06fb967574e892c359dd541b9a733475"
+    },
+    {
+      "path": "src/m26/workflows/index.js",
+      "size": 452,
+      "sha256": "3b7cd90cd2e01ffd8e16383ad6b34e6758a8fe9db7bbb7baf949650d5f52970f"
+    },
+    {
+      "path": "src/m26/workflows/iri-profile.js",
+      "size": 1484,
+      "sha256": "1e7853f83c065b9dddbc2b631acde9c18e6dae163d8b6ef876e5f17ecae9a4da"
+    },
+    {
+      "path": "src/m26/workflows/iri-workflow.js",
+      "size": 2421,
+      "sha256": "0faa64ac536b0970cc2448b8e6ea09c04dfccdb6b274990e7f737f384df40366"
+    },
+    {
+      "path": "src/m26/workflows/planning-workflow.js",
+      "size": 1458,
+      "sha256": "966620b8b737903d22ba8a099eab2b290fb83c500a5bf6a7659eae44e26a0951"
+    },
+    {
+      "path": "src/m26/workflows/session-builder.js",
+      "size": 3345,
+      "sha256": "622d42b30d048990d1dd975c7d3000143fb93c861f62e74af81fa6bb79a27405"
+    },
+    {
+      "path": "src/m26/workflows/session-controller.js",
+      "size": 10434,
+      "sha256": "cf29c4a05f8cc52716656ef4e16df17686bbd53a79bfcc76a91a9b2bc8140e75"
+    },
+    {
+      "path": "src/m26/workflows/session-execution.js",
+      "size": 10094,
+      "sha256": "3508377046fe7487e6315a1aff9aee391cfdb5fb00d71cd1c719bb6ce6c76665"
+    },
+    {
+      "path": "src/m26/workflows/session-recovery.js",
+      "size": 6607,
+      "sha256": "454c9b8f4642936379c4e7e362bd6d221372c8719e009231789cc266bbd18da5"
+    },
+    {
+      "path": "src/m26/workflows/session-timer.js",
+      "size": 1697,
+      "sha256": "abd6a8cb88c926c1cb05ff1f1ef6bb30f0560d3b345a0b1749c1a6199e84df47"
+    },
+    {
+      "path": "src/m26/workflows/session-ui.js",
+      "size": 9745,
+      "sha256": "926a8116cc0cdec9c9f384190c519cf801c93aeb00d5f4e2a7b59de0ce55b38f"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+import fs from 'node:fs';import path from 'node:path';
+const root=process.cwd();const checks=[];const check=(name,ok,detail='')=>checks.push({name,ok:Boolean(ok),detail});const read=(p)=>fs.readFileSync(path.join(root,p),'utf8');
+const required=['src/m26/engagement/command-builders.js','src/m26/engagement/command-service.js','src/m26/intelligence/adaptive-context.js','tests/m26_rc11_adaptive_engagement.test.mjs','qa/rc11_authenticated_engagement.mjs','backend/RC11_ENGAGEMENT_COMMAND_CONTRACT.json','backend/RC11_ENGAGEMENT_PREFLIGHT_READONLY.sql','backend/RC11_ENGAGEMENT_MIGRATION_GUARDED.sql','docs/ENGAGEMENT_ADAPTIVE_RC11.md'];for(const file of required)check(`exists:${file}`,fs.existsSync(path.join(root,file)));
+const catalog=read('src/m26/command-catalog.js');const bus=read('src/m26/command-bus.js');const service=read('src/m26/engagement/command-service.js');const adaptive=read('src/m26/intelligence/adaptive-context.js');const engine=read('src/m26/intelligence/session-engine.js');const render=read('src/m26/modules/route-render.js');const migration=read('backend/RC11_ENGAGEMENT_MIGRATION_GUARDED.sql');const preflight=read('backend/RC11_ENGAGEMENT_PREFLIGHT_READONLY.sql');
+check('base-registry-stays-44',catalog.includes('M26_BASE_COMMAND_REGISTRY=M26_COMMAND_REGISTRY')&&catalog.includes('M26_EXTENDED_COMMAND_REGISTRY'));
+check('dynamic-registry-validation',catalog.includes('validatedRuntimeRegistry')&&bus.includes('registry=M26_COMMAND_REGISTRY')&&bus.includes('getRole'));
+check('client-role-normalized',catalog.includes("value==='client'?'cliente'"));
+check('engagement-through-command-bus',service.includes('commandBus.execute')&&service.includes('commandBus.enqueue'));
+check('private-note-online-only',service.includes('M26_PRIVATE_NOTE_ONLINE_REQUIRED'));
+check('adaptive-hold-fail-closed',engine.includes('M26_SESSION_SAFETY_REVIEW_REQUIRED')&&adaptive.includes("level:'hold'"));
+check('adaptive-never-auto-progresses',engine.includes('automaticProgression:false')&&engine.includes('Coach decide'));
+check('habit-ui-functional',render.includes('data-engagement-action="define-habit"')&&render.includes('data-engagement-action="log-habit"'));
+check('render-no-inline-handlers',!/onclick\s*=|onchange\s*=|onsubmit\s*=/i.test(render));
+check('no-direct-supabase-writes',!/(\.from\(|\/rest\/v1\/|supabase\.from)/.test([service,adaptive,engine].join('\n')));
+check('migration-fail-closed',migration.includes('M26_RC11_GUARD_NOT_AUTHORIZED')&&migration.includes('M26_RC11_REMOTE_SCHEMA_SNAPSHOT_REQUIRED')&&/rollback\s*;/i.test(migration)&&!/commit\s*;/i.test(migration));
+check('preflight-readonly',/^-- RC11 · PRECHECK EXCLUSIVAMENTE DE LECTURA/m.test(preflight)&&!/(insert\s+into|update\s+|delete\s+from|create\s+table|alter\s+table)/i.test(preflight));
+const out={ok:checks.every((x)=>x.ok),passed:checks.filter((x)=>x.ok).length,total:checks.length,checks};fs.writeFileSync(path.join(root,'recovery/m26-adaptive-engagement-gate-results.json'),JSON.stringify(out,null,2));for(const item of checks)console.log(`${item.ok?'PASS':'FAIL'} ${item.name}${item.detail?` · ${item.detail}`:''}`);if(!out.ok)process.exit(1);

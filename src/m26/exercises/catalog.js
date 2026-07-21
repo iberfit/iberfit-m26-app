@@ -1,0 +1,20 @@
+import {localiseExerciseForDisplay} from './castellano.js';
+function norm(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+function stringList(value){return Object.freeze((Array.isArray(value)?value:[]).map((item)=>String(item||'').trim()).filter(Boolean));}
+function freezeExercise(raw){raw=localiseExerciseForDisplay(raw);const id=String(raw?.id||'').trim(),name=String(raw?.name_es||'').trim();if(!id||!name)return null;return Object.freeze({...raw,id,name_es:name,pattern:String(raw.pattern||'').trim(),equipment:String(raw.equipment||'').trim(),difficulty:String(raw.difficulty||'').trim(),intent:String(raw.intent||'').trim(),primary_muscles:stringList(raw.primary_muscles),secondary_muscles:stringList(raw.secondary_muscles),cues:stringList(raw.cues),instructions_es:stringList(raw.instructions_es),precautions:stringList(raw.precautions),tags:stringList(raw.tags),aliases:stringList(raw.aliases)});}
+export function createExerciseCatalog(records=[]){
+ if(!Array.isArray(records))throw new Error('M26_EXERCISE_CATALOG_INVALID');const map=new Map();
+ for(const raw of records){const ex=freezeExercise(raw);if(!ex)continue;if(map.has(ex.id))throw new Error(`M26_EXERCISE_DUPLICATE:${ex.id}`);map.set(ex.id,ex);}
+ const list=Object.freeze([...map.values()]);
+ const facets=Object.freeze({patterns:Object.freeze([...new Set(list.map(x=>x.pattern).filter(Boolean))].sort()),equipment:Object.freeze([...new Set(list.map(x=>x.equipment).filter(Boolean))].sort()),difficulty:Object.freeze([...new Set(list.map(x=>x.difficulty).filter(Boolean))].sort()),intent:Object.freeze([...new Set(list.map(x=>x.intent).filter(Boolean))].sort())});
+ function search(query='',filters={}){const q=norm(query);return list.filter(ex=>{const hay=norm([ex.name_es,ex.pattern,ex.intent,ex.equipment,ex.difficulty,...ex.primary_muscles,...ex.secondary_muscles,...ex.tags,...ex.aliases].join(' '));if(q&&!hay.includes(q))return false;for(const [key,value] of Object.entries(filters||{})){if(value==null||value===''||(Array.isArray(value)&&!value.length))continue;const expected=Array.isArray(value)?value:[value];const actual=Array.isArray(ex[key])?ex[key].join(' '):ex[key];if(!expected.some(v=>norm(actual).includes(norm(v))))return false;}return true;});}
+ return Object.freeze({count:list.length,list:()=>list,get:id=>map.get(String(id))||null,has:id=>map.has(String(id)),search,facets});
+}
+export function resolveBrowserCatalogUrl(source,locationLike=globalThis.location){
+ const fallback='http://localhost/';let base=fallback;
+ try{const candidate=new URL(String(locationLike?.href||fallback));if(candidate.protocol==='http:'||candidate.protocol==='https:')base=candidate.href;}catch{}
+ const resolved=new URL(String(source||''),base);if(resolved.protocol!=='http:'&&resolved.protocol!=='https:')throw new Error('M26_EXERCISE_CATALOG_URL_INVALID');
+ let expectedOrigin=new URL(base).origin;const locationOrigin=String(locationLike?.origin||'').trim();if(locationOrigin&&locationOrigin!=='null'){try{const parsedOrigin=new URL(locationOrigin);if(parsedOrigin.protocol==='http:'||parsedOrigin.protocol==='https:')expectedOrigin=parsedOrigin.origin;}catch{}}
+ if(resolved.origin!==expectedOrigin)throw new Error('M26_EXERCISE_CATALOG_CROSS_ORIGIN_FORBIDDEN');return resolved.href;
+}
+export async function loadExerciseCatalog(source){let records;if(Array.isArray(source))records=source;else if(typeof source==='string'){const browser=typeof window!=='undefined'&&typeof fetch==='function';const remote=/^https?:\/\//i.test(source);if(browser||remote){if(browser)source=resolveBrowserCatalogUrl(source,globalThis.location);const r=await fetch(source,{credentials:'same-origin',cache:'no-store',redirect:'error'});if(!r.ok)throw new Error('M26_EXERCISE_CATALOG_FETCH_FAILED');records=await r.json();}else{const {readFile}=await import('node:fs/promises');records=JSON.parse(await readFile(source,'utf8'));}}else throw new Error('M26_EXERCISE_CATALOG_SOURCE_REQUIRED');const catalog=createExerciseCatalog(records);if(catalog.count<367)throw new Error(`M26_EXERCISE_CATALOG_INCOMPLETE:${catalog.count}`);return catalog;}

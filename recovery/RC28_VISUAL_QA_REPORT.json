@@ -1,0 +1,1925 @@
+{
+  "version": "26.0.0-cierre-local-maximo.28",
+  "generated_at": "2026-07-21T01:10:07Z",
+  "chromium": "/usr/bin/chromium",
+  "case_count": 40,
+  "passed": 40,
+  "failed": 0,
+  "contact_sheet": "qa/rc28_visual_artifacts/RC28_CONTACT_SHEET.png",
+  "results": [
+    {
+      "case": {
+        "name": "coach_hoy_desktop",
+        "role": "coach",
+        "route": "hoy",
+        "width": 1440,
+        "height": 960,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_hoy_desktop",
+      "load_ms": 118.84,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 187,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 93.1875,
+        "topbarBottom": 93.1875,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente IBERFIT\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador IBERFIT\n\nENTRENADOR\n\nHoy en IBERFIT\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nTodo confirmado\nCerrar sesión\n\nIBERFIT · HOY\n\nTu operación de hoy, con criterio\n\nPrioriza sesiones, clientes y decisiones sin perder el contexto del expediente.\n\nESTADO\nConfirmado\nSESIONES HOY\n2\nAgenda confirmada\nPRÓXIMA SESIÓN\n19 jul 2026, 18:00\nSesión presencial\nCLIENTES VISIBLES\n2\nSegún tus permisos de acceso\nCONFLICTOS\n0\nSin bloqueos\n\nAGENDA\n\nSesiones de hoy\n2 confirmadas\n\n19 JUL 2026, 18:00\n\nSesión presencial\n\nLas Condes\n\nConfirmado\n\n19 JUL 2026, 20:00\n\nSesión en línea\n\nEn línea\n\nConfirmado\n\nSIGUIENTE PASO\n\nSesión presencial\n\n19 jul 2026, 18:00\n\nÚLTIMO IRI\n72\nBuen nivel funcional\n\nSEGUIMIENTO\n\nClientes visibles\nVer todos\nC\n\nHÍBRIDO\n\nCliente IBERFIT\n\nActivo · IRI 72\n\nActivo\n22 jul 2026, 18:00\nC\n\nSIN MODALIDAD\n\nCliente de seguimiento\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nNavegación IBERFIT\nSeleccionar expediente\nAbrir expediente de Cliente IBERFIT\nAbrir expediente de Cliente de seguimiento",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_hoy_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_clientes_desktop",
+        "role": "coach",
+        "route": "clientes",
+        "width": 1440,
+        "height": 960,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_clientes_desktop",
+      "load_ms": 46.74,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 138,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 93.1875,
+        "topbarBottom": 93.1875,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente IBERFIT\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador IBERFIT\n\nENTRENADOR\n\nClientes\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nTodo confirmado\nCerrar sesión\n\nCARTERA AUTORIZADA\n\nClientes y seguimiento\n\nSolo se muestran los expedientes autorizados para tu cuenta.\n\n2 clientes\nBuscar cliente\n\nMostrando 2 clientes.\n\nC\n\nHÍBRIDO\n\nCliente IBERFIT\n\nActivo · IRI 72\n\nActivo\n22 jul 2026, 18:00\nC\n\nSIN MODALIDAD\n\nCliente de seguimiento\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nNavegación IBERFIT\nSeleccionar expediente\nNombre, modalidad o estado\nAbrir expediente de Cliente IBERFIT\nAbrir expediente de Cliente de seguimiento",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_clientes_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_expediente_tablet",
+        "role": "coach",
+        "route": "expediente",
+        "width": 820,
+        "height": 1180,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_expediente_tablet",
+      "load_ms": 45.55,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 820,
+        "viewportWidth": 820,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 165,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 147.578125,
+        "topbarBottom": 147.578125,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nENTRENADOR\n\nExpediente IBERFIT\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nCerrar sesión\nC\n\nEXPEDIENTE IBERFIT\n\nCliente IBERFIT\n\nHíbrido · Activo\n\nActivo\nSESIONES PLANIFICADAS\n4\nEJECUCIONES\n2\nADHERENCIA 28 DÍAS\n100%\nSEGUIMIENTO\nRevisión prioritaria\n\nDATOS PRINCIPALES\n\nContexto de acompañamiento\nMODALIDAD\nHíbrido\nESTADO\nActivo\nCICLO ACTIVO\nCiclo base de fuerza\nPRÓXIMA SESIÓN\n22 jul 2026, 18:00\n\nDIAGNÓSTICO IRI\n\n72\n\nBuen nivel funcional · alta · Completado\n\nAbrir diagnóstico IRI\n\nRUTA DE TRABAJO\n\nAcciones del expediente\nPlanificación\nSesiones\nProgreso\nRegistros de bienestar y hábitos\nInformes\nNotas privadas\nInteligencia IBERFIT\nHoy\nClientes\nAgenda\nBiblioteca\nMás\nSeleccionar expediente\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_expediente_tablet.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_progreso_desktop",
+        "role": "coach",
+        "route": "progreso",
+        "width": 1440,
+        "height": 960,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_progreso_desktop",
+      "load_ms": 45.35,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 231,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 93.1875,
+        "topbarBottom": 93.1875,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente IBERFIT\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador IBERFIT\n\nENTRENADOR\n\nProgreso\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nTodo confirmado\nCerrar sesión\n\nSEGUIMIENTO CONFIRMADO\n\nProgreso y adherencia\n\nVentana de 28 días · calidad del dato media.\n\nRevisión prioritaria\nADHERENCIA\n100%\n2 de 2 sesiones\nRPE MEDIO\n7.3\nSolo ejecuciones confirmadas\nVOLUMEN MEDIO\n143\nCarga × repeticiones cuando existe\nCAMBIO IRI\n5 pts\nActual 72\n\nCRONOLOGÍA\n\nEvolución registrada\n6 eventos\n\n18 JUL 2026\n\nRegistro de bienestar\n\nEnergía 4 · Sueño 4 · Estrés 8 · Dolor 6\n\n18 JUL 2026\n\nEvaluación IRI\n\nPuntuación 72\n\n16 JUL 2026\n\nSesión ejecutada\n\nRPE medio 7.5\n\n11 JUL 2026\n\nRegistro de bienestar\n\nEnergía 7 · Sueño 7 · Estrés 4 · Dolor 1\n\n9 JUL 2026\n\nSesión ejecutada\n\nRPE medio 7\n\n1 JUN 2026\n\nEvaluación IRI\n\nPuntuación 67\n\nRECUPERACIÓN\n\nPromedio de registros de bienestar\nENERGÍA\n5.5/10\nSUEÑO\n5.5/10\nESTRÉS\n6/10\nDOLOR\n3.5/10\n\nLa aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.\n\nACTIVIDAD DE DISPOSITIVO\n\nTendencia objetiva complementaria\nActualizada\nPASOS MEDIOS\n7900\nMINUTOS ACTIVOS\n44.7 min\nSUEÑO DE DISPOSITIVO\n440 min\nFC EN REPOSO\n59 lpm\n\nSe presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.\n\nALERTAS EXPLICABLES\n\nQué requiere atención\n\nREGISTRO DE BIENESTAR\n\nDolor elevado informado\n\nEl último registro de bienestar indica dolor igual o superior a 6/10. No corresponde progresar automáticamente la carga.\n\nRevisar con el cliente antes de la próxima sesión.\nPrioritaria\n\nREGISTRO DE BIENESTAR\n\nRecuperación condicionada\n\nSueño, energía o estrés sugieren adaptar el contexto de la sesión, sin asumir una causa clínica.\n\nValorar mantener, descargar o priorizar técnica.\nRevisar\nNavegación IBERFIT\nSeleccionar expediente",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_progreso_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_actividad_mobile",
+        "role": "coach",
+        "route": "actividad",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_actividad_mobile",
+      "load_ms": 58.04,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 269,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 150.15625,
+        "topbarBottom": 150.15625,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nENTRENADOR\n\nActividad, hábitos y dispositivos\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nCerrar sesión\n\nACTIVIDAD Y CONTEXTO\n\nRegistros de bienestar, hábitos y dispositivos\n\nEl registro de bienestar sigue siendo la fuente principal de contexto. Los datos de dispositivos aportan tendencias objetivas, nunca diagnósticos ni decisiones automáticas.\n\nÚltimo registro de bienestar disponible\nFunción disponible: Registros de bienestar\n\nEstá preparada para guardar con confirmación segura.\n\nREGISTRO DE BIENESTAR\n\nCómo estás hoy\nEnergía (0–10)\nSueño (0–10)\nEstrés (0–10)\nDolor (0–10)\nObservaciones\nGuardar borrador\nEnviar registro de bienestar\n\nÚLTIMO REGISTRO CONFIRMADO\n\n18 jul 2026, 9:00\n\nDisponible entre los registros confirmados.\n\nDATOS DE DISPOSITIVOS\n\nResumen de los últimos 7 días\n\nArchivo normalizado IBERFIT: Conectado\n\nActualizado\nPASOS MEDIOS\n7900\n3 días con datos\nACTIVIDAD\n44.7 min\nPromedio diario disponible\nSUEÑO OBJETIVO\n440 min\nDato de dispositivo, no percepción\nFC EN REPOSO\n59 lpm\nCalidad media\nVFC MEDIA\n46.7 ms\nENERGÍA ACTIVA\n533.3 kcal\nENTRENAMIENTO REGISTRADO\n36.7 min\nFUENTES\nnormalized_file\n\nIBERFIT muestra procedencia, fecha y calidad. No transforma datos de dispositivos conectados en indicaciones clínicas ni progresa cargas sin revisión del entrenador.\n\nCONTROL DEL CLIENTE\n\nConexiones de dispositivos\n\nEl cliente decide qué fuentes comparte, puede pausar la sincronización y conserva el control de sus permisos. El entrenador recibe únicamente resúmenes confirmados.\n\nARQUITECTURA PREPARADA\n\nPlan gratuito de integraciones\n\nSolo se habilitan rutas sin coste confirmado. Las demás permanecen visibles como arquitectura, pero bloqueadas.\n\nCoste cero\n\nIOS · COSTE CERO\n\nApple Health\n\nArquitectura preservada; activación pausada por la regla de coste cero\n\nEn pausa por coste\n\nANDROID · COSTE CERO\n\nHealth Connect\n\nPreparado para desarrollo gratuito; requiere puente móvil real\n\nPreparación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGarmin Connect\n\nNo se activará mientras requiera acceso de socio o licencia\n\nNo activar\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGoogle Health API · Fitbit y Pixel Watch\n\nLa autorización externa está preparada, pero requiere una revisión antes de activarse\n\nEvaluación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nOura\n\nEn espera hasta confirmar una vía gratuita\n\nEn espera\n\nNAVEGADOR · COSTE CERO\n\nArchivo normalizado IBERFIT\n\nDisponible ahora sin coste adicional\n\nDisponible\nFunción disponible: Hábitos\n\nEstá preparada para guardar con confirmación segura.\n\nENTRENADOR\n\nDefinir hábito\nNombre\nObjetivo\nUnidad\nFrecuencia\nDiario\nSemanal\nDías específicos\nDescripción\nGuardar borrador\nPublicar hábito\n\nSEGUIMIENTO\n\nHábitos activos\n1 hábito\nCaminar 30 minutos\n\nActivo · 1 jul 2026, 9:00\n\nActivo\nRegistrar hoy\n\nHoy\nClientes\nAgenda\nBiblioteca\nMás\nSeleccionar expediente\nRegistrar hoy: Caminar 30 minutos\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_actividad_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_notas_desktop",
+        "role": "coach",
+        "route": "notas",
+        "width": 1440,
+        "height": 960,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_notas_desktop",
+      "load_ms": 42.65,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 128,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 93.1875,
+        "topbarBottom": 93.1875,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente IBERFIT\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador IBERFIT\n\nENTRENADOR\n\nNotas privadas del entrenador\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nTodo confirmado\nCerrar sesión\n\nUSO INTERNO\n\nNotas privadas del entrenador\n\nNunca son visibles para el cliente y requieren permisos internos específicos.\n\n1 nota\nFunción disponible: Notas privadas\n\nEstá preparada para guardar con confirmación segura.\n\nSIN FECHA\n\nRevisar tolerancia de carga\n\nContenido protegido para el equipo de entrenamiento y administración.\n\nActivo\nNueva nota\nGuardar nota privada\nNavegación IBERFIT\nSeleccionar expediente",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_notas_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_verificacion_mobile",
+        "role": "coach",
+        "route": "verificacion",
+        "width": 390,
+        "height": 844,
+        "scenario": "conflict"
+      },
+      "url": "inline://coach_verificacion_mobile",
+      "load_ms": 40.7,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 132,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 150.15625,
+        "topbarBottom": 150.15625,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nENTRENADOR\n\nCentro de verificación\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nCerrar sesión\n\nSINCRONIZACIÓN\n\nCentro de verificación\n\nPermite inspeccionar, reintentar o descartar únicamente la copia local. Nunca oculta un conflicto.\n\nSin bloqueos\nPENDIENTES\n0\nCONFLICTOS\n0\nRECHAZADAS\n0\nTOTAL\n0\nI\nTodo confirmado\n\nNo hay operaciones pendientes, conflictos ni rechazos locales.\n\nHoy\nClientes\nAgenda\nBiblioteca\nMás\nSeleccionar expediente\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_verificacion_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_hoy_mobile",
+        "role": "client",
+        "route": "hoy",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://client_hoy_mobile",
+      "load_ms": 44.34,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 117,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nHoy en IBERFIT\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nIBERFIT · HOY\n\nTu acompañamiento, Cliente IBERFIT\n\nRevisa tu próxima sesión, planificación y evolución confirmada.\n\nESTADO\nConfirmado\nSESIONES HOY\n1\nAgenda confirmada\nPRÓXIMA SESIÓN\n19 jul 2026, 18:00\nSesión presencial\nTU MODALIDAD\nHíbrido\nSegún tus permisos de acceso\nCONFLICTOS\n0\nSin bloqueos\n\nAGENDA\n\nSesiones de hoy\n1 confirmada\n\n19 JUL 2026, 18:00\n\nSesión presencial\n\nLas Condes\n\nConfirmado\n\nSIGUIENTE PASO\n\nSesión presencial\n\n19 jul 2026, 18:00\n\nÚLTIMO IRI\n72\nBuen nivel funcional\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_hoy_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_progreso_tablet",
+        "role": "client",
+        "route": "progreso",
+        "width": 768,
+        "height": 1024,
+        "scenario": "normal"
+      },
+      "url": "inline://client_progreso_tablet",
+      "load_ms": 46.24,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 768,
+        "viewportWidth": 768,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 194,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 142.765625,
+        "topbarBottom": 142.765625,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nProgreso\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nSEGUIMIENTO CONFIRMADO\n\nProgreso y adherencia\n\nVentana de 28 días · calidad del dato media.\n\nRevisión prioritaria\nADHERENCIA\n100%\n2 de 2 sesiones\nRPE MEDIO\n7.3\nSolo ejecuciones confirmadas\nVOLUMEN MEDIO\n143\nCarga × repeticiones cuando existe\nCAMBIO IRI\n5 pts\nActual 72\n\nCRONOLOGÍA\n\nEvolución registrada\n6 eventos\n\n18 JUL 2026\n\nRegistro de bienestar\n\nEnergía 4 · Sueño 4 · Estrés 8 · Dolor 6\n\n18 JUL 2026\n\nEvaluación IRI\n\nPuntuación 72\n\n16 JUL 2026\n\nSesión ejecutada\n\nRPE medio 7.5\n\n11 JUL 2026\n\nRegistro de bienestar\n\nEnergía 7 · Sueño 7 · Estrés 4 · Dolor 1\n\n9 JUL 2026\n\nSesión ejecutada\n\nRPE medio 7\n\n1 JUN 2026\n\nEvaluación IRI\n\nPuntuación 67\n\nRECUPERACIÓN\n\nPromedio de registros de bienestar\nENERGÍA\n5.5/10\nSUEÑO\n5.5/10\nESTRÉS\n6/10\nDOLOR\n3.5/10\n\nLa aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.\n\nACTIVIDAD DE DISPOSITIVO\n\nTendencia objetiva complementaria\nActualizada\nPASOS MEDIOS\n7900\nMINUTOS ACTIVOS\n44.7 min\nSUEÑO DE DISPOSITIVO\n440 min\nFC EN REPOSO\n59 lpm\n\nSe presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.\n\nALERTAS EXPLICABLES\n\nQué requiere atención\n\nREGISTRO DE BIENESTAR\n\nDolor elevado informado\n\nEl último registro de bienestar indica dolor igual o superior a 6/10. No corresponde progresar automáticamente la carga.\n\nRevisar con el cliente antes de la próxima sesión.\nPrioritaria\n\nREGISTRO DE BIENESTAR\n\nRecuperación condicionada\n\nSueño, energía o estrés sugieren adaptar el contexto de la sesión, sin asumir una causa clínica.\n\nValorar mantener, descargar o priorizar técnica.\nRevisar\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_progreso_tablet.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_actividad_mobile",
+        "role": "client",
+        "route": "actividad",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://client_actividad_mobile",
+      "load_ms": 66.61,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 229,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nActividad, hábitos y dispositivos\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nACTIVIDAD Y CONTEXTO\n\nRegistros de bienestar, hábitos y dispositivos\n\nEl registro de bienestar sigue siendo la fuente principal de contexto. Los datos de dispositivos aportan tendencias objetivas, nunca diagnósticos ni decisiones automáticas.\n\nÚltimo registro de bienestar disponible\nFunción disponible: Registros de bienestar\n\nEstá preparada para guardar con confirmación segura.\n\nREGISTRO DE BIENESTAR\n\nCómo estás hoy\nEnergía (0–10)\nSueño (0–10)\nEstrés (0–10)\nDolor (0–10)\nObservaciones\nGuardar borrador\nEnviar registro de bienestar\n\nÚLTIMO REGISTRO CONFIRMADO\n\n18 jul 2026, 9:00\n\nDisponible entre los registros confirmados.\n\nDATOS DE DISPOSITIVOS\n\nResumen de los últimos 7 días\n\nArchivo normalizado IBERFIT: Conectado\n\nActualizado\nPASOS MEDIOS\n7900\n3 días con datos\nACTIVIDAD\n44.7 min\nPromedio diario disponible\nSUEÑO OBJETIVO\n440 min\nDato de dispositivo, no percepción\nFC EN REPOSO\n59 lpm\nCalidad media\nVFC MEDIA\n46.7 ms\nENERGÍA ACTIVA\n533.3 kcal\nENTRENAMIENTO REGISTRADO\n36.7 min\nFUENTES\nnormalized_file\n\nIBERFIT muestra procedencia, fecha y calidad. No transforma datos de dispositivos conectados en indicaciones clínicas ni progresa cargas sin revisión del entrenador.\n\nPRIVACIDAD PRIMERO\n\nRevisar una exportación\nSolo vista previa local · gratuito\n\nLa importación local permite revisar el formato sin crear cuentas ni enviar el archivo. Nada se incorpora al expediente hasta una confirmación posterior y explícita.\n\nOrigen del archivo\nArchivo normalizado IBERFIT\nExportación Health Connect\nExportación Apple Health\nExportación Google Health API / Fitbit\nExportación Oura\nExportación Garmin\nArchivo JSON o CSV\nDescargar plantilla\nAnalizar archivo\nLimpiar vista previa\n\nARQUITECTURA PREPARADA\n\nPlan gratuito de integraciones\n\nSolo se habilitan rutas sin coste confirmado. Las demás permanecen visibles como arquitectura, pero bloqueadas.\n\nCoste cero\n\nIOS · COSTE CERO\n\nApple Health\n\nArquitectura preservada; activación pausada por la regla de coste cero\n\nEn pausa por coste\n\nANDROID · COSTE CERO\n\nHealth Connect\n\nPreparado para desarrollo gratuito; requiere puente móvil real\n\nPreparación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGarmin Connect\n\nNo se activará mientras requiera acceso de socio o licencia\n\nNo activar\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGoogle Health API · Fitbit y Pixel Watch\n\nLa autorización externa está preparada, pero requiere una revisión antes de activarse\n\nEvaluación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nOura\n\nEn espera hasta confirmar una vía gratuita\n\nEn espera\n\nNAVEGADOR · COSTE CERO\n\nArchivo normalizado IBERFIT\n\nDisponible ahora sin coste adicional\n\nDisponible\nFunción no disponible todavía: Hábitos\n\nPuedes conservar el borrador en este dispositivo; no se mostrará como confirmado hasta que la función esté disponible.\n\nSEGUIMIENTO\n\nHábitos activos\n1 hábito\nCaminar 30 minutos\n\nActivo · 1 jul 2026, 9:00\n\nActivo\nRegistrar hoy\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nRegistrar hoy: Caminar 30 minutos\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_actividad_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "builder_desktop",
+        "role": "coach",
+        "route": "builder",
+        "width": 1440,
+        "height": 960,
+        "scenario": "normal"
+      },
+      "url": "inline://builder_desktop",
+      "load_ms": 56.0,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 293,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 93.1875,
+        "topbarBottom": 93.1875,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente IBERFIT\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador IBERFIT\n\nENTRENADOR\n\nSesiones\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nTodo confirmado\nCerrar sesión\n\nCONSTRUCTOR\n\nFuerza global · Sesión A\nSalir\nRevisar sesión\nPublicar sesión\nBorrador guardado localmente\nTítulo\nDuración estimada (min)\nBuscar ejercicio\nCaminata en semisentadilla con banda\nactivación glúteo · banda\nSentadilla con empuje sobre la cabeza y mancuernas\nglobal · mancuerna\nExtensión de rodilla en máquina\nsentadilla · máquina\nExtensión de rodilla unilateral\nsentadilla · máquina\nSentadilla en máquina inclinada\nsentadilla · máquina\nPrensa de piernas inclinada\nsentadilla · máquina\nPrensa horizontal\nsentadilla · máquina\nSentadilla cosaca\nsentadilla · sin equipo\nSentadilla cosaca asistida\nsentadilla · soporte\nSentadilla en copa\nsentadilla · mancuerna\nSentadilla en copa con pausa\nsentadilla · mancuerna\nSentadilla en copa con ritmo 3-1-1\nsentadilla · mancuerna\nSentadilla Zercher\nsentadilla · barra\nSentadilla a cajón\nsentadilla · cajón\nSentadilla a silla\nsentadilla · silla\nSentadilla al aire\nsentadilla · sin equipo\nSentadilla ciclista\nsentadilla · disco\nSentadilla con TRX\nsentadilla · TRX\nSentadilla con TRX y pausa\nsentadilla · TRX\nSentadilla con balón medicinal\nsentadilla · balón medicinal\nSentadilla con banda en rodillas\nsentadilla · banda\nSentadilla con banda frontal\nsentadilla · banda\nSentadilla con contrapeso\nsentadilla · disco\nSentadilla con saco frontal\nsentadilla · saco\nBiserie\nTriserie\nCircuito\nAMRAP\nTabata\n1\nAbducción de cadera lateralactivación glúteo · bloque individual\n↑\n↓\nEliminar\nSeries\nRepeticiones/tiempo objetivo\nDescanso (s)\nRitmo de ejecución\nRPE objetivo\nRIR objetivo\nAlternativa\nSin alternativa fijada\nCaminata lateral con banda\nApertura de cadera en decúbito lateral\nApertura de cadera en decúbito lateral con banda\nCaminata en semisentadilla con banda\nPatada de glúteo en cuadrupedia\n2\nBiserie2 ejercicios\n↑\n↓\nEliminar\nRondas\nCaminata lateral con banda\nRepeticiones/tiempo\nDescanso (s)\nRitmo de ejecución\nRPE\nRIR\nAlternativa\nSin alternativa fijada\nAbducción de cadera lateral\nApertura de cadera en decúbito lateral\nApertura de cadera en decúbito lateral con banda\nCaminata en semisentadilla con banda\nPatada de glúteo en cuadrupedia\nApertura de cadera en decúbito lateral\nRepeticiones/tiempo\nDescanso (s)\nRitmo de ejecución\nRPE\nRIR\nAlternativa\nSin alternativa fijada\nAbducción de cadera lateral\nCaminata lateral con banda\nApertura de cadera en decúbito lateral con banda\nCaminata en semisentadilla con banda\nPatada de glúteo en cuadrupedia\nNavegación IBERFIT\nSeleccionar expediente\nRevisa la sesión antes de publicarla\nMover Abducción de cadera lateral hacia arriba\nMover Abducción de cadera lateral hacia abajo\nMover grupo hacia arriba\nMover grupo hacia abajo",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/builder_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "builder_mobile",
+        "role": "coach",
+        "route": "builder",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://builder_mobile",
+      "load_ms": 69.46,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 293,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 150.15625,
+        "topbarBottom": 150.15625,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nENTRENADOR\n\nSesiones\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nCerrar sesión\n\nCONSTRUCTOR\n\nFuerza global · Sesión A\nSalir\nRevisar sesión\nPublicar sesión\nBorrador guardado localmente\nTítulo\nDuración estimada (min)\nBuscar ejercicio\nCaminata en semisentadilla con banda\nactivación glúteo · banda\nSentadilla con empuje sobre la cabeza y mancuernas\nglobal · mancuerna\nExtensión de rodilla en máquina\nsentadilla · máquina\nExtensión de rodilla unilateral\nsentadilla · máquina\nSentadilla en máquina inclinada\nsentadilla · máquina\nPrensa de piernas inclinada\nsentadilla · máquina\nPrensa horizontal\nsentadilla · máquina\nSentadilla cosaca\nsentadilla · sin equipo\nSentadilla cosaca asistida\nsentadilla · soporte\nSentadilla en copa\nsentadilla · mancuerna\nSentadilla en copa con pausa\nsentadilla · mancuerna\nSentadilla en copa con ritmo 3-1-1\nsentadilla · mancuerna\nSentadilla Zercher\nsentadilla · barra\nSentadilla a cajón\nsentadilla · cajón\nSentadilla a silla\nsentadilla · silla\nSentadilla al aire\nsentadilla · sin equipo\nSentadilla ciclista\nsentadilla · disco\nSentadilla con TRX\nsentadilla · TRX\nSentadilla con TRX y pausa\nsentadilla · TRX\nSentadilla con balón medicinal\nsentadilla · balón medicinal\nSentadilla con banda en rodillas\nsentadilla · banda\nSentadilla con banda frontal\nsentadilla · banda\nSentadilla con contrapeso\nsentadilla · disco\nSentadilla con saco frontal\nsentadilla · saco\nBiserie\nTriserie\nCircuito\nAMRAP\nTabata\n1\nAbducción de cadera lateralactivación glúteo · bloque individual\n↑\n↓\nEliminar\nSeries\nRepeticiones/tiempo objetivo\nDescanso (s)\nRitmo de ejecución\nRPE objetivo\nRIR objetivo\nAlternativa\nSin alternativa fijada\nCaminata lateral con banda\nApertura de cadera en decúbito lateral\nApertura de cadera en decúbito lateral con banda\nCaminata en semisentadilla con banda\nPatada de glúteo en cuadrupedia\n2\nBiserie2 ejercicios\n↑\n↓\nEliminar\nRondas\nCaminata lateral con banda\nRepeticiones/tiempo\nDescanso (s)\nRitmo de ejecución\nRPE\nRIR\nAlternativa\nSin alternativa fijada\nAbducción de cadera lateral\nApertura de cadera en decúbito lateral\nApertura de cadera en decúbito lateral con banda\nCaminata en semisentadilla con banda\nPatada de glúteo en cuadrupedia\nApertura de cadera en decúbito lateral\nRepeticiones/tiempo\nDescanso (s)\nRitmo de ejecución\nRPE\nRIR\nAlternativa\nSin alternativa fijada\nAbducción de cadera lateral\nCaminata lateral con banda\nApertura de cadera en decúbito lateral con banda\nCaminata en semisentadilla con banda\nPatada de glúteo en cuadrupedia\nHoy\nClientes\nAgenda\nBiblioteca\nMás\nSeleccionar expediente\nRevisa la sesión antes de publicarla\nMover Abducción de cadera lateral hacia arriba\nMover Abducción de cadera lateral hacia abajo\nMover grupo hacia arriba\nMover grupo hacia abajo\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/builder_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "execution_mobile",
+        "role": "client",
+        "route": "execution",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://execution_mobile",
+      "load_ms": 56.99,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 136,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nSesiones\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nSESIÓN GUIADA\n\nAbducción de cadera lateral\n\nSerie 1 de 3\n\n0%\nTIEMPO ACTIVO\n00:00\nDESCANSO\n—\n\nOBJETIVO DE ESTA SERIE\n\nREPETICIONES/TIEMPO\n8–10\nDESCANSO\n75 s\nRITMO DE EJECUCIÓN\ncontrolado\nESFUERZO\nRPE 7 · RIR 3\nIndicaciones\n\nRealiza el movimiento sin dolor · Respira de forma continua · Evita forzar el rango\n\nRepeticiones\nTiempo (s)\nCarga\nRPE\nRIR\nNotas\nCompletar serie\nAnterior\nSiguiente\n−15 s\n+15 s\nAlternativa\nCaminata lateral con banda\nApertura de cadera en decúbito lateral\nApertura de cadera en decúbito lateral con banda\nCaminata en semisentadilla con banda\nPatada de glúteo en cuadrupedia\nMotivo\nUsar alternativa\nPausar sesión\nMotivo para cancelar\nCancelar sesión\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nProgreso 0%\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/execution_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "paused_mobile",
+        "role": "client",
+        "route": "paused",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://paused_mobile",
+      "load_ms": 56.17,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 85,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nSesiones\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\nTIEMPO ACTIVO\n00:00\nDESCANSO\n—\n\nSESIÓN EN PAUSA\n\nFuerza global · Sesión A\n\nTu progreso está conservado. Reanuda cuando estés listo.\n\nReanudar sesión\nMotivo para cancelar\nCancelar sesión\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/paused_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "feedback_mobile",
+        "role": "client",
+        "route": "feedback",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://feedback_mobile",
+      "load_ms": 50.59,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 90,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nSesiones\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\nTIEMPO ACTIVO\n00:00\nDESCANSO\n—\n\nCIERRE DE SESIÓN\n\nCuéntanos cómo te fue\nRPE de la sesión\nComentario\nTuve dolor o molestia\nDetalle de dolor\nFinalizar y guardar\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/feedback_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_actividad_wearable_desktop",
+        "role": "coach",
+        "route": "actividad",
+        "width": 1440,
+        "height": 960,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_actividad_wearable_desktop",
+      "load_ms": 71.4,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 269,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 93.1875,
+        "topbarBottom": 93.1875,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente IBERFIT\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador IBERFIT\n\nENTRENADOR\n\nActividad, hábitos y dispositivos\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nTodo confirmado\nCerrar sesión\n\nACTIVIDAD Y CONTEXTO\n\nRegistros de bienestar, hábitos y dispositivos\n\nEl registro de bienestar sigue siendo la fuente principal de contexto. Los datos de dispositivos aportan tendencias objetivas, nunca diagnósticos ni decisiones automáticas.\n\nÚltimo registro de bienestar disponible\nFunción disponible: Registros de bienestar\n\nEstá preparada para guardar con confirmación segura.\n\nREGISTRO DE BIENESTAR\n\nCómo estás hoy\nEnergía (0–10)\nSueño (0–10)\nEstrés (0–10)\nDolor (0–10)\nObservaciones\nGuardar borrador\nEnviar registro de bienestar\n\nÚLTIMO REGISTRO CONFIRMADO\n\n18 jul 2026, 9:00\n\nDisponible entre los registros confirmados.\n\nDATOS DE DISPOSITIVOS\n\nResumen de los últimos 7 días\n\nArchivo normalizado IBERFIT: Conectado\n\nActualizado\nPASOS MEDIOS\n7900\n3 días con datos\nACTIVIDAD\n44.7 min\nPromedio diario disponible\nSUEÑO OBJETIVO\n440 min\nDato de dispositivo, no percepción\nFC EN REPOSO\n59 lpm\nCalidad media\nVFC MEDIA\n46.7 ms\nENERGÍA ACTIVA\n533.3 kcal\nENTRENAMIENTO REGISTRADO\n36.7 min\nFUENTES\nnormalized_file\n\nIBERFIT muestra procedencia, fecha y calidad. No transforma datos de dispositivos conectados en indicaciones clínicas ni progresa cargas sin revisión del entrenador.\n\nCONTROL DEL CLIENTE\n\nConexiones de dispositivos\n\nEl cliente decide qué fuentes comparte, puede pausar la sincronización y conserva el control de sus permisos. El entrenador recibe únicamente resúmenes confirmados.\n\nARQUITECTURA PREPARADA\n\nPlan gratuito de integraciones\n\nSolo se habilitan rutas sin coste confirmado. Las demás permanecen visibles como arquitectura, pero bloqueadas.\n\nCoste cero\n\nIOS · COSTE CERO\n\nApple Health\n\nArquitectura preservada; activación pausada por la regla de coste cero\n\nEn pausa por coste\n\nANDROID · COSTE CERO\n\nHealth Connect\n\nPreparado para desarrollo gratuito; requiere puente móvil real\n\nPreparación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGarmin Connect\n\nNo se activará mientras requiera acceso de socio o licencia\n\nNo activar\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGoogle Health API · Fitbit y Pixel Watch\n\nLa autorización externa está preparada, pero requiere una revisión antes de activarse\n\nEvaluación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nOura\n\nEn espera hasta confirmar una vía gratuita\n\nEn espera\n\nNAVEGADOR · COSTE CERO\n\nArchivo normalizado IBERFIT\n\nDisponible ahora sin coste adicional\n\nDisponible\nFunción disponible: Hábitos\n\nEstá preparada para guardar con confirmación segura.\n\nENTRENADOR\n\nDefinir hábito\nNombre\nObjetivo\nUnidad\nFrecuencia\nDiario\nSemanal\nDías específicos\nDescripción\nGuardar borrador\nPublicar hábito\n\nSEGUIMIENTO\n\nHábitos activos\n1 hábito\nCaminar 30 minutos\n\nActivo · 1 jul 2026, 9:00\n\nActivo\nRegistrar hoy\nNavegación IBERFIT\nSeleccionar expediente\nRegistrar hoy: Caminar 30 minutos",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_actividad_wearable_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_actividad_wearable_tablet",
+        "role": "client",
+        "route": "actividad",
+        "width": 768,
+        "height": 1100,
+        "scenario": "normal"
+      },
+      "url": "inline://client_actividad_wearable_tablet",
+      "load_ms": 61.53,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 768,
+        "viewportWidth": 768,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 229,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 142.765625,
+        "topbarBottom": 142.765625,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nActividad, hábitos y dispositivos\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nACTIVIDAD Y CONTEXTO\n\nRegistros de bienestar, hábitos y dispositivos\n\nEl registro de bienestar sigue siendo la fuente principal de contexto. Los datos de dispositivos aportan tendencias objetivas, nunca diagnósticos ni decisiones automáticas.\n\nÚltimo registro de bienestar disponible\nFunción disponible: Registros de bienestar\n\nEstá preparada para guardar con confirmación segura.\n\nREGISTRO DE BIENESTAR\n\nCómo estás hoy\nEnergía (0–10)\nSueño (0–10)\nEstrés (0–10)\nDolor (0–10)\nObservaciones\nGuardar borrador\nEnviar registro de bienestar\n\nÚLTIMO REGISTRO CONFIRMADO\n\n18 jul 2026, 9:00\n\nDisponible entre los registros confirmados.\n\nDATOS DE DISPOSITIVOS\n\nResumen de los últimos 7 días\n\nArchivo normalizado IBERFIT: Conectado\n\nActualizado\nPASOS MEDIOS\n7900\n3 días con datos\nACTIVIDAD\n44.7 min\nPromedio diario disponible\nSUEÑO OBJETIVO\n440 min\nDato de dispositivo, no percepción\nFC EN REPOSO\n59 lpm\nCalidad media\nVFC MEDIA\n46.7 ms\nENERGÍA ACTIVA\n533.3 kcal\nENTRENAMIENTO REGISTRADO\n36.7 min\nFUENTES\nnormalized_file\n\nIBERFIT muestra procedencia, fecha y calidad. No transforma datos de dispositivos conectados en indicaciones clínicas ni progresa cargas sin revisión del entrenador.\n\nPRIVACIDAD PRIMERO\n\nRevisar una exportación\nSolo vista previa local · gratuito\n\nLa importación local permite revisar el formato sin crear cuentas ni enviar el archivo. Nada se incorpora al expediente hasta una confirmación posterior y explícita.\n\nOrigen del archivo\nArchivo normalizado IBERFIT\nExportación Health Connect\nExportación Apple Health\nExportación Google Health API / Fitbit\nExportación Oura\nExportación Garmin\nArchivo JSON o CSV\nDescargar plantilla\nAnalizar archivo\nLimpiar vista previa\n\nARQUITECTURA PREPARADA\n\nPlan gratuito de integraciones\n\nSolo se habilitan rutas sin coste confirmado. Las demás permanecen visibles como arquitectura, pero bloqueadas.\n\nCoste cero\n\nIOS · COSTE CERO\n\nApple Health\n\nArquitectura preservada; activación pausada por la regla de coste cero\n\nEn pausa por coste\n\nANDROID · COSTE CERO\n\nHealth Connect\n\nPreparado para desarrollo gratuito; requiere puente móvil real\n\nPreparación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGarmin Connect\n\nNo se activará mientras requiera acceso de socio o licencia\n\nNo activar\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGoogle Health API · Fitbit y Pixel Watch\n\nLa autorización externa está preparada, pero requiere una revisión antes de activarse\n\nEvaluación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nOura\n\nEn espera hasta confirmar una vía gratuita\n\nEn espera\n\nNAVEGADOR · COSTE CERO\n\nArchivo normalizado IBERFIT\n\nDisponible ahora sin coste adicional\n\nDisponible\nFunción no disponible todavía: Hábitos\n\nPuedes conservar el borrador en este dispositivo; no se mostrará como confirmado hasta que la función esté disponible.\n\nSEGUIMIENTO\n\nHábitos activos\n1 hábito\nCaminar 30 minutos\n\nActivo · 1 jul 2026, 9:00\n\nActivo\nRegistrar hoy\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nRegistrar hoy: Caminar 30 minutos\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_actividad_wearable_tablet.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_progreso_wearable_mobile",
+        "role": "client",
+        "route": "progreso",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://client_progreso_wearable_mobile",
+      "load_ms": 45.09,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 194,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nProgreso\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nSEGUIMIENTO CONFIRMADO\n\nProgreso y adherencia\n\nVentana de 28 días · calidad del dato media.\n\nRevisión prioritaria\nADHERENCIA\n100%\n2 de 2 sesiones\nRPE MEDIO\n7.3\nSolo ejecuciones confirmadas\nVOLUMEN MEDIO\n143\nCarga × repeticiones cuando existe\nCAMBIO IRI\n5 pts\nActual 72\n\nCRONOLOGÍA\n\nEvolución registrada\n6 eventos\n\n18 JUL 2026\n\nRegistro de bienestar\n\nEnergía 4 · Sueño 4 · Estrés 8 · Dolor 6\n\n18 JUL 2026\n\nEvaluación IRI\n\nPuntuación 72\n\n16 JUL 2026\n\nSesión ejecutada\n\nRPE medio 7.5\n\n11 JUL 2026\n\nRegistro de bienestar\n\nEnergía 7 · Sueño 7 · Estrés 4 · Dolor 1\n\n9 JUL 2026\n\nSesión ejecutada\n\nRPE medio 7\n\n1 JUN 2026\n\nEvaluación IRI\n\nPuntuación 67\n\nRECUPERACIÓN\n\nPromedio de registros de bienestar\nENERGÍA\n5.5/10\nSUEÑO\n5.5/10\nESTRÉS\n6/10\nDOLOR\n3.5/10\n\nLa aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.\n\nACTIVIDAD DE DISPOSITIVO\n\nTendencia objetiva complementaria\nActualizada\nPASOS MEDIOS\n7900\nMINUTOS ACTIVOS\n44.7 min\nSUEÑO DE DISPOSITIVO\n440 min\nFC EN REPOSO\n59 lpm\n\nSe presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.\n\nALERTAS EXPLICABLES\n\nQué requiere atención\n\nREGISTRO DE BIENESTAR\n\nDolor elevado informado\n\nEl último registro de bienestar indica dolor igual o superior a 6/10. No corresponde progresar automáticamente la carga.\n\nRevisar con el cliente antes de la próxima sesión.\nPrioritaria\n\nREGISTRO DE BIENESTAR\n\nRecuperación condicionada\n\nSueño, energía o estrés sugieren adaptar el contexto de la sesión, sin asumir una causa clínica.\n\nValorar mantener, descargar o priorizar técnica.\nRevisar\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_progreso_wearable_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_actividad_preview_mobile",
+        "role": "client",
+        "route": "actividad",
+        "width": 390,
+        "height": 844,
+        "scenario": "preview"
+      },
+      "url": "inline://client_actividad_preview_mobile",
+      "load_ms": 51.81,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 252,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nActividad, hábitos y dispositivos\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nACTIVIDAD Y CONTEXTO\n\nRegistros de bienestar, hábitos y dispositivos\n\nEl registro de bienestar sigue siendo la fuente principal de contexto. Los datos de dispositivos aportan tendencias objetivas, nunca diagnósticos ni decisiones automáticas.\n\nÚltimo registro de bienestar disponible\nFunción disponible: Registros de bienestar\n\nEstá preparada para guardar con confirmación segura.\n\nREGISTRO DE BIENESTAR\n\nCómo estás hoy\nEnergía (0–10)\nSueño (0–10)\nEstrés (0–10)\nDolor (0–10)\nObservaciones\nGuardar borrador\nEnviar registro de bienestar\n\nÚLTIMO REGISTRO CONFIRMADO\n\n18 jul 2026, 9:00\n\nDisponible entre los registros confirmados.\n\nDATOS DE DISPOSITIVOS\n\nResumen de los últimos 7 días\n\nArchivo normalizado IBERFIT: Conectado\n\nActualizado\nPASOS MEDIOS\n7900\n3 días con datos\nACTIVIDAD\n44.7 min\nPromedio diario disponible\nSUEÑO OBJETIVO\n440 min\nDato de dispositivo, no percepción\nFC EN REPOSO\n59 lpm\nCalidad media\nVFC MEDIA\n46.7 ms\nENERGÍA ACTIVA\n533.3 kcal\nENTRENAMIENTO REGISTRADO\n36.7 min\nFUENTES\nnormalized_file\n\nIBERFIT muestra procedencia, fecha y calidad. No transforma datos de dispositivos conectados en indicaciones clínicas ni progresa cargas sin revisión del entrenador.\n\nPRIVACIDAD PRIMERO\n\nRevisar una exportación\nSolo vista previa local · gratuito\n\nLa importación local permite revisar el formato sin crear cuentas ni enviar el archivo. Nada se incorpora al expediente hasta una confirmación posterior y explícita.\n\nOrigen del archivo\nArchivo normalizado IBERFIT\nExportación Health Connect\nExportación Apple Health\nExportación Google Health API / Fitbit\nExportación Oura\nExportación Garmin\nArchivo JSON o CSV\nDescargar plantilla\nAnalizar archivo\nLimpiar vista previa\n\nVISTA PREVIA LOCAL\n\nArchivo normalizado IBERFIT · 3 días\n3 aceptados · 0 omitidos\nPASOS MEDIOS\n7900\nMINUTOS ACTIVOS\n44 min\nSUEÑO MEDIO\n440 min\nFC REPOSO MEDIA\n59 lpm\n\nEsta vista previa se procesa solo en el navegador. No se ha enviado ni confirmado ningún dato.\n\nAñadir resumen al registro de bienestar\nDescargar resumen\nDescartar vista previa\n\nARQUITECTURA PREPARADA\n\nPlan gratuito de integraciones\n\nSolo se habilitan rutas sin coste confirmado. Las demás permanecen visibles como arquitectura, pero bloqueadas.\n\nCoste cero\n\nIOS · COSTE CERO\n\nApple Health\n\nArquitectura preservada; activación pausada por la regla de coste cero\n\nEn pausa por coste\n\nANDROID · COSTE CERO\n\nHealth Connect\n\nPreparado para desarrollo gratuito; requiere puente móvil real\n\nPreparación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGarmin Connect\n\nNo se activará mientras requiera acceso de socio o licencia\n\nNo activar\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGoogle Health API · Fitbit y Pixel Watch\n\nLa autorización externa está preparada, pero requiere una revisión antes de activarse\n\nEvaluación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nOura\n\nEn espera hasta confirmar una vía gratuita\n\nEn espera\n\nNAVEGADOR · COSTE CERO\n\nArchivo normalizado IBERFIT\n\nDisponible ahora sin coste adicional\n\nDisponible\nFunción no disponible todavía: Hábitos\n\nPuedes conservar el borrador en este dispositivo; no se mostrará como confirmado hasta que la función esté disponible.\n\nSEGUIMIENTO\n\nHábitos activos\n1 hábito\nCaminar 30 minutos\n\nActivo · 1 jul 2026, 9:00\n\nActivo\nRegistrar hoy\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nRegistrar hoy: Caminar 30 minutos\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_actividad_preview_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_verificacion_retry_tablet",
+        "role": "coach",
+        "route": "verificacion",
+        "width": 768,
+        "height": 1024,
+        "scenario": "retry"
+      },
+      "url": "inline://coach_verificacion_retry_tablet",
+      "load_ms": 42.47,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 768,
+        "viewportWidth": 768,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 132,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 147.578125,
+        "topbarBottom": 147.578125,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nENTRENADOR\n\nCentro de verificación\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nCerrar sesión\n\nSINCRONIZACIÓN\n\nCentro de verificación\n\nPermite inspeccionar, reintentar o descartar únicamente la copia local. Nunca oculta un conflicto.\n\nSin bloqueos\nPENDIENTES\n0\nCONFLICTOS\n0\nRECHAZADAS\n0\nTOTAL\n0\nI\nTodo confirmado\n\nNo hay operaciones pendientes, conflictos ni rechazos locales.\n\nHoy\nClientes\nAgenda\nBiblioteca\nMás\nSeleccionar expediente\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_verificacion_retry_tablet.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "acceso_confirmando_mobile",
+        "role": "client",
+        "route": "acceso",
+        "width": 390,
+        "height": 844,
+        "scenario": "loading"
+      },
+      "url": "inline://acceso_confirmando_mobile",
+      "load_ms": 30.1,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 16,
+        "sidebarVisible": false,
+        "mobileNavVisible": false,
+        "focusOutline": null,
+        "mainPresent": true,
+        "mainTop": 0,
+        "topbarBottom": null,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "IBERFIT\n\nEntrenamiento personal con criterio\n\nDiagnóstico, planificación, control y seguimiento.\n\nConfirmando identidad y permisos…",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/acceso_confirmando_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "acceso_error_desktop",
+        "role": "coach",
+        "route": "acceso",
+        "width": 1440,
+        "height": 960,
+        "scenario": "access_error"
+      },
+      "url": "inline://acceso_error_desktop",
+      "load_ms": 32.54,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 16,
+        "sidebarVisible": false,
+        "mobileNavVisible": false,
+        "focusOutline": null,
+        "mainPresent": true,
+        "mainTop": 0,
+        "topbarBottom": null,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "IBERFIT\n\nEntrenamiento personal con criterio\n\nDiagnóstico, planificación, control y seguimiento.\n\nNo fue posible confirmar el acceso.",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/acceso_error_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_planificacion_publicacion_desktop",
+        "role": "coach",
+        "route": "planificacion",
+        "width": 1440,
+        "height": 1000,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_planificacion_publicacion_desktop",
+      "load_ms": 78.75,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 290,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 93.1875,
+        "topbarBottom": 93.1875,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente IBERFIT\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador IBERFIT\n\nENTRENADOR\n\nPlanificación\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nTodo confirmado\nCerrar sesión\n\nPLANIFICACIÓN\n\nPlanificación y publicación\n\nCada contenido pasa por validación, aprobación y publicación. Aprobar no lo hace visible para el cliente.\n\n4 sesiones\n\nCICLOS\n\nCiclos en gestión\n1 aprobados\n\nSIN FECHA\n\nCiclo de fuerza en revisión\n\nPendiente de aprobación interna.\n\nPendiente de aprobación\n\nASÍ LO VERÁ EL CLIENTE\n\nCiclo de fuerza en revisión\n\nPlanificación preparada por tu entrenador.\n\nGestionar publicación\n\nSIN FECHA\n\nCiclo aprobado\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nCiclo aprobado\n\nPlanificación preparada por tu entrenador.\n\nGestionar publicación\n\nSIN FECHA\n\nCiclo base de fuerza\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nCiclo base de fuerza\n\nMejorar fuerza y autonomía.\n\n1 jul 2026 – 31 ago 2026\n\nGestionar publicación\n\nSIN FECHA\n\nCiclo anterior archivado\n\nArchivado y no visible para el cliente.\n\nArchivado\n\nASÍ LO VERÁ EL CLIENTE\n\nCiclo anterior archivado\n\nPlanificación preparada por tu entrenador.\n\nGestionar publicación\n\nSESIONES\n\nEstado de las sesiones\n1 publicadas\n\nSIN FECHA\n\nFuerza global · Borrador\n\nBorrador interno.\n\nBorrador\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Borrador\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nGestionar publicación\n\nSIN FECHA\n\nFuerza global · Sesión B\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Sesión B\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nGestionar publicación\n\nSIN FECHA\n\nFuerza global · Sesión A\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Sesión A\n\nTrabajo global controlado.\n\nContenido completo que recibirá el cliente\n45 min\n1 bloque\nContenido de la sesión\nEjercicio guiado\n2 series · 8 · 60 s de descanso\nGestionar publicación\n\nSIN FECHA\n\nSesión anterior retirada\n\nRetirado de la vista del cliente.\n\nRetirado\n\nASÍ LO VERÁ EL CLIENTE\n\nSesión anterior retirada\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nENTRENADOR\n\nPreparar ciclo de entrenamiento\n\nValidar crea una versión interna. Después deberá aprobarse y publicarse de forma expresa.\n\nNombre del ciclo\nInicio\nFin\nObjetivo\nValidar borrador\nNavegación IBERFIT\nSeleccionar expediente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_planificacion_publicacion_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_planificacion_publicacion_mobile",
+        "role": "coach",
+        "route": "planificacion",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_planificacion_publicacion_mobile",
+      "load_ms": 65.58,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 290,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 150.15625,
+        "topbarBottom": 150.15625,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nENTRENADOR\n\nPlanificación\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nCerrar sesión\n\nPLANIFICACIÓN\n\nPlanificación y publicación\n\nCada contenido pasa por validación, aprobación y publicación. Aprobar no lo hace visible para el cliente.\n\n4 sesiones\n\nCICLOS\n\nCiclos en gestión\n1 aprobados\n\nSIN FECHA\n\nCiclo de fuerza en revisión\n\nPendiente de aprobación interna.\n\nPendiente de aprobación\n\nASÍ LO VERÁ EL CLIENTE\n\nCiclo de fuerza en revisión\n\nPlanificación preparada por tu entrenador.\n\nGestionar publicación\n\nSIN FECHA\n\nCiclo aprobado\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nCiclo aprobado\n\nPlanificación preparada por tu entrenador.\n\nGestionar publicación\n\nSIN FECHA\n\nCiclo base de fuerza\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nCiclo base de fuerza\n\nMejorar fuerza y autonomía.\n\n1 jul 2026 – 31 ago 2026\n\nGestionar publicación\n\nSIN FECHA\n\nCiclo anterior archivado\n\nArchivado y no visible para el cliente.\n\nArchivado\n\nASÍ LO VERÁ EL CLIENTE\n\nCiclo anterior archivado\n\nPlanificación preparada por tu entrenador.\n\nGestionar publicación\n\nSESIONES\n\nEstado de las sesiones\n1 publicadas\n\nSIN FECHA\n\nFuerza global · Borrador\n\nBorrador interno.\n\nBorrador\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Borrador\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nGestionar publicación\n\nSIN FECHA\n\nFuerza global · Sesión B\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Sesión B\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nGestionar publicación\n\nSIN FECHA\n\nFuerza global · Sesión A\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Sesión A\n\nTrabajo global controlado.\n\nContenido completo que recibirá el cliente\n45 min\n1 bloque\nContenido de la sesión\nEjercicio guiado\n2 series · 8 · 60 s de descanso\nGestionar publicación\n\nSIN FECHA\n\nSesión anterior retirada\n\nRetirado de la vista del cliente.\n\nRetirado\n\nASÍ LO VERÁ EL CLIENTE\n\nSesión anterior retirada\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nENTRENADOR\n\nPreparar ciclo de entrenamiento\n\nValidar crea una versión interna. Después deberá aprobarse y publicarse de forma expresa.\n\nNombre del ciclo\nInicio\nFin\nObjetivo\nValidar borrador\n\nHoy\nClientes\nAgenda\nBiblioteca\nMás\nSeleccionar expediente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_planificacion_publicacion_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_sesiones_publicacion_desktop",
+        "role": "coach",
+        "route": "sesion",
+        "width": 1440,
+        "height": 1000,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_sesiones_publicacion_desktop",
+      "load_ms": 45.01,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 214,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 93.1875,
+        "topbarBottom": 93.1875,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente IBERFIT\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador IBERFIT\n\nENTRENADOR\n\nSesiones\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nTodo confirmado\nCerrar sesión\n\nMOTOR DE SESIONES\n\nConstrucción y publicación de sesiones\n\nConstruye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.\n\nCrear sesión\n\nCICLO DE PUBLICACIÓN\n\nSesiones del expediente\n1 publicadas\n\nSIN FECHA\n\nFuerza global · Borrador\n\nBorrador interno.\n\nBorrador\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Borrador\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nGestionar publicación\n\nSIN FECHA\n\nFuerza global · Sesión B\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Sesión B\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nGestionar publicación\n\nSIN FECHA\n\nFuerza global · Sesión A\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nFuerza global · Sesión A\n\nTrabajo global controlado.\n\nContenido completo que recibirá el cliente\n45 min\n1 bloque\nContenido de la sesión\nEjercicio guiado\n2 series · 8 · 60 s de descanso\nGestionar publicación\n\nSIN FECHA\n\nSesión anterior retirada\n\nRetirado de la vista del cliente.\n\nRetirado\n\nASÍ LO VERÁ EL CLIENTE\n\nSesión anterior retirada\n\nSigue las indicaciones y registra cada serie durante la sesión.\n\nHISTORIAL\n\nEjecuciones confirmadas\n\nSIN FECHA\n\nRegistro\n\nCompletado\n\nCompletado\n\nSIN FECHA\n\nRegistro\n\nCompletado\n\nCompletado\nNavegación IBERFIT\nSeleccionar expediente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_sesiones_publicacion_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_informes_publicacion_desktop",
+        "role": "coach",
+        "route": "informes",
+        "width": 1440,
+        "height": 1050,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_informes_publicacion_desktop",
+      "load_ms": 61.96,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 201,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 93.1875,
+        "topbarBottom": 93.1875,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente IBERFIT\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador IBERFIT\n\nENTRENADOR\n\nInformes\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nTodo confirmado\nCerrar sesión\n\nDOCUMENTACIÓN\n\nInformes y publicación\n\nAprobar y publicar son decisiones separadas. Un informe aprobado sigue siendo interno hasta su publicación.\n\n3 informes\n\n18 JUL 2026, 12:00\n\nInforme de evolución pendiente de publicación\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nInforme de evolución pendiente de publicación\n\nInforme de evolución preparado por tu entrenador.\n\nGestionar publicación\n\n1 JUL 2026, 12:00\n\nInforme IRI de julio\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nInforme IRI de julio\n\nEvolución estable durante el periodo revisado.\n\n1 jun 2026 – 1 jul 2026\n\nContenido completo que recibirá el cliente\nConclusiones\n\nLa tolerancia al trabajo ha mejorado.\n\nPróximos pasos\n\nMantener la progresión acordada.\n\nGestionar publicación\n\n1 JUN 2026, 12:00\n\nInforme anterior retirado\n\nRetirado de la vista del cliente.\n\nRetirado\n\nASÍ LO VERÁ EL CLIENTE\n\nInforme anterior retirado\n\nInforme de evolución preparado por tu entrenador.\n\nEDICIÓN PROFESIONAL\n\nPreparar informe IBERFIT\n\nEl informe se aprobará como contenido interno. No será visible para el cliente hasta una publicación posterior y expresa.\n\nFormato A4 premium\nTítulo\nInicio del periodo\nFin del periodo\nResumen del periodo\nConclusiones\nRecomendaciones y próximos pasos\n\nREVISIÓN PREVIA\n\nComprobación editorial\n\nConfirma que el texto distingue datos objetivos, interpretación profesional y próximos pasos; evita diagnósticos y afirmaciones no respaldadas.\n\nHe revisado íntegramente el contenido y confirmo que está listo para aprobación interna.\nAprobar informe interno\nNavegación IBERFIT\nSeleccionar expediente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nCriterios de revisión del informe",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_informes_publicacion_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_informes_publicacion_mobile",
+        "role": "coach",
+        "route": "informes",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://coach_informes_publicacion_mobile",
+      "load_ms": 58.68,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 201,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 150.15625,
+        "topbarBottom": 150.15625,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nENTRENADOR\n\nInformes\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nCerrar sesión\n\nDOCUMENTACIÓN\n\nInformes y publicación\n\nAprobar y publicar son decisiones separadas. Un informe aprobado sigue siendo interno hasta su publicación.\n\n3 informes\n\n18 JUL 2026, 12:00\n\nInforme de evolución pendiente de publicación\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nInforme de evolución pendiente de publicación\n\nInforme de evolución preparado por tu entrenador.\n\nGestionar publicación\n\n1 JUL 2026, 12:00\n\nInforme IRI de julio\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nInforme IRI de julio\n\nEvolución estable durante el periodo revisado.\n\n1 jun 2026 – 1 jul 2026\n\nContenido completo que recibirá el cliente\nConclusiones\n\nLa tolerancia al trabajo ha mejorado.\n\nPróximos pasos\n\nMantener la progresión acordada.\n\nGestionar publicación\n\n1 JUN 2026, 12:00\n\nInforme anterior retirado\n\nRetirado de la vista del cliente.\n\nRetirado\n\nASÍ LO VERÁ EL CLIENTE\n\nInforme anterior retirado\n\nInforme de evolución preparado por tu entrenador.\n\nEDICIÓN PROFESIONAL\n\nPreparar informe IBERFIT\n\nEl informe se aprobará como contenido interno. No será visible para el cliente hasta una publicación posterior y expresa.\n\nFormato A4 premium\nTítulo\nInicio del periodo\nFin del periodo\nResumen del periodo\nConclusiones\nRecomendaciones y próximos pasos\n\nREVISIÓN PREVIA\n\nComprobación editorial\n\nConfirma que el texto distingue datos objetivos, interpretación profesional y próximos pasos; evita diagnósticos y afirmaciones no respaldadas.\n\nHe revisado íntegramente el contenido y confirmo que está listo para aprobación interna.\nAprobar informe interno\n\nHoy\nClientes\nAgenda\nBiblioteca\nMás\nSeleccionar expediente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nCriterios de revisión del informe\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_informes_publicacion_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_planificacion_publicada_mobile",
+        "role": "client",
+        "route": "planificacion",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://client_planificacion_publicada_mobile",
+      "load_ms": 39.67,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 113,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nPlanificación\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nPLANIFICACIÓN\n\nTu planificación\n\nAquí tienes tu plan actual y las sesiones que ya están listas para ti.\n\n1 sesión\n\nCICLOS\n\nTu plan vigente\n\nTU PLAN\n\nCiclo base de fuerza\n\nMejorar fuerza y autonomía.\n\n1 jul 2026 – 31 ago 2026\n\nSESIONES\n\nSesiones de tu plan\n\nSESIÓN PREPARADA\n\nFuerza global · Sesión A\n\nTrabajo global controlado.\n\nVer detalles de la sesión\nComenzar esta sesión\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_planificacion_publicada_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_sesiones_publicadas_mobile",
+        "role": "client",
+        "route": "sesion",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://client_sesiones_publicadas_mobile",
+      "load_ms": 38.16,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 120,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nSesiones\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nMOTOR DE SESIONES\n\nTus sesiones guiadas\n\nElige la sesión preparada para ti y sigue las indicaciones paso a paso.\n\nIniciar sesión guiada\n\nDISPONIBLES\n\nSesiones para realizar\n\nSESIÓN PREPARADA\n\nFuerza global · Sesión A\n\nTrabajo global controlado.\n\nVer detalles de la sesión\nComenzar esta sesión\n\nHISTORIAL\n\nTus sesiones realizadas\n\nSIN FECHA\n\nRegistro\n\nCompletado\n\nCompletado\n\nSIN FECHA\n\nRegistro\n\nCompletado\n\nCompletado\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_sesiones_publicadas_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_informes_publicados_mobile",
+        "role": "client",
+        "route": "informes",
+        "width": 390,
+        "height": 844,
+        "scenario": "normal"
+      },
+      "url": "inline://client_informes_publicados_mobile",
+      "load_ms": 36.59,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 94,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nInformes\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nDOCUMENTACIÓN\n\nTus informes IBERFIT\n\nConsulta tus informes de evolución y los próximos pasos acordados con tu entrenador.\n\n1 informe\n\nTU INFORME\n\nInforme IRI de julio\n\nEvolución estable durante el periodo revisado.\n\n1 jun 2026 – 1 jul 2026\n\nLeer el informe\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_informes_publicados_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_clientes_busqueda_mobile",
+        "role": "coach",
+        "route": "clientes",
+        "width": 390,
+        "height": 844,
+        "scenario": "many_clients"
+      },
+      "url": "inline://coach_clientes_busqueda_mobile",
+      "load_ms": 60.94,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 534,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 150.15625,
+        "topbarBottom": 150.15625,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nENTRENADOR\n\nClientes\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nCliente de prueba 01\nCliente de prueba 02\nCliente de prueba 03\nCliente de prueba 04\nCliente de prueba 05\nCliente de prueba 06\nCliente de prueba 07\nCliente de prueba 08\nCliente de prueba 09\nCliente de prueba 10\nCliente de prueba 11\nCliente de prueba 12\nCliente de prueba 13\nCliente de prueba 14\nCliente de prueba 15\nCliente de prueba 16\nCliente de prueba 17\nCliente de prueba 18\nCliente de prueba 19\nCliente de prueba 20\nCliente de prueba 21\nCliente de prueba 22\nCliente de prueba 23\nCliente de prueba 24\nCliente de prueba 25\nCliente de prueba 26\nCliente de prueba 27\nCliente de prueba 28\nCliente de prueba 29\nCliente de prueba 30\nCliente de prueba 31\nCliente de prueba 32\nCliente de prueba 33\nCliente de prueba 34\nCliente de prueba 35\nCliente de prueba 36\nCerrar sesión\n\nCARTERA AUTORIZADA\n\nClientes y seguimiento\n\nSolo se muestran los expedientes autorizados para tu cuenta.\n\n38 clientes\nBuscar cliente\n\nMostrando 38 clientes.\n\nC\n\nHÍBRIDO\n\nCliente IBERFIT\n\nActivo · IRI 72\n\nActivo\n22 jul 2026, 18:00\nC\n\nSIN MODALIDAD\n\nCliente de seguimiento\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 01\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 02\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 03\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 04\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 05\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 06\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 07\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 08\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 09\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 10\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 11\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 12\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 13\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 14\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 15\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 16\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 17\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 18\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 19\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 20\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 21\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 22\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 23\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 24\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 25\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 26\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 27\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 28\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 29\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 30\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 31\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 32\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 33\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 34\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 35\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 36\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nHoy\nClientes\nAgenda\nBiblioteca\nMás\nSeleccionar expediente\nNombre, modalidad o estado\nAbrir expediente de Cliente IBERFIT\nAbrir expediente de Cliente de seguimiento\nAbrir expediente de Cliente de prueba 01\nAbrir expediente de Cliente de prueba 02\nAbrir expediente de Cliente de prueba 03\nAbrir expediente de Cliente de prueba 04\nAbrir expediente de Cliente de prueba 05\nAbrir expediente de Cliente de prueba 06\nAbrir expediente de Cliente de prueba 07\nAbrir expediente de Cliente de prueba 08\nAbrir expediente de Cliente de prueba 09\nAbrir expediente de Cliente de prueba 10\nAbrir expediente de Cliente de prueba 11\nAbrir expediente de Cliente de prueba 12\nAbrir expediente de Cliente de prueba 13\nAbrir expediente de Cliente de prueba 14\nAbrir expediente de Cliente de prueba 15\nAbrir expediente de Cliente de prueba 16\nAbrir expediente de Cliente de prueba 17\nAbrir expediente de Cliente de prueba 18\nAbrir expediente de Cliente de prueba 19\nAbrir expediente de Cliente de prueba 20\nAbrir expediente de Cliente de prueba 21\nAbrir expediente de Cliente de prueba 22\nAbrir expediente de Cliente de prueba 23\nAbrir expediente de Cliente de prueba 24\nAbrir expediente de Cliente de prueba 25\nAbrir expediente de Cliente de prueba 26\nAbrir expediente de Cliente de prueba 27\nAbrir expediente de Cliente de prueba 28\nAbrir expediente de Cliente de prueba 29\nAbrir expediente de Cliente de prueba 30\nAbrir expediente de Cliente de prueba 31\nAbrir expediente de Cliente de prueba 32\nAbrir expediente de Cliente de prueba 33\nAbrir expediente de Cliente de prueba 34\nAbrir expediente de Cliente de prueba 35\nAbrir expediente de Cliente de prueba 36\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_clientes_busqueda_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_clientes_busqueda_desktop",
+        "role": "coach",
+        "route": "clientes",
+        "width": 1440,
+        "height": 960,
+        "scenario": "many_clients"
+      },
+      "url": "inline://coach_clientes_busqueda_desktop",
+      "load_ms": 60.38,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 534,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 93.1875,
+        "topbarBottom": 93.1875,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente IBERFIT\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador IBERFIT\n\nENTRENADOR\n\nClientes\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nCliente de prueba 01\nCliente de prueba 02\nCliente de prueba 03\nCliente de prueba 04\nCliente de prueba 05\nCliente de prueba 06\nCliente de prueba 07\nCliente de prueba 08\nCliente de prueba 09\nCliente de prueba 10\nCliente de prueba 11\nCliente de prueba 12\nCliente de prueba 13\nCliente de prueba 14\nCliente de prueba 15\nCliente de prueba 16\nCliente de prueba 17\nCliente de prueba 18\nCliente de prueba 19\nCliente de prueba 20\nCliente de prueba 21\nCliente de prueba 22\nCliente de prueba 23\nCliente de prueba 24\nCliente de prueba 25\nCliente de prueba 26\nCliente de prueba 27\nCliente de prueba 28\nCliente de prueba 29\nCliente de prueba 30\nCliente de prueba 31\nCliente de prueba 32\nCliente de prueba 33\nCliente de prueba 34\nCliente de prueba 35\nCliente de prueba 36\nTodo confirmado\nCerrar sesión\n\nCARTERA AUTORIZADA\n\nClientes y seguimiento\n\nSolo se muestran los expedientes autorizados para tu cuenta.\n\n38 clientes\nBuscar cliente\n\nMostrando 38 clientes.\n\nC\n\nHÍBRIDO\n\nCliente IBERFIT\n\nActivo · IRI 72\n\nActivo\n22 jul 2026, 18:00\nC\n\nSIN MODALIDAD\n\nCliente de seguimiento\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 01\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 02\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 03\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 04\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 05\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 06\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 07\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 08\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 09\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 10\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 11\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 12\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 13\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 14\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 15\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 16\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 17\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 18\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 19\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 20\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 21\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 22\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 23\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 24\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 25\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 26\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 27\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 28\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 29\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 30\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 31\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 32\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 33\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 34\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nPRESENCIAL\n\nCliente de prueba 35\n\nSin acceso configurado · IRI pendiente\n\nActivo\nSin próxima cita\nC\n\nSIN MODALIDAD\n\nCliente de prueba 36\n\nSin acceso configurado · IRI pendiente\n\nEn pausa\nSin próxima cita\nNavegación IBERFIT\nSeleccionar expediente\nNombre, modalidad o estado\nAbrir expediente de Cliente IBERFIT\nAbrir expediente de Cliente de seguimiento\nAbrir expediente de Cliente de prueba 01\nAbrir expediente de Cliente de prueba 02\nAbrir expediente de Cliente de prueba 03\nAbrir expediente de Cliente de prueba 04\nAbrir expediente de Cliente de prueba 05\nAbrir expediente de Cliente de prueba 06\nAbrir expediente de Cliente de prueba 07\nAbrir expediente de Cliente de prueba 08\nAbrir expediente de Cliente de prueba 09\nAbrir expediente de Cliente de prueba 10\nAbrir expediente de Cliente de prueba 11\nAbrir expediente de Cliente de prueba 12\nAbrir expediente de Cliente de prueba 13\nAbrir expediente de Cliente de prueba 14\nAbrir expediente de Cliente de prueba 15\nAbrir expediente de Cliente de prueba 16\nAbrir expediente de Cliente de prueba 17\nAbrir expediente de Cliente de prueba 18\nAbrir expediente de Cliente de prueba 19\nAbrir expediente de Cliente de prueba 20\nAbrir expediente de Cliente de prueba 21\nAbrir expediente de Cliente de prueba 22\nAbrir expediente de Cliente de prueba 23\nAbrir expediente de Cliente de prueba 24\nAbrir expediente de Cliente de prueba 25\nAbrir expediente de Cliente de prueba 26\nAbrir expediente de Cliente de prueba 27\nAbrir expediente de Cliente de prueba 28\nAbrir expediente de Cliente de prueba 29\nAbrir expediente de Cliente de prueba 30\nAbrir expediente de Cliente de prueba 31\nAbrir expediente de Cliente de prueba 32\nAbrir expediente de Cliente de prueba 33\nAbrir expediente de Cliente de prueba 34\nAbrir expediente de Cliente de prueba 35\nAbrir expediente de Cliente de prueba 36",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_clientes_busqueda_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_hoy_vacio_mobile",
+        "role": "client",
+        "route": "hoy",
+        "width": 390,
+        "height": 844,
+        "scenario": "empty"
+      },
+      "url": "inline://client_hoy_vacio_mobile",
+      "load_ms": 44.02,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 115,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nHoy en IBERFIT\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nIBERFIT · HOY\n\nTu acompañamiento, Cliente IBERFIT\n\nRevisa tu próxima sesión, planificación y evolución confirmada.\n\nESTADO\nConfirmado\nSESIONES HOY\n0\nAgenda confirmada\nPRÓXIMA SESIÓN\nSin agenda\nPendiente de planificación\nTU MODALIDAD\nHíbrido\nSegún tus permisos de acceso\nCONFLICTOS\n0\nSin bloqueos\n\nAGENDA\n\nSesiones de hoy\n0 confirmadas\nI\nSin sesiones programadas para hoy\n\nTu entrenador publicará aquí tus próximas sesiones.\n\nSIGUIENTE PASO\n\nPlanificación al día\n\nNo hay próximas citas confirmadas en el alcance visible.\n\nÚLTIMO IRI\n72\nBuen nivel funcional\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_hoy_vacio_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_planificacion_vacia_mobile",
+        "role": "client",
+        "route": "planificacion",
+        "width": 390,
+        "height": 844,
+        "scenario": "empty"
+      },
+      "url": "inline://client_planificacion_vacia_mobile",
+      "load_ms": 44.46,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 110,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nPlanificación\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nPLANIFICACIÓN\n\nTu planificación\n\nAquí tienes tu plan actual y las sesiones que ya están listas para ti.\n\n1 sesión\n\nCICLOS\n\nTu plan vigente\nI\nAún no hay un plan disponible\n\nTu entrenador añadirá aquí el contenido cuando esté listo para ti.\n\nSESIONES\n\nSesiones de tu plan\n\nSESIÓN PREPARADA\n\nFuerza global · Sesión A\n\nTrabajo global controlado.\n\nVer detalles de la sesión\nComenzar esta sesión\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_planificacion_vacia_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_sesion_vacia_mobile",
+        "role": "client",
+        "route": "sesion",
+        "width": 390,
+        "height": 844,
+        "scenario": "empty"
+      },
+      "url": "inline://client_sesion_vacia_mobile",
+      "load_ms": 41.82,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 105,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nSesiones\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nMOTOR DE SESIONES\n\nTus sesiones guiadas\n\nElige la sesión preparada para ti y sigue las indicaciones paso a paso.\n\nIniciar sesión guiada\n\nDISPONIBLES\n\nSesiones para realizar\nI\nNo hay sesiones disponibles\n\nTu entrenador añadirá aquí el contenido cuando esté listo para ti.\n\nHISTORIAL\n\nTus sesiones realizadas\n\nSIN FECHA\n\nRegistro\n\nCompletado\n\nCompletado\n\nSIN FECHA\n\nRegistro\n\nCompletado\n\nCompletado\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_sesion_vacia_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_informes_vacios_mobile",
+        "role": "client",
+        "route": "informes",
+        "width": 390,
+        "height": 844,
+        "scenario": "empty"
+      },
+      "url": "inline://client_informes_vacios_mobile",
+      "load_ms": 37.54,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 82,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nInformes\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nDOCUMENTACIÓN\n\nTus informes IBERFIT\n\nConsulta tus informes de evolución y los próximos pasos acordados con tu entrenador.\n\n0 informes\nI\nAún no hay informes disponibles\n\nTu entrenador añadirá aquí el contenido cuando esté listo para ti.\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_informes_vacios_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_actividad_sin_datos_mobile",
+        "role": "client",
+        "route": "actividad",
+        "width": 390,
+        "height": 844,
+        "scenario": "no_data"
+      },
+      "url": "inline://client_actividad_sin_datos_mobile",
+      "load_ms": 52.74,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 226,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nActividad, hábitos y dispositivos\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nACTIVIDAD Y CONTEXTO\n\nRegistros de bienestar, hábitos y dispositivos\n\nEl registro de bienestar sigue siendo la fuente principal de contexto. Los datos de dispositivos aportan tendencias objetivas, nunca diagnósticos ni decisiones automáticas.\n\nSin registro de bienestar\nFunción disponible: Registros de bienestar\n\nEstá preparada para guardar con confirmación segura.\n\nREGISTRO DE BIENESTAR\n\nCómo estás hoy\nEnergía (0–10)\nSueño (0–10)\nEstrés (0–10)\nDolor (0–10)\nObservaciones\nGuardar borrador\nEnviar registro de bienestar\n\nÚLTIMO REGISTRO CONFIRMADO\n\nSin registro\n\nLa ausencia se mantiene como dato faltante.\n\nDATOS DE DISPOSITIVOS\n\nResumen de los últimos 7 días\n\nNo hay conexiones remotas confirmadas.\n\nSin datos\nPASOS MEDIOS\nSin dato\n0 días con datos\nACTIVIDAD\nSin dato\nPromedio diario disponible\nSUEÑO OBJETIVO\nSin dato\nDato de dispositivo, no percepción\nFC EN REPOSO\nSin dato\nCalidad limitada\nVFC MEDIA\nSin dato\nENERGÍA ACTIVA\nSin dato\nENTRENAMIENTO REGISTRADO\nSin dato\nFUENTES\nSin fuentes\n\nIBERFIT muestra procedencia, fecha y calidad. No transforma datos de dispositivos conectados en indicaciones clínicas ni progresa cargas sin revisión del entrenador.\n\nPRIVACIDAD PRIMERO\n\nRevisar una exportación\nSolo vista previa local · gratuito\n\nLa importación local permite revisar el formato sin crear cuentas ni enviar el archivo. Nada se incorpora al expediente hasta una confirmación posterior y explícita.\n\nOrigen del archivo\nArchivo normalizado IBERFIT\nExportación Health Connect\nExportación Apple Health\nExportación Google Health API / Fitbit\nExportación Oura\nExportación Garmin\nArchivo JSON o CSV\nDescargar plantilla\nAnalizar archivo\nLimpiar vista previa\n\nARQUITECTURA PREPARADA\n\nPlan gratuito de integraciones\n\nSolo se habilitan rutas sin coste confirmado. Las demás permanecen visibles como arquitectura, pero bloqueadas.\n\nCoste cero\n\nIOS · COSTE CERO\n\nApple Health\n\nArquitectura preservada; activación pausada por la regla de coste cero\n\nEn pausa por coste\n\nANDROID · COSTE CERO\n\nHealth Connect\n\nPreparado para desarrollo gratuito; requiere puente móvil real\n\nPreparación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGarmin Connect\n\nNo se activará mientras requiera acceso de socio o licencia\n\nNo activar\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nGoogle Health API · Fitbit y Pixel Watch\n\nLa autorización externa está preparada, pero requiere una revisión antes de activarse\n\nEvaluación gratuita\n\nSERVICIO EN LÍNEA · COSTE CERO\n\nOura\n\nEn espera hasta confirmar una vía gratuita\n\nEn espera\n\nNAVEGADOR · COSTE CERO\n\nArchivo normalizado IBERFIT\n\nDisponible ahora sin coste adicional\n\nDisponible\nFunción no disponible todavía: Hábitos\n\nPuedes conservar el borrador en este dispositivo; no se mostrará como confirmado hasta que la función esté disponible.\n\nSEGUIMIENTO\n\nHábitos activos\n0 hábitos\nI\nSin hábitos publicados\n\nEl entrenador podrá definirlos cuando esta función esté disponible.\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_actividad_sin_datos_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_progreso_sin_datos_desktop",
+        "role": "client",
+        "route": "progreso",
+        "width": 1440,
+        "height": 960,
+        "scenario": "no_data"
+      },
+      "url": "inline://client_progreso_sin_datos_desktop",
+      "load_ms": 55.62,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 162,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 91.390625,
+        "topbarBottom": 91.390625,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nPlanificación\nSesiones\nProgreso\nCliente IBERFIT\nInformes\nActividad\nCliente\nCliente IBERFIT\n\nCLIENTE\n\nProgreso\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nTodo confirmado\nCerrar sesión\n\nSEGUIMIENTO CONFIRMADO\n\nProgreso y adherencia\n\nVentana de 28 días · calidad del dato limitada.\n\nSeguimiento activo\nADHERENCIA\nSin dato\n0 de 0 sesiones\nRPE MEDIO\nSin dato\nSolo ejecuciones confirmadas\nVOLUMEN MEDIO\nSin dato\nCarga × repeticiones cuando existe\nCAMBIO IRI\nSin dato\nSin dos evaluaciones comparables\n\nCRONOLOGÍA\n\nEvolución registrada\n0 eventos\nI\nSin eventos de progreso\n\nLos datos ausentes se mantienen como ausentes y no se convierten en cero.\n\nRECUPERACIÓN\n\nPromedio de registros de bienestar\nENERGÍA\nSin dato\nSUEÑO\nSin dato\nESTRÉS\nSin dato\nDOLOR\nSin dato\n\nLa aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.\n\nACTIVIDAD DE DISPOSITIVO\n\nTendencia objetiva complementaria\nSin actualización reciente\nPASOS MEDIOS\nSin dato\nMINUTOS ACTIVOS\nSin dato\nSUEÑO DE DISPOSITIVO\nSin dato\nFC EN REPOSO\nSin dato\n\nSe presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.\n\nALERTAS EXPLICABLES\n\nQué requiere atención\n\nCALIDAD DE LOS DATOS\n\nSin historial suficiente de ejecución\n\nTodavía no hay una ejecución confirmada para interpretar progreso o carga.\n\nMantener el dato como ausente; no convertirlo en cero.\nInformación\n\nCALIDAD DE LOS DATOS\n\nDatos todavía limitados\n\nLa interpretación se basa en pocos registros confirmados.\n\nMostrar tendencias con cautela y priorizar recolección consistente.\nInformación\nNavegación IBERFIT",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_progreso_sin_datos_desktop.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "client_informe_texto_largo_mobile",
+        "role": "client",
+        "route": "informes",
+        "width": 390,
+        "height": 844,
+        "scenario": "long_content"
+      },
+      "url": "inline://client_informe_texto_largo_mobile",
+      "load_ms": 39.56,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 94,
+        "sidebarVisible": false,
+        "mobileNavVisible": true,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 145.34375,
+        "topbarBottom": 145.34375,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\n\nCLIENTE\n\nInformes\nTU ACOMPAÑAMIENTO\nCliente IBERFIT\nHíbrido\nCerrar sesión\n\nDOCUMENTACIÓN\n\nTus informes IBERFIT\n\nConsulta tus informes de evolución y los próximos pasos acordados con tu entrenador.\n\n1 informe\n\nTU INFORME\n\nInforme integral de evolución funcional, adherencia, recuperación y recomendaciones individualizadas para el siguiente periodo de entrenamiento\n\nEvolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones.\n\n1 jun 2026 – 1 jul 2026\n\nLeer el informe\n\nHoy\nPlanificación\nSesiones\nProgreso\nMás\nNavegación rápida y completa",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/client_informe_texto_largo_mobile.png",
+      "ok": true
+    },
+    {
+      "case": {
+        "name": "coach_informe_texto_largo_desktop",
+        "role": "coach",
+        "route": "informes",
+        "width": 1440,
+        "height": 1050,
+        "scenario": "long_content"
+      },
+      "url": "inline://coach_informe_texto_largo_desktop",
+      "load_ms": 66.56,
+      "metrics": {
+        "status": "pass",
+        "documentWidth": 1440,
+        "viewportWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowingElements": [],
+        "smallTargets": [],
+        "duplicateIds": [],
+        "unnamedButtons": 0,
+        "unlabeledControls": 0,
+        "brokenImages": [],
+        "domNodes": 201,
+        "sidebarVisible": true,
+        "mobileNavVisible": false,
+        "focusOutline": {
+          "style": "solid",
+          "width": "3px"
+        },
+        "mainPresent": true,
+        "mainTop": 93.1875,
+        "topbarBottom": 93.1875,
+        "documentLanguage": "es-ES",
+        "visibleLanguage": "Saltar al contenido\nIBERFIT\nEntrenamiento personal con criterio\nTRABAJO\nHoy\nClientes\nAgenda\nBiblioteca\nCliente IBERFIT\nExpediente\nDiagnóstico IRI\nPlanificación\nSesiones\nProgreso\nActividad\nInformes\nNotas privadas\nInteligencia\nCONTROL\nVerificación\nEntrenador\nEntrenador IBERFIT\n\nENTRENADOR\n\nInformes\nEXPEDIENTE ACTIVO\nSelecciona un cliente\nCliente IBERFIT\nCliente de seguimiento\nTodo confirmado\nCerrar sesión\n\nDOCUMENTACIÓN\n\nInformes y publicación\n\nAprobar y publicar son decisiones separadas. Un informe aprobado sigue siendo interno hasta su publicación.\n\n3 informes\n\n18 JUL 2026, 12:00\n\nInforme de evolución pendiente de publicación\n\nAprobado, pero todavía no visible para el cliente.\n\nAprobado\n\nASÍ LO VERÁ EL CLIENTE\n\nInforme de evolución pendiente de publicación\n\nInforme de evolución preparado por tu entrenador.\n\nGestionar publicación\n\n1 JUL 2026, 12:00\n\nInforme integral de evolución funcional, adherencia, recuperación y recomendaciones individualizadas para el siguiente periodo de entrenamiento\n\nVisible para el cliente.\n\nPublicado\n\nASÍ LO VERÁ EL CLIENTE\n\nInforme integral de evolución funcional, adherencia, recuperación y recomendaciones individualizadas para el siguiente periodo de entrenamiento\n\nEvolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones.\n\n1 jun 2026 – 1 jul 2026\n\nContenido completo que recibirá el cliente\nConclusiones\n\nEvolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones.\n\nPróximos pasos\n\nEvolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones. Evolución funcional estable con buena tolerancia al trabajo planificado, manteniendo una ejecución técnica controlada y una recuperación adecuada entre sesiones.\n\nGestionar publicación\n\n1 JUN 2026, 12:00\n\nInforme anterior retirado\n\nRetirado de la vista del cliente.\n\nRetirado\n\nASÍ LO VERÁ EL CLIENTE\n\nInforme anterior retirado\n\nInforme de evolución preparado por tu entrenador.\n\nEDICIÓN PROFESIONAL\n\nPreparar informe IBERFIT\n\nEl informe se aprobará como contenido interno. No será visible para el cliente hasta una publicación posterior y expresa.\n\nFormato A4 premium\nTítulo\nInicio del periodo\nFin del periodo\nResumen del periodo\nConclusiones\nRecomendaciones y próximos pasos\n\nREVISIÓN PREVIA\n\nComprobación editorial\n\nConfirma que el texto distingue datos objetivos, interpretación profesional y próximos pasos; evita diagnósticos y afirmaciones no respaldadas.\n\nHe revisado íntegramente el contenido y confirmo que está listo para aprobación interna.\nAprobar informe interno\nNavegación IBERFIT\nSeleccionar expediente\nVista previa para el cliente\nVista previa para el cliente\nVista previa para el cliente\nCriterios de revisión del informe",
+        "qa": {
+          "castellano": true,
+          "dispositivos": true,
+          "soloCosteCero": true
+        },
+        "forbiddenLanguageHits": [],
+        "clientEditorialHits": []
+      },
+      "console_errors": [],
+      "page_errors": [],
+      "errors": [],
+      "screenshot": "qa/rc28_visual_artifacts/coach_informe_texto_largo_desktop.png",
+      "ok": true
+    }
+  ]
+}

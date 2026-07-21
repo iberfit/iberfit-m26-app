@@ -1,0 +1,16 @@
+import fs from 'node:fs'; import path from 'node:path';
+const root=process.cwd(); const dir=path.join(root,'src/m26/workflows');
+const files=['draft-store.js','iri-workflow.js','planning-workflow.js','agenda-workflow.js','confirmed-execution.js','index.js'];
+const checks=[]; const add=(name,ok,detail='')=>checks.push({name,ok,detail});
+for(const f of files)add(`Existe ${f}`,fs.existsSync(path.join(dir,f)));
+const text=files.map(f=>fs.readFileSync(path.join(dir,f),'utf8')).join('\n');
+add('Sin diálogos bloqueantes',!/(?:prompt|alert|confirm)\s*\(/.test(text));
+add('Sin escrituras directas Supabase',!/\.from\s*\(/.test(text));
+add('IRI usa ΔFC final menos minuto 1',text.includes('Number(finalHr)-Number(oneMinuteHr)'));
+add('Informe IRI exige vista previa',text.includes("previewAccepted:true"));
+add('Plan exige vista previa antes de publicar',text.includes('M26_PLAN_PREVIEW_REQUIRED'));
+add('Conflicto preserva borrador',text.includes("if(result.ok)"));
+add('Borradores aislados por cliente',text.includes('`${scope}:${clientId}:${entityId}`'));
+add('Agenda valida cronología',text.includes("new Date(draft.endAt)<=new Date(draft.startAt)"));
+const pass=checks.every(x=>x.ok); const out={generatedAt:new Date().toISOString(),pass,total:checks.length,passed:checks.filter(x=>x.ok).length,failed:checks.filter(x=>!x.ok),checks};
+fs.writeFileSync(path.join(root,'recovery/m26-workflows-gate-results.json'),JSON.stringify(out,null,2)); console.log(JSON.stringify(out,null,2)); if(!pass)process.exit(1);

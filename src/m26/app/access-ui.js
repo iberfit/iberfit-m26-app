@@ -1,0 +1,6 @@
+function e(value){return String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
+export function renderAccessUi({message='',busy=false,backendReady=true,qaOnly=false}={}){
+  const disabled=busy||!backendReady;const notice=message?`<p class="m26-auth-notice" role="status">${e(message)}</p>`:'';
+  const accessNote=qaOnly?'Acceso restringido a las cuentas autorizadas para esta revisión.':'Acceso privado para clientes y equipo IBERFIT.';
+  return `<main class="m26-auth-page"><section class="m26-auth-card"><img src="/public/isotipo-iberfit.png" alt="" aria-hidden="true"><p class="m26-eyebrow">IBERFIT</p><h1>Entrenamiento personal con criterio</h1><p>Diagnóstico, planificación, control y seguimiento.</p>${notice}<form data-auth-form="login"><label>Correo<input type="email" name="email" autocomplete="username" required></label><label>Contraseña<input type="password" name="password" autocomplete="current-password" required minlength="8"></label><button type="submit" class="m26-primary-action"${disabled?' disabled aria-disabled="true"':''}>${busy?'Confirmando…':'Entrar'}</button></form>${backendReady?'':'<p class="m26-notice is-warning">El acceso no está disponible temporalmente en este sitio.</p>'}<small>${e(accessNote)}</small></section></main>`;
+}

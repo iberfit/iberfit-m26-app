@@ -1,0 +1,16 @@
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-site
+  X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://pjhmrhejsoofmouedavw.supabase.co; connect-src 'self' https://pjhmrhejsoofmouedavw.supabase.co wss://pjhmrhejsoofmouedavw.supabase.co; manifest-src 'self'; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests
+  Cache-Control: no-store
+
+/sw.js
+  Cache-Control: no-store, no-cache, must-revalidate
+
+/public/runtime-config.js
+  Cache-Control: no-store, no-cache, must-revalidate
