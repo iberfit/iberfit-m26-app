@@ -136,6 +136,7 @@
     "metadata:rc29": "node scripts/generate_rc29_release_metadata.mjs",
     "verify:rc29": "node scripts/verify_rc29_manifests.mjs",
     "configure:rc29:canary": "node scripts/generate_rc29_runtime_config.mjs",
+    "build:rc30:canary": "npm run build:rc29 && npm run configure:rc29:canary",
     "verify:ui:rc29": "node scripts/verify_rc29_ui_provenance.mjs"
   }
 }
