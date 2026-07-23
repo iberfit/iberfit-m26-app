@@ -1,14 +1,12 @@
 name: IBERFIT M26 CI
 
 on:
-  pull_request:
   push:
-    branches: [main]
-  workflow_dispatch:push:
-  branches:
-  - main
-  - "canary/**"
-
+    branches:
+      - main
+      - "canary/**"
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 
