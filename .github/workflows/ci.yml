@@ -7,6 +7,7 @@ on:
       - "canary/**"
   pull_request:
   workflow_dispatch:
+
 permissions:
   contents: read
 
@@ -21,18 +22,33 @@ jobs:
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
+
       - name: Preparar Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
       - name: Preparar Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - name: Validar RC29
+        if: ${{ github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' }}
         run: npm run validate:rc29
-      - name: Conservar evidencia
-        if: always()
+
+      - name: Validar RC30 canary
+        if: ${{ github.ref == 'refs/heads/canary/rc30' || github.head_ref == 'canary/rc30' }}
+        env:
+          M26_SUPABASE_URL: https://pjhmrhejsoofmouedavw.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: sb_publishable_local_validation_rc30
+          M26_QA_ONLY: 'true'
+          M26_RUNTIME_VALIDATION_ONLY: 'true'
+          CF_PAGES_BRANCH: canary/rc30
+        run: npm run validate:rc30:canary
+
+      - name: Conservar evidencia RC29
+        if: ${{ always() && github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' }}
         uses: actions/upload-artifact@v4
         with:
           name: rc29-evidencia-validacion
@@ -40,5 +56,18 @@ jobs:
             recovery/RC29_*.json
             recovery/RC29_*.md
             recovery/RC29_*.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Conservar evidencia RC30
+        if: ${{ always() && (github.ref == 'refs/heads/canary/rc30' || github.head_ref == 'canary/rc30') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc30-evidencia-validacion
+          path: |
+            recovery/RC30_*.json
+            recovery/RC30_*.md
+            recovery/RC30_*.txt
+            release/RC30_*.json
           if-no-files-found: warn
           retention-days: 14
