@@ -1,0 +1,39 @@
+{
+  "release": "IBERFIT_M26_CANARY_RC30",
+  "version": "26.0.0-canary.30",
+  "generatedAt": "2026-07-24T15:24:04.109Z",
+  "branch": "canary/rc30",
+  "status": "local_validation",
+  "deployable": false,
+  "localValidationOnly": true,
+  "productionModified": false,
+  "productionDeployed": false,
+  "projectRef": "pjhmrhejsoofmouedavw",
+  "canaryDomain": "m26-canary.iberfit.cl",
+  "qaOnly": true,
+  "tests": {
+    "total": 303,
+    "passed": 302,
+    "failed": 0,
+    "skipped": 1
+  },
+  "localGate": {
+    "passed": 20,
+    "total": 20,
+    "failed": 0
+  },
+  "build": {
+    "files": 103,
+    "totalBytes": 1084558,
+    "budgetOk": true
+  },
+  "remoteIsolationExecuted": false,
+  "pendingExternalGates": [
+    "Login autenticado con cuentas QA Coach y dos Clientes distintos",
+    "Inspección remota de RLS y políticas efectivas",
+    "Prueba cruzada Cliente A / Cliente B",
+    "Recuperación real de correo en m26-canary.iberfit.cl",
+    "QA visual y de teclado en dispositivos físicos"
+  ],
+  "packageFiles": 607
+}

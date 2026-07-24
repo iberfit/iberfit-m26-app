@@ -1,0 +1,15 @@
+{
+  "release": "IBERFIT_M26_CANARY_RC30",
+  "version": "26.0.0-canary.30",
+  "generatedAt": "2026-07-24T15:21:56.422Z",
+  "files": 103,
+  "totalBytes": 1084558,
+  "budgetOk": true,
+  "localValidationOnly": true,
+  "deployable": false,
+  "keyType": "publishable",
+  "failures": [],
+  "ok": true,
+  "productionModified": false,
+  "productionDeployed": false
+}

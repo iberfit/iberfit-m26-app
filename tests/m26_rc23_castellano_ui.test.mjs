@@ -84,7 +84,7 @@ test('RC23 mantiene las páginas estáticas visibles en castellano',()=>{
 
 
 test('RC23 presenta los 367 ejercicios y sus materiales en castellano sin alterar el catálogo protegido',async()=>{
-  const catalog=await loadExerciseCatalog(new URL('../baseline_m25_2/exercise-catalog-m25.json',import.meta.url).pathname);
+  const catalog=await loadExerciseCatalog(new URL('../baseline_m25_2/exercise-catalog-m25.json',import.meta.url));
   assert.equal(catalog.count,367);
   const pattern=new RegExp(`\b(?:${EXERCISE_VISIBLE_FORBIDDEN_TERMS.map((term)=>term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')})\b`,'i');
   const invalid=catalog.list().filter((item)=>pattern.test(`${item.name_es} ${item.equipment}`));

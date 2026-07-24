@@ -42,4 +42,3 @@ jobs:
             recovery/RC29_*.txt
           if-no-files-found: warn
           retention-days: 14
-# Trigger Cloudflare RC30 canary deployment v2

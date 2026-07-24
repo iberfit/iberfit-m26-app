@@ -137,6 +137,14 @@
     "verify:rc29": "node scripts/verify_rc29_manifests.mjs",
     "configure:rc29:canary": "node scripts/generate_rc29_runtime_config.mjs",
     "build:rc30:canary": "npm run build:rc29 && npm run configure:rc29:canary",
-    "verify:ui:rc29": "node scripts/verify_rc29_ui_provenance.mjs"
+    "verify:ui:rc29": "node scripts/verify_rc29_ui_provenance.mjs",
+    "seal:rc29": "npm run metadata:rc29 && npm run verify:rc29",
+    "test:m26:rc30": "node --test tests/m26_rc30_password_recovery.test.mjs",
+    "audit:rc30": "node scripts/m26_rc30_canary_gate.mjs",
+    "verify:build:rc30": "node scripts/verify_rc30_canary_candidate.mjs",
+    "metadata:rc30": "node scripts/generate_rc30_canary_metadata.mjs",
+    "verify:rc30": "node scripts/verify_rc30_manifests.mjs",
+    "seal:rc30": "npm run metadata:rc30 && npm run verify:rc30",
+    "validate:rc30:canary": "node scripts/run_rc30_canary_validation.mjs && npm run seal:rc30"
   }
 }

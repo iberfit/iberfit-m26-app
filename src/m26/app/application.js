@@ -15,6 +15,7 @@ import {renderRouteView} from '../modules/route-render.js';
 import {createWorkflowController} from './workflow-controller.js';
 import {createSessionVault,sessionExpiresSoon} from './session-vault.js';
 import {renderAccessUi} from './access-ui.js';
+import {inspectPasswordRecoveryHash,recoveryUrlWithoutFragment} from './password-recovery.js';
 import {loadExerciseCatalog} from '../exercises/catalog.js';
 import {createSessionDraft} from '../workflows/session-builder.js';
 import {createExecution} from '../workflows/session-execution.js';
@@ -55,12 +56,39 @@ function friendlyError(error){
   return 'No fue posible completar la operación. Tu información local permanece protegida.';
 }
 
-export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location}={}){
+const RECOVERY_REQUEST_CONFIRMATION='Si el correo corresponde a una cuenta QA autorizada, recibirás un enlace para crear una contraseña nueva.';
+const RECOVERY_LINK_INVALID='El enlace de recuperación no es válido o ha caducado. Solicita uno nuevo.';
+function recoveryNetworkError(error){
+  const code=String(error?.message||error||'');
+  if(error?.status===0||/TIMEOUT|NETWORK|FETCH|Failed to fetch/i.test(code))return 'No fue posible conectar. Comprueba tu conexión a internet e inténtalo de nuevo.';
+  return 'No fue posible enviar el enlace en este momento. Inténtalo de nuevo más tarde.';
+}
+function recoveryPasswordError(error){
+  const code=String(error?.message||error||'');
+  if(/AUTH_PASSWORD_INVALID/.test(code))return 'La contraseña debe tener entre 8 y 1024 caracteres.';
+  if(error?.status===0||/TIMEOUT|NETWORK|FETCH|Failed to fetch/i.test(code))return 'No fue posible conectar. La contraseña no se ha modificado; inténtalo de nuevo.';
+  return RECOVERY_LINK_INVALID;
+}
+function invalidRecoverySession(error){
+  const code=String(error?.message||error||'');
+  return error?.status===401||error?.status===403||/RECOVERY_(?:TOKEN|SESSION|USER|UPDATE|IDENTITY)|QA_ACCOUNT_REQUIRED|JWT|expired/i.test(code);
+}
+
+export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history}={}){
   if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
   const runtime=resolveM26Runtime(runtimeConfig,locationLike);const vault=createSessionVault();
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,shell=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,operationRepository=null,draftRepository=null,commandBus=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,loginBusy=false,refreshInFlight=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,shell=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,operationRepository=null,draftRepository=null,commandBus=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null;
 
-  function authMessage(message=''){root.innerHTML=renderAccessUi({message,busy:loginBusy,backendReady:runtime.enabled,qaOnly:runtime.qaOnly});}
+  function authMessage(message='',noticeKind='status'){
+  root.innerHTML=renderAccessUi({
+    message,
+    busy:loginBusy,
+    backendReady:runtime.enabled,
+    qaOnly:runtime.qaOnly,
+    mode:authMode,
+    noticeKind,
+  });
+}
   function currentToken(){return session?.token||null;}
   async function refreshSessionIfNeeded(){
     if(!session||!nextExpiry(session))return session;
@@ -116,12 +144,218 @@ export async function createM26Application({root=document.querySelector('#app'),
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
   function onLogout(){const token=currentToken();vault.clear();session=null;refreshInFlight=null;destroyControllers();store.reset();authMessage('Sesión cerrada de forma segura.');void transport?.logout?.(token).catch(()=>{});}
   function destroyControllers(){connectivityStop?.();connectivityStop=null;sessionController?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();workflow?.destroy?.();shell?.destroy?.();sessionController=verification=wearables=engagement=workflow=shell=null;sessionUi=null;operationRepository=draftRepository=commandBus=recoveryCoordinator=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+function onAuthClick(event) {
+  const action = event.target.closest?.('[data-auth-action]')?.getAttribute?.('data-auth-action');
+
+  if (!action) return;
+
+  event.preventDefault?.();
+
+  if (action === 'forgot-password') {
+    authMode = 'request-recovery';
+    authMessage();
+    return;
+  }
+
+  if (action === 'back-to-login') {
+    const recoveryToken = recoverySession?.accessToken || null;
+    recoverySession = null;
+    authMode = 'login';
+    authMessage();
+    void transport?.logout?.(recoveryToken).catch(() => {});
+  }
+}
+async function requestRecovery(email) {
+  if (loginBusy) return false;
+
+  if (!runtime.enabled || !runtime.canary) {
+    throw new Error('M26_BACKEND_DISABLED');
+  }
+
+  loginBusy = true;
+  authMode = 'request-recovery';
+  authMessage('Enviando enlace de recuperación…');
+
+  try {
+    await transport.requestPasswordRecovery(
+      email,
+      'https://m26-canary.iberfit.cl/'
+    );
+
+    loginBusy = false;
+    authMessage(RECOVERY_REQUEST_CONFIRMATION);
+
+    return true;
+  } catch (error) {
+    loginBusy = false;
+
+    if (/QA_ACCOUNT_REQUIRED/.test(String(error?.message || error || ''))) {
+      authMessage(RECOVERY_REQUEST_CONFIRMATION);
+      return true;
+    }
+
+    authMessage(recoveryNetworkError(error), 'error');
+    throw error;
+  }
+}
+async function updateRecoveredPassword(password, passwordConfirmation) {
+  if (loginBusy) return false;
+
+  if (
+    !runtime.enabled ||
+    !runtime.canary ||
+    !recoverySession?.accessToken
+  ) {
+    throw new Error('M26_RECOVERY_SESSION_REQUIRED');
+  }
+
+  const nextPassword = String(password || '');
+  const confirmation = String(passwordConfirmation || '');
+
+  if (nextPassword !== confirmation) {
+    authMode = 'update-password';
+    authMessage('Las contraseñas no coinciden.', 'error');
+    return false;
+  }
+
+  loginBusy = true;
+  authMode = 'update-password';
+  authMessage('Guardando contraseña nueva…');
+
+  try {
+    const recoveryToken = recoverySession.accessToken;
+
+    await transport.updatePassword(
+      recoveryToken,
+      nextPassword
+    );
+
+    recoverySession = null;
+    await transport.logout(recoveryToken).catch(() => {});
+
+    loginBusy = false;
+    authMode = 'login';
+
+    authMessage(
+      'Contraseña actualizada. Ya puedes entrar con la contraseña nueva.'
+    );
+
+    return true;
+  } catch (error) {
+    loginBusy = false;
+
+    if (invalidRecoverySession(error)) {
+      const recoveryToken = recoverySession?.accessToken || null;
+      recoverySession = null;
+      authMode = 'request-recovery';
+      authMessage(RECOVERY_LINK_INVALID, 'error');
+      void transport?.logout?.(recoveryToken).catch(() => {});
+    } else {
+      authMode = 'update-password';
+      authMessage(recoveryPasswordError(error), 'error');
+    }
+
+    throw error;
+  }
+}
   async function login(email,password){if(loginBusy)return false;if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');loginBusy=true;authMessage('Confirmando identidad y permisos…');try{session=await transport.login(email,password);vault.save(session);store.reset();await setupAuthenticated();return true;}catch(error){vault.clear();session=null;destroyControllers();store.reset();loginBusy=false;authMessage(friendlyError(error));throw error;}finally{loginBusy=false;}}
   async function resume(){if(!runtime.enabled){authMessage('El acceso no está disponible temporalmente en este sitio.');return false;}session=vault.load();if(!session){authMessage();return false;}try{await setupAuthenticated();return true;}catch{vault.clear();session=null;destroyControllers();store.reset();authMessage('La sesión expiró o perdió autorización. Vuelve a entrar.');return false;}}
-  async function onSubmit(event){const form=event.target.closest?.('[data-auth-form="login"]');if(!form)return;event.preventDefault();if(loginBusy)return;const data=new FormData(form);await login(data.get('email'),data.get('password')).catch(()=>{});}
-  function mount(){transport=runtime.enabled?createM26Transport(runtime):null;root.addEventListener('submit',onSubmit);return resume();}
-  function destroy(){destroyControllers();store.reset();root.removeEventListener('submit',onSubmit);}
+  async function onSubmit(event) {
+  const form = event.target.closest?.('[data-auth-form]');
+
+  if (!form) return;
+
+  event.preventDefault();
+
+  if (loginBusy) return;
+
+  const formType = form.getAttribute('data-auth-form');
+  const data = new FormData(form);
+
+  if (formType === 'login') {
+    await login(
+      data.get('email'),
+      data.get('password')
+    ).catch(() => {});
+
+    return;
+  }
+
+  if (formType === 'request-recovery') {
+    await requestRecovery(
+      data.get('email')
+    ).catch(() => {});
+
+    return;
+  }
+
+  if (formType === 'update-password') {
+    await updateRecoveredPassword(
+      data.get('password'),
+      data.get('passwordConfirmation')
+    ).catch(() => {});
+  }
+}
+  function mount() {
+  transport = runtime.enabled
+    ? createM26Transport(runtime)
+    : null;
+
+  root.addEventListener('submit', onSubmit);
+  root.addEventListener('click', onAuthClick);
+
+  const recovery = inspectPasswordRecoveryHash(
+    locationLike?.hash || ''
+  );
+
+  if (recovery.status !== 'none') {
+    let fragmentCleared = false;
+
+    try {
+      if (typeof historyLike?.replaceState !== 'function') {
+        throw new Error('M26_RECOVERY_HISTORY_UNAVAILABLE');
+      }
+
+      historyLike.replaceState(
+        null,
+        '',
+        recoveryUrlWithoutFragment(locationLike)
+      );
+      fragmentCleared = true;
+    } catch {}
+
+    if (
+      fragmentCleared &&
+      recovery.status === 'valid' &&
+      runtime.enabled &&
+      runtime.canary
+    ) {
+      recoverySession = recovery.session;
+      authMode = 'update-password';
+      authMessage();
+
+      return Promise.resolve(false);
+    }
+
+    recoverySession = null;
+    authMode = 'request-recovery';
+    authMessage(RECOVERY_LINK_INVALID, 'error');
+
+    return Promise.resolve(false);
+  }
+
+  return resume();
+}
+  function destroy() {
+  const recoveryToken = recoverySession?.accessToken || null;
+  recoverySession = null;
+  destroyControllers();
+  store.reset();
+  root.removeEventListener('submit', onSubmit);
+  root.removeEventListener('click', onAuthClick);
+  void transport?.logout?.(recoveryToken).catch(() => {});
+}
   return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),runtime});
 }
 
-export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});
+export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});

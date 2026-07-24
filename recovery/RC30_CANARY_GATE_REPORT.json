@@ -1,0 +1,115 @@
+{
+  "release": "IBERFIT_M26_CANARY_RC30",
+  "version": "26.0.0-canary.30",
+  "generatedAt": "2026-07-24T15:23:49.896Z",
+  "branch": "canary/rc30",
+  "passed": 20,
+  "total": 20,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "Rama canary/rc30",
+      "ok": true,
+      "details": "canary/rc30"
+    },
+    {
+      "name": "Prueba RC30 registrada",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Build RC30 canary registrado",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Token se limpia antes de conservarse",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Fragmento falla cerrado sin History API",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Refresh token no entra al estado de recuperación",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Recuperación valida caducidad",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Identidad se consulta antes del PUT",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Cuenta QA se valida antes de mutar",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Redirección exclusiva canary",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Runtime QA exclusivo canary",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Respuesta de solicitud genérica",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Revocación posterior a actualización",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Formulario accesible",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Auth y API nunca entran en caché",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "CSP sin script ni estilo inline",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Runtime de repositorio fail-closed",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Evidencia remota usa huellas",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Documentación y checklist RC30",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "Interfaz sin mojibake",
+      "ok": true,
+      "details": ""
+    }
+  ],
+  "ok": true,
+  "productionModified": false,
+  "productionDeployed": false,
+  "remoteIsolationExecuted": false
+}

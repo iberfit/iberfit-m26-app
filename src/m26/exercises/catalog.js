@@ -17,4 +17,15 @@ export function resolveBrowserCatalogUrl(source,locationLike=globalThis.location
  let expectedOrigin=new URL(base).origin;const locationOrigin=String(locationLike?.origin||'').trim();if(locationOrigin&&locationOrigin!=='null'){try{const parsedOrigin=new URL(locationOrigin);if(parsedOrigin.protocol==='http:'||parsedOrigin.protocol==='https:')expectedOrigin=parsedOrigin.origin;}catch{}}
  if(resolved.origin!==expectedOrigin)throw new Error('M26_EXERCISE_CATALOG_CROSS_ORIGIN_FORBIDDEN');return resolved.href;
 }
-export async function loadExerciseCatalog(source){let records;if(Array.isArray(source))records=source;else if(typeof source==='string'){const browser=typeof window!=='undefined'&&typeof fetch==='function';const remote=/^https?:\/\//i.test(source);if(browser||remote){if(browser)source=resolveBrowserCatalogUrl(source,globalThis.location);const r=await fetch(source,{credentials:'same-origin',cache:'no-store',redirect:'error'});if(!r.ok)throw new Error('M26_EXERCISE_CATALOG_FETCH_FAILED');records=await r.json();}else{const {readFile}=await import('node:fs/promises');records=JSON.parse(await readFile(source,'utf8'));}}else throw new Error('M26_EXERCISE_CATALOG_SOURCE_REQUIRED');const catalog=createExerciseCatalog(records);if(catalog.count<367)throw new Error(`M26_EXERCISE_CATALOG_INCOMPLETE:${catalog.count}`);return catalog;}
+export async function loadExerciseCatalog(source){
+ let records;
+ if(Array.isArray(source))records=source;
+ else if(source instanceof URL&&source.protocol==='file:'){
+  const {readFile}=await import('node:fs/promises');records=JSON.parse(await readFile(source,'utf8'));
+ }else if(source instanceof URL||typeof source==='string'){
+  const browser=typeof window!=='undefined'&&typeof fetch==='function';let target=source instanceof URL?source.href:source;const remote=/^https?:\/\//i.test(target);
+  if(browser||remote){if(browser)target=resolveBrowserCatalogUrl(target,globalThis.location);const r=await fetch(target,{credentials:'same-origin',cache:'no-store',redirect:'error'});if(!r.ok)throw new Error('M26_EXERCISE_CATALOG_FETCH_FAILED');records=await r.json();}
+  else{const {readFile}=await import('node:fs/promises');records=JSON.parse(await readFile(target,'utf8'));}
+ }else throw new Error('M26_EXERCISE_CATALOG_SOURCE_REQUIRED');
+ const catalog=createExerciseCatalog(records);if(catalog.count<367)throw new Error(`M26_EXERCISE_CATALOG_INCOMPLETE:${catalog.count}`);return catalog;
+}

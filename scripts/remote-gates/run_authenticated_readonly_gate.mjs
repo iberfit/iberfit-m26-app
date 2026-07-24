@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { M26_EXTENDED_COMMAND_REGISTRY, validateCommandCatalog, normalizeRegistryRole } from '../../src/m26/command-catalog.js';
 
 const PROJECT_REF='pjhmrhejsoofmouedavw';
@@ -14,6 +15,7 @@ const base=process.env.M26_SUPABASE_URL.replace(/\/$/,'');
 if(new URL(base).hostname!==`${PROJECT_REF}.supabase.co`)throw new Error('RC29_REMOTE_PROJECT_MISMATCH');
 const key=process.env.M26_SUPABASE_PUBLISHABLE_KEY;
 if(/service[_-]?role/i.test(key))throw new Error('RC29_SERVICE_ROLE_FORBIDDEN');
+const fingerprint=(value)=>value?createHash('sha256').update(`${PROJECT_REF}:${String(value)}`).digest('hex').slice(0,16):null;
 
 async function requestJson(url,options={}){
   const response=await fetch(url,options);
@@ -74,8 +76,21 @@ for(const session of sessions){
   const clientId=bootstrap?.user?.clientId||bootstrap?.user?.client_id||null;
   if(session.expectedRole==='client'&&!clientId)throw new Error(`RC29_CLIENT_ID_MISSING:${session.name}`);
   const privacy=session.expectedRole==='client'?inspectClientBootstrap(bootstrap,clientId):null;
-  if(privacy&&!privacy.ok)throw new Error(`RC29_CLIENT_BOOTSTRAP_LEAK:${session.name}:${JSON.stringify(privacy)}`);
-  roles.push({name:session.name,userId:session.userId,reportedRole,clientId,canaryActive:bootstrap?.canary?.active===true,environmentName:bootstrap?.environment?.name||bootstrap?.environment||null,privacy});
+  if(privacy&&!privacy.ok)throw new Error(`RC29_CLIENT_BOOTSTRAP_LEAK:${session.name}:forbidden=${privacy.forbiddenKeys.length}:foreign=${privacy.foreignClientIds.length}`);
+  roles.push({
+    name:session.name,
+    userFingerprint:fingerprint(session.userId),
+    reportedRole,
+    clientFingerprint:fingerprint(clientId),
+    canaryActive:bootstrap?.canary?.active===true,
+    environmentName:bootstrap?.environment?.name||bootstrap?.environment||null,
+    privacy:privacy?{
+      ok:privacy.ok,
+      forbiddenKeys:privacy.forbiddenKeys,
+      clientFingerprints:privacy.clientIds.map(fingerprint),
+      foreignClientFingerprints:privacy.foreignClientIds.map(fingerprint),
+    }:null,
+  });
 }
 const clientIds=roles.filter((x)=>x.name.startsWith('client_')).map((x)=>x.clientId);
 if(new Set(clientIds).size!==2)throw new Error('RC29_QA_CLIENTS_NOT_DISTINCT');

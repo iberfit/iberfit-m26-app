@@ -19,8 +19,9 @@ export function resolveM26Runtime(raw, locationLike = globalThis.location) {
   const host = locationLike?.hostname || '';
   const local = LOCAL_HOSTS.has(host);
   const exactRemote = EXACT_REMOTE_HOSTS.has(host);
-  const enabled = Boolean(raw?.enabled) && (local || exactRemote);
   const canary = host === 'm26-canary.iberfit.cl';
+  const qaOnly = canary || Boolean(raw?.qaOnly);
+  const enabled = Boolean(raw?.enabled) && (local || (qaOnly ? canary : exactRemote));
   return Object.freeze({
     enabled,
     host,
@@ -28,7 +29,7 @@ export function resolveM26Runtime(raw, locationLike = globalThis.location) {
     url: raw?.url || '',
     publishableKey: raw?.publishableKey || raw?.anonKey || '',
     timeoutMs: Math.max(1_000, Math.min(Number(raw?.timeoutMs || DEFAULT_TIMEOUT_MS), 30_000)),
-    qaOnly: canary || Boolean(raw?.qaOnly),
+    qaOnly,
     canary,
     version:String(raw?.version||'26.0.0').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,80)||'26.0.0',
     rpc: Object.freeze({
@@ -166,6 +167,127 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     };
   }
 
+  async function requestPasswordRecovery(email, redirectTo) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+
+    if (
+      normalizedEmail.length < 5 ||
+      normalizedEmail.length > MAX_AUTH_EMAIL_CHARS ||
+      !normalizedEmail.includes('@')
+    ) {
+      throw new Error('M26_AUTH_EMAIL_INVALID');
+    }
+
+    if (
+      runtime.qaOnly &&
+      !normalizedEmail.startsWith('iberfit.cl+qa.')
+    ) {
+      throw new Error('M26_QA_ACCOUNT_REQUIRED');
+    }
+
+    let redirect;
+
+    try {
+      redirect = new URL(String(redirectTo || ''));
+    } catch {
+      throw new Error('M26_RECOVERY_REDIRECT_INVALID');
+    }
+
+    if (
+      redirect.origin !== 'https://m26-canary.iberfit.cl' ||
+      redirect.pathname !== '/' ||
+      redirect.search ||
+      redirect.hash ||
+      redirect.username ||
+      redirect.password
+    ) {
+      throw new Error('M26_RECOVERY_REDIRECT_INVALID');
+    }
+
+    await request(
+      `/auth/v1/recover?redirect_to=${encodeURIComponent(redirect.href)}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          email: normalizedEmail,
+        }),
+      }
+    );
+
+    return { ok: true };
+  }
+
+  async function updatePassword(accessToken, password) {
+    const token = String(accessToken || '');
+    const normalizedPassword = String(password || '');
+
+    if (
+      !token ||
+      token.length > MAX_TOKEN_CHARS ||
+      /[\u0000-\u001f\u007f]/.test(token)
+    ) {
+      throw new Error('M26_RECOVERY_TOKEN_INVALID');
+    }
+
+    if (
+      normalizedPassword.length < 8 ||
+      normalizedPassword.length > 1024
+    ) {
+      throw new Error('M26_AUTH_PASSWORD_INVALID');
+    }
+
+    const validateRecoveryUser = (user, code) => {
+      const id = String(user?.id || '');
+      const email = String(user?.email || '').trim().toLowerCase();
+
+      if (
+        !SAFE_ID_PATTERN.test(id) ||
+        email.length < 3 ||
+        email.length > MAX_AUTH_EMAIL_CHARS ||
+        !email.includes('@') ||
+        /[\u0000-\u001f\u007f]/.test(email)
+      ) {
+        throw new Error(code);
+      }
+
+      if (runtime.qaOnly && !email.startsWith('iberfit.cl+qa.')) {
+        throw new Error('M26_QA_ACCOUNT_REQUIRED');
+      }
+
+      return { id, email };
+    };
+
+    const currentUser = validateRecoveryUser(
+      await request('/auth/v1/user', {
+        method: 'GET',
+        token,
+      }),
+      'M26_RECOVERY_USER_INVALID'
+    );
+
+    const user = await request('/auth/v1/user', {
+      method: 'PUT',
+      token,
+      body: JSON.stringify({
+        password: normalizedPassword,
+      }),
+    });
+
+    const updatedUser = validateRecoveryUser(
+      user,
+      'M26_RECOVERY_UPDATE_INVALID_RESPONSE'
+    );
+
+    if (
+      updatedUser.id !== currentUser.id ||
+      updatedUser.email !== currentUser.email
+    ) {
+      throw new Error('M26_RECOVERY_IDENTITY_MISMATCH');
+    }
+
+    return user;
+  }
+
   async function refresh(refreshToken) {
     if (!refreshToken || String(refreshToken).length>MAX_REFRESH_TOKEN_CHARS) throw new Error('M26_REFRESH_TOKEN_REQUIRED');
     const body = validateAuthBody(await request('/auth/v1/token?grant_type=refresh_token', {
@@ -200,6 +322,8 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   return Object.freeze({
     runtime,
     login,
+    requestPasswordRecovery,
+    updatePassword,
     refresh,
     logout,
     bootstrap: (token) => rpc(runtime.rpc.bootstrap, token, {}),

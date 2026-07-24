@@ -1,0 +1,22 @@
+{
+  "release": "IBERFIT_M26_CANARY_RC30",
+  "version": "26.0.0-canary.30",
+  "generatedAt": "2026-07-24T15:38:45.998Z",
+  "full": {
+    "manifestPath": "recovery/RC30_SHA256_MANIFEST.json",
+    "expected": 607,
+    "verified": 607,
+    "failures": [],
+    "ok": true
+  },
+  "web": {
+    "manifestPath": "recovery/RC30_WEB_SHA256_MANIFEST.json",
+    "expected": 105,
+    "verified": 105,
+    "failures": [],
+    "ok": true
+  },
+  "ok": true,
+  "productionModified": false,
+  "productionDeployed": false
+}

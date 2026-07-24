@@ -29,6 +29,9 @@ if (String(process.env.M26_QA_ONLY).toLowerCase() !== 'true') {
 }
 
 const key = process.env.M26_SUPABASE_PUBLISHABLE_KEY.trim();
+const validationOnly = String(
+  process.env.M26_RUNTIME_VALIDATION_ONLY || ''
+).toLowerCase() === 'true';
 
 if (!key) {
   throw new Error('RC29_RUNTIME_PUBLISHABLE_KEY_MISSING');
@@ -182,12 +185,15 @@ const metadata = {
   version,
   release,
   channel: 'canary',
-  status: 'canary_ready',
-  deployable: true,
-  localValidationOnly: false,
+  status: validationOnly ? 'local_validation' : 'canary_ready',
+  deployable: !validationOnly,
+  localValidationOnly: validationOnly,
   productionModified: false,
   productionDeployed: false,
   runtimeEnabled: true,
+  runtimeCredentialMode: validationOnly
+    ? 'synthetic_publishable_validation'
+    : 'cloudflare_publishable',
   qaOnly: true,
   sourceRelease: 'RC29',
   backendContract: 'RC30',
@@ -248,7 +254,8 @@ console.log(
       budgetOk: metadata.budgetOk,
       keyType: key.startsWith('sb_publishable_')
         ? 'publishable'
-        : 'legacy_anon_or_publishable'
+        : 'legacy_anon_or_publishable',
+      validationOnly
     },
     null,
     2

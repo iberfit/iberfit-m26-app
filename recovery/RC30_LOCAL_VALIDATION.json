@@ -1,0 +1,73 @@
+{
+  "release": "IBERFIT_M26_CANARY_RC30",
+  "version": "26.0.0-canary.30",
+  "generatedAt": "2026-07-24T15:19:47.059Z",
+  "ok": true,
+  "tests": {
+    "total": 303,
+    "passed": 302,
+    "failed": 0,
+    "skipped": 1
+  },
+  "steps": [
+    {
+      "name": "repository-hygiene",
+      "command": "node scripts/remote-gates/check_repository_hygiene.mjs",
+      "status": 0,
+      "ok": true
+    },
+    {
+      "name": "tests",
+      "command": "node --test tests/m25_2_iri_regression.test.mjs tests/m26_core_recovery.test.mjs tests/m26_exercises_ai_sessions.test.mjs tests/m26_hoy_clients_expediente.test.mjs tests/m26_iri_planning_agenda.test.mjs tests/m26_rc10_engagement_progress.test.mjs tests/m26_rc11_adaptive_engagement.test.mjs tests/m26_rc12_design_functional.test.mjs tests/m26_rc13_visual_canary.test.mjs tests/m26_rc14_integrated_application.test.mjs tests/m26_rc15_launch_candidate.test.mjs tests/m26_rc16_hardening.test.mjs tests/m26_rc17_resilience.test.mjs tests/m26_rc18_prelaunch_repository.test.mjs tests/m26_rc19_quality_performance.test.mjs tests/m26_rc20_wearables_ux.test.mjs tests/m26_rc21_free_integrations_state_fuzz.test.mjs tests/m26_rc22_sync_performance_accessibility.test.mjs tests/m26_rc23_castellano_ui.test.mjs tests/m26_rc24_functional_completion.test.mjs tests/m26_rc25_role_privacy_premium.test.mjs tests/m26_rc26_publication_premium.test.mjs tests/m26_rc27_client_premium_final.test.mjs tests/m26_rc28_local_maximum_closure.test.mjs tests/m26_rc29_repository_preflight.test.mjs tests/m26_rc30_password_recovery.test.mjs tests/m26_rc8_release_readiness.test.mjs tests/m26_rc9_offline_canary.test.mjs tests/m26_session_execution_ui.test.mjs tests/m26_sex_age_norms.test.mjs tests/m26_shell_roles.test.mjs",
+      "status": 0,
+      "ok": true
+    },
+    {
+      "name": "rc29-prepublication-gate",
+      "command": "node scripts/m26_rc29_prepublication_gate.mjs",
+      "status": 0,
+      "ok": true
+    },
+    {
+      "name": "rc30-canary-gate",
+      "command": "node scripts/m26_rc30_canary_gate.mjs",
+      "status": 0,
+      "ok": true
+    },
+    {
+      "name": "build",
+      "command": "node scripts/build_rc29_prepublication_candidate.mjs",
+      "status": 0,
+      "ok": true
+    },
+    {
+      "name": "module-graph",
+      "command": "node scripts/verify_rc29_module_graph.mjs",
+      "status": 0,
+      "ok": true
+    },
+    {
+      "name": "configure-canary-runtime",
+      "command": "node scripts/generate_rc29_runtime_config.mjs",
+      "status": 0,
+      "ok": true
+    },
+    {
+      "name": "verify-canary-build",
+      "command": "node scripts/verify_rc30_canary_candidate.mjs",
+      "status": 0,
+      "ok": true
+    }
+  ],
+  "localValidationOnly": true,
+  "productionModified": false,
+  "productionDeployed": false,
+  "remoteIsolationExecuted": false,
+  "pendingExternalGates": [
+    "Login autenticado con cuentas QA Coach y dos Clientes distintos",
+    "Inspección remota de RLS y políticas efectivas",
+    "Prueba cruzada Cliente A / Cliente B",
+    "Recuperación real de correo en m26-canary.iberfit.cl",
+    "QA visual y de teclado en dispositivos físicos"
+  ]
+}
