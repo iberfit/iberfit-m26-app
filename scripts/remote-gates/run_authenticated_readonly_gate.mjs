@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { M26_EXTENDED_COMMAND_REGISTRY, validateCommandCatalog, normalizeRegistryRole } from '../../src/m26/command-catalog.js';
+import { RC29_QA_CLIENTS_NOT_DISTINCT, assertDistinctQaClientIds } from './readonly-gate-client-isolation.mjs';
 
 const PROJECT_REF='pjhmrhejsoofmouedavw';
 const required=[
@@ -68,6 +69,7 @@ const registryValidation=validateCommandCatalog(remoteRegistry,M26_EXTENDED_COMM
 if(!registryValidation.ok||remoteRegistry.length!==52)throw new Error(`RC29_REGISTRY_MISMATCH:${JSON.stringify(registryValidation)}`);
 
 const roles=[];
+const qaClientIds=[];
 for(const session of sessions){
   const bootstrap=await rpc('iberfit_bootstrap_v26',session.token,{});
   const reportedRole=normalizeRegistryRole(bootstrap?.user?.role);
@@ -77,6 +79,7 @@ for(const session of sessions){
   if(session.expectedRole==='client'&&!clientId)throw new Error(`RC29_CLIENT_ID_MISSING:${session.name}`);
   const privacy=session.expectedRole==='client'?inspectClientBootstrap(bootstrap,clientId):null;
   if(privacy&&!privacy.ok)throw new Error(`RC29_CLIENT_BOOTSTRAP_LEAK:${session.name}:forbidden=${privacy.forbiddenKeys.length}:foreign=${privacy.foreignClientIds.length}`);
+  if(session.expectedRole==='client')qaClientIds.push(clientId);
   roles.push({
     name:session.name,
     userFingerprint:fingerprint(session.userId),
@@ -92,8 +95,7 @@ for(const session of sessions){
     }:null,
   });
 }
-const clientIds=roles.filter((x)=>x.name.startsWith('client_')).map((x)=>x.clientId);
-if(new Set(clientIds).size!==2)throw new Error('RC29_QA_CLIENTS_NOT_DISTINCT');
+assertDistinctQaClientIds(qaClientIds,RC29_QA_CLIENTS_NOT_DISTINCT);
 const evidence={
   release:'IBERFIT_M26_PREPUBLICACION_INFRA_RC29',generatedAt:new Date().toISOString(),project:PROJECT_REF,
   mode:'authenticated-readonly',mutationsPerformed:false,expectedCommands:52,remoteCommands:remoteRegistry.length,
