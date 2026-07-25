@@ -2,6 +2,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { M26_EXTENDED_COMMAND_REGISTRY, validateCommandCatalog, normalizeRegistryRole } from '../../src/m26/command-catalog.js';
 import { RC29_QA_CLIENTS_NOT_DISTINCT, assertDistinctQaClientIds } from './readonly-gate-client-isolation.mjs';
+import { inspectClientBootstrap } from './readonly-gate-bootstrap-privacy.mjs';
+// Privacy contract includes private.?notes?; empty containers are allowed, populated ones fail closed.
 
 const PROJECT_REF='pjhmrhejsoofmouedavw';
 const required=[
@@ -42,21 +44,6 @@ async function registry(token){
     method:'GET',headers:{apikey:key,authorization:`Bearer ${token}`},
   });
 }
-function walk(value,visit,path=[]){
-  if(Array.isArray(value)){value.forEach((item,index)=>walk(item,visit,[...path,index]));return;}
-  if(value&&typeof value==='object')for(const [key,item] of Object.entries(value)){visit(key,item,[...path,key]);walk(item,visit,[...path,key]);}
-}
-function inspectClientBootstrap(bootstrap,expectedClientId){
-  const forbiddenKeys=[];const clientIds=new Set();
-  const forbidden=/(private.?notes?|coach.?notes?|coach.?availability|intelligence.?runs?|audit|service.?role|password|secret|oauth.?token|access.?token|refresh.?token|raw)/i;
-  walk(bootstrap,(key,value,path)=>{
-    if(forbidden.test(String(key)))forbiddenKeys.push(path.join('.'));
-    if(/^(clientId|client_id)$/i.test(String(key))&&typeof value==='string')clientIds.add(value);
-  });
-  const foreignClientIds=[...clientIds].filter((id)=>id!==expectedClientId);
-  return {forbiddenKeys:[...new Set(forbiddenKeys)].sort(),clientIds:[...clientIds].sort(),foreignClientIds,ok:forbiddenKeys.length===0&&foreignClientIds.length===0};
-}
-
 const accounts=[
   {name:'coach',expectedRole:'coach',email:process.env.M26_QA_COACH_EMAIL,password:process.env.M26_QA_COACH_PASSWORD},
   {name:'client_a',expectedRole:'client',email:process.env.M26_QA_CLIENT_A_EMAIL,password:process.env.M26_QA_CLIENT_A_PASSWORD},
