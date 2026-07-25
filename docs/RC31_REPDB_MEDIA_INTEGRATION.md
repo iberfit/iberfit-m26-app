@@ -40,3 +40,17 @@ Conectar `resolveExerciseMedia()` con:
 5. Créditos/Acerca de.
 
 La conexión visual se hará después de auditar las funciones exactas de renderizado del RC31.
+
+
+## Conexión visual RC31
+
+La capa visual se conecta al catálogo canónico de 367 ejercicios mediante
+`iberfit-canonical-media-map-v1.json`. Los IDs IBERFIT no cambian.
+
+- La biblioteca se agrupa por musculatura principal.
+- El Entrenador ve imágenes A/B y candidatas C marcadas para revisión.
+- El Cliente solo recibe coincidencias A/B.
+- Constructor, vista previa y ejecución guiada utilizan el mismo resolvedor.
+- Las imágenes se cachean bajo demanda; no se precargan los 745 WebP.
+- El isotipo oficial se superpone mediante CSS, sin reescribir los originales.
+- El fallo del mapa o de una imagen mantiene el ejercicio operativo sin medio.

@@ -3,10 +3,10 @@ const PREVIOUS_VERSION='m26-rc27'; // preserved for cache migration evidence
 // Historical compatibility markers retained for regression evidence: m26-rc23, m26-rc19, m26-rc17.
 const SHELL=`iberfit-${VERSION}-shell`;
 const OFFLINE='/m26/offline.html';
-const APP_SHELL=['/m26/index.html','/m26/app.js','/m26/manifest.webmanifest','/m26/offline.html','/m26/offline.css','/m26/offline.js','/m26/icons/icon-192.png','/m26/icons/icon-512.png','/m26/icons/icon-maskable-192.png','/m26/icons/icon-maskable-512.png','/src/m26/shell/shell.css','/public/isotipo-iberfit.png','/baseline_m25_2/exercise-catalog-m25.json'];
+const APP_SHELL=['/m26/index.html','/m26/app.js','/m26/manifest.webmanifest','/m26/offline.html','/m26/offline.css','/m26/offline.js','/m26/icons/icon-192.png','/m26/icons/icon-512.png','/m26/icons/icon-maskable-192.png','/m26/icons/icon-maskable-512.png','/src/m26/shell/shell.css','/public/isotipo-iberfit.png','/baseline_m25_2/exercise-catalog-m25.json','/public/vendor/repdb/iberfit-canonical-media-map-v1.json'];
 const NEVER_CACHE_PREFIXES=['/auth/v1/','/api/','/rest/v1/','/rpc/','/functions/'];
-const CACHEABLE_PREFIXES=['/m26/','/src/m26/','/baseline_m25_2/'];
-const CACHE_FIRST_PATHS=new Set(['/m26/manifest.webmanifest','/public/isotipo-iberfit.png','/baseline_m25_2/exercise-catalog-m25.json','/m26/icons/icon-192.png','/m26/icons/icon-512.png','/m26/icons/icon-maskable-192.png','/m26/icons/icon-maskable-512.png']);
+const CACHEABLE_PREFIXES=['/m26/','/src/m26/','/baseline_m25_2/','/public/vendor/repdb/'];
+const CACHE_FIRST_PATHS=new Set(['/m26/manifest.webmanifest','/public/isotipo-iberfit.png','/baseline_m25_2/exercise-catalog-m25.json','/public/vendor/repdb/iberfit-canonical-media-map-v1.json','/m26/icons/icon-192.png','/m26/icons/icon-512.png','/m26/icons/icon-maskable-192.png','/m26/icons/icon-maskable-512.png']);
 function isRuntimeConfig(pathname){return pathname==='/m26/runtime-config.js'||pathname==='/m26/runtime-config.example.js';}
 function isProtected(request,url){return request.method!=='GET'||url.origin!==self.location.origin||NEVER_CACHE_PREFIXES.some((prefix)=>url.pathname.startsWith(prefix))||isRuntimeConfig(url.pathname);}
 function isCacheablePath(pathname){return CACHEABLE_PREFIXES.some((prefix)=>pathname.startsWith(prefix))||pathname==='/public/isotipo-iberfit.png';}
@@ -24,6 +24,6 @@ self.addEventListener('fetch',(event)=>{
     event.respondWith(networkFirst(request,{fallback:'/m26/index.html',event}).then(async(response)=>response.ok?response:await caches.match(OFFLINE)||response));
     return;
   }
-  if(CACHE_FIRST_PATHS.has(url.pathname)){event.respondWith(cacheFirst(request,event));return;}
+  if(CACHE_FIRST_PATHS.has(url.pathname)||/^\/public\/vendor\/repdb\/images\/flat\/[a-z0-9-]+-(?:main|start|peak)\.webp$/.test(url.pathname)){event.respondWith(cacheFirst(request,event));return;}
   event.respondWith(networkFirst(request,{event}));
 });

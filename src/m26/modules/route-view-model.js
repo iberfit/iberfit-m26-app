@@ -149,7 +149,7 @@ export function createRouteViewModel(shellVm, state, now = new Date(), options =
   }
   if(area==='biblioteca'){
     const catalog=Array.isArray(options.catalog)?options.catalog:[];
-    return Object.freeze({kind:'biblioteca',role:shellVm.identity?.role,catalog:Object.freeze(catalog.map((item)=>clone(item))),total:catalog.length});
+    return Object.freeze({kind:'biblioteca',role:shellVm.identity?.role,catalog:Object.freeze(catalog.map((item)=>clone(item))),mediaMap:options.mediaMap||null,total:catalog.length});
   }
   if(area==='verificacion')return Object.freeze({kind:'verificacion',center:buildVerificationCenter(state)});
   return Object.freeze({ kind: 'placeholder', area, title: shellVm.page.title });

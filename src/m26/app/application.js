@@ -24,6 +24,7 @@ import {createSessionController} from '../workflows/session-controller.js';
 import {createActionState} from '../ui/action-state.js';
 import {createExecutionRecoveryStore,createExecutionRecoveryCoordinator} from '../workflows/session-recovery.js';
 import {registerM26ServiceWorker,createConnectivitySync} from '../platform/pwa.js';
+import {loadExerciseMediaMap} from '../library/exercise-media.js';
 
 const SESSION_DRAFT_SCOPE='session-builder';
 function escapeText(value){return String(value??'').replace(/[&<>"']/g,'');}
@@ -77,7 +78,7 @@ function invalidRecoverySession(error){
 export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history}={}){
   if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
   const runtime=resolveM26Runtime(runtimeConfig,locationLike);const vault=createSessionVault();
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,shell=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,operationRepository=null,draftRepository=null,commandBus=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,operationRepository=null,draftRepository=null,commandBus=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null;
 
   function authMessage(message='',noticeKind='status'){
   root.innerHTML=renderAccessUi({
@@ -97,9 +98,21 @@ export async function createM26Application({root=document.querySelector('#app'),
     const currentUserId=session.user.id;refreshInFlight=transport.refresh(session.refreshToken).then((next)=>{if(next.user.id!==currentUserId)throw new Error('M26_REFRESH_IDENTITY_MISMATCH');session=next;vault.save(session);return session;}).finally(()=>{refreshInFlight=null;});
     return refreshInFlight;
   }
-  async function fetchCatalog(){if(catalog)return catalog;catalog=await loadExerciseCatalog('/baseline_m25_2/exercise-catalog-m25.json');return catalog;}
+  async function fetchCatalog(){
+    if(!catalog)catalog=await loadExerciseCatalog('/baseline_m25_2/exercise-catalog-m25.json');
+    if(!mediaMap){
+      try{mediaMap=await loadExerciseMediaMap();}
+      catch{mediaMap=null;}
+    }
+    return catalog;
+  }
   async function hydrate({reason='bootstrap'}={}){await refreshSessionIfNeeded();store.setHydration('loading');try{const [snapshot,installed]=await Promise.all([transport.bootstrap(currentToken()),transport.commandRegistry(currentToken())]);const runtimeRegistry=validatedRuntimeRegistry(installed);if(!runtimeRegistry.base.ok)throw new Error(`M26_REMOTE_BASE_REGISTRY_INVALID:${runtimeRegistry.base.missing.join(',')}`);const enriched={...snapshot,environment:{...(snapshot.environment||{}),commandRegistry:installed,reason},canary:{...(snapshot.canary||{}),version:snapshot.canary?.version||runtime.version||'26.0.0'}};store.hydrate(enriched);return {snapshot:enriched,installed,runtimeRegistry};}catch(error){store.setHydration('error',error);throw error;}}
-  function renderRoute(shellVm,state){if(sessionUi?.draft)return renderSessionBuilder({draft:sessionUi.draft,catalog,query:sessionUi.query,actionState:sessionUi.actionState});if(sessionUi?.execution)return renderGuidedExecution({execution:sessionUi.execution,session:sessionUi.session,catalog,actionState:sessionUi.actionState});return renderRouteView(createRouteViewModel(shellVm,state,new Date(),{catalog:catalog?.list?.()||[]}));}
+  function renderRoute(shellVm,state){
+    const role=shellVm?.identity?.role||state?.identity?.role||'client';
+    if(sessionUi?.draft)return renderSessionBuilder({draft:sessionUi.draft,catalog,query:sessionUi.query,actionState:sessionUi.actionState,mediaMap,role});
+    if(sessionUi?.execution)return renderGuidedExecution({execution:sessionUi.execution,session:sessionUi.session,catalog,actionState:sessionUi.actionState,mediaMap,role});
+    return renderRouteView(createRouteViewModel(shellVm,state,new Date(),{catalog:catalog?.list?.()||[],mediaMap}));
+  }
   function render(){shell?.render?.();}
   async function saveSessionDraft(){if(sessionUi?.draft&&draftRepository)await draftRepository.save(sessionUi.draft.clientId,SESSION_DRAFT_SCOPE,sessionUi.draft);}
   async function clearSessionDraft(clientId){if(clientId&&draftRepository)await draftRepository.remove(clientId,SESSION_DRAFT_SCOPE);}
@@ -124,7 +137,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     const service=createEngagementCommandService({commandBus,installedRegistry:installed,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false});
     recoveryCoordinator=createExecutionRecoveryCoordinator({store:createExecutionRecoveryStore({ownerId}),commandBus,isOnline:()=>navigator.onLine!==false});
     shell=createShellController({root,store,renderRoute});
-    workflow=createWorkflowController({root,store,commandBus,catalog,getRegistry:()=>runtimeRegistry.registry,onRender:render});
+    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,getRegistry:()=>runtimeRegistry.registry,onRender:render});
     engagement=createEngagementController({root,store,draftRepository,service});wearables=createWearableController({root,store});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
     sessionController=createSessionController({root,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},autosaveDraft:saveSessionDraft,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
     root.addEventListener('click',guardSessionNavigation,true);shell.mount();workflow.mount();engagement.mount();wearables.mount();verification.mount();sessionController.mount();await refreshVerificationState({repository:operationRepository,store});

@@ -8,6 +8,7 @@ import {createExerciseSearchIndex} from '../exercises/search.js';
 import {normalizeAppointmentModality,normalizeClientModality} from '../domain/modality.js';
 import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
 import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
+import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
 
 function values(form){return Object.fromEntries(new FormData(form).entries());}
 function ensureValidForm(form){if(typeof form?.checkValidity==='function'&&!form.checkValidity()){form.reportValidity?.();throw new Error('M26_FORM_INVALID');}return form;}
@@ -44,10 +45,12 @@ function emit(root,name,detail){root.dispatchEvent(new CustomEvent(name,{bubbles
 function escape(value){return String(value??'').replace(/[&<>"']/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));}
 function normalizedStatus(record){return String(record?.status||record?.estado||record?.body?.status||record?.body?.estado||'').trim().toLowerCase();}
 const PUBLISHED_SESSION_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
-function libraryCard(item){const text=[item.name_es,item.pattern,item.equipment].join(' ').toLowerCase();return `<article class="m26-library-card" data-library-text="${escape(text)}"><div class="m26-library-media" aria-hidden="true">${escape((item.name_es||'I').slice(0,1))}</div><div><h3>${escape(item.name_es||'Ejercicio')}</h3><p>${escape(item.pattern||'Patrón')} · ${escape(item.equipment||'Sin equipo')}</p></div></article>`;}
+function libraryCards(items,mediaMap,role){
+  return renderExerciseLibraryGroups(items,mediaMap,{role})||'<p class="m26-empty-copy">No hay coincidencias.</p>';
+}
 function friendlyError(error){const code=String(error?.message||error||'');if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';if(/DATE|CHRONOLOGY|INVALID|REQUIRED/.test(code))return 'Revisa los campos obligatorios y sus fechas.';if(/NETWORK|TIMEOUT|FETCH/.test(code))return 'No fue posible conectar. Tu información local permanece protegida.';return 'No fue posible completar la acción. Revisa los datos e inténtalo nuevamente.';}
 
-export function createWorkflowController({root,store,commandBus,catalog,getRegistry=()=>[],onRender=()=>{},isOnline=()=>globalThis.navigator?.onLine!==false}={}){
+export function createWorkflowController({root,store,commandBus,catalog,mediaMap,getRegistry=()=>[],onRender=()=>{},isOnline=()=>globalThis.navigator?.onLine!==false}={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');let mounted=false;const catalogSearch=createExerciseSearchIndex(catalog?.list?.()||[]);
   function context(){const state=store.getState();const role=String(state.identity?.role||'').toLowerCase();const clientId=['client','cliente'].includes(role)?state.identity?.clientId:state.selectedClientId;return {state,role,clientId};}
   function requireCoach(){const {role}=context();if(!['admin','coach'].includes(role))throw new Error('M26_WORKFLOW_ROLE_FORBIDDEN');}
@@ -97,7 +100,7 @@ export function createWorkflowController({root,store,commandBus,catalog,getRegis
     const query=String(search.value||'').trim();
     const filtered=catalogSearch.search(query,{limit:catalog?.count||367});
     const grid=root.querySelector?.('[data-library-grid]');
-    if(grid)grid.innerHTML=filtered.map(libraryCard).join('');
+    if(grid){const {role}=context();grid.innerHTML=libraryCards(filtered,mediaMap,role);}
     const node=root.querySelector?.('[data-library-status]');
     if(node)node.textContent=`${filtered.length} ${filtered.length===1?'ejercicio visible':'ejercicios visibles'}`;
   }

@@ -1,5 +1,6 @@
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
+import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
@@ -248,8 +249,9 @@ export function renderIntelligenceRoute(vm){
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Motor IBERFIT</p><h2>Inteligencia con criterio</h2><p>Usa adherencia, recuperación y carga histórica. Nunca publica ni progresa cargas automáticamente.</p></div>${badge(vm.alerts.some((x)=>x.severity==='critical')?'Revisión requerida':'Contexto disponible',vm.alerts.some((x)=>x.severity==='critical')?'danger':'success')}</section>${form}<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>Propuestas confirmadas</h2></div></div>${recordList(vm.runs,'Sin propuestas remotas')}</section></div>`;
 }
 export function renderLibraryRoute(vm){
-  const cards=vm.catalog.map((item)=>`<article class="m26-library-card" data-library-text="${escapeHtml([item.name_es,item.pattern,item.equipment].join(' ').toLowerCase())}"><div class="m26-library-media" aria-hidden="true">${escapeHtml((item.name_es||'I').slice(0,1))}</div><div><h3>${escapeHtml(item.name_es||'Ejercicio')}</h3><p>${escapeHtml(item.pattern||'Patrón')} · ${escapeHtml(item.equipment||'Sin equipo')}</p></div></article>`).join('');
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Biblioteca visual</p><h2>Ejercicios IBERFIT</h2><p>Catálogo validado, sin escritura libre en las sesiones.</p></div>${badge(`${vm.total} ejercicios`,'neutral')}</section><section class="m26-panel"><label>Buscar ejercicio<input type="search" data-library-search autocomplete="off" spellcheck="false" aria-describedby="m26-library-status"></label><div class="m26-library-grid" data-library-grid>${cards||emptyState('Biblioteca no cargada','No se pudo leer el catálogo local.')}</div><p id="m26-library-status" data-library-status role="status" aria-live="polite">Mostrando los ${vm.total} ejercicios del catálogo. Escribe para filtrar.</p></section></div>`;
+  const groups=renderExerciseLibraryGroups(vm.catalog,vm.mediaMap,{role:vm.role||'coach'});
+  const credit=vm.mediaMap?renderExerciseMediaCredit():'';
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Biblioteca visual</p><h2>Ejercicios IBERFIT</h2><p>Organizados por musculatura principal, con indicaciones y referencias visuales validadas. El catálogo sigue siendo la fuente canónica y no admite escritura libre en las sesiones.</p></div>${badge(`${vm.total} ejercicios`,'neutral')}</section><section class="m26-panel"><label>Buscar ejercicio<input type="search" data-library-search autocomplete="off" spellcheck="false" aria-describedby="m26-library-status"></label><div class="m26-library-groups" data-library-grid>${groups||emptyState('Biblioteca no cargada','No se pudo leer el catálogo local.')}</div><p id="m26-library-status" data-library-status role="status" aria-live="polite">Mostrando los ${vm.total} ejercicios del catálogo, agrupados por musculatura principal. Escribe para filtrar.</p>${credit}</section></div>`;
 }
 
 export function renderRouteView(vm) {

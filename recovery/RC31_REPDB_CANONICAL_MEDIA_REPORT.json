@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "generatedAt": "2026-07-25T05:18:22.642Z",
+  "sourceCommit": "d0432849782a74df09efef13b058a57c36e657a6",
+  "catalogExercises": 367,
+  "coachVisible": 167,
+  "clientVisible": 77,
+  "withoutCoachMedia": 200,
+  "withoutClientMedia": 290,
+  "qualityCounts": {
+    "D · Sin imagen aprobada": 200,
+    "A · Coincidencia exacta": 44,
+    "B · Equivalencia visual probable": 33,
+    "C · Candidata para revisión Coach": 90
+  },
+  "missingFiles": []
+}

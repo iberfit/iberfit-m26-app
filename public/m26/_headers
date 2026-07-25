@@ -30,3 +30,9 @@
 
 /baseline_m25_2/exercise-catalog-m25.json
   Cache-Control: public, max-age=86400
+
+/public/vendor/repdb/images/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/public/vendor/repdb/*.json
+  Cache-Control: no-cache, must-revalidate
