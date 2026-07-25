@@ -145,6 +145,10 @@
     "metadata:rc30": "node scripts/generate_rc30_canary_metadata.mjs",
     "verify:rc30": "node scripts/verify_rc30_manifests.mjs",
     "seal:rc30": "npm run metadata:rc30 && npm run verify:rc30",
-    "validate:rc30:canary": "node scripts/run_rc30_canary_validation.mjs && npm run seal:rc30"
+    "validate:rc30:canary": "node scripts/run_rc30_canary_validation.mjs && npm run seal:rc30",
+    "build:rc31:canary": "npm run build:rc29 && npm run configure:rc31:canary",
+    "configure:rc31:canary": "node scripts/generate_rc31_runtime_config.mjs",
+    "verify:build:rc31": "node scripts/verify_rc31_canary_candidate.mjs",
+    "validate:rc31:ci": "node scripts/run_rc31_ci_validation.mjs"
   }
 }

@@ -7,6 +7,12 @@ on:
       - "canary/**"
   pull_request:
   workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Escribe READ_ONLY_REMOTE_GATE para ejecutar el gate remoto
+        required: true
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -34,7 +40,7 @@ jobs:
           python-version: '3.12'
 
       - name: Validar RC29
-        if: ${{ github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' }}
+        if: ${{ github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' && github.ref != 'refs/heads/canary/rc31' && github.head_ref != 'canary/rc31' }}
         run: npm run validate:rc29
 
       - name: Validar RC30 canary
@@ -47,8 +53,18 @@ jobs:
           CF_PAGES_BRANCH: canary/rc30
         run: npm run validate:rc30:canary
 
+      - name: Validar RC31 canary
+        if: ${{ github.ref == 'refs/heads/canary/rc31' || github.head_ref == 'canary/rc31' }}
+        env:
+          M26_SUPABASE_URL: https://pjhmrhejsoofmouedavw.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: sb_publishable_local_validation_rc31
+          M26_QA_ONLY: 'true'
+          M26_RUNTIME_VALIDATION_ONLY: 'true'
+          CF_PAGES_BRANCH: canary/rc31
+        run: npm run validate:rc31:ci
+
       - name: Conservar evidencia RC29
-        if: ${{ always() && github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' }}
+        if: ${{ always() && github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' && github.ref != 'refs/heads/canary/rc31' && github.head_ref != 'canary/rc31' }}
         uses: actions/upload-artifact@v4
         with:
           name: rc29-evidencia-validacion
@@ -69,5 +85,55 @@ jobs:
             recovery/RC30_*.md
             recovery/RC30_*.txt
             release/RC30_*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Conservar evidencia RC31
+        if: ${{ always() && (github.ref == 'refs/heads/canary/rc31' || github.head_ref == 'canary/rc31') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc31-evidencia-validacion
+          path: |
+            recovery/RC31_*.json
+            recovery/RC29_MODULE_GRAPH_REPORT.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  remote_readonly:
+    name: Gate remoto A/B de solo lectura
+    needs: validate
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/canary/rc31' && inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 15
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Ejecutar gate autenticado sin mutaciones
+        env:
+          M26_SUPABASE_URL: ${{ secrets.M26_SUPABASE_URL }}
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node scripts/remote-gates/run_authenticated_readonly_gate.mjs
+
+      - name: Conservar evidencia remota
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc31-gate-remoto-solo-lectura
+          path: |
+            recovery/RC29_REMOTE_*.json
+            recovery/RC31_REMOTE_*.json
           if-no-files-found: warn
           retention-days: 14
