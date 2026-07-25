@@ -1,4 +1,5 @@
 import {summarizeWearableData} from '../wearables/normalization.js';
+import {parseDateValue} from '../domain/civil-date.js';
 function clone(value){return value==null?value:structuredClone(value);}
 function arr(value){return Array.isArray(value)?value:[];}
 function first(record,...keys){for(const key of keys){const value=record?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
@@ -8,7 +9,7 @@ function dateOf(record){return first(record,
   'completedAt','completed_at','endedAt','ended_at','recordedAt','recorded_at',
   'assessmentDate','assessment_date','evaluatedAt','evaluated_at','startAt','start_at',
   'scheduledAt','scheduled_at','savedAt','saved_at','createdAt','created_at','date','fecha');}
-function safeDate(value){const date=value instanceof Date?new Date(value.getTime()):value?new Date(value):null;return date&&!Number.isNaN(date.getTime())?date:null;}
+function safeDate(value){return parseDateValue(value);}
 function normalizeNumericString(value){
   let raw=String(value??'').trim().replace(/\s+/g,'');
   if(!raw)return '';

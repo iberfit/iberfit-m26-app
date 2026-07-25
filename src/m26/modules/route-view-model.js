@@ -7,15 +7,20 @@ import {
 } from '../domain/appointment.js';
 import {buildWearableViewModel} from '../wearables/view-model.js';
 import {IBERFIT_UI_LOCALE,castilianStatusLabel} from '../ui/castellano.js';
+import {
+  civilDateInTimeZone,
+  formatIberfitDate,
+} from '../domain/civil-date.js';
 import {deriveAgeYears} from '../workflows/iri-profile.js';
 import {publicationSummary,publicationCounts} from '../workflows/publication-workflow.js';
 import {clientContentView} from '../publication/client-content.js';
 
 function clone(value) { return value == null ? value : structuredClone(value); }
 function dateLabel(value) {
-  const date = value ? new Date(value) : null;
-  if (!date || Number.isNaN(date.getTime())) return 'Sin fecha';
-  return new Intl.DateTimeFormat(IBERFIT_UI_LOCALE, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  return formatIberfitDate(value,{
+    locale:IBERFIT_UI_LOCALE,
+    includeTime:'auto',
+  })||'Sin fecha';
 }
 function text(record, ...keys) { return domainValue(record, ...keys); }
 function statusLabel(record, fallback = 'Sin estado') { return castilianStatusLabel(domainStatus(record), fallback); }
@@ -139,7 +144,7 @@ export function createRouteViewModel(shellVm, state, now = new Date(), options =
     const summary=clientId?computeProgressSummary(state,clientId,{now}):null;const alerts=clientId?deriveAdherenceAlerts(state,clientId,{now}):[];
     const profile=recordsForClient(state,'clientProfiles',clientId)[0]||null;
     const birthDate=text(profile,'birthDate','birth_date');
-    let ageYears=null;try{if(birthDate)ageYears=deriveAgeYears(birthDate,now.toISOString().slice(0,10));}catch{}
+    let ageYears=null;try{if(birthDate)ageYears=deriveAgeYears(birthDate,civilDateInTimeZone(now));}catch{}
     return Object.freeze({kind:'inteligencia',clientId,role:shellVm.identity?.role,runs:Object.freeze(runs.map(compactActivity)),summary,alerts:Object.freeze(alerts),profile:clone(profile),ageYears,birthDate:birthDate||null,canGenerate:['admin','coach'].includes(String(shellVm.identity?.role||''))});
   }
   if(area==='biblioteca'){

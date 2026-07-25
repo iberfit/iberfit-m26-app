@@ -1,5 +1,6 @@
 import { selectedClient } from '../production-state.js';
 import {isClientVisibleAppointment} from '../domain/appointment.js';
+import {parseDateValue} from '../domain/civil-date.js';
 
 function clone(value) { return value == null ? value : structuredClone(value); }
 function list(state, key) { return Array.isArray(state?.collections?.[key]) ? state.collections[key] : []; }
@@ -20,11 +21,28 @@ function value(record, ...keys) {
 }
 function clientIdOf(record) { return value(record, 'clientId', 'client_id', 'clienteId', 'cliente_id'); }
 function dateValue(record) {
-  return value(record, 'startAt', 'start_at', 'scheduledAt', 'scheduled_at', 'date', 'fecha', 'createdAt', 'created_at');
+  return value(
+    record,
+    'startAt',
+    'start_at',
+    'scheduledAt',
+    'scheduled_at',
+    'assessmentDate',
+    'assessment_date',
+    'evaluatedAt',
+    'evaluated_at',
+    'date',
+    'fecha',
+    'periodStart',
+    'period_start',
+    'startDate',
+    'start_date',
+    'createdAt',
+    'created_at'
+  );
 }
 function safeDate(input) {
-  const date = input ? new Date(input) : null;
-  return date && !Number.isNaN(date.getTime()) ? date : null;
+  return parseDateValue(input);
 }
 function sameLocalDay(a, b) {
   return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();

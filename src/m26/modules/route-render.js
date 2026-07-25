@@ -1,4 +1,5 @@
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
+import {formatIberfitDate} from '../domain/civil-date.js';
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
@@ -98,7 +99,7 @@ export function renderExpedienteRoute(vm) {
 function formatPercent(value){ return Number.isFinite(value) ? `${Math.round(value * 100)}%` : 'Sin dato'; }
 function metricValue(value, suffix=''){ return value === null || value === undefined ? 'Sin dato' : `${value}${suffix}`; }
 function alertKind(severity){ return severity === 'critical' ? 'danger' : severity === 'warning' ? 'warning' : 'neutral'; }
-function safeDateLabel(value){const date=value?new Date(value):null;return date&&!Number.isNaN(date.getTime())?new Intl.DateTimeFormat(IBERFIT_UI_LOCALE,{dateStyle:'medium'}).format(date):'Sin fecha';}
+function safeDateLabel(value){return formatIberfitDate(value,{locale:IBERFIT_UI_LOCALE,includeTime:false})||'Sin fecha';}
 function renderAlerts(alerts=[]){
   if(!alerts.length) return emptyState('Sin alertas de adherencia', 'No aparecen señales automáticas que requieran revisión con los datos confirmados disponibles.');
   return `<div class="m26-alert-list">${alerts.map((item)=>`<article class="m26-list-card m26-alert-card is-${escapeHtml(item.severity)}"><div><p class="m26-eyebrow">${escapeHtml(castilianSourceLabel(item.source))}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.detail)}</p><small>${escapeHtml(item.action)}</small></div>${badge(item.severity==='critical'?'Prioritaria':item.severity==='warning'?'Revisar':'Información',alertKind(item.severity))}</article>`).join('')}</div>`;

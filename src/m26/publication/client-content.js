@@ -1,4 +1,8 @@
 import {IBERFIT_UI_LOCALE} from '../ui/castellano.js';
+import {
+  formatIberfitDate,
+  parseDateValue,
+} from '../domain/civil-date.js';
 
 const ENTITY_ALIASES=Object.freeze({
   session:'session',sesion:'session',
@@ -12,8 +16,8 @@ function bodyOf(record){return record?.body&&typeof record.body==='object'&&!Arr
 function field(record,...keys){const body=bodyOf(record);for(const key of keys){const value=record?.[key]??body?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
 function clean(value,max=600){return String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 function boundedNumber(value,{min=0,max=100000,integer=false}={}){const parsed=Number(value);if(!Number.isFinite(parsed)||parsed<min||parsed>max)return null;return integer?Math.round(parsed):parsed;}
-function dateValue(value){if(!value)return null;const date=new Date(value);return Number.isFinite(date.getTime())?date:null;}
-function dateLabel(value){const date=dateValue(value);return date?new Intl.DateTimeFormat(IBERFIT_UI_LOCALE,{dateStyle:'medium'}).format(date):null;}
+function dateValue(value){return parseDateValue(value);}
+function dateLabel(value){return formatIberfitDate(value,{locale:IBERFIT_UI_LOCALE,includeTime:false});}
 function entityOf(entity){return ENTITY_ALIASES[String(entity||'').trim().toLowerCase()]||null;}
 function safeBlocks(record){
   const blocks=field(record,'blocks','bloques');
