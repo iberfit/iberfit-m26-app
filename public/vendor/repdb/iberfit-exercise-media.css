@@ -1,0 +1,47 @@
+.iberfit-exercise-media {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  min-height: 12rem;
+  border-radius: 1rem;
+  background: var(--iberfit-surface-soft, #f5f0e6);
+}
+
+.iberfit-exercise-media__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(58vh, 34rem);
+  object-fit: contain;
+}
+
+.iberfit-exercise-media::after {
+  content: "";
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  width: clamp(1.25rem, 3.4vw, 1.75rem);
+  aspect-ratio: 1;
+  background: url("/isotipo-iberfit.png") center / contain no-repeat;
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.iberfit-exercise-media__credit {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.iberfit-exercise-media__credit a {
+  color: inherit;
+  text-underline-offset: 0.18em;
+}
+
+@media (max-width: 420px) {
+  .iberfit-exercise-media {
+    min-height: 10rem;
+    border-radius: 0.8rem;
+  }
+}

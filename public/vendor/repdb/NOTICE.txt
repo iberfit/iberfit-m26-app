@@ -1,0 +1,8 @@
+RepDB Free Tier integrated for in-app use.
+
+Required attribution:
+Exercise data by RepDB (repdb.co)
+https://repdb.co/free-exercise-dataset
+
+The dataset and images must not be redistributed as a standalone dataset,
+repository, package, or API. The upgrade-samples directory is not included.
