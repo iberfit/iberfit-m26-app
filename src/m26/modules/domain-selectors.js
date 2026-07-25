@@ -1,11 +1,21 @@
 import { selectedClient } from '../production-state.js';
+import {isClientVisibleAppointment} from '../domain/appointment.js';
 
 function clone(value) { return value == null ? value : structuredClone(value); }
 function list(state, key) { return Array.isArray(state?.collections?.[key]) ? state.collections[key] : []; }
 function value(record, ...keys) {
+  const body=record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)
+    ? record.body
+    : {};
+
   for (const key of keys) {
-    if (record?.[key] !== undefined && record?.[key] !== null && record?.[key] !== '') return record[key];
+    const found=record?.[key]??body?.[key];
+
+    if (found !== undefined && found !== null && found !== '') {
+      return found;
+    }
   }
+
   return null;
 }
 function clientIdOf(record) { return value(record, 'clientId', 'client_id', 'clienteId', 'cliente_id'); }
@@ -54,9 +64,10 @@ export function activeCycleForClient(state, clientId = state?.selectedClientId) 
   return cycles.find((cycle) => ['activo', 'active', 'publicado', 'published'].includes(statusOf(cycle))) || cycles.sort(byNewest)[0] || null;
 }
 
-export function upcomingAppointments(state, { clientId = null, now = new Date(), limit = 6 } = {}) {
+export function upcomingAppointments(state, { clientId = null, now = new Date(), limit = 6, clientVisibleOnly = false } = {}) {
   return list(state, 'appointments')
     .filter((record) => !clientId || clientIdOf(record) === clientId)
+    .filter((record) => !clientVisibleOnly || isClientVisibleAppointment(record))
     .filter((record) => {
       const date = safeDate(dateValue(record));
       return date && date.getTime() >= now.getTime() - 60_000;
@@ -66,9 +77,10 @@ export function upcomingAppointments(state, { clientId = null, now = new Date(),
     .map(clone);
 }
 
-export function todaysAppointments(state, { clientId = null, now = new Date() } = {}) {
+export function todaysAppointments(state, { clientId = null, now = new Date(), clientVisibleOnly = false } = {}) {
   return list(state, 'appointments')
     .filter((record) => !clientId || clientIdOf(record) === clientId)
+    .filter((record) => !clientVisibleOnly || isClientVisibleAppointment(record))
     .filter((record) => sameLocalDay(safeDate(dateValue(record)), now))
     .sort((a, b) => (safeDate(dateValue(a))?.getTime() || 0) - (safeDate(dateValue(b))?.getTime() || 0))
     .map(clone);
@@ -99,8 +111,18 @@ export function clientsOverview(state) {
 export function todayOverview(state, now = new Date()) {
   const role = String(state?.identity?.role || '').toLowerCase();
   const clientId = role === 'client' ? state.identity?.clientId : null;
-  const appointments = todaysAppointments(state, { clientId, now });
-  const upcoming = upcomingAppointments(state, { clientId, now, limit: 5 });
+  const clientVisibleOnly=role==='client';
+  const appointments = todaysAppointments(state, {
+    clientId,
+    now,
+    clientVisibleOnly,
+  });
+  const upcoming = upcomingAppointments(state, {
+    clientId,
+    now,
+    limit: 5,
+    clientVisibleOnly,
+  });
   const summaries = role === 'client'
     ? [clientHealthSummary(state, clientId)].filter(Boolean)
     : clientsOverview(state);

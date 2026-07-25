@@ -33,7 +33,7 @@ function simpleSession(){const draft=createSessionDraft({clientId});addCatalogEx
  });
 
  test('bootstrap Cliente filtra datos y revisiones de otros clientes y elimina notas privadas',()=>{
-  const snapshot={environment:'PRODUCTION',canary:{active:true},user:{id:userId,role:'client',clientId},remoteRevisions:{[`session:${clientId}`]:2,[`session:${otherClientId}`]:7},data:{clients:[{id:clientId,name:'Propio'},{id:otherClientId,name:'Ajeno'}],sessions:[{id:'s1',clientId,status:'publicado'},{id:'s2',clientId:otherClientId,status:'publicado'}],appointments:[{id:'a1',clientId},{id:'a2',clientId:otherClientId}],privateNotes:[{id:'n1',clientId,body:'privado'}]}};
+  const snapshot={environment:'PRODUCTION',canary:{active:true},user:{id:userId,role:'client',clientId},remoteRevisions:{[`session:${clientId}`]:2,[`session:${otherClientId}`]:7},data:{clients:[{id:clientId,name:'Propio'},{id:otherClientId,name:'Ajeno'}],sessions:[{id:'s1',clientId,status:'publicado'},{id:'s2',clientId:otherClientId,status:'publicado'}],appointments:[{id:'a1',clientId,status:'confirmada',modality:'online'},{id:'a2',clientId:otherClientId,status:'confirmada',modality:'online'}],privateNotes:[{id:'n1',clientId,body:'privado'}]}};
   const state=stateFromBootstrap(snapshot,createProductionState());
   assert.deepEqual(state.collections.clients.map((x)=>x.id),[clientId]);
   assert.deepEqual(state.collections.sessions.map((x)=>x.id),['s1']);

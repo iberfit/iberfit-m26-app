@@ -21,7 +21,12 @@ function operationBanner(operations) {
   return `<section class="m26-notice is-${kind}" role="status"><strong>Sincronización protegida</strong><p>${escapeHtml(parts.join(' · '))}. Ningún cambio se muestra como confirmado hasta completar la sincronización segura.</p></section>`;
 }
 function appointmentCard(item) {
-  return `<article class="m26-list-card"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.location || item.modality || 'Modalidad por confirmar')}</p></div>${badge(item.status, /confirm|complet|activ/i.test(item.status) ? 'success' : 'neutral')}</article>`;
+  const detail=[item.modality,item.location]
+    .filter(Boolean)
+    .filter((value,index,list)=>list.indexOf(value)===index)
+    .join(' · ');
+
+  return `<article class="m26-list-card"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(detail||'Modalidad pendiente de definir')}</p></div>${badge(item.status,/confirm|realiz|complet/i.test(item.status)?'success':'neutral')}</article>`;
 }
 function clientCard(client, selected = false) {
   const iri = client.iri?.score != null ? `IRI ${client.iri.score}` : 'IRI pendiente';
@@ -223,8 +228,8 @@ export function renderPlanningRoute(vm){
 }
 export function renderAgendaRoute(vm){
   const options=vm.clients.map((item)=>`<option value="${escapeHtml(item.id)}"${item.id===vm.selectedClientId?' selected':''}>${escapeHtml(item.name)}</option>`).join('');
-  const form=`<form class="m26-panel m26-panel-soft" data-workflow-form="appointment"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Crear cita</h2></div></div><div class="m26-field-grid"><label>Cliente<select name="clientId" required>${options}</select></label><label>Modalidad<select name="modality" required><option value="presencial">Presencial</option><option value="guiada_en_app">Guiada en la aplicación</option><option value="online">En línea</option></select></label><label>Inicio<input type="datetime-local" name="startAt" required></label><label>Fin<input type="datetime-local" name="endAt" required></label><label class="m26-wide">Ubicación<input name="location" maxlength="300" autocomplete="street-address" aria-describedby="m26-location-help"></label><p id="m26-location-help" class="m26-field-help m26-wide">Obligatoria para citas presenciales. En sesiones en línea o guiadas en la aplicación puede quedar vacía.</p></div><button type="submit" class="m26-primary-action" data-workflow-action="create-appointment">Crear cita</button>${workflowStatus('appointment')}</form>`;
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Agenda del entrenador</p><h2>Sesiones programadas</h2><p>Las citas quedan confirmadas únicamente después de una validación segura.</p></div>${badge(countLabel(vm.appointments.length,'cita','citas'),'neutral')}</section><section class="m26-panel"><div class="m26-stack">${vm.appointments.length?vm.appointments.map(appointmentCard).join(''):emptyState('Agenda vacía','No hay citas confirmadas.')}</div></section>${form}</div>`;
+  const form=`<form class="m26-panel m26-panel-soft" data-workflow-form="appointment"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Crear propuesta de cita</h2><p>La propuesta permanece interna hasta que la cita sea confirmada.</p></div></div><div class="m26-field-grid"><label>Cliente<select name="clientId" required>${options}</select></label><label>Modalidad<select name="modality" required><option value="presencial">Presencial</option><option value="guiada_en_app">Guiada en la aplicación</option><option value="online">En línea</option></select></label><label>Inicio<input type="datetime-local" name="startAt" required></label><label>Fin<input type="datetime-local" name="endAt" required></label><label class="m26-wide">Ubicación<input name="location" maxlength="300" autocomplete="street-address" aria-describedby="m26-location-help" required></label><p id="m26-location-help" class="m26-field-help m26-wide">Obligatoria para citas presenciales.</p></div><button type="submit" class="m26-primary-action" data-workflow-action="create-appointment">Crear propuesta de cita</button>${workflowStatus('appointment')}</form>`;
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Agenda del entrenador</p><h2>Citas y propuestas</h2><p>Las propuestas son internas. El cliente solo recibe citas confirmadas.</p></div>${badge(countLabel(vm.appointments.length,'registro','registros'),'neutral')}</section><section class="m26-panel"><div class="m26-stack">${vm.appointments.length?vm.appointments.map(appointmentCard).join(''):emptyState('Agenda vacía','No hay citas ni propuestas registradas.')}</div></section>${form}</div>`;
 }
 export function renderSessionsRoute(vm){
   const isClient=vm.role==='client';

@@ -8,7 +8,7 @@ function collections(){return {
  reports:[{id:'r-pub',clientId:own,status:'publicado'},{id:'r-draft',clientId:own,status:'borrador'},{id:'r-other',clientId:other,status:'publicado'}],
  trainingCycles:[{id:'p-pub',clientId:own,status:'activo'},{id:'p-draft',clientId:own,status:'aprobado'}],
  sessions:[{id:'s-pub',clientId:own,status:'publicado'},{id:'s-draft',clientId:own,status:'borrador'},{id:'s-hidden',clientId:own,status:'publicado',visibleToClient:false}],
- sessionExecutions:[],appointments:[{id:'a-own',clientId:own},{id:'a-other',clientId:other}],checkins:[],habits:[],habitLogs:[],
+ sessionExecutions:[],appointments:[{id:'a-own',clientId:own,status:'confirmada',modality:'online'},{id:'a-other',clientId:other,status:'confirmada'}],checkins:[],habits:[],habitLogs:[],
  privateNotes:[{id:'n1',clientId:own}],intelligenceRuns:[{id:'ia1',clientId:own}],domainEvents:[{id:'e1',clientId:own}],coachAvailability:[{id:'c1'}],
  wearableConnections:[],wearableDailySummaries:[],wearableSyncRuns:[{id:'w1',clientId:own}],m26Entities:[{id:'m1',clientId:own,visibleToClient:false},{id:'m2',clientId:own,visibleToClient:true}],
  };}

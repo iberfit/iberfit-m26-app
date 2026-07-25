@@ -1,6 +1,10 @@
 import { clientsOverview, clientHealthSummary, todayOverview, domainValue, domainDate, domainStatus, recordsForClient } from './domain-selectors.js';
 import { computeProgressSummary, buildProgressTimeline, deriveAdherenceAlerts, adherenceSignal, buildVerificationCenter, engagementCapabilities } from '../engagement/index.js';
-import {clientModalityLabel,appointmentModalityLabel} from '../domain/modality.js';
+import {clientModalityLabel} from '../domain/modality.js';
+import {
+  appointmentStatusLabel,
+  normalizeAppointmentRecord,
+} from '../domain/appointment.js';
 import {buildWearableViewModel} from '../wearables/view-model.js';
 import {IBERFIT_UI_LOCALE,castilianStatusLabel} from '../ui/castellano.js';
 import {deriveAgeYears} from '../workflows/iri-profile.js';
@@ -16,14 +20,19 @@ function dateLabel(value) {
 function text(record, ...keys) { return domainValue(record, ...keys); }
 function statusLabel(record, fallback = 'Sin estado') { return castilianStatusLabel(domainStatus(record), fallback); }
 function compactAppointment(record) {
+  const appointment=normalizeAppointmentRecord(record);
+
   return {
-    id: text(record, 'id') || null,
-    title: text(record, 'title', 'titulo', 'name', 'nombre') || 'Sesión IBERFIT',
-    date: domainDate(record),
-    dateLabel: dateLabel(domainDate(record)),
-    status: statusLabel(record),
-    location: text(record, 'location', 'ubicacion') || null,
-    modality: appointmentModalityLabel(text(record,'modality','modalidad')), 
+    id:appointment.id,
+    clientId:appointment.clientId,
+    sessionId:appointment.sessionId,
+    title:appointment.title,
+    date:appointment.startAt,
+    dateLabel:dateLabel(appointment.startAt),
+    status:appointmentStatusLabel(appointment.status),
+    statusRaw:appointment.status,
+    location:appointment.location,
+    modality:appointment.modalityLabel,
   };
 }
 function compactSummary(summary) {
@@ -114,7 +123,7 @@ export function createRouteViewModel(shellVm, state, now = new Date(), options =
     const role=String(shellVm.identity?.role||'');return Object.freeze({kind:'planificacion',clientId,role,canEdit:['admin','coach'].includes(role),cycles:Object.freeze(publicationItems(cycles,'planning',role)),sessions:Object.freeze(publicationItems(sessions,'session',role)),cycleCounts:publicationCounts(cycles),sessionCounts:publicationCounts(sessions),currentCycle:clone(cycles[0]||null)});
   }
   if(area==='agenda'){
-    const appointments=(state?.collections?.appointments||[]).map((item)=>({...compactAppointment(item),clientId:text(item,'clientId','client_id')}));
+    const appointments=(state?.collections?.appointments||[]).map(compactAppointment);
     return Object.freeze({kind:'agenda',role:shellVm.identity?.role,appointments:Object.freeze(appointments),clients:Object.freeze(clientsOverview(state).map(compactSummary)),selectedClientId:state.selectedClientId||null});
   }
   if(area==='sesion'){

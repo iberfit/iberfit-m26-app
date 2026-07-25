@@ -1,5 +1,9 @@
 import {createM26Id} from '../platform/id.js';
 import {normalizeAppointmentModality} from '../domain/modality.js';
+import {
+  isClientVisibleAppointment,
+  normalizeAppointmentStatus,
+} from '../domain/appointment.js';
 
 function validDate(value){const time=new Date(value).getTime();return Number.isFinite(time)?time:null;}
 export function validateAppointmentDraft(draft={}){
@@ -12,7 +16,25 @@ export function validateAppointmentDraft(draft={}){
   const modality=normalizeAppointmentModality(draft.modality);
   if(draft.modality&&!modality)errors.push('modality');
   if(modality==='presencial'&&!String(draft.location||'').trim())errors.push('location');
-  return {ok:errors.length===0,errors:[...new Set(errors)],normalized:{...draft,modality,location:String(draft.location||'').trim().slice(0,300)}};
+
+  const requestedStatus=normalizeAppointmentStatus(draft.status);
+  const status=draft.id?(requestedStatus||'propuesta'):'propuesta';
+  const visibleToClient=isClientVisibleAppointment({
+    status,
+    visibleToClient:draft.visibleToClient,
+  });
+
+  return {
+    ok:errors.length===0,
+    errors:[...new Set(errors)],
+    normalized:{
+      ...draft,
+      modality,
+      location:String(draft.location||'').trim().slice(0,300),
+      status,
+      visibleToClient,
+    },
+  };
 }
 export function buildAppointmentCommand(draft,revision=0){
   const validation=validateAppointmentDraft(draft);
