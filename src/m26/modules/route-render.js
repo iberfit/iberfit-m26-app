@@ -31,13 +31,32 @@ function appointmentCard(item) {
   return `<article class="m26-list-card"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(detail||'Modalidad pendiente de definir')}</p></div>${badge(item.status,/confirm|realiz|complet/i.test(item.status)?'success':'neutral')}</article>`;
 }
 function clientCard(client, selected = false) {
-  const iri = client.iri?.score != null ? `IRI ${client.iri.score}` : 'IRI pendiente';
-  const searchable=foldSearch([client.name,client.modality,client.status,client.access].filter(Boolean).join(' '));
+  const iri = client.iri
+    ? `${client.iri.coverageCount}/3 dominios IRI`
+    : 'IRI pendiente';
+  const searchable = foldSearch(
+    [
+      client.name,
+      client.modality,
+      client.status,
+      client.access,
+      client.profile?.email,
+      client.profile?.phone,
+    ]
+      .filter(Boolean)
+      .join(' ')
+  );
+  const accessTone = client.accessKnown
+    ? /activ|habilit|conect/i.test(client.access)
+      ? 'success'
+      : 'neutral'
+    : 'neutral';
+
   return `<article class="m26-client-card${selected ? ' is-selected' : ''}" data-client-text="${escapeHtml(searchable)}">
     <button type="button" data-m26-select-client="${escapeHtml(client.id)}" aria-label="Abrir expediente de ${escapeHtml(client.name)}">
       <div class="m26-client-avatar" aria-hidden="true">${escapeHtml(client.name.slice(0, 1).toUpperCase())}</div>
       <div class="m26-client-copy"><p class="m26-eyebrow">${escapeHtml(client.modality)}</p><h3>${escapeHtml(client.name)}</h3><p>${escapeHtml(client.access)} · ${escapeHtml(iri)}</p></div>
-      <div class="m26-client-meta">${badge(client.status, /activ/i.test(client.status) ? 'success' : 'neutral')}<small>${client.nextAppointment ? escapeHtml(client.nextAppointment.dateLabel) : 'Sin próxima cita'}</small></div>
+      <div class="m26-client-meta">${badge(client.status, /activ/i.test(client.status) ? 'success' : 'neutral')}${badge(client.accessKnown ? 'Acceso registrado' : 'Acceso no informado', accessTone)}<small>${client.nextAppointment ? escapeHtml(client.nextAppointment.dateLabel) : 'Sin próxima cita confirmada'}</small></div>
     </button>
   </article>`;
 }
@@ -45,30 +64,53 @@ function clientCard(client, selected = false) {
 export function renderHoyRoute(vm) {
   const isClient = vm.role === 'client';
   const client = vm.clients[0] || null;
-  const heroTitle = isClient ? `Tu acompañamiento, ${escapeHtml(client?.name || 'IBERFIT')}` : 'Tu operación de hoy, con criterio';
+  const proposalCount = vm.proposals?.length || 0;
+  const heroTitle = isClient
+    ? `Tu acompañamiento, ${escapeHtml(client?.name || 'IBERFIT')}`
+    : 'Tu operación de hoy, con criterio';
   const heroCopy = isClient
     ? 'Revisa tu próxima sesión, planificación y evolución confirmada.'
-    : 'Prioriza sesiones, clientes y decisiones sin perder el contexto del expediente.';
+    : 'Prioriza sesiones confirmadas y propuestas pendientes sin mezclar sus estados.';
   const appointments = vm.appointments.length
     ? vm.appointments.map(appointmentCard).join('')
-    : emptyState('Sin sesiones programadas para hoy', isClient ? 'Tu entrenador publicará aquí tus próximas sesiones.' : 'La agenda de hoy está despejada.');
+    : emptyState(
+        'Sin sesiones confirmadas para hoy',
+        isClient
+          ? 'Tu entrenador publicará aquí tus próximas citas confirmadas.'
+          : 'No hay sesiones confirmadas para hoy.'
+      );
+  const proposals = !isClient && proposalCount
+    ? `<section class="m26-panel m26-panel-soft"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Pendientes de decisión</p><h2>Propuestas de hoy</h2></div>${badge(countLabel(proposalCount, 'propuesta', 'propuestas'), 'pending')}</div><div class="m26-stack">${vm.proposals.map(appointmentCard).join('')}</div></section>`
+    : '';
   const clients = !isClient && vm.clients.length
     ? vm.clients.slice(0, 5).map((item) => clientCard(item)).join('')
     : '';
   const next = vm.upcoming[0];
+  const operationalState = vm.operations.conflicts
+    ? 'Requiere revisión'
+    : vm.operations.pending
+      ? 'Sincronizando'
+      : proposalCount
+        ? 'Propuestas por revisar'
+        : 'Sin bloqueos';
+  const iriDetail = client?.iri
+    ? `<div class="m26-mini-metric"><span>Última evaluación IRI</span><strong>${escapeHtml(client.iri.coverageLabel)}</strong><small>${escapeHtml(client.iri.dateLabel)}</small></div>`
+    : '';
+
   return `<div class="m26-route m26-hoy-route">
     ${operationBanner(vm.operations)}
-    <section class="m26-hero-panel"><div><p class="m26-eyebrow">IBERFIT · Hoy</p><h2>${heroTitle}</h2><p>${heroCopy}</p></div><div class="m26-hero-signal"><span>Estado</span><strong>${vm.operations.conflicts ? 'Requiere revisión' : vm.operations.pending ? 'Sincronizando' : 'Confirmado'}</strong></div></section>
+    <section class="m26-hero-panel"><div><p class="m26-eyebrow">IBERFIT · Hoy</p><h2>${heroTitle}</h2><p>${heroCopy}</p></div><div class="m26-hero-signal"><span>Estado operativo</span><strong>${operationalState}</strong></div></section>
     <section class="m26-stat-grid">
-      ${stat('Sesiones hoy', vm.appointments.length, 'Agenda confirmada')}
-      ${stat('Próxima sesión', next ? next.dateLabel : 'Sin agenda', next?.title || 'Pendiente de planificación')}
-      ${stat(isClient ? 'Tu modalidad' : 'Clientes visibles', isClient ? client?.modality || 'Sin modalidad' : vm.clients.length, 'Según tus permisos de acceso')}
+      ${stat('Sesiones confirmadas hoy', vm.appointments.length, 'No incluye propuestas')}
+      ${isClient ? stat('Tu modalidad', client?.modality || 'Sin modalidad', 'Según tu expediente') : stat('Propuestas de hoy', proposalCount, proposalCount ? 'Requieren confirmación' : 'Ninguna pendiente')}
+      ${stat('Próxima cita confirmada', next ? next.dateLabel : 'Sin agenda', next?.title || 'No hay una cita confirmada próxima')}
       ${stat('Conflictos', vm.operations.conflicts, vm.operations.conflicts ? 'Resolver antes de continuar' : 'Sin bloqueos')}
     </section>
     <section class="m26-content-grid">
-      <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Sesiones de hoy</h2></div>${badge(`${vm.appointments.length} confirmada${vm.appointments.length === 1 ? '' : 's'}`, 'neutral')}</div><div class="m26-stack">${appointments}</div></div>
-      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Siguiente paso</p><h2>${next ? escapeHtml(next.title) : 'Planificación al día'}</h2><p>${next ? escapeHtml(next.dateLabel) : 'No hay próximas citas confirmadas en el alcance visible.'}</p>${client?.iri ? `<div class="m26-mini-metric"><span>Último IRI</span><strong>${escapeHtml(client.iri.score ?? '—')}</strong><small>${escapeHtml(client.iri.classification || client.iri.quality || 'Confirmado')}</small></div>` : ''}</aside>
+      <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Sesiones confirmadas de hoy</h2></div>${badge(countLabel(vm.appointments.length, 'confirmada', 'confirmadas'), 'neutral')}</div><div class="m26-stack">${appointments}</div></div>
+      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Siguiente paso</p><h2>${next ? escapeHtml(next.title) : 'Sin próxima cita confirmada'}</h2><p>${next ? escapeHtml(next.dateLabel) : 'Planifica o confirma una propuesta cuando corresponda.'}</p>${iriDetail}</aside>
     </section>
+    ${proposals}
     ${clients ? `<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>Clientes visibles</h2></div><button type="button" class="m26-text-action" data-m26-area="clientes">Ver todos</button></div><div class="m26-client-grid">${clients}</div></section>` : ''}
   </div>`;
 }
@@ -80,22 +122,58 @@ export function renderClientsRoute(vm) {
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Cartera autorizada</p><h2>Clientes y seguimiento</h2><p>Solo se muestran los expedientes autorizados para tu cuenta.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section><section class="m26-panel"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, modalidad o estado"></label><p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length,'cliente','clientes')}.</p>${content}</section></div>`;
 }
 
-function field(label, value) { return `<div class="m26-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || 'Sin registro')}</strong></div>`; }
+function field(label, value) {
+  return `<div class="m26-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || 'Sin registro')}</strong></div>`;
+}
+
+function listValue(value) {
+  return Array.isArray(value) && value.length ? value.join(' · ') : value;
+}
+
+function accessBadge(data) {
+  const tone = data.accessKnown
+    ? /activ|habilit|conect/i.test(data.access)
+      ? 'success'
+      : 'neutral'
+    : 'neutral';
+  return badge(data.access, tone);
+}
+
 export function renderExpedienteRoute(vm) {
   const data = vm.summary;
-  if (!data) return `<div class="m26-route">${emptyState('Selecciona un expediente', 'Elige un cliente visible para acceder a su información confirmada.')}</div>`;
+  if (!data) {
+    return `<div class="m26-route">${emptyState('Selecciona un expediente', 'Elige un cliente visible para acceder a su información confirmada.')}</div>`;
+  }
+
   const iri = data.iri;
+  const profile = data.profile || {};
+  const address = [profile.trainingAddress, profile.commune]
+    .filter(Boolean)
+    .join(' · ');
+  const emergency = [
+    profile.emergencyContactName,
+    profile.emergencyContactRelation,
+    profile.emergencyContactPhone,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return `<div class="m26-route">
-    <section class="m26-profile-hero"><div class="m26-profile-avatar">${escapeHtml(data.name.slice(0,1).toUpperCase())}</div><div><p class="m26-eyebrow">Expediente IBERFIT</p><h2>${escapeHtml(data.name)}</h2><p>${escapeHtml(data.modality)} · ${escapeHtml(data.status)}</p></div><div>${badge(data.access, /activo/i.test(data.access) ? 'success' : 'warning')}</div></section>
-    <section class="m26-stat-grid">${stat('Sesiones planificadas', data.counts.sessions)}${stat('Ejecuciones', data.counts.executions)}${stat('Adherencia 28 días', vm.progress ? formatPercent(vm.progress.adherence) : 'Sin dato')}${stat('Seguimiento', vm.alertSignal?.label || 'Sin datos')}</section>
+    <section class="m26-profile-hero"><div class="m26-profile-avatar">${escapeHtml(data.name.slice(0, 1).toUpperCase())}</div><div><p class="m26-eyebrow">Expediente IBERFIT</p><h2>${escapeHtml(data.name)}</h2><p>${escapeHtml(data.modality)} · ${escapeHtml(data.status)}</p></div><div>${accessBadge(data)}</div></section>
+    <section class="m26-stat-grid">${stat('Sesiones planificadas', data.counts.sessions)}${stat('Ejecuciones', data.counts.executions)}${stat('Adherencia 28 días', vm.progress ? formatPercent(vm.progress.adherence) : 'Sin dato')}${stat('Perfil esencial', `${profile.completeness ?? 0}%`, profile.missing?.length ? `${profile.missing.length} campos pendientes` : 'Datos esenciales completos')}</section>
+    <section class="m26-profile-sections">
+      <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Identificación y baremos</p><h2>Datos de la persona</h2></div></div><div class="m26-field-grid">${field('Fecha de nacimiento', profile.birthDate)}${field('Sexo utilizado para baremos', profile.sexForNormsLabel)}${field('Identidad de género', profile.genderIdentity)}${field('Pronombres', profile.pronouns)}</div></section>
+      <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Contacto</p><h2>Canales autorizados</h2></div></div><div class="m26-field-grid">${field('Correo electrónico', profile.email)}${field('Teléfono', profile.phone)}${field('Canal preferido', profile.preferredContactChannel)}${field('Horario de contacto', profile.preferredContactTime)}${field('Zona horaria', profile.timezone)}</div></section>
+      <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Logística</p><h2>Entrenamiento</h2></div>${profile.logisticsRequired && !profile.trainingAddress ? badge('Dirección pendiente', 'warning') : ''}</div><div class="m26-field-grid">${field('Modalidad', data.modality)}${field('Dirección de entrenamiento', address)}${field('Tipo de lugar', profile.locationType)}${field('Acceso o punto de encuentro', profile.accessInstructions)}${field('Horario preferido', profile.preferredSchedule)}${field('Frecuencia semanal', profile.weeklyFrequency ? `${profile.weeklyFrequency} sesiones` : null)}${field('Duración habitual', profile.sessionDurationMinutes ? `${profile.sessionDurationMinutes} min` : null)}${field('Material disponible', listValue(profile.equipment))}</div></section>
+      <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Objetivos y seguridad</p><h2>Contexto de trabajo</h2></div></div><div class="m26-field-grid">${field('Objetivo principal', profile.primaryObjective)}${field('Objetivos secundarios', listValue(profile.secondaryObjectives))}${field('Contacto de emergencia', emergency)}</div></section>
+    </section>
     <section class="m26-content-grid">
-      <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Datos principales</p><h2>Contexto de acompañamiento</h2></div></div><div class="m26-field-grid">${field('Modalidad', data.modality)}${field('Estado', data.status)}${field('Ciclo activo', data.cycle?.name)}${field('Próxima sesión', data.nextAppointment?.dateLabel)}</div></div>
-      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Diagnóstico IRI</p><h2>${iri?.score != null ? escapeHtml(iri.score) : 'Pendiente'}</h2><p>${iri ? escapeHtml([iri.classification, iri.quality, iri.status].filter(Boolean).join(' · ')) : 'No hay una evaluación IRI confirmada.'}</p><button type="button" class="m26-primary-action" data-m26-area="iri">Abrir diagnóstico IRI</button></aside>
+      <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Planificación</p><h2>Contexto de acompañamiento</h2></div></div><div class="m26-field-grid">${field('Estado', data.status)}${field('Ciclo activo', data.cycle?.name)}${field('Próxima cita confirmada', data.nextAppointment?.dateLabel)}${field('Seguimiento', vm.alertSignal?.label)}</div></div>
+      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Evaluación IRI</p><h2>${iri ? escapeHtml(iri.coverageLabel) : 'Pendiente'}</h2><p>${iri ? `${escapeHtml(iri.dateLabel)} · ${escapeHtml(iri.status)}` : 'No hay una evaluación IRI confirmada.'}</p><button type="button" class="m26-primary-action" data-m26-area="iri">Abrir evaluación IRI</button></aside>
     </section>
     <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Ruta de trabajo</p><h2>Acciones del expediente</h2></div></div><div class="m26-action-grid"><button type="button" data-m26-area="planificacion">Planificación</button><button type="button" data-m26-area="sesion">Sesiones</button><button type="button" data-m26-area="progreso">Progreso</button><button type="button" data-m26-area="actividad">Registros de bienestar y hábitos</button><button type="button" data-m26-area="informes">Informes</button><button type="button" data-m26-area="notas">Notas privadas</button><button type="button" data-m26-area="inteligencia">Inteligencia IBERFIT</button></div></section>
   </div>`;
 }
-
 
 function formatPercent(value){ return Number.isFinite(value) ? `${Math.round(value * 100)}%` : 'Sin dato'; }
 function metricValue(value, suffix=''){ return value === null || value === undefined ? 'Sin dato' : `${value}${suffix}`; }
@@ -117,7 +195,7 @@ export function renderProgressRoute(vm){
       ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
       ${stat('Volumen medio',metricValue(summary.volume),'Carga × repeticiones cuando existe')}
-      ${stat('Cambio IRI',metricValue(summary.iriDelta,summary.iriDelta===null?'':' pts'),summary.iriCurrent===null?'Sin dos evaluaciones comparables':`Actual ${summary.iriCurrent}`)}
+      ${stat('Evaluaciones IRI',summary.iriCurrent===null?'Sin evaluación':'Datos disponibles',summary.iriDelta===null?'Sin dos evaluaciones comparables':'Comparar por dominios, no por puntuación global')}
     </section>
     <section class="m26-content-grid">
       <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Cronología</p><h2>Evolución registrada</h2></div>${badge(`${vm.timeline.length} eventos`,'neutral')}</div><div class="m26-timeline">${timeline}</div></div>
@@ -133,19 +211,41 @@ function capabilityNotice(capability,label){
   return `<div class="m26-notice is-warning" role="status"><strong>Función no disponible todavía: ${escapeHtml(label)}</strong><p>Puedes conservar el borrador en este dispositivo; no se mostrará como confirmado hasta que la función esté disponible.</p></div>`;
 }
 function wearableFreshnessLabel(value){return value==='reciente'?'Actualizado':value==='atrasada'?'Revisar actualización':value==='obsoleta'?'Datos antiguos':'Sin datos';}
-function wearableProviderCard(item){
-  const policy=item.policy||{};
-  const copy=item.usableNow?'Disponible ahora sin coste adicional':policy.tier==='free_development'?'Preparado para desarrollo gratuito; requiere puente móvil real':policy.tier==='restricted_review'?'La autorización externa está preparada, pero requiere una revisión antes de activarse':policy.tier==='paid_distribution'?'Arquitectura preservada; activación pausada por la regla de coste cero':policy.tier==='partner_access'?'No se activará mientras requiera acceso de socio o licencia':policy.tier==='external_oauth'?'En espera hasta confirmar una vía gratuita':'Vista previa local disponible';
-  const label=item.usableNow?'Disponible':policy.label||'Preparado';
-  const tone=item.usableNow?'success':policy.developmentAllowed?'neutral':'warning';
-  return `<article class="m26-wearable-source" data-provider="${escapeHtml(item.key)}" data-zero-cost-tier="${escapeHtml(policy.tier||'unknown')}"><div><p class="m26-eyebrow">${escapeHtml(castilianPlatformLabel(item.platform))} · coste cero</p><h3>${escapeHtml(item.label)}</h3><p>${escapeHtml(copy)}</p></div>${badge(label,tone)}</article>`;
+function wearableProviderCard(item) {
+  const policy = item.policy || {};
+  const copy = item.usableNow
+    ? 'Disponible ahora sin coste adicional'
+    : item.key === 'samsung_health'
+      ? 'Samsung Health puede aportar pasos, ejercicio, frecuencia cardiaca y sueño mediante Health Connect y consentimiento del usuario.'
+      : item.key === 'strava'
+        ? 'OAuth preparado para actividades deportivas; necesita registro de aplicación y canje de tokens en backend antes de activarse.'
+        : policy.tier === 'free_development'
+          ? 'Preparado para desarrollo gratuito; requiere puente móvil real'
+          : policy.tier === 'restricted_review'
+            ? 'La autorización externa está preparada, pero requiere una revisión antes de activarse'
+            : policy.tier === 'paid_distribution'
+              ? 'Arquitectura preservada; activación pausada por la regla de coste cero'
+              : policy.tier === 'partner_access'
+                ? 'No se activará mientras requiera acceso de socio o licencia'
+                : policy.tier === 'external_oauth'
+                  ? 'En espera hasta confirmar una vía gratuita'
+                  : 'Vista previa local disponible';
+  const label = item.usableNow ? 'Disponible' : policy.label || 'Preparado';
+  const tone = item.usableNow
+    ? 'success'
+    : policy.developmentAllowed
+      ? 'neutral'
+      : 'warning';
+
+  return `<article class="m26-wearable-source" data-provider="${escapeHtml(item.key)}" data-zero-cost-tier="${escapeHtml(policy.tier || 'unknown')}"><div><p class="m26-eyebrow">${escapeHtml(castilianPlatformLabel(item.platform))} · integración controlada</p><h3>${escapeHtml(item.label)}</h3><p>${escapeHtml(copy)}</p></div>${badge(label, tone)}</article>`;
 }
+
 function wearableMetric(label,value,suffix=''){return field(label,value===null||value===undefined?'Sin dato':`${value}${suffix}`);}
 export function renderActivityRoute(vm){
   const last=vm.checkins[0];const wearable=vm.wearables||{summary:{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'},connections:[],providers:[],canControl:false};const wearableSummary=wearable.summary;
   const habits=vm.habits.length?vm.habits.map((item)=>`<article class="m26-list-card"><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.status)} · ${escapeHtml(item.dateLabel)}</p></div><div class="m26-inline-actions">${badge(item.status,'neutral')}<button type="button" data-engagement-action="log-habit" data-habit-id="${escapeHtml(item.id)}" aria-label="Registrar hoy: ${escapeHtml(item.title)}"${vm.capabilities.habits.ready?'':' disabled aria-disabled="true"'}>Registrar hoy</button></div></article>`).join(''):emptyState('Sin hábitos publicados','El entrenador podrá definirlos cuando esta función esté disponible.');
   const manager=vm.canManageHabits?`<form class="m26-panel m26-panel-soft" data-engagement-form="habit-definition"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Entrenador</p><h2>Definir hábito</h2></div></div><div class="m26-field-grid"><label>Nombre<input name="title" maxlength="120" required></label><label>Objetivo<input name="target" type="number" min="1" step="1" required></label><label>Unidad<input name="unit" maxlength="40" value="veces"></label><label>Frecuencia<select name="frequency" required><option value="diario">Diario</option><option value="semanal">Semanal</option><option value="dias_especificos">Días específicos</option></select></label><label class="m26-wide">Descripción<textarea name="description" maxlength="500"></textarea></label></div><div class="m26-action-grid"><button type="button" data-engagement-action="save-habit-draft">Guardar borrador</button><button type="submit" class="m26-primary-action" data-engagement-action="define-habit"${vm.capabilities.habits.ready?'':' disabled aria-disabled="true"'}>Publicar hábito</button></div><p class="m26-form-status" data-engagement-status="habit" role="status" aria-live="polite"></p></form>`:'';
-  const importer=wearable.canControl?`<form class="m26-panel m26-panel-soft" data-wearable-import aria-describedby="wearable-import-help"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Privacidad primero</p><h2>Revisar una exportación</h2></div>${badge('Solo vista previa local · gratuito','success')}</div><p id="wearable-import-help">La importación local permite revisar el formato sin crear cuentas ni enviar el archivo. Nada se incorpora al expediente hasta una confirmación posterior y explícita.</p><div class="m26-field-grid"><label>Origen del archivo<select name="wearableProvider" required><option value="normalized_file">Archivo normalizado IBERFIT</option><option value="health_connect">Exportación Health Connect</option><option value="apple_health">Exportación Apple Health</option><option value="fitbit">Exportación Google Health API / Fitbit</option><option value="oura">Exportación Oura</option><option value="garmin_connect">Exportación Garmin</option></select></label><label>Archivo JSON o CSV<input type="file" name="wearableFile" accept=".json,.csv,application/json,text/csv" required></label></div><div class="m26-action-grid"><button type="button" data-wearable-action="download-template">Descargar plantilla</button><button type="submit" class="m26-primary-action">Analizar archivo</button><button type="button" data-wearable-action="clear-preview">Limpiar vista previa</button></div><p class="m26-form-status" data-wearable-status role="status" aria-live="polite" aria-atomic="true"></p><section class="m26-wearable-preview" data-wearable-preview hidden aria-live="polite"></section></form>`:`<aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Control del cliente</p><h2>Conexiones de dispositivos</h2><p>El cliente decide qué fuentes comparte, puede pausar la sincronización y conserva el control de sus permisos. El entrenador recibe únicamente resúmenes confirmados.</p></aside>`;
+  const importer=wearable.canControl?`<form class="m26-panel m26-panel-soft" data-wearable-import aria-describedby="wearable-import-help"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Privacidad primero</p><h2>Revisar una exportación</h2></div>${badge('Solo vista previa local · gratuito','success')}</div><p id="wearable-import-help">La importación local permite revisar el formato sin crear cuentas ni enviar el archivo. Nada se incorpora al expediente hasta una confirmación posterior y explícita.</p><div class="m26-field-grid"><label>Origen del archivo<select name="wearableProvider" required><option value="normalized_file">Archivo normalizado IBERFIT</option><option value="health_connect">Exportación Health Connect</option><option value="samsung_health">Exportación Samsung Health</option><option value="strava">Exportación Strava</option><option value="apple_health">Exportación Apple Health</option><option value="fitbit">Exportación Google Health API / Fitbit</option><option value="oura">Exportación Oura</option><option value="garmin_connect">Exportación Garmin</option></select></label><label>Archivo JSON o CSV<input type="file" name="wearableFile" accept=".json,.csv,application/json,text/csv" required></label></div><div class="m26-action-grid"><button type="button" data-wearable-action="download-template">Descargar plantilla</button><button type="submit" class="m26-primary-action">Analizar archivo</button><button type="button" data-wearable-action="clear-preview">Limpiar vista previa</button></div><p class="m26-form-status" data-wearable-status role="status" aria-live="polite" aria-atomic="true"></p><section class="m26-wearable-preview" data-wearable-preview hidden aria-live="polite"></section></form>`:`<aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Control del cliente</p><h2>Conexiones de dispositivos</h2><p>El cliente decide qué fuentes comparte, puede pausar la sincronización y conserva el control de sus permisos. El entrenador recibe únicamente resúmenes confirmados.</p></aside>`;
   const connectionCopy=wearable.connections.length?wearable.connections.map((item)=>`${item.label}: ${castilianStatusLabel(item.status)}`).join(' · '):'No hay conexiones remotas confirmadas.';
   return `<div class="m26-route">
     <section class="m26-route-intro"><div><p class="m26-eyebrow">Actividad y contexto</p><h2>Registros de bienestar, hábitos y dispositivos</h2><p>El registro de bienestar sigue siendo la fuente principal de contexto. Los datos de dispositivos aportan tendencias objetivas, nunca diagnósticos ni decisiones automáticas.</p></div>${badge(last?'Último registro de bienestar disponible':'Sin registro de bienestar','neutral')}</section>
@@ -179,7 +279,7 @@ function operationCard(item){
   return `<article class="m26-list-card"><div><p class="m26-eyebrow">${escapeHtml(castilianStatusLabel(item.status))}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(castilianOperationDetail(item.errorCode,item.entityType))}</p>${retry}</div><div class="m26-inline-actions">${actions}</div></article>`;
 }
 export function renderVerificationRoute(vm){
-  const center=vm.center;const content=center.items.length?center.items.map(operationCard).join(''):emptyState('Todo confirmado','No hay operaciones pendientes, conflictos ni rechazos locales.');
+  const center=vm.center;const content=center.items.length?center.items.map(operationCard).join(''):emptyState('Sin operaciones pendientes','No hay operaciones pendientes, conflictos ni rechazos locales.');
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sincronización</p><h2>Centro de verificación</h2><p>Permite inspeccionar, reintentar o descartar únicamente la copia local. Nunca oculta un conflicto.</p></div>${badge(center.deploymentBlocked?'Bloqueo activo':'Sin bloqueos',center.deploymentBlocked?'danger':'success')}</section><section class="m26-stat-grid">${stat('Pendientes',center.summary.pending)}${stat('Conflictos',center.summary.conflicts)}${stat('Rechazadas',center.summary.rejected)}${stat('Total',center.summary.total)}</section><section class="m26-panel"><div class="m26-stack">${content}</div></section></div>`;
 }
 
@@ -216,11 +316,30 @@ function publicationCard(item,entity){
   return `<article class="m26-publication-card" data-publication-card><div class="m26-publication-card-main"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel||'IBERFIT')}</p><h3>${escapeHtml(item.title||'Contenido IBERFIT')}</h3><p>${escapeHtml(publicationVisibilityCopy(item))}</p></div>${badge(item.publication?.statusLabel||item.status||'Sin estado',publicationTone(item.publication?.status))}</div>${preview}${controls}</article>`;
 }
 function publicationList(items,entity,emptyTitle,{clientView=false}={}){if(!items?.length)return emptyState(emptyTitle,clientView?'Tu entrenador añadirá aquí el contenido cuando esté listo para ti.':'No hay contenido dentro del alcance seleccionado.');return `<div class="m26-stack">${items.map((item)=>clientView?clientContentCard(item,entity):publicationCard(item,entity)).join('')}</div>`;}
-export function renderIriRoute(vm){
-  const current=vm.current||{};const score=current.score??current.total_score??current.totalScore??null;
-  const editor=vm.canEdit?`<form class="m26-panel" data-workflow-form="iri"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Evaluación</p><h2>Completar diagnóstico IRI</h2></div></div><input type="hidden" name="entityId" value="${escapeHtml(current.id||'')}"><div class="m26-field-grid"><label>Fecha de evaluación<input type="date" name="assessmentDate" value="${escapeHtml(String(current.assessmentDate||current.evaluatedAt||'').slice(0,10))}" required></label><label>Fecha de nacimiento<input type="date" name="birthDate" value="${escapeHtml(vm.profile?.birthDate||vm.profile?.birth_date||'')}" required></label><label>Sexo para baremos<select name="sexForNorms" required><option value="">Seleccionar</option><option value="female">Mujer</option><option value="male">Hombre</option></select></label><label>FC al finalizar la prueba de escalón<input type="number" min="30" max="240" name="stepFinalHr" required></label><label>FC al minuto<input type="number" min="30" max="240" name="stepOneMinuteHr" required></label><label>Flexiones válidas<input type="number" min="0" max="500" inputmode="numeric" name="pushUps" required></label><label>Levantarse de la silla durante 30 s<input type="number" min="0" max="500" inputmode="numeric" name="chairStand30s" required></label><label>% grasa corporal<input type="number" min="0" max="80" step="0.1" inputmode="decimal" name="bodyFatPercent" required></label><p class="m26-field-help m26-wide">Registra resultados objetivos; la clasificación solo se habilita cuando existen sexo para baremos, edad, protocolo y evidencia compatibles.</p></div><button type="submit" class="m26-primary-action" data-workflow-action="complete-iri"${current.id?'':' disabled aria-disabled="true"'}>Validar y guardar IRI</button>${current.id?'':'<p class="m26-notice is-warning">Prepara primero el diagnóstico IRI del expediente.</p>'}${workflowStatus('iri')}</form>`:'';
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Diagnóstico funcional</p><h2>Índice de Rendimiento IBERFIT</h2><p>ΔFC, composición corporal y fuerza por patrón con baremos por sexo y edad.</p></div>${badge(score==null?'Pendiente':`IRI ${score}`,score==null?'warning':'success')}</section><section class="m26-content-grid"><article class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Última evaluación</p><h2>${escapeHtml(score??'Sin puntuación')}</h2><p>${escapeHtml(current.classification||current.clasificacion||current.status||'No hay una evaluación confirmada.')}</p></article><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>Evaluaciones confirmadas</h2></div>${badge(countLabel(vm.history.length,'registro','registros'),'neutral')}</div>${recordList(vm.history,'Sin evaluaciones IRI')}</section></section>${editor}</div>`;
+function selectedOption(value, expected) {
+  return value === expected ? ' selected' : '';
 }
+
+function iriDomainState(label, complete) {
+  return `<article class="m26-domain-status"><span>${escapeHtml(label)}</span>${badge(complete ? 'Registrado' : 'Sin registro', complete ? 'success' : 'neutral')}</article>`;
+}
+
+export function renderIriRoute(vm) {
+  const current = vm.current || {};
+  const summary = vm.currentSummary;
+  const profile = vm.profile || {};
+  const sexValue = current.sexForNorms || current.sex_for_norms || profile.sexForNorms || '';
+  const personContext = `<section class="m26-panel m26-panel-soft m26-iri-person"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Persona evaluada</p><h2>Contexto del expediente</h2><p>Los datos de contacto y logística se mantienen en el expediente; la evaluación conserva el contexto de baremo usado.</p></div>${profile.missing?.length ? badge(`${profile.missing.length} datos esenciales pendientes`, 'warning') : badge('Contexto completo', 'success')}</div><div class="m26-field-grid">${field('Fecha de nacimiento', profile.birthDate)}${field('Sexo utilizado para baremos', profile.sexForNormsLabel)}${field('Correo electrónico', profile.email)}${field('Teléfono', profile.phone)}${field('Modalidad', profile.modalityLabel)}${field('Dirección de entrenamiento', [profile.trainingAddress, profile.commune].filter(Boolean).join(' · '))}</div></section>`;
+  const editor = vm.canEdit
+    ? `<form class="m26-panel" data-workflow-form="iri"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Evaluación</p><h2>Completar evaluación IRI</h2></div></div><input type="hidden" name="entityId" value="${escapeHtml(current.id || '')}"><div class="m26-field-grid"><label>Fecha de evaluación<input type="date" name="assessmentDate" value="${escapeHtml(String(current.assessmentDate || current.evaluatedAt || '').slice(0, 10))}" required></label><label>Fecha de nacimiento<input type="date" name="birthDate" value="${escapeHtml(profile.birthDate || '')}" required></label><label>Sexo para baremos<select name="sexForNorms" required><option value="">Seleccionar</option><option value="female"${selectedOption(sexValue, 'female')}>Mujer</option><option value="male"${selectedOption(sexValue, 'male')}>Hombre</option></select></label><label>FC al finalizar la prueba de escalón<input type="number" min="30" max="240" name="stepFinalHr" value="${escapeHtml(current.stepFinalHr ?? current.step_final_hr ?? '')}" required></label><label>FC al minuto<input type="number" min="30" max="240" name="stepOneMinuteHr" value="${escapeHtml(current.stepOneMinuteHr ?? current.step_one_minute_hr ?? '')}" required></label><label>Flexiones válidas<input type="number" min="0" max="500" inputmode="numeric" name="pushUps" value="${escapeHtml(current.pushUps ?? current.push_ups ?? '')}" required></label><label>Levantarse de la silla durante 30 s<input type="number" min="0" max="500" inputmode="numeric" name="chairStand30s" value="${escapeHtml(current.chairStand30s ?? current.chair_stand_30s ?? '')}" required></label><label>% grasa corporal<input type="number" min="0" max="80" step="0.1" inputmode="decimal" name="bodyFatPercent" required value="${escapeHtml(current.bodyComposition?.bodyFatPercent ?? current.body_composition?.bodyFatPercent ?? '')}"></label><p class="m26-field-help m26-wide">Registra resultados objetivos. Solo se muestra una interpretación cuando sexo para baremos, edad, protocolo y evidencia son compatibles.</p></div><button type="submit" class="m26-primary-action" data-workflow-action="complete-iri"${current.id ? '' : ' disabled aria-disabled="true"'}>Validar y guardar evaluación</button>${current.id ? '' : '<p class="m26-notice is-warning">Prepara primero la evaluación IRI del expediente.</p>'}${workflowStatus('iri')}</form>`
+    : '';
+  const domainCards = summary
+    ? `<div class="m26-domain-grid">${iriDomainState('Respuesta cardiovascular', summary.domains.cardiovascular)}${iriDomainState('Composición corporal', summary.domains.bodyComposition)}${iriDomainState('Fuerza por patrón', summary.domains.strength)}</div>`
+    : emptyState('Sin evaluación confirmada', 'Los datos ausentes se mantienen como “Sin registro”.');
+
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Evaluación funcional</p><h2>Índice de Rendimiento IBERFIT</h2><p>ΔFC, composición corporal y fuerza por patrón, con contexto de sexo y edad para baremos cuando exista evidencia aplicable.</p></div>${badge(summary ? summary.coverageLabel : 'Pendiente', summary?.coverageCount === 3 ? 'success' : 'warning')}</section>${personContext}<section class="m26-content-grid"><article class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Última evaluación</p><h2>${escapeHtml(summary?.dateLabel || 'Sin fecha')}</h2><p>${escapeHtml(summary?.coverageLabel || 'No hay una evaluación confirmada.')}</p>${domainCards}<p class="m26-notice">IBERFIT no presenta una puntuación global ni una clasificación automática sin un baremo validado aplicable.</p></article><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>Evaluaciones registradas</h2></div>${badge(countLabel(vm.history.length, 'registro', 'registros'), 'neutral')}</div>${recordList(vm.history, 'Sin evaluaciones IRI')}</section></section>${editor}</div>`;
+}
+
 export function renderPlanningRoute(vm){
   const isClient=vm.role==='client';
   const editor=vm.canEdit?`<form class="m26-panel m26-panel-soft" data-workflow-form="planning"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Entrenador</p><h2>Preparar ciclo de entrenamiento</h2><p>Validar crea una versión interna. Después deberá aprobarse y publicarse de forma expresa.</p></div></div><input type="hidden" name="entityId" value="${escapeHtml(vm.currentCycle?.id||'')}"><div class="m26-field-grid"><label>Nombre del ciclo<input name="name" maxlength="120" value="${escapeHtml(vm.currentCycle?.name||'')}" required></label><label>Inicio<input type="date" name="startDate" required></label><label>Fin<input type="date" name="endDate" required></label><label class="m26-wide">Objetivo<textarea name="goal" maxlength="500" required>${escapeHtml(vm.currentCycle?.goal||'')}</textarea></label></div><button type="submit" class="m26-primary-action" data-workflow-action="validate-plan">Validar borrador</button>${workflowStatus('planning')}</form>`:'';
@@ -228,11 +347,20 @@ export function renderPlanningRoute(vm){
   const copy=isClient?'Aquí tienes tu plan actual y las sesiones que ya están listas para ti.':'Cada contenido pasa por validación, aprobación y publicación. Aprobar no lo hace visible para el cliente.';
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Planificación</p><h2>${title}</h2><p>${copy}</p></div>${badge(countLabel(vm.sessions.length,'sesión','sesiones'),'neutral')}</section><section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Ciclos</p><h2>${isClient?'Tu plan vigente':'Ciclos en gestión'}</h2></div>${!isClient?badge(`${vm.cycleCounts?.approved||0} aprobados`,'neutral'):''}</div>${publicationList(vm.cycles,'planning',isClient?'Aún no hay un plan disponible':'Sin ciclos preparados',{clientView:isClient})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Sesiones</p><h2>${isClient?'Sesiones de tu plan':'Estado de las sesiones'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient})}</section></section>${editor}</div>`;
 }
-export function renderAgendaRoute(vm){
-  const options=vm.clients.map((item)=>`<option value="${escapeHtml(item.id)}"${item.id===vm.selectedClientId?' selected':''}>${escapeHtml(item.name)}</option>`).join('');
-  const form=`<form class="m26-panel m26-panel-soft" data-workflow-form="appointment"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Crear propuesta de cita</h2><p>La propuesta permanece interna hasta que la cita sea confirmada.</p></div></div><div class="m26-field-grid"><label>Cliente<select name="clientId" required>${options}</select></label><label>Modalidad<select name="modality" required><option value="presencial">Presencial</option><option value="guiada_en_app">Guiada en la aplicación</option><option value="online">En línea</option></select></label><label>Inicio<input type="datetime-local" name="startAt" required></label><label>Fin<input type="datetime-local" name="endAt" required></label><label class="m26-wide">Ubicación<input name="location" maxlength="300" autocomplete="street-address" aria-describedby="m26-location-help" required></label><p id="m26-location-help" class="m26-field-help m26-wide">Obligatoria para citas presenciales.</p></div><button type="submit" class="m26-primary-action" data-workflow-action="create-appointment">Crear propuesta de cita</button>${workflowStatus('appointment')}</form>`;
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Agenda del entrenador</p><h2>Citas y propuestas</h2><p>Las propuestas son internas. El cliente solo recibe citas confirmadas.</p></div>${badge(countLabel(vm.appointments.length,'registro','registros'),'neutral')}</section><section class="m26-panel"><div class="m26-stack">${vm.appointments.length?vm.appointments.map(appointmentCard).join(''):emptyState('Agenda vacía','No hay citas ni propuestas registradas.')}</div></section>${form}</div>`;
+export function renderAgendaRoute(vm) {
+  const options = vm.clients
+    .map((item) => {
+      const address = [item.profile?.trainingAddress, item.profile?.commune]
+        .filter(Boolean)
+        .join(' · ');
+      return `<option value="${escapeHtml(item.id)}" data-training-address="${escapeHtml(address)}" data-client-modality="${escapeHtml(item.profile?.modality || '')}"${item.id === vm.selectedClientId ? ' selected' : ''}>${escapeHtml(item.name)}</option>`;
+    })
+    .join('');
+  const form = `<form class="m26-panel m26-panel-soft" data-workflow-form="appointment"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Crear propuesta de cita</h2><p>La propuesta permanece interna hasta que la cita sea confirmada.</p></div></div><div class="m26-field-grid"><label>Cliente<select name="clientId" required>${options}</select></label><label>Modalidad de esta cita<select name="modality" required><option value="presencial">Presencial</option><option value="guiada_en_app">Guiada en la aplicación</option><option value="online">En línea</option></select></label><label>Inicio<input type="datetime-local" name="startAt" required></label><label>Fin<input type="datetime-local" name="endAt" required></label><label class="m26-wide">Ubicación<input name="location" maxlength="300" autocomplete="street-address" aria-describedby="m26-location-help"></label><p id="m26-location-help" class="m26-field-help m26-wide">La dirección habitual del expediente se propone automáticamente para citas presenciales.</p></div><button type="submit" class="m26-primary-action" data-workflow-action="create-appointment">Crear propuesta de cita</button>${workflowStatus('appointment')}</form>`;
+
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Agenda del entrenador</p><h2>Citas y propuestas</h2><p>Las propuestas son internas. El cliente solo recibe citas confirmadas.</p></div>${badge(countLabel(vm.appointments.length, 'registro', 'registros'), 'neutral')}</section><section class="m26-panel"><div class="m26-stack">${vm.appointments.length ? vm.appointments.map(appointmentCard).join('') : emptyState('Agenda vacía', 'No hay citas ni propuestas registradas.')}</div></section>${form}</div>`;
 }
+
 export function renderSessionsRoute(vm){
   const isClient=vm.role==='client';
   const primary=vm.canBuild?`<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>`:`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session"${vm.sessions.length?'':' disabled aria-disabled="true"'}>Iniciar sesión guiada</button>`;

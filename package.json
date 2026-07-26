@@ -149,6 +149,12 @@
     "build:rc31:canary": "npm run build:rc29 && npm run configure:rc31:canary",
     "configure:rc31:canary": "node scripts/generate_rc31_runtime_config.mjs",
     "verify:build:rc31": "node scripts/verify_rc31_canary_candidate.mjs",
-    "validate:rc31:ci": "node scripts/run_rc31_ci_validation.mjs"
+    "validate:rc31:ci": "node scripts/run_rc31_ci_validation.mjs",
+    "test:m26:rc32": "node --test tests/m26_rc32_product_coherence.test.mjs tests/m26_rc32_ci_routing.test.mjs",
+    "audit:rc32": "node scripts/m26_rc32_canary_gate.mjs",
+    "build:rc32:canary": "npm run build:rc29 && npm run configure:rc32:canary",
+    "configure:rc32:canary": "node scripts/generate_rc32_runtime_config.mjs",
+    "verify:build:rc32": "node scripts/verify_rc32_canary_candidate.mjs",
+    "validate:rc32:ci": "node scripts/run_rc32_ci_validation.mjs"
   }
 }

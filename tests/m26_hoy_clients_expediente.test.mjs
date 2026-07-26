@@ -24,7 +24,7 @@ function ready(role = 'coach', overrides = {}) {
     activeArea: 'hoy',
     collections: {
       clients,
-      clientProfiles: [{ id: 'p1', client_id: qa, objective: 'Fuerza y salud', status: 'activo' }],
+      clientProfiles: [{ id: 'p1', client_id: qa, objective: 'Fuerza y salud', modality: 'hibrido', birthDate: '1990-02-20', sexForNorms: 'female', email: 'qa@example.com', phone: '+56 9 1111 2222', trainingAddress: 'Av. IBERFIT 123', commune: 'Las Condes', status: 'activo' }],
       clientAccess: [{ id: 'a1', clientId: qa, status: 'activo' }],
       iriAssessments: [{ id: 'i1', client_id: qa, score: 80, quality: 'alta', classification: 'Performance', status: 'completado', created_at: '2026-07-17T10:00:00Z' }],
       reports: [{ id: 'r1', clientId: qa, title: 'Informe IRI', status: 'publicado', createdAt: '2026-07-17T11:00:00Z' }],
@@ -32,7 +32,8 @@ function ready(role = 'coach', overrides = {}) {
       sessions: [{ id: 's1', clientId: qa, status: 'publicado' }],
       sessionExecutions: [{ id: 'e1', client_id: qa, status: 'completado' }],
       appointments: [
-        { id: 'ap1', client_id: qa, title: 'Sesión presencial', start_at: '2026-07-18T18:00:00Z', status: 'confirmado', location: 'Las Condes' },
+        { id: 'ap0', client_id: qa, title: 'Propuesta privada', start_at: '2026-07-18T17:00:00Z', status: 'propuesta', visibleToClient: false, modality: 'online' },
+        { id: 'ap1', client_id: qa, title: 'Sesión presencial', start_at: '2026-07-18T18:00:00Z', status: 'confirmado', location: 'Las Condes', modality: 'presencial' },
         { id: 'ap2', client_id: other, title: 'Sesión online', start_at: '2026-07-18T20:00:00Z', status: 'confirmado' },
       ],
       intelligenceRuns: [], domainEvents: [], coachAvailability: [], m26Entities: [],
@@ -43,7 +44,7 @@ function ready(role = 'coach', overrides = {}) {
 
 test('selectores filtran estrictamente por clientId', () => {
   const state = ready('coach');
-  assert.equal(recordsForClient(state, 'appointments', qa).length, 1);
+  assert.equal(recordsForClient(state, 'appointments', qa).length, 2);
   assert.equal(recordsForClient(state, 'appointments', other).length, 1);
 });
 
@@ -58,7 +59,7 @@ test('overview Cliente nunca incluye agenda de otro cliente', () => {
 test('overview Coach conserva cartera visible y métricas por expediente', () => {
   const rows = clientsOverview(ready('coach'));
   assert.equal(rows.length, 2);
-  assert.equal(rows[0].iri.score, 80);
+  assert.equal(rows[0].iri.id, 'i1');
   assert.equal(rows[0].counts.sessions, 1);
   assert.equal(rows[1].counts.sessions, 0);
 });
@@ -71,6 +72,8 @@ test('Hoy renderiza datos reales del store sin fixtures', () => {
   assert.equal(vm.kind, 'hoy');
   assert.match(html, /Tu operación de hoy, con criterio/);
   assert.match(html, /Sesión presencial/);
+  assert.match(html, /1 propuesta/);
+  assert.doesNotMatch(html, /Agenda confirmada/);
   assert.match(html, /Cliente Prueba IBERFIT/);
   assert.doesNotMatch(html, /CLI-DEMO|fixture|demo\.iberfit/i);
 });
@@ -83,13 +86,16 @@ test('Clientes abre expediente mediante atributos de datos, no handlers inline',
   assert.doesNotMatch(html, /onclick=/i);
 });
 
-test('Expediente presenta M25.2 IRI confirmado y acciones contextuales', () => {
+test('Expediente presenta IRI por dominios, contacto y acciones contextuales', () => {
   const state = ready('coach', { activeArea: 'expediente' });
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
   const html = renderRouteView(vm);
-  assert.equal(vm.summary.iri.score, 80);
-  assert.match(html, />80</);
-  assert.match(html, /Performance/);
+  assert.equal(vm.summary.iri.coverageCount, 0);
+  assert.match(html, /Correo electrónico/);
+  assert.match(html, /qa@example.com/);
+  assert.match(html, /Dirección de entrenamiento/);
+  assert.doesNotMatch(html, />80</);
+  assert.doesNotMatch(html, /Performance/);
   assert.match(html, /data-m26-area="planificacion"/);
 });
 

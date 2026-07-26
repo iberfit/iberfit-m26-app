@@ -7,7 +7,7 @@ function adapterFor(scope,provider){
   const normalized=normalizeWearableProvider(provider);
   const common=scope?.IBERFIT_HEALTH_BRIDGE;
   if(normalized==='apple_health')return common?.appleHealth||null;
-  if(normalized==='health_connect')return common?.healthConnect||null;
+  if(['health_connect','samsung_health'].includes(normalized))return common?.healthConnect||null;
   return null;
 }
 function requireMethod(adapter,name){if(typeof adapter?.[name]!=='function')throw new Error('M26_WEARABLE_NATIVE_BRIDGE_UNAVAILABLE');return adapter[name].bind(adapter);}

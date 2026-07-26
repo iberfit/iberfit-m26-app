@@ -15,31 +15,48 @@ function ensureValidForm(form){if(typeof form?.checkValidity==='function'&&!form
 function status(root,scope,message,kind='info'){const node=root.querySelector?.(`[data-workflow-status="${scope}"]`);if(!node)return;node.textContent=message;node.dataset.status=kind;}
 function clearStatus(root,scope){const node=root.querySelector?.(`[data-workflow-status="${scope}"]`);if(!node)return;node.textContent='';if(node.dataset)delete node.dataset.status;}
 export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
-  if(!form)return {modality:null,locationRequired:false};
+  if(!form)return {modality:null,locationRequired:false,trainingAddress:null};
 
   const modalityField=form.elements?.namedItem?.('modality')||form.querySelector?.('[name="modality"]');
+  const clientField=form.elements?.namedItem?.('clientId')||form.querySelector?.('[name="clientId"]');
   const locationField=form.elements?.namedItem?.('location')||form.querySelector?.('[name="location"]');
   const help=form.querySelector?.('#m26-location-help');
   const modality=normalizeAppointmentModality(modalityField?.value);
   const locationRequired=modality==='presencial';
+  const selectedOption=clientField?.selectedOptions?.[0]||clientField?.options?.[clientField?.selectedIndex]||null;
+  const trainingAddress=String(selectedOption?.dataset?.trainingAddress||'').trim();
 
   if(locationField){
+    const previousAutofill=String(locationField.dataset?.m26AutofilledValue||'');
+    const current=String(locationField.value||'').trim();
+
     locationField.required=locationRequired;
     if(locationRequired)locationField.setAttribute?.('required','');
     else locationField.removeAttribute?.('required');
+
+    if(locationRequired&&trainingAddress&&(!current||current===previousAutofill)){
+      locationField.value=trainingAddress;
+      if(locationField.dataset)locationField.dataset.m26AutofilledValue=trainingAddress;
+    }else if(!locationRequired&&previousAutofill&&current===previousAutofill){
+      locationField.value='';
+      if(locationField.dataset)delete locationField.dataset.m26AutofilledValue;
+    }
   }
 
   if(help){
     help.textContent=locationRequired
-      ? 'Obligatoria para citas presenciales.'
+      ? trainingAddress
+        ? 'Se ha propuesto la dirección habitual del expediente. Revísala antes de guardar.'
+        : 'La ubicación es obligatoria para citas presenciales. Registra también la dirección habitual en el expediente.'
       : modality==='online'
         ? 'Añade un enlace o instrucciones únicamente cuando corresponda.'
         : 'La sesión guiada se realiza dentro de la aplicación.';
   }
 
   clearStatus(root,'appointment');
-  return {modality,locationRequired};
+  return {modality,locationRequired,trainingAddress:trainingAddress||null};
 }
+
 function numberOrNull(value){if(value===null||value===undefined||value==='')return null;const n=Number(value);return Number.isFinite(n)?n:null;}
 function emit(root,name,detail){root.dispatchEvent(new CustomEvent(name,{bubbles:true,detail}));}
 function escape(value){return String(value??'').replace(/[&<>"']/g,(char)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));}

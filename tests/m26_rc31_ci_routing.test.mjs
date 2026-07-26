@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 const read = (file) =>
   readFile(new URL(`../${file}`, import.meta.url), 'utf8');
 
-test('CI enruta RC29, RC30 y RC31 mediante gates separados', async () => {
+test('CI conserva rutas dedicadas RC29, RC30 y RC31', async () => {
   const ci = await read('.github/workflows/ci.yml');
 
   assert.match(ci, /name: Validar RC29[\s\S]*npm run validate:rc29/);
@@ -25,6 +25,7 @@ test('CI enruta RC29, RC30 y RC31 mediante gates separados', async () => {
   assert.ok(rc29Step);
   assert.match(rc29Step, /canary\/rc30/);
   assert.match(rc29Step, /canary\/rc31/);
+  assert.match(rc29Step, /canary\/rc32/);
 });
 
 test('RC31 conserva evidencia propia y no reutiliza el artefacto RC29', async () => {
@@ -35,7 +36,7 @@ test('RC31 conserva evidencia propia y no reutiliza el artefacto RC29', async ()
   assert.match(ci, /recovery\/RC31_\*\.json/);
 });
 
-test('gate remoto solo se habilita por ejecución manual en RC31', async () => {
+test('gate remoto solo se habilita manualmente en canary RC31 o RC32', async () => {
   const ci = await read('.github/workflows/ci.yml');
 
   assert.match(ci, /remote_readonly:/);
@@ -43,7 +44,7 @@ test('gate remoto solo se habilita por ejecución manual en RC31', async () => {
   assert.match(ci, /READ_ONLY_REMOTE_GATE/);
   assert.match(
     ci,
-    /github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/canary\/rc31' && inputs\.confirmation == 'READ_ONLY_REMOTE_GATE'/,
+    /github\.event_name == 'workflow_dispatch'[\s\S]*canary\/rc31'[\s\S]*canary\/rc32'[\s\S]*READ_ONLY_REMOTE_GATE/,
   );
   assert.match(ci, /environment: m26-canary-readonly/);
   assert.match(

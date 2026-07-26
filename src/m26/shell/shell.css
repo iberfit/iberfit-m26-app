@@ -490,3 +490,24 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .m26-library-card>.m26-exercise-media,.m26-library-card>.m26-exercise-media-fallback{max-width:none}
   .m26-exercise-media-frames{grid-template-columns:1fr 1fr}
 }
+
+/* RC32 · coherencia de expediente, IRI y prevención de solapamientos */
+.m26-route,.m26-route *{min-width:0}
+.m26-route h1,.m26-route h2,.m26-route h3,.m26-route h4,.m26-route p,.m26-route strong,.m26-route small,.m26-route span,.m26-route label,.m26-route button,.m26-route input,.m26-route select,.m26-route textarea{overflow-wrap:anywhere}
+.m26-route input,.m26-route select,.m26-route textarea{width:100%;max-width:100%}
+.m26-profile-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+.m26-profile-sections>.m26-panel{min-width:0}
+.m26-profile-hero{grid-template-columns:auto minmax(0,1fr) auto}
+.m26-client-meta{min-width:0;max-width:14rem}
+.m26-client-meta .m26-badge{max-width:100%;white-space:normal;text-align:center}
+.m26-field strong{display:block;max-width:100%;white-space:normal;word-break:break-word}
+.m26-iri-person{overflow:hidden}
+.m26-domain-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;margin:1rem 0}
+.m26-domain-status{display:flex;align-items:center;justify-content:space-between;gap:.65rem;padding:.7rem;border:1px solid rgba(228,205,152,.18);border-radius:.8rem;background:rgba(5,18,13,.25)}
+.m26-domain-status>span{font-size:.8rem;font-weight:700;line-height:1.35}
+.m26-panel-heading>*{min-width:0}
+.m26-inline-actions,.m26-action-grid{flex-wrap:wrap}
+.m26-wearable-source[data-provider="health_connect"],.m26-wearable-source[data-provider="samsung_health"],.m26-wearable-source[data-provider="strava"]{border-color:rgba(199,164,90,.38)}
+@media(max-width:900px){.m26-profile-sections{grid-template-columns:1fr}.m26-client-meta{max-width:none}}
+@media(max-width:680px){.m26-domain-grid{grid-template-columns:1fr}.m26-profile-hero{grid-template-columns:auto minmax(0,1fr)}.m26-profile-hero>div:last-child{grid-column:1/-1;justify-self:start}.m26-panel-heading{align-items:flex-start;flex-direction:column}.m26-panel-heading>.m26-badge{align-self:flex-start}}
+@media(max-width:420px){.m26-action-grid{grid-template-columns:1fr}.m26-action-grid button,.m26-primary-action{width:100%}.m26-client-card button{grid-template-columns:auto minmax(0,1fr)}.m26-client-meta{grid-column:1/-1;align-items:flex-start}}

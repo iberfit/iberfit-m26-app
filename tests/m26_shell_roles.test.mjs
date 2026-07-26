@@ -119,6 +119,8 @@ test('shell renderiza marca y estructura accesible sin manejadores inline', () =
   assert.match(html, /id="m26-main"/);
   assert.doesNotMatch(html, /onclick=/i);
   assert.doesNotMatch(html, /<script/i);
+  assert.match(html, /Sin operaciones pendientes/);
+  assert.doesNotMatch(html, /Todo confirmado/);
 });
 
 test('sin hidratación el shell permanece en acceso', () => {

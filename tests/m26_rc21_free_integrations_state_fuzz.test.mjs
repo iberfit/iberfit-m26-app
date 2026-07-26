@@ -10,7 +10,9 @@ import {renderActivityRoute} from '../src/m26/modules/route-render.js';
 const clientId='57339e70-7a99-48d6-820f-7d4a51f89d9d';
 
 test('RC21 aplica política de coste cero sin borrar arquitectura futura',()=>{
-  assert.equal(Object.keys(ZERO_COST_POLICY).length,6);
+  assert.equal(Object.keys(ZERO_COST_POLICY).length,8);
+  assert.equal(wearableZeroCostPolicy('samsung_health').productionAllowed,false);
+  assert.equal(wearableZeroCostPolicy('strava').productionAllowed,false);
   assert.equal(wearableZeroCostPolicy('normalized_file').productionAllowed,true);
   assert.equal(wearableZeroCostPolicy('health_connect').developmentAllowed,true);
   assert.equal(wearableZeroCostPolicy('apple_health').developmentAllowed,false);

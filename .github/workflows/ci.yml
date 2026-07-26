@@ -40,7 +40,7 @@ jobs:
           python-version: '3.12'
 
       - name: Validar RC29
-        if: ${{ github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' && github.ref != 'refs/heads/canary/rc31' && github.head_ref != 'canary/rc31' }}
+        if: ${{ github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' && github.ref != 'refs/heads/canary/rc31' && github.head_ref != 'canary/rc31' && github.ref != 'refs/heads/canary/rc32' && github.head_ref != 'canary/rc32' }}
         run: npm run validate:rc29
 
       - name: Validar RC30 canary
@@ -63,8 +63,18 @@ jobs:
           CF_PAGES_BRANCH: canary/rc31
         run: npm run validate:rc31:ci
 
+      - name: Validar RC32 canary
+        if: ${{ github.ref == 'refs/heads/canary/rc32' || github.head_ref == 'canary/rc32' }}
+        env:
+          M26_SUPABASE_URL: https://pjhmrhejsoofmouedavw.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: sb_publishable_local_validation_rc32
+          M26_QA_ONLY: 'true'
+          M26_RUNTIME_VALIDATION_ONLY: 'true'
+          CF_PAGES_BRANCH: canary/rc32
+        run: npm run validate:rc32:ci
+
       - name: Conservar evidencia RC29
-        if: ${{ always() && github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' && github.ref != 'refs/heads/canary/rc31' && github.head_ref != 'canary/rc31' }}
+        if: ${{ always() && github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' && github.ref != 'refs/heads/canary/rc31' && github.head_ref != 'canary/rc31' && github.ref != 'refs/heads/canary/rc32' && github.head_ref != 'canary/rc32' }}
         uses: actions/upload-artifact@v4
         with:
           name: rc29-evidencia-validacion
@@ -99,10 +109,22 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Conservar evidencia RC32
+        if: ${{ always() && (github.ref == 'refs/heads/canary/rc32' || github.head_ref == 'canary/rc32') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc32-evidencia-validacion
+          path: |
+            recovery/RC32_*.json
+            recovery/RC29_MODULE_GRAPH_REPORT.json
+          if-no-files-found: warn
+          retention-days: 14
+
+
   remote_readonly:
     name: Gate remoto A/B de solo lectura
     needs: validate
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/canary/rc31' && inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/canary/rc31' || github.ref == 'refs/heads/canary/rc32') && inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
     runs-on: ubuntu-latest
     environment: m26-canary-readonly
     timeout-minutes: 15
@@ -131,9 +153,10 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: rc31-gate-remoto-solo-lectura
+          name: canary-gate-remoto-solo-lectura
           path: |
             recovery/RC29_REMOTE_*.json
             recovery/RC31_REMOTE_*.json
+            recovery/RC32_REMOTE_*.json
           if-no-files-found: warn
           retention-days: 14

@@ -205,6 +205,7 @@ test('el formulario elimina el error anterior y ajusta ubicación según modalid
   };
 
   const modality={value:'online'};
+  const clientSelect={selectedIndex:0,selectedOptions:[{dataset:{trainingAddress:'Av. IBERFIT 123'}}]};
   const help={textContent:''};
 
   const form={
@@ -213,6 +214,7 @@ test('el formulario elimina el error anterior y ajusta ubicación según modalid
       namedItem(name){
         if(name==='modality')return modality;
         if(name==='location')return location;
+        if(name==='clientId')return clientSelect;
         return null;
       },
     },
@@ -239,11 +241,14 @@ test('el formulario elimina el error anterior y ajusta ubicación según modalid
   assert.equal(statusNode.dataset.status,undefined);
 
   modality.value='presencial';
+  location.value='';
+  location.dataset={};
   state=syncAppointmentFormState(form,root);
 
   assert.equal(state.locationRequired,true);
   assert.equal(location.required,true);
-  assert.match(help.textContent,/Obligatoria/);
+  assert.equal(location.value,'Av. IBERFIT 123');
+  assert.match(help.textContent,/dirección habitual/i);
 });
 
 test('la pantalla Coach diferencia propuesta de cita confirmada',()=>{
@@ -256,8 +261,6 @@ test('la pantalla Coach diferencia propuesta de cita confirmada',()=>{
   assert.match(html,/Crear propuesta de cita/);
   assert.match(html,/permanece interna/);
   assert.match(html,/cliente solo recibe citas confirmadas/i);
-  assert.match(
-    html,
-    /name="location"[^>]*required/
-  );
+  assert.match(html,/data-training-address/);
+  assert.doesNotMatch(html,/name="location"[^>]*required/);
 });
