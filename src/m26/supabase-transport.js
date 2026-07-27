@@ -311,6 +311,25 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     });
   }
 
+  async function createClientDraft(token, payload = {}) {
+    if (!token) throw new Error('M26_AUTH_REQUIRED');
+    if (!runtime.canary && !runtime.qaOnly) {
+      throw new Error('M26_CLIENT_CREATE_CANARY_ONLY');
+    }
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new Error('M26_CLIENT_DRAFT_PAYLOAD_INVALID');
+    }
+    const body = JSON.stringify({ p_payload: payload });
+    if (body.length < 10 || body.length > 120_000) {
+      throw new Error('M26_CLIENT_DRAFT_PAYLOAD_INVALID');
+    }
+    return request('/rest/v1/rpc/iberfit_create_client_draft', {
+      method: 'POST',
+      token,
+      body,
+    });
+  }
+
   async function commandRegistry(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     const select = 'command_type,entity_type,event_name,allowed_roles,requires_reason,requires_preview,enabled';
@@ -328,6 +347,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     logout,
     bootstrap: (token) => rpc(runtime.rpc.bootstrap, token, {}),
     commandRegistry,
+    createClientDraft,
     preflight: async (token, command) => normalizeRpcResponse(await rpc(runtime.rpc.preflight, token, { p_command: command })),
     execute: async (token, command) => normalizeRpcResponse(await rpc(runtime.rpc.execute, token, { p_command: command })),
   });

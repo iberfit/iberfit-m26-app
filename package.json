@@ -155,6 +155,12 @@
     "build:rc32:canary": "npm run build:rc29 && npm run configure:rc32:canary",
     "configure:rc32:canary": "node scripts/generate_rc32_runtime_config.mjs",
     "verify:build:rc32": "node scripts/verify_rc32_canary_candidate.mjs",
-    "validate:rc32:ci": "node scripts/run_rc32_ci_validation.mjs"
+    "validate:rc32:ci": "node scripts/run_rc32_ci_validation.mjs",
+    "test:m26:rc33": "node --test tests/m26_rc33_first_session_iri.test.mjs",
+    "audit:rc33": "node scripts/m26_rc33_canary_gate.mjs",
+    "build:rc33:canary": "npm run build:rc29 && npm run configure:rc33:canary",
+    "configure:rc33:canary": "node scripts/generate_rc33_runtime_config.mjs",
+    "verify:build:rc33": "node scripts/verify_rc33_canary_candidate.mjs",
+    "validate:rc33:ci": "node scripts/run_rc33_ci_validation.mjs"
   }
 }

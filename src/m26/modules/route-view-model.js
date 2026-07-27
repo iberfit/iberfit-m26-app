@@ -144,9 +144,26 @@ function compactIri(record) {
   });
 }
 
+function profileFromIri(record) {
+  const body = record?.body && typeof record.body === 'object' ? record.body : record || {};
+  const profile = body.personProfile || body.person_profile;
+  return profile && typeof profile === 'object' && !Array.isArray(profile) ? profile : {};
+}
+
+function mergeProfileFallback(primary = {}, fallback = {}) {
+  const out = { ...fallback };
+  for (const [key, value] of Object.entries(primary || {})) {
+    if (value !== undefined && value !== null && value !== '') out[key] = value;
+  }
+  return out;
+}
+
 function compactSummary(summary) {
   const client = summary.client || {};
-  const profile = normalizeClientProfile(summary.profile || {}, client);
+  const profile = normalizeClientProfile(
+    mergeProfileFallback(summary.profile || {}, profileFromIri(summary.iri)),
+    client
+  );
 
   return {
     id: client.id,
@@ -259,8 +276,11 @@ export function createRouteViewModel(shellVm, state, now = new Date(), options =
   }
 
   if (area === 'clientes') {
+    const role = String(shellVm.identity?.role || '');
     return Object.freeze({
       kind: 'clientes',
+      role,
+      canCreate: ['admin', 'coach'].includes(role),
       clients: Object.freeze(clientsOverview(state).map(compactSummary)),
       selectedClientId: state.selectedClientId || null,
     });
@@ -350,7 +370,10 @@ export function createRouteViewModel(shellVm, state, now = new Date(), options =
     const client = (state?.collections?.clients || []).find(
       (item) => item.id === clientId
     );
-    const profile = normalizeClientProfile(rawProfile || {}, client || {});
+    const profile = normalizeClientProfile(
+      mergeProfileFallback(rawProfile || {}, profileFromIri(current)),
+      client || {}
+    );
 
     return Object.freeze({
       kind: 'iri',
