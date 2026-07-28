@@ -41,6 +41,7 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
     case 'update-block': updateSessionBlock(draft,{...payload,catalog}); return {kind:'draft',value:draft};
     case 'add-group': addTrainingGroup(draft,payload.groupType,[]); return {kind:'draft',value:draft};
     case 'close-group': closeTrainingGroup(draft); return {kind:'draft',value:draft};
+    case 'save-draft': return {kind:'draft',value:draft};
     case 'publish': {
       if(!isOnline(online))throw new Error('M26_OFFLINE_PUBLICATION_NOT_ALLOWED');
       const command=buildPublishSessionCommand(draft,catalog,draft.revision||0);
@@ -105,22 +106,28 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(!context?.draft||!context?.autosaveDraft)return;
     scheduledContext=context;clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{autosaveTimer=null;const target=scheduledContext;scheduledContext=null;autosaveChain=autosaveChain.then(()=>target?.autosaveDraft?.()).catch(onError);},safeDelay);
   }
-  async function flushAutosave(context=scheduledContext){
-    if(autosaveTimer){clearTimeout(autosaveTimer);autosaveTimer=null;const target=context||scheduledContext;scheduledContext=null;autosaveChain=autosaveChain.then(()=>target?.draft?target.autosaveDraft?.():undefined).catch((error)=>{onError(error);throw error;});}
+  async function flushAutosave(context=scheduledContext,{force=false}={}){
+    let pendingSaved=false;
+    if(autosaveTimer){
+      clearTimeout(autosaveTimer);autosaveTimer=null;
+      const target=context||scheduledContext;scheduledContext=null;pendingSaved=Boolean(target?.draft&&target?.autosaveDraft);
+      autosaveChain=autosaveChain.then(()=>target?.draft?target.autosaveDraft?.():undefined).catch((error)=>{onError(error);throw error;});
+    }
     await autosaveChain;
+    if(force&&context?.draft&&context?.autosaveDraft&&!pendingSaved)await context.autosaveDraft();
   }
   async function persistContext(context){
-    if(context?.draft)await flushAutosave(context);
+    if(context?.draft)await flushAutosave(context,{force:true});
     if(!context?.execution||!context?.recoveryCoordinator)return;
     await context.recoveryCoordinator.persist({execution:context.execution,session:context.session,appointmentId:context.appointmentId,sessionRevision:context.sessionRevision});
     await context.recoveryCoordinator.settle(context.execution);
   }
-  async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='exit-session'){await flushAutosave(context).catch(()=>{});context.onExit?.();return;}const actionState=context.actionState;const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');
+  async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='exit-session'){const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await persistContext(context);context.onExit?.();}catch(error){onError(error);render?.();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}const actionState=context.actionState;const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');
     const task=async()=>{await flushAutosave(context);const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});return await result.value;};
-    try{const outcome=actionState?await runAction(actionState,task):{ok:true,value:await task()};if(!outcome.ok)onError(outcome.error);if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else await persistContext(context);render?.();}catch(error){await persistContext(context).catch(()=>{});onError(error);}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}}
+    try{const outcome=actionState?await runAction(actionState,task):{ok:true,value:await task()};if(!outcome.ok)onError(outcome.error);if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else await persistContext(context);if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado en este dispositivo.';}render?.();}catch(error){await persistContext(context).catch(()=>{});onError(error);}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){context.setQuery?.(search.value);render?.();}
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}
     const blockField=event.target.closest?.('[data-session-block-field]');if(blockField&&context.draft){try{dispatchSessionAction({...context,action:'update-block',payload:{blockId:blockField.getAttribute('data-block-id'),exerciseId:blockField.getAttribute('data-exercise-id')||null,field:blockField.getAttribute('data-session-block-field'),value:blockField.value}});}catch(error){onError(error);}}
     if(draftField||blockField)queueAutosave(context);}
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',click);root.addEventListener('input',input);mounted=true;},destroy(){if(!mounted)return;root.removeEventListener('click',click);root.removeEventListener('input',input);mounted=false;void flushAutosave().catch(()=>{});},flushAutosave});
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',click);root.addEventListener('input',input);mounted=true;},destroy(){if(!mounted)return;root.removeEventListener('click',click);root.removeEventListener('input',input);mounted=false;void persistContext(getContext()).catch(onError);},flushAutosave});
 }

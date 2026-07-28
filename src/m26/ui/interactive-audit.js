@@ -5,6 +5,7 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'exit-session':{roles:['admin','coach','client'],domain:'session'},
   'remove-block':{roles:['admin','coach'],domain:'session'},
   'add-group':{roles:['admin','coach'],domain:'session'},
+  'save-draft':{roles:['admin','coach'],domain:'session'},
   'publish':{roles:['admin','coach'],domain:'session'},
   'preview':{roles:['admin','coach'],domain:'session'},
   'edit-preview':{roles:['admin','coach'],domain:'session'},

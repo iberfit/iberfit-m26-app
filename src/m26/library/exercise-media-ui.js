@@ -48,8 +48,10 @@ function fold(value){
 }
 
 export function exerciseMuscleGroupLabel(exercise={},manifest=null){
+  const name=fold(exercise.name_es||exercise.name||'');
+  const explicit=name.includes('abduccion')||name.includes('abductor')?'abductores':name.includes('aduccion')||name.includes('aductor')?'aductores':null;
   const mapped=resolveExerciseMediaMetadata(manifest,exercise.id)?.muscle_group;
-  const raw=mapped||exercise.primary_muscles?.[0]||exercise.pattern||exercise.intent||'Otros';
+  const raw=explicit||mapped||exercise.primary_muscles?.[0]||exercise.pattern||exercise.intent||'Otros';
   const key=fold(raw).replace(/\s+/g,'_');
   return MUSCLE_LABELS[key]||String(raw||'Otros');
 }
@@ -73,7 +75,7 @@ export function renderExerciseMedia({
 
   if(!media){
     if(!fallback)return '';
-    return `<div class="m26-exercise-media-fallback${compact?' is-compact':''}" aria-hidden="true">${e(String(name).slice(0,1)||'I')}</div>`;
+    return `<div class="m26-exercise-media-fallback${compact?' is-compact':''}" role="img" aria-label="Sin referencia visual validada para ${e(name)}"><span>Sin referencia visual</span><small>Consulta la ejecución escrita</small></div>`;
   }
 
   const labels=media.mode==='start_peak'
@@ -91,9 +93,11 @@ export function renderExerciseMedia({
 
 export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
   const searchText=[
-    item.name_es,item.pattern,item.equipment,
+    item.name_es,item.pattern,item.equipment,item.difficulty,item.intent,
     ...(item.primary_muscles||[]),
     ...(item.secondary_muscles||[]),
+    ...(item.tags||[]),
+    ...(item.aliases||[]),
   ].join(' ').toLowerCase();
 
   const media=renderExerciseMedia({
@@ -105,13 +109,20 @@ export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
     fallback:true,
   });
 
-  const instructions=(item.instructions_es||item.cues||[]).slice(0,4);
-  const precautions=(item.precautions||[]).slice(0,2);
-  const detail=instructions.length||precautions.length
-    ?`<details class="m26-library-details"><summary>Ver indicaciones</summary>${instructions.length?`<ol>${instructions.map((line)=>`<li>${e(line)}</li>`).join('')}</ol>`:''}${precautions.length?`<p><strong>Precauciones:</strong> ${e(precautions.join(' · '))}</p>`:''}</details>`
-    :'';
+  const instructions=(item.instructions_es||item.cues||[]).slice(0,6);
+  const precautions=(item.precautions||[]).slice(0,4);
+  const primary=(item.primary_muscles||[]).join(' · ')||exerciseMuscleGroupLabel(item,manifest);
+  const secondary=(item.secondary_muscles||[]).join(' · ');
+  const units=(item.units||[]).join(' · ');
+  const facts=[
+    item.difficulty?`<span><strong>Dificultad</strong>${e(item.difficulty)}</span>`:'',
+    item.pattern?`<span><strong>Patrón</strong>${e(item.pattern)}</span>`:'',
+    item.equipment?`<span><strong>Material</strong>${e(item.equipment)}</span>`:'',
+    units?`<span><strong>Registro</strong>${e(units)}</span>`:'',
+  ].filter(Boolean).join('');
+  const detail=`<details class="m26-library-details"><summary>Protocolo y detalles</summary><div class="m26-library-facts">${facts}</div><p><strong>Músculos principales:</strong> ${e(primary)}</p>${secondary?`<p><strong>Músculos secundarios:</strong> ${e(secondary)}</p>`:''}${instructions.length?`<h4>Ejecución</h4><ol>${instructions.map((line)=>`<li>${e(line)}</li>`).join('')}</ol>`:'<p class="m26-notice is-warning">Este ejercicio necesita un protocolo de ejecución más detallado antes de utilizarse con clientes.</p>'}${precautions.length?`<p><strong>Precauciones:</strong> ${e(precautions.join(' · '))}</p>`:'<p><strong>Precauciones:</strong> Detener ante dolor, mareo o pérdida de control técnico.</p>'}</details>`;
 
-  return `<article class="m26-library-card" data-library-text="${e(searchText)}" data-exercise-id="${e(item.id)}">${media}<div class="m26-library-copy"><h3>${e(item.name_es||'Ejercicio')}</h3><p>${e(item.pattern||'Patrón')} · ${e(item.equipment||'Sin equipo')}</p><small>${e((item.primary_muscles||[]).join(' · ')||exerciseMuscleGroupLabel(item,manifest))}</small>${detail}</div></article>`;
+  return `<article class="m26-library-card" data-library-text="${e(searchText)}" data-exercise-id="${e(item.id)}">${media}<div class="m26-library-copy"><h3>${e(item.name_es||'Ejercicio')}</h3><p>${e(item.pattern||'Patrón por definir')} · ${e(item.equipment||'Sin material')}</p><small>${e(primary)}</small>${detail}</div></article>`;
 }
 
 export function renderExerciseLibraryGroups(items=[],manifest,{role='coach'}={}){

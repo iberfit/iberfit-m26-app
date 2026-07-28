@@ -16,13 +16,15 @@ test('inteligencia deriva la edad desde la fecha de nacimiento del expediente',(
   assert.doesNotMatch(html,/value="35"/);
 });
 
-test('inteligencia se bloquea cuando falta fecha de nacimiento',()=>{
+test('inteligencia permite una propuesta cauta sin fecha de nacimiento y acepta criterio del Coach',()=>{
   const state=baseState(); state.collections.clientProfiles=[];
   const vm=createRouteViewModel(shell('inteligencia'),state,new Date('2026-07-20T12:00:00Z'));
   const html=renderIntelligenceRoute(vm);
   assert.equal(vm.ageYears,null);
-  assert.match(html,/Registra primero la fecha de nacimiento/);
-  assert.match(html,/data-workflow-action="generate-intelligence" disabled/);
+  assert.match(html,/Pregunta o criterio del entrenador/);
+  assert.match(html,/No hay fecha de nacimiento confirmada/);
+  assert.match(html,/data-workflow-action="generate-intelligence"/);
+  assert.doesNotMatch(html,/data-workflow-action="generate-intelligence" disabled/);
 });
 
 test('biblioteca expone los 367 ejercicios, no solo los primeros 120',()=>{

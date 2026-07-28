@@ -1,0 +1,112 @@
+{
+  "release": "IBERFIT_M26_CANARY_RC35_CI",
+  "version": "26.0.0-canary.35-ci",
+  "generatedAt": "2026-07-28T21:08:07.008Z",
+  "sourceRevision": "7691b9a85ec6de374834e9c8da48cf0e01163530",
+  "sourceBranch": "canary/rc34",
+  "sourceCommit": "7691b9a85ec6de374834e9c8da48cf0e01163530",
+  "backendContract": "RC30",
+  "ok": true,
+  "tests": {
+    "total": 383,
+    "passed": 382,
+    "failed": 0,
+    "skipped": 1
+  },
+  "steps": [
+    {
+      "name": "repository-hygiene",
+      "command": "node scripts/remote-gates/check_repository_hygiene.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "tests",
+      "command": "node --test tests/m25_2_iri_regression.test.mjs tests/m26_core_recovery.test.mjs tests/m26_exercises_ai_sessions.test.mjs tests/m26_hoy_clients_expediente.test.mjs tests/m26_iri_planning_agenda.test.mjs tests/m26_rc10_engagement_progress.test.mjs tests/m26_rc11_adaptive_engagement.test.mjs tests/m26_rc12_design_functional.test.mjs tests/m26_rc13_visual_canary.test.mjs tests/m26_rc14_integrated_application.test.mjs tests/m26_rc15_launch_candidate.test.mjs tests/m26_rc16_hardening.test.mjs tests/m26_rc17_resilience.test.mjs tests/m26_rc18_prelaunch_repository.test.mjs tests/m26_rc19_quality_performance.test.mjs tests/m26_rc20_wearables_ux.test.mjs tests/m26_rc21_free_integrations_state_fuzz.test.mjs tests/m26_rc22_sync_performance_accessibility.test.mjs tests/m26_rc23_castellano_ui.test.mjs tests/m26_rc24_functional_completion.test.mjs tests/m26_rc25_role_privacy_premium.test.mjs tests/m26_rc26_publication_premium.test.mjs tests/m26_rc27_client_premium_final.test.mjs tests/m26_rc28_local_maximum_closure.test.mjs tests/m26_rc29_repository_preflight.test.mjs tests/m26_rc30_password_recovery.test.mjs tests/m26_rc31_agenda_privacy.test.mjs tests/m26_rc31_ci_routing.test.mjs tests/m26_rc31_civil_dates.test.mjs tests/m26_rc31_remote_gate_bootstrap_privacy.test.mjs tests/m26_rc31_remote_gate_client_isolation.test.mjs tests/m26_rc31_repdb_media_assets.test.mjs tests/m26_rc31_visual_library_integration.test.mjs tests/m26_rc32_ci_routing.test.mjs tests/m26_rc32_product_coherence.test.mjs tests/m26_rc33_first_session_iri.test.mjs tests/m26_rc35_audit_closure.test.mjs tests/m26_rc8_release_readiness.test.mjs tests/m26_rc9_offline_canary.test.mjs tests/m26_session_execution_ui.test.mjs tests/m26_sex_age_norms.test.mjs tests/m26_shell_roles.test.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc29-infrastructure-gate",
+      "command": "node scripts/m26_rc29_prepublication_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc35-audit-gate",
+      "command": "node scripts/m26_rc35_audit_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc35-release-gate",
+      "command": "node scripts/m26_rc35_release_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "build-current-source-with-repdb",
+      "command": "node scripts/build_rc29_prepublication_candidate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "module-graph",
+      "command": "node scripts/verify_rc29_module_graph.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "configure-rc35-validation-runtime",
+      "command": "node scripts/generate_rc35_runtime_config.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "verify-rc35-canary-candidate",
+      "command": "node scripts/verify_rc35_canary_candidate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    }
+  ],
+  "deliveredScope": [
+    "Persistencia verificable de IRI, ciclos, sesiones y notas privadas",
+    "Agenda recuperable e Inteligencia deliberada con aprobación Coach",
+    "Informe IRI autocontenido con alternativa ante bloqueo de ventanas",
+    "Temporizador Cardio audible y protocolos IRI explicables",
+    "Eliminación de la puntuación global histórica del IRI",
+    "Un único scroll documental y priorización operativa de Hoy, Clientes y Expediente",
+    "Biblioteca filtrable con búsqueda priorizada y ausencias visuales honestas",
+    "Actividad y Progreso compactos, visuales y sin integraciones falsas"
+  ],
+  "localValidationOnly": true,
+  "productionModified": false,
+  "productionDeployed": false,
+  "cloudflareModified": false,
+  "remoteIsolationExecuted": false,
+  "remoteMutationGateExecuted": false,
+  "pendingExternalGates": [
+    "CI de GitHub sobre canary/rc35",
+    "Gate autenticado de solo lectura Coach / Cliente QA 1 / Cliente QA 2",
+    "QA HTTP del dominio m26-canary.iberfit.cl y MIME real de JSON y WebP",
+    "QA visual e interacción de Coach y aplicación Cliente en móvil y escritorio"
+  ]
+}

@@ -16,6 +16,5 @@ export function scoreIriPerformance(draft={}){
     results.push(scoreNormedTest({testId:meta.testId,value:draft[field],context,protocolId:meta.protocolId}));
   }
   const scored=results.filter(r=>r.scored);
-  const composite=scored.length?Math.round(scored.reduce((sum,r)=>sum+r.score,0)/scored.length):null;
-  return {context:ctx,results,compositeScore:composite,coverage:{provided:results.length,scored:scored.length,pending:results.filter(r=>!r.scored).length},reviewRequired:!ctx.ok||results.some(r=>!r.scored||r.warnings.length)};
+  return {context:ctx,results,compositeScore:null,aggregation:'per_test_only',coverage:{provided:results.length,scored:scored.length,pending:results.filter(r=>!r.scored).length},reviewRequired:!ctx.ok||results.some(r=>!r.scored||r.warnings.length)};
 }

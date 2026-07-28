@@ -70,7 +70,8 @@ test('Hoy renderiza datos reales del store sin fixtures', () => {
   const vm = createRouteViewModel(shellVm, state, now);
   const html = renderRouteView(vm);
   assert.equal(vm.kind, 'hoy');
-  assert.match(html, /Tu operación de hoy, con criterio/);
+  assert.match(html, /Prioridades de hoy/);
+  assert.match(html, /Siguiente acción/);
   assert.match(html, /Sesión presencial/);
   assert.match(html, /1 propuesta/);
   assert.doesNotMatch(html, /Agenda confirmada/);

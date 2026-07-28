@@ -99,7 +99,7 @@ test('progreso interpreta resultados por clave, cargas con unidad y fechas canó
     iriAssessments:[{id:'i1',clientId:'c1',assessmentDate:'2026-07-16',score:75},{id:'i0',clientId:'c1',assessmentDate:'2026-06-10',score:70}],
   }};
   const summary=computeProgressSummary(state,'c1',{now:'2026-07-19T12:00:00Z',days:28});
-  assert.equal(summary.averageRpe,7);assert.equal(summary.volume,150);assert.equal(summary.volumeDelta,100);assert.equal(summary.checkins,1);assert.equal(summary.iriCurrent,75);
+  assert.equal(summary.averageRpe,7);assert.equal(summary.volume,150);assert.equal(summary.volumeDelta,100);assert.equal(summary.checkins,1);assert.equal(summary.iriCurrent,0);assert.equal(summary.iriAssessmentCount,2);
   const timeline=buildProgressTimeline(state,'c1',{now:'2026-07-19T12:00:00Z',days:90});assert.ok(timeline.some((row)=>row.kind==='checkin'));assert.ok(timeline.some((row)=>row.kind==='iri'));
 });
 

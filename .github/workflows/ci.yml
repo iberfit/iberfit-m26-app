@@ -40,7 +40,7 @@ jobs:
           python-version: '3.12'
 
       - name: Validar RC29
-        if: ${{ github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' && github.ref != 'refs/heads/canary/rc31' && github.head_ref != 'canary/rc31' && github.ref != 'refs/heads/canary/rc32' && github.head_ref != 'canary/rc32' && github.ref != 'refs/heads/canary/rc33' && github.head_ref != 'canary/rc33' }}
+        if: ${{ github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' && github.ref != 'refs/heads/canary/rc31' && github.head_ref != 'canary/rc31' && github.ref != 'refs/heads/canary/rc32' && github.head_ref != 'canary/rc32' && github.ref != 'refs/heads/canary/rc33' && github.head_ref != 'canary/rc33' && github.ref != 'refs/heads/canary/rc35' && github.head_ref != 'canary/rc35' }}
         run: npm run validate:rc29
 
       - name: Validar RC30 canary
@@ -83,8 +83,18 @@ jobs:
           CF_PAGES_BRANCH: canary/rc33
         run: npm run validate:rc33:ci
 
+      - name: Validar RC35 canary
+        if: ${{ github.ref == 'refs/heads/canary/rc35' || github.head_ref == 'canary/rc35' }}
+        env:
+          M26_SUPABASE_URL: https://pjhmrhejsoofmouedavw.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: sb_publishable_local_validation_rc35
+          M26_QA_ONLY: 'true'
+          M26_RUNTIME_VALIDATION_ONLY: 'true'
+          CF_PAGES_BRANCH: canary/rc35
+        run: npm run validate:rc35:ci
+
       - name: Conservar evidencia RC29
-        if: ${{ always() && github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' && github.ref != 'refs/heads/canary/rc31' && github.head_ref != 'canary/rc31' && github.ref != 'refs/heads/canary/rc32' && github.head_ref != 'canary/rc32' && github.ref != 'refs/heads/canary/rc33' && github.head_ref != 'canary/rc33' }}
+        if: ${{ always() && github.ref != 'refs/heads/canary/rc30' && github.head_ref != 'canary/rc30' && github.ref != 'refs/heads/canary/rc31' && github.head_ref != 'canary/rc31' && github.ref != 'refs/heads/canary/rc32' && github.head_ref != 'canary/rc32' && github.ref != 'refs/heads/canary/rc33' && github.head_ref != 'canary/rc33' && github.ref != 'refs/heads/canary/rc35' && github.head_ref != 'canary/rc35' }}
         uses: actions/upload-artifact@v4
         with:
           name: rc29-evidencia-validacion
@@ -141,11 +151,22 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Conservar evidencia RC35
+        if: ${{ always() && (github.ref == 'refs/heads/canary/rc35' || github.head_ref == 'canary/rc35') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc35-evidencia-validacion
+          path: |
+            recovery/RC35_*.json
+            recovery/RC29_MODULE_GRAPH_REPORT.json
+          if-no-files-found: warn
+          retention-days: 14
+
 
   remote_readonly:
     name: Gate remoto A/B de solo lectura
     needs: validate
-    if: ${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/canary/rc31' || github.ref == 'refs/heads/canary/rc32' || github.ref == 'refs/heads/canary/rc33') && inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/canary/rc31' || github.ref == 'refs/heads/canary/rc32' || github.ref == 'refs/heads/canary/rc33' || github.ref == 'refs/heads/canary/rc35') && inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
     runs-on: ubuntu-latest
     environment: m26-canary-readonly
     timeout-minutes: 15

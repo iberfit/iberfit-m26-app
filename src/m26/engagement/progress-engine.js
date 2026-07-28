@@ -52,7 +52,21 @@ function checkinValues(record){
   return {energy:number(first(item,'energy','energia')),sleep:number(first(item,'sleep','sueno','sueño')),stress:number(first(item,'stress','estres','estrés')),pain:number(first(item,'pain','dolor'))};
 }
 function average(values){const valid=values.filter(Number.isFinite);return valid.length?valid.reduce((a,b)=>a+b,0)/valid.length:null;}
-function iriScore(record){return number(first(unwrap(record),'score','puntuacion','totalScore','total_score','compositeScore','composite_score'));}
+function objectiveValue(value){
+  if(value===null||value===undefined||value==='')return false;
+  if(typeof value==='number')return Number.isFinite(value);
+  if(typeof value==='string')return Number.isFinite(number(value));
+  if(Array.isArray(value))return value.some(objectiveValue);
+  if(typeof value==='object')return Object.values(value).some(objectiveValue);
+  return false;
+}
+function iriDomainCoverage(record){
+  const item=unwrap(record)||{};
+  const cardiovascular=Number.isFinite(number(first(item,'stepFinalHr','step_final_hr')))&&Number.isFinite(number(first(item,'stepOneMinuteHr','step_one_minute_hr')));
+  const bodyComposition=objectiveValue(first(item,'bodyComposition','body_composition'));
+  const strength=objectiveValue(first(item,'strengthPatterns','strength_patterns'))||objectiveValue(first(item,'chairStand30s','chair_stand_30s'))||objectiveValue(first(item,'pushUps','push_ups'));
+  return [cardiovascular,bodyComposition,strength].filter(Boolean).length;
+}
 function safePositiveInteger(value,{fallback,min=1,max=3650}={}){const parsed=Number(value);return Number.isInteger(parsed)&&parsed>=min&&parsed<=max?parsed:fallback;}
 
 export function progressWindow({now=new Date(),days=28}={}){
@@ -88,18 +102,18 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const wearable=summarizeWearableData(forClient(state,'wearableDailySummaries',clientId),{now:end,days:Math.min(7,window.days)});
   const checkinSeries=checkins.map(checkinValues);
   const iri=forClient(state,'iriAssessments',clientId).map(unwrap).sort(byDateDesc);
-  const iriScores=iri.map(iriScore).filter(Number.isFinite);
-  const iriDelta=iriScores.length>=2?iriScores[0]-iriScores[1]:null;
+  const iriCoverage=iri.map(iriDomainCoverage);
+  const iriDelta=iriCoverage.length>=2&&iriCoverage[0]>0&&iriCoverage[1]>0?iriCoverage[0]-iriCoverage[1]:null;
   const sortedExecutions=[...completedExecutions].sort(byDateDesc);
   const lastExecution=sortedExecutions[0]||null;
   const latestCheckin=checkins[0]||null;
-  const dataPoints=completedExecutions.length+checkins.length+iriScores.length;
+  const dataPoints=completedExecutions.length+checkins.length+iri.length;
   const dataQuality=dataPoints>=8?'alta':dataPoints>=3?'media':'limitada';
   return Object.freeze({
     clientId,startAt:start.toISOString(),endAt:end.toISOString(),days:window.days,
     plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence:round(adherence,3),
     averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
-    iriCurrent:iriScores[0]??null,iriPrevious:iriScores[1]??null,iriDelta:round(iriDelta,1),
+    iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:iri.length>1?iriCoverage[1]:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
     checkins:checkins.length,latestCheckin:latestCheckin?clone(checkinValues(latestCheckin)):null,
     checkinAverage:Object.freeze({
       energy:round(average(checkinSeries.map((x)=>x.energy)),1),sleep:round(average(checkinSeries.map((x)=>x.sleep)),1),
@@ -115,7 +129,7 @@ export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,lim
   const safeLimit=safePositiveInteger(limit,{fallback:24,min:1,max:200});
   const rows=[];
   for(const item of forClient(state,'sessionExecutions',clientId).map(unwrap))if(within(dateOf(item),start,end))rows.push({kind:'execution',date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',status:statusOf(item),detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada'});
-  for(const item of forClient(state,'iriAssessments',clientId).map(unwrap))if(within(dateOf(item),start,end))rows.push({kind:'iri',date:dateOf(item),title:'Evaluación IRI',status:statusOf(item),detail:Number.isFinite(iriScore(item))?`Puntuación ${iriScore(item)}`:'Evaluación registrada'});
+  for(const item of forClient(state,'iriAssessments',clientId).map(unwrap))if(within(dateOf(item),start,end)){const coverage=iriDomainCoverage(item);rows.push({kind:'iri',date:dateOf(item),title:'Evaluación IRI',status:statusOf(item),detail:coverage?`${coverage} de 3 dominios registrados`:'Evaluación registrada · formato histórico sin dominios comparables'});}
   for(const item of forClient(state,'checkins',clientId).map(unwrap))if(within(dateOf(item),start,end)){const values=checkinValues(item);rows.push({kind:'checkin',date:dateOf(item),title:'Registro de bienestar',status:'registrado',detail:`Energía ${values.energy??'—'} · Sueño ${values.sleep??'—'} · Estrés ${values.stress??'—'} · Dolor ${values.pain??'—'}`});}
   return rows.sort((a,b)=>(safeDate(b.date)?.getTime()||0)-(safeDate(a.date)?.getTime()||0)).slice(0,safeLimit).map(clone);
 }

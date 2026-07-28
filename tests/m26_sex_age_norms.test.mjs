@@ -35,6 +35,6 @@ test('no inventa puntuación cuando falta tabla completa',()=>{
 
 test('IRI incluye trazabilidad científica y cobertura',()=>{
   const draft={id:'11111111-1111-4111-8111-111111111111',clientId:'c1',assessmentDate:'2026-07-18',stepFinalHr:150,stepOneMinuteHr:110,strengthPatterns:{push:1},bodyComposition:{weightKg:60},sexForNorms:'female',ageYears:22,pushUps:10,chairStand30s:20};
-  const scoring=scoreIriPerformance(draft); assert.equal(scoring.results.length,2); assert.equal(scoring.compositeScore,60);
+  const scoring=scoreIriPerformance(draft); assert.equal(scoring.results.length,2); assert.equal(scoring.compositeScore,null); assert.equal(scoring.aggregation,'per_test_only');
   const cmd=buildIriCommand(draft,3); assert.equal(cmd.payload.patch.normScoring.results[0].evidence.sourceId,'adams-2022-standard-pushup-female'); assert.equal(cmd.payload.patch.normEngineVersion,'m26-rc5.1');
 });

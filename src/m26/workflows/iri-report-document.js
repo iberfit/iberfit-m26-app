@@ -169,14 +169,26 @@ export function buildIriReportHtml({draft,variant='client',clientName='Cliente I
   if(variant==='client'&&pages.length!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
   if(variant==='coach'&&pages.length<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
   const title=`Informe IRI IBERFIT · ${variant==='client'?'Cliente':'Coach / Admin'} · ${context.clientName}`;
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>${REPORT_CSS}</style></head><body>${pages.join('')}<script>addEventListener('load',()=>setTimeout(()=>print(),250));<\/script></body></html>`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>${REPORT_CSS}</style></head><body>${pages.join('')}</body></html>`;
 }
 
-export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl}={}){
+export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,storage=globalThis.localStorage,openWindow=globalThis.open,locationLike=globalThis.location,setTimeoutImpl=globalThis.setTimeout}={}){
   const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl});
-  const blob=new Blob([html],{type:'text/html;charset=utf-8'});const url=URL.createObjectURL(blob);const popup=globalThis.open?.(url,'_blank','noopener,noreferrer');
-  if(!popup){URL.revokeObjectURL(url);throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');}
-  setTimeout(()=>URL.revokeObjectURL(url),60_000);return {ok:true,variant};
+  const token=`m26-iri-report-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  if(!storage?.setItem)throw new Error('M26_IRI_REPORT_STORAGE_UNAVAILABLE');
+  storage.setItem(token,JSON.stringify({html,variant,createdAt:Date.now()}));
+  const url=`/m26/iri-report.html#${encodeURIComponent(token)}`;
+  const popup=typeof openWindow==='function'?openWindow(url,'_blank'):null;
+  if(!popup){
+    if(typeof locationLike?.assign==='function'){
+      locationLike.assign(url);
+      return {ok:true,variant,token,mode:'same-tab'};
+    }
+    storage.removeItem(token);throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
+  }
+  try{popup.opener=null;}catch{}
+  if(typeof setTimeoutImpl==='function')setTimeoutImpl(()=>storage.removeItem(token),120_000);
+  return {ok:true,variant,token,mode:'popup'};
 }
 
 export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,number,dateLabel,heartRateChart,radarChart,domainVisuals,coverageScore,REPORT_CSS,rawDataPages});
