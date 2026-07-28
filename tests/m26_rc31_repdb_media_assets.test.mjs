@@ -90,18 +90,41 @@ test('las candidatas C nunca se entregan al Cliente',()=>{
 
 test('la resolución de medios falla cerrada según el rol',()=>{
   const approved=manifest.items.find((item)=>item.client_visible===true);
-  const coachOnly=manifest.items.find(
-    (item)=>item.coach_visible===true&&item.client_visible===false,
+  const hidden=manifest.items.find(
+    (item)=>item.coach_visible!==true&&item.client_visible!==true,
   );
+
+  assert.ok(approved);
+  assert.ok(hidden);
 
   assert.ok(resolveExerciseMedia(manifest,approved.iberfit_id,{role:'cliente'}));
   assert.ok(resolveExerciseMedia(manifest,approved.iberfit_id,{role:'coach'}));
 
+  const coachOnlyManifest={
+    ...manifest,
+    items:manifest.items.map((item)=>
+      item.iberfit_id===approved.iberfit_id
+        ?{...item,coach_visible:true,client_visible:false}
+        :item,
+    ),
+  };
+
   assert.equal(
-    resolveExerciseMedia(manifest,coachOnly.iberfit_id,{role:'cliente'}),
+    resolveExerciseMedia(coachOnlyManifest,approved.iberfit_id,{role:'cliente'}),
     null,
   );
-  assert.ok(resolveExerciseMedia(manifest,coachOnly.iberfit_id,{role:'coach'}));
+  assert.ok(
+    resolveExerciseMedia(coachOnlyManifest,approved.iberfit_id,{role:'coach'}),
+  );
+
+  assert.equal(
+    resolveExerciseMedia(manifest,hidden.iberfit_id,{role:'cliente'}),
+    null,
+  );
+  assert.equal(
+    resolveExerciseMedia(manifest,hidden.iberfit_id,{role:'coach'}),
+    null,
+  );
   assert.equal(resolveExerciseMedia(manifest,'../secreto',{role:'coach'}),null);
 });
 

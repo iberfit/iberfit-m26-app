@@ -28,14 +28,14 @@
   "summary": {
     "catalogExercises": 367,
     "coachVisible": 167,
-    "clientVisible": 77,
+    "clientVisible": 167,
     "withoutCoachMedia": 200,
-    "withoutClientMedia": 290,
+    "withoutClientMedia": 200,
     "qualityCounts": {
       "D · Sin imagen aprobada": 200,
       "A · Coincidencia exacta": 44,
       "B · Equivalencia visual probable": 33,
-      "C · Candidata para revisión Coach": 90
+      "B · Aprobada por Coach": 90
     }
   },
   "items": [
@@ -128,13 +128,13 @@
         "/public/vendor/repdb/images/flat/banded-lateral-walk-start.webp",
         "/public/vendor/repdb/images/flat/banded-lateral-walk-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PATADA-DE-GLUTEO-EN-CUADRUPEDIA",
@@ -148,13 +148,13 @@
         "/public/vendor/repdb/images/flat/glute-kickback-start.webp",
         "/public/vendor/repdb/images/flat/glute-kickback-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-APRETON-ISOMETRICO-DE-AGARRE",
@@ -185,13 +185,13 @@
         "/public/vendor/repdb/images/flat/plate-pinch-start.webp",
         "/public/vendor/repdb/images/flat/plate-pinch-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-EXTENSION-DE-MUNECA",
@@ -222,13 +222,13 @@
         "/public/vendor/repdb/images/flat/dumbbell-side-bend-start.webp",
         "/public/vendor/repdb/images/flat/dumbbell-side-bend-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PRONACION-Y-SUPINACION-DE-ANTEBRAZO",
@@ -259,13 +259,13 @@
         "/public/vendor/repdb/images/flat/ab-wheel-rollout-start.webp",
         "/public/vendor/repdb/images/flat/ab-wheel-rollout-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 66.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-BEAR-PLANK",
@@ -278,13 +278,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/plank-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-BODY-SAW",
@@ -419,13 +419,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/l-sit-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 88,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-MOUNTAIN-CLIMBER",
@@ -459,13 +459,13 @@
         "/public/vendor/repdb/images/flat/mountain-climbers-start.webp",
         "/public/vendor/repdb/images/flat/mountain-climbers-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 92,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PLANCHA-FRONTAL-ALTA",
@@ -478,13 +478,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/high-plank-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 92,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PLANCHA-FRONTAL-ANTEBRAZOS",
@@ -601,13 +601,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/plank-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PLANCHA-LATERAL-CON-RODILLAS",
@@ -620,13 +620,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/plank-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SUITCASE-CARRY",
@@ -690,13 +690,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/bird-dog-hold-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-BIRD-DOG-CON-BANDA",
@@ -726,13 +726,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/bird-dog-hold-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 78.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PALLOF-PRESS-CON-PASO-LATERAL",
@@ -1152,13 +1152,13 @@
         "/public/vendor/repdb/images/flat/glute-bridge-start.webp",
         "/public/vendor/repdb/images/flat/glute-bridge-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 92,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-KETTLEBELL-SWING",
@@ -1192,13 +1192,13 @@
         "/public/vendor/repdb/images/flat/glute-bridge-start.webp",
         "/public/vendor/repdb/images/flat/glute-bridge-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 92,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-NORDIC-HAMSTRING-ASISTIDO",
@@ -1212,13 +1212,13 @@
         "/public/vendor/repdb/images/flat/nordic-hamstring-curl-start.webp",
         "/public/vendor/repdb/images/flat/nordic-hamstring-curl-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 66.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-NORDIC-HAMSTRING-EXCENTRICO",
@@ -1232,13 +1232,13 @@
         "/public/vendor/repdb/images/flat/nordic-hamstring-curl-start.webp",
         "/public/vendor/repdb/images/flat/nordic-hamstring-curl-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 66.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PESO-MUERTO-CON-BANDA",
@@ -1286,13 +1286,13 @@
         "/public/vendor/repdb/images/flat/deadlift-start.webp",
         "/public/vendor/repdb/images/flat/deadlift-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PESO-MUERTO-DESDE-BLOQUES",
@@ -1306,13 +1306,13 @@
         "/public/vendor/repdb/images/flat/deadlift-start.webp",
         "/public/vendor/repdb/images/flat/deadlift-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PESO-MUERTO-KETTLEBELL-DESDE-EL-SUELO",
@@ -1326,13 +1326,13 @@
         "/public/vendor/repdb/images/flat/kettlebell-deadlift-start.webp",
         "/public/vendor/repdb/images/flat/kettlebell-deadlift-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PESO-MUERTO-LANDMINE",
@@ -1363,13 +1363,13 @@
         "/public/vendor/repdb/images/flat/dumbbell-deadlift-start.webp",
         "/public/vendor/repdb/images/flat/dumbbell-deadlift-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PESO-MUERTO-RUMANO-CON-BARRA",
@@ -1440,13 +1440,13 @@
         "/public/vendor/repdb/images/flat/banded-romanian-deadlift-start.webp",
         "/public/vendor/repdb/images/flat/banded-romanian-deadlift-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PESO-MUERTO-RUMANO-UNILATERAL-CON-MANCUERNA",
@@ -1460,13 +1460,13 @@
         "/public/vendor/repdb/images/flat/dumbbell-romanian-deadlift-start.webp",
         "/public/vendor/repdb/images/flat/dumbbell-romanian-deadlift-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PESO-MUERTO-SUMO-CON-BARRA",
@@ -1540,13 +1540,13 @@
         "/public/vendor/repdb/images/flat/glute-bridge-start.webp",
         "/public/vendor/repdb/images/flat/glute-bridge-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PULL-THROUGH-EN-POLEA",
@@ -1684,13 +1684,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/chin-tuck-hold-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 92,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-AIR-BIKE",
@@ -1774,13 +1774,13 @@
         "/public/vendor/repdb/images/flat/barbell-row-start.webp",
         "/public/vendor/repdb/images/flat/barbell-row-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SKIERG",
@@ -1970,13 +1970,13 @@
         "/public/vendor/repdb/images/flat/dumbbell-side-bend-start.webp",
         "/public/vendor/repdb/images/flat/dumbbell-side-bend-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-FLEXION-INCLINADA",
@@ -2081,13 +2081,13 @@
         "/public/vendor/repdb/images/flat/bench-dips-start.webp",
         "/public/vendor/repdb/images/flat/bench-dips-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-FONDOS-EN-PARALELAS-ASISTIDOS",
@@ -2118,13 +2118,13 @@
         "/public/vendor/repdb/images/flat/close-grip-bench-press-start.webp",
         "/public/vendor/repdb/images/flat/close-grip-bench-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 87,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.75,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PRESS-DE-PECHO-CON-BARRA",
@@ -2172,13 +2172,13 @@
         "/public/vendor/repdb/images/flat/incline-bench-press-start.webp",
         "/public/vendor/repdb/images/flat/incline-bench-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 92,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PRESS-DE-PECHO-EN-MAQUINA",
@@ -2212,13 +2212,13 @@
         "/public/vendor/repdb/images/flat/cable-chest-press-start.webp",
         "/public/vendor/repdb/images/flat/cable-chest-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 92,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PRESS-DECLINADO-CON-MANCUERNAS",
@@ -2232,13 +2232,13 @@
         "/public/vendor/repdb/images/flat/decline-bench-press-start.webp",
         "/public/vendor/repdb/images/flat/decline-bench-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PRESS-EN-MAQUINA-CONVERGENTE",
@@ -2252,13 +2252,13 @@
         "/public/vendor/repdb/images/flat/smith-machine-bench-press-start.webp",
         "/public/vendor/repdb/images/flat/smith-machine-bench-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PRESS-INCLINADO-CON-BARRA",
@@ -2363,13 +2363,13 @@
         "/public/vendor/repdb/images/flat/db-bench-press-start.webp",
         "/public/vendor/repdb/images/flat/db-bench-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-BOTTOM-UP-PRESS-CON-KETTLEBELL",
@@ -2383,13 +2383,13 @@
         "/public/vendor/repdb/images/flat/one-arm-kettlebell-bottoms-up-press-start.webp",
         "/public/vendor/repdb/images/flat/one-arm-kettlebell-bottoms-up-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 87,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.75,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-ELEVACION-FRONTAL-CON-DISCO",
@@ -2494,13 +2494,13 @@
         "/public/vendor/repdb/images/flat/incline-push-ups-start.webp",
         "/public/vendor/repdb/images/flat/incline-push-ups-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PIKE-PUSH-UP-ELEVADA",
@@ -2696,13 +2696,13 @@
         "/public/vendor/repdb/images/flat/db-bench-press-start.webp",
         "/public/vendor/repdb/images/flat/db-bench-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PUSH-PRESS-CON-BARRA",
@@ -2807,13 +2807,13 @@
         "/public/vendor/repdb/images/flat/incline-bench-ez-bar-press-start.webp",
         "/public/vendor/repdb/images/flat/incline-bench-ez-bar-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 128,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 1,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-ENCOGIMIENTOS-CON-BARRA",
@@ -2881,13 +2881,13 @@
         "/public/vendor/repdb/images/flat/incline-push-ups-start.webp",
         "/public/vendor/repdb/images/flat/incline-push-ups-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PUSH-UP-PLUS-EN-PARED",
@@ -2901,13 +2901,13 @@
         "/public/vendor/repdb/images/flat/incline-push-ups-start.webp",
         "/public/vendor/repdb/images/flat/incline-push-ups-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SERRATUS-WALL-SLIDE",
@@ -2972,13 +2972,13 @@
         "/public/vendor/repdb/images/flat/single-arm-dumbbell-overhead-tricep-extension-start.webp",
         "/public/vendor/repdb/images/flat/single-arm-dumbbell-overhead-tricep-extension-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 105.71,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8571,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PATADA-DE-TRICEPS",
@@ -3069,13 +3069,13 @@
         "/public/vendor/repdb/images/flat/ez-bar-curl-start.webp",
         "/public/vendor/repdb/images/flat/ez-bar-curl-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 88,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-CURL-DE-BICEPS-CON-MANCUERNAS",
@@ -3189,13 +3189,13 @@
         "/public/vendor/repdb/images/flat/crunches-start.webp",
         "/public/vendor/repdb/images/flat/crunches-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-CRUNCH-EN-POLEA",
@@ -3283,13 +3283,13 @@
         "/public/vendor/repdb/images/flat/db-bench-press-start.webp",
         "/public/vendor/repdb/images/flat/db-bench-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-THRUSTER-CON-MANCUERNAS",
@@ -3625,13 +3625,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/butterfly-stretch-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-ESTIRAMIENTO-DE-ISQUIOTIBIALES-SUPINO",
@@ -3901,13 +3901,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/battle-ropes-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-BATTLE-ROPES-DOBLES",
@@ -3920,13 +3920,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/battle-ropes-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 92,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-MED-BALL-SLAM",
@@ -4181,13 +4181,13 @@
         "/public/vendor/repdb/images/flat/box-jump-start.webp",
         "/public/vendor/repdb/images/flat/box-jump-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 88,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-POGO-JUMPS",
@@ -4306,13 +4306,13 @@
         "/public/vendor/repdb/images/flat/leg-press-start.webp",
         "/public/vendor/repdb/images/flat/leg-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 128,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 1,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PRENSA-HORIZONTAL",
@@ -4326,13 +4326,13 @@
         "/public/vendor/repdb/images/flat/horizontal-leg-press-start.webp",
         "/public/vendor/repdb/images/flat/horizontal-leg-press-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SENTADILLA-COSSACK",
@@ -4346,13 +4346,13 @@
         "/public/vendor/repdb/images/flat/bodyweight-squat-start.webp",
         "/public/vendor/repdb/images/flat/bodyweight-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SENTADILLA-COSSACK-ASISTIDA",
@@ -4451,13 +4451,13 @@
         "/public/vendor/repdb/images/flat/banded-squat-start.webp",
         "/public/vendor/repdb/images/flat/banded-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SENTADILLA-A-SILLA",
@@ -4471,13 +4471,13 @@
         "/public/vendor/repdb/images/flat/banded-squat-start.webp",
         "/public/vendor/repdb/images/flat/banded-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SENTADILLA-AL-AIRE",
@@ -4491,13 +4491,13 @@
         "/public/vendor/repdb/images/flat/bodyweight-squat-start.webp",
         "/public/vendor/repdb/images/flat/bodyweight-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SENTADILLA-CICLISTA",
@@ -4582,13 +4582,13 @@
         "/public/vendor/repdb/images/flat/banded-squat-start.webp",
         "/public/vendor/repdb/images/flat/banded-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SENTADILLA-CON-BANDA-FRONTAL",
@@ -4636,13 +4636,13 @@
         "/public/vendor/repdb/images/flat/dumbbell-front-squat-start.webp",
         "/public/vendor/repdb/images/flat/dumbbell-front-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 80,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SENTADILLA-CON-SALTO",
@@ -4906,13 +4906,13 @@
         "/public/vendor/repdb/images/flat/squat-start.webp",
         "/public/vendor/repdb/images/flat/squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SENTADILLA-TRASERA-CON-BARRA",
@@ -4982,13 +4982,13 @@
         "/public/vendor/repdb/images/flat/bodyweight-calf-raise-start.webp",
         "/public/vendor/repdb/images/flat/bodyweight-calf-raise-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-ELEVACION-DE-TALONES-EN-PRENSA",
@@ -5039,13 +5039,13 @@
         "/public/vendor/repdb/images/flat/bodyweight-calf-raise-start.webp",
         "/public/vendor/repdb/images/flat/bodyweight-calf-raise-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-TIBIALIS-RAISE-EN-PARED",
@@ -5130,13 +5130,13 @@
         "/public/vendor/repdb/images/flat/dumbbell-reverse-fly-start.webp",
         "/public/vendor/repdb/images/flat/dumbbell-reverse-fly-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PAJAROS-EN-MAQUINA",
@@ -5221,13 +5221,13 @@
         "/public/vendor/repdb/images/flat/cable-bent-over-row-start.webp",
         "/public/vendor/repdb/images/flat/cable-bent-over-row-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-REMO-ALTO-EN-POLEA",
@@ -5241,13 +5241,13 @@
         "/public/vendor/repdb/images/flat/cable-bent-over-row-start.webp",
         "/public/vendor/repdb/images/flat/cable-bent-over-row-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-REMO-CON-TRX",
@@ -5352,13 +5352,13 @@
         "/public/vendor/repdb/images/flat/bent-over-db-row-start.webp",
         "/public/vendor/repdb/images/flat/bent-over-db-row-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-REMO-CON-SACO",
@@ -5372,13 +5372,13 @@
         "/public/vendor/repdb/images/flat/barbell-row-start.webp",
         "/public/vendor/repdb/images/flat/barbell-row-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-REMO-EN-MAQUINA-CONVERGENTE",
@@ -5392,13 +5392,13 @@
         "/public/vendor/repdb/images/flat/smith-machine-bent-over-row-start.webp",
         "/public/vendor/repdb/images/flat/smith-machine-bent-over-row-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-REMO-GORILA-CON-KETTLEBELL",
@@ -5469,13 +5469,13 @@
         "/public/vendor/repdb/images/flat/inverted-row-start.webp",
         "/public/vendor/repdb/images/flat/inverted-row-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-REMO-INVERTIDO-CON-PIES-ELEVADOS",
@@ -5489,13 +5489,13 @@
         "/public/vendor/repdb/images/flat/inverted-row-start.webp",
         "/public/vendor/repdb/images/flat/inverted-row-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 78.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-REMO-ISOMETRICO-CON-BANDA",
@@ -5543,13 +5543,13 @@
         "/public/vendor/repdb/images/flat/chest-supported-db-row-start.webp",
         "/public/vendor/repdb/images/flat/chest-supported-db-row-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-REMO-SENTADO-EN-POLEA",
@@ -5583,13 +5583,13 @@
         "/public/vendor/repdb/images/flat/cable-bent-over-row-start.webp",
         "/public/vendor/repdb/images/flat/cable-bent-over-row-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-RENEGADE-ROW",
@@ -5637,13 +5637,13 @@
         "/public/vendor/repdb/images/flat/barbell-row-start.webp",
         "/public/vendor/repdb/images/flat/barbell-row-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-DOMINADA-AGARRE-NEUTRO",
@@ -5717,13 +5717,13 @@
         "/public/vendor/repdb/images/flat/pull-up-start.webp",
         "/public/vendor/repdb/images/flat/pull-up-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-DOMINADA-ESCAPULAR",
@@ -5757,13 +5757,13 @@
         "/public/vendor/repdb/images/flat/pull-up-start.webp",
         "/public/vendor/repdb/images/flat/pull-up-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-DOMINADA-ISOMETRICA-A-90",
@@ -5811,13 +5811,13 @@
         "/public/vendor/repdb/images/flat/pull-up-start.webp",
         "/public/vendor/repdb/images/flat/pull-up-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 74.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-DOMINADA-SUPINA",
@@ -5831,13 +5831,13 @@
         "/public/vendor/repdb/images/flat/pull-up-start.webp",
         "/public/vendor/repdb/images/flat/pull-up-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 128,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 1,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-JALON-AL-PECHO-AGARRE-ANCHO",
@@ -5851,13 +5851,13 @@
         "/public/vendor/repdb/images/flat/lat-pulldown-start.webp",
         "/public/vendor/repdb/images/flat/lat-pulldown-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-JALON-AL-PECHO-AGARRE-NEUTRO",
@@ -5871,13 +5871,13 @@
         "/public/vendor/repdb/images/flat/lat-pulldown-start.webp",
         "/public/vendor/repdb/images/flat/lat-pulldown-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 78.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-JALON-AL-PECHO-UNILATERAL",
@@ -5891,13 +5891,13 @@
         "/public/vendor/repdb/images/flat/lat-pulldown-start.webp",
         "/public/vendor/repdb/images/flat/lat-pulldown-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-JALON-CON-AGARRE-CERRADO",
@@ -5911,13 +5911,13 @@
         "/public/vendor/repdb/images/flat/close-grip-pull-ups-start.webp",
         "/public/vendor/repdb/images/flat/close-grip-pull-ups-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 66.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-JALON-CON-BANDA-ARRODILLADO",
@@ -6108,13 +6108,13 @@
       "image_paths": [
         "/public/vendor/repdb/images/flat/rope-climb-main.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-BOUND-LATERAL-CONTROLADO",
@@ -6145,13 +6145,13 @@
         "/public/vendor/repdb/images/flat/lunge-start.webp",
         "/public/vendor/repdb/images/flat/lunge-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-LUNGE-LATERAL",
@@ -6205,13 +6205,13 @@
         "/public/vendor/repdb/images/flat/dumbbell-pistol-squat-start.webp",
         "/public/vendor/repdb/images/flat/dumbbell-pistol-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 88,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PISTOL-SQUAT-ASISTIDA-CON-TRX",
@@ -6225,13 +6225,13 @@
         "/public/vendor/repdb/images/flat/trx-pistol-squat-start.webp",
         "/public/vendor/repdb/images/flat/trx-pistol-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-PRENSA-UNILATERAL",
@@ -6279,13 +6279,13 @@
         "/public/vendor/repdb/images/flat/split-squat-start.webp",
         "/public/vendor/repdb/images/flat/split-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SENTADILLA-BULGARA",
@@ -6316,13 +6316,13 @@
         "/public/vendor/repdb/images/flat/bulgarian-split-squat-start.webp",
         "/public/vendor/repdb/images/flat/bulgarian-split-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 88,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SENTADILLA-BULGARA-CON-MANCUERNAS",
@@ -6373,13 +6373,13 @@
         "/public/vendor/repdb/images/flat/bodyweight-squat-start.webp",
         "/public/vendor/repdb/images/flat/bodyweight-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SKATER-SQUAT-ASISTIDA",
@@ -6430,13 +6430,13 @@
         "/public/vendor/repdb/images/flat/dumbbell-split-squat-start.webp",
         "/public/vendor/repdb/images/flat/dumbbell-split-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 88,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "unknown",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-SPLIT-SQUAT-CON-BARRA",
@@ -6487,13 +6487,13 @@
         "/public/vendor/repdb/images/flat/split-squat-start.webp",
         "/public/vendor/repdb/images/flat/split-squat-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 100,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.8,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-STEP-DOWN-FRONTAL",
@@ -6626,13 +6626,13 @@
         "/public/vendor/repdb/images/flat/lunge-start.webp",
         "/public/vendor/repdb/images/flat/lunge-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-ZANCADA-ATRAS",
@@ -6646,13 +6646,13 @@
         "/public/vendor/repdb/images/flat/lunge-start.webp",
         "/public/vendor/repdb/images/flat/lunge-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-ZANCADA-ATRAS-CON-DESLIZADORES",
@@ -6683,13 +6683,13 @@
         "/public/vendor/repdb/images/flat/db-lunge-start.webp",
         "/public/vendor/repdb/images/flat/db-lunge-peak.webp"
       ],
-      "quality": "C · Candidata para revisión Coach",
+      "quality": "B · Aprobada por Coach",
       "score": 86.67,
       "coach_visible": true,
-      "client_visible": false,
+      "client_visible": true,
       "equipment_status": "exact",
       "match_similarity": 0.6667,
-      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente."
+      "review_note": "Revisar técnica, material y variante antes de aprobar para Cliente. Aprobada por Coach para uso en la biblioteca IBERFIT."
     },
     {
       "iberfit_id": "IBF-ZANCADA-CAMINANDO",
