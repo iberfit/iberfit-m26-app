@@ -1,15 +1,15 @@
 {
   "release": "IBERFIT_M26_CANARY_RC35_CI",
   "version": "26.0.0-canary.35-ci",
-  "generatedAt": "2026-07-28T21:08:07.008Z",
-  "sourceRevision": "7691b9a85ec6de374834e9c8da48cf0e01163530",
+  "generatedAt": "2026-07-29T00:35:33.323Z",
+  "sourceRevision": "907db3c7865f51a07e56f820626f7d5e522702c5",
   "sourceBranch": "canary/rc34",
   "sourceCommit": "7691b9a85ec6de374834e9c8da48cf0e01163530",
   "backendContract": "RC30",
   "ok": true,
   "tests": {
-    "total": 383,
-    "passed": 382,
+    "total": 384,
+    "passed": 383,
     "failed": 0,
     "skipped": 1
   },

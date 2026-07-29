@@ -69,6 +69,8 @@ function friendlyError(error){
   if(/PLAN_CONFIRM_NOT_PERSISTED/.test(code))return 'El ciclo no apareció guardado en Planificación. El borrador local se conserva.';
   if(/IRI_FIRST_SESSION_INVALID|FORM_INVALID/.test(code))return 'La primera sesión contiene datos pendientes o incoherentes. Revisa la etapa marcada.';
   if(/REPORT_POPUP_BLOCKED/.test(code))return 'El navegador bloqueó la vista del informe. Permite ventanas emergentes para este sitio.';
+  if(/SESSION_INPUT_REQUIRED/.test(code))return 'Faltan datos de la propuesta. Revisa objetivo, duración, experiencia y modalidad.';
+  if(/SESSION_NOT_ENOUGH_SAFE_EXERCISES/.test(code))return 'No hay suficientes ejercicios compatibles con el material y las restricciones actuales.';
   if(/DATE|CHRONOLOGY|INVALID|REQUIRED/.test(code))return 'Revisa los campos obligatorios y sus fechas.';
   if(/NETWORK|TIMEOUT|FETCH/.test(code))return 'No fue posible conectar. Tu información local permanece protegida.';
   return 'No fue posible completar la acción. Revisa los datos e inténtalo nuevamente.';

@@ -8,6 +8,7 @@ import {buildIriReportHtml,openIriReportPrint} from '../src/m26/workflows/iri-re
 import {renderActivityRoute,renderClientsRoute,renderExpedienteRoute,renderHoyRoute,renderIriRoute,renderIntelligenceRoute,renderLibraryRoute,renderProgressRoute} from '../src/m26/modules/route-render.js';
 import {createExerciseSearchIndex} from '../src/m26/exercises/search.js';
 import {createSessionController} from '../src/m26/workflows/session-controller.js';
+import {generateSessionProposal} from '../src/m26/intelligence/session-engine.js';
 
 const read=(path)=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
@@ -131,6 +132,32 @@ test('Agenda limpia errores al editar y la Inteligencia acepta una pregunta deli
   const html=renderIntelligenceRoute({canGenerate:true,ageYears:null,alerts:[],runs:[]});
   assert.match(html,/Pregunta o criterio del entrenador/);assert.match(html,/No hay fecha de nacimiento confirmada/);
   assert.doesNotMatch(html,/generate-intelligence" disabled/);
+});
+
+test('Inteligencia genera una propuesta sin edad y conserva la ausencia como null',()=>{
+  const patterns=['sentadilla','bisagra','empuje','tracción','core','locomoción'];
+  const exercises=patterns.flatMap((pattern,index)=>[
+    {id:'IBF-'+index+'-A',name_es:'Ejercicio '+pattern+' A',pattern,equipment:'TRX',difficulty:'intermedio'},
+    {id:'IBF-'+index+'-B',name_es:'Ejercicio '+pattern+' B',pattern,equipment:'TRX',difficulty:'intermedio'},
+  ]);
+  const catalog={count:367,list:()=>exercises,get:(id)=>exercises.find((item)=>item.id===id)||null};
+  const proposal=generateSessionProposal({
+    clientId:'CLIENT-RC35',
+    goal:'fuerza',
+    durationMinutes:50,
+    experience:'intermedio',
+    modality:'hibrido',
+    ageYears:null,
+    equipment:['TRX'],
+    restrictions:[],
+    painAreas:[],
+    contraindications:[],
+  },catalog);
+  assert.equal(proposal.rationale.ageYears,null);
+  assert.equal(proposal.exercises.length,6);
+  assert.equal(proposal.qualityChecks.allFromCatalog,true);
+  const workflow=read('src/m26/app/workflow-controller.js');
+  assert.match(workflow,/Faltan datos de la propuesta\. Revisa objetivo, duración, experiencia y modalidad\./);
 });
 
 test('Biblioteca conserva los 367 IDs y expone filtros operativos',()=>{
