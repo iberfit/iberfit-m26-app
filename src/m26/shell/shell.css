@@ -580,3 +580,15 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .m26-optional-section{padding:0;overflow:hidden}.m26-optional-section>summary{display:flex;align-items:center;justify-content:space-between;min-height:58px;padding:1rem 1.15rem;cursor:pointer;color:var(--m26-cream-100);font-weight:850;list-style:none}.m26-optional-section>summary::-webkit-details-marker{display:none}.m26-optional-section>summary::after{content:'Mostrar';color:var(--m26-gold-300);font-size:.72rem}.m26-optional-section[open]>summary{border-bottom:1px solid var(--m26-line)}.m26-optional-section[open]>summary::after{content:'Ocultar'}.m26-optional-section-body{display:grid;gap:1rem;padding:1rem}.m26-optional-section-body>.m26-notice{margin:0}
 .m26-field-grid label>small{color:var(--m26-muted);font-weight:500;line-height:1.35}
 @media(max-width:620px){.m26-wellbeing-grid{grid-template-columns:1fr}.m26-progress-heading{align-items:flex-start;flex-direction:column;gap:.25rem}}
+
+/* RC35 · Biblioteca visual: protocolo superpuesto */
+.m26-library-details>summary{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:.75rem;color:var(--m26-cream-100);cursor:pointer;font-size:.78rem;font-weight:700;list-style:none}
+.m26-library-details>summary::-webkit-details-marker{display:none}
+.m26-library-details>summary::marker{content:""}
+.m26-library-details-action::before{content:"Abrir";color:var(--m26-gold-300);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase}
+.m26-library-details[open]{position:fixed;inset:0;z-index:220;display:grid;grid-template-rows:auto minmax(0,1fr);gap:.75rem;margin:0;padding:clamp(.75rem,3vw,2rem);overflow:hidden;background:rgba(2,10,7,.9);backdrop-filter:blur(12px);overscroll-behavior:contain}
+.m26-library-details[open]>summary{width:min(52rem,100%);margin:0 auto;padding:.8rem 1rem;border:1px solid var(--m26-line);border-radius:.85rem;background:var(--m26-forest-900);box-shadow:var(--m26-shadow)}
+.m26-library-details[open] .m26-library-details-action::before{content:"Cerrar"}
+.m26-library-details-panel{min-width:0}
+.m26-library-details[open]>.m26-library-details-panel{width:min(52rem,100%);max-height:100%;margin:0 auto;padding:clamp(1rem,3vw,1.5rem);overflow:auto;overscroll-behavior:contain;border:1px solid var(--m26-line);border-radius:1rem;background:linear-gradient(145deg,rgba(20,52,36,.98),rgba(7,21,15,.99));box-shadow:var(--m26-shadow);overflow-wrap:break-word;word-break:normal}
+@media(max-width:620px){.m26-library-details[open]{padding:.65rem}.m26-library-details[open]>summary,.m26-library-details[open]>.m26-library-details-panel{width:100%}}
