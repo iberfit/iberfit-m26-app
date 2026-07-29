@@ -47,7 +47,7 @@ test('No realizada desactiva mediciones, exige motivo y restaura obligatoriedad'
 test('wizard IRI incluye protocolos, límites, audio y bloquea informes antes de confirmar',()=>{
   const html=renderIriRoute({current:{id:'IRI-RC35'},currentSummary:null,profile:{birthDate:'1992-04-11',sexForNorms:'female',sexForNormsLabel:'Mujer'},canEdit:true,history:[]});
   assert.match(html,/Rodilla a pared · ver protocolo/);assert.match(html,/Silla 30 segundos · ver protocolo/);
-  assert.match(html,/bodyFatPercent" required type="number" min="1" max="80"/);
+  assert.match(html,/name="bodyFatPercent"/);assert.doesNotMatch(html,/name="bodyFatPercent"[^>]*required/);assert.match(html,/name="bodyCompositionMethod"/);assert.match(html,/name="measurementConditions"/);
   assert.match(html,/Temporizador con avisos sonoros/);assert.match(html,/data-iri-timer-action="start"/);
   assert.match(html,/generate-client-iri-report" disabled aria-disabled="true"/);
   assert.match(html,/El borrador se conserva, pero el IRI no puede confirmarse sin este dominio/);

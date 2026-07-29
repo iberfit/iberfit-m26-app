@@ -24,7 +24,7 @@ check('IRI confirma solo tras rehidratación verificable',/M26_IRI_CONFIRM_NOT_P
 check('Plan confirma solo tras rehidratación verificable',/M26_PLAN_CONFIRM_NOT_PERSISTED/.test(workflow)&&/refreshAndFind\('trainingCycles'/.test(workflow));
 check('Sesión guarda antes de salir',/action==='exit-session'[\s\S]*persistContext\(context\)/.test(session)&&/flushAutosave\(context,\{force:true\}\)/.test(session)&&/case 'save-draft'/.test(session));
 check('Nota privada verifica persistencia',/M26_PRIVATE_NOTE_NOT_PERSISTED/.test(engagement)&&/private-note-created/.test(engagement));
-check('Informe autocontenido',/<style>\$\{REPORT_CSS\}<\/style>/.test(reports)&&!/<link rel="stylesheet"[^>]*iri-report\.css/.test(reports));
+check('Informe autocontenido',/<style>\$\{REPORT_CSS\}(?:\$\{PREMIUM_RC36_CSS\})?<\/style>/.test(reports)&&!/<link rel="stylesheet"[^>]*iri-report\.css/.test(reports));
 check('Sin puntuación global en Progreso',!/function iriScore/.test(progress)&&!/Puntuación \$\{/.test(progress)&&/de 3 dominios registrados/.test(progress));
 check('Cliente no recibe score global',!/\['score',\['score','puntuacion'/.test(projection));
 check('Temporizador audible y recuperable',/AudioContext/.test(workflow)&&/audio\.resume/.test(workflow)&&/avisos a 3, 2, 1 y final/.test(workflow));

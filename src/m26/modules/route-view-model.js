@@ -122,6 +122,11 @@ function compactIri(record) {
     'evaluatedAt',
     'evaluated_at'
   );
+  const firstSessionCompletedAt = text(
+    record,
+    'firstSessionCompletedAt',
+    'first_session_completed_at'
+  );
   const ageYears = Number(
     text(record, 'ageYears', 'age_years') ?? normScoring?.context?.ageYears
   );
@@ -129,21 +134,29 @@ function compactIri(record) {
     text(record, 'sexForNorms', 'sex_for_norms') ??
     normScoring?.context?.sexForNorms ??
     null;
+  const status = statusLabel(record);
+  const confirmed = Boolean(firstSessionCompletedAt) || /complet/i.test(status);
 
   return Object.freeze({
     id: text(record, 'id'),
     assessmentDate: assessmentDate || null,
     dateLabel: dateLabel(assessmentDate),
-    status: statusLabel(record),
+    status,
+    confirmed,
+    processCompleted: confirmed,
+    processLabel: confirmed
+      ? '7 de 7 etapas completadas'
+      : coverageCount > 0
+        ? 'Evaluación en preparación'
+        : 'Evaluación no iniciada',
     coverageCount,
-    coverageLabel: `${coverageCount} de 3 dominios registrados`,
+    coverageLabel: `${coverageCount} de 3 dominios de resultado registrados`,
     domains,
     normContextReady: normScoring?.context?.ok === true,
     sexForNorms,
     ageYears: Number.isFinite(ageYears) ? ageYears : null,
   });
 }
-
 function profileFromIri(record) {
   const body = record?.body && typeof record.body === 'object' ? record.body : record || {};
   const profile = body.personProfile || body.person_profile;

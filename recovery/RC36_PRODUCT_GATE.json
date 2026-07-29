@@ -1,0 +1,62 @@
+{
+  "release": "IBERFIT_M26_RC36_V2_IRI_CLIENT_PREMIUM_REPORT",
+  "generatedAt": "2026-07-29T22:21:02.806Z",
+  "checks": [
+    {
+      "name": "Informe sin radar no normativo",
+      "ok": true
+    },
+    {
+      "name": "Informe con evidencia por áreas",
+      "ok": true
+    },
+    {
+      "name": "PDF ultra premium IBERFIT activo",
+      "ok": true
+    },
+    {
+      "name": "Isotipo y logotipo integrados sin contenedor circular",
+      "ok": true
+    },
+    {
+      "name": "Pestañas y textos protegidos contra solapamiento",
+      "ok": true
+    },
+    {
+      "name": "Fondo crema, verde y dorado de marca",
+      "ok": true
+    },
+    {
+      "name": "Bioimpedancia orientada por método",
+      "ok": true
+    },
+    {
+      "name": "Grasa corporal no contradice validación por dominio",
+      "ok": true
+    },
+    {
+      "name": "IRI explica 7 etapas y 3 dominios",
+      "ok": true
+    },
+    {
+      "name": "Modelo distingue proceso y cobertura",
+      "ok": true
+    },
+    {
+      "name": "Cliente no recibe instrucción de completar IRI",
+      "ok": true
+    },
+    {
+      "name": "Cliente conserva accesos funcionales",
+      "ok": true
+    },
+    {
+      "name": "CI reconoce RC36",
+      "ok": true
+    }
+  ],
+  "ok": true,
+  "productionModified": false,
+  "productionDeployed": false,
+  "cloudflareModified": false
+}

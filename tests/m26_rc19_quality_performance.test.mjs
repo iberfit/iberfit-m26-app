@@ -91,7 +91,7 @@ test('RC19 conserva PWA segura y formularios accesibles por teclado',()=>{
   const engagement=readFileSync(new URL('../src/m26/engagement/engagement-controller.js',import.meta.url),'utf8');
   const css=readFileSync(new URL('../src/m26/shell/shell.css',import.meta.url),'utf8');
   assert.match(sw,/m26-rc19/);assert.match(sw,/CACHE_FIRST_PATHS/);assert.match(sw,/NEVER_CACHE_PREFIXES/);assert.match(sw,/runtime-config/);
-  assert.doesNotMatch(routes,/guiada_app/);assert.match(routes,/name="modality" required/);assert.match(routes,/type="submit"/);assert.match(routes,/name="bodyFatPercent" required/);
+  assert.doesNotMatch(routes,/guiada_app/);assert.match(routes,/name="modality" required/);assert.match(routes,/type="submit"/);assert.match(routes,/bodyFatPercent/);assert.doesNotMatch(routes,/name="bodyFatPercent"[^>]*required/);assert.match(routes,/bodyCompositionMethod/);assert.match(routes,/measurementConditions/);
   assert.match(controller,/addEventListener\('submit',onSubmit\)/);assert.match(controller,/event\.preventDefault/);
   assert.match(engagement,/addEventListener\('submit',onSubmit\)/);assert.match(engagement,/ensureValidForm/);assert.doesNotMatch(routes,/data-engagement-form=\"(?:checkin|habit-definition)\"[^>]*novalidate/);
   assert.match(css,/RC19 · legibilidad/);assert.match(css,/content-visibility:\s*auto/);

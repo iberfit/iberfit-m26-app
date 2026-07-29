@@ -1,0 +1,103 @@
+{
+  "release": "IBERFIT_M26_CANARY_RC36_CI",
+  "version": "26.0.0-canary.36-premium-product-ci",
+  "generatedAt": "2026-07-29T22:21:06.698Z",
+  "sourceRevision": "13e2c42d368998e71953f47317b1f61364f8f85e",
+  "sourceBranch": "canary/rc35",
+  "sourceCommit": "13e2c42d368998e71953f47317b1f61364f8f85e",
+  "backendContract": "RC30",
+  "ok": true,
+  "tests": {
+    "total": 391,
+    "passed": 390,
+    "failed": 0,
+    "skipped": 1
+  },
+  "steps": [
+    {
+      "name": "repository-hygiene",
+      "command": "node scripts/remote-gates/check_repository_hygiene.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "tests",
+      "command": "node --test tests/m25_2_iri_regression.test.mjs tests/m26_core_recovery.test.mjs tests/m26_exercises_ai_sessions.test.mjs tests/m26_hoy_clients_expediente.test.mjs tests/m26_iri_planning_agenda.test.mjs tests/m26_rc10_engagement_progress.test.mjs tests/m26_rc11_adaptive_engagement.test.mjs tests/m26_rc12_design_functional.test.mjs tests/m26_rc13_visual_canary.test.mjs tests/m26_rc14_integrated_application.test.mjs tests/m26_rc15_launch_candidate.test.mjs tests/m26_rc16_hardening.test.mjs tests/m26_rc17_resilience.test.mjs tests/m26_rc18_prelaunch_repository.test.mjs tests/m26_rc19_quality_performance.test.mjs tests/m26_rc20_wearables_ux.test.mjs tests/m26_rc21_free_integrations_state_fuzz.test.mjs tests/m26_rc22_sync_performance_accessibility.test.mjs tests/m26_rc23_castellano_ui.test.mjs tests/m26_rc24_functional_completion.test.mjs tests/m26_rc25_role_privacy_premium.test.mjs tests/m26_rc26_publication_premium.test.mjs tests/m26_rc27_client_premium_final.test.mjs tests/m26_rc28_local_maximum_closure.test.mjs tests/m26_rc29_repository_preflight.test.mjs tests/m26_rc30_password_recovery.test.mjs tests/m26_rc31_agenda_privacy.test.mjs tests/m26_rc31_ci_routing.test.mjs tests/m26_rc31_civil_dates.test.mjs tests/m26_rc31_remote_gate_bootstrap_privacy.test.mjs tests/m26_rc31_remote_gate_client_isolation.test.mjs tests/m26_rc31_repdb_media_assets.test.mjs tests/m26_rc31_visual_library_integration.test.mjs tests/m26_rc32_ci_routing.test.mjs tests/m26_rc32_product_coherence.test.mjs tests/m26_rc33_first_session_iri.test.mjs tests/m26_rc35_audit_closure.test.mjs tests/m26_rc35_library_overlay.test.mjs tests/m26_rc36_iri_client_product.test.mjs tests/m26_rc8_release_readiness.test.mjs tests/m26_rc9_offline_canary.test.mjs tests/m26_session_execution_ui.test.mjs tests/m26_sex_age_norms.test.mjs tests/m26_shell_roles.test.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc29-infrastructure-gate",
+      "command": "node scripts/m26_rc29_prepublication_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc35-audit-gate",
+      "command": "node scripts/m26_rc35_audit_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc35-release-gate",
+      "command": "node scripts/m26_rc35_release_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc36-product-gate",
+      "command": "node scripts/m26_rc36_product_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "build-current-source-with-repdb",
+      "command": "node scripts/build_rc29_prepublication_candidate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "module-graph",
+      "command": "node scripts/verify_rc29_module_graph.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    }
+  ],
+  "deliveredScope": [
+    "Informe IRI sin puntuaciones visuales no normativas",
+    "PDF IRI ultra premium con identidad IBERFIT, fondo crema, pestañas seguras, isotipo integrado y marca de agua",
+    "Coherencia explícita entre 7 etapas y 3 dominios de resultado",
+    "Bioimpedancia estructurada por método, dispositivo y condiciones",
+    "Inicio Cliente con acciones propias de bienestar, plan, sesiones, progreso e informes",
+    "RC35 estable preservado; RC36 aún no desplegado"
+  ],
+  "localValidationOnly": true,
+  "deployable": false,
+  "productionModified": false,
+  "productionDeployed": false,
+  "cloudflareModified": false,
+  "remoteIsolationExecuted": false,
+  "remoteMutationGateExecuted": false,
+  "pendingExternalGates": [
+    "CI de GitHub sobre canary/rc36",
+    "Gate autenticado de solo lectura Coach / Cliente QA 1 / Cliente QA 2",
+    "QA visual e interacción de Cliente A y Cliente B en móvil y escritorio",
+    "Creación posterior del runtime y despliegue canary RC36"
+  ]
+}
