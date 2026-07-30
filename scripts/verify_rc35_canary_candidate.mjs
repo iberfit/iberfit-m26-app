@@ -8,13 +8,15 @@ const buildRoot = path.join(
   'dist',
   'm26-prepublicacion-infraestructura-candidate',
 );
-const EXPECTED_VERSION = '26.0.0-canary.35';
-const EXPECTED_RELEASE = 'IBERFIT_M26_CANARY_RC35';
-const EXPECTED_BRANCH = 'canary/rc35';
+const EXPECTED_BRANCH = String(process.env.CF_PAGES_BRANCH || 'canary/rc35').trim();
+const EXPECTED_RC36 = EXPECTED_BRANCH === 'canary/rc36';
+const EXPECTED_VERSION = EXPECTED_RC36 ? '26.0.0-canary.36' : '26.0.0-canary.35';
+const EXPECTED_RELEASE = EXPECTED_RC36 ? 'IBERFIT_M26_CANARY_RC36' : 'IBERFIT_M26_CANARY_RC35';
+const EXPECTED_SOURCE_RELEASE = EXPECTED_RC36 ? 'RC36' : 'RC35';
 const EXPECTED_PROJECT_REF = 'pjhmrhejsoofmouedavw';
 const EXPECTED_URL = `https://${EXPECTED_PROJECT_REF}.supabase.co`;
-const EXPECTED_SW_VERSION = 'm26-rc35-canary-v1';
-const EXPECTED_PREVIOUS_SW_VERSION = 'm26-rc33-canary-v1';
+const EXPECTED_SW_VERSION = EXPECTED_RC36 ? 'm26-rc36-canary-v1' : 'm26-rc35-canary-v1';
+const EXPECTED_PREVIOUS_SW_VERSION = EXPECTED_RC36 ? 'm26-rc35-canary-v1' : 'm26-rc33-canary-v1';
 const MEDIA_ROOT_PREFIX = 'public/vendor/repdb/';
 const MEDIA_PREFIX = `${MEDIA_ROOT_PREFIX}images/`;
 const MEDIA_MAP_PATH =
@@ -58,7 +60,7 @@ for (const [actual, expected, reason] of [
   [version.release, EXPECTED_RELEASE, 'release'],
   [version.branch, EXPECTED_BRANCH, 'branch'],
   [version.channel, 'canary', 'channel'],
-  [version.sourceRelease, 'RC35', 'source-release'],
+  [version.sourceRelease, EXPECTED_SOURCE_RELEASE, 'source-release'],
   [version.backendContract, 'RC30', 'backend-contract'],
   [version.canaryDomain, 'm26-canary.iberfit.cl', 'canary-domain'],
 ]) {

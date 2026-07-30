@@ -84,3 +84,16 @@ test('CI reconoce canary rc36 y conserva evidencia propia',()=>{
   assert.equal(pkg.scripts['test:m26:rc36'],'node --test tests/m26_rc36_iri_client_product.test.mjs');
   assert.equal(pkg.scripts['validate:rc36:ci'],'node scripts/run_rc36_ci_validation.mjs');
 });
+test('Runtime canary identifica RC36 y renueva caché sin alterar RC35',()=>{
+  const generator=read('scripts/generate_rc35_runtime_config.mjs');
+  const verifier=read('scripts/verify_rc35_canary_candidate.mjs');
+  assert.match(generator,/DEPLOY_BRANCH === 'canary\/rc36'/);
+  assert.match(generator,/26\.0\.0-canary\.36/);
+  assert.match(generator,/IBERFIT_M26_CANARY_RC36/);
+  assert.match(generator,/SOURCE_RELEASE = IS_RC36 \? 'RC36' : 'RC35'/);
+  assert.match(generator,/m26-rc36-canary-v1/);
+  assert.match(generator,/m26-rc35-canary-v1/);
+  assert.match(verifier,/EXPECTED_RC36/);
+  assert.match(verifier,/EXPECTED_SOURCE_RELEASE/);
+  assert.match(verifier,/m26-rc36-canary-v1/);
+});
