@@ -70,6 +70,7 @@ function compactAppointment(record) {
     dateLabel: dateLabel(appointment.startAt),
     status: appointmentStatusLabel(appointment.status),
     statusRaw: appointment.status,
+    revision: Number(text(record, 'revision') || 0),
     location: appointment.location,
     modality: appointment.modalityLabel,
   };
@@ -396,6 +397,7 @@ export function createRouteViewModel(shellVm, state, now = new Date(), options =
       currentSummary: compactIri(current),
       history: Object.freeze(assessments.map(compactActivity)),
       profile,
+      sourceProfile: clone(rawProfile),
       canEdit: ['admin', 'coach'].includes(
         String(shellVm.identity?.role || '')
       ),
@@ -455,7 +457,7 @@ export function createRouteViewModel(shellVm, state, now = new Date(), options =
     const role = String(shellVm.identity?.role || '');
     const iri = recordsForClient(state, 'iriAssessments', clientId).sort((a, b) =>
       String(domainDate(b) || '').localeCompare(String(domainDate(a) || ''))
-    )[0] || null;
+    ).find((record)=>compactIri(record)?.confirmed) || null;
     const reportItems = publicationItems(reports, 'report', role);
     return Object.freeze({
       kind: 'informes',

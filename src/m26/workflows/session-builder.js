@@ -76,5 +76,11 @@ export function validateSessionDraft(draft,catalog){
  }
  return {ok:errors.length===0,errors:[...new Set(errors)]};
 }
-export function buildPublishSessionCommand(draft,catalog,baseRevision=0){const check=validateSessionDraft(draft,catalog);if(!check.ok)throw new Error(`M26_SESSION_DRAFT_INVALID:${check.errors.join(',')}`);if(draft.previewAccepted!==true)throw new Error('M26_SESSION_PREVIEW_REQUIRED');const patch=structuredClone(draft);delete patch.activeGroupId;return {type:'SESION_PUBLICAR',entityType:'session',entityId:draft.id,clientId:draft.clientId,baseRevision,previewAccepted:true,payload:{patch}};}
+export function buildPublishSessionCommand(draft,catalog,baseRevision=0){
+ const check=validateSessionDraft(draft,catalog);if(!check.ok)throw new Error(`M26_SESSION_DRAFT_INVALID:${check.errors.join(',')}`);
+ if(draft.previewAccepted!==true)throw new Error('M26_SESSION_PREVIEW_REQUIRED');
+ const patch=structuredClone(draft);delete patch.activeGroupId;
+ patch.status='published';patch.visibleToClient=true;patch.publishedAt=new Date().toISOString();
+ return {type:'SESION_PUBLICAR',entityType:'session',entityId:draft.id,clientId:draft.clientId,baseRevision,previewAccepted:true,payload:{patch}};
+}
 export function importAiProposalAsDraft(proposal,catalog){const check=validateSessionProposal(proposal,catalog);if(!check.ok)throw new Error(`M26_AI_PROPOSAL_INVALID:${check.errors.join(',')}`);const draft=createSessionDraft({clientId:proposal.clientId,durationMinutes:proposal.estimatedMinutes});for(const item of proposal.exercises)addCatalogExercise(draft,item.exerciseId,catalog,item);return draft;}

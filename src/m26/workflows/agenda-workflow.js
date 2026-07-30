@@ -43,3 +43,8 @@ export function buildAppointmentCommand(draft,revision=0){
   return {type:normalized.id?'CITA_REPROGRAMAR':'CITA_CREAR',entityType:'appointment',entityId:normalized.id||createM26Id(),clientId:normalized.clientId,baseRevision:revision,reason:normalized.id?(normalized.reason||'Reprogramación solicitada'):null,payload:{appointment:structuredClone(normalized)}};
 }
 export function buildCancelAppointmentCommand({clientId,appointmentId,reason},revision=0){if(!clientId||!appointmentId||!reason)throw new Error('M26_APPOINTMENT_CANCEL_CONTEXT_REQUIRED');return {type:'CITA_CANCELAR',entityType:'appointment',entityId:appointmentId,clientId,baseRevision:revision,reason,payload:{patch:{cancellationReason:reason}}};}
+
+export function buildConfirmAppointmentCommand({clientId,appointmentId},revision=0){
+  if(!clientId||!appointmentId)throw new Error('M26_APPOINTMENT_CONFIRM_CONTEXT_REQUIRED');
+  return {type:'CITA_CONFIRMAR',entityType:'appointment',entityId:appointmentId,clientId,baseRevision:revision,payload:{patch:{status:'confirmada',visibleToClient:true,confirmedAt:new Date().toISOString()}}};
+}
