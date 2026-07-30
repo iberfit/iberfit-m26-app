@@ -6,6 +6,21 @@ function list(value,max=20){return String(value??'').split(/[,;\n]/).map((item)=
 function integer(value,{min=0,max=1000}={}){const number=Number(value);return Number.isInteger(number)&&number>=min&&number<=max?number:null;}
 function modalityLabel(value){const normalized=normalizeClientModality(value);return normalized==='presencial'?'Presencial':normalized==='hibrido'?'Híbrido':normalized==='online'?'Online':null;}
 
+function recordBody(record={}){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;}
+export function createdClientResultId(value){const item=Array.isArray(value)?value[0]:value;const nested=item?.data||item?.result||item?.client||item;return clean(nested?.clientId??nested?.client_id??nested?.id??nested?.cliente_id,200);}
+export function clientDraftEmail(record){const body=recordBody(record);return clean(record?.email??body?.email??record?.profile?.email??body?.profile?.email,254).toLowerCase();}
+export function findCreatedClientInSnapshot(snapshot,{id='',email=''}={}){
+  const clients=Array.isArray(snapshot?.data?.clients)?snapshot.data.clients:Array.isArray(snapshot?.clients)?snapshot.clients:[];
+  const expectedId=clean(id,200);const expectedEmail=clean(email,254).toLowerCase();
+  return clients.find((item)=>expectedId&&String(item?.id||'')===expectedId)||clients.find((item)=>expectedEmail&&clientDraftEmail(item)===expectedEmail)||null;
+}
+export async function waitForCreatedClient({result,payload,fetchSnapshot,waitFn=(ms)=>new Promise((resolve)=>setTimeout(resolve,ms)),delays=[0,250,500,1000,1800,3000]}={}){
+  if(typeof fetchSnapshot!=='function')throw new Error('M26_CLIENT_CREATE_VERIFY_UNAVAILABLE');
+  const id=createdClientResultId(result);if(!id)throw new Error('M26_CLIENT_CREATE_INVALID_RESPONSE');
+  for(const delay of delays){if(delay>0)await waitFn(delay);const snapshot=await fetchSnapshot();const client=findCreatedClientInSnapshot(snapshot,{id,email:payload?.email});if(client)return Object.freeze({client,snapshot,result});}
+  throw new Error('M26_CLIENT_CREATE_NOT_PERSISTED');
+}
+
 export function normalizeClientOnboardingDraft(input={}){
   const modality=modalityLabel(input.modality);
   const weeklyFrequency=integer(input.weeklyFrequency,{min:1,max:14});

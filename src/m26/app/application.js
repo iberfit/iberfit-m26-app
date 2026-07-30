@@ -25,6 +25,7 @@ import {createActionState} from '../ui/action-state.js';
 import {createExecutionRecoveryStore,createExecutionRecoveryCoordinator} from '../workflows/session-recovery.js';
 import {registerM26ServiceWorker,createConnectivitySync} from '../platform/pwa.js';
 import {loadExerciseMediaMap} from '../library/exercise-media.js';
+import {waitForCreatedClient} from '../workflows/client-onboarding.js';
 
 const SESSION_DRAFT_SCOPE='session-builder';
 function escapeText(value){return String(value??'').replace(/[&<>"']/g,'');}
@@ -137,7 +138,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     const service=createEngagementCommandService({commandBus,installedRegistry:installed,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false});
     recoveryCoordinator=createExecutionRecoveryCoordinator({store:createExecutionRecoveryStore({ownerId}),commandBus,isOnline:()=>navigator.onLine!==false});
     shell=createShellController({root,store,renderRoute});
-    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,getRegistry:()=>runtimeRegistry.registry,onRender:render,createClientDraft:async(payload)=>{await refreshSessionIfNeeded();const result=await transport.createClientDraft(currentToken(),payload);await hydrate({reason:'client-created'});return result;}});
+    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,getRegistry:()=>runtimeRegistry.registry,onRender:render,createClientDraft:async(payload)=>{await refreshSessionIfNeeded();const result=await transport.createClientDraft(currentToken(),payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(currentToken())});await hydrate({reason:'client-created'});return verified;}});
     engagement=createEngagementController({root,store,draftRepository,service,refreshState:({reason}={})=>hydrate({reason:reason||'engagement-refresh'})});wearables=createWearableController({root,store});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
     sessionController=createSessionController({root,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},autosaveDraft:saveSessionDraft,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
     root.addEventListener('click',guardSessionNavigation,true);shell.mount();workflow.mount();engagement.mount();wearables.mount();verification.mount();sessionController.mount();await refreshVerificationState({repository:operationRepository,store});

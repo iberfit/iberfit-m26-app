@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {
   legacyClientDraftPayload,
   validateClientOnboardingDraft,
+  waitForCreatedClient,
 } from '../src/m26/workflows/client-onboarding.js';
 import {
   buildIriCommandDraftFromFirstSession,
@@ -68,4 +69,20 @@ test('transporte canary expone alta mediante RPC específico sin ampliar RPC can
   const result=await transport.createClientDraft('jwt-test',{name:'María'});assert.equal(result.client_id,'CLIENT-RC33');assert.match(calls[0].url,/\/rest\/v1\/rpc\/iberfit_create_client_draft$/);assert.deepEqual(JSON.parse(calls[0].options.body),{p_payload:{name:'María'}});
   await assert.rejects(()=>transport.preflight('jwt-test',{}),/M26_HTTP|M26/).catch(()=>{});
   const source=readFileSync(new URL('../src/m26/supabase-transport.js',import.meta.url),'utf8');assert.match(source,/CANONICAL_RPC/);assert.match(source,/M26_RPC_NOT_ALLOWED/);
+});
+
+
+test('alta remota exige identificador y persistencia visible antes de cerrar formulario',async()=>{
+  let calls=0;
+  const result={client_id:'CLIENT-RC36'};
+  const payload={email:'qa.rc36@example.com'};
+  const verified=await waitForCreatedClient({result,payload,delays:[0,0],waitFn:async()=>{},fetchSnapshot:async()=>{calls+=1;return {data:{clients:calls===1?[]:[{id:'CLIENT-RC36',name:'QA RC36',profile:{email:payload.email}}]}};}});
+  assert.equal(calls,2);assert.equal(verified.client.id,'CLIENT-RC36');
+  await assert.rejects(()=>waitForCreatedClient({result,payload,delays:[0],waitFn:async()=>{},fetchSnapshot:async()=>({data:{clients:[]}})}),/M26_CLIENT_CREATE_NOT_PERSISTED/);
+});
+
+test('transporte rechaza un HTTP 200 que no confirme cliente creado',async()=>{
+  const fetchImpl=async()=>({ok:true,status:200,headers:{get:()=> 'application/json'},json:async()=>({ok:true,message:'aceptado'})});
+  const transport=createM26Transport({enabled:true,canary:true,qaOnly:true,url:'https://pjhmrhejsoofmouedavw.supabase.co',projectRef:'pjhmrhejsoofmouedavw',publishableKey:'publishable-test',timeoutMs:1000,version:'26.0.0-canary.36'},{fetchImpl});
+  await assert.rejects(()=>transport.createClientDraft('jwt-test',{name:'María'}),/M26_CLIENT_CREATE_INVALID_RESPONSE/);
 });

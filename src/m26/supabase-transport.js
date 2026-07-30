@@ -323,11 +323,16 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     if (body.length < 10 || body.length > 120_000) {
       throw new Error('M26_CLIENT_DRAFT_PAYLOAD_INVALID');
     }
-    return request('/rest/v1/rpc/iberfit_create_client_draft', {
+    const result=await request('/rest/v1/rpc/iberfit_create_client_draft', {
       method: 'POST',
       token,
       body,
     });
+    const item=Array.isArray(result)?result[0]:result;
+    const nested=item?.data||item?.result||item?.client||item;
+    const clientId=String(nested?.clientId||nested?.client_id||nested?.id||nested?.cliente_id||'').trim();
+    if(item?.ok===false||item?.success===false||item?.created===false||!SAFE_ID_PATTERN.test(clientId))throw new Error('M26_CLIENT_CREATE_INVALID_RESPONSE');
+    return {...(item&&typeof item==='object'?item:{}),clientId,client_id:clientId};
   }
 
   async function commandRegistry(token) {

@@ -10,7 +10,7 @@ import {buildPublicationCommand,publicationConfig} from '../workflows/publicatio
 import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
 import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
 import {resolveExerciseMedia} from '../library/exercise-media.js';
-import {legacyClientDraftPayload} from '../workflows/client-onboarding.js';
+import {legacyClientDraftPayload,createdClientResultId,clientDraftEmail} from '../workflows/client-onboarding.js';
 import {
   IRI_FIRST_SESSION_STEPS,
   buildIriCommandDraftFromFirstSession,
@@ -54,13 +54,15 @@ function libraryFilterState(root){const out={};for(const node of root.querySelec
 function clientFilterState(root){const out={};for(const node of root.querySelectorAll?.('[data-client-filter]')||[])out[node.getAttribute('data-client-filter')]=foldSearch(node.value);return out;}
 function filterLibraryItems(items,filters,mediaMap,role){return items.filter((item)=>{const equipment=foldSearch(item.equipment);const pattern=foldSearch(item.pattern);if(filters.equipment&&!equipment.includes(filters.equipment))return false;if(filters.pattern&&!pattern.includes(filters.pattern))return false;if(filters.visual){const has=Boolean(resolveExerciseMedia(mediaMap,item.id,{role}));if(filters.visual==='with-image'&&!has)return false;if(filters.visual==='without-image'&&has)return false;}return true;});}
 function recordBody(record={}){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;}
-function clientRecordId(value){const item=Array.isArray(value)?value[0]:value;return String(item?.clientId||item?.client_id||item?.id||item?.cliente_id||'').trim();}
-function clientEmail(record){const body=recordBody(record);return String(record?.email||body?.email||record?.profile?.email||body?.profile?.email||'').trim().toLowerCase();}
+function clientRecordId(value){return createdClientResultId(value);}
+function clientEmail(record){return clientDraftEmail(record);}
 function clientName(record){const body=recordBody(record);return String(record?.name||record?.fullName||body?.name||body?.fullName||'Cliente IBERFIT').trim();}
 function friendlyError(error){
   const code=String(error?.message||error||'');
   if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
   if(/CLIENT_CREATE_CANARY_ONLY/.test(code))return 'La creación de clientes está limitada al entorno canary.';
+  if(/CLIENT_CREATE_INVALID_RESPONSE/.test(code))return 'El servidor no confirmó un identificador válido. El formulario se conserva y no se mostrará el expediente como creado.';
+  if(/CLIENT_CREATE_NOT_PERSISTED/.test(code))return 'El servidor no devolvió el expediente en la cartera tras verificarlo varias veces. El formulario se conserva para reintentar sin duplicar datos.';
   if(/CLIENT_ONBOARDING_INVALID/.test(code))return 'Revisa los datos esenciales del nuevo expediente.';
   if(/IRI_REMOTE_ENTITY_REQUIRED/.test(code))return 'El expediente todavía no dispone de una entidad IRI remota confirmable.';
   if(/IRI_RANGE_INVALID/.test(code))return 'Hay un valor fuera del rango permitido. Revisa el campo resaltado antes de continuar.';
@@ -285,9 +287,9 @@ export function createWorkflowController({
   async function createClient(){
     requireCoach();if(typeof createClientDraft!=='function')throw new Error('M26_CLIENT_CREATE_UNAVAILABLE');if(!isOnline())throw new Error('M26_OFFLINE_CLIENT_CREATE_NOT_ALLOWED');
     const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(!form)throw new Error('M26_CLIENT_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const payload=legacyClientDraftPayload(raw);
-    status(root,'client-onboarding','Creando expediente protegido…','pending');const result=await createClientDraft(payload);const state=store.getState();const resultId=clientRecordId(result);const created=(state.collections.clients||[]).find((item)=>String(item.id)===resultId)||(state.collections.clients||[]).find((item)=>clientEmail(item)===payload.email);
-    if(created?.id){store.selectClient?.(created.id);store.navigate?.('iri');onRender();emit(root,'m26:toast',{message:`Expediente de ${clientName(created)} creado. Continúa con la primera sesión.`});}
-    else{form.reset();status(root,'client-onboarding','Expediente creado. Actualiza la cartera para abrirlo.','success');onRender();}
+    status(root,'client-onboarding','Creando expediente protegido…','pending');const outcome=await createClientDraft(payload);const result=outcome?.result||outcome;const state=store.getState();const resultId=clientRecordId(result);const created=outcome?.client||(state.collections.clients||[]).find((item)=>String(item.id)===resultId)||(state.collections.clients||[]).find((item)=>clientEmail(item)===payload.email);
+    if(!created?.id)throw new Error('M26_CLIENT_CREATE_NOT_PERSISTED');
+    store.selectClient?.(created.id);store.navigate?.('iri');onRender();emit(root,'m26:toast',{message:`Expediente de ${clientName(created)} creado. Continúa con la primera sesión.`});
     return result;
   }
   async function completeIri(){
