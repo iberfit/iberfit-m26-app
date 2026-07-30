@@ -14,6 +14,11 @@ const CANONICAL_RPC=Object.freeze({
   preflight:'iberfit_command_preflight_v26',
   execute:'iberfit_execute_command_v26',
 });
+const CLIENT_ONBOARDING_RPC=Object.freeze({
+  legacy:'iberfit_create_client_draft',
+  preflight:'iberfit_client_onboarding_preflight_v12',
+  create:'iberfit_create_client_draft_v12',
+});
 
 export function resolveM26Runtime(raw, locationLike = globalThis.location) {
   const host = locationLike?.hostname || '';
@@ -311,28 +316,38 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     });
   }
 
+  async function clientOnboardingPreflight(token) {
+    if (!token) throw new Error('M26_AUTH_REQUIRED');
+    if (!runtime.canary && !runtime.qaOnly) throw new Error('M26_CLIENT_CREATE_CANARY_ONLY');
+    let result;
+    try {
+      result=await request(`/rest/v1/rpc/${CLIENT_ONBOARDING_RPC.preflight}`, {method:'POST',token,body:'{}'});
+    } catch (error) {
+      if(error?.status===404||/PGRST202|not find the function|M26_HTTP_404/i.test(String(error?.message||error)))throw new Error('M26_CLIENT_ONBOARDING_BACKEND_REQUIRED');
+      throw error;
+    }
+    if(!result||typeof result!=='object'||Array.isArray(result)||result.ok!==true||result.ready!==true)throw new Error('M26_CLIENT_ONBOARDING_BACKEND_NOT_READY');
+    return Object.freeze({...result});
+  }
+
   async function createClientDraft(token, payload = {}) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
-    if (!runtime.canary && !runtime.qaOnly) {
-      throw new Error('M26_CLIENT_CREATE_CANARY_ONLY');
-    }
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-      throw new Error('M26_CLIENT_DRAFT_PAYLOAD_INVALID');
-    }
+    if (!runtime.canary && !runtime.qaOnly) throw new Error('M26_CLIENT_CREATE_CANARY_ONLY');
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('M26_CLIENT_DRAFT_PAYLOAD_INVALID');
     const body = JSON.stringify({ p_payload: payload });
-    if (body.length < 10 || body.length > 120_000) {
-      throw new Error('M26_CLIENT_DRAFT_PAYLOAD_INVALID');
+    if (body.length < 10 || body.length > 120_000) throw new Error('M26_CLIENT_DRAFT_PAYLOAD_INVALID');
+    let result;
+    try {
+      result=await request(`/rest/v1/rpc/${CLIENT_ONBOARDING_RPC.create}`, {method:'POST',token,body});
+    } catch (error) {
+      if(error?.status===404||/PGRST202|not find the function|M26_HTTP_404/i.test(String(error?.message||error)))throw new Error('M26_CLIENT_ONBOARDING_BACKEND_REQUIRED');
+      throw error;
     }
-    const result=await request('/rest/v1/rpc/iberfit_create_client_draft', {
-      method: 'POST',
-      token,
-      body,
-    });
     const item=Array.isArray(result)?result[0]:result;
     const nested=item?.data||item?.result||item?.client||item;
-    const clientId=String(nested?.clientId||nested?.client_id||nested?.id||nested?.cliente_id||'').trim();
-    if(item?.ok===false||item?.success===false||item?.created===false||!SAFE_ID_PATTERN.test(clientId))throw new Error('M26_CLIENT_CREATE_INVALID_RESPONSE');
-    return {...(item&&typeof item==='object'?item:{}),clientId,client_id:clientId};
+    const clientId=String(nested?.clientId||nested?.client_id||nested?.cliente_id||nested?.client?.id||'').trim();
+    if(item?.ok!==true||item?.visible!==true||!SAFE_ID_PATTERN.test(clientId))throw new Error('M26_CLIENT_CREATE_INVALID_RESPONSE');
+    return Object.freeze({...item,clientId,client_id:clientId});
   }
 
   async function commandRegistry(token) {
@@ -352,6 +367,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     logout,
     bootstrap: (token) => rpc(runtime.rpc.bootstrap, token, {}),
     commandRegistry,
+    clientOnboardingPreflight,
     createClientDraft,
     preflight: async (token, command) => normalizeRpcResponse(await rpc(runtime.rpc.preflight, token, { p_command: command })),
     execute: async (token, command) => normalizeRpcResponse(await rpc(runtime.rpc.execute, token, { p_command: command })),

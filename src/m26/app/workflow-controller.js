@@ -10,7 +10,10 @@ import {buildPublicationCommand,publicationConfig} from '../workflows/publicatio
 import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
 import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
 import {resolveExerciseMedia} from '../library/exercise-media.js';
-import {legacyClientDraftPayload,createdClientResultId,clientDraftEmail} from '../workflows/client-onboarding.js';
+import {
+  CLIENT_ONBOARDING_DRAFT_SCOPE,CLIENT_ONBOARDING_LOCAL_ID,
+  legacyClientDraftPayload,createdClientResultId,clientDraftEmail,
+} from '../workflows/client-onboarding.js';
 import {
   IRI_FIRST_SESSION_STEPS,
   buildIriCommandDraftFromFirstSession,
@@ -73,8 +76,15 @@ function friendlyError(error){
   const code=String(error?.message||error||'');
   if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
   if(/CLIENT_CREATE_CANARY_ONLY/.test(code))return 'La creación de clientes está limitada al entorno canary.';
+  if(/CLIENT_ONBOARDING_BACKEND_REQUIRED/.test(code))return 'La actualización segura del alta todavía no está instalada en el backend. El borrador permanece guardado y no se ha creado ningún expediente.';
+  if(/CLIENT_ONBOARDING_BACKEND_NOT_READY/.test(code))return 'El backend de altas no superó su comprobación de seguridad. El borrador permanece guardado y no se enviaron datos.';
+  if(/V12_CLIENT_EMAIL_AMBIGUOUS/.test(code))return 'Existen varios registros remotos con ese correo. No se creó otro expediente; el borrador queda guardado para resolver la duplicidad.';
+  if(/V12_CLIENT_EMAIL_ASSIGNED_OTHER_COACH/.test(code))return 'Ese correo ya pertenece a un expediente asignado a otro entrenador. No se creó ningún duplicado.';
+  if(/V12_CLIENT_ROW_NOT_CREATED/.test(code))return 'El servicio histórico no creó una fila de cliente. El borrador queda guardado y no se mostrará un éxito falso.';
+  if(/V12_CLIENT_ASSIGNMENT_NOT_CREATED|V12_CLIENT_NOT_VISIBLE_AFTER_ASSIGNMENT/.test(code))return 'El expediente no quedó asignado y visible para este entrenador. La operación se revirtió y el borrador permanece guardado.';
+  if(/V12_COACH_ROLE_REQUIRED/.test(code))return 'La cuenta actual no tiene rol Coach o Administrador para crear expedientes.';
   if(/CLIENT_CREATE_INVALID_RESPONSE/.test(code))return 'El servidor no confirmó un identificador válido. El formulario se conserva y no se mostrará el expediente como creado.';
-  if(/CLIENT_CREATE_NOT_PERSISTED/.test(code))return 'El servidor no devolvió el expediente en la cartera tras verificarlo varias veces. El formulario se conserva para reintentar sin duplicar datos.';
+  if(/CLIENT_CREATE_NOT_PERSISTED/.test(code))return 'El servidor no hizo visible el expediente después de verificar la creación. El borrador queda guardado; no pulses crear otra vez hasta revisar la evidencia técnica.';
   if(/CLIENT_ONBOARDING_INVALID/.test(code))return 'Completa los datos obligatorios del expediente antes de crearlo.';
   if(/IRI_REMOTE_ENTITY_REQUIRED/.test(code))return 'El expediente todavía no dispone de una entidad IRI remota confirmable.';
   if(/IRI_RANGE_INVALID/.test(code))return 'Hay un valor fuera del rango permitido. Revisa el campo resaltado antes de continuar.';
@@ -148,8 +158,9 @@ export function createWorkflowController({
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
-  let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,iriTimer=null;
+  let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,onboardingSaveTimer=null,iriTimer=null;
   const initializedIriForms=new WeakSet();
+  const initializedOnboardingForms=new WeakSet();
   const initializedAppointmentForms=new WeakSet();
   const catalogSearch=createExerciseSearchIndex(catalog?.list?.()||[]);
   function updateLibrary(){const query=String(root.querySelector?.('[data-library-search]')?.value||'').trim();const {role}=context();const filters=libraryFilterState(root);const searched=catalogSearch.search(query,{limit:catalog?.count||367});const filtered=filterLibraryItems(searched,filters,mediaMap,role);const grid=root.querySelector?.('[data-library-grid]');if(grid)grid.innerHTML=libraryCards(filtered,mediaMap,role);const node=root.querySelector?.('[data-library-status]');if(node)node.textContent=`${filtered.length} ${filtered.length===1?'ejercicio visible':'ejercicios visibles'} con los filtros actuales.`;return filtered;}
@@ -284,6 +295,22 @@ export function createWorkflowController({
     await draftRepository?.save?.(clientId,IRI_DRAFT_SCOPE,draft);computed(form,draft);if(!silent)status(root,'iri','Borrador guardado en este dispositivo.','success');return draft;
   }
   function queueIriSave(){clearTimeout(iriSaveTimer);iriSaveTimer=setTimeout(()=>{void saveIriDraft({silent:true}).catch(()=>{});},650);}
+  function onboardingRaw(form){return values(form);}
+  async function saveOnboardingDraft(form,{silent=true}={}){
+    if(!form)return null;const raw=onboardingRaw(form);await draftRepository?.save?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE,raw);
+    if(!silent)status(root,'client-onboarding','Borrador del expediente guardado en este dispositivo.','success');return raw;
+  }
+  function queueOnboardingSave(form){clearTimeout(onboardingSaveTimer);onboardingSaveTimer=setTimeout(()=>{void saveOnboardingDraft(form).catch(()=>{});},350);}
+  function syncOnboardingFormState(form){
+    if(!form)return;const modality=form.elements?.namedItem?.('modality');const address=form.elements?.namedItem?.('trainingAddress');if(!address)return;
+    const required=['presencial','hibrido'].includes(String(modality?.value||''));address.required=required;if(required)address.setAttribute?.('required','');else address.removeAttribute?.('required');
+  }
+  async function initializeOnboardingForm(form){
+    if(!form||initializedOnboardingForms.has(form))return;initializedOnboardingForms.add(form);
+    try{const saved=await draftRepository?.load?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);if(saved?.value){populateForm(form,saved.value);status(root,'client-onboarding','Borrador del nuevo expediente recuperado desde este dispositivo.','success');}}
+    catch{status(root,'client-onboarding','No fue posible recuperar el borrador del expediente.','error');}
+    syncOnboardingFormState(form);
+  }
   async function initializeIriForm(form){
     if(!form||initializedIriForms.has(form))return;initializedIriForms.add(form);const {clientId}=context();if(!clientId)return;
     try{const saved=await draftRepository?.load?.(clientId,IRI_DRAFT_SCOPE);if(saved?.value?.clientId===clientId){populateForm(form,flattenFirstSessionDraft(saved.value));status(root,'iri','Borrador recuperado desde este dispositivo.','success');}}
@@ -292,6 +319,7 @@ export function createWorkflowController({
   }
   function scanRouteForms(){
     scanQueued=false;
+    const onboardingForm=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(onboardingForm)void initializeOnboardingForm(onboardingForm);
     const iriForm=root.querySelector?.('[data-workflow-form="iri"]');if(iriForm)void initializeIriForm(iriForm);
     const appointmentForm=root.querySelector?.('[data-workflow-form="appointment"]');if(appointmentForm&&!initializedAppointmentForms.has(appointmentForm)){initializedAppointmentForms.add(appointmentForm);syncAppointmentFormState(appointmentForm,root);}
     restoreStatuses(root);
@@ -302,9 +330,9 @@ export function createWorkflowController({
   async function createClient(){
     requireCoach();if(typeof createClientDraft!=='function')throw new Error('M26_CLIENT_CREATE_UNAVAILABLE');if(!isOnline())throw new Error('M26_OFFLINE_CLIENT_CREATE_NOT_ALLOWED');
     const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(!form)throw new Error('M26_CLIENT_FORM_REQUIRED');ensureValidForm(form,{code:'M26_CLIENT_ONBOARDING_INVALID',labels:ONBOARDING_FIELD_LABELS,summary:'Completa los datos obligatorios del expediente'});const raw=values(form);const payload=legacyClientDraftPayload(raw);
-    status(root,'client-onboarding','Creando expediente protegido…','pending');const outcome=await createClientDraft(payload);const result=outcome?.result||outcome;const state=store.getState();const resultId=clientRecordId(result);const created=outcome?.client||(state.collections.clients||[]).find((item)=>String(item.id)===resultId)||(state.collections.clients||[]).find((item)=>clientEmail(item)===payload.email);
+    await saveOnboardingDraft(form);status(root,'client-onboarding','Verificando backend y creando expediente protegido…','pending');const outcome=await createClientDraft(payload);const result=outcome?.result||outcome;const state=store.getState();const resultId=clientRecordId(result);const created=outcome?.client||(state.collections.clients||[]).find((item)=>String(item.id)===resultId)||(state.collections.clients||[]).find((item)=>clientEmail(item)===payload.email);
     if(!created?.id)throw new Error('M26_CLIENT_CREATE_NOT_PERSISTED');
-    store.selectClient?.(created.id);store.navigate?.('iri');onRender();emit(root,'m26:toast',{message:`Expediente de ${clientName(created)} creado. Continúa con la primera sesión.`});
+    await draftRepository?.remove?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);store.selectClient?.(created.id);store.navigate?.('iri');onRender();emit(root,'m26:toast',{message:`Expediente de ${clientName(created)} creado. Continúa con la primera sesión.`});
     return result;
   }
   async function completeIri(){
@@ -403,15 +431,16 @@ export function createWorkflowController({
       }
       computed(iriForm);clearStatus(root,'iri');queueIriSave();return;
     }
-    const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){clearControlValidation(event.target);clearStatus(root,'client-onboarding');return;}
+    const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){clearControlValidation(event.target);clearStatus(root,'client-onboarding');queueOnboardingSave(onboardingForm);return;}
     const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);return;}
     const clientSearch=event.target.closest?.('[data-client-search]');if(clientSearch){updateClientList(clientSearch.value);return;}
     const search=event.target.closest?.('[data-library-search]');if(search){updateLibrary();return;}
   }
-  function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){clearControlValidation(event.target);clearStatus(root,'client-onboarding');return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;computed(iriForm);queueIriSave();}
+  function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;computed(iriForm);queueIriSave();}
 
+  function onPageHide(){const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(form)void saveOnboardingDraft(form).catch(()=>{});}
   return Object.freeze({
-    mount(){if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('input',onInput);root.addEventListener('change',onChange);if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>queueScan());observer.observe(root,{childList:true,subtree:true});}queueScan();mounted=true;},
-    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);clearAllStatuses(root);mounted=false;},
+    mount(){if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('input',onInput);root.addEventListener('change',onChange);globalThis.addEventListener?.('pagehide',onPageHide);if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>queueScan());observer.observe(root,{childList:true,subtree:true});}queueScan();mounted=true;},
+    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(onboardingSaveTimer);stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
   });
 }
