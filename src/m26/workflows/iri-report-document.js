@@ -36,7 +36,7 @@ function page({number,title,eyebrow='INFORME IRI',content,logoUrl,cover=false,in
   const ornaments=!cover?'<i class="page-orbit page-orbit-one" aria-hidden="true"></i><i class="page-orbit page-orbit-two" aria-hidden="true"></i>':'';
   const header=cover?'':`<header class="premium-header"><div class="section-tab"><span class="section-index">${escapeHtml(sectionNumber)}</span><div class="section-copy"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(sectionLabel)}</p></div></div></header>`;
   const pageCount=internal?`Página ${number}`:`${String(number).padStart(2,'0')} / 07`;
-  return `<section class="pdf-page m26-premium-report-v2${cover?' cover':''}${internal?' internal':''}${annex?' annex':''}">${ornaments}${watermark}${header}<main>${content}</main><footer><span><b>IBERFIT</b> · Diagnóstico, planificación, control y seguimiento</span><span>${pageCount}</span></footer></section>`;
+  return `<section class="pdf-page m26-premium-report-v2 report-page-${number}${cover?' cover':''}${internal?' internal':''}${annex?' annex':''}">${ornaments}${watermark}${header}<main><div class="report-page-content">${content}</div></main><footer><span><b>IBERFIT</b> · Diagnóstico, planificación, control y seguimiento</span><span>${pageCount}</span></footer></section>`;
 }
 function ratioBar(labelText,value,max=100,note='',suffix=''){const numeric=Number(value);const width=Number.isFinite(numeric)&&max>0?Math.max(0,Math.min(100,(numeric/max)*100)):0;return `<div class="bar-row"><div><span>${escapeHtml(labelText)}</span>${note?`<small>${escapeHtml(note)}</small>`:''}</div><div class="bar-track"><i class="${percentWidthClass(width)}"></i></div><strong>${Number.isFinite(numeric)?escapeHtml(number(numeric,numeric%1?1:0)+suffix):'—'}</strong></div>`;}
 function symmetryRow(name,left,right,unit=''){const l=Number(left),r=Number(right),max=Math.max(l||0,r||0,1);const leftWidth=Number.isFinite(l)?Math.min(100,l/max*100):0;const rightWidth=Number.isFinite(r)?Math.min(100,r/max*100):0;return `<div class="symmetry-row"><span>${escapeHtml(name)}</span><div class="side left"><b>${Number.isFinite(l)?escapeHtml(number(l,1)+unit):'—'}</b><i class="${percentWidthClass(leftWidth)}"></i></div><div class="body-dot"></div><div class="side right"><i class="${percentWidthClass(rightWidth)}"></i><b>${Number.isFinite(r)?escapeHtml(number(r,1)+unit):'—'}</b></div></div>`;}
@@ -359,8 +359,12 @@ body{padding:10mm 0}
   .pdf-page.m26-premium-report-v2:last-child{break-after:auto;page-break-after:auto}
 }
 `;
+const REPORT_FIT_LEVELS=Object.freeze([100,98,96,94,92,90,88,86,84,82]);
 const REPORT_DYNAMIC_CSS=[
   '.col-w-7{width:7%}.col-w-9{width:9%}.col-w-10{width:10%}.col-w-13{width:13%}.col-w-14{width:14%}.col-w-15{width:15%}.col-w-20{width:20%}.col-w-22{width:22%}.col-w-22_5{width:22.5%}',
+  '.report-page-content{width:100%;transform-origin:top left}',
+  '.report-page-2 .lead{margin-bottom:4mm}.report-page-2 .completion-panel{margin-bottom:4mm}.report-page-2 .completion-panel div{padding:3mm}.report-page-2 .domain-card{min-height:76mm}.report-page-2 .evidence-item{min-height:27mm;padding:3mm}.report-page-2 .card{margin-bottom:3.6mm}.report-page-2 .summary-band{margin-top:4mm;padding:4mm}',
+  ...REPORT_FIT_LEVELS.filter((level)=>level<100).map((level)=>`.pdf-page.iri-report-fit-${level} .report-page-content{transform:scale(${level/100});width:${(10000/level).toFixed(5)}%}`),
   ...Array.from({length:101},(_,index)=>`.w-pct-${index}{width:${index}%}`),
 ].join('');
 const REPORT_STYLESHEET=`${REPORT_CSS}${PREMIUM_RC36_CSS}${REPORT_DYNAMIC_CSS}`;
@@ -381,21 +385,69 @@ export function buildIriReportHtml({draft,variant='client',clientName='Cliente I
 function reportStylesheetUrl(locationLike=globalThis.location){
   const origin=clean(locationLike?.origin,512);
   if(!/^https?:\/\//u.test(origin))throw new Error('M26_IRI_REPORT_ORIGIN_UNAVAILABLE');
-  const url=new URL('/m26/iri-report.css?v=m26-rc36-canary-v8',origin);
+  const url=new URL('/m26/iri-report.css?v=m26-rc36-canary-v9',origin);
   if(url.origin!==origin)throw new Error('M26_IRI_REPORT_STYLESHEET_ORIGIN_INVALID');
   return url.href;
 }
 function directIriReportHtml(html,variant){
-  const toolbar=`<nav class="iri-report-toolbar" aria-label="Acciones del informe"><span data-iri-report-status>Cargando diseño del informe…</span><button type="button" data-iri-report-print disabled>Imprimir o guardar como PDF</button><button type="button" data-iri-report-close>Cerrar</button></nav>`;
+  const toolbar=`<nav class="iri-report-toolbar" aria-label="Acciones del informe"><span data-iri-report-status>Cargando y ajustando el informe a A4…</span><button type="button" data-iri-report-print disabled>Imprimir o guardar como PDF</button><button type="button" data-iri-report-close>Cerrar</button></nav>`;
   return String(html).replace('<body>',`<body>${toolbar}`);
 }
+function reportPageNumber(page,index){
+  const match=String(page?.className||'').match(/(?:^|\s)report-page-(\d+)(?:\s|$)/u);
+  return Number(match?.[1])||index+1;
+}
+function reportPageContentFits(page,index=0){
+  if(!page||String(page.className||'').split(/\s+/u).includes('cover'))return true;
+  const content=page.querySelector?.('.report-page-content');
+  const footer=page.querySelector?.('footer');
+  if(!content||!footer||typeof content.getBoundingClientRect!=='function'||typeof footer.getBoundingClientRect!=='function')return false;
+  const contentRect=content.getBoundingClientRect();
+  const footerRect=footer.getBoundingClientRect();
+  const pageRect=typeof page.getBoundingClientRect==='function'?page.getBoundingClientRect():null;
+  const verticalOk=Number.isFinite(contentRect.bottom)&&Number.isFinite(footerRect.top)&&contentRect.bottom<=footerRect.top-6;
+  const horizontalOk=!pageRect||!Number.isFinite(contentRect.right)||!Number.isFinite(pageRect.right)||contentRect.right<=pageRect.right+1;
+  return verticalOk&&horizontalOk&&reportPageNumber(page,index)>0;
+}
+function clearReportFitClass(page){
+  if(!page?.classList)return;
+  for(const level of REPORT_FIT_LEVELS)page.classList.remove(`iri-report-fit-${level}`);
+}
+function fitLevelForRatio(ratio){
+  const safe=Number.isFinite(Number(ratio))?Math.min(1,Math.max(0,Number(ratio)))*0.985:0;
+  return REPORT_FIT_LEVELS.find((level)=>level/100<=safe)||REPORT_FIT_LEVELS.at(-1);
+}
+function fitReportPages(popup,doc){
+  const pages=Array.from(doc?.querySelectorAll?.('.pdf-page')||[]);
+  const fitted=[];
+  for(const [index,page] of pages.entries()){
+    clearReportFitClass(page);
+    if(String(page?.className||'').split(/\s+/u).includes('cover'))continue;
+    const content=page.querySelector?.('.report-page-content');
+    const footer=page.querySelector?.('footer');
+    if(!content||!footer||typeof content.getBoundingClientRect!=='function'||typeof footer.getBoundingClientRect!=='function')continue;
+    const contentRect=content.getBoundingClientRect();
+    const footerRect=footer.getBoundingClientRect();
+    const available=Math.max(0,footerRect.top-contentRect.top-8);
+    const required=Math.max(Number(content.scrollHeight)||0,Number(contentRect.height)||0,1);
+    if(required>available+1){
+      const level=fitLevelForRatio(available/required);
+      if(level<100){page.classList?.add?.(`iri-report-fit-${level}`);fitted.push({page:reportPageNumber(page,index),level});}
+    }
+  }
+  const failed=pages.map((page,index)=>({page,index})).filter(({page,index})=>!reportPageContentFits(page,index)).map(({page,index})=>reportPageNumber(page,index));
+  return {ok:failed.length===0,failed,fitted};
+}
 function reportLayoutReady(popup,doc){
-  const firstPage=doc?.querySelector?.('.pdf-page');
-  if(!firstPage||typeof popup?.getComputedStyle!=='function')return false;
-  const style=popup.getComputedStyle(firstPage);
-  const width=Number.parseFloat(style?.width||'0');
-  const height=Number.parseFloat(style?.height||'0');
-  return style?.position==='relative'&&Number.isFinite(width)&&width>=700&&Number.isFinite(height)&&height>=1050;
+  const pages=Array.from(doc?.querySelectorAll?.('.pdf-page')||[]);
+  if(!pages.length||typeof popup?.getComputedStyle!=='function')return false;
+  const dimensionsOk=pages.every((page)=>{
+    const style=popup.getComputedStyle(page);
+    const width=Number.parseFloat(style?.width||'0');
+    const height=Number.parseFloat(style?.height||'0');
+    return style?.position==='relative'&&Number.isFinite(width)&&width>=700&&Number.isFinite(height)&&height>=1050;
+  });
+  return dimensionsOk&&pages.every((page,index)=>reportPageContentFits(page,index));
 }
 function waitForReportAssets(doc){
   const fontsReady=doc?.fonts?.ready&&typeof doc.fonts.ready.then==='function'?doc.fonts.ready:Promise.resolve();
@@ -420,37 +472,49 @@ function bindDirectIriReportWindow(popup){
     if(doc.documentElement?.dataset)doc.documentElement.dataset.iriReportState=state;
     status.textContent=message;
   };
+  let verification=null;
   const verifyAndEnable=()=>{
-    const schedule=typeof popup.requestAnimationFrame==='function'?popup.requestAnimationFrame.bind(popup):(callback)=>setTimeout(callback,0);
-    schedule(()=>schedule(()=>{
-      if(!reportLayoutReady(popup,doc)){
+    if(verification)return verification;
+    verification=(async()=>{
+      printButton.disabled=true;
+      setState('fitting','Ajustando todas las páginas al formato A4…');
+      await waitForReportAssets(doc);
+      const schedule=typeof popup.requestAnimationFrame==='function'?popup.requestAnimationFrame.bind(popup):(callback)=>setTimeout(callback,0);
+      await new Promise((resolve)=>schedule(()=>schedule(resolve)));
+      const fit=fitReportPages(popup,doc);
+      await new Promise((resolve)=>schedule(()=>schedule(resolve)));
+      if(!fit.ok||!reportLayoutReady(popup,doc)){
         printButton.disabled=true;
-        setState('error','No se aplicó el diseño. Cierra esta ventana y vuelve a abrir el informe.');
-        return;
+        const pages=fit.failed.length?` Páginas: ${fit.failed.join(', ')}.`:'';
+        setState('error',`El contenido no cabe con calidad en A4.${pages} Cierra esta ventana y vuelve a abrir el informe.`);
+        return false;
       }
       printButton.disabled=false;
-      setState('ready','Informe listo');
+      setState('ready','Informe A4 listo · En «Más ajustes», desactiva «Encabezados y pies de página».');
       popup.focus?.();
-    }));
+      return true;
+    })().finally(()=>{verification=null;});
+    return verification;
   };
   stylesheet.addEventListener?.('load',verifyAndEnable,{once:true});
   stylesheet.addEventListener?.('error',()=>{
     printButton.disabled=true;
     setState('error','No se pudo cargar el diseño. Cierra esta ventana y vuelve a abrir el informe.');
   },{once:true});
-  if(stylesheet.sheet)verifyAndEnable();
+  if(stylesheet.sheet)void verifyAndEnable();
   printButton.addEventListener?.('click',async()=>{
     if(printButton.disabled||doc.documentElement?.dataset?.iriReportState!=='ready')return;
     printButton.disabled=true;
-    setState('preparing','Preparando impresión…');
+    setState('preparing','Verificando el ajuste A4 antes de imprimir…');
     try{
       await waitForReportAssets(doc);
-      if(!reportLayoutReady(popup,doc))throw new Error('M26_IRI_REPORT_LAYOUT_NOT_READY');
+      const fit=fitReportPages(popup,doc);
+      if(!fit.ok||!reportLayoutReady(popup,doc))throw new Error(`M26_IRI_REPORT_LAYOUT_NOT_READY:${fit.failed.join(',')}`);
       popup.focus?.();
       popup.print?.();
-      setState('ready','Informe listo');
+      setState('ready','Informe A4 listo · En «Más ajustes», desactiva «Encabezados y pies de página».');
     }catch{
-      setState('error','No se pudo preparar la impresión. Cierra esta ventana y vuelve a abrir el informe.');
+      setState('error','No se pudo asegurar el ajuste A4. Cierra esta ventana y vuelve a abrir el informe.');
     }finally{
       printButton.disabled=doc.documentElement?.dataset?.iriReportState!=='ready';
     }
@@ -474,4 +538,4 @@ export function openIriReportPrint({draft,variant='client',clientName,coachName,
   return {ok:true,variant,pages:pageCount,mode:'direct-window'};
 }
 
-export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,number,dateLabel,heartRateChart,coverageScore,REPORT_CSS,PREMIUM_RC36_CSS,REPORT_DYNAMIC_CSS,REPORT_STYLESHEET,widthClass,percentWidthClass,reportStylesheetUrl,directIriReportHtml,reportLayoutReady,waitForReportAssets,bindDirectIriReportWindow,rawDataPages});
+export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,number,dateLabel,heartRateChart,coverageScore,REPORT_CSS,PREMIUM_RC36_CSS,REPORT_DYNAMIC_CSS,REPORT_STYLESHEET,REPORT_FIT_LEVELS,widthClass,percentWidthClass,reportStylesheetUrl,directIriReportHtml,reportPageNumber,reportPageContentFits,fitLevelForRatio,fitReportPages,reportLayoutReady,waitForReportAssets,bindDirectIriReportWindow,rawDataPages});

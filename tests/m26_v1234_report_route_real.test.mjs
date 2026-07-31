@@ -33,6 +33,8 @@ test('la hoja externa contiene exactamente los estilos del informe y los control
   assert.ok(normalizeLineEndings(css).startsWith(expected));
   assert.ok(normalizeLineEndings(css.replace(/\n/gu,'\r\n')).startsWith(expected));
   assert.match(css,/\.pdf-page/);
+  assert.match(css,/\.report-page-content/);
+  assert.match(css,/iri-report-fit-82/);
   assert.match(css,/\.iri-report-toolbar/);
   assert.match(css,/@media print\{\.iri-report-toolbar\{display:none!important\}\}/);
 });
@@ -43,7 +45,9 @@ test('el HTML generado no depende de atributos style bloqueables por CSP',()=>{
   assert.doesNotMatch(html,/\sstyle="/u);
   assert.match(html,/w-pct-\d+/);
   assert.match(html,/col-w-\d+/);
-  const external=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',stylesheetHref:'https://m26-canary.iberfit.cl/m26/iri-report.css?v=m26-rc36-canary-v8'});
+  assert.match(html,/class="report-page-content"/);
+  assert.match(html,/report-page-2/);
+  const external=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',stylesheetHref:'https://m26-canary.iberfit.cl/m26/iri-report.css?v=m26-rc36-canary-v9'});
   assert.match(external,/rel="stylesheet"[^>]+data-iri-report-stylesheet/);
   assert.doesNotMatch(external,/<style>/);
 });
@@ -56,8 +60,11 @@ test('el renderizador primario usa CSS same-origin permitido por CSP y bloquea i
   assert.match(source,/document\.write/);
   assert.match(source,/data-iri-report-stylesheet/);
   assert.match(source,/reportLayoutReady/);
+  assert.match(source,/fitReportPages/);
+  assert.match(source,/reportPageContentFits/);
+  assert.match(source,/Encabezados y pies de página/);
   assert.match(source,/M26_IRI_REPORT_LAYOUT_NOT_READY/);
-  assert.match(source,/m26-rc36-canary-v8/);
+  assert.match(source,/m26-rc36-canary-v9/);
   assert.doesNotMatch(source,/localStorage\.setItem\(token/);
   assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
   assert.match(page,/localStorage\.getItem\(token\)/);

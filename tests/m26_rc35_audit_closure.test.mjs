@@ -198,39 +198,47 @@ test('tarjeta de biblioteca explica la ausencia de imagen y muestra protocolo y 
 });
 
 
-test('informe directo carga CSS same-origin, verifica la maquetación y solo entonces permite imprimir',async()=>{
+test('informe directo ajusta cada página a A4, verifica la maquetación y solo entonces permite imprimir',async()=>{
   let openedUrl='';let written='';let printed=0;let closed=0;let focused=0;
   const listeners={};
   const stylesheet={sheet:{},addEventListener:(event,handler)=>{listeners[`style-${event}`]=handler;}};
   const printButton={disabled:true,addEventListener:(event,handler)=>{listeners.print=handler;}};
   const closeButton={addEventListener:(event,handler)=>{listeners.close=handler;}};
   const status={textContent:''};
-  const firstPage={};
+  const classes=new Set(['pdf-page','m26-premium-report-v2','report-page-2']);
+  const classList={add:(value)=>classes.add(value),remove:(value)=>classes.delete(value)};
+  const scale=()=>{const match=[...classes].map((value)=>value.match(/^iri-report-fit-(\d+)$/u)).find(Boolean);return match?Number(match[1])/100:1;};
+  const content={scrollHeight:820,getBoundingClientRect:()=>({top:100,bottom:100+820*scale(),height:820*scale(),right:700})};
+  const footer={getBoundingClientRect:()=>({top:850,bottom:870})};
+  const reportPage={className:'pdf-page m26-premium-report-v2 report-page-2',classList,getBoundingClientRect:()=>({right:793.7}),querySelector:(selector)=>selector==='.report-page-content'?content:selector==='footer'?footer:null};
+  Object.defineProperty(reportPage,'className',{get:()=>[...classes].join(' ')});
   const controls={
     '[data-iri-report-stylesheet]':stylesheet,
     '[data-iri-report-print]':printButton,
     '[data-iri-report-close]':closeButton,
     '[data-iri-report-status]':status,
-    '.pdf-page':firstPage,
   };
   const popup={
     document:{
       documentElement:{dataset:{}},fonts:{ready:Promise.resolve()},images:[],open:()=>{},write:(html)=>{written=html;},close:()=>{},
       querySelector:(selector)=>controls[selector]||null,
+      querySelectorAll:(selector)=>selector==='.pdf-page'?[reportPage]:[],
     },
     getComputedStyle:()=>({position:'relative',width:'793.7px',height:'1122.5px'}),
     requestAnimationFrame:(callback)=>callback(),
     print:()=>{printed++;},close:()=>{closed++;},focus:()=>{focused++;},
   };
   const result=openIriReportPrint({draft:validReportDraft(),variant:'client',locationLike:{origin:'https://m26-canary.iberfit.cl'},openWindow:(url)=>{openedUrl=url;return popup;}});
+  await new Promise((resolve)=>setTimeout(resolve,0));
   assert.equal(result.mode,'direct-window');assert.equal(result.pages,7);assert.equal(openedUrl,'about:blank');
-  assert.match(written,/rel="stylesheet" href="https:\/\/m26-canary\.iberfit\.cl\/m26\/iri-report\.css\?v=m26-rc36-canary-v8"/);
+  assert.match(written,/rel="stylesheet" href="https:\/\/m26-canary\.iberfit\.cl\/m26\/iri-report\.css\?v=m26-rc36-canary-v9"/);
   assert.match(written,/data-iri-report-print disabled/);assert.doesNotMatch(written,/<style>/);
-  assert.equal(printButton.disabled,false);assert.equal(status.textContent,'Informe listo');
+  assert.ok([...classes].some((value)=>/^iri-report-fit-\d+$/u.test(value)));
+  assert.equal(printButton.disabled,false);assert.match(status.textContent,/Informe A4 listo/);assert.match(status.textContent,/Encabezados y pies de página/);
   await listeners.print();listeners.close();assert.equal(printed,1);assert.equal(closed,1);assert.ok(focused>=2);
   const source=read('src/m26/workflows/iri-report-document.js');const css=read('public/m26/iri-report.css');
-  assert.match(source,/openWindow\('about:blank','_blank'\)/);assert.match(source,/document\.write/);assert.match(source,/reportLayoutReady/);assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
-  assert.match(css,/\.pdf-page/);assert.match(css,/\.iri-report-toolbar/);
+  assert.match(source,/openWindow\('about:blank','_blank'\)/);assert.match(source,/document\.write/);assert.match(source,/fitReportPages/);assert.match(source,/reportPageContentFits/);assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
+  assert.match(css,/\.report-page-content/);assert.match(css,/iri-report-fit-82/);assert.match(css,/\.iri-report-toolbar/);
 });
 
 test('Expediente enumera los campos esenciales pendientes y ofrece una acción para completarlos',()=>{

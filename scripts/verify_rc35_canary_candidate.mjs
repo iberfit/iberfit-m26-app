@@ -15,7 +15,7 @@ const EXPECTED_RELEASE = EXPECTED_RC36 ? 'IBERFIT_M26_CANARY_RC36' : 'IBERFIT_M2
 const EXPECTED_SOURCE_RELEASE = EXPECTED_RC36 ? 'RC36' : 'RC35';
 const EXPECTED_PROJECT_REF = 'pjhmrhejsoofmouedavw';
 const EXPECTED_URL = `https://${EXPECTED_PROJECT_REF}.supabase.co`;
-const EXPECTED_SW_VERSION = EXPECTED_RC36 ? 'm26-rc36-canary-v8' : 'm26-rc35-canary-v1';
+const EXPECTED_SW_VERSION = EXPECTED_RC36 ? 'm26-rc36-canary-v9' : 'm26-rc35-canary-v1';
 const EXPECTED_PREVIOUS_SW_VERSION = EXPECTED_RC36 ? 'm26-rc35-canary-v1' : 'm26-rc33-canary-v1';
 const MEDIA_ROOT_PREFIX = 'public/vendor/repdb/';
 const MEDIA_PREFIX = `${MEDIA_ROOT_PREFIX}images/`;
@@ -186,7 +186,7 @@ if (!/data-iri-report-shell/u.test(iriReportHtml) || !/\/m26\/iri-report\.css/u.
 if (/id=["']app["']/u.test(iriReportHtml)) {
   failures.push({ path: 'm26/iri-report.html', reason: 'spa-shell-substitution' });
 }
-if (!/\.pdf-page/u.test(iriReportCss) || !/\.iri-report-toolbar/u.test(iriReportCss)) {
+if (!/\.pdf-page/u.test(iriReportCss) || !/\.iri-report-toolbar/u.test(iriReportCss) || !/\.report-page-content/u.test(iriReportCss) || !/iri-report-fit-82/u.test(iriReportCss)) {
   failures.push({ path: 'm26/iri-report.css', reason: 'report-stylesheet-invalid' });
 }
 if (!/localStorage\.getItem/u.test(iriReportPage) || !/m26:iri-report-ready/u.test(iriReportPage) || !/reportPages/u.test(iriReportPage)) {
