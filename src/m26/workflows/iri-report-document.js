@@ -25,7 +25,9 @@ function listItems(items=[],limit=6){const safe=safeList(items).slice(0,limit);r
 function metric(title,value,note=''){return `<article class="metric"><span>${escapeHtml(title)}</span><strong>${escapeHtml(value)}</strong>${note?`<small>${escapeHtml(note)}</small>`:''}</article>`;}
 function card(title,body,extra=''){return `<section class="card ${extra}"><h3>${escapeHtml(title)}</h3>${body}</section>`;}
 function row(title,value){return `<p><span>${escapeHtml(title)}</span><strong>${escapeHtml(label(value))}</strong></p>`;}
-function compactTable(headers,rows,widths=[]){const colgroup=widths.length?`<colgroup>${widths.map((width)=>`<col style="width:${escapeHtml(width)}">`).join('')}</colgroup>`:'';return `<table>${colgroup}<thead><tr>${headers.map((item)=>`<th>${escapeHtml(item)}</th>`).join('')}</tr></thead><tbody>${rows.map((values)=>`<tr>${values.map((value)=>`<td>${escapeHtml(label(value,'—'))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;}
+function widthClass(value){const normalized=String(value??'').trim().replace('%','').replace('.', '_').replace(/[^0-9_]/gu,'');return normalized?`col-w-${normalized}`:'';}
+function percentWidthClass(value){const numeric=Number(value);const bounded=Number.isFinite(numeric)?Math.max(0,Math.min(100,Math.round(numeric))):0;return `w-pct-${bounded}`;}
+function compactTable(headers,rows,widths=[]){const colgroup=widths.length?`<colgroup>${widths.map((width)=>`<col class="${widthClass(width)}">`).join('')}</colgroup>`:'';return `<table>${colgroup}<thead><tr>${headers.map((item)=>`<th>${escapeHtml(item)}</th>`).join('')}</tr></thead><tbody>${rows.map((values)=>`<tr>${values.map((value)=>`<td>${escapeHtml(label(value,'—'))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;}
 function page({number,title,eyebrow='INFORME IRI',content,logoUrl,cover=false,internal=false,annex=false}){
   const sectionMatch=String(eyebrow||'').match(/^(\d{2})\s*·\s*(.+)$/u);
   const sectionNumber=sectionMatch?.[1]||String(number).padStart(2,'0');
@@ -36,8 +38,8 @@ function page({number,title,eyebrow='INFORME IRI',content,logoUrl,cover=false,in
   const pageCount=internal?`Página ${number}`:`${String(number).padStart(2,'0')} / 07`;
   return `<section class="pdf-page m26-premium-report-v2${cover?' cover':''}${internal?' internal':''}${annex?' annex':''}">${ornaments}${watermark}${header}<main>${content}</main><footer><span><b>IBERFIT</b> · Diagnóstico, planificación, control y seguimiento</span><span>${pageCount}</span></footer></section>`;
 }
-function ratioBar(labelText,value,max=100,note='',suffix=''){const numeric=Number(value);const width=Number.isFinite(numeric)&&max>0?Math.max(0,Math.min(100,(numeric/max)*100)):0;return `<div class="bar-row"><div><span>${escapeHtml(labelText)}</span>${note?`<small>${escapeHtml(note)}</small>`:''}</div><div class="bar-track"><i style="width:${width.toFixed(1)}%"></i></div><strong>${Number.isFinite(numeric)?escapeHtml(number(numeric,numeric%1?1:0)+suffix):'—'}</strong></div>`;}
-function symmetryRow(name,left,right,unit=''){const l=Number(left),r=Number(right),max=Math.max(l||0,r||0,1);return `<div class="symmetry-row"><span>${escapeHtml(name)}</span><div class="side left"><b>${Number.isFinite(l)?escapeHtml(number(l,1)+unit):'—'}</b><i style="width:${Number.isFinite(l)?Math.min(100,l/max*100):0}%"></i></div><div class="body-dot"></div><div class="side right"><i style="width:${Number.isFinite(r)?Math.min(100,r/max*100):0}%"></i><b>${Number.isFinite(r)?escapeHtml(number(r,1)+unit):'—'}</b></div></div>`;}
+function ratioBar(labelText,value,max=100,note='',suffix=''){const numeric=Number(value);const width=Number.isFinite(numeric)&&max>0?Math.max(0,Math.min(100,(numeric/max)*100)):0;return `<div class="bar-row"><div><span>${escapeHtml(labelText)}</span>${note?`<small>${escapeHtml(note)}</small>`:''}</div><div class="bar-track"><i class="${percentWidthClass(width)}"></i></div><strong>${Number.isFinite(numeric)?escapeHtml(number(numeric,numeric%1?1:0)+suffix):'—'}</strong></div>`;}
+function symmetryRow(name,left,right,unit=''){const l=Number(left),r=Number(right),max=Math.max(l||0,r||0,1);const leftWidth=Number.isFinite(l)?Math.min(100,l/max*100):0;const rightWidth=Number.isFinite(r)?Math.min(100,r/max*100):0;return `<div class="symmetry-row"><span>${escapeHtml(name)}</span><div class="side left"><b>${Number.isFinite(l)?escapeHtml(number(l,1)+unit):'—'}</b><i class="${percentWidthClass(leftWidth)}"></i></div><div class="body-dot"></div><div class="side right"><i class="${percentWidthClass(rightWidth)}"></i><b>${Number.isFinite(r)?escapeHtml(number(r,1)+unit):'—'}</b></div></div>`;}
 function chartPoint(value,index,min,max,width=460,height=170,total=3){const safe=Number(value);if(!Number.isFinite(safe))return null;const x=42+index*((width-84)/Math.max(1,total-1));const y=20+(max-safe)*((height-50)/(max-min||1));return {x,y,value:safe,index};}
 function heartRateChart(cardio={}){const series=[['Reposo',cardio.restingHr],['Final',cardio.finalHr],['1 min',cardio.oneMinuteHr],['2 min',cardio.twoMinuteHr]].filter(([,value])=>Number.isFinite(Number(value)));const valid=series.map(([,value])=>Number(value));if(valid.length<2)return '<div class="chart-empty">Datos insuficientes para representar la recuperación.</div>';const min=Math.max(30,Math.floor(Math.min(...valid)/10)*10-10),max=Math.min(240,Math.ceil(Math.max(...valid)/10)*10+10);const points=series.map(([,value],index)=>chartPoint(value,index,min,max,460,170,series.length));const path=points.map((point,index)=>`${index?'L':'M'} ${point.x} ${point.y}`).join(' ');return `<svg class="line-chart" viewBox="0 0 460 190" role="img" aria-label="Recuperación de frecuencia cardiaca"><line x1="42" y1="20" x2="42" y2="150"/><line x1="42" y1="150" x2="420" y2="150"/><path d="${path}"/>${points.map((point,index)=>`<circle cx="${point.x}" cy="${point.y}" r="5"/><text x="${point.x}" y="${point.y-12}" text-anchor="middle">${point.value}</text><text x="${point.x}" y="173" text-anchor="middle">${escapeHtml(series[index][0])}</text>`).join('')}<text x="8" y="27">${max}</text><text x="8" y="150">${min}</text></svg>`;}
 function evidenceStatus(labelText,status,detail,note=''){
@@ -357,6 +359,11 @@ body{padding:10mm 0}
   .pdf-page.m26-premium-report-v2:last-child{break-after:auto;page-break-after:auto}
 }
 `;
+const REPORT_DYNAMIC_CSS=[
+  '.col-w-7{width:7%}.col-w-9{width:9%}.col-w-10{width:10%}.col-w-13{width:13%}.col-w-14{width:14%}.col-w-15{width:15%}.col-w-20{width:20%}.col-w-22{width:22%}.col-w-22_5{width:22.5%}',
+  ...Array.from({length:101},(_,index)=>`.w-pct-${index}{width:${index}%}`),
+].join('');
+const REPORT_STYLESHEET=`${REPORT_CSS}${PREMIUM_RC36_CSS}${REPORT_DYNAMIC_CSS}`;
 export function buildIriReportHtml({draft,variant='client',clientName='Cliente IBERFIT',coachName='Coach IBERFIT',clientId='',logoUrl='/public/isotipo-iberfit.png'}={}){
   if(!draft||!['client','coach'].includes(variant))throw new Error('M26_IRI_REPORT_DOCUMENT_INVALID');
   const context={clientName:clean(clientName,160)||'Cliente IBERFIT',coachName:clean(coachName,160)||'Coach IBERFIT',clientId:clean(clientId,200),logoUrl};
@@ -364,7 +371,7 @@ export function buildIriReportHtml({draft,variant='client',clientName='Cliente I
   if(variant==='client'&&pages.length!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
   if(variant==='coach'&&pages.length<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
   const title=`Informe IRI IBERFIT · ${variant==='client'?'Cliente':'Coach / Admin'} · ${context.clientName}`;
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>${REPORT_CSS}${PREMIUM_RC36_CSS}</style></head><body>${pages.join('')}</body></html>`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>${REPORT_STYLESHEET}</style></head><body>${pages.join('')}</body></html>`;
 }
 
 export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,storage=globalThis.localStorage,openWindow=globalThis.open,locationLike=globalThis.location,setTimeoutImpl=globalThis.setTimeout}={}){
@@ -386,4 +393,4 @@ export function openIriReportPrint({draft,variant='client',clientName,coachName,
   return {ok:true,variant,token,mode:'popup'};
 }
 
-export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,number,dateLabel,heartRateChart,coverageScore,REPORT_CSS,rawDataPages});
+export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,number,dateLabel,heartRateChart,coverageScore,REPORT_CSS,PREMIUM_RC36_CSS,REPORT_DYNAMIC_CSS,REPORT_STYLESHEET,widthClass,percentWidthClass,rawDataPages});

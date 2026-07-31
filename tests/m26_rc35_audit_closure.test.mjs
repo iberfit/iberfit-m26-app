@@ -203,8 +203,10 @@ test('informe conserva estilos en la página de impresión y tiene alternativa s
   const storage={setItem:(key,value)=>records.set(key,value),getItem:(key)=>records.get(key)||null,removeItem:(key)=>records.delete(key)};
   const result=openIriReportPrint({draft:validReportDraft(),variant:'client',storage,openWindow:()=>null,locationLike:{assign:(url)=>{assigned=url;}},setTimeoutImpl:()=>{}});
   assert.equal(result.mode,'same-tab');assert.match(assigned,/^\/m26\/iri-report\.html#/);assert.equal(records.has(result.token),true);
-  const page=read('src/m26/workflows/iri-report-page.js');
-  assert.match(page,/parsed\.head\.querySelectorAll\('style'\)/);assert.match(page,/document\.head\.append/);
+  const shell=read('public/m26/iri-report.html');const page=read('src/m26/workflows/iri-report-page.js');const css=read('public/m26/iri-report.css');
+  assert.match(shell,/\/m26\/iri-report\.css/);assert.match(shell,/\/src\/m26\/workflows\/iri-report-page\.js/);
+  assert.doesNotMatch(page,/parsed\.head\.querySelectorAll\('style'\)|document\.head\.append/);assert.match(page,/document\.body\.replaceChildren/);
+  assert.match(css,/\.pdf-page/);assert.match(css,/\.iri-report-toolbar/);
 });
 
 

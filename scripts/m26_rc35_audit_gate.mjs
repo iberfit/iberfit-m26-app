@@ -14,6 +14,8 @@ const session=read('src/m26/workflows/session-controller.js');
 const engagement=read('src/m26/engagement/engagement-controller.js');
 const reports=read('src/m26/workflows/iri-report-document.js');
 const reportPage=read('src/m26/workflows/iri-report-page.js');
+const reportShell=read('public/m26/iri-report.html');
+const reportCss=read('public/m26/iri-report.css');
 const exerciseSearch=read('src/m26/exercises/search.js');
 const exerciseUi=read('src/m26/library/exercise-media-ui.js');
 const css=read('src/m26/shell/shell.css');
@@ -24,7 +26,7 @@ check('IRI confirma solo tras rehidratación verificable',/M26_IRI_CONFIRM_NOT_P
 check('Plan confirma solo tras rehidratación verificable',/M26_PLAN_CONFIRM_NOT_PERSISTED/.test(workflow)&&/refreshAndFind\('trainingCycles'/.test(workflow));
 check('Sesión guarda antes de salir',/action==='exit-session'[\s\S]*persistContext\(context\)/.test(session)&&/flushAutosave\(context,\{force:true\}\)/.test(session)&&/case 'save-draft'/.test(session));
 check('Nota privada verifica persistencia',/M26_PRIVATE_NOTE_NOT_PERSISTED/.test(engagement)&&/private-note-created/.test(engagement));
-check('Informe autocontenido',/<style>\$\{REPORT_CSS\}(?:\$\{PREMIUM_RC36_CSS\})?<\/style>/.test(reports)&&!/<link rel="stylesheet"[^>]*iri-report\.css/.test(reports));
+check('Informe autocontenido',/<style>\$\{REPORT_STYLESHEET\}<\/style>/.test(reports)&&/const REPORT_STYLESHEET=/.test(reports)&&!/<link rel="stylesheet"[^>]*iri-report\.css/.test(reports));
 check('Sin puntuación global en Progreso',!/function iriScore/.test(progress)&&!/Puntuación \$\{/.test(progress)&&/de 3 dominios registrados/.test(progress));
 check('Cliente no recibe score global',!/\['score',\['score','puntuacion'/.test(projection));
 check('Temporizador audible y recuperable',/AudioContext/.test(workflow)&&/audio\.resume/.test(workflow)&&/avisos a 3, 2, 1 y final/.test(workflow));
@@ -36,7 +38,7 @@ check('Biblioteca canónica completa',map.items?.length===367&&new Set(map.items
 check('Filtros de biblioteca presentes',/data-library-filter="equipment"/.test(renderer)&&/data-library-filter="pattern"/.test(renderer)&&/data-library-filter="visual"/.test(renderer));
 check('Inteligencia acepta criterio Coach',/coachQuestion/.test(workflow)&&/Pregunta o criterio del entrenador/.test(renderer));
 check('Sin score visible histórico en rutas',!/Performance|80\/100|Puntuación 80/.test(renderer));
-check('Informe conserva estilos y alternativa sin popup',/mode:'same-tab'/.test(reports)&&/querySelectorAll\('style'\)/.test(reportPage)&&/document\.head\.append/.test(reportPage));
+check('Informe conserva estilos y alternativa sin popup',/mode:'same-tab'/.test(reports)&&/data-iri-report-shell/.test(reportShell)&&/iri-report\.css/.test(reportShell)&&/document\.body\.replaceChildren/.test(reportPage)&&!/document\.head\.append/.test(reportPage)&&/\.pdf-page/.test(reportCss));
 check('Validación IRI enfoca el primer error',/focusIriValidationError/.test(workflow)&&/scrollIntoView/.test(workflow)&&/aria-invalid/.test(workflow));
 check('Hoy y Clientes muestran prioridad y filtros',/Siguiente acción/.test(renderer)&&/data-client-filter="iri"/.test(renderer)&&/data-client-sort/.test(renderer)&&/Abrir expediente/.test(renderer));
 check('Expediente enumera datos pendientes',/Completa el perfil esencial/.test(renderer)&&/Completar en Diagnóstico IRI/.test(renderer));

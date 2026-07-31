@@ -15,7 +15,7 @@ const EXPECTED_RELEASE = EXPECTED_RC36 ? 'IBERFIT_M26_CANARY_RC36' : 'IBERFIT_M2
 const EXPECTED_SOURCE_RELEASE = EXPECTED_RC36 ? 'RC36' : 'RC35';
 const EXPECTED_PROJECT_REF = 'pjhmrhejsoofmouedavw';
 const EXPECTED_URL = `https://${EXPECTED_PROJECT_REF}.supabase.co`;
-const EXPECTED_SW_VERSION = EXPECTED_RC36 ? 'm26-rc36-canary-v5' : 'm26-rc35-canary-v1';
+const EXPECTED_SW_VERSION = EXPECTED_RC36 ? 'm26-rc36-canary-v6' : 'm26-rc35-canary-v1';
 const EXPECTED_PREVIOUS_SW_VERSION = EXPECTED_RC36 ? 'm26-rc35-canary-v1' : 'm26-rc33-canary-v1';
 const MEDIA_ROOT_PREFIX = 'public/vendor/repdb/';
 const MEDIA_PREFIX = `${MEDIA_ROOT_PREFIX}images/`;
@@ -35,17 +35,26 @@ const versionPath = required('version.json');
 const manifestPath = required('asset-manifest.json');
 const runtimePath = required(path.join('m26', 'runtime-config.js'));
 const serviceWorkerPath = required(path.join('m26', 'sw.js'));
+const iriReportHtmlPath = required(path.join('m26', 'iri-report.html'));
+const iriReportCssPath = required(path.join('m26', 'iri-report.css'));
+const iriReportPagePath = required(path.join('src', 'm26', 'workflows', 'iri-report-page.js'));
 required(MEDIA_MAP_PATH);
 
 let version = {};
 let manifest = { files: [] };
 let runtimeConfig = {};
 let serviceWorker = '';
+let iriReportHtml = '';
+let iriReportCss = '';
+let iriReportPage = '';
 
 if (!failures.length) {
   version = JSON.parse(fs.readFileSync(versionPath, 'utf8'));
   manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   serviceWorker = fs.readFileSync(serviceWorkerPath, 'utf8');
+  iriReportHtml = fs.readFileSync(iriReportHtmlPath, 'utf8');
+  iriReportCss = fs.readFileSync(iriReportCssPath, 'utf8');
+  iriReportPage = fs.readFileSync(iriReportPagePath, 'utf8');
   const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
   const match = runtimeSource.match(/Object\.freeze\((\{[\s\S]*\})\);\s*$/u);
   if (!match) {
@@ -169,6 +178,22 @@ if (
 }
 if (!serviceWorker.includes('/public/vendor/repdb/')) {
   failures.push({ path: 'm26/sw.js', reason: 'repdb-public-route' });
+}
+
+if (!/data-iri-report-shell/u.test(iriReportHtml) || !/\/m26\/iri-report\.css/u.test(iriReportHtml) || !/\/src\/m26\/workflows\/iri-report-page\.js/u.test(iriReportHtml)) {
+  failures.push({ path: 'm26/iri-report.html', reason: 'report-shell-invalid' });
+}
+if (/id=["']app["']/u.test(iriReportHtml)) {
+  failures.push({ path: 'm26/iri-report.html', reason: 'spa-shell-substitution' });
+}
+if (!/\.pdf-page/u.test(iriReportCss) || !/\.iri-report-toolbar/u.test(iriReportCss)) {
+  failures.push({ path: 'm26/iri-report.css', reason: 'report-stylesheet-invalid' });
+}
+if (!/localStorage\.getItem/u.test(iriReportPage) || !/m26:iri-report-ready/u.test(iriReportPage) || !/reportPages/u.test(iriReportPage)) {
+  failures.push({ path: 'src/m26/workflows/iri-report-page.js', reason: 'report-loader-invalid' });
+}
+for (const asset of ['/m26/iri-report.html','/m26/iri-report.css','/src/m26/workflows/iri-report-page.js']) {
+  if (!serviceWorker.includes(asset)) failures.push({ path: 'm26/sw.js', reason: `report-shell-not-preloaded:${asset}` });
 }
 
 const report = {
