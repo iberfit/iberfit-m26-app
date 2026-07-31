@@ -198,29 +198,40 @@ test('tarjeta de biblioteca explica la ausencia de imagen y muestra protocolo y 
 });
 
 
-test('informe se renderiza directamente sin depender de una navegación de red',()=>{
+test('informe directo carga CSS same-origin, verifica la maquetación y solo entonces permite imprimir',async()=>{
   let openedUrl='';let written='';let printed=0;let closed=0;let focused=0;
   const listeners={};
+  const stylesheet={sheet:{},addEventListener:(event,handler)=>{listeners[`style-${event}`]=handler;}};
+  const printButton={disabled:true,addEventListener:(event,handler)=>{listeners.print=handler;}};
+  const closeButton={addEventListener:(event,handler)=>{listeners.close=handler;}};
+  const status={textContent:''};
+  const firstPage={};
   const controls={
-    '[data-iri-report-print]':{addEventListener:(event,handler)=>{listeners.print=handler;}},
-    '[data-iri-report-close]':{addEventListener:(event,handler)=>{listeners.close=handler;}},
+    '[data-iri-report-stylesheet]':stylesheet,
+    '[data-iri-report-print]':printButton,
+    '[data-iri-report-close]':closeButton,
+    '[data-iri-report-status]':status,
+    '.pdf-page':firstPage,
   };
   const popup={
     document:{
-      documentElement:{dataset:{}},open:()=>{},write:(html)=>{written=html;},close:()=>{},
+      documentElement:{dataset:{}},fonts:{ready:Promise.resolve()},images:[],open:()=>{},write:(html)=>{written=html;},close:()=>{},
       querySelector:(selector)=>controls[selector]||null,
     },
+    getComputedStyle:()=>({position:'relative',width:'793.7px',height:'1122.5px'}),
+    requestAnimationFrame:(callback)=>callback(),
     print:()=>{printed++;},close:()=>{closed++;},focus:()=>{focused++;},
   };
-  const result=openIriReportPrint({draft:validReportDraft(),variant:'client',openWindow:(url)=>{openedUrl=url;return popup;}});
+  const result=openIriReportPrint({draft:validReportDraft(),variant:'client',locationLike:{origin:'https://m26-canary.iberfit.cl'},openWindow:(url)=>{openedUrl=url;return popup;}});
   assert.equal(result.mode,'direct-window');assert.equal(result.pages,7);assert.equal(openedUrl,'about:blank');
-  assert.match(written,/<style>/);assert.match(written,/data-iri-report-print/);assert.doesNotMatch(written,/href="\/m26\/iri-report\.css"/);
-  listeners.print();listeners.close();assert.equal(printed,1);assert.equal(closed,1);assert.equal(focused,1);
+  assert.match(written,/rel="stylesheet" href="https:\/\/m26-canary\.iberfit\.cl\/m26\/iri-report\.css\?v=m26-rc36-canary-v8"/);
+  assert.match(written,/data-iri-report-print disabled/);assert.doesNotMatch(written,/<style>/);
+  assert.equal(printButton.disabled,false);assert.equal(status.textContent,'Informe listo');
+  await listeners.print();listeners.close();assert.equal(printed,1);assert.equal(closed,1);assert.ok(focused>=2);
   const source=read('src/m26/workflows/iri-report-document.js');const css=read('public/m26/iri-report.css');
-  assert.match(source,/openWindow\('about:blank','_blank'\)/);assert.match(source,/document\.write/);assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
+  assert.match(source,/openWindow\('about:blank','_blank'\)/);assert.match(source,/document\.write/);assert.match(source,/reportLayoutReady/);assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
   assert.match(css,/\.pdf-page/);assert.match(css,/\.iri-report-toolbar/);
 });
-
 
 test('Expediente enumera los campos esenciales pendientes y ofrece una acción para completarlos',()=>{
   const html=renderExpedienteRoute({summary:{name:'Cliente QA',modality:'Híbrida',status:'Estado no informado',access:'Acceso no informado',accessKnown:false,counts:{sessions:0,executions:0},profile:{completeness:50,missing:['birthDate','phone','trainingAddress'],sexForNormsLabel:'Sin registro',equipment:[],secondaryObjectives:[]},iri:null,cycle:null,nextAppointment:null},progress:null,alertSignal:null});

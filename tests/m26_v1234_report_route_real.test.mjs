@@ -43,14 +43,21 @@ test('el HTML generado no depende de atributos style bloqueables por CSP',()=>{
   assert.doesNotMatch(html,/\sstyle="/u);
   assert.match(html,/w-pct-\d+/);
   assert.match(html,/col-w-\d+/);
+  const external=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',stylesheetHref:'https://m26-canary.iberfit.cl/m26/iri-report.css?v=m26-rc36-canary-v8'});
+  assert.match(external,/rel="stylesheet"[^>]+data-iri-report-stylesheet/);
+  assert.doesNotMatch(external,/<style>/);
 });
 
-test('el renderizador primario abre un documento directo y la ruta queda como respaldo verificable',()=>{
+test('el renderizador primario usa CSS same-origin permitido por CSP y bloquea impresión sin maquetación',()=>{
   const source=read('src/m26/workflows/iri-report-document.js');
   const page=read('src/m26/workflows/iri-report-page.js');
   assert.match(source,/openWindow\('about:blank','_blank'\)/);
   assert.match(source,/directIriReportHtml/);
   assert.match(source,/document\.write/);
+  assert.match(source,/data-iri-report-stylesheet/);
+  assert.match(source,/reportLayoutReady/);
+  assert.match(source,/M26_IRI_REPORT_LAYOUT_NOT_READY/);
+  assert.match(source,/m26-rc36-canary-v8/);
   assert.doesNotMatch(source,/localStorage\.setItem\(token/);
   assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
   assert.match(page,/localStorage\.getItem\(token\)/);

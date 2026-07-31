@@ -9,7 +9,7 @@ const IS_RC36 = DEPLOY_BRANCH === 'canary/rc36';
 const VERSION = IS_RC36 ? '26.0.0-canary.36' : '26.0.0-canary.35';
 const RELEASE = IS_RC36 ? 'IBERFIT_M26_CANARY_RC36' : 'IBERFIT_M26_CANARY_RC35';
 const SOURCE_RELEASE = IS_RC36 ? 'RC36' : 'RC35';
-const SERVICE_WORKER_VERSION = IS_RC36 ? 'm26-rc36-canary-v7' : 'm26-rc35-canary-v1';
+const SERVICE_WORKER_VERSION = IS_RC36 ? 'm26-rc36-canary-v8' : 'm26-rc35-canary-v1';
 const PREVIOUS_SERVICE_WORKER_VERSION = IS_RC36 ? 'm26-rc35-canary-v1' : 'm26-rc33-canary-v1';
 const CORE_TOTAL_LIMIT = 3_700_000;
 const JAVASCRIPT_LIMIT = 820_000;

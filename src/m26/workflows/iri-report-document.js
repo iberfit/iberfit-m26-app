@@ -364,30 +364,102 @@ const REPORT_DYNAMIC_CSS=[
   ...Array.from({length:101},(_,index)=>`.w-pct-${index}{width:${index}%}`),
 ].join('');
 const REPORT_STYLESHEET=`${REPORT_CSS}${PREMIUM_RC36_CSS}${REPORT_DYNAMIC_CSS}`;
-export function buildIriReportHtml({draft,variant='client',clientName='Cliente IBERFIT',coachName='Coach IBERFIT',clientId='',logoUrl='/public/isotipo-iberfit.png'}={}){
+export function buildIriReportHtml({draft,variant='client',clientName='Cliente IBERFIT',coachName='Coach IBERFIT',clientId='',logoUrl='/public/isotipo-iberfit.png',stylesheetHref=''}={}){
   if(!draft||!['client','coach'].includes(variant))throw new Error('M26_IRI_REPORT_DOCUMENT_INVALID');
   const context={clientName:clean(clientName,160)||'Cliente IBERFIT',coachName:clean(coachName,160)||'Coach IBERFIT',clientId:clean(clientId,200),logoUrl};
   const pages=variant==='client'?clientPages(draft,context):coachPages(draft,context);
   if(variant==='client'&&pages.length!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
   if(variant==='coach'&&pages.length<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
   const title=`Informe IRI IBERFIT · ${variant==='client'?'Cliente':'Coach / Admin'} · ${context.clientName}`;
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>${REPORT_STYLESHEET}</style></head><body>${pages.join('')}</body></html>`;
+  const externalStylesheet=clean(stylesheetHref,2048);
+  const stylesheet=externalStylesheet
+    ?`<link rel="stylesheet" href="${escapeHtml(externalStylesheet)}" data-iri-report-stylesheet>`
+    :`<style>${REPORT_STYLESHEET}</style>`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title>${stylesheet}</head><body>${pages.join('')}</body></html>`;
 }
 
+function reportStylesheetUrl(locationLike=globalThis.location){
+  const origin=clean(locationLike?.origin,512);
+  if(!/^https?:\/\//u.test(origin))throw new Error('M26_IRI_REPORT_ORIGIN_UNAVAILABLE');
+  const url=new URL('/m26/iri-report.css?v=m26-rc36-canary-v8',origin);
+  if(url.origin!==origin)throw new Error('M26_IRI_REPORT_STYLESHEET_ORIGIN_INVALID');
+  return url.href;
+}
 function directIriReportHtml(html,variant){
-  const toolbar=`<nav class="iri-report-toolbar" aria-label="Acciones del informe"><span>${variant==='client'?'Informe Cliente':'Informe Coach / Admin'}</span><button type="button" data-iri-report-print>Imprimir o guardar como PDF</button><button type="button" data-iri-report-close>Cerrar</button></nav>`;
-  const toolbarStyles=`<style>.iri-report-toolbar{position:fixed;z-index:1000;top:12px;right:12px;display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #d9bf82;border-radius:12px;background:#082218;color:#faf6ed;box-shadow:0 8px 30px rgba(0,0,0,.25);font:600 13px/1.2 Inter,Arial,sans-serif}.iri-report-toolbar span{padding:0 6px;color:#d9bf82}.iri-report-toolbar button{min-height:34px;padding:0 12px;border:1px solid #d9bf82;border-radius:9px;background:#faf6ed;color:#082218;font:700 12px/1 Inter,Arial,sans-serif;cursor:pointer}.iri-report-toolbar button+button{background:transparent;color:#faf6ed}@media print{.iri-report-toolbar{display:none!important}}</style>`;
-  return String(html).replace('</head>',`${toolbarStyles}</head>`).replace('<body>',`<body>${toolbar}`);
+  const toolbar=`<nav class="iri-report-toolbar" aria-label="Acciones del informe"><span data-iri-report-status>Cargando diseño del informe…</span><button type="button" data-iri-report-print disabled>Imprimir o guardar como PDF</button><button type="button" data-iri-report-close>Cerrar</button></nav>`;
+  return String(html).replace('<body>',`<body>${toolbar}`);
+}
+function reportLayoutReady(popup,doc){
+  const firstPage=doc?.querySelector?.('.pdf-page');
+  if(!firstPage||typeof popup?.getComputedStyle!=='function')return false;
+  const style=popup.getComputedStyle(firstPage);
+  const width=Number.parseFloat(style?.width||'0');
+  const height=Number.parseFloat(style?.height||'0');
+  return style?.position==='relative'&&Number.isFinite(width)&&width>=700&&Number.isFinite(height)&&height>=1050;
+}
+function waitForReportAssets(doc){
+  const fontsReady=doc?.fonts?.ready&&typeof doc.fonts.ready.then==='function'?doc.fonts.ready:Promise.resolve();
+  const images=Array.from(doc?.images||[]);
+  const imagesReady=Promise.all(images.map((image)=>{
+    if(image?.complete)return Promise.resolve();
+    return new Promise((resolve)=>{
+      image?.addEventListener?.('load',resolve,{once:true});
+      image?.addEventListener?.('error',resolve,{once:true});
+    });
+  }));
+  return Promise.all([fontsReady,imagesReady]);
 }
 function bindDirectIriReportWindow(popup){
   const doc=popup?.document;if(!doc?.querySelector)throw new Error('M26_IRI_REPORT_WINDOW_UNAVAILABLE');
-  doc.querySelector('[data-iri-report-print]')?.addEventListener?.('click',()=>popup.print?.());
-  doc.querySelector('[data-iri-report-close]')?.addEventListener?.('click',()=>popup.close?.());
-  if(doc.documentElement?.dataset)doc.documentElement.dataset.iriReportState='ready';
-  popup.focus?.();
+  const stylesheet=doc.querySelector('[data-iri-report-stylesheet]');
+  const printButton=doc.querySelector('[data-iri-report-print]');
+  const closeButton=doc.querySelector('[data-iri-report-close]');
+  const status=doc.querySelector('[data-iri-report-status]');
+  if(!stylesheet||!printButton||!closeButton||!status)throw new Error('M26_IRI_REPORT_CONTROLS_UNAVAILABLE');
+  const setState=(state,message)=>{
+    if(doc.documentElement?.dataset)doc.documentElement.dataset.iriReportState=state;
+    status.textContent=message;
+  };
+  const verifyAndEnable=()=>{
+    const schedule=typeof popup.requestAnimationFrame==='function'?popup.requestAnimationFrame.bind(popup):(callback)=>setTimeout(callback,0);
+    schedule(()=>schedule(()=>{
+      if(!reportLayoutReady(popup,doc)){
+        printButton.disabled=true;
+        setState('error','No se aplicó el diseño. Cierra esta ventana y vuelve a abrir el informe.');
+        return;
+      }
+      printButton.disabled=false;
+      setState('ready','Informe listo');
+      popup.focus?.();
+    }));
+  };
+  stylesheet.addEventListener?.('load',verifyAndEnable,{once:true});
+  stylesheet.addEventListener?.('error',()=>{
+    printButton.disabled=true;
+    setState('error','No se pudo cargar el diseño. Cierra esta ventana y vuelve a abrir el informe.');
+  },{once:true});
+  if(stylesheet.sheet)verifyAndEnable();
+  printButton.addEventListener?.('click',async()=>{
+    if(printButton.disabled||doc.documentElement?.dataset?.iriReportState!=='ready')return;
+    printButton.disabled=true;
+    setState('preparing','Preparando impresión…');
+    try{
+      await waitForReportAssets(doc);
+      if(!reportLayoutReady(popup,doc))throw new Error('M26_IRI_REPORT_LAYOUT_NOT_READY');
+      popup.focus?.();
+      popup.print?.();
+      setState('ready','Informe listo');
+    }catch{
+      setState('error','No se pudo preparar la impresión. Cierra esta ventana y vuelve a abrir el informe.');
+    }finally{
+      printButton.disabled=doc.documentElement?.dataset?.iriReportState!=='ready';
+    }
+  });
+  closeButton.addEventListener?.('click',()=>popup.close?.());
 }
-export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,openWindow=globalThis.open}={}){
-  const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl});
+export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,openWindow=globalThis.open,locationLike=globalThis.location}={}){
+  const stylesheetHref=reportStylesheetUrl(locationLike);
+  const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl,stylesheetHref});
   const pageCount=(html.match(/class="pdf-page(?:\s|")/gu)||[]).length;
   if(variant==='client'&&pageCount!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
   if(variant==='coach'&&pageCount<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
@@ -402,4 +474,4 @@ export function openIriReportPrint({draft,variant='client',clientName,coachName,
   return {ok:true,variant,pages:pageCount,mode:'direct-window'};
 }
 
-export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,number,dateLabel,heartRateChart,coverageScore,REPORT_CSS,PREMIUM_RC36_CSS,REPORT_DYNAMIC_CSS,REPORT_STYLESHEET,widthClass,percentWidthClass,directIriReportHtml,bindDirectIriReportWindow,rawDataPages});
+export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,number,dateLabel,heartRateChart,coverageScore,REPORT_CSS,PREMIUM_RC36_CSS,REPORT_DYNAMIC_CSS,REPORT_STYLESHEET,widthClass,percentWidthClass,reportStylesheetUrl,directIriReportHtml,reportLayoutReady,waitForReportAssets,bindDirectIriReportWindow,rawDataPages});
