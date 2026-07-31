@@ -147,6 +147,36 @@ function stepErrors(draft,step){const errors=[];const profile=draft.personProfil
   return errors;
 }
 export function validateFirstSessionStep(draft,step){const errors=stepErrors(draft,step);return Object.freeze({ok:errors.length===0,errors:Object.freeze(errors)});}
+function confirmedObject(value){return value&&typeof value==='object'&&!Array.isArray(value)?value:{};}
+function confirmedArray(value){return Array.isArray(value)?value:[];}
+export function confirmedFirstSessionDraft(record={},clientId=''){
+  const body=assessmentBody(record);
+  const personProfile=confirmedObject(body.personProfile||body.person_profile);
+  const interview=confirmedObject(body.interview);
+  const bodyComposition=confirmedObject(body.bodyComposition||body.body_composition);
+  const mobility=confirmedObject(body.mobility);
+  const strength=confirmedObject(body.strengthAssessment||body.strength_assessment||body.strengthPatterns||body.strength_patterns||body.strength);
+  const cardio=confirmedObject(body.cardio);
+  const diagnosis=confirmedObject(body.diagnosis);
+  const protocolRecords=confirmedArray(body.protocolRecords||body.protocol_records).map((record)=>Object.freeze({...record,result:{...confirmedObject(record?.result)}}));
+  const draft={
+    schema:text(body.firstSessionSchema||body.first_session_schema||SCHEMA,120),
+    clientId:text(clientId||body.clientId||body.client_id||record?.clientId||record?.client_id,200),
+    assessmentId:text(record?.id||body.id,200),
+    assessmentDate:text(body.assessmentDate||body.assessment_date,10),
+    personProfile:Object.freeze({...personProfile}),
+    interview:Object.freeze({...interview}),
+    bodyComposition:Object.freeze({...bodyComposition}),
+    mobility:Object.freeze({...mobility}),
+    strength:Object.freeze({...strength}),
+    cardio:Object.freeze({...cardio}),
+    diagnosis:Object.freeze({...diagnosis}),
+    protocolRecords:Object.freeze(protocolRecords),
+    updatedAt:text(body.firstSessionCompletedAt||body.first_session_completed_at||body.updatedAt||body.updated_at,80),
+  };
+  return Object.freeze(draft);
+}
+
 export function validateFirstSessionDraft(draft){const byStep=Object.fromEntries(IRI_FIRST_SESSION_STEPS.map((step)=>[step,stepErrors(draft,step)]));const errors=Object.values(byStep).flat();return Object.freeze({ok:errors.length===0,errors:Object.freeze([...new Set(errors)]),byStep:Object.freeze(byStep),completion:Object.freeze(firstSessionCompletion(draft))});}
 export function firstSessionCompletion(draft){const steps=IRI_FIRST_SESSION_STEPS.map((step)=>({step,complete:stepErrors(draft,step).length===0}));const complete=steps.filter((item)=>item.complete).length;return {complete,total:steps.length,percent:Math.round((complete/steps.length)*100),steps};}
 
@@ -184,4 +214,4 @@ export function flattenFirstSessionDraft(draft={}){
   return out;
 }
 
-export const __iriFirstSessionInternals=Object.freeze({SCHEMA,text,num,bool,list,values,best,average,difference,stepErrors,hasBodyMeasurement,coreDomainCoverage});
+export const __iriFirstSessionInternals=Object.freeze({SCHEMA,text,num,bool,list,values,best,average,difference,stepErrors,hasBodyMeasurement,coreDomainCoverage,confirmedObject,confirmedArray});
