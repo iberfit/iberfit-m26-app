@@ -50,7 +50,7 @@ test('wizard IRI incluye protocolos, límites, audio y bloquea informes antes de
   assert.match(html,/name="bodyFatPercent"/);assert.doesNotMatch(html,/name="bodyFatPercent"[^>]*required/);assert.match(html,/name="bodyCompositionMethod"/);assert.match(html,/name="measurementConditions"/);
   assert.match(html,/Temporizador con avisos sonoros/);assert.match(html,/data-iri-timer-action="start"/);
   assert.match(html,/generate-client-iri-report" disabled aria-disabled="true"/);
-  assert.match(html,/El borrador se conserva, pero el IRI no puede confirmarse sin este dominio/);
+  assert.match(html,/El IRI puede confirmarse cuando existan al menos dos dominios objetivos completos/);
   assert.match(html,/Objetivo principal <span class="m26-required"/);assert.match(html,/name="primaryObjective"[^>]*required/);
   assert.match(html,/Interpretación del Coach <span class="m26-required"/);assert.match(html,/name="coachInterpretation"[^>]*required/);
   assert.doesNotMatch(html,/Performance|80\/100|Puntuación 80/);

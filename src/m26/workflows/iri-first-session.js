@@ -126,6 +126,14 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
 }
 
 function hasBodyMeasurement(value){return [value.weightKg,value.bodyFatPercent,value.leanMassKg,value.muscleMassKg,value.waistCm].some((item)=>item!==null);}
+export function coreDomainCoverage(draft={}){
+  const bodyMeasured=!draft.bodyComposition?.skipped&&hasBodyMeasurement(draft.bodyComposition||{});
+  const strengthMeasured=!draft.strength?.skipped;
+  const cardioMeasured=!draft.cardio?.skipped;
+  const states=Object.freeze({bodyComposition:bodyMeasured,strength:strengthMeasured,cardio:cardioMeasured});
+  const measured=Object.values(states).filter(Boolean).length;
+  return Object.freeze({states,measured,required:2,complete:measured>=2});
+}
 function stepErrors(draft,step){const errors=[];const profile=draft.personProfile;
   if(step==='perfil'){
     if(!draft.assessmentDate)errors.push('assessmentDate');if(!/^\d{4}-\d{2}-\d{2}$/.test(profile.birthDate))errors.push('birthDate');if(!['female','male'].includes(profile.sexForNorms))errors.push('sexForNorms');if(!profile.email.includes('@'))errors.push('email');if(!profile.phone)errors.push('phone');if(!profile.modality)errors.push('modality');if(['presencial','hibrido'].includes(profile.modality)&&!profile.trainingAddress)errors.push('trainingAddress');if(!profile.primaryObjective)errors.push('primaryObjective');
@@ -135,7 +143,7 @@ function stepErrors(draft,step){const errors=[];const profile=draft.personProfil
   if(step==='movilidad'){if(draft.mobility.skipped){if(!draft.mobility.skipReason)errors.push('mobilitySkipReason');}else{if(draft.mobility.ankle.leftBest===null||draft.mobility.ankle.rightBest===null)errors.push('ankleTrials');if(draft.mobility.posteriorChain.leftBest===null||draft.mobility.posteriorChain.rightBest===null)errors.push('posteriorTrials');if(!draft.mobility.hipRotation.result)errors.push('hipRotationResult');if(!draft.mobility.assistedSquat.depth)errors.push('squatDepth');}}
   if(step==='fuerza'){if(draft.strength.skipped){if(!draft.strength.skipReason)errors.push('strengthSkipReason');}else{if(draft.strength.chairStand.repetitions===null||!draft.strength.chairStand.valid)errors.push('chairStand30s');if(!draft.strength.push.variant||draft.strength.push.repetitions===null||!draft.strength.push.valid)errors.push('pushTest');if(draft.strength.trxRow.repetitions===null||!draft.strength.trxRow.valid)errors.push('trxRow');if(draft.strength.core.frontPlankSeconds===null)errors.push('frontPlank');}}
   if(step==='cardio'){if(draft.cardio.skipped){if(!draft.cardio.skipReason)errors.push('cardioSkipReason');}else{if(!draft.cardio.valid)errors.push('cardioValid');if(draft.cardio.finalHr===null||draft.cardio.oneMinuteHr===null||draft.cardio.deltaOneMinute<0)errors.push('cardioHeartRate');if(draft.cardio.durationSeconds===null||draft.cardio.durationSeconds>180)errors.push('cardioDuration');}}
-  if(step==='revision'){if(draft.diagnosis.strengths.length<1)errors.push('diagnosisStrengths');if(draft.diagnosis.priorities.length<1)errors.push('diagnosisPriorities');if(draft.diagnosis.coachInterpretation.length<20)errors.push('coachInterpretation');if(draft.diagnosis.initialPlan.length<20)errors.push('initialPlan');if(!draft.diagnosis.reviewAccepted)errors.push('reviewAccepted');}
+  if(step==='revision'){if(draft.diagnosis.strengths.length<1)errors.push('diagnosisStrengths');if(draft.diagnosis.priorities.length<1)errors.push('diagnosisPriorities');if(draft.diagnosis.coachInterpretation.length<20)errors.push('coachInterpretation');if(draft.diagnosis.initialPlan.length<20)errors.push('initialPlan');if(!draft.diagnosis.reviewAccepted)errors.push('reviewAccepted');if(!coreDomainCoverage(draft).complete)errors.push('coreDomains');}
   return errors;
 }
 export function validateFirstSessionStep(draft,step){const errors=stepErrors(draft,step);return Object.freeze({ok:errors.length===0,errors:Object.freeze(errors)});}
@@ -145,19 +153,19 @@ export function firstSessionCompletion(draft){const steps=IRI_FIRST_SESSION_STEP
 export function buildIriCommandDraftFromFirstSession(draft,current={}){
   const check=validateFirstSessionDraft(draft);if(!check.ok)throw new Error(`M26_IRI_FIRST_SESSION_INVALID:${check.errors.join(',')}`);
   if(!current?.id)throw new Error('M26_IRI_REMOTE_ENTITY_REQUIRED');
-  if(draft.bodyComposition.skipped||draft.strength.skipped||draft.cardio.skipped)throw new Error('M26_IRI_CORE_DOMAINS_REQUIRED');
-  const standardPush=draft.strength.push.variant==='standard'&&draft.strength.push.valid;
+  const coverage=coreDomainCoverage(draft);if(!coverage.complete)throw new Error('M26_IRI_MINIMUM_CORE_DOMAINS_REQUIRED');
+  const standardPush=!draft.strength.skipped&&draft.strength.push.variant==='standard'&&draft.strength.push.valid;
   const weightBearingLunge=average([draft.mobility.ankle.leftBest,draft.mobility.ankle.rightBest].filter((value)=>value!==null));
   return {
     ...assessmentBody(current),id:current.id,clientId:draft.clientId,assessmentDate:draft.assessmentDate,
     birthDate:draft.personProfile.birthDate,sexForNorms:draft.personProfile.sexForNorms,
-    stepFinalHr:draft.cardio.finalHr,stepOneMinuteHr:draft.cardio.oneMinuteHr,
+    stepFinalHr:draft.cardio.skipped?null:draft.cardio.finalHr,stepOneMinuteHr:draft.cardio.skipped?null:draft.cardio.oneMinuteHr,
     ...(standardPush?{pushUps:draft.strength.push.repetitions}:{}),
-    chairStand30s:draft.strength.chairStand.repetitions,
+    chairStand30s:draft.strength.skipped?null:draft.strength.chairStand.repetitions,
     ...(weightBearingLunge!==null?{weightBearingLunge}:{}),
     bodyComposition:{...draft.bodyComposition},
-    strengthPatterns:{chairStand:draft.strength.chairStand,push:draft.strength.push,trxRow:draft.strength.trxRow,core:draft.strength.core,posteriorChain:draft.strength.posteriorChain},
-    personProfile:{...draft.personProfile},interview:{...draft.interview},mobility:{...draft.mobility},strengthAssessment:{...draft.strength},cardio:{...draft.cardio},diagnosis:{...draft.diagnosis},
+    strengthPatterns:{skipped:draft.strength.skipped,skipReason:draft.strength.skipReason,chairStand:draft.strength.chairStand,push:draft.strength.push,trxRow:draft.strength.trxRow,core:draft.strength.core,posteriorChain:draft.strength.posteriorChain},
+    personProfile:{...draft.personProfile},interview:{...draft.interview},mobility:{...draft.mobility},strengthAssessment:{...draft.strength},cardio:{...draft.cardio},diagnosis:{...draft.diagnosis},coreDomainCoverage:coverage,
     protocolRecords:(draft.protocolRecords||[]).map((record)=>({...record,result:{...(record.result||{})}})),
     firstSessionSchema:SCHEMA,firstSessionCompletedAt:new Date().toISOString(),
   };
@@ -176,4 +184,4 @@ export function flattenFirstSessionDraft(draft={}){
   return out;
 }
 
-export const __iriFirstSessionInternals=Object.freeze({SCHEMA,text,num,bool,list,values,best,average,difference,stepErrors,hasBodyMeasurement});
+export const __iriFirstSessionInternals=Object.freeze({SCHEMA,text,num,bool,list,values,best,average,difference,stepErrors,hasBodyMeasurement,coreDomainCoverage});

@@ -4,10 +4,6 @@ import { validateIriProfile } from './iri-profile.js';
 const REQUIRED = [
   'clientId',
   'assessmentDate',
-  'stepFinalHr',
-  'stepOneMinuteHr',
-  'strengthPatterns',
-  'bodyComposition',
   'sexForNorms',
 ];
 const NORM_ENGINE_VERSION = 'm26-rc5.1';
@@ -20,6 +16,28 @@ function hasObjectiveMeasurement(value) {
   if (finite(value)) return Number(value) >= 0;
   if (!value || typeof value !== 'object') return false;
   return Object.values(value).some(hasObjectiveMeasurement);
+}
+
+function coreDomainCoverage(draft = {}) {
+  const bodySkipped = draft.bodyComposition?.skipped === true;
+  const strengthSkipped = draft.strengthAssessment?.skipped === true || draft.strengthPatterns?.skipped === true;
+  const cardioSkipped = draft.cardio?.skipped === true;
+  const bodyMeasured = !bodySkipped && hasObjectiveMeasurement(draft.bodyComposition);
+  const strengthMeasured = !strengthSkipped && hasObjectiveMeasurement(draft.strengthPatterns);
+  const cardioMeasured = !cardioSkipped && finite(draft.stepFinalHr) && finite(draft.stepOneMinuteHr);
+  const states = Object.freeze({
+    bodyComposition: bodyMeasured,
+    strength: strengthMeasured,
+    cardio: cardioMeasured,
+  });
+  const measured = Object.values(states).filter(Boolean).length;
+  return Object.freeze({
+    states,
+    measured,
+    required: 2,
+    complete: measured >= 2,
+    skipped: Object.freeze({bodyComposition:bodySkipped,strength:strengthSkipped,cardio:cardioSkipped}),
+  });
 }
 
 export function computeDeltaFc(finalHr, oneMinuteHr) {
@@ -43,25 +61,20 @@ export function validateIriDraft(draft = {}) {
     }
   }
 
-  if (
-    finite(draft.stepFinalHr) &&
-    finite(draft.stepOneMinuteHr) &&
-    computeDeltaFc(draft.stepFinalHr, draft.stepOneMinuteHr) < 0
-  ) {
-    errors.push('deltaFc');
+  const coverage = coreDomainCoverage(draft);
+  if (!coverage.complete) errors.push('coreDomains');
+
+  if (!coverage.skipped.cardio) {
+    if (!finite(draft.stepFinalHr) || !finite(draft.stepOneMinuteHr)) {
+      errors.push('cardioHeartRate');
+    } else if (computeDeltaFc(draft.stepFinalHr, draft.stepOneMinuteHr) < 0) {
+      errors.push('deltaFc');
+    }
   }
-  if (
-    !draft.strengthPatterns ||
-    typeof draft.strengthPatterns !== 'object' ||
-    !hasObjectiveMeasurement(draft.strengthPatterns)
-  ) {
+  if (!coverage.skipped.strength && !hasObjectiveMeasurement(draft.strengthPatterns)) {
     errors.push('strengthPatterns');
   }
-  if (
-    !draft.bodyComposition ||
-    typeof draft.bodyComposition !== 'object' ||
-    !hasObjectiveMeasurement(draft.bodyComposition)
-  ) {
+  if (!coverage.skipped.bodyComposition && !hasObjectiveMeasurement(draft.bodyComposition)) {
     errors.push('bodyComposition');
   }
 
@@ -71,6 +84,7 @@ export function validateIriDraft(draft = {}) {
   return {
     ok: errors.length === 0,
     errors: Object.freeze([...new Set(errors)]),
+    coverage,
   };
 }
 
@@ -83,6 +97,7 @@ export function buildIriCommand(draft, revision = 0) {
   }
 
   const profile = validateIriProfile(draft, draft.assessmentDate);
+  const coverage = check.coverage || coreDomainCoverage(draft);
   const normalized = { ...draft, ageYears: profile.ageYears };
   const scoring = scoreIriPerformance(normalized);
 
@@ -109,7 +124,8 @@ export function buildIriCommand(draft, revision = 0) {
     payload: {
       patch: {
         ...structuredClone(normalized),
-        deltaFc: computeDeltaFc(draft.stepFinalHr, draft.stepOneMinuteHr),
+        deltaFc: coverage.skipped.cardio ? null : computeDeltaFc(draft.stepFinalHr, draft.stepOneMinuteHr),
+        evidenceCoverage: coverage,
         normContextSnapshot,
         normScoring: scoring,
         normEngineVersion: NORM_ENGINE_VERSION,
@@ -155,4 +171,5 @@ export const __iriWorkflowInternals = Object.freeze({
   NORM_ENGINE_VERSION,
   finite,
   hasObjectiveMeasurement,
+  coreDomainCoverage,
 });
