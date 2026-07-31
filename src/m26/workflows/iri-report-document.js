@@ -374,23 +374,32 @@ export function buildIriReportHtml({draft,variant='client',clientName='Cliente I
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>${REPORT_STYLESHEET}</style></head><body>${pages.join('')}</body></html>`;
 }
 
-export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,storage=globalThis.localStorage,openWindow=globalThis.open,locationLike=globalThis.location,setTimeoutImpl=globalThis.setTimeout}={}){
+function directIriReportHtml(html,variant){
+  const toolbar=`<nav class="iri-report-toolbar" aria-label="Acciones del informe"><span>${variant==='client'?'Informe Cliente':'Informe Coach / Admin'}</span><button type="button" data-iri-report-print>Imprimir o guardar como PDF</button><button type="button" data-iri-report-close>Cerrar</button></nav>`;
+  const toolbarStyles=`<style>.iri-report-toolbar{position:fixed;z-index:1000;top:12px;right:12px;display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #d9bf82;border-radius:12px;background:#082218;color:#faf6ed;box-shadow:0 8px 30px rgba(0,0,0,.25);font:600 13px/1.2 Inter,Arial,sans-serif}.iri-report-toolbar span{padding:0 6px;color:#d9bf82}.iri-report-toolbar button{min-height:34px;padding:0 12px;border:1px solid #d9bf82;border-radius:9px;background:#faf6ed;color:#082218;font:700 12px/1 Inter,Arial,sans-serif;cursor:pointer}.iri-report-toolbar button+button{background:transparent;color:#faf6ed}@media print{.iri-report-toolbar{display:none!important}}</style>`;
+  return String(html).replace('</head>',`${toolbarStyles}</head>`).replace('<body>',`<body>${toolbar}`);
+}
+function bindDirectIriReportWindow(popup){
+  const doc=popup?.document;if(!doc?.querySelector)throw new Error('M26_IRI_REPORT_WINDOW_UNAVAILABLE');
+  doc.querySelector('[data-iri-report-print]')?.addEventListener?.('click',()=>popup.print?.());
+  doc.querySelector('[data-iri-report-close]')?.addEventListener?.('click',()=>popup.close?.());
+  if(doc.documentElement?.dataset)doc.documentElement.dataset.iriReportState='ready';
+  popup.focus?.();
+}
+export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,openWindow=globalThis.open}={}){
   const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl});
-  const token=`m26-iri-report-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  if(!storage?.setItem)throw new Error('M26_IRI_REPORT_STORAGE_UNAVAILABLE');
-  storage.setItem(token,JSON.stringify({html,variant,createdAt:Date.now()}));
-  const url=`/m26/iri-report.html#${encodeURIComponent(token)}`;
-  const popup=typeof openWindow==='function'?openWindow(url,'_blank'):null;
-  if(!popup){
-    if(typeof locationLike?.assign==='function'){
-      locationLike.assign(url);
-      return {ok:true,variant,token,mode:'same-tab'};
-    }
-    storage.removeItem(token);throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
-  }
-  try{popup.opener=null;}catch{}
-  if(typeof setTimeoutImpl==='function')setTimeoutImpl(()=>storage.removeItem(token),120_000);
-  return {ok:true,variant,token,mode:'popup'};
+  const pageCount=(html.match(/class="pdf-page(?:\s|")/gu)||[]).length;
+  if(variant==='client'&&pageCount!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
+  if(variant==='coach'&&pageCount<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
+  const popup=typeof openWindow==='function'?openWindow('about:blank','_blank'):null;
+  if(!popup?.document||typeof popup.document.write!=='function')throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
+  try{
+    popup.document.open?.();
+    popup.document.write(directIriReportHtml(html,variant));
+    popup.document.close?.();
+    bindDirectIriReportWindow(popup);
+  }catch(error){try{popup.close?.();}catch{}throw error;}
+  return {ok:true,variant,pages:pageCount,mode:'direct-window'};
 }
 
-export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,number,dateLabel,heartRateChart,coverageScore,REPORT_CSS,PREMIUM_RC36_CSS,REPORT_DYNAMIC_CSS,REPORT_STYLESHEET,widthClass,percentWidthClass,rawDataPages});
+export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,number,dateLabel,heartRateChart,coverageScore,REPORT_CSS,PREMIUM_RC36_CSS,REPORT_DYNAMIC_CSS,REPORT_STYLESHEET,widthClass,percentWidthClass,directIriReportHtml,bindDirectIriReportWindow,rawDataPages});

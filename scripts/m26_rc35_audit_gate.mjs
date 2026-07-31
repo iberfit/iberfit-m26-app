@@ -38,7 +38,7 @@ check('Biblioteca canónica completa',map.items?.length===367&&new Set(map.items
 check('Filtros de biblioteca presentes',/data-library-filter="equipment"/.test(renderer)&&/data-library-filter="pattern"/.test(renderer)&&/data-library-filter="visual"/.test(renderer));
 check('Inteligencia acepta criterio Coach',/coachQuestion/.test(workflow)&&/Pregunta o criterio del entrenador/.test(renderer));
 check('Sin score visible histórico en rutas',!/Performance|80\/100|Puntuación 80/.test(renderer));
-check('Informe conserva estilos y alternativa sin popup',/mode:'same-tab'/.test(reports)&&/data-iri-report-shell/.test(reportShell)&&/iri-report\.css/.test(reportShell)&&/document\.body\.replaceChildren/.test(reportPage)&&!/document\.head\.append/.test(reportPage)&&/\.pdf-page/.test(reportCss));
+check('Informe conserva estilos, render directo y ruta de respaldo',/mode:'direct-window'/.test(reports)&&/openWindow\('about:blank','_blank'\)/.test(reports)&&/document\.write/.test(reports)&&/data-iri-report-shell/.test(reportShell)&&/iri-report\.css/.test(reportShell)&&/document\.body\.replaceChildren/.test(reportPage)&&!/document\.head\.append/.test(reportPage)&&/\.pdf-page/.test(reportCss));
 check('Validación IRI enfoca el primer error',/focusIriValidationError/.test(workflow)&&/scrollIntoView/.test(workflow)&&/aria-invalid/.test(workflow));
 check('Hoy y Clientes muestran prioridad y filtros',/Siguiente acción/.test(renderer)&&/data-client-filter="iri"/.test(renderer)&&/data-client-sort/.test(renderer)&&/Abrir expediente/.test(renderer));
 check('Expediente enumera datos pendientes',/Completa el perfil esencial/.test(renderer)&&/Completar en Diagnóstico IRI/.test(renderer));

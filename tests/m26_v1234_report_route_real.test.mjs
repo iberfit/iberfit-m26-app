@@ -6,6 +6,7 @@ import {normalizeFirstSessionDraft} from '../src/m26/workflows/iri-first-session
 import {buildIriReportHtml,__iriReportInternals} from '../src/m26/workflows/iri-report-document.js';
 
 const read=(relative)=>fs.readFileSync(new URL(`../${relative}`,import.meta.url),'utf8');
+const normalizeLineEndings=(value)=>String(value).replace(/\r\n?/gu,'\n');
 
 function reportDraft(){
   return normalizeFirstSessionDraft({
@@ -28,7 +29,9 @@ test('existe una ruta HTML exclusiva para los informes y no reutiliza el shell S
 
 test('la hoja externa contiene exactamente los estilos del informe y los controles de vista previa',()=>{
   const css=read('public/m26/iri-report.css');
-  assert.ok(css.startsWith(__iriReportInternals.REPORT_STYLESHEET));
+  const expected=normalizeLineEndings(__iriReportInternals.REPORT_STYLESHEET);
+  assert.ok(normalizeLineEndings(css).startsWith(expected));
+  assert.ok(normalizeLineEndings(css.replace(/\n/gu,'\r\n')).startsWith(expected));
   assert.match(css,/\.pdf-page/);
   assert.match(css,/\.iri-report-toolbar/);
   assert.match(css,/@media print\{\.iri-report-toolbar\{display:none!important\}\}/);
@@ -42,14 +45,18 @@ test('el HTML generado no depende de atributos style bloqueables por CSP',()=>{
   assert.match(html,/col-w-\d+/);
 });
 
-test('el cargador valida token, cantidad de páginas y deja una acción manual de impresión',()=>{
+test('el renderizador primario abre un documento directo y la ruta queda como respaldo verificable',()=>{
+  const source=read('src/m26/workflows/iri-report-document.js');
   const page=read('src/m26/workflows/iri-report-page.js');
+  assert.match(source,/openWindow\('about:blank','_blank'\)/);
+  assert.match(source,/directIriReportHtml/);
+  assert.match(source,/document\.write/);
+  assert.doesNotMatch(source,/localStorage\.setItem\(token/);
+  assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
   assert.match(page,/localStorage\.getItem\(token\)/);
   assert.match(page,/CLIENT_PAGE_COUNT=7/);
   assert.match(page,/COACH_MIN_PAGE_COUNT=13/);
-  assert.match(page,/m26:iri-report-ready/);
   assert.match(page,/Imprimir o guardar como PDF/);
-  assert.doesNotMatch(page,/document\.head\.append\(style/);
 });
 
 test('el service worker precarga la ruta real y sus recursos',()=>{

@@ -198,14 +198,26 @@ test('tarjeta de biblioteca explica la ausencia de imagen y muestra protocolo y 
 });
 
 
-test('informe conserva estilos en la página de impresión y tiene alternativa si se bloquea la ventana',()=>{
-  const records=new Map();let assigned='';
-  const storage={setItem:(key,value)=>records.set(key,value),getItem:(key)=>records.get(key)||null,removeItem:(key)=>records.delete(key)};
-  const result=openIriReportPrint({draft:validReportDraft(),variant:'client',storage,openWindow:()=>null,locationLike:{assign:(url)=>{assigned=url;}},setTimeoutImpl:()=>{}});
-  assert.equal(result.mode,'same-tab');assert.match(assigned,/^\/m26\/iri-report\.html#/);assert.equal(records.has(result.token),true);
-  const shell=read('public/m26/iri-report.html');const page=read('src/m26/workflows/iri-report-page.js');const css=read('public/m26/iri-report.css');
-  assert.match(shell,/\/m26\/iri-report\.css/);assert.match(shell,/\/src\/m26\/workflows\/iri-report-page\.js/);
-  assert.doesNotMatch(page,/parsed\.head\.querySelectorAll\('style'\)|document\.head\.append/);assert.match(page,/document\.body\.replaceChildren/);
+test('informe se renderiza directamente sin depender de una navegación de red',()=>{
+  let openedUrl='';let written='';let printed=0;let closed=0;let focused=0;
+  const listeners={};
+  const controls={
+    '[data-iri-report-print]':{addEventListener:(event,handler)=>{listeners.print=handler;}},
+    '[data-iri-report-close]':{addEventListener:(event,handler)=>{listeners.close=handler;}},
+  };
+  const popup={
+    document:{
+      documentElement:{dataset:{}},open:()=>{},write:(html)=>{written=html;},close:()=>{},
+      querySelector:(selector)=>controls[selector]||null,
+    },
+    print:()=>{printed++;},close:()=>{closed++;},focus:()=>{focused++;},
+  };
+  const result=openIriReportPrint({draft:validReportDraft(),variant:'client',openWindow:(url)=>{openedUrl=url;return popup;}});
+  assert.equal(result.mode,'direct-window');assert.equal(result.pages,7);assert.equal(openedUrl,'about:blank');
+  assert.match(written,/<style>/);assert.match(written,/data-iri-report-print/);assert.doesNotMatch(written,/href="\/m26\/iri-report\.css"/);
+  listeners.print();listeners.close();assert.equal(printed,1);assert.equal(closed,1);assert.equal(focused,1);
+  const source=read('src/m26/workflows/iri-report-document.js');const css=read('public/m26/iri-report.css');
+  assert.match(source,/openWindow\('about:blank','_blank'\)/);assert.match(source,/document\.write/);assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
   assert.match(css,/\.pdf-page/);assert.match(css,/\.iri-report-toolbar/);
 });
 
