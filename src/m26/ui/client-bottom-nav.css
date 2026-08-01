@@ -1,0 +1,304 @@
+.m26-client-route-shell {
+  min-height: 100%;
+  padding-bottom: calc(112px + env(safe-area-inset-bottom));
+}
+
+.m26-client-bottom-nav-layer {
+  position: fixed;
+  z-index: 120;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 0 14px calc(10px + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.m26-client-bottom-nav {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  width: min(940px, calc(100vw - 28px));
+  margin: 0 auto;
+  padding: 10px;
+  border: 1px solid rgba(219, 195, 132, 0.22);
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at 50% -35%, rgba(216, 192, 128, 0.18), transparent 42%),
+    linear-gradient(92deg, #031f18 0%, #0b3025 48%, #04231b 100%);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 244, 213, 0.08);
+  pointer-events: auto;
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+}
+
+.m26-client-bottom-nav::before {
+  position: absolute;
+  top: 0;
+  right: 22px;
+  left: 22px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(236, 216, 160, 0.22), transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.m26-client-bottom-nav-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 66px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 22px;
+  background: transparent;
+  color: #dbc89d;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition:
+    transform 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.m26-client-bottom-nav-item:hover {
+  color: #f0dfb4;
+  transform: translateY(-1px);
+}
+
+.m26-client-bottom-nav-item:focus-visible {
+  border-color: rgba(234, 208, 143, 0.68);
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(220, 194, 126, 0.2);
+}
+
+.m26-client-bottom-nav-item.is-active {
+  border-color: rgba(224, 198, 130, 0.38);
+  background: linear-gradient(180deg, rgba(196, 174, 112, 0.24), rgba(126, 105, 52, 0.17));
+  color: #f4e4bd;
+  box-shadow:
+    0 11px 25px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 240, 197, 0.14),
+    0 0 0 1px rgba(219, 193, 127, 0.08);
+}
+
+.m26-client-bottom-nav-icon {
+  display: grid;
+  flex: 0 0 27px;
+  width: 27px;
+  height: 27px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.24));
+  place-items: center;
+}
+
+.m26-client-bottom-nav-icon svg {
+  display: block;
+  width: 27px;
+  height: 27px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.m26-client-bottom-nav-label {
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 560;
+  line-height: 1;
+  letter-spacing: -0.018em;
+  white-space: nowrap;
+}
+
+.m26-client-bottom-nav-more {
+  position: relative;
+  min-width: 0;
+}
+
+.m26-client-bottom-nav-more > summary {
+  width: 100%;
+  height: 100%;
+  list-style: none;
+}
+
+.m26-client-bottom-nav-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.m26-client-bottom-nav-spark {
+  margin-left: -3px;
+  font-size: 0.78rem;
+  opacity: 0.46;
+  transform: translateY(-5px);
+}
+
+.m26-client-bottom-nav-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 14px);
+  width: min(310px, calc(100vw - 32px));
+  padding: 9px;
+  border: 1px solid rgba(220, 196, 132, 0.28);
+  border-radius: 22px;
+  background: linear-gradient(155deg, rgba(12, 48, 37, 0.98), rgba(3, 27, 21, 0.99));
+  box-shadow:
+    0 24px 55px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 rgba(255, 244, 211, 0.09);
+  transform-origin: bottom right;
+  animation: m26-client-more-in 160ms ease-out;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.m26-client-bottom-nav-menu::after {
+  position: absolute;
+  right: 32px;
+  bottom: -7px;
+  width: 13px;
+  height: 13px;
+  border-right: 1px solid rgba(220, 196, 132, 0.24);
+  border-bottom: 1px solid rgba(220, 196, 132, 0.24);
+  background: #05271f;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.m26-client-bottom-nav-menu button {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 13px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: #ecddb8;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.m26-client-bottom-nav-menu button:hover,
+.m26-client-bottom-nav-menu button:focus-visible {
+  background: rgba(211, 187, 121, 0.12);
+  outline: 0;
+}
+
+.m26-client-bottom-nav-menu button span {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.m26-client-bottom-nav-menu button small {
+  color: rgba(226, 211, 172, 0.68);
+  font-size: 0.77rem;
+}
+
+@keyframes m26-client-more-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 690px) {
+  .m26-client-route-shell {
+    padding-bottom: calc(100px + env(safe-area-inset-bottom));
+  }
+
+  .m26-client-bottom-nav-layer {
+    padding-right: 8px;
+    padding-bottom: calc(7px + env(safe-area-inset-bottom));
+    padding-left: 8px;
+  }
+
+  .m26-client-bottom-nav {
+    width: calc(100vw - 16px);
+    gap: 4px;
+    padding: 7px;
+    border-radius: 27px;
+  }
+
+  .m26-client-bottom-nav-item {
+    flex-direction: column;
+    gap: 5px;
+    min-height: 64px;
+    padding: 7px 3px;
+    border-radius: 19px;
+  }
+
+  .m26-client-bottom-nav-icon,
+  .m26-client-bottom-nav-icon svg {
+    width: 23px;
+    height: 23px;
+  }
+
+  .m26-client-bottom-nav-label {
+    font-size: 0.69rem;
+    font-weight: 620;
+    letter-spacing: -0.025em;
+  }
+
+  .m26-client-bottom-nav-spark {
+    display: none;
+  }
+
+  .m26-client-bottom-nav-menu {
+    right: -2px;
+    bottom: calc(100% + 10px);
+  }
+}
+
+@media (max-width: 370px) {
+  .m26-client-bottom-nav {
+    gap: 2px;
+  }
+
+  .m26-client-bottom-nav-item {
+    padding-right: 1px;
+    padding-left: 1px;
+  }
+
+  .m26-client-bottom-nav-label {
+    font-size: 0.63rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m26-client-bottom-nav-item {
+    transition: none;
+  }
+
+  .m26-client-bottom-nav-menu {
+    animation: none;
+  }
+}
+
+@media print {
+  .m26-client-bottom-nav-layer {
+    display: none !important;
+  }
+
+  .m26-client-route-shell {
+    padding-bottom: 0;
+  }
+}

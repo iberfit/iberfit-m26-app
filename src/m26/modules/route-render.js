@@ -546,7 +546,7 @@ export function renderLibraryRoute(vm){
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Biblioteca visual</p><h2>Ejercicios IBERFIT</h2><p>Organizados por musculatura principal, con indicaciones y referencias visuales validadas. El catálogo sigue siendo la fuente canónica y no admite escritura libre en las sesiones.</p></div>${badge(`${vm.total} ejercicios`,'neutral')}</section><section class="m26-panel"><div class="m26-library-controls"><label>Buscar ejercicio<input type="search" data-library-search autocomplete="off" spellcheck="false" aria-describedby="m26-library-status"></label><label>Material<select data-library-filter="equipment"><option value="">Todo</option><option value="sin material">Sin material</option><option value="trx">TRX</option><option value="mancuerna">Mancuernas</option><option value="banda">Bandas</option><option value="máquina">Máquina</option></select></label><label>Patrón<select data-library-filter="pattern"><option value="">Todos</option><option value="sentadilla">Sentadilla</option><option value="empuje">Empuje</option><option value="tracción">Tracción</option><option value="bisagra">Bisagra</option><option value="core">Core</option></select></label><label>Referencia visual<select data-library-filter="visual"><option value="">Todas</option><option value="with-image">Con imagen validada</option><option value="without-image">Sin imagen</option></select></label><button type="button" data-library-clear>Limpiar filtros</button></div><div class="m26-library-groups" data-library-grid>${groups||emptyState('Biblioteca no cargada','No se pudo leer el catálogo local.')}</div><p id="m26-library-status" data-library-status role="status" aria-live="polite">Mostrando los ${vm.total} ejercicios del catálogo, agrupados por musculatura principal. Escribe para filtrar.</p>${credit}</section></div>`;
 }
 
-export function renderRouteView(vm) {
+function renderRouteContent(vm) {
   if (vm.kind === 'hoy') return renderHoyRoute(vm);
   if (vm.kind === 'clientes') return renderClientsRoute(vm);
   if (vm.kind === 'expediente') return renderExpedienteRoute(vm);
@@ -562,4 +562,49 @@ export function renderRouteView(vm) {
   if (vm.kind === 'notas') return renderPrivateNotesRoute(vm);
   if (vm.kind === 'verificacion') return renderVerificationRoute(vm);
   return `<section class="m26-route-placeholder"><p class="m26-eyebrow">${escapeHtml(vm.title || 'IBERFIT')}</p><h2>${escapeHtml(vm.title || 'Módulo')}</h2><p>Esta sección no está disponible. Vuelve al menú principal.</p></section>`;
+}
+/* M26_CLIENT_BOTTOM_NAV_V2 */
+const CLIENT_BOTTOM_NAV_ITEMS = Object.freeze([
+  {key:'hoy',label:'Hoy',area:'hoy',activeKinds:['hoy']},
+  {key:'planificacion',label:'Planificación',area:'planificacion',activeKinds:['planificacion','agenda']},
+  {key:'sesiones',label:'Sesiones',area:'sesion',activeKinds:['sesion']},
+  {key:'progreso',label:'Progreso',area:'progreso',activeKinds:['progreso','iri','informes']},
+]);
+const CLIENT_BOTTOM_NAV_MORE_KINDS = Object.freeze(['expediente','actividad','biblioteca','verificacion']);
+
+function clientBottomNavIcon(name){
+  const icons={
+    hoy:`<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M20.7 5.4a10.8 10.8 0 1 0 5.9 16.8A11.8 11.8 0 0 1 20.7 5.4Z"/><path d="M25.8 5.5v3.2M24.2 7.1h3.2M7.4 7.6 5.8 5.9M5.6 17.4H2.9M9.6 3.2 8.7.8"/></svg>`,
+    planificacion:`<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="m5.2 6.2 20.9 20.9M26.8 5.8 5.9 26.7"/><circle cx="5.2" cy="6.2" r="2.1"/><circle cx="26.8" cy="5.8" r="2.1"/><circle cx="5.9" cy="26.7" r="2.1"/><circle cx="26.1" cy="27.1" r="2.1"/><path d="m13.6 11.9 2.6-2.6 2.5 2.5-2.6 2.6M13.5 20.2l2.6-2.6 2.5 2.5-2.6 2.6"/></svg>`,
+    sesiones:`<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="20.8" cy="5.7" r="2.8"/><path d="m18.7 10.1-4.8 5.1-6.2-1.4M18.2 11.1l4 5.4 4.9-3.2M16.1 15.2l-2 6.3-5.6 5.1M19 16.4l-1.1 6.1 5.5 4.1M4.2 27.1h23.6M5.8 8.6h6.5"/><path d="M7.2 8.6v4.7M10.8 8.6v5.5"/></svg>`,
+    progreso:`<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M4.5 25.8 12 18.2l5.1 4.3L27.4 9.2"/><path d="M21.7 9.2h5.7v5.7"/><path d="M4.5 28.1h23"/></svg>`,
+    mas:`<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="7" cy="16" r="2.3" fill="currentColor" stroke="none"/><circle cx="16" cy="9" r="2.3" fill="currentColor" stroke="none"/><circle cx="16" cy="23" r="2.3" fill="currentColor" stroke="none"/><circle cx="25" cy="16" r="2.3" fill="currentColor" stroke="none"/><path d="M29 7.2v4M27 9.2h4"/></svg>`,
+  };
+  return icons[name]||icons.mas;
+}
+
+function clientBottomNavItem(item,currentKind){
+  const active=item.activeKinds.includes(currentKind);
+  return `<button type="button" class="m26-client-bottom-nav-item${active?' is-active':''}" data-m26-area="${escapeHtml(item.area)}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon(item.key)}</span><span class="m26-client-bottom-nav-label">${escapeHtml(item.label)}</span></button>`;
+}
+
+function clientBottomNavMore(currentKind){
+  const active=CLIENT_BOTTOM_NAV_MORE_KINDS.includes(currentKind);
+  return `<details class="m26-client-bottom-nav-more${active?' is-active':''}"><summary class="m26-client-bottom-nav-item${active?' is-active':''}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon('mas')}</span><span class="m26-client-bottom-nav-label">Más</span><span class="m26-client-bottom-nav-spark" aria-hidden="true">✦</span></summary><div class="m26-client-bottom-nav-menu" role="menu" aria-label="Más opciones"><button type="button" role="menuitem" data-m26-area="expediente"><span>Mi expediente</span><small>Datos y contexto personal</small></button><button type="button" role="menuitem" data-m26-area="actividad"><span>Bienestar y hábitos</span><small>Registros y dispositivos</small></button><button type="button" role="menuitem" data-m26-area="biblioteca"><span>Biblioteca</span><small>Ejercicios IBERFIT</small></button><button type="button" role="menuitem" data-m26-area="verificacion"><span>Sincronización</span><small>Estado de tus cambios</small></button></div></details>`;
+}
+
+
+
+function renderClientBottomNav(vm){
+  const currentKind=String(vm?.kind||'hoy');
+  return `<div class="m26-client-bottom-nav-layer"><nav class="m26-client-bottom-nav" aria-label="Navegación principal de la aplicación cliente">${CLIENT_BOTTOM_NAV_ITEMS.map((item)=>clientBottomNavItem(item,currentKind)).join('')}${clientBottomNavMore(currentKind)}</nav></div>`;
+}
+
+function renderClientRouteShell(vm,content){
+  return `<div class="m26-client-route-shell" data-client-bottom-nav-route="${escapeHtml(vm?.kind||'hoy')}">${content}${renderClientBottomNav(vm)}</div>`;
+}
+
+export function renderRouteView(vm) {
+  const content=renderRouteContent(vm);
+  return vm.role==='client'?renderClientRouteShell(vm,content):content;
 }
