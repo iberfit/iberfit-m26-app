@@ -1,0 +1,104 @@
+.m26-external-report-card {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 1rem;
+  border: 1px solid rgba(227, 200, 120, 0.28);
+  background:
+    linear-gradient(145deg, rgba(18, 61, 44, 0.92), rgba(8, 37, 26, 0.96)),
+    radial-gradient(circle at top right, rgba(227, 200, 120, 0.12), transparent 42%);
+}
+
+.m26-external-report-card .m26-panel-heading {
+  align-items: flex-start;
+}
+
+.m26-external-report-card h3 {
+  margin: 0.15rem 0 0.3rem;
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+}
+
+.m26-external-report-summary,
+.m26-external-report-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(248, 240, 220, 0.07);
+  border: 1px solid rgba(248, 240, 220, 0.12);
+}
+
+.m26-external-report-summary > div,
+.m26-external-report-empty {
+  min-width: 0;
+}
+
+.m26-external-report-summary span,
+.m26-external-report-summary small,
+.m26-external-report-empty p,
+.m26-external-report-selection {
+  color: var(--m26-muted, #a7bdb1);
+}
+
+.m26-external-report-summary strong {
+  display: block;
+  margin: 0.2rem 0;
+  overflow-wrap: anywhere;
+}
+
+.m26-external-report-visibility {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  color: #f8f0dc !important;
+  background: rgba(227, 200, 120, 0.14);
+  border: 1px solid rgba(227, 200, 120, 0.35);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.m26-external-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.m26-external-report-actions button {
+  min-height: 2.75rem;
+}
+
+.m26-external-report-status {
+  min-height: 1.4rem;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.m26-external-report-status.is-success {
+  color: #bfe8cf;
+}
+
+.m26-external-report-status.is-error {
+  color: #ffc6bd;
+}
+
+.m26-external-report-status.is-pending {
+  color: #f2d98d;
+}
+
+@media (max-width: 700px) {
+  .m26-external-report-summary,
+  .m26-external-report-empty {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .m26-external-report-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .m26-external-report-actions button {
+    width: 100%;
+  }
+}
