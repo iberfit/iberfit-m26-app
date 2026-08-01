@@ -1,0 +1,108 @@
+{
+  "release": "IBERFIT_M26_CANARY_RC38_IRI_DIAGNOSIS_BIOIMPEDANCE",
+  "version": "26.0.0-canary.38-iri-diagnosis-bioimpedance",
+  "generatedAt": "2026-08-01T16:27:58.155Z",
+  "checks": [
+    {
+      "name": "Version RC38 exacta",
+      "ok": true
+    },
+    {
+      "name": "Scripts RC38 completos",
+      "ok": true
+    },
+    {
+      "name": "Diagnostico IRI es la unidad documental Cliente",
+      "ok": true
+    },
+    {
+      "name": "Metadata permitida y estado vacio humano",
+      "ok": true
+    },
+    {
+      "name": "Cliente sin gestion y Coach Admin preservados",
+      "ok": true
+    },
+    {
+      "name": "Visor accesible PDF e imagen",
+      "ok": true
+    },
+    {
+      "name": "Visor responsive con foco visible",
+      "ok": true
+    },
+    {
+      "name": "Pestaña reservada antes de URL firmada",
+      "ok": true
+    },
+    {
+      "name": "URL firmada solo bajo demanda y sin cache",
+      "ok": true
+    },
+    {
+      "name": "Origen Supabase canonico en servicio y CSP",
+      "ok": true
+    },
+    {
+      "name": "Ruta estable IBERFIT sin clientId ni Storage",
+      "ok": true
+    },
+    {
+      "name": "Intent URL estricto y assessment UUID",
+      "ok": true
+    },
+    {
+      "name": "Continuacion login solo en memoria y consumida",
+      "ok": true
+    },
+    {
+      "name": "Router y seleccion canonicos reutilizados",
+      "ok": true
+    },
+    {
+      "name": "PDF Cliente incluye hipervinculo estable",
+      "ok": true
+    },
+    {
+      "name": "PDF Cliente filtra visibilidad evaluacion y MIME",
+      "ok": true
+    },
+    {
+      "name": "PDF reserva ventana antes de metadata asincrona",
+      "ok": true
+    },
+    {
+      "name": "Contrato privado RC37 preservado",
+      "ok": true
+    },
+    {
+      "name": "Formatos RC37 exactos y WEBP rechazado",
+      "ok": true
+    },
+    {
+      "name": "Service worker no cachea Supabase ni datos privados",
+      "ok": true
+    },
+    {
+      "name": "Metadata y cache RC38 exactos",
+      "ok": true
+    },
+    {
+      "name": "Verificador reconoce RC38",
+      "ok": true
+    },
+    {
+      "name": "CI enruta y conserva RC38",
+      "ok": true
+    },
+    {
+      "name": "Suite focalizada cubre 20 requisitos",
+      "ok": true
+    }
+  ],
+  "ok": true,
+  "migrationsAdded": false,
+  "productionModified": false,
+  "productionDeployed": false,
+  "operationalSheetModified": false
+}

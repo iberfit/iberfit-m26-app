@@ -1,0 +1,134 @@
+{
+  "release": "IBERFIT_M26_CANARY_RC38_IRI_DIAGNOSIS_BIOIMPEDANCE",
+  "version": "26.0.0-canary.38-iri-diagnosis-bioimpedance",
+  "generatedAt": "2026-08-01T16:28:07.346Z",
+  "sourceRevision": "ca257258611158f83a53c728a7532ae5d4fadacc",
+  "sourceBranch": "canary/rc38",
+  "sourceCommit": "ca257258611158f83a53c728a7532ae5d4fadacc",
+  "baseBranch": "canary/rc37",
+  "baseCommit": "2ca98532bfec1315f569599121a4792fbdee3a45",
+  "backendContract": "RC30+IRI_EXTERNAL_REPORT_V12",
+  "ok": true,
+  "tests": {
+    "total": 455,
+    "passed": 454,
+    "failed": 0,
+    "skipped": 1
+  },
+  "steps": [
+    {
+      "name": "repository-hygiene",
+      "command": "node scripts/remote-gates/check_repository_hygiene.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "tests",
+      "command": "node --test tests/m25_2_iri_regression.test.mjs tests/m26_core_recovery.test.mjs tests/m26_exercises_ai_sessions.test.mjs tests/m26_hoy_clients_expediente.test.mjs tests/m26_iri_planning_agenda.test.mjs tests/m26_rc10_engagement_progress.test.mjs tests/m26_rc11_adaptive_engagement.test.mjs tests/m26_rc12_design_functional.test.mjs tests/m26_rc13_visual_canary.test.mjs tests/m26_rc14_integrated_application.test.mjs tests/m26_rc15_launch_candidate.test.mjs tests/m26_rc16_hardening.test.mjs tests/m26_rc17_resilience.test.mjs tests/m26_rc18_prelaunch_repository.test.mjs tests/m26_rc19_quality_performance.test.mjs tests/m26_rc20_wearables_ux.test.mjs tests/m26_rc21_free_integrations_state_fuzz.test.mjs tests/m26_rc22_sync_performance_accessibility.test.mjs tests/m26_rc23_castellano_ui.test.mjs tests/m26_rc24_functional_completion.test.mjs tests/m26_rc25_role_privacy_premium.test.mjs tests/m26_rc26_publication_premium.test.mjs tests/m26_rc27_client_premium_final.test.mjs tests/m26_rc28_local_maximum_closure.test.mjs tests/m26_rc29_repository_preflight.test.mjs tests/m26_rc30_password_recovery.test.mjs tests/m26_rc31_agenda_privacy.test.mjs tests/m26_rc31_ci_routing.test.mjs tests/m26_rc31_civil_dates.test.mjs tests/m26_rc31_remote_gate_bootstrap_privacy.test.mjs tests/m26_rc31_remote_gate_client_isolation.test.mjs tests/m26_rc31_repdb_media_assets.test.mjs tests/m26_rc31_visual_library_integration.test.mjs tests/m26_rc32_ci_routing.test.mjs tests/m26_rc32_product_coherence.test.mjs tests/m26_rc33_first_session_iri.test.mjs tests/m26_rc35_audit_closure.test.mjs tests/m26_rc35_library_overlay.test.mjs tests/m26_rc36_e2e_hardening.test.mjs tests/m26_rc36_iri_client_product.test.mjs tests/m26_rc37_iri_external_report.test.mjs tests/m26_rc38_iri_diagnosis_bioimpedance.test.mjs tests/m26_rc8_release_readiness.test.mjs tests/m26_rc9_offline_canary.test.mjs tests/m26_session_execution_ui.test.mjs tests/m26_sex_age_norms.test.mjs tests/m26_shell_roles.test.mjs tests/m26_v122_client_onboarding_repair.test.mjs tests/m26_v1233_confirmed_iri_report_unlock.test.mjs tests/m26_v1234_report_route_real.test.mjs tests/m26_v123_skipped_core_domain_report.test.mjs tests/m26_v12_iri_protocols.test.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc29-infrastructure-gate",
+      "command": "node scripts/m26_rc29_prepublication_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc35-audit-gate",
+      "command": "node scripts/m26_rc35_audit_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc35-release-gate",
+      "command": "node scripts/m26_rc35_release_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc36-product-gate",
+      "command": "node scripts/m26_rc36_product_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc37-release-gate",
+      "command": "node scripts/m26_rc37_release_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "rc38-release-gate",
+      "command": "node scripts/m26_rc38_release_gate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "build-current-source-with-repdb",
+      "command": "node scripts/build_rc29_prepublication_candidate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "module-graph",
+      "command": "node scripts/verify_rc29_module_graph.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "configure-rc38-canary",
+      "command": "node scripts/generate_rc35_runtime_config.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    },
+    {
+      "name": "verify-rc38-build",
+      "command": "node scripts/verify_rc35_canary_candidate.mjs",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "ok": true
+    }
+  ],
+  "deliveredScope": [
+    "Diagnostico IRI Cliente como unidad documental con bioimpedancia complementaria integrada",
+    "Visor accesible bajo demanda para PDF, JPEG y PNG con URLs firmadas renovables",
+    "PDF IRI Cliente con hipervinculo estable autenticado, nunca con URL firmada",
+    "Continuacion segura tras login y aislamiento por assessment visible confirmado",
+    "Controles RC37 de Coach y Admin preservados; Cliente permanece en solo lectura"
+  ],
+  "localValidationOnly": true,
+  "deployable": false,
+  "productionModified": false,
+  "productionDeployed": false,
+  "cloudflareModified": false,
+  "sheetModified": false,
+  "pendingExternalGates": [
+    "CI de GitHub sobre canary/rc38",
+    "Despliegue exclusivo en m26-canary.iberfit.cl",
+    "QA autenticado con los IDs ficticios autorizados y sin mutar el informe version 2"
+  ]
+}
