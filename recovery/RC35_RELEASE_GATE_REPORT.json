@@ -1,7 +1,7 @@
 {
   "release": "IBERFIT_M26_CANARY_RC35",
   "version": "26.0.0-canary.35",
-  "generatedAt": "2026-07-29T22:21:02.708Z",
+  "generatedAt": "2026-08-01T16:46:28.483Z",
   "branch": "canary/rc35",
   "sourceBranch": "canary/rc34",
   "sourceCommit": "7691b9a85ec6de374834e9c8da48cf0e01163530",
@@ -16,9 +16,9 @@
       "detail": "canary/rc35"
     },
     {
-      "name": "Versión de infraestructura conservada",
+      "name": "Versión de infraestructura o canary RC38 declarada",
       "ok": true,
-      "detail": "26.0.0-prepublicacion-infraestructura.29"
+      "detail": "26.0.0-canary.38-iri-diagnosis-bioimpedance"
     },
     {
       "name": "Script test:m26:rc35",

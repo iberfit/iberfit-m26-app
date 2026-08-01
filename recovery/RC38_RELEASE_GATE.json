@@ -1,7 +1,7 @@
 {
   "release": "IBERFIT_M26_CANARY_RC38_IRI_DIAGNOSIS_BIOIMPEDANCE",
   "version": "26.0.0-canary.38-iri-diagnosis-bioimpedance",
-  "generatedAt": "2026-08-01T16:27:58.155Z",
+  "generatedAt": "2026-08-01T16:46:28.875Z",
   "checks": [
     {
       "name": "Version RC38 exacta",

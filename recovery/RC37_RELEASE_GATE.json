@@ -1,7 +1,7 @@
 {
   "release": "IBERFIT_M26_CANARY_RC37_IRI_EXTERNAL_REPORT",
   "version": "26.0.0-canary.37-iri-external-report",
-  "generatedAt": "2026-08-01T04:40:13.898Z",
+  "generatedAt": "2026-08-01T16:46:28.730Z",
   "checks": [
     {
       "name": "Preflight v12.3.x preservado antes de crear cliente",
