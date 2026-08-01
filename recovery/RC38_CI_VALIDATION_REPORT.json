@@ -1,17 +1,17 @@
 {
   "release": "IBERFIT_M26_CANARY_RC38_IRI_DIAGNOSIS_BIOIMPEDANCE",
   "version": "26.0.0-canary.38-iri-diagnosis-bioimpedance",
-  "generatedAt": "2026-08-01T16:51:34.591Z",
-  "sourceRevision": "8d648c7b558c1fb7bf822481c68eec002f14e6ba",
+  "generatedAt": "2026-08-01T19:35:24.069Z",
+  "sourceRevision": "80c43eb3cc8020b2213d032f4cde409d4d65003b",
   "sourceBranch": "canary/rc38",
-  "sourceCommit": "8d648c7b558c1fb7bf822481c68eec002f14e6ba",
+  "sourceCommit": "80c43eb3cc8020b2213d032f4cde409d4d65003b",
   "baseBranch": "canary/rc37",
   "baseCommit": "2ca98532bfec1315f569599121a4792fbdee3a45",
   "backendContract": "RC30+IRI_EXTERNAL_REPORT_V12",
   "ok": true,
   "tests": {
-    "total": 456,
-    "passed": 455,
+    "total": 460,
+    "passed": 459,
     "failed": 0,
     "skipped": 1
   },
@@ -26,7 +26,7 @@
     },
     {
       "name": "tests",
-      "command": "node --test tests/m25_2_iri_regression.test.mjs tests/m26_core_recovery.test.mjs tests/m26_exercises_ai_sessions.test.mjs tests/m26_hoy_clients_expediente.test.mjs tests/m26_iri_planning_agenda.test.mjs tests/m26_rc10_engagement_progress.test.mjs tests/m26_rc11_adaptive_engagement.test.mjs tests/m26_rc12_design_functional.test.mjs tests/m26_rc13_visual_canary.test.mjs tests/m26_rc14_integrated_application.test.mjs tests/m26_rc15_launch_candidate.test.mjs tests/m26_rc16_hardening.test.mjs tests/m26_rc17_resilience.test.mjs tests/m26_rc18_prelaunch_repository.test.mjs tests/m26_rc19_quality_performance.test.mjs tests/m26_rc20_wearables_ux.test.mjs tests/m26_rc21_free_integrations_state_fuzz.test.mjs tests/m26_rc22_sync_performance_accessibility.test.mjs tests/m26_rc23_castellano_ui.test.mjs tests/m26_rc24_functional_completion.test.mjs tests/m26_rc25_role_privacy_premium.test.mjs tests/m26_rc26_publication_premium.test.mjs tests/m26_rc27_client_premium_final.test.mjs tests/m26_rc28_local_maximum_closure.test.mjs tests/m26_rc29_repository_preflight.test.mjs tests/m26_rc30_password_recovery.test.mjs tests/m26_rc31_agenda_privacy.test.mjs tests/m26_rc31_ci_routing.test.mjs tests/m26_rc31_civil_dates.test.mjs tests/m26_rc31_remote_gate_bootstrap_privacy.test.mjs tests/m26_rc31_remote_gate_client_isolation.test.mjs tests/m26_rc31_repdb_media_assets.test.mjs tests/m26_rc31_visual_library_integration.test.mjs tests/m26_rc32_ci_routing.test.mjs tests/m26_rc32_product_coherence.test.mjs tests/m26_rc33_first_session_iri.test.mjs tests/m26_rc35_audit_closure.test.mjs tests/m26_rc35_library_overlay.test.mjs tests/m26_rc36_e2e_hardening.test.mjs tests/m26_rc36_iri_client_product.test.mjs tests/m26_rc37_iri_external_report.test.mjs tests/m26_rc38_iri_diagnosis_bioimpedance.test.mjs tests/m26_rc8_release_readiness.test.mjs tests/m26_rc9_offline_canary.test.mjs tests/m26_session_execution_ui.test.mjs tests/m26_sex_age_norms.test.mjs tests/m26_shell_roles.test.mjs tests/m26_v122_client_onboarding_repair.test.mjs tests/m26_v1233_confirmed_iri_report_unlock.test.mjs tests/m26_v1234_report_route_real.test.mjs tests/m26_v123_skipped_core_domain_report.test.mjs tests/m26_v12_iri_protocols.test.mjs",
+      "command": "node --test tests/m25_2_iri_regression.test.mjs tests/m26_core_recovery.test.mjs tests/m26_exercises_ai_sessions.test.mjs tests/m26_hoy_clients_expediente.test.mjs tests/m26_iri_planning_agenda.test.mjs tests/m26_rc10_engagement_progress.test.mjs tests/m26_rc11_adaptive_engagement.test.mjs tests/m26_rc12_design_functional.test.mjs tests/m26_rc13_visual_canary.test.mjs tests/m26_rc14_integrated_application.test.mjs tests/m26_rc15_launch_candidate.test.mjs tests/m26_rc16_hardening.test.mjs tests/m26_rc17_resilience.test.mjs tests/m26_rc18_prelaunch_repository.test.mjs tests/m26_rc19_quality_performance.test.mjs tests/m26_rc20_wearables_ux.test.mjs tests/m26_rc21_free_integrations_state_fuzz.test.mjs tests/m26_rc22_sync_performance_accessibility.test.mjs tests/m26_rc23_castellano_ui.test.mjs tests/m26_rc24_functional_completion.test.mjs tests/m26_rc25_role_privacy_premium.test.mjs tests/m26_rc26_publication_premium.test.mjs tests/m26_rc27_client_premium_final.test.mjs tests/m26_rc28_local_maximum_closure.test.mjs tests/m26_rc29_repository_preflight.test.mjs tests/m26_rc30_password_recovery.test.mjs tests/m26_rc31_agenda_privacy.test.mjs tests/m26_rc31_ci_routing.test.mjs tests/m26_rc31_civil_dates.test.mjs tests/m26_rc31_remote_gate_bootstrap_privacy.test.mjs tests/m26_rc31_remote_gate_client_isolation.test.mjs tests/m26_rc31_repdb_media_assets.test.mjs tests/m26_rc31_visual_library_integration.test.mjs tests/m26_rc32_ci_routing.test.mjs tests/m26_rc32_product_coherence.test.mjs tests/m26_rc33_first_session_iri.test.mjs tests/m26_rc35_audit_closure.test.mjs tests/m26_rc35_library_overlay.test.mjs tests/m26_rc36_e2e_hardening.test.mjs tests/m26_rc36_iri_client_product.test.mjs tests/m26_rc37_iri_external_report.test.mjs tests/m26_rc38_client_bottom_navigation.test.mjs tests/m26_rc38_iri_diagnosis_bioimpedance.test.mjs tests/m26_rc8_release_readiness.test.mjs tests/m26_rc9_offline_canary.test.mjs tests/m26_session_execution_ui.test.mjs tests/m26_sex_age_norms.test.mjs tests/m26_shell_roles.test.mjs tests/m26_v122_client_onboarding_repair.test.mjs tests/m26_v1233_confirmed_iri_report_unlock.test.mjs tests/m26_v1234_report_route_real.test.mjs tests/m26_v123_skipped_core_domain_report.test.mjs tests/m26_v12_iri_protocols.test.mjs",
       "status": 0,
       "signal": null,
       "timedOut": false,

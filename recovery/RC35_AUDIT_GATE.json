@@ -1,6 +1,6 @@
 {
   "release": "IBERFIT_M26_CANARY_RC35_AUDIT_CLOSURE",
-  "generatedAt": "2026-08-01T16:51:23.349Z",
+  "generatedAt": "2026-08-01T19:35:15.274Z",
   "checks": [
     {
       "name": "IRI confirma solo tras rehidratación verificable",
