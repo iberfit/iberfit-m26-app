@@ -5,12 +5,30 @@ import path from 'node:path';
 const PROJECT_REF = 'pjhmrhejsoofmouedavw';
 const DEFAULT_BRANCH = 'canary/rc35';
 const DEPLOY_BRANCH = String(process.env.CF_PAGES_BRANCH || DEFAULT_BRANCH).trim();
+const IS_RC37 = DEPLOY_BRANCH === 'canary/rc37';
 const IS_RC36 = DEPLOY_BRANCH === 'canary/rc36';
-const VERSION = IS_RC36 ? '26.0.0-canary.36' : '26.0.0-canary.35';
-const RELEASE = IS_RC36 ? 'IBERFIT_M26_CANARY_RC36' : 'IBERFIT_M26_CANARY_RC35';
+const VERSION = IS_RC37
+  ? '26.0.0-canary.37-iri-external-report'
+  : IS_RC36
+    ? '26.0.0-canary.36'
+    : '26.0.0-canary.35';
+const RELEASE = IS_RC37
+  ? 'IBERFIT_M26_CANARY_RC37_IRI_EXTERNAL_REPORT'
+  : IS_RC36
+    ? 'IBERFIT_M26_CANARY_RC36'
+    : 'IBERFIT_M26_CANARY_RC35';
 const SOURCE_RELEASE = IS_RC36 ? 'RC36' : 'RC35';
-const SERVICE_WORKER_VERSION = IS_RC36 ? 'm26-rc36-canary-v10' : 'm26-rc35-canary-v1';
-const PREVIOUS_SERVICE_WORKER_VERSION = IS_RC36 ? 'm26-rc35-canary-v1' : 'm26-rc33-canary-v1';
+const DEPLOY_SOURCE_RELEASE = IS_RC37 ? 'RC37' : SOURCE_RELEASE;
+const SERVICE_WORKER_VERSION = IS_RC37
+  ? 'm26-rc37-iri-external-report-canary-v2'
+  : IS_RC36
+    ? 'm26-rc36-canary-v10'
+    : 'm26-rc35-canary-v1';
+const PREVIOUS_SERVICE_WORKER_VERSION = IS_RC37
+  ? 'm26-rc36-canary-v10'
+  : IS_RC36
+    ? 'm26-rc35-canary-v1'
+    : 'm26-rc33-canary-v1';
 const CORE_TOTAL_LIMIT = 3_700_000;
 const JAVASCRIPT_LIMIT = 820_000;
 const CSS_LIMIT = 155_000;
@@ -84,6 +102,7 @@ const config = {
   publishableKey: key,
   qaOnly: true,
   timeoutMs: 12000,
+  iriExternalReportUploadTimeoutMs: 180000,
   rpc: {
     bootstrap: 'iberfit_bootstrap_v26',
     preflight: 'iberfit_command_preflight_v26',
@@ -229,7 +248,7 @@ const metadata = {
     ? 'synthetic_publishable_validation'
     : 'cloudflare_publishable',
   qaOnly: true,
-  sourceRelease: SOURCE_RELEASE,
+  sourceRelease: DEPLOY_SOURCE_RELEASE,
   backendContract: 'RC30',
   canaryDomain: 'm26-canary.iberfit.cl',
   branch: DEPLOY_BRANCH,

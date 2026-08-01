@@ -171,6 +171,12 @@
     "verify:build:rc35": "node scripts/verify_rc35_canary_candidate.mjs",
     "validate:rc35:ci": "node scripts/run_rc35_ci_validation.mjs",
     "test:m26:rc36": "node --test tests/m26_rc36_iri_client_product.test.mjs",
-    "validate:rc36:ci": "node scripts/run_rc36_ci_validation.mjs"
+    "validate:rc36:ci": "node scripts/run_rc36_ci_validation.mjs",
+    "test:m26:rc37": "node --test tests/m26_rc37_iri_external_report.test.mjs",
+    "audit:rc37": "node scripts/m26_rc37_release_gate.mjs",
+    "build:rc37:canary": "npm run build:rc29 && npm run configure:rc37:canary",
+    "configure:rc37:canary": "node scripts/generate_rc35_runtime_config.mjs",
+    "verify:build:rc37": "node scripts/verify_rc35_canary_candidate.mjs",
+    "validate:rc37:ci": "node scripts/run_rc37_ci_validation.mjs"
   }
 }

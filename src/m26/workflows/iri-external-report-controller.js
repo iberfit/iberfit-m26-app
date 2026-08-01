@@ -3,6 +3,8 @@ const CANONICAL_SUPABASE_ORIGIN = `https://${CANONICAL_PROJECT_REF}.supabase.co`
 
 export const IRI_EXTERNAL_REPORT_BUCKET = 'iberfit-iri-external-reports';
 export const IRI_EXTERNAL_REPORT_MAX_BYTES = 50_000_000;
+export const IRI_EXTERNAL_REPORT_REQUEST_TIMEOUT_MS = 12_000;
+export const IRI_EXTERNAL_REPORT_UPLOAD_TIMEOUT_MS = 180_000;
 export const IRI_EXTERNAL_REPORT_MIME_TYPES = Object.freeze([
   'application/pdf',
   'image/jpeg',
@@ -133,6 +135,18 @@ function validateUuid(value, code) {
   return id;
 }
 
+export function resolveIriExternalReportTimeouts(runtime = {}) {
+  const requestTimeoutMs = Math.max(
+    1_000,
+    Math.min(Number(runtime.timeoutMs || IRI_EXTERNAL_REPORT_REQUEST_TIMEOUT_MS), 30_000)
+  );
+  const uploadTimeoutMs = Math.max(
+    60_000,
+    Math.min(Number(runtime.iriExternalReportUploadTimeoutMs || IRI_EXTERNAL_REPORT_UPLOAD_TIMEOUT_MS), 300_000)
+  );
+  return Object.freeze({ requestTimeoutMs, uploadTimeoutMs });
+}
+
 function validateRuntime(runtime = {}) {
   if (!runtime.enabled) throw new Error('M26_IRI_EXTERNAL_REPORT_BACKEND_DISABLED');
   if (runtime.projectRef !== CANONICAL_PROJECT_REF) {
@@ -149,10 +163,12 @@ function validateRuntime(runtime = {}) {
   }
   const publishableKey = cleanText(runtime.publishableKey, 20_000);
   if (publishableKey.length < 2) throw new Error('M26_IRI_EXTERNAL_REPORT_KEY_REQUIRED');
+  const timeouts = resolveIriExternalReportTimeouts(runtime);
   return Object.freeze({
     origin,
     publishableKey,
-    timeoutMs: Math.max(1_000, Math.min(Number(runtime.timeoutMs || 12_000), 30_000)),
+    timeoutMs: timeouts.requestTimeoutMs,
+    uploadTimeoutMs: timeouts.uploadTimeoutMs,
     version: cleanText(runtime.version || '26.0.0', 80),
   });
 }
@@ -247,14 +263,17 @@ export function createIriExternalReportService({ runtime, fetchImpl = globalThis
     throw new Error('M26_IRI_EXTERNAL_REPORT_FETCH_UNAVAILABLE');
   }
 
-  async function request(path, { token, method = 'GET', headers = {}, body } = {}) {
+  async function request(
+    path,
+    { token, method = 'GET', headers = {}, body, timeoutMs = config.timeoutMs } = {}
+  ) {
     const accessToken = cleanText(token, 20_000);
     if (!accessToken) throw new Error('M26_IRI_EXTERNAL_REPORT_AUTH_REQUIRED');
     if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//')) {
       throw new Error('M26_IRI_EXTERNAL_REPORT_PATH_INVALID');
     }
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), config.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetchImpl(`${config.origin}${path}`, {
         method,
@@ -327,6 +346,7 @@ export function createIriExternalReportService({ runtime, fetchImpl = globalThis
           'cache-control': '3600',
           'x-upsert': 'true',
         },
+        timeoutMs: config.uploadTimeoutMs,
       }
     );
     return Object.freeze({ ...details, objectPath });
@@ -416,6 +436,40 @@ function formatDate(value) {
     timeStyle: 'short',
     timeZone: 'America/Santiago',
   }).format(date);
+}
+
+export function prepareIriExternalReportViewTarget(openImpl = globalThis.open) {
+  if (typeof openImpl !== 'function') return null;
+  let target = null;
+  try {
+    target = openImpl('about:blank', '_blank');
+  } catch {
+    return null;
+  }
+  if (!target) return null;
+  try {
+    target.opener = null;
+  } catch {
+    // The placeholder stays same-origin until the canonical signed URL is ready.
+  }
+  return target;
+}
+
+export function navigateIriExternalReportViewTarget(target, url) {
+  if (!target || !url) return false;
+  try {
+    if (typeof target.location?.replace === 'function') target.location.replace(url);
+    else if (target.location) target.location.href = url;
+    else return false;
+    return true;
+  } catch {
+    try {
+      target.close?.();
+    } catch {
+      // Ignore cleanup failures after a blocked navigation.
+    }
+    return false;
+  }
 }
 
 function iriRoute(root, context = {}) {
@@ -593,6 +647,7 @@ export function createIriExternalReportController({
 
   async function registerPending(context, entry) {
     if (!entry.pending) throw new Error('M26_IRI_EXTERNAL_REPORT_PENDING_REQUIRED');
+    if (entry.busy) return;
     entry.busy = true;
     entry.message = 'Confirmando la vinculación con el IRI…';
     entry.tone = 'pending';
@@ -622,8 +677,9 @@ export function createIriExternalReportController({
       throw new Error('M26_IRI_EXTERNAL_REPORT_ASSESSMENT_INVALID');
     }
     const file = selectedInput()?.files?.[0] || null;
-    const details = validateIriExternalReportFile(file);
     const entry = entryFor(context.assessmentId);
+    if (entry.busy) return;
+    const details = validateIriExternalReportFile(file);
     entry.busy = true;
     entry.pending = null;
     entry.message = 'Subiendo el archivo de forma privada…';
@@ -660,6 +716,7 @@ export function createIriExternalReportController({
   async function view(context) {
     const entry = context.assessmentId ? entryFor(context.assessmentId) : null;
     if (!entry?.report) throw new Error('M26_IRI_EXTERNAL_REPORT_NOT_FOUND');
+    const viewTarget = prepareIriExternalReportViewTarget();
     entry.busy = true;
     entry.message = 'Preparando acceso temporal…';
     entry.tone = 'pending';
@@ -669,7 +726,7 @@ export function createIriExternalReportController({
         objectPath: entry.report.objectPath,
         expiresIn: 300,
       });
-      const opened = globalThis.open?.(url, '_blank', 'noopener,noreferrer');
+      const opened = navigateIriExternalReportViewTarget(viewTarget, url);
       if (!opened) {
         entry.message = 'El navegador bloqueó la nueva pestaña. Permite ventanas emergentes y vuelve a pulsar «Ver archivo».';
         entry.tone = 'error';
@@ -678,6 +735,11 @@ export function createIriExternalReportController({
         entry.tone = 'success';
       }
     } catch (error) {
+      try {
+        viewTarget?.close?.();
+      } catch {
+        // Ignore cleanup failures when the signed URL request is rejected.
+      }
       entry.message = friendlyIriExternalReportError(error);
       entry.tone = 'error';
     } finally {

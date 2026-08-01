@@ -1,11 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 import {
   IRI_EXTERNAL_REPORT_BUCKET,
+  IRI_EXTERNAL_REPORT_REQUEST_TIMEOUT_MS,
+  IRI_EXTERNAL_REPORT_UPLOAD_TIMEOUT_MS,
   createIriExternalReportService,
   friendlyIriExternalReportError,
   iriExternalReportObjectPath,
+  navigateIriExternalReportViewTarget,
+  prepareIriExternalReportViewTarget,
+  resolveIriExternalReportTimeouts,
   resolveIriExternalReportContext,
   validateIriExternalReportFile,
 } from '../src/m26/workflows/iri-external-report-controller.js';
@@ -15,6 +21,7 @@ const CLIENT_ID = '57339e70-7a99-48d6-820f-7d4a51f89d9d';
 const ASSESSMENT_ID = 'a82e5560-2f67-4de9-bf5b-ad3bfb289d96';
 const OLDER_ASSESSMENT_ID = '55afb4e1-e315-4598-9696-050a96ee9e2c';
 const TOKEN = 'qa-access-token';
+const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 const runtime = {
   enabled: true,
@@ -22,7 +29,7 @@ const runtime = {
   url: 'https://pjhmrhejsoofmouedavw.supabase.co',
   publishableKey: 'sb_publishable_rc37_test',
   timeoutMs: 5_000,
-  version: '26.0.0-canary.37',
+  version: '26.0.0-canary.37-iri-external-report',
 };
 
 function fileLike({ name = 'bioimpedancia.jpeg', type = 'image/jpeg', size = 194_916 } = {}) {
@@ -71,6 +78,19 @@ test('validación permite únicamente PDF, JPEG y PNG hasta 50 MB', () => {
   });
   assert.match(coachHtml, /accept="application\/pdf,image\/png,image\/jpeg"/);
   assert.doesNotMatch(coachHtml, /accept="[^"]*image\/webp/);
+});
+
+test('la subida de 50 MB dispone de un timeout largo sin ampliar REST ni RPC', () => {
+  assert.equal(IRI_EXTERNAL_REPORT_REQUEST_TIMEOUT_MS, 12_000);
+  assert.equal(IRI_EXTERNAL_REPORT_UPLOAD_TIMEOUT_MS, 180_000);
+  assert.deepEqual(resolveIriExternalReportTimeouts({}), {
+    requestTimeoutMs: 12_000,
+    uploadTimeoutMs: 180_000,
+  });
+  assert.deepEqual(
+    resolveIriExternalReportTimeouts({ timeoutMs: 5_000, iriExternalReportUploadTimeoutMs: 240_000 }),
+    { requestTimeoutMs: 5_000, uploadTimeoutMs: 240_000 }
+  );
 });
 
 test('contexto usa el cliente seleccionado y la evaluación IRI más reciente', () => {
@@ -208,4 +228,57 @@ test('mensajes convierten códigos técnicos en acciones comprensibles', () => {
     friendlyIriExternalReportError(new Error('M26_IRI_EXTERNAL_REPORT_TIMEOUT')),
     /conectar/i
   );
+});
+
+test('la lectura privada reserva la pestaña antes de esperar la URL firmada', () => {
+  const events = [];
+  const target = {
+    opener: {},
+    location: {
+      replace(url) {
+        events.push(['navigate', url]);
+      },
+    },
+  };
+  const prepared = prepareIriExternalReportViewTarget((url, name) => {
+    events.push(['open', url, name]);
+    return target;
+  });
+  assert.equal(prepared, target);
+  assert.equal(target.opener, null);
+  assert.equal(
+    navigateIriExternalReportViewTarget(
+      prepared,
+      'https://pjhmrhejsoofmouedavw.supabase.co/storage/v1/object/sign/report?token=test'
+    ),
+    true
+  );
+  assert.deepEqual(events, [
+    ['open', 'about:blank', '_blank'],
+    [
+      'navigate',
+      'https://pjhmrhejsoofmouedavw.supabase.co/storage/v1/object/sign/report?token=test',
+    ],
+  ]);
+  const controller = read('src/m26/workflows/iri-external-report-controller.js');
+  assert.ok(
+    controller.indexOf('const viewTarget = prepareIriExternalReportViewTarget();') <
+      controller.indexOf('const url = await api.signedUrl')
+  );
+});
+
+test('release RC37 dispone de metadata, build, gate y enrutado CI propios', () => {
+  const pkg = JSON.parse(read('package.json'));
+  const generator = read('scripts/generate_rc35_runtime_config.mjs');
+  const verifier = read('scripts/verify_rc35_canary_candidate.mjs');
+  const ci = read('.github/workflows/ci.yml');
+  assert.equal(pkg.scripts['test:m26:rc37'], 'node --test tests/m26_rc37_iri_external_report.test.mjs');
+  assert.equal(pkg.scripts['validate:rc37:ci'], 'node scripts/run_rc37_ci_validation.mjs');
+  assert.match(generator, /26\.0\.0-canary\.37-iri-external-report/);
+  assert.match(generator, /IBERFIT_M26_CANARY_RC37_IRI_EXTERNAL_REPORT/);
+  assert.match(generator, /m26-rc37-iri-external-report-canary-v2/);
+  assert.match(verifier, /EXPECTED_RC37/);
+  assert.match(ci, /Validar RC37 canary/);
+  assert.match(ci, /refs\/heads\/canary\/rc37/);
+  assert.match(ci, /rc37-evidencia-validacion/);
 });
