@@ -47,7 +47,7 @@ test('el HTML generado no depende de atributos style bloqueables por CSP',()=>{
   assert.match(html,/col-w-\d+/);
   assert.match(html,/class="report-page-content"/);
   assert.match(html,/report-page-2/);
-  const external=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',stylesheetHref:'https://m26-canary.iberfit.cl/m26/iri-report.css?v=m26-rc36-canary-v9'});
+  const external=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',stylesheetHref:'https://m26-canary.iberfit.cl/m26/iri-report.css?v=m26-rc36-canary-v10'});
   assert.match(external,/rel="stylesheet"[^>]+data-iri-report-stylesheet/);
   assert.doesNotMatch(external,/<style>/);
 });
@@ -64,7 +64,7 @@ test('el renderizador primario usa CSS same-origin permitido por CSP y bloquea i
   assert.match(source,/reportPageContentFits/);
   assert.match(source,/Encabezados y pies de página/);
   assert.match(source,/M26_IRI_REPORT_LAYOUT_NOT_READY/);
-  assert.match(source,/m26-rc36-canary-v9/);
+  assert.match(source,/m26-rc36-canary-v10/);
   assert.doesNotMatch(source,/localStorage\.setItem\(token/);
   assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
   assert.match(page,/localStorage\.getItem\(token\)/);
@@ -76,4 +76,27 @@ test('el renderizador primario usa CSS same-origin permitido por CSP y bloquea i
 test('el service worker precarga la ruta real y sus recursos',()=>{
   const sw=read('public/m26/sw.js');
   for(const asset of ['/m26/iri-report.html','/m26/iri-report.css','/src/m26/workflows/iri-report-page.js'])assert.match(sw,new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+});
+
+test('las fechas del informe conservan el día civil exacto y no desplazan por zona horaria',()=>{
+  assert.equal(__iriReportInternals.dateLabel('2026-07-31'),'31 de julio de 2026');
+  assert.equal(__iriReportInternals.dateLabel('2026-07-31T23:45:00-04:00'),'31 de julio de 2026');
+  assert.equal(__iriReportInternals.dateLabel('31/07/2026'),'31 de julio de 2026');
+  assert.equal(__iriReportInternals.dateLabel('2026-02-30','Por definir'),'Por definir');
+  assert.equal(__iriReportInternals.dateLabel('','Por definir'),'Por definir');
+});
+
+test('la página resumen mantiene estado, fecha y controles dentro de su caja A4',()=>{
+  const css=read('public/m26/iri-report.css');
+  assert.match(css,/\.report-page-2 \.report-page-content\{min-height:100%;display:flex;flex-direction:column\}/);
+  assert.match(css,/\.report-page-2 \.summary-band\{margin-top:auto;/);
+  assert.match(css,/\.pdf-page\.m26-premium-report-v2 main\{height:229mm;/);
+  assert.match(css,/\.evidence-item\.is-skipped>div\{grid-template-columns:minmax\(0,1fr\)\}/);
+  assert.match(css,/\.evidence-item\.is-skipped>div strong\{justify-self:start;max-width:100%/);
+  assert.match(css,/\.pdf-page\.m26-premium-report-v2 footer\{position:absolute;z-index:2\}/);
+  assert.match(css,/\.iri-report-toolbar\{position:relative;/);
+  assert.doesNotMatch(css,/\.iri-report-toolbar\{position:fixed;/);
+  const html=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
+  assert.match(html,/30 de julio de 2026/);
+  assert.match(html,/No evaluado/);
 });

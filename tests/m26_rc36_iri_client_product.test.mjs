@@ -91,9 +91,9 @@ test('Runtime canary identifica RC36 y renueva caché sin alterar RC35',()=>{
   assert.match(generator,/26\.0\.0-canary\.36/);
   assert.match(generator,/IBERFIT_M26_CANARY_RC36/);
   assert.match(generator,/SOURCE_RELEASE = IS_RC36 \? 'RC36' : 'RC35'/);
-  assert.match(generator,/m26-rc36-canary-v9/);
+  assert.match(generator,/m26-rc36-canary-v10/);
   assert.match(generator,/m26-rc35-canary-v1/);
   assert.match(verifier,/EXPECTED_RC36/);
   assert.match(verifier,/EXPECTED_SOURCE_RELEASE/);
-  assert.match(verifier,/m26-rc36-canary-v9/);
+  assert.match(verifier,/m26-rc36-canary-v10/);
 });
