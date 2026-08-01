@@ -23,7 +23,7 @@ RC38 conserva el contrato privado de documentos externos de RC37 y presenta el i
 
 - Versión: `26.0.0-canary.38-iri-diagnosis-bioimpedance`
 - Release: `IBERFIT_M26_CANARY_RC38_IRI_DIAGNOSIS_BIOIMPEDANCE`
-- Service worker: `m26-rc38-iri-diagnosis-bioimpedance-canary-v1`
+- Service worker: `m26-rc38-iri-diagnosis-bioimpedance-canary-v2`
 - Rama: `canary/rc38`
 - Destino exclusivo: `https://m26-canary.iberfit.cl`
 

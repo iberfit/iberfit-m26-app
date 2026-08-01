@@ -28,7 +28,7 @@ const RELEASE = IS_RC38
 const SOURCE_RELEASE = IS_RC36 ? 'RC36' : 'RC35';
 const DEPLOY_SOURCE_RELEASE = IS_RC38 ? 'RC38' : IS_RC37 ? 'RC37' : SOURCE_RELEASE;
 const SERVICE_WORKER_VERSION = IS_RC38
-  ? 'm26-rc38-iri-diagnosis-bioimpedance-canary-v1'
+  ? 'm26-rc38-iri-diagnosis-bioimpedance-canary-v2'
   : IS_RC37
     ? 'm26-rc37-iri-external-report-canary-v2'
   : IS_RC36
