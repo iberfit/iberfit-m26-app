@@ -1,3 +1,4 @@
+import {augmentRc39ViewModel} from '../rc39/view-model.js';
 import {
   clientsOverview,
   clientHealthSummary,
@@ -284,7 +285,7 @@ function publicationItems(records, entity, role) {
   });
 }
 
-export function createRouteViewModel(shellVm, state, now = new Date(), options = {}) {
+function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}) {
   const area = shellVm.activeArea;
 
   if (area === 'hoy') {
@@ -564,3 +565,13 @@ export const __routeViewModelInternals = Object.freeze({
   compactSummary,
   objectiveMeasurement,
 });
+
+/* M26_RC39_ROUTE_VIEW_MODEL_WRAPPER */
+export function createRouteViewModel(shellVm,state,now=new Date(),options={}){
+  return augmentRc39ViewModel(
+    createRouteViewModelBase(shellVm,state,now,options),
+    shellVm,
+    state,
+    now
+  );
+}

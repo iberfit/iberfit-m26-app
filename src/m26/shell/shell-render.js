@@ -1,3 +1,4 @@
+import {enhanceRc39ShellMarkup} from '../rc39/shell-enhancer.js';
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -40,7 +41,7 @@ export function renderM26AccessFrame(vm) {
   return `<main class="m26-access-frame" aria-busy="${vm.hydration?.status==='error'?'false':'true'}"><section><img src="/public/isotipo-iberfit.png" alt="" class="m26-access-mark"><p class="m26-eyebrow">IBERFIT</p><h1>Entrenamiento personal con criterio</h1><p>Diagnóstico, planificación, control y seguimiento.</p><div class="m26-access-status" role="status" aria-live="polite" aria-atomic="true">${escapeHtml(state)}</div></section></main>`;
 }
 
-export function renderM26Shell(vm, routeMarkup = '') {
+function renderM26ShellBase(vm, routeMarkup = '') {
   if (vm.mode !== 'authenticated') return renderM26AccessFrame(vm);
   const selectedClientName = vm.selectedClient?.name || 'Sin expediente seleccionado';
   const contextual = vm.selectedClient ? navGroup(selectedClientName, vm.navigation.context, vm.activeArea, 'm26-context-nav') : '';
@@ -67,4 +68,9 @@ export function renderM26Shell(vm, routeMarkup = '') {
       <nav class="m26-mobile-nav" aria-label="Navegación rápida y completa">${quickMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}${mobileMore}</nav>
     </section>
   </div>`;
+}
+
+/* M26_RC39_SHELL_RENDER_WRAPPER */
+export function renderM26Shell(vm,routeMarkup=''){
+  return enhanceRc39ShellMarkup(renderM26ShellBase(vm,routeMarkup),vm);
 }

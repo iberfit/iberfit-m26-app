@@ -183,6 +183,9 @@
     "build:rc38:canary": "npm run build:rc29 && npm run configure:rc38:canary",
     "configure:rc38:canary": "node scripts/generate_rc35_runtime_config.mjs",
     "verify:build:rc38": "node scripts/verify_rc35_canary_candidate.mjs",
-    "validate:rc38:ci": "node scripts/run_rc38_ci_validation.mjs"
+    "validate:rc38:ci": "node scripts/run_rc38_ci_validation.mjs",
+    "test:m26:rc39": "node --test tests/m26_rc39_integrated_client_coach_multirole.test.mjs",
+    "audit:rc39": "node scripts/m26_rc39_integrated_gate.mjs",
+    "validate:rc39:local": "npm test && npm run audit:rc39"
   }
 }

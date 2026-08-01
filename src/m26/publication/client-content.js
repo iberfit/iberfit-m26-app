@@ -47,7 +47,8 @@ export function clientContentView(entity,record={}){
     dateRange:dateRange(record),facts:Object.freeze([]),sections:Object.freeze([]),actionLabel:'Consultar el plan',
   });
   if(kind==='session'){
-    const blocks=safeBlocks(record);
+    const visibility=String(field(record,'clientVisibilityLevel','client_visibility_level')||'full').trim().toLowerCase();
+    const blocks=visibility==='summary_only'?[]:safeBlocks(record);
     const duration=boundedNumber(field(record,'durationMinutes','duration_minutes','duracionMinutos','duration'),{min:1,max:1440,integer:true});
     const facts=[];if(duration!==null)facts.push(`${duration} min`);if(blocks.length)facts.push(`${blocks.length} ${blocks.length===1?'bloque':'bloques'}`);
     const sections=blocks.length?[{

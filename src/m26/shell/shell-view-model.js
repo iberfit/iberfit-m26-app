@@ -1,3 +1,4 @@
+import {augmentRc39ShellViewModel} from '../rc39/view-model.js';
 import { metricPresentation, selectedClient } from '../production-state.js';
 import { areaDefinition, navigationForRole } from './navigation.js';
 import { resolveM26Route } from './route-guard.js';
@@ -36,7 +37,7 @@ function clientOptions(state, role) {
   return clients.map(compactClient);
 }
 
-export function createShellViewModel(state) {
+function createShellViewModelBase(state) {
   const route = resolveM26Route(state);
   if (route.area === 'acceso') {
     return Object.freeze({
@@ -85,4 +86,9 @@ export function createShellViewModel(state) {
       iri: metricPresentation(metrics.iri),
     }),
   });
+}
+
+/* M26_RC39_SHELL_VIEW_MODEL_WRAPPER */
+export function createShellViewModel(state){
+  return augmentRc39ShellViewModel(createShellViewModelBase(state),state);
 }

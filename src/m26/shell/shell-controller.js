@@ -30,6 +30,12 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function focusMain(){queueMicrotask(()=>root.querySelector?.('#m26-main')?.focus?.({preventScroll:false}));}
 
   function onClick(event) {
+    const roleButton=event.target.closest?.('[data-m26-switch-role]');
+    if(roleButton){
+      root.dispatchEvent(new CustomEvent('m26:switch-role',{bubbles:true,detail:{role:roleButton.getAttribute('data-m26-switch-role')}}));
+      return;
+    }
+
     const clientButton = event.target.closest?.('[data-m26-select-client]');
     if (clientButton) {
       try {

@@ -30,7 +30,7 @@ const EXPECTED_SOURCE_RELEASE = EXPECTED_RC38 ? 'RC38' : EXPECTED_RC37 ? 'RC37' 
 const EXPECTED_PROJECT_REF = 'pjhmrhejsoofmouedavw';
 const EXPECTED_URL = `https://${EXPECTED_PROJECT_REF}.supabase.co`;
 const EXPECTED_SW_VERSION = EXPECTED_RC38
-  ? 'm26-rc38-iri-diagnosis-bioimpedance-canary-v3'
+  ? 'm26-rc38-iri-diagnosis-bioimpedance-canary-v4'
   : EXPECTED_RC37
     ? 'm26-rc37-iri-external-report-canary-v2'
   : EXPECTED_RC36
