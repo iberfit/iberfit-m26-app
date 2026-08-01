@@ -17,6 +17,7 @@ import {
 import {buildIriReportHtml} from '../src/m26/workflows/iri-report-document.js';
 import {normalizeFirstSessionDraft} from '../src/m26/workflows/iri-first-session.js';
 import {renderReportsRoute} from '../src/m26/modules/route-render.js';
+import {createRouteViewModel} from '../src/m26/modules/route-view-model.js';
 
 const CLIENT_ID='57339e70-7a99-48d6-820f-7d4a51f89d9d';
 const ASSESSMENT_ID='a82e5560-2f67-4de9-bf5b-ad3bfb289d96';
@@ -56,6 +57,22 @@ function reportDraft(){
     weightKg:'64',heightCm:'165',waistCm:'74',ankleLeft1:'8',ankleRight1:'7.5',posteriorLeft1:'24',posteriorRight1:'23',hipRotationResult:'Simétrica',squatDepth:'Paralela',chairStand30s:'18',chairStandValid:'on',pushVariant:'standard',pushUps:'10',pushValid:'on',trxRowRepetitions:'14',trxValid:'on',frontPlankSeconds:'45',cardioSkipped:'on',cardioSkipReason:'No realizada en esta sesión.',diagnosisStrengths:'Buena fuerza funcional',diagnosisPriorities:'Completar área cardiorrespiratoria',coachInterpretation:'Perfil suficiente para iniciar.',trainingImplications:'Progresión conservadora.',initialPlan:'Plan inicial de cuatro semanas.',recommendedFrequency:'2 sesiones por semana',reviewAccepted:'on',
   },{id:ASSESSMENT_ID},CLIENT_ID);
 }
+
+test('evaluación QA histórica con estado confirmado habilita el Diagnóstico IRI',()=>{
+  const state=confirmedState();
+  state.collections.iriAssessments=[{
+    id:ASSESSMENT_ID,
+    clientId:CLIENT_ID,
+    status:'confirmed',
+    revision:2,
+    body:{assessmentDate:'2026-07-17'},
+  }];
+  const vm=createRouteViewModel({activeArea:'informes',identity:state.identity},state,new Date('2026-08-01T12:00:00Z'));
+  assert.equal(vm.latestIri.id,ASSESSMENT_ID);
+  assert.equal(vm.iriDiagnosis.assessmentId,ASSESSMENT_ID);
+  assert.equal(vm.iriDiagnosis.processLabel,'7 de 7 etapas completadas');
+  assert.match(renderReportsRoute(vm),/data-iri-diagnosis/);
+});
 
 test('App Cliente presenta Diagnóstico IRI como unidad documental con PDF y bioimpedancia integrados',()=>{
   const html=renderReportsRoute({role:'client',reports:[],latestIri:{id:ASSESSMENT_ID},iriDiagnosis:{assessmentId:ASSESSMENT_ID,dateLabel:'30 de julio de 2026',classification:'Perfil IRI por dominios',processLabel:'7 de 7 etapas completadas',revision:2}});
