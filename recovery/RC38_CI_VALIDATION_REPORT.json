@@ -1,10 +1,10 @@
 {
   "release": "IBERFIT_M26_CANARY_RC38_IRI_DIAGNOSIS_BIOIMPEDANCE",
   "version": "26.0.0-canary.38-iri-diagnosis-bioimpedance",
-  "generatedAt": "2026-08-01T16:46:35.015Z",
-  "sourceRevision": "618bf6157b2d8332b7bd39b41bc7ea9dd5150583",
+  "generatedAt": "2026-08-01T16:51:34.591Z",
+  "sourceRevision": "8d648c7b558c1fb7bf822481c68eec002f14e6ba",
   "sourceBranch": "canary/rc38",
-  "sourceCommit": "618bf6157b2d8332b7bd39b41bc7ea9dd5150583",
+  "sourceCommit": "8d648c7b558c1fb7bf822481c68eec002f14e6ba",
   "baseBranch": "canary/rc37",
   "baseCommit": "2ca98532bfec1315f569599121a4792fbdee3a45",
   "backendContract": "RC30+IRI_EXTERNAL_REPORT_V12",
