@@ -2,7 +2,7 @@
   "name": "iberfit-m26-recovery-work",
   "private": true,
   "type": "module",
-  "version": "26.0.0-prepublicacion-infraestructura.29",
+  "version": "26.0.0-canary.38-iri-diagnosis-bioimpedance",
   "scripts": {
     "test:iri:m25.2": "node --test tests/m25_2_iri_regression.test.mjs",
     "test:m26:core": "node --test tests/m26_core_recovery.test.mjs",
@@ -177,6 +177,12 @@
     "build:rc37:canary": "npm run build:rc29 && npm run configure:rc37:canary",
     "configure:rc37:canary": "node scripts/generate_rc35_runtime_config.mjs",
     "verify:build:rc37": "node scripts/verify_rc35_canary_candidate.mjs",
-    "validate:rc37:ci": "node scripts/run_rc37_ci_validation.mjs"
+    "validate:rc37:ci": "node scripts/run_rc37_ci_validation.mjs",
+    "test:m26:rc38": "node --test tests/m26_rc38_iri_diagnosis_bioimpedance.test.mjs",
+    "audit:rc38": "node scripts/m26_rc38_release_gate.mjs",
+    "build:rc38:canary": "npm run build:rc29 && npm run configure:rc38:canary",
+    "configure:rc38:canary": "node scripts/generate_rc35_runtime_config.mjs",
+    "verify:build:rc38": "node scripts/verify_rc35_canary_candidate.mjs",
+    "validate:rc38:ci": "node scripts/run_rc38_ci_validation.mjs"
   }
 }

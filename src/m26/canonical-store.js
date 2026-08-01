@@ -50,6 +50,21 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     emit();return getState();
   }
 
+  function selectIriAssessment(assessmentId) {
+    const id=String(assessmentId||'').trim();
+    const role=String(state.identity?.role||'').toLowerCase();
+    const clientId=['client','cliente'].includes(role)?state.identity?.clientId:state.selectedClientId;
+    const record=(state.collections.iriAssessments||[]).find((item)=>{
+      const body=item?.body&&typeof item.body==='object'?item.body:item;
+      const recordId=String(item?.id||body?.id||'');
+      const recordClientId=String(item?.clientId||item?.client_id||body?.clientId||body?.client_id||'');
+      return recordId===id&&recordClientId===String(clientId||'');
+    });
+    if(!record)throw new Error('M26_IRI_ASSESSMENT_NOT_VISIBLE');
+    if(state.selectedIriAssessmentId===id)return getState();
+    state={...state,selectedIriAssessmentId:id};emit();return getState();
+  }
+
   function navigate(activeArea) {
     const next=String(activeArea || 'hoy');if(state.activeArea===next)return getState();
     state = { ...state, activeArea: next };
@@ -75,5 +90,5 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
     return () => listeners.delete(listener);
   }
 
-  return Object.freeze({ getState, setHydration, hydrate, reset, selectClient, navigate, projectOperations, acknowledge, subscribe });
+  return Object.freeze({ getState, setHydration, hydrate, reset, selectClient, selectIriAssessment, navigate, projectOperations, acknowledge, subscribe });
 }

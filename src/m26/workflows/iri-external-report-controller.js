@@ -1,5 +1,6 @@
 const CANONICAL_PROJECT_REF = 'pjhmrhejsoofmouedavw';
 const CANONICAL_SUPABASE_ORIGIN = `https://${CANONICAL_PROJECT_REF}.supabase.co`;
+export const IRI_EXTERNAL_REPORT_APP_ORIGIN = 'https://m26-canary.iberfit.cl';
 
 export const IRI_EXTERNAL_REPORT_BUCKET = 'iberfit-iri-external-reports';
 export const IRI_EXTERNAL_REPORT_MAX_BYTES = 50_000_000;
@@ -13,6 +14,7 @@ export const IRI_EXTERNAL_REPORT_MIME_TYPES = Object.freeze([
 
 const MIME_TYPES = new Set(IRI_EXTERNAL_REPORT_MIME_TYPES);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const IRI_EXTERNAL_REPORT_INTENT_KEYS = new Set(['area', 'assessmentId', 'open']);
 const REPORT_SELECT = [
   'id',
   'client_id',
@@ -54,6 +56,19 @@ function recordBody(record = {}) {
 
 function recordId(record = {}) {
   return cleanText(record?.id || record?.body?.id, 80);
+}
+
+function recordIsConfirmed(record = {}) {
+  const body = recordBody(record);
+  const status = cleanText(
+    record?.status || record?.estado || body?.status || body?.estado,
+    80
+  ).toLowerCase();
+  return Boolean(
+    body?.firstSessionCompletedAt ||
+      body?.first_session_completed_at ||
+      /complet|confirm|publish|publicad/.test(status)
+  );
 }
 
 function recordClientId(record = {}) {
@@ -135,6 +150,60 @@ function validateUuid(value, code) {
   return id;
 }
 
+export function iriExternalReportAppUrl(
+  assessmentId,
+  { origin = IRI_EXTERNAL_REPORT_APP_ORIGIN } = {}
+) {
+  const assessment = validateUuid(
+    assessmentId,
+    'M26_IRI_EXTERNAL_REPORT_ASSESSMENT_INVALID'
+  );
+  let base;
+  try {
+    base = new URL(String(origin || ''));
+  } catch {
+    throw new Error('M26_IRI_EXTERNAL_REPORT_APP_ORIGIN_INVALID');
+  }
+  if (base.origin !== IRI_EXTERNAL_REPORT_APP_ORIGIN) {
+    throw new Error('M26_IRI_EXTERNAL_REPORT_APP_ORIGIN_INVALID');
+  }
+  const url = new URL('/', IRI_EXTERNAL_REPORT_APP_ORIGIN);
+  url.searchParams.set('area', 'informes');
+  url.searchParams.set('assessmentId', assessment);
+  url.searchParams.set('open', 'bioimpedancia');
+  return url.href;
+}
+
+export function parseIriExternalReportIntent(locationLike = globalThis.location) {
+  const search = cleanText(locationLike?.search, 2_000);
+  if (!search) return null;
+  let params;
+  try {
+    params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  } catch {
+    return Object.freeze({ status: 'invalid' });
+  }
+  const attempted = params.has('assessmentId') || params.get('open') === 'bioimpedancia';
+  if (!attempted) return null;
+  const keys = [...params.keys()];
+  const uniqueKeys = new Set(keys);
+  const assessmentId = cleanText(params.get('assessmentId'), 80);
+  const valid =
+    keys.length === 3 &&
+    uniqueKeys.size === 3 &&
+    keys.every((key) => IRI_EXTERNAL_REPORT_INTENT_KEYS.has(key)) &&
+    params.get('area') === 'informes' &&
+    params.get('open') === 'bioimpedancia' &&
+    UUID_PATTERN.test(assessmentId);
+  if (!valid) return Object.freeze({ status: 'invalid' });
+  return Object.freeze({
+    status: 'valid',
+    area: 'informes',
+    assessmentId,
+    open: 'bioimpedancia',
+  });
+}
+
 export function resolveIriExternalReportTimeouts(runtime = {}) {
   const requestTimeoutMs = Math.max(
     1_000,
@@ -201,7 +270,7 @@ export function validateIriExternalReportFile(file) {
   return Object.freeze({ fileName, mimeType, sizeBytes });
 }
 
-export function resolveIriExternalReportContext(state = {}) {
+export function resolveIriExternalReportContext(state = {}, requestedAssessmentId = '') {
   const role = normalizeRole(state?.identity?.role);
   const clients = Array.isArray(state?.collections?.clients) ? state.collections.clients : [];
   const ownClientId = cleanText(
@@ -223,12 +292,30 @@ export function resolveIriExternalReportContext(state = {}) {
     : [])
     .filter((item) => recordClientId(item) === clientId && UUID_PATTERN.test(recordId(item)))
     .sort((a, b) => assessmentSortValue(b).localeCompare(assessmentSortValue(a)));
+  const requested = cleanText(requestedAssessmentId, 80);
+  const selectedAssessment = requested && UUID_PATTERN.test(requested)
+    ? assessments.find((item) => recordId(item) === requested)
+    : assessments[0];
   return Object.freeze({
     role,
     clientId,
-    assessmentId: recordId(assessments[0]) || null,
+    assessmentId: recordId(selectedAssessment) || null,
     canManage: ['admin', 'coach'].includes(role),
   });
+}
+
+export function resolveIriExternalReportIntent(state = {}, intent = {}) {
+  if (intent?.status !== 'valid' || !UUID_PATTERN.test(String(intent.assessmentId || ''))) {
+    throw new Error('M26_IRI_EXTERNAL_REPORT_NOT_FOUND');
+  }
+  const context = resolveIriExternalReportContext(state, intent.assessmentId);
+  const record = (state?.collections?.iriAssessments || []).find(
+    (item) => recordId(item) === context.assessmentId && recordClientId(item) === context.clientId
+  );
+  if (!context.clientId || !context.assessmentId || !record || !recordIsConfirmed(record)) {
+    throw new Error('M26_IRI_EXTERNAL_REPORT_NOT_FOUND');
+  }
+  return context;
 }
 
 export function friendlyIriExternalReportError(error) {
@@ -241,12 +328,18 @@ export function friendlyIriExternalReportError(error) {
     return 'El archivo debe tener un tamaño máximo de 50 MB.';
   }
   if (/FILE_NAME_INVALID/.test(code)) return 'El nombre del archivo no es válido.';
+  if (/POPUP_BLOCKED/.test(code)) {
+    return 'El navegador bloqueó la pestaña nueva. Permite ventanas emergentes y vuelve a intentarlo.';
+  }
   if (/AUTH|JWT|401|403/.test(code)) return 'La sesión perdió autorización. Vuelve a entrar.';
   if (/COACH_ASSIGNMENT_REQUIRED|ROLE_FORBIDDEN|NOT_VISIBLE/.test(code)) {
     return 'No tienes permiso para gestionar este informe.';
   }
   if (/IRI_NOT_FOUND|ASSESSMENT_INVALID/.test(code)) {
     return 'No se encontró una evaluación IRI válida para vincular el informe.';
+  }
+  if (/EXTERNAL_REPORT_NOT_FOUND|SCOPE_MISMATCH/.test(code)) {
+    return 'El documento solicitado no está disponible para este expediente.';
   }
   if (/STORAGE_OBJECT_NOT_FOUND/.test(code)) {
     return 'El archivo se subió, pero Storage aún no lo reconoce. Reintenta el registro.';
@@ -438,6 +531,29 @@ function formatDate(value) {
   }).format(date);
 }
 
+function formatMimeType(value) {
+  const mimeType = cleanText(value, 120).toLowerCase();
+  if (mimeType === 'application/pdf') return 'PDF';
+  if (mimeType === 'image/jpeg') return 'JPEG';
+  if (mimeType === 'image/png') return 'PNG';
+  return 'Formato no disponible';
+}
+
+function reportForContext(context, report, { requireClientVisible = false } = {}) {
+  if (!report) return null;
+  if (
+    report.clientId !== context.clientId ||
+    report.assessmentId !== context.assessmentId ||
+    !MIME_TYPES.has(report.mimeType)
+  ) {
+    throw new Error('M26_IRI_EXTERNAL_REPORT_SCOPE_MISMATCH');
+  }
+  if ((context.role === 'client' || requireClientVisible) && !report.visibleToClient) {
+    return null;
+  }
+  return report;
+}
+
 export function prepareIriExternalReportViewTarget(openImpl = globalThis.open) {
   if (typeof openImpl !== 'function') return null;
   let target = null;
@@ -484,23 +600,37 @@ function iriRoute(root, context = {}) {
 }
 
 function cardMarkup(context, entry) {
-  const report = entry.report;
+  let report = null;
+  try {
+    report = reportForContext(context, entry.report);
+  } catch {
+    report = null;
+  }
   const canManage = context.canManage;
   const isBusy = Boolean(entry.busy || entry.loading);
   const status = entry.message
     ? `<p class="m26-external-report-status is-${escapeHtml(entry.tone || 'info')}" role="status" aria-live="polite">${escapeHtml(entry.message)}</p>`
     : '<p class="m26-external-report-status" role="status" aria-live="polite"></p>';
   const summary = report
-    ? `<div class="m26-external-report-summary"><div><span>Archivo actual</span><strong>${escapeHtml(report.fileName || 'Informe de bioimpedancia')}</strong><small>${escapeHtml(formatBytes(report.sizeBytes))} · versión ${escapeHtml(report.version)} · ${escapeHtml(formatDate(report.updatedAt || report.uploadedAt))}</small></div><span class="m26-external-report-visibility">${report.visibleToClient ? 'Visible para cliente' : 'Solo uso interno'}</span></div>`
-    : `<div class="m26-external-report-empty"><strong>${entry.loading ? 'Comprobando documento…' : 'Sin informe externo vinculado'}</strong><p>${canManage ? 'Selecciona el archivo en el campo anterior y súbelo desde aquí.' : 'Tu entrenador todavía no ha compartido un informe externo para esta evaluación.'}</p></div>`;
+    ? canManage
+      ? `<div class="m26-external-report-summary"><div><span>Archivo actual</span><strong>${escapeHtml(report.fileName || 'Informe de bioimpedancia')}</strong><small>${escapeHtml(formatBytes(report.sizeBytes))} · ${escapeHtml(formatMimeType(report.mimeType))} · versión ${escapeHtml(report.version)} · ${escapeHtml(formatDate(report.updatedAt || report.uploadedAt))}</small></div><span class="m26-external-report-visibility">${report.visibleToClient ? 'Visible para cliente' : 'Solo uso interno'}</span></div>`
+      : `<div class="m26-external-report-summary"><div><span>Documento complementario</span><strong>${escapeHtml(report.fileName || 'Informe de bioimpedancia')}</strong><small>${escapeHtml(formatMimeType(report.mimeType))} · subido el ${escapeHtml(formatDate(report.uploadedAt || report.updatedAt))} · versión ${escapeHtml(report.version)}</small></div></div>`
+    : `<div class="m26-external-report-empty"><strong>${entry.loading ? 'Comprobando documento…' : 'Informe de bioimpedancia'}</strong><p>${canManage ? 'Selecciona el archivo en el campo anterior y súbelo desde aquí.' : 'Aún no hay un informe de bioimpedancia adjunto a este diagnóstico.'}</p></div>`;
   const uploadLabel = report ? 'Reemplazar informe' : 'Subir informe';
   const manageActions = canManage
     ? `<button type="button" class="m26-primary-action" data-iri-external-report-action="upload"${isBusy || !context.assessmentId ? ' disabled aria-disabled="true"' : ''}>${escapeHtml(uploadLabel)}</button>${entry.pending ? '<button type="button" data-iri-external-report-action="retry-register">Reintentar registro</button>' : ''}`
     : '';
   const viewAction = report
-    ? `<button type="button" data-iri-external-report-action="view"${isBusy ? ' disabled aria-disabled="true"' : ''}>Ver archivo</button>`
+    ? `<button type="button" data-iri-external-report-action="view"${isBusy ? ' disabled aria-disabled="true"' : ''}>Ver informe de bioimpedancia</button>`
     : '';
-  return `<section class="m26-panel m26-panel-soft m26-external-report-card m26-wide" data-iri-external-report-card data-assessment-id="${escapeHtml(context.assessmentId || '')}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Documento externo</p><h3>Informe de bioimpedancia</h3><p>PDF, JPG o PNG · máximo 50 MB · vinculado a esta evaluación IRI.</p></div>${report ? `<span class="m26-badge is-success">Versión ${escapeHtml(report.version)}</span>` : '<span class="m26-badge is-neutral">Pendiente</span>'}</div>${summary}<div class="m26-external-report-actions">${manageActions}${viewAction}</div><small class="m26-external-report-selection" data-iri-external-report-selection>${canManage ? 'Ningún archivo seleccionado para una nueva carga.' : 'Acceso temporal y privado.'}</small>${status}</section>`;
+  const selection = canManage
+    ? '<small class="m26-external-report-selection" data-iri-external-report-selection>Ningún archivo seleccionado para una nueva carga.</small>'
+    : '';
+  return `<section class="m26-panel m26-panel-soft m26-external-report-card m26-wide" data-iri-external-report-card data-assessment-id="${escapeHtml(context.assessmentId || '')}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Documento complementario</p><h3>Informe de bioimpedancia</h3><p>${canManage ? 'PDF, JPG o PNG · máximo 50 MB · vinculado a esta evaluación IRI.' : 'Este documento complementa los resultados de composición corporal del Diagnóstico IRI.'}</p></div>${report ? `<span class="m26-badge is-success">Versión ${escapeHtml(report.version)}</span>` : '<span class="m26-badge is-neutral">Pendiente</span>'}</div>${summary}<div class="m26-external-report-actions">${manageActions}${viewAction}</div>${selection}${status}</section>`;
+}
+
+function viewerMarkup() {
+  return `<dialog class="m26-document-viewer" data-iri-document-viewer aria-labelledby="m26-document-viewer-title"><div class="m26-document-viewer-shell"><header><div><p class="m26-eyebrow">Documento complementario</p><h2 id="m26-document-viewer-title">Informe de bioimpedancia</h2><p data-iri-document-viewer-meta></p></div><button type="button" data-iri-external-report-action="viewer-close" aria-label="Cerrar visor">Cerrar</button></header><div class="m26-document-viewer-stage"><div class="m26-document-viewer-loading" data-iri-document-viewer-loading role="status" aria-live="polite">Preparando acceso privado…</div><iframe data-iri-document-viewer-pdf title="Informe de bioimpedancia en PDF" referrerpolicy="no-referrer" hidden></iframe><img data-iri-document-viewer-image alt="Informe de bioimpedancia" referrerpolicy="no-referrer" hidden><section class="m26-document-viewer-error" data-iri-document-viewer-error role="alert" hidden><strong>No fue posible mostrar el documento.</strong><p>Comprueba tu conexión e inténtalo de nuevo.</p><button type="button" data-iri-external-report-action="viewer-retry">Reintentar</button></section></div><footer><button type="button" data-iri-external-report-action="viewer-open-new">Abrir en una pestaña nueva</button></footer></div></dialog>`;
 }
 
 export function createIriExternalReportController({
@@ -520,6 +650,9 @@ export function createIriExternalReportController({
   let observer = null;
   let scanQueued = false;
   let requestSequence = 0;
+  let pinnedAssessmentId = null;
+  let viewerReturnFocus = null;
+  let viewerLoadTimer = null;
 
   function entryFor(assessmentId) {
     if (!entries.has(assessmentId)) {
@@ -529,6 +662,7 @@ export function createIriExternalReportController({
         busy: false,
         report: null,
         pending: null,
+        error: null,
         message: '',
         tone: 'info',
       });
@@ -537,7 +671,14 @@ export function createIriExternalReportController({
   }
 
   function currentContext() {
-    return resolveIriExternalReportContext(store.getState());
+    const hostAssessmentId = cleanText(
+      root.querySelector?.('[data-iri-external-report-host]')?.dataset?.assessmentId,
+      80
+    );
+    return resolveIriExternalReportContext(
+      store.getState(),
+      pinnedAssessmentId || hostAssessmentId
+    );
   }
 
   function currentCard() {
@@ -617,32 +758,139 @@ export function createIriExternalReportController({
     }
   }
 
+  function ensureViewer() {
+    let viewer = root.querySelector?.('[data-iri-document-viewer]');
+    if (viewer) return viewer;
+    const doc = root.ownerDocument || globalThis.document;
+    const template = doc?.createElement?.('template');
+    if (!template) throw new Error('M26_IRI_EXTERNAL_REPORT_VIEWER_UNAVAILABLE');
+    template.innerHTML = viewerMarkup().trim();
+    viewer = template.content.firstElementChild;
+    root.appendChild(viewer);
+    return viewer;
+  }
+
+  function clearViewerMedia(viewer) {
+    clearTimeout(viewerLoadTimer);
+    viewerLoadTimer = null;
+    const frame = viewer?.querySelector?.('[data-iri-document-viewer-pdf]');
+    const image = viewer?.querySelector?.('[data-iri-document-viewer-image]');
+    if (frame) {
+      frame.hidden = true;
+      frame.removeAttribute?.('src');
+    }
+    if (image) {
+      image.hidden = true;
+      image.removeAttribute?.('src');
+    }
+  }
+
+  function setViewerState(viewer, state, message = '') {
+    if (!viewer) return;
+    viewer.dataset.state = state;
+    const loading = viewer.querySelector?.('[data-iri-document-viewer-loading]');
+    const error = viewer.querySelector?.('[data-iri-document-viewer-error]');
+    if (loading) {
+      loading.hidden = state !== 'loading';
+      if (message) loading.textContent = message;
+    }
+    if (error) error.hidden = state !== 'error';
+  }
+
+  function closeViewer() {
+    const viewer = root.querySelector?.('[data-iri-document-viewer]');
+    if (!viewer) return;
+    clearViewerMedia(viewer);
+    if (typeof viewer.close === 'function' && viewer.open) viewer.close();
+    else viewer.removeAttribute?.('open');
+    viewerReturnFocus?.focus?.({ preventScroll: true });
+    viewerReturnFocus = null;
+  }
+
+  function openViewerShell(report) {
+    const viewer = ensureViewer();
+    clearViewerMedia(viewer);
+    const meta = viewer.querySelector?.('[data-iri-document-viewer-meta]');
+    if (meta) {
+      meta.textContent = `${report.fileName || 'Informe de bioimpedancia'} · ${formatMimeType(report.mimeType)} · versión ${report.version}`;
+    }
+    setViewerState(viewer, 'loading', 'Preparando acceso privado…');
+    if (typeof viewer.showModal === 'function' && !viewer.open) viewer.showModal();
+    else viewer.setAttribute?.('open', '');
+    queueMicrotask(() =>
+      viewer.querySelector?.('[data-iri-external-report-action="viewer-close"]')?.focus?.()
+    );
+    return viewer;
+  }
+
+  function displaySignedDocument(viewer, report, url) {
+    const ready = () => {
+      clearTimeout(viewerLoadTimer);
+      viewerLoadTimer = null;
+      setViewerState(viewer, 'ready');
+    };
+    const failed = () => {
+      clearTimeout(viewerLoadTimer);
+      viewerLoadTimer = null;
+      clearViewerMedia(viewer);
+      setViewerState(viewer, 'error');
+    };
+    if (report.mimeType === 'application/pdf') {
+      const frame = viewer.querySelector?.('[data-iri-document-viewer-pdf]');
+      if (!frame) throw new Error('M26_IRI_EXTERNAL_REPORT_VIEWER_UNAVAILABLE');
+      frame.hidden = false;
+      frame.addEventListener?.('load', ready, { once: true });
+      frame.addEventListener?.('error', failed, { once: true });
+      frame.src = url;
+    } else {
+      const image = viewer.querySelector?.('[data-iri-document-viewer-image]');
+      if (!image) throw new Error('M26_IRI_EXTERNAL_REPORT_VIEWER_UNAVAILABLE');
+      image.alt = `Informe de bioimpedancia · ${report.fileName || formatMimeType(report.mimeType)}`;
+      image.hidden = false;
+      image.addEventListener?.('load', ready, { once: true });
+      image.addEventListener?.('error', failed, { once: true });
+      image.src = url;
+    }
+    viewerLoadTimer = setTimeout(failed, 20_000);
+  }
+
   async function token() {
     const value = await getToken();
     if (!value) throw new Error('M26_IRI_EXTERNAL_REPORT_AUTH_REQUIRED');
     return value;
   }
 
-  async function load(context) {
-    if (!context.assessmentId) return;
+  async function load(context, { throwOnError = false } = {}) {
+    if (!context.assessmentId) {
+      if (throwOnError) throw new Error('M26_IRI_EXTERNAL_REPORT_NOT_FOUND');
+      return null;
+    }
     const entry = entryFor(context.assessmentId);
-    if (entry.loading || entry.loaded) return;
+    if (entry.loaded) return reportForContext(context, entry.report);
+    if (entry.loading) {
+      if (throwOnError) throw new Error('M26_IRI_EXTERNAL_REPORT_LOADING');
+      return null;
+    }
     entry.loading = true;
+    entry.error = null;
     entry.message = '';
     repaint(context);
     const sequence = ++requestSequence;
     try {
-      entry.report = await api.getReport(await token(), {
+      entry.report = reportForContext(context, await api.getReport(await token(), {
         assessmentId: context.assessmentId,
-      });
+      }));
       entry.loaded = true;
     } catch (error) {
+      entry.error = error;
       entry.message = friendlyIriExternalReportError(error);
       entry.tone = 'error';
+      if (throwOnError) throw error;
     } finally {
       entry.loading = false;
       if (sequence === requestSequence) repaint(currentContext());
     }
+    return reportForContext(context, entry.report);
   }
 
   async function registerPending(context, entry) {
@@ -715,33 +963,59 @@ export function createIriExternalReportController({
 
   async function view(context) {
     const entry = context.assessmentId ? entryFor(context.assessmentId) : null;
-    if (!entry?.report) throw new Error('M26_IRI_EXTERNAL_REPORT_NOT_FOUND');
-    const viewTarget = prepareIriExternalReportViewTarget();
+    const report = reportForContext(context, entry?.report);
+    if (!report) throw new Error('M26_IRI_EXTERNAL_REPORT_NOT_FOUND');
+    const viewer = openViewerShell(report);
     entry.busy = true;
     entry.message = 'Preparando acceso temporal…';
     entry.tone = 'pending';
     repaint(context);
     try {
-      const url = await api.signedUrl(await token(), {
-        objectPath: entry.report.objectPath,
+      const signedUrl = await api.signedUrl(await token(), {
+        objectPath: report.objectPath,
         expiresIn: 300,
       });
-      const opened = navigateIriExternalReportViewTarget(viewTarget, url);
-      if (!opened) {
-        entry.message = 'El navegador bloqueó la nueva pestaña. Permite ventanas emergentes y vuelve a pulsar «Ver archivo».';
-        entry.tone = 'error';
-      } else {
-        entry.message = 'Acceso temporal abierto en una nueva pestaña.';
-        entry.tone = 'success';
-      }
+      displaySignedDocument(viewer, report, signedUrl);
+      entry.message = 'Informe preparado en el visor privado.';
+      entry.tone = 'success';
     } catch (error) {
-      try {
-        viewTarget?.close?.();
-      } catch {
-        // Ignore cleanup failures when the signed URL request is rejected.
-      }
+      clearViewerMedia(viewer);
+      setViewerState(viewer, 'error');
       entry.message = friendlyIriExternalReportError(error);
       entry.tone = 'error';
+    } finally {
+      entry.busy = false;
+      repaint(currentContext());
+    }
+  }
+
+  async function openInNewTab(context) {
+    const entry = context.assessmentId ? entryFor(context.assessmentId) : null;
+    const report = reportForContext(context, entry?.report);
+    if (!report) throw new Error('M26_IRI_EXTERNAL_REPORT_NOT_FOUND');
+    const viewTarget = prepareIriExternalReportViewTarget();
+    if (!viewTarget) throw new Error('M26_IRI_EXTERNAL_REPORT_POPUP_BLOCKED');
+    entry.busy = true;
+    entry.message = 'Preparando una pestaña privada…';
+    entry.tone = 'pending';
+    repaint(context);
+    try {
+      const url = await api.signedUrl(await token(), {
+        objectPath: report.objectPath,
+        expiresIn: 300,
+      });
+      if (!navigateIriExternalReportViewTarget(viewTarget, url)) {
+        throw new Error('M26_IRI_EXTERNAL_REPORT_POPUP_BLOCKED');
+      }
+      entry.message = 'Acceso temporal abierto en una pestaña nueva.';
+      entry.tone = 'success';
+    } catch (error) {
+      try {
+        viewTarget.close?.();
+      } catch {}
+      entry.message = friendlyIriExternalReportError(error);
+      entry.tone = 'error';
+      throw error;
     } finally {
       entry.busy = false;
       repaint(currentContext());
@@ -759,7 +1033,12 @@ export function createIriExternalReportController({
       else if (action === 'retry-register') {
         const entry = entryFor(context.assessmentId);
         await registerPending(context, entry);
-      } else if (action === 'view') await view(context);
+      } else if (action === 'view') {
+        viewerReturnFocus = button;
+        await view(context);
+      } else if (action === 'viewer-close') closeViewer();
+      else if (action === 'viewer-retry') await view(context);
+      else if (action === 'viewer-open-new') await openInNewTab(context);
     } catch (error) {
       const entry = context.assessmentId ? entryFor(context.assessmentId) : null;
       if (entry) {
@@ -782,6 +1061,49 @@ export function createIriExternalReportController({
     syncSelectedFile(iriRoute(root, context), context);
   }
 
+  function onKeyDown(event) {
+    if (event.key !== 'Escape') return;
+    const viewer = root.querySelector?.('[data-iri-document-viewer]');
+    if (!viewer?.open && !viewer?.hasAttribute?.('open')) return;
+    event.preventDefault?.();
+    closeViewer();
+  }
+
+  async function clientReportForPdf(assessmentId) {
+    const intent = Object.freeze({
+      status: 'valid',
+      area: 'informes',
+      assessmentId: validateUuid(
+        assessmentId,
+        'M26_IRI_EXTERNAL_REPORT_ASSESSMENT_INVALID'
+      ),
+      open: 'bioimpedancia',
+    });
+    const context = resolveIriExternalReportIntent(store.getState(), intent);
+    const report = await load(context, { throwOnError: true });
+    return reportForContext(context, report, { requireClientVisible: true });
+  }
+
+  async function openAssessmentReport(assessmentId) {
+    const intent = Object.freeze({
+      status: 'valid',
+      area: 'informes',
+      assessmentId: validateUuid(
+        assessmentId,
+        'M26_IRI_EXTERNAL_REPORT_ASSESSMENT_INVALID'
+      ),
+      open: 'bioimpedancia',
+    });
+    const context = resolveIriExternalReportIntent(store.getState(), intent);
+    pinnedAssessmentId = context.assessmentId;
+    const route = iriRoute(root, context);
+    if (!route) throw new Error('M26_IRI_EXTERNAL_REPORT_NOT_FOUND');
+    placeCard(route, context);
+    await load(context, { throwOnError: true });
+    await view(context);
+    return true;
+  }
+
   function scan() {
     scanQueued = false;
     const context = currentContext();
@@ -801,10 +1123,13 @@ export function createIriExternalReportController({
   }
 
   return Object.freeze({
+    clientReportForPdf,
+    openAssessmentReport,
     mount() {
       if (mounted) return;
       root.addEventListener('click', onClick);
       root.addEventListener('change', onChange);
+      root.addEventListener('keydown', onKeyDown);
       if (typeof MutationObserver === 'function') {
         observer = new MutationObserver(queueScan);
         observer.observe(root, { childList: true, subtree: true });
@@ -818,9 +1143,22 @@ export function createIriExternalReportController({
       observer = null;
       root.removeEventListener('click', onClick);
       root.removeEventListener('change', onChange);
+      root.removeEventListener('keydown', onKeyDown);
+      clearTimeout(viewerLoadTimer);
+      root.querySelector?.('[data-iri-document-viewer]')?.remove?.();
       currentCard()?.remove?.();
       entries.clear();
+      pinnedAssessmentId = null;
+      viewerReturnFocus = null;
       mounted = false;
     },
   });
 }
+
+export const __iriExternalReportInternals = Object.freeze({
+  cardMarkup,
+  viewerMarkup,
+  formatMimeType,
+  reportForContext,
+  recordIsConfirmed,
+});

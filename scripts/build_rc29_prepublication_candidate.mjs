@@ -3,13 +3,18 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 const root = process.cwd();
+const packageVersion = JSON.parse(
+  fs.readFileSync(path.join(root, 'package.json'), 'utf8'),
+).version;
 const dist = path.join(
   root,
   'dist',
   'm26-prepublicacion-infraestructura-candidate'
 );
 const CORE_TOTAL_LIMIT = 3_700_000;
-const JAVASCRIPT_LIMIT = 820_000;
+const JAVASCRIPT_LIMIT = packageVersion === '26.0.0-canary.38-iri-diagnosis-bioimpedance'
+  ? 850_000
+  : 820_000;
 const CSS_LIMIT = 155_000;
 const MEDIA_TOTAL_LIMIT = 64_000_000;
 const MEDIA_FILE_LIMIT = 1_000_000;

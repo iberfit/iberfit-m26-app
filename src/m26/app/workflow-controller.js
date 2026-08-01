@@ -24,7 +24,10 @@ import {
   validateFirstSessionDraft,
   validateFirstSessionStep,
 } from '../workflows/iri-first-session.js';
-import {openIriReportPrint} from '../workflows/iri-report-document.js';
+import {
+  openIriReportPrint,
+  prepareIriReportPrintTarget,
+} from '../workflows/iri-report-document.js';
 import {scoreNormedTest} from '../norms/norms-engine.js';
 import {deriveAgeYears} from '../workflows/iri-profile.js';
 import {protocolComparabilityWarnings} from '../workflows/iri-protocol-catalog.js';
@@ -157,7 +160,7 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
 
 export function createWorkflowController({
   root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,
-  getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},isOnline=()=>globalThis.navigator?.onLine!==false,
+  getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
   let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,onboardingSaveTimer=null,iriTimer=null;
@@ -172,7 +175,7 @@ export function createWorkflowController({
   function requireCoach(){const {role}=context();if(!['admin','coach'].includes(role))throw new Error('M26_WORKFLOW_ROLE_FORBIDDEN');}
   function requireVisibleClient(clientId){const {state}=context();if(!clientId||(state.collections.clients||[]).every((item)=>item.id!==clientId))throw new Error('M26_CLIENT_NOT_VISIBLE');return clientId;}
   function currentIriRecord(form=null){
-    const {clientId,state}=context();const entityId=String(form?.elements?.namedItem?.('entityId')?.value||'');
+    const {clientId,state}=context();const entityId=String(form?.elements?.namedItem?.('entityId')?.value||state.selectedIriAssessmentId||'');
     const records=(state.collections.iriAssessments||[]).filter((item)=>(item.clientId||item.client_id)===clientId);
     return (entityId?records.find((item)=>String(item.id)===entityId):null)||records.sort((a,b)=>String(b.assessmentDate||b.assessment_date||b.createdAt||'').localeCompare(String(a.assessmentDate||a.assessment_date||a.createdAt||'')))[0]||{};
   }
@@ -359,7 +362,20 @@ export function createWorkflowController({
   }
   function iriReportStatusScope(){return root.querySelector?.('[data-workflow-form="iri"]')?'iri':'iri-report';}
   async function generateIriReport(variant){
-    requireCoach();const confirmedRecord=currentIriRecord();const confirmedBody=recordBody(confirmedRecord);if(!confirmedBody?.firstSessionCompletedAt&&!confirmedBody?.first_session_completed_at)throw new Error('M26_IRI_REPORT_REQUIRES_CONFIRMATION');const {clientId}=context();const draft=confirmedFirstSessionDraft(confirmedRecord,clientId);const check=validateFirstSessionDraft(draft);if(!check.ok){const error=new Error(`M26_IRI_CONFIRMED_REPORT_DATA_INVALID:${check.errors.join(',')}`);error.userMessage=`El IRI confirmado no puede convertirse todavía en informe: ${check.errors.map((item)=>IRI_FIELD_LABELS[item]||item).join(', ')}.`;throw error;}const result=openIriReportPrint({...reportContext(draft),variant});status(root,iriReportStatusScope(),variant==='client'?'Informe Cliente preparado para guardar como PDF.':'Informe Coach / Admin preparado para guardar como PDF.','success');return result;
+    const {role,clientId}=context();
+    if(variant!=='client'&&!['admin','coach'].includes(role))throw new Error('M26_WORKFLOW_ROLE_FORBIDDEN');
+    if(variant==='coach')requireCoach();
+    requireVisibleClient(clientId);
+    const confirmedRecord=currentIriRecord();const confirmedBody=recordBody(confirmedRecord);if(!confirmedBody?.firstSessionCompletedAt&&!confirmedBody?.first_session_completed_at)throw new Error('M26_IRI_REPORT_REQUIRES_CONFIRMATION');const draft=confirmedFirstSessionDraft(confirmedRecord,clientId);const check=validateFirstSessionDraft(draft);if(!check.ok){const error=new Error(`M26_IRI_CONFIRMED_REPORT_DATA_INVALID:${check.errors.join(',')}`);error.userMessage=`El IRI confirmado no puede convertirse todavía en informe: ${check.errors.map((item)=>IRI_FIELD_LABELS[item]||item).join(', ')}.`;throw error;}
+    let externalReport=null;let printTarget=null;
+    try{
+      if(variant==='client'){
+        printTarget=prepareIriReportPrintTarget();
+        if(!printTarget)throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
+        externalReport=await getIriExternalReport(draft.assessmentId);
+      }
+      const result=openIriReportPrint({...reportContext(draft),variant,externalReport,printTarget});status(root,iriReportStatusScope(),variant==='client'?'Informe Cliente preparado para guardar como PDF.':'Informe Coach / Admin preparado para guardar como PDF.','success');return result;
+    }catch(error){try{printTarget?.close?.();}catch{}throw error;}
   }
 
   async function validatePlan(){requireCoach();const form=root.querySelector?.('[data-workflow-form="planning"]');if(!form)throw new Error('M26_PLAN_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const {clientId,state}=context();requireVisibleClient(clientId);const draft={id:raw.entityId||createM26Id(),clientId,name:String(raw.name||'').trim(),startDate:raw.startDate,endDate:raw.endDate,goal:String(raw.goal||'').trim(),weeklyFrequency:Number(raw.weeklyFrequency||0)||null,sessionDurationMinutes:Number(raw.sessionDurationMinutes||0)||null,modality:normalizeClientModality(raw.modality)||null};const current=(state.collections.trainingCycles||[]).find((item)=>String(item.id)===String(draft.id)&&(item.clientId||item.client_id)===clientId);await draftRepository?.save?.(clientId,'planning-cycle',draft);status(root,'planning','Validando y guardando el ciclo…','pending');const result=await withTimeout(commandBus.execute(buildCycleCommand(draft,Number(current?.revision||0))),20_000,'M26_PLAN_CONFIRM_TIMEOUT');if(!result.ok){status(root,'planning','El ciclo no quedó confirmado. El borrador local se conserva.','pending');return result;}const confirmed=await refreshAndFind('trainingCycles',draft.id,clientId);if(!confirmed)throw new Error('M26_PLAN_CONFIRM_NOT_PERSISTED');await draftRepository?.remove?.(clientId,'planning-cycle');status(root,'planning','Ciclo validado y visible en Planificación.','success');onRender();return result;}

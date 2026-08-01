@@ -26,7 +26,12 @@ import {createExecutionRecoveryStore,createExecutionRecoveryCoordinator} from '.
 import {registerM26ServiceWorker,createConnectivitySync} from '../platform/pwa.js';
 import {loadExerciseMediaMap} from '../library/exercise-media.js';
 import {waitForCreatedClient} from '../workflows/client-onboarding.js';
-import {createIriExternalReportController} from '../workflows/iri-external-report-controller.js';
+import {
+  createIriExternalReportController,
+  iriExternalReportAppUrl,
+  parseIriExternalReportIntent,
+  resolveIriExternalReportIntent,
+} from '../workflows/iri-external-report-controller.js';
 
 const SESSION_DRAFT_SCOPE='session-builder';
 function escapeText(value){return String(value??'').replace(/[&<>"']/g,'');}
@@ -81,6 +86,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
   const runtime=resolveM26Runtime(runtimeConfig,locationLike);const vault=createSessionVault();
   let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,operationRepository=null,draftRepository=null,commandBus=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null;
+  let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
 
   function authMessage(message='',noticeKind='status'){
   root.innerHTML=renderAccessUi({
@@ -131,6 +137,30 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   function onOpenBuilderEvent(event){void onOpenBuilder(event).catch(surfaceWorkspaceError);}
   function onStartSessionEvent(event){void onStartSession(event).catch(surfaceWorkspaceError);}
+  function safeAppPath(){const pathname=String(locationLike?.pathname||'/');return pathname.startsWith('/')&&!pathname.startsWith('//')?pathname:'/';}
+  function replaceAppLocation(target){try{historyLike?.replaceState?.(null,'',target);}catch{}}
+  function sanitizePendingIriExternalReportIntent(){
+    if(!pendingIriExternalReportIntent)return;
+    if(pendingIriExternalReportIntent.status!=='valid'){replaceAppLocation(safeAppPath());return;}
+    const safe=new URL(iriExternalReportAppUrl(pendingIriExternalReportIntent.assessmentId));
+    replaceAppLocation(`${safe.pathname}${safe.search}`);
+  }
+  async function consumePendingIriExternalReportIntent(){
+    const intent=pendingIriExternalReportIntent;if(!intent)return false;
+    pendingIriExternalReportIntent=null;replaceAppLocation(safeAppPath());
+    store.navigate('informes');
+    try{
+      const context=resolveIriExternalReportIntent(store.getState(),intent);
+      store.selectIriAssessment?.(context.assessmentId);
+      render();
+      await iriExternalReports.openAssessmentReport(context.assessmentId);
+      return true;
+    }catch{
+      render();
+      try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message:'El documento solicitado no está disponible para este expediente.'}}));}catch{}
+      return false;
+    }
+  }
   async function setupAuthenticated(){
     destroyControllers();sessionUi=null;
     const {installed,runtimeRegistry}=await hydrate({reason:'login'});await fetchCatalog();const ownerId=session.user.id;
@@ -138,15 +168,15 @@ export async function createM26Application({root=document.querySelector('#app'),
     commandBus=createCommandBus({transport,repository:operationRepository,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},rehydrate:hydrate,registry:runtimeRegistry.registry.length?runtimeRegistry.registry:M26_COMMAND_REGISTRY,getRole:()=>store.getState().identity?.role});
     const service=createEngagementCommandService({commandBus,installedRegistry:installed,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false});
     recoveryCoordinator=createExecutionRecoveryCoordinator({store:createExecutionRecoveryStore({ownerId}),commandBus,isOnline:()=>navigator.onLine!==false});
-    shell=createShellController({root,store,renderRoute});
-    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,getRegistry:()=>runtimeRegistry.registry,onRender:render,createClientDraft:async(payload)=>{await refreshSessionIfNeeded();await transport.clientOnboardingPreflight(currentToken());const result=await transport.createClientDraft(currentToken(),payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(currentToken())});await hydrate({reason:'client-created'});return verified;}});
     iriExternalReports=createIriExternalReportController({root,store,runtime,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false});
+    shell=createShellController({root,store,renderRoute});
+    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,getRegistry:()=>runtimeRegistry.registry,onRender:render,getIriExternalReport:(assessmentId)=>iriExternalReports.clientReportForPdf(assessmentId),createClientDraft:async(payload)=>{await refreshSessionIfNeeded();await transport.clientOnboardingPreflight(currentToken());const result=await transport.createClientDraft(currentToken(),payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(currentToken())});await hydrate({reason:'client-created'});return verified;}});
     engagement=createEngagementController({root,store,draftRepository,service,refreshState:({reason}={})=>hydrate({reason:reason||'engagement-refresh'})});wearables=createWearableController({root,store});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
     sessionController=createSessionController({root,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},autosaveDraft:saveSessionDraft,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
     root.addEventListener('click',guardSessionNavigation,true);shell.mount();workflow.mount();engagement.mount();wearables.mount();verification.mount();sessionController.mount();iriExternalReports.mount();await refreshVerificationState({repository:operationRepository,store});
     root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
     const sync=createConnectivitySync({coordinator:recoveryCoordinator,onResult:async()=>{await refreshVerificationState({repository:operationRepository,store});render();}});connectivityStop=sync.start();void registerM26ServiceWorker({url:'/m26/sw.js',scope:'/m26/'}).catch(()=>{});
-    await restoreExecution();render();
+    if(!pendingIriExternalReportIntent)await restoreExecution();render();await consumePendingIriExternalReportIntent();
   }
   function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
@@ -313,6 +343,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   }
 }
   function mount() {
+  sanitizePendingIriExternalReportIntent();
   transport = runtime.enabled
     ? createM26Transport(runtime)
     : null;

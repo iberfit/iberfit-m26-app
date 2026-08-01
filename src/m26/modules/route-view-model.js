@@ -158,6 +158,24 @@ function compactIri(record) {
     ageYears: Number.isFinite(ageYears) ? ageYears : null,
   });
 }
+
+function compactIriDiagnosis(record) {
+  const iri = compactIri(record);
+  if (!iri) return null;
+  const body = record?.body && typeof record.body === 'object' ? record.body : record || {};
+  const revision = Number(record?.revision ?? body?.revision ?? 1);
+  return Object.freeze({
+    assessmentId: iri.id,
+    dateLabel: iri.dateLabel,
+    classification:
+      text(record, 'classification', 'clasificacion', 'resultClassification') ||
+      'Perfil IRI por dominios',
+    processLabel: iri.processLabel,
+    coverageLabel: iri.coverageLabel,
+    revision: Number.isFinite(revision) && revision > 0 ? revision : 1,
+    confirmed: iri.confirmed,
+  });
+}
 function profileFromIri(record) {
   const body = record?.body && typeof record.body === 'object' ? record.body : record || {};
   const profile = body.personProfile || body.person_profile;
@@ -379,7 +397,9 @@ export function createRouteViewModel(shellVm, state, now = new Date(), options =
     const assessments = recordsForClient(state, 'iriAssessments', clientId).sort(
       (a, b) => String(domainDate(b) || '').localeCompare(String(domainDate(a) || ''))
     );
-    const current = assessments[0] || null;
+    const current = assessments.find(
+      (record) => text(record, 'id') === state.selectedIriAssessmentId
+    ) || assessments[0] || null;
     const rawProfile = recordsForClient(state, 'clientProfiles', clientId)[0] || null;
     const client = (state?.collections?.clients || []).find(
       (item) => item.id === clientId
@@ -455,9 +475,12 @@ export function createRouteViewModel(shellVm, state, now = new Date(), options =
     const clientId = routeClientId(shellVm, state);
     const reports = recordsForClient(state, 'reports', clientId);
     const role = String(shellVm.identity?.role || '');
-    const iri = recordsForClient(state, 'iriAssessments', clientId).sort((a, b) =>
+    const iriAssessments = recordsForClient(state, 'iriAssessments', clientId).sort((a, b) =>
       String(domainDate(b) || '').localeCompare(String(domainDate(a) || ''))
-    ).find((record)=>compactIri(record)?.confirmed) || null;
+    );
+    const iri = iriAssessments.find(
+      (record) => text(record, 'id') === state.selectedIriAssessmentId && compactIri(record)?.confirmed
+    ) || iriAssessments.find((record)=>compactIri(record)?.confirmed) || null;
     const reportItems = publicationItems(reports, 'report', role);
     return Object.freeze({
       kind: 'informes',
@@ -476,6 +499,7 @@ export function createRouteViewModel(shellVm, state, now = new Date(), options =
       ),
       reportCounts: publicationCounts(reports),
       latestIri: clone(iri),
+      iriDiagnosis: compactIriDiagnosis(iri),
     });
   }
 
@@ -535,6 +559,7 @@ export function createRouteViewModel(shellVm, state, now = new Date(), options =
 
 export const __routeViewModelInternals = Object.freeze({
   compactIri,
+  compactIriDiagnosis,
   compactSummary,
   objectiveMeasurement,
 });

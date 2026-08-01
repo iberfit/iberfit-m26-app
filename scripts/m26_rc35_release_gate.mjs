@@ -19,7 +19,7 @@ const css=read('src/m26/shell/shell.css');
 const ciWorkflow=read('.github/workflows/ci.yml');
 
 check('Rama RC35 aislada',branch==='canary/rc35'||branch==='canary/rc35-audit-fixes',branch||'sin rama');
-check('Versión de infraestructura conservada',pkg.version==='26.0.0-prepublicacion-infraestructura.29',pkg.version);
+check('Versión de infraestructura o canary RC38 declarada',['26.0.0-prepublicacion-infraestructura.29','26.0.0-canary.38-iri-diagnosis-bioimpedance'].includes(pkg.version),pkg.version);
 for(const [key,value] of Object.entries({
   'test:m26:rc35':'node --test tests/m26_rc35_audit_closure.test.mjs',
   'audit:rc35':'node scripts/m26_rc35_audit_gate.mjs',

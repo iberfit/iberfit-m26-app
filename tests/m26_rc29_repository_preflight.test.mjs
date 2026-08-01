@@ -9,7 +9,7 @@ const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('package y gate apuntan a RC29',async()=>{
   const pkg=JSON.parse(await read('package.json'));
-  assert.equal(pkg.version,'26.0.0-prepublicacion-infraestructura.29');
+  assert.ok(['26.0.0-prepublicacion-infraestructura.29','26.0.0-canary.38-iri-diagnosis-bioimpedance'].includes(pkg.version));
   assert.equal(pkg.scripts.gate,'npm run validate:rc29');
   assert.ok(pkg.scripts['validate:rc29']);
 });

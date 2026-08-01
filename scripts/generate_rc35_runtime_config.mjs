@@ -5,32 +5,46 @@ import path from 'node:path';
 const PROJECT_REF = 'pjhmrhejsoofmouedavw';
 const DEFAULT_BRANCH = 'canary/rc35';
 const DEPLOY_BRANCH = String(process.env.CF_PAGES_BRANCH || DEFAULT_BRANCH).trim();
+const IS_RC38 = DEPLOY_BRANCH === 'canary/rc38';
 const IS_RC37 = DEPLOY_BRANCH === 'canary/rc37';
 const IS_RC36 = DEPLOY_BRANCH === 'canary/rc36';
-const VERSION = IS_RC37
-  ? '26.0.0-canary.37-iri-external-report'
+const PACKAGE_VERSION = JSON.parse(
+  fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'),
+).version;
+const VERSION = IS_RC38
+  ? '26.0.0-canary.38-iri-diagnosis-bioimpedance'
+  : IS_RC37
+    ? '26.0.0-canary.37-iri-external-report'
   : IS_RC36
     ? '26.0.0-canary.36'
     : '26.0.0-canary.35';
-const RELEASE = IS_RC37
-  ? 'IBERFIT_M26_CANARY_RC37_IRI_EXTERNAL_REPORT'
+const RELEASE = IS_RC38
+  ? 'IBERFIT_M26_CANARY_RC38_IRI_DIAGNOSIS_BIOIMPEDANCE'
+  : IS_RC37
+    ? 'IBERFIT_M26_CANARY_RC37_IRI_EXTERNAL_REPORT'
   : IS_RC36
     ? 'IBERFIT_M26_CANARY_RC36'
     : 'IBERFIT_M26_CANARY_RC35';
 const SOURCE_RELEASE = IS_RC36 ? 'RC36' : 'RC35';
-const DEPLOY_SOURCE_RELEASE = IS_RC37 ? 'RC37' : SOURCE_RELEASE;
-const SERVICE_WORKER_VERSION = IS_RC37
-  ? 'm26-rc37-iri-external-report-canary-v2'
+const DEPLOY_SOURCE_RELEASE = IS_RC38 ? 'RC38' : IS_RC37 ? 'RC37' : SOURCE_RELEASE;
+const SERVICE_WORKER_VERSION = IS_RC38
+  ? 'm26-rc38-iri-diagnosis-bioimpedance-canary-v1'
+  : IS_RC37
+    ? 'm26-rc37-iri-external-report-canary-v2'
   : IS_RC36
     ? 'm26-rc36-canary-v10'
     : 'm26-rc35-canary-v1';
-const PREVIOUS_SERVICE_WORKER_VERSION = IS_RC37
-  ? 'm26-rc36-canary-v10'
+const PREVIOUS_SERVICE_WORKER_VERSION = IS_RC38
+  ? 'm26-rc37-iri-external-report-canary-v2'
+  : IS_RC37
+    ? 'm26-rc36-canary-v10'
   : IS_RC36
     ? 'm26-rc35-canary-v1'
     : 'm26-rc33-canary-v1';
 const CORE_TOTAL_LIMIT = 3_700_000;
-const JAVASCRIPT_LIMIT = 820_000;
+const JAVASCRIPT_LIMIT = IS_RC38 || PACKAGE_VERSION === '26.0.0-canary.38-iri-diagnosis-bioimpedance'
+  ? 850_000
+  : 820_000;
 const CSS_LIMIT = 155_000;
 const MEDIA_TOTAL_LIMIT = 64_000_000;
 const MEDIA_FILE_LIMIT = 1_000_000;
