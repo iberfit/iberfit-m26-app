@@ -1,4 +1,7 @@
 export * from './production-state.js';
+export * from './shared/index.js';
+export * from './communication/index.js';
+export * from './admin/index.js';
 export * from './canonical-store.js';
 export * from './command-bus.js';
 export * from './supabase-transport.js';

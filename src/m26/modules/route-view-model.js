@@ -1,3 +1,5 @@
+import {createCommunicationRouteViewModel} from '../communication/view-model.js';
+import {createAdminRouteViewModel} from '../admin/view-model.js';
 import {augmentRc39ViewModel} from '../rc39/view-model.js';
 import {
   clientsOverview,
@@ -568,10 +570,12 @@ export const __routeViewModelInternals = Object.freeze({
 
 /* M26_RC39_ROUTE_VIEW_MODEL_WRAPPER */
 export function createRouteViewModel(shellVm,state,now=new Date(),options={}){
-  return augmentRc39ViewModel(
+  const rc39=augmentRc39ViewModel(
     createRouteViewModelBase(shellVm,state,now,options),
     shellVm,
     state,
     now
   );
+  const communication=createCommunicationRouteViewModel(rc39,shellVm,state);
+  return createAdminRouteViewModel(communication,shellVm,state,now);
 }

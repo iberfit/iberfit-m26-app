@@ -1,3 +1,5 @@
+import {renderCommunicationRoute} from '../communication/route-render.js';
+import {renderAdminRoute} from '../admin/route-render.js';
 import {renderRc39Route} from '../rc39/route-render.js';
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
@@ -548,6 +550,10 @@ export function renderLibraryRoute(vm){
 }
 
 function renderRouteContent(vm) {
+  const admin=renderAdminRoute(vm);
+  if(admin!==null)return admin;
+  const communication=renderCommunicationRoute(vm);
+  if(communication!==null)return communication;
   const rc39=renderRc39Route(vm);
   if(rc39!==null)return rc39;
   if (vm.kind === 'hoy') return renderHoyRoute(vm);

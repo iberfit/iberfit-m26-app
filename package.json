@@ -186,6 +186,10 @@
     "validate:rc38:ci": "node scripts/run_rc38_ci_validation.mjs",
     "test:m26:rc39": "node --test tests/m26_rc39_integrated_client_coach_multirole.test.mjs",
     "audit:rc39": "node scripts/m26_rc39_integrated_gate.mjs",
-    "validate:rc39:local": "npm test && npm run audit:rc39"
+    "validate:rc39:local": "npm test && npm run audit:rc39",
+    "test:m26:rc40": "node --test tests/m26_rc40_admin_complete.test.mjs",
+    "audit:rc40": "node scripts/m26_rc40_admin_gate.mjs",
+    "build:rc40": "node scripts/build_rc40_admin_candidate.mjs && node scripts/verify_rc29_module_graph.mjs",
+    "validate:rc40:local": "npm test && npm run test:m26:rc40 && npm run audit:rc39 && npm run audit:rc40 && npm run build:rc40"
   }
 }

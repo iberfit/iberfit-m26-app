@@ -1,3 +1,10 @@
+import {createCommunicationTransport} from '../communication/transport.js';
+import {createCommunicationService} from '../communication/service.js';
+import {createCommunicationController} from '../communication/controller.js';
+import {createAdminTransport} from '../admin/transport.js';
+import {createAdminCommandService} from '../admin/service.js';
+import {createAdminController} from '../admin/controller.js';
+import {normalizeApplicationContextExtension,filterSnapshotForAssignmentScope} from '../shared/integration-context.js';
 import {createRc39Transport,mergeRc39ChangeRequests} from '../rc39/transport.js';
 import {createRc39Controller} from '../rc39/controller.js';
 import {actorCanExecuteSession,sessionRequiresConfirmedAppointment} from '../rc39/session-policy.js';
@@ -89,8 +96,10 @@ export async function createM26Application({root=document.querySelector('#app'),
   if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
   const runtime=resolveM26Runtime(runtimeConfig,locationLike);const vault=createSessionVault();
   const rc39Transport=runtime.enabled?createRc39Transport({runtime}):null;
+  const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
+  const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,operationRepository=null,draftRepository=null,commandBus=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,commandBus=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null;
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
 
   function authMessage(message='',noticeKind='status'){
@@ -123,59 +132,29 @@ export async function createM26Application({root=document.querySelector('#app'),
     await refreshSessionIfNeeded();
     store.setHydration('loading');
     try{
-      const [snapshot,installed,extensions]=await Promise.all([
+      const [snapshot,installed,extensions,contextExtension]=await Promise.all([
         transport.bootstrap(currentToken()),
         transport.commandRegistry(currentToken()),
-        rc39Transport
-          ? rc39Transport.extensions(currentToken())
-          : Promise.resolve({rolesAvailable:false,authorizedRoles:[],changeRequestsAvailable:false,changeRequests:[]}),
+        rc39Transport?rc39Transport.extensions(currentToken()):Promise.resolve({rolesAvailable:false,authorizedRoles:[],changeRequestsAvailable:false,changeRequests:[]}),
+        adminTransport?adminTransport.applicationContextOptional(currentToken()):Promise.resolve({available:false,reason:'disabled',data:null}),
       ]);
       const runtimeRegistry=validatedRuntimeRegistry(installed);
       if(!runtimeRegistry.base.ok)throw new Error(`M26_REMOTE_BASE_REGISTRY_INVALID:${runtimeRegistry.base.missing.join(',')}`);
+      const applicationContext=normalizeApplicationContextExtension(contextExtension.available?{...contextExtension.data,available:true}:{available:false});
       const primaryRole=String(snapshot?.user?.role||'').toLowerCase();
-      const authorizedRoles=extensions.authorizedRoles.length
-        ? extensions.authorizedRoles
-        : [primaryRole].filter(Boolean);
-      if(activeApplicationRole&&!authorizedRoles.includes(activeApplicationRole)){
-        throw new Error('M26_ROLE_SWITCH_FORBIDDEN');
-      }
+      const authorizedRoles=applicationContext.roles.length?applicationContext.roles:extensions.authorizedRoles.length?extensions.authorizedRoles:[primaryRole].filter(Boolean);
+      if(activeApplicationRole&&!authorizedRoles.includes(activeApplicationRole))throw new Error('M26_ROLE_SWITCH_FORBIDDEN');
       const activeRole=activeApplicationRole||primaryRole;
-      const appointments=mergeRc39ChangeRequests(
-        snapshot?.data?.appointments||[],
-        extensions.changeRequests||[]
-      );
-      const enriched={
-        ...snapshot,
-        user:{
-          ...(snapshot.user||{}),
-          role:activeRole,
-          authorizedRoles,
-          roleChoiceConfirmed:Boolean(activeApplicationRole),
-        },
-        data:{
-          ...(snapshot.data||{}),
-          appointments,
-        },
-        environment:{
-          ...(snapshot.environment||{}),
-          commandRegistry:installed,
-          reason,
-          rc39:{
-            authorizedRoles:extensions.rolesAvailable,
-            appointmentChangeRequests:extensions.changeRequestsAvailable,
-          },
-        },
-        canary:{
-          ...(snapshot.canary||{}),
-          version:snapshot.canary?.version||runtime.version||'26.0.0',
-        },
-      };
+      const scopedSnapshot=filterSnapshotForAssignmentScope(snapshot,applicationContext,activeRole);
+      const [adminExtension,communicationExtension]=await Promise.all([
+        activeRole==='admin'&&adminTransport?adminTransport.bootstrapOptional(currentToken()):Promise.resolve({available:false,reason:'role_not_admin',data:null}),
+        ['client','coach'].includes(activeRole)&&communicationTransport?communicationTransport.bootstrapOptional(currentToken(),{application:activeRole}):Promise.resolve({available:false,reason:'unsupported',data:null}),
+      ]);
+      const appointments=mergeRc39ChangeRequests(scopedSnapshot?.data?.appointments||[],extensions.changeRequests||[]);
+      const enriched={...scopedSnapshot,user:{...(scopedSnapshot.user||{}),role:activeRole,authorizedRoles,roleChoiceConfirmed:Boolean(activeApplicationRole)},data:{...(scopedSnapshot.data||{}),appointments},environment:{...(scopedSnapshot.environment||{}),commandRegistry:installed,reason,rc39:{authorizedRoles:extensions.rolesAvailable,appointmentChangeRequests:extensions.changeRequestsAvailable},applicationContext:{available:applicationContext.available,organizationId:applicationContext.organizationId,membershipStatus:applicationContext.membershipStatus,assignmentScopeEnforced:applicationContext.assignmentScopeEnforced},admin:{available:adminExtension.available===true,reason:adminExtension.reason||null},communication:{available:communicationExtension.available===true,reason:communicationExtension.reason||null}},canary:{...(scopedSnapshot.canary||{}),version:scopedSnapshot.canary?.version||runtime.version||'26.0.0'},admin:adminExtension.available?adminExtension.data:null,communication:communicationExtension.available?communicationExtension.data:null};
       store.hydrate(enriched);
       return {snapshot:enriched,installed,runtimeRegistry};
-    }catch(error){
-      store.setHydration('error',error);
-      throw error;
-    }
+    }catch(error){store.setHydration('error',error);throw error;}
   }
   function renderRoute(shellVm,state){
     const role=shellVm?.identity?.role||state?.identity?.role||'client';
@@ -229,14 +208,18 @@ export async function createM26Application({root=document.querySelector('#app'),
     operationRepository=createKeyValueOperationRepository({ownerId});draftRepository=createEngagementDraftRepository({ownerId});
     commandBus=createCommandBus({transport,repository:operationRepository,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},rehydrate:hydrate,registry:runtimeRegistry.registry.length?runtimeRegistry.registry:M26_COMMAND_REGISTRY,getRole:()=>store.getState().identity?.role});
     const service=createEngagementCommandService({commandBus,installedRegistry:installed,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false});
+    adminService=createAdminCommandService({transport:adminTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getAdminState:()=>store.getState().admin,isOnline:()=>navigator.onLine!==false,refreshState:hydrate});
+    communicationService=createCommunicationService({transport:communicationTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getState:()=>store.getState().communication,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false,refreshState:hydrate});
     recoveryCoordinator=createExecutionRecoveryCoordinator({store:createExecutionRecoveryStore({ownerId}),commandBus,isOnline:()=>navigator.onLine!==false});
     iriExternalReports=createIriExternalReportController({root,store,runtime,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false});
     shell=createShellController({root,store,renderRoute});
     workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,getRegistry:()=>runtimeRegistry.registry,onRender:render,getIriExternalReport:(assessmentId)=>iriExternalReports.clientReportForPdf(assessmentId),createClientDraft:async(payload)=>{await refreshSessionIfNeeded();await transport.clientOnboardingPreflight(currentToken());const result=await transport.createClientDraft(currentToken(),payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(currentToken())});await hydrate({reason:'client-created'});return verified;}});
     engagement=createEngagementController({root,store,draftRepository,service,refreshState:({reason}={})=>hydrate({reason:reason||'engagement-refresh'})});wearables=createWearableController({root,store});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
+    communication=createCommunicationController({root,store,service:communicationService,render});
+    admin=createAdminController({root,store,service:adminService,render});
     sessionController=createSessionController({root,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},autosaveDraft:saveSessionDraft,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
-    root.addEventListener('click',guardSessionNavigation,true);shell.mount();workflow.mount();engagement.mount();wearables.mount();verification.mount();rc39.mount();sessionController.mount();iriExternalReports.mount();await refreshVerificationState({repository:operationRepository,store});
+    root.addEventListener('click',guardSessionNavigation,true);shell.mount();workflow.mount();engagement.mount();wearables.mount();verification.mount();rc39.mount();communication.mount();admin.mount();sessionController.mount();iriExternalReports.mount();await refreshVerificationState({repository:operationRepository,store});
     root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
     const sync=createConnectivitySync({coordinator:recoveryCoordinator,onResult:async()=>{await refreshVerificationState({repository:operationRepository,store});render();}});connectivityStop=sync.start();void registerM26ServiceWorker({url:'/m26/sw.js',scope:'/m26/'}).catch(()=>{});
     if(!pendingIriExternalReportIntent)await restoreExecution();render();await consumePendingIriExternalReportIntent();
@@ -270,7 +253,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
   function onLogout(){const token=currentToken();vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;destroyControllers();store.reset();authMessage('Sesión cerrada de forma segura.');void transport?.logout?.(token).catch(()=>{});}
-  function destroyControllers(){connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;rc39=null;sessionController=verification=wearables=engagement=workflow=shell=null;sessionUi=null;operationRepository=draftRepository=commandBus=recoveryCoordinator=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers(){connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=shell=null;sessionUi=null;operationRepository=draftRepository=commandBus=recoveryCoordinator=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 function onAuthClick(event) {
   const action = event.target.closest?.('[data-auth-action]')?.getAttribute?.('data-auth-action');
 

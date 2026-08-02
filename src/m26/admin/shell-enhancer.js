@@ -1,0 +1,1 @@
+export function enhanceAdminShellMarkup(markup,vm){if(vm?.mode!=='authenticated'||vm?.identity?.role!=='admin')return markup;return String(markup||'').replace('<div class="m26-shell"','<div class="m26-shell m26-admin-shell"').replace('aria-label="Navegación IBERFIT"','aria-label="Navegación de la Aplicación Admin"');}

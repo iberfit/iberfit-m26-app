@@ -1,3 +1,5 @@
+import {createCommunicationState,projectCommunicationSnapshot} from './communication/state.js';
+import {createAdminState,projectAdminSnapshot} from './admin/admin-state.js';
 import { projectCollectionsForRole, projectRemoteRevisionsForRole, assertClientProjectionSafe, projectIdentityForRole, projectEnvironmentForRole, projectCanaryForRole, projectMetricsForRole } from './security/role-projection.js';
 export const M26_UI_SCHEMA = 'iberfit-m26-ui-v1';
 
@@ -58,6 +60,8 @@ export function createProductionState(overrides = {}) {
     identity: null,
     environment: null,
     canary: { active: false, scope: null, version: null },
+    admin:createAdminState(),
+    communication:createCommunicationState(),
     selectedClientId: null,
     activeArea: 'hoy',
     coachMode: 'gestionar',
@@ -135,22 +139,29 @@ export function stateFromBootstrap(rawSnapshot, previous = createProductionState
   const collections=restrictCollectionsForIdentity(rawCollections,identity);
   const visibleClientIds = new Set(collections.clients.map((client) => client?.id).filter(Boolean));
   const sameIdentity=previous?.identity?.id===identity.id&&normalizeRole(previous?.identity?.role)===identity.role;
-  const navigationContinuity=!previous?.identity||sameIdentity;
+  const hasPreviousIdentity=Boolean(previous?.identity);
+  const navigationContinuity=!hasPreviousIdentity||sameIdentity;
+  const defaultArea=identity.role==='admin'?'admin-inicio':'hoy';
+  const initialArea=!hasPreviousIdentity&&previous?.activeArea&&previous.activeArea!=='hoy'?previous.activeArea:defaultArea;
   const requestedSelection = navigationContinuity?previous.selectedClientId:null;
   const ownClientId = identity.clientId || null;
-  const selectedClientId = visibleClientIds.has(requestedSelection)
-    ? requestedSelection
-    : visibleClientIds.has(ownClientId)
-      ? ownClientId
-      : collections.clients[0]?.id || null;
+  const selectedClientId = identity.role==='admin'
+    ? null
+    : visibleClientIds.has(requestedSelection)
+      ? requestedSelection
+      : visibleClientIds.has(ownClientId)
+        ? ownClientId
+        : collections.clients[0]?.id || null;
 
   return {
     ...createProductionState(),
-    activeArea: navigationContinuity?(previous.activeArea || 'hoy'):'hoy',
+    activeArea:sameIdentity?(previous.activeArea||defaultArea):!hasPreviousIdentity?initialArea:defaultArea,
     coachMode: navigationContinuity?(previous.coachMode || 'gestionar'):'gestionar',
     identity,
     environment: projectEnvironmentForRole(snapshot.environment,identity),
     canary: projectCanaryForRole(snapshot.canary,identity),
+    admin:projectAdminSnapshot(snapshot.admin,identity),
+    communication:projectCommunicationSnapshot(snapshot.communication,identity),
     selectedClientId,
     collections,
     metrics: projectMetricsForRole(snapshot.data.metrics),

@@ -1,3 +1,4 @@
+import {enhanceAdminShellMarkup} from '../admin/shell-enhancer.js';
 import {enhanceRc39ShellMarkup} from '../rc39/shell-enhancer.js';
 function escapeHtml(value) {
   return String(value ?? '')
@@ -44,7 +45,11 @@ export function renderM26AccessFrame(vm) {
 function renderM26ShellBase(vm, routeMarkup = '') {
   if (vm.mode !== 'authenticated') return renderM26AccessFrame(vm);
   const selectedClientName = vm.selectedClient?.name || 'Sin expediente seleccionado';
-  const contextual = vm.selectedClient ? navGroup(selectedClientName, vm.navigation.context, vm.activeArea, 'm26-context-nav') : '';
+  const contextual = vm.identity.role==='admin'
+    ? navGroup('Operación',vm.navigation.context,vm.activeArea,'m26-context-nav')
+    : vm.selectedClient
+      ? navGroup(selectedClientName,vm.navigation.context,vm.activeArea,'m26-context-nav')
+      : '';
   const routeContent = routeMarkup || `<section class="m26-route-placeholder" aria-live="polite"><p class="m26-eyebrow">${escapeHtml(vm.page.label)}</p><h2>${escapeHtml(vm.page.title)}</h2><p>Esta sección no está disponible. Regresa al menú principal.</p></section>`;
   const allMobileItems = [...vm.navigation.primary, ...vm.navigation.context, ...vm.navigation.tools].filter((item, index, items) => items.findIndex((candidate) => candidate.key === item.key) === index);
   const quickMobileItems = vm.navigation.mobile.slice(0, 4);
@@ -72,5 +77,8 @@ function renderM26ShellBase(vm, routeMarkup = '') {
 
 /* M26_RC39_SHELL_RENDER_WRAPPER */
 export function renderM26Shell(vm,routeMarkup=''){
-  return enhanceRc39ShellMarkup(renderM26ShellBase(vm,routeMarkup),vm);
+  return enhanceAdminShellMarkup(
+    enhanceRc39ShellMarkup(renderM26ShellBase(vm,routeMarkup),vm),
+    vm
+  );
 }

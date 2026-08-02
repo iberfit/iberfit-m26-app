@@ -1,3 +1,4 @@
+import {augmentAdminShellViewModel} from '../admin/view-model.js';
 import {augmentRc39ShellViewModel} from '../rc39/view-model.js';
 import { metricPresentation, selectedClient } from '../production-state.js';
 import { areaDefinition, navigationForRole } from './navigation.js';
@@ -90,5 +91,8 @@ function createShellViewModelBase(state) {
 
 /* M26_RC39_SHELL_VIEW_MODEL_WRAPPER */
 export function createShellViewModel(state){
-  return augmentRc39ShellViewModel(createShellViewModelBase(state),state);
+  return augmentAdminShellViewModel(
+    augmentRc39ShellViewModel(createShellViewModelBase(state),state),
+    state
+  );
 }
