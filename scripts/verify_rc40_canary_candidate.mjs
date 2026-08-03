@@ -105,6 +105,7 @@ if (previewHost && !runtime.allowedHosts?.includes(previewHost)) runtimeFailures
 if (transportSource.includes(PRODUCTION_REF)) runtimeFailures.push('production-ref-in-transport');
 if (!transportSource.includes(PROJECT_REF)) runtimeFailures.push('canary-ref-in-transport');
 if (!transportSource.includes("QA_AUTHORIZED_EMAILS=new Set(['iberfit.cl@gmail.com'])")) runtimeFailures.push('carlos-auth');
+if (!transportSource.includes("const projectPreview = /^[a-z0-9-]+\\.iberfit-m26-canary\\.pages\\.dev$/u.test(host);")) runtimeFailures.push('pages-preview-host-scope');
 if (!applicationSource.includes('locationLike?.origin')) runtimeFailures.push('recovery-origin');
 
 const productionOrigin = `https://${PRODUCTION_REF}.supabase.co`;

@@ -51,6 +51,7 @@ if (process.platform === 'win32') {
   run('npm', ['run', 'build:rc40']);
 }
 run(process.execPath, ['scripts/patch_rc40_canary_runtime_source.mjs']);
+run(process.execPath, ['scripts/patch_rc40_pages_preview_host.mjs']);
 run(process.execPath, ['scripts/generate_rc40_runtime_config.mjs']);
 run(process.execPath, ['scripts/verify_rc40_canary_candidate.mjs']);
 
