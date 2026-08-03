@@ -27,7 +27,8 @@ if (source.indexOf(needle, first + needle.length) >= 0) {
 
 source = source.slice(0, first) + replacement + source.slice(first + needle.length);
 
-if (!source.includes(CANARY_PROJECT_SUFFIX)) {
+const escapedCanaryProjectSuffix = CANARY_PROJECT_SUFFIX.replaceAll('.', '\\.');
+if (!source.includes(escapedCanaryProjectSuffix)) {
   throw new Error('RC40_PAGES_PREVIEW_SUFFIX_MISSING');
 }
 if (source.includes(PRODUCTION_REF)) {
