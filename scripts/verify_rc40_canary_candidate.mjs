@@ -76,6 +76,40 @@ const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
 if (report.ok !== true || report.release !== RELEASE || report.version !== VERSION) {
   throw new Error('RC40_VERIFY_REPORT_INVALID');
 }
+
+const buildRoot = process.env.M26_BUILD_DIR
+  || path.join(root, 'dist', 'm26-prepublicacion-infraestructura-candidate');
+const runtimePath = path.join(buildRoot, 'm26', 'runtime-config.js');
+const transportPath = path.join(buildRoot, 'src', 'm26', 'supabase-transport.js');
+const applicationPath = path.join(buildRoot, 'src', 'm26', 'app', 'application.js');
+for (const requiredPath of [runtimePath, transportPath, applicationPath]) {
+  if (!fs.existsSync(requiredPath)) {
+    throw new Error(`RC40_VERIFY_RUNTIME_FILE_MISSING:${requiredPath}`);
+  }
+}
+
+const runtimeSource = fs.readFileSync(runtimePath, 'utf8');
+const runtimeMatch = runtimeSource.match(/Object\.freeze\((\{[\s\S]*\})\);\s*$/u);
+if (!runtimeMatch) throw new Error('RC40_VERIFY_RUNTIME_FORMAT_INVALID');
+const runtime = JSON.parse(runtimeMatch[1]);
+const transportSource = fs.readFileSync(transportPath, 'utf8');
+const applicationSource = fs.readFileSync(applicationPath, 'utf8');
+const previewHost = process.env.CF_PAGES_URL
+  ? new URL(process.env.CF_PAGES_URL).hostname.toLowerCase()
+  : '';
+
+const runtimeFailures = [];
+if (!Array.isArray(runtime.allowedHosts)) runtimeFailures.push('allowed-hosts-type');
+if (!runtime.allowedHosts?.includes('m26-canary.iberfit.cl')) runtimeFailures.push('custom-canary-host');
+if (previewHost && !runtime.allowedHosts?.includes(previewHost)) runtimeFailures.push('preview-host');
+if (transportSource.includes(PRODUCTION_REF)) runtimeFailures.push('production-ref-in-transport');
+if (!transportSource.includes(PROJECT_REF)) runtimeFailures.push('canary-ref-in-transport');
+if (!transportSource.includes("QA_AUTHORIZED_EMAILS=new Set(['iberfit.cl@gmail.com'])")) runtimeFailures.push('carlos-auth');
+if (!applicationSource.includes('locationLike?.origin')) runtimeFailures.push('recovery-origin');
+if (runtimeFailures.length) {
+  throw new Error(`RC40_VERIFY_RUNTIME_HARDENING_FAILED:${runtimeFailures.join(',')}`);
+}
+
 console.log(JSON.stringify({
   ok: true,
   reportPath,

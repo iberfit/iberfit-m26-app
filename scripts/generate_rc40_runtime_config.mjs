@@ -44,6 +44,28 @@ if (deployBranch !== BRANCH) {
   throw new Error(`RC40_RUNTIME_BRANCH_REQUIRED:${BRANCH}`);
 }
 
+const pagesUrl = String(process.env.CF_PAGES_URL || '').trim();
+let previewHost = '';
+if (pagesUrl) {
+  const parsedPagesUrl = new URL(pagesUrl);
+  if (
+    parsedPagesUrl.protocol !== 'https:' ||
+    !parsedPagesUrl.hostname.endsWith('.pages.dev') ||
+    parsedPagesUrl.pathname !== '/' ||
+    parsedPagesUrl.search ||
+    parsedPagesUrl.hash ||
+    parsedPagesUrl.username ||
+    parsedPagesUrl.password
+  ) {
+    throw new Error('RC40_RUNTIME_CF_PAGES_URL_INVALID');
+  }
+  previewHost = parsedPagesUrl.hostname.toLowerCase();
+}
+const allowedHosts = [...new Set([
+  'm26-canary.iberfit.cl',
+  previewHost,
+].filter(Boolean))];
+
 let source = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n?/gu, '\n');
 
 const replaceOnce = (pattern, replacement, label) => {
@@ -104,6 +126,11 @@ replaceOnce(
   "backendContract: 'RC40',",
   'backend-contract',
 );
+replaceOnce(
+  /  qaOnly: true,\n  timeoutMs:/u,
+  `  qaOnly: true,\n  allowedHosts: ${JSON.stringify(allowedHosts)},\n  timeoutMs:`,
+  'allowed-hosts',
+);
 
 if (source.includes(`const PROJECT_REF = '${PRODUCTION_REF}';`)) {
   throw new Error('RC40_RUNTIME_PRODUCTION_REF_REMAINS');
@@ -145,6 +172,11 @@ const failures = [];
 if (runtime.projectRef !== PROJECT_REF) failures.push('runtime-project-ref');
 if (runtime.url !== expectedUrl) failures.push('runtime-url');
 if (runtime.enabled !== true || runtime.qaOnly !== true) failures.push('runtime-safety');
+if (
+  !Array.isArray(runtime.allowedHosts) ||
+  !runtime.allowedHosts.includes('m26-canary.iberfit.cl') ||
+  (previewHost && !runtime.allowedHosts.includes(previewHost))
+) failures.push('runtime-allowed-hosts');
 if (runtime.version !== VERSION) failures.push('runtime-version');
 if (String(runtime.publishableKey || '').includes(PRODUCTION_REF)) failures.push('runtime-production-key-marker');
 if (runtimeSource.includes(PRODUCTION_REF)) failures.push('runtime-production-ref');
