@@ -138,6 +138,45 @@ if (!application.includes("locationLike?.origin")) {
 fs.writeFileSync(transportPath, transport, 'utf8');
 fs.writeFileSync(applicationPath, application, 'utf8');
 
+const PRODUCTION_ORIGIN = `https://${PRODUCTION_REF}.supabase.co`;
+const CANARY_ORIGIN = `https://${CANARY_REF}.supabase.co`;
+const cspPatched = [];
+
+function walk(directory) {
+  const entries = fs.readdirSync(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      walk(absolute);
+      continue;
+    }
+
+    if (
+      entry.name !== '_headers' &&
+      !entry.name.endsWith('.html')
+    ) {
+      continue;
+    }
+
+    const source = fs.readFileSync(absolute, 'utf8');
+    if (!source.includes('connect-src') || !source.includes(PRODUCTION_ORIGIN)) {
+      continue;
+    }
+
+    const updated = source.replaceAll(PRODUCTION_ORIGIN, CANARY_ORIGIN);
+    if (updated === source || updated.includes(PRODUCTION_ORIGIN)) {
+      throw new Error(`RC40_CSP_PATCH_FAILED:${absolute}`);
+    }
+    fs.writeFileSync(absolute, updated, 'utf8');
+    cspPatched.push(path.relative(root, absolute).replaceAll(path.sep, '/'));
+  }
+}
+walk(buildRoot);
+
+if (cspPatched.length === 0) {
+  throw new Error('RC40_CSP_SOURCE_NOT_FOUND');
+}
+
 console.log(JSON.stringify({
   ok: true,
   release: 'IBERFIT_M26_CANARY_RC40_ADMIN_COMPLETE',
@@ -145,7 +184,13 @@ console.log(JSON.stringify({
   patched: [
     path.relative(root, transportPath).replaceAll(path.sep, '/'),
     path.relative(root, applicationPath).replaceAll(path.sep, '/'),
+    ...cspPatched,
   ],
+  csp: {
+    productionOriginPresent: false,
+    canaryOrigin: CANARY_ORIGIN,
+    files: cspPatched,
+  },
   productionModified: false,
   productionDeployed: false,
 }, null, 2));

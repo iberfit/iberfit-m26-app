@@ -106,6 +106,37 @@ if (transportSource.includes(PRODUCTION_REF)) runtimeFailures.push('production-r
 if (!transportSource.includes(PROJECT_REF)) runtimeFailures.push('canary-ref-in-transport');
 if (!transportSource.includes("QA_AUTHORIZED_EMAILS=new Set(['iberfit.cl@gmail.com'])")) runtimeFailures.push('carlos-auth');
 if (!applicationSource.includes('locationLike?.origin')) runtimeFailures.push('recovery-origin');
+
+const productionOrigin = `https://${PRODUCTION_REF}.supabase.co`;
+const canaryOrigin = `https://${PROJECT_REF}.supabase.co`;
+const cspFiles = [];
+function inspectCsp(directory) {
+  const entries = fs.readdirSync(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      inspectCsp(absolute);
+      continue;
+    }
+    if (entry.name !== '_headers' && !entry.name.endsWith('.html')) continue;
+    const source = fs.readFileSync(absolute, 'utf8');
+    if (!source.includes('connect-src')) continue;
+    cspFiles.push({
+      path: path.relative(root, absolute).replaceAll(path.sep, '/'),
+      source,
+    });
+  }
+}
+inspectCsp(buildRoot);
+
+if (cspFiles.length === 0) runtimeFailures.push('csp-file-missing');
+if (cspFiles.some((entry) => entry.source.includes(productionOrigin))) {
+  runtimeFailures.push('production-origin-in-csp');
+}
+if (!cspFiles.some((entry) => entry.source.includes(canaryOrigin))) {
+  runtimeFailures.push('canary-origin-not-in-csp');
+}
+
 if (runtimeFailures.length) {
   throw new Error(`RC40_VERIFY_RUNTIME_HARDENING_FAILED:${runtimeFailures.join(',')}`);
 }
