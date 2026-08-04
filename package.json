@@ -193,6 +193,9 @@
     "validate:rc40:local": "npm test && npm run test:m26:rc40 && npm run audit:rc39 && npm run audit:rc40 && npm run build:rc40",
     "test:m26:rc41": "node --test tests/m26_rc41_pwa_diagnostics.test.mjs",
     "validate:rc41:local": "npm run validate:rc40:local && npm run test:m26:rc41",
-    "build:rc41:canary": "npm run build:rc40 && node scripts/patch_rc41_canary_runtime_source.mjs && node scripts/generate_rc41_runtime_config.mjs && node scripts/verify_rc41_canary_candidate.mjs"
+    "build:rc41:canary": "npm run build:rc40 && node scripts/patch_rc41_canary_runtime_source.mjs && node scripts/generate_rc41_runtime_config.mjs && node scripts/verify_rc41_canary_candidate.mjs",
+    "test:m26:rc42": "node --test tests/m26_rc42_native_responsive.test.mjs",
+    "validate:rc42:local": "npm run validate:rc41:local && npm run test:m26:rc42",
+    "build:rc42:canary": "npm run build:rc40 && node scripts/patch_rc42_canary_runtime_source.mjs && node scripts/generate_rc42_runtime_config.mjs && node scripts/verify_rc42_canary_candidate.mjs"
   }
 }
