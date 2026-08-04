@@ -73,6 +73,44 @@ function friendlyError(error){
   if(/QA_ACCOUNT_REQUIRED/.test(code))return 'Esta cuenta no está autorizada para este acceso.';
   return 'No fue posible completar la operación. Tu información local permanece protegida.';
 }
+function diagnosticCode(error,stage='operation'){
+  const raw=String(error?.message||'');
+  const match=raw.match(/\bM26_[A-Z0-9_:-]{2,120}\b/u);
+  if(match)return match[0];
+  const normalizedStage=String(stage||'operation')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/gu,'_')
+    .replace(/^_+|_+$/gu,'')
+    .slice(0,60)||'OPERATION';
+  return `M26_${normalizedStage}_FAILED`;
+}
+function reportDiagnostic(stage,error){
+  const status=Number.isInteger(error?.status)
+    ?error.status
+    :null;
+  const detail=Object.freeze({
+    stage:String(stage||'operation')
+      .replace(/[^a-z0-9_-]+/giu,'-')
+      .slice(0,60),
+    code:diagnosticCode(error,stage),
+    status,
+  });
+  try{
+    console.error(
+      `[IBERFIT:${detail.stage}] ${detail.code}${status!==null?` HTTP ${status}`:''}`
+    );
+  }catch{}
+  try{
+    globalThis.dispatchEvent?.(
+      new CustomEvent(
+        'm26:diagnostic',
+        {detail},
+      ),
+    );
+  }catch{}
+  return detail;
+}
+
 
 const RECOVERY_REQUEST_CONFIRMATION='Si el correo corresponde a una cuenta QA autorizada, recibirás un enlace para crear una contraseña nueva.';
 const RECOVERY_LINK_INVALID='El enlace de recuperación no es válido o ha caducado. Solicita uno nuevo.';
@@ -369,7 +407,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     throw error;
   }
 }
-  async function login(email,password){if(loginBusy)return false;if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');loginBusy=true;authMessage('Confirmando identidad y permisos…');try{session=await transport.login(email,password);vault.save(session);store.reset();await setupAuthenticated();return true;}catch(error){vault.clear();session=null;destroyControllers();store.reset();loginBusy=false;authMessage(friendlyError(error));throw error;}finally{loginBusy=false;}}
+  async function login(email,password){if(loginBusy)return false;if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');loginBusy=true;authMessage('Confirmando identidad y permisos…');try{session=await transport.login(email,password);vault.save(session);store.reset();await setupAuthenticated();return true;}catch(error){vault.clear();session=null;destroyControllers();store.reset();loginBusy=false;const incident=diagnosticCode(error,'login');authMessage(`${friendlyError(error)} Código: ${incident}.`,'error');throw error;}finally{loginBusy=false;}}
   async function resume(){if(!runtime.enabled){authMessage('El acceso no está disponible temporalmente en este sitio.');return false;}session=vault.load();if(!session){authMessage();return false;}try{await setupAuthenticated();return true;}catch{vault.clear();session=null;destroyControllers();store.reset();authMessage('La sesión expiró o perdió autorización. Vuelve a entrar.');return false;}}
   async function onSubmit(event) {
   const form = event.target.closest?.('[data-auth-form]');
@@ -384,10 +422,14 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   const data = new FormData(form);
 
   if (formType === 'login') {
-    await login(
-      data.get('email'),
-      data.get('password')
-    ).catch(() => {});
+    try {
+      await login(
+        data.get('email'),
+        data.get('password')
+      );
+    } catch (error) {
+      reportDiagnostic('login', error);
+    }
 
     return;
   }

@@ -4,7 +4,7 @@
   "description": "Diagnóstico, planificación, control y seguimiento.",
   "id": "/m26/",
   "start_url": "/m26/?source=pwa",
-  "scope": "/",
+  "scope": "/m26/",
   "display": "standalone",
   "background_color": "#07150f",
   "theme_color": "#0d2419",
