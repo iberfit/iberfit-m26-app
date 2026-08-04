@@ -26,6 +26,12 @@ const RC43_RPC=Object.freeze({
   saveTrainingSession:'m26_save_training_session_v43',
   sendMessage:'m26_send_message_v43',
 });
+const RC431_RPC=Object.freeze({
+  health:'m26_backend_health_v431',
+  getDraft:'m26_draft_get_v431',
+  upsertDraft:'m26_draft_upsert_v431',
+  deleteDraft:'m26_draft_delete_v431',
+});
 
 export function resolveM26Runtime(raw, locationLike = globalThis.location) {
   const host = locationLike?.hostname || '';
@@ -363,6 +369,84 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return normalizeRc43Result(await rc43Rpc(RC43_RPC.sendMessage,token,{p_payload:payload}),'M26_RC43_MESSAGE_INVALID_RESPONSE');
   }
 
+  async function rc431Rpc(name,token,params={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    if(!Object.values(RC431_RPC).includes(name))throw new Error('M26_RC431_RPC_NOT_ALLOWED');
+    return request('/rest/v1/rpc/'+name,{method:'POST',token,body:JSON.stringify(params)});
+  }
+
+  function normalizeDraftScope(value='session-builder'){
+    const scope=String(value||'').trim();
+    if(scope!=='session-builder')throw new Error('M26_RC431_DRAFT_SCOPE_INVALID');
+    return scope;
+  }
+
+  function normalizeDraftClientId(value){
+    const clientId=String(value||'').trim();
+    if(!SAFE_ID_PATTERN.test(clientId))throw new Error('M26_RC431_CLIENT_ID_INVALID');
+    return clientId;
+  }
+
+  async function draftBackendHealth(){
+    const result=await request('/rest/v1/rpc/'+RC431_RPC.health,{method:'POST',body:'{}'});
+    const item=normalizeRc43Result(result,'M26_RC431_HEALTH_INVALID_RESPONSE');
+    if(item.ready!==true||item.version!=='RC43.1'||item.environment!=='canary')throw new Error('M26_RC431_BACKEND_NOT_READY');
+    return item;
+  }
+
+  async function getSessionDraft(token,clientId,scope='session-builder'){
+    const safeClientId=normalizeDraftClientId(clientId);
+    const safeScope=normalizeDraftScope(scope);
+    const item=normalizeRc43Result(
+      await rc431Rpc(
+        RC431_RPC.getDraft,
+        token,
+        {p_client_id:safeClientId,p_scope:safeScope},
+      ),
+      'M26_RC431_DRAFT_GET_INVALID_RESPONSE',
+    );
+    if(item.found===true&&(!item.draft||typeof item.draft!=='object'||Array.isArray(item.draft)))throw new Error('M26_RC431_DRAFT_GET_INVALID_RESPONSE');
+    return item;
+  }
+
+  async function upsertSessionDraft(token,payload={}){
+    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('M26_RC431_DRAFT_PAYLOAD_INVALID');
+    const clientId=normalizeDraftClientId(payload.clientId);
+    const scope=normalizeDraftScope(payload.scope);
+    if(!payload.draft||typeof payload.draft!=='object'||Array.isArray(payload.draft))throw new Error('M26_RC431_DRAFT_PAYLOAD_INVALID');
+    const safePayload={
+      clientId,
+      scope,
+      revision:Math.max(0,Number(payload.revision)||0),
+      draft:payload.draft,
+    };
+    const body=JSON.stringify({p_payload:safePayload});
+    if(body.length<20||body.length>125000)throw new Error('M26_RC431_DRAFT_PAYLOAD_INVALID');
+    const item=normalizeRc43Result(
+      await rc431Rpc(
+        RC431_RPC.upsertDraft,
+        token,
+        {p_payload:safePayload},
+      ),
+      'M26_RC431_DRAFT_SAVE_INVALID_RESPONSE',
+    );
+    if(item.saved!==true||!SAFE_ID_PATTERN.test(String(item.id||'')))throw new Error('M26_RC431_DRAFT_SAVE_INVALID_RESPONSE');
+    return item;
+  }
+
+  async function deleteSessionDraft(token,clientId,scope='session-builder'){
+    const safeClientId=normalizeDraftClientId(clientId);
+    const safeScope=normalizeDraftScope(scope);
+    return normalizeRc43Result(
+      await rc431Rpc(
+        RC431_RPC.deleteDraft,
+        token,
+        {p_client_id:safeClientId,p_scope:safeScope},
+      ),
+      'M26_RC431_DRAFT_DELETE_INVALID_RESPONSE',
+    );
+  }
+
   async function clientOnboardingPreflight(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     if (!runtime.canary && !runtime.qaOnly) throw new Error('M26_CLIENT_CREATE_CANARY_ONLY');
@@ -415,6 +499,10 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     bootstrap: (token) => rpc(runtime.rpc.bootstrap, token, {}),
     backendHealth,
     backendBootstrap,
+    draftBackendHealth,
+    getSessionDraft,
+    upsertSessionDraft,
+    deleteSessionDraft,
     recordMeasurement,
     saveTrainingSession,
     sendMessage,

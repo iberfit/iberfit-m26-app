@@ -203,8 +203,117 @@ export async function createM26Application({root=document.querySelector('#app'),
     return renderRouteView(createRouteViewModel(shellVm,state,new Date(),{catalog:catalog?.list?.()||[],mediaMap}));
   }
   function render(){shell?.render?.();}
-  async function saveSessionDraft(){if(sessionUi?.draft&&draftRepository)await draftRepository.save(sessionUi.draft.clientId,SESSION_DRAFT_SCOPE,sessionUi.draft);}
-  async function clearSessionDraft(clientId){if(clientId&&draftRepository)await draftRepository.remove(clientId,SESSION_DRAFT_SCOPE);}
+  function draftOnline(){return globalThis.navigator?.onLine!==false;}
+  async function saveSessionDraft(){
+    if(!sessionUi?.draft||!draftRepository)return Object.freeze({ok:true,skipped:true,local:false,remote:false});
+    const draft=structuredClone(sessionUi.draft);
+    const clientId=String(draft.clientId||'');
+    let local=false,remote=false,remoteResult=null,localError=null,remoteError=null;
+    try{
+      await draftRepository.save(clientId,SESSION_DRAFT_SCOPE,draft);
+      local=true;
+    }catch(error){
+      localError=error;
+      reportDiagnostic('session-draft-local-save',error);
+    }
+    if(runtime.enabled&&draftOnline()){
+      try{
+        await refreshSessionIfNeeded();
+        remoteResult=await transport.upsertSessionDraft(currentToken(),{
+          clientId,
+          scope:SESSION_DRAFT_SCOPE,
+          revision:Number(draft.revision||0),
+          draft,
+        });
+        remote=true;
+      }catch(error){
+        remoteError=error;
+        reportDiagnostic('session-draft-remote-save',error);
+      }
+    }
+    if(!local&&!remote){
+      const source=remoteError||localError||new Error('M26_SESSION_DRAFT_PERSISTENCE_FAILED');
+      throw Object.assign(new Error(diagnosticCode(source,'session-draft-save')),{status:source?.status});
+    }
+    sessionUi.draftPersistence=Object.freeze({
+      local,
+      remote,
+      updatedAt:remoteResult?.updatedAt||new Date().toISOString(),
+    });
+    return Object.freeze({
+      ok:true,
+      local,
+      remote,
+      updatedAt:sessionUi.draftPersistence.updatedAt,
+    });
+  }
+  async function loadSessionDraft(clientId){
+    let localRecord;
+    try{
+      localRecord=await draftRepository?.load?.(clientId,SESSION_DRAFT_SCOPE);
+    }catch(error){
+      reportDiagnostic('session-draft-local-load',error);
+    }
+    let remoteRecord;
+    if(runtime.enabled&&draftOnline()){
+      try{
+        await refreshSessionIfNeeded();
+        const result=await transport.getSessionDraft(currentToken(),clientId,SESSION_DRAFT_SCOPE);
+        if(result.found===true){
+          remoteRecord={
+            ownerId:session?.user?.id||null,
+            clientId,
+            scope:SESSION_DRAFT_SCOPE,
+            value:structuredClone(result.draft),
+            updatedAt:result.updatedAt||null,
+            confirmed:false,
+            remote:true,
+          };
+        }
+      }catch(error){
+        reportDiagnostic('session-draft-remote-load',error);
+      }
+    }
+    const localTime=localRecord?.updatedAt?new Date(localRecord.updatedAt).getTime():0;
+    const remoteTime=remoteRecord?.updatedAt?new Date(remoteRecord.updatedAt).getTime():0;
+    const selected=remoteRecord&&(!localRecord||remoteTime>=localTime)?remoteRecord:localRecord;
+    if(selected===remoteRecord){
+      try{
+        await draftRepository.save(clientId,SESSION_DRAFT_SCOPE,remoteRecord.value);
+      }catch(error){
+        reportDiagnostic('session-draft-local-cache',error);
+      }
+    }
+    return selected;
+  }
+  async function clearSessionDraft(clientId){
+    if(!clientId)return Object.freeze({ok:true,skipped:true});
+    let local=false,remote=false,localError=null,remoteError=null;
+    if(draftRepository){
+      try{
+        await draftRepository.remove(clientId,SESSION_DRAFT_SCOPE);
+        local=true;
+      }catch(error){
+        localError=error;
+        reportDiagnostic('session-draft-local-delete',error);
+      }
+    }
+    if(runtime.enabled&&draftOnline()){
+      try{
+        await refreshSessionIfNeeded();
+        await transport.deleteSessionDraft(currentToken(),clientId,SESSION_DRAFT_SCOPE);
+        remote=true;
+      }catch(error){
+        remoteError=error;
+        reportDiagnostic('session-draft-remote-delete',error);
+      }
+    }
+    if(!local&&!remote){
+      const source=remoteError||localError||new Error('M26_SESSION_DRAFT_DELETE_FAILED');
+      throw Object.assign(new Error(diagnosticCode(source,'session-draft-delete')),{status:source?.status});
+    }
+    return Object.freeze({ok:true,local,remote});
+  }
   async function restoreExecution(){
     await recoveryCoordinator?.purgeExpired?.();const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));const own=state.identity?.clientId||null;
     const snapshots=await recoveryCoordinator?.list?.()||[];const snapshot=snapshots.find((item)=>visible.has(item.execution?.clientId)&&(state.identity?.role!=='client'||item.execution?.clientId===own));if(!snapshot?.execution||!snapshot?.session)return false;
@@ -212,7 +321,10 @@ export async function createM26Application({root=document.querySelector('#app'),
     sessionUi.actionState.status='success';sessionUi.actionState.message='Sesión recuperada desde este dispositivo.';store.navigate('sesion');return true;
   }
   function surfaceWorkspaceError(error){
-    const message=friendlyError(error);const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent=message;node.dataset.status='error';}
+    const detail=reportDiagnostic('session-workspace',error);
+    const message=`${friendlyError(error)} Código: ${detail.code}.`;
+    const node=root.querySelector?.('[data-workflow-status="session"]');
+    if(node){node.textContent=message;node.dataset.status='error';}
     if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=message;render();}
     try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}
   }
@@ -266,7 +378,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
-  async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const saved=await draftRepository?.load?.(clientId,SESSION_DRAFT_SCOPE);const draft=saved?.value?.clientId===clientId?saved.value:createSessionDraft({clientId});sessionUi={draft,query:'',actionState:createActionState(),execution:null,session:null};if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado desde este dispositivo.'};store.navigate('sesion');render();}
+  async function onOpenBuilder(event){const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const saved=await loadSessionDraft(clientId);const draft=saved?.value?.clientId===clientId?saved.value:createSessionDraft({clientId});sessionUi={draft,query:'',actionState:createActionState(),execution:null,session:null};if(saved)sessionUi.actionState={...sessionUi.actionState,status:'success',message:'Borrador recuperado de forma segura.'};store.navigate('sesion');render();}
   async function onStartSession(event){
     const clientId=String(event?.detail?.clientId||'');const state=store.getState();const visible=new Set((state.collections.clients||[]).map((item)=>item.id));if(!visible.has(clientId)||(state.identity?.role==='client'&&state.identity?.clientId!==clientId))throw new Error('M26_CLIENT_SCOPE_FORBIDDEN');const recovered=await recoveryCoordinator?.latest?.({clientId});if(recovered){sessionUi={draft:null,query:'',actionState:{...createActionState(),status:'success',message:'Sesión recuperada desde este dispositivo.'},session:recovered.session,execution:recovered.execution,appointmentId:recovered.appointmentId||null};store.navigate('sesion');render();return;}
     const normalized=normalizePublishedSession(event.detail.session);if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');const role=String(state.identity?.role||'');if(!normalized.id||!normalized.clientId||!normalized.blocks.length){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='La sesión publicada no contiene bloques ejecutables.';node.dataset.status='error';}return;}    const appointment=confirmedAppointmentForSession(store.getState().collections.appointments||[],normalized);if(!actorCanExecuteSession({role,session:event.detail.session,appointment}))throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');if(sessionRequiresConfirmedAppointment({role,session:event.detail.session,appointment})&&!appointment?.id){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='Se requiere una cita confirmada y vigente para iniciar la sesión.';node.dataset.status='error';}return;}
