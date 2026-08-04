@@ -1,0 +1,236 @@
+/* IBERFIT M26 RC44 · zero-cost wearables premium layer */
+
+.m26-optional-section[open] {
+  border-color: color-mix(in srgb, var(--m26-accent, #8fd8b0) 38%, transparent);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.m26-optional-section > summary {
+  min-height: 58px;
+  cursor: pointer;
+  border-radius: 18px;
+  transition:
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+
+.m26-optional-section > summary:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.m26-wearable-overview {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.m26-wearable-overview::before {
+  position: absolute;
+  inset: -40% auto auto -10%;
+  z-index: -1;
+  width: 360px;
+  height: 360px;
+  content: "";
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle,
+      rgba(92, 214, 148, 0.16),
+      transparent 68%
+    );
+  pointer-events: none;
+}
+
+.m26-wearable-sources {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 14px;
+}
+
+.m26-wearable-source {
+  position: relative;
+  display: grid;
+  align-content: space-between;
+  min-height: 190px;
+  padding: 20px;
+  overflow: hidden;
+  border:
+    1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 22px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.065),
+      rgba(255, 255, 255, 0.018)
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 16px 32px rgba(0, 0, 0, 0.15);
+}
+
+.m26-wearable-source::after {
+  position: absolute;
+  right: -44px;
+  bottom: -50px;
+  width: 140px;
+  height: 140px;
+  content: "";
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle,
+      rgba(116, 223, 167, 0.12),
+      transparent 70%
+    );
+  pointer-events: none;
+}
+
+.m26-wearable-source h3 {
+  margin-block: 4px 10px;
+  font-size: clamp(1rem, 2vw, 1.2rem);
+}
+
+.m26-wearable-source p {
+  max-width: 42ch;
+  color: var(--m26-text-muted, #b8c8bf);
+}
+
+.m26-wearable-source .m26-badge {
+  justify-self: start;
+  margin-top: 14px;
+}
+
+.m26-wearable-native-action {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  margin-top: 16px;
+}
+
+.m26-wearable-preview {
+  margin-top: 18px;
+  padding: clamp(18px, 3vw, 28px);
+  border:
+    1px solid rgba(112, 222, 164, 0.22);
+  border-radius: 24px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(31, 74, 52, 0.48),
+      rgba(11, 31, 22, 0.86)
+    );
+  box-shadow:
+    0 24px 50px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.m26-wearable-preview[hidden] {
+  display: none;
+}
+
+.m26-wearable-preview .m26-field {
+  min-height: 84px;
+  border:
+    1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.m26-wearable-preview .m26-field strong {
+  font-size: clamp(1.1rem, 3vw, 1.55rem);
+}
+
+.m26-wearable-preview-actions {
+  margin-top: 18px;
+}
+
+[data-wearable-status] {
+  min-height: 24px;
+  margin-block: 14px 0;
+  padding: 11px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+[data-wearable-status][data-status="success"] {
+  border:
+    1px solid rgba(104, 222, 158, 0.24);
+  background: rgba(61, 169, 111, 0.1);
+}
+
+[data-wearable-status][data-status="error"] {
+  border:
+    1px solid rgba(245, 134, 134, 0.28);
+  background: rgba(160, 54, 54, 0.11);
+}
+
+[data-wearable-status][data-status="pending"] {
+  border:
+    1px solid rgba(227, 196, 110, 0.24);
+  background: rgba(176, 135, 47, 0.1);
+}
+
+.m26-danger-action {
+  border-color: rgba(239, 139, 139, 0.3) !important;
+  color: #ffd6d6 !important;
+  background: rgba(137, 42, 42, 0.14) !important;
+}
+
+.m26-danger-action:hover {
+  background: rgba(160, 52, 52, 0.24) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .m26-wearable-source {
+    transition:
+      transform 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .m26-wearable-source:hover {
+    transform: translateY(-3px);
+    border-color:
+      rgba(112, 222, 164, 0.24);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.055),
+      0 22px 42px rgba(0, 0, 0, 0.22);
+  }
+}
+
+@media (max-width: 720px) {
+  .m26-wearable-sources {
+    grid-template-columns: 1fr;
+  }
+
+  .m26-wearable-source {
+    min-height: 0;
+  }
+
+  .m26-wearable-preview-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .m26-wearable-preview-actions button {
+    width: 100%;
+    min-height: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m26-wearable-source,
+  .m26-optional-section > summary {
+    transition: none;
+  }
+}
+
+@media print {
+  [data-wearable-import],
+  .m26-wearable-preview-actions,
+  .m26-wearable-native-action,
+  .m26-danger-action {
+    display: none !important;
+  }
+}

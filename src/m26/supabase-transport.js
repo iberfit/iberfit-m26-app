@@ -32,6 +32,14 @@ const RC431_RPC=Object.freeze({
   upsertDraft:'m26_draft_upsert_v431',
   deleteDraft:'m26_draft_delete_v431',
 });
+const RC44_RPC=Object.freeze({
+  health:'m26_wearable_health_v44',
+  bootstrap:'m26_wearable_bootstrap_v44',
+  importSummaries:'m26_wearable_import_v44',
+  upsertConnection:'m26_wearable_connection_upsert_v44',
+  revokeConnection:'m26_wearable_revoke_v44',
+  deleteAll:'m26_wearable_delete_all_v44',
+});
 
 export function resolveM26Runtime(raw, locationLike = globalThis.location) {
   const host = locationLike?.hostname || '';
@@ -447,6 +455,88 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     );
   }
 
+  async function rc44Rpc(name,token,params={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    if(!Object.values(RC44_RPC).includes(name))throw new Error('M26_RC44_RPC_NOT_ALLOWED');
+    return request('/rest/v1/rpc/'+name,{method:'POST',token,body:JSON.stringify(params)});
+  }
+
+  function normalizeRc44Result(result,code){
+    const item=Array.isArray(result)?result[0]:result;
+    if(!item||typeof item!=='object'||item.ok!==true)throw new Error(code);
+    return Object.freeze({...item});
+  }
+
+  async function wearableHealth(){
+    const result=await request('/rest/v1/rpc/'+RC44_RPC.health,{method:'POST',body:'{}'});
+    const item=normalizeRc44Result(result,'M26_RC44_HEALTH_INVALID_RESPONSE');
+    if(item.ready!==true||item.version!=='RC44'||item.environment!=='canary')throw new Error('M26_RC44_BACKEND_NOT_READY');
+    return item;
+  }
+
+  async function wearableBootstrap(token){
+    const item=normalizeRc44Result(
+      await rc44Rpc(RC44_RPC.bootstrap,token,{}),
+      'M26_RC44_BOOTSTRAP_INVALID_RESPONSE',
+    );
+    if(item.ready!==true||item.version!=='RC44')throw new Error('M26_RC44_BACKEND_NOT_READY');
+    if(!Array.isArray(item.connections)||!Array.isArray(item.dailySummaries)||!Array.isArray(item.consents))throw new Error('M26_RC44_BOOTSTRAP_INVALID_RESPONSE');
+    return item;
+  }
+
+  async function importWearableSummaries(token,payload={}){
+    if(!payload||typeof payload!=='object'||!Array.isArray(payload.records)||payload.records.length<1||payload.records.length>250)throw new Error('M26_RC44_IMPORT_PAYLOAD_INVALID');
+    const body=JSON.stringify({p_payload:{records:payload.records}});
+    if(body.length<20||body.length>900000)throw new Error('M26_RC44_IMPORT_PAYLOAD_INVALID');
+    return normalizeRc44Result(
+      await rc44Rpc(
+        RC44_RPC.importSummaries,
+        token,
+        {p_payload:{records:payload.records}},
+      ),
+      'M26_RC44_IMPORT_INVALID_RESPONSE',
+    );
+  }
+
+  async function upsertWearableConnection(token,payload={}){
+    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('M26_RC44_CONNECTION_PAYLOAD_INVALID');
+    return normalizeRc44Result(
+      await rc44Rpc(
+        RC44_RPC.upsertConnection,
+        token,
+        {p_payload:payload},
+      ),
+      'M26_RC44_CONNECTION_INVALID_RESPONSE',
+    );
+  }
+
+  async function revokeWearableConnection(token,provider,deleteData=false){
+    const value=String(provider||'').trim().toLowerCase();
+    if(!value)throw new Error('M26_WEARABLE_PROVIDER_UNKNOWN');
+    return normalizeRc44Result(
+      await rc44Rpc(
+        RC44_RPC.revokeConnection,
+        token,
+        {
+          p_provider:value,
+          p_delete_data:Boolean(deleteData),
+        },
+      ),
+      'M26_RC44_REVOKE_INVALID_RESPONSE',
+    );
+  }
+
+  async function deleteWearableData(token){
+    return normalizeRc44Result(
+      await rc44Rpc(
+        RC44_RPC.deleteAll,
+        token,
+        {},
+      ),
+      'M26_RC44_DELETE_INVALID_RESPONSE',
+    );
+  }
+
   async function clientOnboardingPreflight(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     if (!runtime.canary && !runtime.qaOnly) throw new Error('M26_CLIENT_CREATE_CANARY_ONLY');
@@ -503,6 +593,12 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     getSessionDraft,
     upsertSessionDraft,
     deleteSessionDraft,
+    wearableHealth,
+    wearableBootstrap,
+    importWearableSummaries,
+    upsertWearableConnection,
+    revokeWearableConnection,
+    deleteWearableData,
     recordMeasurement,
     saveTrainingSession,
     sendMessage,

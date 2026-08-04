@@ -202,6 +202,9 @@
     "build:rc43:canary": "npm run build:rc40 && node scripts/patch_rc43_canary_runtime_source.mjs && node scripts/generate_rc43_runtime_config.mjs && node scripts/verify_rc43_canary_candidate.mjs",
     "test:m26:rc431": "node --test tests/m26_rc43_1_draft_persistence.test.mjs",
     "validate:rc431:local": "npm run validate:rc43:local && npm run test:m26:rc431",
-    "build:rc431:canary": "npm run build:rc40 && node scripts/patch_rc431_canary_runtime_source.mjs && node scripts/generate_rc431_runtime_config.mjs && node scripts/verify_rc431_canary_candidate.mjs"
+    "build:rc431:canary": "npm run build:rc40 && node scripts/patch_rc431_canary_runtime_source.mjs && node scripts/generate_rc431_runtime_config.mjs && node scripts/verify_rc431_canary_candidate.mjs",
+    "test:m26:rc44": "node --test tests/m26_rc44_zero_cost_wearables.test.mjs",
+    "validate:rc44:local": "npm run validate:rc431:local && npm run test:m26:rc44",
+    "build:rc44:canary": "npm run build:rc40 && node scripts/patch_rc44_canary_runtime_source.mjs && node scripts/generate_rc44_runtime_config.mjs && node scripts/verify_rc44_canary_candidate.mjs"
   }
 }
