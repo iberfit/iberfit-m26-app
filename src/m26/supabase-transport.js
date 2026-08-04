@@ -19,6 +19,13 @@ const CLIENT_ONBOARDING_RPC=Object.freeze({
   preflight:'iberfit_client_onboarding_preflight_v12',
   create:'iberfit_create_client_draft_v12',
 });
+const RC43_RPC=Object.freeze({
+  health:'m26_backend_health_v43',
+  bootstrap:'m26_backend_bootstrap_v43',
+  recordMeasurement:'m26_record_measurement_v43',
+  saveTrainingSession:'m26_save_training_session_v43',
+  sendMessage:'m26_send_message_v43',
+});
 
 export function resolveM26Runtime(raw, locationLike = globalThis.location) {
   const host = locationLike?.hostname || '';
@@ -316,6 +323,46 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     });
   }
 
+  async function rc43Rpc(name,token,params={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    if(!Object.values(RC43_RPC).includes(name))throw new Error('M26_RC43_RPC_NOT_ALLOWED');
+    return request('/rest/v1/rpc/'+name,{method:'POST',token,body:JSON.stringify(params)});
+  }
+
+  function normalizeRc43Result(result,code){
+    const item=Array.isArray(result)?result[0]:result;
+    if(!item||typeof item!=='object'||item.ok!==true)throw new Error(code);
+    return Object.freeze({...item});
+  }
+
+  async function backendHealth(){
+    const result=await request('/rest/v1/rpc/'+RC43_RPC.health,{method:'POST',body:'{}'});
+    const item=normalizeRc43Result(result,'M26_RC43_HEALTH_INVALID_RESPONSE');
+    if(item.ready!==true||item.version!=='RC43'||item.environment!=='canary')throw new Error('M26_RC43_BACKEND_NOT_READY');
+    return item;
+  }
+
+  async function backendBootstrap(token){
+    const item=normalizeRc43Result(await rc43Rpc(RC43_RPC.bootstrap,token,{}),'M26_RC43_BOOTSTRAP_INVALID_RESPONSE');
+    if(item.ready!==true||item.version!=='RC43')throw new Error('M26_RC43_BACKEND_NOT_READY');
+    return item;
+  }
+
+  async function recordMeasurement(token,payload={}){
+    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('M26_RC43_PAYLOAD_INVALID');
+    return normalizeRc43Result(await rc43Rpc(RC43_RPC.recordMeasurement,token,{p_payload:payload}),'M26_RC43_MEASUREMENT_INVALID_RESPONSE');
+  }
+
+  async function saveTrainingSession(token,payload={}){
+    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('M26_RC43_PAYLOAD_INVALID');
+    return normalizeRc43Result(await rc43Rpc(RC43_RPC.saveTrainingSession,token,{p_payload:payload}),'M26_RC43_SESSION_INVALID_RESPONSE');
+  }
+
+  async function sendMessage(token,payload={}){
+    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('M26_RC43_PAYLOAD_INVALID');
+    return normalizeRc43Result(await rc43Rpc(RC43_RPC.sendMessage,token,{p_payload:payload}),'M26_RC43_MESSAGE_INVALID_RESPONSE');
+  }
+
   async function clientOnboardingPreflight(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     if (!runtime.canary && !runtime.qaOnly) throw new Error('M26_CLIENT_CREATE_CANARY_ONLY');
@@ -366,6 +413,11 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     refresh,
     logout,
     bootstrap: (token) => rpc(runtime.rpc.bootstrap, token, {}),
+    backendHealth,
+    backendBootstrap,
+    recordMeasurement,
+    saveTrainingSession,
+    sendMessage,
     commandRegistry,
     clientOnboardingPreflight,
     createClientDraft,

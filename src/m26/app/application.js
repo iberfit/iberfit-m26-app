@@ -170,11 +170,12 @@ export async function createM26Application({root=document.querySelector('#app'),
     await refreshSessionIfNeeded();
     store.setHydration('loading');
     try{
-      const [snapshot,installed,extensions,contextExtension]=await Promise.all([
+      const [snapshot,installed,extensions,contextExtension,backendV43]=await Promise.all([
         transport.bootstrap(currentToken()),
         transport.commandRegistry(currentToken()),
         rc39Transport?rc39Transport.extensions(currentToken()):Promise.resolve({rolesAvailable:false,authorizedRoles:[],changeRequestsAvailable:false,changeRequests:[]}),
         adminTransport?adminTransport.applicationContextOptional(currentToken()):Promise.resolve({available:false,reason:'disabled',data:null}),
+        transport.backendBootstrap(currentToken()),
       ]);
       const runtimeRegistry=validatedRuntimeRegistry(installed);
       if(!runtimeRegistry.base.ok)throw new Error(`M26_REMOTE_BASE_REGISTRY_INVALID:${runtimeRegistry.base.missing.join(',')}`);
@@ -190,7 +191,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       ]);
       const rawEnvironment=scopedSnapshot?.environment;const normalizedEnvironment=typeof rawEnvironment==='string'?{mode:rawEnvironment}:rawEnvironment&&typeof rawEnvironment==='object'&&!Array.isArray(rawEnvironment)?rawEnvironment:{};
       const appointments=mergeRc39ChangeRequests(scopedSnapshot?.data?.appointments||[],extensions.changeRequests||[]);
-      const enriched={...scopedSnapshot,user:{...(scopedSnapshot.user||{}),role:activeRole,authorizedRoles,roleChoiceConfirmed:Boolean(activeApplicationRole)},data:{...(scopedSnapshot.data||{}),appointments},environment:{...normalizedEnvironment,commandRegistry:installed,reason,rc39:{authorizedRoles:extensions.rolesAvailable,appointmentChangeRequests:extensions.changeRequestsAvailable},applicationContext:{available:applicationContext.available,organizationId:applicationContext.organizationId,membershipStatus:applicationContext.membershipStatus,assignmentScopeEnforced:applicationContext.assignmentScopeEnforced},admin:{available:adminExtension.available===true,reason:adminExtension.reason||null},communication:{available:communicationExtension.available===true,reason:communicationExtension.reason||null}},canary:{...(scopedSnapshot.canary||{}),version:scopedSnapshot.canary?.version||runtime.version||'26.0.0'},admin:adminExtension.available?adminExtension.data:null,communication:communicationExtension.available?communicationExtension.data:null};
+      const enriched={...scopedSnapshot,user:{...(scopedSnapshot.user||{}),role:activeRole,authorizedRoles,roleChoiceConfirmed:Boolean(activeApplicationRole)},data:{...(scopedSnapshot.data||{}),appointments},environment:{...normalizedEnvironment,commandRegistry:installed,reason,backendV43,rc39:{authorizedRoles:extensions.rolesAvailable,appointmentChangeRequests:extensions.changeRequestsAvailable},applicationContext:{available:applicationContext.available,organizationId:applicationContext.organizationId,membershipStatus:applicationContext.membershipStatus,assignmentScopeEnforced:applicationContext.assignmentScopeEnforced},admin:{available:adminExtension.available===true,reason:adminExtension.reason||null},communication:{available:communicationExtension.available===true,reason:communicationExtension.reason||null}},canary:{...(scopedSnapshot.canary||{}),version:scopedSnapshot.canary?.version||runtime.version||'26.0.0'},admin:adminExtension.available?adminExtension.data:null,communication:communicationExtension.available?communicationExtension.data:null};
       store.hydrate(enriched);
       return {snapshot:enriched,installed,runtimeRegistry};
     }catch(error){store.setHydration('error',error);throw error;}
