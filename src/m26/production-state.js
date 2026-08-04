@@ -37,6 +37,35 @@ function clone(value) {
   return value == null ? value : structuredClone(value);
 }
 function normalizeRole(value){return ROLE_ALIASES[String(value||'').trim().toLowerCase()]||null;}
+function environmentMode(environment){
+  if(typeof environment==='string'){
+    return environment.trim().toUpperCase();
+  }
+
+  if(
+    !environment ||
+    typeof environment!=='object' ||
+    Array.isArray(environment)
+  ){
+    return '';
+  }
+
+  return String(
+    environment.mode ||
+    environment.name ||
+    ''
+  ).trim().toUpperCase();
+}
+
+function syntheticCanaryAllowed(snapshot){
+  return snapshot?.canary?.active===true
+    &&String(
+      snapshot?.canary?.scope||''
+    ).trim().toLowerCase()==='allowlist'
+    &&environmentMode(
+      snapshot?.environment
+    )==='SYNTHETIC_ONLY';
+}
 function safeId(value){const id=String(value||'').trim();return SAFE_ID_PATTERN.test(id)?id:null;}
 function jsonByteLength(value){let text;try{text=JSON.stringify(value);}catch{throw new Error('M26_BOOTSTRAP_NOT_SERIALIZABLE');}if(text===undefined)throw new Error('M26_BOOTSTRAP_NOT_SERIALIZABLE');return typeof TextEncoder==='function'?new TextEncoder().encode(text).length:text.length;}
 function recordClientId(record,key){
@@ -94,7 +123,7 @@ export function containsSyntheticData(value) {
 export function assertProductionSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new Error('M26_BOOTSTRAP_INVALID');
   if(jsonByteLength(snapshot)>MAX_BOOTSTRAP_BYTES)throw new Error('M26_BOOTSTRAP_TOO_LARGE');
-  if (containsSyntheticData(snapshot)) throw new Error('M26_SYNTHETIC_DATA_REJECTED');
+  if (containsSyntheticData(snapshot)&&!syntheticCanaryAllowed(snapshot)) throw new Error('M26_SYNTHETIC_DATA_REJECTED');
   const role=normalizeRole(snapshot.user?.role);
   if (!safeId(snapshot.user?.id) || !role) throw new Error('M26_IDENTITY_REQUIRED');
   if(role==='client'&&!safeId(snapshot.user?.clientId||snapshot.user?.client_id))throw new Error('M26_CLIENT_IDENTITY_REQUIRED');
