@@ -107,3 +107,49 @@ test('RC20 migración guardada conserva RLS, rollback y prohíbe tokens en métr
   assert.match(sql,/allow_rc20_wearables/);assert.match(sql,/enable row level security/g);assert.match(sql,/revoke all .* from anon/);assert.match(sql,/access_token/);assert.match(sql,/REMOTE_BOOTSTRAP_AND_WRITE_PATH_REQUIRED/);assert.match(sql,/rollback;\s*$/);
   assert.doesNotMatch(sql,/create policy .* for (insert|update|delete)/i);
 });
+// RC44_BACKEND_RECORD_DATE_ALIAS
+test('RC44 normaliza record_date remoto y lo presenta en Actividad',()=>{
+  const remoteRow={
+    client_id:'client-qa-44',
+    provider:'normalized_file',
+    record_date:'2026-08-04',
+    steps:7500,
+    active_minutes:42,
+    sleep_minutes:450,
+    resting_heart_rate:58,
+    hrv_ms:48,
+    active_energy_kcal:520,
+    workout_minutes:35,
+    quality:'media',
+    source_updated_at:'2026-08-04T18:00:00Z',
+  };
+
+  const normalized=normalizeWearableDailyRecord(remoteRow);
+
+  assert.equal(normalized.ok,true);
+  assert.equal(normalized.value.clientId,'client-qa-44');
+  assert.equal(normalized.value.date,'2026-08-04');
+  assert.equal(normalized.value.metrics.steps,7500);
+  assert.equal(normalized.value.metrics.activeMinutes,42);
+  assert.equal(normalized.value.metrics.sleepMinutes,450);
+  assert.equal(normalized.value.metrics.restingHeartRate,58);
+  assert.equal(normalized.value.metrics.hrvMs,48);
+  assert.equal(normalized.value.metrics.activeEnergyKcal,520);
+  assert.equal(normalized.value.metrics.workoutMinutes,35);
+
+  const viewModel=buildWearableViewModel({
+    records:[remoteRow],
+    role:'client',
+    now:new Date('2026-08-04T18:00:00Z'),
+  });
+
+  assert.equal(viewModel.summary.daysWithData,1);
+  assert.equal(viewModel.summary.latestDate,'2026-08-04');
+  assert.equal(viewModel.summary.metrics.steps,7500);
+  assert.equal(viewModel.summary.metrics.activeMinutes,42);
+  assert.equal(viewModel.summary.metrics.sleepMinutes,450);
+  assert.equal(viewModel.summary.metrics.restingHeartRate,58);
+  assert.equal(viewModel.summary.metrics.hrvMs,48);
+  assert.equal(viewModel.summary.metrics.activeEnergyKcal,520);
+  assert.equal(viewModel.summary.metrics.workoutMinutes,35);
+});

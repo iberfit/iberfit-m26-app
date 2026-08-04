@@ -20,7 +20,7 @@ export function normalizeWearableDailyRecord(input={},context={}){
   const source=input?.body&&typeof input.body==='object'?{...input,...input.body}:input;
   const clientId=safeId(valueOf(source,'clientId','client_id')||context.clientId);
   const provider=normalizeWearableProvider(valueOf(source,'provider','source','origen')||context.provider||'normalized_file');
-  const date=dateOnly(valueOf(source,'date','day','fecha','recordedAt','recorded_at'));
+  const date=dateOnly(valueOf(source,'date','day','fecha','recordDate','record_date','recordedAt','recorded_at'));
   const metrics={};
   const aliases={
     steps:['steps','pasos'],activeMinutes:['activeMinutes','active_minutes','minutosActivos','minutos_activos'],
