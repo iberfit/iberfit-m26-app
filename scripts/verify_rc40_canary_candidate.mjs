@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 const root = process.cwd();
 const sourcePath = path.join(root, 'scripts', 'verify_rc35_canary_candidate.mjs');
@@ -82,7 +83,8 @@ const buildRoot = process.env.M26_BUILD_DIR
 const runtimePath = path.join(buildRoot, 'm26', 'runtime-config.js');
 const transportPath = path.join(buildRoot, 'src', 'm26', 'supabase-transport.js');
 const applicationPath = path.join(buildRoot, 'src', 'm26', 'app', 'application.js');
-for (const requiredPath of [runtimePath, transportPath, applicationPath]) {
+const iriExternalReportPath = path.join(buildRoot, 'src', 'm26', 'workflows', 'iri-external-report-controller.js');
+for (const requiredPath of [runtimePath, transportPath, applicationPath, iriExternalReportPath]) {
   if (!fs.existsSync(requiredPath)) {
     throw new Error(`RC40_VERIFY_RUNTIME_FILE_MISSING:${requiredPath}`);
   }
@@ -94,6 +96,7 @@ if (!runtimeMatch) throw new Error('RC40_VERIFY_RUNTIME_FORMAT_INVALID');
 const runtime = JSON.parse(runtimeMatch[1]);
 const transportSource = fs.readFileSync(transportPath, 'utf8');
 const applicationSource = fs.readFileSync(applicationPath, 'utf8');
+const iriExternalReportSource = fs.readFileSync(iriExternalReportPath, 'utf8');
 const previewHost = process.env.CF_PAGES_URL
   ? new URL(process.env.CF_PAGES_URL).hostname.toLowerCase()
   : '';
@@ -107,6 +110,8 @@ if (!transportSource.includes(PROJECT_REF)) runtimeFailures.push('canary-ref-in-
 if (!transportSource.includes("QA_AUTHORIZED_EMAILS=new Set(['iberfit.cl@gmail.com'])")) runtimeFailures.push('carlos-auth');
 if (!transportSource.includes("const projectPreview = /^[a-z0-9-]+\\.iberfit-m26-canary\\.pages\\.dev$/u.test(host);")) runtimeFailures.push('pages-preview-host-scope');
 if (!applicationSource.includes('locationLike?.origin')) runtimeFailures.push('recovery-origin');
+if (iriExternalReportSource.includes(PRODUCTION_REF)) runtimeFailures.push('production-ref-in-iri-external-report');
+if (!iriExternalReportSource.includes(PROJECT_REF)) runtimeFailures.push('canary-ref-in-iri-external-report');
 
 const productionOrigin = `https://${PRODUCTION_REF}.supabase.co`;
 const canaryOrigin = `https://${PROJECT_REF}.supabase.co`;
@@ -136,6 +141,23 @@ if (cspFiles.some((entry) => entry.source.includes(productionOrigin))) {
 }
 if (!cspFiles.some((entry) => entry.source.includes(canaryOrigin))) {
   runtimeFailures.push('canary-origin-not-in-csp');
+}
+
+try {
+  const iriModule = await import(
+    `${pathToFileURL(iriExternalReportPath).href}?rc40=${Date.now()}`
+  );
+  if (typeof iriModule.createIriExternalReportService !== 'function') {
+    throw new Error('IRI_SERVICE_EXPORT_MISSING');
+  }
+  iriModule.createIriExternalReportService({
+    runtime,
+    fetchImpl: async () => {
+      throw new Error('RC40_IRI_VERIFY_UNEXPECTED_FETCH');
+    },
+  });
+} catch {
+  runtimeFailures.push('iri-external-report-runtime-validation');
 }
 
 if (runtimeFailures.length) {

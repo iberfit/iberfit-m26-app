@@ -6,6 +6,7 @@ const buildRoot = process.env.M26_BUILD_DIR
   || path.join(root, 'dist', 'm26-prepublicacion-infraestructura-candidate');
 const transportPath = path.join(buildRoot, 'src', 'm26', 'supabase-transport.js');
 const applicationPath = path.join(buildRoot, 'src', 'm26', 'app', 'application.js');
+const iriExternalReportPath = path.join(buildRoot, 'src', 'm26', 'workflows', 'iri-external-report-controller.js');
 
 const CANARY_REF = 'tvqnvvwaddcuehqmzvty';
 const PRODUCTION_REF = 'pjhmrhejsoofmouedavw';
@@ -26,12 +27,20 @@ function replaceOnce(source, needle, replacement, label) {
 
 let transport = readRequired(transportPath, 'transport');
 let application = readRequired(applicationPath, 'application');
+let iriExternalReport = readRequired(iriExternalReportPath, 'iri-external-report-controller');
 
 transport = replaceOnce(
   transport,
   `export const M26_CANONICAL_PROJECT_REF='${PRODUCTION_REF}';`,
   `export const M26_CANONICAL_PROJECT_REF='${CANARY_REF}';`,
   'canonical-project-ref',
+);
+
+iriExternalReport = replaceOnce(
+  iriExternalReport,
+  `const CANONICAL_PROJECT_REF = '${PRODUCTION_REF}';`,
+  `const CANONICAL_PROJECT_REF = '${CANARY_REF}';`,
+  'iri-external-report-project-ref',
 );
 
 transport = replaceOnce(
@@ -128,6 +137,12 @@ if (transport.includes(PRODUCTION_REF)) {
 if (!transport.includes(CANARY_REF)) {
   throw new Error('RC40_PATCH_CANARY_REF_MISSING');
 }
+if (iriExternalReport.includes(PRODUCTION_REF)) {
+  throw new Error('RC40_PATCH_IRI_PRODUCTION_REF_REMAINS');
+}
+if (!iriExternalReport.includes(CANARY_REF)) {
+  throw new Error('RC40_PATCH_IRI_CANARY_REF_MISSING');
+}
 if (!transport.includes("QA_AUTHORIZED_EMAILS=new Set(['iberfit.cl@gmail.com'])")) {
   throw new Error('RC40_PATCH_CARLOS_ALLOWLIST_MISSING');
 }
@@ -137,6 +152,7 @@ if (!application.includes("locationLike?.origin")) {
 
 fs.writeFileSync(transportPath, transport, 'utf8');
 fs.writeFileSync(applicationPath, application, 'utf8');
+fs.writeFileSync(iriExternalReportPath, iriExternalReport, 'utf8');
 
 const PRODUCTION_ORIGIN = `https://${PRODUCTION_REF}.supabase.co`;
 const CANARY_ORIGIN = `https://${CANARY_REF}.supabase.co`;
@@ -184,6 +200,7 @@ console.log(JSON.stringify({
   patched: [
     path.relative(root, transportPath).replaceAll(path.sep, '/'),
     path.relative(root, applicationPath).replaceAll(path.sep, '/'),
+    path.relative(root, iriExternalReportPath).replaceAll(path.sep, '/'),
     ...cspPatched,
   ],
   csp: {
