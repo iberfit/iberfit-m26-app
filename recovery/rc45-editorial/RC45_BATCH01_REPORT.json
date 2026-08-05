@@ -1,0 +1,101 @@
+﻿{
+    "ok":  true,
+    "branch":  "canary/rc45-editorial-batch01",
+    "basedOn":  "canary/rc44-zero-cost-wearables",
+    "generatedAt":  "2026-08-05T16:56:17.0003247-04:00",
+    "changedCount":  15,
+    "file":  "baseline_m25_2/exercise-catalog-m25.json",
+    "backup":  "C:\\Users\\juanc\\OneDrive\\Documentos\\GitHub\\iberfit-m26-app\\recovery\\rc45-editorial\\exercise-catalog-m25.before-rc45-batch01.20260805-165616.json",
+    "changes":  [
+                    {
+                        "id":  "IBF-ABDUCCION-DE-CADERA-LATERAL",
+                        "old_name":  "Abducción de cadera lateral",
+                        "new_name":  "Abducción lateral de cadera",
+                        "aliases":  "elevación lateral de pierna | abducción de cadera en decúbito lateral"
+                    },
+                    {
+                        "id":  "IBF-CAMINATA-LATERAL-CON-BANDA",
+                        "old_name":  "Caminata lateral con banda",
+                        "new_name":  "Caminata lateral con banda",
+                        "aliases":  "pasos laterales con banda | lateral walk con banda"
+                    },
+                    {
+                        "id":  "IBF-CLAMSHELL",
+                        "old_name":  "Clamshell",
+                        "new_name":  "Apertura de cadera en decúbito lateral",
+                        "aliases":  "clamshell | apertura lateral de cadera"
+                    },
+                    {
+                        "id":  "IBF-CLAMSHELL-CON-BANDA",
+                        "old_name":  "Clamshell con banda",
+                        "new_name":  "Apertura de cadera con banda en decúbito lateral",
+                        "aliases":  "clamshell con banda"
+                    },
+                    {
+                        "id":  "IBF-MONSTER-WALK",
+                        "old_name":  "Monster walk",
+                        "new_name":  "Caminata diagonal con banda",
+                        "aliases":  "monster walk | pasos diagonales con banda"
+                    },
+                    {
+                        "id":  "IBF-PATADA-DE-GLUTEO-EN-CUADRUPEDIA",
+                        "old_name":  "Patada de glúteo en cuadrupedia",
+                        "new_name":  "Extensión de cadera en cuadrupedia",
+                        "aliases":  "patada de glúteo | donkey kick"
+                    },
+                    {
+                        "id":  "IBF-APRETON-ISOMETRICO-DE-AGARRE",
+                        "old_name":  "Apretón isométrico de agarre",
+                        "new_name":  "Agarre isométrico",
+                        "aliases":  "apretón isométrico | squeeze hold"
+                    },
+                    {
+                        "id":  "IBF-PINCH-GRIP-CON-DISCOS",
+                        "old_name":  "Pinch grip con discos",
+                        "new_name":  "Pinza de agarre con discos",
+                        "aliases":  "pinch grip | pinza con discos"
+                    },
+                    {
+                        "id":  "IBF-EXTENSION-DE-MUNECA",
+                        "old_name":  "Extensión de muñeca",
+                        "new_name":  "Extensión de muñeca con mancuerna",
+                        "aliases":  "wrist extension"
+                    },
+                    {
+                        "id":  "IBF-FLEXION-DE-MUNECA",
+                        "old_name":  "Flexión de muñeca",
+                        "new_name":  "Flexión de muñeca con mancuerna",
+                        "aliases":  "wrist curl | wrist flexion"
+                    },
+                    {
+                        "id":  "IBF-PRONACION-Y-SUPINACION-DE-ANTEBRAZO",
+                        "old_name":  "Pronación y supinación de antebrazo",
+                        "new_name":  "Pronación y supinación de antebrazo con mancuerna",
+                        "aliases":  "giros de antebrazo | rotación de antebrazo"
+                    },
+                    {
+                        "id":  "IBF-AB-WHEEL-DESDE-RODILLAS",
+                        "old_name":  "Ab wheel desde rodillas",
+                        "new_name":  "Rueda abdominal desde rodillas",
+                        "aliases":  "ab wheel desde rodillas | rollout desde rodillas"
+                    },
+                    {
+                        "id":  "IBF-BEAR-PLANK",
+                        "old_name":  "Bear plank",
+                        "new_name":  "Plancha de oso",
+                        "aliases":  "bear plank | cuadrupedia suspendida"
+                    },
+                    {
+                        "id":  "IBF-BODY-SAW",
+                        "old_name":  "Body saw",
+                        "new_name":  "Plancha deslizante adelante-atrás",
+                        "aliases":  "body saw | serrucho corporal"
+                    },
+                    {
+                        "id":  "IBF-DEAD-BUG",
+                        "old_name":  "Dead bug",
+                        "new_name":  "Dead bug",
+                        "aliases":  "bicho muerto | contralateral supino"
+                    }
+                ]
+}
