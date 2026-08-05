@@ -234,3 +234,17 @@
     display: none !important;
   }
 }
+
+/* RC44.2 · estabilidad de shell y cobertura wearable gratuita */
+.m26-client-bottom-nav-layer{display:none!important}
+.m26-client-route-shell{min-height:0!important;padding-bottom:0!important}
+.m26-wearable-free-coverage{overflow:hidden}
+.m26-wearable-history{overflow:hidden}
+.m26-wearable-day-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px}
+.m26-wearable-day{display:grid;gap:14px;min-width:0;padding:18px;border:1px solid rgba(228,205,152,.18);border-radius:22px;background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.014))}
+.m26-wearable-day header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.m26-wearable-day header h3{margin:4px 0 0}
+.m26-wearable-day .m26-field-grid{grid-template-columns:repeat(2,minmax(0,1fr));margin:0}
+.m26-wearable-day .m26-field{min-width:0}
+@media(max-width:580px){.m26-wearable-day{padding:15px}.m26-wearable-day .m26-field-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:420px){.m26-wearable-day .m26-field-grid{grid-template-columns:1fr}}

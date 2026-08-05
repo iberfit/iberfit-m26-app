@@ -2,6 +2,7 @@ import {WEARABLE_METRICS,normalizeWearableProvider} from './contracts.js';
 
 const MAX_EXPORT_BYTES=5_000_000;
 const MAX_EXPORT_ROWS=10_000;
+const ASYNC_BATCH_SIZE=250;
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 
 function safeId(value){const text=String(value||'').trim();return SAFE_ID.test(text)?text:null;}
@@ -15,26 +16,37 @@ function iso(value){const date=value?new Date(value):null;return date&&!Number.i
 function valueOf(input,...keys){for(const key of keys){if(input?.[key]!==undefined&&input?.[key]!==null&&input?.[key]!=='')return input[key];}return null;}
 function normalizeMetric(value,definition){const number=finite(value);if(number===null||number<definition.min||number>definition.max)return null;return definition.integer?Math.round(number):Math.round(number*10)/10;}
 function qualityOf(value){const key=String(value||'').trim().toLowerCase();return ['alta','media','limitada'].includes(key)?key:'limitada';}
+function flattenSource(input={}){return Object.assign({},input,input?.body,input?.metrics,input?.data,input?.summary,input?.totals);}
+function minutesFromSeconds(input,...keys){const seconds=finite(valueOf(input,...keys));return seconds===null?null:seconds/60;}
+function metricInput(source,key){
+  const aliases={
+    steps:['steps','step_count','stepCount','pasos'],
+    activeMinutes:['activeMinutes','active_minutes','minutes_active','minutosActivos','minutos_activos'],
+    sleepMinutes:['sleepMinutes','sleep_minutes','sleepDurationMinutes','sleep_duration_minutes','total_sleep_minutes','minutosSueno','minutos_sueno'],
+    restingHeartRate:['restingHeartRate','resting_heart_rate','resting_hr','rhr','fcReposo','fc_reposo'],
+    hrvMs:['hrvMs','hrv_ms','hrv','average_hrv','variabilidadMs','variabilidad_ms'],
+    activeEnergyKcal:['activeEnergyKcal','active_energy_kcal','activeCalories','active_calories','calories','kilocalories','caloriasActivas','calorias_activas'],
+    workoutMinutes:['workoutMinutes','workout_minutes','exerciseMinutes','exercise_minutes','moving_minutes','duration_minutes','minutosEntrenamiento','minutos_entrenamiento'],
+  };
+  const direct=valueOf(source,...aliases[key]);
+  if(direct!==null)return direct;
+  if(key==='activeMinutes')return minutesFromSeconds(source,'active_time_seconds','active_seconds');
+  if(key==='sleepMinutes')return minutesFromSeconds(source,'sleep_seconds','sleep_duration_seconds');
+  if(key==='workoutMinutes')return minutesFromSeconds(source,'moving_time','elapsed_time','duration_seconds','workout_duration_seconds');
+  return null;
+}
 
 export function normalizeWearableDailyRecord(input={},context={}){
-  const source=input?.body&&typeof input.body==='object'?{...input,...input.body}:input;
+  const source=flattenSource(input);
   const clientId=safeId(valueOf(source,'clientId','client_id')||context.clientId);
   const provider=normalizeWearableProvider(valueOf(source,'provider','source','origen')||context.provider||'normalized_file');
-  const date=dateOnly(valueOf(source,'date','day','fecha','recordDate','record_date','recordedAt','recorded_at'));
+  const date=dateOnly(valueOf(source,'date','day','fecha','recordDate','record_date','recordedAt','recorded_at','activity_date','start_date_local','start_date','calendar_date','timestamp'));
   const metrics={};
-  const aliases={
-    steps:['steps','pasos'],activeMinutes:['activeMinutes','active_minutes','minutosActivos','minutos_activos'],
-    sleepMinutes:['sleepMinutes','sleep_minutes','sleepDurationMinutes','sleep_duration_minutes','minutosSueno','minutos_sueno'],
-    restingHeartRate:['restingHeartRate','resting_heart_rate','rhr','fcReposo','fc_reposo'],
-    hrvMs:['hrvMs','hrv_ms','hrv','variabilidadMs','variabilidad_ms'],
-    activeEnergyKcal:['activeEnergyKcal','active_energy_kcal','activeCalories','active_calories','caloriasActivas','calorias_activas'],
-    workoutMinutes:['workoutMinutes','workout_minutes','exerciseMinutes','exercise_minutes','minutosEntrenamiento','minutos_entrenamiento'],
-  };
-  for(const [key,definition] of Object.entries(WEARABLE_METRICS))metrics[key]=normalizeMetric(valueOf(source,...aliases[key]),definition);
+  for(const [key,definition] of Object.entries(WEARABLE_METRICS))metrics[key]=normalizeMetric(metricInput(source,key),definition);
   const issues=[];if(!clientId)issues.push('clientId');if(!provider)issues.push('provider');if(!date)issues.push('date');if(!Object.values(metrics).some(Number.isFinite))issues.push('metrics');
-  const sourceUpdatedAt=iso(valueOf(source,'sourceUpdatedAt','source_updated_at','updatedAt','updated_at','syncedAt','synced_at'))||new Date(`${date||'1970-01-01'}T12:00:00Z`).toISOString();
+  const sourceUpdatedAt=iso(valueOf(source,'sourceUpdatedAt','source_updated_at','updatedAt','updated_at','syncedAt','synced_at','modified_at'))||new Date(`${date||'1970-01-01'}T12:00:00Z`).toISOString();
   return Object.freeze({ok:issues.length===0,issues:Object.freeze(issues),value:Object.freeze({
-    id:safeId(valueOf(source,'id'))||`${provider||'unknown'}:${clientId||'unknown'}:${date||'unknown'}`,
+    id:safeId(valueOf(source,'id','record_id','activity_id'))||`${provider||'unknown'}:${clientId||'unknown'}:${date||'unknown'}`,
     clientId,provider,date,metrics:Object.freeze(metrics),quality:qualityOf(valueOf(source,'quality','dataQuality','data_quality')),
     sourceUpdatedAt,sourceRecordCount:Math.max(1,Math.min(100000,Math.round(finite(valueOf(source,'sourceRecordCount','source_record_count'))||1))),
   })});
@@ -65,30 +77,30 @@ export function summarizeWearableData(records=[],{now=new Date(),days=7}={}){
   });
 }
 
-function parseCsvLine(line){const cells=[];let value='',quoted=false;for(let index=0;index<line.length;index+=1){const char=line[index];if(char==='"'){if(quoted&&line[index+1]==='"'){value+='"';index+=1;}else quoted=!quoted;}else if(char===','&&!quoted){cells.push(value);value='';}else value+=char;}cells.push(value);return cells;}
-function csvRows(text){const lines=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/).filter((line)=>line.trim());if(lines.length<2)return [];const headers=parseCsvLine(lines[0]).map((item)=>item.trim());return lines.slice(1).map((line)=>Object.fromEntries(parseCsvLine(line).map((value,index)=>[headers[index],value])));}
+function parseDelimitedLine(line,delimiter){const cells=[];let value='',quoted=false;for(let index=0;index<line.length;index+=1){const char=line[index];if(char==='"'){if(quoted&&line[index+1]==='"'){value+='"';index+=1;}else quoted=!quoted;}else if(char===delimiter&&!quoted){cells.push(value);value='';}else value+=char;}cells.push(value);return cells;}
+function delimiterFor(header){const candidates=[',',';','\t'];return candidates.sort((left,right)=>header.split(right).length-header.split(left).length)[0];}
+function csvRows(text){const lines=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/).filter((line)=>line.trim());if(lines.length<2)return [];const delimiter=delimiterFor(lines[0]);const headers=parseDelimitedLine(lines[0],delimiter).map((item)=>item.trim());return lines.slice(1).map((line)=>Object.fromEntries(parseDelimitedLine(line,delimiter).map((value,index)=>[headers[index],value])));}
+function rowsFromParsed(parsed){if(Array.isArray(parsed))return parsed;for(const key of ['records','days','activities','summaries','daily','data']){if(Array.isArray(parsed?.[key]))return parsed[key];}return [parsed];}
+function exportRows(raw,fileName){const name=String(fileName||'').toLowerCase();if(name.endsWith('.csv')||name.endsWith('.tsv'))return csvRows(raw);let parsed;try{parsed=JSON.parse(raw);}catch{throw new Error('M26_WEARABLE_FILE_INVALID_JSON');}return rowsFromParsed(parsed);}
+function importPreamble(text,fileName){const raw=String(text??'');const bytes=typeof TextEncoder==='function'?new TextEncoder().encode(raw).length:raw.length;if(bytes>MAX_EXPORT_BYTES)throw new Error('M26_WEARABLE_FILE_TOO_LARGE');const rows=exportRows(raw,fileName);if(rows.length>MAX_EXPORT_ROWS)throw new Error('M26_WEARABLE_TOO_MANY_ROWS');return {rows,bytes};}
+function normalizeRows(rows,{clientId,provider}={}){const accepted=[],rejected=[];for(const row of rows){const result=normalizeWearableDailyRecord(row,{clientId,provider});if(result.ok)accepted.push(result.value);else rejected.push({issues:result.issues});}return {accepted,rejected};}
 
 export function parseWearableExportText(text,{fileName='wearable.json',clientId,provider='normalized_file'}={}){
-  const raw=String(text??'');const bytes=typeof TextEncoder==='function'?new TextEncoder().encode(raw).length:raw.length;if(bytes>MAX_EXPORT_BYTES)throw new Error('M26_WEARABLE_FILE_TOO_LARGE');
-  let rows;const name=String(fileName||'').toLowerCase();
-  if(name.endsWith('.csv'))rows=csvRows(raw);else{let parsed;try{parsed=JSON.parse(raw);}catch{throw new Error('M26_WEARABLE_FILE_INVALID_JSON');}rows=Array.isArray(parsed)?parsed:Array.isArray(parsed?.records)?parsed.records:Array.isArray(parsed?.days)?parsed.days:[parsed];}
-  if(rows.length>MAX_EXPORT_ROWS)throw new Error('M26_WEARABLE_TOO_MANY_ROWS');
-  const accepted=[],rejected=[];for(const row of rows){const result=normalizeWearableDailyRecord(row,{clientId,provider});if(result.ok)accepted.push(result.value);else rejected.push({issues:result.issues});}
+  const {rows,bytes}=importPreamble(text,fileName);const {accepted,rejected}=normalizeRows(rows,{clientId,provider});
   return Object.freeze({accepted:Object.freeze(deduplicateWearableDailyRecords(accepted)),rejected:Object.freeze(rejected),totalRows:rows.length,bytes});
 }
 
-
 function abortError(){const error=new Error('M26_WEARABLE_IMPORT_ABORTED');error.name='AbortError';return error;}
-async function yieldToMainThread(scope=globalThis){
-  if(typeof scope?.scheduler?.yield==='function'){await scope.scheduler.yield();return;}
-  await new Promise((resolve)=>{if(typeof scope?.requestIdleCallback==='function')scope.requestIdleCallback(()=>resolve(),{timeout:60});else setTimeout(resolve,0);});
-}
+async function yieldToMainThread(scope=globalThis){if(typeof scope?.scheduler?.yield==='function'){await scope.scheduler.yield();return;}await new Promise((resolve)=>{if(typeof scope?.requestIdleCallback==='function')scope.requestIdleCallback(()=>resolve(),{timeout:60});else setTimeout(resolve,0);});}
 
 export async function parseWearableExportTextAsync(text,options={}){
   const signal=options?.signal;if(signal?.aborted)throw abortError();
-  await yieldToMainThread(options?.scope||globalThis);if(signal?.aborted)throw abortError();
-  const result=parseWearableExportText(text,options);if(signal?.aborted)throw abortError();
-  return result;
+  const scope=options?.scope||globalThis;
+  await yieldToMainThread(scope);if(signal?.aborted)throw abortError();
+  const {rows,bytes}=importPreamble(text,options?.fileName||'wearable.json');const accepted=[],rejected=[];
+  for(let index=0;index<rows.length;index+=1){if(signal?.aborted)throw abortError();const result=normalizeWearableDailyRecord(rows[index],{clientId:options?.clientId,provider:options?.provider||'normalized_file'});if(result.ok)accepted.push(result.value);else rejected.push({issues:result.issues});if((index+1)%ASYNC_BATCH_SIZE===0&&index+1<rows.length)await yieldToMainThread(scope);}
+  if(signal?.aborted)throw abortError();
+  return Object.freeze({accepted:Object.freeze(deduplicateWearableDailyRecords(accepted)),rejected:Object.freeze(rejected),totalRows:rows.length,bytes});
 }
 
-export const __wearableNormalizationInternals=Object.freeze({MAX_EXPORT_BYTES,MAX_EXPORT_ROWS,parseCsvLine,csvRows,dateOnly,normalizeMetric,yieldToMainThread});
+export const __wearableNormalizationInternals=Object.freeze({MAX_EXPORT_BYTES,MAX_EXPORT_ROWS,ASYNC_BATCH_SIZE,parseCsvLine:(line)=>parseDelimitedLine(line,','),csvRows,dateOnly,normalizeMetric,yieldToMainThread,delimiterFor,rowsFromParsed});
