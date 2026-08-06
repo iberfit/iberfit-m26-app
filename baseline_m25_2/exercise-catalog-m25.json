@@ -1481,8 +1481,8 @@
     },
     {
         "id":  "IBF-PLANCHA-LATERAL-CON-ABDUCCION",
-        "name_es":  "Plancha lateral con abducción",
-        "name_source":  "Plancha lateral con abducción",
+        "name_es":  "Plancha lateral con abducción de cadera",
+        "name_source":  "Plancha lateral con abducción de cadera",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PLANCHA-LATERAL-CON-ABDUCCION",
         "pattern":  "anti-inclinación",
@@ -1519,9 +1519,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["plancha lateral elevando pierna","side plank con abducción"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1532,8 +1530,8 @@
     },
     {
         "id":  "IBF-PLANCHA-LATERAL-CON-RODILLAS",
-        "name_es":  "Plancha lateral con rodillas",
-        "name_source":  "Plancha lateral con rodillas",
+        "name_es":  "Plancha lateral con apoyo de rodillas",
+        "name_source":  "Plancha lateral con apoyo de rodillas",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PLANCHA-LATERAL-CON-RODILLAS",
         "pattern":  "anti-inclinación",
@@ -1570,9 +1568,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["plancha lateral adaptada","side plank con rodillas"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1583,8 +1579,8 @@
     },
     {
         "id":  "IBF-SUITCASE-CARRY",
-        "name_es":  "Suitcase carry",
-        "name_source":  "Suitcase carry",
+        "name_es":  "Caminata unilateral con mancuerna al costado",
+        "name_source":  "Caminata unilateral con mancuerna al costado",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-SUITCASE-CARRY",
         "pattern":  "anti-inclinación",
@@ -1621,9 +1617,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["suitcase carry","paseo del granjero unilateral"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1634,8 +1628,8 @@
     },
     {
         "id":  "IBF-SUITCASE-HOLD",
-        "name_es":  "Suitcase hold",
-        "name_source":  "Suitcase hold",
+        "name_es":  "Sujeción unilateral con mancuerna al costado",
+        "name_source":  "Sujeción unilateral con mancuerna al costado",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-SUITCASE-HOLD",
         "pattern":  "anti-inclinación",
@@ -1672,9 +1666,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["suitcase hold","sujeción isométrica unilateral"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1685,8 +1677,8 @@
     },
     {
         "id":  "IBF-BEAR-PLANK-SHOULDER-TAP",
-        "name_es":  "Bear plank shoulder tap",
-        "name_source":  "Bear plank shoulder tap",
+        "name_es":  "Plancha de oso con toque de hombro",
+        "name_source":  "Plancha de oso con toque de hombro",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-BEAR-PLANK-SHOULDER-TAP",
         "pattern":  "anti-rotación",
@@ -1723,9 +1715,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["bear plank shoulder tap","toque de hombros en plancha de oso"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1736,8 +1726,8 @@
     },
     {
         "id":  "IBF-BIRD-DOG",
-        "name_es":  "Bird dog",
-        "name_source":  "Bird dog",
+        "name_es":  "Extensión contralateral en cuadrupedia",
+        "name_source":  "Extensión contralateral en cuadrupedia",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-BIRD-DOG",
         "pattern":  "anti-rotación",
@@ -1774,9 +1764,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["bird dog","extensión alterna de brazo y pierna"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1787,8 +1775,8 @@
     },
     {
         "id":  "IBF-BIRD-DOG-CON-BANDA",
-        "name_es":  "Bird dog con banda",
-        "name_source":  "Bird dog con banda",
+        "name_es":  "Extensión contralateral en cuadrupedia con banda elástica",
+        "name_source":  "Extensión contralateral en cuadrupedia con banda elástica",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-BIRD-DOG-CON-BANDA",
         "pattern":  "anti-rotación",
@@ -1825,9 +1813,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["bird dog con banda","bird dog con resistencia"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1838,8 +1824,8 @@
     },
     {
         "id":  "IBF-BIRD-DOG-CON-PAUSA",
-        "name_es":  "Bird dog con pausa",
-        "name_source":  "Bird dog con pausa",
+        "name_es":  "Extensión contralateral en cuadrupedia con pausa",
+        "name_source":  "Extensión contralateral en cuadrupedia con pausa",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-BIRD-DOG-CON-PAUSA",
         "pattern":  "anti-rotación",
@@ -1876,9 +1862,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["bird dog con pausa","bird dog isométrico"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1889,8 +1873,8 @@
     },
     {
         "id":  "IBF-PALLOF-PRESS-CON-PASO-LATERAL",
-        "name_es":  "Pallof press con paso lateral",
-        "name_source":  "Pallof press con paso lateral",
+        "name_es":  "Press Pallof con paso lateral",
+        "name_source":  "Press Pallof con paso lateral",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PALLOF-PRESS-CON-PASO-LATERAL",
         "pattern":  "anti-rotación",
@@ -1927,9 +1911,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["Pallof press con paso lateral","press antirotación con desplazamiento"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1940,8 +1922,8 @@
     },
     {
         "id":  "IBF-PALLOF-PRESS-DE-PIE",
-        "name_es":  "Pallof press de pie",
-        "name_source":  "Pallof press de pie",
+        "name_es":  "Press Pallof de pie con banda elástica",
+        "name_source":  "Press Pallof de pie con banda elástica",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PALLOF-PRESS-DE-PIE",
         "pattern":  "anti-rotación",
@@ -1978,9 +1960,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["Pallof press de pie","press antirotación de pie"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1991,8 +1971,8 @@
     },
     {
         "id":  "IBF-PALLOF-PRESS-EN-POLEA",
-        "name_es":  "Pallof press en polea",
-        "name_source":  "Pallof press en polea",
+        "name_es":  "Press Pallof en polea",
+        "name_source":  "Press Pallof en polea",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PALLOF-PRESS-EN-POLEA",
         "pattern":  "anti-rotación",
@@ -2029,9 +2009,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["Pallof press en polea","press antirotación en polea"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2042,8 +2020,8 @@
     },
     {
         "id":  "IBF-PALLOF-PRESS-MEDIO-ARRODILLADO",
-        "name_es":  "Pallof press medio arrodillado",
-        "name_source":  "Pallof press medio arrodillado",
+        "name_es":  "Press Pallof en posición semiarrodillada",
+        "name_source":  "Press Pallof en posición semiarrodillada",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PALLOF-PRESS-MEDIO-ARRODILLADO",
         "pattern":  "anti-rotación",
@@ -2080,9 +2058,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["Pallof press medio arrodillado","press Pallof semiarrodillado"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2093,8 +2069,8 @@
     },
     {
         "id":  "IBF-PALLOF-PRESS-OVERHEAD",
-        "name_es":  "Pallof press overhead",
-        "name_source":  "Pallof press overhead",
+        "name_es":  "Press Pallof por encima de la cabeza",
+        "name_source":  "Press Pallof por encima de la cabeza",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PALLOF-PRESS-OVERHEAD",
         "pattern":  "anti-rotación",
@@ -2131,9 +2107,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["Pallof press overhead","press antirotación sobre la cabeza"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2144,8 +2118,8 @@
     },
     {
         "id":  "IBF-PLANCHA-FRONTAL-CON-ARRASTRE",
-        "name_es":  "Plancha frontal con arrastre",
-        "name_source":  "Plancha frontal con arrastre",
+        "name_es":  "Plancha frontal con arrastre de mancuerna",
+        "name_source":  "Plancha frontal con arrastre de mancuerna",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PLANCHA-FRONTAL-CON-ARRASTRE",
         "pattern":  "anti-rotación",
@@ -2182,9 +2156,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["plank dumbbell drag","plancha con arrastre"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2195,8 +2167,8 @@
     },
     {
         "id":  "IBF-BISAGRA-DE-CADERA-A-PARED",
-        "name_es":  "Bisagra de cadera a pared",
-        "name_source":  "Bisagra de cadera a pared",
+        "name_es":  "Bisagra de cadera hacia la pared",
+        "name_source":  "Bisagra de cadera hacia la pared",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-BISAGRA-DE-CADERA-A-PARED",
         "pattern":  "bisagra",
@@ -2233,9 +2205,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["bisagra con referencia de pared","wall hip hinge"],
         "media_status":  "pendiente",
         "media":  {
 
