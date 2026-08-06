@@ -53,6 +53,10 @@ const MEDIA_ROOT_PREFIX = 'public/vendor/repdb/';
 const MEDIA_PREFIX = `${MEDIA_ROOT_PREFIX}images/`;
 const MEDIA_MAP_PATH =
   `${MEDIA_ROOT_PREFIX}iberfit-canonical-media-map-v1.json`;
+const IBERFIT_MEDIA_ROOT_PREFIX = 'public/iberfit/exercises/';
+const IBERFIT_MEDIA_PREFIX = `${IBERFIT_MEDIA_ROOT_PREFIX}images/`;
+const IBERFIT_MEDIA_MAP_PATH =
+  `${IBERFIT_MEDIA_ROOT_PREFIX}iberfit-exercise-media-v1.json`;
 
 const required = [
   'M26_SUPABASE_URL',
@@ -199,19 +203,33 @@ if (duplicates.length) {
   );
 }
 
-const mediaImageFiles = files.filter((file) =>
+const repdbMediaImageFiles = files.filter((file) =>
   file.path.startsWith(MEDIA_PREFIX)
 );
+const iberfitMediaImageFiles = files.filter((file) =>
+  file.path.startsWith(IBERFIT_MEDIA_PREFIX)
+);
+const mediaImageFiles = [...repdbMediaImageFiles, ...iberfitMediaImageFiles];
 const mediaMap = files.find((file) => file.path === MEDIA_MAP_PATH) || null;
+const iberfitMediaMap = files.find((file) => file.path === IBERFIT_MEDIA_MAP_PATH) || null;
 const unexpectedRepdbFiles = files.filter(
   (file) =>
     file.path.startsWith(MEDIA_ROOT_PREFIX) &&
     file.path !== MEDIA_MAP_PATH &&
     !file.path.startsWith(MEDIA_PREFIX)
 );
+const unexpectedIberfitMediaFiles = files.filter(
+  (file) =>
+    file.path.startsWith(IBERFIT_MEDIA_ROOT_PREFIX) &&
+    file.path !== IBERFIT_MEDIA_MAP_PATH &&
+    !file.path.startsWith(IBERFIT_MEDIA_PREFIX)
+);
 const coreFiles = files.filter(
   (file) =>
-    file.path !== MEDIA_MAP_PATH && !file.path.startsWith(MEDIA_PREFIX)
+    file.path !== MEDIA_MAP_PATH &&
+    file.path !== IBERFIT_MEDIA_MAP_PATH &&
+    !file.path.startsWith(MEDIA_PREFIX) &&
+    !file.path.startsWith(IBERFIT_MEDIA_PREFIX)
 );
 const sum = (items) => items.reduce((total, file) => total + file.size, 0);
 const sizeByExtension = (extension, items) =>
@@ -221,7 +239,9 @@ const sizeByExtension = (extension, items) =>
 const totalBytes = sum(files);
 const coreBytes = sum(coreFiles);
 const mediaImageBytes = sum(mediaImageFiles);
-const mediaMapBytes = mediaMap?.size || 0;
+const repdbMediaMapBytes = mediaMap?.size || 0;
+const iberfitMediaMapBytes = iberfitMediaMap?.size || 0;
+const mediaMapBytes = repdbMediaMapBytes + iberfitMediaMapBytes;
 const mediaBytes = mediaImageBytes + mediaMapBytes;
 const javascriptBytes = sizeByExtension('.js', coreFiles);
 const cssBytes = sizeByExtension('.css', coreFiles);
@@ -232,8 +252,11 @@ const largestMediaFile = mediaImageFiles.reduce(
 );
 const repdbPackaged = Boolean(
   mediaMap &&
-    mediaImageFiles.length > 0 &&
+    repdbMediaImageFiles.length > 0 &&
     unexpectedRepdbFiles.length === 0
+);
+const iberfitMediaPackaged = Boolean(
+  iberfitMediaMap && unexpectedIberfitMediaFiles.length === 0
 );
 const budgetOk =
   javascriptBytes <= JAVASCRIPT_LIMIT &&
@@ -242,7 +265,9 @@ const budgetOk =
   mediaBytes <= MEDIA_TOTAL_LIMIT &&
   largestMediaFile.size <= MEDIA_FILE_LIMIT &&
   Boolean(mediaMap && mediaMap.size <= MEDIA_MAP_LIMIT) &&
-  unexpectedRepdbFiles.length === 0;
+  Boolean(iberfitMediaMap && iberfitMediaMap.size <= MEDIA_MAP_LIMIT) &&
+  unexpectedRepdbFiles.length === 0 &&
+  unexpectedIberfitMediaFiles.length === 0;
 
 const previousVersion = fs.existsSync(versionTarget)
   ? JSON.parse(fs.readFileSync(versionTarget, 'utf8'))
@@ -276,9 +301,15 @@ const metadata = {
   mediaImageBytes,
   mediaMapBytes,
   mediaFiles: mediaImageFiles.length,
-  mediaAssetFiles: mediaImageFiles.length + (mediaMap ? 1 : 0),
+  mediaAssetFiles: mediaImageFiles.length + (mediaMap ? 1 : 0) + (iberfitMediaMap ? 1 : 0),
   repdbUnexpectedFiles: unexpectedRepdbFiles.map((file) => file.path),
+  iberfitMediaUnexpectedFiles: unexpectedIberfitMediaFiles.map((file) => file.path),
   repdbPackaged,
+  iberfitMediaPackaged,
+  repdbMediaFiles: repdbMediaImageFiles.length,
+  iberfitMediaFiles: iberfitMediaImageFiles.length,
+  repdbMediaMapBytes,
+  iberfitMediaMapBytes,
   budgets: {
     javascriptBytes,
     cssBytes,
@@ -309,12 +340,33 @@ fs.writeFileSync(
       media: {
         packaged: repdbPackaged,
         files: mediaImageFiles.length,
-        assetFiles: mediaImageFiles.length + (mediaMap ? 1 : 0),
+        assetFiles: mediaImageFiles.length + (mediaMap ? 1 : 0) + (iberfitMediaMap ? 1 : 0),
         bytes: mediaBytes,
         imageBytes: mediaImageBytes,
         mapBytes: mediaMapBytes,
         mapPath: MEDIA_MAP_PATH,
-        unexpectedFiles: unexpectedRepdbFiles.map((file) => file.path),
+        maps: {
+          iberfit: IBERFIT_MEDIA_MAP_PATH,
+          repdb: MEDIA_MAP_PATH,
+        },
+        iberfit: {
+          packaged: iberfitMediaPackaged,
+          files: iberfitMediaImageFiles.length,
+          mapBytes: iberfitMediaMapBytes,
+          mapPath: IBERFIT_MEDIA_MAP_PATH,
+          unexpectedFiles: unexpectedIberfitMediaFiles.map((file) => file.path),
+        },
+        repdb: {
+          packaged: repdbPackaged,
+          files: repdbMediaImageFiles.length,
+          mapBytes: repdbMediaMapBytes,
+          mapPath: MEDIA_MAP_PATH,
+          unexpectedFiles: unexpectedRepdbFiles.map((file) => file.path),
+        },
+        unexpectedFiles: [
+          ...unexpectedRepdbFiles.map((file) => file.path),
+          ...unexpectedIberfitMediaFiles.map((file) => file.path),
+        ],
       },
       files,
     },
@@ -326,7 +378,7 @@ fs.writeFileSync(
 console.log(
   JSON.stringify(
     {
-      ok: repdbPackaged && budgetOk,
+      ok: repdbPackaged && iberfitMediaPackaged && budgetOk,
       runtimeTarget,
       versionTarget,
       manifestTarget,
@@ -343,9 +395,11 @@ console.log(
       mediaImageBytes,
       mediaMapBytes,
       mediaFiles: mediaImageFiles.length,
-      mediaAssetFiles: mediaImageFiles.length + (mediaMap ? 1 : 0),
+      mediaAssetFiles: mediaImageFiles.length + (mediaMap ? 1 : 0) + (iberfitMediaMap ? 1 : 0),
       repdbUnexpectedFiles: unexpectedRepdbFiles.map((file) => file.path),
+      iberfitMediaUnexpectedFiles: unexpectedIberfitMediaFiles.map((file) => file.path),
       repdbPackaged,
+      iberfitMediaPackaged,
       budgetOk,
       keyType: key.startsWith('sb_publishable_')
         ? 'publishable'
@@ -357,4 +411,4 @@ console.log(
   ),
 );
 
-if (!repdbPackaged || !budgetOk) process.exit(1);
+if (!repdbPackaged || !iberfitMediaPackaged || !budgetOk) process.exit(1);

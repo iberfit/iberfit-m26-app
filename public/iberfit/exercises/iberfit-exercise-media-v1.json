@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "release": "IBERFIT_EXERCISE_MEDIA_V1",
+  "generatedAt": "2026-08-06T00:00:00.000Z",
+  "catalog": {
+    "kind": "IBERFIT_CANONICAL_M25_2",
+    "count": 367,
+    "idsPreserved": true
+  },
+  "source": {
+    "provider": "IBERFIT",
+    "ownership": "IBERFIT",
+    "attributionRequired": false
+  },
+  "policy": {
+    "priority": 1,
+    "clientUsesOnlyApprovedAndPublishedMedia": true,
+    "coachUsesOnlyApprovedAndPublishedMedia": true,
+    "repdbFallbackAllowed": true,
+    "automaticPublication": false,
+    "humanTechnicalApprovalRequired": true,
+    "sameOriginOnly": true
+  },
+  "summary": {
+    "approved": 0,
+    "published": 0,
+    "pending": 0
+  },
+  "items": []
+}

@@ -36,3 +36,9 @@
 
 /public/vendor/repdb/*.json
   Cache-Control: no-cache, must-revalidate
+
+/public/iberfit/exercises/images/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/public/iberfit/exercises/*.json
+  Cache-Control: no-cache, must-revalidate

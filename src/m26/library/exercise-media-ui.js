@@ -56,8 +56,10 @@ export function exerciseMuscleGroupLabel(exercise={},manifest=null){
   return MUSCLE_LABELS[key]||String(raw||'Otros');
 }
 
-export function renderExerciseMediaCredit({compact=false}={}){
-  return `<p class="m26-exercise-media-credit${compact?' is-compact':''}">Datos e ilustraciones de ejercicios: <a href="${e(REPDB_MEDIA_ATTRIBUTION.url)}" target="_blank" rel="noopener noreferrer">RepDB (repdb.co)</a></p>`;
+export function renderExerciseMediaCredit({compact=false,attribution=REPDB_MEDIA_ATTRIBUTION}={}){
+  if(!attribution?.url)return '';
+  const label=attribution.label||attribution.text||'Fuente visual';
+  return `<p class="m26-exercise-media-credit${compact?' is-compact':''}">Datos e ilustraciones de ejercicios: <a href="${e(attribution.url)}" target="_blank" rel="noopener noreferrer">${e(label)}</a></p>`;
 }
 
 export function renderExerciseMedia({
@@ -88,7 +90,8 @@ export function renderExerciseMedia({
     ?'<p class="m26-exercise-media-quality" role="status">Referencia visual pendiente de validación individual por el entrenador.</p>'
     :'';
 
-  return `<figure class="m26-exercise-media${compact?' is-compact':''}" data-exercise-media="${e(exerciseId)}"><div class="m26-exercise-media-frames">${frames}</div>${quality}${showCredit?renderExerciseMediaCredit({compact}):''}</figure>`;
+  const credit=showCredit?renderExerciseMediaCredit({compact,attribution:media.attribution}):'';
+  return `<figure class="m26-exercise-media${compact?' is-compact':''}" data-exercise-media="${e(exerciseId)}" data-exercise-media-source="${e(media.provider||'')}"><div class="m26-exercise-media-frames">${frames}</div>${quality}${credit}</figure>`;
 }
 
 export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){

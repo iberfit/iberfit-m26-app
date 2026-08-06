@@ -1,0 +1,23 @@
+{
+    "ok":  true,
+    "release":  "RC45_5B_V3_IBERFIT_FIRST_MEDIA_RESOLVER",
+    "branch":  "canary/rc45-editorial-batch01",
+    "parentCommit":  "aa82a235630520c1dc29bd02f7eaf40313cccac2",
+    "generatedAt":  "2026-08-05T23:33:06.2158665-04:00",
+    "priority":  [
+                     "IBERFIT_APPROVED",
+                     "REPDB_AUTHORIZED_FALLBACK",
+                     "TEXT_FALLBACK"
+                 ],
+    "ownMediaApproved":  0,
+    "ownMediaPublished":  0,
+    "repdbFallbackPreserved":  true,
+    "automaticPublication":  false,
+    "targetedTests":  "14/14",
+    "buildApproved":  true,
+    "iberfitMediaPackaged":  true,
+    "applicationModified":  true,
+    "cloudflareModified":  false,
+    "supabaseModified":  false,
+    "productionModified":  false
+}
