@@ -746,8 +746,8 @@
     },
     {
         "id":  "IBF-DEAD-BUG-CON-BANDA",
-        "name_es":  "Dead bug con banda",
-        "name_source":  "Dead bug con banda",
+        "name_es":  "Dead bug con banda elástica",
+        "name_source":  "Dead bug con banda elástica",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-DEAD-BUG-CON-BANDA",
         "pattern":  "anti-extensión",
@@ -784,9 +784,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["dead bug con banda","dead bug con resistencia"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -797,8 +795,8 @@
     },
     {
         "id":  "IBF-DEAD-BUG-CON-FITBALL",
-        "name_es":  "Dead bug con fitball",
-        "name_source":  "Dead bug con fitball",
+        "name_es":  "Dead bug con balón suizo",
+        "name_source":  "Dead bug con balón suizo",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-DEAD-BUG-CON-FITBALL",
         "pattern":  "anti-extensión",
@@ -835,9 +833,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["dead bug con fitball","dead bug con pelota"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -886,9 +882,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["posición hueca isométrica","isométrico hollow"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -899,8 +893,8 @@
     },
     {
         "id":  "IBF-HOLLOW-HOLD-REGRESADO",
-        "name_es":  "Hollow hold regresado",
-        "name_source":  "Hollow hold regresado",
+        "name_es":  "Hollow hold adaptado",
+        "name_source":  "Hollow hold adaptado",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-HOLLOW-HOLD-REGRESADO",
         "pattern":  "anti-extensión",
@@ -937,9 +931,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["hollow hold básico","regresión de hollow hold"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -950,8 +942,8 @@
     },
     {
         "id":  "IBF-HOLLOW-ROCKS",
-        "name_es":  "Hollow rocks",
-        "name_source":  "Hollow rocks",
+        "name_es":  "Balanceo en posición hollow",
+        "name_source":  "Balanceo en posición hollow",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-HOLLOW-ROCKS",
         "pattern":  "anti-extensión",
@@ -988,9 +980,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["hollow rocks","balanceo hollow"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1001,8 +991,8 @@
     },
     {
         "id":  "IBF-L-SIT-ASISTIDO",
-        "name_es":  "L-sit asistido",
-        "name_source":  "L-sit asistido",
+        "name_es":  "L-sit asistido en paralelas",
+        "name_source":  "L-sit asistido en paralelas",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-L-SIT-ASISTIDO",
         "pattern":  "anti-extensión",
@@ -1039,9 +1029,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["L-sit asistido","elevación en L asistida"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1052,8 +1040,8 @@
     },
     {
         "id":  "IBF-MOUNTAIN-CLIMBER",
-        "name_es":  "Mountain climber",
-        "name_source":  "Mountain climber",
+        "name_es":  "Escalador",
+        "name_source":  "Escalador",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-MOUNTAIN-CLIMBER",
         "pattern":  "anti-extensión",
@@ -1090,9 +1078,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["mountain climber","escaladores"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1103,8 +1089,8 @@
     },
     {
         "id":  "IBF-MOUNTAIN-CLIMBER-LENTO",
-        "name_es":  "Mountain climber lento",
-        "name_source":  "Mountain climber lento",
+        "name_es":  "Escalador lento y controlado",
+        "name_source":  "Escalador lento y controlado",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-MOUNTAIN-CLIMBER-LENTO",
         "pattern":  "anti-extensión",
@@ -1141,9 +1127,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["mountain climber lento","escalador controlado"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1192,9 +1176,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["plancha alta","high plank"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1205,8 +1187,8 @@
     },
     {
         "id":  "IBF-PLANCHA-FRONTAL-ANTEBRAZOS",
-        "name_es":  "Plancha frontal antebrazos",
-        "name_source":  "Plancha frontal antebrazos",
+        "name_es":  "Plancha frontal sobre antebrazos",
+        "name_source":  "Plancha frontal sobre antebrazos",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PLANCHA-FRONTAL-ANTEBRAZOS",
         "pattern":  "anti-extensión",
@@ -1243,9 +1225,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["plancha baja","forearm plank"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1256,8 +1236,8 @@
     },
     {
         "id":  "IBF-STIR-THE-POT",
-        "name_es":  "Stir the pot",
-        "name_source":  "Stir the pot",
+        "name_es":  "Círculos en plancha sobre balón suizo",
+        "name_source":  "Círculos en plancha sobre balón suizo",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-STIR-THE-POT",
         "pattern":  "anti-extensión",
@@ -1294,9 +1274,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["stir the pot","círculos sobre fitball"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1307,8 +1285,8 @@
     },
     {
         "id":  "IBF-COPENHAGEN-PLANK-CORTO",
-        "name_es":  "Copenhagen plank corto",
-        "name_source":  "Copenhagen plank corto",
+        "name_es":  "Plancha de Copenhague con palanca corta",
+        "name_source":  "Plancha de Copenhague con palanca corta",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-COPENHAGEN-PLANK-CORTO",
         "pattern":  "anti-inclinación",
@@ -1345,9 +1323,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["Copenhagen plank corto","plancha Copenhagen corta"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1358,8 +1334,8 @@
     },
     {
         "id":  "IBF-COPENHAGEN-PLANK-LARGO",
-        "name_es":  "Copenhagen plank largo",
-        "name_source":  "Copenhagen plank largo",
+        "name_es":  "Plancha de Copenhague con palanca larga",
+        "name_source":  "Plancha de Copenhague con palanca larga",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-COPENHAGEN-PLANK-LARGO",
         "pattern":  "anti-inclinación",
@@ -1396,9 +1372,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["Copenhagen plank largo","plancha Copenhagen larga"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1409,8 +1383,8 @@
     },
     {
         "id":  "IBF-OVERHEAD-CARRY-UNILATERAL",
-        "name_es":  "Overhead carry unilateral",
-        "name_source":  "Overhead carry unilateral",
+        "name_es":  "Caminata con kettlebell sobre la cabeza",
+        "name_source":  "Caminata con kettlebell sobre la cabeza",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-OVERHEAD-CARRY-UNILATERAL",
         "pattern":  "anti-inclinación",
@@ -1447,9 +1421,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["overhead carry unilateral","transporte unilateral sobre la cabeza","caminata unilateral sobre la cabeza"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -1498,9 +1470,7 @@
                      "core",
                      "control"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["side plank","plancha de lado"],
         "media_status":  "pendiente",
         "media":  {
 

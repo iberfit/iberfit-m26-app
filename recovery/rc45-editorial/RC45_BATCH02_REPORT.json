@@ -1,0 +1,15 @@
+{
+    "ok":  true,
+    "release":  "RC45_EDITORIAL_BATCH02",
+    "branch":  "canary/rc45-editorial-batch01",
+    "parentCommit":  "872533c296677c3eb0357949dfb2e08a00d2d8d5",
+    "generatedAt":  "2026-08-05T21:01:47.9010247-04:00",
+    "changedCount":  15,
+    "cumulativeEditorialCount":  30,
+    "approvedName":  "Caminata con kettlebell sobre la cabeza",
+    "catalog":  "baseline_m25_2/exercise-catalog-m25.json",
+    "diffNumstat":  "39\t69\tbaseline_m25_2/exercise-catalog-m25.json",
+    "productionModified":  false,
+    "supabaseModified":  false,
+    "cloudflareModified":  false
+}
