@@ -1,64 +1,95 @@
 {
-  "schemaVersion": 1,
-  "release": "RC45.5H",
-  "masterId": "IBERFIT_MALE_MASTER_V1",
-  "identity": "IBERFIT_MALE_V3_NATURAL",
-  "view": "front",
-  "status": "approved_for_internal_visual_reference",
-  "approvedAt": "2026-08-06T15:50:31.329Z",
-  "approval": {
-    "approvedByUser": true,
-    "bodyNaturalnessApproved": true,
-    "faceApproved": true,
-    "anatomyApproved": true,
-    "wardrobeApproved": true,
-    "framingApproved": true,
-    "selectedAsMaster": true,
-    "technicalExercisePoseApprovalStillRequired": true,
-    "applicationPublicationAllowed": false
-  },
-  "source": {
-    "image": "recovery/rc45-visual/generated/master/IBERFIT_MALE_V3_NATURAL/front-v3-natural-01.jpg",
-    "prompt": "recovery/rc45-visual/generated/master/IBERFIT_MALE_V3_NATURAL/front-v3-natural-01.prompt.txt",
-    "metadata": "recovery/rc45-visual/generated/master/IBERFIT_MALE_V3_NATURAL/front-v3-natural-01.metadata.json",
-    "imageSha256": "b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb",
-    "generator": {
-      "provider": "Cloudflare Workers AI",
-      "model": "@cf/black-forest-labs/flux-2-klein-4b",
-      "authentication": "oauth",
-      "accountIdSuffix": "8bdf7c84"
-    },
-    "seed": 455301
-  },
-  "output": {
-    "path": "public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.jpg",
-    "mimeType": "image/jpeg",
-    "width": 768,
-    "height": 960,
-    "aspectRatio": "4:5",
-    "bytes": 327264,
-    "sha256": "b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb"
-  },
-  "visualProfile": {
-    "description": "Adult male trainer, natural, healthy, approachable and premium",
-    "bodybuilderLookAllowed": false,
-    "adonisLookAllowed": false,
-    "visibleAbsRequired": false,
-    "exaggeratedMusculatureAllowed": false,
-    "maintainNaturalBody": true,
-    "maintainHumanAppearance": true
-  },
-  "isotipoPlan": {
-    "officialAsset": "public/isotipo-iberfit.png",
-    "officialAssetSha256": "d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa",
-    "appliedToCurrentImage": false,
-    "generatedByAI": false,
-    "nextStage": "deterministic local composition after placement approval"
-  },
-  "mediaPolicy": {
-    "repdbUsedAsInput": false,
-    "thirdPartyReferencesUsed": false,
-    "automaticPublication": false,
-    "humanReviewRequired": true
-  }
+    "schemaVersion":  1,
+    "release":  "RC45.5I",
+    "masterId":  "IBERFIT_MALE_MASTER_V1",
+    "identity":  "IBERFIT_MALE_V3_NATURAL",
+    "view":  "front",
+    "status":  "approved_master_with_branded_derivative",
+    "approvedAt":  "2026-08-06T15:50:31.329Z",
+    "approval":  {
+                     "approvedByUser":  true,
+                     "bodyNaturalnessApproved":  true,
+                     "faceApproved":  true,
+                     "anatomyApproved":  true,
+                     "wardrobeApproved":  true,
+                     "framingApproved":  true,
+                     "selectedAsMaster":  true,
+                     "technicalExercisePoseApprovalStillRequired":  true,
+                     "applicationPublicationAllowed":  false
+                 },
+    "source":  {
+                   "image":  "recovery/rc45-visual/generated/master/IBERFIT_MALE_V3_NATURAL/front-v3-natural-01.jpg",
+                   "prompt":  "recovery/rc45-visual/generated/master/IBERFIT_MALE_V3_NATURAL/front-v3-natural-01.prompt.txt",
+                   "metadata":  "recovery/rc45-visual/generated/master/IBERFIT_MALE_V3_NATURAL/front-v3-natural-01.metadata.json",
+                   "imageSha256":  "b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb",
+                   "generator":  {
+                                     "provider":  "Cloudflare Workers AI",
+                                     "model":  "@cf/black-forest-labs/flux-2-klein-4b",
+                                     "authentication":  "oauth",
+                                     "accountIdSuffix":  "8bdf7c84"
+                                 },
+                   "seed":  455301
+               },
+    "output":  {
+                   "path":  "public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.jpg",
+                   "mimeType":  "image/jpeg",
+                   "width":  768,
+                   "height":  960,
+                   "aspectRatio":  "4:5",
+                   "bytes":  327264,
+                   "sha256":  "b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb"
+               },
+    "visualProfile":  {
+                          "description":  "Adult male trainer, natural, healthy, approachable and premium",
+                          "bodybuilderLookAllowed":  false,
+                          "adonisLookAllowed":  false,
+                          "visibleAbsRequired":  false,
+                          "exaggeratedMusculatureAllowed":  false,
+                          "maintainNaturalBody":  true,
+                          "maintainHumanAppearance":  true
+                      },
+    "isotipoPlan":  {
+                        "officialAsset":  "public/isotipo-iberfit.png",
+                        "officialAssetSha256":  "d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa",
+                        "appliedToCurrentImage":  false,
+                        "generatedByAI":  false,
+                        "nextStage":  "first controlled exercise pilot pending"
+                    },
+    "mediaPolicy":  {
+                        "repdbUsedAsInput":  false,
+                        "thirdPartyReferencesUsed":  false,
+                        "automaticPublication":  false,
+                        "humanReviewRequired":  true
+                    },
+    "brandedOutput":  {
+                          "path":  "public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1-isotipo.jpg",
+                          "mimeType":  "image/jpeg",
+                          "width":  768,
+                          "height":  960,
+                          "aspectRatio":  "4:5",
+                          "bytes":  109184,
+                          "sha256":  "0616bf2d9a6430bee72a720604f646dd0880f82c8a1b6cb3c73be21cb7f2028c",
+                          "status":  "approved_branded_reference"
+                      },
+    "isotipoComposition":  {
+                               "officialAsset":  "public/isotipo-iberfit.png",
+                               "officialAssetSha256":  "d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa",
+                               "generatedByAI":  false,
+                               "deterministicLocalComposition":  true,
+                               "appliedToOriginalMaster":  false,
+                               "appliedToBrandedDerivative":  true,
+                               "placement":  {
+                                                 "sourcePreview":  "B_MEDIUM",
+                                                 "requestedAdjustment":  "slightly more centered",
+                                                 "horizontalShiftPixels":  -8,
+                                                 "coordinateOrigin":  "top-left",
+                                                 "wearerChestSide":  "left",
+                                                 "viewerImageSide":  "right",
+                                                 "x":  430,
+                                                 "y":  247,
+                                                 "width":  30,
+                                                 "height":  34
+                                             },
+                               "completedAt":  "2026-08-06T20:38:25.8841209Z"
+                           }
 }

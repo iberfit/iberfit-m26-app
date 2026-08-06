@@ -1,0 +1,53 @@
+{
+    "schemaVersion":  1,
+    "release":  "RC45.5I",
+    "status":  "OFFICIAL_ISOTIPO_COMPOSITION_APPROVED",
+    "completedAt":  "2026-08-06T20:38:25.8841209Z",
+    "branch":  "canary/rc45-editorial-batch01",
+    "baseCommit":  "b55f10d15b360793194f8276d050b327411f21af",
+    "master":  {
+                   "id":  "IBERFIT_MALE_MASTER_V1",
+                   "originalImage":  "public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.jpg",
+                   "originalImageSha256":  "b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb",
+                   "originalImageModified":  false,
+                   "brandedImage":  "public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1-isotipo.jpg",
+                   "brandedImageSha256":  "0616bf2d9a6430bee72a720604f646dd0880f82c8a1b6cb3c73be21cb7f2028c"
+               },
+    "selection":  {
+                      "sourcePreview":  "B_MEDIUM",
+                      "requestedAdjustment":  "slightly more centered",
+                      "finalPlacement":  {
+                                             "sourcePreview":  "B_MEDIUM",
+                                             "requestedAdjustment":  "slightly more centered",
+                                             "horizontalShiftPixels":  -8,
+                                             "coordinateOrigin":  "top-left",
+                                             "wearerChestSide":  "left",
+                                             "viewerImageSide":  "right",
+                                             "x":  430,
+                                             "y":  247,
+                                             "width":  30,
+                                             "height":  34
+                                         }
+                  },
+    "isotipo":  {
+                    "asset":  "public/isotipo-iberfit.png",
+                    "sha256":  "d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa",
+                    "officialAssetUsed":  true,
+                    "generatedByAI":  false
+                },
+    "review":  {
+                   "placementApprovedByUserDirection":  true,
+                   "technicalExercisePoseApprovalStillRequired":  true,
+                   "applicationPublicationAllowed":  false
+               },
+    "nextStage":  {
+                      "release":  "RC45.5J",
+                      "objective":  "generate first controlled exercise pilot",
+                      "firstPilot":  "IBF-KETTLEBELL-SWING"
+                  },
+    "externalSystems":  {
+                            "cloudflareModified":  false,
+                            "supabaseModified":  false,
+                            "productionModified":  false
+                        }
+}
