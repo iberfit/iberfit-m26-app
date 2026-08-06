@@ -2951,8 +2951,8 @@
     },
     {
         "id":  "IBF-HIP-THRUST-UNILATERAL",
-        "name_es":  "Hip thrust unilateral",
-        "name_source":  "Hip thrust unilateral",
+        "name_es":  "Elevación unilateral de cadera en banco",
+        "name_source":  "Elevación unilateral de cadera en banco",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-HIP-THRUST-UNILATERAL",
         "pattern":  "bisagra",
@@ -2989,9 +2989,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["hip thrust unilateral","elevación de cadera a una pierna","hip thrust a una pierna"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3002,8 +3000,8 @@
     },
     {
         "id":  "IBF-ISOMETRICO-DE-PUENTE-DE-GLUTEOS",
-        "name_es":  "Isométrico de puente de glúteos",
-        "name_source":  "Isométrico de puente de glúteos",
+        "name_es":  "Elevación de cadera isométrica en suelo",
+        "name_source":  "Elevación de cadera isométrica en suelo",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-ISOMETRICO-DE-PUENTE-DE-GLUTEOS",
         "pattern":  "bisagra",
@@ -3040,9 +3038,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["puente de glúteos isométrico","glute bridge hold","elevación isométrica de cadera"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3053,8 +3049,8 @@
     },
     {
         "id":  "IBF-KETTLEBELL-SWING",
-        "name_es":  "Kettlebell swing",
-        "name_source":  "Kettlebell swing",
+        "name_es":  "Balanceo con kettlebell",
+        "name_source":  "Balanceo con kettlebell",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-KETTLEBELL-SWING",
         "pattern":  "bisagra",
@@ -3091,9 +3087,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["kettlebell swing","swing con pesa rusa","balanceo con pesa rusa"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3104,8 +3098,8 @@
     },
     {
         "id":  "IBF-MARCHA-DE-PUENTE-DE-GLUTEOS",
-        "name_es":  "Marcha de puente de glúteos",
-        "name_source":  "Marcha de puente de glúteos",
+        "name_es":  "Elevación de cadera con marcha alterna",
+        "name_source":  "Elevación de cadera con marcha alterna",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-MARCHA-DE-PUENTE-DE-GLUTEOS",
         "pattern":  "bisagra",
@@ -3142,9 +3136,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["marcha de puente de glúteos","glute bridge march","elevación de cadera alternando piernas"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3155,8 +3147,8 @@
     },
     {
         "id":  "IBF-NORDIC-HAMSTRING-ASISTIDO",
-        "name_es":  "Nordic hamstring asistido",
-        "name_source":  "Nordic hamstring asistido",
+        "name_es":  "Curl nórdico asistido con banda elástica",
+        "name_source":  "Curl nórdico asistido con banda elástica",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-NORDIC-HAMSTRING-ASISTIDO",
         "pattern":  "bisagra",
@@ -3193,9 +3185,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["Nordic hamstring asistido","curl nórdico con banda","nórdico asistido"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3206,8 +3196,8 @@
     },
     {
         "id":  "IBF-NORDIC-HAMSTRING-EXCENTRICO",
-        "name_es":  "Nordic hamstring excéntrico",
-        "name_source":  "Nordic hamstring excéntrico",
+        "name_es":  "Curl nórdico excéntrico",
+        "name_source":  "Curl nórdico excéntrico",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-NORDIC-HAMSTRING-EXCENTRICO",
         "pattern":  "bisagra",
@@ -3244,9 +3234,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["Nordic hamstring excéntrico","nórdico excéntrico","caída nórdica controlada"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3257,8 +3245,8 @@
     },
     {
         "id":  "IBF-PESO-MUERTO-CON-BANDA",
-        "name_es":  "Peso muerto con banda",
-        "name_source":  "Peso muerto con banda",
+        "name_es":  "Peso muerto con banda elástica",
+        "name_source":  "Peso muerto con banda elástica",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PESO-MUERTO-CON-BANDA",
         "pattern":  "bisagra",
@@ -3295,9 +3283,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["peso muerto con banda","banded deadlift"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3308,8 +3294,8 @@
     },
     {
         "id":  "IBF-PESO-MUERTO-CON-TRAP-BAR",
-        "name_es":  "Peso muerto con trap bar",
-        "name_source":  "Peso muerto con trap bar",
+        "name_es":  "Peso muerto con barra hexagonal",
+        "name_source":  "Peso muerto con barra hexagonal",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PESO-MUERTO-CON-TRAP-BAR",
         "pattern":  "bisagra",
@@ -3346,9 +3332,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["peso muerto con trap bar","trap bar deadlift","peso muerto hexagonal"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3397,9 +3381,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["peso muerto convencional","conventional deadlift"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3410,8 +3392,8 @@
     },
     {
         "id":  "IBF-PESO-MUERTO-DESDE-BLOQUES",
-        "name_es":  "Peso muerto desde bloques",
-        "name_source":  "Peso muerto desde bloques",
+        "name_es":  "Peso muerto con barra desde bloques",
+        "name_source":  "Peso muerto con barra desde bloques",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PESO-MUERTO-DESDE-BLOQUES",
         "pattern":  "bisagra",
@@ -3448,9 +3430,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["peso muerto desde bloques","block pull","deadlift desde bloques"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3461,8 +3441,8 @@
     },
     {
         "id":  "IBF-PESO-MUERTO-KETTLEBELL-DESDE-EL-SUELO",
-        "name_es":  "Peso muerto kettlebell desde el suelo",
-        "name_source":  "Peso muerto kettlebell desde el suelo",
+        "name_es":  "Peso muerto con kettlebell desde el suelo",
+        "name_source":  "Peso muerto con kettlebell desde el suelo",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PESO-MUERTO-KETTLEBELL-DESDE-EL-SUELO",
         "pattern":  "bisagra",
@@ -3499,9 +3479,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["peso muerto con pesa rusa","kettlebell deadlift desde el suelo"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3512,8 +3490,8 @@
     },
     {
         "id":  "IBF-PESO-MUERTO-LANDMINE",
-        "name_es":  "Peso muerto landmine",
-        "name_source":  "Peso muerto landmine",
+        "name_es":  "Peso muerto con barra en landmine",
+        "name_source":  "Peso muerto con barra en landmine",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PESO-MUERTO-LANDMINE",
         "pattern":  "bisagra",
@@ -3550,9 +3528,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["peso muerto landmine","landmine deadlift"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3563,8 +3539,8 @@
     },
     {
         "id":  "IBF-PESO-MUERTO-MALETA",
-        "name_es":  "Peso muerto maleta",
-        "name_source":  "Peso muerto maleta",
+        "name_es":  "Peso muerto unilateral con mancuerna al costado",
+        "name_source":  "Peso muerto unilateral con mancuerna al costado",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-PESO-MUERTO-MALETA",
         "pattern":  "bisagra",
@@ -3601,9 +3577,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["peso muerto maleta","suitcase deadlift","peso muerto unilateral al costado"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3652,9 +3626,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["peso muerto rumano","romanian deadlift con barra","RDL con barra"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -3703,9 +3675,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["peso muerto rumano con pesa rusa","kettlebell romanian deadlift","RDL con kettlebell"],
         "media_status":  "pendiente",
         "media":  {
 

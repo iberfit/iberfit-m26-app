@@ -1,0 +1,60 @@
+{
+    "schemaVersion":  1,
+    "release":  "RC45_VISUAL_PILOT",
+    "generatedAt":  "2026-08-05T23:11:18.1928923-04:00",
+    "status":  "prompt_pending",
+    "promptVersion":  "IBERFIT_VISUAL_PROMPT_V1",
+    "items":  [
+                  {
+                      "priority":  1,
+                      "exerciseId":  "IBF-KETTLEBELL-SWING",
+                      "name":  "Balanceo con kettlebell",
+                      "frames":  [
+                                     "start",
+                                     "peak"
+                                 ],
+                      "status":  "prompt_pending",
+                      "requirements":  [
+                                           "bisagra dominante de cadera",
+                                           "columna neutra",
+                                           "brazos como guía y no como tracción principal",
+                                           "kettlebell con geometría realista",
+                                           "inicio y final con la misma persona y material"
+                                       ]
+                  },
+                  {
+                      "priority":  2,
+                      "exerciseId":  "IBF-PESO-MUERTO-CON-TRAP-BAR",
+                      "name":  "Peso muerto con barra hexagonal",
+                      "frames":  [
+                                     "start",
+                                     "peak"
+                                 ],
+                      "status":  "prompt_pending",
+                      "requirements":  [
+                                           "persona dentro de la barra hexagonal",
+                                           "agarre lateral simétrico",
+                                           "discos y estructura físicamente coherentes",
+                                           "columna neutra",
+                                           "bloqueo final sin hiperextensión"
+                                       ]
+                  },
+                  {
+                      "priority":  3,
+                      "exerciseId":  "IBF-HIP-THRUST-UNILATERAL",
+                      "name":  "Elevación unilateral de cadera en banco",
+                      "frames":  [
+                                     "start",
+                                     "peak"
+                                 ],
+                      "status":  "prompt_pending",
+                      "requirements":  [
+                                           "parte superior de la espalda apoyada en banco",
+                                           "una pierna de apoyo y otra elevada",
+                                           "pelvis nivelada",
+                                           "tibia de apoyo aproximadamente vertical en el final",
+                                           "sin hiperextensión lumbar"
+                                       ]
+                  }
+              ]
+}

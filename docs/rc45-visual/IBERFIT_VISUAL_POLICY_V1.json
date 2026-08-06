@@ -1,0 +1,74 @@
+{
+    "schemaVersion":  1,
+    "release":  "IBERFIT_VISUAL_POLICY_V1",
+    "owner":  "IBERFIT",
+    "accountPolicy":  {
+                          "corporateAccount":  "iberfit.cl@gmail.com",
+                          "credentialsInGit":  false,
+                          "credentialsInApp":  false,
+                          "credentialsInChat":  false,
+                          "manualVerificationRequired":  true
+                      },
+    "canonicalCatalog":  "baseline_m25_2/exercise-catalog-m25.json",
+    "primaryGenerator":  {
+                             "provider":  "Cloudflare Workers AI",
+                             "model":  "@cf/black-forest-labs/flux-2-klein-4b",
+                             "mode":  "generation_and_editing",
+                             "costPolicy":  "free_allocation_only"
+                         },
+    "auxiliaryGenerator":  {
+                               "provider":  "Adobe Firefly",
+                               "mode":  "manual_review_and_exceptional_correction",
+                               "automaticPublishing":  false
+                           },
+    "character":  {
+                      "identity":  "IBERFIT_MALE_MODEL_V1",
+                      "sexPresentation":  "masculino",
+                      "ageRange":  "30-35",
+                      "build":  "atlético funcional",
+                      "skin":  "mediterránea clara",
+                      "hair":  "corto y oscuro",
+                      "shirt":  "camiseta técnica negra sin logotipos",
+                      "shorts":  "pantalón corto técnico negro",
+                      "shoes":  "zapatillas deportivas negras",
+                      "background":  "estudio neutro luminoso premium",
+                      "lighting":  "suave, uniforme y técnica",
+                      "framing":  "cuerpo completo",
+                      "aspectRatio":  "4:5",
+                      "visualConsistency":  "misma identidad, vestuario y escenario"
+                  },
+    "standardFrames":  [
+                           "start",
+                           "peak"
+                       ],
+    "optionalFrames":  [
+                           "main"
+                       ],
+    "workflow":  [
+                     "prompt_pending",
+                     "generated",
+                     "technical_review",
+                     "approved",
+                     "published",
+                     "rejected"
+                 ],
+    "prohibitedInputs":  [
+                             "RepDB images as AI reference",
+                             "RepDB images as conditioning input",
+                             "RepDB images as training material",
+                             "third-party exercise images without explicit authorization"
+                         ],
+    "fallbackOrder":  [
+                          "approved_iberfit_media",
+                          "authorized_repdb_fallback",
+                          "textual_fallback"
+                      ],
+    "publicationRules":  {
+                             "automaticPublication":  false,
+                             "humanTechnicalApprovalRequired":  true,
+                             "clientSeesOnlyApprovedMedia":  true,
+                             "preserveSourceMetadata":  true,
+                             "preserveGenerationMetadata":  true,
+                             "sha256Required":  true
+                         }
+}

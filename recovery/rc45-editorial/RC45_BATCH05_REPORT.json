@@ -1,0 +1,18 @@
+{
+    "ok":  true,
+    "release":  "RC45_EDITORIAL_BATCH05",
+    "branch":  "canary/rc45-editorial-batch01",
+    "parentCommit":  "0b0dad90f7f77f019e849b821fb52877d40faa25",
+    "generatedAt":  "2026-08-05T23:11:18.1940762-04:00",
+    "changedCount":  15,
+    "cumulativeEditorialCount":  75,
+    "catalog":  "baseline_m25_2/exercise-catalog-m25.json",
+    "diffNumstat":  "39\t69\tbaseline_m25_2/exercise-catalog-m25.json",
+    "visualPolicy":  "docs/rc45-visual/IBERFIT_VISUAL_POLICY_V1.json",
+    "visualPilotQueue":  "docs/rc45-visual/RC45_VISUAL_PILOT_QUEUE.json",
+    "applicationModified":  false,
+    "imagesGenerated":  0,
+    "productionModified":  false,
+    "supabaseModified":  false,
+    "cloudflareModified":  false
+}
