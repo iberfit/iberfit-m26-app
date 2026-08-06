@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "release": "RC45.5H",
+  "status": "MASTER_APPROVED_FOR_INTERNAL_REFERENCE",
+  "branch": "canary/rc45-editorial-batch01",
+  "baseCommit": "ebc76b90f87e9f1f6300d735fa97a125a88ff274",
+  "approvedAt": "2026-08-06T15:50:31.329Z",
+  "masterId": "IBERFIT_MALE_MASTER_V1",
+  "approvedAsset": {
+    "image": "public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.jpg",
+    "metadata": "public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.metadata.json",
+    "prompt": "public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.prompt.txt",
+    "sha256": "b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb",
+    "width": 768,
+    "height": 960
+  },
+  "decision": {
+    "userApproved": true,
+    "exactUserDirection": "Natural, healthy and human; acceptable as the visual base",
+    "scope": "Internal reference for future IBERFIT visual generation",
+    "applicationPublicationAllowed": false
+  },
+  "nextStage": {
+    "release": "RC45.5I",
+    "objective": "Apply authentic IBERFIT isotipo and prepare master reference views"
+  },
+  "externalSystems": {
+    "cloudflareModified": false,
+    "supabaseModified": false,
+    "productionModified": false
+  }
+}

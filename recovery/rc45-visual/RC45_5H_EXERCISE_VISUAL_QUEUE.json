@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "release": "RC45.5H",
+  "branch": "canary/rc45-editorial-batch01",
+  "baseCommit": "ebc76b90f87e9f1f6300d735fa97a125a88ff274",
+  "masterId": "IBERFIT_MALE_MASTER_V1",
+  "createdAt": "2026-08-06T15:50:31.329Z",
+  "status": "prompt_pending",
+  "publicationPolicy": "generate_but_do_not_publish",
+  "total": 3,
+  "items": [
+    {
+      "priority": 1,
+      "exerciseId": "IBF-KETTLEBELL-SWING",
+      "approvedName": "Balanceo con kettlebell",
+      "frames": [
+        "start",
+        "peak"
+      ],
+      "masterReference": "IBERFIT_MALE_MASTER_V1",
+      "status": "prompt_pending",
+      "requirementsSource": "docs/rc45-visual/RC45_VISUAL_PILOT_QUEUE.json",
+      "automaticPublication": false,
+      "humanTechnicalApprovalRequired": true
+    },
+    {
+      "priority": 2,
+      "exerciseId": "IBF-PESO-MUERTO-CON-TRAP-BAR",
+      "approvedName": "Peso muerto con barra hexagonal",
+      "frames": [
+        "start",
+        "peak"
+      ],
+      "masterReference": "IBERFIT_MALE_MASTER_V1",
+      "status": "prompt_pending",
+      "requirementsSource": "docs/rc45-visual/RC45_VISUAL_PILOT_QUEUE.json",
+      "automaticPublication": false,
+      "humanTechnicalApprovalRequired": true
+    },
+    {
+      "priority": 3,
+      "exerciseId": "IBF-HIP-THRUST-UNILATERAL",
+      "approvedName": "Elevación unilateral de cadera en banco",
+      "frames": [
+        "start",
+        "peak"
+      ],
+      "masterReference": "IBERFIT_MALE_MASTER_V1",
+      "status": "prompt_pending",
+      "requirementsSource": "docs/rc45-visual/RC45_VISUAL_PILOT_QUEUE.json",
+      "automaticPublication": false,
+      "humanTechnicalApprovalRequired": true
+    }
+  ]
+}
