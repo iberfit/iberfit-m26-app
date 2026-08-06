@@ -1,0 +1,20 @@
+{
+    "ok":  true,
+    "release":  "RC45_EDITORIAL_BATCH04",
+    "branch":  "canary/rc45-editorial-batch01",
+    "parentCommit":  "2c33c8353f270d251fa46da0783b5598f44c8fd7",
+    "generatedAt":  "2026-08-05T22:34:02.6102515-04:00",
+    "changedCount":  15,
+    "cumulativeEditorialCount":  60,
+    "catalog":  "baseline_m25_2/exercise-catalog-m25.json",
+    "diffNumstat":  "41\t71\tbaseline_m25_2/exercise-catalog-m25.json",
+    "namingRules":  [
+                        "Hip thrust se presenta como elevación de cadera",
+                        "Peso muerto se usa cuando el ejercicio corresponde realmente a ese patrón",
+                        "Los buenos días se presentan como bisagra de cadera con carga sobre los hombros",
+                        "Contracción lumbar no se usa para evitar una instrucción biomecánica ambigua"
+                    ],
+    "productionModified":  false,
+    "supabaseModified":  false,
+    "cloudflareModified":  false
+}

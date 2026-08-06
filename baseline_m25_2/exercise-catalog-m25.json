@@ -2216,8 +2216,8 @@
     },
     {
         "id":  "IBF-BISAGRA-DE-CADERA-CON-PALO",
-        "name_es":  "Bisagra de cadera con palo",
-        "name_source":  "Bisagra de cadera con palo",
+        "name_es":  "Patrón de peso muerto con bastón",
+        "name_source":  "Patrón de peso muerto con bastón",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-BISAGRA-DE-CADERA-CON-PALO",
         "pattern":  "bisagra",
@@ -2254,9 +2254,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["peso muerto con bastón","bisagra de cadera con palo","hip hinge con bastón"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2267,8 +2265,8 @@
     },
     {
         "id":  "IBF-BUENOS-DIAS-CON-BANDA",
-        "name_es":  "Buenos días con banda",
-        "name_source":  "Buenos días con banda",
+        "name_es":  "Bisagra de cadera con banda sobre los hombros",
+        "name_source":  "Bisagra de cadera con banda sobre los hombros",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-BUENOS-DIAS-CON-BANDA",
         "pattern":  "bisagra",
@@ -2305,9 +2303,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["buenos días con banda","good morning con banda","bisagra con banda"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2318,8 +2314,8 @@
     },
     {
         "id":  "IBF-BUENOS-DIAS-CON-BARRA",
-        "name_es":  "Buenos días con barra",
-        "name_source":  "Buenos días con barra",
+        "name_es":  "Bisagra de cadera con barra sobre los hombros",
+        "name_source":  "Bisagra de cadera con barra sobre los hombros",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-BUENOS-DIAS-CON-BARRA",
         "pattern":  "bisagra",
@@ -2356,9 +2352,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["buenos días con barra","good morning con barra"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2369,8 +2363,8 @@
     },
     {
         "id":  "IBF-BUENOS-DIAS-SENTADO",
-        "name_es":  "Buenos días sentado",
-        "name_source":  "Buenos días sentado",
+        "name_es":  "Bisagra de cadera sentado con barra",
+        "name_source":  "Bisagra de cadera sentado con barra",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-BUENOS-DIAS-SENTADO",
         "pattern":  "bisagra",
@@ -2407,9 +2401,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["buenos días sentado","seated good morning"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2420,8 +2412,8 @@
     },
     {
         "id":  "IBF-CABLE-PULL-THROUGH-UNILATERAL",
-        "name_es":  "Cable pull through unilateral",
-        "name_source":  "Cable pull through unilateral",
+        "name_es":  "Peso muerto unilateral en polea",
+        "name_source":  "Peso muerto unilateral en polea",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-CABLE-PULL-THROUGH-UNILATERAL",
         "pattern":  "bisagra",
@@ -2458,9 +2450,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["cable pull-through unilateral","pull-through unilateral en polea"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2471,8 +2461,8 @@
     },
     {
         "id":  "IBF-CURL-FEMORAL-CON-FITBALL",
-        "name_es":  "Curl femoral con fitball",
-        "name_source":  "Curl femoral con fitball",
+        "name_es":  "Curl femoral con balón suizo",
+        "name_source":  "Curl femoral con balón suizo",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-CURL-FEMORAL-CON-FITBALL",
         "pattern":  "bisagra",
@@ -2509,9 +2499,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["curl femoral con fitball","curl femoral con pelota"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2522,8 +2510,8 @@
     },
     {
         "id":  "IBF-CURL-FEMORAL-DESLIZANTE",
-        "name_es":  "Curl femoral deslizante",
-        "name_source":  "Curl femoral deslizante",
+        "name_es":  "Curl femoral con deslizadores",
+        "name_source":  "Curl femoral con deslizadores",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-CURL-FEMORAL-DESLIZANTE",
         "pattern":  "bisagra",
@@ -2560,9 +2548,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["curl femoral deslizante","sliding leg curl"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2611,9 +2597,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["leg curl en máquina","flexión de rodilla en máquina"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2662,9 +2646,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["leg curl unilateral","flexión unilateral de rodilla en máquina"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2675,8 +2657,8 @@
     },
     {
         "id":  "IBF-EXTENSION-DE-CADERA-EN-BANCO-45",
-        "name_es":  "Extensión de cadera en banco 45°",
-        "name_source":  "Extensión de cadera en banco 45°",
+        "name_es":  "Extensión de cadera en banco romano a 45°",
+        "name_source":  "Extensión de cadera en banco romano a 45°",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-EXTENSION-DE-CADERA-EN-BANCO-45",
         "pattern":  "bisagra",
@@ -2713,9 +2695,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["extensión de cadera a 45°","extensión dominante de cadera en banco"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2726,8 +2706,8 @@
     },
     {
         "id":  "IBF-EXTENSION-LUMBAR-EN-BANCO-45",
-        "name_es":  "Extensión lumbar en banco 45°",
-        "name_source":  "Extensión lumbar en banco 45°",
+        "name_es":  "Extensión lumbar en banco romano a 45°",
+        "name_source":  "Extensión lumbar en banco romano a 45°",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-EXTENSION-LUMBAR-EN-BANCO-45",
         "pattern":  "bisagra",
@@ -2764,9 +2744,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["extensión lumbar a 45°","back extension"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2777,8 +2755,8 @@
     },
     {
         "id":  "IBF-HIP-HINGE-CON-SACO",
-        "name_es":  "Hip hinge con saco",
-        "name_source":  "Hip hinge con saco",
+        "name_es":  "Peso muerto con saco de entrenamiento",
+        "name_source":  "Peso muerto con saco de entrenamiento",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-HIP-HINGE-CON-SACO",
         "pattern":  "bisagra",
@@ -2815,9 +2793,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["hip hinge con saco","peso muerto con sandbag"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2828,8 +2804,8 @@
     },
     {
         "id":  "IBF-HIP-THRUST-CON-BANDA",
-        "name_es":  "Hip thrust con banda",
-        "name_source":  "Hip thrust con banda",
+        "name_es":  "Elevación de cadera con banda elástica",
+        "name_source":  "Elevación de cadera con banda elástica",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-HIP-THRUST-CON-BANDA",
         "pattern":  "bisagra",
@@ -2866,9 +2842,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["hip thrust con banda","elevación de cadera con resistencia"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2879,8 +2853,8 @@
     },
     {
         "id":  "IBF-HIP-THRUST-CON-BARRA",
-        "name_es":  "Hip thrust con barra",
-        "name_source":  "Hip thrust con barra",
+        "name_es":  "Elevación de cadera con barra",
+        "name_source":  "Elevación de cadera con barra",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-HIP-THRUST-CON-BARRA",
         "pattern":  "bisagra",
@@ -2917,9 +2891,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["hip thrust con barra"],
         "media_status":  "pendiente",
         "media":  {
 
@@ -2930,8 +2902,8 @@
     },
     {
         "id":  "IBF-HIP-THRUST-CON-PESO-CORPORAL",
-        "name_es":  "Hip thrust con peso corporal",
-        "name_source":  "Hip thrust con peso corporal",
+        "name_es":  "Elevación de cadera con peso corporal",
+        "name_source":  "Elevación de cadera con peso corporal",
         "source":  "IBERFIT_CANONICAL",
         "source_id":  "IBF-HIP-THRUST-CON-PESO-CORPORAL",
         "pattern":  "bisagra",
@@ -2968,9 +2940,7 @@
         "tags":  [
                      "cadena posterior"
                  ],
-        "aliases":  [
-
-                    ],
+        "aliases":  ["hip thrust sin carga","hip thrust con peso corporal"],
         "media_status":  "pendiente",
         "media":  {
 
