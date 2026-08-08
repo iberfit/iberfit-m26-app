@@ -231,7 +231,7 @@ test('informe directo ajusta cada página a A4, verifica la maquetación y solo 
   const result=openIriReportPrint({draft:validReportDraft(),variant:'client',locationLike:{origin:'https://m26-canary.iberfit.cl'},openWindow:(url)=>{openedUrl=url;return popup;}});
   await new Promise((resolve)=>setTimeout(resolve,0));
   assert.equal(result.mode,'direct-window');assert.equal(result.pages,7);assert.equal(openedUrl,'about:blank');
-  assert.match(written,/rel="stylesheet" href="https:\/\/m26-canary\.iberfit\.cl\/m26\/iri-report\.css\?v=m26-rc36-canary-v10"/);
+  assert.match(written,/rel="stylesheet" href="https:\/\/m26-canary\.iberfit\.cl\/m26\/iri-report\.css\?v=m26-rc45-6-launch-hardening-v1"/);
   assert.match(written,/data-iri-report-print disabled/);assert.doesNotMatch(written,/<style>/);
   assert.ok([...classes].some((value)=>/^iri-report-fit-\d+$/u.test(value)));
   assert.equal(printButton.disabled,false);assert.match(status.textContent,/Informe A4 listo/);assert.match(status.textContent,/Encabezados y pies de página/);

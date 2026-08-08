@@ -46,6 +46,7 @@ test('la atribución obligatoria queda conservada',()=>{
   assert.deepEqual(REPDB_MEDIA_ATTRIBUTION,{
     text:'Exercise data by RepDB (repdb.co)',
     url:'https://repdb.co/free-exercise-dataset',
+    label:'RepDB (repdb.co)',
   });
 });
 

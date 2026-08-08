@@ -47,7 +47,7 @@ test('RC19 indexa 367 ejercicios y busca sin depender de tildes',()=>{
   const index=createExerciseSearchIndex(catalog);
   assert.equal(index.size,367);
   const results=index.search('abduccion cadera',{limit:30});
-  assert.ok(results.some((item)=>item.name_es==='Abducción de cadera lateral'));
+  assert.ok(results.some((item)=>item.id==='IBF-ABDUCCION-DE-CADERA-LATERAL')); // El nombre editorial puede evolucionar; el ID canónico no.
   const aliases=createExerciseSearchIndex([{id:'x',name_es:'Remo',pattern:'tirón',equipment:'TRX',tags:['espalda'],aliases:['row suspension']}]);
   assert.equal(aliases.search('row trx')[0]?.id,'x');
   assert.equal(index.search('',{limit:999}).length,367);

@@ -135,6 +135,8 @@ test('PDF Cliente contiene hipervínculo estable solo para informe visible de la
 test('ruta PDF no acepta origen externo, clientId, objectPath, bucket, token ni datos personales',()=>{
   const url=iriExternalReportAppUrl(ASSESSMENT_ID);
   assert.equal(url,`https://m26-canary.iberfit.cl/?area=informes&assessmentId=${ASSESSMENT_ID}&open=bioimpedancia`);
+  assert.equal(iriExternalReportAppUrl(ASSESSMENT_ID,{origin:'https://app.iberfit.cl'}),`https://app.iberfit.cl/?area=informes&assessmentId=${ASSESSMENT_ID}&open=bioimpedancia`);
+  assert.equal(iriExternalReportAppUrl(ASSESSMENT_ID,{origin:'https://coach.iberfit.cl'}),`https://app.iberfit.cl/?area=informes&assessmentId=${ASSESSMENT_ID}&open=bioimpedancia`);
   assert.doesNotMatch(url,/clientId|objectPath|bucket|token|email|supabase/i);
   assert.throws(()=>iriExternalReportAppUrl(ASSESSMENT_ID,{origin:'https://evil.example'}),/ORIGIN_INVALID/);
 });

@@ -90,7 +90,7 @@ test('RC23 presenta los 367 ejercicios y sus materiales en castellano sin altera
   const invalid=catalog.list().filter((item)=>pattern.test(`${item.name_es} ${item.equipment}`));
   assert.deepEqual(invalid.map((item)=>({id:item.id,name:item.name_es,equipment:item.equipment})),[]);
   assert.equal(catalog.get('IBF-CLAMSHELL').name_es,'Apertura de cadera en decúbito lateral');
-  assert.equal(catalog.get('IBF-HIP-THRUST-CON-BARRA').name_es,'Empuje de cadera con barra');
+  assert.equal(catalog.get('IBF-HIP-THRUST-CON-BARRA').name_es,'Elevación de cadera con barra');
   assert.equal(catalog.get('IBF-HACK-SQUAT').name_es,'Sentadilla en máquina inclinada');
   assert.equal(catalog.get('IBF-STEP-UP-ALTO').name_es,'Subida a cajón alto');
   assert.equal(catalog.get('IBF-PESO-MUERTO-CON-TRAP-BAR').equipment,'barra hexagonal');

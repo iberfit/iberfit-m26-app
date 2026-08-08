@@ -30,3 +30,7 @@ recovery/RC29_*.json
 Thumbs.db
 .vscode/
 .idea/
+.wrangler/
+supabase/.temp/
+recovery/rc45-visual/generated/
+recovery/rc45-visual/rc45-5o-strict-swing/

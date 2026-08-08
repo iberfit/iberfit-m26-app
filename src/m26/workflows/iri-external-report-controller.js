@@ -1,6 +1,11 @@
 const CANONICAL_PROJECT_REF = 'pjhmrhejsoofmouedavw';
 const CANONICAL_SUPABASE_ORIGIN = `https://${CANONICAL_PROJECT_REF}.supabase.co`;
 export const IRI_EXTERNAL_REPORT_APP_ORIGIN = 'https://m26-canary.iberfit.cl';
+const IRI_EXTERNAL_REPORT_APP_ORIGIN_MAP = new Map([
+  ['https://m26-canary.iberfit.cl', 'https://m26-canary.iberfit.cl'],
+  ['https://app.iberfit.cl', 'https://app.iberfit.cl'],
+  ['https://coach.iberfit.cl', 'https://app.iberfit.cl'],
+]);
 
 export const IRI_EXTERNAL_REPORT_BUCKET = 'iberfit-iri-external-reports';
 export const IRI_EXTERNAL_REPORT_MAX_BYTES = 50_000_000;
@@ -150,6 +155,18 @@ function validateUuid(value, code) {
   return id;
 }
 
+export function resolveIriExternalReportAppOrigin(origin = IRI_EXTERNAL_REPORT_APP_ORIGIN) {
+  let base;
+  try {
+    base = new URL(String(origin || ''));
+  } catch {
+    throw new Error('M26_IRI_EXTERNAL_REPORT_APP_ORIGIN_INVALID');
+  }
+  const target = IRI_EXTERNAL_REPORT_APP_ORIGIN_MAP.get(base.origin);
+  if (!target) throw new Error('M26_IRI_EXTERNAL_REPORT_APP_ORIGIN_INVALID');
+  return target;
+}
+
 export function iriExternalReportAppUrl(
   assessmentId,
   { origin = IRI_EXTERNAL_REPORT_APP_ORIGIN } = {}
@@ -158,16 +175,8 @@ export function iriExternalReportAppUrl(
     assessmentId,
     'M26_IRI_EXTERNAL_REPORT_ASSESSMENT_INVALID'
   );
-  let base;
-  try {
-    base = new URL(String(origin || ''));
-  } catch {
-    throw new Error('M26_IRI_EXTERNAL_REPORT_APP_ORIGIN_INVALID');
-  }
-  if (base.origin !== IRI_EXTERNAL_REPORT_APP_ORIGIN) {
-    throw new Error('M26_IRI_EXTERNAL_REPORT_APP_ORIGIN_INVALID');
-  }
-  const url = new URL('/', IRI_EXTERNAL_REPORT_APP_ORIGIN);
+  const appOrigin = resolveIriExternalReportAppOrigin(origin);
+  const url = new URL('/', appOrigin);
   url.searchParams.set('area', 'informes');
   url.searchParams.set('assessmentId', assessment);
   url.searchParams.set('open', 'bioimpedancia');
