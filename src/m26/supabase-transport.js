@@ -8,6 +8,8 @@ const SAFE_ID_PATTERN=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 const MAX_TOKEN_CHARS=16_384;
 const MAX_REFRESH_TOKEN_CHARS=16_384;
 const MAX_AUTH_EMAIL_CHARS=254;
+const QA_AUTHORIZED_EMAILS=new Set(['iberfit.cl@gmail.com']);
+function isQaAuthorizedEmail(email){const normalized=String(email||'').trim().toLowerCase();return normalized.startsWith('iberfit.cl+qa.')||QA_AUTHORIZED_EMAILS.has(normalized);}
 const MAX_RESPONSE_BYTES=20_000_000;
 const CANONICAL_RPC=Object.freeze({
   bootstrap:'iberfit_bootstrap_v26',
@@ -182,7 +184,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       method: 'POST',
       body: JSON.stringify({ email: normalizedEmail, password: normalizedPassword }),
     }));
-    if (runtime.qaOnly && !String(body.user.email || '').toLowerCase().startsWith('iberfit.cl+qa.')) {
+    if (runtime.qaOnly && !isQaAuthorizedEmail(body.user.email)) {
       throw new Error('M26_QA_ACCOUNT_REQUIRED');
     }
     return {
@@ -206,7 +208,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
 
     if (
       runtime.qaOnly &&
-      !normalizedEmail.startsWith('iberfit.cl+qa.')
+      !isQaAuthorizedEmail(normalizedEmail)
     ) {
       throw new Error('M26_QA_ACCOUNT_REQUIRED');
     }
@@ -276,7 +278,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
         throw new Error(code);
       }
 
-      if (runtime.qaOnly && !email.startsWith('iberfit.cl+qa.')) {
+      if (runtime.qaOnly && !isQaAuthorizedEmail(email)) {
         throw new Error('M26_QA_ACCOUNT_REQUIRED');
       }
 
@@ -319,7 +321,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     const body = validateAuthBody(await request('/auth/v1/token?grant_type=refresh_token', {
       method: 'POST', body: JSON.stringify({ refresh_token: refreshToken }),
     }),'M26_REFRESH_INVALID_RESPONSE');
-    if(runtime.qaOnly&&!String(body.user.email||'').toLowerCase().startsWith('iberfit.cl+qa.'))throw new Error('M26_QA_ACCOUNT_REQUIRED');
+    if(runtime.qaOnly&&!isQaAuthorizedEmail(body.user.email))throw new Error('M26_QA_ACCOUNT_REQUIRED');
     return { token: body.access_token, refreshToken: body.refresh_token || refreshToken, expiresAt: body.expires_at || null, user: body.user };
   }
 
