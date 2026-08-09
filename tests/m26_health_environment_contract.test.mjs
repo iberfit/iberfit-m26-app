@@ -59,18 +59,18 @@ test('health RPC acepta production únicamente en runtime productivo',async()=>{
   assert.equal((await transport.wearableHealth()).environment,'production');
 });
 
-test('health RPC acepta canary únicamente en runtime QA',async()=>{
+test('health RPC acepta production únicamente en runtime QA',async()=>{
   const transport=createM26Transport(
     runtime(true),
-    {fetchImpl:mockFetch('canary')},
+    {fetchImpl:mockFetch('production')},
   );
 
-  assert.equal((await transport.backendHealth()).environment,'canary');
-  assert.equal((await transport.draftBackendHealth()).environment,'canary');
-  assert.equal((await transport.wearableHealth()).environment,'canary');
+  assert.equal((await transport.backendHealth()).environment,'production');
+  assert.equal((await transport.draftBackendHealth()).environment,'production');
+  assert.equal((await transport.wearableHealth()).environment,'production');
 });
 
-test('health RPC falla cerrado ante entorno cruzado',async()=>{
+test('health RPC rechaza backend canary incluso desde shell QA',async()=>{
   const production=createM26Transport(
     runtime(false),
     {fetchImpl:mockFetch('canary')},
@@ -83,7 +83,7 @@ test('health RPC falla cerrado ante entorno cruzado',async()=>{
 
   const canary=createM26Transport(
     runtime(true),
-    {fetchImpl:mockFetch('production')},
+    {fetchImpl:mockFetch('canary')},
   );
 
   await assert.rejects(

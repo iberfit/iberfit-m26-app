@@ -352,7 +352,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   async function backendHealth(){
     const result=await request('/rest/v1/rpc/'+RC43_RPC.health,{method:'POST',body:'{}'});
     const item=normalizeRc43Result(result,'M26_RC43_HEALTH_INVALID_RESPONSE');
-    if(item.ready!==true||item.version!=='RC43'||item.environment!==(runtime.qaOnly?'canary':'production'))throw new Error('M26_RC43_BACKEND_NOT_READY');
+    if(item.ready!==true||item.version!=='RC43'||item.environment!=='production')throw new Error('M26_RC43_BACKEND_NOT_READY');
     return item;
   }
 
@@ -398,7 +398,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   async function draftBackendHealth(){
     const result=await request('/rest/v1/rpc/'+RC431_RPC.health,{method:'POST',body:'{}'});
     const item=normalizeRc43Result(result,'M26_RC431_HEALTH_INVALID_RESPONSE');
-    if(item.ready!==true||item.version!=='RC43.1'||item.environment!==(runtime.qaOnly?'canary':'production'))throw new Error('M26_RC431_BACKEND_NOT_READY');
+    if(item.ready!==true||item.version!=='RC43.1'||item.environment!=='production')throw new Error('M26_RC431_BACKEND_NOT_READY');
     return item;
   }
 
@@ -470,7 +470,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   async function wearableHealth(){
     const result=await request('/rest/v1/rpc/'+RC44_RPC.health,{method:'POST',body:'{}'});
     const item=normalizeRc44Result(result,'M26_RC44_HEALTH_INVALID_RESPONSE');
-    if(item.ready!==true||item.version!=='RC44'||item.environment!==(runtime.qaOnly?'canary':'production'))throw new Error('M26_RC44_BACKEND_NOT_READY');
+    if(item.ready!==true||item.version!=='RC44'||item.environment!=='production')throw new Error('M26_RC44_BACKEND_NOT_READY');
     return item;
   }
 
