@@ -316,27 +316,6 @@ export function renderHoyRoute(vm) {
     );
   }
 
-  if (!isClient && cockpit) {
-    stats.push(
-      stat(
-        'Clientes que requieren atención',
-        cockpit.attentionCount,
-        cockpit.attentionCount
-          ? 'Ordenados por prioridad operativa'
-          : 'Sin revisiones prioritarias pendientes'
-      )
-    );
-
-    stats.push(
-      stat(
-        'Cartera visible',
-        cockpit.totalClients,
-        cockpit.totalClients
-          ? 'Solo clientes dentro de tu cartera'
-          : 'Sin clientes asignados'
-      )
-    );
-  }
   if (!isClient && proposalCount) stats.push(stat('Propuestas pendientes', proposalCount, 'Requieren una decisión'));
   if (vm.operations.conflicts) stats.push(stat('Conflictos por resolver', vm.operations.conflicts, 'Resolver antes de continuar'));
   const clientShortcuts = isClient
