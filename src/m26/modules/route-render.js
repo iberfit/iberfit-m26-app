@@ -40,14 +40,6 @@ function clientIriState(client={}) {
   if (Number(client.iri?.coverageCount || 0) > 0) return 'progress';
   return 'pending';
 }
-function clientNextStep(client={}) {
-  const iriState = clientIriState(client);
-  if (iriState === 'pending') return 'Iniciar diagnóstico IRI';
-  if (iriState === 'progress') return 'Continuar diagnóstico IRI';
-  if (!client.cycle) return 'Preparar planificación';
-  if (!client.nextAppointment) return 'Programar próxima cita';
-  return 'Revisar seguimiento';
-}
 function clientCard(client, selected = false) {
   const iriState = clientIriState(client);
   const iri = client.iri
@@ -65,7 +57,14 @@ function clientCard(client, selected = false) {
   const frequency = client.profile?.weeklyFrequency
     ? `${client.profile.weeklyFrequency} sesiones/semana`
     : 'Frecuencia pendiente';
-  const nextStep = clientNextStep(client);
+  const nextStep = client.nextAction?.label || 'Revisar seguimiento';
+  const experienceLabel =
+    client.experience?.stageLabel ||
+    'Seguimiento por revisar';
+  const experiencePriority =
+    Number(client.experience?.priority || 5);
+  const experienceStage =
+    String(client.experience?.stage || 'active');
   const searchable = foldSearch(
     [
       client.name,
@@ -75,6 +74,7 @@ function clientCard(client, selected = false) {
       iri,
       objective,
       frequency,
+      experienceLabel,
       client.profile?.email,
       client.profile?.phone,
     ]
@@ -83,12 +83,42 @@ function clientCard(client, selected = false) {
   );
   const accessTone = client.accessKnown ? 'success' : 'neutral';
 
-  return `<article class="m26-client-card${selected ? ' is-selected' : ''}" data-client-text="${escapeHtml(searchable)}" data-client-iri="${iriState}" data-client-modality="${escapeHtml(foldSearch(client.modality))}" data-client-name="${escapeHtml(foldSearch(client.name))}" data-client-priority="${iriState === 'pending' ? '1' : iriState === 'progress' ? '2' : client.nextAppointment ? '4' : '3'}">
+  return `<article class="m26-client-card${selected ? ' is-selected' : ''}" data-client-text="${escapeHtml(searchable)}" data-client-iri="${iriState}" data-client-modality="${escapeHtml(foldSearch(client.modality))}" data-client-name="${escapeHtml(foldSearch(client.name))}" data-client-priority="${escapeHtml(experiencePriority)}" data-client-stage="${escapeHtml(experienceStage)}">
     <button type="button" data-m26-select-client="${escapeHtml(client.id)}" aria-label="Abrir expediente de ${escapeHtml(client.name)}">
       <div class="m26-client-avatar" aria-hidden="true">${escapeHtml(client.name.slice(0, 1).toUpperCase())}</div>
       <div class="m26-client-copy"><p class="m26-eyebrow">${escapeHtml(client.modality)}</p><h3>${escapeHtml(client.name)}</h3><p>${escapeHtml(iri)} · ${escapeHtml(frequency)}</p><small>${escapeHtml(objective)}</small><strong class="m26-client-next">Siguiente: ${escapeHtml(nextStep)}</strong></div>
-      <div class="m26-client-meta">${selected ? badge('Expediente activo', 'success') : ''}${badge(statusText, /activ/i.test(statusText) ? 'success' : 'neutral')}${badge(accessText, accessTone)}<small>${client.nextAppointment ? `Próxima cita: ${escapeHtml(client.nextAppointment.dateLabel)}` : 'Sin cita programada'}</small><span class="m26-card-action">Abrir expediente</span></div>
+      <div class="m26-client-meta">${selected ? badge('Expediente activo', 'success') : ''}${badge(experienceLabel, experienceStage === 'active' ? 'success' : 'pending')}${badge(statusText, /activ/i.test(statusText) ? 'success' : 'neutral')}${badge(accessText, accessTone)}<small>${client.nextAppointment ? `Próxima cita: ${escapeHtml(client.nextAppointment.dateLabel)}` : 'Sin cita programada'}</small><span class="m26-card-action">Abrir expediente</span></div>
     </button>
+  </article>`;
+}
+
+function coachPriorityCard(item={}) {
+  const tone=
+    item.kind==='critical'
+      ?'danger'
+      :item.kind==='warning'
+        ?'warning'
+        :item.kind==='process'
+          ?'pending'
+          :'neutral';
+
+  return `<article class="m26-list-card m26-coach-priority-card">
+    <div>
+      <p class="m26-eyebrow">${escapeHtml(item.stageLabel||'Seguimiento')}</p>
+      <h3>${escapeHtml(item.clientName||'Cliente')}</h3>
+      <p><strong>${escapeHtml(item.reason||'Revisión pendiente')}</strong></p>
+      <small>${escapeHtml(item.detail||'')}</small>
+      <strong class="m26-client-next">${escapeHtml(item.guidance||'Revisar expediente.')}</strong>
+    </div>
+    <div class="m26-list-card-actions">
+      ${badge(item.signalLabel||'Seguimiento',tone)}
+      <button
+        type="button"
+        class="m26-text-action"
+        data-m26-select-client="${escapeHtml(item.clientId||'')}"
+        aria-label="Abrir expediente de ${escapeHtml(item.clientName||'cliente')}"
+      >Abrir expediente</button>
+    </div>
   </article>`;
 }
 
@@ -96,6 +126,10 @@ export function renderHoyRoute(vm) {
   const isClient = vm.role === 'client';
   const client = vm.clients[0] || null;
   const proposalCount = vm.proposals?.length || 0;
+  const cockpit =
+    !isClient
+      ? vm.coachCockpit || null
+      : null;
   const heroTitle = isClient
     ? `Tu acompañamiento, ${escapeHtml(client?.name || 'IBERFIT')}`
     : 'Prioridades de hoy';
@@ -116,30 +150,142 @@ export function renderHoyRoute(vm) {
   const clients = !isClient && vm.clients.length
     ? vm.clients.slice(0, 5).map((item) => clientCard(item)).join('')
     : '';
+  const queueItems=
+    cockpit?.items?.slice(0,6)||[];
+
+  const queueTone=
+    cockpit?.criticalCount
+      ?'danger'
+      :cockpit?.warningCount
+        ?'warning'
+        :cockpit?.processCount
+          ?'pending'
+          :'neutral';
+
+  const queueLabel=
+    cockpit?.attentionCount
+      ?countLabel(
+          cockpit.attentionCount,
+          'prioridad',
+          'prioridades'
+        )
+      :cockpit?.infoCount
+        ?countLabel(
+            cockpit.infoCount,
+            'seguimiento',
+            'seguimientos'
+          )
+        :'Al día';
+
+  const priorityQueue=
+    !isClient&&cockpit
+      ?`<section class="m26-panel m26-panel-soft">
+          <div class="m26-panel-heading">
+            <div>
+              <p class="m26-eyebrow">Atención de cartera</p>
+              <h2>Qué requiere tu decisión</h2>
+              <p>Ordenado por bienestar, adherencia y etapa del recorrido. Estas señales orientan la revisión y no sustituyen tu criterio profesional.</p>
+            </div>
+            ${badge(queueLabel,queueTone)}
+          </div>
+          ${
+            cockpit.totalClients===0
+              ?emptyState(
+                  'Sin clientes asignados',
+                  'Cuando la administración te asigne clientes, su seguimiento aparecerá aquí.'
+                )
+              :queueItems.length
+                ?`<div class="m26-stack">${queueItems.map(coachPriorityCard).join('')}</div>`
+                :emptyState(
+                    'Cartera al día',
+                    'No hay señales ni pasos pendientes que requieran atención adicional.'
+                  )
+          }
+          ${
+            cockpit.items?.length>6
+              ?`<button type="button" class="m26-text-action" data-m26-area="clientes">Ver toda la cartera</button>`
+              :''
+          }
+        </section>`
+      :'';
+
+  const coachRiskFocus=
+    !isClient
+      ?cockpit?.riskFocus||null
+      :null;
+
   const next = vm.upcoming[0];
   const operationalState = vm.operations.conflicts
     ? 'Requiere revisión'
     : vm.operations.pending
       ? 'Sincronizando cambios'
-      : proposalCount
-        ? 'Propuestas por revisar'
-        : 'Al día';
+      : cockpit?.criticalCount
+        ? 'Atención prioritaria'
+        : cockpit?.warningCount
+          ? 'Requiere contexto'
+          : proposalCount
+            ? 'Propuestas por revisar'
+            : cockpit?.processCount
+              ? 'Seguimiento pendiente'
+              : 'Al día';
   const iriDetail = client?.iri
     ? `<div class="m26-mini-metric"><span>Evaluación IRI</span><strong>${escapeHtml(client.iri.processLabel || client.iri.coverageLabel)}</strong><small>${escapeHtml(client.iri.coverageLabel)}</small></div>`
     : '';
   const nextAction = isClient
-    ? next
-      ? { area: 'agenda', title: next.title, copy: next.dateLabel, label: 'Ver próxima cita' }
-      : client?.cycle
-        ? { area: 'planificacion', title: 'Revisar tu plan y sesiones', copy: client.cycle.name || 'Plan de entrenamiento disponible', label: 'Abrir planificación' }
-        : { area: 'actividad', title: 'Registrar cómo estás hoy', copy: 'Energía, sueño, estrés y molestias ayudan a contextualizar el entrenamiento.', label: 'Abrir bienestar' }
-    : next
-      ? { area: 'agenda', title: next.title, copy: next.dateLabel, label: 'Abrir agenda' }
+    ? client?.nextAction
+      ? {
+          area: client.nextAction.area,
+          title: client.experience?.stageLabel || 'Tu siguiente paso',
+          copy: client.nextAction.reason || 'Continúa con tu recorrido IBERFIT.',
+          label: client.nextAction.label,
+        }
+      : {
+          area: 'actividad',
+          title: 'Tu siguiente paso',
+          copy: 'Registra cómo estás para mantener actualizado tu seguimiento.',
+          label: 'Registrar bienestar',
+        }
+    : coachRiskFocus
+      ? {
+          area: 'expediente',
+          clientId: coachRiskFocus.clientId,
+          title: coachRiskFocus.clientName,
+          copy: `${coachRiskFocus.signalLabel}: ${coachRiskFocus.reason}. ${coachRiskFocus.detail}`,
+          label: 'Abrir expediente',
+        }
+      : next
+      ? {
+          area: 'agenda',
+          title: next.title,
+          copy: next.dateLabel,
+          label: 'Abrir agenda',
+        }
       : proposalCount
-        ? { area: 'agenda', title: 'Revisar propuestas pendientes', copy: 'Confirma, modifica o descarta cada propuesta.', label: 'Revisar agenda' }
-        : client && clientIriState(client) !== 'completed'
-          ? { area: 'iri', title: clientNextStep(client), copy: 'Completa y confirma los datos antes de planificar.', label: 'Abrir diagnóstico IRI' }
-          : { area: 'clientes', title: 'Revisar cartera de clientes', copy: 'Abre un expediente para decidir el siguiente paso.', label: 'Ver clientes' };
+        ? {
+            area: 'agenda',
+            title: 'Revisar propuestas pendientes',
+            copy: 'Confirma, modifica o descarta cada propuesta.',
+            label: 'Revisar agenda',
+          }
+        : client?.nextAction
+          ? {
+              area: client.nextAction.area,
+              title: client.nextAction.label,
+              copy: client.nextAction.reason || client.experience?.stageLabel || 'Seguimiento pendiente.',
+              label: client.nextAction.label,
+            }
+          : {
+              area: 'clientes',
+              title: 'Revisar cartera de clientes',
+              copy: 'Abre un expediente para decidir el siguiente paso.',
+              label: 'Ver clientes',
+            };
+
+  const nextActionButton=
+    nextAction.clientId
+      ?`<button type="button" class="m26-primary-action" data-m26-select-client="${escapeHtml(nextAction.clientId)}">${escapeHtml(nextAction.label)}</button>`
+      :`<button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(nextAction.area)}">${escapeHtml(nextAction.label)}</button>`;
+
   const stats = [
     stat('Sesiones confirmadas hoy', vm.appointments.length, vm.appointments.length ? 'Listas para realizar' : 'No hay sesiones hoy'),
     next ? stat('Próxima cita confirmada', next.dateLabel, next.title) : stat('Próxima cita confirmada', 'Sin cita programada', isClient ? 'Tu entrenador confirmará aquí la siguiente cita' : 'Programa o confirma la siguiente cita'),
@@ -147,6 +293,49 @@ export function renderHoyRoute(vm) {
   if (isClient) {
     stats.push(stat('Tu plan', client?.cycle?.name || 'Pendiente', client?.cycle ? 'Plan confirmado disponible' : 'Tu entrenador lo publicará cuando esté listo'));
     stats.push(stat('Evaluación IRI', client?.iri?.processLabel || 'Pendiente', client?.iri?.confirmed ? client.iri.coverageLabel : 'La completa y confirma tu entrenador'));
+  }
+  if (!isClient && cockpit) {
+    stats.push(
+      stat(
+        'Clientes que requieren atención',
+        cockpit.attentionCount,
+        cockpit.attentionCount
+          ? 'Ordenados por prioridad operativa'
+          : 'Sin revisiones prioritarias pendientes'
+      )
+    );
+
+    stats.push(
+      stat(
+        'Cartera visible',
+        cockpit.totalClients,
+        cockpit.totalClients
+          ? 'Solo clientes dentro de tu cartera'
+          : 'Sin clientes asignados'
+      )
+    );
+  }
+
+  if (!isClient && cockpit) {
+    stats.push(
+      stat(
+        'Clientes que requieren atención',
+        cockpit.attentionCount,
+        cockpit.attentionCount
+          ? 'Ordenados por prioridad operativa'
+          : 'Sin revisiones prioritarias pendientes'
+      )
+    );
+
+    stats.push(
+      stat(
+        'Cartera visible',
+        cockpit.totalClients,
+        cockpit.totalClients
+          ? 'Solo clientes dentro de tu cartera'
+          : 'Sin clientes asignados'
+      )
+    );
   }
   if (!isClient && proposalCount) stats.push(stat('Propuestas pendientes', proposalCount, 'Requieren una decisión'));
   if (vm.operations.conflicts) stats.push(stat('Conflictos por resolver', vm.operations.conflicts, 'Resolver antes de continuar'));
@@ -160,8 +349,9 @@ export function renderHoyRoute(vm) {
     <section class="m26-stat-grid">${stats.join('')}</section>
     <section class="m26-content-grid">
       <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Sesiones confirmadas de hoy</h2></div>${vm.appointments.length ? badge(countLabel(vm.appointments.length, 'confirmada', 'confirmadas'), 'success') : ''}</div><div class="m26-stack">${appointments}</div></div>
-      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Siguiente acción</p><h2>${escapeHtml(nextAction.title)}</h2><p>${escapeHtml(nextAction.copy)}</p>${iriDetail}<button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(nextAction.area)}">${escapeHtml(nextAction.label)}</button></aside>
+      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Siguiente acción</p><h2>${escapeHtml(nextAction.title)}</h2><p>${escapeHtml(nextAction.copy)}</p>${iriDetail}${nextActionButton}</aside>
     </section>
+    ${priorityQueue}
     ${clientShortcuts}
     ${proposals}
     ${clients ? `<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>Clientes</h2></div><button type="button" class="m26-text-action" data-m26-area="clientes">Ver todos</button></div><div class="m26-client-grid">${clients}</div></section>` : ''}
@@ -215,7 +405,7 @@ export function renderClientsRoute(vm) {
   const content = vm.clients.length
     ? `<div class="m26-client-grid" data-client-grid>${vm.clients.map((item) => clientCard(item, item.id === vm.selectedClientId)).join('')}</div>`
     : emptyState('Todavía no hay clientes', 'Crea el primer expediente para comenzar la evaluación inicial.');
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel"><div class="m26-client-controls"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div><p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel"><div class="m26-client-controls"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad, etapa o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Etapa del seguimiento<select data-client-filter="stage"><option value="">Todas</option><option value="onboarding">Alta incompleta</option><option value="evaluation">Evaluación pendiente</option><option value="planning">Planificación pendiente</option><option value="scheduling">Próxima cita pendiente</option><option value="active">Seguimiento activo</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div><p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
 }
 
 function field(label, value) {

@@ -19,7 +19,7 @@ export function normalizeApplicationContextExtension(input={}){
 export function filterSnapshotForAssignmentScope(snapshot,extension,activeRole){
   const context=normalizeApplicationContextExtension(extension);
   if(context.available&&context.membershipStatus!=='active')throw new Error('M26_ORGANIZATION_ACCESS_SUSPENDED');
-  if(!context.available||activeRole!=='coach'||!context.assignmentScopeEnforced)return structuredClone(snapshot);
+  if(!context.available||activeRole!=='coach')return structuredClone(snapshot);const strictScope=context.assignmentScopeEnforced||context.revision>=2;if(!strictScope)return structuredClone(snapshot);
   const allowed=new Set(context.assignedClientIds);
   const data={};
   for(const [key,value] of Object.entries(snapshot?.data||{})){

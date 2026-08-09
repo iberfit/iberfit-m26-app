@@ -204,7 +204,7 @@ export function todaysAppointments(
     .map(clone);
 }
 
-export function clientHealthSummary(state, clientId = state?.selectedClientId) {
+export function clientHealthSummary(state, clientId = state?.selectedClientId, now = new Date()) {
   const client =
     list(state, 'clients').find((item) => item.id === clientId) ||
     selectedClient(state);
@@ -219,6 +219,7 @@ export function clientHealthSummary(state, clientId = state?.selectedClientId) {
   const executions = recordsForClient(state, 'sessionExecutions', clientId);
   const appointments = upcomingAppointments(state, {
     clientId,
+    now,
     limit: 3,
     confirmedOnly: true,
   });
@@ -239,9 +240,9 @@ export function clientHealthSummary(state, clientId = state?.selectedClientId) {
   };
 }
 
-export function clientsOverview(state) {
+export function clientsOverview(state, now = new Date()) {
   return list(state, 'clients')
-    .map((client) => clientHealthSummary(state, client.id))
+    .map((client) => clientHealthSummary(state, client.id, now))
     .filter(Boolean);
 }
 
@@ -272,8 +273,8 @@ export function todayOverview(state, now = new Date()) {
   });
   const summaries =
     role === 'client'
-      ? [clientHealthSummary(state, clientId)].filter(Boolean)
-      : clientsOverview(state);
+      ? [clientHealthSummary(state, clientId, now)].filter(Boolean)
+      : clientsOverview(state, now);
   const pending = state?.pendingOperations?.length || 0;
   const conflicts = state?.conflicts?.length || 0;
   const rejected = state?.rejectedOperations?.length || 0;
