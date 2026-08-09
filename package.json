@@ -212,6 +212,9 @@
     "test:m26:rc455": "node --test tests/m26_rc45_5_iberfit_media_priority.test.mjs",
     "validate:rc455:local": "npm run validate:rc442:local && npm run test:m26:rc455 && npm run build:rc40",
     "test:m26:rc456": "node --test tests/m26_rc45_6_launch_hardening.test.mjs",
-    "validate:rc456:local": "npm run validate:rc455:local && npm run test:m26:rc456"
+    "validate:rc456:local": "npm run validate:rc455:local && npm run test:m26:rc456",
+    "configure:rc458:canary": "node scripts/generate_rc458_runtime_config.mjs",
+    "verify:build:rc458": "node scripts/verify_rc458_canary_candidate.mjs",
+    "build:rc458:canary": "npm run build:rc40 && npm run configure:rc458:canary && npm run verify:build:rc458"
   }
 }
