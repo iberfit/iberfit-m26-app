@@ -13,7 +13,7 @@ android {
 
     sourceSets {
         getByName("main") {
-            java.srcDirs("../../android/wear", "../../android/ble")
+            java.srcDirs("../../android/wear", "../../android/ble", "../../android/runtime")
             manifest.srcFile("src/main/AndroidManifest.xml")
         }
     }
@@ -21,4 +21,6 @@ android {
 
 dependencies {
     implementation("androidx.health:health-services-client:1.1.0-rc02")
+    implementation("androidx.webkit:webkit:1.16.0")
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
 }

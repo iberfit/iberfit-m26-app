@@ -29,12 +29,21 @@ final class IBERFITWebTelemetryEmitter {
 /// Receives commands sent by src/m26/wearables/native-transport.js.
 final class IBERFITWebTelemetryCommandHandler: NSObject, WKScriptMessageHandler {
     var onCommand: ((String, [String: Any]) -> Void)?
+    private let allowedHosts: Set<String>
+
+    init(allowedHosts: Set<String>) {
+        precondition(!allowedHosts.isEmpty)
+        precondition(!allowedHosts.contains("*"))
+        self.allowedHosts = Set(allowedHosts.map { $0.lowercased() })
+        super.init()
+    }
 
     func userContentController(
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
         guard message.name == "iberfitLiveTelemetry",
+              allowedHosts.contains(message.frameInfo.securityOrigin.host.lowercased()),
               let body = message.body as? [String: Any],
               let action = body["action"] as? String
         else { return }

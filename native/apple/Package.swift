@@ -15,12 +15,12 @@ let package = Package(
         .target(
             name: "IBERFITWatchTelemetry",
             path: ".",
-            sources: ["IBERFITWatchHealthKitTelemetry.swift"]
+            sources: ["IBERFITWatchHealthKitTelemetry.swift", "IBERFITWatchRuntimeRelay.swift"]
         ),
         .target(
             name: "IBERFITWebBridge",
             path: ".",
-            sources: ["IBERFITWebTelemetryBridge.swift"]
+            sources: ["IBERFITWebTelemetryBridge.swift", "IBERFITPhoneWatchRuntimeRelay.swift", "IBERFITIOSBleHeartRateRuntime.swift", "IBERFITIOSNativeTelemetryRuntime.swift"]
         ),
     ]
 )
