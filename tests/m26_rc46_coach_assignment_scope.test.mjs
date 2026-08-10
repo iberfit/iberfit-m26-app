@@ -133,7 +133,7 @@ test('migración RC46 contiene backfill protegido y scope backend estricto', () 
 
   assert.match(
     sql,
-    /create or replace function public\.is_assigned_coach\s*\(\s*p_client_id uuid/i
+    /create or replace function public\.is_assigned_coach\s*\(\s*target_client uuid/i
   );
 
   assert.match(

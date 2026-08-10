@@ -130,7 +130,7 @@ $rc46_backfill$;
 -- ----------------------------------------------------------
 
 create or replace function public.is_assigned_coach(
-  p_client_id uuid
+  target_client uuid
 )
 returns boolean
 language sql
@@ -139,7 +139,7 @@ security definer
 set search_path = ''
 as $rc46$
   select
-    p_client_id is not null
+    target_client is not null
     and exists (
       select 1
       from public.iberfit_coach_client_assignments a
@@ -148,7 +148,7 @@ as $rc46$
        and m.user_id = a.coach_user_id
        and m.status = 'active'
       where a.coach_user_id = auth.uid()
-        and a.client_id = p_client_id::text
+        and a.client_id = target_client::text
         and a.status = 'active'
         and a.starts_at <= current_date
         and (
