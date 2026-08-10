@@ -411,8 +411,15 @@ export function createWorkflowController({
     const contextWarnings=[];
     if(!Number.isFinite(ageYears))contextWarnings.push('Sin fecha de nacimiento: no se aplicaron criterios dependientes de la edad.');
     const proposal=Object.freeze({...generated,coachQuestion,contextWarnings:Object.freeze(contextWarnings)});
+    const evidence=proposal.rationale?.contextEvidence||{};
+    const contextBits=[];
+    if(Number.isFinite(Number(evidence.adherence)))contextBits.push(`Adherencia ${Math.round(Number(evidence.adherence)*100)}%`);
+    if(Number.isFinite(Number(evidence.averageRpe)))contextBits.push(`RPE medio ${Math.round(Number(evidence.averageRpe)*10)/10}`);
+    if(Number(evidence.historyExerciseCount||0)>0)contextBits.push(`${Number(evidence.historyExerciseCount)} ejercicios con historial`);
+    if(evidence.iriAvailable)contextBits.push('IRI disponible');
+    const contextLabel=contextBits.length?contextBits.join(' · '):'Contexto histórico limitado: revisar manualmente.';
     const preview=root.querySelector?.('[data-intelligence-preview]');
-    if(preview)preview.innerHTML=`${coachQuestion?`<section class="m26-intelligence-brief"><p class="m26-eyebrow">Criterio del entrenador</p><p>${escape(coachQuestion)}</p></section>`:''}${contextWarnings.length?`<section class="m26-notice is-warning"><strong>Contexto incompleto</strong><p>${escape(contextWarnings.join(' '))}</p></section>`:''}<section class="m26-notice is-${proposal.requiresManualReview?'warning':'success'}"><strong>${escape(proposal.exercises.length)} ejercicios propuestos</strong><p>${escape(proposal.estimatedMinutes)} min · ${escape(proposal.structure.type)} · revisión del entrenador obligatoria.</p></section><div class="m26-stack">${proposal.exercises.map((item)=>`<article class="m26-list-card"><div><h3>${escape(item.name)}</h3><p>${escape(item.sets)} series · ${escape(item.reps)} · RPE ${escape(item.targetRpe)}</p></div></article>`).join('')}</div>`;
+    if(preview)preview.innerHTML=`${coachQuestion?`<section class="m26-intelligence-brief"><p class="m26-eyebrow">Criterio del entrenador</p><p>${escape(coachQuestion)}</p></section>`:''}${contextWarnings.length?`<section class="m26-notice is-warning"><strong>Contexto incompleto</strong><p>${escape(contextWarnings.join(' '))}</p></section>`:''}<section class="m26-notice is-${proposal.requiresManualReview?'warning':'success'}"><strong>${escape(proposal.exercises.length)} ejercicios propuestos</strong><p>${escape(proposal.estimatedMinutes)} min · ${escape(proposal.structure.type)} · revisión del entrenador obligatoria.</p></section><div class="m26-stack">${proposal.exercises.map((item)=>`<article class="m26-list-card"><div><h3>${escape(item.name)}</h3><p>${escape(item.sets)} series · ${escape(item.reps)} · RPE ${escape(item.targetRpe)}${item.previousLoad!==null&&item.previousLoad!==undefined?` · última carga ${escape(item.previousLoad)} kg`:''}</p><small>${escape(item.loadInstruction||'Carga a revisar por el entrenador')}</small></div></article>`).join('')}</div>`;
     status(root,'intelligence',proposal.requiresManualReview||contextWarnings.length?'Propuesta conservadora: requiere revisión manual.':'Propuesta lista para revisión.',proposal.requiresManualReview||contextWarnings.length?'pending':'success');
     emit(root,'m26:intelligence-proposal',{proposal});
     return proposal;
