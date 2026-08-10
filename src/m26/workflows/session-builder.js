@@ -30,6 +30,14 @@ export function closeTrainingGroup(draft){
   delete draft.activeGroupId;
   return invalidateSessionPreview(draft);
 }
+export function duplicateSessionBlock(draft,blockId){
+  const index=draft.blocks.findIndex((block)=>block.id===blockId);
+  if(index<0)throw new Error('M26_SESSION_BLOCK_MISSING');
+  const copy=structuredClone(draft.blocks[index]);
+  copy.id=createM26Id();
+  draft.blocks.splice(index+1,0,copy);
+  return invalidateSessionPreview(draft);
+}
 export function removeSessionBlock(draft,blockId){draft.blocks=draft.blocks.filter((block)=>block.id!==blockId);if(draft.activeGroupId===blockId)delete draft.activeGroupId;return invalidateSessionPreview(draft);}
 export function moveSessionBlock(draft,blockId,direction){const index=draft.blocks.findIndex((block)=>block.id===blockId);if(index<0)throw new Error('M26_SESSION_BLOCK_MISSING');const delta=direction==='up'?-1:direction==='down'?1:0;if(!delta)throw new Error('M26_SESSION_MOVE_INVALID');const target=index+delta;if(target<0||target>=draft.blocks.length)return draft;[draft.blocks[index],draft.blocks[target]]=[draft.blocks[target],draft.blocks[index]];return invalidateSessionPreview(draft);}
 export function updateSessionDraft(draft,field,value){if(field==='title')draft.title=text(value,'Sesión IBERFIT',120);else if(field==='durationMinutes')draft.durationMinutes=positiveInt(value,draft.durationMinutes||50,{min:10,max:240});else throw new Error('M26_SESSION_DRAFT_FIELD_INVALID');return invalidateSessionPreview(draft);}

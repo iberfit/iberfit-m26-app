@@ -217,6 +217,8 @@
     "verify:build:rc458": "node scripts/verify_rc458_canary_candidate.mjs",
     "build:rc458:canary": "npm run build:rc40 && npm run configure:rc458:canary && npm run verify:build:rc458",
     "test:m26:rc47": "node --test tests/m26_rc47_admin_command_center.test.mjs",
-    "validate:rc47:local": "npm run validate:rc456:local && npm run test:m26:rc47"
+    "validate:rc47:local": "npm run validate:rc456:local && npm run test:m26:rc47",
+    "test:m26:rc48": "node --test tests/m26_rc48_session_experience.test.mjs",
+    "validate:rc48:local": "npm run validate:rc47:local && npm run test:m26:rc48"
   }
 }

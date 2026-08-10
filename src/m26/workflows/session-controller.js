@@ -1,4 +1,4 @@
-import { addCatalogExercise, addTrainingGroup, closeTrainingGroup,removeSessionBlock,moveSessionBlock,updateSessionDraft,updateSessionBlock,acceptSessionPreview,invalidateSessionPreview, buildPublishSessionCommand } from './session-builder.js';
+import { addCatalogExercise, addTrainingGroup, closeTrainingGroup,duplicateSessionBlock,removeSessionBlock,moveSessionBlock,updateSessionDraft,updateSessionBlock,acceptSessionPreview,invalidateSessionPreview, buildPublishSessionCommand } from './session-builder.js';
 import {
   startExecution,pauseExecution,resumeExecution,cancelExecution,recordSet,advanceExecution,retreatExecution,
   adjustRest,beginRest,substituteExercise,finishExecution,buildExecutionCommand,buildStartExecutionCommand,
@@ -33,6 +33,7 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
   switch(action){
     case 'add-exercise': addCatalogExercise(draft,payload.exerciseId,catalog,payload.prescription); return {kind:'draft',value:draft};
     case 'remove-block': removeSessionBlock(draft,payload.blockId); return {kind:'draft',value:draft};
+    case 'duplicate-block': duplicateSessionBlock(draft,payload.blockId); return {kind:'draft',value:draft};
     case 'move-up': moveSessionBlock(draft,payload.blockId,'up'); return {kind:'draft',value:draft};
     case 'move-down': moveSessionBlock(draft,payload.blockId,'down'); return {kind:'draft',value:draft};
     case 'preview': acceptSessionPreview(draft,catalog); return {kind:'draft',value:draft};
