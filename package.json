@@ -225,6 +225,8 @@
     "test:m26:rc50": "node --test tests/m26_rc50_adaptive_experience.test.mjs",
     "validate:rc50:local": "npm run validate:rc49:local && npm run test:m26:rc50",
     "test:m26:rc51": "node --test tests/m26_rc51_health_device_foundation.test.mjs",
-    "validate:rc51:local": "npm run validate:rc50:local && npm run test:m26:rc51"
+    "validate:rc51:local": "npm run validate:rc50:local && npm run test:m26:rc51",
+    "test:m26:rc52": "node --test tests/m26_rc52_live_wearable_experience.test.mjs",
+    "validate:rc52:local": "npm run validate:rc51:local && npm run test:m26:rc52"
   }
 }

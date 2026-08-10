@@ -3,7 +3,7 @@ import { createM26Id } from '../platform/id.js';
 function clone(v){return structuredClone(v);}
 function now(){return new Date().toISOString();}
 function uid(){return createM26Id();}
-function remoteSnapshot(execution){const out=clone(execution);delete out.syncStatus;delete out.pendingOperationIds;delete out.lastSyncError;delete out.recoveredAt;return out;}
+function remoteSnapshot(execution){const out=clone(execution);delete out.syncStatus;delete out.pendingOperationIds;delete out.lastSyncError;delete out.recoveredAt;delete out.liveTelemetry;return out;}
 function findExercise(session, exerciseId){
   for(const block of session.blocks||[]){
     if(block.type==='exercise'&&block.exerciseId===exerciseId)return block;
