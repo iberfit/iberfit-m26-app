@@ -223,6 +223,8 @@
     "test:m26:rc49": "node --test tests/m26_rc49_coach_copilot.test.mjs",
     "validate:rc49:local": "npm run validate:rc48:local && npm run test:m26:rc49",
     "test:m26:rc50": "node --test tests/m26_rc50_adaptive_experience.test.mjs",
-    "validate:rc50:local": "npm run validate:rc49:local && npm run test:m26:rc50"
+    "validate:rc50:local": "npm run validate:rc49:local && npm run test:m26:rc50",
+    "test:m26:rc51": "node --test tests/m26_rc51_health_device_foundation.test.mjs",
+    "validate:rc51:local": "npm run validate:rc50:local && npm run test:m26:rc51"
   }
 }

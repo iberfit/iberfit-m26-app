@@ -4,6 +4,7 @@ import {
 } from './normalization.js';
 import {
   wearableProviderDefinition,
+  normalizeWearableProvider,
 } from './contracts.js';
 import {
   wearableZeroCostPolicy,
@@ -124,9 +125,9 @@ function wearableContextText(preview){
       ),
     ],
     [
-      'VFC',
+      summary.vfc?.method?`VFC (${summary.vfc.method.toUpperCase()})`:'VFC',
       compactMetric(
-        summary.metrics.hrvMs,
+        summary.vfc?.valueMs??summary.metrics.hrvMs,
         ' ms',
       ),
     ],
@@ -202,8 +203,8 @@ function renderPreview(root,parsed,provider){
         'lpm',
       )}
       ${metric(
-        'VFC media',
-        summary.metrics.hrvMs,
+        summary.vfc?.method?`VFC media (${summary.vfc.method.toUpperCase()})`:'VFC · Variabilidad de la frecuencia cardíaca',
+        summary.vfc?.valueMs??summary.metrics.hrvMs,
         'ms',
       )}
       ${metric(
@@ -299,6 +300,7 @@ function downloadTemplate(){
       sleepMinutes:450,
       restingHeartRate:58,
       hrvMs:48,
+      vfcMethod:'rmssd',
       activeEnergyKcal:520,
       workoutMinutes:35,
       quality:'media',
@@ -587,81 +589,47 @@ export function createWearableController({
     return result;
   }
 
+  async function connectNativeProvider(provider,{interactive=true,silent=false}={}){
+    const {role,clientId}=context(store);
+    if(role!=='client'||!clientId)throw new Error('M26_WEARABLE_CLIENT_CONTROL_REQUIRED');
+    const normalized=normalizeWearableProvider(provider);
+    if(!normalized||!bridge.nativeProviders.includes(normalized))throw new Error('M26_WEARABLE_PROVIDER_UNKNOWN');
+    if(!bridge.isAvailable(normalized))throw new Error(bridge.providerSupport(normalized).reason||'M26_WEARABLE_NATIVE_BRIDGE_UNAVAILABLE');
+    const existing=(store.getState().collections?.wearableConnections||[]).find((item)=>normalizeWearableProvider(item.provider||item.source)===normalized);
+    let granted=Array.isArray(existing?.scopes)?existing.scopes:[];
+    if(interactive||!granted.length){
+      if(!silent)setStatus(root,'Solicitando únicamente los permisos necesarios…','pending');
+      const authorization=await bridge.requestAuthorization({provider:normalized,clientId,scopes:bridge.readScopes});
+      granted=authorization.granted;
+      if(!granted.length)throw new Error('M26_WEARABLE_SCOPE_REQUIRED');
+    }
+    await bridge.setSyncEnabled({provider:normalized,clientId,enabled:true});
+    const endDate=new Date().toISOString().slice(0,10);
+    const start=new Date();start.setUTCDate(start.getUTCDate()-29);
+    const records=await bridge.readDailySummaries({provider:normalized,clientId,startDate:start.toISOString().slice(0,10),endDate});
+    let result=Object.freeze({ok:true,queued:false,synced:true,imported:0,pending:0});
+    if(records.length)result=await remoteSync.stage({clientId,provider:normalized,records});
+    if(!silent){
+      const label=wearableProviderDefinition(normalized)?.label||'Dispositivo';
+      setStatus(root,records.length?(result.synced?label+' sincronizado automáticamente.':'Datos protegidos y pendientes de sincronización.'):label+' conectado. IBERFIT incorporará nuevos datos cuando estén disponibles.','success');
+    }
+    return Object.freeze({...result,provider:normalized,connected:true,recordCount:records.length});
+  }
+
+  async function autoSyncNativeProviders(){
+    const {role}=context(store);if(role!=='client'||!isOnline())return [];
+    const rows=store.getState().collections?.wearableConnections||[];
+    const providers=[...new Set(rows.filter((item)=>['active','connected','conectado'].includes(String(item.status||item.state||'').toLowerCase())).map((item)=>normalizeWearableProvider(item.provider||item.source)).filter((provider)=>provider&&bridge.nativeProviders.includes(provider)&&bridge.isAvailable(provider)))];
+    const results=[];
+    for(const provider of providers){try{results.push(await connectNativeProvider(provider,{interactive:false,silent:true}));}catch(error){emitDiagnostic('wearable-auto-sync',error);}}
+    return results;
+  }
+
   async function connectHealthConnect(){
-    const {
-      role,
-      clientId,
-    }=context(store);
-
-    if(role!=='client'||!clientId){
-      throw new Error(
-        'M26_WEARABLE_CLIENT_CONTROL_REQUIRED',
-      );
-    }
-
     if(!bridge.support.healthConnect.available){
-      throw new Error(
-        'M26_WEARABLE_NATIVE_BRIDGE_UNAVAILABLE',
-      );
+      throw new Error('M26_WEARABLE_NATIVE_BRIDGE_UNAVAILABLE');
     }
-
-    setStatus(
-      root,
-      'Solicitando únicamente los permisos necesarios…',
-      'pending',
-    );
-
-    const authorization=
-      await bridge.requestAuthorization({
-        provider:'health_connect',
-        clientId,
-        scopes:bridge.readScopes,
-      });
-
-    if(!authorization.granted.length){
-      throw new Error(
-        'M26_WEARABLE_SCOPE_REQUIRED',
-      );
-    }
-
-    const endDate=
-      new Date().toISOString().slice(0,10);
-
-    const start=new Date();
-    start.setUTCDate(start.getUTCDate()-29);
-
-    const startDate=
-      start.toISOString().slice(0,10);
-
-    const records=
-      await bridge.readDailySummaries({
-        provider:'health_connect',
-        clientId,
-        startDate,
-        endDate,
-      });
-
-    if(!records.length){
-      throw new Error(
-        'M26_WEARABLE_RECORDS_REQUIRED',
-      );
-    }
-
-    const result=await remoteSync.stage({
-      clientId,
-      provider:'health_connect',
-      records,
-    });
-
-    setStatus(
-      root,
-      result.synced
-        ?'Health Connect sincronizado con control del usuario.'
-        :'Datos protegidos y pendientes de sincronización.',
-      'success',
-    );
-
-    return result;
+    return connectNativeProvider('health_connect');
   }
 
   async function deleteAll(){
@@ -874,29 +842,23 @@ export function createWearableController({
       actionGrid.append(deleteButton);
     }
 
-    const card=root.querySelector?.(
-      '[data-provider="health_connect"]',
-    );
-
-    if(
-      card
-      &&bridge.support.healthConnect.available
-      &&!card.querySelector(
-        '[data-wearable-action="connect-health-connect"]',
-      )
-    ){
-      const button=document.createElement(
-        'button',
-      );
-
+    const nativeLabels={apple_health:'Conectar Apple Watch',health_connect:'Autorizar Health Connect',samsung_health:'Conectar Samsung Health',wear_os_health_services:'Conectar reloj Wear OS',ble_direct:'Conectar sensor Bluetooth'};
+    for(const provider of bridge.nativeProviders){
+      const healthConnectAvailable=provider==='health_connect'
+        ?bridge.support.healthConnect.available
+        :bridge.isAvailable(provider);
+      if(!healthConnectAvailable)continue;
+      const card=root.querySelector?.(`[data-provider="${provider}"]`);
+      const action=provider==='health_connect'
+        ?'connect-health-connect'
+        :'connect-native-provider';
+      if(!card||card.querySelector(`[data-wearable-action="${action}"]`))continue;
+      const button=document.createElement('button');
       button.type='button';
-      button.className=
-        'm26-primary-action m26-wearable-native-action';
-      button.dataset.wearableAction=
-        'connect-health-connect';
-      button.textContent=
-        'Autorizar Health Connect';
-
+      button.className='m26-primary-action m26-wearable-native-action';
+      button.dataset.wearableAction=action;
+      button.dataset.provider=provider;
+      button.textContent=nativeLabels[provider]||'Conectar dispositivo';
       card.append(button);
     }
   }
@@ -935,6 +897,8 @@ export function createWearableController({
         await syncPending();
       }else if(action==='connect-health-connect'){
         await connectHealthConnect();
+      }else if(action==='connect-native-provider'){
+        await connectNativeProvider(button.dataset.provider);
       }else if(action==='delete-all'){
         await deleteAll();
       }
@@ -998,6 +962,7 @@ export function createWearableController({
 
       enhanceControls();
       mounted=true;
+      void autoSyncNativeProviders();
 
       if(isOnline()){
         void remoteSync.flush().catch(
@@ -1041,6 +1006,9 @@ export function createWearableController({
     clearPreview,
     confirmImport,
     syncPending,
+    connectHealthConnect,
+    connectNativeProvider,
+    autoSyncNativeProviders,
     getPreview:()=>currentPreview,
   });
 }

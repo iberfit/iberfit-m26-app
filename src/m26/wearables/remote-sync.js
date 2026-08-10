@@ -8,6 +8,8 @@ const PROVIDERS=new Set([
   'health_connect',
   'samsung_health',
   'apple_health',
+  'wear_os_health_services',
+  'ble_direct',
   'strava',
   'garmin_connect',
   'fitbit',
@@ -232,8 +234,12 @@ export function createWearableRemoteSync({
           metadata:{
             mode:groupProvider==='normalized_file'
               ?'confirmed_import'
-              :'native_bridge',
-            zeroCost:true,
+              :groupProvider==='ble_direct'
+                ?'direct_ble'
+                :groupProvider==='wear_os_health_services'
+                  ?'watch_native'
+                  :'native_bridge',
+            automatic:true,
           },
         },
       );

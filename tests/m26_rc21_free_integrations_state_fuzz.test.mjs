@@ -10,14 +10,14 @@ import {renderActivityRoute} from '../src/m26/modules/route-render.js';
 const clientId='57339e70-7a99-48d6-820f-7d4a51f89d9d';
 
 test('RC21 aplica política de coste cero sin borrar arquitectura futura',()=>{
-  assert.equal(Object.keys(ZERO_COST_POLICY).length,8);
+  assert.equal(Object.keys(ZERO_COST_POLICY).length,10);
   assert.equal(wearableZeroCostPolicy('samsung_health').productionAllowed,false);
   assert.equal(wearableZeroCostPolicy('strava').productionAllowed,false);
   assert.equal(wearableZeroCostPolicy('normalized_file').productionAllowed,true);
   assert.equal(wearableZeroCostPolicy('health_connect').developmentAllowed,true);
-  assert.equal(wearableZeroCostPolicy('apple_health').developmentAllowed,false);
+  assert.equal(wearableZeroCostPolicy('apple_health').developmentAllowed,true);
   assert.equal(wearableZeroCostPolicy('garmin_connect').developmentAllowed,false);
-  assert.throws(()=>assertZeroCostDevelopmentAllowed('apple_health'),/M26_ZERO_COST_POLICY_BLOCKED/);
+  assert.equal(assertZeroCostDevelopmentAllowed('apple_health').definition.key,'apple_health');
   assert.equal(assertZeroCostDevelopmentAllowed('health_connect').definition.key,'health_connect');
 });
 
@@ -49,7 +49,7 @@ test('RC21 máquina de estados acepta únicamente transiciones explícitas',()=>
 test('RC21 proveedores bloqueados no pueden aparecer conectados por estado heredado',()=>{
   const apple=createWearableConnectionState({provider:'apple_health',state:'connected',grantedScopes:['steps']});
   const garmin=createWearableConnectionState({provider:'garmin_connect',state:'syncing',grantedScopes:['steps']});
-  assert.equal(apple.state,'unavailable');
+  assert.equal(apple.state,'connected');
   assert.equal(garmin.state,'unavailable');
 });
 
@@ -84,7 +84,7 @@ test('RC21 fuzz de estados no genera estados desconocidos ni salta controles',()
       const target=candidates[Math.floor(random()*candidates.length)];
       try{state=transitionWearableConnection(state,target,{grantedScopes:['steps'],errorCode:'M26_NETWORK_UNAVAILABLE'});}catch(error){assert.match(String(error.message),/^M26_/);}
       assert.ok(WEARABLE_CONNECTION_STATES.includes(state.state));
-      if(['apple_health','garmin_connect'].includes(provider))assert.ok(['unavailable','error'].includes(state.state));
+      if(provider==='garmin_connect')assert.ok(['unavailable','error'].includes(state.state));
     }
   }
 });
