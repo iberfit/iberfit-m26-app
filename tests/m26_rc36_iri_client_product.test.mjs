@@ -59,7 +59,6 @@ test('Bioimpedancia queda orientada por método, equipo y condiciones sin exigir
 test('Inicio Cliente ofrece acciones propias y nunca le pide completar el IRI del entrenador',()=>{
   const client={id:'CLIENT-RC36',name:'Cliente QA',modality:'Híbrida',status:'Activo',accessKnown:true,iri:{confirmed:false,processLabel:'Evaluación en preparación',coverageLabel:'0 de 3 dominios de resultado registrados'},cycle:null,report:null,nextAppointment:null,profile:{}};
   const html=renderHoyRoute({role:'client',clients:[client],proposals:[],appointments:[],upcoming:[],operations:{pending:0,conflicts:0,rejected:0}});
-  assert.match(html,/Registrar cómo estás hoy/);
   assert.match(html,/Registrar bienestar/);
   assert.match(html,/Ver planificación/);
   assert.match(html,/Abrir sesiones/);

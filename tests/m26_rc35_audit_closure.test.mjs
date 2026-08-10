@@ -9,6 +9,7 @@ import {renderActivityRoute,renderClientsRoute,renderExpedienteRoute,renderHoyRo
 import {createExerciseSearchIndex} from '../src/m26/exercises/search.js';
 import {createSessionController} from '../src/m26/workflows/session-controller.js';
 import {generateSessionProposal} from '../src/m26/intelligence/session-engine.js';
+import {deriveClientExperience,experienceNextAction} from '../src/m26/experience/client-experience.js';
 
 const read=(path)=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
@@ -170,9 +171,15 @@ test('Biblioteca conserva los 367 IDs y expone filtros operativos',()=>{
 
 
 test('Hoy prioriza una acción real y Clientes muestra filtros, estado IRI y acceso explícito',()=>{
-  const client={id:'c1',name:'Cliente QA',modality:'Híbrida',status:'Estado no informado',access:'Sin acceso',accessKnown:false,iri:{coverageCount:1,status:'En progreso',confirmed:false},cycle:null,nextAppointment:null,profile:{primaryObjective:'Mejorar fuerza',weeklyFrequency:2}};
+  const baseClient={id:'c1',name:'Cliente QA',modality:'Híbrida',status:'Estado no informado',access:'Sin acceso',accessKnown:false,iri:{coverageCount:1,status:'En progreso',confirmed:false},cycle:null,nextAppointment:null,profile:{primaryObjective:'Mejorar fuerza',weeklyFrequency:2}};
+  const experience=deriveClientExperience(baseClient);
+  const client={
+    ...baseClient,
+    experience,
+    nextAction:experienceNextAction(experience,{role:'coach'}),
+  };
   const hoy=renderHoyRoute({role:'coach',clients:[client],proposals:[],appointments:[],upcoming:[],operations:{pending:0,conflicts:0,rejected:0}});
-  assert.match(hoy,/Siguiente acción/);assert.match(hoy,/Abrir diagnóstico IRI/);assert.match(hoy,/Sin cita programada/);
+  assert.match(hoy,/Siguiente acción/);assert.match(hoy,/Continuar diagnóstico IRI/);assert.match(hoy,/Sin cita programada/);
   assert.doesNotMatch(hoy,/>Conflictos<|>Sin bloqueos</);
   const clientes=renderClientsRoute({clients:[client],selectedClientId:'c1',canCreate:false});
   assert.match(clientes,/data-client-filter="iri"/);assert.match(clientes,/data-client-filter="modality"/);assert.match(clientes,/data-client-sort/);
