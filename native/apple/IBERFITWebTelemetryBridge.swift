@@ -1,3 +1,4 @@
+#if canImport(WebKit) && os(iOS)
 import Foundation
 import WebKit
 
@@ -40,3 +41,4 @@ final class IBERFITWebTelemetryCommandHandler: NSObject, WKScriptMessageHandler 
         onCommand?(action, body)
     }
 }
+#endif

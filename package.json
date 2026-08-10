@@ -229,6 +229,9 @@
     "test:m26:rc52": "node --test tests/m26_rc52_live_wearable_experience.test.mjs",
     "validate:rc52:local": "npm run validate:rc51:local && npm run test:m26:rc52",
     "test:m26:rc53": "node --test tests/m26_rc53_native_device_bridges.test.mjs",
-    "validate:rc53:local": "npm run validate:rc52:local && npm run test:m26:rc53"
+    "validate:rc53:local": "npm run validate:rc52:local && npm run test:m26:rc53",
+    "test:m26:rc54": "node --test tests/m26_rc54_native_build_harness.test.mjs",
+    "verify:native:rc54": "node scripts/verify_rc54_native_build_harness.mjs",
+    "validate:rc54:local": "npm run validate:rc53:local && npm run verify:native:rc54 && npm run test:m26:rc54"
   }
 }

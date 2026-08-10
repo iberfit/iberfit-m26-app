@@ -1,3 +1,4 @@
+#if canImport(HealthKit) && os(watchOS)
 import Foundation
 import HealthKit
 
@@ -109,3 +110,4 @@ final class IBERFITWatchHealthKitTelemetry: NSObject, HKWorkoutSessionDelegate, 
         didFailWithError error: Error
     ) {}
 }
+#endif
