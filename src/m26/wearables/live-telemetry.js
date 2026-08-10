@@ -1,4 +1,5 @@
 import {normalizeWearableProvider,wearableProviderDefinition} from './contracts.js';
+import {createNativeTelemetryBridge} from './native-transport.js';
 
 export const LIVE_TELEMETRY_PROVIDERS=Object.freeze([
   'apple_health',
@@ -150,7 +151,8 @@ export function liveTelemetrySummary(execution){
 
 function bridgeFor(scope){
   const bridge=scope?.IBERFIT_LIVE_TELEMETRY_BRIDGE;
-  return bridge&&typeof bridge==='object'?bridge:null;
+  if(bridge&&typeof bridge==='object')return bridge;
+  return createNativeTelemetryBridge({scope});
 }
 
 export function createLiveTelemetryController({
@@ -184,12 +186,13 @@ export function createLiveTelemetryController({
         clientId:execution.clientId,
         metrics:['heartRateBpm','rrIntervalsMs'],
       });
-      const provider=safeProvider(startResult?.provider||bridge.provider);
-      if(!provider)throw new Error('M26_LIVE_TELEMETRY_PROVIDER_UNSUPPORTED');
+      const declaredProvider=startResult?.provider||bridge.provider||null;
+      const provider=safeProvider(declaredProvider);
+      if(declaredProvider&&!provider)throw new Error('M26_LIVE_TELEMETRY_PROVIDER_UNSUPPORTED');
       setState(execution,{
         status:'connecting',
-        provider,
-        providerLabel:wearableProviderDefinition(provider)?.label||provider,
+        provider:provider||null,
+        providerLabel:provider?wearableProviderDefinition(provider)?.label||provider:'Dispositivo nativo',
         errorCode:null,
       });
       const subscription=bridge.subscribe((sample)=>{

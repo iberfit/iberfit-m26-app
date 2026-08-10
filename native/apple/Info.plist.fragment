@@ -1,0 +1,7 @@
+<!-- Merge these keys into the real iOS/watchOS target Info.plist. -->
+<key>NSHealthShareUsageDescription</key>
+<string>IBERFIT utiliza tus datos de salud autorizados para contextualizar tu entrenamiento.</string>
+<key>NSHealthUpdateUsageDescription</key>
+<string>IBERFIT puede guardar entrenamientos cuando tú lo autorizas.</string>
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>IBERFIT utiliza Bluetooth para conectar sensores deportivos compatibles.</string>

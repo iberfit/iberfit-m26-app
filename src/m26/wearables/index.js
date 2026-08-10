@@ -7,3 +7,4 @@ export * from './free-policy.js';
 export * from './connection-state.js';
 export * from './device-layer.js';
 export * from './live-telemetry.js';
+export * from './native-transport.js';
