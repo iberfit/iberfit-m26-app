@@ -29,6 +29,8 @@ import {
   deriveClientExperience,
   experienceNextAction,
 } from '../experience/client-experience.js';
+import { buildAdaptiveSessionContext } from '../intelligence/adaptive-context.js';
+import { deriveAdaptiveExperience } from '../experience/adaptive-experience.js';
 import { buildWearableViewModel } from '../wearables/view-model.js';
 import {
   IBERFIT_UI_LOCALE,
@@ -199,7 +201,7 @@ function mergeProfileFallback(primary = {}, fallback = {}) {
   return out;
 }
 
-function compactSummary(summary, role = 'coach') {
+function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={}) {
   const client = summary.client || {};
   const profile = normalizeClientProfile(
     mergeProfileFallback(summary.profile || {}, profileFromIri(summary.iri)),
@@ -211,10 +213,20 @@ function compactSummary(summary, role = 'coach') {
     profile,
   });
 
-  const nextAction = experienceNextAction(
+  const structuralNextAction = experienceNextAction(
     experience,
     { role }
   );
+  const adaptiveContext=state&&client.id
+    ?buildAdaptiveSessionContext(state,client.id,{now})
+    :null;
+  const adaptiveExperience=deriveAdaptiveExperience({
+    experience,
+    baseAction:structuralNextAction,
+    adaptiveContext,
+    role,
+  });
+  const nextAction=adaptiveExperience.action;
 
   return {
     id: client.id,
@@ -250,6 +262,7 @@ function compactSummary(summary, role = 'coach') {
     counts: clone(summary.counts),
     profile,
     experience,
+    adaptiveExperience,
     nextAction,
   };
 }
@@ -317,7 +330,8 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     const clients=overview.summaries.map(
       (summary)=>compactSummary(
         summary,
-        overview.role
+        overview.role,
+        {state,now}
       )
     );
 
@@ -356,7 +370,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
       kind: 'clientes',
       role,
       canCreate: ['admin', 'coach'].includes(role),
-      clients: Object.freeze(clientsOverview(state, now).map((summary) => compactSummary(summary, role))),
+      clients: Object.freeze(clientsOverview(state, now).map((summary) => compactSummary(summary, role, {state,now}))),
       selectedClientId: state.selectedClientId || null,
     });
   }
@@ -372,7 +386,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
 
     return Object.freeze({
       kind: 'expediente',
-      summary: summary ? compactSummary(summary, shellVm.identity?.role) : null,
+      summary: summary ? compactSummary(summary, shellVm.identity?.role, {state,now}) : null,
       progress,
       alerts: Object.freeze(alerts),
       alertSignal: Object.freeze(adherenceSignal(alerts)),
@@ -494,7 +508,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
       kind: 'agenda',
       role: shellVm.identity?.role,
       appointments: Object.freeze(appointments),
-      clients: Object.freeze(clientsOverview(state, now).map((summary) => compactSummary(summary, role))),
+      clients: Object.freeze(clientsOverview(state, now).map((summary) => compactSummary(summary, role, {state,now}))),
       selectedClientId: state.selectedClientId || null,
     });
   }

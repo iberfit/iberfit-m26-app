@@ -15,7 +15,9 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
     const assignments=arr(client?.assignments);
     const assigned=assignments.length>0;
     const nextAction=client?.nextAction||{};
-    const kind=!assigned?'critical':stageKind(stage);
+    const adaptive=client?.adaptiveExperience||{};
+    const adaptiveKind=['critical','warning'].includes(text(adaptive.kind).toLowerCase())?text(adaptive.kind).toLowerCase():null;
+    const kind=!assigned?'critical':adaptiveKind||stageKind(stage);
     return Object.freeze({
       clientId:text(client?.id),
       clientName:text(client?.name,'Cliente'),
@@ -25,6 +27,7 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
       assigned,
       coachNames:Object.freeze(arr(client?.coachNames).map((x)=>text(x)).filter(Boolean)),
       kind,
+      adaptiveReview:adaptive.coachReviewRequired===true,
       action:Object.freeze(!assigned
         ?{area:'admin-equipo',label:'Asignar coach',reason:'El cliente no tiene un Coach activo asignado.'}
         :{area:text(nextAction.area,'admin-clientes'),label:text(nextAction.label,'Revisar cliente'),reason:text(nextAction.reason,stageLabel(stage))}),

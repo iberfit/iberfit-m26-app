@@ -235,7 +235,7 @@ export function renderHoyRoute(vm) {
     ? client?.nextAction
       ? {
           area: client.nextAction.area,
-          title: client.experience?.stageLabel || 'Tu siguiente paso',
+          title: client.adaptiveExperience?.label || client.experience?.stageLabel || 'Tu siguiente paso',
           copy: client.nextAction.reason || 'Continúa con tu recorrido IBERFIT.',
           label: client.nextAction.label,
         }

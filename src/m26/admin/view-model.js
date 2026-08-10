@@ -2,6 +2,8 @@ import {adminCan,ADMIN_CAPABILITIES,routeAllowedForAdmin} from './permission-pol
 import {adminCollection} from './admin-state.js';
 import {clientsOverview} from '../modules/domain-selectors.js';
 import {deriveClientExperience,experienceNextAction} from '../experience/client-experience.js';
+import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
+import {deriveAdaptiveExperience} from '../experience/adaptive-experience.js';
 import {deriveAdminCommandCenter} from './command-center.js';
 const clone=(v)=>v==null?v:structuredClone(v);
 function clientRows(state){
@@ -19,7 +21,13 @@ function clientRows(state){
     const id=String(x.id||'');
     const summary=summaries.get(id)||{client:x};
     const experience=deriveClientExperience(summary);
-    const nextAction=experienceNextAction(experience,{role:'admin'});
+    const structuralNextAction=experienceNextAction(experience,{role:'admin'});
+    const rawNow=state?.hydration?.serverTime;
+    const parsedNow=rawNow?new Date(rawNow):new Date();
+    const now=!Number.isNaN(parsedNow.getTime())?parsedNow:new Date();
+    const adaptiveContext=buildAdaptiveSessionContext(state,id,{now});
+    const adaptiveExperience=deriveAdaptiveExperience({experience,baseAction:structuralNextAction,adaptiveContext,role:'admin'});
+    const nextAction=adaptiveExperience.action;
     const activeAssignments=Object.freeze(clone(assignments.get(id)||[]));
     const coachNames=Object.freeze(activeAssignments.map((assignment)=>{
       const coach=coaches.get(String(assignment.coachUserId||''));
@@ -35,6 +43,7 @@ function clientRows(state){
       coachNames,
       primaryCoachName:coachNames[0]||null,
       experience,
+      adaptiveExperience,
       nextAction,
     });
   }));

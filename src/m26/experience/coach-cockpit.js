@@ -47,6 +47,9 @@ function itemFromEntry(entry={}){
     null;
 
   const experience=client.experience||{};
+  const adaptive=client.adaptiveExperience||{};
+  const adaptiveKind=['critical','warning'].includes(txt(adaptive.kind).toLowerCase())?txt(adaptive.kind).toLowerCase():null;
+  const adaptiveRisk=adaptive.coachReviewRequired===true&&adaptiveKind?adaptive:null;
   const stage=txt(experience.stage,'active');
   const stageLabel=txt(
     experience.stageLabel,
@@ -61,7 +64,13 @@ function itemFromEntry(entry={}){
   let guidance='Mantener el seguimiento previsto.';
   let source='experience-core';
 
-  if(risk){
+  if(adaptiveRisk){
+    kind=adaptiveKind;
+    reason=txt(adaptiveRisk.label,'Revisión necesaria');
+    detail=txt(adaptiveRisk.reason,'El contexto adaptativo requiere revisión.');
+    guidance=`Siguiente paso: ${txt(adaptiveRisk.action?.label,'Revisar expediente')}.`;
+    source='adaptive-experience';
+  }else if(risk){
     kind=risk.severity;
     reason=txt(risk.title,'Revisión necesaria');
     detail=txt(

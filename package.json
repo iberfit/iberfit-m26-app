@@ -221,6 +221,8 @@
     "test:m26:rc48": "node --test tests/m26_rc48_session_experience.test.mjs",
     "validate:rc48:local": "npm run validate:rc47:local && npm run test:m26:rc48",
     "test:m26:rc49": "node --test tests/m26_rc49_coach_copilot.test.mjs",
-    "validate:rc49:local": "npm run validate:rc48:local && npm run test:m26:rc49"
+    "validate:rc49:local": "npm run validate:rc48:local && npm run test:m26:rc49",
+    "test:m26:rc50": "node --test tests/m26_rc50_adaptive_experience.test.mjs",
+    "validate:rc50:local": "npm run validate:rc49:local && npm run test:m26:rc50"
   }
 }
