@@ -1,0 +1,67 @@
+{
+  "release": "IBERFIT_M26_RC56",
+  "status": "PASS",
+  "scope": "android_wear_os",
+  "baseCommit": "9d93330d23a6029bc742676bd5e5463f1e8360a3",
+  "hardwareValidatedAtUtc": "2026-08-11T23:14:24.749701Z",
+  "sourceGuards": {
+    "native/android/wear/IBERFITWearHealthServicesBridge.kt": "eaa4c1d2945d19d505351352672e1a3b54cf6a4c",
+    "native/android/runtime/IBERFITWearDataLayerRuntime.kt": "5c5ac124bc65253cdc62e4c66649e20fbc3288fa"
+  },
+  "devices": {
+    "watch": {
+      "model": "SM-R860",
+      "displayName": "Galaxy Watch4 (SLFR)",
+      "android": "16",
+      "sdk": 36
+    },
+    "phone": {
+      "model": "SM-J600G",
+      "displayName": "Galaxy J6"
+    }
+  },
+  "rc56_2": {
+    "status": "PASS",
+    "test": "Galaxy Watch 4 Health Services real sensor",
+    "provider": "wear_os_health_services",
+    "permission": "android.permission.health.READ_HEART_RATE",
+    "heartRateCapability": true,
+    "exerciseClient": true,
+    "exerciseType": "STRENGTH_TRAINING",
+    "realSensor": true,
+    "heartRateBpm": 91,
+    "terminal": "PASS"
+  },
+  "rc56_3": {
+    "status": "PASS",
+    "test": "Wear DataLayer end-to-end",
+    "executionId": "rc563-1786490011551",
+    "watchConnectedNodeCount": 1,
+    "phoneConnectedNodeCount": 1,
+    "phoneToWearStartCommand": true,
+    "realSensor": true,
+    "heartRateBpm": 87,
+    "provider": "wear_os_health_services",
+    "wearToPhoneSample": true,
+    "phoneReceivedSameSample": true,
+    "phoneToWearStopCommand": true,
+    "executionCorrelation": true,
+    "watchTerminal": "PASS",
+    "phoneTerminal": "PASS"
+  },
+  "closure": {
+    "androidWearOsHardwareTested": true,
+    "deviceHardwareTested": true,
+    "deviceHardwareTestedScope": "ANDROID_WEAR_OS",
+    "appleXcodeBuildRun": false,
+    "appleDeviceHardwareTested": false,
+    "iosHardwareClaimed": false,
+    "automaticTrainingAdjustment": false
+  },
+  "safety": {
+    "productionTouched": false,
+    "supabaseTouched": false,
+    "canaryRemoteTouched": false,
+    "probeRepositoryModified": false
+  }
+}
