@@ -235,6 +235,9 @@
     "validate:rc54:local": "npm run validate:rc53:local && npm run verify:native:rc54 && npm run test:m26:rc54",
     "test:m26:rc55": "node --test tests/m26_rc55_device_app_runtime.test.mjs",
     "verify:native:rc55": "node scripts/verify_rc55_device_app_runtime.mjs",
-    "validate:rc55:local": "npm run validate:rc54:local && npm run verify:native:rc55 && npm run test:m26:rc55"
+    "validate:rc55:local": "npm run validate:rc54:local && npm run verify:native:rc55 && npm run test:m26:rc55",
+    "test:m26:rc56": "node --test tests/m26_rc56_native_compile_readiness.test.mjs",
+    "verify:native:rc56": "node scripts/verify_rc56_native_compile_readiness.mjs",
+    "validate:rc56:local": "npm run validate:rc55:local && npm run verify:native:rc56 && npm run test:m26:rc56"
   }
 }
