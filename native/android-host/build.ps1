@@ -31,9 +31,10 @@ if(-not $toolchain.Sdk.BuildTools36){
 
 $gradleExe = $null
 if($toolchain.Gradle.Found){
-  $versionText = (& $toolchain.Gradle.Path --version 2>&1 | Out-String)
+  $versionCapture = Invoke-IberfitNativeCapture -FilePath $toolchain.Gradle.Path -ArgumentList @("--version")
+  $versionText = $versionCapture.Combined
   $versionMatch = [regex]::Match($versionText, 'Gradle\s+(?<v>\d+\.\d+(?:\.\d+)?)')
-  if($versionMatch.Success){
+  if($versionCapture.ExitCode -eq 0 -and $versionMatch.Success){
     try {
       $foundVersion = [version]$versionMatch.Groups["v"].Value
       if($foundVersion -ge [version]"9.5.0"){
@@ -83,8 +84,10 @@ try {
   $env:ANDROID_SDK_ROOT=$toolchain.Sdk.Root
   $env:ANDROID_HOME=$toolchain.Sdk.Root
 
-  & $gradleExe --no-daemon :iberfit-native:compileDebugKotlin
-  if($LASTEXITCODE -ne 0){ exit $LASTEXITCODE }
+  $compileResult = Invoke-IberfitNativeCapture -FilePath $gradleExe -ArgumentList @("--no-daemon",":iberfit-native:compileDebugKotlin")
+  if($compileResult.StdOut){ Write-Host $compileResult.StdOut.TrimEnd() }
+  if($compileResult.StdErr){ Write-Host $compileResult.StdErr.TrimEnd() }
+  if($compileResult.ExitCode -ne 0){ exit $compileResult.ExitCode }
   Write-Host "ANDROID_COMPILE_RUN=TRUE"
 } finally {
   $env:JAVA_HOME=$oldJavaHome

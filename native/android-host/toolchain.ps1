@@ -5,6 +5,76 @@ function ConvertTo-IberfitBool([bool]$Value) {
   return "FALSE"
 }
 
+function ConvertTo-IberfitCmdArg([string]$Value) {
+  if($null -eq $Value){ return '""' }
+  if($Value -notmatch '[\s"&|<>^]'){ return $Value }
+  return '"' + $Value.Replace('"','""') + '"'
+}
+
+function Invoke-IberfitNativeCapture {
+  param(
+    [Parameter(Mandatory=$true)][string]$FilePath,
+    [string[]]$ArgumentList = @()
+  )
+
+  $id = [guid]::NewGuid().ToString("N")
+  $cmdFile = Join-Path $env:TEMP ("iberfit-native-" + $id + ".cmd")
+
+  try {
+    $argsText = (($ArgumentList | ForEach-Object { ConvertTo-IberfitCmdArg ([string]$_) }) -join " ")
+    $extension = [IO.Path]::GetExtension($FilePath).ToLowerInvariant()
+
+    if($extension -eq ".bat" -or $extension -eq ".cmd"){
+      $invoke = 'call "' + $FilePath + '"'
+    } else {
+      $invoke = '"' + $FilePath + '"'
+    }
+    if($argsText){ $invoke += " " + $argsText }
+
+    $cmdLines = New-Object System.Collections.Generic.List[string]
+    $cmdLines.Add("@echo off")
+    $cmdLines.Add($invoke)
+    $cmdLines.Add("exit /b %errorlevel%")
+    [IO.File]::WriteAllLines($cmdFile, $cmdLines.ToArray(), [Text.Encoding]::Default)
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $env:ComSpec
+    $psi.Arguments = ('/d /c ""' + $cmdFile + '""')
+    $psi.WorkingDirectory = (Get-Location).Path
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $psi
+
+    try {
+      if(-not $process.Start()){
+        throw "NATIVE_PROCESS_START_FAILED"
+      }
+
+      $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+      $stderrTask = $process.StandardError.ReadToEndAsync()
+      $process.WaitForExit()
+
+      $stdout = $stdoutTask.Result
+      $stderr = $stderrTask.Result
+
+      return [pscustomobject]@{
+        ExitCode = [int]$process.ExitCode
+        StdOut = $stdout
+        StdErr = $stderr
+        Combined = (($stdout + "`n" + $stderr).Trim())
+      }
+    } finally {
+      $process.Dispose()
+    }
+  } finally {
+    Remove-Item $cmdFile -Force -ErrorAction SilentlyContinue
+  }
+}
+
 function Get-IberfitJavaInfo {
   $candidates = New-Object System.Collections.Generic.List[string]
 
@@ -26,7 +96,9 @@ function Get-IberfitJavaInfo {
 
   foreach($candidate in ($candidates | Select-Object -Unique)){
     if(-not $candidate -or -not (Test-Path $candidate)){ continue }
-    $text = (& $candidate -version 2>&1 | Out-String)
+    $javaResult = Invoke-IberfitNativeCapture -FilePath $candidate -ArgumentList @("-version")
+    if($javaResult.ExitCode -ne 0){ continue }
+    $text = $javaResult.Combined
     $match = [regex]::Match($text, 'version\s+"(?<major>\d+)(?:\.(?<minor>\d+))?')
     $major = 0
     if($match.Success){

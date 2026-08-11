@@ -11,28 +11,38 @@ $wearDetected = $false
 $deviceSummaries = @()
 
 if($toolchain.Sdk.AdbFound){
-  $lines = @(& $toolchain.Sdk.AdbPath devices -l 2>$null)
-  $connected = @($lines | Select-Object -Skip 1 | Where-Object { $_ -match '\sdevice(\s|$)' })
-  $deviceCount = $connected.Count
+  # Canonical RC56 command contract: $toolchain.Sdk.AdbPath devices -l
+  $adbDevices = Invoke-IberfitNativeCapture -FilePath $toolchain.Sdk.AdbPath -ArgumentList @("devices","-l")
 
-  $index = 0
-  foreach($line in $connected){
-    $index++
-    $serial = (($line -split '\s+')[0]).Trim()
-    if($serial -notmatch '^emulator-'){ $hardwareCount++ }
+  if($adbDevices.ExitCode -eq 0){
+    $lines = @($adbDevices.StdOut -split "`r?`n")
+    $connected = @($lines | Where-Object { $_ -match '^\S+\s+device(?:\s|$)' })
+    $deviceCount = $connected.Count
 
-    $characteristics = (& $toolchain.Sdk.AdbPath -s $serial shell getprop ro.build.characteristics 2>$null | Out-String).Trim()
-    $model = (& $toolchain.Sdk.AdbPath -s $serial shell getprop ro.product.model 2>$null | Out-String).Trim()
-    $release = (& $toolchain.Sdk.AdbPath -s $serial shell getprop ro.build.version.release 2>$null | Out-String).Trim()
-    if($characteristics -match 'watch'){ $wearDetected = $true }
+    $index = 0
+    foreach($line in $connected){
+      $index++
+      $serial = (($line -split '\s+')[0]).Trim()
+      if($serial -notmatch '^emulator-'){ $hardwareCount++ }
 
-    $deviceSummaries += [pscustomobject]@{
-      Index = $index
-      Model = $model
-      Android = $release
-      Characteristics = $characteristics
-      IsHardware = [bool]($serial -notmatch '^emulator-')
-      IsWatch = [bool]($characteristics -match 'watch')
+      $characteristicsResult = Invoke-IberfitNativeCapture -FilePath $toolchain.Sdk.AdbPath -ArgumentList @("-s",$serial,"shell","getprop","ro.build.characteristics")
+      $modelResult = Invoke-IberfitNativeCapture -FilePath $toolchain.Sdk.AdbPath -ArgumentList @("-s",$serial,"shell","getprop","ro.product.model")
+      $releaseResult = Invoke-IberfitNativeCapture -FilePath $toolchain.Sdk.AdbPath -ArgumentList @("-s",$serial,"shell","getprop","ro.build.version.release")
+
+      $characteristics = if($characteristicsResult.ExitCode -eq 0){ $characteristicsResult.StdOut.Trim() }else{ "" }
+      $model = if($modelResult.ExitCode -eq 0){ $modelResult.StdOut.Trim() }else{ "" }
+      $release = if($releaseResult.ExitCode -eq 0){ $releaseResult.StdOut.Trim() }else{ "" }
+
+      if($characteristics -match 'watch'){ $wearDetected = $true }
+
+      $deviceSummaries += [pscustomobject]@{
+        Index = $index
+        Model = $model
+        Android = $release
+        Characteristics = $characteristics
+        IsHardware = [bool]($serial -notmatch '^emulator-')
+        IsWatch = [bool]($characteristics -match 'watch')
+      }
     }
   }
 }
