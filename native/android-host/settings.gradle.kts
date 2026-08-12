@@ -14,3 +14,5 @@ dependencyResolutionManagement {
 }
 rootProject.name = "IBERFITNativeHost"
 include(":iberfit-native")
+include(":phone-app")
+include(":wear-app")
