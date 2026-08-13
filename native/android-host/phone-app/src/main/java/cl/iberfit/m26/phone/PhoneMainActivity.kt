@@ -2,7 +2,6 @@ package cl.iberfit.m26.phone
 
 import android.app.Activity
 import android.os.Bundle
-import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -26,6 +25,14 @@ class PhoneMainActivity : Activity() {
             text = "Iniciar en reloj"
             setOnClickListener { sendCommand("start") }
         }
+        val pause = Button(this).apply {
+            text = "Pausar en reloj"
+            setOnClickListener { sendCommand("pause") }
+        }
+        val resume = Button(this).apply {
+            text = "Reanudar en reloj"
+            setOnClickListener { sendCommand("resume") }
+        }
         val stop = Button(this).apply {
             text = "Detener en reloj"
             setOnClickListener { sendCommand("stop") }
@@ -36,6 +43,8 @@ class PhoneMainActivity : Activity() {
             setPadding(32, 48, 32, 32)
             addView(status)
             addView(start)
+            addView(pause)
+            addView(resume)
             addView(stop)
         }
         setContentView(root)
@@ -45,7 +54,8 @@ class PhoneMainActivity : Activity() {
             onSample = { sample -> showSample(sample) },
             onCommand = { action, payload ->
                 runOnUiThread {
-                    status.text = "Comando recibido: $action Â· ${payload.optString("executionId")}"
+                    status.text =
+                        "Comando recibido: $action Â· ${payload.optString("executionId")}"
                 }
             }
         )
@@ -71,7 +81,9 @@ class PhoneMainActivity : Activity() {
         runOnUiThread {
             val bpm = sample.optDouble("heartRateBpm", Double.NaN)
             val provider = sample.optString("provider")
-            status.text = "FC recibida: $bpm bpm Â· $provider"
+            val sampleExecutionId = sample.optString("executionId")
+            status.text =
+                "FC recibida: $bpm bpm Â· $provider Â· ${sampleExecutionId.ifBlank { "sin executionId" }}"
         }
     }
 
