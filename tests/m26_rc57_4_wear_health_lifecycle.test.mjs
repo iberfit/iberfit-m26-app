@@ -8,6 +8,12 @@ const wear = () =>
     "utf8"
   );
 
+const provider = () =>
+  fs.readFileSync(
+    "native/android/wear/IBERFITWearHealthServicesBridge.kt",
+    "utf8"
+  );
+
 const phone = () =>
   fs.readFileSync(
     "native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/PhoneMainActivity.kt",
@@ -23,7 +29,7 @@ test("RC57.4 solicita permiso de frecuencia cardiaca segÃºn API", () => {
 });
 
 test("RC57.4 registra ExerciseUpdateCallback antes del ejercicio", () => {
-  const source = wear();
+  const source = provider();
   assert.match(source, /ExerciseUpdateCallback/);
   assert.match(source, /setUpdateCallback\(exerciseCallback\)/);
   assert.match(source, /onRegistered\(\)/);
@@ -31,7 +37,7 @@ test("RC57.4 registra ExerciseUpdateCallback antes del ejercicio", () => {
 });
 
 test("RC57.4 valida capacidades WORKOUT y HEART_RATE_BPM", () => {
-  const source = wear();
+  const source = provider();
   assert.match(source, /getCapabilitiesAsync\(\)/);
   assert.match(source, /ExerciseType\.WORKOUT/);
   assert.match(source, /supportedDataTypes/);
@@ -39,7 +45,7 @@ test("RC57.4 valida capacidades WORKOUT y HEART_RATE_BPM", () => {
 });
 
 test("RC57.4 implementa start pause resume stop de ExerciseClient", () => {
-  const source = wear();
+  const source = provider();
   assert.match(source, /startExerciseAsync\(config\)/);
   assert.match(source, /pauseExerciseAsync\(\)/);
   assert.match(source, /resumeExerciseAsync\(\)/);
@@ -47,12 +53,17 @@ test("RC57.4 implementa start pause resume stop de ExerciseClient", () => {
 });
 
 test("RC57.4 emite frecuencia cardiaca Health Services real por DataLayer", () => {
-  const source = wear();
-  assert.match(source, /latestMetrics\.getData\(DataType\.HEART_RATE_BPM\)/);
-  assert.match(source, /validateHeartRate\(point\.value\)/);
-  assert.match(source, /wear_os_health_services/);
-  assert.match(source, /dataLayer\.sendSample\(sample\)/);
-  assert.doesNotMatch(source, /synthetic/i);
+  assert.match(
+    provider(),
+    /latestMetrics\.getData\(DataType\.HEART_RATE_BPM\)/
+  );
+  assert.match(provider(), /IBERFITHeartRateSample\(/);
+  assert.match(provider(), /wear_os_health_services/);
+  assert.match(
+    wear(),
+    /dataLayer\.sendSample\(sample\.toDataLayerJson\(\)\)/
+  );
+  assert.doesNotMatch(`${provider()}\n${wear()}`, /synthetic/i);
 });
 
 test("RC57.4 conserva executionId extremo a extremo", () => {
