@@ -22,6 +22,11 @@ const command = () =>
     "native/android-host/wear-app/src/main/java/cl/iberfit/m26/wear/IBERFITWearCommandListenerService.kt"
   );
 
+const provider = () =>
+  read(
+    "native/android/wear/IBERFITWearHealthServicesBridge.kt"
+  );
+
 test("RC57.6F-A declara un foreground service de salud", () => {
   const source = manifest();
 
@@ -262,6 +267,35 @@ test("RC57.6F-A expone observabilidad de provider y DataLayer", () => {
   assert.match(
     listener,
     /DATALAYER_COMMAND_DISPATCH/
+  );
+});
+
+test("RC57.6F-A observa disponibilidad y updates internos de Health Services", () => {
+  const source = provider();
+
+  assert.match(
+    source,
+    /CALLBACK_REGISTERED/
+  );
+
+  assert.match(
+    source,
+    /EXERCISE_UPDATE state=/
+  );
+
+  assert.match(
+    source,
+    /HEART_RATE_POINTS count=/
+  );
+
+  assert.match(
+    source,
+    /HEART_RATE_AVAILABILITY class=/
+  );
+
+  assert.match(
+    source,
+    /EXERCISE_START_SUCCEEDED executionId=/
   );
 });
 

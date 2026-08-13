@@ -18,6 +18,9 @@ const service =
 const command =
   read("native/android-host/wear-app/src/main/java/cl/iberfit/m26/wear/IBERFITWearCommandListenerService.kt");
 
+const provider =
+  read("native/android/wear/IBERFITWearHealthServicesBridge.kt");
+
 pass(
   "rc57-6fa-health-foreground-service-manifest",
   manifest.includes(
@@ -181,6 +184,25 @@ pass(
     ) &&
     command.includes(
       "DATALAYER_COMMAND_DISPATCH"
+    )
+);
+
+pass(
+  "rc57-6fa-health-services-availability-diagnostics",
+  provider.includes(
+    "CALLBACK_REGISTERED"
+  ) &&
+    provider.includes(
+      "EXERCISE_UPDATE state="
+    ) &&
+    provider.includes(
+      "HEART_RATE_POINTS count="
+    ) &&
+    provider.includes(
+      "HEART_RATE_AVAILABILITY class="
+    ) &&
+    provider.includes(
+      "EXERCISE_START_SUCCEEDED executionId="
     )
 );
 

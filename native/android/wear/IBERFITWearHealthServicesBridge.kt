@@ -1,6 +1,7 @@
 package cl.iberfit.nativebridge.wear
 
 import android.content.Context
+import android.util.Log
 import androidx.health.services.client.ExerciseUpdateCallback
 import androidx.health.services.client.HealthServices
 import androidx.health.services.client.data.Availability
@@ -61,6 +62,12 @@ class IBERFITWearHealthServicesBridge(
     private val exerciseCallback = object : ExerciseUpdateCallback {
         override fun onRegistered() {
             callbackRegistered = true
+
+            Log.i(
+                TAG,
+                "CALLBACK_REGISTERED"
+            )
+
             emitSnapshot()
             if (pendingStart) reconcileThenBeginExercise()
         }
@@ -68,6 +75,13 @@ class IBERFITWearHealthServicesBridge(
         override fun onRegistrationFailed(throwable: Throwable) {
             callbackRegistered = false
             pendingStart = false
+
+            Log.e(
+                TAG,
+                "CALLBACK_REGISTRATION_FAILED rootCause=${rootCauseName(throwable)}",
+                throwable
+            )
+
             setState(IBERFITHeartRateProviderState.ERROR)
             emitError(
                 code = "CALLBACK_REGISTRATION_FAILED",
@@ -78,6 +92,11 @@ class IBERFITWearHealthServicesBridge(
 
         override fun onExerciseUpdateReceived(update: ExerciseUpdate) {
             val state = update.exerciseStateInfo.state
+
+            Log.d(
+                TAG,
+                "EXERCISE_UPDATE state=$state"
+            )
 
             if (state.isEnded) {
                 exerciseStarted = false
@@ -94,6 +113,11 @@ class IBERFITWearHealthServicesBridge(
             val context = sessionContext ?: return
             val heartRatePoints =
                 update.latestMetrics.getData(DataType.HEART_RATE_BPM)
+
+            Log.d(
+                TAG,
+                "HEART_RATE_POINTS count=${heartRatePoints.size} executionId=${context.executionId}"
+            )
 
             heartRatePoints.forEach { point ->
                 val bpm = point.value
@@ -137,6 +161,11 @@ class IBERFITWearHealthServicesBridge(
             availability: Availability
         ) {
             if (dataType == DataType.HEART_RATE_BPM) {
+                Log.i(
+                    TAG,
+                    "HEART_RATE_AVAILABILITY class=${availability.javaClass.simpleName} id=${availability.id} value=$availability"
+                )
+
                 emitSnapshot()
             }
         }
@@ -430,6 +459,12 @@ class IBERFITWearHealthServicesBridge(
 
                         pendingStart = false
                         exerciseStarted = true
+
+                        Log.i(
+                            TAG,
+                            "EXERCISE_START_SUCCEEDED executionId=${context.executionId}"
+                        )
+
                         setState(
                             IBERFITHeartRateProviderState.ACTIVE
                         )
@@ -503,6 +538,9 @@ class IBERFITWearHealthServicesBridge(
     }
 
     companion object {
+        private const val TAG =
+            "IBERFITHealthServices"
+
         const val PROVIDER_ID = "wear_os_health_services"
     }
 }
