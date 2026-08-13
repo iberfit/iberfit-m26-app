@@ -46,6 +46,26 @@ test("RC57.6F-A declara un foreground service de salud", () => {
   );
 });
 
+test("RC57.6F-A declara y solicita permiso de notificaciones", () => {
+  const appManifest = manifest();
+  const source = activity();
+
+  assert.match(
+    appManifest,
+    /android\.permission\.POST_NOTIFICATIONS/
+  );
+
+  assert.match(
+    source,
+    /Manifest\.permission\.POST_NOTIFICATIONS/
+  );
+
+  assert.match(
+    source,
+    /REQUEST_NOTIFICATIONS_PERMISSION/
+  );
+});
+
 test("RC57.6F-A declara permisos de sensor en segundo plano", () => {
   const source = manifest();
 
@@ -202,6 +222,46 @@ test("RC57.6F-A Activity no destruye ni posee la sesiÃ³n", () => {
   assert.doesNotMatch(
     source,
     /onDestroy\(/
+  );
+});
+
+test("RC57.6F-A expone observabilidad de provider y DataLayer", () => {
+  const workout = service();
+  const listener = command();
+
+  assert.match(
+    workout,
+    /PROVIDER_STATE provider=/
+  );
+
+  assert.match(
+    workout,
+    /PROVIDER_ERROR provider=/
+  );
+
+  assert.match(
+    workout,
+    /HEART_RATE_SAMPLE bpm=/
+  );
+
+  assert.match(
+    workout,
+    /DATALAYER_SAMPLE_SEND=QUEUED/
+  );
+
+  assert.match(
+    workout,
+    /DATALAYER_SAMPLE_SEND=FAILED/
+  );
+
+  assert.match(
+    listener,
+    /DATALAYER_COMMAND_RECEIVED/
+  );
+
+  assert.match(
+    listener,
+    /DATALAYER_COMMAND_DISPATCH/
   );
 });
 

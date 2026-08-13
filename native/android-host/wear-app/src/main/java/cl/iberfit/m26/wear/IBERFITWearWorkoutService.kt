@@ -69,6 +69,11 @@ class IBERFITWearWorkoutService : Service() {
             override fun onPrimaryProviderChanged(
                 change: IBERFITHeartRateProviderChange
             ) {
+                Log.i(
+                    TAG,
+                    "PROVIDER_CHANGE previous=${change.previousProviderId} next=${change.nextProviderId}"
+                )
+
                 updateNotification(
                     "Fuente FC Â· " +
                         (
@@ -81,6 +86,11 @@ class IBERFITWearWorkoutService : Service() {
             override fun onProviderStateChanged(
                 snapshot: IBERFITHeartRateProviderSnapshot
             ) {
+                Log.i(
+                    TAG,
+                    "PROVIDER_STATE provider=${snapshot.descriptor.providerId} state=${snapshot.state} available=${snapshot.available} connected=${snapshot.connected}"
+                )
+
                 updateNotification(
                     "Frecuencia cardiaca Â· ${snapshot.state}"
                 )
@@ -89,9 +99,26 @@ class IBERFITWearWorkoutService : Service() {
             override fun onHeartRateSample(
                 sample: IBERFITHeartRateSample
             ) {
+                Log.d(
+                    TAG,
+                    "HEART_RATE_SAMPLE bpm=${sample.bpm} provider=${sample.providerId} executionId=${sample.executionId} sessionId=${sample.sessionId}"
+                )
+
                 dataLayer.sendSample(
                     sample.toDataLayerJson()
-                )
+                ) { queued ->
+                    if (queued) {
+                        Log.d(
+                            TAG,
+                            "DATALAYER_SAMPLE_SEND=QUEUED bpm=${sample.bpm} executionId=${sample.executionId}"
+                        )
+                    } else {
+                        Log.w(
+                            TAG,
+                            "DATALAYER_SAMPLE_SEND=FAILED bpm=${sample.bpm} executionId=${sample.executionId}"
+                        )
+                    }
+                }
 
                 updateNotification(
                     "FC ${sample.bpm.toInt()} bpm Â· entrenamiento activo"
@@ -101,6 +128,11 @@ class IBERFITWearWorkoutService : Service() {
             override fun onProviderError(
                 error: IBERFITHeartRateProviderError
             ) {
+                Log.e(
+                    TAG,
+                    "PROVIDER_ERROR provider=${error.providerId} code=${error.code} message=${error.message} recoverable=${error.recoverable}"
+                )
+
                 updateNotification(
                     "FC Â· ${error.code}"
                 )
@@ -141,6 +173,11 @@ class IBERFITWearWorkoutService : Service() {
             intent?.getStringExtra(
                 EXTRA_EXECUTION_ID
             )
+
+        Log.i(
+            TAG,
+            "SERVICE_COMMAND action=$action executionId=$executionId startId=$startId"
+        )
 
         if (action == null) {
             stopSelf(startId)
@@ -221,6 +258,11 @@ class IBERFITWearWorkoutService : Service() {
                     IBERFITWearHealthServicesBridge.PROVIDER_ID
             )
 
+        Log.i(
+            TAG,
+            "SESSION_START_REQUEST accepted=$started executionId=$executionId"
+        )
+
         if (!started) {
             updateNotification(
                 "No se pudo iniciar una nueva sesiÃ³n de FC"
@@ -229,6 +271,11 @@ class IBERFITWearWorkoutService : Service() {
     }
 
     private fun stopWorkout() {
+        Log.i(
+            TAG,
+            "SESSION_STOP_REQUEST"
+        )
+
         sessionManager.stop()
 
         if (foregroundStarted) {
@@ -472,6 +519,9 @@ class IBERFITWearWorkoutService : Service() {
     }
 
     companion object {
+        private const val TAG =
+            "IBERFITWorkout"
+
         const val ACTION_START = "start"
         const val ACTION_PAUSE = "pause"
         const val ACTION_RESUME = "resume"

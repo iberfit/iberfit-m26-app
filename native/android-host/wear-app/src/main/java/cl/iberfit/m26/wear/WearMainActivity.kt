@@ -12,6 +12,7 @@ class WearMainActivity : Activity() {
     companion object {
         private const val REQUEST_HEART_RATE_PERMISSION = 5704
         private const val REQUEST_BACKGROUND_HEALTH_PERMISSION = 5705
+        private const val REQUEST_NOTIFICATIONS_PERMISSION = 5706
 
         private const val READ_HEART_RATE_PERMISSION =
             "android.permission.health.READ_HEART_RATE"
@@ -78,6 +79,17 @@ class WearMainActivity : Activity() {
             return
         }
 
+        if (!hasNotificationPermission()) {
+            status.text =
+                "IBERFIT Wear Â· solicitando notificaciones de entrenamiento"
+
+            requestPermissions(
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                REQUEST_NOTIFICATIONS_PERMISSION
+            )
+            return
+        }
+
         updatePermissionStatus()
     }
 
@@ -111,13 +123,24 @@ class WearMainActivity : Activity() {
             PackageManager.PERMISSION_GRANTED
     }
 
+    private fun hasNotificationPermission(): Boolean =
+        Build.VERSION.SDK_INT < 33 ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+
     private fun updatePermissionStatus() {
         status.text =
             if (
                 hasHeartRatePermission() &&
-                hasBackgroundHealthPermission()
+                hasBackgroundHealthPermission() &&
+                hasNotificationPermission()
             ) {
                 "IBERFIT Wear Â· runtime de entrenamiento listo"
+            } else if (
+                hasHeartRatePermission() &&
+                hasBackgroundHealthPermission()
+            ) {
+                "IBERFIT Wear Â· runtime listo Â· notificaciones desactivadas"
             } else if (!hasHeartRatePermission()) {
                 "IBERFIT Wear Â· falta permiso de FC"
             } else {
@@ -150,6 +173,18 @@ class WearMainActivity : Activity() {
             }
 
             REQUEST_BACKGROUND_HEALTH_PERMISSION -> {
+                if (
+                    grantResults.isNotEmpty() &&
+                    grantResults[0] ==
+                        PackageManager.PERMISSION_GRANTED
+                ) {
+                    ensureHealthPermissions()
+                } else {
+                    updatePermissionStatus()
+                }
+            }
+
+            REQUEST_NOTIFICATIONS_PERMISSION -> {
                 updatePermissionStatus()
             }
         }

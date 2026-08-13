@@ -35,6 +35,19 @@ pass(
 );
 
 pass(
+  "rc57-6fa-notification-permission",
+  manifest.includes(
+    "android.permission.POST_NOTIFICATIONS"
+  ) &&
+    activity.includes(
+      "Manifest.permission.POST_NOTIFICATIONS"
+    ) &&
+    activity.includes(
+      "REQUEST_NOTIFICATIONS_PERMISSION"
+    )
+);
+
+pass(
   "rc57-6fa-background-health-permissions",
   manifest.includes(
     "android.permission.BODY_SENSORS_BACKGROUND"
@@ -143,6 +156,31 @@ pass(
     ) &&
     !activity.includes(
       "onDestroy()"
+    )
+);
+
+pass(
+  "rc57-6fa-runtime-observability",
+  service.includes(
+    "PROVIDER_STATE provider="
+  ) &&
+    service.includes(
+      "PROVIDER_ERROR provider="
+    ) &&
+    service.includes(
+      "HEART_RATE_SAMPLE bpm="
+    ) &&
+    service.includes(
+      "DATALAYER_SAMPLE_SEND=QUEUED"
+    ) &&
+    service.includes(
+      "DATALAYER_SAMPLE_SEND=FAILED"
+    ) &&
+    command.includes(
+      "DATALAYER_COMMAND_RECEIVED"
+    ) &&
+    command.includes(
+      "DATALAYER_COMMAND_DISPATCH"
     )
 );
 

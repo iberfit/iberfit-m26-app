@@ -35,6 +35,11 @@ class IBERFITWearCommandListenerService :
         val action =
             payload.optString("action")
 
+        Log.i(
+            TAG,
+            "DATALAYER_COMMAND_RECEIVED action=$action sourceNode=${messageEvent.sourceNodeId}"
+        )
+
         if (
             !IBERFITWearWorkoutService
                 .isSupportedAction(action)
@@ -55,11 +60,21 @@ class IBERFITWearCommandListenerService :
                     executionId = executionId
                 )
 
+        Log.i(
+            TAG,
+            "DATALAYER_COMMAND_DISPATCH action=$action dispatched=$dispatched executionId=$executionId"
+        )
+
         if (!dispatched) {
             Log.w(
-                "IBERFITWearCommand",
+                TAG,
                 "Workout command could not be dispatched: $action"
             )
         }
+    }
+
+    companion object {
+        private const val TAG =
+            "IBERFITWearCommand"
     }
 }
