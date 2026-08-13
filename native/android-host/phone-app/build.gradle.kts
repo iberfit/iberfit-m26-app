@@ -19,6 +19,7 @@ android {
             kotlin.directories.addAll(
                 listOf(
                     "src/main/java",
+                    "../../android/heart-rate",
                     "../../android/runtime",
                     "../../android/ble"
                 )
