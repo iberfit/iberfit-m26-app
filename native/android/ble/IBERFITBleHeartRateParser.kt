@@ -8,6 +8,7 @@ import java.nio.ByteOrder
  *
  * The parser preserves protocol-valid raw values. Physiological plausibility
  * belongs to the canonical heart-rate layer, not to the BLE packet decoder.
+ * RR intervals are preserved as raw milliseconds and are NOT converted to VFC.
  */
 object IBERFITBleHeartRateParser {
     data class Sample(
