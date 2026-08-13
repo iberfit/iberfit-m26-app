@@ -3,7 +3,20 @@
     <uses-permission
         android:name="android.permission.BODY_SENSORS"
         android:maxSdkVersion="35" />
-    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission
+        android:name="android.permission.BODY_SENSORS_BACKGROUND"
+        android:maxSdkVersion="35" />
+
+    <uses-permission
+        android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission
+        android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
+
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+
     <uses-feature
         android:name="android.hardware.type.watch"
         android:required="true" />
@@ -13,6 +26,7 @@
         android:label="IBERFIT"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+
         <activity
             android:name=".WearMainActivity"
             android:exported="true">
@@ -21,5 +35,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".IBERFITWearWorkoutService"
+            android:exported="false"
+            android:foregroundServiceType="health" />
+
+        <service
+            android:name=".IBERFITWearCommandListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action
+                    android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/iberfit/live-command" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>
