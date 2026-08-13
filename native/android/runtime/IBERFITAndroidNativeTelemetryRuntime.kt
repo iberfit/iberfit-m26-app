@@ -1,9 +1,9 @@
 package cl.iberfit.nativebridge.runtime
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.webkit.WebView
-import cl.iberfit.nativebridge.heartrate.IBERFITHeartRateContactStatus
-import cl.iberfit.nativebridge.heartrate.IBERFITHeartRateDeviceType
 import cl.iberfit.nativebridge.heartrate.IBERFITHeartRateQuality
 import cl.iberfit.nativebridge.heartrate.IBERFITHeartRateSample
 import org.json.JSONArray
@@ -27,11 +27,37 @@ class IBERFITAndroidNativeTelemetryRuntime(
     private var active =
         false
 
+    private var paused =
+        false
+
     private var generation =
         0L
 
     private var activeSource =
         ActiveSource.NONE
+
+    /**
+     * A successful MessageClient enqueue means only that the command was
+     * accepted for transport. It is not proof that Health Services is already
+     * producing samples, so we keep the BLE preferred device as a standby.
+     */
+    private var wearSessionQueued =
+        false
+
+    /**
+     * One BLE failover attempt is allowed per uninterrupted Wear sample epoch.
+     * A fresh Wear sample resets this guard and permits a future failover.
+     */
+    private var bleFallbackAttempted =
+        false
+
+    private val runtimeHandler =
+        Handler(
+            Looper.getMainLooper()
+        )
+
+    private var wearWatchdog:
+        Runnable? = null
 
     private lateinit var web:
         IBERFITAndroidWebRuntime
@@ -41,18 +67,16 @@ class IBERFITAndroidNativeTelemetryRuntime(
             context = context,
             onSample = {
                 sample ->
-                val currentExecutionId =
-                    executionId
-
-                if (
-                    active &&
-                    currentExecutionId != null &&
-                    sample.executionId ==
-                        currentExecutionId
-                ) {
-                    web.emitSample(
-                        sample.toWebSample()
+                runtimeHandler.post {
+                    handleBleSample(
+                        sample
                     )
+                }
+            },
+            onProviderError = {
+                _ ->
+                runtimeHandler.post {
+                    handleBleProviderError()
                 }
             }
         )
@@ -62,36 +86,11 @@ class IBERFITAndroidNativeTelemetryRuntime(
             context,
             onSample = {
                 sample ->
-                val currentExecutionId =
-                    executionId
-                        ?: return@IBERFITWearDataLayerRuntime
-
-                val sampleExecutionId =
-                    sample.optString(
-                        "executionId"
+                runtimeHandler.post {
+                    handleWearSample(
+                        sample
                     )
-
-                if (
-                    !active ||
-                    sampleExecutionId !=
-                        currentExecutionId
-                ) {
-                    return@IBERFITWearDataLayerRuntime
                 }
-
-                if (
-                    activeSource ==
-                        ActiveSource.BLUETOOTH_HRS
-                ) {
-                    preferredBle.stop()
-                }
-
-                activeSource =
-                    ActiveSource.WEAR_OS
-
-                web.emitSample(
-                    sample
-                )
             },
             onCommand = {
                 _,
@@ -104,59 +103,70 @@ class IBERFITAndroidNativeTelemetryRuntime(
             IBERFITAndroidWebRuntime(
                 webView,
                 allowedOrigins
-            ) runtimeCommand@{
+            ) {
                 action,
                 payload ->
-
-                val commandExecutionId =
-                    payload.optString(
-                        "executionId"
+                runtimeHandler.post {
+                    handleRuntimeCommand(
+                        action = action,
+                        payload = payload
                     )
-                        .trim()
-
-                if (action == "start") {
-                    if (
-                        commandExecutionId.isBlank()
-                    ) {
-                        return@runtimeCommand
-                    }
-
-                    start(
-                        commandExecutionId
-                    )
-
-                    return@runtimeCommand
-                }
-
-                val currentExecutionId =
-                    executionId
-                        ?: return@runtimeCommand
-
-                if (
-                    commandExecutionId.isNotBlank() &&
-                    commandExecutionId !=
-                        currentExecutionId
-                ) {
-                    return@runtimeCommand
-                }
-
-                when (action) {
-                    "pause" ->
-                        pause(
-                            currentExecutionId
-                        )
-
-                    "resume" ->
-                        resume(
-                            currentExecutionId
-                        )
-
-                    "stop" ->
-                        stop(
-                            currentExecutionId
-                        )
                 }
             }
+    }
+
+    private fun handleRuntimeCommand(
+        action: String,
+        payload: JSONObject
+    ) {
+        val commandExecutionId =
+            payload.optString(
+                "executionId"
+            )
+                .trim()
+
+        if (action == "start") {
+            if (
+                commandExecutionId.isBlank()
+            ) {
+                return
+            }
+
+            start(
+                commandExecutionId
+            )
+
+            return
+        }
+
+        val currentExecutionId =
+            executionId
+                ?: return
+
+        if (
+            commandExecutionId.isNotBlank() &&
+            commandExecutionId !=
+                currentExecutionId
+        ) {
+            return
+        }
+
+        when (action) {
+            "pause" ->
+                pause(
+                    currentExecutionId
+                )
+
+            "resume" ->
+                resume(
+                    currentExecutionId
+                )
+
+            "stop" ->
+                stop(
+                    currentExecutionId
+                )
+        }
     }
 
     private fun start(
@@ -168,6 +178,8 @@ class IBERFITAndroidNativeTelemetryRuntime(
         val startGeneration =
             generation
 
+        cancelWearWatchdog()
+
         preferredBle.stop()
 
         executionId =
@@ -176,8 +188,17 @@ class IBERFITAndroidNativeTelemetryRuntime(
         active =
             true
 
+        paused =
+            false
+
         activeSource =
             ActiveSource.NONE
+
+        wearSessionQueued =
+            false
+
+        bleFallbackAttempted =
+            false
 
         dataLayer.startListening()
 
@@ -186,73 +207,306 @@ class IBERFITAndroidNativeTelemetryRuntime(
             newExecutionId
         ) {
             sentToWatch ->
+            runtimeHandler.post {
+                if (
+                    !active ||
+                    generation != startGeneration ||
+                    executionId != newExecutionId
+                ) {
+                    return@post
+                }
 
-            if (
-                !active ||
-                generation != startGeneration ||
-                executionId != newExecutionId
-            ) {
-                return@sendCommand
-            }
+                if (sentToWatch) {
+                    wearSessionQueued =
+                        true
 
-            if (sentToWatch) {
-                preferredBle.stop()
+                    activeSource =
+                        ActiveSource.WEAR_OS
 
-                activeSource =
-                    ActiveSource.WEAR_OS
-            } else {
-                val bleStarted =
-                    preferredBle.start(
-                        newExecutionId
+                    armWearWatchdog(
+                        expectedExecutionId =
+                            newExecutionId,
+                        timeoutMs =
+                            WEAR_INITIAL_SAMPLE_TIMEOUT_MS
                     )
+                } else {
+                    wearSessionQueued =
+                        false
 
-                activeSource =
-                    if (bleStarted) {
-                        ActiveSource.BLUETOOTH_HRS
-                    } else {
-                        ActiveSource.NONE
-                    }
+                    fallbackToPreferredBle(
+                        expectedExecutionId =
+                            newExecutionId
+                    )
+                }
             }
+        }
+    }
+
+    private fun handleWearSample(
+        sample: JSONObject
+    ) {
+        val currentExecutionId =
+            executionId
+                ?: return
+
+        val sampleExecutionId =
+            sample.optString(
+                "executionId"
+            )
+
+        if (
+            !active ||
+            paused ||
+            sampleExecutionId !=
+                currentExecutionId
+        ) {
+            return
+        }
+
+        wearSessionQueued =
+            true
+
+        bleFallbackAttempted =
+            false
+
+        if (
+            activeSource ==
+                ActiveSource.BLUETOOTH_HRS
+        ) {
+            preferredBle.stop()
+        }
+
+        activeSource =
+            ActiveSource.WEAR_OS
+
+        web.emitSample(
+            sample
+        )
+
+        armWearWatchdog(
+            expectedExecutionId =
+                currentExecutionId,
+            timeoutMs =
+                WEAR_STALE_SAMPLE_TIMEOUT_MS
+        )
+    }
+
+    private fun handleBleSample(
+        sample: IBERFITHeartRateSample
+    ) {
+        val currentExecutionId =
+            executionId
+                ?: return
+
+        if (
+            !active ||
+            paused ||
+            activeSource !=
+                ActiveSource.BLUETOOTH_HRS ||
+            sample.executionId !=
+                currentExecutionId
+        ) {
+            return
+        }
+
+        web.emitSample(
+            sample.toWebSample()
+        )
+    }
+
+    private fun handleBleProviderError() {
+        if (
+            !active ||
+            activeSource !=
+                ActiveSource.BLUETOOTH_HRS
+        ) {
+            return
+        }
+
+        preferredBle.stop()
+
+        activeSource =
+            if (wearSessionQueued) {
+                ActiveSource.WEAR_OS
+            } else {
+                ActiveSource.NONE
+            }
+
+        /**
+         * Do not immediately loop back into the same BLE failure. A fresh Wear
+         * sample will reset bleFallbackAttempted and arm a new stale watchdog.
+         */
+        cancelWearWatchdog()
+    }
+
+    private fun fallbackToPreferredBle(
+        expectedExecutionId: String
+    ): Boolean {
+        if (
+            !active ||
+            paused ||
+            executionId !=
+                expectedExecutionId ||
+            bleFallbackAttempted
+        ) {
+            return false
+        }
+
+        bleFallbackAttempted =
+            true
+
+        cancelWearWatchdog()
+
+        val bleStarted =
+            preferredBle.start(
+                expectedExecutionId
+            )
+
+        if (bleStarted) {
+            activeSource =
+                ActiveSource.BLUETOOTH_HRS
+        } else if (!wearSessionQueued) {
+            activeSource =
+                ActiveSource.NONE
+        }
+
+        return bleStarted
+    }
+
+    private fun armWearWatchdog(
+        expectedExecutionId: String,
+        timeoutMs: Long
+    ) {
+        cancelWearWatchdog()
+
+        if (
+            !active ||
+            paused ||
+            activeSource !=
+                ActiveSource.WEAR_OS
+        ) {
+            return
+        }
+
+        val expectedGeneration =
+            generation
+
+        val watchdog =
+            Runnable {
+                if (
+                    !active ||
+                    paused ||
+                    generation !=
+                        expectedGeneration ||
+                    executionId !=
+                        expectedExecutionId ||
+                    activeSource !=
+                        ActiveSource.WEAR_OS
+                ) {
+                    return@Runnable
+                }
+
+                fallbackToPreferredBle(
+                    expectedExecutionId
+                )
+            }
+
+        wearWatchdog =
+            watchdog
+
+        runtimeHandler.postDelayed(
+            watchdog,
+            timeoutMs
+        )
+    }
+
+    private fun cancelWearWatchdog() {
+        val watchdog =
+            wearWatchdog
+
+        wearWatchdog =
+            null
+
+        if (watchdog != null) {
+            runtimeHandler.removeCallbacks(
+                watchdog
+            )
         }
     }
 
     private fun pause(
         currentExecutionId: String
     ) {
-        when (activeSource) {
-            ActiveSource.WEAR_OS ->
-                dataLayer.sendCommand(
-                    "pause",
-                    currentExecutionId
-                ) {
-                    _ ->
-                }
+        paused =
+            true
 
-            ActiveSource.BLUETOOTH_HRS ->
-                preferredBle.pause()
+        cancelWearWatchdog()
 
-            ActiveSource.NONE ->
-                Unit
+        if (wearSessionQueued) {
+            dataLayer.sendCommand(
+                "pause",
+                currentExecutionId
+            ) {
+                _ ->
+            }
+        }
+
+        if (
+            activeSource ==
+                ActiveSource.BLUETOOTH_HRS
+        ) {
+            preferredBle.pause()
         }
     }
 
     private fun resume(
         currentExecutionId: String
     ) {
-        when (activeSource) {
-            ActiveSource.WEAR_OS ->
-                dataLayer.sendCommand(
-                    "resume",
-                    currentExecutionId
-                ) {
-                    _ ->
+        paused =
+            false
+
+        if (
+            activeSource ==
+                ActiveSource.BLUETOOTH_HRS
+        ) {
+            preferredBle.resume()
+        }
+
+        if (wearSessionQueued) {
+            val resumeGeneration =
+                generation
+
+            dataLayer.sendCommand(
+                "resume",
+                currentExecutionId
+            ) {
+                queued ->
+                runtimeHandler.post {
+                    if (
+                        !active ||
+                        paused ||
+                        generation !=
+                            resumeGeneration ||
+                        executionId !=
+                            currentExecutionId
+                    ) {
+                        return@post
+                    }
+
+                    if (
+                        queued &&
+                        activeSource ==
+                            ActiveSource.WEAR_OS
+                    ) {
+                        armWearWatchdog(
+                            expectedExecutionId =
+                                currentExecutionId,
+                            timeoutMs =
+                                WEAR_INITIAL_SAMPLE_TIMEOUT_MS
+                        )
+                    }
                 }
-
-            ActiveSource.BLUETOOTH_HRS ->
-                preferredBle.resume()
-
-            ActiveSource.NONE ->
-                Unit
+            }
         }
     }
 
@@ -262,20 +516,19 @@ class IBERFITAndroidNativeTelemetryRuntime(
         generation +=
             1L
 
-        when (activeSource) {
-            ActiveSource.WEAR_OS ->
-                dataLayer.sendCommand(
-                    "stop",
-                    currentExecutionId
-                ) {
-                    _ ->
-                }
+        cancelWearWatchdog()
 
-            ActiveSource.BLUETOOTH_HRS ->
-                preferredBle.stop()
-
-            ActiveSource.NONE ->
-                Unit
+        /**
+         * When BLE is active because Wear stalled, the Wear workout may still
+         * exist. Always send STOP when START had previously been queued.
+         */
+        if (wearSessionQueued) {
+            dataLayer.sendCommand(
+                "stop",
+                currentExecutionId
+            ) {
+                _ ->
+            }
         }
 
         preferredBle.stop()
@@ -284,6 +537,15 @@ class IBERFITAndroidNativeTelemetryRuntime(
             ActiveSource.NONE
 
         active =
+            false
+
+        paused =
+            false
+
+        wearSessionQueued =
+            false
+
+        bleFallbackAttempted =
             false
 
         executionId =
@@ -378,7 +640,18 @@ class IBERFITAndroidNativeTelemetryRuntime(
         generation +=
             1L
 
+        cancelWearWatchdog()
+
         active =
+            false
+
+        paused =
+            false
+
+        wearSessionQueued =
+            false
+
+        bleFallbackAttempted =
             false
 
         executionId =
@@ -389,5 +662,21 @@ class IBERFITAndroidNativeTelemetryRuntime(
 
         preferredBle.stop()
         dataLayer.stopListening()
+    }
+
+    companion object {
+        /**
+         * Conservative acquisition window before assuming that a queued Wear
+         * START is not yielding usable live HR.
+         */
+        const val WEAR_INITIAL_SAMPLE_TIMEOUT_MS =
+            30_000L
+
+        /**
+         * Once Wear has emitted HR, a shorter gap is sufficient to mark the
+         * live stream stale and activate the user's preferred BLE standby.
+         */
+        const val WEAR_STALE_SAMPLE_TIMEOUT_MS =
+            20_000L
     }
 }
