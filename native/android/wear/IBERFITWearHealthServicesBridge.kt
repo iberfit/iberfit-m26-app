@@ -56,12 +56,13 @@ class IBERFITWearHealthServicesBridge(
     private var pendingStart = false
     private var exerciseStarted = false
     private var closed = false
+    private var startGeneration = 0L
 
     private val exerciseCallback = object : ExerciseUpdateCallback {
         override fun onRegistered() {
             callbackRegistered = true
             emitSnapshot()
-            if (pendingStart) beginExerciseIfReady()
+            if (pendingStart) reconcileThenBeginExercise()
         }
 
         override fun onRegistrationFailed(throwable: Throwable) {
@@ -80,9 +81,13 @@ class IBERFITWearHealthServicesBridge(
 
             if (state.isEnded) {
                 exerciseStarted = false
-                pendingStart = false
-                sessionContext = null
-                setState(IBERFITHeartRateProviderState.IDLE)
+
+                if (!pendingStart) {
+                    sessionContext = null
+                    setState(IBERFITHeartRateProviderState.IDLE)
+                } else {
+                    emitSnapshot()
+                }
                 return
             }
 
@@ -124,7 +129,7 @@ class IBERFITWearHealthServicesBridge(
         override fun onLapSummaryReceived(
             lapSummary: ExerciseLapSummary
         ) {
-            // IBERFIT heart-rate sessions do not use lap summaries.
+            // IBERFIT heart-rate sessions do not depend on lap summaries.
         }
 
         override fun onAvailabilityChanged(
@@ -172,12 +177,35 @@ class IBERFITWearHealthServicesBridge(
             return
         }
 
+        val existingContext = sessionContext
+        if (
+            exerciseStarted &&
+            existingContext?.executionId == context.executionId
+        ) {
+            emitSnapshot()
+            return
+        }
+
+        if (
+            exerciseStarted &&
+            existingContext?.executionId != context.executionId
+        ) {
+            emitError(
+                code = "SESSION_ALREADY_ACTIVE",
+                message =
+                    "A different IBERFIT heart-rate session is already active.",
+                recoverable = true
+            )
+            return
+        }
+
         sessionContext = context
         pendingStart = true
+        startGeneration += 1L
         setState(IBERFITHeartRateProviderState.CONNECTING)
 
         if (callbackRegistered) {
-            beginExerciseIfReady()
+            reconcileThenBeginExercise()
         }
     }
 
@@ -233,12 +261,8 @@ class IBERFITWearHealthServicesBridge(
 
     override fun stop() {
         pendingStart = false
+        startGeneration += 1L
         sessionContext = null
-
-        if (!exerciseStarted) {
-            setState(IBERFITHeartRateProviderState.IDLE)
-            return
-        }
 
         val future = exerciseClient.endExerciseAsync()
         future.addListener({
@@ -247,11 +271,8 @@ class IBERFITWearHealthServicesBridge(
                 exerciseStarted = false
                 setState(IBERFITHeartRateProviderState.IDLE)
             } catch (throwable: Throwable) {
-                emitError(
-                    code = "STOP_FAILED",
-                    throwable = throwable,
-                    recoverable = true
-                )
+                exerciseStarted = false
+                setState(IBERFITHeartRateProviderState.IDLE)
             }
         }, mainExecutor)
     }
@@ -260,12 +281,11 @@ class IBERFITWearHealthServicesBridge(
         if (closed) return
 
         pendingStart = false
+        startGeneration += 1L
         sessionContext = null
 
-        if (exerciseStarted) {
-            exerciseClient.endExerciseAsync()
-            exerciseStarted = false
-        }
+        exerciseClient.endExerciseAsync()
+        exerciseStarted = false
 
         exerciseClient.clearUpdateCallbackAsync(exerciseCallback)
         closed = true
@@ -273,11 +293,71 @@ class IBERFITWearHealthServicesBridge(
         listener = null
     }
 
-    private fun beginExerciseIfReady() {
+    private fun reconcileThenBeginExercise() {
         val context = sessionContext ?: return
         if (!pendingStart || !callbackRegistered || exerciseStarted) return
 
+        val generation = startGeneration
         setState(IBERFITHeartRateProviderState.ACQUIRING)
+
+        val currentInfoFuture =
+            exerciseClient.getCurrentExerciseInfoAsync()
+
+        currentInfoFuture.addListener({
+            try {
+                val info = currentInfoFuture.get()
+
+                if (!isCurrentStart(generation, context)) {
+                    return@addListener
+                }
+
+                if (info.exerciseType == ExerciseType.UNKNOWN) {
+                    beginFreshExercise(generation, context)
+                    return@addListener
+                }
+
+                val endFuture = exerciseClient.endExerciseAsync()
+                endFuture.addListener({
+                    try {
+                        endFuture.get()
+
+                        if (!isCurrentStart(generation, context)) {
+                            return@addListener
+                        }
+
+                        beginFreshExercise(generation, context)
+                    } catch (throwable: Throwable) {
+                        pendingStart = false
+                        setState(IBERFITHeartRateProviderState.ERROR)
+                        emitError(
+                            code =
+                                "ACTIVE_EXERCISE_NOT_OWNED_OR_END_FAILED",
+                            throwable = throwable,
+                            recoverable = true
+                        )
+                    }
+                }, mainExecutor)
+            } catch (throwable: Throwable) {
+                if (!isCurrentStart(generation, context)) {
+                    return@addListener
+                }
+
+                pendingStart = false
+                setState(IBERFITHeartRateProviderState.ERROR)
+                emitError(
+                    code = "CURRENT_EXERCISE_INFO_FAILED",
+                    throwable = throwable,
+                    recoverable = true
+                )
+            }
+        }, mainExecutor)
+    }
+
+    private fun beginFreshExercise(
+        generation: Long,
+        context: IBERFITHeartRateSessionContext
+    ) {
+        if (!isCurrentStart(generation, context)) return
 
         val capabilitiesFuture =
             exerciseClient.getCapabilitiesAsync()
@@ -285,6 +365,10 @@ class IBERFITWearHealthServicesBridge(
         capabilitiesFuture.addListener({
             try {
                 val capabilities = capabilitiesFuture.get()
+
+                if (!isCurrentStart(generation, context)) {
+                    return@addListener
+                }
 
                 if (
                     ExerciseType.WORKOUT !in
@@ -325,10 +409,6 @@ class IBERFITWearHealthServicesBridge(
                     return@addListener
                 }
 
-                if (!pendingStart || sessionContext != context) {
-                    return@addListener
-                }
-
                 val config = ExerciseConfig(
                     exerciseType = ExerciseType.WORKOUT,
                     dataTypes = requestedDataTypes,
@@ -343,7 +423,7 @@ class IBERFITWearHealthServicesBridge(
                     try {
                         startFuture.get()
 
-                        if (!pendingStart || sessionContext != context) {
+                        if (!isCurrentStart(generation, context)) {
                             exerciseClient.endExerciseAsync()
                             return@addListener
                         }
@@ -377,6 +457,15 @@ class IBERFITWearHealthServicesBridge(
             }
         }, mainExecutor)
     }
+
+    private fun isCurrentStart(
+        generation: Long,
+        context: IBERFITHeartRateSessionContext
+    ): Boolean =
+        !closed &&
+            pendingStart &&
+            generation == startGeneration &&
+            sessionContext == context
 
     private fun setState(state: IBERFITHeartRateProviderState) {
         providerState = state

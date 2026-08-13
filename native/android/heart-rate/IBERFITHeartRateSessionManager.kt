@@ -24,11 +24,28 @@ class IBERFITHeartRateSessionManager(
         listener: IBERFITHeartRateSessionListener,
         preferredProviderId: String? = null
     ): Boolean {
-        this.sessionContext = context
-        this.sessionListener = listener
+        val activeContext = sessionContext
+        val activeProviderId = primaryProviderId
+
+        if (activeProviderId != null && activeContext != null) {
+            if (activeContext.executionId == context.executionId) {
+                sessionListener = listener
+                this.preferredProviderId = preferredProviderId
+                return true
+            }
+
+            return false
+        }
+
+        val selected = IBERFITHeartRateProviderSelector.select(
+            snapshots = snapshots(),
+            preferredProviderId = preferredProviderId
+        ) ?: return false
+
+        sessionContext = context
+        sessionListener = listener
         this.preferredProviderId = preferredProviderId
 
-        val selected = chooseProvider() ?: return false
         activateProvider(
             selected.descriptor.providerId,
             if (
@@ -61,6 +78,8 @@ class IBERFITHeartRateSessionManager(
 
     fun currentPrimaryProviderId(): String? = primaryProviderId
 
+    fun currentExecutionId(): String? = sessionContext?.executionId
+
     fun snapshots(): List<IBERFITHeartRateProviderSnapshot> =
         providersById.values.map { it.snapshot() }
 
@@ -88,6 +107,22 @@ class IBERFITHeartRateSessionManager(
     override fun onHeartRateSample(sample: IBERFITHeartRateSample) {
         val context = sessionContext ?: return
         if (sample.providerId != primaryProviderId) return
+
+        val sampleExecutionId = sample.executionId
+        if (
+            sampleExecutionId != null &&
+            sampleExecutionId != context.executionId
+        ) {
+            return
+        }
+
+        val sampleSessionId = sample.sessionId
+        if (
+            sampleSessionId != null &&
+            sampleSessionId != context.sessionId
+        ) {
+            return
+        }
 
         val canonical = sample.copy(
             quality = if (sample.isPhysiologicallyPlausible) {
@@ -130,7 +165,10 @@ class IBERFITHeartRateSessionManager(
         val next = providersById[providerId] ?: return
         val previous = primaryProviderId
 
-        if (previous == providerId) return
+        if (previous == providerId) {
+            next.start(context)
+            return
+        }
 
         previous?.let { providersById[it] }?.stop()
         primaryProviderId = providerId
@@ -158,6 +196,7 @@ class IBERFITHeartRateSessionManager(
             val previous = primaryProviderId
             previous?.let { providersById[it] }?.stop()
             primaryProviderId = null
+            sessionContext = null
 
             sessionListener?.onPrimaryProviderChanged(
                 IBERFITHeartRateProviderChange(
