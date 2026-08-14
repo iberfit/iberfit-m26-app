@@ -509,6 +509,248 @@
   flex: 1 1 15rem;
 }
 
+/* RC58.3A Â· Primitive completeness against the approved RC58 scope */
+
+/* Links */
+.iberfit-link {
+  color: var(--iberfit-color-accent-strong);
+  font-weight: var(--iberfit-font-weight-semibold);
+  text-decoration-color: color-mix(
+    in srgb,
+    var(--iberfit-color-accent-strong) 48%,
+    transparent
+  );
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.2em;
+}
+
+.iberfit-link:hover {
+  color: var(--iberfit-color-text-primary);
+  text-decoration-color: currentColor;
+}
+
+.iberfit-link:focus-visible {
+  border-radius: var(--iberfit-radius-sm);
+  outline: 3px solid color-mix(
+    in srgb,
+    var(--iberfit-color-focus) 72%,
+    transparent
+  );
+  outline-offset: 3px;
+}
+
+/* Checkbox / radio */
+.iberfit-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--iberfit-space-2);
+  min-height: var(--iberfit-control-height);
+  color: var(--iberfit-color-text-subtle);
+  cursor: pointer;
+}
+
+.iberfit-checkbox,
+.iberfit-radio {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--iberfit-color-accent);
+  cursor: pointer;
+}
+
+.iberfit-checkbox:focus-visible,
+.iberfit-radio:focus-visible {
+  outline: 3px solid color-mix(
+    in srgb,
+    var(--iberfit-color-focus) 72%,
+    transparent
+  );
+  outline-offset: 3px;
+}
+
+.iberfit-choice:has(
+  .iberfit-checkbox:disabled,
+  .iberfit-radio:disabled
+) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Switch */
+.iberfit-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--iberfit-space-3);
+  min-height: var(--iberfit-control-height);
+  color: var(--iberfit-color-text-subtle);
+  cursor: pointer;
+}
+
+.iberfit-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.iberfit-switch-track {
+  position: relative;
+  width: 2.8rem;
+  height: 1.55rem;
+  flex: 0 0 auto;
+  border: 1px solid var(--iberfit-color-border-strong);
+  border-radius: var(--iberfit-radius-pill);
+  background: color-mix(
+    in srgb,
+    var(--iberfit-color-text-secondary) 18%,
+    transparent
+  );
+  transition:
+    background var(--iberfit-motion-fast) var(--iberfit-motion-easing-standard),
+    border-color var(--iberfit-motion-fast) var(--iberfit-motion-easing-standard);
+}
+
+.iberfit-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0.18rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 50%;
+  background: var(--iberfit-color-text-primary);
+  box-shadow: var(--iberfit-shadow-subtle);
+  transform: translateY(-50%);
+  transition: transform var(--iberfit-motion-fast) var(--iberfit-motion-easing-enter);
+}
+
+.iberfit-switch input:checked + .iberfit-switch-track {
+  border-color: var(--iberfit-color-accent);
+  background: var(--iberfit-color-accent);
+}
+
+.iberfit-switch input:checked + .iberfit-switch-track::after {
+  transform: translate(1.22rem, -50%);
+  background: var(--iberfit-color-canvas);
+}
+
+.iberfit-switch input:focus-visible + .iberfit-switch-track {
+  outline: 3px solid color-mix(
+    in srgb,
+    var(--iberfit-color-focus) 72%,
+    transparent
+  );
+  outline-offset: 3px;
+}
+
+.iberfit-switch:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* KPI */
+.iberfit-kpi {
+  display: grid;
+  gap: var(--iberfit-space-2);
+  min-height: 8rem;
+  padding: var(--iberfit-space-4);
+  border: 1px solid var(--iberfit-color-border);
+  border-radius: var(--iberfit-radius-lg);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--iberfit-color-accent) 7%, transparent),
+      color-mix(in srgb, var(--iberfit-color-surface-base) 92%, transparent)
+    );
+  box-shadow: var(--iberfit-shadow-subtle);
+}
+
+.iberfit-kpi > strong,
+.iberfit-kpi-value {
+  color: var(--iberfit-color-text-primary);
+  font-family: var(--iberfit-font-family-editorial);
+  font-size: var(--iberfit-font-size-3xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--iberfit-font-weight-semibold);
+  line-height: var(--iberfit-line-height-tight);
+}
+
+.iberfit-kpi > span,
+.iberfit-kpi-label {
+  color: var(--iberfit-color-text-secondary);
+  font-size: var(--iberfit-font-size-xs);
+  font-weight: var(--iberfit-font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Toast */
+.iberfit-toast-region {
+  position: fixed;
+  z-index: var(--iberfit-z-toast);
+  right: max(var(--iberfit-space-4), env(safe-area-inset-right));
+  bottom: max(var(--iberfit-space-4), env(safe-area-inset-bottom));
+  display: grid;
+  gap: var(--iberfit-space-2);
+  width: min(24rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.iberfit-toast {
+  display: grid;
+  gap: var(--iberfit-space-1);
+  padding: var(--iberfit-space-3) var(--iberfit-space-4);
+  border: 1px solid var(--iberfit-color-border-strong);
+  border-radius: var(--iberfit-radius-md);
+  color: var(--iberfit-color-text-primary);
+  background: var(--iberfit-color-surface-overlay);
+  box-shadow: var(--iberfit-shadow-floating);
+  pointer-events: auto;
+}
+
+.iberfit-toast[data-tone="success"] {
+  border-color: color-mix(
+    in srgb,
+    var(--iberfit-color-success) 44%,
+    transparent
+  );
+}
+
+.iberfit-toast[data-tone="warning"] {
+  border-color: color-mix(
+    in srgb,
+    var(--iberfit-color-warning) 44%,
+    transparent
+  );
+}
+
+.iberfit-toast[data-tone="danger"] {
+  border-color: color-mix(
+    in srgb,
+    var(--iberfit-color-danger) 44%,
+    transparent
+  );
+}
+
+/* Conflict is a first-class product state, not an alias silently hidden as error. */
+.iberfit-state[data-state="conflict"] {
+  border-color: color-mix(
+    in srgb,
+    var(--iberfit-color-warning) 52%,
+    transparent
+  );
+  color: var(--iberfit-color-warning);
+  background: color-mix(
+    in srgb,
+    var(--iberfit-color-warning) 9%,
+    transparent
+  );
+  border-style: dashed;
+}
+
 /* Role-density hooks: visual language stays shared; density changes by role. */
 [data-m26-role="client"] {
   --iberfit-role-control-min: var(--iberfit-density-client-control-min);

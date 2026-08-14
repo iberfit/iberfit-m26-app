@@ -16,8 +16,9 @@ const rc58=read('docs/RC58_3_CORE_PRIMITIVES.md');
 
 test('primitive contract cubre el conjunto mÃ­nimo premium',()=>{
   const required=[
-    'Button','IconButton','Field','Input','Textarea','Select','Badge','Chip',
-    'Card','Panel','Metric','Alert','Notice','Skeleton','EmptyState',
+    'Button','IconButton','Link','Field','Input','Textarea','Select',
+    'Checkbox','Radio','Switch','Badge','Chip','Card','Panel','Metric','KPI',
+    'Alert','Notice','Toast','Skeleton','EmptyState',
     'ErrorState','RetryState','OfflineState','SyncState','Tooltip','Popover',
     'Dialog','Sheet','Tabs','SegmentedControl','Progress','TableShell',
     'FilterBar','SearchField'
@@ -67,7 +68,7 @@ test('CSS incluye accesibilidad, estados y reduced motion',()=>{
   assert.match(css,/focus-visible/);
   assert.match(css,/prefers-reduced-motion/);
   assert.match(css,/prefers-contrast:\s*more/);
-  for(const state of ['success','warning','error','offline','syncing']){
+  for(const state of ['success','warning','error','conflict','offline','syncing']){
     assert.equal(css.includes(`data-state="${state}"`),true,state);
   }
   assert.match(css,/--iberfit-control-height:\s*var\(--iberfit-size-touch-target\)/);

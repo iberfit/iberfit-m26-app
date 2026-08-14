@@ -14,12 +14,13 @@ RC58.3 no reemplaza los flujos Cliente, Coach, Admin, sesiÃ³n, wearables, enga
 
 Foundation:
 
-- Button / IconButton
+- Button / IconButton / Link
 - Field / Input / Textarea / Select
+- Checkbox / Radio / Switch
 - Badge / Chip
 - Card / Panel
-- Metric
-- Alert / Notice
+- Metric / KPI
+- Alert / Notice / Toast
 - Skeleton
 - Empty / Error / Retry / Offline / Sync states
 - Tooltip / Popover
@@ -78,6 +79,9 @@ RC58_3_BUSINESS_LOGIC_DUPLICATED=FALSE
 RC58_3_NO_NEW_RUNTIME_DEPENDENCIES=PASS
 RC58_3_ACCESSIBILITY_FOUNDATION=PASS
 RC58_3_PRODUCT_STATES=PASS
+RC58_3_SCOPE_MINIMUM_COMPLETE=TRUE
+RC58_3_CANONICAL_PRIMITIVE_COUNT=35
+RC58_3_COMPLETENESS_PATCH=RC58_3A
 
 NEXT_ACTION=RC58_4_ROLE_SURFACES
 NEXT_SECURITY_ACTION=SR0_THREAT_MODEL_AND_SECURITY_INVENTORY_READ_ONLY
