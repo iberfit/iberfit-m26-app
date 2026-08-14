@@ -1,5 +1,5 @@
 {
-  "version": "58.5.0",
+  "version": "58.5.1",
   "status": "canonical-brand-asset-confirmed",
   "officialAsset": {
     "path": "public/isotipo-iberfit.png",
@@ -37,7 +37,14 @@
       "WEAR_OS",
       "COMMERCIAL_WEB"
     ],
-    "appIcons": "derive-or-validate-from-official-asset-in-rc58.5b",
+    "appIcons": "native-derived-from-official-asset",
+    "nativeIdentity": {
+      "phone": "aligned",
+      "wear": "aligned",
+      "launcherForeground": "official-asset-as-is",
+      "launcherBackground": "{color.semantic.canvas}",
+      "monochrome": "deferred-until-approved-vector-master"
+    },
     "commercialWeb": "preserve-content-seo-correct-branding-later",
     "productionMutationAllowedInRc58_5": false
   },

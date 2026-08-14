@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -68,6 +69,34 @@ class PhoneMainActivity : Activity() {
         super.onCreate(
             savedInstanceState
         )
+
+        val brandMarkSize =
+            resources.getDimensionPixelSize(
+                R.dimen.iberfit_native_brand_mark
+            )
+
+        val brandMark =
+            ImageView(this).apply {
+                setImageResource(
+                    R.drawable.iberfit_brand_mark
+                )
+                adjustViewBounds =
+                    true
+                scaleType =
+                    ImageView.ScaleType.FIT_CENTER
+                contentDescription =
+                    null
+                layoutParams =
+                    LinearLayout.LayoutParams(
+                        brandMarkSize,
+                        brandMarkSize
+                    ).apply {
+                        bottomMargin =
+                            resources.getDimensionPixelSize(
+                                R.dimen.iberfit_space_3
+                            )
+                    }
+            }
 
         status =
             TextView(this).apply {
@@ -204,6 +233,7 @@ class PhoneMainActivity : Activity() {
                     32
                 )
 
+                addView(brandMark)
                 addView(status)
                 addView(start)
                 addView(pause)

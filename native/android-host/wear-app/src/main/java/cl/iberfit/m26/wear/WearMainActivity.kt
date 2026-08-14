@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 
@@ -26,6 +27,34 @@ class WearMainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        val brandMarkSize =
+            resources.getDimensionPixelSize(
+                R.dimen.iberfit_native_brand_mark
+            )
+
+        val brandMark =
+            ImageView(this).apply {
+                setImageResource(
+                    R.drawable.iberfit_brand_mark
+                )
+                adjustViewBounds =
+                    true
+                scaleType =
+                    ImageView.ScaleType.FIT_CENTER
+                contentDescription =
+                    null
+                layoutParams =
+                    LinearLayout.LayoutParams(
+                        brandMarkSize,
+                        brandMarkSize
+                    ).apply {
+                        bottomMargin =
+                            resources.getDimensionPixelSize(
+                                R.dimen.iberfit_space_2
+                            )
+                    }
+            }
+
         status = TextView(this).apply {
             text = "IBERFIT Wear Â· preparando permisos"
             textSize = 16f
@@ -34,6 +63,7 @@ class WearMainActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 32, 24, 24)
+            addView(brandMark)
             addView(status)
         }
 

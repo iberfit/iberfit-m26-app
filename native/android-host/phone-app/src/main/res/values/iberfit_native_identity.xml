@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="iberfit_native_brand_mark">88dp</dimen>
+    <style name="IBERFITNativeTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/iberfit_color_canvas</item>
+        <item name="android:colorAccent">@color/iberfit_color_accent</item>
+        <item name="android:textColorPrimary">@color/iberfit_color_text_primary</item>
+        <item name="android:textColorSecondary">@color/iberfit_color_text_secondary</item>
+        <item name="android:statusBarColor">@color/iberfit_color_canvas</item>
+        <item name="android:navigationBarColor">@color/iberfit_color_canvas</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
