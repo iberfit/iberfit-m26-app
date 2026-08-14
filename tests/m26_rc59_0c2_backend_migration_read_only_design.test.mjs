@@ -266,7 +266,7 @@ test('RC59.0C2 define read export delete y retention sin apply',()=>{
 test('RC59.0C2 roadmap avanza a backend read only design',()=>{
   assert.match(
     roadmap,
-    /RC59_0=IN_PROGRESS_RC59_0C2A_AUTHORIZATION_DRIFT_CORRECTED/u
+    /RC59_0=IN_PROGRESS_RC59_0C2B_EXECUTABLE_CANDIDATE/u
   );
   assert.match(
     doc,
