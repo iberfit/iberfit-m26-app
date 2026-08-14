@@ -1,0 +1,442 @@
+/* IBERFIT RC58.4 Â· Role Surfaces
+ * One product language, three deliberately different information densities.
+ * No business logic, authorization or data access lives in this layer.
+ */
+
+.m26-shell[data-m26-role="client"] {
+  --iberfit-role-gap: var(--iberfit-density-client-gap);
+  --iberfit-role-control-min: var(--iberfit-density-client-control-min);
+  --iberfit-role-accent: var(--iberfit-color-accent-strong);
+  --iberfit-role-accent-soft: color-mix(in srgb, var(--iberfit-color-accent) 11%, transparent);
+  --iberfit-role-radius: var(--iberfit-radius-xl);
+}
+
+.m26-shell[data-m26-role="coach"] {
+  --iberfit-role-gap: var(--iberfit-density-coach-gap);
+  --iberfit-role-control-min: var(--iberfit-density-coach-control-min);
+  --iberfit-role-accent: var(--iberfit-color-accent);
+  --iberfit-role-accent-soft: color-mix(in srgb, var(--iberfit-color-success) 7%, transparent);
+  --iberfit-role-radius: var(--iberfit-radius-lg);
+}
+
+.m26-shell[data-m26-role="admin"] {
+  --iberfit-role-gap: var(--iberfit-density-admin-gap);
+  --iberfit-role-control-min: var(--iberfit-density-admin-control-min);
+  --iberfit-role-accent: var(--iberfit-color-role-admin-accent);
+  --iberfit-role-accent-soft: var(--iberfit-color-role-admin-accent-soft);
+  --iberfit-role-radius: var(--iberfit-radius-md);
+}
+
+/* Shared role-aware refinements */
+.m26-shell[data-m26-role] .m26-main {
+  background:
+    radial-gradient(
+      circle at 82% 3%,
+      color-mix(in srgb, var(--iberfit-role-accent) 5%, transparent),
+      transparent 28rem
+    );
+}
+
+.m26-shell[data-m26-role] .m26-nav-item,
+.m26-shell[data-m26-role] .m26-icon-button,
+.m26-shell[data-m26-role] .m26-client-selector select {
+  min-height: var(--iberfit-role-control-min);
+}
+
+.m26-shell[data-m26-role] .m26-nav-item.is-active {
+  border-color: color-mix(in srgb, var(--iberfit-role-accent) 34%, transparent);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--iberfit-role-accent) 17%, transparent),
+      color-mix(in srgb, var(--iberfit-role-accent) 6%, transparent)
+    );
+}
+
+.m26-shell[data-m26-role] .m26-eyebrow,
+.m26-shell[data-m26-role] .m26-sidebar-footer span,
+.m26-shell[data-m26-role] .m26-client-selector span,
+.m26-shell[data-m26-role] .m26-client-context span {
+  color: var(--iberfit-role-accent);
+}
+
+/* CLIENT Â· calm, reassuring, mobile-first, next-action oriented */
+.m26-shell[data-m26-role="client"] .m26-main {
+  padding: clamp(1rem, 4vw, 3rem);
+}
+
+.m26-shell[data-m26-role="client"] .m26-route {
+  max-width: 1180px;
+  gap: var(--iberfit-space-5);
+}
+
+.m26-shell[data-m26-role="client"] .m26-topbar {
+  min-height: 5.75rem;
+  padding: var(--iberfit-space-4) clamp(var(--iberfit-space-4), 4vw, var(--iberfit-space-7));
+  background: color-mix(in srgb, var(--iberfit-color-canvas) 88%, transparent);
+}
+
+.m26-shell[data-m26-role="client"] .m26-topbar h1 {
+  max-width: 18ch;
+  font-size: clamp(1.8rem, 4vw, 2.65rem);
+  letter-spacing: -0.025em;
+}
+
+.m26-shell[data-m26-role="client"] .m26-sidebar {
+  background:
+    radial-gradient(circle at 20% 8%, rgba(200,166,93,.08), transparent 18rem),
+    linear-gradient(180deg, rgba(15,45,33,.97), rgba(7,21,15,.99));
+}
+
+.m26-shell[data-m26-role="client"] .m26-nav-group > div {
+  gap: var(--iberfit-space-2);
+}
+
+.m26-shell[data-m26-role="client"] .m26-nav-item {
+  border-radius: var(--iberfit-radius-md);
+  padding: var(--iberfit-space-3) var(--iberfit-space-4);
+}
+
+.m26-shell[data-m26-role="client"] :is(
+  .m26-hero-panel,
+  .m26-profile-hero,
+  .m26-panel,
+  .m26-stat,
+  .m26-list-card,
+  .m26-rc39-session-card,
+  .m26-client-content-card,
+  .m26-wearable-preview
+) {
+  border-radius: var(--iberfit-role-radius);
+}
+
+.m26-shell[data-m26-role="client"] :is(
+  .m26-hero-panel,
+  .m26-profile-hero
+) {
+  padding: clamp(var(--iberfit-space-5), 3.5vw, var(--iberfit-space-7));
+  background:
+    radial-gradient(circle at 88% 12%, rgba(228,205,152,.11), transparent 20rem),
+    linear-gradient(135deg, rgba(20,52,36,.96), rgba(8,27,20,.98));
+  box-shadow: var(--iberfit-shadow-elevated);
+}
+
+.m26-shell[data-m26-role="client"] .m26-stat-grid {
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--iberfit-space-4);
+}
+
+.m26-shell[data-m26-role="client"] .m26-stat {
+  min-height: 8.5rem;
+  padding: var(--iberfit-space-5);
+}
+
+.m26-shell[data-m26-role="client"] .m26-stat strong {
+  font-size: clamp(1.45rem, 3vw, 2.05rem);
+}
+
+.m26-shell[data-m26-role="client"] .m26-panel {
+  padding: clamp(var(--iberfit-space-4), 2.5vw, var(--iberfit-space-6));
+}
+
+.m26-shell[data-m26-role="client"] .m26-list-card {
+  min-height: 4.75rem;
+  padding: var(--iberfit-space-4) var(--iberfit-space-5);
+}
+
+.m26-shell[data-m26-role="client"] .m26-primary-action {
+  min-height: var(--iberfit-size-touch-target-comfortable);
+  padding-inline: var(--iberfit-space-5);
+}
+
+.m26-shell[data-m26-role="client"] .m26-client-bottom-nav {
+  border-color: color-mix(in srgb, var(--iberfit-color-accent-strong) 24%, transparent);
+  background:
+    radial-gradient(circle at 50% -45%, rgba(228,205,152,.18), transparent 44%),
+    linear-gradient(100deg, rgba(4,31,23,.985), rgba(12,49,37,.985), rgba(4,31,23,.985));
+  box-shadow:
+    0 22px 58px rgba(0,0,0,.42),
+    inset 0 1px 0 rgba(255,245,218,.09);
+}
+
+/* COACH Â· professional cockpit, comparison and action density */
+.m26-shell[data-m26-role="coach"] .m26-main {
+  padding: clamp(var(--iberfit-space-4), 2.3vw, var(--iberfit-space-6));
+}
+
+.m26-shell[data-m26-role="coach"] .m26-route {
+  max-width: var(--iberfit-layout-content-max);
+  gap: var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-topbar {
+  min-height: 4.8rem;
+  padding: var(--iberfit-space-3) clamp(var(--iberfit-space-4), 2.5vw, var(--iberfit-space-6));
+}
+
+.m26-shell[data-m26-role="coach"] .m26-topbar h1 {
+  font-size: clamp(1.55rem, 2.4vw, 2.1rem);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-nav-group {
+  margin-bottom: var(--iberfit-space-4);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-nav-group > div {
+  gap: var(--iberfit-space-1);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-nav-item {
+  border-radius: var(--iberfit-radius-sm);
+  padding: var(--iberfit-space-2) var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="coach"] :is(
+  .m26-panel,
+  .m26-stat,
+  .m26-list-card,
+  .m26-client-card,
+  .m26-library-card,
+  .m26-publication-card,
+  .m26-rc39-session-card,
+  .m26-wearable-source
+) {
+  border-radius: var(--iberfit-role-radius);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-stat-grid {
+  gap: var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-stat {
+  min-height: 6.75rem;
+  padding: var(--iberfit-space-3) var(--iberfit-space-4);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-content-grid {
+  gap: var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-client-grid {
+  grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr));
+  gap: var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-list-card {
+  min-height: 3.75rem;
+  padding: var(--iberfit-space-3) var(--iberfit-space-4);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-rc39-session-card {
+  gap: var(--iberfit-space-3);
+  padding: var(--iberfit-space-4);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-client-selector {
+  min-width: min(20rem, 38vw);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-operation-status {
+  border-color: color-mix(in srgb, var(--iberfit-role-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--iberfit-color-surface-base) 68%, transparent);
+}
+
+/* ADMIN Â· high-density organizational control, explicit teal identity */
+.m26-shell[data-m26-role="admin"] .m26-main {
+  padding: var(--iberfit-space-4) clamp(var(--iberfit-space-4), 2vw, var(--iberfit-space-5)) var(--iberfit-space-6);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-topbar {
+  min-height: 4.5rem;
+  padding: var(--iberfit-space-3) var(--iberfit-space-5);
+  border-bottom-color: color-mix(in srgb, var(--iberfit-color-role-admin-accent) 18%, var(--iberfit-color-border));
+}
+
+.m26-shell[data-m26-role="admin"] .m26-topbar h1 {
+  font-size: clamp(1.45rem, 2vw, 1.9rem);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-sidebar {
+  background:
+    radial-gradient(circle at 15% 5%, var(--iberfit-color-role-admin-accent-soft), transparent 18rem),
+    linear-gradient(180deg, rgba(7,29,26,.99), rgba(6,24,21,.99));
+}
+
+.m26-shell[data-m26-role="admin"] .m26-brand {
+  padding-bottom: var(--iberfit-space-4);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-nav-group {
+  margin-bottom: var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-nav-group h2 {
+  color: color-mix(in srgb, var(--iberfit-color-role-admin-accent) 76%, var(--iberfit-color-text-primary));
+}
+
+.m26-shell[data-m26-role="admin"] .m26-nav-group > div {
+  gap: 0.125rem;
+}
+
+.m26-shell[data-m26-role="admin"] .m26-nav-item {
+  border-radius: var(--iberfit-radius-sm);
+  padding: var(--iberfit-space-2) var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-nav-item.is-active {
+  border-color: color-mix(in srgb, var(--iberfit-color-role-admin-accent) 42%, transparent);
+  background: linear-gradient(135deg, var(--iberfit-color-role-admin-accent-soft), rgba(255,255,255,.025));
+}
+
+.m26-shell[data-m26-role="admin"] .m26-admin-route {
+  gap: var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="admin"] :is(
+  .m26-admin-hero,
+  .m26-admin-panel,
+  .m26-admin-stat,
+  .m26-admin-priority,
+  .m26-admin-form,
+  .m26-panel,
+  .m26-stat
+) {
+  border-radius: var(--iberfit-role-radius);
+}
+
+.m26-shell[data-m26-role="admin"] :is(
+  .m26-admin-hero,
+  .m26-admin-panel
+) {
+  padding: var(--iberfit-space-4);
+  border-color: color-mix(in srgb, var(--iberfit-color-role-admin-accent) 13%, var(--iberfit-color-border));
+}
+
+.m26-shell[data-m26-role="admin"] .m26-admin-stats {
+  gap: var(--iberfit-space-2);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-admin-stat {
+  min-height: 5.5rem;
+  padding: var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-admin-grid,
+.m26-shell[data-m26-role="admin"] .m26-admin-cards {
+  gap: var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-admin-list-item,
+.m26-shell[data-m26-role="admin"] .m26-admin-coach-load {
+  padding: var(--iberfit-space-2) var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-admin-form {
+  gap: var(--iberfit-space-2);
+  padding: var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-admin-table {
+  border: 1px solid var(--iberfit-color-border);
+  border-radius: var(--iberfit-radius-md);
+  background: color-mix(in srgb, var(--iberfit-color-surface-base) 76%, transparent);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-admin-table th,
+.m26-shell[data-m26-role="admin"] .m26-admin-table td {
+  padding: var(--iberfit-space-2) var(--iberfit-space-3);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-admin-table th {
+  color: color-mix(in srgb, var(--iberfit-color-role-admin-accent) 68%, var(--iberfit-color-text-primary));
+  font-size: var(--iberfit-font-size-xs);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.m26-shell[data-m26-role="admin"] .m26-admin-notice {
+  border-left-color: var(--iberfit-color-role-admin-accent);
+  background: var(--iberfit-color-role-admin-accent-soft);
+}
+
+/* Desktop role geometry. Do not override the existing compact/tablet shell. */
+@media (min-width: 1180px) {
+  .m26-shell[data-m26-role="client"] {
+    grid-template-columns: 16.5rem minmax(0, 1fr);
+  }
+
+  .m26-shell[data-m26-role="coach"] {
+    grid-template-columns: 17.25rem minmax(0, 1fr);
+  }
+
+  .m26-shell[data-m26-role="admin"] {
+    grid-template-columns: 15.75rem minmax(0, 1fr);
+  }
+}
+
+/* Tablet keeps the historical RC39 compact-nav behavior. */
+@media (min-width: 720px) and (max-width: 1179px) {
+  .m26-shell[data-m26-role="coach"] .m26-main,
+  .m26-shell[data-m26-role="admin"] .m26-main {
+    padding-inline: var(--iberfit-space-4);
+  }
+}
+
+@media (max-width: 900px) {
+  .m26-shell[data-m26-role="client"] .m26-topbar,
+  .m26-shell[data-m26-role="coach"] .m26-topbar,
+  .m26-shell[data-m26-role="admin"] .m26-topbar {
+    min-height: auto;
+  }
+
+  .m26-shell[data-m26-role="client"] .m26-main {
+    padding: var(--iberfit-space-4);
+  }
+
+  .m26-shell[data-m26-role="coach"] .m26-main,
+  .m26-shell[data-m26-role="admin"] .m26-main {
+    padding: var(--iberfit-space-3);
+  }
+}
+
+@media (max-width: 580px) {
+  .m26-shell[data-m26-role="client"] .m26-route {
+    gap: var(--iberfit-space-4);
+  }
+
+  .m26-shell[data-m26-role="client"] :is(
+    .m26-hero-panel,
+    .m26-profile-hero,
+    .m26-panel,
+    .m26-stat,
+    .m26-list-card
+  ) {
+    border-radius: var(--iberfit-radius-lg);
+  }
+
+  .m26-shell[data-m26-role="coach"] .m26-client-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .m26-shell[data-m26-role="admin"] .m26-admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .m26-shell[data-m26-role] :is(
+    .m26-nav-item.is-active,
+    .m26-panel,
+    .m26-stat,
+    .m26-admin-panel,
+    .m26-admin-stat
+  ) {
+    border-color: var(--iberfit-color-border-strong);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m26-shell[data-m26-role] * {
+    scroll-behavior: auto;
+  }
+}

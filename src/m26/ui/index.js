@@ -3,5 +3,6 @@ export * from './interactive-audit.js';
 
 export * from './design-system.js';
 export * from '../design/primitives.js';
+export * from '../design/role-surfaces.js';
 
 export * from './castellano.js';
