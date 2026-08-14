@@ -221,8 +221,44 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       throw new Error('M26_RECOVERY_REDIRECT_INVALID');
     }
 
+    const runtimeHost =
+      String(runtime.host || '')
+        .trim()
+        .toLowerCase();
+
+    const redirectHost =
+      String(redirect.hostname || '')
+        .trim()
+        .toLowerCase();
+
+    const localRuntime =
+      LOCAL_HOSTS.has(runtimeHost);
+
+    const localRedirect =
+      LOCAL_HOSTS.has(redirectHost);
+
+    const qaRedirectAllowed =
+      runtime.qaOnly === true &&
+      redirect.origin === 'https://m26-canary.iberfit.cl';
+
+    const productionRedirectAllowed =
+      runtime.qaOnly !== true &&
+      EXACT_REMOTE_HOSTS.has(runtimeHost) &&
+      runtimeHost !== 'm26-canary.iberfit.cl' &&
+      redirect.protocol === 'https:' &&
+      redirectHost === runtimeHost;
+
+    const localRedirectAllowed =
+      runtime.qaOnly !== true &&
+      localRuntime &&
+      localRedirect &&
+      redirectHost === runtimeHost &&
+      ['http:', 'https:'].includes(redirect.protocol);
+
     if (
-      redirect.origin !== 'https://m26-canary.iberfit.cl' ||
+      (!qaRedirectAllowed &&
+        !productionRedirectAllowed &&
+        !localRedirectAllowed) ||
       redirect.pathname !== '/' ||
       redirect.search ||
       redirect.hash ||

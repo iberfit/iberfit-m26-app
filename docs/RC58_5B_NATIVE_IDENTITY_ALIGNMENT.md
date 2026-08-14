@@ -74,14 +74,17 @@ No se toca:
 - comandos start/pause/resume/stop;
 - failover.
 
-## PWA y web comercial
+## PWA y alcance posterior
 
-RC58.5B no modifica todavía los iconos PWA de M26 ni la web comercial.
+RC58.5B no modificó los iconos PWA de M26.
 
-Esos activos se compararán en el gate cross-surface; no se sustituyen por similitud.
+RC58.5C alinea la PWA como parte de la misma app.
+
+La web comercial queda expresamente fuera del trabajo activo hasta cerrar la aplicación.
 
 M26_PWA_ICONS_TOUCHED=FALSE
 COMMERCIAL_WEB_TOUCHED=FALSE
+COMMERCIAL_WEB_PHASE=DEFERRED_UNTIL_APP_COMPLETE
 
 ## Seguridad
 
@@ -99,6 +102,6 @@ RC58_5B_TOKEN_THEME_ALIGNMENT=PASS
 RC58_5B_BUSINESS_LOGIC_CHANGED=FALSE
 RC58_5B_NEW_RUNTIME_DEPENDENCIES=ZERO
 
-NEXT_ACTION=RC58_5C_COMMERCIAL_TOKEN_CONTRACT
+NEXT_ACTION=RC58_5C_APP_INTEGRITY_AND_CROSS_SURFACE
 NEXT_SECURITY_ACTION=SR0_THREAT_MODEL_AND_SECURITY_INVENTORY_READ_ONLY
 NEXT_DEPLOYMENT_ACTION=APP_IBERFIT_CL_SURFACE_INVENTORY_READ_ONLY

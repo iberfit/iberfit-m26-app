@@ -1,5 +1,5 @@
 {
-  "version": "58.5.1",
+  "version": "58.5.2",
   "status": "canonical-brand-asset-confirmed",
   "officialAsset": {
     "path": "public/isotipo-iberfit.png",
@@ -37,7 +37,7 @@
       "WEAR_OS",
       "COMMERCIAL_WEB"
     ],
-    "appIcons": "native-derived-from-official-asset",
+    "appIcons": "native-and-pwa-derived-from-official-asset",
     "nativeIdentity": {
       "phone": "aligned",
       "wear": "aligned",
@@ -45,7 +45,16 @@
       "launcherBackground": "{color.semantic.canvas}",
       "monochrome": "deferred-until-approved-vector-master"
     },
+    "pwaIdentity": {
+      "status": "aligned",
+      "source": "public/isotipo-iberfit.png",
+      "recolored": false,
+      "anySafeBoxPercent": 74,
+      "maskableSafeBoxPercent": 60,
+      "appleTouchSafeBoxPercent": 72
+    },
     "commercialWeb": "preserve-content-seo-correct-branding-later",
+    "commercialWebPhase": "deferred-until-app-complete",
     "productionMutationAllowedInRc58_5": false
   },
   "launch": {

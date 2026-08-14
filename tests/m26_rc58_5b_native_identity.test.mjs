@@ -108,8 +108,8 @@ test('shells técnicos muestran la marca pero conservan lógica',()=>{
 });
 
 test('Brand Truth registra alineación nativa sin inventar monochrome',()=>{
-  assert.equal(truth.version,'58.5.1');
-  assert.equal(truth.propagation.appIcons,'native-derived-from-official-asset');
+  assert.equal(truth.version,'58.5.2');
+  assert.equal(truth.propagation.appIcons,'native-and-pwa-derived-from-official-asset');
   assert.equal(truth.propagation.nativeIdentity.phone,'aligned');
   assert.equal(truth.propagation.nativeIdentity.wear,'aligned');
   assert.equal(truth.propagation.nativeIdentity.launcherForeground,'official-asset-as-is');

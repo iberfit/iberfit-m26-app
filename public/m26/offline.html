@@ -2,18 +2,33 @@
 <html lang="es-ES">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d2419">
+  <meta name="color-scheme" content="dark">
   <title>IBERFIT · Sin conexión</title>
+  <link rel="stylesheet" href="/src/m26/design/tokens.css">
+  <link rel="stylesheet" href="/src/m26/design/typography.css">
   <link rel="stylesheet" href="/m26/offline.css">
   <script src="/m26/offline.js" defer></script>
 </head>
 <body>
-  <main>
-    <p>IBERFIT</p>
-    <h1>Sin conexión</h1>
-    <p>Tu progreso guardado localmente seguirá disponible. Las acciones pendientes se sincronizarán al recuperar internet.</p>
-    <button id="retry" type="button">Reintentar</button>
+  <main class="m26-offline-card" aria-labelledby="m26-offline-title">
+    <img
+      class="m26-offline-mark"
+      src="/public/isotipo-iberfit.png"
+      alt=""
+      aria-hidden="true"
+    >
+    <p class="m26-offline-eyebrow">IBERFIT</p>
+    <h1 id="m26-offline-title">Sin conexión</h1>
+    <p>
+      Tu progreso disponible en este dispositivo permanece protegido.
+      Las acciones pendientes se sincronizarán cuando vuelva internet.
+    </p>
+    <div class="m26-offline-state" role="status">
+      Trabajando en modo sin conexión
+    </div>
+    <button id="retry" type="button">Reintentar conexión</button>
   </main>
 </body>
 </html>

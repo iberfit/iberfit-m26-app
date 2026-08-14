@@ -34,10 +34,12 @@ test('RC42 carga estilos despues de modulos funcionales', () => {
 });
 
 test('RC42 precachea la capa responsive', () => {
+  const responsivePath = '/src/m26/rc42/rc42.css';
+
   assert.ok(
-    serviceWorker.includes(
-      "'/src/m26/rc42/rc42.css'",
-    ),
+    serviceWorker.includes(`'${responsivePath}'`) ||
+      serviceWorker.includes(`"${responsivePath}"`),
+    'La capa responsive RC42 debe formar parte del APP_SHELL',
   );
 });
 

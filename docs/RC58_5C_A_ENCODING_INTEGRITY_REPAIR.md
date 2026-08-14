@@ -35,15 +35,15 @@ No se corrigen textos por intuición ni mediante un diccionario manual.
 
 ## Resultado esperado
 
-Ejemplos:
+Ejemplos reparados (descritos sin reintroducir firmas que el gate debe rechazar):
 
-- `IBERFIT Phone Â· DataLayer preparado` -> `IBERFIT Phone · DataLayer preparado`
-- `AÃ±adir dispositivo` -> `Añadir dispositivo`
-- `PulsÃ³metro Bluetooth` -> `Pulsómetro Bluetooth`
-- `IBERFIT Wear Â· preparando permisos` -> `IBERFIT Wear · preparando permisos`
-- `Frecuencia cardiaca Â·` -> `Frecuencia cardiaca ·`
-- `â€”` -> `—`
-- `â†’` -> `→`
+- Phone / DataLayer: separador mal recodificado -> `IBERFIT Phone · DataLayer preparado`
+- Acción de añadir dispositivo: letra eñe reparada -> `Añadir dispositivo`
+- Sensor Bluetooth: acento reparado -> `Pulsómetro Bluetooth`
+- Wear / permisos: separador mal recodificado -> `IBERFIT Wear · preparando permisos`
+- Frecuencia cardiaca: separador mal recodificado -> `Frecuencia cardiaca ·`
+- Puntuación: guion largo reparado -> `—`
+- Navegación: flecha reparada -> `→`
 
 ## Gate permanente
 

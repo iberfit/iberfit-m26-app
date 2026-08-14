@@ -113,7 +113,38 @@ function reportDiagnostic(stage,error){
 
 
 const RECOVERY_REQUEST_CONFIRMATION='Si el correo corresponde a una cuenta QA autorizada, recibirás un enlace para crear una contraseña nueva.';
+const RECOVERY_REQUEST_CONFIRMATION_PUBLIC='Si el correo corresponde a una cuenta IBERFIT, recibirás un enlace para crear una contraseña nueva.';
 const RECOVERY_LINK_INVALID='El enlace de recuperación no es válido o ha caducado. Solicita uno nuevo.';
+function recoveryRequestConfirmation(runtime){
+  return runtime?.qaOnly
+    ?RECOVERY_REQUEST_CONFIRMATION
+    :RECOVERY_REQUEST_CONFIRMATION_PUBLIC;
+}
+function recoveryRedirectForRuntime(runtime,locationLike=globalThis.location){
+  if(!runtime?.enabled)throw new Error('M26_BACKEND_DISABLED');
+  const host=String(runtime?.host||locationLike?.hostname||'').trim().toLowerCase();
+
+  if(runtime?.qaOnly){
+    if(host&&host!=='m26-canary.iberfit.cl')throw new Error('M26_RECOVERY_REDIRECT_INVALID');
+    return 'https://m26-canary.iberfit.cl/';
+  }
+
+  if(['app.iberfit.cl','coach.iberfit.cl'].includes(host)){
+    return `https://${host}/`;
+  }
+
+  if(['localhost','127.0.0.1','::1','[::1]'].includes(host)){
+    const protocol=String(locationLike?.protocol||'http:').toLowerCase();
+    if(!['http:','https:'].includes(protocol))throw new Error('M26_RECOVERY_REDIRECT_INVALID');
+    const rawPort=String(locationLike?.port||'').trim();
+    if(rawPort&&!/^\d{1,5}$/u.test(rawPort))throw new Error('M26_RECOVERY_REDIRECT_INVALID');
+    const port=rawPort?`:${rawPort}`:'';
+    const hostname=['::1','[::1]'].includes(host)?'[::1]':host;
+    return `${protocol}//${hostname}${port}/`;
+  }
+
+  throw new Error('M26_RECOVERY_REDIRECT_INVALID');
+}
 function recoveryNetworkError(error){
   const code=String(error?.message||error||'');
   if(error?.status===0||/TIMEOUT|NETWORK|FETCH|Failed to fetch/i.test(code))return 'No fue posible conectar. Comprueba tu conexión a internet e inténtalo de nuevo.';
@@ -431,9 +462,18 @@ function onAuthClick(event) {
 async function requestRecovery(email) {
   if (loginBusy) return false;
 
-  if (!runtime.enabled || !runtime.canary) {
+  if (!runtime.enabled) {
     throw new Error('M26_BACKEND_DISABLED');
   }
+
+  const confirmation =
+    recoveryRequestConfirmation(runtime);
+
+  const redirectTo =
+    recoveryRedirectForRuntime(
+      runtime,
+      locationLike
+    );
 
   loginBusy = true;
   authMode = 'request-recovery';
@@ -442,18 +482,18 @@ async function requestRecovery(email) {
   try {
     await transport.requestPasswordRecovery(
       email,
-      'https://m26-canary.iberfit.cl/'
+      redirectTo
     );
 
     loginBusy = false;
-    authMessage(RECOVERY_REQUEST_CONFIRMATION);
+    authMessage(confirmation);
 
     return true;
   } catch (error) {
     loginBusy = false;
 
     if (/QA_ACCOUNT_REQUIRED/.test(String(error?.message || error || ''))) {
-      authMessage(RECOVERY_REQUEST_CONFIRMATION);
+      authMessage(confirmation);
       return true;
     }
 
@@ -466,7 +506,6 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
 
   if (
     !runtime.enabled ||
-    !runtime.canary ||
     !recoverySession?.accessToken
   ) {
     throw new Error('M26_RECOVERY_SESSION_REQUIRED');
@@ -595,8 +634,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     if (
       fragmentCleared &&
       recovery.status === 'valid' &&
-      runtime.enabled &&
-      runtime.canary
+      runtime.enabled
     ) {
       recoverySession = recovery.session;
       authMode = 'update-password';
@@ -626,4 +664,4 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),runtime});
 }
 
-export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});
+export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,recoveryRequestConfirmation,recoveryRedirectForRuntime,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});

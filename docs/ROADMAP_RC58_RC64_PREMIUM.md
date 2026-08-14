@@ -15,7 +15,7 @@ RC55=BUILT
 RC56=PHYSICAL_E2E_CLOSED
 RC57=SOFTWARE_CLOSED
 RC57_BLE_PHYSICAL_E2E=BLOCKED_NO_HRS_HARDWARE
-RC58=NEXT
+RC58=IN_PROGRESS_RC58_5C_APP_INTEGRITY
 
 ## Critical rail A — Admin / RC46
 
@@ -231,9 +231,13 @@ No se recopila un dato solo porque técnicamente sea posible.
 
 Se recopila si mejora una decisión de servicio concreta y puede explicarse al cliente.
 
-## Cross-cutting rail C — Commercial Web
+## Cross-cutting rail C — Commercial Web · diferido
 
-Avanza en paralelo desde RC58.
+COMMERCIAL_WEB_PHASE=DEFERRED_UNTIL_APP_COMPLETE
+
+La app es el único foco activo hasta cerrar su roadmap y sus gates de lanzamiento.
+
+El backlog comercial se conserva íntegro para después:
 
 - tokens de marca;
 - hero con producto real;
@@ -248,7 +252,7 @@ Avanza en paralelo desde RC58.
 - fingerprinting de assets;
 - Lighthouse/axe/Playwright.
 
-La web vende mostrando el producto, no añadiendo texto.
+La web venderá mostrando el producto terminado, no desviando capacidad durante su construcción.
 
 ## Cross-cutting rail D — App distribution
 
