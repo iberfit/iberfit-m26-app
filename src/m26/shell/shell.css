@@ -1,16 +1,16 @@
 :root {
-  --m26-forest-950: #07150f;
-  --m26-forest-900: #0d2419;
-  --m26-forest-800: #143424;
-  --m26-forest-700: #1d4933;
-  --m26-gold-500: #c8a65d;
-  --m26-gold-300: #e4cd98;
-  --m26-cream-100: #f7f1e4;
-  --m26-cream-300: #ddd4c1;
-  --m26-line: rgba(228, 205, 152, .18);
-  --m26-danger: #d79a91;
-  --m26-success: #8bc7a2;
-  --m26-shadow: 0 24px 70px rgba(2, 10, 7, .28);
+  --m26-forest-950: var(--iberfit-color-forest-950);
+  --m26-forest-900: var(--iberfit-color-forest-900);
+  --m26-forest-800: var(--iberfit-color-forest-800);
+  --m26-forest-700: var(--iberfit-color-forest-700);
+  --m26-gold-500: var(--iberfit-color-gold-500);
+  --m26-gold-300: var(--iberfit-color-gold-300);
+  --m26-cream-100: var(--iberfit-color-cream-100);
+  --m26-cream-300: var(--iberfit-color-cream-300);
+  --m26-line: var(--iberfit-color-border);
+  --m26-danger: var(--iberfit-color-danger);
+  --m26-success: var(--iberfit-color-success);
+  --m26-shadow: var(--iberfit-shadow-elevated);
 }
 
 .m26-shell {
@@ -202,16 +202,16 @@
 /* RC12 · Design System y accesibilidad reforzada */
 :root {
   color-scheme: dark;
-  --m26-serif: Georgia, 'Times New Roman', serif;
-  --m26-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --m26-muted: #c8c0af;
-  --m26-focus: #f2dca8;
-  --m26-surface-1: rgba(15,40,31,.88);
-  --m26-surface-2: rgba(8,25,18,.96);
-  --m26-radius-sm: .65rem;
-  --m26-radius-md: .9rem;
-  --m26-radius-lg: 1.25rem;
-  --m26-transition: 180ms ease;
+  --m26-serif: var(--iberfit-font-family-editorial);
+  --m26-sans: var(--iberfit-font-family-ui);
+  --m26-muted: var(--iberfit-color-text-secondary);
+  --m26-focus: var(--iberfit-color-focus);
+  --m26-surface-1: var(--iberfit-color-surface-raised);
+  --m26-surface-2: var(--iberfit-color-surface-overlay);
+  --m26-radius-sm: var(--iberfit-radius-sm);
+  --m26-radius-md: var(--iberfit-radius-md);
+  --m26-radius-lg: var(--iberfit-radius-lg);
+  --m26-transition: var(--iberfit-motion-standard) var(--iberfit-motion-easing-standard);
 }
 
 .m26-shell, .m26-access-frame { font-family: var(--m26-sans); }

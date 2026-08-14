@@ -1,16 +1,42 @@
+import {IBERFIT_DESIGN_TOKENS} from '../design/tokens.generated.js';
+
+const toRem=(px)=>`${Number((Number(px)/16).toFixed(4))}rem`;
+
+export {IBERFIT_DESIGN_TOKENS};
+
 export const M26_DESIGN_TOKENS=Object.freeze({
-  spacing:['0.25rem','0.5rem','0.75rem','1rem','1.5rem','2rem','3rem'],
-  radius:{sm:'0.65rem',md:'0.9rem',lg:'1.25rem',pill:'999px'},
-  touchTargetPx:44,
-  maxContentPx:1440,
-  breakpoints:{mobile:580,tablet:900},
-  motion:{fast:140,normal:220},
+  spacing:Object.freeze(['1','2','3','4','5','6','7'].map((key)=>toRem(IBERFIT_DESIGN_TOKENS.space[key]))),
+  radius:Object.freeze({
+    sm:toRem(IBERFIT_DESIGN_TOKENS.radius.sm),
+    md:toRem(IBERFIT_DESIGN_TOKENS.radius.md),
+    lg:toRem(IBERFIT_DESIGN_TOKENS.radius.lg),
+    pill:`${IBERFIT_DESIGN_TOKENS.radius.pill}px`,
+  }),
+  touchTargetPx:IBERFIT_DESIGN_TOKENS.size.touchTargetPx,
+  maxContentPx:IBERFIT_DESIGN_TOKENS.layout.contentMaxPx,
+  breakpoints:Object.freeze({
+    mobile:IBERFIT_DESIGN_TOKENS.breakpoint.mobilePx,
+    tablet:IBERFIT_DESIGN_TOKENS.breakpoint.tabletPx,
+  }),
+  motion:Object.freeze({
+    fast:IBERFIT_DESIGN_TOKENS.motion.duration.fastMs,
+    normal:IBERFIT_DESIGN_TOKENS.motion.duration.normalMs,
+  }),
 });
 
+const p=IBERFIT_DESIGN_TOKENS.color.primitive;
 export const M26_PALETTE=Object.freeze({
-  forest950:'#07150f',forest900:'#0d2419',forest800:'#143424',forest700:'#1d4933',
-  cream100:'#f7f1e4',cream300:'#ddd4c1',muted:'#c8c0af',gold500:'#c8a65d',gold300:'#e4cd98',
-  danger:'#d79a91',success:'#8bc7a2',
+  forest950:p.forest950,
+  forest900:p.forest900,
+  forest800:p.forest800,
+  forest700:p.forest700,
+  cream100:p.cream100,
+  cream300:p.cream300,
+  muted:p.muted,
+  gold500:p.gold500,
+  gold300:p.gold300,
+  danger:p.danger,
+  success:p.success,
 });
 
 function parseHex(value){const hex=String(value||'').replace('#','');if(!/^[0-9a-f]{6}$/i.test(hex))throw new Error('M26_COLOR_HEX_REQUIRED');return [0,2,4].map((offset)=>Number.parseInt(hex.slice(offset,offset+2),16)/255);}

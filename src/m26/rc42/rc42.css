@@ -3,9 +3,9 @@
   --m26-safe-right: env(safe-area-inset-right, 0px);
   --m26-safe-bottom: env(safe-area-inset-bottom, 0px);
   --m26-safe-left: env(safe-area-inset-left, 0px);
-  --m26-touch-target: 2.75rem;
-  --m26-mobile-nav-height: 4.65rem;
-  --m26-content-max: 100rem;
+  --m26-touch-target: var(--iberfit-size-touch-target);
+  --m26-mobile-nav-height: var(--iberfit-layout-mobile-nav-height);
+  --m26-content-max: var(--iberfit-layout-content-max);
 }
 
 html {

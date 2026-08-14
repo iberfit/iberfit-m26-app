@@ -1,4 +1,4 @@
-.m26-admin-shell{--m26-admin:#31a898;--m26-admin-soft:rgba(49,168,152,.14)}
+.m26-admin-shell{--m26-admin:var(--iberfit-color-role-admin-accent);--m26-admin-soft:var(--iberfit-color-role-admin-accent-soft)}
 .m26-admin-shell .m26-sidebar{background:linear-gradient(180deg,#071d1a,#0c2923)}
 .m26-admin-route{display:grid;gap:1rem;min-width:0}.m26-admin-hero,.m26-admin-panel{padding:1.15rem;border:1px solid rgba(255,255,255,.1);border-radius:1rem;background:rgba(255,255,255,.035)}
 .m26-admin-hero{background:linear-gradient(135deg,var(--m26-admin-soft),rgba(255,255,255,.02))}.m26-admin-hero h2{margin:.15rem 0 .4rem}.m26-admin-hero p{margin:0;color:var(--m26-muted,#b9c7c3)}
