@@ -17,14 +17,14 @@ const approvedMinimum=[
   'SegmentedControl','Progress','TableShell','FilterBar','SearchField'
 ];
 
-test('contrato RC58.3 coincide con los 35 primitives mÃ­nimos aprobados',()=>{
+test('contrato RC58.3 coincide con los 35 primitives mínimos aprobados',()=>{
   assert.equal(IBERFIT_PRIMITIVE_CONTRACT.version,'58.3.1');
   assert.equal(IBERFIT_PRIMITIVE_CONTRACT.primitives.length,35);
   assert.deepEqual([...IBERFIT_PRIMITIVE_CONTRACT.primitives],approvedMinimum);
   assert.equal(primitiveContractAudit().ok,true);
 });
 
-test('los seis primitives omitidos inicialmente tienen CSS canÃ³nico',()=>{
+test('los seis primitives omitidos inicialmente tienen CSS canónico',()=>{
   for(const selector of [
     '.iberfit-link',
     '.iberfit-checkbox',
@@ -46,7 +46,7 @@ test('conflict tiene tratamiento visual propio y no solo color',()=>{
   assert.match(conflict[1],/border-style:\s*dashed/);
 });
 
-test('choice controls mantienen foco y target tÃ¡ctil',()=>{
+test('choice controls mantienen foco y target táctil',()=>{
   assert.match(css,/\.iberfit-choice[\s\S]*?min-height:\s*var\(--iberfit-control-height\)/);
   assert.match(css,/\.iberfit-checkbox:focus-visible/);
   assert.match(css,/\.iberfit-radio:focus-visible/);

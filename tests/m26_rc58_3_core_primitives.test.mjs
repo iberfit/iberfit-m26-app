@@ -14,7 +14,7 @@ const uiIndex=read('src/m26/ui/index.js');
 const launch=read('docs/APP_IBERFIT_CL_LAUNCH_PARITY.md');
 const rc58=read('docs/RC58_3_CORE_PRIMITIVES.md');
 
-test('primitive contract cubre el conjunto mÃ­nimo premium',()=>{
+test('primitive contract cubre el conjunto mínimo premium',()=>{
   const required=[
     'Button','IconButton','Link','Field','Input','Textarea','Select',
     'Checkbox','Radio','Switch','Badge','Chip','Card','Panel','Metric','KPI',
@@ -49,7 +49,7 @@ test('primitives adoptan superficies legacy sin borrar funcionalidad',()=>{
   assert.match(rc58,/RC58_3_BUSINESS_LOGIC_DUPLICATED=FALSE/);
 });
 
-test('primitives son presentaciÃ³n pura sin frontera de datos o auth',()=>{
+test('primitives son presentación pura sin frontera de datos o auth',()=>{
   for(const forbidden of [
     /\bfetch\s*\(/,
     /\bsupabase\b/i,
@@ -74,7 +74,7 @@ test('CSS incluye accesibilidad, estados y reduced motion',()=>{
   assert.match(css,/--iberfit-control-height:\s*var\(--iberfit-size-touch-target\)/);
 });
 
-test('primitives CSS se carga al final de la cascada histÃ³rica',()=>{
+test('primitives CSS se carga al final de la cascada histórica',()=>{
   const primitivePosition=index.indexOf('/src/m26/design/primitives.css');
   const rc44Position=index.indexOf('/src/m26/rc44/rc44.css');
   assert.ok(rc44Position>0);

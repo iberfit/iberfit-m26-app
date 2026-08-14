@@ -1,16 +1,16 @@
-# RC58.1 â€” Token Foundation
+# RC58.1 — Token Foundation
 
 RC58_1_STATUS=IMPLEMENTED
 RC58_1_SINGLE_SOURCE=src/m26/design/tokens.json
 RC58_1_VISUAL_DELTA=INTENTIONALLY_MINIMAL
 
-## DecisiÃ³n
+## Decisión
 
-La base visual existente ya tenÃ­a una paleta IBERFIT reconocible, pero las decisiones estaban repartidas entre `shell.css`, RC histÃ³ricos y CSS especÃ­ficos de Cliente, Admin, comunicaciÃ³n, wearables e IRI.
+La base visual existente ya tenía una paleta IBERFIT reconocible, pero las decisiones estaban repartidas entre `shell.css`, RC históricos y CSS específicos de Cliente, Admin, comunicación, wearables e IRI.
 
-RC58.1 no hace un rediseÃ±o masivo. Primero crea una fuente canÃ³nica y adapters derivados para evitar que el rediseÃ±o posterior multiplique valores incompatibles.
+RC58.1 no hace un rediseño masivo. Primero crea una fuente canónica y adapters derivados para evitar que el rediseño posterior multiplique valores incompatibles.
 
-## Fuente canÃ³nica
+## Fuente canónica
 
 `src/m26/design/tokens.json`
 
@@ -20,18 +20,18 @@ Contiene:
 - spacing;
 - radii;
 - shadows;
-- tipografÃ­a;
+- tipografía;
 - motion;
 - breakpoints;
 - layout;
 - touch targets;
 - z-index;
 - densidad por rol;
-- paleta base para visualizaciÃ³n de datos.
+- paleta base para visualización de datos.
 
 ## Salidas generadas
 
-`scripts/generate_rc58_design_tokens.mjs` genera determinÃ­sticamente:
+`scripts/generate_rc58_design_tokens.mjs` genera determinísticamente:
 
 - `src/m26/design/tokens.generated.js`
 - `src/m26/design/tokens.css`
@@ -48,20 +48,20 @@ Los archivos generados no se editan a mano.
 
 Los aliases `--m26-*` permanecen mientras RC58 migra componentes de forma incremental.
 
-## Inventario crÃ­tico de deuda visual
+## Inventario crítico de deuda visual
 
-La migraciÃ³n completa NO se hace en RC58.1 porque mezclar foundation y restyling elevarÃ­a demasiado el riesgo de regresiÃ³n.
+La migración completa NO se hace en RC58.1 porque mezclar foundation y restyling elevaría demasiado el riesgo de regresión.
 
 Hotspots ya identificados:
 
-- `shell.css`: capas histÃ³ricas RC3â€“RC20 con varios valores inline;
+- `shell.css`: capas históricas RC3–RC20 con varios valores inline;
 - `client-bottom-nav.css`: paleta, radios, sombras y motion propios;
 - `admin.css`: acento y superficies propios;
 - `communication.css`: acento azul y superficies propios;
 - `rc44.css`: wearables con colores/motion locales;
 - `iri-external-report.css`: superficies, estados y viewer locales.
 
-RC58.2/58.3 migrarÃ¡n estas decisiones hacia tipografÃ­a/iconografÃ­a/primitives. RC58.4 aplicarÃ¡ densidad por rol.
+RC58.2/58.3 migrarán estas decisiones hacia tipografía/iconografía/primitives. RC58.4 aplicará densidad por rol.
 
 ## Accesibilidad y datos
 
@@ -70,15 +70,15 @@ RC58.2/58.3 migrarÃ¡n estas decisiones hacia tipografÃ­a/iconografÃ­a/prim
 - estados success/warning/danger/info;
 - seis colores de series claramente diferenciados sobre canvas oscuro;
 - missing data tiene token propio;
-- los colores de series no codifican decisiones clÃ­nicas.
+- los colores de series no codifican decisiones clínicas.
 
 ## Seguridad / supply chain
 
-RC58.1 aÃ±ade cero dependencias externas.
+RC58.1 añade cero dependencias externas.
 
 No incorpora CDN, remote font, runtime fetch ni script de terceros.
 
-La futura incorporaciÃ³n de Lucide y fuentes autohospedadas pasarÃ¡ el rail SR6.
+La futura incorporación de Lucide y fuentes autohospedadas pasará el rail SR6.
 
 ## Criterio de cierre
 

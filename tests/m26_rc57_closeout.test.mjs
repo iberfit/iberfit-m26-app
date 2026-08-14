@@ -9,7 +9,7 @@ const readme = () =>
   );
 
 test(
-  "RC57 software queda cerrado sin falsear el E2E BLE fÃ­sico",
+  "RC57 software queda cerrado sin falsear el E2E BLE físico",
   () => {
     const source =
       readme();
@@ -52,7 +52,7 @@ test(
 );
 
 test(
-  "RC57 conserva evidencia Wear OS fÃ­sica como PASS",
+  "RC57 conserva evidencia Wear OS física como PASS",
   () => {
     const source =
       readme();
@@ -135,7 +135,7 @@ test(
 
     assert.equal(
       source.includes(
-        "no existe todavÃ­a un contrato RC58 canÃ³nico"
+        "no existe todavía un contrato RC58 canónico"
       ),
       true
     );

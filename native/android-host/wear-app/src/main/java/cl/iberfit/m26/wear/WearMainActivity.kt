@@ -56,7 +56,7 @@ class WearMainActivity : Activity() {
             }
 
         status = TextView(this).apply {
-            text = "IBERFIT Wear Â· preparando permisos"
+            text = "IBERFIT Wear · preparando permisos"
             textSize = 16f
         }
 
@@ -82,7 +82,7 @@ class WearMainActivity : Activity() {
     private fun ensureHealthPermissions() {
         if (!hasHeartRatePermission()) {
             status.text =
-                "IBERFIT Wear Â· solicitando permiso de FC"
+                "IBERFIT Wear · solicitando permiso de FC"
 
             requestPermissions(
                 arrayOf(requiredHeartRatePermission()),
@@ -100,7 +100,7 @@ class WearMainActivity : Activity() {
                 PackageManager.PERMISSION_GRANTED
         ) {
             status.text =
-                "IBERFIT Wear Â· solicitando FC en segundo plano"
+                "IBERFIT Wear · solicitando FC en segundo plano"
 
             requestPermissions(
                 arrayOf(backgroundPermission),
@@ -111,7 +111,7 @@ class WearMainActivity : Activity() {
 
         if (!hasNotificationPermission()) {
             status.text =
-                "IBERFIT Wear Â· solicitando notificaciones de entrenamiento"
+                "IBERFIT Wear · solicitando notificaciones de entrenamiento"
 
             requestPermissions(
                 arrayOf(Manifest.permission.POST_NOTIFICATIONS),
@@ -165,16 +165,16 @@ class WearMainActivity : Activity() {
                 hasBackgroundHealthPermission() &&
                 hasNotificationPermission()
             ) {
-                "IBERFIT Wear Â· runtime de entrenamiento listo"
+                "IBERFIT Wear · runtime de entrenamiento listo"
             } else if (
                 hasHeartRatePermission() &&
                 hasBackgroundHealthPermission()
             ) {
-                "IBERFIT Wear Â· runtime listo Â· notificaciones desactivadas"
+                "IBERFIT Wear · runtime listo · notificaciones desactivadas"
             } else if (!hasHeartRatePermission()) {
-                "IBERFIT Wear Â· falta permiso de FC"
+                "IBERFIT Wear · falta permiso de FC"
             } else {
-                "IBERFIT Wear Â· falta permiso de FC en segundo plano"
+                "IBERFIT Wear · falta permiso de FC en segundo plano"
             }
     }
 

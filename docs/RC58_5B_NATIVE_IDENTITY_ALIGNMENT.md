@@ -1,4 +1,4 @@
-# RC58.5B â€” Native Identity Alignment
+# RC58.5B — Native Identity Alignment
 
 RC58_5B_STATUS=IMPLEMENTED
 RC58_5B_SOURCE_OF_TRUTH=public/isotipo-iberfit.png
@@ -6,11 +6,11 @@ RC58_5B_SOURCE_SHA256=d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710
 
 ## Objetivo
 
-Alinear Phone y Wear con Brand Truth sin convertir los shells nativos de telemetrÃ­a en una segunda aplicaciÃ³n independiente.
+Alinear Phone y Wear con Brand Truth sin convertir los shells nativos de telemetría en una segunda aplicación independiente.
 
 La identidad deriva desde el asset oficial y los tokens RC58.
 
-No se toma ningÃºn color o icono desde la web comercial.
+No se toma ningún color o icono desde la web comercial.
 
 ## Marca nativa
 
@@ -18,7 +18,7 @@ Phone y Wear reciben una copia byte-for-byte del asset oficial en:
 
 - `drawable-nodpi/iberfit_brand_mark.png`
 
-Su SHA256 debe ser idÃ©ntico al master web.
+Su SHA256 debe ser idéntico al master web.
 
 El asset no se recolorea.
 
@@ -30,7 +30,7 @@ Se crea un launcher adaptativo para API 26+:
 - primer plano = asset oficial con inset de seguridad;
 - manifest = `@mipmap/ic_launcher`.
 
-TambiÃ©n se generan PNG de fallback mdpi/hdpi/xhdpi/xxhdpi/xxxhdpi desde el mismo asset oficial sobre el canvas canÃ³nico.
+También se generan PNG de fallback mdpi/hdpi/xhdpi/xxhdpi/xxxhdpi desde el mismo asset oficial sobre el canvas canónico.
 
 Los PNG derivados pueden redimensionar/centrar el artwork, pero no modifican sus colores internos.
 
@@ -41,7 +41,7 @@ THEMED_ICON_REASON=APPROVED_VECTOR_MASTER_NOT_PROVEN
 
 Brand Truth declara `vectorMasterProven=false`.
 
-No inventamos ahora una versiÃ³n monocroma potencialmente distinta de la marca oficial. Cuando exista un master vectorial aprobado se podrÃ¡ incorporar un `monochrome` layer deliberado.
+No inventamos ahora una versión monocroma potencialmente distinta de la marca oficial. Cuando exista un master vectorial aprobado se podrá incorporar un `monochrome` layer deliberado.
 
 ## Tema nativo
 
@@ -59,9 +59,9 @@ No se duplican hex de interfaz en los themes nativos.
 
 ## Shell visible
 
-Los shells tÃ©cnicos existentes conservan toda su lÃ³gica y permisos.
+Los shells técnicos existentes conservan toda su lógica y permisos.
 
-Solo se aÃ±ade el isotipo oficial como cabecera visual y el theme IBERFIT.
+Solo se añade el isotipo oficial como cabecera visual y el theme IBERFIT.
 
 No se toca:
 
@@ -76,16 +76,16 @@ No se toca:
 
 ## PWA y web comercial
 
-RC58.5B no modifica todavÃ­a los iconos PWA de M26 ni la web comercial.
+RC58.5B no modifica todavía los iconos PWA de M26 ni la web comercial.
 
-Esos activos se compararÃ¡n en el gate cross-surface; no se sustituyen por similitud.
+Esos activos se compararán en el gate cross-surface; no se sustituyen por similitud.
 
 M26_PWA_ICONS_TOUCHED=FALSE
 COMMERCIAL_WEB_TOUCHED=FALSE
 
 ## Seguridad
 
-No se aÃ±aden dependencias.
+No se añaden dependencias.
 
 No hay descarga runtime de assets.
 

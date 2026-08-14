@@ -1,4 +1,4 @@
-# RC58.4 â€” Role Surfaces
+# RC58.4 — Role Surfaces
 
 RC58_4_STATUS=IMPLEMENTED
 RC58_4_SHARED_PRODUCT_LANGUAGE=TRUE
@@ -6,7 +6,7 @@ RC58_4_BUSINESS_LOGIC_DUPLICATED=FALSE
 
 ## Objetivo
 
-Aplicar el mismo Design System IBERFIT con densidad y jerarquÃ­a distintas segÃºn rol, sin crear tres productos separados y sin reescribir los mÃ³dulos funcionales existentes.
+Aplicar el mismo Design System IBERFIT con densidad y jerarquía distintas según rol, sin crear tres productos separados y sin reescribir los módulos funcionales existentes.
 
 ## Cliente
 
@@ -15,15 +15,15 @@ CLIENT_TOUCH_TARGET_MIN_PX=48
 
 Prioridades:
 
-- siguiente acciÃ³n visible;
+- siguiente acción visible;
 - progreso comprensible;
 - menos ruido;
-- mayor respiraciÃ³n visual;
-- tarjetas y hero mÃ¡s editoriales;
-- navegaciÃ³n mÃ³vil cuidada;
+- mayor respiración visual;
+- tarjetas y hero más editoriales;
+- navegación móvil cuidada;
 - tranquilidad y confianza.
 
-No se elimina navegaciÃ³n ni funcionalidad para conseguir simplicidad.
+No se elimina navegación ni funcionalidad para conseguir simplicidad.
 
 ## Coach
 
@@ -33,13 +33,13 @@ COACH_TOUCH_TARGET_MIN_PX=44
 Prioridades:
 
 - contexto del cliente;
-- comparaciÃ³n;
+- comparación;
 - velocidad operativa;
-- mÃ¡s informaciÃ³n Ãºtil por pantalla;
-- cards y listas mÃ¡s compactas;
+- más información útil por pantalla;
+- cards y listas más compactas;
 - selector de expediente y estado operativo visibles.
 
-La densidad no debe convertir la interfaz en un dashboard genÃ©rico.
+La densidad no debe convertir la interfaz en un dashboard genérico.
 
 ## Admin
 
@@ -48,55 +48,55 @@ ADMIN_TOUCH_TARGET_MIN_PX=44
 
 Prioridades:
 
-- visiÃ³n organizacional;
-- permisos y estados explÃ­citos;
+- visión organizacional;
+- permisos y estados explícitos;
 - tablas y formularios eficientes;
-- jerarquÃ­a compacta;
+- jerarquía compacta;
 - identidad administrativa mediante el teal ya definido en tokens.
 
-Admin no reutiliza el oro como Ãºnica seÃ±al de rol: usa `color.role.adminAccent` sin romper la identidad IBERFIT.
+Admin no reutiliza el oro como única señal de rol: usa `color.role.adminAccent` sin romper la identidad IBERFIT.
 
 ## Compatibilidad
 
-La capa `role-surfaces.css` se carga despuÃ©s de `primitives.css`.
+La capa `role-surfaces.css` se carga después de `primitives.css`.
 
 Solo utiliza el `data-m26-role` que el shell autenticado ya emite.
 
 No modifica:
 
 - routing;
-- autorizaciÃ³n;
+- autorización;
 - queries;
 - Supabase;
 - storage;
 - comandos;
-- sesiÃ³n;
+- sesión;
 - wearables;
 - engagement;
-- navegaciÃ³n disponible.
+- navegación disponible.
 
 No contiene reglas destructivas `display:none` para ocultar funcionalidad por rol.
 
 ## Responsive
 
 - desktop >=1180px puede ajustar ancho de sidebar por rol;
-- 720â€“1179px preserva el compact-nav histÃ³rico RC39;
-- <=900px respeta el shell mÃ³vil existente;
-- <=580px reduce densidad sin perder targets tÃ¡ctiles.
+- 720–1179px preserva el compact-nav histórico RC39;
+- <=900px respeta el shell móvil existente;
+- <=580px reduce densidad sin perder targets táctiles.
 
 ## Seguridad
 
-RC58.4 es presentaciÃ³n pura.
+RC58.4 es presentación pura.
 
-Role styling nunca serÃ¡ una frontera de autorizaciÃ³n. Ocultar o mostrar algo mediante CSS no concede ni revoca permisos.
+Role styling nunca será una frontera de autorización. Ocultar o mostrar algo mediante CSS no concede ni revoca permisos.
 
-La seguridad sigue dependiendo de autorizaciÃ³n real, RLS/server boundaries y gates del rail SR0+.
+La seguridad sigue dependiendo de autorización real, RLS/server boundaries y gates del rail SR0+.
 
 ## Lanzamiento
 
 El contrato de paridad de `app.iberfit.cl` permanece vigente.
 
-RC58.4 no toca producciÃ³n, canary ni el dominio publicado.
+RC58.4 no toca producción, canary ni el dominio publicado.
 
 RC58_4_CLIENT_SURFACE=PASS
 RC58_4_COACH_SURFACE=PASS

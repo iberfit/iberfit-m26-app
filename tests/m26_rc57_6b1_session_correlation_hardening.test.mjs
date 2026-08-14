@@ -32,7 +32,7 @@ test("RC57.6B.1 un start duplicado con mismo executionId es idempotente", () => 
   assert.match(source, /sessionListener = listener/);
 });
 
-test("RC57.6B.1 descarta muestras con correlaciÃ³n antigua", () => {
+test("RC57.6B.1 descarta muestras con correlación antigua", () => {
   const source = manager();
 
   assert.match(
@@ -68,7 +68,7 @@ test("RC57.6B.1 termina un ejercicio propio previo antes del nuevo", () => {
   );
 });
 
-test("RC57.6B.1 protege callbacks async con generaciÃ³n de start", () => {
+test("RC57.6B.1 protege callbacks async con generación de start", () => {
   const source = provider();
 
   assert.match(source, /private var startGeneration = 0L/);

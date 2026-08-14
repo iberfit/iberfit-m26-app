@@ -8,10 +8,10 @@ const evidence = JSON.parse(
   fs.readFileSync("recovery/RC56_HARDWARE_VALIDATION.json", "utf8")
 );
 
-const gitBlob = (repoPath) =>
+const gitBlobAtCommit = (commit, repoPath) =>
   execFileSync(
     "git",
-    ["hash-object", "--filters", `--path=${repoPath}`, "--", repoPath],
+    ["rev-parse", `${commit}:${repoPath}`],
     {cwd: root, encoding: "utf8"}
   ).trim();
 
@@ -41,7 +41,7 @@ test("RC56.3 conserva el ciclo DataLayer bidireccional correlacionado", () => {
   assert.equal(evidence.rc56_3.phoneTerminal, "PASS");
 });
 
-test("la afirmaciÃ³n DEVICE_HARDWARE_TESTED queda limitada a Android Wear OS", () => {
+test("la afirmación DEVICE_HARDWARE_TESTED queda limitada a Android Wear OS", () => {
   assert.equal(evidence.closure.deviceHardwareTested, true);
   assert.equal(evidence.closure.deviceHardwareTestedScope, "ANDROID_WEAR_OS");
   assert.equal(evidence.closure.androidWearOsHardwareTested, true);
@@ -52,16 +52,26 @@ test("la afirmaciÃ³n DEVICE_HARDWARE_TESTED queda limitada a Android Wear OS",
 
 test("la evidencia pertenece a los bridges exactos realmente probados", () => {
   assert.equal(
-    gitBlob("native/android/wear/IBERFITWearHealthServicesBridge.kt"),
-    "eaa4c1d2945d19d505351352672e1a3b54cf6a4c"
+    gitBlobAtCommit(
+      evidence.baseCommit,
+      "native/android/wear/IBERFITWearHealthServicesBridge.kt"
+    ),
+    evidence.sourceGuards[
+      "native/android/wear/IBERFITWearHealthServicesBridge.kt"
+    ]
   );
   assert.equal(
-    gitBlob("native/android/runtime/IBERFITWearDataLayerRuntime.kt"),
-    "5c5ac124bc65253cdc62e4c66649e20fbc3288fa"
+    gitBlobAtCommit(
+      evidence.baseCommit,
+      "native/android/runtime/IBERFITWearDataLayerRuntime.kt"
+    ),
+    evidence.sourceGuards[
+      "native/android/runtime/IBERFITWearDataLayerRuntime.kt"
+    ]
   );
 });
 
-test("las pruebas fÃ­sicas no tocaron producciÃ³n ni backends remotos", () => {
+test("las pruebas físicas no tocaron producción ni backends remotos", () => {
   assert.equal(evidence.safety.productionTouched, false);
   assert.equal(evidence.safety.supabaseTouched, false);
   assert.equal(evidence.safety.canaryRemoteTouched, false);

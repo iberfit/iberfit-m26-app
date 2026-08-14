@@ -1,4 +1,4 @@
-# RC58.3 â€” Core Primitives
+# RC58.3 — Core Primitives
 
 RC58_3_STATUS=IMPLEMENTED
 RC58_3_STRATEGY=COMPATIBILITY_FIRST
@@ -6,9 +6,9 @@ RC58_3_BUSINESS_LOGIC_DUPLICATED=FALSE
 
 ## Objetivo
 
-Crear primitives visuales reutilizables sin reescribir mÃ³dulos funcionales que ya existen.
+Crear primitives visuales reutilizables sin reescribir módulos funcionales que ya existen.
 
-RC58.3 no reemplaza los flujos Cliente, Coach, Admin, sesiÃ³n, wearables, engagement o publicaciÃ³n. La capa nueva se monta encima del producto existente y adopta explÃ­citamente selectores legacy como superficies compatibles.
+RC58.3 no reemplaza los flujos Cliente, Coach, Admin, sesión, wearables, engagement o publicación. La capa nueva se monta encima del producto existente y adopta explícitamente selectores legacy como superficies compatibles.
 
 ## Primitives
 
@@ -34,9 +34,9 @@ Foundation:
 
 `src/m26/design/primitives.css` se carga al final de la cascada de estilos M26.
 
-No borra CSS histÃ³rico todavÃ­a.
+No borra CSS histórico todavía.
 
-Los componentes genÃ©ricos ya existentes (`m26-panel`, `m26-stat`, `m26-list-card`, `m26-client-card`, `m26-library-card`, `m26-primary-action`, `m26-form-status`, etc.) convergen visualmente sobre tokens RC58.
+Los componentes genéricos ya existentes (`m26-panel`, `m26-stat`, `m26-list-card`, `m26-client-card`, `m26-library-card`, `m26-primary-action`, `m26-form-status`, etc.) convergen visualmente sobre tokens RC58.
 
 Esto permite un salto visual sin perder comportamiento.
 
@@ -47,11 +47,11 @@ La capa de primitives:
 - no hace `fetch`;
 - no toca Supabase;
 - no usa localStorage/sessionStorage/IndexedDB;
-- no define autorizaciÃ³n;
-- no aÃ±ade handlers inline;
+- no define autorización;
+- no añade handlers inline;
 - no incorpora dependencia runtime nueva.
 
-La autorizaciÃ³n sigue perteneciendo a las capas funcionales y a RLS/server-side boundaries.
+La autorización sigue perteneciendo a las capas funcionales y a RLS/server-side boundaries.
 
 ## Accesibilidad
 
@@ -60,16 +60,16 @@ La autorizaciÃ³n sigue perteneciendo a las capas funcionales y a RLS/server-si
 - estados no dependen solo del color;
 - reduced motion;
 - high contrast;
-- tabular numerals para mÃ©tricas;
+- tabular numerals para métricas;
 - icon-only sigue requiriendo accessible name desde RC58.2.
 
-## Regla de evoluciÃ³n
+## Regla de evolución
 
-Primero compatibilidad, despuÃ©s migraciÃ³n.
+Primero compatibilidad, después migración.
 
-RC58.4 puede aplicar densidades/jerarquÃ­as especÃ­ficas Cliente, Coach y Admin usando los primitives ya estabilizados.
+RC58.4 puede aplicar densidades/jerarquías específicas Cliente, Coach y Admin usando los primitives ya estabilizados.
 
-No se reescriben mÃ³dulos simplemente para cambiar su estÃ©tica.
+No se reescriben módulos simplemente para cambiar su estética.
 
 ## Cierre
 

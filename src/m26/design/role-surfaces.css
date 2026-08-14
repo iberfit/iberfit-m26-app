@@ -1,4 +1,4 @@
-/* IBERFIT RC58.4 Â· Role Surfaces
+/* IBERFIT RC58.4 · Role Surfaces
  * One product language, three deliberately different information densities.
  * No business logic, authorization or data access lives in this layer.
  */
@@ -60,7 +60,7 @@
   color: var(--iberfit-role-accent);
 }
 
-/* CLIENT Â· calm, reassuring, mobile-first, next-action oriented */
+/* CLIENT · calm, reassuring, mobile-first, next-action oriented */
 .m26-shell[data-m26-role="client"] .m26-main {
   padding: clamp(1rem, 4vw, 3rem);
 }
@@ -159,7 +159,7 @@
     inset 0 1px 0 rgba(255,245,218,.09);
 }
 
-/* COACH Â· professional cockpit, comparison and action density */
+/* COACH · professional cockpit, comparison and action density */
 .m26-shell[data-m26-role="coach"] .m26-main {
   padding: clamp(var(--iberfit-space-4), 2.3vw, var(--iberfit-space-6));
 }
@@ -241,7 +241,7 @@
   background: color-mix(in srgb, var(--iberfit-color-surface-base) 68%, transparent);
 }
 
-/* ADMIN Â· high-density organizational control, explicit teal identity */
+/* ADMIN · high-density organizational control, explicit teal identity */
 .m26-shell[data-m26-role="admin"] .m26-main {
   padding: var(--iberfit-space-4) clamp(var(--iberfit-space-4), 2vw, var(--iberfit-space-5)) var(--iberfit-space-6);
 }

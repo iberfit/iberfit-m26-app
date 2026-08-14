@@ -85,7 +85,7 @@ test("RC57.6F-A declara permisos de sensor en segundo plano", () => {
   );
 });
 
-test("RC57.6F-A solicita permisos segÃºn la versiÃ³n de Wear OS", () => {
+test("RC57.6F-A solicita permisos según la versión de Wear OS", () => {
   const source = activity();
 
   assert.match(
@@ -187,7 +187,7 @@ test("RC57.6F-A recibe comandos DataLayer en background", () => {
   );
 });
 
-test("RC57.6F-A comandos de sesiÃ³n activa no reinician el FGS", () => {
+test("RC57.6F-A comandos de sesión activa no reinician el FGS", () => {
   const source = service();
 
   assert.match(
@@ -206,7 +206,7 @@ test("RC57.6F-A comandos de sesiÃ³n activa no reinician el FGS", () => {
   );
 });
 
-test("RC57.6F-A Activity no destruye ni posee la sesiÃ³n", () => {
+test("RC57.6F-A Activity no destruye ni posee la sesión", () => {
   const source = activity();
 
   assert.doesNotMatch(

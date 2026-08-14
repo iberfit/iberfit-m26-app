@@ -101,7 +101,7 @@ class PhoneMainActivity : Activity() {
         status =
             TextView(this).apply {
                 text =
-                    "IBERFIT Phone Â· DataLayer preparado"
+                    "IBERFIT Phone · DataLayer preparado"
                 textSize =
                     18f
             }
@@ -172,7 +172,7 @@ class PhoneMainActivity : Activity() {
         deviceStatus =
             TextView(this).apply {
                 text =
-                    "AÃ±ade un pulsÃ³metro Bluetooth compatible."
+                    "Añade un pulsómetro Bluetooth compatible."
             }
 
         preferredStatus =
@@ -181,7 +181,7 @@ class PhoneMainActivity : Activity() {
         val addDevice =
             Button(this).apply {
                 text =
-                    "AÃ±adir dispositivo"
+                    "Añadir dispositivo"
 
                 setOnClickListener {
                     ensureBluetoothPermissions {
@@ -313,7 +313,7 @@ class PhoneMainActivity : Activity() {
                     payload ->
                     runOnUiThread {
                         status.text =
-                            "Comando recibido: $action Â· " +
+                            "Comando recibido: $action · " +
                                 payload.optString(
                                     "executionId"
                                 )
@@ -341,7 +341,7 @@ class PhoneMainActivity : Activity() {
             runOnUiThread {
                 status.text =
                     if (queued) {
-                        "Comando $action enviado Â· " +
+                        "Comando $action enviado · " +
                             (
                                 executionId
                                     ?: "sin executionId"
@@ -374,8 +374,8 @@ class PhoneMainActivity : Activity() {
                 )
 
             status.text =
-                "FC recibida: $bpm bpm Â· " +
-                    "$provider Â· " +
+                "FC recibida: $bpm bpm · " +
+                    "$provider · " +
                     sampleExecutionId
                         .ifBlank {
                             "sin executionId"
@@ -396,7 +396,7 @@ class PhoneMainActivity : Activity() {
         deviceList.removeAllViews()
 
         deviceStatus.text =
-            "Buscando pulsÃ³metros cercanosâ€¦"
+            "Buscando pulsómetros cercanos…"
 
         discovery.startScan()
     }
@@ -410,14 +410,14 @@ class PhoneMainActivity : Activity() {
 
             IBERFITBleDiscoveryState.SCANNING ->
                 deviceStatus.text =
-                    "Buscando pulsÃ³metros cercanosâ€¦"
+                    "Buscando pulsómetros cercanos…"
 
             IBERFITBleDiscoveryState.FINISHED ->
                 deviceStatus.text =
                     if (
                         discoveredDeviceCount == 0
                     ) {
-                        "No encontramos pulsÃ³metros. " +
+                        "No encontramos pulsómetros. " +
                             "Acerca el dispositivo y vuelve a intentarlo."
                     } else {
                         "Elige un dispositivo para probarlo."
@@ -429,7 +429,7 @@ class PhoneMainActivity : Activity() {
 
             IBERFITBleDiscoveryState.UNSUPPORTED ->
                 deviceStatus.text =
-                    "Este telÃ©fono no admite bÃºsqueda Bluetooth LE."
+                    "Este teléfono no admite búsqueda Bluetooth LE."
 
             IBERFITBleDiscoveryState.ERROR ->
                 if (
@@ -440,7 +440,7 @@ class PhoneMainActivity : Activity() {
                         )
                 ) {
                     deviceStatus.text =
-                        "No pudimos completar la bÃºsqueda."
+                        "No pudimos completar la búsqueda."
                 }
         }
     }
@@ -472,7 +472,7 @@ class PhoneMainActivity : Activity() {
         )
 
         deviceStatus.text =
-            "Selecciona el pulsÃ³metro que quieras usar."
+            "Selecciona el pulsómetro que quieras usar."
     }
 
     private fun testDevice(
@@ -515,11 +515,11 @@ class PhoneMainActivity : Activity() {
                             IBERFITHeartRateProviderState.CONNECTING,
                             IBERFITHeartRateProviderState.ACQUIRING ->
                                 deviceStatus.text =
-                                    "Conectando con ${device.displayName}â€¦"
+                                    "Conectando con ${device.displayName}…"
 
                             IBERFITHeartRateProviderState.ACTIVE ->
                                 deviceStatus.text =
-                                    "Conectado. Esperando pulsacionesâ€¦"
+                                    "Conectado. Esperando pulsaciones…"
 
                             IBERFITHeartRateProviderState.ERROR ->
                                 deviceStatus.text =
@@ -541,7 +541,7 @@ class PhoneMainActivity : Activity() {
 
                     runOnUiThread {
                         deviceStatus.text =
-                            "Conectado: ${device.displayName} Â· " +
+                            "Conectado: ${device.displayName} · " +
                                 "${sample.bpm.roundToInt()} bpm\n" +
                                 "Guardado como preferido."
 
@@ -593,7 +593,7 @@ class PhoneMainActivity : Activity() {
 
         if (preferred == null) {
             deviceStatus.text =
-                "TodavÃ­a no hay un dispositivo preferido."
+                "Todavía no hay un dispositivo preferido."
             return
         }
 
@@ -624,7 +624,7 @@ class PhoneMainActivity : Activity() {
         if (device == null) {
             deviceStatus.text =
                 "No pudimos recuperar el dispositivo guardado. " +
-                    "BÃºscalo de nuevo."
+                    "Búscalo de nuevo."
             return
         }
 
@@ -662,10 +662,10 @@ class PhoneMainActivity : Activity() {
                 "Falta permiso para buscar dispositivos cercanos."
 
             "BLUETOOTH_SCANNER_UNAVAILABLE" ->
-                "Bluetooth no estÃ¡ disponible en este momento."
+                "Bluetooth no está disponible en este momento."
 
             else ->
-                "No pudimos completar la bÃºsqueda Bluetooth."
+                "No pudimos completar la búsqueda Bluetooth."
         }
 
     private fun friendlyProviderError(
@@ -761,7 +761,7 @@ class PhoneMainActivity : Activity() {
             action?.invoke()
         } else {
             deviceStatus.text =
-                "Para aÃ±adir un pulsÃ³metro, permite el acceso Bluetooth necesario."
+                "Para añadir un pulsómetro, permite el acceso Bluetooth necesario."
         }
     }
 

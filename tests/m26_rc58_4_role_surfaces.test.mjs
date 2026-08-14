@@ -15,7 +15,7 @@ const uiIndex=read('src/m26/ui/index.js');
 const launch=read('docs/APP_IBERFIT_CL_LAUNCH_PARITY.md');
 const doc=read('docs/RC58_4_ROLE_SURFACES.md');
 
-test('contrato role surfaces usa densidades canÃ³nicas',()=>{
+test('contrato role surfaces usa densidades canónicas',()=>{
   assert.equal(IBERFIT_ROLE_SURFACE_CONTRACT.version,'58.4.0');
   assert.equal(roleSurfaceAudit().ok,true);
   assert.equal(roleSurfaceFor('client').controlMinPx,48);
@@ -26,7 +26,7 @@ test('contrato role surfaces usa densidades canÃ³nicas',()=>{
   assert.equal(roleSurfaceFor('admin').gapPx,8);
 });
 
-test('Cliente Coach y Admin tienen superficies explÃ­citas del mismo sistema',()=>{
+test('Cliente Coach y Admin tienen superficies explícitas del mismo sistema',()=>{
   for(const role of ['client','coach','admin']){
     assert.equal(css.includes(`[data-m26-role="${role}"]`),true,role);
     assert.ok(roleSurfaceFor(role));
@@ -34,7 +34,7 @@ test('Cliente Coach y Admin tienen superficies explÃ­citas del mismo sistema',
   assert.equal(IBERFIT_ROLE_SURFACE_CONTRACT.sharedProductLanguage,true);
 });
 
-test('role surfaces no esconden funcionalidad ni se convierten en autorizaciÃ³n',()=>{
+test('role surfaces no esconden funcionalidad ni se convierten en autorización',()=>{
   assert.doesNotMatch(css,/display\s*:\s*none\s*!?important?/i);
   for(const forbidden of [
     /\bfetch\s*\(/,
@@ -65,7 +65,7 @@ test('responsive no pisa compact-nav RC39',()=>{
   assert.doesNotMatch(css,/grid-template-columns:\s*17\.25rem[\s\S]*@media \(min-width: 1180px\)/);
 });
 
-test('role surfaces cargan despuÃ©s de primitives y exportan contrato',()=>{
+test('role surfaces cargan después de primitives y exportan contrato',()=>{
   const primitivePosition=index.indexOf('/src/m26/design/primitives.css');
   const rolePosition=index.indexOf('/src/m26/design/role-surfaces.css');
   assert.ok(primitivePosition>0);

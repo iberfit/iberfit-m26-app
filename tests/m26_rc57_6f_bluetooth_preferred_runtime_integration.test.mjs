@@ -231,7 +231,7 @@ test(
 );
 
 test(
-  "RC57.6F conserva contrato web BLE anterior y aÃ±ade provenance canonica",
+  "RC57.6F conserva contrato web BLE anterior y añade provenance canonica",
   () => {
     const source =
       runtime();

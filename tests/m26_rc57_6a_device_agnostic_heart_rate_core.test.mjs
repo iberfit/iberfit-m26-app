@@ -13,7 +13,7 @@ const selector = () =>
 const manager = () =>
   read("native/android/heart-rate/IBERFITHeartRateSessionManager.kt");
 
-test("RC57.6A enruta el core comÃºn a Phone y Wear", () => {
+test("RC57.6A enruta el core común a Phone y Wear", () => {
   const phone = read("native/android-host/phone-app/build.gradle.kts");
   const wear = read("native/android-host/wear-app/build.gradle.kts");
 
@@ -21,7 +21,7 @@ test("RC57.6A enruta el core comÃºn a Phone y Wear", () => {
   assert.match(wear, /"\.\.\/\.\.\/android\/heart-rate"/);
 });
 
-test("RC57.6A define una muestra canÃ³nica independiente del origen", () => {
+test("RC57.6A define una muestra canónica independiente del origen", () => {
   const source = models();
 
   assert.match(source, /data class IBERFITHeartRateSample/);
@@ -55,7 +55,7 @@ test("RC57.6A modela calidad y contacto sin depender del fabricante", () => {
   }
 });
 
-test("RC57.6A expone provider intercambiable y listener comÃºn", () => {
+test("RC57.6A expone provider intercambiable y listener común", () => {
   const source = provider();
 
   assert.match(source, /interface IBERFITHeartRateProvider/);
@@ -77,7 +77,7 @@ test("RC57.6A selecciona por capacidades, preferencia y prioridad", () => {
   assert.match(source, /excludedProviderIds/);
 });
 
-test("RC57.6A mantiene un Ãºnico provider primario y failover", () => {
+test("RC57.6A mantiene un único provider primario y failover", () => {
   const source = manager();
 
   assert.match(source, /primaryProviderId/);

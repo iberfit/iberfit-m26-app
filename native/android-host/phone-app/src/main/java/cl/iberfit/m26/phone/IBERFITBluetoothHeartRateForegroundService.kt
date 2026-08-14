@@ -70,7 +70,7 @@ class IBERFITBluetoothHeartRateForegroundService :
                         )
 
                         updateNotification(
-                            "PulsÃ³metro Bluetooth activo"
+                            "Pulsómetro Bluetooth activo"
                         )
 
                         IBERFITBluetoothBackgroundBridge
@@ -90,7 +90,7 @@ class IBERFITBluetoothHeartRateForegroundService :
                         )
 
                         updateNotification(
-                            "PulsÃ³metro Bluetooth no disponible"
+                            "Pulsómetro Bluetooth no disponible"
                         )
 
                         IBERFITBluetoothBackgroundBridge
@@ -176,7 +176,7 @@ class IBERFITBluetoothHeartRateForegroundService :
         }
 
         updateNotification(
-            "Conectando pulsÃ³metro Bluetoothâ€¦"
+            "Conectando pulsómetro Bluetooth…"
         )
 
         val started =
@@ -194,7 +194,7 @@ class IBERFITBluetoothHeartRateForegroundService :
 
         if (!started) {
             updateNotification(
-                "PulsÃ³metro Bluetooth no disponible"
+                "Pulsómetro Bluetooth no disponible"
             )
 
             IBERFITBluetoothBackgroundBridge
@@ -223,7 +223,7 @@ class IBERFITBluetoothHeartRateForegroundService :
         preferredBle.pause()
 
         updateNotification(
-            "PulsÃ³metro Bluetooth en pausa"
+            "Pulsómetro Bluetooth en pausa"
         )
     }
 
@@ -244,7 +244,7 @@ class IBERFITBluetoothHeartRateForegroundService :
         preferredBle.resume()
 
         updateNotification(
-            "PulsÃ³metro Bluetooth activo"
+            "Pulsómetro Bluetooth activo"
         )
     }
 
@@ -265,7 +265,7 @@ class IBERFITBluetoothHeartRateForegroundService :
         preferredBle.stop()
 
         updateNotification(
-            "PulsÃ³metro Bluetooth preparado"
+            "Pulsómetro Bluetooth preparado"
         )
     }
 
@@ -391,7 +391,7 @@ class IBERFITBluetoothHeartRateForegroundService :
             false
 
         return promoteForeground(
-            "PulsÃ³metro Bluetooth preparado"
+            "Pulsómetro Bluetooth preparado"
         )
     }
 
@@ -494,7 +494,7 @@ class IBERFITBluetoothHeartRateForegroundService :
                     .ic_menu_info_details
             )
             .setContentTitle(
-                "IBERFIT Â· Frecuencia cardÃ­aca"
+                "IBERFIT · Frecuencia cardíaca"
             )
             .setContentText(
                 status
@@ -518,12 +518,12 @@ class IBERFITBluetoothHeartRateForegroundService :
         val channel =
             NotificationChannel(
                 CHANNEL_ID,
-                "Frecuencia cardÃ­aca Bluetooth",
+                "Frecuencia cardíaca Bluetooth",
                 NotificationManager.IMPORTANCE_LOW
             )
                 .apply {
                     description =
-                        "Mantiene activo el pulsÃ³metro Bluetooth durante una sesiÃ³n IBERFIT."
+                        "Mantiene activo el pulsómetro Bluetooth durante una sesión IBERFIT."
                 }
 
         notificationManager

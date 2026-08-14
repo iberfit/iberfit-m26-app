@@ -20,7 +20,7 @@ const activity = () =>
 const runtime = () =>
   read("native/android/runtime/IBERFITWearDataLayerRuntime.kt");
 
-test("RC57.6B Health Services implementa el provider comÃºn", () => {
+test("RC57.6B Health Services implementa el provider común", () => {
   const source = bridge();
 
   assert.match(
@@ -78,7 +78,7 @@ test("RC57.6B el provider encapsula todo ExerciseClient", () => {
   );
 });
 
-test("RC57.6B convierte Health Services a muestra canÃ³nica", () => {
+test("RC57.6B convierte Health Services a muestra canónica", () => {
   const source = bridge();
 
   assert.match(
@@ -194,7 +194,7 @@ test("RC57.6B el host no controla ExerciseClient directamente", () => {
   );
 });
 
-test("RC57.6B DataLayer acepta cualquier provider vÃ¡lido", () => {
+test("RC57.6B DataLayer acepta cualquier provider válido", () => {
   const source = runtime();
 
   assert.match(
@@ -213,7 +213,7 @@ test("RC57.6B DataLayer acepta cualquier provider vÃ¡lido", () => {
   );
 });
 
-test("RC57.6B serializa identidad, calidad y correlaciÃ³n", () => {
+test("RC57.6B serializa identidad, calidad y correlación", () => {
   const source = host();
 
   assert.match(
@@ -252,7 +252,7 @@ test("RC57.6B serializa identidad, calidad y correlaciÃ³n", () => {
   );
 });
 
-test("RC57.6B Activity deja de poseer la sesiÃ³n de sensor", () => {
+test("RC57.6B Activity deja de poseer la sesión de sensor", () => {
   const source = activity();
 
   assert.doesNotMatch(

@@ -1,4 +1,4 @@
-# IBERFIT M26 â€” Roadmap Premium RC58â€“RC64
+# IBERFIT M26 — Roadmap Premium RC58–RC64
 
 ## Estado actual
 
@@ -17,26 +17,26 @@ RC57=SOFTWARE_CLOSED
 RC57_BLE_PHYSICAL_E2E=BLOCKED_NO_HRS_HARDWARE
 RC58=NEXT
 
-## Critical rail A â€” Admin / RC46
+## Critical rail A — Admin / RC46
 
-La migraciÃ³n strict Coachâ†’Cliente de RC46 no se aplica hasta cerrar el read-model organizacional de Admin.
+La migración strict Coach→Cliente de RC46 no se aplica hasta cerrar el read-model organizacional de Admin.
 
-Admin debe conservar visiÃ³n global autorizada aunque Coach quede limitado a sus clientes.
+Admin debe conservar visión global autorizada aunque Coach quede limitado a sus clientes.
 
 Este rail avanza en paralelo y es gate de RC46, no gate visual de RC58.
 
-## RC58 â€” IBERFIT Design System
+## RC58 — IBERFIT Design System
 
-Objetivo: unificar lenguaje visual, interaction patterns y primitives antes de aÃ±adir mÃ¡s librerÃ­as de producto.
+Objetivo: unificar lenguaje visual, interaction patterns y primitives antes de añadir más librerías de producto.
 
-Incluye tokens, Lucide, tipografÃ­a, component primitives, estados, accesibilidad, data-viz tokens, motion tokens y role density.
+Incluye tokens, Lucide, tipografía, component primitives, estados, accesibilidad, data-viz tokens, motion tokens y role density.
 
-## RC59 â€” Session Intelligence & Data Platform
+## RC59 — Session Intelligence & Data Platform
 
-RC59 se amplÃ­a respecto a â€œData Experienceâ€: primero construye la espina dorsal longitudinal y luego la visualizaciÃ³n.
+RC59 se amplía respecto a “Data Experience”: primero construye la espina dorsal longitudinal y luego la visualización.
 
-### RC59.0 â€” Canonical telemetry timeline
-Unifica la sesiÃ³n real con la historia del cliente.
+### RC59.0 — Canonical telemetry timeline
+Unifica la sesión real con la historia del cliente.
 
 Cada muestra/evento debe poder correlacionarse con:
 - `clientId`;
@@ -49,57 +49,57 @@ Cada muestra/evento debe poder correlacionarse con:
 - quality;
 - provenance.
 
-No se pierde el valor crudo vÃ¡lido por aplicar interpretaciones posteriores.
+No se pierde el valor crudo válido por aplicar interpretaciones posteriores.
 
-### RC59.1 â€” Live Session Intelligence
-Convierte la FC live de RC57 en una capacidad visible y Ãºtil de producto.
+### RC59.1 — Live Session Intelligence
+Convierte la FC live de RC57 en una capacidad visible y útil de producto.
 
-Durante sesiÃ³n:
+Durante sesión:
 - FC actual;
-- FC media/mÃ¡xima;
+- FC media/máxima;
 - calidad;
 - fuente;
 - timeline de FC;
 - respuesta por bloque/ejercicio;
-- recuperaciÃ³n durante descansos;
-- correlaciÃ³n con RPE/RIR cuando exista.
+- recuperación durante descansos;
+- correlación con RPE/RIR cuando exista.
 
-Derivaciones como zonas, recuperaciÃ³n o carga cardiovascular deben conservar metodologÃ­a y no producir decisiones clÃ­nicas automÃ¡ticas.
+Derivaciones como zonas, recuperación o carga cardiovascular deben conservar metodología y no producir decisiones clínicas automáticas.
 
-### RC59.2 â€” Historical device acquisition
-Health Connect Android histÃ³rico entra aquÃ­, no en RC58.
-Lectura de pasos, sueÃ±o, FC reposo, VFC, energÃ­a y ejercicio con consentimiento y permisos por capacidad.
+### RC59.2 — Historical device acquisition
+Health Connect Android histórico entra aquí, no en RC58.
+Lectura de pasos, sueño, FC reposo, VFC, energía y ejercicio con consentimiento y permisos por capacidad.
 
-### RC59.3 â€” Longitudinal aggregation layer
-7/28/90 dÃ­as, baseline, cambio, tendencia, adherencia y comparativas temporales sin decisiones clÃ­nicas automÃ¡ticas.
+### RC59.3 — Longitudinal aggregation layer
+7/28/90 días, baseline, cambio, tendencia, adherencia y comparativas temporales sin decisiones clínicas automáticas.
 
-### RC59.4 â€” Data Experience / ECharts
+### RC59.4 — Data Experience / ECharts
 Cliente: lectura sencilla.
 Coach: lectura profesional/comparativa.
-SVG por defecto en grÃ¡ficos ordinarios mÃ³viles; renderer y mÃ³dulos se eligen por caso.
+SVG por defecto en gráficos ordinarios móviles; renderer y módulos se eligen por caso.
 
-### RC59.5 â€” Challenge Metrics Foundation
-Los retos consumen mÃ©tricas canÃ³nicas, nunca sensores directamente.
+### RC59.5 — Challenge Metrics Foundation
+Los retos consumen métricas canónicas, nunca sensores directamente.
 
 Tipos iniciales:
 - constancia;
 - sesiones;
 - pasos;
 - actividad;
-- hÃ¡bitos;
+- hábitos;
 - progreso personal;
 - objetivos individualizados por Coach.
 
 Los rankings grupales no exponen datos sanitarios crudos.
-Nunca se incentiva â€œFC mÃ¡s altaâ€ como objetivo competitivo.
+Nunca se incentiva “FC más alta” como objetivo competitivo.
 
-### RC59.6 â€” Data trust UX
-Siempre visible cuando importe: procedencia, fecha, calidad, cobertura, dato faltante y mÃ©todo.
+### RC59.6 — Data trust UX
+Siempre visible cuando importe: procedencia, fecha, calidad, cobertura, dato faltante y método.
 
 Regla:
-dato â†’ contexto â†’ entrenador decide.
+dato → contexto → entrenador decide.
 
-## Cross-cutting rail E â€” Engagement & Challenges
+## Cross-cutting rail E — Engagement & Challenges
 
 El sistema de retos se apoya en el foundation de RC59.5 y en la capa `engagement` existente.
 
@@ -111,14 +111,14 @@ Debe contemplar:
 - progreso porcentual;
 - retos de grupo con privacidad;
 - Coach challenges;
-- anti-cheat bÃ¡sico por provenance/calidad;
-- opt-in explÃ­cito cuando el reto use datos de dispositivos.
+- anti-cheat básico por provenance/calidad;
+- opt-in explícito cuando el reto use datos de dispositivos.
 
 Los datos sanitarios crudos no se publican en leaderboards.
 
-## RC60 â€” Coach Productivity
+## RC60 — Coach Productivity
 
-- Fuse.js para bÃºsqueda tolerante;
+- Fuse.js para búsqueda tolerante;
 - TanStack Virtual Core para listas realmente grandes;
 - SortableJS solo donde aporte;
 - keyboard reorder y controles convencionales siempre disponibles;
@@ -130,15 +130,15 @@ Los datos sanitarios crudos no se publican en leaderboards.
 - templates/versiones;
 - operaciones masivas seguras.
 
-La virtualizaciÃ³n se aplica por necesidad medida, no como default de cada lista.
+La virtualización se aplica por necesidad medida, no como default de cada lista.
 
-## RC61 â€” Motion & Microinteractions
+## RC61 — Motion & Microinteractions
 
 Se prioriza un solo lenguaje de motion.
 
-Motion (JavaScript) serÃ¡ el motor principal cuando CSS/WAAPI simple no alcance.
+Motion (JavaScript) será el motor principal cuando CSS/WAAPI simple no alcance.
 
-AutoAnimate no serÃ¡ dependencia transversal por defecto; solo se admitirÃ¡ si resuelve un caso concreto sin crear una segunda gramÃ¡tica de animaciÃ³n.
+AutoAnimate no será dependencia transversal por defecto; solo se admitirá si resuelve un caso concreto sin crear una segunda gramática de animación.
 
 Casos:
 - guardar serie;
@@ -151,30 +151,30 @@ Casos:
 
 `prefers-reduced-motion` es obligatorio.
 
-## RC62 â€” Agenda, Guidance & Onboarding
+## RC62 — Agenda, Guidance & Onboarding
 
 ### Agenda
-FullCalendar Standard para dÃ­a/semana y operaciÃ³n Coach inicialmente.
+FullCalendar Standard para día/semana y operación Coach inicialmente.
 
-No se diseÃ±a una dependencia oculta de vistas resource premium. Si IBERFIT necesita timeline multi-coach/recursos, se evalÃºa valor/licencia antes de adoptar FullCalendar Premium.
+No se diseña una dependencia oculta de vistas resource premium. Si IBERFIT necesita timeline multi-coach/recursos, se evalúa valor/licencia antes de adoptar FullCalendar Premium.
 
 ### Guidance
 Tooltip/Popover infrastructure viene de RC58.
-RC62 aÃ±ade ayuda contextual de IRI, VFC, calidad, procedencia y carga.
+RC62 añade ayuda contextual de IRI, VFC, calidad, procedencia y carga.
 
 ### Onboarding
-Progressive onboarding por rol y por funciÃ³n.
+Progressive onboarding por rol y por función.
 Driver.js puede usarse para tours cortos, nunca como sustituto de una interfaz autoexplicativa.
 
-## RC63 â€” Exercise & Media Experience
+## RC63 — Exercise & Media Experience
 
 El player no es el producto completo.
 
 Incluye:
-- video tÃ©cnico;
-- subtÃ­tulos WebVTT;
+- video técnico;
+- subtítulos WebVTT;
 - velocidad;
-- PiP cuando estÃ© soportado;
+- PiP cuando esté soportado;
 - poster;
 - lazy loading;
 - preload controlado;
@@ -182,15 +182,15 @@ Incluye:
 - provenance/licencia de assets;
 - estado de media por ejercicio;
 - comportamiento offline/de red deficiente;
-- analÃ­tica tÃ©cnica de carga/error sin invadir privacidad.
+- analítica técnica de carga/error sin invadir privacidad.
 
 Plyr se adopta si demuestra mejor UX que HTML media nativo en nuestros casos.
 
 Lottie solo para usos concretos y con licencia verificada.
 
-## RC64 â€” Quality Platform
+## RC64 — Quality Platform
 
-RC64 no â€œempiezaâ€ la calidad; industrializa gates que cada RC ya debe respetar.
+RC64 no “empieza” la calidad; industrializa gates que cada RC ya debe respetar.
 
 Incluye:
 - Playwright;
@@ -212,7 +212,7 @@ Incluye:
 
 No sustituye los tests RC existentes; los integra.
 
-## Cross-cutting rail B â€” Trust & Data Governance
+## Cross-cutting rail B — Trust & Data Governance
 
 A partir de RC59 cualquier nueva fuente de datos debe registrar:
 
@@ -227,11 +227,11 @@ A partir de RC59 cualquier nueva fuente de datos debe registrar:
 - export/delete path;
 - auditability.
 
-No se recopila un dato solo porque tÃ©cnicamente sea posible.
+No se recopila un dato solo porque técnicamente sea posible.
 
-Se recopila si mejora una decisiÃ³n de servicio concreta y puede explicarse al cliente.
+Se recopila si mejora una decisión de servicio concreta y puede explicarse al cliente.
 
-## Cross-cutting rail C â€” Commercial Web
+## Cross-cutting rail C — Commercial Web
 
 Avanza en paralelo desde RC58.
 
@@ -239,7 +239,7 @@ Avanza en paralelo desde RC58.
 - hero con producto real;
 - IRI visual;
 - capturas/pantallas reales;
-- narrativa del mÃ©todo;
+- narrativa del método;
 - progreso realista;
 - motion selectivo;
 - Embla si aporta;
@@ -248,22 +248,22 @@ Avanza en paralelo desde RC58.
 - fingerprinting de assets;
 - Lighthouse/axe/Playwright.
 
-La web vende mostrando el producto, no aÃ±adiendo texto.
+La web vende mostrando el producto, no añadiendo texto.
 
-## Cross-cutting rail D â€” App distribution
+## Cross-cutting rail D — App distribution
 
-DespuÃ©s de estabilizar RC58â€“RC64 se planifica distribuciÃ³n controlada Android/Wear, firma/release, polÃ­ticas de health data y rollout.
+Después de estabilizar RC58–RC64 se planifica distribución controlada Android/Wear, firma/release, políticas de health data y rollout.
 
-No se mezcla publicaciÃ³n de stores con la construcciÃ³n del Design System.
+No se mezcla publicación de stores con la construcción del Design System.
 
-## Cross-cutting rail F â€” Security & Reliability
+## Cross-cutting rail F — Security & Reliability
 
 Seguridad y fiabilidad avanzan en paralelo desde RC58.
 
 Principios:
 - least privilege;
 - tenant isolation;
-- RLS como frontera de autorizaciÃ³n;
+- RLS como frontera de autorización;
 - secrets fuera de frontend;
 - CSP strict-by-default;
 - native bridge hardening;
@@ -275,13 +275,13 @@ Principios:
 
 El contrato detallado vive en `docs/SECURITY_RELIABILITY_RAIL_RC58_RC64.md`.
 
-No prometemos una app â€œimposible de hackearâ€; diseÃ±amos prevenciÃ³n, detecciÃ³n, contenciÃ³n y recuperaciÃ³n.
+No prometemos una app “imposible de hackear”; diseñamos prevención, detección, contención y recuperación.
 
 ## North Star
 
-IBERFIT debe convertir datos dispersos en una relaciÃ³n de servicio superior:
+IBERFIT debe convertir datos dispersos en una relación de servicio superior:
 
-capturar â†’ validar â†’ contextualizar â†’ mostrar â†’ revisar â†’ decidir â†’ acompaÃ±ar â†’ medir.
+capturar → validar → contextualizar → mostrar → revisar → decidir → acompañar → medir.
 
 El cliente debe sentir simplicidad.
 
@@ -289,4 +289,4 @@ El Coach debe disponer de profundidad.
 
 Admin debe tener control organizacional.
 
-La complejidad tÃ©cnica debe quedar detrÃ¡s de la experiencia.
+La complejidad técnica debe quedar detrás de la experiencia.

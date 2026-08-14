@@ -35,7 +35,7 @@ test('Phone y Wear empaquetan exactamente el asset oficial',()=>{
   }
 });
 
-test('launcher adaptativo usa canvas canÃ³nico y artwork oficial sin recolor',()=>{
+test('launcher adaptativo usa canvas canónico y artwork oficial sin recolor',()=>{
   for(const res of modules){
     const adaptive=read(`${res}/mipmap-anydpi-v26/ic_launcher.xml`);
     const background=read(`${res}/drawable/iberfit_launcher_background.xml`);
@@ -53,7 +53,7 @@ test('launcher adaptativo usa canvas canÃ³nico y artwork oficial sin recolor',
   }
 });
 
-test('fallback launcher PNGs existen en densidades Android estÃ¡ndar',()=>{
+test('fallback launcher PNGs existen en densidades Android estándar',()=>{
   const expected=[
     ['mipmap-mdpi/ic_launcher.png',48],
     ['mipmap-hdpi/ic_launcher.png',72],
@@ -92,7 +92,7 @@ test('theme nativo consume tokens generados y no copia hex',()=>{
   }
 });
 
-test('shells tÃ©cnicos muestran la marca pero conservan lÃ³gica',()=>{
+test('shells técnicos muestran la marca pero conservan lógica',()=>{
   assert.match(phoneActivity,/import android\.widget\.ImageView/);
   assert.match(phoneActivity,/R\.drawable\.iberfit_brand_mark/);
   assert.match(phoneActivity,/addView\(brandMark\)/);
@@ -107,7 +107,7 @@ test('shells tÃ©cnicos muestran la marca pero conservan lÃ³gica',()=>{
   assert.match(wearActivity,/ensureHealthPermissions\(\)/);
 });
 
-test('Brand Truth registra alineaciÃ³n nativa sin inventar monochrome',()=>{
+test('Brand Truth registra alineación nativa sin inventar monochrome',()=>{
   assert.equal(truth.version,'58.5.1');
   assert.equal(truth.propagation.appIcons,'native-derived-from-official-asset');
   assert.equal(truth.propagation.nativeIdentity.phone,'aligned');

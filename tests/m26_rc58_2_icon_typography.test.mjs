@@ -40,7 +40,7 @@ test('tokens usan Inter Variable y Source Serif 4 Variable con fallback',()=>{
   assert.match(IBERFIT_DESIGN_TOKENS.typography.family.editorial,/Georgia/);
 });
 
-test('Lucide local cubre toda navegaciÃ³n Cliente Coach Admin',()=>{
+test('Lucide local cubre toda navegación Cliente Coach Admin',()=>{
   assert.equal(IBERFIT_LUCIDE_VERSION,'1.27.0');
   assert.equal(iconRegistryAudit().ok,true);
   for(const role of ['client','coach','admin']){
@@ -57,14 +57,14 @@ test('Lucide local cubre toda navegaciÃ³n Cliente Coach Admin',()=>{
   }
 });
 
-test('icono con significado propio exige label explÃ­cito y escapa atributos',()=>{
+test('icono con significado propio exige label explícito y escapa atributos',()=>{
   const svg=renderIberfitIcon('shield-check',{className:'x" onclick="evil',label:'Seguro " ahora'});
   assert.match(svg,/role="img"/);
   assert.match(svg,/aria-label="Seguro &quot; ahora"/);
   assert.doesNotMatch(svg,/ onclick=/);
 });
 
-test('shell conserva etiquetas y aÃ±ade iconografÃ­a decorativa',()=>{
+test('shell conserva etiquetas y añade iconografía decorativa',()=>{
   assert.match(shellRender,/areaIconName\(item\.key\)/);
   assert.match(shellRender,/renderIberfitIcon/);
   assert.match(shellRender,/<span>\$\{escapeHtml\(item\.label\)\}<\/span>/);
@@ -72,7 +72,7 @@ test('shell conserva etiquetas y aÃ±ade iconografÃ­a decorativa',()=>{
   assert.match(iconCss,/\.m26-nav-icon/);
 });
 
-test('licencias y provenance estÃ¡n versionadas',()=>{
+test('licencias y provenance están versionadas',()=>{
   assert.match(lucideLicense,/ISC License/);
   assert.match(interLicense,/SIL OPEN FONT LICENSE/i);
   assert.match(sourceSerifLicense,/SIL OPEN FONT LICENSE/i);

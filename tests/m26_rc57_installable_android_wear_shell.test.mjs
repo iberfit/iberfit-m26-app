@@ -84,7 +84,7 @@ test("RC57 enruta fuentes Kotlin externas por AndroidSourceSet.kotlin", () => {
   );
 });
 
-test("RC57 shells usan el runtime DataLayer canÃ³nico", () => {
+test("RC57 shells usan el runtime DataLayer canónico", () => {
   const phone =
     read(
       "native/android-host/phone-app/src/main/java/cl/iberfit/m26/phone/PhoneMainActivity.kt"

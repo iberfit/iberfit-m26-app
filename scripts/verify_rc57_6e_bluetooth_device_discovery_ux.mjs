@@ -29,7 +29,7 @@ const store =
 pass(
   "rc57-6e-friendly-device-entry",
   activity.includes('"Dispositivos"') &&
-    activity.includes('"AÃ±adir dispositivo"') &&
+    activity.includes('"Añadir dispositivo"') &&
     activity.includes(
       '"Probar dispositivo preferido"'
     )
@@ -95,16 +95,16 @@ pass(
 pass(
   "rc57-6e-friendly-discovery-metadata",
   discovery.includes(
-    '"PulsÃ³metro Bluetooth"'
+    '"Pulsómetro Bluetooth"'
   ) &&
     discovery.includes(
-      '"SeÃ±al excelente"'
+      '"Señal excelente"'
     ) &&
     discovery.includes(
-      '"SeÃ±al buena"'
+      '"Señal buena"'
     ) &&
     discovery.includes(
-      '"SeÃ±al disponible"'
+      '"Señal disponible"'
     )
 );
 

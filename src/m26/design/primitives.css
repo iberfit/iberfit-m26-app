@@ -1,4 +1,4 @@
-/* IBERFIT RC58.3 Â· Core Primitives
+/* IBERFIT RC58.3 · Core Primitives
  * Loaded after historical RC styles so compatible legacy surfaces converge
  * on the canonical design tokens without deleting their markup or behavior.
  */
@@ -509,7 +509,7 @@
   flex: 1 1 15rem;
 }
 
-/* RC58.3A Â· Primitive completeness against the approved RC58 scope */
+/* RC58.3A · Primitive completeness against the approved RC58 scope */
 
 /* Links */
 .iberfit-link {

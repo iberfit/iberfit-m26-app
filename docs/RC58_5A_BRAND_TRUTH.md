@@ -1,4 +1,4 @@
-# RC58.5A â€” Brand Truth
+# RC58.5A — Brand Truth
 
 RC58_5A_STATUS=CANONICAL_BRAND_ASSET_CONFIRMED
 OFFICIAL_BRAND_ASSET=public/isotipo-iberfit.png
@@ -8,9 +8,9 @@ OFFICIAL_ASSET_GENERATED_BY_AI=FALSE
 
 ## Evidencia
 
-El inventario read-only RC58.5A encontrÃ³ el mismo `public/isotipo-iberfit.png` en baseline M25, legacy oficial, candidatos de lanzamiento y M26 actual con el mismo SHA256.
+El inventario read-only RC58.5A encontró el mismo `public/isotipo-iberfit.png` en baseline M25, legacy oficial, candidatos de lanzamiento y M26 actual con el mismo SHA256.
 
-AdemÃ¡s, la evidencia RC45.5I ya versionada en el repositorio declara explÃ­citamente:
+Además, la evidencia RC45.5I ya versionada en el repositorio declara explícitamente:
 
 - `status=OFFICIAL_ISOTIPO_COMPOSITION_APPROVED`;
 - `officialAsset=public/isotipo-iberfit.png`;
@@ -20,20 +20,20 @@ AdemÃ¡s, la evidencia RC45.5I ya versionada en el repositorio declara explÃ­
 
 El metadata del master visual RC45.5I vuelve a declarar el mismo asset como `officialAsset` y conserva una derivada de marca aprobada.
 
-Por tanto, ya no tratamos este PNG como un candidato: es el asset oficial canÃ³nico disponible en el repositorio.
+Por tanto, ya no tratamos este PNG como un candidato: es el asset oficial canónico disponible en el repositorio.
 
 ## Color
 
 El logo es visualmente dorado.
 
-El inventario raster observÃ³:
+El inventario raster observó:
 
-- color exacto mÃ¡s frecuente: `#FBDD8B`;
+- color exacto más frecuente: `#FBDD8B`;
 - media de la familia dorada: `#FADC84`.
 
 Estos valores NO se convierten en el "hex oficial" del logo.
 
-El asset tiene sombreado y variaciones tonales. La polÃ­tica correcta es usar el artwork oficial sin recolorearlo desde CSS, Android XML o tokens de interfaz.
+El asset tiene sombreado y variaciones tonales. La política correcta es usar el artwork oficial sin recolorearlo desde CSS, Android XML o tokens de interfaz.
 
 CANONICAL_LOGO_GOLD_HEX=NULL
 OFFICIAL_LOGO_USE_AS_IS=TRUE
@@ -45,16 +45,16 @@ Los actuales `gold500=#c8a65d` y `gold300=#e4cd98` siguen siendo acentos del pro
 
 La web comercial actual no es fuente de verdad visual.
 
-Se preservarÃ¡n su contenido, SEO, estructura Ãºtil y activos vÃ¡lidos, pero logo y branding deberÃ¡n derivar de Brand Truth.
+Se preservarán su contenido, SEO, estructura útil y activos válidos, pero logo y branding deberán derivar de Brand Truth.
 
 COMMERCIAL_CURRENT_CSS_IS_BRAND_SOURCE_OF_TRUTH=FALSE
 COMMERCIAL_CONTENT_AND_SEO_PRESERVATION=TRUE
 
 ## App icons
 
-Existen iconos histÃ³ricos y actuales, pero no se promueve ninguno a master de marca por similitud o antigÃ¼edad.
+Existen iconos históricos y actuales, pero no se promueve ninguno a master de marca por similitud o antigüedad.
 
-RC58.5B deberÃ¡ validar o derivar la identidad nativa desde el asset oficial, no al revÃ©s.
+RC58.5B deberá validar o derivar la identidad nativa desde el asset oficial, no al revés.
 
 APP_ICON_SOURCE_OF_TRUTH=OFFICIAL_BRAND_ASSET
 APP_ICON_ALIGNMENT_STAGE=RC58_5B
@@ -67,7 +67,7 @@ FINAL_APP_LAUNCH_DOMAIN=app.iberfit.cl
 CURRENT_APP_PRESERVE_UNTIL_CONTROLLED_CUTOVER=TRUE
 FUNCTIONAL_PARITY_REQUIRED_BEFORE_CUTOVER=TRUE
 
-## JerarquÃ­a
+## Jerarquía
 
 BRAND_TRUTH -> DESIGN_TOKENS -> M26 / ANDROID / WEAR / COMMERCIAL_WEB
 

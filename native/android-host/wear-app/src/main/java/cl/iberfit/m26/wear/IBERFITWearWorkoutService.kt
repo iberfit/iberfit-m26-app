@@ -75,7 +75,7 @@ class IBERFITWearWorkoutService : Service() {
                 )
 
                 updateNotification(
-                    "Fuente FC Â· " +
+                    "Fuente FC · " +
                         (
                             change.nextProviderId ?:
                                 "sin fuente activa"
@@ -92,7 +92,7 @@ class IBERFITWearWorkoutService : Service() {
                 )
 
                 updateNotification(
-                    "Frecuencia cardiaca Â· ${snapshot.state}"
+                    "Frecuencia cardiaca · ${snapshot.state}"
                 )
             }
 
@@ -121,7 +121,7 @@ class IBERFITWearWorkoutService : Service() {
                 }
 
                 updateNotification(
-                    "FC ${sample.bpm.toInt()} bpm Â· entrenamiento activo"
+                    "FC ${sample.bpm.toInt()} bpm · entrenamiento activo"
                 )
             }
 
@@ -134,7 +134,7 @@ class IBERFITWearWorkoutService : Service() {
                 )
 
                 updateNotification(
-                    "FC Â· ${error.code}"
+                    "FC · ${error.code}"
                 )
             }
         }
@@ -265,7 +265,7 @@ class IBERFITWearWorkoutService : Service() {
 
         if (!started) {
             updateNotification(
-                "No se pudo iniciar una nueva sesiÃ³n de FC"
+                "No se pudo iniciar una nueva sesión de FC"
             )
         }
     }

@@ -20,7 +20,7 @@ const phoneXml=read('native/android-host/phone-app/src/main/res/values/iberfit_d
 const wearXml=read('native/android-host/wear-app/src/main/res/values/iberfit_design_tokens.xml');
 const foundation=read('docs/RC58_1_TOKEN_FOUNDATION.md');
 
-test('RC58.1 usa una fuente canÃ³nica y generaciÃ³n reproducible',()=>{
+test('RC58.1 usa una fuente canónica y generación reproducible',()=>{
   assert.equal(IBERFIT_DESIGN_TOKENS.version,'58.1.0');
   assert.equal(IBERFIT_DESIGN_TOKENS.meta.sourceOfTruth,true);
   const check=spawnSync(process.execPath,['scripts/generate_rc58_design_tokens.mjs','--check'],{
@@ -30,7 +30,7 @@ test('RC58.1 usa una fuente canÃ³nica y generaciÃ³n reproducible',()=>{
   assert.match(check.stdout,/RC58_DESIGN_TOKEN_GENERATION=CHECK_PASS/);
 });
 
-test('contrato RC12 conserva paleta y escala pÃºblica',()=>{
+test('contrato RC12 conserva paleta y escala pública',()=>{
   assert.deepEqual(M26_PALETTE,{
     forest950:'#07150f',
     forest900:'#0d2419',
@@ -49,7 +49,7 @@ test('contrato RC12 conserva paleta y escala pÃºblica',()=>{
   assert.equal(auditPaletteContrast().ok,true);
 });
 
-test('tokens CSS preceden al shell y el shell consume aliases canÃ³nicos',()=>{
+test('tokens CSS preceden al shell y el shell consume aliases canónicos',()=>{
   const tokenPosition=indexHtml.indexOf('/src/m26/design/tokens.css');
   const shellPosition=indexHtml.indexOf('/src/m26/shell/shell.css');
   assert.ok(tokenPosition>0);
@@ -82,7 +82,7 @@ test('data-viz foundation tiene seis series distintas y contraste visible',()=>{
   assert.notEqual(palette.missing,series[0]);
 });
 
-test('densidad por rol mantiene mÃ­nimo tÃ¡ctil seguro',()=>{
+test('densidad por rol mantiene mínimo táctil seguro',()=>{
   assert.ok(IBERFIT_DESIGN_TOKENS.density.client.controlMinPx>=44);
   assert.ok(IBERFIT_DESIGN_TOKENS.density.coach.controlMinPx>=44);
   assert.ok(IBERFIT_DESIGN_TOKENS.density.admin.controlMinPx>=44);
@@ -90,7 +90,7 @@ test('densidad por rol mantiene mÃ­nimo tÃ¡ctil seguro',()=>{
 
 test('foundation es incremental y no introduce supply-chain runtime',()=>{
   assert.match(foundation,/RC58_1_VISUAL_DELTA=INTENTIONALLY_MINIMAL/);
-  assert.match(foundation,/aÃ±ade cero dependencias externas/);
+  assert.match(foundation,/añade cero dependencias externas/);
   assert.doesNotMatch(tokensCss,/@import|https?:\/\//i);
   assert.match(foundation,/NEXT_ACTION=RC58_2_ICON_TYPOGRAPHY_SYSTEM/);
   assert.match(foundation,/NEXT_SECURITY_ACTION=SR0_THREAT_MODEL_AND_SECURITY_INVENTORY_READ_ONLY/);

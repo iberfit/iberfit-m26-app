@@ -289,7 +289,7 @@ class IBERFITBleDeviceDiscoveryManager(
         val displayName =
             advertisedName
                 ?: bondedName
-                ?: "PulsÃ³metro Bluetooth"
+                ?: "Pulsómetro Bluetooth"
 
         listener.onDeviceFound(
             IBERFITBleDiscoveredDevice(
@@ -337,13 +337,13 @@ class IBERFITBleDeviceDiscoveryManager(
     ): String =
         when {
             rssi >= -60 ->
-                "SeÃ±al excelente"
+                "Señal excelente"
 
             rssi >= -75 ->
-                "SeÃ±al buena"
+                "Señal buena"
 
             else ->
-                "SeÃ±al disponible"
+                "Señal disponible"
         }
 
     companion object {

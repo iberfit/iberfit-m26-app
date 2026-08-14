@@ -26,7 +26,7 @@ const phone = () =>
     "utf8"
   );
 
-test("RC57.4 solicita permiso de frecuencia cardiaca segÃºn API", () => {
+test("RC57.4 solicita permiso de frecuencia cardiaca según API", () => {
   const source = wear();
 
   assert.match(
@@ -157,31 +157,31 @@ test("RC57.4 conserva executionId extremo a extremo", () => {
 
   assert.match(
     phone(),
-    /sample\.optString\("executionId"\)/
+    /sample\.optString\(\s*"executionId"\s*\)/
   );
 });
 
-test("RC57.4 expone los cuatro controles en el telÃ©fono", () => {
+test("RC57.4 expone los cuatro controles en el teléfono", () => {
   const source = phone();
 
   assert.match(
     source,
-    /sendCommand\("start"\)/
+    /sendCommand\(\s*"start"\s*\)/
   );
 
   assert.match(
     source,
-    /sendCommand\("pause"\)/
+    /sendCommand\(\s*"pause"\s*\)/
   );
 
   assert.match(
     source,
-    /sendCommand\("resume"\)/
+    /sendCommand\(\s*"resume"\s*\)/
   );
 
   assert.match(
     source,
-    /sendCommand\("stop"\)/
+    /sendCommand\(\s*"stop"\s*\)/
   );
 });
 
