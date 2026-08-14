@@ -21,6 +21,9 @@ class IBERFITAndroidNativeTelemetryRuntime(
         BLUETOOTH_HRS
     }
 
+    private val appContext =
+        context.applicationContext
+
     private var executionId:
         String? = null
 
@@ -36,19 +39,13 @@ class IBERFITAndroidNativeTelemetryRuntime(
     private var activeSource =
         ActiveSource.NONE
 
-    /**
-     * A successful MessageClient enqueue means only that the command was
-     * accepted for transport. It is not proof that Health Services is already
-     * producing samples, so we keep the BLE preferred device as a standby.
-     */
     private var wearSessionQueued =
         false
 
-    /**
-     * One BLE failover attempt is allowed per uninterrupted Wear sample epoch.
-     * A fresh Wear sample resets this guard and permits a future failover.
-     */
     private var bleFallbackAttempted =
+        false
+
+    private var bleBackgroundPrepared =
         false
 
     private val runtimeHandler =
@@ -62,9 +59,14 @@ class IBERFITAndroidNativeTelemetryRuntime(
     private lateinit var web:
         IBERFITAndroidWebRuntime
 
+    /**
+     * The phone foreground service owns IBERFITPreferredBleHeartRateRuntime(...)
+     * during background-capable sessions. This client preserves the RC57.6F
+     * runtime contract while moving BLE ownership out of the WebView lifecycle.
+     */
     private val preferredBle =
-        IBERFITPreferredBleHeartRateRuntime(
-            context = context,
+        IBERFITBluetoothBackgroundBleSessionClient(
+            context = appContext,
             onSample = {
                 sample ->
                 runtimeHandler.post {
@@ -77,6 +79,14 @@ class IBERFITAndroidNativeTelemetryRuntime(
                 _ ->
                 runtimeHandler.post {
                     handleBleProviderError()
+                }
+            },
+            onUnavailable = {
+                unavailableExecutionId ->
+                runtimeHandler.post {
+                    handleBleUnavailable(
+                        unavailableExecutionId
+                    )
                 }
             }
         )
@@ -181,6 +191,7 @@ class IBERFITAndroidNativeTelemetryRuntime(
         cancelWearWatchdog()
 
         preferredBle.stop()
+        preferredBle.release()
 
         executionId =
             newExecutionId
@@ -199,6 +210,16 @@ class IBERFITAndroidNativeTelemetryRuntime(
 
         bleFallbackAttempted =
             false
+
+        /**
+         * Prepare the FGS now, while START originates from visible session UI.
+         * If no preferred BLE device exists or permission is unavailable, the
+         * session simply continues with Wear without background BLE standby.
+         */
+        bleBackgroundPrepared =
+            preferredBle.prepare(
+                newExecutionId
+            )
 
         dataLayer.startListening()
 
@@ -315,8 +336,26 @@ class IBERFITAndroidNativeTelemetryRuntime(
     }
 
     private fun handleBleProviderError() {
+        val currentExecutionId =
+            executionId
+                ?: return
+
+        handleBleUnavailable(
+            currentExecutionId
+        )
+    }
+
+    private fun handleBleUnavailable(
+        unavailableExecutionId: String
+    ) {
+        val currentExecutionId =
+            executionId
+                ?: return
+
         if (
             !active ||
+            unavailableExecutionId !=
+                currentExecutionId ||
             activeSource !=
                 ActiveSource.BLUETOOTH_HRS
         ) {
@@ -332,11 +371,14 @@ class IBERFITAndroidNativeTelemetryRuntime(
                 ActiveSource.NONE
             }
 
-        /**
-         * Do not immediately loop back into the same BLE failure. A fresh Wear
-         * sample will reset bleFallbackAttempted and arm a new stale watchdog.
-         */
         cancelWearWatchdog()
+
+        if (!wearSessionQueued) {
+            preferredBle.release()
+
+            bleBackgroundPrepared =
+                false
+        }
     }
 
     private fun fallbackToPreferredBle(
@@ -347,7 +389,8 @@ class IBERFITAndroidNativeTelemetryRuntime(
             paused ||
             executionId !=
                 expectedExecutionId ||
-            bleFallbackAttempted
+            bleFallbackAttempted ||
+            !bleBackgroundPrepared
         ) {
             return false
         }
@@ -368,6 +411,11 @@ class IBERFITAndroidNativeTelemetryRuntime(
         } else if (!wearSessionQueued) {
             activeSource =
                 ActiveSource.NONE
+
+            preferredBle.release()
+
+            bleBackgroundPrepared =
+                false
         }
 
         return bleStarted
@@ -518,10 +566,6 @@ class IBERFITAndroidNativeTelemetryRuntime(
 
         cancelWearWatchdog()
 
-        /**
-         * When BLE is active because Wear stalled, the Wear workout may still
-         * exist. Always send STOP when START had previously been queued.
-         */
         if (wearSessionQueued) {
             dataLayer.sendCommand(
                 "stop",
@@ -532,6 +576,10 @@ class IBERFITAndroidNativeTelemetryRuntime(
         }
 
         preferredBle.stop()
+        preferredBle.release()
+
+        bleBackgroundPrepared =
+            false
 
         activeSource =
             ActiveSource.NONE
@@ -654,28 +702,23 @@ class IBERFITAndroidNativeTelemetryRuntime(
         bleFallbackAttempted =
             false
 
+        bleBackgroundPrepared =
+            false
+
         executionId =
             null
 
         activeSource =
             ActiveSource.NONE
 
-        preferredBle.stop()
+        preferredBle.destroy()
         dataLayer.stopListening()
     }
 
     companion object {
-        /**
-         * Conservative acquisition window before assuming that a queued Wear
-         * START is not yielding usable live HR.
-         */
         const val WEAR_INITIAL_SAMPLE_TIMEOUT_MS =
             30_000L
 
-        /**
-         * Once Wear has emitted HR, a shorter gap is sufficient to mark the
-         * live stream stale and activate the user's preferred BLE standby.
-         */
         const val WEAR_STALE_SAMPLE_TIMEOUT_MS =
             20_000L
     }
