@@ -212,9 +212,10 @@ test('RC59.0C contrato no implementa IO ni reutiliza Command Bus',()=>{
 test('RC59.0C cache versiona contrato y conserva lineage',()=>{
   const sw=read('public/m26/sw.js');
 
-  assert.match(sw,/VERSION='m26-rc59-0c-design'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-0b'/u);
+  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-0c-design'/u);
+  assert.match(sw,/m26-rc59-0b/u);
   assert.match(sw,/m26-rc59-0a/u);
+  assert.doesNotMatch(sw,/const VERSION='m26-rc59-0c-design'/u);
   assert.match(
     sw,
     /"\/src\/m26\/telemetry\/persistence-contract\.js"/u

@@ -322,7 +322,7 @@ test('RC59.0B no introduce persistencia remota ni decision automatica',()=>{
 test('RC59.0B cache versiona nuevo modulo y conserva lineage',()=>{
   const sw=read('public/m26/sw.js');
 
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-0b'/u);
+  assert.match(sw,/m26-rc59-0b/u);
   assert.match(sw,/m26-rc59-0a/u);
   assert.doesNotMatch(sw,/const VERSION='m26-rc59-0b'/u);
   assert.match(

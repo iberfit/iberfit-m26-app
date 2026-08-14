@@ -101,9 +101,9 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
   }
 }
 
-export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,liveTelemetryController=null}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
+export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,liveTelemetryController=null,telemetryOutbox=null}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
   let mounted=false,autosaveTimer=null,scheduledContext=null,autosaveChain=Promise.resolve();
-  const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{}});
+  const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox});
   const safeDelay=Math.max(50,Math.min(2000,Number(autosaveDelayMs)||180));
   function queueAutosave(context){
     if(!context?.draft||!context?.autosaveDraft)return;

@@ -151,6 +151,7 @@ export function ingestLiveTelemetrySample(
     markTelemetryTimelineRejected(state.timeline);
     return Object.freeze({
       canonicalAccepted:false,
+      canonicalEvent:null,
       legacyApplied:false,
       reason:'M26_LIVE_TELEMETRY_CORRELATION_MISMATCH',
     });
@@ -185,6 +186,7 @@ export function ingestLiveTelemetrySample(
 
   return Object.freeze({
     canonicalAccepted,
+    canonicalEvent:canonicalAccepted?canonical.value:null,
     legacyApplied,
     reason:canonicalAccepted?null:canonicalReason,
   });
@@ -238,10 +240,18 @@ export function createLiveTelemetryController({
   scope=globalThis,
   onUpdate=()=>{},
   onDiagnostic=()=>{},
+  telemetryOutbox=null,
 }={}){
+  if(
+    telemetryOutbox!==null&&
+    typeof telemetryOutbox?.stage!=='function'
+  ){
+    throw new Error('M26_TELEMETRY_OUTBOX_INVALID');
+  }
   let unsubscribe=null;
   let activeExecution=null;
   let activeTransport=null;
+  let outboxStageChain=Promise.resolve();
 
   function setState(execution,patch){
     if(!execution)return;
@@ -251,6 +261,14 @@ export function createLiveTelemetryController({
   }
   function diagnostic(code,error){
     try{onDiagnostic(code,error);}catch{}
+  }
+  function stageCanonicalEvent(event){
+    if(!event||!telemetryOutbox)return;
+    outboxStageChain=outboxStageChain
+      .then(()=>telemetryOutbox.stage(event))
+      .catch((error)=>{
+        diagnostic('M26_TELEMETRY_OUTBOX_STAGE_FAILED',error);
+      });
   }
   async function start(execution){
     if(!execution?.id||!execution?.clientId)return false;
@@ -288,7 +306,9 @@ export function createLiveTelemetryController({
             transport:activeTransport,
           }
         );
-        if(!ingested.canonicalAccepted){
+        if(ingested.canonicalAccepted){
+          stageCanonicalEvent(ingested.canonicalEvent);
+        }else{
           diagnostic(
             ingested.reason||'M26_LIVE_TELEMETRY_CANONICAL_REJECTED',
             null
@@ -325,6 +345,7 @@ export function createLiveTelemetryController({
     if(!execution)return false;
     try{unsubscribe?.();}catch{}
     unsubscribe=null;
+    await outboxStageChain;
     try{await bridgeFor(scope)?.stop?.({executionId:execution.id,reason});}catch(error){diagnostic('M26_LIVE_TELEMETRY_STOP_FAILED',error);}
     if(execution.liveTelemetry&&execution.liveTelemetry.status!=='unavailable'){
       setState(execution,{status:'stopped'});
@@ -337,6 +358,7 @@ export function createLiveTelemetryController({
   }
   return Object.freeze({
     start,pause,resume,stop,
+    awaitTelemetryStaging:()=>outboxStageChain,
     supported:()=>Boolean(
       typeof bridgeFor(scope)?.start==='function'
       &&typeof bridgeFor(scope)?.subscribe==='function'
