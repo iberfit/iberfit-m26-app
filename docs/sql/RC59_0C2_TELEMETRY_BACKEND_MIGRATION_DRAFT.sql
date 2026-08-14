@@ -28,9 +28,6 @@ begin
     raise exception 'M26_RC59_CLIENT_HELPER_REQUIRED';
   end if;
 
-  if to_regprocedure('public.is_assigned_coach(uuid)') is null then
-    raise exception 'M26_RC59_ASSIGNMENT_HELPER_REQUIRED';
-  end if;
 
   if to_regclass('public.iberfit_coach_client_assignments') is null then
     raise exception 'M26_RC59_ASSIGNMENTS_REQUIRED';
@@ -50,6 +47,61 @@ begin
 end
 $rc59_guard$;
 
+-- ==========================================================
+-- Telemetry-specific authorization boundary.
+--
+-- IMPORTANT:
+-- Do NOT reuse the deployed global assignment helper here.
+-- Canonical preflight 2026-08-14 showed that helper currently
+-- grants an Admin bypass and also considers a legacy assignment
+-- source. Raw telemetry therefore uses an independent boundary.
+--
+-- Telemetry raw is stricter:
+--   * Client may access own client_id.
+--   * Coach may access only an active assignment in
+--     iberfit_coach_client_assignments with active membership.
+--   * Admin role alone grants nothing.
+-- ==========================================================
+
+create or replace function public.m26_telemetry_can_access_client_v59(
+  target_client uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $rc59$
+  select
+    target_client is not null
+    and (
+      target_client = public.iberfit_client_id()
+      or exists (
+        select 1
+        from public.iberfit_coach_client_assignments a
+        join public.iberfit_organization_memberships m
+          on m.organization_id = a.organization_id
+         and m.user_id = a.coach_user_id
+         and m.status = 'active'
+        where a.coach_user_id = auth.uid()
+          and a.client_id = target_client::text
+          and a.status = 'active'
+          and a.starts_at <= current_date
+          and (
+            a.ends_at is null
+            or a.ends_at >= current_date
+          )
+      )
+    );
+$rc59$;
+
+revoke all
+on function public.m26_telemetry_can_access_client_v59(uuid)
+from public, anon;
+
+grant execute
+on function public.m26_telemetry_can_access_client_v59(uuid)
+to authenticated;
 -- ==========================================================
 -- Recursive privacy / secret guard.
 -- Rejects identifiers or secrets that do not belong in raw
@@ -551,7 +603,7 @@ for select
 to authenticated
 using (
   client_id = public.iberfit_client_id()
-  or public.is_assigned_coach(client_id)
+  or public.m26_telemetry_can_access_client_v59(client_id)
 );
 
 create policy m26_telemetry_events_insert_v59
@@ -562,7 +614,7 @@ with check (
   imported_by = auth.uid()
   and (
     client_id = public.iberfit_client_id()
-    or public.is_assigned_coach(client_id)
+    or public.m26_telemetry_can_access_client_v59(client_id)
   )
 );
 
@@ -669,7 +721,7 @@ begin
 
   if not (
     v_client_id = public.iberfit_client_id()
-    or public.is_assigned_coach(v_client_id)
+    or public.m26_telemetry_can_access_client_v59(v_client_id)
   ) then
     raise exception using
       errcode = '42501',
@@ -848,7 +900,7 @@ begin
 
   if not (
     p_client_id = public.iberfit_client_id()
-    or public.is_assigned_coach(p_client_id)
+    or public.m26_telemetry_can_access_client_v59(p_client_id)
   ) then
     raise exception using
       errcode = '42501',

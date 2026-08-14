@@ -65,4 +65,7 @@ public.m26_telemetry_event_valid_v59(
 drop function if exists
 public.m26_telemetry_json_safe_v59(jsonb);
 
+drop function if exists
+public.m26_telemetry_can_access_client_v59(uuid);
+
 commit;

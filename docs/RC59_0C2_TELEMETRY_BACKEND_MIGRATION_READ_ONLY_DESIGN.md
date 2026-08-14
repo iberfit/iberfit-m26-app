@@ -26,7 +26,7 @@ una excepción antes de cualquier DDL. No son archivos ejecutables de despliegue
 El diseño se apoya en contratos ya existentes:
 
 - `public.iberfit_client_id()` para alcance Cliente;
-- `public.is_assigned_coach(uuid)` para Coach con asignación activa;
+- la autorización Coach de telemetría NO reutiliza el helper global desplegado;
 - RLS y RPC autenticados de RC43/RC44;
 - contrato de idempotencia RC59.0C;
 - outbox owner-scoped RC59.0C1.
@@ -108,12 +108,31 @@ DEVICE_ID_PERSISTED=FALSE
 Import y lectura raw:
 
 - Cliente sobre su propio `client_id`;
-- Coach solo mediante `public.is_assigned_coach(client_id)`.
+- Coach solo mediante `public.m26_telemetry_can_access_client_v59(client_id)`.
 
 ADMIN_ROLE_ALONE_RAW_ACCESS=FALSE
 
-Una persona que también tenga rol Coach solo accede cuando exista una asignación
-Coach activa; el rol Admin no concede raw por sí mismo.
+AUTHORIZATION_DRIFT_DETECTED=TRUE
+AUTHORIZATION_DRIFT_RESOLVED_IN_DRAFT=TRUE
+
+El preflight canónico del 14/08/2026 detectó que el helper global desplegado
+`public.is_assigned_coach(uuid)` delega en `private.is_assigned_coach(uuid)`, y esa
+función permite acceso por rol Admin además de consultar una tabla legacy
+`public.client_assignments`.
+
+Por ello RC59 no reutiliza ese helper para raw telemetry.
+
+`public.m26_telemetry_can_access_client_v59(uuid)` aplica una frontera deliberadamente
+más estricta:
+
+- Cliente propio mediante `public.iberfit_client_id()`;
+- o asignación activa en `public.iberfit_coach_client_assignments`;
+- con membresía activa en `public.iberfit_organization_memberships`;
+- vigencia temporal de `starts_at` / `ends_at`;
+- `coach_user_id = auth.uid()`.
+
+Una persona con rol Admin solo accede si además cumple una de esas condiciones
+independientes. El rol Admin por sí solo no concede raw.
 
 La tabla raw mantiene RLS como defensa en profundidad, pero sus privilegios directos
 para `authenticated` quedan revocados. La API prevista son RPCs explícitos.
@@ -211,7 +230,7 @@ canónico confirme:
 
 1. proyecto correcto;
 2. helpers esperados;
-3. RC46 assignment boundary vigente;
+3. frontera de asignación canónica verificada y helper global no reutilizado para raw telemetry;
 4. ausencia de colisión con objetos `v59`;
 5. RLS/policies compatibles;
 6. rollback revisado.
@@ -229,6 +248,6 @@ PWA_CACHE_CHANGED=FALSE
 APPLICATION_RUNTIME_CHANGED=FALSE
 COMMERCIAL_WEB_PHASE=DEFERRED_UNTIL_APP_COMPLETE
 
-NEXT_PRODUCT_ACTION=RC59_0C2A_CANONICAL_BACKEND_PREFLIGHT_READ_ONLY
+NEXT_PRODUCT_ACTION=CURRENT_VISUAL_SANDBOX_CLIENT_COACH_ADMIN
 NEXT_SECURITY_ACTION=SR0_THREAT_MODEL_AND_SECURITY_INVENTORY_READ_ONLY
 NEXT_DEPLOYMENT_ACTION=APP_IBERFIT_CL_SURFACE_INVENTORY_READ_ONLY

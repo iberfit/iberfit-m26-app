@@ -130,7 +130,15 @@ test('RC59.0C2 bloquea hardware IDs y secretos recursivamente',()=>{
   );
 });
 
-test('RC59.0C2 import usa scope cliente propio o Coach asignado',()=>{
+test('RC59.0C2 usa frontera especifica de telemetria sin bypass Admin',()=>{
+  const helper=migration.slice(
+    migration.indexOf(
+      'create or replace function public.m26_telemetry_can_access_client_v59'
+    ),
+    migration.indexOf(
+      'create or replace function public.m26_telemetry_json_safe_v59'
+    )
+  );
   const importRpc=migration.slice(
     migration.indexOf(
       'create or replace function public.m26_telemetry_import_v59'
@@ -140,10 +148,36 @@ test('RC59.0C2 import usa scope cliente propio o Coach asignado',()=>{
     )
   );
 
-  assert.match(importRpc,/public\.iberfit_client_id\(\)/u);
-  assert.match(importRpc,/public\.is_assigned_coach\(v_client_id\)/u);
+  assert.match(helper,/target_client = public\.iberfit_client_id\(\)/u);
+  assert.match(
+    helper,
+    /public\.iberfit_coach_client_assignments/u
+  );
+  assert.match(
+    helper,
+    /public\.iberfit_organization_memberships/u
+  );
+  assert.match(helper,/a\.coach_user_id = auth\.uid\(\)/u);
+  assert.match(helper,/a\.status = 'active'/u);
+  assert.match(helper,/m\.status = 'active'/u);
+  assert.match(helper,/a\.starts_at <= current_date/u);
+  assert.match(helper,/a\.ends_at >= current_date/u);
+
+  assert.doesNotMatch(helper,/iberfit_role/u);
+  assert.doesNotMatch(helper,/public\.client_assignments\b/u);
+  assert.doesNotMatch(helper,/\badmin\b/iu);
+
+  assert.match(
+    importRpc,
+    /public\.m26_telemetry_can_access_client_v59\(v_client_id\)/u
+  );
   assert.match(importRpc,/M26_RC59_CLIENT_SCOPE_FORBIDDEN/u);
   assert.doesNotMatch(importRpc,/jwt|role_claim|current_setting/iu);
+
+  assert.doesNotMatch(
+    migration,
+    /public\.is_assigned_coach\(/u
+  );
 });
 
 test('RC59.0C2 direct raw table grants permanecen revocados',()=>{
@@ -195,11 +229,17 @@ test('RC59.0C2 Admin role solo no concede raw',()=>{
     migration,
     /Admin role by itself receives no raw access/u
   );
+  assert.match(
+    migration,
+    /m26_telemetry_can_access_client_v59/u
+  );
   assert.doesNotMatch(
     migration,
-    /(?:admin|administrador)[\s\S]{0,80}(?:using|with check)/iu
+    /public\.is_assigned_coach\(/u
   );
   assert.match(doc,/ADMIN_ROLE_ALONE_RAW_ACCESS=FALSE/u);
+  assert.match(doc,/AUTHORIZATION_DRIFT_DETECTED=TRUE/u);
+  assert.match(doc,/AUTHORIZATION_DRIFT_RESOLVED_IN_DRAFT=TRUE/u);
 });
 
 test('RC59.0C2 define read export delete y retention sin apply',()=>{
@@ -226,10 +266,10 @@ test('RC59.0C2 define read export delete y retention sin apply',()=>{
 test('RC59.0C2 roadmap avanza a backend read only design',()=>{
   assert.match(
     roadmap,
-    /RC59_0=IN_PROGRESS_RC59_0C2_BACKEND_READ_ONLY_DESIGN/u
+    /RC59_0=IN_PROGRESS_RC59_0C2A_AUTHORIZATION_DRIFT_CORRECTED/u
   );
   assert.match(
     doc,
-    /NEXT_PRODUCT_ACTION=RC59_0C2A_CANONICAL_BACKEND_PREFLIGHT_READ_ONLY/u
+    /NEXT_PRODUCT_ACTION=CURRENT_VISUAL_SANDBOX_CLIENT_COACH_ADMIN/u
   );
 });
