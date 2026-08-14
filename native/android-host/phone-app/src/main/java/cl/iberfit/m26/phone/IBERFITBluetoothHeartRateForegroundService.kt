@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import cl.iberfit.nativebridge.runtime.IBERFITAndroidTelemetryDiagnostics
 import cl.iberfit.nativebridge.runtime.IBERFITBluetoothBackgroundBridge
 import cl.iberfit.nativebridge.runtime.IBERFITPreferredBleHeartRateRuntime
 
@@ -25,6 +26,9 @@ class IBERFITBluetoothHeartRateForegroundService :
     private lateinit var preferredBle:
         IBERFITPreferredBleHeartRateRuntime
 
+    private lateinit var diagnostics:
+        IBERFITAndroidTelemetryDiagnostics
+
     private var activeExecutionId:
         String? = null
 
@@ -36,6 +40,15 @@ class IBERFITBluetoothHeartRateForegroundService :
 
     override fun onCreate() {
         super.onCreate()
+
+        diagnostics =
+            IBERFITAndroidTelemetryDiagnostics(
+                this
+            )
+
+        diagnostics.record(
+            "FGS_ON_CREATE"
+        )
 
         createNotificationChannel()
 
@@ -52,6 +65,10 @@ class IBERFITBluetoothHeartRateForegroundService :
                         sample.executionId ==
                             id
                     ) {
+                        diagnostics.record(
+                            "FGS_BLE_SAMPLE"
+                        )
+
                         updateNotification(
                             "PulsÃ³metro Bluetooth activo"
                         )
@@ -68,6 +85,10 @@ class IBERFITBluetoothHeartRateForegroundService :
                         activeExecutionId
 
                     if (id != null) {
+                        diagnostics.record(
+                            "FGS_BLE_ERROR"
+                        )
+
                         updateNotification(
                             "PulsÃ³metro Bluetooth no disponible"
                         )
@@ -137,6 +158,10 @@ class IBERFITBluetoothHeartRateForegroundService :
     override fun startBle(
         executionId: String
     ): Boolean {
+        diagnostics.record(
+            "FGS_BLE_START_REQUEST"
+        )
+
         if (
             !prepareSession(
                 executionId
@@ -159,6 +184,14 @@ class IBERFITBluetoothHeartRateForegroundService :
                 executionId
             )
 
+        diagnostics.record(
+            if (started) {
+                "FGS_BLE_STARTED"
+            } else {
+                "FGS_BLE_NOT_STARTED"
+            }
+        )
+
         if (!started) {
             updateNotification(
                 "PulsÃ³metro Bluetooth no disponible"
@@ -176,6 +209,10 @@ class IBERFITBluetoothHeartRateForegroundService :
     override fun pauseBle(
         executionId: String
     ) {
+        diagnostics.record(
+            "FGS_BLE_PAUSE"
+        )
+
         if (
             activeExecutionId !=
                 executionId
@@ -193,6 +230,10 @@ class IBERFITBluetoothHeartRateForegroundService :
     override fun resumeBle(
         executionId: String
     ) {
+        diagnostics.record(
+            "FGS_BLE_RESUME"
+        )
+
         if (
             activeExecutionId !=
                 executionId
@@ -210,6 +251,10 @@ class IBERFITBluetoothHeartRateForegroundService :
     override fun stopBle(
         executionId: String
     ) {
+        diagnostics.record(
+            "FGS_BLE_WARM_STOP"
+        )
+
         if (
             activeExecutionId !=
                 executionId
@@ -227,6 +272,10 @@ class IBERFITBluetoothHeartRateForegroundService :
     override fun stopSession(
         executionId: String
     ) {
+        diagnostics.record(
+            "FGS_SESSION_STOP"
+        )
+
         if (
             activeExecutionId !=
                 executionId
@@ -255,6 +304,10 @@ class IBERFITBluetoothHeartRateForegroundService :
     override fun onTaskRemoved(
         rootIntent: Intent?
     ) {
+        diagnostics.record(
+            "FGS_TASK_REMOVED"
+        )
+
         intentionalStop =
             true
 
@@ -268,6 +321,10 @@ class IBERFITBluetoothHeartRateForegroundService :
     }
 
     override fun onDestroy() {
+        diagnostics.record(
+            "FGS_ON_DESTROY"
+        )
+
         val interruptedExecutionId =
             activeExecutionId
 
@@ -309,6 +366,10 @@ class IBERFITBluetoothHeartRateForegroundService :
     private fun prepareSession(
         executionId: String
     ): Boolean {
+        diagnostics.record(
+            "FGS_PREPARE_SESSION"
+        )
+
         if (
             executionId.isBlank()
         ) {
@@ -363,6 +424,10 @@ class IBERFITBluetoothHeartRateForegroundService :
 
                 foregroundStarted =
                     true
+
+                diagnostics.record(
+                    "FGS_PROMOTED"
+                )
             } else {
                 notificationManager
                     .notify(

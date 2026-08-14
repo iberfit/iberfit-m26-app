@@ -24,6 +24,11 @@ class IBERFITAndroidNativeTelemetryRuntime(
     private val appContext =
         context.applicationContext
 
+    private val diagnostics =
+        IBERFITAndroidTelemetryDiagnostics(
+            appContext
+        )
+
     private var executionId:
         String? = null
 
@@ -46,6 +51,12 @@ class IBERFITAndroidNativeTelemetryRuntime(
         false
 
     private var bleBackgroundPrepared =
+        false
+
+    private var wearSampleObserved =
+        false
+
+    private var bleSampleObserved =
         false
 
     private val runtimeHandler =
@@ -188,6 +199,11 @@ class IBERFITAndroidNativeTelemetryRuntime(
         val startGeneration =
             generation
 
+        diagnostics.clear()
+        diagnostics.record(
+            "RUNTIME_START"
+        )
+
         cancelWearWatchdog()
 
         preferredBle.stop()
@@ -211,6 +227,12 @@ class IBERFITAndroidNativeTelemetryRuntime(
         bleFallbackAttempted =
             false
 
+        wearSampleObserved =
+            false
+
+        bleSampleObserved =
+            false
+
         /**
          * Prepare the FGS now, while START originates from visible session UI.
          * If no preferred BLE device exists or permission is unavailable, the
@@ -220,6 +242,14 @@ class IBERFITAndroidNativeTelemetryRuntime(
             preferredBle.prepare(
                 newExecutionId
             )
+
+        diagnostics.record(
+            if (bleBackgroundPrepared) {
+                "BLE_FGS_PREPARED"
+            } else {
+                "BLE_FGS_NOT_PREPARED"
+            }
+        )
 
         dataLayer.startListening()
 
@@ -238,6 +268,10 @@ class IBERFITAndroidNativeTelemetryRuntime(
                 }
 
                 if (sentToWatch) {
+                    diagnostics.record(
+                        "WEAR_START_QUEUED"
+                    )
+
                     wearSessionQueued =
                         true
 
@@ -251,6 +285,10 @@ class IBERFITAndroidNativeTelemetryRuntime(
                             WEAR_INITIAL_SAMPLE_TIMEOUT_MS
                     )
                 } else {
+                    diagnostics.record(
+                        "WEAR_START_NOT_QUEUED"
+                    )
+
                     wearSessionQueued =
                         false
 
@@ -284,6 +322,15 @@ class IBERFITAndroidNativeTelemetryRuntime(
             return
         }
 
+        if (!wearSampleObserved) {
+            wearSampleObserved =
+                true
+
+            diagnostics.record(
+                "WEAR_SAMPLE_RECEIVED"
+            )
+        }
+
         wearSessionQueued =
             true
 
@@ -294,6 +341,10 @@ class IBERFITAndroidNativeTelemetryRuntime(
             activeSource ==
                 ActiveSource.BLUETOOTH_HRS
         ) {
+            diagnostics.record(
+                "WEAR_RECOVERY_FROM_BLE"
+            )
+
             preferredBle.stop()
         }
 
@@ -330,6 +381,15 @@ class IBERFITAndroidNativeTelemetryRuntime(
             return
         }
 
+        if (!bleSampleObserved) {
+            bleSampleObserved =
+                true
+
+            diagnostics.record(
+                "BLE_SAMPLE_RECEIVED"
+            )
+        }
+
         web.emitSample(
             sample.toWebSample()
         )
@@ -361,6 +421,10 @@ class IBERFITAndroidNativeTelemetryRuntime(
         ) {
             return
         }
+
+        diagnostics.record(
+            "BLE_UNAVAILABLE"
+        )
 
         preferredBle.stop()
 
@@ -398,6 +462,13 @@ class IBERFITAndroidNativeTelemetryRuntime(
         bleFallbackAttempted =
             true
 
+        bleSampleObserved =
+            false
+
+        diagnostics.record(
+            "BLE_FAILOVER_REQUESTED"
+        )
+
         cancelWearWatchdog()
 
         val bleStarted =
@@ -406,9 +477,16 @@ class IBERFITAndroidNativeTelemetryRuntime(
             )
 
         if (bleStarted) {
+            diagnostics.record(
+                "BLE_FAILOVER_STARTED"
+            )
+
             activeSource =
                 ActiveSource.BLUETOOTH_HRS
         } else if (!wearSessionQueued) {
+            diagnostics.record(
+                "BLE_FAILOVER_NOT_STARTED"
+            )
             activeSource =
                 ActiveSource.NONE
 
@@ -454,6 +532,10 @@ class IBERFITAndroidNativeTelemetryRuntime(
                     return@Runnable
                 }
 
+                diagnostics.record(
+                    "WEAR_WATCHDOG_FIRED"
+                )
+
                 fallbackToPreferredBle(
                     expectedExecutionId
                 )
@@ -485,6 +567,10 @@ class IBERFITAndroidNativeTelemetryRuntime(
     private fun pause(
         currentExecutionId: String
     ) {
+        diagnostics.record(
+            "RUNTIME_PAUSE"
+        )
+
         paused =
             true
 
@@ -510,6 +596,10 @@ class IBERFITAndroidNativeTelemetryRuntime(
     private fun resume(
         currentExecutionId: String
     ) {
+        diagnostics.record(
+            "RUNTIME_RESUME"
+        )
+
         paused =
             false
 
@@ -561,6 +651,10 @@ class IBERFITAndroidNativeTelemetryRuntime(
     private fun stop(
         currentExecutionId: String
     ) {
+        diagnostics.record(
+            "RUNTIME_STOP"
+        )
+
         generation +=
             1L
 
@@ -685,6 +779,10 @@ class IBERFITAndroidNativeTelemetryRuntime(
         }
 
     fun destroy() {
+        diagnostics.record(
+            "RUNTIME_DESTROY"
+        )
+
         generation +=
             1L
 
