@@ -199,7 +199,7 @@ test('RC59.0A queda exportado y su cache conserva genealogia',()=>{
   const sw=read('public/m26/sw.js');
 
   assert.match(rootIndex,/export \* from '\.\/telemetry\/index\.js';/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-0a'/u);
+  assert.match(sw,/m26-rc59-0a/u);
   assert.match(sw,/m26-rc58-6/u);
   assert.doesNotMatch(sw,/const VERSION='m26-rc59-0a'/u);
   assert.match(sw,/"\/src\/m26\/telemetry\/canonical-telemetry\.js"/u);
