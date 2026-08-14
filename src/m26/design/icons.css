@@ -1,0 +1,38 @@
+/* IBERFIT RC58.2 Â· Lucide-derived iconography */
+.iberfit-icon,
+.m26-nav-icon {
+  display: inline-block;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex: 0 0 auto;
+  overflow: visible;
+  color: currentColor;
+  vertical-align: -0.16em;
+}
+
+.m26-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--iberfit-space-3);
+}
+
+.m26-nav-item .m26-nav-icon {
+  color: color-mix(in srgb, currentColor 88%, var(--iberfit-color-accent-strong));
+}
+
+.m26-nav-item.is-active .m26-nav-icon {
+  color: var(--iberfit-color-accent-strong);
+}
+
+@media (max-width: 900px) {
+  .m26-mobile-nav .m26-nav-item {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.25rem;
+  }
+
+  .m26-mobile-nav .m26-nav-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+}

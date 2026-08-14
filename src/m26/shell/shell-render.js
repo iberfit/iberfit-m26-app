@@ -1,5 +1,6 @@
 import {enhanceAdminShellMarkup} from '../admin/shell-enhancer.js';
 import {enhanceRc39ShellMarkup} from '../rc39/shell-enhancer.js';
+import {areaIconName,renderIberfitIcon} from '../design/icons.js';
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -11,7 +12,8 @@ function escapeHtml(value) {
 
 function navItem(item, activeArea) {
   const active = item.key === activeArea;
-  return `<button class="m26-nav-item${active ? ' is-active' : ''}" type="button" data-m26-area="${escapeHtml(item.key)}"${active?' aria-current="page"':''}><span>${escapeHtml(item.label)}</span></button>`;
+  const icon = renderIberfitIcon(areaIconName(item.key),{className:'m26-nav-icon'});
+  return `<button class="m26-nav-item${active ? ' is-active' : ''}" type="button" data-m26-area="${escapeHtml(item.key)}"${active?' aria-current="page"':''}>${icon}<span>${escapeHtml(item.label)}</span></button>`;
 }
 
 function navGroup(label, items, activeArea, className = '') {

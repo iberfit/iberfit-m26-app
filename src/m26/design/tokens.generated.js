@@ -91,8 +91,8 @@ export const IBERFIT_DESIGN_TOKENS=deepFreeze({
   },
   "typography": {
     "family": {
-      "ui": "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      "editorial": "Georgia, 'Times New Roman', serif"
+      "ui": "'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      "editorial": "'Source Serif 4 Variable', Georgia, 'Times New Roman', serif"
     },
     "sizePx": {
       "xs": 12,
