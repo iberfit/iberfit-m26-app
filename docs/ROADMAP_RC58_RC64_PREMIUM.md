@@ -16,6 +16,7 @@ RC56=PHYSICAL_E2E_CLOSED
 RC57=SOFTWARE_CLOSED
 RC57_BLE_PHYSICAL_E2E=BLOCKED_NO_HRS_HARDWARE
 RC58=CLOSED_RC58_6_VISUAL_ACCESSIBILITY
+RC59_0=IN_PROGRESS_RC59_0A_CANONICAL_CONTRACT
 
 ## Critical rail A — Admin / RC46
 
@@ -37,6 +38,11 @@ RC59 se amplía respecto a “Data Experience”: primero construye la espina do
 
 ### RC59.0 — Canonical telemetry timeline
 Unifica la sesión real con la historia del cliente.
+
+Entrega incremental:
+- **RC59.0A:** contrato canónico puro e inmutable;
+- **RC59.0B:** ingestión live y timeline local acotado;
+- **RC59.0C:** persistencia/outbox, retención e idempotencia sin inflar snapshots operativos.
 
 Cada muestra/evento debe poder correlacionarse con:
 - `clientId`;

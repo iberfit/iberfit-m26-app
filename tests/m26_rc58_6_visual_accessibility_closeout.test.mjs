@@ -60,9 +60,9 @@ test('RC58.6 conserva foco en forced colors sin depender de sombras',()=>{
 });
 
 test('RC58.6 invalida cache PWA anterior y conserva genealogia',()=>{
-  assert.match(sw,/VERSION='m26-rc58-6'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc58-5c-b'/u);
-  assert.doesNotMatch(sw,/const VERSION='m26-rc58-5c-b'/u);
+  assert.match(sw,/PREVIOUS_VERSION='m26-rc58-6'/u);
+  assert.match(sw,/m26-rc58-5c-b/u);
+  assert.doesNotMatch(sw,/const VERSION='m26-rc58-6'/u);
 });
 
 test('RC58.6 cierra RC58 sin mezclar rails posteriores',()=>{

@@ -25,6 +25,7 @@ export * from './engagement/index.js';
 export * from './app/index.js';
 
 export * from './wearables/index.js';
+export * from './telemetry/index.js';
 
 export * from './security/index.js';
 export * from './publication/index.js';

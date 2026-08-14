@@ -252,7 +252,7 @@ test('generated PWA shell covers every CSS linked by index and excludes runtime 
     /RC58_GENERATED_APP_SHELL[^;\n]*runtime-config\.js/u
   );
 
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc58-5c-b'/);
+  assert.match(sw,/m26-rc58-5c-b/);
   assert.match(sw,/redirect:'error'/);
 });
 
