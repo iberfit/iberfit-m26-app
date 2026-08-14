@@ -205,10 +205,14 @@ test('RC59.0C2B rollback también requiere autorización independiente',()=>{
   assert.equal(dollarTagsBalanced(rollback),true);
 });
 
-test('RC59.0C2B roadmap queda listo para apply prep, no apply',()=>{
+test('RC59.0C2B candidate queda preservado tras apply canónico',()=>{
   assert.match(
     roadmap,
-    /RC59_0=IN_PROGRESS_RC59_0C2B_EXECUTABLE_CANDIDATE/u
+    /RC59_0C2C=CANONICAL_APPLIED/u
+  );
+  assert.match(
+    roadmap,
+    /RC59_0=IN_PROGRESS_RC59_0C3_REMOTE_OUTBOX_UPLOAD/u
   );
   assert.match(
     doc,

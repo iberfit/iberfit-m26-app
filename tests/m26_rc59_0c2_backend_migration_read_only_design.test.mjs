@@ -263,10 +263,14 @@ test('RC59.0C2 define read export delete y retention sin apply',()=>{
   assert.match(doc,/BACKEND_MUTATION=FALSE/u);
 });
 
-test('RC59.0C2 roadmap avanza a backend read only design',()=>{
+test('RC59.0C2 design histórico permanece válido tras apply canónico',()=>{
   assert.match(
     roadmap,
-    /RC59_0=IN_PROGRESS_RC59_0C2B_EXECUTABLE_CANDIDATE/u
+    /RC59_0C2C=CANONICAL_APPLIED/u
+  );
+  assert.match(
+    roadmap,
+    /RC59_0=IN_PROGRESS_RC59_0C3_REMOTE_OUTBOX_UPLOAD/u
   );
   assert.match(
     doc,
