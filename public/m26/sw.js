@@ -1,5 +1,5 @@
-const VERSION='m26-rc58-5c-b';
-const PREVIOUS_VERSION='m26-rc58-5c-a';
+const VERSION='m26-rc58-6';
+const PREVIOUS_VERSION='m26-rc58-5c-b';
 // Historical compatibility markers retained for regression evidence: m26-rc28, m26-rc27, m26-rc23, m26-rc19, m26-rc17.
 const SHELL=`iberfit-${VERSION}-shell`;
 const OFFLINE='/m26/offline.html';
