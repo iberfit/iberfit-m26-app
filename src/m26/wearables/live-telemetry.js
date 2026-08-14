@@ -1,5 +1,12 @@
 import {normalizeWearableProvider,wearableProviderDefinition} from './contracts.js';
 import {createNativeTelemetryBridge} from './native-transport.js';
+import {createCanonicalHeartRateEvent} from '../telemetry/canonical-telemetry.js';
+import {
+  appendCanonicalTelemetryEvent,
+  createBoundedTelemetryTimeline,
+  markTelemetryTimelineRejected,
+  telemetryTimelineSummary,
+} from '../telemetry/bounded-timeline.js';
 
 export const LIVE_TELEMETRY_PROVIDERS=Object.freeze([
   'apple_health',
@@ -57,6 +64,7 @@ export function createLiveTelemetryState(){
     rrIntervalsMs:[],
     rrIntervalAvailable:false,
     rrSampleCount:0,
+    timeline:createBoundedTelemetryTimeline(),
     errorCode:null,
   };
 }
@@ -84,10 +92,17 @@ export function normalizeLiveTelemetrySample(input={}){
   });
 }
 
-export function applyLiveTelemetrySample(execution,input={}){
-  if(!execution)throw new Error('M26_LIVE_TELEMETRY_EXECUTION_REQUIRED');
+function sampleCorrelationMatchesExecution(execution,input={}){
+  const sampleExecutionId=String(input?.executionId||'').trim();
+  const sampleSessionId=String(input?.sessionId||'').trim();
+  if(sampleExecutionId&&sampleExecutionId!==String(execution?.id||''))return false;
+  if(sampleSessionId&&sampleSessionId!==String(execution?.sessionId||''))return false;
+  return true;
+}
+
+function applyLegacyLiveTelemetrySample(execution,input={}){
   const normalized=normalizeLiveTelemetrySample(input);
-  if(!normalized.ok)return execution;
+  if(!normalized.ok)return false;
   const sample=normalized.value;
   const state=execution.liveTelemetry||createLiveTelemetryState();
   const sampleCount=Number(state.sampleCount||0)+1;
@@ -115,6 +130,68 @@ export function applyLiveTelemetrySample(execution,input={}){
     errorCode:null,
   });
   execution.liveTelemetry=state;
+  return true;
+}
+
+export function ingestLiveTelemetrySample(
+  execution,
+  input={},
+  {
+    receivedAt=null,
+    transport=null,
+    timestampOrigin=null,
+  }={}
+){
+  if(!execution)throw new Error('M26_LIVE_TELEMETRY_EXECUTION_REQUIRED');
+  const state=execution.liveTelemetry||createLiveTelemetryState();
+  state.timeline=state.timeline||createBoundedTelemetryTimeline();
+  execution.liveTelemetry=state;
+
+  if(!sampleCorrelationMatchesExecution(execution,input)){
+    markTelemetryTimelineRejected(state.timeline);
+    return Object.freeze({
+      canonicalAccepted:false,
+      legacyApplied:false,
+      reason:'M26_LIVE_TELEMETRY_CORRELATION_MISMATCH',
+    });
+  }
+
+  const canonical=createCanonicalHeartRateEvent(
+    input,
+    {
+      execution,
+      receivedAt,
+      transport,
+      timestampOrigin,
+    }
+  );
+
+  let canonicalAccepted=false;
+  let canonicalReason=null;
+
+  if(canonical.ok){
+    const appended=appendCanonicalTelemetryEvent(
+      state.timeline,
+      canonical.value
+    );
+    canonicalAccepted=appended.accepted===true;
+    canonicalReason=appended.reason||null;
+  }else{
+    markTelemetryTimelineRejected(state.timeline);
+    canonicalReason='M26_LIVE_TELEMETRY_CANONICAL_INVALID';
+  }
+
+  const legacyApplied=applyLegacyLiveTelemetrySample(execution,input);
+
+  return Object.freeze({
+    canonicalAccepted,
+    legacyApplied,
+    reason:canonicalAccepted?null:canonicalReason,
+  });
+}
+
+export function applyLiveTelemetrySample(execution,input={},options={}){
+  ingestLiveTelemetrySample(execution,input,options);
   return execution;
 }
 
@@ -131,6 +208,7 @@ export function liveTelemetrySummary(execution){
       maxHeartRateBpm:null,
       rrIntervalAvailable:false,
       rrSampleCount:0,
+      timeline:telemetryTimelineSummary(state?.timeline),
     });
   }
   return Object.freeze({
@@ -146,6 +224,7 @@ export function liveTelemetrySummary(execution){
     quality:state.quality,
     rrIntervalAvailable:state.rrIntervalAvailable===true,
     rrSampleCount:Number(state.rrSampleCount||0),
+    timeline:telemetryTimelineSummary(state.timeline),
   });
 }
 
@@ -162,6 +241,7 @@ export function createLiveTelemetryController({
 }={}){
   let unsubscribe=null;
   let activeExecution=null;
+  let activeTransport=null;
 
   function setState(execution,patch){
     if(!execution)return;
@@ -188,6 +268,7 @@ export function createLiveTelemetryController({
       });
       const declaredProvider=startResult?.provider||bridge.provider||null;
       const provider=safeProvider(declaredProvider);
+      activeTransport=startResult?.transport||bridge.transport||null;
       if(declaredProvider&&!provider)throw new Error('M26_LIVE_TELEMETRY_PROVIDER_UNSUPPORTED');
       setState(execution,{
         status:'connecting',
@@ -200,7 +281,19 @@ export function createLiveTelemetryController({
           ...sample,
           provider:sample?.provider||provider,
         };
-        applyLiveTelemetrySample(execution,enriched);
+        const ingested=ingestLiveTelemetrySample(
+          execution,
+          enriched,
+          {
+            transport:activeTransport,
+          }
+        );
+        if(!ingested.canonicalAccepted){
+          diagnostic(
+            ingested.reason||'M26_LIVE_TELEMETRY_CANONICAL_REJECTED',
+            null
+          );
+        }
         try{onUpdate(execution.liveTelemetry,execution);}catch{}
       });
       unsubscribe=typeof subscription==='function'
@@ -236,7 +329,10 @@ export function createLiveTelemetryController({
     if(execution.liveTelemetry&&execution.liveTelemetry.status!=='unavailable'){
       setState(execution,{status:'stopped'});
     }
-    if(activeExecution===execution)activeExecution=null;
+    if(activeExecution===execution){
+      activeExecution=null;
+      activeTransport=null;
+    }
     return true;
   }
   return Object.freeze({
