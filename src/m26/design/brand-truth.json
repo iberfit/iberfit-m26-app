@@ -1,0 +1,49 @@
+{
+  "version": "58.5.0",
+  "status": "canonical-brand-asset-confirmed",
+  "officialAsset": {
+    "path": "public/isotipo-iberfit.png",
+    "sha256": "d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa",
+    "primaryAppearance": "gold",
+    "generatedByAI": false,
+    "useAsIs": true,
+    "recolorFromUiTokens": false,
+    "vectorMasterProven": false
+  },
+  "evidence": {
+    "approvedCompositionRelease": "RC45.5I",
+    "approvedCompositionStatus": "OFFICIAL_ISOTIPO_COMPOSITION_APPROVED",
+    "approvedMasterMetadata": "public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.metadata.json",
+    "approvedCompositionMetadata": "recovery/rc45-visual/RC45_5I_ISOTIPO_FINAL.json",
+    "sameAssetAcrossLegacyBaselineCurrent": true
+  },
+  "colorPolicy": {
+    "canonicalLogoGoldHex": null,
+    "reason": "The official raster artwork contains shaded gold; raster sampling is evidence, not a recolor specification.",
+    "observedTopExactColor": "#FBDD8B",
+    "observedGoldFamilyMean": "#FADC84",
+    "observationsAreCanonicalTokens": false,
+    "productUiGold500": "#c8a65d",
+    "productUiGold300": "#e4cd98",
+    "productUiGoldsAreLogoRecolorValues": false,
+    "commercialCurrentCssIsBrandSourceOfTruth": false
+  },
+  "propagation": {
+    "order": [
+      "BRAND_TRUTH",
+      "DESIGN_TOKENS",
+      "M26",
+      "ANDROID_PHONE",
+      "WEAR_OS",
+      "COMMERCIAL_WEB"
+    ],
+    "appIcons": "derive-or-validate-from-official-asset-in-rc58.5b",
+    "commercialWeb": "preserve-content-seo-correct-branding-later",
+    "productionMutationAllowedInRc58_5": false
+  },
+  "launch": {
+    "finalAppDomain": "app.iberfit.cl",
+    "preserveCurrentUntilControlledCutover": true,
+    "functionalParityRequired": true
+  }
+}
