@@ -351,8 +351,8 @@ test('RC59.0C3 app dispara sync tras stage, login y reconexion sin acoplar outbo
   assert.match(live,/M26_TELEMETRY_REMOTE_SYNC_TRIGGER_FAILED/u);
   assert.doesNotMatch(outbox,/fetch\(|supabase|rpc\(|importTelemetryBatch/iu);
   assert.match(telemetryIndex,/remote-sync\.js/u);
-  assert.match(sw,/VERSION='m26-rc59-2'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-1'/u);
+  assert.match(sw,/VERSION='m26-rc59-3'/u);
+  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-2'/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc59-0c3/u);
   assert.match(sw,/"\/src\/m26\/telemetry\/remote-sync\.js"/u);
 });

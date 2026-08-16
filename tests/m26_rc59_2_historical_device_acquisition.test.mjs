@@ -245,8 +245,12 @@ test('RC59.2 PWA versiona adquisicion historica y conserva lineage RC59.1',()=>{
   const sw=read('public/m26/sw.js');
   const index=read('src/m26/wearables/index.js');
 
-  assert.match(sw,/VERSION='m26-rc59-2'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-1'/u);
+  assert.match(sw,/VERSION='m26-rc59-3'/u);
+  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-2'/u);
+  assert.match(
+    sw,
+    /Historical compatibility markers retained[^\n]*m26-rc59-2/u
+  );
   assert.match(
     sw,
     /Historical compatibility markers retained[^\n]*m26-rc59-1/u
@@ -271,7 +275,11 @@ test('RC59.2 cierra software, deja E2E fisico explicito y abre RC59.3',()=>{
   );
   assert.match(
     roadmap,
-    /RC59_3=IN_PROGRESS_LONGITUDINAL_AGGREGATION_LAYER/u
+    /RC59_3=CLOSED_LONGITUDINAL_AGGREGATION_LAYER/u
+  );
+  assert.match(
+    roadmap,
+    /RC59_4=IN_PROGRESS_DATA_EXPERIENCE_ECHARTS/u
   );
 });
 
