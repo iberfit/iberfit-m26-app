@@ -357,7 +357,7 @@ test('RC59.0C1 fallo de outbox no rompe sesion live',async()=>{
   await controller.stop(execution);
 });
 
-test('RC59.0C1 app cablea outbox owner scoped sin transporte remoto',()=>{
+test('RC59.0C1 mantiene outbox aislado y cablea sync remoto fuera del outbox',()=>{
   const app=read('src/m26/app/application.js');
   const controller=read('src/m26/workflows/session-controller.js');
   const outbox=read('src/m26/telemetry/durable-outbox.js');
@@ -368,11 +368,11 @@ test('RC59.0C1 app cablea outbox owner scoped sin transporte remoto',()=>{
   );
   assert.match(
     app,
-    /createSessionController\(\{root,telemetryOutbox,getContext:/u
+    /createSessionController\(\{root,telemetryOutbox,telemetryRemoteSync,getContext:/u
   );
   assert.match(
     controller,
-    /createLiveTelemetryController\(\{scope:globalThis,onUpdate:\(\)=>render\?\.\(\),onDiagnostic:\(\)=>\{\},telemetryOutbox\}\)/u
+    /createLiveTelemetryController\(\{scope:globalThis,onUpdate:\(\)=>render\?\.\(\),onDiagnostic:\(\)=>\{\},telemetryOutbox,onOutboxStaged:/u
   );
   assert.doesNotMatch(
     outbox,
@@ -386,8 +386,8 @@ test('RC59.0C1 usa DB separada y cache versionada',()=>{
 
   assert.match(outbox,/dbName:'iberfit-m26-telemetry'/u);
   assert.match(outbox,/storeName:'outbox_v1'/u);
-  assert.match(sw,/VERSION='m26-rc59-0c1'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-0c-design'/u);
+  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-0c1'/u);
+  assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc59-0c1/u);
   assert.match(
     sw,
     /"\/src\/m26\/telemetry\/durable-outbox\.js"/u

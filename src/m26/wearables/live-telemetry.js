@@ -241,12 +241,16 @@ export function createLiveTelemetryController({
   onUpdate=()=>{},
   onDiagnostic=()=>{},
   telemetryOutbox=null,
+  onOutboxStaged=()=>{},
 }={}){
   if(
     telemetryOutbox!==null&&
     typeof telemetryOutbox?.stage!=='function'
   ){
     throw new Error('M26_TELEMETRY_OUTBOX_INVALID');
+  }
+  if(typeof onOutboxStaged!=='function'){
+    throw new Error('M26_TELEMETRY_OUTBOX_STAGE_CALLBACK_INVALID');
   }
   let unsubscribe=null;
   let activeExecution=null;
@@ -266,6 +270,23 @@ export function createLiveTelemetryController({
     if(!event||!telemetryOutbox)return;
     outboxStageChain=outboxStageChain
       .then(()=>telemetryOutbox.stage(event))
+      .then((result)=>{
+        try{
+          const remote=onOutboxStaged(event,result);
+          void Promise.resolve(remote).catch((error)=>{
+            diagnostic(
+              'M26_TELEMETRY_REMOTE_SYNC_TRIGGER_FAILED',
+              error
+            );
+          });
+        }catch(error){
+          diagnostic(
+            'M26_TELEMETRY_REMOTE_SYNC_TRIGGER_FAILED',
+            error
+          );
+        }
+        return result;
+      })
       .catch((error)=>{
         diagnostic('M26_TELEMETRY_OUTBOX_STAGE_FAILED',error);
       });

@@ -127,7 +127,7 @@ test('RC46 mantiene compatibilidad con backend v1 durante despliegue', () => {
 
 test('migración RC46 contiene backfill protegido y scope backend estricto', () => {
   const sql = readFileSync(
-    'supabase/migrations/20260809185000_rc46_strict_coach_assignment_scope.sql',
+    'docs/evidence/rc59-c2d/retired-august-migrations/20260809185000_rc46_strict_coach_assignment_scope.sql',
     'utf8'
   );
 

@@ -42,6 +42,15 @@ const RC44_RPC=Object.freeze({
   revokeConnection:'m26_wearable_revoke_v44',
   deleteAll:'m26_wearable_delete_all_v44',
 });
+const RC59_TELEMETRY_RPC=Object.freeze({
+  importBatch:'m26_telemetry_import_v59',
+});
+const TELEMETRY_REMOTE_SCHEMA_VERSION='iberfit.telemetry.remote.v1';
+const TELEMETRY_EVENT_SCHEMA_VERSION='iberfit.telemetry.v1';
+const TELEMETRY_BATCH_MAX_EVENTS=100;
+const TELEMETRY_BATCH_MAX_BYTES=192_000;
+const TELEMETRY_SAFE_ID_PATTERN=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
+const UUID_PATTERN=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function resolveM26Runtime(raw, locationLike = globalThis.location) {
   const host = locationLike?.hostname || '';
@@ -609,6 +618,92 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...item,clientId,client_id:clientId});
   }
 
+  function telemetryPayloadByteLength(payload){
+    let text;
+    try{text=JSON.stringify(payload);}
+    catch{throw new Error('M26_TELEMETRY_IMPORT_PAYLOAD_INVALID');}
+    if(text===undefined)throw new Error('M26_TELEMETRY_IMPORT_PAYLOAD_INVALID');
+    return typeof TextEncoder==='function'
+      ?new TextEncoder().encode(text).length
+      :text.length;
+  }
+
+  function validateTelemetryImportPayload(payload={}){
+    if(!payload||typeof payload!=='object'||Array.isArray(payload)){
+      throw new Error('M26_TELEMETRY_IMPORT_PAYLOAD_INVALID');
+    }
+    if(payload.schemaVersion!==TELEMETRY_REMOTE_SCHEMA_VERSION){
+      throw new Error('M26_TELEMETRY_REMOTE_SCHEMA_INVALID');
+    }
+    const clientId=String(payload.clientId||'').trim();
+    const sessionId=String(payload.sessionId||'').trim();
+    const executionId=String(payload.executionId||'').trim();
+    if(!UUID_PATTERN.test(clientId)){
+      throw new Error('M26_TELEMETRY_CLIENT_ID_INVALID');
+    }
+    if(
+      !TELEMETRY_SAFE_ID_PATTERN.test(sessionId)||
+      !TELEMETRY_SAFE_ID_PATTERN.test(executionId)
+    ){
+      throw new Error('M26_TELEMETRY_BATCH_SCOPE_INVALID');
+    }
+    if(
+      !Array.isArray(payload.events)||
+      payload.events.length<1||
+      payload.events.length>TELEMETRY_BATCH_MAX_EVENTS
+    ){
+      throw new Error('M26_TELEMETRY_IMPORT_BATCH_INVALID');
+    }
+    const eventIds=new Set();
+    for(const event of payload.events){
+      if(
+        !event||
+        typeof event!=='object'||
+        Array.isArray(event)||
+        event.schemaVersion!==TELEMETRY_EVENT_SCHEMA_VERSION||
+        String(event.clientId||'').trim().toLowerCase()!==clientId.toLowerCase()||
+        String(event.sessionId||'').trim()!==sessionId||
+        String(event.executionId||'').trim()!==executionId||
+        !TELEMETRY_SAFE_ID_PATTERN.test(String(event.eventId||'').trim())
+      ){
+        throw new Error('M26_TELEMETRY_EVENT_INVALID');
+      }
+      const eventId=String(event.eventId).trim();
+      if(eventIds.has(eventId)){
+        throw new Error('M26_TELEMETRY_BATCH_DUPLICATE_EVENT');
+      }
+      eventIds.add(eventId);
+    }
+    if(telemetryPayloadByteLength(payload)>TELEMETRY_BATCH_MAX_BYTES){
+      throw new Error('M26_TELEMETRY_IMPORT_PAYLOAD_TOO_LARGE');
+    }
+    return payload;
+  }
+
+  async function importTelemetryBatch(token,payload={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const validated=validateTelemetryImportPayload(payload);
+    const result=await request(
+      '/rest/v1/rpc/'+RC59_TELEMETRY_RPC.importBatch,
+      {
+        method:'POST',
+        token,
+        body:JSON.stringify({p_payload:validated}),
+      }
+    );
+    const item=Array.isArray(result)?result[0]:result;
+    if(
+      !item||
+      typeof item!=='object'||
+      Array.isArray(item)||
+      item.ok!==true||
+      item.schemaVersion!==TELEMETRY_REMOTE_SCHEMA_VERSION
+    ){
+      throw new Error('M26_TELEMETRY_IMPORT_INVALID_RESPONSE');
+    }
+    return Object.freeze({...item});
+  }
+
   async function commandRegistry(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
     const select = 'command_type,entity_type,event_name,allowed_roles,requires_reason,requires_preview,enabled';
@@ -637,6 +732,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     upsertWearableConnection,
     revokeWearableConnection,
     deleteWearableData,
+    importTelemetryBatch,
     recordMeasurement,
     saveTrainingSession,
     sendMessage,

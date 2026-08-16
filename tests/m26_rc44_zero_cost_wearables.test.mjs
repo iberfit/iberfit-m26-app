@@ -13,7 +13,7 @@ import {
 const read=(path)=>fs.readFileSync(path,'utf8');
 
 const migration=read(
-  'supabase/migrations/20260804065000_rc44_zero_cost_wearables.sql',
+  'docs/evidence/rc59-c2d/retired-august-migrations/20260804065000_rc44_zero_cost_wearables.sql',
 );
 
 const rollback=read(

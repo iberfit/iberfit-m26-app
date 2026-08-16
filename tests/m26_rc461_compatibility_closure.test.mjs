@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const rc46 = readFileSync(
-  'supabase/migrations/20260809185000_rc46_strict_coach_assignment_scope.sql',
+  'docs/evidence/rc59-c2d/retired-august-migrations/20260809185000_rc46_strict_coach_assignment_scope.sql',
   'utf8'
 );
 
 const rc461 = readFileSync(
-  'supabase/migrations/20260809230500_rc46_1_compatibility_closure.sql',
+  'docs/evidence/rc59-c2d/retired-august-migrations/20260809230500_rc46_1_compatibility_closure.sql',
   'utf8'
 );
 

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const read = (path) => fs.readFileSync(path, 'utf8');
 
 const migration = read(
-  'supabase/migrations/20260804062500_rc43_1_session_draft_persistence.sql',
+  'docs/evidence/rc59-c2d/retired-august-migrations/20260804062500_rc43_1_session_draft_persistence.sql',
 );
 
 const rollback = read(

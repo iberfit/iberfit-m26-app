@@ -101,9 +101,10 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
   }
 }
 
-export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,liveTelemetryController=null,telemetryOutbox=null}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
+export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
+  if(telemetryRemoteSync!==null&&typeof telemetryRemoteSync?.notifyStaged!=='function')throw new Error('M26_TELEMETRY_REMOTE_SYNC_INVALID');
   let mounted=false,autosaveTimer=null,scheduledContext=null,autosaveChain=Promise.resolve();
-  const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox});
+  const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   const safeDelay=Math.max(50,Math.min(2000,Number(autosaveDelayMs)||180));
   function queueAutosave(context){
     if(!context?.draft||!context?.autosaveDraft)return;
