@@ -1,0 +1,27 @@
+# RC59 C2D retired August migration evidence
+
+These six SQL files are preserved byte-for-byte as historical evidence.
+They are intentionally retired from supabase/migrations because their
+individual historical execution could not be proven, and RC46/RC46.1
+do not match the canonical current production helper/bootstrap state.
+
+Active canonical strategy:
+- 47 recorded July migrations
+- 20260718130000_RECOVERED_OFF_LEDGER_m26_gate15_canary_core.sql
+- 20260815195022_RECOVERED_CURRENT_PRODUCTION_BASELINE.sql
+
+No migration-history repair is performed by this promotion.
+
+## Retired files
+
+- 20260804061500_rc43_operational_backend.sql - SHA256 09ced8aab3baa3791a4c0df51114cfd9dfa4f0f7f6c14cbb68a47c4ea38cecf3
+- 20260804062500_rc43_1_session_draft_persistence.sql - SHA256 43d443a72a18d20ef44407ad3795abede7a22aed77fb241b2f7986c39a877a6d
+- 20260804065000_rc44_zero_cost_wearables.sql - SHA256 be9e16cea6bc323a6be1de573b4f9ba576ad2529ee3cd69aae6a82f2ba2060eb
+- 20260809063000_rc45_8_canonical_backend_promotion.sql - SHA256 cf353c7ddf7fb0be5b277a71dc3a599f098a427c32943aa8aed558955cb17e2d
+- 20260809185000_rc46_strict_coach_assignment_scope.sql - SHA256 740e9e5c41e19b8d0ac06c5c0579062f5ff7359c18b620394ea9d49a40c3b548
+- 20260809230500_rc46_1_compatibility_closure.sql - SHA256 3fa4cf5c4d48c5a6d85b0f6d296b509aa90881202078c589de4c8274b1db855f
+
+## Promoted canonical files
+
+- 20260718130000_RECOVERED_OFF_LEDGER_m26_gate15_canary_core.sql - SHA256 b830e9b846a281f9bdfa633471fdec243fe4c8181b6090eb1a1850239fef2fc1
+- 20260815195022_RECOVERED_CURRENT_PRODUCTION_BASELINE.sql - SHA256 a594ea928ea90bddfb2dc429b240cabb083518da60fcfa4962c2a18af3304ad2

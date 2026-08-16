@@ -1,0 +1,4 @@
+drop policy if exists operational_events_insert on public.operational_events;
+create policy operational_events_insert on public.operational_events for insert to authenticated with check (actor_user_id=(select auth.uid()) and environment='PRODUCTION' and ((select public.iberfit_role())='admin'::public.iberfit_role or ((select public.iberfit_role())='coach'::public.iberfit_role and client_id is not null and public.is_assigned_coach(client_id)) or ((select public.iberfit_role())='client'::public.iberfit_role and client_id=(select public.iberfit_client_id()))));
+drop policy if exists backup_manifests_insert on public.backup_manifests;
+create policy backup_manifests_insert on public.backup_manifests for insert to authenticated with check (created_by=(select auth.uid()) and environment='PRODUCTION' and (select public.iberfit_role()) in ('coach'::public.iberfit_role,'admin'::public.iberfit_role) and (client_id is null or public.is_assigned_coach(client_id)));;
