@@ -121,14 +121,15 @@ test('RC52 excluye telemetría efímera del snapshot operativo remoto',()=>{
   assert.equal(execution.liveTelemetry.heartRateBpm,150);
 });
 
-test('RC52 muestra FC en vivo en castellano y declara que no cambia la prescripción',()=>{
+test('RC52 mantiene FC visible en castellano y declara que no cambia la prescripción',()=>{
   const execution=createExecution({session,clientId:'C1',executionId:'E5'});
   startExecution(execution);
   applyLiveTelemetrySample(execution,{provider:'ble_direct',heartRateBpm:136,quality:'alta'});
   const html=renderGuidedExecution({execution,session,catalog,role:'client'});
-  assert.match(html,/FC en vivo/);
+  assert.match(html,/Inteligencia de sesión en vivo/);
+  assert.match(html,/FC actual/);
   assert.match(html,/136 lpm/);
   assert.match(html,/Sensor Bluetooth compatible/);
-  assert.match(html,/No modifica automáticamente la prescripción/);
+  assert.match(html,/no modifica automáticamente la prescripción/iu);
   assert.doesNotMatch(html,/\bHRV\b/);
 });

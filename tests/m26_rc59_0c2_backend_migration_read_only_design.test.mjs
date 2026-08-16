@@ -270,7 +270,11 @@ test('RC59.0C2 design histórico permanece válido tras apply canónico',()=>{
   );
   assert.match(
     roadmap,
-    /RC59_0=IN_PROGRESS_RC59_0C3_REMOTE_OUTBOX_UPLOAD/u
+    /RC59_0C3=CLOSED_AUTHENTICATED_RUNTIME_SMOKE/u
+  );
+  assert.match(
+    roadmap,
+    /RC59_0=CLOSED_RC59_0C3_REMOTE_OUTBOX_UPLOAD/u
   );
   assert.match(
     doc,

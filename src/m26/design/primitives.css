@@ -819,3 +819,133 @@
     animation: none !important;
   }
 }
+/* IBERFIT RC59.1 · Live Session Intelligence */
+.m26-live-intelligence {
+  display: grid;
+  gap: var(--iberfit-space-4);
+}
+
+.m26-live-intelligence-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--iberfit-space-3);
+}
+
+.m26-live-intelligence-metric,
+.m26-live-context-card {
+  min-width: 0;
+  border: 1px solid var(--iberfit-color-border);
+  border-radius: var(--iberfit-radius-md);
+  padding: var(--iberfit-space-3);
+  background: var(--iberfit-color-surface-raised);
+}
+
+.m26-live-intelligence-metric {
+  display: grid;
+  gap: var(--iberfit-space-1);
+}
+
+.m26-live-intelligence-metric span,
+.m26-live-context-card span {
+  color: var(--iberfit-color-text-secondary);
+  font-size: var(--iberfit-font-size-xs);
+}
+
+.m26-live-intelligence-metric strong {
+  font-size: var(--iberfit-font-size-xl);
+  line-height: 1.05;
+}
+
+.m26-live-intelligence-metric small {
+  color: var(--iberfit-color-text-secondary);
+}
+
+.m26-live-hr-chart {
+  min-width: 0;
+  border: 1px solid var(--iberfit-color-border);
+  border-radius: var(--iberfit-radius-md);
+  padding: var(--iberfit-space-3);
+  color: var(--iberfit-color-text-primary);
+  background: var(--iberfit-color-surface-raised);
+}
+
+.m26-live-hr-chart svg {
+  display: block;
+  width: 100%;
+  height: 7rem;
+  overflow: visible;
+}
+
+.m26-live-hr-chart polyline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.m26-live-hr-chart-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--iberfit-space-3);
+  color: var(--iberfit-color-text-secondary);
+  font-size: var(--iberfit-font-size-xs);
+}
+
+.m26-live-context-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--iberfit-space-3);
+}
+
+.m26-live-context-card {
+  display: grid;
+  align-content: start;
+  gap: var(--iberfit-space-2);
+}
+
+.m26-live-context-card strong,
+.m26-live-context-card p {
+  overflow-wrap: anywhere;
+}
+
+.m26-live-context-card p {
+  margin: 0;
+  color: var(--iberfit-color-text-secondary);
+}
+
+.m26-live-method {
+  border-top: 1px solid var(--iberfit-color-border);
+  padding-top: var(--iberfit-space-3);
+}
+
+.m26-live-method summary {
+  min-height: var(--iberfit-size-touch-target);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: var(--iberfit-font-weight-semibold);
+}
+
+.m26-live-method p {
+  color: var(--iberfit-color-text-secondary);
+}
+
+@media (max-width: 760px) {
+  .m26-live-intelligence-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .m26-live-context-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .m26-live-hr-chart svg {
+    height: 5.5rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .m26-live-hr-chart polyline {
+    stroke: CanvasText;
+  }
+}

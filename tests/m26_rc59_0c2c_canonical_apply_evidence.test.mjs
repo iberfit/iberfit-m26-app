@@ -47,11 +47,15 @@ test('RC59.0C2C registra contrato remoto C2B',()=>{
   }
 });
 
-test('RC59.0 avanza al upload remoto del outbox',()=>{
+test('RC59.0 conserva cierre autenticado del upload remoto tras C2C',()=>{
   assert.match(roadmap,/RC59_0C2C=CANONICAL_APPLIED/u);
   assert.match(
     roadmap,
-    /RC59_0=IN_PROGRESS_RC59_0C3_REMOTE_OUTBOX_UPLOAD/u
+    /RC59_0C3=CLOSED_AUTHENTICATED_RUNTIME_SMOKE/u
+  );
+  assert.match(
+    roadmap,
+    /RC59_0=CLOSED_RC59_0C3_REMOTE_OUTBOX_UPLOAD/u
   );
   assert.match(
     evidence,
