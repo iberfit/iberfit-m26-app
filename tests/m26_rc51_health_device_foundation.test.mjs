@@ -16,6 +16,14 @@ test('RC51 conserva contrato funcional histórico de Health Connect sobre el ada
   assert.match(source,/connect-health-connect/u);
   assert.match(source,/bridge\.support\.healthConnect\.available/u);
   assert.match(source,/Autorizar Health Connect/u);
-  assert.match(source,/connectHealthConnect\(\)/u);
-  assert.match(source,/connectNativeProvider\('health_connect'\)/u);
+  assert.match(
+    source,
+    /connectHealthConnect\(\{capabilities=null\}=\{\}\)/u
+  );
+  assert.match(source,/createHealthConnectHistoricalPlan/u);
+  assert.match(source,/metrics:plan\.metrics/u);
+  assert.match(
+    source,
+    /connectNativeProvider\(\s*'health_connect',\s*\{/u
+  );
 });

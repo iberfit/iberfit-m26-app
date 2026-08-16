@@ -27,8 +27,18 @@ test("RC57 usa versionCode distinto por factor de forma", () => {
   const wear =
     read("native/android-host/wear-app/build.gradle.kts");
 
-  assert.match(phone, /versionCode = 265701/);
-  assert.match(wear, /versionCode = 265702/);
+  const phoneVersion =
+    Number(phone.match(/versionCode = (\d+)/)?.[1]);
+
+  const wearVersion =
+    Number(wear.match(/versionCode = (\d+)/)?.[1]);
+
+  assert.equal(Number.isInteger(phoneVersion), true);
+  assert.equal(Number.isInteger(wearVersion), true);
+  assert.notEqual(phoneVersion, wearVersion);
+
+  // Wear remains on the RC57 shell identity while Phone advances independently.
+  assert.equal(wearVersion, 265702);
 });
 
 test("RC57 Wear conserva Health Services y permiso de FC", () => {

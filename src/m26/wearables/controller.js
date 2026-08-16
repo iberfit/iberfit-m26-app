@@ -18,6 +18,11 @@ import {
 import {
   createLatestTaskCoordinator,
 } from '../platform/latest-task.js';
+import {
+  HEALTH_CONNECT_HISTORICAL_CAPABILITIES,
+  createHealthConnectHistoricalPlan,
+  healthConnectHistoricalMetricKeys,
+} from './historical-acquisition.js';
 
 function escapeHtml(value){
   return String(value??'')
@@ -589,33 +594,149 @@ export function createWearableController({
     return result;
   }
 
-  async function connectNativeProvider(provider,{interactive=true,silent=false}={}){
+  async function connectNativeProvider(
+    provider,
+    {
+      interactive=true,
+      silent=false,
+      metrics=null,
+      startDate=null,
+      endDate=null,
+    }={}
+  ){
     const {role,clientId}=context(store);
-    if(role!=='client'||!clientId)throw new Error('M26_WEARABLE_CLIENT_CONTROL_REQUIRED');
-    const normalized=normalizeWearableProvider(provider);
-    if(!normalized||!bridge.nativeProviders.includes(normalized))throw new Error('M26_WEARABLE_PROVIDER_UNKNOWN');
-    if(!bridge.isAvailable(normalized))throw new Error(bridge.providerSupport(normalized).reason||'M26_WEARABLE_NATIVE_BRIDGE_UNAVAILABLE');
-    const existing=(store.getState().collections?.wearableConnections||[]).find((item)=>normalizeWearableProvider(item.provider||item.source)===normalized);
-    let granted=Array.isArray(existing?.scopes)?existing.scopes:[];
-    if(interactive||!granted.length){
-      if(!silent)setStatus(root,'Solicitando únicamente los permisos necesarios…','pending');
-      const authorization=await bridge.requestAuthorization({provider:normalized,clientId,scopes:bridge.readScopes});
-      granted=authorization.granted;
-      if(!granted.length)throw new Error('M26_WEARABLE_SCOPE_REQUIRED');
+    if(role!=='client'||!clientId){
+      throw new Error('M26_WEARABLE_CLIENT_CONTROL_REQUIRED');
     }
-    await bridge.setSyncEnabled({provider:normalized,clientId,enabled:true});
-    const endDate=new Date().toISOString().slice(0,10);
-    const start=new Date();start.setUTCDate(start.getUTCDate()-29);
-    const records=await bridge.readDailySummaries({provider:normalized,clientId,startDate:start.toISOString().slice(0,10),endDate});
-    let result=Object.freeze({ok:true,queued:false,synced:true,imported:0,pending:0});
-    if(records.length)result=await remoteSync.stage({clientId,provider:normalized,records});
-    if(!silent){
-      const label=wearableProviderDefinition(normalized)?.label||'Dispositivo';
-      setStatus(root,records.length?(result.synced?label+' sincronizado automáticamente.':'Datos protegidos y pendientes de sincronización.'):label+' conectado. IBERFIT incorporará nuevos datos cuando estén disponibles.','success');
-    }
-    return Object.freeze({...result,provider:normalized,connected:true,recordCount:records.length});
-  }
 
+    const normalized=normalizeWearableProvider(provider);
+    if(!normalized||!bridge.nativeProviders.includes(normalized)){
+      throw new Error('M26_WEARABLE_PROVIDER_UNKNOWN');
+    }
+
+    if(!bridge.isAvailable(normalized)){
+      throw new Error(
+        bridge.providerSupport(normalized).reason
+        ||'M26_WEARABLE_NATIVE_BRIDGE_UNAVAILABLE'
+      );
+    }
+
+    const requestedMetrics=
+      Array.isArray(metrics)&&metrics.length
+        ?[...new Set(metrics.filter((item)=>bridge.readScopes.includes(item)))]
+        :normalized==='health_connect'
+          ?[...healthConnectHistoricalMetricKeys()]
+          :[...bridge.readScopes];
+
+    if(!requestedMetrics.length){
+      throw new Error('M26_WEARABLE_SCOPE_REQUIRED');
+    }
+
+    const existing=(
+      store.getState().collections?.wearableConnections||[]
+    ).find(
+      (item)=>
+        normalizeWearableProvider(item.provider||item.source)===normalized
+    );
+
+    let granted=Array.isArray(existing?.scopes)
+      ?existing.scopes.filter((item)=>requestedMetrics.includes(item))
+      :[];
+
+    if(interactive||!granted.length){
+      if(!silent){
+        setStatus(
+          root,
+          'Solicitando únicamente los permisos seleccionados…',
+          'pending',
+        );
+      }
+
+      const authorization=await bridge.requestAuthorization({
+        provider:normalized,
+        clientId,
+        scopes:requestedMetrics,
+      });
+
+      granted=authorization.granted;
+      if(!granted.length){
+        throw new Error('M26_WEARABLE_SCOPE_REQUIRED');
+      }
+    }
+
+    const readable=requestedMetrics.filter((item)=>granted.includes(item));
+    if(!readable.length){
+      throw new Error('M26_WEARABLE_SCOPE_REQUIRED');
+    }
+
+    await bridge.setSyncEnabled({
+      provider:normalized,
+      clientId,
+      enabled:true,
+    });
+
+    const resolvedEndDate=endDate||new Date().toISOString().slice(0,10);
+    let resolvedStartDate=startDate;
+
+    if(!resolvedStartDate){
+      const start=new Date(`${resolvedEndDate}T00:00:00Z`);
+      start.setUTCDate(start.getUTCDate()-29);
+      resolvedStartDate=start.toISOString().slice(0,10);
+    }
+
+    const records=await bridge.readDailySummaries({
+      provider:normalized,
+      clientId,
+      startDate:resolvedStartDate,
+      endDate:resolvedEndDate,
+      metrics:readable,
+    });
+
+    let result=Object.freeze({
+      ok:true,
+      queued:false,
+      synced:true,
+      imported:0,
+      pending:0,
+    });
+
+    if(records.length){
+      result=await remoteSync.stage({
+        clientId,
+        provider:normalized,
+        records,
+      });
+    }
+
+    if(!silent){
+      const label=
+        wearableProviderDefinition(normalized)?.label
+        ||'Dispositivo';
+
+      setStatus(
+        root,
+        records.length
+          ?(
+              result.synced
+                ?`${label} sincronizado con ${readable.length} permiso${readable.length===1?'':'s'} de lectura.`
+                :'Datos protegidos y pendientes de sincronización.'
+            )
+          :`${label} conectado. No hay resúmenes disponibles en el periodo seleccionado.`,
+        'success',
+      );
+    }
+
+    return Object.freeze({
+      ...result,
+      provider:normalized,
+      connected:true,
+      recordCount:records.length,
+      requestedMetrics:Object.freeze([...requestedMetrics]),
+      grantedMetrics:Object.freeze([...readable]),
+      startDate:resolvedStartDate,
+      endDate:resolvedEndDate,
+    });
+  }
   async function autoSyncNativeProviders(){
     const {role}=context(store);if(role!=='client'||!isOnline())return [];
     const rows=store.getState().collections?.wearableConnections||[];
@@ -625,11 +746,27 @@ export function createWearableController({
     return results;
   }
 
-  async function connectHealthConnect(){
+  async function connectHealthConnect({capabilities=null}={}){
     if(!bridge.support.healthConnect.available){
       throw new Error('M26_WEARABLE_NATIVE_BRIDGE_UNAVAILABLE');
     }
-    return connectNativeProvider('health_connect');
+
+    const plan=createHealthConnectHistoricalPlan({
+      capabilities:
+        Array.isArray(capabilities)&&capabilities.length
+          ?capabilities
+          :undefined,
+      days:30,
+    });
+
+    return connectNativeProvider(
+      'health_connect',
+      {
+        metrics:plan.metrics,
+        startDate:plan.startDate,
+        endDate:plan.endDate,
+      },
+    );
   }
 
   async function deleteAll(){
@@ -842,6 +979,60 @@ export function createWearableController({
       actionGrid.append(deleteButton);
     }
 
+    const healthConnectCard=root.querySelector?.(
+      '[data-provider="health_connect"]',
+    );
+
+    if(
+      healthConnectCard
+      &&bridge.support.healthConnect.available
+      &&!healthConnectCard.querySelector(
+        '[data-health-connect-capabilities]',
+      )
+    ){
+      const fieldset=document.createElement('fieldset');
+      fieldset.className='m26-health-connect-capabilities';
+      fieldset.dataset.healthConnectCapabilities='true';
+
+      const legend=document.createElement('legend');
+      legend.textContent='Datos que quieres compartir con IBERFIT';
+      fieldset.append(legend);
+
+      const intro=document.createElement('p');
+      intro.textContent=
+        'Puedes autorizar solo las categorías que quieras. IBERFIT solicita lectura, no escritura.';
+      fieldset.append(intro);
+
+      for(const capability of HEALTH_CONNECT_HISTORICAL_CAPABILITIES){
+        const label=document.createElement('label');
+        label.className='m26-health-connect-capability';
+
+        const input=document.createElement('input');
+        input.type='checkbox';
+        input.checked=true;
+        input.value=capability.key;
+        input.dataset.healthConnectCapability=capability.key;
+
+        const copy=document.createElement('span');
+        const strong=document.createElement('strong');
+        strong.textContent=capability.label;
+        const small=document.createElement('small');
+        small.textContent=capability.purpose;
+
+        copy.append(strong,small);
+        label.append(input,copy);
+        fieldset.append(label);
+      }
+
+      const privacy=document.createElement('p');
+      privacy.className='m26-notice';
+      privacy.textContent=
+        'Lectura inicial limitada a 30 días. No se solicita historial completo ni lectura en segundo plano.';
+      fieldset.append(privacy);
+
+      healthConnectCard.append(fieldset);
+    }
+
     const nativeLabels={apple_health:'Conectar Apple Watch',health_connect:'Autorizar Health Connect',samsung_health:'Conectar Samsung Health',wear_os_health_services:'Conectar reloj Wear OS',ble_direct:'Conectar sensor Bluetooth'};
     for(const provider of bridge.nativeProviders){
       const healthConnectAvailable=provider==='health_connect'
@@ -896,7 +1087,8 @@ export function createWearableController({
       }else if(action==='sync-pending'){
         await syncPending();
       }else if(action==='connect-health-connect'){
-        await connectHealthConnect();
+        const capabilities=[...root.querySelectorAll?.('[data-health-connect-capability]:checked')||[]].map((input)=>input.value);
+        await connectHealthConnect({capabilities});
       }else if(action==='connect-native-provider'){
         await connectNativeProvider(button.dataset.provider);
       }else if(action==='delete-all'){
