@@ -24,7 +24,9 @@ RC59_1=CLOSED_LIVE_SESSION_INTELLIGENCE
 RC59_2=SOFTWARE_CLOSED_HISTORICAL_DEVICE_ACQUISITION
 RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE
 RC59_3=CLOSED_LONGITUDINAL_AGGREGATION_LAYER
-RC59_4=IN_PROGRESS_DATA_EXPERIENCE_ECHARTS
+RC59_4=CLOSED_DATA_EXPERIENCE_ECHARTS
+RC59_5=IN_PROGRESS_CHALLENGE_METRICS_FOUNDATION
+PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL
 
 ## Critical rail A — Admin / RC46
 
@@ -129,6 +131,41 @@ Debe contemplar:
 - opt-in explícito cuando el reto use datos de dispositivos.
 
 Los datos sanitarios crudos no se publican en leaderboards.
+
+## Cross-cutting rail F — Premium Report Parity
+
+Todo informe formal entregado por IBERFIT a Cliente, Coach o Admin debe alcanzar
+como mínimo el nivel editorial, metodológico y de presentación del Informe IRI
+Premium, adaptado a su objetivo y audiencia.
+
+No se considera informe premium una captura de dashboard, un volcado de tablas
+o una impresión genérica del navegador.
+
+Familia mínima objetivo:
+- IRI inicial;
+- reevaluación IRI comparativa;
+- progreso periódico;
+- cierre de ciclo;
+- longitudinal 7/28/90 días;
+- adherencia y hábitos;
+- actividad/dispositivos;
+- informe técnico Coach/Admin;
+- versión Cliente simplificada cuando corresponda.
+
+Gate común:
+- identidad IBERFIT;
+- trazabilidad y periodo;
+- procedencia/calidad/cobertura;
+- resultados y comparaciones;
+- interpretación contextual;
+- conclusiones y próximos pasos cuando proceda;
+- metodología/comparabilidad cuando aplique;
+- revisión profesional;
+- fecha/versión;
+- salida A4/PDF premium y representación accesible.
+
+El Informe IRI existente es la referencia mínima de calidad, no una excepción.
+El contrato completo se mantiene en `docs/product/PREMIUM_REPORT_PARITY.md`.
 
 ## RC60 — Coach Productivity
 

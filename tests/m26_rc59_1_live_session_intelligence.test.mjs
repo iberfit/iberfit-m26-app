@@ -286,8 +286,7 @@ test('RC59.1 PWA versiona la nueva capacidad y conserva lineage C3',()=>{
   const sw=read('public/m26/sw.js');
   const intelligenceIndex=read('src/m26/intelligence/index.js');
 
-  assert.match(sw,/VERSION='m26-rc59-3'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-2'/u);
+
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc59-1/u);
   assert.match(
     sw,

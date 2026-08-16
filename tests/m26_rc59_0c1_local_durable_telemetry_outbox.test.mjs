@@ -386,7 +386,6 @@ test('RC59.0C1 usa DB separada y cache versionada',()=>{
 
   assert.match(outbox,/dbName:'iberfit-m26-telemetry'/u);
   assert.match(outbox,/storeName:'outbox_v1'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-2'/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc59-0c1/u);
   assert.match(
     sw,

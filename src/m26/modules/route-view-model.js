@@ -19,6 +19,7 @@ import {
   buildVerificationCenter,
   engagementCapabilities,
 } from '../engagement/index.js';
+import { buildLongitudinalAggregation } from '../intelligence/longitudinal-aggregation.js';
 import { clientModalityLabel } from '../domain/modality.js';
 import {
   appointmentStatusLabel,
@@ -397,10 +398,15 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     const clientId = routeClientId(shellVm, state);
     const summary = computeProgressSummary(state, clientId, { now });
     const alerts = deriveAdherenceAlerts(state, clientId, { now });
+    const longitudinal = clientId
+      ? buildLongitudinalAggregation(state, clientId, { now })
+      : null;
     return Object.freeze({
       kind: 'progreso',
       clientId,
+      role: String(shellVm.identity?.role || ''),
       summary,
+      longitudinal,
       timeline: Object.freeze(buildProgressTimeline(state, clientId, { now })),
       alerts: Object.freeze(alerts),
       signal: Object.freeze(adherenceSignal(alerts)),

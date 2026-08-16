@@ -5,6 +5,7 @@ import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilia
 import {formatIberfitDate} from '../domain/civil-date.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
+import {renderLongitudinalDataExperience} from '../data-experience/index.js';
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
@@ -495,6 +496,7 @@ export function renderProgressRoute(vm){
       ${stat('Evaluaciones IRI',summary.iriCurrent===null?'Sin evaluación':'Datos disponibles',summary.iriDelta===null?'Sin dos evaluaciones comparables':'Comparar por dominios, no por puntuación global')}
     </section>
     ${adherenceVisual}
+    ${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
     <section class="m26-content-grid">
       <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Cronología</p><h2>Evolución registrada</h2></div>${badge(`${vm.timeline.length} eventos`,'neutral')}</div><div class="m26-timeline">${timeline}</div></div>
       <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Recuperación</p><h2>Promedio de bienestar</h2><div class="m26-wellbeing-grid">${wellbeingMeter('Energía',hasCheckins?summary.checkinAverage.energy:null,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',hasCheckins?summary.checkinAverage.sleep:null,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',hasCheckins?summary.checkinAverage.stress:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',hasCheckins?summary.checkinAverage.pain:null,'0 ninguno · 10 máximo')}</div><p class="m26-notice">La aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.</p></aside>
