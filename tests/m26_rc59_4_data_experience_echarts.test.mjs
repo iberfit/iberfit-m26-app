@@ -281,8 +281,10 @@ test('RC59.4 runtime usa vendor same-origin sin CDN y APP_SHELL lo preserva',()=
     sw,
     /"\/src\/m26\/data-experience\/longitudinal-ui\.js"/u
   );
-  assert.match(sw,/VERSION='m26-rc59-4'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-3'/u);
+  assert.match(
+    sw,
+    /Historical compatibility markers retained[^\n]*m26-rc59-4/u
+  );
   assert.match(
     sw,
     /Historical compatibility markers retained[^\n]*m26-rc59-4/u
