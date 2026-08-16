@@ -321,6 +321,12 @@ function metricSnapshot(context,state,definition,now){
   );
 }
 
+function challengeMethod(definition){
+  if(definition.metricKey==='adherencePct')return 'confirmed_adherence_ratio';
+  if(definition.metricKey==='completedSessions')return 'confirmed_session_count';
+  if(definition.metricKey==='habitCompletions')return 'confirmed_habit_log_count';
+  return 'sum_daily_provider_mean';
+}
 export function evaluateChallenge(
   state,
   clientId,
@@ -335,12 +341,19 @@ export function evaluateChallenge(
       schemaVersion:CHALLENGE_METRICS_SCHEMA_VERSION,
       challenge:definition,
       clientId,
+      asOf:context.asOf,
       status:'consent_required',
       value:null,
       progressPct:null,
       completed:false,
       verification:deepFreeze({
         canonicalSource:true,
+        source:'device_consent',
+        observedAt:context.asOf,
+        quality:'sin_datos',
+        coverage:null,
+        providers:Object.freeze([]),
+        method:'consent_gate',
         deviceOptIn:false,
         rawHealthDataExposed:false,
         eligibleForLeaderboard:false,
@@ -360,6 +373,7 @@ export function evaluateChallenge(
     schemaVersion:CHALLENGE_METRICS_SCHEMA_VERSION,
     challenge:definition,
     clientId,
+    asOf:context.asOf,
     status:hasData?'active':'no_data',
     value,
     progressPct,
@@ -367,9 +381,11 @@ export function evaluateChallenge(
     verification:deepFreeze({
       canonicalSource:true,
       source:snapshot.source,
+      observedAt:context.asOf,
       quality:snapshot.quality,
       coverage:snapshot.coverage??null,
       providers:Object.freeze([...(snapshot.providers||[])]),
+      method:challengeMethod(definition),
       deviceOptIn:definition.requiresDeviceOptIn?true:null,
       rawHealthDataExposed:false,
       eligibleForLeaderboard:

@@ -1,4 +1,5 @@
 import './echarts-element.js';
+import {longitudinalMetricTrust,renderDataTrustStrip} from './data-trust.js';
 
 const CLIENT_METRICS=Object.freeze([
   'steps',
@@ -179,6 +180,8 @@ function metricCard(aggregate,key,role){
   const d7=aggregate?.windows?.d7?.metrics?.[key];
   const d28=aggregate?.windows?.d28?.metrics?.[key];
   const d90=aggregate?.windows?.d90?.metrics?.[key];
+  const trust=longitudinalMetricTrust(metric,aggregate?.dataTrust);
+  const trustStrip=renderDataTrustStrip(trust,{role,compact:!professional});
 
   const clientSummary=`
     <div class="m26-data-kpis">
@@ -186,6 +189,7 @@ function metricCard(aggregate,key,role){
       <div><span>Cobertura</span><strong>${escapeHtml(percent(d28?.coverage))}</strong></div>
     </div>
     <p>${escapeHtml(changeCopy(comparison,meta.unit))}</p>
+    ${trustStrip}
   `;
 
   const coachSummary=`
@@ -197,6 +201,7 @@ function metricCard(aggregate,key,role){
     <p>${escapeHtml(changeCopy(comparison,meta.unit))}</p>
     <p>${escapeHtml(trendCopy(trend,meta.unit))}</p>
     <p>${escapeHtml(providerCopy(metric))} ${escapeHtml(vfcMethodCopy(metric))}</p>
+    ${trustStrip}
   `;
 
   return `<article class="m26-panel m26-data-metric-card" data-metric="${escapeHtml(key)}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${professional?'Comparativa longitudinal':'Evolución'}</p><h3>${escapeHtml(meta.label)}</h3></div><span class="m26-chip">${professional?'90 días':'28 días'}</span></div>${professional?coachSummary:clientSummary}<m26-echart class="m26-echart" data-label="${escapeHtml(meta.label)}" data-unit="${escapeHtml(meta.unit)}" data-points="${chartPayload(metric.points)}" aria-label="${escapeHtml(`${meta.label}, evolución de ${professional?'90':'28'} días`)}"></m26-echart>${fallbackTable(metric,meta)}</article>`;

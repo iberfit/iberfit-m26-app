@@ -1182,3 +1182,72 @@
     overflow: visible;
   }
 }
+/* IBERFIT RC59.6 · Data Trust UX */
+.m26-data-trust-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--iberfit-space-2);
+  margin-top: var(--iberfit-space-2);
+}
+
+.m26-data-trust-item {
+  display: grid;
+  gap: 2px;
+  min-width: 112px;
+  padding: var(--iberfit-space-2) var(--iberfit-space-3);
+  border: 1px solid var(--iberfit-color-border);
+  border-radius: var(--iberfit-radius-md);
+  background: var(--iberfit-color-surface-raised);
+}
+
+.m26-data-trust-item small {
+  color: var(--iberfit-color-text-secondary);
+  font-size: var(--iberfit-font-size-xs);
+}
+
+.m26-data-trust-item strong {
+  overflow-wrap: anywhere;
+  font-size: var(--iberfit-font-size-sm);
+}
+
+.m26-data-trust-item.is-success {
+  border-color: color-mix(in srgb, var(--iberfit-color-success) 45%, var(--iberfit-color-border));
+}
+
+.m26-data-trust-item.is-warning {
+  border-color: color-mix(in srgb, var(--iberfit-color-warning) 55%, var(--iberfit-color-border));
+}
+
+.m26-data-trust-providers,
+.m26-data-trust-reason {
+  flex-basis: 100%;
+  color: var(--iberfit-color-text-secondary);
+  font-size: var(--iberfit-font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.m26-data-trust-strip.is-compact .m26-data-trust-item {
+  min-width: 96px;
+  padding: var(--iberfit-space-1) var(--iberfit-space-2);
+}
+
+@media (max-width: 560px) {
+  .m26-data-trust-item,
+  .m26-data-trust-strip.is-compact .m26-data-trust-item {
+    flex: 1 1 calc(50% - var(--iberfit-space-2));
+    min-width: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .m26-data-trust-item {
+    border-color: CanvasText;
+  }
+}
+
+@media print {
+  .m26-data-trust-strip {
+    break-inside: avoid;
+  }
+}
