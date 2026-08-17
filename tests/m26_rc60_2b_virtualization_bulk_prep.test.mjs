@@ -150,12 +150,11 @@ test('RC60.2B PWA versions the decision layer and preserves RC60.2A lineage',()=
   assert.match(sw,/"\/src\/m26\/productivity\/bulk-preparation\.js"/u);
 });
 
-test('RC60.2B closes Coach Productivity and opens RC61 Motion',()=>{
+test('RC60.2B preserves durable Coach Productivity closeout and cross-cutting rails',()=>{
   const roadmap=read('docs/ROADMAP_RC58_RC64_PREMIUM.md');
   assert.match(roadmap,/RC60=CLOSED_COACH_PRODUCTIVITY/u);
   assert.match(roadmap,/RC60_2=CLOSED_LARGE_LIST_REUSE/u);
   assert.match(roadmap,/RC60_2B=CLOSED_VIRTUALIZATION_DECISION_BULK_PREP/u);
-  assert.match(roadmap,/RC61=IN_PROGRESS_MOTION_MICROINTERACTIONS/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
 });

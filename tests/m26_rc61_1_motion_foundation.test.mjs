@@ -98,17 +98,14 @@ test('RC61.1 does not add Motion or AutoAnimate dependency while WAAPI is suffic
 
 test('RC61.1 PWA versions motion and preserves RC60.2B lineage',()=>{
   const sw=read('public/m26/sw.js');
-  assert.match(sw,/VERSION='m26-rc61-1'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc60-2b'/u);
+  assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc61-1[^\n]*m26-rc60-2b/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc61-1[^\n]*m26-rc60-2b/u);
   assert.match(sw,/"\/src\/m26\/motion\/motion-controller\.js"/u);
 });
 
-test('RC61.1 closes foundation without prematurely closing RC61',()=>{
+test('RC61.1 preserves durable Motion Foundation closeout and cross-cutting rails',()=>{
   const roadmap=read('docs/ROADMAP_RC58_RC64_PREMIUM.md');
-  assert.match(roadmap,/RC61=IN_PROGRESS_MOTION_MICROINTERACTIONS/u);
   assert.match(roadmap,/RC61_1=CLOSED_MOTION_FOUNDATION_REDUCED_MOTION/u);
-  assert.match(roadmap,/RC61_2=IN_PROGRESS_SYNC_EMPTY_TRANSITIONS/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
 });

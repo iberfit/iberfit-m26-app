@@ -32,9 +32,10 @@ RC60_1=CLOSED_SEARCH_COMMAND_SURFACE
 RC60_2=CLOSED_LARGE_LIST_REUSE
 RC60_2A=CLOSED_REUSE_MEASUREMENT
 RC60_2B=CLOSED_VIRTUALIZATION_DECISION_BULK_PREP
-RC61=IN_PROGRESS_MOTION_MICROINTERACTIONS
+RC61=CLOSED_MOTION_MICROINTERACTIONS
 RC61_1=CLOSED_MOTION_FOUNDATION_REDUCED_MOTION
-RC61_2=IN_PROGRESS_SYNC_EMPTY_TRANSITIONS
+RC61_2=CLOSED_SYNC_EMPTY_TRANSITIONS
+RC62=IN_PROGRESS_AGENDA_GUIDANCE_ONBOARDING
 PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL
 
 ## Critical rail A — Admin / RC46
@@ -253,11 +254,16 @@ Casos:
 - `prefers-reduced-motion` autoritativo en JS y CSS;
 - Motion library y AutoAnimate no entran mientras WAAPI simple sea suficiente.
 
-### RC61.2 — Sync & Empty-State Orchestration — IN PROGRESS
+### RC61.2 — Sync & Empty-State Orchestration — CLOSED
 
-- afinar feedback de sincronización y transiciones empty/loading;
-- validar que motion nunca sea portador exclusivo de información;
-- cerrar RC61 con regresión completa y reduced-motion gate.
+- estados sync/success/error/empty/loading usan firma semántica observable;
+- estados existentes se priman sin animación artificial al montar el controller;
+- una misma firma no se reanima por MutationObserver repetido;
+- cambios reales de texto/status/visibilidad disparan feedback una sola vez;
+- motion no escribe copy, roles ni significado accesible;
+- hidden states no se animan;
+- reduced motion permanece autoritativo;
+- RC61 cierra sin Motion library ni AutoAnimate: WAAPI nativo sigue siendo suficiente.
 
 ## RC62 — Agenda, Guidance & Onboarding
 

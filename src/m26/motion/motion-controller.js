@@ -165,6 +165,59 @@ function interestingMutationNodes(record){
   return nodes;
 }
 
+export const M26_MOTION_STATE_SELECTOR=[
+  '.m26-sync-banner',
+  '.m26-action-state.is-success',
+  '.m26-action-state.is-error',
+  '.m26-empty-copy',
+  '.m26-skeleton',
+  '[data-empty-state]',
+  '[data-loading-state]',
+].join(',');
+
+function motionStateKind(node){
+  if(node?.matches?.('.m26-action-state.is-error'))return {kind:'error',preset:'status'};
+  if(node?.matches?.('.m26-action-state.is-success'))return {kind:'success',preset:'status'};
+  if(node?.matches?.('.m26-sync-banner'))return {kind:'sync',preset:'status'};
+  if(node?.matches?.('.m26-skeleton,[data-loading-state]'))return {kind:'loading',preset:'entrance'};
+  if(node?.matches?.('.m26-empty-copy,[data-empty-state]'))return {kind:'empty',preset:'entrance'};
+  return null;
+}
+
+export function describeM26MotionState(node){
+  const descriptor=motionStateKind(node);
+  if(!descriptor)return null;
+  const copy=String(node?.textContent??'').replace(/\s+/gu,' ').trim().slice(0,240);
+  const status=text(node?.getAttribute?.('data-status'),40);
+  const busy=text(node?.getAttribute?.('aria-busy'),12);
+  const hidden=Boolean(node?.hidden||node?.getAttribute?.('aria-hidden')==='true');
+  return Object.freeze({
+    ...descriptor,
+    visible:!hidden,
+    signature:[
+      descriptor.kind,
+      status,
+      busy,
+      copy,
+      hidden?'hidden':'visible',
+    ].join('|'),
+  });
+}
+
+export function shouldAnimateM26StateTransition(previousSignature,nextState){
+  return Boolean(
+    nextState?.visible&&
+    nextState.signature&&
+    nextState.signature!==previousSignature
+  );
+}
+
+function visitMotionStateNodes(node,visit){
+  if(!node||typeof visit!=='function')return;
+  if(describeM26MotionState(node))visit(node);
+  for(const child of node.querySelectorAll?.(M26_MOTION_STATE_SELECTOR)||[])visit(child);
+}
+
 export function createM26MotionController({
   root,
   scope=globalThis,
@@ -175,7 +228,7 @@ export function createM26MotionController({
   let reduced=prefersReducedMotion(scope);
   let observer=null;
   let mediaQuery=null;
-  const animatedNodes=new WeakSet();
+  const stateSignatures=new WeakMap();
 
   function markRoot(){
     try{
@@ -186,33 +239,26 @@ export function createM26MotionController({
 
   function animate(node,preset){
     if(!node)return;
-    const result=animateM26Node(node,preset,{reduced});
-    if(result.animated||result.reason==='reduced_motion'){
-      try{animatedNodes.add(node);}catch{}
-    }
+    animateM26Node(node,preset,{reduced});
+  }
+
+  function primeMotionStates(){
+    visitMotionStateNodes(root,(node)=>{
+      const state=describeM26MotionState(node);
+      if(state)stateSignatures.set(node,state.signature);
+    });
   }
 
   function animateStatusNode(node){
-    if(!node||animatedNodes.has(node))return;
-    if(node.matches?.('.m26-action-state.is-success,.m26-action-state.is-error,.m26-sync-banner')){
-      animate(node,'status');
-      return;
-    }
-    if(node.matches?.('.m26-empty-copy,.m26-skeleton,[data-empty-state],[data-loading-state]')){
-      animate(node,'entrance');
-    }
-    for(const child of node.querySelectorAll?.(
-      '.m26-action-state.is-success,.m26-action-state.is-error,.m26-sync-banner,.m26-empty-copy,.m26-skeleton,[data-empty-state],[data-loading-state]'
-    )||[]){
-      if(!animatedNodes.has(child)){
-        animate(
-          child,
-          child.matches?.('.m26-action-state.is-success,.m26-action-state.is-error,.m26-sync-banner')
-            ?'status'
-            :'entrance',
-        );
+    visitMotionStateNodes(node,(target)=>{
+      const nextState=describeM26MotionState(target);
+      if(!nextState)return;
+      const previousSignature=stateSignatures.get(target)||null;
+      stateSignatures.set(target,nextState.signature);
+      if(shouldAnimateM26StateTransition(previousSignature,nextState)){
+        animate(target,nextState.preset);
       }
-    }
+    });
   }
 
   function onClick(event){
@@ -253,6 +299,7 @@ export function createM26MotionController({
       if(mounted)return;
       reduced=prefersReducedMotion(scope);
       markRoot();
+      primeMotionStates();
       root.addEventListener('click',onClick,true);
       root.addEventListener('input',onFilter,true);
       root.addEventListener('change',onFilter,true);
@@ -267,7 +314,7 @@ export function createM26MotionController({
           childList:true,
           subtree:true,
           attributes:true,
-          attributeFilter:['class','data-status','aria-busy'],
+          attributeFilter:['class','data-status','aria-busy','aria-hidden','hidden'],
         });
       }
       try{
