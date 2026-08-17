@@ -30,6 +30,8 @@ RC59_6=CLOSED_DATA_TRUST_UX
 RC60=IN_PROGRESS_COACH_PRODUCTIVITY
 RC60_1=CLOSED_SEARCH_COMMAND_SURFACE
 RC60_2=IN_PROGRESS_LARGE_LIST_REUSE
+RC60_2A=CLOSED_REUSE_MEASUREMENT
+RC60_2B=IN_PROGRESS_VIRTUALIZATION_DECISION_BULK_PREP
 PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL
 
 ## Critical rail A — Admin / RC46
@@ -202,6 +204,21 @@ La virtualización se aplica por necesidad medida, no como default de cada lista
 - duplicar/reutilizar sesiones;
 - templates/versiones;
 - preparar operaciones de orden y bulk sin saltarse confirmaciones.
+
+#### RC60.2A — Reuse & Measurement — CLOSED
+
+- reutilización de sesión → borrador independiente;
+- plantillas locales owner-scoped con versiones acotadas;
+- template sin clientId ni campos sanitarios arbitrarios;
+- medición runtime de tamaño/tiempo de actualización de la cartera;
+- TanStack Virtual aún no entra: decisión aplazada al gate medido RC60.2B.
+
+#### RC60.2B — Virtualization Decision & Bulk Preparation — IN PROGRESS
+
+- decidir virtualización con evidencia de tamaño + coste, no por moda;
+- si procede, vendor same-origin y fallback accesible;
+- preparar ordenación y operaciones bulk seguras con preview/confirmación;
+- preservar keyboard reorder y controles convencionales.
 
 ## RC61 — Motion & Microinteractions
 

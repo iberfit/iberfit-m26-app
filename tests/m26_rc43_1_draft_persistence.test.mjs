@@ -111,7 +111,7 @@ test('RC43.1 recupera remoto y mantiene cache local', () => {
 
   assert.ok(
     application.includes(
-      'const saved=await loadSessionDraft(clientId);',
+      'const saved=sourceSession?null:await loadSessionDraft(clientId);',
     ),
   );
 });

@@ -108,8 +108,7 @@ test('RC60.1 vendor Fuse es same-origin y licencia Apache se conserva',()=>{
 
 test('RC60.1 PWA versiona productividad y conserva RC59.6 como lineage',()=>{
   const sw=read('public/m26/sw.js');
-  assert.match(sw,/VERSION='m26-rc60-1'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-6'/u);
+  assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc60-1[^\n]*m26-rc59-6/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc60-1[^\n]*m26-rc59-6/u);
   assert.match(sw,/"\/src\/m26\/productivity\/coach-productivity\.js"/u);
   assert.match(sw,/"\/src\/m26\/vendor\/fuse-7\.5\.0\.basic\.min\.js"/u);
