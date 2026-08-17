@@ -101,7 +101,7 @@ export function renderExerciseMedia({
   if(!experience)return visual;
 
   const video=experience.video
-    ?renderNativeExerciseVideo({video:experience.video,title:experience.title,alt:experience.alt})
+    ?renderNativeExerciseVideo({video:experience.video,title:experience.title,alt:experience.alt,provenance:experience.provenance})
     :'';
   const guidance=renderExerciseTechnicalGuidance(experience);
   return `<div class="m26-exercise-media-experience" data-exercise-media-experience="${e(exerciseId)}">${video}${visual}${guidance}</div>`;

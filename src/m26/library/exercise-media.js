@@ -13,6 +13,7 @@ const SAFE_REPDB_MEDIA_PATH=/^\/(?:public\/)?vendor\/repdb\/images\/flat\/[a-z0-
 const SAFE_IBERFIT_MEDIA_PATH=/^\/public\/iberfit\/exercises\/images\/[A-Za-z0-9][A-Za-z0-9._:-]{0,199}\/(?:main|start|peak)\.webp$/;
 const SAFE_IBERFIT_VIDEO_PATH=/^\/public\/iberfit\/exercises\/video\/[A-Za-z0-9][A-Za-z0-9._:-]{0,199}\/[A-Za-z0-9][A-Za-z0-9._-]{0,159}\.(?:mp4|webm)$/;
 const SAFE_IBERFIT_CAPTION_PATH=/^\/public\/iberfit\/exercises\/captions\/[A-Za-z0-9][A-Za-z0-9._:-]{0,199}\/[a-z]{2}(?:-[A-Z]{2})?\.vtt$/;
+const ALLOWED_ASSET_RIGHTS_BASIS=new Set(['iberfit_owned','commissioned','licensed','public_domain']);
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const manifestIndexes=new WeakMap();
 
@@ -91,6 +92,19 @@ export function validateIberfitExerciseMediaMap(manifest){
   return manifest;
 }
 
+export function validateExerciseAssetProvenance(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('M26_IBERFIT_ASSET_PROVENANCE_INVALID');
+  const rightsBasis=String(value.rights_basis??value.rightsBasis??'').trim().toLowerCase();
+  const sourceRef=String(value.source_ref??value.sourceRef??'').replace(/\s+/gu,' ').trim().slice(0,240);
+  const licenseLabel=String(value.license_label??value.licenseLabel??'').replace(/\s+/gu,' ').trim().slice(0,160);
+  const reviewedAtRaw=String(value.reviewed_at??value.reviewedAt??'').trim();
+  const reviewedAtDate=reviewedAtRaw?new Date(reviewedAtRaw):null;
+  const reviewedAt=reviewedAtDate&&!Number.isNaN(reviewedAtDate.getTime())?reviewedAtDate.toISOString():null;
+  if(!ALLOWED_ASSET_RIGHTS_BASIS.has(rightsBasis)||!sourceRef||!licenseLabel||!reviewedAt){
+    throw new Error('M26_IBERFIT_ASSET_PROVENANCE_INVALID');
+  }
+  return Object.freeze({rightsBasis,sourceRef,licenseLabel,reviewedAt});
+}
 export function validateIberfitExerciseRichMediaMap(manifest){
   if(!manifest||typeof manifest!=='object'||Array.isArray(manifest))throw new Error('M26_IBERFIT_RICH_MEDIA_MAP_REQUIRED');
   if(manifest.schemaVersion!==2)throw new Error('M26_IBERFIT_RICH_MEDIA_MAP_VERSION_UNSUPPORTED');
@@ -101,6 +115,7 @@ export function validateIberfitExerciseRichMediaMap(manifest){
     const id=itemId(item,'IBERFIT');
     if(!SAFE_ID.test(id))throw new Error('M26_IBERFIT_RICH_MEDIA_ID_INVALID');
     if(ids.has(id))throw new Error(`M26_IBERFIT_RICH_MEDIA_ID_DUPLICATE:${id}`);
+    validateExerciseAssetProvenance(item.asset_provenance??item.assetProvenance);
     ids.add(id);
   }
   return manifest;
@@ -247,6 +262,7 @@ export function resolveExerciseMediaExperience(manifest,exerciseId,{role='client
   if(source.published!==true)return null;
   const visible=normalized==='coach'?source.coach_visible===true:source.client_visible===true;
   if(!visible)return null;
+  const assetProvenance=validateExerciseAssetProvenance(source.asset_provenance??source.assetProvenance);
   const video=safeTechnicalVideo(source.technical_video??source.technicalVideo,id);
   if((source.technical_video??source.technicalVideo)&&!video)return null;
   const cues=safeTextList(source.cues,8);
@@ -267,6 +283,10 @@ export function resolveExerciseMediaExperience(manifest,exerciseId,{role='client
       provider:'IBERFIT',
       reviewStatus:'approved',
       published:true,
+      rightsBasis:assetProvenance.rightsBasis,
+      licenseLabel:assetProvenance.licenseLabel,
+      sourceRef:assetProvenance.sourceRef,
+      reviewedAt:assetProvenance.reviewedAt,
     }),
   });
 }

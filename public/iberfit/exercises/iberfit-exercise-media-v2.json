@@ -20,6 +20,14 @@
     "technicalVideoHumanApprovalRequired": true,
     "captionsRequiredWhenSpeechOrMeaningfulAudio": true,
     "writtenFallbackRequired": true,
+    "assetProvenanceRequired": true,
+    "allowedRightsBasis": [
+      "iberfit_owned",
+      "commissioned",
+      "licensed",
+      "public_domain"
+    ],
+    "unknownRightsBasisAllowed": false,
     "clientUsesOnlyApprovedAndPublishedMedia": true,
     "coachUsesOnlyApprovedAndPublishedMedia": true
   },

@@ -40,5 +40,11 @@
 /public/iberfit/exercises/images/*
   Cache-Control: public, max-age=31536000, immutable
 
+/public/iberfit/exercises/video/*
+  Cache-Control: no-store
+
+/public/iberfit/exercises/captions/*
+  Cache-Control: no-cache, must-revalidate
+
 /public/iberfit/exercises/*.json
   Cache-Control: no-cache, must-revalidate

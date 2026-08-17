@@ -1699,3 +1699,64 @@
     break-inside:avoid;
   }
 }
+/* IBERFIT RC63.2 · Media Network, Controls & Recovery */
+.m26-exercise-video figcaption{
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:start;
+}
+.m26-exercise-video figcaption>div:first-child{
+  display:grid;
+  gap:.2rem;
+}
+.m26-exercise-media-provenance{
+  color:var(--iberfit-color-text-secondary);
+}
+.m26-exercise-video-actions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-end;
+  gap:var(--iberfit-space-2);
+}
+.m26-exercise-video-actions .m26-text-action,
+.m26-exercise-video-status .m26-text-action{
+  min-height:var(--iberfit-size-touch-target);
+}
+.m26-exercise-video-status{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:var(--iberfit-space-3);
+  padding:0 var(--iberfit-space-3) var(--iberfit-space-3);
+}
+.m26-exercise-video-status p{
+  margin:0;
+  color:var(--iberfit-color-text-secondary);
+  font-size:var(--iberfit-font-size-sm);
+}
+.m26-exercise-video[data-video-state="error"],
+.m26-exercise-video[data-video-state="offline"]{
+  border-color:var(--iberfit-color-border-strong);
+}
+.m26-exercise-video[data-video-state="buffering"] .m26-exercise-video-status p,
+.m26-exercise-video[data-video-state="loading"] .m26-exercise-video-status p{
+  font-weight:var(--iberfit-font-weight-semibold);
+}
+@media (max-width:719px){
+  .m26-exercise-video figcaption{
+    grid-template-columns:1fr;
+  }
+  .m26-exercise-video-actions{
+    justify-content:flex-start;
+  }
+  .m26-exercise-video-status{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
+@media print{
+  .m26-exercise-video-actions,
+  .m26-exercise-video-status{
+    display:none!important;
+  }
+}

@@ -147,13 +147,12 @@ test('RC62.3 stabilizes RC62.2 history and versions the onboarding shell',()=>{
   assert.match(sw,/m26-rc59-0b[^\n]*m26-rc59-0a[^\n]*m26-rc58-6/u);
 });
 
-test('RC62.3 closes RC62 and opens Exercise Media Experience',()=>{
+test('RC62.3 preserves durable RC62 closeout and cross-cutting rails',()=>{
   const roadmap=read('docs/ROADMAP_RC58_RC64_PREMIUM.md');
   assert.match(roadmap,/RC62=CLOSED_AGENDA_GUIDANCE_ONBOARDING/u);
   assert.match(roadmap,/RC62_1=CLOSED_AGENDA_STANDARD/u);
   assert.match(roadmap,/RC62_2=CLOSED_GUIDANCE/u);
   assert.match(roadmap,/RC62_3=CLOSED_PROGRESSIVE_ONBOARDING/u);
-  assert.match(roadmap,/RC63=IN_PROGRESS_EXERCISE_MEDIA_EXPERIENCE/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
 });

@@ -39,6 +39,12 @@ function richItem(overrides={}){
     published:true,
     coach_visible:true,
     client_visible:true,
+    asset_provenance:{
+      rights_basis:'iberfit_owned',
+      source_ref:'IBERFIT-RC63-1-TEST-ASSET',
+      license_label:'IBERFIT owned',
+      reviewed_at:'2026-08-17T00:00:00.000Z',
+    },
     technical_video:{
       src:`/public/iberfit/exercises/video/${id}/technical.mp4`,
       poster:`/public/iberfit/exercises/images/${id}/main.webp`,
@@ -129,7 +135,7 @@ test('RC63.1 loader fetches v1 v2 and RepDB independently and tolerates rich-med
 });
 
 test('RC63.1 native player is accessible demand-loaded and never autoplays',()=>{
-  assert.equal(EXERCISE_VIDEO_PLAYER_SCHEMA_VERSION,'iberfit.exercise-video-player.v1');
+  assert.match(EXERCISE_VIDEO_PLAYER_SCHEMA_VERSION,/^iberfit\.exercise-video-player\.v[1-9]\d*$/u);
   assert.equal(NATIVE_EXERCISE_VIDEO_POLICY.engine,'html5-native');
   assert.equal(NATIVE_EXERCISE_VIDEO_POLICY.autoplay,false);
   assert.equal(NATIVE_EXERCISE_VIDEO_POLICY.preload,'none');
@@ -209,18 +215,15 @@ test('RC63.1 stabilizes RC62.3 PWA history and versions the native-player shell'
   const prior=read('tests/m26_rc62_3_progressive_onboarding.test.mjs');
   const sw=read('public/m26/sw.js');
   assert.match(prior,/Historical compatibility markers retained[^\n]*m26-rc62-3[^\n]*m26-rc62-2/u);
-  assert.match(sw,/VERSION='m26-rc63-1'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc62-3'/u);
+  assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc63-1[^\n]*m26-rc62-3/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc63-1[^\n]*m26-rc62-3/u);
   assert.match(sw,/m26-rc59-0b[^\n]*m26-rc59-0a[^\n]*m26-rc58-6/u);
 });
 
-test('RC63.1 closes native media foundation without prematurely closing RC63',()=>{
+test('RC63.1 preserves durable native media foundation closeout and cross-cutting rails',()=>{
   const roadmap=read('docs/ROADMAP_RC58_RC64_PREMIUM.md');
   assert.match(roadmap,/RC62=CLOSED_AGENDA_GUIDANCE_ONBOARDING/u);
-  assert.match(roadmap,/RC63=IN_PROGRESS_EXERCISE_MEDIA_EXPERIENCE/u);
   assert.match(roadmap,/RC63_1=CLOSED_MEDIA_CONTRACT_NATIVE_PLAYER/u);
-  assert.match(roadmap,/RC63_2=IN_PROGRESS_NETWORK_ANALYTICS_ASSET_GOVERNANCE/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
 });

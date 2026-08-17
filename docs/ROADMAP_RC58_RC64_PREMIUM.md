@@ -39,9 +39,11 @@ RC62=CLOSED_AGENDA_GUIDANCE_ONBOARDING
 RC62_1=CLOSED_AGENDA_STANDARD
 RC62_2=CLOSED_GUIDANCE
 RC62_3=CLOSED_PROGRESSIVE_ONBOARDING
-RC63=IN_PROGRESS_EXERCISE_MEDIA_EXPERIENCE
+RC63=CLOSED_EXERCISE_MEDIA_EXPERIENCE
 RC63_1=CLOSED_MEDIA_CONTRACT_NATIVE_PLAYER
-RC63_2=IN_PROGRESS_NETWORK_ANALYTICS_ASSET_GOVERNANCE
+RC63_2=CLOSED_NETWORK_ANALYTICS_ASSET_GOVERNANCE
+RC63_MEDIA_ASSET_POPULATION=PENDING_REAL_APPROVED_ASSETS
+RC64=IN_PROGRESS_QUALITY_PLATFORM
 PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL
 
 ## Critical rail A — Admin / RC46
@@ -346,19 +348,21 @@ Incluye:
 - Plyr queda diferido hasta poder comparar UX con videos IBERFIT reales y aprobados;
 - no se añade dependencia npm.
 
-### RC63.2 — Network, Technical Analytics & Asset Governance — IN PROGRESS
+### RC63.2 — Network, Technical Analytics & Asset Governance — CLOSED
 
-- estados explícitos de carga/error/offline y recuperación;
-- analítica técnica minimizada de carga/error sin identidad o salud innecesaria;
-- política de provenance/licencia y aceptación de assets reales;
-- decidir Plyr contra evidencia real de UX;
-- cerrar cobertura/fallback sin cachear por defecto videos pesados dentro del app shell.
+- estados explícitos idle/loading/ready/playing/buffering/error/ended/offline;
+- retry solo online y fallback escrito siempre disponible;
+- velocidad explícita 1x/1.25x/1.5x/2x;
+- PiP explícito únicamente cuando el navegador expone API nativa;
+- analítica técnica bounded y memory-only, sin identidad, ejercicio, URL ni salud;
+- provenance/licencia obligatoria con rights basis auditable para todo asset real;
+- videos pesados fuera de APP_SHELL y excluidos explícitamente del almacenamiento SW;
+- headers de video `no-store` y captions con revalidación;
+- Plyr no se adopta en RC63: no existen videos IBERFIT reales aprobados que demuestren una mejora UX que justifique dependencia;
+- Lottie no se añade: no existe un caso concreto licenciado que lo requiera;
+- población real de media queda como pipeline de contenido pendiente, sin fabricar assets.
 
-Plyr se adopta si demuestra mejor UX que HTML media nativo en nuestros casos.
-
-Lottie solo para usos concretos y con licencia verificada.
-
-## RC64 — Quality Platform
+## RC64 — Quality Platform — IN PROGRESS
 
 RC64 no “empieza” la calidad; industrializa gates que cada RC ya debe respetar.
 
