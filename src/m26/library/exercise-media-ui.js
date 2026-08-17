@@ -1,4 +1,5 @@
-import {resolveExerciseMedia,resolveExerciseMediaMetadata,REPDB_MEDIA_ATTRIBUTION} from './exercise-media.js';
+import {resolveExerciseMedia,resolveExerciseMediaExperience,resolveExerciseMediaMetadata,REPDB_MEDIA_ATTRIBUTION} from './exercise-media.js';
+import {renderNativeExerciseVideo,renderExerciseTechnicalGuidance} from './exercise-video-player.js';
 
 function e(value){
   return String(value??'')
@@ -73,25 +74,37 @@ export function renderExerciseMedia({
   fallback=true,
 }={}){
   const media=resolveExerciseMedia(manifest,exerciseId,{role});
+  const experience=resolveExerciseMediaExperience(manifest,exerciseId,{role});
   const name=exercise?.name_es||exercise?.name||'Ejercicio';
 
-  if(!media){
+  if(!media&&!experience){
     if(!fallback)return '';
     return `<div class="m26-exercise-media-fallback${compact?' is-compact':''}" role="img" aria-label="Sin referencia visual validada para ${e(name)}"><span>Sin referencia visual</span><small>Consulta la ejecución escrita</small></div>`;
   }
 
-  const labels=media.mode==='start_peak'
-    ?['Posición inicial','Posición final']
-    :['Referencia visual'];
+  let visual='';
+  if(media){
+    const labels=media.mode==='start_peak'
+      ?['Posición inicial','Posición final']
+      :['Referencia visual'];
 
-  const frames=media.images.map((src,index)=>`<span class="m26-exercise-media-frame"><img class="m26-exercise-media-image" src="${e(src)}" alt="${e(`${name} · ${labels[index]||'referencia visual'}`)}" loading="lazy" decoding="async"><small>${e(labels[index]||'Referencia')}</small></span>`).join('');
+    const frames=media.images.map((src,index)=>`<span class="m26-exercise-media-frame"><img class="m26-exercise-media-image" src="${e(src)}" alt="${e(`${name} · ${labels[index]||'referencia visual'}`)}" loading="lazy" decoding="async"><small>${e(labels[index]||'Referencia')}</small></span>`).join('');
 
-  const quality=showQuality&&media.quality.startsWith('C')
-    ?'<p class="m26-exercise-media-quality" role="status">Referencia visual pendiente de validación individual por el entrenador.</p>'
+    const quality=showQuality&&media.quality.startsWith('C')
+      ?'<p class="m26-exercise-media-quality" role="status">Referencia visual pendiente de validación individual por el entrenador.</p>'
+      :'';
+
+    const credit=showCredit?renderExerciseMediaCredit({compact,attribution:media.attribution}):'';
+    visual=`<figure class="m26-exercise-media${compact?' is-compact':''}" data-exercise-media="${e(exerciseId)}" data-exercise-media-source="${e(media.provider||'')}"><div class="m26-exercise-media-frames">${frames}</div>${quality}${credit}</figure>`;
+  }
+
+  if(!experience)return visual;
+
+  const video=experience.video
+    ?renderNativeExerciseVideo({video:experience.video,title:experience.title,alt:experience.alt})
     :'';
-
-  const credit=showCredit?renderExerciseMediaCredit({compact,attribution:media.attribution}):'';
-  return `<figure class="m26-exercise-media${compact?' is-compact':''}" data-exercise-media="${e(exerciseId)}" data-exercise-media-source="${e(media.provider||'')}"><div class="m26-exercise-media-frames">${frames}</div>${quality}${credit}</figure>`;
+  const guidance=renderExerciseTechnicalGuidance(experience);
+  return `<div class="m26-exercise-media-experience" data-exercise-media-experience="${e(exerciseId)}">${video}${visual}${guidance}</div>`;
 }
 
 export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){

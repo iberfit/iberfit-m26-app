@@ -141,8 +141,7 @@ test('RC62.3 stabilizes RC62.2 history and versions the onboarding shell',()=>{
   const prior=read('tests/m26_rc62_2_contextual_guidance.test.mjs');
   const sw=read('public/m26/sw.js');
   assert.match(prior,/preserves durable Guidance closeout/iu);
-  assert.match(sw,/VERSION='m26-rc62-3'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc62-2'/u);
+  assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc62-3[^\n]*m26-rc62-2/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc62-3[^\n]*m26-rc62-2/u);
   assert.match(sw,/"\/src\/m26\/onboarding\/progressive-onboarding\.js"/u);
   assert.match(sw,/m26-rc59-0b[^\n]*m26-rc59-0a[^\n]*m26-rc58-6/u);

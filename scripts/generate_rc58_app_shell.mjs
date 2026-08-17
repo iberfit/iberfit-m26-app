@@ -29,6 +29,7 @@ const REQUIRED_STATIC_PATHS=Object.freeze([
   'public/isotipo-iberfit.png',
   'baseline_m25_2/exercise-catalog-m25.json',
   'public/iberfit/exercises/iberfit-exercise-media-v1.json',
+  'public/iberfit/exercises/iberfit-exercise-media-v2.json',
   'public/vendor/repdb/iberfit-canonical-media-map-v1.json',
   'public/m26/icons/apple-touch-icon-180.png',
 ]);

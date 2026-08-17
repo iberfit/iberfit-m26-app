@@ -40,6 +40,8 @@ RC62_1=CLOSED_AGENDA_STANDARD
 RC62_2=CLOSED_GUIDANCE
 RC62_3=CLOSED_PROGRESSIVE_ONBOARDING
 RC63=IN_PROGRESS_EXERCISE_MEDIA_EXPERIENCE
+RC63_1=CLOSED_MEDIA_CONTRACT_NATIVE_PLAYER
+RC63_2=IN_PROGRESS_NETWORK_ANALYTICS_ASSET_GOVERNANCE
 PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL
 
 ## Critical rail A — Admin / RC46
@@ -330,6 +332,27 @@ Incluye:
 - estado de media por ejercicio;
 - comportamiento offline/de red deficiente;
 - analítica técnica de carga/error sin invadir privacidad.
+
+### RC63.1 — Media Contract & Native Player Foundation — CLOSED
+
+- el mapa IBERFIT visual v1 histórico permanece intacto;
+- un mapa rich-media v2 separado evita mutar silenciosamente el contrato histórico;
+- video técnico solo same-origin, aprobado, publicado y visible por rol;
+- poster, WebVTT, título, alt, cues, errores comunes y regresiones forman parte del contrato;
+- `<video>` nativo usa controls, playsinline y `preload="none"`;
+- no autoplay ni handlers inline;
+- RepDB sigue siendo fallback visual con atribución;
+- el manifest v2 de producción nace con cero videos aprobados: no se fabrican assets;
+- Plyr queda diferido hasta poder comparar UX con videos IBERFIT reales y aprobados;
+- no se añade dependencia npm.
+
+### RC63.2 — Network, Technical Analytics & Asset Governance — IN PROGRESS
+
+- estados explícitos de carga/error/offline y recuperación;
+- analítica técnica minimizada de carga/error sin identidad o salud innecesaria;
+- política de provenance/licencia y aceptación de assets reales;
+- decidir Plyr contra evidencia real de UX;
+- cerrar cobertura/fallback sin cachear por defecto videos pesados dentro del app shell.
 
 Plyr se adopta si demuestra mejor UX que HTML media nativo en nuestros casos.
 

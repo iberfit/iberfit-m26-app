@@ -1622,3 +1622,80 @@
     display:none!important;
   }
 }
+/* IBERFIT RC63.1 · Exercise Media Native Player */
+.m26-exercise-media-experience{
+  display:grid;
+  gap:var(--iberfit-space-3);
+}
+.m26-exercise-video{
+  display:grid;
+  gap:var(--iberfit-space-2);
+  margin:0;
+  overflow:hidden;
+  border:1px solid var(--iberfit-color-border);
+  border-radius:var(--iberfit-radius-lg);
+  background:var(--iberfit-color-surface-raised);
+}
+.m26-exercise-video video{
+  display:block;
+  width:100%;
+  max-width:100%;
+  aspect-ratio:16/9;
+  object-fit:contain;
+  background:#000;
+}
+.m26-exercise-video figcaption{
+  display:grid;
+  gap:.2rem;
+  padding:0 var(--iberfit-space-3) var(--iberfit-space-3);
+}
+.m26-exercise-video figcaption span{
+  color:var(--iberfit-color-text-secondary);
+  font-size:var(--iberfit-font-size-sm);
+}
+.m26-exercise-technical-guidance{
+  border:1px solid var(--iberfit-color-border);
+  border-radius:var(--iberfit-radius-md);
+  background:color-mix(in srgb,var(--iberfit-color-surface-raised) 84%,transparent);
+}
+.m26-exercise-technical-guidance>summary{
+  min-height:var(--iberfit-size-touch-target);
+  display:flex;
+  align-items:center;
+  padding:var(--iberfit-space-2) var(--iberfit-space-3);
+  cursor:pointer;
+  font-weight:var(--iberfit-font-weight-semibold);
+}
+.m26-exercise-technical-guidance>summary:focus-visible{
+  outline:3px solid color-mix(in srgb,var(--iberfit-color-focus) 72%,transparent);
+  outline-offset:3px;
+}
+.m26-exercise-technical-guidance-body{
+  display:grid;
+  gap:var(--iberfit-space-3);
+  padding:0 var(--iberfit-space-3) var(--iberfit-space-3);
+}
+.m26-exercise-technical-guidance-body section{
+  display:grid;
+  gap:var(--iberfit-space-1);
+}
+.m26-exercise-technical-guidance-body h4{
+  margin:0;
+}
+.m26-exercise-technical-guidance-body ul{
+  margin:0;
+  padding-left:1.25rem;
+}
+@media (max-width:719px){
+  .m26-exercise-video{
+    border-radius:var(--iberfit-radius-md);
+  }
+}
+@media print{
+  .m26-exercise-video{
+    display:none!important;
+  }
+  .m26-exercise-technical-guidance{
+    break-inside:avoid;
+  }
+}
