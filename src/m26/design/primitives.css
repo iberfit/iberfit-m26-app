@@ -1251,3 +1251,149 @@
     break-inside: avoid;
   }
 }
+/* IBERFIT RC60.1 · Coach Productivity */
+.m26-coach-command-launcher {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--iberfit-space-2);
+  min-height: 44px;
+}
+
+.m26-coach-command-launcher kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--iberfit-color-border);
+  border-radius: var(--iberfit-radius-sm);
+  background: var(--iberfit-color-surface-raised);
+  font: inherit;
+  font-size: var(--iberfit-font-size-xs);
+}
+
+.m26-coach-command-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: start center;
+  padding: min(12vh, 96px) var(--iberfit-space-4) var(--iberfit-space-4);
+  background: color-mix(in srgb, #000 52%, transparent);
+}
+
+.m26-coach-command-backdrop[hidden] {
+  display: none;
+}
+
+.m26-coach-command-dialog {
+  width: min(720px, 100%);
+  max-height: min(72vh, 720px);
+  overflow: auto;
+  border: 1px solid var(--iberfit-color-border);
+  border-radius: var(--iberfit-radius-xl);
+  background: var(--iberfit-color-surface);
+  box-shadow: var(--iberfit-shadow-lg);
+}
+
+.m26-coach-command-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--iberfit-space-3);
+  padding: var(--iberfit-space-4);
+  border-bottom: 1px solid var(--iberfit-color-border);
+}
+
+.m26-coach-command-search {
+  display: grid;
+  gap: var(--iberfit-space-2);
+  padding: var(--iberfit-space-4);
+}
+
+.m26-coach-command-search input {
+  width: 100%;
+  min-height: 48px;
+  font-size: var(--iberfit-font-size-lg);
+}
+
+.m26-coach-command-results {
+  display: grid;
+  gap: var(--iberfit-space-2);
+  padding: 0 var(--iberfit-space-4) var(--iberfit-space-4);
+}
+
+.m26-coach-command-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--iberfit-space-3);
+  width: 100%;
+  min-height: 48px;
+  text-align: left;
+}
+
+.m26-coach-command-result small,
+.m26-coach-command-empty {
+  color: var(--iberfit-color-text-secondary);
+}
+
+.m26-coach-productivity-toolbar {
+  display: grid;
+  gap: var(--iberfit-space-3);
+  margin: var(--iberfit-space-3) 0;
+  padding: var(--iberfit-space-3);
+  border: 1px solid var(--iberfit-color-border);
+  border-radius: var(--iberfit-radius-lg);
+  background: var(--iberfit-color-surface-raised);
+}
+
+.m26-coach-productivity-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--iberfit-space-2);
+}
+
+.m26-coach-productivity-controls label {
+  display: grid;
+  gap: 4px;
+  min-width: min(220px, 100%);
+}
+
+.m26-coach-recents {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--iberfit-space-2);
+}
+
+.m26-coach-recents > span {
+  font-weight: 700;
+}
+
+.m26-coach-recents button {
+  min-height: 44px;
+}
+
+.m26-coach-productivity-status {
+  min-height: 1.25em;
+  color: var(--iberfit-color-text-secondary);
+}
+
+.m26-coach-productivity-status[data-status="error"] {
+  color: var(--iberfit-color-danger);
+}
+
+@media (max-width: 720px) {
+  .m26-coach-command-launcher kbd {
+    display: none;
+  }
+
+  .m26-coach-productivity-controls > * {
+    flex: 1 1 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m26-coach-command-backdrop,
+  .m26-coach-command-dialog {
+    scroll-behavior: auto;
+  }
+}

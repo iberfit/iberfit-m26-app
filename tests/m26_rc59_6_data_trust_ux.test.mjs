@@ -223,8 +223,10 @@ test('RC59.6 mantiene regla dato contexto entrenador decide y no prescribe',()=>
 
 test('RC59.6 PWA versiona Data Trust y preserva RC59.5 como lineage',()=>{
   const sw=read('public/m26/sw.js');
-  assert.match(sw,/VERSION='m26-rc59-6'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc59-5'/u);
+  assert.match(
+    sw,
+    /Historical compatibility markers retained[^\n]*m26-rc59-6[^\n]*m26-rc59-5/u
+  );
   assert.match(
     sw,
     /Historical compatibility markers retained[^\n]*m26-rc59-6[^\n]*m26-rc59-5/u

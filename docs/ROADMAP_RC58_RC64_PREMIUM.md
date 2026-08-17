@@ -28,6 +28,8 @@ RC59_4=CLOSED_DATA_EXPERIENCE_ECHARTS
 RC59_5=CLOSED_CHALLENGE_METRICS_FOUNDATION
 RC59_6=CLOSED_DATA_TRUST_UX
 RC60=IN_PROGRESS_COACH_PRODUCTIVITY
+RC60_1=CLOSED_SEARCH_COMMAND_SURFACE
+RC60_2=IN_PROGRESS_LARGE_LIST_REUSE
 PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL
 
 ## Critical rail A — Admin / RC46
@@ -184,6 +186,22 @@ El contrato completo se mantiene en `docs/product/PREMIUM_REPORT_PARITY.md`.
 - operaciones masivas seguras.
 
 La virtualización se aplica por necesidad medida, no como default de cada lista.
+
+### RC60.1 — Search & Command Surface
+
+- Fuse.js fijado y same-origin para búsqueda tolerante;
+- command palette Coach/Admin con Ctrl/⌘ K;
+- quick navigation dentro del scope ya autorizado;
+- vistas de clientes guardadas localmente por propietario;
+- clientes recientes sin almacenar datos de salud.
+
+### RC60.2 — Large-list & Reuse
+
+- medir primero el umbral real de listas grandes;
+- TanStack Virtual Core solo cuando la medición lo justifique;
+- duplicar/reutilizar sesiones;
+- templates/versiones;
+- preparar operaciones de orden y bulk sin saltarse confirmaciones.
 
 ## RC61 — Motion & Microinteractions
 

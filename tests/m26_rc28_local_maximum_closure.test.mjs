@@ -152,7 +152,7 @@ test('búsqueda de clientes filtra sin distinguir tildes y anuncia el resultado'
   const controller=createWorkflowController({root,store:{getState:()=>state},commandBus:{execute:async()=>({ok:true})},catalog:{list:()=>[],count:367}});controller.mount();
   const search={value:'Alvaro',closest(selector){return selector==='[data-client-search]'?this:null;}};
   listeners.input({target:search});
-  assert.equal(cards[0].hidden,true);assert.equal(cards[1].hidden,false);assert.equal(status.textContent,'1 cliente encontrado');
+  assert.equal(cards[0].hidden,true);assert.equal(cards[1].hidden,false);assert.equal(status.textContent,'1 cliente encontrado con búsqueda tolerante.');
   controller.destroy();
 });
 

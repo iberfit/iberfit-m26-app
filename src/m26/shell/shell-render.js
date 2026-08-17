@@ -30,6 +30,12 @@ function clientSelector(vm) {
   return `<label class="m26-client-selector"><span>Expediente activo</span><select data-m26-client-select aria-label="Seleccionar expediente"><option value="">Selecciona un cliente</option>${options}</select></label>`;
 }
 
+function coachProductivityShell(vm){
+  if(!['coach','admin'].includes(String(vm.identity?.role||'')))return Object.freeze({launcher:'',palette:''});
+  const launcher=`<button type="button" class="m26-coach-command-launcher" data-coach-command-open aria-haspopup="dialog"><span>Buscar y acciones</span><kbd aria-hidden="true">Ctrl/⌘ K</kbd></button>`;
+  const palette=`<section class="m26-coach-command-backdrop" data-coach-command-palette role="dialog" aria-modal="true" aria-labelledby="m26-coach-command-title" hidden><div class="m26-coach-command-dialog"><header class="m26-coach-command-header"><div><p class="m26-eyebrow">Productividad Coach</p><h2 id="m26-coach-command-title">Buscar y abrir</h2><p>Busca módulos o clientes dentro de tu alcance actual.</p></div><button type="button" class="m26-icon-button" data-coach-command-close aria-label="Cerrar búsqueda">Cerrar</button></header><label class="m26-coach-command-search">Buscar acción o cliente<input type="search" data-coach-command-search autocomplete="off" spellcheck="false" aria-describedby="m26-coach-command-status" placeholder="Ej. clietnes, agenda, nombre del cliente"></label><p id="m26-coach-command-status" data-coach-command-status class="m26-coach-command-status" role="status" aria-live="polite"></p><div class="m26-coach-command-results" data-coach-command-results></div></div></section>`;
+  return Object.freeze({launcher,palette});
+}
 function operationStatus(operations) {
   const labels = [];
   if (operations.pending) labels.push(`${operations.pending} pendiente${operations.pending === 1 ? '' : 's'}`);
@@ -57,6 +63,7 @@ function renderM26ShellBase(vm, routeMarkup = '') {
   const quickMobileItems = vm.navigation.mobile.slice(0, 4);
   const moreMobileItems = allMobileItems.filter((item) => !quickMobileItems.some((quick) => quick.key === item.key));
   const mobileMore = moreMobileItems.length ? `<details class="m26-mobile-more"><summary>Más</summary><div class="m26-mobile-more-menu">${moreMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}</div></details>` : '';
+  const productivity=coachProductivityShell(vm);
 
   return `<div class="m26-shell" data-m26-role="${escapeHtml(vm.identity.role)}"><a class="m26-skip-link" href="#m26-main">Saltar al contenido</a>
     <aside class="m26-sidebar" aria-label="Navegación IBERFIT">
@@ -69,11 +76,12 @@ function renderM26ShellBase(vm, routeMarkup = '') {
     <section class="m26-workspace">
       <header class="m26-topbar">
         <div><p class="m26-eyebrow">${escapeHtml(vm.identity.roleLabel)}</p><h1 id="m26-page-title">${escapeHtml(vm.page.title)}</h1></div>
-        <div class="m26-topbar-actions">${clientSelector(vm)}${operationStatus(vm.operations)}<button type="button" class="m26-icon-button" data-m26-action="logout">Cerrar sesión</button></div>
+        <div class="m26-topbar-actions">${productivity.launcher}${clientSelector(vm)}${operationStatus(vm.operations)}<button type="button" class="m26-icon-button" data-m26-action="logout">Cerrar sesión</button></div>
       </header>
       <main id="m26-main" class="m26-main" tabindex="-1" aria-labelledby="m26-page-title">${routeContent}</main>
       <nav class="m26-mobile-nav" aria-label="Navegación rápida y completa">${quickMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}${mobileMore}</nav>
     </section>
+    ${productivity.palette}
   </div>`;
 }
 
