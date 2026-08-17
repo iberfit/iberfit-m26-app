@@ -122,19 +122,15 @@ test('RC62.1 stabilizes RC61 PWA history and versions the agenda shell',()=>{
   const rc61=read('tests/m26_rc61_2_sync_empty_transitions.test.mjs');
   const sw=read('public/m26/sw.js');
   assert.match(rc61,/Historical compatibility markers retained\[\^\\n\]\*m26-rc61-2\[\^\\n\]\*m26-rc61-1/u);
-  assert.match(sw,/VERSION='m26-rc62-1'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc61-2'/u);
+  assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc62-1[^\n]*m26-rc61-2/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc62-1[^\n]*m26-rc61-2/u);
   assert.match(sw,/"\/src\/m26\/agenda\/fullcalendar-agenda\.js"/u);
   assert.match(sw,/"\/src\/m26\/vendor\/fullcalendar-7\.0\.2\/all\.global\.js"/u);
 });
 
-test('RC62.1 closes only Agenda Standard and opens Guidance',()=>{
+test('RC62.1 preserves durable Agenda Standard closeout and cross-cutting rails',()=>{
   const roadmap=read('docs/ROADMAP_RC58_RC64_PREMIUM.md');
-  assert.match(roadmap,/RC62=IN_PROGRESS_AGENDA_GUIDANCE_ONBOARDING/u);
   assert.match(roadmap,/RC62_1=CLOSED_AGENDA_STANDARD/u);
-  assert.match(roadmap,/RC62_2=IN_PROGRESS_GUIDANCE/u);
-  assert.match(roadmap,/RC62_3=PENDING_PROGRESSIVE_ONBOARDING/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
 });

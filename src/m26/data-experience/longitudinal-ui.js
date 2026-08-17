@@ -1,5 +1,6 @@
 import './echarts-element.js';
 import {longitudinalMetricTrust,renderDataTrustStrip} from './data-trust.js';
+import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 
 const CLIENT_METRICS=Object.freeze([
   'steps',
@@ -182,6 +183,7 @@ function metricCard(aggregate,key,role){
   const d90=aggregate?.windows?.d90?.metrics?.[key];
   const trust=longitudinalMetricTrust(metric,aggregate?.dataTrust);
   const trustStrip=renderDataTrustStrip(trust,{role,compact:!professional});
+  const metricGuidance=key==='hrvMs'?renderGuidanceTrigger('vfc',{label:'Ayuda sobre VFC'}):'';
 
   const clientSummary=`
     <div class="m26-data-kpis">
@@ -204,7 +206,7 @@ function metricCard(aggregate,key,role){
     ${trustStrip}
   `;
 
-  return `<article class="m26-panel m26-data-metric-card" data-metric="${escapeHtml(key)}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${professional?'Comparativa longitudinal':'Evolución'}</p><h3>${escapeHtml(meta.label)}</h3></div><span class="m26-chip">${professional?'90 días':'28 días'}</span></div>${professional?coachSummary:clientSummary}<m26-echart class="m26-echart" data-label="${escapeHtml(meta.label)}" data-unit="${escapeHtml(meta.unit)}" data-points="${chartPayload(metric.points)}" aria-label="${escapeHtml(`${meta.label}, evolución de ${professional?'90':'28'} días`)}"></m26-echart>${fallbackTable(metric,meta)}</article>`;
+  return `<article class="m26-panel m26-data-metric-card" data-metric="${escapeHtml(key)}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${professional?'Comparativa longitudinal':'Evolución'}</p><div class="m26-guidance-inline"><h3>${escapeHtml(meta.label)}</h3>${metricGuidance}</div></div><span class="m26-chip">${professional?'90 días':'28 días'}</span></div>${professional?coachSummary:clientSummary}<m26-echart class="m26-echart" data-label="${escapeHtml(meta.label)}" data-unit="${escapeHtml(meta.unit)}" data-points="${chartPayload(metric.points)}" aria-label="${escapeHtml(`${meta.label}, evolución de ${professional?'90':'28'} días`)}"></m26-echart>${fallbackTable(metric,meta)}</article>`;
 }
 
 function adherencePanel(aggregate,role){

@@ -37,8 +37,8 @@ RC61_1=CLOSED_MOTION_FOUNDATION_REDUCED_MOTION
 RC61_2=CLOSED_SYNC_EMPTY_TRANSITIONS
 RC62=IN_PROGRESS_AGENDA_GUIDANCE_ONBOARDING
 RC62_1=CLOSED_AGENDA_STANDARD
-RC62_2=IN_PROGRESS_GUIDANCE
-RC62_3=PENDING_PROGRESSIVE_ONBOARDING
+RC62_2=CLOSED_GUIDANCE
+RC62_3=IN_PROGRESS_PROGRESSIVE_ONBOARDING
 PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL
 
 ## Critical rail A — Admin / RC46
@@ -284,12 +284,20 @@ FullCalendar Standard 7.0.2 para día/semana y operación Coach.
 
 No se diseña una dependencia oculta de vistas resource premium. Si IBERFIT necesita timeline multi-coach/recursos, se evalúa valor/licencia antes de adoptar FullCalendar Premium.
 
-### RC62.2 — Guidance — IN PROGRESS
+### RC62.2 — Guidance — CLOSED
 
 Tooltip/Popover infrastructure viene de RC58.
-RC62 añade ayuda contextual de IRI, VFC, calidad, procedencia y carga.
 
-### RC62.3 — Progressive Onboarding — PENDING
+- catálogo contextual canónico para IRI, VFC, calidad, procedencia, cobertura, método y carga;
+- triggers accesibles con touch target y foco visible;
+- popover no modal con Escape, cierre exterior y retorno de foco;
+- Data Trust explica fuente, calidad, cobertura y método sin fabricar significado clínico;
+- VFC exige método conocido y homogéneo;
+- RPE/RIR ayudan a contextualizar carga sin modificar la prescripción;
+- IRI se explica como evaluación estructurada, no como valoración clínica;
+- guidance no toca backend, permisos ni decisiones.
+
+### RC62.3 — Progressive Onboarding — IN PROGRESS
 
 Progressive onboarding por rol y por función.
 Driver.js puede usarse para tours cortos, nunca como sustituto de una interfaz autoexplicativa.

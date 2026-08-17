@@ -1,3 +1,5 @@
+import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
+
 export const DATA_TRUST_SCHEMA_VERSION='iberfit.data-trust.v1';
 
 const SOURCE_LABELS=Object.freeze({
@@ -225,8 +227,11 @@ export function challengeEvaluationTrust(evaluation={}){
   });
 }
 
-function trustItem(label,value,{kind='neutral'}={}){
-  return `<span class="m26-data-trust-item is-${escapeHtml(kind)}"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`;
+function trustItem(label,value,{kind='neutral',guidanceKey=null}={}){
+  const guidance=guidanceKey
+    ?renderGuidanceTrigger(guidanceKey,{label:`Ayuda sobre ${label.toLowerCase()}`})
+    :'';
+  return `<span class="m26-data-trust-item is-${escapeHtml(kind)}"><span class="m26-data-trust-label"><small>${escapeHtml(label)}</small>${guidance}</span><strong>${escapeHtml(value)}</strong></span>`;
 }
 
 export function renderDataTrustStrip(trustInput,{role='client',compact=false}={}){
@@ -235,12 +240,12 @@ export function renderDataTrustStrip(trustInput,{role='client',compact=false}={}
     :createDataTrust(trustInput);
   const professional=['coach','admin'].includes(String(role||'').toLowerCase());
   const items=[
-    trustItem('Fuente',trust.sourceLabel),
+    trustItem('Fuente',trust.sourceLabel,{guidanceKey:'data-source'}),
     trustItem('Fecha',formatDate(trust.observedAt),{kind:trust.observedAt?'neutral':'warning'}),
-    trustItem('Calidad',trust.qualityLabel,{kind:trust.quality==='alta'||trust.quality==='confirmada'?'success':trust.quality==='sin_datos'?'warning':'neutral'}),
-    trustItem('Cobertura',trust.coverageLabel,{kind:trust.coverage===0?'warning':'neutral'}),
+    trustItem('Calidad',trust.qualityLabel,{kind:trust.quality==='alta'||trust.quality==='confirmada'?'success':trust.quality==='sin_datos'?'warning':'neutral',guidanceKey:'data-quality'}),
+    trustItem('Cobertura',trust.coverageLabel,{kind:trust.coverage===0?'warning':'neutral',guidanceKey:'data-coverage'}),
     trustItem('Dato',trust.missingLabel,{kind:trust.missing?'warning':'success'}),
-    trustItem('Método',trust.methodLabel,{kind:trust.method&&trust.method!=='unknown'?'neutral':'warning'}),
+    trustItem('Método',trust.methodLabel,{kind:trust.method&&trust.method!=='unknown'?'neutral':'warning',guidanceKey:'data-method'}),
   ];
 
   const providerDetail=professional&&trust.providers.length>1
