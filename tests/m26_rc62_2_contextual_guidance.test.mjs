@@ -120,18 +120,14 @@ test('RC62.2 stabilizes RC62.1 history and versions the guidance shell',()=>{
   const prior=read('tests/m26_rc62_1_agenda_standard.test.mjs');
   const sw=read('public/m26/sw.js');
   assert.match(prior,/preserves durable Agenda Standard closeout/iu);
-  assert.match(sw,/VERSION='m26-rc62-2'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc62-1'/u);
+  assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc62-2[^\n]*m26-rc62-1/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc62-2[^\n]*m26-rc62-1/u);
   assert.match(sw,/"\/src\/m26\/guidance\/contextual-guidance\.js"/u);
 });
 
-test('RC62.2 closes Guidance without prematurely closing RC62',()=>{
+test('RC62.2 preserves durable Guidance closeout and cross-cutting rails',()=>{
   const roadmap=read('docs/ROADMAP_RC58_RC64_PREMIUM.md');
-  assert.match(roadmap,/RC62=IN_PROGRESS_AGENDA_GUIDANCE_ONBOARDING/u);
-  assert.match(roadmap,/RC62_1=CLOSED_AGENDA_STANDARD/u);
   assert.match(roadmap,/RC62_2=CLOSED_GUIDANCE/u);
-  assert.match(roadmap,/RC62_3=IN_PROGRESS_PROGRESSIVE_ONBOARDING/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
 });

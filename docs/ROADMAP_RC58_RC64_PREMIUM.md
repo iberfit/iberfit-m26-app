@@ -35,10 +35,11 @@ RC60_2B=CLOSED_VIRTUALIZATION_DECISION_BULK_PREP
 RC61=CLOSED_MOTION_MICROINTERACTIONS
 RC61_1=CLOSED_MOTION_FOUNDATION_REDUCED_MOTION
 RC61_2=CLOSED_SYNC_EMPTY_TRANSITIONS
-RC62=IN_PROGRESS_AGENDA_GUIDANCE_ONBOARDING
+RC62=CLOSED_AGENDA_GUIDANCE_ONBOARDING
 RC62_1=CLOSED_AGENDA_STANDARD
 RC62_2=CLOSED_GUIDANCE
-RC62_3=IN_PROGRESS_PROGRESSIVE_ONBOARDING
+RC62_3=CLOSED_PROGRESSIVE_ONBOARDING
+RC63=IN_PROGRESS_EXERCISE_MEDIA_EXPERIENCE
 PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL
 
 ## Critical rail A — Admin / RC46
@@ -297,10 +298,20 @@ Tooltip/Popover infrastructure viene de RC58.
 - IRI se explica como evaluación estructurada, no como valoración clínica;
 - guidance no toca backend, permisos ni decisiones.
 
-### RC62.3 — Progressive Onboarding — IN PROGRESS
+### RC62.3 — Progressive Onboarding — CLOSED
 
 Progressive onboarding por rol y por función.
-Driver.js puede usarse para tours cortos, nunca como sustituto de una interfaz autoexplicativa.
+
+- tracks específicos para Cliente, Coach y Admin;
+- progreso por visita real a rutas canónicas ya autorizadas;
+- persistencia local limitada a IDs de paso, rol y estado de visibilidad/completitud;
+- user id se usa solo para un scope hash local y no se persiste en claro;
+- guía no modal, ocultable, reabrible y reiniciable;
+- navegación reutiliza `data-m26-area` y por tanto conserva route guards;
+- no almacena salud, IRI, wearables, cargas ni payloads operativos;
+- Driver.js queda diferido: el checklist progresivo nativo cubre el caso RC62.3 sin nueva dependencia.
+
+Driver.js puede evaluarse para tours cortos futuros, nunca como sustituto de una interfaz autoexplicativa.
 
 ## RC63 — Exercise & Media Experience
 

@@ -148,12 +148,11 @@ test('RC61.2 PWA versions closeout and preserves RC61.1 lineage',()=>{
   assert.match(sw,/"\/src\/m26\/motion\/motion-controller\.js"/u);
 });
 
-test('RC61.2 closes Motion and opens RC62 Agenda Guidance Onboarding',()=>{
+test('RC61.2 preserves durable Motion closeout and cross-cutting rails',()=>{
   const roadmap=read('docs/ROADMAP_RC58_RC64_PREMIUM.md');
   assert.match(roadmap,/RC61=CLOSED_MOTION_MICROINTERACTIONS/u);
   assert.match(roadmap,/RC61_1=CLOSED_MOTION_FOUNDATION_REDUCED_MOTION/u);
   assert.match(roadmap,/RC61_2=CLOSED_SYNC_EMPTY_TRANSITIONS/u);
-  assert.match(roadmap,/RC62=IN_PROGRESS_AGENDA_GUIDANCE_ONBOARDING/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
 });
