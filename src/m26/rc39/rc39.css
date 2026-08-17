@@ -93,3 +93,66 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 @media print{
   .m26-role-switcher,.m26-role-choice,.m26-rc39-card-actions,.m26-rc39-change-form{display:none!important}
 }
+/* IBERFIT RC62.1 · FullCalendar Standard Coach Agenda */
+.m26-rc62-agenda-calendar-panel{
+  display:grid;
+  gap:.85rem;
+  overflow:hidden;
+}
+.m26-rc62-agenda-calendar-panel .m26-panel-heading p{
+  margin:.25rem 0 0;
+  color:var(--m26-muted);
+  max-width:65ch;
+}
+.m26-rc62-agenda-calendar-shell{
+  min-height:36rem;
+  --fc-border-color:var(--m26-line);
+  --fc-page-bg-color:transparent;
+  --fc-neutral-bg-color:rgba(228,205,152,.04);
+  --fc-list-event-hover-bg-color:rgba(228,205,152,.08);
+  --fc-today-bg-color:rgba(228,205,152,.06);
+  color:var(--m26-cream-100);
+}
+.m26-rc62-agenda-calendar-shell .fc{
+  color:var(--m26-cream-100);
+  font-family:inherit;
+}
+.m26-rc62-agenda-calendar-shell .fc .fc-toolbar{
+  gap:.75rem;
+  flex-wrap:wrap;
+}
+.m26-rc62-agenda-calendar-shell .fc .fc-toolbar-title{
+  font-family:var(--m26-font-display,Georgia,serif);
+  font-size:clamp(1.1rem,2vw,1.45rem);
+  font-weight:600;
+}
+.m26-rc62-agenda-calendar-shell .fc button{
+  min-height:44px;
+  font:inherit;
+}
+.m26-rc62-agenda-calendar-shell .fc a{
+  color:inherit;
+}
+.m26-rc62-agenda-calendar-shell .fc-event{
+  border-radius:.55rem;
+  border-width:1px;
+  cursor:pointer;
+}
+.m26-rc62-agenda-calendar-shell .fc-event:focus-visible{
+  outline:3px solid var(--m26-gold-300);
+  outline-offset:2px;
+}
+.m26-rc62-agenda-calendar-shell .fc-timegrid-slot-label,
+.m26-rc62-agenda-calendar-shell .fc-col-header-cell{
+  color:var(--m26-muted);
+}
+[data-appointment-card]:focus-visible{
+  outline:3px solid var(--m26-gold-300);
+  outline-offset:3px;
+}
+@media (max-width:719px){
+  .m26-rc62-agenda-calendar-panel{display:none!important}
+}
+@media print{
+  .m26-rc62-agenda-calendar-panel{display:none!important}
+}

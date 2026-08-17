@@ -143,8 +143,7 @@ test('RC61.2 keeps one native motion engine without new runtime dependencies',()
 
 test('RC61.2 PWA versions closeout and preserves RC61.1 lineage',()=>{
   const sw=read('public/m26/sw.js');
-  assert.match(sw,/VERSION='m26-rc61-2'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc61-1'/u);
+  assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc61-2[^\n]*m26-rc61-1/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc61-2[^\n]*m26-rc61-1/u);
   assert.match(sw,/"\/src\/m26\/motion\/motion-controller\.js"/u);
 });

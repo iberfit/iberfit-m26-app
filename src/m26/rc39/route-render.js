@@ -60,7 +60,7 @@ const sessionCard=(item,role)=>{
   const content=item.visibility==='full'&&Array.isArray(item.session?.blocks)&&item.session.blocks.length
     ? `<details class="m26-rc39-session-content"><summary>Ver entrenamiento completo</summary><ol>${item.session.blocks.map((block)=>`<li><strong>${escape(block.name||block.title||'Ejercicio')}</strong><span>${escape([block.sets?`${block.sets} series`:null,block.reps||null,block.restSeconds?`${block.restSeconds} s descanso`:null].filter(Boolean).join(' · '))}</span></li>`).join('')}</ol></details>`
     : `<p class="m26-rc39-summary-copy">${item.ownership==='coach_led'?'Esta sesión la dirige Carlos. Aparece en tu semana, pero no se reproduce desde la aplicación.':item.ownership==='live_online'?'La sesión se realiza en directo con tu Coach.':'El contenido se mostrará cuando esté preparado y publicado.'}</p>`;
-  return `<article class="m26-rc39-session-card is-${kind}" data-rc39-session="${escape(item.id)}">
+  return `<article class="m26-rc39-session-card is-${kind}" data-rc39-session="${escape(item.id)}" data-appointment-card="${escape(item.appointmentId||'')}" tabindex="-1">
     <header><div><p class="m26-eyebrow">${escape(ownershipLabel(item.ownership))}</p><h3>${escape(item.title)}</h3><p>${escape(formatDate(item.startAt))}</p></div><div>${statusBadge(modalityLabel(item.modality),kind==='autonomous'?'success':'neutral')}${statusBadge(visibility,'neutral')}</div></header>
     ${item.location?`<p class="m26-rc39-location"><strong>Lugar:</strong> ${escape(item.location)}</p>`:''}
     ${item.confirmation?`<p class="m26-rc39-confirmation is-${escape(item.confirmation.state)}">${escape(item.confirmation.label)}</p>`:''}
@@ -97,9 +97,10 @@ function renderAgenda(vm){
   const cards=appointments.length?appointments.map((appointment)=>{
     const item=projections.find((projection)=>projection.appointmentId===appointment.id);
     if(item)return sessionCard(item,role);
-    return `<article class="m26-rc39-session-card"><header><div><p class="m26-eyebrow">Cita sin sesión enlazada</p><h3>${escape(appointment.title)}</h3><p>${escape(formatDate(appointment.startAt))}</p></div>${statusBadge(appointment.status||'Sin estado','neutral')}</header>${appointment.location?`<p>${escape(appointment.location)}</p>`:''}</article>`;
+    return `<article class="m26-rc39-session-card" data-appointment-card="${escape(appointment.id)}" tabindex="-1"><header><div><p class="m26-eyebrow">Cita sin sesión enlazada</p><h3>${escape(appointment.title)}</h3><p>${escape(formatDate(appointment.startAt))}</p></div>${statusBadge(appointment.status||'Sin estado','neutral')}</header>${appointment.location?`<p>${escape(appointment.location)}</p>`:''}</article>`;
   }).join(''):`<section class="m26-empty"><h3>Agenda vacía</h3><p>No hay citas dentro del alcance actual.</p></section>`;
-  return `<div class="m26-route m26-rc39-agenda"><section class="m26-route-intro"><div><p class="m26-eyebrow">${role==='client'?'Tu agenda':'Agenda operativa'}</p><h2>Sesiones por día</h2><p>${role==='client'?'Confirma desde 48 horas antes. Las sesiones presenciales no se reproducen desde la aplicación.':'Abre, prepara, inicia o reprograma desde una única secuencia.'}</p></div></section><section class="m26-rc39-week">${cards}</section></div>`;
+  const calendar=role==='coach'?`<section class="m26-panel m26-rc62-agenda-calendar-panel" aria-labelledby="m26-rc62-agenda-title"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Vista operativa</p><h2 id="m26-rc62-agenda-title">Semana y día</h2><p>Explora la distribución horaria. Las acciones y el detalle completo permanecen en las tarjetas de agenda.</p></div></div><div class="m26-rc62-agenda-calendar-shell" data-rc62-agenda-calendar aria-label="Calendario operativo del Coach"></div></section>`:'';
+  return `<div class="m26-route m26-rc39-agenda"><section class="m26-route-intro"><div><p class="m26-eyebrow">${role==='client'?'Tu agenda':'Agenda operativa'}</p><h2>Sesiones por día</h2><p>${role==='client'?'Confirma desde 48 horas antes. Las sesiones presenciales no se reproducen desde la aplicación.':'Abre, prepara, inicia o reprograma desde una única secuencia.'}</p></div></section>${calendar}<section class="m26-rc39-week">${cards}</section></div>`;
 }
 function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;

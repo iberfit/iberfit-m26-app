@@ -1,5 +1,6 @@
 import {buildClientConfirmAppointmentCommand} from './agenda-extension.js';
 import {appointmentCalendarEvent,downloadIcs} from './calendar.js';
+import {createRc62AgendaCalendarController} from '../agenda/fullcalendar-agenda.js';
 
 const recordBody=(record)=>record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;
 const field=(record,...keys)=>{
@@ -25,6 +26,7 @@ export function createRc39Controller({
   render=()=>{},
 }={}){
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_RC39_CONTROLLER_CONTEXT_REQUIRED');
+  const agendaCalendar=createRc62AgendaCalendarController({root,store});
   let busy=false;
   async function execute(command,success){
     if(busy)return;
@@ -105,7 +107,7 @@ export function createRc39Controller({
       render();
     }finally{busy=false;}
   }
-  function mount(){root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);}
-  function destroy(){root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);}
+  function mount(){agendaCalendar.mount();root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);}
+  function destroy(){agendaCalendar.destroy();root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);}
   return Object.freeze({mount,destroy});
 }

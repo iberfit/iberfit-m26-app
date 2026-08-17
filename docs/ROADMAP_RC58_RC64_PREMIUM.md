@@ -36,6 +36,9 @@ RC61=CLOSED_MOTION_MICROINTERACTIONS
 RC61_1=CLOSED_MOTION_FOUNDATION_REDUCED_MOTION
 RC61_2=CLOSED_SYNC_EMPTY_TRANSITIONS
 RC62=IN_PROGRESS_AGENDA_GUIDANCE_ONBOARDING
+RC62_1=CLOSED_AGENDA_STANDARD
+RC62_2=IN_PROGRESS_GUIDANCE
+RC62_3=PENDING_PROGRESSIVE_ONBOARDING
 PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL
 
 ## Critical rail A — Admin / RC46
@@ -267,16 +270,27 @@ Casos:
 
 ## RC62 — Agenda, Guidance & Onboarding
 
-### Agenda
-FullCalendar Standard para día/semana y operación Coach inicialmente.
+### RC62.1 — Agenda Standard — CLOSED
+
+FullCalendar Standard 7.0.2 para día/semana y operación Coach.
+
+- vendor oficial same-origin con release SHA-256 verificado;
+- `timeGridWeek` + `timeGridDay`;
+- zona horaria `America/Santiago` y locale español;
+- agenda visual no mutante: drag, resize y selección desactivados;
+- tarjetas RC39 permanecen como fallback accesible y experiencia móvil;
+- evento de calendario solo enfoca la tarjeta operativa correspondiente;
+- FullCalendar Premium / Scheduler y resource views quedan fuera.
 
 No se diseña una dependencia oculta de vistas resource premium. Si IBERFIT necesita timeline multi-coach/recursos, se evalúa valor/licencia antes de adoptar FullCalendar Premium.
 
-### Guidance
+### RC62.2 — Guidance — IN PROGRESS
+
 Tooltip/Popover infrastructure viene de RC58.
 RC62 añade ayuda contextual de IRI, VFC, calidad, procedencia y carga.
 
-### Onboarding
+### RC62.3 — Progressive Onboarding — PENDING
+
 Progressive onboarding por rol y por función.
 Driver.js puede usarse para tours cortos, nunca como sustituto de una interfaz autoexplicativa.
 
