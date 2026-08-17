@@ -33,6 +33,8 @@ RC60_2=CLOSED_LARGE_LIST_REUSE
 RC60_2A=CLOSED_REUSE_MEASUREMENT
 RC60_2B=CLOSED_VIRTUALIZATION_DECISION_BULK_PREP
 RC61=IN_PROGRESS_MOTION_MICROINTERACTIONS
+RC61_1=CLOSED_MOTION_FOUNDATION_REDUCED_MOTION
+RC61_2=IN_PROGRESS_SYNC_EMPTY_TRANSITIONS
 PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL
 
 ## Critical rail A — Admin / RC46
@@ -241,6 +243,21 @@ Casos:
 - skeleton/empty transitions.
 
 `prefers-reduced-motion` es obligatorio.
+
+### RC61.1 — Motion Foundation & Reduced Motion — CLOSED
+
+- gramática única de motion con presets acotados;
+- WAAPI/CSS same-origin para interacciones simples;
+- feedback de guardar, serie, filtros e insertar/reordenar;
+- estados success/error, sync y empty/loading observables;
+- `prefers-reduced-motion` autoritativo en JS y CSS;
+- Motion library y AutoAnimate no entran mientras WAAPI simple sea suficiente.
+
+### RC61.2 — Sync & Empty-State Orchestration — IN PROGRESS
+
+- afinar feedback de sincronización y transiciones empty/loading;
+- validar que motion nunca sea portador exclusivo de información;
+- cerrar RC61 con regresión completa y reduced-motion gate.
 
 ## RC62 — Agenda, Guidance & Onboarding
 

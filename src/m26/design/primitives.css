@@ -1397,3 +1397,28 @@
     scroll-behavior: auto;
   }
 }
+/* IBERFIT RC61.1 · Motion Foundation */
+[data-motion-engine="waapi"] .m26-action-state,
+[data-motion-engine="waapi"] .m26-sync-banner,
+[data-motion-engine="waapi"] .m26-empty-copy,
+[data-motion-engine="waapi"] [data-empty-state],
+[data-motion-engine="waapi"] [data-loading-state] {
+  transform-origin: center;
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

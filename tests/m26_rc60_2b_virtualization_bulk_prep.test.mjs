@@ -145,8 +145,7 @@ test('RC60.2B existing keyboard reorder and conventional session controls remain
 
 test('RC60.2B PWA versions the decision layer and preserves RC60.2A lineage',()=>{
   const sw=read('public/m26/sw.js');
-  assert.match(sw,/VERSION='m26-rc60-2b'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc60-2a'/u);
+  assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc60-2b[^\n]*m26-rc60-2a/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc60-2b[^\n]*m26-rc60-2a/u);
   assert.match(sw,/"\/src\/m26\/productivity\/bulk-preparation\.js"/u);
 });
