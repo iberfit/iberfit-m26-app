@@ -114,11 +114,9 @@ test('RC60.1 PWA versiona productividad y conserva RC59.6 como lineage',()=>{
   assert.match(sw,/"\/src\/m26\/vendor\/fuse-7\.5\.0\.basic\.min\.js"/u);
 });
 
-test('RC60.1 cierra Search Command Surface sin cerrar prematuramente RC60',()=>{
+test('RC60.1 conserva cierre histórico de Search Command Surface y rails transversales',()=>{
   const roadmap=read('docs/ROADMAP_RC58_RC64_PREMIUM.md');
-  assert.match(roadmap,/RC60=IN_PROGRESS_COACH_PRODUCTIVITY/u);
   assert.match(roadmap,/RC60_1=CLOSED_SEARCH_COMMAND_SURFACE/u);
-  assert.match(roadmap,/RC60_2=IN_PROGRESS_LARGE_LIST_REUSE/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
 });

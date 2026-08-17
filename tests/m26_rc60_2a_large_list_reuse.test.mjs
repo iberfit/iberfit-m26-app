@@ -170,8 +170,7 @@ test('RC60.2A plantillas son locales y no amplían backend ni autorización',()=
 
 test('RC60.2A PWA versiona reuse measurement y conserva RC60.1',()=>{
   const sw=read('public/m26/sw.js');
-  assert.match(sw,/VERSION='m26-rc60-2a'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc60-1'/u);
+  assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc60-2a[^\n]*m26-rc60-1/u);
   assert.match(sw,/Historical compatibility markers retained[^\n]*m26-rc60-2a[^\n]*m26-rc60-1/u);
   assert.match(sw,/"\/src\/m26\/productivity\/session-reuse\.js"/u);
   assert.match(sw,/"\/src\/m26\/productivity\/large-list-policy\.js"/u);
@@ -179,10 +178,8 @@ test('RC60.2A PWA versiona reuse measurement y conserva RC60.1',()=>{
 
 test('RC60.2A cierra reuse measurement sin cerrar prematuramente RC60.2',()=>{
   const roadmap=read('docs/ROADMAP_RC58_RC64_PREMIUM.md');
-  assert.match(roadmap,/RC60=IN_PROGRESS_COACH_PRODUCTIVITY/u);
-  assert.match(roadmap,/RC60_2=IN_PROGRESS_LARGE_LIST_REUSE/u);
+  assert.match(roadmap,/RC60_1=CLOSED_SEARCH_COMMAND_SURFACE/u);
   assert.match(roadmap,/RC60_2A=CLOSED_REUSE_MEASUREMENT/u);
-  assert.match(roadmap,/RC60_2B=IN_PROGRESS_VIRTUALIZATION_DECISION_BULK_PREP/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
 });

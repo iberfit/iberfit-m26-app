@@ -1,10 +1,11 @@
 export const COACH_LARGE_LIST_POLICY_VERSION='iberfit.large-list-policy.v1';
 export const COACH_LARGE_LIST_MIN_ITEMS=120;
 export const COACH_LARGE_LIST_FRAME_BUDGET_MS=24;
+export const COACH_VIRTUALIZATION_REQUIRED_RUNTIME_SAMPLES=3;
 
 function finite(value,fallback=0){const number=Number(value);return Number.isFinite(number)?number:fallback;}
 
-export function classifyCoachListMeasurement({count=0,visibleCount=count,elapsedMs=0}={}){
+export function classifyCoachListMeasurement({count=0,visibleCount=count,elapsedMs=0,source='runtime'}={}){
   const total=Math.max(0,Math.trunc(finite(count)));
   const visible=Math.max(0,Math.min(total,Math.trunc(finite(visibleCount,total))));
   const elapsed=Math.max(0,finite(elapsedMs));
@@ -13,6 +14,7 @@ export function classifyCoachListMeasurement({count=0,visibleCount=count,elapsed
   const virtualizationRecommended=enoughItems&&exceedsBudget;
   return Object.freeze({
     policyVersion:COACH_LARGE_LIST_POLICY_VERSION,
+    source:String(source||'runtime')==='synthetic'?'synthetic':'runtime',
     count:total,
     visibleCount:visible,
     elapsedMs:Math.round(elapsed*10)/10,
@@ -44,4 +46,26 @@ export function markCoachListMeasurement(grid,measurement){
     }
   }
   return true;
+}
+export function decideCoachVirtualization(measurements=[]){
+  const runtime=(Array.isArray(measurements)?measurements:[])
+    .filter((item)=>item&&item.source==='runtime')
+    .slice(-COACH_VIRTUALIZATION_REQUIRED_RUNTIME_SAMPLES);
+  if(runtime.length<COACH_VIRTUALIZATION_REQUIRED_RUNTIME_SAMPLES){
+    return Object.freeze({
+      decision:'defer',
+      reason:'insufficient_runtime_evidence',
+      runtimeSamples:runtime.length,
+      requiredRuntimeSamples:COACH_VIRTUALIZATION_REQUIRED_RUNTIME_SAMPLES,
+      automaticAdoption:false,
+    });
+  }
+  const allRecommend=runtime.every((item)=>item.virtualizationRecommended===true);
+  return Object.freeze({
+    decision:allRecommend?'candidate':'defer',
+    reason:allRecommend?'repeated_runtime_budget_exceeded':'runtime_evidence_not_consistent',
+    runtimeSamples:runtime.length,
+    requiredRuntimeSamples:COACH_VIRTUALIZATION_REQUIRED_RUNTIME_SAMPLES,
+    automaticAdoption:false,
+  });
 }

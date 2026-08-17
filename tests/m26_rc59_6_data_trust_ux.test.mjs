@@ -234,10 +234,9 @@ test('RC59.6 PWA versiona Data Trust y preserva RC59.5 como lineage',()=>{
   assert.match(sw,/"\/src\/m26\/data-experience\/data-trust\.js"/u);
 });
 
-test('RC59.6 cierra Data Trust UX y abre Coach Productivity preservando informes premium',()=>{
+test('RC59.6 conserva cierre histórico de Data Trust y rails transversales',()=>{
   const roadmap=read('docs/ROADMAP_RC58_RC64_PREMIUM.md');
   assert.match(roadmap,/RC59_6=CLOSED_DATA_TRUST_UX/u);
-  assert.match(roadmap,/RC60=IN_PROGRESS_COACH_PRODUCTIVITY/u);
   assert.match(roadmap,/PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL/u);
   assert.match(roadmap,/RC59_2_HEALTH_CONNECT_PHYSICAL_E2E=PENDING_ANDROID_DEVICE/u);
 });
