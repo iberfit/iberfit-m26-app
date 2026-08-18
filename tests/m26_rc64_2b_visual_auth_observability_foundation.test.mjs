@@ -205,3 +205,21 @@ test('RC64.2B1 validate job fetches full Git history required by RC56 hardware p
   assert.match(rc56,/native\/android\/wear\/IBERFITWearHealthServicesBridge\.kt/u);
   assert.match(rc56,/native\/android\/runtime\/IBERFITWearDataLayerRuntime\.kt/u);
 });
+test('RC64.2B1 base browser gate remains isolated from specialized visual auth and real-shell specs',()=>{
+  const base=read('playwright.config.mjs');
+  const realShell=read('playwright.real-shell.config.mjs');
+  const visual=read('playwright.visual.config.mjs');
+  const authenticated=read('playwright.authenticated.config.mjs');
+
+  assert.match(base,/testMatch:'quality-platform\.spec\.mjs'/u);
+  assert.doesNotMatch(base,/testMatch:'\*\*\/\*\.spec\.mjs'/u);
+
+  assert.match(realShell,/testMatch:'real-shell\.spec\.mjs'/u);
+  assert.match(visual,/testMatch:'visual\.spec\.mjs'/u);
+  assert.match(authenticated,/testMatch:'authenticated-smoke\.spec\.mjs'/u);
+
+  assert.equal(pkg.scripts['quality:rc64:browser'],'playwright test --config playwright.config.mjs');
+  assert.equal(pkg.scripts['quality:rc64:real-shell'],'node qa/rc64/build-current-surface.mjs && playwright test --config playwright.real-shell.config.mjs');
+  assert.equal(pkg.scripts['quality:rc64:visual'],'node qa/rc64/build-current-surface.mjs && playwright test --config playwright.visual.config.mjs');
+  assert.equal(pkg.scripts['quality:rc64:auth-smoke'],'node qa/rc64/build-authenticated-surface.mjs && playwright test --config playwright.authenticated.config.mjs');
+});

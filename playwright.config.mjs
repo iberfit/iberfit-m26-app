@@ -4,7 +4,7 @@ const CI=Boolean(process.env.CI);
 
 export default defineConfig({
   testDir:'./qa/rc64',
-  testMatch:'**/*.spec.mjs',
+  testMatch:'quality-platform.spec.mjs',
   fullyParallel:true,
   forbidOnly:CI,
   retries:CI?1:0,

@@ -146,3 +146,33 @@ CI now sets `fetch-depth: 0` on the canonical checkout. The RC56 test and hardwa
 evidence remain unchanged and fail-closed; RC64 adds a regression so shallow
 checkout cannot silently be reintroduced while historical provenance is part of
 `npm test`.
+## Linux CI base-browser isolation correction
+
+After the historical-provenance checkout correction, Linux CI passed the complete
+Node suite (`1135` tests, `1134` pass, `0` fail, `1` intentional skip) and then
+failed at `quality:rc64:browser`.
+
+The base `playwright.config.mjs` still used the original broad
+`testMatch:'**/*.spec.mjs'`. Once RC64.2A/2B added specialized specs under the
+same `qa/rc64` directory, that base gate discovered `84` executions instead of
+the canonical `75` synthetic-fixture executions. The extra nine were exactly
+three specialized specs (`authenticated-smoke`, `real-shell`, `visual`) executed
+under each of the base desktop/tablet/mobile projects.
+
+This was orchestration leakage, not evidence that the specialized gates failed in
+their intended environments:
+
+- authenticated smoke requires the protected QA environment and its dedicated
+  authenticated config;
+- real-shell requires the generated current-source surface and dedicated server;
+- visual regression requires the Linux-only visual config and generated
+  current-source surface.
+
+The base RC64.1 browser gate is now explicitly restricted to
+`quality-platform.spec.mjs`. The three specialized configs/specs are unchanged.
+A regression and a Playwright `--list` gate require exactly `75` tests in one
+file and reject discovery of any specialized spec before commit.
+
+This correction does not close RC64.2B and does not claim remote authenticated or
+canonical Linux visual success. Those remain subject to the protected remote
+workflow and evidence review.
