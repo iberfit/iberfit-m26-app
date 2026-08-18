@@ -8,6 +8,28 @@ if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
 
 let fullAppPromise=null;
 
+function scheduleQualityRuntimeObservability(){
+  const start=async()=>{
+    const {installQualityRuntimeObservability}=await import('/src/m26/quality/runtime-observability.js');
+    const collector=installQualityRuntimeObservability({scope:globalThis});
+    globalThis.__IBERFIT_M26_QUALITY_OBSERVABILITY__=collector;
+    return collector;
+  };
+
+  const ready=new Promise((resolve,reject)=>{
+    const run=()=>start().then(resolve,reject);
+    if(typeof globalThis.requestIdleCallback==='function'){
+      globalThis.requestIdleCallback(run,{timeout:2000});
+    }else{
+      globalThis.setTimeout(run,0);
+    }
+  });
+
+  globalThis.__IBERFIT_M26_QUALITY_OBSERVABILITY_READY__=ready;
+}
+
+scheduleQualityRuntimeObservability();
+
 async function activateFullStyles(){
   const links=[...document.querySelectorAll('link[data-iberfit-full-style]')];
 

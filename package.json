@@ -244,7 +244,11 @@
     "quality:rc64:browser": "playwright test --config playwright.config.mjs",
     "test:m26:rc64:2a": "node --test tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs",
     "quality:rc64:real-shell": "node qa/rc64/build-current-surface.mjs && playwright test --config playwright.real-shell.config.mjs",
-    "quality:rc64:performance": "node qa/rc64/build-current-surface.mjs && node qa/rc64/run-lighthouse.mjs"
+    "quality:rc64:performance": "node qa/rc64/build-current-surface.mjs && node qa/rc64/run-lighthouse.mjs",
+    "test:m26:rc64:2b": "node --test tests/m26_rc64_2b_visual_auth_observability_foundation.test.mjs",
+    "quality:rc64:visual": "node qa/rc64/build-current-surface.mjs && playwright test --config playwright.visual.config.mjs",
+    "quality:rc64:visual:update": "node qa/rc64/build-current-surface.mjs && playwright test --config playwright.visual.config.mjs --update-snapshots",
+    "quality:rc64:auth-smoke": "node qa/rc64/build-authenticated-surface.mjs && playwright test --config playwright.authenticated.config.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

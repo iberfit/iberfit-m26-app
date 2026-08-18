@@ -46,6 +46,19 @@ test('preauth-disabled-runtime actual launch candidate has no console network or
   expect(layout.runtimeEnabled).toBe(false);
   expect(layout.appMounted).toBe(true);
   expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth+1);
+  const quality=await page.evaluate(async()=>{
+    const collector=await globalThis.__IBERFIT_M26_QUALITY_OBSERVABILITY_READY__;
+    return collector?.snapshot?.()||null;
+  });
+  expect(quality?.schemaVersion).toBe('iberfit.quality-runtime-observability.v1');
+  expect(quality?.storage).toBe('memory-only');
+  expect(quality?.transport).toBe('none');
+  expect(quality?.identityIncluded).toBe(false);
+  expect(quality?.healthDataIncluded).toBe(false);
+  expect(quality?.fieldP75Claimed).toBe(false);
+  expect(quality?.inpClaimed).toBe(false);
+  expect(quality?.metrics?.interactionLatencyLabel).toBe('candidate-not-inp');
+
   expect(observed.externalRequests).toEqual([]);
   expect(observed.errors).toEqual([]);
 });

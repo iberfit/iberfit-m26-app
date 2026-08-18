@@ -431,6 +431,17 @@ RC64_2A=CLOSED_PERFORMANCE_REAL_SHELL_FOUNDATION
 #### RC64.2B — Visual, Authenticated Smoke & Runtime Observability Closeout — IN PROGRESS
 
 RC64_2B=IN_PROGRESS_VISUAL_AUTH_OBSERVABILITY_CLOSEOUT
+RC64_2B1=READY_REMOTE_LINUX_AUTH_EVIDENCE
+
+- observabilidad de calidad separada de la telemetría clínica: memoria acotada, sin identidad, salud, persistencia ni transporte externo;
+- la carga de observabilidad es dinámica y diferida para no convertirse en recurso crítico de render;
+- LCP y CLS se conservan como métricas locales de navegador; la latencia de interacción se etiqueta `candidate-not-inp` y no se presenta como INP;
+- `workflow_dispatch` protegido en Ubuntu genera candidatos visuales mediante `toHaveScreenshot` y nunca acepta goldens Windows;
+- el mismo workflow ejecuta smoke browser sobre la fuente canónica actual con credenciales QA reales del environment;
+- el smoke bloquea fail-closed cualquier request externa fuera del origen Supabase canónico o de la allowlist de lectura/autenticación;
+- no se persisten email, userId, token, contraseña ni datos de salud en la evidencia RC64.2B;
+- `contents: read` permanece como permiso del workflow y no existe push/deploy automático de los candidatos visuales;
+- RC64.2B no se cierra hasta ejecutar el workflow remoto, revisar los PNG Linux, versionar los goldens aprobados y convertir el workflow de `--update-snapshots` a comparación estricta.
 
 - generar y comparar golden screenshots en un entorno Linux reproducible;
 - usar Playwright `toHaveScreenshot` sin Percy/Chromatic mientras sea suficiente;
