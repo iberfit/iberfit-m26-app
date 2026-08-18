@@ -152,3 +152,35 @@ test('RC64.2B1 roadmap remains open until remote Linux/auth evidence is reviewed
   assert.match(evidence,/versionar los PNG Linux aprobados/u);
   assert.match(evidence,/nunca email, token, userId, clientId, contraseña ni salud/u);
 });
+test('RC64.2B1 remote workflow keeps every appended quality action inside preflight steps',()=>{
+  const workflow=read('.github/workflows/remote-gates.yml');
+
+  assert.doesNotMatch(workflow,/^- name:/mu);
+
+  for(const step of [
+    'Preparar Playwright RC64.2B',
+    'Generar candidatos visuales canónicos Linux RC64.2B',
+    'Conservar candidatos visuales Linux',
+    'Ejecutar smoke autenticado RC64.2B sobre fuente actual sin mutaciones',
+    'Conservar evidencia autenticada minimizada RC64.2B',
+  ]){
+    assert.match(
+      workflow,
+      new RegExp(`^ {6}- name: ${step.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}$`,'mu'),
+    );
+  }
+
+  assert.match(workflow,/^permissions:\r?\n {2}contents: read$/mu);
+  assert.match(workflow,/^ {4}steps:$/mu);
+});
+test('RC64.2B1 quality observability module is part of the generated PWA shell after tracking',()=>{
+  const sw=read('public/m26/sw.js');
+  const generator=read('scripts/generate_rc58_app_shell.mjs');
+
+  assert.match(sw,/"\/src\/m26\/quality\/runtime-observability\.js"/u);
+  assert.match(generator,/\['ls-files','--','src\/m26','public\/m26'\]/u);
+  assert.match(generator,/repoPath\.startsWith\('src\/m26\/'\)/u);
+  assert.match(generator,/!\['\.js','\.css'\]\.includes\(extension\)/u);
+  assert.match(sw,/VERSION='m26-rc63-2'/u);
+  assert.match(sw,/PREVIOUS_VERSION='m26-rc63-1'/u);
+});

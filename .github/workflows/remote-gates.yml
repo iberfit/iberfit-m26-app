@@ -41,7 +41,7 @@ jobs:
           path: recovery/RC29_REMOTE_*.json
           if-no-files-found: warn
           retention-days: 7
-- name: Preparar Playwright RC64.2B
+      - name: Preparar Playwright RC64.2B
         run: |
           npm ci
           npx playwright install --with-deps chromium

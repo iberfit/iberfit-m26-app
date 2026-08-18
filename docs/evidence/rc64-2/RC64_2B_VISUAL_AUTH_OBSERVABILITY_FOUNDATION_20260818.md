@@ -88,3 +88,34 @@ Después el workflow remoto Linux debe producir:
 
 Sólo entonces procede RC64.2B2: aprobar/versionar goldens y convertir visual
 regression a comparación estricta.
+## Remote workflow indentation correction
+
+After the RC64.2B1 foundation commit was pushed, independent remote inspection of
+`.github/workflows/remote-gates.yml` found that the first appended RC64.2B step
+(`Preparar Playwright RC64.2B`) had been written at YAML root indentation instead
+of inside `jobs.preflight.steps`.
+
+The remaining appended steps were already at the correct six-space step
+indentation. V6 corrects only that structural defect and adds a regression that
+rejects any top-level `- name:` action and requires every RC64.2B action to remain
+inside the existing `preflight` step list.
+
+No application source, performance budget, dependency, backend contract, secret,
+or release-data path changes in this correction.
+## Post-commit PWA inventory alignment
+
+V6 correctly fixed the remote-workflow indentation and its focused tests passed,
+but the subsequent full regression failed on `RC58_5C_B_APP_SHELL_STALE`.
+
+The cause is deterministic: `src/m26/quality/runtime-observability.js` was still
+a new/untracked file when the V5 pre-commit suite ran. RC58.5c-b intentionally
+builds the broad `src/m26` JavaScript/CSS precache inventory from `git ls-files`.
+After V5 committed the module, it became part of that tracked inventory and the
+previously generated `APP_SHELL` was therefore stale.
+
+V7 regenerates `public/m26/sw.js` from the definitive tracked inventory and adds
+a regression requiring the quality-observability module in `APP_SHELL`.
+
+The generator itself is unchanged, the RC58.5c-b fail-closed contract is not
+weakened, and service-worker lineage remains `m26-rc63-2` with predecessor
+`m26-rc63-1`.
