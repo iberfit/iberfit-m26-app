@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import lighthouse from 'lighthouse';
 import {chromium} from '@playwright/test';
+import {managedChromiumSandboxArgs} from './chromium-launch-policy.mjs';
 
 const require=createRequire(import.meta.url);
 const contract=require('../../lighthouserc.cjs');
@@ -75,6 +76,7 @@ async function launchManagedChromium(profileDir,chromePath){
     chromePath,
     [
       '--headless=new',
+      ...managedChromiumSandboxArgs({host:contract.host}),
       '--remote-debugging-address=127.0.0.1',
       '--remote-debugging-port=0',
       `--user-data-dir=${profileDir}`,
@@ -142,6 +144,7 @@ invariant(existsSync(candidate),'RC64_2A_CANDIDATE_MISSING');
 invariant(existsSync(staticServer),'RC64_2A_STATIC_SERVER_MISSING');
 invariant(chromePath&&existsSync(chromePath),'RC64_2A_CHROMIUM_MISSING');
 invariant(contract.schema==='iberfit.rc64.2a.lighthouse-budget.v1','RC64_2A_BUDGET_SCHEMA_INVALID');
+invariant(contract.host==='127.0.0.1','RC64_2A_LIGHTHOUSE_HOST_MUST_BE_IPV4_LOOPBACK');
 invariant(contract.runs===3,'RC64_2A_RUN_COUNT_INVALID');
 
 await rm(outputDir,{recursive:true,force:true});

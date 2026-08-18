@@ -251,3 +251,52 @@ test('RC64.2A PWA app-shell generator includes linked critical CSS before final 
   assert.match(sw,/VERSION='m26-rc63-2'/u);
   assert.match(sw,/PREVIOUS_VERSION='m26-rc63-1'/u);
 });
+test('RC64.2A direct Lighthouse Chromium launch disables sandbox only on GitHub Linux loopback',async()=>{
+  const policy=await import('../qa/rc64/chromium-launch-policy.mjs');
+
+  assert.equal(
+    policy.RC64_2A_CHROMIUM_LAUNCH_POLICY_SCHEMA,
+    'iberfit.rc64.2a.chromium-launch-policy.v1',
+  );
+
+  assert.deepEqual(
+    policy.managedChromiumSandboxArgs({
+      platform:'linux',
+      githubActions:'true',
+      host:'127.0.0.1',
+    }),
+    ['--no-sandbox'],
+  );
+
+  assert.deepEqual(
+    policy.managedChromiumSandboxArgs({
+      platform:'linux',
+      githubActions:'false',
+      host:'127.0.0.1',
+    }),
+    [],
+  );
+
+  assert.deepEqual(
+    policy.managedChromiumSandboxArgs({
+      platform:'win32',
+      githubActions:'true',
+      host:'127.0.0.1',
+    }),
+    [],
+  );
+
+  assert.throws(
+    ()=>policy.managedChromiumSandboxArgs({
+      platform:'linux',
+      githubActions:'true',
+      host:'0.0.0.0',
+    }),
+    /RC64_2A_GITHUB_LINUX_NO_SANDBOX_REQUIRES_IPV4_LOOPBACK/u,
+  );
+
+  const runner=read('qa/rc64/run-lighthouse.mjs');
+  assert.match(runner,/managedChromiumSandboxArgs\(\{host:contract\.host\}\)/u);
+  assert.match(runner,/contract\.host==='127\.0\.0\.1'/u);
+  assert.match(runner,/--disable-background-networking/u);
+});

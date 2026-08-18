@@ -176,3 +176,37 @@ file and reject discovery of any specialized spec before commit.
 This correction does not close RC64.2B and does not claim remote authenticated or
 canonical Linux visual success. Those remain subject to the protected remote
 workflow and evidence review.
+## GitHub Linux Lighthouse sandbox compatibility correction
+
+The post-V10 Linux CI run reached the final Quality Platform command with every
+preceding gate green:
+
+- Node suite: `1136` tests, `1135` pass, `0` fail, `1` intentional skip;
+- base browser quality gate: `75/75` pass;
+- current-source real-shell gate: `2/2` pass.
+
+The runner was Ubuntu `24.04.4` (`ubuntu-24.04`, image
+`20260810.271.1`). `quality:rc64:performance` built the canonical QA surface and
+started the loopback static server successfully, but the directly spawned
+Playwright Chromium executable aborted before Lighthouse run 1 with
+`No usable sandbox!`.
+
+This is distinct from a performance-budget failure: no Lighthouse metrics were
+produced and no budget was evaluated. The direct `child_process.spawn` launcher
+does not inherit Playwright's normal Chromium launch defaults.
+
+The compatibility correction is intentionally narrow. A pure launch-policy module
+adds `--no-sandbox` only when all of these are true:
+
+1. platform is Linux;
+2. `GITHUB_ACTIONS` is exactly `true`;
+3. Lighthouse host is exactly IPv4 loopback `127.0.0.1`.
+
+The policy returns no sandbox override on Windows, local/non-GitHub Linux, or any
+other environment, and fails closed if GitHub Linux attempts to use a non-loopback
+host. `run-lighthouse.mjs` separately asserts the canonical loopback host and
+retains `--disable-background-networking`.
+
+Budgets, run count, target, visual/authenticated gates, app source, backend and
+clinical telemetry are unchanged. RC64.2B remains open until Linux CI is green
+and the protected remote Linux visual/authenticated evidence has been reviewed.
