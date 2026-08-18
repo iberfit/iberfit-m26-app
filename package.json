@@ -241,10 +241,14 @@
     "validate:rc56:local": "npm run validate:rc55:local && npm run verify:native:rc56 && npm run test:m26:rc56",
     "test:m26:rc64": "node --test tests/m26_rc64_1_quality_platform_foundation.test.mjs",
     "quality:rc64:install-browser": "playwright install chromium",
-    "quality:rc64:browser": "playwright test --config playwright.config.mjs"
+    "quality:rc64:browser": "playwright test --config playwright.config.mjs",
+    "test:m26:rc64:2a": "node --test tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs",
+    "quality:rc64:real-shell": "node qa/rc64/build-current-surface.mjs && playwright test --config playwright.real-shell.config.mjs",
+    "quality:rc64:performance": "node qa/rc64/build-current-surface.mjs && node qa/rc64/run-lighthouse.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
-    "axe-core": "4.12.1"
+    "axe-core": "4.12.1",
+    "lighthouse": "13.4.1"
   }
 }

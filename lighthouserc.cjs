@@ -1,0 +1,13 @@
+module.exports=Object.freeze({
+  schema:'iberfit.rc64.2a.lighthouse-budget.v1',
+  target:'.tmp/rc64-current-surface',
+  host:'127.0.0.1',
+  port:4194,
+  runs:3,
+  budgets:Object.freeze({
+    performanceScoreMin:0.80,
+    lcpMaxMs:2500,
+    clsMax:0.10,
+    tbtMaxMs:300,
+  }),
+});

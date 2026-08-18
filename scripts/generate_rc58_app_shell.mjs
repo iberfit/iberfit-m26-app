@@ -75,6 +75,49 @@ function webPath(repoPath){
   throw new Error(`RC58_5C_B_PRECACHE_PATH_UNMAPPED:${value}`);
 }
 
+
+function linkedStylesFromIndex(){
+  const indexPath=path.join(ROOT,'public/m26/index.html');
+  const html=fs.readFileSync(indexPath,'utf8');
+  const webPaths=[
+    ...html.matchAll(/href=["']([^"']+\.css)["']/giu),
+  ].map((match)=>match[1]);
+
+  const repoPaths=[];
+
+  for(const webPathValue of webPaths){
+    let repoPath;
+
+    if(webPathValue.startsWith('/m26/')){
+      repoPath=`public/m26/${webPathValue.slice('/m26/'.length)}`;
+    }else if(webPathValue.startsWith('/src/')){
+      repoPath=webPathValue.slice(1);
+    }else if(webPathValue.startsWith('/public/')){
+      repoPath=webPathValue.slice(1);
+    }else{
+      throw new Error(`RC58_5C_B_LINKED_CSS_PATH_UNMAPPED:${webPathValue}`);
+    }
+
+    repoPath=normalized(repoPath);
+
+    if(path.extname(repoPath).toLowerCase()!=='.css'){
+      throw new Error(`RC58_5C_B_LINKED_STYLE_NOT_CSS:${repoPath}`);
+    }
+
+    if(EXCLUDED_REPO_PATHS.has(repoPath)){
+      throw new Error(`RC58_5C_B_LINKED_STYLE_FORBIDDEN:${repoPath}`);
+    }
+
+    if(!fs.existsSync(path.join(ROOT,repoPath))){
+      throw new Error(`RC58_5C_B_LINKED_STYLE_MISSING:${repoPath}`);
+    }
+
+    repoPaths.push(repoPath);
+  }
+
+  return repoPaths;
+}
+
 const repoPaths=new Set();
 
 for(const repoPath of trackedFiles()){
@@ -97,6 +140,10 @@ for(const repoPath of trackedFiles()){
   }
 
   repoPaths.add(repoPath);
+}
+
+for(const linkedStyle of linkedStylesFromIndex()){
+  repoPaths.add(linkedStyle);
 }
 
 for(const required of REQUIRED_STATIC_PATHS){

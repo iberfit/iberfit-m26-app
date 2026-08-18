@@ -30,7 +30,8 @@ test('fonts son locales y no existe dependencia CDN runtime',()=>{
   assert.match(typography,/font-display:\s*swap/);
   assert.doesNotMatch(typography,/https?:\/\/|@import/i);
   assert.doesNotMatch(index,/fonts\.googleapis|fonts\.gstatic|cdn\.jsdelivr|unpkg/i);
-  assert.match(index,/rel="preload" href="\/m26\/fonts\/inter-latin-wght-normal\.woff2"/);
+  assert.doesNotMatch(index,/rel="preload" href="\/m26\/fonts\/inter-latin-wght-normal\.woff2"/);
+  assert.match(index,/href="\/src\/m26\/design\/typography\.css"[^>]*data-iberfit-full-style[^>]*media="not all"/);
 });
 
 test('tokens usan Inter Variable y Source Serif 4 Variable con fallback',()=>{

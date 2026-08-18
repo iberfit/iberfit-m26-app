@@ -11,7 +11,7 @@ const root=new URL('..',import.meta.url);const json=(p)=>JSON.parse(fs.readFileS
 
 test('QA integrada aprueba Coach y Cliente con rutas y acciones reales',()=>{const report=json('recovery/RC14_INTEGRATED_QA_REPORT.json');assert.equal(report.total,2);assert.equal(report.passed,2);for(const result of report.results){assert.equal(result.ok,true,result.role);assert.ok(result.routes.every(x=>x.ok));assert.ok(result.actions.every(x=>x.ok));assert.equal(result.console_errors.length,0);assert.equal(result.page_errors.length,0);}});
 
-test('aplicación pública usa import absoluto y configuración cerrada',()=>{assert.match(text('public/m26/app.js'),/from '\/src\/m26\/app\/application\.js'/);assert.match(text('public/m26/runtime-config.js'),/enabled:\s*false/);assert.match(text('public/m26/runtime-config.example.js'),/qaOnly:\s*true/);});
+test('aplicación pública usa carga absoluta diferida y configuración cerrada',()=>{const entry=text('public/m26/app.js');assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/m);assert.match(entry,/await import\('\/src\/m26\/app\/application\.js'\)/);assert.match(text('public/m26/runtime-config.js'),/enabled:\s*false/);assert.match(text('public/m26/runtime-config.example.js'),/qaOnly:\s*true/);});
 
 test('navegación móvil expone menú Más con todas las rutas autorizadas',()=>{const render=text('src/m26/shell/shell-render.js');const css=text('src/m26/shell/shell.css');assert.match(render,/m26-mobile-more/);assert.match(render,/allMobileItems/);assert.match(css,/position:\s*fixed/);assert.match(css,/z-index:\s*1000/);});
 

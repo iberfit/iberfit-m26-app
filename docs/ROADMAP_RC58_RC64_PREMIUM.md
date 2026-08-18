@@ -409,6 +409,36 @@ Incluye:
 - cierre de estados de red/console sobre superficies reales;
 - decisión de amplitud cross-browser basada en valor de release.
 
+#### RC64.2A — Performance & Real-shell Foundation — CLOSED
+
+RC64_2A=CLOSED_PERFORMANCE_REAL_SHELL_FOUNDATION
+
+- Lighthouse `13.4.1` queda fijado como tooling dev-only y se ejecuta directamente como gate de CI;
+- `@lhci/cli 0.15.1` se descarta antes del cierre: su instalación local reportó 10 vulnerabilidades, 7 high;
+- no se acepta `npm audit fix --force`; el cierre exige `npm audit --audit-level=high` limpio de high/critical;
+- Playwright y Lighthouse miden una superficie QA efímera `.tmp/rc64-current-surface`, construida directamente desde `public/m26` + `src/m26`;
+- los builders RC15/RC29/RC40 y sus budgets históricos no se modifican ni se reutilizan como gate RC64;
+- V6 confirmó que `build:rc29` ya no representa el tamaño del árbol actual (JS 3.261.922, CSS 233.775, core 4.609.085 bytes) y RC64 no eleva esos límites para forzar un PASS;
+- el gate móvil conserva el límite estricto y la superficie QA incorpora la contención RC28 canónica;
+- tres ejecuciones de laboratorio se agregan por mediana;
+- budgets de laboratorio: performance >= 0.80, LCP <= 2500 ms, CLS <= 0.10 y TBT <= 300 ms;
+- Playwright verifica el launch candidate real en desktop y mobile;
+- console errors, page errors, failed requests, requests externas inesperadas y overflow son gates del shell real pre-auth;
+- el smoke valida el contrato del launch candidate versionado y no presupone el copy del `src/` actual;
+- el runtime QA deshabilitado no se falsea ni se sustituye por credenciales inventadas;
+- los reportes `.lighthouseci/` son artefactos locales de máquina, sin upload externo;
+- los resultados Lighthouse son laboratorio: no se presentan como p75 real ni como INP de campo.
+#### RC64.2B — Visual, Authenticated Smoke & Runtime Observability Closeout — IN PROGRESS
+
+RC64_2B=IN_PROGRESS_VISUAL_AUTH_OBSERVABILITY_CLOSEOUT
+
+- generar y comparar golden screenshots en un entorno Linux reproducible;
+- usar Playwright `toHaveScreenshot` sin Percy/Chromatic mientras sea suficiente;
+- ejecutar smokes autenticados únicamente con runtime/credenciales QA reales y autorizadas;
+- definir RUM/observabilidad de producción antes de afirmar Core Web Vitals de campo;
+- medir INP real en campo; TBT de Lighthouse no se etiqueta como INP;
+- decidir WebKit/Firefox sólo con valor de release demostrado.
+
 No sustituye los tests RC existentes; los integra.
 
 ## Cross-cutting rail B — Trust & Data Governance

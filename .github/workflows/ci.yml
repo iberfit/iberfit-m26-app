@@ -108,6 +108,8 @@ jobs:
           node scripts/generate_rc58_app_shell.mjs --check
           npm test
           npm run quality:rc64:browser
+          npm run quality:rc64:real-shell
+          npm run quality:rc64:performance
       - name: Validar RC30 canary
         if: ${{ github.ref == 'refs/heads/canary/rc30' || github.head_ref == 'canary/rc30' }}
         env:

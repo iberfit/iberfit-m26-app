@@ -113,9 +113,10 @@ test('no se incorpora ninguna dependencia de ejecución',async()=>{
   const pkg=JSON.parse(await read('package.json'));
   assert.equal(Object.keys(pkg.dependencies||{}).length,0);
   const devDependencies=pkg.devDependencies||{};
-  assert.deepEqual(Object.keys(devDependencies).sort(),['@playwright/test','axe-core']);
+  assert.deepEqual(Object.keys(devDependencies).sort(),['@playwright/test','axe-core','lighthouse']);
   assert.equal(devDependencies['@playwright/test'],'1.62.1');
   assert.equal(devDependencies['axe-core'],'4.12.1');
+  assert.equal(devDependencies['lighthouse'],'13.4.1');
 });
 
 
