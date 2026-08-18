@@ -119,3 +119,30 @@ a regression requiring the quality-observability module in `APP_SHELL`.
 The generator itself is unchanged, the RC58.5c-b fail-closed contract is not
 weakened, and service-worker lineage remains `m26-rc63-2` with predecessor
 `m26-rc63-1`.
+## Linux CI historical-provenance checkout correction
+
+The first V7 Linux CI run completed Playwright system dependency installation and
+reached the full Node test suite. The only failure was RC56 hardware validation:
+`la evidencia pertenece a los bridges exactos realmente probados`.
+
+That test intentionally resolves both source paths at
+`RC56_HARDWARE_VALIDATION.json.baseCommit`
+`9d93330d23a6029bc742676bd5e5463f1e8360a3`.
+
+Independent canonical GitHub verification confirms that commit contains:
+
+- `native/android/wear/IBERFITWearHealthServicesBridge.kt` at blob
+  `eaa4c1d2945d19d505351352672e1a3b54cf6a4c`;
+- `native/android/runtime/IBERFITWearDataLayerRuntime.kt` at blob
+  `5c5ac124bc65253cdc62e4c66649e20fbc3288fa`.
+
+Those are exactly the `sourceGuards` stored in the RC56 physical-hardware
+evidence. The failure therefore was not stale hardware evidence and not a product
+regression. GitHub Actions used the default shallow `actions/checkout@v4`
+history, while the developer repository used for the local gate had the complete
+history.
+
+CI now sets `fetch-depth: 0` on the canonical checkout. The RC56 test and hardware
+evidence remain unchanged and fail-closed; RC64 adds a regression so shallow
+checkout cannot silently be reintroduced while historical provenance is part of
+`npm test`.

@@ -184,3 +184,24 @@ test('RC64.2B1 quality observability module is part of the generated PWA shell a
   assert.match(sw,/VERSION='m26-rc63-2'/u);
   assert.match(sw,/PREVIOUS_VERSION='m26-rc63-1'/u);
 });
+test('RC64.2B1 validate job fetches full Git history required by RC56 hardware provenance',()=>{
+  const ci=read('.github/workflows/ci.yml');
+  const rc56=read('tests/m26_rc56_hardware_validation.test.mjs');
+  const boundary=ci.indexOf('\n  remote_readonly:\n');
+  assert.ok(boundary>0);
+
+  const validate=ci.slice(0,boundary);
+  const remoteReadonly=ci.slice(boundary);
+
+  assert.match(
+    validate,
+    /- name: Descargar repositorio\r?\n\s+uses: actions\/checkout@v4\r?\n\s+with:\r?\n\s+fetch-depth: 0/u,
+  );
+  assert.equal((validate.match(/actions\/checkout@v4/gu)||[]).length,1);
+  assert.equal((remoteReadonly.match(/actions\/checkout@v4/gu)||[]).length,1);
+
+  assert.match(rc56,/gitBlobAtCommit/u);
+  assert.match(rc56,/evidence\.baseCommit/u);
+  assert.match(rc56,/native\/android\/wear\/IBERFITWearHealthServicesBridge\.kt/u);
+  assert.match(rc56,/native\/android\/runtime\/IBERFITWearDataLayerRuntime\.kt/u);
+});
