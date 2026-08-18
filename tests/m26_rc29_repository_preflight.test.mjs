@@ -112,7 +112,10 @@ test('el repositorio de aplicación se documenta como privado y separado',async(
 test('no se incorpora ninguna dependencia de ejecución',async()=>{
   const pkg=JSON.parse(await read('package.json'));
   assert.equal(Object.keys(pkg.dependencies||{}).length,0);
-  assert.equal(Object.keys(pkg.devDependencies||{}).length,0);
+  const devDependencies=pkg.devDependencies||{};
+  assert.deepEqual(Object.keys(devDependencies).sort(),['@playwright/test','axe-core']);
+  assert.equal(devDependencies['@playwright/test'],'1.62.1');
+  assert.equal(devDependencies['axe-core'],'4.12.1');
 });
 
 

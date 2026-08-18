@@ -22,6 +22,8 @@ dist/*
 # Local QA artifacts
 qa/**/screenshots/
 qa/**/videos/
+playwright-report/
+test-results/
 recovery/*_OUTPUT.txt
 recovery/RC29_*.json
 

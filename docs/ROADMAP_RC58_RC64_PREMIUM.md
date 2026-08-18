@@ -44,6 +44,8 @@ RC63_1=CLOSED_MEDIA_CONTRACT_NATIVE_PLAYER
 RC63_2=CLOSED_NETWORK_ANALYTICS_ASSET_GOVERNANCE
 RC63_MEDIA_ASSET_POPULATION=PENDING_REAL_APPROVED_ASSETS
 RC64=IN_PROGRESS_QUALITY_PLATFORM
+RC64_1=CLOSED_BROWSER_AXE_FOUNDATION
+RC64_2=IN_PROGRESS_VISUAL_PERFORMANCE_OBSERVABILITY
 PREMIUM_REPORT_PARITY=REQUIRED_ALL_FORMAL_REPORTS_IRI_LEVEL
 
 ## Critical rail A — Admin / RC46
@@ -383,6 +385,29 @@ Incluye:
 - deterministic fixtures;
 - production-like smoke tests;
 - runtime observability contract.
+
+### RC64.1 — Browser & Accessibility Quality Foundation — CLOSED
+
+- Playwright Test fijado como dependencia de desarrollo;
+- axe-core fijado como dependencia de desarrollo;
+- Chromium cubre desktop 1440x1000, tablet 1024x1366 y mobile 390x844;
+- fixture determinista cubre Cliente/Coach/Admin;
+- matriz cubre normal/loading/empty/error/retry/conflict/offline;
+- axe WCAG A/AA, console errors, page errors y failed requests son gates;
+- teclado, touch targets >=44 px y overflow horizontal son gates;
+- CI de la rama RC58-64 usa `npm ci` y navegador Playwright reproducible;
+- fixtures sintéticos no contienen identidad, salud ni backend;
+- no reemplaza los tests RC históricos.
+
+### RC64.2 — Visual Regression, Performance & Runtime Observability — IN PROGRESS
+
+- Lighthouse CI y budgets;
+- Core Web Vitals;
+- visual regression;
+- production-like authenticated smoke tests;
+- runtime observability contract;
+- cierre de estados de red/console sobre superficies reales;
+- decisión de amplitud cross-browser basada en valor de release.
 
 No sustituye los tests RC existentes; los integra.
 

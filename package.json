@@ -238,6 +238,13 @@
     "validate:rc55:local": "npm run validate:rc54:local && npm run verify:native:rc55 && npm run test:m26:rc55",
     "test:m26:rc56": "node --test tests/m26_rc56_native_compile_readiness.test.mjs",
     "verify:native:rc56": "node scripts/verify_rc56_native_compile_readiness.mjs",
-    "validate:rc56:local": "npm run validate:rc55:local && npm run verify:native:rc56 && npm run test:m26:rc56"
+    "validate:rc56:local": "npm run validate:rc55:local && npm run verify:native:rc56 && npm run test:m26:rc56",
+    "test:m26:rc64": "node --test tests/m26_rc64_1_quality_platform_foundation.test.mjs",
+    "quality:rc64:install-browser": "playwright install chromium",
+    "quality:rc64:browser": "playwright test --config playwright.config.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "axe-core": "4.12.1"
   }
 }

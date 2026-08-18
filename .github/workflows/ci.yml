@@ -95,12 +95,19 @@ jobs:
           node scripts/verify_rc56_hardware_validation.mjs
           node --test tests/m26_rc56_hardware_validation.test.mjs
 
+      - name: Preparar Quality Platform RC64
+        if: ${{ github.ref == 'refs/heads/feature/rc58-design-system' || github.head_ref == 'feature/rc58-design-system' }}
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
       - name: Validar RC58 app integrity
         if: ${{ github.ref == 'refs/heads/feature/rc58-design-system' || github.head_ref == 'feature/rc58-design-system' }}
         run: |
           node scripts/check_utf8_mojibake.mjs
           node scripts/generate_rc58_app_shell.mjs --check
           npm test
+          npm run quality:rc64:browser
       - name: Validar RC30 canary
         if: ${{ github.ref == 'refs/heads/canary/rc30' || github.head_ref == 'canary/rc30' }}
         env:
