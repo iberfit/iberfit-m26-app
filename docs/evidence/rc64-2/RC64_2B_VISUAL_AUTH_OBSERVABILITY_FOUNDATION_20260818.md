@@ -210,3 +210,46 @@ retains `--disable-background-networking`.
 Budgets, run count, target, visual/authenticated gates, app source, backend and
 clinical telemetry are unchanged. RC64.2B remains open until Linux CI is green
 and the protected remote Linux visual/authenticated evidence has been reviewed.
+## Protected remote run 32200792040 — authenticated read-only bootstrap drift
+
+Protected run `32200792040` executed on
+`e9c37ecf7c04a4c35d651de1296a918e096dd3db`.
+
+The historical authenticated read-only gate passed first, confirming the
+authorized QA accounts and backend were valid. Playwright installation, Linux
+visual candidate generation, and visual artifact upload also passed. The two
+Linux candidates were reviewed and showed the expected disabled-preauth surface
+without visible overflow, clipping, overlap or rendering anomalies. They are not
+versioned as canonical goldens yet because the authenticated closeout did not
+pass.
+
+The RC64.2B authenticated smoke then failed before evidence serialization while
+waiting for the Coach shell. The selector was valid: the real authenticated shell
+renders `data-m26-role`. The failure was caused by the smoke network allowlist,
+not credentials or the shell contract.
+
+Current-source hydration performs these read-only pre-render remote operations:
+`iberfit_bootstrap_v26`, command-registry GET,
+`iberfit_authorized_application_roles_v13`,
+`iberfit_appointment_change_requests_v13`,
+`iberfit_application_context_v14`, `m26_backend_bootstrap_v43`,
+`m26_wearable_bootstrap_v44`, and for Client/Coach
+`iberfit_communication_bootstrap_v14`. The smoke allowed every item except the
+last one, so its fail-closed router aborted the communication bootstrap before
+`store.hydrate()` could render the authenticated shell.
+
+The recovered current-production SQL definition of
+`iberfit_communication_bootstrap_v14` is read-only: it obtains application
+context and bootstrap state, then selects conversation threads, messages and
+in-app notifications. It performs no INSERT, UPDATE, DELETE, MERGE or TRUNCATE.
+The mutation endpoint remains separate as `iberfit_communication_execute_v14`
+and remains forbidden by the browser smoke.
+
+The smoke now adds only `iberfit_communication_bootstrap_v14` to the read-only
+RPC set. It also keeps a bounded in-memory list of sanitized blocked request paths
+(method + Supabase pathname only, or `external-origin`) solely for fail-fast test
+errors. Those diagnostics are never written to the minimized evidence.
+
+RC64.2B remains open. The Linux visual candidates from this failed authenticated
+run must not be committed as canonical goldens until a protected run succeeds for
+both Coach and Client and produces the minimized authenticated evidence.

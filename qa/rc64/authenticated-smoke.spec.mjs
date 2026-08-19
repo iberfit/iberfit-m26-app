@@ -16,6 +16,7 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_authorized_application_roles_v13',
   'iberfit_appointment_change_requests_v13',
   'iberfit_application_context_v14',
+  'iberfit_communication_bootstrap_v14',
   'm26_backend_bootstrap_v43',
   'm26_wearable_bootstrap_v44',
 ]);
@@ -74,6 +75,7 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     });
 
     let blockedExternal=0;
+    const blockedExternalPaths=[];
     let requestFailures=0;
     let consoleErrors=0;
     let pageErrors=0;
@@ -93,6 +95,14 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       }
 
       blockedExternal+=1;
+      if(blockedExternalPaths.length<8){
+        const method=request.method().toUpperCase();
+        blockedExternalPaths.push(
+          url.origin===SUPABASE_ORIGIN
+            ?`${method} ${url.pathname}`
+            :`${method} external-origin`,
+        );
+      }
       await route.abort('blockedbyclient');
     });
 
@@ -108,7 +118,19 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     await page.getByLabel('Contraseña').fill(account.password);
     await page.getByRole('button',{name:'Entrar'}).click();
 
-    await expect(page.locator(`[data-m26-role="${account.role}"]`)).toBeVisible();
+    const authenticatedRole=page.locator(`[data-m26-role="${account.role}"]`);
+    const authDeadline=Date.now()+20_000;
+    while(Date.now()<authDeadline){
+      if(blockedExternalPaths.length){
+        throw new Error(`RC64_2B_BLOCKED_EXTERNAL_DURING_AUTH:${blockedExternalPaths.join('|')}`);
+      }
+      if(pageErrors>0||consoleErrors>0){
+        throw new Error(`RC64_2B_RUNTIME_ERROR_DURING_AUTH:page=${pageErrors}:console=${consoleErrors}`);
+      }
+      if(await authenticatedRole.isVisible().catch(()=>false))break;
+      await page.waitForTimeout(100);
+    }
+    await expect(authenticatedRole).toBeVisible();
     await expect(page.getByRole('button',{name:'Cerrar sesión'})).toBeVisible();
 
     const quality=await page.evaluate(async()=>{

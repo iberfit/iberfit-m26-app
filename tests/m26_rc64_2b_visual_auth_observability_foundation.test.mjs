@@ -223,3 +223,68 @@ test('RC64.2B1 base browser gate remains isolated from specialized visual auth a
   assert.equal(pkg.scripts['quality:rc64:visual'],'node qa/rc64/build-current-surface.mjs && playwright test --config playwright.visual.config.mjs');
   assert.equal(pkg.scripts['quality:rc64:auth-smoke'],'node qa/rc64/build-authenticated-surface.mjs && playwright test --config playwright.authenticated.config.mjs');
 });
+test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-only pre-render network surface',()=>{
+  const smoke=read('qa/rc64/authenticated-smoke.spec.mjs');
+  const application=read('src/m26/app/application.js');
+  const communication=read('src/m26/communication/transport.js');
+  const baseline=read('supabase/migrations/20260815195022_RECOVERED_CURRENT_PRODUCTION_BASELINE.sql');
+
+  const start=smoke.indexOf('const READ_ONLY_RPCS=new Set([');
+  const end=smoke.indexOf(']);',start);
+  assert.ok(start>=0&&end>start);
+  const allowlist=smoke.slice(start,end+3);
+  const rpcNames=[...allowlist.matchAll(/'([a-z0-9_]+)'/gu)].map((match)=>match[1]);
+
+  assert.deepEqual(rpcNames,[
+    'iberfit_bootstrap_v26',
+    'iberfit_authorized_application_roles_v13',
+    'iberfit_appointment_change_requests_v13',
+    'iberfit_application_context_v14',
+    'iberfit_communication_bootstrap_v14',
+    'm26_backend_bootstrap_v43',
+    'm26_wearable_bootstrap_v44',
+  ]);
+
+  assert.match(smoke,/domain_command_registry_v26/u);
+  assert.match(application,/transport\.bootstrap\(currentToken\(\)\)/u);
+  assert.match(application,/transport\.commandRegistry\(currentToken\(\)\)/u);
+  assert.match(application,/rc39Transport\.extensions\(currentToken\(\)\)/u);
+  assert.match(application,/adminTransport\.applicationContextOptional\(currentToken\(\)\)/u);
+  assert.match(application,/transport\.backendBootstrap\(currentToken\(\)\)/u);
+  assert.match(application,/transport\.wearableBootstrap\(currentToken\(\)\)/u);
+  assert.match(application,/communicationTransport\.bootstrapOptional\(currentToken\(\),\{application:activeRole\}\)/u);
+
+  assert.match(communication,/iberfit_communication_bootstrap_v14/u);
+  assert.match(communication,/iberfit_communication_execute_v14/u);
+  assert.doesNotMatch(allowlist,/iberfit_communication_execute_v14/u);
+
+  const fnStart=baseline.indexOf('CREATE FUNCTION public.iberfit_communication_bootstrap_v14 (');
+  const bodyStart=baseline.indexOf('AS $function$',fnStart);
+  const bodyEnd=baseline.indexOf('end $function$;',bodyStart);
+  assert.ok(fnStart>=0&&bodyStart>fnStart&&bodyEnd>bodyStart);
+  const body=baseline.slice(bodyStart,bodyEnd);
+  assert.match(body,/select public\.iberfit_application_context_v14\(\)/u);
+  assert.match(body,/select public\.iberfit_bootstrap_v26\(\)/u);
+  assert.match(body,/from public\.iberfit_conversation_threads/u);
+  assert.match(body,/from public\.iberfit_messages/u);
+  assert.match(body,/from public\.iberfit_in_app_notifications/u);
+  assert.doesNotMatch(body,/\b(?:insert|update|delete|merge|truncate)\b/iu);
+
+  assert.match(smoke,/blockedExternalPaths/u);
+  assert.match(smoke,/RC64_2B_BLOCKED_EXTERNAL_DURING_AUTH/u);
+  assert.match(smoke,/RC64_2B_RUNTIME_ERROR_DURING_AUTH/u);
+  const roleEvidenceStart=smoke.indexOf('evidenceRoles.push(Object.freeze({');
+  const roleEvidenceEnd=smoke.indexOf('    await context.close();',roleEvidenceStart);
+  assert.ok(roleEvidenceStart>=0&&roleEvidenceEnd>roleEvidenceStart);
+  const roleEvidenceBlock=smoke.slice(roleEvidenceStart,roleEvidenceEnd);
+  assert.match(roleEvidenceBlock,/blockedExternal,/u);
+  assert.doesNotMatch(roleEvidenceBlock,/blockedExternalPaths/u);
+
+  const serializedEvidenceStart=smoke.indexOf('const evidence=Object.freeze({');
+  const serializedEvidenceEnd=smoke.indexOf("  await mkdir('recovery'",serializedEvidenceStart);
+  assert.ok(serializedEvidenceStart>=0&&serializedEvidenceEnd>serializedEvidenceStart);
+  const serializedEvidenceBlock=smoke.slice(serializedEvidenceStart,serializedEvidenceEnd);
+  assert.match(serializedEvidenceBlock,/roles:evidenceRoles/u);
+  assert.doesNotMatch(serializedEvidenceBlock,/blockedExternalPaths/u);
+  assert.match(smoke,/JSON\.stringify\(evidence,null,2\)/u);
+});
