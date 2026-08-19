@@ -80,6 +80,26 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     let consoleErrors=0;
     let pageErrors=0;
 
+    await context.addInitScript(()=>{
+      const diagnostics=[];
+      Object.defineProperty(globalThis,'__RC64_2B_DIAGNOSTICS__',{
+        value:diagnostics,
+        configurable:false,
+        enumerable:false,
+        writable:false,
+      });
+      globalThis.addEventListener('m26:diagnostic',(event)=>{
+        if(diagnostics.length>=8)return;
+        const detail=event?.detail&&typeof event.detail==='object'?event.detail:{};
+        const rawStage=String(detail.stage||'');
+        const rawCode=String(detail.code||'');
+        const stage=/^[a-z0-9_-]{1,60}$/iu.test(rawStage)?rawStage:'unclassified';
+        const code=/^M26_[A-Z0-9_:-]{2,120}$/u.test(rawCode)?rawCode:'M26_UNCLASSIFIED_DIAGNOSTIC';
+        const status=Number.isInteger(detail.status)&&detail.status>=0&&detail.status<=599?detail.status:null;
+        diagnostics.push(Object.freeze({stage,code,status}));
+      });
+    });
+
     await context.route('**/*',async(route)=>{
       const request=route.request();
       const url=new URL(request.url());
@@ -125,7 +145,18 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
         throw new Error(`RC64_2B_BLOCKED_EXTERNAL_DURING_AUTH:${blockedExternalPaths.join('|')}`);
       }
       if(pageErrors>0||consoleErrors>0){
-        throw new Error(`RC64_2B_RUNTIME_ERROR_DURING_AUTH:page=${pageErrors}:console=${consoleErrors}`);
+        const diagnostics=await page.evaluate(()=>
+          Array.isArray(globalThis.__RC64_2B_DIAGNOSTICS__)
+            ?globalThis.__RC64_2B_DIAGNOSTICS__.slice(0,8)
+            :[]
+        );
+        const diagnosticSummary=diagnostics.length
+          ?diagnostics.map((item)=>`${item.stage}/${item.code}/${item.status===null?'NA':item.status}`).join('|')
+          :'none';
+        const unclassified=Math.max(0,consoleErrors-diagnostics.length);
+        throw new Error(
+          `RC64_2B_RUNTIME_ERROR_DURING_AUTH:page=${pageErrors}:console=${consoleErrors}:diagnostics=${diagnosticSummary}:unclassified=${unclassified}`
+        );
       }
       if(await authenticatedRole.isVisible().catch(()=>false))break;
       await page.waitForTimeout(100);

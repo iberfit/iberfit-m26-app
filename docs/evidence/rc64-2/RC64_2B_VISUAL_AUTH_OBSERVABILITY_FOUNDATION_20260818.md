@@ -253,3 +253,32 @@ errors. Those diagnostics are never written to the minimized evidence.
 RC64.2B remains open. The Linux visual candidates from this failed authenticated
 run must not be committed as canonical goldens until a protected run succeeds for
 both Coach and Client and produces the minimized authenticated evidence.
+
+## Protected remote run 32253493297 — runtime console diagnostics
+
+Protected run `32253493297` executed on
+`6e594577499773f07b609d69c9438a046c5c0705` and failed closed.
+
+The historical authenticated read-only gate passed first with zero backend
+mutations. Playwright installation passed. Canonical Linux visual candidate
+generation passed 2/2 and uploaded the desktop and mobile candidates. Both
+candidates were reviewed and are visually plausible for the disabled-preauth
+surface, but they remain candidates only and must not be versioned as canonical
+goldens while authenticated closeout is failing.
+
+The RC64.2B authenticated browser smoke then failed during authentication with
+`RC64_2B_RUNTIME_ERROR_DURING_AUTH:page=0:console=3`. No page error was
+reported. The smoke stopped before minimized authenticated evidence could be
+serialized, so the absence of that artifact is expected for this failed run.
+
+The current harness counts browser console errors but intentionally does not
+print or persist raw console text. Therefore this run proves the failure
+boundary but does not identify the three diagnostic codes. The next diagnostic
+patch remains fail-closed and captures only a bounded in-memory projection of
+`m26:diagnostic`: `stage`, `code`, and integer/null HTTP status. Raw console
+text, email, token, userId, clientId, passwords, request bodies and health data
+remain excluded. Any console error still fails the smoke.
+
+RC64.2B remains open. No backend, schema, clinical telemetry, application
+behavior, visual budget, CSP rule or mutation policy is changed by this
+diagnostic-only patch.
