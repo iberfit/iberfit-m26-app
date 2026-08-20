@@ -225,6 +225,7 @@ test('RC64.2B1 base browser gate remains isolated from specialized visual auth a
 });
 test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-only pre-render network surface',()=>{
   const smoke=read('qa/rc64/authenticated-smoke.spec.mjs');
+  const authenticatedConfig=read('playwright.authenticated.config.mjs');
   const application=read('src/m26/app/application.js');
   const communication=read('src/m26/communication/transport.js');
   const baseline=read('supabase/migrations/20260815195022_RECOVERED_CURRENT_PRODUCTION_BASELINE.sql');
@@ -288,19 +289,34 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   assert.match(smoke,/RC64_2B_AUTH_TIMEOUT/u);
   assert.match(smoke,/pendingRequestProjection/u);
   assert.match(smoke,/pendingRequestMeta/u);
+  assert.match(smoke,/authResponseMeta/u);
   assert.match(smoke,/runtimeFailureMessage/u);
+  assert.match(smoke,/runtimeFailureState/u);
   assert.match(smoke,/account=\$\{account\.name\}/u);
+  assert.match(smoke,/responses=\$\{responses\}/u);
   assert.match(smoke,/pending=\$\{pending\}/u);
   assert.match(smoke,/runtimeDiagnostics\.length>0/u);
   assert.match(smoke,/httpErrorMeta\.length>0/u);
   assert.match(smoke,/requestFailures>0/u);
+  assert.match(smoke,/const roleOutcome=authenticatedRole/u);
+  assert.match(smoke,/\.waitFor\(\{state:'visible',timeout:20_000\}\)/u);
+  assert.match(smoke,/Promise\.race\(\[/u);
+  assert.match(smoke,/setInterval\(\(\)=>\{/u);
+  assert.match(smoke,/20_500/u);
+  assert.match(smoke,/RC64_2B_ACCOUNT_BEGIN/u);
+  assert.match(smoke,/RC64_2B_ACCOUNT_AUTHENTICATED/u);
+  assert.match(smoke,/RC64_2B_ACCOUNT_PASS/u);
+  assert.match(authenticatedConfig,/timeout:90_000/u);
+  assert.match(authenticatedConfig,/expect:\{timeout:20_000\}/u);
+  assert.doesNotMatch(smoke,/while\(Date\.now\(\)<authDeadline\)/u);
+  assert.doesNotMatch(smoke,/authenticatedRole\.isVisible/u);
   assert.doesNotMatch(smoke,/await expect\(authenticatedRole\)\.toBeVisible\(\)/u);
   assert.doesNotMatch(smoke,/__RC64_2B_DIAGNOSTICS__/u);
   assert.doesNotMatch(smoke,/message\.text\(\)/u);
   assert.doesNotMatch(smoke,/response\.text\(\)|response\.body\(\)|request\.postData/u);
 
   const runtimeErrorStart=smoke.indexOf('const runtimeFailureMessage=(code)=>{');
-  const runtimeErrorEnd=smoke.indexOf('    const authDeadline=Date.now()+20_000;',runtimeErrorStart);
+  const runtimeErrorEnd=smoke.indexOf('    const authStartedAt=Date.now();',runtimeErrorStart);
   assert.ok(runtimeErrorStart>=0&&runtimeErrorEnd>runtimeErrorStart);
   const runtimeErrorBlock=smoke.slice(runtimeErrorStart,runtimeErrorEnd);
   assert.match(runtimeErrorBlock,/runtimeDiagnostics\.slice\(0,8\)/u);
@@ -308,6 +324,7 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   assert.match(runtimeErrorBlock,/httpErrorMeta/u);
   assert.match(runtimeErrorBlock,/requestFailureMeta/u);
   assert.match(runtimeErrorBlock,/pageErrorMeta/u);
+  assert.match(runtimeErrorBlock,/authResponseMeta\.slice\(-8\)/u);
   assert.match(runtimeErrorBlock,/pendingRequestMeta\.values\(\)/u);
   assert.doesNotMatch(runtimeErrorBlock,/page\.evaluate|postData|headers|response\.text|response\.body/u);
   const roleEvidenceStart=smoke.indexOf('evidenceRoles.push(Object.freeze({');
@@ -323,6 +340,6 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   const serializedEvidenceBlock=smoke.slice(serializedEvidenceStart,serializedEvidenceEnd);
   assert.match(serializedEvidenceBlock,/roles:evidenceRoles/u);
   assert.doesNotMatch(serializedEvidenceBlock,/blockedExternalPaths/u);
-  assert.doesNotMatch(serializedEvidenceBlock,/diagnosticSummary|runtimeDiagnostics|__rc64RecordDiagnostic|consoleErrorMeta|httpErrorMeta|requestFailureMeta|pageErrorMeta|pendingRequestMeta|runtimeFailureMessage/u);
+  assert.doesNotMatch(serializedEvidenceBlock,/diagnosticSummary|runtimeDiagnostics|__rc64RecordDiagnostic|consoleErrorMeta|httpErrorMeta|requestFailureMeta|pageErrorMeta|pendingRequestMeta|authResponseMeta|runtimeFailureMessage|runtimeFailureState/u);
   assert.match(smoke,/JSON\.stringify\(evidence,null,2\)/u);
 });

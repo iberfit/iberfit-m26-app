@@ -180,6 +180,7 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     const requestFailureMeta=[];
     const pageErrorMeta=[];
     const pendingRequestMeta=new Map();
+    const authResponseMeta=[];
 
     const runtimeDiagnostics=[];
     await context.exposeBinding('__rc64RecordDiagnostic',(_source,detail)=>{
@@ -250,8 +251,16 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       }
     });
     page.on('response',(response)=>{
-      if(response.status()>=400&&httpErrorMeta.length<8){
-        httpErrorMeta.push(httpErrorProjection(response,runtimePhase));
+      const projection=httpErrorProjection(response,runtimePhase);
+      if(
+        runtimePhase==='auth'&&
+        projection.source==='supabase'&&
+        authResponseMeta.length<16
+      ){
+        authResponseMeta.push(projection);
+      }
+      if(projection.status>=400&&httpErrorMeta.length<8){
+        httpErrorMeta.push(projection);
       }
     });
     page.on('console',(message)=>{
@@ -268,6 +277,7 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       }
     });
 
+    console.log(`RC64_2B_ACCOUNT_BEGIN:${account.name}`);
     const response=await page.goto('/',{waitUntil:'networkidle'});
     expect(response?.ok()).toBeTruthy();
 
@@ -294,19 +304,21 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       const pageSummary=pageErrorMeta.length
         ?pageErrorMeta.map((item)=>`${item.phase}/${item.name}`).join('|')
         :'none';
+      const responseSummary=authResponseMeta.slice(-8);
+      const responses=responseSummary.length
+        ?responseSummary.map((item)=>`${item.phase}/${item.method}/${item.source}/${item.path}/${item.status}`).join('|')
+        :'none';
       const pendingSummary=[...pendingRequestMeta.values()].slice(0,8);
       const pending=pendingSummary.length
         ?pendingSummary.map((item)=>`${item.phase}/${item.method}/${item.source}/${item.path}`).join('|')
         :'none';
       const unclassified=Math.max(0,consoleErrors-consoleErrorMeta.length);
-      return `${code}:account=${account.name}:page=${pageErrors}:console=${consoleErrors}:diagnostics=${diagnosticSummary}:consoleMeta=${consoleSummary}:httpErrors=${httpSummary}:requestFailures=${requestFailureSummary}:pageMeta=${pageSummary}:pending=${pending}:unclassified=${unclassified}`;
+      return `${code}:account=${account.name}:page=${pageErrors}:console=${consoleErrors}:diagnostics=${diagnosticSummary}:consoleMeta=${consoleSummary}:httpErrors=${httpSummary}:requestFailures=${requestFailureSummary}:pageMeta=${pageSummary}:responses=${responses}:pending=${pending}:unclassified=${unclassified}`;
     };
 
-    const authDeadline=Date.now()+20_000;
-    let authenticated=false;
-    while(Date.now()<authDeadline){
+    const runtimeFailureState=()=>{
       if(blockedExternalPaths.length){
-        throw new Error(`RC64_2B_BLOCKED_EXTERNAL_DURING_AUTH:account=${account.name}:${blockedExternalPaths.join('|')}`);
+        return `RC64_2B_BLOCKED_EXTERNAL_DURING_AUTH:account=${account.name}:${blockedExternalPaths.join('|')}`;
       }
       if(
         pageErrors>0||
@@ -315,19 +327,66 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
         httpErrorMeta.length>0||
         requestFailures>0
       ){
-        await new Promise((resolve)=>setTimeout(resolve,300));
-        throw new Error(runtimeFailureMessage('RC64_2B_RUNTIME_ERROR_DURING_AUTH'));
+        return runtimeFailureMessage('RC64_2B_RUNTIME_ERROR_DURING_AUTH');
       }
-      if(await authenticatedRole.isVisible().catch(()=>false)){
-        authenticated=true;
-        break;
-      }
-      await page.waitForTimeout(100);
+      return null;
+    };
+
+    const authStartedAt=Date.now();
+    let runtimeWatchTimer=null;
+    let nativeDeadlineTimer=null;
+
+    const roleOutcome=authenticatedRole
+      .waitFor({state:'visible',timeout:20_000})
+      .then(()=>Object.freeze({kind:'authenticated'}))
+      .catch(()=>Object.freeze({kind:'not-visible'}));
+
+    const runtimeOutcome=new Promise((resolve)=>{
+      runtimeWatchTimer=setInterval(()=>{
+        const failure=runtimeFailureState();
+        if(!failure)return;
+        clearInterval(runtimeWatchTimer);
+        runtimeWatchTimer=null;
+        resolve(Object.freeze({kind:'runtime-failure',failure}));
+      },50);
+    });
+
+    const deadlineOutcome=new Promise((resolve)=>{
+      nativeDeadlineTimer=setTimeout(
+        ()=>resolve(Object.freeze({kind:'native-timeout'})),
+        20_500,
+      );
+    });
+
+    const outcome=await Promise.race([
+      roleOutcome,
+      runtimeOutcome,
+      deadlineOutcome,
+    ]);
+
+    if(runtimeWatchTimer!==null){
+      clearInterval(runtimeWatchTimer);
+      runtimeWatchTimer=null;
     }
-    if(!authenticated){
-      await new Promise((resolve)=>setTimeout(resolve,300));
+    if(nativeDeadlineTimer!==null){
+      clearTimeout(nativeDeadlineTimer);
+      nativeDeadlineTimer=null;
+    }
+
+    if(outcome.kind==='runtime-failure'){
+      await new Promise((resolve)=>setTimeout(resolve,150));
+      throw new Error(runtimeFailureState()||outcome.failure);
+    }
+
+    if(outcome.kind!=='authenticated'){
+      await new Promise((resolve)=>setTimeout(resolve,150));
+      const failure=runtimeFailureState();
+      if(failure)throw new Error(failure);
       throw new Error(runtimeFailureMessage('RC64_2B_AUTH_TIMEOUT'));
     }
+
+    const authElapsedMs=Math.max(0,Math.min(Date.now()-authStartedAt,60_000));
+    console.log(`RC64_2B_ACCOUNT_AUTHENTICATED:${account.name}:elapsedMs=${authElapsedMs}`);
     await expect(page.getByRole('button',{name:'Cerrar sesión'})).toBeVisible();
 
     const quality=await page.evaluate(async()=>{
@@ -356,6 +415,7 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       qualityObservability:'memory-only-no-transport',
     }));
 
+    console.log(`RC64_2B_ACCOUNT_PASS:${account.name}`);
     await context.close();
   }
 
