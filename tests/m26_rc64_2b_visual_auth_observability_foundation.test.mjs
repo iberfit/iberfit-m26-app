@@ -285,12 +285,22 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   assert.match(smoke,/M26_UNCLASSIFIED_DIAGNOSTIC/u);
   assert.match(smoke,/diagnosticSummary/u);
   assert.match(smoke,/unclassified/u);
+  assert.match(smoke,/RC64_2B_AUTH_TIMEOUT/u);
+  assert.match(smoke,/pendingRequestProjection/u);
+  assert.match(smoke,/pendingRequestMeta/u);
+  assert.match(smoke,/runtimeFailureMessage/u);
+  assert.match(smoke,/account=\$\{account\.name\}/u);
+  assert.match(smoke,/pending=\$\{pending\}/u);
+  assert.match(smoke,/runtimeDiagnostics\.length>0/u);
+  assert.match(smoke,/httpErrorMeta\.length>0/u);
+  assert.match(smoke,/requestFailures>0/u);
+  assert.doesNotMatch(smoke,/await expect\(authenticatedRole\)\.toBeVisible\(\)/u);
   assert.doesNotMatch(smoke,/__RC64_2B_DIAGNOSTICS__/u);
   assert.doesNotMatch(smoke,/message\.text\(\)/u);
   assert.doesNotMatch(smoke,/response\.text\(\)|response\.body\(\)|request\.postData/u);
 
-  const runtimeErrorStart=smoke.indexOf('if(pageErrors>0||consoleErrors>0){');
-  const runtimeErrorEnd=smoke.indexOf('      if(await authenticatedRole.isVisible()',runtimeErrorStart);
+  const runtimeErrorStart=smoke.indexOf('const runtimeFailureMessage=(code)=>{');
+  const runtimeErrorEnd=smoke.indexOf('    const authDeadline=Date.now()+20_000;',runtimeErrorStart);
   assert.ok(runtimeErrorStart>=0&&runtimeErrorEnd>runtimeErrorStart);
   const runtimeErrorBlock=smoke.slice(runtimeErrorStart,runtimeErrorEnd);
   assert.match(runtimeErrorBlock,/runtimeDiagnostics\.slice\(0,8\)/u);
@@ -298,7 +308,8 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   assert.match(runtimeErrorBlock,/httpErrorMeta/u);
   assert.match(runtimeErrorBlock,/requestFailureMeta/u);
   assert.match(runtimeErrorBlock,/pageErrorMeta/u);
-  assert.doesNotMatch(runtimeErrorBlock,/page\.evaluate/u);
+  assert.match(runtimeErrorBlock,/pendingRequestMeta\.values\(\)/u);
+  assert.doesNotMatch(runtimeErrorBlock,/page\.evaluate|postData|headers|response\.text|response\.body/u);
   const roleEvidenceStart=smoke.indexOf('evidenceRoles.push(Object.freeze({');
   const roleEvidenceEnd=smoke.indexOf('    await context.close();',roleEvidenceStart);
   assert.ok(roleEvidenceStart>=0&&roleEvidenceEnd>roleEvidenceStart);
@@ -312,6 +323,6 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   const serializedEvidenceBlock=smoke.slice(serializedEvidenceStart,serializedEvidenceEnd);
   assert.match(serializedEvidenceBlock,/roles:evidenceRoles/u);
   assert.doesNotMatch(serializedEvidenceBlock,/blockedExternalPaths/u);
-  assert.doesNotMatch(serializedEvidenceBlock,/diagnosticSummary|runtimeDiagnostics|__rc64RecordDiagnostic|consoleErrorMeta|httpErrorMeta|requestFailureMeta|pageErrorMeta/u);
+  assert.doesNotMatch(serializedEvidenceBlock,/diagnosticSummary|runtimeDiagnostics|__rc64RecordDiagnostic|consoleErrorMeta|httpErrorMeta|requestFailureMeta|pageErrorMeta|pendingRequestMeta|runtimeFailureMessage/u);
   assert.match(smoke,/JSON\.stringify\(evidence,null,2\)/u);
 });

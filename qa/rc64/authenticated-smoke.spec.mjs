@@ -133,6 +133,18 @@ function pageErrorProjection(error,phase){
   return Object.freeze({phase:sanitizedPhase(phase),name});
 }
 
+function pendingRequestProjection(request,phase){
+  const target=sanitizeRuntimeTarget(request.url());
+  const rawMethod=String(request.method()||'').toUpperCase();
+  const method=/^[A-Z]{1,12}$/u.test(rawMethod)?rawMethod:'UNCLASSIFIED';
+  return Object.freeze({
+    phase:sanitizedPhase(phase),
+    method,
+    source:target.scope,
+    path:target.path,
+  });
+}
+
 test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked',async({browser})=>{
   const missing=required.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
@@ -167,6 +179,7 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     const httpErrorMeta=[];
     const requestFailureMeta=[];
     const pageErrorMeta=[];
+    const pendingRequestMeta=new Map();
 
     const runtimeDiagnostics=[];
     await context.exposeBinding('__rc64RecordDiagnostic',(_source,detail)=>{
@@ -221,7 +234,16 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     });
 
     const page=await context.newPage();
+    page.on('request',(request)=>{
+      if(pendingRequestMeta.size<16){
+        pendingRequestMeta.set(request,pendingRequestProjection(request,runtimePhase));
+      }
+    });
+    page.on('requestfinished',(request)=>{
+      pendingRequestMeta.delete(request);
+    });
     page.on('requestfailed',(request)=>{
+      pendingRequestMeta.delete(request);
       requestFailures+=1;
       if(requestFailureMeta.length<8){
         requestFailureMeta.push(requestFailureProjection(request,runtimePhase));
@@ -255,38 +277,57 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     await page.getByRole('button',{name:'Entrar'}).click();
 
     const authenticatedRole=page.locator(`[data-m26-role="${account.role}"]`);
+    const runtimeFailureMessage=(code)=>{
+      const diagnostics=runtimeDiagnostics.slice(0,8);
+      const diagnosticSummary=diagnostics.length
+        ?diagnostics.map((item)=>`${item.stage}/${item.code}/${item.status===null?'NA':item.status}`).join('|')
+        :'none';
+      const consoleSummary=consoleErrorMeta.length
+        ?consoleErrorMeta.map((item)=>`${item.phase}/${item.source}/${item.path}/${item.line}/${item.column}`).join('|')
+        :'none';
+      const httpSummary=httpErrorMeta.length
+        ?httpErrorMeta.map((item)=>`${item.phase}/${item.method}/${item.source}/${item.path}/${item.status}`).join('|')
+        :'none';
+      const requestFailureSummary=requestFailureMeta.length
+        ?requestFailureMeta.map((item)=>`${item.phase}/${item.method}/${item.source}/${item.path}/${item.failure}`).join('|')
+        :'none';
+      const pageSummary=pageErrorMeta.length
+        ?pageErrorMeta.map((item)=>`${item.phase}/${item.name}`).join('|')
+        :'none';
+      const pendingSummary=[...pendingRequestMeta.values()].slice(0,8);
+      const pending=pendingSummary.length
+        ?pendingSummary.map((item)=>`${item.phase}/${item.method}/${item.source}/${item.path}`).join('|')
+        :'none';
+      const unclassified=Math.max(0,consoleErrors-consoleErrorMeta.length);
+      return `${code}:account=${account.name}:page=${pageErrors}:console=${consoleErrors}:diagnostics=${diagnosticSummary}:consoleMeta=${consoleSummary}:httpErrors=${httpSummary}:requestFailures=${requestFailureSummary}:pageMeta=${pageSummary}:pending=${pending}:unclassified=${unclassified}`;
+    };
+
     const authDeadline=Date.now()+20_000;
+    let authenticated=false;
     while(Date.now()<authDeadline){
       if(blockedExternalPaths.length){
-        throw new Error(`RC64_2B_BLOCKED_EXTERNAL_DURING_AUTH:${blockedExternalPaths.join('|')}`);
+        throw new Error(`RC64_2B_BLOCKED_EXTERNAL_DURING_AUTH:account=${account.name}:${blockedExternalPaths.join('|')}`);
       }
-      if(pageErrors>0||consoleErrors>0){
+      if(
+        pageErrors>0||
+        consoleErrors>0||
+        runtimeDiagnostics.length>0||
+        httpErrorMeta.length>0||
+        requestFailures>0
+      ){
         await new Promise((resolve)=>setTimeout(resolve,300));
-        const diagnostics=runtimeDiagnostics.slice(0,8);
-        const diagnosticSummary=diagnostics.length
-          ?diagnostics.map((item)=>`${item.stage}/${item.code}/${item.status===null?'NA':item.status}`).join('|')
-          :'none';
-        const consoleSummary=consoleErrorMeta.length
-          ?consoleErrorMeta.map((item)=>`${item.phase}/${item.source}/${item.path}/${item.line}/${item.column}`).join('|')
-          :'none';
-        const httpSummary=httpErrorMeta.length
-          ?httpErrorMeta.map((item)=>`${item.phase}/${item.method}/${item.source}/${item.path}/${item.status}`).join('|')
-          :'none';
-        const requestFailureSummary=requestFailureMeta.length
-          ?requestFailureMeta.map((item)=>`${item.phase}/${item.method}/${item.source}/${item.path}/${item.failure}`).join('|')
-          :'none';
-        const pageSummary=pageErrorMeta.length
-          ?pageErrorMeta.map((item)=>`${item.phase}/${item.name}`).join('|')
-          :'none';
-        const unclassified=Math.max(0,consoleErrors-consoleErrorMeta.length);
-        throw new Error(
-          `RC64_2B_RUNTIME_ERROR_DURING_AUTH:page=${pageErrors}:console=${consoleErrors}:diagnostics=${diagnosticSummary}:consoleMeta=${consoleSummary}:httpErrors=${httpSummary}:requestFailures=${requestFailureSummary}:pageMeta=${pageSummary}:unclassified=${unclassified}`
-        );
+        throw new Error(runtimeFailureMessage('RC64_2B_RUNTIME_ERROR_DURING_AUTH'));
       }
-      if(await authenticatedRole.isVisible().catch(()=>false))break;
+      if(await authenticatedRole.isVisible().catch(()=>false)){
+        authenticated=true;
+        break;
+      }
       await page.waitForTimeout(100);
     }
-    await expect(authenticatedRole).toBeVisible();
+    if(!authenticated){
+      await new Promise((resolve)=>setTimeout(resolve,300));
+      throw new Error(runtimeFailureMessage('RC64_2B_AUTH_TIMEOUT'));
+    }
     await expect(page.getByRole('button',{name:'Cerrar sesión'})).toBeVisible();
 
     const quality=await page.evaluate(async()=>{
