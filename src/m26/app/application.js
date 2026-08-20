@@ -466,7 +466,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     else if(mountedShellRole==='client')qaStage('rc64-shell-role-client');
     else if(mountedShellRole==='admin')qaStage('rc64-shell-role-admin');
     else qaStage('rc64-shell-role-missing');
-    motion.mount();guidance.mount();onboarding.mount();mediaExperience.mount();productivity.mount();workflow.mount();engagement.mount();wearables.mount();verification.mount();rc39.mount();communication.mount();admin.mount();sessionController.mount();iriExternalReports.mount();
+    motion.mount();guidance.mount();onboarding.mount();mediaExperience.mount();productivity.mount();workflow.mount();engagement.mount();verification.mount();rc39.mount();communication.mount();admin.mount();sessionController.mount();iriExternalReports.mount();
     qaStage('rc64-controller-mounts-ready');
     const controllerShellRole=root.querySelector?.('.m26-shell[data-m26-role]')?.getAttribute('data-m26-role')||'';
     if(controllerShellRole==='coach')qaStage('rc64-controller-shell-role-coach');
@@ -476,6 +476,8 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-verification-await-start');
     await refreshVerificationState({repository:operationRepository,store});
     qaStage('rc64-verification-ready');
+    wearables.mount();
+    qaStage('rc64-wearables-post-verification-mount-ready');
     root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
     const sync=createConnectivitySync({coordinator:recoveryCoordinator,onResult:async()=>{await refreshVerificationState({repository:operationRepository,store});render();}});connectivityStop=sync.start();telemetrySyncStop=telemetryRemoteSync.start();void registerM26ServiceWorker({url:'/m26/sw.js',scope:'/m26/'}).catch(()=>{});
     if(!pendingIriExternalReportIntent)await restoreExecution();
