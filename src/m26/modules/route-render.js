@@ -561,8 +561,18 @@ function operationCard(item){
   return `<article class="m26-list-card"><div><p class="m26-eyebrow">${escapeHtml(castilianStatusLabel(item.status))}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(castilianOperationDetail(item.errorCode,item.entityType))}</p>${retry}</div><div class="m26-inline-actions">${actions}</div></article>`;
 }
 export function renderVerificationRoute(vm){
-  const center=vm.center;const content=center.items.length?center.items.map(operationCard).join(''):emptyState('Sin operaciones pendientes','No hay operaciones pendientes, conflictos ni rechazos locales.');
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sincronización</p><h2>Centro de verificación</h2><p>Permite inspeccionar, reintentar o descartar únicamente la copia local. Nunca oculta un conflicto.</p></div>${badge(center.deploymentBlocked?'Bloqueo activo':'Sin bloqueos',center.deploymentBlocked?'danger':'success')}</section><section class="m26-stat-grid">${stat('Pendientes',center.summary.pending)}${stat('Conflictos',center.summary.conflicts)}${stat('Rechazadas',center.summary.rejected)}${stat('Total',center.summary.total)}</section><section class="m26-panel"><div class="m26-stack">${content}</div></section></div>`;
+  const center=vm.center;
+  const hasItems=center.items.length>0;
+  const content=hasItems
+    ?center.items.map(operationCard).join('')
+    :emptyState(
+      'Estado local pendiente de revisión',
+      'No se realiza una lectura automática al iniciar sesión. Usa Actualizar estado local para comprobar operaciones pendientes, conflictos o rechazos.'
+    );
+  const stateBadge=hasItems
+    ?badge(center.deploymentBlocked?'Bloqueo activo':'Operaciones cargadas',center.deploymentBlocked?'danger':'neutral')
+    :badge('Estado local no comprobado','neutral');
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sincronización</p><h2>Centro de verificación</h2><p>Permite inspeccionar, reintentar o descartar únicamente la copia local. Nunca oculta un conflicto.</p></div><div class="m26-inline-actions">${stateBadge}<button type="button" data-verification-action="refresh">Actualizar estado local</button></div></section>${hasItems?`<section class="m26-stat-grid">${stat('Pendientes',center.summary.pending)}${stat('Conflictos',center.summary.conflicts)}${stat('Rechazadas',center.summary.rejected)}${stat('Total',center.summary.total)}</section>`:''}<section class="m26-panel"><div class="m26-stack">${content}</div></section></div>`;
 }
 
 

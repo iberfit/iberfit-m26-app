@@ -345,7 +345,7 @@ test('RC59.0C3 app dispara sync tras stage, login y reconexion sin acoplar outbo
 
   assert.match(app,/createTelemetryRemoteSync/u);
   assert.match(app,/telemetryRemoteSync=createTelemetryRemoteSync/u);
-  assert.match(app,/telemetrySyncStop=telemetryRemoteSync\.start\(\)/u);
+  assert.match(app,/telemetrySyncStop=telemetryRemoteSync\.start\(\{flushInitial:false\}\)/u);
   assert.match(controller,/telemetryRemoteSync/u);
   assert.match(live,/onOutboxStaged/u);
   assert.match(live,/M26_TELEMETRY_REMOTE_SYNC_TRIGGER_FAILED/u);

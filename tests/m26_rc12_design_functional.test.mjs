@@ -6,7 +6,7 @@ import {auditDesignContract,auditPaletteContrast,contrastRatio} from '../src/m26
 import {renderActivityRoute,renderPrivateNotesRoute,renderVerificationRoute} from '../src/m26/modules/route-render.js';
 
 test('registro unificado cubre engagement y verificación',()=>{
-  for(const action of ['submit-checkin','define-habit','log-habit','save-private-note','retry','inspect','discard_local'])assert.ok(M26_ACTION_REGISTRY[action]);
+  for(const action of ['submit-checkin','define-habit','log-habit','save-private-note','retry','inspect','discard_local','refresh'])assert.ok(M26_ACTION_REGISTRY[action]);
   assert.equal(assertActionAllowed('save-private-note','client'),false);
   assert.equal(assertActionAllowed('submit-checkin','client'),true);
 });

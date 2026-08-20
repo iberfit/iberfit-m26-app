@@ -371,7 +371,7 @@ export function createTelemetryRemoteSync({
     started=false;
   }
 
-  function start({target=globalThis}={}){
+  function start({target=globalThis,flushInitial=true}={}){
     if(started)return stop;
     if(
       typeof target?.addEventListener!=='function'||
@@ -383,9 +383,11 @@ export function createTelemetryRemoteSync({
     eventTarget.addEventListener('online',onOnline);
     eventTarget.addEventListener('offline',onOffline);
     started=true;
-    void flush().catch((error)=>{
-      diagnostic('M26_TELEMETRY_REMOTE_INITIAL_FLUSH_FAILED',error);
-    });
+    if(flushInitial){
+      void flush().catch((error)=>{
+        diagnostic('M26_TELEMETRY_REMOTE_INITIAL_FLUSH_FAILED',error);
+      });
+    }
     return stop;
   }
 

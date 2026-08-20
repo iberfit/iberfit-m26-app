@@ -41,7 +41,7 @@ function operationStatus(operations) {
   if (operations.pending) labels.push(`${operations.pending} pendiente${operations.pending === 1 ? '' : 's'}`);
   if (operations.conflicts) labels.push(`${operations.conflicts} conflicto${operations.conflicts === 1 ? '' : 's'}`);
   if (operations.rejected) labels.push(`${operations.rejected} por revisar`);
-  const text = labels.length ? labels.join(' · ') : 'Sin operaciones pendientes';
+  const text = labels.length ? labels.join(' · ') : 'Estado local pendiente de revisión';
   return `<div class="m26-operation-status is-${escapeHtml(operations.kind)}" role="status" aria-live="polite" aria-atomic="true"><span class="m26-status-dot" aria-hidden="true"></span><span>${escapeHtml(text)}</span></div>`;
 }
 

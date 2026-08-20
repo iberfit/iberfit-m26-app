@@ -34,9 +34,12 @@ export function createVerificationController({root,commandBus,repository,store})
   let mounted=false;
   async function onClick(event){
     const button=event.target.closest?.('[data-verification-action]');if(!button)return;
-    const action=button.getAttribute('data-verification-action');const operationId=button.getAttribute('data-operation-id');if(!operationId)return;
+    const action=button.getAttribute('data-verification-action');
+    const operationId=button.getAttribute('data-operation-id');
+    if(action!=='refresh'&&!operationId)return;
     button.disabled=true;button.setAttribute('aria-busy','true');
     try{
+      if(action==='refresh'){await refreshVerificationState({repository,store});return;}
       if(action==='retry')await commandBus.retry(operationId);
       else if(action==='discard_local')await repository.remove(operationId);
       else if(action==='inspect'){const record=(await repository.list()).find((item)=>item.operationId===operationId)||null;root.dispatchEvent(new CustomEvent('m26:inspect-operation',{bubbles:true,detail:{operation:clone(record)}}));return;}

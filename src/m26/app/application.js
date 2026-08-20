@@ -480,14 +480,9 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-setup-ready');
 
     qaStage('rc64-post-login-local-reconciliation-start');
-    void refreshVerificationState({repository:operationRepository,store})
-      .then(()=>{
-        qaStage('rc64-post-login-verification-ready');
-        render();
-      })
-      .catch((error)=>reportDiagnostic('post-login-verification',error));
 
-    wearables.mount();
+
+    wearables.mount({syncInitial:false});
     qaStage('rc64-wearables-post-login-mount-ready');
 
     const sync=createConnectivitySync({
@@ -497,18 +492,12 @@ export async function createM26Application({root=document.querySelector('#app'),
         render();
       },
     });
-    connectivityStop=sync.start();
-    telemetrySyncStop=telemetryRemoteSync.start();
+    connectivityStop=sync.start({emitInitial:false});
+    telemetrySyncStop=telemetryRemoteSync.start({flushInitial:false});
     void registerM26ServiceWorker({url:'/m26/sw.js',scope:'/m26/'}).catch(()=>{});
+    qaStage('rc64-post-login-local-services-armed');
 
-    if(!pendingIriExternalReportIntent){
-      void restoreExecution()
-        .then((restored)=>{
-          qaStage('rc64-post-login-recovery-ready');
-          if(restored)render();
-        })
-        .catch((error)=>reportDiagnostic('post-login-recovery',error));
-    }
+
   }
   function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}

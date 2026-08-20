@@ -27,6 +27,7 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'retry':{roles:['admin','coach','client'],domain:'verification'},
   'inspect':{roles:['admin','coach','client'],domain:'verification'},
   'discard_local':{roles:['admin','coach','client'],domain:'verification'},
+  'refresh':{roles:['admin','coach','client'],domain:'verification'},
   'install-update':{roles:['admin','coach','client'],domain:'pwa'},
   'save-checkin-draft':{roles:['admin','coach','client'],domain:'engagement'},
   'submit-checkin':{roles:['admin','coach','client'],domain:'engagement'},

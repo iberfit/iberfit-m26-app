@@ -1118,7 +1118,7 @@ export function createWearableController({
   }
 
   return Object.freeze({
-    mount(){
+    mount({syncInitial=true}={}){
       if(mounted)return;
 
       root.addEventListener(
@@ -1154,17 +1154,20 @@ export function createWearableController({
 
       enhanceControls();
       mounted=true;
-      void autoSyncNativeProviders();
 
-      if(isOnline()){
-        void remoteSync.flush().catch(
-          (error)=>{
-            emitDiagnostic(
-              'wearable-initial-sync',
-              error,
-            );
-          },
-        );
+      if(syncInitial){
+        void autoSyncNativeProviders();
+
+        if(isOnline()){
+          void remoteSync.flush().catch(
+            (error)=>{
+              emitDiagnostic(
+                'wearable-initial-sync',
+                error,
+              );
+            },
+          );
+        }
       }
     },
 
