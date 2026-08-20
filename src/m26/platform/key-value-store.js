@@ -1,4 +1,10 @@
 function clone(value){return value==null?value:structuredClone(value);}
+function qaStage(stage){
+  try{
+    const hook=globalThis.__IBERFIT_M26_QA_STAGE__;
+    if(typeof hook==='function')void hook(stage);
+  }catch{}
+}
 
 export function createMemoryKeyValueStore(initial={}){
   const records=new Map(Object.entries(initial).map(([key,value])=>[key,clone(value)]));
@@ -148,15 +154,26 @@ export function createBrowserKeyValueStore(options={}){
       await primaryCall(()=>primary.remove(key),undefined);
     },
     async keys(prefix=''){
+      qaStage('rc64-browser-storage-keys-start');
       let sessionKeys=[];
       if(session){try{sessionKeys=await session.keys(prefix);}catch{}}
+      qaStage('rc64-browser-storage-session-keys-ready');
+      qaStage('rc64-browser-storage-primary-keys-start');
       const primaryKeys=await primaryCall(()=>primary.keys(prefix),[]);
+      qaStage('rc64-browser-storage-primary-keys-ready');
       const memoryKeys=await memory.keys(prefix);
-      return [...new Set([...sessionKeys,...primaryKeys,...memoryKeys])].sort();
+      qaStage('rc64-browser-storage-memory-keys-ready');
+      const keys=[...new Set([...sessionKeys,...primaryKeys,...memoryKeys])].sort();
+      qaStage('rc64-browser-storage-keys-ready');
+      return keys;
     },
     async entries(prefix=''){
+      qaStage('rc64-browser-storage-entries-start');
+      const keys=await this.keys(prefix);
+      qaStage('rc64-browser-storage-entry-keys-ready');
       const out=[];
-      for(const key of await this.keys(prefix))out.push([key,await this.get(key)]);
+      for(const key of keys)out.push([key,await this.get(key)]);
+      qaStage('rc64-browser-storage-entries-ready');
       return out;
     },
     async clear(prefix=''){for(const key of await this.keys(prefix))await this.remove(key);},

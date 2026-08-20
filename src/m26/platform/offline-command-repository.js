@@ -2,6 +2,12 @@ import { createBrowserKeyValueStore,createMemoryKeyValueStore } from './key-valu
 const SAFE_ID_PATTERN=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const SCHEMA_VERSION=2;
 function clone(value){return value==null?value:structuredClone(value);}
+function qaStage(stage){
+  try{
+    const hook=globalThis.__IBERFIT_M26_QA_STAGE__;
+    if(typeof hook==='function')void hook(stage);
+  }catch{}
+}
 function safeId(value,code){const id=String(value||'').trim();if(!SAFE_ID_PATTERN.test(id))throw new Error(code);return id;}
 export function createKeyValueOperationRepository({storage=createBrowserKeyValueStore(),ownerId,prefix='m26:operation:'}={}){
   const owner=safeId(ownerId,'M26_OPERATION_OWNER_REQUIRED');
@@ -13,7 +19,30 @@ export function createKeyValueOperationRepository({storage=createBrowserKeyValue
     async put(record){const normalized=normalize(record);if(!normalized)throw new Error('M26_OPERATION_RECORD_INVALID');await storage.set(key(normalized.operationId),normalized);},
     async get(operationId){const expected=key(operationId),value=normalize(await storage.get(expected));if(!value||String(value.operationId)!==String(operationId)){await storage.remove(expected);return null;}return value;},
     async remove(operationId){await storage.remove(key(operationId));},
-    async list(){const out=[];for(const [storageKey,raw] of await storage.entries(ownerPrefix)){const value=normalize(raw);try{if(!value||storageKey!==key(value.operationId)){await storage.remove(storageKey);continue;}if(value.schemaVersion!==raw?.schemaVersion||value.ownerId!==raw?.ownerId)await storage.set(storageKey,value);out.push(clone(value));}catch{await storage.remove(storageKey);}}return out.sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')));},
+    async list(){
+      qaStage('rc64-operation-repository-list-start');
+      qaStage('rc64-operation-storage-entries-start');
+      const storedEntries=await storage.entries(ownerPrefix);
+      qaStage('rc64-operation-storage-entries-ready');
+      const out=[];
+      for(const [storageKey,raw] of storedEntries){
+        const value=normalize(raw);
+        try{
+          if(!value||storageKey!==key(value.operationId)){
+            await storage.remove(storageKey);
+            continue;
+          }
+          if(value.schemaVersion!==raw?.schemaVersion||value.ownerId!==raw?.ownerId){
+            await storage.set(storageKey,value);
+          }
+          out.push(clone(value));
+        }catch{
+          await storage.remove(storageKey);
+        }
+      }
+      qaStage('rc64-operation-repository-normalize-ready');
+      return out.sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+    },
     async clearOwner(){await storage.clear(ownerPrefix);},
   });
 }

@@ -308,7 +308,7 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     });
 
     await context.exposeBinding('__rc64RecordStage',(_source,rawStage)=>{
-      if(qaStages.length>=40)return;
+      if(qaStages.length>=96)return;
       const stage=String(rawStage||'');
       if(!/^rc64-[a-z0-9-]{1,64}$/u.test(stage))return;
       const elapsedMs=qaStageEpoch

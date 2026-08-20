@@ -1,5 +1,11 @@
 import {castilianOperationTitle} from '../ui/castellano.js';
 function clone(value){return value==null?value:structuredClone(value);}
+function qaStage(stage){
+  try{
+    const hook=globalThis.__IBERFIT_M26_QA_STAGE__;
+    if(typeof hook==='function')void hook(stage);
+  }catch{}
+}
 function list(value){return Array.isArray(value)?value:[];}
 function compact(item,status){return Object.freeze({operationId:item.operationId,type:item.type,entityType:item.entityType,entityId:item.entityId,clientId:item.clientId,status,createdAt:item.createdAt||null,updatedAt:item.updatedAt||null,errorCode:item.errorCode||null,retryable:item.retryable!==false,attempts:Math.max(0,Math.trunc(Number(item.attempts)||0)),nextRetryAt:item.nextRetryAt||null,title:castilianOperationTitle(item.type,item.entityType),actions:Object.freeze(status==='pending'&&item.retryable!==false?['retry','inspect']:status==='conflict'?['inspect','discard_local']:['inspect','discard_local'])});}
 export function buildVerificationCenter(state){
@@ -10,8 +16,18 @@ export function buildVerificationCenter(state){
   return Object.freeze({pending:Object.freeze(pending),conflicts:Object.freeze(conflicts),rejected:Object.freeze(rejected),items:Object.freeze(items),summary:Object.freeze({pending:pending.length,conflicts:conflicts.length,rejected:rejected.length,total:items.length}),deploymentBlocked:conflicts.length>0||rejected.length>0});
 }
 export async function refreshVerificationState({repository,store}){
+  qaStage('rc64-verification-refresh-start');
   if(!repository?.list||!store?.projectOperations)throw new Error('M26_VERIFICATION_DEPENDENCIES_REQUIRED');
-  const records=await repository.list();store.projectOperations(records);return buildVerificationCenter(store.getState());
+  qaStage('rc64-verification-repository-list-start');
+  const records=await repository.list();
+  qaStage('rc64-verification-repository-list-ready');
+  qaStage('rc64-verification-project-start');
+  store.projectOperations(records);
+  qaStage('rc64-verification-project-ready');
+  qaStage('rc64-verification-center-start');
+  const center=buildVerificationCenter(store.getState());
+  qaStage('rc64-verification-center-ready');
+  return center;
 }
 export function createVerificationController({root,commandBus,repository,store}){
   if(!root?.addEventListener||!repository?.remove||!commandBus?.retry)throw new Error('M26_VERIFICATION_CONTROLLER_REQUIRED');

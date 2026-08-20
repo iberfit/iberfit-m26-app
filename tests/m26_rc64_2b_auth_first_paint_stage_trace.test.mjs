@@ -62,7 +62,7 @@ test('RC64.2B first-paint trace is bounded static QA metadata and not persisted 
 
   assert.match(smoke,/exposeBinding\('__rc64RecordStage'/u);
   assert.match(smoke,/\^rc64-\[a-z0-9-\]\{1,64\}\$/u);
-  assert.match(smoke,/qaStages\.length>=40/u);
+  assert.match(smoke,/qaStages\.length>=96/u);
   assert.match(smoke,/Math\.min\(Date\.now\(\)-qaStageEpoch,60_000\)/u);
   assert.match(smoke,/stages=\$\{stageSummary\}/u);
 
