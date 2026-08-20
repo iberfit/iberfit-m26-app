@@ -48,6 +48,23 @@ export const M26_BROWSER_INDEXED_DB_STORES=Object.freeze([
   'wearable_sync_v44',
 ]);
 
+const canonicalIndexedDbOpenRegistries=new WeakMap();
+
+function canonicalIndexedDbRegistry(indexedDBImpl){
+  if(
+    (typeof indexedDBImpl!=='object'&&typeof indexedDBImpl!=='function')||
+    indexedDBImpl===null
+  ){
+    return null;
+  }
+  let registry=canonicalIndexedDbOpenRegistries.get(indexedDBImpl);
+  if(!registry){
+    registry=new Map();
+    canonicalIndexedDbOpenRegistries.set(indexedDBImpl,registry);
+  }
+  return registry;
+}
+
 function indexedDbVersion(dbName,version){
   if(Number.isInteger(version)&&version>=1)return version;
   return dbName===M26_BROWSER_INDEXED_DB_NAME
@@ -64,6 +81,50 @@ function indexedDbUpgradeStores(db,dbName,storeName){
   }
 }
 
+function openCanonicalIndexedDb({indexedDBImpl,dbName,version}){
+  const registry=canonicalIndexedDbRegistry(indexedDBImpl);
+  if(!registry)return null;
+  const registryKey=`${dbName}\u0000${version}`;
+  const existing=registry.get(registryKey);
+  if(existing)return existing;
+
+  let opening;
+  const clear=()=>{
+    if(registry.get(registryKey)===opening)registry.delete(registryKey);
+  };
+
+  opening=new Promise((resolve,reject)=>{
+    const request=indexedDBImpl.open(dbName,version);
+    request.onupgradeneeded=()=>{
+      indexedDbUpgradeStores(request.result,dbName,'key_value');
+    };
+    request.onsuccess=()=>{
+      const db=request.result;
+      db.onversionchange=()=>{
+        clear();
+        db.close();
+      };
+      try{
+        if('onclose' in db){
+          db.onclose=()=>clear();
+        }
+      }catch{}
+      resolve(db);
+    };
+    request.onerror=()=>{
+      clear();
+      reject(request.error||new Error('M26_INDEXED_DB_OPEN_FAILED'));
+    };
+    request.onblocked=()=>{
+      clear();
+      reject(new Error('M26_INDEXED_DB_BLOCKED'));
+    };
+  });
+
+  registry.set(registryKey,opening);
+  return opening;
+}
+
 export function createIndexedDbKeyValueStore({
   dbName=M26_BROWSER_INDEXED_DB_NAME,
   storeName='key_value',
@@ -72,35 +133,55 @@ export function createIndexedDbKeyValueStore({
 }={}){
   if(!indexedDBImpl?.open)throw new Error('M26_INDEXED_DB_UNAVAILABLE');
   const resolvedVersion=indexedDbVersion(dbName,version);
+  const useCanonicalSharedOpen=
+    dbName===M26_BROWSER_INDEXED_DB_NAME&&
+    resolvedVersion===M26_BROWSER_INDEXED_DB_SCHEMA_VERSION;
   let databasePromise;
-  function open(){
-    if(databasePromise)return databasePromise;
-    databasePromise=new Promise((resolve,reject)=>{
-      const request=indexedDBImpl.open(dbName,resolvedVersion);
-      request.onupgradeneeded=()=>{
-        indexedDbUpgradeStores(request.result,dbName,storeName);
-      };
-      request.onsuccess=()=>{
-        const db=request.result;
-        if(!db.objectStoreNames.contains(storeName)){
-          db.close?.();
-          databasePromise=null;
-          reject(new Error('M26_INDEXED_DB_STORE_MISSING'));
-          return;
-        }
-        db.onversionchange=()=>db.close();
-        resolve(db);
-      };
-      request.onerror=()=>{
-        databasePromise=null;
-        reject(request.error||new Error('M26_INDEXED_DB_OPEN_FAILED'));
-      };
-      request.onblocked=()=>{
-        databasePromise=null;
-        reject(new Error('M26_INDEXED_DB_BLOCKED'));
-      };
-    });
-    return databasePromise;
+
+  async function open(){
+    let db;
+
+    if(useCanonicalSharedOpen){
+      const shared=openCanonicalIndexedDb({
+        indexedDBImpl,
+        dbName,
+        version:resolvedVersion,
+      });
+      if(shared)db=await shared;
+    }
+
+    if(!db){
+      if(!databasePromise){
+        databasePromise=new Promise((resolve,reject)=>{
+          const request=indexedDBImpl.open(dbName,resolvedVersion);
+          request.onupgradeneeded=()=>{
+            indexedDbUpgradeStores(request.result,dbName,storeName);
+          };
+          request.onsuccess=()=>{
+            const opened=request.result;
+            opened.onversionchange=()=>{
+              databasePromise=null;
+              opened.close();
+            };
+            resolve(opened);
+          };
+          request.onerror=()=>{
+            databasePromise=null;
+            reject(request.error||new Error('M26_INDEXED_DB_OPEN_FAILED'));
+          };
+          request.onblocked=()=>{
+            databasePromise=null;
+            reject(new Error('M26_INDEXED_DB_BLOCKED'));
+          };
+        });
+      }
+      db=await databasePromise;
+    }
+
+    if(!db.objectStoreNames.contains(storeName)){
+      throw new Error('M26_INDEXED_DB_STORE_MISSING');
+    }
+    return db;
   }
   async function transaction(mode,operation){
     const db=await open();
