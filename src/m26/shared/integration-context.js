@@ -19,11 +19,27 @@ export function normalizeApplicationContextExtension(input={}){
 export function filterSnapshotForAssignmentScope(snapshot,extension,activeRole){
   const context=normalizeApplicationContextExtension(extension);
   if(context.available&&context.membershipStatus!=='active')throw new Error('M26_ORGANIZATION_ACCESS_SUSPENDED');
-  if(!context.available||activeRole!=='coach')return structuredClone(snapshot);const strictScope=context.assignmentScopeEnforced||context.revision>=2;if(!strictScope)return structuredClone(snapshot);
+
+  const source=snapshot&&typeof snapshot==='object'&&!Array.isArray(snapshot)?snapshot:{};
+  const sourceData=source.data&&typeof source.data==='object'&&!Array.isArray(source.data)?source.data:{};
+
+  // Transient pre-state projection: do not mutate the remote snapshot.
+  // stateFromBootstrap owns the defensive clone/sanitization before canonical storage.
+  if(!context.available||activeRole!=='coach'){
+    return {...source,data:sourceData};
+  }
+
+  const strictScope=context.assignmentScopeEnforced||context.revision>=2;
+  if(!strictScope){
+    return {...source,data:sourceData};
+  }
+
   const allowed=new Set(context.assignedClientIds);
   const data={};
-  for(const [key,value] of Object.entries(snapshot?.data||{})){
-    data[key]=Array.isArray(value)&&CLIENT_SCOPED.has(key)?value.filter((item)=>allowed.has(recordClientId(item,key))):structuredClone(value);
+  for(const [key,value] of Object.entries(sourceData)){
+    data[key]=Array.isArray(value)&&CLIENT_SCOPED.has(key)
+      ?value.filter((item)=>allowed.has(recordClientId(item,key)))
+      :value;
   }
-  return {...structuredClone(snapshot),data};
+  return {...source,data};
 }

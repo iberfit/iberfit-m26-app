@@ -28,7 +28,8 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
 
   function hydrate(snapshot) {
     const next=stateFromBootstrap(snapshot, state);
-    if(sameJson(next,state))return getState();
+    const initialHydration=!state?.identity||state?.hydration?.status!=='ready';
+    if(!initialHydration&&sameJson(next,state))return getState();
     state = next;
     emit();
     return getState();

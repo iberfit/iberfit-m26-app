@@ -165,7 +165,7 @@ export function stateFromBootstrap(rawSnapshot, previous = createProductionState
     M26_COLLECTION_KEYS.map((key) => [key, normalizeCollection(snapshot.data, key)]),
   );
   const identity=projectIdentityForRole(snapshot.user);
-  const collections=restrictCollectionsForIdentity(rawCollections,identity);
+  const collections=identity.role==='client'?restrictCollectionsForIdentity(rawCollections,identity):rawCollections;
   const visibleClientIds = new Set(collections.clients.map((client) => client?.id).filter(Boolean));
   const sameIdentity=previous?.identity?.id===identity.id&&normalizeRole(previous?.identity?.role)===identity.role;
   const hasPreviousIdentity=Boolean(previous?.identity);
