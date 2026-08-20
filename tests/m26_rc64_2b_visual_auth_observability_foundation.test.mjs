@@ -316,8 +316,13 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   assert.match(smoke,/runtimeDiagnostics\.length>0/u);
   assert.match(smoke,/httpErrorMeta\.length>0/u);
   assert.match(smoke,/requestFailures>0/u);
-  assert.match(smoke,/const roleOutcome=authenticatedRole/u);
-  assert.match(smoke,/\.waitFor\(\{state:'visible',timeout:20_000\}\)/u);
+  assert.match(smoke,/const setupOutcome=new Promise/u);
+  assert.match(smoke,/item\.stage==='rc64-login-setup-ready'/u);
+  assert.match(smoke,/kind:'authenticated-setup-ready'/u);
+  assert.match(smoke,/canonicalAuthenticatedShell/u);
+  assert.match(smoke,/\.m26-shell\[data-m26-role=/u);
+  assert.match(smoke,/\.toHaveCount\(1\)/u);
+  assert.match(smoke,/\.toBeVisible\(\{timeout:3_000\}\)/u);
   assert.match(smoke,/Promise\.race\(\[/u);
   assert.match(smoke,/setInterval\(\(\)=>\{/u);
   assert.match(smoke,/20_500/u);
@@ -327,8 +332,10 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   assert.match(authenticatedConfig,/timeout:90_000/u);
   assert.match(authenticatedConfig,/expect:\{timeout:20_000\}/u);
   assert.doesNotMatch(smoke,/while\(Date\.now\(\)<authDeadline\)/u);
+  assert.doesNotMatch(smoke,/const roleOutcome=authenticatedRole/u);
   assert.doesNotMatch(smoke,/authenticatedRole\.isVisible/u);
   assert.doesNotMatch(smoke,/await expect\(authenticatedRole\)\.toBeVisible\(\)/u);
+  assert.doesNotMatch(smoke,/waitFor\(\{state:'visible',timeout:20_000\}\)/u);
   assert.doesNotMatch(smoke,/__RC64_2B_DIAGNOSTICS__/u);
   assert.doesNotMatch(smoke,/message\.text\(\)/u);
   assert.doesNotMatch(smoke,/response\.text\(\)|response\.body\(\)|request\.postData/u);

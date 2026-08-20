@@ -667,7 +667,9 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     runtimePhase='auth';
     await page.getByRole('button',{name:'Entrar'}).click();
 
-    const authenticatedRole=page.locator(`[data-m26-role="${account.role}"]`);
+    const canonicalAuthenticatedShell=page.locator(
+      `.m26-shell[data-m26-role="${account.role}"]`
+    );
     const runtimeFailureMessage=(code)=>{
       const diagnostics=runtimeDiagnostics.slice(0,8);
       const diagnosticSummary=diagnostics.length
@@ -738,12 +740,20 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
 
     const authStartedAt=Date.now();
     let runtimeWatchTimer=null;
+    let setupWatchTimer=null;
     let nativeDeadlineTimer=null;
 
-    const roleOutcome=authenticatedRole
-      .waitFor({state:'visible',timeout:20_000})
-      .then(()=>Object.freeze({kind:'authenticated'}))
-      .catch(()=>Object.freeze({kind:'not-visible'}));
+    const setupOutcome=new Promise((resolve)=>{
+      setupWatchTimer=setInterval(()=>{
+        const ready=qaStages.some(
+          (item)=>item.stage==='rc64-login-setup-ready'
+        );
+        if(!ready)return;
+        clearInterval(setupWatchTimer);
+        setupWatchTimer=null;
+        resolve(Object.freeze({kind:'authenticated-setup-ready'}));
+      },25);
+    });
 
     const runtimeOutcome=new Promise((resolve)=>{
       runtimeWatchTimer=setInterval(()=>{
@@ -763,7 +773,7 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     });
 
     const outcome=await Promise.race([
-      roleOutcome,
+      setupOutcome,
       runtimeOutcome,
       deadlineOutcome,
     ]);
@@ -771,6 +781,10 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     if(runtimeWatchTimer!==null){
       clearInterval(runtimeWatchTimer);
       runtimeWatchTimer=null;
+    }
+    if(setupWatchTimer!==null){
+      clearInterval(setupWatchTimer);
+      setupWatchTimer=null;
     }
     if(nativeDeadlineTimer!==null){
       clearTimeout(nativeDeadlineTimer);
@@ -792,7 +806,7 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       throw new Error(runtimeFailureState()||outcome.failure);
     }
 
-    if(outcome.kind!=='authenticated'){
+    if(outcome.kind!=='authenticated-setup-ready'){
       await new Promise((resolve)=>setTimeout(resolve,150));
       await Promise.allSettled([...responseDiagnosticTasks]);
       const failure=runtimeFailureState();
@@ -802,7 +816,21 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
 
     const authElapsedMs=Math.max(0,Math.min(Date.now()-authStartedAt,60_000));
     console.log(`RC64_2B_ACCOUNT_AUTHENTICATED:${account.name}:elapsedMs=${authElapsedMs}`);
-    await expect(page.getByRole('button',{name:'Cerrar sesión'})).toBeVisible();
+
+    await expect(
+      canonicalAuthenticatedShell,
+      `Canonical authenticated shell missing or duplicated for ${account.name}`
+    ).toHaveCount(1);
+
+    await expect(
+      canonicalAuthenticatedShell,
+      `Canonical authenticated shell not visible for ${account.name}`
+    ).toBeVisible({timeout:3_000});
+
+    await expect(
+      page.getByRole('button',{name:'Cerrar sesión',exact:true}),
+      `Logout action not visible after setup-ready for ${account.name}`
+    ).toBeVisible({timeout:3_000});
 
     const quality=await page.evaluate(async()=>{
       const collector=await globalThis.__IBERFIT_M26_QUALITY_OBSERVABILITY_READY__;
