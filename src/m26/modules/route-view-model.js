@@ -51,6 +51,12 @@ import { clientContentView } from '../publication/client-content.js';
 function clone(value) {
   return value == null ? value : structuredClone(value);
 }
+function qaStage(stage){
+  try{
+    const hook=globalThis.__IBERFIT_M26_QA_STAGE__;
+    if(typeof hook==='function')void hook(stage);
+  }catch{}
+}
 
 function dateLabel(value) {
   return (
@@ -322,12 +328,15 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
   const area = shellVm.activeArea;
 
   if (area === 'hoy') {
+    qaStage('rc64-hoy-start');
     const overview = todayOverview(state, now);
+    qaStage('rc64-hoy-overview-ready');
     const clientId = routeClientId(shellVm, state);
     const alerts = clientId
       ? deriveAdherenceAlerts(state, clientId, { now })
       : [];
 
+    qaStage('rc64-hoy-clients-start');
     const clients=overview.summaries.map(
       (summary)=>compactSummary(
         summary,
@@ -335,7 +344,9 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
         {state,now}
       )
     );
+    qaStage('rc64-hoy-clients-ready');
 
+    qaStage('rc64-hoy-cockpit-start');
     const coachCockpit=
       overview.role==='coach'
         ?deriveCoachCockpit(
@@ -349,6 +360,8 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
             }))
           )
         :null;
+    qaStage('rc64-hoy-cockpit-ready');
+    qaStage('rc64-hoy-ready');
 
     return Object.freeze({
       kind: 'hoy',

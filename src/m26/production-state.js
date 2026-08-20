@@ -36,6 +36,12 @@ const ROLE_ALIASES=Object.freeze({admin:'admin',administrador:'admin',administra
 function clone(value) {
   return value == null ? value : structuredClone(value);
 }
+function qaStage(stage){
+  try{
+    const hook=globalThis.__IBERFIT_M26_QA_STAGE__;
+    if(typeof hook==='function')void hook(stage);
+  }catch{}
+}
 function normalizeRole(value){return ROLE_ALIASES[String(value||'').trim().toLowerCase()]||null;}
 function environmentMode(environment){
   if(typeof environment==='string'){
@@ -160,12 +166,17 @@ function normalizeCollection(data, key) {
 }
 
 export function stateFromBootstrap(rawSnapshot, previous = createProductionState()) {
+  qaStage('rc64-state-start');
   const snapshot = assertProductionSnapshot(rawSnapshot);
+  qaStage('rc64-state-assert-ready');
   const rawCollections = Object.fromEntries(
     M26_COLLECTION_KEYS.map((key) => [key, normalizeCollection(snapshot.data, key)]),
   );
+  qaStage('rc64-state-collections-ready');
   const identity=projectIdentityForRole(snapshot.user);
+  qaStage('rc64-state-identity-ready');
   const collections=identity.role==='client'?restrictCollectionsForIdentity(rawCollections,identity):rawCollections;
+  qaStage('rc64-state-role-projection-ready');
   const visibleClientIds = new Set(collections.clients.map((client) => client?.id).filter(Boolean));
   const sameIdentity=previous?.identity?.id===identity.id&&normalizeRole(previous?.identity?.role)===identity.role;
   const hasPreviousIdentity=Boolean(previous?.identity);
@@ -182,6 +193,7 @@ export function stateFromBootstrap(rawSnapshot, previous = createProductionState
         ? ownClientId
         : collections.clients[0]?.id || null;
 
+  qaStage('rc64-state-ready');
   return {
     ...createProductionState(),
     activeArea:sameIdentity?(previous.activeArea||defaultArea):!hasPreviousIdentity?initialArea:defaultArea,

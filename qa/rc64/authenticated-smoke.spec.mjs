@@ -283,6 +283,8 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     let registryControl=null;
 
     const runtimeDiagnostics=[];
+    const qaStages=[];
+    let qaStageEpoch=0;
     await context.exposeBinding('__rc64RecordDiagnostic',(_source,detail)=>{
       if(runtimeDiagnostics.length>=8)return;
       const candidate=detail&&typeof detail==='object'?detail:{};
@@ -292,6 +294,16 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       const code=/^M26_[A-Z0-9_:-]{2,120}$/u.test(rawCode)?rawCode:'M26_UNCLASSIFIED_DIAGNOSTIC';
       const status=Number.isInteger(candidate.status)&&candidate.status>=0&&candidate.status<=599?candidate.status:null;
       runtimeDiagnostics.push(Object.freeze({stage,code,status}));
+    });
+
+    await context.exposeBinding('__rc64RecordStage',(_source,rawStage)=>{
+      if(qaStages.length>=40)return;
+      const stage=String(rawStage||'');
+      if(!/^rc64-[a-z0-9-]{1,64}$/u.test(stage))return;
+      const elapsedMs=qaStageEpoch
+        ?Math.max(0,Math.min(Date.now()-qaStageEpoch,60_000))
+        :0;
+      qaStages.push(Object.freeze({stage,elapsedMs}));
     });
 
     await context.addInitScript(()=>{
@@ -306,6 +318,11 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
         if(typeof forward!=='function')return;
         void forward({stage,code,status}).catch(()=>{});
       });
+      globalThis.__IBERFIT_M26_QA_STAGE__=(stage)=>{
+        const forward=globalThis.__rc64RecordStage;
+        if(typeof forward!=='function')return;
+        void forward(String(stage||'')).catch(()=>{});
+      };
     });
 
     await context.route('**/*',async(route)=>{
@@ -439,6 +456,8 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
 
     await page.getByLabel('Correo').fill(account.email);
     await page.getByLabel('Contraseña').fill(account.password);
+    qaStages.length=0;
+    qaStageEpoch=Date.now();
     runtimePhase='auth';
     await page.getByRole('button',{name:'Entrar'}).click();
 
@@ -488,8 +507,11 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
           `preflight=${registryControl.preflight.status}/${registryControl.preflight.allowOrigin}/${registryControl.preflight.allowsApikey?'apikey':'no-apikey'}/${registryControl.preflight.allowsAuthorization?'authorization':'no-authorization'}/${registryControl.preflight.allowsClientInfo?'client-info':'no-client-info'}`,
         ].join('|')
         :'none';
+      const stageSummary=qaStages.length
+        ?qaStages.map((item)=>`${item.stage}@${item.elapsedMs}`).join('|')
+        :'none';
       const unclassified=Math.max(0,consoleErrors-consoleErrorMeta.length);
-      return `${code}:account=${account.name}:page=${pageErrors}:console=${consoleErrors}:diagnostics=${diagnosticSummary}:consoleMeta=${consoleSummary}:httpErrors=${httpSummary}:requestFailures=${requestFailureSummary}:pageMeta=${pageSummary}:responses=${responses}:pending=${pending}:browserRegistry=${browserRegistry}:nodeControl=${control}:unclassified=${unclassified}`;
+      return `${code}:account=${account.name}:page=${pageErrors}:console=${consoleErrors}:diagnostics=${diagnosticSummary}:consoleMeta=${consoleSummary}:httpErrors=${httpSummary}:requestFailures=${requestFailureSummary}:pageMeta=${pageSummary}:responses=${responses}:pending=${pending}:browserRegistry=${browserRegistry}:nodeControl=${control}:stages=${stageSummary}:unclassified=${unclassified}`;
     };
 
     const runtimeFailureState=()=>{

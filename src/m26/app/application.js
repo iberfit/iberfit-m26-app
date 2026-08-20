@@ -52,6 +52,14 @@ import {
 } from '../workflows/iri-external-report-controller.js';
 
 const SESSION_DRAFT_SCOPE='session-builder';
+function qaStage(stage){
+  const value=String(stage||'');
+  if(!/^rc64-[a-z0-9-]{1,64}$/u.test(value))return;
+  try{
+    const hook=globalThis.__IBERFIT_M26_QA_STAGE__;
+    if(typeof hook==='function')void hook(value);
+  }catch{}
+}
 function escapeText(value){return String(value??'').replace(/[&<>"']/g,'');}
 function normalizePublishedSession(record){
   const body=record?.body&&typeof record.body==='object'?record.body:record;
@@ -198,14 +206,19 @@ export async function createM26Application({root=document.querySelector('#app'),
     return refreshInFlight;
   }
   async function fetchCatalog(){
+    qaStage('rc64-catalog-start');
     if(!catalog)catalog=await loadExerciseCatalog('/baseline_m25_2/exercise-catalog-m25.json');
+    qaStage('rc64-catalog-base-ready');
     if(!mediaMap){
       try{mediaMap=await loadExerciseMediaMap();}
       catch{mediaMap=null;}
     }
+    qaStage('rc64-catalog-media-ready');
+    qaStage('rc64-catalog-ready');
     return catalog;
   }
   async function hydrate({reason='bootstrap'}={}){
+    qaStage('rc64-hydrate-start');
     await refreshSessionIfNeeded();
     store.setHydration('loading');
     try{
@@ -217,6 +230,7 @@ export async function createM26Application({root=document.querySelector('#app'),
         transport.backendBootstrap(currentToken()),
         transport.wearableBootstrap(currentToken()),
       ]);
+      qaStage('rc64-hydrate-primary-ready');
       const runtimeRegistry=validatedRuntimeRegistry(installed);
       if(!runtimeRegistry.base.ok)throw new Error(`M26_REMOTE_BASE_REGISTRY_INVALID:${runtimeRegistry.base.missing.join(',')}`);
       const applicationContext=normalizeApplicationContextExtension(contextExtension.available?{...contextExtension.data,available:true}:{available:false});
@@ -225,22 +239,33 @@ export async function createM26Application({root=document.querySelector('#app'),
       if(activeApplicationRole&&!authorizedRoles.includes(activeApplicationRole))throw new Error('M26_ROLE_SWITCH_FORBIDDEN');
       const activeRole=activeApplicationRole||primaryRole;
       const scopedSnapshot=filterSnapshotForAssignmentScope(snapshot,applicationContext,activeRole);
+      qaStage('rc64-hydrate-scope-ready');
       const [adminExtension,communicationExtension]=await Promise.all([
         activeRole==='admin'&&adminTransport?adminTransport.bootstrapOptional(currentToken()):Promise.resolve({available:false,reason:'role_not_admin',data:null}),
         ['client','coach'].includes(activeRole)&&communicationTransport?communicationTransport.bootstrapOptional(currentToken(),{application:activeRole}):Promise.resolve({available:false,reason:'unsupported',data:null}),
       ]);
+      qaStage('rc64-hydrate-secondary-ready');
       const rawEnvironment=scopedSnapshot?.environment;const normalizedEnvironment=typeof rawEnvironment==='string'?{mode:rawEnvironment}:rawEnvironment&&typeof rawEnvironment==='object'&&!Array.isArray(rawEnvironment)?rawEnvironment:{};
       const appointments=mergeRc39ChangeRequests(scopedSnapshot?.data?.appointments||[],extensions.changeRequests||[]);
       const enriched={...scopedSnapshot,user:{...(scopedSnapshot.user||{}),role:activeRole,authorizedRoles,roleChoiceConfirmed:Boolean(activeApplicationRole)},data:{...(scopedSnapshot.data||{}),appointments,wearableConnections:wearableV44.connections||[],wearableDailySummaries:wearableV44.dailySummaries||[],wearableConsents:wearableV44.consents||[]},environment:{...normalizedEnvironment,commandRegistry:installed,reason,backendV43,rc39:{authorizedRoles:extensions.rolesAvailable,appointmentChangeRequests:extensions.changeRequestsAvailable},wearableV44:{ready:wearableV44.ready===true,version:wearableV44.version||'RC44'},applicationContext:{available:applicationContext.available,organizationId:applicationContext.organizationId,membershipStatus:applicationContext.membershipStatus,assignmentScopeEnforced:applicationContext.assignmentScopeEnforced},admin:{available:adminExtension.available===true,reason:adminExtension.reason||null},communication:{available:communicationExtension.available===true,reason:communicationExtension.reason||null}},canary:{...(scopedSnapshot.canary||{}),version:scopedSnapshot.canary?.version||runtime.version||'26.0.0'},admin:adminExtension.available?adminExtension.data:null,communication:communicationExtension.available?communicationExtension.data:null};
+      qaStage('rc64-hydrate-store-start');
       store.hydrate(enriched);
+      qaStage('rc64-hydrate-store-ready');
+      qaStage('rc64-hydrate-ready');
       return {snapshot:enriched,installed,runtimeRegistry};
     }catch(error){store.setHydration('error',error);throw error;}
   }
   function renderRoute(shellVm,state){
+    qaStage('rc64-route-start');
     const role=shellVm?.identity?.role||state?.identity?.role||'client';
     if(sessionUi?.draft)return renderSessionBuilder({draft:sessionUi.draft,catalog,query:sessionUi.query,templates:sessionUi.templates||[],actionState:sessionUi.actionState,mediaMap,role});
     if(sessionUi?.execution)return renderGuidedExecution({execution:sessionUi.execution,session:sessionUi.session,catalog,actionState:sessionUi.actionState,mediaMap,role});
-    return renderRouteView(createRouteViewModel(shellVm,state,new Date(),{catalog:catalog?.list?.()||[],mediaMap}));
+    qaStage('rc64-route-vm-start');
+    const routeVm=createRouteViewModel(shellVm,state,new Date(),{catalog:catalog?.list?.()||[],mediaMap});
+    qaStage('rc64-route-vm-ready');
+    const markup=renderRouteView(routeVm);
+    qaStage('rc64-route-html-ready');
+    return markup;
   }
   function render(){shell?.render?.();}
   function draftOnline(){return globalThis.navigator?.onLine!==false;}
@@ -396,14 +421,21 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   async function setupAuthenticated(){
+    qaStage('rc64-setup-start');
     destroyControllers();sessionUi=null;
-    const {installed,runtimeRegistry}=await hydrate({reason:'login'});await fetchCatalog();const ownerId=session.user.id;
+    const {installed,runtimeRegistry}=await hydrate({reason:'login'});
+    qaStage('rc64-setup-hydrate-ready');
+    await fetchCatalog();
+    qaStage('rc64-setup-catalog-ready');
+    const ownerId=session.user.id;
     operationRepository=createKeyValueOperationRepository({ownerId});draftRepository=createEngagementDraftRepository({ownerId});sessionTemplateRepository=createSessionTemplateRepository({ownerId});telemetryOutbox=createTelemetryDurableOutbox({ownerId});
+    qaStage('rc64-setup-repositories-ready');
     telemetryRemoteSync=createTelemetryRemoteSync({transport,outbox:telemetryOutbox,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false,onDiagnostic:(code,error)=>reportDiagnostic(code,error)});
     commandBus=createCommandBus({transport,repository:operationRepository,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},rehydrate:hydrate,registry:runtimeRegistry.registry.length?runtimeRegistry.registry:M26_COMMAND_REGISTRY,getRole:()=>store.getState().identity?.role});
     const service=createEngagementCommandService({commandBus,installedRegistry:installed,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false});
     adminService=createAdminCommandService({transport:adminTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getAdminState:()=>store.getState().admin,isOnline:()=>navigator.onLine!==false,refreshState:hydrate});
     communicationService=createCommunicationService({transport:communicationTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getState:()=>store.getState().communication,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false,refreshState:hydrate});
+    qaStage('rc64-setup-services-ready');
     recoveryCoordinator=createExecutionRecoveryCoordinator({store:createExecutionRecoveryStore({ownerId}),commandBus,isOnline:()=>navigator.onLine!==false});
     iriExternalReports=createIriExternalReportController({root,store,runtime,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false});
     shell=createShellController({root,store,renderRoute});
@@ -424,10 +456,23 @@ export async function createM26Application({root=document.querySelector('#app'),
     communication=createCommunicationController({root,store,service:communicationService,render});
     admin=createAdminController({root,store,service:adminService,render});
     sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},autosaveDraft:saveSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
-    root.addEventListener('click',guardSessionNavigation,true);shell.mount();motion.mount();guidance.mount();onboarding.mount();mediaExperience.mount();productivity.mount();workflow.mount();engagement.mount();wearables.mount();verification.mount();rc39.mount();communication.mount();admin.mount();sessionController.mount();iriExternalReports.mount();await refreshVerificationState({repository:operationRepository,store});
+    qaStage('rc64-setup-controllers-ready');
+    root.addEventListener('click',guardSessionNavigation,true);
+    qaStage('rc64-shell-mount-start');
+    shell.mount();
+    qaStage('rc64-shell-mount-ready');
+    motion.mount();guidance.mount();onboarding.mount();mediaExperience.mount();productivity.mount();workflow.mount();engagement.mount();wearables.mount();verification.mount();rc39.mount();communication.mount();admin.mount();sessionController.mount();iriExternalReports.mount();
+    qaStage('rc64-controller-mounts-ready');
+    await refreshVerificationState({repository:operationRepository,store});
+    qaStage('rc64-verification-ready');
     root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
     const sync=createConnectivitySync({coordinator:recoveryCoordinator,onResult:async()=>{await refreshVerificationState({repository:operationRepository,store});render();}});connectivityStop=sync.start();telemetrySyncStop=telemetryRemoteSync.start();void registerM26ServiceWorker({url:'/m26/sw.js',scope:'/m26/'}).catch(()=>{});
-    if(!pendingIriExternalReportIntent)await restoreExecution();render();await consumePendingIriExternalReportIntent();
+    if(!pendingIriExternalReportIntent)await restoreExecution();
+    qaStage('rc64-recovery-ready');
+    render();
+    qaStage('rc64-final-render-ready');
+    await consumePendingIriExternalReportIntent();
+    qaStage('rc64-setup-ready');
   }
   function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
@@ -581,7 +626,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     throw error;
   }
 }
-  async function login(email,password){if(loginBusy)return false;if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');loginBusy=true;authMessage('Confirmando identidad y permisos…');try{session=await transport.login(email,password);vault.save(session);store.reset();await setupAuthenticated();return true;}catch(error){vault.clear();session=null;destroyControllers();store.reset();loginBusy=false;const incident=diagnosticCode(error,'login');authMessage(`${friendlyError(error)} Código: ${incident}.`,'error');throw error;}finally{loginBusy=false;}}
+  async function login(email,password){if(loginBusy)return false;if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');loginBusy=true;authMessage('Confirmando identidad y permisos…');try{session=await transport.login(email,password);qaStage('rc64-login-token-ready');vault.save(session);store.reset();qaStage('rc64-login-setup-start');await setupAuthenticated();qaStage('rc64-login-setup-ready');return true;}catch(error){vault.clear();session=null;destroyControllers();store.reset();loginBusy=false;const incident=diagnosticCode(error,'login');authMessage(`${friendlyError(error)} Código: ${incident}.`,'error');throw error;}finally{loginBusy=false;}}
   async function resume(){if(!runtime.enabled){authMessage('El acceso no está disponible temporalmente en este sitio.');return false;}session=vault.load();if(!session){authMessage();return false;}try{await setupAuthenticated();return true;}catch{vault.clear();session=null;destroyControllers();store.reset();authMessage('La sesión expiró o perdió autorización. Vuelve a entrar.');return false;}}
   async function onSubmit(event) {
   const form = event.target.closest?.('[data-auth-form]');
