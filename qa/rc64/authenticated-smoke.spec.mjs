@@ -127,6 +127,17 @@ function requestFailureProjection(request,phase){
   });
 }
 
+function recoverablePreauthStylesheetAbort(item,fullStylePaths){
+  return (
+    item?.phase==='preauth'&&
+    item?.method==='GET'&&
+    item?.source==='local'&&
+    item?.failure==='net::ERR_ABORTED'&&
+    fullStylePaths instanceof Set&&
+    fullStylePaths.has(item?.path)
+  );
+}
+
 function pageErrorProjection(error,phase){
   const rawName=String(error?.name||'');
   const name=/^[A-Za-z][A-Za-z0-9]{0,39}$/u.test(rawName)?rawName:'Error';
@@ -453,6 +464,75 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     console.log(`RC64_2B_ACCOUNT_BEGIN:${account.name}`);
     const response=await page.goto('/',{waitUntil:'networkidle'});
     expect(response?.ok()).toBeTruthy();
+
+    const preauthStyleState=await page.evaluate(()=>{
+      const links=[...document.querySelectorAll('link[data-iberfit-full-style]')];
+      const items=links.map((link)=>{
+        const url=new URL(link.href,globalThis.location.href);
+        let readable=false;
+        try{
+          if(link.sheet){
+            void link.sheet.cssRules.length;
+            readable=true;
+          }
+        }catch{
+          readable=false;
+        }
+        return Object.freeze({
+          path:url.origin===globalThis.location.origin?url.pathname:'external',
+          media:String(link.media||''),
+          readable,
+        });
+      });
+      return Object.freeze({
+        count:items.length,
+        ready:
+          items.length>0&&
+          items.every((item)=>
+            item.path.startsWith('/')&&
+            item.media==='all'&&
+            item.readable===true
+          ),
+        paths:items.map((item)=>item.path),
+      });
+    });
+
+    if(
+      preauthStyleState.count<=0||
+      preauthStyleState.ready!==true
+    ){
+      throw new Error('RC64_2B_PREAUTH_STYLE_NOT_READY');
+    }
+
+    if(
+      blockedExternalPaths.length>0||
+      consoleErrors>0||
+      pageErrors>0||
+      runtimeDiagnostics.length>0||
+      httpErrorMeta.length>0
+    ){
+      throw new Error('RC64_2B_PREAUTH_RUNTIME_FAILURE');
+    }
+
+    if(requestFailures>0){
+      const fullStylePaths=new Set(preauthStyleState.paths);
+      const capturedAll=requestFailures===requestFailureMeta.length;
+      const recoverable=
+        capturedAll&&
+        requestFailureMeta.every((item)=>
+          recoverablePreauthStylesheetAbort(item,fullStylePaths)
+        );
+
+      if(!recoverable){
+        throw new Error('RC64_2B_PREAUTH_REQUEST_FAILURE');
+      }
+
+      console.log(
+        `RC64_2B_PREAUTH_STYLESHEET_ABORT_RECOVERED:${account.name}:count=${requestFailures}`
+      );
+      requestFailures=0;
+      requestFailureMeta.length=0;
+    }
 
     await page.getByLabel('Correo').fill(account.email);
     await page.getByLabel('Contraseña').fill(account.password);
