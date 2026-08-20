@@ -10,6 +10,8 @@ const entries=Object.freeze([
   ['src/m26','src/m26'],
   ['baseline_m25_2/exercise-catalog-m25.json','baseline_m25_2/exercise-catalog-m25.json'],
   ['public/isotipo-iberfit.png','public/isotipo-iberfit.png'],
+  ['public/iberfit','public/iberfit'],
+  ['public/vendor/repdb','public/vendor/repdb'],
 ]);
 
 function copy(source,target){
