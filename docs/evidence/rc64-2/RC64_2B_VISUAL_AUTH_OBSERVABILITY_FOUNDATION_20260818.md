@@ -282,3 +282,36 @@ remain excluded. Any console error still fails the smoke.
 RC64.2B remains open. No backend, schema, clinical telemetry, application
 behavior, visual budget, CSP rule or mutation policy is changed by this
 diagnostic-only patch.
+
+## Protected remote run 32304096632 — diagnostic readback timeout
+
+Protected run `32304096632` executed on
+`1bb92ec4607ffa2af96c5b6b229745f1823e4af7` and failed closed.
+
+The historical authenticated read-only gate passed with `mutationsPerformed=false`
+and the canonical command registry remained complete at 52/52. Linux visual
+candidate generation also passed 2/2 and uploaded the candidate artifact. The
+authenticated RC64.2B smoke did not serialize minimized auth evidence.
+
+The immediate failure boundary moved into the diagnostic harness itself. After
+the smoke entered its runtime-error branch, it attempted to read the page-owned
+diagnostic buffer with `page.evaluate()`. That evaluation did not complete before
+the 60-second Playwright test timeout, and the final error was
+`page.evaluate: Test ended` at `qa/rc64/authenticated-smoke.spec.mjs:148`.
+Therefore this run does not reveal the underlying sanitized runtime diagnostic
+codes and must not be interpreted as an authenticated PASS.
+
+The next correction keeps the same fail-closed console/page-error policy but
+removes diagnostic readback from the page execution context. A Playwright
+`context.exposeBinding` forwards only the already bounded `{stage, code, status}`
+projection into an in-memory runner-side buffer. The runner re-sanitizes and
+caps that buffer at eight entries. On a runtime error the smoke reads that
+runner-side array directly, so diagnostic reporting cannot block on
+`page.evaluate()` during an unstable authentication lifecycle.
+
+Raw console text is still never read. Email, token, userId, clientId, password,
+request bodies and health data are never forwarded or persisted. The diagnostic
+array remains ephemeral and is not written into
+`RC64_2B_AUTHENTICATED_SMOKE.json`. No product source, backend, schema, CSP,
+performance budget, visual contract or mutation allowlist is changed by this
+harness-only correction.

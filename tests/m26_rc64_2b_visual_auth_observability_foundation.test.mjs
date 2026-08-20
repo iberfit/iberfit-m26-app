@@ -273,11 +273,20 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   assert.match(smoke,/blockedExternalPaths/u);
   assert.match(smoke,/RC64_2B_BLOCKED_EXTERNAL_DURING_AUTH/u);
   assert.match(smoke,/RC64_2B_RUNTIME_ERROR_DURING_AUTH/u);
-  assert.match(smoke,/__RC64_2B_DIAGNOSTICS__/u);
+  assert.match(smoke,/context\.exposeBinding\('__rc64RecordDiagnostic'/u);
+  assert.match(smoke,/runtimeDiagnostics/u);
   assert.match(smoke,/M26_UNCLASSIFIED_DIAGNOSTIC/u);
   assert.match(smoke,/diagnosticSummary/u);
   assert.match(smoke,/unclassified/u);
+  assert.doesNotMatch(smoke,/__RC64_2B_DIAGNOSTICS__/u);
   assert.doesNotMatch(smoke,/message\.text\(\)/u);
+
+  const runtimeErrorStart=smoke.indexOf('if(pageErrors>0||consoleErrors>0){');
+  const runtimeErrorEnd=smoke.indexOf('      if(await authenticatedRole.isVisible()',runtimeErrorStart);
+  assert.ok(runtimeErrorStart>=0&&runtimeErrorEnd>runtimeErrorStart);
+  const runtimeErrorBlock=smoke.slice(runtimeErrorStart,runtimeErrorEnd);
+  assert.match(runtimeErrorBlock,/runtimeDiagnostics\.slice\(0,8\)/u);
+  assert.doesNotMatch(runtimeErrorBlock,/page\.evaluate/u);
   const roleEvidenceStart=smoke.indexOf('evidenceRoles.push(Object.freeze({');
   const roleEvidenceEnd=smoke.indexOf('    await context.close();',roleEvidenceStart);
   assert.ok(roleEvidenceStart>=0&&roleEvidenceEnd>roleEvidenceStart);
@@ -291,6 +300,6 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   const serializedEvidenceBlock=smoke.slice(serializedEvidenceStart,serializedEvidenceEnd);
   assert.match(serializedEvidenceBlock,/roles:evidenceRoles/u);
   assert.doesNotMatch(serializedEvidenceBlock,/blockedExternalPaths/u);
-  assert.doesNotMatch(serializedEvidenceBlock,/diagnosticSummary|__RC64_2B_DIAGNOSTICS__/u);
+  assert.doesNotMatch(serializedEvidenceBlock,/diagnosticSummary|runtimeDiagnostics|__rc64RecordDiagnostic/u);
   assert.match(smoke,/JSON\.stringify\(evidence,null,2\)/u);
 });

@@ -80,23 +80,29 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     let consoleErrors=0;
     let pageErrors=0;
 
+    const runtimeDiagnostics=[];
+    await context.exposeBinding('__rc64RecordDiagnostic',(_source,detail)=>{
+      if(runtimeDiagnostics.length>=8)return;
+      const candidate=detail&&typeof detail==='object'?detail:{};
+      const rawStage=String(candidate.stage||'');
+      const rawCode=String(candidate.code||'');
+      const stage=/^[a-z0-9_-]{1,60}$/iu.test(rawStage)?rawStage:'unclassified';
+      const code=/^M26_[A-Z0-9_:-]{2,120}$/u.test(rawCode)?rawCode:'M26_UNCLASSIFIED_DIAGNOSTIC';
+      const status=Number.isInteger(candidate.status)&&candidate.status>=0&&candidate.status<=599?candidate.status:null;
+      runtimeDiagnostics.push(Object.freeze({stage,code,status}));
+    });
+
     await context.addInitScript(()=>{
-      const diagnostics=[];
-      Object.defineProperty(globalThis,'__RC64_2B_DIAGNOSTICS__',{
-        value:diagnostics,
-        configurable:false,
-        enumerable:false,
-        writable:false,
-      });
       globalThis.addEventListener('m26:diagnostic',(event)=>{
-        if(diagnostics.length>=8)return;
         const detail=event?.detail&&typeof event.detail==='object'?event.detail:{};
         const rawStage=String(detail.stage||'');
         const rawCode=String(detail.code||'');
         const stage=/^[a-z0-9_-]{1,60}$/iu.test(rawStage)?rawStage:'unclassified';
         const code=/^M26_[A-Z0-9_:-]{2,120}$/u.test(rawCode)?rawCode:'M26_UNCLASSIFIED_DIAGNOSTIC';
         const status=Number.isInteger(detail.status)&&detail.status>=0&&detail.status<=599?detail.status:null;
-        diagnostics.push(Object.freeze({stage,code,status}));
+        const forward=globalThis.__rc64RecordDiagnostic;
+        if(typeof forward!=='function')return;
+        void forward({stage,code,status}).catch(()=>{});
       });
     });
 
@@ -145,11 +151,8 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
         throw new Error(`RC64_2B_BLOCKED_EXTERNAL_DURING_AUTH:${blockedExternalPaths.join('|')}`);
       }
       if(pageErrors>0||consoleErrors>0){
-        const diagnostics=await page.evaluate(()=>
-          Array.isArray(globalThis.__RC64_2B_DIAGNOSTICS__)
-            ?globalThis.__RC64_2B_DIAGNOSTICS__.slice(0,8)
-            :[]
-        );
+        await new Promise((resolve)=>setTimeout(resolve,100));
+        const diagnostics=runtimeDiagnostics.slice(0,8);
         const diagnosticSummary=diagnostics.length
           ?diagnostics.map((item)=>`${item.stage}/${item.code}/${item.status===null?'NA':item.status}`).join('|')
           :'none';
