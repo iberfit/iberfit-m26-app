@@ -41,17 +41,64 @@ export function createWebStorageKeyValueStore({storage=globalThis.sessionStorage
   });
 }
 
-export function createIndexedDbKeyValueStore({dbName='iberfit-m26',storeName='key_value',version=1,indexedDBImpl=globalThis.indexedDB}={}){
+export const M26_BROWSER_INDEXED_DB_NAME='iberfit-m26';
+export const M26_BROWSER_INDEXED_DB_SCHEMA_VERSION=3;
+export const M26_BROWSER_INDEXED_DB_STORES=Object.freeze([
+  'key_value',
+  'wearable_sync_v44',
+]);
+
+function indexedDbVersion(dbName,version){
+  if(Number.isInteger(version)&&version>=1)return version;
+  return dbName===M26_BROWSER_INDEXED_DB_NAME
+    ?M26_BROWSER_INDEXED_DB_SCHEMA_VERSION
+    :1;
+}
+
+function indexedDbUpgradeStores(db,dbName,storeName){
+  const required=dbName===M26_BROWSER_INDEXED_DB_NAME
+    ?M26_BROWSER_INDEXED_DB_STORES
+    :[storeName];
+  for(const name of required){
+    if(!db.objectStoreNames.contains(name))db.createObjectStore(name);
+  }
+}
+
+export function createIndexedDbKeyValueStore({
+  dbName=M26_BROWSER_INDEXED_DB_NAME,
+  storeName='key_value',
+  version=null,
+  indexedDBImpl=globalThis.indexedDB,
+}={}){
   if(!indexedDBImpl?.open)throw new Error('M26_INDEXED_DB_UNAVAILABLE');
+  const resolvedVersion=indexedDbVersion(dbName,version);
   let databasePromise;
   function open(){
     if(databasePromise)return databasePromise;
     databasePromise=new Promise((resolve,reject)=>{
-      const request=indexedDBImpl.open(dbName,version);
-      request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains(storeName))db.createObjectStore(storeName);};
-      request.onsuccess=()=>{const db=request.result;db.onversionchange=()=>db.close();resolve(db);};
-      request.onerror=()=>{databasePromise=null;reject(request.error||new Error('M26_INDEXED_DB_OPEN_FAILED'));};
-      request.onblocked=()=>{databasePromise=null;reject(new Error('M26_INDEXED_DB_BLOCKED'));};
+      const request=indexedDBImpl.open(dbName,resolvedVersion);
+      request.onupgradeneeded=()=>{
+        indexedDbUpgradeStores(request.result,dbName,storeName);
+      };
+      request.onsuccess=()=>{
+        const db=request.result;
+        if(!db.objectStoreNames.contains(storeName)){
+          db.close?.();
+          databasePromise=null;
+          reject(new Error('M26_INDEXED_DB_STORE_MISSING'));
+          return;
+        }
+        db.onversionchange=()=>db.close();
+        resolve(db);
+      };
+      request.onerror=()=>{
+        databasePromise=null;
+        reject(request.error||new Error('M26_INDEXED_DB_OPEN_FAILED'));
+      };
+      request.onblocked=()=>{
+        databasePromise=null;
+        reject(new Error('M26_INDEXED_DB_BLOCKED'));
+      };
     });
     return databasePromise;
   }

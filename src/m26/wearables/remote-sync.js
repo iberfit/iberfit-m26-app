@@ -1,4 +1,7 @@
-import {createBrowserKeyValueStore} from '../platform/key-value-store.js';
+import {
+  M26_BROWSER_INDEXED_DB_SCHEMA_VERSION,
+  createBrowserKeyValueStore,
+} from '../platform/key-value-store.js';
 import {deduplicateWearableDailyRecords} from './normalization.js';
 
 const PREFIX='m26:wearable-sync:v44:';
@@ -67,7 +70,7 @@ export function createWearableRemoteSync({
   queueStore=createBrowserKeyValueStore({
     dbName:'iberfit-m26',
     storeName:'wearable_sync_v44',
-    version:2,
+    version:M26_BROWSER_INDEXED_DB_SCHEMA_VERSION,
     sessionPrefix:'iberfit:m26:wearable-sync-v44:',
   }),
 }={}){
