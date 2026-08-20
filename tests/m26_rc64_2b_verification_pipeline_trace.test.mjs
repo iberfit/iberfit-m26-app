@@ -23,7 +23,7 @@ test('RC64.2B verification pipeline trace is static bounded and diagnostic-only'
     'rc64-controller-shell-role-client',
     'rc64-controller-shell-role-admin',
     'rc64-controller-shell-role-missing',
-    'rc64-verification-await-start',
+    'rc64-post-login-local-reconciliation-start',
   ]){
     assert.ok(app.includes(marker),`missing application marker ${marker}`);
   }
@@ -96,7 +96,7 @@ test('RC64.2B verification pipeline trace is static bounded and diagnostic-only'
     'rc64-controller-shell-role-client',
     'rc64-controller-shell-role-admin',
     'rc64-controller-shell-role-missing',
-    'rc64-verification-await-start',
+    'rc64-post-login-local-reconciliation-start',
     'rc64-verification-refresh-start',
     'rc64-verification-repository-list-start',
     'rc64-verification-repository-list-ready',

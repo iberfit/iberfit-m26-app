@@ -26,8 +26,6 @@ test('RC64.2B first-paint trace is bounded static QA metadata and not persisted 
     'rc64-shell-mount-start',
     'rc64-shell-mount-ready',
     'rc64-controller-mounts-ready',
-    'rc64-verification-ready',
-    'rc64-recovery-ready',
     'rc64-final-render-ready',
     'rc64-setup-ready',
     'rc64-route-vm-start',
@@ -36,6 +34,23 @@ test('RC64.2B first-paint trace is bounded static QA metadata and not persisted 
   ]){
     assert.ok(app.includes(marker),`missing application stage ${marker}`);
   }
+
+  const finalRenderIndex=app.indexOf("qaStage('rc64-final-render-ready')");
+  const setupReadyIndex=app.indexOf("qaStage('rc64-setup-ready')");
+  const postLoginReconciliationIndex=app.indexOf(
+    "qaStage('rc64-post-login-local-reconciliation-start')"
+  );
+  assert.ok(finalRenderIndex>=0,'missing final-render first-paint boundary');
+  assert.ok(setupReadyIndex>finalRenderIndex,'setup-ready must follow final render');
+  assert.ok(
+    postLoginReconciliationIndex>setupReadyIndex,
+    'local reconciliation must remain outside the login critical path',
+  );
+  assert.doesNotMatch(
+    app,
+    /rc64-verification-ready|rc64-recovery-ready/u,
+    'legacy blocking-local stages must not return to authenticated first paint',
+  );
 
   for(const marker of [
     'rc64-state-start',

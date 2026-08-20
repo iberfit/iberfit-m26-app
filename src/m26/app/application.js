@@ -473,19 +473,42 @@ export async function createM26Application({root=document.querySelector('#app'),
     else if(controllerShellRole==='client')qaStage('rc64-controller-shell-role-client');
     else if(controllerShellRole==='admin')qaStage('rc64-controller-shell-role-admin');
     else qaStage('rc64-controller-shell-role-missing');
-    qaStage('rc64-verification-await-start');
-    await refreshVerificationState({repository:operationRepository,store});
-    qaStage('rc64-verification-ready');
-    wearables.mount();
-    qaStage('rc64-wearables-post-verification-mount-ready');
     root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
-    const sync=createConnectivitySync({coordinator:recoveryCoordinator,onResult:async()=>{await refreshVerificationState({repository:operationRepository,store});render();}});connectivityStop=sync.start();telemetrySyncStop=telemetryRemoteSync.start();void registerM26ServiceWorker({url:'/m26/sw.js',scope:'/m26/'}).catch(()=>{});
-    if(!pendingIriExternalReportIntent)await restoreExecution();
-    qaStage('rc64-recovery-ready');
     render();
     qaStage('rc64-final-render-ready');
     await consumePendingIriExternalReportIntent();
     qaStage('rc64-setup-ready');
+
+    qaStage('rc64-post-login-local-reconciliation-start');
+    void refreshVerificationState({repository:operationRepository,store})
+      .then(()=>{
+        qaStage('rc64-post-login-verification-ready');
+        render();
+      })
+      .catch((error)=>reportDiagnostic('post-login-verification',error));
+
+    wearables.mount();
+    qaStage('rc64-wearables-post-login-mount-ready');
+
+    const sync=createConnectivitySync({
+      coordinator:recoveryCoordinator,
+      onResult:async()=>{
+        await refreshVerificationState({repository:operationRepository,store});
+        render();
+      },
+    });
+    connectivityStop=sync.start();
+    telemetrySyncStop=telemetryRemoteSync.start();
+    void registerM26ServiceWorker({url:'/m26/sw.js',scope:'/m26/'}).catch(()=>{});
+
+    if(!pendingIriExternalReportIntent){
+      void restoreExecution()
+        .then((restored)=>{
+          qaStage('rc64-post-login-recovery-ready');
+          if(restored)render();
+        })
+        .catch((error)=>reportDiagnostic('post-login-recovery',error));
+    }
   }
   function guardSessionNavigation(event){const route=event.target.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area');if(!route||route==='sesion'||!sessionUi)return;const terminalStatus=String(sessionUi.execution?.status||'').toLowerCase();if(['completed','cancelled'].includes(terminalStatus)){sessionUi=null;return;}event.preventDefault();event.stopImmediatePropagation();sessionUi.actionState.status='retry';sessionUi.actionState.message='Finaliza, cancela o sal de la sesión antes de cambiar de módulo.';render();}
   function exitSessionWorkspace(){sessionUi=null;store.navigate('sesion');render();}
