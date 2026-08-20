@@ -72,17 +72,93 @@ export function createIndexedDbKeyValueStore({dbName='iberfit-m26',storeName='ke
   });
 }
 
+export const M26_BROWSER_PRIMARY_STORAGE_DEADLINE_MS=2000;
+
+function browserPrimaryDeadline(value){
+  const number=Number(value);
+  if(!Number.isFinite(number))return M26_BROWSER_PRIMARY_STORAGE_DEADLINE_MS;
+  return Math.min(10_000,Math.max(25,Math.trunc(number)));
+}
+
+function withBrowserPrimaryDeadline(operation,deadlineMs){
+  let timer=null;
+  const timeout=new Promise((_,reject)=>{
+    timer=globalThis.setTimeout(
+      ()=>reject(new Error('M26_PRIMARY_STORAGE_TIMEOUT')),
+      deadlineMs
+    );
+  });
+  return Promise.race([
+    Promise.resolve().then(operation),
+    timeout,
+  ]).finally(()=>{
+    if(timer!==null)globalThis.clearTimeout(timer);
+  });
+}
+
 export function createBrowserKeyValueStore(options={}){
-  const memory=createMemoryKeyValueStore();let session=null,primary=null;
-  try{session=createWebStorageKeyValueStore({storage:options.sessionStorageImpl??globalThis.sessionStorage,prefix:options.sessionPrefix||'iberfit:m26:session-kv:'});}catch{}
+  const memory=createMemoryKeyValueStore();
+  let session=null,primary=null;
+  let primaryTimedOut=false;
+  const primaryDeadlineMs=browserPrimaryDeadline(options.primaryDeadlineMs);
+
+  try{
+    session=createWebStorageKeyValueStore({
+      storage:options.sessionStorageImpl??globalThis.sessionStorage,
+      prefix:options.sessionPrefix||'iberfit:m26:session-kv:',
+    });
+  }catch{}
+
   try{primary=createIndexedDbKeyValueStore(options);}catch{}
   if(!session&&!primary)return memory;
+
+  async function primaryCall(operation,fallbackValue){
+    if(!primary||primaryTimedOut)return fallbackValue;
+    try{
+      return await withBrowserPrimaryDeadline(operation,primaryDeadlineMs);
+    }catch(error){
+      if(String(error?.message||'')==='M26_PRIMARY_STORAGE_TIMEOUT'){
+        primaryTimedOut=true;
+      }
+      return fallbackValue;
+    }
+  }
+
   return Object.freeze({
-    async get(key){if(session){try{const value=await session.get(key);if(value!==undefined)return value;}catch{}}if(primary){try{const value=await primary.get(key);if(value!==undefined)return value;}catch{}}return memory.get(key);},
-    async set(key,value){if(session){try{await session.set(key,value);}catch{}}await memory.set(key,value);if(primary){try{await primary.set(key,value);}catch{}}return clone(value);},
-    async remove(key){if(session){try{await session.remove(key);}catch{}}await memory.remove(key);if(primary){try{await primary.remove(key);}catch{}}},
-    async keys(prefix=''){let sessionKeys=[],primaryKeys=[];if(session){try{sessionKeys=await session.keys(prefix);}catch{}}if(primary){try{primaryKeys=await primary.keys(prefix);}catch{}}const memoryKeys=await memory.keys(prefix);return [...new Set([...sessionKeys,...primaryKeys,...memoryKeys])].sort();},
-    async entries(prefix=''){const out=[];for(const key of await this.keys(prefix))out.push([key,await this.get(key)]);return out;},
+    async get(key){
+      if(session){
+        try{
+          const value=await session.get(key);
+          if(value!==undefined)return value;
+        }catch{}
+      }
+      const primaryValue=await primaryCall(()=>primary.get(key),undefined);
+      if(primaryValue!==undefined)return primaryValue;
+      return memory.get(key);
+    },
+    async set(key,value){
+      if(session){try{await session.set(key,value);}catch{}}
+      await memory.set(key,value);
+      await primaryCall(()=>primary.set(key,value),undefined);
+      return clone(value);
+    },
+    async remove(key){
+      if(session){try{await session.remove(key);}catch{}}
+      await memory.remove(key);
+      await primaryCall(()=>primary.remove(key),undefined);
+    },
+    async keys(prefix=''){
+      let sessionKeys=[];
+      if(session){try{sessionKeys=await session.keys(prefix);}catch{}}
+      const primaryKeys=await primaryCall(()=>primary.keys(prefix),[]);
+      const memoryKeys=await memory.keys(prefix);
+      return [...new Set([...sessionKeys,...primaryKeys,...memoryKeys])].sort();
+    },
+    async entries(prefix=''){
+      const out=[];
+      for(const key of await this.keys(prefix))out.push([key,await this.get(key)]);
+      return out;
+    },
     async clear(prefix=''){for(const key of await this.keys(prefix))await this.remove(key);},
   });
 }
