@@ -315,3 +315,43 @@ array remains ephemeral and is not written into
 `RC64_2B_AUTHENTICATED_SMOKE.json`. No product source, backend, schema, CSP,
 performance budget, visual contract or mutation allowlist is changed by this
 harness-only correction.
+
+
+## Protected remote run 32321930988 — unclassified console failures
+
+Protected run `32321930988` executed via `workflow_dispatch` on branch
+`feature/rc58-design-system` at
+`8dd266ab52c75a9dc73749dfca3e918e3f53a469` and failed closed.
+
+The historical authenticated read-only gate passed first with
+`mutationsPerformed=false`, a complete command registry at 52/52, and valid
+Coach/Client QA roles. Linux visual candidate generation passed 2/2 and uploaded
+the candidate artifact. Those images remain candidates only; RC64.2B is not
+closed and no canonical visual golden is accepted from this failed auth run.
+
+The RC64.2B authenticated smoke then failed after the runner-side diagnostic
+bridge had already corrected the previous `page.evaluate()` timeout. The exact
+failure was
+`RC64_2B_RUNTIME_ERROR_DURING_AUTH:page=0:console=3:diagnostics=none:unclassified=3`.
+No minimized authenticated evidence file was produced, as expected for a failed
+smoke.
+
+This result is narrower than the previous run: the diagnostic bridge itself is
+now functioning and the smoke deterministically observes three browser console
+errors, but none of them emitted the application's bounded
+`m26:diagnostic` contract before the fail-closed boundary. Therefore this run
+does not justify guessing an application diagnostic code or weakening the
+zero-console-error requirement.
+
+The next harness-only correction keeps every console/page error fatal while
+adding bounded ephemeral classification metadata: preauth/auth phase, sanitized
+local-or-canonical-Supabase pathname, HTTP status for non-2xx responses, and a
+small allowlisted network-failure code. Raw console text is never read. URL
+queries, headers, request/response bodies, email, token, userId, clientId,
+password and health data are never captured or persisted. The metadata exists
+only in the failing Playwright error message and is excluded from
+`RC64_2B_AUTHENTICATED_SMOKE.json`.
+
+No product source, backend, schema, CSP, performance budget, visual contract,
+clinical telemetry, credentials, or mutation allowlist changes in this
+diagnostic-only correction.

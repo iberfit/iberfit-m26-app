@@ -50,6 +50,89 @@ function allowedExternalRequest(request){
   return false;
 }
 
+
+function sanitizeRuntimeTarget(rawUrl){
+  if(!rawUrl)return Object.freeze({scope:'none',path:'none'});
+  try{
+    const url=new URL(String(rawUrl));
+    let scope='external';
+    if(url.origin===LOCAL_ORIGIN)scope='local';
+    else if(url.origin===SUPABASE_ORIGIN)scope='supabase';
+    if(scope==='external')return Object.freeze({scope,path:'external-origin'});
+    const path=String(url.pathname||'/')
+      .replace(/[^A-Za-z0-9_./:-]+/gu,'_')
+      .slice(0,160)||'/';
+    return Object.freeze({scope,path});
+  }catch{
+    return Object.freeze({scope:'invalid',path:'none'});
+  }
+}
+
+function boundedInteger(value){
+  const number=Number(value);
+  return Number.isInteger(number)&&number>=0&&number<=1_000_000?number:0;
+}
+
+function sanitizedPhase(phase){
+  return phase==='auth'?'auth':'preauth';
+}
+
+function consoleErrorProjection(message,phase){
+  const location=message.location?.()||{};
+  const target=sanitizeRuntimeTarget(location.url||'');
+  return Object.freeze({
+    phase:sanitizedPhase(phase),
+    source:target.scope,
+    path:target.path,
+    line:boundedInteger(location.lineNumber),
+    column:boundedInteger(location.columnNumber),
+  });
+}
+
+function httpErrorProjection(response,phase){
+  const target=sanitizeRuntimeTarget(response.url());
+  const rawMethod=String(response.request().method()||'').toUpperCase();
+  const method=/^[A-Z]{1,12}$/u.test(rawMethod)?rawMethod:'UNCLASSIFIED';
+  const status=Number(response.status());
+  return Object.freeze({
+    phase:sanitizedPhase(phase),
+    method,
+    source:target.scope,
+    path:target.path,
+    status:Number.isInteger(status)&&status>=100&&status<=599?status:0,
+  });
+}
+
+function requestFailureProjection(request,phase){
+  const target=sanitizeRuntimeTarget(request.url());
+  const rawMethod=String(request.method()||'').toUpperCase();
+  const method=/^[A-Z]{1,12}$/u.test(rawMethod)?rawMethod:'UNCLASSIFIED';
+  const rawFailure=String(request.failure?.()?.errorText||'');
+  const knownFailures=new Set([
+    'net::ERR_ABORTED',
+    'net::ERR_FAILED',
+    'net::ERR_BLOCKED_BY_CLIENT',
+    'net::ERR_CONNECTION_RESET',
+    'net::ERR_CONNECTION_CLOSED',
+    'net::ERR_NAME_NOT_RESOLVED',
+    'net::ERR_TIMED_OUT',
+  ]);
+  const failure=knownFailures.has(rawFailure)?rawFailure:'NET_UNCLASSIFIED';
+  return Object.freeze({
+    phase:sanitizedPhase(phase),
+    method,
+    source:target.scope,
+    path:target.path,
+    failure,
+  });
+}
+
+function pageErrorProjection(error,phase){
+  const rawName=String(error?.name||'');
+  const name=/^[A-Za-z][A-Za-z0-9]{0,39}$/u.test(rawName)?rawName:'Error';
+  return Object.freeze({phase:sanitizedPhase(phase),name});
+}
+
 test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked',async({browser})=>{
   const missing=required.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
@@ -79,6 +162,11 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     let requestFailures=0;
     let consoleErrors=0;
     let pageErrors=0;
+    let runtimePhase='preauth';
+    const consoleErrorMeta=[];
+    const httpErrorMeta=[];
+    const requestFailureMeta=[];
+    const pageErrorMeta=[];
 
     const runtimeDiagnostics=[];
     await context.exposeBinding('__rc64RecordDiagnostic',(_source,detail)=>{
@@ -133,15 +221,37 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     });
 
     const page=await context.newPage();
-    page.on('requestfailed',()=>{requestFailures+=1;});
-    page.on('console',(message)=>{if(message.type()==='error')consoleErrors+=1;});
-    page.on('pageerror',()=>{pageErrors+=1;});
+    page.on('requestfailed',(request)=>{
+      requestFailures+=1;
+      if(requestFailureMeta.length<8){
+        requestFailureMeta.push(requestFailureProjection(request,runtimePhase));
+      }
+    });
+    page.on('response',(response)=>{
+      if(response.status()>=400&&httpErrorMeta.length<8){
+        httpErrorMeta.push(httpErrorProjection(response,runtimePhase));
+      }
+    });
+    page.on('console',(message)=>{
+      if(message.type()!=='error')return;
+      consoleErrors+=1;
+      if(consoleErrorMeta.length<8){
+        consoleErrorMeta.push(consoleErrorProjection(message,runtimePhase));
+      }
+    });
+    page.on('pageerror',(error)=>{
+      pageErrors+=1;
+      if(pageErrorMeta.length<8){
+        pageErrorMeta.push(pageErrorProjection(error,runtimePhase));
+      }
+    });
 
     const response=await page.goto('/',{waitUntil:'networkidle'});
     expect(response?.ok()).toBeTruthy();
 
     await page.getByLabel('Correo').fill(account.email);
     await page.getByLabel('Contraseña').fill(account.password);
+    runtimePhase='auth';
     await page.getByRole('button',{name:'Entrar'}).click();
 
     const authenticatedRole=page.locator(`[data-m26-role="${account.role}"]`);
@@ -151,14 +261,26 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
         throw new Error(`RC64_2B_BLOCKED_EXTERNAL_DURING_AUTH:${blockedExternalPaths.join('|')}`);
       }
       if(pageErrors>0||consoleErrors>0){
-        await new Promise((resolve)=>setTimeout(resolve,100));
+        await new Promise((resolve)=>setTimeout(resolve,300));
         const diagnostics=runtimeDiagnostics.slice(0,8);
         const diagnosticSummary=diagnostics.length
           ?diagnostics.map((item)=>`${item.stage}/${item.code}/${item.status===null?'NA':item.status}`).join('|')
           :'none';
-        const unclassified=Math.max(0,consoleErrors-diagnostics.length);
+        const consoleSummary=consoleErrorMeta.length
+          ?consoleErrorMeta.map((item)=>`${item.phase}/${item.source}/${item.path}/${item.line}/${item.column}`).join('|')
+          :'none';
+        const httpSummary=httpErrorMeta.length
+          ?httpErrorMeta.map((item)=>`${item.phase}/${item.method}/${item.source}/${item.path}/${item.status}`).join('|')
+          :'none';
+        const requestFailureSummary=requestFailureMeta.length
+          ?requestFailureMeta.map((item)=>`${item.phase}/${item.method}/${item.source}/${item.path}/${item.failure}`).join('|')
+          :'none';
+        const pageSummary=pageErrorMeta.length
+          ?pageErrorMeta.map((item)=>`${item.phase}/${item.name}`).join('|')
+          :'none';
+        const unclassified=Math.max(0,consoleErrors-consoleErrorMeta.length);
         throw new Error(
-          `RC64_2B_RUNTIME_ERROR_DURING_AUTH:page=${pageErrors}:console=${consoleErrors}:diagnostics=${diagnosticSummary}:unclassified=${unclassified}`
+          `RC64_2B_RUNTIME_ERROR_DURING_AUTH:page=${pageErrors}:console=${consoleErrors}:diagnostics=${diagnosticSummary}:consoleMeta=${consoleSummary}:httpErrors=${httpSummary}:requestFailures=${requestFailureSummary}:pageMeta=${pageSummary}:unclassified=${unclassified}`
         );
       }
       if(await authenticatedRole.isVisible().catch(()=>false))break;
