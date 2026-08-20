@@ -145,6 +145,99 @@ function pendingRequestProjection(request,phase){
   });
 }
 
+function safeRemoteCode(value){
+  const code=String(value||'').trim().toUpperCase();
+  return /^(?:PGRST[0-9]{3}|[0-9]{5}|[A-Z][A-Z0-9_]{1,39})$/u.test(code)
+    ?code
+    :'NONE';
+}
+
+function jwtShape(value){
+  const token=String(value||'');
+  const parts=token.split('.');
+  return parts.length===3&&parts.every((part)=>/^[A-Za-z0-9_-]{1,6000}$/u.test(part));
+}
+
+function corsValueKind(value){
+  const normalized=String(value||'').trim();
+  if(!normalized)return 'none';
+  if(normalized==='*')return 'wildcard';
+  if(normalized===LOCAL_ORIGIN)return 'local-origin';
+  return 'other';
+}
+
+async function readOnlyRegistryControl({token,publishableKey}){
+  const select='command_type,entity_type,event_name,allowed_roles,requires_reason,requires_preview,enabled';
+  const url=`${SUPABASE_ORIGIN}/rest/v1/domain_command_registry_v26?select=${encodeURIComponent(select)}&order=command_type.asc&limit=100`;
+  const commonHeaders={
+    apikey:publishableKey,
+    authorization:`Bearer ${token}`,
+    'x-client-info':'iberfit-m26-web/26.0.0-rc64-2b-authenticated-readonly',
+  };
+
+  const safeFetch=async(headers)=>{
+    try{
+      const response=await fetch(url,{
+        method:'GET',
+        headers,
+        cache:'no-store',
+        redirect:'error',
+      });
+      let remoteCode='NONE';
+      if(response.status>=400){
+        const payload=await response.json().catch(()=>null);
+        remoteCode=safeRemoteCode(payload?.code);
+      }
+      return Object.freeze({
+        status:Number(response.status)||0,
+        code:remoteCode,
+        allowOrigin:corsValueKind(response.headers.get('access-control-allow-origin')),
+      });
+    }catch{
+      return Object.freeze({status:0,code:'FETCH_FAILED',allowOrigin:'none'});
+    }
+  };
+
+  const direct=await safeFetch(commonHeaders);
+  const withOrigin=await safeFetch({...commonHeaders,origin:LOCAL_ORIGIN});
+
+  let preflight;
+  try{
+    const response=await fetch(url,{
+      method:'OPTIONS',
+      headers:{
+        origin:LOCAL_ORIGIN,
+        'access-control-request-method':'GET',
+        'access-control-request-headers':'apikey,authorization,x-client-info',
+      },
+      cache:'no-store',
+      redirect:'error',
+    });
+    const allowHeaders=String(response.headers.get('access-control-allow-headers')||'')
+      .toLowerCase()
+      .split(',')
+      .map((item)=>item.trim())
+      .filter(Boolean);
+    preflight=Object.freeze({
+      status:Number(response.status)||0,
+      allowOrigin:corsValueKind(response.headers.get('access-control-allow-origin')),
+      allowsApikey:allowHeaders.includes('apikey')||allowHeaders.includes('*'),
+      allowsAuthorization:allowHeaders.includes('authorization')||allowHeaders.includes('*'),
+      allowsClientInfo:allowHeaders.includes('x-client-info')||allowHeaders.includes('*'),
+    });
+  }catch{
+    preflight=Object.freeze({
+      status:0,
+      allowOrigin:'none',
+      allowsApikey:false,
+      allowsAuthorization:false,
+      allowsClientInfo:false,
+    });
+  }
+
+  return Object.freeze({direct,withOrigin,preflight});
+}
+
 test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked',async({browser})=>{
   const missing=required.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
@@ -181,6 +274,13 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     const pageErrorMeta=[];
     const pendingRequestMeta=new Map();
     const authResponseMeta=[];
+    const responseDiagnosticTasks=new Set();
+    let loginAccessToken='';
+    let registryAuthorization='';
+    let registryApikeyMatchesExpected=false;
+    let registryRemoteCode='NONE';
+    let registryWwwAuthenticate=false;
+    let registryControl=null;
 
     const runtimeDiagnostics=[];
     await context.exposeBinding('__rc64RecordDiagnostic',(_source,detail)=>{
@@ -239,6 +339,23 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       if(pendingRequestMeta.size<16){
         pendingRequestMeta.set(request,pendingRequestProjection(request,runtimePhase));
       }
+      const target=sanitizeRuntimeTarget(request.url());
+      if(
+        runtimePhase==='auth'&&
+        target.scope==='supabase'&&
+        target.path==='/rest/v1/domain_command_registry_v26'&&
+        request.method().toUpperCase()==='GET'
+      ){
+        const task=request.allHeaders()
+          .then((headers)=>{
+            registryAuthorization=String(headers.authorization||'');
+            registryApikeyMatchesExpected=
+              String(headers.apikey||'')===String(process.env.M26_SUPABASE_PUBLISHABLE_KEY||'');
+          })
+          .catch(()=>{})
+          .finally(()=>responseDiagnosticTasks.delete(task));
+        responseDiagnosticTasks.add(task);
+      }
     });
     page.on('requestfinished',(request)=>{
       pendingRequestMeta.delete(request);
@@ -261,6 +378,45 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       }
       if(projection.status>=400&&httpErrorMeta.length<8){
         httpErrorMeta.push(projection);
+      }
+
+      if(
+        runtimePhase==='auth'&&
+        projection.source==='supabase'&&
+        projection.path==='/auth/v1/token'&&
+        projection.status===200
+      ){
+        const task=response.json()
+          .then((payload)=>{
+            const candidate=String(payload?.access_token||'');
+            if(candidate&&candidate.length<=16_384&&!/[\u0000-\u001f\u007f]/u.test(candidate)){
+              loginAccessToken=candidate;
+            }
+          })
+          .catch(()=>{})
+          .finally(()=>responseDiagnosticTasks.delete(task));
+        responseDiagnosticTasks.add(task);
+      }
+
+      if(
+        runtimePhase==='auth'&&
+        projection.source==='supabase'&&
+        projection.path==='/rest/v1/domain_command_registry_v26'&&
+        projection.status>=400
+      ){
+        const task=Promise.all([
+          response.json().catch(()=>null),
+          response.allHeaders().catch(()=>({})),
+        ])
+          .then(([payload,headers])=>{
+            registryRemoteCode=safeRemoteCode(payload?.code);
+            registryWwwAuthenticate=Boolean(
+              String(headers['www-authenticate']||'').trim()
+            );
+          })
+          .catch(()=>{})
+          .finally(()=>responseDiagnosticTasks.delete(task));
+        responseDiagnosticTasks.add(task);
       }
     });
     page.on('console',(message)=>{
@@ -312,8 +468,28 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       const pending=pendingSummary.length
         ?pendingSummary.map((item)=>`${item.phase}/${item.method}/${item.source}/${item.path}`).join('|')
         :'none';
+      const bearerPrefix='Bearer ';
+      const bearerToken=registryAuthorization.startsWith(bearerPrefix)
+        ?registryAuthorization.slice(bearerPrefix.length)
+        :'';
+      const browserRegistry=[
+        `authHeader=${registryAuthorization?'present':'missing'}`,
+        `bearer=${bearerToken?'yes':'no'}`,
+        `jwtShape=${jwtShape(bearerToken)?'yes':'no'}`,
+        `matchesLogin=${loginAccessToken&&bearerToken===loginAccessToken?'yes':'no'}`,
+        `apikeyMatch=${registryApikeyMatchesExpected?'yes':'no'}`,
+        `remoteCode=${registryRemoteCode}`,
+        `wwwAuth=${registryWwwAuthenticate?'yes':'no'}`,
+      ].join('/');
+      const control=registryControl
+        ?[
+          `direct=${registryControl.direct.status}/${registryControl.direct.code}/${registryControl.direct.allowOrigin}`,
+          `origin=${registryControl.withOrigin.status}/${registryControl.withOrigin.code}/${registryControl.withOrigin.allowOrigin}`,
+          `preflight=${registryControl.preflight.status}/${registryControl.preflight.allowOrigin}/${registryControl.preflight.allowsApikey?'apikey':'no-apikey'}/${registryControl.preflight.allowsAuthorization?'authorization':'no-authorization'}/${registryControl.preflight.allowsClientInfo?'client-info':'no-client-info'}`,
+        ].join('|')
+        :'none';
       const unclassified=Math.max(0,consoleErrors-consoleErrorMeta.length);
-      return `${code}:account=${account.name}:page=${pageErrors}:console=${consoleErrors}:diagnostics=${diagnosticSummary}:consoleMeta=${consoleSummary}:httpErrors=${httpSummary}:requestFailures=${requestFailureSummary}:pageMeta=${pageSummary}:responses=${responses}:pending=${pending}:unclassified=${unclassified}`;
+      return `${code}:account=${account.name}:page=${pageErrors}:console=${consoleErrors}:diagnostics=${diagnosticSummary}:consoleMeta=${consoleSummary}:httpErrors=${httpSummary}:requestFailures=${requestFailureSummary}:pageMeta=${pageSummary}:responses=${responses}:pending=${pending}:browserRegistry=${browserRegistry}:nodeControl=${control}:unclassified=${unclassified}`;
     };
 
     const runtimeFailureState=()=>{
@@ -375,11 +551,22 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
 
     if(outcome.kind==='runtime-failure'){
       await new Promise((resolve)=>setTimeout(resolve,150));
+      await Promise.allSettled([...responseDiagnosticTasks]);
+      if(
+        loginAccessToken&&
+        registryAuthorization
+      ){
+        registryControl=await readOnlyRegistryControl({
+          token:loginAccessToken,
+          publishableKey:String(process.env.M26_SUPABASE_PUBLISHABLE_KEY||''),
+        });
+      }
       throw new Error(runtimeFailureState()||outcome.failure);
     }
 
     if(outcome.kind!=='authenticated'){
       await new Promise((resolve)=>setTimeout(resolve,150));
+      await Promise.allSettled([...responseDiagnosticTasks]);
       const failure=runtimeFailureState();
       if(failure)throw new Error(failure);
       throw new Error(runtimeFailureMessage('RC64_2B_AUTH_TIMEOUT'));

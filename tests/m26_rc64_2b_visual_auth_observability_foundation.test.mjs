@@ -290,6 +290,24 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   assert.match(smoke,/pendingRequestProjection/u);
   assert.match(smoke,/pendingRequestMeta/u);
   assert.match(smoke,/authResponseMeta/u);
+  assert.match(smoke,/safeRemoteCode/u);
+  assert.match(smoke,/jwtShape/u);
+  assert.match(smoke,/readOnlyRegistryControl/u);
+  assert.match(smoke,/registryAuthorization/u);
+  assert.match(smoke,/registryApikeyMatchesExpected/u);
+  assert.match(smoke,/registryRemoteCode/u);
+  assert.match(smoke,/registryWwwAuthenticate/u);
+  assert.match(smoke,/loginAccessToken/u);
+  assert.match(smoke,/responseDiagnosticTasks/u);
+  assert.match(smoke,/request\.allHeaders\(\)/u);
+  assert.match(smoke,/response\.allHeaders\(\)/u);
+  assert.match(smoke,/matchesLogin=/u);
+  assert.match(smoke,/browserRegistry=/u);
+  assert.match(smoke,/nodeControl=/u);
+  assert.match(smoke,/method:'OPTIONS'/u);
+  assert.match(smoke,/access-control-request-method/u);
+  assert.match(smoke,/access-control-request-headers/u);
+  assert.match(smoke,/Promise\.allSettled\(\[\.\.\.responseDiagnosticTasks\]\)/u);
   assert.match(smoke,/runtimeFailureMessage/u);
   assert.match(smoke,/runtimeFailureState/u);
   assert.match(smoke,/account=\$\{account\.name\}/u);
@@ -314,6 +332,9 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   assert.doesNotMatch(smoke,/__RC64_2B_DIAGNOSTICS__/u);
   assert.doesNotMatch(smoke,/message\.text\(\)/u);
   assert.doesNotMatch(smoke,/response\.text\(\)|response\.body\(\)|request\.postData/u);
+  assert.doesNotMatch(smoke,/payload\?\.(?:message|details|hint|error_description)/u);
+  assert.match(smoke,/payload\?\.code/u);
+  assert.doesNotMatch(smoke,/console\.log\([^)]*(?:loginAccessToken|registryAuthorization|publishableKey)/u);
 
   const runtimeErrorStart=smoke.indexOf('const runtimeFailureMessage=(code)=>{');
   const runtimeErrorEnd=smoke.indexOf('    const authStartedAt=Date.now();',runtimeErrorStart);
@@ -326,7 +347,10 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   assert.match(runtimeErrorBlock,/pageErrorMeta/u);
   assert.match(runtimeErrorBlock,/authResponseMeta\.slice\(-8\)/u);
   assert.match(runtimeErrorBlock,/pendingRequestMeta\.values\(\)/u);
+  assert.match(runtimeErrorBlock,/browserRegistry/u);
+  assert.match(runtimeErrorBlock,/nodeControl/u);
   assert.doesNotMatch(runtimeErrorBlock,/page\.evaluate|postData|headers|response\.text|response\.body/u);
+  assert.doesNotMatch(runtimeErrorBlock,/Bearer \$\{(?:loginAccessToken|registryAuthorization)/u);
   const roleEvidenceStart=smoke.indexOf('evidenceRoles.push(Object.freeze({');
   const roleEvidenceEnd=smoke.indexOf('    await context.close();',roleEvidenceStart);
   assert.ok(roleEvidenceStart>=0&&roleEvidenceEnd>roleEvidenceStart);
@@ -340,6 +364,6 @@ test('RC64.2B1 authenticated smoke allowlist exactly covers the complete read-on
   const serializedEvidenceBlock=smoke.slice(serializedEvidenceStart,serializedEvidenceEnd);
   assert.match(serializedEvidenceBlock,/roles:evidenceRoles/u);
   assert.doesNotMatch(serializedEvidenceBlock,/blockedExternalPaths/u);
-  assert.doesNotMatch(serializedEvidenceBlock,/diagnosticSummary|runtimeDiagnostics|__rc64RecordDiagnostic|consoleErrorMeta|httpErrorMeta|requestFailureMeta|pageErrorMeta|pendingRequestMeta|authResponseMeta|runtimeFailureMessage|runtimeFailureState/u);
+  assert.doesNotMatch(serializedEvidenceBlock,/diagnosticSummary|runtimeDiagnostics|__rc64RecordDiagnostic|consoleErrorMeta|httpErrorMeta|requestFailureMeta|pageErrorMeta|pendingRequestMeta|authResponseMeta|runtimeFailureMessage|runtimeFailureState|loginAccessToken|registryAuthorization|registryApikeyMatchesExpected|registryRemoteCode|registryWwwAuthenticate|registryControl|responseDiagnosticTasks/u);
   assert.match(smoke,/JSON\.stringify\(evidence,null,2\)/u);
 });
