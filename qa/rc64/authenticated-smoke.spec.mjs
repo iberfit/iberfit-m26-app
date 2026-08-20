@@ -262,6 +262,132 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
 
   const evidenceRoles=[];
 
+  const idbProbeModes=[
+    'raw-open',
+    'raw-cursor',
+    'module-custom',
+    'canonical-single',
+    'canonical-concurrent',
+  ];
+
+  async function closeProbeContext(context){
+    await Promise.race([
+      context.close().catch(()=>{}),
+      new Promise((resolve)=>setTimeout(resolve,1_000)),
+    ]);
+  }
+
+  async function runIdbEngineProbe(mode){
+    const probeContext=await browser.newContext({
+      baseURL:LOCAL_ORIGIN,
+      locale:'es-ES',
+      timezoneId:'America/Santiago',
+      serviceWorkers:'block',
+    });
+    const probePage=await probeContext.newPage();
+    try{
+      await probePage.goto('/',{waitUntil:'domcontentloaded',timeout:10_000});
+      const operation=probePage.evaluate(async(probeMode)=>{
+        const rawOpen=async({dbName,withCursor=false})=>{
+          const db=await new Promise((resolve,reject)=>{
+            const request=indexedDB.open(dbName,1);
+            request.onupgradeneeded=()=>{
+              const opened=request.result;
+              if(!opened.objectStoreNames.contains('probe'))opened.createObjectStore('probe');
+            };
+            request.onsuccess=()=>resolve(request.result);
+            request.onerror=()=>reject(request.error||new Error('RAW_OPEN_FAILED'));
+            request.onblocked=()=>reject(new Error('RAW_OPEN_BLOCKED'));
+          });
+          try{
+            if(withCursor){
+              await new Promise((resolve,reject)=>{
+                const tx=db.transaction('probe','readonly');
+                const request=tx.objectStore('probe').openKeyCursor();
+                request.onerror=()=>reject(request.error||new Error('RAW_CURSOR_FAILED'));
+                request.onsuccess=()=>{
+                  const cursor=request.result;
+                  if(!cursor){resolve();return;}
+                  cursor.continue();
+                };
+              });
+            }
+          }finally{
+            db.close();
+          }
+          return true;
+        };
+
+        if(probeMode==='raw-open'){
+          return rawOpen({dbName:'iberfit-rc64-idb-probe-open'});
+        }
+        if(probeMode==='raw-cursor'){
+          return rawOpen({dbName:'iberfit-rc64-idb-probe-cursor',withCursor:true});
+        }
+
+        const module=await import('/src/m26/platform/key-value-store.js');
+        const create=module.createIndexedDbKeyValueStore;
+
+        if(probeMode==='module-custom'){
+          const store=create({
+            dbName:'iberfit-rc64-idb-probe-custom',
+            storeName:'probe',
+          });
+          await store.keys('');
+          return true;
+        }
+
+        if(probeMode==='canonical-single'){
+          const store=create({storeName:'key_value'});
+          await store.keys('m26:operation:');
+          return true;
+        }
+
+        if(probeMode==='canonical-concurrent'){
+          const core=create({storeName:'key_value'});
+          const wearable=create({storeName:'wearable_sync_v44'});
+          await Promise.all([
+            core.keys('m26:operation:'),
+            wearable.keys('m26:wearable-sync:v44:'),
+          ]);
+          return true;
+        }
+
+        throw new Error('UNKNOWN_PROBE_MODE');
+      },mode)
+        .then(()=>({kind:'pass'}))
+        .catch((error)=>({
+          kind:'page-error',
+          code:/^[A-Z0-9_:-]{2,80}$/u.test(String(error?.message||''))
+            ?String(error.message)
+            :'PROBE_PAGE_ERROR',
+        }));
+
+      const outcome=await Promise.race([
+        operation,
+        new Promise((resolve)=>setTimeout(
+          ()=>resolve({kind:'node-timeout'}),
+          3_000,
+        )),
+      ]);
+
+      console.log(`RC64_2B_IDB_ENGINE_PROBE:${mode}:${outcome.kind}`);
+      return outcome;
+    }finally{
+      await closeProbeContext(probeContext);
+    }
+  }
+
+  for(const mode of idbProbeModes){
+    const outcome=await runIdbEngineProbe(mode);
+    if(outcome.kind!=='pass'){
+      throw new Error(
+        `RC64_2B_IDB_ENGINE_PROBE_FAILED:${mode}:${outcome.kind}`
+      );
+    }
+  }
+  console.log('RC64_2B_IDB_ENGINE_PROBE=PASS');
+
   for(const account of accounts){
     expect(String(account.email||'').toLowerCase()).toMatch(/^iberfit\.cl\+qa\./u);
     expect(String(account.password||'').length).toBeGreaterThanOrEqual(8);
