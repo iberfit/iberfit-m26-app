@@ -446,15 +446,204 @@ export function renderExpedienteRoute(vm) {
     .join(' · ');
 
   const displayStatus=/no informado/i.test(data.status||'')?'Estado por definir':data.status;
-  const summaryStats=[stat('Perfil esencial',`${profile.completeness??0}%`,profile.missing?.length?`${profile.missing.length} campos pendientes`:'Datos esenciales completos')];
-  if(data.counts.sessions>0)summaryStats.push(stat('Sesiones planificadas',data.counts.sessions,'Dentro del expediente activo'));
-  if(data.counts.executions>0)summaryStats.push(stat('Ejecuciones',data.counts.executions,'Sesiones realizadas y confirmadas'));
-  if(vm.progress&&Number.isFinite(vm.progress.adherence))summaryStats.push(stat('Adherencia 28 días',formatPercent(vm.progress.adherence),'Solo sobre sesiones confirmadas'));
+
+  const progress=vm.progress||{};
+  const cockpit=vm.coachCockpit||{};
+  const focus=cockpit.items?.[0]||null;
+
+  const focusTone=
+    focus?.kind==='critical'
+      ?'danger'
+      :focus?.kind==='warning'
+        ?'warning'
+        :focus?.kind==='process'
+          ?'pending'
+          :'neutral';
+
+  const pulseLabel=
+    focus?.signalLabel||
+    'Seguimiento al día';
+
+  const pulseTitle=
+    focus?.reason||
+    'Sin señales prioritarias';
+
+  const pulseCopy=
+    focus?.detail||
+    'No hay señales que requieran una acción adicional con los datos confirmados disponibles.';
+
+  const pulseGuidance=
+    focus?.guidance||
+    'Mantener el seguimiento previsto.';
+
+  const pulseSourceAction={
+    registro_bienestar:{
+      area:'actividad',
+      label:'Revisar bienestar',
+    },
+    sessions:{
+      area:'progreso',
+      label:'Revisar progreso',
+    },
+    planning:{
+      area:'planificacion',
+      label:'Revisar planificación',
+    },
+    'data-quality':{
+      area:'progreso',
+      label:'Revisar datos',
+    },
+  };
+
+  const structuralPulseAction=
+    focus?.kind==='process'||
+    focus?.source==='adaptive-experience'||
+    focus?.source==='experience-core';
+
+  const contextualPulseAction=
+    focus
+      ?pulseSourceAction[focus.source]||null
+      :null;
+
+  const pulseActionArea=
+    structuralPulseAction
+      ?focus?.nextAction?.area||'progreso'
+      :contextualPulseAction?.area||'progreso';
+
+  const pulseActionLabel=
+    structuralPulseAction
+      ?focus?.nextAction?.label||'Revisar seguimiento'
+      :contextualPulseAction?.label||'Revisar progreso';
+
+  const lastSessionLabel=
+    progress.lastExecutionAt
+      ?safeDateLabel(progress.lastExecutionAt)
+      :'Sin sesión confirmada';
+
+  const lastSessionNote=
+    progress.lastExecutionAt
+      ?Number.isFinite(progress.lastExecutionRpe)
+        ?`RPE ${progress.lastExecutionRpe} · esfuerzo percibido confirmado`
+        :'Sin RPE confirmado'
+      :'No existe una ejecución confirmada en la ventana';
+
+  const adherenceNote=
+    Number.isFinite(progress.adherence)
+      ?`${progress.completedSessions} completadas sobre ${progress.plannedSessions} registradas en el periodo`
+      :'Sin base suficiente para calcular adherencia';
+
+  const volumeTrend=
+    Number.isFinite(progress.volumeDelta)
+      ?`${progress.volumeDelta>0?'+':''}${progress.volumeDelta}%`
+      :'Sin comparación suficiente';
+
+  const iriPulseValue=
+    iri
+      ?iri.processLabel
+      :'Pendiente';
+
+  const iriPulseNote=
+    iri
+      ?iri.coverageLabel
+      :'Sin evaluación IRI confirmada';
+
+  const pulseStats=[
+    stat(
+      'Última sesión confirmada',
+      lastSessionLabel,
+      lastSessionNote
+    ),
+    stat(
+      'Adherencia 28 días',
+      formatPercent(progress.adherence),
+      adherenceNote
+    ),
+    stat(
+      'Tendencia de volumen',
+      volumeTrend,
+      Number.isFinite(progress.volumeDelta)
+        ?'Mitad reciente frente a la anterior del periodo'
+        :'Se necesitan al menos dos sesiones con carga registrada'
+    ),
+    stat(
+      'Evaluación IRI',
+      iriPulseValue,
+      iriPulseNote
+    ),
+  ].join('');
+
+  const unconfirmedCount=
+    Number(progress.unconfirmedExecutions||0);
+
+  const pendingProgressNotice=
+    unconfirmedCount>0
+      ?`<section class="m26-notice is-pending" role="status"><strong>Progreso protegido</strong><p>Sesiones fuera del cálculo por no estar confirmadas: ${escapeHtml(unconfirmedCount)}. Se incorporarán únicamente cuando queden confirmadas.</p></section>`
+      :'';
+
+  const summaryStats=[
+    stat(
+      'Perfil esencial',
+      `${profile.completeness??0}%`,
+      profile.missing?.length
+        ?`${profile.missing.length} campos pendientes`
+        :'Datos esenciales completos'
+    ),
+  ];
+
+  if(data.counts.sessions>0){
+    summaryStats.push(
+      stat(
+        'Sesiones planificadas',
+        data.counts.sessions,
+        'Dentro del expediente activo'
+      )
+    );
+  }
+
+  if(data.counts.executions>0){
+    summaryStats.push(
+      stat(
+        'Ejecuciones',
+        data.counts.executions,
+        'Sesiones realizadas y confirmadas'
+      )
+    );
+  }
 
   return `<div class="m26-route">
-    <section class="m26-profile-hero"><div class="m26-profile-avatar">${escapeHtml(data.name.slice(0, 1).toUpperCase())}</div><div><p class="m26-eyebrow">Expediente IBERFIT</p><h2>${escapeHtml(data.name)}</h2><p>${escapeHtml(data.modality)} · ${escapeHtml(displayStatus)}</p></div><div>${accessBadge(data)}</div></section>
+    <section class="m26-profile-hero"><div class="m26-profile-avatar">${escapeHtml(data.name.slice(0, 1).toUpperCase())}</div><div><p class="m26-eyebrow">Cliente 360º · Expediente IBERFIT</p><h2>${escapeHtml(data.name)}</h2><p>${escapeHtml(data.modality)} · ${escapeHtml(displayStatus)}</p></div><div>${accessBadge(data)}</div></section>
+    <section class="m26-panel m26-panel-soft" aria-label="Pulso del cliente">
+      <div class="m26-panel-heading">
+        <div>
+          <p class="m26-eyebrow">Lectura profesional priorizada</p>
+          <h2>Pulso del cliente</h2>
+          <p><strong>${escapeHtml(pulseTitle)}</strong>. ${escapeHtml(pulseCopy)}</p>
+        </div>
+        ${badge(pulseLabel,focusTone)}
+      </div>
+
+      <div class="m26-stat-grid">
+        ${pulseStats}
+      </div>
+
+      <div class="m26-list-card-actions">
+        <button
+          type="button"
+          class="m26-primary-action"
+          data-m26-area="${escapeHtml(pulseActionArea)}"
+        >${escapeHtml(pulseActionLabel)}</button>
+
+        <small>${escapeHtml(pulseGuidance)} · Pulso construido con datos confirmados y reglas explicables.</small>
+      </div>
+    </section>
+
+    ${pendingProgressNotice}
+
     ${profileMissingNotice(profile)}
-    <section class="m26-stat-grid">${summaryStats.join('')}</section>
+
+    <section class="m26-stat-grid">
+      ${summaryStats.join('')}
+    </section>
     <section class="m26-profile-sections">
       <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Identificación y baremos</p><h2>Datos de la persona</h2></div></div><div class="m26-field-grid">${field('Fecha de nacimiento', profile.birthDate)}${field('Sexo utilizado para baremos', profile.sexForNormsLabel)}${field('Identidad de género', profile.genderIdentity)}${field('Pronombres', profile.pronouns)}</div></section>
       <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Contacto</p><h2>Datos de contacto</h2></div></div><div class="m26-field-grid">${field('Correo electrónico', profile.email)}${field('Teléfono', profile.phone)}${field('Canal preferido', profile.preferredContactChannel)}${field('Horario de contacto', profile.preferredContactTime)}${field('Zona horaria', profile.timezone)}</div></section>
