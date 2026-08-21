@@ -5,6 +5,24 @@ function arr(value){return Array.isArray(value)?value:[];}
 function first(record,...keys){for(const key of keys){const value=record?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
 function clientIdOf(record){return first(record,'clientId','client_id','clienteId','cliente_id');}
 function statusOf(record){return String(first(record,'status','estado')||'').trim().toLowerCase();}
+function unconfirmedCompletionIds(state){
+  const ids=new Set();
+  for(const key of ['pendingOperations','conflicts','rejectedOperations']){
+    for(const operation of arr(state?.[key])){
+      const item=unwrap(operation)||{};
+      const type=String(first(item,'type','commandType','command_type')||'').trim().toUpperCase();
+      if(type!=='EJECUCION_COMPLETAR')continue;
+      const entityId=first(item,'entityId','entity_id','executionId','execution_id');
+      if(entityId)ids.add(String(entityId));
+    }
+  }
+  return ids;
+}
+function executionIsConfirmed(record,unconfirmedIds=new Set()){
+  const sync=String(first(record,'syncStatus','sync_status')||'').trim().toLowerCase();
+  const id=String(first(record,'id','executionId','execution_id')||'');
+  return (!sync||sync==='clean')&&!unconfirmedIds.has(id);
+}
 function dateOf(record){return first(record,
   'completedAt','completed_at','endedAt','ended_at','recordedAt','recorded_at',
   'assessmentDate','assessment_date','evaluatedAt','evaluated_at','startAt','start_at',
@@ -82,7 +100,9 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
   const planned=appointments.filter((item)=>!['cancelado','cancelled','anulado','annulled'].includes(statusOf(item)));
   const completedAppointments=planned.filter((item)=>['completado','completed'].includes(statusOf(item)));
-  const executions=forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
+  const executionRows=forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
+  const blockedExecutionIds=unconfirmedCompletionIds(state);
+  const executions=executionRows.filter((item)=>executionIsConfirmed(item,blockedExecutionIds));
   const completedExecutions=executions.filter((item)=>['completado','completed','complete'].includes(statusOf(item)));
   const completedIds=new Set(completedExecutions.map((item)=>first(item,'appointmentId','appointment_id')).filter(Boolean));
   const confirmedCompleted=Math.max(completedAppointments.length,completedIds.size,completedExecutions.length);
@@ -106,6 +126,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const iriDelta=iriCoverage.length>=2&&iriCoverage[0]>0&&iriCoverage[1]>0?iriCoverage[0]-iriCoverage[1]:null;
   const sortedExecutions=[...completedExecutions].sort(byDateDesc);
   const lastExecution=sortedExecutions[0]||null;
+  const lastExecutionRpe=lastExecution?rpeValues(lastExecution):[];
   const latestCheckin=checkins[0]||null;
   const dataPoints=completedExecutions.length+checkins.length+iri.length;
   const dataQuality=dataPoints>=8?'alta':dataPoints>=3?'media':'limitada';
@@ -119,7 +140,8 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
       energy:round(average(checkinSeries.map((x)=>x.energy)),1),sleep:round(average(checkinSeries.map((x)=>x.sleep)),1),
       stress:round(average(checkinSeries.map((x)=>x.stress)),1),pain:round(average(checkinSeries.map((x)=>x.pain)),1),
     }),
-    lastExecutionAt:dateOf(lastExecution)||null,dataQuality,wearable,
+    lastExecutionAt:dateOf(lastExecution)||null,lastExecutionRpe:round(average(lastExecutionRpe),1),
+    unconfirmedExecutions:executionRows.length-executions.length,dataQuality,wearable,
   });
 }
 
@@ -128,7 +150,8 @@ export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,lim
   const {start,end}=progressWindow({now,days});
   const safeLimit=safePositiveInteger(limit,{fallback:24,min:1,max:200});
   const rows=[];
-  for(const item of forClient(state,'sessionExecutions',clientId).map(unwrap))if(within(dateOf(item),start,end))rows.push({kind:'execution',date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',status:statusOf(item),detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada'});
+  const blockedExecutionIds=unconfirmedCompletionIds(state);
+  for(const item of forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>executionIsConfirmed(item,blockedExecutionIds)))if(within(dateOf(item),start,end))rows.push({kind:'execution',date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',status:statusOf(item),detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada'});
   for(const item of forClient(state,'iriAssessments',clientId).map(unwrap))if(within(dateOf(item),start,end)){const coverage=iriDomainCoverage(item);rows.push({kind:'iri',date:dateOf(item),title:'Evaluación IRI',status:statusOf(item),detail:coverage?`${coverage} de 3 dominios registrados`:'Evaluación registrada · formato histórico sin dominios comparables'});}
   for(const item of forClient(state,'checkins',clientId).map(unwrap))if(within(dateOf(item),start,end)){const values=checkinValues(item);rows.push({kind:'checkin',date:dateOf(item),title:'Registro de bienestar',status:'registrado',detail:`Energía ${values.energy??'—'} · Sueño ${values.sleep??'—'} · Estrés ${values.stress??'—'} · Dolor ${values.pain??'—'}`});}
   return rows.sort((a,b)=>(safeDate(b.date)?.getTime()||0)-(safeDate(a.date)?.getTime()||0)).slice(0,safeLimit).map(clone);

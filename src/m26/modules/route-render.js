@@ -498,6 +498,16 @@ export function renderProgressRoute(vm){
   const timeline=vm.timeline.length?vm.timeline.map(timelineItem).join(''):emptyState('Sin eventos de progreso','Los datos ausentes se mantienen como ausentes y no se convierten en cero.');
   const adherenceVisual=Number.isFinite(summary.adherence)?`<section class="m26-panel m26-progress-overview" aria-label="Resumen visual de adherencia"><div class="m26-progress-heading"><span>Adherencia confirmada</span><strong>${formatPercent(summary.adherence)}</strong></div><meter min="0" max="1" value="${escapeHtml(Math.max(0,Math.min(1,summary.adherence)))}">${formatPercent(summary.adherence)}</meter><small>${escapeHtml(summary.completedSessions)} de ${escapeHtml(summary.plannedSessions)} sesiones confirmadas en la ventana seleccionada.</small></section>`:'';
   const wearable=summary.wearable||{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'};
+  const unconfirmedCount=Number(summary.unconfirmedExecutions||0);
+  const volumeTrend=Number.isFinite(summary.volumeDelta)
+    ?`${summary.volumeDelta>0?'+':''}${summary.volumeDelta}%`
+    :'Sin comparación suficiente';
+  const sessionImpact=summary.lastExecutionAt
+    ?`<section class="m26-panel m26-panel-soft"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Última sesión confirmada</p><h2>${escapeHtml(safeDateLabel(summary.lastExecutionAt))}</h2></div>${badge('Incluida en progreso','success')}</div><div class="m26-stat-grid">${stat('RPE de la sesión',metricValue(summary.lastExecutionRpe),'Esfuerzo percibido confirmado')}${stat('Tendencia de volumen',volumeTrend,Number.isFinite(summary.volumeDelta)?'Mitad reciente frente a la anterior del periodo':'Se necesitan al menos dos sesiones con carga registrada')}</div></section>`
+    :'';
+  const pendingProgressNotice=unconfirmedCount>0
+    ?`<section class="m26-notice is-pending" role="status"><strong>Progreso protegido</strong><p>Sesiones fuera del cálculo por no estar confirmadas: ${escapeHtml(unconfirmedCount)}. Se incorporarán únicamente cuando queden confirmadas.</p></section>`
+    :'';
   const hasCheckins=Number(summary.checkins||0)>0;
   const wearablePanel=wearableHasData(wearable)?`<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Actividad de dispositivo</p><h2>Tendencia objetiva complementaria</h2></div>${badge(wearable.freshness==='reciente'?'Actualizada':'Revisar fecha','neutral')}</div><div class="m26-field-grid">${wearableMetric('Pasos medios',wearable.metrics?.steps)}${wearableMetric('Minutos activos',wearable.metrics?.activeMinutes,' min')}${wearableMetric('Sueño de dispositivo',wearable.metrics?.sleepMinutes,' min')}${wearableMetric('FC en reposo',wearable.metrics?.restingHeartRate,' lpm')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearable),{role:vm.role,compact:true})}<p class="m26-notice">Se presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.</p></section>`:`<details class="m26-panel m26-optional-section"><summary>Actividad de dispositivo · sin datos confirmados</summary><p>No hay información de dispositivos para este periodo. El progreso se calcula únicamente con sesiones, evaluaciones y registros confirmados.</p></details>`;
   return `<div class="m26-route">
@@ -508,6 +518,8 @@ export function renderProgressRoute(vm){
       ${stat('Volumen medio',metricValue(summary.volume),'Carga × repeticiones cuando existe')}
       ${stat('Evaluaciones IRI',summary.iriCurrent===null?'Sin evaluación':'Datos disponibles',summary.iriDelta===null?'Sin dos evaluaciones comparables':'Comparar por dominios, no por puntuación global')}
     </section>
+    ${pendingProgressNotice}
+    ${sessionImpact}
     ${adherenceVisual}
     ${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
     <section class="m26-content-grid">
