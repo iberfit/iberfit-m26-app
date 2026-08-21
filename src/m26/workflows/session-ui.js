@@ -141,7 +141,18 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
   if(execution.status==='awaiting_feedback')return `<section class="m26-guided">${state}${sync}${timerStrip(execution)}${liveTelemetryStrip(execution,catalog)}<div class="m26-panel"><p class="m26-eyebrow">Cierre de sesión</p><h2>Cuéntanos cómo te fue</h2><div class="m26-field-grid"><label>RPE de la sesión<input type="number" min="1" max="10" data-session-feedback-rpe required></label><label>Comentario<textarea data-session-feedback-comment maxlength="2000" required></textarea></label><label><input type="checkbox" data-session-feedback-pain> Tuve dolor o molestia</label><label>Detalle de dolor<textarea data-session-feedback-pain-notes maxlength="1000"></textarea></label></div><button type="button" class="m26-primary-action" data-session-action="finish">Finalizar y guardar</button></div></section>`;
   if(execution.status==='paused')return `<section class="m26-guided">${state}${sync}${timerStrip(execution)}${liveTelemetryStrip(execution,catalog)}<div class="m26-panel m26-empty"><p class="m26-eyebrow">Sesión en pausa</p><h2>${e(session.title||'Sesión IBERFIT')}</h2><p>Tu progreso está conservado. Reanuda cuando estés listo.</p><button type="button" class="m26-primary-action" data-session-action="resume">Reanudar sesión</button><label>Motivo para cancelar<input data-session-cancel-reason maxlength="500"></label><button type="button" data-session-action="cancel">Cancelar sesión</button></div></section>`;
   if(execution.status==='cancelled')return `<section class="m26-guided">${state}${sync}<div class="m26-panel m26-empty"><h2>Sesión cancelada</h2><p>${e(execution.cancellationReason||'La sesión fue cancelada.')}</p><p>${execution.syncStatus==='clean'?'Cancelación confirmada.':'Cancelación guardada localmente; aún no está confirmada.'}</p><button type="button" class="m26-primary-action" data-session-action="exit-session">Volver a sesiones</button></div></section>`;
-  if(execution.status==='completed')return `<section class="m26-guided">${state}${sync}<div class="m26-panel m26-empty"><h2>Sesión completada</h2><p>${execution.syncStatus==='clean'?'Los resultados quedaron confirmados.':'Los resultados están guardados en este dispositivo y pendientes de sincronización.'}</p><button type="button" class="m26-primary-action" data-session-action="exit-session">Volver a sesiones</button></div></section>`;
+  if(execution.status==='completed'){
+    const confirmed=execution.syncStatus==='clean';
+    const feedback=execution.feedback||{};
+    const sessionRpe=Number(feedback.sessionRpe);
+    const feedbackSummary=Number.isFinite(sessionRpe)
+      ?`<p><strong>RPE de sesión ${e(sessionRpe)}/10</strong> · ${feedback.pain?'Molestia registrada para seguimiento.':'Sin dolor o molestia registrada.'}</p>`
+      :'';
+    const completedActions=confirmed
+      ?`<div class="m26-inline-actions"><button type="button" data-session-action="exit-session">Volver a sesiones</button><button type="button" class="m26-primary-action" data-m26-area="progreso">Ver mi progreso</button></div>`
+      :`<button type="button" class="m26-primary-action" data-session-action="exit-session">Volver a sesiones</button>`;
+    return `<section class="m26-guided">${state}${sync}<div class="m26-panel m26-empty"><p class="m26-eyebrow">Entrenamiento guardado</p><h2>Sesión completada</h2><p>${confirmed?'Los resultados y tu feedback quedaron confirmados.':'Los resultados están guardados en este dispositivo y pendientes de sincronización.'}</p>${feedbackSummary}${confirmed?'<p>Tu seguimiento ya puede continuar desde Progreso.</p>':''}${completedActions}</div></section>`;
+  }
   const step=currentStep(execution,session);if(!step)return '<section class="m26-panel"><h2>Sesión finalizada</h2></section>';
   const ex=catalog.get(step.exerciseId)||step.exercise||{};
   const planned=step.prescription||{};
