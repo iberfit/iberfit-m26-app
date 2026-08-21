@@ -43,6 +43,59 @@ test('progreso calcula adherencia, RPE, volumen e IRI sin convertir ausencias en
   assert.equal(empty.adherence,null);assert.equal(empty.averageRpe,null);assert.equal(empty.iriCurrent,null);
 });
 
+test('progreso excluye ejecuciones sin confirmar y explica el impacto de la última sesión confirmada',()=>{
+  const state=hydrated(snapshot({
+    appointments:[
+      {id:'a-old',clientId,startAt:'2026-07-02T10:00:00Z',status:'completed'},
+      {id:'a-confirmed',clientId,startAt:'2026-07-09T10:00:00Z',status:'completed'},
+      {id:'a-pending',clientId,startAt:'2026-07-10T10:00:00Z',status:'confirmed'},
+    ],
+    sessionExecutions:[
+      {id:'e-old',clientId,completedAt:'2026-07-02T11:00:00Z',status:'completed',results:[{reps:10,loadKg:10,rpe:7}]},
+      {id:'e-confirmed',clientId,completedAt:'2026-07-09T11:00:00Z',status:'completed',results:[{reps:10,loadKg:20,rpe:8}]},
+      {id:'e-pending',clientId,completedAt:'2026-07-10T11:00:00Z',status:'completed',syncStatus:'pending',results:[{reps:10,loadKg:50,rpe:10}]},
+    ],
+    iriAssessments:[],
+    checkins:[],
+  }));
+
+  state.pendingOperations=[{
+    operationId:'op-pending-completion',
+    type:'EJECUCION_COMPLETAR',
+    entityType:'session_execution',
+    entityId:'e-pending',
+    clientId,
+    status:'pending',
+  }];
+
+  const summary=computeProgressSummary(state,clientId,{now,days:28});
+
+  assert.equal(summary.completedSessions,2);
+  assert.equal(summary.unconfirmedExecutions,1);
+  assert.equal(summary.averageRpe,7.5);
+  assert.equal(summary.volume,150);
+  assert.equal(summary.volumeDelta,100);
+  assert.equal(summary.lastExecutionAt,'2026-07-09T11:00:00Z');
+  assert.equal(summary.lastExecutionRpe,8);
+
+  const timeline=buildProgressTimeline(state,clientId,{now,days:90});
+  const executions=timeline.filter((item)=>item.kind==='execution');
+
+  assert.equal(executions.length,2);
+  assert.ok(!executions.some((item)=>item.date==='2026-07-10T11:00:00Z'));
+
+  state.activeArea='progreso';
+  const shell=createShellViewModel(state);
+  const vm=createRouteViewModel(shell,state,now);
+  const html=renderRouteView(vm);
+
+  assert.match(html,/Última sesión confirmada/);
+  assert.match(html,/Incluida en progreso/);
+  assert.match(html,/RPE de la sesión/);
+  assert.match(html,/Tendencia de volumen/);
+  assert.match(html,/\+100%/);
+  assert.match(html,/Sesiones fuera del cálculo por no estar confirmadas: 1/);
+});
 test('alertas son explicables y priorizan dolor, recuperación y adherencia',()=>{
   const alerts=deriveAdherenceAlerts(hydrated(),clientId,{now});
   assert.equal(alerts[0].id,'pain-high');
