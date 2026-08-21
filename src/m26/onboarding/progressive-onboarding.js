@@ -46,6 +46,20 @@ function text(value,max=160){
   return String(value??'').replace(/\s+/gu,' ').trim().slice(0,max);
 }
 
+function setAttributeIfChanged(node,name,value){
+  const next=String(value??'');
+  if(node?.getAttribute?.(name)===next)return false;
+  node?.setAttribute?.(name,next);
+  return true;
+}
+
+function setTextIfChanged(node,value){
+  const next=String(value??'');
+  if(node?.textContent===next)return false;
+  node.textContent=next;
+  return true;
+}
+
 function escapeHtml(value){
   return String(value??'')
     .replaceAll('&','&amp;')
@@ -197,6 +211,8 @@ export function createProgressiveOnboardingController({
   let observer=null;
   let mounted=false;
   let scheduled=false;
+  let renderedPanel=null;
+  let renderedPanelKey=null;
 
   function identity(){
     const value=identityProvider?.()||{};
@@ -217,6 +233,8 @@ export function createProgressiveOnboardingController({
   function removeOwned(){
     root.querySelector?.('[data-progressive-onboarding-launcher]')?.remove?.();
     root.querySelector?.('[data-progressive-onboarding-panel]')?.remove?.();
+    renderedPanel=null;
+    renderedPanelKey=null;
   }
 
   function ensureLauncher(context,state){
@@ -232,25 +250,43 @@ export function createProgressiveOnboardingController({
       launcher.setAttribute('data-progressive-onboarding-open','');
       host.prepend?.(launcher);
     }
-    launcher.setAttribute('data-m26-area',context.track.home);
-    launcher.textContent=state.completed?'Guía completada':'Guía';
-    launcher.setAttribute('aria-label',state.completed?'Abrir guía progresiva completada':'Abrir guía progresiva');
+    setAttributeIfChanged(launcher,'data-m26-area',context.track.home);
+    setTextIfChanged(launcher,state.completed?'Guía completada':'Guía');
+    setAttributeIfChanged(launcher,'aria-label',state.completed?'Abrir guía progresiva completada':'Abrir guía progresiva');
+  }
+
+  function panelRenderKey(context,state){
+    return JSON.stringify([
+      PROGRESSIVE_ONBOARDING_SCHEMA_VERSION,
+      context.role,
+      Boolean(state.hidden),
+      Boolean(state.completed),
+      ...(state.visited||[]),
+    ]);
   }
 
   function ensurePanel(context,state,area){
     const existing=root.querySelector?.('[data-progressive-onboarding-panel]');
     if(area!==context.track.home||state.hidden){
       existing?.remove?.();
+      renderedPanel=null;
+      renderedPanelKey=null;
       return;
     }
     const main=root.querySelector?.('#m26-main');
     if(!main)return;
+    const key=panelRenderKey(context,state);
     const markup=renderProgressiveOnboardingPanel({role:context.role,state});
     if(existing){
-      if(existing.outerHTML!==markup)existing.outerHTML=markup;
+      if(existing===renderedPanel&&renderedPanelKey===key)return;
+      existing.outerHTML=markup;
+      renderedPanel=root.querySelector?.('[data-progressive-onboarding-panel]')||null;
+      renderedPanelKey=renderedPanel?key:null;
       return;
     }
     main.insertAdjacentHTML?.('afterbegin',markup);
+    renderedPanel=root.querySelector?.('[data-progressive-onboarding-panel]')||null;
+    renderedPanelKey=renderedPanel?key:null;
   }
 
   function render(){

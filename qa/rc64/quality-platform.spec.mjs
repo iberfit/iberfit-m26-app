@@ -96,3 +96,126 @@ test('invalid role and state fail closed to the deterministic client normal fixt
   await expect(page.locator('[data-quality-fixture]')).toHaveAttribute('data-quality-role','client');
   await expect(page.locator('[data-quality-fixture]')).toHaveAttribute('data-quality-state','normal');
 });
+test('RC64.2B onboarding observer settles and still reacts to external navigation',async({page})=>{
+  const runtimeErrors=await installRuntimeErrorGates(page);
+  await page.goto('/qa/rc64/fixture.html?role=coach&state=normal');
+
+  const result=await page.evaluate(async()=>{
+    document.body.innerHTML=`
+      <div id="rc64-onboarding-root">
+        <header>
+          <div class="m26-topbar-actions"></div>
+        </header>
+        <nav>
+          <button type="button" data-m26-area="hoy" aria-current="page">Hoy</button>
+          <button type="button" data-m26-area="clientes">Clientes</button>
+        </nav>
+        <main id="m26-main"></main>
+      </div>
+    `;
+
+    const root=document.querySelector('#rc64-onboarding-root');
+    const module=await import('/src/m26/onboarding/progressive-onboarding.js');
+
+    const records=new Map();
+    const storage={
+      getItem(key){
+        return records.has(String(key))
+          ?records.get(String(key))
+          :null;
+      },
+      setItem(key,value){
+        records.set(String(key),String(value));
+      },
+    };
+
+    let mutationCount=0;
+    const probe=new MutationObserver((mutations)=>{
+      mutationCount+=mutations.length;
+    });
+
+    probe.observe(root,{
+      childList:true,
+      subtree:true,
+      attributes:true,
+      attributeFilter:['aria-current'],
+    });
+
+    const controller=module.createProgressiveOnboardingController({
+      root,
+      storage,
+      identityProvider:()=>({
+        role:'coach',
+        userId:'rc64-v6-coach',
+      }),
+      scope:globalThis,
+    });
+
+    const yieldTask=()=>new Promise((resolve)=>setTimeout(resolve,0));
+    const settle=async()=>{
+      await yieldTask();
+      await yieldTask();
+      await new Promise((resolve)=>setTimeout(resolve,25));
+    };
+
+    controller.mount();
+    await settle();
+
+    const initialBefore=mutationCount;
+    await new Promise((resolve)=>setTimeout(resolve,40));
+    const initialAfter=mutationCount;
+
+    const launcher=root.querySelector('[data-progressive-onboarding-launcher]');
+    const initialLauncherText=launcher?.textContent||'';
+
+    const hoy=root.querySelector('nav [data-m26-area="hoy"]');
+    const clientes=root.querySelector('nav [data-m26-area="clientes"]');
+    if(!hoy||!clientes)throw new Error('RC64_ONBOARDING_NAV_FIXTURE_MISSING');
+    hoy.removeAttribute('aria-current');
+    clientes.setAttribute('aria-current','page');
+
+    await settle();
+
+    const externalBefore=mutationCount;
+    await new Promise((resolve)=>setTimeout(resolve,40));
+    const externalAfter=mutationCount;
+
+    const persisted=[...records.values()]
+      .map((value)=>{
+        try{return JSON.parse(value);}
+        catch{return null;}
+      })
+      .filter(Boolean);
+
+    const visited=persisted.flatMap((value)=>
+      Array.isArray(value.visited)
+        ?value.visited
+        :[]
+    );
+
+    const panelPresentAfterNavigation=Boolean(
+      root.querySelector('[data-progressive-onboarding-panel]')
+    );
+
+    controller.destroy();
+    probe.disconnect();
+
+    return {
+      initialBefore,
+      initialAfter,
+      externalBefore,
+      externalAfter,
+      initialLauncherText,
+      visited:[...new Set(visited)].sort(),
+      panelPresentAfterNavigation,
+    };
+  });
+
+  expect(result.initialAfter).toBe(result.initialBefore);
+  expect(result.externalAfter).toBe(result.externalBefore);
+  expect(result.initialLauncherText).toBe('Gu\u00eda');
+  expect(result.visited).toContain('coach-today');
+  expect(result.visited).toContain('coach-clients');
+  expect(result.panelPresentAfterNavigation).toBe(false);
+  expect(runtimeErrors).toEqual([]);
+});
