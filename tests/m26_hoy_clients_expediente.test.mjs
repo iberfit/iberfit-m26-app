@@ -33,7 +33,7 @@ function ready(role = 'coach', overrides = {}) {
       sessionExecutions: [{ id: 'e1', client_id: qa, status: 'completado' }],
       appointments: [
         { id: 'ap0', client_id: qa, title: 'Propuesta privada', start_at: '2026-07-18T17:00:00Z', status: 'propuesta', visibleToClient: false, modality: 'online' },
-        { id: 'ap1', client_id: qa, title: 'Sesión presencial', start_at: '2026-07-18T18:00:00Z', status: 'confirmado', location: 'Las Condes', modality: 'presencial' },
+        { id: 'ap1', client_id: qa, session_id: 's1', title: 'Sesión presencial', start_at: '2026-07-18T18:00:00Z', status: 'confirmado', location: 'Las Condes', modality: 'presencial' },
         { id: 'ap2', client_id: other, title: 'Sesión online', start_at: '2026-07-18T20:00:00Z', status: 'confirmado' },
       ],
       intelligenceRuns: [], domainEvents: [], coachAvailability: [], m26Entities: [],
@@ -79,6 +79,31 @@ test('Hoy renderiza datos reales del store sin fixtures', () => {
   assert.doesNotMatch(html, /CLI-DEMO|fixture|demo\.iberfit/i);
 });
 
+test('Hoy Cliente inicia directamente la sesión publicada vinculada a su cita', () => {
+  const state = ready('client');
+  const shellVm = createShellViewModel(state);
+  const vm = createRouteViewModel(shellVm, state, now);
+  const html = renderRouteView(vm);
+
+  assert.equal(vm.kind, 'hoy');
+  assert.equal(vm.appointments.length, 1);
+  assert.equal(vm.appointments[0].sessionId, 's1');
+
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session"/
+  );
+
+  assert.match(
+    html,
+    /data-entity-id="s1"/
+  );
+
+  assert.match(
+    html,
+    />Iniciar entrenamiento</
+  );
+});
 test('Clientes abre expediente mediante atributos de datos, no handlers inline', () => {
   const state = ready('coach', { activeArea: 'clientes' });
   const vm = createRouteViewModel(createShellViewModel(state), state, now);

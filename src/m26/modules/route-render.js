@@ -28,13 +28,22 @@ function operationBanner(operations) {
   const kind = operations.conflicts ? 'danger' : operations.rejected ? 'warning' : 'pending';
   return `<section class="m26-notice is-${kind}" role="status"><strong>Sincronización protegida</strong><p>${escapeHtml(parts.join(' · '))}. Ningún cambio se muestra como confirmado hasta completar la sincronización segura.</p></section>`;
 }
-function appointmentCard(item,{canManage=false}={}) {
+function appointmentCard(item,{canManage=false,canStartSession=false}={}) {
   const detail=[item.modality,item.location]
     .filter(Boolean)
     .filter((value,index,list)=>list.indexOf(value)===index)
     .join(' · ');
   const confirmable=canManage&&['propuesta','pendiente'].includes(String(item.statusRaw||'').toLowerCase());
-  const controls=confirmable?`<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-workflow-action="confirm-appointment" data-entity-id="${escapeHtml(item.id)}">Confirmar cita</button><small>Al confirmar será visible para el cliente.</small></div>`:'';
+  const startable=
+    canStartSession&&
+    Boolean(item.sessionId)&&
+    String(item.statusRaw||'').toLowerCase()==='confirmada';
+
+  const controls=confirmable
+    ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-workflow-action="confirm-appointment" data-entity-id="${escapeHtml(item.id)}">Confirmar cita</button><small>Al confirmar será visible para el cliente.</small></div>`
+    : startable
+      ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(item.sessionId)}">Iniciar entrenamiento</button><small>Abre la sesión publicada vinculada a esta cita.</small></div>`
+      : '';
   return `<article class="m26-list-card m26-appointment-card"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(detail||'Modalidad pendiente de definir')}</p></div><div class="m26-appointment-state">${badge(item.status,/confirm|realiz|complet/i.test(item.status)?'success':'neutral')}${controls}</div></article>`;
 }
 function clientIriState(client={}) {
@@ -139,7 +148,7 @@ export function renderHoyRoute(vm) {
     ? 'Consulta lo que tienes preparado, registra cómo estás y continúa desde una única ruta clara.'
     : 'Primero las decisiones que requieren una acción; después, el resto del seguimiento.';
   const appointments = vm.appointments.length
-    ? vm.appointments.map(appointmentCard).join('')
+    ? vm.appointments.map((item)=>appointmentCard(item,{canStartSession:isClient})).join('')
     : emptyState(
         'Sin sesiones confirmadas para hoy',
         isClient
