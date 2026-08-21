@@ -397,11 +397,25 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     const alerts = state.selectedClientId
       ? deriveAdherenceAlerts(state, state.selectedClientId, { now })
       : [];
+    const role = String(shellVm.identity?.role || '');
+    const compact = summary
+      ? compactSummary(summary, role, {state,now})
+      : null;
+    const coachCockpit =
+      compact && ['coach', 'admin'].includes(role)
+        ? deriveCoachCockpit([
+            {
+              client: compact,
+              alerts,
+            },
+          ])
+        : null;
 
     return Object.freeze({
       kind: 'expediente',
-      summary: summary ? compactSummary(summary, shellVm.identity?.role, {state,now}) : null,
+      summary: compact,
       progress,
+      coachCockpit,
       alerts: Object.freeze(alerts),
       alertSignal: Object.freeze(adherenceSignal(alerts)),
     });

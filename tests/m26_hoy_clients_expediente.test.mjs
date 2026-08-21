@@ -30,7 +30,17 @@ function ready(role = 'coach', overrides = {}) {
       reports: [{ id: 'r1', clientId: qa, title: 'Informe IRI', status: 'publicado', createdAt: '2026-07-17T11:00:00Z' }],
       trainingCycles: [{ id: 'c1', client_id: qa, name: 'Ciclo Base', status: 'activo' }],
       sessions: [{ id: 's1', clientId: qa, status: 'publicado' }],
-      sessionExecutions: [{ id: 'e1', client_id: qa, status: 'completado' }],
+      sessionExecutions: [{
+        id: 'e1',
+        client_id: qa,
+        status: 'completado',
+        completedAt: '2026-07-17T19:00:00Z',
+        results: [{
+          reps: 10,
+          loadKg: 20,
+          rpe: 8,
+        }],
+      }],
       appointments: [
         { id: 'ap0', client_id: qa, title: 'Propuesta privada', start_at: '2026-07-18T17:00:00Z', status: 'propuesta', visibleToClient: false, modality: 'online' },
         { id: 'ap1', client_id: qa, session_id: 's1', title: 'Sesión presencial', start_at: '2026-07-18T18:00:00Z', status: 'confirmado', location: 'Las Condes', modality: 'presencial' },
@@ -117,6 +127,16 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
   const html = renderRouteView(vm);
   assert.equal(vm.summary.iri.coverageCount, 0);
+  assert.equal(vm.coachCockpit.totalClients, 1);
+  assert.match(html, /Cliente 360º/);
+  assert.match(html, /Pulso del cliente/);
+  assert.match(html, /Lectura profesional priorizada/);
+  assert.match(html, /Última sesión confirmada/);
+  assert.match(html, /RPE 8/);
+  assert.match(html, /Adherencia 28 días/);
+  assert.match(html, /Tendencia de volumen/);
+  assert.match(html, /Sin comparación suficiente/);
+  assert.match(html, /datos confirmados y reglas explicables/);
   assert.match(html, /Correo electrónico/);
   assert.match(html, /qa@example.com/);
   assert.match(html, /Dirección de entrenamiento/);
@@ -125,6 +145,89 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   assert.match(html, /data-m26-area="planificacion"/);
 });
 
+test('Cliente 360 dirige una prioridad al contexto que la originó', () => {
+  const state = ready('coach', {
+    activeArea: 'expediente',
+  });
+
+  const baseVm = createRouteViewModel(
+    createShellViewModel(state),
+    state,
+    now
+  );
+
+  const vm = {
+    ...baseVm,
+    coachCockpit: {
+      totalClients: 1,
+      items: [{
+        kind: 'critical',
+        signalLabel: 'Atención prioritaria',
+        reason: 'Dolor elevado informado',
+        detail: 'El último registro requiere revisión.',
+        guidance: 'Revisar con el cliente antes de la próxima sesión.',
+        source: 'registro_bienestar',
+        nextAction: {
+          area: 'iri',
+          label: 'Abrir evaluación IRI',
+        },
+      }],
+    },
+  };
+
+  const html = renderRouteView(vm);
+
+  assert.match(
+    html,
+    /class="m26-primary-action"\s+data-m26-area="actividad"\s*>Revisar bienestar<\/button>/
+  );
+});
+
+test('Cliente 360 no proyecta el cockpit profesional al rol cliente', () => {
+  const state = ready('client', {
+    activeArea: 'expediente',
+  });
+
+  const vm = createRouteViewModel(
+    createShellViewModel(state),
+    state,
+    now
+  );
+
+  assert.equal(vm.coachCockpit, null);
+});
+test('Expediente excluye del pulso una ejecución local todavía sin confirmar', () => {
+  const state = ready('coach', {
+    activeArea: 'expediente',
+    pendingOperations: [{
+      operationId: 'op-pending-e1',
+      type: 'EJECUCION_COMPLETAR',
+      entityType: 'session_execution',
+      entityId: 'e1',
+      clientId: qa,
+      status: 'pending',
+    }],
+  });
+
+  const vm = createRouteViewModel(
+    createShellViewModel(state),
+    state,
+    now
+  );
+
+  const html = renderRouteView(vm);
+
+  assert.equal(vm.progress.completedSessions, 0);
+  assert.equal(vm.progress.unconfirmedExecutions, 1);
+  assert.equal(vm.progress.lastExecutionAt, null);
+
+  assert.match(html, /Progreso protegido/);
+  assert.match(
+    html,
+    /Sesiones fuera del cálculo por no estar confirmadas: 1/
+  );
+  assert.match(html, /Sin sesión confirmada/);
+});
 test('operaciones pendientes se muestran como no confirmadas', () => {
   const state = ready('coach', { pendingOperations: [{ operationId: 'op-1' }] });
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
