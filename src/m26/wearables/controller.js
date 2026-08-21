@@ -394,6 +394,7 @@ export function createWearableController({
   let mounted=false;
   let currentPreview=null;
   let observer=null;
+  let lastOnline=null;
 
   const tasks=createLatestTaskCoordinator();
 
@@ -1109,12 +1110,29 @@ export function createWearableController({
   }
 
   function onOnline(){
+    const online=Boolean(isOnline());
+    if(!online){
+      lastOnline=false;
+      return;
+    }
+
+    const reconnected=lastOnline===false;
+    lastOnline=true;
+    if(!reconnected)return;
+
+    const {role,clientId}=context(store);
+    if(role!=='client'||!clientId)return;
+
     void syncPending().catch((error)=>{
       emitDiagnostic(
         'wearable-online-sync',
         error,
       );
     });
+  }
+
+  function onOffline(){
+    lastOnline=false;
   }
 
   return Object.freeze({
@@ -1131,9 +1149,16 @@ export function createWearableController({
         onClick,
       );
 
+      lastOnline=Boolean(isOnline());
+
       globalThis.addEventListener?.(
         'online',
         onOnline,
+      );
+
+      globalThis.addEventListener?.(
+        'offline',
+        onOffline,
       );
 
       if(
@@ -1158,7 +1183,8 @@ export function createWearableController({
       if(syncInitial){
         void autoSyncNativeProviders();
 
-        if(isOnline()){
+        const {role,clientId}=context(store);
+        if(role==='client'&&clientId&&lastOnline){
           void remoteSync.flush().catch(
             (error)=>{
               emitDiagnostic(
@@ -1194,6 +1220,12 @@ export function createWearableController({
         onOnline,
       );
 
+      globalThis.removeEventListener?.(
+        'offline',
+        onOffline,
+      );
+
+      lastOnline=null;
       mounted=false;
     },
 

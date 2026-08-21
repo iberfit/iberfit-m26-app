@@ -181,6 +181,7 @@ export function createTelemetryRemoteSync({
   let retryTimer=null;
   let started=false;
   let eventTarget=null;
+  let lastOnline=null;
 
   function diagnostic(code,error){
     try{onDiagnostic(code,error);}catch{}
@@ -353,11 +354,20 @@ export function createTelemetryRemoteSync({
   }
 
   function onOnline(){
+    const online=Boolean(isOnline());
+    if(!online){
+      lastOnline=false;
+      return;
+    }
+    const reconnected=lastOnline===false;
+    lastOnline=true;
+    if(!reconnected)return;
     void flush().catch((error)=>{
       diagnostic('M26_TELEMETRY_REMOTE_ONLINE_FLUSH_FAILED',error);
     });
   }
   function onOffline(){
+    lastOnline=false;
     clearRetryTimer();
   }
 
@@ -368,6 +378,7 @@ export function createTelemetryRemoteSync({
       eventTarget.removeEventListener?.('offline',onOffline);
     }
     eventTarget=null;
+    lastOnline=null;
     started=false;
   }
 
@@ -380,6 +391,7 @@ export function createTelemetryRemoteSync({
       throw new Error('M26_TELEMETRY_REMOTE_EVENT_TARGET_REQUIRED');
     }
     eventTarget=target;
+    lastOnline=Boolean(isOnline());
     eventTarget.addEventListener('online',onOnline);
     eventTarget.addEventListener('offline',onOffline);
     started=true;
