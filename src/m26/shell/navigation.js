@@ -31,13 +31,13 @@ const NAVIGATION = Object.freeze({
     primary: ['hoy', 'clientes', 'agenda', 'biblioteca'],
     context: ['expediente', 'iri', 'planificacion', 'sesion', 'progreso', 'actividad', 'informes', 'notas', 'inteligencia'],
     tools: ['mensajes', 'verificacion'],
-    mobile: ['hoy', 'clientes', 'agenda', 'biblioteca', 'verificacion'],
+    mobile: ['hoy', 'clientes', 'agenda', 'mensajes'],
   }),
   client: Object.freeze({
     primary: ['hoy', 'planificacion', 'sesion', 'progreso'],
     context: ['informes', 'actividad', 'mensajes'],
     tools: [],
-    mobile: ['hoy', 'planificacion', 'sesion', 'progreso', 'actividad'],
+    mobile: ['hoy', 'sesion', 'progreso', 'actividad'],
   }),
 });
 

@@ -1,0 +1,3421 @@
+/*
+ * IBERFIT · Adaptive Layout
+ *
+ * Device presentation and responsive composition only.
+ * Role authorization and business permissions do not belong here.
+ */
+
+/* IBERFIT · Adaptive Presentation Architecture
+ *
+ * compact-touch    = teléfono
+ * medium-touch     = tablet portrait
+ * expanded-touch   = tablet grande / landscape
+ * expanded-pointer = laptop / escritorio
+ */
+
+.m26-expediente-tabs {
+  display: none;
+}
+
+/* ------------------------------------------------------------
+   MOBILE
+   ------------------------------------------------------------ */
+
+[data-m26-layout="compact-touch"] .m26-shell {
+  display: block;
+  min-height: 100dvh;
+}
+
+[data-m26-layout="compact-touch"] .m26-sidebar {
+  display: none !important;
+}
+
+[data-m26-layout="compact-touch"] .m26-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+[data-m26-layout="compact-touch"] .m26-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 70;
+
+  min-height: 4.1rem;
+  padding: .68rem .76rem;
+
+  background: rgba(6,25,17,.95);
+
+  box-shadow:
+    0 7px 20px rgba(0,0,0,.20),
+    inset 0 -1px 0 rgba(255,255,255,.035);
+
+  backdrop-filter: blur(14px);
+}
+
+[data-m26-layout="compact-touch"] .m26-topbar h1 {
+  font-size: clamp(1.25rem,6vw,1.55rem);
+}
+
+[data-m26-layout="compact-touch"]
+.m26-operation-status,
+
+[data-m26-layout="compact-touch"]
+.m26-coach-command-launcher {
+  display: none;
+}
+
+[data-m26-layout="compact-touch"] .m26-main {
+  flex: 1 0 auto;
+
+  padding:
+    .68rem
+    .68rem
+    calc(5.7rem + env(safe-area-inset-bottom));
+}
+
+[data-m26-layout="compact-touch"] .m26-route {
+  max-width: none;
+  gap: .7rem;
+}
+
+[data-m26-layout="compact-touch"] .m26-mobile-nav {
+  display: grid !important;
+
+  position: fixed;
+  left: .48rem;
+  right: .48rem;
+  bottom: max(.45rem,env(safe-area-inset-bottom));
+  z-index: 100;
+
+  grid-template-columns: repeat(5,minmax(0,1fr));
+  gap: .18rem;
+
+  padding: .34rem;
+
+  border:
+    1px solid rgba(235,219,182,.13);
+
+  border-radius: 1.2rem;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(18,58,41,.98),
+      rgba(6,29,20,.99)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.09),
+    0 20px 42px rgba(0,0,0,.39);
+
+  backdrop-filter: blur(18px);
+}
+
+[data-m26-layout="compact-touch"]
+.m26-mobile-nav .m26-nav-item {
+  min-width: 0;
+  min-height: 3.25rem;
+
+  display: grid;
+  place-items: center;
+
+  gap: .14rem;
+  padding: .3rem .12rem;
+
+  border-radius: .82rem;
+
+  font-size: .64rem;
+  line-height: 1.05;
+  text-align: center;
+}
+
+[data-m26-layout="compact-touch"]
+.m26-mobile-nav .m26-nav-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* Cliente 360 mobile hero */
+
+[data-m26-layout="compact-touch"]
+.m26-profile-hero-premium {
+  min-height: auto;
+
+  grid-template-columns:
+    auto
+    minmax(0,1fr);
+
+  gap: .78rem;
+
+  padding: .9rem;
+
+  border-radius: 1.05rem;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 9px 22px rgba(0,0,0,.22);
+}
+
+[data-m26-layout="compact-touch"]
+.m26-profile-brand-lockup {
+  width: 3.9rem;
+  height: 3.9rem;
+}
+
+[data-m26-layout="compact-touch"]
+.m26-profile-brand-orb {
+  width: 3.65rem;
+  height: 3.65rem;
+
+  border-radius: 1rem;
+
+  animation: none;
+}
+
+[data-m26-layout="compact-touch"]
+.m26-profile-brand-logo {
+  width: 2.65rem;
+  height: 2.65rem;
+}
+
+[data-m26-layout="compact-touch"]
+.m26-profile-hero-copy h2 {
+  font-size: clamp(1.65rem,8vw,2.15rem);
+}
+
+[data-m26-layout="compact-touch"]
+.m26-profile-hero-status {
+  grid-column: 1 / -1;
+  padding-top: 0;
+}
+
+/* Mobile local tabs */
+
+[data-m26-layout="compact-touch"]
+[data-m26-expediente]
+.m26-expediente-tabs {
+  display: grid;
+
+  position: sticky;
+  top: 4.25rem;
+  z-index: 60;
+
+  grid-template-columns:
+    repeat(4,minmax(0,1fr));
+
+  gap: .16rem;
+
+  padding: .25rem;
+
+  border:
+    1px solid rgba(235,219,182,.10);
+
+  border-radius: .88rem;
+
+  background:
+    rgba(7,29,20,.96);
+
+  box-shadow:
+    0 8px 20px rgba(0,0,0,.20);
+
+  backdrop-filter: blur(14px);
+}
+
+[data-m26-layout="compact-touch"]
+.m26-expediente-tabs button {
+  min-height: 2.65rem;
+
+  border: 0;
+  border-radius: .66rem;
+
+  padding: .4rem .14rem;
+
+  color:
+    var(--iberfit-color-text-secondary);
+
+  background: transparent;
+  box-shadow: none;
+
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+[data-m26-layout="compact-touch"]
+.m26-expediente-tabs
+button[aria-selected="true"] {
+  color:
+    var(--iberfit-color-text-primary);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(55,108,77,.94),
+      rgba(18,57,40,.98)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 5px 12px rgba(0,0,0,.20);
+}
+
+/* Una vista local, no una página infinita */
+
+[data-m26-layout="compact-touch"]
+[data-m26-expediente-view="resumen"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="resumen"]
+),
+
+[data-m26-layout="compact-touch"]
+[data-m26-expediente-view="contexto"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="contexto"]
+),
+
+[data-m26-layout="compact-touch"]
+[data-m26-expediente-view="perfil"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="perfil"]
+),
+
+[data-m26-layout="compact-touch"]
+[data-m26-expediente-view="plan"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="plan"]
+) {
+  display: none !important;
+}
+
+[data-m26-layout="compact-touch"]
+.m26-stat-grid {
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap: .5rem;
+}
+
+[data-m26-layout="compact-touch"]
+.m26-stat {
+  min-height: 5.6rem;
+  padding: .74rem;
+}
+
+[data-m26-layout="compact-touch"]
+.m26-profile-sections,
+
+[data-m26-layout="compact-touch"]
+.m26-content-grid,
+
+[data-m26-layout="compact-touch"]
+.m26-field-grid,
+
+[data-m26-layout="compact-touch"]
+.m26-action-grid {
+  grid-template-columns: minmax(0,1fr);
+}
+
+[data-m26-layout="compact-touch"]
+.m26-panel {
+  padding: .86rem;
+  border-radius: .95rem;
+}
+
+/* ------------------------------------------------------------
+   TABLET PORTRAIT
+   ------------------------------------------------------------ */
+
+[data-m26-layout="medium-touch"] .m26-shell {
+  display: grid !important;
+
+  grid-template-columns:
+    5rem
+    minmax(0,1fr);
+}
+
+[data-m26-layout="medium-touch"] .m26-sidebar {
+  display: block !important;
+
+  padding: .9rem .42rem;
+
+  overflow-y: auto;
+}
+
+[data-m26-layout="medium-touch"] .m26-brand {
+  justify-content: center;
+  padding-bottom: 1rem;
+}
+
+[data-m26-layout="medium-touch"]
+.m26-brand img {
+  width: 3.15rem;
+  height: 3.15rem;
+}
+
+[data-m26-layout="medium-touch"]
+.m26-brand > div,
+
+[data-m26-layout="medium-touch"]
+.m26-nav-group h2,
+
+[data-m26-layout="medium-touch"]
+.m26-sidebar-footer {
+  display: none;
+}
+
+[data-m26-layout="medium-touch"]
+.m26-nav-item {
+  min-height: 3.45rem;
+
+  display: grid;
+  place-items: center;
+
+  padding: .48rem;
+
+  border-radius: .9rem;
+}
+
+[data-m26-layout="medium-touch"]
+.m26-nav-item span {
+  display: none;
+}
+
+[data-m26-layout="medium-touch"]
+.m26-nav-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+[data-m26-layout="medium-touch"]
+.m26-mobile-nav {
+  display: none !important;
+}
+
+[data-m26-layout="medium-touch"]
+.m26-topbar {
+  grid-template-columns: minmax(0,1fr);
+  gap: .6rem;
+
+  padding: .8rem 1rem;
+}
+
+[data-m26-layout="medium-touch"]
+.m26-topbar-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+[data-m26-layout="medium-touch"]
+.m26-main {
+  padding: .95rem 1rem 1.8rem;
+}
+
+/* Cliente 360 tablet */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente] {
+  display: grid;
+
+  grid-template-columns:
+    9.75rem
+    minmax(0,1fr);
+
+  gap: .85rem 1rem;
+  align-items: start;
+}
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+.m26-profile-hero-premium {
+  grid-column: 1 / -1;
+}
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+.m26-expediente-tabs {
+  display: grid;
+
+  grid-column: 1;
+  grid-row: 2 / span 30;
+
+  position: sticky;
+  top: 5rem;
+
+  gap: .3rem;
+
+  padding: .38rem;
+
+  border:
+    1px solid rgba(235,219,182,.10);
+
+  border-radius: .95rem;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(16,54,39,.96),
+      rgba(7,29,21,.99)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 12px 26px rgba(0,0,0,.20);
+}
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-tabs button {
+  min-height: 3rem;
+
+  border: 0;
+  border-radius: .72rem;
+
+  padding: .58rem .68rem;
+
+  text-align: left;
+
+  color:
+    var(--iberfit-color-text-secondary);
+
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-tabs
+button[aria-selected="true"] {
+  color:
+    var(--iberfit-color-text-primary);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(57,110,79,.92),
+      rgba(18,57,40,.98)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 6px 14px rgba(0,0,0,.20);
+}
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente] >
+:not(.m26-profile-hero-premium)
+:not(.m26-expediente-tabs) {
+  grid-column: 2;
+}
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="resumen"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="resumen"]
+),
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="contexto"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="contexto"]
+),
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="perfil"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="perfil"]
+),
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="plan"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="plan"]
+) {
+  display: none !important;
+}
+
+[data-m26-layout="medium-touch"]
+.m26-stat-grid {
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+}
+
+[data-m26-layout="medium-touch"]
+.m26-profile-sections {
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+}
+
+[data-m26-layout="medium-touch"]
+.m26-content-grid {
+  grid-template-columns:
+    minmax(0,1fr);
+}
+
+/* ------------------------------------------------------------
+   TABLET LANDSCAPE / LARGE TOUCH
+   ------------------------------------------------------------ */
+
+[data-m26-layout="expanded-touch"] .m26-shell {
+  display: grid !important;
+
+  grid-template-columns:
+    5.4rem
+    minmax(0,1fr);
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-sidebar {
+  padding: .95rem .48rem;
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-brand {
+  justify-content: center;
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-brand > div,
+
+[data-m26-layout="expanded-touch"]
+.m26-nav-group h2,
+
+[data-m26-layout="expanded-touch"]
+.m26-sidebar-footer {
+  display: none;
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-nav-item {
+  min-height: 3.6rem;
+
+  display: grid;
+  place-items: center;
+
+  padding: .5rem;
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-nav-item span {
+  display: none;
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-nav-icon {
+  width: 1.38rem;
+  height: 1.38rem;
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-mobile-nav {
+  display: none !important;
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-main {
+  padding: 1rem 1.2rem 2rem;
+}
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente] {
+  display: grid;
+
+  grid-template-columns:
+    10.5rem
+    minmax(0,1fr);
+
+  gap: .9rem 1.1rem;
+  align-items: start;
+}
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+.m26-profile-hero-premium {
+  grid-column: 1 / -1;
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-tabs {
+  display: grid;
+
+  grid-column: 1;
+  grid-row: 2 / span 30;
+
+  position: sticky;
+  top: 5rem;
+
+  gap: .35rem;
+
+  padding: .4rem;
+
+  border:
+    1px solid rgba(235,219,182,.10);
+
+  border-radius: .95rem;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(16,54,39,.96),
+      rgba(7,29,21,.99)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 14px 30px rgba(0,0,0,.21);
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-tabs button {
+  min-height: 3.1rem;
+
+  border: 0;
+  border-radius: .72rem;
+
+  padding: .6rem .7rem;
+
+  text-align: left;
+
+  color:
+    var(--iberfit-color-text-secondary);
+
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-tabs
+button[aria-selected="true"] {
+  color:
+    var(--iberfit-color-text-primary);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(57,110,79,.92),
+      rgba(18,57,40,.98)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 6px 14px rgba(0,0,0,.20);
+}
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente] >
+:not(.m26-profile-hero-premium)
+:not(.m26-expediente-tabs) {
+  grid-column: 2;
+}
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="resumen"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="resumen"]
+),
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="contexto"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="contexto"]
+),
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="perfil"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="perfil"]
+),
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="plan"]
+) {
+  display: none !important;
+}
+
+[data-m26-layout="expanded-touch"]
+.m26-stat-grid {
+  grid-template-columns:
+    repeat(4,minmax(0,1fr));
+}
+
+/* ------------------------------------------------------------
+   DESKTOP POINTER
+   ------------------------------------------------------------ */
+
+[data-m26-layout="expanded-pointer"]
+.m26-expediente-tabs {
+  display: none;
+}
+
+/*
+ * Desktop mantiene todas las secciones simultáneamente.
+ */
+
+/* ------------------------------------------------------------
+   TOUCH FEEDBACK
+   ------------------------------------------------------------ */
+
+[data-m26-input="touch"]
+.m26-shell :is(
+  .m26-panel,
+  .m26-stat,
+  .m26-client-card,
+  .m26-list-card,
+  .m26-library-card,
+  .m26-publication-card,
+  .m26-wearable-source
+):hover {
+  transform: none;
+}
+
+[data-m26-input="touch"]
+.m26-shell button:hover {
+  transform: none;
+}
+
+[data-m26-input="touch"]
+.m26-shell button:active {
+  transform: scale(.985);
+  transition-duration: 80ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-m26-layout]
+  .m26-expediente-tabs button {
+    transition: none !important;
+  }
+}
+
+/* IBERFIT · Fullscreen Device Canvas
+ *
+ * La app ocupa siempre el viewport completo.
+ * Las tarjetas tienen profundidad; la aplicación no es una tarjeta.
+ */
+
+html,
+body {
+  width: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  overflow-x: hidden;
+}
+
+#app {
+  width: 100%;
+  min-width: 0;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  margin: 0;
+  padding: 0;
+}
+
+.m26-shell {
+  width: 100%;
+  max-width: none !important;
+
+  min-width: 0;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  margin: 0 !important;
+
+  border-radius: 0 !important;
+}
+
+.m26-workspace {
+  width: 100%;
+  min-width: 0;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.m26-main {
+  width: 100%;
+  min-width: 0;
+
+  box-sizing: border-box;
+}
+
+
+/* Mobile: navigation belongs to the screen, not a floating web card */
+
+[data-m26-layout="compact-touch"]
+.m26-mobile-nav {
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+
+  width: 100%;
+
+  padding:
+    .36rem
+    max(.35rem,env(safe-area-inset-right))
+    max(.36rem,env(safe-area-inset-bottom))
+    max(.35rem,env(safe-area-inset-left));
+
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+
+  border-radius: 0 !important;
+
+  box-shadow:
+    0 -12px 30px rgba(0,0,0,.30),
+    inset 0 1px 0 rgba(255,255,255,.075);
+}
+
+[data-m26-layout="compact-touch"]
+.m26-topbar {
+  width: 100%;
+
+  padding-left:
+    max(.76rem,env(safe-area-inset-left));
+
+  padding-right:
+    max(.76rem,env(safe-area-inset-right));
+
+  padding-top:
+    max(.68rem,env(safe-area-inset-top));
+}
+
+
+/* Tablet rails physically belong to the viewport */
+
+[data-m26-layout="medium-touch"]
+.m26-sidebar,
+
+[data-m26-layout="expanded-touch"]
+.m26-sidebar,
+
+[data-m26-layout="expanded-pointer"]
+.m26-sidebar {
+  align-self: stretch;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  border-radius: 0;
+}
+
+
+/* Full-screen access/login too */
+
+.m26-access-frame,
+.m26-auth-page {
+  width: 100%;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  margin: 0;
+}
+
+
+/* Landscape safe areas */
+
+@media (orientation: landscape) {
+
+  [data-m26-input="touch"]
+  .m26-main {
+    padding-left:
+      max(1rem,env(safe-area-inset-left));
+
+    padding-right:
+      max(1rem,env(safe-area-inset-right));
+  }
+}
+
+/* IBERFIT · Command Surface + Tablet Spatial Composition
+ *
+ * Mobile queda intacto.
+ *
+ * Desktop:
+ * - command launcher integrado en IBERFIT
+ *
+ * Tablet:
+ * - canvas completo
+ * - navegación contextual sustancial
+ * - contenido utiliza todo el espacio restante
+ */
+
+
+/* ============================================================
+   DESKTOP · COMMAND SURFACE
+   ============================================================ */
+
+[data-m26-layout="expanded-pointer"]
+.m26-coach-command-launcher {
+  appearance: none;
+  -webkit-appearance: none;
+
+  flex: 0 0 auto;
+
+  min-width: 10.5rem;
+  max-width: 11.5rem;
+  min-height: 2.85rem;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: .75rem;
+
+  padding:
+    .55rem
+    .62rem
+    .55rem
+    .82rem;
+
+  border:
+    1px solid rgba(228,205,152,.17);
+
+  border-radius: .85rem;
+
+  color:
+    var(--m26-cream-100);
+
+  background:
+    radial-gradient(
+      circle at 15% 0%,
+      rgba(255,255,255,.075),
+      transparent 7rem
+    ),
+    linear-gradient(
+      145deg,
+      rgba(29,71,52,.96),
+      rgba(9,35,25,.99)
+    ) !important;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.09),
+    inset 0 -1px 0 rgba(0,0,0,.24),
+    0 7px 16px rgba(0,0,0,.18);
+
+  font: inherit;
+
+  cursor: pointer;
+
+  white-space: nowrap;
+
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+
+/* El nombre visual es simplemente Buscar.
+   El significado accesible original se conserva. */
+
+[data-m26-layout="expanded-pointer"]
+.m26-coach-command-launcher > span {
+  font-size: 0;
+}
+
+[data-m26-layout="expanded-pointer"]
+.m26-coach-command-launcher > span::after {
+  content: "Buscar";
+
+  font-size: .78rem;
+  font-weight: 700;
+
+  letter-spacing: .025em;
+}
+
+
+[data-m26-layout="expanded-pointer"]
+.m26-coach-command-launcher kbd {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 1.65rem;
+
+  padding:
+    .15rem
+    .42rem;
+
+  border:
+    1px solid rgba(228,205,152,.13);
+
+  border-radius: .48rem;
+
+  color:
+    rgba(244,234,211,.75);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(3,16,11,.72),
+      rgba(3,12,9,.88)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+
+  font-size: .62rem;
+  font-weight: 600;
+}
+
+
+[data-m26-layout="expanded-pointer"]
+.m26-coach-command-launcher:hover {
+  transform:
+    translateY(-1px);
+
+  border-color:
+    rgba(228,205,152,.30);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 11px 23px rgba(0,0,0,.23);
+}
+
+
+[data-m26-layout="expanded-pointer"]
+.m26-coach-command-launcher:active {
+  transform:
+    translateY(1px);
+
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,.25),
+    0 3px 8px rgba(0,0,0,.16);
+}
+
+
+[data-m26-layout="expanded-pointer"]
+.m26-client-selector {
+  min-width: 16rem;
+  max-width: 21rem;
+}
+
+
+[data-m26-layout="expanded-pointer"]
+.m26-topbar-actions {
+  gap: .55rem;
+}
+
+
+/* ============================================================
+   TABLET · TOPBAR NATIVA
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+.m26-coach-command-launcher,
+
+[data-m26-layout="expanded-touch"]
+.m26-coach-command-launcher {
+  appearance: none;
+  -webkit-appearance: none;
+
+  min-width: 6.6rem;
+  min-height: 48px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding:
+    .55rem
+    .75rem;
+
+  border:
+    1px solid rgba(228,205,152,.15);
+
+  border-radius: .85rem;
+
+  color:
+    var(--m26-cream-100);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(31,76,55,.97),
+      rgba(9,35,25,.99)
+    ) !important;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.09),
+    0 7px 16px rgba(0,0,0,.18);
+
+  font: inherit;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-coach-command-launcher > span,
+
+[data-m26-layout="expanded-touch"]
+.m26-coach-command-launcher > span {
+  font-size: 0;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-coach-command-launcher > span::after,
+
+[data-m26-layout="expanded-touch"]
+.m26-coach-command-launcher > span::after {
+  content: "Acciones";
+
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-coach-command-launcher kbd,
+
+[data-m26-layout="expanded-touch"]
+.m26-coach-command-launcher kbd {
+  display: none;
+}
+
+
+/* Status operativo no ocupa la cabecera táctil.
+   Se mantiene en desktop. */
+
+[data-m26-layout="medium-touch"]
+.m26-operation-status,
+
+[data-m26-layout="expanded-touch"]
+.m26-operation-status {
+  display: none !important;
+}
+
+
+/* Tablet portrait */
+
+[data-m26-layout="medium-touch"]
+.m26-topbar {
+  display: grid !important;
+
+  grid-template-columns:
+    minmax(0,1fr);
+
+  gap: .8rem;
+
+  align-items: start;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-topbar-actions {
+  display: grid !important;
+
+  grid-template-columns:
+    auto
+    minmax(0,1fr)
+    auto;
+
+  gap: .6rem;
+
+  width: 100%;
+  max-width: none;
+
+  align-items: end;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-client-selector {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-client-selector select {
+  width: 100%;
+  min-height: 48px;
+}
+
+
+/* Tablet landscape:
+   título y acciones pueden compartir la primera franja */
+
+[data-m26-layout="expanded-touch"]
+.m26-topbar {
+  display: grid !important;
+
+  grid-template-columns:
+    minmax(13rem,.55fr)
+    minmax(0,1.45fr);
+
+  gap: 1rem;
+
+  align-items: center;
+}
+
+
+[data-m26-layout="expanded-touch"]
+.m26-topbar-actions {
+  display: grid !important;
+
+  grid-template-columns:
+    auto
+    minmax(0,1fr)
+    auto;
+
+  gap: .6rem;
+
+  width: 100%;
+  max-width: none;
+
+  align-items: end;
+}
+
+
+[data-m26-layout="expanded-touch"]
+.m26-client-selector {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+
+[data-m26-layout="expanded-touch"]
+.m26-client-selector select {
+  width: 100%;
+  min-height: 48px;
+}
+
+
+/* ============================================================
+   TABLET · USE THE WHOLE CANVAS
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+.m26-main,
+
+[data-m26-layout="expanded-touch"]
+.m26-main {
+  width: 100%;
+  max-width: none;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-route,
+
+[data-m26-layout="expanded-touch"]
+.m26-route {
+  width: 100% !important;
+  max-width: none !important;
+
+  margin: 0 !important;
+
+  gap: 1rem;
+}
+
+
+/* ------------------------------------------------------------
+   Tablet portrait
+   ------------------------------------------------------------ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente] {
+  width: 100%;
+
+  grid-template-columns:
+    13rem
+    minmax(0,1fr) !important;
+
+  column-gap: 1.15rem;
+
+  align-items: stretch;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+.m26-expediente-tabs {
+  width: 100%;
+
+  min-height:
+    clamp(
+      30rem,
+      50dvh,
+      40rem
+    );
+
+  grid-template-rows:
+    repeat(4,minmax(0,1fr));
+
+  align-self: start;
+
+  padding: .6rem;
+
+  gap: .42rem;
+
+  border-radius: 1.1rem;
+
+  background:
+    radial-gradient(
+      circle at 15% 0%,
+      rgba(200,166,93,.09),
+      transparent 15rem
+    ),
+    linear-gradient(
+      180deg,
+      rgba(20,62,44,.98),
+      rgba(7,30,21,.995)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 18px 38px rgba(0,0,0,.22);
+}
+
+
+/* ------------------------------------------------------------
+   Tablet horizontal
+   ------------------------------------------------------------ */
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente] {
+  width: 100%;
+
+  grid-template-columns:
+    14.5rem
+    minmax(0,1fr) !important;
+
+  column-gap: 1.25rem;
+
+  align-items: stretch;
+}
+
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+.m26-expediente-tabs {
+  width: 100%;
+
+  min-height:
+    clamp(
+      27rem,
+      52dvh,
+      36rem
+    );
+
+  grid-template-rows:
+    repeat(4,minmax(0,1fr));
+
+  align-self: start;
+
+  padding: .62rem;
+
+  gap: .45rem;
+
+  border-radius: 1.1rem;
+
+  background:
+    radial-gradient(
+      circle at 15% 0%,
+      rgba(200,166,93,.09),
+      transparent 16rem
+    ),
+    linear-gradient(
+      180deg,
+      rgba(20,62,44,.98),
+      rgba(7,30,21,.995)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 18px 38px rgba(0,0,0,.22);
+}
+
+
+/* Los cuatro destinos ya no parecen cuatro botones pequeños. */
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-tabs button,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-tabs button {
+  width: 100%;
+  min-height: 0;
+
+  display: grid;
+
+  align-content: center;
+  justify-items: start;
+
+  gap: .28rem;
+
+  padding:
+    .9rem
+    1rem;
+
+  border-radius: .85rem;
+
+  text-align: left;
+
+  font-size: .94rem;
+  font-weight: 750;
+
+  line-height: 1.15;
+}
+
+
+/* Supporting copy, igual que una app de tablet real */
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-tabs button::after,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-tabs button::after {
+  display: block;
+
+  max-width: 18ch;
+
+  color:
+    rgba(228,220,199,.54);
+
+  font-size: .65rem;
+  font-weight: 500;
+
+  line-height: 1.35;
+
+  letter-spacing: 0;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-tab="resumen"]::after,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-tab="resumen"]::after {
+  content:
+    "Estado, señales y métricas clave";
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-tab="contexto"]::after,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-tab="contexto"]::after {
+  content:
+    "Bienestar y dispositivos recientes";
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-tab="perfil"]::after,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-tab="perfil"]::after {
+  content:
+    "Persona, contacto y objetivos";
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-tab="plan"]::after,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-tab="plan"]::after {
+  content:
+    "Planificación y siguientes acciones";
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-tabs
+button[aria-selected="true"],
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-tabs
+button[aria-selected="true"] {
+  transform: none;
+
+  border:
+    1px solid rgba(228,205,152,.15);
+
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(200,166,93,.12),
+      transparent 8rem
+    ),
+    linear-gradient(
+      145deg,
+      rgba(61,116,84,.96),
+      rgba(19,59,42,.99)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.11),
+    0 8px 18px rgba(0,0,0,.20);
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-tabs
+button[aria-selected="true"]::after,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-tabs
+button[aria-selected="true"]::after {
+  color:
+    rgba(245,236,217,.74);
+}
+
+
+/* El panel derecho utiliza todo su carril. */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente] >
+[data-m26-expediente-section],
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente] >
+[data-m26-expediente-section] {
+  width: 100%;
+  min-width: 0;
+
+  align-self: start;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section] > .m26-panel,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section] > .m26-panel {
+  width: 100%;
+}
+
+
+/* Perfil debe aprovechar dos columnas en tablet. */
+
+[data-m26-layout="medium-touch"]
+.m26-profile-sections,
+
+[data-m26-layout="expanded-touch"]
+.m26-profile-sections {
+  width: 100%;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+}
+
+
+/* En landscape también damos más respiración a las métricas. */
+
+[data-m26-layout="expanded-touch"]
+.m26-stat-grid {
+  width: 100%;
+
+  grid-template-columns:
+    repeat(4,minmax(0,1fr));
+}
+
+
+/* ============================================================
+   MOBILE
+   Ninguna regla nueva: preservamos la versión aprobada.
+   ============================================================ */
+
+/* IBERFIT · Tablet Internal Composition
+ *
+ * El shell y el rail ya son tablet.
+ * Ahora cada vista interna también lo es.
+ *
+ * No afecta:
+ * - compact-touch
+ * - expanded-pointer
+ */
+
+
+/* ============================================================
+   SHARED TABLET PANE
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section],
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section] {
+  min-width: 0;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente] >
+[data-m26-expediente-section],
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente] >
+[data-m26-expediente-section] {
+  width: 100%;
+
+  margin: 0;
+
+  align-self: stretch;
+}
+
+
+/* Cards inside tablet panes all belong to one spatial system */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section]
+:is(
+  .m26-panel,
+  .m26-stat,
+  .m26-list-card,
+  .m26-field
+),
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section]
+:is(
+  .m26-panel,
+  .m26-stat,
+  .m26-list-card,
+  .m26-field
+) {
+  min-width: 0;
+
+  box-sizing: border-box;
+}
+
+
+/* ============================================================
+   RESUMEN
+   ============================================================ */
+
+/*
+ * Estado actual debe ser el bloque dominante.
+ * Las métricas funcionan como una matriz secundaria.
+ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section="resumen"].m26-panel,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section="resumen"].m26-panel {
+  min-height: clamp(18rem,31dvh,25rem);
+
+  display: grid;
+
+  align-content: space-between;
+
+  gap: 1.1rem;
+
+  padding: clamp(1.25rem,2.3vw,1.8rem);
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-stat-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-stat-grid {
+  width: 100%;
+
+  grid-auto-rows: 1fr;
+
+  align-items: stretch;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-stat {
+  min-height: 8.5rem;
+}
+
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-stat {
+  min-height: 8.8rem;
+}
+
+
+/* Tablet portrait = 2×2 */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-stat-grid {
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap: .8rem;
+}
+
+
+/* Landscape uses width without making tiny cards */
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-stat-grid {
+  grid-template-columns:
+    repeat(4,minmax(0,1fr));
+
+  gap: .85rem;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-notice,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-notice {
+  width: 100%;
+
+  margin: 0;
+
+  padding: 1rem 1.1rem;
+
+  border-radius: .95rem;
+}
+
+
+/* ============================================================
+   CONTEXTO
+   ============================================================ */
+
+/*
+ * Bienestar y dispositivos deben verse como dos mitades
+ * de una misma lectura, no como tarjetas desiguales.
+ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section="contexto"],
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section="contexto"] {
+  width: 100%;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-content-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-content-grid {
+  width: 100%;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap: 1rem;
+
+  align-items: stretch;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-content-grid > *,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-content-grid > * {
+  width: 100%;
+  min-width: 0;
+
+  height: 100%;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-panel,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-panel {
+  min-height: clamp(22rem,38dvh,31rem);
+
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  justify-content: space-between;
+}
+
+
+/* Wellbeing meters also use the width instead of stacking narrowly */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-wellbeing-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-wellbeing-grid {
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap: .7rem;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-field-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-field-grid {
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap: .7rem;
+}
+
+
+/* ============================================================
+   PERFIL
+   ============================================================ */
+
+/*
+ * Perfil es información relativamente estable:
+ * tablet puede leerla como una ficha profesional de dos columnas.
+ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="perfil"]
+.m26-stat-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="perfil"]
+.m26-stat-grid {
+  width: 100%;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap: .8rem;
+
+  align-items: stretch;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="perfil"]
+.m26-stat,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="perfil"]
+.m26-stat {
+  min-height: 8rem;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-profile-sections,
+
+[data-m26-layout="expanded-touch"]
+.m26-profile-sections {
+  width: 100%;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr)) !important;
+
+  grid-auto-rows: 1fr;
+
+  gap: 1rem;
+
+  align-items: stretch;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-profile-sections > .m26-panel,
+
+[data-m26-layout="expanded-touch"]
+.m26-profile-sections > .m26-panel {
+  height: 100%;
+
+  min-height: clamp(16rem,27dvh,23rem);
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-profile-sections
+.m26-field-grid,
+
+[data-m26-layout="expanded-touch"]
+.m26-profile-sections
+.m26-field-grid {
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap: .7rem;
+}
+
+
+/* Fields have the same optical weight */
+
+[data-m26-layout="medium-touch"]
+.m26-profile-sections
+.m26-field,
+
+[data-m26-layout="expanded-touch"]
+.m26-profile-sections
+.m26-field {
+  min-height: 6.3rem;
+
+  display: flex;
+  flex-direction: column;
+
+  justify-content: space-between;
+}
+
+
+/* ============================================================
+   PLAN
+   ============================================================ */
+
+/*
+ * Una mitad explica el plan.
+ * La otra facilita la decisión y la siguiente acción.
+ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="plan"]
+.m26-content-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+.m26-content-grid {
+  width: 100%;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr)) !important;
+
+  gap: 1rem;
+
+  align-items: stretch;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="plan"]
+.m26-content-grid > .m26-panel,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+.m26-content-grid > .m26-panel {
+  min-height: clamp(20rem,34dvh,28rem);
+
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="plan"]
+.m26-action-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+.m26-action-grid {
+  width: 100%;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap: .75rem;
+
+  margin-top: auto;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="plan"]
+.m26-action-grid button,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+.m26-action-grid button {
+  min-height: 4.4rem;
+
+  width: 100%;
+}
+
+
+/* Ruta de trabajo / acciones adicionales */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section="plan"].m26-panel,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section="plan"].m26-panel {
+  width: 100%;
+
+  padding: clamp(1.15rem,2vw,1.6rem);
+}
+
+
+/* ============================================================
+   PORTRAIT-SPECIFIC FINE TUNING
+   ============================================================ */
+
+/*
+ * A 1024px efectivos el panel derecho es más estrecho.
+ * Mantiene dos columnas, pero baja la densidad de los elementos.
+ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-panel {
+  padding: 1.05rem;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-profile-sections
+.m26-panel {
+  padding: 1.05rem;
+}
+
+
+/* ============================================================
+   LANDSCAPE-SPECIFIC FINE TUNING
+   ============================================================ */
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section="contexto"]
+.m26-content-grid {
+  gap: 1.15rem;
+}
+
+
+[data-m26-layout="expanded-touch"]
+.m26-profile-sections {
+  gap: 1.15rem;
+}
+
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+.m26-content-grid {
+  gap: 1.15rem;
+}
+
+
+/* ============================================================
+   TABLET MOTION
+   ============================================================ */
+
+@keyframes iberfit-tablet-pane-enter {
+  from {
+    opacity: 0;
+
+    transform:
+      translateX(8px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateX(0);
+  }
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-section],
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-section] {
+  animation:
+    iberfit-tablet-pane-enter
+    220ms
+    cubic-bezier(.2,.72,.2,1)
+    both;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+
+  [data-m26-layout="medium-touch"]
+  [data-m26-expediente-section],
+
+  [data-m26-layout="expanded-touch"]
+  [data-m26-expediente-section] {
+    animation: none;
+  }
+}
+
+
+/* ============================================================
+   MOBILE / DESKTOP
+   Deliberadamente sin overrides.
+   ============================================================ */
+
+/* IBERFIT · Tablet Pane Continuity + Branded Context Rail
+ *
+ * Corrige el último residuo de layout desktop:
+ * grids internos que mantienen columnas vacías al ocultar
+ * contenido de otras vistas.
+ *
+ * Solo tablet.
+ */
+
+
+/* ============================================================
+   CLIENT 360 · BRAND LOCKUP
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+.m26-expediente-tabs,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+.m26-expediente-tabs {
+  grid-template-rows:
+    auto
+    repeat(4,minmax(0,1fr)) !important;
+}
+
+
+/* Isotipo real IBERFIT.
+   El logo identifica el módulo completo, no cada tab. */
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-tabs::before,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-tabs::before {
+  content:
+    "CLIENTE 360º";
+
+  min-height: 4.15rem;
+
+  display: flex;
+  align-items: center;
+
+  padding:
+    .65rem
+    .55rem
+    .65rem
+    3.65rem;
+
+  border-bottom:
+    1px solid rgba(228,205,152,.12);
+
+  color:
+    var(--m26-gold-300);
+
+  background:
+    url('/isotipo-iberfit.png')
+    .58rem center / 2.55rem 2.55rem
+    no-repeat;
+
+  font-size: .66rem;
+  font-weight: 800;
+
+  letter-spacing: .13em;
+  line-height: 1.15;
+
+  text-transform: uppercase;
+
+  filter:
+    drop-shadow(
+      0 5px 8px rgba(0,0,0,.16)
+    );
+}
+
+
+/* ============================================================
+   MASTER → DETAIL CONTINUITY
+   ============================================================ */
+
+/*
+ * Ningún contenido activo puede auto-colocarse
+ * en una tercera zona virtual o mantener un max-width.
+ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente] >
+:not(.m26-profile-hero-premium)
+:not(.m26-expediente-tabs),
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente] >
+:not(.m26-profile-hero-premium)
+:not(.m26-expediente-tabs) {
+  grid-column:
+    2 / -1 !important;
+
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+
+  min-width:
+    0 !important;
+
+  margin-inline:
+    0 !important;
+
+  justify-self:
+    stretch !important;
+
+  align-self:
+    start;
+}
+
+
+/*
+ * El detalle comienza inmediatamente después del rail.
+ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente],
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente] {
+  justify-content:
+    stretch !important;
+
+  align-content:
+    start;
+
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+}
+
+
+/* ============================================================
+   PLAN · ROOT CAUSE OF SCREENSHOT
+   ============================================================ */
+
+/*
+ * Contexto de acompañamiento vive dentro de un content-grid.
+ * Al ocultar su antiguo vecino, el grid seguía reservando
+ * la primera columna.
+ *
+ * En tablet la vista Plan ocupa TODO el detail pane.
+ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="plan"]
+.m26-content-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+.m26-content-grid {
+  grid-template-columns:
+    minmax(0,1fr) !important;
+
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+
+  gap:
+    1rem;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="plan"]
+.m26-content-grid >
+[data-m26-expediente-section="plan"],
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+.m26-content-grid >
+[data-m26-expediente-section="plan"] {
+  grid-column:
+    1 / -1 !important;
+
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+
+  margin:
+    0 !important;
+}
+
+
+/*
+ * Contexto de acompañamiento se convierte en dashboard,
+ * no en una tarjeta estrecha.
+ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="plan"]
+[data-m26-expediente-section="plan"].m26-panel,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+[data-m26-expediente-section="plan"].m26-panel {
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+}
+
+
+/* Las cuatro variables del plan forman 2×2. */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="plan"]
+[data-m26-expediente-section="plan"]
+.m26-field-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+[data-m26-expediente-section="plan"]
+.m26-field-grid,
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="plan"]
+[data-m26-expediente-section="plan"]
+.m26-stat-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+[data-m26-expediente-section="plan"]
+.m26-stat-grid {
+  grid-template-columns:
+    repeat(2,minmax(0,1fr))
+    !important;
+
+  width:
+    100%;
+}
+
+
+/* ============================================================
+   RESUMEN · FULL DETAIL PANE
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="resumen"]
+[data-m26-expediente-section="resumen"],
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="resumen"]
+[data-m26-expediente-section="resumen"] {
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+
+  margin-inline:
+    0 !important;
+
+  justify-self:
+    stretch !important;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-stat-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-stat-grid {
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+}
+
+
+/* ============================================================
+   CONTEXTO · TWO EQUAL SIDES
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="contexto"]
+[data-m26-expediente-section="contexto"],
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="contexto"]
+[data-m26-expediente-section="contexto"] {
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+
+  margin:
+    0 !important;
+
+  justify-self:
+    stretch !important;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="contexto"]
+.m26-content-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="contexto"]
+.m26-content-grid {
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr))
+    !important;
+}
+
+
+/* ============================================================
+   PERFIL · PROFESSIONAL RECORD
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="perfil"]
+[data-m26-expediente-section="perfil"],
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="perfil"]
+[data-m26-expediente-section="perfil"] {
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+
+  margin:
+    0 !important;
+
+  justify-self:
+    stretch !important;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="perfil"]
+.m26-profile-sections,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="perfil"]
+.m26-profile-sections {
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr))
+    !important;
+}
+
+
+/* ============================================================
+   LANDSCAPE
+   More room for the detail, without another empty zone.
+   ============================================================ */
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente] {
+  grid-template-columns:
+    clamp(14rem,17vw,15.5rem)
+    minmax(0,1fr)
+    !important;
+}
+
+
+/* ============================================================
+   PORTRAIT
+   Same architecture, slightly more compact master rail.
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente] {
+  grid-template-columns:
+    clamp(12rem,21vw,13.25rem)
+    minmax(0,1fr)
+    !important;
+}
+
+
+/* ============================================================
+   MOBILE + DESKTOP
+   Deliberately untouched.
+   ============================================================ */
+
+/* IBERFIT · True Tablet Master Detail
+ *
+ * Solución estructural.
+ *
+ * Cliente 360 tablet:
+ *
+ * [MASTER RAIL] [DETAIL PANE]
+ *
+ * Todo Resumen / Contexto / Perfil / Plan vive
+ * dentro del mismo detail pane.
+ */
+
+
+/* ============================================================
+   DEFAULT
+   Wrapper invisible para desktop y mobile.
+   ============================================================ */
+
+.m26-expediente-detail {
+  display:
+    contents;
+}
+
+
+/* ============================================================
+   TABLET · REAL DETAIL PANE
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-detail,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-detail {
+  display:
+    grid;
+
+  grid-column:
+    2 / -1 !important;
+
+  grid-row:
+    2 / auto;
+
+  grid-template-columns:
+    minmax(0,1fr);
+
+  grid-auto-flow:
+    row;
+
+  gap:
+    1rem;
+
+  width:
+    100%;
+
+  max-width:
+    none;
+
+  min-width:
+    0;
+
+  margin:
+    0;
+
+  padding:
+    0;
+
+  justify-self:
+    stretch;
+
+  align-self:
+    start;
+
+  align-content:
+    start;
+}
+
+
+/*
+ * Important:
+ * descendants no participan ya en el grid principal.
+ */
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-detail >
+*,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-detail >
+* {
+  grid-column:
+    1 / -1 !important;
+
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+
+  min-width:
+    0 !important;
+
+  margin-inline:
+    0 !important;
+
+  justify-self:
+    stretch !important;
+}
+
+
+/* ============================================================
+   MASTER
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente] {
+  grid-template-columns:
+    clamp(12rem,21vw,13.25rem)
+    minmax(0,1fr)
+    !important;
+
+  column-gap:
+    1rem !important;
+}
+
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente] {
+  grid-template-columns:
+    clamp(14rem,17vw,15.5rem)
+    minmax(0,1fr)
+    !important;
+
+  column-gap:
+    1.15rem !important;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-tabs,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-tabs {
+  grid-column:
+    1 !important;
+
+  grid-row:
+    2 / span 30 !important;
+}
+
+
+/* ============================================================
+   PLAN
+   ============================================================ */
+
+/*
+ * Portrait:
+ * planificación + IRI apilados.
+ * Es mejor que comprimir dos tarjetas estrechas.
+ */
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="plan"].m26-content-grid {
+  display:
+    grid;
+
+  grid-template-columns:
+    minmax(0,1fr)
+    !important;
+
+  gap:
+    1rem;
+
+  width:
+    100%;
+}
+
+
+/*
+ * Landscape:
+ * planificación dominante + IRI complementario.
+ */
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="plan"].m26-content-grid {
+  display:
+    grid;
+
+  grid-template-columns:
+    minmax(0,1.35fr)
+    minmax(18rem,.65fr)
+    !important;
+
+  gap:
+    1rem;
+
+  width:
+    100%;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="plan"]
+> *,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="plan"]
+> * {
+  min-width:
+    0;
+
+  width:
+    100%;
+}
+
+
+/* Las cuatro variables de acompañamiento */
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="plan"]
+.m26-field-grid,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="plan"]
+.m26-field-grid {
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr))
+    !important;
+
+  gap:
+    .8rem;
+}
+
+
+/* ============================================================
+   RESUMEN
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="resumen"],
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="resumen"] {
+  width:
+    100% !important;
+
+  max-width:
+    none !important;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="resumen"]
+.m26-stat-grid {
+  grid-template-columns:
+    repeat(2,minmax(0,1fr))
+    !important;
+}
+
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="resumen"]
+.m26-stat-grid {
+  grid-template-columns:
+    repeat(4,minmax(0,1fr))
+    !important;
+}
+
+
+/* ============================================================
+   CONTEXTO
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="contexto"]
+.m26-content-grid,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="contexto"]
+.m26-content-grid {
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr))
+    !important;
+
+  gap:
+    1rem;
+
+  width:
+    100%;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="contexto"]
+.m26-content-grid > *,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-detail
+[data-m26-expediente-section="contexto"]
+.m26-content-grid > * {
+  width:
+    100%;
+
+  min-width:
+    0;
+
+  height:
+    100%;
+}
+
+
+/* ============================================================
+   PERFIL
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-detail
+.m26-profile-sections,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-detail
+.m26-profile-sections {
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr))
+    !important;
+
+  gap:
+    1rem;
+
+  width:
+    100%;
+}
+
+
+[data-m26-layout="medium-touch"]
+.m26-expediente-detail
+.m26-profile-sections > *,
+
+[data-m26-layout="expanded-touch"]
+.m26-expediente-detail
+.m26-profile-sections > * {
+  min-width:
+    0;
+
+  width:
+    100%;
+}
+
+
+/* ============================================================
+   ACTIVE VIEW ONLY
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-expediente-detail
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="resumen"]
+),
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="contexto"]
+.m26-expediente-detail
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="contexto"]
+),
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="perfil"]
+.m26-expediente-detail
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="perfil"]
+),
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente-view="plan"]
+.m26-expediente-detail
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="plan"]
+),
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="resumen"]
+.m26-expediente-detail
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="resumen"]
+),
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="contexto"]
+.m26-expediente-detail
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="contexto"]
+),
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="perfil"]
+.m26-expediente-detail
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="perfil"]
+),
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente-view="plan"]
+.m26-expediente-detail
+[data-m26-expediente-section]:not(
+  [data-m26-expediente-section="plan"]
+) {
+  display:
+    none !important;
+}
+
+
+/* ============================================================
+   MOBILE + DESKTOP
+   Wrapper uses display:contents, so visual composition
+   remains unchanged.
+   ============================================================ */
+
+/* IBERFIT · Canonical Tablet Detail Grid Reset
+ *
+ * DOM diagnostic 2026-08-21:
+ *
+ * medium-touch
+ * detail = 0px + 668px
+ * plan   = 157px + 495px
+ *
+ * expanded-touch
+ * detail = 0px + 950px
+ * plan   = 630px + 304px
+ *
+ * Causa:
+ * reglas antiguas grid-column:2/-1 con mayor especificidad.
+ *
+ * Esta capa es la fuente canónica para la colocación
+ * del contenido dentro del detail de tablet.
+ */
+
+
+/* ============================================================
+   DETAIL ITSELF = EXACTLY ONE COLUMN
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail {
+  grid-template-columns:
+    minmax(0,1fr)
+    !important;
+
+  grid-auto-columns:
+    minmax(0,1fr)
+    !important;
+
+  width:
+    100%
+    !important;
+
+  min-width:
+    0
+    !important;
+}
+
+
+/* ============================================================
+   EVERY TOP-LEVEL DETAIL VIEW STARTS AT COLUMN ONE
+   ============================================================ */
+
+/*
+ * Esta especificidad es deliberadamente superior
+ * a la regla antigua que dejó grid-column:2/-1.
+ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+> [data-m26-expediente-section],
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+> [data-m26-expediente-section] {
+  grid-column:
+    1 / -1
+    !important;
+
+  width:
+    100%
+    !important;
+
+  max-width:
+    none
+    !important;
+
+  min-width:
+    0
+    !important;
+
+  margin-inline:
+    0
+    !important;
+
+  justify-self:
+    stretch
+    !important;
+}
+
+
+/* ============================================================
+   PLAN · INTERNAL GRID
+   ============================================================ */
+
+/*
+ * Vertical:
+ * cada superficie utiliza el ancho entero.
+ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+> .m26-content-grid[data-m26-expediente-section="plan"] {
+  grid-template-columns:
+    minmax(0,1fr)
+    !important;
+
+  grid-auto-columns:
+    minmax(0,1fr)
+    !important;
+
+  gap:
+    1rem
+    !important;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+> .m26-content-grid[data-m26-expediente-section="plan"]
+> * {
+  grid-column:
+    1 / -1
+    !important;
+
+  width:
+    100%
+    !important;
+
+  max-width:
+    none
+    !important;
+
+  min-width:
+    0
+    !important;
+
+  margin:
+    0
+    !important;
+
+  justify-self:
+    stretch
+    !important;
+}
+
+
+/*
+ * Horizontal:
+ * dos superficies equilibradas ocupando TODO el detail.
+ *
+ * No 630px vacíos + 304px de contenido.
+ */
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+> .m26-content-grid[data-m26-expediente-section="plan"] {
+  grid-template-columns:
+    minmax(0,1fr)
+    minmax(0,1fr)
+    !important;
+
+  grid-auto-columns:
+    minmax(0,1fr)
+    !important;
+
+  gap:
+    1rem
+    !important;
+}
+
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+> .m26-content-grid[data-m26-expediente-section="plan"]
+> :nth-child(1) {
+  grid-column:
+    1
+    !important;
+
+  width:
+    100%
+    !important;
+
+  max-width:
+    none
+    !important;
+
+  min-width:
+    0
+    !important;
+
+  margin:
+    0
+    !important;
+
+  justify-self:
+    stretch
+    !important;
+}
+
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+> .m26-content-grid[data-m26-expediente-section="plan"]
+> :nth-child(2) {
+  grid-column:
+    2
+    !important;
+
+  width:
+    100%
+    !important;
+
+  max-width:
+    none
+    !important;
+
+  min-width:
+    0
+    !important;
+
+  margin:
+    0
+    !important;
+
+  justify-self:
+    stretch
+    !important;
+}
+
+
+/* Ambos paneles comienzan arriba en horizontal. */
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+> .m26-content-grid[data-m26-expediente-section="plan"]
+> * {
+  grid-row:
+    1
+    !important;
+
+  align-self:
+    stretch
+    !important;
+}
+
+
+/* ============================================================
+   CONTEXTO
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+[data-m26-expediente-section="contexto"]
+.m26-content-grid,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+[data-m26-expediente-section="contexto"]
+.m26-content-grid {
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0,1fr)
+    )
+    !important;
+
+  width:
+    100%
+    !important;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+[data-m26-expediente-section="contexto"]
+.m26-content-grid
+> *,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+[data-m26-expediente-section="contexto"]
+.m26-content-grid
+> * {
+  grid-column:
+    auto
+    !important;
+
+  width:
+    100%
+    !important;
+
+  min-width:
+    0
+    !important;
+}
+
+
+/* ============================================================
+   PERFIL
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+.m26-profile-sections,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+.m26-profile-sections {
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0,1fr)
+    )
+    !important;
+
+  width:
+    100%
+    !important;
+}
+
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+.m26-profile-sections
+> *,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+.m26-profile-sections
+> * {
+  grid-column:
+    auto
+    !important;
+
+  width:
+    100%
+    !important;
+
+  min-width:
+    0
+    !important;
+}
+
+
+/* ============================================================
+   RESUMEN
+   ============================================================ */
+
+[data-m26-layout="medium-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+[data-m26-expediente-section="resumen"]
+.m26-stat-grid
+> *,
+
+[data-m26-layout="expanded-touch"]
+[data-m26-expediente]
+> .m26-expediente-detail
+[data-m26-expediente-section="resumen"]
+.m26-stat-grid
+> * {
+  grid-column:
+    auto
+    !important;
+
+  min-width:
+    0
+    !important;
+}
+
+
+/* ============================================================
+   MOBILE + DESKTOP
+   Intencionalmente no afectados.
+   ============================================================ */

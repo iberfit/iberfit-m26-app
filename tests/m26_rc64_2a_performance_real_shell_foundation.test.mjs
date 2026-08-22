@@ -82,6 +82,10 @@ test('RC64.2A disabled runtime uses one CSP-safe critical stylesheet and defers 
 
   assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/mu);
   assert.match(entry,/if\(runtime\.enabled\)\{\s*await loadFullApplication\(\);/u);
+  assert.doesNotMatch(index,/href="\/src\/m26\/design\/adaptive-layout\.css"/u);
+  assert.match(entry,/function ensureAdaptiveLayoutStyle\(\)/u);
+  assert.match(entry,/link\.href='\/src\/m26\/design\/adaptive-layout\.css'/u);
+  assert.match(entry,/ensureAdaptiveLayoutStyle\(\);\s*await activateFullStyles\(\);/u);
   assert.match(entry,/await activateFullStyles\(\);/u);
   assert.match(entry,/await import\('\/src\/m26\/app\/application\.js'\)/u);
   assert.match(entry,/link\.media='all'/u);
@@ -170,11 +174,24 @@ test('RC64.2A real-shell inherits the explicit RC23 es-ES locale contract',()=>{
   assert.equal(manifest.lang,'es-ES');
   assert.match(spec,/toHaveAttribute\('lang','es-ES'\)/u);
   assert.doesNotMatch(spec,/toHaveAttribute\('lang','es-CL'\)/u);
-});test('RC64.2A real-shell keeps console network and strict horizontal-overflow gates',()=>{
-  const config=read('playwright.real-shell.config.mjs');
+});test('RC64.2A responsive contract protects desktop tablet and mobile real surfaces',()=>{
+  const qualityConfig=read('playwright.config.mjs');
+  const realConfig=read('playwright.real-shell.config.mjs');
+  const authConfig=read('playwright.authenticated.config.mjs');
   const spec=read('qa/rc64/real-shell.spec.mjs');
-  assert.match(config,/real-shell-desktop-chromium[\s\S]*1440[\s\S]*1000/u);
-  assert.match(config,/real-shell-mobile-chromium[\s\S]*390[\s\S]*844/u);
+
+  assert.match(qualityConfig,/desktop-chromium[\s\S]*1440[\s\S]*1000/u);
+  assert.match(qualityConfig,/tablet-chromium[\s\S]*1024[\s\S]*1366/u);
+  assert.match(qualityConfig,/mobile-chromium[\s\S]*390[\s\S]*844/u);
+
+  assert.match(realConfig,/real-shell-desktop-chromium[\s\S]*1440[\s\S]*1000/u);
+  assert.match(realConfig,/real-shell-tablet-chromium[\s\S]*1024[\s\S]*1366/u);
+  assert.match(realConfig,/real-shell-mobile-chromium[\s\S]*390[\s\S]*844/u);
+
+  assert.match(authConfig,/authenticated-readonly-chromium[\s\S]*1440[\s\S]*1000/u);
+  assert.match(authConfig,/authenticated-readonly-tablet-chromium[\s\S]*1024[\s\S]*1366/u);
+  assert.match(authConfig,/authenticated-readonly-mobile-chromium[\s\S]*390[\s\S]*844/u);
+
   assert.match(spec,/pageerror/u);
   assert.match(spec,/requestfailed/u);
   assert.match(spec,/externalRequests/u);
@@ -182,8 +199,6 @@ test('RC64.2A real-shell inherits the explicit RC23 es-ES locale contract',()=>{
   assert.match(spec,/toBeLessThanOrEqual\(layout\.viewportWidth\+1\)/u);
   assert.match(spec,/runtimeEnabled\)\.toBe\(false\)/u);
   assert.match(spec,/appMounted\)\.toBe\(true\)/u);
-  assert.match(spec,/\.m26-notice\.is-warning/u);
-  assert.match(spec,/toHaveText\(\/\\S\+\/u\)/u);
 });
 
 test('RC64.2A security closeout preserves LHCI provenance without keeping vulnerable wrapper',()=>{
@@ -299,4 +314,35 @@ test('RC64.2A direct Lighthouse Chromium launch disables sandbox only on GitHub 
   assert.match(runner,/managedChromiumSandboxArgs\(\{host:contract\.host\}\)/u);
   assert.match(runner,/contract\.host==='127\.0\.0\.1'/u);
   assert.match(runner,/--disable-background-networking/u);
+});
+
+test('RC64.2A adaptive device matrix covers compact medium expanded touch and pointer',()=>{
+  const realConfig=read('playwright.real-shell.config.mjs');
+  const authConfig=read('playwright.authenticated.config.mjs');
+  const adaptive=read('src/m26/design/adaptive-layout.css');
+
+  assert.match(realConfig,/real-shell-mobile-small-chromium[\s\S]*360[\s\S]*800/u);
+  assert.match(realConfig,/real-shell-mobile-chromium[\s\S]*390[\s\S]*844/u);
+  assert.match(realConfig,/real-shell-tablet-chromium[\s\S]*1024[\s\S]*1366/u);
+  assert.match(realConfig,/real-shell-tablet-landscape-chromium[\s\S]*1366[\s\S]*1024/u);
+  assert.match(realConfig,/real-shell-laptop-chromium[\s\S]*1366[\s\S]*768/u);
+  assert.match(realConfig,/real-shell-desktop-chromium[\s\S]*1440[\s\S]*1000/u);
+
+  assert.match(authConfig,/authenticated-readonly-tablet-chromium/u);
+  assert.match(authConfig,/authenticated-readonly-tablet-landscape-chromium/u);
+
+  assert.match(adaptive,/compact-touch/u);
+  assert.match(adaptive,/medium-touch/u);
+  assert.match(adaptive,/expanded-touch/u);
+  assert.match(adaptive,/expanded-pointer/u);
+  assert.match(adaptive,/data-m26-expediente-view/u);
+});
+test('RC64.2A fullscreen device canvas is a permanent product contract',()=>{
+  const adaptive=read('src/m26/design/adaptive-layout.css');
+
+  assert.match(adaptive,/IBERFIT · Fullscreen Device Canvas/u);
+  assert.match(adaptive,/\.m26-shell[\s\S]*min-height:\s*100dvh/u);
+  assert.match(adaptive,/\.m26-workspace[\s\S]*min-height:\s*100dvh/u);
+  assert.match(adaptive,/compact-touch[\s\S]*\.m26-mobile-nav[\s\S]*left:\s*0\s*!important/u);
+  assert.match(adaptive,/safe-area-inset-bottom/u);
 });

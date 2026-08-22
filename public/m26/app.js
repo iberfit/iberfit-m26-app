@@ -58,10 +58,26 @@ async function activateFullStyles(){
   })));
 }
 
+function ensureAdaptiveLayoutStyle(){
+  const existing=document.querySelector('link[data-iberfit-adaptive-style]');
+  if(existing)return existing;
+
+  const link=document.createElement('link');
+  link.rel='stylesheet';
+  link.href='/src/m26/design/adaptive-layout.css';
+  link.media='not all';
+  link.setAttribute('data-iberfit-full-style','');
+  link.setAttribute('data-iberfit-adaptive-style','true');
+  document.head.append(link);
+
+  return link;
+}
+
 async function loadFullApplication(){
   if(fullAppPromise)return fullAppPromise;
 
   fullAppPromise=(async()=>{
+    ensureAdaptiveLayoutStyle();
     await activateFullStyles();
     const {createM26Application}=await import('/src/m26/app/application.js');
     const app=await createM26Application();
