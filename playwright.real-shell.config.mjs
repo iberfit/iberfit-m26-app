@@ -30,8 +30,24 @@ export default defineConfig({
       use:{browserName:'chromium',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false},
     },
     {
+      name:'real-shell-laptop-chromium',
+      use:{browserName:'chromium',viewport:{width:1366,height:768},hasTouch:false,isMobile:false},
+    },
+    {
+      name:'real-shell-tablet-chromium',
+      use:{browserName:'chromium',viewport:{width:1024,height:1366},hasTouch:true,isMobile:true},
+    },
+    {
+      name:'real-shell-tablet-landscape-chromium',
+      use:{browserName:'chromium',viewport:{width:1366,height:1024},hasTouch:true,isMobile:true},
+    },
+    {
       name:'real-shell-mobile-chromium',
       use:{browserName:'chromium',viewport:{width:390,height:844},hasTouch:true,isMobile:true},
+    },
+    {
+      name:'real-shell-mobile-small-chromium',
+      use:{browserName:'chromium',viewport:{width:360,height:800},hasTouch:true,isMobile:true},
     },
   ],
 });

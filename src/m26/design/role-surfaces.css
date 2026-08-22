@@ -440,3 +440,941 @@
     scroll-behavior: auto;
   }
 }
+
+/* IBERFIT · Global Premium Experience System
+ *
+ * Una sola gramática visual para Cliente, Coach y Admin:
+ * profundidad, respuesta física, identidad IBERFIT y movimiento
+ * discreto. La densidad de información sigue siendo específica
+ * de cada rol.
+ */
+
+/* ------------------------------------------------------------
+   GLOBAL DEPTH TOKENS
+   ------------------------------------------------------------ */
+
+:root {
+  --iberfit-premium-shadow-1:
+    0 5px 14px rgba(0,0,0,.17),
+    0 1px 3px rgba(0,0,0,.16);
+
+  --iberfit-premium-shadow-2:
+    0 15px 35px rgba(0,0,0,.24),
+    0 5px 14px rgba(0,0,0,.17);
+
+  --iberfit-premium-shadow-3:
+    0 30px 68px rgba(0,0,0,.32),
+    0 11px 28px rgba(0,0,0,.21);
+
+  --iberfit-premium-highlight:
+    inset 0 1px 0 rgba(255,255,255,.09);
+
+  --iberfit-premium-inset:
+    inset 0 2px 7px rgba(0,0,0,.23),
+    inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+/* ------------------------------------------------------------
+   APP CANVAS
+   ------------------------------------------------------------ */
+
+.m26-shell,
+.m26-auth-page {
+  background:
+    radial-gradient(
+      circle at 85% 5%,
+      rgba(200,166,93,.085),
+      transparent 31rem
+    ),
+    radial-gradient(
+      circle at 5% 55%,
+      rgba(50,116,82,.065),
+      transparent 37rem
+    ),
+    linear-gradient(
+      145deg,
+      #06110d,
+      #091913 48%,
+      #06110d
+    );
+}
+
+.m26-workspace {
+  position: relative;
+  isolation: isolate;
+}
+
+.m26-workspace::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      circle at 74% 17%,
+      color-mix(
+        in srgb,
+        var(--iberfit-role-accent, var(--iberfit-color-accent))
+        4%,
+        transparent
+      ),
+      transparent 30rem
+    );
+}
+
+/* ------------------------------------------------------------
+   SIDEBAR + BRAND
+   ------------------------------------------------------------ */
+
+.m26-sidebar {
+  border-right-color:
+    rgba(235,219,182,.09);
+
+  box-shadow:
+    14px 0 34px rgba(0,0,0,.15),
+    inset -1px 0 rgba(255,255,255,.025);
+}
+
+.m26-brand img {
+  box-sizing: border-box;
+  padding: .34rem;
+  border: 1px solid rgba(228,205,152,.16);
+  border-radius: .95rem;
+
+  background:
+    radial-gradient(
+      circle at 28% 18%,
+      rgba(255,255,255,.09),
+      transparent 36%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(32,78,56,.98),
+      rgba(7,31,21,.99)
+    );
+
+  box-shadow:
+    var(--iberfit-premium-highlight),
+    0 10px 22px rgba(0,0,0,.25);
+
+  filter:
+    drop-shadow(0 3px 5px rgba(0,0,0,.22));
+}
+
+/* ------------------------------------------------------------
+   NAVIGATION
+   ------------------------------------------------------------ */
+
+.m26-nav-item {
+  position: relative;
+  overflow: hidden;
+
+  transition:
+    transform 150ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
+}
+
+.m26-nav-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      115deg,
+      transparent,
+      rgba(255,255,255,.055),
+      transparent
+    );
+
+  transform: translateX(-125%);
+  transition: transform 450ms ease;
+}
+
+.m26-nav-item:hover {
+  transform: translateX(3px);
+
+  border-color:
+    color-mix(
+      in srgb,
+      var(--iberfit-role-accent, var(--iberfit-color-accent))
+      18%,
+      transparent
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.045),
+    0 7px 16px rgba(0,0,0,.13);
+}
+
+.m26-nav-item:hover::after {
+  transform: translateX(125%);
+}
+
+.m26-nav-item.is-active {
+  transform: translateX(4px);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.075),
+    inset 3px 0 0
+      var(--iberfit-role-accent, var(--iberfit-color-accent)),
+    0 10px 22px rgba(0,0,0,.18);
+}
+
+/* ------------------------------------------------------------
+   TOPBAR / GLASS
+   ------------------------------------------------------------ */
+
+.m26-topbar {
+  border-bottom-color:
+    rgba(235,219,182,.085);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(8,27,19,.90),
+      rgba(6,22,16,.82)
+    );
+
+  box-shadow:
+    0 12px 32px rgba(0,0,0,.16),
+    inset 0 -1px rgba(255,255,255,.025);
+
+  backdrop-filter:
+    blur(20px)
+    saturate(1.12);
+}
+
+/* ------------------------------------------------------------
+   ALL PRODUCT SURFACES
+   ------------------------------------------------------------ */
+
+.m26-shell :is(
+  .iberfit-card,
+  .iberfit-panel,
+  .iberfit-metric,
+  .m26-panel,
+  .m26-stat,
+  .m26-list-card,
+  .m26-client-card,
+  .m26-library-card,
+  .m26-publication-card,
+  .m26-client-content-card,
+  .m26-wearable-source,
+  .m26-wearable-preview,
+  .m26-wearable-day,
+  .m26-rc39-session-card,
+  .m26-admin-hero,
+  .m26-admin-panel,
+  .m26-admin-stat,
+  .m26-admin-priority,
+  .m26-admin-form,
+  .m26-communication-hero,
+  .m26-communication-panel,
+  .m26-thread,
+  .m26-message
+) {
+  position: relative;
+
+  border-color:
+    rgba(235,219,182,.105);
+
+  box-shadow:
+    var(--iberfit-premium-highlight),
+    var(--iberfit-premium-shadow-1);
+
+  transform:
+    translateZ(0);
+
+  transition:
+    transform 170ms ease,
+    border-color 170ms ease,
+    box-shadow 170ms ease,
+    background 170ms ease;
+}
+
+/* Large / important containers */
+
+.m26-shell :is(
+  .m26-hero-panel,
+  .m26-profile-hero,
+  .m26-admin-hero,
+  .m26-communication-hero
+) {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.11),
+    inset 0 -1px 0 rgba(0,0,0,.26),
+    var(--iberfit-premium-shadow-3);
+}
+
+/* Interactive cards */
+
+.m26-shell :is(
+  .m26-client-card,
+  .m26-list-card,
+  .m26-library-card,
+  .m26-publication-card,
+  .m26-client-content-card,
+  .m26-wearable-source,
+  .m26-wearable-day,
+  .m26-rc39-session-card
+):hover {
+  transform:
+    translateY(-3px)
+    translateZ(10px);
+
+  border-color:
+    color-mix(
+      in srgb,
+      var(--iberfit-role-accent, var(--iberfit-color-accent))
+      26%,
+      transparent
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.11),
+    var(--iberfit-premium-shadow-2);
+}
+
+/* ------------------------------------------------------------
+   METRICS
+   ------------------------------------------------------------ */
+
+.m26-shell :is(
+  .m26-stat,
+  .iberfit-metric,
+  .m26-admin-stat,
+  .m26-mini-metric
+) {
+  background:
+    radial-gradient(
+      circle at 15% 5%,
+      rgba(255,255,255,.055),
+      transparent 9rem
+    ),
+    linear-gradient(
+      150deg,
+      rgba(28,64,48,.93),
+      rgba(10,30,22,.98)
+    );
+}
+
+.m26-shell :is(
+  .m26-stat,
+  .iberfit-metric,
+  .m26-admin-stat
+):hover {
+  transform:
+    translateY(-4px)
+    translateZ(14px);
+
+  border-color:
+    color-mix(
+      in srgb,
+      var(--iberfit-role-accent, var(--iberfit-color-accent))
+      31%,
+      transparent
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.13),
+    var(--iberfit-premium-shadow-2);
+}
+
+/* ------------------------------------------------------------
+   BUTTONS
+   ------------------------------------------------------------ */
+
+.m26-shell :is(
+  button,
+  .iberfit-button,
+  .m26-primary-action,
+  .m26-text-action
+),
+.m26-auth-page button {
+  position: relative;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 6px 14px rgba(0,0,0,.16);
+
+  transition:
+    transform 145ms ease,
+    box-shadow 145ms ease,
+    border-color 145ms ease,
+    filter 145ms ease;
+}
+
+.m26-shell :is(
+  button,
+  .iberfit-button,
+  .m26-primary-action
+):not(:disabled):not([aria-disabled="true"]):hover,
+.m26-auth-page button:not(:disabled):hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.13),
+    0 11px 23px rgba(0,0,0,.23);
+}
+
+.m26-shell :is(
+  button,
+  .iberfit-button,
+  .m26-primary-action
+):not(:disabled):not([aria-disabled="true"]):active,
+.m26-auth-page button:not(:disabled):active {
+  transform: translateY(1px);
+
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,.25),
+    0 3px 8px rgba(0,0,0,.17);
+}
+
+/* ------------------------------------------------------------
+   FORM CONTROLS
+   ------------------------------------------------------------ */
+
+.m26-shell :is(
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea
+),
+.m26-auth-page :is(
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea
+) {
+  border-color:
+    rgba(235,219,182,.12);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(5,20,14,.94),
+      rgba(8,29,20,.96)
+    );
+
+  box-shadow:
+    var(--iberfit-premium-inset);
+
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease,
+    background 150ms ease;
+}
+
+.m26-shell :is(
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea
+):focus,
+.m26-auth-page :is(
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea
+):focus {
+  transform: translateY(-1px);
+
+  border-color:
+    color-mix(
+      in srgb,
+      var(--iberfit-role-accent, var(--iberfit-color-accent))
+      48%,
+      transparent
+    );
+
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,.18),
+    0 0 0 3px
+      color-mix(
+        in srgb,
+        var(--iberfit-role-accent, var(--iberfit-color-accent))
+        10%,
+        transparent
+      ),
+    0 8px 18px rgba(0,0,0,.13);
+}
+
+/* ------------------------------------------------------------
+   NOTICES / STATES
+   ------------------------------------------------------------ */
+
+.m26-shell :is(
+  .m26-notice,
+  .iberfit-state,
+  .iberfit-notice,
+  .m26-action-state,
+  .m26-form-status:not(:empty),
+  .iberfit-empty-state,
+  .iberfit-error-state,
+  .iberfit-retry-state,
+  .iberfit-offline-state,
+  .iberfit-sync-state
+) {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.045),
+    0 7px 16px rgba(0,0,0,.12);
+}
+
+/* ------------------------------------------------------------
+   WELLBEING / METERS / PROGRESS
+   ------------------------------------------------------------ */
+
+.m26-wellbeing-meter {
+  border:
+    1px solid rgba(235,219,182,.09);
+
+  border-radius:
+    .85rem;
+
+  padding:
+    .75rem;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(19,52,38,.82),
+      rgba(7,26,18,.92)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.055),
+    0 7px 16px rgba(0,0,0,.13);
+}
+
+.m26-shell meter {
+  width: 100%;
+  height: .65rem;
+
+  filter:
+    drop-shadow(0 3px 5px rgba(0,0,0,.18));
+}
+
+.m26-shell meter::-webkit-meter-bar {
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0,0,0,.28);
+
+  box-shadow:
+    inset 0 2px 4px rgba(0,0,0,.30);
+}
+
+.m26-shell meter::-webkit-meter-optimum-value {
+  border-radius: 999px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #9b7a37,
+      #d6b66c
+    );
+
+  box-shadow:
+    0 0 12px rgba(200,166,93,.15);
+}
+
+/* ------------------------------------------------------------
+   TABLES
+   ------------------------------------------------------------ */
+
+.m26-shell :is(
+  .m26-admin-table,
+  .iberfit-table
+) {
+  overflow: auto;
+
+  border:
+    1px solid rgba(235,219,182,.10);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(15,43,31,.91),
+      rgba(7,25,18,.96)
+    );
+
+  box-shadow:
+    var(--iberfit-premium-highlight),
+    var(--iberfit-premium-shadow-1);
+}
+
+.m26-admin-table tbody tr {
+  transition:
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.m26-admin-table tbody tr:hover {
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-role-accent)
+      6%,
+      transparent
+    );
+}
+
+/* ------------------------------------------------------------
+   ADMIN
+   ------------------------------------------------------------ */
+
+.m26-shell[data-m26-role="admin"] :is(
+  .m26-admin-hero,
+  .m26-admin-panel,
+  .m26-admin-stat,
+  .m26-admin-priority,
+  .m26-admin-form
+) {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-role-admin-accent)
+      18%,
+      rgba(255,255,255,.08)
+    );
+
+  background:
+    radial-gradient(
+      circle at 90% 0%,
+      var(--iberfit-color-role-admin-accent-soft),
+      transparent 19rem
+    ),
+    linear-gradient(
+      145deg,
+      rgba(12,45,39,.94),
+      rgba(6,28,24,.98)
+    );
+}
+
+.m26-admin-priority:hover {
+  transform:
+    translateY(-2px)
+    translateZ(8px);
+
+  box-shadow:
+    var(--iberfit-premium-highlight),
+    var(--iberfit-premium-shadow-2);
+}
+
+/* ------------------------------------------------------------
+   COMMUNICATION
+   ------------------------------------------------------------ */
+
+.m26-communication-hero {
+  background:
+    radial-gradient(
+      circle at 91% 4%,
+      rgba(200,166,93,.11),
+      transparent 19rem
+    ),
+    linear-gradient(
+      135deg,
+      rgba(24,64,47,.97),
+      rgba(8,30,22,.99)
+    ) !important;
+}
+
+.m26-thread {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(15,42,31,.90),
+      rgba(7,26,18,.96)
+    );
+}
+
+.m26-message {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(35,73,55,.92),
+      rgba(19,51,38,.96)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 7px 16px rgba(0,0,0,.14);
+}
+
+.m26-message.is-coach {
+  background:
+    radial-gradient(
+      circle at 95% 0%,
+      rgba(200,166,93,.10),
+      transparent 9rem
+    ),
+    linear-gradient(
+      145deg,
+      rgba(41,80,58,.96),
+      rgba(19,52,38,.98)
+    );
+}
+
+/* ------------------------------------------------------------
+   DIALOG / SHEET / POPOVER
+   ------------------------------------------------------------ */
+
+:is(
+  .iberfit-dialog,
+  .iberfit-sheet,
+  .iberfit-tooltip,
+  .iberfit-popover
+) {
+  border-color:
+    rgba(235,219,182,.15);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(24,60,45,.98),
+      rgba(7,27,19,.995)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 35px 80px rgba(0,0,0,.42);
+}
+
+/* ------------------------------------------------------------
+   TABS + SEGMENTED
+   ------------------------------------------------------------ */
+
+:is(
+  .iberfit-tabs,
+  .iberfit-segmented
+) {
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,.21),
+    inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+:is(
+  .iberfit-tabs,
+  .iberfit-segmented
+) button[aria-selected="true"] {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 6px 14px rgba(0,0,0,.19);
+
+  transform:
+    translateY(-1px);
+}
+
+/* ------------------------------------------------------------
+   AUTH / FIRST IMPRESSION
+   ------------------------------------------------------------ */
+
+.m26-auth-card {
+  position: relative;
+  overflow: hidden;
+
+  border-color:
+    rgba(200,166,93,.20) !important;
+
+  background:
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(200,166,93,.12),
+      transparent 18rem
+    ),
+    linear-gradient(
+      145deg,
+      rgba(25,65,47,.97),
+      rgba(7,28,20,.995)
+    ) !important;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.11),
+    var(--iberfit-premium-shadow-3) !important;
+}
+
+.m26-auth-card::before {
+  content: "";
+
+  display: block;
+
+  width: 4rem;
+  height: 4rem;
+
+  margin-bottom: 1rem;
+
+  border:
+    1px solid rgba(228,205,152,.15);
+
+  border-radius:
+    1.15rem;
+
+  background:
+    url('/isotipo-iberfit.png')
+    center / 70% auto
+    no-repeat,
+    linear-gradient(
+      145deg,
+      rgba(32,78,56,.99),
+      rgba(7,31,21,.99)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 12px 25px rgba(0,0,0,.25);
+}
+
+/* ------------------------------------------------------------
+   ROUTE TRANSITIONS
+   ------------------------------------------------------------ */
+
+@keyframes iberfit-premium-route-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+:is(
+  .m26-route,
+  .m26-admin-route,
+  .m26-communication-route
+) > * {
+  animation:
+    iberfit-premium-route-enter
+    360ms
+    cubic-bezier(.2,.72,.2,1)
+    both;
+}
+
+:is(
+  .m26-route,
+  .m26-admin-route,
+  .m26-communication-route
+) > *:nth-child(2) {
+  animation-delay: 35ms;
+}
+
+:is(
+  .m26-route,
+  .m26-admin-route,
+  .m26-communication-route
+) > *:nth-child(3) {
+  animation-delay: 70ms;
+}
+
+:is(
+  .m26-route,
+  .m26-admin-route,
+  .m26-communication-route
+) > *:nth-child(4) {
+  animation-delay: 105ms;
+}
+
+:is(
+  .m26-route,
+  .m26-admin-route,
+  .m26-communication-route
+) > *:nth-child(n+5) {
+  animation-delay: 135ms;
+}
+
+/* ------------------------------------------------------------
+   ROLE-SPECIFIC FINISH
+   ------------------------------------------------------------ */
+
+/* Cliente: más aire, curvas y elevación emocional */
+
+.m26-shell[data-m26-role="client"] :is(
+  .m26-panel,
+  .m26-stat,
+  .m26-list-card,
+  .m26-client-content-card
+) {
+  box-shadow:
+    var(--iberfit-premium-highlight),
+    0 18px 38px rgba(0,0,0,.21);
+}
+
+/* Coach: contraste profesional, menos decoración */
+
+.m26-shell[data-m26-role="coach"] :is(
+  .m26-panel,
+  .m26-stat,
+  .m26-list-card
+) {
+  box-shadow:
+    var(--iberfit-premium-highlight),
+    0 11px 25px rgba(0,0,0,.19);
+}
+
+/* Admin: acento teal y máxima legibilidad */
+
+.m26-shell[data-m26-role="admin"] {
+  --iberfit-premium-focus-accent:
+    var(--iberfit-color-role-admin-accent);
+}
+
+/* ------------------------------------------------------------
+   MOBILE
+   ------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+
+  .m26-mobile-nav,
+  .m26-client-bottom-nav {
+    border-color:
+      rgba(235,219,182,.11);
+
+    box-shadow:
+      0 -15px 35px rgba(0,0,0,.28),
+      inset 0 1px 0 rgba(255,255,255,.055);
+
+    backdrop-filter:
+      blur(18px)
+      saturate(1.12);
+  }
+
+  .m26-mobile-nav .m26-nav-item:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* ------------------------------------------------------------
+   REDUCED MOTION
+   ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+
+  :is(
+    .m26-route,
+    .m26-admin-route,
+    .m26-communication-route
+  ) > * {
+    animation: none !important;
+  }
+
+  .m26-shell :is(
+    button,
+    .m26-nav-item,
+    .m26-panel,
+    .m26-stat,
+    .m26-client-card,
+    .m26-list-card,
+    .m26-library-card,
+    .m26-publication-card,
+    .m26-wearable-source,
+    .m26-rc39-session-card
+  ) {
+    transform: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}

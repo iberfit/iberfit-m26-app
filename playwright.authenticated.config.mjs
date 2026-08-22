@@ -26,7 +26,19 @@ export default defineConfig({
   projects:[
     {
       name:'authenticated-readonly-chromium',
-      use:{browserName:'chromium',viewport:{width:1440,height:1000}},
+      use:{browserName:'chromium',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false},
+    },
+    {
+      name:'authenticated-readonly-tablet-chromium',
+      use:{browserName:'chromium',viewport:{width:1024,height:1366},hasTouch:true,isMobile:true},
+    },
+    {
+      name:'authenticated-readonly-tablet-landscape-chromium',
+      use:{browserName:'chromium',viewport:{width:1366,height:1024},hasTouch:true,isMobile:true},
+    },
+    {
+      name:'authenticated-readonly-mobile-chromium',
+      use:{browserName:'chromium',viewport:{width:390,height:844},hasTouch:true,isMobile:true},
     },
   ],
 });

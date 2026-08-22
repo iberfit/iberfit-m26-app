@@ -6,6 +6,7 @@ import { navigationForRole } from '../src/m26/shell/navigation.js';
 import { resolveM26Route } from '../src/m26/shell/route-guard.js';
 import { createShellViewModel } from '../src/m26/shell/shell-view-model.js';
 import { renderM26Shell } from '../src/m26/shell/shell-render.js';
+import { resolveAdaptiveLayout } from '../src/m26/shell/shell-controller.js';
 
 const qaClientId = '57339e70-7a99-48d6-820f-7d4a51f89d9d';
 const otherClientId = '91d73166-2fc5-4a96-a27a-b6f71e24d93c';
@@ -128,4 +129,63 @@ test('sin hidratación el shell permanece en acceso', () => {
   const vm = createShellViewModel(createProductionState());
   assert.equal(vm.mode, 'access');
   assert.match(renderM26Shell(vm), /Confirmando identidad y permisos/);
+});
+
+test('clasifica teléfono tablet táctil y ordenador como experiencias distintas', () => {
+  assert.equal(
+    resolveAdaptiveLayout({
+      width:390,
+      coarsePointer:true,
+      touchPoints:5,
+    }),
+    'compact-touch'
+  );
+
+  assert.equal(
+    resolveAdaptiveLayout({
+      width:1024,
+      coarsePointer:true,
+      touchPoints:5,
+    }),
+    'medium-touch'
+  );
+
+  assert.equal(
+    resolveAdaptiveLayout({
+      width:1366,
+      coarsePointer:true,
+      touchPoints:5,
+    }),
+    'expanded-touch'
+  );
+
+  assert.equal(
+    resolveAdaptiveLayout({
+      width:1366,
+      coarsePointer:false,
+      touchPoints:0,
+    }),
+    'expanded-pointer'
+  );
+
+  assert.equal(
+    resolveAdaptiveLayout({
+      width:1920,
+      coarsePointer:false,
+      touchPoints:0,
+    }),
+    'expanded-pointer'
+  );
+});
+
+test('navegación móvil prioriza las acciones frecuentes y conserva Más', () => {
+  assert.deepEqual(
+    navigationForRole('coach').mobile.map((item)=>item.key),
+    ['hoy','clientes','agenda','mensajes']
+  );
+
+  assert.deepEqual(
+    navigationForRole('client').mobile.map((item)=>item.key),
+    ['hoy','sesion','progreso','actividad']
+  );
 });

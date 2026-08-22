@@ -141,6 +141,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
       stress:round(average(checkinSeries.map((x)=>x.stress)),1),pain:round(average(checkinSeries.map((x)=>x.pain)),1),
     }),
     lastExecutionAt:dateOf(lastExecution)||null,lastExecutionRpe:round(average(lastExecutionRpe),1),
+    latestCheckinAt:dateOf(latestCheckin)||null,
     unconfirmedExecutions:executionRows.length-executions.length,dataQuality,wearable,
   });
 }

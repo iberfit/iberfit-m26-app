@@ -39,8 +39,10 @@ test('progreso calcula adherencia, RPE, volumen e IRI sin convertir ausencias en
   const summary=computeProgressSummary(hydrated(),clientId,{now,days:28});
   assert.equal(summary.plannedSessions,3);assert.equal(summary.completedSessions,1);assert.equal(summary.adherence,0.333);
   assert.equal(summary.averageRpe,7.5);assert.equal(summary.volume,196);assert.equal(summary.iriDelta,null);assert.equal(summary.iriAssessmentCount,2);
+  assert.equal(summary.latestCheckinAt,'2026-07-18T09:00:00Z');
   const empty=computeProgressSummary(hydrated(snapshot({appointments:[],sessionExecutions:[],iriAssessments:[],checkins:[]})),clientId,{now});
   assert.equal(empty.adherence,null);assert.equal(empty.averageRpe,null);assert.equal(empty.iriCurrent,null);
+  assert.equal(empty.latestCheckinAt,null);
 });
 
 test('progreso excluye ejecuciones sin confirmar y explica el impacto de la última sesión confirmada',()=>{

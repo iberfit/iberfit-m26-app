@@ -41,6 +41,32 @@ function ready(role = 'coach', overrides = {}) {
           rpe: 8,
         }],
       }],
+      checkins: [{
+        id: 'checkin-1',
+        client_id: qa,
+        createdAt: '2026-07-17T08:00:00Z',
+        energy: 7,
+        sleep: 8,
+        stress: 2,
+        pain: 0,
+      }],
+      wearableDailySummaries: [{
+        id: 'wearable-1',
+        clientId: qa,
+        provider: 'normalized_file',
+        date: '2026-07-17',
+        metrics: {
+          steps: 8400,
+          activeMinutes: 54,
+          sleepMinutes: 455,
+          restingHeartRate: 58,
+          hrvMs: null,
+          activeEnergyKcal: 430,
+          workoutMinutes: 48,
+        },
+        quality: 'alta',
+        sourceUpdatedAt: '2026-07-17T23:00:00Z',
+      }],
       appointments: [
         { id: 'ap0', client_id: qa, title: 'Propuesta privada', start_at: '2026-07-18T17:00:00Z', status: 'propuesta', visibleToClient: false, modality: 'online' },
         { id: 'ap1', client_id: qa, session_id: 's1', title: 'Sesión presencial', start_at: '2026-07-18T18:00:00Z', status: 'confirmado', location: 'Las Condes', modality: 'presencial' },
@@ -129,14 +155,42 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   assert.equal(vm.summary.iri.coverageCount, 0);
   assert.equal(vm.coachCockpit.totalClients, 1);
   assert.match(html, /Cliente 360º/);
-  assert.match(html, /Pulso del cliente/);
-  assert.match(html, /Lectura profesional priorizada/);
+  assert.match(html, /src="\/isotipo-iberfit\.png"/);
+  assert.match(html, /m26-profile-hero-premium/);
+  assert.match(html, /data-m26-expediente/);
+  assert.match(html, /m26-expediente-detail/);
+  assert.match(html, /data-m26-expediente-view="resumen"/);
+  assert.match(html, /data-m26-expediente-tab="resumen"/);
+  assert.match(html, /data-m26-expediente-tab="contexto"/);
+  assert.match(html, /data-m26-expediente-tab="perfil"/);
+  assert.match(html, /data-m26-expediente-tab="plan"/);
+  assert.match(html, /data-m26-expediente-section="resumen"/);
+  assert.match(html, /data-m26-expediente-section="contexto"/);
+  assert.match(html, /data-m26-expediente-section="perfil"/);
+  assert.match(html, /data-m26-expediente-section="plan"/);
+  assert.match(html, /Estado actual/);
+  assert.match(html, /Lo importante antes de decidir/);
   assert.match(html, /Última sesión confirmada/);
   assert.match(html, /RPE 8/);
   assert.match(html, /Adherencia 28 días/);
   assert.match(html, /Tendencia de volumen/);
   assert.match(html, /Sin comparación suficiente/);
   assert.match(html, /datos confirmados y reglas explicables/);
+  assert.equal(
+    vm.progress.latestCheckinAt,
+    '2026-07-17T08:00:00Z'
+  );
+  assert.match(html, /Contexto reciente/);
+  assert.match(html, /Bienestar confirmado/);
+  assert.match(html, /Energía/);
+  assert.match(html, /7\/10/);
+  assert.match(html, /Dispositivos · últimos 7 días/);
+  assert.match(html, /Pasos medios/);
+  assert.match(html, /7\.6 h\/día/);
+  assert.match(html, /8400/);
+  assert.match(html, /Calidad limitada/);
+  assert.match(html, /1 día con datos/);
+  assert.match(html, /El entrenador interpreta y decide/);
   assert.match(html, /Correo electrónico/);
   assert.match(html, /qa@example.com/);
   assert.match(html, /Dirección de entrenamiento/);

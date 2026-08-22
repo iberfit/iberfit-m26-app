@@ -623,3 +623,995 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .m26-onboarding-form,[data-workflow-form="iri"]{scroll-padding-bottom:2rem}
 .m26-onboarding-form label.is-invalid,.m26-iri-step label.is-invalid{color:#f1aaa1}
 .m26-onboarding-form [aria-invalid="true"],.m26-iri-step [aria-invalid="true"]{border-color:#f1aaa1;box-shadow:0 0 0 3px rgba(241,170,161,.12)}
+/* IBERFIT · Premium depth system · Client 360 */
+
+:root {
+  --m26-depth-shadow:
+    0 30px 70px rgba(0, 0, 0, .32),
+    0 10px 24px rgba(0, 0, 0, .20);
+
+  --m26-depth-shadow-soft:
+    0 16px 36px rgba(0, 0, 0, .24),
+    0 4px 12px rgba(0, 0, 0, .16);
+
+  --m26-depth-highlight:
+    inset 0 1px 0 rgba(255, 255, 255, .10),
+    inset 0 -1px 0 rgba(0, 0, 0, .28);
+
+  --m26-depth-gold:
+    0 10px 28px rgba(200, 166, 93, .11);
+}
+
+/*
+ * Depth hierarchy:
+ * background -> panel -> interactive surface -> focused action.
+ * The system remains restrained and professional rather than
+ * becoming a decorative skeuomorphic interface.
+ */
+
+.m26-main {
+  perspective: 1400px;
+  background:
+    radial-gradient(
+      circle at 18% 3%,
+      rgba(200,166,93,.055),
+      transparent 28rem
+    ),
+    radial-gradient(
+      circle at 88% 28%,
+      rgba(46,107,77,.08),
+      transparent 34rem
+    );
+}
+
+.m26-route {
+  transform-style: preserve-3d;
+}
+
+/* Elevated primary surfaces */
+
+.m26-panel,
+.m26-stat,
+.m26-hero-panel,
+.m26-profile-hero,
+.m26-client-card,
+.m26-list-card,
+.m26-route-placeholder {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+
+  border-color: rgba(235,219,182,.12);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(31,67,51,.92) 0%,
+      rgba(15,40,31,.94) 48%,
+      rgba(8,25,18,.98) 100%
+    );
+
+  box-shadow:
+    var(--m26-depth-highlight),
+    var(--m26-depth-shadow-soft);
+
+  transform:
+    translateZ(0);
+
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+/* Light reflection */
+
+.m26-panel::before,
+.m26-stat::before,
+.m26-hero-panel::before,
+.m26-profile-hero::before,
+.m26-client-card::before,
+.m26-list-card::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+
+  background:
+    linear-gradient(
+      125deg,
+      rgba(255,255,255,.075),
+      transparent 22%,
+      transparent 72%,
+      rgba(200,166,93,.035)
+    );
+
+  pointer-events: none;
+}
+
+/* Very subtle lower edge = physical thickness */
+
+.m26-panel::after,
+.m26-stat::after,
+.m26-client-card::after,
+.m26-list-card::after {
+  content: "";
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  bottom: -1px;
+  height: 3px;
+  z-index: -1;
+
+  border-radius: 100%;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(200,166,93,.16),
+      transparent
+    );
+
+  opacity: .65;
+  pointer-events: none;
+}
+
+.m26-panel-soft {
+  background:
+    radial-gradient(
+      circle at 20% 0%,
+      rgba(226,190,104,.12),
+      transparent 20rem
+    ),
+    linear-gradient(
+      145deg,
+      rgba(42,74,56,.93),
+      rgba(15,40,31,.95) 52%,
+      rgba(8,25,18,.98)
+    );
+
+  box-shadow:
+    var(--m26-depth-highlight),
+    var(--m26-depth-shadow-soft),
+    var(--m26-depth-gold);
+}
+
+/* Cards gain depth on intentional interaction only */
+
+.m26-client-card:hover,
+.m26-list-card:hover {
+  transform:
+    translateY(-3px)
+    translateZ(12px);
+
+  border-color:
+    rgba(200,166,93,.28);
+
+  box-shadow:
+    var(--m26-depth-highlight),
+    0 22px 46px rgba(0,0,0,.30),
+    0 8px 20px rgba(200,166,93,.07);
+}
+
+/* Metric tiles feel like physical information modules */
+
+.m26-stat {
+  min-height: 8rem;
+
+  background:
+    radial-gradient(
+      circle at 12% 6%,
+      rgba(255,255,255,.055),
+      transparent 8rem
+    ),
+    linear-gradient(
+      155deg,
+      rgba(28,65,48,.95),
+      rgba(11,31,23,.98)
+    );
+}
+
+.m26-stat strong {
+  text-shadow:
+    0 2px 12px rgba(0,0,0,.30);
+}
+
+/* Buttons: premium physical controls */
+
+.m26-primary-action,
+.m26-action-grid button,
+.m26-text-action,
+.m26-icon-button {
+  position: relative;
+
+  border:
+    1px solid rgba(235,219,182,.18);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 7px 16px rgba(0,0,0,.22);
+
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    border-color 150ms ease;
+}
+
+.m26-primary-action {
+  background:
+    linear-gradient(
+      180deg,
+      #d5b56d 0%,
+      #c59d49 55%,
+      #a77d2f 100%
+    );
+
+  color:
+    #07150f;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.38),
+    inset 0 -2px 0 rgba(69,44,5,.20),
+    0 9px 22px rgba(0,0,0,.28),
+    0 3px 9px rgba(200,166,93,.18);
+}
+
+.m26-primary-action:hover,
+.m26-action-grid button:hover,
+.m26-text-action:hover,
+.m26-icon-button:hover {
+  transform:
+    translateY(-2px);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.15),
+    0 12px 25px rgba(0,0,0,.28);
+}
+
+.m26-primary-action:active,
+.m26-action-grid button:active,
+.m26-text-action:active,
+.m26-icon-button:active {
+  transform:
+    translateY(1px);
+
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,.24),
+    0 3px 8px rgba(0,0,0,.20);
+}
+
+/* Badges also gain real visual thickness */
+
+.m26-badge {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 4px 10px rgba(0,0,0,.17);
+}
+
+/* ------------------------------------------------------------
+   CLIENTE 360 HERO
+   ------------------------------------------------------------ */
+
+.m26-profile-hero-premium {
+  min-height: 11.5rem;
+
+  display:
+    grid;
+
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    auto;
+
+  align-items:
+    center;
+
+  gap:
+    clamp(1.25rem, 3vw, 2.4rem);
+
+  padding:
+    clamp(1.4rem, 3vw, 2.35rem);
+
+  border:
+    1px solid rgba(200,166,93,.27);
+
+  background:
+    radial-gradient(
+      circle at 8% 15%,
+      rgba(216,181,101,.18),
+      transparent 15rem
+    ),
+    radial-gradient(
+      circle at 80% -10%,
+      rgba(68,131,95,.18),
+      transparent 24rem
+    ),
+    linear-gradient(
+      135deg,
+      rgba(27,69,50,.98),
+      rgba(10,37,27,.99) 55%,
+      rgba(5,22,16,.99)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.11),
+    inset 0 -2px 0 rgba(0,0,0,.24),
+    0 34px 75px rgba(0,0,0,.34),
+    0 12px 30px rgba(200,166,93,.07);
+}
+
+.m26-profile-hero-premium::after {
+  content: "";
+
+  position:
+    absolute;
+
+  right:
+    -1.2rem;
+
+  bottom:
+    -4.2rem;
+
+  width:
+    16rem;
+
+  height:
+    16rem;
+
+  background:
+    url('/isotipo-iberfit.png')
+    center / contain
+    no-repeat;
+
+  opacity:
+    .025;
+
+  filter:
+    grayscale(1)
+    brightness(2);
+
+  transform:
+    rotate(-11deg);
+
+  pointer-events:
+    none;
+}
+
+.m26-profile-brand-lockup {
+  position:
+    relative;
+
+  width:
+    6.5rem;
+
+  height:
+    6.5rem;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+}
+
+.m26-profile-brand-orb {
+  width:
+    5.8rem;
+
+  height:
+    5.8rem;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  border-radius:
+    1.65rem;
+
+  border:
+    1px solid rgba(240,210,145,.42);
+
+  background:
+    radial-gradient(
+      circle at 30% 22%,
+      rgba(255,239,193,.35),
+      transparent 35%
+    ),
+    linear-gradient(
+      145deg,
+      #d8b666,
+      #b98b37
+    );
+
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,.35),
+    inset 0 -5px 12px rgba(74,45,0,.18),
+    0 18px 32px rgba(0,0,0,.30),
+    0 7px 18px rgba(200,166,93,.20);
+
+  transform:
+    rotate(-2deg)
+    translateZ(18px);
+}
+
+.m26-profile-brand-logo {
+  width:
+    3.5rem;
+
+  height:
+    3.5rem;
+
+  object-fit:
+    contain;
+
+  filter:
+    drop-shadow(
+      0 4px 6px rgba(0,0,0,.22)
+    );
+}
+
+.m26-profile-client-initial {
+  position:
+    absolute;
+
+  right:
+    -.15rem;
+
+  bottom:
+    -.1rem;
+
+  width:
+    2rem;
+
+  height:
+    2rem;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  border-radius:
+    50%;
+
+  border:
+    2px solid rgba(9,31,22,.96);
+
+  color:
+    var(--m26-cream-100);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(43,90,65,.98),
+      rgba(12,41,29,.98)
+    );
+
+  box-shadow:
+    0 7px 14px rgba(0,0,0,.32);
+
+  font-family:
+    var(--m26-serif);
+
+  font-size:
+    .86rem;
+
+  font-weight:
+    700;
+}
+
+.m26-profile-hero-copy {
+  min-width:
+    0;
+}
+
+.m26-profile-brand-word {
+  display:
+    inline-flex;
+
+  align-items:
+    center;
+
+  gap:
+    .45rem;
+
+  margin-bottom:
+    .55rem;
+
+  color:
+    var(--m26-gold-300);
+
+  font-size:
+    .7rem;
+
+  font-weight:
+    800;
+
+  letter-spacing:
+    .2em;
+}
+
+.m26-profile-brand-word img {
+  width:
+    1.1rem;
+
+  height:
+    1.1rem;
+
+  object-fit:
+    contain;
+}
+
+.m26-profile-hero-copy h2 {
+  margin-top:
+    .2rem;
+
+  font-size:
+    clamp(2rem, 4vw, 3.15rem);
+
+  line-height:
+    1.03;
+
+  text-shadow:
+    0 5px 20px rgba(0,0,0,.32);
+}
+
+.m26-profile-hero-copy > p:last-child {
+  margin:
+    .7rem 0 0;
+
+  font-size:
+    1.02rem;
+}
+
+.m26-profile-hero-status {
+  align-self:
+    start;
+
+  padding-top:
+    .25rem;
+}
+
+/* Context section gets visual hierarchy, not a flat block */
+
+[aria-label="Contexto reciente"] {
+  background:
+    radial-gradient(
+      circle at 88% 0%,
+      rgba(200,166,93,.09),
+      transparent 22rem
+    ),
+    linear-gradient(
+      145deg,
+      rgba(25,59,44,.94),
+      rgba(10,31,23,.98)
+    );
+
+  box-shadow:
+    var(--m26-depth-highlight),
+    var(--m26-depth-shadow);
+}
+
+/* Mobile keeps the same hierarchy without forcing perspective */
+
+@media (max-width: 720px) {
+
+  .m26-profile-hero-premium {
+    grid-template-columns:
+      auto
+      minmax(0,1fr);
+
+    min-height:
+      auto;
+  }
+
+  .m26-profile-hero-status {
+    grid-column:
+      1 / -1;
+
+    padding-top:
+      0;
+  }
+
+  .m26-profile-brand-lockup {
+    width:
+      4.8rem;
+
+    height:
+      4.8rem;
+  }
+
+  .m26-profile-brand-orb {
+    width:
+      4.35rem;
+
+    height:
+      4.35rem;
+
+    border-radius:
+      1.25rem;
+  }
+
+  .m26-profile-brand-logo {
+    width:
+      2.7rem;
+
+    height:
+      2.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .m26-panel,
+  .m26-stat,
+  .m26-client-card,
+  .m26-list-card,
+  .m26-primary-action,
+  .m26-action-grid button {
+    transform:
+      none !important;
+  }
+}
+
+/* IBERFIT · Premium experience refinement v2 */
+
+/* ------------------------------------------------------------
+   BRAND
+   El oro vuelve a ser un acento. El isotipo vive sobre verde.
+   ------------------------------------------------------------ */
+
+.m26-profile-brand-orb {
+  border:
+    1px solid rgba(228,205,152,.24);
+
+  background:
+    radial-gradient(
+      circle at 28% 18%,
+      rgba(255,255,255,.10),
+      transparent 32%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(32,78,56,.99),
+      rgba(12,45,31,.99) 55%,
+      rgba(5,25,17,.99)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16),
+    inset 0 -4px 10px rgba(0,0,0,.28),
+    0 20px 38px rgba(0,0,0,.34),
+    0 8px 18px rgba(0,0,0,.18);
+
+  transform:
+    translateZ(18px);
+}
+
+.m26-profile-brand-logo {
+  width:
+    4.15rem;
+
+  height:
+    4.15rem;
+
+  object-fit:
+    contain;
+
+  filter:
+    drop-shadow(0 7px 9px rgba(0,0,0,.25));
+}
+
+.m26-profile-brand-word {
+  color:
+    var(--m26-cream-100);
+}
+
+.m26-profile-brand-word span {
+  color:
+    var(--m26-gold-300);
+}
+
+.m26-profile-brand-word img {
+  filter:
+    drop-shadow(0 2px 4px rgba(0,0,0,.25));
+}
+
+/* ------------------------------------------------------------
+   MOTION LANGUAGE
+   Solo transform + opacity: fluido y barato de renderizar.
+   ------------------------------------------------------------ */
+
+@keyframes m26-premium-enter {
+  from {
+    opacity:
+      0;
+
+    transform:
+      translateY(12px)
+      translateZ(-4px);
+  }
+
+  to {
+    opacity:
+      1;
+
+    transform:
+      translateY(0)
+      translateZ(0);
+  }
+}
+
+@keyframes m26-brand-breathe {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      translateZ(18px);
+  }
+
+  50% {
+    transform:
+      translateY(-4px)
+      translateZ(24px);
+  }
+}
+
+.m26-route > * {
+  animation:
+    m26-premium-enter
+    420ms
+    cubic-bezier(.2,.72,.2,1)
+    both;
+}
+
+.m26-route > *:nth-child(1) {
+  animation-delay:
+    0ms;
+}
+
+.m26-route > *:nth-child(2) {
+  animation-delay:
+    45ms;
+}
+
+.m26-route > *:nth-child(3) {
+  animation-delay:
+    90ms;
+}
+
+.m26-route > *:nth-child(4) {
+  animation-delay:
+    135ms;
+}
+
+.m26-route > *:nth-child(5) {
+  animation-delay:
+    180ms;
+}
+
+.m26-route > *:nth-child(6) {
+  animation-delay:
+    225ms;
+}
+
+.m26-route > *:nth-child(n+7) {
+  animation-delay:
+    260ms;
+}
+
+.m26-profile-brand-orb {
+  animation:
+    m26-brand-breathe
+    5.5s
+    ease-in-out
+    infinite;
+}
+
+/* ------------------------------------------------------------
+   INTERACTION DEPTH
+   ------------------------------------------------------------ */
+
+.m26-panel,
+.m26-stat,
+.m26-client-card,
+.m26-list-card {
+  will-change:
+    transform;
+}
+
+.m26-panel:hover {
+  border-color:
+    rgba(228,205,152,.18);
+
+  transform:
+    translateY(-2px)
+    translateZ(7px);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.11),
+    inset 0 -1px 0 rgba(0,0,0,.28),
+    0 24px 52px rgba(0,0,0,.28),
+    0 7px 18px rgba(0,0,0,.15);
+}
+
+.m26-stat:hover {
+  border-color:
+    rgba(200,166,93,.30);
+
+  transform:
+    translateY(-4px)
+    translateZ(15px);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.13),
+    inset 0 -1px 0 rgba(0,0,0,.28),
+    0 24px 42px rgba(0,0,0,.31),
+    0 8px 18px rgba(200,166,93,.06);
+}
+
+.m26-stat strong {
+  transition:
+    transform 180ms ease,
+    text-shadow 180ms ease;
+}
+
+.m26-stat:hover strong {
+  transform:
+    translateY(-1px)
+    scale(1.025);
+
+  text-shadow:
+    0 8px 20px rgba(0,0,0,.34);
+}
+
+.m26-badge {
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+}
+
+.m26-badge:hover {
+  transform:
+    translateY(-1px);
+
+  border-color:
+    rgba(228,205,152,.24);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 7px 14px rgba(0,0,0,.22);
+}
+
+/* ------------------------------------------------------------
+   BUTTON QUALITY
+   Pequeño desplazamiento visual interno al interactuar.
+   ------------------------------------------------------------ */
+
+.m26-primary-action,
+.m26-action-grid button {
+  overflow:
+    hidden;
+}
+
+.m26-primary-action::before,
+.m26-action-grid button::before {
+  content:
+    "";
+
+  position:
+    absolute;
+
+  inset:
+    0;
+
+  pointer-events:
+    none;
+
+  background:
+    linear-gradient(
+      110deg,
+      transparent 15%,
+      rgba(255,255,255,.11) 38%,
+      transparent 61%
+    );
+
+  transform:
+    translateX(-130%);
+
+  transition:
+    transform 520ms
+    cubic-bezier(.2,.72,.2,1);
+}
+
+.m26-primary-action:hover::before,
+.m26-action-grid button:hover::before {
+  transform:
+    translateX(130%);
+}
+
+/* ------------------------------------------------------------
+   ESTADO ACTUAL
+   Más jerarquía y menos apariencia de bloque técnico.
+   ------------------------------------------------------------ */
+
+[aria-label="Estado actual del cliente"] {
+  border-color:
+    rgba(200,166,93,.20);
+
+  background:
+    radial-gradient(
+      circle at 95% -10%,
+      rgba(200,166,93,.11),
+      transparent 21rem
+    ),
+    radial-gradient(
+      circle at 5% 110%,
+      rgba(69,133,96,.11),
+      transparent 24rem
+    ),
+    linear-gradient(
+      145deg,
+      rgba(28,64,48,.96),
+      rgba(11,34,25,.985)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.11),
+    inset 0 -1px 0 rgba(0,0,0,.30),
+    0 28px 62px rgba(0,0,0,.30),
+    0 9px 23px rgba(200,166,93,.055);
+}
+
+[aria-label="Estado actual del cliente"]
+.m26-panel-heading h2 {
+  font-size:
+    clamp(1.65rem, 2.5vw, 2.15rem);
+}
+
+/* ------------------------------------------------------------
+   FOCUS QUALITY
+   ------------------------------------------------------------ */
+
+.m26-primary-action:focus-visible,
+.m26-action-grid button:focus-visible,
+.m26-stat:focus-within,
+.m26-panel:focus-within {
+  outline:
+    2px solid rgba(228,205,152,.56);
+
+  outline-offset:
+    3px;
+}
+
+/* ------------------------------------------------------------
+   REDUCED MOTION
+   ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .m26-route > *,
+  .m26-profile-brand-orb {
+    animation:
+      none !important;
+  }
+
+  .m26-panel:hover,
+  .m26-stat:hover,
+  .m26-badge:hover,
+  .m26-stat:hover strong {
+    transform:
+      none !important;
+  }
+
+  .m26-primary-action::before,
+  .m26-action-grid button::before {
+    display:
+      none;
+  }
+}
