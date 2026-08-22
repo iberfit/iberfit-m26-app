@@ -55,7 +55,7 @@ test('RC64.2A disabled runtime uses one CSP-safe critical stylesheet and defers 
   assert.doesNotMatch(index,/rel="preload" href="\/m26\/fonts\/inter-latin-wght-normal\.woff2"/u);
 
   const deferred=[...index.matchAll(/data-iberfit-full-style media="not all"/gu)];
-  assert.equal(deferred.length,14);
+  assert.equal(deferred.length,13);
 
   for(const path of [
     '/src/m26/design/tokens.css',
@@ -71,7 +71,6 @@ test('RC64.2A disabled runtime uses one CSP-safe critical stylesheet and defers 
     '/src/m26/rc44/rc44.css',
     '/src/m26/design/primitives.css',
     '/src/m26/design/role-surfaces.css',
-    '/src/m26/design/adaptive-layout.css',
   ]){
     assert.match(index,new RegExp(`href="${path.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}"[^>]*data-iberfit-full-style[^>]*media="not all"`,'u'));
   }
@@ -83,6 +82,10 @@ test('RC64.2A disabled runtime uses one CSP-safe critical stylesheet and defers 
 
   assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/mu);
   assert.match(entry,/if\(runtime\.enabled\)\{\s*await loadFullApplication\(\);/u);
+  assert.doesNotMatch(index,/href="\/src\/m26\/design\/adaptive-layout\.css"/u);
+  assert.match(entry,/function ensureAdaptiveLayoutStyle\(\)/u);
+  assert.match(entry,/link\.href='\/src\/m26\/design\/adaptive-layout\.css'/u);
+  assert.match(entry,/ensureAdaptiveLayoutStyle\(\);\s*await activateFullStyles\(\);/u);
   assert.match(entry,/await activateFullStyles\(\);/u);
   assert.match(entry,/await import\('\/src\/m26\/app\/application\.js'\)/u);
   assert.match(entry,/link\.media='all'/u);
