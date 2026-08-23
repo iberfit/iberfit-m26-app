@@ -1,30 +1,10 @@
-// RC71_0_LOCALE_PREF_BEGIN
-const IBERFIT_UI_LOCALE_STORAGE_KEY='iberfit:m26:ui-locale';
+import {iberfitLocaleOptions as i18nLocaleOptions,getIberfitLocale,setIberfitLocale} from './i18n.js';
+// RC71_2_LOCALE_BRIDGE_BEGIN
+export const IBERFIT_SUPPORTED_LOCALES=Object.freeze(
+  i18nLocaleOptions('es').map((item)=>Object.freeze({...item}))
+);
 
-export const IBERFIT_SUPPORTED_LOCALES=Object.freeze([
-  Object.freeze({value:'es-ES',label:'Español (España)'}),
-  Object.freeze({value:'es-CL',label:'Español (Chile)'}),
-]);
-
-function initialIberfitLocale(){
-  try{
-    const saved=globalThis?.localStorage?.getItem?.(
-      IBERFIT_UI_LOCALE_STORAGE_KEY
-    );
-
-    if(
-      IBERFIT_SUPPORTED_LOCALES.some(
-        item=>item.value===saved
-      )
-    ){
-      return saved;
-    }
-  }catch{}
-
-  return 'es-ES';
-}
-
-export let IBERFIT_UI_LOCALE=initialIberfitLocale();
+export let IBERFIT_UI_LOCALE=getIberfitLocale('es');
 
 export function iberfitLocaleOptions(){
   return IBERFIT_SUPPORTED_LOCALES.map(
@@ -33,34 +13,14 @@ export function iberfitLocaleOptions(){
 }
 
 export function setIberfitUiLocale(value){
-  const next=String(value||'').trim();
-
-  if(
-    !IBERFIT_SUPPORTED_LOCALES.some(
-      item=>item.value===next
-    )
-  ){
-    throw new Error('M26_UI_LOCALE_UNSUPPORTED');
-  }
-
-  IBERFIT_UI_LOCALE=next;
-
-  try{
-    globalThis?.localStorage?.setItem?.(
-      IBERFIT_UI_LOCALE_STORAGE_KEY,
-      next
-    );
-  }catch{}
-
-  try{
-    if(globalThis?.document?.documentElement){
-      globalThis.document.documentElement.lang='es';
-    }
-  }catch{}
+  IBERFIT_UI_LOCALE=setIberfitLocale(
+    value,
+    {language:'es'}
+  );
 
   return IBERFIT_UI_LOCALE;
 }
-// RC71_0_LOCALE_PREF_END
+// RC71_2_LOCALE_BRIDGE_END
 
 const STATUS_LABELS = Object.freeze({
   active: 'Activo', activo: 'Activo',

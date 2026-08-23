@@ -2180,9 +2180,9 @@ export function renderChallengesRoute(vm){
             <p class="m26-eyebrow">Comunidad IBERFIT</p>
             <h2>Social, con privacidad primero</h2>
           </div>
-          ${badge('Privado por defecto','success')}
+          ${badge(vm.social?.sharingEnabled?'Compartir manual habilitado':'Privado por defecto',vm.social?.sharingEnabled?'neutral':'success')}
         </div>
-        <p>Tus logros no se publican automáticamente y no existe ranking público por defecto. Compartir requerirá consentimiento explícito y control de visibilidad.</p>
+        <p>${vm.social?.sharingEnabled?'Consentimiento activo para compartir manualmente con '+escapeHtml(vm.social.audience==='coach'?'tu Coach':'alcance privado')+'.':'Tus logros permanecen privados.'} No existe publicación automática ni ranking público.</p><button type="button" data-m26-area="ajustes">Revisar privacidad social</button>
       </div>
 
       <aside class="m26-panel m26-panel-soft">
@@ -2199,34 +2199,107 @@ export function renderChallengesRoute(vm){
 }
 
 export function renderSettingsRoute(vm){
+  const languageOptions=(vm.languageOptions||[])
+    .map(item=>
+      `<option value="${escapeHtml(item.value)}"${item.value===vm.language?' selected':''}>${escapeHtml(item.label)}</option>`
+    )
+    .join('');
+
   const localeOptions=(vm.localeOptions||[])
     .map(item=>
       `<option value="${escapeHtml(item.value)}"${item.value===vm.locale?' selected':''}>${escapeHtml(item.label)}</option>`
     )
     .join('');
 
+  const plannedLanguages=(vm.plannedLanguages||[])
+    .filter((item)=>!item.complete)
+    .map((item)=>`<span class="m26-badge is-neutral" aria-disabled="true">${escapeHtml(item.label)} · próximamente</span>`)
+    .join('');
+
+  const preferences=vm.preferences||{};
+  const social=preferences.social||{};
+  const notifications=preferences.notifications||{};
+  const checked=(value)=>value?' checked':'';
   const wearableNote=vm.hasClientContext
     ? `${vm.wearableConnections} conexión${vm.wearableConnections===1?'':'es'} registrada${vm.wearableConnections===1?'':'s'}`
     : 'Abre un expediente para revisar conexiones del cliente';
+
+  const notificationToggle=(key,label,copy)=>
+    `<label class="m26-consent">
+      <input
+        type="checkbox"
+        data-m26-preference="notifications.${escapeHtml(key)}"
+        ${checked(Boolean(notifications[key]))}
+      >
+      <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(copy)}</small></span>
+    </label>`;
 
   return `<div class="m26-route m26-settings-route">
     <section class="m26-route-intro">
       <div>
         <p class="m26-eyebrow">IBERFIT · Ajustes</p>
-        <h2>Cuenta, idioma y privacidad</h2>
-        <p>Preferencias de la experiencia sin mezclar configuración con datos clínicos o decisiones de entrenamiento.</p>
+        <h2>Cuenta, idioma, avisos y privacidad</h2>
+        <p>Preferencias de experiencia separadas de datos clínicos, decisiones de entrenamiento y permisos operativos.</p>
       </div>
     </section>
 
     <section class="m26-settings-grid">
       <article class="m26-panel">
         <p class="m26-eyebrow">Idioma</p>
-        <h3>Formato regional</h3>
+        <h3>Idioma de la interfaz</h3>
         <label>
-          Idioma y región
-          <select data-m26-language>${localeOptions}</select>
+          Idioma
+          <select data-m26-ui-language>${languageOptions}</select>
         </label>
-        <p class="m26-data-footnote">La interfaz permanece en español; esta preferencia adapta el formato regional disponible.</p>
+        <p class="m26-data-footnote">Solo aparecen idiomas con traducción completa. La arquitectura ya contempla Español, English, Deutsch, Français y Português.</p>
+        <div class="m26-inline-actions">${plannedLanguages}</div>
+      </article>
+
+      <article class="m26-panel">
+        <p class="m26-eyebrow">Región</p>
+        <h3>Fechas, números y formatos</h3>
+        <label>
+          Región y formato
+          <select data-m26-ui-locale data-m26-language>${localeOptions}</select>
+        </label>
+        <p class="m26-data-footnote">Idioma y región son preferencias distintas. Cambiar la región no cambia los textos de la interfaz.</p>
+      </article>
+
+      <article class="m26-panel">
+        <p class="m26-eyebrow">Social</p>
+        <h3>Compartir solo con consentimiento</h3>
+        <label class="m26-consent">
+          <input type="checkbox" data-m26-preference="social.sharingEnabled"${checked(Boolean(social.sharingEnabled))}>
+          <span><strong>Permitir compartir manualmente</strong><small>Nunca publica por sí solo.</small></span>
+        </label>
+        <label>
+          Alcance
+          <select data-m26-preference="social.audience"${social.sharingEnabled?'':' disabled aria-disabled="true"'}>
+            <option value="private"${social.audience==='private'?' selected':''}>Solo yo</option>
+            <option value="coach"${social.audience==='coach'?' selected':''}>Mi Coach</option>
+          </select>
+        </label>
+        <label class="m26-consent">
+          <input type="checkbox" data-m26-preference="social.shareSessionSummary"${checked(Boolean(social.shareSessionSummary))}${social.sharingEnabled?'':' disabled aria-disabled="true"'}>
+          <span><strong>Resumen de sesiones</strong><small>Autoriza compartirlo manualmente con el alcance elegido.</small></span>
+        </label>
+        <label class="m26-consent">
+          <input type="checkbox" data-m26-preference="social.shareMilestones"${checked(Boolean(social.shareMilestones))}${social.sharingEnabled?'':' disabled aria-disabled="true"'}>
+          <span><strong>Hitos</strong><small>Solo hitos confirmados; nunca peso, IMC, dolor, IRI o datos clínicos.</small></span>
+        </label>
+        <p class="m26-notice"><strong>Bloqueado por diseño:</strong> publicación automática desactivada y ranking público desactivado.</p>
+      </article>
+
+      <article class="m26-panel">
+        <p class="m26-eyebrow">Avisos</p>
+        <h3>Qué quieres recibir</h3>
+        ${notificationToggle('sessionReminders','Próxima sesión','Recordatorio de una sesión confirmada.')}
+        ${notificationToggle('scheduleChanges','Cambios de agenda','Cambios confirmados en fecha u hora.')}
+        ${notificationToggle('planPublished','Plan publicado','Cuando el Coach publica una planificación.')}
+        ${notificationToggle('coachMessages','Mensajes del Coach','Avisos asociados a comunicación real del Coach.')}
+        ${notificationToggle('challenges','Retos','Cambios relevantes en retos privados.')}
+        ${notificationToggle('milestones','Hitos','Hitos calculados únicamente desde datos confirmados.')}
+        <p class="m26-data-footnote">Estas preferencias registran consentimiento. No se solicita permiso push ni se promete entrega push hasta que exista el servicio. Los conflictos de sincronización siguen visibles siempre dentro de la app.</p>
       </article>
 
       <article class="m26-panel">
@@ -2239,7 +2312,7 @@ export function renderSettingsRoute(vm){
       <article class="m26-panel">
         <p class="m26-eyebrow">Privacidad</p>
         <h3>Control por defecto</h3>
-        <p>Retos privados, sin publicación social automática y notas privadas del entrenador fuera de la vista del cliente.</p>
+        <p>Retos privados por defecto, preferencias aisladas por cuenta, sin publicación social automática, sin ranking público y notas privadas del entrenador fuera de la vista del cliente.</p>
         ${badge('Privacidad activa','success')}
       </article>
 
@@ -2252,7 +2325,8 @@ export function renderSettingsRoute(vm){
     </section>
   </div>`;
 }
-/* RC71_0_CHALLENGE_SETTINGS_RENDER_END */
+/* RC71_2_CHALLENGE_SETTINGS_RENDER_END */
+
 
 export function renderLibraryRoute(vm){
   const groups=renderExerciseLibraryGroups(vm.catalog,vm.mediaMap,{role:vm.role||'coach'});

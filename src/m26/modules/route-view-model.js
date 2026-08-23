@@ -32,6 +32,8 @@ import {
   formatIberfitDate,
 } from '../domain/civil-date.js';
 import { deriveAgeYears } from '../workflows/iri-profile.js';
+import {getIberfitLanguage,iberfitLanguageOptions,iberfitLocaleOptions,iberfitPlannedLanguages} from '../ui/i18n.js';
+import {readIberfitExperiencePreferences,socialPolicyFromPreferences,notificationConsentFromPreferences} from '../ui/preferences.js';
 import {
   publicationSummary,
   publicationCounts,
@@ -849,6 +851,17 @@ function rc71ChallengeItem({
   });
 }
 
+function rc712SocialSnapshot(state){
+  const preferences=
+    readIberfitExperiencePreferences(
+      state?.identity?.id
+    );
+
+  return socialPolicyFromPreferences(
+    preferences
+  );
+}
+
 function rc71ChallengeSnapshot(
   state,
   clientId,
@@ -862,16 +875,14 @@ function rc71ChallengeSnapshot(
       )
     : null;
 
+  const social=
+    rc712SocialSnapshot(state);
+
   if(!summary){
     return Object.freeze({
       clientId,
       challenges:Object.freeze([]),
-      social:Object.freeze({
-        visibility:'private',
-        sharingEnabled:false,
-        leaderboardEnabled:false,
-        automaticPublishing:false,
-      }),
+      social,
     });
   }
 
@@ -922,13 +933,7 @@ function rc71ChallengeSnapshot(
         available:wearableDays>0,
       }),
     ]),
-    social:Object.freeze({
-      visibility:'private',
-      sharingEnabled:false,
-      leaderboardEnabled:false,
-      automaticPublishing:false,
-      rationale:'Los logros permanecen privados hasta que exista consentimiento explícito y control de visibilidad.',
-    }),
+    social,
   });
 }
 
@@ -937,6 +942,11 @@ function rc71SettingsSnapshot(
   shellVm
 ){
   const clientId=routeClientId(shellVm,state);
+  const identityId=String(
+    shellVm.identity?.id||
+    state?.identity?.id||
+    ''
+  );
 
   const connections=clientId
     ? recordsForClient(
@@ -946,36 +956,60 @@ function rc71SettingsSnapshot(
       )
     : [];
 
+  const language=getIberfitLanguage();
+  const preferences=
+    readIberfitExperiencePreferences(identityId);
+
   return Object.freeze({
     kind:'ajustes',
     role:String(shellVm.identity?.role||''),
     identity:Object.freeze({
+      id:identityId,
       name:String(shellVm.identity?.name||''),
       roleLabel:String(
         shellVm.identity?.roleLabel||''
       ),
     }),
+    language,
+    languageOptions:Object.freeze(
+      iberfitLanguageOptions().map(
+        (item)=>Object.freeze({...item})
+      )
+    ),
+    plannedLanguages:Object.freeze(
+      iberfitPlannedLanguages().map(
+        (item)=>Object.freeze({
+          value:item.value,
+          label:item.nativeLabel,
+          complete:Boolean(item.complete),
+        })
+      )
+    ),
     locale:IBERFIT_UI_LOCALE,
-    localeOptions:Object.freeze([
-      Object.freeze({
-        value:'es-ES',
-        label:'Español (España)',
-      }),
-      Object.freeze({
-        value:'es-CL',
-        label:'Español (Chile)',
-      }),
-    ]),
+    localeOptions:Object.freeze(
+      iberfitLocaleOptions(language).map(
+        (item)=>Object.freeze({...item})
+      )
+    ),
+    preferences,
+    social:rc712SocialSnapshot(state),
+    notifications:
+      notificationConsentFromPreferences(
+        preferences
+      ),
     wearableConnections:connections.length,
     hasClientContext:Boolean(clientId),
     privacy:Object.freeze({
       challengesPrivateByDefault:true,
       automaticSocialPublishing:false,
+      publicLeaderboard:false,
       privateCoachNotesVisibleToClient:false,
+      preferenceScope:'authenticated-user',
     }),
   });
 }
-// RC71_0_CHALLENGE_VM_END
+// RC71_2_CHALLENGE_SETTINGS_VM_END
+
 
 export function createRouteViewModel(shellVm,state,now=new Date(),options={}){
   const rc39=augmentRc39ViewModel(

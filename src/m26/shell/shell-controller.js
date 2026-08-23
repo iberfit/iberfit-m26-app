@@ -1,6 +1,9 @@
 import { guardClientSelection, resolveM26Route } from './route-guard.js';
 import { createShellViewModel } from './shell-view-model.js';
 import { renderM26Shell } from './shell-render.js';
+import {setIberfitLanguage} from '../ui/i18n.js';
+import {setIberfitUiLocale} from '../ui/castellano.js';
+import {updateIberfitExperiencePreference} from '../ui/preferences.js';
 
 export function resolveAdaptiveLayout({
   width = 1440,
@@ -172,54 +175,96 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
   function onChange(event) {
-// RC71_0_LANGUAGE_CHANGE_BEGIN
-    const languageSelector=event.target.closest?.('[data-m26-language]');
+// RC71_2_PREFERENCES_CHANGE_BEGIN
+    const languageSelector=
+      event.target.closest?.('[data-m26-ui-language]');
 
     if(languageSelector){
-      const nextLocale=String(
-        languageSelector.value||''
-      ).trim();
-
-      if(!['es-ES','es-CL'].includes(nextLocale)){
+      try{
+        setIberfitLanguage(
+          String(languageSelector.value||'').trim()
+        );
+        lastMarkup='';
+        renderNow(store.getState());
+        focusMain();
+      }catch(error){
         root.dispatchEvent(
           new CustomEvent(
             'm26:access-denied',
             {
               bubbles:true,
-              detail:{
-                code:'M26_UI_LOCALE_UNSUPPORTED',
-              },
+              detail:{code:error.message},
             }
           )
         );
-        return;
       }
-
-      try{
-        globalThis.localStorage?.setItem?.(
-          'iberfit:m26:ui-locale',
-          nextLocale
-        );
-      }catch{}
-
-      try{
-        globalThis.document?.documentElement?.setAttribute?.(
-          'lang',
-          'es'
-        );
-      }catch{}
-
-      if(typeof globalThis.location?.reload==='function'){
-        globalThis.location.reload();
-        return;
-      }
-
-      lastMarkup='';
-      renderNow(store.getState());
-      focusMain();
       return;
     }
-    // RC71_0_LANGUAGE_CHANGE_END
+
+    const localeSelector=
+      event.target.closest?.('[data-m26-ui-locale]');
+
+    if(localeSelector){
+      try{
+        setIberfitUiLocale(
+          String(localeSelector.value||'').trim()
+        );
+        lastMarkup='';
+        renderNow(store.getState());
+        focusMain();
+      }catch(error){
+        root.dispatchEvent(
+          new CustomEvent(
+            'm26:access-denied',
+            {
+              bubbles:true,
+              detail:{code:error.message},
+            }
+          )
+        );
+      }
+      return;
+    }
+
+    const preferenceControl=
+      event.target.closest?.('[data-m26-preference]');
+
+    if(preferenceControl){
+      const state=store.getState();
+      const scope=String(state?.identity?.id||'').trim();
+      const path=String(
+        preferenceControl.getAttribute('data-m26-preference')||''
+      ).trim();
+
+      const value=
+        preferenceControl.type==='checkbox'
+          ?Boolean(preferenceControl.checked)
+          :String(preferenceControl.value||'').trim();
+
+      try{
+        updateIberfitExperiencePreference(
+          scope,
+          path,
+          value
+        );
+        lastMarkup='';
+        renderNow(store.getState());
+        focusMain();
+      }catch(error){
+        root.dispatchEvent(
+          new CustomEvent(
+            'm26:access-denied',
+            {
+              bubbles:true,
+              detail:{code:error.message},
+            }
+          )
+        );
+      }
+
+      return;
+    }
+    // RC71_2_PREFERENCES_CHANGE_END
 
     const selector = event.target.closest?.('[data-m26-client-select]');
     if (!selector) return;
