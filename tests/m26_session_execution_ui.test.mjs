@@ -156,3 +156,77 @@ test('builder y sesión muestran la última referencia confirmada sin aplicar la
     /data-set-field="load"[^>]*value=/
   );
 });
+test('Session Live muestra un preflight claro antes de iniciar',()=>{
+  const s=session();
+  const x=createExecution({session:s,clientId:'c1'});
+  const html=renderGuidedExecution({execution:x,session:s,catalog});
+  assert.match(html,/data-session-live-state="ready"/);
+  assert.match(html,/data-session-live-summary/);
+  assert.match(html,/Tu próxima sesión/);
+  assert.match(html,/Series planificadas/);
+  assert.match(html,/data-session-action="start"/);
+});
+
+test('Session Live no ofrece avance inválido antes de registrar la serie',()=>{
+  const s=session();
+  const x=createExecution({session:s,clientId:'c1'});
+  startExecution(x);
+  const html=renderGuidedExecution({execution:x,session:s,catalog});
+  assert.match(html,/data-session-live-state="active"/);
+  assert.match(html,/data-session-live-entry/);
+  assert.match(html,/data-session-progress-label/);
+  assert.match(html,/data-session-action="previous"/);
+  assert.doesNotMatch(html,/data-session-action="next"/);
+});
+
+test('Session Live convierte el descanso en el siguiente foco de acción',()=>{
+  const s=session();
+  const x=createExecution({session:s,clientId:'c1'});
+  startExecution(x);
+  recordSet(x,s,{reps:10,rpe:7});
+  x.restUntil=new Date(Date.now()+60000).toISOString();
+  const html=renderGuidedExecution({execution:x,session:s,catalog});
+  assert.match(html,/data-session-live-state="rest"/);
+  assert.match(html,/data-session-rest-focus/);
+  assert.match(html,/data-session-rest-active="true"/);
+  assert.match(html,/data-session-next-preview/);
+  assert.match(html,/Continuar ahora/);
+  assert.match(html,/data-session-action="rest-minus"/);
+  assert.match(html,/data-session-action="rest-plus"/);
+  assert.match(html,/data-session-action="next"/);
+});
+
+test('Session Live resume ejecución confirmada al cerrar',()=>{
+  const s=session();
+  const x=createExecution({session:s,clientId:'c1'});
+  startExecution(x);
+  recordSet(x,s,{reps:10,rpe:7});
+  advanceExecution(x);
+  recordSet(x,s,{reps:9,rpe:8});
+  advanceExecution(x);
+  let html=renderGuidedExecution({execution:x,session:s,catalog});
+  assert.match(html,/data-session-live-state="feedback"/);
+  assert.match(html,/data-session-live-feedback/);
+  assert.match(html,/Series/);
+  finishExecution(x,{sessionRpe:8,comment:'Bien',pain:false});
+  html=renderGuidedExecution({execution:x,session:s,catalog});
+  assert.match(html,/data-session-live-state="completed"/);
+  assert.match(html,/m26-session-completion-grid/);
+  assert.match(html,/Ejercicios registrados/);
+});
+
+test('Session Live tiene una capa visual responsive y acotada',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/design/role-surfaces.css',import.meta.url),'utf8');
+  assert.match(css,/RC71_1_SESSION_LIVE_UX_BEGIN/);
+  assert.match(css,/\.m26-session-rest-countdown/);
+  assert.match(css,/@media\(max-width:520px\)/);
+  assert.match(css,/RC71_1_SESSION_LIVE_UX_END/);
+});
+test('Session Live conserva contrato histórico de ajustes y alternativas RC48',()=>{
+  const s=session();
+  const x=createExecution({session:s,clientId:'c1'});
+  startExecution(x);
+  const html=renderGuidedExecution({execution:x,session:s,catalog});
+  assert.match(html,/<details class="m26-session-options">/);
+  assert.match(html,/Ajustes y alternativas/);
+});

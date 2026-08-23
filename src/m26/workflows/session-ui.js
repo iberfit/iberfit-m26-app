@@ -304,13 +304,230 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
   const templateControls=['coach','admin'].includes(String(role||''))?`<section class="m26-panel m26-panel-soft" data-session-template-tools><div class="m26-panel-heading"><div><p class="m26-eyebrow">Reutilización</p><h3>Plantillas versionadas</h3><p>Se guardan en este dispositivo para tu usuario y no contienen el identificador del cliente.</p></div></div><div class="m26-field-grid"><label>Plantilla guardada<select data-session-template-select><option value="">Seleccionar plantilla…</option>${templateOptions}</select></label><label>Guardar sesión actual como plantilla<input data-session-template-name maxlength="60" placeholder="Ej. Fuerza base A"></label></div><div class="m26-inline-actions"><button type="button" data-session-action="load-template"${templateOptions?'':' disabled aria-disabled="true"'}>Usar plantilla</button><button type="button" data-session-action="save-template">Guardar nueva versión</button></div></section>`:'';
   return `<section class="m26-session-builder"><header><div><p class="m26-eyebrow">Constructor</p><h2>${e(draft.title)}</h2></div><div class="m26-inline-actions"><button type="button" data-session-action="save-draft">Guardar borrador</button><button type="button" data-session-action="exit-session">Salir</button>${primary}</div></header>${actionState?`<div class="m26-action-state is-${e(actionState.status)}" role="status">${e(actionState.message)}</div>`:''}${templateControls}<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Resumen de sesión</p><h3>${plural(metrics.exercises,'ejercicio','ejercicios')} · ${plural(metrics.workUnits,'serie/ronda','series/rondas')}</h3><p>${plural(metrics.blocks,'bloque','bloques')}${metrics.groups?` · ${plural(metrics.groups,'grupo','grupos')}`:''} · ${e(draft.durationMinutes)} min previstos</p></div></div></section><section class="m26-panel m26-panel-soft"><div class="m26-field-grid"><label>Título<input data-session-draft-field="title" maxlength="120" value="${e(draft.title)}"></label><label>Duración estimada (min)<input type="number" min="10" max="240" data-session-draft-field="durationMinutes" value="${e(draft.durationMinutes)}"></label></div></section>${draft.previewAccepted?previewMarkup(draft,catalog,mediaMap,role):`<div class="m26-builder-grid"><div class="m26-panel"><label>Buscar ejercicio<input type="search" value="${e(query)}" data-session-search autocomplete="off"></label><div class="m26-exercise-results">${cards}</div>${mediaMap?renderExerciseMediaCredit({compact:true}):''}</div><div class="m26-panel"><div class="m26-builder-toolbar"><button type="button" data-session-action="add-group" data-group-type="biserie">Biserie</button><button type="button" data-session-action="add-group" data-group-type="triserie">Triserie</button><button type="button" data-session-action="add-group" data-group-type="circuito">Circuito</button><button type="button" data-session-action="add-group" data-group-type="amrap">AMRAP</button><button type="button" data-session-action="add-group" data-group-type="tabata">Tabata</button>${draft.activeGroupId?'<button type="button" data-session-action="close-group">Cerrar grupo activo</button>':''}</div>${draft.activeGroupId?'<p class="m26-notice">Selecciona ejercicios para completar el grupo activo.</p>':''}<div class="m26-builder-blocks">${blocks}</div></div></div>`}</section>`;
 }
+// RC71_1_SESSION_LIVE_UX_BEGIN
+function executionTotals(execution){
+  const queue=Array.isArray(execution?.queue)?execution.queue:[];
+  const results=Object.values(execution?.results||{});
+  const totalSets=queue.reduce(
+    (sum,item)=>sum+Math.max(0,Number(item?.sets||0)),
+    0,
+  );
+  const completedSets=results.length;
+  const completedExercises=new Set(
+    results
+      .map((item)=>item?.exerciseId)
+      .filter(Boolean),
+  ).size;
+
+  return {
+    completedSets,
+    totalSets,
+    completedExercises,
+    totalExercises:queue.length,
+  };
+}
+
+function sessionGoalText(session){
+  const value=
+    session?.goal??
+    session?.objective??
+    session?.description??
+    null;
+
+  const text=String(value||'').trim();
+  return text?text.slice(0,320):null;
+}
+
+function syncStateText(execution){
+  return ({
+    clean:'Sin cambios pendientes',
+    pending:'Pendiente de sincronización',
+    conflict:'Requiere revisión de sincronización',
+    rejected:'Guardado localmente',
+  })[execution?.syncStatus||'clean']||'Estado de sincronización disponible';
+}
+
+function sessionLiveSummary(execution,session,{ready=false}={}){
+  const totals=executionTotals(execution);
+  const plannedMinutes=Number(session?.durationMinutes);
+  const durationValue=ready
+    ?(
+      Number.isFinite(plannedMinutes)&&plannedMinutes>0
+        ?`${Math.round(plannedMinutes)} min`
+        :'No indicada'
+    )
+    :formatDuration(executionElapsedMs(execution));
+
+  const setsValue=ready
+    ?`${totals.totalSets}`
+    :`${totals.completedSets} / ${totals.totalSets}`;
+
+  const setLabel=ready
+    ?'Series planificadas'
+    :'Series completadas';
+
+  return `<div
+    class="m26-session-live-summary"
+    data-session-live-summary
+  >
+    <div>
+      <span>${ready?'Duración prevista':'Tiempo activo'}</span>
+      <strong>${e(durationValue)}</strong>
+    </div>
+    <div>
+      <span>Ejercicios</span>
+      <strong>${e(totals.totalExercises)}</strong>
+    </div>
+    <div>
+      <span>${e(setLabel)}</span>
+      <strong>${e(setsValue)}</strong>
+    </div>
+    <div>
+      <span>Guardado</span>
+      <strong>${e(syncStateText(execution))}</strong>
+    </div>
+  </div>`;
+}
+
+function sessionLiveGoal(session){
+  const goal=sessionGoalText(session);
+  if(!goal)return '';
+
+  return `<div class="m26-session-live-goal">
+    <span>Objetivo de la sesión</span>
+    <strong>${e(goal)}</strong>
+  </div>`;
+}
+
+function completedSessionSummary(execution){
+  const totals=executionTotals(execution);
+  const feedback=execution?.feedback||{};
+  const sessionRpe=Number(feedback.sessionRpe);
+
+  return `<div class="m26-session-completion-grid">
+    <div>
+      <span>Tiempo activo</span>
+      <strong>${e(formatDuration(executionElapsedMs(execution)))}</strong>
+    </div>
+    <div>
+      <span>Series</span>
+      <strong>${e(totals.completedSets)} / ${e(totals.totalSets)}</strong>
+    </div>
+    <div>
+      <span>Ejercicios registrados</span>
+      <strong>${e(totals.completedExercises)} / ${e(totals.totalExercises)}</strong>
+    </div>
+    <div>
+      <span>RPE de sesión</span>
+      <strong>${Number.isFinite(sessionRpe)?e(sessionRpe)+'/10':'Pendiente'}</strong>
+    </div>
+  </div>`;
+}
+
 export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',exerciseMemoryFor=null}={}){
-  const state=actionState&&actionState.status!=='idle'?`<div class="m26-action-state is-${e(actionState.status)}" role="${actionState.status==='error'||actionState.status==='retry'?'alert':'status'}" aria-live="polite">${e(actionState.message|| (actionState.status==='loading'?'Procesando…':''))}</div>`:'';
+  const state=actionState&&actionState.status!=='idle'
+    ?`<div class="m26-action-state is-${e(actionState.status)}" role="${actionState.status==='error'||actionState.status==='retry'?'alert':'status'}" aria-live="polite">${e(actionState.message|| (actionState.status==='loading'?'Procesando…':''))}</div>`
+    :'';
   const sync=syncBanner(execution);
-  if(execution.status==='ready')return `<section class="m26-guided">${state}${sync}<div class="m26-panel m26-empty"><h2>${e(session.title||'Sesión IBERFIT')}</h2><p>Todo listo para comenzar.</p><div class="m26-inline-actions"><button type="button" data-session-action="exit-session">Volver</button><button type="button" class="m26-primary-action" data-session-action="start">Iniciar sesión</button></div></div></section>`;
-  if(execution.status==='awaiting_feedback')return `<section class="m26-guided">${state}${sync}${timerStrip(execution)}${liveTelemetryStrip(execution,catalog)}<div class="m26-panel"><p class="m26-eyebrow">Cierre de sesión</p><h2>Cuéntanos cómo te fue</h2><div class="m26-field-grid"><label>RPE de la sesión<input type="number" min="1" max="10" data-session-feedback-rpe required></label><label>Comentario<textarea data-session-feedback-comment maxlength="2000" required></textarea></label><label><input type="checkbox" data-session-feedback-pain> Tuve dolor o molestia</label><label>Detalle de dolor<textarea data-session-feedback-pain-notes maxlength="1000"></textarea></label></div><button type="button" class="m26-primary-action" data-session-action="finish">Finalizar y guardar</button></div></section>`;
-  if(execution.status==='paused')return `<section class="m26-guided">${state}${sync}${timerStrip(execution)}${liveTelemetryStrip(execution,catalog)}<div class="m26-panel m26-empty"><p class="m26-eyebrow">Sesión en pausa</p><h2>${e(session.title||'Sesión IBERFIT')}</h2><p>Tu progreso está conservado. Reanuda cuando estés listo.</p><button type="button" class="m26-primary-action" data-session-action="resume">Reanudar sesión</button><label>Motivo para cancelar<input data-session-cancel-reason maxlength="500"></label><button type="button" data-session-action="cancel">Cancelar sesión</button></div></section>`;
-  if(execution.status==='cancelled')return `<section class="m26-guided">${state}${sync}<div class="m26-panel m26-empty"><h2>Sesión cancelada</h2><p>${e(execution.cancellationReason||'La sesión fue cancelada.')}</p><p>${execution.syncStatus==='clean'?'Cancelación confirmada.':'Cancelación guardada localmente; aún no está confirmada.'}</p><button type="button" class="m26-primary-action" data-session-action="exit-session">Volver a sesiones</button></div></section>`;
+  const goal=sessionLiveGoal(session);
+
+  if(execution.status==='ready'){
+    return `<section class="m26-guided m26-session-live" data-session-live-state="ready">
+      ${state}
+      ${sync}
+      <div class="m26-panel m26-session-live-hero">
+        <div class="m26-session-live-heading">
+          <div>
+            <p class="m26-eyebrow">Tu próxima sesión</p>
+            <h2>${e(session.title||'Sesión IBERFIT')}</h2>
+            <p>Revisa el plan y empieza cuando estés preparado.</p>
+          </div>
+          <span class="m26-session-live-status">Preparada</span>
+        </div>
+        ${sessionLiveSummary(execution,session,{ready:true})}
+        ${goal}
+        <div class="m26-session-live-actions">
+          <button type="button" data-session-action="exit-session">Volver</button>
+          <button type="button" class="m26-primary-action" data-session-action="start">Iniciar sesión</button>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  if(execution.status==='awaiting_feedback'){
+    return `<section class="m26-guided m26-session-live" data-session-live-state="feedback">
+      ${state}
+      ${sync}
+      ${timerStrip(execution)}
+      ${liveTelemetryStrip(execution,catalog)}
+      <div class="m26-panel m26-session-live-hero">
+        <div class="m26-session-live-heading">
+          <div>
+            <p class="m26-eyebrow">Entrenamiento terminado</p>
+            <h2>Último paso: cerrar la sesión</h2>
+            <p>Tu ejecución ya está registrada. Añade el feedback final para completar el seguimiento.</p>
+          </div>
+          <span class="m26-session-live-status">Cierre</span>
+        </div>
+        ${completedSessionSummary(execution)}
+      </div>
+      <div class="m26-panel" data-session-live-feedback>
+        <p class="m26-eyebrow">Feedback final</p>
+        <h2>Cuéntanos cómo te fue</h2>
+        <div class="m26-field-grid">
+          <label>RPE de la sesión<input type="number" min="1" max="10" data-session-feedback-rpe required></label>
+          <label>Comentario<textarea data-session-feedback-comment maxlength="2000" required></textarea></label>
+          <label><input type="checkbox" data-session-feedback-pain> Tuve dolor o molestia</label>
+          <label>Detalle de dolor <small>Obligatorio si marcas dolor o molestia</small><textarea data-session-feedback-pain-notes maxlength="1000"></textarea></label>
+        </div>
+        <button type="button" class="m26-primary-action" data-session-action="finish">Finalizar y guardar</button>
+      </div>
+    </section>`;
+  }
+
+  if(execution.status==='paused'){
+    return `<section class="m26-guided m26-session-live" data-session-live-state="paused">
+      ${state}
+      ${sync}
+      ${timerStrip(execution)}
+      ${liveTelemetryStrip(execution,catalog)}
+      <div class="m26-panel m26-session-live-hero">
+        <div class="m26-session-live-heading">
+          <div>
+            <p class="m26-eyebrow">Sesión en pausa</p>
+            <h2>${e(session.title||'Sesión IBERFIT')}</h2>
+            <p>Tu progreso está conservado. El tiempo activo permanece detenido hasta reanudar.</p>
+          </div>
+          <span class="m26-session-live-status">Pausada</span>
+        </div>
+        ${sessionLiveSummary(execution,session)}
+        <div class="m26-session-live-actions">
+          <button type="button" class="m26-primary-action" data-session-action="resume">Reanudar sesión</button>
+        </div>
+        <details class="m26-session-options">
+          <summary>Cancelar esta sesión</summary>
+          <label>Motivo para cancelar<input data-session-cancel-reason maxlength="500"></label>
+          <button type="button" data-session-action="cancel">Cancelar sesión</button>
+        </details>
+      </div>
+    </section>`;
+  }
+
+  if(execution.status==='cancelled'){
+    return `<section class="m26-guided m26-session-live" data-session-live-state="cancelled">
+      ${state}
+      ${sync}
+      <div class="m26-panel m26-session-live-hero">
+        <p class="m26-eyebrow">Sesión cancelada</p>
+        <h2>${e(session.title||'Sesión IBERFIT')}</h2>
+        <p>${e(execution.cancellationReason||'La sesión fue cancelada.')}</p>
+        <p>${execution.syncStatus==='clean'?'Cancelación confirmada.':'Cancelación guardada localmente; aún no está confirmada.'}</p>
+        ${sessionLiveSummary(execution,session)}
+        <button type="button" class="m26-primary-action" data-session-action="exit-session">Volver a sesiones</button>
+      </div>
+    </section>`;
+  }
+
   if(execution.status==='completed'){
     const confirmed=execution.syncStatus==='clean';
     const feedback=execution.feedback||{};
@@ -319,19 +536,61 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       ?`<p><strong>RPE de sesión ${e(sessionRpe)}/10</strong> · ${feedback.pain?'Molestia registrada para seguimiento.':'Sin dolor o molestia registrada.'}</p>`
       :'';
     const completedActions=confirmed
-      ?`<div class="m26-inline-actions"><button type="button" data-session-action="exit-session">Volver a sesiones</button><button type="button" class="m26-primary-action" data-m26-area="progreso">Ver mi progreso</button></div>`
+      ?`<div class="m26-session-live-actions"><button type="button" data-session-action="exit-session">Volver a sesiones</button><button type="button" class="m26-primary-action" data-m26-area="progreso">Ver mi progreso</button></div>`
       :`<button type="button" class="m26-primary-action" data-session-action="exit-session">Volver a sesiones</button>`;
-    return `<section class="m26-guided">${state}${sync}<div class="m26-panel m26-empty"><p class="m26-eyebrow">Entrenamiento guardado</p><h2>Sesión completada</h2><p>${confirmed?'Los resultados y tu feedback quedaron confirmados.':'Los resultados están guardados en este dispositivo y pendientes de sincronización.'}</p>${feedbackSummary}${confirmed?'<p>Tu seguimiento ya puede continuar desde Progreso.</p>':''}${completedActions}</div></section>`;
+
+    return `<section class="m26-guided m26-session-live" data-session-live-state="completed">
+      ${state}
+      ${sync}
+      <div class="m26-panel m26-session-live-hero">
+        <div class="m26-session-live-heading">
+          <div>
+            <p class="m26-eyebrow">Entrenamiento guardado</p>
+            <h2>Sesión completada</h2>
+            <p>${confirmed?'Los resultados y tu feedback quedaron confirmados.':'Los resultados están guardados en este dispositivo y pendientes de sincronización.'}</p>
+          </div>
+          <span class="m26-session-live-status">${confirmed?'Confirmada':'Pendiente'}</span>
+        </div>
+        ${completedSessionSummary(execution)}
+        ${feedbackSummary}
+        ${confirmed?'<p>Tu seguimiento ya puede continuar desde Progreso.</p>':''}
+        ${completedActions}
+      </div>
+    </section>`;
   }
-  const step=currentStep(execution,session);if(!step)return '<section class="m26-panel"><h2>Sesión finalizada</h2></section>';
+
+  const step=currentStep(execution,session);
+  if(!step)return '<section class="m26-panel"><h2>Sesión finalizada</h2></section>';
+
   const ex=catalog.get(step.exerciseId)||step.exercise||{};
   const planned=step.prescription||{};
   const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
-  const progress=Math.round(((execution.index+(execution.setIndex/Math.max(1,step.totalSets)))/execution.queue.length)*100);
-  const alternatives=catalog.search('',{pattern:ex.pattern}).filter((item)=>item.id!==step.exerciseId).slice(0,8).map((item)=>`<option value="${e(item.id)}"${item.id===planned.alternativeId?' selected':''}>${e(item.name_es)}</option>`).join('');
-  const visual=renderExerciseMedia({manifest:mediaMap,exercise:{...ex,id:step.exerciseId},role,showCredit:true,fallback:false});
+  const totals=executionTotals(execution);
+  const progress=Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        (totals.completedSets/Math.max(1,totals.totalSets))*100,
+      ),
+    ),
+  );
+  const alternatives=catalog.search('',{pattern:ex.pattern})
+    .filter((item)=>item.id!==step.exerciseId)
+    .slice(0,8)
+    .map((item)=>`<option value="${e(item.id)}"${item.id===planned.alternativeId?' selected':''}>${e(item.name_es)}</option>`)
+    .join('');
+  const visual=renderExerciseMedia({
+    manifest:mediaMap,
+    exercise:{...ex,id:step.exerciseId},
+    role,
+    showCredit:true,
+    fallback:false,
+  });
   const resultKey=`${step.exerciseId}:${step.setNumber}`;
   const recorded=execution.results?.[resultKey]||null;
+  const restSeconds=restRemainingSeconds(execution);
+  const restActive=Boolean(recorded&&restSeconds>0);
   const nextCopy=nextExecutionCopy(execution,catalog);
   const resultSummary=recorded
     ?[
@@ -342,8 +601,114 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         Number.isFinite(Number(recorded.rir))?`RIR ${recorded.rir}`:null,
       ].filter(Boolean).join(' · ')
     :'';
+
   const setPanel=recorded
-    ?`<article class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Serie registrada</p><h3>${e(resultSummary||'Resultado guardado')}</h3><p>Descansa lo previsto y continúa cuando estés preparado.</p><div class="m26-inline-actions"><button type="button" data-session-action="rest-minus">−15 s</button><button type="button" data-session-action="rest-plus">+15 s</button><button type="button" class="m26-primary-action" data-session-action="next">${e(nextCopy.label)}</button></div><small>Siguiente: ${e(nextCopy.detail)}</small></article>`
-    :`<article class="m26-panel"><h3>Registrar esta serie</h3><div class="m26-field-grid"><label>Repeticiones<input type="number" min="0" max="10000" data-set-field="reps"></label><label>Tiempo (s)<input type="number" min="0" max="86400" data-set-field="seconds"></label><label>Carga<input type="text" maxlength="80" data-set-field="load"></label><label>RPE<input type="number" min="1" max="10" step="0.5" data-set-field="rpe" required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label><label>RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label></div><details><summary>Añadir una nota a esta serie</summary><label>Notas<textarea maxlength="1000" data-set-field="notes"></textarea></label></details><button type="button" class="m26-primary-action" data-session-action="complete-set" data-rest-seconds="${e(planned.restSeconds||60)}">Completar serie</button></article>`;
-  return `<section class="m26-guided">${state}${sync}<header><div><p class="m26-eyebrow">Sesión guiada</p><h2>${e(ex.name_es||ex.name||step.exerciseId)}</h2><p>Serie ${step.setNumber} de ${step.totalSets}</p></div><strong>${progress}%</strong></header>${timerStrip(execution)}${liveTelemetryStrip(execution,catalog)}<progress class="m26-progress" max="100" value="${progress}" aria-label="Progreso ${progress}%">${progress}%</progress>${visual}<section class="m26-panel m26-prescription-summary"><p class="m26-eyebrow">Objetivo de esta serie</p><div class="m26-field-grid"><div class="m26-field"><span>Repeticiones/tiempo</span><strong>${e(planned.reps||'Según indicación')}</strong></div><div class="m26-field"><span>Descanso</span><strong>${e(planned.restSeconds||60)} s</strong></div><div class="m26-field"><span>Ritmo de ejecución</span><strong>${e(planned.tempo||'Controlado')}</strong></div><div class="m26-field"><span>Esfuerzo</span><strong>RPE ${e(planned.targetRpe||7)} · RIR ${e(planned.targetRir??3)}</strong></div></div></section>${renderExerciseMemorySession(exerciseMemory)}<div class="m26-guided-main">${setPanel}<aside class="m26-panel m26-panel-soft"><h3>Indicaciones</h3><p>${e((ex.cues||[]).join(' · ')||'Mantén una técnica estable y controla el rango.')}</p><details class="m26-session-options"><summary>Ajustes y alternativas</summary><div class="m26-inline-actions"><button type="button" data-session-action="previous">Anterior</button>${recorded?'':'<button type="button" data-session-action="next">Siguiente</button>'}</div><label>Alternativa<select data-session-substitute>${alternatives}</select></label><label>Motivo<input maxlength="500" data-session-substitute-reason></label><button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}">Usar alternativa</button><button type="button" data-session-action="pause">Pausar sesión</button><label>Motivo para cancelar<input maxlength="500" data-session-cancel-reason></label><button type="button" data-session-action="cancel">Cancelar sesión</button></details></aside></div></section>`;
+    ?`<article
+        class="m26-panel m26-panel-soft m26-session-rest-focus${restActive?' is-active':''}"
+        data-session-rest-focus
+        data-session-rest-active="${restActive?'true':'false'}"
+      >
+        <div class="m26-session-live-heading">
+          <div>
+            <p class="m26-eyebrow">${restActive?'Descanso activo':'Serie registrada'}</p>
+            <h3>${e(resultSummary||'Resultado guardado')}</h3>
+          </div>
+          <div class="m26-session-rest-countdown" aria-live="polite">
+            <span>${restActive?'Descanso':'Listo'}</span>
+            <strong>${restActive?e(restSeconds)+' s':'Continuar'}</strong>
+          </div>
+        </div>
+        <p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>
+        <div class="m26-session-live-actions">
+          ${restActive?'<button type="button" data-session-action="rest-minus">−15 s</button><button type="button" data-session-action="rest-plus">+15 s</button>':''}
+          <button type="button" class="m26-primary-action" data-session-action="next">${restActive?'Continuar ahora':e(nextCopy.label)}</button>
+        </div>
+      </article>`
+    :`<article class="m26-panel m26-session-live-entry" data-session-live-entry>
+        <p class="m26-eyebrow">Serie ${e(step.setNumber)} de ${e(step.totalSets)}</p>
+        <h3>Registra lo que realmente hiciste</h3>
+        <div class="m26-field-grid">
+          <label>Repeticiones<input type="number" min="0" max="10000" data-set-field="reps"></label>
+          <label>Tiempo (s)<input type="number" min="0" max="86400" data-set-field="seconds"></label>
+          <label>Carga<input type="text" maxlength="80" data-set-field="load"></label>
+          <label>RPE<input type="number" min="1" max="10" step="0.5" data-set-field="rpe" required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label>
+          <label>RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label>
+        </div>
+        <details>
+          <summary>Añadir una nota a esta serie</summary>
+          <label>Notas<textarea maxlength="1000" data-set-field="notes"></textarea></label>
+        </details>
+        <button type="button" class="m26-primary-action" data-session-action="complete-set" data-rest-seconds="${e(planned.restSeconds||60)}">Completar serie</button>
+      </article>`;
+
+  const cues=(ex.cues||[]).join(' · ');
+
+  return `<section class="m26-guided m26-session-live" data-session-live-state="${restActive?'rest':'active'}">
+    ${state}
+    ${sync}
+    <header class="m26-session-live-hero">
+      <div class="m26-session-live-heading">
+        <div>
+          <p class="m26-eyebrow">${restActive?'Descanso entre series':'En entrenamiento'}</p>
+          <h2>${e(ex.name_es||ex.name||step.exerciseId)}</h2>
+          <p>Ejercicio ${e(execution.index+1)} de ${e(execution.queue.length)} · Serie ${e(step.setNumber)} de ${e(step.totalSets)}</p>
+        </div>
+        <div class="m26-session-live-progress-badge">
+          <strong>${e(progress)}%</strong>
+          <small data-session-progress-label>${e(totals.completedSets)} de ${e(totals.totalSets)} series</small>
+        </div>
+      </div>
+      ${timerStrip(execution)}
+      <progress class="m26-progress" max="100" value="${progress}" aria-label="Progreso ${progress}%">${progress}%</progress>
+      ${goal}
+    </header>
+    ${liveTelemetryStrip(execution,catalog)}
+    ${visual}
+    <section class="m26-panel m26-prescription-summary" data-session-live-prescription>
+      <p class="m26-eyebrow">Objetivo de esta serie</p>
+      <div class="m26-field-grid">
+        <div class="m26-field">
+          <span>Repeticiones/tiempo</span>
+          <strong>${e(planned.reps||'Según indicación')}</strong>
+        </div>
+        <div class="m26-field">
+          <span>Descanso</span>
+          <strong>${e(planned.restSeconds||60)} s</strong>
+        </div>
+        <div class="m26-field">
+          <span>Ritmo de ejecución</span>
+          <strong>${e(planned.tempo||'Controlado')}</strong>
+        </div>
+        <div class="m26-field">
+          <span>Esfuerzo</span>
+          <strong>RPE ${e(planned.targetRpe||7)} · RIR ${e(planned.targetRir??3)}</strong>
+        </div>
+      </div>
+    </section>
+    ${cues?`<section class="m26-session-live-cues" aria-label="Indicaciones del ejercicio"><span>Claves técnicas</span><strong>${e(cues)}</strong></section>`:''}
+    ${renderExerciseMemorySession(exerciseMemory)}
+    <div class="m26-guided-main">
+      ${setPanel}
+      <aside class="m26-panel m26-panel-soft m26-session-live-options">
+        <h3>Ajustes de sesión</h3>
+        <p>Las modificaciones son explícitas y quedan bajo tu control; la app no cambia la prescripción automáticamente.</p>
+        <div class="m26-inline-actions">
+          <button type="button" data-session-action="previous">Anterior</button>
+        </div>
+        <details class="m26-session-options">
+          <summary>Ajustes y alternativas</summary>
+          <label>Alternativa<select data-session-substitute>${alternatives}</select></label>
+          <label>Motivo<input maxlength="500" data-session-substitute-reason></label>
+          <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}">Usar alternativa</button>
+        </details>
+        <details class="m26-session-options">
+          <summary>Pausa o cancelación</summary>
+          <button type="button" data-session-action="pause">Pausar sesión</button>
+          <label>Motivo para cancelar<input maxlength="500" data-session-cancel-reason></label>
+          <button type="button" data-session-action="cancel">Cancelar sesión</button>
+        </details>
+      </aside>
+    </div>
+  </section>`;
 }
+// RC71_1_SESSION_LIVE_UX_END
