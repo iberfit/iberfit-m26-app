@@ -1,8 +1,11 @@
 # IBERFIT M26 - RC72 Launch Hardening
 
-- Branch: $ExpectedBranch
-- Source HEAD: $ExpectedHead
-- Validated at: $timestampIso
+- Branch: `feature/exercise-intelligence-memory`
+- Source HEAD validated locally: `ebde6cf9577833fce9fc02f138d6cb193b6b72c5`
+- RC72 certificate commit: `a4a238e4c73333ea4bd5ff6fddd346e965d1921b`
+- Authenticated remote gate run: `32640447339`
+- Authenticated remote gate URL: https://github.com/iberfit/iberfit-m26-app/actions/runs/32640447339
+- Certificate closed at: `2026-08-23T08:49:41-04:00`
 - Scope: validation-only; no product, Auth, RLS, UI or payment mutation.
 
 ## Gates
@@ -18,14 +21,19 @@
 - UTF8_ENCODING_INTEGRITY: PASS
 - RC64_CURRENT_SURFACE_BUILD: PASS
 - REAL_SHELL_PLAYWRIGHT: PASS
-- AUTHENTICATED_SMOKE: BLOCKED_MISSING_QA_ENV
+- AUTHENTICATED_REMOTE_GATE: PASS
+- AUTHENTICATED_SMOKE: PASS
+
+## Remote authenticated evidence
+
+The GitHub Actions workflow `remote-gates.yml` ran against `feature/exercise-intelligence-memory` at `a4a238e4c73333ea4bd5ff6fddd346e965d1921b` using the protected `m26-canary-readonly` environment.
+
+The remote gate authenticates the authorized QA Coach and client identities, validates role/bootstrap isolation and executes the RC64.2B authenticated smoke in read-only mode. QA secret values are not copied into the repository or this certificate.
 
 ## Interpretation
 
-The static RLS gate validates the versioned repository contract. It does not claim that a live database has zero schema/policy drift.
+The static RLS gate validates the versioned repository contract. The authenticated remote gate adds live read-only evidence against the authorized Supabase project without claiming or performing backend mutation.
 
-The authenticated smoke is read-only and is only executed when the authorized QA environment is available. Missing QA environment variables are not converted into a false PASS.
-
-READY_FOR_AUTHENTICATED_CANARY=NO
+READY_FOR_AUTHENTICATED_CANARY=YES
 PAYMENT_MUTATION=NO
 DEFAULT_BRANCH_MUTATED=NO
