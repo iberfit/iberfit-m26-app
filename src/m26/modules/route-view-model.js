@@ -423,7 +423,7 @@ if (area === 'clientes') {
       kind: 'clientes',
       role,
       canCreate: ['admin', 'coach'].includes(role),
-      clients: Object.freeze(clientsOverview(state).map((summary)=>buildClientFollowUpSummary(summary,state,now))),
+      clients: Object.freeze(clientsOverview(state, now).map((summary)=>buildClientFollowUpSummary(summary,state,now))),
       selectedClientId: state.selectedClientId || null,
     });
   }
