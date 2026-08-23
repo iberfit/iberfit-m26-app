@@ -1760,3 +1760,591 @@
     display:none!important;
   }
 }
+
+/* RC67_1_COMPACT_ECHART_BEGIN */
+
+m26-echart[data-density="compact"],
+.m26-echart[data-density="compact"]{
+  display:block;
+  width:100%;
+  min-height:164px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+
+m26-echart[data-density="compact"] .m26-echart-canvas,
+.m26-echart[data-density="compact"] .m26-echart-canvas{
+  width:100%;
+  min-height:164px;
+}
+
+m26-echart[data-density="compact"][data-chart-state="pending"]{
+  min-height:164px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(
+        in srgb,
+        var(--iberfit-data-series-6) 7%,
+        transparent
+      ),
+      transparent
+    );
+}
+
+/* RC67_1_COMPACT_ECHART_END */
+
+/* RC67_5_UNIFIED_PRODUCT_SURFACES_BEGIN */
+
+/*
+  Compatibility-first bridge:
+  legacy product surfaces converge on canonical IBERFIT primitives
+  without changing route markup or business behavior.
+*/
+
+/* Canonical legacy Tabs bridge */
+.m26-expediente-tabs{
+  display:flex;
+  align-items:center;
+  gap:var(--iberfit-space-1);
+  min-width:0;
+  padding:var(--iberfit-space-1);
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  scrollbar-width:none;
+  scroll-snap-type:x proximity;
+  border:1px solid var(--iberfit-color-border);
+  border-radius:var(--iberfit-radius-md);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-surface-base) 76%,
+      transparent
+    );
+}
+
+.m26-expediente-tabs::-webkit-scrollbar{
+  display:none;
+}
+
+.m26-expediente-tabs > button,
+.m26-expediente-tabs > [role="tab"]{
+  flex:0 0 auto;
+  min-height:var(--iberfit-control-height);
+  padding:
+    var(--iberfit-space-2)
+    var(--iberfit-space-3);
+  scroll-snap-align:start;
+  white-space:nowrap;
+  border:0;
+  border-radius:var(--iberfit-radius-sm);
+  color:var(--iberfit-color-text-secondary);
+  background:transparent;
+  font:inherit;
+  font-weight:var(--iberfit-font-weight-semibold);
+  touch-action:manipulation;
+  transition:
+    background
+      var(--iberfit-motion-fast)
+      var(--iberfit-motion-easing-standard),
+    color
+      var(--iberfit-motion-fast)
+      var(--iberfit-motion-easing-standard),
+    transform
+      var(--iberfit-motion-fast)
+      var(--iberfit-motion-easing-enter);
+}
+
+.m26-expediente-tabs > button:hover,
+.m26-expediente-tabs > [role="tab"]:hover{
+  color:var(--iberfit-color-text-primary);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-accent) 7%,
+      transparent
+    );
+}
+
+.m26-expediente-tabs > button[aria-selected="true"],
+.m26-expediente-tabs > [role="tab"][aria-selected="true"],
+.m26-expediente-tabs > button[aria-pressed="true"],
+.m26-expediente-tabs > .is-active,
+.m26-expediente-tabs > .active{
+  color:var(--iberfit-color-text-primary);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-accent) 13%,
+      transparent
+    );
+  box-shadow:
+    inset 0 0 0 1px
+      color-mix(
+        in srgb,
+        var(--iberfit-color-accent) 14%,
+        transparent
+      );
+}
+
+.m26-expediente-tabs > button:focus-visible,
+.m26-expediente-tabs > [role="tab"]:focus-visible{
+  outline:
+    3px solid
+    color-mix(
+      in srgb,
+      var(--iberfit-color-focus) 72%,
+      transparent
+    );
+  outline-offset:2px;
+}
+
+/* Panel hierarchy bridge */
+.m26-panel-soft{
+  border-color:var(--iberfit-color-border);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(
+        in srgb,
+        var(--iberfit-color-surface-raised) 88%,
+        transparent
+      ),
+      color-mix(
+        in srgb,
+        var(--iberfit-color-surface-base) 92%,
+        transparent
+      )
+    );
+  box-shadow:var(--iberfit-shadow-subtle);
+}
+
+.m26-panel-heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:var(--iberfit-space-4);
+  min-width:0;
+  margin-bottom:var(--iberfit-space-4);
+}
+
+.m26-panel-heading > div{
+  min-width:0;
+}
+
+.m26-panel-heading h2,
+.m26-panel-heading h3,
+.m26-panel-heading h4{
+  margin:
+    var(--iberfit-space-1)
+    0
+    0;
+  color:var(--iberfit-color-text-primary);
+}
+
+.m26-panel-heading p{
+  max-width:70ch;
+  color:var(--iberfit-color-text-secondary);
+}
+
+/* Metric / KPI bridge */
+.m26-stat,
+.m26-mini-metric{
+  min-width:0;
+  border:1px solid var(--iberfit-color-border);
+  border-radius:var(--iberfit-radius-md);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(
+        in srgb,
+        var(--iberfit-color-surface-raised) 94%,
+        transparent
+      ),
+      color-mix(
+        in srgb,
+        var(--iberfit-color-surface-base) 96%,
+        transparent
+      )
+    );
+  box-shadow:var(--iberfit-shadow-subtle);
+}
+
+.m26-mini-metric{
+  display:grid;
+  gap:var(--iberfit-space-2);
+  padding:var(--iberfit-space-4);
+}
+
+.m26-stat span,
+.m26-mini-metric span{
+  color:var(--iberfit-color-text-secondary);
+}
+
+.m26-stat strong,
+.m26-mini-metric strong{
+  color:var(--iberfit-color-text-primary);
+  font-variant-numeric:tabular-nums;
+}
+
+/* Consistent responsive behavior */
+@media(max-width:720px){
+  .m26-panel-heading{
+    gap:var(--iberfit-space-3);
+  }
+}
+
+@media(max-width:620px){
+  .m26-panel-heading{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .m26-expediente-tabs{
+    margin-inline:
+      calc(var(--iberfit-space-2) * -1);
+    padding-inline:
+      var(--iberfit-space-2);
+    border-inline:0;
+    border-radius:0;
+  }
+}
+
+@media(min-width:900px){
+  .m26-expediente-tabs{
+    flex-wrap:wrap;
+    overflow-x:visible;
+    scroll-snap-type:none;
+  }
+}
+
+/* RC67_5_UNIFIED_PRODUCT_SURFACES_END */
+
+/* RC67_5_1_ACTION_GROUPS_BEGIN */
+
+/*
+  Common action group behavior.
+  Used by current-state CTA, appointment cards and other list-card actions.
+  Desktop/tablet use available horizontal space; mobile stacks cleanly.
+*/
+
+.m26-list-card-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  flex-wrap:wrap;
+  gap:
+    var(--iberfit-space-2)
+    var(--iberfit-space-4);
+  width:100%;
+  margin-top:var(--iberfit-space-4);
+}
+
+.m26-list-card-actions > button,
+.m26-list-card-actions > .m26-primary-action,
+.m26-list-card-actions > .m26-text-action{
+  flex:0 0 auto;
+}
+
+.m26-list-card-actions > small{
+  flex:
+    1 1
+    min(28rem,100%);
+  max-width:64ch;
+  color:var(--iberfit-color-text-secondary);
+  line-height:var(--iberfit-line-height-normal);
+}
+
+@media(max-width:620px){
+  .m26-list-card-actions{
+    align-items:stretch;
+    gap:var(--iberfit-space-2);
+  }
+
+  .m26-list-card-actions > button,
+  .m26-list-card-actions > .m26-primary-action,
+  .m26-list-card-actions > .m26-text-action{
+    width:100%;
+  }
+
+  .m26-list-card-actions > small{
+    flex-basis:100%;
+    max-width:none;
+  }
+}
+
+/* RC67_5_1_ACTION_GROUPS_END */
+
+/* RC67_6_STATUS_ACTION_EMPTY_BEGIN */
+
+/*
+  IBERFIT unified status + action + empty-state language.
+  Presentation only: no business-state inference is introduced here.
+*/
+
+/* -----------------------------------------
+   Status badges
+   ----------------------------------------- */
+
+.m26-admin-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:var(--iberfit-space-1);
+  min-height:2rem;
+  padding:
+    var(--iberfit-space-1)
+    var(--iberfit-space-3);
+  border:1px solid var(--iberfit-color-border);
+  border-radius:var(--iberfit-radius-pill);
+  color:var(--iberfit-color-text-subtle);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-surface-base) 76%,
+      transparent
+    );
+  font-size:var(--iberfit-font-size-xs);
+  font-weight:var(--iberfit-font-weight-semibold);
+  line-height:1;
+}
+
+.m26-badge.is-neutral,
+.m26-admin-badge{
+  border-color:var(--iberfit-color-border);
+  color:var(--iberfit-color-text-subtle);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-surface-base) 72%,
+      transparent
+    );
+}
+
+.m26-badge.is-pending{
+  border-color:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-info) 42%,
+      transparent
+    );
+  color:var(--iberfit-color-info);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-info) 9%,
+      transparent
+    );
+}
+
+.m26-badge.is-danger{
+  border-color:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-danger) 44%,
+      transparent
+    );
+  color:var(--iberfit-color-danger);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-danger) 9%,
+      transparent
+    );
+}
+
+.m26-notice.is-pending,
+.m26-action-state.is-loading{
+  border-color:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-info) 40%,
+      transparent
+    );
+  color:var(--iberfit-color-info);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-info) 8%,
+      transparent
+    );
+}
+
+.m26-appointment-state,
+.m26-profile-hero-status,
+.m26-domain-status{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:var(--iberfit-space-2);
+  min-width:0;
+}
+
+/* -----------------------------------------
+   Severity cards
+   ----------------------------------------- */
+
+.m26-alert-card{
+  position:relative;
+  border-inline-start:
+    3px solid
+    var(--iberfit-color-info);
+}
+
+.m26-alert-card.is-warning{
+  border-inline-start-color:
+    var(--iberfit-color-warning);
+}
+
+.m26-alert-card.is-critical,
+.m26-alert-card.is-danger{
+  border-inline-start-color:
+    var(--iberfit-color-danger);
+}
+
+/* -----------------------------------------
+   Empty states
+   ----------------------------------------- */
+
+.m26-empty,
+.m26-admin-empty{
+  display:grid;
+  justify-items:start;
+  align-content:center;
+  gap:var(--iberfit-space-3);
+  min-height:9rem;
+  padding:var(--iberfit-space-5);
+  border:
+    1px dashed
+    var(--iberfit-color-border-strong);
+  border-radius:var(--iberfit-card-radius);
+  color:var(--iberfit-color-text-subtle);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-surface-base) 64%,
+      transparent
+    );
+}
+
+.m26-empty h3,
+.m26-admin-empty h3{
+  margin:0;
+  color:var(--iberfit-color-text-primary);
+}
+
+.m26-empty p,
+.m26-admin-empty p{
+  max-width:62ch;
+  margin:0;
+  color:var(--iberfit-color-text-secondary);
+  line-height:var(--iberfit-line-height-normal);
+}
+
+.m26-empty-mark{
+  display:grid;
+  place-items:center;
+  width:2.5rem;
+  height:2.5rem;
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--iberfit-color-accent) 38%,
+      transparent
+    );
+  border-radius:var(--iberfit-radius-pill);
+  color:var(--iberfit-color-accent);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-accent) 8%,
+      transparent
+    );
+  font-family:var(--iberfit-font-family-editorial);
+  font-weight:var(--iberfit-font-weight-semibold);
+}
+
+/* -----------------------------------------
+   Action orchestration
+   ----------------------------------------- */
+
+.m26-sticky-actions,
+.m26-wizard-actions,
+.m26-timer-actions,
+.m26-publication-actions,
+.m26-builder-toolbar,
+.m26-library-controls,
+.m26-external-report-actions{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:var(--iberfit-space-2);
+}
+
+.m26-sticky-actions > button,
+.m26-wizard-actions > button,
+.m26-timer-actions > button,
+.m26-publication-actions > button,
+.m26-builder-toolbar > button,
+.m26-library-controls > button,
+.m26-external-report-actions > button{
+  min-height:var(--iberfit-control-height);
+  border:1px solid var(--iberfit-color-border);
+  border-radius:var(--iberfit-control-radius);
+  padding:
+    var(--iberfit-space-3)
+    var(--iberfit-space-4);
+  color:var(--iberfit-color-text-primary);
+  background:var(--iberfit-color-surface-raised);
+  font:inherit;
+  font-weight:var(--iberfit-font-weight-semibold);
+  line-height:1.2;
+  touch-action:manipulation;
+}
+
+.m26-sticky-actions > button:focus-visible,
+.m26-wizard-actions > button:focus-visible,
+.m26-timer-actions > button:focus-visible,
+.m26-publication-actions > button:focus-visible,
+.m26-builder-toolbar > button:focus-visible,
+.m26-library-controls > button:focus-visible,
+.m26-external-report-actions > button:focus-visible{
+  outline:
+    3px solid
+    color-mix(
+      in srgb,
+      var(--iberfit-color-focus) 72%,
+      transparent
+    );
+  outline-offset:3px;
+}
+
+@media(max-width:620px){
+  .m26-appointment-state,
+  .m26-profile-hero-status,
+  .m26-domain-status{
+    justify-content:flex-start;
+  }
+
+  .m26-sticky-actions,
+  .m26-wizard-actions,
+  .m26-publication-actions,
+  .m26-external-report-actions{
+    align-items:stretch;
+  }
+
+  .m26-sticky-actions > button,
+  .m26-wizard-actions > button,
+  .m26-publication-actions > button,
+  .m26-external-report-actions > button{
+    width:100%;
+  }
+}
+
+/* RC67_6_STATUS_ACTION_EMPTY_END */

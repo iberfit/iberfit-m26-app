@@ -26,6 +26,127 @@ export function deriveAdherenceAlerts(state,clientId,{now=new Date()}={}){
   return alerts.sort((a,b)=>priority[a.severity]-priority[b.severity]).map(clone);
 }
 
+// RC70_4_FOLLOWUP_PLAN_BEGIN
+const followUpPriority=Object.freeze({
+  critical:0,
+  warning:1,
+  info:2,
+});
+
+function followUpTopAlert(alerts=[]){
+  return [...(Array.isArray(alerts)?alerts:[])]
+    .filter(Boolean)
+    .sort(
+      (a,b)=>
+        (followUpPriority[a?.severity]??9)-
+        (followUpPriority[b?.severity]??9)
+    )[0]||null;
+}
+
+function followUpActionFor(alert){
+  const id=String(alert?.id||'');
+  const source=String(alert?.source||'');
+
+  if(id==='pain-high'){
+    return Object.freeze({
+      title:'Revisar antes de la próxima sesión',
+      detail:'Hay un registro de dolor que requiere contexto humano antes de decidir sobre la sesión.',
+      primaryArea:'actividad',
+      primaryLabel:'Revisar bienestar',
+      secondaryArea:'agenda',
+      secondaryLabel:'Revisar agenda',
+    });
+  }
+
+  if(id==='recovery-context'){
+    return Object.freeze({
+      title:'Revisar contexto de recuperación',
+      detail:'Conviene revisar sueño, energía o estrés antes de decidir cualquier ajuste.',
+      primaryArea:'actividad',
+      primaryLabel:'Ver registros',
+      secondaryArea:'sesion',
+      secondaryLabel:'Revisar sesión',
+    });
+  }
+
+  if(
+    id==='adherence-low'||
+    id==='no-completions'
+  ){
+    return Object.freeze({
+      title:'Recuperar continuidad',
+      detail:'La prioridad es entender barreras reales de agenda, ejecución o comprensión antes de modificar el plan.',
+      primaryArea:'agenda',
+      primaryLabel:'Revisar agenda',
+      secondaryArea:'progreso',
+      secondaryLabel:'Ver adherencia',
+    });
+  }
+
+  if(
+    id.startsWith('cycle-ending-')||
+    source==='planning'
+  ){
+    return Object.freeze({
+      title:'Preparar el siguiente ciclo',
+      detail:'El ciclo está próximo a finalizar y requiere revisión profesional antes de publicar cambios.',
+      primaryArea:'planificacion',
+      primaryLabel:'Abrir planificación',
+      secondaryArea:'informes',
+      secondaryLabel:'Revisar informe',
+    });
+  }
+
+  if(
+    id==='execution-missing'||
+    id==='data-limited'||
+    source==='data-quality'
+  ){
+    return Object.freeze({
+      title:'Mejorar la calidad del seguimiento',
+      detail:'Faltan datos confirmados suficientes para interpretar progreso con confianza.',
+      primaryArea:'progreso',
+      primaryLabel:'Ver progreso',
+      secondaryArea:'actividad',
+      secondaryLabel:'Revisar registros',
+    });
+  }
+
+  return Object.freeze({
+    title:'Seguimiento al día',
+    detail:'No hay una señal prioritaria que obligue a cambiar el plan con los datos confirmados disponibles.',
+    primaryArea:'progreso',
+    primaryLabel:'Ver progreso',
+    secondaryArea:'agenda',
+    secondaryLabel:'Revisar agenda',
+  });
+}
+
+export function buildCoachFollowUpPlan(alerts=[]){
+  const topAlert=followUpTopAlert(alerts);
+  const action=followUpActionFor(topAlert);
+  const severity=topAlert?.severity||'clear';
+
+  return Object.freeze({
+    level:severity,
+    signalId:topAlert?.id||null,
+    source:topAlert?.source||null,
+    signalTitle:topAlert?.title||'Sin señales prioritarias',
+    signalDetail:topAlert?.detail||'No hay señales que requieran una acción adicional con los datos confirmados disponibles.',
+    actionTitle:action.title,
+    actionDetail:action.detail,
+    primaryArea:action.primaryArea,
+    primaryLabel:action.primaryLabel,
+    secondaryArea:action.secondaryArea,
+    secondaryLabel:action.secondaryLabel,
+    requiresCoachDecision:true,
+    autoPrescription:false,
+    autoMessage:false,
+    provenance:'deterministic-confirmed-data',
+  });
+}
+// RC70_4_FOLLOWUP_PLAN_END
+
 export function adherenceSignal(alerts=[]){
   const list=arr(alerts);if(list.some((item)=>item.severity==='critical'))return {level:'critical',label:'Revisión prioritaria'};
   if(list.some((item)=>item.severity==='warning'))return {level:'warning',label:'Requiere contexto'};

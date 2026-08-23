@@ -36,6 +36,8 @@ function ready(role = 'coach', overrides = {}) {
         status: 'completado',
         completedAt: '2026-07-17T19:00:00Z',
         results: [{
+          exerciseId: 'exercise-squat',
+          setNumber: 1,
           reps: 10,
           loadKg: 20,
           rpe: 8,
@@ -150,7 +152,17 @@ test('Clientes abre expediente mediante atributos de datos, no handlers inline',
 
 test('Expediente presenta IRI por dominios, contacto y acciones contextuales', () => {
   const state = ready('coach', { activeArea: 'expediente' });
-  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const vm = createRouteViewModel(
+    createShellViewModel(state),
+    state,
+    now,
+    {
+      catalog: [{
+        id: 'exercise-squat',
+        name_es: 'Sentadilla goblet',
+      }],
+    }
+  );
   const html = renderRouteView(vm);
   assert.equal(vm.summary.iri.coverageCount, 0);
   assert.equal(vm.coachCockpit.totalClients, 1);
@@ -172,6 +184,26 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   assert.match(html, /Lo importante antes de decidir/);
   assert.match(html, /Última sesión confirmada/);
   assert.match(html, /RPE 8/);
+
+  assert.equal(vm.exercisePerformance.length, 1);
+  assert.equal(
+    vm.exercisePerformance[0].exerciseId,
+    'exercise-squat'
+  );
+  assert.equal(
+    vm.exercisePerformance[0].exerciseName,
+    'Sentadilla goblet'
+  );
+
+  assert.match(html, /Rendimiento por ejercicio/);
+  assert.match(html, /Memoria longitudinal/);
+  assert.match(html, /Sentadilla goblet/);
+  assert.match(html, /Última carga/);
+  assert.match(html, /20 kg/);
+  assert.match(html, /Máximo registrado/);
+  assert.match(html, /Exposiciones confirmadas/);
+  assert.match(html, /hechos comparables/i);
+
   assert.match(html, /Adherencia 28 días/);
   assert.match(html, /Tendencia de volumen/);
   assert.match(html, /Sin comparación suficiente/);

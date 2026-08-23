@@ -98,3 +98,169 @@ test('siguiente paso es role surfaces sin despliegue',()=>{
   assert.match(rc58,/NEXT_SECURITY_ACTION=SR0_THREAT_MODEL_AND_SECURITY_INVENTORY_READ_ONLY/);
   assert.match(rc58,/NEXT_DEPLOYMENT_ACTION=APP_IBERFIT_CL_SURFACE_INVENTORY_READ_ONLY/);
 });
+
+/* RC67_5_UNIFIED_SURFACES_TEST_BEGIN */
+
+test('legacy bridge unifica Tabs Panel Metric y KPI sin lógica de negocio',()=>{
+  const bridge=IBERFIT_PRIMITIVE_CONTRACT.legacyCompatibility;
+
+  assert.ok(Object.hasOwn(bridge,'Panel'));
+  assert.ok(Object.hasOwn(bridge,'Tabs'));
+  assert.ok(Object.hasOwn(bridge,'SegmentedControl'));
+  assert.ok(Object.hasOwn(bridge,'Metric'));
+  assert.ok(Object.hasOwn(bridge,'KPI'));
+
+  assert.equal(
+    bridge.Panel.includes('.m26-panel-soft'),
+    true,
+  );
+
+  assert.equal(
+    bridge.Tabs.includes('.m26-expediente-tabs'),
+    true,
+  );
+
+  assert.equal(
+    Array.isArray(bridge.SegmentedControl),
+    true,
+  );
+
+  assert.equal(
+    bridge.Metric.includes('.m26-stat'),
+    true,
+  );
+
+  assert.equal(
+    bridge.KPI.includes('.m26-mini-metric'),
+    true,
+  );
+
+  for(const selector of [
+    '.m26-expediente-tabs',
+    '.m26-panel-soft',
+    '.m26-panel-heading',
+    '.m26-mini-metric',
+  ]){
+    assert.equal(
+      css.includes(selector),
+      true,
+      selector,
+    );
+  }
+
+  assert.match(
+    css,
+    /m26-expediente-tabs[\s\S]*--iberfit-control-height/,
+  );
+
+  assert.match(
+    css,
+    /m26-panel-soft[\s\S]*--iberfit-color-surface/,
+  );
+});
+
+/* RC67_5_UNIFIED_SURFACES_TEST_END */
+
+/* RC67_5_1_VISUAL_CLOSEOUT_TEST_BEGIN */
+
+test('visual closeout mantiene ejes legibles y action groups responsivos',()=>{
+  const echarts=read(
+    'src/m26/data-experience/echarts-element.js'
+  );
+
+  assert.match(
+    echarts,
+    /const axisText=\s*semantic\.textSecondary;/,
+  );
+
+  assert.doesNotMatch(
+    echarts,
+    /compact\s*\?\s*primitive\.forest700/,
+  );
+
+  assert.match(
+    css,
+    /\.m26-list-card-actions[\s\S]*display:flex/,
+  );
+
+  assert.match(
+    css,
+    /\.m26-list-card-actions > small[\s\S]*flex:/,
+  );
+
+  assert.match(
+    css,
+    /@media\(max-width:620px\)[\s\S]*\.m26-list-card-actions/,
+  );
+});
+
+/* RC67_5_1_VISUAL_CLOSEOUT_TEST_END */
+
+/* RC67_6_STATUS_ACTION_EMPTY_TEST_BEGIN */
+
+test('status actions y empty states convergen en primitives canónicos',()=>{
+  const bridge=
+    IBERFIT_PRIMITIVE_CONTRACT.legacyCompatibility;
+
+  assert.equal(
+    bridge.Badge.includes('.m26-admin-badge'),
+    true,
+  );
+
+  assert.equal(
+    bridge.EmptyState.includes('.m26-empty'),
+    true,
+  );
+
+  assert.equal(
+    bridge.EmptyState.includes('.m26-admin-empty'),
+    true,
+  );
+
+  assert.equal(
+    bridge.Alert.includes('.m26-alert-card'),
+    true,
+  );
+
+  for(const selector of [
+    '.m26-sticky-actions button',
+    '.m26-wizard-actions button',
+    '.m26-timer-actions button',
+    '.m26-publication-actions button',
+  ]){
+    assert.equal(
+      bridge.Button.includes(selector),
+      true,
+      selector,
+    );
+  }
+
+  for(const selector of [
+    '.m26-admin-badge',
+    '.m26-badge.is-pending',
+    '.m26-badge.is-danger',
+    '.m26-notice.is-pending',
+    '.m26-empty,',
+    '.m26-admin-empty',
+    '.m26-alert-card.is-critical',
+    '.m26-sticky-actions',
+  ]){
+    assert.equal(
+      css.includes(selector),
+      true,
+      selector,
+    );
+  }
+
+  assert.match(
+    css,
+    /m26-sticky-actions > button[\s\S]*--iberfit-control-height/,
+  );
+
+  assert.match(
+    css,
+    /m26-empty,[\s\S]*--iberfit-card-radius/,
+  );
+});
+
+/* RC67_6_STATUS_ACTION_EMPTY_TEST_END */

@@ -16,6 +16,8 @@ export const M26_AREAS = Object.freeze({
   notas: Object.freeze({ key: 'notas', label: 'Notas privadas', title: 'Notas privadas del entrenador', scope: 'selected-client', roles: ['coach'] }),
   inteligencia: Object.freeze({ key: 'inteligencia', label: 'Inteligencia', title: 'Inteligencia IBERFIT', scope: 'selected-client', roles: ['coach'] }),
   biblioteca: Object.freeze({ key: 'biblioteca', label: 'Biblioteca', title: 'Biblioteca visual', scope: 'global', roles: ['coach'] }),
+  retos: Object.freeze({ key: 'retos', label: 'Retos', title: 'Retos y comunidad', scope: 'client-context', roles: ['admin', 'coach', 'client'] }),
+  ajustes: Object.freeze({ key: 'ajustes', label: 'Ajustes', title: 'Ajustes', scope: 'global', roles: ['admin', 'coach', 'client'] }),
   verificacion: Object.freeze({ key: 'verificacion', label: 'Verificación', title: 'Centro de verificación', scope: 'global', roles: ['coach'] }),
   mensajes: Object.freeze({ key: 'mensajes', label: 'Mensajes', title: 'Mensajes IBERFIT', scope: 'global', roles: ['coach','client'] }),
   ...ADMIN_AREAS,
@@ -23,6 +25,11 @@ export const M26_AREAS = Object.freeze({
 
 const AREA_ALIASES = Object.freeze({
   inicio: 'hoy',home: 'hoy',cliente: 'expediente',diagnostico: 'iri',diagnóstico: 'iri',plan: 'planificacion',planificación: 'planificacion',entrenar: 'sesion',sesiones: 'sesion',informe: 'informes',reportes: 'informes',library: 'biblioteca',qa: 'verificacion',mensaje:'mensajes',mensajes:'mensajes',comunicacion:'mensajes',comunicación:'mensajes',administracion:'admin-inicio',administración:'admin-inicio',usuarios:'admin-usuarios',equipo:'admin-equipo',operaciones:'admin-operaciones',auditoria:'admin-auditoria',auditoría:'admin-auditoria',
+  comunidad: 'retos',
+  challenges: 'retos',
+  configuracion: 'ajustes',
+  configuración: 'ajustes',
+  settings: 'ajustes',
 });
 
 const NAVIGATION = Object.freeze({

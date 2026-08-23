@@ -1,4 +1,5 @@
 import {renderCommunicationRoute} from '../communication/route-render.js';
+import {buildCoachFollowUpPlan} from '../engagement/adherence-engine.js';
 import {renderAdminRoute} from '../admin/route-render.js';
 import {renderRc39Route} from '../rc39/route-render.js';
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
@@ -333,8 +334,62 @@ export function renderHoyRoute(vm) {
     ? `<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Accesos rápidos</p><h2>Tu ruta IBERFIT</h2><p>Solo se muestra contenido confirmado para ti.</p></div></div><div class="m26-action-grid"><button type="button" data-m26-area="actividad">Registrar bienestar</button><button type="button" data-m26-area="planificacion">Ver planificación</button><button type="button" data-m26-area="sesion">Abrir sesiones</button><button type="button" data-m26-area="progreso">Revisar progreso</button><button type="button" data-m26-area="informes">Consultar informes</button></div></section>`
     : '';
 
+    const rc70DailyLoop = isClient
+    ? `<section class="m26-today-loop" aria-labelledby="m26-today-loop-title">
+        <div class="m26-panel-heading">
+          <div>
+            <p class="m26-eyebrow">Tu recorrido</p>
+            <h2 id="m26-today-loop-title">Qué hacer hoy</h2>
+          </div>
+          ${badge('Tres pasos', 'neutral')}
+        </div>
+        <div class="m26-today-action-grid">
+          <button type="button" class="m26-today-action is-primary" data-m26-area="sesion">
+            <span>1</span>
+            <strong>Entrenar</strong>
+            <small>Abre tus sesiones y continúa desde la acción publicada disponible.</small>
+          </button>
+          <button type="button" class="m26-today-action" data-m26-area="actividad">
+            <span>2</span>
+            <strong>Registrar cómo estoy</strong>
+            <small>Energía, sueño, estrés, dolor y hábitos.</small>
+          </button>
+          <button type="button" class="m26-today-action" data-m26-area="progreso">
+            <span>3</span>
+            <strong>Ver mi evolución</strong>
+            <small>Adherencia, progreso y tendencias confirmadas.</small>
+          </button>
+        </div>
+      </section>`
+    : `<section class="m26-today-loop" aria-labelledby="m26-today-loop-title">
+        <div class="m26-panel-heading">
+          <div>
+            <p class="m26-eyebrow">Control operativo</p>
+            <h2 id="m26-today-loop-title">Siguiente decisión</h2>
+          </div>
+          ${badge(vm.operations.conflicts ? 'Requiere revisión' : 'Operación protegida', vm.operations.conflicts ? 'danger' : 'neutral')}
+        </div>
+        <div class="m26-today-action-grid">
+          <button type="button" class="m26-today-action is-primary" data-m26-area="agenda">
+            <span>1</span>
+            <strong>Gestionar agenda</strong>
+            <small>${vm.appointments.length ? `${vm.appointments.length} sesión${vm.appointments.length === 1 ? '' : 'es'} hoy.` : 'Sin sesiones pendientes hoy.'}</small>
+          </button>
+          <button type="button" class="m26-today-action" data-m26-area="clientes">
+            <span>2</span>
+            <strong>Revisar clientes</strong>
+            <small>${vm.clients.length} expediente${vm.clients.length === 1 ? '' : 's'} dentro de tu alcance.</small>
+          </button>
+          <button type="button" class="m26-today-action" data-m26-area="verificacion">
+            <span>3</span>
+            <strong>Verificar operaciones</strong>
+            <small>Revisa únicamente cambios que necesiten confirmación.</small>
+          </button>
+        </div>
+      </section>`;
   return `<div class="m26-route m26-hoy-route">
     ${operationBanner(vm.operations)}
+    ${rc70DailyLoop}
     <section class="m26-hero-panel"><div><p class="m26-eyebrow">IBERFIT · Hoy</p><h2>${heroTitle}</h2><p>${heroCopy}</p></div><div class="m26-hero-signal"><span>Estado operativo</span><strong>${operationalState}</strong></div></section>
     <section class="m26-stat-grid">${stats.join('')}</section>
     <section class="m26-content-grid">
@@ -392,13 +447,68 @@ function clientOnboardingForm() {
 }
 
 export function renderClientsRoute(vm) {
+  /* RC70_1_1_FOLLOWUP_QUEUE_BEGIN */
+  const followUpRows=vm.clients
+    .filter((item)=>item.followUp)
+    .slice()
+    .sort((a,b)=>{
+      const priority={critical:0,warning:1,info:2,clear:3};
+      return (priority[a.followUp?.signal?.level]??4)-(priority[b.followUp?.signal?.level]??4);
+    });
+  const followUpCounts=followUpRows.reduce((acc,item)=>{
+    const level=item.followUp?.signal?.level||'clear';
+    acc[level]=(acc[level]||0)+1;
+    return acc;
+  },{critical:0,warning:0,info:0,clear:0});
+  const followUpQueue=followUpRows.length
+    ? `<section class="m26-followup-panel" aria-labelledby="m26-followup-title">
+        <div class="m26-panel-heading">
+          <div>
+            <p class="m26-eyebrow">Seguimiento inteligente</p>
+            <h2 id="m26-followup-title">Prioridad de acompañamiento</h2>
+            <p>Señales deterministas basadas en registros confirmados. El entrenador decide la intervención.</p>
+          </div>
+          ${badge(`${followUpRows.length} cliente${followUpRows.length===1?'':'s'}`,'neutral')}
+        </div>
+        <div class="m26-followup-summary" role="list" aria-label="Resumen de seguimiento">
+          <div role="listitem"><span>Prioritaria</span><strong>${followUpCounts.critical}</strong></div>
+          <div role="listitem"><span>Requiere contexto</span><strong>${followUpCounts.warning}</strong></div>
+          <div role="listitem"><span>Seguimiento activo</span><strong>${followUpCounts.info}</strong></div>
+          <div role="listitem"><span>Sin alertas</span><strong>${followUpCounts.clear}</strong></div>
+        </div>
+        <div class="m26-followup-list">
+          ${followUpRows.map((item)=>{
+            const follow=item.followUp;
+            const level=follow.signal?.level||'clear';
+            const kind=level==='critical'?'danger':level==='warning'?'warning':level==='clear'?'success':'neutral';
+            const adherence=Number.isFinite(follow.adherence)?`${Math.round(follow.adherence*100)}% adherencia`:'Adherencia sin dato';
+            const reason=follow.topAlert?.title||(
+              follow.plannedSessions>0
+                ? `${follow.completedSessions} de ${follow.plannedSessions} sesiones completadas`
+                : 'Sin sesiones planificadas en la ventana'
+            );
+            return `<button type="button" class="m26-followup-row is-${escapeHtml(level)}" data-m26-select-client="${escapeHtml(item.id)}" aria-label="Abrir seguimiento de ${escapeHtml(item.name)}">
+              <div class="m26-followup-person">
+                <span class="m26-client-avatar" aria-hidden="true">${escapeHtml(item.name.slice(0,1).toUpperCase())}</span>
+                <span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.modality)} · ${escapeHtml(adherence)}</small></span>
+              </div>
+              <div class="m26-followup-context">
+                ${badge(follow.signal?.label||'Seguimiento',kind)}
+                <small>${escapeHtml(reason)}</small>
+              </div>
+            </button>`;
+          }).join('')}
+        </div>
+      </section>`
+    : '';
+  /* RC70_1_1_FOLLOWUP_QUEUE_END */
   const content = vm.clients.length
     ? `<div class="m26-client-grid" data-client-grid>${vm.clients.map((item) => clientCard(item, item.id === vm.selectedClientId)).join('')}</div>`
     : emptyState('Todavía no hay clientes', 'Crea el primer expediente para comenzar la evaluación inicial.');
   const productivity=['coach','admin'].includes(String(vm.role||''))
     ? `<section class="m26-coach-productivity-toolbar" data-coach-productivity-toolbar><div><p class="m26-eyebrow">Productividad Coach</p><h3>Vistas y recientes</h3><p>Guarda combinaciones de búsqueda y filtros en este dispositivo. No se guardan datos de salud.</p></div><div class="m26-coach-productivity-controls"><label>Nombre de la vista<input data-coach-view-name maxlength="60" placeholder="Ej. Seguimiento activo"></label><label>Vistas guardadas<select data-coach-saved-view><option value="">Seleccionar vista…</option></select></label><button type="button" data-coach-save-view>Guardar vista actual</button><button type="button" data-coach-delete-view>Eliminar vista</button></div><div class="m26-coach-recents" data-coach-recents><span>Recientes</span><small>Aparecerán al abrir expedientes.</small></div><p class="m26-coach-productivity-status" data-coach-productivity-status role="status" aria-live="polite"></p></section>`
     : '';
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel"><div class="m26-client-controls"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad, etapa o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Etapa del seguimiento<select data-client-filter="stage"><option value="">Todas</option><option value="onboarding">Alta incompleta</option><option value="evaluation">Evaluación pendiente</option><option value="planning">Planificación pendiente</option><option value="scheduling">Próxima cita pendiente</option><option value="active">Seguimiento activo</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div>${productivity}<p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
+  return `<div class="m26-route">${followUpQueue}<section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel"><div class="m26-client-controls"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad, etapa o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Etapa del seguimiento<select data-client-filter="stage"><option value="">Todas</option><option value="onboarding">Alta incompleta</option><option value="evaluation">Evaluación pendiente</option><option value="planning">Planificación pendiente</option><option value="scheduling">Próxima cita pendiente</option><option value="active">Seguimiento activo</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div>${productivity}<p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
 }
 
 function field(label, value) {
@@ -425,6 +535,751 @@ function accessBadge(data) {
     : 'neutral';
   return badge(data.access, tone);
 }
+
+function exerciseMemorySetCopy(set){
+  const parts=[];
+
+  if(set?.load?.raw){
+    parts.push(set.load.raw);
+  }
+
+  if(Number.isFinite(set?.reps)){
+    parts.push(
+      `${set.reps} rep${set.reps===1?'':'s'}`,
+    );
+  }
+
+  if(Number.isFinite(set?.seconds)){
+    parts.push(`${set.seconds} s`);
+  }
+
+  if(Number.isFinite(set?.rpe)){
+    parts.push(`RPE ${set.rpe}`);
+  }
+
+  if(Number.isFinite(set?.rir)){
+    parts.push(`RIR ${set.rir}`);
+  }
+
+  return parts.join(' · ')||'Serie confirmada';
+}
+
+function exerciseMemoryFacts(memory){
+  return memory?.facts||memory||{};
+}
+
+function exerciseMemoryAssessment(memory){
+  return memory?.coachAssessment||null;
+}
+
+function exerciseMemoryMetricLabel(metricKey){
+  return {
+    load:'Carga comparable',
+    repsPerSet:'Repeticiones por serie',
+    secondsPerSet:'Segundos por serie',
+    averageRpe:'RPE medio',
+    averageRir:'RIR medio',
+    volumeKg:'Volumen confirmado',
+  }[metricKey]||'Métrica confirmada';
+}
+
+function exerciseMemoryVisual(memory){
+  const facts=exerciseMemoryFacts(memory);
+  const assessment=exerciseMemoryAssessment(memory);
+  const metrics=facts?.trend?.metrics||{};
+
+  const causalMetric=
+    assessment?.causalMetric||
+    null;
+
+  const factualFallback=
+    !assessment
+      ?facts?.trend?.primaryMetric||null
+      :null;
+
+  const metricKey=
+    causalMetric||
+    factualFallback;
+
+  const metric=
+    metricKey
+      ?metrics?.[metricKey]||null
+      :null;
+
+  const hasCausalMetric=
+    Boolean(
+      assessment&&
+      causalMetric&&
+      metric?.comparable,
+    );
+
+  const assessmentVisible=
+    Boolean(
+      assessment&&
+      (
+        assessment.status==='stable'||
+        assessment.status==='indeterminate'||
+        hasCausalMetric
+      ),
+    );
+
+  const status=
+    assessmentVisible
+      ?assessment.status
+      :'indeterminate';
+
+  const label=
+    assessmentVisible
+      ?`${assessment.label} ${assessment.symbol}`
+      :assessment
+        ?'Sin conclusión ·'
+        :'Evolución registrada ·';
+
+  const basis=
+    assessmentVisible
+      ?assessment.basis
+      :assessment
+        ?'La clasificación existe, pero no dispone de una métrica causal visualizable con suficiente seguridad.'
+        :'Vista factual de datos confirmados; no incluye interpretación profesional.';
+
+  const tone=
+    status==='progress'&&
+    assessment?.colorEligible&&
+    hasCausalMetric
+      ?'positive'
+      :status==='regression'&&
+        assessment?.colorEligible&&
+        hasCausalMetric
+        ?'negative'
+        :status==='stable'
+          ?'stable'
+          :'neutral';
+
+  return Object.freeze({
+    facts,
+    assessment,
+    causalMetric,
+    metricKey,
+    metric,
+    hasCausalMetric,
+    status,
+    label,
+    basis,
+    tone,
+  });
+}
+
+function exerciseMemoryToneColor(tone){
+  return {
+    positive:'#1f6a4a',
+    negative:'#9d3b3b',
+    stable:'#9a7a32',
+    neutral:'#6f7772',
+  }[tone]||'#6f7772';
+}
+
+function exerciseMemoryBadgeTone(tone){
+  return tone==='positive'
+    ?'success'
+    :tone==='negative'
+      ?'danger'
+      :'neutral';
+}
+
+function exerciseMemoryDeltaCopy(memory){
+  const visual=exerciseMemoryVisual(memory);
+  const metric=visual.metric;
+
+  if(
+    !metric||
+    !metric.comparable||
+    !Number.isFinite(metric.absoluteDelta)
+  ){
+    return 'Sin dos referencias comparables para esta métrica';
+  }
+
+  const sign=
+    metric.absoluteDelta>0
+      ?'+'
+      :'';
+
+  const unit=
+    metric.unit
+      ?` ${metric.unit}`
+      :'';
+
+  const percent=
+    Number.isFinite(metric.percentageDelta)
+      ?` · ${metric.percentageDelta>0?'+':''}${metric.percentageDelta}%`
+      :'';
+
+  return `Cambio vs anterior: ${sign}${metric.absoluteDelta}${unit}${percent}`;
+}
+
+function exerciseMemorySmoothPath(points){
+  if(!Array.isArray(points)||points.length<2)return '';
+  const parts=[`M ${points[0].x} ${points[0].y}`];
+  for(let index=0;index<points.length-1;index+=1){
+    const current=points[index];
+    const next=points[index+1];
+    const previous=points[index-1]||current;
+    const after=points[index+2]||next;
+    parts.push(`C ${current.x+(next.x-previous.x)/6} ${current.y+(next.y-previous.y)/6}, ${next.x-(after.x-current.x)/6} ${next.y-(after.y-current.y)/6}, ${next.x} ${next.y}`);
+  }
+  return parts.join(' ');
+}
+function exerciseMemoryChartPalette(tone){
+  return {positive:'#2f8a63',negative:'#b44f52',stable:'#b08a38',neutral:'#68746e'}[tone]||'#68746e';
+}
+function exerciseMemorySparkline(memory){
+  const visual=exerciseMemoryVisual(memory);
+  const metric=visual.metric;
+  const metricLabel=
+    exerciseMemoryMetricLabel(
+      visual.metricKey,
+    );
+
+  const source=(metric?.points||[])
+    .map((point)=>({
+      ...point,
+      value:Number(point?.value),
+    }))
+    .filter(
+      (point)=>
+        Number.isFinite(point.value),
+    );
+
+  if(source.length<2){
+    return `<section
+      class="m26-exercise-chart-shell is-empty"
+      data-m26-exercise-chart-shell="empty"
+      data-m26-exercise-causal-metric="${escapeHtml(visual.metricKey||'none')}"
+      data-m26-exercise-performance-status="${escapeHtml(visual.status)}"
+    >
+      <div class="m26-exercise-chart-title">
+        <div>
+          <p class="m26-eyebrow">Tendencia confirmada</p>
+          <h4>${escapeHtml(metricLabel)}</h4>
+        </div>
+        <span>Sin conclusión ·</span>
+      </div>
+
+      <div class="m26-exercise-chart-empty">
+        <strong>Falta otra referencia comparable</strong>
+        <small>
+          La evolución aparecerá cuando existan al menos dos registros confirmados.
+        </small>
+      </div>
+    </section>`;
+  }
+
+  const chartPoints=
+    source.map(
+      (point,index)=>{
+        const rawDate=String(
+          point?.date
+          ||point?.completedAt
+          ||point?.observedAt
+          ||'',
+        ).trim();
+
+        const dateMatch=
+          rawDate.match(
+            /^\d{4}-\d{2}-\d{2}/u,
+          );
+
+        const date=
+          dateMatch?.[0]
+          ||'';
+
+        const label=
+          date
+          ||String(point?.label||'').trim()
+          ||`Registro ${index+1}`;
+
+        return date
+          ?Object.freeze({
+              date,
+              value:point.value,
+            })
+          :Object.freeze({
+              label,
+              value:point.value,
+            });
+      },
+    );
+
+  const first=source[0];
+  const latest=source[source.length-1];
+
+  const unit=
+    metric?.unit
+      ?` ${metric.unit}`
+      :'';
+
+  const delta=Number(
+    metric?.absoluteDelta,
+  );
+
+  const percent=Number(
+    metric?.percentageDelta,
+  );
+
+  const deltaText=
+    Number.isFinite(delta)
+      ?`${delta>0?'+':''}${delta}${unit}${
+          Number.isFinite(percent)
+            ?` · ${percent>0?'+':''}${percent}%`
+            :''
+        }`
+      :'Sin cambio calculable';
+
+  const payload=
+    escapeHtml(
+      JSON.stringify(chartPoints),
+    );
+
+  const aria=
+    `${visual.label}. ${metricLabel}. ${deltaText}`;
+
+  const rows=
+    chartPoints
+      .map(
+        (point,index)=>
+          `<tr>
+            <td>${escapeHtml(point.date||point.label||`Registro ${index+1}`)}</td>
+            <td>${escapeHtml(`${source[index].value}${unit}`)}</td>
+          </tr>`,
+      )
+      .join('');
+
+  return `<section
+    class="m26-exercise-chart-shell is-${escapeHtml(visual.tone)}"
+    data-m26-exercise-chart-shell="echarts-v1"
+    data-m26-exercise-causal-metric="${escapeHtml(visual.metricKey||'none')}"
+    data-m26-exercise-performance-status="${escapeHtml(visual.status)}"
+  >
+    <div class="m26-exercise-chart-title">
+      <div>
+        <p class="m26-eyebrow">Tendencia confirmada</p>
+        <h4>${escapeHtml(metricLabel)}</h4>
+      </div>
+      <span>${escapeHtml(visual.label)}</span>
+    </div>
+
+    <div class="m26-exercise-chart-kpis">
+      <div>
+        <small>Actual</small>
+        <strong>${escapeHtml(`${latest.value}${unit}`)}</strong>
+      </div>
+
+      <div>
+        <small>Cambio</small>
+        <strong>${escapeHtml(deltaText)}</strong>
+      </div>
+
+      <div>
+        <small>Historial</small>
+        <strong>${escapeHtml(source.length)} registros</strong>
+      </div>
+    </div>
+
+    <figure
+      class="m26-exercise-chart-figure"
+      aria-label="${escapeHtml(aria)}"
+    >
+      <m26-echart
+        class="m26-echart"
+        data-density="compact"
+        data-tone="${escapeHtml(visual.tone)}"
+        data-label="${escapeHtml(metricLabel)}"
+        data-unit="${escapeHtml(metric?.unit||'')}"
+        data-points="${payload}"
+        aria-label="${escapeHtml(aria)}"
+      ></m26-echart>
+    </figure>
+
+    <div class="m26-exercise-chart-foot">
+      <span>
+        <small>Inicio comparable</small>
+        <strong>${escapeHtml(`${first.value}${unit}`)}</strong>
+      </span>
+
+      <span>
+        <small>Referencia actual</small>
+        <strong>${escapeHtml(`${latest.value}${unit}`)}</strong>
+      </span>
+    </div>
+
+    <details class="m26-data-fallback">
+      <summary>Ver datos del gráfico</summary>
+      <div class="m26-data-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Referencia</th>
+              <th>${escapeHtml(metricLabel)}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>
+  </section>`;
+}
+function exerciseMemoryLoadRecord(facts){
+  const points=
+    facts?.trend?.metrics?.load?.points||
+    [];
+
+  const values=points
+    .map((point)=>Number(point?.value))
+    .filter(Number.isFinite);
+
+  if(!values.length){
+    return 'Sin récord de carga comparable';
+  }
+
+  const unit=
+    facts?.trend?.metrics?.load?.unit||
+    '';
+
+  return `${Math.max(...values)}${unit?` ${unit}`:''}`;
+}
+
+function renderExerciseMemoryCard(memory){
+  const visual=exerciseMemoryVisual(memory);
+  const facts=visual.facts;
+  const latest=facts?.latest;
+
+  if(!latest){
+    return '';
+  }
+
+  const name=
+    memory.exerciseName||
+    'Ejercicio registrado';
+
+  const lastLoad=
+    latest.lastLoad?.raw||
+    (
+      Number.isFinite(latest.lastLoad?.value)
+        ?`${latest.lastLoad.value}${latest.lastLoad.unit?` ${latest.lastLoad.unit}`:''}`
+        :'Sin carga registrada'
+    );
+
+  const latestSets=
+    (latest.sets||[])
+      .slice(0,4)
+      .map(exerciseMemorySetCopy)
+      .join(' · ');
+
+  const rpe=
+    Number.isFinite(latest.averageRpe)
+      ?`RPE medio ${latest.averageRpe}`
+      :'RPE sin dato';
+
+  const rir=
+    Number.isFinite(latest.averageRir)
+      ?`RIR medio ${latest.averageRir}`
+      :'RIR sin dato';
+
+  const record=
+    exerciseMemoryLoadRecord(facts);
+
+  const interpretation=
+    visual.assessment
+      ?`<p class="m26-notice" data-m26-exercise-assessment="coach"><strong>${escapeHtml(visual.label)}</strong><br>${escapeHtml(visual.basis)}</p>`
+      :`<p class="m26-notice"><strong>Datos confirmados</strong><br>${escapeHtml(visual.basis)}</p>`;
+
+  return `<article
+    class="m26-panel m26-panel-soft"
+    data-m26-exercise-performance-card
+    data-m26-exercise-performance-tone="${escapeHtml(visual.tone)}"
+  >
+    <div class="m26-panel-heading">
+      <div>
+        <p class="m26-eyebrow">Última referencia confirmada · ${escapeHtml(safeDateLabel(latest.completedAt))}</p>
+        <h3>${escapeHtml(name)}</h3>
+      </div>
+      ${badge(visual.label,exerciseMemoryBadgeTone(visual.tone))}
+    </div>
+    <div class="m26-field-grid">
+      <div class="m26-field">
+        <span>Última carga</span>
+        <strong>${escapeHtml(lastLoad)}</strong>
+      </div>
+      <div class="m26-field">
+        <span>Esfuerzo</span>
+        <strong>${escapeHtml(`${rpe} · ${rir}`)}</strong>
+      </div>
+      <div class="m26-field">
+        <span>Máximo registrado</span>
+        <strong>${escapeHtml(record)}</strong>
+      </div>
+      <div class="m26-field">
+        <span>Exposiciones confirmadas</span>
+        <strong>${escapeHtml(facts.exposureCount)}</strong>
+      </div>
+    </div>
+    <p>${escapeHtml(latestSets||'Sin detalle de series disponible.')}</p>
+    <p><strong>${escapeHtml(exerciseMemoryDeltaCopy(memory))}</strong></p>
+    ${exerciseMemorySparkline(memory)}
+    ${interpretation}
+  </article>`;
+}
+function renderExercisePerformanceOverview(items=[]){
+  const cards=
+    items
+      .slice(0,4)
+      .map(renderExerciseMemoryCard)
+      .filter(Boolean)
+      .join('');
+
+  const content=
+    cards
+      ?`<div class="m26-content-grid">${cards}</div>`
+      :`<p class="m26-empty-copy">La memoria aparecerá cuando exista al menos una ejecución confirmada con detalle por ejercicio.</p>`;
+
+  return `<section
+    class="m26-panel"
+    aria-label="Rendimiento por ejercicio"
+    data-m26-expediente-section="resumen"
+  >
+    <div class="m26-panel-heading">
+      <div>
+        <p class="m26-eyebrow">Memoria longitudinal</p>
+        <h2>Rendimiento por ejercicio</h2>
+        <p>Últimas referencias confirmadas para recordar qué se hizo y cómo cambió con el tiempo.</p>
+      </div>
+    </div>
+
+    ${content}
+
+    <div class="m26-list-card-actions">
+      <button
+        type="button"
+        data-m26-area="progreso"
+       class="iberfit-button m26-primary-action m26-progress-empty-cta">Ver progreso completo</button>
+      <small>Se muestran hechos comparables. El entrenador interpreta el contexto y decide.</small>
+    </div>
+  </section>`;
+}
+export /* RC70_2_EXERCISE_RENDER_BEGIN */
+function exerciseProgressMetric(value,fallback='Sin dato'){
+  return value===null||value===undefined||value===''
+    ? fallback
+    : String(value);
+}
+
+function exerciseProgressTrend(trend,label){
+  if(!trend||trend.direction==='indeterminate'){
+    return badge(`${label}: sin comparación`,'neutral');
+  }
+
+  const prefix=trend.direction==='up'
+    ? '↑'
+    : trend.direction==='down'
+      ? '↓'
+      : '=';
+
+  return badge(
+    `${label} ${prefix} ${trend.label}`,
+    'neutral'
+  );
+}
+
+function exerciseProgressSparkline(points,key){
+  const values=points
+    .map((point)=>Number(point?.[key]))
+    .filter(Number.isFinite);
+
+  if(values.length<2)return '';
+
+  const min=Math.min(...values);
+  const max=Math.max(...values);
+  const span=max-min||1;
+
+  const coords=values.map((value,index)=>{
+    const x=values.length===1
+      ? 50
+      : (index/(values.length-1))*100;
+    const y=34-((value-min)/span)*28;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  return `<svg class="m26-exercise-sparkline" viewBox="0 0 100 40" role="img" aria-label="Tendencia de carga conocida">
+    <polyline points="${escapeHtml(coords)}" fill="none" vector-effect="non-scaling-stroke"></polyline>
+  </svg>`;
+}
+
+function exercisePointLoad(point){
+  if(Number.isFinite(point?.maxLoadKg)){
+    return `${point.maxLoadKg} kg`;
+  }
+
+  const labels=Array.isArray(point?.loadLabels)
+    ? point.loadLabels.filter(Boolean)
+    : [];
+
+  return labels.length
+    ? labels.join(' · ')
+    : 'Sin carga registrada';
+}
+
+function renderExerciseProgressSection(
+  progress,
+  {compact=false}={}
+){
+  if(!progress){
+    return '';
+  }
+
+  const exercises=Array.isArray(progress.exercises)
+    ? progress.exercises
+    : [];
+
+  if(!exercises.length){
+    return `<section class="m26-panel m26-exercise-progress-panel">
+      <div class="m26-panel-heading">
+        <div>
+          <p class="m26-eyebrow">IBERFIT · Evolución 360</p>
+          <h2>Evolución por ejercicio</h2>
+        </div>
+      </div>
+      ${emptyState(
+        'Aún no hay series comparables',
+        'Cuando existan ejecuciones completadas, aquí aparecerán carga, repeticiones, RPE/RIR, tiempo y volumen confirmado por ejercicio.'
+      )}
+    </section>`;
+  }
+
+  const visible=compact
+    ? exercises.slice(0,6)
+    : exercises;
+
+  const rows=visible.map((exercise,index)=>{
+    const latest=exercise.latest||{};
+    const history=Array.isArray(exercise.history)
+      ? exercise.history.slice().reverse()
+      : [];
+
+    const visibleHistory=compact
+      ? history.slice(0,5)
+      : history.slice(0,16);
+
+    const loadSpark=exerciseProgressSparkline(
+      exercise.history||[],
+      'maxLoadKg'
+    );
+
+    const historyRows=visibleHistory.map((point)=>`
+      <tr>
+        <td>${escapeHtml(safeDateLabel(point.at))}</td>
+        <td>${escapeHtml(exercisePointLoad(point))}</td>
+        <td>${escapeHtml(exerciseProgressMetric(point.bestReps))}</td>
+        <td>${escapeHtml(exerciseProgressMetric(point.totalSeconds))}</td>
+        <td>${escapeHtml(exerciseProgressMetric(point.averageRpe))}</td>
+        <td>${escapeHtml(exerciseProgressMetric(point.averageRir))}</td>
+        <td>${escapeHtml(
+          Number.isFinite(point.volumeKgReps)
+            ? `${point.volumeKgReps} kg·rep`
+            : 'Sin dato comparable'
+        )}</td>
+      </tr>
+    `).join('');
+
+    return `<details class="m26-exercise-progress-card"${index===0?' open':''}>
+      <summary>
+        <span>
+          <strong>${escapeHtml(exercise.exerciseName)}</strong>
+          <small>${exercise.sessions} sesión${exercise.sessions===1?'':'es'} · ${exercise.totalSets} serie${exercise.totalSets===1?'':'s'} · dato ${escapeHtml(exercise.dataQuality)}</small>
+        </span>
+        <span class="m26-exercise-progress-current">
+          <strong>${escapeHtml(exercisePointLoad(latest))}</strong>
+          <small>${escapeHtml(safeDateLabel(latest.at))}</small>
+        </span>
+      </summary>
+
+      <div class="m26-exercise-progress-body">
+        <div class="m26-exercise-progress-stats">
+          <div><span>Mejor carga conocida</span><strong>${escapeHtml(
+            Number.isFinite(exercise.bestLoadKg)
+              ? `${exercise.bestLoadKg} kg`
+              : 'Sin kg confirmados'
+          )}</strong></div>
+          <div><span>Últimas repeticiones</span><strong>${escapeHtml(
+            exerciseProgressMetric(latest.bestReps)
+          )}</strong></div>
+          <div><span>RPE medio</span><strong>${escapeHtml(
+            exerciseProgressMetric(latest.averageRpe)
+          )}</strong></div>
+          <div><span>RIR medio</span><strong>${escapeHtml(
+            exerciseProgressMetric(latest.averageRir)
+          )}</strong></div>
+          <div><span>Volumen conocido</span><strong>${escapeHtml(
+            Number.isFinite(latest.volumeKgReps)
+              ? `${latest.volumeKgReps} kg·rep`
+              : 'Sin dato comparable'
+          )}</strong></div>
+          <div><span>Cobertura de carga kg</span><strong>${escapeHtml(
+            Number.isFinite(exercise.loadCoverage)
+              ? `${Math.round(exercise.loadCoverage*100)}%`
+              : 'Sin dato'
+          )}</strong></div>
+        </div>
+
+        <div class="m26-exercise-progress-trends">
+          ${exerciseProgressTrend(exercise.loadTrend,'Carga')}
+          ${exerciseProgressTrend(exercise.repsTrend,'Reps')}
+          ${exerciseProgressTrend(exercise.volumeTrend,'Volumen')}
+          ${exerciseProgressTrend(exercise.rpeTrend,'RPE')}
+          ${exerciseProgressTrend(exercise.rirTrend,'RIR')}
+        </div>
+
+        ${loadSpark}
+
+        <div class="m26-table-scroll">
+          <table class="m26-exercise-progress-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Carga</th>
+                <th>Mejor reps</th>
+                <th>Segundos</th>
+                <th>RPE</th>
+                <th>RIR</th>
+                <th>Volumen</th>
+              </tr>
+            </thead>
+            <tbody>${historyRows}</tbody>
+          </table>
+        </div>
+      </div>
+    </details>`;
+  }).join('');
+
+  return `<section class="m26-panel m26-exercise-progress-panel">
+    <div class="m26-panel-heading">
+      <div>
+        <p class="m26-eyebrow">IBERFIT · Evolución 360</p>
+        <h2>Evolución por ejercicio</h2>
+        <p>Carga, repeticiones, tiempo y esfuerzo de ejecuciones completadas. La carga solo se trata como kg cuando la unidad es explícita.</p>
+      </div>
+      ${badge(`${progress.totalExercises} ejercicio${progress.totalExercises===1?'':'s'}`,'neutral')}
+    </div>
+
+    <div class="m26-exercise-progress-list">
+      ${rows}
+    </div>
+
+    ${compact&&exercises.length>visible.length
+      ? `<button type="button" class="m26-primary-action" data-m26-area="progreso">Ver todos los ejercicios y tendencias</button>`
+      : ''
+    }
+  </section>`;
+}
+/* RC70_2_EXERCISE_RENDER_END */
 
 export function renderExpedienteRoute(vm) {
   const data = vm.summary;
@@ -781,6 +1636,7 @@ export function renderExpedienteRoute(vm) {
   }
 
   return `<div class="m26-route" data-m26-expediente data-m26-expediente-view="resumen">
+    ${renderCoachFollowUpPlan(vm.alerts)}
     <section class="m26-profile-hero m26-profile-hero-premium">
       <div class="m26-profile-brand-lockup">
         <div class="m26-profile-brand-orb">
@@ -877,6 +1733,8 @@ export function renderExpedienteRoute(vm) {
       </div>
     </section>
 
+    ${renderExercisePerformanceOverview(vm.exercisePerformance)}
+
     <div data-m26-expediente-section="resumen">${pendingProgressNotice}</div>
 
     <div data-m26-expediente-section="contexto">${recentContext}</div>
@@ -898,8 +1756,67 @@ export function renderExpedienteRoute(vm) {
     </section>
     <section class="m26-panel" data-m26-expediente-section="plan"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Ruta de trabajo</p><h2>Continuar con este cliente</h2></div></div><div class="m26-action-grid"><button type="button" data-m26-area="planificacion">Planificación</button><button type="button" data-m26-area="sesion">Sesiones</button><button type="button" data-m26-area="progreso">Progreso</button><button type="button" data-m26-area="actividad">Registros de bienestar y hábitos</button><button type="button" data-m26-area="informes">Informes</button><button type="button" data-m26-area="notas">Notas privadas</button><button type="button" data-m26-area="inteligencia">Inteligencia IBERFIT</button></div></section>
       </div>
-  </div>`;
+  ${renderExerciseProgressSection(vm.exerciseProgress,{compact:true})}</div>`;
 }
+
+/* RC70_4_FOLLOWUP_RENDER_BEGIN */
+function renderCoachFollowUpPlan(alerts=[]){
+  const plan=buildCoachFollowUpPlan(alerts);
+
+  const kind=
+    plan.level==='critical'
+      ? 'danger'
+      : plan.level==='warning'
+        ? 'warning'
+        : plan.level==='info'
+          ? 'neutral'
+          : 'success';
+
+  const label=
+    plan.level==='critical'
+      ? 'Prioridad alta'
+      : plan.level==='warning'
+        ? 'Requiere contexto'
+        : plan.level==='info'
+          ? 'Seguimiento'
+          : 'Al día';
+
+  return `<section class="m26-followup-plan" aria-labelledby="m26-followup-plan-title">
+    <div class="m26-panel-heading">
+      <div>
+        <p class="m26-eyebrow">Siguiente acción del Coach</p>
+        <h2 id="m26-followup-plan-title">${escapeHtml(plan.actionTitle)}</h2>
+        <p>${escapeHtml(plan.actionDetail)}</p>
+      </div>
+      ${badge(label,kind)}
+    </div>
+
+    <div class="m26-followup-context">
+      <span>Señal que origina la revisión</span>
+      <strong>${escapeHtml(plan.signalTitle)}</strong>
+      <p>${escapeHtml(plan.signalDetail)}</p>
+    </div>
+
+    <div class="m26-followup-actions">
+      <button
+        type="button"
+        class="m26-primary-action"
+        data-m26-area="${escapeHtml(plan.primaryArea)}"
+      >${escapeHtml(plan.primaryLabel)}</button>
+
+      <button
+        type="button"
+        class="m26-text-action"
+        data-m26-area="${escapeHtml(plan.secondaryArea)}"
+      >${escapeHtml(plan.secondaryLabel)}</button>
+    </div>
+
+    <p class="m26-data-footnote">
+      IBERFIT prioriza el contexto; el entrenador decide. No prescribe ni envía mensajes automáticamente.
+    </p>
+  </section>`;
+}
+/* RC70_4_FOLLOWUP_RENDER_END */
 
 function formatPercent(value){ return Number.isFinite(value) ? `${Math.round(value * 100)}%` : 'Sin dato'; }
 function metricValue(value, suffix=''){ return value === null || value === undefined ? 'Sin dato' : `${value}${suffix}`; }
@@ -966,7 +1883,7 @@ export function renderProgressRoute(vm){
     </section>
     ${wearablePanel}
     <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Alertas explicables</p><h2>Qué requiere atención</h2></div></div>${renderAlerts(vm.alerts)}</section>
-  </div>`;
+  ${renderExerciseProgressSection(vm.exerciseProgress,{compact:false})}</div>`;
 }
 
 function capabilityNotice(capability,label){
@@ -1176,6 +2093,167 @@ export function renderIntelligenceRoute(vm){
   const form=vm.canGenerate?`<form class="m26-panel m26-panel-soft" data-workflow-form="intelligence"><div class="m26-panel-heading"><div><p class="m26-eyebrow">La IA propone</p><h2>Generar propuesta de sesión</h2></div></div><div class="m26-field-grid"><label class="m26-wide">Pregunta o criterio del entrenador<textarea name="coachQuestion" maxlength="1200" placeholder="Ej.: Analiza los datos disponibles, señala limitaciones y propón próximos pasos sin publicar nada."></textarea></label><label>Objetivo<input name="goal" value="fuerza" required></label><label>Duración (min)<input type="number" min="20" max="120" name="durationMinutes" value="50" required></label><label>Experiencia<select name="experience"><option value="inicial">Inicial</option><option value="intermedio" selected>Intermedio</option><option value="avanzado">Avanzado</option></select></label><label>Modalidad<select name="modality"><option value="hibrido">Híbrido</option><option value="online">En línea</option><option value="presencial">Presencial</option></select></label><label>Edad calculada<input type="number" name="ageYears" value="${escapeHtml(vm.ageYears??'')}" readonly aria-describedby="m26-age-help"></label><p id="m26-age-help" class="m26-field-help">Se calcula automáticamente desde la fecha de nacimiento del expediente.</p><label>Material<input name="equipment" value="TRX,mancuernas"></label></div><button type="submit" class="m26-primary-action" data-workflow-action="generate-intelligence">Generar propuesta revisable</button>${vm.ageYears==null?'<p class="m26-notice is-warning">No hay fecha de nacimiento confirmada. La propuesta podrá generarse, pero no aplicará baremos dependientes de la edad.</p>':''}${workflowStatus('intelligence')}<div data-intelligence-preview></div></form>`:'';
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Motor IBERFIT</p><h2>Inteligencia con criterio</h2><p>Usa adherencia, recuperación y carga histórica. Nunca publica ni progresa cargas automáticamente.</p></div>${badge(vm.alerts.some((x)=>x.severity==='critical')?'Revisión requerida':'Contexto disponible',vm.alerts.some((x)=>x.severity==='critical')?'danger':'success')}</section>${form}<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>Propuestas confirmadas</h2></div></div>${recordList(vm.runs,'Sin propuestas remotas')}</section></div>`;
 }
+/* RC71_0_CHALLENGE_SETTINGS_RENDER_BEGIN */
+function rc71ChallengeStatus(item){
+  if(!item.available){
+    return badge('Pendiente de datos','neutral');
+  }
+
+  if(item.completed){
+    return badge('Completado','success');
+  }
+
+  return badge(`${item.progress??0}%`,'neutral');
+}
+
+function rc71ChallengeCard(item){
+  const current=item.current===null
+    ? '—'
+    : `${item.current} ${item.unit||''}`.trim();
+
+  const target=item.target===null
+    ? 'Sin objetivo activo'
+    : `Objetivo ${item.target} ${item.unit||''}`.trim();
+
+  return `<article class="m26-challenge-card${item.completed?' is-complete':''}">
+    <div class="m26-challenge-head">
+      <div>
+        <p class="m26-eyebrow">Reto personal</p>
+        <h3>${escapeHtml(item.title)}</h3>
+      </div>
+      ${rc71ChallengeStatus(item)}
+    </div>
+    <p>${escapeHtml(item.detail)}</p>
+    <div class="m26-challenge-value">
+      <strong>${escapeHtml(current)}</strong>
+      <small>${escapeHtml(target)}</small>
+    </div>
+    ${item.available
+      ? `<progress max="100" value="${escapeHtml(item.progress??0)}" aria-label="${escapeHtml(item.title)} ${escapeHtml(item.progress??0)}%">${escapeHtml(item.progress??0)}%</progress>`
+      : ''
+    }
+  </article>`;
+}
+
+export function renderChallengesRoute(vm){
+  if(!vm.clientId){
+    return `<div class="m26-route">${emptyState(
+      'Sin contexto para retos',
+      'Selecciona un cliente autorizado para ver sus retos.'
+    )}</div>`;
+  }
+
+  const challenges=Array.isArray(vm.challenges)
+    ? vm.challenges
+    : [];
+
+  const cards=challenges.length
+    ? challenges.map(rc71ChallengeCard).join('')
+    : emptyState(
+        'Todavía no hay retos activos',
+        'Los retos aparecerán a partir de datos confirmados.'
+      );
+
+  return `<div class="m26-route m26-challenges-route">
+    <section class="m26-route-intro">
+      <div>
+        <p class="m26-eyebrow">IBERFIT · Retos</p>
+        <h2>Retos que acompañan tu proceso</h2>
+        <p>Objetivos transparentes basados en planificación, registros y datos confirmados. Sin inventar rendimiento.</p>
+      </div>
+      ${badge(
+        vm.social?.visibility==='private'
+          ? 'Privado'
+          : 'Compartido',
+        'neutral'
+      )}
+    </section>
+
+    <section class="m26-challenge-grid">
+      ${cards}
+    </section>
+
+    <section class="m26-content-grid">
+      <div class="m26-panel">
+        <div class="m26-panel-heading">
+          <div>
+            <p class="m26-eyebrow">Comunidad IBERFIT</p>
+            <h2>Social, con privacidad primero</h2>
+          </div>
+          ${badge('Privado por defecto','success')}
+        </div>
+        <p>Tus logros no se publican automáticamente y no existe ranking público por defecto. Compartir requerirá consentimiento explícito y control de visibilidad.</p>
+      </div>
+
+      <aside class="m26-panel m26-panel-soft">
+        <p class="m26-eyebrow">Siguiente paso</p>
+        <h2>Usa el reto como contexto, no como presión</h2>
+        <p>Revisa tu evolución o completa tus registros para mantener el seguimiento con datos reales.</p>
+        <div class="m26-inline-actions">
+          <button type="button" class="m26-primary-action" data-m26-area="progreso">Ver progreso</button>
+          <button type="button" data-m26-area="actividad">Actividad y wearables</button>
+        </div>
+      </aside>
+    </section>
+  </div>`;
+}
+
+export function renderSettingsRoute(vm){
+  const localeOptions=(vm.localeOptions||[])
+    .map(item=>
+      `<option value="${escapeHtml(item.value)}"${item.value===vm.locale?' selected':''}>${escapeHtml(item.label)}</option>`
+    )
+    .join('');
+
+  const wearableNote=vm.hasClientContext
+    ? `${vm.wearableConnections} conexión${vm.wearableConnections===1?'':'es'} registrada${vm.wearableConnections===1?'':'s'}`
+    : 'Abre un expediente para revisar conexiones del cliente';
+
+  return `<div class="m26-route m26-settings-route">
+    <section class="m26-route-intro">
+      <div>
+        <p class="m26-eyebrow">IBERFIT · Ajustes</p>
+        <h2>Cuenta, idioma y privacidad</h2>
+        <p>Preferencias de la experiencia sin mezclar configuración con datos clínicos o decisiones de entrenamiento.</p>
+      </div>
+    </section>
+
+    <section class="m26-settings-grid">
+      <article class="m26-panel">
+        <p class="m26-eyebrow">Idioma</p>
+        <h3>Formato regional</h3>
+        <label>
+          Idioma y región
+          <select data-m26-language>${localeOptions}</select>
+        </label>
+        <p class="m26-data-footnote">La interfaz permanece en español; esta preferencia adapta el formato regional disponible.</p>
+      </article>
+
+      <article class="m26-panel">
+        <p class="m26-eyebrow">Wearables</p>
+        <h3>Dispositivos y actividad</h3>
+        <p>${escapeHtml(wearableNote)}</p>
+        <button type="button" class="m26-primary-action" data-m26-area="actividad">Gestionar wearables</button>
+      </article>
+
+      <article class="m26-panel">
+        <p class="m26-eyebrow">Privacidad</p>
+        <h3>Control por defecto</h3>
+        <p>Retos privados, sin publicación social automática y notas privadas del entrenador fuera de la vista del cliente.</p>
+        ${badge('Privacidad activa','success')}
+      </article>
+
+      <article class="m26-panel m26-panel-soft">
+        <p class="m26-eyebrow">Cuenta</p>
+        <h3>${escapeHtml(vm.identity?.name||'Cuenta IBERFIT')}</h3>
+        <p>${escapeHtml(vm.identity?.roleLabel||vm.role||'')}</p>
+        <button type="button" class="m26-danger-action" data-m26-action="logout">Cerrar sesión</button>
+      </article>
+    </section>
+  </div>`;
+}
+/* RC71_0_CHALLENGE_SETTINGS_RENDER_END */
+
 export function renderLibraryRoute(vm){
   const groups=renderExerciseLibraryGroups(vm.catalog,vm.mediaMap,{role:vm.role||'coach'});
   const credit=vm.mediaMap?renderExerciseMediaCredit():'';
@@ -1247,6 +2325,8 @@ function renderClientRouteShell(vm,content){
 }
 
 export function renderRouteView(vm) {
+  if (vm.kind === 'retos') return renderChallengesRoute(vm);
+  if (vm.kind === 'ajustes') return renderSettingsRoute(vm);
   const content=renderRouteContent(vm);
   return vm.role==='client'?renderClientRouteShell(vm,content):content;
 }

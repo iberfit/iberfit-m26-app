@@ -1,24 +1,14 @@
-import {deriveCoachCockpit} from '../experience/coach-cockpit.js';
+import { deriveCoachCockpit} from '../experience/coach-cockpit.js';
 import {createCommunicationRouteViewModel} from '../communication/view-model.js';
 import {createAdminRouteViewModel} from '../admin/view-model.js';
 import {augmentRc39ViewModel} from '../rc39/view-model.js';
 import {
-  clientsOverview,
-  clientHealthSummary,
-  todayOverview,
-  domainValue,
-  domainDate,
-  domainStatus,
-  recordsForClient,
-} from './domain-selectors.js';
+  clientsOverview, clientHealthSummary, todayOverview, domainValue, domainDate, domainStatus, recordsForClient, } from './domain-selectors.js';
 import {
-  computeProgressSummary,
-  buildProgressTimeline,
-  deriveAdherenceAlerts,
-  adherenceSignal,
-  buildVerificationCenter,
-  engagementCapabilities,
-} from '../engagement/index.js';
+  computeProgressSummary, buildProgressTimeline, deriveAdherenceAlerts, adherenceSignal, buildVerificationCenter, engagementCapabilities, listExercisePerformanceMemories, buildExerciseLongitudinalProgress } from '../engagement/index.js';
+import {
+  projectExercisePerformanceForRole,
+} from '../engagement/exercise-performance-engine.js';
 import { buildLongitudinalAggregation } from '../intelligence/longitudinal-aggregation.js';
 import { clientModalityLabel } from '../domain/modality.js';
 import {
@@ -274,6 +264,27 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={})
   };
 }
 
+function exerciseLoadDirectionFromCatalog(item){
+  const candidates=[
+    item?.loadDirection,
+    item?.load_direction,
+    item?.performance?.loadDirection,
+    item?.performance?.load_direction,
+    item?.semantics?.loadDirection,
+    item?.semantics?.load_direction,
+  ];
+
+  const explicit=candidates
+    .map((value)=>String(value||'').trim())
+    .find(
+      (value)=>
+        value==='higher-is-better'||
+        value==='lower-is-better',
+    );
+
+  return explicit||'unknown';
+}
+
 function routeClientId(shellVm, state) {
   return shellVm.identity?.role === 'client'
     ? state.identity?.clientId
@@ -378,13 +389,39 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     });
   }
 
-  if (area === 'clientes') {
+  // RC70_1_1_FOLLOWUP_HELPER_BEGIN
+function buildClientFollowUpSummary(summary,state,now){
+  const client=compactSummary(summary);
+  const alerts=deriveAdherenceAlerts(state,client.id,{now});
+  const progress=computeProgressSummary(state,client.id,{now});
+  const signal=adherenceSignal(alerts);
+  const topAlert=alerts[0]||null;
+  return Object.freeze({
+    ...client,
+    followUp:Object.freeze({
+      signal:Object.freeze({...signal}),
+      alertCount:alerts.length,
+      topAlert:topAlert?Object.freeze({
+        severity:topAlert.severity,
+        title:topAlert.title,
+        source:topAlert.source,
+      }):null,
+      adherence:Number.isFinite(progress?.adherence)?progress.adherence:null,
+      completedSessions:Number(progress?.completedSessions||0),
+      plannedSessions:Number(progress?.plannedSessions||0),
+      dataQuality:progress?.dataQuality||null,
+    }),
+  });
+}
+// RC70_1_1_FOLLOWUP_HELPER_END
+
+if (area === 'clientes') {
     const role = String(shellVm.identity?.role || '');
     return Object.freeze({
       kind: 'clientes',
       role,
       canCreate: ['admin', 'coach'].includes(role),
-      clients: Object.freeze(clientsOverview(state, now).map((summary) => compactSummary(summary, role, {state,now}))),
+      clients: Object.freeze(clientsOverview(state).map((summary)=>buildClientFollowUpSummary(summary,state,now))),
       selectedClientId: state.selectedClientId || null,
     });
   }
@@ -411,10 +448,91 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
           ])
         : null;
 
-    return Object.freeze({
+    const exerciseCatalog=new Map(
+      (options.catalog||[])
+        .filter((item)=>item?.id)
+        .map((item)=>[
+          String(item.id),
+          item,
+        ]),
+    );
+
+    const exerciseNames=new Map(
+      [...exerciseCatalog.entries()]
+        .map(([exerciseId,item])=>[
+          exerciseId,
+          String(
+            item.name_es||
+            item.name||
+            item.nombre||
+            '',
+          ).trim(),
+        ]),
+    );
+
+    const exerciseOwnerId=
+      String(state.selectedClientId||'').trim();
+
+    const exerciseViewerClientId=
+      role==='client'
+        ?String(state.identity?.clientId||'').trim()
+        :null;
+
+    const canProjectExercisePerformance=
+      ['coach','admin'].includes(role)||
+      (
+        role==='client'&&
+        exerciseViewerClientId&&
+        exerciseViewerClientId===exerciseOwnerId
+      );
+
+    const exercisePerformance=
+      exerciseOwnerId&&canProjectExercisePerformance
+        ?listExercisePerformanceMemories(
+            state,
+            exerciseOwnerId,
+            {
+              limit:6,
+              historyLimit:20,
+            },
+          ).map(
+            (memory)=>{
+              const catalogItem=
+                exerciseCatalog.get(memory.exerciseId)||
+                null;
+
+              const projected=
+                projectExercisePerformanceForRole(
+                  memory,
+                  {
+                    role,
+                    viewerClientId:
+                      exerciseViewerClientId,
+                    loadDirection:
+                      exerciseLoadDirectionFromCatalog(
+                        catalogItem,
+                      ),
+                  },
+                );
+
+              return Object.freeze({
+                ...projected.facts,
+                exerciseName:
+                  exerciseNames.get(memory.exerciseId)||
+                  'Ejercicio registrado',
+                facts:projected.facts,
+                coachAssessment:
+                  projected.coachAssessment,
+              });
+            },
+          )
+        :[];
+
+    return Object.freeze({exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
       kind: 'expediente',
       summary: compact,
       progress,
+      exercisePerformance: Object.freeze(exercisePerformance),
       coachCockpit,
       alerts: Object.freeze(alerts),
       alertSignal: Object.freeze(adherenceSignal(alerts)),
@@ -428,7 +546,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
     const longitudinal = clientId
       ? buildLongitudinalAggregation(state, clientId, { now })
       : null;
-    return Object.freeze({
+    return Object.freeze({exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
       kind: 'progreso',
       clientId,
       role: String(shellVm.identity?.role || ''),
@@ -468,6 +586,25 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
       ),
     });
   }
+// RC71_0_ROUTE_VM_CASES_BEGIN
+  if(area==='retos'){
+    const clientId=routeClientId(shellVm,state);
+    const snapshot=rc71ChallengeSnapshot(state,clientId,now);
+
+    return Object.freeze({
+      kind:'retos',
+      role:String(shellVm.identity?.role||''),
+      clientId,
+      challenges:snapshot.challenges,
+      social:snapshot.social,
+      summary:snapshot.summary||null,
+    });
+  }
+
+  if(area==='ajustes'){
+    return rc71SettingsSnapshot(state,shellVm);
+  }
+  // RC71_0_ROUTE_VM_CASES_END
 
   if (area === 'notas') {
     const clientId = routeClientId(shellVm, state);
@@ -656,6 +793,190 @@ export const __routeViewModelInternals = Object.freeze({
 });
 
 /* M26_RC39_ROUTE_VIEW_MODEL_WRAPPER */
+// RC71_0_CHALLENGE_VM_BEGIN
+function rc71ChallengePercent(current,target){
+  const safeCurrent=Number(current);
+  const safeTarget=Number(target);
+
+  if(
+    !Number.isFinite(safeCurrent)||
+    !Number.isFinite(safeTarget)||
+    safeTarget<=0
+  ){
+    return null;
+  }
+
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round((safeCurrent/safeTarget)*100)
+    )
+  );
+}
+
+function rc71ChallengeItem({
+  id,
+  title,
+  detail,
+  current=null,
+  target=null,
+  unit='',
+  available=true,
+}){
+  const progress=available
+    ? rc71ChallengePercent(current,target)
+    : null;
+
+  return Object.freeze({
+    id,
+    title,
+    detail,
+    current:Number.isFinite(Number(current))
+      ? Number(current)
+      : null,
+    target:Number.isFinite(Number(target))
+      ? Number(target)
+      : null,
+    unit,
+    available:Boolean(available),
+    progress,
+    completed:Boolean(
+      available&&
+      Number.isFinite(progress)&&
+      progress>=100
+    ),
+  });
+}
+
+function rc71ChallengeSnapshot(
+  state,
+  clientId,
+  now=new Date()
+){
+  const summary=clientId
+    ? computeProgressSummary(
+        state,
+        clientId,
+        {now,days:28}
+      )
+    : null;
+
+  if(!summary){
+    return Object.freeze({
+      clientId,
+      challenges:Object.freeze([]),
+      social:Object.freeze({
+        visibility:'private',
+        sharingEnabled:false,
+        leaderboardEnabled:false,
+        automaticPublishing:false,
+      }),
+    });
+  }
+
+  const planned=Number(summary.plannedSessions||0);
+  const completed=Number(summary.completedSessions||0);
+  const checkins=Number(summary.checkins||0);
+  const wearableDays=Number(
+    summary.wearable?.daysWithData||0
+  );
+  const wearableWindow=Number(
+    summary.wearable?.days||7
+  );
+  const planAvailable=planned>0;
+
+  return Object.freeze({
+    clientId,
+    summary,
+    challenges:Object.freeze([
+      rc71ChallengeItem({
+        id:'plan',
+        title:'Cumplir tu planificación',
+        detail:planAvailable
+          ? 'Progreso según sesiones realmente planificadas y confirmadas.'
+          : 'Aparecerá cuando exista una planificación confirmada.',
+        current:completed,
+        target:planned,
+        unit:'sesiones',
+        available:planAvailable,
+      }),
+      rc71ChallengeItem({
+        id:'bienestar',
+        title:'Registrar cómo te sientes',
+        detail:'Cuatro registros de bienestar en 28 días ayudan a dar contexto al seguimiento.',
+        current:checkins,
+        target:4,
+        unit:'registros',
+        available:true,
+      }),
+      rc71ChallengeItem({
+        id:'datos',
+        title:'Mantener tus datos conectados',
+        detail:wearableDays
+          ? 'Continuidad de datos de dispositivo durante la ventana reciente.'
+          : 'Conecta o importa un dispositivo para activar este reto.',
+        current:wearableDays,
+        target:Math.min(5,Math.max(1,wearableWindow)),
+        unit:'días con datos',
+        available:wearableDays>0,
+      }),
+    ]),
+    social:Object.freeze({
+      visibility:'private',
+      sharingEnabled:false,
+      leaderboardEnabled:false,
+      automaticPublishing:false,
+      rationale:'Los logros permanecen privados hasta que exista consentimiento explícito y control de visibilidad.',
+    }),
+  });
+}
+
+function rc71SettingsSnapshot(
+  state,
+  shellVm
+){
+  const clientId=routeClientId(shellVm,state);
+
+  const connections=clientId
+    ? recordsForClient(
+        state,
+        'wearableConnections',
+        clientId
+      )
+    : [];
+
+  return Object.freeze({
+    kind:'ajustes',
+    role:String(shellVm.identity?.role||''),
+    identity:Object.freeze({
+      name:String(shellVm.identity?.name||''),
+      roleLabel:String(
+        shellVm.identity?.roleLabel||''
+      ),
+    }),
+    locale:IBERFIT_UI_LOCALE,
+    localeOptions:Object.freeze([
+      Object.freeze({
+        value:'es-ES',
+        label:'Español (España)',
+      }),
+      Object.freeze({
+        value:'es-CL',
+        label:'Español (Chile)',
+      }),
+    ]),
+    wearableConnections:connections.length,
+    hasClientContext:Boolean(clientId),
+    privacy:Object.freeze({
+      challengesPrivateByDefault:true,
+      automaticSocialPublishing:false,
+      privateCoachNotesVisibleToClient:false,
+    }),
+  });
+}
+// RC71_0_CHALLENGE_VM_END
+
 export function createRouteViewModel(shellVm,state,now=new Date(),options={}){
   const rc39=augmentRc39ViewModel(
     createRouteViewModelBase(shellVm,state,now,options),

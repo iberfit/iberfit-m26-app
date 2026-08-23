@@ -172,6 +172,55 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
   function onChange(event) {
+// RC71_0_LANGUAGE_CHANGE_BEGIN
+    const languageSelector=event.target.closest?.('[data-m26-language]');
+
+    if(languageSelector){
+      const nextLocale=String(
+        languageSelector.value||''
+      ).trim();
+
+      if(!['es-ES','es-CL'].includes(nextLocale)){
+        root.dispatchEvent(
+          new CustomEvent(
+            'm26:access-denied',
+            {
+              bubbles:true,
+              detail:{
+                code:'M26_UI_LOCALE_UNSUPPORTED',
+              },
+            }
+          )
+        );
+        return;
+      }
+
+      try{
+        globalThis.localStorage?.setItem?.(
+          'iberfit:m26:ui-locale',
+          nextLocale
+        );
+      }catch{}
+
+      try{
+        globalThis.document?.documentElement?.setAttribute?.(
+          'lang',
+          'es'
+        );
+      }catch{}
+
+      if(typeof globalThis.location?.reload==='function'){
+        globalThis.location.reload();
+        return;
+      }
+
+      lastMarkup='';
+      renderNow(store.getState());
+      focusMain();
+      return;
+    }
+    // RC71_0_LANGUAGE_CHANGE_END
+
     const selector = event.target.closest?.('[data-m26-client-select]');
     if (!selector) return;
     try {

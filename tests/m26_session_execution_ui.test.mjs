@@ -60,3 +60,99 @@ test('completed execution closes the loop into confirmed progress',()=>{
 test('guided execution renders navigation and no inline handlers',()=>{const s=session();const x=createExecution({session:s,clientId:'c1'});startExecution(x);const html=renderGuidedExecution({execution:x,session:s,catalog});assert.match(html,/complete-set/);assert.match(html,/data-session-action="previous"/);assert.doesNotMatch(html,/onclick=/);});
 test('command catalog reports exact missing commands',()=>{const result=validateCommandCatalog(M26_REQUIRED_COMMANDS.slice(0,-1));assert.equal(result.ok,false);assert.deepEqual(result.missing,['INTELIGENCIA_APLICAR_A_BORRADOR']);});
 test('session remains valid after catalog selection',()=>assert.equal(validateSessionDraft(session(),catalog).ok,true));
+test('builder y sesión muestran la última referencia confirmada sin aplicar la carga automáticamente',()=>{
+  const s=session();
+  const exerciseId=s.blocks[0].exerciseId;
+
+  const memory={
+    clientId:'c1',
+    exerciseId,
+    exposureCount:3,
+    latest:{
+      completedAt:'2026-08-15T10:00:00Z',
+      lastLoad:{
+        raw:'22.5 kg',
+        value:22.5,
+        unit:'kg',
+        comparableKey:'kg',
+      },
+      averageRpe:8,
+      averageRir:2,
+      totalSeconds:null,
+      sets:[
+        {
+          load:{raw:'22.5 kg'},
+          reps:10,
+          seconds:null,
+          rpe:8,
+          rir:2,
+        },
+        {
+          load:{raw:'22.5 kg'},
+          reps:9,
+          seconds:null,
+          rpe:8.5,
+          rir:1,
+        },
+      ],
+    },
+    comparison:{
+      lastLoad:{
+        value:2.5,
+        unit:'kg',
+        comparableKey:'kg',
+        percent:12.5,
+      },
+    },
+  };
+
+  const exerciseMemoryFor=(id)=>
+    id===exerciseId
+      ?memory
+      :null;
+
+  const builder=renderSessionBuilder({
+    draft:s,
+    catalog,
+    exerciseMemoryFor,
+  });
+
+  assert.match(builder,/Última vez/);
+  assert.match(builder,/22\.5 kg/);
+  assert.match(builder,/Referencia confirmada/);
+
+  const x=createExecution({
+    session:s,
+    clientId:'c1',
+  });
+
+  startExecution(x);
+
+  const guided=renderGuidedExecution({
+    execution:x,
+    session:s,
+    catalog,
+    exerciseMemoryFor,
+  });
+
+  assert.match(guided,/Memoria de rendimiento/);
+  assert.match(guided,/Última vez/);
+  assert.match(guided,/22\.5 kg/);
+  assert.match(guided,/RPE medio 8/);
+  assert.match(guided,/RIR medio 2/);
+  assert.match(guided,/12\.5%/);
+  assert.match(
+    guided,
+    /No modifica automáticamente la carga ni la prescripción actual/
+  );
+
+  assert.match(
+    guided,
+    /data-set-field="load">/
+  );
+
+  assert.doesNotMatch(
+    guided,
+    /data-set-field="load"[^>]*value=/
+  );
+});

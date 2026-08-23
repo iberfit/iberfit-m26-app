@@ -37,6 +37,7 @@ import {createSessionDraft} from '../workflows/session-builder.js';
 import {createReusableSessionDraft,createSessionTemplateRepository,createDraftFromSessionTemplate} from '../productivity/session-reuse.js';
 import {createExecution} from '../workflows/session-execution.js';
 import {renderSessionBuilder,renderGuidedExecution} from '../workflows/session-ui.js';
+import {buildExercisePerformanceMemory} from '../engagement/exercise-performance-engine.js';
 import {createSessionController} from '../workflows/session-controller.js';
 import {createActionState} from '../ui/action-state.js';
 import {createExecutionRecoveryStore,createExecutionRecoveryCoordinator} from '../workflows/session-recovery.js';
@@ -258,8 +259,58 @@ export async function createM26Application({root=document.querySelector('#app'),
   function renderRoute(shellVm,state){
     qaStage('rc64-route-start');
     const role=shellVm?.identity?.role||state?.identity?.role||'client';
-    if(sessionUi?.draft)return renderSessionBuilder({draft:sessionUi.draft,catalog,query:sessionUi.query,templates:sessionUi.templates||[],actionState:sessionUi.actionState,mediaMap,role});
-    if(sessionUi?.execution)return renderGuidedExecution({execution:sessionUi.execution,session:sessionUi.session,catalog,actionState:sessionUi.actionState,mediaMap,role});
+
+    const memoryClientId=String(
+      sessionUi?.draft?.clientId||
+      sessionUi?.execution?.clientId||
+      sessionUi?.session?.clientId||
+      '',
+    ).trim();
+
+    const exerciseMemoryCache=new Map();
+
+    const exerciseMemoryFor=(exerciseId)=>{
+      const safeExerciseId=String(exerciseId||'').trim();
+
+      if(!memoryClientId||!safeExerciseId){
+        return null;
+      }
+
+      if(!exerciseMemoryCache.has(safeExerciseId)){
+        exerciseMemoryCache.set(
+          safeExerciseId,
+          buildExercisePerformanceMemory(
+            state,
+            memoryClientId,
+            safeExerciseId,
+            {limit:20},
+          ),
+        );
+      }
+
+      return exerciseMemoryCache.get(safeExerciseId);
+    };
+
+    if(sessionUi?.draft)return renderSessionBuilder({
+      draft:sessionUi.draft,
+      catalog,
+      query:sessionUi.query,
+      templates:sessionUi.templates||[],
+      actionState:sessionUi.actionState,
+      mediaMap,
+      role,
+      exerciseMemoryFor,
+    });
+
+    if(sessionUi?.execution)return renderGuidedExecution({
+      execution:sessionUi.execution,
+      session:sessionUi.session,
+      catalog,
+      actionState:sessionUi.actionState,
+      mediaMap,
+      role,
+      exerciseMemoryFor,
+    });
     qaStage('rc64-route-vm-start');
     const routeVm=createRouteViewModel(shellVm,state,new Date(),{catalog:catalog?.list?.()||[],mediaMap});
     qaStage('rc64-route-vm-ready');

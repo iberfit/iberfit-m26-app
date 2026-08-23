@@ -15,3 +15,592 @@
 .m26-admin-priority-list,.m26-admin-load-list{display:grid;gap:.65rem}.m26-admin-priority{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:center;padding:.9rem;border-radius:.85rem;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.025)}.m26-admin-priority h3{margin:.15rem 0}.m26-admin-priority p{margin:.2rem 0}.m26-admin-priority small{color:var(--m26-muted,#b9c7c3)}.m26-admin-priority.is-critical{border-color:rgba(239,113,113,.35);background:rgba(239,113,113,.07)}.m26-admin-priority.is-warning{border-color:rgba(242,188,79,.3);background:rgba(242,188,79,.06)}.m26-admin-priority button{white-space:nowrap}
 .m26-admin-coach-load{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:.75rem;border-bottom:1px solid rgba(255,255,255,.08)}.m26-admin-coach-load div{display:grid;gap:.15rem}.m26-admin-coach-load small{color:var(--m26-muted,#b9c7c3)}.m26-admin-coach-load span{font-weight:700}.m26-admin-coach-load.is-full span{color:#ff9e9e}.m26-admin-coach-load.is-near span{color:#f2c36b}
 @media(max-width:620px){.m26-admin-priority{grid-template-columns:1fr}.m26-admin-priority button{width:100%}.m26-admin-section-heading{display:grid}}
+
+/* RC67_8_ADMIN_PREMIUM_CONVERGENCE_BEGIN */
+
+/*
+  Admin must look like IBERFIT too.
+  Same premium brand language, same control ergonomics,
+  same dark surfaces, same hierarchy and easier navigation.
+  Content changes by role; aesthetics do not.
+*/
+
+.m26-admin-route{
+  --m26-admin-surface:
+    linear-gradient(
+      145deg,
+      color-mix(
+        in srgb,
+        var(--iberfit-color-surface-raised) 92%,
+        transparent
+      ),
+      color-mix(
+        in srgb,
+        var(--iberfit-color-surface-base) 96%,
+        transparent
+      )
+    );
+  --m26-admin-border:var(--iberfit-color-border);
+  --m26-admin-border-strong:var(--iberfit-color-border-strong);
+  --m26-admin-shadow:var(--iberfit-shadow-subtle);
+  --m26-admin-radius:var(--iberfit-card-radius);
+  --m26-admin-pill:var(--iberfit-radius-pill);
+  --m26-admin-control:var(--iberfit-control-height);
+}
+
+.m26-admin-route :is(
+  .m26-admin-panel,
+  .m26-admin-stat,
+  .m26-admin-table,
+  .m26-admin-priority,
+  .m26-admin-empty
+){
+  border:1px solid var(--m26-admin-border);
+  border-radius:var(--m26-admin-radius);
+  background:var(--m26-admin-surface);
+  box-shadow:var(--m26-admin-shadow);
+}
+
+.m26-admin-route :is(
+  .m26-admin-panel h1,
+  .m26-admin-panel h2,
+  .m26-admin-panel h3,
+  .m26-admin-priority h2,
+  .m26-admin-priority h3
+){
+  color:var(--iberfit-color-text-primary);
+  letter-spacing:-0.01em;
+}
+
+.m26-admin-route :is(
+  .m26-admin-panel p,
+  .m26-admin-table p,
+  .m26-admin-empty p,
+  .m26-admin-priority p
+){
+  color:var(--iberfit-color-text-secondary);
+}
+
+.m26-admin-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:var(--iberfit-space-1);
+  min-height:2rem;
+  padding:
+    var(--iberfit-space-1)
+    var(--iberfit-space-3);
+  border:1px solid var(--m26-admin-border);
+  border-radius:var(--m26-admin-pill);
+  color:var(--iberfit-color-text-subtle);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-surface-base) 72%,
+      transparent
+    );
+  font-size:var(--iberfit-font-size-xs);
+  font-weight:var(--iberfit-font-weight-semibold);
+  line-height:1;
+}
+
+.m26-admin-route :is(
+  .m26-admin-actions,
+  .m26-admin-toolbar,
+  .m26-admin-filters,
+  .m26-admin-nav,
+  .m26-admin-tabs,
+  .m26-admin-inline-actions
+){
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:var(--iberfit-space-2);
+}
+
+.m26-admin-route :is(
+  button,
+  .m26-admin-actions a,
+  .m26-admin-nav a,
+  .m26-admin-tabs a
+){
+  min-height:var(--m26-admin-control);
+  padding:
+    var(--iberfit-space-3)
+    var(--iberfit-space-4);
+  border:1px solid var(--m26-admin-border);
+  border-radius:var(--iberfit-control-radius);
+  color:var(--iberfit-color-text-primary);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-surface-raised) 94%,
+      transparent
+    );
+  box-shadow:var(--iberfit-shadow-subtle);
+  font:inherit;
+  font-weight:var(--iberfit-font-weight-semibold);
+  line-height:1.2;
+  text-decoration:none;
+  touch-action:manipulation;
+  transition:
+    background
+      var(--iberfit-motion-fast)
+      var(--iberfit-motion-easing-standard),
+    border-color
+      var(--iberfit-motion-fast)
+      var(--iberfit-motion-easing-standard),
+    transform
+      var(--iberfit-motion-fast)
+      var(--iberfit-motion-easing-enter),
+    box-shadow
+      var(--iberfit-motion-fast)
+      var(--iberfit-motion-easing-standard);
+}
+
+.m26-admin-route :is(
+  button:hover,
+  .m26-admin-actions a:hover,
+  .m26-admin-nav a:hover,
+  .m26-admin-tabs a:hover
+){
+  border-color:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-accent) 36%,
+      transparent
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-accent) 9%,
+      transparent
+    );
+  box-shadow:
+    0 12px 26px rgba(0,0,0,.14),
+    inset 0 0 0 1px
+      color-mix(
+        in srgb,
+        var(--iberfit-color-accent) 10%,
+        transparent
+      );
+}
+
+.m26-admin-route :is(
+  button:focus-visible,
+  .m26-admin-actions a:focus-visible,
+  .m26-admin-nav a:focus-visible,
+  .m26-admin-tabs a:focus-visible
+){
+  outline:
+    3px solid
+    color-mix(
+      in srgb,
+      var(--iberfit-color-focus) 72%,
+      transparent
+    );
+  outline-offset:3px;
+}
+
+.m26-admin-route :is(
+  .m26-admin-nav .is-active,
+  .m26-admin-tabs .is-active,
+  .m26-admin-nav [aria-current="page"],
+  .m26-admin-tabs [aria-current="page"]
+){
+  border-color:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-accent) 42%,
+      transparent
+    );
+  color:var(--iberfit-color-text-primary);
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-accent) 13%,
+      transparent
+    );
+  box-shadow:
+    inset 0 0 0 1px
+      color-mix(
+        in srgb,
+        var(--iberfit-color-accent) 18%,
+        transparent
+      );
+}
+
+.m26-admin-route :is(
+  .m26-admin-panel-header,
+  .m26-admin-heading,
+  .m26-admin-card-header
+){
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:var(--iberfit-space-4);
+  min-width:0;
+  margin-bottom:var(--iberfit-space-4);
+}
+
+.m26-admin-route :is(
+  .m26-admin-panel-header > div,
+  .m26-admin-heading > div,
+  .m26-admin-card-header > div
+){
+  min-width:0;
+}
+
+.m26-admin-stat{
+  font-variant-numeric:tabular-nums;
+}
+
+.m26-admin-stat strong,
+.m26-admin-table strong,
+.m26-admin-priority strong{
+  color:var(--iberfit-color-text-primary);
+}
+
+.m26-admin-empty{
+  display:grid;
+  justify-items:start;
+  align-content:center;
+  gap:var(--iberfit-space-3);
+  min-height:9rem;
+  padding:var(--iberfit-space-5);
+  border-style:dashed;
+  border-color:var(--m26-admin-border-strong);
+}
+
+.m26-admin-route :is(table,.m26-admin-table table){
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+}
+
+.m26-admin-route :is(
+  .m26-admin-table th,
+  .m26-admin-table td
+){
+  border-bottom:1px solid var(--m26-admin-border);
+}
+
+.m26-admin-route :is(
+  .m26-admin-table th
+){
+  color:var(--iberfit-color-text-secondary);
+  font-weight:var(--iberfit-font-weight-semibold);
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  font-size:var(--iberfit-font-size-xs);
+}
+
+.m26-admin-route :is(
+  .m26-admin-priority
+){
+  border-inline-start:
+    3px solid
+    var(--iberfit-color-accent);
+}
+
+.m26-admin-route :is(
+  .m26-admin-priority.is-high,
+  .m26-admin-priority.is-pending
+){
+  border-inline-start-color:var(--iberfit-color-info);
+}
+
+.m26-admin-route :is(
+  .m26-admin-priority.is-critical,
+  .m26-admin-priority.is-danger
+){
+  border-inline-start-color:var(--iberfit-color-danger);
+}
+
+@media(max-width:760px){
+  .m26-admin-route :is(
+    .m26-admin-panel-header,
+    .m26-admin-heading,
+    .m26-admin-card-header
+  ){
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .m26-admin-route :is(
+    .m26-admin-actions,
+    .m26-admin-toolbar,
+    .m26-admin-filters,
+    .m26-admin-nav,
+    .m26-admin-tabs,
+    .m26-admin-inline-actions
+  ){
+    align-items:stretch;
+  }
+
+  .m26-admin-route :is(
+    button,
+    .m26-admin-actions a,
+    .m26-admin-nav a,
+    .m26-admin-tabs a
+  ){
+    width:100%;
+  }
+}
+
+/* RC67_8_ADMIN_PREMIUM_CONVERGENCE_END */
+
+/* RC67_8_1_ADMIN_CHROMA_ALIGNMENT_BEGIN */
+
+/*
+  RC67.8 aligned Admin structurally.
+  RC67.8.1 aligns the chroma family so Admin stops drifting into teal
+  and sits inside the same IBERFIT dark-premium palette.
+*/
+
+.m26-admin-route{
+  --m26-admin-surface:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(--iberfit-color-surface-raised) 96%,
+        black 4%
+      ),
+      color-mix(
+        in srgb,
+        var(--iberfit-color-surface-base) 98%,
+        black 2%
+      )
+    );
+  --m26-admin-surface-soft:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-surface-raised) 88%,
+      black 12%
+    );
+  --m26-admin-surface-interactive:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-surface-elevated) 90%,
+      black 10%
+    );
+  --m26-admin-border:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-border) 82%,
+      var(--iberfit-color-accent) 18%
+    );
+  --m26-admin-border-strong:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-border-strong) 74%,
+      var(--iberfit-color-accent) 26%
+    );
+  --m26-admin-accent:var(--iberfit-color-accent);
+  --m26-admin-focus:var(--iberfit-color-focus);
+}
+
+.m26-admin-route,
+.m26-admin-route .m26-admin-panel,
+.m26-admin-route .m26-admin-stat,
+.m26-admin-route .m26-admin-priority,
+.m26-admin-route .m26-admin-table,
+.m26-admin-route .m26-admin-empty{
+  color:var(--iberfit-color-text-primary);
+}
+
+.m26-admin-route :is(
+  .m26-admin-panel,
+  .m26-admin-stat,
+  .m26-admin-priority,
+  .m26-admin-table,
+  .m26-admin-empty
+){
+  background:var(--m26-admin-surface);
+  border-color:var(--m26-admin-border);
+}
+
+.m26-admin-route :is(
+  .m26-admin-panel p,
+  .m26-admin-table p,
+  .m26-admin-empty p,
+  .m26-admin-priority p,
+  .m26-admin-panel label,
+  .m26-admin-table label
+){
+  color:var(--iberfit-color-text-secondary);
+}
+
+.m26-admin-route :is(
+  input,
+  select,
+  textarea
+){
+  color:var(--iberfit-color-text-primary);
+  background:var(--m26-admin-surface-soft);
+  border:1px solid var(--m26-admin-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.02);
+}
+
+.m26-admin-route :is(
+  input::placeholder,
+  textarea::placeholder
+){
+  color:var(--iberfit-color-text-muted);
+}
+
+.m26-admin-route :is(
+  input:hover,
+  select:hover,
+  textarea:hover
+){
+  border-color:var(--m26-admin-border-strong);
+}
+
+.m26-admin-route :is(
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible
+){
+  outline:
+    3px solid
+    color-mix(
+      in srgb,
+      var(--m26-admin-focus) 68%,
+      transparent
+    );
+  outline-offset:2px;
+  border-color:
+    color-mix(
+      in srgb,
+      var(--m26-admin-accent) 46%,
+      transparent
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(--m26-admin-surface-soft) 88%,
+      var(--m26-admin-accent) 12%
+    );
+}
+
+.m26-admin-route :is(
+  button,
+  .m26-admin-actions a,
+  .m26-admin-nav a,
+  .m26-admin-tabs a
+){
+  color:var(--iberfit-color-text-primary);
+  background:var(--m26-admin-surface-interactive);
+  border-color:var(--m26-admin-border);
+}
+
+.m26-admin-route :is(
+  button:hover,
+  .m26-admin-actions a:hover,
+  .m26-admin-nav a:hover,
+  .m26-admin-tabs a:hover
+){
+  background:
+    color-mix(
+      in srgb,
+      var(--m26-admin-surface-interactive) 82%,
+      var(--m26-admin-accent) 18%
+    );
+  border-color:
+    color-mix(
+      in srgb,
+      var(--m26-admin-accent) 42%,
+      transparent
+    );
+}
+
+.m26-admin-route :is(
+  .m26-admin-nav .is-active,
+  .m26-admin-tabs .is-active,
+  .m26-admin-nav [aria-current="page"],
+  .m26-admin-tabs [aria-current="page"]
+){
+  color:#102418;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(--m26-admin-accent) 96%,
+        white 4%
+      ),
+      color-mix(
+        in srgb,
+        var(--m26-admin-accent) 84%,
+        black 16%
+      )
+    );
+  border-color:
+    color-mix(
+      in srgb,
+      var(--m26-admin-accent) 58%,
+      transparent
+    );
+  box-shadow:
+    0 10px 24px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.22);
+}
+
+.m26-admin-badge{
+  color:var(--iberfit-color-text-subtle);
+  background:
+    color-mix(
+      in srgb,
+      var(--m26-admin-surface-soft) 86%,
+      var(--m26-admin-accent) 14%
+    );
+  border-color:
+    color-mix(
+      in srgb,
+      var(--m26-admin-accent) 24%,
+      var(--m26-admin-border) 76%
+    );
+}
+
+.m26-admin-route :is(
+  .m26-admin-priority
+){
+  border-inline-start-color:
+    color-mix(
+      in srgb,
+      var(--m26-admin-accent) 82%,
+      white 18%
+    );
+}
+
+.m26-admin-route :is(
+  .m26-admin-priority.is-high,
+  .m26-admin-priority.is-pending
+){
+  border-inline-start-color:var(--iberfit-color-info);
+}
+
+.m26-admin-route :is(
+  .m26-admin-priority.is-critical,
+  .m26-admin-priority.is-danger
+){
+  border-inline-start-color:var(--iberfit-color-danger);
+}
+
+.m26-admin-route :is(
+  .m26-admin-table th
+){
+  color:var(--iberfit-color-text-secondary);
+}
+
+.m26-admin-route :is(
+  .m26-admin-table td,
+  .m26-admin-table th
+){
+  background:transparent;
+}
+
+/* RC67_8_1_ADMIN_CHROMA_ALIGNMENT_END */

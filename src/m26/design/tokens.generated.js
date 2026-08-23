@@ -57,14 +57,14 @@ export const IBERFIT_DESIGN_TOKENS=deepFreeze({
       "adminAccentSoft": "rgba(49,168,152,0.14)"
     },
     "dataViz": {
-      "series1": "#e4cd98",
-      "series2": "#8bc7a2",
-      "series3": "#89b8d8",
-      "series4": "#c6a8d8",
-      "series5": "#d79a91",
-      "series6": "#c8c0af",
-      "grid": "rgba(228,205,152,0.16)",
-      "missing": "rgba(200,192,175,0.42)"
+      "series1": "#7fa894",
+      "series2": "#7d96a8",
+      "series3": "#7f8991",
+      "series4": "#9a8ba4",
+      "series5": "#b47474",
+      "series6": "#8c8578",
+      "grid": "rgba(127,137,132,0.18)",
+      "missing": "rgba(127,137,132,0.38)"
     }
   },
   "space": {

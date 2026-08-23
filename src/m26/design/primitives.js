@@ -63,10 +63,21 @@ export const IBERFIT_PRIMITIVE_CONTRACT=Object.freeze({
       '.m26-text-action',
       '.m26-action-grid button',
       '.m26-inline-actions button',
+      '.m26-list-card-actions button',
+      '.m26-sticky-actions button',
+      '.m26-wizard-actions button',
+      '.m26-timer-actions button',
+      '.m26-publication-actions button',
+      '.m26-builder-toolbar button',
+      '.m26-library-controls button',
+      '.m26-external-report-actions button',
     ]),
     IconButton:Object.freeze(['.m26-icon-button']),
     Field:Object.freeze(['.m26-field']),
-    Badge:Object.freeze(['.m26-badge']),
+    Badge:Object.freeze([
+      '.m26-badge',
+      '.m26-admin-badge',
+    ]),
     Card:Object.freeze([
       '.m26-panel',
       '.m26-stat',
@@ -84,6 +95,29 @@ export const IBERFIT_PRIMITIVE_CONTRACT=Object.freeze({
       '.m26-form-status',
       '.m26-action-state',
     ]),
+    /* RC67_5_UNIFIED_LEGACY_BRIDGE_BEGIN */
+    Panel:Object.freeze([
+      '.m26-panel',
+      '.m26-panel-soft',
+    ]),
+    Tabs:Object.freeze([
+      '.m26-expediente-tabs',
+    ]),
+    SegmentedControl:Object.freeze([]),
+    Metric:Object.freeze([
+      '.m26-stat',
+    ]),
+    KPI:Object.freeze([
+      '.m26-mini-metric',
+    ]),
+    Alert:Object.freeze([
+      '.m26-alert-card',
+    ]),
+    EmptyState:Object.freeze([
+      '.m26-empty',
+      '.m26-admin-empty',
+    ]),
+    /* RC67_5_UNIFIED_LEGACY_BRIDGE_END */
   }),
 });
 

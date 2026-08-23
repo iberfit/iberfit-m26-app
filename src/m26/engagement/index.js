@@ -1,4 +1,5 @@
 export * from './progress-engine.js';
+export * from './exercise-performance-engine.js';
 export * from './challenge-metrics.js';
 export * from './adherence-engine.js';
 export * from './conflict-center.js';
