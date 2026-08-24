@@ -1,7 +1,8 @@
 import { addCatalogExercise, addTrainingGroup, closeTrainingGroup,duplicateSessionBlock,removeSessionBlock,moveSessionBlock,updateSessionDraft,updateSessionBlock,acceptSessionPreview,invalidateSessionPreview, buildPublishSessionCommand } from './session-builder.js';
 import {
-  startExecution,pauseExecution,resumeExecution,cancelExecution,recordSet,advanceExecution,retreatExecution,
-  adjustRest,beginRest,substituteExercise,finishExecution,buildExecutionCommand,buildStartExecutionCommand,
+  startExecution,pauseExecution,resumeExecution,cancelExecution,recordSet,correctSet,advanceExecution,retreatExecution,
+  adjustRest,beginRest,substituteExercise,addExecutionSet,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
+  finishExecution,buildExecutionCommand,buildStartExecutionCommand,
   buildProgressExecutionCommand,buildPauseExecutionCommand,buildResumeExecutionCommand,buildCancelExecutionCommand,
   markExecutionSync
 } from './session-execution.js';
@@ -29,8 +30,14 @@ function enqueueAndApply(commandBus,command,apply,execution){
   return Promise.resolve(commandBus.enqueue(command)).then((result)=>{apply?.(result);markExecutionSync(execution,'pending',{operationId:result?.command?.operationId});return {...result,queued:true};});
 }
 function isOnline(value){return value!==false;}
+function progressMutation(execution,commandBus,online){
+  if(!commandBus)return {kind:'execution',value:execution};
+  const command=buildProgressExecutionCommand(execution,execution.revision||0);
+  if(!isOnline(online))return {kind:'queued',value:enqueueAndApply(commandBus,command,null,execution)};
+  return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{execution.revision=remoteRevision(result,execution.revision);},execution)};
+}
 
-export function dispatchSessionAction({action,draft,execution,session,catalog,payload={},commandBus,appointmentId,sessionRevision=0,online=true,offlinePermit={}}={}){
+export function dispatchSessionAction({action,draft,execution,session,catalog,payload={},commandBus,appointmentId,sessionRevision=0,online=true,offlinePermit={},actor=null}={}){
   switch(action){
     case 'add-exercise': addCatalogExercise(draft,payload.exerciseId,catalog,payload.prescription); return {kind:'draft',value:draft};
     case 'remove-block': removeSessionBlock(draft,payload.blockId); return {kind:'draft',value:draft};
@@ -51,48 +58,68 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
     }
     case 'start': {
       const command=buildStartExecutionCommand(execution,{appointmentId:payload.appointmentId||appointmentId,sessionRevision:payload.sessionRevision??sessionRevision});
-      if(!commandBus){startExecution(execution);return {kind:'execution',value:execution};}
+      if(!commandBus){startExecution(execution,{actor});return {kind:'execution',value:execution};}
       if(!isOnline(online)){
         if(offlinePermit?.canStart!==true)throw new Error('M26_OFFLINE_START_NOT_ALLOWED');
-        return {kind:'queued',value:enqueueAndApply(commandBus,command,()=>startExecution(execution),execution)};
+        return {kind:'queued',value:enqueueAndApply(commandBus,command,()=>startExecution(execution,{actor}),execution)};
       }
-      return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{startExecution(execution);execution.revision=executionRevision(result,1);},execution)};
+      return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{startExecution(execution,{actor});execution.revision=executionRevision(result,1);},execution)};
     }
     case 'complete-set': {
-      recordSet(execution,session,payload);beginRest(execution,payload.restSeconds??60);
-      if(!commandBus)return {kind:'execution',value:execution};
-      const command=buildProgressExecutionCommand(execution,execution.revision||0);
-      if(!isOnline(online))return {kind:'queued',value:enqueueAndApply(commandBus,command,null,execution)};
-      return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{execution.revision=remoteRevision(result,execution.revision);},execution)};
+      recordSet(execution,session,{...payload,actor});beginRest(execution,payload.restSeconds??60,{actor});
+      return progressMutation(execution,commandBus,online);
     }
-    case 'previous': retreatExecution(execution); return {kind:'execution',value:execution};
-    case 'next': advanceExecution(execution); return {kind:'execution',value:execution};
-    case 'rest-minus': adjustRest(execution,-15); return {kind:'execution',value:execution};
-    case 'rest-plus': adjustRest(execution,15); return {kind:'execution',value:execution};
-    case 'substitute': substituteExercise(execution,session,{fromExerciseId:payload.fromExerciseId,toExerciseId:payload.toExerciseId,catalog,reason:payload.reason}); return {kind:'execution',value:execution};
+    case 'correct-set': {
+      correctSet(execution,session,{...payload,actor});
+      return progressMutation(execution,commandBus,online);
+    }
+    case 'add-set': {
+      addExecutionSet(execution,{actor});
+      return progressMutation(execution,commandBus,online);
+    }
+    case 'skip-set': {
+      skipExecutionSet(execution,session,{reason:payload.reason,actor});
+      return progressMutation(execution,commandBus,online);
+    }
+    case 'skip-exercise': {
+      skipExecutionExercise(execution,session,{reason:payload.reason,actor});
+      return progressMutation(execution,commandBus,online);
+    }
+    case 'add-live-exercise': {
+      addExecutionExercise(execution,{...payload,catalog,actor});
+      return progressMutation(execution,commandBus,online);
+    }
+    case 'previous': retreatExecution(execution,{actor}); return {kind:'execution',value:execution};
+    case 'next': advanceExecution(execution,{actor}); return {kind:'execution',value:execution};
+    case 'rest-minus': adjustRest(execution,-15,{actor}); return {kind:'execution',value:execution};
+    case 'rest-plus': adjustRest(execution,15,{actor}); return {kind:'execution',value:execution};
+    case 'substitute': {
+      substituteExercise(execution,session,{fromExerciseId:payload.fromExerciseId,toExerciseId:payload.toExerciseId,catalog,reason:payload.reason,actor});
+      return progressMutation(execution,commandBus,online);
+    }
     case 'pause': {
-      const target=structuredClone(execution);pauseExecution(target);
+      const target=structuredClone(execution);pauseExecution(target,{actor});
       if(!commandBus){Object.assign(execution,target);return {kind:'execution',value:execution};}
       const command=buildPauseExecutionCommand(target,execution.revision||0);
       if(!isOnline(online))return {kind:'queued',value:enqueueAndApply(commandBus,command,()=>Object.assign(execution,target),execution)};
       return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{Object.assign(execution,target,{revision:remoteRevision(result,target.revision)});},execution)};
     }
     case 'resume': {
-      const target=structuredClone(execution);resumeExecution(target);
+      const target=structuredClone(execution);resumeExecution(target,{actor});
       if(!commandBus){Object.assign(execution,target);return {kind:'execution',value:execution};}
       const command=buildResumeExecutionCommand(target,execution.revision||0);
       if(!isOnline(online))return {kind:'queued',value:enqueueAndApply(commandBus,command,()=>Object.assign(execution,target),execution)};
       return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{Object.assign(execution,target,{revision:remoteRevision(result,target.revision)});},execution)};
     }
     case 'cancel': {
-      const reason=String(payload.reason||'').trim();const target=structuredClone(execution);cancelExecution(target,reason);
+      const reason=String(payload.reason||'').trim();const target=structuredClone(execution);cancelExecution(target,reason,{actor});
       if(!commandBus){Object.assign(execution,target);return {kind:'execution',value:execution};}
       const command=buildCancelExecutionCommand(target,reason,execution.revision||0);
       if(!isOnline(online))return {kind:'queued',value:enqueueAndApply(commandBus,command,()=>Object.assign(execution,target),execution)};
       return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{Object.assign(execution,target,{revision:remoteRevision(result,target.revision)});},execution)};
     }
     case 'finish': {
-      const completed=structuredClone(execution);finishExecution(completed,payload);const command=buildExecutionCommand(completed,payload.baseRevision??execution.revision??0);
+      const completed=structuredClone(execution);finishExecution(completed,payload,{actor});const command=buildExecutionCommand(completed,payload.baseRevision??execution.revision??0);
       if(!commandBus){Object.assign(execution,completed);return {kind:'command',value:command};}
       if(!isOnline(online))return {kind:'queued',value:enqueueAndApply(commandBus,command,()=>Object.assign(execution,completed),execution)};
       return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{Object.assign(execution,completed,{revision:remoteRevision(result,completed.revision)});},execution)};
@@ -127,7 +154,20 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     await context.recoveryCoordinator.settle(context.execution);
   }
   async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='exit-session'){const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await persistContext(context);context.onExit?.();}catch(error){onError(error);render?.();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}const actionState=context.actionState;const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');
-    const task=async()=>{await flushAutosave(context);if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});return await result.value;};
+    const task=async()=>{await flushAutosave(context);if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
+    if(action==='skip-set')payload.reason=root.querySelector?.('[data-session-skip-set-reason]')?.value;
+    if(action==='skip-exercise')payload.reason=root.querySelector?.('[data-session-skip-exercise-reason]')?.value;
+    if(action==='add-live-exercise'){
+      payload.exerciseId=root.querySelector?.('[data-session-live-add-exercise]')?.value;
+      payload.sets=root.querySelector?.('[data-session-live-add-sets]')?.value;
+      payload.reps=root.querySelector?.('[data-session-live-add-reps]')?.value;
+      payload.restSeconds=root.querySelector?.('[data-session-live-add-rest]')?.value;
+      payload.tempo=root.querySelector?.('[data-session-live-add-tempo]')?.value;
+      payload.targetRpe=root.querySelector?.('[data-session-live-add-rpe]')?.value;
+      payload.targetRir=root.querySelector?.('[data-session-live-add-rir]')?.value;
+      payload.position='next';
+    }
+    if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});return await result.value;};
     try{const outcome=actionState?await runAction(actionState,task):{ok:true,value:await task()};if(!outcome.ok)onError(outcome.error);if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}render?.();}catch(error){await persistContext(context).catch(()=>{});onError(error);}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){context.setQuery?.(search.value);render?.();}
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}

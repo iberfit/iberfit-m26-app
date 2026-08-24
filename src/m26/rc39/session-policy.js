@@ -149,7 +149,8 @@ export function appointmentConfirmationState(appointment={},now=new Date(),{
 }
 export function actorCanExecuteSession({role,session,appointment=null}={}){
   const normalized=fold(role);
-  if(['admin','administrador','coach','entrenador'].includes(normalized))return true;
+  if(['coach','entrenador'].includes(normalized))return true;
+  if(['admin','administrador'].includes(normalized))return false;
   if(!['client','cliente'].includes(normalized))return false;
   return isPublishedSession(session) &&
     sessionVisibilityLevel(session,appointment)==='full' &&
@@ -158,7 +159,8 @@ export function actorCanExecuteSession({role,session,appointment=null}={}){
 export function sessionRequiresConfirmedAppointment({role,session,appointment=null}={}){
   const normalized=fold(role);
   const ownership=sessionDeliveryOwnership(session,appointment);
-  if(['admin','administrador','coach','entrenador'].includes(normalized)){
+  if(['admin','administrador'].includes(normalized))return false;
+  if(['coach','entrenador'].includes(normalized)){
     return ['coach_led','live_online'].includes(ownership);
   }
   return ['coach_led','live_online'].includes(ownership);

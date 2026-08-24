@@ -149,7 +149,7 @@ export function renderHoyRoute(vm) {
     ? 'Consulta lo que tienes preparado, registra cómo estás y continúa desde una única ruta clara.'
     : 'Primero las decisiones que requieren una acción; después, el resto del seguimiento.';
   const appointments = vm.appointments.length
-    ? vm.appointments.map((item)=>appointmentCard(item,{canStartSession:isClient})).join('')
+    ? vm.appointments.map((item)=>appointmentCard(item,{canStartSession:['client','coach'].includes(String(vm.role||''))})).join('')
     : emptyState(
         'Sin sesiones confirmadas para hoy',
         isClient
@@ -2077,7 +2077,10 @@ export function renderAgendaRoute(vm) {
 
 export function renderSessionsRoute(vm){
   const isClient=vm.role==='client';
-  const primary=vm.canBuild?`<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Continuar o crear sesión</button>`:`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session"${vm.sessions.length?'':' disabled aria-disabled="true"'}>Iniciar sesión guiada</button>`;
+  const directStart=`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session"${vm.sessions.length?'':' disabled aria-disabled="true"'}>${isClient?'Iniciar sesión guiada':'Iniciar sesión programada'}</button>`;
+  const primary=vm.canBuild
+    ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="open-session-builder">Continuar o crear sesión</button>${directStart}</div>`
+    :directStart;
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section><section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
 }
 export function renderReportsRoute(vm){

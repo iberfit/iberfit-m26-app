@@ -74,8 +74,19 @@ test('PWA queda confinada a /m26 y excluye runtime, API y rutas ajenas',()=>{
   assert.match(headers,/Service-Worker-Allowed: \/m26\//);assert.doesNotMatch(headers,/style-src[^\n]*unsafe-inline/);assert.match(pwa,/scope='\/m26\/'/);
 });
 
-test('HTML entregado no requiere estilos ni scripts inline',()=>{
-  for(const file of ['public/m26/index.html','public/m26/offline.html']){const html=text(file);assert.doesNotMatch(html,/<style\b/i);assert.doesNotMatch(html,/<script(?![^>]*\bsrc=)[^>]*>/i);assert.doesNotMatch(html,/\sstyle=/i);}
+test('HTML entregado limita CSS inline al crítico canónico y mantiene scripts y atributos inline prohibidos',()=>{
+  const index=text('public/m26/index.html').replace(/\r\n?/gu,'\n');
+  const offline=text('public/m26/offline.html').replace(/\r\n?/gu,'\n');
+  const critical=text('public/m26/preauth-critical.css').replace(/\r\n?/gu,'\n').replace(/\n+$/u,'');
+  const inline=[...index.matchAll(/<style data-iberfit-preauth-critical>([\s\S]*?)<\/style>/gu)];
+  assert.equal(inline.length,1);
+  assert.equal([...index.matchAll(/<style\b/giu)].length,1);
+  assert.equal(inline[0][1],critical);
+  assert.doesNotMatch(offline,/<style\b/iu);
+  for(const html of [index,offline]){
+    assert.doesNotMatch(html,/<script(?![^>]*\bsrc=)[^>]*>/iu);
+    assert.doesNotMatch(html,/\sstyle=/iu);
+  }
 });
 
 test('acceso y rutas no exponen jerga técnica en el texto comercial',()=>{

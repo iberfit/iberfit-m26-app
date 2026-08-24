@@ -431,6 +431,8 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
   const sync=syncBanner(execution);
   const goal=sessionLiveGoal(session);
 
+  const isCoach=String(role||'').trim().toLowerCase()==='coach';
+
   if(execution.status==='ready'){
     return `<section class="m26-guided m26-session-live" data-session-live-state="ready">
       ${state}
@@ -438,9 +440,9 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       <div class="m26-panel m26-session-live-hero">
         <div class="m26-session-live-heading">
           <div>
-            <p class="m26-eyebrow">Tu próxima sesión</p>
+            <p class="m26-eyebrow">${isCoach?'Sesión programada':'Tu próxima sesión'}</p>
             <h2>${e(session.title||'Sesión IBERFIT')}</h2>
-            <p>Revisa el plan y empieza cuando estés preparado.</p>
+            <p>${isCoach?'Confirma el contexto y empieza a trabajar con el cliente.':'Revisa el plan y empieza cuando estés preparado.'}</p>
           </div>
           <span class="m26-session-live-status">Preparada</span>
         </div>
@@ -448,7 +450,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         ${goal}
         <div class="m26-session-live-actions">
           <button type="button" data-session-action="exit-session">Volver</button>
-          <button type="button" class="m26-primary-action" data-session-action="start">Iniciar sesión</button>
+          <button type="button" class="m26-primary-action" data-session-action="start">${isCoach?'Iniciar entrenamiento':'Iniciar sesión'}</button>
         </div>
       </div>
     </section>`;
@@ -575,6 +577,9 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       ),
     ),
   );
+  const liveAddOptions=isCoach
+    ?catalog.search('').filter((item)=>item.id!==step.exerciseId).slice(0,60).map((item)=>`<option value="${e(item.id)}">${e(item.name_es)}</option>`).join('')
+    :'';
   const alternatives=catalog.search('',{pattern:ex.pattern})
     .filter((item)=>item.id!==step.exerciseId)
     .slice(0,8)
@@ -619,6 +624,19 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           </div>
         </div>
         <p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>
+        <details class="m26-session-options">
+          <summary>Corregir esta serie</summary>
+          <p>La corrección queda registrada como un evento distinto; no borra silenciosamente el dato anterior.</p>
+          <div class="m26-field-grid">
+            <label>Repeticiones<input type="number" min="0" max="10000" value="${e(recorded.reps??'')}" data-set-field="reps"></label>
+            <label>Tiempo (s)<input type="number" min="0" max="86400" value="${e(recorded.seconds??'')}" data-set-field="seconds"></label>
+            <label>Carga<input type="text" maxlength="80" value="${e(recorded.load??'')}" data-set-field="load"></label>
+            <label>RPE<input type="number" min="1" max="10" step="0.5" value="${e(recorded.rpe??'')}" data-set-field="rpe" required></label>
+            <label>RIR<input type="number" min="0" max="10" step="0.5" value="${e(recorded.rir??'')}" data-set-field="rir"></label>
+          </div>
+          <label>Notas<textarea maxlength="1000" data-set-field="notes">${e(recorded.notes||'')}</textarea></label>
+          <button type="button" data-session-action="correct-set">Guardar corrección</button>
+        </details>
         <div class="m26-session-live-actions">
           ${restActive?'<button type="button" data-session-action="rest-minus">−15 s</button><button type="button" data-session-action="rest-plus">+15 s</button>':''}
           <button type="button" class="m26-primary-action" data-session-action="next">${restActive?'Continuar ahora':e(nextCopy.label)}</button>
@@ -639,6 +657,11 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <label>Notas<textarea maxlength="1000" data-set-field="notes"></textarea></label>
         </details>
         <button type="button" class="m26-primary-action" data-session-action="complete-set" data-rest-seconds="${e(planned.restSeconds||60)}">Completar serie</button>
+        <details class="m26-session-options">
+          <summary>No realizar esta serie</summary>
+          <label>Motivo<input maxlength="500" data-session-skip-set-reason placeholder="Ej. molestia, fatiga o ajuste técnico"></label>
+          <button type="button" data-session-action="skip-set">Omitir serie con motivo</button>
+        </details>
       </article>`;
 
   const cues=(ex.cues||[]).join(' · ');
@@ -697,9 +720,26 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         </div>
         <details class="m26-session-options">
           <summary>Ajustes y alternativas</summary>
+          <p>Estos cambios afectan únicamente a la ejecución de hoy; no modifican el plan futuro.</p>
           <label>Alternativa<select data-session-substitute>${alternatives}</select></label>
-          <label>Motivo<input maxlength="500" data-session-substitute-reason></label>
-          <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}">Usar alternativa</button>
+          <label>Motivo de sustitución<input maxlength="500" data-session-substitute-reason></label>
+          <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}" ${recorded?'disabled aria-disabled="true" title="Continúa a la siguiente serie antes de sustituir"':''}>Usar alternativa</button>
+          <label>Motivo para omitir el resto del ejercicio<input maxlength="500" data-session-skip-exercise-reason></label>
+          <button type="button" data-session-action="skip-exercise">Omitir ejercicio restante</button>
+          ${isCoach?`<div class="m26-session-live-coach-tools">
+            <h4>Ajuste estructural del Coach</h4>
+            <button type="button" data-session-action="add-set">Añadir una serie a este ejercicio</button>
+            <label>Añadir ejercicio después del actual<select data-session-live-add-exercise><option value="">Seleccionar ejercicio…</option>${liveAddOptions}</select></label>
+            <div class="m26-field-grid">
+              <label>Series<input type="number" min="1" max="100" value="1" data-session-live-add-sets></label>
+              <label>Repeticiones/tiempo<input maxlength="40" value="10" data-session-live-add-reps></label>
+              <label>Descanso (s)<input type="number" min="1" max="3600" value="60" data-session-live-add-rest></label>
+              <label>Ritmo<input maxlength="40" value="controlado" data-session-live-add-tempo></label>
+              <label>RPE objetivo<input type="number" min="1" max="10" step="0.5" value="7" data-session-live-add-rpe></label>
+              <label>RIR objetivo<input type="number" min="0" max="10" step="0.5" value="3" data-session-live-add-rir></label>
+            </div>
+            <button type="button" data-session-action="add-live-exercise">Añadir ejercicio a la sesión de hoy</button>
+          </div>`:''}
         </details>
         <details class="m26-session-options">
           <summary>Pausa o cancelación</summary>

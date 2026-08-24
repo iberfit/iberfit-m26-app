@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {createHash} from 'node:crypto';
 
 const read=(path)=>fs.readFileSync(path,'utf8').replace(/\r\n/g,'\n');
 const pkg=JSON.parse(read('package.json'));
@@ -45,19 +46,32 @@ test('RC64.2A QA surface is distinct from historical RC15 and RC29 release build
 
 
 
-test('RC64.2A disabled runtime uses one CSP-safe critical stylesheet and defers every full-app stylesheet',()=>{
+test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fetch full-app styles before elevation',()=>{
   const index=read('public/m26/index.html');
   const entry=read('public/m26/app.js');
-  const critical=read('public/m26/preauth-critical.css');
+  const critical=read('public/m26/preauth-critical.css').replace(/\n+$/u,'');
+  const headers=read('public/m26/_headers');
 
-  assert.doesNotMatch(index,/<style\b/u);
-  assert.match(index,/href="\/m26\/preauth-critical\.css"/u);
+  assert.doesNotMatch(index,/href="\/m26\/preauth-critical\.css"/u);
+  const inline=[...index.matchAll(/<style data-iberfit-preauth-critical>([\s\S]*?)<\/style>/gu)];
+  assert.equal(inline.length,1);
+  assert.equal([...index.matchAll(/<style\b/giu)].length,1);
+  assert.equal(inline[0][1],critical);
+
+  const expectedHash=`'sha256-${createHash('sha256').update(Buffer.from(inline[0][1],'utf8')).digest('base64')}'`;
+  const cspLine=headers.split('\n').find((line)=>line.includes('Content-Security-Policy:'))||'';
+  const styleSource=cspLine.match(/style-src\s+([^;]+);/u)?.[1]||'';
+  const tokens=styleSource.trim().split(/\s+/u).filter(Boolean);
+  assert.ok(tokens.includes("'self'"));
+  assert.ok(tokens.includes(expectedHash));
+  assert.equal(tokens.filter((token)=>/^'sha256-[^']+'$/u.test(token)).length,1);
+  assert.ok(!tokens.includes("'unsafe-inline'"));
   assert.doesNotMatch(index,/rel="preload" href="\/m26\/fonts\/inter-latin-wght-normal\.woff2"/u);
 
-  const deferred=[...index.matchAll(/data-iberfit-full-style media="not all"/gu)];
+  const deferred=[...index.matchAll(/<link[^>]*data-href="[^"]+\.css"[^>]*data-iberfit-full-style[^>]*media="not all"[^>]*>/gu)];
   assert.equal(deferred.length,13);
 
-  for(const path of [
+  for(const stylePath of [
     '/src/m26/design/tokens.css',
     '/src/m26/design/typography.css',
     '/src/m26/design/icons.css',
@@ -72,7 +86,10 @@ test('RC64.2A disabled runtime uses one CSP-safe critical stylesheet and defers 
     '/src/m26/design/primitives.css',
     '/src/m26/design/role-surfaces.css',
   ]){
-    assert.match(index,new RegExp(`href="${path.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}"[^>]*data-iberfit-full-style[^>]*media="not all"`,'u'));
+    const escaped=stylePath.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const tag=index.match(new RegExp(`<link[^>]*data-href="${escaped}"[^>]*data-iberfit-full-style[^>]*media="not all"[^>]*>`,'u'))?.[0]||'';
+    assert.ok(tag,`FULL_STYLE_DECLARATION_MISSING:${stylePath}`);
+    assert.doesNotMatch(tag,/(?:^|\s)href=/u);
   }
 
   assert.match(index,/data-static-auth-bootstrap="true"/u);
@@ -83,10 +100,13 @@ test('RC64.2A disabled runtime uses one CSP-safe critical stylesheet and defers 
   assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/mu);
   assert.match(entry,/if\(runtime\.enabled\)\{\s*await loadFullApplication\(\);/u);
   assert.doesNotMatch(index,/href="\/src\/m26\/design\/adaptive-layout\.css"/u);
+  assert.match(entry,/const pendingHref=link\.getAttribute\('data-href'\)/u);
+  assert.match(entry,/const activeHref=link\.getAttribute\('href'\)/u);
+  assert.match(entry,/if\(!activeHref\)link\.setAttribute\('href',targetHref\)/u);
+  assert.match(entry,/M26_STYLE_HREF_REQUIRED/u);
   assert.match(entry,/function ensureAdaptiveLayoutStyle\(\)/u);
   assert.match(entry,/link\.href='\/src\/m26\/design\/adaptive-layout\.css'/u);
   assert.match(entry,/ensureAdaptiveLayoutStyle\(\);\s*await activateFullStyles\(\);/u);
-  assert.match(entry,/await activateFullStyles\(\);/u);
   assert.match(entry,/await import\('\/src\/m26\/app\/application\.js'\)/u);
   assert.match(entry,/link\.media='all'/u);
   assert.match(entry,/M26_STYLE_LOAD_TIMEOUT/u);
@@ -97,6 +117,7 @@ test('RC64.2A disabled runtime uses one CSP-safe critical stylesheet and defers 
   assert.match(critical,/min-height:44px/u);
   assert.match(critical,/max-width:100%/u);
 });
+
 test('RC64.2A initial HTML provides the settled disabled preauth shell before optional full-app elevation',()=>{
   const index=read('public/m26/index.html');
   const entry=read('public/m26/app.js');
@@ -251,21 +272,24 @@ test('RC64.2A keeps generated QA surface and Lighthouse machine output ignored',
   assert.match(ignore,/^\.tmp\/$/mu);
   assert.match(ignore,/^\.lighthouseci\/$/mu);
 });
-test('RC64.2A PWA app-shell generator includes linked critical CSS before final staging',()=>{
+test('RC64.2A PWA app-shell retains canonical critical CSS after inline boot optimization',()=>{
   const generator=read('scripts/generate_rc58_app_shell.mjs');
   const index=read('public/m26/index.html');
   const sw=read('public/m26/sw.js');
 
-  assert.match(index,/href="\/m26\/preauth-critical\.css"/u);
-  assert.match(generator,/function linkedStylesFromIndex\(\)/u);
-  assert.match(generator,/html\.matchAll\(\/href=/u);
-  assert.match(generator,/RC58_5C_B_LINKED_CSS_PATH_UNMAPPED/u);
-  assert.match(generator,/RC58_5C_B_LINKED_STYLE_MISSING/u);
-  assert.match(generator,/for\(const linkedStyle of linkedStylesFromIndex\(\)\)/u);
-  assert.match(sw,/"\/m26\/preauth-critical\.css"/u);
-  assert.match(sw,/VERSION='m26-rc63-2'/u);
-  assert.match(sw,/PREVIOUS_VERSION='m26-rc63-1'/u);
+  assert.equal(index.includes('href="/m26/preauth-critical.css"'),false);
+  assert.equal(index.includes('<style data-iberfit-preauth-critical>'),true);
+  assert.equal(generator.includes('function linkedStylesFromIndex()'),true);
+  assert.equal(generator.includes('for(const repoPath of trackedFiles())'),true);
+  assert.equal(generator.includes('repoPaths.add(repoPath)'),true);
+  assert.equal(generator.includes('RC58_5C_B_LINKED_CSS_PATH_UNMAPPED'),true);
+  assert.equal(generator.includes('RC58_5C_B_LINKED_STYLE_MISSING'),true);
+  assert.equal(generator.includes('for(const linkedStyle of linkedStylesFromIndex())'),true);
+  assert.equal(sw.includes('"/m26/preauth-critical.css"'),true);
+  assert.equal(sw.includes("VERSION='m26-rc63-2'"),true);
+  assert.equal(sw.includes("PREVIOUS_VERSION='m26-rc63-1'"),true);
 });
+
 test('RC64.2A direct Lighthouse Chromium launch disables sandbox only on GitHub Linux loopback',async()=>{
   const policy=await import('../qa/rc64/chromium-launch-policy.mjs');
 

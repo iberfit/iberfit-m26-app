@@ -34,6 +34,14 @@ async function activateFullStyles(){
   const links=[...document.querySelectorAll('link[data-iberfit-full-style]')];
 
   await Promise.all(links.map((link)=>new Promise((resolve,reject)=>{
+    const pendingHref=link.getAttribute('data-href');
+    const activeHref=link.getAttribute('href');
+    const targetHref=activeHref||pendingHref;
+    if(!targetHref){
+      reject(new Error('M26_STYLE_HREF_REQUIRED'));
+      return;
+    }
+
     let settled=false;
     const finish=(error)=>{
       if(settled)return;
@@ -45,14 +53,15 @@ async function activateFullStyles(){
       else resolve();
     };
     const onLoad=()=>finish();
-    const onError=()=>finish(new Error(`M26_STYLE_LOAD_FAILED:${link.getAttribute('href')||'unknown'}`));
+    const onError=()=>finish(new Error(`M26_STYLE_LOAD_FAILED:${targetHref}`));
     const timer=setTimeout(()=>{
       if(link.sheet)finish();
-      else finish(new Error(`M26_STYLE_LOAD_TIMEOUT:${link.getAttribute('href')||'unknown'}`));
+      else finish(new Error(`M26_STYLE_LOAD_TIMEOUT:${targetHref}`));
     },5000);
 
     link.addEventListener('load',onLoad,{once:true});
     link.addEventListener('error',onError,{once:true});
+    if(!activeHref)link.setAttribute('href',targetHref);
     link.media='all';
     if(link.sheet)queueMicrotask(()=>finish());
   })));
