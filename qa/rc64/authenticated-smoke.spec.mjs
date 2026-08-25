@@ -391,7 +391,10 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
   console.log('RC64_2B_IDB_ENGINE_PROBE=PASS');
 
   for(const account of accounts){
-    expect(String(account.email||'').toLowerCase()).toMatch(/^iberfit\.cl\+qa\./u);
+    const expectedEmail=account.name==='coach'
+      ?'qa.rc74.coach@iberfit.cl'
+      :'qa.rc74.client-a@iberfit.cl';
+    expect(String(account.email||'').toLowerCase()).toBe(expectedEmail);
     expect(String(account.password||'').length).toBeGreaterThanOrEqual(8);
 
     const context=await browser.newContext({

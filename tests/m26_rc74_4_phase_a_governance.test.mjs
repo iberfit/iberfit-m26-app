@@ -77,3 +77,11 @@ test('RC74.4 P keeps environment truth available through RLS without opening set
   for(const key of ['environment','real_data_allowed','production_blocked']) assert.ok(p.includes("key='"+key+"'"),key);
   assert.doesNotMatch(p,/grant\s+select[\s\S]*iberfit_system_settings[\s\S]*authenticated/iu);
 });
+
+
+test('RC64 authenticated smoke pins the current RC74 synthetic identities exactly',()=>{
+  const smoke=read('qa/rc64/authenticated-smoke.spec.mjs');
+  assert.match(smoke,/qa\.rc74\.coach@iberfit\.cl/u);
+  assert.match(smoke,/qa\.rc74\.client-a@iberfit\.cl/u);
+  assert.doesNotMatch(smoke,/\^iberfit\\\.cl\\\+qa/u);
+});
