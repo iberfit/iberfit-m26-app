@@ -64,13 +64,12 @@ function environmentMode(environment){
 }
 
 function syntheticCanaryAllowed(snapshot){
+  const mode=environmentMode(snapshot?.environment);
   return snapshot?.canary?.active===true
     &&String(
       snapshot?.canary?.scope||''
     ).trim().toLowerCase()==='allowlist'
-    &&environmentMode(
-      snapshot?.environment
-    )==='SYNTHETIC_ONLY';
+    &&(mode==='SYNTHETIC_ONLY'||mode==='QA');
 }
 function safeId(value){const id=String(value||'').trim();return SAFE_ID_PATTERN.test(id)?id:null;}
 function jsonByteLength(value){let text;try{text=JSON.stringify(value);}catch{throw new Error('M26_BOOTSTRAP_NOT_SERIALIZABLE');}if(text===undefined)throw new Error('M26_BOOTSTRAP_NOT_SERIALIZABLE');return typeof TextEncoder==='function'?new TextEncoder().encode(text).length:text.length;}

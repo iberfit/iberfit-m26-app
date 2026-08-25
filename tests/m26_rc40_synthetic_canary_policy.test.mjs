@@ -49,6 +49,59 @@ test(
 );
 
 test(
+  'canary allowlist QA acepta datos sintéticos sin abrir producción',
+  ()=>{
+    const snapshot=syntheticSnapshot({
+      environment:'QA',
+    });
+
+    assert.equal(
+      assertProductionSnapshot(snapshot),
+      snapshot,
+    );
+
+    const state=stateFromBootstrap(snapshot);
+    assert.equal(state.identity.role,'admin');
+    assert.equal(state.collections.clients.length,1);
+  },
+);
+
+test(
+  'QA normalizado como objeto también autoriza solo el canary allowlist',
+  ()=>{
+    const snapshot=syntheticSnapshot({
+      environment:{
+        mode:'QA',
+      },
+    });
+
+    assert.doesNotThrow(
+      ()=>assertProductionSnapshot(snapshot),
+    );
+  },
+);
+
+test(
+  'QA sin canary activo o sin allowlist sigue rechazando marcadores sintéticos',
+  ()=>{
+    for(const canary of [
+      {active:false,scope:'allowlist'},
+      {active:true,scope:'public'},
+    ]){
+      assert.throws(
+        ()=>assertProductionSnapshot(
+          syntheticSnapshot({
+            environment:'QA',
+            canary,
+          }),
+        ),
+        /M26_SYNTHETIC_DATA_REJECTED/,
+      );
+    }
+  },
+);
+
+test(
   'entorno sintético normalizado como objeto también queda autorizado',
   ()=>{
     const snapshot=syntheticSnapshot({

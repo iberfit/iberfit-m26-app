@@ -85,3 +85,25 @@ test('RC64 authenticated smoke pins the current RC74 synthetic identities exactl
   assert.match(smoke,/qa\.rc74\.client-a@iberfit\.cl/u);
   assert.doesNotMatch(smoke,/\^iberfit\\\.cl\\\+qa/u);
 });
+
+test('RC74.4 Q versions the minimal V14 QA membership fixture',()=>{
+  const q=read('supabase/migrations/20260825043500_iberfit_rc74_4q_v14_qa_membership_fixture.sql');
+  assert.match(q,/RC74_4Q_QA_ENVIRONMENT_REQUIRED/u);
+  assert.match(q,/00000000-0000-4000-8000-000000000140/u);
+  assert.match(q,/iberfit-qa-rc74/u);
+  for(const email of [
+    'qa.rc74.admin@iberfit.cl',
+    'qa.rc74.coach@iberfit.cl',
+    'qa.rc74.client-a@iberfit.cl',
+    'qa.rc74.client-b@iberfit.cl',
+  ]) assert.ok(q.includes(email),email);
+  assert.match(q,/on conflict \(organization_id,user_id\) do nothing/u);
+  assert.doesNotMatch(q,new RegExp(PROD_REF));
+});
+
+test('RC74.4 synthetic guard recognizes canonical QA only behind active allowlist',()=>{
+  const source=read('src/m26/production-state.js');
+  assert.match(source,/mode==='SYNTHETIC_ONLY'\|\|mode==='QA'/u);
+  assert.match(source,/canary\?\.active===true/u);
+  assert.match(source,/toLowerCase\(\)==='allowlist'/u);
+});
