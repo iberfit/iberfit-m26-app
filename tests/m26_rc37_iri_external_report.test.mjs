@@ -93,6 +93,52 @@ test('la subida de 50 MB dispone de un timeout largo sin ampliar REST ni RPC', (
   );
 });
 
+test('servicio IRI separa estrictamente los backends de producción y QA', async () => {
+  const qaRuntime = {
+    ...runtime,
+    qaOnly: true,
+    projectRef: 'gjztkdwfmunnzhtvxrsu',
+    url: 'https://gjztkdwfmunnzhtvxrsu.supabase.co',
+  };
+  const qaService = createIriExternalReportService({
+    runtime: qaRuntime,
+    fetchImpl: async () => Response.json({
+      signedURL: `/storage/v1/object/sign/${IRI_EXTERNAL_REPORT_BUCKET}/qa?token=test`,
+    }),
+  });
+
+  assert.match(
+    await qaService.signedUrl(TOKEN, { objectPath: `${CLIENT_ID}/${ASSESSMENT_ID}/bioimpedancia` }),
+    /^https:\/\/gjztkdwfmunnzhtvxrsu\.supabase\.co\/storage\/v1\/object\/sign\//u
+  );
+  assert.doesNotThrow(() => createIriExternalReportService({
+    runtime,
+    fetchImpl: async () => Response.json({}),
+  }));
+
+  assert.throws(
+    () => createIriExternalReportService({
+      runtime: { ...qaRuntime, qaOnly: false },
+      fetchImpl: async () => Response.json({}),
+    }),
+    /M26_IRI_EXTERNAL_REPORT_PROJECT_MISMATCH/u
+  );
+  assert.throws(
+    () => createIriExternalReportService({
+      runtime: { ...runtime, qaOnly: true },
+      fetchImpl: async () => Response.json({}),
+    }),
+    /M26_IRI_EXTERNAL_REPORT_PROJECT_MISMATCH/u
+  );
+  assert.throws(
+    () => createIriExternalReportService({
+      runtime: { ...qaRuntime, url: runtime.url },
+      fetchImpl: async () => Response.json({}),
+    }),
+    /M26_IRI_EXTERNAL_REPORT_ORIGIN_MISMATCH/u
+  );
+});
+
 test('contexto usa el cliente seleccionado y la evaluación IRI más reciente', () => {
   const context = resolveIriExternalReportContext({
     identity: { role: 'coach' },

@@ -107,3 +107,12 @@ test('RC74.4 synthetic guard recognizes canonical QA only behind active allowlis
   assert.match(source,/canary\?\.active===true/u);
   assert.match(source,/toLowerCase\(\)==='allowlist'/u);
 });
+
+test('RC74.4 IRI report backend follows the strict QA runtime boundary',()=>{
+  const source=read('src/m26/workflows/iri-external-report-controller.js');
+  assert.match(source,/M26_QA_PROJECT_REF/u);
+  assert.match(source,/M26_QA_SUPABASE_ORIGIN/u);
+  assert.match(source,/runtime\.qaOnly === true/u);
+  assert.match(source,/M26_IRI_EXTERNAL_REPORT_PROJECT_MISMATCH/u);
+  assert.match(source,/M26_IRI_EXTERNAL_REPORT_ORIGIN_MISMATCH/u);
+});

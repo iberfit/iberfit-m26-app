@@ -1,5 +1,10 @@
-const CANONICAL_PROJECT_REF = 'pjhmrhejsoofmouedavw';
-const CANONICAL_SUPABASE_ORIGIN = `https://${CANONICAL_PROJECT_REF}.supabase.co`;
+import {
+  M26_PRODUCTION_PROJECT_REF,
+  M26_PRODUCTION_SUPABASE_ORIGIN,
+  M26_QA_PROJECT_REF,
+  M26_QA_SUPABASE_ORIGIN,
+} from '../supabase-transport.js';
+
 export const IRI_EXTERNAL_REPORT_APP_ORIGIN = 'https://m26-canary.iberfit.cl';
 const IRI_EXTERNAL_REPORT_APP_ORIGIN_MAP = new Map([
   ['https://m26-canary.iberfit.cl', 'https://m26-canary.iberfit.cl'],
@@ -227,7 +232,10 @@ export function resolveIriExternalReportTimeouts(runtime = {}) {
 
 function validateRuntime(runtime = {}) {
   if (!runtime.enabled) throw new Error('M26_IRI_EXTERNAL_REPORT_BACKEND_DISABLED');
-  if (runtime.projectRef !== CANONICAL_PROJECT_REF) {
+  const expected = runtime.qaOnly === true
+    ? { projectRef: M26_QA_PROJECT_REF, origin: M26_QA_SUPABASE_ORIGIN }
+    : { projectRef: M26_PRODUCTION_PROJECT_REF, origin: M26_PRODUCTION_SUPABASE_ORIGIN };
+  if (runtime.projectRef !== expected.projectRef) {
     throw new Error('M26_IRI_EXTERNAL_REPORT_PROJECT_MISMATCH');
   }
   let origin;
@@ -236,7 +244,7 @@ function validateRuntime(runtime = {}) {
   } catch {
     throw new Error('M26_IRI_EXTERNAL_REPORT_URL_INVALID');
   }
-  if (origin !== CANONICAL_SUPABASE_ORIGIN) {
+  if (origin !== expected.origin) {
     throw new Error('M26_IRI_EXTERNAL_REPORT_ORIGIN_MISMATCH');
   }
   const publishableKey = cleanText(runtime.publishableKey, 20_000);
