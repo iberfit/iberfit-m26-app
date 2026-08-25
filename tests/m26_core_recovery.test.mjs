@@ -49,7 +49,7 @@ test('ausencia de métrica se presenta como Sin registro y cero se conserva', ()
 });
 
 test('pages.dev no habilita backend real y canario exacto sí', () => {
-  const raw = { enabled: true, url: 'https://pjhmrhejsoofmouedavw.supabase.co', publishableKey: 'public' };
+  const raw = { enabled: true, url: 'https://gjztkdwfmunnzhtvxrsu.supabase.co', publishableKey: 'public' };
   assert.equal(resolveM26Runtime(raw, { hostname: 'random.pages.dev' }).enabled, false);
   const canary = resolveM26Runtime(raw, { hostname: 'm26-canary.iberfit.cl' });
   assert.equal(canary.enabled, true);
@@ -58,10 +58,10 @@ test('pages.dev no habilita backend real y canario exacto sí', () => {
 
 test('transporte usa exclusivamente RPC v26 y exige JWT', async () => {
   const calls=[];
-  const runtime=resolveM26Runtime({ enabled:true, url:'https://pjhmrhejsoofmouedavw.supabase.co', publishableKey:'public' }, { hostname:'m26-canary.iberfit.cl' });
+  const runtime=resolveM26Runtime({ enabled:true, url:'https://gjztkdwfmunnzhtvxrsu.supabase.co', publishableKey:'public' }, { hostname:'m26-canary.iberfit.cl' });
   const fetchImpl=async (url,options)=>{
     calls.push({url,options});
-    return new Response(JSON.stringify({ environment:'PRODUCTION', canary:{active:true}, user:{id:userId,role:'client'}, data:{} }), {status:200,headers:{'content-type':'application/json'}});
+    return new Response(JSON.stringify({ environment:'QA', canary:{active:true}, user:{id:userId,role:'client'}, data:{} }), {status:200,headers:{'content-type':'application/json'}});
   };
   const transport=createM26Transport(runtime,{fetchImpl});
   await assert.rejects(()=>transport.bootstrap(null),/M26_AUTH_REQUIRED/);

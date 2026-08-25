@@ -1,15 +1,21 @@
 const DEFAULT_TIMEOUT_MS = 12_000;
 const EXACT_REMOTE_HOSTS = new Set(['app.iberfit.cl', 'coach.iberfit.cl', 'm26-canary.iberfit.cl']);
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
-export const M26_CANONICAL_PROJECT_REF='pjhmrhejsoofmouedavw';
-export const M26_CANONICAL_SUPABASE_ORIGIN=`https://${M26_CANONICAL_PROJECT_REF}.supabase.co`;
+export const M26_PRODUCTION_PROJECT_REF='pjhmrhejsoofmouedavw';
+export const M26_QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
+export const M26_PRODUCTION_SUPABASE_ORIGIN=`https://${M26_PRODUCTION_PROJECT_REF}.supabase.co`;
+export const M26_QA_SUPABASE_ORIGIN=`https://${M26_QA_PROJECT_REF}.supabase.co`;
+// Backwards-compatible aliases: unqualified canonical continues to mean production.
+export const M26_CANONICAL_PROJECT_REF=M26_PRODUCTION_PROJECT_REF;
+export const M26_CANONICAL_SUPABASE_ORIGIN=M26_PRODUCTION_SUPABASE_ORIGIN;
 const PROJECT_REF_PATTERN=/^[a-z0-9]{20}$/;
 const SAFE_ID_PATTERN=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 const MAX_TOKEN_CHARS=16_384;
 const MAX_REFRESH_TOKEN_CHARS=16_384;
 const MAX_AUTH_EMAIL_CHARS=254;
 const QA_AUTHORIZED_EMAILS=new Set(['iberfit.cl@gmail.com']);
-function isQaAuthorizedEmail(email){const normalized=String(email||'').trim().toLowerCase();return normalized.startsWith('iberfit.cl+qa.')||QA_AUTHORIZED_EMAILS.has(normalized);}
+const QA_RC_EMAIL_PATTERN=/^qa\.rc\d+(?:-\d+)?(?:\.[a-z0-9][a-z0-9-]{0,63})+@iberfit\.cl$/u;
+function isQaAuthorizedEmail(email){const normalized=String(email||'').trim().toLowerCase();const legacyAlias=normalized.startsWith('iberfit.cl+qa.')&&normalized.endsWith('@gmail.com');return QA_RC_EMAIL_PATTERN.test(normalized)||legacyAlias||QA_AUTHORIZED_EMAILS.has(normalized);}
 const MAX_RESPONSE_BYTES=20_000_000;
 const CANONICAL_RPC=Object.freeze({
   bootstrap:'iberfit_bootstrap_v26',
@@ -52,22 +58,30 @@ const TELEMETRY_BATCH_MAX_BYTES=192_000;
 const TELEMETRY_SAFE_ID_PATTERN=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const UUID_PATTERN=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function expectedRemoteProject(qaOnly){
+  return qaOnly===true
+    ?Object.freeze({projectRef:M26_QA_PROJECT_REF,origin:M26_QA_SUPABASE_ORIGIN,environment:'qa'})
+    :Object.freeze({projectRef:M26_PRODUCTION_PROJECT_REF,origin:M26_PRODUCTION_SUPABASE_ORIGIN,environment:'production'});
+}
+
 export function resolveM26Runtime(raw, locationLike = globalThis.location) {
   const host = locationLike?.hostname || '';
   const local = LOCAL_HOSTS.has(host);
   const exactRemote = EXACT_REMOTE_HOSTS.has(host);
   const canary = host === 'm26-canary.iberfit.cl';
-  const qaOnly = canary || Boolean(raw?.qaOnly);
+  const qaOnly = canary || raw?.qaOnly === true;
+  const expected=expectedRemoteProject(qaOnly);
   const enabled = Boolean(raw?.enabled) && (local || (qaOnly ? canary : exactRemote));
   return Object.freeze({
     enabled,
     host,
-    projectRef: raw?.projectRef || M26_CANONICAL_PROJECT_REF,
+    projectRef: raw?.projectRef || expected.projectRef,
     url: raw?.url || '',
     publishableKey: raw?.publishableKey || raw?.anonKey || '',
     timeoutMs: Math.max(1_000, Math.min(Number(raw?.timeoutMs || DEFAULT_TIMEOUT_MS), 30_000)),
     qaOnly,
     canary,
+    environment:expected.environment,
     version:String(raw?.version||'26.0.0').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,80)||'26.0.0',
     rpc: Object.freeze({
       bootstrap: raw?.rpc?.bootstrap || CANONICAL_RPC.bootstrap,
@@ -77,15 +91,16 @@ export function resolveM26Runtime(raw, locationLike = globalThis.location) {
   });
 }
 
-function normalizeUrl(value,projectRef) {
+function normalizeUrl(value,projectRef,qaOnly) {
   let url;
   try{url=new URL(String(value || ''));}catch{throw new Error('M26_SUPABASE_URL_INVALID');}
   const local = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
   if (url.protocol !== 'https:' && !local) throw new Error('M26_HTTPS_REQUIRED');
   if(!local){
+    const expected=expectedRemoteProject(qaOnly);
     if(!PROJECT_REF_PATTERN.test(String(projectRef||'')))throw new Error('M26_PROJECT_REF_INVALID');
-    if(projectRef!==M26_CANONICAL_PROJECT_REF)throw new Error('M26_PROJECT_REF_MISMATCH');
-    if(url.origin!==M26_CANONICAL_SUPABASE_ORIGIN)throw new Error('M26_SUPABASE_ORIGIN_MISMATCH');
+    if(projectRef!==expected.projectRef)throw new Error('M26_PROJECT_REF_MISMATCH');
+    if(url.origin!==expected.origin)throw new Error('M26_SUPABASE_ORIGIN_MISMATCH');
     if(url.username||url.password||!['','/'].includes(url.pathname)||url.search||url.hash)throw new Error('M26_SUPABASE_URL_INVALID');
   }
   return url.origin;
@@ -100,13 +115,20 @@ export function validateM26Runtime(raw) {
   if (!raw?.enabled) throw new Error('M26_BACKEND_DISABLED');
   if (!raw?.url || !raw?.publishableKey) throw new Error('M26_PUBLIC_CONFIG_MISSING');
   if(!PROJECT_REF_PATTERN.test(String(raw.projectRef||'')))throw new Error('M26_PROJECT_REF_INVALID');
-  if(raw.projectRef!==M26_CANONICAL_PROJECT_REF)throw new Error('M26_PROJECT_REF_MISMATCH');
+  const qaOnly=raw.qaOnly===true;
+  const expected=expectedRemoteProject(qaOnly);
+  if(raw.projectRef!==expected.projectRef)throw new Error('M26_PROJECT_REF_MISMATCH');
   if(String(raw.publishableKey).length<2||String(raw.publishableKey).length>MAX_TOKEN_CHARS)throw new Error('M26_PUBLIC_KEY_INVALID');
-  return { ...raw, projectRef:M26_CANONICAL_PROJECT_REF, url: normalizeUrl(raw.url,raw.projectRef), rpc:validateRpcConfig(raw.rpc) };
+  return { ...raw, qaOnly, environment:expected.environment, projectRef:expected.projectRef, url: normalizeUrl(raw.url,raw.projectRef,qaOnly), rpc:validateRpcConfig(raw.rpc) };
 }
 
 function normalizeRpcResponse(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+  const receiptResponse=body?.receipt?.response&&typeof body.receipt.response==='object'&&!Array.isArray(body.receipt.response)?body.receipt.response:{};
+  const executionId=body.executionId??body.execution_id??receiptResponse.executionId??receiptResponse.execution_id??null;
+  const rawExecutionRevision=body.executionRevision??body.execution_revision??receiptResponse.executionRevision??receiptResponse.execution_revision;
+  const executionRevision=rawExecutionRevision===undefined||rawExecutionRevision===null?null:Number(rawExecutionRevision);
+  const appointmentId=body.appointmentId??body.appointment_id??receiptResponse.appointmentId??receiptResponse.appointment_id??null;
   return {
     ...body,
     operationId: body.operationId || body.operation_id || null,
@@ -116,6 +138,9 @@ function normalizeRpcResponse(body) {
     clientId: body.clientId || body.client_id || null,
     remoteRevision: body.remoteRevision ?? body.remote_revision ?? null,
     baseRevision: body.baseRevision ?? body.base_revision ?? null,
+    ...(executionId?{executionId:String(executionId)}:{}),
+    ...(Number.isInteger(executionRevision)&&executionRevision>=0?{executionRevision}:{}),
+    ...(appointmentId?{appointmentId:String(appointmentId)}:{}),
   };
 }
 
@@ -399,7 +424,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   async function backendHealth(){
     const result=await request('/rest/v1/rpc/'+RC43_RPC.health,{method:'POST',body:'{}'});
     const item=normalizeRc43Result(result,'M26_RC43_HEALTH_INVALID_RESPONSE');
-    if(item.ready!==true||item.version!=='RC43'||item.environment!=='production')throw new Error('M26_RC43_BACKEND_NOT_READY');
+    if(item.ready!==true||item.version!=='RC43'||item.environment!==runtime.environment)throw new Error('M26_RC43_BACKEND_NOT_READY');
     return item;
   }
 
@@ -445,7 +470,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   async function draftBackendHealth(){
     const result=await request('/rest/v1/rpc/'+RC431_RPC.health,{method:'POST',body:'{}'});
     const item=normalizeRc43Result(result,'M26_RC431_HEALTH_INVALID_RESPONSE');
-    if(item.ready!==true||item.version!=='RC43.1'||item.environment!=='production')throw new Error('M26_RC431_BACKEND_NOT_READY');
+    if(item.ready!==true||item.version!=='RC43.1'||item.environment!==runtime.environment)throw new Error('M26_RC431_BACKEND_NOT_READY');
     return item;
   }
 
@@ -517,7 +542,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   async function wearableHealth(){
     const result=await request('/rest/v1/rpc/'+RC44_RPC.health,{method:'POST',body:'{}'});
     const item=normalizeRc44Result(result,'M26_RC44_HEALTH_INVALID_RESPONSE');
-    if(item.ready!==true||item.version!=='RC44'||item.environment!=='production')throw new Error('M26_RC44_BACKEND_NOT_READY');
+    if(item.ready!==true||item.version!=='RC44'||item.environment!==runtime.environment)throw new Error('M26_RC44_BACKEND_NOT_READY');
     return item;
   }
 
@@ -706,7 +731,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
 
   async function commandRegistry(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
-    const select = 'command_type,entity_type,event_name,allowed_roles,requires_reason,requires_preview,enabled';
+    const select = 'command_type,entity_type,event_name,allowed_roles,requires_reason,requires_preview,snapshot_on_apply,conflict_sensitive,bootstrap_allowed,enabled';
     const rows = await request(`/rest/v1/domain_command_registry_v26?select=${encodeURIComponent(select)}&order=command_type.asc&limit=100`, { method: 'GET', token });
     if (!Array.isArray(rows)||rows.length>100) throw new Error('M26_COMMAND_REGISTRY_INVALID_RESPONSE');
     return rows;

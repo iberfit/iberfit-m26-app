@@ -23,7 +23,7 @@ const operationId='00000000-0000-4000-8000-000000000777';
 const command={operationId,type:'EJECUCION_GUARDAR_PROGRESO',entityType:'session_execution',entityId:'execution-1',clientId,baseRevision:0,conflictSensitive:false,payload:{progressSnapshot:{id:'execution-1'}}};
 function runtime(overrides={}){return {enabled:true,projectRef:M26_CANONICAL_PROJECT_REF,url:`https://${M26_CANONICAL_PROJECT_REF}.supabase.co`,publishableKey:'public-key',qaOnly:false,...overrides};}
 function response(body,status=200,headers={}){return new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json',...headers}});}
-function remoteRegistry(){return M26_EXTENDED_COMMAND_REGISTRY.map((row)=>({command_type:row.type,entity_type:row.entityType,event_name:row.eventName,allowed_roles:[...row.allowedRoles],requires_reason:row.requiresReason,requires_preview:row.requiresPreview,enabled:row.enabled}));}
+function remoteRegistry(){return M26_EXTENDED_COMMAND_REGISTRY.map((row)=>({command_type:row.type,entity_type:row.entityType,event_name:row.eventName,allowed_roles:[...row.allowedRoles],requires_reason:row.requiresReason,requires_preview:row.requiresPreview,snapshot_on_apply:row.snapshotOnApply,conflict_sensitive:row.conflictSensitive,bootstrap_allowed:row.bootstrapAllowed,enabled:row.enabled}));}
 function simpleSession(){const draft=createSessionDraft({clientId});addCatalogExercise(draft,exercises[0].id,catalog,{sets:1,reps:'10'});return draft;}
 
  test('transporte fija el proyecto Supabase canónico y rechaza respuestas de identidad incompletas',async()=>{

@@ -168,8 +168,8 @@ test('canary recovery remains QA-only and canary-bound',async()=>{
   const runtime=resolveM26Runtime(
     {
       enabled:true,
-      projectRef:'pjhmrhejsoofmouedavw',
-      url:'https://pjhmrhejsoofmouedavw.supabase.co',
+      projectRef:'gjztkdwfmunnzhtvxrsu',
+      url:'https://gjztkdwfmunnzhtvxrsu.supabase.co',
       publishableKey:'publishable-key-for-test',
       qaOnly:true,
     },

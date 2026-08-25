@@ -102,7 +102,8 @@ test('RC64.2B1 authenticated surface requires real canonical QA environment and 
   const builder=read('qa/rc64/build-authenticated-surface.mjs');
   assert.match(builder,/M26_SUPABASE_URL/u);
   assert.match(builder,/M26_SUPABASE_PUBLISHABLE_KEY/u);
-  assert.match(builder,/pjhmrhejsoofmouedavw/u);
+  assert.match(builder,/gjztkdwfmunnzhtvxrsu/u);
+  assert.doesNotMatch(builder,/pjhmrhejsoofmouedavw/u);
   assert.match(builder,/RC64_2B_AUTH_SERVICE_ROLE_FORBIDDEN/u);
   assert.match(builder,/\.tmp','rc64-current-surface/u);
   assert.match(builder,/credentialsEmbedded:false/u);

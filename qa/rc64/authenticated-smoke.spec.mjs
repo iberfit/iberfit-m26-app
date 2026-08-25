@@ -2,11 +2,11 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
 
 const LOCAL_ORIGIN='http://127.0.0.1:4196';
-const PROJECT_REF='pjhmrhejsoofmouedavw';
+const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const SUPABASE_ORIGIN=`https://${PROJECT_REF}.supabase.co`;
 
 const required=[
-  'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY',
+  'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
   'M26_QA_COACH_EMAIL','M26_QA_COACH_PASSWORD',
   'M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD',
 ];
@@ -178,7 +178,7 @@ function corsValueKind(value){
 }
 
 async function readOnlyRegistryControl({token,publishableKey}){
-  const select='command_type,entity_type,event_name,allowed_roles,requires_reason,requires_preview,enabled';
+  const select='command_type,entity_type,event_name,allowed_roles,requires_reason,requires_preview,snapshot_on_apply,conflict_sensitive,bootstrap_allowed,enabled';
   const url=`${SUPABASE_ORIGIN}/rest/v1/domain_command_registry_v26?select=${encodeURIComponent(select)}&order=command_type.asc&limit=100`;
   const commonHeaders={
     apikey:publishableKey,
@@ -252,6 +252,8 @@ async function readOnlyRegistryControl({token,publishableKey}){
 test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked',async({browser})=>{
   const missing=required.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
+  expect(process.env.M26_PROJECT_REF).toBe(PROJECT_REF);
+  expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
   expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
   expect(String(process.env.M26_SUPABASE_PUBLISHABLE_KEY)).not.toMatch(/service[_-]?role/iu);
 

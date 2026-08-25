@@ -15,7 +15,7 @@ import {createM26Transport} from '../src/m26/supabase-transport.js';
 import {createBrowserKeyValueStore,createWebStorageKeyValueStore} from '../src/m26/platform/key-value-store.js';
 
 const read=(path)=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
-const runtime={enabled:true,canary:true,qaOnly:true,url:'https://pjhmrhejsoofmouedavw.supabase.co',projectRef:'pjhmrhejsoofmouedavw',publishableKey:'publishable-test',timeoutMs:1000,version:'26.0.0-canary.36'};
+const runtime={enabled:true,canary:true,qaOnly:true,url:'https://gjztkdwfmunnzhtvxrsu.supabase.co',projectRef:'gjztkdwfmunnzhtvxrsu',publishableKey:'publishable-test',timeoutMs:1000,version:'26.0.0-canary.36'};
 const valid={name:'Adriana QA',email:'adriana.qa@example.com',phone:'+56 9 1111 2222',birthDate:'1990-01-01',sexForNorms:'female',modality:'presencial',weeklyFrequency:'2',sessionDurationMinutes:'60',primaryObjective:'Mantener la salud y desarrollar fuerza.',trainingAddress:'Dirección QA'};
 
 test('alta V12.2 usa identificador idempotente estable y conserva contrato histórico',()=>{

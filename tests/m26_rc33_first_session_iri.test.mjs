@@ -65,7 +65,7 @@ test('rutas RC33 contienen alta y wizard completo sin handlers inline',()=>{
 
 test('transporte canary exige preflight V12 y alta visible sin ampliar RPC canónicos',async()=>{
   const calls=[];const fetchImpl=async(url,options)=>{calls.push({url,options});const payload=url.endsWith('/iberfit_client_onboarding_preflight_v12')?{ok:true,ready:true,version:'v12.2'}:{ok:true,visible:true,client_id:'CLIENT-RC33'};return {ok:true,status:200,headers:{get:()=> 'application/json'},json:async()=>payload};};
-  const transport=createM26Transport({enabled:true,canary:true,qaOnly:true,url:'https://pjhmrhejsoofmouedavw.supabase.co',projectRef:'pjhmrhejsoofmouedavw',publishableKey:'publishable-test',timeoutMs:1000,version:'26.0.0-canary.36'}, {fetchImpl});
+  const transport=createM26Transport({enabled:true,canary:true,qaOnly:true,url:'https://gjztkdwfmunnzhtvxrsu.supabase.co',projectRef:'gjztkdwfmunnzhtvxrsu',publishableKey:'publishable-test',timeoutMs:1000,version:'26.0.0-canary.36'}, {fetchImpl});
   const preflight=await transport.clientOnboardingPreflight('jwt-test');assert.equal(preflight.ready,true);
   const result=await transport.createClientDraft('jwt-test',{name:'María'});assert.equal(result.client_id,'CLIENT-RC33');assert.match(calls[0].url,/\/rest\/v1\/rpc\/iberfit_client_onboarding_preflight_v12$/);assert.match(calls[1].url,/\/rest\/v1\/rpc\/iberfit_create_client_draft_v12$/);assert.deepEqual(JSON.parse(calls[1].options.body),{p_payload:{name:'María'}});
   const source=readFileSync(new URL('../src/m26/supabase-transport.js',import.meta.url),'utf8');assert.match(source,/CANONICAL_RPC/);assert.match(source,/M26_RPC_NOT_ALLOWED/);assert.match(source,/iberfit_create_client_draft/);
@@ -83,6 +83,6 @@ test('alta remota exige identificador y persistencia visible antes de cerrar for
 
 test('transporte rechaza un HTTP 200 que no confirme cliente creado',async()=>{
   const fetchImpl=async()=>({ok:true,status:200,headers:{get:()=> 'application/json'},json:async()=>({ok:true,message:'aceptado'})});
-  const transport=createM26Transport({enabled:true,canary:true,qaOnly:true,url:'https://pjhmrhejsoofmouedavw.supabase.co',projectRef:'pjhmrhejsoofmouedavw',publishableKey:'publishable-test',timeoutMs:1000,version:'26.0.0-canary.36'},{fetchImpl});
+  const transport=createM26Transport({enabled:true,canary:true,qaOnly:true,url:'https://gjztkdwfmunnzhtvxrsu.supabase.co',projectRef:'gjztkdwfmunnzhtvxrsu',publishableKey:'publishable-test',timeoutMs:1000,version:'26.0.0-canary.36'},{fetchImpl});
   await assert.rejects(()=>transport.createClientDraft('jwt-test',{name:'María'}),/M26_CLIENT_CREATE_INVALID_RESPONSE/);
 });

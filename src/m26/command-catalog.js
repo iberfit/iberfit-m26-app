@@ -64,6 +64,9 @@ function normalizeInstalled(installed = []) {
     type: item?.type || item?.command_type || '', entityType: item?.entityType || item?.entity_type,
     eventName: item?.eventName || item?.event_name, allowedRoles: item?.allowedRoles || item?.allowed_roles,
     requiresReason: item?.requiresReason ?? item?.requires_reason, requiresPreview: item?.requiresPreview ?? item?.requires_preview,
+    snapshotOnApply: item?.snapshotOnApply ?? item?.snapshot_on_apply,
+    conflictSensitive: item?.conflictSensitive ?? item?.conflict_sensitive,
+    bootstrapAllowed: item?.bootstrapAllowed ?? item?.bootstrap_allowed,
     enabled: item?.enabled,
   }).filter((item) => item.type);
 }
@@ -75,7 +78,7 @@ export function validateCommandCatalog(installed = [], expectedRegistry=M26_COMM
   const expectedTypes=expectedRegistry.map((entry)=>entry.type);const missing = expectedTypes.filter((type) => !installedMap.has(type));
   const unexpected = [...installedMap.keys()].filter((type) => !expectedMap.has(type));const mismatches = [],incomplete=[];
   for (const expected of expectedRegistry) {const actual = installedMap.get(expected.type);if (!actual) continue;
-    for (const key of ['entityType', 'eventName', 'requiresReason', 'requiresPreview']) {if(strict&&actual[key]===undefined)incomplete.push({type:expected.type,field:key});else if(actual[key] !== undefined && actual[key] !== expected[key]) mismatches.push({ type: expected.type, field: key, expected: expected[key], actual: actual[key] });}
+    for (const key of ['entityType', 'eventName', 'requiresReason', 'requiresPreview','snapshotOnApply','conflictSensitive','bootstrapAllowed']) {if(strict&&actual[key]===undefined)incomplete.push({type:expected.type,field:key});else if(actual[key] !== undefined && actual[key] !== expected[key]) mismatches.push({ type: expected.type, field: key, expected: expected[key], actual: actual[key] });}
     if(strict&&!Array.isArray(actual.allowedRoles))incomplete.push({type:expected.type,field:'allowedRoles'});else if (actual.allowedRoles && JSON.stringify([...actual.allowedRoles].map(normalizeRegistryRole).sort()) !== JSON.stringify([...expected.allowedRoles].map(normalizeRegistryRole).sort())) mismatches.push({ type: expected.type, field: 'allowedRoles', expected: expected.allowedRoles, actual: actual.allowedRoles });
     if(strict&&actual.enabled===undefined)incomplete.push({type:expected.type,field:'enabled'});else if (actual.enabled === false) mismatches.push({ type: expected.type, field: 'enabled', expected: true, actual: false });
   }
@@ -91,7 +94,8 @@ export function validateCommandAgainstRegistry(command, role, registry=M26_COMMA
   const definition = getCommandDefinition(command?.type,registry);const errors = [];
   if (!definition) errors.push('COMMAND_NOT_REGISTERED'); else {if (command.entityType !== definition.entityType) errors.push('ENTITY_TYPE_MISMATCH');
     const normalizedRole=normalizeRegistryRole(role);if (normalizedRole && !definition.allowedRoles.map(normalizeRegistryRole).includes(normalizedRole)) errors.push('ROLE_NOT_ALLOWED');
-    if (definition.requiresReason && !String(command.reason || '').trim()) errors.push('REASON_REQUIRED');if (definition.requiresPreview && command.previewAccepted !== true) errors.push('PREVIEW_REQUIRED');}
+    if (definition.requiresReason && !String(command.reason || '').trim()) errors.push('REASON_REQUIRED');if (definition.requiresPreview && command.previewAccepted !== true) errors.push('PREVIEW_REQUIRED');
+    if (command.conflictSensitive !== undefined && command.conflictSensitive !== definition.conflictSensitive) errors.push('CONFLICT_POLICY_MISMATCH');}
   return { ok: errors.length === 0, errors, definition };
 }
 export function assertCommandSupported(type, installed = M26_COMMAND_TYPES,expectedRegistry=M26_COMMAND_REGISTRY) {const result = validateCommandCatalog(installed,expectedRegistry);if (!new Set(normalizeInstalled(installed).map((x) => x.type)).has(type)) throw new Error(`M26_COMMAND_NOT_INSTALLED:${type}`);return result;}

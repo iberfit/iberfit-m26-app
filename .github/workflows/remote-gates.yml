@@ -24,7 +24,9 @@ jobs:
           node-version: '22'
       - name: Ejecutar gate autenticado sin mutaciones
         env:
-          M26_SUPABASE_URL: ${{ secrets.M26_SUPABASE_URL }}
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
@@ -38,7 +40,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rc29-evidencia-gate-remoto
-          path: recovery/RC29_REMOTE_*.json
+          path: |
+            recovery/RC29_REMOTE_*.json
+            recovery/RC74_4_REMOTE_*.json
           if-no-files-found: warn
           retention-days: 7
       - name: Preparar Playwright RC64.2B
@@ -60,7 +64,9 @@ jobs:
 
       - name: Ejecutar smoke autenticado RC64.2B sobre fuente actual sin mutaciones
         env:
-          M26_SUPABASE_URL: ${{ secrets.M26_SUPABASE_URL }}
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}

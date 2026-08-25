@@ -18,8 +18,8 @@ import {
 
 const runtime = {
   enabled: true,
-  projectRef: 'pjhmrhejsoofmouedavw',
-  url: 'https://pjhmrhejsoofmouedavw.supabase.co',
+  projectRef: 'gjztkdwfmunnzhtvxrsu',
+  url: 'https://gjztkdwfmunnzhtvxrsu.supabase.co',
   publishableKey: 'publishable-key-for-test',
   qaOnly: true,
 };
