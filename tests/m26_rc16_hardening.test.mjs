@@ -11,7 +11,7 @@ import {__applicationInternals} from '../src/m26/app/application.js';
 import {renderAccessUi} from '../src/m26/app/access-ui.js';
 const root=new URL('..',import.meta.url);const text=(p)=>fs.readFileSync(new URL(p,root),'utf8');
 const catalog=createExerciseCatalog(JSON.parse(text('baseline_m25_2/exercise-catalog-m25.json')));
-const command={operationId:'00000000-0000-4000-8000-000000000111',type:'EJECUCION_GUARDAR_PROGRESO',entityType:'session_execution',entityId:'e1',clientId:'c1',baseRevision:0,conflictSensitive:false,payload:{progressSnapshot:{id:'e1'}}};
+const command={operationId:'00000000-0000-4000-8000-000000000111',type:'EJECUCION_GUARDAR_PROGRESO',entityType:'session_execution',entityId:'e1',clientId:'c1',baseRevision:0,conflictSensitive:true,payload:{progressSnapshot:{id:'e1'}}};
 function session(){const d=createSessionDraft({clientId:'c1'});addCatalogExercise(d,catalog.list()[0].id,catalog,{sets:1,reps:'10'});return d;}
 function response(body,status=200){return {ok:status>=200&&status<300,status,headers:{get:()=> 'application/json'},json:async()=>body,text:async()=>JSON.stringify(body)};}
 

@@ -9,7 +9,7 @@ import {
 import {__commandBusInternals} from '../src/m26/command-bus.js';
 import {__wearableControllerInternals} from '../src/m26/wearables/controller.js';
 
-const command={operationId:'00000000-0000-4000-8000-000000000922',type:'EJECUCION_GUARDAR_PROGRESO',entityType:'session_execution',entityId:'execution-22',clientId:'client-22',baseRevision:0,conflictSensitive:false,payload:{progressSnapshot:{id:'execution-22'}}};
+const command={operationId:'00000000-0000-4000-8000-000000000922',type:'EJECUCION_GUARDAR_PROGRESO',entityType:'session_execution',entityId:'execution-22',clientId:'client-22',baseRevision:0,conflictSensitive:true,payload:{progressSnapshot:{id:'execution-22'}}};
 function readyState(area='hoy'){return createProductionState({hydration:{status:'ready',error:null},identity:{id:'coach-22',role:'coach',name:'Coach QA'},canary:{active:true},selectedClientId:'client-22',activeArea:area,collections:{...createProductionState().collections,clients:[{id:'client-22',name:'Cliente QA',modality:'hibrido'}]}});}
 const tick=()=>new Promise((resolve)=>setImmediate(resolve));
 

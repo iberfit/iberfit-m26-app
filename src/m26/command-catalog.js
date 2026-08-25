@@ -35,7 +35,7 @@ const rows = [
   ['SESION_COMPLETAR','session','COMPLETAR',['coach','sistema'],false,false,false,true,false,true],
   ['SESION_CANCELAR','session','CANCELAR',['coach'],true,false,false,true,false,true],
   ['EJECUCION_INICIAR','session_execution','INICIAR',['coach','cliente'],false,false,false,true,false,true],
-  ['EJECUCION_GUARDAR_PROGRESO','session_execution','GUARDAR',['coach','cliente'],false,false,false,false,false,true],
+  ['EJECUCION_GUARDAR_PROGRESO','session_execution','GUARDAR',['coach','cliente'],false,false,false,true,false,true],
   ['EJECUCION_PAUSAR','session_execution','PAUSAR',['coach','cliente'],false,false,false,true,false,true],
   ['EJECUCION_REANUDAR','session_execution','REANUDAR',['coach','cliente'],false,false,false,true,false,true],
   ['EJECUCION_COMPLETAR','session_execution','COMPLETAR',['coach','cliente'],false,false,false,true,false,true],

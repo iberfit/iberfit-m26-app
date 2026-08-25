@@ -7,14 +7,14 @@ const recovery=path.join(root,'recovery');
 const QA_REF='gjztkdwfmunnzhtvxrsu';
 const PROD_REF='pjhmrhejsoofmouedavw';
 const evidence={
-  schema:'iberfit.rc74.4.phase-a.local-validation.v1',
-  release:'IBERFIT_M26_CANARY_RC74_4_PHASE_A',
+  schema:'iberfit.rc74.4.phase-b.local-validation.v1',
+  release:'IBERFIT_M26_CANARY_RC74_4_PHASE_B',
   generatedAt:new Date().toISOString(),
   branch:process.env.GITHUB_HEAD_REF||process.env.GITHUB_REF_NAME||process.env.CF_PAGES_BRANCH||null,
-  phase:'A',
+  phase:'B',
   productionModified:false,
   productionDeployed:false,
-  progressConflictPolicyActivated:false,
+  progressConflictPolicyActivated:true,
   steps:[],
 };
 
@@ -52,8 +52,8 @@ function assertSourceContracts(){
   const catalog=read('src/m26/command-catalog.js');
   const transport=read('src/m26/supabase-transport.js');
   const bus=read('src/m26/command-bus.js');
-  const progress="['EJECUCION_GUARDAR_PROGRESO','session_execution','GUARDAR',['coach','cliente'],false,false,false,false,false,true]";
-  if(!catalog.includes(progress))throw new Error('RC74_4_PHASE_A_PROGRESS_POLICY_CHANGED_EARLY');
+  const progress="['EJECUCION_GUARDAR_PROGRESO','session_execution','GUARDAR',['coach','cliente'],false,false,false,true,false,true]";
+  if(!catalog.includes(progress))throw new Error('RC74_4_PHASE_B_PROGRESS_POLICY_NOT_ACTIVE');
   for(const field of ['snapshotOnApply','conflictSensitive','bootstrapAllowed']){
     if(!catalog.includes(field))throw new Error(`RC74_4_REGISTRY_FIELD_MISSING:${field}`);
   }
@@ -73,13 +73,13 @@ function assertSourceContracts(){
   ]){
     if(!fs.existsSync(path.join(root,'supabase','migrations',file)))throw new Error(`RC74_4_MIGRATION_LEDGER_MISSING:${file}`);
   }
-  const activeK=path.join(root,'supabase','migrations','20260825013000_iberfit_rc74_4k_progress_conflict_qa.sql');
-  const stagedK=path.join(root,'recovery','rc74-4-phase-b','20260825013000_iberfit_rc74_4k_progress_conflict_qa.sql');
-  if(fs.existsSync(activeK))throw new Error('RC74_4_PHASE_B_MIGRATION_ACTIVE_EARLY');
-  if(!fs.existsSync(stagedK))throw new Error('RC74_4_PHASE_B_MIGRATION_NOT_STAGED');
-  const stagedKSql=fs.readFileSync(stagedK,'utf8');
-  for(const required of ['RC74_4K_ACTIVE_EXECUTION_LOCKS','RC74_4K_ACTIVE_EXECUTIONS','RC74_4K_LEGACY_PROGRESS_IDENTITIES','iberfit_finalize_execution_cancel_v26','iberfit_active_execution_command_guard_v26']){
-    if(!stagedKSql.includes(required))throw new Error(`RC74_4_PHASE_B_GUARD_MISSING:${required}`);
+  const activeK=path.join(root,'supabase','migrations','20260825132326_iberfit_rc74_4k_progress_conflict_qa.sql');
+  const retiredK=path.join(root,'recovery','rc74-4-phase-b','20260825013000_iberfit_rc74_4k_progress_conflict_qa.sql');
+  if(!fs.existsSync(activeK))throw new Error('RC74_4_PHASE_B_MIGRATION_NOT_ACTIVE');
+  if(fs.existsSync(retiredK))throw new Error('RC74_4_PHASE_B_STAGED_COPY_NOT_RETIRED');
+  const activeKSql=fs.readFileSync(activeK,'utf8');
+  for(const required of ['RC74_4K_QA_ENVIRONMENT_REQUIRED','RC74_4K_ACTIVE_EXECUTION_LOCKS','RC74_4K_ACTIVE_EXECUTIONS','RC74_4K_LEGACY_PROGRESS_IDENTITIES','iberfit_finalize_execution_cancel_v26','iberfit_active_execution_command_guard_v26']){
+    if(!activeKSql.includes(required))throw new Error(`RC74_4_PHASE_B_GUARD_MISSING:${required}`);
   }
   const envExample=read('.env.example');
   if(envExample.includes(PROD_REF)||!envExample.includes(QA_REF)||!envExample.includes('M26_QA_ONLY=true'))throw new Error('RC74_4_ENV_EXAMPLE_NOT_QA_ONLY');
@@ -108,8 +108,8 @@ try{
 }catch(error){
   evidence.ok=false;
   evidence.error=String(error?.message||error).slice(0,500);
-  fs.writeFileSync(path.join(recovery,'RC74_4_PHASE_A_LOCAL_VALIDATION.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
+  fs.writeFileSync(path.join(recovery,'RC74_4_PHASE_B_LOCAL_VALIDATION.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
   throw error;
 }
-fs.writeFileSync(path.join(recovery,'RC74_4_PHASE_A_LOCAL_VALIDATION.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
+fs.writeFileSync(path.join(recovery,'RC74_4_PHASE_B_LOCAL_VALIDATION.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
 console.log(JSON.stringify(evidence,null,2));

@@ -26,7 +26,7 @@ test('remote command registry gate validates the entire semantic contract',()=>{
   assert.match(source,/remoteRegistry\.length!==52/u);
 });
 
-test('database ledger H I J L M N O is represented and K remains outside active migrations until Phase B',()=>{
+test('database ledger H I J K L M N O is represented after Phase B activation',()=>{
   const h=read('supabase/migrations/20260825005258_iberfit_rc74_4h_operation_identity_qa.sql');
   const i=read('supabase/migrations/20260825011031_iberfit_rc74_4i_server_conflict_policy_qa.sql');
   const j=read('supabase/migrations/20260825011758_iberfit_rc74_4j_internal_command_rpc_permissions_qa.sql');
@@ -34,7 +34,7 @@ test('database ledger H I J L M N O is represented and K remains outside active 
   const m=read('supabase/migrations/20260825022525_iberfit_rc74_4m_execution_lock_release_qa.sql');
   const n=read('supabase/migrations/20260825023803_iberfit_rc74_4n_execution_cancel_cascade_qa.sql');
   const o=read('supabase/migrations/20260825024902_iberfit_rc74_4o_active_execution_command_guard_qa.sql');
-  const k=fs.readFileSync(new URL('../recovery/rc74-4-phase-b/20260825013000_iberfit_rc74_4k_progress_conflict_qa.sql',import.meta.url),'utf8');
+  const k=fs.readFileSync(new URL('../supabase/migrations/20260825132326_iberfit_rc74_4k_progress_conflict_qa.sql',import.meta.url),'utf8');
   assert.match(h,/OPERATION_ID_COLLISION/u);
   assert.match(h,/command_operation_identities_v26/u);
   assert.match(i,/iberfit_apply_registry_conflict_policy_v26/u);
@@ -52,7 +52,8 @@ test('database ledger H I J L M N O is represented and K remains outside active 
   assert.match(o,/ACTIVE_EXECUTION_MUST_CLOSE_FIRST/u);
   assert.match(o,/CITA_REPROGRAMAR/u);
   assert.match(k,/APPLY ONLY AFTER THE CLIENT OFFLINE REBASE PATCH IS VERSIONED/u);
-  assert.equal(fs.existsSync(new URL('../supabase/migrations/20260825013000_iberfit_rc74_4k_progress_conflict_qa.sql',import.meta.url)),false);
+  assert.equal(fs.existsSync(new URL('../supabase/migrations/20260825132326_iberfit_rc74_4k_progress_conflict_qa.sql',import.meta.url)),true);
+  assert.equal(fs.existsSync(new URL('../recovery/rc74-4-phase-b/20260825013000_iberfit_rc74_4k_progress_conflict_qa.sql',import.meta.url)),false);
   assert.match(k,/EJECUCION_GUARDAR_PROGRESO/u);
   assert.match(k,/conflict_sensitive=true/u);
 });

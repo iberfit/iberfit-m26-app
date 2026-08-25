@@ -22,9 +22,9 @@ function busWith(execute,{repository=createMemoryOperationRepository(),now=()=>D
   return {repository,bus:createCommandBus({repository,getToken:async()=> 'token',now,registry:PROGRESS_CONFLICT_REGISTRY,transport:{preflight:async()=>({kind:'ack'}),execute}})};
 }
 
-test('Phase A keeps live progress policy false while rebasing capability accepts the future true contract',()=>{
+test('Phase B activates the live progress conflict policy with rebasing capability already installed',()=>{
   const liveRow=M26_COMMAND_REGISTRY.find(x=>x.type==='EJECUCION_GUARDAR_PROGRESO');
-  assert.equal(liveRow.conflictSensitive,false);
+  assert.equal(liveRow.conflictSensitive,true);
   const futureRow=PROGRESS_CONFLICT_REGISTRY.find(x=>x.type==='EJECUCION_GUARDAR_PROGRESO');
   assert.equal(futureRow.conflictSensitive,true);
   assert.equal(createCommand({...progress('op-policy'),conflictSensitive:false},{registry:PROGRESS_CONFLICT_REGISTRY}).conflictSensitive,true);
@@ -46,7 +46,7 @@ test('strict remote catalog compares snapshot/conflict/bootstrap semantics',()=>
   const good=validateCommandCatalog(installed,M26_COMMAND_REGISTRY,{strict:true});
   assert.equal(good.ok,true);
   const drift=structuredClone(installed);
-  drift.find(x=>x.command_type==='EJECUCION_GUARDAR_PROGRESO').conflict_sensitive=true;
+  drift.find(x=>x.command_type==='EJECUCION_GUARDAR_PROGRESO').conflict_sensitive=false;
   const bad=validateCommandCatalog(drift,M26_COMMAND_REGISTRY,{strict:true});
   assert.equal(bad.ok,false);
   assert.ok(bad.mismatches.some(x=>x.type==='EJECUCION_GUARDAR_PROGRESO'&&x.field==='conflictSensitive'));

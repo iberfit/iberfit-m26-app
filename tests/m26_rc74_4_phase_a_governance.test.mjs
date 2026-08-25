@@ -14,14 +14,14 @@ test('RC74.4 has a dedicated current gate without replacing historical RC29',()=
   assert.ok(pkg.scripts['validate:rc29']);
 });
 
-test('CI routes canary rc74-4 exclusively to the RC74.4 Phase A validator',()=>{
+test('CI routes canary rc74-4 exclusively to the RC74.4 Phase B validator',()=>{
   const ci=read('.github/workflows/ci.yml');
-  assert.match(ci,/name: Validar RC74\.4 Phase A[\s\S]*canary\/rc74-4[\s\S]*npm run validate:rc74-4/u);
+  assert.match(ci,/name: Validar RC74\.4 Phase B[\s\S]*canary\/rc74-4[\s\S]*npm run validate:rc74-4/u);
   const rc29=ci.match(/- name: Validar RC29[\s\S]*?run: npm run validate:rc29/u)?.[0]||'';
   assert.match(rc29,/github\.ref != 'refs\/heads\/canary\/rc74-4'/u);
   assert.match(rc29,/github\.head_ref != 'canary\/rc74-4'/u);
   assert.match(ci,/name: Conservar evidencia RC74\.4[\s\S]*recovery\/RC74_4_\*\.json/u);
-  assert.doesNotMatch(ci,/name: Validar RC74\.4 Phase A[\s\S]*?(?:wrangler|pages deploy|deploy)/iu);
+  assert.doesNotMatch(ci,/name: Validar RC74\.4 Phase B[\s\S]*?(?:wrangler|pages deploy|deploy)/iu);
 });
 
 test('RC74.4 runtime generator is QA-only and cannot target production',()=>{
@@ -34,12 +34,14 @@ test('RC74.4 runtime generator is QA-only and cannot target production',()=>{
   assert.match(generator,/productionDeployed:false/u);
 });
 
-test('Phase B K is staged but impossible to auto-apply from the migration directory',()=>{
-  assert.equal(fs.existsSync(new URL('../supabase/migrations/20260825013000_iberfit_rc74_4k_progress_conflict_qa.sql',import.meta.url)),false);
-  const staged=read('recovery/rc74-4-phase-b/20260825013000_iberfit_rc74_4k_progress_conflict_qa.sql');
-  assert.match(staged,/EJECUCION_GUARDAR_PROGRESO/u);
-  assert.match(staged,/APPLY ONLY AFTER THE CLIENT OFFLINE REBASE PATCH IS VERSIONED/u);
-  for(const guard of ['RC74_4K_ACTIVE_EXECUTION_LOCKS','RC74_4K_ACTIVE_EXECUTIONS','RC74_4K_LEGACY_PROGRESS_IDENTITIES','iberfit_finalize_execution_cancel_v26','iberfit_active_execution_command_guard_v26']) assert.ok(staged.includes(guard),guard);
+test('Phase B K is active as an ordered QA-only migration after Q',()=>{
+  const activePath='supabase/migrations/20260825132326_iberfit_rc74_4k_progress_conflict_qa.sql';
+  assert.equal(fs.existsSync(new URL(`../${activePath}`,import.meta.url)),true);
+  assert.equal(fs.existsSync(new URL('../recovery/rc74-4-phase-b/20260825013000_iberfit_rc74_4k_progress_conflict_qa.sql',import.meta.url)),false);
+  const active=read(activePath);
+  assert.match(active,/EJECUCION_GUARDAR_PROGRESO/u);
+  assert.match(active,/APPLY ONLY AFTER THE CLIENT OFFLINE REBASE PATCH IS VERSIONED/u);
+  for(const guard of ['RC74_4K_QA_ENVIRONMENT_REQUIRED','RC74_4K_ACTIVE_EXECUTION_LOCKS','RC74_4K_ACTIVE_EXECUTIONS','RC74_4K_LEGACY_PROGRESS_IDENTITIES','iberfit_finalize_execution_cancel_v26','iberfit_active_execution_command_guard_v26']) assert.ok(active.includes(guard),guard);
 });
 
 

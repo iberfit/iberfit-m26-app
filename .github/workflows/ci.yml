@@ -192,7 +192,7 @@ jobs:
           CF_PAGES_BRANCH: canary/rc38
         run: npm run validate:rc38:ci
 
-      - name: Validar RC74.4 Phase A
+      - name: Validar RC74.4 Phase B
         if: ${{ github.ref == 'refs/heads/canary/rc74-4' || github.head_ref == 'canary/rc74-4' }}
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu

@@ -20,7 +20,7 @@ const clientId='57339e70-7a99-48d6-820f-7d4a51f89d9d';
 const otherClientId='67339e70-7a99-48d6-820f-7d4a51f89d9e';
 const userId='61227666-d8b4-4d1e-aa08-2405ad2000db';
 const operationId='00000000-0000-4000-8000-000000000777';
-const command={operationId,type:'EJECUCION_GUARDAR_PROGRESO',entityType:'session_execution',entityId:'execution-1',clientId,baseRevision:0,conflictSensitive:false,payload:{progressSnapshot:{id:'execution-1'}}};
+const command={operationId,type:'EJECUCION_GUARDAR_PROGRESO',entityType:'session_execution',entityId:'execution-1',clientId,baseRevision:0,conflictSensitive:true,payload:{progressSnapshot:{id:'execution-1'}}};
 function runtime(overrides={}){return {enabled:true,projectRef:M26_CANONICAL_PROJECT_REF,url:`https://${M26_CANONICAL_PROJECT_REF}.supabase.co`,publishableKey:'public-key',qaOnly:false,...overrides};}
 function response(body,status=200,headers={}){return new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json',...headers}});}
 function remoteRegistry(){return M26_EXTENDED_COMMAND_REGISTRY.map((row)=>({command_type:row.type,entity_type:row.entityType,event_name:row.eventName,allowed_roles:[...row.allowedRoles],requires_reason:row.requiresReason,requires_preview:row.requiresPreview,snapshot_on_apply:row.snapshotOnApply,conflict_sensitive:row.conflictSensitive,bootstrap_allowed:row.bootstrapAllowed,enabled:row.enabled}));}
