@@ -68,3 +68,12 @@ test('RC74.4 validator launches npm portably without direct npm.cmd spawn on Win
   assert.doesNotMatch(validator,/process\.platform===['"]win32['"]\?['"]npm\.cmd/u);
   assert.match(validator,/RC74_4_PROCESS_START_FAILED/u);
 });
+
+test('RC74.4 P keeps environment truth available through RLS without opening settings',()=>{
+  const p=read('supabase/migrations/20260825035725_iberfit_rc74_4p_environment_rpc_rls_qa.sql');
+  assert.match(p,/create or replace function public\.iberfit_environment\(\)[\s\S]*security definer/u);
+  assert.match(p,/revoke execute on function public\.iberfit_environment\(\) from public, anon/u);
+  assert.match(p,/grant execute on function public\.iberfit_environment\(\) to authenticated, service_role/u);
+  for(const key of ['environment','real_data_allowed','production_blocked']) assert.ok(p.includes("key='"+key+"'"),key);
+  assert.doesNotMatch(p,/grant\s+select[\s\S]*iberfit_system_settings[\s\S]*authenticated/iu);
+});
