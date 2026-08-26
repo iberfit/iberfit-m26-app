@@ -14,9 +14,9 @@ const packageJson = JSON.parse(
   read('package.json'),
 );
 
-test('RC42 conserva contrato PWA y viewport seguro', () => {
-  assert.equal(manifest.id, '/m26/');
-  assert.equal(manifest.scope, '/m26/');
+test('RC42 conserva contrato PWA raíz y viewport seguro', () => {
+  assert.equal(manifest.id, '/');
+  assert.equal(manifest.scope, '/');
   assert.equal(manifest.display, 'standalone');
   assert.match(indexHtml, /viewport-fit=cover/u);
 });

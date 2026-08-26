@@ -545,7 +545,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     });
     connectivityStop=sync.start({emitInitial:false});
     telemetrySyncStop=telemetryRemoteSync.start({flushInitial:false});
-    void registerM26ServiceWorker({url:'/m26/sw.js',scope:'/m26/'}).catch(()=>{});
+    void registerM26ServiceWorker().catch(()=>{});
     qaStage('rc64-post-login-local-services-armed');
 
 

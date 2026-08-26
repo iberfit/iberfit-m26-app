@@ -1,5 +1,21 @@
+const CANONICAL_SW_URL='/m26/iberfit-sw.js';
+const CANONICAL_SW_SCOPE='/';
+
 export function canInstallPwa(){return Boolean(globalThis.navigator&&'serviceWorker' in globalThis.navigator);}
-export async function registerM26ServiceWorker({url='/m26/sw.js',scope='/m26/'}={}){if(!canInstallPwa())return {supported:false,registration:null};if(!String(url).startsWith('/m26/')||!String(scope).startsWith('/m26/'))throw new Error('M26_SERVICE_WORKER_SCOPE_INVALID');const registration=await navigator.serviceWorker.register(url,{scope,updateViaCache:'none'});registration.addEventListener?.('updatefound',()=>globalThis.dispatchEvent?.(new CustomEvent('m26:pwa-update',{detail:{registration}})));return {supported:true,registration};}
+function normalizeServiceWorkerRegistration(url,scope){
+  const source=String(url||'');
+  const requestedScope=String(scope||'');
+  if(!source.startsWith('/m26/')||(requestedScope!=='/'&&!requestedScope.startsWith('/m26/')))throw new Error('M26_SERVICE_WORKER_SCOPE_INVALID');
+  if(source==='/m26/sw.js'&&requestedScope==='/m26/')return {url:CANONICAL_SW_URL,scope:CANONICAL_SW_SCOPE,migrated:true};
+  return {url:source,scope:requestedScope,migrated:false};
+}
+export async function registerM26ServiceWorker({url=CANONICAL_SW_URL,scope=CANONICAL_SW_SCOPE}={}){
+  if(!canInstallPwa())return {supported:false,registration:null};
+  const target=normalizeServiceWorkerRegistration(url,scope);
+  const registration=await navigator.serviceWorker.register(target.url,{scope:target.scope,updateViaCache:'none'});
+  registration.addEventListener?.('updatefound',()=>globalThis.dispatchEvent?.(new CustomEvent('m26:pwa-update',{detail:{registration}})));
+  return {supported:true,registration,migrated:target.migrated};
+}
 export function activateWaitingWorker(registration){if(!registration?.waiting)return false;registration.waiting.postMessage({type:'SKIP_WAITING'});return true;}
 function connectivityEvent(online){try{return new CustomEvent('m26:connectivity',{detail:{online}});}catch{const event=new Event('m26:connectivity');Object.defineProperty(event,'detail',{value:{online}});return event;}}
 export function observeConnectivity(target=globalThis,{navigatorLike=globalThis.navigator,onOnline,onOffline,emitInitial=false,baselineCurrentState=false}={}){

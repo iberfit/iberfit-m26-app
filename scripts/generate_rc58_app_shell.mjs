@@ -22,6 +22,7 @@ const PUBLIC_EXTENSIONS=new Set([
 const EXCLUDED_REPO_PATHS=new Set([
   'public/m26/runtime-config.js',
   'public/m26/runtime-config.example.js',
+  'public/m26/iberfit-sw.js',
   SW_REPO_PATH,
 ]);
 
@@ -161,6 +162,7 @@ const webPaths=[...repoPaths]
 for(const forbidden of [
   '/m26/runtime-config.js',
   '/m26/runtime-config.example.js',
+  '/m26/iberfit-sw.js',
   '/m26/sw.js',
 ]){
   if(webPaths.includes(forbidden)){

@@ -68,10 +68,11 @@ test('timeline tolera fechas inválidas sin romper renderizado',()=>{
   assert.match(html,/Sin fecha/);
 });
 
-test('PWA queda confinada a /m26 y excluye runtime, API y rutas ajenas',()=>{
-  const sw=text('public/m26/sw.js'),headers=text('public/m26/_headers'),pwa=text('src/m26/platform/pwa.js');
+test('PWA raíz canónica conserva hardening y excluye runtime, API y rutas ajenas',()=>{
+  const sw=text('public/m26/sw.js'),canonicalSw=text('public/m26/iberfit-sw.js'),headers=text('public/m26/_headers'),pwa=text('src/m26/platform/pwa.js');
   assert.match(sw,/m26-rc(?:16|17|19)/);assert.match(sw,/NEVER_CACHE_PREFIXES/);assert.match(sw,/isRuntimeConfig/);assert.match(sw,/Response\.error/);assert.doesNotMatch(sw,/caches\.match\(OFFLINE\).*return/);
-  assert.match(headers,/Service-Worker-Allowed: \/m26\//);assert.doesNotMatch(headers,/style-src[^\n]*unsafe-inline/);assert.match(pwa,/scope='\/m26\/'/);
+  assert.match(headers,/Service-Worker-Allowed: \/(?:\r?\n|$)/u);assert.doesNotMatch(headers,/style-src[^\n]*unsafe-inline/);assert.match(pwa,/CANONICAL_SW_SCOPE='\/'/);
+  assert.match(canonicalSw,/IBERFIT_ROOT_NAVIGATION_PATHS=new Set\(\['\/'\]\)/u);assert.doesNotMatch(canonicalSw,/startsWith\('\/'\)/u);
 });
 
 test('HTML entregado limita CSS inline al crítico canónico y mantiene scripts y atributos inline prohibidos',()=>{

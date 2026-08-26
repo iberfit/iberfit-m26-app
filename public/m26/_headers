@@ -7,7 +7,7 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
   Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Service-Worker-Allowed: /m26/
+  Service-Worker-Allowed: /
   Cache-Control: no-store
 
 /m26/runtime-config.js

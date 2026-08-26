@@ -21,13 +21,10 @@ const application = fs.readFileSync(
   'utf8',
 );
 
-test('RC41 limita la PWA al directorio M26', () => {
-  assert.equal(manifest.scope, '/m26/');
-  assert.equal(manifest.id, '/m26/');
-  assert.equal(
-    String(manifest.start_url).startsWith('/m26/'),
-    true,
-  );
+test('RC41 mantiene identidad PWA y adopta raíz canónica IBERFIT', () => {
+  assert.equal(manifest.scope, '/');
+  assert.equal(manifest.id, '/');
+  assert.equal(manifest.start_url, '/?source=pwa');
 });
 
 test('RC41 incluye en APP_SHELL todos los estilos de index.html', () => {
