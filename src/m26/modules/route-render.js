@@ -1962,7 +1962,7 @@ export function renderVerificationRoute(vm){
   const stateBadge=hasItems
     ?badge(center.deploymentBlocked?'Bloqueo activo':'Operaciones cargadas',center.deploymentBlocked?'danger':'neutral')
     :badge('Estado local no comprobado','neutral');
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sincronización</p><h2>Centro de verificación</h2><p>Permite inspeccionar, reintentar o descartar únicamente la copia local. Nunca oculta un conflicto.</p></div><div class="m26-inline-actions">${stateBadge}<button type="button" data-verification-action="refresh">Actualizar estado local</button></div></section>${hasItems?`<section class="m26-stat-grid">${stat('Pendientes',center.summary.pending)}${stat('Conflictos',center.summary.conflicts)}${stat('Rechazadas',center.summary.rejected)}${stat('Total',center.summary.total)}</section>`:''}<section class="m26-panel"><div class="m26-stack">${content}</div></section></div>`;
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sincronización</p><h2>Estado de cambios</h2><p>Revisa cambios pendientes, conflictos o rechazos de este dispositivo. Puedes actualizar, reintentar o descartar un cambio local sin ocultar conflictos.</p></div><div class="m26-inline-actions">${stateBadge}<button type="button" data-verification-action="refresh">Actualizar estado local</button></div></section>${hasItems?`<section class="m26-stat-grid">${stat('Pendientes',center.summary.pending)}${stat('Conflictos',center.summary.conflicts)}${stat('Rechazadas',center.summary.rejected)}${stat('Total',center.summary.total)}</section>`:''}<section class="m26-panel"><div class="m26-stack">${content}</div></section></div>`;
 }
 
 
