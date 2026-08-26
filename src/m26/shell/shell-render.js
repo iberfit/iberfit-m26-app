@@ -33,7 +33,7 @@ function clientSelector(vm) {
 function coachProductivityShell(vm){
   if(!['coach','admin'].includes(String(vm.identity?.role||'')))return Object.freeze({launcher:'',palette:''});
   const launcher=`<button type="button" class="m26-coach-command-launcher" data-coach-command-open aria-haspopup="dialog"><span>Buscar y acciones</span><kbd aria-hidden="true">Ctrl/⌘ K</kbd></button>`;
-  const palette=`<section class="m26-coach-command-backdrop" data-coach-command-palette role="dialog" aria-modal="true" aria-labelledby="m26-coach-command-title" hidden><div class="m26-coach-command-dialog"><header class="m26-coach-command-header"><div><p class="m26-eyebrow">Productividad Coach</p><h2 id="m26-coach-command-title">Buscar y abrir</h2><p>Busca módulos o clientes dentro de tu alcance actual.</p></div><button type="button" class="m26-icon-button" data-coach-command-close aria-label="Cerrar búsqueda">Cerrar</button></header><label class="m26-coach-command-search">Buscar acción o cliente<input type="search" data-coach-command-search autocomplete="off" spellcheck="false" aria-describedby="m26-coach-command-status" placeholder="Ej. clietnes, agenda, nombre del cliente"></label><p id="m26-coach-command-status" data-coach-command-status class="m26-coach-command-status" role="status" aria-live="polite"></p><div class="m26-coach-command-results" data-coach-command-results></div></div></section>`;
+  const palette=`<section class="m26-coach-command-backdrop" data-coach-command-palette role="dialog" aria-modal="true" aria-labelledby="m26-coach-command-title" hidden><div class="m26-coach-command-dialog"><header class="m26-coach-command-header"><div><p class="m26-eyebrow">Productividad Coach</p><h2 id="m26-coach-command-title">Buscar y abrir</h2><p>Busca módulos o clientes dentro de tu alcance actual.</p></div><button type="button" class="m26-icon-button" data-coach-command-close aria-label="Cerrar búsqueda">Cerrar</button></header><label class="m26-coach-command-search">Buscar acción o cliente<input type="search" data-coach-command-search autocomplete="off" spellcheck="false" aria-describedby="m26-coach-command-status" placeholder="Ej. clientes, agenda, nombre del cliente"></label><p id="m26-coach-command-status" data-coach-command-status class="m26-coach-command-status" role="status" aria-live="polite"></p><div class="m26-coach-command-results" data-coach-command-results></div></div></section>`;
   return Object.freeze({launcher,palette});
 }
 function operationStatus(operations) {
@@ -41,7 +41,7 @@ function operationStatus(operations) {
   if (operations.pending) labels.push(`${operations.pending} pendiente${operations.pending === 1 ? '' : 's'}`);
   if (operations.conflicts) labels.push(`${operations.conflicts} conflicto${operations.conflicts === 1 ? '' : 's'}`);
   if (operations.rejected) labels.push(`${operations.rejected} por revisar`);
-  const text = labels.length ? labels.join(' · ') : 'Estado local pendiente de revisión';
+  const text = labels.length ? labels.join(' · ') : 'Sin cambios locales pendientes';
   return `<div class="m26-operation-status is-${escapeHtml(operations.kind)}" role="status" aria-live="polite" aria-atomic="true"><span class="m26-status-dot" aria-hidden="true"></span><span>${escapeHtml(text)}</span></div>`;
 }
 

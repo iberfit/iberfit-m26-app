@@ -236,8 +236,7 @@
 }
 
 /* RC44.2 · estabilidad de shell y cobertura wearable gratuita */
-.m26-client-bottom-nav-layer{display:none!important}
-.m26-client-route-shell{min-height:0!important;padding-bottom:0!important}
+/* La navegación Cliente actual pertenece a ui/client-bottom-nav.css. */
 .m26-wearable-free-coverage{overflow:hidden}
 .m26-wearable-history{overflow:hidden}
 .m26-wearable-day-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px}

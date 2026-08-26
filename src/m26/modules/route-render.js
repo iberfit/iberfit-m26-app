@@ -2377,11 +2377,11 @@ function renderRouteContent(vm) {
 /* M26_CLIENT_BOTTOM_NAV_V2 */
 const CLIENT_BOTTOM_NAV_ITEMS = Object.freeze([
   {key:'hoy',label:'Hoy',area:'hoy',activeKinds:['hoy']},
-  {key:'planificacion',label:'Planificación',area:'planificacion',activeKinds:['planificacion','agenda']},
+  {key:'planificacion',label:'Planificación',area:'planificacion',activeKinds:['planificacion']},
   {key:'sesiones',label:'Sesiones',area:'sesion',activeKinds:['sesion']},
-  {key:'progreso',label:'Progreso',area:'progreso',activeKinds:['progreso','iri','informes']},
+  {key:'progreso',label:'Progreso',area:'progreso',activeKinds:['progreso']},
 ]);
-const CLIENT_BOTTOM_NAV_MORE_KINDS = Object.freeze(['expediente','actividad','biblioteca','verificacion']);
+const CLIENT_BOTTOM_NAV_MORE_KINDS = Object.freeze(['informes','actividad','mensajes','retos','ajustes']);
 
 function clientBottomNavIcon(name){
   const icons={
@@ -2401,7 +2401,7 @@ function clientBottomNavItem(item,currentKind){
 
 function clientBottomNavMore(currentKind){
   const active=CLIENT_BOTTOM_NAV_MORE_KINDS.includes(currentKind);
-  return `<details class="m26-client-bottom-nav-more${active?' is-active':''}"><summary class="m26-client-bottom-nav-item${active?' is-active':''}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon('mas')}</span><span class="m26-client-bottom-nav-label">Más</span><span class="m26-client-bottom-nav-spark" aria-hidden="true">✦</span></summary><div class="m26-client-bottom-nav-menu" role="menu" aria-label="Más opciones"><button type="button" role="menuitem" data-m26-area="expediente"><span>Mi expediente</span><small>Datos y contexto personal</small></button><button type="button" role="menuitem" data-m26-area="actividad"><span>Bienestar y hábitos</span><small>Registros y dispositivos</small></button><button type="button" role="menuitem" data-m26-area="biblioteca"><span>Biblioteca</span><small>Ejercicios IBERFIT</small></button><button type="button" role="menuitem" data-m26-area="verificacion"><span>Sincronización</span><small>Estado de tus cambios</small></button></div></details>`;
+  return `<details class="m26-client-bottom-nav-more${active?' is-active':''}"><summary class="m26-client-bottom-nav-item${active?' is-active':''}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon('mas')}</span><span class="m26-client-bottom-nav-label">Más</span><span class="m26-client-bottom-nav-spark" aria-hidden="true">✦</span></summary><div class="m26-client-bottom-nav-menu" role="menu" aria-label="Más opciones"><button type="button" role="menuitem" data-m26-area="informes"><span>Informes</span><small>Evaluaciones y evolución compartida</small></button><button type="button" role="menuitem" data-m26-area="actividad"><span>Bienestar y hábitos</span><small>Registros y dispositivos</small></button><button type="button" role="menuitem" data-m26-area="mensajes"><span>Mensajes</span><small>Habla con tu entrenador</small></button><button type="button" role="menuitem" data-m26-area="retos"><span>Retos</span><small>Objetivos y continuidad</small></button><button type="button" role="menuitem" data-m26-area="ajustes"><span>Ajustes</span><small>Preferencias y privacidad</small></button></div></details>`;
 }
 
 
@@ -2412,12 +2412,13 @@ function renderClientBottomNav(vm){
 }
 
 function renderClientRouteShell(vm,content){
-  return `<div class="m26-client-route-shell" data-client-bottom-nav-route="${escapeHtml(vm?.kind||'hoy')}">${content}</div>`;
+  return `<div class="m26-client-route-shell" data-client-bottom-nav-route="${escapeHtml(vm?.kind||'hoy')}">${content}${renderClientBottomNav(vm)}</div>`;
 }
 
 export function renderRouteView(vm) {
-  if (vm.kind === 'retos') return renderChallengesRoute(vm);
-  if (vm.kind === 'ajustes') return renderSettingsRoute(vm);
-  const content=renderRouteContent(vm);
+  let content;
+  if (vm.kind === 'retos') content=renderChallengesRoute(vm);
+  else if (vm.kind === 'ajustes') content=renderSettingsRoute(vm);
+  else content=renderRouteContent(vm);
   return vm.role==='client'?renderClientRouteShell(vm,content):content;
 }

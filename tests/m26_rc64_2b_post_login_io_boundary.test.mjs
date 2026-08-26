@@ -42,7 +42,8 @@ test('RC64.2B zero-operation UI is conservative and manual verification remains 
   const audit=read('src/m26/ui/interactive-audit.js');
 
   assert.doesNotMatch(shell,/Sin operaciones pendientes/u);
-  assert.match(shell,/Estado local pendiente de revisión/u);
+  assert.match(shell,/Sin cambios locales pendientes/u);
+  assert.doesNotMatch(shell,/Todo sincronizado/u);
 
   assert.doesNotMatch(
     route,
