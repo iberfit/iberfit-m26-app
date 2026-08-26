@@ -352,7 +352,7 @@ export function renderHoyRoute(vm) {
           <button type="button" class="m26-today-action" data-m26-area="actividad">
             <span>2</span>
             <strong>Registrar cómo estoy</strong>
-            <small>Energía, sueño, estrés, dolor y hábitos.</small>
+            <small>Energía, sueño, estrés, dolor, fatiga, motivación y hábitos.</small>
           </button>
           <button type="button" class="m26-today-action" data-m26-area="progreso">
             <span>3</span>
@@ -1437,6 +1437,8 @@ export function renderExpedienteRoute(vm) {
       latestCheckin.sleep,
       latestCheckin.stress,
       latestCheckin.pain,
+      latestCheckin.fatigue,
+      latestCheckin.motivation,
     ].some(Number.isFinite);
 
   const wellbeingContext=
@@ -1475,6 +1477,16 @@ export function renderExpedienteRoute(vm) {
               'Dolor',
               latestCheckin.pain,
               '0 ninguno · 10 máximo'
+            )}
+            ${wellbeingMeter(
+              'Fatiga',
+              latestCheckin.fatigue,
+              '0 ninguna · 10 máxima'
+            )}
+            ${wellbeingMeter(
+              'Motivación',
+              latestCheckin.motivation,
+              '0 ninguna · 10 máxima'
             )}
           </div>
         </article>`
@@ -1879,7 +1891,7 @@ export function renderProgressRoute(vm){
     ${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
     <section class="m26-content-grid">
       <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Cronología</p><h2>Evolución registrada</h2></div>${badge(`${vm.timeline.length} eventos`,'neutral')}</div><div class="m26-timeline">${timeline}</div></div>
-      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Recuperación</p><h2>Promedio de bienestar</h2><div class="m26-wellbeing-grid">${wellbeingMeter('Energía',hasCheckins?summary.checkinAverage.energy:null,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',hasCheckins?summary.checkinAverage.sleep:null,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',hasCheckins?summary.checkinAverage.stress:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',hasCheckins?summary.checkinAverage.pain:null,'0 ninguno · 10 máximo')}</div><p class="m26-notice">La aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.</p></aside>
+      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Recuperación</p><h2>Promedio de bienestar</h2><div class="m26-wellbeing-grid">${wellbeingMeter('Energía',hasCheckins?summary.checkinAverage.energy:null,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',hasCheckins?summary.checkinAverage.sleep:null,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',hasCheckins?summary.checkinAverage.stress:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',hasCheckins?summary.checkinAverage.pain:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Fatiga',hasCheckins?summary.checkinAverage.fatigue:null,'0 ninguna · 10 máxima')}${wellbeingMeter('Motivación',hasCheckins?summary.checkinAverage.motivation:null,'0 ninguna · 10 máxima')}</div><p class="m26-notice">La aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.</p></aside>
     </section>
     ${wearablePanel}
     <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Alertas explicables</p><h2>Qué requiere atención</h2></div></div>${renderAlerts(vm.alerts)}</section>
@@ -1896,7 +1908,7 @@ function wearableProviderCard(item){const policy=item.policy||{};const direct=it
 function lastCheckinSummary(last){
   if(!last)return `<p>No hay registros confirmados todavía.</p>`;
   const body=last.body||{};
-  return `<div class="m26-wellbeing-grid m26-wellbeing-grid-compact">${wellbeingMeter('Energía',body.energy,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',body.sleep,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',body.stress,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',body.pain,'0 ninguno · 10 máximo')}</div>`;
+  return `<div class="m26-wellbeing-grid m26-wellbeing-grid-compact">${wellbeingMeter('Energía',body.energy,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',body.sleep,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',body.stress,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',body.pain,'0 ninguno · 10 máximo')}${wellbeingMeter('Fatiga',body.fatigue,'0 ninguna · 10 máxima')}${wellbeingMeter('Motivación',body.motivation,'0 ninguna · 10 máxima')}</div>`;
 }
 export function renderActivityRoute(vm){
   const last=vm.checkins[0];const wearable=vm.wearables||{summary:{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'},connections:[],providers:[],canControl:false};const wearableSummary=wearable.summary;
@@ -1915,6 +1927,8 @@ export function renderActivityRoute(vm){
         <label>Sueño (0–10)<input type="number" min="0" max="10" inputmode="numeric" name="sleep" required><small>0 muy malo · 10 excelente</small></label>
         <label>Estrés (0–10)<input type="number" min="0" max="10" inputmode="numeric" name="stress" required><small>0 ninguno · 10 máximo</small></label>
         <label>Dolor (0–10)<input type="number" min="0" max="10" inputmode="numeric" name="pain" required><small>0 ninguno · 10 máximo</small></label>
+        <label>Fatiga (0–10)<input type="number" min="0" max="10" inputmode="numeric" name="fatigue"><small>Opcional · 0 ninguna · 10 máxima</small></label>
+        <label>Motivación (0–10)<input type="number" min="0" max="10" inputmode="numeric" name="motivation"><small>Opcional · 0 ninguna · 10 máxima</small></label>
         <label class="m26-wide">Observaciones<textarea name="notes" maxlength="1000"></textarea></label>
       </div><div class="m26-action-grid"><button type="button" data-engagement-action="save-checkin-draft">Guardar borrador</button><button type="submit" class="m26-primary-action" data-engagement-action="submit-checkin"${vm.capabilities.checkins.ready?'':' disabled aria-disabled="true"'}>Enviar registro de bienestar</button></div><p class="m26-form-status" data-engagement-status="checkin" role="status" aria-live="polite"></p></form>
       <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Último registro confirmado</p><h2>${last?escapeHtml(last.dateLabel):'Sin registro'}</h2>${lastCheckinSummary(last)}</aside>

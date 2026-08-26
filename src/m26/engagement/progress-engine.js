@@ -67,7 +67,14 @@ function volumeOf(execution){
 }
 function checkinValues(record){
   const item=unwrap(record)||{};
-  return {energy:number(first(item,'energy','energia')),sleep:number(first(item,'sleep','sueno','sueño')),stress:number(first(item,'stress','estres','estrés')),pain:number(first(item,'pain','dolor'))};
+  return {
+    energy:number(first(item,'energy','energia')),
+    sleep:number(first(item,'sleep','sueno','sueño')),
+    stress:number(first(item,'stress','estres','estrés')),
+    pain:number(first(item,'pain','dolor')),
+    fatigue:number(first(item,'fatigue','fatiga')),
+    motivation:number(first(item,'motivation','motivacion','motivación')),
+  };
 }
 function average(values){const valid=values.filter(Number.isFinite);return valid.length?valid.reduce((a,b)=>a+b,0)/valid.length:null;}
 function objectiveValue(value){
@@ -139,6 +146,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
     checkinAverage:Object.freeze({
       energy:round(average(checkinSeries.map((x)=>x.energy)),1),sleep:round(average(checkinSeries.map((x)=>x.sleep)),1),
       stress:round(average(checkinSeries.map((x)=>x.stress)),1),pain:round(average(checkinSeries.map((x)=>x.pain)),1),
+      fatigue:round(average(checkinSeries.map((x)=>x.fatigue)),1),motivation:round(average(checkinSeries.map((x)=>x.motivation)),1),
     }),
     lastExecutionAt:dateOf(lastExecution)||null,lastExecutionRpe:round(average(lastExecutionRpe),1),
     latestCheckinAt:dateOf(latestCheckin)||null,
@@ -154,7 +162,14 @@ export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,lim
   const blockedExecutionIds=unconfirmedCompletionIds(state);
   for(const item of forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>executionIsConfirmed(item,blockedExecutionIds)))if(within(dateOf(item),start,end))rows.push({kind:'execution',date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',status:statusOf(item),detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada'});
   for(const item of forClient(state,'iriAssessments',clientId).map(unwrap))if(within(dateOf(item),start,end)){const coverage=iriDomainCoverage(item);rows.push({kind:'iri',date:dateOf(item),title:'Evaluación IRI',status:statusOf(item),detail:coverage?`${coverage} de 3 dominios registrados`:'Evaluación registrada · formato histórico sin dominios comparables'});}
-  for(const item of forClient(state,'checkins',clientId).map(unwrap))if(within(dateOf(item),start,end)){const values=checkinValues(item);rows.push({kind:'checkin',date:dateOf(item),title:'Registro de bienestar',status:'registrado',detail:`Energía ${values.energy??'—'} · Sueño ${values.sleep??'—'} · Estrés ${values.stress??'—'} · Dolor ${values.pain??'—'}`});}
+  for(const item of forClient(state,'checkins',clientId).map(unwrap))if(within(dateOf(item),start,end)){
+    const values=checkinValues(item);
+    const optional=[];
+    if(Number.isFinite(values.fatigue))optional.push(`Fatiga ${values.fatigue}`);
+    if(Number.isFinite(values.motivation))optional.push(`Motivación ${values.motivation}`);
+    const detail=[`Energía ${values.energy??'—'}`,`Sueño ${values.sleep??'—'}`,`Estrés ${values.stress??'—'}`,`Dolor ${values.pain??'—'}`,...optional].join(' · ');
+    rows.push({kind:'checkin',date:dateOf(item),title:'Registro de bienestar',status:'registrado',detail});
+  }
   return rows.sort((a,b)=>(safeDate(b.date)?.getTime()||0)-(safeDate(a.date)?.getTime()||0)).slice(0,safeLimit).map(clone);
 }
 
