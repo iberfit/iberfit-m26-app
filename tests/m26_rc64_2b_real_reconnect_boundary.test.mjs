@@ -275,6 +275,7 @@ test('RC64.2B V5.3 wearable silent mount ignores redundant online and syncs clie
     const controller=createWearableController({
       root,
       store,
+      ownerId:'qa-client-user-rc64',
       transport:{},
       getToken:async()=> 'client-token',
       isOnline:()=>online,
@@ -315,6 +316,7 @@ test('RC64.2B V5.3 wearable automatic reconnect remains blocked for coach',async
     const controller=createWearableController({
       root,
       store,
+      ownerId:'qa-coach-user-rc64',
       transport:{},
       getToken:async()=> 'coach-token-must-not-be-used',
       isOnline:()=>online,

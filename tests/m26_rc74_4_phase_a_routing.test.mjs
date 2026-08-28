@@ -86,3 +86,19 @@ test('legacy resilience registry fixture carries the full strict semantic contra
   const source=read('tests/m26_rc17_resilience.test.mjs');
   for(const field of ['snapshot_on_apply','conflict_sensitive','bootstrap_allowed'])assert.match(source,new RegExp(field),field);
 });
+
+test('RC74.4 PRs hacia canary usan Phase B y nunca RC29',()=>{
+  const ci=read('.github/workflows/ci.yml');
+
+  const rc29=ci.match(/- name: Validar RC29[\s\S]*?run: npm run validate:rc29/u)?.[0]||'';
+  assert.match(rc29,/github\.base_ref != 'canary\/rc74-4'/u);
+
+  const rc74=ci.match(/- name: Validar RC74\.4 Phase B[\s\S]*?run: npm run validate:rc74-4/u)?.[0]||'';
+  assert.match(rc74,/github\.base_ref == 'canary\/rc74-4'/u);
+
+  const evidence74=ci.match(/- name: Conservar evidencia RC74\.4[\s\S]*?retention-days: 14/u)?.[0]||'';
+  assert.match(evidence74,/github\.base_ref == 'canary\/rc74-4'/u);
+
+  const evidence29=ci.match(/- name: Conservar evidencia RC29[\s\S]*?retention-days: 14/u)?.[0]||'';
+  assert.match(evidence29,/github\.base_ref != 'canary\/rc74-4'/u);
+});

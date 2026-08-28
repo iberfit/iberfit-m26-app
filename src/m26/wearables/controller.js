@@ -375,6 +375,7 @@ function supersededError(error){
 export function createWearableController({
   root,
   store,
+  ownerId,
   transport,
   getToken,
   refreshState=async()=>{},
@@ -401,6 +402,7 @@ export function createWearableController({
   const remoteSync=createWearableRemoteSync({
     transport,
     getToken,
+    ownerId,
     refreshState,
     isOnline,
   });

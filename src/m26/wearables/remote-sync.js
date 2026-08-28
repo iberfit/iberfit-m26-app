@@ -44,8 +44,8 @@ function safeProvider(value){
   return provider;
 }
 
-function keyFor(record){
-  return `${PREFIX}${record.clientId}:${record.provider}:${record.date}`;
+function keyFor(ownerPrefix,record){
+  return `${ownerPrefix}${record.clientId}:${record.provider}:${record.date}`;
 }
 
 function chunks(values,size=200){
@@ -65,6 +65,7 @@ function scopesFor(records){
 export function createWearableRemoteSync({
   transport,
   getToken,
+  ownerId,
   refreshState=async()=>{},
   isOnline=()=>globalThis.navigator?.onLine!==false,
   queueStore=createBrowserKeyValueStore({
@@ -78,8 +79,24 @@ export function createWearableRemoteSync({
     throw new Error('M26_WEARABLE_REMOTE_SYNC_REQUIRED');
   }
 
+  const owner=safeId(
+    ownerId,
+    'M26_WEARABLE_OWNER_REQUIRED',
+  );
+  const ownerPrefix=`${PREFIX}owner/${owner}/`;
+
   async function queuedEntries(){
-    return queueStore.entries(PREFIX);
+    const valid=[];
+
+    for(const [key,item] of await queueStore.entries(ownerPrefix)){
+      if(item?.ownerId!==owner){
+        continue;
+      }
+
+      valid.push([key,item]);
+    }
+
+    return valid;
   }
 
   async function pendingCount(){
@@ -108,8 +125,9 @@ export function createWearableRemoteSync({
 
     for(const record of normalized){
       await queueStore.set(
-        keyFor(record),
+        keyFor(ownerPrefix,record),
         {
+          ownerId:owner,
           record:clone(record),
           clientId:safeClientId,
           provider:safeSource,
@@ -290,7 +308,7 @@ export function createWearableRemoteSync({
   async function deleteAll(){
     const token=await getToken();
     const result=await transport.deleteWearableData(token);
-    await queueStore.clear(PREFIX);
+    await queueStore.clear(ownerPrefix);
 
     await refreshState({
       reason:'wearables-deleted',
@@ -299,11 +317,16 @@ export function createWearableRemoteSync({
     return result;
   }
 
+  async function clearOwner(){
+    await queueStore.clear(ownerPrefix);
+  }
+
   return Object.freeze({
     stage,
     flush,
     revoke,
     deleteAll,
     pendingCount,
+    clearOwner,
   });
 }
