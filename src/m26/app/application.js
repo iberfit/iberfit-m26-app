@@ -30,6 +30,8 @@ import {createRouteViewModel} from '../modules/route-view-model.js';
 import {renderRouteView} from '../modules/route-render.js';
 import {createWorkflowController} from './workflow-controller.js';
 import {createSessionVault,sessionExpiresSoon} from './session-vault.js';
+import {clearIberfitExperiencePreferences} from '../ui/preferences.js';
+import {inspectOwnerDeviceData,ownerDeviceClearPrompt,clearOwnerDeviceData} from '../privacy/device-data.js';
 import {renderAccessUi} from './access-ui.js';
 import {inspectPasswordRecoveryHash,recoveryUrlWithoutFragment} from './password-recovery.js';
 import {loadExerciseCatalog} from '../exercises/catalog.js';
@@ -185,7 +187,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false;
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
 
   function authMessage(message='',noticeKind='status'){
@@ -487,7 +489,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     adminService=createAdminCommandService({transport:adminTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getAdminState:()=>store.getState().admin,isOnline:()=>navigator.onLine!==false,refreshState:hydrate});
     communicationService=createCommunicationService({transport:communicationTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getState:()=>store.getState().communication,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false,refreshState:hydrate});
     qaStage('rc64-setup-services-ready');
-    recoveryCoordinator=createExecutionRecoveryCoordinator({store:createExecutionRecoveryStore({ownerId}),commandBus,isOnline:()=>navigator.onLine!==false});
+    recoveryStore=createExecutionRecoveryStore({ownerId});recoveryCoordinator=createExecutionRecoveryCoordinator({store:recoveryStore,commandBus,isOnline:()=>navigator.onLine!==false});
     iriExternalReports=createIriExternalReportController({root,store,runtime,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false});
     shell=createShellController({root,store,renderRoute});
     productivity=createCoachProductivityController({root,store,ownerId});
@@ -524,7 +526,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     else if(controllerShellRole==='client')qaStage('rc64-controller-shell-role-client');
     else if(controllerShellRole==='admin')qaStage('rc64-controller-shell-role-admin');
     else qaStage('rc64-controller-shell-role-missing');
-    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
+    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
     render();
     qaStage('rc64-final-render-ready');
     await consumePendingIriExternalReportIntent();
@@ -578,8 +580,49 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
-  function onLogout(){const token=currentToken();vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;destroyControllers();store.reset();authMessage('Sesión cerrada de forma segura.');void transport?.logout?.(token).catch(()=>{});}
-  function destroyControllers(){telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status'}={}){vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
+  function onLogout(){const token=currentToken();finishLogout({token});}
+  async function onLogoutAndClearDevice(){
+    if(deviceClearBusy||!session)return false;
+    const token=currentToken();
+    const preferenceScope=String(store.getState().identity?.id||session.user?.id||'').trim();
+    deviceClearBusy=true;
+    try{
+      const summary=await inspectOwnerDeviceData({
+        operations:operationRepository,
+        drafts:draftRepository,
+        recovery:recoveryStore,
+        telemetry:telemetryOutbox,
+        wearables,
+        sessionTemplates:sessionTemplateRepository,
+      });
+      const accepted=typeof globalThis.confirm==='function'
+        ?globalThis.confirm(ownerDeviceClearPrompt(summary))
+        :false;
+      if(!accepted)return false;
+      const cleared=await clearOwnerDeviceData({
+        operations:operationRepository,
+        drafts:draftRepository,
+        recovery:recoveryStore,
+        telemetry:telemetryOutbox,
+        wearables,
+        sessionTemplates:sessionTemplateRepository,
+        productivity,
+        clearPreferences:()=>clearIberfitExperiencePreferences(preferenceScope),
+      });
+      finishLogout({
+        token,
+        message:cleared.ok
+          ?'Sesión cerrada y datos locales de esta cuenta eliminados de este dispositivo.'
+          :'Sesión cerrada. No se pudo confirmar el borrado completo de los datos locales. Antes de compartir este dispositivo, elimina los datos del sitio desde el navegador.',
+        noticeKind:cleared.ok?'status':'error',
+      });
+      return cleared.ok;
+    }finally{
+      deviceClearBusy=false;
+    }
+  }
+  function destroyControllers(){telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 function onAuthClick(event) {
   const action = event.target.closest?.('[data-auth-action]')?.getAttribute?.('data-auth-action');
 

@@ -171,7 +171,8 @@ export function createSessionTemplateRepository({
     writeWorkspace(storage,key,{schemaVersion:SESSION_TEMPLATE_SCHEMA_VERSION,templates});
     return Object.freeze({id:template.id,name:template.name,version:nextVersion,updatedAt:timestamp});
   }
-  return Object.freeze({key,list,get,save});
+  function clearOwner(){try{storage?.removeItem?.(key);return true;}catch{return false;}}
+  return Object.freeze({key,list,get,save,clearOwner});
 }
 
 export function createDraftFromSessionTemplate(template,{clientId,catalog}={}){
