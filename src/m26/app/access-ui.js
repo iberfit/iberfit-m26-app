@@ -7,6 +7,16 @@ function e(value) {
     .replaceAll("'", '&#039;');
 }
 
+function safeMfaQrSrc(value){
+  const raw=String(value||'').trim();
+  if(!raw||raw.length>120000)return '';
+  if(/^data:image\/svg\+xml(?:;charset=utf-8|;utf-8)?,/iu.test(raw))return raw;
+  if(/^<svg[\s>]/iu.test(raw)){
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(raw)}`;
+  }
+  return '';
+}
+
 export function renderAccessUi({
   message = '',
   busy = false,
@@ -14,6 +24,7 @@ export function renderAccessUi({
   qaOnly = false,
   mode = 'login',
   noticeKind = 'status',
+  mfa = null,
 } = {}) {
   const disabled = busy || !backendReady;
 
@@ -27,7 +38,104 @@ export function renderAccessUi({
 
   let content = '';
 
-  if (mode === 'request-recovery') {
+  if (mode === 'mfa-required') {
+    content = `
+      <h1 id="m26-auth-title" tabindex="-1">Verificación en dos pasos obligatoria</h1>
+      <p>Las cuentas de entrenador y administración requieren un segundo factor antes de acceder a información de clientes.</p>
+
+      ${notice}
+
+      <button
+        type="button"
+        class="m26-primary-action"
+        data-auth-action="mfa-start-enrollment"
+        ${disabled ? 'disabled aria-disabled="true"' : ''}
+      >
+        ${busy ? 'Preparando…' : 'Configurar verificación'}
+      </button>
+
+      <button type="button" data-auth-action="mfa-logout">
+        Cerrar sesión
+      </button>
+    `;
+  } else if (mode === 'mfa-enroll-totp') {
+    const qr=safeMfaQrSrc(mfa?.qrCode);
+    const qrMarkup=qr
+      ? `<img class="m26-mfa-qr" src="${e(qr)}" width="192" height="192" alt="Código QR para configurar la aplicación de autenticación">`
+      : '';
+    content = `
+      <h1 id="m26-auth-title" tabindex="-1">Configura tu verificación en dos pasos</h1>
+      <p>Escanea el QR con tu aplicación de autenticación. Si no puedes escanearlo, introduce la clave manualmente.</p>
+
+      ${notice}
+      ${qrMarkup}
+
+      <p class="m26-field-help">Clave manual: <strong>${e(mfa?.secret||'')}</strong></p>
+
+      <form data-auth-form="mfa-verify">
+        <label>
+          Código de 6 dígitos
+          <input
+            type="text"
+            name="code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            pattern="[0-9]{6}"
+            minlength="6"
+            maxlength="6"
+            required
+          >
+        </label>
+
+        <button
+          type="submit"
+          class="m26-primary-action"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >
+          ${busy ? 'Verificando…' : 'Activar y continuar'}
+        </button>
+      </form>
+
+      <button type="button" data-auth-action="mfa-logout">
+        Cerrar sesión
+      </button>
+    `;
+  } else if (mode === 'mfa-challenge') {
+    content = `
+      <h1 id="m26-auth-title" tabindex="-1">Confirma tu segundo factor</h1>
+      <p>Introduce el código de 6 dígitos de tu aplicación de autenticación para continuar.</p>
+
+      ${notice}
+
+      <form data-auth-form="mfa-verify">
+        <label>
+          Código de 6 dígitos
+          <input
+            type="text"
+            name="code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            pattern="[0-9]{6}"
+            minlength="6"
+            maxlength="6"
+            required
+          >
+        </label>
+
+        <button
+          type="submit"
+          class="m26-primary-action"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >
+          ${busy ? 'Verificando…' : 'Verificar y entrar'}
+        </button>
+      </form>
+
+      <button type="button" data-auth-action="mfa-logout">
+        Cerrar sesión
+      </button>
+    `;
+  } else if (mode === 'request-recovery') {
     content = `
       <h1 id="m26-auth-title" tabindex="-1">Recuperar contraseña</h1>
       <p>Introduce el correo asociado a tu cuenta.</p>

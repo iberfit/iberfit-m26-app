@@ -16,6 +16,7 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_authorized_application_roles_v13',
   'iberfit_appointment_change_requests_v13',
   'iberfit_application_context_v14',
+  'iberfit_auth_assurance_context_v65c',
   'iberfit_communication_bootstrap_v14',
   'm26_backend_bootstrap_v43',
   'm26_wearable_bootstrap_v44',
@@ -38,6 +39,13 @@ function allowedExternalRequest(request){
   if(
     method==='GET' &&
     url.pathname==='/rest/v1/domain_command_registry_v26'
+  ){
+    return true;
+  }
+
+  if(
+    method==='GET' &&
+    url.pathname==='/auth/v1/user'
   ){
     return true;
   }
@@ -742,6 +750,52 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       }
       return null;
     };
+
+    if(account.name==='coach'){
+      await expect(
+        page.getByRole(
+          'heading',
+          {name:/Verificación en dos pasos obligatoria|Confirma tu segundo factor/u},
+        ),
+        'Coach must stop at privileged MFA gate before bootstrap',
+      ).toBeVisible({timeout:10_000});
+
+      await expect(
+        canonicalAuthenticatedShell,
+        'Coach shell must not render before aal2',
+      ).toHaveCount(0);
+
+      await new Promise((resolve)=>setTimeout(resolve,150));
+      await Promise.allSettled([...responseDiagnosticTasks]);
+
+      const failure=runtimeFailureState();
+      if(failure)throw new Error(failure);
+
+      expect(blockedExternal).toBe(0);
+      expect(requestFailures).toBe(0);
+      expect(consoleErrors).toBe(0);
+      expect(pageErrors).toBe(0);
+      expect(
+        qaStages.some((item)=>item.stage==='rc64-login-setup-start')
+      ).toBe(false);
+
+      evidenceRoles.push(Object.freeze({
+        role:account.role,
+        authenticated:true,
+        applicationAuthorized:false,
+        mfaRequired:true,
+        blockedExternal,
+        requestFailures,
+        consoleErrors,
+        pageErrors,
+        qualityObservability:'pre-bootstrap-mfa-gate',
+      }));
+
+      console.log('RC65_C1_COACH_MFA_GATE_PASS');
+      console.log(`RC64_2B_ACCOUNT_PASS:${account.name}`);
+      await context.close();
+      continue;
+    }
 
     const authStartedAt=Date.now();
     let runtimeWatchTimer=null;

@@ -180,6 +180,22 @@ function invalidRecoverySession(error){
   return error?.status===401||error?.status===403||/RECOVERY_(?:TOKEN|SESSION|USER|UPDATE|IDENTITY)|QA_ACCOUNT_REQUIRED|JWT|expired/i.test(code);
 }
 
+export function privilegedMfaDecision(assurance={},factors=[]){
+  if(assurance?.mfaRequired!==true||assurance?.aal==='aal2'){
+    return Object.freeze({kind:'ready'});
+  }
+  const verifiedTotp=Array.isArray(factors)
+    ?factors.find((factor)=>
+      factor?.factorType==='totp'&&
+      factor?.status==='verified'&&
+      typeof factor?.factorId==='string'
+    )
+    :null;
+  return verifiedTotp
+    ?Object.freeze({kind:'challenge',factorId:verifiedTotp.factorId})
+    :Object.freeze({kind:'enroll-required'});
+}
+
 export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history}={}){
   if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
   const runtime=resolveM26Runtime(runtimeConfig,locationLike);const vault=createSessionVault();
@@ -187,7 +203,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null;
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
 
   function authMessage(message='',noticeKind='status'){
@@ -198,6 +214,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaOnly:runtime.qaOnly,
     mode:authMode,
     noticeKind,
+    mfa:mfaState,
   });
 }
   function currentToken(){return session?.token||null;}
@@ -580,7 +597,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
-  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status'}={}){vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
+  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status'}={}){vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
   function onLogout(){const token=currentToken();finishLogout({token});}
   async function onLogoutAndClearDevice(){
     if(deviceClearBusy||!session)return false;
@@ -629,6 +646,17 @@ function onAuthClick(event) {
   if (!action) return;
 
   event.preventDefault?.();
+
+  if(action==='mfa-start-enrollment'){
+    void startMfaEnrollment().catch((error)=>reportDiagnostic('mfa-enroll',error));
+    return;
+  }
+
+  if(action==='mfa-logout'){
+    const token=currentToken();
+    finishLogout({token});
+    return;
+  }
 
   if (action === 'forgot-password') {
     authMode = 'request-recovery';
@@ -745,8 +773,94 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     throw error;
   }
 }
-  async function login(email,password){if(loginBusy)return false;if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');loginBusy=true;authMessage('Confirmando identidad y permisos…');try{session=await transport.login(email,password);qaStage('rc64-login-token-ready');vault.save(session);store.reset();qaStage('rc64-login-setup-start');await setupAuthenticated();qaStage('rc64-login-setup-ready');return true;}catch(error){vault.clear();session=null;destroyControllers();store.reset();loginBusy=false;const incident=diagnosticCode(error,'login');authMessage(`${friendlyError(error)} Código: ${incident}.`,'error');throw error;}finally{loginBusy=false;}}
-  async function resume(){if(!runtime.enabled){authMessage('El acceso no está disponible temporalmente en este sitio.');return false;}session=vault.load();if(!session){authMessage();return false;}try{await setupAuthenticated();return true;}catch{vault.clear();session=null;destroyControllers();store.reset();authMessage('La sesión expiró o perdió autorización. Vuelve a entrar.');return false;}}
+  async function continueAfterFirstFactor(){
+    if(!session?.token)throw new Error('M26_AUTH_REQUIRED');
+    const assurance=await transport.authAssuranceContext(session.token);
+    if(assurance.mfaRequired!==true||assurance.aal==='aal2'){
+      mfaState=null;
+      authMode='login';
+      qaStage('rc64-login-setup-start');
+      await setupAuthenticated();
+      qaStage('rc64-login-setup-ready');
+      return true;
+    }
+
+    const user=await transport.authUser(session.token);
+    if(user.id!==session.user.id)throw new Error('M26_MFA_IDENTITY_MISMATCH');
+    const decision=privilegedMfaDecision(assurance,user.factors);
+    mfaState=Object.freeze({
+      kind:decision.kind,
+      factorId:decision.factorId||null,
+      privilegedRole:assurance.privilegedRole||null,
+    });
+    authMode=decision.kind==='challenge'?'mfa-challenge':'mfa-required';
+    loginBusy=false;
+    authMessage();
+    return false;
+  }
+
+  async function startMfaEnrollment(){
+    if(loginBusy||!session?.token||mfaState?.kind!=='enroll-required')return false;
+    loginBusy=true;
+    authMode='mfa-required';
+    authMessage('Preparando tu segundo factor…');
+    try{
+      const enrollment=await transport.enrollTotp(session.token);
+      mfaState=Object.freeze({
+        kind:'enroll',
+        factorId:enrollment.factorId,
+        qrCode:enrollment.qrCode,
+        secret:enrollment.secret,
+        uri:enrollment.uri,
+        privilegedRole:mfaState?.privilegedRole||null,
+      });
+      loginBusy=false;
+      authMode='mfa-enroll-totp';
+      authMessage();
+      return true;
+    }catch(error){
+      loginBusy=false;
+      authMode='mfa-required';
+      authMessage('No fue posible preparar el segundo factor. Inténtalo de nuevo.','error');
+      throw error;
+    }
+  }
+
+  async function completeMfa(code){
+    if(loginBusy||!session?.token||!mfaState?.factorId)return false;
+    const currentUserId=session.user.id;
+    loginBusy=true;
+    authMessage('Verificando el segundo factor…');
+    try{
+      const next=await transport.verifyMfa(
+        session.token,
+        {factorId:mfaState.factorId,code},
+      );
+      if(next.user.id!==currentUserId)throw new Error('M26_MFA_IDENTITY_MISMATCH');
+      session=next;
+      vault.save(session);
+      const assurance=await transport.authAssuranceContext(session.token);
+      if(assurance.mfaRequired===true&&assurance.aal!=='aal2'){
+        throw new Error('M26_MFA_AAL2_REQUIRED');
+      }
+      mfaState=null;
+      authMode='login';
+      store.reset();
+      qaStage('rc64-login-setup-start');
+      await setupAuthenticated();
+      qaStage('rc64-login-setup-ready');
+      return true;
+    }catch(error){
+      loginBusy=false;
+      authMessage('No pudimos confirmar el código. Comprueba los 6 dígitos e inténtalo de nuevo.','error');
+      throw error;
+    }finally{
+      loginBusy=false;
+    }
+  }
+
+  async function login(email,password){if(loginBusy)return false;if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');loginBusy=true;authMessage('Confirmando identidad y permisos…');try{session=await transport.login(email,password);qaStage('rc64-login-token-ready');vault.save(session);store.reset();return await continueAfterFirstFactor();}catch(error){vault.clear();session=null;mfaState=null;destroyControllers();store.reset();loginBusy=false;const incident=diagnosticCode(error,'login');authMode='login';authMessage(`${friendlyError(error)} Código: ${incident}.`,'error');throw error;}finally{loginBusy=false;}}
+  async function resume(){if(!runtime.enabled){authMessage('El acceso no está disponible temporalmente en este sitio.');return false;}session=vault.load();if(!session){authMessage();return false;}try{return await continueAfterFirstFactor();}catch{vault.clear();session=null;mfaState=null;destroyControllers();store.reset();authMode='login';authMessage('La sesión expiró o perdió autorización. Vuelve a entrar.');return false;}}
   async function onSubmit(event) {
   const form = event.target.closest?.('[data-auth-form]');
 
@@ -758,6 +872,13 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
 
   const formType = form.getAttribute('data-auth-form');
   const data = new FormData(form);
+
+  if(formType==='mfa-verify'){
+    await completeMfa(data.get('code')).catch(
+      (error)=>reportDiagnostic('mfa-verify',error)
+    );
+    return;
+  }
 
   if (formType === 'login') {
     try {
