@@ -1238,6 +1238,8 @@ export function createWearableController({
     connectHealthConnect,
     connectNativeProvider,
     autoSyncNativeProviders,
+    pendingCount:()=>remoteSync.pendingCount(),
+    clearOwner:()=>remoteSync.clearOwner(),
     getPreview:()=>currentPreview,
   });
 }

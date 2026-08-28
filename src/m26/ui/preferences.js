@@ -183,6 +183,19 @@ export function resetIberfitExperiencePreferences(scope){
   return writePreferences(scope,cloneDefaults());
 }
 
+export function clearIberfitExperiencePreferences(scope){
+  const key=keyFor(scope);
+  if(!key)return false;
+  const target=storage();
+  if(!target)return true;
+  try{
+    target.removeItem?.(key);
+    return true;
+  }catch{
+    return false;
+  }
+}
+
 export function socialPolicyFromPreferences(preferences){
   const normalized=
     normalizeIberfitExperiencePreferences(preferences);

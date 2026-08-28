@@ -488,6 +488,7 @@ export function createCoachProductivityController({
     openPalette,
     closePalette,
     renderPalette,
+    clearOwner(){try{storage?.removeItem?.(storageKey);return true;}catch{return false;}},
   });
 }
 
