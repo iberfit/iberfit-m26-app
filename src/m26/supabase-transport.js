@@ -22,6 +22,7 @@ const CANONICAL_RPC=Object.freeze({
   preflight:'iberfit_command_preflight_v26',
   execute:'iberfit_execute_command_v26',
 });
+const RC65C_AUTH_ASSURANCE_RPC='iberfit_auth_assurance_context_v65c';
 const CLIENT_ONBOARDING_RPC=Object.freeze({
   legacy:'iberfit_create_client_draft',
   preflight:'iberfit_client_onboarding_preflight_v12',
@@ -386,6 +387,142 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return user;
   }
 
+  function normalizeMfaFactorId(value){
+    const factorId=String(value||'').trim();
+    if(!UUID_PATTERN.test(factorId))throw new Error('M26_MFA_FACTOR_ID_INVALID');
+    return factorId;
+  }
+
+  function normalizeMfaCode(value){
+    const code=String(value||'').trim();
+    if(!/^\d{6}$/u.test(code))throw new Error('M26_MFA_CODE_INVALID');
+    return code;
+  }
+
+  function normalizeMfaFactor(factor){
+    const factorId=normalizeMfaFactorId(factor?.id);
+    const factorType=String(factor?.factor_type||factor?.factorType||'').trim().toLowerCase();
+    const status=String(factor?.status||'').trim().toLowerCase();
+    if(!['totp','phone'].includes(factorType)||!['verified','unverified'].includes(status)){
+      throw new Error('M26_MFA_FACTOR_INVALID');
+    }
+    return Object.freeze({
+      factorId,
+      factorType,
+      status,
+      friendlyName:String(factor?.friendly_name||'').replace(/[\u0000-\u001f\u007f]/gu,' ').trim().slice(0,120),
+    });
+  }
+
+  async function authAssuranceContext(token){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const body=await request('/rest/v1/rpc/'+RC65C_AUTH_ASSURANCE_RPC,{
+      method:'POST',
+      token,
+      body:'{}',
+    });
+    if(
+      !body||
+      typeof body!=='object'||
+      Array.isArray(body)||
+      body.ok!==true||
+      typeof body.privileged!=='boolean'||
+      typeof body.mfaRequired!=='boolean'||
+      !['aal1','aal2'].includes(String(body.aal||''))||
+      ![null,'coach','admin'].includes(body.privilegedRole??null)||
+      body.privileged!==body.mfaRequired||
+      (body.privileged&&body.privilegedRole===null)
+    ){
+      throw new Error('M26_AUTH_ASSURANCE_INVALID_RESPONSE');
+    }
+    return Object.freeze({
+      ok:true,
+      privileged:body.privileged,
+      privilegedRole:body.privilegedRole??null,
+      mfaRequired:body.mfaRequired,
+      aal:String(body.aal),
+    });
+  }
+
+  async function authUser(token){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const body=await request('/auth/v1/user',{method:'GET',token});
+    const id=String(body?.id||'');
+    const email=String(body?.email||'').trim().toLowerCase();
+    if(
+      !SAFE_ID_PATTERN.test(id)||
+      email.length<3||
+      email.length>MAX_AUTH_EMAIL_CHARS||
+      !email.includes('@')||
+      /[\u0000-\u001f\u007f]/u.test(email)
+    ){
+      throw new Error('M26_AUTH_USER_INVALID_RESPONSE');
+    }
+    if(runtime.qaOnly&&!isQaAuthorizedEmail(email))throw new Error('M26_QA_ACCOUNT_REQUIRED');
+    const rawFactors=body?.factors??[];
+    if(!Array.isArray(rawFactors)||rawFactors.length>10)throw new Error('M26_MFA_FACTORS_INVALID_RESPONSE');
+    const factors=rawFactors.map(normalizeMfaFactor);
+    return Object.freeze({id,email,factors:Object.freeze(factors)});
+  }
+
+  async function enrollTotp(token){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const body=await request('/auth/v1/factors',{
+      method:'POST',
+      token,
+      body:JSON.stringify({
+        factor_type:'totp',
+        friendly_name:'IBERFIT Authenticator',
+        issuer:'IBERFIT',
+      }),
+    });
+    const factorId=normalizeMfaFactorId(body?.id);
+    const qrCode=String(body?.totp?.qr_code||'');
+    const secret=String(body?.totp?.secret||'').trim();
+    const uri=String(body?.totp?.uri||'').trim();
+    if(
+      qrCode.length<8||
+      qrCode.length>120000||
+      /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(qrCode)||
+      !/^[A-Za-z2-7]{16,128}$/u.test(secret)||
+      uri.length<16||
+      uri.length>4096||
+      !uri.startsWith('otpauth://totp/')||
+      /[\u0000-\u001f\u007f]/u.test(uri)
+    ){
+      throw new Error('M26_MFA_ENROLL_INVALID_RESPONSE');
+    }
+    return Object.freeze({factorId,qrCode,secret,uri});
+  }
+
+  async function verifyMfa(token,{factorId,code}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const id=normalizeMfaFactorId(factorId);
+    const otp=normalizeMfaCode(code);
+    const challenge=await request('/auth/v1/factors/'+id+'/challenge',{
+      method:'POST',
+      token,
+      body:'{}',
+    });
+    const challengeId=String(challenge?.id||'').trim();
+    if(!UUID_PATTERN.test(challengeId))throw new Error('M26_MFA_CHALLENGE_INVALID_RESPONSE');
+    const body=validateAuthBody(
+      await request('/auth/v1/factors/'+id+'/verify',{
+        method:'POST',
+        token,
+        body:JSON.stringify({challenge_id:challengeId,code:otp}),
+      }),
+      'M26_MFA_VERIFY_INVALID_RESPONSE',
+    );
+    if(runtime.qaOnly&&!isQaAuthorizedEmail(body.user.email))throw new Error('M26_QA_ACCOUNT_REQUIRED');
+    return Object.freeze({
+      token:body.access_token,
+      refreshToken:body.refresh_token||null,
+      expiresAt:body.expires_at||null,
+      user:body.user,
+    });
+  }
+
   async function refresh(refreshToken) {
     if (!refreshToken || String(refreshToken).length>MAX_REFRESH_TOKEN_CHARS) throw new Error('M26_REFRESH_TOKEN_REQUIRED');
     const body = validateAuthBody(await request('/auth/v1/token?grant_type=refresh_token', {
@@ -744,6 +881,10 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     updatePassword,
     refresh,
     logout,
+    authAssuranceContext,
+    authUser,
+    enrollTotp,
+    verifyMfa,
     bootstrap: (token) => rpc(runtime.rpc.bootstrap, token, {}),
     backendHealth,
     backendBootstrap,
