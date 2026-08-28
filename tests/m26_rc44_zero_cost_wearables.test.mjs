@@ -195,6 +195,7 @@ test('RC44 guarda offline y sincroniza en lotes',async()=>{
   };
 
   const sync=createWearableRemoteSync({
+    ownerId:'qa-user-rc44',
     transport:transportFake,
     getToken:async()=>'qa-token',
     refreshState:async()=>{refreshed+=1;},
