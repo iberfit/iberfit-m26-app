@@ -50,6 +50,21 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
+      - name: Validar Canary desplegado en navegador real
+        run: node scripts/prelaunch/check_live_canary_gate.mjs
+
+      - name: Conservar evidencia Canary live pre-launch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prelaunch-live-canary-gate
+          path: |
+            recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_GATE.json
+            recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_DESKTOP.png
+            recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_MOBILE.png
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Generar candidatos visuales canónicos Linux RC64.2B
         run: npm run quality:rc64:visual:update
 

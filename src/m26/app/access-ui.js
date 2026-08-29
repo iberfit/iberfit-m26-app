@@ -25,8 +25,25 @@ export function renderAccessUi({
   mode = 'login',
   noticeKind = 'status',
   mfa = null,
+  host = '',
 } = {}) {
   const disabled = busy || !backendReady;
+  const normalizedHost = String(host || '').trim().toLowerCase();
+  const previewBlocked =
+    qaOnly === true &&
+    backendReady === false &&
+    (
+      normalizedHost === 'iberfit-m26-canary.pages.dev' ||
+      normalizedHost.endsWith('.iberfit-m26-canary.pages.dev')
+    );
+  const blockedSiteNotice = backendReady
+    ? ''
+    : previewBlocked
+      ? `<div class="m26-notice is-warning m26-auth-site-blocked" role="status">
+          <p>Este enlace de revisión no admite acceso. Abre el Canary oficial para continuar.</p>
+          <a class="m26-auth-canonical-link" href="https://m26-canary.iberfit.cl/">Abrir Canary oficial</a>
+        </div>`
+      : '<p class="m26-notice is-warning">El acceso no está disponible temporalmente en este sitio.</p>';
 
   const notice = message
     ? `<p class="m26-auth-notice${noticeKind === 'error' ? ' is-error' : ''}" role="${noticeKind === 'error' ? 'alert' : 'status'}" aria-live="${noticeKind === 'error' ? 'assertive' : 'polite'}" aria-atomic="true">${e(message)}</p>`
@@ -286,11 +303,7 @@ export function renderAccessUi({
 
         ${content}
 
-        ${
-          backendReady
-            ? ''
-            : '<p class="m26-notice is-warning">El acceso no está disponible temporalmente en este sitio.</p>'
-        }
+        ${blockedSiteNotice}
 
         <small>${e(accessNote)}</small>
       </section>
