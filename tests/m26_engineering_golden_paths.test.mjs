@@ -28,3 +28,14 @@ test('golden path conserva hard guards',()=>{
   assert.match(text,/m26-canary\.iberfit\.cl/u);
   assert.match(text,/nunca `main`/u);
 });
+
+test('golden path conserva observabilidad antes de abortar',()=>{
+  assert.match(text,/causa concreta/iu);
+  assert.match(text,/console\.error/iu);
+  assert.match(text,/requestfailed/iu);
+  assert.match(text,/respuestas HTTP >= 400/iu);
+  assert.match(text,/V16 falló con `PRELAUNCH_LIVE_CONSOLE_ERROR`/u);
+  assert.match(text,/distinguir `skipped` de\s+`failure`/u);
+  assert.match(text,/exactamente un LF/iu);
+  assert.match(text,/V17 fue detenido por\s+`git diff --check`/u);
+});

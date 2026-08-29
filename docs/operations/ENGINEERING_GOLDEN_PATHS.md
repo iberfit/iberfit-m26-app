@@ -97,3 +97,18 @@ contenedor válido mayor. Nunca elegir el último `{` o `[`. V6 falló por esto.
 ## Principio
 Si un mecanismo ya funcionó: reutilizarlo literalmente, cambiar una sola capa,
 añadir self-test/regresión, fail-closed y conservar SHA/ledger.
+## Observabilidad de gates y errores secundarios
+- Un gate fail-closed debe registrar la **causa concreta** antes de lanzar el código
+  resumido de error. Para navegador: texto y ubicación de `console.error`,
+  `pageerror`, `requestfailed` y respuestas HTTP >= 400, sin credenciales.
+- La evidencia diagnóstica debe escribirse antes de las invariantes finales cuando
+  sea técnicamente posible. V16 falló con `PRELAUNCH_LIVE_CONSOLE_ERROR` pero el
+  primer script no imprimió el contenido del error ni alcanzó a escribir evidencia.
+- Un paso de conservación de artifacts no debe añadir un segundo fallo cuando su
+  paso productor fue omitido por un fallo anterior. Debe distinguir `skipped` de
+  `failure`; si el productor sí corrió y faltan artifacts esperados, puede seguir
+  siendo fail-closed.
+- Todo archivo de texto generado por tooling debe terminar en exactamente un LF,
+  sin espacios finales ni una línea en blanco extra al EOF. V17 fue detenido por
+  `git diff --check` por dos `new blank line at EOF`; fue un fallo del generador,
+  no del producto ni del gate.

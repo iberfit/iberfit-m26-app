@@ -55,6 +55,8 @@ async function inspectViewport(browser,{name,width,height}){
   const forbiddenOrigins=[];
   const consoleErrors=[];
   const pageErrors=[];
+  const requestFailures=[];
+  const badResponses=[];
 
   await page.route('**/*',async(route)=>{
     const request=route.request();
@@ -75,11 +77,40 @@ async function inspectViewport(browser,{name,width,height}){
 
   page.on('console',(message)=>{
     if(message.type()==='error'){
-      consoleErrors.push(String(message.text()||'').slice(0,300));
+      const location=message.location?.()||{};
+      consoleErrors.push({
+        text:String(message.text()||'').slice(0,500),
+        url:String(location.url||'').slice(0,300),
+        lineNumber:Number.isInteger(location.lineNumber)?location.lineNumber:null,
+        columnNumber:Number.isInteger(location.columnNumber)?location.columnNumber:null,
+      });
     }
   });
   page.on('pageerror',(error)=>{
-    pageErrors.push(String(error?.name||'Error').slice(0,80));
+    pageErrors.push({
+      name:String(error?.name||'Error').slice(0,80),
+      message:String(error?.message||'').slice(0,500),
+    });
+  });
+  page.on('requestfailed',(request)=>{
+    let parsed;
+    try{parsed=new URL(request.url());}catch{parsed=null;}
+    requestFailures.push({
+      method:String(request.method()||'').slice(0,16),
+      origin:String(parsed?.origin||'invalid').slice(0,180),
+      path:String(parsed?.pathname||'').slice(0,220),
+      error:String(request.failure()?.errorText||'').slice(0,300),
+    });
+  });
+  page.on('response',(response)=>{
+    if(response.status()<400)return;
+    let parsed;
+    try{parsed=new URL(response.url());}catch{parsed=null;}
+    badResponses.push({
+      status:response.status(),
+      origin:String(parsed?.origin||'invalid').slice(0,180),
+      path:String(parsed?.pathname||'').slice(0,220),
+    });
   });
 
   try{
@@ -128,15 +159,37 @@ async function inspectViewport(browser,{name,width,height}){
       scrollHeight:document.documentElement.scrollHeight,
       clientHeight:document.documentElement.clientHeight,
     }));
-    invariant(layout.scrollWidth<=layout.clientWidth+1,'PRELAUNCH_LIVE_HORIZONTAL_OVERFLOW');
 
+    const screenshot=path.join(EVIDENCE_DIR,`PRELAUNCH_LIVE_CANARY_${name.toUpperCase()}.png`);
+    await page.screenshot({path:screenshot,fullPage:true});
+
+    const diagnostic=Object.freeze({
+      schema:'iberfit.prelaunch.live-canary-diagnostic.v1',
+      generatedAt:new Date().toISOString(),
+      name,width,height,
+      pageUrl:String(page.url()).slice(0,300),
+      runtime,
+      layout,
+      blockedMutations,
+      forbiddenOrigins,
+      consoleErrors,
+      pageErrors,
+      requestFailures,
+      badResponses,
+      screenshot:path.relative(process.cwd(),screenshot).replaceAll(path.sep,'/'),
+    });
+    const diagnosticPath=path.join(EVIDENCE_DIR,`PRELAUNCH_LIVE_CANARY_${name.toUpperCase()}_DIAGNOSTIC.json`);
+    await writeFile(diagnosticPath,`${JSON.stringify(diagnostic,null,2)}\n`,'utf8');
+
+    if(consoleErrors.length||pageErrors.length||requestFailures.length||badResponses.length){
+      console.error(`PRELAUNCH_LIVE_DIAGNOSTICS=${JSON.stringify(diagnostic)}`);
+    }
+
+    invariant(layout.scrollWidth<=layout.clientWidth+1,'PRELAUNCH_LIVE_HORIZONTAL_OVERFLOW');
     invariant(blockedMutations.length===0,'PRELAUNCH_LIVE_UNEXPECTED_MUTATION_REQUEST');
     invariant(forbiddenOrigins.length===0,'PRELAUNCH_LIVE_FORBIDDEN_SUPABASE_ORIGIN');
     invariant(pageErrors.length===0,'PRELAUNCH_LIVE_PAGE_ERROR');
     invariant(consoleErrors.length===0,'PRELAUNCH_LIVE_CONSOLE_ERROR');
-
-    const screenshot=path.join(EVIDENCE_DIR,`PRELAUNCH_LIVE_CANARY_${name.toUpperCase()}.png`);
-    await page.screenshot({path:screenshot,fullPage:true});
 
     return Object.freeze({
       name,width,height,
@@ -146,6 +199,9 @@ async function inspectViewport(browser,{name,width,height}){
       forbiddenSupabaseOrigins:forbiddenOrigins.length,
       consoleErrors:consoleErrors.length,
       pageErrors:pageErrors.length,
+      requestFailures:requestFailures.length,
+      badResponses:badResponses.length,
+      diagnostic:path.relative(process.cwd(),diagnosticPath).replaceAll(path.sep,'/'),
       screenshot:path.relative(process.cwd(),screenshot).replaceAll(path.sep,'/'),
     });
   }finally{

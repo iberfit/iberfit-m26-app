@@ -60,16 +60,18 @@ jobs:
           name: prelaunch-live-canary-gate
           path: |
             recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_GATE.json
+            recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_*_DIAGNOSTIC.json
             recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_DESKTOP.png
             recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_MOBILE.png
           if-no-files-found: warn
           retention-days: 7
 
       - name: Generar candidatos visuales canónicos Linux RC64.2B
+        id: visual_candidates
         run: npm run quality:rc64:visual:update
 
       - name: Conservar candidatos visuales Linux
-        if: always()
+        if: ${{ always() && steps.visual_candidates.outcome != 'skipped' }}
         uses: actions/upload-artifact@v4
         with:
           name: rc64-2b-linux-visual-baseline-candidates
