@@ -45,7 +45,27 @@ if(productionOriginCount!==3)throw new Error(`RC74_4_HEADERS_PRODUCTION_ORIGIN_C
 if(headersTemplate.includes(QA_ORIGIN))throw new Error('RC74_4_HEADERS_TEMPLATE_ALREADY_QA');
 if(/https:\/\/\*\.supabase\.co/iu.test(headersTemplate))throw new Error('RC74_4_HEADERS_WILDCARD_FORBIDDEN');
 
-const canaryHeaders=headersTemplate.split(productionOrigin).join(QA_ORIGIN);
+let canaryHeaders=headersTemplate.split(productionOrigin).join(QA_ORIGIN);
+
+const rootBoundary='\n\n/m26/runtime-config.js';
+const rootBoundaryIndex=canaryHeaders.indexOf(rootBoundary);
+if(rootBoundaryIndex<0)throw new Error('RC74_4_HEADERS_ROOT_BOUNDARY_MISSING');
+const rootRule=canaryHeaders.slice(0,rootBoundaryIndex);
+const rootCache='  Cache-Control: no-store';
+const rootCacheCount=rootRule.split(rootCache).length-1;
+if(rootCacheCount!==1)throw new Error(`RC74_4_HEADERS_ROOT_CACHE_CONTROL_COUNT:${rootCacheCount}`);
+const hardenedRootRule=rootRule.replace(rootCache,`${rootCache}, no-transform`);
+canaryHeaders=`${hardenedRootRule}${canaryHeaders.slice(rootBoundaryIndex)}`;
+
+const indexCache='/m26/index.html\n  Cache-Control: no-cache, must-revalidate';
+const indexCacheCount=canaryHeaders.split(indexCache).length-1;
+if(indexCacheCount!==1)throw new Error(`RC74_4_HEADERS_INDEX_CACHE_CONTROL_COUNT:${indexCacheCount}`);
+canaryHeaders=canaryHeaders.replace(indexCache,`${indexCache}, no-transform`);
+if(!canaryHeaders.includes('Cache-Control: no-store, no-transform')||
+   !canaryHeaders.includes('Cache-Control: no-cache, must-revalidate, no-transform')){
+  throw new Error('RC74_4_HEADERS_NO_TRANSFORM_MISSING');
+}
+
 const qaOriginCount=canaryHeaders.split(QA_ORIGIN).length-1;
 if(qaOriginCount!==3)throw new Error(`RC74_4_HEADERS_QA_ORIGIN_COUNT:${qaOriginCount}`);
 if(canaryHeaders.includes(productionOrigin))throw new Error('RC74_4_HEADERS_PRODUCTION_ORIGIN_LEAK');

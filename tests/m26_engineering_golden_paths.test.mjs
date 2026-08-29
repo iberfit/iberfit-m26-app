@@ -39,3 +39,41 @@ test('golden path conserva observabilidad antes de abortar',()=>{
   assert.match(text,/exactamente un LF/iu);
   assert.match(text,/V17 fue detenido por\s+`git diff --check`/u);
 });
+
+test('golden path conserva RUM bloqueado sin relajar CSP y gate live post-deploy',()=>{
+  const workflow=fs.readFileSync('.github/workflows/remote-gates.yml','utf8');
+  const generator=fs.readFileSync('scripts/generate_rc74_4_runtime_config.mjs','utf8');
+  assert.match(text,/Cloudflare RUM \/ Web Analytics y CSP estricta/u);
+  assert.match(text,/script-src 'self'/u);
+  assert.match(text,/Cache-Control: no-transform/u);
+  assert.match(text,/gate live\s+se ejecuta sobre `canary\/rc74-4` después del deploy/iu);
+  assert.match(generator,/RC74_4_HEADERS_NO_TRANSFORM_MISSING/u);
+  assert.match(generator,/no-store, no-transform/u);
+  assert.match(workflow,/Validar Canary desplegado en navegador real\n\s+if: \$\{\{ github\.ref_name == 'canary\/rc74-4' \}\}/u);
+  assert.match(workflow,/Conservar evidencia Canary live pre-launch\n\s+if: \$\{\{ always\(\) && github\.ref_name == 'canary\/rc74-4' \}\}/u);
+});
+
+test('golden path conserva parcheadores estructurales',()=>{
+  assert.match(text,/Parcheadores de release: anclas estructurales/u);
+  assert.match(text,/V19 falló antes de cualquier mutación con `PATCH_CSP_GENERATED_ASSERT_COUNT:0`/u);
+  assert.match(text,/cardinalidad exactamente\s+1/iu);
+});
+
+test('golden path conserva rutas cortas y core.longpaths en Windows',()=>{
+  assert.match(text,/Windows: rutas largas en clones/u);
+  assert.match(text,/V20 falló antes de cualquier mutación con `Filename too long`/u);
+  assert.match(text,/%TEMP%/u);
+  assert.match(text,/core.longpaths=true/u);
+});
+
+test('golden path distingue LF real de backslash-n literal',()=>{
+  assert.match(text,/Tooling: LF real frente a \\\\n literal/u);
+  assert.match(text,/V21 superó clone, longpaths y alcance/u);
+  assert.match(text,/saltos de línea reales entre sentencias/iu);
+});
+
+test('golden path conserva capas de escape de regex',()=>{
+  assert.match(text,/Tooling: capas de escape en regex generados/u);
+  assert.match(text,/V22 demostró que el producto generaba correctamente el header/u);
+  assert.match(text,/fixture con LF real/iu);
+});

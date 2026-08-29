@@ -19,6 +19,7 @@ test('RC65-C1 canary CSP is generated QA-only without mutating the production he
   assert.equal(count(before,PROD_ORIGIN),3);
   assert.equal(count(before,QA_ORIGIN),0);
   assert.doesNotMatch(before,/https:\/\/\*\.supabase\.co/iu);
+  assert.doesNotMatch(before,/no-transform/iu);
 
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'iberfit-rc65c1-csp-'));
   const buildDir=path.join(temp,'build');
@@ -48,6 +49,9 @@ test('RC65-C1 canary CSP is generated QA-only without mutating the production he
       assert.equal(count(generated,QA_ORIGIN),3);
       assert.equal(count(generated,PROD_ORIGIN),0);
       assert.doesNotMatch(generated,/https:\/\/\*\.supabase\.co/iu);
+      assert.match(generated,/Cache-Control: no-store, no-transform/u);
+      assert.match(generated,/\/m26\/index\.html\n  Cache-Control: no-cache, must-revalidate, no-transform/u);
+      assert.doesNotMatch(generated,/static\.cloudflareinsights\.com/iu);
       assert.match(generated,new RegExp(`connect-src 'self' ${QA_ORIGIN.replaceAll('.','\\.')};`,'u'));
       assert.match(generated,new RegExp(`img-src 'self' data: blob: ${QA_ORIGIN.replaceAll('.','\\.')};`,'u'));
       assert.match(generated,new RegExp(`frame-src 'self' ${QA_ORIGIN.replaceAll('.','\\.')};`,'u'));
@@ -71,6 +75,10 @@ test('RC65-C1 canary header generator fails closed on template drift contracts',
     'RC74_4_HEADERS_WILDCARD_FORBIDDEN',
     'RC74_4_HEADERS_PRODUCTION_ORIGIN_LEAK',
     'RC74_4_HEADERS_QA_DIRECTIVE_MISSING',
+    'RC74_4_HEADERS_ROOT_BOUNDARY_MISSING',
+    'RC74_4_HEADERS_ROOT_CACHE_CONTROL_COUNT',
+    'RC74_4_HEADERS_INDEX_CACHE_CONTROL_COUNT',
+    'RC74_4_HEADERS_NO_TRANSFORM_MISSING',
   ]) assert.ok(source.includes(guard),guard);
   assert.doesNotMatch(source,new RegExp(PROD_REF,'u'));
 });

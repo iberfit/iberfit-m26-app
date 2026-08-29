@@ -51,10 +51,11 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: Validar Canary desplegado en navegador real
+        if: ${{ github.ref_name == 'canary/rc74-4' }}
         run: node scripts/prelaunch/check_live_canary_gate.mjs
 
       - name: Conservar evidencia Canary live pre-launch
-        if: always()
+        if: ${{ always() && github.ref_name == 'canary/rc74-4' }}
         uses: actions/upload-artifact@v4
         with:
           name: prelaunch-live-canary-gate

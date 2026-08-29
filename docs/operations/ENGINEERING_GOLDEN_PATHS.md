@@ -112,3 +112,57 @@ añadir self-test/regresión, fail-closed y conservar SHA/ledger.
   sin espacios finales ni una línea en blanco extra al EOF. V17 fue detenido por
   `git diff --check` por dos `new blank line at EOF`; fue un fallo del generador,
   no del producto ni del gate.
+
+## Cloudflare RUM / Web Analytics y CSP estricta
+- Cloudflare puede inyectar automáticamente `static.cloudflareinsights.com/beacon.min.js`
+  en HTML aunque el repositorio no contenga ese script. V18 lo aisló como la única
+  causa de `PRELAUNCH_LIVE_CONSOLE_ERROR`.
+- Para Canary IBERFIT se mantiene `script-src 'self'`; no se amplía la CSP solo
+  para silenciar un tercero.
+- El artefacto Canary debe emitir `Cache-Control: no-transform` en las superficies
+  HTML para impedir que el edge reescriba el documento, conservando además
+  `no-store` / `no-cache` según corresponda.
+- La plantilla `public/m26/_headers` continúa siendo la plantilla de producción;
+  el hardening `no-transform` de esta etapa se genera únicamente en el build Canary.
+- El gate del custom domain valida una **superficie ya desplegada**. En una feature
+  pre-merge no debe comparar el código nuevo contra un Canary viejo: el gate live
+  se ejecuta sobre `canary/rc74-4` después del deploy. Antes del merge se usan CI,
+  gate autenticado read-only y pruebas de build.
+
+## Parcheadores de release: anclas estructurales
+- Los parcheadores de release no deben depender de bloques multilínea con escapes
+  serializados cuando existe una línea sintáctica única y verificable.
+- V19 falló antes de cualquier mutación con `PATCH_CSP_GENERATED_ASSERT_COUNT:0`
+  porque la coincidencia literal del bloque de test era frágil.
+- Golden path: insertar alrededor de líneas únicas, exigir cardinalidad exactamente
+  1, normalizar EOL y cubrir el helper con self-test antes de cualquier llamada remota.
+
+## Windows: rutas largas en clones
+- Los ejecutores de release no deben clonar repositorios grandes dentro de rutas
+  profundas bajo Downloads/Desktop.
+- V20 falló antes de cualquier mutación con `Filename too long` al checkout de
+  `IBERFITBluetoothHeartRateForegroundService.kt`.
+- Golden path Windows: workdir corto bajo `%TEMP%`, repo con nombre mínimo y
+  `git clone -c core.longpaths=true`. Después del clone se verifica
+  `git config --get core.longpaths == true`.
+- Antes de clonar, el ejecutor valida que el workdir y repo no excedan los límites
+  conservadores definidos por el tooling.
+
+## Tooling: LF real frente a \\n literal
+- Cuando un parcheador inserta varias líneas de código, debe unirlas con un LF real
+  (`'\n'` en el string del ejecutor), no con los dos caracteres literales
+  backslash+n (`'\\n'`).
+- V21 superó clone, longpaths y alcance, pero generó tres asserts en una sola línea
+  separados por `\\n` literal; `node --check` lo bloqueó antes de cualquier mutación.
+- Golden path: self-test con una inserción multilínea exacta y comprobación de que
+  el texto generado contiene saltos de línea reales entre sentencias.
+
+## Tooling: capas de escape en regex generados
+- Al generar código JavaScript que a su vez contiene una expresión regular, distinguir
+  las capas: string del ejecutor -> texto del archivo -> semántica del regex.
+- Para que el archivo contenga `/foo\nbar/` y el regex haga match con un LF real,
+  el archivo final debe tener **un solo backslash** antes de `n`.
+- V22 demostró que el producto generaba correctamente el header con LF real, pero el
+  test quedó como `/foo\\nbar/`, que busca backslash+n literal.
+- Golden path: centralizar líneas con escapes sensibles en una función, self-testear
+  la forma exacta del texto generado y probar la semántica contra un fixture con LF real.
