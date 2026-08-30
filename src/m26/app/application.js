@@ -33,6 +33,7 @@ import {createSessionVault,sessionExpiresSoon} from './session-vault.js';
 import {clearIberfitExperiencePreferences} from '../ui/preferences.js';
 import {inspectOwnerDeviceData,ownerDeviceClearPrompt,clearOwnerDeviceData} from '../privacy/device-data.js';
 import {renderAccessUi} from './access-ui.js';
+import {runWebAuthnCeremony,webAuthnSupported} from './webauthn.js';
 import {inspectPasswordRecoveryHash,recoveryUrlWithoutFragment} from './password-recovery.js';
 import {loadExerciseCatalog} from '../exercises/catalog.js';
 import {createSessionDraft} from '../workflows/session-builder.js';
@@ -181,18 +182,28 @@ function invalidRecoverySession(error){
 }
 
 export function privilegedMfaDecision(assurance={},factors=[]){
-  if(assurance?.mfaRequired!==true||assurance?.aal==='aal2'){
+  if(assurance?.mfaRequired!==true){
     return Object.freeze({kind:'ready'});
   }
-  const verifiedTotp=Array.isArray(factors)
-    ?factors.find((factor)=>
-      factor?.factorType==='totp'&&
-      factor?.status==='verified'&&
-      typeof factor?.factorId==='string'
-    )
-    :null;
-  return verifiedTotp
-    ?Object.freeze({kind:'challenge',factorId:verifiedTotp.factorId})
+  const list=Array.isArray(factors)?factors:[];
+  const verifiedWebAuthn=list.find((factor)=>
+    factor?.factorType==='webauthn'&&
+    factor?.status==='verified'&&
+    typeof factor?.factorId==='string'
+  )||null;
+  if(assurance?.aal==='aal2'&&verifiedWebAuthn){
+    return Object.freeze({kind:'ready',factorId:verifiedWebAuthn.factorId});
+  }
+  if(verifiedWebAuthn){
+    return Object.freeze({kind:'challenge',factorId:verifiedWebAuthn.factorId});
+  }
+  const unverifiedWebAuthn=list.find((factor)=>
+    factor?.factorType==='webauthn'&&
+    factor?.status==='unverified'&&
+    typeof factor?.factorId==='string'
+  )||null;
+  return unverifiedWebAuthn
+    ?Object.freeze({kind:'registration',factorId:unverifiedWebAuthn.factorId})
     :Object.freeze({kind:'enroll-required'});
 }
 
@@ -648,8 +659,8 @@ function onAuthClick(event) {
 
   event.preventDefault?.();
 
-  if(action==='mfa-start-enrollment'){
-    void startMfaEnrollment().catch((error)=>reportDiagnostic('mfa-enroll',error));
+  if(action==='mfa-continue-webauthn'){
+    void continueMfaWithWebAuthn().catch((error)=>reportDiagnostic('mfa-webauthn',error));
     return;
   }
 
@@ -777,7 +788,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   async function continueAfterFirstFactor(){
     if(!session?.token)throw new Error('M26_AUTH_REQUIRED');
     const assurance=await transport.authAssuranceContext(session.token);
-    if(assurance.mfaRequired!==true||assurance.aal==='aal2'){
+    if(assurance.mfaRequired!==true){
       mfaState=null;
       authMode='login';
       qaStage('rc64-login-setup-start');
@@ -789,6 +800,14 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     const user=await transport.authUser(session.token);
     if(user.id!==session.user.id)throw new Error('M26_MFA_IDENTITY_MISMATCH');
     const decision=privilegedMfaDecision(assurance,user.factors);
+    if(decision.kind==='ready'){
+      mfaState=null;
+      authMode='login';
+      qaStage('rc64-login-setup-start');
+      await setupAuthenticated();
+      qaStage('rc64-login-setup-ready');
+      return true;
+    }
     mfaState=Object.freeze({
       kind:decision.kind,
       factorId:decision.factorId||null,
@@ -800,50 +819,59 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     return false;
   }
 
-  async function startMfaEnrollment(){
-    if(loginBusy||!session?.token||mfaState?.kind!=='enroll-required')return false;
-    loginBusy=true;
-    authMode='mfa-required';
-    authMessage('Preparando tu segundo factor…');
-    try{
-      const enrollment=await transport.enrollTotp(session.token);
-      mfaState=Object.freeze({
-        kind:'enroll',
-        factorId:enrollment.factorId,
-        qrCode:enrollment.qrCode,
-        secret:enrollment.secret,
-        uri:enrollment.uri,
-        privilegedRole:mfaState?.privilegedRole||null,
-      });
-      loginBusy=false;
-      authMode='mfa-enroll-totp';
-      authMessage();
-      return true;
-    }catch(error){
-      loginBusy=false;
-      authMode='mfa-required';
-      authMessage('No fue posible preparar el segundo factor. Inténtalo de nuevo.','error');
-      throw error;
+  async function continueMfaWithWebAuthn(){
+    if(loginBusy||!session?.token||!mfaState)return false;
+    if(!['enroll-required','registration','challenge'].includes(mfaState.kind))return false;
+    if(!webAuthnSupported()){
+      authMessage('Este navegador o dispositivo no permite el acceso seguro requerido para esta cuenta.','error');
+      throw new Error('M26_WEBAUTHN_UNSUPPORTED');
     }
-  }
-
-  async function completeMfa(code){
-    if(loginBusy||!session?.token||!mfaState?.factorId)return false;
     const currentUserId=session.user.id;
+    const expectedRole=mfaState.privilegedRole||null;
+    const initialKind=mfaState.kind;
     loginBusy=true;
-    authMessage('Verificando el segundo factor…');
+    authMessage(initialKind==='challenge'?'Preparando la confirmación segura…':'Preparando el acceso seguro…');
     try{
-      const next=await transport.verifyMfa(
+      let factorId=mfaState.factorId||null;
+      if(initialKind==='enroll-required'){
+        const enrollment=await transport.enrollWebAuthn(session.token);
+        factorId=enrollment.factorId;
+      }
+      if(!factorId)throw new Error('M26_MFA_FACTOR_ID_INVALID');
+      const challenge=await transport.challengeWebAuthn(session.token,factorId);
+      const expectedType=initialKind==='challenge'?'request':'create';
+      if(challenge.type!==expectedType)throw new Error('M26_WEBAUTHN_CHALLENGE_TYPE_MISMATCH');
+      const ceremony=await runWebAuthnCeremony(challenge,{friendlyName:'IBERFIT acceso seguro'});
+      if(ceremony.type!==challenge.type)throw new Error('M26_WEBAUTHN_CEREMONY_TYPE_MISMATCH');
+      const next=await transport.verifyWebAuthn(
         session.token,
-        {factorId:mfaState.factorId,code},
+        {
+          factorId,
+          challengeId:challenge.challengeId,
+          type:ceremony.type,
+          credentialResponse:ceremony.credentialResponse,
+        },
       );
       if(next.user.id!==currentUserId)throw new Error('M26_MFA_IDENTITY_MISMATCH');
       session=next;
       vault.save(session);
-      const assurance=await transport.authAssuranceContext(session.token);
-      if(assurance.mfaRequired===true&&assurance.aal!=='aal2'){
-        throw new Error('M26_MFA_AAL2_REQUIRED');
+
+      const [assurance,user]=await Promise.all([
+        transport.authAssuranceContext(session.token),
+        transport.authUser(session.token),
+      ]);
+      if(user.id!==currentUserId)throw new Error('M26_MFA_IDENTITY_MISMATCH');
+      const finalDecision=privilegedMfaDecision(assurance,user.factors);
+      if(
+        assurance.privileged!==true||
+        assurance.mfaRequired!==true||
+        assurance.aal!=='aal2'||
+        assurance.privilegedRole!==expectedRole||
+        finalDecision.kind!=='ready'
+      ){
+        throw new Error('M26_MFA_AAL2_WEBAUTHN_REQUIRED');
       }
+
       mfaState=null;
       authMode='login';
       store.reset();
@@ -853,7 +881,8 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       return true;
     }catch(error){
       loginBusy=false;
-      authMessage('No pudimos confirmar el código. Comprueba los 6 dígitos e inténtalo de nuevo.','error');
+      authMode=initialKind==='challenge'?'mfa-challenge':'mfa-required';
+      authMessage('No fue posible completar la confirmación segura. Puedes intentarlo de nuevo.','error');
       throw error;
     }finally{
       loginBusy=false;
@@ -873,13 +902,6 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
 
   const formType = form.getAttribute('data-auth-form');
   const data = new FormData(form);
-
-  if(formType==='mfa-verify'){
-    await completeMfa(data.get('code')).catch(
-      (error)=>reportDiagnostic('mfa-verify',error)
-    );
-    return;
-  }
 
   if (formType === 'login') {
     try {

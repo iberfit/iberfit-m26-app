@@ -755,7 +755,7 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       await expect(
         page.getByRole(
           'heading',
-          {name:/Verificación en dos pasos obligatoria|Confirma tu segundo factor/u},
+          {name:/Protege tu cuenta|Confirma tu identidad para continuar/u},
         ),
         'Coach must stop at privileged MFA gate before bootstrap',
       ).toBeVisible({timeout:10_000});

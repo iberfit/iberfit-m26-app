@@ -393,17 +393,11 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return factorId;
   }
 
-  function normalizeMfaCode(value){
-    const code=String(value||'').trim();
-    if(!/^\d{6}$/u.test(code))throw new Error('M26_MFA_CODE_INVALID');
-    return code;
-  }
-
   function normalizeMfaFactor(factor){
     const factorId=normalizeMfaFactorId(factor?.id);
     const factorType=String(factor?.factor_type||factor?.factorType||'').trim().toLowerCase();
     const status=String(factor?.status||'').trim().toLowerCase();
-    if(!['totp','phone'].includes(factorType)||!['verified','unverified'].includes(status)){
+    if(!['totp','phone','webauthn'].includes(factorType)||!['verified','unverified'].includes(status)){
       throw new Error('M26_MFA_FACTOR_INVALID');
     }
     return Object.freeze({
@@ -465,54 +459,89 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({id,email,factors:Object.freeze(factors)});
   }
 
-  async function enrollTotp(token){
+  function normalizeWebAuthnAction(value,code='M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE'){
+    const action=String(value||'').trim().toLowerCase();
+    if(!['create','request'].includes(action))throw new Error(code);
+    return action;
+  }
+
+  function normalizeWebAuthnCredentialResponse(value){
+    if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('M26_WEBAUTHN_CREDENTIAL_RESPONSE_INVALID');
+    const id=String(value.id||'');
+    if(
+      id.length<1||
+      id.length>8192||
+      !/^[A-Za-z0-9_-]+$/u.test(id)||
+      String(value.type||'')!=='public-key'||
+      !value.response||
+      typeof value.response!=='object'||
+      Array.isArray(value.response)
+    )throw new Error('M26_WEBAUTHN_CREDENTIAL_RESPONSE_INVALID');
+    let serialized;
+    try{serialized=JSON.stringify(value);}catch{throw new Error('M26_WEBAUTHN_CREDENTIAL_RESPONSE_INVALID');}
+    if(serialized.length<20||serialized.length>512000)throw new Error('M26_WEBAUTHN_CREDENTIAL_RESPONSE_INVALID');
+    try{return JSON.parse(serialized);}catch{throw new Error('M26_WEBAUTHN_CREDENTIAL_RESPONSE_INVALID');}
+  }
+
+  async function enrollWebAuthn(token){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
     const body=await request('/auth/v1/factors',{
       method:'POST',
       token,
       body:JSON.stringify({
-        factor_type:'totp',
-        friendly_name:'IBERFIT Authenticator',
-        issuer:'IBERFIT',
+        factor_type:'webauthn',
+        friendly_name:'IBERFIT Secure Access',
       }),
     });
     const factorId=normalizeMfaFactorId(body?.id);
-    const qrCode=String(body?.totp?.qr_code||'');
-    const secret=String(body?.totp?.secret||'').trim();
-    const uri=String(body?.totp?.uri||'').trim();
-    if(
-      qrCode.length<8||
-      qrCode.length>120000||
-      /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(qrCode)||
-      !/^[A-Za-z2-7]{16,128}$/u.test(secret)||
-      uri.length<16||
-      uri.length>4096||
-      !uri.startsWith('otpauth://totp/')||
-      /[\u0000-\u001f\u007f]/u.test(uri)
-    ){
-      throw new Error('M26_MFA_ENROLL_INVALID_RESPONSE');
-    }
-    return Object.freeze({factorId,qrCode,secret,uri});
+    const factorType=String(body?.type||body?.factor_type||'webauthn').trim().toLowerCase();
+    if(factorType!=='webauthn')throw new Error('M26_WEBAUTHN_ENROLL_INVALID_RESPONSE');
+    return Object.freeze({factorId,factorType:'webauthn'});
   }
 
-  async function verifyMfa(token,{factorId,code}={}){
+  async function challengeWebAuthn(token,factorId){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
     const id=normalizeMfaFactorId(factorId);
-    const otp=normalizeMfaCode(code);
-    const challenge=await request('/auth/v1/factors/'+id+'/challenge',{
+    const body=await request('/auth/v1/factors/'+id+'/challenge',{
       method:'POST',
       token,
       body:'{}',
     });
-    const challengeId=String(challenge?.id||'').trim();
-    if(!UUID_PATTERN.test(challengeId))throw new Error('M26_MFA_CHALLENGE_INVALID_RESPONSE');
+    const challengeId=String(body?.id||'').trim();
+    if(!UUID_PATTERN.test(challengeId))throw new Error('M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE');
+    const responseType=String(body?.type||'webauthn').trim().toLowerCase();
+    if(responseType!=='webauthn')throw new Error('M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE');
+    const action=normalizeWebAuthnAction(body?.webauthn?.type);
+    const credentialOptions=body?.webauthn?.credential_options;
+    if(!credentialOptions||typeof credentialOptions!=='object'||Array.isArray(credentialOptions))throw new Error('M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE');
+    if(jsonByteLength(credentialOptions)>512000)throw new Error('M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE');
+    return Object.freeze({
+      challengeId,
+      type:action,
+      credentialOptions,
+    });
+  }
+
+  async function verifyWebAuthn(token,{factorId,challengeId,type,credentialResponse}={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const id=normalizeMfaFactorId(factorId);
+    const challenge=String(challengeId||'').trim();
+    if(!UUID_PATTERN.test(challenge))throw new Error('M26_MFA_CHALLENGE_ID_INVALID');
+    const action=normalizeWebAuthnAction(type,'M26_WEBAUTHN_VERIFY_TYPE_INVALID');
+    const credential=normalizeWebAuthnCredentialResponse(credentialResponse);
     const body=validateAuthBody(
       await request('/auth/v1/factors/'+id+'/verify',{
         method:'POST',
         token,
-        body:JSON.stringify({challenge_id:challengeId,code:otp}),
+        body:JSON.stringify({
+          challenge_id:challenge,
+          webauthn:{
+            type:action,
+            credential_response:credential,
+          },
+        }),
       }),
-      'M26_MFA_VERIFY_INVALID_RESPONSE',
+      'M26_WEBAUTHN_VERIFY_INVALID_RESPONSE',
     );
     if(runtime.qaOnly&&!isQaAuthorizedEmail(body.user.email))throw new Error('M26_QA_ACCOUNT_REQUIRED');
     return Object.freeze({
@@ -883,8 +912,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     logout,
     authAssuranceContext,
     authUser,
-    enrollTotp,
-    verifyMfa,
+    enrollWebAuthn,
+    challengeWebAuthn,
+    verifyWebAuthn,
     bootstrap: (token) => rpc(runtime.rpc.bootstrap, token, {}),
     backendHealth,
     backendBootstrap,
