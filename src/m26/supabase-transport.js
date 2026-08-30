@@ -22,7 +22,10 @@ const CANONICAL_RPC=Object.freeze({
   preflight:'iberfit_command_preflight_v26',
   execute:'iberfit_execute_command_v26',
 });
-const RC65C_AUTH_ASSURANCE_RPC='iberfit_auth_assurance_context_v65c';
+const RC65C_AUTH_ASSURANCE_RPC='iberfit_privileged_assurance_context_v65d';
+const RC65C_WEBAUTHN_FUNCTION='/functions/v1/iberfit-webauthn-v1';
+const RC65C_WEBAUTHN_REGISTRATION_FACTOR_ID='65000000-0000-4000-8000-000000000001';
+const RC65C_WEBAUTHN_AUTHENTICATION_FACTOR_ID='65000000-0000-4000-8000-000000000002';
 const CLIENT_ONBOARDING_RPC=Object.freeze({
   legacy:'iberfit_create_client_draft',
   preflight:'iberfit_client_onboarding_preflight_v12',
@@ -422,9 +425,13 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       body.ok!==true||
       typeof body.privileged!=='boolean'||
       typeof body.mfaRequired!=='boolean'||
-      !['aal1','aal2'].includes(String(body.aal||''))||
+      typeof body.webauthnRequired!=='boolean'||
+      typeof body.credentialEnrolled!=='boolean'||
+      !['not-required','required','verified'].includes(String(body.iberfitAssurance||''))||
+      !['aal1','aal2'].includes(String(body.supabaseAal||''))||
       ![null,'coach','admin'].includes(body.privilegedRole??null)||
       body.privileged!==body.mfaRequired||
+      body.privileged!==body.webauthnRequired||
       (body.privileged&&body.privilegedRole===null)
     ){
       throw new Error('M26_AUTH_ASSURANCE_INVALID_RESPONSE');
@@ -434,7 +441,12 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       privileged:body.privileged,
       privilegedRole:body.privilegedRole??null,
       mfaRequired:body.mfaRequired,
-      aal:String(body.aal),
+      webauthnRequired:body.webauthnRequired,
+      credentialEnrolled:body.credentialEnrolled,
+      iberfitAssurance:String(body.iberfitAssurance),
+      verifiedAt:body.verifiedAt??null,
+      expiresAt:body.expiresAt??null,
+      supabaseAal:String(body.supabaseAal),
     });
   }
 
@@ -485,41 +497,35 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
 
   async function enrollWebAuthn(token){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
-    const body=await request('/auth/v1/factors',{
-      method:'POST',
-      token,
-      body:JSON.stringify({
-        factor_type:'webauthn',
-        friendly_name:'IBERFIT Secure Access',
-      }),
+    return Object.freeze({
+      factorId:RC65C_WEBAUTHN_REGISTRATION_FACTOR_ID,
+      factorType:'webauthn',
     });
-    const factorId=normalizeMfaFactorId(body?.id);
-    const factorType=String(body?.type||body?.factor_type||'webauthn').trim().toLowerCase();
-    if(factorType!=='webauthn')throw new Error('M26_WEBAUTHN_ENROLL_INVALID_RESPONSE');
-    return Object.freeze({factorId,factorType:'webauthn'});
   }
 
   async function challengeWebAuthn(token,factorId){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
     const id=normalizeMfaFactorId(factorId);
-    const body=await request('/auth/v1/factors/'+id+'/challenge',{
+    const action=id===RC65C_WEBAUTHN_REGISTRATION_FACTOR_ID
+      ?'registration-options'
+      :id===RC65C_WEBAUTHN_AUTHENTICATION_FACTOR_ID
+        ?'authentication-options'
+        :null;
+    if(!action)throw new Error('M26_MFA_FACTOR_ID_INVALID');
+    const body=await request(RC65C_WEBAUTHN_FUNCTION,{
       method:'POST',
       token,
-      body:'{}',
+      body:JSON.stringify({action}),
     });
-    const challengeId=String(body?.id||'').trim();
+    if(!body||typeof body!=='object'||Array.isArray(body)||body.ok!==true)throw new Error('M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE');
+    const challengeId=String(body.challengeId||'').trim();
     if(!UUID_PATTERN.test(challengeId))throw new Error('M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE');
-    const responseType=String(body?.type||'webauthn').trim().toLowerCase();
-    if(responseType!=='webauthn')throw new Error('M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE');
-    const action=normalizeWebAuthnAction(body?.webauthn?.type);
-    const credentialOptions=body?.webauthn?.credential_options;
-    if(!credentialOptions||typeof credentialOptions!=='object'||Array.isArray(credentialOptions))throw new Error('M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE');
-    if(jsonByteLength(credentialOptions)>512000)throw new Error('M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE');
-    return Object.freeze({
-      challengeId,
-      type:action,
-      credentialOptions,
-    });
+    const expectedType=action==='registration-options'?'create':'request';
+    const type=normalizeWebAuthnAction(body.type);
+    if(type!==expectedType)throw new Error('M26_WEBAUTHN_CHALLENGE_TYPE_MISMATCH');
+    const credentialOptions=body.credentialOptions;
+    if(!credentialOptions||typeof credentialOptions!=='object'||Array.isArray(credentialOptions)||jsonByteLength(credentialOptions)>512000)throw new Error('M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE');
+    return Object.freeze({challengeId,type,credentialOptions});
   }
 
   async function verifyWebAuthn(token,{factorId,challengeId,type,credentialResponse}={}){
@@ -527,28 +533,40 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     const id=normalizeMfaFactorId(factorId);
     const challenge=String(challengeId||'').trim();
     if(!UUID_PATTERN.test(challenge))throw new Error('M26_MFA_CHALLENGE_ID_INVALID');
-    const action=normalizeWebAuthnAction(type,'M26_WEBAUTHN_VERIFY_TYPE_INVALID');
+    const actionType=normalizeWebAuthnAction(type,'M26_WEBAUTHN_VERIFY_TYPE_INVALID');
+    const expectedId=actionType==='create'
+      ?RC65C_WEBAUTHN_REGISTRATION_FACTOR_ID
+      :RC65C_WEBAUTHN_AUTHENTICATION_FACTOR_ID;
+    if(id!==expectedId)throw new Error('M26_WEBAUTHN_VERIFY_TYPE_INVALID');
     const credential=normalizeWebAuthnCredentialResponse(credentialResponse);
-    const body=validateAuthBody(
-      await request('/auth/v1/factors/'+id+'/verify',{
-        method:'POST',
-        token,
-        body:JSON.stringify({
-          challenge_id:challenge,
-          webauthn:{
-            type:action,
-            credential_response:credential,
-          },
-        }),
+    const action=actionType==='create'?'registration-verify':'authentication-verify';
+    const body=await request(RC65C_WEBAUTHN_FUNCTION,{
+      method:'POST',
+      token,
+      body:JSON.stringify({
+        action,
+        challengeId:challenge,
+        credentialResponse:credential,
       }),
-      'M26_WEBAUTHN_VERIFY_INVALID_RESPONSE',
-    );
-    if(runtime.qaOnly&&!isQaAuthorizedEmail(body.user.email))throw new Error('M26_QA_ACCOUNT_REQUIRED');
+    });
+    const userId=String(body?.user?.id||'');
+    const email=String(body?.user?.email||'').trim().toLowerCase();
+    if(
+      !body||
+      typeof body!=='object'||
+      Array.isArray(body)||
+      body.ok!==true||
+      body.verified!==true||
+      !SAFE_ID_PATTERN.test(userId)||
+      email.length<3||
+      email.length>MAX_AUTH_EMAIL_CHARS||
+      !email.includes('@')||
+      /[ -]/u.test(email)
+    )throw new Error('M26_WEBAUTHN_VERIFY_INVALID_RESPONSE');
+    if(runtime.qaOnly&&!isQaAuthorizedEmail(email))throw new Error('M26_QA_ACCOUNT_REQUIRED');
     return Object.freeze({
-      token:body.access_token,
-      refreshToken:body.refresh_token||null,
-      expiresAt:body.expires_at||null,
-      user:body.user,
+      user:Object.freeze({id:userId,email}),
+      expiresAt:body.expiresAt??null,
     });
   }
 

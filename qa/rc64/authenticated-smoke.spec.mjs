@@ -16,7 +16,7 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_authorized_application_roles_v13',
   'iberfit_appointment_change_requests_v13',
   'iberfit_application_context_v14',
-  'iberfit_auth_assurance_context_v65c',
+  'iberfit_privileged_assurance_context_v65d',
   'iberfit_communication_bootstrap_v14',
   'm26_backend_bootstrap_v43',
   'm26_wearable_bootstrap_v44',
