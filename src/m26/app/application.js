@@ -181,30 +181,17 @@ function invalidRecoverySession(error){
   return error?.status===401||error?.status===403||/RECOVERY_(?:TOKEN|SESSION|USER|UPDATE|IDENTITY)|QA_ACCOUNT_REQUIRED|JWT|expired/i.test(code);
 }
 
-export function privilegedMfaDecision(assurance={},factors=[]){
-  if(assurance?.mfaRequired!==true){
+export function privilegedMfaDecision(assurance={}){
+  if(assurance?.webauthnRequired!==true){
     return Object.freeze({kind:'ready'});
   }
-  const list=Array.isArray(factors)?factors:[];
-  const verifiedWebAuthn=list.find((factor)=>
-    factor?.factorType==='webauthn'&&
-    factor?.status==='verified'&&
-    typeof factor?.factorId==='string'
-  )||null;
-  if(assurance?.aal==='aal2'&&verifiedWebAuthn){
-    return Object.freeze({kind:'ready',factorId:verifiedWebAuthn.factorId});
+  if(assurance?.iberfitAssurance==='verified'){
+    return Object.freeze({kind:'ready'});
   }
-  if(verifiedWebAuthn){
-    return Object.freeze({kind:'challenge',factorId:verifiedWebAuthn.factorId});
+  if(assurance?.credentialEnrolled===true){
+    return Object.freeze({kind:'challenge',factorId:'65000000-0000-4000-8000-000000000002'});
   }
-  const unverifiedWebAuthn=list.find((factor)=>
-    factor?.factorType==='webauthn'&&
-    factor?.status==='unverified'&&
-    typeof factor?.factorId==='string'
-  )||null;
-  return unverifiedWebAuthn
-    ?Object.freeze({kind:'registration',factorId:unverifiedWebAuthn.factorId})
-    :Object.freeze({kind:'enroll-required'});
+  return Object.freeze({kind:'enroll-required'});
 }
 
 export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history}={}){
@@ -853,8 +840,6 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
         },
       );
       if(next.user.id!==currentUserId)throw new Error('M26_MFA_IDENTITY_MISMATCH');
-      session=next;
-      vault.save(session);
 
       const [assurance,user]=await Promise.all([
         transport.authAssuranceContext(session.token),
@@ -865,11 +850,11 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       if(
         assurance.privileged!==true||
         assurance.mfaRequired!==true||
-        assurance.aal!=='aal2'||
+        assurance.iberfitAssurance!=='verified'||
         assurance.privilegedRole!==expectedRole||
         finalDecision.kind!=='ready'
       ){
-        throw new Error('M26_MFA_AAL2_WEBAUTHN_REQUIRED');
+        throw new Error('M26_PRIVILEGED_WEBAUTHN_REQUIRED');
       }
 
       mfaState=null;
