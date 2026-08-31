@@ -220,9 +220,19 @@ export function buildFinalProductionPromotion(){
     'qa.rc74.',
     '74040000-0000-4000-8000-000000000001',
     'm26-canary.iberfit.cl',
-    'iberfit_auth_assurance_context_v65c',
   ]){
     if(sql.toLowerCase().includes(forbidden.toLowerCase()))throw new Error(`FINAL_PROD_FORBIDDEN_CONTENT:${forbidden}`);
+  }
+
+  if(/create\s+(?:or\s+replace\s+)?function\s+public\.iberfit_auth_assurance_context_v65c\s*\(/iu.test(sql)){
+    throw new Error('FINAL_PROD_OBSOLETE_ASSURANCE_HELPER_CREATED');
+  }
+  if(/grant\s+execute\s+on\s+function\s+public\.iberfit_auth_assurance_context_v65c\(\)\s+to\s+(?:public|anon|authenticated|service_role)/iu.test(sql)){
+    throw new Error('FINAL_PROD_OBSOLETE_ASSURANCE_HELPER_GRANTED');
+  }
+  if(!/revoke\s+all\s+on\s+function\s+public\.iberfit_auth_assurance_context_v65c\(\)\s+from\s+public\s*,\s*anon\s*,\s*authenticated/iu.test(sql)
+     || !/has_function_privilege\('authenticated','public\.iberfit_auth_assurance_context_v65c\(\)','EXECUTE'\)/iu.test(sql)){
+    throw new Error('FINAL_PROD_OBSOLETE_ASSURANCE_HELPER_NOT_RETIRED');
   }
 
   for(const excluded of EXCLUDED_QA_MIGRATIONS){
