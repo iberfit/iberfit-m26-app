@@ -9,3 +9,4 @@ export * from './device-layer.js';
 export * from './live-telemetry.js';
 export * from './native-transport.js';
 export * from './historical-acquisition.js';
+export * from './ceo-watch.js';
