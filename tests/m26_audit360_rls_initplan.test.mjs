@@ -5,6 +5,7 @@ import path from 'node:path';
 
 const migration=path.join(process.cwd(),'supabase','migrations','20260831201000_audit360_optimize_auth_rls_initplan.sql');
 const sql=fs.readFileSync(migration,'utf8');
+const executableSql=sql.replace(/--.*$/gm,'');
 
 const policies=[
   'm26_audit_read_v43',
@@ -27,15 +28,15 @@ const policies=[
 
 test('AUDIT360 optimiza todas las políticas RLS detectadas sin recrearlas',()=>{
   for(const policy of policies){
-    assert.match(sql,new RegExp(`alter\\s+policy\\s+${policy}\\b`,'i'),`Falta ${policy}`);
+    assert.match(executableSql,new RegExp(`alter\\s+policy\\s+${policy}\\b`,'i'),`Falta ${policy}`);
   }
-  assert.doesNotMatch(sql,/drop\s+policy/i);
-  assert.doesNotMatch(sql,/create\s+policy/i);
+  assert.doesNotMatch(executableSql,/drop\s+policy/i);
+  assert.doesNotMatch(executableSql,/create\s+policy/i);
 });
 
 test('AUDIT360 no deja auth.uid() evaluado directamente por fila',()=>{
-  const allCalls=sql.match(/auth\.uid\(\)/g)??[];
-  const cachedCalls=sql.match(/\(select\s+auth\.uid\(\)\)/gi)??[];
+  const allCalls=executableSql.match(/auth\.uid\(\)/g)??[];
+  const cachedCalls=executableSql.match(/\(select\s+auth\.uid\(\)\)/gi)??[];
   assert.ok(allCalls.length>=policies.length);
   assert.equal(cachedCalls.length,allCalls.length);
 });
