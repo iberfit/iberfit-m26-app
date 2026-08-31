@@ -24,10 +24,12 @@ jobs:
           node-version: '22'
 
       - name: Verify production bundle contracts
-        run: node --test tests/m26_final_production_promotion.test.mjs
+        run: |
+          node --test tests/m26_final_production_promotion.test.mjs
+          node --test tests/m26_final_production_promotion_prod_compat.test.mjs
 
       - name: Generate exact production SQL
-        run: node scripts/build_final_production_promotion.mjs --write
+        run: node scripts/build_final_production_promotion_prod_compat.mjs --write
 
       - name: Verify generated artifact
         shell: bash
@@ -36,9 +38,11 @@ jobs:
           test -s backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           ! grep -qi 'm26-canary\.iberfit\.cl' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           ! grep -qi 'qa\.rc74\.' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+          ! grep -qi 'create[[:space:]]\+\(or[[:space:]]\+replace[[:space:]]\+\)\?function[[:space:]]\+public\.iberfit_auth_assurance_context_v65c' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           grep -q "'PRODUCTION'" backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           grep -q 'https://app\.iberfit\.cl' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           grep -q 'https://coach\.iberfit\.cl' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+          grep -q "to_regprocedure('public.iberfit_auth_assurance_context_v65c()') is not null" backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           sha256sum backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql | tee FINAL_PRODUCTION_PROMOTION.sha256
 
       - name: Upload exact production bundle
