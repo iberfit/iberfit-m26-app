@@ -22,6 +22,8 @@ const forbiddenQaEnvironmentPatterns=[
   /coalesce\(\(v_env->>'productionBlocked'\)::boolean\s*,\s*false\)\s+is\s+not\s+true/iu,
   /coalesce\(\(v_env->>'realDataAllowed'\)::boolean\s*,\s*true\)\s*<>\s*false/iu,
   /coalesce\(\(v_env->>'productionBlocked'\)::boolean\s*,\s*false\)\s*<>\s*true/iu,
+  /or\s+coalesce\(\(v_env->>'realDataAllowed'\)::boolean\s*,\s*true\)\s*(?:or|then)/iu,
+  /or\s+coalesce\(\(v_env->>'productionBlocked'\)::boolean\s*,\s*false\)\s*(?:or|then)/iu,
 ];
 
 test('final production source manifest excludes QA-only state/fixtures and obsolete assurance',()=>{
@@ -78,6 +80,19 @@ test('generated production SQL is fail-closed and contains only the production p
     'iberfit_create_client_draft_v12_pre_v65e',
     'FINAL_PROD_POSTCHECK_CLIENT_CREATE_SURFACE',
   ])assert.ok(sql.includes(required),`required production contract: ${required}`);
+
+  for(const sourceName of [
+    '20260825023803_iberfit_rc74_4n_execution_cancel_cascade_qa.sql',
+    '20260825024902_iberfit_rc74_4o_active_execution_command_guard_qa.sql',
+  ]){
+    const sectionStart=sql.indexOf(`PORT · ${sourceName}`);
+    assert.ok(sectionStart>=0,`section present: ${sourceName}`);
+    const nextSection=sql.indexOf('-- ============================================================================',sectionStart+16);
+    const section=sql.slice(sectionStart,nextSection<0?undefined:nextSection);
+    assert.match(section,/lower\(coalesce\(v_env->>'environment',''\)\)\s*<>\s*'production'/iu);
+    assert.match(section,/coalesce\(\(v_env->>'realDataAllowed'\)::boolean\s*,\s*false\)\s+is\s+not\s+true/iu);
+    assert.match(section,/coalesce\(\(v_env->>'productionBlocked'\)::boolean\s*,\s*true\)\s+is\s+not\s+false/iu);
+  }
 
   assert.doesNotMatch(sql,/create\s+(?:or\s+replace\s+)?function\s+public\.iberfit_auth_assurance_context_v65c\s*\(/iu,'obsolete assurance helper must not be recreated');
   assert.doesNotMatch(sql,/grant\s+execute\s+on\s+function\s+public\.iberfit_auth_assurance_context_v65c\(\)\s+to\s+(?:public|anon|authenticated|service_role)/iu,'obsolete assurance helper must not be granted');
