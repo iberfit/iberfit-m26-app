@@ -169,7 +169,7 @@ function finalPostcheckSql(){
 `  if v_constraint is null\n`+
 `     or position('https://app.iberfit.cl' in v_constraint)=0\n`+
 `     or position('https://coach.iberfit.cl' in v_constraint)=0\n`+
-`     or position('m26-canary.iberfit.cl' in v_constraint)<>0 then\n`+
+`     or position('m26-'||'canary.iberfit.cl' in v_constraint)<>0 then\n`+
 `    raise exception 'FINAL_PROD_POSTCHECK_WEBAUTHN_ORIGIN_CONSTRAINT';\n`+
 `  end if;\n\n`+
 `  if to_regprocedure('public.iberfit_create_client_draft_v12_pre_v65e(jsonb)') is null\n`+
