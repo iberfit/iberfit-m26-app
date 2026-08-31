@@ -60,6 +60,10 @@ function productionizeQaEnvironmentGuards(input){
       "coalesce((v_env->>'realDataAllowed')::boolean,false)<>true")
     .replace(/coalesce\(\(v_env->>'productionBlocked'\)::boolean\s*,\s*false\)\s*<>\s*true/giu,
       "coalesce((v_env->>'productionBlocked')::boolean,true)<>false")
+    .replace(/coalesce\(\(v_env->>'realDataAllowed'\)::boolean\s*,\s*true\)(?!\s*(?:is\s+not\s+false|<>\s*false))/giu,
+      "coalesce((v_env->>'realDataAllowed')::boolean,false) is not true")
+    .replace(/coalesce\(\(v_env->>'productionBlocked'\)::boolean\s*,\s*false\)(?!\s*(?:is\s+not\s+true|<>\s*true))/giu,
+      "coalesce((v_env->>'productionBlocked')::boolean,true) is not false")
     .replace(/QA-ONLY/giu,'PRODUCTION PORT')
     .replace(/QA ONLY/giu,'PRODUCTION PORT')
     .replace(/QA only/gu,'production port')
