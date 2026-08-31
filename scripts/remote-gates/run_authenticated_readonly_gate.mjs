@@ -131,10 +131,10 @@ for(const session of sessions){
   const reportedRole=normalizeRegistryRole(bootstrap?.user?.role);
   if(reportedRole!==expectedRole)throw new Error(`RC74_4_ROLE_MISMATCH:${session.name}:${reportedRole}`);
   const clientId=bootstrap?.user?.clientId||bootstrap?.user?.client_id||null;
-  if(expectedRole==='client'&&!clientId)throw new Error(`RC74_4_CLIENT_ID_MISSING:${session.name}`);
-  const privacy=expectedRole==='client'?inspectClientBootstrap(bootstrap,clientId):null;
+  if(expectedRole==='cliente'&&!clientId)throw new Error(`RC74_4_CLIENT_ID_MISSING:${session.name}`);
+  const privacy=expectedRole==='cliente'?inspectClientBootstrap(bootstrap,clientId):null;
   if(privacy&&!privacy.ok)throw new Error(`RC74_4_CLIENT_BOOTSTRAP_LEAK:${session.name}:forbidden=${privacy.forbiddenKeys.length}:foreign=${privacy.foreignClientIds.length}`);
-  if(expectedRole==='client')qaClientIds.push(clientId);
+  if(expectedRole==='cliente')qaClientIds.push(clientId);
   roles.push({
     name:session.name,
     userFingerprint:fingerprint(session.userId),

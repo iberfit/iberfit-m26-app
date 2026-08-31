@@ -43,8 +43,13 @@ test('el gate compara IDs crudos solo en memoria y conserva huellas en evidencia
   assert.match(gate,/const roles=\[\];\s*const qaClientIds=\[\];/);
   assert.match(
     gate,
-    /if\(expectedRole==='client'\)qaClientIds\.push\(clientId\);/,
+    /const expectedRole=normalizeRegistryRole\(session\.expectedRole\);/,
   );
+  assert.match(
+    gate,
+    /if\(expectedRole==='cliente'\)qaClientIds\.push\(clientId\);/,
+  );
+  assert.doesNotMatch(gate,/expectedRole==='client'/);
   assert.match(
     gate,
     /assertDistinctQaClientIds\(qaClientIds,RC29_QA_CLIENTS_NOT_DISTINCT\);/,
