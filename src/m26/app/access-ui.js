@@ -101,6 +101,10 @@ export function renderAccessUi({
             type="email"
             name="email"
             autocomplete="email"
+            inputmode="email"
+            autocapitalize="none"
+            spellcheck="false"
+            enterkeyhint="send"
             maxlength="254"
             required
           >
@@ -137,6 +141,7 @@ export function renderAccessUi({
             name="password"
             autocomplete="new-password"
             aria-describedby="m26-password-requirements"
+            enterkeyhint="next"
             required
             minlength="8"
             maxlength="1024"
@@ -150,6 +155,7 @@ export function renderAccessUi({
             name="passwordConfirmation"
             autocomplete="new-password"
             aria-describedby="m26-password-requirements"
+            enterkeyhint="done"
             required
             minlength="8"
             maxlength="1024"
@@ -190,6 +196,10 @@ export function renderAccessUi({
             type="email"
             name="email"
             autocomplete="username"
+            inputmode="email"
+            autocapitalize="none"
+            spellcheck="false"
+            enterkeyhint="next"
             maxlength="254"
             required
           >
@@ -201,6 +211,7 @@ export function renderAccessUi({
             type="password"
             name="password"
             autocomplete="current-password"
+            enterkeyhint="go"
             required
             minlength="8"
             maxlength="1024"
