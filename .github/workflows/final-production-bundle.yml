@@ -1,0 +1,52 @@
+name: IBERFIT Final Production Bundle
+
+on:
+  push:
+    branches:
+      - prep/final-production-rc74-4
+
+permissions:
+  contents: read
+
+jobs:
+  build-bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify production bundle contracts
+        run: node --test tests/m26_final_production_promotion.test.mjs
+
+      - name: Generate exact production SQL
+        run: node scripts/build_final_production_promotion.mjs --write
+
+      - name: Verify generated artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+          ! grep -qi 'm26-canary\.iberfit\.cl' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+          ! grep -qi 'qa\.rc74\.' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+          grep -q "'PRODUCTION'" backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+          grep -q 'https://app\.iberfit\.cl' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+          grep -q 'https://coach\.iberfit\.cl' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+          sha256sum backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql | tee FINAL_PRODUCTION_PROMOTION.sha256
+
+      - name: Upload exact production bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-production-promotion-sql
+          path: |
+            backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+            FINAL_PRODUCTION_PROMOTION.sha256
+          if-no-files-found: error
+          retention-days: 7
