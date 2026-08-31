@@ -87,10 +87,12 @@ test('generated production SQL is fail-closed and contains only the production p
     '20260825023803_iberfit_rc74_4n_execution_cancel_cascade_qa.sql',
     '20260825024902_iberfit_rc74_4o_active_execution_command_guard_qa.sql',
   ]){
-    const sectionStart=sql.indexOf(`PORT · ${sourceName}`);
+    const marker=`-- PORT · ${sourceName}\n-- ============================================================================\n`;
+    const sectionStart=sql.indexOf(marker);
     assert.ok(sectionStart>=0,`section present: ${sourceName}`);
-    const nextSection=sql.indexOf('-- ============================================================================',sectionStart+16);
-    const section=sql.slice(sectionStart,nextSection<0?undefined:nextSection);
+    const contentStart=sectionStart+marker.length;
+    const nextSection=sql.indexOf('\n-- ============================================================================\n-- ',contentStart);
+    const section=sql.slice(contentStart,nextSection<0?undefined:nextSection);
     assert.match(section,/lower\(coalesce\(v_env->>'environment',''\)\)\s*<>\s*'production'/iu);
     assert.match(section,/coalesce\(\(v_env->>'realDataAllowed'\)::boolean\s*,\s*false\)\s+is\s+not\s+true/iu);
     assert.match(section,/coalesce\(\(v_env->>'productionBlocked'\)::boolean\s*,\s*true\)\s+is\s+not\s+false/iu);
