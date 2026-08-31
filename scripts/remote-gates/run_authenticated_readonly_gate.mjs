@@ -28,6 +28,15 @@ async function requestJson(url,options={}){
   if(!response.ok)throw new Error(`RC74_4_REMOTE_REQUEST_FAILED:${response.status}:${new URL(url).pathname}`);
   return body;
 }
+async function requestResult(url,options={}){
+  const response=await fetch(url,options);
+  const body=await response.json().catch(()=>null);
+  return Object.freeze({
+    ok:response.ok,
+    status:Number(response.status)||0,
+    body,
+  });
+}
 async function login(email,password){
   const body=await requestJson(`${base}/auth/v1/token?grant_type=password`,{
     method:'POST',headers:{apikey:key,'content-type':'application/json'},body:JSON.stringify({email,password}),
@@ -37,6 +46,11 @@ async function login(email,password){
 }
 async function rpc(name,token,payload={}){
   return requestJson(`${base}/rest/v1/rpc/${name}`,{
+    method:'POST',headers:{apikey:key,authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify(payload),
+  });
+}
+async function rpcResult(name,token,payload={}){
+  return requestResult(`${base}/rest/v1/rpc/${name}`,{
     method:'POST',headers:{apikey:key,authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify(payload),
   });
 }
@@ -64,15 +78,63 @@ if(!registryValidation.ok||remoteRegistry.length!==52)throw new Error(`RC74_4_RE
 const roles=[];
 const qaClientIds=[];
 for(const session of sessions){
+  const expectedRole=normalizeRegistryRole(session.expectedRole);
+
+  if(expectedRole==='coach'){
+    const assurance=await rpc('iberfit_privileged_assurance_context_v65d',session.token,{});
+    const reportedRole=normalizeRegistryRole(assurance?.privilegedRole);
+    if(
+      assurance?.ok!==true||
+      assurance?.privileged!==true||
+      assurance?.mfaRequired!==true||
+      assurance?.webauthnRequired!==true||
+      assurance?.credentialEnrolled!==true||
+      assurance?.iberfitAssurance!=='required'||
+      assurance?.supabaseAal!=='aal1'||
+      reportedRole!=='coach'
+    ){
+      throw new Error('RC65_C2_REMOTE_COACH_ASSURANCE_CONTRACT_FAILED');
+    }
+
+    const blocked=await rpcResult('iberfit_bootstrap_v26',session.token,{});
+    const blockedMessage=String(blocked?.body?.message||'');
+    const blockedCode=String(blocked?.body?.code||'');
+    if(
+      blocked?.status!==403||
+      blockedMessage!=='IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED'
+    ){
+      throw new Error(`RC65_C2_REMOTE_COACH_FAIL_CLOSED_MISMATCH:status=${blocked?.status||0}:message=${blockedMessage.slice(0,80)}`);
+    }
+
+    roles.push({
+      name:session.name,
+      userFingerprint:fingerprint(session.userId),
+      reportedRole,
+      clientFingerprint:null,
+      canaryActive:null,
+      environmentName:null,
+      privacy:null,
+      privilegedGate:{
+        ok:true,
+        status:403,
+        code:/^[A-Z0-9]{3,16}$/u.test(blockedCode)?blockedCode:'NONE',
+        message:'IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED',
+        iberfitAssurance:'required',
+        credentialEnrolled:true,
+        webauthnRequired:true,
+      },
+    });
+    continue;
+  }
+
   const bootstrap=await rpc('iberfit_bootstrap_v26',session.token,{});
   const reportedRole=normalizeRegistryRole(bootstrap?.user?.role);
-  const expectedRole=normalizeRegistryRole(session.expectedRole);
   if(reportedRole!==expectedRole)throw new Error(`RC74_4_ROLE_MISMATCH:${session.name}:${reportedRole}`);
   const clientId=bootstrap?.user?.clientId||bootstrap?.user?.client_id||null;
-  if(session.expectedRole==='client'&&!clientId)throw new Error(`RC74_4_CLIENT_ID_MISSING:${session.name}`);
-  const privacy=session.expectedRole==='client'?inspectClientBootstrap(bootstrap,clientId):null;
+  if(expectedRole==='client'&&!clientId)throw new Error(`RC74_4_CLIENT_ID_MISSING:${session.name}`);
+  const privacy=expectedRole==='client'?inspectClientBootstrap(bootstrap,clientId):null;
   if(privacy&&!privacy.ok)throw new Error(`RC74_4_CLIENT_BOOTSTRAP_LEAK:${session.name}:forbidden=${privacy.forbiddenKeys.length}:foreign=${privacy.foreignClientIds.length}`);
-  if(session.expectedRole==='client')qaClientIds.push(clientId);
+  if(expectedRole==='client')qaClientIds.push(clientId);
   roles.push({
     name:session.name,
     userFingerprint:fingerprint(session.userId),
