@@ -58,7 +58,6 @@ test('generated production SQL is fail-closed and contains only the production p
     'qa.rc74.',
     '74040000-0000-4000-8000-000000000001',
     'm26-canary.iberfit.cl',
-    'iberfit_auth_assurance_context_v65c',
     'M26_QA_ONLY=true',
   ])assert.ok(!sql.toLowerCase().includes(forbidden.toLowerCase()),`forbidden production content: ${forbidden}`);
 
@@ -79,6 +78,11 @@ test('generated production SQL is fail-closed and contains only the production p
     'iberfit_create_client_draft_v12_pre_v65e',
     'FINAL_PROD_POSTCHECK_CLIENT_CREATE_SURFACE',
   ])assert.ok(sql.includes(required),`required production contract: ${required}`);
+
+  assert.doesNotMatch(sql,/create\s+(?:or\s+replace\s+)?function\s+public\.iberfit_auth_assurance_context_v65c\s*\(/iu,'obsolete assurance helper must not be recreated');
+  assert.doesNotMatch(sql,/grant\s+execute\s+on\s+function\s+public\.iberfit_auth_assurance_context_v65c\(\)\s+to\s+(?:public|anon|authenticated|service_role)/iu,'obsolete assurance helper must not be granted');
+  assert.match(sql,/revoke\s+all\s+on\s+function\s+public\.iberfit_auth_assurance_context_v65c\(\)\s+from\s+public\s*,\s*anon\s*,\s*authenticated/iu);
+  assert.match(sql,/has_function_privilege\('authenticated','public\.iberfit_auth_assurance_context_v65c\(\)','EXECUTE'\)/iu);
 
   assert.match(sql,/create\s+or\s+replace\s+function\s+private\.iberfit_role\(\)[\s\S]*?from\s+public\.user_profiles[\s\S]*?where\s+p\.user_id\s*=\s*auth\.uid\(\)/iu);
   const roleSection=sql.match(/PORT · RC74\.4T\/T2 FINAL LIVE AUTHORIZATION[\s\S]*?PORT · 20260830033156/iu)?.[0]||'';
