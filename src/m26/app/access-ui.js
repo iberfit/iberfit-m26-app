@@ -89,8 +89,8 @@ export function renderAccessUi({
     `;
   } else if (mode === 'request-recovery') {
     content = `
-      <h1 id="m26-auth-title" tabindex="-1">Recuperar contraseña</h1>
-      <p>Introduce el correo asociado a tu cuenta.</p>
+      <h1 id="m26-auth-title" tabindex="-1">Crear o recuperar contraseña</h1>
+      <p>Introduce el correo asociado a tu cuenta. Te enviaremos un enlace seguro para crear una contraseña nueva.</p>
 
       ${notice}
 
@@ -111,7 +111,7 @@ export function renderAccessUi({
           class="m26-primary-action"
           ${disabled ? 'disabled aria-disabled="true"' : ''}
         >
-          ${busy ? 'Enviando…' : 'Enviar enlace'}
+          ${busy ? 'Enviando…' : 'Enviar enlace seguro'}
         </button>
 
         <button
@@ -219,7 +219,7 @@ export function renderAccessUi({
           type="button"
           data-auth-action="forgot-password"
         >
-          Olvidé mi contraseña
+          Primera vez o no recuerdo mi contraseña
         </button>
       </form>
     `;
