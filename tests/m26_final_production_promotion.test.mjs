@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -12,6 +13,7 @@ import {
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const edgePath=path.join(root,'backend','production','edge-functions','iberfit-webauthn-v1','index.ts');
 const supabaseConfigPath=path.join(root,'supabase','config.toml');
+const evidenceDir=path.join(root,'recovery');
 
 function normalized(value){return String(value).replace(/\r\n/gu,'\n');}
 
@@ -108,6 +110,16 @@ test('generated production SQL is fail-closed and contains only the production p
 
   assert.match(sql,/revoke\s+execute\s+on\s+function\s+public\.iberfit_create_client_draft\(jsonb\)\s+from\s+public\s*,\s*anon\s*,\s*authenticated/iu);
   assert.doesNotMatch(sql,/grant\s+execute\s+on\s+function\s+public\.iberfit_create_client_draft\(jsonb\)\s+to\s+(?:public|anon|authenticated)/iu);
+
+  fs.mkdirSync(evidenceDir,{recursive:true});
+  const bytes=Buffer.from(sql,'utf8');
+  const sha256=crypto.createHash('sha256').update(bytes).digest('hex');
+  fs.writeFileSync(path.join(evidenceDir,'RC74_4_FINAL_PRODUCTION_PROMOTION.txt'),bytes);
+  fs.writeFileSync(
+    path.join(evidenceDir,'RC74_4_FINAL_PRODUCTION_PROMOTION.json'),
+    JSON.stringify({schema:'iberfit.rc74.4.final-production-promotion.v1',sha256,bytes:bytes.length},null,2)+'\n',
+    'utf8',
+  );
 });
 
 test('production WebAuthn variant is exact-origin, origin-bound, phishing-resistant, and JWT-gated',()=>{
