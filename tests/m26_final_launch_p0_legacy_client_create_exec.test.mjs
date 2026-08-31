@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const migrationNames=fs.readdirSync('supabase/migrations')
-  .filter((name)=>/^20260831041300_final_launch_p0_revoke_legacy_client_create\.sql$/u.test(name));
+  .filter((name)=>/^20260831042719_final_launch_p0_revoke_legacy_client_create\.sql$/u.test(name));
 assert.equal(migrationNames.length,1,'exactly one final-launch P0 migration must exist');
 const migrationPath=`supabase/migrations/${migrationNames[0]}`;
 const sql=fs.readFileSync(migrationPath,'utf8').replace(/\r\n?/gu,'\n');
