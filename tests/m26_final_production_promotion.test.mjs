@@ -11,6 +11,7 @@ import {
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const edgePath=path.join(root,'backend','production','edge-functions','iberfit-webauthn-v1','index.ts');
+const supabaseConfigPath=path.join(root,'supabase','config.toml');
 
 function normalized(value){return String(value).replace(/\r\n/gu,'\n');}
 
@@ -90,8 +91,9 @@ test('generated production SQL is fail-closed and contains only the production p
   assert.doesNotMatch(sql,/grant\s+execute\s+on\s+function\s+public\.iberfit_create_client_draft\(jsonb\)\s+to\s+(?:public|anon|authenticated)/iu);
 });
 
-test('production WebAuthn variant is exact-origin, origin-bound, and phishing-resistant',()=>{
+test('production WebAuthn variant is exact-origin, origin-bound, phishing-resistant, and JWT-gated',()=>{
   const source=normalized(fs.readFileSync(edgePath,'utf8'));
+  const config=normalized(fs.readFileSync(supabaseConfigPath,'utf8'));
 
   assert.match(source,/const\s+RP_ID='iberfit\.cl'/u);
   assert.match(source,/'https:\/\/app\.iberfit\.cl'/u);
@@ -106,5 +108,5 @@ test('production WebAuthn variant is exact-origin, origin-bound, and phishing-re
   assert.match(source,/userVerification:'required'/u);
   assert.match(source,/requireUserVerification:true/u);
   assert.match(source,/supportedAlgorithmIDs:\[-7,-257\]/u);
-  assert.match(source,/verify_jwt/u,{message:'source deployment remains expected to use verify_jwt=true'});
+  assert.match(config,/\[functions\.iberfit-webauthn-v1\][\s\S]*?verify_jwt\s*=\s*true/u);
 });
