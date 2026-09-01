@@ -1,5 +1,7 @@
 const MAX_WEBAUTHN_JSON_BYTES=512_000;
 const BASE64URL_PATTERN=/^[A-Za-z0-9_-]+$/u;
+const CEREMONY_MODES=new Set(['platform','cross-device']);
+let nextCeremonyMode='platform';
 
 function jsonClone(value,code){
   let text;
@@ -98,6 +100,57 @@ function requestOptions(raw,PublicKeyCredentialImpl){
   return fallbackRequestOptions(json);
 }
 
+function normalizeCeremonyMode(value){
+  const mode=String(value||'platform').trim().toLowerCase();
+  if(!CEREMONY_MODES.has(mode))throw new Error('M26_WEBAUTHN_MODE_INVALID');
+  return mode;
+}
+
+export function setNextWebAuthnCeremonyMode(value='platform'){
+  nextCeremonyMode=normalizeCeremonyMode(value);
+  return nextCeremonyMode;
+}
+
+function consumeNextWebAuthnCeremonyMode(){
+  const mode=nextCeremonyMode;
+  nextCeremonyMode='platform';
+  return mode;
+}
+
+function platformCreationOptions(options){
+  return {
+    ...options,
+    authenticatorSelection:{
+      ...(options?.authenticatorSelection||{}),
+      authenticatorAttachment:'platform',
+      userVerification:'required',
+    },
+    hints:['client-device'],
+  };
+}
+
+function platformRequestOptions(options){
+  const allowCredentials=Array.isArray(options?.allowCredentials)
+    ?options.allowCredentials.map((credential)=>({
+      ...credential,
+      transports:['internal'],
+    }))
+    :options?.allowCredentials;
+  return {
+    ...options,
+    userVerification:'required',
+    hints:['client-device'],
+    ...(allowCredentials?{allowCredentials}:{}),
+  };
+}
+
+function crossDeviceOptions(options){
+  return {
+    ...options,
+    hints:['hybrid','security-key'],
+  };
+}
+
 function extensionResults(credential){
   const value=credential?.getClientExtensionResults?.();
   return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
@@ -183,20 +236,26 @@ export async function runWebAuthnCeremony(challenge,{
   navigatorLike=globalThis.navigator,
   PublicKeyCredentialImpl=globalThis.PublicKeyCredential,
   friendlyName='IBERFIT',
+  mode=null,
 }={}){
   if(!webAuthnSupported({navigatorLike,PublicKeyCredentialImpl}))throw new Error('M26_WEBAUTHN_UNSUPPORTED');
   const type=String(challenge?.type||'').trim().toLowerCase();
   if(!['create','request'].includes(type))throw new Error('M26_WEBAUTHN_CHALLENGE_TYPE_INVALID');
+  const ceremonyMode=normalizeCeremonyMode(mode||consumeNextWebAuthnCeremonyMode());
   try{
-    const publicKey=type==='create'
+    const parsed=type==='create'
       ?creationOptions(challenge?.credentialOptions,PublicKeyCredentialImpl,friendlyName)
       :requestOptions(challenge?.credentialOptions,PublicKeyCredentialImpl);
+    const publicKey=ceremonyMode==='platform'
+      ?(type==='create'?platformCreationOptions(parsed):platformRequestOptions(parsed))
+      :crossDeviceOptions(parsed);
     const credential=type==='create'
       ?await navigatorLike.credentials.create({publicKey})
       :await navigatorLike.credentials.get({publicKey});
     if(!credential)throw new Error('M26_WEBAUTHN_CREDENTIAL_MISSING');
     return Object.freeze({
       type,
+      mode:ceremonyMode,
       credentialResponse:Object.freeze(credentialJson(credential,type)),
     });
   }catch(error){
@@ -209,5 +268,8 @@ export const __webauthnInternals=Object.freeze({
   encodeBase64Url,
   fallbackCreationOptions,
   fallbackRequestOptions,
+  platformCreationOptions,
+  platformRequestOptions,
+  crossDeviceOptions,
   credentialJson,
 });
