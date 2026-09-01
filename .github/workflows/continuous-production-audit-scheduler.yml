@@ -1,0 +1,55 @@
+name: IBERFIT M26 Production Audit Scheduler
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m26-production-audit-scheduler
+  cancel-in-progress: true
+
+jobs:
+  audit-current-production-source:
+    name: audit-current-production-source
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Descargar fuente productiva actual
+        uses: actions/checkout@v4
+        with:
+          ref: prep/final-production-rc74-4
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Preparar evidencia
+        run: mkdir -p recovery/continuous-audit
+
+      - name: Regresión Node completa
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee recovery/continuous-audit/full-node-regression.log
+
+      - name: Auditoría Cliente Coach Admin read-only
+        env:
+          M26_AUDIT_APP_URL: https://app.iberfit.cl
+        run: node scripts/audit/continuous_app_audit.mjs
+
+      - name: Conservar evidencia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-m26-scheduled-production-audit-${{ github.run_id }}
+          path: recovery/continuous-audit/
+          if-no-files-found: warn
+          retention-days: 30
