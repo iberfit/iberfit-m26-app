@@ -50,8 +50,7 @@ function preferSameDevice(options){
   const existing=Array.isArray(options.hints)
     ?options.hints.map((hint)=>String(hint||'').trim()).filter(Boolean)
     :[];
-  options.hints=[SAME_DEVICE_HINT,...existing.filter((hint)=>hint!==SAME_DEVICE_HINT)];
-  return options;
+  return {...options,hints:[SAME_DEVICE_HINT,...existing.filter((hint)=>hint!==SAME_DEVICE_HINT)]};
 }
 
 function normalizeRegistrationUser(options,friendlyName){
