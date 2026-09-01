@@ -30,6 +30,23 @@ function scheduleQualityRuntimeObservability(){
 
 scheduleQualityRuntimeObservability();
 
+function onPasswordVisibilityToggle(event){
+  const button=event.target.closest?.('[data-auth-password-toggle]');
+  if(!button||!root.contains(button))return;
+  event.preventDefault?.();
+  const id=String(button.getAttribute('aria-controls')||'');
+  const input=id?root.querySelector(`#${globalThis.CSS?.escape?CSS.escape(id):id}`):null;
+  if(!input||!['password','text'].includes(input.type))return;
+  const reveal=input.type==='password';
+  input.type=reveal?'text':'password';
+  button.textContent=reveal?'Ocultar':'Mostrar';
+  button.setAttribute('aria-pressed',reveal?'true':'false');
+  button.setAttribute('aria-label',`${reveal?'Ocultar':'Mostrar'} ${String(input.name||'contraseña').toLowerCase()}`);
+  input.focus?.({preventScroll:true});
+}
+
+root.addEventListener('click',onPasswordVisibilityToggle,true);
+
 async function activateFullStyles(){
   const links=[...document.querySelectorAll('link[data-iberfit-full-style]')];
 
@@ -82,12 +99,53 @@ function ensureAdaptiveLayoutStyle(){
   return link;
 }
 
+function transientSessionRefreshError(error){
+  const code=String(error?.message||error||'');
+  return error?.status===0||/TIMEOUT|NETWORK|FETCH|Failed to fetch|AbortError/iu.test(code);
+}
+
+async function preparePersistedSession(){
+  if(!runtime.enabled)return null;
+  const [vaultModule,transportModule]=await Promise.all([
+    import('/src/m26/app/session-vault.js'),
+    import('/src/m26/supabase-transport.js'),
+  ]);
+  const vault=vaultModule.createSessionVault();
+  const persisted=vault.load();
+  if(!persisted)return null;
+  if(!vaultModule.sessionExpiresSoon(persisted))return persisted;
+  if(!persisted.refreshToken){
+    vault.clear();
+    return null;
+  }
+
+  try{
+    const resolved=transportModule.resolveM26Runtime(runtime,globalThis.location);
+    const transport=transportModule.createM26Transport(resolved);
+    const refreshed=await transport.refresh(persisted.refreshToken);
+    if(
+      refreshed?.user?.id!==persisted.user.id||
+      String(refreshed?.user?.email||'').trim().toLowerCase()!==String(persisted.user.email||'').trim().toLowerCase()
+    ){
+      vault.clear();
+      throw new Error('M26_REFRESH_IDENTITY_MISMATCH');
+    }
+    vault.save(refreshed);
+    return refreshed;
+  }catch(error){
+    if(!transientSessionRefreshError(error))vault.clear();
+    return null;
+  }
+}
+
 async function loadFullApplication(){
   if(fullAppPromise)return fullAppPromise;
 
   fullAppPromise=(async()=>{
     ensureAdaptiveLayoutStyle();
+    const sessionReady=preparePersistedSession();
     await activateFullStyles();
+    await sessionReady;
     const {createM26Application}=await import('/src/m26/app/application.js');
     const app=await createM26Application();
     await app.mount();
@@ -131,6 +189,9 @@ if(runtime.enabled){
     resume:async()=>false,
     login:async()=>{throw new Error('M26_BACKEND_DISABLED');},
     getState:()=>Object.freeze({}),
-    destroy:()=>root.removeEventListener('click',elevateDisabledAuth,true),
+    destroy:()=>{
+      root.removeEventListener('click',elevateDisabledAuth,true);
+      root.removeEventListener('click',onPasswordVisibilityToggle,true);
+    },
   });
 }
