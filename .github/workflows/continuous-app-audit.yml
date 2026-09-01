@@ -25,7 +25,7 @@ jobs:
   audit-read-only:
     name: audit-read-only
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
       - name: Descargar repositorio
@@ -61,6 +61,11 @@ jobs:
         env:
           M26_AUDIT_APP_URL: https://app.iberfit.cl
         run: node scripts/audit/continuous_app_audit.mjs
+
+      - name: Ejecutar auditoría profunda de producto
+        env:
+          M26_AUDIT_APP_URL: https://app.iberfit.cl
+        run: node scripts/audit/deep_product_audit.mjs
 
       - name: Conservar informe de auditoría
         if: always()
