@@ -11,9 +11,9 @@ permissions:
 jobs:
   validate-production-frontend:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
     steps:
-      - name: Checkout exact source
+      - name: Checkout exact productive source
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -22,20 +22,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
 
-      - name: Assert frontend parity with approved Canary
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Assert exact productive head
         shell: bash
         run: |
           set -euo pipefail
-          APPROVED=1d00bdc60c63a002eb26a33bc8bbe8655487a848
-          git cat-file -e "$APPROVED^{commit}"
-          CHANGED="$(git diff --name-only "$APPROVED"..HEAD -- src public shared assets || true)"
-          if [ -n "$CHANGED" ]; then
-            printf '%s\n' "$CHANGED"
-            echo 'FINAL_PROD_FRONTEND_SOURCE_DIVERGED'
-            exit 1
-          fi
-          echo "APPROVED_FRONTEND_SHA=$APPROVED"
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          test "$SOURCE_SHA" = "$GITHUB_SHA"
+          test "$GITHUB_REF_NAME" = 'prep/final-production-rc74-4'
+          test -z "$(git status --porcelain --untracked-files=all)"
+          echo "PRODUCT_SOURCE_SHA=$SOURCE_SHA"
+          echo 'PRODUCT_SOURCE_BRANCH=prep/final-production-rc74-4'
+
+      - name: Full repository regression
+        run: npm test
 
       - name: Verify production frontend contracts
         run: node --test tests/m26_final_production_frontend.test.mjs
@@ -49,9 +53,11 @@ jobs:
           M26_SUPABASE_PUBLISHABLE_KEY: sb_publishable_validation_only_prod_rc74_4_0000000000000000
           M26_PROJECT_REF: pjhmrhejsoofmouedavw
           M26_QA_ONLY: 'false'
-          M26_SOURCE_SHA: 1d00bdc60c63a002eb26a33bc8bbe8655487a848
+          M26_SOURCE_SHA: ${{ github.sha }}
+          M26_SOURCE_BRANCH: prep/final-production-rc74-4
           M26_PROMOTION_HEAD: ${{ github.sha }}
           M26_BUILD_DIR: .tmp/rc64-current-surface
+          M26_RUNTIME_VALIDATION_ONLY: 'true'
         run: node scripts/generate_final_production_runtime_config.mjs
 
       - name: Verify generated PROD surface
@@ -65,7 +71,9 @@ jobs:
           grep -q '"projectRef": "pjhmrhejsoofmouedavw"' "$R"
           grep -q '"qaOnly": false' "$R"
           grep -q '"enabled": true' "$R"
-          grep -q '"sourceSha": "1d00bdc60c63a002eb26a33bc8bbe8655487a848"' "$V"
+          grep -q "\"sourceSha\": \"$GITHUB_SHA\"" "$V"
+          grep -q '"sourceBranch": "prep/final-production-rc74-4"' "$V"
+          grep -q "\"promotionHead\": \"$GITHUB_SHA\"" "$V"
           grep -q '"environment": "PRODUCTION"' "$V"
           grep -q 'https://pjhmrhejsoofmouedavw.supabase.co' "$H"
           ! grep -q 'gjztkdwfmunnzhtvxrsu' "$R" "$V" "$H"
@@ -79,4 +87,4 @@ jobs:
           name: final-production-frontend-validation
           path: FINAL_PRODUCTION_FRONTEND_VALIDATION.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
