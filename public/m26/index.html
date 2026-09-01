@@ -19,6 +19,8 @@ body{min-height:100dvh;color:#f7f1e4;background:#07150f;font-family:Inter,ui-san
 .m26-auth-page,.m26-auth-page *{box-sizing:border-box}
 .m26-auth-page{min-height:100dvh;display:grid;place-items:center;padding:clamp(1rem,4vw,2rem);color:#f7f1e4;background:radial-gradient(circle at 50% 12%,rgba(200,166,93,.14),transparent 24rem),#07150f}
 .m26-auth-card{width:min(34rem,100%);max-width:100%;padding:clamp(1.25rem,4vw,2rem);overflow-wrap:anywhere;border:1px solid rgba(228,205,152,.18);border-radius:1.25rem;background:rgba(13,36,25,.92);box-shadow:0 24px 70px rgba(2,10,7,.28)}
+.m26-auth-brand-lockup{display:grid;justify-items:start;gap:.15rem;margin:0 0 .65rem}
+.m26-auth-brand-mark{display:block;width:3.75rem;height:3.75rem;overflow:hidden;background-image:url('/public/isotipo-iberfit.png');background-repeat:no-repeat;background-size:173px 192px;background-position:-1px -104px}
 .m26-eyebrow{margin:0;color:#e4cd98;font-size:.68rem;font-weight:760;letter-spacing:.15em;text-transform:uppercase}
 .m26-auth-card h1{margin:.45rem 0 .65rem;color:#f7f1e4;font-family:Georgia,"Times New Roman",serif;font-size:clamp(2rem,7vw,3rem);font-weight:560;line-height:1.08}
 .m26-auth-card>p:not(.m26-eyebrow):not(.m26-notice){margin:0;color:#ddd4c1;line-height:1.6}
@@ -27,13 +29,19 @@ body{min-height:100dvh;color:#f7f1e4;background:#07150f;font-family:Inter,ui-san
 .m26-auth-card input,.m26-auth-card button{width:100%;min-height:44px;border:1px solid rgba(228,205,152,.18);border-radius:.9rem;font:inherit}
 .m26-auth-card input{padding:.72rem .8rem;color:#f7f1e4;background:rgba(5,18,13,.72)}
 .m26-auth-card button{padding:.72rem 1rem;color:#f7f1e4;background:rgba(199,164,90,.08);cursor:pointer}
+.m26-password-control{position:relative;display:block}
+.m26-password-control>input{padding-right:5.4rem}
+.m26-auth-card .m26-password-toggle{position:absolute;right:.36rem;top:50%;transform:translateY(-50%);width:auto;min-width:4.45rem;min-height:36px;padding:.35rem .55rem;border-color:transparent;border-radius:.65rem;color:#e4cd98;background:rgba(199,164,90,.06);font-size:.75rem;font-weight:760}
 .m26-auth-card .m26-primary-action{margin:0;color:#07150f;background:#c8a65d;font-weight:760}
 .m26-auth-card button:disabled{opacity:.62;cursor:not-allowed}
 .m26-auth-card input:focus-visible,.m26-auth-card button:focus-visible{outline:3px solid #f2dca8;outline-offset:2px}
 .m26-notice{margin:1rem 0 0;padding:.8rem .9rem;border:1px solid rgba(228,205,152,.18);border-radius:.9rem;color:#ddd4c1;background:rgba(199,164,90,.08);line-height:1.5}
 .m26-notice.is-warning{border-color:rgba(231,201,138,.35)}
+.m26-auth-notice{margin:.9rem 0 0;padding:.72rem .8rem;border:1px solid rgba(228,205,152,.18);border-radius:.8rem;color:#ddd4c1;background:rgba(199,164,90,.07);line-height:1.45}
+.m26-auth-notice.is-error{border-color:rgba(240,126,115,.42);color:#ffd4cf;background:rgba(158,51,42,.12)}
+.m26-field-help{margin:.55rem 0 0;color:#c8c0af;font-size:.78rem;line-height:1.5}
 .m26-auth-card small{display:block;margin-top:.85rem;color:#c8c0af;line-height:1.45}
-@media(max-width:420px){.m26-auth-page{align-items:start;padding:.75rem}.m26-auth-card{padding:1rem}}</style>
+@media(max-width:420px){.m26-auth-page{align-items:start;padding:.75rem}.m26-auth-card{padding:1rem}.m26-auth-brand-mark{width:3.5rem;height:3.5rem}}</style>
   <link rel="stylesheet" data-href="/src/m26/design/tokens.css" data-iberfit-full-style media="not all">
   <link rel="stylesheet" data-href="/src/m26/design/typography.css" data-iberfit-full-style media="not all">
   <link rel="stylesheet" data-href="/src/m26/design/icons.css" data-iberfit-full-style media="not all">
@@ -53,8 +61,10 @@ body{min-height:100dvh;color:#f7f1e4;background:#07150f;font-family:Inter,ui-san
   <div id="app">
     <main class="m26-auth-page" data-static-auth-bootstrap="true">
       <section class="m26-auth-card" aria-labelledby="m26-auth-title" aria-busy="false">
-
-        <p class="m26-eyebrow">IBERFIT</p>
+        <div class="m26-auth-brand-lockup" aria-label="IBERFIT">
+          <span class="m26-auth-brand-mark" aria-hidden="true"></span>
+          <p class="m26-eyebrow">IBERFIT</p>
+        </div>
         <h1 id="m26-auth-title" tabindex="-1">Entrenamiento personal con criterio</h1>
         <p>Diagnóstico, planificación, control y seguimiento.</p>
         <form data-auth-form="login">
@@ -68,16 +78,27 @@ body{min-height:100dvh;color:#f7f1e4;background:#07150f;font-family:Inter,ui-san
               required
             >
           </label>
-          <label>
+          <label for="m26-login-password">
             Contraseña
-            <input
-              type="password"
-              name="password"
-              autocomplete="current-password"
-              required
-              minlength="8"
-              maxlength="1024"
-            >
+            <span class="m26-password-control">
+              <input
+                id="m26-login-password"
+                type="password"
+                name="password"
+                autocomplete="current-password"
+                required
+                minlength="8"
+                maxlength="1024"
+              >
+              <button
+                type="button"
+                class="m26-password-toggle"
+                data-auth-action="toggle-password"
+                aria-controls="m26-login-password"
+                aria-pressed="false"
+                aria-label="Mostrar contraseña"
+              >Mostrar</button>
+            </span>
           </label>
           <button
             type="submit"
