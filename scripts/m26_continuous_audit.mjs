@@ -30,12 +30,14 @@ function allowedKeys(role){
     .map((definition)=>definition.key));
 }
 
-const [routeVm,routeRender,routeGuard,liveGate,ci,sessionVault,webauthn]=await Promise.all([
+const [routeVm,routeRender,routeGuard,liveGate,ci,prodFrontend,prodBundle,sessionVault,webauthn]=await Promise.all([
   source('src/m26/modules/route-view-model.js'),
   source('src/m26/modules/route-render.js'),
   source('src/m26/shell/route-guard.js'),
   source('scripts/release/check_live_production_gate.mjs'),
   source('.github/workflows/ci.yml'),
+  source('.github/workflows/final-production-frontend.yml'),
+  source('.github/workflows/final-production-bundle.yml'),
   source('src/m26/app/session-vault.js'),
   source('src/m26/app/webauthn.js'),
 ]);
@@ -98,8 +100,16 @@ check('live-gate-production-project',/PROD_REF='pjhmrhejsoofmouedavw'/u.test(liv
 check('live-gate-source-branch',/SOURCE_BRANCH='prep\/final-production-rc74-4'/u.test(liveGate));
 check('live-gate-blocks-mutations',/!\['GET','HEAD','OPTIONS'\]\.includes\(method\)/u.test(liveGate)&&/route\.abort\(\)/u.test(liveGate));
 check('live-gate-desktop-mobile',/name:'desktop'/u.test(liveGate)&&/name:'mobile'/u.test(liveGate));
+
 check('ci-read-only-permissions',/permissions:\s*\n\s*contents:\s*read/u.test(ci));
-check('ci-production-validation',/validate-production-frontend/u.test(ci)&&/guard:production/u.test(ci));
+check('production-frontend-read-only-permissions',/permissions:\s*\n\s*contents:\s*read/u.test(prodFrontend));
+check('production-frontend-job',/validate-production-frontend:/u.test(prodFrontend));
+check('production-frontend-exact-branch',/prep\/final-production-rc74-4/u.test(prodFrontend));
+check('production-frontend-prod-ref',/pjhmrhejsoofmouedavw/u.test(prodFrontend));
+check('production-frontend-rejects-qa',/! grep -q 'gjztkdwfmunnzhtvxrsu'/u.test(prodFrontend));
+check('production-frontend-rejects-service-role',/! grep -qi 'service\[_-\]\*role'/u.test(prodFrontend));
+check('production-bundle-read-only-permissions',/permissions:\s*\n\s*contents:\s*read/u.test(prodBundle));
+check('production-bundle-exact-branch',/prep\/final-production-rc74-4/u.test(prodBundle));
 
 const report={
   schema:'iberfit.m26.continuous-audit.v1',
