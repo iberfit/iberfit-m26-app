@@ -3,10 +3,9 @@ const SAFE_ID_PATTERN=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const MAX_TOKEN_CHARS=16_384;
 const MAX_EMAIL_CHARS=254;
 function safeStorage(storage){
-  if(arguments.length===0){try{storage=globalThis.localStorage;}catch{return null;}}
   try{const test='__m26_test__';storage?.setItem(test,'1');storage?.removeItem(test);return storage||null;}catch{return null;}
 }
-function legacySessionStorage(){try{return safeStorage(globalThis.sessionStorage);}catch{return null;}}
+function globalStorage(name){try{return safeStorage(globalThis[name]);}catch{return null;}}
 function sanitize(session){
   const token=String(session?.token||''),refreshToken=session?.refreshToken==null?'':String(session.refreshToken),userId=String(session?.user?.id||''),email=String(session?.user?.email||''),expiresAt=session?.expiresAt==null?null:Number(session.expiresAt);
   if(!token||token.length>MAX_TOKEN_CHARS||/[\u0000-\u001f\u007f]/.test(token)||refreshToken.length>MAX_TOKEN_CHARS||/[\u0000-\u001f\u007f]/.test(refreshToken)||!SAFE_ID_PATTERN.test(userId)||email.length<3||email.length>MAX_EMAIL_CHARS||!email.includes('@')||/[\u0000-\u001f\u007f]/.test(email))return null;
@@ -31,14 +30,16 @@ function writeStored(storage,value){
 function clearStored(storage){try{storage?.removeItem(KEY);}catch{}}
 export function createSessionVault(options={}){
   const hasExplicitStorage=Object.prototype.hasOwnProperty.call(options,'storage');
-  const storage=hasExplicitStorage?safeStorage(options.storage):safeStorage();
-  const legacyStorage=hasExplicitStorage?null:legacySessionStorage();
+  const local=hasExplicitStorage?safeStorage(options.storage):globalStorage('localStorage');
+  const session=hasExplicitStorage?null:globalStorage('sessionStorage');
+  const storage=local||session;
+  const legacyStorage=local&&session&&local!==session?session:null;
   let memory=null;
   return Object.freeze({
     load(){
       if(memory)return structuredClone(memory);
       memory=readStored(storage);
-      if(!memory&&legacyStorage&&legacyStorage!==storage){
+      if(!memory&&legacyStorage){
         const legacy=readStored(legacyStorage);
         if(legacy){
           memory=legacy;
@@ -47,14 +48,14 @@ export function createSessionVault(options={}){
       }
       return memory?structuredClone(memory):null;
     },
-    save(session){
-      memory=sanitize(session);
+    save(sessionValue){
+      memory=sanitize(sessionValue);
       if(!memory)throw new Error('M26_SESSION_INVALID');
       writeStored(storage,memory);
-      if(legacyStorage&&legacyStorage!==storage)clearStored(legacyStorage);
+      if(legacyStorage)clearStored(legacyStorage);
       return structuredClone(memory);
     },
-    clear(){memory=null;clearStored(storage);if(legacyStorage&&legacyStorage!==storage)clearStored(legacyStorage);},
+    clear(){memory=null;clearStored(storage);if(legacyStorage)clearStored(legacyStorage);},
   });
 }
 export function sessionExpiresSoon(session,{nowSeconds=Math.floor(Date.now()/1000),marginSeconds=90}={}){const expires=Number(session?.expiresAt||0),margin=Math.max(0,Math.min(Number(marginSeconds)||0,3600));return Boolean(expires&&expires<=Number(nowSeconds)+margin);}
