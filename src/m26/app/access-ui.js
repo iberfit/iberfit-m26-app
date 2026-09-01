@@ -7,6 +7,48 @@ function e(value) {
     .replaceAll("'", '&#039;');
 }
 
+function passwordControl({
+  id,
+  name,
+  autocomplete,
+  describedBy='',
+  minlength=8,
+  maxlength=1024,
+}={}){
+  const safeId=e(id);
+  return `
+    <div class="m26-password-control">
+      <input
+        id="${safeId}"
+        type="password"
+        name="${e(name)}"
+        autocomplete="${e(autocomplete)}"
+        ${describedBy?`aria-describedby="${e(describedBy)}"`:''}
+        required
+        minlength="${Number(minlength)}"
+        maxlength="${Number(maxlength)}"
+      >
+      <button
+        type="button"
+        class="m26-password-toggle"
+        data-auth-action="toggle-password"
+        aria-controls="${safeId}"
+        aria-pressed="false"
+        aria-label="Mostrar contraseña"
+      >Mostrar</button>
+    </div>
+  `;
+}
+
+function brandLockup(){
+  return `
+    <div class="m26-auth-brand-lockup" aria-label="IBERFIT">
+      <span class="m26-auth-brand-mark" aria-hidden="true"></span>
+      <p class="m26-eyebrow">IBERFIT</p>
+    </div>
+  `;
+}
+
 export function renderAccessUi({
   message = '',
   busy = false,
@@ -48,7 +90,7 @@ export function renderAccessUi({
   if (mode === 'mfa-required') {
     content = `
       <h1 id="m26-auth-title" tabindex="-1">Protege tu cuenta</h1>
-      <p>Las cuentas de entrenador y administración requieren una confirmación segura adicional antes de acceder a información de clientes.</p>
+      <p>Activa el acceso seguro de este dispositivo. IBERFIT utilizará Windows Hello, Face ID, Touch ID, huella o el PIN nativo disponible.</p>
 
       ${notice}
 
@@ -58,10 +100,10 @@ export function renderAccessUi({
         data-auth-action="mfa-continue-webauthn"
         ${disabled ? 'disabled aria-disabled="true"' : ''}
       >
-        ${busy ? 'Preparando…' : 'Configurar acceso seguro'}
+        ${busy ? 'Preparando…' : 'Activar en este dispositivo'}
       </button>
 
-      <p class="m26-field-help">Tu navegador abrirá Windows Hello, biometría, PIN o una llave de seguridad compatible. IBERFIT no recibe ni almacena tus datos biométricos.</p>
+      <p class="m26-field-help">La biometría o PIN se valida dentro del sistema operativo. IBERFIT no recibe ni almacena esos datos.</p>
 
       <button type="button" data-auth-action="mfa-logout">
         Cerrar sesión
@@ -69,8 +111,8 @@ export function renderAccessUi({
     `;
   } else if (mode === 'mfa-challenge') {
     content = `
-      <h1 id="m26-auth-title" tabindex="-1">Confirma tu identidad para continuar</h1>
-      <p>Utiliza el acceso seguro de este dispositivo para completar la verificación requerida.</p>
+      <h1 id="m26-auth-title" tabindex="-1">Confirma tu identidad</h1>
+      <p>Usa primero el bloqueo nativo de este dispositivo para continuar.</p>
 
       ${notice}
 
@@ -80,8 +122,19 @@ export function renderAccessUi({
         data-auth-action="mfa-continue-webauthn"
         ${disabled ? 'disabled aria-disabled="true"' : ''}
       >
-        ${busy ? 'Confirmando…' : 'Continuar de forma segura'}
+        ${busy ? 'Confirmando…' : 'Usar este dispositivo'}
       </button>
+
+      <button
+        type="button"
+        class="m26-text-action"
+        data-auth-action="mfa-use-other-device"
+        ${disabled ? 'disabled aria-disabled="true"' : ''}
+      >
+        Usar una llave u otro dispositivo
+      </button>
+
+      <p class="m26-field-help">La opción de otro dispositivo puede mostrar un QR. Solo se utiliza si tú la eliges.</p>
 
       <button type="button" data-auth-action="mfa-logout">
         Cerrar sesión
@@ -130,30 +183,14 @@ export function renderAccessUi({
       ${notice}
 
       <form data-auth-form="update-password">
-        <label>
+        <label for="m26-new-password">
           Contraseña nueva
-          <input
-            type="password"
-            name="password"
-            autocomplete="new-password"
-            aria-describedby="m26-password-requirements"
-            required
-            minlength="8"
-            maxlength="1024"
-          >
+          ${passwordControl({id:'m26-new-password',name:'password',autocomplete:'new-password',describedBy:'m26-password-requirements'})}
         </label>
 
-        <label>
+        <label for="m26-new-password-confirmation">
           Confirmar contraseña
-          <input
-            type="password"
-            name="passwordConfirmation"
-            autocomplete="new-password"
-            aria-describedby="m26-password-requirements"
-            required
-            minlength="8"
-            maxlength="1024"
-          >
+          ${passwordControl({id:'m26-new-password-confirmation',name:'passwordConfirmation',autocomplete:'new-password',describedBy:'m26-password-requirements'})}
         </label>
 
         <p id="m26-password-requirements" class="m26-field-help">
@@ -195,16 +232,9 @@ export function renderAccessUi({
           >
         </label>
 
-        <label>
+        <label for="m26-login-password">
           Contraseña
-          <input
-            type="password"
-            name="password"
-            autocomplete="current-password"
-            required
-            minlength="8"
-            maxlength="1024"
-          >
+          ${passwordControl({id:'m26-login-password',name:'password',autocomplete:'current-password'})}
         </label>
 
         <button
@@ -228,13 +258,7 @@ export function renderAccessUi({
   return `
     <main class="m26-auth-page">
       <section class="m26-auth-card" aria-labelledby="m26-auth-title" aria-busy="${busy ? 'true' : 'false'}">
-        <img
-          src="/public/isotipo-iberfit.png"
-          alt=""
-          aria-hidden="true"
-        >
-
-        <p class="m26-eyebrow">IBERFIT</p>
+        ${brandLockup()}
 
         ${content}
 
