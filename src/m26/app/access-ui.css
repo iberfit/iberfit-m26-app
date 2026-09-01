@@ -1,0 +1,128 @@
+/* IBERFIT · acceso premium y autenticación nativa */
+.m26-auth-card{
+  width:min(32rem,100%);
+}
+
+.m26-auth-brand{
+  display:grid;
+  justify-items:center;
+  gap:.55rem;
+  margin:0 0 1.45rem;
+  text-align:center;
+}
+
+.m26-auth-brand .m26-auth-mark{
+  display:block;
+  width:4.35rem;
+  height:4.35rem;
+  max-width:100%;
+  object-fit:contain;
+  object-position:center;
+}
+
+.m26-auth-brand .m26-eyebrow{
+  margin:0;
+}
+
+.m26-auth-card>h1,
+.m26-auth-card>p:not(.m26-auth-notice):not(.m26-notice),
+.m26-auth-card>form{
+  min-width:0;
+}
+
+.m26-auth-field{
+  display:grid;
+  gap:.42rem;
+}
+
+.m26-auth-field>label{
+  margin:0;
+  color:var(--iberfit-color-text-subtle,var(--m26-cream-300));
+  font-size:.82rem;
+  font-weight:650;
+}
+
+.m26-password-control{
+  position:relative;
+  min-width:0;
+}
+
+.m26-password-control>input{
+  width:100%;
+  padding-right:6.25rem!important;
+}
+
+.m26-auth-card .m26-password-toggle{
+  position:absolute;
+  top:50%;
+  right:.35rem;
+  transform:translateY(-50%);
+  width:auto!important;
+  min-width:5.15rem;
+  min-height:2.35rem;
+  padding:.45rem .72rem;
+  border-color:transparent;
+  border-radius:.65rem;
+  color:var(--iberfit-color-accent-strong,var(--m26-gold-300));
+  background:transparent;
+  font-size:.78rem;
+  font-weight:700;
+  line-height:1;
+}
+
+.m26-auth-card .m26-password-toggle:hover{
+  background:color-mix(in srgb,var(--iberfit-color-accent, #c8a65d) 10%,transparent);
+}
+
+.m26-auth-card .m26-password-toggle:focus-visible{
+  outline-offset:1px;
+}
+
+iberfit-install-control:empty{
+  display:none;
+}
+
+iberfit-install-control:not(:empty){
+  display:block;
+  margin-top:1rem;
+}
+
+.m26-auth-install{
+  display:grid;
+  gap:.35rem;
+  margin:0;
+  padding:.8rem .9rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent,#c8a65d) 20%,transparent);
+  border-radius:.85rem;
+  background:color-mix(in srgb,var(--iberfit-color-accent,#c8a65d) 6%,transparent);
+}
+
+.m26-auth-install .m26-text-action{
+  width:auto;
+  justify-self:start;
+  min-height:2.6rem;
+  padding:.5rem .7rem;
+}
+
+.m26-auth-install .m26-field-help{
+  margin:0;
+}
+
+@media(max-width:580px){
+  .m26-auth-brand{
+    margin-bottom:1.15rem;
+  }
+  .m26-auth-brand .m26-auth-mark{
+    width:3.85rem;
+    height:3.85rem;
+  }
+  .m26-password-control>input{
+    min-height:3.15rem;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .m26-auth-card .m26-password-toggle{
+    transition:none!important;
+  }
+}
