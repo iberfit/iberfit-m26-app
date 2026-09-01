@@ -5,11 +5,7 @@ on:
     paths:
       - 'src/m26/**'
       - 'scripts/audit/**'
-      - 'tests/m26_role_route_navigation_contract.test.mjs'
-      - 'tests/m26_shell_roles.test.mjs'
-      - 'tests/m26_rc38_client_bottom_navigation.test.mjs'
-      - 'tests/m26_rc40_admin_complete.test.mjs'
-      - 'tests/m26_rc71_2_preferences_i18n.test.mjs'
+      - 'tests/**'
       - '.github/workflows/continuous-app-audit.yml'
   push:
     branches:
@@ -29,7 +25,7 @@ jobs:
   audit-read-only:
     name: audit-read-only
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Descargar repositorio
@@ -42,6 +38,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Preparar carpeta de evidencia
+        run: mkdir -p recovery/continuous-audit
+
+      - name: Regresión Node completa
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee recovery/continuous-audit/full-node-regression.log
 
       - name: Validar contratos Cliente Coach Admin
         run: |
