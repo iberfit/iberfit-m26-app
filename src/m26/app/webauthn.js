@@ -98,6 +98,30 @@ function requestOptions(raw,PublicKeyCredentialImpl){
   return fallbackRequestOptions(json);
 }
 
+function preferPlatformCreation(options){
+  if(!options||typeof options!=='object')throw new Error('M26_WEBAUTHN_CREATE_OPTIONS_INVALID');
+  options.authenticatorSelection={
+    ...(options.authenticatorSelection||{}),
+    authenticatorAttachment:'platform',
+    userVerification:'required',
+  };
+  return options;
+}
+
+function preferInternalAuthentication(options){
+  if(!options||typeof options!=='object')throw new Error('M26_WEBAUTHN_REQUEST_OPTIONS_INVALID');
+  if(!Array.isArray(options.allowCredentials)||options.allowCredentials.length===0)return options;
+  const internal=options.allowCredentials.filter((credential)=>
+    Array.isArray(credential?.transports)&&credential.transports.includes('internal')
+  );
+  if(internal.length===0)throw new Error('M26_WEBAUTHN_LOCAL_CREDENTIAL_UNAVAILABLE');
+  options.allowCredentials=internal.map((credential)=>({
+    ...credential,
+    transports:['internal'],
+  }));
+  return options;
+}
+
 function extensionResults(credential){
   const value=credential?.getClientExtensionResults?.();
   return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
@@ -179,18 +203,37 @@ export function webAuthnSupported({
   );
 }
 
+export async function platformAuthenticatorAvailable({
+  PublicKeyCredentialImpl=globalThis.PublicKeyCredential,
+}={}){
+  const probe=PublicKeyCredentialImpl?.isUserVerifyingPlatformAuthenticatorAvailable;
+  if(typeof probe!=='function')return null;
+  try{return (await probe.call(PublicKeyCredentialImpl))===true;}
+  catch{return null;}
+}
+
 export async function runWebAuthnCeremony(challenge,{
   navigatorLike=globalThis.navigator,
   PublicKeyCredentialImpl=globalThis.PublicKeyCredential,
   friendlyName='IBERFIT',
+  preferLocalDevice=true,
 }={}){
   if(!webAuthnSupported({navigatorLike,PublicKeyCredentialImpl}))throw new Error('M26_WEBAUTHN_UNSUPPORTED');
   const type=String(challenge?.type||'').trim().toLowerCase();
   if(!['create','request'].includes(type))throw new Error('M26_WEBAUTHN_CHALLENGE_TYPE_INVALID');
   try{
-    const publicKey=type==='create'
+    if(preferLocalDevice){
+      const available=await platformAuthenticatorAvailable({PublicKeyCredentialImpl});
+      if(available===false)throw new Error('M26_WEBAUTHN_PLATFORM_AUTHENTICATOR_UNAVAILABLE');
+    }
+    let publicKey=type==='create'
       ?creationOptions(challenge?.credentialOptions,PublicKeyCredentialImpl,friendlyName)
       :requestOptions(challenge?.credentialOptions,PublicKeyCredentialImpl);
+    if(preferLocalDevice){
+      publicKey=type==='create'
+        ?preferPlatformCreation(publicKey)
+        :preferInternalAuthentication(publicKey);
+    }
     const credential=type==='create'
       ?await navigatorLike.credentials.create({publicKey})
       :await navigatorLike.credentials.get({publicKey});
@@ -209,5 +252,7 @@ export const __webauthnInternals=Object.freeze({
   encodeBase64Url,
   fallbackCreationOptions,
   fallbackRequestOptions,
+  preferPlatformCreation,
+  preferInternalAuthentication,
   credentialJson,
 });
