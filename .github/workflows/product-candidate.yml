@@ -1,0 +1,93 @@
+name: IBERFIT Product Candidate Gate
+
+on:
+  pull_request:
+    branches:
+      - prep/final-production-rc74-4
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: product-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify-product-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Full repository regression
+        run: npm test
+
+      - name: RC74.4 inherited safety contracts
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: sb_publishable_product_candidate_validation
+          M26_RUNTIME_VALIDATION_ONLY: 'true'
+          CF_PAGES_BRANCH: product-candidate
+        run: npm run validate:rc74-4
+
+      - name: Product frontend and PWA contracts
+        run: |
+          node --test tests/m26_final_production_frontend.test.mjs
+          node --test tests/m26_pwa_install_experience.test.mjs
+
+      - name: Reject destructive product surface changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="$(git rev-parse HEAD^)"
+          fi
+          git diff --name-status "$BASE_SHA"...HEAD -- public/m26 src/m26 | tee PRODUCT_SURFACE_DELTA.txt
+          if awk '$1 ~ /^D/ { found=1 } END { exit found ? 0 : 1 }' PRODUCT_SURFACE_DELTA.txt; then
+            echo 'Destructive deletion detected in product surface.' >&2
+            exit 1
+          fi
+
+      - name: Verify production manifest contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const manifest=JSON.parse(fs.readFileSync('public/m26/manifest.webmanifest','utf8'));
+          if(manifest.display!=='standalone')throw new Error('PWA_DISPLAY_NOT_STANDALONE');
+          if(manifest.scope!=='/')throw new Error('PWA_SCOPE_NOT_ROOT');
+          if(manifest.orientation&&manifest.orientation!=='any')throw new Error('PWA_ORIENTATION_RESTRICTED');
+          const purposes=new Set((manifest.icons||[]).flatMap((icon)=>String(icon.purpose||'').split(/\s+/)));
+          if(!purposes.has('any')||!purposes.has('maskable'))throw new Error('PWA_ICON_PURPOSES_INCOMPLETE');
+          NODE
+
+      - name: Preserve product candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-candidate-evidence
+          path: |
+            PRODUCT_SURFACE_DELTA.txt
+            recovery/RC74_4_*.json
+            recovery/RC74_4_*.md
+            recovery/RC74_4_*.txt
+          if-no-files-found: warn
+          retention-days: 14
