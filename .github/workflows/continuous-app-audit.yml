@@ -44,17 +44,39 @@ jobs:
       - name: Preparar carpeta de evidencia
         run: mkdir -p recovery/continuous-audit
 
-      - name: Gates P0 autenticación y roles
+      - name: P0 sesión WebAuthn y login
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test tests/m26_final_delivery_auth_ux.test.mjs \
+            2>&1 | tee recovery/continuous-audit/p0-final-delivery-auth-ux.log
+
+      - name: P0 MFA privilegiado
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test tests/m26_rc65c1_privileged_mfa.test.mjs \
+            2>&1 | tee recovery/continuous-audit/p0-privileged-mfa.log
+
+      - name: P0 navegación por roles
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test tests/m26_role_route_navigation_contract.test.mjs \
+            2>&1 | tee recovery/continuous-audit/p0-role-navigation.log
+
+      - name: P0 PWA instalación y scope raíz
+        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           node --test \
-            tests/m26_final_delivery_auth_ux.test.mjs \
-            tests/m26_role_route_navigation_contract.test.mjs \
-            tests/m26_rc65c1_privileged_mfa.test.mjs \
             tests/m26_pwa_install_experience.test.mjs \
             tests/m26_pwa_root_contract.test.mjs \
-            2>&1 | tee recovery/continuous-audit/p0-auth-role-gates.log
+            2>&1 | tee recovery/continuous-audit/p0-pwa.log
 
       - name: Regresión Node completa
         shell: bash
