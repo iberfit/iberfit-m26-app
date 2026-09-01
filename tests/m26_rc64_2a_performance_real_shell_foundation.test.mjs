@@ -95,7 +95,7 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
   assert.match(index,/data-static-auth-bootstrap="true"/u);
   assert.doesNotMatch(index,/src="\/public\/isotipo-iberfit\.png"/u);
   assert.match(index,/<button[\s\S]*?disabled[\s\S]*?aria-disabled="true"[\s\S]*?>[\s\S]*?Entrar[\s\S]*?<\/button>/u);
-  assert.match(index,/El acceso no está disponible temporalmente en este sitio\./u);
+  assert.match(index,/Cargando acceso seguro a IBERFIT\.\.\./u);
 
   assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/mu);
   assert.match(entry,/if\(runtime\.enabled\)\{\s*await loadFullApplication\(\);/u);
@@ -128,7 +128,7 @@ test('RC64.2A initial HTML provides the settled disabled preauth shell before op
   assert.match(index,/Diagnóstico, planificación, control y seguimiento\./u);
   assert.match(index,/data-auth-form="login"/u);
   assert.match(index,/type="submit"[\s\S]*?disabled[\s\S]*?aria-disabled="true"[\s\S]*?>[\s\S]*?Entrar/u);
-  assert.match(index,/El acceso no está disponible temporalmente en este sitio\./u);
+  assert.match(index,/Cargando acceso seguro a IBERFIT\.\.\./u);
   assert.doesNotMatch(index,/Preparando acceso seguro…/u);
   assert.doesNotMatch(index,/src="\/public\/isotipo-iberfit\.png"/u);
   assert.doesNotMatch(index,/rel="preload" href="\/m26\/fonts\/inter-latin-wght-normal\.woff2"/u);

@@ -42,10 +42,10 @@ test('RC65-C1 FREE conserva helper WebAuthn estricto del navegador',async()=>{
   assert.equal(result.credentialResponse.response.clientDataJSON,'Cw');
 });
 
-test('RC65-C1 FREE decisión privilegiada usa assurance propio y no Supabase aal2',()=>{
+test('RC65-C1 FREE decisión privilegiada conserva WebAuthn como recomendación sin bloquear sesión autenticada',()=>{
   assert.deepEqual(privilegedMfaDecision({webauthnRequired:false,iberfitAssurance:'not-required',credentialEnrolled:false,supabaseAal:'aal1'},[]),{kind:'ready'});
-  assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:false,supabaseAal:'aal1'},[]),{kind:'enroll-required'});
-  assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:true,supabaseAal:'aal1'},[]),{kind:'challenge',factorId:AUTHENTICATION_FACTOR_ID});
+  assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:false,supabaseAal:'aal1'},[]),{kind:'ready',webauthnRecommended:true});
+  assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:true,supabaseAal:'aal1'},[]),{kind:'ready',webauthnRecommended:true});
   assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'verified',credentialEnrolled:true,supabaseAal:'aal1'},[]),{kind:'ready'});
 });
 
