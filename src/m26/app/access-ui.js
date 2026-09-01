@@ -16,6 +16,7 @@ export function renderAccessUi({
   noticeKind = 'status',
   mfa = null,
   host = '',
+  install = null,
 } = {}) {
   const disabled = busy || !backendReady;
   const normalizedHost = String(host || '').trim().toLowerCase();
@@ -42,6 +43,15 @@ export function renderAccessUi({
   const accessNote = qaOnly
     ? 'Acceso restringido a las cuentas autorizadas para esta revisión.'
     : 'Acceso privado para clientes y equipo IBERFIT.';
+
+  const installPanel = install?.available
+    ? `<div class="m26-auth-install" role="region" aria-label="Instalar IBERFIT">
+        <button type="button" data-auth-action="install-app">
+          ${e(install.label || 'Instalar IBERFIT')}
+        </button>
+        <p class="m26-field-help">${e(install.instructions || 'Instala IBERFIT para abrirla como una aplicación desde este dispositivo.')}</p>
+      </div>`
+    : '';
 
   let content = '';
 
@@ -239,6 +249,7 @@ export function renderAccessUi({
         ${content}
 
         ${blockedSiteNotice}
+        ${installPanel}
 
         <small>${e(accessNote)}</small>
       </section>
