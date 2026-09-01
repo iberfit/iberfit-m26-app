@@ -1,5 +1,6 @@
 const MAX_WEBAUTHN_JSON_BYTES=512_000;
 const BASE64URL_PATTERN=/^[A-Za-z0-9_-]+$/u;
+const SAME_DEVICE_HINT='client-device';
 
 function jsonClone(value,code){
   let text;
@@ -19,7 +20,7 @@ function decodeBase64Url(value,code='M26_WEBAUTHN_BASE64URL_INVALID'){
     else binary=Buffer.from(base64,'base64').toString('binary');
   }catch{throw new Error(code);}
   const bytes=new Uint8Array(binary.length);
-  for(let index=0;index<binary.length;index+=1)bytes[index]=binary.charCodeAt(index);
+  for(let index=0;index<bytes.length;index+=1)bytes[index]=binary.charCodeAt(index);
   return bytes;
 }
 
@@ -44,6 +45,15 @@ function publicKeyJson(raw,code){
   return value;
 }
 
+function preferSameDevice(options){
+  if(!options||typeof options!=='object'||Array.isArray(options))return options;
+  const existing=Array.isArray(options.hints)
+    ?options.hints.map((hint)=>String(hint||'').trim()).filter(Boolean)
+    :[];
+  options.hints=[SAME_DEVICE_HINT,...existing.filter((hint)=>hint!==SAME_DEVICE_HINT)];
+  return options;
+}
+
 function normalizeRegistrationUser(options,friendlyName){
   if(!options?.user||typeof options.user!=='object'||Array.isArray(options.user))return options;
   const fallback=String(friendlyName||'IBERFIT').replace(/[\u0000-\u001f\u007f]/gu,' ').trim().slice(0,64)||'IBERFIT';
@@ -53,7 +63,7 @@ function normalizeRegistrationUser(options,friendlyName){
 }
 
 function fallbackCreationOptions(raw,friendlyName){
-  const options=normalizeRegistrationUser(publicKeyJson(raw,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID'),friendlyName);
+  const options=preferSameDevice(normalizeRegistrationUser(publicKeyJson(raw,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID'),friendlyName));
   options.challenge=decodeBase64Url(options.challenge,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID');
   if(!options.user||typeof options.user!=='object'||Array.isArray(options.user))throw new Error('M26_WEBAUTHN_CREATE_OPTIONS_INVALID');
   options.user.id=decodeBase64Url(options.user.id,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID');
@@ -67,7 +77,7 @@ function fallbackCreationOptions(raw,friendlyName){
 }
 
 function fallbackRequestOptions(raw){
-  const options=publicKeyJson(raw,'M26_WEBAUTHN_REQUEST_OPTIONS_INVALID');
+  const options=preferSameDevice(publicKeyJson(raw,'M26_WEBAUTHN_REQUEST_OPTIONS_INVALID'));
   options.challenge=decodeBase64Url(options.challenge,'M26_WEBAUTHN_REQUEST_OPTIONS_INVALID');
   if(Array.isArray(options.allowCredentials)){
     options.allowCredentials=options.allowCredentials.map((credential)=>({
@@ -79,20 +89,20 @@ function fallbackRequestOptions(raw){
 }
 
 function creationOptions(raw,PublicKeyCredentialImpl,friendlyName){
-  const json=normalizeRegistrationUser(publicKeyJson(raw,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID'),friendlyName);
+  const json=preferSameDevice(normalizeRegistrationUser(publicKeyJson(raw,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID'),friendlyName));
   const parser=PublicKeyCredentialImpl?.parseCreationOptionsFromJSON;
   if(typeof parser==='function'){
-    try{return parser.call(PublicKeyCredentialImpl,json);}
+    try{return preferSameDevice(parser.call(PublicKeyCredentialImpl,json));}
     catch{throw new Error('M26_WEBAUTHN_CREATE_OPTIONS_INVALID');}
   }
   return fallbackCreationOptions(json,friendlyName);
 }
 
 function requestOptions(raw,PublicKeyCredentialImpl){
-  const json=publicKeyJson(raw,'M26_WEBAUTHN_REQUEST_OPTIONS_INVALID');
+  const json=preferSameDevice(publicKeyJson(raw,'M26_WEBAUTHN_REQUEST_OPTIONS_INVALID'));
   const parser=PublicKeyCredentialImpl?.parseRequestOptionsFromJSON;
   if(typeof parser==='function'){
-    try{return parser.call(PublicKeyCredentialImpl,json);}
+    try{return preferSameDevice(parser.call(PublicKeyCredentialImpl,json));}
     catch{throw new Error('M26_WEBAUTHN_REQUEST_OPTIONS_INVALID');}
   }
   return fallbackRequestOptions(json);
@@ -209,5 +219,6 @@ export const __webauthnInternals=Object.freeze({
   encodeBase64Url,
   fallbackCreationOptions,
   fallbackRequestOptions,
+  preferSameDevice,
   credentialJson,
 });
