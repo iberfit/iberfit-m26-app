@@ -45,10 +45,12 @@ const buildDir=path.resolve(process.env.M26_BUILD_DIR||path.join('.tmp','rc64-cu
 const m26Dir=path.join(buildDir,'m26');
 const target=path.join(m26Dir,'runtime-config.js');
 const versionTarget=path.join(m26Dir,'version.json');
+const serviceWorkerTarget=path.join(m26Dir,'sw.js');
 const headersTargets=[path.join(buildDir,'_headers'),path.join(m26Dir,'_headers')];
 const headersTemplatePath=path.resolve('public','m26','_headers');
 if(!fs.existsSync(m26Dir))throw new Error(`FINAL_PROD_RUNTIME_BUILD_MISSING:${buildDir}`);
 if(!fs.existsSync(headersTemplatePath))throw new Error('FINAL_PROD_HEADERS_TEMPLATE_MISSING');
+if(!fs.existsSync(serviceWorkerTarget))throw new Error('FINAL_PROD_SERVICE_WORKER_MISSING');
 
 let headers=fs.readFileSync(headersTemplatePath,'utf8').replace(/\r\n?/gu,'\n');
 const prodCount=headers.split(M26_PRODUCTION_SUPABASE_ORIGIN).length-1;
@@ -102,6 +104,19 @@ const provenance={
   production:true,
 };
 
+const serviceWorkerSource=fs.readFileSync(serviceWorkerTarget,'utf8').replace(/\r\n?/gu,'\n');
+const serviceWorkerHeader=/^const VERSION='([^']+)';\nconst PREVIOUS_VERSION='([^']+)';/u;
+const serviceWorkerMatch=serviceWorkerSource.match(serviceWorkerHeader);
+if(!serviceWorkerMatch)throw new Error('FINAL_PROD_SERVICE_WORKER_VERSION_HEADER_MISSING');
+const serviceWorkerVersion=`m26-prod-${sourceSha.slice(0,12)}`;
+const sealedServiceWorker=serviceWorkerSource.replace(
+  serviceWorkerHeader,
+  `const VERSION='${serviceWorkerVersion}';\nconst PREVIOUS_VERSION='${serviceWorkerMatch[1]}';`
+);
+if(!sealedServiceWorker.includes(`const SHELL=\`iberfit-\${VERSION}-shell\`;`))throw new Error('FINAL_PROD_SERVICE_WORKER_CACHE_CONTRACT_MISSING');
+if(!sealedServiceWorker.includes("key.startsWith('iberfit-m26-')"))throw new Error('FINAL_PROD_SERVICE_WORKER_CACHE_CLEANUP_MISSING');
+fs.writeFileSync(serviceWorkerTarget,sealedServiceWorker,'utf8');
+
 fs.writeFileSync(target,`window.__IBERFIT_M26_RUNTIME__ = Object.freeze(${JSON.stringify(config,null,2)});\n`,'utf8');
 fs.writeFileSync(versionTarget,`${JSON.stringify(provenance,null,2)}\n`,'utf8');
 for(const headersTarget of headersTargets)fs.writeFileSync(headersTarget,headers,'utf8');
@@ -110,6 +125,7 @@ for(const [name,content] of [
   ['runtime',fs.readFileSync(target,'utf8')],
   ['version',fs.readFileSync(versionTarget,'utf8')],
   ['headers',headers],
+  ['service_worker',sealedServiceWorker],
 ]){
   if(content.includes(M26_QA_PROJECT_REF)||content.includes(M26_QA_SUPABASE_ORIGIN)||content.includes('m26-canary.iberfit.cl')){
     throw new Error(`FINAL_PROD_${name.toUpperCase()}_QA_OR_CANARY_LEAK`);
@@ -126,8 +142,10 @@ console.log(JSON.stringify({
   projectRef:M26_PRODUCTION_PROJECT_REF,
   qaOnly:false,
   production:true,
+  serviceWorkerVersion,
   target:path.relative(process.cwd(),target).replaceAll(path.sep,'/'),
   versionTarget:path.relative(process.cwd(),versionTarget).replaceAll(path.sep,'/'),
+  serviceWorkerTarget:path.relative(process.cwd(),serviceWorkerTarget).replaceAll(path.sep,'/'),
   headersTargets:headersTargets.map((p)=>path.relative(process.cwd(),p).replaceAll(path.sep,'/')),
   keyType:key.startsWith('sb_publishable_')?'publishable':'legacy_anon_or_publishable',
 },null,2));
