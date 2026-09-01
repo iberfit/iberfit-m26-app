@@ -59,6 +59,8 @@ const AREA_ICONS=Object.freeze({
   notas:'notebook-pen',
   inteligencia:'sparkles',
   biblioteca:'library',
+  retos:'sparkles',
+  ajustes:'settings',
   verificacion:'shield-check',
   mensajes:'message-circle',
   'admin-inicio':'house',
