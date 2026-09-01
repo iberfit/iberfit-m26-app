@@ -7,6 +7,45 @@ function e(value) {
     .replaceAll("'", '&#039;');
 }
 
+export function setPasswordVisibility(input, button, visible) {
+  if (!input || !button) return false;
+  const show = visible === true;
+  input.type = show ? 'text' : 'password';
+  button.setAttribute?.('aria-pressed', show ? 'true' : 'false');
+  button.setAttribute?.('aria-label', show ? 'Ocultar contraseña' : 'Ver contraseña');
+  const label = button.querySelector?.('[data-password-visibility-label]');
+  if (label) label.textContent = show ? 'Ocultar' : 'Ver';
+  return show;
+}
+
+function registerPasswordVisibilityElement() {
+  const registry = globalThis.customElements;
+  const BaseElement = globalThis.HTMLElement;
+  if (!registry || typeof BaseElement !== 'function' || registry.get('iberfit-password-field')) return;
+  registry.define('iberfit-password-field', class extends BaseElement {
+    connectedCallback() {
+      this._input = this.querySelector?.('[data-password-input]') || null;
+      this._button = this.querySelector?.('[data-password-visibility]') || null;
+      if (!this._input || !this._button) return;
+      this._onToggle = () => {
+        const visible = this._input.type === 'password';
+        setPasswordVisibility(this._input, this._button, visible);
+        this._input.focus?.({ preventScroll: true });
+      };
+      this._button.addEventListener?.('click', this._onToggle);
+      setPasswordVisibility(this._input, this._button, false);
+    }
+    disconnectedCallback() {
+      this._button?.removeEventListener?.('click', this._onToggle);
+      this._input = null;
+      this._button = null;
+      this._onToggle = null;
+    }
+  });
+}
+
+registerPasswordVisibilityElement();
+
 export function renderAccessUi({
   message = '',
   busy = false,
@@ -61,7 +100,7 @@ export function renderAccessUi({
         ${busy ? 'Preparando…' : 'Configurar acceso seguro'}
       </button>
 
-      <p class="m26-field-help">Tu navegador abrirá Windows Hello, biometría, PIN o una llave de seguridad compatible. IBERFIT no recibe ni almacena tus datos biométricos.</p>
+      <p class="m26-field-help">Se priorizará Windows Hello, Touch ID, Face ID, PIN o biometría del propio dispositivo. IBERFIT no recibe ni almacena tus datos biométricos; una llave externa queda disponible como alternativa compatible.</p>
 
       <button type="button" data-auth-action="mfa-logout">
         Cerrar sesión
@@ -70,7 +109,7 @@ export function renderAccessUi({
   } else if (mode === 'mfa-challenge') {
     content = `
       <h1 id="m26-auth-title" tabindex="-1">Confirma tu identidad para continuar</h1>
-      <p>Utiliza el acceso seguro de este dispositivo para completar la verificación requerida.</p>
+      <p>Utiliza preferentemente el acceso seguro de este dispositivo para completar la verificación requerida.</p>
 
       ${notice}
 
@@ -184,20 +223,21 @@ export function renderAccessUi({
       ${notice}
 
       <form data-auth-form="login">
-        <label>
-          Correo
-          <input
-            type="email"
-            name="email"
-            autocomplete="username"
-            maxlength="254"
-            required
-          >
-        </label>
+        <label for="m26-login-email">Correo</label>
+        <input
+          id="m26-login-email"
+          type="email"
+          name="email"
+          autocomplete="username"
+          maxlength="254"
+          required
+        >
 
-        <label>
-          Contraseña
+        <label for="m26-login-password">Contraseña</label>
+        <iberfit-password-field class="m26-password-field">
           <input
+            id="m26-login-password"
+            data-password-input
             type="password"
             name="password"
             autocomplete="current-password"
@@ -205,7 +245,18 @@ export function renderAccessUi({
             minlength="8"
             maxlength="1024"
           >
-        </label>
+          <button
+            type="button"
+            class="m26-password-visibility"
+            data-password-visibility
+            aria-controls="m26-login-password"
+            aria-pressed="false"
+            aria-label="Ver contraseña"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M2.2 12s3.6-6 9.8-6 9.8 6 9.8 6-3.6 6-9.8 6-9.8-6-9.8-6Z"></path><circle cx="12" cy="12" r="2.6"></circle></svg>
+            <span data-password-visibility-label>Ver</span>
+          </button>
+        </iberfit-password-field>
 
         <button
           type="submit"
@@ -228,13 +279,17 @@ export function renderAccessUi({
   return `
     <main class="m26-auth-page">
       <section class="m26-auth-card" aria-labelledby="m26-auth-title" aria-busy="${busy ? 'true' : 'false'}">
-        <img
-          src="/public/isotipo-iberfit.png"
-          alt=""
-          aria-hidden="true"
-        >
-
-        <p class="m26-eyebrow">IBERFIT</p>
+        <header class="m26-auth-brand">
+          <img
+            class="m26-auth-brandmark"
+            src="/public/isotipo-iberfit.png"
+            alt=""
+            aria-hidden="true"
+            width="64"
+            height="64"
+          >
+          <p class="m26-eyebrow">IBERFIT</p>
+        </header>
 
         ${content}
 
