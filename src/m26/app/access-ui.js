@@ -92,7 +92,7 @@ export function renderAccessUi({
         data-auth-action="mfa-continue-webauthn"
         ${disabled ? 'disabled aria-disabled="true"' : ''}
       >
-        ${busy ? 'Preparando…' : 'Activar acceso en este dispositivo'}
+        ${busy ? 'Preparando…' : 'Configurar acceso seguro en este dispositivo'}
       </button>
 
       <p class="m26-field-help">IBERFIT utilizará Windows Hello, Face ID, Touch ID, huella o PIN, según el bloqueo disponible en este equipo. Los datos biométricos no salen del dispositivo.</p>
@@ -114,7 +114,7 @@ export function renderAccessUi({
         data-auth-action="mfa-continue-webauthn"
         ${disabled ? 'disabled aria-disabled="true"' : ''}
       >
-        ${busy ? 'Confirmando…' : 'Usar bloqueo de este dispositivo'}
+        ${busy ? 'Confirmando…' : 'Continuar de forma segura con este dispositivo'}
       </button>
 
       <p class="m26-field-help">Se prioriza el autenticador integrado de este equipo; no necesitas escanear un QR para el flujo normal.</p>
