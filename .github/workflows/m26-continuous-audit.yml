@@ -1,0 +1,119 @@
+name: IBERFIT M26 Continuous Audit
+
+on:
+  push:
+    branches:
+      - "prep/final-production-rc74-4"
+      - "audit/**"
+  pull_request:
+    branches:
+      - "prep/final-production-rc74-4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m26-continuous-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract-audit:
+    name: Contract audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Validar contrato RC74.5
+        run: node --test tests/m26_rc74_5_route_contract_audit.test.mjs
+
+      - name: Auditar rutas, roles y seguridad
+        run: node scripts/m26_continuous_audit.mjs
+
+      - name: Validar regresiones de roles y MFA
+        run: |
+          node --test tests/m26_shell_roles.test.mjs
+          node --test tests/m26_rc38_client_bottom_navigation.test.mjs
+          node --test tests/m26_rc65c1_privileged_mfa.test.mjs
+          node --test tests/m26_rc74_4_least_privilege.test.mjs
+
+      - name: Conservar evidencia
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: m26-continuous-contract-audit
+          path: recovery/continuous-audit/M26_CONTINUOUS_AUDIT.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  live-readonly-audit:
+    name: LIVE read-only audit
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/prep/final-production-rc74-4' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Preparar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Resolver procedencia LIVE y exigir pertenencia a rama productiva
+        id: provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin prep/final-production-rc74-4
+          LIVE_SHA="$(node --input-type=module - <<'NODE'
+          const response=await fetch(`https://app.iberfit.cl/version.json?continuous_audit=${Date.now()}`,{cache:'no-store',redirect:'error'});
+          if(!response.ok)throw new Error(`M26_CONTINUOUS_VERSION_HTTP_${response.status}`);
+          const value=await response.json();
+          const sha=String(value?.sourceSha||'').trim().toLowerCase();
+          if(!/^[0-9a-f]{40}$/u.test(sha))throw new Error('M26_CONTINUOUS_VERSION_SHA_INVALID');
+          if(String(value?.sourceBranch||'')!=='prep/final-production-rc74-4')throw new Error('M26_CONTINUOUS_VERSION_BRANCH_INVALID');
+          if(String(value?.environment||'')!=='PRODUCTION'||value?.production!==true||value?.qaOnly!==false)throw new Error('M26_CONTINUOUS_VERSION_ENV_INVALID');
+          if(String(value?.projectRef||'')!=='pjhmrhejsoofmouedavw')throw new Error('M26_CONTINUOUS_VERSION_PROJECT_INVALID');
+          console.log(sha);
+          NODE
+          )"
+          git cat-file -e "${LIVE_SHA}^{commit}"
+          git merge-base --is-ancestor "${LIVE_SHA}" "origin/prep/final-production-rc74-4"
+          echo "live_sha=${LIVE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Auditar LIVE sin mutaciones
+        env:
+          M26_EXPECTED_PROD_SOURCE_SHA: ${{ steps.provenance.outputs.live_sha }}
+        run: node scripts/release/check_live_production_gate.mjs
+
+      - name: Conservar evidencia LIVE
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: m26-live-readonly-audit
+          path: recovery/final-production-live/
+          if-no-files-found: warn
+          retention-days: 30
