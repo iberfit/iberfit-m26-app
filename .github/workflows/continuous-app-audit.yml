@@ -46,73 +46,67 @@ jobs:
 
       - name: P0 sesión WebAuthn y login
         continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          node --test tests/m26_final_delivery_auth_ux.test.mjs \
-            2>&1 | tee recovery/continuous-audit/p0-final-delivery-auth-ux.log
+        run: node --test tests/m26_final_delivery_auth_ux.test.mjs
 
       - name: P0 MFA privilegiado
         continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          node --test tests/m26_rc65c1_privileged_mfa.test.mjs \
-            2>&1 | tee recovery/continuous-audit/p0-privileged-mfa.log
+        run: node --test tests/m26_rc65c1_privileged_mfa.test.mjs
 
       - name: P0 navegación por roles
         continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          node --test tests/m26_role_route_navigation_contract.test.mjs \
-            2>&1 | tee recovery/continuous-audit/p0-role-navigation.log
+        run: node --test tests/m26_role_route_navigation_contract.test.mjs
 
       - name: P0 PWA instalación y scope raíz
         continue-on-error: true
+        run: node --test tests/m26_pwa_install_experience.test.mjs tests/m26_pwa_root_contract.test.mjs
+
+      - name: Shard regresión 0
+        continue-on-error: true
         shell: bash
         run: |
-          set -o pipefail
-          node --test \
-            tests/m26_pwa_install_experience.test.mjs \
-            tests/m26_pwa_root_contract.test.mjs \
-            2>&1 | tee recovery/continuous-audit/p0-pwa.log
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' | sort)
+          selected=(); for i in "${!files[@]}"; do (( i % 6 == 0 )) && selected+=("${files[$i]}"); done
+          node --test "${selected[@]}"
 
-      - name: Compat final production
+      - name: Shard regresión 1
         continue-on-error: true
-        run: node --test tests/m26_final_production_frontend.test.mjs tests/m26_final_production_promotion.test.mjs tests/m26_final_production_promotion_prod_compat.test.mjs
+        shell: bash
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' | sort)
+          selected=(); for i in "${!files[@]}"; do (( i % 6 == 1 )) && selected+=("${files[$i]}"); done
+          node --test "${selected[@]}"
 
-      - name: Compat password recovery
+      - name: Shard regresión 2
         continue-on-error: true
-        run: node --test tests/m26_rc30_password_recovery.test.mjs
+        shell: bash
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' | sort)
+          selected=(); for i in "${!files[@]}"; do (( i % 6 == 2 )) && selected+=("${files[$i]}"); done
+          node --test "${selected[@]}"
 
-      - name: Compat brand native identity
+      - name: Shard regresión 3
         continue-on-error: true
-        run: node --test tests/m26_rc58_5a_brand_truth.test.mjs tests/m26_rc58_5b_native_identity.test.mjs tests/m26_rc58_5c_b_app_integrity.test.mjs
+        shell: bash
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' | sort)
+          selected=(); for i in "${!files[@]}"; do (( i % 6 == 3 )) && selected+=("${files[$i]}"); done
+          node --test "${selected[@]}"
 
-      - name: Compat visual accessibility
+      - name: Shard regresión 4
         continue-on-error: true
-        run: node --test tests/m26_rc58_6_visual_accessibility_closeout.test.mjs tests/m26_rc58_design_system_scope.test.mjs
+        shell: bash
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' | sort)
+          selected=(); for i in "${!files[@]}"; do (( i % 6 == 4 )) && selected+=("${files[$i]}"); done
+          node --test "${selected[@]}"
 
-      - name: Compat RC64 quality performance
+      - name: Shard regresión 5
         continue-on-error: true
-        run: node --test tests/m26_rc64_1_quality_platform_foundation.test.mjs tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs
-
-      - name: Compat RC64 auth hydration setup
-        continue-on-error: true
-        run: node --test tests/m26_rc64_2b_auth_hydration_performance.test.mjs tests/m26_rc64_2b_auth_setup_ready_gate_contract.test.mjs tests/m26_rc64_2b_auth_first_paint_stage_trace.test.mjs
-
-      - name: Compat RC64 persistence IO
-        continue-on-error: true
-        run: node --test tests/m26_rc64_2b_browser_persistence_deadline.test.mjs tests/m26_rc64_2b_post_login_io_boundary.test.mjs tests/m26_rc64_2b_indexeddb_engine_probe_contract.test.mjs
-
-      - name: Compat RC64 preauth visual
-        continue-on-error: true
-        run: node --test tests/m26_rc64_2b_preauth_style_abort_guard.test.mjs tests/m26_rc64_2b_visual_auth_observability_foundation.test.mjs tests/m26_rc64_2b_verification_pipeline_trace.test.mjs
-
-      - name: Compat RC65 shared device
-        continue-on-error: true
-        run: node --test tests/m26_rc65b_shared_device_privacy.test.mjs
+        shell: bash
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' | sort)
+          selected=(); for i in "${!files[@]}"; do (( i % 6 == 5 )) && selected+=("${files[$i]}"); done
+          node --test "${selected[@]}"
 
       - name: Regresión Node completa
         shell: bash
