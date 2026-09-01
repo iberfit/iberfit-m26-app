@@ -25,6 +25,10 @@ function validSession(){
   };
 }
 
+function restoreGlobalStorage(name,descriptor){
+  if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];
+}
+
 function buffer(...values){return Uint8Array.from(values).buffer;}
 
 test('RC75 sesión persiste entre relanzamientos y conserva sólo el contrato de sesión',()=>{
@@ -40,8 +44,8 @@ test('RC75 sesión persiste entre relanzamientos y conserva sólo el contrato de
   assert.equal(storage.getItem('iberfit:m26:session:v1'),null);
 
   const source=fs.readFileSync('src/m26/app/session-vault.js','utf8');
-  assert.match(source,/globalThis\.localStorage/u);
-  assert.match(source,/legacySessionStorage/u);
+  assert.match(source,/globalStorage\('localStorage'\)/u);
+  assert.match(source,/globalStorage\('sessionStorage'\)/u);
   assert.doesNotMatch(source,/password/u);
 });
 
@@ -60,8 +64,49 @@ test('RC75 migra una sesión histórica de sessionStorage a localStorage de form
     assert.ok(local.getItem(key));
     assert.equal(legacy.getItem(key),null);
   }finally{
-    if(localDescriptor)Object.defineProperty(globalThis,'localStorage',localDescriptor);else delete globalThis.localStorage;
-    if(sessionDescriptor)Object.defineProperty(globalThis,'sessionStorage',sessionDescriptor);else delete globalThis.sessionStorage;
+    restoreGlobalStorage('localStorage',localDescriptor);
+    restoreGlobalStorage('sessionStorage',sessionDescriptor);
+  }
+});
+
+test('RC75 cae a sessionStorage si localStorage no está disponible',()=>{
+  const fallback=fakeStorage();
+  const unavailable={setItem(){throw new Error('unavailable');},removeItem(){},getItem(){return null;}};
+  const localDescriptor=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+  const sessionDescriptor=Object.getOwnPropertyDescriptor(globalThis,'sessionStorage');
+  try{
+    Object.defineProperty(globalThis,'localStorage',{value:unavailable,configurable:true});
+    Object.defineProperty(globalThis,'sessionStorage',{value:fallback,configurable:true});
+    createSessionVault().save(validSession());
+    assert.ok(fallback.getItem('iberfit:m26:session:v1'));
+    assert.deepEqual(createSessionVault().load(),validSession());
+  }finally{
+    restoreGlobalStorage('localStorage',localDescriptor);
+    restoreGlobalStorage('sessionStorage',sessionDescriptor);
+  }
+});
+
+test('RC75 un storage inyectado no lee ni altera storages globales',()=>{
+  const injected=fakeStorage();
+  const local=fakeStorage();
+  const session=fakeStorage();
+  const key='iberfit:m26:session:v1';
+  local.setItem(key,JSON.stringify(validSession()));
+  session.setItem(key,JSON.stringify(validSession()));
+  const localDescriptor=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+  const sessionDescriptor=Object.getOwnPropertyDescriptor(globalThis,'sessionStorage');
+  try{
+    Object.defineProperty(globalThis,'localStorage',{value:local,configurable:true});
+    Object.defineProperty(globalThis,'sessionStorage',{value:session,configurable:true});
+    const vault=createSessionVault({storage:injected});
+    assert.equal(vault.load(),null);
+    vault.save(validSession());
+    vault.clear();
+    assert.ok(local.getItem(key));
+    assert.ok(session.getItem(key));
+  }finally{
+    restoreGlobalStorage('localStorage',localDescriptor);
+    restoreGlobalStorage('sessionStorage',sessionDescriptor);
   }
 });
 
@@ -135,15 +180,24 @@ test('RC75 WebAuthn prioriza autenticador del mismo dispositivo sin prohibir fal
   assert.equal(captured.userVerification,'required');
 });
 
-test('RC75 Coach recibe Retos/Ajustes y Admin conserva aislamiento admin-*',()=>{
+test('RC75 Coach y Client reciben Retos/Ajustes sin alterar navegación móvil; Admin sigue aislado',()=>{
   const coach=navigationForRole('coach');
   const coachKeys=[...coach.primary,...coach.context,...coach.tools].map((item)=>item.key);
   assert.ok(coachKeys.includes('retos'));
   assert.ok(coachKeys.includes('ajustes'));
+
+  const client=navigationForRole('client');
+  const clientKeys=[...client.primary,...client.context,...client.tools].map((item)=>item.key);
+  assert.ok(clientKeys.includes('retos'));
+  assert.ok(clientKeys.includes('ajustes'));
+  assert.deepEqual(client.mobile.map((item)=>item.key),['hoy','sesion','progreso','actividad']);
+
   assert.deepEqual(M26_AREAS.retos.roles,['coach','client']);
   assert.deepEqual(M26_AREAS.ajustes.roles,['coach','client']);
   assert.equal(areaAllowedForRole('retos','coach'),true);
   assert.equal(areaAllowedForRole('ajustes','coach'),true);
+  assert.equal(areaAllowedForRole('retos','client'),true);
+  assert.equal(areaAllowedForRole('ajustes','client'),true);
   assert.equal(areaAllowedForRole('retos','admin'),false);
   assert.equal(areaAllowedForRole('ajustes','admin'),false);
   const admin=navigationForRole('admin');
