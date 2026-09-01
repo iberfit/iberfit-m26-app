@@ -1,3 +1,5 @@
+import {setNextWebAuthnCeremonyMode} from '/src/m26/app/webauthn.js';
+
 const runtime=globalThis.__IBERFIT_M26_RUNTIME__||Object.freeze({
   enabled:false,
   qaOnly:true,
@@ -6,6 +8,40 @@ const runtime=globalThis.__IBERFIT_M26_RUNTIME__||Object.freeze({
 const root=document.querySelector('#app');
 if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
 
+function installAccessUx(target){
+  const onClick=(event)=>{
+    const button=event.target.closest?.('[data-auth-action]');
+    const action=button?.getAttribute?.('data-auth-action');
+    if(!action)return;
+
+    if(action==='toggle-password'){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const id=String(button.getAttribute('aria-controls')||'');
+      const input=id?document.getElementById(id):null;
+      if(!(input instanceof HTMLInputElement))return;
+      const reveal=input.type==='password';
+      input.type=reveal?'text':'password';
+      button.setAttribute('aria-pressed',reveal?'true':'false');
+      button.setAttribute('aria-label',reveal?'Ocultar contraseña':'Mostrar contraseña');
+      button.textContent=reveal?'Ocultar':'Mostrar';
+      input.focus({preventScroll:true});
+      return;
+    }
+
+    if(action==='mfa-use-other-device'){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setNextWebAuthnCeremonyMode('cross-device');
+      target.querySelector?.('[data-auth-action="mfa-continue-webauthn"]')?.click();
+    }
+  };
+
+  target.addEventListener('click',onClick,true);
+  return ()=>target.removeEventListener('click',onClick,true);
+}
+
+const removeAccessUx=installAccessUx(root);
 let fullAppPromise=null;
 
 function scheduleQualityRuntimeObservability(){
@@ -131,6 +167,9 @@ if(runtime.enabled){
     resume:async()=>false,
     login:async()=>{throw new Error('M26_BACKEND_DISABLED');},
     getState:()=>Object.freeze({}),
-    destroy:()=>root.removeEventListener('click',elevateDisabledAuth,true),
+    destroy:()=>{
+      root.removeEventListener('click',elevateDisabledAuth,true);
+      removeAccessUx();
+    },
   });
 }
