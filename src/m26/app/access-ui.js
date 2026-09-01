@@ -239,6 +239,7 @@ export function renderAccessUi({
         ${content}
 
         ${blockedSiteNotice}
+        <iberfit-install-control></iberfit-install-control>
 
         <small>${e(accessNote)}</small>
       </section>
