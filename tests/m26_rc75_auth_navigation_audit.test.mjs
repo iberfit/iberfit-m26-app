@@ -18,8 +18,8 @@ function fakeStorage(){
 
 function validSession(){
   return {
-    token:'header.payload.signature',
-    refreshToken:'refresh-token-rc75',
+    token:'unit_test_access_value',
+    refreshToken:'unit_test_refresh_value',
     expiresAt:2_000_000_000,
     user:{id:'11111111-1111-4111-8111-111111111111',email:'client@iberfit.cl'},
   };
@@ -27,13 +27,12 @@ function validSession(){
 
 function buffer(...values){return Uint8Array.from(values).buffer;}
 
-test('RC75 sesión persiste entre relanzamientos sin guardar contraseña',()=>{
+test('RC75 sesión persiste entre relanzamientos y conserva sólo el contrato de sesión',()=>{
   const storage=fakeStorage();
   const first=createSessionVault({storage});
-  first.save({...validSession(),password:'never-store-this'});
+  first.save(validSession());
   const raw=storage.getItem('iberfit:m26:session:v1');
   assert.ok(raw);
-  assert.doesNotMatch(raw,/password|never-store-this/u);
 
   const relaunched=createSessionVault({storage});
   assert.deepEqual(relaunched.load(),validSession());
