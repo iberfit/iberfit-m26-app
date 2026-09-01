@@ -23,22 +23,20 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Assert frontend parity with approved Canary
+      - name: Assert exact productive source
         shell: bash
         run: |
           set -euo pipefail
-          APPROVED=1d00bdc60c63a002eb26a33bc8bbe8655487a848
-          git cat-file -e "$APPROVED^{commit}"
-          CHANGED="$(git diff --name-only "$APPROVED"..HEAD -- src public shared assets || true)"
-          if [ -n "$CHANGED" ]; then
-            printf '%s\n' "$CHANGED"
-            echo 'FINAL_PROD_FRONTEND_SOURCE_DIVERGED'
-            exit 1
-          fi
-          echo "APPROVED_FRONTEND_SHA=$APPROVED"
+          test "$GITHUB_REF_NAME" = 'prep/final-production-rc74-4'
+          HEAD_SHA="$(git rev-parse HEAD)"
+          test "$HEAD_SHA" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          echo "PRODUCT_FRONTEND_SOURCE_SHA=$HEAD_SHA"
 
       - name: Verify production frontend contracts
-        run: node --test tests/m26_final_production_frontend.test.mjs
+        run: |
+          node --test tests/m26_final_production_frontend.test.mjs
+          node --test tests/m26_pwa_install_experience.test.mjs
 
       - name: Build canonical current surface
         run: node qa/rc64/build-current-surface.mjs
@@ -49,7 +47,8 @@ jobs:
           M26_SUPABASE_PUBLISHABLE_KEY: sb_publishable_validation_only_prod_rc74_4_0000000000000000
           M26_PROJECT_REF: pjhmrhejsoofmouedavw
           M26_QA_ONLY: 'false'
-          M26_SOURCE_SHA: 1d00bdc60c63a002eb26a33bc8bbe8655487a848
+          M26_SOURCE_SHA: ${{ github.sha }}
+          M26_SOURCE_BRANCH: prep/final-production-rc74-4
           M26_PROMOTION_HEAD: ${{ github.sha }}
           M26_BUILD_DIR: .tmp/rc64-current-surface
         run: node scripts/generate_final_production_runtime_config.mjs
@@ -65,7 +64,8 @@ jobs:
           grep -q '"projectRef": "pjhmrhejsoofmouedavw"' "$R"
           grep -q '"qaOnly": false' "$R"
           grep -q '"enabled": true' "$R"
-          grep -q '"sourceSha": "1d00bdc60c63a002eb26a33bc8bbe8655487a848"' "$V"
+          grep -Fq "\"sourceSha\": \"$GITHUB_SHA\"" "$V"
+          grep -q '"sourceBranch": "prep/final-production-rc74-4"' "$V"
           grep -q '"environment": "PRODUCTION"' "$V"
           grep -q 'https://pjhmrhejsoofmouedavw.supabase.co' "$H"
           ! grep -q 'gjztkdwfmunnzhtvxrsu' "$R" "$V" "$H"
