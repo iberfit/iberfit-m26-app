@@ -7,6 +7,40 @@ function e(value) {
     .replaceAll("'", '&#039;');
 }
 
+function passwordField({
+  id,
+  name,
+  label,
+  autocomplete,
+  describedBy='',
+}={}){
+  return `
+    <div class="m26-auth-field">
+      <label for="${e(id)}">${e(label)}</label>
+      <div class="m26-password-control">
+        <input
+          id="${e(id)}"
+          type="password"
+          name="${e(name)}"
+          autocomplete="${e(autocomplete)}"
+          ${describedBy?`aria-describedby="${e(describedBy)}"`:''}
+          required
+          minlength="8"
+          maxlength="1024"
+        >
+        <button
+          type="button"
+          class="m26-password-toggle"
+          data-auth-password-toggle
+          aria-controls="${e(id)}"
+          aria-pressed="false"
+          aria-label="Mostrar ${e(label.toLowerCase())}"
+        >Mostrar</button>
+      </div>
+    </div>
+  `;
+}
+
 export function renderAccessUi({
   message = '',
   busy = false,
@@ -47,8 +81,8 @@ export function renderAccessUi({
 
   if (mode === 'mfa-required') {
     content = `
-      <h1 id="m26-auth-title" tabindex="-1">Protege tu cuenta</h1>
-      <p>Las cuentas de entrenador y administración requieren una confirmación segura adicional antes de acceder a información de clientes.</p>
+      <h1 id="m26-auth-title" tabindex="-1">Protege tu cuenta en este dispositivo</h1>
+      <p>Activa el acceso seguro del propio dispositivo antes de acceder a información de clientes.</p>
 
       ${notice}
 
@@ -58,10 +92,10 @@ export function renderAccessUi({
         data-auth-action="mfa-continue-webauthn"
         ${disabled ? 'disabled aria-disabled="true"' : ''}
       >
-        ${busy ? 'Preparando…' : 'Configurar acceso seguro'}
+        ${busy ? 'Preparando…' : 'Activar acceso en este dispositivo'}
       </button>
 
-      <p class="m26-field-help">Tu navegador abrirá Windows Hello, biometría, PIN o una llave de seguridad compatible. IBERFIT no recibe ni almacena tus datos biométricos.</p>
+      <p class="m26-field-help">IBERFIT utilizará Windows Hello, Face ID, Touch ID, huella o PIN, según el bloqueo disponible en este equipo. Los datos biométricos no salen del dispositivo.</p>
 
       <button type="button" data-auth-action="mfa-logout">
         Cerrar sesión
@@ -69,8 +103,8 @@ export function renderAccessUi({
     `;
   } else if (mode === 'mfa-challenge') {
     content = `
-      <h1 id="m26-auth-title" tabindex="-1">Confirma tu identidad para continuar</h1>
-      <p>Utiliza el acceso seguro de este dispositivo para completar la verificación requerida.</p>
+      <h1 id="m26-auth-title" tabindex="-1">Confirma tu identidad</h1>
+      <p>Desbloquea este dispositivo para continuar de forma segura.</p>
 
       ${notice}
 
@@ -80,8 +114,10 @@ export function renderAccessUi({
         data-auth-action="mfa-continue-webauthn"
         ${disabled ? 'disabled aria-disabled="true"' : ''}
       >
-        ${busy ? 'Confirmando…' : 'Continuar de forma segura'}
+        ${busy ? 'Confirmando…' : 'Usar bloqueo de este dispositivo'}
       </button>
+
+      <p class="m26-field-help">Se prioriza el autenticador integrado de este equipo; no necesitas escanear un QR para el flujo normal.</p>
 
       <button type="button" data-auth-action="mfa-logout">
         Cerrar sesión
@@ -95,16 +131,18 @@ export function renderAccessUi({
       ${notice}
 
       <form data-auth-form="request-recovery">
-        <label>
-          Correo
+        <div class="m26-auth-field">
+          <label for="m26-recovery-email">Correo</label>
           <input
+            id="m26-recovery-email"
             type="email"
             name="email"
             autocomplete="email"
+            inputmode="email"
             maxlength="254"
             required
           >
-        </label>
+        </div>
 
         <button
           type="submit"
@@ -130,31 +168,8 @@ export function renderAccessUi({
       ${notice}
 
       <form data-auth-form="update-password">
-        <label>
-          Contraseña nueva
-          <input
-            type="password"
-            name="password"
-            autocomplete="new-password"
-            aria-describedby="m26-password-requirements"
-            required
-            minlength="8"
-            maxlength="1024"
-          >
-        </label>
-
-        <label>
-          Confirmar contraseña
-          <input
-            type="password"
-            name="passwordConfirmation"
-            autocomplete="new-password"
-            aria-describedby="m26-password-requirements"
-            required
-            minlength="8"
-            maxlength="1024"
-          >
-        </label>
+        ${passwordField({id:'m26-new-password',name:'password',label:'Contraseña nueva',autocomplete:'new-password',describedBy:'m26-password-requirements'})}
+        ${passwordField({id:'m26-new-password-confirmation',name:'passwordConfirmation',label:'Confirmar contraseña',autocomplete:'new-password',describedBy:'m26-password-requirements'})}
 
         <p id="m26-password-requirements" class="m26-field-help">
           Utiliza al menos 8 caracteres y una contraseña distinta de las que uses en otros servicios.
@@ -184,28 +199,20 @@ export function renderAccessUi({
       ${notice}
 
       <form data-auth-form="login">
-        <label>
-          Correo
+        <div class="m26-auth-field">
+          <label for="m26-login-email">Correo</label>
           <input
+            id="m26-login-email"
             type="email"
             name="email"
             autocomplete="username"
+            inputmode="email"
             maxlength="254"
             required
           >
-        </label>
+        </div>
 
-        <label>
-          Contraseña
-          <input
-            type="password"
-            name="password"
-            autocomplete="current-password"
-            required
-            minlength="8"
-            maxlength="1024"
-          >
-        </label>
+        ${passwordField({id:'m26-login-password',name:'password',label:'Contraseña',autocomplete:'current-password'})}
 
         <button
           type="submit"
@@ -228,13 +235,15 @@ export function renderAccessUi({
   return `
     <main class="m26-auth-page">
       <section class="m26-auth-card" aria-labelledby="m26-auth-title" aria-busy="${busy ? 'true' : 'false'}">
-        <img
-          src="/public/isotipo-iberfit.png"
-          alt=""
-          aria-hidden="true"
-        >
-
-        <p class="m26-eyebrow">IBERFIT</p>
+        <div class="m26-auth-brand" aria-label="IBERFIT">
+          <img
+            class="m26-auth-mark"
+            src="/public/isotipo-iberfit.png"
+            alt=""
+            aria-hidden="true"
+          >
+          <p class="m26-eyebrow">IBERFIT</p>
+        </div>
 
         ${content}
 
