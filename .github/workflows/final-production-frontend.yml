@@ -37,6 +37,7 @@ jobs:
         run: |
           node --test tests/m26_final_production_frontend.test.mjs
           node --test tests/m26_pwa_install_experience.test.mjs
+          node --test tests/m26_navigation_contract.test.mjs
 
       - name: Build canonical current surface
         run: node qa/rc64/build-current-surface.mjs
@@ -60,7 +61,8 @@ jobs:
           R=.tmp/rc64-current-surface/m26/runtime-config.js
           V=.tmp/rc64-current-surface/m26/version.json
           H=.tmp/rc64-current-surface/_headers
-          test -s "$R" && test -s "$V" && test -s "$H"
+          S=.tmp/rc64-current-surface/m26/sw.js
+          test -s "$R" && test -s "$V" && test -s "$H" && test -s "$S"
           grep -q '"projectRef": "pjhmrhejsoofmouedavw"' "$R"
           grep -q '"qaOnly": false' "$R"
           grep -q '"enabled": true' "$R"
@@ -68,10 +70,14 @@ jobs:
           grep -q '"sourceBranch": "prep/final-production-rc74-4"' "$V"
           grep -q '"environment": "PRODUCTION"' "$V"
           grep -q 'https://pjhmrhejsoofmouedavw.supabase.co' "$H"
-          ! grep -q 'gjztkdwfmunnzhtvxrsu' "$R" "$V" "$H"
-          ! grep -qi 'm26-canary.iberfit.cl' "$R" "$V" "$H"
-          ! grep -qi 'service[_-]*role' "$R" "$V" "$H"
-          sha256sum "$R" "$V" "$H" | tee FINAL_PRODUCTION_FRONTEND_VALIDATION.sha256
+          SW_SHORT="${GITHUB_SHA:0:12}"
+          grep -Fq "const VERSION='m26-prod-${SW_SHORT}';" "$S"
+          grep -Fq 'const SHELL=`iberfit-${VERSION}-shell`;' "$S"
+          ! head -n 1 "$S" | grep -q 'm26-rc63-2'
+          ! grep -q 'gjztkdwfmunnzhtvxrsu' "$R" "$V" "$H" "$S"
+          ! grep -qi 'm26-canary.iberfit.cl' "$R" "$V" "$H" "$S"
+          ! grep -qi 'service[_-]*role' "$R" "$V" "$H" "$S"
+          sha256sum "$R" "$V" "$H" "$S" | tee FINAL_PRODUCTION_FRONTEND_VALIDATION.sha256
 
       - name: Upload validation evidence
         uses: actions/upload-artifact@v4
