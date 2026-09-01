@@ -78,6 +78,42 @@ jobs:
             tests/m26_pwa_root_contract.test.mjs \
             2>&1 | tee recovery/continuous-audit/p0-pwa.log
 
+      - name: Compat final production
+        continue-on-error: true
+        run: node --test tests/m26_final_production_frontend.test.mjs tests/m26_final_production_promotion.test.mjs tests/m26_final_production_promotion_prod_compat.test.mjs
+
+      - name: Compat password recovery
+        continue-on-error: true
+        run: node --test tests/m26_rc30_password_recovery.test.mjs
+
+      - name: Compat brand native identity
+        continue-on-error: true
+        run: node --test tests/m26_rc58_5a_brand_truth.test.mjs tests/m26_rc58_5b_native_identity.test.mjs tests/m26_rc58_5c_b_app_integrity.test.mjs
+
+      - name: Compat visual accessibility
+        continue-on-error: true
+        run: node --test tests/m26_rc58_6_visual_accessibility_closeout.test.mjs tests/m26_rc58_design_system_scope.test.mjs
+
+      - name: Compat RC64 quality performance
+        continue-on-error: true
+        run: node --test tests/m26_rc64_1_quality_platform_foundation.test.mjs tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs
+
+      - name: Compat RC64 auth hydration setup
+        continue-on-error: true
+        run: node --test tests/m26_rc64_2b_auth_hydration_performance.test.mjs tests/m26_rc64_2b_auth_setup_ready_gate_contract.test.mjs tests/m26_rc64_2b_auth_first_paint_stage_trace.test.mjs
+
+      - name: Compat RC64 persistence IO
+        continue-on-error: true
+        run: node --test tests/m26_rc64_2b_browser_persistence_deadline.test.mjs tests/m26_rc64_2b_post_login_io_boundary.test.mjs tests/m26_rc64_2b_indexeddb_engine_probe_contract.test.mjs
+
+      - name: Compat RC64 preauth visual
+        continue-on-error: true
+        run: node --test tests/m26_rc64_2b_preauth_style_abort_guard.test.mjs tests/m26_rc64_2b_visual_auth_observability_foundation.test.mjs tests/m26_rc64_2b_verification_pipeline_trace.test.mjs
+
+      - name: Compat RC65 shared device
+        continue-on-error: true
+        run: node --test tests/m26_rc65b_shared_device_privacy.test.mjs
+
       - name: Regresión Node completa
         shell: bash
         run: |
