@@ -18,22 +18,24 @@ html,body{margin:0;min-width:0;min-height:100%;background:#07150f}
 body{min-height:100dvh;color:#f7f1e4;background:#07150f;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .m26-auth-page,.m26-auth-page *{box-sizing:border-box}
 .m26-auth-page{min-height:100dvh;display:grid;place-items:center;padding:clamp(1rem,4vw,2rem);color:#f7f1e4;background:radial-gradient(circle at 50% 12%,rgba(200,166,93,.14),transparent 24rem),#07150f}
-.m26-auth-card{width:min(34rem,100%);max-width:100%;padding:clamp(1.25rem,4vw,2rem);overflow-wrap:anywhere;border:1px solid rgba(228,205,152,.18);border-radius:1.25rem;background:rgba(13,36,25,.92);box-shadow:0 24px 70px rgba(2,10,7,.28)}
+.m26-auth-card{width:min(32rem,100%);max-width:100%;padding:clamp(1.25rem,4vw,2rem);overflow-wrap:anywhere;border:1px solid rgba(228,205,152,.18);border-radius:1.25rem;background:rgba(13,36,25,.92);box-shadow:0 24px 70px rgba(2,10,7,.28)}
+.m26-auth-brand{display:grid;justify-items:center;gap:.55rem;margin:0 0 1.45rem;text-align:center}.m26-auth-mark{display:block;width:4.35rem;height:4.35rem;max-width:100%;object-fit:contain;object-position:center}
 .m26-eyebrow{margin:0;color:#e4cd98;font-size:.68rem;font-weight:760;letter-spacing:.15em;text-transform:uppercase}
 .m26-auth-card h1{margin:.45rem 0 .65rem;color:#f7f1e4;font-family:Georgia,"Times New Roman",serif;font-size:clamp(2rem,7vw,3rem);font-weight:560;line-height:1.08}
 .m26-auth-card>p:not(.m26-eyebrow):not(.m26-notice){margin:0;color:#ddd4c1;line-height:1.6}
-.m26-auth-card form{display:grid;gap:.8rem;margin-top:1.2rem}
-.m26-auth-card label{display:grid;gap:.4rem;color:#ddd4c1;font-size:.82rem;font-weight:650}
+.m26-auth-card form{display:grid;gap:.8rem;margin-top:1.2rem}.m26-auth-field{display:grid;gap:.4rem}.m26-auth-field>label{color:#ddd4c1;font-size:.82rem;font-weight:650}
 .m26-auth-card input,.m26-auth-card button{width:100%;min-height:44px;border:1px solid rgba(228,205,152,.18);border-radius:.9rem;font:inherit}
 .m26-auth-card input{padding:.72rem .8rem;color:#f7f1e4;background:rgba(5,18,13,.72)}
 .m26-auth-card button{padding:.72rem 1rem;color:#f7f1e4;background:rgba(199,164,90,.08);cursor:pointer}
 .m26-auth-card .m26-primary-action{margin:0;color:#07150f;background:#c8a65d;font-weight:760}
+.m26-password-control{position:relative;min-width:0}.m26-password-control>input{padding-right:6.25rem}.m26-auth-card .m26-password-toggle{position:absolute;top:50%;right:.35rem;transform:translateY(-50%);width:auto;min-width:5.15rem;min-height:2.35rem;padding:.45rem .72rem;border-color:transparent;border-radius:.65rem;color:#e4cd98;background:transparent;font-size:.78rem;font-weight:700}
 .m26-auth-card button:disabled{opacity:.62;cursor:not-allowed}
 .m26-auth-card input:focus-visible,.m26-auth-card button:focus-visible{outline:3px solid #f2dca8;outline-offset:2px}
 .m26-notice{margin:1rem 0 0;padding:.8rem .9rem;border:1px solid rgba(228,205,152,.18);border-radius:.9rem;color:#ddd4c1;background:rgba(199,164,90,.08);line-height:1.5}
 .m26-notice.is-warning{border-color:rgba(231,201,138,.35)}
 .m26-auth-card small{display:block;margin-top:.85rem;color:#c8c0af;line-height:1.45}
-@media(max-width:420px){.m26-auth-page{align-items:start;padding:.75rem}.m26-auth-card{padding:1rem}}</style>
+iberfit-install-control:empty{display:none}
+@media(max-width:420px){.m26-auth-page{align-items:start;padding:.75rem}.m26-auth-card{padding:1rem}.m26-auth-mark{width:3.85rem;height:3.85rem}}</style>
   <link rel="stylesheet" data-href="/src/m26/design/tokens.css" data-iberfit-full-style media="not all">
   <link rel="stylesheet" data-href="/src/m26/design/typography.css" data-iberfit-full-style media="not all">
   <link rel="stylesheet" data-href="/src/m26/design/icons.css" data-iberfit-full-style media="not all">
@@ -47,52 +49,33 @@ body{min-height:100dvh;color:#f7f1e4;background:#07150f;font-family:Inter,ui-san
   <link rel="stylesheet" data-href="/src/m26/rc44/rc44.css" data-iberfit-full-style media="not all">
   <link rel="stylesheet" data-href="/src/m26/design/primitives.css" data-iberfit-full-style media="not all">
   <link rel="stylesheet" data-href="/src/m26/design/role-surfaces.css" data-iberfit-full-style media="not all">
+  <link rel="stylesheet" data-href="/src/m26/app/access-ui.css" data-iberfit-full-style media="not all">
   <title>IBERFIT</title>
 </head>
 <body>
   <div id="app">
     <main class="m26-auth-page" data-static-auth-bootstrap="true">
       <section class="m26-auth-card" aria-labelledby="m26-auth-title" aria-busy="false">
-
-        <p class="m26-eyebrow">IBERFIT</p>
+        <div class="m26-auth-brand" aria-label="IBERFIT">
+          <img class="m26-auth-mark" src="/public/isotipo-iberfit.png" alt="" aria-hidden="true">
+          <p class="m26-eyebrow">IBERFIT</p>
+        </div>
         <h1 id="m26-auth-title" tabindex="-1">Entrenamiento personal con criterio</h1>
         <p>Diagnóstico, planificación, control y seguimiento.</p>
         <form data-auth-form="login">
-          <label>
-            Correo
-            <input
-              type="email"
-              name="email"
-              autocomplete="username"
-              maxlength="254"
-              required
-            >
-          </label>
-          <label>
-            Contraseña
-            <input
-              type="password"
-              name="password"
-              autocomplete="current-password"
-              required
-              minlength="8"
-              maxlength="1024"
-            >
-          </label>
-          <button
-            type="submit"
-            class="m26-primary-action"
-            disabled
-            aria-disabled="true"
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            data-auth-action="forgot-password"
-          >
-            Olvidé mi contraseña
-          </button>
+          <div class="m26-auth-field">
+            <label for="m26-login-email">Correo</label>
+            <input id="m26-login-email" type="email" name="email" autocomplete="username" inputmode="email" maxlength="254" required>
+          </div>
+          <div class="m26-auth-field">
+            <label for="m26-login-password">Contraseña</label>
+            <div class="m26-password-control">
+              <input id="m26-login-password" type="password" name="password" autocomplete="current-password" required minlength="8" maxlength="1024">
+              <button type="button" class="m26-password-toggle" data-auth-password-toggle aria-controls="m26-login-password" aria-pressed="false" aria-label="Mostrar contraseña">Mostrar</button>
+            </div>
+          </div>
+          <button type="submit" class="m26-primary-action" disabled aria-disabled="true">Entrar</button>
+          <button type="button" data-auth-action="forgot-password">Olvidé mi contraseña</button>
         </form>
         <p class="m26-notice is-warning">El acceso no está disponible temporalmente en este sitio.</p>
         <small>Acceso restringido a las cuentas autorizadas para esta revisión.</small>
