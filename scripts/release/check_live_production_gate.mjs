@@ -5,7 +5,7 @@ import {chromium} from '@playwright/test';
 const PROD_ORIGIN='https://app.iberfit.cl';
 const PROD_REF='pjhmrhejsoofmouedavw';
 const PROD_SUPABASE_ORIGIN=`https://${PROD_REF}.supabase.co`;
-const SOURCE_BRANCH='canary/rc74-4';
+const SOURCE_BRANCH='prep/final-production-rc74-4';
 const EVIDENCE_DIR=path.resolve('recovery','final-production-live');
 const expectedSha=String(process.env.M26_EXPECTED_PROD_SOURCE_SHA||'').trim().toLowerCase();
 
