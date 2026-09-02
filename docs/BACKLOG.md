@@ -4,36 +4,46 @@ Este backlog coordina trabajo. Los tickets/PRs concretos siguen viviendo en GitH
 
 ## CHECKPOINT
 
-- LIVE observado: `cb423a12402206a383d4174a168707b2d860c023` en `app.iberfit.cl` con usuarios reales.
 - Canary certificado: `9cbe3ad29dfda0a552aa54c7e1404575b96786d4`.
-- Canary está 43 commits por delante de LIVE.
 - Remote gate Canary `33641163059`: SUCCESS.
-- Mutaciones Supabase PROD durante certificación: 0.
+- WebAuthn Coach fail-closed: integrado mediante PR #41.
+- Supabase PROD `pjhmrhejsoofmouedavw`: `ACTIVE_HEALTHY` en lectura 2026-09-02.
+- Producción ya registra migraciones final_prod RC74.4/RC65/P0 hasta al menos `20260902033214 p0_restore_primary_auth_read_bootstrap_v1`.
+- Bundle SQL histórico run `33656032685`: SUPERSEDED; no ejecutar.
+- Edge Function PROD `iberfit-webauthn-v1`: ACTIVE v1, verify_jwt=true.
+- PR #43: cerrado sin merge tras retirar el ejecutor SQL superseded y pasar CI/auditoría.
+- Canary debe permanecer fijo mientras falta recuperar proyecto/deployment Cloudflare productivo exacto.
 
 ## P0 — siempre abierto como guardrail
 
 - [ ] Mantener P0=0 en auth, WebAuthn, roles, RLS, cross-tenant, integridad de datos y disponibilidad.
-- [ ] Ante cualquier P0 LIVE: congelar evolución productiva de riesgo, branch desde SHA LIVE exacto y hotfix mínimo.
+- [ ] Ante cualquier P0 LIVE: congelar evolución productiva de riesgo, identificar deployment/SHA LIVE exacto y aplicar hotfix mínimo.
 - [ ] Nunca usar usuarios/datos reales para pruebas destructivas.
 
 No existe un P0 técnico concreto abierto por el checkpoint Canary final, pero estas condiciones son permanentes.
 
 ## P1 — operación con usuarios reales
 
-- [ ] Crear inventario de los 43 commits LIVE→Canary y dividirlos en lotes de promoción verificables.
-- [ ] Definir primer lote de promoción; no desplegar hasta recertificación específica.
-- [ ] Mantener carril `LIVE SUPPORT / HOTFIX` preparado desde el SHA productivo exacto.
-- [ ] Confirmar smoke read-only de LIVE y version identity antes de cada intervención productiva.
-- [ ] Preparar/validar rollback por lote, incluyendo compatibilidad de backend.
-- [ ] Revisar específicamente la migration `20260902033214_p0_restore_primary_auth_read_bootstrap_v1.sql` antes de cualquier consideración PROD; no incluirla de forma implícita.
+- [ ] **Bloqueo actual:** recuperar de Cloudflare el proyecto Pages productivo exacto, deployment ID live, dominios/rutas y rollback.
+- [ ] No mover `canary/rc74-4` de `9cbe3ad...` mientras el checkpoint Cloudflare productivo siga sin resolver.
+- [ ] Calcular el diff frontend LIVE→Canary sólo después de recuperar la identidad real del deployment productivo.
+- [ ] Definir primer lote de promoción; no desplegar hasta recertificación específica y aprobación explícita.
+- [ ] Mantener carril `LIVE SUPPORT / HOTFIX` preparado desde el deployment/SHA productivo exacto del momento.
+- [ ] Preparar/validar rollback por lote, incluyendo compatibilidad backend.
+- [x] Confirmar que la migration `20260902033214 p0_restore_primary_auth_read_bootstrap_v1` ya figura aplicada en PROD.
+- [x] Confirmar que el bundle SQL `33656032685` no corresponde al baseline productivo actual y retirarlo fail-closed.
 - [ ] Consolidar/cerrar ramas y PRs antiguos sólo después de comparar contra Canary; no merges masivos.
 - [ ] Resolver deuda de README/versionado histórico sin romper gates.
 - [ ] Resolver explícitamente política de visibilidad del repositorio.
 
 ## P1 — producto / APP
 
-- [ ] Hacer QA funcional guiado por propietario sobre `app.iberfit.cl`: Cliente, Coach y Admin; convertir dudas reales en backlog clasificado.
-- [ ] Comparar cada duda de LIVE contra comportamiento Canary para saber si ya está resuelta o requiere trabajo nuevo.
+- [ ] Clasificar #37/#36/#35/#42 como cluster auth/UX contra el Canary actual y conservar sólo capacidades faltantes.
+- [ ] Clasificar #34/#31/#30 como cluster auditoría/rutas/SW contra Canary actual.
+- [ ] Comparar #26 PWA contra Canary y el candidato UX más nuevo antes de rescatar piezas.
+- [ ] Comparar #25 RLS contra código/migraciones actuales; PROD ya contiene `audit360_optimize_auth_rls_initplan`, por lo que no se debe reaplicar SQL.
+- [ ] Comparar #24 first-access contra Canary y `p0_restore_primary_auth_read_bootstrap_v1` antes de decidir cierre/rescate.
+- [ ] Hacer QA funcional guiado por propietario sobre Cliente, Coach y Admin; convertir dudas reales en backlog clasificado.
 - [ ] Validar onboarding/primera activación y recuperación de acceso.
 - [ ] Validar circuito IRI -> planificación -> sesión -> feedback -> evolución.
 - [ ] Validar ergonomía Coach/Admin del Canary con tareas reales, no sólo screenshots.
@@ -50,6 +60,16 @@ No existe un P0 técnico concreto abierto por el checkpoint Canary final, pero e
 - [ ] Revisar carga multimedia de ejercicios y fallback seguro.
 - [ ] Observabilidad con mínima exposición de datos.
 - [ ] Crear lista Top 10 de fricciones reportadas por propietario/usuarios, ordenada por frecuencia e impacto.
+
+## DATABASE / BACKEND
+
+- [x] Verificar production project y estado health en modo read-only.
+- [x] Verificar historia de migraciones productiva RC74.4/RC65/P0.
+- [x] Verificar Edge Function WebAuthn productiva activa y con contrato productivo visible.
+- [x] Retirar el bundle SQL histórico de promoción como superseded.
+- [ ] Para cualquier cambio futuro, generar exclusivamente un delta desde el baseline PROD live actual.
+- [ ] Verificar backup/PITR inmediatamente antes de una futura mutación DB real, no por rutina.
+- [ ] No redeployar la Edge Function si no existe una diferencia real demostrada.
 
 ## WEBSITE — carril paralelo
 
@@ -88,12 +108,11 @@ No existe un P0 técnico concreto abierto por el checkpoint Canary final, pero e
 ## ORGANIZACIÓN / CODEX
 
 - [x] `AGENTS.md` creado y actualizado para producción real.
-- [x] `PRODUCTION_STATE.md` convertido en checkpoint LIVE + Canary.
+- [x] `PRODUCTION_STATE.md` convertido en checkpoint LIVE + Canary + backend productivo real.
 - [x] `OPERATING_MODEL.md` creado.
 - [x] `RELEASE_POLICY.md` creado.
 - [x] `CODEX_WORKFLOW.md` creado.
 - [ ] Integrar la documentación HQ a la línea técnica apropiada una vez revisado el PR documental.
-- [ ] Abrir en ChatGPT Desktop/Codex una copia limpia del repo; no usar la copia local antigua con archivos no versionados como fuente canónica.
 - [ ] Para cada sesión: leer sólo AGENTS + STATE + dominio; evitar contexto total.
 
 ## DONE / evidencia consolidada
@@ -104,13 +123,16 @@ No existe un P0 técnico concreto abierto por el checkpoint Canary final, pero e
 - [x] Canary `9cbe3ad...` desplegado exactamente en QA.
 - [x] Remote gate final verde.
 - [x] WebAuthn privilegiado recertificado fail-closed.
-- [x] 0 mutaciones de Supabase PROD durante cierre Canary.
+- [x] Producción Supabase verificada ACTIVE_HEALTHY read-only.
+- [x] Secuencia de migraciones productiva real inventariada sin tocar datos privados.
+- [x] Bundle SQL obsoleto bloqueado y PR #43 cerrado sin merge.
+- [x] Edge Function WebAuthn productiva inventariada sin redeploy.
 - [x] Producción `app.iberfit.cl` reconocida formalmente como sistema vivo con usuarios reales.
 
 ## SIGUIENTES 5 ACCIONES
 
-1. Inventariar y agrupar los 43 commits LIVE→Canary sin desplegar.
-2. Comenzar QA guiado por uso real: registrar la primera duda/fricción del propietario en `app.iberfit.cl` y compararla con Canary.
-3. Recuperar source/deploy exacto de `iberfit.cl` web.
-4. Recuperar métricas actuales del funnel comercial.
-5. Revisar PR documental HQ y dejar esta fuente de verdad accesible desde el flujo Codex cotidiano.
+1. Recuperar proyecto/deployment Cloudflare exacto de la app productiva sin mutación.
+2. Clasificar PRs antiguos contra `9cbe3ad...` y cerrar/rescatar selectivamente.
+3. Mantener HQ actualizado con el resultado de esa clasificación.
+4. Preparar el primer lote frontend sólo después de conocer el deployment LIVE y rollback.
+5. Continuar producto/UX/Growth en ramas separadas sin mover el checkpoint Canary certificado.
