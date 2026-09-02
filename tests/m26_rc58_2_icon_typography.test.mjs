@@ -65,10 +65,11 @@ test('icono con significado propio exige label explícito y escapa atributos',()
   assert.doesNotMatch(svg,/ onclick=/);
 });
 
-test('shell conserva etiquetas y añade iconografía decorativa',()=>{
+test('shell conserva etiquetas internacionalizables y añade iconografía decorativa',()=>{
   assert.match(shellRender,/areaIconName\(item\.key\)/);
   assert.match(shellRender,/renderIberfitIcon/);
-  assert.match(shellRender,/<span>\$\{escapeHtml\(item\.label\)\}<\/span>/);
+  assert.match(shellRender,/const label=areaText\(item,'label'\)/);
+  assert.match(shellRender,/<span>\$\{escapeHtml\(label\)\}<\/span>/);
   assert.match(iconCss,/\.m26-nav-item/);
   assert.match(iconCss,/\.m26-nav-icon/);
 });
