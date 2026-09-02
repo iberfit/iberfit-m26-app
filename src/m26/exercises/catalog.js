@@ -1,4 +1,5 @@
 import {localiseExerciseForDisplay} from './castellano.js';
+const CATALOG_FETCH_TIMEOUT_MS=5_000;
 function norm(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
 function stringList(value){return Object.freeze((Array.isArray(value)?value:[]).map((item)=>String(item||'').trim()).filter(Boolean));}
 function freezeExercise(raw){raw=localiseExerciseForDisplay(raw);const id=String(raw?.id||'').trim(),name=String(raw?.name_es||'').trim();if(!id||!name)return null;return Object.freeze({...raw,id,name_es:name,pattern:String(raw.pattern||'').trim(),equipment:String(raw.equipment||'').trim(),difficulty:String(raw.difficulty||'').trim(),intent:String(raw.intent||'').trim(),primary_muscles:stringList(raw.primary_muscles),secondary_muscles:stringList(raw.secondary_muscles),cues:stringList(raw.cues),instructions_es:stringList(raw.instructions_es),precautions:stringList(raw.precautions),tags:stringList(raw.tags),aliases:stringList(raw.aliases)});}
@@ -17,6 +18,18 @@ export function resolveBrowserCatalogUrl(source,locationLike=globalThis.location
  let expectedOrigin=new URL(base).origin;const locationOrigin=String(locationLike?.origin||'').trim();if(locationOrigin&&locationOrigin!=='null'){try{const parsedOrigin=new URL(locationOrigin);if(parsedOrigin.protocol==='http:'||parsedOrigin.protocol==='https:')expectedOrigin=parsedOrigin.origin;}catch{}}
  if(resolved.origin!==expectedOrigin)throw new Error('M26_EXERCISE_CATALOG_CROSS_ORIGIN_FORBIDDEN');return resolved.href;
 }
+async function fetchCatalogJson(target){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),CATALOG_FETCH_TIMEOUT_MS);
+ try{
+  const response=await fetch(target,{credentials:'same-origin',cache:'no-store',redirect:'error',signal:controller.signal});
+  if(!response.ok)throw new Error('M26_EXERCISE_CATALOG_FETCH_FAILED');
+  return await response.json();
+ }catch(error){
+  if(error?.name==='AbortError')throw new Error('M26_EXERCISE_CATALOG_TIMEOUT');
+  throw error;
+ }finally{clearTimeout(timer);}
+}
 export async function loadExerciseCatalog(source){
  let records;
  if(Array.isArray(source))records=source;
@@ -24,7 +37,7 @@ export async function loadExerciseCatalog(source){
   const {readFile}=await import('node:fs/promises');records=JSON.parse(await readFile(source,'utf8'));
  }else if(source instanceof URL||typeof source==='string'){
   const browser=typeof window!=='undefined'&&typeof fetch==='function';let target=source instanceof URL?source.href:source;const remote=/^https?:\/\//i.test(target);
-  if(browser||remote){if(browser)target=resolveBrowserCatalogUrl(target,globalThis.location);const r=await fetch(target,{credentials:'same-origin',cache:'no-store',redirect:'error'});if(!r.ok)throw new Error('M26_EXERCISE_CATALOG_FETCH_FAILED');records=await r.json();}
+  if(browser||remote){if(browser)target=resolveBrowserCatalogUrl(target,globalThis.location);records=await fetchCatalogJson(target);}
   else{const {readFile}=await import('node:fs/promises');records=JSON.parse(await readFile(target,'utf8'));}
  }else throw new Error('M26_EXERCISE_CATALOG_SOURCE_REQUIRED');
  const catalog=createExerciseCatalog(records);if(catalog.count<367)throw new Error(`M26_EXERCISE_CATALOG_INCOMPLETE:${catalog.count}`);return catalog;
