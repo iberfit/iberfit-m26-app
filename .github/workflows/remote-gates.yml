@@ -1,6 +1,9 @@
 name: IBERFIT M26 Gates remotos de solo lectura
 
 on:
+  push:
+    branches:
+      - canary/rc74-4
   workflow_dispatch:
     inputs:
       confirmation:
@@ -13,7 +16,7 @@ permissions:
 
 jobs:
   preflight:
-    if: ${{ inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
+    if: ${{ github.event_name == 'push' || inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
     runs-on: ubuntu-latest
     environment: m26-canary-readonly
     timeout-minutes: 15
