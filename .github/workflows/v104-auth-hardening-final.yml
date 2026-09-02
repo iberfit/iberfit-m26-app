@@ -1,0 +1,114 @@
+name: IBERFIT V10.4 Auth Hardening Final
+
+on:
+  push:
+    branches:
+      - fix/prod-auth-contract-v104
+
+permissions:
+  contents: write
+
+jobs:
+  patch-validate:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Reuse exact validated V10.4 patch recipe
+        shell: python
+        run: |
+          from pathlib import Path
+          src=Path('.github/workflows/v104-auth-hardening-validate.yml').read_text(encoding='utf-8').splitlines()
+          start=next((i for i,line in enumerate(src) if line.strip()=='- name: Apply exact auth contract repair'),None)
+          if start is None: raise SystemExit('V104_PATCH_RECIPE_NOT_FOUND')
+          run=next((i+1 for i in range(start+1,len(src)) if src[i].strip()=='run: |'),None)
+          if run is None: raise SystemExit('V104_PATCH_RUN_BLOCK_NOT_FOUND')
+          body=[]
+          for line in src[run:]:
+              if line.startswith('      - name:'): break
+              if line.startswith('          '): body.append(line[10:])
+              elif not line.strip(): body.append('')
+              else: raise SystemExit('V104_PATCH_INDENT_INVALID')
+          code='\n'.join(body)+'\n'
+          compile(code,'v104_patch.py','exec')
+          exec(compile(code,'v104_patch.py','exec'),{'__name__':'__main__'})
+
+      - name: Correct role fallback expectation and assert explicit role-switch guard
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p=Path('tests/m26_auth_contract_v104.test.mjs')
+          s=p.read_text(encoding='utf-8')
+          pattern=r"(?m)^(\s*)assert\.equal\(resolveActiveRole\(\['client'\],'admin'\),null\);\s*$"
+          def repl(m):
+              i=m.group(1)
+              return (f"{i}assert.equal(resolveActiveRole(['client'],'admin'),'client');\n"
+                      f"{i}const appSource=fs.readFileSync('src/m26/app/application.js','utf8');\n"
+                      f"{i}assert.match(appSource,/requestedRole&&!authorizedRoles\\.includes\\(requestedRole\\)/u);\n"
+                      f"{i}assert.match(appSource,/M26_ROLE_SWITCH_FORBIDDEN/u);")
+          s,count=re.subn(pattern,repl,s,count=1)
+          if count!=1: raise SystemExit(f'V104_ROLE_EXPECTATION_MATCH_COUNT={count}')
+          p.write_text(s,encoding='utf-8')
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Targeted auth, WebAuthn, role and PWA contracts
+        run: |
+          node --test tests/m26_production_auth_access_hotfix.test.mjs
+          node --test tests/m26_rc65c1_privileged_mfa.test.mjs
+          node --test tests/m26_auth_contract_v104.test.mjs
+          node --test tests/m26_role_ai_coherence.test.mjs
+          node --test tests/m26_final_production_frontend.test.mjs
+          node --test tests/m26_pwa_install_experience.test.mjs
+
+      - name: Full repository test suite
+        run: npm test
+
+      - name: Syntax checks for changed executable JavaScript
+        run: |
+          node --check src/m26/app/application.js
+          node --check scripts/release/check-production-auth-contract.mjs
+          node --check tests/m26_auth_contract_v104.test.mjs
+          node --check tests/m26_production_auth_access_hotfix.test.mjs
+          node --check tests/m26_rc65c1_privileged_mfa.test.mjs
+
+      - name: Canonical build smoke
+        run: node qa/rc64/build-current-surface.mjs
+
+      - name: Assert bounded source diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sort)
+          allowed=(
+            public/m26/sw.js
+            scripts/release/check-production-auth-contract.mjs
+            src/m26/app/application.js
+            tests/m26_auth_contract_v104.test.mjs
+            tests/m26_production_auth_access_hotfix.test.mjs
+            tests/m26_rc65c1_privileged_mfa.test.mjs
+          )
+          printf '%s\n' "${changed[@]}" | sort > /tmp/changed
+          printf '%s\n' "${allowed[@]}" | sort > /tmp/allowed
+          diff -u /tmp/allowed /tmp/changed
+
+      - name: Commit validated patch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/m26/sw.js scripts/release/check-production-auth-contract.mjs src/m26/app/application.js tests/m26_auth_contract_v104.test.mjs tests/m26_production_auth_access_hotfix.test.mjs tests/m26_rc65c1_privileged_mfa.test.mjs
+          git commit -m 'fix(prod): restore privileged assurance and harden auth gates [v104-validated]'
+          git push origin HEAD:fix/prod-auth-contract-v104
