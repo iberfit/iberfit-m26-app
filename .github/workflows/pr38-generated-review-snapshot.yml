@@ -1,0 +1,36 @@
+name: PR38 generated asset snapshot
+
+on:
+  push:
+    branches:
+      - "feat/rc74-4-admin-coach-ux-i18n"
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Prepare Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate canonical PWA shell
+        run: node scripts/generate_rc58_app_shell.mjs
+      - name: Upload generated and review sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr38-generated-review-snapshot
+          path: |
+            public/m26/sw.js
+            public/m26/index.html
+            src/m26/ui/i18n.js
+            src/m26/domain/civil-date.js
+            tests/m26_rc23_castellano_ui.test.mjs
+            tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs
+            tests/m26_rc71_2_preferences_i18n.test.mjs
+          retention-days: 1
