@@ -122,9 +122,6 @@ jobs:
           node --check tests/m26_rc64_2b_visual_auth_observability_foundation.test.mjs
           node --check tests/m26_rc65c1_privileged_mfa.test.mjs
 
-      - name: Canonical build smoke
-        run: node qa/rc64/build-current-surface.mjs
-
       - name: Assert bounded source diff
         shell: bash
         run: |
@@ -144,6 +141,9 @@ jobs:
           printf '%s\n' "${changed[@]}" | sort > /tmp/changed
           printf '%s\n' "${allowed[@]}" | sort > /tmp/allowed
           diff -u /tmp/allowed /tmp/changed
+
+      - name: Canonical build smoke
+        run: node qa/rc64/build-current-surface.mjs
 
       - name: Commit validated patch only
         shell: bash
