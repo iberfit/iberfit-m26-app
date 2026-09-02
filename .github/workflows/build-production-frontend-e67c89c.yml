@@ -1,0 +1,135 @@
+name: IBERFIT Build Production Frontend E67C89C
+
+on:
+  push:
+    branches:
+      - release/prod-frontend-e67c89c
+
+permissions:
+  contents: read
+
+jobs:
+  build-production-frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout release builder
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Assert certified frontend source
+        shell: bash
+        run: |
+          set -euo pipefail
+          CERTIFIED=e67c89c97d69eabe7f7b6682176e47e68ad6fde2
+          test "$(git rev-parse HEAD^)" = "$CERTIFIED"
+          CHANGED="$(git diff --name-only "$CERTIFIED" HEAD)"
+          test "$CHANGED" = '.github/workflows/build-production-frontend-e67c89c.yml'
+
+      - name: Focused production frontend regressions
+        run: |
+          node --test tests/m26_p0_production_login_layout_hotfix.test.mjs
+          node --test tests/m26_auth_persistence_same_device.test.mjs
+          node --test tests/m26_first_access_password.test.mjs
+          node --test tests/m26_pwa_install_experience.test.mjs
+          node --test tests/m26_rc41_pwa_diagnostics.test.mjs
+
+      - name: Build canonical current surface
+        run: node qa/rc64/build-current-surface.mjs
+
+      - name: Reuse current public PROD runtime only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
+            https://app.iberfit.cl/m26/runtime-config.js \
+            -o /tmp/runtime-config.live.js
+          grep -q 'pjhmrhejsoofmouedavw' /tmp/runtime-config.live.js
+          grep -q 'https://pjhmrhejsoofmouedavw.supabase.co' /tmp/runtime-config.live.js
+          grep -Eq 'qaOnly["'"']?[[:space:]]*:[[:space:]]*false' /tmp/runtime-config.live.js
+          grep -Eq 'enabled["'"']?[[:space:]]*:[[:space:]]*true' /tmp/runtime-config.live.js
+          ! grep -q 'gjztkdwfmunnzhtvxrsu' /tmp/runtime-config.live.js
+          ! grep -Eqi 'service[_-]?role' /tmp/runtime-config.live.js
+          cp /tmp/runtime-config.live.js .tmp/rc64-current-surface/m26/runtime-config.js
+
+      - name: Seal production release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const path=require('path');
+          const root='.tmp/rc64-current-surface';
+          const swPath=path.join(root,'m26','sw.js');
+          let sw=fs.readFileSync(swPath,'utf8').replace(/\r\n?/g,'\n');
+          const oldVersion=(sw.match(/^const VERSION='([^']+)';/m)||[])[1];
+          if(!oldVersion)throw new Error('PROD_SW_VERSION_MISSING');
+          sw=sw.replace(/^const VERSION='[^']+';/m,"const VERSION='m26-prod-e67c89c97d69';");
+          sw=sw.replace(/^const PREVIOUS_VERSION='[^']+';/m,`const PREVIOUS_VERSION='${oldVersion}';`);
+          if(!sw.includes('/src/m26/design/auth-native.css'))throw new Error('PROD_SW_AUTH_NATIVE_MISSING');
+          fs.writeFileSync(swPath,sw,'utf8');
+
+          const version={
+            release:'IBERFIT_M26_PRODUCTION_E67C89C',
+            version:'26.0.0-production.e67c89c',
+            sourceSha:'e67c89c97d69eabe7f7b6682176e47e68ad6fde2',
+            sourceBranch:'canary/rc74-4',
+            previousLiveSha:'cb423a12402206a383d4174a168707b2d860c023',
+            environment:'PRODUCTION',
+            projectRef:'pjhmrhejsoofmouedavw',
+            qaOnly:false,
+            production:true
+          };
+          fs.writeFileSync(path.join(root,'m26','version.json'),JSON.stringify(version,null,2)+'\n','utf8');
+
+          const sourceHeaders=path.join(root,'m26','_headers');
+          let headers=fs.readFileSync(sourceHeaders,'utf8').replace(/\r\n?/g,'\n');
+          if(headers.includes('gjztkdwfmunnzhtvxrsu')||headers.includes('m26-canary.iberfit.cl'))throw new Error('PROD_HEADERS_NONPROD_LEAK');
+          headers=headers.replace('  Cache-Control: no-store\n\n/m26/runtime-config.js','  Cache-Control: no-store, no-transform\n\n/m26/runtime-config.js');
+          headers=headers.replace('/m26/index.html\n  Cache-Control: no-cache, must-revalidate','/m26/index.html\n  Cache-Control: no-cache, must-revalidate, no-transform');
+          fs.writeFileSync(sourceHeaders,headers,'utf8');
+          fs.writeFileSync(path.join(root,'_headers'),headers,'utf8');
+          NODE
+
+      - name: Verify deployable production surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          R=.tmp/rc64-current-surface/m26/runtime-config.js
+          V=.tmp/rc64-current-surface/m26/version.json
+          S=.tmp/rc64-current-surface/m26/sw.js
+          H=.tmp/rc64-current-surface/_headers
+          test -s "$R" && test -s "$V" && test -s "$S" && test -s "$H"
+          grep -q 'e67c89c97d69eabe7f7b6682176e47e68ad6fde2' "$V"
+          grep -q '"environment": "PRODUCTION"' "$V"
+          grep -q '"projectRef": "pjhmrhejsoofmouedavw"' "$V"
+          grep -q "const VERSION='m26-prod-e67c89c97d69';" "$S"
+          grep -q '/src/m26/design/auth-native.css' "$S"
+          grep -q 'https://pjhmrhejsoofmouedavw.supabase.co' "$H"
+          ! grep -R -q 'gjztkdwfmunnzhtvxrsu' "$R" "$V" "$H"
+          ! grep -R -Eqi 'service[_-]?role' "$R" "$V" "$H"
+          cd .tmp/rc64-current-surface
+          find . -type f -print0 | sort -z | xargs -0 sha256sum > ../../PROD_FRONTEND_E67C89C.sha256
+
+      - name: Upload deployable production frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-m26-production-e67c89c
+          path: .tmp/rc64-current-surface/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+
+      - name: Upload checksum evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-m26-production-e67c89c-evidence
+          path: PROD_FRONTEND_E67C89C.sha256
+          if-no-files-found: error
+          retention-days: 7
