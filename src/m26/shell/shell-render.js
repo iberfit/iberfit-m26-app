@@ -155,7 +155,7 @@ function shellStyles(){
 
 export function renderM26AccessFrame(vm) {
   const state = vm.hydration?.status === 'error' ? 'No fue posible confirmar el acceso.' : 'Confirmando identidad y permisos…';
-  return `<main class="m26-access-frame" aria-busy="${vm.hydration?.status==='error'?'false':'true'}"><section><img src="/public/isotipo-iberfit.png" alt="" class="m26-access-mark"><p class="m26-eyebrow">IBERFIT</p><h1>Entrenamiento personal con criterio</h1><p>Diagnóstico, planificación, control y seguimiento.</p><div class="m26-access-status" role="status" aria-live="polite" aria-atomic="true">${escapeHtml(state)}</div></section></main>`;
+  return `<main class="m26-access-frame" aria-busy="${vm.hydration?.status==='error'?'false':'true'}"><section><p class="m26-eyebrow">IBERFIT</p><h1>Entrenamiento personal con criterio</h1><p>Diagnóstico, planificación, control y seguimiento.</p><div class="m26-access-status" role="status" aria-live="polite" aria-atomic="true">${escapeHtml(state)}</div></section></main>`;
 }
 
 function renderM26ShellBase(vm, routeMarkup = '') {
@@ -170,7 +170,7 @@ function renderM26ShellBase(vm, routeMarkup = '') {
   const pageTitle=tx(`area.${vm.activeArea}.title`,vm.page.title);
 
   return `${shellStyles()}<div class="m26-shell" data-m26-role="${escapeHtml(vm.identity.role)}"><a class="m26-skip-link" href="#m26-main">Saltar al contenido</a>
-    <aside class="m26-sidebar" aria-label="IBERFIT">
+    <aside class="m26-sidebar" aria-label="Navegación IBERFIT">
       <div class="m26-brand"><img src="/public/isotipo-iberfit.png" alt="" aria-hidden="true"><div><strong>IBERFIT</strong><span>Entrenamiento personal con criterio</span></div></div>
       ${groupedNavigation(vm)}
       <div class="m26-sidebar-footer"><span>${escapeHtml(vm.identity.roleLabel)}</span><strong>${escapeHtml(vm.identity.name)}</strong></div>
