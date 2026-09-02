@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - canary/rc74-4
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'scripts/**'
+      - 'qa/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/remote-gates.yml'
   workflow_dispatch:
     inputs:
       confirmation:
@@ -53,12 +62,12 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
-      - name: Validar Canary desplegado en navegador real
-        if: ${{ github.ref_name == 'canary/rc74-4' }}
+      - name: Validar Canary desplegado en navegador real (solo manual)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
         run: node scripts/prelaunch/check_live_canary_gate.mjs
 
       - name: Conservar evidencia Canary live pre-launch
-        if: ${{ always() && github.ref_name == 'canary/rc74-4' }}
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
         uses: actions/upload-artifact@v4
         with:
           name: prelaunch-live-canary-gate
