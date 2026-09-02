@@ -1,4 +1,4 @@
-name: IBERFIT Build Production Frontend E67C89C
+name: IBERFIT Build + Deploy Production Frontend E67C89C
 
 on:
   push:
@@ -8,10 +8,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: iberfit-m26-production-deploy
+  cancel-in-progress: false
+
 jobs:
-  build-production-frontend:
+  build-deploy-production-frontend:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout release builder
         uses: actions/checkout@v4
@@ -132,10 +136,70 @@ jobs:
           retention-days: 7
           compression-level: 6
 
-      - name: Upload checksum evidence
+      - name: Deploy certified frontend with Wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 41; }
+          npx --yes wrangler@4.120.0 pages deploy .tmp/rc64-current-surface \
+            --project-name iberfit-m26-production \
+            --branch production \
+            --commit-hash e67c89c97d69eabe7f7b6682176e47e68ad6fde2 \
+            --commit-message "IBERFIT M26 production e67c89c"
+
+      - name: Verify production live exact identity read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED=e67c89c97d69eabe7f7b6682176e47e68ad6fde2
+          ok=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 15 "https://app.iberfit.cl/m26/version.json?release=$EXPECTED" -o /tmp/version.json && \
+               grep -q "$EXPECTED" /tmp/version.json && \
+               grep -q '"environment": "PRODUCTION"' /tmp/version.json && \
+               grep -q '"projectRef": "pjhmrhejsoofmouedavw"' /tmp/version.json; then
+              ok=1
+              break
+            fi
+            sleep 4
+          done
+          test "$ok" = 1 || { echo 'PROD_LIVE_SOURCE_SHA_MISMATCH'; cat /tmp/version.json 2>/dev/null || true; exit 42; }
+
+          curl -fsS --max-time 15 "https://app.iberfit.cl/m26/runtime-config.js?release=$EXPECTED" -o /tmp/runtime.js
+          grep -q 'pjhmrhejsoofmouedavw' /tmp/runtime.js
+          grep -q 'https://pjhmrhejsoofmouedavw.supabase.co' /tmp/runtime.js
+          grep -Eq 'qaOnly["'"']?[[:space:]]*:[[:space:]]*false' /tmp/runtime.js
+          grep -Eq 'enabled["'"']?[[:space:]]*:[[:space:]]*true' /tmp/runtime.js
+          ! grep -q 'gjztkdwfmunnzhtvxrsu' /tmp/runtime.js
+
+          curl -fsS --max-time 15 "https://app.iberfit.cl/m26/index.html?release=$EXPECTED" -o /tmp/index.html
+          grep -q 'Primera vez o no recuerdo mi contraseña' /tmp/index.html
+          grep -q '/public/isotipo-iberfit.png' /tmp/index.html
+          grep -q '/src/m26/design/auth-native.css' /tmp/index.html
+
+      - name: Record Cloudflare production deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.120.0 pages deployment list \
+            --project-name iberfit-m26-production \
+            --environment production \
+            --json > CLOUDFLARE_PROD_DEPLOYMENTS.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('CLOUDFLARE_PROD_DEPLOYMENTS.json','utf8'));const d=Array.isArray(x)?x[0]:x?.result?.[0];if(!d)throw new Error('PROD_DEPLOYMENT_NOT_FOUND');console.log(JSON.stringify({id:d.id,url:d.url,environment:d.environment,branch:d.deployment_trigger?.metadata?.branch||d.branch,commit:d.deployment_trigger?.metadata?.commit_hash||d.commit_hash},null,2));"
+
+      - name: Upload checksum and deployment evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: iberfit-m26-production-e67c89c-evidence
-          path: PROD_FRONTEND_E67C89C.sha256
-          if-no-files-found: error
+          path: |
+            PROD_FRONTEND_E67C89C.sha256
+            CLOUDFLARE_PROD_DEPLOYMENTS.json
+          if-no-files-found: warn
           retention-days: 7
