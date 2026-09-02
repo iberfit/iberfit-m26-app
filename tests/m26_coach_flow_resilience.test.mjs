@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {createCanonicalStore} from '../src/m26/canonical-store.js';
 import {createProductionState} from '../src/m26/production-state.js';
 import {resolveM26Route} from '../src/m26/shell/route-guard.js';
@@ -53,4 +54,32 @@ test('authorization loss remains fail-closed',()=>{
   assert.equal(rejected.hydration.refreshing,false);
   assert.equal(resolveM26Route(rejected).area,'acceso');
   assert.equal(resolveM26Route(rejected).allowed,false);
+});
+
+test('role switching contains UI-boundary failures instead of rethrowing them',async()=>{
+  const source=await readFile(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+  const start=source.indexOf('async function onSwitchRole(event)');
+  const end=source.indexOf('function onInspectOperation',start);
+  assert.ok(start>=0&&end>start,'onSwitchRole must exist');
+  const block=source.slice(start,end);
+
+  assert.match(block,/surfaceRoleSwitchError\(new Error\('M26_ROLE_SWITCH_FORBIDDEN'\)\)/u);
+  assert.match(block,/activeApplicationRole=previous;\s*surfaceRoleSwitchError\(error\);\s*return false;/u);
+  assert.doesNotMatch(block,/throw error/u);
+});
+
+test('communication and admin DOM handlers consume rejected operations',async()=>{
+  const [communication,admin]=await Promise.all([
+    readFile(new URL('../src/m26/communication/controller.js',import.meta.url),'utf8'),
+    readFile(new URL('../src/m26/admin/controller.js',import.meta.url),'utf8'),
+  ]);
+
+  assert.match(communication,/function onSubmitEvent\(event\)\{void onSubmit\(event\)\.catch/u);
+  assert.match(communication,/finally\{\s*busy=false;\s*\}/u);
+  assert.doesNotMatch(communication,/catch\(error\)\{[^}]*throw error/u);
+
+  assert.match(admin,/function onSubmitEvent\(event\)/u);
+  assert.match(admin,/void onSubmit\(event\)\.catch/u);
+  assert.match(admin,/finally\{\s*busy=false;\s*\}/u);
+  assert.doesNotMatch(admin,/catch\(error\)\{[^}]*throw error/u);
 });
