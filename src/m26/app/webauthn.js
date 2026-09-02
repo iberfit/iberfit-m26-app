@@ -45,12 +45,29 @@ function publicKeyJson(raw,code){
   return value;
 }
 
-function preferSameDevice(options){
+function internalCredentialDescriptors(value){
+  if(!Array.isArray(value))return value;
+  return value.map((credential)=>({
+    ...credential,
+    transports:['internal'],
+  }));
+}
+
+function preferSameDevice(options,{registration=false}={}){
   if(!options||typeof options!=='object'||Array.isArray(options))return options;
-  const existing=Array.isArray(options.hints)
-    ?options.hints.map((hint)=>String(hint||'').trim()).filter(Boolean)
-    :[];
-  return {...options,hints:[SAME_DEVICE_HINT,...existing.filter((hint)=>hint!==SAME_DEVICE_HINT)]};
+  const next={...options,hints:[SAME_DEVICE_HINT]};
+  if(Array.isArray(next.allowCredentials))next.allowCredentials=internalCredentialDescriptors(next.allowCredentials);
+  if(Array.isArray(next.excludeCredentials))next.excludeCredentials=internalCredentialDescriptors(next.excludeCredentials);
+  if(registration){
+    next.authenticatorSelection={
+      ...(next.authenticatorSelection&&typeof next.authenticatorSelection==='object'&&!Array.isArray(next.authenticatorSelection)?next.authenticatorSelection:{}),
+      authenticatorAttachment:'platform',
+      userVerification:'required',
+    };
+  }else{
+    next.userVerification='required';
+  }
+  return next;
 }
 
 function normalizeRegistrationUser(options,friendlyName){
@@ -62,7 +79,7 @@ function normalizeRegistrationUser(options,friendlyName){
 }
 
 function fallbackCreationOptions(raw,friendlyName){
-  const options=preferSameDevice(normalizeRegistrationUser(publicKeyJson(raw,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID'),friendlyName));
+  const options=preferSameDevice(normalizeRegistrationUser(publicKeyJson(raw,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID'),friendlyName),{registration:true});
   options.challenge=decodeBase64Url(options.challenge,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID');
   if(!options.user||typeof options.user!=='object'||Array.isArray(options.user))throw new Error('M26_WEBAUTHN_CREATE_OPTIONS_INVALID');
   options.user.id=decodeBase64Url(options.user.id,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID');
@@ -88,10 +105,10 @@ function fallbackRequestOptions(raw){
 }
 
 function creationOptions(raw,PublicKeyCredentialImpl,friendlyName){
-  const json=preferSameDevice(normalizeRegistrationUser(publicKeyJson(raw,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID'),friendlyName));
+  const json=preferSameDevice(normalizeRegistrationUser(publicKeyJson(raw,'M26_WEBAUTHN_CREATE_OPTIONS_INVALID'),friendlyName),{registration:true});
   const parser=PublicKeyCredentialImpl?.parseCreationOptionsFromJSON;
   if(typeof parser==='function'){
-    try{return preferSameDevice(parser.call(PublicKeyCredentialImpl,json));}
+    try{return preferSameDevice(parser.call(PublicKeyCredentialImpl,json),{registration:true});}
     catch{throw new Error('M26_WEBAUTHN_CREATE_OPTIONS_INVALID');}
   }
   return fallbackCreationOptions(json,friendlyName);
