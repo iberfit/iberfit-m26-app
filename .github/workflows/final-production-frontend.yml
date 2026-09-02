@@ -37,6 +37,7 @@ jobs:
         run: |
           node --test tests/m26_final_production_frontend.test.mjs
           node --test tests/m26_pwa_install_experience.test.mjs
+          node --test tests/m26_admin_coach_workspace_i18n.test.mjs
 
       - name: Build canonical current surface
         run: node qa/rc64/build-current-surface.mjs
