@@ -4,6 +4,11 @@ import { sanitizeOperation } from './command-bus.js';
 function clone(value) { return value == null ? value : structuredClone(value); }
 function errorText(error){return error?String(error.message||error):null;}
 function sameJson(a,b){try{return JSON.stringify(a)===JSON.stringify(b);}catch{return false;}}
+function authorizationFailure(error){
+  const status=Number(error?.status||0);
+  if(status===401||status===403)return true;
+  return /(?:M26_(?:SESSION_EXPIRED|REFRESH_IDENTITY_MISMATCH|AUTH_[A-Z0-9_:-]*)|\b401\b|\b403\b)/u.test(errorText(error)||'');
+}
 
 export function createCanonicalStore(initial = createProductionState(),{onListenerError=()=>{}}={}) {
   let state = clone(initial);
@@ -21,8 +26,13 @@ export function createCanonicalStore(initial = createProductionState(),{onListen
 
   function setHydration(status, error = null) {
     const nextError=errorText(error);const current=state.hydration||{};
-    if(current.status===status&&current.error===nextError)return getState();
-    state = { ...state, hydration: { ...current, status, error: nextError } };
+    const hasAuthenticatedSnapshot=Boolean(state.identity)&&current.status==='ready';
+    const keepAuthenticated=hasAuthenticatedSnapshot&&(status==='loading'||(status==='error'&&!authorizationFailure(error)));
+    const nextStatus=keepAuthenticated?'ready':status;
+    const nextRefreshing=hasAuthenticatedSnapshot&&status==='loading';
+    const visibleError=status==='loading'?null:nextError;
+    if(current.status===nextStatus&&current.error===visibleError&&Boolean(current.refreshing)===nextRefreshing)return getState();
+    state = { ...state, hydration: { ...current, status: nextStatus, error: visibleError, refreshing: nextRefreshing } };
     emit();return getState();
   }
 
