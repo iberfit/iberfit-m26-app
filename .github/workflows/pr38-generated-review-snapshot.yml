@@ -56,10 +56,28 @@ jobs:
                 "    '/src/m26/design/role-surfaces.css',\n    '/src/m26/design/premium-ux.css',\n"
               );
             }
+            next=next.replace(
+              '  assert.match(critical,/min-height:44px/u);',
+              "  const preauthControlMinHeight=Number(critical.match(/\\.m26-auth-card input,\\.m26-auth-card button\\{[^}]*min-height:(\\d+)px/u)?.[1]||0);\n  assert.ok(preauthControlMinHeight>=44);"
+            );
+            next=next.replace(
+              "test('RC64.2A real-shell inherits the explicit RC23 es-ES locale contract',()=>{",
+              "test('RC64.2A real-shell keeps static es-ES bootstrap while app locale defaults to Chile',()=>{"
+            );
+            next=next.replace(
+              '  assert.match(rc23,/RC23 fija castellano de España en documento, PWA y utilidades/u);',
+              '  assert.match(rc23,/RC23 conserva castellano y permite locale regional Chile en la aplicación/u);'
+            );
+            next=next.replace(
+              "  assert.match(rc23,/IBERFIT_UI_LOCALE,'es-ES'/u);",
+              "  assert.match(rc23,/IBERFIT_UI_LOCALE,'es-CL'/u);"
+            );
             return next;
           },(source)=>{
             if(!source.includes('assert.equal(deferred.length,14);'))throw new Error('PR38_DEFERRED_STYLE_COUNT_NOT_UPDATED');
             if(!source.includes("'/src/m26/design/premium-ux.css'"))throw new Error('PR38_PREMIUM_STYLE_CONTRACT_MISSING');
+            if(!source.includes('preauthControlMinHeight>=44'))throw new Error('PR38_TOUCH_TARGET_THRESHOLD_MISSING');
+            if(!source.includes('app locale defaults to Chile'))throw new Error('PR38_LOCALE_CONTRACT_NOT_UPDATED');
           });
 
           update('tests/m26_rc71_2_preferences_i18n.test.mjs',(source)=>{
