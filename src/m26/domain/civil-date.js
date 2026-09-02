@@ -78,10 +78,20 @@ export function formatIberfitDate(
   const civil=parseCivilDate(value);
 
   if(civil){
-    return new Intl.DateTimeFormat(locale,{
-      dateStyle,
-      timeZone:'UTC',
-    }).format(
+    const options=
+      dateStyle==='medium'
+        ?{
+            day:'numeric',
+            month:'short',
+            year:'numeric',
+            timeZone:'UTC',
+          }
+        :{
+            dateStyle,
+            timeZone:'UTC',
+          };
+
+    return new Intl.DateTimeFormat(locale,options).format(
       new Date(Date.UTC(civil.year,civil.month-1,civil.day))
     );
   }
