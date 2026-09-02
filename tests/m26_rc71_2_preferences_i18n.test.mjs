@@ -38,33 +38,39 @@ function withStorage(fn){
   }
 }
 
-test('i18n separa idioma de locale y no expone bundles incompletos',()=>withStorage(()=>{
+test('i18n separa idioma de locale y expone los cuatro bundles aprobados',()=>withStorage(()=>{
   assert.deepEqual(
     IBERFIT_LANGUAGE_CATALOG.map((item)=>item.value),
-    ['es','en','de','fr','pt'],
+    ['es','en','fr','pt'],
   );
 
   assert.deepEqual(
     iberfitLanguageOptions().map((item)=>item.value),
-    ['es'],
+    ['es','en','fr','pt'],
   );
 
-  assert.equal(iberfitPlannedLanguages().length,5);
+  assert.equal(iberfitPlannedLanguages().length,4);
   assert.equal(getIberfitLanguage(),'es');
-  assert.equal(getIberfitLocale(),'es-ES');
+  assert.equal(getIberfitLocale(),'es-CL');
 
   assert.deepEqual(
     iberfitLocaleOptions('es').map((item)=>item.value),
-    ['es-ES','es-CL'],
+    ['es-CL','es-ES'],
   );
 
-  assert.throws(
-    ()=>setIberfitLanguage('en'),
-    /M26_UI_LANGUAGE_INCOMPLETE/,
-  );
+  assert.equal(setIberfitLanguage('en'),'en');
+  assert.equal(getIberfitLanguage(),'en');
+  assert.equal(getIberfitLocale('en'),'en-GB');
 
-  assert.equal(setIberfitLocale('es-ES'),'es-ES');
-  assert.equal(getIberfitLocale(),'es-ES');
+  assert.equal(
+    setIberfitLocale('en-US',{language:'en'}),
+    'en-US',
+  );
+  assert.equal(getIberfitLocale('en'),'en-US');
+
+  assert.equal(setIberfitLanguage('es'),'es');
+  assert.equal(getIberfitLanguage(),'es');
+  assert.equal(getIberfitLocale('es'),'es-CL');
 }));
 
 test('preferencias sociales son privadas por defecto y aisladas por cuenta',()=>withStorage(()=>{

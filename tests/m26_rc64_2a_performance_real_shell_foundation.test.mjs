@@ -69,7 +69,7 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
   assert.doesNotMatch(index,/rel="preload" href="\/m26\/fonts\/inter-latin-wght-normal\.woff2"/u);
 
   const deferred=[...index.matchAll(/<link[^>]*data-href="[^"]+\.css"[^>]*data-iberfit-full-style[^>]*media="not all"[^>]*>/gu)];
-  assert.equal(deferred.length,13);
+  assert.equal(deferred.length,14);
 
   for(const stylePath of [
     '/src/m26/design/tokens.css',
@@ -85,6 +85,7 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
     '/src/m26/rc44/rc44.css',
     '/src/m26/design/primitives.css',
     '/src/m26/design/role-surfaces.css',
+    '/src/m26/design/premium-ux.css',
   ]){
     const escaped=stylePath.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
     const tag=index.match(new RegExp(`<link[^>]*data-href="${escaped}"[^>]*data-iberfit-full-style[^>]*media="not all"[^>]*>`,'u'))?.[0]||'';
@@ -114,7 +115,8 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
 
   assert.match(critical,/\.m26-auth-page/u);
   assert.match(critical,/\.m26-auth-card/u);
-  assert.match(critical,/min-height:44px/u);
+  const preauthControlMinHeight=Number(critical.match(/\.m26-auth-card input,\.m26-auth-card button\{[^}]*min-height:(\d+)px/u)?.[1]||0);
+  assert.ok(preauthControlMinHeight>=44);
   assert.match(critical,/max-width:100%/u);
 });
 
@@ -183,14 +185,14 @@ test('RC64.2A programmatic Lighthouse tolerates transient Windows DevTools port 
 });
 
 
-test('RC64.2A real-shell inherits the explicit RC23 es-ES locale contract',()=>{
+test('RC64.2A real-shell keeps static es-ES bootstrap while app locale defaults to Chile',()=>{
   const rc23=read('tests/m26_rc23_castellano_ui.test.mjs');
   const index=read('public/m26/index.html');
   const manifest=JSON.parse(read('public/m26/manifest.webmanifest'));
   const spec=read('qa/rc64/real-shell.spec.mjs');
 
-  assert.match(rc23,/RC23 fija castellano de España en documento, PWA y utilidades/u);
-  assert.match(rc23,/IBERFIT_UI_LOCALE,'es-ES'/u);
+  assert.match(rc23,/RC23 conserva castellano y permite locale regional Chile en la aplicación/u);
+  assert.match(rc23,/IBERFIT_UI_LOCALE,'es-CL'/u);
   assert.match(index,/<html lang="es-ES">/u);
   assert.equal(manifest.lang,'es-ES');
   assert.match(spec,/toHaveAttribute\('lang','es-ES'\)/u);
