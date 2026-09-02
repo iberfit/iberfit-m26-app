@@ -575,10 +575,19 @@ export async function createM26Application({root=document.querySelector('#app'),
     const normalized=normalizePublishedSession(event.detail.session);if(normalized.clientId!==clientId)throw new Error('M26_SESSION_CLIENT_MISMATCH');const role=String(state.identity?.role||'');if(!normalized.id||!normalized.clientId||!normalized.blocks.length){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='La sesión publicada no contiene bloques ejecutables.';node.dataset.status='error';}return;}    const appointment=confirmedAppointmentForSession(store.getState().collections.appointments||[],normalized);if(!actorCanExecuteSession({role,session:event.detail.session,appointment}))throw new Error('M26_SESSION_EXECUTION_FORBIDDEN');if(sessionRequiresConfirmedAppointment({role,session:event.detail.session,appointment})&&!appointment?.id){const node=root.querySelector?.('[data-workflow-status="session"]');if(node){node.textContent='Se requiere una cita confirmada y vigente para iniciar la sesión.';node.dataset.status='error';}return;}
     sessionUi={draft:null,query:'',actionState:createActionState(),session:normalized,execution:createExecution({session:normalized,clientId:normalized.clientId}),appointmentId:appointment?.id||null};store.navigate('sesion');render();
   }
+  function surfaceRoleSwitchError(error){
+    const detail=reportDiagnostic('role-switch',error);
+    const message=`${friendlyError(error)} Código: ${detail.code}.`;
+    render();
+    try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}
+  }
   async function onSwitchRole(event){
     const role=String(event?.detail?.role||'').trim().toLowerCase();
     const allowed=store.getState().identity?.authorizedRoles||[];
-    if(!allowed.includes(role))throw new Error('M26_ROLE_SWITCH_FORBIDDEN');
+    if(!allowed.includes(role)){
+      surfaceRoleSwitchError(new Error('M26_ROLE_SWITCH_FORBIDDEN'));
+      return false;
+    }
     if(sessionUi){
       try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message:'Finaliza o cierra la sesión antes de cambiar de aplicación.'}}));}catch{}
       return false;
@@ -591,7 +600,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       return true;
     }catch(error){
       activeApplicationRole=previous;
-      throw error;
+      surfaceRoleSwitchError(error);
+      return false;
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
