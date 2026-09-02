@@ -44,13 +44,15 @@ test('login surface never clips a tall card in a short desktop viewport',()=>{
   assert.match(css,/\.m26-auth-page\{[^}]*display:flex;[^}]*align-items:flex-start;[^}]*justify-content:center;/u);
   assert.match(css,/\.m26-auth-card\{[^}]*margin-block:auto;/u);
   assert.match(css,/@media\(max-height:860px\) and \(min-width:581px\)/u);
-  assert.match(css,/\.m26-auth-card>img\{[^}]*width:3\.25rem;[^}]*object-fit:contain/u);
+  assert.match(css,/\.m26-auth-card h1\{[^}]*font-size:clamp/u);
   assert.match(css,/\.m26-auth-notice\.is-error/u);
 
   const html=fs.readFileSync('public/m26/index.html','utf8');
   const inline=html.match(/<style data-iberfit-preauth-critical>([\s\S]*?)<\/style>/u)?.[1];
   assert.equal(inline,css);
-  assert.match(html,/src="\/public\/isotipo-iberfit\.png"/u);
+  assert.match(html,/<p class="m26-eyebrow">IBERFIT<\/p>/u);
+  assert.match(html,/<h1 id="m26-auth-title"/u);
+  assert.doesNotMatch(html,/src="\/public\/isotipo-iberfit\.png"/u);
 
   const hash=crypto.createHash('sha256').update(inline,'utf8').digest('base64');
   const headers=fs.readFileSync('public/m26/_headers','utf8');
