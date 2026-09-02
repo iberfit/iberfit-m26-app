@@ -33,7 +33,7 @@ test('final production executor is pinned to the exact certified release and bun
 test('executor defaults to read-only and requires two explicit mutation signals',()=>{
   assert.match(source,/\[switch\]\$Apply/iu);
   assert.match(source,/if\s*\(-not\s+\$Apply\)[\s\S]*?ProductionMutations=0/iu);
-  assert.ok(source.includes(`APPLY IBERFIT PRODUCTION ${RELEASE_SHA}`));
+  assert.match(source,/\$ExpectedConfirmation\s*=\s*"APPLY IBERFIT PRODUCTION \$ExpectedReleaseSha"/u);
   assert.match(source,/if\s*\(\$Confirmation\s+-cne\s+\$ExpectedConfirmation\)/iu);
 
   assert.match(source,/default_transaction_read_only=on/iu);
