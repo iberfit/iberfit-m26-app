@@ -5,6 +5,12 @@ import { areaDefinition, navigationForRole } from './navigation.js';
 import { resolveM26Route } from './route-guard.js';
 import { assertKnownRole, isCoachRole, roleLabel } from './role-policy.js';
 import {clientModalityLabel} from '../domain/modality.js';
+import {
+  getIberfitLanguage,
+  getIberfitLocale,
+  iberfitLanguageOptions,
+  iberfitLocaleOptions,
+} from '../ui/i18n.js';
 
 function clone(value) {
   return value == null ? value : structuredClone(value);
@@ -57,6 +63,8 @@ function createShellViewModelBase(state) {
     : selectedClient(state);
   const definition = areaDefinition(route.area);
   const metrics = state.metrics || {};
+  const language=getIberfitLanguage();
+  const locale=getIberfitLocale(language);
 
   return Object.freeze({
     mode: 'authenticated',
@@ -74,6 +82,10 @@ function createShellViewModelBase(state) {
       label: definition?.label || 'IBERFIT',
       scope: definition?.scope || 'global',
     }),
+    language,
+    locale,
+    languageOptions:Object.freeze(iberfitLanguageOptions().map((item)=>Object.freeze({...item}))),
+    localeOptions:Object.freeze(iberfitLocaleOptions(language).map((item)=>Object.freeze({...item}))),
     selectedClient: compactClient(selected),
     clientOptions: Object.freeze(clientOptions(state, role)),
     canChangeClient: isCoachRole(role),
