@@ -2,7 +2,7 @@ import {defineConfig} from '@playwright/test';
 
 export default defineConfig({
   testDir:'./qa/rc64',
-  testMatch:'authenticated-smoke.spec.mjs',
+  testMatch:'authenticated-current-contract.spec.mjs',
   fullyParallel:false,
   forbidOnly:true,
   retries:0,
