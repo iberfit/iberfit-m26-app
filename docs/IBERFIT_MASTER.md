@@ -1,7 +1,7 @@
 # IBERFIT · Master
 
-Estado: bootstrap de consolidación
-Fecha de corte inicial: 2026-09-02
+Estado: consolidación operativa activa
+Fecha de corte: 2026-09-02
 Repositorio canónico técnico: `iberfit/iberfit-m26-app`
 
 ## Propósito
@@ -42,7 +42,7 @@ No usar Google Sheets u otras superficies como bypass directo del frontend para 
 
 Orden de autoridad para decisiones técnicas:
 
-1. estado remoto verificable (rama/SHA/CI/canary/LIVE);
+1. estado remoto verificable (rama/SHA/CI/canary/LIVE/proveedor);
 2. código y tests del repositorio canónico;
 3. documentación maestra en `docs/`;
 4. decisiones registradas;
@@ -52,14 +52,32 @@ Cuando dos fuentes se contradigan, registrar la discrepancia y validar antes de 
 
 ## Estado resumido al corte
 
-- `canary/rc74-4` fue observado en SHA `444374e0c6cc6efb1d95f00dc7b138f261a23187`.
-- CI de esa revisión tuvo ejecución verde.
-- El gate remoto read-only posterior falló en el smoke autenticado de navegador, después de superar preflight, validación live básica y generación visual.
-- `prep/final-production-rc74-4` fue observado en SHA `824671972406bc98febaf1049ef7963f3dd571f9`.
-- Existe trabajo activo de rediseño Admin/Coach e i18n en PR #38.
-- Producción debe seguir tratándose como congelada hasta completar gates y comprobar la identidad exacta del artefacto live.
+- `canary/rc74-4` está certificado exactamente en `9cbe3ad29dfda0a552aa54c7e1404575b96786d4`.
+- Remote gate exacto `33641163059`: `success`.
+- La corrección Coach WebAuthn fail-closed de PR #41 está integrada en ese SHA y no debe reabrirse sin evidencia nueva.
+- Supabase producción `pjhmrhejsoofmouedavw` fue verificado read-only como `ACTIVE_HEALTHY`.
+- Producción ya registra la secuencia productiva RC74.4/RC65/P0 y migraciones posteriores hasta al menos `20260902033214 p0_restore_primary_auth_read_bootstrap_v1`.
+- El bundle SQL histórico del run `33656032685` parte de un baseline anterior y queda `SUPERSEDED`; no debe ejecutarse ni forzarse.
+- La Edge Function productiva `iberfit-webauthn-v1` está `ACTIVE`, versión `1`, `verify_jwt=true`, con RP/orígenes productivos esperados.
+- PR #43 fue cerrado sin merge tras retirar de forma fail-closed el ejecutor SQL superseded y pasar CI/auditoría.
+- Canary debe permanecer fijo mientras falta recuperar el proyecto Pages productivo exacto y el deployment ID live de Cloudflare.
+- PR #40 es la rama documental HQ y no autoriza ningún despliegue.
 
 Consultar `PRODUCTION_STATE.md` para el detalle actualizable.
+
+## Regla de promoción vigente
+
+No confundir “Canary certificado” con “producción lista para recibir todo Canary”.
+
+Antes de cualquier promoción frontend:
+
+1. recuperar identidad real de Cloudflare productivo;
+2. fijar deployment live + rollback;
+3. calcular diff exacto respecto al candidato;
+4. promover sólo un lote entendido y reversible;
+5. ejecutar verificación post-deploy antes de continuar.
+
+Para base de datos, cualquier nuevo cambio debe generarse como delta desde el estado productivo live. No se reutiliza el SQL superseded de `33656032685`.
 
 ## Trabajo activo que no debe perderse
 
@@ -67,12 +85,28 @@ Consultar `PRODUCTION_STATE.md` para el detalle actualizable.
 - Design System compartido y coherente.
 - autenticación, WebAuthn y persistencia segura de sesión;
 - PWA y experiencia multiplataforma;
-- i18n ES/EN/FR/PT en desarrollo;
+- i18n ES/EN/FR/PT;
 - auditoría continua read-only;
 - QA autenticado y aislamiento Cliente A/B;
 - rendimiento RLS y least privilege;
 - producto de entrenamiento: IRI, planificación, agenda, ejercicios, sesiones, engagement y datos;
-- mejora estética y funcional previa a cualquier promoción definitiva.
+- mejora estética y funcional por ramas derivadas de Canary;
+- clasificación selectiva de PRs antiguos, evitando merges masivos.
+
+## Producto de entrenamiento que no debe degradarse
+
+- diagnóstico IRI;
+- ΔFC step test;
+- fuerza por patrón;
+- informe único;
+- progresiones y regresiones;
+- descanso editable;
+- circuitos bis/tri/AMRAP/Tabata;
+- alternativas de ejercicios;
+- feedback obligatorio;
+- seguimiento y control de carga.
+
+La evolución técnica debe reforzar esta metodología, no convertir IBERFIT en una app fitness genérica.
 
 ## Negocio
 
@@ -121,10 +155,12 @@ Negocio:
 
 ## Objetivo de la siguiente etapa
 
-Dejar de desarrollar IBERFIT como una sucesión de RCs y conversaciones aisladas y pasar a operar tres carriles coordinados:
+Operar IBERFIT mediante carriles coordinados, con continuidad verificable:
 
-1. PRODUCTO/APP: estabilidad + experiencia + diferenciación;
-2. WEB: captación + SEO + CRO;
-3. GROWTH: adquisición + conversión + retención + referrals.
+1. LIVE SUPPORT: incidencias reales y hotfix mínimo;
+2. PRODUCTO/APP: estabilidad + experiencia + diferenciación;
+3. WEB: captación + SEO + CRO;
+4. GROWTH: adquisición + conversión + retención + referrals;
+5. QA/SECURITY: gates y auditoría sobre cambios reales.
 
-Los tres deben compartir prioridades y métricas, sin compartir accidentalmente despliegues, credenciales o fuentes de verdad.
+Los carriles comparten prioridades y métricas, pero no deben compartir accidentalmente despliegues, credenciales o fuentes de verdad.
