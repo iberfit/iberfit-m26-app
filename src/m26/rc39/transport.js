@@ -6,6 +6,7 @@ const RPC=Object.freeze({
 });
 const MISSING=/PGRST202|not find the function|M26_HTTP_404/i;
 const ROLE_SET=new Set(['coach','admin','client']);
+const DEFAULT_TIMEOUT_MS=12_000;
 const safeText=(value,max=800)=>String(value??'')
   .replace(/[\u0000-\u001f\u007f]/g,' ')
   .replace(/\s+/g,' ')
@@ -19,40 +20,54 @@ function runtimeOrigin(runtime){
   }
   return url.origin;
 }
+function requestTimeout(runtime){
+  return Math.max(1_000,Math.min(Number(runtime?.timeoutMs||DEFAULT_TIMEOUT_MS),30_000));
+}
 export function createRc39Transport({runtime,fetchImpl=globalThis.fetch}={}){
   if(typeof fetchImpl!=='function')throw new Error('M26_RC39_FETCH_REQUIRED');
   const origin=runtimeOrigin(runtime);
   const key=String(runtime?.publishableKey||runtime?.anonKey||'');
   if(!key)throw new Error('M26_RC39_PUBLIC_KEY_REQUIRED');
+  const timeoutMs=requestTimeout(runtime);
 
   async function rpc(name,token,params={}){
     const auth=String(token||'');
     if(!auth)throw new Error('M26_AUTH_REQUIRED');
-    const response=await fetchImpl(`${origin}/rest/v1/rpc/${name}`,{
-      method:'POST',
-      credentials:'omit',
-      cache:'no-store',
-      redirect:'error',
-      referrerPolicy:'no-referrer',
-      headers:{
-        apikey:key,
-        authorization:`Bearer ${auth}`,
-        'content-type':'application/json',
-        'x-client-info':`iberfit-m26-rc39/${safeText(runtime?.version||'26.0.0',80)}`,
-      },
-      body:JSON.stringify(params||{}),
-    });
-    const contentType=response.headers?.get?.('content-type')||'';
-    const body=response.status===204?null:contentType.includes('application/json')
-      ?await response.json().catch(()=>({}))
-      :await response.text().catch(()=>'');
-    if(!response.ok){
-      const error=new Error(body?.message||body?.error||`M26_HTTP_${response.status}`);
-      error.status=response.status;
-      error.body=body;
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),timeoutMs);
+    try{
+      const response=await fetchImpl(`${origin}/rest/v1/rpc/${name}`,{
+        method:'POST',
+        credentials:'omit',
+        cache:'no-store',
+        redirect:'error',
+        referrerPolicy:'no-referrer',
+        signal:controller.signal,
+        headers:{
+          apikey:key,
+          authorization:`Bearer ${auth}`,
+          'content-type':'application/json',
+          'x-client-info':`iberfit-m26-rc39/${safeText(runtime?.version||'26.0.0',80)}`,
+        },
+        body:JSON.stringify(params||{}),
+      });
+      const contentType=response.headers?.get?.('content-type')||'';
+      const body=response.status===204?null:contentType.includes('application/json')
+        ?await response.json().catch(()=>({}))
+        :await response.text().catch(()=>'');
+      if(!response.ok){
+        const error=new Error(body?.message||body?.error||`M26_HTTP_${response.status}`);
+        error.status=response.status;
+        error.body=body;
+        throw error;
+      }
+      return Array.isArray(body)&&body.length===1?body[0]:body;
+    }catch(error){
+      if(error?.name==='AbortError')throw new Error('M26_TIMEOUT');
       throw error;
+    }finally{
+      clearTimeout(timer);
     }
-    return Array.isArray(body)&&body.length===1?body[0]:body;
   }
   async function optional(name,token,params={}){
     try{return {available:true,data:await rpc(name,token,params)};}
