@@ -149,13 +149,15 @@ test('RC65-C1 FREE Edge Function fija librerías, origin, UV required y challeng
   assert.match(config,/\[functions\.iberfit-webauthn-v1\][\s\S]*verify_jwt\s*=\s*true/u);
 });
 
-test('RC65-C1 FREE UI sigue integrada, sin QR ni app TOTP',()=>{
+test('RC65-C1 FREE UI sigue integrada, solo dispositivo local y sin QR ni app TOTP',()=>{
   const required=renderAccessUi({mode:'mfa-required',mfa:{kind:'enroll-required',privilegedRole:'coach'}});
   const challenge=renderAccessUi({mode:'mfa-challenge',mfa:{factorId:AUTHENTICATION_FACTOR_ID,privilegedRole:'admin'}});
-  assert.match(required,/Protege tu cuenta/u);
-  assert.match(required,/Configurar acceso seguro/u);
-  assert.match(challenge,/Confirma tu identidad para continuar/u);
-  assert.match(challenge,/Continuar de forma segura/u);
+  assert.match(required,/Protege tu acceso/u);
+  assert.match(required,/Configurar este dispositivo/u);
+  assert.match(required,/Face ID, Touch ID, Windows Hello, PIN o la contraseña del propio dispositivo/u);
+  assert.match(challenge,/Confirma que eres tú/u);
+  assert.match(challenge,/Confirmar en este dispositivo/u);
+  assert.match(challenge,/No necesitas escanear ningún QR ni usar otro equipo/u);
   for(const markup of [required,challenge])assert.doesNotMatch(markup,/Google Authenticator|Authy|Código de 6 dígitos|qr_code|otpauth/iu);
 });
 

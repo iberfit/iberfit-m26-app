@@ -1,3 +1,7 @@
+import {createSessionVault} from './session-vault.js';
+import {runWebAuthnCeremony,webAuthnSupported} from './webauthn.js';
+import {resolveM26Runtime,createM26Transport} from '../supabase-transport.js';
+
 function e(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -32,9 +36,74 @@ function safeRemove(storage,key){
   try{storage?.removeItem?.(key);return true;}catch{return false;}
 }
 
+async function registerCurrentDevice(button){
+  if(!webAuthnSupported())throw new Error('M26_WEBAUTHN_UNSUPPORTED');
+  const runtime=resolveM26Runtime(globalThis.__IBERFIT_M26_RUNTIME__||{},globalThis.location);
+  if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');
+  const session=createSessionVault().load();
+  if(!session?.token||!session?.user?.id)throw new Error('M26_AUTH_REQUIRED');
+  const transport=createM26Transport(runtime);
+  const originalLabel=String(button?.textContent||'Configurar este dispositivo').trim();
+  if(button){button.disabled=true;button.setAttribute('aria-disabled','true');button.textContent='Abriendo seguridad del dispositivo…';}
+  try{
+    const user=await transport.authUser(session.token);
+    if(user.id!==session.user.id)throw new Error('M26_MFA_IDENTITY_MISMATCH');
+    const enrollment=await transport.enrollWebAuthn(session.token);
+    const challenge=await transport.challengeWebAuthn(session.token,enrollment.factorId);
+    if(challenge.type!=='create')throw new Error('M26_WEBAUTHN_CHALLENGE_TYPE_MISMATCH');
+    const ceremony=await runWebAuthnCeremony(challenge,{friendlyName:'IBERFIT · este dispositivo'});
+    const verified=await transport.verifyWebAuthn(session.token,{
+      factorId:enrollment.factorId,
+      challengeId:challenge.challengeId,
+      type:ceremony.type,
+      credentialResponse:ceremony.credentialResponse,
+    });
+    if(verified.user.id!==session.user.id)throw new Error('M26_MFA_IDENTITY_MISMATCH');
+    const assurance=await transport.authAssuranceContext(session.token);
+    if(assurance.iberfitAssurance!=='verified')throw new Error('M26_PRIVILEGED_WEBAUTHN_REQUIRED');
+    if(button)button.textContent='Dispositivo configurado';
+    globalThis.location?.reload?.();
+    return true;
+  }catch(error){
+    if(button){button.disabled=false;button.removeAttribute('aria-disabled');button.textContent=originalLabel;}
+    throw error;
+  }
+}
+
+function surfaceDeviceRegistrationError(root){
+  const card=root?.querySelector?.('.m26-auth-card');
+  const actions=card?.querySelector?.('.m26-auth-actions');
+  if(!card||!actions)return;
+  let notice=card.querySelector?.('.m26-auth-notice[data-device-registration-error]');
+  if(!notice&&globalThis.document?.createElement){
+    notice=globalThis.document.createElement('p');
+    notice.className='m26-auth-notice is-error';
+    notice.dataset.deviceRegistrationError='true';
+    notice.setAttribute('role','alert');
+    actions.before(notice);
+  }
+  if(notice)notice.textContent='No se pudo configurar este dispositivo. Comprueba que tiene PIN, contraseña o biometría activados e inténtalo de nuevo.';
+}
+
+function enhanceDeviceRegistration(root){
+  let enhanced=false;
+  for(const button of root?.querySelectorAll?.('[data-auth-action="mfa-register-device"]')||[]){
+    if(button.dataset?.iberfitDeviceRegistrationEnhanced==='true')continue;
+    if(button.dataset)button.dataset.iberfitDeviceRegistrationEnhanced='true';
+    button.addEventListener('click',(event)=>{
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      void registerCurrentDevice(button).catch(()=>surfaceDeviceRegistrationError(root));
+    });
+    enhanced=true;
+  }
+  return enhanced;
+}
+
 export function enhanceAccessUi(root=globalThis.document,{storage:providedStorage=null}={}){
+  const deviceEnhanced=enhanceDeviceRegistration(root);
   const form=root?.querySelector?.('[data-auth-form="login"]');
-  if(!form||form.dataset?.iberfitAccessEnhanced==='true')return false;
+  if(!form||form.dataset?.iberfitAccessEnhanced==='true')return deviceEnhanced;
   if(form.dataset)form.dataset.iberfitAccessEnhanced='true';
 
   const emailInput=form.querySelector?.('input[name="email"]');
@@ -127,45 +196,66 @@ export function renderAccessUi({
 
   if (mode === 'mfa-required') {
     content = `
-      <h1 id="m26-auth-title" tabindex="-1">Protege tu cuenta</h1>
-      <p>Las cuentas de entrenador y administración requieren una confirmación segura adicional antes de acceder a información de clientes.</p>
+      <div class="m26-auth-copy">
+        <p class="m26-auth-kicker">Verificación del dispositivo</p>
+        <h1 id="m26-auth-title" tabindex="-1">Protege tu acceso</h1>
+        <p>Configura este dispositivo una sola vez. La confirmación se hará con Face ID, Touch ID, Windows Hello, PIN o la contraseña del propio dispositivo.</p>
+      </div>
 
       ${notice}
 
-      <button
-        type="button"
-        class="m26-primary-action"
-        data-auth-action="mfa-continue-webauthn"
-        ${disabled ? 'disabled aria-disabled="true"' : ''}
-      >
-        ${busy ? 'Preparando…' : 'Configurar acceso seguro'}
-      </button>
+      <div class="m26-auth-actions">
+        <button
+          type="button"
+          class="m26-primary-action"
+          data-auth-action="mfa-continue-webauthn"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >
+          ${busy ? 'Configurando…' : 'Configurar este dispositivo'}
+        </button>
 
-      <p class="m26-field-help">Tu navegador abrirá Windows Hello, biometría, PIN o una llave de seguridad compatible. IBERFIT no recibe ni almacena tus datos biométricos.</p>
+        <button type="button" class="m26-tertiary-action" data-auth-action="mfa-logout">
+          Cerrar sesión
+        </button>
+      </div>
 
-      <button type="button" data-auth-action="mfa-logout">
-        Cerrar sesión
-      </button>
+      <p class="m26-field-help m26-device-assurance">IBERFIT no recibe tu PIN, contraseña ni biometría. La verificación ocurre de forma nativa en este dispositivo, sin QR ni otro equipo.</p>
     `;
   } else if (mode === 'mfa-challenge') {
     content = `
-      <h1 id="m26-auth-title" tabindex="-1">Confirma tu identidad para continuar</h1>
-      <p>Utiliza el acceso seguro de este dispositivo para completar la verificación requerida.</p>
+      <div class="m26-auth-copy">
+        <p class="m26-auth-kicker">Verificación del dispositivo</p>
+        <h1 id="m26-auth-title" tabindex="-1">Confirma que eres tú</h1>
+        <p>Usa la seguridad nativa de este dispositivo para continuar. No necesitas escanear ningún QR ni usar otro equipo.</p>
+      </div>
 
       ${notice}
 
-      <button
-        type="button"
-        class="m26-primary-action"
-        data-auth-action="mfa-continue-webauthn"
-        ${disabled ? 'disabled aria-disabled="true"' : ''}
-      >
-        ${busy ? 'Confirmando…' : 'Continuar de forma segura'}
-      </button>
+      <div class="m26-auth-actions">
+        <button
+          type="button"
+          class="m26-primary-action"
+          data-auth-action="mfa-continue-webauthn"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >
+          ${busy ? 'Confirmando…' : 'Confirmar en este dispositivo'}
+        </button>
 
-      <button type="button" data-auth-action="mfa-logout">
-        Cerrar sesión
-      </button>
+        <button
+          type="button"
+          class="m26-secondary-action"
+          data-auth-action="mfa-register-device"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >
+          Configurar este dispositivo
+        </button>
+
+        <button type="button" class="m26-tertiary-action" data-auth-action="mfa-logout">
+          Cerrar sesión
+        </button>
+      </div>
+
+      <p class="m26-field-help m26-device-assurance">Si es la primera vez que entras desde este teléfono u ordenador, configúralo aquí. Tus otros dispositivos siguen intactos.</p>
     `;
   } else if (mode === 'request-recovery') {
     content = `
@@ -261,8 +351,11 @@ export function renderAccessUi({
     `;
   } else {
     content = `
-      <h1 id="m26-auth-title" tabindex="-1">Entrenamiento personal con criterio</h1>
-      <p>Diagnóstico, planificación, control y seguimiento.</p>
+      <div class="m26-auth-copy">
+        <p class="m26-auth-kicker">Acceso privado</p>
+        <h1 id="m26-auth-title" tabindex="-1">Entrenamiento personal con criterio</h1>
+        <p>Diagnóstico, planificación, control y seguimiento.</p>
+      </div>
 
       ${notice}
 

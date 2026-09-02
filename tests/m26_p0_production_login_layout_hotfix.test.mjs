@@ -38,29 +38,31 @@ test('P0 production hotfix separates authenticated reads from privileged mutatio
   );
 });
 
-test('login surface is native full-screen, responsive and never clips a short viewport',()=>{
+test('login surface is premium, responsive, branded and safe on short viewports',()=>{
   const css=fs.readFileSync('public/m26/preauth-critical.css','utf8').replace(/\r\n?/gu,'\n').trimEnd();
 
-  assert.match(css,/\.m26-auth-page\{[^}]*display:flex;[^}]*align-items:flex-start;[^}]*justify-content:center;/u);
+  assert.match(css,/\.m26-auth-page\{[^}]*display:grid;[^}]*place-items:center;/u);
   const authCardRule=css.match(/\.m26-auth-card\{([^}]*)\}/u)?.[1]||'';
   assert.match(authCardRule,/margin-block:auto(?:;|$)/u);
-  assert.match(authCardRule,/border:0(?:;|$)/u);
-  assert.match(authCardRule,/border-radius:0(?:;|$)/u);
-  assert.match(authCardRule,/background:transparent(?:;|$)/u);
-  assert.match(authCardRule,/box-shadow:none(?:;|$)/u);
+  assert.match(authCardRule,/border:1px solid rgba\(221,190,119,\.18\)/u);
+  assert.match(authCardRule,/border-radius:1\.75rem/u);
+  assert.match(authCardRule,/linear-gradient\(165deg/u);
+  assert.match(authCardRule,/box-shadow:/u);
   assert.match(css,/\.m26-auth-brand\{[^}]*justify-items:center/u);
-  assert.match(css,/\.m26-auth-logo\{[^}]*margin:0;[^}]*object-fit:contain/u);
+  assert.match(css,/\.m26-auth-logo\{[^}]*object-fit:contain/u);
   assert.match(css,/\.m26-password-toggle/u);
   assert.match(css,/\.m26-remember-email/u);
   assert.match(css,/@media\(max-height:760px\) and \(min-width:581px\)/u);
   assert.match(css,/@media\(max-width:580px\)/u);
   assert.match(css,/\.m26-auth-notice\.is-error/u);
+  assert.match(css,/linear-gradient\(135deg,#dabb73,#c69d4e\)/u);
 
   const html=fs.readFileSync('public/m26/index.html','utf8');
   const inline=html.match(/<style data-iberfit-preauth-critical>([\s\S]*?)<\/style>/u)?.[1];
   assert.equal(inline,css);
   assert.match(html,/class="m26-auth-logo" src="\/public\/isotipo-iberfit\.png"/u);
   assert.match(html,/<p class="m26-eyebrow">IBERFIT<\/p>/u);
+  assert.match(html,/class="m26-auth-kicker">Acceso privado/u);
   assert.match(html,/<h1 id="m26-auth-title"/u);
   assert.match(html,/data-password-toggle/u);
   assert.match(html,/name="rememberEmail"/u);

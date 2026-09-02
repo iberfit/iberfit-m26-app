@@ -32,6 +32,21 @@ function restoreGlobal(name,descriptor){
 
 function buffer(...values){return Uint8Array.from(values).buffer;}
 
+function credentialResponse(){
+  return {
+    id:'credential_id',
+    rawId:buffer(9,10),
+    type:'public-key',
+    getClientExtensionResults:()=>({}),
+    response:{
+      clientDataJSON:buffer(11),
+      authenticatorData:buffer(12),
+      signature:buffer(13),
+      userHandle:null,
+    },
+  };
+}
+
 test('sesión válida persiste entre instancias sin almacenar contraseña',()=>{
   const storage=fakeStorage();
   const first=createSessionVault({storage});
@@ -87,10 +102,10 @@ test('si localStorage no está disponible cae de forma segura a sessionStorage',
   }
 });
 
-test('WebAuthn prioriza el mismo dispositivo sin eliminar fallback ni userVerification',async()=>{
+test('WebAuthn de acceso queda restringido al autenticador interno del dispositivo',async()=>{
   assert.deepEqual(
-    __webauthnInternals.preferSameDevice({hints:['hybrid','security-key']}),
-    {hints:['client-device','hybrid','security-key']},
+    __webauthnInternals.preferSameDevice({hints:['hybrid','security-key'],userVerification:'preferred'}),
+    {hints:['client-device'],userVerification:'required'},
   );
 
   let captured=null;
@@ -98,18 +113,7 @@ test('WebAuthn prioriza el mismo dispositivo sin eliminar fallback ni userVerifi
     create:async()=>null,
     get:async({publicKey})=>{
       captured=publicKey;
-      return {
-        id:'credential_id',
-        rawId:buffer(9,10),
-        type:'public-key',
-        getClientExtensionResults:()=>({}),
-        response:{
-          clientDataJSON:buffer(11),
-          authenticatorData:buffer(12),
-          signature:buffer(13),
-          userHandle:null,
-        },
-      };
+      return credentialResponse();
     },
   }};
 
@@ -118,14 +122,34 @@ test('WebAuthn prioriza el mismo dispositivo sin eliminar fallback ni userVerifi
     credentialOptions:{publicKey:{
       challenge:'AQID',
       rpId:'iberfit.cl',
-      allowCredentials:[{type:'public-key',id:'Bwg',transports:['internal','hybrid']}],
-      userVerification:'required',
+      allowCredentials:[{type:'public-key',id:'Bwg',transports:['internal','hybrid','usb']}],
+      userVerification:'preferred',
       hints:['hybrid'],
     }},
   },{navigatorLike,PublicKeyCredentialImpl:function PublicKeyCredential(){}});
 
-  assert.equal(captured.hints[0],'client-device');
-  assert.ok(captured.hints.includes('hybrid'));
+  assert.deepEqual(captured.hints,['client-device']);
   assert.equal(captured.userVerification,'required');
-  assert.deepEqual(captured.allowCredentials[0].transports,['internal','hybrid']);
+  assert.deepEqual(captured.allowCredentials[0].transports,['internal']);
+  assert.doesNotMatch(JSON.stringify(captured),/hybrid|security-key|usb/u);
+});
+
+test('registro WebAuthn exige autenticador de plataforma y verificación nativa',()=>{
+  const options=__webauthnInternals.preferSameDevice({
+    hints:['hybrid'],
+    authenticatorSelection:{residentKey:'preferred',userVerification:'preferred'},
+    excludeCredentials:[{type:'public-key',id:'Bwg',transports:['internal','hybrid']}],
+  },{registration:true});
+
+  assert.deepEqual(options.hints,['client-device']);
+  assert.equal(options.authenticatorSelection.authenticatorAttachment,'platform');
+  assert.equal(options.authenticatorSelection.userVerification,'required');
+  assert.equal(options.authenticatorSelection.residentKey,'preferred');
+  assert.deepEqual(options.excludeCredentials[0].transports,['internal']);
+
+  const source=fs.readFileSync('src/m26/app/webauthn.js','utf8');
+  assert.equal(source.includes('hybrid'),false);
+  assert.equal(source.includes('security-key'),false);
+  assert.match(source,/authenticatorAttachment:'platform'/u);
+  assert.match(source,/userVerification:'required'/u);
 });
