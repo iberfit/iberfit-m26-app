@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'self'; connect-src 'self' https://pjhmrhejsoofmouedavw.supabase.co; img-src 'self' data: blob: https://pjhmrhejsoofmouedavw.supabase.co; frame-src 'self' https://pjhmrhejsoofmouedavw.supabase.co; style-src 'self' 'sha256-WnoG+6qpqzKCCa1SvDXhHtbNC/0iMpYJeH7fVrZcfC8='; script-src 'self'; font-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; connect-src 'self' https://pjhmrhejsoofmouedavw.supabase.co; img-src 'self' data: blob: https://pjhmrhejsoofmouedavw.supabase.co; frame-src 'self' https://pjhmrhejsoofmouedavw.supabase.co; style-src 'self' 'sha256-TJX7HSPuv4Nv9k8C/H7Jn1Ql5/GNTXgEEwkBPHo8htM='; script-src 'self'; font-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer

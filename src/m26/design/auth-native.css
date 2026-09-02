@@ -1,0 +1,212 @@
+/* IBERFIT M26 · Native full-screen access surface
+ * Presentation only. Auth, roles and WebAuthn remain in application/backend contracts.
+ */
+
+.m26-auth-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding:
+    max(clamp(1.25rem, 4vw, 3rem), env(safe-area-inset-top))
+    max(clamp(1.25rem, 4vw, 3rem), env(safe-area-inset-right))
+    max(clamp(1.25rem, 4vw, 3rem), env(safe-area-inset-bottom))
+    max(clamp(1.25rem, 4vw, 3rem), env(safe-area-inset-left));
+  color: var(--iberfit-color-text-primary, #f7f1e4);
+  background:
+    radial-gradient(circle at 78% 8%, rgba(200, 166, 93, .10), transparent 30rem),
+    radial-gradient(circle at 12% 88%, rgba(38, 108, 77, .15), transparent 34rem),
+    var(--iberfit-color-canvas, #07150f);
+}
+
+.m26-auth-card {
+  width: min(34rem, 100%);
+  max-width: 100%;
+  margin-block: auto;
+  padding: clamp(.75rem, 2.5vw, 1.5rem) 0;
+  overflow-wrap: anywhere;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.m26-auth-brand {
+  display: grid;
+  justify-items: center;
+  gap: .4rem;
+  margin: 0 0 1.1rem;
+  text-align: center;
+}
+
+.m26-auth-logo {
+  display: block;
+  width: clamp(4.25rem, 8vw, 5.25rem);
+  height: auto;
+  max-height: 5.25rem;
+  margin: 0;
+  object-fit: contain;
+}
+
+.m26-auth-card .m26-eyebrow {
+  margin: 0;
+  text-align: center;
+}
+
+.m26-auth-card h1 {
+  max-width: 15ch;
+  margin: .4rem auto .6rem;
+  text-align: center;
+}
+
+.m26-auth-card > p:not(.m26-notice):not(.m26-auth-notice) {
+  margin-inline: auto;
+  text-align: center;
+}
+
+.m26-auth-card form {
+  display: grid;
+  gap: .88rem;
+  margin-top: 1.25rem;
+}
+
+.m26-auth-card label {
+  display: grid;
+  gap: .4rem;
+}
+
+.m26-password-field {
+  position: relative;
+  display: block;
+}
+
+.m26-password-field input {
+  padding-right: 6.2rem;
+}
+
+.m26-auth-card .m26-password-toggle {
+  position: absolute;
+  right: .42rem;
+  top: 50%;
+  width: auto;
+  min-height: 2.35rem;
+  padding: .36rem .62rem;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: .62rem;
+  color: var(--iberfit-color-accent-soft, #e4cd98);
+  background: color-mix(in srgb, var(--iberfit-color-accent-soft, #e4cd98) 8%, transparent);
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.m26-auth-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .7rem;
+  flex-wrap: wrap;
+}
+
+.m26-auth-card .m26-remember-email {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  color: var(--iberfit-color-text-subtle, #ddd4c1);
+  font-size: .78rem;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.m26-auth-card .m26-remember-email input {
+  width: 1.05rem;
+  min-height: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--iberfit-color-accent, #c8a65d);
+}
+
+.m26-auth-card .m26-auth-link {
+  width: auto;
+  min-height: auto;
+  padding: .28rem 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--iberfit-color-accent-soft, #e4cd98);
+  background: transparent;
+  box-shadow: none;
+  font-size: .78rem;
+}
+
+.m26-auth-card .m26-primary-action {
+  margin-top: .1rem;
+}
+
+.m26-auth-card small {
+  text-align: center;
+}
+
+@media (max-height: 760px) and (min-width: 581px) {
+  .m26-auth-page {
+    padding-top: .7rem;
+    padding-bottom: .7rem;
+  }
+
+  .m26-auth-card {
+    padding: .55rem 0;
+  }
+
+  .m26-auth-brand {
+    margin-bottom: .65rem;
+  }
+
+  .m26-auth-logo {
+    width: 3.7rem;
+  }
+
+  .m26-auth-card h1 {
+    margin: .25rem auto .38rem;
+    font-size: clamp(1.9rem, 4vw, 2.55rem);
+  }
+
+  .m26-auth-card form {
+    gap: .6rem;
+    margin-top: .75rem;
+  }
+}
+
+@media (max-width: 580px) {
+  .m26-auth-page {
+    padding:
+      max(1rem, env(safe-area-inset-top))
+      max(1rem, env(safe-area-inset-right))
+      max(1.25rem, env(safe-area-inset-bottom))
+      max(1rem, env(safe-area-inset-left));
+  }
+
+  .m26-auth-card {
+    width: 100%;
+    padding: .5rem 0;
+  }
+
+  .m26-auth-brand {
+    margin-bottom: 1rem;
+  }
+
+  .m26-auth-logo {
+    width: 4.35rem;
+  }
+
+  .m26-auth-card h1 {
+    font-size: clamp(2rem, 10vw, 2.65rem);
+  }
+
+  .m26-auth-options {
+    align-items: flex-start;
+  }
+
+  .m26-auth-link {
+    margin-left: auto;
+  }
+}
