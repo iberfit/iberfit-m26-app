@@ -42,7 +42,12 @@ test('login surface is native full-screen, responsive and never clips a short vi
   const css=fs.readFileSync('public/m26/preauth-critical.css','utf8').replace(/\r\n?/gu,'\n').trimEnd();
 
   assert.match(css,/\.m26-auth-page\{[^}]*display:flex;[^}]*align-items:flex-start;[^}]*justify-content:center;/u);
-  assert.match(css,/\.m26-auth-card\{[^}]*margin-block:auto;[^}]*border:0;[^}]*border-radius:0;[^}]*background:transparent;[^}]*box-shadow:none;/u);
+  const authCardRule=css.match(/\.m26-auth-card\{([^}]*)\}/u)?.[1]||'';
+  assert.match(authCardRule,/margin-block:auto(?:;|$)/u);
+  assert.match(authCardRule,/border:0(?:;|$)/u);
+  assert.match(authCardRule,/border-radius:0(?:;|$)/u);
+  assert.match(authCardRule,/background:transparent(?:;|$)/u);
+  assert.match(authCardRule,/box-shadow:none(?:;|$)/u);
   assert.match(css,/\.m26-auth-brand\{[^}]*justify-items:center/u);
   assert.match(css,/\.m26-auth-logo\{[^}]*margin:0;[^}]*object-fit:contain/u);
   assert.match(css,/\.m26-password-toggle/u);
