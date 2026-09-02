@@ -1,76 +1,116 @@
 # IBERFIT · Backlog Vivo
 
-Este backlog es de coordinación. Los tickets/PRs concretos siguen viviendo en GitHub. No marcar DONE por memoria: exigir evidencia.
+Este backlog coordina trabajo. Los tickets/PRs concretos siguen viviendo en GitHub. No marcar DONE por memoria: exigir evidencia.
 
-## P0 — release blockers / seguridad
+## CHECKPOINT
 
-- [ ] Reejecutar y cerrar el fallo del smoke autenticado del gate remoto sobre el HEAD Canary vigente.
-- [ ] Demostrar que Canary live sirve exactamente el SHA/artefacto esperado antes de cualquier GO.
-- [ ] Confirmar P0=0 en auth, WebAuthn, roles, RLS y aislamiento cross-tenant.
-- [ ] Confirmar que no hubo ni habrá mutaciones de Supabase PROD durante validación.
-- [ ] Verificar rollback real y recuperable del candidato final.
+- LIVE observado: `cb423a12402206a383d4174a168707b2d860c023` en `app.iberfit.cl` con usuarios reales.
+- Canary certificado: `9cbe3ad29dfda0a552aa54c7e1404575b96786d4`.
+- Canary está 43 commits por delante de LIVE.
+- Remote gate Canary `33641163059`: SUCCESS.
+- Mutaciones Supabase PROD durante certificación: 0.
 
-## P1 — estabilización y gobernanza
+## P0 — siempre abierto como guardrail
 
-- [ ] Consolidar línea activa: decidir qué cambios de los PRs abiertos forman el próximo candidato y evitar cherry-picks/merges duplicados.
-- [ ] Resolver divergencias entre `canary/rc74-4`, `prep/final-production-rc74-4` y PR #38 mediante comparación verificable.
-- [ ] Actualizar metadatos/README/versionado que aún describen RC29/RC38 sin romper gates históricos.
-- [ ] Catalogar scripts, README y artefactos históricos por RC; archivar sólo después de demostrar que no son dependencias de gates actuales.
-- [ ] Resolver explícitamente la política de visibilidad del repositorio (configuración actual pública vs regla histórica del README).
-- [ ] Completar QA extremo a extremo Cliente / Coach / Admin en desktop y móvil.
-- [ ] Recertificar PWA/service worker/runtime config por entorno.
-- [ ] Revisar y consolidar los cambios de persistencia segura de sesión/WebAuthn sin almacenar contraseñas.
-- [ ] Revisar el trabajo de optimización RLS (16 políticas históricamente detectadas) contra el esquema vigente antes de PROD.
+- [ ] Mantener P0=0 en auth, WebAuthn, roles, RLS, cross-tenant, integridad de datos y disponibilidad.
+- [ ] Ante cualquier P0 LIVE: congelar evolución productiva de riesgo, branch desde SHA LIVE exacto y hotfix mínimo.
+- [ ] Nunca usar usuarios/datos reales para pruebas destructivas.
 
-## P1 — producto
+No existe un P0 técnico concreto abierto por el checkpoint Canary final, pero estas condiciones son permanentes.
 
-- [ ] Completar y validar rediseño Admin/Coach con navegación clara y estados robustos.
-- [ ] Validar i18n ES/EN/FR/PT sin regresión de rutas, fechas, auth ni contenido no traducido.
-- [ ] Auditar primera activación de Cliente y recuperación de acceso extremo a extremo.
-- [ ] Validar que IRI -> planificación -> sesiones -> feedback -> evolución funciona como circuito real, no como módulos aislados.
-- [ ] Confirmar consistencia del Design System entre Cliente, Coach y Admin.
+## P1 — operación con usuarios reales
+
+- [ ] Crear inventario de los 43 commits LIVE→Canary y dividirlos en lotes de promoción verificables.
+- [ ] Definir primer lote de promoción; no desplegar hasta recertificación específica.
+- [ ] Mantener carril `LIVE SUPPORT / HOTFIX` preparado desde el SHA productivo exacto.
+- [ ] Confirmar smoke read-only de LIVE y version identity antes de cada intervención productiva.
+- [ ] Preparar/validar rollback por lote, incluyendo compatibilidad de backend.
+- [ ] Revisar específicamente la migration `20260902033214_p0_restore_primary_auth_read_bootstrap_v1.sql` antes de cualquier consideración PROD; no incluirla de forma implícita.
+- [ ] Consolidar/cerrar ramas y PRs antiguos sólo después de comparar contra Canary; no merges masivos.
+- [ ] Resolver deuda de README/versionado histórico sin romper gates.
+- [ ] Resolver explícitamente política de visibilidad del repositorio.
+
+## P1 — producto / APP
+
+- [ ] Hacer QA funcional guiado por propietario sobre `app.iberfit.cl`: Cliente, Coach y Admin; convertir dudas reales en backlog clasificado.
+- [ ] Comparar cada duda de LIVE contra comportamiento Canary para saber si ya está resuelta o requiere trabajo nuevo.
+- [ ] Validar onboarding/primera activación y recuperación de acceso.
+- [ ] Validar circuito IRI -> planificación -> sesión -> feedback -> evolución.
+- [ ] Validar ergonomía Coach/Admin del Canary con tareas reales, no sólo screenshots.
+- [ ] Validar i18n ES/EN/FR/PT en rutas, fechas, auth, labels y persistencia.
+- [ ] Confirmar consistencia Design System y percepción premium entre roles.
+- [ ] Revisar PWA/install/update/offline/privacy antes de cada lote que toque shell/service worker.
 
 ## P2 — calidad / UX / rendimiento
 
-- [ ] Auditoría visual sistemática por breakpoint y rol.
-- [ ] Accesibilidad: teclado, focus, labels, contrastes, touch targets, estados de error.
-- [ ] Rendimiento de arranque y navegación; medir antes/después.
-- [ ] Reducir timeouts y cargas bloqueantes sin ocultar errores de autorización.
-- [ ] Revisar carga multimedia de ejercicios y degradación segura.
-- [ ] Observabilidad: errores de cliente, backend, auth y release con mínima exposición de datos.
+- [ ] Auditoría visual por breakpoint y rol basada en rutas prioritarias.
+- [ ] Accesibilidad: teclado, focus, labels, contrastes, touch targets, errores.
+- [ ] Medir arranque, auth bootstrap y navegación antes/después de cambios.
+- [ ] Revisar timeouts/transports sin ocultar errores de autorización.
+- [ ] Revisar carga multimedia de ejercicios y fallback seguro.
+- [ ] Observabilidad con mínima exposición de datos.
+- [ ] Crear lista Top 10 de fricciones reportadas por propietario/usuarios, ordenada por frecuencia e impacto.
 
-## WEBSITE
+## WEBSITE — carril paralelo
 
-- [ ] Confirmar repositorio canónico actual de web pública antes de modificarla.
-- [ ] Consolidar trabajo histórico de `iberfit/iberfitweb`; tratar `iberfit/iberfit-web` como posible duplicado histórico hasta revalidar.
-- [ ] Construir `WEBSITE_MASTER` basado en estado live + decisiones aprobadas, no rehacer desde cero.
-- [ ] Resolver deuda histórica: reglas comerciales, CTA/IRI, redacción duplicada, idioma y `mailto:`.
-- [ ] SEO local Santiago: servicios + comunas prioritarias + intención comercial.
-- [ ] CRO: landing -> contacto/WhatsApp -> diagnóstico IRI.
-- [ ] Analytics de funnel con eventos definidos antes de escalar campañas.
+- [ ] Identificar proyecto/deployment Cloudflare exacto que sirve `iberfit.cl`.
+- [ ] Recuperar source SHA/snapshot del LIVE actual.
+- [ ] No desplegar desde `iberfit/iberfitweb@main` mientras siga divergente de LIVE.
+- [ ] Crear branch web desde fuente LIVE real antes de editar.
+- [ ] Auditoría funcional móvil/desktop, enlaces, WhatsApp, formularios, idiomas, legal.
+- [ ] SEO local Santiago: intención comercial + zonas reales.
+- [ ] CRO: landing -> WhatsApp/contacto -> Diagnóstico IRI.
+- [ ] Tracking: `view_iri`, `click_whatsapp`, `start_contact`, `submit_contact`, `book_iri` si aplica.
+- [ ] Core Web Vitals / assets / accesibilidad.
 
-## GROWTH / SALES
+## GROWTH / SALES — carril paralelo
 
-- [ ] Confirmar oferta/precios vigentes antes de publicar o automatizar.
-- [ ] Definir ICP por modalidad: Presencial / Híbrido / Online.
-- [ ] Instrumentar funnel completo y fuente de lead.
-- [ ] Mejorar Google Business: vistas -> web/llamada -> lead -> diagnóstico.
+- [ ] Confirmar oferta y precios vigentes antes de publicar/automatizar.
+- [ ] Definir ICP por Presencial / Híbrido / Online con evidencia real de leads/clientes.
+- [ ] Instrumentar funnel: fuente -> lead -> conversación -> IRI -> cliente -> retención/referral.
+- [ ] Recuperar datos actuales de Google Business, Search Console y analytics.
+- [ ] Mejorar Google Business con atribución a lead/IRI, no sólo vistas.
 - [ ] Sistema de testimonios/casos con consentimiento.
-- [ ] Sistema de referral en momentos de alto valor/resultados.
-- [ ] Experimentos de captación con hipótesis, coste y criterio de éxito.
-- [ ] Retención 30/90/180 y detección de riesgo de abandono.
+- [ ] Sistema de referral en momentos de satisfacción/resultado.
+- [ ] Medir retención 30/90/180 y riesgo de abandono.
+- [ ] Priorizar experimentos por impacto/evidencia/velocidad, no por cantidad de contenido.
 
-## AUTOMATION / AI
+## QA / SECURITY / AUTOMATION
 
-- [ ] Mantener auditor continuo read-only y hacerlo incremental para reducir coste.
-- [ ] Crear auditor profundo semanal separado del auditor frecuente.
-- [ ] Escalado de modelos: tareas mecánicas -> modelo eficiente; desarrollo -> modelo principal; arquitectura/seguridad -> razonamiento alto.
-- [ ] Generar resúmenes operativos a partir de datos estructurados, nunca de datos sensibles pegados en prompts públicos.
-- [ ] Evaluar IA in-product sólo con caso de negocio, privacidad y métricas definidas.
+- [x] Auditor diario transformado a incremental para reducir consumo.
+- [x] Auditor profundo semanal separado del diario.
+- [x] Bibliotecario de continuidad orientado a `AGENTS.md` + docs vivos.
+- [ ] Verificar periódicamente que los schedulers ejecutan la rama/fuente esperada.
+- [ ] Auditar sólo diffs/áreas cambiadas a diario; full scan semanal o por release.
+- [ ] Mantener pruebas read-only contra producción salvo procedimiento de release.
+- [ ] Escalado de modelos: eficiente para mecánico, principal para coding, razonamiento alto para seguridad/arquitectura/release.
 
-## DONE / evidencia inicial
+## ORGANIZACIÓN / CODEX
 
-- [x] Repositorio técnico canónico identificado como `iberfit/iberfit-m26-app`.
-- [x] Rama documental segura `chore/iberfit-hq-bootstrap` creada desde Canary SHA `444374e0c6cc6efb1d95f00dc7b138f261a23187`.
-- [x] Contrato `AGENTS.md` creado.
-- [x] Fuente maestra y estado operativo inicial documentados.
+- [x] `AGENTS.md` creado y actualizado para producción real.
+- [x] `PRODUCTION_STATE.md` convertido en checkpoint LIVE + Canary.
+- [x] `OPERATING_MODEL.md` creado.
+- [x] `RELEASE_POLICY.md` creado.
+- [x] `CODEX_WORKFLOW.md` creado.
+- [ ] Integrar la documentación HQ a la línea técnica apropiada una vez revisado el PR documental.
+- [ ] Abrir en ChatGPT Desktop/Codex una copia limpia del repo; no usar la copia local antigua con archivos no versionados como fuente canónica.
+- [ ] Para cada sesión: leer sólo AGENTS + STATE + dominio; evitar contexto total.
+
+## DONE / evidencia consolidada
+
+- [x] Repositorio técnico canónico: `iberfit/iberfit-m26-app`.
+- [x] Web duplicada `iberfit/iberfit-web` identificada como archivada.
+- [x] Divergencia web LIVE vs `iberfitweb/main` documentada.
+- [x] Canary `9cbe3ad...` desplegado exactamente en QA.
+- [x] Remote gate final verde.
+- [x] WebAuthn privilegiado recertificado fail-closed.
+- [x] 0 mutaciones de Supabase PROD durante cierre Canary.
+- [x] Producción `app.iberfit.cl` reconocida formalmente como sistema vivo con usuarios reales.
+
+## SIGUIENTES 5 ACCIONES
+
+1. Inventariar y agrupar los 43 commits LIVE→Canary sin desplegar.
+2. Comenzar QA guiado por uso real: registrar la primera duda/fricción del propietario en `app.iberfit.cl` y compararla con Canary.
+3. Recuperar source/deploy exacto de `iberfit.cl` web.
+4. Recuperar métricas actuales del funnel comercial.
+5. Revisar PR documental HQ y dejar esta fuente de verdad accesible desde el flujo Codex cotidiano.
