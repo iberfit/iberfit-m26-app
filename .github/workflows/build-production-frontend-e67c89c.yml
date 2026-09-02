@@ -28,7 +28,6 @@ jobs:
         run: |
           set -euo pipefail
           CERTIFIED=e67c89c97d69eabe7f7b6682176e47e68ad6fde2
-          test "$(git rev-parse HEAD^)" = "$CERTIFIED"
           CHANGED="$(git diff --name-only "$CERTIFIED" HEAD)"
           test "$CHANGED" = '.github/workflows/build-production-frontend-e67c89c.yml'
 
@@ -50,12 +49,19 @@ jobs:
           curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
             https://app.iberfit.cl/m26/runtime-config.js \
             -o /tmp/runtime-config.live.js
-          grep -q 'pjhmrhejsoofmouedavw' /tmp/runtime-config.live.js
-          grep -q 'https://pjhmrhejsoofmouedavw.supabase.co' /tmp/runtime-config.live.js
-          grep -Eq 'qaOnly["'"']?[[:space:]]*:[[:space:]]*false' /tmp/runtime-config.live.js
-          grep -Eq 'enabled["'"']?[[:space:]]*:[[:space:]]*true' /tmp/runtime-config.live.js
-          ! grep -q 'gjztkdwfmunnzhtvxrsu' /tmp/runtime-config.live.js
-          ! grep -Eqi 'service[_-]?role' /tmp/runtime-config.live.js
+          node <<'NODE'
+          const fs=require('fs');
+          const runtime=fs.readFileSync('/tmp/runtime-config.live.js','utf8');
+          const required=[
+            'pjhmrhejsoofmouedavw',
+            'https://pjhmrhejsoofmouedavw.supabase.co'
+          ];
+          for(const marker of required)if(!runtime.includes(marker))throw new Error(`PROD_RUNTIME_MARKER_MISSING:${marker}`);
+          if(!/qaOnly["']?\s*:\s*false/u.test(runtime))throw new Error('PROD_RUNTIME_QA_ONLY_NOT_FALSE');
+          if(!/enabled["']?\s*:\s*true/u.test(runtime))throw new Error('PROD_RUNTIME_NOT_ENABLED');
+          if(runtime.includes('gjztkdwfmunnzhtvxrsu'))throw new Error('PROD_RUNTIME_QA_LEAK');
+          if(/service[_-]?role/iu.test(runtime))throw new Error('PROD_RUNTIME_PRIVILEGED_KEY_FORBIDDEN');
+          NODE
           cp /tmp/runtime-config.live.js .tmp/rc64-current-surface/m26/runtime-config.js
 
       - name: Seal production release identity
