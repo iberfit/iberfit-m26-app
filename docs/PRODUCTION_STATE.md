@@ -10,131 +10,138 @@ Estado: checkpoint verificable. Releer rama/SHA/gates antes de cualquier mutaci�
 - Rama por defecto observada: `prepublicacion/rc29`
 - Nota: el README histórico afirma que el repositorio debería ser privado, pero la configuración observada es pública. No cambiar visibilidad automáticamente; resolver como decisión explícita.
 
-## Canary — estado más reciente observado
+## Canary — estado verificado
 
 - Rama: `canary/rc74-4`
 - HEAD: `713a65a699c3bba277ef4bac1a16c634076da6db`
 - Commit: `test: alinear gate RC64.2B1 con smoke WebAuthn vigente`
 - Fecha: 2026-09-02 13:18:14Z
-- Padre directo: `a4f8bb0f22fd748cb84e20e349354f42ea06ed5d` (HEAD de PR #38 observado previamente)
-- CI IBERFIT M26: SUCCESS, run #319 / id `33635146578`
-- Gate remoto read-only: FAILURE, run #63 / id `33635146513`
+- CI sobre ese HEAD: verde.
 
-### Gate remoto #63
+### Cloudflare Canary
+
+Proyecto: `iberfit-m26-canary`
+Dominio: `m26-canary.iberfit.cl`
+
+Direct Upload exacto verificado:
+
+- sourceSha: `713a65a699c3bba277ef4bac1a16c634076da6db`;
+- sourceBranch: `canary/rc74-4`;
+- `qaOnly=true`;
+- Supabase QA: `gjztkdwfmunnzhtvxrsu`;
+- productionRef ausente;
+- deployment Pages observado: `d7dfc9f8.iberfit-m26-canary.pages.dev`.
+
+El antiguo bloqueo `PRELAUNCH_LIVE_DEPLOY_SHA_MISMATCH` queda **resuelto para `713a65a...`**. El gate posterior valida correctamente el Canary desplegado en navegador real.
+
+`Automatic deployments` permanece pausado intencionalmente. No reanudar todavía.
+
+## Gate remoto posterior al deploy exacto
+
+Run: `33636586895`.
 
 PASS:
 
-- setup/checkout/node;
 - gate autenticado sin mutaciones;
-- conservación de evidencia remota;
-- preparación Playwright.
+- evidencia remota;
+- preparación Playwright;
+- validación Canary desplegado en navegador real;
+- candidatos visuales y evidencia.
 
 FAIL:
 
-- `Validar Canary desplegado en navegador real`.
+- smoke autenticado RC64.2B sobre la fuente actual.
 
-SKIP por fail-closed posterior:
+La causa ya no es Cloudflare. La investigación encontró una discrepancia de contrato WebAuthn privilegiado:
 
-- candidatos visuales Linux;
-- smoke autenticado RC64.2B;
+- backend QA bloquea correctamente el bootstrap Coach pre-WebAuthn con `IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED`;
+- el frontend de `713a65a...` trataba assurance WebAuthn no verificado como `ready` y comenzaba bootstrap privilegiado;
+- el smoke nuevo también esperaba erróneamente que el shell Coach apareciera antes de WebAuthn.
 
-La evidencia autenticada conservada demuestra para Supabase QA:
+## Fix activo — PR #41
 
-- proyecto `gjztkdwfmunnzhtvxrsu`;
-- modo `authenticated-readonly`;
-- `mutationsPerformed=false`;
-- `productionBlocked=true`;
-- 52 comandos esperados / 52 remotos;
-- registry validation OK, sin missing/unexpected/mismatches/duplicates;
-- Coach: gate privilegiado WebAuthn devuelve `IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED` como se esperaba;
-- Cliente A y Cliente B: aislamiento correcto, sin fingerprints extranjeros.
+Rama: `fix/rc74-4-coach-webauthn-contract`
+Base exacta: `713a65a699c3bba277ef4bac1a16c634076da6db`
+HEAD verificado: `9cbe3ad29dfda0a552aa54c7e1404575b96786d4`
 
-Interpretación actual: backend/gate autenticado QA pasa; el bloqueo inmediato está antes del smoke, en la validación del artefacto Canary desplegado. Evidencia reciente del PR activo lo describe como `PRELAUNCH_LIVE_DEPLOY_SHA_MISMATCH`.
+Cambios:
 
-**CI verde no equivale a GO. Canary live debe servir exactamente el candidato esperado.**
+- restaura `privilegedMfaDecision()` fail-closed;
+- sin assurance: enrolamiento o challenge WebAuthn antes del bootstrap Coach/Admin privilegiado;
+- assurance verificado: `ready`;
+- Cliente sin MFA privilegiado continúa normalmente;
+- smoke Playwright espera gate Coach pre-bootstrap y shell Cliente;
+- no automatiza WebAuthn;
+- no modifica backend/RLS/Supabase/Cloudflare.
+
+Verificación actual del PR #41:
+
+- diff funcional del commit `9cbe3ad...`: únicamente `src/m26/app/application.js` en `privilegedMfaDecision()` (más EOF sin salto de línea);
+- CI `IBERFIT M26 CI` run #323: SUCCESS;
+- validación RC74.4 Phase B: SUCCESS;
+- `IBERFIT M26 Continuous App Audit` run #67: SUCCESS;
+- gate remoto A/B del PR: skipped por política de rama; falta validar el candidato exacto en Canary.
+
+PR #41 debe seguir draft y sin merge/deploy hasta completar esa validación controlada.
 
 ## Candidato / prep
 
 - Rama: `prep/final-production-rc74-4`
 - HEAD observado: `824671972406bc98febaf1049ef7963f3dd571f9`
-- Commit: `feat(ux): load premium role ergonomics`
-- Fecha: 2026-09-02 04:31:17Z
+- Es anterior a la línea Canary actual; no asumir que es el candidato más nuevo.
 
-Comparación observada tras el avance de Canary: `canary/rc74-4` está por delante de `prep/final-production-rc74-4`; no promover prep por asumir que es más nuevo.
+## PR #38 / UX e i18n
 
-## PR activo principal
+La rama `feat/rc74-4-admin-coach-ux-i18n` fue observada idéntica a `canary/rc74-4` en el checkpoint `713a65a...`; no volver a fusionarla.
 
-PR #38 (draft): `feat: rediseñar Admin/Coach y añadir i18n ES/EN/FR/PT`.
-
-Su HEAD observado fue `a4f8bb0f22fd748cb84e20e349354f42ea06ed5d` y el Canary actual tiene ese SHA como padre directo, seguido por el commit de alineación del gate. Por tanto, la línea Canary actual incorpora el trabajo del PR #38 más el ajuste posterior del gate.
-
-Incluye, según descripción del PR:
-
-- navegación Admin y Coach reorganizada;
-- centros de trabajo/accesos rápidos;
-- estados seguros si falta cliente;
-- ES/EN/FR/PT + región;
-- responsive y PWA;
-- resiliencia de refresh/timeouts;
-- contención de errores asíncronos;
-- tests específicos;
-- gate autenticado read-only.
-
-Otros PRs abiertos contienen auth persistence, PWA, route contracts, auditoría profunda y rendimiento RLS. No fusionar acumulativamente: comparar cada uno contra el Canary actual para rescatar sólo cambios que aún falten.
+Otros PRs abiertos pueden contener auth persistence, PWA, route contracts, auditoría profunda y rendimiento RLS. Comparar contra Canary y rescatar sólo cambios realmente ausentes.
 
 ## Supabase
 
-- QA conocido: `gjztkdwfmunnzhtvxrsu`
+- QA: `gjztkdwfmunnzhtvxrsu`.
 - QA y PROD separados.
 - Producción: NO MUTAR sin autorización explícita + preflight + rollback.
-- Última evidencia descargada del run #63: 52/52 comandos, aislamiento A/B correcto, WebAuthn privilegiado fail-closed, 0 mutaciones.
+- Evidencia reciente: 52/52 comandos, aislamiento Cliente A/B correcto, WebAuthn privilegiado server-side fail-closed y 0 mutaciones.
 
-## Cloudflare / LIVE
+## Producción
 
-Conocido:
-
-- Canary project: `iberfit-m26-canary`;
-- host: `m26-canary.iberfit.cl`;
-- app productiva: `app.iberfit.cl`.
-
-Bloqueo actual: el artefacto Canary live no está demostrando identidad con el SHA esperado por el gate. Se requiere alinear/desplegar el artefacto QA correcto y repetir el gate; no tocar producción para resolverlo.
+- App LIVE: `app.iberfit.cl`.
+- No se ha autorizado promoción del PR #41 ni del Canary actual.
+- `iberfit-m26-production` no debe tocarse durante este cierre de QA.
 
 ## Auditoría continua
 
-Workflow observado: `.github/workflows/continuous-app-audit.yml`.
+Workflow: `.github/workflows/continuous-app-audit.yml`.
 
-Incluye:
+Cobertura observada:
 
-- regresión Node completa;
+- regresión Node;
 - contratos Cliente/Coach/Admin;
-- auditoría integral read-only contra `https://app.iberfit.cl`;
-- artefactos 30 días;
-- schedule declarado cada 6 horas.
+- auditoría integral read-only;
+- evidencia retenida.
 
-Verificar siempre qué rama ejecuta realmente el scheduler y el bridge del default branch.
+## WEBSITE — carril separado
 
-## WEBSITE — hallazgo separado
-
-`iberfit.cl` LIVE y `iberfit/iberfitweb@main` no coinciden al 2026-09-02. La web live es más reciente/diferente que el `main` de junio. No desplegar desde ese `main` hasta recuperar la fuente exacta del LIVE. Ver `docs/website/WEBSITE_STATE.md`.
+`iberfit.cl` LIVE no coincide con `iberfit/iberfitweb@main` al 2026-09-02. No desplegar la web desde ese `main` hasta recuperar la fuente exacta del LIVE. Ver `docs/website/WEBSITE_STATE.md`.
 
 ## Bloqueos actuales
 
 ### P0
 
-No declarar P0=0 hasta recertificar release. Cualquier cross-tenant, bypass auth/WebAuthn/RLS, corrupción/pérdida de datos o mutación accidental de PROD bloquea inmediatamente.
+No declarar P0=0 hasta recertificar release. Cross-tenant, bypass auth/WebAuthn/RLS, corrupción/pérdida de datos o mutación accidental de PROD son bloqueantes inmediatos.
 
 ### P1
 
-1. Canary live no coincide aún con el candidato esperado por el gate.
-2. Gate remoto #63 falla en validación del Canary desplegado.
-3. Múltiples PRs abiertos parcialmente solapados requieren consolidación contra el Canary actual.
-4. README/package metadata conservan referencias históricas RC29/RC38 y no describen claramente la línea actual.
-5. Visibilidad pública del repositorio contradice una regla histórica del README y requiere decisión explícita.
-6. Fuente Git conocida de `iberfit.cl` diverge del LIVE.
+1. Validar el PR #41 exacto en Canary con el gate autenticado completo.
+2. Tras esa validación, decidir integración a `canary/rc74-4` sin tocar producción.
+3. Consolidar PRs antiguos/divergentes sin reintroducir cambios obsoletos.
+4. Resolver deuda de README/versionado histórico.
+5. Resolver explícitamente la visibilidad pública del repositorio.
+6. Recuperar la fuente exacta de `iberfit.cl` LIVE.
 
 ## Condición de GO futura
 
-No promover hasta que:
+No promover a producción hasta que:
 
 - SHA objetivo fijo;
 - CI completo verde;
@@ -149,7 +156,7 @@ No promover hasta que:
 
 ## Siguiente acción exacta
 
-1. Mantener la consolidación documental aislada en `chore/iberfit-hq-bootstrap`.
-2. Alinear el artefacto desplegado en `m26-canary.iberfit.cl` con el HEAD Canary actual y repetir gate #63 equivalente.
-3. Tras gate verde, comparar PRs abiertos contra Canary y cerrar la divergencia sin reintroducir cambios obsoletos.
-4. En paralelo, recuperar la fuente exacta de `iberfit.cl` LIVE antes de continuar la web.
+1. Mantener `Automatic deployments paused`.
+2. Validar el candidato `9cbe3ad...` del PR #41 en Canary QA mediante Direct Upload controlado, sin producción.
+3. Ejecutar el gate remoto completo contra ese artefacto exacto.
+4. Si todo queda verde, integrar de forma controlada a Canary y actualizar esta fuente de verdad.
