@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCommunicationTransport} from '../src/m26/communication/transport.js';
 import {createAdminTransport} from '../src/m26/admin/transport.js';
+import {createRc39Transport} from '../src/m26/rc39/transport.js';
 
 const runtime=Object.freeze({
   url:'https://pjhmrhejsoofmouedavw.supabase.co',
@@ -28,30 +29,36 @@ function stalledFetch(_url,{signal}={}){
   });
 }
 
-test('Coach communication bootstrap cannot remain pending indefinitely',async()=>{
-  const transport=createCommunicationTransport({runtime,fetchImpl:stalledFetch});
-  const started=Date.now();
-
-  await assert.rejects(
-    transport.bootstrapOptional('coach-token',{application:'coach'}),
-    /M26_TIMEOUT/u,
-  );
-
+async function expectBoundedTimeout(promise,started){
+  await assert.rejects(promise,/M26_TIMEOUT/u);
   const elapsed=Date.now()-started;
   assert.ok(elapsed>=900,`timeout fired too early: ${elapsed}ms`);
   assert.ok(elapsed<2_500,`timeout was not bounded: ${elapsed}ms`);
+}
+
+test('Coach communication bootstrap cannot remain pending indefinitely',async()=>{
+  const transport=createCommunicationTransport({runtime,fetchImpl:stalledFetch});
+  const started=Date.now();
+  await expectBoundedTimeout(
+    transport.bootstrapOptional('coach-token',{application:'coach'}),
+    started,
+  );
 });
 
 test('Admin extension bootstrap cannot remain pending indefinitely',async()=>{
   const transport=createAdminTransport({runtime,fetchImpl:stalledFetch});
   const started=Date.now();
-
-  await assert.rejects(
+  await expectBoundedTimeout(
     transport.applicationContextOptional('admin-token'),
-    /M26_TIMEOUT/u,
+    started,
   );
+});
 
-  const elapsed=Date.now()-started;
-  assert.ok(elapsed>=900,`timeout fired too early: ${elapsed}ms`);
-  assert.ok(elapsed<2_500,`timeout was not bounded: ${elapsed}ms`);
+test('Coach role and appointment extensions cannot remain pending indefinitely',async()=>{
+  const transport=createRc39Transport({runtime,fetchImpl:stalledFetch});
+  const started=Date.now();
+  await expectBoundedTimeout(
+    transport.extensions('coach-token'),
+    started,
+  );
 });
