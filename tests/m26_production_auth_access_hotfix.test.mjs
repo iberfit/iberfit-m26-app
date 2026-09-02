@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {privilegedMfaDecision} from '../src/m26/app/application.js';
 
-test('production privileged access never requires WebAuthn to continue after valid primary auth',()=>{
-  assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:false}),{kind:'ready',webauthnRecommended:true});
-  assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:true}),{kind:'ready',webauthnRecommended:true});
+test('production privileged access requires IBERFIT WebAuthn assurance before privileged bootstrap',()=>{
+  assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:false}),{kind:'enroll-required'});
+  assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:true}),{kind:'challenge',factorId:'65000000-0000-4000-8000-000000000002'});
   assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'verified',credentialEnrolled:true}),{kind:'ready'});
+  assert.deepEqual(privilegedMfaDecision({webauthnRequired:false,iberfitAssurance:'not-required',credentialEnrolled:false}),{kind:'ready'});
 });
 
 test('production access still validates Supabase session identity and privileged authorization context',()=>{
