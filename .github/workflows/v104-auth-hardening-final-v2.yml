@@ -60,10 +60,11 @@ jobs:
           if count!=1: raise SystemExit(f'V104_ROLE_EXPECTATION_MATCH_COUNT={count}')
           p.write_text(s,encoding='utf-8')
 
-      - name: Align historical PWA regression assertions with deliberate cache rotation
+      - name: Align all strict PWA cache assertions with deliberate cache rotation
         shell: python
         run: |
           from pathlib import Path
+
           p=Path('tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs')
           s=p.read_text(encoding='utf-8')
           replacements=[
@@ -72,9 +73,25 @@ jobs:
           ]
           for old,new in replacements:
               count=s.count(old)
-              if count!=1: raise SystemExit(f'V104_PWA_EXPECTATION_MATCH_COUNT={count}:{old}')
+              if count!=1: raise SystemExit(f'V104_PWA_2A_MATCH_COUNT={count}:{old}')
               s=s.replace(old,new,1)
           p.write_text(s,encoding='utf-8')
+
+          for filename in [
+              'tests/m26_rc63_2_network_analytics_asset_governance.test.mjs',
+              'tests/m26_rc64_2b_visual_auth_observability_foundation.test.mjs',
+          ]:
+              p=Path(filename)
+              s=p.read_text(encoding='utf-8')
+              replacements=[
+                  ("assert.match(sw,/VERSION='m26-rc63-2'/u);","assert.match(sw,/^const VERSION='m26-rc63-3';$/mu);"),
+                  ("assert.match(sw,/PREVIOUS_VERSION='m26-rc63-1'/u);","assert.match(sw,/^const PREVIOUS_VERSION='m26-rc63-2';$/mu);"),
+              ]
+              for old,new in replacements:
+                  count=s.count(old)
+                  if count!=1: raise SystemExit(f'V104_PWA_STRICT_MATCH_COUNT={count}:{filename}:{old}')
+                  s=s.replace(old,new,1)
+              p.write_text(s,encoding='utf-8')
 
       - name: Install dependencies
         run: npm ci
@@ -85,7 +102,9 @@ jobs:
           node --test tests/m26_rc65c1_privileged_mfa.test.mjs
           node --test tests/m26_auth_contract_v104.test.mjs
           node --test tests/m26_role_ai_coherence.test.mjs
+          node --test tests/m26_rc63_2_network_analytics_asset_governance.test.mjs
           node --test tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs
+          node --test tests/m26_rc64_2b_visual_auth_observability_foundation.test.mjs
           node --test tests/m26_final_production_frontend.test.mjs
           node --test tests/m26_pwa_install_experience.test.mjs
 
@@ -98,8 +117,10 @@ jobs:
           node --check scripts/release/check-production-auth-contract.mjs
           node --check tests/m26_auth_contract_v104.test.mjs
           node --check tests/m26_production_auth_access_hotfix.test.mjs
-          node --check tests/m26_rc65c1_privileged_mfa.test.mjs
+          node --check tests/m26_rc63_2_network_analytics_asset_governance.test.mjs
           node --check tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs
+          node --check tests/m26_rc64_2b_visual_auth_observability_foundation.test.mjs
+          node --check tests/m26_rc65c1_privileged_mfa.test.mjs
 
       - name: Canonical build smoke
         run: node qa/rc64/build-current-surface.mjs
@@ -115,7 +136,9 @@ jobs:
             src/m26/app/application.js
             tests/m26_auth_contract_v104.test.mjs
             tests/m26_production_auth_access_hotfix.test.mjs
+            tests/m26_rc63_2_network_analytics_asset_governance.test.mjs
             tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs
+            tests/m26_rc64_2b_visual_auth_observability_foundation.test.mjs
             tests/m26_rc65c1_privileged_mfa.test.mjs
           )
           printf '%s\n' "${changed[@]}" | sort > /tmp/changed
@@ -128,6 +151,6 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add public/m26/sw.js scripts/release/check-production-auth-contract.mjs src/m26/app/application.js tests/m26_auth_contract_v104.test.mjs tests/m26_production_auth_access_hotfix.test.mjs tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs tests/m26_rc65c1_privileged_mfa.test.mjs
+          git add public/m26/sw.js scripts/release/check-production-auth-contract.mjs src/m26/app/application.js tests/m26_auth_contract_v104.test.mjs tests/m26_production_auth_access_hotfix.test.mjs tests/m26_rc63_2_network_analytics_asset_governance.test.mjs tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs tests/m26_rc64_2b_visual_auth_observability_foundation.test.mjs tests/m26_rc65c1_privileged_mfa.test.mjs
           git commit -m 'fix(prod): restore privileged assurance and harden auth gates [v104-validated]'
           git push origin HEAD:fix/prod-auth-contract-v104
