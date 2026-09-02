@@ -217,7 +217,7 @@ test('RC64.2B1 base browser gate remains isolated from specialized visual auth a
 
   assert.match(realShell,/testMatch:'real-shell\.spec\.mjs'/u);
   assert.match(visual,/testMatch:'visual\.spec\.mjs'/u);
-  assert.match(authenticated,/testMatch:'authenticated-smoke\.spec\.mjs'/u);
+  assert.match(authenticated,/testMatch:'authenticated-current-contract\.spec\.mjs'/u);
 
   assert.equal(pkg.scripts['quality:rc64:browser'],'playwright test --config playwright.config.mjs');
   assert.equal(pkg.scripts['quality:rc64:real-shell'],'node qa/rc64/build-current-surface.mjs && playwright test --config playwright.real-shell.config.mjs');

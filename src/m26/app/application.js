@@ -183,10 +183,16 @@ function invalidRecoverySession(error){
 }
 
 export function privilegedMfaDecision(assurance={}){
-  if(assurance?.webauthnRequired===true&&assurance?.iberfitAssurance!=='verified'){
-    return Object.freeze({kind:'ready',webauthnRecommended:true});
+  if(assurance?.webauthnRequired!==true){
+    return Object.freeze({kind:'ready'});
   }
-  return Object.freeze({kind:'ready'});
+  if(assurance?.iberfitAssurance==='verified'){
+    return Object.freeze({kind:'ready'});
+  }
+  if(assurance?.credentialEnrolled===true){
+    return Object.freeze({kind:'challenge',factorId:'65000000-0000-4000-8000-000000000002'});
+  }
+  return Object.freeze({kind:'enroll-required'});
 }
 
 export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history}={}){
