@@ -50,22 +50,20 @@ Estado: vigente desde 2026-09-02
 
 Un bug P0/P1 de usuarios reales no debe resolverse arrastrando automáticamente todo Canary.
 
-- LIVE SUPPORT / HOTFIX nace del SHA LIVE exacto y contiene el parche mínimo.
+- LIVE SUPPORT / HOTFIX nace del deployment/SHA LIVE exacto recuperado para la intervención y contiene el parche mínimo.
 - PRODUCT EVOLUTION nace del Canary certificado y agrupa mejoras planificadas.
 
 Después de un hotfix productivo, el cambio se reconcilia con la línea de evolución.
 
-## D-009 · No promover 43 commits de una vez
+## D-009 · No promover diferencias masivas por inercia
 
 Estado: vigente desde 2026-09-02
 
-Checkpoint verificado:
+Canary certificado: `9cbe3ad29dfda0a552aa54c7e1404575b96786d4`.
 
-- LIVE `cb423a12402206a383d4174a168707b2d860c023`;
-- Canary certificado `9cbe3ad29dfda0a552aa54c7e1404575b96786d4`;
-- diferencia: Canary +43 commits.
+Un SHA frontend LIVE observado históricamente no sustituye la identidad actual del deployment de proveedor. La promoción se hará por lotes funcionales, recertificados y reversibles después de recuperar el deployment productivo real y calcular el diff exacto.
 
-La promoción se hará por lotes funcionales, recertificados y reversibles. La existencia de un Canary verde no basta para promover toda la diferencia.
+La existencia de un Canary verde no basta para promover toda la diferencia.
 
 ## D-010 · Paralelizar análisis, serializar riesgo
 
@@ -95,7 +93,47 @@ El propietario no necesita redactar tickets técnicos. Puede describir lo que ve
 
 Estado: vigente como checkpoint, no como alias permanente
 
-El SHA `9cbe3ad29dfda0a552aa54c7e1404575b96786d4` quedó certificado en Canary con remote gate `33641163059` = success, 0 mutaciones Supabase PROD y sin tocar dominios productivos. Se conserva como base de evolución hasta que una nueva tarea mueva Canary mediante el mismo rigor.
+El SHA `9cbe3ad29dfda0a552aa54c7e1404575b96786d4` quedó certificado en Canary con remote gate `33641163059` = success, sin mutaciones de producción durante esa certificación y sin tocar dominios productivos. Se conserva como base de evolución hasta que una nueva tarea mueva Canary mediante el mismo rigor.
+
+## D-014 · El bundle SQL histórico 33656032685 queda retirado
+
+Estado: vigente desde 2026-09-02
+
+Producción `pjhmrhejsoofmouedavw` fue inspeccionada en modo read-only. El preflight del artifact `final-production-promotion-sql` del run `33656032685` falló fail-closed porque esperaba un baseline anterior.
+
+La historia de migraciones productiva demuestra que RC74.4/RC65/P0 ya fueron aplicados, incluyendo `final_prod_01...final_prod_16` y migraciones posteriores hasta al menos `20260902033214 p0_restore_primary_auth_read_bootstrap_v1`.
+
+Por tanto:
+
+- el bundle queda `SUPERSEDED`;
+- no se ejecuta;
+- no se modifica el baseline productivo para hacerlo pasar;
+- no se reejecutan migraciones registradas;
+- cualquier cambio DB futuro parte del estado live y contiene sólo el delta faltante.
+
+PR #43 se cerró sin merge después de retirar su camino de mutación y dejar la evidencia verificable.
+
+## D-015 · La identidad del frontend productivo viene del proveedor
+
+Estado: vigente desde 2026-09-02
+
+Antes de cualquier deploy frontend productivo se deben recuperar de Cloudflare el proyecto Pages exacto, deployment ID live, dominios/rutas y deployment de rollback.
+
+No se permite inferir esa identidad desde:
+
+- nombres de repositorio;
+- ramas históricas;
+- nombres de proyectos Canary;
+- SHAs observados en sesiones anteriores;
+- scripts de deploy antiguos.
+
+Si la evidencia de proveedor no está disponible, la promoción frontend queda bloqueada y Canary no se mueve por conveniencia.
+
+## D-016 · No redeployar componentes productivos que ya cumplen por rutina
+
+Estado: vigente desde 2026-09-02
+
+La Edge Function `iberfit-webauthn-v1` está observada ACTIVE v1, `verify_jwt=true`, con contrato productivo visible coherente con el release certificado. No se redeploya sólo para “sincronizar”. Una mutación necesita una diferencia real demostrada, checkpoint de versión y rollback independiente.
 
 ## Decisiones pendientes
 
@@ -103,9 +141,9 @@ El SHA `9cbe3ad29dfda0a552aa54c7e1404575b96786d4` quedó certificado en Canary c
 
 La configuración observada es pública, mientras documentación histórica decía que debía ser privada. Resolver explícitamente considerando seguridad, secretos (que nunca deben existir en Git independientemente de visibilidad), colaboración y estrategia open-source. No cambiar automáticamente.
 
-### P-D02 · Release train LIVE → Canary
+### P-D02 · Primer lote de promoción frontend
 
-Convertir los 43 commits actuales en lotes de promoción con alcance, riesgo, tests, migraciones y rollback. No desplegar durante el inventario.
+Recuperar primero el proyecto/deployment Cloudflare productivo exacto. Después calcular el diff contra `9cbe3ad...`, definir alcance, riesgo, tests y rollback. No desplegar durante el inventario.
 
 ### P-D03 · Repositorio web canónico
 
