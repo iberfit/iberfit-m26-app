@@ -1,0 +1,282 @@
+name: IBERFIT V10.4 Auth Hardening One Shot
+
+on:
+  push:
+    branches:
+      - fix/prod-auth-contract-v104
+
+permissions:
+  contents: write
+
+jobs:
+  patch-validate:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Apply exact auth contract repair
+        shell: python
+        run: |
+          from pathlib import Path
+
+          app = Path('src/m26/app/application.js')
+          source = app.read_text(encoding='utf-8')
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 match, got {count}')
+              return text.replace(old, new, 1)
+
+          old_mfa = """export function privilegedMfaDecision(assurance={}){
+            if(assurance?.webauthnRequired===true&&assurance?.iberfitAssurance!=='verified'){
+              return Object.freeze({kind:'ready',webauthnRecommended:true});
+            }
+            return Object.freeze({kind:'ready'});
+          }"""
+          new_mfa = """export function privilegedMfaDecision(assurance={}){
+            if(assurance?.webauthnRequired!==true){
+              return Object.freeze({kind:'ready'});
+            }
+            if(assurance?.iberfitAssurance==='verified'){
+              return Object.freeze({kind:'ready'});
+            }
+            if(assurance?.credentialEnrolled===true){
+              return Object.freeze({
+                kind:'challenge',
+                factorId:'65000000-0000-4000-8000-000000000002',
+              });
+            }
+            return Object.freeze({kind:'enroll-required'});
+          }"""
+          source = replace_once(source, old_mfa, new_mfa, 'privilegedMfaDecision')
+
+          old_friendly = """function friendlyError(error){
+            const code=String(error?.message||error||'');
+            if(/AUTH|SESSION_EXPIRED|401|403/.test(code))return 'La sesión perdió autorización. Vuelve a entrar.';
+            if(/TIMEOUT|NETWORK|FETCH/.test(code))return 'No fue posible conectar. Comprueba tu conexión a internet e inténtalo de nuevo.';
+            if(/QA_ACCOUNT_REQUIRED/.test(code))return 'Esta cuenta no está autorizada para este acceso.';
+            return 'No fue posible completar la operación. Tu información local permanece protegida.';
+          }"""
+          new_friendly = """function friendlyError(error,stage='operation'){
+            const code=String(error?.message||error||'');
+            const status=Number.isInteger(error?.status)?error.status:null;
+            if(/M26_PRIVILEGED_WEBAUTHN_REQUIRED/u.test(code))return 'Falta completar la confirmación segura de esta sesión.';
+            if(status===404||/PGRST202|Could not find the function|function .* does not exist/iu.test(code))return 'La aplicación y el servicio no están en la misma versión. Actualiza la página e inténtalo de nuevo.';
+            if(stage==='credentials'&&([400,401].includes(status)||/AUTH_LOGIN|INVALID_LOGIN|INVALID_CREDENTIAL/iu.test(code)))return 'Correo o contraseña no válidos.';
+            if(stage==='post-auth'&&status===403)return 'Tu identidad fue confirmada, pero esta sesión no obtuvo la autorización requerida.';
+            if(stage==='resume'&&[401,403].includes(status))return 'La sesión expiró o necesita una nueva confirmación. Vuelve a entrar.';
+            if(/AUTH|SESSION_EXPIRED|401|403/.test(code))return 'La sesión perdió autorización. Vuelve a entrar.';
+            if(/TIMEOUT|NETWORK|FETCH/i.test(code))return 'No fue posible conectar. Comprueba tu conexión a internet e inténtalo de nuevo.';
+            if(/QA_ACCOUNT_REQUIRED/.test(code))return 'Esta cuenta no está autorizada para este acceso.';
+            return 'No fue posible completar la operación. Tu información local permanece protegida.';
+          }"""
+          source = replace_once(source, old_friendly, new_friendly, 'friendlyError')
+
+          old_diag = """function diagnosticCode(error,stage='operation'){
+            const raw=String(error?.message||'');
+            const match=raw.match(/\\bM26_[A-Z0-9_:-]{2,120}\\b/u);
+            if(match)return match[0];
+            const normalizedStage=String(stage||'operation')
+              .toUpperCase()
+              .replace(/[^A-Z0-9]+/gu,'_')
+              .replace(/^_+|_+$/gu,'')
+              .slice(0,60)||'OPERATION';
+            return `M26_${normalizedStage}_FAILED`;
+          }"""
+          new_diag = """function diagnosticCode(error,stage='operation'){
+            const raw=String(error?.message||'');
+            const status=Number.isInteger(error?.status)?error.status:null;
+            const match=raw.match(/\\bM26_[A-Z0-9_:-]{2,120}\\b/u);
+            if(match)return match[0];
+            if(status===404||/PGRST202|Could not find the function|function .* does not exist/iu.test(raw))return 'M26_BACKEND_CONTRACT_MISSING';
+            if(stage==='credentials'&&[400,401].includes(status))return 'M26_CREDENTIALS_REJECTED';
+            if(stage==='post-auth'&&status===403)return 'M26_POST_AUTH_FORBIDDEN';
+            if(stage==='resume'&&[401,403].includes(status))return 'M26_SESSION_REAUTH_REQUIRED';
+            const normalizedStage=String(stage||'operation')
+              .toUpperCase()
+              .replace(/[^A-Z0-9]+/gu,'_')
+              .replace(/^_+|_+$/gu,'')
+              .slice(0,60)||'OPERATION';
+            return `M26_${normalizedStage}_FAILED`;
+          }"""
+          source = replace_once(source, old_diag, new_diag, 'diagnosticCode')
+
+          old_login = """  async function login(email,password){if(loginBusy)return false;if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');loginBusy=true;authMessage('Confirmando identidad y permisos…');try{session=await transport.login(email,password);qaStage('rc64-login-token-ready');vault.save(session);store.reset();return await continueAfterFirstFactor();}catch(error){vault.clear();session=null;mfaState=null;destroyControllers();store.reset();loginBusy=false;const incident=diagnosticCode(error,'login');authMode='login';authMessage(`${friendlyError(error)} Código: ${incident}.`,'error');throw error;}finally{loginBusy=false;}}"""
+          new_login = """  async function login(email,password){if(loginBusy)return false;if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');loginBusy=true;let authStage='credentials';authMessage('Confirmando identidad y permisos…');try{session=await transport.login(email,password);authStage='post-auth';qaStage('rc64-login-token-ready');vault.save(session);store.reset();return await continueAfterFirstFactor();}catch(error){vault.clear();session=null;mfaState=null;destroyControllers();store.reset();loginBusy=false;const incident=diagnosticCode(error,authStage);authMode='login';authMessage(`${friendlyError(error,authStage)} Código: ${incident}.`,'error');throw error;}finally{loginBusy=false;}}"""
+          source = replace_once(source, old_login, new_login, 'login-stage')
+
+          old_resume = """  async function resume(){if(!runtime.enabled){authMessage('El acceso no está disponible temporalmente en este sitio.');return false;}session=vault.load();if(!session){authMessage();return false;}try{return await continueAfterFirstFactor();}catch{vault.clear();session=null;mfaState=null;destroyControllers();store.reset();authMode='login';authMessage('La sesión expiró o perdió autorización. Vuelve a entrar.');return false;}}"""
+          new_resume = """  async function resume(){if(!runtime.enabled){authMessage('El acceso no está disponible temporalmente en este sitio.');return false;}session=vault.load();if(!session){authMessage();return false;}try{return await continueAfterFirstFactor();}catch(error){vault.clear();session=null;mfaState=null;destroyControllers();store.reset();authMode='login';const incident=diagnosticCode(error,'resume');authMessage(`${friendlyError(error,'resume')} Código: ${incident}.`,'error');reportDiagnostic('resume',error);return false;}}"""
+          source = replace_once(source, old_resume, new_resume, 'resume-stage')
+
+          old_internals = """export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,recoveryRequestConfirmation,recoveryRedirectForRuntime,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});"""
+          new_internals = """export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,diagnosticCode,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,recoveryRequestConfirmation,recoveryRedirectForRuntime,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});"""
+          source = replace_once(source, old_internals, new_internals, 'internals-export')
+          app.write_text(source, encoding='utf-8')
+
+          hotfix = Path('tests/m26_production_auth_access_hotfix.test.mjs')
+          text = hotfix.read_text(encoding='utf-8')
+          old = """test('production privileged access never requires WebAuthn to continue after valid primary auth',()=>{
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:false}),{kind:'ready',webauthnRecommended:true});
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:true}),{kind:'ready',webauthnRecommended:true});
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'verified',credentialEnrolled:true}),{kind:'ready'});
+          });"""
+          new = """test('production privileged access follows the server WebAuthn assurance contract',()=>{
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:false,iberfitAssurance:'not-required',credentialEnrolled:false}),{kind:'ready'});
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:false}),{kind:'enroll-required'});
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:true}),{kind:'challenge',factorId:'65000000-0000-4000-8000-000000000002'});
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'verified',credentialEnrolled:true}),{kind:'ready'});
+          });"""
+          text = replace_once(text, old, new, 'production-auth-test')
+          hotfix.write_text(text, encoding='utf-8')
+
+          mfa_test = Path('tests/m26_rc65c1_privileged_mfa.test.mjs')
+          text = mfa_test.read_text(encoding='utf-8')
+          old = """test('RC65-C1 FREE decisión privilegiada conserva WebAuthn como recomendación sin bloquear sesión autenticada',()=>{
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:false,iberfitAssurance:'not-required',credentialEnrolled:false,supabaseAal:'aal1'},[]),{kind:'ready'});
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:false,supabaseAal:'aal1'},[]),{kind:'ready',webauthnRecommended:true});
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:true,supabaseAal:'aal1'},[]),{kind:'ready',webauthnRecommended:true});
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'verified',credentialEnrolled:true,supabaseAal:'aal1'},[]),{kind:'ready'});
+          });"""
+          new = """test('RC65-C1 FREE decisión privilegiada exige assurance WebAuthn cuando el servidor la requiere',()=>{
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:false,iberfitAssurance:'not-required',credentialEnrolled:false,supabaseAal:'aal1'},[]),{kind:'ready'});
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:false,supabaseAal:'aal1'},[]),{kind:'enroll-required'});
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:true,supabaseAal:'aal1'},[]),{kind:'challenge',factorId:AUTHENTICATION_FACTOR_ID});
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'verified',credentialEnrolled:true,supabaseAal:'aal1'},[]),{kind:'ready'});
+          });"""
+          text = replace_once(text, old, new, 'rc65-mfa-test')
+          mfa_test.write_text(text, encoding='utf-8')
+
+          sw = Path('public/m26/sw.js')
+          sw_text = sw.read_text(encoding='utf-8')
+          sw_text = replace_once(sw_text, "const VERSION='m26-rc63-2';\nconst PREVIOUS_VERSION='m26-rc63-1';", "const VERSION='m26-rc63-3';\nconst PREVIOUS_VERSION='m26-rc63-2';", 'pwa-version')
+          sw.write_text(sw_text, encoding='utf-8')
+
+          Path('tests/m26_auth_contract_v104.test.mjs').write_text("""import test from 'node:test';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import {privilegedMfaDecision,__applicationInternals} from '../src/m26/app/application.js';
+          import {resolveActiveRole} from '../src/m26/rc39/multi-role.js';
+
+          test('V10.4 role matrix keeps Admin default and every authorized surface isolated',()=>{
+            assert.equal(resolveActiveRole(['admin','coach'],'admin'),'admin');
+            assert.equal(resolveActiveRole(['admin','coach'],'coach'),'coach');
+            assert.equal(resolveActiveRole(['coach'],'coach'),'coach');
+            assert.equal(resolveActiveRole(['client'],'client'),'client');
+            assert.equal(resolveActiveRole(['client'],'admin'),null);
+          });
+
+          test('V10.4 privileged decision cannot bypass server assurance',()=>{
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:false}),{kind:'enroll-required'});
+            assert.equal(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'required',credentialEnrolled:true}).kind,'challenge');
+            assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'verified',credentialEnrolled:true}),{kind:'ready'});
+          });
+
+          test('V10.4 diagnostics distinguish credentials, backend contract and post-auth authorization',()=>{
+            const {friendlyError,diagnosticCode}=__applicationInternals;
+            assert.equal(diagnosticCode({status:401,message:'invalid'},'credentials'),'M26_CREDENTIALS_REJECTED');
+            assert.equal(diagnosticCode({status:404,message:'PGRST202'},'post-auth'),'M26_BACKEND_CONTRACT_MISSING');
+            assert.equal(diagnosticCode({status:403,message:'forbidden'},'post-auth'),'M26_POST_AUTH_FORBIDDEN');
+            assert.match(friendlyError({status:401,message:'invalid'},'credentials'),/Correo o contraseña/u);
+            assert.match(friendlyError({status:404,message:'PGRST202'},'post-auth'),/misma versión/u);
+          });
+
+          test('V10.4 transport and release gate cover every critical PROD auth/bootstrap contract',()=>{
+            const transport=fs.readFileSync('src/m26/supabase-transport.js','utf8');
+            const gate=fs.readFileSync('scripts/release/check-production-auth-contract.mjs','utf8');
+            for(const rpc of ['iberfit_privileged_assurance_context_v65d','iberfit_bootstrap_v26','m26_backend_bootstrap_v43','m26_wearable_bootstrap_v44']){
+              assert.match(transport,new RegExp(rpc,'u'));
+              assert.match(gate,new RegExp(rpc,'u'));
+            }
+          });
+
+          test('V10.4 PWA rotates shell and never caches auth/data/function traffic',()=>{
+            const sw=fs.readFileSync('public/m26/sw.js','utf8');
+            assert.match(sw,/const VERSION='m26-rc63-3'/u);
+            for(const prefix of ['/auth/v1/','/rest/v1/','/functions/'])assert.match(sw,new RegExp(prefix.replaceAll('/','\\\\/'),'u'));
+          });
+          """.replace(/^          /gm,''), encoding='utf-8')
+
+          Path('scripts/release/check-production-auth-contract.mjs').write_text("""const requiredRpcs=Object.freeze([
+            'iberfit_privileged_assurance_context_v65d',
+            'iberfit_bootstrap_v26',
+            'm26_backend_bootstrap_v43',
+            'm26_wearable_bootstrap_v44',
+          ]);
+
+          const base=String(process.env.M26_SUPABASE_URL||'').replace(/\/$/u,'');
+          const key=String(process.env.M26_SUPABASE_PUBLISHABLE_KEY||'').trim();
+          if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/u.test(base))throw new Error('M26_PROD_CONTRACT_URL_REQUIRED');
+          if(!key)throw new Error('M26_PROD_CONTRACT_KEY_REQUIRED');
+
+          const evidence=[];
+          for(const rpc of requiredRpcs){
+            const response=await fetch(`${base}/rest/v1/rpc/${rpc}`,{
+              method:'POST',
+              headers:{apikey:key,authorization:`Bearer ${key}`,'content-type':'application/json'},
+              body:'{}',
+              redirect:'error',
+            });
+            const body=await response.text();
+            const missing=response.status===404&&/PGRST202|Could not find the function/iu.test(body);
+            if(missing)throw new Error(`M26_PROD_CONTRACT_MISSING:${rpc}`);
+            if(response.status>=500)throw new Error(`M26_PROD_CONTRACT_SERVER_FAILURE:${rpc}:${response.status}`);
+            evidence.push({rpc,status:response.status,present:true});
+          }
+          console.log(JSON.stringify({ok:true,mutationsPerformed:false,rpcs:evidence},null,2));
+          """.replace(/^          /gm,''), encoding='utf-8')
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Targeted V10.4 auth contracts
+        run: |
+          node --test tests/m26_production_auth_access_hotfix.test.mjs
+          node --test tests/m26_rc65c1_privileged_mfa.test.mjs
+          node --test tests/m26_auth_contract_v104.test.mjs
+
+      - name: Full validation
+        run: |
+          npm run check
+          npm test
+          npm run lint
+          node qa/rc64/build-current-surface.mjs
+          node qa/rc64/validate-built-m26.mjs
+          node scripts/release/validate-production-frontend.mjs
+
+      - name: Assert bounded diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --short
+          mapfile -t changed < <(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sort)
+          allowed=(
+            public/m26/sw.js
+            scripts/release/check-production-auth-contract.mjs
+            src/m26/app/application.js
+            tests/m26_auth_contract_v104.test.mjs
+            tests/m26_production_auth_access_hotfix.test.mjs
+            tests/m26_rc65c1_privileged_mfa.test.mjs
+          )
+          printf '%s\n' "${changed[@]}" | sort > /tmp/changed
+          printf '%s\n' "${allowed[@]}" | sort > /tmp/allowed
+          diff -u /tmp/allowed /tmp/changed
+
+      - name: Commit validated patch to isolated branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/m26/sw.js scripts/release/check-production-auth-contract.mjs src/m26/app/application.js tests/m26_auth_contract_v104.test.mjs tests/m26_production_auth_access_hotfix.test.mjs tests/m26_rc65c1_privileged_mfa.test.mjs
+          git commit -m 'fix(prod): restore privileged assurance and harden auth gates [v104-patched]'
+          git push origin HEAD:fix/prod-auth-contract-v104
