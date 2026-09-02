@@ -15,6 +15,7 @@ const SAFE_IBERFIT_VIDEO_PATH=/^\/public\/iberfit\/exercises\/video\/[A-Za-z0-9]
 const SAFE_IBERFIT_CAPTION_PATH=/^\/public\/iberfit\/exercises\/captions\/[A-Za-z0-9][A-Za-z0-9._:-]{0,199}\/[a-z]{2}(?:-[A-Z]{2})?\.vtt$/;
 const ALLOWED_ASSET_RIGHTS_BASIS=new Set(['iberfit_owned','commissioned','licensed','public_domain']);
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
+const MEDIA_FETCH_TIMEOUT_MS=3_000;
 const manifestIndexes=new WeakMap();
 
 function normalizedRole(value){
@@ -311,15 +312,25 @@ export function resolveExerciseMedia(manifest,exerciseId,{role='client'}={}){
     ||null;
 }
 
-async function fetchMap(fetchImpl,url,validator){
-  const response=await fetchImpl(url,{
-    credentials:'same-origin',
-    cache:'no-store',
-    redirect:'error',
-    headers:{accept:'application/json'},
-  });
-  if(!response?.ok)throw new Error(`M26_MEDIA_MAP_FETCH_FAILED:${response?.status||0}:${url}`);
-  return validator(await response.json());
+async function fetchMap(fetchImpl,url,validator,timeoutMs){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{
+    const response=await fetchImpl(url,{
+      credentials:'same-origin',
+      cache:'no-store',
+      redirect:'error',
+      signal:controller.signal,
+      headers:{accept:'application/json'},
+    });
+    if(!response?.ok)throw new Error(`M26_MEDIA_MAP_FETCH_FAILED:${response?.status||0}:${url}`);
+    return validator(await response.json());
+  }catch(error){
+    if(error?.name==='AbortError')throw new Error(`M26_MEDIA_MAP_TIMEOUT:${url}`);
+    throw error;
+  }finally{
+    clearTimeout(timer);
+  }
 }
 
 export async function loadExerciseMediaMap({
@@ -327,12 +338,14 @@ export async function loadExerciseMediaMap({
   iberfitUrl=IBERFIT_MEDIA_MAP_URL,
   iberfitRichUrl=IBERFIT_RICH_MEDIA_MAP_URL,
   repdbUrl=REPDB_MEDIA_MAP_URL,
+  timeoutMs=MEDIA_FETCH_TIMEOUT_MS,
 }={}){
   if(typeof fetchImpl!=='function')throw new Error('M26_MEDIA_FETCH_UNAVAILABLE');
+  const boundedTimeout=Math.max(500,Math.min(Number(timeoutMs||MEDIA_FETCH_TIMEOUT_MS),10_000));
   const [iberfitResult,iberfitRichResult,repdbResult]=await Promise.allSettled([
-    fetchMap(fetchImpl,iberfitUrl,validateIberfitExerciseMediaMap),
-    fetchMap(fetchImpl,iberfitRichUrl,validateIberfitExerciseRichMediaMap),
-    fetchMap(fetchImpl,repdbUrl,validateExerciseMediaMap),
+    fetchMap(fetchImpl,iberfitUrl,validateIberfitExerciseMediaMap,boundedTimeout),
+    fetchMap(fetchImpl,iberfitRichUrl,validateIberfitExerciseRichMediaMap,boundedTimeout),
+    fetchMap(fetchImpl,repdbUrl,validateExerciseMediaMap,boundedTimeout),
   ]);
   const iberfit=iberfitResult.status==='fulfilled'?iberfitResult.value:null;
   const iberfitRich=iberfitRichResult.status==='fulfilled'?iberfitRichResult.value:null;
