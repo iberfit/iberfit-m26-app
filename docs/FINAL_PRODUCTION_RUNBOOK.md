@@ -1,106 +1,108 @@
 # IBERFIT M26 · Final Production Runbook
 
-Status: **safety preparation only**. This document does not authorize or perform a production mutation.
+Status: **convergencia de producción · fail-closed**. Este documento no autoriza ni realiza mutaciones en producción.
 
-## Pinned release
+## Release certificado
 
 - Release SHA: `9cbe3ad29dfda0a552aa54c7e1404575b96786d4`
 - Canary branch: `canary/rc74-4`
 - Promotion branch: `prep/final-production-rc74-4`
 - Production Supabase project ref: `pjhmrhejsoofmouedavw`
-- Production SQL bundle workflow run: `33656032685`
+- Canary remote gate exacto: run `33641163059` · `success`
+- Production SQL bundle histórico: run `33656032685`
 - SQL artifact: `final-production-promotion-sql`
 - SQL SHA-256: `30e4f4750a4df9a2c5ab8f710427aac0d2112a308309221b5188e5c09d1ea2db`
 - SQL artifact ZIP digest: `sha256:9879456becbcdc0f851c721a14da2a9646d49da588c0948f7fefe3f238f520d2`
 
-Any change to a pinned value invalidates this runbook until recertified.
+## Estado productivo comprobado en modo read-only · 2026-09-02
 
-## Non-negotiable release gates
+El proyecto Supabase de producción `pjhmrhejsoofmouedavw` fue leído sin mutaciones y está `ACTIVE_HEALTHY`.
 
-Do not mutate production unless all of these are true at the moment of promotion:
+El preflight del bundle SQL histórico se ejecutó dentro de una transacción `READ ONLY` y falló de forma segura con:
 
-1. `canary/rc74-4` and `prep/final-production-rc74-4` still resolve to the pinned release SHA.
-2. Exact Canary has been deployed and the full authenticated remote gate has completed successfully at that same SHA.
-3. CI, Final Production Bundle, and Final Production Frontend validation are green at the pinned SHA.
-4. No suspected cross-client disclosure or unresolved P0/P1 security issue exists.
-5. A recoverable production database rollback checkpoint has been verified immediately before SQL apply. Record the provider backup/PITR checkpoint and its timestamp; do not export client data into the repository or release evidence.
-6. The current production frontend deployment identifier and the current production Edge Function version/deployment are recorded so each can be restored independently.
-7. There are no active session executions or execution locks; the SQL preflight also enforces this fail-closed.
+`FINAL_PROD_PREFLIGHT_PRE_4C_ROLE_DRIFT:9`
 
-If any gate is unknown, stale, or fails, stop. Do not partially promote around it.
+La lectura focal de esos nueve contratos demostró que producción ya contiene exactamente el postestado RC74.4C de least privilege que el bundle pretendía aplicar. No se revirtió ni modificó nada.
 
-## Stage A · SQL read-only preflight
+La historia de migraciones productiva confirma que la secuencia de producción RC74.4/RC65/P0 ya fue aplicada, comenzando por:
 
-Executor: `scripts/final_production_sql_execute.ps1`.
+- `20260831163404 final_prod_01_rc74_4_least_privilege`
 
-The executor is intentionally inert by default. It requires PostgreSQL connection data only through environment variables (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGSSLMODE=require`) plus `IBERFIT_PROD_PROJECT_REF`. Credentials must never be written into the command, repository, logs, screenshots, or chat.
+continuando por los puertos RC74.4, WebAuthn RC65 y P0, y llegando al menos hasta:
 
-Run the executor **without** `-Apply`. It verifies:
+- `20260902033214 p0_restore_primary_auth_read_bootstrap_v1`
 
-- current Canary and promotion refs are still the pinned SHA;
-- the pinned successful Actions run and exact artifact digest;
-- exact SQL SHA-256;
-- expected production/forbidden QA markers;
-- exact read-only preflight blob;
-- expected production project ref in both the explicit target declaration and the PostgreSQL host/user fingerprint;
-- production baseline via `psql` with `default_transaction_read_only=on`, `--single-transaction`, and `ON_ERROR_STOP=1`.
+Por tanto, el artifact SQL del run `33656032685` parte de un baseline anterior al estado productivo real y queda **SUPERSEDED**. No debe ejecutarse, ni siquiera con una confirmación explícita antigua.
 
-Expected end state: `PASS · READ-ONLY PREFLIGHT` and `ProductionMutations=0`.
+`scripts/final_production_sql_execute.ps1` queda retirado como ejecutor mutante: conserva los pins de evidencia, verifica las refs del release y el artifact histórico, pero bloquea cualquier `-Apply` y reporta `ProductionMutations=0`.
 
-## Stage B · SQL atomic apply
+## Regla de base de datos desde este checkpoint
 
-Only after Stage A and a verified rollback checkpoint, invoke the same executor with both mutation signals:
+- **NO ejecutar** `FINAL_PRODUCTION_PROMOTION.sql` del run `33656032685`.
+- **NO restaurar** roles al baseline pre-RC74.4 para hacer pasar el preflight.
+- **NO repetir** migraciones ya registradas.
+- Cualquier futuro cambio de base de datos debe partir del **estado productivo live actual**, generar únicamente el delta faltante y volver a pasar por QA/Canary antes de una mutación productiva.
 
-- `-Apply`
-- exact confirmation: `APPLY IBERFIT PRODUCTION 9cbe3ad29dfda0a552aa54c7e1404575b96786d4`
+El checkpoint de backup/PITR sólo vuelve a ser obligatorio inmediatamente antes de una futura mutación real de base de datos. No es requisito para las lecturas actuales.
 
-Immediately before the mutating command the executor rechecks both release refs and the SQL hash. The SQL is then executed with `psql --single-transaction --set=ON_ERROR_STOP=1`. The generated SQL contains its own fail-closed production preflight and postcheck inside that transaction. A SQL error must abort the transaction rather than leave a known partial SQL promotion.
+## Edge Function WebAuthn productiva
 
-A successful SQL apply is **not** a complete application launch. The executor explicitly reports `EdgeFunctionDeployed=false` and `FrontendDeployed=false`.
+Lectura productiva actual:
 
-### SQL rollback rule
+- slug: `iberfit-webauthn-v1`
+- status: `ACTIVE`
+- version: `1`
+- `verify_jwt=true`
+- RP ID: `iberfit.cl`
+- orígenes permitidos visibles: `https://app.iberfit.cl` y `https://coach.iberfit.cl`
+- contrato visible: `final-production-free-webauthn-v1`
 
-- Failure before commit: rely on the single database transaction rollback; do not rerun blindly. Capture the failing section and diagnose first.
-- Successful commit followed by a release-blocking defect: use the verified provider recovery checkpoint or a separately reviewed forward-revert procedure. Do not improvise destructive reverse SQL against live data.
+La fuente live observada corresponde al mismo contrato de producción que la fuente del release certificado. No se debe redeployar esta función por rutina. Una mutación futura requerirá comprobar necesidad real, registrar la versión/deployment vigente y disponer de rollback independiente.
 
-## Stage C · Production WebAuthn Edge Function
+## Frontend de producción · bloqueo actual
 
-The exact source is `backend/production/edge-functions/iberfit-webauthn-v1/index.ts` at the pinned release SHA. Its production contract is validated by the final-production tests, including exact origins `https://app.iberfit.cl` and `https://coach.iberfit.cl`, RP ID `iberfit.cl`, origin binding, required user verification, and JWT verification.
+`IBERFIT Final Production Frontend` valida correctamente la superficie construida desde el SHA certificado, pero no despliega.
 
-Before deploying it, independently verify the live production project target and current function deployment/version. Deployment must be pinned to the production project ref and must not reuse Canary/QA environment values. This stage is a production mutation and is deliberately not performed by the SQL executor.
+Antes de cualquier mutación frontend hay que recuperar de evidencia real de Cloudflare:
 
-Rollback: restore the recorded prior function deployment/version if the post-deploy WebAuthn smoke fails.
+1. proyecto Pages productivo exacto que sirve `app.iberfit.cl`/superficie productiva;
+2. deployment ID actualmente live;
+3. configuración efectiva de dominios/rutas;
+4. mecanismo de rollback al deployment anterior.
 
-## Stage D · Production frontend
+No inferir el proyecto productivo a partir del nombre del repositorio, ramas históricas o proyectos Canary. El conector disponible en ChatGPT no expone Cloudflare, por lo que este checkpoint debe venir del proveedor o de evidencia verificable de un deploy real.
 
-`IBERFIT Final Production Frontend` validates the production surface but does not deploy it. Before any frontend mutation:
+La web pública `app.iberfit.cl` responde actualmente con la superficie IBERFIT de acceso restringido. Esto confirma disponibilidad pública, pero **no sustituye** el deployment ID de Cloudflare.
 
-- re-read the actual Cloudflare production project configuration;
-- record the currently live production deployment identifier;
-- build from the pinned release SHA only;
-- generate runtime configuration with production ref `pjhmrhejsoofmouedavw`, `qaOnly=false`, and no service-role material;
-- validate headers, version metadata, production origins, and absence of the QA ref/Canary hostname;
-- deploy only to the confirmed production Pages project.
+## Siguiente promoción frontend
 
-Do not infer the production Cloudflare project from a repository name. Recover it from live/provider evidence first.
+Cuando el proyecto y deployment actuales estén verificados:
 
-Rollback: restore the recorded prior Cloudflare production deployment if live validation fails.
+1. volver a comprobar que `canary/rc74-4` sigue exactamente en `9cbe3ad29dfda0a552aa54c7e1404575b96786d4`;
+2. construir exclusivamente desde ese SHA;
+3. generar runtime con `projectRef=pjhmrhejsoofmouedavw`, `qaOnly=false` y sin material `service_role`;
+4. validar headers, `version.json`, orígenes productivos y ausencia del ref QA/hostname Canary;
+5. desplegar únicamente al proyecto Cloudflare productivo confirmado;
+6. verificar live SHA/runtime antes de continuar con autenticación y aislamiento;
+7. ante fallo, restaurar el deployment ID productivo registrado antes del cambio.
 
-## Stage E · Post-launch verification
+Ninguno de estos pasos autoriza por sí solo una mutación. El despliegue a producción requiere aprobación explícita.
 
-After all three production stages, verify in this order:
+## Post-launch obligatorio
 
-1. version/source SHA and runtime target on the live app;
-2. anonymous access remains appropriately denied/limited;
-3. Client A cannot access Client B data;
-4. Coach/Admin privileged bootstrap fails closed before WebAuthn and succeeds only after verified assurance;
-5. canonical client creation works while the legacy create surface remains revoked;
-6. command registry remains exactly 52 enabled commands and critical conflict/lock rules are active;
-7. no cross-client data, private Coach notes, secrets, or service-role credentials appear in browser/offline storage;
-8. frontend, Edge Function, and database all correspond to the same release checkpoint.
+Después de un futuro despliegue frontend aprobado, verificar en este orden:
 
-Any cross-client disclosure or security regression blocks release immediately and triggers rollback/containment.
+1. SHA/version/runtime productivos;
+2. acceso anónimo apropiadamente limitado;
+3. aislamiento Client A / Client B;
+4. Coach/Admin fail-closed antes de WebAuthn y acceso sólo tras assurance verificada;
+5. creación canónica de cliente con superficie legacy revocada;
+6. registry de 52 comandos y reglas críticas de conflicto/locks;
+7. ausencia de datos cruzados, notas privadas, secretos o credenciales privilegiadas en navegador/offline storage;
+8. coherencia entre frontend live, Edge Function live y estado actual de base de datos.
 
-## Evidence policy
+Cualquier divulgación cross-client o regresión de seguridad bloquea el release y obliga a rollback/contención.
 
-Store only non-secret release metadata: SHA, workflow/run IDs, artifact/checksum identifiers, provider deployment IDs, timestamps, test conclusions, and redacted errors. Never store passwords, JWTs, service-role keys, private notes, client exports, or production snapshots in GitHub evidence.
+## Evidencia
+
+Guardar únicamente metadatos no secretos: SHA, IDs de runs/artifacts/deployments, versiones, timestamps, conclusiones y errores redactados. Nunca guardar contraseñas, JWT, service-role keys, notas privadas, exportaciones de clientes ni snapshots productivos en GitHub.
