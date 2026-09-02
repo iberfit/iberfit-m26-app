@@ -164,26 +164,32 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
       const assurance=await readAssurance(await assuranceResponsePromise);
 
       const shell=page.locator(`.m26-shell[data-m26-role="${account.role}"]`);
-      await expect(
-        shell,
-        `Authenticated ${account.name} shell must render under the current contract`,
-      ).toHaveCount(1,{timeout:25_000});
-      await expect(shell).toBeVisible({timeout:5_000});
-      await expect(
-        page.getByRole('button',{name:'Cerrar sesión',exact:true}),
-      ).toBeVisible({timeout:5_000});
-
       if(account.role==='coach'){
         expect(assurance.privileged).toBe(true);
         expect(assurance.mfaRequired).toBe(true);
         expect(assurance.webauthnRequired).toBe(true);
         expect(assurance.iberfitAssurance).not.toBe('verified');
         await expect(
+          shell,
+          'Privileged Coach shell must remain unavailable until IBERFIT WebAuthn assurance is verified',
+        ).toHaveCount(0,{timeout:5_000});
+        await expect(
           page.getByRole('heading',{name:/Protege tu cuenta|Confirma tu identidad para continuar/u}),
-          'Current FREE WebAuthn contract recommends assurance without blocking the authenticated Coach shell',
-        ).toHaveCount(0);
+          'Coach must stop at the fail-closed WebAuthn gate before privileged bootstrap',
+        ).toBeVisible({timeout:5_000});
+        await expect(
+          page.getByRole('button',{name:/Configurar acceso seguro|Continuar de forma segura/u}),
+        ).toBeVisible({timeout:5_000});
       }else{
         expect(assurance.mfaRequired).toBe(false);
+        await expect(
+          shell,
+          `Authenticated ${account.name} shell must render when no privileged WebAuthn gate is required`,
+        ).toHaveCount(1,{timeout:25_000});
+        await expect(shell).toBeVisible({timeout:5_000});
+        await expect(
+          page.getByRole('button',{name:'Cerrar sesión',exact:true}),
+        ).toBeVisible({timeout:5_000});
       }
 
       const quality=await page.evaluate(async()=>{
@@ -204,7 +210,8 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
       evidenceRoles.push(Object.freeze({
         role:account.role,
         authenticated:true,
-        applicationAuthorized:true,
+        applicationAuthorized:account.role!=='coach',
+        privilegedGate:account.role==='coach'?'webauthn-required':'not-required',
         assurance:Object.freeze({
           privileged:assurance.privileged===true,
           mfaRequired:assurance.mfaRequired===true,
@@ -225,7 +232,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
   }
 
   const evidence=Object.freeze({
-    schema:'iberfit.rc64.2b.authenticated-current-contract.v2',
+    schema:'iberfit.rc64.2b.authenticated-current-contract.v3',
     source:'current-source-qa-surface',
     projectRef:PROJECT_REF,
     mode:'authenticated-readonly-browser',
