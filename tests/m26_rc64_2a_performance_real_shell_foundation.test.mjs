@@ -44,8 +44,6 @@ test('RC64.2A QA surface is distinct from historical RC15 and RC29 release build
   assert.doesNotMatch(`${budget}\n${server}`,/m26-launch-candidate|m26-prepublicacion-infraestructura-candidate/u);
 });
 
-
-
 test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fetch full-app styles before elevation',()=>{
   const index=read('public/m26/index.html');
   const entry=read('public/m26/app.js');
@@ -68,10 +66,7 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
   assert.ok(!tokens.includes("'unsafe-inline'"));
   assert.doesNotMatch(index,/rel="preload" href="\/m26\/fonts\/inter-latin-wght-normal\.woff2"/u);
 
-  const deferred=[...index.matchAll(/<link[^>]*data-href="[^"]+\.css"[^>]*data-iberfit-full-style[^>]*media="not all"[^>]*>/gu)];
-  assert.equal(deferred.length,14);
-
-  for(const stylePath of [
+  const fullStylePaths=[
     '/src/m26/design/tokens.css',
     '/src/m26/design/typography.css',
     '/src/m26/design/icons.css',
@@ -86,7 +81,12 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
     '/src/m26/design/primitives.css',
     '/src/m26/design/role-surfaces.css',
     '/src/m26/design/premium-ux.css',
-  ]){
+    '/src/m26/design/auth-native.css',
+  ];
+  const deferred=[...index.matchAll(/<link[^>]*data-href="[^"]+\.css"[^>]*data-iberfit-full-style[^>]*media="not all"[^>]*>/gu)];
+  assert.equal(deferred.length,fullStylePaths.length);
+
+  for(const stylePath of fullStylePaths){
     const escaped=stylePath.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
     const tag=index.match(new RegExp(`<link[^>]*data-href="${escaped}"[^>]*data-iberfit-full-style[^>]*media="not all"[^>]*>`,'u'))?.[0]||'';
     assert.ok(tag,`FULL_STYLE_DECLARATION_MISSING:${stylePath}`);
@@ -94,7 +94,7 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
   }
 
   assert.match(index,/data-static-auth-bootstrap="true"/u);
-  assert.doesNotMatch(index,/src="\/public\/isotipo-iberfit\.png"/u);
+  assert.match(index,/class="m26-auth-logo" src="\/public\/isotipo-iberfit\.png"/u);
   assert.match(index,/<button[\s\S]*?disabled[\s\S]*?aria-disabled="true"[\s\S]*?>[\s\S]*?Entrar[\s\S]*?<\/button>/u);
   assert.match(index,/Cargando acceso seguro a IBERFIT\.\.\./u);
 
@@ -132,7 +132,7 @@ test('RC64.2A initial HTML provides the settled disabled preauth shell before op
   assert.match(index,/type="submit"[\s\S]*?disabled[\s\S]*?aria-disabled="true"[\s\S]*?>[\s\S]*?Entrar/u);
   assert.match(index,/Cargando acceso seguro a IBERFIT\.\.\./u);
   assert.doesNotMatch(index,/Preparando acceso seguro…/u);
-  assert.doesNotMatch(index,/src="\/public\/isotipo-iberfit\.png"/u);
+  assert.match(index,/class="m26-auth-logo" src="\/public\/isotipo-iberfit\.png"/u);
   assert.doesNotMatch(index,/rel="preload" href="\/m26\/fonts\/inter-latin-wght-normal\.woff2"/u);
 
   const staticIndex=index.indexOf('data-static-auth-bootstrap="true"');
@@ -183,7 +183,6 @@ test('RC64.2A programmatic Lighthouse tolerates transient Windows DevTools port 
   assert.match(runner,/RC64_2A_LIGHTHOUSE_BUDGET=PASS/u);
   assert.doesNotMatch(runner,/lighthouse','cli','index\.js|CHROME_PATH|chrome-launcher|@lhci|temporary-public-storage/iu);
 });
-
 
 test('RC64.2A real-shell keeps static es-ES bootstrap while app locale defaults to Chile',()=>{
   const rc23=read('tests/m26_rc23_castellano_ui.test.mjs');

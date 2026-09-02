@@ -85,12 +85,13 @@ test('Chromium instala sólo tras gesto explícito y conserva cancelación segur
   assert.ok(changes.includes('prompt'));
 });
 
-test('la pantalla de acceso ofrece el control PWA sin mezclarlo con autenticación',()=>{
+test('la pantalla de acceso mantiene la instalación PWA separada de la autenticación',()=>{
   const html=renderAccessUi({backendReady:true,qaOnly:false,host:'app.iberfit.cl'});
-  assert.match(html,/<iberfit-install-control><\/iberfit-install-control>/);
+  assert.doesNotMatch(html,/<iberfit-install-control><\/iberfit-install-control>/);
   assert.doesNotMatch(html,/data-auth-action="install-app"/);
   assert.match(html,/data-auth-form="login"/);
   assert.match(html,/Olvidé mi contraseña/);
+  assert.match(html,/Recordar correo/);
 });
 
 test('manifest productivo es adaptable y conserva iconos normal y maskable',()=>{

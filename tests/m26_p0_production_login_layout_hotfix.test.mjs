@@ -38,21 +38,33 @@ test('P0 production hotfix separates authenticated reads from privileged mutatio
   );
 });
 
-test('login surface never clips a tall card in a short desktop viewport',()=>{
+test('login surface is native full-screen, responsive and never clips a short viewport',()=>{
   const css=fs.readFileSync('public/m26/preauth-critical.css','utf8').replace(/\r\n?/gu,'\n').trimEnd();
 
   assert.match(css,/\.m26-auth-page\{[^}]*display:flex;[^}]*align-items:flex-start;[^}]*justify-content:center;/u);
-  assert.match(css,/\.m26-auth-card\{[^}]*margin-block:auto;/u);
-  assert.match(css,/@media\(max-height:860px\) and \(min-width:581px\)/u);
-  assert.match(css,/\.m26-auth-card h1\{[^}]*font-size:clamp/u);
+  const authCardRule=css.match(/\.m26-auth-card\{([^}]*)\}/u)?.[1]||'';
+  assert.match(authCardRule,/margin-block:auto(?:;|$)/u);
+  assert.match(authCardRule,/border:0(?:;|$)/u);
+  assert.match(authCardRule,/border-radius:0(?:;|$)/u);
+  assert.match(authCardRule,/background:transparent(?:;|$)/u);
+  assert.match(authCardRule,/box-shadow:none(?:;|$)/u);
+  assert.match(css,/\.m26-auth-brand\{[^}]*justify-items:center/u);
+  assert.match(css,/\.m26-auth-logo\{[^}]*margin:0;[^}]*object-fit:contain/u);
+  assert.match(css,/\.m26-password-toggle/u);
+  assert.match(css,/\.m26-remember-email/u);
+  assert.match(css,/@media\(max-height:760px\) and \(min-width:581px\)/u);
+  assert.match(css,/@media\(max-width:580px\)/u);
   assert.match(css,/\.m26-auth-notice\.is-error/u);
 
   const html=fs.readFileSync('public/m26/index.html','utf8');
   const inline=html.match(/<style data-iberfit-preauth-critical>([\s\S]*?)<\/style>/u)?.[1];
   assert.equal(inline,css);
+  assert.match(html,/class="m26-auth-logo" src="\/public\/isotipo-iberfit\.png"/u);
   assert.match(html,/<p class="m26-eyebrow">IBERFIT<\/p>/u);
   assert.match(html,/<h1 id="m26-auth-title"/u);
-  assert.doesNotMatch(html,/src="\/public\/isotipo-iberfit\.png"/u);
+  assert.match(html,/data-password-toggle/u);
+  assert.match(html,/name="rememberEmail"/u);
+  assert.match(html,/\/src\/m26\/design\/auth-native\.css/u);
 
   const hash=crypto.createHash('sha256').update(inline,'utf8').digest('base64');
   const headers=fs.readFileSync('public/m26/_headers','utf8');

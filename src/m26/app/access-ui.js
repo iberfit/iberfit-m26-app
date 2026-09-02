@@ -7,6 +7,86 @@ function e(value) {
     .replaceAll("'", '&#039;');
 }
 
+export const REMEMBERED_EMAIL_STORAGE_KEY='iberfit.m26.remembered-email.v1';
+
+export function normalizeRememberedEmail(value=''){
+  const email=String(value||'').trim();
+  if(!email||email.length>254||!email.includes('@'))return '';
+  return email;
+}
+
+function safeStorage(storageLike){
+  if(storageLike)return storageLike;
+  try{return globalThis.localStorage||null;}catch{return null;}
+}
+
+function safeGet(storage,key){
+  try{return storage?.getItem?.(key)||'';}catch{return '';}
+}
+
+function safeSet(storage,key,value){
+  try{storage?.setItem?.(key,value);return true;}catch{return false;}
+}
+
+function safeRemove(storage,key){
+  try{storage?.removeItem?.(key);return true;}catch{return false;}
+}
+
+export function enhanceAccessUi(root=globalThis.document,{storage:providedStorage=null}={}){
+  const form=root?.querySelector?.('[data-auth-form="login"]');
+  if(!form||form.dataset?.iberfitAccessEnhanced==='true')return false;
+  if(form.dataset)form.dataset.iberfitAccessEnhanced='true';
+
+  const emailInput=form.querySelector?.('input[name="email"]');
+  const rememberInput=form.querySelector?.('input[name="rememberEmail"]');
+  const storage=safeStorage(providedStorage);
+  const remembered=normalizeRememberedEmail(safeGet(storage,REMEMBERED_EMAIL_STORAGE_KEY));
+
+  if(emailInput&&remembered&&!String(emailInput.value||'').trim()){
+    emailInput.value=remembered;
+  }
+  if(rememberInput&&remembered){
+    rememberInput.checked=true;
+  }
+
+  for(const toggle of form.querySelectorAll?.('[data-password-toggle]')||[]){
+    toggle.addEventListener('click',()=>{
+      const targetId=toggle.getAttribute('aria-controls');
+      const input=targetId?root.querySelector?.(`#${targetId}`):form.querySelector?.('input[name="password"]');
+      if(!input)return;
+      const reveal=input.type==='password';
+      input.type=reveal?'text':'password';
+      toggle.textContent=reveal?'Ocultar':'Mostrar';
+      toggle.setAttribute('aria-pressed',reveal?'true':'false');
+      toggle.setAttribute('aria-label',reveal?'Ocultar contraseña':'Mostrar contraseña');
+      input.focus?.({preventScroll:true});
+    });
+  }
+
+  rememberInput?.addEventListener('change',()=>{
+    if(!rememberInput.checked)safeRemove(storage,REMEMBERED_EMAIL_STORAGE_KEY);
+  });
+
+  form.addEventListener('submit',()=>{
+    const email=normalizeRememberedEmail(emailInput?.value||'');
+    if(rememberInput?.checked&&email){
+      safeSet(storage,REMEMBERED_EMAIL_STORAGE_KEY,email);
+    }else{
+      safeRemove(storage,REMEMBERED_EMAIL_STORAGE_KEY);
+    }
+  },{capture:true});
+
+  return true;
+}
+
+function scheduleAccessEnhancement(){
+  if(!globalThis.document)return;
+  const schedule=typeof globalThis.queueMicrotask==='function'
+    ?globalThis.queueMicrotask.bind(globalThis)
+    :(callback)=>Promise.resolve().then(callback);
+  schedule(()=>{try{enhanceAccessUi(globalThis.document);}catch{}});
+}
+
 export function renderAccessUi({
   message = '',
   busy = false,
@@ -89,8 +169,8 @@ export function renderAccessUi({
     `;
   } else if (mode === 'request-recovery') {
     content = `
-      <h1 id="m26-auth-title" tabindex="-1">Recuperar contraseña</h1>
-      <p>Introduce el correo asociado a tu cuenta.</p>
+      <h1 id="m26-auth-title" tabindex="-1">Crear o recuperar contraseña</h1>
+      <p>Introduce el correo asociado a tu cuenta. Te enviaremos un enlace seguro para crear una contraseña nueva.</p>
 
       ${notice}
 
@@ -101,6 +181,9 @@ export function renderAccessUi({
             type="email"
             name="email"
             autocomplete="email"
+            inputmode="email"
+            autocapitalize="none"
+            spellcheck="false"
             maxlength="254"
             required
           >
@@ -111,7 +194,7 @@ export function renderAccessUi({
           class="m26-primary-action"
           ${disabled ? 'disabled aria-disabled="true"' : ''}
         >
-          ${busy ? 'Enviando…' : 'Enviar enlace'}
+          ${busy ? 'Enviando…' : 'Enviar enlace seguro'}
         </button>
 
         <button
@@ -190,6 +273,9 @@ export function renderAccessUi({
             type="email"
             name="email"
             autocomplete="username"
+            inputmode="email"
+            autocapitalize="none"
+            spellcheck="false"
             maxlength="254"
             required
           >
@@ -197,15 +283,41 @@ export function renderAccessUi({
 
         <label>
           Contraseña
-          <input
-            type="password"
-            name="password"
-            autocomplete="current-password"
-            required
-            minlength="8"
-            maxlength="1024"
-          >
+          <span class="m26-password-field">
+            <input
+              id="m26-login-password"
+              type="password"
+              name="password"
+              autocomplete="current-password"
+              required
+              minlength="8"
+              maxlength="1024"
+            >
+            <button
+              type="button"
+              class="m26-password-toggle"
+              data-password-toggle
+              aria-controls="m26-login-password"
+              aria-pressed="false"
+              aria-label="Mostrar contraseña"
+            >Mostrar</button>
+          </span>
         </label>
+
+        <div class="m26-auth-options">
+          <label class="m26-remember-email" for="m26-remember-email">
+            <input id="m26-remember-email" type="checkbox" name="rememberEmail">
+            <span>Recordar correo</span>
+          </label>
+          <button
+            type="button"
+            class="m26-auth-link"
+            data-auth-action="forgot-password"
+            title="Olvidé mi contraseña"
+          >
+            Primera vez o no recuerdo mi contraseña
+          </button>
+        </div>
 
         <button
           type="submit"
@@ -214,33 +326,28 @@ export function renderAccessUi({
         >
           ${busy ? 'Confirmando…' : 'Entrar'}
         </button>
-
-        <button
-          type="button"
-          data-auth-action="forgot-password"
-        >
-          Olvidé mi contraseña
-        </button>
       </form>
     `;
   }
 
+  scheduleAccessEnhancement();
+
   return `
     <main class="m26-auth-page">
       <section class="m26-auth-card" aria-labelledby="m26-auth-title" aria-busy="${busy ? 'true' : 'false'}">
-        <img
-          src="/public/isotipo-iberfit.png"
-          alt=""
-          aria-hidden="true"
-        >
-
-        <p class="m26-eyebrow">IBERFIT</p>
+        <header class="m26-auth-brand">
+          <img
+            class="m26-auth-logo"
+            src="/public/isotipo-iberfit.png"
+            alt=""
+            aria-hidden="true"
+          >
+          <p class="m26-eyebrow">IBERFIT</p>
+        </header>
 
         ${content}
 
         ${blockedSiteNotice}
-        <iberfit-install-control></iberfit-install-control>
-
         <small>${e(accessNote)}</small>
       </section>
     </main>
