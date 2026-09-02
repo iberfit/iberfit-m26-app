@@ -19,8 +19,8 @@ const forbidden=/\b(?:check[ -]?ins?|wearables?|coach(?:es)?|online|offline|feed
 
 function stripMarkup(value){return String(value).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();}
 
-test('RC23 fija castellano de España en documento, PWA y utilidades',()=>{
-  assert.equal(IBERFIT_UI_LOCALE,'es-ES');
+test('RC23 conserva castellano y permite locale regional Chile en la aplicación',()=>{
+  assert.equal(IBERFIT_UI_LOCALE,'es-CL');
   assert.match(read('public/m26/index.html'),/<html lang="es-ES">/);
   assert.match(read('public/m26/offline.html'),/<html lang="es-ES">/);
   assert.equal(JSON.parse(read('public/m26/manifest.webmanifest')).lang,'es-ES');
