@@ -60,17 +60,21 @@ jobs:
           if count!=1: raise SystemExit(f'V104_ROLE_EXPECTATION_MATCH_COUNT={count}')
           p.write_text(s,encoding='utf-8')
 
-      - name: Align historical PWA regression assertion with deliberate cache rotation
+      - name: Align historical PWA regression assertions with deliberate cache rotation
         shell: python
         run: |
           from pathlib import Path
           p=Path('tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs')
           s=p.read_text(encoding='utf-8')
-          old="assert.match(serviceWorkerSource,/const VERSION='m26-rc63-2'/u);"
-          new="assert.match(serviceWorkerSource,/const VERSION='m26-rc63-3'/u);"
-          count=s.count(old)
-          if count!=1: raise SystemExit(f'V104_PWA_EXPECTATION_MATCH_COUNT={count}')
-          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          replacements=[
+              ("assert.equal(sw.includes(\"VERSION='m26-rc63-2'\"),true);","assert.equal(sw.includes(\"VERSION='m26-rc63-3'\"),true);"),
+              ("assert.equal(sw.includes(\"PREVIOUS_VERSION='m26-rc63-1'\"),true);","assert.equal(sw.includes(\"PREVIOUS_VERSION='m26-rc63-2'\"),true);"),
+          ]
+          for old,new in replacements:
+              count=s.count(old)
+              if count!=1: raise SystemExit(f'V104_PWA_EXPECTATION_MATCH_COUNT={count}:{old}')
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
 
       - name: Install dependencies
         run: npm ci
