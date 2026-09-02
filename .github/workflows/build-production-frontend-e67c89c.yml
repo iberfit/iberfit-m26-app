@@ -136,7 +136,7 @@ jobs:
           retention-days: 7
           compression-level: 6
 
-      - name: Deploy certified frontend with Wrangler
+      - name: Discover exact Cloudflare production project
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
@@ -144,54 +144,118 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 41; }
-          npx --yes wrangler@4.120.0 pages deploy .tmp/rc64-current-surface \
-            --project-name iberfit-m26-production \
-            --branch production \
-            --commit-hash e67c89c97d69eabe7f7b6682176e47e68ad6fde2 \
-            --commit-message "IBERFIT M26 production e67c89c"
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/iberfit-m26-production" \
+            -o CLOUDFLARE_PROJECT_BEFORE.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('CLOUDFLARE_PROJECT_BEFORE.json','utf8'));
+          if(!x.success||!x.result)throw new Error('CLOUDFLARE_PROJECT_LOOKUP_FAILED');
+          const p=x.result;
+          if(p.name!=='iberfit-m26-production')throw new Error(`WRONG_CF_PROJECT:${p.name}`);
+          if(!p.production_branch)throw new Error('CF_PRODUCTION_BRANCH_MISSING');
+          const domains=Array.isArray(p.domains)?p.domains:[];
+          if(!domains.includes('app.iberfit.cl'))throw new Error(`APP_DOMAIN_NOT_BOUND:${domains.join(',')}`);
+          fs.appendFileSync(process.env.GITHUB_ENV,`CF_PRODUCTION_BRANCH=${p.production_branch}\n`);
+          console.log(JSON.stringify({name:p.name,productionBranch:p.production_branch,domains,latestDeploymentId:p.latest_deployment?.id||null,latestDeploymentEnvironment:p.latest_deployment?.environment||null},null,2));
+          NODE
 
-      - name: Verify production live exact identity read-only
-        shell: bash
-        run: |
-          set -euo pipefail
-          EXPECTED=e67c89c97d69eabe7f7b6682176e47e68ad6fde2
-          ok=0
-          for attempt in $(seq 1 30); do
-            if curl -fsS --max-time 15 "https://app.iberfit.cl/m26/version.json?release=$EXPECTED" -o /tmp/version.json && \
-               grep -q "$EXPECTED" /tmp/version.json && \
-               grep -q '"environment": "PRODUCTION"' /tmp/version.json && \
-               grep -q '"projectRef": "pjhmrhejsoofmouedavw"' /tmp/version.json; then
-              ok=1
-              break
-            fi
-            sleep 4
-          done
-          test "$ok" = 1 || { echo 'PROD_LIVE_SOURCE_SHA_MISMATCH'; cat /tmp/version.json 2>/dev/null || true; exit 42; }
-
-          curl -fsS --max-time 15 "https://app.iberfit.cl/m26/runtime-config.js?release=$EXPECTED" -o /tmp/runtime.js
-          grep -q 'pjhmrhejsoofmouedavw' /tmp/runtime.js
-          grep -q 'https://pjhmrhejsoofmouedavw.supabase.co' /tmp/runtime.js
-          grep -Eq 'qaOnly["'"']?[[:space:]]*:[[:space:]]*false' /tmp/runtime.js
-          grep -Eq 'enabled["'"']?[[:space:]]*:[[:space:]]*true' /tmp/runtime.js
-          ! grep -q 'gjztkdwfmunnzhtvxrsu' /tmp/runtime.js
-
-          curl -fsS --max-time 15 "https://app.iberfit.cl/m26/index.html?release=$EXPECTED" -o /tmp/index.html
-          grep -q 'Primera vez o no recuerdo mi contraseña' /tmp/index.html
-          grep -q '/public/isotipo-iberfit.png' /tmp/index.html
-          grep -q '/src/m26/design/auth-native.css' /tmp/index.html
-
-      - name: Record Cloudflare production deployment
+      - name: Deploy certified frontend with Wrangler to exact production branch
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes wrangler@4.120.0 pages deployment list \
+          test -n "${CF_PRODUCTION_BRANCH:-}" || { echo 'CF_PRODUCTION_BRANCH_MISSING'; exit 43; }
+          npx --yes wrangler@4.120.0 pages deploy .tmp/rc64-current-surface \
             --project-name iberfit-m26-production \
-            --environment production \
-            --json > CLOUDFLARE_PROD_DEPLOYMENTS.json
-          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('CLOUDFLARE_PROD_DEPLOYMENTS.json','utf8'));const d=Array.isArray(x)?x[0]:x?.result?.[0];if(!d)throw new Error('PROD_DEPLOYMENT_NOT_FOUND');console.log(JSON.stringify({id:d.id,url:d.url,environment:d.environment,branch:d.deployment_trigger?.metadata?.branch||d.branch,commit:d.deployment_trigger?.metadata?.commit_hash||d.commit_hash},null,2));"
+            --branch "$CF_PRODUCTION_BRANCH" \
+            --commit-hash e67c89c97d69eabe7f7b6682176e47e68ad6fde2 \
+            --commit-message "IBERFIT M26 production e67c89c" \
+            --commit-dirty=true
+
+      - name: Verify production live exact identity read-only
+        env:
+          EXPECTED_SHA: e67c89c97d69eabe7f7b6682176e47e68ad6fde2
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const expected=process.env.EXPECTED_SHA;
+          const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+          const getText=async(url)=>{
+            const r=await fetch(url,{headers:{'cache-control':'no-cache'}});
+            if(!r.ok)throw new Error(`HTTP_${r.status}:${url}`);
+            return r.text();
+          };
+          let version=null;
+          let lastError=null;
+          for(let attempt=1;attempt<=30;attempt++){
+            try{
+              const raw=await getText(`https://app.iberfit.cl/m26/version.json?release=${expected}&attempt=${attempt}`);
+              const v=JSON.parse(raw);
+              if(v.sourceSha===expected&&v.environment==='PRODUCTION'&&v.projectRef==='pjhmrhejsoofmouedavw'&&v.production===true&&v.qaOnly===false){
+                version=v;
+                break;
+              }
+              lastError=new Error(`LIVE_VERSION_MISMATCH:${raw}`);
+            }catch(error){lastError=error;}
+            await sleep(4000);
+          }
+          if(!version)throw lastError||new Error('PROD_LIVE_SOURCE_SHA_MISMATCH');
+
+          const runtime=await getText(`https://app.iberfit.cl/m26/runtime-config.js?release=${expected}`);
+          for(const marker of ['pjhmrhejsoofmouedavw','https://pjhmrhejsoofmouedavw.supabase.co']){
+            if(!runtime.includes(marker))throw new Error(`LIVE_RUNTIME_MARKER_MISSING:${marker}`);
+          }
+          if(!/qaOnly["']?\s*:\s*false/u.test(runtime))throw new Error('LIVE_RUNTIME_QA_ONLY_NOT_FALSE');
+          if(!/enabled["']?\s*:\s*true/u.test(runtime))throw new Error('LIVE_RUNTIME_NOT_ENABLED');
+          if(runtime.includes('gjztkdwfmunnzhtvxrsu'))throw new Error('LIVE_RUNTIME_QA_LEAK');
+          if(/service[_-]?role/iu.test(runtime))throw new Error('LIVE_RUNTIME_PRIVILEGED_KEY_FORBIDDEN');
+
+          const index=await getText(`https://app.iberfit.cl/m26/index.html?release=${expected}`);
+          for(const marker of ['Primera vez o no recuerdo mi contraseña','/public/isotipo-iberfit.png','/src/m26/design/auth-native.css']){
+            if(!index.includes(marker))throw new Error(`LIVE_INDEX_MARKER_MISSING:${marker}`);
+          }
+          console.log(JSON.stringify({ok:true,sourceSha:version.sourceSha,environment:version.environment,projectRef:version.projectRef},null,2));
+          NODE
+
+      - name: Record exact Cloudflare production deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+          EXPECTED_SHA: e67c89c97d69eabe7f7b6682176e47e68ad6fde2
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/iberfit-m26-production" \
+            -o CLOUDFLARE_PROJECT_AFTER.json
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/iberfit-m26-production/deployments" \
+            -o CLOUDFLARE_PROD_DEPLOYMENTS.json
+          node <<'NODE'
+          const fs=require('fs');
+          const expected=process.env.EXPECTED_SHA;
+          const project=JSON.parse(fs.readFileSync('CLOUDFLARE_PROJECT_AFTER.json','utf8'));
+          if(!project.success||!project.result)throw new Error('CLOUDFLARE_PROJECT_AFTER_FAILED');
+          const p=project.result;
+          const latest=p.latest_deployment;
+          const latestSha=latest?.deployment_trigger?.metadata?.commit_hash||latest?.source?.config?.production_branch||null;
+          const deployments=JSON.parse(fs.readFileSync('CLOUDFLARE_PROD_DEPLOYMENTS.json','utf8'));
+          if(!deployments.success||!Array.isArray(deployments.result))throw new Error('CLOUDFLARE_DEPLOYMENT_LIST_FAILED');
+          const exact=deployments.result.find(d=>d.environment==='production'&&(d.deployment_trigger?.metadata?.commit_hash===expected||d.source?.config?.commit_hash===expected));
+          if(!exact)throw new Error('EXACT_PRODUCTION_DEPLOYMENT_NOT_FOUND');
+          if(!Array.isArray(p.domains)||!p.domains.includes('app.iberfit.cl'))throw new Error('APP_DOMAIN_NOT_BOUND_AFTER_DEPLOY');
+          console.log(JSON.stringify({project:p.name,productionBranch:p.production_branch,latestDeploymentId:latest?.id||null,latestDeploymentSha:latestSha,exactDeploymentId:exact.id,exactDeploymentUrl:exact.url,exactEnvironment:exact.environment,exactCommit:exact.deployment_trigger?.metadata?.commit_hash||null,domains:p.domains},null,2));
+          NODE
 
       - name: Upload checksum and deployment evidence
         if: always()
@@ -200,6 +264,8 @@ jobs:
           name: iberfit-m26-production-e67c89c-evidence
           path: |
             PROD_FRONTEND_E67C89C.sha256
+            CLOUDFLARE_PROJECT_BEFORE.json
+            CLOUDFLARE_PROJECT_AFTER.json
             CLOUDFLARE_PROD_DEPLOYMENTS.json
           if-no-files-found: warn
           retention-days: 7
