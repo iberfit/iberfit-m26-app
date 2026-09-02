@@ -13,7 +13,7 @@ body{min-height:100dvh;overflow-x:hidden;color:#f7f1e4;background:#06130d;font-f
 .m26-auth-copy>p:last-child,.m26-auth-card>p:not(.m26-notice):not(.m26-auth-notice):not(.m26-field-help){max-width:38ch;margin:0 auto;color:#d7cfbf;font-size:.92rem;line-height:1.55;text-align:center}
 .m26-auth-card form,.m26-auth-actions{display:grid;gap:.86rem;margin-top:1.35rem}
 .m26-auth-card label{display:grid;gap:.46rem;color:#e4dccd;font-size:.8rem;font-weight:680}
-.m26-auth-card input,.m26-auth-card button{width:100%;min-height:52px;border-radius:.92rem;font:inherit}
+.m26-auth-card input,.m26-auth-card button{width:100%;min-height:3.2rem;border-radius:.92rem;font:inherit}
 .m26-auth-card input{padding:.78rem .9rem;border:1px solid rgba(226,211,178,.14);color:#fbf7ee;background:rgba(2,13,8,.54);caret-color:#d9bb77}
 .m26-password-field{position:relative;display:block}
 .m26-password-field input{padding-right:5.7rem}
