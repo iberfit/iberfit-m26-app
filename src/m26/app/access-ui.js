@@ -313,6 +313,7 @@ export function renderAccessUi({
             type="button"
             class="m26-auth-link"
             data-auth-action="forgot-password"
+            title="Olvidé mi contraseña"
           >
             Primera vez o no recuerdo mi contraseña
           </button>
