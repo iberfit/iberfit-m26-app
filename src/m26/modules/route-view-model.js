@@ -1,3 +1,4 @@
+import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
 import { deriveCoachCockpit} from '../experience/coach-cockpit.js';
 import {createCommunicationRouteViewModel} from '../communication/view-model.js';
 import {createAdminRouteViewModel} from '../admin/view-model.js';
@@ -753,6 +754,11 @@ if (area === 'clientes') {
       if (birthDate) ageYears = deriveAgeYears(birthDate, civilDateInTimeZone(now));
     } catch {}
 
+    const decisionBrief=buildIberfitDecisionBrief({
+      summary,
+      alerts,
+    });
+
     return Object.freeze({
       kind: 'inteligencia',
       clientId,
@@ -760,6 +766,7 @@ if (area === 'clientes') {
       runs: Object.freeze(runs.map(compactActivity)),
       summary,
       alerts: Object.freeze(alerts),
+      decisionBrief,
       profile,
       ageYears,
       birthDate: birthDate || null,

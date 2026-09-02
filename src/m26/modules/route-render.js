@@ -2351,6 +2351,77 @@ export function renderLibraryRoute(vm){
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Biblioteca visual</p><h2>Ejercicios IBERFIT</h2><p>Organizados por musculatura principal, con indicaciones y referencias visuales validadas. El catálogo sigue siendo la fuente canónica y no admite escritura libre en las sesiones.</p></div>${badge(`${vm.total} ejercicios`,'neutral')}</section><section class="m26-panel"><div class="m26-library-controls"><label>Buscar ejercicio<input type="search" data-library-search autocomplete="off" spellcheck="false" aria-describedby="m26-library-status"></label><label>Material<select data-library-filter="equipment"><option value="">Todo</option><option value="sin material">Sin material</option><option value="trx">TRX</option><option value="mancuerna">Mancuernas</option><option value="banda">Bandas</option><option value="máquina">Máquina</option></select></label><label>Patrón<select data-library-filter="pattern"><option value="">Todos</option><option value="sentadilla">Sentadilla</option><option value="empuje">Empuje</option><option value="tracción">Tracción</option><option value="bisagra">Bisagra</option><option value="core">Core</option></select></label><label>Referencia visual<select data-library-filter="visual"><option value="">Todas</option><option value="with-image">Con imagen validada</option><option value="without-image">Sin imagen</option></select></label><button type="button" data-library-clear>Limpiar filtros</button></div><div class="m26-library-groups" data-library-grid>${groups||emptyState('Biblioteca no cargada','No se pudo leer el catálogo local.')}</div><p id="m26-library-status" data-library-status role="status" aria-live="polite">Mostrando los ${vm.total} ejercicios del catálogo, agrupados por musculatura principal. Escribe para filtrar.</p>${credit}</section></div>`;
 }
 
+function renderIntelligenceDecisionBrief(brief){
+  if(!brief)return '';
+
+  const tone=
+    brief.confidence==='alta'
+      ?'success'
+      :brief.confidence==='media'
+        ?'neutral'
+        :'warning';
+
+  const signals=(brief.signals||[])
+    .map(
+      (item)=>`<li>${escapeHtml(item)}</li>`
+    )
+    .join('');
+
+  const limitations=(brief.limitations||[])
+    .map(
+      (item)=>`<li>${escapeHtml(item)}</li>`
+    )
+    .join('');
+
+  return `<section
+    class="m26-panel m26-panel-soft"
+    data-m26-intelligence-copilot
+    aria-labelledby="m26-intelligence-copilot-title"
+  >
+    <div class="m26-panel-heading">
+      <div>
+        <p class="m26-eyebrow">Copiloto IBERFIT · inteligencia explicable</p>
+        <h2 id="m26-intelligence-copilot-title">${escapeHtml(brief.headline)}</h2>
+        <p>Resume señales confirmadas y las convierte en contexto revisable para el entrenador.</p>
+      </div>
+      ${badge(`Confianza ${brief.confidence}`,tone)}
+    </div>
+
+    <div class="m26-content-grid">
+      <article>
+        <h3>Señales utilizadas</h3>
+        <ul>${signals}</ul>
+      </article>
+
+      <article>
+        <h3>Limitaciones del dato</h3>
+        ${
+          limitations
+            ?`<ul>${limitations}</ul>`
+            :'<p>Sin limitaciones relevantes detectadas en este resumen.</p>'
+        }
+      </article>
+    </div>
+
+    <div class="m26-notice">
+      <strong>Siguiente paso sugerido</strong>
+      <p>${escapeHtml(brief.nextStep)}</p>
+    </div>
+
+    <p class="m26-data-footnote">${escapeHtml(brief.safetyNote)}</p>
+  </section>`;
+}
+
+function injectIntelligenceDecisionBrief(markup,brief){
+  const panel=renderIntelligenceDecisionBrief(brief);
+
+  if(!panel)return markup;
+
+  return String(markup||'').replace(
+    /<div class="m26-route[^"]*">/,
+    (root)=>`${root}${panel}`
+  );
+}
 function renderRouteContent(vm) {
   const admin=renderAdminRoute(vm);
   if(admin!==null)return admin;
@@ -2367,7 +2438,7 @@ function renderRouteContent(vm) {
   if (vm.kind === 'agenda') return renderAgendaRoute(vm);
   if (vm.kind === 'sesion') return renderSessionsRoute(vm);
   if (vm.kind === 'informes') return renderReportsRoute(vm);
-  if (vm.kind === 'inteligencia') return renderIntelligenceRoute(vm);
+  if (vm.kind === 'inteligencia') return injectIntelligenceDecisionBrief(renderIntelligenceRoute(vm),vm.decisionBrief);
   if (vm.kind === 'biblioteca') return renderLibraryRoute(vm);
   if (vm.kind === 'actividad') return renderActivityRoute(vm);
   if (vm.kind === 'notas') return renderPrivateNotesRoute(vm);

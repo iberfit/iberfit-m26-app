@@ -3,6 +3,7 @@
   "status": "PASS",
   "scope": "android_wear_os",
   "baseCommit": "9d93330d23a6029bc742676bd5e5463f1e8360a3",
+  "sourceCommit": "1ef2fa15ff164fd821c455db799bcf923841b5a0",
   "hardwareValidatedAtUtc": "2026-08-11T23:14:24.749701Z",
   "sourceGuards": {
     "native/android/wear/IBERFITWearHealthServicesBridge.kt": "eaa4c1d2945d19d505351352672e1a3b54cf6a4c",

@@ -18,6 +18,7 @@ const gitBlobAtCommit = (commit, repoPath) =>
 test("RC56.2 conserva evidencia de Health Services y sensor real", () => {
   assert.equal(evidence.release, "IBERFIT_M26_RC56");
   assert.equal(evidence.baseCommit, "9d93330d23a6029bc742676bd5e5463f1e8360a3");
+  assert.equal(evidence.sourceCommit, "1ef2fa15ff164fd821c455db799bcf923841b5a0");
   assert.equal(evidence.rc56_2.status, "PASS");
   assert.equal(evidence.rc56_2.provider, "wear_os_health_services");
   assert.equal(evidence.rc56_2.realSensor, true);
@@ -53,7 +54,7 @@ test("la afirmación DEVICE_HARDWARE_TESTED queda limitada a Android Wear OS", (
 test("la evidencia pertenece a los bridges exactos realmente probados", () => {
   assert.equal(
     gitBlobAtCommit(
-      evidence.baseCommit,
+      evidence.sourceCommit,
       "native/android/wear/IBERFITWearHealthServicesBridge.kt"
     ),
     evidence.sourceGuards[
@@ -62,7 +63,7 @@ test("la evidencia pertenece a los bridges exactos realmente probados", () => {
   );
   assert.equal(
     gitBlobAtCommit(
-      evidence.baseCommit,
+      evidence.sourceCommit,
       "native/android/runtime/IBERFITWearDataLayerRuntime.kt"
     ),
     evidence.sourceGuards[
