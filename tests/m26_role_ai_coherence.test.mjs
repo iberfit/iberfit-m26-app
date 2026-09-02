@@ -15,6 +15,10 @@ import {
   buildIberfitDecisionBrief,
 } from '../src/m26/intelligence/decision-brief.js';
 
+import {
+  iberfitTranslate,
+} from '../src/m26/ui/i18n.js';
+
 test(
   'multirrol conserva switch autorizado',
   ()=>{
@@ -110,7 +114,7 @@ test(
 );
 
 test(
-  'Admin usa Configuración',
+  'Admin usa Configuración y conserva su ruta bajo i18n',
   ()=>{
     const shell=fs.readFileSync(
       'src/m26/shell/shell-render.js',
@@ -119,7 +123,15 @@ test(
 
     assert.match(
       shell,
-      /data-m26-area="admin-configuracion">Configuración/u
+      /vm\.identity\.role==='admin'\?'admin-configuracion':'ajustes'/u
+    );
+
+    assert.equal(
+      iberfitTranslate(
+        'area.admin-configuracion.label',
+        {language:'es'}
+      ),
+      'Configuración'
     );
   }
 );
