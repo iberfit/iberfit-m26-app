@@ -1,0 +1,382 @@
+/* IBERFIT M26 · Premium UX hardening
+ * Presentation-only layer for Client, Coach and Admin.
+ * No authorization, business logic or data semantics live here.
+ */
+
+:root {
+  --iberfit-ux-focus: #f2dca8;
+  --iberfit-ux-tap: 44px;
+  --iberfit-ux-mobile-nav: 4.35rem;
+}
+
+html {
+  scroll-behavior: smooth;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: rgba(228,205,152,.12);
+}
+
+.m26-shell,
+.m26-shell * {
+  box-sizing: border-box;
+}
+
+.m26-shell :is(button,[role="button"],summary,a,input,select,textarea) {
+  touch-action: manipulation;
+}
+
+.m26-shell :is(
+  button,
+  [role="button"],
+  summary,
+  a,
+  input,
+  select,
+  textarea
+):focus-visible {
+  outline: 3px solid var(--iberfit-ux-focus);
+  outline-offset: 3px;
+}
+
+.m26-shell :is(button,.m26-nav-item,.m26-icon-button,.m26-primary-action,.m26-danger-action,summary) {
+  min-height: max(var(--iberfit-role-control-min, var(--iberfit-ux-tap)), var(--iberfit-ux-tap));
+}
+
+.m26-shell :is(button,[role="button"],[data-m26-area],summary):disabled,
+.m26-shell :is(button,[role="button"],[data-m26-area],summary)[aria-disabled="true"] {
+  cursor: not-allowed;
+  filter: saturate(.72);
+  opacity: .58;
+}
+
+.m26-shell :is(.m26-main,.m26-route,.m26-panel,.m26-admin-panel,.m26-admin-table) {
+  min-width: 0;
+}
+
+.m26-main :is(h1,h2,h3,[id]) {
+  scroll-margin-top: 7rem;
+}
+
+.m26-route {
+  width: 100%;
+}
+
+.m26-route > :first-child {
+  scroll-margin-top: 7rem;
+}
+
+/* Clear keyboard entry point without visual noise for pointer users. */
+.m26-skip-link {
+  position: fixed;
+  z-index: 1000;
+  top: max(.7rem, env(safe-area-inset-top));
+  left: max(.7rem, env(safe-area-inset-left));
+  transform: translateY(-180%);
+  padding: .72rem 1rem;
+  border: 1px solid rgba(242,220,168,.62);
+  border-radius: .75rem;
+  color: #07150f;
+  background: #f2dca8;
+  font-weight: 800;
+  box-shadow: 0 12px 32px rgba(0,0,0,.32);
+}
+
+.m26-skip-link:focus {
+  transform: translateY(0);
+}
+
+/* Stable feedback for hydration, network and command states. */
+.m26-shell [aria-busy="true"] {
+  cursor: progress;
+}
+
+.m26-shell [aria-busy="true"] :is(button,input,select,textarea) {
+  cursor: progress;
+}
+
+.m26-shell :is(
+  .iberfit-empty-state,
+  .iberfit-error-state,
+  .iberfit-retry-state,
+  .iberfit-offline-state,
+  .iberfit-sync-state,
+  .m26-route-placeholder,
+  .m26-form-status:not(:empty),
+  .m26-action-state:not(:empty)
+) {
+  overflow-wrap: anywhere;
+}
+
+.m26-shell :is(.iberfit-error-state,.iberfit-retry-state) {
+  border-left: 3px solid color-mix(in srgb, var(--iberfit-color-danger, #e89982) 72%, transparent);
+}
+
+.m26-shell :is(.iberfit-empty-state,.iberfit-offline-state) {
+  border-left: 3px solid color-mix(in srgb, var(--iberfit-role-accent, #c8a65d) 62%, transparent);
+}
+
+/* Top bar behaves like a compact command surface instead of a wrapping wall. */
+.m26-topbar {
+  padding-top: max(var(--iberfit-space-3, 1rem), env(safe-area-inset-top));
+}
+
+.m26-topbar-actions {
+  min-width: 0;
+}
+
+.m26-operation-status {
+  white-space: nowrap;
+}
+
+/* Tables retain context while scrolling large Admin datasets. */
+.m26-admin-table {
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+}
+
+.m26-admin-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--iberfit-color-surface-base, #0d2419) 94%, #07150f);
+  box-shadow: 0 1px 0 var(--iberfit-color-border, rgba(228,205,152,.16));
+}
+
+.m26-admin-table tbody tr:focus-within {
+  background: color-mix(in srgb, var(--iberfit-role-accent, #c8a65d) 8%, transparent);
+}
+
+/* Coach: dense, fast, but controls never collapse below a usable target. */
+.m26-shell[data-m26-role="coach"] :is(
+  .m26-client-controls,
+  .m26-library-controls
+) :is(button,input,select) {
+  min-height: var(--iberfit-ux-tap);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-coach-command-launcher kbd {
+  white-space: nowrap;
+}
+
+/* Client: preserve calm hierarchy and make the next action physically obvious. */
+.m26-shell[data-m26-role="client"] .m26-primary-action {
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+
+.m26-shell[data-m26-role="client"] :is(.m26-hero-panel,.m26-profile-hero) {
+  overflow: clip;
+}
+
+/* Pointer-only lift. Prevents sticky hover states on touch devices. */
+@media (hover: hover) and (pointer: fine) {
+  .m26-shell :is(.m26-nav-item,.m26-client-card,.m26-list-card,.m26-library-card,.m26-publication-card) {
+    will-change: transform;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .m26-shell :is(
+    .m26-nav-item,
+    .m26-client-card,
+    .m26-list-card,
+    .m26-library-card,
+    .m26-publication-card,
+    .m26-client-content-card,
+    .m26-wearable-source,
+    .m26-wearable-day,
+    .m26-rc39-session-card,
+    .m26-stat,
+    .iberfit-metric,
+    .m26-admin-stat
+  ):hover {
+    transform: none;
+  }
+
+  .m26-nav-item:hover::after {
+    transform: translateX(-125%);
+  }
+}
+
+/* Mobile ergonomics: safe areas, no iOS input zoom, thumb-friendly navigation. */
+@media (max-width: 900px) {
+  .m26-workspace {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .m26-topbar {
+    gap: .65rem;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .m26-topbar-actions {
+    width: 100%;
+    max-width: none;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .m26-topbar-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .m26-topbar-actions > * {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  .m26-topbar-actions > :is(.m26-client-selector,.m26-client-context) {
+    width: min(18rem, 78vw);
+    min-width: min(18rem, 78vw);
+  }
+
+  .m26-mobile-nav {
+    min-height: calc(var(--iberfit-ux-mobile-nav) + env(safe-area-inset-bottom));
+    padding-top: .45rem;
+    padding-bottom: max(.45rem, env(safe-area-inset-bottom));
+    box-shadow: 0 -14px 34px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.035);
+    backdrop-filter: blur(20px) saturate(1.08);
+  }
+
+  .m26-mobile-nav .m26-nav-item,
+  .m26-mobile-nav summary {
+    min-width: 0;
+    min-height: 3.35rem;
+    border-radius: .8rem;
+  }
+
+  .m26-mobile-nav .m26-nav-item.is-active {
+    transform: none;
+  }
+
+  .m26-mobile-more {
+    position: relative;
+    min-width: 0;
+  }
+
+  .m26-mobile-more > summary {
+    display: grid;
+    place-items: center;
+    padding: .45rem .25rem;
+    border: 1px solid transparent;
+    color: var(--m26-cream-300, #ddd4c1);
+    list-style: none;
+    cursor: pointer;
+    font-size: .7rem;
+    font-weight: 700;
+  }
+
+  .m26-mobile-more > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .m26-mobile-more[open] > summary {
+    border-color: color-mix(in srgb, var(--iberfit-role-accent, #c8a65d) 34%, transparent);
+    color: var(--m26-cream-100, #f7f1e4);
+    background: color-mix(in srgb, var(--iberfit-role-accent, #c8a65d) 12%, transparent);
+  }
+
+  .m26-mobile-more-menu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + .55rem);
+    width: min(20rem, calc(100vw - 1rem));
+    max-height: min(62dvh, 30rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: .55rem;
+    border: 1px solid rgba(228,205,152,.18);
+    border-radius: 1rem;
+    background: rgba(7,29,20,.985);
+    box-shadow: 0 22px 55px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.045);
+    backdrop-filter: blur(20px);
+  }
+
+  .m26-mobile-more-menu .m26-nav-item {
+    text-align: left;
+  }
+
+  .m26-main {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 580px) {
+  .m26-topbar h1 {
+    max-width: 18ch;
+    font-size: clamp(1.45rem, 7vw, 1.9rem);
+    line-height: 1.08;
+  }
+
+  .m26-topbar-actions {
+    margin-inline: -.1rem;
+    padding: .1rem .1rem .35rem;
+  }
+
+  .m26-shell :is(
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea
+  ) {
+    font-size: 16px;
+  }
+
+  .m26-main {
+    padding-left: max(.8rem, env(safe-area-inset-left));
+    padding-right: max(.8rem, env(safe-area-inset-right));
+  }
+
+  .m26-route-intro,
+  .m26-panel-heading,
+  .m26-profile-hero {
+    min-width: 0;
+  }
+
+  .m26-shell[data-m26-role="client"] .m26-stat-grid,
+  .m26-shell[data-m26-role="admin"] .m26-admin-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .m26-admin-table {
+    margin-inline: -.15rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .m26-shell[data-m26-role="client"] .m26-stat-grid,
+  .m26-shell[data-m26-role="admin"] .m26-admin-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .m26-shell :is(button,input,select,textarea,.m26-nav-item,.m26-panel,.m26-admin-panel) {
+    border-color: currentColor;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .m26-shell *,
+  .m26-shell *::before,
+  .m26-shell *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
