@@ -1,0 +1,342 @@
+name: IBERFIT Production Promotion
+
+on:
+  push:
+    branches:
+      - 'release/prod-*'
+    paths:
+      - '.iberfit/production-release.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-m26-production-deploy
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'iberfit-m26-production'
+  APP_DOMAIN: 'app.iberfit.cl'
+  PROD_SUPABASE_REF: 'pjhmrhejsoofmouedavw'
+  PROD_SUPABASE_URL: 'https://pjhmrhejsoofmouedavw.supabase.co'
+  QA_SUPABASE_REF: 'gjztkdwfmunnzhtvxrsu'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  promote-production:
+    name: promote-production-fail-closed
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout promotion branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate release manifest and exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .iberfit/production-release.json
+          node <<'NODE'
+          const fs=require('fs');
+          const cp=require('child_process');
+          const manifest=JSON.parse(fs.readFileSync('.iberfit/production-release.json','utf8'));
+          const fail=(m)=>{throw new Error(m)};
+          if(manifest.schema!=='iberfit.production.release.v1') fail('RELEASE_SCHEMA_INVALID');
+          if(manifest.promote!==true) fail('RELEASE_PROMOTE_NOT_TRUE');
+          if(manifest.target!=='iberfit-m26-production') fail('RELEASE_TARGET_INVALID');
+          if(manifest.domain!=='app.iberfit.cl') fail('RELEASE_DOMAIN_INVALID');
+          if(!/^[0-9a-f]{40}$/.test(manifest.sourceSha||'')) fail('RELEASE_SOURCE_SHA_INVALID');
+          if(!manifest.sourceBranch || manifest.sourceBranch.startsWith('release/prod-')) fail('RELEASE_SOURCE_BRANCH_INVALID');
+          const branch=process.env.GITHUB_REF_NAME;
+          const expected=`release/prod-${manifest.sourceSha.slice(0,12)}`;
+          if(branch!==expected) fail(`RELEASE_BRANCH_MISMATCH:${branch}:${expected}`);
+          const parent=cp.execFileSync('git',['rev-parse','HEAD^'],{encoding:'utf8'}).trim();
+          if(parent!==manifest.sourceSha) fail(`RELEASE_PARENT_MISMATCH:${parent}`);
+          const changed=cp.execFileSync('git',['diff','--name-only',manifest.sourceSha,'HEAD'],{encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean);
+          if(changed.length!==1 || changed[0]!=='.iberfit/production-release.json') fail(`RELEASE_DIFF_NOT_MARKER_ONLY:${changed.join(',')}`);
+          fs.appendFileSync(process.env.GITHUB_ENV,`SOURCE_SHA=${manifest.sourceSha}\nSOURCE_BRANCH=${manifest.sourceBranch}\nSHORT_SHA=${manifest.sourceSha.slice(0,12)}\n`);
+          NODE
+          git fetch --no-tags origin "$SOURCE_BRANCH"
+          test "$(git rev-parse "origin/$SOURCE_BRANCH")" = "$SOURCE_SHA"
+          test -z "$(git diff --name-only "$SOURCE_SHA" HEAD -- ':!.iberfit/production-release.json')"
+
+      - name: Full regression before production
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test
+          node --test \
+            tests/m26_role_route_navigation_contract.test.mjs \
+            tests/m26_shell_roles.test.mjs \
+            tests/m26_rc38_client_bottom_navigation.test.mjs \
+            tests/m26_rc40_admin_complete.test.mjs \
+            tests/m26_rc71_2_preferences_i18n.test.mjs
+
+      - name: Build canonical current surface
+        run: node qa/rc64/build-current-surface.mjs
+
+      - name: Capture and validate current public PROD runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
+            "https://${APP_DOMAIN}/m26/runtime-config.js" -o /tmp/runtime-config.live.js
+          curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
+            "https://${APP_DOMAIN}/m26/version.json" -o /tmp/version.live.json
+          curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
+            "https://${APP_DOMAIN}/m26/sw.js" -o /tmp/sw.live.js
+          node <<'NODE'
+          const fs=require('fs');
+          const runtime=fs.readFileSync('/tmp/runtime-config.live.js','utf8');
+          for(const marker of [process.env.PROD_SUPABASE_REF,process.env.PROD_SUPABASE_URL]){
+            if(!runtime.includes(marker))throw new Error(`PROD_RUNTIME_MARKER_MISSING:${marker}`);
+          }
+          if(!/qaOnly["']?\s*:\s*false/u.test(runtime))throw new Error('PROD_RUNTIME_QA_ONLY_NOT_FALSE');
+          if(!/enabled["']?\s*:\s*true/u.test(runtime))throw new Error('PROD_RUNTIME_NOT_ENABLED');
+          if(runtime.includes(process.env.QA_SUPABASE_REF))throw new Error('PROD_RUNTIME_QA_LEAK');
+          if(/service[_-]?role/iu.test(runtime))throw new Error('PROD_RUNTIME_PRIVILEGED_KEY_FORBIDDEN');
+          const live=JSON.parse(fs.readFileSync('/tmp/version.live.json','utf8'));
+          fs.appendFileSync(process.env.GITHUB_ENV,`PREVIOUS_LIVE_SHA=${live.sourceSha||'unknown'}\n`);
+          NODE
+          cp /tmp/runtime-config.live.js .tmp/rc64-current-surface/m26/runtime-config.js
+
+      - name: Seal release identity and cache contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const path=require('path');
+          const root='.tmp/rc64-current-surface';
+          const swPath=path.join(root,'m26','sw.js');
+          let sw=fs.readFileSync(swPath,'utf8').replace(/\r\n?/g,'\n');
+          const liveSw=fs.readFileSync('/tmp/sw.live.js','utf8').replace(/\r\n?/g,'\n');
+          const liveVersion=(liveSw.match(/^const VERSION='([^']+)';/m)||[])[1];
+          if(!liveVersion)throw new Error('LIVE_SW_VERSION_MISSING');
+          if(!/^const VERSION='[^']+';/m.test(sw))throw new Error('SOURCE_SW_VERSION_MISSING');
+          if(!/^const PREVIOUS_VERSION='[^']+';/m.test(sw))throw new Error('SOURCE_SW_PREVIOUS_VERSION_MISSING');
+          const releaseVersion=`m26-prod-${process.env.SHORT_SHA}`;
+          sw=sw.replace(/^const VERSION='[^']+';/m,`const VERSION='${releaseVersion}';`);
+          sw=sw.replace(/^const PREVIOUS_VERSION='[^']+';/m,`const PREVIOUS_VERSION='${liveVersion}';`);
+          if(!sw.includes('/src/m26/design/auth-native.css'))throw new Error('PROD_SW_AUTH_NATIVE_MISSING');
+          fs.writeFileSync(swPath,sw,'utf8');
+
+          const version={
+            release:`IBERFIT_M26_PRODUCTION_${process.env.SHORT_SHA.toUpperCase()}`,
+            version:`26.0.0-production.${process.env.SHORT_SHA}`,
+            sourceSha:process.env.SOURCE_SHA,
+            sourceBranch:process.env.SOURCE_BRANCH,
+            previousLiveSha:process.env.PREVIOUS_LIVE_SHA,
+            environment:'PRODUCTION',
+            projectRef:process.env.PROD_SUPABASE_REF,
+            qaOnly:false,
+            production:true
+          };
+          fs.writeFileSync(path.join(root,'m26','version.json'),JSON.stringify(version,null,2)+'\n','utf8');
+
+          const sourceHeaders=path.join(root,'m26','_headers');
+          let headers=fs.readFileSync(sourceHeaders,'utf8').replace(/\r\n?/g,'\n');
+          if(headers.includes(process.env.QA_SUPABASE_REF)||headers.includes('m26-canary.iberfit.cl'))throw new Error('PROD_HEADERS_NONPROD_LEAK');
+          headers=headers.replace('  Cache-Control: no-store\n\n/m26/runtime-config.js','  Cache-Control: no-store, no-transform\n\n/m26/runtime-config.js');
+          headers=headers.replace('/m26/index.html\n  Cache-Control: no-cache, must-revalidate','/m26/index.html\n  Cache-Control: no-cache, must-revalidate, no-transform');
+          fs.writeFileSync(sourceHeaders,headers,'utf8');
+          fs.writeFileSync(path.join(root,'_headers'),headers,'utf8');
+          NODE
+
+      - name: Verify deployable production surface fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          R=.tmp/rc64-current-surface/m26/runtime-config.js
+          V=.tmp/rc64-current-surface/m26/version.json
+          S=.tmp/rc64-current-surface/m26/sw.js
+          H=.tmp/rc64-current-surface/_headers
+          test -s "$R" && test -s "$V" && test -s "$S" && test -s "$H"
+          grep -Fq "$SOURCE_SHA" "$V"
+          grep -Fq '"environment": "PRODUCTION"' "$V"
+          grep -Fq "\"projectRef\": \"$PROD_SUPABASE_REF\"" "$V"
+          grep -Fq "const VERSION='m26-prod-$SHORT_SHA';" "$S"
+          grep -Fq '/src/m26/design/auth-native.css' "$S"
+          grep -Fq "$PROD_SUPABASE_URL" "$H"
+          ! grep -R -Fq "$QA_SUPABASE_REF" "$R" "$V" "$H"
+          ! grep -R -Eqi 'service[_-]?role' "$R" "$V" "$H"
+          ! grep -R -Eqi 'supabase[[:space:]]+(db|migration)|wrangler[[:space:]]+deploy' .github/workflows/production-promote.yml
+          find .tmp/rc64-current-surface -type f -print0 | sort -z | xargs -0 sha256sum > PRODUCTION_PROMOTION.sha256
+
+      - name: Discover exact Cloudflare production target
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 41; }
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" \
+            -o CLOUDFLARE_PROJECT_BEFORE.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('CLOUDFLARE_PROJECT_BEFORE.json','utf8'));
+          if(!x.success||!x.result)throw new Error('CLOUDFLARE_PROJECT_LOOKUP_FAILED');
+          const p=x.result;
+          if(p.name!==process.env.CF_PROJECT)throw new Error(`WRONG_CF_PROJECT:${p.name}`);
+          if(!p.production_branch)throw new Error('CF_PRODUCTION_BRANCH_MISSING');
+          const domains=Array.isArray(p.domains)?p.domains:[];
+          if(!domains.includes(process.env.APP_DOMAIN))throw new Error(`APP_DOMAIN_NOT_BOUND:${domains.join(',')}`);
+          if(p.latest_deployment?.environment!=='production')throw new Error('CF_LATEST_NOT_PRODUCTION');
+          fs.appendFileSync(process.env.GITHUB_ENV,`CF_PRODUCTION_BRANCH=${p.production_branch}\nPREVIOUS_DEPLOYMENT_ID=${p.latest_deployment?.id||'unknown'}\n`);
+          NODE
+
+      - name: Preview preflight on same Pages project
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_BRANCH="preflight-$SHORT_SHA"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy .tmp/rc64-current-surface \
+            --project-name "$CF_PROJECT" \
+            --branch "$PREVIEW_BRANCH" \
+            --commit-hash "$SOURCE_SHA" \
+            --commit-message "IBERFIT preflight $SHORT_SHA" \
+            --commit-dirty=true | tee WRANGLER_PREFLIGHT.log
+          PREVIEW_URL="$(grep -Eo 'https://[a-z0-9]+\.iberfit-m26-production\.pages\.dev' WRANGLER_PREFLIGHT.log | tail -1)"
+          test -n "$PREVIEW_URL"
+          echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
+          curl -fsS "$PREVIEW_URL/m26/version.json" -o /tmp/preflight-version.json
+          grep -Fq "$SOURCE_SHA" /tmp/preflight-version.json
+          curl -fsS "$PREVIEW_URL/m26/runtime-config.js" -o /tmp/preflight-runtime.js
+          grep -Fq "$PROD_SUPABASE_REF" /tmp/preflight-runtime.js
+          ! grep -Fq "$QA_SUPABASE_REF" /tmp/preflight-runtime.js
+          curl -fsS "$PREVIEW_URL/m26/index.html" -o /tmp/preflight-index.html
+          grep -Fq '/public/isotipo-iberfit.png' /tmp/preflight-index.html
+          grep -Fq '/src/m26/design/auth-native.css' /tmp/preflight-index.html
+
+      - name: Deploy exact certified surface to production with Wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CF_PRODUCTION_BRANCH:-}" || { echo 'CF_PRODUCTION_BRANCH_MISSING'; exit 43; }
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy .tmp/rc64-current-surface \
+            --project-name "$CF_PROJECT" \
+            --branch "$CF_PRODUCTION_BRANCH" \
+            --commit-hash "$SOURCE_SHA" \
+            --commit-message "IBERFIT M26 production $SHORT_SHA" \
+            --commit-dirty=true | tee WRANGLER_PRODUCTION.log
+
+      - name: Verify app.iberfit.cl exact identity and runtime read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const expected=process.env.SOURCE_SHA;
+          const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+          const getText=async(url)=>{
+            const r=await fetch(url,{headers:{'cache-control':'no-cache'}});
+            if(!r.ok)throw new Error(`HTTP_${r.status}:${url}`);
+            return r.text();
+          };
+          let version=null,lastError=null;
+          for(let attempt=1;attempt<=30;attempt++){
+            try{
+              const raw=await getText(`https://${process.env.APP_DOMAIN}/m26/version.json?release=${expected}&attempt=${attempt}`);
+              const v=JSON.parse(raw);
+              if(v.sourceSha===expected&&v.environment==='PRODUCTION'&&v.projectRef===process.env.PROD_SUPABASE_REF&&v.production===true&&v.qaOnly===false){version=v;break;}
+              lastError=new Error(`LIVE_VERSION_MISMATCH:${raw}`);
+            }catch(error){lastError=error;}
+            await sleep(4000);
+          }
+          if(!version)throw lastError||new Error('PROD_LIVE_SOURCE_SHA_MISMATCH');
+          const runtime=await getText(`https://${process.env.APP_DOMAIN}/m26/runtime-config.js?release=${expected}`);
+          for(const marker of [process.env.PROD_SUPABASE_REF,process.env.PROD_SUPABASE_URL])if(!runtime.includes(marker))throw new Error(`LIVE_RUNTIME_MARKER_MISSING:${marker}`);
+          if(!/qaOnly["']?\s*:\s*false/u.test(runtime))throw new Error('LIVE_RUNTIME_QA_ONLY_NOT_FALSE');
+          if(!/enabled["']?\s*:\s*true/u.test(runtime))throw new Error('LIVE_RUNTIME_NOT_ENABLED');
+          if(runtime.includes(process.env.QA_SUPABASE_REF))throw new Error('LIVE_RUNTIME_QA_LEAK');
+          if(/service[_-]?role/iu.test(runtime))throw new Error('LIVE_RUNTIME_PRIVILEGED_KEY_FORBIDDEN');
+          const index=await getText(`https://${process.env.APP_DOMAIN}/m26/index.html?release=${expected}`);
+          for(const marker of ['/public/isotipo-iberfit.png','/src/m26/design/auth-native.css'])if(!index.includes(marker))throw new Error(`LIVE_INDEX_MARKER_MISSING:${marker}`);
+          console.log(JSON.stringify({ok:true,sourceSha:version.sourceSha,environment:version.environment,projectRef:version.projectRef},null,2));
+          NODE
+
+      - name: Run integral production audit read-only
+        env:
+          M26_AUDIT_APP_URL: https://app.iberfit.cl
+        run: node scripts/audit/continuous_app_audit.mjs
+
+      - name: Record exact production deployment and rollback evidence
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" \
+            -o CLOUDFLARE_PROJECT_AFTER.json
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" \
+            -o CLOUDFLARE_PROD_DEPLOYMENTS.json
+          node <<'NODE'
+          const fs=require('fs');
+          const expected=process.env.SOURCE_SHA;
+          const project=JSON.parse(fs.readFileSync('CLOUDFLARE_PROJECT_AFTER.json','utf8'));
+          const deployments=JSON.parse(fs.readFileSync('CLOUDFLARE_PROD_DEPLOYMENTS.json','utf8'));
+          if(!project.success||!project.result)throw new Error('CLOUDFLARE_PROJECT_AFTER_FAILED');
+          if(!deployments.success||!Array.isArray(deployments.result))throw new Error('CLOUDFLARE_DEPLOYMENT_LIST_FAILED');
+          const p=project.result;
+          const exact=deployments.result.find(d=>d.environment==='production'&&d.deployment_trigger?.metadata?.commit_hash===expected);
+          if(!exact)throw new Error('EXACT_PRODUCTION_DEPLOYMENT_NOT_FOUND');
+          if(p.latest_deployment?.id!==exact.id)throw new Error('LATEST_PRODUCTION_DEPLOYMENT_ID_MISMATCH');
+          if(!Array.isArray(p.domains)||!p.domains.includes(process.env.APP_DOMAIN))throw new Error('APP_DOMAIN_NOT_BOUND_AFTER_DEPLOY');
+          const evidence={
+            project:p.name,
+            productionBranch:p.production_branch,
+            sourceSha:expected,
+            exactDeploymentId:exact.id,
+            exactDeploymentUrl:exact.url,
+            previousDeploymentId:process.env.PREVIOUS_DEPLOYMENT_ID,
+            previousLiveSha:process.env.PREVIOUS_LIVE_SHA,
+            domain:process.env.APP_DOMAIN,
+            projectRef:process.env.PROD_SUPABASE_REF
+          };
+          fs.writeFileSync('PRODUCTION_DEPLOYMENT_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
+          console.log(JSON.stringify(evidence,null,2));
+          NODE
+
+      - name: Upload production promotion evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-production-promotion-${{ github.run_id }}
+          path: |
+            .iberfit/production-release.json
+            PRODUCTION_PROMOTION.sha256
+            PRODUCTION_DEPLOYMENT_EVIDENCE.json
+            CLOUDFLARE_PROJECT_BEFORE.json
+            CLOUDFLARE_PROJECT_AFTER.json
+            CLOUDFLARE_PROD_DEPLOYMENTS.json
+            WRANGLER_PREFLIGHT.log
+            WRANGLER_PRODUCTION.log
+            recovery/continuous-audit/
+          if-no-files-found: warn
+          retention-days: 30
