@@ -40,7 +40,7 @@ test('golden path conserva observabilidad antes de abortar',()=>{
   assert.match(text,/V17 fue detenido por\s+`git diff --check`/u);
 });
 
-test('golden path conserva RUM bloqueado sin relajar CSP y gate live post-deploy',()=>{
+test('golden path conserva RUM bloqueado sin relajar CSP y gate live manual post-deploy',()=>{
   const workflow=fs.readFileSync('.github/workflows/remote-gates.yml','utf8');
   const generator=fs.readFileSync('scripts/generate_rc74_4_runtime_config.mjs','utf8');
   assert.match(text,/Cloudflare RUM \/ Web Analytics y CSP estricta/u);
@@ -49,8 +49,10 @@ test('golden path conserva RUM bloqueado sin relajar CSP y gate live post-deploy
   assert.match(text,/gate live\s+se ejecuta sobre `canary\/rc74-4` después del deploy/iu);
   assert.match(generator,/RC74_4_HEADERS_NO_TRANSFORM_MISSING/u);
   assert.match(generator,/no-store, no-transform/u);
-  assert.match(workflow,/Validar Canary desplegado en navegador real\n\s+if: \$\{\{ github\.ref_name == 'canary\/rc74-4' \}\}/u);
-  assert.match(workflow,/Conservar evidencia Canary live pre-launch\n\s+if: \$\{\{ always\(\) && github\.ref_name == 'canary\/rc74-4' \}\}/u);
+  assert.match(workflow,/workflow_dispatch:/u);
+  assert.match(workflow,/Validar Canary desplegado en navegador real\n\s+if: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.confirmation == 'READ_ONLY_REMOTE_GATE' && github\.ref_name == 'canary\/rc74-4' \}\}/u);
+  assert.match(workflow,/Conservar evidencia Canary live pre-launch\n\s+if: \$\{\{ always\(\) && github\.event_name == 'workflow_dispatch' && inputs\.confirmation == 'READ_ONLY_REMOTE_GATE' && github\.ref_name == 'canary\/rc74-4' \}\}/u);
+  assert.doesNotMatch(workflow,/Validar Canary desplegado en navegador real\n\s+if: \$\{\{ github\.ref_name == 'canary\/rc74-4' \}\}/u);
 });
 
 test('golden path conserva parcheadores estructurales',()=>{
