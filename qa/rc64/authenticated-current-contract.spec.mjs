@@ -174,11 +174,12 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
           'Privileged Coach shell must remain unavailable until IBERFIT WebAuthn assurance is verified',
         ).toHaveCount(0,{timeout:5_000});
         await expect(
-          page.getByRole('heading',{name:/Protege tu cuenta|Confirma tu identidad para continuar/u}),
+          page.locator('#m26-auth-title'),
           'Coach must stop at the fail-closed WebAuthn gate before privileged bootstrap',
         ).toBeVisible({timeout:5_000});
         await expect(
-          page.getByRole('button',{name:/Configurar acceso seguro|Continuar de forma segura/u}),
+          page.locator('[data-auth-action="mfa-continue-webauthn"]'),
+          'Coach WebAuthn gate must expose the same-device verification action',
         ).toBeVisible({timeout:5_000});
       }else{
         expect(assurance.mfaRequired).toBe(false);
