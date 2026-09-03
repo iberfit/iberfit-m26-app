@@ -226,20 +226,17 @@ jobs:
             --commit-message "IBERFIT preflight $SHORT_SHA" \
             --commit-dirty=true | tee WRANGLER_PREFLIGHT.log
           PREVIEW_URL="$(grep -Eo 'https://[a-z0-9]+\.iberfit-m26-production\.pages\.dev' WRANGLER_PREFLIGHT.log | tail -1)"
-          test -n "$PREVIEW_URL"
+          test -n "$PREVIEW_URL" || { echo 'PROD_PREFLIGHT_URL_MISSING'; exit 44; }
           echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
-          curl -fsS "$PREVIEW_URL/m26/version.json" -o /tmp/preflight-version.json
-          grep -Fq "$SOURCE_SHA" /tmp/preflight-version.json
-          curl -fsS "$PREVIEW_URL/m26/runtime-config.js" -o /tmp/preflight-runtime.js
-          grep -Fq "$PROD_SUPABASE_REF" /tmp/preflight-runtime.js
-          grep -Fq '"enabled": true' /tmp/preflight-runtime.js
-          grep -Fq '"qaOnly": false' /tmp/preflight-runtime.js
-          grep -Fq 'sb_publishable_' /tmp/preflight-runtime.js
-          ! grep -Fq "$QA_SUPABASE_REF" /tmp/preflight-runtime.js
-          ! grep -Eqi 'service[_-]?role' /tmp/preflight-runtime.js
-          curl -fsS "$PREVIEW_URL/m26/index.html" -o /tmp/preflight-index.html
-          grep -Fq '/public/isotipo-iberfit.png' /tmp/preflight-index.html
-          grep -Fq '/src/m26/design/auth-native.css' /tmp/preflight-index.html
+          M26_VERIFY_BASE_URL="$PREVIEW_URL" \
+          M26_VERIFY_SOURCE_SHA="$SOURCE_SHA" \
+          M26_VERIFY_SOURCE_BRANCH="$SOURCE_BRANCH" \
+          M26_VERIFY_PROD_PROJECT_REF="$PROD_SUPABASE_REF" \
+          M26_VERIFY_PROD_SUPABASE_URL="$PROD_SUPABASE_URL" \
+          M26_VERIFY_QA_PROJECT_REF="$QA_SUPABASE_REF" \
+          M26_VERIFY_ATTEMPTS='30' \
+          M26_VERIFY_DELAY_MS='2000' \
+          node scripts/verify_production_surface.mjs
 
       - name: Deploy exact certified surface to production with Wrangler
         env:
@@ -260,36 +257,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node <<'NODE'
-          const expected=process.env.SOURCE_SHA;
-          const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
-          const getText=async(url)=>{
-            const r=await fetch(url,{headers:{'cache-control':'no-cache'}});
-            if(!r.ok)throw new Error(`HTTP_${r.status}:${url}`);
-            return r.text();
-          };
-          let version=null,lastError=null;
-          for(let attempt=1;attempt<=30;attempt++){
-            try{
-              const raw=await getText(`https://${process.env.APP_DOMAIN}/m26/version.json?release=${expected}&attempt=${attempt}`);
-              const v=JSON.parse(raw);
-              if(v.sourceSha===expected&&v.environment==='PRODUCTION'&&v.projectRef===process.env.PROD_SUPABASE_REF&&v.production===true&&v.qaOnly===false){version=v;break;}
-              lastError=new Error(`LIVE_VERSION_MISMATCH:${raw}`);
-            }catch(error){lastError=error;}
-            await sleep(4000);
-          }
-          if(!version)throw lastError||new Error('PROD_LIVE_SOURCE_SHA_MISMATCH');
-          const runtime=await getText(`https://${process.env.APP_DOMAIN}/m26/runtime-config.js?release=${expected}`);
-          for(const marker of [process.env.PROD_SUPABASE_REF,process.env.PROD_SUPABASE_URL])if(!runtime.includes(marker))throw new Error(`LIVE_RUNTIME_MARKER_MISSING:${marker}`);
-          if(!/qaOnly["']?\s*:\s*false/u.test(runtime))throw new Error('LIVE_RUNTIME_QA_ONLY_NOT_FALSE');
-          if(!/enabled["']?\s*:\s*true/u.test(runtime))throw new Error('LIVE_RUNTIME_NOT_ENABLED');
-          if(!runtime.includes('sb_publishable_'))throw new Error('LIVE_RUNTIME_PUBLISHABLE_KEY_MISSING');
-          if(runtime.includes(process.env.QA_SUPABASE_REF))throw new Error('LIVE_RUNTIME_QA_LEAK');
-          if(/service[_-]?role/iu.test(runtime))throw new Error('LIVE_RUNTIME_PRIVILEGED_KEY_FORBIDDEN');
-          const index=await getText(`https://${process.env.APP_DOMAIN}/m26/index.html?release=${expected}`);
-          for(const marker of ['/public/isotipo-iberfit.png','/src/m26/design/auth-native.css'])if(!index.includes(marker))throw new Error(`LIVE_INDEX_MARKER_MISSING:${marker}`);
-          console.log(JSON.stringify({ok:true,sourceSha:version.sourceSha,environment:version.environment,projectRef:version.projectRef},null,2));
-          NODE
+          M26_VERIFY_BASE_URL="https://${APP_DOMAIN}" \
+          M26_VERIFY_SOURCE_SHA="$SOURCE_SHA" \
+          M26_VERIFY_SOURCE_BRANCH="$SOURCE_BRANCH" \
+          M26_VERIFY_PROD_PROJECT_REF="$PROD_SUPABASE_REF" \
+          M26_VERIFY_PROD_SUPABASE_URL="$PROD_SUPABASE_URL" \
+          M26_VERIFY_QA_PROJECT_REF="$QA_SUPABASE_REF" \
+          M26_VERIFY_ATTEMPTS='30' \
+          M26_VERIFY_DELAY_MS='4000' \
+          node scripts/verify_production_surface.mjs
 
       - name: Run integral production audit read-only
         env:

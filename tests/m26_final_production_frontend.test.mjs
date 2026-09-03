@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const generator=fs.readFileSync('scripts/generate_final_production_runtime_config.mjs','utf8');
+const verifier=fs.readFileSync('scripts/verify_production_surface.mjs','utf8');
 const transport=fs.readFileSync('src/m26/supabase-transport.js','utf8');
 const workflow=fs.readFileSync('.github/workflows/production-promote.yml','utf8');
 
@@ -31,6 +32,18 @@ test('permanent production workflow generates runtime deterministically instead 
   assert.doesNotMatch(workflow,/PROD_RUNTIME_NOT_ENABLED/u);
   assert.match(workflow,/grep -Fq '"enabled": true' "\$R"/u);
   assert.match(workflow,/grep -Fq '"qaOnly": false' "\$R"/u);
+});
+
+test('permanent production workflow uses one retrying fail-closed surface contract after preview deploy',()=>{
+  assert.equal(workflow.match(/node scripts\/verify_production_surface\.mjs/gu)?.length,2);
+  assert.match(workflow,/M26_VERIFY_SOURCE_SHA="\$SOURCE_SHA"/u);
+  assert.match(workflow,/M26_VERIFY_SOURCE_BRANCH="\$SOURCE_BRANCH"/u);
+  assert.match(workflow,/M26_VERIFY_ATTEMPTS='30'/u);
+  assert.match(verifier,/iberfit\.production\.surface\.v1/u);
+  assert.match(verifier,/PROD_SURFACE_VERSION_SHA_MISMATCH/u);
+  assert.match(verifier,/PROD_SURFACE_RUNTIME_QA_LEAK/u);
+  assert.match(verifier,/PROD_SURFACE_RUNTIME_PRIVILEGED_KEY_FORBIDDEN/u);
+  assert.match(verifier,/PROD_SURFACE_VERIFY_RETRY/u);
 });
 
 test('canonical transport supports exact production runtime without weakening QA separation',()=>{
