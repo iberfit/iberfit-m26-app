@@ -7,7 +7,7 @@ import {
   M26_QA_SUPABASE_ORIGIN,
 } from '../src/m26/supabase-transport.js';
 
-const APPROVED_SOURCE_BRANCH='prep/final-production-rc74-4';
+const APPROVED_SOURCE_BRANCH='canary/rc74-4';
 const VERSION='26.0.0-production.rc74.4';
 const RELEASE='IBERFIT_M26_PRODUCTION_RC74_4';
 
@@ -31,6 +31,7 @@ if(url.origin!==M26_PRODUCTION_SUPABASE_ORIGIN||url.pathname!=='/'||url.search||
 
 const key=String(process.env.M26_SUPABASE_PUBLISHABLE_KEY||'').trim();
 if(key.length<24||key.length>16_384)throw new Error('FINAL_PROD_RUNTIME_PUBLIC_KEY_INVALID');
+if(!key.startsWith('sb_publishable_'))throw new Error('FINAL_PROD_RUNTIME_PUBLISHABLE_KEY_REQUIRED');
 if(/service[_-]?role/iu.test(key))throw new Error('FINAL_PROD_RUNTIME_SERVICE_ROLE_FORBIDDEN');
 if(key.split('.').length===3){
   try{
