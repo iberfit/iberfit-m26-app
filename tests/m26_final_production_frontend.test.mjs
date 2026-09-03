@@ -4,26 +4,33 @@ import fs from 'node:fs';
 
 const generator=fs.readFileSync('scripts/generate_final_production_runtime_config.mjs','utf8');
 const transport=fs.readFileSync('src/m26/supabase-transport.js','utf8');
-const workflow=fs.readFileSync('.github/workflows/final-production-frontend.yml','utf8');
+const workflow=fs.readFileSync('.github/workflows/production-promote.yml','utf8');
 
-test('production frontend generator binds provenance to exact productive HEAD and exact PROD ref',()=>{
-  assert.match(generator,/APPROVED_SOURCE_BRANCH='prep\/final-production-rc74-4'/u);
+test('production frontend generator binds provenance to exact integration source and exact PROD ref',()=>{
+  assert.match(generator,/APPROVED_SOURCE_BRANCH='canary\/rc74-4'/u);
   assert.match(generator,/FINAL_PROD_RUNTIME_SOURCE_SHA_INVALID/u);
   assert.match(generator,/FINAL_PROD_RUNTIME_SOURCE_BRANCH_MISMATCH/u);
   assert.match(generator,/FINAL_PROD_RUNTIME_PROMOTION_HEAD_MISMATCH/u);
   assert.match(generator,/FINAL_PROD_RUNTIME_QA_ONLY_MUST_BE_FALSE/u);
+  assert.match(generator,/FINAL_PROD_RUNTIME_PUBLISHABLE_KEY_REQUIRED/u);
   assert.match(generator,/FINAL_PROD_RUNTIME_SERVICE_ROLE_FORBIDDEN/u);
   assert.match(generator,/version\.json/u);
   assert.doesNotMatch(generator,/APPROVED_SOURCE_SHA=/u);
 });
 
-test('production frontend workflow validates the exact productive commit instead of historical Canary parity',()=>{
-  assert.ok(workflow.includes('M26_SOURCE_SHA: ${{ github.sha }}'));
-  assert.ok(workflow.includes('M26_SOURCE_BRANCH: prep/final-production-rc74-4'));
-  assert.ok(workflow.includes('M26_PROMOTION_HEAD: ${{ github.sha }}'));
-  assert.match(workflow,/Assert exact productive source/u);
-  assert.doesNotMatch(workflow,/FINAL_PROD_FRONTEND_SOURCE_DIVERGED/u);
-  assert.doesNotMatch(workflow,/1d00bdc60c63a002eb26a33bc8bbe8655487a848/u);
+test('permanent production workflow generates runtime deterministically instead of copying live runtime',()=>{
+  assert.match(workflow,/Generate deterministic production runtime/u);
+  assert.match(workflow,/node scripts\/generate_final_production_runtime_config\.mjs/u);
+  assert.match(workflow,/M26_SOURCE_SHA="\$SOURCE_SHA"/u);
+  assert.match(workflow,/M26_SOURCE_BRANCH="\$SOURCE_BRANCH"/u);
+  assert.match(workflow,/M26_PROMOTION_HEAD="\$SOURCE_SHA"/u);
+  assert.match(workflow,/M26_QA_ONLY='false'/u);
+  assert.match(workflow,/PROD_SUPABASE_REF: 'pjhmrhejsoofmouedavw'/u);
+  assert.match(workflow,/PROD_SUPABASE_URL: 'https:\/\/pjhmrhejsoofmouedavw\.supabase\.co'/u);
+  assert.doesNotMatch(workflow,/cp \/tmp\/runtime-config\.live\.js/u);
+  assert.doesNotMatch(workflow,/PROD_RUNTIME_NOT_ENABLED/u);
+  assert.match(workflow,/grep -Fq '"enabled": true' "\$R"/u);
+  assert.match(workflow,/grep -Fq '"qaOnly": false' "\$R"/u);
 });
 
 test('canonical transport supports exact production runtime without weakening QA separation',()=>{
