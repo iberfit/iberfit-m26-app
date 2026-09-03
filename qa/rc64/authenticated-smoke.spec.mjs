@@ -673,7 +673,7 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       requestFailureMeta.length=0;
     }
 
-    await page.getByLabel('Correo').fill(account.email);
+    await page.getByRole('textbox',{name:'Correo',exact:true}).fill(account.email);
     await page.getByLabel('Contraseña').fill(account.password);
     qaStages.length=0;
     qaStageEpoch=Date.now();

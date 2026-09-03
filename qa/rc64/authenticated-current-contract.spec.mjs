@@ -147,7 +147,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
       const navigation=await page.goto('/',{waitUntil:'networkidle',timeout:15_000});
       expect(navigation?.ok()).toBeTruthy();
 
-      await page.getByLabel('Correo').fill(account.email);
+      await page.getByRole('textbox',{name:'Correo',exact:true}).fill(account.email);
       await page.getByLabel('Contraseña').fill(account.password);
 
       const assuranceResponsePromise=page.waitForResponse(
