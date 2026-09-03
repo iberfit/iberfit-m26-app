@@ -35,6 +35,7 @@ Cualquier cambio de estos identificadores exige una decisión explícita y una a
 12. Nunca se borra el deployment anterior como parte de una promoción.
 13. Sólo puede haber una promoción de producción ejecutándose a la vez.
 14. Un fallo de validación detiene el proceso. No se fuerza un despliegue para “hacerlo pasar”.
+15. La validación del preview y del dominio LIVE usa el mismo contrato reusable `iberfit.production.surface.v1`: espera de forma acotada la propagación de Pages, valida en conjunto `version.json`, `runtime-config.js` e `index.html`, y termina con un código explícito sin exponer contenidos sensibles.
 
 ## Forma de promover una versión
 
@@ -73,6 +74,8 @@ El workflow rechaza la promoción si:
 - Cloudflare devuelve otro proyecto, otro dominio o una configuración inesperada;
 - el preflight no contiene el SHA y runtime esperados;
 - la verificación live posterior no coincide exactamente con el SHA promovido.
+
+El preview puede tardar unos segundos en quedar disponible de forma coherente después de que Wrangler confirme el upload. El verificador reintenta únicamente lecturas del artefacto ya desplegado; no repite el deploy, no toca Supabase y conserva todas las comprobaciones fail-closed de SHA, rama, entorno, proyecto PROD, clave publishable, ausencia de QA, credenciales privilegiadas e identidad visual.
 
 ## Flujo operativo recomendado
 
