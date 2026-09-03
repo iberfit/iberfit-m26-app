@@ -21,7 +21,7 @@ test('RC64.2B preauth stylesheet abort recovery is narrow verified and fail-clos
   assert.doesNotMatch(helper,/ERR_FAILED|ERR_TIMED_OUT|ERR_CONNECTION|BLOCKED_BY_CLIENT/u);
 
   const checkpointStart=smoke.indexOf("const preauthStyleState=await page.evaluate");
-  const checkpointEnd=smoke.indexOf("await page.getByLabel('Correo').fill",checkpointStart);
+  const checkpointEnd=smoke.indexOf("await page.getByRole('textbox',{name:'Correo',exact:true}).fill",checkpointStart);
   assert.ok(checkpointStart>=0&&checkpointEnd>checkpointStart);
   const checkpoint=smoke.slice(checkpointStart,checkpointEnd);
 
