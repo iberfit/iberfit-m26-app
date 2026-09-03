@@ -46,6 +46,17 @@ test('permanent production workflow uses one retrying fail-closed surface contra
   assert.match(verifier,/PROD_SURFACE_VERIFY_RETRY/u);
 });
 
+test('production workflow resolves rollback from exact live production deployment, never latest preview',()=>{
+  assert.match(workflow,/CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'/u);
+  assert.match(workflow,/CLOUDFLARE_DEPLOYMENTS_BEFORE\.json/u);
+  assert.match(workflow,/d\.environment==='production'&&d\.deployment_trigger\?\.metadata\?\.commit_hash===previousLiveSha/u);
+  assert.match(workflow,/CF_PREVIOUS_PRODUCTION_DEPLOYMENT_NOT_FOUND/u);
+  assert.match(workflow,/PREVIOUS_DEPLOYMENT_ID=\$\{previous\.id\}/u);
+  assert.doesNotMatch(workflow,/CF_LATEST_NOT_PRODUCTION/u);
+  assert.doesNotMatch(workflow,/p\.latest_deployment\?\.id!==exact\.id/u);
+  assert.match(workflow,/PRODUCTION_DEPLOYMENT_DID_NOT_ADVANCE/u);
+});
+
 test('canonical transport supports exact production runtime without weakening QA separation',()=>{
   assert.match(transport,/M26_PRODUCTION_PROJECT_REF='pjhmrhejsoofmouedavw'/u);
   assert.match(transport,/M26_QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu'/u);
