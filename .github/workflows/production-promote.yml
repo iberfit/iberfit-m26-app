@@ -20,6 +20,7 @@ env:
   APP_DOMAIN: 'app.iberfit.cl'
   PROD_SUPABASE_REF: 'pjhmrhejsoofmouedavw'
   PROD_SUPABASE_URL: 'https://pjhmrhejsoofmouedavw.supabase.co'
+  PROD_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_R5hU49RTDLAFFx46j4b4Hg_l8o0Pg2k'
   QA_SUPABASE_REF: 'gjztkdwfmunnzhtvxrsu'
   WRANGLER_VERSION: '4.120.0'
 
@@ -88,30 +89,33 @@ jobs:
       - name: Build canonical current surface
         run: node qa/rc64/build-current-surface.mjs
 
-      - name: Capture and validate current public PROD runtime
+      - name: Capture current production rollback metadata
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
-            "https://${APP_DOMAIN}/m26/runtime-config.js" -o /tmp/runtime-config.live.js
           curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
             "https://${APP_DOMAIN}/m26/version.json" -o /tmp/version.live.json
           curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
             "https://${APP_DOMAIN}/m26/sw.js" -o /tmp/sw.live.js
           node <<'NODE'
           const fs=require('fs');
-          const runtime=fs.readFileSync('/tmp/runtime-config.live.js','utf8');
-          for(const marker of [process.env.PROD_SUPABASE_REF,process.env.PROD_SUPABASE_URL]){
-            if(!runtime.includes(marker))throw new Error(`PROD_RUNTIME_MARKER_MISSING:${marker}`);
-          }
-          if(!/qaOnly["']?\s*:\s*false/u.test(runtime))throw new Error('PROD_RUNTIME_QA_ONLY_NOT_FALSE');
-          if(!/enabled["']?\s*:\s*true/u.test(runtime))throw new Error('PROD_RUNTIME_NOT_ENABLED');
-          if(runtime.includes(process.env.QA_SUPABASE_REF))throw new Error('PROD_RUNTIME_QA_LEAK');
-          if(/service[_-]?role/iu.test(runtime))throw new Error('PROD_RUNTIME_PRIVILEGED_KEY_FORBIDDEN');
           const live=JSON.parse(fs.readFileSync('/tmp/version.live.json','utf8'));
           fs.appendFileSync(process.env.GITHUB_ENV,`PREVIOUS_LIVE_SHA=${live.sourceSha||'unknown'}\n`);
           NODE
-          cp /tmp/runtime-config.live.js .tmp/rc64-current-surface/m26/runtime-config.js
+
+      - name: Generate deterministic production runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          M26_SUPABASE_URL="$PROD_SUPABASE_URL" \
+          M26_SUPABASE_PUBLISHABLE_KEY="$PROD_SUPABASE_PUBLISHABLE_KEY" \
+          M26_PROJECT_REF="$PROD_SUPABASE_REF" \
+          M26_QA_ONLY='false' \
+          M26_SOURCE_SHA="$SOURCE_SHA" \
+          M26_SOURCE_BRANCH="$SOURCE_BRANCH" \
+          M26_PROMOTION_HEAD="$SOURCE_SHA" \
+          M26_BUILD_DIR='.tmp/rc64-current-surface' \
+          node scripts/generate_final_production_runtime_config.mjs
 
       - name: Seal release identity and cache contract
         shell: bash
@@ -168,6 +172,11 @@ jobs:
           grep -Fq "$SOURCE_SHA" "$V"
           grep -Fq '"environment": "PRODUCTION"' "$V"
           grep -Fq "\"projectRef\": \"$PROD_SUPABASE_REF\"" "$V"
+          grep -Fq '"enabled": true' "$R"
+          grep -Fq '"qaOnly": false' "$R"
+          grep -Fq "$PROD_SUPABASE_REF" "$R"
+          grep -Fq "$PROD_SUPABASE_URL" "$R"
+          grep -Fq 'sb_publishable_' "$R"
           grep -Fq "const VERSION='m26-prod-$SHORT_SHA';" "$S"
           grep -Fq '/src/m26/design/auth-native.css' "$S"
           grep -Fq "$PROD_SUPABASE_URL" "$H"
@@ -223,7 +232,11 @@ jobs:
           grep -Fq "$SOURCE_SHA" /tmp/preflight-version.json
           curl -fsS "$PREVIEW_URL/m26/runtime-config.js" -o /tmp/preflight-runtime.js
           grep -Fq "$PROD_SUPABASE_REF" /tmp/preflight-runtime.js
+          grep -Fq '"enabled": true' /tmp/preflight-runtime.js
+          grep -Fq '"qaOnly": false' /tmp/preflight-runtime.js
+          grep -Fq 'sb_publishable_' /tmp/preflight-runtime.js
           ! grep -Fq "$QA_SUPABASE_REF" /tmp/preflight-runtime.js
+          ! grep -Eqi 'service[_-]?role' /tmp/preflight-runtime.js
           curl -fsS "$PREVIEW_URL/m26/index.html" -o /tmp/preflight-index.html
           grep -Fq '/public/isotipo-iberfit.png' /tmp/preflight-index.html
           grep -Fq '/src/m26/design/auth-native.css' /tmp/preflight-index.html
@@ -270,6 +283,7 @@ jobs:
           for(const marker of [process.env.PROD_SUPABASE_REF,process.env.PROD_SUPABASE_URL])if(!runtime.includes(marker))throw new Error(`LIVE_RUNTIME_MARKER_MISSING:${marker}`);
           if(!/qaOnly["']?\s*:\s*false/u.test(runtime))throw new Error('LIVE_RUNTIME_QA_ONLY_NOT_FALSE');
           if(!/enabled["']?\s*:\s*true/u.test(runtime))throw new Error('LIVE_RUNTIME_NOT_ENABLED');
+          if(!runtime.includes('sb_publishable_'))throw new Error('LIVE_RUNTIME_PUBLISHABLE_KEY_MISSING');
           if(runtime.includes(process.env.QA_SUPABASE_REF))throw new Error('LIVE_RUNTIME_QA_LEAK');
           if(/service[_-]?role/iu.test(runtime))throw new Error('LIVE_RUNTIME_PRIVILEGED_KEY_FORBIDDEN');
           const index=await getText(`https://${process.env.APP_DOMAIN}/m26/index.html?release=${expected}`);
