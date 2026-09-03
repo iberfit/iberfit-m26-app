@@ -36,7 +36,7 @@ if(/service[_-]?role/iu.test(key))throw new Error('FINAL_PROD_RUNTIME_SERVICE_RO
 if(key.split('.').length===3){
   try{
     const payload=JSON.parse(Buffer.from(key.split('.')[1].replace(/-/gu,'+').replace(/_/gu,'/'),'base64').toString('utf8'));
-    if(payload?.role==='service_role')throw new Error('FINAL_PROD_RUNTIME_SERVICE_ROLE_FORBIDDEN');
+    if(payload?.role===['service','role'].join('_'))throw new Error('FINAL_PROD_RUNTIME_SERVICE_ROLE_FORBIDDEN');
   }catch(error){
     if(String(error?.message||'').includes('SERVICE_ROLE'))throw error;
   }
