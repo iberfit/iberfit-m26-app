@@ -148,7 +148,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
       expect(navigation?.ok()).toBeTruthy();
 
       await page.getByRole('textbox',{name:'Correo',exact:true}).fill(account.email);
-      await page.getByLabel('Contraseña').fill(account.password);
+      await page.locator('#m26-login-password').fill(account.password);
 
       const assuranceResponsePromise=page.waitForResponse(
         (response)=>{
