@@ -4,7 +4,7 @@ import { renderM26Shell } from './shell-render.js';
 import {setIberfitLanguage} from '../ui/i18n.js';
 import {setIberfitUiLocale} from '../ui/castellano.js';
 import {updateIberfitExperiencePreference} from '../ui/preferences.js';
-import {enhanceNativeWorkspace,openNativeAdminIntake} from '../ui/native-workspace.js';
+import {enhanceNativeWorkspace,openNativeAdminIntake} from '../ui/native-workspace-v4.js';
 
 export function resolveAdaptiveLayout({width = 1440,coarsePointer = false,touchPoints = 0} = {}) {
   const viewportWidth = Number(width);
