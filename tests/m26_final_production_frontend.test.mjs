@@ -29,8 +29,8 @@ test('permanent production workflow generates runtime deterministically instead 
   assert.match(workflow,/PROD_SUPABASE_URL: 'https:\/\/pjhmrhejsoofmouedavw\.supabase\.co'/u);
   assert.doesNotMatch(workflow,/cp \/tmp\/runtime-config\.live\.js/u);
   assert.doesNotMatch(workflow,/PROD_RUNTIME_NOT_ENABLED/u);
-  assert.match(workflow,/grep -Fq '\"enabled\": true' "\$R"/u);
-  assert.match(workflow,/grep -Fq '\"qaOnly\": false' "\$R"/u);
+  assert.match(workflow,/grep -Fq '"enabled": true' "\$R"/u);
+  assert.match(workflow,/grep -Fq '"qaOnly": false' "\$R"/u);
 });
 
 test('canonical transport supports exact production runtime without weakening QA separation',()=>{
