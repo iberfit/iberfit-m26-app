@@ -9,6 +9,7 @@ Promover un candidato GREEN de `iberfit/iberfit-m26-app` a la aplicación real d
 ## Destino productivo inmutable
 
 - Repositorio canónico: `iberfit/iberfit-m26-app`.
+- Rama de integración: `canary/rc74-4`.
 - Cloudflare Pages: `iberfit-m26-production`.
 - Dominio público: `app.iberfit.cl`.
 - Cloudflare Account ID: `5b03d387427d367674b9d05b8bdf7c84`.
@@ -31,11 +32,12 @@ Cualquier cambio de estos identificadores exige una decisión explícita y una a
 8. Antes del despliegue productivo se ejecutan regresiones y un preflight en el mismo proyecto Pages con una rama de preview.
 9. Después del despliegue se verifica directamente `app.iberfit.cl`: SHA exacto, entorno PROD, runtime, identidad visual mínima y ausencia de QA.
 10. Después del despliegue se ejecuta la auditoría integral read-only.
-11. Cada promoción conserva evidencia del deployment nuevo y del deployment anterior para rollback.
-12. Nunca se borra el deployment anterior como parte de una promoción.
-13. Sólo puede haber una promoción de producción ejecutándose a la vez.
-14. Un fallo de validación detiene el proceso. No se fuerza un despliegue para “hacerlo pasar”.
-15. La validación del preview y del dominio LIVE usa el mismo contrato reusable `iberfit.production.surface.v1`: espera de forma acotada la propagación de Pages, valida en conjunto `version.json`, `runtime-config.js` e `index.html`, y termina con un código explícito sin exponer contenidos sensibles.
+11. Cada promoción conserva evidencia del deployment nuevo y del deployment productivo anterior para rollback.
+12. El rollback anterior se resuelve por deployment `environment=production` y por el SHA que realmente sirve el dominio; nunca por `latest_deployment`, porque Cloudflare puede devolver ahí un preview reciente.
+13. Nunca se borra el deployment anterior como parte de una promoción.
+14. Sólo puede haber una promoción de producción ejecutándose a la vez.
+15. Un fallo de validación detiene el proceso. No se fuerza un despliegue para “hacerlo pasar”.
+16. La validación del preview y del dominio LIVE usa el mismo contrato reusable `iberfit.production.surface.v1`: espera de forma acotada la propagación de Pages, valida en conjunto `version.json`, `runtime-config.js` e `index.html`, y termina con un código explícito sin exponer contenidos sensibles.
 
 ## Forma de promover una versión
 
@@ -72,8 +74,10 @@ El workflow rechaza la promoción si:
 - falla la regresión;
 - el runtime PROD actual no cumple contrato;
 - Cloudflare devuelve otro proyecto, otro dominio o una configuración inesperada;
+- no se puede identificar el deployment productivo anterior por su SHA live real;
 - el preflight no contiene el SHA y runtime esperados;
-- la verificación live posterior no coincide exactamente con el SHA promovido.
+- la verificación live posterior no coincide exactamente con el SHA promovido;
+- no aparece un nuevo deployment `production` exacto para el SHA promovido.
 
 El preview puede tardar unos segundos en quedar disponible de forma coherente después de que Wrangler confirme el upload. El verificador reintenta únicamente lecturas del artefacto ya desplegado; no repite el deploy, no toca Supabase y conserva todas las comprobaciones fail-closed de SHA, rama, entorno, proyecto PROD, clave publishable, ausencia de QA, credenciales privilegiadas e identidad visual.
 
@@ -83,14 +87,28 @@ El preview puede tardar unos segundos en quedar disponible de forma coherente de
 
 Canary puede seguir existiendo como superficie de prueba cuando aporte valor, pero no es requisito para que el frontend M26 llegue a producción. La condición de entrada a producción es el candidato GREEN exacto, no que exista un despliegue Canary.
 
-## Estado productivo confirmado al crear este runbook
+## Estado productivo certificado actual
 
-- SHA fuente en producción: `e67c89c97d69eabe7f7b6682176e47e68ad6fde2`.
-- Deployment Cloudflare: `c9d61c8f-d95f-4496-808b-fe98c429c8e3`.
-- URL de deployment: `https://c9d61c8f.iberfit-m26-production.pages.dev`.
+- Fecha de certificación: `2026-09-02` (America/Santiago).
+- SHA fuente en producción: `4704b2ba660b3b047d9e674ceaa3b00b07b05dbb`.
+- Rama fuente: `canary/rc74-4`.
+- Deployment Cloudflare: `d63a2cac-8df1-4c98-bbb4-aacf1e71e3c2`.
+- URL de deployment: `https://d63a2cac.iberfit-m26-production.pages.dev`.
 - Dominio validado: `app.iberfit.cl`.
 - Supabase validado: `pjhmrhejsoofmouedavw`.
-- Workflow de despliegue que certificó este estado: GitHub Actions run `33680819381`.
+- GitHub Actions Production Promotion GREEN: run `33709822598`.
+- Deployment productivo anterior reservado para rollback: `c9d61c8f-d95f-4496-808b-fe98c429c8e3`.
+- SHA productivo anterior: `e67c89c97d69eabe7f7b6682176e47e68ad6fde2`.
+- El login LIVE quedó activo y dejó de mostrar el bloqueo temporal fail-closed de la superficie anterior.
+- No se realizaron mutaciones ni migraciones en Supabase PROD durante esta promoción.
+
+## Incidentes de promoción cerrados
+
+- Los intentos previos se detuvieron fail-closed antes de modificar LIVE cuando los gates no pudieron certificar el objetivo.
+- PR #48 hizo determinista el runtime PROD y eliminó la dependencia de copiar el runtime live previo.
+- PR #49 añadió el verificador reusable con retry read-only acotado para propagación Pages.
+- PR #50, #51 y #52 estabilizaron el smoke autenticado frente a cambios de presentación sin debilitar auth ni WebAuthn.
+- PR #53 corrigió el último bloqueo: `latest_deployment` de Cloudflare puede ser un preview. El pipeline ahora consulta `/deployments` y selecciona exclusivamente el deployment `production` cuyo commit coincide con el SHA que sirve LIVE. La promoción `4704b2ba...` confirmó el contrato end-to-end en ejecución real.
 
 ## Secretos
 
@@ -103,6 +121,7 @@ El rollback se hace únicamente a un deployment productivo anterior previamente 
 - proyecto exacto `iberfit-m26-production`;
 - deployment ID objetivo;
 - que el deployment pertenece al entorno `production`;
+- que el deployment corresponde al SHA live esperado;
 - que `app.iberfit.cl` continúa ligado al mismo proyecto.
 
-No se usa un nombre de rama o un SHA inferido como sustituto del deployment ID real de Cloudflare.
+No se usa `latest_deployment`, un nombre de rama o un SHA inferido como sustituto del deployment ID real de Cloudflare.
