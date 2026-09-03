@@ -128,7 +128,7 @@ jobs:
           const swPath=path.join(root,'m26','sw.js');
           let sw=fs.readFileSync(swPath,'utf8').replace(/\r\n?/g,'\n');
           const liveSw=fs.readFileSync('/tmp/sw.live.js','utf8').replace(/\r\n?/g,'\n');
-          const liveVersion=(liveSw.match(/^const VERSION='([^']+)';/m)||[])[1];
+          const liveVersion=(liveSw.match(/^const VERSION='([^']+)'/m)||[])[1];
           if(!liveVersion)throw new Error('LIVE_SW_VERSION_MISSING');
           if(!/^const VERSION='[^']+';/m.test(sw))throw new Error('SOURCE_SW_VERSION_MISSING');
           if(!/^const PREVIOUS_VERSION='[^']+';/m.test(sw))throw new Error('SOURCE_SW_PREVIOUS_VERSION_MISSING');
@@ -198,17 +198,27 @@ jobs:
             -H 'Content-Type: application/json' \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" \
             -o CLOUDFLARE_PROJECT_BEFORE.json
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" \
+            -o CLOUDFLARE_DEPLOYMENTS_BEFORE.json
           node <<'NODE'
           const fs=require('fs');
           const x=JSON.parse(fs.readFileSync('CLOUDFLARE_PROJECT_BEFORE.json','utf8'));
+          const deployments=JSON.parse(fs.readFileSync('CLOUDFLARE_DEPLOYMENTS_BEFORE.json','utf8'));
           if(!x.success||!x.result)throw new Error('CLOUDFLARE_PROJECT_LOOKUP_FAILED');
+          if(!deployments.success||!Array.isArray(deployments.result))throw new Error('CLOUDFLARE_DEPLOYMENT_LIST_BEFORE_FAILED');
           const p=x.result;
           if(p.name!==process.env.CF_PROJECT)throw new Error(`WRONG_CF_PROJECT:${p.name}`);
           if(!p.production_branch)throw new Error('CF_PRODUCTION_BRANCH_MISSING');
           const domains=Array.isArray(p.domains)?p.domains:[];
           if(!domains.includes(process.env.APP_DOMAIN))throw new Error(`APP_DOMAIN_NOT_BOUND:${domains.join(',')}`);
-          if(p.latest_deployment?.environment!=='production')throw new Error('CF_LATEST_NOT_PRODUCTION');
-          fs.appendFileSync(process.env.GITHUB_ENV,`CF_PRODUCTION_BRANCH=${p.production_branch}\nPREVIOUS_DEPLOYMENT_ID=${p.latest_deployment?.id||'unknown'}\n`);
+          const previousLiveSha=process.env.PREVIOUS_LIVE_SHA;
+          if(!/^[0-9a-f]{40}$/.test(previousLiveSha||''))throw new Error('PREVIOUS_LIVE_SHA_INVALID');
+          const previous=deployments.result.find(d=>d.environment==='production'&&d.deployment_trigger?.metadata?.commit_hash===previousLiveSha);
+          if(!previous)throw new Error('CF_PREVIOUS_PRODUCTION_DEPLOYMENT_NOT_FOUND');
+          fs.appendFileSync(process.env.GITHUB_ENV,`CF_PRODUCTION_BRANCH=${p.production_branch}\nPREVIOUS_DEPLOYMENT_ID=${previous.id}\n`);
           NODE
 
       - name: Preview preflight on same Pages project
@@ -297,9 +307,11 @@ jobs:
           if(!project.success||!project.result)throw new Error('CLOUDFLARE_PROJECT_AFTER_FAILED');
           if(!deployments.success||!Array.isArray(deployments.result))throw new Error('CLOUDFLARE_DEPLOYMENT_LIST_FAILED');
           const p=project.result;
+          if(p.name!==process.env.CF_PROJECT)throw new Error(`WRONG_CF_PROJECT_AFTER:${p.name}`);
+          if(p.production_branch!==process.env.CF_PRODUCTION_BRANCH)throw new Error(`CF_PRODUCTION_BRANCH_CHANGED:${p.production_branch}`);
           const exact=deployments.result.find(d=>d.environment==='production'&&d.deployment_trigger?.metadata?.commit_hash===expected);
           if(!exact)throw new Error('EXACT_PRODUCTION_DEPLOYMENT_NOT_FOUND');
-          if(p.latest_deployment?.id!==exact.id)throw new Error('LATEST_PRODUCTION_DEPLOYMENT_ID_MISMATCH');
+          if(exact.id===process.env.PREVIOUS_DEPLOYMENT_ID)throw new Error('PRODUCTION_DEPLOYMENT_DID_NOT_ADVANCE');
           if(!Array.isArray(p.domains)||!p.domains.includes(process.env.APP_DOMAIN))throw new Error('APP_DOMAIN_NOT_BOUND_AFTER_DEPLOY');
           const evidence={
             project:p.name,
@@ -326,6 +338,7 @@ jobs:
             PRODUCTION_PROMOTION.sha256
             PRODUCTION_DEPLOYMENT_EVIDENCE.json
             CLOUDFLARE_PROJECT_BEFORE.json
+            CLOUDFLARE_DEPLOYMENTS_BEFORE.json
             CLOUDFLARE_PROJECT_AFTER.json
             CLOUDFLARE_PROD_DEPLOYMENTS.json
             WRANGLER_PREFLIGHT.log
