@@ -64,7 +64,7 @@ test('capa previa es idempotente, mobile-first y no introduce automatización cl
   assert.match(ui,/no cambia automáticamente cargas, series ni ejercicios/i);
   assert.match(ui,/Cualquier ajuste del plan sigue dependiendo de tu Entrenador/i);
   assert.match(ui,/data-m27-session-readiness/);
-  assert.match(ui,/data-session-live-state=\\"ready\\"/);
+  assert.match(ui,/data-session-live-state=["']ready["']/);
   assert.doesNotMatch(ui,/MutationObserver/);
   assert.doesNotMatch(ui,/service[_-]?role/i);
   assert.doesNotMatch(ui,/innerHTML/);
