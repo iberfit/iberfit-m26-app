@@ -1,6 +1,9 @@
+import {createM26Transport} from '../supabase-transport.js';
+
 const RPC=Object.freeze({context:'iberfit_application_context_v14',bootstrap:'iberfit_admin_bootstrap_v14',execute:'iberfit_admin_execute_v14'});
 const MISSING=/PGRST202|not find the function|M26_HTTP_404/i;
 const DEFAULT_TIMEOUT_MS=12_000;
+const PRIVILEGED_WEBAUTHN_FACTOR_ID='65000000-0000-4000-8000-000000000002';
 
 function requestTimeout(runtime){
   return Math.max(1_000,Math.min(Number(runtime?.timeoutMs||DEFAULT_TIMEOUT_MS),30_000));
@@ -11,6 +14,11 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
   if(url.protocol!=='https:'&&!['localhost','127.0.0.1'].includes(url.hostname))throw new Error('M26_ADMIN_HTTPS_REQUIRED');
   const key=String(runtime?.publishableKey||runtime?.anonKey||'');
   const timeoutMs=requestTimeout(runtime);
+  let authTransport=null;
+  const privilegedAuth=()=>{
+    if(!authTransport)authTransport=createM26Transport(runtime,{fetchImpl});
+    return authTransport;
+  };
 
   async function rpc(name,token,params={}){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
@@ -66,6 +74,11 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
   return Object.freeze({
     applicationContextOptional:(token)=>optional(RPC.context,token),
     bootstrapOptional:(token)=>optional(RPC.bootstrap,token),
+    privilegedWebAuthnFactorId:PRIVILEGED_WEBAUTHN_FACTOR_ID,
+    authAssuranceContext:(token)=>privilegedAuth().authAssuranceContext(token),
+    authUser:(token)=>privilegedAuth().authUser(token),
+    challengeWebAuthn:(token,factorId)=>privilegedAuth().challengeWebAuthn(token,factorId),
+    verifyWebAuthn:(token,payload)=>privilegedAuth().verifyWebAuthn(token,payload),
     execute:async(token,command)=>{
       const result=await rpc(RPC.execute,token,{p_command:command});
       if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))throw new Error('M26_ADMIN_MUTATION_NOT_CONFIRMED');
