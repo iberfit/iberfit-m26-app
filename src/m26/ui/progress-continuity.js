@@ -1,9 +1,10 @@
 import {buildAdherenceWindows} from '../engagement/progress-continuity.js';
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {adherenceSignal,deriveAdherenceAlerts} from '../engagement/adherence-engine.js';
-import {upcomingAppointments} from '../modules/domain-selectors.js';
+import {recordsForClient,upcomingAppointments} from '../modules/domain-selectors.js';
 import {normalizeAppointmentRecord} from '../domain/appointment.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
+import {buildWearableViewModel} from '../wearables/view-model.js';
 
 const STYLE_ID='m27-progress-continuity-styles';
 
@@ -32,8 +33,8 @@ const STYLES=`
 .m27-client-home-card>small{min-height:2.9em;color:var(--m26-text-muted,#6b675f);font-size:.69rem;line-height:1.43}
 .m27-client-home-card>button{justify-self:start;margin-top:auto;padding:0;border:0;background:transparent;color:var(--m26-gold,#8f7028);font:inherit;font-size:.7rem;font-weight:800;cursor:pointer}
 .m27-client-home-card>button:hover,.m27-client-home-card>button:focus-visible{text-decoration:underline;text-underline-offset:.18rem}
-.m27-client-home-card[data-attention-level="critical"]{border-color:rgba(149,67,54,.28)}
-.m27-client-home-card[data-attention-level="warning"]{border-color:rgba(169,133,52,.3)}
+.m27-client-home-card[data-attention-level="critical"],.m27-client-home-card[data-home-kind="device-action"]{border-color:rgba(149,67,54,.28)}
+.m27-client-home-card[data-attention-level="warning"],.m27-client-home-card[data-home-kind="communication"]{border-color:rgba(169,133,52,.3)}
 .m27-session-feedback-premium{position:relative;overflow:hidden}
 .m27-session-feedback-explainer{margin:.3rem 0 .95rem;padding:.72rem .8rem;border-left:3px solid rgba(216,185,111,.65);border-radius:.2rem .7rem .7rem .2rem;background:rgba(216,185,111,.055);color:var(--m26-text-muted,#6b675f);font-size:.78rem;line-height:1.5}
 .m27-session-continuity{display:grid;gap:.22rem;margin:.85rem 0;padding:.82rem .88rem;border:1px solid rgba(216,185,111,.2);border-radius:.82rem;background:rgba(216,185,111,.055)}
@@ -121,6 +122,81 @@ function attentionArea(topAlert){
   return source==='registro_bienestar'?'actividad':'progreso';
 }
 
+function communicationSnapshot(state){
+  if(state?.communication?.available!==true)return null;
+  const threads=Array.isArray(state.communication.threads)?state.communication.threads:[];
+  const notifications=Array.isArray(state.communication.notifications)?state.communication.notifications:[];
+  const unreadThreads=threads.reduce((total,thread)=>total+Math.max(0,Number(thread?.unreadCount||0)),0);
+  const closedStatuses=new Set(['read','leida','leido','archived','archivada','archivado','dismissed','descartada','descartado']);
+  const unreadNotifications=notifications.filter((item)=>{
+    const status=String(item?.status||'').trim().toLowerCase();
+    return !item?.readAt&&!closedStatuses.has(status);
+  }).length;
+  const unread=unreadThreads+unreadNotifications;
+  if(unread<=0)return null;
+  return Object.freeze({
+    unread,
+    unreadThreads,
+    unreadNotifications,
+    title:unread===1?'1 comunicación por revisar':`${unread} comunicaciones por revisar`,
+    copy:'Tienes mensajes o avisos pendientes. Ábrelos desde Mensajes para mantener el seguimiento al día.',
+    area:'mensajes',
+  });
+}
+
+function deviceSnapshot(state,clientId,{now=new Date()}={}){
+  try{
+    const records=recordsForClient(state,'wearableDailySummaries',clientId);
+    const connections=recordsForClient(state,'wearableConnections',clientId);
+    if(!records.length&&!connections.length)return null;
+    const view=buildWearableViewModel({records,connections,role:'client',now});
+    const primary=
+      view.connections.find((item)=>item.health?.actionRequired)||
+      view.connections.find((item)=>['atrasada','obsoleta'].includes(item.health?.freshness))||
+      view.connections.find((item)=>['connected','syncing'].includes(item.state))||
+      view.connections[0]||null;
+    const hasData=Boolean(view.summary?.records?.length||view.dailyRecords?.length);
+    if(!primary&&!hasData)return null;
+
+    if(primary?.health?.actionRequired){
+      return Object.freeze({
+        kind:'device-action',
+        title:'Revisar Dispositivos',
+        copy:`${primary.label}: la conexión requiere revisión. Los datos confirmados existentes no se alteran.`,
+        area:'actividad',
+      });
+    }
+
+    if(primary&&['atrasada','obsoleta'].includes(primary.health?.freshness)){
+      return Object.freeze({
+        kind:'device-stale',
+        title:'Sincronización por actualizar',
+        copy:`${primary.label}: la última sincronización está ${primary.health.freshness}. Revisa Dispositivos si quieres actualizar el contexto.`,
+        area:'actividad',
+      });
+    }
+
+    if(primary){
+      const synced=formatIberfitDate(primary.lastSyncedAt,{locale:'es-CL',includeTime:true});
+      return Object.freeze({
+        kind:'device-ok',
+        title:'Dispositivo conectado',
+        copy:`${primary.label}${synced?` · última sincronización ${synced}`:''}. Solo se usan datos confirmados como contexto.`,
+        area:'actividad',
+      });
+    }
+
+    return Object.freeze({
+      kind:'device-data',
+      title:'Datos de actividad disponibles',
+      copy:'Hay datos confirmados de actividad disponibles como contexto. Puedes revisarlos desde Dispositivos.',
+      area:'actividad',
+    });
+  }catch{
+    return null;
+  }
+}
+
 export function buildClientHomeSnapshot(state,clientId,{now=new Date()}={}){
   const id=String(clientId||'').trim();
   if(!id)return null;
@@ -149,6 +225,8 @@ export function buildClientHomeSnapshot(state,clientId,{now=new Date()}={}){
     wellbeing,
     latestCheckinAt:progress?.latestCheckinAt||null,
     dataQuality:progress?.dataQuality||'limitada',
+    communication:communicationSnapshot(state),
+    device:deviceSnapshot(state,id,{now}),
     attention:Object.freeze({
       level:signal.level,
       label:signal.label,
@@ -223,6 +301,31 @@ function buildClientHomeSection(document,snapshot){
   );
 
   grid.append(appointmentCard,constancyCard,wellbeingCard,attentionCard);
+
+  if(snapshot.communication){
+    const card=create(document,'article','m27-client-home-card');
+    card.setAttribute('data-home-kind','communication');
+    card.append(
+      create(document,'span','','Comunicación'),
+      create(document,'strong','',snapshot.communication.title),
+      create(document,'small','',snapshot.communication.copy),
+      createAreaButton(document,'Abrir Mensajes',snapshot.communication.area),
+    );
+    grid.append(card);
+  }
+
+  if(snapshot.device){
+    const card=create(document,'article','m27-client-home-card');
+    card.setAttribute('data-home-kind',snapshot.device.kind);
+    card.append(
+      create(document,'span','','Dispositivos'),
+      create(document,'strong','',snapshot.device.title),
+      create(document,'small','',snapshot.device.copy),
+      createAreaButton(document,'Ver Dispositivos',snapshot.device.area),
+    );
+    grid.append(card);
+  }
+
   section.append(head,grid);
   return section;
 }

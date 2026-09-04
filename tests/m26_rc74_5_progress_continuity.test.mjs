@@ -32,7 +32,16 @@ function state(){
         {id:'c1',clientId,createdAt:'2026-09-04T08:00:00Z',energy:7,sleep:8,stress:3,pain:2},
       ],
       wearableDailySummaries:[],
+      wearableConnections:[
+        {id:'w1',clientId,provider:'normalized_file',status:'active',lastSyncedAt:'2026-09-04T10:00:00Z',scopes:['steps']},
+      ],
       trainingCycles:[],
+    },
+    communication:{
+      available:true,
+      threads:[{id:'t1',clientId,unreadCount:2}],
+      messages:[],
+      notifications:[{id:'n1',title:'Recordatorio',status:'unread',readAt:null}],
     },
     pendingOperations:[{operationId:'op-pending',type:'EJECUCION_COMPLETAR',entityType:'session_execution',entityId:'e-pending',clientId,status:'pending'}],
     conflicts:[],
@@ -66,13 +75,40 @@ test('inicio cliente resume próxima cita, constancia y bienestar sin inventar d
   assert.match(snapshot.attention.title,/Molestia informada/i);
   assert.match(snapshot.attention.copy,/no cambia tu plan automáticamente/i);
 
-  const emptyState={collections:{appointments:[],sessionExecutions:[],iriAssessments:[],checkins:[],wearableDailySummaries:[],trainingCycles:[]},pendingOperations:[],conflicts:[],rejectedOperations:[]};
+  const emptyState={collections:{appointments:[],sessionExecutions:[],iriAssessments:[],checkins:[],wearableDailySummaries:[],wearableConnections:[],trainingCycles:[]},communication:{available:true,threads:[],notifications:[]},pendingOperations:[],conflicts:[],rejectedOperations:[]};
   const empty=buildClientHomeSnapshot(emptyState,clientId,{now});
   assert.equal(empty.nextAppointment,null);
   assert.equal(empty.constancy.adherence,null);
   assert.equal(empty.constancy.hasPlan,false);
   assert.equal(empty.wellbeing,null);
+  assert.equal(empty.communication,null);
+  assert.equal(empty.device,null);
   assert.notEqual(empty.attention.title,'Dolor elevado informado');
+});
+
+test('inicio cliente eleva comunicaciones pendientes y Dispositivos solo cuando aportan valor',()=>{
+  const snapshot=buildClientHomeSnapshot(state(),clientId,{now});
+  assert.ok(snapshot.communication);
+  assert.equal(snapshot.communication.unreadThreads,2);
+  assert.equal(snapshot.communication.unreadNotifications,1);
+  assert.equal(snapshot.communication.unread,3);
+  assert.equal(snapshot.communication.area,'mensajes');
+  assert.match(snapshot.communication.title,/3 comunicaciones por revisar/i);
+
+  assert.ok(snapshot.device);
+  assert.equal(snapshot.device.kind,'device-ok');
+  assert.equal(snapshot.device.area,'actividad');
+  assert.match(snapshot.device.title,/Dispositivo conectado/i);
+  assert.match(snapshot.device.copy,/Archivo normalizado IBERFIT/i);
+
+  const quiet=structuredClone(state());
+  quiet.communication.threads[0].unreadCount=0;
+  quiet.communication.notifications[0].readAt='2026-09-04T11:00:00Z';
+  quiet.collections.wearableConnections=[];
+  quiet.collections.wearableDailySummaries=[];
+  const hidden=buildClientHomeSnapshot(quiet,clientId,{now});
+  assert.equal(hidden.communication,null);
+  assert.equal(hidden.device,null);
 });
 
 test('feedback con molestia solo genera seguimiento cuando la sesión está confirmada',()=>{
@@ -113,8 +149,11 @@ test('la capa premium de continuidad es idempotente, española y no introduce ob
   assert.match(ui,/Próximo entrenamiento/);
   assert.match(ui,/Constancia · 28 días/);
   assert.match(ui,/Cómo estás/);
+  assert.match(ui,/Comunicación/);
+  assert.match(ui,/Dispositivos/);
   assert.match(ui,/Solo datos confirmados/);
   assert.match(ui,/data-m27-client-home/);
+  assert.match(ui,/data-home-kind/);
   assert.match(ui,/no cambia el plan automáticamente/i);
   assert.match(ui,/data-m27-constancia/);
   assert.match(ui,/data-m27-session-continuity/);
