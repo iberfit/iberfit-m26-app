@@ -1,4 +1,9 @@
 import {buildAdherenceWindows} from '../engagement/progress-continuity.js';
+import {computeProgressSummary} from '../engagement/progress-engine.js';
+import {adherenceSignal,deriveAdherenceAlerts} from '../engagement/adherence-engine.js';
+import {upcomingAppointments} from '../modules/domain-selectors.js';
+import {normalizeAppointmentRecord} from '../domain/appointment.js';
+import {formatIberfitDate} from '../domain/civil-date.js';
 
 const STYLE_ID='m27-progress-continuity-styles';
 
@@ -15,14 +20,29 @@ const STYLES=`
 .m27-constancia-window>strong{color:#f8f2e7;font-size:clamp(1.22rem,2.6vw,1.7rem);font-variant-numeric:tabular-nums;letter-spacing:-.035em;line-height:1.05}
 .m27-constancia-window>small{color:#a9a397;font-size:.66rem;line-height:1.4}
 .m27-constancia-window[data-has-plan="false"]>strong{font-size:.9rem;line-height:1.25;letter-spacing:-.01em}
+.m27-client-home{display:grid;gap:.82rem;padding:1rem;border:1px solid rgba(216,185,111,.2);border-radius:1.05rem;background:linear-gradient(145deg,rgba(216,185,111,.075),rgba(255,255,255,.018));box-shadow:0 18px 45px rgba(10,18,14,.08)}
+.m27-client-home-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem}
+.m27-client-home-head>div{display:grid;gap:.14rem}
+.m27-client-home-head h3{margin:0;color:var(--m26-text,#17231d);font-size:clamp(1rem,2vw,1.25rem);letter-spacing:-.025em}
+.m27-client-home-head p{max-width:38rem;margin:0;color:var(--m26-text-muted,#6b675f);font-size:.73rem;line-height:1.48;text-align:right}
+.m27-client-home-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.62rem}
+.m27-client-home-card{display:grid;align-content:start;gap:.32rem;min-height:9rem;padding:.82rem;border:1px solid rgba(216,185,111,.14);border-radius:.88rem;background:rgba(255,255,255,.035)}
+.m27-client-home-card>span{color:var(--m26-gold,#a98534);font-size:.61rem;font-weight:800;letter-spacing:.085em;text-transform:uppercase}
+.m27-client-home-card>strong{color:var(--m26-text,#17231d);font-size:1rem;letter-spacing:-.02em;line-height:1.2}
+.m27-client-home-card>small{min-height:2.9em;color:var(--m26-text-muted,#6b675f);font-size:.69rem;line-height:1.43}
+.m27-client-home-card>button{justify-self:start;margin-top:auto;padding:0;border:0;background:transparent;color:var(--m26-gold,#8f7028);font:inherit;font-size:.7rem;font-weight:800;cursor:pointer}
+.m27-client-home-card>button:hover,.m27-client-home-card>button:focus-visible{text-decoration:underline;text-underline-offset:.18rem}
+.m27-client-home-card[data-attention-level="critical"]{border-color:rgba(149,67,54,.28)}
+.m27-client-home-card[data-attention-level="warning"]{border-color:rgba(169,133,52,.3)}
 .m27-session-feedback-premium{position:relative;overflow:hidden}
 .m27-session-feedback-explainer{margin:.3rem 0 .95rem;padding:.72rem .8rem;border-left:3px solid rgba(216,185,111,.65);border-radius:.2rem .7rem .7rem .2rem;background:rgba(216,185,111,.055);color:var(--m26-text-muted,#6b675f);font-size:.78rem;line-height:1.5}
 .m27-session-continuity{display:grid;gap:.22rem;margin:.85rem 0;padding:.82rem .88rem;border:1px solid rgba(216,185,111,.2);border-radius:.82rem;background:rgba(216,185,111,.055)}
 .m27-session-continuity>span{color:var(--m26-gold,#a98534);font-size:.63rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
 .m27-session-continuity>strong{color:var(--m26-text,#17231d);font-size:.94rem;letter-spacing:-.015em}
 .m27-session-continuity>p{margin:0;color:var(--m26-text-muted,#6b675f);font-size:.76rem;line-height:1.48}
-@media (max-width:560px){.m27-constancia{padding:.78rem}.m27-constancia-head{display:grid;gap:.28rem}.m27-constancia-head p{text-align:left}.m27-constancia-grid{grid-template-columns:1fr}.m27-constancia-window{min-height:0}}
-@media (prefers-reduced-motion:reduce){.m27-constancia-window,.m27-session-continuity{scroll-behavior:auto}}
+@media (max-width:980px){.m27-client-home-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.m27-constancia{padding:.78rem}.m27-constancia-head,.m27-client-home-head{display:grid;gap:.28rem}.m27-constancia-head p,.m27-client-home-head p{text-align:left}.m27-constancia-grid,.m27-client-home-grid{grid-template-columns:1fr}.m27-constancia-window,.m27-client-home-card{min-height:0}.m27-client-home{padding:.82rem}}
+@media (prefers-reduced-motion:reduce){.m27-constancia-window,.m27-session-continuity,.m27-client-home-card{scroll-behavior:auto}}
 `;
 
 function create(document,tag,className,text){
@@ -63,6 +83,167 @@ function adherenceDetail(item){
   return pending
     ?`${base} · ${pending} pendiente${pending===1?'':'s'} fuera del cálculo`
     :base;
+}
+
+function appointmentDetail(appointment){
+  if(!appointment)return 'No hay una próxima cita confirmada. Cuando se confirme, aparecerá aquí.';
+  return [appointment.title,appointment.modalityLabel,appointment.location]
+    .filter(Boolean)
+    .filter((value,index,list)=>list.indexOf(value)===index)
+    .join(' · ');
+}
+
+function wellbeingDetail(summary){
+  const latest=summary?.latestCheckin;
+  if(!latest)return 'Registra energía, sueño, estrés o dolor para mantener tu contexto de seguimiento actualizado.';
+  const values=[
+    ['Energía',latest.energy],
+    ['Sueño',latest.sleep],
+    ['Estrés',latest.stress],
+    ['Dolor',latest.pain],
+  ]
+    .filter(([,value])=>Number.isFinite(value))
+    .map(([label,value])=>`${label} ${value}`);
+  const date=formatIberfitDate(summary.latestCheckinAt,{locale:'es-CL',includeTime:true});
+  const metrics=values.length?values.join(' · '):'Registro disponible sin métricas comparables';
+  return date?`${metrics} · ${date}`:metrics;
+}
+
+function attentionCopy(level,topAlert){
+  if(level==='critical')return 'Hay un dato confirmado que conviene revisar con tu Entrenador antes de la próxima sesión.';
+  if(level==='warning')return 'Tu seguimiento contiene contexto reciente para revisar con tu Entrenador; la app no cambia tu plan automáticamente.';
+  if(topAlert)return 'Hay información de seguimiento disponible. Se muestra como contexto y no implica un cambio automático de tu plan.';
+  return 'No hay señales prioritarias en los datos confirmados disponibles.';
+}
+
+function attentionArea(topAlert){
+  const source=String(topAlert?.source||'');
+  return source==='registro_bienestar'?'actividad':'progreso';
+}
+
+export function buildClientHomeSnapshot(state,clientId,{now=new Date()}={}){
+  const id=String(clientId||'').trim();
+  if(!id)return null;
+  const windows=buildAdherenceWindows(state,id,{now});
+  const constancy=windows.find((item)=>item.days===28)||windows[0]||null;
+  const progress=computeProgressSummary(state,id,{now,days:28});
+  const nextRecord=upcomingAppointments(state,{
+    clientId:id,
+    now,
+    limit:1,
+    clientVisibleOnly:true,
+    confirmedOnly:true,
+  })[0]||null;
+  const nextAppointment=nextRecord?normalizeAppointmentRecord(nextRecord):null;
+  const alerts=deriveAdherenceAlerts(state,id,{now});
+  const signal=adherenceSignal(alerts);
+  const topAlert=alerts[0]||null;
+  const wellbeing=progress?.latestCheckin
+    ?Object.freeze({...progress.latestCheckin})
+    :null;
+
+  return Object.freeze({
+    clientId:id,
+    constancy,
+    nextAppointment,
+    wellbeing,
+    latestCheckinAt:progress?.latestCheckinAt||null,
+    dataQuality:progress?.dataQuality||'limitada',
+    attention:Object.freeze({
+      level:signal.level,
+      label:signal.label,
+      title:topAlert?.title||'Sin señales prioritarias',
+      copy:attentionCopy(signal.level,topAlert),
+      area:attentionArea(topAlert),
+      source:topAlert?.source||null,
+    }),
+  });
+}
+
+function createAreaButton(document,label,area){
+  const button=create(document,'button','',label);
+  button.type='button';
+  button.setAttribute('data-m26-area',area);
+  return button;
+}
+
+function buildClientHomeSection(document,snapshot){
+  const section=create(document,'section','m27-client-home');
+  section.setAttribute('data-m27-client-home','true');
+  section.setAttribute('aria-label','Resumen de hoy del cliente');
+
+  const head=create(document,'div','m27-client-home-head');
+  const titles=create(document,'div');
+  titles.append(
+    create(document,'span','m27-constancia-kicker','Tu día IBERFIT'),
+    create(document,'h3','','Entrenamiento, constancia y contexto'),
+  );
+  head.append(
+    titles,
+    create(document,'p','','Solo datos confirmados: qué viene ahora, cómo mantienes el ritmo y qué contexto conviene tener presente.'),
+  );
+
+  const grid=create(document,'div','m27-client-home-grid');
+  const appointment=snapshot.nextAppointment;
+  const appointmentCard=create(document,'article','m27-client-home-card');
+  appointmentCard.append(
+    create(document,'span','','Próximo entrenamiento'),
+    create(document,'strong','',appointment
+      ?formatIberfitDate(appointment.startAt,{locale:'es-CL',includeTime:true})||'Cita confirmada'
+      :'Por confirmar'),
+    create(document,'small','',appointmentDetail(appointment)),
+    createAreaButton(document,'Ver agenda','agenda'),
+  );
+
+  const constancy=snapshot.constancy;
+  const constancyCard=create(document,'article','m27-client-home-card');
+  constancyCard.append(
+    create(document,'span','','Constancia · 28 días'),
+    create(document,'strong','',adherenceValue(constancy)),
+    create(document,'small','',adherenceDetail(constancy)),
+    createAreaButton(document,'Ver Cliente 360','progreso'),
+  );
+
+  const wellbeingCard=create(document,'article','m27-client-home-card');
+  wellbeingCard.append(
+    create(document,'span','','Cómo estás'),
+    create(document,'strong','',snapshot.wellbeing?'Contexto registrado':'Sin registro reciente'),
+    create(document,'small','',wellbeingDetail({latestCheckin:snapshot.wellbeing,latestCheckinAt:snapshot.latestCheckinAt})),
+    createAreaButton(document,'Registrar bienestar','actividad'),
+  );
+
+  const attention=snapshot.attention;
+  const attentionCard=create(document,'article','m27-client-home-card');
+  attentionCard.setAttribute('data-attention-level',attention.level);
+  attentionCard.append(
+    create(document,'span','','Atención'),
+    create(document,'strong','',attention.title),
+    create(document,'small','',attention.copy),
+    createAreaButton(document,attention.area==='actividad'?'Revisar bienestar':'Revisar seguimiento',attention.area),
+  );
+
+  grid.append(appointmentCard,constancyCard,wellbeingCard,attentionCard);
+  section.append(head,grid);
+  return section;
+}
+
+function enhanceClientHome({root,viewModel,state,now}){
+  if(String(viewModel?.activeArea||'')!=='hoy')return false;
+  if(String(viewModel?.identity?.role||'').trim().toLowerCase()!=='client')return false;
+  const clientId=clientIdFor(viewModel,state);
+  if(!clientId)return false;
+  const host=root.querySelector?.('.m26-hoy-route');
+  if(!host)return false;
+
+  host.querySelector?.('[data-m27-client-home]')?.remove?.();
+  const snapshot=buildClientHomeSnapshot(state,clientId,{now});
+  if(!snapshot)return false;
+  const section=buildClientHomeSection(root.ownerDocument,snapshot);
+  const hero=host.querySelector?.('.m26-hero-panel');
+  if(hero?.nextSibling)host.insertBefore(section,hero.nextSibling);
+  else if(hero)host.append(section);
+  else host.prepend(section);
+  return true;
 }
 
 function buildConstancySection(document,windows,role){
@@ -181,8 +362,9 @@ function enhanceCompletedClosure({root}){
 export function enhanceProgressContinuity({root,viewModel,state,now=new Date()}={}){
   if(!root?.querySelector||!root.ownerDocument)return false;
   installStyles(root.ownerDocument);
+  const home=enhanceClientHome({root,viewModel,state,now});
   const constancy=enhanceConstancy({root,viewModel,state,now});
   const feedback=enhanceFeedbackClosure({root,viewModel});
   const completed=enhanceCompletedClosure({root});
-  return Boolean(constancy||feedback||completed);
+  return Boolean(home||constancy||feedback||completed);
 }

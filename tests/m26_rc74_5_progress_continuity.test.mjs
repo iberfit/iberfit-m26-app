@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {buildAdherenceWindows} from '../src/m26/engagement/progress-continuity.js';
 import {buildCoachFollowUpPlan,deriveAdherenceAlerts} from '../src/m26/engagement/adherence-engine.js';
+import {buildClientHomeSnapshot} from '../src/m26/ui/progress-continuity.js';
 
 const clientId='client-progress-continuity';
 const now=new Date('2026-09-04T12:00:00Z');
@@ -17,6 +18,7 @@ function state(){
         {id:'a4',clientId,startAt:'2026-08-15T10:00:00Z',status:'confirmed'},
         {id:'a5',clientId,startAt:'2026-07-10T10:00:00Z',status:'completed'},
         {id:'a6',clientId,startAt:'2026-06-20T10:00:00Z',status:'completed'},
+        {id:'a-next',clientId,startAt:'2026-09-05T14:00:00Z',status:'confirmed',title:'Entrenamiento de fuerza',modality:'presencial',location:'Las Condes'},
       ],
       sessionExecutions:[
         {id:'e1',clientId,appointmentId:'a1',completedAt:'2026-09-03T11:00:00Z',status:'completed',syncStatus:'clean',feedback:{sessionRpe:7,pain:true,painNotes:'Molestia informada'},results:[{exerciseId:'x',reps:10,loadKg:10,rpe:7}]},
@@ -26,7 +28,9 @@ function state(){
         {id:'e-pending',clientId,appointmentId:'a2',completedAt:'2026-09-02T11:00:00Z',status:'completed',syncStatus:'pending',feedback:{sessionRpe:8,pain:false},results:[{exerciseId:'x',reps:10,loadKg:20,rpe:8}]},
       ],
       iriAssessments:[],
-      checkins:[],
+      checkins:[
+        {id:'c1',clientId,createdAt:'2026-09-04T08:00:00Z',energy:7,sleep:8,stress:3,pain:2},
+      ],
       wearableDailySummaries:[],
       trainingCycles:[],
     },
@@ -47,6 +51,28 @@ test('constancia reutiliza el progreso confirmado en ventanas 7 28 y 90 sin conv
   const empty=buildAdherenceWindows({collections:{appointments:[],sessionExecutions:[],iriAssessments:[],checkins:[],wearableDailySummaries:[]}},clientId,{now});
   assert.ok(empty.every((item)=>item.adherence===null));
   assert.ok(empty.every((item)=>item.hasPlan===false));
+});
+
+test('inicio cliente resume próxima cita, constancia y bienestar sin inventar datos',()=>{
+  const snapshot=buildClientHomeSnapshot(state(),clientId,{now});
+  assert.equal(snapshot.nextAppointment.id,'a-next');
+  assert.equal(snapshot.nextAppointment.title,'Entrenamiento de fuerza');
+  assert.equal(snapshot.nextAppointment.modalityLabel,'Presencial');
+  assert.equal(snapshot.constancy.days,28);
+  assert.equal(snapshot.constancy.adherence,0.5);
+  assert.equal(snapshot.constancy.unconfirmedExecutions,1);
+  assert.deepEqual(snapshot.wellbeing,{energy:7,sleep:8,stress:3,pain:2,fatigue:null,motivation:null});
+  assert.equal(snapshot.attention.level,'warning');
+  assert.match(snapshot.attention.title,/Molestia informada/i);
+  assert.match(snapshot.attention.copy,/no cambia tu plan automáticamente/i);
+
+  const emptyState={collections:{appointments:[],sessionExecutions:[],iriAssessments:[],checkins:[],wearableDailySummaries:[],trainingCycles:[]},pendingOperations:[],conflicts:[],rejectedOperations:[]};
+  const empty=buildClientHomeSnapshot(emptyState,clientId,{now});
+  assert.equal(empty.nextAppointment,null);
+  assert.equal(empty.constancy.adherence,null);
+  assert.equal(empty.constancy.hasPlan,false);
+  assert.equal(empty.wellbeing,null);
+  assert.notEqual(empty.attention.title,'Dolor elevado informado');
 });
 
 test('feedback con molestia solo genera seguimiento cuando la sesión está confirmada',()=>{
@@ -83,6 +109,12 @@ test('la capa premium de continuidad es idempotente, española y no introduce ob
   assert.match(ui,/Constancia de entrenamiento en 7, 28 y 90 días/);
   assert.match(ui,/Cierre post-sesión/);
   assert.match(ui,/Ver Cliente 360/);
+  assert.match(ui,/Tu día IBERFIT/);
+  assert.match(ui,/Próximo entrenamiento/);
+  assert.match(ui,/Constancia · 28 días/);
+  assert.match(ui,/Cómo estás/);
+  assert.match(ui,/Solo datos confirmados/);
+  assert.match(ui,/data-m27-client-home/);
   assert.match(ui,/no cambia el plan automáticamente/i);
   assert.match(ui,/data-m27-constancia/);
   assert.match(ui,/data-m27-session-continuity/);
