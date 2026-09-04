@@ -1,5 +1,6 @@
 import {
   adherenceSignal,
+  buildProgressTimeline,
   computeProgressSummary,
   deriveAdherenceAlerts,
 } from '../engagement/index.js';
@@ -33,12 +34,29 @@ const CLIENTE_360_CSS=`
 .m27-cliente-360-mini>div{display:grid;gap:.1rem;padding:.52rem;border-radius:.65rem;background:rgba(255,255,255,.025)}
 .m27-cliente-360-mini span{color:#918c83;font-size:.61rem}
 .m27-cliente-360-mini strong{color:#e9dfca;font-size:.79rem}
+.m27-cliente-360-timeline{display:grid;gap:.72rem;padding:.92rem;border:1px solid rgba(216,185,111,.11);border-radius:.95rem;background:rgba(0,0,0,.1)}
+.m27-cliente-360-timeline-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem}
+.m27-cliente-360-timeline-head h4{margin:0;color:#eee3cb;font-size:.9rem}
+.m27-cliente-360-timeline-head p{margin:0;color:#918c83;font-size:.67rem;text-align:right}
+.m27-cliente-360-timeline ol{position:relative;display:grid;gap:.1rem;margin:0;padding:0;list-style:none}
+.m27-cliente-360-timeline ol::before{content:'';position:absolute;left:.47rem;top:.65rem;bottom:.65rem;width:1px;background:rgba(216,185,111,.16)}
+.m27-cliente-360-timeline li{position:relative;display:grid;grid-template-columns:1rem minmax(0,1fr);gap:.68rem;padding:.58rem 0}
+.m27-cliente-360-timeline-dot{position:relative;z-index:1;width:.72rem;height:.72rem;margin-top:.26rem;border:2px solid #0a2a1d;border-radius:50%;background:#d8b96f;box-shadow:0 0 0 1px rgba(216,185,111,.3)}
+.m27-cliente-360-timeline-dot.is-iri{background:#f1dfab}
+.m27-cliente-360-timeline-dot.is-checkin{background:#9fc4ad}
+.m27-cliente-360-timeline-copy{display:grid;gap:.14rem;min-width:0}
+.m27-cliente-360-timeline-meta{display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+.m27-cliente-360-timeline-meta span{color:#d8b96f;font-size:.61rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.m27-cliente-360-timeline-meta time{color:#8f8a81;font-size:.62rem;white-space:nowrap}
+.m27-cliente-360-timeline-copy strong{color:#e9dfca;font-size:.78rem;line-height:1.3}
+.m27-cliente-360-timeline-copy small{color:#9f998f;font-size:.67rem;line-height:1.4}
+.m27-cliente-360-timeline-empty{margin:0;padding:.78rem;border-radius:.7rem;color:#9f998f;background:rgba(255,255,255,.025);font-size:.72rem;line-height:1.45}
 .m27-cliente-360-actions{display:flex;gap:.5rem;flex-wrap:wrap;padding-top:.1rem}
 .m27-cliente-360-actions button{min-height:2.45rem;padding:.48rem .72rem;border:1px solid rgba(216,185,111,.16);border-radius:.72rem;color:#e9dfca;background:rgba(216,185,111,.045);font:inherit;font-size:.75rem;font-weight:700;cursor:pointer}
 .m27-cliente-360-actions button:hover{border-color:rgba(216,185,111,.4);background:rgba(216,185,111,.09)}
 .m27-cliente-360-note{margin:0;padding:.68rem .75rem;border-left:3px solid rgba(216,185,111,.55);color:#aca69a;background:rgba(216,185,111,.035);font-size:.69rem;line-height:1.45}
 @media (max-width:960px){.m27-cliente-360-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-contexto{grid-template-columns:1fr}}
-@media (max-width:560px){.m27-cliente-360{padding:.85rem}.m27-cliente-360-header{display:grid}.m27-cliente-360-senal{text-align:left;min-width:0}.m27-cliente-360-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-mini{grid-template-columns:1fr}.m27-cliente-360-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-actions button{width:100%}}
+@media (max-width:560px){.m27-cliente-360{padding:.85rem}.m27-cliente-360-header{display:grid}.m27-cliente-360-senal{text-align:left;min-width:0}.m27-cliente-360-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-mini{grid-template-columns:1fr}.m27-cliente-360-timeline-head{display:grid;gap:.2rem}.m27-cliente-360-timeline-head p{text-align:left}.m27-cliente-360-timeline-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.m27-cliente-360-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-actions button{width:100%}}
 @media (max-width:360px){.m27-cliente-360-grid,.m27-cliente-360-actions{grid-template-columns:1fr}}
 `;
 
@@ -109,6 +127,47 @@ function wellbeingValue(summary,key){
   return number(Number(summary?.checkinAverage?.[key]),'/10');
 }
 
+function timelineKindLabel(kind){
+  return ({execution:'Sesión',iri:'IRI',checkin:'Bienestar'})[kind]||'Seguimiento';
+}
+
+function timelineItem(document,row){
+  const item=createElement(document,'li');
+  const dot=createElement(document,'span',`m27-cliente-360-timeline-dot is-${String(row?.kind||'seguimiento')}`);
+  dot.setAttribute('aria-hidden','true');
+  const copy=createElement(document,'div','m27-cliente-360-timeline-copy');
+  const meta=createElement(document,'div','m27-cliente-360-timeline-meta');
+  const kind=createElement(document,'span','',timelineKindLabel(row?.kind));
+  const time=createElement(document,'time','',dateLabel(row?.date));
+  if(row?.date)time.setAttribute('datetime',String(row.date));
+  meta.append(kind,time);
+  copy.append(
+    meta,
+    createElement(document,'strong','',row?.title||'Seguimiento IBERFIT'),
+    createElement(document,'small','',row?.detail||'Dato confirmado'),
+  );
+  item.append(dot,copy);
+  return item;
+}
+
+function timelineSection(document,rows=[]){
+  const section=createElement(document,'section','m27-cliente-360-timeline');
+  section.setAttribute('aria-label','Evolución reciente del cliente');
+  const head=createElement(document,'div','m27-cliente-360-timeline-head');
+  const title=createElement(document,'h4','','Evolución reciente');
+  const caption=createElement(document,'p','',rows.length?'Últimos 90 días · solo datos confirmados':'Últimos 90 días');
+  head.append(title,caption);
+  section.append(head);
+  if(!rows.length){
+    section.append(createElement(document,'p','m27-cliente-360-timeline-empty','Todavía no hay suficientes hitos confirmados para construir el historial longitudinal.'));
+    return section;
+  }
+  const list=createElement(document,'ol');
+  for(const row of rows)list.append(timelineItem(document,row));
+  section.append(list);
+  return section;
+}
+
 export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
   const active=
     viewModel?.mode==='authenticated'&&
@@ -133,6 +192,7 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
 
   const alerts=deriveAdherenceAlerts(state,clientId,{now});
   const signal=adherenceSignal(alerts);
+  const timeline=buildProgressTimeline(state,clientId,{now,days:90,limit:12});
   const client=viewModel.selectedClient||{};
   const clientName=String(client.name||'Cliente IBERFIT').trim();
   const modality=String(client.modality||'Modalidad no informada').trim();
@@ -211,6 +271,8 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
   devices.append(deviceMini);
   context.append(wellbeing,devices);
 
+  const evolution=timelineSection(document,timeline);
+
   const actions=createElement(document,'div','m27-cliente-360-actions');
   actions.append(
     action(document,'Ver planificación','planificacion'),
@@ -227,7 +289,7 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
     'Cliente 360 no crea una puntuación global ni atribuye causas. Cada área conserva su significado y solo utiliza datos confirmados; el entrenador interpreta el contexto y decide.',
   );
 
-  section.append(header,grid,context,actions,note);
+  section.append(header,grid,context,evolution,actions,note);
   if(intro?.nextSibling)route.insertBefore(section,intro.nextSibling);
   else route.prepend(section);
   return true;
