@@ -6,6 +6,7 @@ import {M26_ADMIN_COMMAND_TYPES} from '../src/m26/admin/command-catalog.js';
 
 const migration=fs.readFileSync('supabase/migrations/20260904164000_admin_client_delete_v26.sql','utf8');
 const alignment=fs.readFileSync('supabase/migrations/20260904183000_admin_client_delete_v26_model_alignment.sql','utf8');
+const idempotentWrapper=fs.readFileSync('supabase/migrations/20260904184500_admin_client_delete_idempotent_wrapper_v26.sql','utf8');
 const controller=fs.readFileSync('src/m26/admin/controller.js','utf8');
 const viewModel=fs.readFileSync('src/m26/admin/view-model.js','utf8');
 const templatePaths=[
@@ -69,6 +70,15 @@ test('el backend de borrado permanece fail-closed, auditado e idempotente',()=>{
   assert.doesNotMatch(alignment,/c\.organization_id/u);
   assert.doesNotMatch(alignment,/delete\s+from\s+auth\.users/iu);
   assert.match(migration,/revoke all on function public\.iberfit_admin_delete_client_v26\(jsonb,jsonb\) from public, anon, authenticated/u);
+});
+
+test('el reintento de eliminación llega al receipt antes de exigir que el cliente siga existiendo',()=>{
+  assert.match(idempotentWrapper,/elsif v_type='ADMIN_CLIENTE_ELIMINAR' then\s*--[^]*?return public\.iberfit_admin_delete_client_v26\(p_command,v_context\);/u);
+  const deleteIndex=idempotentWrapper.indexOf("elsif v_type='ADMIN_CLIENTE_ELIMINAR'");
+  const lifecycleIndex=idempotentWrapper.indexOf("elsif v_type='ADMIN_CLIENTE_CAMBIAR_CICLO'");
+  assert.ok(deleteIndex>=0&&lifecycleIndex>deleteIndex);
+  assert.doesNotMatch(idempotentWrapper.slice(deleteIndex,lifecycleIndex),/iberfit_assert_client_org_scope_v65e/u);
+  assert.match(alignment,/if v_existing is not null then\s*return v_existing \|\| jsonb_build_object\('kind','duplicate'\)/u);
 });
 
 test('la familia de correos usa la marca real y no expone tokens ni Supabase al cliente',()=>{
