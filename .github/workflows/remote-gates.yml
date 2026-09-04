@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - canary/rc74-4
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'scripts/**'
+      - 'qa/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/remote-gates.yml'
   workflow_dispatch:
     inputs:
       confirmation:
@@ -22,9 +31,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
       - name: Ejecutar gate autenticado sin mutaciones
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
