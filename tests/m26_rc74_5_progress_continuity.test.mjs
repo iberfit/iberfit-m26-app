@@ -64,6 +64,7 @@ test('constancia reutiliza el progreso confirmado en ventanas 7 28 y 90 sin conv
 
 test('inicio cliente resume próxima cita, constancia y bienestar sin inventar datos',()=>{
   const snapshot=buildClientHomeSnapshot(state(),clientId,{now});
+  assert.equal(snapshot.todayTraining,null);
   assert.equal(snapshot.nextAppointment.id,'a-next');
   assert.equal(snapshot.nextAppointment.title,'Entrenamiento de fuerza');
   assert.equal(snapshot.nextAppointment.modalityLabel,'Presencial');
@@ -77,6 +78,7 @@ test('inicio cliente resume próxima cita, constancia y bienestar sin inventar d
 
   const emptyState={collections:{appointments:[],sessionExecutions:[],iriAssessments:[],checkins:[],wearableDailySummaries:[],wearableConnections:[],trainingCycles:[]},communication:{available:true,threads:[],notifications:[]},pendingOperations:[],conflicts:[],rejectedOperations:[]};
   const empty=buildClientHomeSnapshot(emptyState,clientId,{now});
+  assert.equal(empty.todayTraining,null);
   assert.equal(empty.nextAppointment,null);
   assert.equal(empty.constancy.adherence,null);
   assert.equal(empty.constancy.hasPlan,false);
@@ -109,6 +111,35 @@ test('inicio cliente eleva comunicaciones pendientes y Dispositivos solo cuando 
   const hidden=buildClientHomeSnapshot(quiet,clientId,{now});
   assert.equal(hidden.communication,null);
   assert.equal(hidden.device,null);
+});
+
+test('inicio cliente abre directamente una sesión confirmada y vinculada del mismo día en Chile',()=>{
+  const ready=structuredClone(state());
+  ready.collections.appointments.push({
+    id:'a-today',
+    clientId,
+    sessionId:'s-today',
+    startAt:'2026-09-04T18:00:00Z',
+    status:'confirmed',
+    visibleToClient:true,
+    title:'Fuerza tren inferior',
+    modality:'presencial',
+    location:'Las Condes',
+  });
+  const snapshot=buildClientHomeSnapshot(ready,clientId,{now});
+  assert.ok(snapshot.todayTraining);
+  assert.equal(snapshot.todayTraining.ready,true);
+  assert.equal(snapshot.todayTraining.area,'sesion');
+  assert.equal(snapshot.todayTraining.actionLabel,'Abrir entrenamiento');
+  assert.equal(snapshot.todayTraining.appointment.sessionId,'s-today');
+  assert.match(snapshot.todayTraining.title,/Entrenamiento listo para hoy/i);
+  assert.match(snapshot.todayTraining.copy,/sesión vinculada está lista/i);
+
+  ready.collections.appointments.at(-1).sessionId=null;
+  const notPublished=buildClientHomeSnapshot(ready,clientId,{now});
+  assert.equal(notPublished.todayTraining.ready,false);
+  assert.equal(notPublished.todayTraining.area,'agenda');
+  assert.equal(notPublished.todayTraining.actionLabel,'Ver agenda');
 });
 
 test('feedback con molestia solo genera seguimiento cuando la sesión está confirmada',()=>{
@@ -147,6 +178,8 @@ test('la capa premium de continuidad es idempotente, española y no introduce ob
   assert.match(ui,/Ver Cliente 360/);
   assert.match(ui,/Tu día IBERFIT/);
   assert.match(ui,/Próximo entrenamiento/);
+  assert.match(ui,/Entrenamiento de hoy/);
+  assert.match(ui,/Abrir entrenamiento/);
   assert.match(ui,/Constancia · 28 días/);
   assert.match(ui,/Cómo estás/);
   assert.match(ui,/Comunicación/);
