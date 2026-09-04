@@ -15,6 +15,7 @@ test('Cliente 360 se activa desde el render canónico sin observadores globales'
 
 test('Cliente 360 reutiliza progreso confirmado y no crea otra fuente de verdad',()=>{
   assert.match(runtime,/computeProgressSummary/u);
+  assert.match(runtime,/buildProgressTimeline/u);
   assert.match(runtime,/deriveAdherenceAlerts/u);
   assert.match(runtime,/adherenceSignal/u);
   assert.match(runtime,/summary\.adherence/u);
@@ -23,6 +24,7 @@ test('Cliente 360 reutiliza progreso confirmado y no crea otra fuente de verdad'
   assert.match(runtime,/summary\.iriCurrent/u);
   assert.match(runtime,/checkinAverage/u);
   assert.match(runtime,/summary\.wearable/u);
+  assert.match(runtime,/days:90,limit:12/u);
   assert.doesNotMatch(runtime,/supabase|service[_-]?role|rpc\(|fetch\(/iu);
 });
 
@@ -31,11 +33,23 @@ test('Cliente 360 presenta una vista integral en español y sin puntuación glob
   assert.match(runtime,/Recuperación y bienestar/u);
   assert.match(runtime,/Actividad de dispositivos/u);
   assert.match(runtime,/Calidad del dato/u);
+  assert.match(runtime,/Evolución reciente/u);
+  assert.match(runtime,/Últimos 90 días · solo datos confirmados/u);
   assert.match(runtime,/Sin puntuación global|no crea una puntuación global/iu);
   assert.match(runtime,/Ver planificación/u);
   assert.match(runtime,/Registrar bienestar/u);
   assert.match(runtime,/Consultar informes/u);
   assert.doesNotMatch(runtime,/Athlete|Dashboard|Coach|Wearables?/u);
+});
+
+test('Cliente 360 representa sesiones IRI y bienestar sin reinterpretar sus datos',()=>{
+  assert.match(runtime,/execution:'Sesión'/u);
+  assert.match(runtime,/iri:'IRI'/u);
+  assert.match(runtime,/checkin:'Bienestar'/u);
+  assert.match(runtime,/row\?\.title/u);
+  assert.match(runtime,/row\?\.detail/u);
+  assert.match(runtime,/dateLabel\(row\?\.date\)/u);
+  assert.match(runtime,/Todavía no hay suficientes hitos confirmados/u);
 });
 
 test('Cliente 360 conserva navegación existente y hace real la etiqueta inferior',()=>{
