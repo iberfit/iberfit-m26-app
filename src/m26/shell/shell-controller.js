@@ -7,8 +7,7 @@ import {updateIberfitExperiencePreference} from '../ui/preferences.js';
 import {enhanceNativeWorkspace,openNativeAdminIntake} from '../ui/native-workspace.js';
 import {enhanceCliente360} from '../ui/client-360.js';
 import {enhanceProgressContinuity} from '../ui/progress-continuity.js';
-import {enhanceSessionReadiness} from '../ui/session-readiness.js';
-import {enhanceSessionFocus,teardownSessionFocus} from '../ui/session-focus.js';
+import {enhanceSessionReadiness,enhanceSessionFocus,teardownSessionFocus} from '../ui/session-readiness.js';
 
 export function resolveAdaptiveLayout({width = 1440,coarsePointer = false,touchPoints = 0} = {}) {
   const viewportWidth = Number(width);
