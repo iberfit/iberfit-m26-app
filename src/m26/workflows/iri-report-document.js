@@ -543,6 +543,16 @@ function bindDirectIriReportWindow(popup){
   });
   closeButton.addEventListener?.('click',()=>popup.close?.());
 }
+function mountIriReportDocument(popup,html){
+  const doc=popup?.document;
+  const Parser=popup?.DOMParser||doc?.defaultView?.DOMParser||globalThis.DOMParser;
+  if(!doc?.documentElement||typeof Parser!=='function'||typeof doc.importNode!=='function'||typeof doc.replaceChild!=='function')throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
+  const parsed=new Parser().parseFromString(String(html||''),'text/html');
+  if(!parsed?.documentElement)throw new Error('M26_IRI_REPORT_RENDER_FAILED');
+  const imported=doc.importNode(parsed.documentElement,true);
+  doc.replaceChild(imported,doc.documentElement);
+  return doc;
+}
 export function prepareIriReportPrintTarget(openWindow=globalThis.open){
   if(typeof openWindow!=='function')return null;
   const popup=openWindow('about:blank','_blank');
@@ -557,14 +567,12 @@ export function openIriReportPrint({draft,variant='client',clientName,coachName,
   if(variant==='client'&&pageCount!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
   if(variant==='coach'&&pageCount<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
   const popup=printTarget||prepareIriReportPrintTarget(openWindow);
-  if(!popup?.document||typeof popup.document.write!=='function')throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
+  if(!popup?.document)throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
   try{
-    popup.document.open?.();
-    popup.document.write(directIriReportHtml(html,variant));
-    popup.document.close?.();
+    mountIriReportDocument(popup,directIriReportHtml(html,variant));
     bindDirectIriReportWindow(popup);
   }catch(error){try{popup.close?.();}catch{}throw error;}
   return {ok:true,variant,pages:pageCount,mode:'direct-window'};
 }
 
-export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,excerpt,distinctText,number,dateLabel,heartRateChart,coverageScore,clientIriExternalReportComplement,REPORT_CSS,PREMIUM_RC36_CSS,REPORT_DYNAMIC_CSS,REPORT_STYLESHEET,REPORT_FIT_LEVELS,widthClass,percentWidthClass,reportStylesheetUrl,directIriReportHtml,reportPageNumber,reportPageContentFits,fitLevelForRatio,fitReportPages,reportLayoutReady,waitForReportAssets,bindDirectIriReportWindow,rawDataPages});
+export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,excerpt,distinctText,number,dateLabel,heartRateChart,coverageScore,clientIriExternalReportComplement,REPORT_CSS,PREMIUM_RC36_CSS,REPORT_DYNAMIC_CSS,REPORT_STYLESHEET,REPORT_FIT_LEVELS,widthClass,percentWidthClass,reportStylesheetUrl,directIriReportHtml,reportPageNumber,reportPageContentFits,fitLevelForRatio,fitReportPages,reportLayoutReady,waitForReportAssets,bindDirectIriReportWindow,mountIriReportDocument,rawDataPages});
