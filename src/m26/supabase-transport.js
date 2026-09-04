@@ -795,7 +795,6 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
 
   async function clientOnboardingPreflight(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
-    if (!runtime.canary && !runtime.qaOnly) throw new Error('M26_CLIENT_CREATE_CANARY_ONLY');
     let result;
     try {
       result=await request(`/rest/v1/rpc/${CLIENT_ONBOARDING_RPC.preflight}`, {method:'POST',token,body:'{}'});
@@ -809,7 +808,6 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
 
   async function createClientDraft(token, payload = {}) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
-    if (!runtime.canary && !runtime.qaOnly) throw new Error('M26_CLIENT_CREATE_CANARY_ONLY');
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('M26_CLIENT_DRAFT_PAYLOAD_INVALID');
     const body = JSON.stringify({ p_payload: payload });
     if (body.length < 10 || body.length > 120_000) throw new Error('M26_CLIENT_DRAFT_PAYLOAD_INVALID');

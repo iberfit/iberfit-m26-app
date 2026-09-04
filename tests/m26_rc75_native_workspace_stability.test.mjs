@@ -40,9 +40,14 @@ test('RC75 simplifica Admin con una alta guiada sin fingir activación de client
   assert.doesNotMatch(admin,/ADMIN_CLIENTE_CREAR/u);
 });
 
-test('RC75 no elimina el fail-closed de creación canónica en producción',()=>{
+test('RC75 mantiene fail-closed en el backend canónico V12 sin bloquear producción',()=>{
   const transport=read('src/m26/supabase-transport.js');
   const native=read('src/m26/ui/native-workspace.js');
-  assert.match(transport,/M26_CLIENT_CREATE_CANARY_ONLY/u);
+  assert.doesNotMatch(transport,/M26_CLIENT_CREATE_CANARY_ONLY/u);
+  assert.match(transport,/iberfit_client_onboarding_preflight_v12/u);
+  assert.match(transport,/iberfit_create_client_draft_v12/u);
+  assert.match(transport,/M26_CLIENT_ONBOARDING_BACKEND_REQUIRED/u);
+  assert.match(transport,/M26_CLIENT_ONBOARDING_BACKEND_NOT_READY/u);
+  assert.match(transport,/M26_CLIENT_CREATE_INVALID_RESPONSE/u);
   assert.doesNotMatch(native,/service_role|service-role|SUPABASE_SERVICE/iu);
 });
