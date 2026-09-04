@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 
 const runner=await readFile(new URL('../scripts/fast_lane_affected_tests.mjs',import.meta.url),'utf8');
 const workflow=await readFile(new URL('../.github/workflows/fast-lane.yml',import.meta.url),'utf8');
+const remoteGates=await readFile(new URL('../.github/workflows/remote-gates.yml',import.meta.url),'utf8');
 const docs=await readFile(new URL('../docs/IBERFIT_FAST_LANE.md',import.meta.url),'utf8');
 
 test('Fast Lane selecciona tests afectados y verifica PWA antes de regresión completa',()=>{
@@ -27,6 +28,17 @@ test('workflow Fast Lane es PR-only hacia integración, cancelable y conserva di
   assert.match(workflow,/fast_lane_affected_tests\.mjs/u);
   assert.match(workflow,/upload-artifact@v4/u);
   assert.match(workflow,/retention-days:\s*14/u);
+});
+
+test('gates remotos solo corren para cambios relevantes y reutilizan caché npm',()=>{
+  assert.match(remoteGates,/branches:\s*\n\s*- canary\/rc74-4\s*\n\s*paths:/u);
+  for(const path of ["'src/**'","'public/**'","'scripts/**'","'qa/**'","'tests/**'","'package.json'","'package-lock.json'"]){
+    assert.ok(remoteGates.includes(path),`remote gate path missing: ${path}`);
+  }
+  assert.match(remoteGates,/persist-credentials:\s*false/u);
+  assert.match(remoteGates,/cache:\s*'npm'/u);
+  assert.match(remoteGates,/READ_ONLY_REMOTE_GATE/u);
+  assert.match(remoteGates,/M26_QA_ONLY:\s*'true'/u);
 });
 
 test('documentación no convierte presupuesto de tiempo en bypass de seguridad',()=>{
