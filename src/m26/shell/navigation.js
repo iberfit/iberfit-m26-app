@@ -11,7 +11,7 @@ export const M26_AREAS = Object.freeze({
   planificacion: Object.freeze({ key: 'planificacion', label: 'Planificación', title: 'Planificación', scope: 'client-context', roles: ['coach', 'client'] }),
   agenda: Object.freeze({ key: 'agenda', label: 'Agenda', title: 'Agenda', scope: 'global', roles: ['coach'] }),
   sesion: Object.freeze({ key: 'sesion', label: 'Sesiones', title: 'Sesiones', scope: 'client-context', roles: ['coach', 'client'] }),
-  progreso: Object.freeze({ key: 'progreso', label: 'Progreso', title: 'Progreso', scope: 'client-context', roles: ['coach', 'client'] }),
+  progreso: Object.freeze({ key: 'progreso', label: 'Cliente 360', title: 'Cliente 360 · Progreso y seguimiento', scope: 'client-context', roles: ['coach', 'client'] }),
   actividad: Object.freeze({ key: 'actividad', label: 'Actividad', title: 'Actividad, hábitos y dispositivos', scope: 'client-context', roles: ['coach', 'client'] }),
   notas: Object.freeze({ key: 'notas', label: 'Notas privadas', title: 'Notas privadas del entrenador', scope: 'selected-client', roles: ['coach'] }),
   inteligencia: Object.freeze({ key: 'inteligencia', label: 'Inteligencia', title: 'Inteligencia IBERFIT', scope: 'selected-client', roles: ['coach'] }),
@@ -24,7 +24,7 @@ export const M26_AREAS = Object.freeze({
 });
 
 const AREA_ALIASES = Object.freeze({
-  inicio: 'hoy',home: 'hoy',cliente: 'expediente',diagnostico: 'iri',diagnóstico: 'iri',plan: 'planificacion',planificación: 'planificacion',entrenar: 'sesion',sesiones: 'sesion',informe: 'informes',reportes: 'informes',library: 'biblioteca',qa: 'verificacion',mensaje:'mensajes',mensajes:'mensajes',comunicacion:'mensajes',comunicación:'mensajes',administracion:'admin-inicio',administración:'admin-inicio',usuarios:'admin-usuarios',equipo:'admin-equipo',operaciones:'admin-operaciones',auditoria:'admin-auditoria',auditoría:'admin-auditoria',
+  inicio: 'hoy',home: 'hoy',cliente: 'expediente',diagnostico: 'iri',diagnóstico: 'iri',plan: 'planificacion',planificación: 'planificacion',entrenar: 'sesion',sesiones: 'sesion',informe: 'informes',reportes: 'informes',cliente360: 'progreso','cliente-360': 'progreso',cliente_360: 'progreso',library: 'biblioteca',qa: 'verificacion',mensaje:'mensajes',mensajes:'mensajes',comunicacion:'mensajes',comunicación:'mensajes',administracion:'admin-inicio',administración:'admin-inicio',usuarios:'admin-usuarios',equipo:'admin-equipo',operaciones:'admin-operaciones',auditoria:'admin-auditoria',auditoría:'admin-auditoria',
   comunidad: 'retos',
   challenges: 'retos',
   configuracion: 'ajustes',
