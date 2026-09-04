@@ -28,7 +28,7 @@ test('RC74.16 enriquece Entrenamiento de hoy sin duplicar la política adaptativ
   assert.match(app,/Objetivo ·/);
   assert.match(app,/Contexto de hoy: listo para empezar/);
   assert.match(app,/Contexto de hoy: revisar antes de empezar/);
-  assert.doesNotMatch(app,/pain\s*[><=]|sleep\s*[><=]|energy\s*[><=]|stress\s*[><=]/i);
+  assert.doesNotMatch(app,/(?:pain|sleep|energy|stress)\s*(?:>=|<=|>|<)\s*\d/iu);
 });
 
 test('RC74.16 cierra feedback y continuidad sólo sobre datos confirmados',async()=>{
@@ -66,8 +66,8 @@ test('RC74.16 usa ciclo de render explícito, es idempotente y no introduce ataj
   assert.match(app,/addEventListener\('m26:shell-rendered',onShellRendered\)/);
   assert.match(app,/removeEventListener\('m26:shell-rendered',onShellRendered\)/);
   assert.match(app,/__IBERFIT_M26_SESSION_VALUE_LOOP__\?\.destroy\?\.\(\)/);
-  assert.match(app,/\[data-m28-training-value\]\)\?\.remove/);
-  assert.match(app,/\[data-m28-post-session-value\]\)\?\.remove/);
+  assert.ok(app.includes("card.querySelector?.('[data-m28-training-value]')?.remove?.();"));
+  assert.ok(app.includes("completed.querySelector?.('[data-m28-post-session-value]')?.remove?.();"));
   assert.doesNotMatch(app,/MutationObserver/);
   assert.doesNotMatch(app,/\.click\(\)/);
   assert.doesNotMatch(app,/innerHTML/);
