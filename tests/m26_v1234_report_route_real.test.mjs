@@ -57,7 +57,10 @@ test('el renderizador primario usa CSS same-origin permitido por CSP y bloquea i
   const page=read('src/m26/workflows/iri-report-page.js');
   assert.match(source,/openWindow\('about:blank','_blank'\)/);
   assert.match(source,/directIriReportHtml/);
-  assert.match(source,/document\.write/);
+  assert.doesNotMatch(source,/document\.write\s*\(/);
+  assert.match(source,/parseFromString\(String\(html\|\|''\),'text\/html'\)/);
+  assert.match(source,/doc\.importNode\(parsed\.documentElement,true\)/);
+  assert.match(source,/doc\.replaceChild\(imported,doc\.documentElement\)/);
   assert.match(source,/data-iri-report-stylesheet/);
   assert.match(source,/reportLayoutReady/);
   assert.match(source,/fitReportPages/);
