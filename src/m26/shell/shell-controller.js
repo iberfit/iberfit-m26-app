@@ -7,6 +7,7 @@ import {updateIberfitExperiencePreference} from '../ui/preferences.js';
 import {enhanceNativeWorkspace,openNativeAdminIntake} from '../ui/native-workspace.js';
 import {enhanceCliente360} from '../ui/client-360.js';
 import {enhanceProgressContinuity} from '../ui/progress-continuity.js';
+import {enhanceSessionReadiness} from '../ui/session-readiness.js';
 
 export function resolveAdaptiveLayout({width = 1440,coarsePointer = false,touchPoints = 0} = {}) {
   const viewportWidth = Number(width);
@@ -61,6 +62,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     enhanceNativeWorkspace({root,viewModel});
     enhanceCliente360({root,viewModel,state});
     enhanceProgressContinuity({root,viewModel,state});
+    enhanceSessionReadiness({root,viewModel,state});
     clearClientSwitchBusy();
     root.dispatchEvent(new CustomEvent('m26:shell-rendered',{bubbles:false,detail:{role:viewModel.identity?.role||'',area:viewModel.activeArea||''}}));
     return true;
