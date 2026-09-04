@@ -156,3 +156,96 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 @media print{
   .m26-rc62-agenda-calendar-panel{display:none!important}
 }
+
+/* IBERFIT M27 · Signature Session Experience */
+.m26-session-experience{
+  display:grid;
+  gap:.78rem;
+  padding:.92rem 1rem;
+  border:1px solid rgba(228,205,152,.13);
+  border-radius:.95rem;
+  background:rgba(4,17,12,.42);
+}
+.m26-session-experience__copy{display:grid;gap:.24rem;min-width:0}
+.m26-session-experience__eyebrow{
+  margin:0;
+  color:var(--m26-gold-300);
+  font-size:.72rem;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.m26-session-experience h4{
+  margin:0;
+  color:var(--m26-cream-100);
+  font-size:clamp(1rem,1.5vw,1.16rem);
+  line-height:1.25;
+}
+.m26-session-experience__copy>p:not(.m26-session-experience__eyebrow):not(.m26-session-experience__role-note){
+  margin:.1rem 0 0;
+  max-width:72ch;
+  color:var(--m26-muted);
+  line-height:1.5;
+}
+.m26-session-experience__role-note{
+  margin:.25rem 0 0;
+  color:var(--m26-cream-300);
+  font-size:.78rem;
+}
+.m26-session-experience__capabilities{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.42rem;
+}
+.m26-session-experience__capability{
+  display:inline-flex;
+  align-items:center;
+  min-height:30px;
+  padding:.3rem .56rem;
+  border:1px solid rgba(228,205,152,.14);
+  border-radius:999px;
+  color:var(--m26-cream-300);
+  background:rgba(228,205,152,.045);
+  font-size:.75rem;
+  font-weight:700;
+  white-space:nowrap;
+}
+[data-session-experience="presencial_coach_led"]{border-color:rgba(139,199,162,.23)}
+[data-session-experience="hybrid_coach_led"],
+[data-session-experience="hybrid_autonomous"],
+[data-session-experience="hybrid_live_online"]{border-color:rgba(200,166,93,.25)}
+[data-session-experience="online_autonomous"],
+[data-session-experience="online_live_coach"]{border-color:rgba(180,194,230,.23)}
+.m26-live-workout-action{min-height:50px;font-weight:800}
+.m26-session-supervised-state{
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:.65rem .85rem;
+  border:1px solid rgba(139,199,162,.2);
+  border-radius:.75rem;
+  color:var(--m26-cream-300);
+  background:rgba(139,199,162,.06);
+  font-size:.82rem;
+  font-weight:750;
+}
+@media (min-width:900px){
+  .m26-session-experience{
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;
+  }
+  .m26-session-experience__capabilities{justify-content:flex-end;max-width:27rem}
+}
+@media (max-width:719px){
+  .m26-session-experience{padding:.82rem}
+  .m26-session-experience__capabilities{overflow-x:auto;flex-wrap:nowrap;padding-bottom:.08rem;scrollbar-width:none}
+  .m26-session-experience__capabilities::-webkit-scrollbar{display:none}
+  .m26-live-workout-action{min-height:56px}
+}
+@media (prefers-reduced-motion:reduce){
+  .m26-session-experience,.m26-live-workout-action{scroll-behavior:auto}
+}
+@media print{
+  .m26-session-experience{background:transparent;box-shadow:none}
+}
