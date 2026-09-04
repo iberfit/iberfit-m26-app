@@ -82,6 +82,13 @@ function ensureAdaptiveLayoutStyle(){
   return link;
 }
 
+async function installClientAccess(app){
+  globalThis.__IBERFIT_M26_APP__=app;
+  const {installClientAccessRuntime}=await import('/src/m26/ui/client-access-runtime.js');
+  globalThis.__IBERFIT_M26_CLIENT_ACCESS_STOP__?.();
+  globalThis.__IBERFIT_M26_CLIENT_ACCESS_STOP__=installClientAccessRuntime({root});
+}
+
 async function loadFullApplication(){
   if(fullAppPromise)return fullAppPromise;
 
@@ -91,7 +98,7 @@ async function loadFullApplication(){
     const {createM26Application}=await import('/src/m26/app/application.js');
     const app=await createM26Application();
     await app.mount();
-    globalThis.__IBERFIT_M26_APP__=app;
+    await installClientAccess(app);
     return app;
   })();
 
