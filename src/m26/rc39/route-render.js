@@ -1,6 +1,5 @@
 import {appointmentCalendarEvent,googleCalendarUrl} from './calendar.js';
-import {resolveSessionExperience} from '../domain/session-experience.js';
-import {clientModalityLabel,normalizeClientModality} from '../domain/modality.js';
+import {clientModalityLabel,normalizeClientModality,resolveSessionExperience} from '../domain/modality.js';
 
 const escape=(value)=>String(value??'')
   .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
