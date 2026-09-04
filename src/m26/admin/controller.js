@@ -2,6 +2,7 @@ const toast=(message)=>{try{globalThis.dispatchEvent(new CustomEvent('m26:toast'
 const text=(data,key,max=4000)=>String(data.get(key)||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);
 const rev=(data)=>{const n=Number(data.get('baseRevision')||0);return Number.isInteger(n)&&n>=0?n:0;};
 function json(value){const raw=String(value||'').trim();if(!raw)return {};const parsed=JSON.parse(raw);if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('M26_ADMIN_CONFIGURATION_JSON_INVALID');return parsed;}
+function adminError(error){const value=String(error?.message||error||'');if(/ONLINE_REQUIRED/.test(value))return 'Esta operación administrativa requiere conexión.';if(/IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED/.test(value))return 'Confirma tu identidad con la verificación segura de IBERFIT antes de continuar.';if(/IBERFIT_CLIENT_DELETE_PROTECTED_HISTORY/.test(value))return 'Este cliente conserva registros protegidos que IBERFIT no puede eliminar. El expediente permanece intacto.';if(/IBERFIT_CLIENT_DELETE_UNMANAGED_REFERENCE/.test(value))return 'IBERFIT detectó información vinculada que todavía no tiene una política de eliminación segura. No se ha borrado nada.';if(/IBERFIT_CLIENT_DELETE_CONFIRMATION_INVALID/.test(value))return 'La confirmación no coincide con el cliente. Revisa el correo o nombre y escribe ELIMINAR.';if(/IBERFIT_CLIENT_DELETE_NOT_FOUND|V65E_CLIENT_SCOPE/.test(value))return 'El cliente no existe o no pertenece a esta organización.';return 'No fue posible confirmar el cambio.';}
 export function createAdminController({root,store,service,render=()=>{}}={}){
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_ADMIN_CONTROLLER_CONTEXT_REQUIRED');
   let busy=false;
@@ -14,7 +15,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       render();
       return true;
     }catch(error){
-      toast(/ONLINE_REQUIRED/.test(String(error?.message||error))?'Esta operación administrativa requiere conexión.':'No fue posible confirmar el cambio.');
+      toast(adminError(error));
       return false;
     }finally{
       busy=false;
@@ -34,6 +35,14 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     if(kind==='lead-create')return execute({type:'ADMIN_LEAD_CREAR',entityId:org,organizationId:org,payload:{name:text(data,'name',200),email:text(data,'email',254),phone:text(data,'phone',80),source:text(data,'source',120),objective:text(data,'objective',1000)}},'Lead registrado.');
     if(kind==='lead-update')return execute({type:'ADMIN_LEAD_ACTUALIZAR',entityId:text(data,'leadId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{leadId:text(data,'leadId',200),status:text(data,'status',40),nextActionAt:text(data,'nextActionAt',80)}},'Lead actualizado.');
     if(kind==='client-lifecycle')return execute({type:'ADMIN_CLIENTE_CAMBIAR_CICLO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),status:text(data,'status',40)}},'Ciclo actualizado.');
+    if(kind==='client-delete'){
+      const clientId=text(data,'clientId',200);
+      const confirmValue=text(data,'confirmValue',254);
+      const confirmPhrase=text(data,'confirmPhrase',20).toUpperCase();
+      const reason=text(data,'reason',500);
+      if(text(data,'confirmAcknowledged',20)!=='yes'||confirmPhrase!=='ELIMINAR'||reason.length<8){toast('Completa la confirmación de eliminación y explica el motivo antes de continuar.');return false;}
+      return execute({type:'ADMIN_CLIENTE_ELIMINAR',entityId:clientId,organizationId:org,reason,payload:{clientId,confirmClientId:clientId,confirmValue,confirmPhrase}},'Cliente eliminado de forma permanente.');
+    }
     if(kind==='task-create')return execute({type:'ADMIN_TAREA_CREAR',entityId:org,organizationId:org,payload:{priority:text(data,'priority',30),taskType:text(data,'taskType',80),title:text(data,'title',200),detail:text(data,'detail',2000)}},'Tarea creada.');
     if(kind==='task-resolve')return execute({type:'ADMIN_TAREA_RESOLVER',entityId:text(data,'taskId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{taskId:text(data,'taskId',200)}},'Tarea resuelta.');
     if(kind==='template-save'){const key=text(data,'key',80);return execute({type:'ADMIN_PLANTILLA_GUARDAR',entityId:key,organizationId:org,payload:{key,name:text(data,'name',160),channel:text(data,'channel',30),subject:text(data,'subject',200),body:text(data,'body',4000)}},'Plantilla guardada.');}
