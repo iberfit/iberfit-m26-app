@@ -9,7 +9,12 @@ on:
       - '.github/workflows/continuous-app-audit.yml'
   push:
     branches:
-      - prep/final-production-rc74-4
+      - canary/rc74-4
+    paths:
+      - 'src/m26/**'
+      - 'scripts/audit/**'
+      - 'tests/**'
+      - '.github/workflows/continuous-app-audit.yml'
   workflow_dispatch:
   schedule:
     - cron: '17 */6 * * *'
@@ -25,7 +30,7 @@ jobs:
   audit-read-only:
     name: audit-read-only
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
       - name: Descargar repositorio
@@ -38,6 +43,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
 
       - name: Preparar carpeta de evidencia
         run: mkdir -p recovery/continuous-audit
@@ -57,10 +63,18 @@ jobs:
             tests/m26_rc40_admin_complete.test.mjs \
             tests/m26_rc71_2_preferences_i18n.test.mjs
 
+      - name: Auditar registro de acciones
+        run: node scripts/audit/action_registry_audit.mjs
+
       - name: Ejecutar auditoría integral read-only
         env:
           M26_AUDIT_APP_URL: https://app.iberfit.cl
         run: node scripts/audit/continuous_app_audit.mjs
+
+      - name: Ejecutar auditoría profunda de producto
+        env:
+          M26_AUDIT_APP_URL: https://app.iberfit.cl
+        run: node scripts/audit/deep_product_audit.mjs
 
       - name: Conservar informe de auditoría
         if: always()
