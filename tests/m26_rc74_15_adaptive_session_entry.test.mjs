@@ -249,7 +249,7 @@ test('contrato RC74.15 conserva política única, recuperación y ausencia de at
   assert.doesNotMatch(intent,/localStorage|sessionStorage|service[_-]?role/i);
   assert.match(shell,/revalidatePendingSessionEntry/);
   assert.match(shell,/revalidatePendingSessionEntry[\s\S]*m26:shell-rendered/);
-  assert.match(controller,/status\|\|'\)\.trim\(\)\.toLowerCase\(\)!=='ready'/);
+  assert.match(controller,/String\(execution\.status\|\|''\)\.trim\(\)\.toLowerCase\(\)!=='ready'/);
   assert.match(controller,/pending\.decision\?\.directStartAllowed!==true/);
   assert.match(controller,/sessionController|createSessionController|start\(\)/);
   assert.doesNotMatch(controller,/MutationObserver/);
