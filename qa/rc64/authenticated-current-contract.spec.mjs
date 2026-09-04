@@ -189,8 +189,9 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         ).toHaveCount(1,{timeout:25_000});
         await expect(shell).toBeVisible({timeout:5_000});
         await expect(
-          page.getByRole('button',{name:'Cerrar sesión',exact:true}),
-        ).toBeVisible({timeout:5_000});
+          page.locator('[data-m26-action="logout"]'),
+          'Authenticated client must retain a semantic logout action even when session controls live inside Settings',
+        ).toHaveCount(1,{timeout:5_000});
       }
 
       const quality=await page.evaluate(async()=>{
