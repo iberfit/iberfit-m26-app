@@ -36,6 +36,7 @@ function clientRows(state){
     return Object.freeze({
       id,
       name:String(x.name||x.nombre||'Cliente'),
+      email:String(x.email||'').trim(),
       status:String(x.status||''),
       modality:String(x.modality||x.modalidad||''),
       lifecycle:clone(life.get(id)||null),
