@@ -1,0 +1,68 @@
+name: IBERFIT M26 Fast Lane
+
+on:
+  pull_request:
+    branches:
+      - canary/rc74-4
+    paths:
+      - 'src/m26/**'
+      - 'public/m26/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m26-fast-lane-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  targeted-preflight:
+    name: targeted-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Resolver base exacta
+        id: base
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch --no-tags origin "${{ github.base_ref }}"
+            echo "ref=origin/${{ github.base_ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=HEAD^" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fast Lane · tests afectados + PWA contract
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/fast_lane_affected_tests.mjs \
+            --base "${{ steps.base.outputs.ref }}" \
+            --head HEAD 2>&1 | tee fast-lane.log
+
+      - name: Conservar diagnóstico Fast Lane
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-fast-lane-${{ github.run_id }}
+          path: |
+            fast-lane.log
+            recovery/fast-lane/summary.json
+          if-no-files-found: warn
+          retention-days: 14
