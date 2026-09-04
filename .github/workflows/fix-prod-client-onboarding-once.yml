@@ -1,0 +1,48 @@
+name: IBERFIT One-shot Production Onboarding Fix
+
+on:
+  push:
+    branches:
+      - fix/prod-client-onboarding-v12
+    paths:
+      - '.github/workflows/fix-prod-client-onboarding-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/prod-client-onboarding-v12
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Remove obsolete canary-only frontend guards
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/m26/supabase-transport.js')
+          text = path.read_text(encoding='utf-8')
+          needle = "    if (!runtime.canary && !runtime.qaOnly) throw new Error('M26_CLIENT_CREATE_CANARY_ONLY');\n"
+          count = text.count(needle)
+          if count != 2:
+              raise SystemExit(f'expected exactly 2 obsolete guards, found {count}')
+          path.write_text(text.replace(needle, ''), encoding='utf-8')
+          PY
+      - name: Run focused safety tests
+        run: node --test tests/m26_prod_client_onboarding_transport.test.mjs tests/m26_final_launch_p0_legacy_client_create_exec.test.mjs
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name 'iberfit'
+          git config user.email 'iberfit.cl@gmail.com'
+          git add src/m26/supabase-transport.js
+          git diff --cached --check
+          git commit -m 'fix: allow canonical V12 client onboarding in production'
+          git push origin HEAD:fix/prod-client-onboarding-v12
