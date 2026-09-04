@@ -91,15 +91,26 @@ begin
     raise exception 'IBERFIT_CLIENT_DELETE_CONFIRMATION_INVALID' using errcode='22023';
   end if;
 
-  select c.name, nullif(lower(btrim(c.email)),'')
-    into v_client_name, v_client_email
+  -- clients no contiene organization_id ni email. El ámbito se resuelve con el
+  -- mismo contrato organizacional del wrapper y el correo desde client_access_v26.
+  perform public.iberfit_assert_client_org_scope_v65e(v_org,v_client_id::text);
+
+  select c.name
+    into v_client_name
   from public.clients c
-  where c.id=v_client_id and c.organization_id=v_org
+  where c.id=v_client_id
   for update;
 
   if not found then
     raise exception 'IBERFIT_CLIENT_DELETE_NOT_FOUND' using errcode='P0002';
   end if;
+
+  select nullif(lower(btrim(ca.email)),''), ca.auth_user_id
+    into v_client_email, v_auth_user_id
+  from public.client_access_v26 ca
+  where ca.client_id=v_client_id
+  order by ca.updated_at desc nulls last, ca.created_at desc
+  limit 1;
 
   v_expected := coalesce(v_client_email, btrim(v_client_name));
   if v_client_email is not null then
@@ -168,13 +179,6 @@ begin
     end if;
   end loop;
 
-  -- Captura el vínculo Auth antes de que client_access_v26 sea eliminado por CASCADE.
-  select ca.auth_user_id into v_auth_user_id
-  from public.client_access_v26 ca
-  where ca.client_id=v_client_id
-  order by ca.updated_at desc nulls last
-  limit 1;
-
   -- Purga explícita de referencias históricas sin FK directa. Se usan sólo tablas conocidas.
   foreach v_table in array v_cleanup_tables loop
     if to_regclass(format('public.%I',v_table)) is not null
@@ -198,7 +202,7 @@ begin
   end if;
 
   delete from public.clients
-  where id=v_client_id and organization_id=v_org;
+  where id=v_client_id;
   if not found then
     raise exception 'IBERFIT_CLIENT_DELETE_RACE' using errcode='40001';
   end if;
