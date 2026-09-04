@@ -5,6 +5,7 @@ import {renderAdminRoute} from '../src/m26/admin/route-render.js';
 import {M26_ADMIN_COMMAND_TYPES} from '../src/m26/admin/command-catalog.js';
 
 const migration=fs.readFileSync('supabase/migrations/20260904164000_admin_client_delete_v26.sql','utf8');
+const alignment=fs.readFileSync('supabase/migrations/20260904183000_admin_client_delete_v26_model_alignment.sql','utf8');
 const controller=fs.readFileSync('src/m26/admin/controller.js','utf8');
 const viewModel=fs.readFileSync('src/m26/admin/view-model.js','utf8');
 const templatePaths=[
@@ -50,16 +51,24 @@ test('el backend de borrado permanece fail-closed, auditado e idempotente',()=>{
   for(const contract of [
     'iberfit_require_privileged_assurance_v65d',
     'iberfit_admin_require_v14',
+    'iberfit_assert_client_org_scope_v65e',
     'IBERFIT_CLIENT_DELETE_PROTECTED_HISTORY',
     'IBERFIT_CLIENT_DELETE_UNMANAGED_REFERENCE',
     'iberfit_admin_mutation_receipts',
     'iberfit_admin_audit_events',
-    "confirmPhrase",
-    "ELIMINAR",
+    'confirmPhrase',
+    'ELIMINAR',
   ])assert.match(migration,new RegExp(contract,'u'));
-  assert.match(migration,/organization_id=v_org/u);
-  assert.match(migration,/revoke all on function public\.iberfit_admin_delete_client_v26\(jsonb,jsonb\) from public, anon, authenticated/u);
+  assert.match(migration,/from public\.client_access_v26 ca/u);
+  assert.match(migration,/delete from public\.clients\s+where id=v_client_id/u);
+  assert.doesNotMatch(migration,/c\.organization_id/u);
+  assert.doesNotMatch(migration,/c\.email/u);
   assert.doesNotMatch(migration,/delete\s+from\s+auth\.users/iu);
+  assert.match(alignment,/from public\.client_access_v26 ca/u);
+  assert.match(alignment,/iberfit_assert_client_org_scope_v65e/u);
+  assert.doesNotMatch(alignment,/c\.organization_id/u);
+  assert.doesNotMatch(alignment,/delete\s+from\s+auth\.users/iu);
+  assert.match(migration,/revoke all on function public\.iberfit_admin_delete_client_v26\(jsonb,jsonb\) from public, anon, authenticated/u);
 });
 
 test('la familia de correos usa la marca real y no expone tokens ni Supabase al cliente',()=>{
