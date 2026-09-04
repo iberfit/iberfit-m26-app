@@ -17,8 +17,8 @@ test('dock móvil actúa como proxy y no duplica la lógica de entrenamiento',as
   const ui=await readFile(new URL('../src/m26/ui/session-readiness.js',import.meta.url),'utf8');
   assert.match(ui,/data-session-focus-proxy/);
   assert.match(ui,/target\.click\?\.\(\)/);
-  assert.match(ui,/data-session-action=\\"complete-set\\"/);
-  assert.match(ui,/data-session-action=\\"next\\"/);
+  assert.match(ui,/data-session-action="complete-set"/);
+  assert.match(ui,/data-session-action="next"/);
   assert.match(ui,/@media \(max-width:760px\)/);
   assert.match(ui,/safe-area-inset-bottom/);
   assert.doesNotMatch(ui,/MutationObserver/);
