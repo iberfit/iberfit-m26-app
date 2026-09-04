@@ -1,0 +1,50 @@
+name: IBERFIT Hosted Auth Email Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Escribe SYNC_IBERFIT_AUTH_EMAILS_PROD para publicar las plantillas Hosted Auth en PROD'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-hosted-auth-email-prod
+  cancel-in-progress: false
+
+env:
+  SUPABASE_PROJECT_REF: 'pjhmrhejsoofmouedavw'
+  IBERFIT_AUTH_EMAIL_CONFIRMATION: ${{ inputs.confirmation }}
+
+jobs:
+  sync-hosted-auth-emails:
+    name: sync-hosted-auth-emails-fail-closed
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate all IBERFIT email templates locally
+        run: node scripts/auth/sync-hosted-auth-emails.mjs --check
+
+      - name: Require exact production confirmation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$IBERFIT_AUTH_EMAIL_CONFIRMATION" = 'SYNC_IBERFIT_AUTH_EMAILS_PROD'
+
+      - name: Publish and verify Hosted Auth templates
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/auth/sync-hosted-auth-emails.mjs --sync
