@@ -80,7 +80,6 @@ test('persistencia crítica verifica IRI, ciclo, sesión y nota antes de anuncia
 });
 
 
-
 test('sesión guarda cambios por botón y bloquea la salida hasta completar la persistencia',async()=>{
   const listeners=new Map();
   const root={
@@ -225,12 +224,17 @@ test('informe directo ajusta cada página a A4, verifica la maquetación y solo 
     '[data-iri-report-close]':closeButton,
     '[data-iri-report-status]':status,
   };
+  class Parser{parseFromString(html,type){assert.equal(type,'text/html');return {documentElement:{html}};}}
+  const originalDocumentElement={dataset:{}};
   const popup={
     document:{
-      documentElement:{dataset:{}},fonts:{ready:Promise.resolve()},images:[],open:()=>{},write:(html)=>{written=html;},close:()=>{},
+      documentElement:originalDocumentElement,fonts:{ready:Promise.resolve()},images:[],
+      importNode(node,deep){assert.equal(deep,true);written=node.html;return {...node,dataset:originalDocumentElement.dataset};},
+      replaceChild(next,current){assert.equal(current,originalDocumentElement);this.documentElement=next;},
       querySelector:(selector)=>controls[selector]||null,
       querySelectorAll:(selector)=>selector==='.pdf-page'?[reportPage]:[],
     },
+    DOMParser:Parser,
     getComputedStyle:()=>({position:'relative',width:'793.7px',height:'1122.5px'}),
     requestAnimationFrame:(callback)=>callback(),
     print:()=>{printed++;},close:()=>{closed++;},focus:()=>{focused++;},
@@ -244,7 +248,7 @@ test('informe directo ajusta cada página a A4, verifica la maquetación y solo 
   assert.equal(printButton.disabled,false);assert.match(status.textContent,/Informe A4 listo/);assert.match(status.textContent,/Encabezados y pies de página/);
   await listeners.print();listeners.close();assert.equal(printed,1);assert.equal(closed,1);assert.ok(focused>=2);
   const source=read('src/m26/workflows/iri-report-document.js');const css=read('public/m26/iri-report.css');
-  assert.match(source,/openWindow\('about:blank','_blank'\)/);assert.match(source,/document\.write/);assert.match(source,/fitReportPages/);assert.match(source,/reportPageContentFits/);assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
+  assert.match(source,/openWindow\('about:blank','_blank'\)/);assert.doesNotMatch(source,/document\.write\s*\(/);assert.match(source,/parseFromString\(String\(html\|\|''\),'text\/html'\)/);assert.match(source,/doc\.importNode\(parsed\.documentElement,true\)/);assert.match(source,/doc\.replaceChild\(imported,doc\.documentElement\)/);assert.match(source,/fitReportPages/);assert.match(source,/reportPageContentFits/);assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
   assert.match(css,/\.report-page-content/);assert.match(css,/iri-report-fit-82/);assert.match(css,/\.iri-report-toolbar/);
 });
 
