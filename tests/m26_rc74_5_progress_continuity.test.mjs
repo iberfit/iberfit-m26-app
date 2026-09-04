@@ -113,7 +113,7 @@ test('inicio cliente eleva comunicaciones pendientes y Dispositivos solo cuando 
   assert.equal(hidden.device,null);
 });
 
-test('inicio cliente abre directamente una sesión confirmada y vinculada del mismo día en Chile',()=>{
+test('inicio cliente exige revisión para una sesión vinculada cuando existe contexto confirmado de atención',()=>{
   const ready=structuredClone(state());
   ready.collections.appointments.push({
     id:'a-today',
@@ -130,10 +130,12 @@ test('inicio cliente abre directamente una sesión confirmada y vinculada del mi
   assert.ok(snapshot.todayTraining);
   assert.equal(snapshot.todayTraining.ready,true);
   assert.equal(snapshot.todayTraining.area,'sesion');
-  assert.equal(snapshot.todayTraining.actionLabel,'Abrir entrenamiento');
+  assert.equal(snapshot.todayTraining.workflowAction,'start-published-session');
+  assert.equal(snapshot.todayTraining.actionLabel,'Revisar antes de entrenar');
+  assert.equal(snapshot.todayTraining.entry?.directStartAllowed,false);
   assert.equal(snapshot.todayTraining.appointment.sessionId,'s-today');
   assert.match(snapshot.todayTraining.title,/Entrenamiento listo para hoy/i);
-  assert.match(snapshot.todayTraining.copy,/sesión vinculada está lista/i);
+  assert.match(snapshot.todayTraining.copy,/Antes de empezar revisaremos tu contexto de hoy/i);
 
   ready.collections.appointments.at(-1).sessionId=null;
   const notPublished=buildClientHomeSnapshot(ready,clientId,{now});
@@ -169,8 +171,9 @@ test('la señal post-sesión exige decisión del Entrenador y nunca prescribe au
 });
 
 test('la capa premium de continuidad es idempotente, española y no introduce observers ni privilegios',async()=>{
-  const [ui,shell]=await Promise.all([
+  const [ui,entryPolicy,shell]=await Promise.all([
     readFile(new URL('../src/m26/ui/progress-continuity.js',import.meta.url),'utf8'),
+    readFile(new URL('../src/m26/intelligence/session-entry-policy.js',import.meta.url),'utf8'),
     readFile(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8'),
   ]);
   assert.match(ui,/Constancia de entrenamiento en 7, 28 y 90 días/);
@@ -179,7 +182,8 @@ test('la capa premium de continuidad es idempotente, española y no introduce ob
   assert.match(ui,/Tu día IBERFIT/);
   assert.match(ui,/Próximo entrenamiento/);
   assert.match(ui,/Entrenamiento de hoy/);
-  assert.match(ui,/Abrir entrenamiento/);
+  assert.match(entryPolicy,/Iniciar entrenamiento/);
+  assert.match(entryPolicy,/Revisar antes de entrenar/);
   assert.match(ui,/Constancia · 28 días/);
   assert.match(ui,/Cómo estás/);
   assert.match(ui,/Comunicación/);

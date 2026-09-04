@@ -69,13 +69,15 @@ test('RC19 debilita escrituras repetidas con autosave debounce y mount idempoten
   const draft=createSessionDraft({clientId:'client-qa'});let saves=0;
   const context={draft,autosaveDraft:async()=>{saves++;}};
   const controller=createSessionController({root,getContext:()=>context,autosaveDelayMs:50});
-  controller.mount();controller.mount();
-  assert.equal(adds.get('click'),1);assert.equal(adds.get('input'),1);
+  controller.mount();
+  assert.equal(adds.get('click'),2);assert.equal(adds.get('input'),1);assert.equal(adds.get('m26:shell-rendered'),1);
+  controller.mount();
+  assert.equal(adds.get('click'),2);assert.equal(adds.get('input'),1);assert.equal(adds.get('m26:shell-rendered'),1);
   const target={value:'Sesión A',closest(selector){return selector==='[data-session-draft-field]'?this:null;},getAttribute(name){return name==='data-session-draft-field'?'title':null;}};
   listeners.get('input')({target});target.value='Sesión AB';listeners.get('input')({target});target.value='Sesión ABC';listeners.get('input')({target});
   await sleep(90);assert.equal(saves,1);assert.equal(draft.title,'Sesión ABC');
   target.value='Sesión final';listeners.get('input')({target});await controller.flushAutosave(context);assert.equal(saves,2);assert.equal(draft.title,'Sesión final');
-  controller.destroy();assert.equal(removes.get('click'),1);assert.equal(removes.get('input'),1);
+  controller.destroy();assert.equal(removes.get('click'),2);assert.equal(removes.get('input'),1);assert.equal(removes.get('m26:shell-rendered'),1);
 });
 
 

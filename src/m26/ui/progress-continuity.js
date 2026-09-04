@@ -5,6 +5,8 @@ import {recordsForClient,upcomingAppointments} from '../modules/domain-selectors
 import {isClientVisibleAppointment,normalizeAppointmentRecord} from '../domain/appointment.js';
 import {civilDateInTimeZone,formatIberfitDate} from '../domain/civil-date.js';
 import {buildWearableViewModel} from '../wearables/view-model.js';
+import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
+import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js';
 
 const STYLE_ID='m27-progress-continuity-styles';
 
@@ -107,14 +109,25 @@ function trainingTodaySnapshot(state,clientId,{now=new Date()}={}){
   const appointment=candidates.find((item)=>item.sessionId)||candidates[0]||null;
   if(!appointment)return null;
   const ready=Boolean(appointment.sessionId);
+  const entry=ready
+    ?buildSessionEntryDecision(buildAdaptiveSessionContext(state,clientId,{now}))
+    :null;
   const date=formatIberfitDate(appointment.startAt,{locale:'es-CL',includeTime:true})||'Hoy';
+  const readinessCopy=ready
+    ?entry?.directStartAllowed
+      ?' · La sesión vinculada está lista para empezar desde IBERFIT.'
+      :' · Antes de empezar revisaremos tu contexto de hoy; el plan no se modifica automáticamente.'
+    :'';
   return Object.freeze({
     appointment,
     ready,
+    sessionId:ready?String(appointment.sessionId||''):null,
     area:ready?'sesion':'agenda',
-    actionLabel:ready?'Abrir entrenamiento':'Ver agenda',
+    workflowAction:ready?'start-published-session':null,
+    actionLabel:ready?(entry?.actionLabel||'Revisar antes de entrenar'):'Ver agenda',
     title:ready?'Entrenamiento listo para hoy':'Sesión confirmada para hoy',
-    copy:`${date} · ${appointmentDetail(appointment)}${ready?' · La sesión vinculada está lista para abrir desde IBERFIT.':''}`,
+    copy:`${date} · ${appointmentDetail(appointment)}${readinessCopy}`,
+    entry,
   });
 }
 
@@ -270,6 +283,16 @@ function createAreaButton(document,label,area){
   return button;
 }
 
+function createTrainingButton(document,snapshot){
+  if(!snapshot?.workflowAction)return createAreaButton(document,snapshot?.actionLabel||'Ver agenda',snapshot?.area||'agenda');
+  const button=create(document,'button','',snapshot.actionLabel||'Revisar antes de entrenar');
+  button.type='button';
+  button.setAttribute('data-workflow-action',snapshot.workflowAction);
+  button.setAttribute('data-entity-id',String(snapshot.sessionId||''));
+  button.setAttribute('data-session-entry-level',String(snapshot.entry?.level||'unknown'));
+  return button;
+}
+
 function buildClientHomeSection(document,snapshot){
   const section=create(document,'section','m27-client-home');
   section.setAttribute('data-m27-client-home','true');
@@ -299,11 +322,7 @@ function buildClientHomeSection(document,snapshot){
         ?formatIberfitDate(appointment.startAt,{locale:'es-CL',includeTime:true})||'Cita confirmada'
         :'Por confirmar'),
     create(document,'small','',todayTraining?.copy||appointmentDetail(appointment)),
-    createAreaButton(
-      document,
-      todayTraining?.actionLabel||'Ver agenda',
-      todayTraining?.area||'agenda',
-    ),
+    createTrainingButton(document,todayTraining||{actionLabel:'Ver agenda',area:'agenda'}),
   );
 
   const constancy=snapshot.constancy;

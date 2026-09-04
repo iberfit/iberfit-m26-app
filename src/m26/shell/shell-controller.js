@@ -8,6 +8,9 @@ import {enhanceNativeWorkspace,openNativeAdminIntake} from '../ui/native-workspa
 import {enhanceCliente360} from '../ui/client-360.js';
 import {enhanceProgressContinuity} from '../ui/progress-continuity.js';
 import {enhanceSessionReadiness,enhanceSessionFocus,teardownSessionFocus} from '../ui/session-readiness.js';
+import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
+import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js';
+import {revalidatePendingSessionEntry} from '../intelligence/session-entry-intent.js';
 
 export function resolveAdaptiveLayout({width = 1440,coarsePointer = false,touchPoints = 0} = {}) {
   const viewportWidth = Number(width);
@@ -64,6 +67,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     enhanceProgressContinuity({root,viewModel,state});
     enhanceSessionReadiness({root,viewModel,state});
     enhanceSessionFocus({root,viewModel});
+    revalidatePendingSessionEntry(root,{state,now:new Date(),buildContext:buildAdaptiveSessionContext,buildDecision:buildSessionEntryDecision});
     clearClientSwitchBusy();
     root.dispatchEvent(new CustomEvent('m26:shell-rendered',{bubbles:false,detail:{role:viewModel.identity?.role||'',area:viewModel.activeArea||''}}));
     return true;
