@@ -5,6 +5,7 @@ import {setIberfitLanguage} from '../ui/i18n.js';
 import {setIberfitUiLocale} from '../ui/castellano.js';
 import {updateIberfitExperiencePreference} from '../ui/preferences.js';
 import {enhanceNativeWorkspace,openNativeAdminIntake} from '../ui/native-workspace.js';
+import {enhanceCliente360} from '../ui/client-360.js';
 
 export function resolveAdaptiveLayout({width = 1440,coarsePointer = false,touchPoints = 0} = {}) {
   const viewportWidth = Number(width);
@@ -57,6 +58,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     lastMarkup=markup;
     syncAdaptiveLayout();
     enhanceNativeWorkspace({root,viewModel});
+    enhanceCliente360({root,viewModel,state});
     clearClientSwitchBusy();
     root.dispatchEvent(new CustomEvent('m26:shell-rendered',{bubbles:false,detail:{role:viewModel.identity?.role||'',area:viewModel.activeArea||''}}));
     return true;
