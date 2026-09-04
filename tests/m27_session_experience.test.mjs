@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {M27_SESSION_EXPERIENCE_VERSION,resolveSessionExperience} from '../src/m26/domain/session-experience.js';
+import {M27_SESSION_EXPERIENCE_VERSION,resolveSessionExperience} from '../src/m26/domain/modality.js';
 
 const base={role:'client',isPublished:true,hasFullContent:true};
 
