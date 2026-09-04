@@ -8,6 +8,7 @@ import {
 } from './session-execution.js';
 import { runAction } from '../ui/action-state.js';
 import { createLiveTelemetryController } from '../wearables/live-telemetry.js';
+import {setPendingSessionEntry,consumePendingSessionEntry,clearPendingSessionEntry} from '../intelligence/session-entry-intent.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function remoteRevision(result,fallback){return Number(result?.response?.remoteRevision??result?.response?.revision??result?.response?.executionRevision??fallback??0);}
@@ -175,6 +176,27 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       return false;
     }
   }
+  function captureSessionEntryIntent(event){
+    const button=event.target.closest?.('[data-workflow-action="start-published-session"][data-session-entry-level]');
+    if(!button)return;
+    const context=getContext();
+    const clientId=String(context?.actor?.clientId||'').trim();
+    const sessionId=String(button.getAttribute?.('data-entity-id')||'').trim();
+    try{setPendingSessionEntry(root,{clientId,sessionId});}
+    catch{clearPendingSessionEntry(root);}
+  }
+  async function onShellRendered(){
+    const pending=consumePendingSessionEntry(root);
+    if(!pending)return;
+    const context=getContext();
+    const execution=context?.execution;
+    const session=context?.session;
+    if(!execution||!session)return;
+    if(String(execution.clientId||'')!==pending.clientId||String(session.id||'')!==pending.sessionId)return;
+    if(String(execution.status||'').trim().toLowerCase()!=='ready')return;
+    if(pending.decision?.directStartAllowed!==true||pending.decision?.level!=='normal')return;
+    await start();
+  }
   async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='exit-session'){const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await persistContext(context);context.onExit?.();}catch(error){onError(error);render?.();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}const actionState=context.actionState;const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');
     const task=async()=>{await flushAutosave(context);if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
     if(action==='skip-set')payload.reason=root.querySelector?.('[data-session-skip-set-reason]')?.value;
@@ -195,5 +217,5 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}
     const blockField=event.target.closest?.('[data-session-block-field]');if(blockField&&context.draft){try{dispatchSessionAction({...context,action:'update-block',payload:{blockId:blockField.getAttribute('data-block-id'),exerciseId:blockField.getAttribute('data-exercise-id')||null,field:blockField.getAttribute('data-session-block-field'),value:blockField.value}});}catch(error){onError(error);}}
     if(draftField||blockField)queueAutosave(context);}
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',click);root.addEventListener('input',input);mounted=true;},destroy(){if(!mounted)return;root.removeEventListener('click',click);root.removeEventListener('input',input);mounted=false;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('m26:shell-rendered',onShellRendered);mounted=true;},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('m26:shell-rendered',onShellRendered);clearPendingSessionEntry(root);mounted=false;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
 }
