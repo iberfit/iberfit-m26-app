@@ -8,6 +8,7 @@ const COMMANDS=Object.freeze({
   ADMIN_LEAD_CREAR:{entityType:'lead',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:false},
   ADMIN_LEAD_ACTUALIZAR:{entityType:'lead',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:true},
   ADMIN_CLIENTE_CAMBIAR_CICLO:{entityType:'client_lifecycle',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:true},
+  ADMIN_CLIENTE_ELIMINAR:{entityType:'client',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:true},
   ADMIN_TAREA_CREAR:{entityType:'operational_task',capability:ADMIN_CAPABILITIES.OPERATION_MANAGE,reason:false},
   ADMIN_TAREA_RESOLVER:{entityType:'operational_task',capability:ADMIN_CAPABILITIES.OPERATION_MANAGE,reason:true},
   ADMIN_PLANTILLA_GUARDAR:{entityType:'notification_template',capability:ADMIN_CAPABILITIES.MESSAGE_MANAGE_TEMPLATES,reason:false},
