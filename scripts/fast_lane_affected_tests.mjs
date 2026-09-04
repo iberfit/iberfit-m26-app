@@ -27,6 +27,16 @@ const selected=new Set();
 const add=(...tests)=>tests.forEach((test)=>selected.add(test));
 const matches=(pattern)=>changed.some((file)=>pattern.test(file));
 
+for(const file of changed){
+  if(/^tests\/[^/]+\.test\.mjs$/u.test(file))selected.add(file);
+}
+
+if(matches(/^(?:scripts\/fast_lane_affected_tests\.mjs|\.github\/workflows\/fast-lane\.yml|docs\/IBERFIT_FAST_LANE\.md)$/u)) add(
+  'tests/m26_fast_lane_contract.test.mjs',
+);
+if(matches(/^qa\/rc64\/authenticated-current-contract\.spec\.mjs$/u)) add(
+  'tests/m26_rc75_authenticated_smoke_semantics.test.mjs',
+);
 if(matches(/^src\/m26\/shell\//u)) add(
   'tests/m26_shell_roles.test.mjs',
   'tests/m26_role_route_navigation_contract.test.mjs',
