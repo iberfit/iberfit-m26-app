@@ -58,22 +58,28 @@ function stateFor(root){
   let state=ROOT_STATE.get(root);
   if(state)return state;
   const document=root.ownerDocument;
-  state={wakeLock:null,wakeRequest:null,destroyed:false,onClick:null,onVisibility:null};
+  state={wakeLock:null,wakeRequest:null,destroyed:false,enabled:false,refreshTimer:null,onClick:null,onVisibility:null};
   state.onClick=(event)=>{
     const proxy=event.target?.closest?.('[data-session-focus-proxy]');
-    if(!proxy||!root.contains?.(proxy))return;
-    event.preventDefault?.();
-    const selector=String(proxy.dataset?.sessionFocusTarget||'').trim();
-    const live=proxy.closest?.('[data-session-live-state]');
-    const target=selector&&live?.querySelector?.(selector);
-    if(!target||target.disabled)return;
-    target.focus?.({preventScroll:true});
-    target.click?.();
+    if(proxy&&root.contains?.(proxy)){
+      event.preventDefault?.();
+      const selector=String(proxy.dataset?.sessionFocusTarget||'').trim();
+      const live=proxy.closest?.('[data-session-live-state]');
+      const target=selector&&live?.querySelector?.(selector);
+      if(target&&!target.disabled){
+        target.focus?.({preventScroll:true});
+        target.click?.();
+      }
+      scheduleRefresh(root,state);
+      return;
+    }
+    const sessionAction=event.target?.closest?.('[data-session-action]');
+    if(sessionAction&&root.contains?.(sessionAction))scheduleRefresh(root,state);
   };
   state.onVisibility=()=>{
     const live=root.querySelector?.('[data-session-live-state]');
     const liveState=String(live?.getAttribute?.('data-session-live-state')||'').trim().toLowerCase();
-    void syncWakeLock(root,ACTIVE_WAKE_STATES.has(liveState));
+    void syncWakeLock(root,state.enabled&&ACTIVE_WAKE_STATES.has(liveState));
   };
   root.addEventListener?.('click',state.onClick);
   document?.addEventListener?.('visibilitychange',state.onVisibility);
@@ -184,18 +190,14 @@ function buildDock(document,live,plan){
   return dock;
 }
 
-export function enhanceSessionFocus({root,viewModel}={}){
-  if(!root?.querySelector||!root.ownerDocument)return false;
-  const state=stateFor(root);
-  const role=String(viewModel?.identity?.role||'').trim().toLowerCase();
-  const area=String(viewModel?.activeArea||'').trim().toLowerCase();
+function refreshSessionFocusDock(root){
+  const state=ROOT_STATE.get(root);
   removeDock(root);
-  if(area!=='sesion'||!['client','coach'].includes(role)){
+  if(!state?.enabled||state.destroyed){
     void releaseWakeLock(root,state);
     return false;
   }
-
-  const live=root.querySelector('[data-session-live-state]');
+  const live=root.querySelector?.('[data-session-live-state]');
   if(!live){
     void releaseWakeLock(root,state);
     return false;
@@ -218,10 +220,34 @@ export function enhanceSessionFocus({root,viewModel}={}){
   return true;
 }
 
+function scheduleRefresh(root,state=ROOT_STATE.get(root)){
+  if(!state?.enabled||state.destroyed)return;
+  queueMicrotask(()=>refreshSessionFocusDock(root));
+  const view=root.ownerDocument?.defaultView||globalThis;
+  if(state.refreshTimer)view.clearTimeout?.(state.refreshTimer);
+  state.refreshTimer=view.setTimeout?.(()=>{
+    state.refreshTimer=null;
+    refreshSessionFocusDock(root);
+  },80)||null;
+}
+
+export function enhanceSessionFocus({root,viewModel}={}){
+  if(!root?.querySelector||!root.ownerDocument)return false;
+  const state=stateFor(root);
+  const role=String(viewModel?.identity?.role||'').trim().toLowerCase();
+  const area=String(viewModel?.activeArea||'').trim().toLowerCase();
+  state.enabled=area==='sesion'&&['client','coach'].includes(role);
+  return refreshSessionFocusDock(root);
+}
+
 export function teardownSessionFocus({root}={}){
   const state=root&&ROOT_STATE.get(root);
   if(!state)return false;
   state.destroyed=true;
+  state.enabled=false;
+  const view=root.ownerDocument?.defaultView||globalThis;
+  if(state.refreshTimer)view.clearTimeout?.(state.refreshTimer);
+  state.refreshTimer=null;
   root.removeEventListener?.('click',state.onClick);
   root.ownerDocument?.removeEventListener?.('visibilitychange',state.onVisibility);
   void releaseWakeLock(root,state);
