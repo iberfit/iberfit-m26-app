@@ -241,8 +241,8 @@ test('contrato RC74.15 conserva política única, recuperación y ausencia de at
 
   assert.match(home,/start-published-session/);
   assert.match(home,/data-session-entry-level/);
-  assert.match(home,/Iniciar entrenamiento/);
-  assert.match(home,/Revisar antes de entrenar/);
+  assert.match(policy,/Iniciar entrenamiento/);
+  assert.match(policy,/Revisar antes de entrenar/);
   assert.match(home,/no se modifica automáticamente/i);
 
   assert.doesNotMatch(policy,/pain\s*[><=]|sleep\s*[><=]|energy\s*[><=]|stress\s*[><=]/i);
