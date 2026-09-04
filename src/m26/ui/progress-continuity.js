@@ -2,8 +2,8 @@ import {buildAdherenceWindows} from '../engagement/progress-continuity.js';
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {adherenceSignal,deriveAdherenceAlerts} from '../engagement/adherence-engine.js';
 import {recordsForClient,upcomingAppointments} from '../modules/domain-selectors.js';
-import {normalizeAppointmentRecord} from '../domain/appointment.js';
-import {formatIberfitDate} from '../domain/civil-date.js';
+import {isClientVisibleAppointment,normalizeAppointmentRecord} from '../domain/appointment.js';
+import {civilDateInTimeZone,formatIberfitDate} from '../domain/civil-date.js';
 import {buildWearableViewModel} from '../wearables/view-model.js';
 
 const STYLE_ID='m27-progress-continuity-styles';
@@ -33,6 +33,7 @@ const STYLES=`
 .m27-client-home-card>small{min-height:2.9em;color:var(--m26-text-muted,#6b675f);font-size:.69rem;line-height:1.43}
 .m27-client-home-card>button{justify-self:start;margin-top:auto;padding:0;border:0;background:transparent;color:var(--m26-gold,#8f7028);font:inherit;font-size:.7rem;font-weight:800;cursor:pointer}
 .m27-client-home-card>button:hover,.m27-client-home-card>button:focus-visible{text-decoration:underline;text-underline-offset:.18rem}
+.m27-client-home-card[data-home-kind="train-now"]{border-color:rgba(216,185,111,.42);background:linear-gradient(145deg,rgba(216,185,111,.11),rgba(255,255,255,.035))}
 .m27-client-home-card[data-attention-level="critical"],.m27-client-home-card[data-home-kind="device-action"]{border-color:rgba(149,67,54,.28)}
 .m27-client-home-card[data-attention-level="warning"],.m27-client-home-card[data-home-kind="communication"]{border-color:rgba(169,133,52,.3)}
 .m27-session-feedback-premium{position:relative;overflow:hidden}
@@ -92,6 +93,29 @@ function appointmentDetail(appointment){
     .filter(Boolean)
     .filter((value,index,list)=>list.indexOf(value)===index)
     .join(' · ');
+}
+
+function trainingTodaySnapshot(state,clientId,{now=new Date()}={}){
+  const today=civilDateInTimeZone(now);
+  if(!today)return null;
+  const candidates=recordsForClient(state,'appointments',clientId)
+    .filter((record)=>isClientVisibleAppointment(record))
+    .map((record)=>normalizeAppointmentRecord(record))
+    .filter((appointment)=>appointment.status==='confirmada')
+    .filter((appointment)=>civilDateInTimeZone(appointment.startAt)===today)
+    .sort((a,b)=>(new Date(a.startAt).getTime()||0)-(new Date(b.startAt).getTime()||0));
+  const appointment=candidates.find((item)=>item.sessionId)||candidates[0]||null;
+  if(!appointment)return null;
+  const ready=Boolean(appointment.sessionId);
+  const date=formatIberfitDate(appointment.startAt,{locale:'es-CL',includeTime:true})||'Hoy';
+  return Object.freeze({
+    appointment,
+    ready,
+    area:ready?'sesion':'agenda',
+    actionLabel:ready?'Abrir entrenamiento':'Ver agenda',
+    title:ready?'Entrenamiento listo para hoy':'Sesión confirmada para hoy',
+    copy:`${date} · ${appointmentDetail(appointment)}${ready?' · La sesión vinculada está lista para abrir desde IBERFIT.':''}`,
+  });
 }
 
 function wellbeingDetail(summary){
@@ -220,6 +244,7 @@ export function buildClientHomeSnapshot(state,clientId,{now=new Date()}={}){
 
   return Object.freeze({
     clientId:id,
+    todayTraining:trainingTodaySnapshot(state,id,{now}),
     constancy,
     nextAppointment,
     wellbeing,
@@ -262,15 +287,23 @@ function buildClientHomeSection(document,snapshot){
   );
 
   const grid=create(document,'div','m27-client-home-grid');
+  const todayTraining=snapshot.todayTraining;
   const appointment=snapshot.nextAppointment;
   const appointmentCard=create(document,'article','m27-client-home-card');
+  if(todayTraining?.ready)appointmentCard.setAttribute('data-home-kind','train-now');
   appointmentCard.append(
-    create(document,'span','','Próximo entrenamiento'),
-    create(document,'strong','',appointment
-      ?formatIberfitDate(appointment.startAt,{locale:'es-CL',includeTime:true})||'Cita confirmada'
-      :'Por confirmar'),
-    create(document,'small','',appointmentDetail(appointment)),
-    createAreaButton(document,'Ver agenda','agenda'),
+    create(document,'span','',todayTraining?'Entrenamiento de hoy':'Próximo entrenamiento'),
+    create(document,'strong','',todayTraining
+      ?todayTraining.title
+      :appointment
+        ?formatIberfitDate(appointment.startAt,{locale:'es-CL',includeTime:true})||'Cita confirmada'
+        :'Por confirmar'),
+    create(document,'small','',todayTraining?.copy||appointmentDetail(appointment)),
+    createAreaButton(
+      document,
+      todayTraining?.actionLabel||'Ver agenda',
+      todayTraining?.area||'agenda',
+    ),
   );
 
   const constancy=snapshot.constancy;
