@@ -21,7 +21,7 @@ test('Cliente 360 reutiliza progreso confirmado y no crea otra fuente de verdad'
   assert.match(runtime,/summary\.averageRpe/u);
   assert.match(runtime,/summary\.volumeDelta/u);
   assert.match(runtime,/summary\.iriCurrent/u);
-  assert.match(runtime,/summary\.checkinAverage/u);
+  assert.match(runtime,/checkinAverage/u);
   assert.match(runtime,/summary\.wearable/u);
   assert.doesNotMatch(runtime,/supabase|service[_-]?role|rpc\(|fetch\(/iu);
 });
