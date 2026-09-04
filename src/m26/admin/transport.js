@@ -14,7 +14,11 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
   if(url.protocol!=='https:'&&!['localhost','127.0.0.1'].includes(url.hostname))throw new Error('M26_ADMIN_HTTPS_REQUIRED');
   const key=String(runtime?.publishableKey||runtime?.anonKey||'');
   const timeoutMs=requestTimeout(runtime);
-  const authTransport=createM26Transport(runtime,{fetchImpl});
+  let authTransport=null;
+  const privilegedAuth=()=>{
+    if(!authTransport)authTransport=createM26Transport(runtime,{fetchImpl});
+    return authTransport;
+  };
 
   async function rpc(name,token,params={}){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
@@ -71,10 +75,10 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
     applicationContextOptional:(token)=>optional(RPC.context,token),
     bootstrapOptional:(token)=>optional(RPC.bootstrap,token),
     privilegedWebAuthnFactorId:PRIVILEGED_WEBAUTHN_FACTOR_ID,
-    authAssuranceContext:(token)=>authTransport.authAssuranceContext(token),
-    authUser:(token)=>authTransport.authUser(token),
-    challengeWebAuthn:(token,factorId)=>authTransport.challengeWebAuthn(token,factorId),
-    verifyWebAuthn:(token,payload)=>authTransport.verifyWebAuthn(token,payload),
+    authAssuranceContext:(token)=>privilegedAuth().authAssuranceContext(token),
+    authUser:(token)=>privilegedAuth().authUser(token),
+    challengeWebAuthn:(token,factorId)=>privilegedAuth().challengeWebAuthn(token,factorId),
+    verifyWebAuthn:(token,payload)=>privilegedAuth().verifyWebAuthn(token,payload),
     execute:async(token,command)=>{
       const result=await rpc(RPC.execute,token,{p_command:command});
       if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))throw new Error('M26_ADMIN_MUTATION_NOT_CONFIRMED');
