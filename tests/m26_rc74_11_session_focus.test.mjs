@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {sessionFocusPlan} from '../src/m26/ui/session-focus.js';
+import {sessionFocusPlan} from '../src/m26/ui/session-readiness.js';
 
 test('modo foco conserva la acción principal según el estado real de Live Workout',()=>{
   assert.equal(sessionFocusPlan({state:'ready'}).targetSelector,'[data-session-action="start"]');
@@ -14,7 +14,7 @@ test('modo foco conserva la acción principal según el estado real de Live Work
 });
 
 test('dock móvil actúa como proxy y no duplica la lógica de entrenamiento',async()=>{
-  const ui=await readFile(new URL('../src/m26/ui/session-focus.js',import.meta.url),'utf8');
+  const ui=await readFile(new URL('../src/m26/ui/session-readiness.js',import.meta.url),'utf8');
   assert.match(ui,/data-session-focus-proxy/);
   assert.match(ui,/target\.click\?\.\(\)/);
   assert.match(ui,/data-session-action=\\"complete-set\\"/);
@@ -28,7 +28,7 @@ test('dock móvil actúa como proxy y no duplica la lógica de entrenamiento',as
 
 test('mantiene la pantalla activa solo durante trabajo o descanso y libera recursos al destruir',async()=>{
   const [ui,shell]=await Promise.all([
-    readFile(new URL('../src/m26/ui/session-focus.js',import.meta.url),'utf8'),
+    readFile(new URL('../src/m26/ui/session-readiness.js',import.meta.url),'utf8'),
     readFile(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8'),
   ]);
   assert.match(ui,/ACTIVE_WAKE_STATES=new Set\(\['active','rest'\]\)/);
