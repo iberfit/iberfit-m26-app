@@ -195,6 +195,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       return;
     }
 
+    // RC71_2_PREFERENCES_CHANGE_BEGIN — stable regression marker; behavior remains fail-closed.
     const preferenceControl=event.target.closest?.('[data-m26-preference]');
     if(preferenceControl){
       const state=store.getState();
