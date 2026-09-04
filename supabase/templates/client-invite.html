@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tu acceso privado a IBERFIT está listo</title>
+</head>
+<body style="margin:0;padding:0;background:#f3efe6;color:#173126;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#f3efe6;margin:0;padding:0;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:620px;border-collapse:separate;background:#ffffff;border:1px solid #e3dccd;border-radius:20px;overflow:hidden;box-shadow:0 14px 38px rgba(16,49,35,.08);">
+          <tr>
+            <td style="padding:30px 34px 26px;background:#0b2b1e;text-align:center;">
+              <img src="https://app.iberfit.cl/public/isotipo-iberfit.png" width="72" height="72" alt="IBERFIT" style="display:block;width:72px;height:72px;margin:0 auto 14px;object-fit:contain;border:0;">
+              <div style="font-size:12px;line-height:18px;letter-spacing:3px;font-weight:700;color:#d6b86f;">IBERFIT</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:38px 38px 18px;">
+              <div style="font-size:12px;line-height:18px;letter-spacing:1.8px;font-weight:700;text-transform:uppercase;color:#9a7a35;">Invitación privada</div>
+              <h1 style="margin:12px 0 16px;font-family:Georgia,'Times New Roman',serif;font-size:32px;line-height:38px;font-weight:500;letter-spacing:-.5px;color:#153428;">Tu espacio de entrenamiento IBERFIT está listo.</h1>
+              <p style="margin:0 0 16px;font-size:16px;line-height:25px;color:#52635b;">Hola {{ .Data.first_name }},</p>
+              <p style="margin:0 0 16px;font-size:16px;line-height:25px;color:#52635b;">Tu Entrenador ha preparado tu acceso privado a IBERFIT para que puedas consultar tu planificación, próximas sesiones, progreso y seguimiento en un único lugar.</p>
+              <p style="margin:0;font-size:16px;line-height:25px;color:#52635b;">Activa tu cuenta con el botón siguiente y crea tu contraseña personal. El enlace está asociado a <strong style="color:#263f34;">{{ .Email }}</strong>.</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:16px 38px 28px;">
+              <a href="{{ .ConfirmationURL }}" style="display:inline-block;min-width:230px;padding:15px 24px;border-radius:12px;background:#d2ae5e;color:#10271d;font-size:15px;line-height:20px;font-weight:700;text-decoration:none;text-align:center;">Activar mi acceso</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 38px 30px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#f8f5ee;border:1px solid #ebe4d6;border-radius:14px;">
+                <tr><td style="padding:18px 20px;">
+                  <div style="margin-bottom:8px;font-size:12px;line-height:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#826b3d;">Tu acceso incluye</div>
+                  <div style="font-size:14px;line-height:23px;color:#596960;">Planificación · Sesiones · Progreso · Seguimiento</div>
+                </td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:22px 38px;background:#f8f5ee;border-top:1px solid #ebe4d6;">
+              <p style="margin:0 0 8px;font-size:12px;line-height:19px;color:#707b75;">Por seguridad, IBERFIT nunca te pedirá tu contraseña por correo ni te solicitará que la compartas con tu Entrenador.</p>
+              <p style="margin:0;font-size:12px;line-height:19px;color:#8b928e;">Si no esperabas esta invitación, puedes ignorar este mensaje.</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:24px 30px 28px;background:#082117;">
+              <div style="font-size:12px;line-height:18px;font-weight:700;color:#d4b86f;">IBERFIT</div>
+              <div style="margin-top:4px;font-size:11px;line-height:18px;color:#aab7b0;">Entrenamiento personal con criterio</div>
+              <div style="margin-top:6px;font-size:11px;line-height:18px;color:#788a81;">app.iberfit.cl</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
