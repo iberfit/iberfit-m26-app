@@ -316,3 +316,117 @@
     padding-bottom: 0;
   }
 }
+
+/* M27 · Cliente 360
+ * Capa visual progresiva sobre la ruta de progreso existente.
+ * No cambia datos, permisos, cálculos ni confirmaciones.
+ */
+[data-client-bottom-nav-route="progreso"] > .m26-route {
+  width: min(88rem, 100%);
+  margin-inline: auto;
+  gap: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-client-bottom-nav-route="progreso"] > .m26-route > .m26-route-intro {
+  padding: 1.25rem 1.3rem;
+  border: 1px solid rgba(216, 185, 111, 0.2);
+  border-radius: 1.2rem;
+  background: rgba(8, 35, 24, 0.88);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.14);
+}
+
+[data-client-bottom-nav-route="progreso"] > .m26-route > .m26-route-intro::before {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #d8b96f;
+  content: "CLIENTE 360";
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+[data-client-bottom-nav-route="progreso"] > .m26-route > .m26-route-intro h2 {
+  margin: 0.18rem 0 0.42rem;
+  font-size: clamp(1.7rem, 4vw, 2.55rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+[data-client-bottom-nav-route="progreso"] > .m26-route > .m26-route-intro p {
+  max-width: 70ch;
+  color: #c1bbae;
+  line-height: 1.52;
+}
+
+[data-client-bottom-nav-route="progreso"] > .m26-route > .m26-stat-grid {
+  gap: 0.72rem;
+}
+
+[data-client-bottom-nav-route="progreso"] > .m26-route > .m26-stat-grid .m26-stat {
+  min-height: 7rem;
+  padding: 1rem;
+  border-color: rgba(216, 185, 111, 0.13);
+  background: rgba(7, 31, 21, 0.76);
+}
+
+[data-client-bottom-nav-route="progreso"] > .m26-route > .m26-stat-grid .m26-stat strong {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  letter-spacing: -0.025em;
+}
+
+[data-client-bottom-nav-route="progreso"] .m26-progress-overview {
+  border-color: rgba(216, 185, 111, 0.18);
+  background: rgba(8, 34, 23, 0.72);
+}
+
+[data-client-bottom-nav-route="progreso"] .m26-panel {
+  border-color: rgba(216, 185, 111, 0.12);
+}
+
+[data-client-bottom-nav-route="progreso"] .m26-wellbeing-grid meter {
+  accent-color: #d8b96f;
+}
+
+[data-client-bottom-nav-route="progreso"] .m26-timeline {
+  max-height: none;
+}
+
+.m26-client-bottom-nav-item[data-m26-area="progreso"] .m26-client-bottom-nav-label {
+  font-size: 0;
+}
+
+.m26-client-bottom-nav-item[data-m26-area="progreso"] .m26-client-bottom-nav-label::after {
+  content: "Cliente 360";
+  font-size: 1rem;
+  font-weight: 620;
+  letter-spacing: -0.025em;
+}
+
+@media (max-width: 690px) {
+  [data-client-bottom-nav-route="progreso"] > .m26-route {
+    padding-bottom: calc(5.4rem + env(safe-area-inset-bottom));
+  }
+
+  [data-client-bottom-nav-route="progreso"] > .m26-route > .m26-route-intro {
+    padding: 1rem;
+  }
+
+  [data-client-bottom-nav-route="progreso"] > .m26-route > .m26-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .m26-client-bottom-nav-item[data-m26-area="progreso"] .m26-client-bottom-nav-label::after {
+    font-size: 0.66rem;
+  }
+}
+
+@media (max-width: 390px) {
+  [data-client-bottom-nav-route="progreso"] > .m26-route > .m26-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .m26-client-bottom-nav-item[data-m26-area="progreso"] .m26-client-bottom-nav-label::after {
+    font-size: 0.6rem;
+  }
+}
