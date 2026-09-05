@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import {
   IBERFIT_LANGUAGE_CATALOG,
   iberfitLanguageOptions,
+  iberfitPlannedLanguages,
+  iberfitTranslationCoverage,
   iberfitTranslate,
 } from '../src/m26/ui/i18n.js';
 
@@ -11,16 +13,30 @@ const shell=fs.readFileSync('src/m26/shell/shell-render.js','utf8');
 const navigation=fs.readFileSync('src/m26/shell/navigation.js','utf8');
 const adminNavigation=fs.readFileSync('src/m26/admin/navigation.js','utf8');
 
-test('IBERFIT exposes exactly the four requested application languages with visible flags',()=>{
+test('IBERFIT exposes exactly the four requested application languages with visible flags and measured coverage',()=>{
   assert.deepEqual(
-    IBERFIT_LANGUAGE_CATALOG.map(({value,flag,complete})=>({value,flag,complete})),
+    IBERFIT_LANGUAGE_CATALOG.map(({value,flag})=>({value,flag})),
     [
-      {value:'es',flag:'🇪🇸',complete:true},
-      {value:'en',flag:'🇬🇧',complete:true},
-      {value:'fr',flag:'🇫🇷',complete:true},
-      {value:'pt',flag:'🇵🇹',complete:true},
+      {value:'es',flag:'🇪🇸'},
+      {value:'en',flag:'🇬🇧'},
+      {value:'fr',flag:'🇫🇷'},
+      {value:'pt',flag:'🇵🇹'},
     ]
   );
+  assert.equal(IBERFIT_LANGUAGE_CATALOG.some((item)=>Object.hasOwn(item,'complete')),false);
+  assert.deepEqual(iberfitPlannedLanguages().map(({value,complete})=>({value,complete})),[
+    {value:'es',complete:true},
+    {value:'en',complete:true},
+    {value:'fr',complete:true},
+    {value:'pt',complete:true},
+  ]);
+  for(const coverage of iberfitTranslationCoverage()){
+    assert.equal(coverage.complete,true);
+    assert.equal(coverage.missing.length,0);
+    assert.equal(coverage.extra.length,0);
+    assert.equal(coverage.blank.length,0);
+    assert.equal(coverage.translated,coverage.total);
+  }
   assert.equal(iberfitLanguageOptions().length,4);
   assert.equal(iberfitTranslate('settings.title',{language:'es'}),'Ajustes');
   assert.equal(iberfitTranslate('settings.title',{language:'en'}),'Settings');
