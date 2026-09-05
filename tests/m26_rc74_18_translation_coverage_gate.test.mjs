@@ -8,6 +8,7 @@ import {
 import {
   IBERFIT_LANGUAGE_CATALOG,
   iberfitLanguageOptions,
+  iberfitTranslationCoverage,
 } from '../src/m26/ui/i18n.js';
 
 const source=fs.readFileSync(new URL('../src/m26/ui/i18n.js',import.meta.url),'utf8');
@@ -28,6 +29,14 @@ test('RC74.18 mide cobertura real de los cuatro catálogos contra la referencia 
     assert.equal(language.blank.length,0);
     assert.equal(language.translated,language.total);
   }
+});
+
+test('RC74.18 runtime y gate estático comparten la misma verdad de cobertura',()=>{
+  assert.doesNotMatch(source,/\bcomplete\s*:\s*true\b/u);
+  assert.equal(IBERFIT_LANGUAGE_CATALOG.some((item)=>Object.hasOwn(item,'complete')),false);
+  const staticReport=assertIberfitTranslationCoverage(source);
+  const runtime=iberfitTranslationCoverage();
+  assert.deepEqual(runtime.map(({language,complete,total,translated})=>({language,complete,total,translated})),staticReport.reports.map(({language,complete,total,translated})=>({language,complete,total,translated})));
 });
 
 test('RC74.18 el gate falla de forma cerrada si un idioma pierde una clave',()=>{
