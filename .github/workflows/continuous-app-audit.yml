@@ -5,6 +5,7 @@ on:
     paths:
       - 'src/m26/**'
       - 'scripts/audit/**'
+      - 'scripts/lib/**'
       - 'tests/**'
       - '.github/workflows/continuous-app-audit.yml'
   push:
@@ -13,6 +14,7 @@ on:
     paths:
       - 'src/m26/**'
       - 'scripts/audit/**'
+      - 'scripts/lib/**'
       - 'tests/**'
       - '.github/workflows/continuous-app-audit.yml'
   workflow_dispatch:
@@ -53,6 +55,9 @@ jobs:
         run: |
           set -o pipefail
           npm test 2>&1 | tee recovery/continuous-audit/full-node-regression.log
+
+      - name: Translation Coverage Gate
+        run: node --test tests/m26_rc74_18_translation_coverage_gate.test.mjs
 
       - name: Validar contratos Cliente Coach Admin
         run: |
