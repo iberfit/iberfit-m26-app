@@ -1,5 +1,6 @@
 import {
   adherenceSignal,
+  buildExerciseLongitudinalProgress,
   buildProgressTimeline,
   computeProgressSummary,
   deriveAdherenceAlerts,
@@ -22,6 +23,24 @@ const CLIENTE_360_CSS=`
 .m27-cliente-360-senal{display:grid;gap:.16rem;min-width:10rem;padding:.62rem .75rem;border:1px solid rgba(216,185,111,.14);border-radius:.85rem;background:rgba(255,255,255,.025);text-align:right}
 .m27-cliente-360-senal span{color:#a9a397;font-size:.64rem;text-transform:uppercase;letter-spacing:.09em}
 .m27-cliente-360-senal strong{color:#f3e8cf;font-size:.82rem}
+.m29-proof{display:grid;gap:.78rem;padding:.95rem;border:1px solid rgba(216,185,111,.2);border-radius:1rem;background:linear-gradient(145deg,rgba(216,185,111,.075),rgba(255,255,255,.018))}
+.m29-proof-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem}
+.m29-proof-head>div{display:grid;gap:.18rem}
+.m29-proof-kicker{color:#d8b96f;font-size:.62rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.m29-proof-head h4{margin:0;color:#f8f2e7;font-size:clamp(1rem,2.2vw,1.28rem);letter-spacing:-.025em}
+.m29-proof-head p{max-width:38rem;margin:0;color:#a9a397;font-size:.7rem;line-height:1.45;text-align:right}
+.m29-proof-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.58rem}
+.m29-proof-card{display:grid;gap:.44rem;min-width:0;padding:.76rem;border:1px solid rgba(216,185,111,.13);border-radius:.82rem;background:rgba(0,0,0,.1)}
+.m29-proof-card>span{color:#a9a397;font-size:.61rem;font-weight:750;letter-spacing:.055em;text-transform:uppercase}
+.m29-proof-card h5{margin:0;color:#f3e8cf;font-size:.86rem;line-height:1.3}
+.m29-proof-metric{display:flex;align-items:flex-end;justify-content:space-between;gap:.65rem}
+.m29-proof-metric strong{color:#f8f2e7;font-size:1.08rem;letter-spacing:-.025em}
+.m29-proof-trend{color:#d8b96f;font-size:.66rem;font-weight:750;text-align:right}
+.m29-proof-chart{display:block;width:100%;height:2.5rem;overflow:visible}
+.m29-proof-chart polyline{fill:none;stroke:#d8b96f;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.m29-proof-chart circle{fill:#f1dfab;stroke:#0a2a1d;stroke-width:1.5;vector-effect:non-scaling-stroke}
+.m29-proof-meta{display:grid;gap:.12rem;color:#969087;font-size:.64rem;line-height:1.4}
+.m29-proof-baseline{margin:0;padding:.8rem;border-radius:.75rem;background:rgba(0,0,0,.1);color:#a9a397;font-size:.72rem;line-height:1.5}
 .m27-cliente-360-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.68rem}
 .m27-cliente-360-card{display:grid;align-content:start;gap:.25rem;min-height:7rem;padding:.82rem;border:1px solid rgba(216,185,111,.11);border-radius:.9rem;background:rgba(255,255,255,.022)}
 .m27-cliente-360-card span{color:#aaa397;font-size:.65rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
@@ -55,8 +74,8 @@ const CLIENTE_360_CSS=`
 .m27-cliente-360-actions button{min-height:2.45rem;padding:.48rem .72rem;border:1px solid rgba(216,185,111,.16);border-radius:.72rem;color:#e9dfca;background:rgba(216,185,111,.045);font:inherit;font-size:.75rem;font-weight:700;cursor:pointer}
 .m27-cliente-360-actions button:hover{border-color:rgba(216,185,111,.4);background:rgba(216,185,111,.09)}
 .m27-cliente-360-note{margin:0;padding:.68rem .75rem;border-left:3px solid rgba(216,185,111,.55);color:#aca69a;background:rgba(216,185,111,.035);font-size:.69rem;line-height:1.45}
-@media (max-width:960px){.m27-cliente-360-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-contexto{grid-template-columns:1fr}}
-@media (max-width:560px){.m27-cliente-360{padding:.85rem}.m27-cliente-360-header{display:grid}.m27-cliente-360-senal{text-align:left;min-width:0}.m27-cliente-360-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-mini{grid-template-columns:1fr}.m27-cliente-360-timeline-head{display:grid;gap:.2rem}.m27-cliente-360-timeline-head p{text-align:left}.m27-cliente-360-timeline-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.m27-cliente-360-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-actions button{width:100%}}
+@media (max-width:960px){.m29-proof-grid{grid-template-columns:1fr}.m27-cliente-360-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-contexto{grid-template-columns:1fr}}
+@media (max-width:560px){.m27-cliente-360{padding:.85rem}.m27-cliente-360-header,.m29-proof-head{display:grid}.m27-cliente-360-senal{text-align:left;min-width:0}.m29-proof-head p{text-align:left}.m27-cliente-360-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-mini{grid-template-columns:1fr}.m27-cliente-360-timeline-head{display:grid;gap:.2rem}.m27-cliente-360-timeline-head p{text-align:left}.m27-cliente-360-timeline-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.m27-cliente-360-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-actions button{width:100%}}
 @media (max-width:360px){.m27-cliente-360-grid,.m27-cliente-360-actions{grid-template-columns:1fr}}
 `;
 
@@ -127,6 +146,134 @@ function wellbeingValue(summary,key){
   return number(Number(summary?.checkinAverage?.[key]),'/10');
 }
 
+// RC74_17_PROOF_OF_PROGRESS_BEGIN
+const PROOF_METRICS=Object.freeze([
+  Object.freeze({key:'maxLoadKg',label:'Carga registrada',suffix:' kg',trendKey:'loadTrend'}),
+  Object.freeze({key:'bestReps',label:'Mejor serie',suffix:' reps',trendKey:'repsTrend'}),
+  Object.freeze({key:'volumeKgReps',label:'Volumen comparable',suffix:' kg·rep',trendKey:'volumeTrend'}),
+]);
+
+function proofMetric(exercise){
+  const history=Array.isArray(exercise?.history)?exercise.history:[];
+  for(const definition of PROOF_METRICS){
+    const points=history
+      .map((point)=>({at:point?.at,value:Number(point?.[definition.key])}))
+      .filter((point)=>point.at&&Number.isFinite(point.value));
+    const trend=exercise?.[definition.trendKey];
+    if(points.length>=2&&trend?.direction&&trend.direction!=='indeterminate'){
+      return Object.freeze({...definition,points:Object.freeze(points.slice(-8)),trend});
+    }
+  }
+  return null;
+}
+
+function proofValue(value,suffix=''){
+  if(!Number.isFinite(value))return 'Sin dato comparable';
+  const rounded=Math.round(value*10)/10;
+  return `${rounded}${suffix}`;
+}
+
+function proofSparkline(document,exerciseName,metric){
+  if(!metric||metric.points.length<2)return null;
+  const namespace='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(namespace,'svg');
+  svg.setAttribute('class','m29-proof-chart');
+  svg.setAttribute('viewBox','0 0 100 34');
+  svg.setAttribute('preserveAspectRatio','none');
+  svg.setAttribute('role','img');
+  svg.setAttribute('aria-label',`Evolución confirmada de ${metric.label.toLowerCase()} en ${exerciseName}`);
+  const values=metric.points.map((point)=>point.value);
+  const min=Math.min(...values);
+  const max=Math.max(...values);
+  const span=Math.max(1,max-min);
+  const coordinates=metric.points.map((point,index)=>{
+    const x=metric.points.length===1?0:(index/(metric.points.length-1))*100;
+    const y=min===max?17:30-((point.value-min)/span)*26;
+    return `${Math.round(x*10)/10},${Math.round(y*10)/10}`;
+  }).join(' ');
+  const line=document.createElementNS(namespace,'polyline');
+  line.setAttribute('points',coordinates);
+  svg.append(line);
+  const last=coordinates.split(' ').at(-1)?.split(',')||[];
+  if(last.length===2){
+    const dot=document.createElementNS(namespace,'circle');
+    dot.setAttribute('cx',last[0]);
+    dot.setAttribute('cy',last[1]);
+    dot.setAttribute('r','2.4');
+    svg.append(dot);
+  }
+  return svg;
+}
+
+function proofEffortContext(exercise){
+  const latest=exercise?.latest||{};
+  const parts=[];
+  if(Number.isFinite(latest.averageRpe))parts.push(`RPE ${latest.averageRpe}`);
+  if(Number.isFinite(latest.averageRir))parts.push(`RIR ${latest.averageRir}`);
+  return parts.length?`Esfuerzo último: ${parts.join(' · ')}`:'Esfuerzo sin dato comparable';
+}
+
+function proofCard(document,entry){
+  const {exercise,metric}=entry;
+  const cardNode=createElement(document,'article','m29-proof-card');
+  cardNode.setAttribute('data-m29-proof-exercise',String(exercise.exerciseId||''));
+  const latest=metric.points.at(-1);
+  const metricRow=createElement(document,'div','m29-proof-metric');
+  metricRow.append(
+    createElement(document,'strong','',proofValue(latest?.value,metric.suffix)),
+    createElement(document,'span','m29-proof-trend',`${metric.trend.label} vs. exposición anterior`),
+  );
+  cardNode.append(
+    createElement(document,'span','',metric.label),
+    createElement(document,'h5','',exercise.exerciseName||'Ejercicio IBERFIT'),
+    metricRow,
+  );
+  const chart=proofSparkline(document,exercise.exerciseName||'ejercicio',metric);
+  if(chart)cardNode.append(chart);
+  const meta=createElement(document,'div','m29-proof-meta');
+  meta.append(
+    createElement(document,'small','',`${exercise.sessions} exposiciones confirmadas · calidad ${exercise.dataQuality}`),
+    createElement(document,'small','',proofEffortContext(exercise)),
+    createElement(document,'small','',`Última exposición · ${dateLabel(exercise.lastAt)}`),
+  );
+  cardNode.append(meta);
+  return cardNode;
+}
+
+function proofOfProgressSection(document,longitudinal,role){
+  const section=createElement(document,'section','m29-proof');
+  section.setAttribute('data-m29-proof','true');
+  section.setAttribute('aria-label',role==='client'?'Tu progreso confirmado':'Evidencia de progreso del cliente');
+  const entries=(longitudinal?.exercises||[])
+    .map((exercise)=>({exercise,metric:proofMetric(exercise)}))
+    .filter((entry)=>entry.metric)
+    .slice(0,3);
+  const head=createElement(document,'div','m29-proof-head');
+  const titles=createElement(document,'div');
+  titles.append(
+    createElement(document,'span','m29-proof-kicker','Prueba de progreso'),
+    createElement(document,'h4','',entries.length
+      ?`${entries.length} ejercicio${entries.length===1?'':'s'} con evolución comparable`
+      :'Construyendo tu línea base'),
+  );
+  head.append(
+    titles,
+    createElement(document,'p','',role==='client'
+      ?'IBERFIT compara exposiciones confirmadas del mismo ejercicio. Muestra qué cambió sin convertirlo en una puntuación global ni atribuir causas.'
+      :'Comparación longitudinal confirmada por ejercicio. La evidencia describe cambios observados; el Coach conserva la interpretación y la decisión.'),
+  );
+  section.append(head);
+  if(!entries.length){
+    section.append(createElement(document,'p','m29-proof-baseline','Necesitamos al menos dos exposiciones confirmadas y comparables del mismo ejercicio. Hasta entonces IBERFIT conserva la línea base sin convertir datos ausentes en cero.'));
+    return section;
+  }
+  const grid=createElement(document,'div','m29-proof-grid');
+  for(const entry of entries)grid.append(proofCard(document,entry));
+  section.append(grid);
+  return section;
+}
+// RC74_17_PROOF_OF_PROGRESS_END
+
 function timelineKindLabel(kind){
   return ({execution:'Sesión',iri:'IRI',checkin:'Bienestar'})[kind]||'Seguimiento';
 }
@@ -193,6 +340,7 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
   const alerts=deriveAdherenceAlerts(state,clientId,{now});
   const signal=adherenceSignal(alerts);
   const timeline=buildProgressTimeline(state,clientId,{now,days:90,limit:12});
+  const longitudinal=buildExerciseLongitudinalProgress(state,clientId,{limitPerExercise:12});
   const client=viewModel.selectedClient||{};
   const clientName=String(client.name||'Cliente IBERFIT').trim();
   const modality=String(client.modality||'Modalidad no informada').trim();
@@ -233,6 +381,8 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
     createElement(document,'strong','',signal?.label||'Seguimiento disponible'),
   );
   header.append(identity,signalBox);
+
+  const proof=proofOfProgressSection(document,longitudinal,String(viewModel.identity.role||''));
 
   const grid=createElement(document,'div','m27-cliente-360-grid');
   grid.append(
@@ -289,7 +439,7 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
     'Cliente 360 no crea una puntuación global ni atribuye causas. Cada área conserva su significado y solo utiliza datos confirmados; el entrenador interpreta el contexto y decide.',
   );
 
-  section.append(header,grid,context,evolution,actions,note);
+  section.append(header,proof,grid,context,evolution,actions,note);
   if(intro?.nextSibling)route.insertBefore(section,intro.nextSibling);
   else route.prepend(section);
   return true;
