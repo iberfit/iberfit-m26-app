@@ -1,3 +1,5 @@
+import {iberfitCompareText,iberfitDomainTranslate} from '../ui/i18n-domain.js';
+
 const KIND_RANK=Object.freeze({
   critical:0,
   warning:1,
@@ -15,6 +17,10 @@ function txt(value,fallback=''){
   return clean||fallback;
 }
 
+function tr(key,options={}){
+  return iberfitDomainTranslate(key,options);
+}
+
 function severity(value){
   const normalized=txt(value).toLowerCase();
   return ['critical','warning','info'].includes(normalized)
@@ -23,11 +29,8 @@ function severity(value){
 }
 
 function signalLabel(kind){
-  if(kind==='critical')return 'Atención prioritaria';
-  if(kind==='warning')return 'Revisar contexto';
-  if(kind==='process')return 'Recorrido pendiente';
-  if(kind==='info')return 'Seguimiento';
-  return 'Al día';
+  const safe=Object.hasOwn(KIND_RANK,kind)?kind:'clear';
+  return tr(`coach.signal.${safe}`);
 }
 
 function itemFromEntry(entry={}){
@@ -53,64 +56,61 @@ function itemFromEntry(entry={}){
   const stage=txt(experience.stage,'active');
   const stageLabel=txt(
     experience.stageLabel,
-    'Seguimiento activo'
+    tr('coach.stage.active')
   );
 
   const processPending=stage!=='active';
 
   let kind='clear';
-  let reason='Seguimiento al día';
-  let detail='No hay señales que requieran una acción adicional.';
-  let guidance='Mantener el seguimiento previsto.';
+  let reason=tr('coach.reason.clear');
+  let detail=tr('coach.detail.clear');
+  let guidance=tr('coach.guidance.clear');
   let source='experience-core';
 
   if(adaptiveRisk){
     kind=adaptiveKind;
-    reason=txt(adaptiveRisk.label,'Revisión necesaria');
-    detail=txt(adaptiveRisk.reason,'El contexto adaptativo requiere revisión.');
-    guidance=`Siguiente paso: ${txt(adaptiveRisk.action?.label,'Revisar expediente')}.`;
+    reason=txt(adaptiveRisk.label,tr('coach.reason.review'));
+    detail=txt(adaptiveRisk.reason,tr('coach.detail.adaptive'));
+    guidance=tr('coach.nextStep',{params:{action:txt(adaptiveRisk.action?.label,tr('coach.action.record'))}});
     source='adaptive-experience';
   }else if(risk){
     kind=risk.severity;
-    reason=txt(risk.title,'Revisión necesaria');
+    reason=txt(risk.title,tr('coach.reason.review'));
     detail=txt(
       risk.detail,
-      'Existe una señal que requiere revisión.'
+      tr('coach.detail.risk')
     );
     guidance=txt(
       risk.action,
-      'Revisar el contexto con el cliente.'
+      tr('coach.guidance.context')
     );
-    source=txt(risk.source,'seguimiento');
+    source=txt(risk.source,'followup');
   }else if(processPending){
     kind='process';
     reason=stageLabel;
     detail=txt(
       client.nextAction?.reason,
-      'El recorrido del cliente tiene un paso pendiente.'
+      tr('coach.detail.process')
     );
-    guidance=`Siguiente paso: ${txt(
-      client.nextAction?.label,
-      'Revisar expediente'
-    )}.`;
+    guidance=tr('coach.nextStep',{params:{action:txt(client.nextAction?.label,tr('coach.action.record'))}});
     source='experience-core';
   }else if(info){
     kind='info';
-    reason=txt(info.title,'Seguimiento');
+    reason=txt(info.title,tr('coach.signal.info'));
     detail=txt(
       info.detail,
-      'Existe información útil para el seguimiento.'
+      tr('coach.detail.info')
     );
     guidance=txt(
       info.action,
-      'Revisar durante el seguimiento.'
+      tr('coach.guidance.followup')
     );
-    source=txt(info.source,'seguimiento');
+    source=txt(info.source,'followup');
   }
 
   return Object.freeze({
     clientId:txt(client.id),
-    clientName:txt(client.name,'Cliente'),
+    clientName:txt(client.name,tr('coach.client')),
     modality:txt(client.modality),
     kind,
     rank:KIND_RANK[kind],
@@ -130,7 +130,7 @@ function itemFromEntry(entry={}){
       key:txt(client.nextAction?.key),
       label:txt(
         client.nextAction?.label,
-        'Revisar seguimiento'
+        tr('coach.action.followup')
       ),
       area:txt(
         client.nextAction?.area,
@@ -148,11 +148,7 @@ function compareItems(a,b){
     return a.experiencePriority-b.experiencePriority;
   }
 
-  return a.clientName.localeCompare(
-    b.clientName,
-    'es',
-    {sensitivity:'base'}
-  );
+  return iberfitCompareText(a.clientName,b.clientName);
 }
 
 export function deriveCoachCockpit(entries=[]){
