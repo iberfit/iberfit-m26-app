@@ -260,7 +260,7 @@ function proofOfProgressSection(document,longitudinal,role){
     titles,
     createElement(document,'p','',role==='client'
       ?'IBERFIT compara exposiciones confirmadas del mismo ejercicio. Muestra qué cambió sin convertirlo en una puntuación global ni atribuir causas.'
-      :'Comparación longitudinal confirmada por ejercicio. La evidencia describe cambios observados; el Coach conserva la interpretación y la decisión.'),
+      :'Comparación longitudinal confirmada por ejercicio. La evidencia describe cambios observados; el entrenador conserva la interpretación y la decisión.'),
   );
   section.append(head);
   if(!entries.length){
