@@ -142,6 +142,16 @@ function providerCopy(metric){
   return `Procedencia: ${providers.join(', ')}.`;
 }
 
+function metricNextStepCopy(comparison,key){
+  if(key==='hrvMs'&&!comparison?.comparable){
+    return 'Siguiente paso: mantén un método de VFC homogéneo y reúne más días comparables antes de interpretarla.';
+  }
+  if(comparison?.comparable){
+    return 'Siguiente paso: mantén el registro y revisa este cambio con tu entrenador junto al resto del contexto.';
+  }
+  return 'Siguiente paso: reúne más días confirmados para construir una comparación fiable.';
+}
+
 function chartPayload(points){
   return escapeHtml(
     JSON.stringify(
@@ -191,6 +201,7 @@ function metricCard(aggregate,key,role){
       <div><span>Cobertura</span><strong>${escapeHtml(percent(d28?.coverage))}</strong></div>
     </div>
     <p>${escapeHtml(changeCopy(comparison,meta.unit))}</p>
+    <p class="m26-data-next-step"><small>${escapeHtml(metricNextStepCopy(comparison,key))}</small></p>
     ${trustStrip}
   `;
 
@@ -242,7 +253,7 @@ export function renderLongitudinalDataExperience(
   const professional=normalizedRole!=='client';
   const metrics=professional?COACH_METRICS:CLIENT_METRICS;
 
-  return `<section class="m26-stack m26-data-experience" data-role-density="${professional?'professional':'simple'}"><section class="m26-panel m26-panel-hero m26-data-hero"><p class="m26-eyebrow">Datos y evolución</p><h2>${professional?'Análisis longitudinal':'Tu evolución'}</h2><p>${professional?'Comparativas 7/28/90 días, baseline, tendencia, cobertura y procedencia para apoyar una decisión profesional.':'Una lectura sencilla de tus últimas semanas con cobertura visible y sin rellenar días que faltan.'}</p></section>${adherencePanel(aggregate,normalizedRole)}<div class="${professional?'m26-data-grid m26-data-grid-professional':'m26-data-grid'}">${metrics.map((key)=>metricCard(aggregate,key,normalizedRole)).join('')}</div>${trustPanel(aggregate,normalizedRole)}<p class="m26-notice m26-data-decision-rule">Dato → contexto → entrenador decide. Las tendencias no cambian automáticamente tu entrenamiento ni constituyen una clasificación clínica.</p></section>`;
+  return `<section class="m26-stack m26-data-experience" data-role-density="${professional?'professional':'simple'}"><section class="m26-panel m26-panel-hero m26-data-hero"><p class="m26-eyebrow">Datos y evolución</p><h2>${professional?'Análisis longitudinal':'Tu evolución'}</h2><p>${professional?'Comparativas 7/28/90 días, baseline, tendencia, cobertura y procedencia para apoyar una decisión profesional.':'Una lectura sencilla de tus últimas semanas: cada tarjeta explica el cambio disponible y el siguiente paso sin rellenar días que faltan.'}</p></section>${adherencePanel(aggregate,normalizedRole)}<div class="${professional?'m26-data-grid m26-data-grid-professional':'m26-data-grid'}">${metrics.map((key)=>metricCard(aggregate,key,normalizedRole)).join('')}</div>${trustPanel(aggregate,normalizedRole)}<p class="m26-notice m26-data-decision-rule">Dato → contexto → entrenador decide. Las tendencias no cambian automáticamente tu entrenamiento ni constituyen una clasificación clínica.</p></section>`;
 }
 
 export const __longitudinalUiInternals=Object.freeze({
@@ -253,4 +264,5 @@ export const __longitudinalUiInternals=Object.freeze({
   trendCopy,
   fallbackTable,
   metricCard,
+  metricNextStepCopy,
 });
