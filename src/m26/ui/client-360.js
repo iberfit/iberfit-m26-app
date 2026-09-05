@@ -40,6 +40,7 @@ const CLIENTE_360_CSS=`
 .m29-proof-chart polyline{fill:none;stroke:#d8b96f;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 .m29-proof-chart circle{fill:#f1dfab;stroke:#0a2a1d;stroke-width:1.5;vector-effect:non-scaling-stroke}
 .m29-proof-meta{display:grid;gap:.12rem;color:#969087;font-size:.64rem;line-height:1.4}
+.m29-proof-next{margin:.08rem 0 0;padding:.5rem .58rem;border-left:2px solid rgba(216,185,111,.5);border-radius:.3rem;color:#b8b0a2;background:rgba(216,185,111,.035);font-size:.65rem;line-height:1.42}
 .m29-proof-baseline{margin:0;padding:.8rem;border-radius:.75rem;background:rgba(0,0,0,.1);color:#a9a397;font-size:.72rem;line-height:1.5}
 .m27-cliente-360-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.68rem}
 .m27-cliente-360-card{display:grid;align-content:start;gap:.25rem;min-height:7rem;padding:.82rem;border:1px solid rgba(216,185,111,.11);border-radius:.9rem;background:rgba(255,255,255,.022)}
@@ -213,6 +214,13 @@ function proofEffortContext(exercise){
   return parts.length?`Esfuerzo último: ${parts.join(' · ')}`:'Esfuerzo sin dato comparable';
 }
 
+function proofNextStep(exercise){
+  const sessions=Number(exercise?.sessions);
+  return Number.isFinite(sessions)&&sessions<3
+    ?'Siguiente paso: registra otra exposición confirmada con la misma señal para reforzar la comparación.'
+    :'Siguiente paso: mantén el mismo tipo de registro en próximas sesiones y revisa la tendencia con tu entrenador.';
+}
+
 function proofCard(document,entry){
   const {exercise,metric}=entry;
   const cardNode=createElement(document,'article','m29-proof-card');
@@ -236,7 +244,7 @@ function proofCard(document,entry){
     createElement(document,'small','',proofEffortContext(exercise)),
     createElement(document,'small','',`Última exposición · ${dateLabel(exercise.lastAt)}`),
   );
-  cardNode.append(meta);
+  cardNode.append(meta,createElement(document,'p','m29-proof-next',proofNextStep(exercise)));
   return cardNode;
 }
 
@@ -264,7 +272,7 @@ function proofOfProgressSection(document,longitudinal,role){
   );
   section.append(head);
   if(!entries.length){
-    section.append(createElement(document,'p','m29-proof-baseline','Necesitamos al menos dos exposiciones confirmadas y comparables del mismo ejercicio. Hasta entonces IBERFIT conserva la línea base sin convertir datos ausentes en cero.'));
+    section.append(createElement(document,'p','m29-proof-baseline','Necesitamos al menos dos exposiciones confirmadas y comparables del mismo ejercicio. Hasta entonces IBERFIT conserva la línea base sin convertir datos ausentes en cero. Siguiente paso: registra otra exposición confirmada con la misma señal para construir una comparación fiable.'));
     return section;
   }
   const grid=createElement(document,'div','m29-proof-grid');
