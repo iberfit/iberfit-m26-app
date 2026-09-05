@@ -154,14 +154,16 @@ function shellStyles(){
 }
 
 export function renderM26AccessFrame(vm) {
-  const state = vm.hydration?.status === 'error' ? 'No fue posible confirmar el acceso.' : 'Confirmando identidad y permisos…';
-  return `<main class="m26-access-frame" aria-busy="${vm.hydration?.status==='error'?'false':'true'}"><section><p class="m26-eyebrow">IBERFIT</p><h1>Entrenamiento personal con criterio</h1><p>Diagnóstico, planificación, control y seguimiento.</p><div class="m26-access-status" role="status" aria-live="polite" aria-atomic="true">${escapeHtml(state)}</div></section></main>`;
+  const isError=vm.hydration?.status==='error';
+  const state=isError?'No fue posible confirmar el acceso.':'Confirmando identidad y permisos…';
+  const uxState=isError?'error':'loading';
+  return `<main class="m26-access-frame" data-ux-state="${uxState}" aria-busy="${isError?'false':'true'}"><section><p class="m26-eyebrow">IBERFIT</p><h1>Entrenamiento personal con criterio</h1><p>Diagnóstico, planificación, control y seguimiento.</p><div class="m26-access-status" role="${isError?'alert':'status'}" aria-live="${isError?'assertive':'polite'}" aria-atomic="true">${escapeHtml(state)}</div></section></main>`;
 }
 
 function renderM26ShellBase(vm, routeMarkup = '') {
   if (vm.mode !== 'authenticated') return renderM26AccessFrame(vm);
   applyIberfitDocumentLanguage(vm.language);
-  const routeContent = routeMarkup || `<section class="m26-route-placeholder" aria-live="polite"><p class="m26-eyebrow">${escapeHtml(areaText(vm.page,'label'))}</p><h2>${escapeHtml(areaText(vm.page,'title'))}</h2></section>`;
+  const routeContent = routeMarkup || `<section class="m26-route-placeholder" data-content-state="empty" role="status" aria-live="polite"><p class="m26-eyebrow">${escapeHtml(areaText(vm.page,'label'))}</p><h2>${escapeHtml(areaText(vm.page,'title'))}</h2></section>`;
   const allMobileItems = [...vm.navigation.primary, ...vm.navigation.context, ...vm.navigation.tools].filter((item, index, items) => items.findIndex((candidate) => candidate.key === item.key) === index);
   const quickMobileItems = vm.navigation.mobile.slice(0, 4);
   const moreMobileItems = allMobileItems.filter((item) => !quickMobileItems.some((quick) => quick.key === item.key));

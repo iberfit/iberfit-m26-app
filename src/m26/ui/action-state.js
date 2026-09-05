@@ -1,4 +1,13 @@
-const VALID=new Set(['idle','loading','success','error','retry','offline','pending']);
+export const ACTION_STATE_SEMANTICS=Object.freeze({
+  idle:Object.freeze({role:null,live:null,busy:false}),
+  loading:Object.freeze({role:'status',live:'polite',busy:true}),
+  success:Object.freeze({role:'status',live:'polite',busy:false}),
+  pending:Object.freeze({role:'status',live:'polite',busy:false}),
+  error:Object.freeze({role:'alert',live:'assertive',busy:false}),
+  retry:Object.freeze({role:'alert',live:'assertive',busy:false}),
+  offline:Object.freeze({role:'alert',live:'assertive',busy:false}),
+});
+const VALID=new Set(Object.keys(ACTION_STATE_SEMANTICS));
 const OFFLINE_CODES=new Set(['M26_NETWORK_UNAVAILABLE','M26_OFFLINE','NETWORK_UNAVAILABLE','OFFLINE']);
 function errorCode(error){return String(error?.code||error?.message||error||'').trim().toUpperCase();}
 function isOfflineError(error){
@@ -27,7 +36,8 @@ export async function runAction(state,action){
 }
 export function renderActionState(state={status:'idle',message:''}){
   if(state.status==='idle')return '';
-  const busy=state.status==='loading';
-  const alert=state.status==='error'||state.status==='retry'||state.status==='offline';
-  return `<div class="m26-action-state is-${state.status}" role="${alert?'alert':'status'}" aria-live="${alert?'assertive':'polite'}"${busy?' aria-busy="true"':''}>${state.message||(busy?'Procesando…':'')}</div>`;
+  const semantics=ACTION_STATE_SEMANTICS[state.status];
+  if(!semantics)throw new Error('M26_ACTION_STATE_INVALID');
+  const busyMessage=state.status==='loading'?'Procesando…':'';
+  return `<div class="m26-action-state is-${state.status}" data-action-state="${state.status}" role="${semantics.role}" aria-live="${semantics.live}" aria-atomic="true"${semantics.busy?' aria-busy="true"':''}>${state.message||busyMessage}</div>`;
 }
