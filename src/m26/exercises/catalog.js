@@ -42,3 +42,41 @@ export async function loadExerciseCatalog(source){
  }else throw new Error('M26_EXERCISE_CATALOG_SOURCE_REQUIRED');
  const catalog=createExerciseCatalog(records);if(catalog.count<367)throw new Error(`M26_EXERCISE_CATALOG_INCOMPLETE:${catalog.count}`);return catalog;
 }
+
+const VISUAL_SCHEMA='iberfit.exercise.visual.v1';
+const VISUAL_STYLE='iberfit-premium-movement-pair-v1';
+const MEDIA_KINDS=new Set(['movement','thumbnail','start','end','demo']);
+const SAFE_VISUAL_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
+function visualText(value=''){return String(value??'').trim();}
+function visualList(value){return Object.freeze([...new Set((Array.isArray(value)?value:[]).map(visualText).filter(Boolean))]);}
+function positiveInt(value){const n=Number(value);return Number.isInteger(n)&&n>0?n:null;}
+function ensureVisualExerciseId(exercise){const id=visualText(exercise?.id);if(!SAFE_VISUAL_ID.test(id))throw new Error('IBERFIT_EXERCISE_VISUAL_ID_INVALID');return id;}
+function ensureVisualPath(id,path){const value=visualText(path);if(!value||value.startsWith('/')||value.includes('..')||!value.startsWith(`${id}/`))throw new Error('IBERFIT_EXERCISE_VISUAL_PATH_INVALID');return value;}
+function visualAsset(id,kind,raw={}){
+ if(!MEDIA_KINDS.has(kind))throw new Error('IBERFIT_EXERCISE_VISUAL_KIND_INVALID');
+ const path=ensureVisualPath(id,raw.path);const mime=visualText(raw.mime||raw.mime_type||'image/webp');
+ if(!['image/webp','image/png','image/jpeg','video/webm'].includes(mime))throw new Error('IBERFIT_EXERCISE_VISUAL_MIME_INVALID');
+ return Object.freeze({kind,path,mime,width:positiveInt(raw.width),height:positiveInt(raw.height),sha256:visualText(raw.sha256)||null});
+}
+export function buildExerciseVisualBrief(exercise={}){
+ const id=ensureVisualExerciseId(exercise);const name=visualText(exercise.name_es||exercise.name)||id;
+ return Object.freeze({schema:VISUAL_SCHEMA,style:VISUAL_STYLE,exerciseId:id,exerciseName:name,
+  composition:Object.freeze({type:'movement_pair',showStartAndEndTogether:true,labelsOnImage:false,titleOnImage:false,watermark:false,anatomicalInset:true,anatomicalInsetPlacement:'discreet_corner',background:'same_dark_premium_iberfit_gym',camera:'full_body_three_quarter_side_instructional'}),
+  athlete:Object.freeze({identity:'approved_iberfit_male_v1',continuityRequired:true,outfit:'fitted_black_training_kit',branding:'one_small_real_iberfit_isotype_left_chest_only',noWordmark:true,noInventedLogos:true}),
+  palette:Object.freeze({environment:['charcoal','black'],accent:['iberfit_gold','subtle_approved_green'],lighting:'cinematic_instructional'}),
+  biomechanics:Object.freeze({pattern:visualText(exercise.pattern),equipment:visualText(exercise.equipment),instructions:visualList(exercise.instructions_es),cues:visualList(exercise.cues),strict:true}),
+  muscles:Object.freeze({primary:visualList(exercise.primary_muscles),secondary:visualList(exercise.secondary_muscles),highlightPrimary:true,highlightSecondary:'subtle'}),
+  negative:Object.freeze(['no text labels','no position initial/final captions','no duplicated logos','no invented brand marks','no cropped hands or feet','no impossible joints','no misleading equipment path'])});
+}
+export function buildExerciseMediaManifest(exercise={},assets={},options={}){
+ const id=ensureVisualExerciseId(exercise);if(!assets?.movement)throw new Error('IBERFIT_EXERCISE_VISUAL_MOVEMENT_REQUIRED');
+ const movement=visualAsset(id,'movement',assets.movement);const optional={};for(const kind of ['thumbnail','start','end','demo'])if(assets[kind])optional[kind]=visualAsset(id,kind,assets[kind]);
+ return Object.freeze({schema:VISUAL_SCHEMA,style:VISUAL_STYLE,revision:positiveInt(options.revision)||1,bucket:visualText(options.bucket)||'iberfit-exercise-media',movement,...optional,muscles:Object.freeze({primary:visualList(exercise.primary_muscles),secondary:visualList(exercise.secondary_muscles)}),generatedAt:visualText(options.generatedAt)||new Date().toISOString(),qa:Object.freeze({biomechanics:visualText(options.biomechanicsStatus)||'pending',visual:visualText(options.visualStatus)||'pending'})});
+}
+export function validateExerciseMediaManifest(exercise={},manifest={}){
+ const id=ensureVisualExerciseId(exercise);const errors=[];if(manifest?.schema!==VISUAL_SCHEMA)errors.push('schema');if(manifest?.style!==VISUAL_STYLE)errors.push('style');if(visualText(manifest?.bucket)!=='iberfit-exercise-media')errors.push('bucket');
+ try{visualAsset(id,'movement',manifest?.movement||{});}catch{errors.push('movement');}
+ for(const kind of ['thumbnail','start','end','demo'])if(manifest?.[kind]){try{visualAsset(id,kind,manifest[kind]);}catch{errors.push(kind);}}
+ if(manifest?.qa?.biomechanics!=='approved')errors.push('qa.biomechanics');if(manifest?.qa?.visual!=='approved')errors.push('qa.visual');return Object.freeze({ok:errors.length===0,errors:Object.freeze([...new Set(errors)])});
+}
+export const IBERFIT_EXERCISE_VISUAL=Object.freeze({schema:VISUAL_SCHEMA,style:VISUAL_STYLE,bucket:'iberfit-exercise-media'});
