@@ -1,5 +1,6 @@
 import {localiseExerciseForDisplay} from './castellano.js';
 const CATALOG_FETCH_TIMEOUT_MS=5_000;
+const TRUSTED_EXERCISE_MEDIA_ORIGINS=new Set(['https://pjhmrhejsoofmouedavw.supabase.co','https://gjztkdwfmunnzhtvxrsu.supabase.co']);
 function norm(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
 function stringList(value){return Object.freeze((Array.isArray(value)?value:[]).map((item)=>String(item||'').trim()).filter(Boolean));}
 function freezeExercise(raw){raw=localiseExerciseForDisplay(raw);const id=String(raw?.id||'').trim(),name=String(raw?.name_es||'').trim();if(!id||!name)return null;return Object.freeze({...raw,id,name_es:name,pattern:String(raw.pattern||'').trim(),equipment:String(raw.equipment||'').trim(),difficulty:String(raw.difficulty||'').trim(),intent:String(raw.intent||'').trim(),primary_muscles:stringList(raw.primary_muscles),secondary_muscles:stringList(raw.secondary_muscles),cues:stringList(raw.cues),instructions_es:stringList(raw.instructions_es),precautions:stringList(raw.precautions),tags:stringList(raw.tags),aliases:stringList(raw.aliases)});}
@@ -10,6 +11,22 @@ export function createExerciseCatalog(records=[]){
  const facets=Object.freeze({patterns:Object.freeze([...new Set(list.map(x=>x.pattern).filter(Boolean))].sort()),equipment:Object.freeze([...new Set(list.map(x=>x.equipment).filter(Boolean))].sort()),difficulty:Object.freeze([...new Set(list.map(x=>x.difficulty).filter(Boolean))].sort()),intent:Object.freeze([...new Set(list.map(x=>x.intent).filter(Boolean))].sort())});
  function search(query='',filters={}){const q=norm(query);return list.filter(ex=>{const hay=norm([ex.name_es,ex.pattern,ex.intent,ex.equipment,ex.difficulty,...ex.primary_muscles,...ex.secondary_muscles,...ex.tags,...ex.aliases].join(' '));if(q&&!hay.includes(q))return false;for(const [key,value] of Object.entries(filters||{})){if(value==null||value===''||(Array.isArray(value)&&!value.length))continue;const expected=Array.isArray(value)?value:[value];const actual=Array.isArray(ex[key])?ex[key].join(' '):ex[key];if(!expected.some(v=>norm(actual).includes(norm(v))))return false;}return true;});}
  return Object.freeze({count:list.length,list:()=>list,get:id=>map.get(String(id))||null,has:id=>map.has(String(id)),search,facets});
+}
+export function mergeExerciseCatalogRecords(baseCatalog,remoteRows=[],{mediaOrigin=''}={}){
+ const base=Array.isArray(baseCatalog)?baseCatalog:typeof baseCatalog?.list==='function'?baseCatalog.list():[];
+ if(!Array.isArray(remoteRows))throw new Error('M26_EXERCISE_REMOTE_CATALOG_INVALID');
+ const origin=String(mediaOrigin||'').replace(/\/$/u,'');
+ if(origin&&!TRUSTED_EXERCISE_MEDIA_ORIGINS.has(origin))throw new Error('M26_EXERCISE_MEDIA_ORIGIN_INVALID');
+ const merged=new Map();
+ for(const item of base){const id=String(item?.id||'').trim();if(id)merged.set(id,item);}
+ for(const item of remoteRows){
+  const id=String(item?.id||'').trim();if(!id)continue;
+  const media=item?.media&&typeof item.media==='object'&&!Array.isArray(item.media)
+    ?Object.freeze({...item.media,...(origin?{deliveryOrigin:origin}:{})})
+    :{};
+  merged.set(id,{...item,media});
+ }
+ return createExerciseCatalog([...merged.values()]);
 }
 export function resolveBrowserCatalogUrl(source,locationLike=globalThis.location){
  const fallback='http://localhost/';let base=fallback;
@@ -71,12 +88,12 @@ export function buildExerciseVisualBrief(exercise={}){
 export function buildExerciseMediaManifest(exercise={},assets={},options={}){
  const id=ensureVisualExerciseId(exercise);if(!assets?.movement)throw new Error('IBERFIT_EXERCISE_VISUAL_MOVEMENT_REQUIRED');
  const movement=visualAsset(id,'movement',assets.movement);const optional={};for(const kind of ['thumbnail','start','end','demo'])if(assets[kind])optional[kind]=visualAsset(id,kind,assets[kind]);
- return Object.freeze({schema:VISUAL_SCHEMA,style:VISUAL_STYLE,revision:positiveInt(options.revision)||1,bucket:visualText(options.bucket)||'iberfit-exercise-media',movement,...optional,muscles:Object.freeze({primary:visualList(exercise.primary_muscles),secondary:visualList(exercise.secondary_muscles)}),generatedAt:visualText(options.generatedAt)||new Date().toISOString(),qa:Object.freeze({biomechanics:visualText(options.biomechanicsStatus)||'pending',visual:visualText(options.visualStatus)||'pending'})});
+ return Object.freeze({schema:VISUAL_SCHEMA,style:VISUAL_STYLE,revision:positiveInt(options.revision)||1,bucket:visualText(options.bucket)||'iberfit-exercise-media',movement,...optional,muscles:Object.freeze({primary:visualList(exercise.primary_muscles),secondary:visualList(exercise.secondary_muscles)}),generatedAt:visualText(options.generatedAt)||new Date().toISOString(),published:options.published===true,clientVisible:options.clientVisible===true,coachVisible:options.coachVisible!==false,qa:Object.freeze({biomechanics:visualText(options.biomechanicsStatus)||'pending',visual:visualText(options.visualStatus)||'pending'}),provenance:Object.freeze({rightsBasis:visualText(options.rightsBasis)||'iberfit_owned',sourceRef:visualText(options.sourceRef)||'IBERFIT_GENERATED',licenseLabel:visualText(options.licenseLabel)||'IBERFIT owned visual'})});
 }
 export function validateExerciseMediaManifest(exercise={},manifest={}){
  const id=ensureVisualExerciseId(exercise);const errors=[];if(manifest?.schema!==VISUAL_SCHEMA)errors.push('schema');if(manifest?.style!==VISUAL_STYLE)errors.push('style');if(visualText(manifest?.bucket)!=='iberfit-exercise-media')errors.push('bucket');
  try{visualAsset(id,'movement',manifest?.movement||{});}catch{errors.push('movement');}
  for(const kind of ['thumbnail','start','end','demo'])if(manifest?.[kind]){try{visualAsset(id,kind,manifest[kind]);}catch{errors.push(kind);}}
- if(manifest?.qa?.biomechanics!=='approved')errors.push('qa.biomechanics');if(manifest?.qa?.visual!=='approved')errors.push('qa.visual');return Object.freeze({ok:errors.length===0,errors:Object.freeze([...new Set(errors)])});
+ if(manifest?.qa?.biomechanics!=='approved')errors.push('qa.biomechanics');if(manifest?.qa?.visual!=='approved')errors.push('qa.visual');if(manifest?.published!==true)errors.push('published');if(manifest?.clientVisible!==true&&manifest?.coachVisible!==true)errors.push('visibility');return Object.freeze({ok:errors.length===0,errors:Object.freeze([...new Set(errors)])});
 }
 export const IBERFIT_EXERCISE_VISUAL=Object.freeze({schema:VISUAL_SCHEMA,style:VISUAL_STYLE,bucket:'iberfit-exercise-media'});
