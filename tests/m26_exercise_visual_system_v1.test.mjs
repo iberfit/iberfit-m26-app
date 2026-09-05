@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildExerciseVisualBrief,buildExerciseMediaManifest,validateExerciseMediaManifest,IBERFIT_EXERCISE_VISUAL} from '../src/m26/exercises/visual-system.js';
+import {buildExerciseVisualBrief,buildExerciseMediaManifest,validateExerciseMediaManifest,IBERFIT_EXERCISE_VISUAL} from '../src/m26/exercises/catalog.js';
 
 const exercise={id:'squat.bodyweight',name_es:'Sentadilla con peso corporal',pattern:'sentadilla',equipment:'sin material',primary_muscles:['cuádriceps','glúteos'],secondary_muscles:['core'],cues:['rodillas siguen la línea de los pies']};
 
