@@ -1,5 +1,31 @@
 -- IBERFIT Exercise Media Runtime Bridge v1
--- Public read surface contains brand exercise assets only. Writes remain admin-only.
+-- Public read surfaces contain exercise/brand content only. Writes remain admin-only.
+
+create or replace function public.iberfit_exercise_catalog_public_v1(
+  p_limit integer default 200,
+  p_offset integer default 0
+) returns table(
+  id text,name_es text,name_source text,source text,source_id text,pattern text,intent text,equipment text,difficulty text,
+  primary_muscles text[],secondary_muscles text[],cues text[],instructions_es text[],precautions text[],units text[],tags text[],aliases text[],
+  media_status text,media jsonb,review_status text,active boolean,revision bigint,total_count bigint
+)
+language sql
+stable
+security definer
+set search_path=''
+as $$
+  select e.id,e.name_es,e.name_source,e.source,e.source_id,e.pattern,e.intent,e.equipment,e.difficulty,
+    e.primary_muscles,e.secondary_muscles,e.cues,e.instructions_es,e.precautions,e.units,e.tags,e.aliases,
+    e.media_status,e.media,e.review_status,e.active,e.revision,count(*) over()
+  from public.exercise_catalog e
+  where e.active=true and e.review_status<>'retirado'
+  order by e.name_es,e.id
+  limit greatest(1,least(coalesce(p_limit,200),200))
+  offset greatest(coalesce(p_offset,0),0);
+$$;
+
+revoke all on function public.iberfit_exercise_catalog_public_v1(integer,integer) from public;
+grant execute on function public.iberfit_exercise_catalog_public_v1(integer,integer) to anon,authenticated;
 
 create or replace function public.iberfit_exercise_media_manifest_v1()
 returns jsonb
