@@ -59,6 +59,12 @@ jobs:
       - name: Translation Coverage Gate
         run: node --test tests/m26_rc74_18_translation_coverage_gate.test.mjs
 
+      - name: Accessibility Gate
+        run: node --test tests/m26_rc74_18_accessibility_gate.test.mjs
+
+      - name: UX State Gate
+        run: node --test tests/m26_rc74_18_ux_state_gate.test.mjs
+
       - name: Validar contratos Cliente Coach Admin
         run: |
           node --test \
