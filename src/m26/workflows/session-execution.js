@@ -3,7 +3,7 @@ import { createM26Id } from '../platform/id.js';
 function clone(v){return structuredClone(v);}
 function now(){return new Date().toISOString();}
 function uid(){return createM26Id();}
-function remoteSnapshot(execution){const out=clone(execution);delete out.syncStatus;delete out.pendingOperationIds;delete out.lastSyncError;delete out.recoveredAt;delete out.liveTelemetry;delete out.activeSetDraft;return out;}
+function remoteSnapshot(execution){const out=clone(execution);delete out.syncStatus;delete out.pendingOperationIds;delete out.lastSyncError;delete out.recoveredAt;delete out.liveTelemetry;delete out.activeSetDraft;delete out.finalFeedbackDraft;return out;}
 function findExercise(session, exerciseId){
   for(const block of session.blocks||[]){
     if(block.type==='exercise'&&block.exerciseId===exerciseId)return block;
@@ -66,6 +66,26 @@ export function updateActiveSetDraft(execution,session,input={}){
   return clone(execution.activeSetDraft);
 }
 export function clearActiveSetDraft(execution){if(execution)delete execution.activeSetDraft;return execution;}
+export function getFinalFeedbackDraft(execution){
+  const draft=execution?.finalFeedbackDraft;
+  if(execution?.status!=='awaiting_feedback'||!draft||draft.executionId!==execution.id)return null;
+  return clone(draft);
+}
+export function updateFinalFeedbackDraft(execution,input={}){
+  if(execution?.status!=='awaiting_feedback')return null;
+  execution.finalFeedbackDraft={
+    executionId:execution.id,
+    values:{
+      sessionRpe:draftValue(input.sessionRpe,32),
+      comment:draftValue(input.comment,2000),
+      pain:Boolean(input.pain),
+      painNotes:draftValue(input.painNotes,1000),
+    },
+    updatedAt:now(),
+  };
+  return clone(execution.finalFeedbackDraft);
+}
+export function clearFinalFeedbackDraft(execution){if(execution)delete execution.finalFeedbackDraft;return execution;}
 function ensureDeviationStores(execution){
   if(!execution.skippedSets||typeof execution.skippedSets!=='object')execution.skippedSets={};
   if(!Array.isArray(execution.skippedExercises))execution.skippedExercises=[];
@@ -121,7 +141,7 @@ export function resumeExecution(execution,{actor=null}={}){
 export function cancelExecution(execution,reason,{actor=null}={}){
   if(!['ready','active','paused'].includes(execution.status))throw new Error('M26_EXECUTION_CANCEL_INVALID');
   const safeReason=requireReason(reason,'M26_EXECUTION_CANCEL_REASON_REQUIRED');
-  clearActiveSetDraft(execution);freezeExecutionClock(execution);execution.status='cancelled';execution.cancelledAt=now();execution.cancellationReason=safeReason;execution.restUntil=null;
+  clearActiveSetDraft(execution);clearFinalFeedbackDraft(execution);freezeExecutionClock(execution);execution.status='cancelled';execution.cancelledAt=now();execution.cancellationReason=safeReason;execution.restUntil=null;
   event(execution,'SESSION_CANCELLED',{reason:safeReason},actor);return execution;
 }
 export function recordSet(execution,session,input={}){
@@ -253,7 +273,7 @@ export function finishExecution(execution,feedback={}, {actor=null}={}){
   const sessionRpe=Number(feedback.sessionRpe||0);if(sessionRpe<1||sessionRpe>10)throw new Error('M26_EXECUTION_SESSION_RPE_REQUIRED');
   if(!String(feedback.comment||'').trim())throw new Error('M26_EXECUTION_FEEDBACK_REQUIRED');
   const pain=Boolean(feedback.pain),painNotes=String(feedback.painNotes||'').trim().slice(0,1000);if(pain&&!painNotes)throw new Error('M26_EXECUTION_PAIN_NOTES_REQUIRED');
-  clearActiveSetDraft(execution);freezeExecutionClock(execution);execution.feedback={sessionRpe,comment:String(feedback.comment).trim().slice(0,2000),pain,painNotes};execution.status='completed';execution.completedAt=now();
+  clearActiveSetDraft(execution);clearFinalFeedbackDraft(execution);freezeExecutionClock(execution);execution.feedback={sessionRpe,comment:String(feedback.comment).trim().slice(0,2000),pain,painNotes};execution.status='completed';execution.completedAt=now();
   event(execution,'SESSION_COMPLETED',execution.feedback,actor);return execution;
 }
 export function buildExecutionCommand(execution,baseRevision=0){if(execution.status!=='completed')throw new Error('M26_EXECUTION_NOT_COMPLETED');return {operationId:execution.id,type:'EJECUCION_COMPLETAR',entityType:'session_execution',entityId:execution.id,clientId:execution.clientId,baseRevision,payload:{patch:remoteSnapshot(execution)}};}
