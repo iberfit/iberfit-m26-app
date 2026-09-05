@@ -26,6 +26,8 @@ export function setIberfitUiLocale(value){
 }
 
 export function castilianStatusLabel(value,fallback=null){
+  const key=String(value??'').trim().toLowerCase();
+  if(getIberfitLanguage()==='es'&&key==='rejected')return 'Rechazada';
   return iberfitStatusLabel(value,{fallback});
 }
 
