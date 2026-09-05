@@ -59,9 +59,11 @@ test('RC74.17 grafica sólo puntos comparables y conserva ausencia como ausencia
   assert.match(block,/createElementNS/);
   assert.match(block,/createElementNS\(namespace,'polyline'\)/);
   assert.match(block,/Dato ausente se conserva como ausente|datos ausentes en cero/);
-  assert.match(engine,/Solo se interpreta como kg cuando la unidad kg es explícita/);
-  assert.match(engine,/Las cargas sin unidad se muestran como texto y no generan volumen en kg/);
-  assert.match(engine,/Dato ausente se conserva como ausente; nunca se convierte en cero/);
+  assert.match(engine,/function epKnownLoadKg\(row\)/);
+  assert.match(engine,/if\(!kgMatch\)return null/);
+  assert.match(engine,/function epLoadLabel\(row\)/);
+  assert.match(engine,/const knownKg=epKnownLoadKg\(row\)/);
+  assert.match(engine,/return Number\.isFinite\(load\)&&Number\.isFinite\(rowReps\)\s*\?\s*load\*rowReps\s*:\s*null/s);
 });
 
 test('RC74.17 mantiene interpretación neutral, read-only y sin nueva superficie PWA',async()=>{
