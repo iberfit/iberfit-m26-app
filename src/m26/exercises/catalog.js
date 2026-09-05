@@ -1,6 +1,9 @@
 import {localiseExerciseForDisplay} from './castellano.js';
 const CATALOG_FETCH_TIMEOUT_MS=5_000;
 const TRUSTED_EXERCISE_MEDIA_ORIGINS=new Set(['https://pjhmrhejsoofmouedavw.supabase.co','https://gjztkdwfmunnzhtvxrsu.supabase.co']);
+const DYNAMIC_PUBLIC_CATALOG_RPC='iberfit_exercise_catalog_public_v1';
+const DYNAMIC_PAGE_SIZE=200;
+const DYNAMIC_MAX_ROWS=5_000;
 function norm(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
 function stringList(value){return Object.freeze((Array.isArray(value)?value:[]).map((item)=>String(item||'').trim()).filter(Boolean));}
 function freezeExercise(raw){raw=localiseExerciseForDisplay(raw);const id=String(raw?.id||'').trim(),name=String(raw?.name_es||'').trim();if(!id||!name)return null;return Object.freeze({...raw,id,name_es:name,pattern:String(raw.pattern||'').trim(),equipment:String(raw.equipment||'').trim(),difficulty:String(raw.difficulty||'').trim(),intent:String(raw.intent||'').trim(),primary_muscles:stringList(raw.primary_muscles),secondary_muscles:stringList(raw.secondary_muscles),cues:stringList(raw.cues),instructions_es:stringList(raw.instructions_es),precautions:stringList(raw.precautions),tags:stringList(raw.tags),aliases:stringList(raw.aliases)});}
@@ -47,17 +50,42 @@ async function fetchCatalogJson(target){
   throw error;
  }finally{clearTimeout(timer);}
 }
+function dynamicCatalogRuntime(raw=globalThis.__IBERFIT_M26_RUNTIME__||{}){
+ if(raw?.enabled!==true)return null;const origin=String(raw?.url||'').replace(/\/$/u,'');const key=String(raw?.publishableKey||raw?.anonKey||'');
+ if(!TRUSTED_EXERCISE_MEDIA_ORIGINS.has(origin)||key.length<2||key.length>16_384)return null;
+ return {origin,key,version:String(raw?.version||'26.0.0').slice(0,80),timeoutMs:Math.max(1_000,Math.min(Number(raw?.timeoutMs||CATALOG_FETCH_TIMEOUT_MS),15_000))};
+}
+async function fetchDynamicCatalogRows(fetchImpl=globalThis.fetch,runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{}){
+ const runtime=dynamicCatalogRuntime(runtimeConfig);if(!runtime||typeof fetchImpl!=='function')return [];
+ const rows=[];
+ for(let offset=0;offset<DYNAMIC_MAX_ROWS;offset+=DYNAMIC_PAGE_SIZE){
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),runtime.timeoutMs);
+  try{
+   const response=await fetchImpl(`${runtime.origin}/rest/v1/rpc/${DYNAMIC_PUBLIC_CATALOG_RPC}`,{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer',signal:controller.signal,headers:{apikey:runtime.key,authorization:`Bearer ${runtime.key}`,'content-type':'application/json','x-client-info':`iberfit-m26-web/${runtime.version}`},body:JSON.stringify({p_limit:DYNAMIC_PAGE_SIZE,p_offset:offset})});
+   if(response.status===404)return [];
+   if(!response.ok)throw new Error(`M26_EXERCISE_DYNAMIC_HTTP_${response.status}`);
+   const page=await response.json();if(!Array.isArray(page)||page.length>DYNAMIC_PAGE_SIZE)throw new Error('M26_EXERCISE_DYNAMIC_RESPONSE_INVALID');
+   rows.push(...page);if(page.length<DYNAMIC_PAGE_SIZE)break;const total=Number(page[0]?.total_count);if(Number.isFinite(total)&&rows.length>=total)break;
+  }catch(error){if(error?.name==='AbortError')throw new Error('M26_EXERCISE_DYNAMIC_TIMEOUT');throw error;}finally{clearTimeout(timer);}
+ }
+ return rows;
+}
 export async function loadExerciseCatalog(source){
- let records;
+ let records;const browser=typeof window!=='undefined'&&typeof fetch==='function';
  if(Array.isArray(source))records=source;
  else if(source instanceof URL&&source.protocol==='file:'){
   const {readFile}=await import('node:fs/promises');records=JSON.parse(await readFile(source,'utf8'));
  }else if(source instanceof URL||typeof source==='string'){
-  const browser=typeof window!=='undefined'&&typeof fetch==='function';let target=source instanceof URL?source.href:source;const remote=/^https?:\/\//i.test(target);
+  let target=source instanceof URL?source.href:source;const remote=/^https?:\/\//i.test(target);
   if(browser||remote){if(browser)target=resolveBrowserCatalogUrl(target,globalThis.location);records=await fetchCatalogJson(target);}
   else{const {readFile}=await import('node:fs/promises');records=JSON.parse(await readFile(target,'utf8'));}
  }else throw new Error('M26_EXERCISE_CATALOG_SOURCE_REQUIRED');
- const catalog=createExerciseCatalog(records);if(catalog.count<367)throw new Error(`M26_EXERCISE_CATALOG_INCOMPLETE:${catalog.count}`);return catalog;
+ const catalog=createExerciseCatalog(records);if(catalog.count<367)throw new Error(`M26_EXERCISE_CATALOG_INCOMPLETE:${catalog.count}`);
+ if(!browser)return catalog;
+ try{
+  const runtime=dynamicCatalogRuntime();if(!runtime)return catalog;const remoteRows=await fetchDynamicCatalogRows(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{});if(!remoteRows.length)return catalog;
+  const merged=mergeExerciseCatalogRecords(catalog,remoteRows,{mediaOrigin:runtime.origin});return merged.count>=catalog.count?merged:catalog;
+ }catch{return catalog;}
 }
 
 const VISUAL_SCHEMA='iberfit.exercise.visual.v1';
