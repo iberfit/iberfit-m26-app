@@ -70,7 +70,7 @@ export function auditInteractiveMarkup(markup=''){
   const errors=[];
   const ids=new Set();
   const duplicateIds=new Set();
-  for(const match of markup.matchAll(/\bid=["']([^"']+)["']/gi)){
+  for(const match of markup.matchAll(/(?:^|\s)id=["']([^"']+)["']/gi)){
     if(ids.has(match[1]))duplicateIds.add(match[1]);
     ids.add(match[1]);
   }
