@@ -79,7 +79,8 @@ test('session controller rehydrates set fields after telemetry-driven renders',(
   const source=readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
   assert.match(source,/getActiveSetDraft/);
   assert.match(source,/updateActiveSetDraft/);
-  assert.match(source,/onUpdate:renderSession/);
+  assert.match(source,/onUpdate:\(\)=>render\?\.\(\)/);
+  assert.match(source,/render=\(\)=>\{baseRender\?\.\(\);hydrateActiveSetDraft\(getContext\(\)\);\}/);
   assert.match(source,/querySelectorAll\?\.\('\[data-set-field\]'\)/);
   assert.match(source,/hydrateActiveSetDraft\(getContext\(\)\)/);
 });
