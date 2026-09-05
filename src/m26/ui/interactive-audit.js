@@ -64,9 +64,18 @@ const ACTION_ATTRIBUTE=/data-(?:session-action|m26-action|engagement-action|veri
 
 function stripTags(value=''){return value.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();}
 function hasAccessibleName(attrs,body){return Boolean(stripTags(body)||/aria-label=["'][^"']+["']/.test(attrs)||/aria-labelledby=["'][^"']+["']/.test(attrs));}
+function attributeValue(attrs,name){return attrs.match(new RegExp(`${name}=["']([^"']+)["']`,'i'))?.[1]||'';}
 
 export function auditInteractiveMarkup(markup=''){
   const errors=[];
+  const ids=new Set();
+  const duplicateIds=new Set();
+  for(const match of markup.matchAll(/\bid=["']([^"']+)["']/gi)){
+    if(ids.has(match[1]))duplicateIds.add(match[1]);
+    ids.add(match[1]);
+  }
+  for(const id of duplicateIds)errors.push(`DUPLICATE_ID:${id}`);
+
   const buttonPattern=/<button\b([^>]*)>([\s\S]*?)<\/button>/gi;
   let match;
   while((match=buttonPattern.exec(markup))){
@@ -79,7 +88,31 @@ export function auditInteractiveMarkup(markup=''){
     if(/\bonclick\s*=/.test(attrs))errors.push('INLINE_HANDLER_FORBIDDEN');
     if(/\bdisabled\b/.test(attrs)&&!/aria-disabled=["']true["']/.test(attrs))errors.push('DISABLED_ARIA_REQUIRED');
   }
+
+  const dialogPattern=/<(?:section|div|aside)\b([^>]*\brole=["']dialog["'][^>]*)>/gi;
+  while((match=dialogPattern.exec(markup))){
+    const attrs=match[1];
+    const label=attributeValue(attrs,'aria-label');
+    const labelledBy=attributeValue(attrs,'aria-labelledby');
+    if(!label&&!labelledBy)errors.push('DIALOG_NAME_REQUIRED');
+    if(labelledBy&&!ids.has(labelledBy))errors.push(`DIALOG_LABEL_TARGET_REQUIRED:${labelledBy}`);
+  }
+
+  const alertPattern=/<[^>]+\brole=["']alert["'][^>]*>/gi;
+  while((match=alertPattern.exec(markup))){
+    if(!/aria-live=["']assertive["']/i.test(match[0]))errors.push('ALERT_LIVE_ASSERTIVE_REQUIRED');
+  }
+
+  const mainMatch=markup.match(/<main\b([^>]*)\bid=["']m26-main["']([^>]*)>/i);
+  if(mainMatch&&!/tabindex=["']-1["']/i.test(`${mainMatch[1]} ${mainMatch[2]}`))errors.push('MAIN_FOCUS_TARGET_REQUIRED');
+
   return {ok:errors.length===0,errors};
+}
+
+export function assertInteractiveMarkup(markup=''){
+  const report=auditInteractiveMarkup(markup);
+  if(!report.ok)throw new Error(`M26_ACCESSIBILITY_GATE_FAILED:${report.errors.join(',')}`);
+  return report;
 }
 
 export function assertActionAllowed(action,role){
