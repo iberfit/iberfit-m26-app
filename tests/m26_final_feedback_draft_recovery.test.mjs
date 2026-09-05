@@ -85,13 +85,13 @@ test('finalizar promueve el feedback validado y elimina el borrador local',()=>{
 
 test('controlador captura, persiste e hidrata RPE, comentario, dolor y notas',()=>{
   const source=fs.readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
-  assert.match(source,/getFinalFeedbackDraft,updateFinalFeedbackDraft/u);
-  assert.match(source,/function feedbackValues\(root\)/u);
-  assert.match(source,/pain:Boolean\(root\.querySelector\?\.\('\[data-session-feedback-pain\]'\)\?\.checked\)/u);
-  assert.match(source,/function hydrateFinalFeedbackDraft\(context=getContext\(\)\)/u);
-  assert.match(source,/pain\.checked=Boolean\(values\.pain\)/u);
-  assert.match(source,/updateFinalFeedbackDraft\(context\.execution,feedbackValues\(root\)\)/u);
-  assert.match(source,/if\(saved\)queueExecutionDraftPersist\(context\)/u);
-  assert.match(source,/render=\(\)=>\{baseRender\?\.\(\);hydrateActiveSetDraft\(getContext\(\)\);hydrateFinalFeedbackDraft\(getContext\(\)\);\};/u);
-  assert.match(source,/createLiveTelemetryController\(\{scope:globalThis,onUpdate:\(\)=>render\?\.\(\),onDiagnostic:\(\)=>\{\},telemetryOutbox,onOutboxStaged:/u);
+  assert.ok(source.includes('getFinalFeedbackDraft,updateFinalFeedbackDraft'));
+  assert.ok(source.includes('function feedbackValues(root)'));
+  assert.ok(source.includes("pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked)"));
+  assert.ok(source.includes('function hydrateFinalFeedbackDraft(context=getContext())'));
+  assert.ok(source.includes('pain.checked=Boolean(values.pain)'));
+  assert.ok(source.includes('updateFinalFeedbackDraft(context.execution,feedbackValues(root))'));
+  assert.ok(source.includes('if(saved)queueExecutionDraftPersist(context)'));
+  assert.ok(source.includes('render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());};'));
+  assert.ok(source.includes('createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:'));
 });
