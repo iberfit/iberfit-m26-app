@@ -16,6 +16,8 @@ const SAFE_IBERFIT_CAPTION_PATH=/^\/public\/iberfit\/exercises\/captions\/[A-Za-
 const ALLOWED_ASSET_RIGHTS_BASIS=new Set(['iberfit_owned','commissioned','licensed','public_domain']);
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const MEDIA_FETCH_TIMEOUT_MS=3_000;
+const DYNAMIC_MEDIA_RPC='iberfit_exercise_media_manifest_v1';
+const TRUSTED_MEDIA_ORIGINS=new Set(['https://pjhmrhejsoofmouedavw.supabase.co','https://gjztkdwfmunnzhtvxrsu.supabase.co']);
 const manifestIndexes=new WeakMap();
 
 function normalizedRole(value){
@@ -37,11 +39,28 @@ function safeRepdbPaths(value){
     .slice(0,2);
 }
 
+function safeRemoteIberfitPath(path,exerciseId){
+  if(typeof path!=='string'||!path)return null;
+  let url;
+  try{url=new URL(path);}catch{return null;}
+  if(!TRUSTED_MEDIA_ORIGINS.has(url.origin)||url.username||url.password||url.search||url.hash)return null;
+  const prefix=`/storage/v1/object/public/iberfit-exercise-media/${encodeURIComponent(exerciseId)}/`;
+  if(!url.pathname.startsWith(prefix))return null;
+  const suffix=url.pathname.slice(prefix.length);
+  if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,159}\.(?:webp|png|jpe?g)$/iu.test(suffix)||suffix.includes('..'))return null;
+  return url.href;
+}
+
 function safeIberfitPaths(value,exerciseId){
   if(!Array.isArray(value))return [];
   const prefix=`/public/iberfit/exercises/images/${exerciseId}/`;
   return value
-    .filter((path)=>typeof path==='string'&&SAFE_IBERFIT_MEDIA_PATH.test(path)&&path.startsWith(prefix))
+    .map((path)=>{
+      if(typeof path!=='string')return null;
+      if(SAFE_IBERFIT_MEDIA_PATH.test(path)&&path.startsWith(prefix))return path;
+      return safeRemoteIberfitPath(path,exerciseId);
+    })
+    .filter(Boolean)
     .slice(0,2);
 }
 
@@ -333,21 +352,69 @@ async function fetchMap(fetchImpl,url,validator,timeoutMs){
   }
 }
 
+function dynamicRuntime(raw={}){
+  if(raw?.enabled!==true)return null;
+  const origin=String(raw?.url||'').replace(/\/$/u,'');
+  const key=String(raw?.publishableKey||raw?.anonKey||'');
+  if(!TRUSTED_MEDIA_ORIGINS.has(origin)||key.length<2||key.length>16_384)return null;
+  return {origin,key,version:String(raw?.version||'26.0.0').slice(0,80)};
+}
+function storagePublicUrl(origin,exerciseId,path){
+  const value=String(path||'').trim();
+  if(!value.startsWith(`${exerciseId}/`)||value.includes('..')||value.length>260)return null;
+  const parts=value.split('/');
+  if(parts.length!==2||parts.some((part)=>!part))return null;
+  const suffix=parts[1];
+  if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,159}\.(?:webp|png|jpe?g)$/iu.test(suffix))return null;
+  return `${origin}/storage/v1/object/public/iberfit-exercise-media/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}`;
+}
+export function materializeDynamicIberfitMediaMap(manifest,runtimeConfig={}){
+  const runtime=dynamicRuntime(runtimeConfig);if(!runtime)return null;
+  const validated=validateIberfitExerciseMediaMap(manifest);
+  const items=[];
+  for(const item of validated.items){
+    const id=itemId(item,'IBERFIT');const url=storagePublicUrl(runtime.origin,id,item.storage_path??item.storagePath);
+    if(!url)continue;
+    items.push(Object.freeze({...item,image_mode:'main',image_paths:Object.freeze([url])}));
+  }
+  return validateIberfitExerciseMediaMap({...validated,items:Object.freeze(items),source:Object.freeze({...validated.source,deliveryOrigin:runtime.origin})});
+}
+function mergeIberfitMediaMaps(base,dynamic){
+  if(!dynamic)return base;
+  if(!base)return dynamic;
+  const merged=new Map();for(const item of base.items)merged.set(itemId(item,'IBERFIT'),item);for(const item of dynamic.items)merged.set(itemId(item,'IBERFIT'),item);
+  return validateIberfitExerciseMediaMap({...base,release:'IBERFIT_EXERCISE_MEDIA_RUNTIME_V1',generatedAt:new Date().toISOString(),source:{...base.source,dynamic:true,deliveryOrigin:dynamic.source?.deliveryOrigin||null},items:[...merged.values()]});
+}
+async function fetchDynamicIberfitMap(fetchImpl,runtimeConfig,timeoutMs){
+  const runtime=dynamicRuntime(runtimeConfig);if(!runtime)return null;
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{
+    const response=await fetchImpl(`${runtime.origin}/rest/v1/rpc/${DYNAMIC_MEDIA_RPC}`,{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer',signal:controller.signal,headers:{accept:'application/json',apikey:runtime.key,authorization:`Bearer ${runtime.key}`,'content-type':'application/json','x-client-info':`iberfit-m26-web/${runtime.version}`},body:'{}'});
+    if(response.status===404)return null;
+    if(!response.ok)throw new Error(`M26_DYNAMIC_MEDIA_FETCH_FAILED:${response.status}`);
+    return materializeDynamicIberfitMediaMap(await response.json(),runtimeConfig);
+  }catch(error){if(error?.name==='AbortError')throw new Error('M26_DYNAMIC_MEDIA_TIMEOUT');throw error;}finally{clearTimeout(timer);}
+}
+
 export async function loadExerciseMediaMap({
   fetchImpl=globalThis.fetch,
   iberfitUrl=IBERFIT_MEDIA_MAP_URL,
   iberfitRichUrl=IBERFIT_RICH_MEDIA_MAP_URL,
   repdbUrl=REPDB_MEDIA_MAP_URL,
+  runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},
   timeoutMs=MEDIA_FETCH_TIMEOUT_MS,
 }={}){
   if(typeof fetchImpl!=='function')throw new Error('M26_MEDIA_FETCH_UNAVAILABLE');
   const boundedTimeout=Math.max(500,Math.min(Number(timeoutMs||MEDIA_FETCH_TIMEOUT_MS),10_000));
-  const [iberfitResult,iberfitRichResult,repdbResult]=await Promise.allSettled([
+  const [iberfitResult,iberfitRichResult,repdbResult,dynamicResult]=await Promise.allSettled([
     fetchMap(fetchImpl,iberfitUrl,validateIberfitExerciseMediaMap,boundedTimeout),
     fetchMap(fetchImpl,iberfitRichUrl,validateIberfitExerciseRichMediaMap,boundedTimeout),
     fetchMap(fetchImpl,repdbUrl,validateExerciseMediaMap,boundedTimeout),
+    fetchDynamicIberfitMap(fetchImpl,runtimeConfig,boundedTimeout),
   ]);
-  const iberfit=iberfitResult.status==='fulfilled'?iberfitResult.value:null;
+  const staticIberfit=iberfitResult.status==='fulfilled'?iberfitResult.value:null;
+  const dynamicIberfit=dynamicResult.status==='fulfilled'?dynamicResult.value:null;
+  const iberfit=mergeIberfitMediaMaps(staticIberfit,dynamicIberfit);
   const iberfitRich=iberfitRichResult.status==='fulfilled'?iberfitRichResult.value:null;
   const repdb=repdbResult.status==='fulfilled'?repdbResult.value:null;
   return createExerciseMediaBundle({iberfit,iberfitRich,repdb});

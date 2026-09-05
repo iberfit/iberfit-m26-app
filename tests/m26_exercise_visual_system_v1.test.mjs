@@ -14,17 +14,18 @@ test('visual brief fija la estética IBERFIT aprobada sin rótulos de posición'
   assert.equal(brief.muscles.primary[0],'cuádriceps');
 });
 
-test('manifest exige una imagen de movimiento y mantiene rutas por ejercicio',()=>{
-  const manifest=buildExerciseMediaManifest(exercise,{movement:{path:'squat.bodyweight/movement.webp',width:1400,height:900,mime:'image/webp'}},{biomechanicsStatus:'approved',visualStatus:'approved',generatedAt:'2026-09-05T22:00:00.000Z'});
+test('manifest exige imagen de movimiento, QA y publicación explícita',()=>{
+  const manifest=buildExerciseMediaManifest(exercise,{movement:{path:'squat.bodyweight/movement.webp',width:1400,height:900,mime:'image/webp'}},{biomechanicsStatus:'approved',visualStatus:'approved',published:true,clientVisible:true,coachVisible:true,generatedAt:'2026-09-05T22:00:00.000Z'});
   assert.equal(manifest.bucket,IBERFIT_EXERCISE_VISUAL.bucket);
   assert.equal(manifest.movement.kind,'movement');
   assert.deepEqual(validateExerciseMediaManifest(exercise,manifest),{ok:true,errors:[]});
 });
 
-test('manifest fail-closed si QA biomecánica o visual no está aprobada',()=>{
+test('manifest fail-closed si QA o publicación no están aprobadas',()=>{
   const manifest=buildExerciseMediaManifest(exercise,{movement:{path:'squat.bodyweight/movement.webp'}},{generatedAt:'2026-09-05T22:00:00.000Z'});
   const result=validateExerciseMediaManifest(exercise,manifest);
   assert.equal(result.ok,false);
   assert.ok(result.errors.includes('qa.biomechanics'));
   assert.ok(result.errors.includes('qa.visual'));
+  assert.ok(result.errors.includes('published'));
 });

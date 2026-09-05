@@ -1,5 +1,9 @@
 import {localiseExerciseForDisplay} from './castellano.js';
 const CATALOG_FETCH_TIMEOUT_MS=5_000;
+const TRUSTED_EXERCISE_MEDIA_ORIGINS=new Set(['https://pjhmrhejsoofmouedavw.supabase.co','https://gjztkdwfmunnzhtvxrsu.supabase.co']);
+const DYNAMIC_PUBLIC_CATALOG_RPC='iberfit_exercise_catalog_public_v1';
+const DYNAMIC_PAGE_SIZE=200;
+const DYNAMIC_MAX_ROWS=5_000;
 function norm(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
 function stringList(value){return Object.freeze((Array.isArray(value)?value:[]).map((item)=>String(item||'').trim()).filter(Boolean));}
 function freezeExercise(raw){raw=localiseExerciseForDisplay(raw);const id=String(raw?.id||'').trim(),name=String(raw?.name_es||'').trim();if(!id||!name)return null;return Object.freeze({...raw,id,name_es:name,pattern:String(raw.pattern||'').trim(),equipment:String(raw.equipment||'').trim(),difficulty:String(raw.difficulty||'').trim(),intent:String(raw.intent||'').trim(),primary_muscles:stringList(raw.primary_muscles),secondary_muscles:stringList(raw.secondary_muscles),cues:stringList(raw.cues),instructions_es:stringList(raw.instructions_es),precautions:stringList(raw.precautions),tags:stringList(raw.tags),aliases:stringList(raw.aliases)});}
@@ -10,6 +14,22 @@ export function createExerciseCatalog(records=[]){
  const facets=Object.freeze({patterns:Object.freeze([...new Set(list.map(x=>x.pattern).filter(Boolean))].sort()),equipment:Object.freeze([...new Set(list.map(x=>x.equipment).filter(Boolean))].sort()),difficulty:Object.freeze([...new Set(list.map(x=>x.difficulty).filter(Boolean))].sort()),intent:Object.freeze([...new Set(list.map(x=>x.intent).filter(Boolean))].sort())});
  function search(query='',filters={}){const q=norm(query);return list.filter(ex=>{const hay=norm([ex.name_es,ex.pattern,ex.intent,ex.equipment,ex.difficulty,...ex.primary_muscles,...ex.secondary_muscles,...ex.tags,...ex.aliases].join(' '));if(q&&!hay.includes(q))return false;for(const [key,value] of Object.entries(filters||{})){if(value==null||value===''||(Array.isArray(value)&&!value.length))continue;const expected=Array.isArray(value)?value:[value];const actual=Array.isArray(ex[key])?ex[key].join(' '):ex[key];if(!expected.some(v=>norm(actual).includes(norm(v))))return false;}return true;});}
  return Object.freeze({count:list.length,list:()=>list,get:id=>map.get(String(id))||null,has:id=>map.has(String(id)),search,facets});
+}
+export function mergeExerciseCatalogRecords(baseCatalog,remoteRows=[],{mediaOrigin=''}={}){
+ const base=Array.isArray(baseCatalog)?baseCatalog:typeof baseCatalog?.list==='function'?baseCatalog.list():[];
+ if(!Array.isArray(remoteRows))throw new Error('M26_EXERCISE_REMOTE_CATALOG_INVALID');
+ const origin=String(mediaOrigin||'').replace(/\/$/u,'');
+ if(origin&&!TRUSTED_EXERCISE_MEDIA_ORIGINS.has(origin))throw new Error('M26_EXERCISE_MEDIA_ORIGIN_INVALID');
+ const merged=new Map();
+ for(const item of base){const id=String(item?.id||'').trim();if(id)merged.set(id,item);}
+ for(const item of remoteRows){
+  const id=String(item?.id||'').trim();if(!id)continue;
+  const media=item?.media&&typeof item.media==='object'&&!Array.isArray(item.media)
+    ?Object.freeze({...item.media,...(origin?{deliveryOrigin:origin}:{})})
+    :{};
+  merged.set(id,{...item,media});
+ }
+ return createExerciseCatalog([...merged.values()]);
 }
 export function resolveBrowserCatalogUrl(source,locationLike=globalThis.location){
  const fallback='http://localhost/';let base=fallback;
@@ -30,17 +50,42 @@ async function fetchCatalogJson(target){
   throw error;
  }finally{clearTimeout(timer);}
 }
+function dynamicCatalogRuntime(raw=globalThis.__IBERFIT_M26_RUNTIME__||{}){
+ if(raw?.enabled!==true)return null;const origin=String(raw?.url||'').replace(/\/$/u,'');const key=String(raw?.publishableKey||raw?.anonKey||'');
+ if(!TRUSTED_EXERCISE_MEDIA_ORIGINS.has(origin)||key.length<2||key.length>16_384)return null;
+ return {origin,key,version:String(raw?.version||'26.0.0').slice(0,80),timeoutMs:Math.max(1_000,Math.min(Number(raw?.timeoutMs||CATALOG_FETCH_TIMEOUT_MS),15_000))};
+}
+async function fetchDynamicCatalogRows(fetchImpl=globalThis.fetch,runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{}){
+ const runtime=dynamicCatalogRuntime(runtimeConfig);if(!runtime||typeof fetchImpl!=='function')return [];
+ const rows=[];
+ for(let offset=0;offset<DYNAMIC_MAX_ROWS;offset+=DYNAMIC_PAGE_SIZE){
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),runtime.timeoutMs);
+  try{
+   const response=await fetchImpl(`${runtime.origin}/rest/v1/rpc/${DYNAMIC_PUBLIC_CATALOG_RPC}`,{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer',signal:controller.signal,headers:{apikey:runtime.key,authorization:`Bearer ${runtime.key}`,'content-type':'application/json','x-client-info':`iberfit-m26-web/${runtime.version}`},body:JSON.stringify({p_limit:DYNAMIC_PAGE_SIZE,p_offset:offset})});
+   if(response.status===404)return [];
+   if(!response.ok)throw new Error(`M26_EXERCISE_DYNAMIC_HTTP_${response.status}`);
+   const page=await response.json();if(!Array.isArray(page)||page.length>DYNAMIC_PAGE_SIZE)throw new Error('M26_EXERCISE_DYNAMIC_RESPONSE_INVALID');
+   rows.push(...page);if(page.length<DYNAMIC_PAGE_SIZE)break;const total=Number(page[0]?.total_count);if(Number.isFinite(total)&&rows.length>=total)break;
+  }catch(error){if(error?.name==='AbortError')throw new Error('M26_EXERCISE_DYNAMIC_TIMEOUT');throw error;}finally{clearTimeout(timer);}
+ }
+ return rows;
+}
 export async function loadExerciseCatalog(source){
- let records;
+ let records;const browser=typeof window!=='undefined'&&typeof fetch==='function';
  if(Array.isArray(source))records=source;
  else if(source instanceof URL&&source.protocol==='file:'){
   const {readFile}=await import('node:fs/promises');records=JSON.parse(await readFile(source,'utf8'));
  }else if(source instanceof URL||typeof source==='string'){
-  const browser=typeof window!=='undefined'&&typeof fetch==='function';let target=source instanceof URL?source.href:source;const remote=/^https?:\/\//i.test(target);
+  let target=source instanceof URL?source.href:source;const remote=/^https?:\/\//i.test(target);
   if(browser||remote){if(browser)target=resolveBrowserCatalogUrl(target,globalThis.location);records=await fetchCatalogJson(target);}
   else{const {readFile}=await import('node:fs/promises');records=JSON.parse(await readFile(target,'utf8'));}
  }else throw new Error('M26_EXERCISE_CATALOG_SOURCE_REQUIRED');
- const catalog=createExerciseCatalog(records);if(catalog.count<367)throw new Error(`M26_EXERCISE_CATALOG_INCOMPLETE:${catalog.count}`);return catalog;
+ const catalog=createExerciseCatalog(records);if(catalog.count<367)throw new Error(`M26_EXERCISE_CATALOG_INCOMPLETE:${catalog.count}`);
+ if(!browser)return catalog;
+ try{
+  const runtime=dynamicCatalogRuntime();if(!runtime)return catalog;const remoteRows=await fetchDynamicCatalogRows(globalThis.fetch,globalThis.__IBERFIT_M26_RUNTIME__||{});if(!remoteRows.length)return catalog;
+  const merged=mergeExerciseCatalogRecords(catalog,remoteRows,{mediaOrigin:runtime.origin});return merged.count>=catalog.count?merged:catalog;
+ }catch{return catalog;}
 }
 
 const VISUAL_SCHEMA='iberfit.exercise.visual.v1';
@@ -71,12 +116,12 @@ export function buildExerciseVisualBrief(exercise={}){
 export function buildExerciseMediaManifest(exercise={},assets={},options={}){
  const id=ensureVisualExerciseId(exercise);if(!assets?.movement)throw new Error('IBERFIT_EXERCISE_VISUAL_MOVEMENT_REQUIRED');
  const movement=visualAsset(id,'movement',assets.movement);const optional={};for(const kind of ['thumbnail','start','end','demo'])if(assets[kind])optional[kind]=visualAsset(id,kind,assets[kind]);
- return Object.freeze({schema:VISUAL_SCHEMA,style:VISUAL_STYLE,revision:positiveInt(options.revision)||1,bucket:visualText(options.bucket)||'iberfit-exercise-media',movement,...optional,muscles:Object.freeze({primary:visualList(exercise.primary_muscles),secondary:visualList(exercise.secondary_muscles)}),generatedAt:visualText(options.generatedAt)||new Date().toISOString(),qa:Object.freeze({biomechanics:visualText(options.biomechanicsStatus)||'pending',visual:visualText(options.visualStatus)||'pending'})});
+ return Object.freeze({schema:VISUAL_SCHEMA,style:VISUAL_STYLE,revision:positiveInt(options.revision)||1,bucket:visualText(options.bucket)||'iberfit-exercise-media',movement,...optional,muscles:Object.freeze({primary:visualList(exercise.primary_muscles),secondary:visualList(exercise.secondary_muscles)}),generatedAt:visualText(options.generatedAt)||new Date().toISOString(),published:options.published===true,clientVisible:options.clientVisible===true,coachVisible:options.coachVisible!==false,qa:Object.freeze({biomechanics:visualText(options.biomechanicsStatus)||'pending',visual:visualText(options.visualStatus)||'pending'}),provenance:Object.freeze({rightsBasis:visualText(options.rightsBasis)||'iberfit_owned',sourceRef:visualText(options.sourceRef)||'IBERFIT_GENERATED',licenseLabel:visualText(options.licenseLabel)||'IBERFIT owned visual'})});
 }
 export function validateExerciseMediaManifest(exercise={},manifest={}){
  const id=ensureVisualExerciseId(exercise);const errors=[];if(manifest?.schema!==VISUAL_SCHEMA)errors.push('schema');if(manifest?.style!==VISUAL_STYLE)errors.push('style');if(visualText(manifest?.bucket)!=='iberfit-exercise-media')errors.push('bucket');
  try{visualAsset(id,'movement',manifest?.movement||{});}catch{errors.push('movement');}
  for(const kind of ['thumbnail','start','end','demo'])if(manifest?.[kind]){try{visualAsset(id,kind,manifest[kind]);}catch{errors.push(kind);}}
- if(manifest?.qa?.biomechanics!=='approved')errors.push('qa.biomechanics');if(manifest?.qa?.visual!=='approved')errors.push('qa.visual');return Object.freeze({ok:errors.length===0,errors:Object.freeze([...new Set(errors)])});
+ if(manifest?.qa?.biomechanics!=='approved')errors.push('qa.biomechanics');if(manifest?.qa?.visual!=='approved')errors.push('qa.visual');if(manifest?.published!==true)errors.push('published');if(manifest?.clientVisible!==true&&manifest?.coachVisible!==true)errors.push('visibility');return Object.freeze({ok:errors.length===0,errors:Object.freeze([...new Set(errors)])});
 }
 export const IBERFIT_EXERCISE_VISUAL=Object.freeze({schema:VISUAL_SCHEMA,style:VISUAL_STYLE,bucket:'iberfit-exercise-media'});
