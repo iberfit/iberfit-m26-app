@@ -4,7 +4,7 @@ import {
   adjustRest,beginRest,substituteExercise,addExecutionSet,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
   finishExecution,buildExecutionCommand,buildStartExecutionCommand,
   buildProgressExecutionCommand,buildPauseExecutionCommand,buildResumeExecutionCommand,buildCancelExecutionCommand,
-  markExecutionSync
+  markExecutionSync,getActiveSetDraft,updateActiveSetDraft
 } from './session-execution.js';
 import { runAction } from '../ui/action-state.js';
 import { createLiveTelemetryController } from '../wearables/live-telemetry.js';
@@ -132,11 +132,33 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
 export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
   if(telemetryRemoteSync!==null&&typeof telemetryRemoteSync?.notifyStaged!=='function')throw new Error('M26_TELEMETRY_REMOTE_SYNC_INVALID');
   let mounted=false,autosaveTimer=null,scheduledContext=null,autosaveChain=Promise.resolve();
-  const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
+  let executionDraftTimer=null,scheduledExecutionContext=null,executionDraftChain=Promise.resolve();
   const safeDelay=Math.max(50,Math.min(2000,Number(autosaveDelayMs)||180));
+  function hydrateActiveSetDraft(context=getContext()){
+    const draft=context?.execution&&context?.session?getActiveSetDraft(context.execution,context.session):null;
+    if(!draft)return;
+    for(const node of root.querySelectorAll?.('[data-set-field]')||[]){
+      const field=node.getAttribute('data-set-field');
+      if(Object.prototype.hasOwnProperty.call(draft.values||{},field))node.value=draft.values[field]??'';
+    }
+  }
+  function renderSession(){render?.();hydrateActiveSetDraft(getContext());}
+  const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:renderSession,onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
     if(!context?.draft||!context?.autosaveDraft)return;
     scheduledContext=context;clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{autosaveTimer=null;const target=scheduledContext;scheduledContext=null;autosaveChain=autosaveChain.then(()=>target?.autosaveDraft?.()).catch(onError);},safeDelay);
+  }
+  function persistExecutionDraft(context){
+    if(!context?.execution||!context?.recoveryCoordinator)return Promise.resolve();
+    return Promise.resolve(context.recoveryCoordinator.persist({execution:context.execution,session:context.session,appointmentId:context.appointmentId,sessionRevision:context.sessionRevision}));
+  }
+  function queueExecutionDraftPersist(context){
+    if(!context?.execution||!context?.recoveryCoordinator)return;
+    scheduledExecutionContext=context;clearTimeout(executionDraftTimer);executionDraftTimer=setTimeout(()=>{executionDraftTimer=null;const target=scheduledExecutionContext;scheduledExecutionContext=null;executionDraftChain=executionDraftChain.then(()=>persistExecutionDraft(target)).catch(onError);},safeDelay);
+  }
+  async function flushExecutionDraft(context=scheduledExecutionContext){
+    if(executionDraftTimer){clearTimeout(executionDraftTimer);executionDraftTimer=null;const target=context||scheduledExecutionContext;scheduledExecutionContext=null;executionDraftChain=executionDraftChain.then(()=>persistExecutionDraft(target)).catch((error)=>{onError(error);throw error;});}
+    await executionDraftChain;
   }
   async function flushAutosave(context=scheduledContext,{force=false}={}){
     let pendingSaved=false;
@@ -150,6 +172,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   }
   async function persistContext(context){
     if(context?.draft)await flushAutosave(context,{force:true});
+    await flushExecutionDraft(context);
     if(!context?.execution||!context?.recoveryCoordinator)return;
     await context.recoveryCoordinator.persist({execution:context.execution,session:context.session,appointmentId:context.appointmentId,sessionRevision:context.sessionRevision});
     await context.recoveryCoordinator.settle(context.execution);
@@ -164,15 +187,15 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     };
     try{
       const outcome=context.actionState?await runAction(context.actionState,task):{ok:true,value:await task()};
-      if(!outcome.ok){onError(outcome.error);render?.();return false;}
+      if(!outcome.ok){onError(outcome.error);renderSession();return false;}
       void telemetry.start(context.execution);
       await persistContext(getContext());
-      render?.();
+      renderSession();
       return true;
     }catch(error){
       await persistContext(context).catch(()=>{});
       onError(error);
-      render?.();
+      renderSession();
       return false;
     }
   }
@@ -186,6 +209,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     catch{clearPendingSessionEntry(root);}
   }
   async function onShellRendered(){
+    hydrateActiveSetDraft(getContext());
     const pending=consumePendingSessionEntry(root);
     if(!pending)return;
     const context=getContext();
@@ -197,8 +221,8 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(pending.decision?.directStartAllowed!==true||pending.decision?.level!=='normal')return;
     await start();
   }
-  async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='exit-session'){const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await persistContext(context);context.onExit?.();}catch(error){onError(error);render?.();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}const actionState=context.actionState;const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');
-    const task=async()=>{await flushAutosave(context);if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
+  async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='exit-session'){const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await persistContext(context);context.onExit?.();}catch(error){onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}const actionState=context.actionState;const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');
+    const task=async()=>{await flushAutosave(context);await flushExecutionDraft(context);if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
     if(action==='skip-set')payload.reason=root.querySelector?.('[data-session-skip-set-reason]')?.value;
     if(action==='skip-exercise')payload.reason=root.querySelector?.('[data-session-skip-exercise-reason]')?.value;
     if(action==='add-live-exercise'){
@@ -212,10 +236,11 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       payload.position='next';
     }
     if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});return await result.value;};
-    try{const outcome=actionState?await runAction(actionState,task):{ok:true,value:await task()};if(!outcome.ok)onError(outcome.error);if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}render?.();}catch(error){await persistContext(context).catch(()=>{});onError(error);}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}}
-  function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){context.setQuery?.(search.value);render?.();}
+    try{const outcome=actionState?await runAction(actionState,task):{ok:true,value:await task()};if(!outcome.ok)onError(outcome.error);if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}renderSession();}catch(error){await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}}
+  function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){context.setQuery?.(search.value);renderSession();}
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}
     const blockField=event.target.closest?.('[data-session-block-field]');if(blockField&&context.draft){try{dispatchSessionAction({...context,action:'update-block',payload:{blockId:blockField.getAttribute('data-block-id'),exerciseId:blockField.getAttribute('data-exercise-id')||null,field:blockField.getAttribute('data-session-block-field'),value:blockField.value}});}catch(error){onError(error);}}
+    const setField=event.target.closest?.('[data-set-field]');if(setField&&context.execution&&context.session){try{const saved=updateActiveSetDraft(context.execution,context.session,fieldValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}}
     if(draftField||blockField)queueAutosave(context);}
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('m26:shell-rendered',onShellRendered);mounted=true;},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('m26:shell-rendered',onShellRendered);clearPendingSessionEntry(root);mounted=false;const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('m26:shell-rendered',onShellRendered);mounted=true;hydrateActiveSetDraft(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('m26:shell-rendered',onShellRendered);clearPendingSessionEntry(root);mounted=false;clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
 }
