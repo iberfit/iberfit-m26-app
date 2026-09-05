@@ -3,7 +3,7 @@ import { createM26Id } from '../platform/id.js';
 function clone(v){return structuredClone(v);}
 function now(){return new Date().toISOString();}
 function uid(){return createM26Id();}
-function remoteSnapshot(execution){const out=clone(execution);delete out.syncStatus;delete out.pendingOperationIds;delete out.lastSyncError;delete out.recoveredAt;delete out.liveTelemetry;return out;}
+function remoteSnapshot(execution){const out=clone(execution);delete out.syncStatus;delete out.pendingOperationIds;delete out.lastSyncError;delete out.recoveredAt;delete out.liveTelemetry;delete out.activeSetDraft;return out;}
 function findExercise(session, exerciseId){
   for(const block of session.blocks||[]){
     if(block.type==='exercise'&&block.exerciseId===exerciseId)return block;
@@ -47,6 +47,25 @@ function requireCoachActor(actor){
   return actor;
 }
 function resultKey(exerciseId,setNumber){return `${exerciseId}:${setNumber}`;}
+function activeSetIdentity(execution,session){
+  const step=currentStep(execution,session);if(!step)return null;
+  return {executionId:execution.id,blockId:step.blockId||null,exerciseId:step.exerciseId,setNumber:step.setNumber};
+}
+function sameActiveSet(draft,identity){return Boolean(draft&&identity&&draft.executionId===identity.executionId&&draft.blockId===identity.blockId&&draft.exerciseId===identity.exerciseId&&Number(draft.setNumber)===Number(identity.setNumber));}
+function draftValue(value,maxLength){return String(value??'').slice(0,maxLength);}
+export function getActiveSetDraft(execution,session){
+  const identity=activeSetIdentity(execution,session);
+  if(!sameActiveSet(execution?.activeSetDraft,identity))return null;
+  return clone(execution.activeSetDraft);
+}
+export function updateActiveSetDraft(execution,session,input={}){
+  if(execution?.status!=='active')return null;
+  const identity=activeSetIdentity(execution,session);if(!identity)return null;
+  if(execution.results?.[resultKey(identity.exerciseId,identity.setNumber)]){delete execution.activeSetDraft;return null;}
+  execution.activeSetDraft={...identity,values:{reps:draftValue(input.reps,32),seconds:draftValue(input.seconds,32),load:draftValue(input.load,80),rpe:draftValue(input.rpe,32),rir:draftValue(input.rir,32),notes:draftValue(input.notes,1000)},updatedAt:now()};
+  return clone(execution.activeSetDraft);
+}
+export function clearActiveSetDraft(execution){if(execution)delete execution.activeSetDraft;return execution;}
 function ensureDeviationStores(execution){
   if(!execution.skippedSets||typeof execution.skippedSets!=='object')execution.skippedSets={};
   if(!Array.isArray(execution.skippedExercises))execution.skippedExercises=[];
@@ -72,7 +91,7 @@ function validatedSetResult(step,input={},previous=null){
 }
 function moveForward(execution,actor=null){
   const item=execution.queue[execution.index];if(!item)throw new Error('M26_EXECUTION_STEP_MISSING');
-  execution.restUntil=null;
+  clearActiveSetDraft(execution);execution.restUntil=null;
   if(execution.setIndex+1<item.sets)execution.setIndex+=1;
   else{execution.index+=1;execution.setIndex=0;}
   event(execution,'STEP_ADVANCED',{index:execution.index,setIndex:execution.setIndex},actor);
@@ -102,7 +121,7 @@ export function resumeExecution(execution,{actor=null}={}){
 export function cancelExecution(execution,reason,{actor=null}={}){
   if(!['ready','active','paused'].includes(execution.status))throw new Error('M26_EXECUTION_CANCEL_INVALID');
   const safeReason=requireReason(reason,'M26_EXECUTION_CANCEL_REASON_REQUIRED');
-  freezeExecutionClock(execution);execution.status='cancelled';execution.cancelledAt=now();execution.cancellationReason=safeReason;execution.restUntil=null;
+  clearActiveSetDraft(execution);freezeExecutionClock(execution);execution.status='cancelled';execution.cancelledAt=now();execution.cancellationReason=safeReason;execution.restUntil=null;
   event(execution,'SESSION_CANCELLED',{reason:safeReason},actor);return execution;
 }
 export function recordSet(execution,session,input={}){
@@ -111,7 +130,7 @@ export function recordSet(execution,session,input={}){
   const key=resultKey(step.exerciseId,step.setNumber);
   if(execution.results[key])throw new Error('M26_EXECUTION_SET_ALREADY_RECORDED');
   const result=validatedSetResult(step,input);
-  execution.results[key]=result;
+  execution.results[key]=result;clearActiveSetDraft(execution);
   event(execution,'SET_COMPLETED',result,input.actor);
   return execution;
 }
@@ -150,7 +169,7 @@ export function advanceExecution(execution,{actor=null}={}){
 export function retreatExecution(execution,{actor=null}={}){
   if(!['active','awaiting_feedback'].includes(execution.status))throw new Error('M26_EXECUTION_RETREAT_INVALID');
   if(execution.index===0&&execution.setIndex===0)return execution;
-  execution.restUntil=null;
+  clearActiveSetDraft(execution);execution.restUntil=null;
   if(execution.setIndex>0)execution.setIndex-=1;
   else{execution.index-=1;execution.setIndex=Math.max(0,execution.queue[execution.index].sets-1);}
   if(execution.status==='awaiting_feedback'){execution.status='active';resumeExecutionClock(execution);}
@@ -166,6 +185,7 @@ export function substituteExercise(execution,session,{fromExerciseId,toExerciseI
   if(itemIndex===execution.index){
     const key=resultKey(item.exerciseId,execution.setIndex+1);
     if(execution.results[key])throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
+    clearActiveSetDraft(execution);
   }
   item.exerciseId=toExerciseId;
   event(execution,'EXERCISE_SUBSTITUTED',{fromExerciseId,toExerciseId,reason:safeReason},actor);
@@ -208,7 +228,7 @@ export function skipExecutionExercise(execution,session,{reason,actor=null}={}){
   const deviation={exerciseId:item.exerciseId,fromSetNumber:firstIndex+1,toSetNumber:item.sets,reason:safeReason,at:now(),actor:actorSnapshot(actor)};
   execution.skippedExercises.push(deviation);
   event(execution,'EXERCISE_SKIPPED',deviation,actor);
-  execution.restUntil=null;execution.index+=1;execution.setIndex=0;
+  clearActiveSetDraft(execution);execution.restUntil=null;execution.index+=1;execution.setIndex=0;
   event(execution,'STEP_ADVANCED',{index:execution.index,setIndex:0},actor);
   if(execution.index>=execution.queue.length){freezeExecutionClock(execution);execution.status='awaiting_feedback';}
   return execution;
@@ -233,7 +253,7 @@ export function finishExecution(execution,feedback={}, {actor=null}={}){
   const sessionRpe=Number(feedback.sessionRpe||0);if(sessionRpe<1||sessionRpe>10)throw new Error('M26_EXECUTION_SESSION_RPE_REQUIRED');
   if(!String(feedback.comment||'').trim())throw new Error('M26_EXECUTION_FEEDBACK_REQUIRED');
   const pain=Boolean(feedback.pain),painNotes=String(feedback.painNotes||'').trim().slice(0,1000);if(pain&&!painNotes)throw new Error('M26_EXECUTION_PAIN_NOTES_REQUIRED');
-  freezeExecutionClock(execution);execution.feedback={sessionRpe,comment:String(feedback.comment).trim().slice(0,2000),pain,painNotes};execution.status='completed';execution.completedAt=now();
+  clearActiveSetDraft(execution);freezeExecutionClock(execution);execution.feedback={sessionRpe,comment:String(feedback.comment).trim().slice(0,2000),pain,painNotes};execution.status='completed';execution.completedAt=now();
   event(execution,'SESSION_COMPLETED',execution.feedback,actor);return execution;
 }
 export function buildExecutionCommand(execution,baseRevision=0){if(execution.status!=='completed')throw new Error('M26_EXECUTION_NOT_COMPLETED');return {type:'EJECUCION_COMPLETAR',entityType:'session_execution',entityId:execution.id,clientId:execution.clientId,baseRevision,payload:{patch:remoteSnapshot(execution)}};}
