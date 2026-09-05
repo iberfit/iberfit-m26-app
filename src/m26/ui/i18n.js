@@ -8,7 +8,6 @@ export const IBERFIT_LANGUAGE_CATALOG=Object.freeze([
     label:'Español',
     nativeLabel:'Español',
     flag:'🇪🇸',
-    complete:true,
     defaultLocale:'es-CL',
     locales:Object.freeze(['es-CL','es-ES']),
   }),
@@ -17,7 +16,6 @@ export const IBERFIT_LANGUAGE_CATALOG=Object.freeze([
     label:'English',
     nativeLabel:'English',
     flag:'🇬🇧',
-    complete:true,
     defaultLocale:'en-GB',
     locales:Object.freeze(['en-GB','en-US']),
   }),
@@ -26,7 +24,6 @@ export const IBERFIT_LANGUAGE_CATALOG=Object.freeze([
     label:'Français',
     nativeLabel:'Français',
     flag:'🇫🇷',
-    complete:true,
     defaultLocale:'fr-FR',
     locales:Object.freeze(['fr-FR']),
   }),
@@ -35,7 +32,6 @@ export const IBERFIT_LANGUAGE_CATALOG=Object.freeze([
     label:'Português',
     nativeLabel:'Português',
     flag:'🇵🇹',
-    complete:true,
     defaultLocale:'pt-PT',
     locales:Object.freeze(['pt-PT','pt-BR']),
   }),
@@ -168,18 +164,51 @@ const BUNDLES=Object.freeze({
   }),
 });
 
+const REFERENCE_LANGUAGE='es';
+function translationCoverage(value){
+  const language=String(value||'').trim().toLowerCase();
+  const reference=BUNDLES[REFERENCE_LANGUAGE]||{};
+  const selected=BUNDLES[language]||{};
+  const referenceKeys=Object.keys(reference).sort();
+  const selectedKeys=Object.keys(selected).sort();
+  const referenceSet=new Set(referenceKeys);
+  const selectedSet=new Set(selectedKeys);
+  const missing=referenceKeys.filter((key)=>!selectedSet.has(key));
+  const extra=selectedKeys.filter((key)=>!referenceSet.has(key));
+  const blank=selectedKeys.filter((key)=>String(selected[key]??'').trim()==='');
+  return Object.freeze({
+    language,
+    reference:REFERENCE_LANGUAGE,
+    total:referenceKeys.length,
+    translated:referenceKeys.length-missing.length-blank.filter((key)=>referenceSet.has(key)).length,
+    missing:Object.freeze(missing),
+    extra:Object.freeze(extra),
+    blank:Object.freeze(blank),
+    complete:missing.length===0&&extra.length===0&&blank.length===0,
+  });
+}
+export function iberfitTranslationCoverage(){
+  return Object.freeze(IBERFIT_LANGUAGE_CATALOG.map((item)=>translationCoverage(item.value)));
+}
+
 function storage(){
   try{return globalThis?.localStorage||null;}catch{return null;}
 }
 function languageDefinition(value){
   const key=String(value||'').trim().toLowerCase();
-  return IBERFIT_LANGUAGE_CATALOG.find((item)=>item.value===key)||null;
+  const metadata=IBERFIT_LANGUAGE_CATALOG.find((item)=>item.value===key)||null;
+  if(!metadata)return null;
+  const coverage=translationCoverage(key);
+  return {...metadata,complete:coverage.complete,coverage};
 }
 export function iberfitPlannedLanguages(){
-  return IBERFIT_LANGUAGE_CATALOG.map((item)=>({...item,locales:[...item.locales]}));
+  return IBERFIT_LANGUAGE_CATALOG.map((item)=>{
+    const definition=languageDefinition(item.value);
+    return {...definition,locales:[...definition.locales]};
+  });
 }
 export function iberfitLanguageOptions(){
-  return IBERFIT_LANGUAGE_CATALOG.filter((item)=>item.complete).map((item)=>({value:item.value,label:item.nativeLabel,flag:item.flag,defaultLocale:item.defaultLocale}));
+  return iberfitPlannedLanguages().filter((item)=>item.complete).map((item)=>({value:item.value,label:item.nativeLabel,flag:item.flag,defaultLocale:item.defaultLocale}));
 }
 export function getIberfitLanguage(){
   const saved=String(storage()?.getItem?.(IBERFIT_LANGUAGE_STORAGE_KEY)||'').trim().toLowerCase();
