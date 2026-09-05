@@ -142,6 +142,85 @@ function providerCopy(metric){
   return `Procedencia: ${providers.join(', ')}.`;
 }
 
+function percentagePointCopy(value){
+  const number=finite(value);
+  if(number===null)return 'Todavía sin periodo anterior comparable.';
+  const points=number*100;
+  if(Math.abs(points)<0.05)return 'Sin cambio frente a los 28 días anteriores.';
+  return `${points>0?'+':''}${numberText(points,1)} puntos porcentuales frente a los 28 días anteriores.`;
+}
+
+function clientProofState(aggregate){
+  const adherence=finite(aggregate?.adherence?.d28);
+  const adherenceChange=finite(
+    aggregate?.adherence?.change28VsPrevious28
+  );
+  const comparableMetrics=CLIENT_METRICS
+    .filter((key)=>aggregate?.baseline?.metrics?.[key]?.comparable)
+    .map((key)=>metricMeta(aggregate?.windows?.d28?.metrics?.[key],key).label);
+  const observedMetrics=CLIENT_METRICS
+    .filter((key)=>{
+      const metric=aggregate?.windows?.d28?.metrics?.[key];
+      return finite(metric?.average)!==null&&finite(metric?.coverage)!==null&&finite(metric?.coverage)>0;
+    });
+  const comparisonCount=comparableMetrics.length+(adherenceChange===null?0:1);
+
+  if(comparisonCount>=2){
+    return Object.freeze({
+      status:'Base comparable disponible',
+      copy:'Ya existen varias referencias confirmadas para observar cambios sin convertirlos automáticamente en una conclusión clínica.',
+      adherence,
+      adherenceChange,
+      comparableMetrics,
+      comparisonCount,
+      next:'Mantén tus próximas sesiones y registros al día. IBERFIT irá haciendo más sólida la comparación con el tiempo.',
+    });
+  }
+
+  if(comparisonCount===1){
+    return Object.freeze({
+      status:'Ya aparece una primera comparación',
+      copy:'Hay una referencia comparable, pero todavía conviene acumular más historial antes de resumir una tendencia.',
+      adherence,
+      adherenceChange,
+      comparableMetrics,
+      comparisonCount,
+      next:'Completa tus próximas sesiones y registros para añadir una segunda referencia comparable.',
+    });
+  }
+
+  if(adherence!==null||observedMetrics.length){
+    return Object.freeze({
+      status:'Estamos construyendo tu referencia',
+      copy:'Ya hay datos confirmados, aunque todavía no existe suficiente historial comparable para hablar de tendencia.',
+      adherence,
+      adherenceChange,
+      comparableMetrics,
+      comparisonCount,
+      next:'Sigue registrando tu actividad y completando tus sesiones. No rellenaremos los días que falten ni inventaremos cambios.',
+    });
+  }
+
+  return Object.freeze({
+    status:'Aún no hay suficiente historial',
+    copy:'Necesitamos registros confirmados antes de poder comparar periodos y mostrar cambios reales.',
+    adherence,
+    adherenceChange,
+    comparableMetrics,
+    comparisonCount,
+    next:'Tu siguiente sesión o registro confirmado empezará a construir la línea de referencia.',
+  });
+}
+
+function clientProofPanel(aggregate){
+  const proof=clientProofState(aggregate);
+  const metricCopy=proof.comparableMetrics.length
+    ?proof.comparableMetrics.join(' · ')
+    :'Aún sin señales comparables';
+
+  return `<section class="m26-panel m26-panel-soft m26-progress-proof" aria-labelledby="m26-progress-proof-title"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Proof of Progress</p><h2 id="m26-progress-proof-title">¿Estoy progresando?</h2><p><strong>${escapeHtml(proof.status)}.</strong> ${escapeHtml(proof.copy)}</p></div><span class="m26-chip">28 días</span></div><div class="m26-data-kpis"><div><span>Constancia confirmada</span><strong>${escapeHtml(percent(proof.adherence))}</strong><small>${escapeHtml(percentagePointCopy(proof.adherenceChange))}</small></div><div><span>Cambios que ya podemos comparar</span><strong>${escapeHtml(proof.comparisonCount)}</strong><small>${escapeHtml(metricCopy)}</small></div></div><p class="m26-notice"><strong>Siguiente paso</strong><br>${escapeHtml(proof.next)}</p></section>`;
+}
+
 function chartPayload(points){
   return escapeHtml(
     JSON.stringify(
@@ -241,8 +320,9 @@ export function renderLongitudinalDataExperience(
   const normalizedRole=roleKey(role);
   const professional=normalizedRole!=='client';
   const metrics=professional?COACH_METRICS:CLIENT_METRICS;
+  const proof=professional?'':clientProofPanel(aggregate);
 
-  return `<section class="m26-stack m26-data-experience" data-role-density="${professional?'professional':'simple'}"><section class="m26-panel m26-panel-hero m26-data-hero"><p class="m26-eyebrow">Datos y evolución</p><h2>${professional?'Análisis longitudinal':'Tu evolución'}</h2><p>${professional?'Comparativas 7/28/90 días, baseline, tendencia, cobertura y procedencia para apoyar una decisión profesional.':'Una lectura sencilla de tus últimas semanas con cobertura visible y sin rellenar días que faltan.'}</p></section>${adherencePanel(aggregate,normalizedRole)}<div class="${professional?'m26-data-grid m26-data-grid-professional':'m26-data-grid'}">${metrics.map((key)=>metricCard(aggregate,key,normalizedRole)).join('')}</div>${trustPanel(aggregate,normalizedRole)}<p class="m26-notice m26-data-decision-rule">Dato → contexto → entrenador decide. Las tendencias no cambian automáticamente tu entrenamiento ni constituyen una clasificación clínica.</p></section>`;
+  return `<section class="m26-stack m26-data-experience" data-role-density="${professional?'professional':'simple'}">${proof}<section class="m26-panel m26-panel-hero m26-data-hero"><p class="m26-eyebrow">Datos y evolución</p><h2>${professional?'Análisis longitudinal':'Tu evolución'}</h2><p>${professional?'Comparativas 7/28/90 días, baseline, tendencia, cobertura y procedencia para apoyar una decisión profesional.':'Una lectura sencilla de tus últimas semanas con cobertura visible y sin rellenar días que faltan.'}</p></section>${adherencePanel(aggregate,normalizedRole)}<div class="${professional?'m26-data-grid m26-data-grid-professional':'m26-data-grid'}">${metrics.map((key)=>metricCard(aggregate,key,normalizedRole)).join('')}</div>${trustPanel(aggregate,normalizedRole)}<p class="m26-notice m26-data-decision-rule">Dato → contexto → entrenador decide. Las tendencias no cambian automáticamente tu entrenamiento ni constituyen una clasificación clínica.</p></section>`;
 }
 
 export const __longitudinalUiInternals=Object.freeze({
@@ -253,4 +333,7 @@ export const __longitudinalUiInternals=Object.freeze({
   trendCopy,
   fallbackTable,
   metricCard,
+  percentagePointCopy,
+  clientProofState,
+  clientProofPanel,
 });
