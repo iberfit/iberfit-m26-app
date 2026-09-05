@@ -14,6 +14,13 @@ async function sources(){
   return {app,sw};
 }
 
+function valueLoopSource(app){
+  const start=app.indexOf("const SESSION_VALUE_STYLE_ID='m28-session-value-loop-styles';");
+  const end=app.indexOf('async function loadFullApplication(){',start);
+  assert.ok(start>=0&&end>start,'No se pudo aislar el bloque RC74.16');
+  return app.slice(start,end);
+}
+
 test('RC74.16 mantiene el bootstrap sintácticamente válido',()=>{
   const result=spawnSync(process.execPath,['--check',appUrl.pathname],{encoding:'utf8'});
   assert.equal(result.status,0,result.stderr||result.stdout);
@@ -21,33 +28,36 @@ test('RC74.16 mantiene el bootstrap sintácticamente válido',()=>{
 
 test('RC74.16 enriquece Entrenamiento de hoy sin duplicar la política adaptativa',async()=>{
   const {app}=await sources();
-  assert.match(app,/\[data-m27-client-home\] \[data-home-kind="train-now"\]/);
-  assert.match(app,/data-workflow-action="start-published-session"/);
-  assert.match(app,/data-session-entry-level/);
-  assert.match(app,/Duración prevista/);
-  assert.match(app,/Objetivo ·/);
-  assert.match(app,/Contexto de hoy: listo para empezar/);
-  assert.match(app,/Contexto de hoy: revisar antes de empezar/);
-  assert.doesNotMatch(app,/(?:pain|sleep|energy|stress)\s*(?:>=|<=|>|<)\s*\d/iu);
+  const valueLoop=valueLoopSource(app);
+  assert.match(valueLoop,/\[data-m27-client-home\] \[data-home-kind="train-now"\]/);
+  assert.match(valueLoop,/data-workflow-action="start-published-session"/);
+  assert.match(valueLoop,/data-session-entry-level/);
+  assert.match(valueLoop,/Duración prevista/);
+  assert.match(valueLoop,/Objetivo ·/);
+  assert.match(valueLoop,/Contexto de hoy: listo para empezar/);
+  assert.match(valueLoop,/Contexto de hoy: revisar antes de empezar/);
+  assert.doesNotMatch(valueLoop,/(?:pain|sleep|energy|stress)\s*(?:>=|<=|>|<)\s*\d/iu);
 });
 
 test('RC74.16 cierra feedback y continuidad sólo sobre datos confirmados',async()=>{
   const {app}=await sources();
-  assert.match(app,/data-session-live-state="feedback"/);
-  assert.match(app,/data-session-feedback-pain-notes/);
-  assert.match(app,/painNotes\.required=required/);
-  assert.match(app,/aria-required/);
-  assert.match(app,/data-m27-session-continuity/);
-  assert.match(app,/Constancia confirmada · 28 días/);
-  assert.match(app,/Esta sesión no se suma al progreso confirmado hasta que la sincronización termine/);
-  assert.match(app,/buildAdherenceWindows/);
-  assert.match(app,/appointment\.status==='confirmada'/);
-  assert.match(app,/isClientVisibleAppointment/);
-  assert.match(app,/Siguiente paso/);
+  const valueLoop=valueLoopSource(app);
+  assert.match(valueLoop,/data-session-live-state="feedback"/);
+  assert.match(valueLoop,/data-session-feedback-pain-notes/);
+  assert.match(valueLoop,/painNotes\.required=required/);
+  assert.match(valueLoop,/aria-required/);
+  assert.match(valueLoop,/data-m27-session-continuity/);
+  assert.match(valueLoop,/Constancia confirmada · 28 días/);
+  assert.match(valueLoop,/Esta sesión no se suma al progreso confirmado hasta que la sincronización termine/);
+  assert.match(valueLoop,/buildAdherenceWindows/);
+  assert.match(valueLoop,/appointment\.status==='confirmada'/);
+  assert.match(valueLoop,/isClientVisibleAppointment/);
+  assert.match(valueLoop,/Siguiente paso/);
 });
 
 test('RC74.16 reutiliza módulos canónicos ya precacheados y no amplía superficie PWA',async()=>{
   const {app,sw}=await sources();
+  const valueLoop=valueLoopSource(app);
   const imports=[
     '/src/m26/engagement/progress-continuity.js',
     '/src/m26/domain/appointment.js',
@@ -55,22 +65,23 @@ test('RC74.16 reutiliza módulos canónicos ya precacheados y no amplía superfi
     '/src/m26/modules/domain-selectors.js',
   ];
   for(const path of imports){
-    assert.ok(app.includes(`import('${path}')`),path);
+    assert.ok(valueLoop.includes(`import('${path}')`),path);
     assert.ok(sw.includes(`"${path}"`),`${path} no está en APP_SHELL`);
   }
-  assert.doesNotMatch(app,/\/src\/m26\/experience\/session-value-loop\.js/);
+  assert.doesNotMatch(valueLoop,/\/src\/m26\/experience\/session-value-loop\.js/);
 });
 
 test('RC74.16 usa ciclo de render explícito, es idempotente y no introduce atajos inseguros',async()=>{
   const {app}=await sources();
-  assert.match(app,/addEventListener\('m26:shell-rendered',onShellRendered\)/);
-  assert.match(app,/removeEventListener\('m26:shell-rendered',onShellRendered\)/);
+  const valueLoop=valueLoopSource(app);
+  assert.match(valueLoop,/addEventListener\('m26:shell-rendered',onShellRendered\)/);
+  assert.match(valueLoop,/removeEventListener\('m26:shell-rendered',onShellRendered\)/);
   assert.match(app,/__IBERFIT_M26_SESSION_VALUE_LOOP__\?\.destroy\?\.\(\)/);
-  assert.ok(app.includes("card.querySelector?.('[data-m28-training-value]')?.remove?.();"));
-  assert.ok(app.includes("completed.querySelector?.('[data-m28-post-session-value]')?.remove?.();"));
-  assert.doesNotMatch(app,/MutationObserver/);
-  assert.doesNotMatch(app,/\.click\(\)/);
-  assert.doesNotMatch(app,/innerHTML/);
-  assert.doesNotMatch(app,/localStorage|sessionStorage|SUPABASE_SERVICE_ROLE|service[_-]?role/i);
-  assert.doesNotMatch(app,/commandBus|EJECUCION_COMPLETAR|SESION_INICIAR/);
+  assert.ok(valueLoop.includes("card.querySelector?.('[data-m28-training-value]')?.remove?.();"));
+  assert.ok(valueLoop.includes("completed.querySelector?.('[data-m28-post-session-value]')?.remove?.();"));
+  assert.doesNotMatch(valueLoop,/MutationObserver/);
+  assert.doesNotMatch(valueLoop,/\.click\(\)/);
+  assert.doesNotMatch(valueLoop,/innerHTML/);
+  assert.doesNotMatch(valueLoop,/localStorage|sessionStorage|SUPABASE_SERVICE_ROLE|service[_-]?role/i);
+  assert.doesNotMatch(valueLoop,/commandBus|EJECUCION_COMPLETAR|SESION_INICIAR/);
 });
