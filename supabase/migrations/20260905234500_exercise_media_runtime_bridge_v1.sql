@@ -37,7 +37,7 @@ as $$
   select jsonb_build_object(
     'schemaVersion',1,
     'release','IBERFIT_EXERCISE_MEDIA_DYNAMIC_V1',
-    'generatedAt',to_char(clock_timestamp() at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+    'generatedAt',to_char(now() at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
     'source',jsonb_build_object(
       'provider','IBERFIT',
       'ownership','IBERFIT',
@@ -52,8 +52,8 @@ as $$
           'name_es',e.name_es,
           'review_status','approved',
           'published',true,
-          'coach_visible',coalesce((e.media->>'coachVisible')::boolean,true),
-          'client_visible',coalesce((e.media->>'clientVisible')::boolean,false),
+          'coach_visible',coalesce(e.media->>'coachVisible'='true',true),
+          'client_visible',coalesce(e.media->>'clientVisible'='true',false),
           'image_mode','main',
           'storage_path',e.media->'movement'->>'path',
           'muscle_group',coalesce(e.primary_muscles[1],e.pattern),
@@ -72,7 +72,7 @@ as $$
     and e.media->>'published'='true'
     and e.media->'qa'->>'biomechanics'='approved'
     and e.media->'qa'->>'visual'='approved'
-    and (coalesce((e.media->>'coachVisible')::boolean,false)=true or coalesce((e.media->>'clientVisible')::boolean,false)=true)
+    and (coalesce(e.media->>'coachVisible'='true',false) or coalesce(e.media->>'clientVisible'='true',false))
     and length(e.media->'movement'->>'path') between 3 and 260
     and e.media->'movement'->>'path' like e.id||'/%'
     and position('..' in (e.media->'movement'->>'path'))=0
@@ -109,7 +109,7 @@ begin
     or p_manifest->>'published'<>'true'
     or p_manifest->'qa'->>'biomechanics'<>'approved'
     or p_manifest->'qa'->>'visual'<>'approved'
-    or not (coalesce((p_manifest->>'coachVisible')::boolean,false) or coalesce((p_manifest->>'clientVisible')::boolean,false))
+    or not (coalesce(p_manifest->>'coachVisible'='true',false) or coalesce(p_manifest->>'clientVisible'='true',false))
     or v_path is null
     or length(v_path) not between 3 and 260
     or v_path not like p_exercise_id||'/%'
