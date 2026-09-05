@@ -5,6 +5,7 @@ import {deriveClientExperience,experienceNextAction} from '../experience/client-
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {deriveAdaptiveExperience} from '../experience/adaptive-experience.js';
 import {deriveAdminCommandCenter} from './command-center.js';
+import {readIberfitExperiencePreferences} from '../ui/preferences.js';
 const clone=(v)=>v==null?v:structuredClone(v);
 function clientRows(state){
   const life=new Map(adminCollection(state,'clientLifecycle').map((x)=>[String(x.clientId),x]));
@@ -49,7 +50,23 @@ function clientRows(state){
     });
   }));
 }
-export function augmentAdminShellViewModel(vm,state){if(vm?.mode!=='authenticated'||vm?.identity?.role!=='admin')return vm;return Object.freeze({...vm,selectedClient:null,clientOptions:Object.freeze([]),canChangeClient:false,admin:Object.freeze({available:state?.admin?.available===true,reason:state?.admin?.reason||null,organization:clone(state?.admin?.organization||null),summary:clone(state?.admin?.summary||{})})});}
+export function augmentAdminShellViewModel(vm,state){
+  if(vm?.mode!=='authenticated'||vm?.identity?.role!=='admin')return vm;
+  const preferenceScope=String(vm?.identity?.id||state?.identity?.id||'');
+  return Object.freeze({
+    ...vm,
+    selectedClient:null,
+    clientOptions:Object.freeze([]),
+    canChangeClient:false,
+    experiencePreferences:readIberfitExperiencePreferences(preferenceScope),
+    admin:Object.freeze({
+      available:state?.admin?.available===true,
+      reason:state?.admin?.reason||null,
+      organization:clone(state?.admin?.organization||null),
+      summary:clone(state?.admin?.summary||{}),
+    }),
+  });
+}
 export function createAdminRouteViewModel(base,shellVm,state){const role=String(shellVm?.identity?.role||state?.identity?.role||'');const area=String(shellVm?.activeArea||state?.activeArea||'');if(role!=='admin'||!area.startsWith('admin-'))return base;if(state?.admin?.available!==true)return Object.freeze({...base,admin:true,kind:'admin-unavailable',reason:state?.admin?.reason||'backend_unavailable'});if(!routeAllowedForAdmin(state.admin,area))return Object.freeze({...base,admin:true,kind:'admin-forbidden'});const common={...base,admin:true,area,organization:clone(state.admin.organization),summary:clone(state.admin.summary),analytics:clone(state.admin.analytics)};
   if(area==='admin-inicio'){
     const clients=clientRows(state);
