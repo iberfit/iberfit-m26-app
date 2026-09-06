@@ -3,9 +3,10 @@ import {parseDateValue} from '../domain/civil-date.js';
 import {deriveAdherenceAlerts} from './adherence-engine.js';
 import {computeProgressSummary,progressWindow} from './progress-engine.js';
 import {buildProgressHub} from './progress-hub.js';
+import {buildCrmRenewalSummary} from './crm-renewals.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
-function finite(value){const number=Number(value);return Number.isFinite(number)?number:null;}
+function finite(value){if(value===null||value===undefined||value==='')return null;const number=Number(value);return Number.isFinite(number)?number:null;}
 function percent(value){return Number.isFinite(value)?Math.round(value*100):null;}
 function bodyOf(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};}
 function rawClientId(record){const body=bodyOf(record);return String(record?.clientId??record?.client_id??record?.clienteId??record?.cliente_id??body?.clientId??body?.client_id??body?.clienteId??body?.cliente_id??'').trim();}
@@ -120,15 +121,46 @@ function evolutionFactor(hub){
   );
 }
 
-function renewalFactor(){
+function renewalFactor(crm){
+  const renewal=crm?.renewal;
+  if(!renewal||renewal.status==='insufficient'){
+    return factor(
+      'renewal',
+      'Renovación',
+      'insufficient',
+      renewal?.evidence||'No existe evidencia comercial canónica suficiente para clasificar renovación.',
+      'crmRenewals',
+      'limitada',
+      'La ausencia de datos comerciales no se convierte en riesgo de abandono.',
+    );
+  }
+  if(renewal.status==='overdue'){
+    const days=finite(renewal.daysToRenewal);
+    const elapsed=days===null?null:Math.abs(days);
+    return factor(
+      'renewal',
+      'Renovación',
+      'yellow',
+      elapsed===null?'Existe una renovación explícitamente vencida.':`Renovación explícita vencida hace ${elapsed} día${elapsed===1?'':'s'}.`,
+      'crmRenewals',
+      'alta',
+      'Requiere revisión humana de continuidad comercial; no implica impago, abandono ni autoriza un mensaje automático.',
+    );
+  }
+  const days=finite(renewal.daysToRenewal);
+  const evidence=renewal.status==='upcoming'
+    ?days===null?'Existe una renovación próxima registrada explícitamente.':`Renovación explícita prevista en ${Math.max(0,days)} día${days===1?'':'s'}.`
+    :renewal.status==='completed'
+      ?'La renovación figura explícitamente como confirmada.'
+      :'Existe evidencia explícita de renovación vigente.';
   return factor(
     'renewal',
     'Renovación',
-    'insufficient',
-    'El dominio canónico de planes, pagos y renovaciones todavía no está disponible en este bloque.',
-    'renewal-domain-pending',
-    'limitada',
-    'No se convierte la ausencia de datos comerciales en riesgo de abandono. Se conectará en CRM + renovaciones.',
+    'green',
+    evidence,
+    'crmRenewals',
+    renewal.date?'alta':'media',
+    renewal.status==='upcoming'?'Es una señal operativa para seguimiento, no un riesgo automático.':'Sin señal comercial vencida en la evidencia disponible.',
   );
 }
 
@@ -147,6 +179,7 @@ function actionFor(band,factors){
   const ids=new Set(risky.map((item)=>item.id));
   if(band==='red')return Object.freeze({title:'Recuperar continuidad',detail:'Contactar al cliente y revisar barreras de agenda, asistencia y continuidad antes de modificar el plan.',primaryArea:'agenda',primaryLabel:'Revisar agenda y contacto'});
   if(ids.has('adherence')||ids.has('cancellations'))return Object.freeze({title:'Intervenir antes de perder continuidad',detail:'Revisar barreras reales y acordar el siguiente paso con el cliente.',primaryArea:'agenda',primaryLabel:'Revisar continuidad'});
+  if(ids.has('renewal'))return Object.freeze({title:'Revisar renovación pendiente',detail:'Confirmar continuidad comercial con el cliente. Una fecha vencida no implica impago ni abandono.',primaryArea:'clientes',primaryLabel:'Abrir clientes'});
   if(ids.has('feedback'))return Object.freeze({title:'Revisar feedback reciente',detail:'Dar contexto humano al feedback antes de decidir cualquier ajuste.',primaryArea:'progreso',primaryLabel:'Abrir Cliente 360'});
   if(ids.has('evolution'))return Object.freeze({title:'Revisar evolución y objetivos',detail:'Contrastar la señal con el cliente y la planificación vigente.',primaryArea:'progreso',primaryLabel:'Revisar progreso'});
   if(ids.has('activity'))return Object.freeze({title:'Comprobar actividad y sincronización',detail:'Verificar si el dato atrasado corresponde a falta de sincronización antes de interpretarlo.',primaryArea:'actividad',primaryLabel:'Revisar actividad'});
@@ -160,13 +193,14 @@ export function buildRetentionHealth(state,clientId,{now=new Date()}={}){
   if(!summary)return null;
   const alerts=deriveAdherenceAlerts(state,clientId,{now});
   const hub=buildProgressHub(state,clientId,{now});
+  const crm=buildCrmRenewalSummary(state,clientId,{now});
   const factors=Object.freeze([
     adherenceFactor(summary),
     activityFactor(summary),
     feedbackFactor(summary,alerts),
     cancellationFactor(state,clientId,{now}),
     evolutionFactor(hub),
-    renewalFactor(),
+    renewalFactor(crm),
   ]);
   const band=bandFor(factors);
   const evidenceCount=factors.filter((item)=>item.status!=='insufficient').length;
@@ -186,7 +220,7 @@ export function buildRetentionHealth(state,clientId,{now=new Date()}={}){
     autoPrescription:false,
     autoMessage:false,
     provenance:'deterministic-confirmed-data',
-    note:'Retention Engine prioriza continuidad observable y mantiene las señales ausentes como insuficientes. No calcula un score numérico ni realiza inferencias clínicas.',
+    note:'Retention Engine prioriza continuidad observable y señales comerciales explícitas, manteniendo la evidencia ausente como insuficiente. No calcula un score numérico, no presume impago y no realiza inferencias clínicas.',
   });
 }
 

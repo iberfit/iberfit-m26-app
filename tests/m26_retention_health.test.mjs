@@ -31,6 +31,8 @@ function healthyState(){
         {id:'w3',clientId:'c1',provider:'normalized_file',date:'2026-09-06',quality:'alta',metrics:{steps:10000,activeMinutes:62}},
       ],
       trainingCycles:[],
+      m26Entities:[],
+      domainEvents:[],
     },
     pendingOperations:[],conflicts:[],rejectedOperations:[],
   };
@@ -75,7 +77,7 @@ test('Retention Health turns red on confirmed continuity breakdown',()=>{
 });
 
 test('Retention Health preserves missing evidence as insufficient instead of green or zero',()=>{
-  const state={collections:{appointments:[],sessionExecutions:[],iriAssessments:[],checkins:[],wearableDailySummaries:[],trainingCycles:[]},pendingOperations:[],conflicts:[],rejectedOperations:[]};
+  const state={collections:{appointments:[],sessionExecutions:[],iriAssessments:[],checkins:[],wearableDailySummaries:[],trainingCycles:[],m26Entities:[],domainEvents:[]},pendingOperations:[],conflicts:[],rejectedOperations:[]};
   const health=buildRetentionHealth(state,'c1',{now:NOW});
   assert.equal(health.band,'insufficient');
   assert.equal(health.evidenceCount,0);
@@ -89,9 +91,36 @@ test('Retention Health is isolated by clientId',()=>{
     {id:'x2',clientId:'c2',status:'cancelada',scheduledAt:'2026-08-27T10:00:00Z'},
     {id:'x3',clientId:'c2',status:'ausencia_cliente',scheduledAt:'2026-09-03T10:00:00Z'},
   );
+  state.collections.m26Entities.push({id:'crm-c2',clientId:'c2',entityType:'crm',renewalDate:'2026-08-01T10:00:00Z'});
   const health=buildRetentionHealth(state,'c1',{now:NOW});
   assert.equal(health.band,'green');
   assert.equal(health.factors.find((item)=>item.id==='cancellations').status,'green');
+  assert.equal(health.factors.find((item)=>item.id==='renewal').status,'insufficient');
+});
+
+test('A confirmed upcoming renewal is operational evidence but does not degrade Health Band',()=>{
+  const state=healthyState();
+  state.collections.m26Entities.push({id:'crm1',clientId:'c1',entityType:'crm',renewalDate:'2026-09-15T10:00:00Z'});
+  const health=buildRetentionHealth(state,'c1',{now:NOW});
+  const renewal=health.factors.find((item)=>item.id==='renewal');
+  assert.equal(renewal.status,'green');
+  assert.match(renewal.evidence,/prevista en 9 días/iu);
+  assert.equal(health.band,'green');
+  assert.equal(health.evidenceCount,6);
+  assert.equal(health.riskSignals.includes('renewal'),false);
+});
+
+test('An explicitly overdue renewal becomes a yellow human-review signal without inferring debt',()=>{
+  const state=healthyState();
+  state.collections.m26Entities.push({id:'crm1',clientId:'c1',entityType:'crm',renewalDate:'2026-09-01T10:00:00Z'});
+  const health=buildRetentionHealth(state,'c1',{now:NOW});
+  const renewal=health.factors.find((item)=>item.id==='renewal');
+  assert.equal(renewal.status,'yellow');
+  assert.match(renewal.detail,/no implica impago/iu);
+  assert.equal(health.band,'yellow');
+  assert.equal(health.nextAction.title,'Revisar renovación pendiente');
+  assert.equal(health.nextAction.primaryArea,'clientes');
+  assert.equal(health.autoMessage,false);
 });
 
 test('Retention Health fails closed without clientId',()=>{
