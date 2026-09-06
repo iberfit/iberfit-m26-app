@@ -4,8 +4,11 @@ import {
   deriveCoachSelfLaunchJourney,
   coachLaunchSelfCopy,
   coachLaunchSelfLanguages,
+  augmentRc39ShellViewModel,
 } from '../src/m26/rc39/view-model.js';
 import {renderRc39Route} from '../src/m26/rc39/route-render.js';
+import {renderHoyRoute} from '../src/m26/modules/route-render.js';
+import {enhanceRc39ShellMarkup} from '../src/m26/rc39/shell-enhancer.js';
 
 function state(overrides={}){
   return {
@@ -117,19 +120,25 @@ test('Coach self-launch copy is complete in Spanish, English, French and Portugu
   }
 });
 
-test('Coach Hoy keeps the canonical Today surface and injects the self-launch panel without replacing it',()=>{
+test('Coach shell carries launch evidence and injects it into canonical Today without replacing the route',()=>{
   const sourceState=state();
-  const journey=deriveCoachSelfLaunchJourney({
-    state:sourceState,
-    identity:sourceState.identity,
-    now:new Date('2026-09-06T12:00:00Z'),
-  });
-  const markup=renderRc39Route({
+  const shellVm=augmentRc39ShellViewModel({
+    mode:'authenticated',
+    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT'},
+    activeArea:'hoy',
+  },sourceState);
+  assert.ok(shellVm.coachLaunchJourney);
+
+  const routeVm={
     kind:'hoy',role:'coach',clients:[],appointments:[],proposals:[],upcoming:[],
     operations:{pending:0,conflicts:0,rejected:0},
     coachCockpit:null,
-    rc39:{coachLaunchJourney:journey},
-  });
+    rc39:{coachLaunchJourney:shellVm.coachLaunchJourney},
+  };
+  assert.equal(renderRc39Route(routeVm),null);
+
+  const canonical=renderHoyRoute(routeVm);
+  const markup=enhanceRc39ShellMarkup(canonical,shellVm);
   assert.match(markup,/data-coach-launch-self=/u);
   assert.match(markup,/Tu recorrido como Coach/u);
   assert.match(markup,/Prioridades de hoy/u);
