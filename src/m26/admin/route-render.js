@@ -14,6 +14,47 @@ function coachLoadCard(item){
   const detail=item.capacityHours==null?`${item.clientCount} clientes`:`${item.assignedHours} de ${item.capacityHours} h · ${item.clientCount} clientes`;
   return `<article class="m26-admin-coach-load is-${e(item.status||'unknown')}"><div><strong>${e(item.coachName)}</strong><small>${e(detail)}</small></div><span>${e(value)}</span></article>`;
 }
+function coachClientList(items=[]){
+  return items.length
+    ?`<ul class="m26-admin-coach360-clients">${items.map((client)=>`<li><div><strong>${e(client.name)}</strong><small>${e([client.modality,client.status].filter(Boolean).join(' · ')||client.email||'Cliente activo')}</small></div><span>${e(client.nextActionLabel||'Seguimiento')}</span></li>`).join('')}</ul>`
+    :empty('Sin clientes asignados','Este Coach no tiene clientes activos asignados.');
+}
+function coachSessionList(items=[],emptyTitle='Sin sesiones programadas'){
+  return items.length
+    ?`<div class="m26-admin-coach360-sessions">${items.map((session)=>`<article><div><strong>${e(session.clientName||session.title||'Entrenamiento')}</strong><small>${e([session.startAt,session.modality,session.location].filter(Boolean).join(' · ')||'Fecha por confirmar')}</small></div>${badge(session.status||'Programada')}</article>`).join('')}</div>`
+    :empty(emptyTitle,'La agenda del Coach no contiene sesiones visibles en este periodo.');
+}
+function coach360Card(coach={}){
+  const load=coach.loadPercent==null?'Capacidad sin definir':`${coach.loadPercent}% de carga`;
+  const hours=coach.capacityHours==null?'Horas no configuradas':`${coach.assignedHours??0} / ${coach.capacityHours} h asignadas`;
+  const initial=String(coach.name||'C').trim().slice(0,1).toUpperCase();
+  const progress=coach.loadPercent==null?'':`<progress class="m26-admin-coach360-progress" max="100" value="${e(Math.min(100,Math.max(0,coach.loadPercent)))}">${e(coach.loadPercent)}%</progress>`;
+  return `<details class="m26-admin-coach360" data-admin-coach-id="${e(coach.coachId||coach.id||'')}">
+    <summary>
+      <span class="m26-admin-coach360-avatar" aria-hidden="true">${e(initial)}</span>
+      <span class="m26-admin-coach360-identity"><span class="m26-eyebrow">Coach IBERFIT</span><strong>${e(coach.name||'Coach')}</strong><small>${e(coach.email||'Perfil profesional')}</small></span>
+      <span class="m26-admin-coach360-summary-metric"><strong>${e(coach.clientCount||0)}</strong><small>clientes</small></span>
+      <span class="m26-admin-coach360-summary-metric"><strong>${e(coach.upcomingCount||0)}</strong><small>próximas</small></span>
+      <span class="m26-admin-coach360-open">Ver perfil</span>
+    </summary>
+    <div class="m26-admin-coach360-body">
+      <header class="m26-admin-coach360-header"><div><p class="m26-eyebrow">Perfil operativo</p><h3>${e(coach.name||'Coach')}</h3><p>${e(coach.email||'Sin correo visible')}</p></div>${badge(coach.status||'Sin estado')}</header>
+      <section class="m26-admin-coach360-kpis" aria-label="Indicadores del Coach">
+        ${stat('Clientes activos',coach.clientCount||0)}
+        ${stat('Próximas sesiones',coach.upcomingCount||0)}
+        ${stat('Sesiones completadas',coach.completedCount||0)}
+        ${stat('Carga',load)}
+      </section>
+      <section class="m26-admin-coach360-load"><div><strong>Capacidad de servicio</strong><small>${e(hours)}</small></div>${progress}</section>
+      <div class="m26-admin-coach360-columns">
+        <section><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Cartera</p><h4>Clientes asignados</h4></div>${badge(`${coach.clientCount||0} activos`)}</div>${coachClientList(coach.clients)}</section>
+        <section><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Agenda</p><h4>Próximos entrenamientos</h4></div>${badge(`${coach.upcomingCount||0} próximos`)}</div>${coachSessionList(coach.upcomingSessions)}</section>
+      </div>
+      <section class="m26-admin-coach360-recent"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Histórico reciente</p><h4>Últimos entrenamientos</h4></div></div>${coachSessionList(coach.recentSessions,'Sin entrenamientos recientes')}</section>
+      <footer class="m26-admin-coach360-actions"><button type="button" class="m26-primary-action" data-m26-area="admin-agenda">Abrir agenda global</button><button type="button" data-m26-area="admin-clientes">Gestionar clientes</button></footer>
+    </div>
+  </details>`;
+}
 function renderHome(vm){
   const cc=vm.commandCenter||{summary:{},priorities:[],coachLoad:[],criticalTasks:[]};
   const s=cc.summary||{};
@@ -42,9 +83,24 @@ function renderHome(vm){
 }
 function renderUsers(vm){const cards=vm.users.map((u)=>`<article class="m26-admin-panel"><h3>${e(u.name||u.email||'Usuario')}</h3><p>${e(u.email||'')}</p>${badge(u.status)}<p>${e((u.roles||[]).join(', ')||u.primaryRole||'Sin rol')}</p>${vm.canManageStatus?form('user-status',`<input type="hidden" name="userId" value="${e(u.userId||u.id)}"><input type="hidden" name="baseRevision" value="${e(u.revision||0)}"><select name="status"><option value="active">Activo</option><option value="suspended">Suspendido</option><option value="inactive">Inactivo</option></select><textarea name="reason" minlength="3" required placeholder="Motivo"></textarea>`,'Guardar estado'):''}${vm.canManageRoles?form('role-change',`<input type="hidden" name="userId" value="${e(u.userId||u.id)}"><select name="action"><option value="grant">Otorgar</option><option value="revoke">Revocar</option></select><select name="role"><option value="client">Cliente</option><option value="coach">Coach</option><option value="admin">Admin</option></select><textarea name="reason" minlength="3" required placeholder="Motivo"></textarea>`,'Cambiar acceso'):''}</article>`).join('');return `<div class="m26-admin-route">${intro('Identidad','Usuarios y accesos','Administra estados y aplicaciones autorizadas sin autoelevar permisos.')}<section class="m26-admin-cards">${cards||empty('Sin usuarios','No hay usuarios visibles.')}</section></div>`;}
 function renderTeam(vm){
+  const profiles=vm.coachProfiles360||[];
+  const activeCoaches=profiles.filter((coach)=>/active|activo/i.test(coach.status)).length;
+  const assignedClients=new Set(profiles.flatMap((coach)=>coach.clients?.map((client)=>client.id)||[])).size;
+  const upcoming=profiles.reduce((sum,coach)=>sum+Number(coach.upcomingCount||0),0);
   const assign=vm.canManage?form('assignment-create',`<select name="coachUserId" required><option value="">Coach</option>${vm.coaches.map((x)=>`<option value="${e(x.userId||x.id)}">${e(x.name||x.email)}</option>`).join('')}</select><select name="clientId" required><option value="">Cliente</option>${vm.clients.map((x)=>`<option value="${e(x.id)}">${e(x.name)}</option>`).join('')}</select><input type="date" name="startsAt" required><textarea name="reason" minlength="3" required placeholder="Motivo"></textarea>`,'Crear asignación'):'';
   const table=rows(['Coach','Cliente','Estado','Acción'],vm.assignments.map((a)=>`<tr><td>${e(a.coachName||'Coach')}</td><td>${e(a.clientName||'Cliente')}</td><td>${badge(a.status)}</td><td>${a.status==='active'&&vm.canManage?form('assignment-end',`<input type="hidden" name="assignmentId" value="${e(a.id)}"><input type="hidden" name="baseRevision" value="${e(a.revision||0)}"><input name="reason" minlength="3" required placeholder="Motivo">`,'Finalizar'):'—'}</td></tr>`));
-  return `<div class="m26-admin-route">${intro('Equipo','Coaches y asignaciones','Controla quién acompaña a cada cliente y protege la continuidad del servicio.')}${assign}<section class="m26-admin-panel">${vm.assignments.length?table:empty('Sin asignaciones','No hay relaciones Coach–Cliente registradas.')}</section></div>`;
+  return `<div class="m26-admin-route m26-admin-team360">
+    ${intro('Dirección de equipo','Coach 360','Consulta el perfil operativo de cada Coach, su cartera, carga y entrenamientos desde una sola vista.')}
+    <section class="m26-admin-stats m26-admin-team-overview">
+      ${stat('Coaches',profiles.length)}
+      ${stat('Activos',activeCoaches)}
+      ${stat('Clientes asignados',assignedClients)}
+      ${stat('Próximas sesiones',upcoming)}
+    </section>
+    <section class="m26-admin-panel m26-admin-team-directory"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Equipo profesional</p><h3>Perfiles de Coach</h3><p>Abre cada perfil para revisar carga, clientes y agenda sin abandonar Admin.</p></div>${badge(`${profiles.length} perfiles`)}</div><div class="m26-admin-coach360-grid">${profiles.length?profiles.map(coach360Card).join(''):empty('Sin Coaches','No hay perfiles de Coach visibles.')}</div></section>
+    ${vm.canManage?`<section class="m26-admin-panel m26-admin-assignment-create"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Asignación</p><h3>Vincular Coach y cliente</h3><p>La relación queda trazada y puede finalizarse sin borrar el histórico.</p></div></div>${assign}</section>`:''}
+    <section class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Relaciones activas</p><h3>Asignaciones Coach–Cliente</h3></div>${badge(`${vm.assignments.length} registros`)}</div>${vm.assignments.length?table:empty('Sin asignaciones','No hay relaciones Coach–Cliente registradas.')}</section>
+  </div>`;
 }
 function clientDelete(c){
   const expected=String(c.email||c.name||'').trim();
