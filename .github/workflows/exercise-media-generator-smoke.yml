@@ -80,6 +80,42 @@ jobs:
           console.log(JSON.stringify({exerciseId:id,references:true}));
           NODE
 
+      - name: Normalizar referencia del atleta para inferencia
+        shell: bash
+        run: |
+          set -euo pipefail
+          normalized_dir='recovery/exercise-media-reference-normalized'
+          normalized_athlete="$normalized_dir/athlete-approved-v1-srgb.png"
+          mkdir -p "$normalized_dir"
+
+          if command -v magick >/dev/null 2>&1; then
+            magick "$ATHLETE_REFERENCE" -auto-orient -strip -colorspace sRGB "PNG24:$normalized_athlete"
+            converter='magick'
+          elif command -v convert >/dev/null 2>&1; then
+            convert "$ATHLETE_REFERENCE" -auto-orient -strip -colorspace sRGB "PNG24:$normalized_athlete"
+            converter='convert'
+          elif command -v ffmpeg >/dev/null 2>&1; then
+            ffmpeg -v error -y -i "$ATHLETE_REFERENCE" -frames:v 1 -vf format=rgb24 "$normalized_athlete"
+            converter='ffmpeg'
+          else
+            echo 'No hay decodificador de imagen disponible para normalizar la referencia canónica.' >&2
+            exit 1
+          fi
+
+          test -s "$normalized_athlete"
+          file "$ATHLETE_REFERENCE" "$normalized_athlete" "$ISOTYPE_REFERENCE" | tee recovery/exercise-media-reference-filetypes.log
+          ATHLETE_INFERENCE_REFERENCE="$normalized_athlete" node --input-type=module - <<'NODE'
+          import {readReference} from './scripts/exercise-media/generate-cloudflare.mjs';
+          const athlete=readReference(process.env.ATHLETE_INFERENCE_REFERENCE);
+          const logo=readReference(process.env.ISOTYPE_REFERENCE);
+          if(athlete.mime!=='image/png')throw new Error('IBERFIT_NORMALIZED_ATHLETE_MUST_BE_PNG');
+          if(athlete.width>512||athlete.height>512||logo.width>512||logo.height>512)throw new Error('IBERFIT_NORMALIZED_REFERENCE_DIMENSIONS_INVALID');
+          console.log(JSON.stringify({athlete:{mime:athlete.mime,width:athlete.width,height:athlete.height},logo:{mime:logo.mime,width:logo.width,height:logo.height}}));
+          NODE
+          echo "ATHLETE_INFERENCE_REFERENCE=$normalized_athlete" >> "$GITHUB_ENV"
+          echo "ISOTYPE_INFERENCE_REFERENCE=$ISOTYPE_REFERENCE" >> "$GITHUB_ENV"
+          echo "IBERFIT_REFERENCE_CONVERTER=$converter" >> "$GITHUB_ENV"
+
       - name: Preparar Pages Function AI aislada
         id: proxy
         shell: bash
@@ -133,8 +169,8 @@ jobs:
           node scripts/exercise-media/generate-cloudflare.mjs \
             --catalog baseline_m25_2/exercise-catalog-m25.json \
             --exercise-id "$EXERCISE_ID" \
-            --athlete-ref "$ATHLETE_REFERENCE" \
-            --logo-ref "$ISOTYPE_REFERENCE" \
+            --athlete-ref "$ATHLETE_INFERENCE_REFERENCE" \
+            --logo-ref "$ISOTYPE_INFERENCE_REFERENCE" \
             --out-dir recovery/exercise-media-smoke | tee recovery/exercise-media-generate.log
           image="$(find recovery/exercise-media-smoke -maxdepth 1 -type f -name '*-candidate.*' ! -name '*.json' | head -n 1)"
           if [[ -z "$image" || ! -s "$image" ]]; then
@@ -181,7 +217,7 @@ jobs:
           if(x.references?.athlete!==true||x.references?.official_isotype!==true)throw new Error('SMOKE_CANONICAL_REFERENCES_REQUIRED');
           const a=x.references?.athlete_dimensions,i=x.references?.isotype_dimensions;
           if(!a||a.width>512||a.height>512||!i||i.width>512||i.height>512)throw new Error('SMOKE_REFERENCE_DIMENSIONS_INVALID');
-          console.log(JSON.stringify({safe:true,publishable:x.publishable,qa:x.qa,transport:x.transport,composition:x.composition,references:x.references}));
+          console.log(JSON.stringify({safe:true,publishable:x.publishable,qa:x.qa,transport:x.transport,composition:x.composition,references:x.references,converter:process.env.IBERFIT_REFERENCE_CONVERTER}));
           NODE
 
       - name: Conservar candidato y evidencia
@@ -191,6 +227,8 @@ jobs:
           name: iberfit-exercise-media-smoke-${{ env.EXERCISE_ID }}-${{ github.run_id }}
           path: |
             recovery/exercise-media-smoke/**
+            recovery/exercise-media-reference-normalized/**
+            recovery/exercise-media-reference-filetypes.log
             recovery/exercise-media-generate.log
             recovery/exercise-media-qa.log
             recovery/exercise-media-pages-create.log
