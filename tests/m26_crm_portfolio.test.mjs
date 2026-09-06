@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   applyCommercialPortfolio,
   commercialRenewalLabel,
+  normalizeCommercialRenewalFilter,
+  commercialRenewalFilterMatches,
 } from '../src/m26/communication/view-model.js';
 
 const NOW=new Date('2026-09-06T18:00:00Z');
@@ -115,4 +117,19 @@ test('Etiquetas de renovación fallan cerrado ante estados desconocidos',()=>{
   assert.equal(commercialRenewalLabel('upcoming'),'Renovación próxima');
   assert.equal(commercialRenewalLabel('unexpected'),'Renovación sin evidencia');
   assert.equal(commercialRenewalLabel(null),'Renovación sin evidencia');
+});
+
+test('Filtro comercial sólo acepta estados canónicos y no convierte valores desconocidos en una categoría',()=>{
+  assert.equal(normalizeCommercialRenewalFilter(' overdue '),'overdue');
+  assert.equal(normalizeCommercialRenewalFilter('UPCOMING'),'upcoming');
+  assert.equal(normalizeCommercialRenewalFilter('unexpected'),'');
+  assert.equal(normalizeCommercialRenewalFilter(null),'');
+});
+
+test('Filtro de renovación combina de forma determinista con el estado comercial sin inventar evidencia',()=>{
+  assert.equal(commercialRenewalFilterMatches('overdue','overdue'),true);
+  assert.equal(commercialRenewalFilterMatches('upcoming','overdue'),false);
+  assert.equal(commercialRenewalFilterMatches('unknown','insufficient'),true);
+  assert.equal(commercialRenewalFilterMatches('overdue',''),true);
+  assert.equal(commercialRenewalFilterMatches('overdue','unexpected'),true);
 });
