@@ -105,30 +105,29 @@ jobs:
 
           ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-          athlete_source = os.environ['ATHLETE_SOURCE']
-          athlete_target = os.environ['ATHLETE_NORMALIZED']
-          isotype_source = os.environ['ISOTYPE_SOURCE']
-          isotype_target = os.environ['ISOTYPE_NORMALIZED']
-
-          with Image.open(athlete_source) as image:
+          with Image.open(os.environ['ATHLETE_SOURCE']) as image:
               image.load()
-              athlete = ImageOps.exif_transpose(image).convert('RGB')
-              athlete.save(athlete_target, format='PNG', optimize=False)
+              ImageOps.exif_transpose(image).convert('RGB').save(
+                  os.environ['ATHLETE_NORMALIZED'], format='PNG', optimize=False
+              )
 
-          with Image.open(isotype_source) as image:
+          with Image.open(os.environ['ISOTYPE_SOURCE']) as image:
               image.load()
-              source_mode = image.mode
-              rgba = image.convert('RGBA')
-              background = Image.new('RGBA', rgba.size, (0, 0, 0, 255))
-              flattened = Image.alpha_composite(background, rgba).convert('RGB')
-              flattened.save(isotype_target, format='PNG', optimize=False)
-              print(f'IBERFIT_ISOTYPE_NORMALIZED source_mode={source_mode} output_mode={flattened.mode} size={flattened.size[0]}x{flattened.size[1]}')
+              source_mode=image.mode
+              rgba=image.convert('RGBA')
+              background=Image.new('RGBA', rgba.size, (0,0,0,255))
+              flattened=Image.alpha_composite(background, rgba).convert('RGB')
+              flattened.save(os.environ['ISOTYPE_NORMALIZED'], format='PNG', optimize=False)
+              print(f'IBERFIT_ISOTYPE_NORMALIZED source_mode={source_mode} output_mode={flattened.mode} size={flattened.width}x{flattened.height}')
           PY
 
           test -s "$normalized_athlete"
           test -s "$normalized_isotype"
           file "$ATHLETE_REFERENCE" "$normalized_athlete" "$ISOTYPE_REFERENCE" "$normalized_isotype" | tee recovery/exercise-media-reference-filetypes.log
-          ATHLETE_INFERENCE_REFERENCE="$normalized_athlete" ISOTYPE_INFERENCE_REFERENCE="$normalized_isotype" node --input-type=module - <<'NODE'
+
+          ATHLETE_INFERENCE_REFERENCE="$normalized_athlete" \
+          ISOTYPE_INFERENCE_REFERENCE="$normalized_isotype" \
+          node --input-type=module - <<'NODE'
           import {readReference} from './scripts/exercise-media/generate-cloudflare.mjs';
           const athlete=readReference(process.env.ATHLETE_INFERENCE_REFERENCE);
           const logo=readReference(process.env.ISOTYPE_INFERENCE_REFERENCE);
@@ -136,6 +135,7 @@ jobs:
           if(athlete.width>512||athlete.height>512||logo.width>512||logo.height>512)throw new Error('IBERFIT_NORMALIZED_REFERENCE_DIMENSIONS_INVALID');
           console.log(JSON.stringify({athlete:{mime:athlete.mime,width:athlete.width,height:athlete.height},logo:{mime:logo.mime,width:logo.width,height:logo.height},isotypeAlphaFlattened:true}));
           NODE
+
           echo "ATHLETE_INFERENCE_REFERENCE=$normalized_athlete" >> "$GITHUB_ENV"
           echo "ISOTYPE_INFERENCE_REFERENCE=$normalized_isotype" >> "$GITHUB_ENV"
           echo "IBERFIT_REFERENCE_CONVERTER=pillow-11.3.0" >> "$GITHUB_ENV"
@@ -145,9 +145,11 @@ jobs:
         run: |
           set -euo pipefail
           pose_dir='recovery/exercise-media-pose-guides'
-          pose="$pose_dir/hip-abduction-end-pose-v1.png"
+          pose="$pose_dir/hip-abduction-end-pose-v2-30deg.png"
           mkdir -p "$pose_dir"
+
           POSE_TARGET="$pose" python3 - <<'PY'
+          import math
           import os
           from PIL import Image, ImageDraw
 
@@ -167,25 +169,45 @@ jobs:
               draw.line(points,fill=bone,width=16,joint='curve')
           for x in (78,178):
               draw.ellipse((x-8,277,x+8,293),fill=bone)
+
+          left_hip=(115,255)
+          right_hip=(141,255)
+          support_knee=(147,350)
+          support_ankle=(151,454)
+          moving_knee=(66,342)
+          moving_ankle=(22,424)
+
           draw.line((108,250,148,250),fill=bone,width=20)
-          support=[(141,255),(147,350),(151,454)]
-          moving=[(115,255),(83,340),(52,430)]
-          draw.line(support,fill=bone,width=24,joint='curve')
-          draw.line(moving,fill=bone,width=24,joint='curve')
+          draw.line([right_hip,support_knee,support_ankle],fill=bone,width=24,joint='curve')
+          draw.line([left_hip,moving_knee,moving_ankle],fill=bone,width=24,joint='curve')
           draw.line((145,458,171,464),fill=bone,width=18)
-          draw.line((48,433,24,442),fill=bone,width=18)
-          for x,y in [(128,108),(88,108),(168,108),(82,195),(174,195),(108,250),(148,250),(83,340),(147,350),(52,430),(151,454)]:
+          draw.line((24,427,5,439),fill=bone,width=18)
+
+          joints=[(128,108),(88,108),(168,108),(82,195),(174,195),left_hip,right_hip,moving_knee,support_knee,moving_ankle,support_ankle]
+          for x,y in joints:
               draw.ellipse((x-6,y-6,x+6,y+6),fill=joint,outline=outline,width=2)
+
           draw.line((128,15,128,480),fill=(205,205,200),width=2)
-          draw.line((20,474,236,474),fill=(120,120,120),width=3)
+          draw.line((4,474,236,474),fill=(120,120,120),width=3)
+
+          dx=left_hip[0]-moving_ankle[0]
+          dy=moving_ankle[1]-left_hip[1]
+          angle=math.degrees(math.atan2(dx,dy))
+          if not 28 <= angle <= 32:
+              raise RuntimeError(f'IBERFIT_POSE_GUIDE_ANGLE_INVALID:{angle}')
+          if moving_ankle[1] >= 450:
+              raise RuntimeError('IBERFIT_POSE_GUIDE_SHOE_NOT_SUSPENDED')
+
           image.save(target,format='PNG',optimize=False)
+          print(f'IBERFIT_POSE_GUIDE_ANGLE={angle:.2f}')
           PY
+
           test -s "$pose"
           END_POSE_REFERENCE="$pose" node --input-type=module - <<'NODE'
           import {readReference} from './scripts/exercise-media/generate-cloudflare.mjs';
           const pose=readReference(process.env.END_POSE_REFERENCE);
           if(pose.mime!=='image/png'||pose.width!==256||pose.height!==512)throw new Error('IBERFIT_POSE_GUIDE_INVALID');
-          console.log(JSON.stringify({poseGuide:true,width:pose.width,height:pose.height,mime:pose.mime}));
+          console.log(JSON.stringify({poseGuide:true,version:'v2-30deg',targetAngleDegrees:30,width:pose.width,height:pose.height,mime:pose.mime}));
           NODE
           echo "END_POSE_REFERENCE=$pose" >> "$GITHUB_ENV"
 
@@ -200,6 +222,7 @@ jobs:
             echo 'CLOUDFLARE_API_TOKEN no está disponible en este workflow.' >&2
             exit 1
           fi
+
           mkdir -p recovery
           rm -rf "$PAGES_AI_DIR"
           mkdir -p "$PAGES_AI_DIR"
@@ -207,6 +230,7 @@ jobs:
           cp "$WRANGLER_CONFIG" wrangler.toml
           sed -i "s/^name = .*/name = \"$PAGES_AI_PROJECT\"/" wrangler.toml
           printf '%s\n' 'IBERFIT exercise media AI smoke' > "$PAGES_AI_DIR/index.html"
+
           smoke_token="$(openssl rand -hex 32)"
           echo "::add-mask::$smoke_token"
 
@@ -280,11 +304,13 @@ jobs:
             done
             sleep 3
           done
+
           cat recovery/exercise-media-proxy-health-wait.log
           if [[ -z "$proxy_url" ]]; then
             echo 'Pages desplegó, pero TLS/health no quedó operativo dentro de la ventana segura.' >&2
             exit 1
           fi
+
           node -e "const x=require('./recovery/exercise-media-proxy-health.json');if(x.ok!==true||x.ai!==true)process.exit(1)"
           echo "IBERFIT_AI_PROXY_URL=$proxy_url" >> "$GITHUB_ENV"
           echo "IBERFIT_AI_PROXY_TOKEN=$smoke_token" >> "$GITHUB_ENV"
@@ -298,6 +324,7 @@ jobs:
           mkdir -p recovery
           : > recovery/exercise-media-generate.log
           generated=0
+
           for attempt in $(seq 1 6); do
             rm -rf recovery/exercise-media-phases recovery/exercise-media-smoke
             attempt_log="recovery/exercise-media-generate-attempt-${attempt}.log"
@@ -310,8 +337,10 @@ jobs:
               --out-dir recovery/exercise-media-phases 2>&1 | tee "$attempt_log"
             rc=${PIPESTATUS[0]}
             set -e
+
             printf '\n===== PHASED GENERATION ATTEMPT %s rc=%s =====\n' "$attempt" "$rc" >> recovery/exercise-media-generate.log
             cat "$attempt_log" >> recovery/exercise-media-generate.log
+
             if [[ "$rc" -eq 0 ]]; then
               generated=1
               break
@@ -323,6 +352,7 @@ jobs:
             echo "Ruta Pages transitoria en intento $attempt/6; reintentando sin relajar TLS." >&2
             sleep 3
           done
+
           if [[ "$generated" != '1' ]]; then
             echo 'La ruta Pages no se estabilizó para generación por fases dentro de la ventana acotada.' >&2
             exit 1
@@ -339,7 +369,7 @@ jobs:
           from pathlib import Path
           from PIL import Image, ImageOps, ImageFile
 
-          ImageFile.LOAD_TRUNCATED_IMAGES = True
+          ImageFile.LOAD_TRUNCATED_IMAGES=True
           exercise_id=os.environ['EXERCISE_ID']
           phase_dir=Path('recovery/exercise-media-phases')
           out_dir=Path('recovery/exercise-media-smoke')
@@ -347,6 +377,13 @@ jobs:
           end_files=[p for p in phase_dir.glob(f'{exercise_id}-end.*') if p.suffix.lower() in {'.jpg','.jpeg','.png','.webp'}]
           if len(start_files)!=1 or len(end_files)!=1:
               raise RuntimeError(f'IBERFIT_PHASED_FILES_INVALID:start={start_files}:end={end_files}')
+
+          phases_path=phase_dir/f'{exercise_id}-phases.json'
+          phased=json.loads(phases_path.read_text(encoding='utf-8'))
+          phase_models={x['phase']:x['model'] for x in phased.get('phases',[])}
+          phase_requested_models={x['phase']:x['requested_model'] for x in phased.get('phases',[])}
+          if set(phase_models)!={'start','end'}:
+              raise RuntimeError(f'IBERFIT_PHASE_MODELS_INVALID:{phase_models}')
 
           def panel(path):
               with Image.open(path) as image:
@@ -363,8 +400,7 @@ jobs:
           with Image.open(os.environ['ISOTYPE_SOURCE']) as image:
               image.load()
               logo=image.convert('RGBA')
-              alpha=logo.getchannel('A')
-              bbox=alpha.getbbox()
+              bbox=logo.getchannel('A').getbbox()
               if not bbox:
                   raise RuntimeError('IBERFIT_ISOTYPE_ALPHA_EMPTY')
               logo=logo.crop(bbox)
@@ -372,7 +408,7 @@ jobs:
               target_w=max(1,round(logo.width*target_h/logo.height))
               logo=logo.resize((target_w,target_h),Image.Resampling.LANCZOS)
               for panel_x in (0,512):
-                  canvas.alpha_composite(logo,(panel_x+304,272))
+                  canvas.alpha_composite(logo,(panel_x+300,310))
               isotype_dimensions={'width':image.width,'height':image.height}
 
           final=canvas.convert('RGB').resize((768,960),Image.Resampling.LANCZOS)
@@ -383,10 +419,13 @@ jobs:
               athlete_dimensions={'width':athlete.width,'height':athlete.height}
           with Image.open(os.environ['END_POSE_REFERENCE']) as pose:
               pose_dimensions={'width':pose.width,'height':pose.height}
+
           metadata={
-              'schema':'iberfit.exercise.generation-candidate.v3',
+              'schema':'iberfit.exercise.generation-candidate.v4',
               'exercise_id':exercise_id,
-              'model':'@cf/black-forest-labs/flux-2-klein-4b',
+              'model':'mixed_phased',
+              'models':phase_models,
+              'requested_models':phase_requested_models,
               'transport':'workers_ai_binding',
               'composition':'movement_pair_phased_pose_guided',
               'width':768,
@@ -399,6 +438,8 @@ jobs:
                   'official_isotype':True,
                   'exact_isotype_composited':True,
                   'end_pose_guide':True,
+                  'end_pose_guide_version':'v2-30deg',
+                  'target_abduction_degrees':30,
                   'athlete_dimensions':athlete_dimensions,
                   'isotype_dimensions':isotype_dimensions,
                   'end_pose_guide_dimensions':pose_dimensions,
@@ -409,7 +450,16 @@ jobs:
           with open(out_dir/f'{exercise_id}-candidate.json','w',encoding='utf-8') as handle:
               json.dump(metadata,handle,ensure_ascii=False,indent=2)
               handle.write('\n')
-          print(json.dumps({'ok':True,'image':str(image_path),'composition':metadata['composition'],'exactIsotype':True,'poseGuided':True}))
+
+          print(json.dumps({
+              'ok':True,
+              'image':str(image_path),
+              'composition':metadata['composition'],
+              'models':metadata['models'],
+              'exactIsotype':True,
+              'poseGuided':True,
+              'targetAbductionDegrees':30,
+          }))
           PY
 
           image="recovery/exercise-media-smoke/${EXERCISE_ID}-candidate.jpg"
@@ -451,10 +501,13 @@ jobs:
           if(x.qa?.biomechanics!=='pending'||x.qa?.visual!=='pending')throw new Error('GENERATION_MUST_NOT_SELF_APPROVE');
           if(x.transport!=='workers_ai_binding')throw new Error('SMOKE_MUST_USE_WORKERS_AI_BINDING');
           if(x.composition!=='movement_pair_phased_pose_guided')throw new Error('SMOKE_POSE_GUIDED_MOVEMENT_PAIR_REQUIRED');
+          if(x.models?.start!=='@cf/black-forest-labs/flux-2-klein-4b')throw new Error('SMOKE_START_MODEL_INVALID');
+          if(x.models?.end!=='@cf/black-forest-labs/flux-2-klein-9b')throw new Error('SMOKE_END_MODEL_INVALID');
+          if(x.references?.end_pose_guide_version!=='v2-30deg'||x.references?.target_abduction_degrees!==30)throw new Error('SMOKE_POSE_GUIDE_VERSION_INVALID');
           if(x.references?.athlete!==true||x.references?.official_isotype!==true||x.references?.exact_isotype_composited!==true||x.references?.end_pose_guide!==true)throw new Error('SMOKE_CANONICAL_REFERENCES_REQUIRED');
           const a=x.references?.athlete_dimensions,i=x.references?.isotype_dimensions,p=x.references?.end_pose_guide_dimensions;
           if(!a||a.width>512||a.height>512||!i||i.width>512||i.height>512||!p||p.width>512||p.height>512)throw new Error('SMOKE_REFERENCE_DIMENSIONS_INVALID');
-          console.log(JSON.stringify({safe:true,publishable:x.publishable,qa:x.qa,transport:x.transport,composition:x.composition,references:x.references,converter:process.env.IBERFIT_REFERENCE_CONVERTER}));
+          console.log(JSON.stringify({safe:true,publishable:x.publishable,qa:x.qa,transport:x.transport,composition:x.composition,models:x.models,references:x.references,converter:process.env.IBERFIT_REFERENCE_CONVERTER}));
           NODE
 
       - name: Conservar candidato y evidencia
