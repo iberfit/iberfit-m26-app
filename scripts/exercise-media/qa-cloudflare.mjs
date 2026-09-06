@@ -35,10 +35,24 @@ export function buildQaQuestion(exercise={}){
   ].join('\n');
 }
 
+function nestedAnswer(value,depth=0){
+  if(depth>5||value===null||value===undefined)return null;
+  if(typeof value==='string')return value.trim()||null;
+  if(typeof value!=='object'||Array.isArray(value))return null;
+  for(const key of ['answer','response','result','output','data']){
+    if(!(key in value))continue;
+    const found=nestedAnswer(value[key],depth+1);
+    if(found)return found;
+  }
+  return null;
+}
 function extractAnswer(payload){
-  const value=payload?.result?.answer??payload?.answer??payload?.result?.response??payload?.response;
-  if(typeof value!=='string'||!value.trim())throw new Error('IBERFIT_QA_ANSWER_MISSING');
-  return value.trim();
+  const value=nestedAnswer(payload);
+  if(!value){
+    const keys=payload&&typeof payload==='object'&&!Array.isArray(payload)?Object.keys(payload).slice(0,12).join(','):'non_object';
+    throw new Error(`IBERFIT_QA_ANSWER_MISSING:${keys}`);
+  }
+  return value;
 }
 export function parseQaAnswer(answer){
   let text=String(answer||'').trim();
