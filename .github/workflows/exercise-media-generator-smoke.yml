@@ -145,71 +145,29 @@ jobs:
         run: |
           set -euo pipefail
           pose_dir='recovery/exercise-media-pose-guides'
-          pose="$pose_dir/hip-abduction-end-pose-v2-30deg.png"
+          pose="$pose_dir/hip-abduction-end-pose-v3-32deg-ankle-only.png"
+          pose_metadata="$pose_dir/hip-abduction-end-pose-v3-32deg-ankle-only.json"
           mkdir -p "$pose_dir"
 
-          POSE_TARGET="$pose" python3 - <<'PY'
-          import math
-          import os
-          from PIL import Image, ImageDraw
-
-          target=os.environ['POSE_TARGET']
-          W,H=256,512
-          image=Image.new('RGB',(W,H),(240,240,238))
-          draw=ImageDraw.Draw(image)
-          bone=(25,25,25)
-          joint=(80,160,100)
-          outline=(15,15,15)
-
-          draw.ellipse((104,28,152,76),fill=(210,210,205),outline=outline,width=4)
-          draw.line((128,76,128,96),fill=bone,width=12)
-          draw.line((88,108,168,108),fill=bone,width=18)
-          draw.polygon([(105,104),(151,104),(146,245),(110,245)],fill=(185,185,180),outline=outline)
-          for points in [((94,115),(82,195),(78,285)),((162,115),(174,195),(178,285))]:
-              draw.line(points,fill=bone,width=16,joint='curve')
-          for x in (78,178):
-              draw.ellipse((x-8,277,x+8,293),fill=bone)
-
-          left_hip=(115,255)
-          right_hip=(141,255)
-          support_knee=(147,350)
-          support_ankle=(151,454)
-          moving_knee=(66,342)
-          moving_ankle=(22,424)
-
-          draw.line((108,250,148,250),fill=bone,width=20)
-          draw.line([right_hip,support_knee,support_ankle],fill=bone,width=24,joint='curve')
-          draw.line([left_hip,moving_knee,moving_ankle],fill=bone,width=24,joint='curve')
-          draw.line((145,458,171,464),fill=bone,width=18)
-          draw.line((24,427,5,439),fill=bone,width=18)
-
-          joints=[(128,108),(88,108),(168,108),(82,195),(174,195),left_hip,right_hip,moving_knee,support_knee,moving_ankle,support_ankle]
-          for x,y in joints:
-              draw.ellipse((x-6,y-6,x+6,y+6),fill=joint,outline=outline,width=2)
-
-          draw.line((128,15,128,480),fill=(205,205,200),width=2)
-          draw.line((4,474,236,474),fill=(120,120,120),width=3)
-
-          dx=left_hip[0]-moving_ankle[0]
-          dy=moving_ankle[1]-left_hip[1]
-          angle=math.degrees(math.atan2(dx,dy))
-          if not 28 <= angle <= 32:
-              raise RuntimeError(f'IBERFIT_POSE_GUIDE_ANGLE_INVALID:{angle}')
-          if moving_ankle[1] >= 450:
-              raise RuntimeError('IBERFIT_POSE_GUIDE_SHOE_NOT_SUSPENDED')
-
-          image.save(target,format='PNG',optimize=False)
-          print(f'IBERFIT_POSE_GUIDE_ANGLE={angle:.2f}')
-          PY
+          python3 scripts/exercise-media/tools/create-hip-abduction-pose-guide-v3.py \
+            --out "$pose" \
+            --metadata-out "$pose_metadata"
 
           test -s "$pose"
-          END_POSE_REFERENCE="$pose" node --input-type=module - <<'NODE'
+          test -s "$pose_metadata"
+          END_POSE_REFERENCE="$pose" END_POSE_METADATA="$pose_metadata" node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
           import {readReference} from './scripts/exercise-media/generate-cloudflare.mjs';
           const pose=readReference(process.env.END_POSE_REFERENCE);
+          const meta=JSON.parse(fs.readFileSync(process.env.END_POSE_METADATA,'utf8'));
           if(pose.mime!=='image/png'||pose.width!==256||pose.height!==512)throw new Error('IBERFIT_POSE_GUIDE_INVALID');
-          console.log(JSON.stringify({poseGuide:true,version:'v2-30deg',targetAngleDegrees:30,width:pose.width,height:pose.height,mime:pose.mime}));
+          if(meta.version!=='v3-32deg-ankle-only'||meta.target_abduction_degrees!==32)throw new Error('IBERFIT_POSE_GUIDE_CONTRACT_INVALID');
+          if(!(meta.actual_abduction_degrees>=31.5&&meta.actual_abduction_degrees<=33.5))throw new Error('IBERFIT_POSE_GUIDE_ANGLE_INVALID');
+          if(meta.moving_foot_geometry!=='omitted'||meta.moving_ankle_suspended!==true||meta.coronal_plane_only!==true)throw new Error('IBERFIT_POSE_GUIDE_FOOT_CONTRACT_INVALID');
+          console.log(JSON.stringify({poseGuide:true,version:meta.version,targetAngleDegrees:meta.target_abduction_degrees,actualAngleDegrees:meta.actual_abduction_degrees,movingFootGeometry:meta.moving_foot_geometry,width:pose.width,height:pose.height,mime:pose.mime}));
           NODE
           echo "END_POSE_REFERENCE=$pose" >> "$GITHUB_ENV"
+          echo "END_POSE_METADATA=$pose_metadata" >> "$GITHUB_ENV"
 
       - name: Preparar Pages Function AI aislada
         id: proxy
@@ -345,6 +303,10 @@ jobs:
               generated=1
               break
             fi
+            if grep -Eq '4006|daily free allocation|10,000 neurons' "$attempt_log"; then
+              echo 'Cloudflare Workers AI agotó la asignación diaria; el piloto permanece bloqueado fail-closed sin reintentos.' >&2
+              exit "$rc"
+            fi
             if ! grep -Eq 'IBERFIT_PHASED_CLOUDFLARE_HTTP_(522|523|524|525|526)' "$attempt_log"; then
               echo "Generación por fases falló con error no transitorio; no se reintenta (rc=$rc)." >&2
               exit "$rc"
@@ -363,6 +325,7 @@ jobs:
           ISOTYPE_SOURCE="$ISOTYPE_REFERENCE" \
           ATHLETE_INFERENCE_REFERENCE="$ATHLETE_INFERENCE_REFERENCE" \
           END_POSE_REFERENCE="$END_POSE_REFERENCE" \
+          END_POSE_METADATA="$END_POSE_METADATA" \
           python3 - <<'PY'
           import json
           import os
@@ -384,6 +347,15 @@ jobs:
           phase_requested_models={x['phase']:x['requested_model'] for x in phased.get('phases',[])}
           if set(phase_models)!={'start','end'}:
               raise RuntimeError(f'IBERFIT_PHASE_MODELS_INVALID:{phase_models}')
+
+          pose_contract=json.loads(Path(os.environ['END_POSE_METADATA']).read_text(encoding='utf-8'))
+          if pose_contract.get('version')!='v3-32deg-ankle-only':
+              raise RuntimeError('IBERFIT_POSE_CONTRACT_VERSION_INVALID')
+          actual_angle=float(pose_contract.get('actual_abduction_degrees',0))
+          if not 31.5 <= actual_angle <= 33.5:
+              raise RuntimeError(f'IBERFIT_POSE_CONTRACT_ANGLE_INVALID:{actual_angle}')
+          if pose_contract.get('moving_foot_geometry')!='omitted':
+              raise RuntimeError('IBERFIT_POSE_CONTRACT_MOVING_FOOT_INVALID')
 
           def panel(path):
               with Image.open(path) as image:
@@ -421,7 +393,7 @@ jobs:
               pose_dimensions={'width':pose.width,'height':pose.height}
 
           metadata={
-              'schema':'iberfit.exercise.generation-candidate.v4',
+              'schema':'iberfit.exercise.generation-candidate.v5',
               'exercise_id':exercise_id,
               'model':'mixed_phased',
               'models':phase_models,
@@ -438,8 +410,11 @@ jobs:
                   'official_isotype':True,
                   'exact_isotype_composited':True,
                   'end_pose_guide':True,
-                  'end_pose_guide_version':'v2-30deg',
-                  'target_abduction_degrees':30,
+                  'end_pose_guide_version':pose_contract['version'],
+                  'target_abduction_degrees':pose_contract['target_abduction_degrees'],
+                  'actual_abduction_degrees':actual_angle,
+                  'moving_foot_geometry':pose_contract['moving_foot_geometry'],
+                  'coronal_plane_only':pose_contract['coronal_plane_only'],
                   'athlete_dimensions':athlete_dimensions,
                   'isotype_dimensions':isotype_dimensions,
                   'end_pose_guide_dimensions':pose_dimensions,
@@ -458,7 +433,10 @@ jobs:
               'models':metadata['models'],
               'exactIsotype':True,
               'poseGuided':True,
-              'targetAbductionDegrees':30,
+              'poseGuideVersion':pose_contract['version'],
+              'targetAbductionDegrees':pose_contract['target_abduction_degrees'],
+              'actualAbductionDegrees':actual_angle,
+              'movingFootGeometry':pose_contract['moving_foot_geometry'],
           }))
           PY
 
@@ -503,7 +481,9 @@ jobs:
           if(x.composition!=='movement_pair_phased_pose_guided')throw new Error('SMOKE_POSE_GUIDED_MOVEMENT_PAIR_REQUIRED');
           if(x.models?.start!=='@cf/black-forest-labs/flux-2-klein-4b')throw new Error('SMOKE_START_MODEL_INVALID');
           if(x.models?.end!=='@cf/black-forest-labs/flux-2-klein-9b')throw new Error('SMOKE_END_MODEL_INVALID');
-          if(x.references?.end_pose_guide_version!=='v2-30deg'||x.references?.target_abduction_degrees!==30)throw new Error('SMOKE_POSE_GUIDE_VERSION_INVALID');
+          if(x.references?.end_pose_guide_version!=='v3-32deg-ankle-only'||x.references?.target_abduction_degrees!==32)throw new Error('SMOKE_POSE_GUIDE_VERSION_INVALID');
+          if(!(x.references?.actual_abduction_degrees>=31.5&&x.references?.actual_abduction_degrees<=33.5))throw new Error('SMOKE_POSE_GUIDE_ANGLE_INVALID');
+          if(x.references?.moving_foot_geometry!=='omitted'||x.references?.coronal_plane_only!==true)throw new Error('SMOKE_POSE_GUIDE_FOOT_INVALID');
           if(x.references?.athlete!==true||x.references?.official_isotype!==true||x.references?.exact_isotype_composited!==true||x.references?.end_pose_guide!==true)throw new Error('SMOKE_CANONICAL_REFERENCES_REQUIRED');
           const a=x.references?.athlete_dimensions,i=x.references?.isotype_dimensions,p=x.references?.end_pose_guide_dimensions;
           if(!a||a.width>512||a.height>512||!i||i.width>512||i.height>512||!p||p.width>512||p.height>512)throw new Error('SMOKE_REFERENCE_DIMENSIONS_INVALID');
