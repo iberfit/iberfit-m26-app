@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {materializeDynamicIberfitMediaMap,resolveExerciseMedia} from '../src/m26/library/exercise-media.js';
+import {renderLibraryExerciseCard} from '../src/m26/library/exercise-media-ui.js';
 import {createExerciseCatalog,mergeExerciseCatalogRecords} from '../src/m26/exercises/catalog.js';
 
 const runtime={enabled:true,url:'https://gjztkdwfmunnzhtvxrsu.supabase.co',publishableKey:'sb_publishable_test',version:'26.0.0-test'};
@@ -13,6 +14,17 @@ test('runtime bridge convierte sólo rutas del bucket IBERFIT a URL Supabase con
   assert.equal(media.provider,'IBERFIT');
   assert.equal(media.mode,'main');
   assert.equal(media.images[0],'https://gjztkdwfmunnzhtvxrsu.supabase.co/storage/v1/object/public/iberfit-exercise-media/IBF-SQUAT/movement.webp');
+});
+
+test('media finalizada aparece automáticamente en la card de la biblioteca existente',()=>{
+  const hydrated=materializeDynamicIberfitMediaMap(manifest,runtime);
+  const exercise={id:'IBF-SQUAT',name_es:'Sentadilla',pattern:'sentadilla',equipment:'peso corporal',difficulty:'inicial',intent:'fuerza',primary_muscles:['cuádriceps'],secondary_muscles:['glúteos'],instructions_es:['Controla el descenso'],precautions:[],units:['repeticiones'],tags:[],aliases:[]};
+  const html=renderLibraryExerciseCard(exercise,hydrated,{role:'client'});
+  assert.match(html,/data-exercise-id="IBF-SQUAT"/);
+  assert.match(html,/data-exercise-media="IBF-SQUAT"/);
+  assert.match(html,/data-exercise-media-source="IBERFIT"/);
+  assert.match(html,/gjztkdwfmunnzhtvxrsu\.supabase\.co\/storage\/v1\/object\/public\/iberfit-exercise-media\/IBF-SQUAT\/movement\.webp/);
+  assert.doesNotMatch(html,/Sin referencia visual/);
 });
 
 test('runtime bridge rechaza origen Supabase ajeno a QA/PROD IBERFIT',()=>{
