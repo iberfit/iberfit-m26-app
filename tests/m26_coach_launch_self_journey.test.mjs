@@ -4,7 +4,7 @@ import {
   deriveCoachSelfLaunchJourney,
   coachLaunchSelfCopy,
   coachLaunchSelfLanguages,
-} from '../src/m26/experience/coach-launch-self.js';
+} from '../src/m26/rc39/view-model.js';
 import {renderRc39Route} from '../src/m26/rc39/route-render.js';
 
 function state(overrides={}){
