@@ -533,3 +533,372 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .m26-session-live *,.m26-session-live *::before,.m26-session-live *::after { scroll-behavior: auto !important; }
 }
+
+/* M28 · Signature polish · premium product layer */
+.m26-shell {
+  --m28-gold: #d9b96f;
+  --m28-gold-strong: #f0d79d;
+  --m28-forest: #0b2b1d;
+  --m28-forest-deep: #06170f;
+  --m28-cream: #f7f1e4;
+  --m28-muted: #bdb6a8;
+  --m28-line: rgba(229,205,151,.17);
+  --m28-line-strong: rgba(229,205,151,.34);
+  --m28-shadow: 0 18px 50px rgba(0,0,0,.22);
+}
+
+.m26-shell .m26-main {
+  background:
+    radial-gradient(circle at 95% 0%, rgba(217,185,111,.055), transparent 26rem),
+    radial-gradient(circle at 5% 35%, rgba(42,112,78,.055), transparent 34rem);
+}
+
+.m26-shell .m26-topbar {
+  background: color-mix(in srgb, var(--m28-forest-deep) 82%, transparent);
+  box-shadow: 0 10px 34px rgba(0,0,0,.12), inset 0 -1px var(--m28-line);
+  backdrop-filter: blur(22px) saturate(1.08);
+  -webkit-backdrop-filter: blur(22px) saturate(1.08);
+}
+
+.m26-shell :is(.m26-panel,.m26-panel-soft,.m26-admin-panel,.m26-client-card,.m26-list-card,.m26-library-card,.m26-publication-card,.m26-client-content-card,.m26-rc39-session-card) {
+  background:
+    linear-gradient(155deg, rgba(19,51,37,.78), rgba(7,26,18,.90));
+  box-shadow: var(--m28-shadow), inset 0 1px rgba(255,255,255,.035);
+}
+
+.m26-shell :is(.m26-stat,.iberfit-metric,.m26-admin-stat) {
+  border-color: var(--m28-line);
+  background: linear-gradient(150deg, rgba(24,59,43,.72), rgba(9,30,21,.84));
+  box-shadow: 0 14px 32px rgba(0,0,0,.14), inset 0 1px rgba(255,255,255,.035);
+}
+
+.m26-shell :is(.m26-stat,.iberfit-metric,.m26-admin-stat) > span {
+  color: var(--m28-muted);
+  font-size: .72rem;
+  font-weight: 720;
+  letter-spacing: .04em;
+}
+
+.m26-shell :is(.m26-stat,.iberfit-metric,.m26-admin-stat) > strong {
+  color: var(--m28-cream);
+  font-size: clamp(1.15rem,2.6vw,1.65rem);
+}
+
+.m26-shell button:not(.m26-icon-button):not(.m26-nav-item),
+.m26-shell [role="button"] {
+  min-height: 2.9rem;
+  padding: .68rem 1rem;
+  border: 1px solid var(--m28-line);
+  border-radius: .82rem;
+  color: var(--m28-cream);
+  background: linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.018));
+  box-shadow: 0 8px 20px rgba(0,0,0,.13), inset 0 1px rgba(255,255,255,.035);
+  font-weight: 760;
+  letter-spacing: .005em;
+}
+
+.m26-shell :is(.m26-primary-action,button[type="submit"]):not(.m26-danger-action) {
+  border-color: rgba(240,215,157,.38);
+  color: #102318;
+  background: linear-gradient(135deg, #e3c985 0%, #caa557 52%, #b98d3f 100%);
+  box-shadow: 0 12px 28px rgba(147,105,29,.22), inset 0 1px rgba(255,255,255,.38);
+  text-shadow: 0 1px rgba(255,255,255,.18);
+}
+
+.m26-shell .m26-text-action {
+  border-color: transparent;
+  color: var(--m28-gold-strong);
+  background: rgba(217,185,111,.055);
+  box-shadow: none;
+}
+
+.m26-shell .m26-danger-action {
+  border-color: rgba(224,142,126,.38);
+  color: #f4ddd6;
+  background: linear-gradient(145deg, rgba(133,47,35,.66), rgba(90,28,22,.78));
+  box-shadow: 0 10px 24px rgba(74,20,15,.2), inset 0 1px rgba(255,255,255,.045);
+}
+
+.m26-shell .m26-admin-badge,
+.m26-shell .m26-badge {
+  border: 1px solid var(--m28-line);
+  border-radius: 999px;
+  background: rgba(217,185,111,.07);
+  box-shadow: inset 0 1px rgba(255,255,255,.025);
+  font-weight: 760;
+}
+
+.m26-shell .m26-admin-form {
+  gap: .7rem;
+  padding: .9rem;
+  border: 1px solid var(--m28-line);
+  border-radius: 1rem;
+  background: rgba(4,18,12,.32);
+  box-shadow: inset 0 1px rgba(255,255,255,.02);
+}
+
+.m26-shell .m26-admin-form :is(input,select,textarea) {
+  min-height: 3rem;
+  border-color: var(--m28-line);
+  background: rgba(2,14,9,.54);
+}
+
+.m26-shell .m26-nav-item.is-active {
+  border-color: rgba(217,185,111,.28);
+  color: var(--m28-cream);
+  background: linear-gradient(145deg, rgba(217,185,111,.12), rgba(217,185,111,.045));
+  box-shadow: inset 3px 0 var(--m28-gold), inset 0 1px rgba(255,255,255,.035);
+}
+
+.m26-shell .m26-admin-table {
+  overflow: clip auto;
+  border-color: var(--m28-line);
+  box-shadow: 0 18px 40px rgba(0,0,0,.15);
+}
+
+.m26-shell .m26-admin-table th {
+  color: var(--m28-gold-strong);
+  font-size: .7rem;
+  font-weight: 820;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.m26-shell .m26-admin-table td {
+  border-color: color-mix(in srgb, var(--m28-line) 72%, transparent);
+}
+
+.m26-admin-team360 .m26-admin-hero {
+  position: relative;
+  overflow: clip;
+  border-color: rgba(217,185,111,.28);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(217,185,111,.15), transparent 24rem),
+    radial-gradient(circle at 8% 100%, rgba(47,129,89,.12), transparent 22rem),
+    linear-gradient(145deg, rgba(20,58,41,.96), rgba(6,24,16,.985));
+  box-shadow: 0 26px 58px rgba(0,0,0,.25), inset 0 1px rgba(255,255,255,.045);
+}
+
+.m26-admin-team360 .m26-admin-hero h2 {
+  max-width: 18ch;
+  font-size: clamp(1.9rem,4vw,3rem);
+  letter-spacing: -.045em;
+}
+
+.m26-admin-coach360-grid {
+  display: grid;
+  gap: .8rem;
+}
+
+.m26-admin-coach360 {
+  overflow: clip;
+  border: 1px solid var(--m28-line);
+  border-radius: 1.15rem;
+  background: linear-gradient(150deg, rgba(18,48,35,.78), rgba(7,25,17,.9));
+  box-shadow: 0 16px 38px rgba(0,0,0,.17), inset 0 1px rgba(255,255,255,.035);
+}
+
+.m26-admin-coach360 > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto auto auto;
+  align-items: center;
+  gap: .85rem;
+  min-height: 5.4rem;
+  padding: .85rem 1rem;
+  list-style: none;
+  cursor: pointer;
+  background: linear-gradient(145deg, rgba(255,255,255,.028), transparent);
+}
+
+.m26-admin-coach360 > summary::-webkit-details-marker { display: none; }
+
+.m26-admin-coach360[open] > summary {
+  border-bottom: 1px solid var(--m28-line);
+  background: linear-gradient(145deg, rgba(217,185,111,.095), rgba(255,255,255,.02));
+}
+
+.m26-admin-coach360-avatar {
+  display: grid;
+  width: 3.25rem;
+  height: 3.25rem;
+  place-items: center;
+  border: 1px solid rgba(217,185,111,.3);
+  border-radius: 1rem;
+  color: #102318;
+  background: linear-gradient(145deg,#e7ce8d,#c59d4f);
+  box-shadow: 0 10px 24px rgba(128,92,26,.18), inset 0 1px rgba(255,255,255,.38);
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.m26-admin-coach360-identity {
+  display: grid;
+  gap: .16rem;
+  min-width: 0;
+}
+
+.m26-admin-coach360-identity > strong {
+  overflow: hidden;
+  color: var(--m28-cream);
+  font-size: 1.05rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m26-admin-coach360-identity > small {
+  overflow: hidden;
+  color: var(--m28-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m26-admin-coach360-summary-metric {
+  display: grid;
+  min-width: 4.6rem;
+  gap: .12rem;
+  text-align: right;
+}
+
+.m26-admin-coach360-summary-metric strong {
+  color: var(--m28-cream);
+  font-size: 1.3rem;
+}
+
+.m26-admin-coach360-summary-metric small {
+  color: var(--m28-muted);
+  font-size: .68rem;
+  text-transform: uppercase;
+}
+
+.m26-admin-coach360-open {
+  padding: .45rem .65rem;
+  border: 1px solid var(--m28-line);
+  border-radius: .72rem;
+  color: var(--m28-gold-strong);
+  background: rgba(217,185,111,.055);
+  font-size: .75rem;
+  font-weight: 780;
+}
+
+.m26-admin-coach360[open] .m26-admin-coach360-open::before { content: 'Cerrar '; }
+.m26-admin-coach360[open] .m26-admin-coach360-open { font-size: 0; }
+.m26-admin-coach360[open] .m26-admin-coach360-open::before { font-size: .75rem; }
+
+.m26-admin-coach360-body {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.m26-admin-coach360-header,
+.m26-admin-coach360-load,
+.m26-admin-coach360-actions,
+.m26-admin-coach360-sessions article,
+.m26-admin-coach360-clients li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem;
+}
+
+.m26-admin-coach360-header h3,
+.m26-admin-coach360-header p,
+.m26-admin-coach360-columns h4,
+.m26-admin-coach360-recent h4 { margin: 0; }
+
+.m26-admin-coach360-kpis {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: .65rem;
+}
+
+.m26-admin-coach360-kpis .m26-admin-stat {
+  min-height: 5.3rem;
+}
+
+.m26-admin-coach360-load {
+  padding: .8rem .9rem;
+  border: 1px solid var(--m28-line);
+  border-radius: .9rem;
+  background: rgba(2,14,9,.34);
+}
+
+.m26-admin-coach360-load > div { display: grid; gap: .18rem; }
+.m26-admin-coach360-load small { color: var(--m28-muted); }
+.m26-admin-coach360-progress { width: min(15rem,42%); accent-color: var(--m28-gold); }
+
+.m26-admin-coach360-columns {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: .8rem;
+}
+
+.m26-admin-coach360-columns > section,
+.m26-admin-coach360-recent {
+  min-width: 0;
+  padding: .9rem;
+  border: 1px solid var(--m28-line);
+  border-radius: 1rem;
+  background: rgba(3,17,11,.32);
+}
+
+.m26-admin-coach360-clients {
+  display: grid;
+  gap: .45rem;
+  margin: .75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.m26-admin-coach360-clients li,
+.m26-admin-coach360-sessions article {
+  padding: .7rem .75rem;
+  border: 1px solid color-mix(in srgb,var(--m28-line) 70%,transparent);
+  border-radius: .8rem;
+  background: rgba(255,255,255,.018);
+}
+
+.m26-admin-coach360-clients li > div,
+.m26-admin-coach360-sessions article > div { display: grid; min-width: 0; gap: .15rem; }
+.m26-admin-coach360-clients small,
+.m26-admin-coach360-sessions small { color: var(--m28-muted); }
+.m26-admin-coach360-clients li > span { color: var(--m28-gold-strong); font-size: .72rem; font-weight: 760; text-align: right; }
+.m26-admin-coach360-sessions { display: grid; gap: .45rem; margin-top: .75rem; }
+.m26-admin-coach360-actions { justify-content: flex-end; padding-top: .2rem; }
+.m26-admin-coach360-actions > * { min-width: 10.5rem; }
+
+@media (hover:hover) and (pointer:fine) {
+  .m26-shell button:not(.m26-icon-button):not(.m26-nav-item):not(:disabled):hover,
+  .m26-shell [role="button"]:not([aria-disabled="true"]):hover {
+    transform: translateY(-1px);
+    border-color: var(--m28-line-strong);
+    box-shadow: 0 13px 28px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.05);
+  }
+
+  .m26-shell :is(.m26-primary-action,button[type="submit"]):not(.m26-danger-action):not(:disabled):hover {
+    filter: brightness(1.045) saturate(1.03);
+    box-shadow: 0 16px 34px rgba(147,105,29,.28), inset 0 1px rgba(255,255,255,.44);
+  }
+
+  .m26-admin-coach360 > summary:hover {
+    background: linear-gradient(145deg, rgba(217,185,111,.085), rgba(255,255,255,.025));
+  }
+}
+
+@media (max-width: 900px) {
+  .m26-admin-coach360 > summary { grid-template-columns: auto minmax(0,1fr) auto auto; }
+  .m26-admin-coach360-open { grid-column: 2 / -1; justify-self: start; }
+  .m26-admin-coach360-kpis { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .m26-admin-coach360-columns { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 580px) {
+  .m26-shell button:not(.m26-icon-button):not(.m26-nav-item) { min-height: 3.2rem; }
+  .m26-admin-coach360 > summary { grid-template-columns: auto minmax(0,1fr); gap: .65rem; }
+  .m26-admin-coach360-summary-metric { min-width: 0; text-align: left; }
+  .m26-admin-coach360-summary-metric:nth-of-type(n+2) { display: none; }
+  .m26-admin-coach360-open { grid-column: 1 / -1; width: 100%; text-align: center; }
+  .m26-admin-coach360-header,.m26-admin-coach360-load,.m26-admin-coach360-actions { align-items: stretch; flex-direction: column; }
+  .m26-admin-coach360-progress { width: 100%; }
+  .m26-admin-coach360-actions > * { width: 100%; }
+}

@@ -2,6 +2,7 @@ import { guardClientSelection, resolveM26Route } from './route-guard.js';
 import { createShellViewModel } from './shell-view-model.js';
 import { renderM26Shell } from './shell-render.js';
 import {setIberfitLanguage} from '../ui/i18n.js';
+import {iberfitDomainTranslate} from '../ui/i18n-domain.js';
 import {setIberfitUiLocale} from '../ui/castellano.js';
 import {updateIberfitExperiencePreference} from '../ui/preferences.js';
 import {enhanceNativeWorkspace,openNativeAdminIntake} from '../ui/native-workspace.js';
@@ -11,6 +12,126 @@ import {enhanceSessionReadiness,enhanceSessionFocus,teardownSessionFocus} from '
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js';
 import {revalidatePendingSessionEntry} from '../intelligence/session-entry-intent.js';
+import {createRouteViewModel} from '../modules/route-view-model.js';
+
+const ACTION_CENTER_TITLE_ID='m26-coach-action-center-title';
+const ACTION_CENTER_CARD_SELECTOR='.m26-coach-priority-card';
+
+function coachActionText(key,params={}){
+  return iberfitDomainTranslate(key,{params});
+}
+
+function coachTodayViewModel(shellVm,state){
+  if(shellVm?.mode!=='authenticated')return null;
+  if(shellVm?.identity?.role!=='coach')return null;
+  if(shellVm?.activeArea!=='hoy')return null;
+  return createRouteViewModel(shellVm,state,new Date());
+}
+
+function coachPriorityPanel(root){
+  const panels=[...(root?.querySelectorAll?.('.m26-panel.m26-panel-soft')||[])];
+  return panels.find((panel)=>{
+    if(panel.querySelector?.(ACTION_CENTER_CARD_SELECTOR))return true;
+    return String(panel.querySelector?.('h2')?.textContent||'').trim()==='Qué requiere tu decisión';
+  })||null;
+}
+
+function setCoachActionText(node,value){
+  if(node)node.textContent=String(value||'');
+}
+
+function addCoachActionWhy(card,next,item){
+  const documentLike=card?.ownerDocument;
+  if(!documentLike?.createElement||!documentLike?.createTextNode)return;
+  const why=documentLike.createElement('p');
+  why.dataset.m26ActionWhy='true';
+  const label=documentLike.createElement('strong');
+  label.textContent=`${coachActionText('coach.actionCenter.whyLabel')}:`;
+  why.append(label,documentLike.createTextNode(` ${item.attentionWhy||coachActionText('coach.actionCenter.why.manual-attention')}`));
+  next.parentNode?.insertBefore?.(why,next);
+}
+
+function enhanceCoachPriorityCard(card,item){
+  if(!card||!item)return;
+  const action=item.actionCtaLabel||coachActionText('coach.actionCenter.cta.manual-attention');
+  const client=item.clientName||coachActionText('coach.client');
+  const targetArea=String(item.nextAction?.area||'expediente').trim()||'expediente';
+
+  card.dataset.coachActionType=item.actionType||'manual-attention';
+  card.dataset.m26ClientId=String(item.clientId||'');
+
+  setCoachActionText(
+    card.querySelector?.('.m26-eyebrow'),
+    item.actionTypeLabel||item.stageLabel||coachActionText('coach.actionCenter.type.manual-attention')
+  );
+
+  const next=card.querySelector?.('.m26-client-next');
+  if(next){
+    if(!card.querySelector?.('[data-m26-action-why]'))addCoachActionWhy(card,next,item);
+    setCoachActionText(next,`${coachActionText('coach.actionCenter.nextLabel')}: ${action}`);
+  }
+
+  const button=card.querySelector?.('[data-m26-select-client]');
+  if(button){
+    button.dataset.m26CoachAction='true';
+    button.dataset.m26ClientId=String(item.clientId||'');
+    button.dataset.m26TargetArea=targetArea;
+    button.classList?.remove?.('m26-text-action');
+    button.classList?.add?.('m26-primary-action');
+    button.textContent=action;
+    button.setAttribute?.('aria-label',coachActionText('coach.actionCenter.ctaAria',{action,client}));
+  }
+}
+
+export function enhanceCoachActionCenter({root,shellVm,state}={}){
+  const routeVm=coachTodayViewModel(shellVm,state);
+  if(!routeVm?.coachCockpit)return false;
+
+  const cockpit=routeVm.coachCockpit;
+  const panel=coachPriorityPanel(root);
+  if(!panel)return false;
+
+  panel.dataset.m26CoachActionCenter='true';
+  panel.setAttribute?.('aria-labelledby',ACTION_CENTER_TITLE_ID);
+
+  const heading=panel.querySelector?.('.m26-panel-heading');
+  const title=heading?.querySelector?.('h2');
+  setCoachActionText(heading?.querySelector?.('.m26-eyebrow'),coachActionText('coach.actionCenter.eyebrow'));
+  if(title){
+    title.id=ACTION_CENTER_TITLE_ID;
+    setCoachActionText(title,coachActionText('coach.actionCenter.title'));
+  }
+  setCoachActionText(
+    heading?.querySelector?.('.m26-badge'),
+    coachActionText('coach.actionCenter.summary',{count:Number(cockpit.attentionCount||0)})
+  );
+
+  const items=Array.isArray(cockpit.items)?cockpit.items.slice(0,6):[];
+  const cards=[...(panel.querySelectorAll?.(ACTION_CENTER_CARD_SELECTOR)||[])];
+  cards.forEach((card,index)=>enhanceCoachPriorityCard(card,items[index]));
+
+  if(!items.length){
+    const empty=panel.querySelector?.('.m26-empty');
+    if(empty){
+      setCoachActionText(empty.querySelector?.('h3'),coachActionText('coach.actionCenter.emptyTitle'));
+      setCoachActionText(empty.querySelector?.('p'),coachActionText('coach.actionCenter.emptyBody'));
+    }
+  }
+
+  return true;
+}
+
+export function resolveCoachActionNavigation(state,{clientId,targetArea='expediente'}={}){
+  if(String(state?.identity?.role||'').trim().toLowerCase()!=='coach'){
+    throw new Error('M26_COACH_ACTION_FORBIDDEN');
+  }
+  const safeClientId=guardClientSelection(state,clientId);
+  const requested=String(targetArea||'expediente').trim()||'expediente';
+  const candidate={...state,selectedClientId:safeClientId};
+  const decision=resolveM26Route(candidate,requested);
+  if(!decision.allowed)throw new Error(decision.reason||'M26_ROUTE_FORBIDDEN');
+  return Object.freeze({clientId:safeClientId,area:decision.area});
+}
 
 export function resolveAdaptiveLayout({width = 1440,coarsePointer = false,touchPoints = 0} = {}) {
   const viewportWidth = Number(width);
@@ -62,6 +183,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     root.innerHTML = markup;
     lastMarkup=markup;
     syncAdaptiveLayout();
+    enhanceCoachActionCenter({root,shellVm:viewModel,state});
     enhanceNativeWorkspace({root,viewModel});
     enhanceCliente360({root,viewModel,state});
     enhanceProgressContinuity({root,viewModel,state});
@@ -123,6 +245,31 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
   }
 
+  function openCoachAction(source){
+    const current=store.getState();
+    try{
+      const decision=resolveCoachActionNavigation(current,{
+        clientId:source?.getAttribute?.('data-m26-client-id')||source?.getAttribute?.('data-m26-select-client'),
+        targetArea:source?.getAttribute?.('data-m26-target-area')||'expediente',
+      });
+      const sameClient=String(current.selectedClientId||'')===String(decision.clientId);
+      const sameArea=String(current.activeArea||'')===String(decision.area);
+      if(sameClient&&sameArea){
+        clearClientSwitchBusy();
+        return false;
+      }
+      markClientSwitchBusy(source);
+      if(!sameClient)store.selectClient(decision.clientId);
+      if(!sameArea)store.navigate(decision.area);
+      focusMain();
+      return true;
+    }catch(error){
+      clearClientSwitchBusy();
+      root.dispatchEvent(new CustomEvent('m26:access-denied',{bubbles:true,detail:{code:error.message}}));
+      return false;
+    }
+  }
+
   function onClick(event) {
     const intakeButton=event.target.closest?.('[data-admin-intake-open]');
     if(intakeButton){
@@ -149,6 +296,14 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const roleButton=event.target.closest?.('[data-m26-switch-role]');
     if(roleButton){
       root.dispatchEvent(new CustomEvent('m26:switch-role',{bubbles:true,detail:{role:roleButton.getAttribute('data-m26-switch-role')}}));
+      return;
+    }
+
+    const coachActionButton=event.target.closest?.('[data-m26-coach-action]');
+    if(coachActionButton){
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      openCoachAction(coachActionButton);
       return;
     }
 

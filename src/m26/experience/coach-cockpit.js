@@ -8,6 +8,14 @@ const KIND_RANK=Object.freeze({
   clear:4,
 });
 
+const ACTION_TYPES=Object.freeze([
+  'needs-initial-plan',
+  'feedback-review',
+  'upcoming-checkin',
+  'load-change',
+  'manual-attention',
+]);
+
 function arr(value){
   return Array.isArray(value)?value:[];
 }
@@ -31,6 +39,49 @@ function severity(value){
 function signalLabel(kind){
   const safe=Object.hasOwn(KIND_RANK,kind)?kind:'clear';
   return tr(`coach.signal.${safe}`);
+}
+
+function actionTypeFor({key='',stage='',source='',area=''}={}){
+  const actionKey=txt(key).toLowerCase();
+  const experienceStage=txt(stage).toLowerCase();
+  const signalSource=txt(source).toLowerCase();
+  const targetArea=txt(area).toLowerCase();
+
+  if(
+    actionKey==='prepare_plan'||
+    actionKey==='assign_program'||
+    (experienceStage==='planning'&&targetArea==='planificacion')
+  )return 'needs-initial-plan';
+
+  if(
+    actionKey==='review_adherence_session'||
+    actionKey.includes('feedback')||
+    signalSource.includes('checkin')
+  )return 'feedback-review';
+
+  if(
+    actionKey==='schedule_appointment'||
+    actionKey==='schedule_checkin'||
+    actionKey==='upcoming_checkin'
+  )return 'upcoming-checkin';
+
+  if(
+    actionKey==='review_session_adjustment'||
+    actionKey.includes('load_change')||
+    actionKey.includes('adjustment')
+  )return 'load-change';
+
+  return 'manual-attention';
+}
+
+function actionCenterMetadata({key,stage,source,area}={}){
+  const actionType=actionTypeFor({key,stage,source,area});
+  return Object.freeze({
+    actionType,
+    actionTypeLabel:tr(`coach.actionCenter.type.${actionType}`),
+    attentionWhy:tr(`coach.actionCenter.why.${actionType}`),
+    actionCtaLabel:tr(`coach.actionCenter.cta.${actionType}`),
+  });
 }
 
 function itemFromEntry(entry={}){
@@ -108,6 +159,26 @@ function itemFromEntry(entry={}){
     source=txt(info.source,'followup');
   }
 
+  const nextAction=Object.freeze({
+    key:txt(client.nextAction?.key),
+    label:txt(
+      client.nextAction?.label,
+      tr('coach.action.followup')
+    ),
+    area:txt(
+      client.nextAction?.area,
+      'expediente'
+    ),
+    reason:txt(client.nextAction?.reason),
+  });
+  const semanticKey=txt(adaptiveRisk?.action?.key,nextAction.key);
+  const actionCenter=actionCenterMetadata({
+    key:semanticKey,
+    stage,
+    source,
+    area:txt(adaptiveRisk?.action?.area,nextAction.area),
+  });
+
   return Object.freeze({
     clientId:txt(client.id),
     clientName:txt(client.name,tr('coach.client')),
@@ -126,18 +197,11 @@ function itemFromEntry(entry={}){
     )
       ?Number(experience.priority)
       :5,
-    nextAction:Object.freeze({
-      key:txt(client.nextAction?.key),
-      label:txt(
-        client.nextAction?.label,
-        tr('coach.action.followup')
-      ),
-      area:txt(
-        client.nextAction?.area,
-        'expediente'
-      ),
-      reason:txt(client.nextAction?.reason),
-    }),
+    nextAction,
+    actionType:actionCenter.actionType,
+    actionTypeLabel:actionCenter.actionTypeLabel,
+    attentionWhy:actionCenter.attentionWhy,
+    actionCtaLabel:actionCenter.actionCtaLabel,
   });
 }
 
@@ -198,4 +262,7 @@ export const __coachCockpitInternals=Object.freeze({
   itemFromEntry,
   compareItems,
   signalLabel,
+  actionTypeFor,
+  actionCenterMetadata,
+  ACTION_TYPES,
 });
