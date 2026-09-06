@@ -29,6 +29,19 @@ const exercise={
   cues:['Rodillas acompañan la línea de los pies.','Talones apoyados.'],
 };
 
+const hipAbduction={
+  id:'IBF-ABDUCCION-DE-CADERA-LATERAL',
+  name_es:'Abducción lateral de cadera',
+  pattern:'activación glúteo',
+  intent:'fuerza',
+  equipment:'sin equipo',
+  difficulty:'inicial',
+  primary_muscles:['movilidad'],
+  secondary_muscles:[],
+  instructions_es:['Realiza el movimiento sin dolor','Respira de forma continua','Evita forzar el rango'],
+  cues:['Realiza el movimiento sin dolor','Respira de forma continua','Evita forzar el rango'],
+};
+
 const ACCOUNT='1234567890abcdef1234567890abcdef';
 const TOKEN='test_token_12345678901234567890';
 
@@ -82,17 +95,31 @@ test('prompt fija biomecánica, limpieza y par inicio-final sin inventar marca',
   assert.match(prompt,/SAME athlete/i);
   assert.match(prompt,/NO title/);
   assert.match(prompt,/NO captions/);
-  assert.match(prompt,/leave both shirts plain black/);
+  assert.match(prompt,/shirts completely plain black/i);
   assert.match(prompt,/Do NOT invent a logo/);
 });
 
-test('prompt usa referencias de atleta e isotipo sin convertirlas en pose o wordmark',()=>{
+test('prompt usa referencias de atleta e isotipo sin copiar marcas accidentales',()=>{
   const prompt=buildCloudflareImagePrompt(exercise,{hasAthleteReference:true,hasLogoReference:true});
   assert.match(prompt,/input image 0 ONLY as the canonical IBERFIT male athlete/i);
-  assert.match(prompt,/do not copy the reference pose/i);
+  assert.match(prompt,/do NOT copy the reference pose/i);
+  assert.match(prompt,/Do NOT copy .*lettering.*sleeve graphics/i);
   assert.match(prompt,/Input image 1 is the exact official IBERFIT gold isotype/);
-  assert.match(prompt,/never generate the word IBERFIT/i);
+  assert.match(prompt,/EXACTLY ONE tiny official isotype/i);
+  assert.match(prompt,/NO sleeve marks/i);
+  assert.match(prompt,/NO wordmark/i);
   assert.match(prompt,/left chest/i);
+});
+
+test('piloto de abducción fija desplazamiento lateral de pierna y brazos pasivos',()=>{
+  const prompt=buildCloudflareImagePrompt(hipAbduction,{hasAthleteReference:true,hasLogoReference:true});
+  assert.match(prompt,/STANDING BODYWEIGHT HIP ABDUCTION/);
+  assert.match(prompt,/LOWER-BODY hip movement/);
+  assert.match(prompt,/opposite leg is visibly lifted laterally away from the body midline/i);
+  assert.match(prompt,/large obvious air gap/i);
+  assert.match(prompt,/arms must stay passive/i);
+  assert.match(prompt,/front-facing or only very slight front three-quarter camera angle/i);
+  assert.match(prompt,/No band, cable, machine, ankle weight/i);
 });
 
 test('validador de referencias acepta PNG dentro del límite y bloquea dimensiones excesivas',()=>{
@@ -227,7 +254,17 @@ test('revisor Cloudflare usa imagen inline, desactiva streaming y devuelve decis
   assert.equal(requestBody.stream,false);
 });
 
-test('pregunta QA contiene identidad canónica y reglas críticas del movimiento pair',()=>{
+test('QA de abducción exige movimiento lateral visible de la pierna y pies completos',()=>{
+  const question=buildQaQuestion(hipAbduction);
+  assert.match(question,/standing bodyweight hip abduction/i);
+  assert.match(question,/END pose clearly shows one entire leg moving laterally away from the body midline/i);
+  assert.match(question,/change mainly in the arms or hands is an automatic exercise_match=false/i);
+  assert.match(question,/support leg is stable/i);
+  assert.match(question,/both hips, both knees, both ankles and both shoes\/feet/i);
+  assert.match(question,/single tiny non-text IBERFIT isotype/i);
+});
+
+test('pregunta QA contiene identidad canónica y reglas críticas del movement pair',()=>{
   const question=buildQaQuestion(exercise);
   assert.match(question,/IBF-SENTADILLA-TEST/);
   assert.match(question,/Sentadilla con peso corporal/);
