@@ -1,7 +1,8 @@
 import {enhanceAdminShellMarkup} from '../admin/shell-enhancer.js';
 import {enhanceRc39ShellMarkup} from '../rc39/shell-enhancer.js';
 import {areaIconName,renderIberfitIcon} from '../design/icons.js';
-import {applyIberfitDocumentLanguage,iberfitTranslate} from '../ui/i18n.js';
+import {applyIberfitDocumentLanguage} from '../ui/i18n.js';
+import {iberfitShellTranslate} from '../ui/i18n-shell.js';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -12,8 +13,8 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
-function tx(key,fallback=''){
-  return iberfitTranslate(key,{fallback});
+function tx(key,fallback='',params={}){
+  return iberfitShellTranslate(key,{fallback,params});
 }
 
 const ROLE_NAV_GROUPS=Object.freeze({
@@ -92,9 +93,9 @@ function coachProductivityShell(vm){
 
 function operationStatus(operations) {
   const labels = [];
-  if (operations.pending) labels.push(`${operations.pending} pendiente${operations.pending === 1 ? '' : 's'}`);
-  if (operations.conflicts) labels.push(`${operations.conflicts} conflicto${operations.conflicts === 1 ? '' : 's'}`);
-  if (operations.rejected) labels.push(`${operations.rejected} por revisar`);
+  if (operations.pending) labels.push(tx(`shell.operations.pending.${operations.pending===1?'one':'other'}`,`${operations.pending} pendiente${operations.pending === 1 ? '' : 's'}`,{count:operations.pending}));
+  if (operations.conflicts) labels.push(tx(`shell.operations.conflicts.${operations.conflicts===1?'one':'other'}`,`${operations.conflicts} conflicto${operations.conflicts === 1 ? '' : 's'}`,{count:operations.conflicts}));
+  if (operations.rejected) labels.push(tx(`shell.operations.rejected.${operations.rejected===1?'one':'other'}`,`${operations.rejected} por revisar`,{count:operations.rejected}));
   const text = labels.length ? labels.join(' · ') : tx('common.pendingClear','Sin cambios locales pendientes');
   return `<div class="m26-operation-status is-${escapeHtml(operations.kind)}" role="status" aria-live="polite" aria-atomic="true"><span class="m26-status-dot" aria-hidden="true"></span><span>${escapeHtml(text)}</span></div>`;
 }
@@ -154,10 +155,13 @@ function shellStyles(){
 }
 
 export function renderM26AccessFrame(vm) {
+  applyIberfitDocumentLanguage();
   const isError=vm.hydration?.status==='error';
-  const state=isError?'No fue posible confirmar el acceso.':'Confirmando identidad y permisos…';
-  const uxState=isError?'error':'loading';
-  return `<main class="m26-access-frame" data-ux-state="${uxState}" aria-busy="${isError?'false':'true'}"><section><p class="m26-eyebrow">IBERFIT</p><h1>Entrenamiento personal con criterio</h1><p>Diagnóstico, planificación, control y seguimiento.</p><div class="m26-access-status" role="${isError?'alert':'status'}" aria-live="${isError?'assertive':'polite'}" aria-atomic="true">${escapeHtml(state)}</div></section></main>`;
+  const state=isError?'error':'loading';
+  const statusCopy=isError
+    ? tx('shell.access.error','No se pudo confirmar la identidad y los permisos.')
+    : tx('shell.access.confirming','Confirmando identidad y permisos…');
+  return `<main class="m26-access-frame" data-ux-state="${state}" aria-busy="${isError?'false':'true'}"><section><p class="m26-eyebrow">IBERFIT</p><h1>${escapeHtml(tx('shell.access.title','Entrenamiento personal con criterio'))}</h1><p>${escapeHtml(tx('shell.access.subtitle','Diagnóstico, planificación, control y seguimiento.'))}</p><div class="m26-access-status" role="${isError?'alert':'status'}" aria-live="${isError?'assertive':'polite'}" aria-atomic="true">${escapeHtml(statusCopy)}</div></section></main>`;
 }
 
 function renderM26ShellBase(vm, routeMarkup = '') {
@@ -170,16 +174,17 @@ function renderM26ShellBase(vm, routeMarkup = '') {
   const mobileMore = moreMobileItems.length ? `<details class="m26-mobile-more"><summary>${escapeHtml(tx('common.more','Más'))}</summary><div class="m26-mobile-more-menu">${moreMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}</div></details>` : '';
   const productivity=coachProductivityShell(vm);
   const pageTitle=tx(`area.${vm.activeArea}.title`,vm.page.title);
+  const identityRoleLabel=tx(`shell.role.${vm.identity.role}`,vm.identity.roleLabel);
 
-  return `${shellStyles()}<div class="m26-shell" data-m26-role="${escapeHtml(vm.identity.role)}"><a class="m26-skip-link" href="#m26-main">Saltar al contenido</a>
-    <aside class="m26-sidebar" aria-label="Navegación IBERFIT">
-      <div class="m26-brand"><img src="/public/isotipo-iberfit.png" alt="" aria-hidden="true"><div><strong>IBERFIT</strong><span>Entrenamiento personal con criterio</span></div></div>
+  return `${shellStyles()}<div class="m26-shell" data-m26-role="${escapeHtml(vm.identity.role)}"><a class="m26-skip-link" href="#m26-main">${escapeHtml(tx('shell.skipToContent','Saltar al contenido'))}</a>
+    <aside class="m26-sidebar" aria-label="${escapeHtml(tx('shell.accessibility.navigation','Navegación IBERFIT'))}">
+      <div class="m26-brand"><img src="/public/isotipo-iberfit.png" alt="" aria-hidden="true"><div><strong>IBERFIT</strong><span>${escapeHtml(tx('shell.product','Entrenamiento personal con criterio'))}</span></div></div>
       ${groupedNavigation(vm)}
-      <div class="m26-sidebar-footer"><span>${escapeHtml(vm.identity.roleLabel)}</span><strong>${escapeHtml(vm.identity.name)}</strong></div>
+      <div class="m26-sidebar-footer"><span>${escapeHtml(identityRoleLabel)}</span><strong>${escapeHtml(vm.identity.name)}</strong></div>
     </aside>
     <section class="m26-workspace">
       <header class="m26-topbar">
-        <div><p class="m26-eyebrow">${escapeHtml(vm.identity.roleLabel)}</p><h1 id="m26-page-title">${escapeHtml(pageTitle)}</h1></div>
+        <div><p class="m26-eyebrow">${escapeHtml(identityRoleLabel)}</p><h1 id="m26-page-title">${escapeHtml(pageTitle)}</h1></div>
         <div class="m26-topbar-actions">${productivity.launcher}${clientSelector(vm)}${operationStatus(vm.operations)}${settingsMenu(vm)}<button type="button" class="m26-icon-button" data-m26-action="logout">${escapeHtml(tx('common.logout','Cerrar sesión'))}</button><button type="button" class="m26-danger-action" data-m26-action="logout-clear-device">${escapeHtml(tx('common.logoutClear','Cerrar sesión y borrar datos de este dispositivo'))}</button></div>
       </header>
       <main id="m26-main" class="m26-main" tabindex="-1" aria-labelledby="m26-page-title">${workspaceHome(vm)}${routeContent}</main>
