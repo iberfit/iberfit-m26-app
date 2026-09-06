@@ -34,10 +34,10 @@ function isBlobLike(value){
   return value&&typeof value==='object'&&typeof value.arrayBuffer==='function'&&typeof value.type==='string';
 }
 
-function serializeMultipart(fields,references,limit=references.length){
+function serializeMultipart(fields,references){
   const form=new FormData();
   for(const [field,value] of fields)form.append(field,value);
-  for(const reference of references.slice(0,limit))form.append(reference.field,reference.blob,reference.name);
+  for(const reference of references)form.append(reference.field,reference.blob,reference.name);
   const serialized=new Response(form);
   const contentType=String(serialized.headers.get('content-type')||'');
   if(!contentType.toLowerCase().startsWith('multipart/form-data; boundary='))throw new Error('MULTIPART_SERIALIZATION_INVALID');
@@ -84,9 +84,41 @@ function isRetryableModelInternalError(error){
   return /(?:^|\D)3043(?:\D|$)/u.test(detail)||/internal server error/i.test(detail);
 }
 
-async function runImageModel(env,model,multipart){
-  const serialized=serializeMultipart(multipart.fields,multipart.references);
+async function runImageModel(env,model,fields,references){
+  const serialized=serializeMultipart(fields,references);
   return env.AI.run(model,{multipart:{body:serialized.body,contentType:serialized.contentType}});
+}
+
+async function diagnosticProbe(env,model,fields,references){
+  try{
+    await runImageModel(env,model,fields,references);
+    return 'pass';
+  }catch(error){
+    return `fail:${String(error?.message||error).replace(/\s+/gu,' ').slice(0,180)}`;
+  }
+}
+
+async function diagnoseInternalError(env,multipart){
+  const diagnosticFields=[
+    ['prompt','A neutral premium dark gym interior, realistic fitness photograph, no text.'],
+    ['width','256'],
+    ['height','320'],
+    ['seed','1'],
+  ];
+  const report={};
+  report.primary_text=await diagnosticProbe(env,IMAGE_MODEL,diagnosticFields,[]);
+  if(report.primary_text==='pass'&&multipart.references[0]){
+    report.primary_athlete=await diagnosticProbe(env,IMAGE_MODEL,diagnosticFields,[multipart.references[0]]);
+  }
+  if(report.primary_athlete==='pass'&&multipart.references.length>=2){
+    report.primary_two_refs=await diagnosticProbe(env,IMAGE_MODEL,diagnosticFields,multipart.references.slice(0,2));
+  }
+  if(report.primary_text!=='pass'){
+    report.fallback_text=await diagnosticProbe(env,IMAGE_FALLBACK_MODEL,diagnosticFields,[]);
+  }else if(report.primary_two_refs&&report.primary_two_refs!=='pass'){
+    report.fallback_two_refs=await diagnosticProbe(env,IMAGE_FALLBACK_MODEL,diagnosticFields,multipart.references.slice(0,2));
+  }
+  return report;
 }
 
 export async function handleRequest(request,env){
@@ -97,15 +129,16 @@ export async function handleRequest(request,env){
     if(url.pathname==='/generate'){
       const multipart=await normalizeImageMultipart(request);
       try{
-        const result=await runImageModel(env,IMAGE_MODEL,multipart);
+        const result=await runImageModel(env,IMAGE_MODEL,multipart.fields,multipart.references);
         return json({ok:true,model:IMAGE_MODEL,references:multipart.referenceCount,fallback:false,result});
       }catch(primaryError){
         if(!isRetryableModelInternalError(primaryError))throw primaryError;
         try{
-          const result=await runImageModel(env,IMAGE_FALLBACK_MODEL,multipart);
+          const result=await runImageModel(env,IMAGE_FALLBACK_MODEL,multipart.fields,multipart.references);
           return json({ok:true,model:IMAGE_FALLBACK_MODEL,references:multipart.referenceCount,fallback:true,fallback_from:IMAGE_MODEL,result});
         }catch(fallbackError){
-          throw new Error(`PRIMARY_${IMAGE_MODEL}:${String(primaryError?.message||primaryError)} | FALLBACK_${IMAGE_FALLBACK_MODEL}:${String(fallbackError?.message||fallbackError)}`);
+          const diagnostic=await diagnoseInternalError(env,multipart);
+          throw new Error(`PRIMARY_${IMAGE_MODEL}:${String(primaryError?.message||primaryError)} | FALLBACK_${IMAGE_FALLBACK_MODEL}:${String(fallbackError?.message||fallbackError)} | DIAG:${JSON.stringify(diagnostic)}`);
         }
       }
     }
@@ -117,7 +150,7 @@ export async function handleRequest(request,env){
     if(url.pathname==='/health')return json({ok:true,ai:true});
     return json({ok:false,error:'NOT_FOUND'},404);
   }catch(error){
-    return json({ok:false,error:'AI_BINDING_FAILED',detail:String(error?.message||error).slice(0,900)},502);
+    return json({ok:false,error:'AI_BINDING_FAILED',detail:String(error?.message||error).slice(0,1400)},502);
   }
 }
 
