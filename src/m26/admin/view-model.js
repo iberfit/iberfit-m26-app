@@ -54,13 +54,102 @@ function recordId(value){return String(value??'').trim();}
 function appointmentCoachId(item={}){return recordId(item.coachUserId??item.coach_user_id??item.coachId??item.coach_id??item.trainerUserId??item.trainer_user_id);}
 function appointmentClientId(item={}){return recordId(item.clientId??item.client_id);}
 function appointmentStart(item={}){return item.startAt??item.start_at??item.startsAt??item.starts_at??item.scheduledAt??item.scheduled_at??item.date??null;}
+function appointmentSessionId(item={}){return recordId(item.sessionId??item.session_id??item.publishedSessionId??item.published_session_id);}
 function dateTime(value){const parsed=value?new Date(value):null;return parsed&&!Number.isNaN(parsed.getTime())?parsed:null;}
-export function buildCoach360Rows({coaches=[],clients=[],assignments=[],appointments=[],now=new Date()}={}){
+function normalizeStatus(value){return String(value??'').trim().toLowerCase();}
+function userRoles(user={}){
+  const roles=Array.isArray(user?.roles)?user.roles:[];
+  return new Set([user?.primaryRole,...roles].map((value)=>String(value??'').trim().toLowerCase()).filter(Boolean));
+}
+function isCoachUser(user={}){return userRoles(user).has('coach');}
+function isBlockedStatus(value){return /suspend|block|inactive|inactivo|disabled|revoked/u.test(normalizeStatus(value));}
+function isActiveStatus(value){return /active|activo|enabled|operational|operativo/u.test(normalizeStatus(value));}
+function coachSubjects(coaches=[],users=[]){
+  const profiles=new Map();
+  for(const coach of coaches||[]){
+    const id=recordId(coach?.userId||coach?.id);
+    if(id)profiles.set(id,coach);
+  }
+  const coachUsers=new Map();
+  for(const user of users||[]){
+    const id=recordId(user?.userId||user?.id);
+    if(id&&isCoachUser(user))coachUsers.set(id,user);
+  }
+  const ids=[...new Set([...profiles.keys(),...coachUsers.keys()])];
+  return ids.map((coachId)=>Object.freeze({coachId,coach:profiles.get(coachId)||null,user:coachUsers.get(coachId)||null}));
+}
+export function deriveCoachLaunchJourney({coach=null,user=null,assignments=[],sessions=[]}={}){
+  const accountStatus=String(user?.status||coach?.status||'').trim();
+  const blocked=isBlockedStatus(user?.status)||isBlockedStatus(coach?.status);
+  const invited=Boolean(recordId(user?.userId||user?.id||coach?.userId||coach?.id));
+  const activated=Boolean(user?.lastAccessAt);
+  const profileReady=Boolean(coach&&recordId(coach?.userId||coach?.id)&&String(coach?.name||'').trim()&&String(coach?.email||'').trim()&&!isBlockedStatus(coach?.status));
+  const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
+  const firstClientAssigned=activeAssignments.length>0;
+  const planningPrepared=(sessions||[]).some((session)=>Boolean(recordId(session?.sessionId)));
+  const firstSessionCompleted=(sessions||[]).some((session)=>/complet|realiz|done/u.test(String(session?.status||'').toLowerCase()));
+  const milestones=Object.freeze([
+    Object.freeze({id:'invited',label:'Invitación',complete:invited,evidence:invited?'Identidad Coach visible':'Sin identidad Coach'}),
+    Object.freeze({id:'activated',label:'Activación',complete:activated,evidence:activated?'Primer acceso registrado':'Sin primer acceso registrado'}),
+    Object.freeze({id:'profile',label:'Perfil operativo',complete:profileReady,evidence:profileReady?'Perfil Coach completo':'Perfil operativo incompleto o no visible'}),
+    Object.freeze({id:'client',label:'Primer cliente',complete:firstClientAssigned,evidence:firstClientAssigned?'Asignación activa visible':'Sin cliente activo asignado'}),
+    Object.freeze({id:'planning',label:'Primera planificación',complete:planningPrepared,evidence:planningPrepared?'Sesión publicada vinculada visible':'Sin evidencia explícita de planificación publicada'}),
+    Object.freeze({id:'session',label:'Primera sesión',complete:firstSessionCompleted,evidence:firstSessionCompleted?'Sesión completada visible':'Sin sesión completada visible'}),
+  ]);
+  const completedCount=milestones.filter((item)=>item.complete).length;
+  const ready=!blocked&&isActiveStatus(accountStatus)&&milestones.every((item)=>item.complete);
+  let stage='invited';
+  let displayStatus='Invitado · primer acceso pendiente';
+  let nextAction=Object.freeze({area:'admin-usuarios',label:'Revisar activación'});
+  if(blocked){
+    stage='blocked';
+    displayStatus='Bloqueado';
+    nextAction=Object.freeze({area:'admin-usuarios',label:'Revisar acceso'});
+  }else if(!activated){
+    stage='invited';
+  }else if(!profileReady){
+    stage='profile';
+    displayStatus='Activo · perfil pendiente';
+    nextAction=Object.freeze({area:'admin-equipo',label:'Revisar perfil'});
+  }else if(!firstClientAssigned){
+    stage='assignment';
+    displayStatus='Activo · primer cliente pendiente';
+    nextAction=Object.freeze({area:'admin-equipo',label:'Asignar primer cliente'});
+  }else if(!planningPrepared){
+    stage='planning';
+    displayStatus='Activo · planificación por verificar';
+    nextAction=Object.freeze({area:'admin-equipo',label:'Verificar primera planificación'});
+  }else if(!firstSessionCompleted){
+    stage='session';
+    displayStatus='Activo · primera sesión pendiente';
+    nextAction=Object.freeze({area:'admin-agenda',label:'Revisar primera sesión'});
+  }else if(ready){
+    stage='ready';
+    displayStatus='Activo · Coach listo';
+    nextAction=null;
+  }else{
+    stage='account';
+    displayStatus=`${accountStatus||'Estado'} · activación operativa por verificar`;
+    nextAction=Object.freeze({area:'admin-usuarios',label:'Revisar estado de acceso'});
+  }
+  return Object.freeze({
+    stage,
+    ready,
+    blocked,
+    accountStatus,
+    completedCount,
+    total:milestones.length,
+    percent:Math.round((completedCount/milestones.length)*100),
+    milestones,
+    nextAction,
+    displayStatus,
+  });
+}
+export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[],appointments=[],now=new Date()}={}){
   const safeNow=dateTime(now)||new Date();
   const clientById=new Map((clients||[]).map((client)=>[recordId(client?.id),client]));
   const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
-  return Object.freeze((coaches||[]).map((coach)=>{
-    const coachId=recordId(coach?.userId||coach?.id);
+  return Object.freeze(coachSubjects(coaches,users).map(({coachId,coach,user})=>{
     const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId);
     const clientIds=[...new Set(ownAssignments.map((assignment)=>recordId(assignment?.clientId)).filter(Boolean))];
     const coachClients=Object.freeze(clientIds.map((id)=>clientById.get(id)).filter(Boolean).map((client)=>Object.freeze({
@@ -80,6 +169,7 @@ export function buildCoach360Rows({coaches=[],clients=[],assignments=[],appointm
         const when=dateTime(startAt);
         return Object.freeze({
           id:recordId(appointment.id||appointment.sessionId||appointment.session_id),
+          sessionId:appointmentSessionId(appointment),
           clientId,
           clientName:String(client?.name||appointment.clientName||appointment.client_name||'Cliente'),
           title:String(appointment.title||appointment.name||'Entrenamiento'),
@@ -96,12 +186,15 @@ export function buildCoach360Rows({coaches=[],clients=[],assignments=[],appointm
     const capacityHours=Number.isFinite(Number(coach?.capacityHours))?Number(coach.capacityHours):null;
     const assignedHours=Number.isFinite(Number(coach?.assignedHours))?Number(coach.assignedHours):null;
     const loadPercent=capacityHours&&assignedHours!=null?Math.max(0,Math.round((assignedHours/capacityHours)*100)):null;
+    const launchJourney=deriveCoachLaunchJourney({coach,user,assignments:ownAssignments,sessions});
     return Object.freeze({
-      id:recordId(coach?.id),
+      id:recordId(coach?.id||user?.id||coachId),
       coachId,
-      name:String(coach?.name||coach?.email||'Coach'),
-      email:String(coach?.email||''),
-      status:String(coach?.status||''),
+      name:String(coach?.name||user?.name||coach?.email||user?.email||'Coach'),
+      email:String(coach?.email||user?.email||''),
+      status:launchJourney.displayStatus,
+      accountStatus:String(user?.status||coach?.status||''),
+      launchJourney,
       capacityHours,
       assignedHours,
       loadPercent,
@@ -143,17 +236,19 @@ export function createAdminRouteViewModel(base,shellVm,state){const role=String(
   if(area==='admin-usuarios')return Object.freeze({...common,kind:'admin-usuarios',users:Object.freeze(clone(adminCollection(state,'organizationUsers'))),roles:Object.freeze(clone(adminCollection(state,'applicationRoles'))),canManageStatus:adminCan(state.admin,ADMIN_CAPABILITIES.USER_MANAGE_STATUS),canManageRoles:adminCan(state.admin,ADMIN_CAPABILITIES.ROLE_MANAGE)});
   if(area==='admin-equipo'){
     const coaches=Object.freeze(clone(adminCollection(state,'coachProfiles')));
+    const users=Object.freeze(clone(adminCollection(state,'organizationUsers')));
     const clients=clientRows(state);
     const coachById=new Map(coaches.map((coach)=>[String(coach.userId||coach.id),coach]));
+    const userById=new Map(users.map((user)=>[String(user.userId||user.id),user]));
     const clientById=new Map(clients.map((client)=>[String(client.id),client]));
     const rawAssignments=Object.freeze(clone(adminCollection(state,'coachClientAssignments')));
     const assignments=Object.freeze(rawAssignments.map((assignment)=>Object.freeze({
       ...assignment,
-      coachName:String(coachById.get(String(assignment.coachUserId||''))?.name||coachById.get(String(assignment.coachUserId||''))?.email||'Coach'),
+      coachName:String(coachById.get(String(assignment.coachUserId||''))?.name||coachById.get(String(assignment.coachUserId||''))?.email||userById.get(String(assignment.coachUserId||''))?.name||userById.get(String(assignment.coachUserId||''))?.email||'Coach'),
       clientName:String(clientById.get(String(assignment.clientId||''))?.name||'Cliente'),
     })));
     const rawNow=state?.admin?.serverTime||state?.hydration?.serverTime||new Date();
-    const coachProfiles360=buildCoach360Rows({coaches,clients,assignments:rawAssignments,appointments:clone(state.collections?.appointments||[]),now:rawNow});
+    const coachProfiles360=buildCoach360Rows({coaches,users,clients,assignments:rawAssignments,appointments:clone(state.collections?.appointments||[]),now:rawNow});
     return Object.freeze({...common,kind:'admin-equipo',coaches,coachProfiles360,assignments,clients,canManage:adminCan(state.admin,ADMIN_CAPABILITIES.ASSIGNMENT_MANAGE)});
   }
   if(area==='admin-clientes')return Object.freeze({...common,kind:'admin-clientes',leads:Object.freeze(clone(adminCollection(state,'leads'))),clients:clientRows(state),canManage:adminCan(state.admin,ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE)});
