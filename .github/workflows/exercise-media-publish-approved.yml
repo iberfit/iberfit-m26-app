@@ -1,0 +1,146 @@
+name: IBERFIT Exercise Media Publish Approved
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact 40-char commit SHA containing the approved batch and assets
+        required: true
+        type: string
+      manifest_path:
+        description: Approved batch manifest path inside source_sha
+        required: true
+        default: scripts/exercise-media/approved/IBF-ABDUCCION-DE-CADERA-LATERAL/approved-batch.json
+        type: string
+      confirmation:
+        description: Type PUBLISH_APPROVED_MEDIA_PROD
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: iberfit-exercise-media-prod-publisher
+  cancel-in-progress: false
+
+env:
+  PROD_REF: pjhmrhejsoofmouedavw
+  PROD_ORIGIN: https://pjhmrhejsoofmouedavw.supabase.co
+  OIDC_AUDIENCE: iberfit-exercise-media-prod
+  SOURCE_SHA: ${{ inputs.source_sha }}
+  MANIFEST_PATH: ${{ inputs.manifest_path }}
+  CONFIRMATION: ${{ inputs.confirmation }}
+
+jobs:
+  publish-approved:
+    name: publish-approved-prod
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Validate explicit production intent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = 'PUBLISH_APPROVED_MEDIA_PROD'
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$MANIFEST_PATH" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{1,499}$ ]]
+          [[ "$MANIFEST_PATH" != /* ]]
+          [[ "$MANIFEST_PATH" != *'..'* ]]
+
+      - name: Checkout trusted publisher
+        uses: actions/checkout@v4
+        with:
+          ref: canary/rc74-4
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout exact approved source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          path: approved-source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify exact source and publisher contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C approved-source rev-parse HEAD)" = "$SOURCE_SHA"
+          test -s "approved-source/$MANIFEST_PATH"
+          node --test tests/m26_exercise_media_publisher_broker.test.mjs
+          node scripts/exercise-media/publish-approved-via-broker.mjs \
+            --manifest "approved-source/$MANIFEST_PATH" \
+            --source-root approved-source
+
+      - name: Obtain GitHub OIDC token
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          sep='?'
+          [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
+          token="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
+          test "${#token}" -gt 100
+          echo "::add-mask::$token"
+          echo "IBERFIT_GITHUB_OIDC_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Publish approved batch to PROD
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery
+          node scripts/exercise-media/publish-approved-via-broker.mjs \
+            --manifest "approved-source/$MANIFEST_PATH" \
+            --source-root approved-source \
+            --apply \
+            --evidence recovery/exercise-media-publish-prod.json
+
+      - name: Verify public runtime manifest
+        shell: bash
+        env:
+          PROD_PUBLISHABLE_KEY: sb_publishable_R5hU49RTDLAFFx46j4b4Hg_l8o0Pg2k
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "apikey: ${PROD_PUBLISHABLE_KEY}" \
+            -H "Authorization: Bearer ${PROD_PUBLISHABLE_KEY}" \
+            -H 'Content-Type: application/json' \
+            "${PROD_ORIGIN}/rest/v1/rpc/iberfit_exercise_media_manifest_v1" \
+            -d '{}' > recovery/exercise-media-runtime-manifest.json
+          SOURCE_MANIFEST="approved-source/$MANIFEST_PATH" \
+          RUNTIME_MANIFEST="recovery/exercise-media-runtime-manifest.json" \
+          node <<'NODE'
+          const fs=require('fs');
+          const source=JSON.parse(fs.readFileSync(process.env.SOURCE_MANIFEST,'utf8'));
+          const runtime=JSON.parse(fs.readFileSync(process.env.RUNTIME_MANIFEST,'utf8'));
+          const wanted=new Set(source.items.map(x=>x.exercise_id));
+          const items=Array.isArray(runtime?.items)?runtime.items:[];
+          for(const id of wanted){
+            const found=items.find(x=>x.exercise_id===id&&x.published===true);
+            if(!found)throw new Error(`IBERFIT_RUNTIME_MEDIA_MISSING:${id}`);
+          }
+          console.log(JSON.stringify({runtimeVerified:true,approved:runtime?.summary?.approved,wanted:[...wanted]}));
+          NODE
+
+      - name: Preserve publication evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-exercise-media-prod-${{ github.run_id }}
+          path: |
+            recovery/exercise-media-publish-prod.json
+            recovery/exercise-media-runtime-manifest.json
+          if-no-files-found: warn
+          retention-days: 30
