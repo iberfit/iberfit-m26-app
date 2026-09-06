@@ -11,6 +11,7 @@ import {enhanceSessionReadiness,enhanceSessionFocus,teardownSessionFocus} from '
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js';
 import {revalidatePendingSessionEntry} from '../intelligence/session-entry-intent.js';
+import {enhanceCoachActionCenter,resolveCoachActionNavigation} from './coach-action-center.js';
 
 export function resolveAdaptiveLayout({width = 1440,coarsePointer = false,touchPoints = 0} = {}) {
   const viewportWidth = Number(width);
@@ -62,6 +63,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     root.innerHTML = markup;
     lastMarkup=markup;
     syncAdaptiveLayout();
+    enhanceCoachActionCenter({root,shellVm:viewModel,state});
     enhanceNativeWorkspace({root,viewModel});
     enhanceCliente360({root,viewModel,state});
     enhanceProgressContinuity({root,viewModel,state});
@@ -123,6 +125,31 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
   }
 
+  function openCoachAction(source){
+    const current=store.getState();
+    try{
+      const decision=resolveCoachActionNavigation(current,{
+        clientId:source?.getAttribute?.('data-m26-client-id')||source?.getAttribute?.('data-m26-select-client'),
+        targetArea:source?.getAttribute?.('data-m26-target-area')||'expediente',
+      });
+      const sameClient=String(current.selectedClientId||'')===String(decision.clientId);
+      const sameArea=String(current.activeArea||'')===String(decision.area);
+      if(sameClient&&sameArea){
+        clearClientSwitchBusy();
+        return false;
+      }
+      markClientSwitchBusy(source);
+      if(!sameClient)store.selectClient(decision.clientId);
+      if(!sameArea)store.navigate(decision.area);
+      focusMain();
+      return true;
+    }catch(error){
+      clearClientSwitchBusy();
+      root.dispatchEvent(new CustomEvent('m26:access-denied',{bubbles:true,detail:{code:error.message}}));
+      return false;
+    }
+  }
+
   function onClick(event) {
     const intakeButton=event.target.closest?.('[data-admin-intake-open]');
     if(intakeButton){
@@ -149,6 +176,14 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const roleButton=event.target.closest?.('[data-m26-switch-role]');
     if(roleButton){
       root.dispatchEvent(new CustomEvent('m26:switch-role',{bubbles:true,detail:{role:roleButton.getAttribute('data-m26-switch-role')}}));
+      return;
+    }
+
+    const coachActionButton=event.target.closest?.('[data-m26-coach-action]');
+    if(coachActionButton){
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      openCoachAction(coachActionButton);
       return;
     }
 
