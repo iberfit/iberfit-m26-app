@@ -210,7 +210,7 @@ test('QA bloquea texto/logo inventado y baja confianza',()=>{
   assert.deepEqual(decision.blocking.filter((x)=>['clean_no_text','branding_safe','confidence'].includes(x)),['clean_no_text','branding_safe','confidence']);
 });
 
-test('revisor Cloudflare usa imagen inline y devuelve decisión fail-closed',async()=>{
+test('revisor Cloudflare usa imagen inline, desactiva streaming y devuelve decisión fail-closed',async()=>{
   const bytes=Buffer.alloc(256,1);
   let requestBody=null;
   const fetchImpl=async(_url,options)=>{
@@ -224,6 +224,7 @@ test('revisor Cloudflare usa imagen inline y devuelve decisión fail-closed',asy
   assert.match(requestBody.question,/strict senior strength-and-conditioning biomechanics reviewer/);
   assert.equal(requestBody.reasoning,false);
   assert.equal(requestBody.temperature,0);
+  assert.equal(requestBody.stream,false);
 });
 
 test('pregunta QA contiene identidad canónica y reglas críticas del movimiento pair',()=>{
