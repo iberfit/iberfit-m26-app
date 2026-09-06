@@ -14,6 +14,7 @@ import {
   parseQaAnswer,
   reviewCloudflareExerciseImage,
 } from '../scripts/exercise-media/qa-cloudflare.mjs';
+import {handleRequest as handleAiProxyRequest} from '../scripts/exercise-media/worker-ai-proxy.mjs';
 
 const exercise={
   id:'IBF-SENTADILLA-TEST',
@@ -48,6 +49,18 @@ function positiveQa(overrides={}){
     issues:[],
     ...overrides,
   };
+}
+
+function fakeJpeg(){
+  const bytes=Buffer.alloc(96,0x11);
+  bytes[0]=0xff;bytes[1]=0xd8;bytes[2]=0xff;bytes[3]=0xe0;
+  return bytes;
+}
+
+function fakePng(){
+  const bytes=Buffer.alloc(96,0x22);
+  Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]).copy(bytes,0);
+  return bytes;
 }
 
 test('smoke usa un exercise_id canónico real por defecto',()=>{
@@ -110,6 +123,59 @@ test('generador llama sólo al modelo permitido con 4:5 y mantiene QA fuera de g
   assert.equal(result.width/result.height,0.8);
   assert.match(seen.url,/flux-2-klein-4b$/);
   assert.equal(seen.options.headers.authorization,`Bearer ${TOKEN}`);
+});
+
+test('proxy Pages reconstruye multipart y entrega referencias binarias intactas a FLUX',async()=>{
+  const form=new FormData();
+  form.append('prompt','movement pair test');
+  form.append('width','768');
+  form.append('height','960');
+  form.append('seed','123');
+  form.append('input_image_0',new Blob([fakeJpeg()],{type:'image/jpeg'}),'athlete.jpg');
+  form.append('input_image_1',new Blob([fakePng()],{type:'image/png'}),'isotype.png');
+
+  let inspected=false;
+  const env={
+    SMOKE_TOKEN:TOKEN,
+    AI:{
+      async run(model,input){
+        assert.equal(model,CLOUDFLARE_IMAGE_MODEL);
+        assert.match(input.multipart.contentType,/^multipart\/form-data; boundary=/i);
+        const rebuilt=await new Response(input.multipart.body,{headers:{'content-type':input.multipart.contentType}}).formData();
+        assert.equal(rebuilt.get('prompt'),'movement pair test');
+        assert.equal(rebuilt.get('width'),'768');
+        const athlete=rebuilt.get('input_image_0');
+        const isotype=rebuilt.get('input_image_1');
+        assert.equal(athlete.type,'image/jpeg');
+        assert.equal(isotype.type,'image/png');
+        const athleteBytes=Buffer.from(await athlete.arrayBuffer());
+        const isotypeBytes=Buffer.from(await isotype.arrayBuffer());
+        assert.deepEqual([...athleteBytes.subarray(0,4)],[0xff,0xd8,0xff,0xe0]);
+        assert.deepEqual([...isotypeBytes.subarray(0,8)],[0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]);
+        inspected=true;
+        return {image:'A'.repeat(64)};
+      },
+    },
+  };
+  const request=new Request('https://smoke.example/generate',{method:'POST',headers:{authorization:`Bearer ${TOKEN}`},body:form});
+  const response=await handleAiProxyRequest(request,env);
+  const payload=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(payload.ok,true);
+  assert.equal(payload.references,2);
+  assert.equal(inspected,true);
+});
+
+test('proxy Pages rechaza una referencia cuyo MIME no coincide con su firma binaria',async()=>{
+  const form=new FormData();
+  form.append('prompt','bad reference test');
+  form.append('input_image_0',new Blob([fakePng()],{type:'image/jpeg'}),'bad.jpg');
+  const request=new Request('https://smoke.example/generate',{method:'POST',headers:{authorization:`Bearer ${TOKEN}`},body:form});
+  const response=await handleAiProxyRequest(request,{SMOKE_TOKEN:TOKEN,AI:{run:async()=>{throw new Error('should not run');}}});
+  const payload=await response.json();
+  assert.equal(response.status,502);
+  assert.equal(payload.error,'AI_BINDING_FAILED');
+  assert.match(payload.detail,/REFERENCE_MAGIC_INVALID/);
 });
 
 test('QA sólo aprueba un informe completamente positivo y de alta confianza',()=>{
