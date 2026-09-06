@@ -2,7 +2,7 @@ import {appointmentCalendarEvent,googleCalendarUrl} from './calendar.js';
 import {clientModalityLabel,normalizeClientModality,resolveSessionExperience} from '../domain/modality.js';
 import {renderHoyRoute} from '../modules/route-render.js';
 import {getIberfitLanguage} from '../ui/i18n.js';
-import {coachLaunchSelfCopy} from '../experience/coach-launch-self.js';
+import {coachLaunchSelfCopy} from './view-model.js';
 
 const escape=(value)=>String(value??'')
   .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
