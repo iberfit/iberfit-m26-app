@@ -38,6 +38,8 @@ env:
   ATHLETE_REFERENCE: scripts/exercise-media/reference/athlete-approved-v1.jpg
   ISOTYPE_REFERENCE: scripts/exercise-media/reference/iberfit-isotype-official-v1.png
   WRANGLER_CONFIG: scripts/exercise-media/wrangler.ai-smoke.toml
+  PAGES_AI_PROJECT: iberfit-exercise-ai-smoke
+  PAGES_AI_DIR: recovery/exercise-media-pages-proxy
 
 jobs:
   generate-quarantined-candidate:
@@ -78,7 +80,7 @@ jobs:
           console.log(JSON.stringify({exerciseId:id,references:true}));
           NODE
 
-      - name: Preparar proxy Workers AI efímero
+      - name: Preparar Pages Function AI aislada
         id: proxy
         shell: bash
         env:
@@ -90,16 +92,31 @@ jobs:
             exit 1
           fi
           mkdir -p recovery
+          rm -rf "$PAGES_AI_DIR"
+          mkdir -p "$PAGES_AI_DIR"
+          cp scripts/exercise-media/worker-ai-proxy.mjs "$PAGES_AI_DIR/_worker.js"
+          printf '%s\n' 'IBERFIT exercise media AI smoke' > "$PAGES_AI_DIR/index.html"
           smoke_token="$(openssl rand -hex 32)"
           echo "::add-mask::$smoke_token"
-          npx --yes wrangler@4 deploy --config "$WRANGLER_CONFIG" 2>&1 | tee recovery/exercise-media-wrangler-deploy.log
-          proxy_url="$(grep -Eo 'https://[A-Za-z0-9._-]+\.workers\.dev' recovery/exercise-media-wrangler-deploy.log | tail -n 1 || true)"
+
+          # El token canónico dispone de Pages Edit; se evita exigir Workers Scripts Edit.
+          npx --yes wrangler@4 pages project delete "$PAGES_AI_PROJECT" --yes >/dev/null 2>&1 || true
+          npx --yes wrangler@4 pages project create "$PAGES_AI_PROJECT" \
+            --production-branch smoke \
+            --compatibility-date 2026-09-05 2>&1 | tee recovery/exercise-media-pages-create.log
+          printf '%s' "$smoke_token" | npx --yes wrangler@4 pages secret put SMOKE_TOKEN \
+            --project-name "$PAGES_AI_PROJECT" >/dev/null
+          npx --yes wrangler@4 pages deploy "$PAGES_AI_DIR" \
+            --project-name "$PAGES_AI_PROJECT" \
+            --branch smoke \
+            --commit-dirty=true \
+            --config "$WRANGLER_CONFIG" 2>&1 | tee recovery/exercise-media-pages-deploy.log
+          proxy_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' recovery/exercise-media-pages-deploy.log | tail -n 1 || true)"
           if [[ -z "$proxy_url" ]]; then
-            echo 'No se pudo resolver la URL workers.dev del proxy efímero.' >&2
+            echo 'No se pudo resolver la URL pages.dev del proxy AI aislado.' >&2
             exit 1
           fi
-          printf '%s' "$smoke_token" | npx --yes wrangler@4 secret put SMOKE_TOKEN --config "$WRANGLER_CONFIG" >/dev/null
-          curl --fail --silent --show-error --retry 3 --retry-all-errors -X POST \
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 2 -X POST \
             -H "Authorization: Bearer $smoke_token" \
             "$proxy_url/health" > recovery/exercise-media-proxy-health.json
           node -e "const x=require('./recovery/exercise-media-proxy-health.json');if(x.ok!==true||x.ai!==true)process.exit(1)"
@@ -107,7 +124,7 @@ jobs:
           echo "IBERFIT_AI_PROXY_TOKEN=$smoke_token" >> "$GITHUB_ENV"
           echo "proxy_url=$proxy_url" >> "$GITHUB_OUTPUT"
 
-      - name: Generar candidato IBERFIT por Workers AI binding
+      - name: Generar candidato IBERFIT por Pages Workers AI binding
         id: generate
         shell: bash
         run: |
@@ -177,12 +194,13 @@ jobs:
             recovery/exercise-media-smoke/**
             recovery/exercise-media-generate.log
             recovery/exercise-media-qa.log
-            recovery/exercise-media-wrangler-deploy.log
+            recovery/exercise-media-pages-create.log
+            recovery/exercise-media-pages-deploy.log
             recovery/exercise-media-proxy-health.json
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Retirar proxy Workers AI efímero
+      - name: Retirar Pages Function AI aislada
         if: always() && steps.proxy.outcome == 'success'
         continue-on-error: true
         shell: bash
@@ -190,7 +208,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set +e
-          printf 'y\n' | npx --yes wrangler@4 delete --config "$WRANGLER_CONFIG"
+          npx --yes wrangler@4 pages project delete "$PAGES_AI_PROJECT" --yes
           exit 0
 
       - name: Gate de aprobación automática del piloto
