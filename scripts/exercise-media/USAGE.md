@@ -1,0 +1,1 @@
+Run `autowire.mjs` with the canonical exercise catalog export and a generated media manifest. The output is deterministic and intended for an idempotent Supabase updater. Do not publish assets that have not passed QA.
