@@ -83,6 +83,6 @@ test('Coach action navigation validates client and route before mutating selecti
   const selectIndex=source.indexOf('store.selectClient(clientId)');
   assert.ok(guardIndex>=0&&decisionIndex>guardIndex&&selectIndex>decisionIndex);
   assert.match(source,/if\(!decision\.allowed\)throw new Error/u);
-  assert.match(source,/current\?\.identity\?\.role\|\|'\'\)!=='coach'/u);
+  assert.ok(source.includes("current?.identity?.role||'')!=='coach'"));
   assert.match(source,/event\.stopPropagation/u);
 });
