@@ -205,6 +205,72 @@ function itemFromEntry(entry={}){
   });
 }
 
+function commercialItemFromCrm(crm={}){
+  const clientId=txt(crm?.clientId);
+  const status=txt(crm?.renewal?.status).toLowerCase();
+  if(!clientId||!['overdue','upcoming'].includes(status))return null;
+
+  const overdue=status==='overdue';
+  const kind=overdue?'process':'info';
+  const reason=txt(
+    crm?.renewal?.statusLabel,
+    overdue?'Renovación vencida':'Renovación próxima'
+  );
+  const detail=txt(
+    crm?.renewal?.evidence,
+    overdue
+      ?'Existe una fecha explícita de renovación vencida y requiere revisión humana.'
+      :'Existe una fecha explícita de renovación próxima para seguimiento comercial.'
+  );
+  const guidance=overdue
+    ?'Revisar continuidad comercial con el cliente. Una fecha vencida no implica impago ni abandono.'
+    :'Preparar seguimiento de continuidad comercial. Una renovación próxima no es una señal de riesgo automática.';
+  const nextAction=Object.freeze({
+    key:'review_renewal',
+    label:overdue
+      ?'Revisar renovación pendiente'
+      :'Preparar seguimiento de renovación',
+    area:'clientes',
+    reason:detail,
+  });
+  const actionCenter=actionCenterMetadata({
+    key:nextAction.key,
+    stage:'followup',
+    source:'crm-renewals',
+    area:'clientes',
+  });
+
+  return Object.freeze({
+    clientId,
+    clientName:txt(crm?.clientName,tr('coach.client')),
+    modality:txt(crm?.client?.modality),
+    kind,
+    rank:KIND_RANK[kind],
+    signalLabel:signalLabel(kind),
+    reason,
+    detail,
+    guidance,
+    source:'crm-renewals',
+    stage:'followup',
+    stageLabel:'Seguimiento comercial',
+    experiencePriority:overdue?2:7,
+    nextAction,
+    actionType:actionCenter.actionType,
+    actionTypeLabel:actionCenter.actionTypeLabel,
+    attentionWhy:overdue
+      ?'Revisión comercial manual. No implica impago, deuda ni abandono.'
+      :'Seguimiento comercial preventivo sin degradar el riesgo del cliente.',
+    actionCtaLabel:actionCenter.actionCtaLabel,
+    renewalStatus:status,
+    renewalDate:txt(crm?.renewal?.date)||null,
+    commercialPlan:txt(crm?.client?.plan)||null,
+    requiresHumanDecision:true,
+    autoMessage:false,
+    autoCharge:false,
+    paymentInference:false,
+  });
+}
+
 function compareItems(a,b){
   if(a.rank!==b.rank)return a.rank-b.rank;
 
@@ -215,15 +281,7 @@ function compareItems(a,b){
   return iberfitCompareText(a.clientName,b.clientName);
 }
 
-export function deriveCoachCockpit(entries=[]){
-  const all=arr(entries)
-    .map(itemFromEntry)
-    .filter((item)=>item.clientId);
-
-  const items=all
-    .filter((item)=>item.kind!=='clear')
-    .sort(compareItems);
-
+function summarizeCockpit(items,totalClients,riskFocus=null){
   const criticalCount=
     items.filter((item)=>item.kind==='critical').length;
 
@@ -236,15 +294,8 @@ export function deriveCoachCockpit(entries=[]){
   const infoCount=
     items.filter((item)=>item.kind==='info').length;
 
-  const riskFocus=
-    items.find(
-      (item)=>
-        item.kind==='critical'||
-        item.kind==='warning'
-    )||null;
-
   return Object.freeze({
-    totalClients:all.length,
+    totalClients,
     attentionCount:
       criticalCount+
       warningCount+
@@ -254,13 +305,58 @@ export function deriveCoachCockpit(entries=[]){
     processCount,
     infoCount,
     items:Object.freeze(items),
-    riskFocus,
+    riskFocus:
+      riskFocus||
+      items.find(
+        (item)=>
+          item.kind==='critical'||
+          item.kind==='warning'
+      )||null,
   });
+}
+
+export function deriveCoachCockpit(entries=[]){
+  const all=arr(entries)
+    .map(itemFromEntry)
+    .filter((item)=>item.clientId);
+
+  const items=all
+    .filter((item)=>item.kind!=='clear')
+    .sort(compareItems);
+
+  return summarizeCockpit(items,all.length);
+}
+
+export function augmentCoachCockpitWithCrm(cockpit,crmSummaries=[]){
+  const base=cockpit&&typeof cockpit==='object'
+    ?cockpit
+    :deriveCoachCockpit([]);
+  const existing=arr(base.items)
+    .filter((item)=>item?.source!=='crm-renewals');
+  const commercial=arr(crmSummaries)
+    .map(commercialItemFromCrm)
+    .filter(Boolean);
+  const items=[...existing,...commercial]
+    .sort(compareItems);
+  const fallbackClients=new Set([
+    ...existing.map((item)=>txt(item?.clientId)).filter(Boolean),
+    ...commercial.map((item)=>txt(item?.clientId)).filter(Boolean),
+  ]).size;
+  const totalClients=Number.isInteger(base.totalClients)&&base.totalClients>=0
+    ?base.totalClients
+    :fallbackClients;
+  const riskFocus=base.riskFocus&&['critical','warning'].includes(base.riskFocus.kind)
+    ?base.riskFocus
+    :null;
+
+  return summarizeCockpit(items,totalClients,riskFocus);
 }
 
 export const __coachCockpitInternals=Object.freeze({
   itemFromEntry,
+  commercialItemFromCrm,
   compareItems,
+  summarizeCockpit,
   signalLabel,
   actionTypeFor,
   actionCenterMetadata,
