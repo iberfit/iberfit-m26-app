@@ -5,6 +5,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const CLOUDFLARE_QA_MODEL='@cf/moondream/moondream3.1-9B-A2B';
+export const DEFAULT_SMOKE_EXERCISE_ID='IBF-ABDUCCION-DE-CADERA-LATERAL';
 const SAFE_EXERCISE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
 const SAFE_ACCOUNT_ID=/^[A-Fa-f0-9]{32}$/u;
 const MAX_IMAGE_BYTES=12_000_000;
@@ -19,17 +20,18 @@ function proxyEndpoint(value){const raw=String(value||'').trim();if(!raw)return 
 export function buildQaQuestion(exercise={}){
   const id=exactId(exercise.id);
   return [
-    'You are a strict senior strength-and-conditioning biomechanics reviewer. Inspect the supplied exercise photograph only.',
+    'You are a strict senior strength-and-conditioning biomechanics reviewer. Inspect the supplied IBERFIT exercise photograph only.',
     `Canonical exercise ID: ${id}. Name: ${String(exercise.name_es||exercise.name||id)}.`,
     `Pattern: ${String(exercise.pattern||'')}. Equipment: ${String(exercise.equipment||'')}.`,
     `Primary muscles: ${list(exercise.primary_muscles).join(', ')}. Secondary: ${list(exercise.secondary_muscles).join(', ')}.`,
     `Instructions: ${list(exercise.instructions_es).slice(0,6).join('; ')}.`,
     `Cues: ${list(exercise.cues).slice(0,6).join('; ')}.`,
-    'IBERFIT image rules: one adult athlete only; full relevant body and equipment visible; clean premium dark gym; no title/captions/arrows/panels/footer; no invented wordmark or letters; shirt may be plain black when exact logo reference was not supplied; small anatomy inset is allowed only if unobtrusive.',
-    'Judge actual visible biomechanics, equipment geometry/path, grip/stance, balance/support, joint plausibility, anatomy integrity, and whether the image really depicts the requested exercise. Do not approve merely because it looks attractive.',
+    'IBERFIT image rules: the movement asset must contain exactly two depictions of the SAME adult male athlete showing a clear start/end movement pair, with consistent identity, outfit, camera language, equipment setup and dark premium gym. Both relevant bodies and equipment must be visible. There must be no title, captions, arrows, start/end labels, panels, footer, watermark, wordmark or random letters. A small anatomy inset is allowed only if unobtrusive.',
+    'Judge the ACTUAL visible start phase, end/peak phase and progression between them. Both phases must be technically plausible for the named exercise. Reject if the image shows only one phase, more than two athlete depictions, two different-looking athletes, impossible joints, unsafe alignment, wrong equipment, inconsistent setup/path, cropped critical body parts, or if the two poses do not communicate the requested movement.',
+    'Branding is fail-closed: branding_safe may be true only when there are no invented words/letters/logos and any visible chest mark is small and visually consistent across the two poses. Do not approve merely because the image looks attractive.',
     'Return ONLY one JSON object, no markdown and no prose, with exactly these keys:',
-    '{"exercise_match":boolean,"equipment_match":boolean,"biomechanics":"pass|fail|uncertain","anatomy_integrity":boolean,"critical_body_visible":boolean,"clean_no_text":boolean,"branding_safe":boolean,"visual_quality":"pass|fail|uncertain","confidence":number,"issues":[string]}',
-    'confidence must be from 0 to 1. Any uncertainty about technique must be biomechanics="uncertain". Invented words/logos/letters make branding_safe=false. Visible titles/captions/arrows/panels make clean_no_text=false.',
+    '{"exercise_match":boolean,"equipment_match":boolean,"movement_pair":boolean,"same_athlete_identity":boolean,"phase_progression":boolean,"biomechanics":"pass|fail|uncertain","anatomy_integrity":boolean,"critical_body_visible":boolean,"clean_no_text":boolean,"branding_safe":boolean,"visual_quality":"pass|fail|uncertain","confidence":number,"issues":[string]}',
+    'confidence must be from 0 to 1. Any uncertainty about either movement phase or progression must be biomechanics="uncertain". Invented words/logos/letters make branding_safe=false. Visible titles/captions/arrows/panels/labels make clean_no_text=false.',
   ].join('\n');
 }
 
@@ -50,6 +52,9 @@ export function parseQaAnswer(answer){
   return Object.freeze({
     exercise_match:raw.exercise_match===true,
     equipment_match:raw.equipment_match===true,
+    movement_pair:raw.movement_pair===true,
+    same_athlete_identity:raw.same_athlete_identity===true,
+    phase_progression:raw.phase_progression===true,
     biomechanics,
     anatomy_integrity:raw.anatomy_integrity===true,
     critical_body_visible:raw.critical_body_visible===true,
@@ -65,6 +70,9 @@ export function decideQa(report,{minimumConfidence=0.92}={}){
   const blocking=[];
   if(report.exercise_match!==true)blocking.push('exercise_match');
   if(report.equipment_match!==true)blocking.push('equipment_match');
+  if(report.movement_pair!==true)blocking.push('movement_pair');
+  if(report.same_athlete_identity!==true)blocking.push('same_athlete_identity');
+  if(report.phase_progression!==true)blocking.push('phase_progression');
   if(report.biomechanics!=='pass')blocking.push('biomechanics');
   if(report.anatomy_integrity!==true)blocking.push('anatomy_integrity');
   if(report.critical_body_visible!==true)blocking.push('critical_body_visible');
@@ -86,7 +94,7 @@ export async function reviewCloudflareExerciseImage({exercise,imageBytes,mime,ac
   const response=await fetchImpl(proxy||endpoint(accountId),{
     method:'POST',
     headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},
-    body:JSON.stringify({task:'query',image:`data:${imageMime};base64,${bytes.toString('base64')}`,question:buildQaQuestion(exercise),reasoning:false,temperature:0,max_tokens:900}),
+    body:JSON.stringify({task:'query',image:`data:${imageMime};base64,${bytes.toString('base64')}`,question:buildQaQuestion(exercise),reasoning:false,temperature:0,max_tokens:1100}),
     redirect:'error',
   });
   if(!response?.ok){let detail='';try{detail=(await response.text()).slice(0,600);}catch{}throw new Error(`IBERFIT_QA_CLOUDFLARE_HTTP_${response?.status||0}:${detail}`);}
@@ -99,7 +107,7 @@ export async function reviewCloudflareExerciseImage({exercise,imageBytes,mime,ac
 function catalogRecords(raw){const records=Array.isArray(raw)?raw:raw?.exercises??raw?.data;if(!Array.isArray(records))throw new Error('IBERFIT_QA_CATALOG_INVALID');return records;}
 export async function runCli(argv=process.argv.slice(2)){
   const catalogPath=arg(argv,'--catalog')||'baseline_m25_2/exercise-catalog-m25.json';
-  const exerciseId=exactId(arg(argv,'--exercise-id')||'bw-squat');
+  const exerciseId=exactId(arg(argv,'--exercise-id')||DEFAULT_SMOKE_EXERCISE_ID);
   const imagePath=arg(argv,'--image');if(!imagePath)throw new Error('IBERFIT_QA_IMAGE_REQUIRED');
   const outPath=path.resolve(arg(argv,'--out')||'recovery/exercise-media-smoke/qa-report.json');
   const raw=JSON.parse(fs.readFileSync(path.resolve(catalogPath),'utf8'));
