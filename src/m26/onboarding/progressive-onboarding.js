@@ -1,3 +1,5 @@
+import {createGuidedTourController} from './guided-tour.js';
+
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
 
 const ROLE_TRACKS=Object.freeze({
@@ -208,6 +210,7 @@ export function createProgressiveOnboardingController({
   if(!root?.addEventListener)throw new Error('M26_PROGRESSIVE_ONBOARDING_ROOT_REQUIRED');
 
   const repository=createProgressiveOnboardingRepository({storage});
+  const guidedTour=createGuidedTourController({root,identityProvider,storage,scope});
   let observer=null;
   let mounted=false;
   let scheduled=false;
@@ -295,6 +298,7 @@ export function createProgressiveOnboardingController({
     const context=identity();
     if(!context){
       removeOwned();
+      guidedTour.refresh?.();
       return;
     }
     const area=activeArea()||context.track.home;
@@ -306,6 +310,7 @@ export function createProgressiveOnboardingController({
     }
     ensureLauncher(context,state);
     ensurePanel(context,state,area);
+    guidedTour.refresh?.();
   }
 
   function schedule(){
@@ -333,6 +338,7 @@ export function createProgressiveOnboardingController({
     if(event.target?.closest?.('[data-progressive-onboarding-reset]')){
       event.preventDefault?.();
       repository.reset(context.key,context.role);
+      guidedTour.open?.();
       schedule();
     }
   }
@@ -346,6 +352,7 @@ export function createProgressiveOnboardingController({
         observer=new scope.MutationObserver(schedule);
         observer.observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['aria-current']});
       }
+      guidedTour.mount?.();
       schedule();
     },
     destroy(){
@@ -355,9 +362,13 @@ export function createProgressiveOnboardingController({
       root.removeEventListener('click',onClick);
       observer?.disconnect?.();
       observer=null;
+      guidedTour.destroy?.();
       removeOwned();
     },
-    refresh:schedule,
+    refresh(){
+      schedule();
+      guidedTour.refresh?.();
+    },
   });
 }
 
