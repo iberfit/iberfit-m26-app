@@ -1,0 +1,129 @@
+#!/usr/bin/env node
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+export const CLOUDFLARE_QA_MODEL='@cf/moondream/moondream3.1-9B-A2B';
+const SAFE_EXERCISE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
+const SAFE_ACCOUNT_ID=/^[A-Fa-f0-9]{32}$/u;
+const MAX_IMAGE_BYTES=12_000_000;
+
+function exactId(value){const id=String(value??'');if(!id||id!==id.trim()||!SAFE_EXERCISE_ID.test(id))throw new Error('IBERFIT_QA_EXERCISE_ID_INVALID');return id;}
+function list(value){return (Array.isArray(value)?value:[]).map((v)=>String(v||'').trim()).filter(Boolean);}
+function arg(argv,name){const i=argv.indexOf(name);return i>=0?argv[i+1]:null;}
+function mimeFor(filePath){const ext=path.extname(filePath).toLowerCase();if(ext==='.png')return'image/png';if(ext==='.webp')return'image/webp';if(ext==='.jpg'||ext==='.jpeg')return'image/jpeg';throw new Error('IBERFIT_QA_IMAGE_TYPE_INVALID');}
+function endpoint(accountId){const account=String(accountId||'').trim();if(!SAFE_ACCOUNT_ID.test(account))throw new Error('IBERFIT_QA_CLOUDFLARE_ACCOUNT_INVALID');return `https://api.cloudflare.com/client/v4/accounts/${account}/ai/run/${CLOUDFLARE_QA_MODEL}`;}
+
+export function buildQaQuestion(exercise={}){
+  const id=exactId(exercise.id);
+  return [
+    'You are a strict senior strength-and-conditioning biomechanics reviewer. Inspect the supplied exercise photograph only.',
+    `Canonical exercise ID: ${id}. Name: ${String(exercise.name_es||exercise.name||id)}.`,
+    `Pattern: ${String(exercise.pattern||'')}. Equipment: ${String(exercise.equipment||'')}.`,
+    `Primary muscles: ${list(exercise.primary_muscles).join(', ')}. Secondary: ${list(exercise.secondary_muscles).join(', ')}.`,
+    `Instructions: ${list(exercise.instructions_es).slice(0,6).join('; ')}.`,
+    `Cues: ${list(exercise.cues).slice(0,6).join('; ')}.`,
+    'IBERFIT image rules: one adult athlete only; full relevant body and equipment visible; clean premium dark gym; no title/captions/arrows/panels/footer; no invented wordmark or letters; shirt may be plain black when exact logo reference was not supplied; small anatomy inset is allowed only if unobtrusive.',
+    'Judge actual visible biomechanics, equipment geometry/path, grip/stance, balance/support, joint plausibility, anatomy integrity, and whether the image really depicts the requested exercise. Do not approve merely because it looks attractive.',
+    'Return ONLY one JSON object, no markdown and no prose, with exactly these keys:',
+    '{"exercise_match":boolean,"equipment_match":boolean,"biomechanics":"pass|fail|uncertain","anatomy_integrity":boolean,"critical_body_visible":boolean,"clean_no_text":boolean,"branding_safe":boolean,"visual_quality":"pass|fail|uncertain","confidence":number,"issues":[string]}',
+    'confidence must be from 0 to 1. Any uncertainty about technique must be biomechanics="uncertain". Invented words/logos/letters make branding_safe=false. Visible titles/captions/arrows/panels make clean_no_text=false.',
+  ].join('\n');
+}
+
+function extractAnswer(payload){
+  const value=payload?.result?.answer??payload?.answer??payload?.result?.response??payload?.response;
+  if(typeof value!=='string'||!value.trim())throw new Error('IBERFIT_QA_ANSWER_MISSING');
+  return value.trim();
+}
+export function parseQaAnswer(answer){
+  let text=String(answer||'').trim();
+  text=text.replace(/^```(?:json)?\s*/iu,'').replace(/\s*```$/u,'').trim();
+  const first=text.indexOf('{'),last=text.lastIndexOf('}');
+  if(first<0||last<=first)throw new Error('IBERFIT_QA_JSON_INVALID');
+  let raw;try{raw=JSON.parse(text.slice(first,last+1));}catch{throw new Error('IBERFIT_QA_JSON_INVALID');}
+  const biomechanics=['pass','fail','uncertain'].includes(raw.biomechanics)?raw.biomechanics:'uncertain';
+  const visualQuality=['pass','fail','uncertain'].includes(raw.visual_quality)?raw.visual_quality:'uncertain';
+  const confidence=Number(raw.confidence);
+  return Object.freeze({
+    exercise_match:raw.exercise_match===true,
+    equipment_match:raw.equipment_match===true,
+    biomechanics,
+    anatomy_integrity:raw.anatomy_integrity===true,
+    critical_body_visible:raw.critical_body_visible===true,
+    clean_no_text:raw.clean_no_text===true,
+    branding_safe:raw.branding_safe===true,
+    visual_quality:visualQuality,
+    confidence:Number.isFinite(confidence)?Math.max(0,Math.min(1,confidence)):0,
+    issues:Object.freeze(list(raw.issues).slice(0,12)),
+  });
+}
+
+export function decideQa(report,{minimumConfidence=0.92}={}){
+  const blocking=[];
+  if(report.exercise_match!==true)blocking.push('exercise_match');
+  if(report.equipment_match!==true)blocking.push('equipment_match');
+  if(report.biomechanics!=='pass')blocking.push('biomechanics');
+  if(report.anatomy_integrity!==true)blocking.push('anatomy_integrity');
+  if(report.critical_body_visible!==true)blocking.push('critical_body_visible');
+  if(report.clean_no_text!==true)blocking.push('clean_no_text');
+  if(report.branding_safe!==true)blocking.push('branding_safe');
+  if(report.visual_quality!=='pass')blocking.push('visual_quality');
+  if(report.confidence<minimumConfidence)blocking.push('confidence');
+  return Object.freeze({
+    pass:blocking.length===0,
+    decision:blocking.length===0?'auto_qa_pass':'blocked',
+    blocking:Object.freeze(blocking),
+    biomechanicsStatus:blocking.length===0?'approved':'pending',
+    visualStatus:blocking.length===0?'approved':'pending',
+    publishable:false,
+  });
+}
+
+export async function reviewCloudflareExerciseImage({exercise,imageBytes,mime,accountId,apiToken,fetchImpl=globalThis.fetch}={}){
+  if(typeof fetchImpl!=='function')throw new Error('IBERFIT_QA_FETCH_UNAVAILABLE');
+  exactId(exercise?.id);
+  const bytes=Buffer.isBuffer(imageBytes)?imageBytes:Buffer.from(imageBytes||[]);
+  if(bytes.length<128||bytes.length>MAX_IMAGE_BYTES)throw new Error('IBERFIT_QA_IMAGE_SIZE_INVALID');
+  const imageMime=String(mime||'');if(!['image/png','image/jpeg','image/webp'].includes(imageMime))throw new Error('IBERFIT_QA_IMAGE_TYPE_INVALID');
+  const token=String(apiToken||'').trim();if(token.length<20)throw new Error('IBERFIT_QA_CLOUDFLARE_TOKEN_REQUIRED');
+  const response=await fetchImpl(endpoint(accountId),{
+    method:'POST',
+    headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},
+    body:JSON.stringify({
+      task:'query',
+      image:`data:${imageMime};base64,${bytes.toString('base64')}`,
+      question:buildQaQuestion(exercise),
+      reasoning:false,
+      temperature:0,
+      max_tokens:900,
+    }),
+    redirect:'error',
+  });
+  if(!response?.ok){let detail='';try{detail=(await response.text()).slice(0,600);}catch{}throw new Error(`IBERFIT_QA_CLOUDFLARE_HTTP_${response?.status||0}:${detail}`);}
+  const report=parseQaAnswer(extractAnswer(await response.json()));
+  return Object.freeze({report,decision:decideQa(report)});
+}
+
+function catalogRecords(raw){const records=Array.isArray(raw)?raw:raw?.exercises??raw?.data;if(!Array.isArray(records))throw new Error('IBERFIT_QA_CATALOG_INVALID');return records;}
+export async function runCli(argv=process.argv.slice(2)){
+  const catalogPath=arg(argv,'--catalog')||'baseline_m25_2/exercise-catalog-m25.json';
+  const exerciseId=exactId(arg(argv,'--exercise-id')||'bw-squat');
+  const imagePath=arg(argv,'--image');if(!imagePath)throw new Error('IBERFIT_QA_IMAGE_REQUIRED');
+  const outPath=path.resolve(arg(argv,'--out')||'recovery/exercise-media-smoke/qa-report.json');
+  const raw=JSON.parse(fs.readFileSync(path.resolve(catalogPath),'utf8'));
+  const exercise=catalogRecords(raw).find((item)=>String(item?.id||'')===exerciseId);
+  if(!exercise)throw new Error(`IBERFIT_QA_EXERCISE_NOT_FOUND:${exerciseId}`);
+  const resolved=path.resolve(imagePath),bytes=fs.readFileSync(resolved),mime=mimeFor(resolved);
+  const reviewed=await reviewCloudflareExerciseImage({exercise,imageBytes:bytes,mime,accountId:process.env.CLOUDFLARE_ACCOUNT_ID,apiToken:process.env.CLOUDFLARE_API_TOKEN});
+  fs.mkdirSync(path.dirname(outPath),{recursive:true});
+  const output={schema:'iberfit.exercise.visual-qa.v1',exercise_id:exerciseId,model:CLOUDFLARE_QA_MODEL,review:reviewed.report,decision:reviewed.decision,reviewed_at:new Date().toISOString()};
+  fs.writeFileSync(outPath,`${JSON.stringify(output,null,2)}\n`);
+  console.log(JSON.stringify({ok:true,exerciseId,decision:reviewed.decision.decision,confidence:reviewed.report.confidence,out:outPath}));
+  if(!reviewed.decision.pass)process.exitCode=2;
+  return output;
+}
+
+const invoked=process.argv[1]?pathToFileURL(path.resolve(process.argv[1])).href:'';
+if(invoked===import.meta.url){runCli().catch((error)=>{console.error(error instanceof Error?error.message:String(error));process.exitCode=1;});}
