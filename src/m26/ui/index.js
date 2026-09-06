@@ -6,3 +6,4 @@ export * from '../design/primitives.js';
 export * from '../design/role-surfaces.js';
 
 export * from './castellano.js';
+export * from './i18n-shell.js';
