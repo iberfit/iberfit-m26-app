@@ -1,4 +1,5 @@
 export const IMAGE_MODEL='@cf/black-forest-labs/flux-2-klein-4b';
+export const IMAGE_FALLBACK_MODEL='@cf/black-forest-labs/flux-2-klein-9b';
 export const QA_MODEL='@cf/moondream/moondream3.1-9B-A2B';
 
 const ALLOWED_IMAGE_TYPES=new Set(['image/jpeg','image/png','image/webp']);
@@ -33,24 +34,34 @@ function isBlobLike(value){
   return value&&typeof value==='object'&&typeof value.arrayBuffer==='function'&&typeof value.type==='string';
 }
 
+function serializeMultipart(fields,references,limit=references.length){
+  const form=new FormData();
+  for(const [field,value] of fields)form.append(field,value);
+  for(const reference of references.slice(0,limit))form.append(reference.field,reference.blob,reference.name);
+  const serialized=new Response(form);
+  const contentType=String(serialized.headers.get('content-type')||'');
+  if(!contentType.toLowerCase().startsWith('multipart/form-data; boundary='))throw new Error('MULTIPART_SERIALIZATION_INVALID');
+  if(!serialized.body)throw new Error('MULTIPART_BODY_MISSING');
+  return Object.freeze({body:serialized.body,contentType});
+}
+
 export async function normalizeImageMultipart(request){
   const contentType=String(request.headers.get('content-type')||'');
   if(!contentType.toLowerCase().startsWith('multipart/form-data'))throw new Error('MULTIPART_REQUIRED');
 
   const incoming=await request.formData();
-  const normalized=new FormData();
-
+  const fields=[];
   for(const field of SCALAR_FIELDS){
     const value=incoming.get(field);
     if(value===null)continue;
     if(typeof value!=='string')throw new Error(`SCALAR_FIELD_INVALID:${field}`);
-    normalized.append(field,value);
+    fields.push([field,value]);
   }
 
   const prompt=String(incoming.get('prompt')||'').trim();
   if(!prompt)throw new Error('PROMPT_REQUIRED');
 
-  let referenceCount=0;
+  const references=[];
   for(let index=0;index<MAX_REFERENCE_COUNT;index+=1){
     const field=`input_image_${index}`;
     const value=incoming.get(field);
@@ -61,16 +72,21 @@ export async function normalizeImageMultipart(request){
     const bytes=new Uint8Array(await value.arrayBuffer());
     if(bytes.length<32||bytes.length>MAX_REFERENCE_BYTES)throw new Error(`REFERENCE_SIZE_INVALID:${field}:${bytes.length}`);
     if(!magicMatches(bytes,mime))throw new Error(`REFERENCE_MAGIC_INVALID:${field}:${mime}`);
-    const safeBlob=new Blob([bytes],{type:mime});
-    normalized.append(field,safeBlob,`${field}.${extensionFor(mime)}`);
-    referenceCount+=1;
+    references.push(Object.freeze({field,blob:new Blob([bytes],{type:mime}),name:`${field}.${extensionFor(mime)}`}));
   }
 
-  const serialized=new Response(normalized);
-  const normalizedContentType=String(serialized.headers.get('content-type')||'');
-  if(!normalizedContentType.toLowerCase().startsWith('multipart/form-data; boundary='))throw new Error('MULTIPART_SERIALIZATION_INVALID');
-  if(!serialized.body)throw new Error('MULTIPART_BODY_MISSING');
-  return Object.freeze({body:serialized.body,contentType:normalizedContentType,referenceCount});
+  const serialized=serializeMultipart(fields,references);
+  return Object.freeze({body:serialized.body,contentType:serialized.contentType,referenceCount:references.length,fields:Object.freeze(fields),references:Object.freeze(references)});
+}
+
+function isRetryableModelInternalError(error){
+  const detail=String(error?.message||error||'');
+  return /(?:^|\D)3043(?:\D|$)/u.test(detail)||/internal server error/i.test(detail);
+}
+
+async function runImageModel(env,model,multipart){
+  const serialized=serializeMultipart(multipart.fields,multipart.references);
+  return env.AI.run(model,{multipart:{body:serialized.body,contentType:serialized.contentType}});
 }
 
 export async function handleRequest(request,env){
@@ -80,8 +96,18 @@ export async function handleRequest(request,env){
   try{
     if(url.pathname==='/generate'){
       const multipart=await normalizeImageMultipart(request);
-      const result=await env.AI.run(IMAGE_MODEL,{multipart:{body:multipart.body,contentType:multipart.contentType}});
-      return json({ok:true,model:IMAGE_MODEL,references:multipart.referenceCount,result});
+      try{
+        const result=await runImageModel(env,IMAGE_MODEL,multipart);
+        return json({ok:true,model:IMAGE_MODEL,references:multipart.referenceCount,fallback:false,result});
+      }catch(primaryError){
+        if(!isRetryableModelInternalError(primaryError))throw primaryError;
+        try{
+          const result=await runImageModel(env,IMAGE_FALLBACK_MODEL,multipart);
+          return json({ok:true,model:IMAGE_FALLBACK_MODEL,references:multipart.referenceCount,fallback:true,fallback_from:IMAGE_MODEL,result});
+        }catch(fallbackError){
+          throw new Error(`PRIMARY_${IMAGE_MODEL}:${String(primaryError?.message||primaryError)} | FALLBACK_${IMAGE_FALLBACK_MODEL}:${String(fallbackError?.message||fallbackError)}`);
+        }
+      }
     }
     if(url.pathname==='/qa'){
       const body=await request.json();
@@ -91,7 +117,7 @@ export async function handleRequest(request,env){
     if(url.pathname==='/health')return json({ok:true,ai:true});
     return json({ok:false,error:'NOT_FOUND'},404);
   }catch(error){
-    return json({ok:false,error:'AI_BINDING_FAILED',detail:String(error?.message||error).slice(0,500)},502);
+    return json({ok:false,error:'AI_BINDING_FAILED',detail:String(error?.message||error).slice(0,900)},502);
   }
 }
 
