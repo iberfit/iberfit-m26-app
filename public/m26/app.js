@@ -93,6 +93,10 @@ const SESSION_VALUE_STYLES=`
 .m28-post-session-value span{color:var(--m26-gold,#8f7028);font-size:.61rem;font-weight:800;letter-spacing:.075em;text-transform:uppercase}
 .m28-post-session-value strong{color:var(--m26-text,#17231d);font-size:.86rem;line-height:1.3}
 .m28-post-session-value small{color:var(--m26-text-muted,#6b675f);font-size:.68rem;line-height:1.42}
+.m28-set-validation{margin:.52rem 0 0;color:var(--m26-text-muted,#6b675f);font-size:.68rem;line-height:1.4}
+.m28-set-validation[data-valid="false"]{color:var(--m26-danger,#8f4035);font-weight:700}
+[data-session-live-entry] [data-set-field][aria-invalid="true"]{outline:2px solid rgba(143,64,53,.38);outline-offset:1px}
+[data-session-action="complete-set"][aria-disabled="true"]{cursor:not-allowed;opacity:.58}
 @media (max-width:560px){.m28-post-session-value{grid-template-columns:1fr}}
 `;
 
@@ -150,6 +154,68 @@ function readinessLabel(level){
     reduced:'Contexto de hoy: revisar antes de empezar',
     simplified:'Contexto de hoy: revisar antes de empezar',
   })[level]||'Contexto de hoy: revisar antes de empezar';
+}
+
+function numericFieldValue(value){
+  const raw=String(value??'').trim();
+  if(!raw)return null;
+  const number=Number(raw);
+  return Number.isFinite(number)?number:NaN;
+}
+
+export function validateLiveSetInput(values={}){
+  const reps=numericFieldValue(values.reps);
+  const seconds=numericFieldValue(values.seconds);
+  const rpe=numericFieldValue(values.rpe);
+  const rir=numericFieldValue(values.rir);
+  const invalidFields=[];
+
+  if(reps===null&&seconds===null){
+    invalidFields.push('reps','seconds');
+    return Object.freeze({
+      valid:false,
+      invalidFields:Object.freeze(invalidFields),
+      message:'Indica repeticiones o tiempo realizado antes de completar la serie.',
+    });
+  }
+  if(reps!==null&&(!Number.isFinite(reps)||reps<0||reps>10000)){
+    invalidFields.push('reps');
+    return Object.freeze({
+      valid:false,
+      invalidFields:Object.freeze(invalidFields),
+      message:'Revisa las repeticiones: deben estar entre 0 y 10.000.',
+    });
+  }
+  if(seconds!==null&&(!Number.isFinite(seconds)||seconds<0||seconds>86400)){
+    invalidFields.push('seconds');
+    return Object.freeze({
+      valid:false,
+      invalidFields:Object.freeze(invalidFields),
+      message:'Revisa el tiempo: debe estar entre 0 y 86.400 segundos.',
+    });
+  }
+  if(rpe===null||!Number.isFinite(rpe)||rpe<1||rpe>10){
+    invalidFields.push('rpe');
+    return Object.freeze({
+      valid:false,
+      invalidFields:Object.freeze(invalidFields),
+      message:'Indica un RPE válido entre 1 y 10 para completar la serie.',
+    });
+  }
+  if(rir!==null&&(!Number.isFinite(rir)||rir<0||rir>10)){
+    invalidFields.push('rir');
+    return Object.freeze({
+      valid:false,
+      invalidFields:Object.freeze(invalidFields),
+      message:'Revisa el RIR: debe estar entre 0 y 10.',
+    });
+  }
+
+  return Object.freeze({
+    valid:true,
+    invalidFields:Object.freeze([]),
+    message:'Serie lista para completar y guardar.',
+  });
 }
 
 async function installSessionValueLoop({root,getState}={}){
@@ -220,6 +286,56 @@ async function installSessionValueLoop({root,getState}={}){
       if(required)painNotes.setAttribute('required','');
       else painNotes.removeAttribute('required');
     }
+    return true;
+  }
+
+  function syncLiveSetRequirements(){
+    const panel=root.querySelector?.('[data-session-live-state="active"] [data-session-live-entry]');
+    if(!panel)return false;
+    const button=panel.querySelector?.('[data-session-action="complete-set"]');
+    if(!button)return false;
+
+    const fields={};
+    for(const node of panel.querySelectorAll?.('[data-set-field]')||[]){
+      const name=String(node.getAttribute?.('data-set-field')||'').trim();
+      if(name)fields[name]=node;
+    }
+    const result=validateLiveSetInput({
+      reps:fields.reps?.value,
+      seconds:fields.seconds?.value,
+      rpe:fields.rpe?.value,
+      rir:fields.rir?.value,
+    });
+
+    let message=panel.querySelector?.('[data-m28-set-validation]');
+    if(!message){
+      message=createTextNode(root.ownerDocument,'p','m28-set-validation','');
+      message.id='m28-live-set-validation';
+      message.setAttribute('data-m28-set-validation','true');
+      message.setAttribute('role','status');
+      message.setAttribute('aria-live','polite');
+      button.insertAdjacentElement?.('beforebegin',message);
+    }
+    message.textContent=result.message;
+    message.setAttribute('data-valid',result.valid?'true':'false');
+
+    const invalid=new Set(result.invalidFields);
+    for(const [name,node] of Object.entries(fields)){
+      const isInvalid=invalid.has(name);
+      if(isInvalid)node.setAttribute('aria-invalid','true');
+      else node.removeAttribute('aria-invalid');
+      if(['reps','seconds','rpe','rir'].includes(name)){
+        const existing=String(node.getAttribute('aria-describedby')||'').split(/\s+/u).filter(Boolean);
+        const described=new Set(existing);
+        described.add(message.id);
+        node.setAttribute('aria-describedby',[...described].join(' '));
+      }
+    }
+
+    button.disabled=!result.valid;
+    button.setAttribute('aria-disabled',result.valid?'false':'true');
+    if(result.valid)button.removeAttribute('title');
+    else button.setAttribute('title',result.message);
     return true;
   }
 
@@ -303,12 +419,13 @@ async function installSessionValueLoop({root,getState}={}){
   function refresh(){
     try{
       const state=getState()||{};
-      const id=clientId(state);
-      if(!id)return false;
-      const a=enhanceTrainingToday(state,id);
       const b=syncFeedbackRequirements();
+      const d=syncLiveSetRequirements();
+      const id=clientId(state);
+      if(!id)return Boolean(b||d);
+      const a=enhanceTrainingToday(state,id);
       const c=enhanceCompleted(state,id);
-      return Boolean(a||b||c);
+      return Boolean(a||b||c||d);
     }catch(error){
       try{console.error('[IBERFIT:session-value-loop] M26_SESSION_VALUE_LOOP_REFRESH_FAILED');}catch{}
       return false;
@@ -319,9 +436,13 @@ async function installSessionValueLoop({root,getState}={}){
   function onChange(event){
     if(event.target?.matches?.('[data-session-feedback-pain]'))syncFeedbackRequirements();
   }
+  function onInput(event){
+    if(event.target?.matches?.('[data-session-live-entry] [data-set-field]'))syncLiveSetRequirements();
+  }
 
   root.addEventListener('m26:shell-rendered',onShellRendered);
   root.addEventListener('change',onChange);
+  root.addEventListener('input',onInput);
   refresh();
 
   return Object.freeze({
@@ -329,6 +450,7 @@ async function installSessionValueLoop({root,getState}={}){
     destroy(){
       root.removeEventListener('m26:shell-rendered',onShellRendered);
       root.removeEventListener('change',onChange);
+      root.removeEventListener('input',onInput);
     },
   });
 }
