@@ -131,5 +131,9 @@ export function augmentRc39ShellViewModel(vm,state){
   if(!vm||vm.mode!=='authenticated')return vm;
   const authorizedRoles=normalizeAuthorizedRoles(state?.identity||vm.identity);
   const identity=Object.freeze({...vm.identity,email:state?.identity?.email||null,authorizedRoles});
-  return Object.freeze({...vm,identity,canSwitchApplication:canSwitchApplication({...identity,authorizedRoles}),needsRoleChoice:requiresRoleChoice({...state?.identity,...identity,authorizedRoles})});
+  const snapshotNow=state?.hydration?.serverTime||new Date();
+  const coachLaunchJourney=identity.role==='coach'
+    ?deriveCoachSelfLaunchJourney({state,identity,now:snapshotNow})
+    :null;
+  return Object.freeze({...vm,identity,coachLaunchJourney,canSwitchApplication:canSwitchApplication({...identity,authorizedRoles}),needsRoleChoice:requiresRoleChoice({...state?.identity,...identity,authorizedRoles})});
 }
