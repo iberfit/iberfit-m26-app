@@ -1,6 +1,7 @@
 export * from './progress-engine.js';
 export {buildClientTimeline360,buildProgressTimeline} from './client-timeline-360.js';
 export * from './progress-hub.js';
+export * from './retention-health.js';
 export * from './progress-continuity.js';
 export * from './exercise-performance-engine.js';
 export * from './challenge-metrics.js';

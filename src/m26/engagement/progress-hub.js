@@ -5,7 +5,7 @@ import {
   listExercisePerformanceMemories,
 } from './exercise-performance-engine.js';
 
-function finite(value){const number=Number(value);return Number.isFinite(number)?number:null;}
+function finite(value){if(value===null||value===undefined||value==='')return null;const number=Number(value);return Number.isFinite(number)?number:null;}
 function percent(value){const number=finite(value);return number===null?null:Math.round(number*100);}
 function labelForQuality(value){
   const quality=String(value||'').toLowerCase();
