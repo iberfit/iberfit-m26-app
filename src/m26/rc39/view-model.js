@@ -5,7 +5,8 @@ import {
   appointmentForSession,
 } from './session-policy.js';
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from './multi-role.js';
-import {deriveCoachSelfLaunchJourney} from '../experience/coach-launch-self.js';
+import {deriveCoachLaunchJourney} from '../admin/view-model.js';
+import {computeProgressSummary} from '../engagement/progress-engine.js';
 
 const field=(record,...keys)=>{
   const body=record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};
@@ -23,6 +24,76 @@ const dateMs=(value)=>{
   const time=value?new Date(value).getTime():NaN;
   return Number.isFinite(time)?time:null;
 };
+const list=(value)=>Array.isArray(value)?value:[];
+const recordId=(record)=>String(field(record,'id','entityId','entity_id')||'').trim();
+const recordClientId=(record)=>String(field(record,'clientId','client_id')||recordId(record)).trim();
+const statusOf=(record)=>String(field(record,'status','estado')||'').trim().toLowerCase();
+const publishedAtOf=(record)=>field(record,'publishedAt','published_at');
+const isPublishedSession=(record)=>{
+  const status=statusOf(record);
+  return status==='publicado'||status==='published'||Boolean(publishedAtOf(record));
+};
+function hasConfirmedCompletedSession(state,clients,now){
+  for(const client of clients){
+    const id=recordClientId(client);
+    if(!id)continue;
+    const summary=computeProgressSummary(state,id,{now});
+    if(Number(summary?.completedSessions||0)>0)return true;
+  }
+  return false;
+}
+function nextCoachAction(milestones){
+  const byId=new Map(milestones.map((item)=>[item.id,item]));
+  if(!byId.get('client')?.complete)return Object.freeze({area:'clientes',labelKey:'clients'});
+  if(!byId.get('planning')?.complete)return Object.freeze({area:'planificacion',labelKey:'planning'});
+  if(!byId.get('session')?.complete)return Object.freeze({area:'agenda',labelKey:'session'});
+  return null;
+}
+export function deriveCoachSelfLaunchJourney({state,identity=null,now=new Date()}={}){
+  const role=String(identity?.role||state?.identity?.role||'').trim().toLowerCase();
+  if(role!=='coach')return null;
+  const coachId=String(identity?.id||state?.identity?.id||'').trim();
+  if(!coachId)return null;
+  const clients=list(state?.collections?.clients);
+  const sessions=list(state?.collections?.sessions);
+  const parsedNow=now instanceof Date&&!Number.isNaN(now.getTime())?now:new Date(now);
+  const effectiveNow=Number.isNaN(parsedNow.getTime())?new Date():parsedNow;
+  const authenticatedAt=state?.hydration?.serverTime||effectiveNow.toISOString();
+  const user=Object.freeze({
+    id:coachId,
+    userId:coachId,
+    primaryRole:'coach',
+    roles:Object.freeze(['coach']),
+    status:'',
+    lastAccessAt:authenticatedAt,
+  });
+  const assignments=Object.freeze(clients.map((client)=>Object.freeze({
+    coachUserId:coachId,
+    clientId:recordClientId(client),
+    status:'active',
+  })).filter((item)=>item.clientId));
+  const planningEvidence=sessions
+    .filter(isPublishedSession)
+    .map((session)=>Object.freeze({sessionId:recordId(session),status:''}))
+    .filter((item)=>item.sessionId);
+  const completed=hasConfirmedCompletedSession(state,clients,effectiveNow);
+  const evidenceSessions=Object.freeze([
+    ...planningEvidence,
+    ...(completed?[Object.freeze({status:'completed'})]:[]),
+  ]);
+  const base=deriveCoachLaunchJourney({user,coach:null,assignments,sessions:evidenceSessions});
+  return Object.freeze({
+    ...base,
+    source:'authenticated-coach-bootstrap',
+    coachId,
+    profileVerified:false,
+    accountStatusVerified:false,
+    clientEvidenceCount:assignments.length,
+    publishedPlanningEvidenceCount:planningEvidence.length,
+    completedSessionEvidence:completed,
+    nextCoachAction:nextCoachAction(base.milestones),
+  });
+}
 const compactAppointment=(record,now)=>Object.freeze({
   raw:clone(record),
   id:appointmentId(record),
