@@ -157,9 +157,11 @@ function shellStyles(){
 export function renderM26AccessFrame(vm) {
   applyIberfitDocumentLanguage();
   const isError=vm.hydration?.status==='error';
-  const state=isError?tx('shell.access.error','No fue posible confirmar el acceso.'):tx('shell.access.confirming','Confirmando identidad y permisos…');
-  const uxState=isError?'error':'loading';
-  return `<main class="m26-access-frame" data-ux-state="${uxState}" aria-busy="${isError?'false':'true'}"><section><p class="m26-eyebrow">IBERFIT</p><h1>${escapeHtml(tx('shell.access.title','Entrenamiento personal con criterio'))}</h1><p>${escapeHtml(tx('shell.access.subtitle','Diagnóstico, planificación, control y seguimiento.'))}</p><div class="m26-access-status" role="${isError?'alert':'status'}" aria-live="${isError?'assertive':'polite'}" aria-atomic="true">${escapeHtml(state)}</div></section></main>`;
+  const state=isError?'error':'loading';
+  const statusCopy=isError
+    ? tx('shell.access.error','No se pudo confirmar la identidad y los permisos.')
+    : tx('shell.access.confirming','Confirmando identidad y permisos…');
+  return `<main class="m26-access-frame" data-ux-state="${state}" aria-busy="${isError?'false':'true'}"><section><p class="m26-eyebrow">IBERFIT</p><h1>${escapeHtml(tx('shell.access.title','Entrenamiento personal con criterio'))}</h1><p>${escapeHtml(tx('shell.access.subtitle','Diagnóstico, planificación, control y seguimiento.'))}</p><div class="m26-access-status" role="${isError?'alert':'status'}" aria-live="${isError?'assertive':'polite'}" aria-atomic="true">${escapeHtml(statusCopy)}</div></section></main>`;
 }
 
 function renderM26ShellBase(vm, routeMarkup = '') {
