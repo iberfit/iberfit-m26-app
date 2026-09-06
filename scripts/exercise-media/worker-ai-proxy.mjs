@@ -6,7 +6,7 @@ const ALLOWED_IMAGE_TYPES=new Set(['image/jpeg','image/png','image/webp']);
 const ALLOWED_IMAGE_MODELS=new Set([IMAGE_MODEL,IMAGE_FALLBACK_MODEL]);
 const MAX_REFERENCE_BYTES=2_000_000;
 const MAX_REFERENCE_COUNT=4;
-const SCALAR_FIELDS=['prompt','width','height','seed'];
+const SCALAR_FIELDS=['prompt','width','height','seed','guidance'];
 
 function authorized(request,env){
   const expected=String(env.SMOKE_TOKEN||'');
@@ -64,6 +64,11 @@ export async function normalizeImageMultipart(request){
 
   const prompt=String(incoming.get('prompt')||'').trim();
   if(!prompt)throw new Error('PROMPT_REQUIRED');
+  const guidanceRaw=incoming.get('guidance');
+  if(guidanceRaw!==null){
+    const guidance=Number(guidanceRaw);
+    if(!Number.isFinite(guidance)||guidance<1||guidance>10)throw new Error(`GUIDANCE_INVALID:${guidanceRaw}`);
+  }
 
   const references=[];
   for(let index=0;index<MAX_REFERENCE_COUNT;index+=1){
@@ -103,25 +108,13 @@ async function diagnosticProbe(env,model,fields,references){
 }
 
 async function diagnoseInternalError(env,multipart,primaryModel,fallbackModel){
-  const diagnosticFields=[
-    ['prompt','A neutral premium dark gym interior, realistic fitness photograph, no text.'],
-    ['width','256'],
-    ['height','320'],
-    ['seed','1'],
-  ];
+  const diagnosticFields=[['prompt','A neutral premium dark gym interior, realistic fitness photograph, no text.'],['width','256'],['height','320'],['seed','1']];
   const report={};
   report.primary_text=await diagnosticProbe(env,primaryModel,diagnosticFields,[]);
-  if(report.primary_text==='pass'&&multipart.references[0]){
-    report.primary_ref0=await diagnosticProbe(env,primaryModel,diagnosticFields,[multipart.references[0]]);
-  }
-  if(report.primary_ref0==='pass'&&multipart.references.length>=2){
-    report.primary_two_refs=await diagnosticProbe(env,primaryModel,diagnosticFields,multipart.references.slice(0,2));
-  }
-  if(report.primary_text!=='pass'){
-    report.fallback_text=await diagnosticProbe(env,fallbackModel,diagnosticFields,[]);
-  }else if(report.primary_two_refs&&report.primary_two_refs!=='pass'){
-    report.fallback_two_refs=await diagnosticProbe(env,fallbackModel,diagnosticFields,multipart.references.slice(0,2));
-  }
+  if(report.primary_text==='pass'&&multipart.references[0])report.primary_ref0=await diagnosticProbe(env,primaryModel,diagnosticFields,[multipart.references[0]]);
+  if(report.primary_ref0==='pass'&&multipart.references.length>=2)report.primary_two_refs=await diagnosticProbe(env,primaryModel,diagnosticFields,multipart.references.slice(0,2));
+  if(report.primary_text!=='pass')report.fallback_text=await diagnosticProbe(env,fallbackModel,diagnosticFields,[]);
+  else if(report.primary_two_refs&&report.primary_two_refs!=='pass')report.fallback_two_refs=await diagnosticProbe(env,fallbackModel,diagnosticFields,multipart.references.slice(0,2));
   return report;
 }
 
