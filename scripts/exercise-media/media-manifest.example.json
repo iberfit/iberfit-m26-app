@@ -1,0 +1,63 @@
+{
+  "schema": "iberfit.exercise.media.autowire-input.v2",
+  "items": [
+    {
+      "exercise_id": "exercise-id-from-canonical-catalog",
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "revision": 1,
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "exercise-id-from-canonical-catalog/movement.webp",
+          "mime": "image/webp",
+          "width": 1122,
+          "height": 1402,
+          "sha256": null
+        },
+        "thumbnail": {
+          "kind": "thumbnail",
+          "path": "exercise-id-from-canonical-catalog/thumbnail.webp",
+          "mime": "image/webp",
+          "width": 561,
+          "height": 701,
+          "sha256": null
+        },
+        "start": {
+          "kind": "start",
+          "path": "exercise-id-from-canonical-catalog/start.webp",
+          "mime": "image/webp",
+          "width": 1122,
+          "height": 1402,
+          "sha256": null
+        },
+        "end": {
+          "kind": "end",
+          "path": "exercise-id-from-canonical-catalog/end.webp",
+          "mime": "image/webp",
+          "width": 1122,
+          "height": 1402,
+          "sha256": null
+        },
+        "muscles": {
+          "primary": [],
+          "secondary": []
+        },
+        "generatedAt": "2026-09-05T20:00:00.000Z",
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "provenance": {
+          "rightsBasis": "iberfit_owned",
+          "sourceRef": "IBERFIT_GENERATED",
+          "licenseLabel": "IBERFIT owned visual"
+        }
+      }
+    }
+  ]
+}
