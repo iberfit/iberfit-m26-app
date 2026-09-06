@@ -81,6 +81,15 @@ function cloudflareEndpoint(accountId,model=CLOUDFLARE_IMAGE_MODEL){
   return `https://api.cloudflare.com/client/v4/accounts/${account}/ai/run/${model}`;
 }
 
+function safeProxyEndpoint(value,pathName){
+  const raw=String(value||'').trim();
+  if(!raw)return null;
+  let url;try{url=new URL(raw);}catch{throw new Error('IBERFIT_GENERATOR_PROXY_URL_INVALID');}
+  if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash)throw new Error('IBERFIT_GENERATOR_PROXY_URL_INVALID');
+  url.pathname=url.pathname.replace(/\/+$/u,'')+pathName;
+  return url.href;
+}
+
 function imageFromCloudflarePayload(payload){
   const base64=payload?.result?.image??payload?.image??payload?.result;
   if(typeof base64!=='string'||base64.length<32)throw new Error('IBERFIT_GENERATOR_IMAGE_MISSING');
@@ -101,6 +110,8 @@ export async function generateCloudflareExerciseImage({
   exercise,
   accountId,
   apiToken,
+  proxyUrl=null,
+  proxyToken=null,
   fetchImpl=globalThis.fetch,
   athleteReference=null,
   logoReference=null,
@@ -109,21 +120,23 @@ export async function generateCloudflareExerciseImage({
   seed=deterministicSeed(exercise?.id),
 }={}){
   if(typeof fetchImpl!=='function')throw new Error('IBERFIT_GENERATOR_FETCH_UNAVAILABLE');
-  const token=String(apiToken||'').trim();
-  if(token.length<20)throw new Error('IBERFIT_GENERATOR_CLOUDFLARE_TOKEN_REQUIRED');
+  const proxy=safeProxyEndpoint(proxyUrl,'/generate');
+  const token=String(proxy?proxyToken:apiToken||'').trim();
+  if(token.length<20)throw new Error(proxy?'IBERFIT_GENERATOR_PROXY_TOKEN_REQUIRED':'IBERFIT_GENERATOR_CLOUDFLARE_TOKEN_REQUIRED');
   const id=exactId(exercise?.id);
   const w=Number(width),h=Number(height);
   if(!Number.isInteger(w)||!Number.isInteger(h)||w<256||h<256||w>1920||h>1920||Math.abs(w/h-0.8)>0.001)throw new Error('IBERFIT_GENERATOR_DIMENSIONS_INVALID');
 
+  const prompt=buildCloudflareImagePrompt(exercise,{hasAthleteReference:Boolean(athleteReference),hasLogoReference:Boolean(logoReference)});
   const form=new FormData();
-  form.append('prompt',buildCloudflareImagePrompt(exercise,{hasAthleteReference:Boolean(athleteReference),hasLogoReference:Boolean(logoReference)}));
+  form.append('prompt',prompt);
   form.append('width',String(w));
   form.append('height',String(h));
   form.append('seed',String(seed));
   if(athleteReference)form.append('input_image_0',new Blob([athleteReference.bytes],{type:athleteReference.mime}),athleteReference.name||'athlete-reference');
   if(logoReference)form.append('input_image_1',new Blob([logoReference.bytes],{type:logoReference.mime}),logoReference.name||'iberfit-isotype-reference');
 
-  const response=await fetchImpl(cloudflareEndpoint(accountId),{
+  const response=await fetchImpl(proxy||cloudflareEndpoint(accountId),{
     method:'POST',
     headers:{authorization:`Bearer ${token}`},
     body:form,
@@ -139,7 +152,7 @@ export async function generateCloudflareExerciseImage({
   else bytes=imageFromCloudflarePayload(await response.json());
   const mime=detectMime(bytes);
   if(!mime.startsWith('image/'))throw new Error('IBERFIT_GENERATOR_IMAGE_TYPE_INVALID');
-  return Object.freeze({exerciseId:id,model:CLOUDFLARE_IMAGE_MODEL,width:w,height:h,seed,mime,bytes,prompt:buildCloudflareImagePrompt(exercise,{hasAthleteReference:Boolean(athleteReference),hasLogoReference:Boolean(logoReference)})});
+  return Object.freeze({exerciseId:id,model:CLOUDFLARE_IMAGE_MODEL,width:w,height:h,seed,mime,bytes,prompt,transport:proxy?'workers_ai_binding':'rest_api'});
 }
 
 function catalogRecords(raw){
@@ -162,6 +175,8 @@ export async function runCli(argv=process.argv.slice(2)){
     exercise,
     accountId:process.env.CLOUDFLARE_ACCOUNT_ID,
     apiToken:process.env.CLOUDFLARE_API_TOKEN,
+    proxyUrl:process.env.IBERFIT_AI_PROXY_URL,
+    proxyToken:process.env.IBERFIT_AI_PROXY_TOKEN,
     athleteReference:readReference(athletePath),
     logoReference:readReference(logoPath),
   });
@@ -174,6 +189,7 @@ export async function runCli(argv=process.argv.slice(2)){
     exercise_id:exerciseId,
     name_es:exercise.name_es||exercise.name||exerciseId,
     model:result.model,
+    transport:result.transport,
     width:result.width,height:result.height,seed:result.seed,mime:result.mime,
     image:path.basename(imagePath),
     references:{athlete:Boolean(athletePath),official_isotype:Boolean(logoPath)},
@@ -183,7 +199,7 @@ export async function runCli(argv=process.argv.slice(2)){
     prompt_sha256:crypto.createHash('sha256').update(result.prompt).digest('hex'),
   };
   fs.writeFileSync(path.join(outDir,`${exerciseId}-candidate.json`),`${JSON.stringify(metadata,null,2)}\n`);
-  console.log(JSON.stringify({ok:true,exerciseId,image:imagePath,model:result.model,seed:result.seed}));
+  console.log(JSON.stringify({ok:true,exerciseId,image:imagePath,model:result.model,seed:result.seed,transport:result.transport}));
   return {result,metadata,imagePath};
 }
 
