@@ -38,7 +38,7 @@ env:
   ATHLETE_REFERENCE: scripts/exercise-media/reference/athlete-approved-v1.jpg
   ISOTYPE_REFERENCE: scripts/exercise-media/reference/iberfit-isotype-official-v1.png
   WRANGLER_CONFIG: scripts/exercise-media/wrangler.ai-smoke.toml
-  PAGES_AI_PROJECT: iberfit-exercise-ai-smoke
+  PAGES_AI_PROJECT: iberfit-exercise-ai-${{ github.run_id }}-${{ github.run_attempt }}
   PAGES_AI_DIR: recovery/exercise-media-pages-proxy
 
 jobs:
@@ -142,26 +142,57 @@ jobs:
           mkdir -p "$PAGES_AI_DIR"
           cp scripts/exercise-media/worker-ai-proxy.mjs "$PAGES_AI_DIR/_worker.js"
           cp "$WRANGLER_CONFIG" wrangler.toml
+          sed -i "s/^name = .*/name = \"$PAGES_AI_PROJECT\"/" wrangler.toml
           printf '%s\n' 'IBERFIT exercise media AI smoke' > "$PAGES_AI_DIR/index.html"
           smoke_token="$(openssl rand -hex 32)"
           echo "::add-mask::$smoke_token"
 
-          npx --yes wrangler@4 pages project delete "$PAGES_AI_PROJECT" --yes >/dev/null 2>&1 || true
           npx --yes wrangler@4 pages project create "$PAGES_AI_PROJECT" \
             --production-branch smoke \
             --compatibility-date 2026-09-05 2>&1 | tee recovery/exercise-media-pages-create.log
-          printf '%s' "$smoke_token" | npx --yes wrangler@4 pages secret put SMOKE_TOKEN \
-            --project-name "$PAGES_AI_PROJECT" >/dev/null
-          npx --yes wrangler@4 pages deploy "$PAGES_AI_DIR" \
-            --project-name "$PAGES_AI_PROJECT" \
-            --branch smoke \
-            --commit-dirty=true 2>&1 | tee recovery/exercise-media-pages-deploy.log
+
+          : > recovery/exercise-media-pages-secret.log
+          secret_ready=0
+          for attempt in $(seq 1 12); do
+            echo "Pages secret propagation attempt $attempt/12" >> recovery/exercise-media-pages-secret.log
+            if printf '%s' "$smoke_token" | npx --yes wrangler@4 pages secret put SMOKE_TOKEN \
+              --project-name "$PAGES_AI_PROJECT" >> recovery/exercise-media-pages-secret.log 2>&1; then
+              secret_ready=1
+              break
+            fi
+            sleep 3
+          done
+          if [[ "$secret_ready" != '1' ]]; then
+            cat recovery/exercise-media-pages-secret.log >&2
+            echo 'El proyecto Pages no propagó a tiempo para configurar SMOKE_TOKEN.' >&2
+            exit 1
+          fi
+
+          : > recovery/exercise-media-pages-deploy.log
+          deploy_ready=0
+          for attempt in $(seq 1 12); do
+            echo "Pages deploy propagation attempt $attempt/12" >> recovery/exercise-media-pages-deploy.log
+            if npx --yes wrangler@4 pages deploy "$PAGES_AI_DIR" \
+              --project-name "$PAGES_AI_PROJECT" \
+              --branch smoke \
+              --commit-dirty=true >> recovery/exercise-media-pages-deploy.log 2>&1; then
+              deploy_ready=1
+              break
+            fi
+            sleep 3
+          done
+          cat recovery/exercise-media-pages-deploy.log
+          if [[ "$deploy_ready" != '1' ]]; then
+            echo 'El proyecto Pages no propagó a tiempo para desplegar el proxy AI.' >&2
+            exit 1
+          fi
+
           proxy_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' recovery/exercise-media-pages-deploy.log | tail -n 1 || true)"
           if [[ -z "$proxy_url" ]]; then
             echo 'No se pudo resolver la URL pages.dev del proxy AI aislado.' >&2
             exit 1
           fi
-          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 2 -X POST \
+          curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 2 -X POST \
             -H "Authorization: Bearer $smoke_token" \
             "$proxy_url/health" > recovery/exercise-media-proxy-health.json
           node -e "const x=require('./recovery/exercise-media-proxy-health.json');if(x.ok!==true||x.ai!==true)process.exit(1)"
@@ -242,6 +273,7 @@ jobs:
             recovery/exercise-media-generate.log
             recovery/exercise-media-qa.log
             recovery/exercise-media-pages-create.log
+            recovery/exercise-media-pages-secret.log
             recovery/exercise-media-pages-deploy.log
             recovery/exercise-media-proxy-health.json
           if-no-files-found: warn
