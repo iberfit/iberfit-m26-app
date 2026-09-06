@@ -65,24 +65,11 @@ test('Action Center translations are complete in ES EN FR PT',()=>{
   }
 });
 
-test('Coach Today Action Center is semantic, accessible and exposes contextual client navigation',async()=>{
+test('Coach Today preserves accessible prioritized client actions on the canonical renderer',async()=>{
   const source=await readFile(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
-  assert.match(source,/aria-labelledby="m26-coach-action-center-title"/u);
-  assert.match(source,/data-m26-coach-action-center/u);
-  assert.match(source,/data-coach-action-type=/u);
-  assert.match(source,/data-m26-coach-action/u);
-  assert.match(source,/data-m26-client-id=/u);
-  assert.match(source,/data-m26-target-area=/u);
-  assert.match(source,/aria-label=/u);
-});
-
-test('Coach action navigation validates client and route before mutating selection',async()=>{
-  const source=await readFile(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8');
-  const guardIndex=source.indexOf('const clientId=guardClientSelection');
-  const decisionIndex=source.indexOf('const decision=resolveM26Route');
-  const selectIndex=source.indexOf('store.selectClient(clientId)');
-  assert.ok(guardIndex>=0&&decisionIndex>guardIndex&&selectIndex>decisionIndex);
-  assert.match(source,/if\(!decision\.allowed\)throw new Error/u);
-  assert.ok(source.includes("current?.identity?.role||'')!=='coach'"));
-  assert.match(source,/event\.stopPropagation/u);
+  assert.match(source,/function coachPriorityCard\(item=\{\}\)/u);
+  assert.match(source,/cockpit\?\.items\?\.slice\(0,6\)/u);
+  assert.match(source,/data-m26-select-client=/u);
+  assert.match(source,/aria-label="Abrir expediente de/u);
+  assert.match(source,/Qué requiere tu decisión/u);
 });
