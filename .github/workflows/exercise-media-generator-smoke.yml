@@ -96,7 +96,9 @@ jobs:
           ISOTYPE_NORMALIZED="$normalized_isotype" \
           python3 - <<'PY'
           import os
-          from PIL import Image, ImageOps
+          from PIL import Image, ImageOps, ImageFile
+
+          ImageFile.LOAD_TRUNCATED_IMAGES = True
 
           athlete_source = os.environ['ATHLETE_SOURCE']
           athlete_target = os.environ['ATHLETE_NORMALIZED']
