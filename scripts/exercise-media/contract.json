@@ -1,0 +1,5 @@
+{
+  "schema": "iberfit.exercise.media.v1",
+  "required": ["exercise_id", "slug", "composite_url", "thumbnail_url", "status"],
+  "status": ["pending", "generated", "qa_pass", "ready", "rejected"]
+}
