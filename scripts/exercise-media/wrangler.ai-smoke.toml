@@ -1,5 +1,5 @@
 name = "iberfit-exercise-ai-smoke"
-pages_build_output_dir = "../../recovery/exercise-media-pages-proxy"
+pages_build_output_dir = "recovery/exercise-media-pages-proxy"
 compatibility_date = "2026-09-05"
 
 [ai]
