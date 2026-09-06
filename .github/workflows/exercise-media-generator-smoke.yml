@@ -32,7 +32,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  CLOUDFLARE_ACCOUNT_ID: 1ec75e231928ad29a7606946dd5cfbfc
+  CLOUDFLARE_ACCOUNT_ID: 5b03d387427d367674b9d05b8bdf7c84
   EXERCISE_ID: ${{ inputs.exercise_id || 'bw-squat' }}
 
 jobs:
