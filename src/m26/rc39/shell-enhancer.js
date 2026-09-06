@@ -1,4 +1,5 @@
 import {roleApplicationLabel} from './multi-role.js';
+import {enhanceCoachLaunchSelfMarkup} from './route-render.js';
 
 const escape=(value)=>String(value??'')
   .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
@@ -13,6 +14,9 @@ function roleButtons(vm){
 export function enhanceRc39ShellMarkup(markup,vm){
   if(vm?.mode!=='authenticated')return markup;
   let out=String(markup||'');
+  if(vm.identity?.role==='coach'&&vm.activeArea==='hoy'&&vm.coachLaunchJourney){
+    out=enhanceCoachLaunchSelfMarkup(out,vm);
+  }
   const switcher=vm.canSwitchApplication?`<details class="m26-role-switcher"><summary>${escape(roleApplicationLabel(vm.identity.role))}</summary><div class="m26-role-switcher-menu" role="menu" aria-label="Cambiar aplicación">${roleButtons(vm)}</div></details>`:'';
   if(switcher){
     out=out.replace(

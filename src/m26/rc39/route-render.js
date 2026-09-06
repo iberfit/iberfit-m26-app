@@ -1,5 +1,7 @@
 import {appointmentCalendarEvent,googleCalendarUrl} from './calendar.js';
 import {clientModalityLabel,normalizeClientModality,resolveSessionExperience} from '../domain/modality.js';
+import {getIberfitLanguage} from '../ui/i18n.js';
+import {coachLaunchSelfCopy} from './view-model.js';
 
 const escape=(value)=>String(value??'')
   .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
@@ -110,6 +112,37 @@ const sessionCard=(item,role,contractModality=null)=>{
     ${role==='client'&&item.confirmation?.canRequestChange&&item.changeRequestAvailable?`<form class="m26-rc39-change-form" data-rc39-change-form="${escape(item.appointmentId)}" hidden><label>Motivo o alternativa horaria<textarea name="reason" maxlength="500" required></textarea></label><div><button type="submit" class="m26-primary-action">Enviar solicitud</button><button type="button" data-rc39-action="close-change-request">Cancelar</button></div></form>`:''}
   </article>`;
 };
+function renderCoachLaunchSelf(vm){
+  const journey=vm?.rc39?.coachLaunchJourney||vm?.coachLaunchJourney;
+  if(!journey)return '';
+  const copy=coachLaunchSelfCopy(getIberfitLanguage());
+  const milestoneRows=(journey.milestones||[]).map((item)=>{
+    const text=copy.milestones?.[item.id]||{label:item.label,done:item.evidence,pending:item.evidence};
+    const tone=item.complete?'success':item.id==='profile'?'warning':'neutral';
+    return `<article class="m26-list-card" data-coach-launch-milestone="${escape(item.id)}" data-coach-launch-complete="${item.complete?'true':'false'}"><div><p class="m26-eyebrow">${escape(text.label)}</p><h3>${escape(item.complete?text.done:text.pending)}</h3></div>${statusBadge(item.complete?'✓':'—',tone)}</article>`;
+  }).join('');
+  const status=journey.ready?copy.ready:copy.pending;
+  const action=journey.nextCoachAction;
+  const actionLabel=action?copy.actions?.[action.labelKey]||action.labelKey:null;
+  const actionMarkup=action&&action.area
+    ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-m26-area="${escape(action.area)}">${escape(actionLabel)}</button></div>`
+    : `<p>${escape(copy.noAction)}</p>`;
+  return `<section class="m26-panel m26-panel-soft" data-coach-launch-self="${escape(journey.stage||'pending')}" aria-labelledby="m26-coach-launch-title">
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">${escape(copy.eyebrow)}</p><h2 id="m26-coach-launch-title">${escape(copy.title)}</h2><p>${escape(copy.intro)}</p></div>${statusBadge(status,journey.ready?'success':'pending')}</div>
+    <div class="m26-stat-grid"><article class="m26-stat"><span>${escape(copy.progress(journey.completedCount,journey.total))}</span><strong>${escape(`${journey.percent}%`)}</strong><small>${escape(journey.source)}</small></article><article class="m26-stat"><span>${escape(copy.evidenceTitle)}</span><strong>${escape(journey.clientEvidenceCount)}</strong><small>${escape(copy.evidenceCopy)}</small></article></div>
+    <meter min="0" max="100" value="${escape(journey.percent)}" aria-label="${escape(copy.progress(journey.completedCount,journey.total))}">${escape(`${journey.percent}%`)}</meter>
+    <div class="m26-stack">${milestoneRows}</div>
+    ${!journey.profileVerified||!journey.accountStatusVerified?`<aside class="m26-notice is-warning" role="status"><strong>${escape(copy.adminTitle)}</strong><p>${escape(copy.adminCopy)}</p></aside>`:''}
+    <div><p class="m26-eyebrow">${escape(copy.nextTitle)}</p>${actionMarkup}</div>
+  </section>`;
+}
+export function enhanceCoachLaunchSelfMarkup(markup,vm){
+  const base=String(markup||'');
+  if(base.includes('data-coach-launch-self='))return base;
+  const panel=renderCoachLaunchSelf(vm);
+  if(!panel)return base;
+  return base.replace(/<div class="m26-route m26-hoy-route">/u,(root)=>`${root}${panel}`);
+}
 function renderClientPlanning(vm){
   const items=vm.rc39?.planningItems||[];
   const contractModality=contractModalityOf(vm);
