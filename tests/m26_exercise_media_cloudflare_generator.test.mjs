@@ -78,7 +78,7 @@ test('prompt usa referencias de atleta e isotipo sin convertirlas en pose o word
   assert.match(prompt,/input image 0 ONLY as the canonical IBERFIT male athlete/i);
   assert.match(prompt,/do not copy the reference pose/i);
   assert.match(prompt,/Input image 1 is the exact official IBERFIT gold isotype/);
-  assert.match(prompt,/Never generate the word IBERFIT/);
+  assert.match(prompt,/never generate the word IBERFIT/i);
   assert.match(prompt,/left chest/i);
 });
 
