@@ -1,6 +1,5 @@
 import {appointmentCalendarEvent,googleCalendarUrl} from './calendar.js';
 import {clientModalityLabel,normalizeClientModality,resolveSessionExperience} from '../domain/modality.js';
-import {renderHoyRoute} from '../modules/route-render.js';
 import {getIberfitLanguage} from '../ui/i18n.js';
 import {coachLaunchSelfCopy} from './view-model.js';
 
@@ -114,7 +113,7 @@ const sessionCard=(item,role,contractModality=null)=>{
   </article>`;
 };
 function renderCoachLaunchSelf(vm){
-  const journey=vm.rc39?.coachLaunchJourney;
+  const journey=vm?.rc39?.coachLaunchJourney||vm?.coachLaunchJourney;
   if(!journey)return '';
   const copy=coachLaunchSelfCopy(getIberfitLanguage());
   const milestoneRows=(journey.milestones||[]).map((item)=>{
@@ -137,11 +136,12 @@ function renderCoachLaunchSelf(vm){
     <div><p class="m26-eyebrow">${escape(copy.nextTitle)}</p>${actionMarkup}</div>
   </section>`;
 }
-function renderCoachHoyWithLaunch(vm){
-  const base=renderHoyRoute(vm);
+export function enhanceCoachLaunchSelfMarkup(markup,vm){
+  const base=String(markup||'');
+  if(base.includes('data-coach-launch-self='))return base;
   const panel=renderCoachLaunchSelf(vm);
   if(!panel)return base;
-  return String(base).replace(/<div class="m26-route[^"]*">/,(root)=>`${root}${panel}`);
+  return base.replace(/<div class="m26-route m26-hoy-route">/u,(root)=>`${root}${panel}`);
 }
 function renderClientPlanning(vm){
   const items=vm.rc39?.planningItems||[];
@@ -186,7 +186,6 @@ function renderSessions(vm){
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;
-  if(vm.kind==='hoy'&&vm.role==='coach'&&vm.rc39.coachLaunchJourney)return renderCoachHoyWithLaunch(vm);
   if(vm.kind==='planificacion'&&vm.role==='client')return renderClientPlanning(vm);
   if(vm.kind==='agenda')return renderAgenda(vm);
   if(vm.kind==='sesion')return renderSessions(vm);
