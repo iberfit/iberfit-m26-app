@@ -95,11 +95,11 @@ jobs:
           rm -rf "$PAGES_AI_DIR"
           mkdir -p "$PAGES_AI_DIR"
           cp scripts/exercise-media/worker-ai-proxy.mjs "$PAGES_AI_DIR/_worker.js"
+          cp "$WRANGLER_CONFIG" wrangler.toml
           printf '%s\n' 'IBERFIT exercise media AI smoke' > "$PAGES_AI_DIR/index.html"
           smoke_token="$(openssl rand -hex 32)"
           echo "::add-mask::$smoke_token"
 
-          # El token canónico dispone de Pages Edit; se evita exigir Workers Scripts Edit.
           npx --yes wrangler@4 pages project delete "$PAGES_AI_PROJECT" --yes >/dev/null 2>&1 || true
           npx --yes wrangler@4 pages project create "$PAGES_AI_PROJECT" \
             --production-branch smoke \
@@ -109,8 +109,7 @@ jobs:
           npx --yes wrangler@4 pages deploy "$PAGES_AI_DIR" \
             --project-name "$PAGES_AI_PROJECT" \
             --branch smoke \
-            --commit-dirty=true \
-            --config "$WRANGLER_CONFIG" 2>&1 | tee recovery/exercise-media-pages-deploy.log
+            --commit-dirty=true 2>&1 | tee recovery/exercise-media-pages-deploy.log
           proxy_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' recovery/exercise-media-pages-deploy.log | tail -n 1 || true)"
           if [[ -z "$proxy_url" ]]; then
             echo 'No se pudo resolver la URL pages.dev del proxy AI aislado.' >&2
@@ -201,7 +200,7 @@ jobs:
           retention-days: 14
 
       - name: Retirar Pages Function AI aislada
-        if: always() && steps.proxy.outcome == 'success'
+        if: always()
         continue-on-error: true
         shell: bash
         env:
