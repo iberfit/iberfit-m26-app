@@ -1,5 +1,31 @@
 {
-  "schema": "iberfit.exercise.media.v1",
-  "required": ["exercise_id", "slug", "composite_url", "thumbnail_url", "status"],
-  "status": ["pending", "generated", "qa_pass", "ready", "rejected"]
+  "schema": "iberfit.exercise.media.autowire-input.v2",
+  "identity": {
+    "authoritative_field": "exercise_id",
+    "matching": "exact",
+    "slug_authoritative": false,
+    "display_name_authoritative": false
+  },
+  "required": ["exercise_id", "media"],
+  "media_contract": {
+    "schema": "iberfit.exercise.visual.v1",
+    "style": "iberfit-premium-movement-pair-v1",
+    "bucket": "iberfit-exercise-media",
+    "required_asset": "movement",
+    "publication_requirements": {
+      "qa.biomechanics": "approved",
+      "qa.visual": "approved",
+      "published": true,
+      "visibility": "clientVisible=true or coachVisible=true"
+    }
+  },
+  "fail_closed": [
+    "invalid canonical exercise id",
+    "duplicate canonical exercise id",
+    "missing or invalid exercise_id",
+    "duplicate media exercise_id",
+    "unknown media exercise_id",
+    "invalid canonical visual manifest",
+    "asset path outside its canonical exercise_id namespace"
+  ]
 }
