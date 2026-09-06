@@ -1,0 +1,13 @@
+{
+  "schema": "iberfit.exercise.media.manifest.v1",
+  "items": [
+    {
+      "slug": "lat-pulldown",
+      "composite_url": "https://<project>.supabase.co/storage/v1/object/public/iberfit-exercise-media/lat-pulldown/composite.webp",
+      "thumbnail_url": "https://<project>.supabase.co/storage/v1/object/public/iberfit-exercise-media/lat-pulldown/thumb.webp",
+      "status": "ready",
+      "style": "iberfit-v1",
+      "qa": { "status": "pass" }
+    }
+  ]
+}
