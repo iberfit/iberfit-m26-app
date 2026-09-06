@@ -140,6 +140,55 @@ jobs:
           echo "ISOTYPE_INFERENCE_REFERENCE=$normalized_isotype" >> "$GITHUB_ENV"
           echo "IBERFIT_REFERENCE_CONVERTER=pillow-11.3.0" >> "$GITHUB_ENV"
 
+      - name: Crear mapa biomecánico de pose lateral
+        shell: bash
+        run: |
+          set -euo pipefail
+          pose_dir='recovery/exercise-media-pose-guides'
+          pose="$pose_dir/hip-abduction-end-pose-v1.png"
+          mkdir -p "$pose_dir"
+          POSE_TARGET="$pose" python3 - <<'PY'
+          import os
+          from PIL import Image, ImageDraw
+
+          target=os.environ['POSE_TARGET']
+          W,H=256,512
+          image=Image.new('RGB',(W,H),(240,240,238))
+          draw=ImageDraw.Draw(image)
+          bone=(25,25,25)
+          joint=(80,160,100)
+          outline=(15,15,15)
+
+          draw.ellipse((104,28,152,76),fill=(210,210,205),outline=outline,width=4)
+          draw.line((128,76,128,96),fill=bone,width=12)
+          draw.line((88,108,168,108),fill=bone,width=18)
+          draw.polygon([(105,104),(151,104),(146,245),(110,245)],fill=(185,185,180),outline=outline)
+          for points in [((94,115),(82,195),(78,285)),((162,115),(174,195),(178,285))]:
+              draw.line(points,fill=bone,width=16,joint='curve')
+          for x in (78,178):
+              draw.ellipse((x-8,277,x+8,293),fill=bone)
+          draw.line((108,250,148,250),fill=bone,width=20)
+          support=[(141,255),(147,350),(151,454)]
+          moving=[(115,255),(83,340),(52,430)]
+          draw.line(support,fill=bone,width=24,joint='curve')
+          draw.line(moving,fill=bone,width=24,joint='curve')
+          draw.line((145,458,171,464),fill=bone,width=18)
+          draw.line((48,433,24,442),fill=bone,width=18)
+          for x,y in [(128,108),(88,108),(168,108),(82,195),(174,195),(108,250),(148,250),(83,340),(147,350),(52,430),(151,454)]:
+              draw.ellipse((x-6,y-6,x+6,y+6),fill=joint,outline=outline,width=2)
+          draw.line((128,15,128,480),fill=(205,205,200),width=2)
+          draw.line((20,474,236,474),fill=(120,120,120),width=3)
+          image.save(target,format='PNG',optimize=False)
+          PY
+          test -s "$pose"
+          END_POSE_REFERENCE="$pose" node --input-type=module - <<'NODE'
+          import {readReference} from './scripts/exercise-media/generate-cloudflare.mjs';
+          const pose=readReference(process.env.END_POSE_REFERENCE);
+          if(pose.mime!=='image/png'||pose.width!==256||pose.height!==512)throw new Error('IBERFIT_POSE_GUIDE_INVALID');
+          console.log(JSON.stringify({poseGuide:true,width:pose.width,height:pose.height,mime:pose.mime}));
+          NODE
+          echo "END_POSE_REFERENCE=$pose" >> "$GITHUB_ENV"
+
       - name: Preparar Pages Function AI aislada
         id: proxy
         shell: bash
@@ -257,6 +306,7 @@ jobs:
               --catalog baseline_m25_2/exercise-catalog-m25.json \
               --exercise-id "$EXERCISE_ID" \
               --athlete-ref "$ATHLETE_INFERENCE_REFERENCE" \
+              --end-pose-ref "$END_POSE_REFERENCE" \
               --out-dir recovery/exercise-media-phases 2>&1 | tee "$attempt_log"
             rc=${PIPESTATUS[0]}
             set -e
@@ -282,8 +332,8 @@ jobs:
           EXERCISE_ID="$EXERCISE_ID" \
           ISOTYPE_SOURCE="$ISOTYPE_REFERENCE" \
           ATHLETE_INFERENCE_REFERENCE="$ATHLETE_INFERENCE_REFERENCE" \
+          END_POSE_REFERENCE="$END_POSE_REFERENCE" \
           python3 - <<'PY'
-          import glob
           import json
           import os
           from pathlib import Path
@@ -318,14 +368,11 @@ jobs:
               if not bbox:
                   raise RuntimeError('IBERFIT_ISOTYPE_ALPHA_EMPTY')
               logo=logo.crop(bbox)
-              target_h=30
+              target_h=22
               target_w=max(1,round(logo.width*target_h/logo.height))
               logo=logo.resize((target_w,target_h),Image.Resampling.LANCZOS)
-              # Pilot-specific placement: subject's left chest in each standardized front-facing panel.
               for panel_x in (0,512):
-                  x=panel_x+302
-                  y=270
-                  canvas.alpha_composite(logo,(x,y))
+                  canvas.alpha_composite(logo,(panel_x+304,272))
               isotype_dimensions={'width':image.width,'height':image.height}
 
           final=canvas.convert('RGB').resize((768,960),Image.Resampling.LANCZOS)
@@ -334,12 +381,14 @@ jobs:
 
           with Image.open(os.environ['ATHLETE_INFERENCE_REFERENCE']) as athlete:
               athlete_dimensions={'width':athlete.width,'height':athlete.height}
+          with Image.open(os.environ['END_POSE_REFERENCE']) as pose:
+              pose_dimensions={'width':pose.width,'height':pose.height}
           metadata={
-              'schema':'iberfit.exercise.generation-candidate.v2',
+              'schema':'iberfit.exercise.generation-candidate.v3',
               'exercise_id':exercise_id,
               'model':'@cf/black-forest-labs/flux-2-klein-4b',
               'transport':'workers_ai_binding',
-              'composition':'movement_pair_phased',
+              'composition':'movement_pair_phased_pose_guided',
               'width':768,
               'height':960,
               'mime':'image/jpeg',
@@ -349,8 +398,10 @@ jobs:
                   'athlete':True,
                   'official_isotype':True,
                   'exact_isotype_composited':True,
+                  'end_pose_guide':True,
                   'athlete_dimensions':athlete_dimensions,
                   'isotype_dimensions':isotype_dimensions,
+                  'end_pose_guide_dimensions':pose_dimensions,
               },
               'qa':{'biomechanics':'pending','visual':'pending'},
               'publishable':False,
@@ -358,7 +409,7 @@ jobs:
           with open(out_dir/f'{exercise_id}-candidate.json','w',encoding='utf-8') as handle:
               json.dump(metadata,handle,ensure_ascii=False,indent=2)
               handle.write('\n')
-          print(json.dumps({'ok':True,'image':str(image_path),'composition':metadata['composition'],'exactIsotype':True}))
+          print(json.dumps({'ok':True,'image':str(image_path),'composition':metadata['composition'],'exactIsotype':True,'poseGuided':True}))
           PY
 
           image="recovery/exercise-media-smoke/${EXERCISE_ID}-candidate.jpg"
@@ -399,10 +450,10 @@ jobs:
           if(x.publishable!==false)throw new Error('SMOKE_CANDIDATE_MUST_NOT_BE_PUBLISHABLE');
           if(x.qa?.biomechanics!=='pending'||x.qa?.visual!=='pending')throw new Error('GENERATION_MUST_NOT_SELF_APPROVE');
           if(x.transport!=='workers_ai_binding')throw new Error('SMOKE_MUST_USE_WORKERS_AI_BINDING');
-          if(x.composition!=='movement_pair_phased')throw new Error('SMOKE_PHASED_MOVEMENT_PAIR_REQUIRED');
-          if(x.references?.athlete!==true||x.references?.official_isotype!==true||x.references?.exact_isotype_composited!==true)throw new Error('SMOKE_CANONICAL_REFERENCES_REQUIRED');
-          const a=x.references?.athlete_dimensions,i=x.references?.isotype_dimensions;
-          if(!a||a.width>512||a.height>512||!i||i.width>512||i.height>512)throw new Error('SMOKE_REFERENCE_DIMENSIONS_INVALID');
+          if(x.composition!=='movement_pair_phased_pose_guided')throw new Error('SMOKE_POSE_GUIDED_MOVEMENT_PAIR_REQUIRED');
+          if(x.references?.athlete!==true||x.references?.official_isotype!==true||x.references?.exact_isotype_composited!==true||x.references?.end_pose_guide!==true)throw new Error('SMOKE_CANONICAL_REFERENCES_REQUIRED');
+          const a=x.references?.athlete_dimensions,i=x.references?.isotype_dimensions,p=x.references?.end_pose_guide_dimensions;
+          if(!a||a.width>512||a.height>512||!i||i.width>512||i.height>512||!p||p.width>512||p.height>512)throw new Error('SMOKE_REFERENCE_DIMENSIONS_INVALID');
           console.log(JSON.stringify({safe:true,publishable:x.publishable,qa:x.qa,transport:x.transport,composition:x.composition,references:x.references,converter:process.env.IBERFIT_REFERENCE_CONVERTER}));
           NODE
 
@@ -414,6 +465,7 @@ jobs:
           path: |
             recovery/exercise-media-smoke/**
             recovery/exercise-media-phases/**
+            recovery/exercise-media-pose-guides/**
             recovery/exercise-media-reference-normalized/**
             recovery/exercise-media-reference-filetypes.log
             recovery/exercise-media-generate.log
