@@ -1,6 +1,9 @@
 import {buildAdherenceWindows} from './progress-continuity.js';
 import {computeProgressSummary} from './progress-engine.js';
-import {buildExerciseLongitudinalProgress} from './exercise-performance-engine.js';
+import {
+  buildExercisePerformanceTrend,
+  listExercisePerformanceMemories,
+} from './exercise-performance-engine.js';
 
 function finite(value){const number=Number(value);return Number.isFinite(number)?number:null;}
 function percent(value){const number=finite(value);return number===null?null:Math.round(number*100);}
@@ -15,19 +18,30 @@ function status(value,{positive=0.8,watch=0.6}={}){
   if(number>=watch)return 'building';
   return 'review';
 }
-function trendEvidence(exercises=[]){
-  const comparable=exercises.filter((exercise)=>
-    ['up','down','stable'].includes(exercise?.loadTrend?.direction)||
-    ['up','down','stable'].includes(exercise?.repsTrend?.direction)||
-    ['up','down','stable'].includes(exercise?.volumeTrend?.direction)
-  );
-  const improving=comparable.filter((exercise)=>
-    [exercise?.loadTrend?.direction,exercise?.repsTrend?.direction,exercise?.volumeTrend?.direction].includes('up')
-  );
+function trendEvidence(memories=[]){
+  const rows=memories
+    .filter((memory)=>Number(memory?.exposureCount||0)>=2)
+    .map((memory)=>({
+      memory,
+      trend:buildExercisePerformanceTrend(memory,{window:12}),
+    }));
+  const comparable=rows.filter(({trend})=>[
+    trend?.metrics?.load,
+    trend?.metrics?.repsPerSet,
+    trend?.metrics?.secondsPerSet,
+    trend?.metrics?.volumeKg,
+  ].some((metric)=>metric?.comparable===true));
+  const improving=comparable.filter(({trend})=>[
+    trend?.metrics?.load?.direction,
+    trend?.metrics?.repsPerSet?.direction,
+    trend?.metrics?.secondsPerSet?.direction,
+    trend?.metrics?.volumeKg?.direction,
+  ].includes('up'));
   return Object.freeze({
     comparable:comparable.length,
     improving:improving.length,
     ratio:comparable.length?improving.length/comparable.length:null,
+    confirmedExposures:memories.reduce((total,memory)=>total+Number(memory?.exposureCount||0),0),
   });
 }
 
@@ -37,8 +51,8 @@ export function buildProgressHub(state,clientId,{now=new Date()}={}){
   if(!summary28)return null;
   const windows=buildAdherenceWindows(state,clientId,{now,windows:[7,28,90]});
   const byDays=new Map(windows.map((window)=>[window.days,window]));
-  const longitudinal=buildExerciseLongitudinalProgress(state,clientId,{limitPerExercise:12});
-  const strength=trendEvidence(longitudinal.exercises||[]);
+  const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12});
+  const strength=trendEvidence(memories);
   const adherence28=byDays.get(28)?.adherence??summary28.adherence;
   const adherence90=byDays.get(90)?.adherence??null;
   const wearableDays=finite(summary28?.wearable?.daysWithData);
@@ -64,7 +78,7 @@ export function buildProgressHub(state,clientId,{now=new Date()}={}){
       value:strength.comparable||null,
       unit:'ejercicios comparables',
       evidence:strength.comparable?`${strength.improving} con al menos una señal ascendente confirmada`:'Se necesitan exposiciones repetidas del mismo ejercicio',
-      context:`${longitudinal.totalExercises} ejercicios con historial · ${longitudinal.totalExecutions} ejecuciones aceptadas`,
+      context:`${memories.length} ejercicios con historial · ${strength.confirmedExposures} exposiciones confirmadas`,
       source:'sessionExecutions',
       quality:strength.comparable>=3?'alta':strength.comparable>=1?'media':'limitada',
     }),
