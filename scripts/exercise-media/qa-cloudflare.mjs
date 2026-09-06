@@ -17,8 +17,21 @@ function mimeFor(filePath){const ext=path.extname(filePath).toLowerCase();if(ext
 function endpoint(accountId){const account=String(accountId||'').trim();if(!SAFE_ACCOUNT_ID.test(account))throw new Error('IBERFIT_QA_CLOUDFLARE_ACCOUNT_INVALID');return `https://api.cloudflare.com/client/v4/accounts/${account}/ai/run/${CLOUDFLARE_QA_MODEL}`;}
 function proxyEndpoint(value){const raw=String(value||'').trim();if(!raw)return null;let url;try{url=new URL(raw);}catch{throw new Error('IBERFIT_QA_PROXY_URL_INVALID');}if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash)throw new Error('IBERFIT_QA_PROXY_URL_INVALID');url.pathname=url.pathname.replace(/\/+$/u,'')+'/qa';return url.href;}
 
+export function exerciseSpecificQaContract(exercise={}){
+  if(String(exercise?.id||'').trim()!=='IBF-ABDUCCION-DE-CADERA-LATERAL')return '';
+  return [
+    'EXERCISE-SPECIFIC QA CONTRACT for standing bodyweight hip abduction:',
+    'exercise_match and phase_progression may be true ONLY if the END pose clearly shows one entire leg moving laterally away from the body midline from the HIP, with an obvious air gap from the support leg. A change mainly in the arms or hands is an automatic exercise_match=false and phase_progression=false.',
+    'biomechanics may be pass ONLY if the support leg is stable, moving knee remains approximately extended, pelvis stays level, trunk remains upright without compensatory side lean/rotation, and the moving leg travels in the frontal plane rather than forward/backward.',
+    'critical_body_visible may be true ONLY if both hips, both knees, both ankles and both shoes/feet are visible enough to judge the start and end positions, including the support foot and the laterally displaced moving foot.',
+    'equipment_match may be true only with no band, cable, machine, ankle weight or other exercise equipment.',
+    'clean_no_text must be false for any readable letters, wordmark, sleeve text, captions or decorative lettering. A single tiny non-text IBERFIT isotype on the left chest of each pose is allowed and is not text.',
+  ].join(' ');
+}
+
 export function buildQaQuestion(exercise={}){
   const id=exactId(exercise.id);
+  const specificContract=exerciseSpecificQaContract(exercise);
   return [
     'You are a strict senior strength-and-conditioning biomechanics reviewer. Inspect the supplied IBERFIT exercise photograph only.',
     `Canonical exercise ID: ${id}. Name: ${String(exercise.name_es||exercise.name||id)}.`,
@@ -26,13 +39,14 @@ export function buildQaQuestion(exercise={}){
     `Primary muscles: ${list(exercise.primary_muscles).join(', ')}. Secondary: ${list(exercise.secondary_muscles).join(', ')}.`,
     `Instructions: ${list(exercise.instructions_es).slice(0,6).join('; ')}.`,
     `Cues: ${list(exercise.cues).slice(0,6).join('; ')}.`,
+    specificContract,
     'IBERFIT image rules: the movement asset must contain exactly two depictions of the SAME adult male athlete showing a clear start/end movement pair, with consistent identity, outfit, camera language, equipment setup and dark premium gym. Both relevant bodies and equipment must be visible. There must be no title, captions, arrows, start/end labels, panels, footer, watermark, wordmark or random letters. A small anatomy inset is allowed only if unobtrusive.',
     'Judge the ACTUAL visible start phase, end/peak phase and progression between them. Both phases must be technically plausible for the named exercise. Reject if the image shows only one phase, more than two athlete depictions, two different-looking athletes, impossible joints, unsafe alignment, wrong equipment, inconsistent setup/path, cropped critical body parts, or if the two poses do not communicate the requested movement.',
     'Branding is fail-closed: branding_safe may be true only when there are no invented words/letters/logos and any visible chest mark is small and visually consistent across the two poses. Do not approve merely because the image looks attractive.',
     'Return ONLY one JSON object, no markdown and no prose, with exactly these keys:',
     '{"exercise_match":boolean,"equipment_match":boolean,"movement_pair":boolean,"same_athlete_identity":boolean,"phase_progression":boolean,"biomechanics":"pass|fail|uncertain","anatomy_integrity":boolean,"critical_body_visible":boolean,"clean_no_text":boolean,"branding_safe":boolean,"visual_quality":"pass|fail|uncertain","confidence":number,"issues":[string]}',
-    'confidence must be from 0 to 1. Any uncertainty about either movement phase or progression must be biomechanics="uncertain". Invented words/logos/letters make branding_safe=false. Visible titles/captions/arrows/panels/labels make clean_no_text=false.',
-  ].join('\n');
+    'confidence must be from 0 to 1. Any uncertainty about either movement phase or progression must be biomechanics="uncertain". Invented words/logos/letters make branding_safe=false. Visible titles/captions/arrows/panels/labels make clean_no_text=false. Whenever any boolean is false or any quality field is not pass, add a short concrete visual reason to issues.',
+  ].filter(Boolean).join('\n');
 }
 
 function nestedAnswer(value,depth=0){
