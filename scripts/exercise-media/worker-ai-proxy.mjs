@@ -3,6 +3,7 @@ export const IMAGE_FALLBACK_MODEL='@cf/black-forest-labs/flux-2-klein-9b';
 export const QA_MODEL='@cf/moondream/moondream3.1-9B-A2B';
 
 const ALLOWED_IMAGE_TYPES=new Set(['image/jpeg','image/png','image/webp']);
+const ALLOWED_IMAGE_MODELS=new Set([IMAGE_MODEL,IMAGE_FALLBACK_MODEL]);
 const MAX_REFERENCE_BYTES=2_000_000;
 const MAX_REFERENCE_COUNT=4;
 const SCALAR_FIELDS=['prompt','width','height','seed'];
@@ -50,6 +51,9 @@ export async function normalizeImageMultipart(request){
   if(!contentType.toLowerCase().startsWith('multipart/form-data'))throw new Error('MULTIPART_REQUIRED');
 
   const incoming=await request.formData();
+  const requestedModel=String(incoming.get('model')||IMAGE_MODEL).trim();
+  if(!ALLOWED_IMAGE_MODELS.has(requestedModel))throw new Error(`MODEL_NOT_ALLOWED:${requestedModel||'missing'}`);
+
   const fields=[];
   for(const field of SCALAR_FIELDS){
     const value=incoming.get(field);
@@ -76,7 +80,7 @@ export async function normalizeImageMultipart(request){
   }
 
   const serialized=serializeMultipart(fields,references);
-  return Object.freeze({body:serialized.body,contentType:serialized.contentType,referenceCount:references.length,fields:Object.freeze(fields),references:Object.freeze(references)});
+  return Object.freeze({body:serialized.body,contentType:serialized.contentType,referenceCount:references.length,fields:Object.freeze(fields),references:Object.freeze(references),requestedModel});
 }
 
 function isRetryableModelInternalError(error){
@@ -98,7 +102,7 @@ async function diagnosticProbe(env,model,fields,references){
   }
 }
 
-async function diagnoseInternalError(env,multipart){
+async function diagnoseInternalError(env,multipart,primaryModel,fallbackModel){
   const diagnosticFields=[
     ['prompt','A neutral premium dark gym interior, realistic fitness photograph, no text.'],
     ['width','256'],
@@ -106,17 +110,17 @@ async function diagnoseInternalError(env,multipart){
     ['seed','1'],
   ];
   const report={};
-  report.primary_text=await diagnosticProbe(env,IMAGE_MODEL,diagnosticFields,[]);
+  report.primary_text=await diagnosticProbe(env,primaryModel,diagnosticFields,[]);
   if(report.primary_text==='pass'&&multipart.references[0]){
-    report.primary_athlete=await diagnosticProbe(env,IMAGE_MODEL,diagnosticFields,[multipart.references[0]]);
+    report.primary_ref0=await diagnosticProbe(env,primaryModel,diagnosticFields,[multipart.references[0]]);
   }
-  if(report.primary_athlete==='pass'&&multipart.references.length>=2){
-    report.primary_two_refs=await diagnosticProbe(env,IMAGE_MODEL,diagnosticFields,multipart.references.slice(0,2));
+  if(report.primary_ref0==='pass'&&multipart.references.length>=2){
+    report.primary_two_refs=await diagnosticProbe(env,primaryModel,diagnosticFields,multipart.references.slice(0,2));
   }
   if(report.primary_text!=='pass'){
-    report.fallback_text=await diagnosticProbe(env,IMAGE_FALLBACK_MODEL,diagnosticFields,[]);
+    report.fallback_text=await diagnosticProbe(env,fallbackModel,diagnosticFields,[]);
   }else if(report.primary_two_refs&&report.primary_two_refs!=='pass'){
-    report.fallback_two_refs=await diagnosticProbe(env,IMAGE_FALLBACK_MODEL,diagnosticFields,multipart.references.slice(0,2));
+    report.fallback_two_refs=await diagnosticProbe(env,fallbackModel,diagnosticFields,multipart.references.slice(0,2));
   }
   return report;
 }
@@ -128,17 +132,19 @@ export async function handleRequest(request,env){
   try{
     if(url.pathname==='/generate'){
       const multipart=await normalizeImageMultipart(request);
+      const primaryModel=multipart.requestedModel;
+      const fallbackModel=primaryModel===IMAGE_MODEL?IMAGE_FALLBACK_MODEL:IMAGE_MODEL;
       try{
-        const result=await runImageModel(env,IMAGE_MODEL,multipart.fields,multipart.references);
-        return json({ok:true,model:IMAGE_MODEL,references:multipart.referenceCount,fallback:false,result});
+        const result=await runImageModel(env,primaryModel,multipart.fields,multipart.references);
+        return json({ok:true,model:primaryModel,references:multipart.referenceCount,fallback:false,result});
       }catch(primaryError){
         if(!isRetryableModelInternalError(primaryError))throw primaryError;
         try{
-          const result=await runImageModel(env,IMAGE_FALLBACK_MODEL,multipart.fields,multipart.references);
-          return json({ok:true,model:IMAGE_FALLBACK_MODEL,references:multipart.referenceCount,fallback:true,fallback_from:IMAGE_MODEL,result});
+          const result=await runImageModel(env,fallbackModel,multipart.fields,multipart.references);
+          return json({ok:true,model:fallbackModel,references:multipart.referenceCount,fallback:true,fallback_from:primaryModel,result});
         }catch(fallbackError){
-          const diagnostic=await diagnoseInternalError(env,multipart);
-          throw new Error(`PRIMARY_${IMAGE_MODEL}:${String(primaryError?.message||primaryError)} | FALLBACK_${IMAGE_FALLBACK_MODEL}:${String(fallbackError?.message||fallbackError)} | DIAG:${JSON.stringify(diagnostic)}`);
+          const diagnostic=await diagnoseInternalError(env,multipart,primaryModel,fallbackModel);
+          throw new Error(`PRIMARY_${primaryModel}:${String(primaryError?.message||primaryError)} | FALLBACK_${fallbackModel}:${String(fallbackError?.message||fallbackError)} | DIAG:${JSON.stringify(diagnostic)}`);
         }
       }
     }

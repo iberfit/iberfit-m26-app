@@ -5,10 +5,12 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {CLOUDFLARE_IMAGE_MODEL, deterministicSeed, readReference} from './generate-cloudflare.mjs';
 
+export const CLOUDFLARE_END_PHASE_MODEL='@cf/black-forest-labs/flux-2-klein-9b';
 export const PHASE_WIDTH=512;
 export const PHASE_HEIGHT=1280;
 export const SUPPORTED_PHASED_EXERCISE_ID='IBF-ABDUCCION-DE-CADERA-LATERAL';
 const SAFE_EXERCISE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
+const ALLOWED_PHASE_MODELS=new Set([CLOUDFLARE_IMAGE_MODEL,CLOUDFLARE_END_PHASE_MODEL]);
 
 function exactId(value){
   const id=String(value??'');
@@ -39,7 +41,7 @@ function detectMime(bytes){
 function extFor(mime){return mime==='image/png'?'.png':mime==='image/webp'?'.webp':'.jpg';}
 
 export function phaseSeed(exerciseId){
-  return deterministicSeed(exactId(exerciseId),'iberfit-premium-single-phase-v3');
+  return deterministicSeed(exactId(exerciseId),'iberfit-premium-single-phase-v4');
 }
 
 export function buildPhasePrompt(exercise={},phase='start',{hasAthleteReference=false,hasPoseReference=false}={}){
@@ -47,15 +49,17 @@ export function buildPhasePrompt(exercise={},phase='start',{hasAthleteReference=
   if(id!==SUPPORTED_PHASED_EXERCISE_ID)throw new Error(`IBERFIT_PHASED_EXERCISE_NOT_SUPPORTED:${id}`);
   if(!['start','end'].includes(phase))throw new Error('IBERFIT_PHASED_PHASE_INVALID');
   const identity=hasAthleteReference
-    ?'Input image 0 is ONLY the canonical IBERFIT male FACE/IDENTITY reference. Preserve the same face, hair, beard, age and complexion. Ignore and do not copy any pose, arms, exercise, crop, shirt text or graphics from the identity reference.'
+    ?(hasPoseReference
+      ?'Input image 1 is ONLY the canonical IBERFIT male FACE/IDENTITY reference. Preserve this exact adult man: same face, hair, beard, age and complexion. Do NOT copy body pose, arms, crop, exercise, text or graphics from the identity reference.'
+      :'Input image 0 is ONLY the canonical IBERFIT male FACE/IDENTITY reference. Preserve this exact adult man: same face, hair, beard, age and complexion. Do NOT copy body pose, arms, crop, exercise, text or graphics from the identity reference.')
     :'Use one adult male athlete with short dark-brown hair, trimmed beard, light/olive skin and realistic athletic proportions.';
   const poseGuide=hasPoseReference
-    ?'Input image 1 is a GEOMETRIC POSE GUIDE ONLY. Copy its frontal limb geometry and body silhouette: one support leg vertical and the opposite straight leg displaced laterally out to the side. Do NOT copy the guide style, colors, joints, background or graphics; render a realistic human photograph. The pose guide has priority over any neutral body posture suggested by the identity reference.'
+    ?'Input image 0 is the PRIMARY GEOMETRIC POSE GUIDE. Match its FRONT-VIEW body geometry closely: one support leg vertical and the opposite long straight leg displaced laterally out to the IMAGE LEFT. Preserve the guide’s hip-to-knee-to-ankle directions and the clear triangular air gap between the legs. Do NOT copy its stick-figure style, colors, circles, background or graphics. Render a photorealistic athlete. The pose guide has PRIORITY over any neutral body posture from the identity image.'
     :'';
   const common=[
     'Create ONE realistic premium fitness-instruction photograph. EXACTLY ONE adult male athlete, no duplicate person and no inset.',
-    identity,
     poseGuide,
+    identity,
     'Vertical narrow full-body framing. Camera is strictly FRONT-FACING and level, not side view and not three-quarter profile. Entire head, both hips, both knees, both ankles and both shoes are visible with floor beneath the feet.',
     'Same fixed IBERFIT visual language: plain fitted black short-sleeve technical shirt, plain black athletic shorts, black training shoes, premium charcoal/black gym, subtle green architectural accent light, cinematic but clear instructional lighting.',
     'The shirt must be completely PLAIN BLACK: NO logo, NO word, NO letters, NO sleeve mark, NO decorative symbol. Branding will be composited later from the official asset.',
@@ -71,38 +75,51 @@ export function buildPhasePrompt(exercise={},phase='start',{hasAthleteReference=
   }else{
     common.push(
       'END/PEAK PHASE ONLY: stand tall on the LEFT support leg while the RIGHT leg stays STRAIGHT and moves unmistakably SIDEWAYS to the athlete’s RIGHT, which appears on the IMAGE LEFT because the athlete faces the camera.',
-      'The moving RIGHT foot must be clearly displaced HORIZONTALLY OUT TO THE IMAGE LEFT, creating a large visible air gap from the LEFT support leg. The moving foot remains below hip height and toes point mostly forward.',
-      'Match the POSE GUIDE: both knees remain low and nearly level vertically; the moving knee must NOT rise toward the torso. The moving leg pivots outward from the hip as one long straight segment.',
-      'ABSOLUTE NEGATIVES: NO forward leg raise, NO high knee, NO marching, NO front kick, NO knee-to-chest, NO hip-flexion pose, NO bent raised knee, NO rear kick, NO crossed leg, NO side lunge, NO hand contact with the moving leg.',
+      'The moving RIGHT foot must be clearly displaced HORIZONTALLY OUT TO THE IMAGE LEFT, creating a large visible triangular air gap from the LEFT support leg. The moving foot remains below hip height and toes point mostly forward.',
+      'Match input image 0 closely: moving hip stays near its original height, moving knee remains low and far to IMAGE LEFT, moving ankle/foot is even farther to IMAGE LEFT. The moving knee must NOT rise toward the torso.',
+      'ABSOLUTE NEGATIVES: NO wide two-foot stance pretending to be movement, NO both-feet-on-floor end position, NO forward leg raise, NO high knee, NO marching, NO front kick, NO knee-to-chest, NO hip-flexion pose, NO bent raised knee, NO rear kick, NO crossed leg, NO side lunge, NO hand contact with the moving leg.',
+      'Only the LEFT support shoe touches the floor. The RIGHT moving shoe is visibly OFF THE FLOOR and laterally separated. If both shoes touch the floor, the image is wrong.',
       'The visible action must be isolated RIGHT HIP ABDUCTION. The torso stays vertical and the pelvis stays level without leaning or rotation. If the leg is not clearly lateral in the frontal plane, the image is wrong.'
     );
   }
   return common.filter(Boolean).join('\n');
 }
 
-export async function generateCloudflareExercisePhase({exercise,phase,athleteReference,poseReference=null,proxyUrl,proxyToken,fetchImpl=globalThis.fetch,width=PHASE_WIDTH,height=PHASE_HEIGHT,seed=phaseSeed(exercise?.id)}={}){
+export async function generateCloudflareExercisePhase({exercise,phase,athleteReference,poseReference=null,proxyUrl,proxyToken,fetchImpl=globalThis.fetch,width=PHASE_WIDTH,height=PHASE_HEIGHT,seed=phaseSeed(exercise?.id),requestedModel=phase==='end'?CLOUDFLARE_END_PHASE_MODEL:CLOUDFLARE_IMAGE_MODEL}={}){
   if(typeof fetchImpl!=='function')throw new Error('IBERFIT_PHASED_FETCH_UNAVAILABLE');
   const id=exactId(exercise?.id);
   if(id!==SUPPORTED_PHASED_EXERCISE_ID)throw new Error(`IBERFIT_PHASED_EXERCISE_NOT_SUPPORTED:${id}`);
   if(!['start','end'].includes(phase))throw new Error('IBERFIT_PHASED_PHASE_INVALID');
   if(phase==='start'&&poseReference)throw new Error('IBERFIT_PHASED_START_POSE_REFERENCE_NOT_ALLOWED');
+  if(!ALLOWED_PHASE_MODELS.has(requestedModel))throw new Error('IBERFIT_PHASED_MODEL_NOT_ALLOWED');
   const token=String(proxyToken||'').trim();if(token.length<20)throw new Error('IBERFIT_PHASED_PROXY_TOKEN_REQUIRED');
   const w=Number(width),h=Number(height);
   if(!Number.isInteger(w)||!Number.isInteger(h)||w<256||h<512||w>1024||h>1920||w>=h)throw new Error('IBERFIT_PHASED_DIMENSIONS_INVALID');
   const prompt=buildPhasePrompt(exercise,phase,{hasAthleteReference:Boolean(athleteReference),hasPoseReference:Boolean(poseReference)});
   const form=new FormData();
+  form.append('model',requestedModel);
   form.append('prompt',prompt);
   form.append('width',String(w));
   form.append('height',String(h));
   form.append('seed',String(seed));
-  if(athleteReference)form.append('input_image_0',new Blob([athleteReference.bytes],{type:athleteReference.mime}),athleteReference.name||'athlete-identity-reference');
-  if(poseReference)form.append('input_image_1',new Blob([poseReference.bytes],{type:poseReference.mime}),poseReference.name||'pose-guide');
+  if(poseReference)form.append('input_image_0',new Blob([poseReference.bytes],{type:poseReference.mime}),poseReference.name||'pose-guide');
+  if(athleteReference){
+    const field=poseReference?'input_image_1':'input_image_0';
+    form.append(field,new Blob([athleteReference.bytes],{type:athleteReference.mime}),athleteReference.name||'athlete-identity-reference');
+  }
   const response=await fetchImpl(safeProxyEndpoint(proxyUrl),{method:'POST',headers:{authorization:`Bearer ${token}`},body:form,redirect:'error'});
   if(!response?.ok){let detail='';try{detail=(await response.text()).slice(0,600);}catch{}throw new Error(`IBERFIT_PHASED_CLOUDFLARE_HTTP_${response?.status||0}:${detail}`);}
   const contentType=String(response.headers?.get?.('content-type')||'').toLowerCase();
-  let bytes;if(contentType.startsWith('image/'))bytes=Buffer.from(await response.arrayBuffer());else bytes=imageFromPayload(await response.json());
+  let bytes,usedModel=requestedModel,fallback=false;
+  if(contentType.startsWith('image/'))bytes=Buffer.from(await response.arrayBuffer());
+  else{
+    const payload=await response.json();
+    bytes=imageFromPayload(payload);
+    if(typeof payload?.model==='string'&&ALLOWED_PHASE_MODELS.has(payload.model))usedModel=payload.model;
+    fallback=payload?.fallback===true;
+  }
   const mime=detectMime(bytes);
-  return Object.freeze({exerciseId:id,phase,model:CLOUDFLARE_IMAGE_MODEL,width:w,height:h,seed,mime,bytes,prompt,transport:'workers_ai_binding'});
+  return Object.freeze({exerciseId:id,phase,requestedModel,model:usedModel,fallback,width:w,height:h,seed,mime,bytes,prompt,transport:'workers_ai_binding'});
 }
 
 function catalogRecords(raw){const records=Array.isArray(raw)?raw:raw?.exercises??raw?.data;if(!Array.isArray(records))throw new Error('IBERFIT_PHASED_CATALOG_INVALID');return records;}
@@ -121,15 +138,16 @@ export async function runCli(argv=process.argv.slice(2)){
   const seed=phaseSeed(exerciseId);
   const outputs=[];
   for(const phase of ['start','end']){
-    const generated=await generateCloudflareExercisePhase({exercise,phase,athleteReference,poseReference:phase==='end'?endPoseReference:null,proxyUrl:process.env.IBERFIT_AI_PROXY_URL,proxyToken:process.env.IBERFIT_AI_PROXY_TOKEN,seed});
+    const requestedModel=phase==='end'?CLOUDFLARE_END_PHASE_MODEL:CLOUDFLARE_IMAGE_MODEL;
+    const generated=await generateCloudflareExercisePhase({exercise,phase,athleteReference,poseReference:phase==='end'?endPoseReference:null,proxyUrl:process.env.IBERFIT_AI_PROXY_URL,proxyToken:process.env.IBERFIT_AI_PROXY_TOKEN,seed,requestedModel});
     fs.mkdirSync(outDir,{recursive:true});
     const file=path.join(outDir,`${exerciseId}-${phase}${extFor(generated.mime)}`);
     fs.writeFileSync(file,generated.bytes);
-    outputs.push({phase,file,mime:generated.mime,width:generated.width,height:generated.height,seed:generated.seed});
+    outputs.push({phase,file,mime:generated.mime,width:generated.width,height:generated.height,seed:generated.seed,requested_model:generated.requestedModel,model:generated.model,fallback:generated.fallback});
   }
-  const metadata={schema:'iberfit.exercise.phased-generation.v2',exercise_id:exerciseId,model:CLOUDFLARE_IMAGE_MODEL,transport:'workers_ai_binding',seed,athlete_reference:true,end_pose_reference:true,phases:outputs.map((x)=>({phase:x.phase,file:path.basename(x.file),mime:x.mime,width:x.width,height:x.height})),generated_at:new Date().toISOString()};
+  const metadata={schema:'iberfit.exercise.phased-generation.v3',exercise_id:exerciseId,transport:'workers_ai_binding',seed,athlete_reference:true,end_pose_reference:true,phases:outputs.map((x)=>({phase:x.phase,file:path.basename(x.file),mime:x.mime,width:x.width,height:x.height,requested_model:x.requested_model,model:x.model,fallback:x.fallback})),generated_at:new Date().toISOString()};
   fs.writeFileSync(path.join(outDir,`${exerciseId}-phases.json`),`${JSON.stringify(metadata,null,2)}\n`);
-  console.log(JSON.stringify({ok:true,exerciseId,seed,endPoseReference:true,phases:outputs.map((x)=>x.file)}));
+  console.log(JSON.stringify({ok:true,exerciseId,seed,endPoseReference:true,phases:outputs.map((x)=>({phase:x.phase,file:x.file,requestedModel:x.requested_model,model:x.model,fallback:x.fallback}))}));
   return {metadata,outputs};
 }
 
