@@ -4,7 +4,7 @@ import {
   deriveCoachCockpit,
   augmentCoachCockpitWithCrm,
 } from '../src/m26/experience/coach-cockpit.js';
-import {__routeViewModelCommercialInternals} from '../src/m26/modules/route-view-model.js';
+import {applyCommercialCoachCockpit} from '../src/m26/communication/view-model.js';
 
 const NOW=new Date('2026-09-06T18:00:00Z');
 
@@ -105,11 +105,11 @@ test('Un riesgo operativo existente conserva riskFocus frente a una renovación 
   assert.equal(cockpit.totalClients,1);
 });
 
-test('El wrapper de ruta compone evidencia comercial canónica para Hoy sin inferir pagos',()=>{
+test('La proyección de ruta compone evidencia comercial canónica para Hoy sin inferir pagos',()=>{
   const state={
     selectedClientId:'c1',
     collections:{
-      clients:[{id:'c1',status:'active'}],
+      clients:[{id:'c1',name:'Ana',status:'active'}],
       clientProfiles:[{id:'p1',clientId:'c1',modality:'hybrid',weeklyFrequency:2}],
       trainingCycles:[],
       domainEvents:[],
@@ -127,7 +127,7 @@ test('El wrapper de ruta compone evidencia comercial canónica para Hoy sin infe
     clients:[{id:'c1',name:'Ana'}],
     coachCockpit:baseCockpit(),
   };
-  const projected=__routeViewModelCommercialInternals.applyCommercialCockpit(view,state,NOW);
+  const projected=applyCommercialCoachCockpit(view,state,NOW);
   const item=projected.coachCockpit.items.find((entry)=>entry.source==='crm-renewals');
   assert.ok(item);
   assert.equal(item.clientName,'Ana');
