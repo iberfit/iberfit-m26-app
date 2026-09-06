@@ -14,6 +14,7 @@ function list(value){return (Array.isArray(value)?value:[]).map((v)=>String(v||'
 function arg(argv,name){const i=argv.indexOf(name);return i>=0?argv[i+1]:null;}
 function mimeFor(filePath){const ext=path.extname(filePath).toLowerCase();if(ext==='.png')return'image/png';if(ext==='.webp')return'image/webp';if(ext==='.jpg'||ext==='.jpeg')return'image/jpeg';throw new Error('IBERFIT_QA_IMAGE_TYPE_INVALID');}
 function endpoint(accountId){const account=String(accountId||'').trim();if(!SAFE_ACCOUNT_ID.test(account))throw new Error('IBERFIT_QA_CLOUDFLARE_ACCOUNT_INVALID');return `https://api.cloudflare.com/client/v4/accounts/${account}/ai/run/${CLOUDFLARE_QA_MODEL}`;}
+function proxyEndpoint(value){const raw=String(value||'').trim();if(!raw)return null;let url;try{url=new URL(raw);}catch{throw new Error('IBERFIT_QA_PROXY_URL_INVALID');}if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash)throw new Error('IBERFIT_QA_PROXY_URL_INVALID');url.pathname=url.pathname.replace(/\/+$/u,'')+'/qa';return url.href;}
 
 export function buildQaQuestion(exercise={}){
   const id=exactId(exercise.id);
@@ -71,39 +72,28 @@ export function decideQa(report,{minimumConfidence=0.92}={}){
   if(report.branding_safe!==true)blocking.push('branding_safe');
   if(report.visual_quality!=='pass')blocking.push('visual_quality');
   if(report.confidence<minimumConfidence)blocking.push('confidence');
-  return Object.freeze({
-    pass:blocking.length===0,
-    decision:blocking.length===0?'auto_qa_pass':'blocked',
-    blocking:Object.freeze(blocking),
-    biomechanicsStatus:blocking.length===0?'approved':'pending',
-    visualStatus:blocking.length===0?'approved':'pending',
-    publishable:false,
-  });
+  return Object.freeze({pass:blocking.length===0,decision:blocking.length===0?'auto_qa_pass':'blocked',blocking:Object.freeze(blocking),biomechanicsStatus:blocking.length===0?'approved':'pending',visualStatus:blocking.length===0?'approved':'pending',publishable:false});
 }
 
-export async function reviewCloudflareExerciseImage({exercise,imageBytes,mime,accountId,apiToken,fetchImpl=globalThis.fetch}={}){
+export async function reviewCloudflareExerciseImage({exercise,imageBytes,mime,accountId,apiToken,proxyUrl=null,proxyToken=null,fetchImpl=globalThis.fetch}={}){
   if(typeof fetchImpl!=='function')throw new Error('IBERFIT_QA_FETCH_UNAVAILABLE');
   exactId(exercise?.id);
   const bytes=Buffer.isBuffer(imageBytes)?imageBytes:Buffer.from(imageBytes||[]);
   if(bytes.length<128||bytes.length>MAX_IMAGE_BYTES)throw new Error('IBERFIT_QA_IMAGE_SIZE_INVALID');
   const imageMime=String(mime||'');if(!['image/png','image/jpeg','image/webp'].includes(imageMime))throw new Error('IBERFIT_QA_IMAGE_TYPE_INVALID');
-  const token=String(apiToken||'').trim();if(token.length<20)throw new Error('IBERFIT_QA_CLOUDFLARE_TOKEN_REQUIRED');
-  const response=await fetchImpl(endpoint(accountId),{
+  const proxy=proxyEndpoint(proxyUrl);
+  const token=String(proxy?proxyToken:apiToken||'').trim();if(token.length<20)throw new Error(proxy?'IBERFIT_QA_PROXY_TOKEN_REQUIRED':'IBERFIT_QA_CLOUDFLARE_TOKEN_REQUIRED');
+  const response=await fetchImpl(proxy||endpoint(accountId),{
     method:'POST',
     headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},
-    body:JSON.stringify({
-      task:'query',
-      image:`data:${imageMime};base64,${bytes.toString('base64')}`,
-      question:buildQaQuestion(exercise),
-      reasoning:false,
-      temperature:0,
-      max_tokens:900,
-    }),
+    body:JSON.stringify({task:'query',image:`data:${imageMime};base64,${bytes.toString('base64')}`,question:buildQaQuestion(exercise),reasoning:false,temperature:0,max_tokens:900}),
     redirect:'error',
   });
   if(!response?.ok){let detail='';try{detail=(await response.text()).slice(0,600);}catch{}throw new Error(`IBERFIT_QA_CLOUDFLARE_HTTP_${response?.status||0}:${detail}`);}
-  const report=parseQaAnswer(extractAnswer(await response.json()));
-  return Object.freeze({report,decision:decideQa(report)});
+  const payload=await response.json();
+  const modelPayload=proxy?(payload?.result??payload):payload;
+  const report=parseQaAnswer(extractAnswer(modelPayload));
+  return Object.freeze({report,decision:decideQa(report),transport:proxy?'workers_ai_binding':'rest_api'});
 }
 
 function catalogRecords(raw){const records=Array.isArray(raw)?raw:raw?.exercises??raw?.data;if(!Array.isArray(records))throw new Error('IBERFIT_QA_CATALOG_INVALID');return records;}
@@ -116,11 +106,11 @@ export async function runCli(argv=process.argv.slice(2)){
   const exercise=catalogRecords(raw).find((item)=>String(item?.id||'')===exerciseId);
   if(!exercise)throw new Error(`IBERFIT_QA_EXERCISE_NOT_FOUND:${exerciseId}`);
   const resolved=path.resolve(imagePath),bytes=fs.readFileSync(resolved),mime=mimeFor(resolved);
-  const reviewed=await reviewCloudflareExerciseImage({exercise,imageBytes:bytes,mime,accountId:process.env.CLOUDFLARE_ACCOUNT_ID,apiToken:process.env.CLOUDFLARE_API_TOKEN});
+  const reviewed=await reviewCloudflareExerciseImage({exercise,imageBytes:bytes,mime,accountId:process.env.CLOUDFLARE_ACCOUNT_ID,apiToken:process.env.CLOUDFLARE_API_TOKEN,proxyUrl:process.env.IBERFIT_AI_PROXY_URL,proxyToken:process.env.IBERFIT_AI_PROXY_TOKEN});
   fs.mkdirSync(path.dirname(outPath),{recursive:true});
-  const output={schema:'iberfit.exercise.visual-qa.v1',exercise_id:exerciseId,model:CLOUDFLARE_QA_MODEL,review:reviewed.report,decision:reviewed.decision,reviewed_at:new Date().toISOString()};
+  const output={schema:'iberfit.exercise.visual-qa.v1',exercise_id:exerciseId,model:CLOUDFLARE_QA_MODEL,transport:reviewed.transport,review:reviewed.report,decision:reviewed.decision,reviewed_at:new Date().toISOString()};
   fs.writeFileSync(outPath,`${JSON.stringify(output,null,2)}\n`);
-  console.log(JSON.stringify({ok:true,exerciseId,decision:reviewed.decision.decision,confidence:reviewed.report.confidence,out:outPath}));
+  console.log(JSON.stringify({ok:true,exerciseId,decision:reviewed.decision.decision,confidence:reviewed.report.confidence,transport:reviewed.transport,out:outPath}));
   if(!reviewed.decision.pass)process.exitCode=2;
   return output;
 }
