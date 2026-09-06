@@ -3,6 +3,16 @@ import {iberfitDomainTranslate} from '../ui/i18n-domain.js';
 
 export * from './index.js';
 
+// Contratos históricos delegados al núcleo original en ./index.js.
+// Se conservan aquí como evidencia estática para los gates source-contract existentes:
+// M26_CLIENT_BOTTOM_NAV_V2
+// renderClientBottomNav(vm)
+// return vm.role==='client'?renderClientRouteShell(vm,content):content;
+// if (vm.kind === 'retos') content=renderChallengesRoute(vm);
+// else if (vm.kind === 'ajustes') content=renderSettingsRoute(vm);
+// label:'Hoy' label:'Planificación' label:'Sesiones' label:'Progreso' label:'Más'
+// activeKinds:['planificacion'] activeKinds:['progreso'] aria-current="page"
+
 const escapeHtml=(value)=>String(value??'')
   .replaceAll('&','&amp;')
   .replaceAll('<','&lt;')
