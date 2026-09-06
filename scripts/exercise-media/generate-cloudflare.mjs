@@ -70,23 +70,16 @@ function mimeFor(filePath){
 }
 
 function jpegDimensions(bytes){
-  if(bytes.length<4||bytes[0]!==0xff||bytes[1]!==0xd8)return null;
+  if(bytes.length<12||bytes[0]!==0xff||bytes[1]!==0xd8)return null;
   const sof=new Set([0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf]);
-  let offset=2;
-  while(offset+8<bytes.length){
-    if(bytes[offset]!==0xff){offset+=1;continue;}
-    while(offset<bytes.length&&bytes[offset]===0xff)offset+=1;
-    if(offset>=bytes.length)break;
-    const marker=bytes[offset++];
-    if(marker===0xd8||marker===0xd9)continue;
-    if(marker===0xda)break;
-    if(offset+1>=bytes.length)break;
-    const size=bytes.readUInt16BE(offset);
-    if(size<2||offset+size>bytes.length)break;
-    if(sof.has(marker)&&size>=7){
-      return {width:bytes.readUInt16BE(offset+5),height:bytes.readUInt16BE(offset+3)};
-    }
-    offset+=size;
+  for(let offset=2;offset+9<bytes.length;offset+=1){
+    if(bytes[offset]!==0xff||!sof.has(bytes[offset+1]))continue;
+    const size=bytes.readUInt16BE(offset+2);
+    const precision=bytes[offset+4];
+    const height=bytes.readUInt16BE(offset+5);
+    const width=bytes.readUInt16BE(offset+7);
+    const components=bytes[offset+9];
+    if(size>=8&&(precision===8||precision===12)&&width>0&&height>0&&components>0&&components<=4)return {width,height};
   }
   return null;
 }
@@ -121,7 +114,8 @@ export function readReference(filePath){
   const bytes=fs.readFileSync(resolved);
   if(!bytes.length||bytes.length>MAX_REFERENCE_BYTES)throw new Error('IBERFIT_GENERATOR_REFERENCE_SIZE_INVALID');
   const mime=mimeFor(resolved);
-  const dimensions=referenceDimensions(bytes,mime);
+  let dimensions;
+  try{dimensions=referenceDimensions(bytes,mime);}catch(error){throw new Error(`${error instanceof Error?error.message:String(error)}:${path.basename(resolved)}`);}
   return {bytes,mime,name:path.basename(resolved),...dimensions};
 }
 
