@@ -9,9 +9,11 @@ import { buildExerciseVisualBrief } from '../../src/m26/exercises/catalog.js';
 export const CLOUDFLARE_IMAGE_MODEL='@cf/black-forest-labs/flux-2-klein-4b';
 export const DEFAULT_WIDTH=768;
 export const DEFAULT_HEIGHT=960;
+export const DEFAULT_SMOKE_EXERCISE_ID='IBF-ABDUCCION-DE-CADERA-LATERAL';
 const SAFE_EXERCISE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
 const SAFE_ACCOUNT_ID=/^[A-Fa-f0-9]{32}$/u;
 const MAX_REFERENCE_BYTES=2_000_000;
+const MAX_REFERENCE_DIMENSION=512;
 
 function exactId(value){
   const id=String(value??'');
@@ -35,26 +37,27 @@ export function buildCloudflareImagePrompt(exercise,{hasAthleteReference=false,h
   const primary=list(brief.muscles.primary).join(', ')||'músculos principales del ejercicio';
   const secondary=list(brief.muscles.secondary).join(', ')||'sin secundarios destacados';
   const identity=hasAthleteReference
-    ?'Use input image 0 ONLY as the canonical IBERFIT male athlete, outfit and dark premium gym identity/style reference. Preserve the same adult man; do not copy the reference pose.'
-    :'Use one consistent adult male athlete: late 20s to 30s, short dark-brown hair, trimmed beard, light/olive skin, athletic muscular but realistic proportions.';
+    ?'Use input image 0 ONLY as the canonical IBERFIT male athlete, outfit and dark premium gym identity/style reference. Preserve the same adult man in both required movement phases; do not copy the reference pose.'
+    :'Use one consistent adult male athlete identity in both movement phases: late 20s to 30s, short dark-brown hair, trimmed beard, light/olive skin, athletic muscular but realistic proportions.';
   const branding=hasLogoReference
-    ?'Input image 1 is the exact official IBERFIT gold isotype. If it can be reproduced faithfully, place ONE small isotype on the athlete left chest. Never generate the word IBERFIT or any other letters.'
-    :'No brand reference was supplied: leave the shirt plain black. Do NOT invent a logo, symbol, brand name or lettering.';
+    ?'Input image 1 is the exact official IBERFIT gold isotype. Reproduce it faithfully only as a very small mark on the left chest of the black shirt in each required pose; never place it elsewhere and never generate the word IBERFIT or any other letters.'
+    :'No brand reference was supplied: leave both shirts plain black. Do NOT invent a logo, symbol, brand name or lettering.';
 
   return [
-    'Create ONE clean premium fitness-instruction photograph for the IBERFIT exercise library, vertical 4:5.',
+    'Create ONE clean premium fitness-instruction photograph for the IBERFIT exercise library, vertical 4:5, containing a clear start/end movement pair.',
     identity,
     branding,
-    'Same visual language: fitted black short-sleeve technical shirt, black athletic shorts, black training shoes, premium charcoal/black gym, subtle green architectural accent light, cinematic instructional lighting, realistic photography.',
+    'Use the same visual language in both phases: fitted black short-sleeve technical shirt, black athletic shorts, black training shoes, premium charcoal/black gym, subtle green architectural accent light, cinematic instructional lighting, realistic photography.',
     `Exercise: ${line(brief.exerciseName)}.`,
     `Movement pattern: ${line(brief.biomechanics.pattern)}. Equipment: ${line(brief.biomechanics.equipment)}.`,
     `Required execution: ${instructions}. Coaching cues: ${cues}.`,
     `Primary muscles: ${primary}. Secondary muscles: ${secondary}.`,
-    'Show the technically most informative movement phase, full body and all relevant equipment visible, slight three-quarter side instructional camera angle. Feet, hands and the complete load/cable/machine path must be visible when relevant.',
+    'Show exactly TWO full-body depictions of the SAME athlete in one clean composition: start position on the left and end or peak-contraction position on the right. Use the same equipment setup, camera language, scale, outfit and gym. Do not add start/end labels. The two poses must make the movement progression obvious by body position alone.',
+    'Both movement phases must be biomechanically correct. Keep feet, hands and all relevant equipment visible. Use a slight three-quarter side instructional camera angle and enough spacing that neither pose overlaps or crops the other.',
     'Biomechanics are strict: anatomically possible joints, neutral and exercise-appropriate spine, correct grip and stance, realistic balance/support, correct machine setup and cable/bar path, no unsafe or misleading posture.',
     'Keep the main photograph clean. NO title, NO exercise name, NO captions, NO arrows, NO start/end labels, NO panels, NO footer, NO buttons, NO poster, NO infographic, NO watermark, NO random text.',
-    'A tiny tasteful anatomy inset in one unobtrusive corner is permitted only if it does not cover the athlete or equipment; highlight primary muscles and secondary muscles subtly; no anatomical text labels.',
-    'No duplicated person, no extra limbs/fingers, no cropped critical hands/feet, no impossible equipment geometry, no exaggerated bodybuilder proportions, no invented logos or lettering.',
+    'A tiny tasteful anatomy inset in one unobtrusive corner is permitted only if it does not cover either movement phase or equipment; highlight primary muscles and secondary muscles subtly; no anatomical text labels.',
+    'Exactly two required pose depictions only: no third athlete, no background people, no extra limbs/fingers, no fused or duplicated body parts, no cropped critical hands/feet, no impossible equipment geometry, no exaggerated bodybuilder proportions, no invented logos or lettering.',
   ].join('\n');
 }
 
@@ -66,12 +69,60 @@ function mimeFor(filePath){
   throw new Error(`IBERFIT_GENERATOR_REFERENCE_TYPE_INVALID:${ext}`);
 }
 
+function jpegDimensions(bytes){
+  if(bytes.length<4||bytes[0]!==0xff||bytes[1]!==0xd8)return null;
+  const sof=new Set([0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf]);
+  let offset=2;
+  while(offset+8<bytes.length){
+    if(bytes[offset]!==0xff){offset+=1;continue;}
+    while(offset<bytes.length&&bytes[offset]===0xff)offset+=1;
+    if(offset>=bytes.length)break;
+    const marker=bytes[offset++];
+    if(marker===0xd8||marker===0xd9)continue;
+    if(marker===0xda)break;
+    if(offset+1>=bytes.length)break;
+    const size=bytes.readUInt16BE(offset);
+    if(size<2||offset+size>bytes.length)break;
+    if(sof.has(marker)&&size>=7){
+      return {width:bytes.readUInt16BE(offset+5),height:bytes.readUInt16BE(offset+3)};
+    }
+    offset+=size;
+  }
+  return null;
+}
+
+function webpDimensions(bytes){
+  if(bytes.length<30||bytes.subarray(0,4).toString('ascii')!=='RIFF'||bytes.subarray(8,12).toString('ascii')!=='WEBP')return null;
+  const chunk=bytes.subarray(12,16).toString('ascii');
+  if(chunk==='VP8X')return {width:1+bytes.readUIntLE(24,3),height:1+bytes.readUIntLE(27,3)};
+  if(chunk==='VP8 '&&bytes[23]===0x9d&&bytes[24]===0x01&&bytes[25]===0x2a){
+    return {width:bytes.readUInt16LE(26)&0x3fff,height:bytes.readUInt16LE(28)&0x3fff};
+  }
+  if(chunk==='VP8L'&&bytes[20]===0x2f){
+    const b0=bytes[21],b1=bytes[22],b2=bytes[23],b3=bytes[24];
+    return {width:1+(((b1&0x3f)<<8)|b0),height:1+(((b3&0x0f)<<10)|(b2<<2)|((b1&0xc0)>>6))};
+  }
+  return null;
+}
+
+export function referenceDimensions(bytes,mime){
+  let dimensions=null;
+  if(mime==='image/png'&&bytes.length>=24&&bytes.subarray(0,8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a])))dimensions={width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20)};
+  else if(mime==='image/jpeg')dimensions=jpegDimensions(bytes);
+  else if(mime==='image/webp')dimensions=webpDimensions(bytes);
+  if(!dimensions||!Number.isInteger(dimensions.width)||!Number.isInteger(dimensions.height)||dimensions.width<1||dimensions.height<1)throw new Error('IBERFIT_GENERATOR_REFERENCE_DIMENSIONS_INVALID');
+  if(dimensions.width>MAX_REFERENCE_DIMENSION||dimensions.height>MAX_REFERENCE_DIMENSION)throw new Error(`IBERFIT_GENERATOR_REFERENCE_DIMENSIONS_TOO_LARGE:${dimensions.width}x${dimensions.height}`);
+  return Object.freeze(dimensions);
+}
+
 export function readReference(filePath){
   if(!filePath)return null;
   const resolved=path.resolve(filePath);
   const bytes=fs.readFileSync(resolved);
   if(!bytes.length||bytes.length>MAX_REFERENCE_BYTES)throw new Error('IBERFIT_GENERATOR_REFERENCE_SIZE_INVALID');
-  return {bytes,mime:mimeFor(resolved),name:path.basename(resolved)};
+  const mime=mimeFor(resolved);
+  const dimensions=referenceDimensions(bytes,mime);
+  return {bytes,mime,name:path.basename(resolved),...dimensions};
 }
 
 function cloudflareEndpoint(accountId,model=CLOUDFLARE_IMAGE_MODEL){
@@ -126,13 +177,15 @@ export async function generateCloudflareExerciseImage({
   const id=exactId(exercise?.id);
   const w=Number(width),h=Number(height);
   if(!Number.isInteger(w)||!Number.isInteger(h)||w<256||h<256||w>1920||h>1920||Math.abs(w/h-0.8)>0.001)throw new Error('IBERFIT_GENERATOR_DIMENSIONS_INVALID');
+  const seedValue=Number(seed);
+  if(!Number.isInteger(seedValue)||seedValue<0||seedValue>0x7fffffff)throw new Error('IBERFIT_GENERATOR_SEED_INVALID');
 
   const prompt=buildCloudflareImagePrompt(exercise,{hasAthleteReference:Boolean(athleteReference),hasLogoReference:Boolean(logoReference)});
   const form=new FormData();
   form.append('prompt',prompt);
   form.append('width',String(w));
   form.append('height',String(h));
-  form.append('seed',String(seed));
+  form.append('seed',String(seedValue));
   if(athleteReference)form.append('input_image_0',new Blob([athleteReference.bytes],{type:athleteReference.mime}),athleteReference.name||'athlete-reference');
   if(logoReference)form.append('input_image_1',new Blob([logoReference.bytes],{type:logoReference.mime}),logoReference.name||'iberfit-isotype-reference');
 
@@ -152,7 +205,7 @@ export async function generateCloudflareExerciseImage({
   else bytes=imageFromCloudflarePayload(await response.json());
   const mime=detectMime(bytes);
   if(!mime.startsWith('image/'))throw new Error('IBERFIT_GENERATOR_IMAGE_TYPE_INVALID');
-  return Object.freeze({exerciseId:id,model:CLOUDFLARE_IMAGE_MODEL,width:w,height:h,seed,mime,bytes,prompt,transport:proxy?'workers_ai_binding':'rest_api'});
+  return Object.freeze({exerciseId:id,model:CLOUDFLARE_IMAGE_MODEL,width:w,height:h,seed:seedValue,mime,bytes,prompt,transport:proxy?'workers_ai_binding':'rest_api'});
 }
 
 function catalogRecords(raw){
@@ -164,21 +217,23 @@ function arg(argv,name){const i=argv.indexOf(name);return i>=0?argv[i+1]:null;}
 
 export async function runCli(argv=process.argv.slice(2)){
   const catalogPath=arg(argv,'--catalog')||'baseline_m25_2/exercise-catalog-m25.json';
-  const exerciseId=exactId(arg(argv,'--exercise-id')||'bw-squat');
+  const exerciseId=exactId(arg(argv,'--exercise-id')||DEFAULT_SMOKE_EXERCISE_ID);
   const outDir=path.resolve(arg(argv,'--out-dir')||'recovery/exercise-media-smoke');
   const athletePath=arg(argv,'--athlete-ref');
   const logoPath=arg(argv,'--logo-ref');
   const raw=JSON.parse(fs.readFileSync(path.resolve(catalogPath),'utf8'));
   const exercise=catalogRecords(raw).find((item)=>String(item?.id||'')===exerciseId);
   if(!exercise)throw new Error(`IBERFIT_GENERATOR_EXERCISE_NOT_FOUND:${exerciseId}`);
+  const athleteReference=readReference(athletePath);
+  const logoReference=readReference(logoPath);
   const result=await generateCloudflareExerciseImage({
     exercise,
     accountId:process.env.CLOUDFLARE_ACCOUNT_ID,
     apiToken:process.env.CLOUDFLARE_API_TOKEN,
     proxyUrl:process.env.IBERFIT_AI_PROXY_URL,
     proxyToken:process.env.IBERFIT_AI_PROXY_TOKEN,
-    athleteReference:readReference(athletePath),
-    logoReference:readReference(logoPath),
+    athleteReference,
+    logoReference,
   });
   fs.mkdirSync(outDir,{recursive:true});
   const extension=extensionFor(result.mime);
@@ -190,16 +245,22 @@ export async function runCli(argv=process.argv.slice(2)){
     name_es:exercise.name_es||exercise.name||exerciseId,
     model:result.model,
     transport:result.transport,
+    composition:'movement_pair',
     width:result.width,height:result.height,seed:result.seed,mime:result.mime,
     image:path.basename(imagePath),
-    references:{athlete:Boolean(athletePath),official_isotype:Boolean(logoPath)},
+    references:{
+      athlete:Boolean(athletePath),
+      official_isotype:Boolean(logoPath),
+      athlete_dimensions:athleteReference?{width:athleteReference.width,height:athleteReference.height}:null,
+      isotype_dimensions:logoReference?{width:logoReference.width,height:logoReference.height}:null,
+    },
     qa:{biomechanics:'pending',visual:'pending'},
     publishable:false,
     generated_at:new Date().toISOString(),
     prompt_sha256:crypto.createHash('sha256').update(result.prompt).digest('hex'),
   };
   fs.writeFileSync(path.join(outDir,`${exerciseId}-candidate.json`),`${JSON.stringify(metadata,null,2)}\n`);
-  console.log(JSON.stringify({ok:true,exerciseId,image:imagePath,model:result.model,seed:result.seed,transport:result.transport}));
+  console.log(JSON.stringify({ok:true,exerciseId,image:imagePath,model:result.model,seed:result.seed,transport:result.transport,composition:metadata.composition}));
   return {result,metadata,imagePath};
 }
 
