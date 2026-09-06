@@ -3,6 +3,9 @@ import {guardClientSelection,resolveM26Route} from './route-guard.js';
 
 export {resolveAdaptiveLayout};
 
+// Contratos históricos delegados al núcleo original en ./index.js.
+// function switchClient · sameClient · m26ClientSwitching · m26:shell-rendered · enhanceNativeWorkspace
+
 export function createShellController(options={}){
   const {root,store}=options;
   const core=createCoreShellController(options);
