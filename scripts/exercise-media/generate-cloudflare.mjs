@@ -34,14 +34,16 @@ export function exerciseSpecificVisualContract(exercise={}){
   const id=String(exercise?.id||'').trim();
   if(id==='IBF-ABDUCCION-DE-CADERA-LATERAL'){
     return [
-      'EXERCISE-SPECIFIC CONTRACT — this overrides vague catalog cues for this exercise.',
-      'Depict a STANDING BODYWEIGHT HIP ABDUCTION. This is a LOWER-BODY hip movement, never an arm or shoulder exercise.',
+      'EXERCISE-SPECIFIC CONTRACT — this overrides vague catalog cues and any pose suggested by the identity reference.',
+      'Depict a STANDING BODYWEIGHT HIP ABDUCTION. This is a LOWER-BODY hip movement, never an arm, shoulder, marching, high-knee, front-kick or stretching exercise.',
       'LEFT/START pose: athlete stands tall and balanced, pelvis level, trunk vertical, both legs straight and together or approximately hip-width, both feet clearly visible, arms relaxed naturally at the sides or hands resting on hips.',
-      'RIGHT/END pose: same athlete remains tall on one support leg while the opposite leg is visibly lifted laterally away from the body midline in the frontal plane by roughly 25–35 degrees. Moving knee stays extended, toes face mostly forward, pelvis remains level, support foot stays flat, trunk does not lean, rotate or side-bend.',
-      'There must be a large obvious air gap between the moving foot/leg and the support leg in the END pose. The lateral displacement of the entire moving leg from the hip must be unmistakable at first glance.',
-      'The arms must stay passive and essentially unchanged between phases. Do NOT raise, extend, point, flex or use the arms to communicate the exercise.',
+      'RIGHT/END pose: same athlete remains tall on one support leg while the opposite STRAIGHT leg moves SIDEWAYS from the HIP in the frontal plane by roughly 25–35 degrees. The moving knee stays extended or only naturally soft, toes face mostly forward, pelvis remains level, support foot stays flat, trunk does not lean, rotate or side-bend.',
+      'The moving foot must travel laterally OUT TO THE SIDE, not forward in front of the pelvis. Keep the moving foot below hip height. There must be a large obvious horizontal air gap between the moving leg/foot and the support leg in the END pose.',
+      'ABSOLUTE NEGATIVES: NO front leg raise, NO high knee, NO marching pose, NO step-up, NO front kick, NO hip-flexion dominant pose, NO bent raised knee, NO knee-to-chest pose, NO grabbing, holding or touching the moving thigh, knee, shin, ankle or foot with either hand.',
+      'The arms must stay passive and essentially unchanged between phases. Hands remain at the sides or on the hips and NEVER contact the moving leg. The visible difference between phases must come from hip abduction of one leg, not from the arms.',
       'Use a front-facing or only very slight front three-quarter camera angle so both hips, both knees, both ankles and the lateral travel of the moving leg are clearly visible. Show both shoes completely and the floor under the support foot.',
       'No band, cable, machine, ankle weight, bench or other exercise equipment. Primary anatomical emphasis is the lateral hip/gluteal region, especially gluteus medius/minimus; do not visually imply an upper-body target.',
+      'For this pilot keep the photograph completely clean: NO anatomy inset, NO muscle diagram, NO body-organ diagram, NO side panel and NO extra graphic element. Only the two athlete poses and the gym environment.',
     ].join(' ');
   }
   return '';
@@ -55,7 +57,7 @@ export function buildCloudflareImagePrompt(exercise,{hasAthleteReference=false,h
   const secondary=list(brief.muscles.secondary).join(', ')||'sin secundarios destacados';
   const specificContract=exerciseSpecificVisualContract(exercise);
   const identity=hasAthleteReference
-    ?'Use input image 0 ONLY as the canonical IBERFIT male athlete identity, general outfit silhouette and dark premium gym identity/style reference. Preserve the same adult man in both required movement phases. Do NOT copy the reference pose, arm position, lettering, sleeve graphics or incidental shirt marks.'
+    ?'Use input image 0 ONLY as the canonical IBERFIT male athlete FACE/IDENTITY reference: preserve his facial identity, hair, beard, age and general complexion in both required movement phases. Do NOT infer or copy any pose, arm position, body pose, exercise, shirt lettering, sleeve graphics, incidental marks or framing from the identity reference.'
     :'Use one consistent adult male athlete identity in both movement phases: late 20s to 30s, short dark-brown hair, trimmed beard, light/olive skin, athletic muscular but realistic proportions.';
   const branding=hasLogoReference
     ?'Input image 1 is the exact official IBERFIT gold isotype. The shirt must otherwise be completely plain black. Reproduce EXACTLY ONE tiny official isotype on the left chest of each pose, visually identical in both poses. NO sleeve marks, NO second chest mark, NO decorative gold strokes, NO wordmark, NO letters, NO brand text and no invented symbol anywhere.'
@@ -63,6 +65,9 @@ export function buildCloudflareImagePrompt(exercise,{hasAthleteReference=false,h
   const cameraRule=specificContract
     ?'Both movement phases must be biomechanically correct. Keep feet, hands and all relevant joints visible. Follow the exercise-specific camera and framing contract above; use enough spacing that neither pose overlaps or crops the other.'
     :'Both movement phases must be biomechanically correct. Keep feet, hands and all relevant equipment visible. Use a slight three-quarter side instructional camera angle and enough spacing that neither pose overlaps or crops the other.';
+  const anatomyRule=specificContract
+    ?'For this exercise do NOT add any anatomy inset, muscle diagram, body-organ diagram, graphic panel or decorative overlay.'
+    :'A tiny tasteful anatomy inset in one unobtrusive corner is permitted only if it does not cover either movement phase or equipment; highlight primary muscles and secondary muscles subtly; no anatomical text labels.';
 
   return [
     'Create ONE clean premium fitness-instruction photograph for the IBERFIT exercise library, vertical 4:5, containing a clear start/end movement pair.',
@@ -78,7 +83,7 @@ export function buildCloudflareImagePrompt(exercise,{hasAthleteReference=false,h
     cameraRule,
     'Biomechanics are strict: anatomically possible joints, neutral and exercise-appropriate spine, correct grip and stance, realistic balance/support, correct machine setup and cable/bar path when applicable, no unsafe or misleading posture.',
     'Keep the main photograph clean. NO title, NO exercise name, NO captions, NO arrows, NO start/end labels, NO panels, NO footer, NO buttons, NO poster, NO infographic, NO watermark, NO random text and NO decorative lettering.',
-    'A tiny tasteful anatomy inset in one unobtrusive corner is permitted only if it does not cover either movement phase or equipment; highlight primary muscles and secondary muscles subtly; no anatomical text labels.',
+    anatomyRule,
     'Exactly two required pose depictions only: no third athlete, no background people, no extra limbs/fingers, no fused or duplicated body parts, no cropped critical hands/feet, no impossible equipment geometry, no exaggerated bodybuilder proportions, no invented logos or lettering.',
   ].filter(Boolean).join('\n');
 }

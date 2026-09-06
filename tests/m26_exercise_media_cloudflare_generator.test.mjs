@@ -99,11 +99,11 @@ test('prompt fija biomecánica, limpieza y par inicio-final sin inventar marca',
   assert.match(prompt,/Do NOT invent a logo/);
 });
 
-test('prompt usa referencias de atleta e isotipo sin copiar marcas accidentales',()=>{
+test('prompt usa referencia del atleta sólo para identidad e isotipo oficial controlado',()=>{
   const prompt=buildCloudflareImagePrompt(exercise,{hasAthleteReference:true,hasLogoReference:true});
-  assert.match(prompt,/input image 0 ONLY as the canonical IBERFIT male athlete/i);
-  assert.match(prompt,/do NOT copy the reference pose/i);
-  assert.match(prompt,/Do NOT copy .*lettering.*sleeve graphics/i);
+  assert.match(prompt,/input image 0 ONLY as the canonical IBERFIT male athlete FACE\/IDENTITY reference/i);
+  assert.match(prompt,/Do NOT infer or copy any pose/i);
+  assert.match(prompt,/shirt lettering, sleeve graphics/i);
   assert.match(prompt,/Input image 1 is the exact official IBERFIT gold isotype/);
   assert.match(prompt,/EXACTLY ONE tiny official isotype/i);
   assert.match(prompt,/NO sleeve marks/i);
@@ -111,14 +111,19 @@ test('prompt usa referencias de atleta e isotipo sin copiar marcas accidentales'
   assert.match(prompt,/left chest/i);
 });
 
-test('piloto de abducción fija desplazamiento lateral de pierna y brazos pasivos',()=>{
+test('piloto de abducción prohíbe flexión frontal y asistencia manual',()=>{
   const prompt=buildCloudflareImagePrompt(hipAbduction,{hasAthleteReference:true,hasLogoReference:true});
   assert.match(prompt,/STANDING BODYWEIGHT HIP ABDUCTION/);
   assert.match(prompt,/LOWER-BODY hip movement/);
-  assert.match(prompt,/opposite leg is visibly lifted laterally away from the body midline/i);
-  assert.match(prompt,/large obvious air gap/i);
-  assert.match(prompt,/arms must stay passive/i);
-  assert.match(prompt,/front-facing or only very slight front three-quarter camera angle/i);
+  assert.match(prompt,/STRAIGHT leg moves SIDEWAYS from the HIP/i);
+  assert.match(prompt,/large obvious horizontal air gap/i);
+  assert.match(prompt,/ABSOLUTE NEGATIVES/);
+  assert.match(prompt,/NO front leg raise/);
+  assert.match(prompt,/NO high knee/);
+  assert.match(prompt,/NO hip-flexion dominant pose/);
+  assert.match(prompt,/NO grabbing, holding or touching the moving/i);
+  assert.match(prompt,/Hands remain at the sides or on the hips and NEVER contact the moving leg/i);
+  assert.match(prompt,/NO anatomy inset/);
   assert.match(prompt,/No band, cable, machine, ankle weight/i);
 });
 
@@ -254,12 +259,15 @@ test('revisor Cloudflare usa imagen inline, desactiva streaming y devuelve decis
   assert.equal(requestBody.stream,false);
 });
 
-test('QA de abducción exige movimiento lateral visible de la pierna y pies completos',()=>{
+test('QA de abducción bloquea elevación frontal, rodilla flexionada, manos sobre pierna e inset',()=>{
   const question=buildQaQuestion(hipAbduction);
   assert.match(question,/standing bodyweight hip abduction/i);
-  assert.match(question,/END pose clearly shows one entire leg moving laterally away from the body midline/i);
-  assert.match(question,/change mainly in the arms or hands is an automatic exercise_match=false/i);
-  assert.match(question,/support leg is stable/i);
+  assert.match(question,/leg moving SIDEWAYS away from the body midline/i);
+  assert.match(question,/IN FRONT OF the pelvis\/body/i);
+  assert.match(question,/high-knee, marching, knee-to-chest or front-kick-like pose/i);
+  assert.match(question,/hand grabs, holds, supports or touches the moving/i);
+  assert.match(question,/set exercise_match=false, phase_progression=false and biomechanics="fail"/i);
+  assert.match(question,/NO anatomy inset/i);
   assert.match(question,/both hips, both knees, both ankles and both shoes\/feet/i);
   assert.match(question,/single tiny non-text IBERFIT isotype/i);
 });

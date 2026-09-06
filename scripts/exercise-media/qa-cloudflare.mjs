@@ -20,12 +20,18 @@ function proxyEndpoint(value){const raw=String(value||'').trim();if(!raw)return 
 export function exerciseSpecificQaContract(exercise={}){
   if(String(exercise?.id||'').trim()!=='IBF-ABDUCCION-DE-CADERA-LATERAL')return '';
   return [
-    'EXERCISE-SPECIFIC QA CONTRACT for standing bodyweight hip abduction:',
-    'exercise_match and phase_progression may be true ONLY if the END pose clearly shows one entire leg moving laterally away from the body midline from the HIP, with an obvious air gap from the support leg. A change mainly in the arms or hands is an automatic exercise_match=false and phase_progression=false.',
-    'biomechanics may be pass ONLY if the support leg is stable, moving knee remains approximately extended, pelvis stays level, trunk remains upright without compensatory side lean/rotation, and the moving leg travels in the frontal plane rather than forward/backward.',
+    'EXERCISE-SPECIFIC QA CONTRACT for standing bodyweight hip abduction. Apply these rules literally and fail closed:',
+    'exercise_match and phase_progression may be true ONLY if the END pose clearly shows one entire leg moving SIDEWAYS away from the body midline from the HIP in the frontal plane, with an obvious horizontal air gap from the support leg.',
+    'If the raised foot or knee is mainly IN FRONT OF the pelvis/body instead of out to the side, this is hip flexion/front leg raise, not hip abduction: set exercise_match=false, phase_progression=false and biomechanics="fail".',
+    'If the moving knee is visibly bent into a high-knee, marching, knee-to-chest or front-kick-like pose, set exercise_match=false, phase_progression=false and biomechanics="fail".',
+    'If either hand grabs, holds, supports or touches the moving thigh, knee, shin, ankle or foot, set exercise_match=false, phase_progression=false and biomechanics="fail". The hands must not assist the moving leg.',
+    'A change mainly in the arms/hands, or a pose that reads as stretching rather than active lateral hip abduction, is an automatic exercise_match=false and phase_progression=false.',
+    'biomechanics may be pass ONLY if the support leg is stable, moving knee remains extended or only naturally soft, pelvis stays level, trunk remains upright without compensatory side lean/rotation, and the moving leg travels laterally in the frontal plane rather than forward/backward.',
     'critical_body_visible may be true ONLY if both hips, both knees, both ankles and both shoes/feet are visible enough to judge the start and end positions, including the support foot and the laterally displaced moving foot.',
     'equipment_match may be true only with no band, cable, machine, ankle weight or other exercise equipment.',
+    'For this pilot there must be NO anatomy inset, muscle diagram, body-organ diagram, side panel or graphic overlay. If any such inset/panel is present, set visual_quality="fail" and add the issue.',
     'clean_no_text must be false for any readable letters, wordmark, sleeve text, captions or decorative lettering. A single tiny non-text IBERFIT isotype on the left chest of each pose is allowed and is not text.',
+    'Do not infer the intended exercise from the prompt. Judge only the visible leg trajectory and body positions in the supplied image.',
   ].join(' ');
 }
 
@@ -40,7 +46,7 @@ export function buildQaQuestion(exercise={}){
     `Instructions: ${list(exercise.instructions_es).slice(0,6).join('; ')}.`,
     `Cues: ${list(exercise.cues).slice(0,6).join('; ')}.`,
     specificContract,
-    'IBERFIT image rules: the movement asset must contain exactly two depictions of the SAME adult male athlete showing a clear start/end movement pair, with consistent identity, outfit, camera language, equipment setup and dark premium gym. Both relevant bodies and equipment must be visible. There must be no title, captions, arrows, start/end labels, panels, footer, watermark, wordmark or random letters. A small anatomy inset is allowed only if unobtrusive.',
+    'IBERFIT image rules: the movement asset must contain exactly two depictions of the SAME adult male athlete showing a clear start/end movement pair, with consistent identity, outfit, camera language, equipment setup and dark premium gym. Both relevant bodies and equipment must be visible. There must be no title, captions, arrows, start/end labels, panels, footer, watermark, wordmark or random letters.',
     'Judge the ACTUAL visible start phase, end/peak phase and progression between them. Both phases must be technically plausible for the named exercise. Reject if the image shows only one phase, more than two athlete depictions, two different-looking athletes, impossible joints, unsafe alignment, wrong equipment, inconsistent setup/path, cropped critical body parts, or if the two poses do not communicate the requested movement.',
     'Branding is fail-closed: branding_safe may be true only when there are no invented words/letters/logos and any visible chest mark is small and visually consistent across the two poses. Do not approve merely because the image looks attractive.',
     'Return ONLY one JSON object, no markdown and no prose, with exactly these keys:',
