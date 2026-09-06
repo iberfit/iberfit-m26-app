@@ -30,35 +30,57 @@ export function deterministicSeed(exerciseId,style='iberfit-premium-movement-pai
 function list(value){return (Array.isArray(value)?value:[]).map((item)=>String(item||'').trim()).filter(Boolean);}
 function line(value,fallback='ninguno'){const out=String(value??'').replace(/\s+/gu,' ').trim();return out||fallback;}
 
+export function exerciseSpecificVisualContract(exercise={}){
+  const id=String(exercise?.id||'').trim();
+  if(id==='IBF-ABDUCCION-DE-CADERA-LATERAL'){
+    return [
+      'EXERCISE-SPECIFIC CONTRACT — this overrides vague catalog cues for this exercise.',
+      'Depict a STANDING BODYWEIGHT HIP ABDUCTION. This is a LOWER-BODY hip movement, never an arm or shoulder exercise.',
+      'LEFT/START pose: athlete stands tall and balanced, pelvis level, trunk vertical, both legs straight and together or approximately hip-width, both feet clearly visible, arms relaxed naturally at the sides or hands resting on hips.',
+      'RIGHT/END pose: same athlete remains tall on one support leg while the opposite leg is visibly lifted laterally away from the body midline in the frontal plane by roughly 25–35 degrees. Moving knee stays extended, toes face mostly forward, pelvis remains level, support foot stays flat, trunk does not lean, rotate or side-bend.',
+      'There must be a large obvious air gap between the moving foot/leg and the support leg in the END pose. The lateral displacement of the entire moving leg from the hip must be unmistakable at first glance.',
+      'The arms must stay passive and essentially unchanged between phases. Do NOT raise, extend, point, flex or use the arms to communicate the exercise.',
+      'Use a front-facing or only very slight front three-quarter camera angle so both hips, both knees, both ankles and the lateral travel of the moving leg are clearly visible. Show both shoes completely and the floor under the support foot.',
+      'No band, cable, machine, ankle weight, bench or other exercise equipment. Primary anatomical emphasis is the lateral hip/gluteal region, especially gluteus medius/minimus; do not visually imply an upper-body target.',
+    ].join(' ');
+  }
+  return '';
+}
+
 export function buildCloudflareImagePrompt(exercise,{hasAthleteReference=false,hasLogoReference=false}={}){
   const brief=buildExerciseVisualBrief(exercise);
   const instructions=list(brief.biomechanics.instructions).slice(0,6).join('; ')||'seguir biomecánica estándar segura del ejercicio';
   const cues=list(exercise?.cues).slice(0,6).join('; ')||'control postural y recorrido técnico';
   const primary=list(brief.muscles.primary).join(', ')||'músculos principales del ejercicio';
   const secondary=list(brief.muscles.secondary).join(', ')||'sin secundarios destacados';
+  const specificContract=exerciseSpecificVisualContract(exercise);
   const identity=hasAthleteReference
-    ?'Use input image 0 ONLY as the canonical IBERFIT male athlete, outfit and dark premium gym identity/style reference. Preserve the same adult man in both required movement phases; do not copy the reference pose.'
+    ?'Use input image 0 ONLY as the canonical IBERFIT male athlete identity, general outfit silhouette and dark premium gym identity/style reference. Preserve the same adult man in both required movement phases. Do NOT copy the reference pose, arm position, lettering, sleeve graphics or incidental shirt marks.'
     :'Use one consistent adult male athlete identity in both movement phases: late 20s to 30s, short dark-brown hair, trimmed beard, light/olive skin, athletic muscular but realistic proportions.';
   const branding=hasLogoReference
-    ?'Input image 1 is the exact official IBERFIT gold isotype. Reproduce it faithfully only as a very small mark on the left chest of the black shirt in each required pose; never place it elsewhere and never generate the word IBERFIT or any other letters.'
-    :'No brand reference was supplied: leave both shirts plain black. Do NOT invent a logo, symbol, brand name or lettering.';
+    ?'Input image 1 is the exact official IBERFIT gold isotype. The shirt must otherwise be completely plain black. Reproduce EXACTLY ONE tiny official isotype on the left chest of each pose, visually identical in both poses. NO sleeve marks, NO second chest mark, NO decorative gold strokes, NO wordmark, NO letters, NO brand text and no invented symbol anywhere.'
+    :'No brand reference was supplied: leave both shirts completely plain black. Do NOT invent a logo, symbol, brand name, lettering, sleeve marks or decorative shirt graphics.';
+  const cameraRule=specificContract
+    ?'Both movement phases must be biomechanically correct. Keep feet, hands and all relevant joints visible. Follow the exercise-specific camera and framing contract above; use enough spacing that neither pose overlaps or crops the other.'
+    :'Both movement phases must be biomechanically correct. Keep feet, hands and all relevant equipment visible. Use a slight three-quarter side instructional camera angle and enough spacing that neither pose overlaps or crops the other.';
 
   return [
     'Create ONE clean premium fitness-instruction photograph for the IBERFIT exercise library, vertical 4:5, containing a clear start/end movement pair.',
     identity,
     branding,
-    'Use the same visual language in both phases: fitted black short-sleeve technical shirt, black athletic shorts, black training shoes, premium charcoal/black gym, subtle green architectural accent light, cinematic instructional lighting, realistic photography.',
+    'Use the same visual language in both phases: fitted plain black short-sleeve technical shirt, black athletic shorts, black training shoes, premium charcoal/black gym, subtle green architectural accent light, cinematic instructional lighting, realistic photography.',
     `Exercise: ${line(brief.exerciseName)}.`,
     `Movement pattern: ${line(brief.biomechanics.pattern)}. Equipment: ${line(brief.biomechanics.equipment)}.`,
-    `Required execution: ${instructions}. Coaching cues: ${cues}.`,
-    `Primary muscles: ${primary}. Secondary muscles: ${secondary}.`,
+    `Required execution from catalog: ${instructions}. Coaching cues: ${cues}.`,
+    `Catalog muscle metadata: ${primary}. Secondary muscles: ${secondary}.`,
+    specificContract,
     'Show exactly TWO full-body depictions of the SAME athlete in one clean composition: start position on the left and end or peak-contraction position on the right. Use the same equipment setup, camera language, scale, outfit and gym. Do not add start/end labels. The two poses must make the movement progression obvious by body position alone.',
-    'Both movement phases must be biomechanically correct. Keep feet, hands and all relevant equipment visible. Use a slight three-quarter side instructional camera angle and enough spacing that neither pose overlaps or crops the other.',
-    'Biomechanics are strict: anatomically possible joints, neutral and exercise-appropriate spine, correct grip and stance, realistic balance/support, correct machine setup and cable/bar path, no unsafe or misleading posture.',
-    'Keep the main photograph clean. NO title, NO exercise name, NO captions, NO arrows, NO start/end labels, NO panels, NO footer, NO buttons, NO poster, NO infographic, NO watermark, NO random text.',
+    cameraRule,
+    'Biomechanics are strict: anatomically possible joints, neutral and exercise-appropriate spine, correct grip and stance, realistic balance/support, correct machine setup and cable/bar path when applicable, no unsafe or misleading posture.',
+    'Keep the main photograph clean. NO title, NO exercise name, NO captions, NO arrows, NO start/end labels, NO panels, NO footer, NO buttons, NO poster, NO infographic, NO watermark, NO random text and NO decorative lettering.',
     'A tiny tasteful anatomy inset in one unobtrusive corner is permitted only if it does not cover either movement phase or equipment; highlight primary muscles and secondary muscles subtly; no anatomical text labels.',
     'Exactly two required pose depictions only: no third athlete, no background people, no extra limbs/fingers, no fused or duplicated body parts, no cropped critical hands/feet, no impossible equipment geometry, no exaggerated bodybuilder proportions, no invented logos or lettering.',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 function mimeFor(filePath){
