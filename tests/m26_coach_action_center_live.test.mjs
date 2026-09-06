@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {resolveCoachActionNavigation} from '../src/m26/shell/coach-action-center.js';
+import {resolveCoachActionNavigation} from '../src/m26/shell/shell-controller.js';
 
 function state({role='coach',selectedClientId=null}={}){
   return {
@@ -38,12 +38,12 @@ test('Coach Action Center remains fail-closed for role and client scope',()=>{
 });
 
 test('Live enhancer exposes semantic UI, accessibility and contextual targets',async()=>{
-  const source=await readFile(new URL('../src/m26/shell/coach-action-center.js',import.meta.url),'utf8');
-  assert.match(source,/data\.m26CoachActionCenter/u);
+  const source=await readFile(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8');
+  assert.match(source,/dataset\.m26CoachActionCenter/u);
   assert.match(source,/aria-labelledby/u);
-  assert.match(source,/data\.coachActionType/u);
-  assert.match(source,/data\.m26CoachAction/u);
-  assert.match(source,/data\.m26TargetArea/u);
+  assert.match(source,/dataset\.coachActionType/u);
+  assert.match(source,/dataset\.m26CoachAction/u);
+  assert.match(source,/dataset\.m26TargetArea/u);
   assert.match(source,/coach\.actionCenter\.whyLabel/u);
   assert.match(source,/coach\.actionCenter\.nextLabel/u);
   assert.match(source,/coach\.actionCenter\.ctaAria/u);
