@@ -9,6 +9,7 @@ export const DEFAULT_SMOKE_EXERCISE_ID='IBF-ABDUCCION-DE-CADERA-LATERAL';
 const SAFE_EXERCISE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
 const SAFE_ACCOUNT_ID=/^[A-Fa-f0-9]{32}$/u;
 const MAX_IMAGE_BYTES=12_000_000;
+const REQUIRED_QA_KEYS=['exercise_match','equipment_match','movement_pair','same_athlete_identity','phase_progression','biomechanics','anatomy_integrity','critical_body_visible','clean_no_text','branding_safe','visual_quality','confidence','issues'];
 
 function exactId(value){const id=String(value??'');if(!id||id!==id.trim()||!SAFE_EXERCISE_ID.test(id))throw new Error('IBERFIT_QA_EXERCISE_ID_INVALID');return id;}
 function list(value){return(Array.isArray(value)?value:[]).map((v)=>String(v||'').trim()).filter(Boolean);}
@@ -70,8 +71,35 @@ function extractAnswer(payload){
   throw new Error(`IBERFIT_QA_ANSWER_MISSING:${keys}`);
 }
 
+function reportShape(value){return value&&typeof value==='object'&&!Array.isArray(value)&&REQUIRED_QA_KEYS.every((key)=>Object.prototype.hasOwnProperty.call(value,key));}
+function tryJson(value){
+  const text=String(value??'').trim();if(!text)return null;
+  try{
+    const parsed=JSON.parse(text);
+    if(reportShape(parsed))return parsed;
+    if(typeof parsed==='string'&&parsed!==text)return tryJson(parsed);
+  }catch{}
+  return null;
+}
+function jsonObjectCandidates(text){
+  const out=[];
+  const fenced=/```(?:json)?\s*([\s\S]*?)```/giu;
+  for(const match of text.matchAll(fenced))if(match[1])out.push(match[1].trim());
+  const starts=[];const ends=[];
+  for(let i=0;i<text.length;i+=1){if(text[i]==='{')starts.push(i);else if(text[i]==='}')ends.push(i);}
+  for(let s=starts.length-1;s>=0;s-=1){
+    const start=starts[s];
+    for(let e=0;e<ends.length;e+=1){const end=ends[e];if(end<=start)continue;out.push(text.slice(start,end+1));}
+  }
+  return out;
+}
+
 export function parseQaAnswer(answer){
-  let text=String(answer||'').trim();text=text.replace(/^```(?:json)?\s*/iu,'').replace(/\s*```$/u,'').trim();const first=text.indexOf('{'),last=text.lastIndexOf('}');if(first<0||last<=first)throw new Error('IBERFIT_QA_JSON_INVALID');let raw;try{raw=JSON.parse(text.slice(first,last+1));}catch{throw new Error('IBERFIT_QA_JSON_INVALID');}
+  let text=String(answer||'').trim();
+  text=text.replace(/<think>[\s\S]*?<\/think>/giu,' ').replace(/^```(?:json)?\s*/iu,'').replace(/\s*```$/u,'').trim();
+  let raw=tryJson(text);
+  if(!raw){for(const candidate of jsonObjectCandidates(text)){raw=tryJson(candidate);if(raw)break;}}
+  if(!raw){const diagnostic=JSON.stringify(text.slice(0,700));throw new Error(`IBERFIT_QA_JSON_INVALID:${diagnostic}`);}
   const biomechanics=['pass','fail','uncertain'].includes(raw.biomechanics)?raw.biomechanics:'uncertain';const visualQuality=['pass','fail','uncertain'].includes(raw.visual_quality)?raw.visual_quality:'uncertain';const confidence=Number(raw.confidence);
   return Object.freeze({exercise_match:raw.exercise_match===true,equipment_match:raw.equipment_match===true,movement_pair:raw.movement_pair===true,same_athlete_identity:raw.same_athlete_identity===true,phase_progression:raw.phase_progression===true,biomechanics,anatomy_integrity:raw.anatomy_integrity===true,critical_body_visible:raw.critical_body_visible===true,clean_no_text:raw.clean_no_text===true,branding_safe:raw.branding_safe===true,visual_quality:visualQuality,confidence:Number.isFinite(confidence)?Math.max(0,Math.min(1,confidence)):0,issues:Object.freeze(list(raw.issues).slice(0,12))});
 }
@@ -84,12 +112,12 @@ export function buildQwenQaBody({exercise,imageBytes,mime}){
   const bytes=Buffer.isBuffer(imageBytes)?imageBytes:Buffer.from(imageBytes||[]);const dataUri=`data:${mime};base64,${bytes.toString('base64')}`;
   return{
     messages:[
-      {role:'system',content:'You are an exacting visual biomechanics auditor. Follow the user rubric literally. Output only valid JSON and never invent visual defects.'},
+      {role:'system',content:'You are an exacting visual biomechanics auditor. Follow the user rubric literally. Output only one complete valid JSON object and never invent visual defects.'},
       {role:'user',content:[{type:'image_url',image_url:{url:dataUri}},{type:'text',text:buildQaQuestion(exercise)}]},
     ],
     temperature:0,
     stream:false,
-    max_completion_tokens:900,
+    max_completion_tokens:1800,
     reasoning_effort:'medium',
     response_format:{type:'json_object'},
   };
