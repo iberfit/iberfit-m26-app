@@ -3,8 +3,9 @@
 /**
  * IBERFIT exercise media autowire.
  *
- * Identity is always the exact canonical exercise_id. Display names and
- * filesystem slugs are never used to match an asset to an exercise.
+ * Converts approved exercise-media manifests into the exact RPC calls consumed
+ * by the existing runtime bridge. Identity is always the canonical exercise_id;
+ * names, aliases and filesystem slugs are never authoritative.
  */
 
 import fs from 'node:fs';
@@ -13,7 +14,8 @@ import { pathToFileURL } from 'node:url';
 import { validateExerciseMediaManifest } from '../../src/m26/exercises/catalog.js';
 
 const INPUT_SCHEMA = 'iberfit.exercise.media.autowire-input.v2';
-const OUTPUT_SCHEMA = 'iberfit.exercise.media.autowire.v2';
+const OUTPUT_SCHEMA = 'iberfit.exercise.media.autowire.v3';
+const FINALIZE_RPC = 'iberfit_finalize_exercise_media_v1';
 const SAFE_EXERCISE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
 
 function exactExerciseId(value, code) {
@@ -42,7 +44,7 @@ export function extractMediaItems(manifestRaw) {
   return manifestRaw.items;
 }
 
-export function buildExerciseMediaUpserts(catalogRaw, manifestRaw, { generatedAt = new Date().toISOString() } = {}) {
+export function buildExerciseMediaFinalizations(catalogRaw, manifestRaw, { generatedAt = new Date().toISOString() } = {}) {
   const catalog = extractCanonicalExercises(catalogRaw);
   const mediaItems = extractMediaItems(manifestRaw);
   const canonicalById = new Map();
@@ -71,7 +73,7 @@ export function buildExerciseMediaUpserts(catalogRaw, manifestRaw, { generatedAt
     mediaById.set(id, item.media);
   }
 
-  const upserts = [];
+  const finalizations = [];
   const missing = [];
   for (const exercise of catalog) {
     const id = exercise.id;
@@ -80,18 +82,33 @@ export function buildExerciseMediaUpserts(catalogRaw, manifestRaw, { generatedAt
       missing.push({ id, name: exercise.name_es || exercise.name || null });
       continue;
     }
-    upserts.push({ id, media_status: 'ready', media });
+    finalizations.push(Object.freeze({
+      exercise_id: id,
+      rpc: FINALIZE_RPC,
+      args: Object.freeze({ p_exercise_id: id, p_manifest: media }),
+    }));
   }
 
   return {
     schema: OUTPUT_SCHEMA,
     generated_at: generatedAt,
     identity: { field: 'exercise_id', matching: 'exact', slug_authoritative: false },
-    totals: { catalog: catalog.length, matched: upserts.length, missing: missing.length },
-    upserts,
+    publication: {
+      mechanism: 'supabase_rpc',
+      rpc: FINALIZE_RPC,
+      resulting_media_status: 'aprobado',
+      runtime_manifest_rpc: 'iberfit_exercise_media_manifest_v1',
+      app_link: 'automatic',
+    },
+    totals: { catalog: catalog.length, matched: finalizations.length, missing: missing.length },
+    finalizations,
     missing,
   };
 }
+
+// Backwards-compatible export name for callers created with autowire v2.
+// The returned payload is intentionally v3 and no longer emits unsafe direct upserts.
+export const buildExerciseMediaUpserts = buildExerciseMediaFinalizations;
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(path.resolve(filePath), 'utf8'));
@@ -104,13 +121,13 @@ export function runCli(argv = process.argv.slice(2)) {
   };
   const catalogPath = getArg('--catalog');
   const manifestPath = getArg('--manifest');
-  const outPath = getArg('--out') || 'exercise-media-upserts.json';
+  const outPath = getArg('--out') || 'exercise-media-finalizations.json';
 
   if (!catalogPath || !manifestPath) {
     throw new Error('USAGE: node scripts/exercise-media/autowire.mjs --catalog <catalog.json> --manifest <media.json> [--out <file>]');
   }
 
-  const result = buildExerciseMediaUpserts(readJson(catalogPath), readJson(manifestPath));
+  const result = buildExerciseMediaFinalizations(readJson(catalogPath), readJson(manifestPath));
   fs.writeFileSync(path.resolve(outPath), `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify(result.totals));
   return result;
