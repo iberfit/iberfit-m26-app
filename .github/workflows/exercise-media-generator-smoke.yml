@@ -187,14 +187,41 @@ jobs:
             exit 1
           fi
 
-          proxy_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' recovery/exercise-media-pages-deploy.log | tail -n 1 || true)"
-          if [[ -z "$proxy_url" ]]; then
-            echo 'No se pudo resolver la URL pages.dev del proxy AI aislado.' >&2
+          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' recovery/exercise-media-pages-deploy.log | tail -n 1 || true)"
+          stable_url="https://${PAGES_AI_PROJECT}.pages.dev"
+          if [[ -z "$preview_url" ]]; then
+            echo 'No se pudo resolver la URL preview pages.dev del proxy AI aislado.' >&2
             exit 1
           fi
-          curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 2 -X POST \
-            -H "Authorization: Bearer $smoke_token" \
-            "$proxy_url/health" > recovery/exercise-media-proxy-health.json
+
+          : > recovery/exercise-media-proxy-health-wait.log
+          proxy_url=''
+          health_tmp='recovery/exercise-media-proxy-health.tmp.json'
+          rm -f "$health_tmp" recovery/exercise-media-proxy-health.json
+          for attempt in $(seq 1 24); do
+            for candidate_url in "$stable_url" "$preview_url"; do
+              echo "TLS/health attempt $attempt/24 -> $candidate_url" >> recovery/exercise-media-proxy-health-wait.log
+              if curl --fail --silent --show-error --http1.1 \
+                --connect-timeout 5 --max-time 8 \
+                -X POST \
+                -H "Authorization: Bearer $smoke_token" \
+                "$candidate_url/health" > "$health_tmp" 2>> recovery/exercise-media-proxy-health-wait.log; then
+                if HEALTH_FILE="$health_tmp" node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync(process.env.HEALTH_FILE,'utf8'));if(x.ok!==true||x.ai!==true)process.exit(1)"; then
+                  mv "$health_tmp" recovery/exercise-media-proxy-health.json
+                  proxy_url="$candidate_url"
+                  break 2
+                fi
+                echo 'Respuesta health recibida pero contrato AI aún no listo.' >> recovery/exercise-media-proxy-health-wait.log
+              fi
+              rm -f "$health_tmp"
+            done
+            sleep 3
+          done
+          cat recovery/exercise-media-proxy-health-wait.log
+          if [[ -z "$proxy_url" ]]; then
+            echo 'Pages desplegó, pero TLS/health no quedó operativo dentro de la ventana segura.' >&2
+            exit 1
+          fi
           node -e "const x=require('./recovery/exercise-media-proxy-health.json');if(x.ok!==true||x.ai!==true)process.exit(1)"
           echo "IBERFIT_AI_PROXY_URL=$proxy_url" >> "$GITHUB_ENV"
           echo "IBERFIT_AI_PROXY_TOKEN=$smoke_token" >> "$GITHUB_ENV"
@@ -275,6 +302,7 @@ jobs:
             recovery/exercise-media-pages-create.log
             recovery/exercise-media-pages-secret.log
             recovery/exercise-media-pages-deploy.log
+            recovery/exercise-media-proxy-health-wait.log
             recovery/exercise-media-proxy-health.json
           if-no-files-found: warn
           retention-days: 14
