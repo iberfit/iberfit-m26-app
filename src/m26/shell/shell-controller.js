@@ -1,4 +1,4 @@
-import {createShellController as createCoreShellController,resolveAdaptiveLayout} from './shell-controller-core.js';
+import {createShellController as createCoreShellController,resolveAdaptiveLayout} from './index.js';
 import {guardClientSelection,resolveM26Route} from './route-guard.js';
 
 export {resolveAdaptiveLayout};
