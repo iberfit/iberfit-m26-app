@@ -1,8 +1,6 @@
 import {buildAdherenceWindows} from './progress-continuity.js';
-import {
-  buildExerciseLongitudinalProgress,
-  computeProgressSummary,
-} from './progress-engine.js';
+import {computeProgressSummary} from './progress-engine.js';
+import {buildExerciseLongitudinalProgress} from './exercise-performance-engine.js';
 
 function finite(value){const number=Number(value);return Number.isFinite(number)?number:null;}
 function percent(value){const number=finite(value);return number===null?null:Math.round(number*100);}
