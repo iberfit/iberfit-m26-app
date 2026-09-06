@@ -1,0 +1,137 @@
+name: IBERFIT Exercise Media Generator Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      exercise_id:
+        description: Canonical exercise_id to generate
+        required: true
+        default: bw-squat
+        type: string
+      run_visual_qa:
+        description: Run Cloudflare vision QA after generation
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-exercise-media-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CLOUDFLARE_ACCOUNT_ID: 1ec75e231928ad29a7606946dd5cfbfc
+
+jobs:
+  generate-quarantined-candidate:
+    name: generate-quarantined-candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validar contrato del generador
+        shell: bash
+        run: node --test tests/m26_exercise_media_cloudflare_generator.test.mjs
+
+      - name: Verificar credencial Workers AI
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+            echo 'CLOUDFLARE_API_TOKEN no está disponible en este workflow.' >&2
+            exit 1
+          fi
+          status="$(curl -sS -o model-schema.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/models/schema?model=%40cf%2Fblack-forest-labs%2Fflux-2-klein-4b")"
+          if [[ "$status" != "200" ]]; then
+            echo "Workers AI preflight HTTP ${status}" >&2
+            cat model-schema.json >&2 || true
+            exit 1
+          fi
+
+      - name: Generar candidato IBERFIT
+        id: generate
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          rm -rf recovery/exercise-media-smoke
+          node scripts/exercise-media/generate-cloudflare.mjs \
+            --catalog baseline_m25_2/exercise-catalog-m25.json \
+            --exercise-id "${{ inputs.exercise_id }}" \
+            --out-dir recovery/exercise-media-smoke | tee recovery/exercise-media-generate.log
+          image="$(find recovery/exercise-media-smoke -maxdepth 1 -type f -name '*-candidate.*' ! -name '*.json' | head -n 1)"
+          if [[ -z "$image" || ! -s "$image" ]]; then
+            echo 'No se generó imagen candidata.' >&2
+            exit 1
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: QA visual y biomecánica automático
+        if: ${{ inputs.run_visual_qa }}
+        id: qa
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +e
+          node scripts/exercise-media/qa-cloudflare.mjs \
+            --catalog baseline_m25_2/exercise-catalog-m25.json \
+            --exercise-id "${{ inputs.exercise_id }}" \
+            --image "${{ steps.generate.outputs.image }}" \
+            --out recovery/exercise-media-smoke/qa-report.json | tee recovery/exercise-media-qa.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          if [[ "$rc" -eq 1 ]]; then
+            echo 'El revisor no pudo ejecutarse.' >&2
+            exit 1
+          fi
+          if [[ "$rc" -eq 2 ]]; then
+            echo 'Candidato correctamente bloqueado por QA; permanece en cuarentena.'
+          fi
+
+      - name: Confirmar que no existe ruta de publicación
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "recovery/exercise-media-smoke/${{ inputs.exercise_id }}-candidate.json"
+          node - <<'NODE'
+          const fs=require('fs');
+          const id=process.env.EXERCISE_ID;
+          const x=JSON.parse(fs.readFileSync(`recovery/exercise-media-smoke/${id}-candidate.json`,'utf8'));
+          if(x.publishable!==false)throw new Error('SMOKE_CANDIDATE_MUST_NOT_BE_PUBLISHABLE');
+          if(x.qa?.biomechanics!=='pending'||x.qa?.visual!=='pending')throw new Error('GENERATION_MUST_NOT_SELF_APPROVE');
+          console.log(JSON.stringify({safe:true,publishable:x.publishable,qa:x.qa}));
+          NODE
+        env:
+          EXERCISE_ID: ${{ inputs.exercise_id }}
+
+      - name: Conservar candidato y evidencia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-exercise-media-smoke-${{ inputs.exercise_id }}-${{ github.run_id }}
+          path: |
+            recovery/exercise-media-smoke/**
+            recovery/exercise-media-generate.log
+            recovery/exercise-media-qa.log
+            model-schema.json
+          if-no-files-found: warn
+          retention-days: 14
