@@ -27,6 +27,14 @@ function renewalStatus(value){
   const normalized=String(value||'').trim().toLowerCase();
   return RENEWAL_STATUSES.includes(normalized)?normalized:'insufficient';
 }
+export function normalizeCommercialRenewalFilter(value){
+  const normalized=String(value||'').trim().toLowerCase();
+  return RENEWAL_STATUSES.includes(normalized)?normalized:'';
+}
+export function commercialRenewalFilterMatches(status,filter){
+  const normalizedFilter=normalizeCommercialRenewalFilter(filter);
+  return !normalizedFilter||renewalStatus(status)===normalizedFilter;
+}
 export function commercialRenewalLabel(status){
   return RENEWAL_LABELS[renewalStatus(status)];
 }
@@ -134,6 +142,11 @@ function ensurePortfolioStyles(documentLike){
 .m26-commercial-portfolio-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.m26-commercial-portfolio-head h3{margin:.18rem 0 .2rem}.m26-commercial-portfolio-head p{margin:0;color:#aaa499;font-size:.78rem;line-height:1.45}
 .m26-commercial-portfolio-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}.m26-commercial-portfolio-grid div{display:grid;gap:.18rem;padding:.68rem .72rem;border:1px solid rgba(216,185,111,.1);border-radius:.75rem;background:rgba(255,255,255,.018)}.m26-commercial-portfolio-grid span{color:#aaa499;font-size:.68rem}.m26-commercial-portfolio-grid strong{font-size:1rem}
 .m26-commercial-renewal{display:grid;gap:.14rem;margin-top:.18rem;padding:.42rem .5rem;border:1px solid rgba(216,185,111,.11);border-radius:.58rem;background:rgba(255,255,255,.018);text-align:left}.m26-commercial-renewal strong{font-size:.72rem}.m26-commercial-renewal small{font-size:.64rem;line-height:1.35}.m26-commercial-renewal.is-overdue{border-color:rgba(216,185,111,.3);background:rgba(216,185,111,.075)}.m26-commercial-renewal.is-upcoming{border-color:rgba(216,185,111,.2)}.m26-commercial-renewal.is-insufficient{opacity:.74}
+.m26-client-grid[data-renewal-filter="overdue"] .m26-client-card:not([data-client-renewal="overdue"]),
+.m26-client-grid[data-renewal-filter="upcoming"] .m26-client-card:not([data-client-renewal="upcoming"]),
+.m26-client-grid[data-renewal-filter="current"] .m26-client-card:not([data-client-renewal="current"]),
+.m26-client-grid[data-renewal-filter="completed"] .m26-client-card:not([data-client-renewal="completed"]),
+.m26-client-grid[data-renewal-filter="insufficient"] .m26-client-card:not([data-client-renewal="insufficient"]){display:none!important}
 @media(max-width:760px){.m26-commercial-portfolio-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m26-commercial-portfolio-head{display:grid}}
 `;
   documentLike.head?.append?.(style);
@@ -183,6 +196,88 @@ function createPortfolioSummary(documentLike,snapshot){
   section.append(head,grid);
   return section;
 }
+function commercialFilterOptions(){
+  return Object.freeze([
+    ['', 'Todas'],
+    ['overdue','Por revisar'],
+    ['upcoming','Próximas'],
+    ['current','Vigentes'],
+    ['completed','Completadas'],
+    ['insufficient','Sin evidencia'],
+  ].map(Object.freeze));
+}
+function commercialVisibleCount(root,filter){
+  return [...(root.querySelectorAll?.('.m26-client-card')||[])]
+    .filter((card)=>!card.hidden&&commercialRenewalFilterMatches(card.dataset?.clientRenewal,filter))
+    .length;
+}
+function updateCommercialFilterStatus(root,filter){
+  const normalized=normalizeCommercialRenewalFilter(filter);
+  if(!normalized)return;
+  const visible=commercialVisibleCount(root,normalized);
+  const status=root.querySelector?.('[data-client-search-status]');
+  if(status)status.textContent=`${visible} ${visible===1?'cliente visible':'clientes visibles'} con el filtro de renovación.`;
+}
+export function applyCommercialRenewalFilter(root,value){
+  const grid=root?.querySelector?.('[data-client-grid]');
+  if(!grid)return false;
+  const filter=normalizeCommercialRenewalFilter(value);
+  if(filter)grid.dataset.renewalFilter=filter;
+  else delete grid.dataset.renewalFilter;
+  updateCommercialFilterStatus(root,filter);
+  return true;
+}
+function bindCommercialFilterSync(root,select){
+  if(!select||select.dataset.m26CommercialFilterBound==='true')return;
+  select.dataset.m26CommercialFilterBound='true';
+  const sync=()=>{
+    const run=()=>updateCommercialFilterStatus(root,select.value);
+    if(typeof globalThis.queueMicrotask==='function')globalThis.queueMicrotask(run);
+    else Promise.resolve().then(run);
+  };
+  select.addEventListener?.('change',()=>applyCommercialRenewalFilter(root,select.value));
+  for(const control of root.querySelectorAll?.('[data-client-search],[data-client-filter],[data-client-sort]')||[]){
+    if(control.dataset?.m26CommercialFilterSync==='true')continue;
+    if(control.dataset)control.dataset.m26CommercialFilterSync='true';
+    control.addEventListener?.('input',sync);
+    control.addEventListener?.('change',sync);
+  }
+  const clear=root.querySelector?.('[data-client-clear]');
+  if(clear&&clear.dataset?.m26CommercialFilterSync!=='true'){
+    if(clear.dataset)clear.dataset.m26CommercialFilterSync='true';
+    clear.addEventListener?.('click',()=>{
+      select.value='';
+      const run=()=>applyCommercialRenewalFilter(root,'');
+      if(typeof globalThis.queueMicrotask==='function')globalThis.queueMicrotask(run);
+      else Promise.resolve().then(run);
+    });
+  }
+}
+function ensureCommercialFilter(root,documentLike){
+  const controls=root.querySelector?.('.m26-client-controls');
+  if(!controls)return null;
+  let select=controls.querySelector?.('[data-m26-renewal-filter]');
+  if(!select){
+    const label=documentLike.createElement('label');
+    label.setAttribute('data-m26-commercial-filter','true');
+    label.append(documentLike.createTextNode('Renovación'));
+    select=documentLike.createElement('select');
+    select.setAttribute('data-m26-renewal-filter','true');
+    select.setAttribute('aria-label','Filtrar clientes por estado de renovación');
+    for(const [value,text] of commercialFilterOptions()){
+      const option=documentLike.createElement('option');
+      option.value=value;
+      option.textContent=text;
+      select.append(option);
+    }
+    label.append(select);
+    const sort=controls.querySelector?.('[data-client-sort]')?.closest?.('label');
+    if(sort?.parentNode===controls)controls.insertBefore(label,sort);
+    else controls.append(label);
+  }
+  bindCommercialFilterSync(root,select);
+  return select;
+}
 export function enhanceCommercialPortfolio(root,snapshot=commercialPortfolioSnapshot){
   if(!root?.querySelector||!snapshot?.rows?.length)return false;
   const documentLike=root.ownerDocument||globalThis.document;
@@ -218,6 +313,8 @@ export function enhanceCommercialPortfolio(root,snapshot=commercialPortfolioSnap
     if(strong)strong.textContent=commercialRenewalLabel(status);
     if(small)small.textContent=renewalDetail(row);
   }
+  const filter=ensureCommercialFilter(root,documentLike);
+  if(filter)applyCommercialRenewalFilter(root,filter.value);
   return true;
 }
 function scheduleCommercialPortfolioEnhancement(){
