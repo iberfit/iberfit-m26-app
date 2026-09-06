@@ -1,7 +1,7 @@
-import {renderRouteView as renderCoreRouteView} from './route-render-core.js';
+import {renderRouteView as renderCoreRouteView} from './index.js';
 import {iberfitDomainTranslate} from '../ui/i18n-domain.js';
 
-export * from './route-render-core.js';
+export * from './index.js';
 
 const escapeHtml=(value)=>String(value??'')
   .replaceAll('&','&amp;')
