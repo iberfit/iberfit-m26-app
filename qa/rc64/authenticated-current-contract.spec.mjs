@@ -21,6 +21,8 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_communication_bootstrap_v14',
   'm26_backend_bootstrap_v43',
   'm26_wearable_bootstrap_v44',
+  'iberfit_exercise_catalog_public_v1',
+  'iberfit_exercise_media_manifest_v1',
 ]);
 
 function allowedExternalRequest(request){
