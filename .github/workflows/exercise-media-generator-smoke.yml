@@ -1,6 +1,14 @@
 name: IBERFIT Exercise Media Generator Smoke
 
 on:
+  pull_request:
+    branches:
+      - canary/rc74-4
+    paths:
+      - 'scripts/exercise-media/generate-cloudflare.mjs'
+      - 'scripts/exercise-media/qa-cloudflare.mjs'
+      - 'tests/m26_exercise_media_cloudflare_generator.test.mjs'
+      - '.github/workflows/exercise-media-generator-smoke.yml'
   workflow_dispatch:
     inputs:
       exercise_id:
@@ -23,6 +31,7 @@ concurrency:
 
 env:
   CLOUDFLARE_ACCOUNT_ID: 1ec75e231928ad29a7606946dd5cfbfc
+  EXERCISE_ID: ${{ inputs.exercise_id || 'bw-squat' }}
 
 jobs:
   generate-quarantined-candidate:
@@ -72,9 +81,10 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf recovery/exercise-media-smoke
+          mkdir -p recovery
           node scripts/exercise-media/generate-cloudflare.mjs \
             --catalog baseline_m25_2/exercise-catalog-m25.json \
-            --exercise-id "${{ inputs.exercise_id }}" \
+            --exercise-id "$EXERCISE_ID" \
             --out-dir recovery/exercise-media-smoke | tee recovery/exercise-media-generate.log
           image="$(find recovery/exercise-media-smoke -maxdepth 1 -type f -name '*-candidate.*' ! -name '*.json' | head -n 1)"
           if [[ -z "$image" || ! -s "$image" ]]; then
@@ -84,7 +94,7 @@ jobs:
           echo "image=$image" >> "$GITHUB_OUTPUT"
 
       - name: QA visual y biomecánica automático
-        if: ${{ inputs.run_visual_qa }}
+        if: ${{ github.event_name == 'pull_request' || inputs.run_visual_qa }}
         id: qa
         shell: bash
         env:
@@ -93,7 +103,7 @@ jobs:
           set +e
           node scripts/exercise-media/qa-cloudflare.mjs \
             --catalog baseline_m25_2/exercise-catalog-m25.json \
-            --exercise-id "${{ inputs.exercise_id }}" \
+            --exercise-id "$EXERCISE_ID" \
             --image "${{ steps.generate.outputs.image }}" \
             --out recovery/exercise-media-smoke/qa-report.json | tee recovery/exercise-media-qa.log
           rc=${PIPESTATUS[0]}
@@ -111,7 +121,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f "recovery/exercise-media-smoke/${{ inputs.exercise_id }}-candidate.json"
+          test -f "recovery/exercise-media-smoke/${EXERCISE_ID}-candidate.json"
           node - <<'NODE'
           const fs=require('fs');
           const id=process.env.EXERCISE_ID;
@@ -120,14 +130,12 @@ jobs:
           if(x.qa?.biomechanics!=='pending'||x.qa?.visual!=='pending')throw new Error('GENERATION_MUST_NOT_SELF_APPROVE');
           console.log(JSON.stringify({safe:true,publishable:x.publishable,qa:x.qa}));
           NODE
-        env:
-          EXERCISE_ID: ${{ inputs.exercise_id }}
 
       - name: Conservar candidato y evidencia
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: iberfit-exercise-media-smoke-${{ inputs.exercise_id }}-${{ github.run_id }}
+          name: iberfit-exercise-media-smoke-${{ env.EXERCISE_ID }}-${{ github.run_id }}
           path: |
             recovery/exercise-media-smoke/**
             recovery/exercise-media-generate.log
