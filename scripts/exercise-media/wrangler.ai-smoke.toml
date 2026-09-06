@@ -1,0 +1,7 @@
+name = "iberfit-exercise-ai-smoke"
+main = "worker-ai-proxy.mjs"
+compatibility_date = "2026-09-05"
+workers_dev = true
+
+[ai]
+binding = "AI"
