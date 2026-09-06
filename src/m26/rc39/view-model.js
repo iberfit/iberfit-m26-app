@@ -5,6 +5,7 @@ import {
   appointmentForSession,
 } from './session-policy.js';
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from './multi-role.js';
+import {deriveCoachSelfLaunchJourney} from '../experience/coach-launch-self.js';
 
 const field=(record,...keys)=>{
   const body=record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};
@@ -59,6 +60,9 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
   const needsPreparation=sessionProjections.filter((item)=>!item.session?.blocks?.length).length;
   const confirmationOpen=operationalAppointments.filter((item)=>item.confirmation.state==='open').length;
   const changeRequests=operationalAppointments.filter((item)=>item.confirmation.state==='change_requested').length;
+  const coachLaunchJourney=role==='coach'
+    ?deriveCoachSelfLaunchJourney({state,identity:shellVm.identity||state.identity,now})
+    :null;
   return Object.freeze({
     ...vm,
     rc39:Object.freeze({
@@ -71,6 +75,7 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
       confirmationOpen,
       changeRequests,
       changeRequestAvailable,
+      coachLaunchJourney,
       generatedAt:new Date(now).toISOString(),
     }),
   });
