@@ -108,7 +108,7 @@ export async function reviewCloudflareExerciseImage({exercise,imageBytes,mime,ac
   const response=await fetchImpl(proxy||endpoint(accountId),{
     method:'POST',
     headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},
-    body:JSON.stringify({task:'query',image:`data:${imageMime};base64,${bytes.toString('base64')}`,question:buildQaQuestion(exercise),reasoning:false,temperature:0,max_tokens:1100}),
+    body:JSON.stringify({task:'query',image:`data:${imageMime};base64,${bytes.toString('base64')}`,question:buildQaQuestion(exercise),reasoning:false,temperature:0,max_tokens:1100,stream:false}),
     redirect:'error',
   });
   if(!response?.ok){let detail='';try{detail=(await response.text()).slice(0,600);}catch{}throw new Error(`IBERFIT_QA_CLOUDFLARE_HTTP_${response?.status||0}:${detail}`);}
