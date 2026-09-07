@@ -1,0 +1,31 @@
+name: Apply session skipped progress
+
+on:
+  push:
+    branches:
+      - fix/session-skipped-progress
+    paths:
+      - .github/workflows/apply-session-skipped-progress.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/session-skipped-progress
+          fetch-depth: 0
+      - name: Apply patch
+        run: python scripts/dev/apply_session_skipped_progress.py
+      - name: Validate diff
+        run: git diff --check
+      - name: Commit patch
+        run: |
+          git config user.name iberfit
+          git config user.email iberfit.cl@gmail.com
+          git add src/m26/workflows/session-ui.js
+          git commit -m "fix(session): count skipped sets in live progress"
+          git push origin HEAD:fix/session-skipped-progress
