@@ -101,6 +101,7 @@ test('current exercise history renders the recorded set and omits absent optiona
   assert.match(html,/10 reps/);
   assert.match(html,/80 kg/);
   assert.match(html,/RPE 8/);
+  assert.match(html,/<h3>10 reps · 80 kg · RPE 8<\/h3>/);
   assert.doesNotMatch(html,/RIR null/);
   assert.doesNotMatch(html,/RIR undefined/);
 });
