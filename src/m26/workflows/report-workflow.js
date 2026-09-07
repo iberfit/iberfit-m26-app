@@ -31,7 +31,7 @@ function inWindow(record,start,end){const date=recordDate(record);return Boolean
 function confirmedIri(record){const status=String(recordValue(record,'status','estado')||'').toLowerCase();return Boolean(recordValue(record,'firstSessionCompletedAt','first_session_completed_at'))||/(?:complet|confirmad|approved|aprob)/i.test(status);}
 function objectiveMeasurement(candidate){if(candidate===null||candidate===undefined||candidate==='')return false;if(Number.isFinite(Number(candidate)))return true;if(Array.isArray(candidate))return candidate.some(objectiveMeasurement);if(typeof candidate==='object')return Object.values(candidate).some(objectiveMeasurement);return false;}
 function iriCoverage(record){if(!record)return 0;const cardio=Number.isFinite(Number(recordValue(record,'stepFinalHr','step_final_hr')))&&Number.isFinite(Number(recordValue(record,'stepOneMinuteHr','step_one_minute_hr')));const composition=objectiveMeasurement(recordValue(record,'bodyComposition','body_composition'));const strength=objectiveMeasurement(recordValue(record,'strengthPatterns','strength_patterns'));return [cardio,composition,strength].filter(Boolean).length;}
-function evidence(label,value,source,quality='confirmada'){return Object.freeze({label, text:cleanText(value,500),source,quality});}
+function evidence(label,value,source,quality='confirmada'){return Object.freeze({label,text:cleanText(value,500),source,quality});}
 function reportModel({id,label,ready,reason,periodStart,periodEnd,title,summary,conclusions,recommendations,evidence=[],assessmentId=null}){return Object.freeze({id,label,status:ready?'ready':'insufficient-data',ready:Boolean(ready),reason:ready?null:cleanText(reason,500),periodStart:periodStart||null,periodEnd:periodEnd||null,title:cleanText(title,140),summary:cleanText(summary,2500),conclusions:cleanText(conclusions,2500),recommendations:cleanText(recommendations,2500),evidence:Object.freeze(evidence),assessmentId:assessmentId?String(assessmentId):null,coachComment:'',coachCommentLabel:'Comentario del coach',dataPolicy:'canonical-only'});}
 function iriId(record){return recordValue(record,'id');}
 function sessionLabel(record){return cleanText(recordValue(record,'title','name','nombre')||'Sesión IBERFIT',120);}
@@ -75,6 +75,91 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
 
 export function premiumReportByType(state,clientId,type,options={}){return buildPremiumReportPortfolio(state,clientId,options).find((report)=>report.id===String(type||''))||null;}
 
+export function premiumReportUiCandidates(state,role,clientId,options={}){
+  const normalizedRole=String(role||'').trim().toLowerCase();
+  if(!['coach','admin'].includes(normalizedRole)||!clientId)return Object.freeze([]);
+  return buildPremiumReportPortfolio(state,clientId,options);
+}
+
+const PREMIUM_REPORT_UI_STYLE_ID='m26-premium-report-ui-style';
+function browserReportContext(scope=globalThis){
+  const app=scope?.__IBERFIT_M26_APP__;
+  const state=app?.getState?.()||null;
+  const role=String(state?.identity?.role||'').trim().toLowerCase();
+  const clientId=role==='client'?state?.identity?.clientId:state?.selectedClientId;
+  return {state,role,clientId:String(clientId||'').trim()};
+}
+function reportFormValue(form,name){return String(form?.elements?.namedItem?.(name)?.value||'').trim();}
+function setReportFormValue(form,name,value){const field=form?.elements?.namedItem?.(name);if(!field)return false;field.value=value==null?'':String(value);field.dispatchEvent?.(new Event('input',{bubbles:true}));return true;}
+function premiumMetadataFromActiveEditor(draft,scope=globalThis){
+  const document=scope?.document;if(!document?.querySelector)return null;
+  const form=document.querySelector('[data-workflow-form="report-approval"]');
+  if(!form)return null;
+  const type=reportType(reportFormValue(form,'reportType'));if(!type)return null;
+  const context=browserReportContext(scope);
+  if(!context.state||!['coach','admin'].includes(context.role)||context.clientId!==String(draft?.clientId||''))return null;
+  const candidate=premiumReportByType(context.state,context.clientId,type,{now:new Date()});
+  const sameEvidence=Boolean(candidate?.ready&&candidate.assessmentId===String(draft?.assessmentId||'')&&candidate.periodStart===String(draft?.periodStart||'')&&candidate.periodEnd===String(draft?.periodEnd||''));
+  if(!sameEvidence)throw new Error('M26_REPORT_DRAFT_INVALID:premium-evidence-stale');
+  return {reportType:type,coachComment:reportFormValue(form,'coachComment'),evidence:candidate.evidence};
+}
+function ensurePremiumReportStyles(document){
+  if(!document?.head||document.getElementById?.(PREMIUM_REPORT_UI_STYLE_ID))return;
+  const style=document.createElement('style');style.id=PREMIUM_REPORT_UI_STYLE_ID;
+  style.textContent='.m26-premium-report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.7rem;margin:.75rem 0 1rem}.m26-premium-report-card{display:grid;gap:.48rem;padding:.85rem;border:1px solid var(--m26-border,rgba(33,49,40,.14));border-radius:.9rem;background:var(--m26-surface,#fff)}.m26-premium-report-card h3{margin:0;font-size:.95rem}.m26-premium-report-card p{margin:0;color:var(--m26-text-muted,#6b675f);font-size:.75rem;line-height:1.45}.m26-premium-report-state{font-size:.65rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--m26-gold,#8f7028)}.m26-premium-report-card[data-ready="true"] .m26-premium-report-state{color:var(--m26-success,#356f50)}.m26-premium-report-evidence{display:grid;gap:.2rem;margin:0;padding-left:1rem;color:var(--m26-text-muted,#6b675f);font-size:.7rem}.m26-premium-coach-comment{display:grid;gap:.35rem;margin-top:.6rem}.m26-premium-coach-comment textarea{min-height:5.5rem;resize:vertical}';
+  document.head.append(style);
+}
+function createTextElement(document,tag,text,className=''){const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(text||'');return node;}
+function ensurePremiumEditorFields(form,document){
+  if(!form?.elements?.namedItem?.('reportType')){const hidden=document.createElement('input');hidden.type='hidden';hidden.name='reportType';form.append(hidden);}
+  if(!form?.elements?.namedItem?.('coachComment')){
+    const label=document.createElement('label');label.className='m26-premium-coach-comment';label.append(createTextElement(document,'span','Comentario del coach'));
+    const textarea=document.createElement('textarea');textarea.name='coachComment';textarea.maxLength=2500;textarea.placeholder='Interpretación profesional, contexto o próximos pasos que quieras dejar registrados.';label.append(textarea);
+    const approve=form.querySelector?.('[data-workflow-action="approve-report"]');if(approve)approve.before(label);else form.append(label);
+  }
+}
+function renderPremiumReportCards(host,portfolio,document){
+  host.replaceChildren();
+  const intro=document.createElement('div');intro.className='m26-panel-heading';
+  const copy=document.createElement('div');copy.append(createTextElement(document,'p','Informes automáticos','m26-eyebrow'),createTextElement(document,'h2','Preparar desde evidencia real'),createTextElement(document,'p','Selecciona un formato disponible. IBERFIT precarga únicamente datos canónicos; el Coach revisa y aprueba antes de cualquier publicación.'));intro.append(copy);host.append(intro);
+  const grid=document.createElement('div');grid.className='m26-premium-report-grid';
+  for(const candidate of portfolio){
+    const card=document.createElement('article');card.className='m26-premium-report-card';card.dataset.ready=candidate.ready?'true':'false';card.append(createTextElement(document,'span',candidate.ready?'Listo para revisar':'Datos insuficientes','m26-premium-report-state'),createTextElement(document,'h3',candidate.label));
+    const period=candidate.periodStart&&candidate.periodEnd?`${candidate.periodStart} → ${candidate.periodEnd}`:candidate.reason;card.append(createTextElement(document,'p',period||'Sin periodo disponible'));
+    if(candidate.ready&&candidate.evidence.length){const list=document.createElement('ul');list.className='m26-premium-report-evidence';for(const row of candidate.evidence.slice(0,3))list.append(createTextElement(document,'li',`${row.label}: ${row.text}`));card.append(list);}
+    if(candidate.ready){const button=document.createElement('button');button.type='button';button.dataset.premiumReportType=candidate.id;button.textContent='Preparar borrador';card.append(button);}else{card.append(createTextElement(document,'p',candidate.reason||'Todavía no hay evidencia suficiente.'));}
+    grid.append(card);
+  }
+  host.append(grid);
+}
+function prefillPremiumReport(form,candidate){
+  setReportFormValue(form,'reportType',candidate.id);setReportFormValue(form,'assessmentId',candidate.assessmentId);setReportFormValue(form,'title',candidate.title);setReportFormValue(form,'periodStart',candidate.periodStart);setReportFormValue(form,'periodEnd',candidate.periodEnd);setReportFormValue(form,'summary',candidate.summary);setReportFormValue(form,'conclusions',candidate.conclusions);setReportFormValue(form,'recommendations',candidate.recommendations);setReportFormValue(form,'coachComment','');
+  const review=form.elements?.namedItem?.('reviewAccepted');if(review)review.checked=false;
+  const status=form.ownerDocument?.querySelector?.('[data-workflow-status="report"]');if(status){status.textContent=`${candidate.label} preparado con evidencia canónica. Revisa el contenido y añade tu comentario antes de aprobar.`;status.dataset.status='info';}
+  form.scrollIntoView?.({behavior:'smooth',block:'start'});form.querySelector?.('[name="summary"]')?.focus?.({preventScroll:true});
+}
+export function installPremiumReportUi({scope=globalThis,root=scope?.document?.querySelector?.('#app')}={}){
+  const document=scope?.document;if(!document?.createElement||!root?.addEventListener||typeof scope.MutationObserver!=='function')return null;
+  if(scope.__IBERFIT_M26_PREMIUM_REPORT_UI__)return scope.__IBERFIT_M26_PREMIUM_REPORT_UI__;
+  ensurePremiumReportStyles(document);
+  let destroyed=false;
+  function enhance(){
+    if(destroyed)return false;
+    const form=root.querySelector?.('[data-workflow-form="report-approval"]');
+    if(!form)return false;
+    const context=browserReportContext(scope);
+    if(!context.state||!['coach','admin'].includes(context.role)||!context.clientId){root.querySelector?.('[data-premium-report-candidates]')?.remove?.();return false;}
+    ensurePremiumEditorFields(form,document);
+    let host=root.querySelector?.('[data-premium-report-candidates]');if(!host){host=document.createElement('section');host.className='m26-panel m26-panel-soft';host.dataset.premiumReportCandidates='true';form.before(host);}
+    renderPremiumReportCards(host,premiumReportUiCandidates(context.state,context.role,context.clientId,{now:new Date()}),document);return true;
+  }
+  function onClick(event){const button=event.target?.closest?.('[data-premium-report-type]');if(!button||!root.contains?.(button))return;const form=root.querySelector?.('[data-workflow-form="report-approval"]');if(!form)return;const context=browserReportContext(scope);const candidate=premiumReportByType(context.state,context.clientId,button.dataset.premiumReportType,{now:new Date()});if(!candidate?.ready)return;prefillPremiumReport(form,candidate);}
+  const observer=new scope.MutationObserver(()=>enhance());observer.observe(root,{childList:true,subtree:true});root.addEventListener('click',onClick);
+  for(const delay of [0,250,1000,2500])scope.setTimeout?.(()=>enhance(),delay);
+  const api=Object.freeze({refresh:enhance,destroy(){destroyed=true;observer.disconnect();root.removeEventListener('click',onClick);if(scope.__IBERFIT_M26_PREMIUM_REPORT_UI__===api)scope.__IBERFIT_M26_PREMIUM_REPORT_UI__=null;}});scope.__IBERFIT_M26_PREMIUM_REPORT_UI__=api;return api;
+}
+if(typeof globalThis.document!=='undefined'&&typeof globalThis.MutationObserver==='function')globalThis.queueMicrotask?.(()=>{try{installPremiumReportUi();}catch{}});
+
 export function validateReportDraft(draft={}){
   const errors=[];
   if(!safeId(draft.clientId))errors.push('clientId');
@@ -99,4 +184,4 @@ export function normalizeReportDraft(draft={}){
   if(type)normalized.dataPolicy='canonical-only';
   return Object.freeze(normalized);
 }
-export function buildApproveReportDraftCommand(draft,baseRevision=0){const normalized=normalizeReportDraft(draft);return {type:'INFORME_APROBAR',entityType:'report',entityId:normalized.id,clientId:normalized.clientId,baseRevision:Number.isInteger(Number(baseRevision))&&Number(baseRevision)>=0?Number(baseRevision):0,payload:{patch:structuredClone(normalized)}};}
+export function buildApproveReportDraftCommand(draft,baseRevision=0){const browserMetadata=premiumMetadataFromActiveEditor(draft);const normalized=normalizeReportDraft(browserMetadata?{...draft,...browserMetadata}:draft);return {type:'INFORME_APROBAR',entityType:'report',entityId:normalized.id,clientId:normalized.clientId,baseRevision:Number.isInteger(Number(baseRevision))&&Number(baseRevision)>=0?Number(baseRevision):0,payload:{patch:structuredClone(normalized)}};}
