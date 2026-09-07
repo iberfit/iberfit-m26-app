@@ -45,7 +45,7 @@ async function authenticate(req: Request) {
   }
   if (payload.ref !== EXPECTED_REF) fail("IBERFIT_PUBLISHER_REF_FORBIDDEN", 403);
   if (payload.workflow_ref !== EXPECTED_WORKFLOW_REF) fail("IBERFIT_PUBLISHER_WORKFLOW_FORBIDDEN", 403);
-  if (!["workflow_dispatch", "workflow_call", "schedule"].includes(String(payload.event_name || ""))) {
+  if (!["workflow_dispatch", "workflow_call", "schedule", "push"].includes(String(payload.event_name || ""))) {
     fail("IBERFIT_PUBLISHER_EVENT_FORBIDDEN", 403);
   }
   if (payload.runner_environment && payload.runner_environment !== "github-hosted") {
