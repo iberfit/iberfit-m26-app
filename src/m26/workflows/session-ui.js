@@ -125,8 +125,7 @@ function nextDifferentExercisePreview(execution,catalog,mediaMap,role){
   if(!item||execution.setIndex+1<Number(item.sets||0))return '';
   const next=execution.queue[execution.index+1];
   if(!next||next.exerciseId===item.exerciseId)return '';
-  const exercise=catalog.get(next.exerciseId);
-  if(!exercise)return '';
+  const exercise=catalog.get(next.exerciseId)||{id:next.exerciseId,name_es:'Siguiente ejercicio'};
   const visual=renderExerciseMedia({
     manifest:mediaMap,
     exercise:{...exercise,id:next.exerciseId},
@@ -134,8 +133,17 @@ function nextDifferentExercisePreview(execution,catalog,mediaMap,role){
     compact:true,
     fallback:false,
   });
-  if(!visual)return '';
-  return `<div class="m26-session-next-exercise-media" data-session-next-exercise-media aria-label="Vista previa del siguiente ejercicio">${visual}</div>`;
+  const planned=next.prescription||{};
+  const target=[
+    planned.reps||null,
+    planned.tempo?`ritmo ${planned.tempo}`:null,
+    Number.isFinite(Number(planned.targetRpe))?`RPE ${planned.targetRpe}`:null,
+    Number.isFinite(Number(planned.targetRir))?`RIR ${planned.targetRir}`:null,
+  ].filter(Boolean).join(' · ')||'Según indicación';
+  const media=visual
+    ?`<div class="m26-session-next-exercise-media" data-session-next-exercise-media aria-label="Vista previa del siguiente ejercicio">${visual}</div>`
+    :'';
+  return `<div class="m26-session-next-exercise-preparation" data-session-next-exercise-preparation aria-label="Preparación del siguiente ejercicio">${media}<div class="m26-field-grid"><div class="m26-field"><span>Próximo objetivo</span><strong>${e(target)}</strong></div></div></div>`;
 }
 function exerciseMemorySetText(set){
   const parts=[];
