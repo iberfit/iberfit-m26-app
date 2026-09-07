@@ -1,0 +1,176 @@
+/* ADMIN_PREMIUM_DENSITY_BEGIN */
+
+/*
+  Segunda capa de pulido Admin: menos altura innecesaria, formularios
+  operativos más compactos y tablas más cómodas sin alterar campos,
+  acciones, permisos ni semántica.
+*/
+
+.m26-admin-route .m26-admin-panel > .m26-admin-form{
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));
+  gap:var(--iberfit-space-3);
+  padding:var(--iberfit-space-4);
+  border-color:var(--m26-admin-border);
+  background:
+    color-mix(
+      in srgb,
+      var(--m26-admin-surface-soft) 94%,
+      transparent
+    );
+  transition:
+    border-color var(--iberfit-motion-fast) var(--iberfit-motion-easing-standard),
+    background var(--iberfit-motion-fast) var(--iberfit-motion-easing-standard),
+    box-shadow var(--iberfit-motion-fast) var(--iberfit-motion-easing-standard);
+}
+
+.m26-admin-route .m26-admin-panel > .m26-admin-form:focus-within{
+  border-color:
+    color-mix(
+      in srgb,
+      var(--m26-admin-accent) 36%,
+      var(--m26-admin-border) 64%
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(--m26-admin-surface-soft) 88%,
+      var(--m26-admin-accent) 12%
+    );
+  box-shadow:
+    0 14px 34px rgba(0,0,0,.12),
+    inset 0 0 0 1px
+      color-mix(
+        in srgb,
+        var(--m26-admin-accent) 9%,
+        transparent
+      );
+}
+
+.m26-admin-route .m26-admin-panel > .m26-admin-form > :is(textarea,button[type="submit"]){
+  grid-column:1 / -1;
+}
+
+.m26-admin-route .m26-admin-panel > .m26-admin-form > textarea{
+  min-height:5.25rem;
+  resize:vertical;
+}
+
+.m26-admin-route .m26-admin-panel > .m26-admin-form > button[type="submit"]{
+  justify-self:start;
+  min-width:min(100%,11.5rem);
+}
+
+.m26-admin-route .m26-admin-form > input[type="hidden"]{
+  display:none;
+}
+
+.m26-admin-route .m26-admin-table{
+  max-width:100%;
+  overflow:auto;
+  overscroll-behavior-inline:contain;
+  scrollbar-gutter:stable;
+  -webkit-overflow-scrolling:touch;
+}
+
+.m26-admin-route .m26-admin-table table{
+  min-width:640px;
+}
+
+.m26-admin-route .m26-admin-table thead th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  padding:.72rem .78rem;
+  background:
+    color-mix(
+      in srgb,
+      var(--iberfit-color-surface-base) 94%,
+      var(--m26-admin-accent) 6%
+    );
+  box-shadow:0 1px 0 var(--m26-admin-border);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+
+.m26-admin-route .m26-admin-table tbody td{
+  padding:.76rem .78rem;
+  transition:background var(--iberfit-motion-fast) var(--iberfit-motion-easing-standard);
+}
+
+.m26-admin-route .m26-admin-table tbody tr:hover td{
+  background:
+    color-mix(
+      in srgb,
+      var(--m26-admin-accent) 5%,
+      transparent
+    );
+}
+
+.m26-admin-route .m26-admin-table tbody tr:last-child td{
+  border-bottom-color:transparent;
+}
+
+.m26-admin-route .m26-admin-table td .m26-admin-form{
+  margin-top:0;
+  padding:var(--iberfit-space-2);
+  gap:var(--iberfit-space-2);
+  box-shadow:none;
+}
+
+.m26-admin-route .m26-admin-list-item{
+  padding-block:.68rem;
+}
+
+.m26-admin-route .m26-admin-section-heading{
+  margin-bottom:.72rem;
+}
+
+@media(max-width:700px){
+  .m26-admin-route{
+    gap:.82rem;
+  }
+
+  .m26-admin-route .m26-admin-panel{
+    padding:1rem;
+  }
+
+  .m26-admin-route .m26-admin-panel > .m26-admin-form{
+    grid-template-columns:minmax(0,1fr);
+    padding:.8rem;
+  }
+
+  .m26-admin-route .m26-admin-panel > .m26-admin-form > button[type="submit"]{
+    width:100%;
+    min-width:0;
+    justify-self:stretch;
+  }
+
+  .m26-admin-route .m26-admin-table{
+    margin-inline:-.2rem;
+    padding-inline:.2rem;
+  }
+
+  .m26-admin-route .m26-admin-table table{
+    min-width:590px;
+  }
+
+  .m26-admin-route .m26-admin-table :is(th,td){
+    font-size:.86rem;
+  }
+}
+
+@media(max-width:430px){
+  .m26-admin-route .m26-admin-panel{
+    padding:.9rem;
+  }
+
+  .m26-admin-route .m26-admin-section-heading{
+    gap:.55rem;
+  }
+
+  .m26-admin-route .m26-admin-table table{
+    min-width:560px;
+  }
+}
+
+/* ADMIN_PREMIUM_DENSITY_END */
