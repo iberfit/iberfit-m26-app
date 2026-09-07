@@ -38,11 +38,13 @@ test('workflow remoto requiere dos clientes QA distintos y evidencia RC29',async
   assert.doesNotMatch(workflow,/RC18_REMOTE/);
 });
 
-test('gate autenticado compara exactamente el contrato extendido de 52 comandos',async()=>{
+test('gate autenticado compara exactamente el contrato extendido canónico',async()=>{
   const gate=await read('scripts/remote-gates/run_authenticated_readonly_gate.mjs');
   assert.match(gate,/M26_EXTENDED_COMMAND_REGISTRY/);
   assert.match(gate,/validateCommandCatalog\(remoteRegistry,M26_EXTENDED_COMMAND_REGISTRY,\{strict:true\}\)/);
-  assert.match(gate,/remoteRegistry\.length!==52/);
+  assert.match(gate,/const expectedCommands=M26_EXTENDED_COMMAND_REGISTRY\.length;/);
+  assert.match(gate,/remoteRegistry\.length!==expectedCommands/);
+  assert.doesNotMatch(gate,/remoteRegistry\.length!==52/);
   assert.match(gate,/domain_command_registry_v26/);
   assert.match(gate,/mutationsPerformed:false/);
 });
@@ -63,7 +65,7 @@ test('preflight SQL consolidado es de solo lectura y usa RPC canónicos',async()
   assert.match(sql,/iberfit_execute_command_v26/);
   assert.match(sql,/domain_command_registry_v26/);
   assert.match(sql,/pg_policies/);
-  assert.doesNotMatch(sql,/(insert|update|delete|alter|create|drop|truncate)/i);
+  assert.doesNotMatch(sql,/\b(insert|update|delete|alter|create|drop|truncate)\b/i);
 });
 
 test('preflight de separación RC25 ya no usa nombres RPC incorrectos',async()=>{
