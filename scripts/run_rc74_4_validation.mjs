@@ -47,6 +47,27 @@ function runNpm(name,args=[]){
   return run(name,'npm',args);
 }
 
+function extractTapFailures(output){
+  const lines=String(output||'').split(/\r?\n/);
+  const blocks=[];
+  for(let i=0;i<lines.length;i+=1){
+    if(!/^not ok \d+ - /.test(lines[i]))continue;
+    let end=Math.min(lines.length,i+40);
+    for(let j=i+1;j<Math.min(lines.length,i+40);j+=1){
+      if(/^\s*\.\.\.$/.test(lines[j])){
+        end=j+1;
+        break;
+      }
+      if(/^# Subtest: /.test(lines[j])||/^(?:ok|not ok) \d+ - /.test(lines[j])){
+        end=j;
+        break;
+      }
+    }
+    blocks.push(lines.slice(Math.max(0,i-2),end).join('\n'));
+  }
+  return blocks.slice(0,20);
+}
+
 function runNpmWithEvidence(name,args=[]){
   let command='npm';
   let commandArgs=args;
@@ -73,13 +94,14 @@ function runNpmWithEvidence(name,args=[]){
     message:String(result.error.message||result.error).slice(0,300),
   }:null;
   const output=`${result.stdout||''}${result.stderr?`\n--- STDERR ---\n${result.stderr}`:''}`;
-  const outputTail=output.slice(-30000);
+  const failed=result.status!==0||Boolean(spawnError);
   evidence.steps.push({
     name,
-    ok:result.status===0&&!spawnError,
+    ok:!failed,
     status:result.status,
     spawnError,
-    outputTail:result.status===0?null:outputTail,
+    failureBlocks:failed?extractTapFailures(output):[],
+    outputTail:failed?output.slice(-30000):null,
   });
   if(spawnError)throw new Error(`RC74_4_PROCESS_START_FAILED:${name}:${spawnError.code||'UNKNOWN'}`);
   if(result.status!==0)throw new Error(`RC74_4_VALIDATION_FAILED:${name}`);
