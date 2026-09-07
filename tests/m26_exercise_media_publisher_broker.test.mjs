@@ -84,3 +84,15 @@ test("automatic publisher is pinned to canary push and exact trusted workflow",(
   assert.match(broker,/exercise-media-publish-approved\.yml@refs\/heads\/canary\/rc74-4/);
   assert.match(broker,/"push"/);
 });
+test("approved sentadilla al aire fragmented source reconstructs to exact immutable WebP",()=>{
+  const root=process.cwd();
+  const manifestPath=path.join(root,"scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/approved-batch.json");
+  const batch=JSON.parse(fs.readFileSync(manifestPath,"utf8"));
+  const [entry]=validateApprovedBatch(batch,{sourceRoot:root});
+  assert.equal(entry.id,"IBF-SENTADILLA-AL-AIRE");
+  assert.equal(entry.mime,"image/webp");
+  assert.equal(entry.width,768);
+  assert.equal(entry.height,960);
+  assert.equal(entry.sha256,"2ab5434df034778dc1036b90ba920cbfcc2385c27e334c4a8fc7b04f00afa568");
+  assert.equal(entry.storagePath,"IBF-SENTADILLA-AL-AIRE/movement-2ab5434df034.webp");
+});
