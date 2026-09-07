@@ -7,6 +7,7 @@ import {
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from './multi-role.js';
 import {deriveCoachLaunchJourney} from '../admin/view-model.js';
 import {computeProgressSummary} from '../engagement/progress-engine.js';
+import {buildRetentionHealth} from '../engagement/retention-health.js';
 import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
 
 const field=(record,...keys)=>{
@@ -51,7 +52,7 @@ const COACH_LAUNCH_SELF_COPY=Object.freeze({
     actions:Object.freeze({clients:'Voir le portefeuille',planning:'Préparer la première planification',session:'Voir la première séance'}),
   }),
   pt:Object.freeze({
-    eyebrow:'Configuração inicial',title:'O seu percurso como Coach',intro:'Uma etapa só é marcada como concluída quando pode ser demonstrada pela sua sessão autenticada e pelos dados da carteira autorizada.',progress:(done,total)=>`${done} de ${total} etapas verificadas`,ready:'Coach pronto',pending:'Verificação incompleta',adminTitle:'Verificação administrativa pendente',adminCopy:'O seu perfil profissional e o estado operacional da conta não são expostos pelo bootstrap Coach atual. O IBERFIT mantém-nos pendentes em vez de os assumir.',evidenceTitle:'Evidência utilizada',evidenceCopy:'Acesso autenticado, clientes no seu âmbito autorizado, planeamento publicado e execuções confirmadas. As permissões não são ampliadas.',nextTitle:'Próximo passo operacional',noAction:'Não existe outra ação operacional a concluir a partir deste cartão. A verificação restante depende da Administração.',
+    eyebrow:'Configuração inicial',title:'O seu percurso como Coach',intro:'Uma etapa só é marcada como concluída quando pode ser demonstrada pela sua sessão autenticada e pelos dados da carteira autorizada.',progress:(done,total)=>`${done} de ${total} etapas verificadas`,ready:'Coach pronto',pending:'Verificação incompleta',adminTitle:'Verificação administrativa pendente',adminCopy:'O seu perfil profissional e o estado operacional da conta não são expostos pelo bootstrap Coach atual. O IBERFIT mantém-nos pendentes em vez de os assumir.',evidenceTitle:'Evidência utilizada',evidenceCopy:'Acesso autenticado, clientes no seu âmbito autorizado, planeamento publicado e execuções confirmadas. As permissões não são ampliadas.',nextTitle:'Próximo passo operativo',noAction:'Não existe outra ação operacional a concluir a partir deste cartão. A verificação restante depende da Administração.',
     milestones:Object.freeze({invited:{label:'Identidade Coach',done:'Identidade autenticada visível',pending:'Identidade indisponível'},activated:{label:'Primeiro acesso',done:'Sessão autenticada confirmada',pending:'Acesso não confirmado'},profile:{label:'Perfil operacional',done:'Perfil verificado',pending:'Verificação administrativa pendente'},client:{label:'Primeiro cliente',done:'Cliente atribuído visível no seu âmbito',pending:'Nenhum cliente atribuído visível'},planning:{label:'Primeiro planeamento',done:'Sessão publicada visível',pending:'Nenhum planeamento publicado visível'},session:{label:'Primeira sessão',done:'Execução concluída e confirmada',pending:'Nenhuma sessão concluída confirmada'}}),
     actions:Object.freeze({clients:'Rever carteira',planning:'Preparar primeiro planeamento',session:'Rever primeira sessão'}),
   }),
@@ -111,6 +112,54 @@ const compactAppointment=(record,now)=>Object.freeze({
   changeRequest:clone(field(record,'changeRequest','change_request')),
 });
 const uniqueText=(values)=>Object.freeze([...new Set(values.map((value)=>String(value||'').trim()).filter(Boolean))]);
+const FOLLOWUP_LEVEL_RANK=Object.freeze({critical:0,warning:1,info:2,clear:3});
+const RETENTION_LEVEL=Object.freeze({red:'critical',yellow:'warning',green:'clear',insufficient:'info'});
+function retentionTopFactor(health){
+  return list(health?.factors).find((item)=>item?.status==='red')||list(health?.factors).find((item)=>item?.status==='yellow')||list(health?.factors).find((item)=>item?.status==='green')||list(health?.factors)[0]||null;
+}
+function enrichClientRetention(client,state,now){
+  const id=String(client?.id||'').trim();
+  if(!id)return client;
+  const retentionHealth=buildRetentionHealth(state,id,{now});
+  if(!retentionHealth)return client;
+  const followUp=client?.followUp&&typeof client.followUp==='object'?client.followUp:{};
+  const currentSignal=followUp?.signal&&typeof followUp.signal==='object'?followUp.signal:{};
+  const currentLevel=String(currentSignal.level||'clear');
+  const retentionLevel=RETENTION_LEVEL[retentionHealth.band]||'info';
+  const retentionDominates=(FOLLOWUP_LEVEL_RANK[retentionLevel]??4)<(FOLLOWUP_LEVEL_RANK[currentLevel]??4);
+  const topFactor=retentionTopFactor(retentionHealth);
+  const signal=Object.freeze({
+    ...currentSignal,
+    level:retentionDominates?retentionLevel:currentLevel,
+    label:retentionDominates?`Continuidad · ${retentionHealth.label}`:(currentSignal.label||'Seguimiento'),
+  });
+  const topAlert=retentionDominates
+    ?Object.freeze({severity:retentionLevel,title:retentionHealth.nextAction.title,source:'retention-health'})
+    :followUp.topAlert||null;
+  return Object.freeze({
+    ...client,
+    retentionHealth,
+    followUp:Object.freeze({
+      ...followUp,
+      signal,
+      topAlert,
+      retention:Object.freeze({
+        band:retentionHealth.band,
+        label:retentionHealth.label,
+        evidenceCount:retentionHealth.evidenceCount,
+        totalDomains:retentionHealth.totalDomains,
+        nextAction:retentionHealth.nextAction,
+        requiresCoachDecision:retentionHealth.requiresCoachDecision,
+        autoPrescription:retentionHealth.autoPrescription,
+        autoMessage:retentionHealth.autoMessage,
+      }),
+    }),
+  });
+}
+function enrichClientsRetention(vm,role,state,now){
+  if(vm?.kind!=='clientes'||!['coach','admin'].includes(role))return vm;
+  return Object.freeze({...vm,clients:Object.freeze(list(vm.clients).map((client)=>enrichClientRetention(client,state,now)))});
+}
 function enrichExpedienteDecision(vm,role){
   if(vm?.kind!=='expediente'||(role!=='coach'&&role!=='admin'))return vm;
   const decisionBrief=buildIberfitDecisionBrief({
@@ -144,6 +193,38 @@ function enrichExpedienteDecision(vm,role){
     coachCockpit:Object.freeze({...cockpit,items:Object.freeze([focus,...items.slice(1)])}),
   });
 }
+function enrichExpedienteRetention(vm,role,state,routeClientId,now){
+  if(vm?.kind!=='expediente'||!['coach','admin'].includes(role)||!routeClientId)return vm;
+  const retentionHealth=buildRetentionHealth(state,String(routeClientId),{now});
+  if(!retentionHealth)return vm;
+  const cockpit=vm.coachCockpit&&typeof vm.coachCockpit==='object'?vm.coachCockpit:{};
+  const items=list(cockpit.items);
+  const current=items[0]&&typeof items[0]==='object'?items[0]:{};
+  const topFactor=retentionTopFactor(retentionHealth);
+  const detail=uniqueText([
+    current.detail,
+    `Continuidad · ${retentionHealth.label}`,
+    topFactor?.evidence,
+  ]).join(' · ');
+  const guidance=uniqueText([
+    current.guidance,
+    `${retentionHealth.nextAction.title}: ${retentionHealth.nextAction.detail}`,
+    'Decisión del Coach obligatoria; sin mensajes, prescripción ni renovación automática.',
+  ]).join(' · ');
+  const focus=Object.freeze({
+    ...current,
+    detail,
+    guidance,
+    retentionBand:retentionHealth.band,
+    retentionLabel:retentionHealth.label,
+    retentionSource:'retention-health',
+  });
+  return Object.freeze({
+    ...vm,
+    retentionHealth,
+    coachCockpit:Object.freeze({...cockpit,items:Object.freeze([focus,...items.slice(1)])}),
+  });
+}
 export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
   if(!vm||!shellVm||!state)return vm;
   const role=String(shellVm.identity?.role||state.identity?.role||'');
@@ -160,7 +241,9 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
   const confirmationOpen=operationalAppointments.filter((item)=>item.confirmation.state==='open').length;
   const changeRequests=operationalAppointments.filter((item)=>item.confirmation.state==='change_requested').length;
   const coachLaunchJourney=role==='coach'?deriveCoachSelfLaunchJourney({state,identity:shellVm.identity||state.identity,now}):null;
-  const enrichedVm=enrichExpedienteDecision(vm,role);
+  const retentionVm=enrichClientsRetention(vm,role,state,now);
+  const decisionVm=enrichExpedienteDecision(retentionVm,role);
+  const enrichedVm=enrichExpedienteRetention(decisionVm,role,state,routeClientId,now);
   return Object.freeze({...enrichedVm,rc39:Object.freeze({role,clientId:routeClientId||null,planningItems,appointments:Object.freeze(operationalAppointments),sessionProjections:Object.freeze(sessionProjections),needsPreparation,confirmationOpen,changeRequests,changeRequestAvailable,coachLaunchJourney,generatedAt:new Date(now).toISOString()})});
 }
 export function augmentRc39ShellViewModel(vm,state){
