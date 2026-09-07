@@ -17,6 +17,7 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'move-down':{roles:['admin','coach'],domain:'session'},
   'start':{roles:['coach','client'],domain:'execution'},
   'complete-set':{roles:['coach','client'],domain:'execution'},
+  'reuse-previous-set':{roles:['coach','client'],domain:'execution'},
   'correct-set':{roles:['coach','client'],domain:'execution'},
   'add-set':{roles:['coach'],domain:'execution'},
   'skip-set':{roles:['coach','client'],domain:'execution'},
