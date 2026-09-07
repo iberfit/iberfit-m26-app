@@ -76,7 +76,6 @@ function webPath(repoPath){
   throw new Error(`RC58_5C_B_PRECACHE_PATH_UNMAPPED:${value}`);
 }
 
-
 function linkedStylesFromIndex(){
   const indexPath=path.join(ROOT,'public/m26/index.html');
   const html=fs.readFileSync(indexPath,'utf8');
@@ -117,6 +116,45 @@ function linkedStylesFromIndex(){
   }
 
   return repoPaths;
+}
+
+function parseAppShellPaths(line){
+  const serialized=line.slice(MARKER.length,-1);
+  const paths=JSON.parse(serialized);
+
+  if(!Array.isArray(paths)){
+    throw new Error('RC58_5C_B_APP_SHELL_NOT_ARRAY');
+  }
+
+  return paths;
+}
+
+function printAppShellDiff(currentLine,expectedPaths){
+  const currentPaths=parseAppShellPaths(currentLine);
+  const currentSet=new Set(currentPaths);
+  const expectedSet=new Set(expectedPaths);
+  const missing=expectedPaths.filter((entry)=>!currentSet.has(entry));
+  const extra=currentPaths.filter((entry)=>!expectedSet.has(entry));
+  const maxLength=Math.max(currentPaths.length,expectedPaths.length);
+  let firstOrderDivergence=-1;
+
+  for(let index=0;index<maxLength;index+=1){
+    if(currentPaths[index]!==expectedPaths[index]){
+      firstOrderDivergence=index;
+      break;
+    }
+  }
+
+  console.error(`APP_SHELL currentPathCount: ${currentPaths.length}`);
+  console.error(`APP_SHELL expectedPathCount: ${expectedPaths.length}`);
+  console.error(`APP_SHELL missing: ${JSON.stringify(missing)}`);
+  console.error(`APP_SHELL extra: ${JSON.stringify(extra)}`);
+
+  if(firstOrderDivergence>=0){
+    console.error(
+      `APP_SHELL first order divergence: index=${firstOrderDivergence} current=${JSON.stringify(currentPaths[firstOrderDivergence]??null)} expected=${JSON.stringify(expectedPaths[firstOrderDivergence]??null)}`
+    );
+  }
 }
 
 const repoPaths=new Set();
@@ -188,6 +226,7 @@ const currentLine=matches[0];
 if(CHECK){
   if(currentLine!==generatedLine){
     console.error('RC58_5C_B_APP_SHELL_STALE');
+    printAppShellDiff(currentLine,webPaths);
     process.exit(1);
   }
 
