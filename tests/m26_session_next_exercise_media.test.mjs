@@ -72,6 +72,7 @@ function renderRest({firstSets=1,withNextMedia=true}={}){
 test('Session Live previews the next different exercise and its target during active rest',()=>{
   const {html,first,second,execution}=renderRest();
   assert.match(html,/data-session-live-state="rest"/);
+  assert.match(html,/data-session-next-step-preparation/);
   assert.match(html,/data-session-next-exercise-preparation/);
   assert.match(html,/data-session-next-exercise-media/);
   assert.ok(html.includes(`data-exercise-media="${first.id}"`));
@@ -91,24 +92,30 @@ test('Session Live previews the next different exercise and its target during ac
   assert.match(html,/aria-label="Preparación del siguiente ejercicio"/);
 });
 
-test('Session Live keeps same-exercise rest textual before the final set',()=>{
-  const {html,first}=renderRest({firstSets:2});
+test('Session Live prepares the next set of the same exercise during active rest',()=>{
+  const {html,first,execution}=renderRest({firstSets:2});
+  assert.match(html,/data-session-live-state="rest"/);
   assert.match(html,/data-session-next-preview/);
   assert.ok(html.includes(`Siguiente: <strong>${first.name_es}</strong>`));
+  assert.match(html,/data-session-next-step-preparation/);
+  assert.match(html,/data-session-next-set-preparation/);
   assert.doesNotMatch(html,/data-session-next-exercise-media/);
   assert.doesNotMatch(html,/data-session-next-exercise-preparation/);
+  assert.ok(html.includes(`<span>Próxima serie</span><strong>${targetText(execution.queue[0].prescription)}</strong>`));
+  assert.match(html,/aria-label="Preparación de la próxima serie"/);
 });
 
 test('Session Live preserves next target preparation when next exercise media is unavailable',()=>{
   const {html,second,execution}=renderRest({withNextMedia:false});
   assert.match(html,/data-session-next-preview/);
   assert.ok(html.includes(`Siguiente: <strong>${second.name_es}</strong>`));
+  assert.match(html,/data-session-next-step-preparation/);
   assert.doesNotMatch(html,/data-session-next-exercise-media/);
   assert.match(html,/data-session-next-exercise-preparation/);
   assert.ok(html.includes(`<span>Próximo objetivo</span><strong>${targetText(execution.queue[1].prescription)}</strong>`));
 });
 
-test('Session Live does not preview next exercise preparation outside active rest',()=>{
+test('Session Live does not preview next-step preparation outside active rest',()=>{
   const {draft,first,second}=makeSession();
   const execution=createExecution({session:draft,clientId:'c1'});
   startExecution(execution);
@@ -121,6 +128,8 @@ test('Session Live does not preview next exercise preparation outside active res
     mediaMap:mediaManifest(first,second),
     role:'client',
   });
+  assert.doesNotMatch(html,/data-session-next-step-preparation/);
+  assert.doesNotMatch(html,/data-session-next-set-preparation/);
   assert.doesNotMatch(html,/data-session-next-exercise-media/);
   assert.doesNotMatch(html,/data-session-next-exercise-preparation/);
 });
@@ -130,7 +139,7 @@ test('Session UI continues to use the shared exercise renderer for the rest prev
     new URL('../src/m26/workflows/session-ui.js',import.meta.url),
     'utf8',
   );
-  assert.match(source,/function nextDifferentExercisePreview/);
+  assert.match(source,/function nextSessionPreparation/);
   assert.match(source,/compact:true/);
   assert.doesNotMatch(source,/<img\b/);
 });
