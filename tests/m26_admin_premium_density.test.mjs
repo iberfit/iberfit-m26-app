@@ -2,14 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
-const css=readFileSync(new URL('../src/m26/admin/admin-density.css',import.meta.url),'utf8');
+const css=readFileSync(new URL('../src/m26/admin/admin.css',import.meta.url),'utf8');
 const index=readFileSync(new URL('../public/m26/index.html',import.meta.url),'utf8');
 
-test('Admin carga la capa de densidad después del CSS canónico',()=>{
-  const base=index.indexOf('/src/m26/admin/admin.css');
-  const density=index.indexOf('/src/m26/admin/admin-density.css');
-  assert.ok(base>=0,'falta admin.css');
-  assert.ok(density>base,'admin-density.css debe cargar después de admin.css');
+test('Admin integra la densidad premium en su CSS canónico sin ampliar el shell visual',()=>{
+  assert.match(index,/data-href="\/src\/m26\/admin\/admin\.css"/u);
+  assert.doesNotMatch(index,/admin-density\.css/u);
   assert.match(css,/ADMIN_PREMIUM_DENSITY_BEGIN/u);
   assert.match(css,/ADMIN_PREMIUM_DENSITY_END/u);
 });
@@ -17,7 +15,7 @@ test('Admin carga la capa de densidad después del CSS canónico',()=>{
 test('Los formularios principales reducen altura sin modificar su semántica',()=>{
   assert.match(css,/\.m26-admin-panel > \.m26-admin-form\s*\{/u);
   assert.match(css,/grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,12rem\),1fr\)\)/u);
-  assert.match(css,/\.m26-admin-form:focus-within/u);
+  assert.match(css,/\.m26-admin-panel > \.m26-admin-form:focus-within/u);
   assert.match(css,/textarea,button\[type="submit"\]/u);
   assert.match(css,/grid-column:1 \/ -1/u);
   assert.match(css,/input\[type="hidden"\]/u);
