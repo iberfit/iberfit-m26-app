@@ -47,6 +47,19 @@ function requireCoachActor(actor){
   return actor;
 }
 function resultKey(exerciseId,setNumber){return `${exerciseId}:${setNumber}`;}
+export function previousSetDraftValues(execution){
+  const item=execution?.queue?.[execution.index];
+  if(!item||Number(execution.setIndex)<1)return null;
+  const previous=execution.results?.[resultKey(item.exerciseId,execution.setIndex)];
+  if(!previous)return null;
+  return {
+    reps:previous.reps==null?'':String(previous.reps),
+    seconds:previous.seconds==null?'':String(previous.seconds),
+    load:previous.load==null?'':String(previous.load),
+    rpe:previous.rpe==null?'':String(previous.rpe),
+    rir:previous.rir==null?'':String(previous.rir),
+  };
+}
 function activeSetIdentity(execution,session){
   const step=currentStep(execution,session);if(!step)return null;
   return {executionId:execution.id,blockId:step.blockId||null,exerciseId:step.exerciseId,setNumber:step.setNumber};
