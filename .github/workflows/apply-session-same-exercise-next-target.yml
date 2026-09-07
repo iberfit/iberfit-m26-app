@@ -5,7 +5,7 @@ on:
     branches:
       - feat/session-same-exercise-next-target
     paths:
-      - '.github/workflows/apply-session-same-exercise-next-target.yml'
+      - .github/workflows/apply-session-same-exercise-next-target.yml
 
 permissions:
   contents: write
@@ -18,13 +18,17 @@ jobs:
         with:
           ref: feat/session-same-exercise-next-target
           fetch-depth: 0
-      - name: Patch Session Live next-step preparation
+      - name: Patch session UI
+        shell: bash
         run: |
-          node <<'NODE'
-          const fs=require('node:fs');
-          const path='src/m26/workflows/session-ui.js';
-          let source=fs.readFileSync(path,'utf8');
-          const replacement=`function nextSessionPreparation(execution,catalog,mediaMap,role){
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/m26/workflows/session-ui.js')
+          source = path.read_text()
+          start = source.index('function nextDifferentExercisePreview(execution,catalog,mediaMap,role){')
+          end = source.index('function exerciseMemorySetText', start)
+          replacement = '''function nextSessionPreparation(execution,catalog,mediaMap,role){
   const item=execution?.queue?.[execution.index];
   if(!item)return '';
   const withinCurrentExercise=execution.setIndex+1<Number(item.sets||0);
@@ -42,31 +46,31 @@ jobs:
   const planned=next.prescription||{};
   const target=[
     planned.reps||null,
-    planned.tempo?\`ritmo \${planned.tempo}\`:null,
-    Number.isFinite(Number(planned.targetRpe))?\`RPE \${planned.targetRpe}\`:null,
-    Number.isFinite(Number(planned.targetRir))?\`RIR \${planned.targetRir}\`:null,
+    planned.tempo?`ritmo ${planned.tempo}`:null,
+    Number.isFinite(Number(planned.targetRpe))?`RPE ${planned.targetRpe}`:null,
+    Number.isFinite(Number(planned.targetRir))?`RIR ${planned.targetRir}`:null,
   ].filter(Boolean).join(' · ')||'Según indicación';
   const media=visual
-    ?\`<div class="m26-session-next-exercise-media" data-session-next-exercise-media aria-label="Vista previa del siguiente ejercicio">\${visual}</div>\`
+    ?`<div class="m26-session-next-exercise-media" data-session-next-exercise-media aria-label="Vista previa del siguiente ejercicio">${visual}</div>`
     :'';
   const preparationAttribute=sameExercise
     ?'data-session-next-set-preparation'
     :'data-session-next-exercise-preparation';
   const label=sameExercise?'Próxima serie':'Próximo objetivo';
   const ariaLabel=sameExercise?'Preparación de la próxima serie':'Preparación del siguiente ejercicio';
-  return \`<div class="m26-session-next-exercise-preparation" data-session-next-step-preparation \${preparationAttribute} aria-label="\${ariaLabel}">\${media}<div class="m26-field-grid"><div class="m26-field"><span>\${label}</span><strong>\${e(target)}</strong></div></div></div>\`;
-}`;
-          const pattern=/function nextDifferentExercisePreview\(execution,catalog,mediaMap,role\)\{[\s\S]*?\n\}\nfunction exerciseMemorySetText/;
-          if(!pattern.test(source))throw new Error('nextDifferentExercisePreview contract not found');
-          source=source.replace(pattern,`${replacement}\nfunction exerciseMemorySetText`);
-          const oldCall='?nextDifferentExercisePreview(execution,catalog,mediaMap,role)';
-          if(!source.includes(oldCall))throw new Error('nextDifferentExercisePreview call not found');
-          source=source.replace(oldCall,'?nextSessionPreparation(execution,catalog,mediaMap,role)');
-          fs.writeFileSync(path,source);
-          NODE
+  return `<div class="m26-session-next-exercise-preparation" data-session-next-step-preparation ${preparationAttribute} aria-label="${ariaLabel}">${media}<div class="m26-field-grid"><div class="m26-field"><span>${label}</span><strong>${e(target)}</strong></div></div></div>`;
+}
+'''
+          source = source[:start] + replacement + source[end:]
+          old_call = '?nextDifferentExercisePreview(execution,catalog,mediaMap,role)'
+          if old_call not in source:
+              raise SystemExit('nextDifferentExercisePreview call not found')
+          source = source.replace(old_call, '?nextSessionPreparation(execution,catalog,mediaMap,role)', 1)
+          path.write_text(source)
+          PY
           git diff --check
-          git diff -- src/m26/workflows/session-ui.js
       - name: Commit source patch
+        shell: bash
         run: |
           git config user.name iberfit
           git config user.email iberfit.cl@gmail.com
