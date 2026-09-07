@@ -130,7 +130,7 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
   }
 }
 
-export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
+export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null,lifecycleTarget=globalThis,visibilityTarget=globalThis.document}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
   if(telemetryRemoteSync!==null&&typeof telemetryRemoteSync?.notifyStaged!=='function')throw new Error('M26_TELEMETRY_REMOTE_SYNC_INVALID');
   let mounted=false,autosaveTimer=null,scheduledContext=null,autosaveChain=Promise.resolve();
   let executionDraftTimer=null,scheduledExecutionContext=null,executionDraftChain=Promise.resolve();
@@ -189,6 +189,9 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     await context.recoveryCoordinator.persist({execution:context.execution,session:context.session,appointmentId:context.appointmentId,sessionRevision:context.sessionRevision});
     await context.recoveryCoordinator.settle(context.execution);
   }
+  function persistLifecycleContext(){const context=getContext();if(!context?.execution||!context?.recoveryCoordinator)return;void persistContext(context).catch(onError);}
+  function pagehide(){persistLifecycleContext();}
+  function visibilitychange(){if(visibilityTarget?.visibilityState==='hidden')persistLifecycleContext();}
   async function start(){
     const context=getContext();
     if(!context?.execution||!context?.session)throw new Error('M26_SESSION_EXECUTION_REQUIRED');
@@ -255,5 +258,5 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     const setField=event.target.closest?.('[data-set-field]');if(setField&&context.execution&&context.session){try{const saved=updateActiveSetDraft(context.execution,context.session,fieldValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}}
     const feedbackField=event.target.closest?.('[data-session-feedback-rpe],[data-session-feedback-comment],[data-session-feedback-pain],[data-session-feedback-pain-notes]');if(feedbackField&&context.execution){try{const saved=updateFinalFeedbackDraft(context.execution,feedbackValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}}
     if(draftField||blockField)queueAutosave(context);}
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('m26:shell-rendered',onShellRendered);mounted=true;hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('m26:shell-rendered',onShellRendered);clearPendingSessionEntry(root);mounted=false;clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
 }

@@ -13,6 +13,7 @@ import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js';
 import {revalidatePendingSessionEntry} from '../intelligence/session-entry-intent.js';
 import {createRouteViewModel} from '../modules/route-view-model.js';
+import {runRouteViewTransition} from '../experience/route-view-transitions.js';
 
 const ACTION_CENTER_TITLE_ID='m26-coach-action-center-title';
 const ACTION_CENTER_CARD_SELECTOR='.m26-coach-priority-card';
@@ -316,9 +317,20 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const areaButton = event.target.closest?.('[data-m26-area]');
     if (areaButton) {
       const nextArea = areaButton.getAttribute('data-m26-area');
-      const decision = resolveM26Route(store.getState(), nextArea);
-      store.navigate(decision.area);
-      focusMain();
+      const current=store.getState();
+      const decision = resolveM26Route(current, nextArea);
+      if(String(current.activeArea||'')===String(decision.area||'')){
+        focusMain();
+        return;
+      }
+      const documentLike=root.ownerDocument||globalThis.document;
+      runRouteViewTransition(
+        ()=>{
+          store.navigate(decision.area);
+          focusMain();
+        },
+        {documentLike,windowLike:documentLike?.defaultView||globalThis.window},
+      );
       return;
     }
 

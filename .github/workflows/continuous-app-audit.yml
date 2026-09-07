@@ -18,6 +18,13 @@ on:
       - 'tests/**'
       - '.github/workflows/continuous-app-audit.yml'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      audit_ref:
+        description: 'Ref exacta a auditar cuando se invoca como workflow reutilizable'
+        required: false
+        type: string
+        default: ''
   schedule:
     - cron: '17 */6 * * *'
 
@@ -38,6 +45,7 @@ jobs:
       - name: Descargar repositorio
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.audit_ref || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -89,6 +97,9 @@ jobs:
         env:
           M26_AUDIT_APP_URL: https://app.iberfit.cl
         run: node scripts/audit/deep_product_audit.mjs
+
+      - name: Auditar experiencia estética y de entrenamiento
+        run: node scripts/audit/product_experience_audit.mjs
 
       - name: Conservar informe de auditoría
         if: always()

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 
-import {buildPremiumReportPortfolio,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand} from '../src/m26/workflows/report-workflow.js';
+import {buildPremiumReportPortfolio,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand,premiumReportUiCandidates,installPremiumReportUi} from '../src/m26/workflows/report-workflow.js';
 
 const NOW=new Date('2026-09-06T12:00:00Z');
 
@@ -75,6 +76,27 @@ test('portfolio queda aislado por clientId',()=>{
   const report=buildPremiumReportPortfolio(state,'c1',{now:NOW}).find((item)=>item.id==='post-session');
   assert.doesNotMatch(report.summary,/No debe aparecer/u);
   assert.equal(report.periodEnd,'2026-09-03');
+});
+
+test('candidatos automáticos sólo se proyectan a Coach y Admin',()=>{
+  const state=stateWithHistory();
+  assert.equal(premiumReportUiCandidates(state,'client','c1',{now:NOW}).length,0);
+  assert.equal(premiumReportUiCandidates(state,'coach','c1',{now:NOW}).length,6);
+  assert.equal(premiumReportUiCandidates(state,'admin','c1',{now:NOW}).length,6);
+  assert.equal(premiumReportUiCandidates(state,'coach',null,{now:NOW}).length,0);
+});
+
+test('puente UI se mantiene inerte fuera del navegador',()=>{
+  assert.equal(installPremiumReportUi({scope:{document:null},root:null}),null);
+});
+
+test('puente UI exige firma de evidencia antes de enriquecer la aprobación',async()=>{
+  const source=await readFile(new URL('../src/m26/workflows/report-workflow.js',import.meta.url),'utf8');
+  assert.match(source,/data-premium-report-candidates/u);
+  assert.match(source,/premiumEvidenceSignature/u);
+  assert.match(source,/premium-evidence-stale/u);
+  assert.match(source,/coachComment/u);
+  assert.match(source,/premiumReportUiCandidates/u);
 });
 
 test('aprobación conserva tipo, comentario y procedencia sin romper el contrato histórico',()=>{
