@@ -122,10 +122,10 @@ test('rutas progreso y actividad renderizan datos reales y bloquean falsa confir
 });
 
 test('extensiones no contaminan el contrato canónico de 44 comandos',()=>{
-  assert.equal(M26_COMMAND_TYPES.length,44);assert.equal(M26_ENGAGEMENT_EXTENSION_REGISTRY.length,8);
+  assert.equal(M26_COMMAND_TYPES.length,44);assert.equal(M26_ENGAGEMENT_EXTENSION_REGISTRY.length,9);
   const canonical=new Set(M26_COMMAND_TYPES);assert.ok(M26_ENGAGEMENT_EXTENSION_REGISTRY.every((item)=>!canonical.has(item.type)));
-  const caps=engagementCapabilities(M26_COMMAND_TYPES);assert.equal(caps.checkins.ready,false);assert.deepEqual(caps.checkins.missing,['CHECKIN_REGISTRAR']);
-  const future=engagementCapabilities([...M26_COMMAND_TYPES,...M26_ENGAGEMENT_EXTENSION_REGISTRY.map((x)=>x.type)]);assert.equal(future.checkins.ready,true);assert.equal(future.habits.ready,true);assert.equal(future.privateNotes.ready,true);
+  const caps=engagementCapabilities(M26_COMMAND_TYPES);assert.equal(caps.checkins.ready,false);assert.deepEqual(caps.checkins.missing,['CHECKIN_REGISTRAR']);assert.equal(caps.commercialRenewals.ready,false);
+  const future=engagementCapabilities([...M26_COMMAND_TYPES,...M26_ENGAGEMENT_EXTENSION_REGISTRY.map((x)=>x.type)]);assert.equal(future.checkins.ready,true);assert.equal(future.habits.ready,true);assert.equal(future.privateNotes.ready,true);assert.equal(future.commercialRenewals.ready,true);
 });
 
 test('borradores de check-in se validan y aíslan por propietario',async()=>{

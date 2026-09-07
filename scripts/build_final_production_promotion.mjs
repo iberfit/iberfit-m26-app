@@ -32,6 +32,7 @@ const WEBAUTHN_SOURCE='20260830033156_rc65c1_free_webauthn_assurance.sql';
 const SERVER_ENFORCEMENT_SOURCE='20260830044500_rc65_c2_c3_privileged_server_enforcement.sql';
 const INVOKER_COMPAT_SOURCE='20260831025746_rc65_c2_c3_invoker_assurance_compat.sql';
 const FINAL_P0_SOURCE='20260831042719_final_launch_p0_revoke_legacy_client_create.sql';
+const CRM_RENEWAL_SOURCE='20260906210000_crm_renewal_command_v26.sql';
 
 const PROD_ORIGINS=Object.freeze([
   'https://app.iberfit.cl',
@@ -122,7 +123,7 @@ function finalPostcheckSql(){
 `    raise exception 'FINAL_PROD_POSTCHECK_ENVIRONMENT_DRIFT';\n`+
 `  end if;\n\n`+
 `  select count(*) into v_count from public.domain_command_registry_v26 where enabled=true;\n`+
-`  if v_count<>52 then raise exception 'FINAL_PROD_POSTCHECK_COMMAND_COUNT:%',v_count; end if;\n`+
+`  if v_count<>53 then raise exception 'FINAL_PROD_POSTCHECK_COMMAND_COUNT:%',v_count; end if;\n`+
 `  select conflict_sensitive into v_flag from public.domain_command_registry_v26\n`+
 `   where command_type='EJECUCION_GUARDAR_PROGRESO' and entity_type='session_execution' and enabled=true;\n`+
 `  if v_flag is distinct from true then raise exception 'FINAL_PROD_POSTCHECK_PROGRESS_POLICY'; end if;\n\n`+
@@ -216,6 +217,7 @@ export function buildFinalProductionPromotion(){
   parts.push(section(`PORT · ${SERVER_ENFORCEMENT_SOURCE}`,readMigration(SERVER_ENFORCEMENT_SOURCE)));
   parts.push(section(`PORT · ${INVOKER_COMPAT_SOURCE}`,readMigration(INVOKER_COMPAT_SOURCE)));
   parts.push(section(`PORT · ${FINAL_P0_SOURCE}`,readMigration(FINAL_P0_SOURCE)));
+  parts.push(section(`PORT · ${CRM_RENEWAL_SOURCE}`,readMigration(CRM_RENEWAL_SOURCE)));
   parts.push(section('99 · FINAL PRODUCTION POSTCHECK',finalPostcheckSql()));
 
   const sql=parts.join('\n').replace(/\r\n/gu,'\n');

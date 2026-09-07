@@ -5,13 +5,13 @@ import {M26_COMMAND_REGISTRY,M26_EXTENDED_COMMAND_REGISTRY,validateCommandCatalo
 
 const sql=readFileSync(new URL('../supabase/migrations/20260824174500_iberfit_rc74_4_engagement_52.sql',import.meta.url),'utf8');
 
-test('RC74.4E base 44 + engagement 8 = strict 52',()=>{
+test('runtime conserva base 44 y extiende el catálogo canónico a 53',()=>{
   assert.equal(M26_COMMAND_REGISTRY.length,44);
-  assert.equal(M26_EXTENDED_COMMAND_REGISTRY.length,52);
+  assert.equal(M26_EXTENDED_COMMAND_REGISTRY.length,53);
   const check=validateCommandCatalog(M26_EXTENDED_COMMAND_REGISTRY,M26_EXTENDED_COMMAND_REGISTRY,{strict:true});
   assert.equal(check.ok,true);
-  assert.equal(check.required,52);
-  assert.equal(check.installed,52);
+  assert.equal(check.required,53);
+  assert.equal(check.installed,53);
 });
 
 test('RC74.4E least privilege sigue vigente',()=>{
