@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {buildPremiumReportPortfolio,PREMIUM_REPORT_TYPES} from '../src/m26/workflows/premium-report-workflow.js';
-import {buildApproveReportDraftCommand} from '../src/m26/workflows/report-workflow.js';
+import {buildPremiumReportPortfolio,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand} from '../src/m26/workflows/report-workflow.js';
 
 const NOW=new Date('2026-09-06T12:00:00Z');
 
