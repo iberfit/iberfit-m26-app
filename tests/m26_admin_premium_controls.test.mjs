@@ -26,5 +26,5 @@ test('Las decisiones prioritarias tienen CTA de marca y estados táctiles claros
 test('La mejora visual no neutraliza la zona destructiva',()=>{
   assert.match(renderer,/m26-admin-danger-body button\[type=submit\]\{background:#9f2d2d!important;border-color:#9f2d2d!important;color:#fff!important\}/u);
   assert.match(css,/\.m26-admin-danger-body button\[type="submit"\]/u);
-  assert.doesNotMatch(css,/\.m26-admin-danger-body button\[type="submit"\][^{]*\{[^}]*background:\s*linear-gradient/usu);
+  assert.doesNotMatch(css,/\.m26-admin-danger-body button\[type="submit"\][^{]*\{[^}]*background:\s*linear-gradient/su);
 });
