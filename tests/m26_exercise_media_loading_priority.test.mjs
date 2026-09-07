@@ -26,9 +26,10 @@ test('full exercise media is eager and high priority by default',()=>{
   assert.match(html,/decoding="async"/);
 });
 
-test('compact exercise media remains lazy for library and builder surfaces',()=>{
+test('compact exercise media is lazy and low priority for list surfaces',()=>{
   const html=renderExerciseMedia({manifest,exercise,role:'client',compact:true,fallback:false});
   assert.match(html,/loading="lazy"/);
+  assert.match(html,/fetchpriority="low"/);
   assert.doesNotMatch(html,/fetchpriority="high"/);
 });
 
@@ -36,4 +37,5 @@ test('loading priority can be explicitly disabled on a full media surface',()=>{
   const html=renderExerciseMedia({manifest,exercise,role:'client',priority:false,fallback:false});
   assert.match(html,/loading="lazy"/);
   assert.doesNotMatch(html,/fetchpriority="high"/);
+  assert.doesNotMatch(html,/fetchpriority="low"/);
 });

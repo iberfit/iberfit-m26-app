@@ -88,7 +88,11 @@ export function renderExerciseMedia({
     const labels=media.mode==='start_peak'
       ?['Posición inicial','Posición final']
       :['Referencia visual'];
-    const imageLoading=priority?'loading="eager" fetchpriority="high"':'loading="lazy"';
+    const imageLoading=priority
+      ?'loading="eager" fetchpriority="high"'
+      :compact
+        ?'loading="lazy" fetchpriority="low"'
+        :'loading="lazy"';
 
     const frames=media.images.map((src,index)=>`<span class="m26-exercise-media-frame"><img class="m26-exercise-media-image" src="${e(src)}" alt="${e(`${name} · ${labels[index]||'referencia visual'}`)}" ${imageLoading} decoding="async"><small>${e(labels[index]||'Referencia')}</small></span>`).join('');
 
