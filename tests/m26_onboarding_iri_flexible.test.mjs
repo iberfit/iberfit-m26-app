@@ -2,8 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {legacyClientDraftPayload,validateClientOnboardingDraft} from '../src/m26/workflows/client-onboarding.js';
 import {initialAssessmentModeFrom,isIriDeferred} from '../src/m26/domain/initial-assessment.js';
-import {enhanceClientOnboardingHtml} from '../src/m26/modules/route-render.js';
-import {onboardingPostCreateArea,syncFlexibleOnboardingForm} from '../src/m26/app/workflow-controller.js';
+import {onboardingChoiceMarkup,onboardingPostCreateArea,syncFlexibleOnboardingForm} from '../src/m26/app/workflow-controller.js';
 
 const minimal={name:'Ana Pérez',email:'ana@example.com',phone:'+56911111111',birthDate:'1990-02-03',modality:'online'};
 
@@ -30,8 +29,7 @@ test('deferred crea un expediente operativo mínimo sin fingir un IRI completado
 });
 
 test('la superficie de alta ofrece las dos rutas sin eliminar el IRI',()=>{
-  const source='<form data-workflow-form="client-onboarding" class="m26-onboarding-form" novalidate><div class="m26-sticky-actions"><p><strong>El acceso permanece desactivado.</strong> Primero se crea el expediente y se completa el diagnóstico IRI.</p><button type="submit" class="m26-primary-action" data-workflow-action="create-client-draft">Crear expediente y abrir primera sesión</button></div></form>';
-  const html=enhanceClientOnboardingHtml(source);
+  const html=onboardingChoiceMarkup();
   assert.match(html,/Empezar a trabajar/);
   assert.match(html,/Realizar evaluación IRI/);
   assert.match(html,/name="initialAssessmentMode" value="deferred" checked/);
