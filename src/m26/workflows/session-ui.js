@@ -13,6 +13,28 @@ function previousSetSummary(values){
     values?.rir?`RIR ${values.rir}`:null,
   ].filter(Boolean).join(' · ')||'Serie registrada';
 }
+function currentSetResultSummary(result){
+  return [
+    result?.reps!=null?`${result.reps} rep${Number(result.reps)===1?'':'s'}`:null,
+    result?.seconds!=null?`${result.seconds} s`:null,
+    result?.load||null,
+    Number.isFinite(Number(result?.rpe))?`RPE ${result.rpe}`:null,
+    Number.isFinite(Number(result?.rir))?`RIR ${result.rir}`:null,
+  ].filter(Boolean).join(' · ')||'Serie registrada';
+}
+function renderCurrentExerciseHistory(execution,step){
+  const totalSets=Number(step?.totalSets||0);
+  const rows=Object.values(execution?.results||{})
+    .filter((result)=>
+      result?.exerciseId===step?.exerciseId&&
+      Number(result?.setNumber)>=1&&
+      Number(result?.setNumber)<=totalSets
+    )
+    .sort((a,b)=>Number(a.setNumber)-Number(b.setNumber));
+  if(!rows.length)return '';
+  const items=rows.map((result)=>`<div class="m26-field"><span>Serie ${e(result.setNumber)}</span><strong>${e(currentSetResultSummary(result))}</strong></div>`).join('');
+  return `<section class="m26-panel m26-panel-soft" data-session-current-exercise-history aria-label="Series registradas hoy en este ejercicio"><p class="m26-eyebrow">Hoy en este ejercicio</p><div class="m26-field-grid">${items}</div></section>`;
+}
 function groupName(type){return ({biserie:'Biserie',triserie:'Triserie',circuito:'Circuito',amrap:'AMRAP',tabata:'Tabata'})[type]||type;}
 function syncBanner(execution){
   const status=execution?.syncStatus||'clean';if(status==='clean')return '';
@@ -604,6 +626,7 @@ const previousSet=previousSetDraftValues(execution);
 const previousSetReuse=previousSet
   ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior">Usar serie anterior</button></div></div>`
   :'';
+const currentExerciseHistory=renderCurrentExerciseHistory(execution,step);
 const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   const totals=executionTotals(execution);
   const progress=Math.max(
@@ -753,6 +776,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     </section>
     ${cues?`<section class="m26-session-live-cues" aria-label="Indicaciones del ejercicio"><span>Claves técnicas</span><strong>${e(cues)}</strong></section>`:''}
     ${renderExerciseMemorySession(exerciseMemory)}
+    ${currentExerciseHistory}
     <div class="m26-guided-main">
       ${setPanel}
       <aside class="m26-panel m26-panel-soft m26-session-live-options">
