@@ -370,12 +370,18 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
 // RC71_1_SESSION_LIVE_UX_BEGIN
 function executionTotals(execution){
   const queue=Array.isArray(execution?.queue)?execution.queue:[];
-  const results=Object.values(execution?.results||{});
+  const resultMap=execution?.results||{};
+  const skippedMap=execution?.skippedSets||{};
+  const results=Object.values(resultMap);
+  const resultKeys=Object.keys(resultMap);
+  const skippedKeys=Object.keys(skippedMap);
   const totalSets=queue.reduce(
     (sum,item)=>sum+Math.max(0,Number(item?.sets||0)),
     0,
   );
   const completedSets=results.length;
+  const skippedSets=skippedKeys.filter((key)=>!Object.prototype.hasOwnProperty.call(resultMap,key)).length;
+  const resolvedSets=Math.min(totalSets,new Set([...resultKeys,...skippedKeys]).size);
   const completedExercises=new Set(
     results
       .map((item)=>item?.exerciseId)
@@ -384,6 +390,8 @@ function executionTotals(execution){
 
   return {
     completedSets,
+    skippedSets,
+    resolvedSets,
     totalSets,
     completedExercises,
     totalExercises:queue.length,
@@ -423,11 +431,14 @@ function sessionLiveSummary(execution,session,{ready=false}={}){
 
   const setsValue=ready
     ?`${totals.totalSets}`
-    :`${totals.completedSets} / ${totals.totalSets}`;
+    :`${totals.resolvedSets} / ${totals.totalSets}`;
 
   const setLabel=ready
     ?'Series planificadas'
-    :'Series completadas';
+    :(totals.skippedSets?'Series resueltas':'Series completadas');
+  const setsDetail=!ready&&totals.skippedSets
+    ?`${plural(totals.completedSets,'registrada','registradas')} · ${plural(totals.skippedSets,'omitida','omitidas')}`
+    :'';
 
   return `<div
     class="m26-session-live-summary"
@@ -444,6 +455,7 @@ function sessionLiveSummary(execution,session,{ready=false}={}){
     <div>
       <span>${e(setLabel)}</span>
       <strong>${e(setsValue)}</strong>
+      ${setsDetail?`<small>${e(setsDetail)}</small>`:''}
     </div>
     <div>
       <span>Guardado</span>
@@ -473,8 +485,9 @@ function completedSessionSummary(execution){
       <strong>${e(formatDuration(executionElapsedMs(execution)))}</strong>
     </div>
     <div>
-      <span>Series</span>
-      <strong>${e(totals.completedSets)} / ${e(totals.totalSets)}</strong>
+      <span>${totals.skippedSets?'Series resueltas':'Series'}</span>
+      <strong>${e(totals.resolvedSets)} / ${e(totals.totalSets)}</strong>
+      ${totals.skippedSets?`<small>${e(plural(totals.completedSets,'registrada','registradas'))} · ${e(plural(totals.skippedSets,'omitida','omitidas'))}</small>`:''}
     </div>
     <div>
       <span>Ejercicios registrados</span>
@@ -641,10 +654,13 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     Math.min(
       100,
       Math.round(
-        (totals.completedSets/Math.max(1,totals.totalSets))*100,
+        (totals.resolvedSets/Math.max(1,totals.totalSets))*100,
       ),
     ),
   );
+  const progressLabel=totals.skippedSets
+    ?`${totals.resolvedSets} de ${totals.totalSets} series resueltas · ${plural(totals.skippedSets,'omitida','omitidas')}`
+    :`${totals.completedSets} de ${totals.totalSets} series`;
   const liveAddOptions=isCoach
     ?catalog.search('').filter((item)=>item.id!==step.exerciseId).slice(0,60).map((item)=>`<option value="${e(item.id)}">${e(item.name_es)}</option>`).join('')
     :'';
@@ -751,7 +767,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         </div>
         <div class="m26-session-live-progress-badge">
           <strong>${e(progress)}%</strong>
-          <small data-session-progress-label>${e(totals.completedSets)} de ${e(totals.totalSets)} series</small>
+          <small data-session-progress-label>${e(progressLabel)}</small>
         </div>
       </div>
       ${timerStrip(execution)}
