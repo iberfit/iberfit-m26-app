@@ -1,6 +1,15 @@
 name: IBERFIT Exercise Media Publish Approved
 
 on:
+  push:
+    branches:
+      - canary/rc74-4
+    paths:
+      - 'scripts/exercise-media/approved/**/approved-batch.json'
+      - 'scripts/exercise-media/approved/**/*.webp'
+      - 'scripts/exercise-media/approved/**/*.png'
+      - 'scripts/exercise-media/approved/**/*.jpg'
+      - 'scripts/exercise-media/approved/**/*.jpeg'
   workflow_dispatch:
     inputs:
       source_sha:
@@ -29,39 +38,43 @@ env:
   PROD_REF: pjhmrhejsoofmouedavw
   PROD_ORIGIN: https://pjhmrhejsoofmouedavw.supabase.co
   OIDC_AUDIENCE: iberfit-exercise-media-prod
-  SOURCE_SHA: ${{ inputs.source_sha }}
-  MANIFEST_PATH: ${{ inputs.manifest_path }}
-  CONFIRMATION: ${{ inputs.confirmation }}
+  SOURCE_SHA: ${{ github.event_name == 'push' && github.sha || inputs.source_sha }}
+  MANIFEST_PATH_INPUT: ${{ inputs.manifest_path || '' }}
+  CONFIRMATION: ${{ github.event_name == 'push' && 'PUBLISH_APPROVED_MEDIA_PROD' || inputs.confirmation }}
 
 jobs:
   publish-approved:
     name: publish-approved-prod
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Validate explicit production intent
+      - name: Validate production intent and source
         shell: bash
         run: |
           set -euo pipefail
           test "$CONFIRMATION" = 'PUBLISH_APPROVED_MEDIA_PROD'
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$MANIFEST_PATH" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{1,499}$ ]]
-          [[ "$MANIFEST_PATH" != /* ]]
-          [[ "$MANIFEST_PATH" != *'..'* ]]
+          if [[ "$GITHUB_EVENT_NAME" = 'push' ]]; then
+            test "$GITHUB_REF" = 'refs/heads/canary/rc74-4'
+          else
+            [[ "$MANIFEST_PATH_INPUT" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{1,499}$ ]]
+            [[ "$MANIFEST_PATH_INPUT" != /* ]]
+            [[ "$MANIFEST_PATH_INPUT" != *'..'* ]]
+          fi
 
       - name: Checkout trusted publisher
         uses: actions/checkout@v4
         with:
           ref: canary/rc74-4
-          fetch-depth: 1
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Checkout exact approved source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_sha }}
+          ref: ${{ github.event_name == 'push' && github.sha || inputs.source_sha }}
           path: approved-source
-          fetch-depth: 1
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Setup Node
@@ -69,16 +82,56 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Resolve approved manifests
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before || '' }}
+        run: |
+          set -euo pipefail
+          mkdir -p recovery
+          test "$(git -C approved-source rev-parse HEAD)" = "$SOURCE_SHA"
+          : > recovery/approved-manifests.txt
+
+          if [[ "$GITHUB_EVENT_NAME" = 'workflow_dispatch' ]]; then
+            printf '%s\n' "$MANIFEST_PATH_INPUT" > recovery/approved-manifests.txt
+          else
+            changed_file="$(mktemp)"
+            if [[ "$BEFORE_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ "$BEFORE_SHA" != '0000000000000000000000000000000000000000' ]]; then
+              git -C approved-source fetch --no-tags --depth=1 origin "$BEFORE_SHA" >/dev/null 2>&1 || true
+              git -C approved-source diff --name-only "$BEFORE_SHA" "$SOURCE_SHA" > "$changed_file"
+            else
+              git -C approved-source diff-tree --root --no-commit-id --name-only -r "$SOURCE_SHA" > "$changed_file"
+            fi
+
+            awk '/^scripts\/exercise-media\/approved\/[^/]+\/approved-batch\.json$/' "$changed_file" \
+              | sort -u > recovery/approved-manifests.txt
+
+            if [[ ! -s recovery/approved-manifests.txt ]]; then
+              awk -F/ '/^scripts\/exercise-media\/approved\/[^/]+\/.+\.(webp|png|jpe?g)$/ {print $1"/"$2"/"$3"/"$4"/approved-batch.json"}' "$changed_file" \
+                | sort -u > recovery/approved-manifests.txt
+            fi
+          fi
+
+          test -s recovery/approved-manifests.txt
+          count="$(wc -l < recovery/approved-manifests.txt | tr -d ' ')"
+          test "$count" -ge 1
+          test "$count" -le 20
+          while IFS= read -r manifest; do
+            [[ "$manifest" =~ ^scripts/exercise-media/approved/[A-Za-z0-9._:-]+/approved-batch\.json$ ]]
+            test -s "approved-source/$manifest"
+          done < recovery/approved-manifests.txt
+          cat recovery/approved-manifests.txt
+
       - name: Verify exact source and publisher contract
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C approved-source rev-parse HEAD)" = "$SOURCE_SHA"
-          test -s "approved-source/$MANIFEST_PATH"
           node --test tests/m26_exercise_media_publisher_broker.test.mjs
-          node scripts/exercise-media/publish-approved-via-broker.mjs \
-            --manifest "approved-source/$MANIFEST_PATH" \
-            --source-root approved-source
+          while IFS= read -r manifest; do
+            node scripts/exercise-media/publish-approved-via-broker.mjs \
+              --manifest "approved-source/$manifest" \
+              --source-root approved-source
+          done < recovery/approved-manifests.txt
 
       - name: Obtain GitHub OIDC token
         shell: bash
@@ -95,16 +148,19 @@ jobs:
           echo "::add-mask::$token"
           echo "IBERFIT_GITHUB_OIDC_TOKEN=$token" >> "$GITHUB_ENV"
 
-      - name: Publish approved batch to PROD
+      - name: Publish approved batches to PROD
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p recovery
-          node scripts/exercise-media/publish-approved-via-broker.mjs \
-            --manifest "approved-source/$MANIFEST_PATH" \
-            --source-root approved-source \
-            --apply \
-            --evidence recovery/exercise-media-publish-prod.json
+          i=0
+          while IFS= read -r manifest; do
+            i=$((i+1))
+            node scripts/exercise-media/publish-approved-via-broker.mjs \
+              --manifest "approved-source/$manifest" \
+              --source-root approved-source \
+              --apply \
+              --evidence "recovery/exercise-media-publish-prod-${i}.json"
+          done < recovery/approved-manifests.txt
 
       - name: Verify public runtime manifest
         shell: bash
@@ -119,13 +175,19 @@ jobs:
             -H 'Content-Type: application/json' \
             "${PROD_ORIGIN}/rest/v1/rpc/iberfit_exercise_media_manifest_v1" \
             -d '{}' > recovery/exercise-media-runtime-manifest.json
-          SOURCE_MANIFEST="approved-source/$MANIFEST_PATH" \
-          RUNTIME_MANIFEST="recovery/exercise-media-runtime-manifest.json" \
+          MANIFEST_LIST=recovery/approved-manifests.txt \
+          SOURCE_ROOT=approved-source \
+          RUNTIME_MANIFEST=recovery/exercise-media-runtime-manifest.json \
           node <<'NODE'
           const fs=require('fs');
-          const source=JSON.parse(fs.readFileSync(process.env.SOURCE_MANIFEST,'utf8'));
+          const path=require('path');
+          const manifests=fs.readFileSync(process.env.MANIFEST_LIST,'utf8').trim().split(/\r?\n/).filter(Boolean);
+          const wanted=new Set();
+          for(const rel of manifests){
+            const source=JSON.parse(fs.readFileSync(path.join(process.env.SOURCE_ROOT,rel),'utf8'));
+            for(const item of source.items||[]) wanted.add(item.exercise_id);
+          }
           const runtime=JSON.parse(fs.readFileSync(process.env.RUNTIME_MANIFEST,'utf8'));
-          const wanted=new Set(source.items.map(x=>x.exercise_id));
           const items=Array.isArray(runtime?.items)?runtime.items:[];
           for(const id of wanted){
             const found=items.find(x=>x.exercise_id===id&&x.published===true);
@@ -140,7 +202,8 @@ jobs:
         with:
           name: iberfit-exercise-media-prod-${{ github.run_id }}
           path: |
-            recovery/exercise-media-publish-prod.json
+            recovery/approved-manifests.txt
+            recovery/exercise-media-publish-prod-*.json
             recovery/exercise-media-runtime-manifest.json
           if-no-files-found: warn
           retention-days: 30
