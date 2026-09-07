@@ -1,0 +1,19 @@
+name: IBERFIT Daily Continuous Audit Scheduler
+
+on:
+  schedule:
+    - cron: '17 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-daily-continuous-audit
+  cancel-in-progress: false
+
+jobs:
+  daily-audit:
+    uses: iberfit/iberfit-m26-app/.github/workflows/continuous-app-audit.yml@canary/rc74-4
+    with:
+      audit_ref: canary/rc74-4
