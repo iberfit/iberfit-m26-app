@@ -120,6 +120,23 @@ function nextExecutionCopy(execution,catalog){
   const ex=catalog.get(next.exerciseId);
   return {label:'Continuar al siguiente',detail:ex?.name_es||'Siguiente ejercicio'};
 }
+function nextDifferentExercisePreview(execution,catalog,mediaMap,role){
+  const item=execution?.queue?.[execution.index];
+  if(!item||execution.setIndex+1<Number(item.sets||0))return '';
+  const next=execution.queue[execution.index+1];
+  if(!next||next.exerciseId===item.exerciseId)return '';
+  const exercise=catalog.get(next.exerciseId);
+  if(!exercise)return '';
+  const visual=renderExerciseMedia({
+    manifest:mediaMap,
+    exercise:{...exercise,id:next.exerciseId},
+    role,
+    compact:true,
+    fallback:false,
+  });
+  if(!visual)return '';
+  return `<div class="m26-session-next-exercise-media" data-session-next-exercise-media aria-label="Vista previa del siguiente ejercicio">${visual}</div>`;
+}
 function exerciseMemorySetText(set){
   const parts=[];
 
@@ -597,6 +614,9 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
   const restSeconds=restRemainingSeconds(execution);
   const restActive=Boolean(recorded&&restSeconds>0);
   const nextCopy=nextExecutionCopy(execution,catalog);
+  const nextExercisePreview=restActive
+  ?nextDifferentExercisePreview(execution,catalog,mediaMap,role)
+  :'';
   const resultSummary=recorded
     ?[
         recorded.reps!=null?`${recorded.reps} rep${Number(recorded.reps)===1?'':'s'}`:null,
@@ -624,6 +644,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           </div>
         </div>
         <p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>
+        ${nextExercisePreview}
         <details class="m26-session-options">
           <summary>Corregir esta serie</summary>
           <p>La corrección queda registrada como un evento distinto; no borra silenciosamente el dato anterior.</p>
