@@ -151,13 +151,15 @@ function nextExecutionCopy(execution,catalog){
   const ex=catalog.get(next.exerciseId);
   return {label:'Continuar al siguiente',detail:ex?.name_es||'Siguiente ejercicio'};
 }
-function nextDifferentExercisePreview(execution,catalog,mediaMap,role){
+function nextSessionPreparation(execution,catalog,mediaMap,role){
   const item=execution?.queue?.[execution.index];
-  if(!item||execution.setIndex+1<Number(item.sets||0))return '';
-  const next=execution.queue[execution.index+1];
-  if(!next||next.exerciseId===item.exerciseId)return '';
+  if(!item)return '';
+  const withinCurrentExercise=execution.setIndex+1<Number(item.sets||0);
+  const next=withinCurrentExercise?item:execution.queue[execution.index+1];
+  if(!next)return '';
+  const sameExercise=next.exerciseId===item.exerciseId;
   const exercise=catalog.get(next.exerciseId)||{id:next.exerciseId,name_es:'Siguiente ejercicio'};
-  const visual=renderExerciseMedia({
+  const visual=sameExercise?'':renderExerciseMedia({
     manifest:mediaMap,
     exercise:{...exercise,id:next.exerciseId},
     role,
@@ -174,7 +176,12 @@ function nextDifferentExercisePreview(execution,catalog,mediaMap,role){
   const media=visual
     ?`<div class="m26-session-next-exercise-media" data-session-next-exercise-media aria-label="Vista previa del siguiente ejercicio">${visual}</div>`
     :'';
-  return `<div class="m26-session-next-exercise-preparation" data-session-next-exercise-preparation aria-label="Preparación del siguiente ejercicio">${media}<div class="m26-field-grid"><div class="m26-field"><span>Próximo objetivo</span><strong>${e(target)}</strong></div></div></div>`;
+  const preparationAttribute=sameExercise
+    ?'data-session-next-set-preparation'
+    :'data-session-next-exercise-preparation';
+  const label=sameExercise?'Próxima serie':'Próximo objetivo';
+  const ariaLabel=sameExercise?'Preparación de la próxima serie':'Preparación del siguiente ejercicio';
+  return `<div class="m26-session-next-exercise-preparation" data-session-next-step-preparation ${preparationAttribute} aria-label="${ariaLabel}">${media}<div class="m26-field-grid"><div class="m26-field"><span>${label}</span><strong>${e(target)}</strong></div></div></div>`;
 }
 function exerciseMemorySetText(set){
   const parts=[];
@@ -659,7 +666,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   const restActive=Boolean(recorded&&restSeconds>0);
   const nextCopy=nextExecutionCopy(execution,catalog);
   const nextExercisePreview=restActive
-  ?nextDifferentExercisePreview(execution,catalog,mediaMap,role)
+  ?nextSessionPreparation(execution,catalog,mediaMap,role)
   :'';
   const resultSummary=recorded
     ?[
