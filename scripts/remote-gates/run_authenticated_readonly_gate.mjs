@@ -72,8 +72,9 @@ if(environment?.environment!=='QA'||environment?.realDataAllowed!==false||enviro
   throw new Error(`RC74_QA_ENVIRONMENT_GUARD_FAILED:${JSON.stringify(environment)}`);
 }
 const remoteRegistry=await registry(sessions[0].token);
+const expectedCommands=M26_EXTENDED_COMMAND_REGISTRY.length;
 const registryValidation=validateCommandCatalog(remoteRegistry,M26_EXTENDED_COMMAND_REGISTRY,{strict:true});
-if(!registryValidation.ok||remoteRegistry.length!==52)throw new Error(`RC74_4_REGISTRY_MISMATCH:${JSON.stringify(registryValidation)}`);
+if(!registryValidation.ok||remoteRegistry.length!==expectedCommands)throw new Error(`RC74_4_REGISTRY_MISMATCH:${JSON.stringify(registryValidation)}`);
 
 const roles=[];
 const qaClientIds=[];
@@ -153,7 +154,7 @@ for(const session of sessions){
 assertDistinctQaClientIds(qaClientIds,RC29_QA_CLIENTS_NOT_DISTINCT);
 const evidence={
   release:'IBERFIT_M26_CANARY_RC74_4_PHASE_A',generatedAt:new Date().toISOString(),project:PROJECT_REF,
-  mode:'authenticated-readonly',mutationsPerformed:false,expectedCommands:52,remoteCommands:remoteRegistry.length,
+  mode:'authenticated-readonly',mutationsPerformed:false,expectedCommands,remoteCommands:remoteRegistry.length,
   environment:{environment:environment.environment,realDataAllowed:environment.realDataAllowed,productionBlocked:environment.productionBlocked},
   registryValidation,roles,
 };
