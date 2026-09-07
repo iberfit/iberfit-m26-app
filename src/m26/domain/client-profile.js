@@ -1,4 +1,5 @@
 import { clientModalityLabel, normalizeClientModality } from './modality.js';
+import { INITIAL_ASSESSMENT_MODES, normalizeInitialAssessmentMode } from './initial-assessment.js';
 
 function bodyOf(record) {
   return record?.body &&
@@ -74,6 +75,11 @@ export function sexForNormsLabel(input) {
 }
 
 export function normalizeClientProfile(profile = {}, client = {}) {
+  const initialAssessmentMode = normalizeInitialAssessmentMode(
+    value(profile, 'initialAssessmentMode', 'initial_assessment_mode') ??
+      value(client, 'initialAssessmentMode', 'initial_assessment_mode')
+  );
+  const iriDeferred = initialAssessmentMode === INITIAL_ASSESSMENT_MODES.deferred;
   const modality = normalizeClientModality(
     value(profile, 'modality', 'modalidad') ??
       value(client, 'modality', 'modalidad')
@@ -125,6 +131,8 @@ export function normalizeClientProfile(profile = {}, client = {}) {
   );
 
   const normalized = {
+    initialAssessmentMode,
+    iriDeferred,
     birthDate: cleanText(value(profile, 'birthDate', 'birth_date', 'fechaNacimiento', 'fecha_nacimiento'), 10),
     sexForNorms,
     sexForNormsLabel: sexForNormsLabel(sexForNorms),
@@ -181,13 +189,20 @@ export function normalizeClientProfile(profile = {}, client = {}) {
 
   const missing = [];
   if (!normalized.birthDate) missing.push('birthDate');
-  if (!normalized.sexForNorms) missing.push('sexForNorms');
   if (!normalized.email) missing.push('email');
   if (!normalized.phone) missing.push('phone');
   if (!normalized.modality) missing.push('modality');
-  if (logisticsRequired && !normalized.trainingAddress) missing.push('trainingAddress');
 
-  const requiredCount = logisticsRequired ? 6 : 5;
+  if (!iriDeferred) {
+    if (!normalized.sexForNorms) missing.push('sexForNorms');
+    if (logisticsRequired && !normalized.trainingAddress) missing.push('trainingAddress');
+  }
+
+  const requiredCount = iriDeferred
+    ? 4
+    : logisticsRequired
+      ? 6
+      : 5;
 
   return Object.freeze({
     ...normalized,
