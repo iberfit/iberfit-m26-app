@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {legacyClientDraftPayload,validateClientOnboardingDraft} from '../src/m26/workflows/client-onboarding.js';
 import {initialAssessmentModeFrom,isIriDeferred} from '../src/m26/domain/initial-assessment.js';
-import {onboardingChoiceMarkup,onboardingPostCreateArea,syncFlexibleOnboardingForm} from '../src/m26/app/workflow-controller.js';
+import {onboardingChoiceMarkup,onboardingPostCreateArea,syncFlexibleOnboardingForm} from '../src/m26/onboarding/progressive-onboarding.js';
 
 const minimal={name:'Ana Pérez',email:'ana@example.com',phone:'+56911111111',birthDate:'1990-02-03',modality:'online'};
 
@@ -23,6 +23,7 @@ test('deferred crea un expediente operativo mínimo sin fingir un IRI completado
   assert.equal(payload.phase,'Inicio operativo');
   assert.equal(payload.accessEnabled,false);
   assert.equal(payload.inviteClient,false);
+  assert.equal(payload.onboardingVersion,'m26-v12.2');
   assert.equal(Object.hasOwn(payload,'iriConfirmed'),false);
   assert.equal(isIriDeferred(payload),true);
   assert.equal(initialAssessmentModeFrom(payload),'deferred');

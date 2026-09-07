@@ -153,7 +153,7 @@ export function legacyClientDraftPayload(input={}){
       experienceLevel:value.level,trainingHistory:value.history,currentTraining:value.currentTraining,
       restrictions:value.restrictions,pain:value.pain,preferences:value.preferences,
     },
-    accessEnabled:false,inviteClient:false,onboardingVersion:'m26-v12.3',
+    accessEnabled:false,inviteClient:false,onboardingVersion:'m26-v12.2',
   });
 }
 
