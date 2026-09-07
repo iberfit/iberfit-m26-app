@@ -667,7 +667,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         recorded.seconds!=null?`${recorded.seconds} s`:null,
         recorded.load||null,
         Number.isFinite(Number(recorded.rpe))?`RPE ${recorded.rpe}`:null,
-        Number.isFinite(Number(recorded.rir))?`RIR ${recorded.rir}`:null,
+        recorded.rir!=null&&Number.isFinite(Number(recorded.rir))?`RIR ${recorded.rir}`:null,
       ].filter(Boolean).join(' · ')
     :'';
 
