@@ -47,6 +47,44 @@ function runNpm(name,args=[]){
   return run(name,'npm',args);
 }
 
+function runNpmWithEvidence(name,args=[]){
+  let command='npm';
+  let commandArgs=args;
+  const npmCli=process.env.npm_execpath;
+  if(npmCli&&fs.existsSync(npmCli)){
+    command=process.execPath;
+    commandArgs=[npmCli,...args];
+  }else if(process.platform==='win32'){
+    command=process.env.ComSpec||process.env.COMSPEC||'cmd.exe';
+    commandArgs=['/d','/s','/c',`npm ${args.join(' ')}`];
+  }
+  const result=spawnSync(command,commandArgs,{
+    cwd:root,
+    encoding:'utf8',
+    stdio:['ignore','pipe','pipe'],
+    env:{...process.env},
+    shell:false,
+    maxBuffer:64*1024*1024,
+  });
+  if(result.stdout)process.stdout.write(result.stdout);
+  if(result.stderr)process.stderr.write(result.stderr);
+  const spawnError=result.error?{
+    code:result.error.code||null,
+    message:String(result.error.message||result.error).slice(0,300),
+  }:null;
+  const output=`${result.stdout||''}${result.stderr?`\n--- STDERR ---\n${result.stderr}`:''}`;
+  const outputTail=output.slice(-30000);
+  evidence.steps.push({
+    name,
+    ok:result.status===0&&!spawnError,
+    status:result.status,
+    spawnError,
+    outputTail:result.status===0?null:outputTail,
+  });
+  if(spawnError)throw new Error(`RC74_4_PROCESS_START_FAILED:${name}:${spawnError.code||'UNKNOWN'}`);
+  if(result.status!==0)throw new Error(`RC74_4_VALIDATION_FAILED:${name}`);
+}
+
 function assertSourceContracts(){
   const read=(file)=>fs.readFileSync(path.join(root,file),'utf8');
   const catalog=read('src/m26/command-catalog.js');
@@ -90,7 +128,7 @@ try{
   fs.mkdirSync(recovery,{recursive:true});
   assertSourceContracts();
   run('repository-hygiene',process.execPath,['scripts/remote-gates/check_repository_hygiene.mjs']);
-  runNpm('full-node-regression',['test']);
+  runNpmWithEvidence('full-node-regression',['test']);
   run('current-source-surface',process.execPath,['qa/rc64/build-current-surface.mjs']);
   run('rc74-runtime-generator',process.execPath,['scripts/generate_rc74_4_runtime_config.mjs'],{
     M26_SUPABASE_URL:`https://${QA_REF}.supabase.co`,
