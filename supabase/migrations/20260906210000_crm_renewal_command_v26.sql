@@ -106,13 +106,13 @@ begin
   if v_client_id is null or not exists(select 1 from public.clients where id=v_client_id) then
     return 'CLIENT_NOT_FOUND';
   end if;
-  if public.iberfit_current_role_v26() not in ('admin','coach') then
+  if coalesce(public.iberfit_current_role_v26()::text,'') not in ('admin','coach') then
     return 'ROLE_NOT_ALLOWED';
   end if;
-  if not public.iberfit_can_access_client_v26(v_client_id) then
+  if public.iberfit_can_access_client_v26(v_client_id) is distinct from true then
     return 'CLIENT_ACCESS_DENIED';
   end if;
-  if not public.iberfit_canary_enabled_v26(v_client_id) then
+  if public.iberfit_canary_enabled_v26(v_client_id) is distinct from true then
     return 'M26_CANARY_NOT_ENABLED';
   end if;
 
