@@ -1,0 +1,123 @@
+name: Apply session previous-set reuse
+
+on:
+  push:
+    branches:
+      - feat/session-reuse-previous-set
+    paths:
+      - .github/workflows/apply-session-reuse-previous-set.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/session-reuse-previous-set
+      - name: Apply previous-set reuse patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          execution = Path('src/m26/workflows/session-execution.js')
+          text = execution.read_text(encoding='utf-8')
+          anchor = "function resultKey(exerciseId,setNumber){return `${exerciseId}:${setNumber}`;}\nfunction activeSetIdentity(execution,session){"
+          replacement = """function resultKey(exerciseId,setNumber){return `${exerciseId}:${setNumber}`;}
+          export function previousSetDraftValues(execution){
+            const item=execution?.queue?.[execution.index];
+            if(!item||Number(execution.setIndex)<1)return null;
+            const previous=execution.results?.[resultKey(item.exerciseId,execution.setIndex)];
+            if(!previous)return null;
+            return {
+              reps:previous.reps==null?'':String(previous.reps),
+              seconds:previous.seconds==null?'':String(previous.seconds),
+              load:previous.load==null?'':String(previous.load),
+              rpe:previous.rpe==null?'':String(previous.rpe),
+              rir:previous.rir==null?'':String(previous.rir),
+            };
+          }
+          function activeSetIdentity(execution,session){"""
+          if text.count(anchor) != 1:
+              raise SystemExit('session-execution anchor mismatch')
+          execution.write_text(text.replace(anchor,replacement,1),encoding='utf-8')
+
+          ui = Path('src/m26/workflows/session-ui.js')
+          text = ui.read_text(encoding='utf-8')
+          anchor = "import { currentStep } from './session-execution.js';"
+          replacement = "import { currentStep,previousSetDraftValues } from './session-execution.js';"
+          if text.count(anchor) != 1:
+              raise SystemExit('session-ui import anchor mismatch')
+          text = text.replace(anchor,replacement,1)
+          anchor = "function e(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('\\\"','&quot;').replaceAll(\"'\",'&#039;');}\nfunction groupName(type){"
+          replacement = """function e(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('\\\"','&quot;').replaceAll("'",'&#039;');}
+          function previousSetSummary(values){
+            return [
+              values?.reps?`${values.reps} reps`:null,
+              values?.seconds?`${values.seconds} s`:null,
+              values?.load||null,
+              values?.rpe?`RPE ${values.rpe}`:null,
+              values?.rir?`RIR ${values.rir}`:null,
+            ].filter(Boolean).join(' · ')||'Serie registrada';
+          }
+          function groupName(type){"""
+          if text.count(anchor) != 1:
+              raise SystemExit('session-ui helper anchor mismatch')
+          text = text.replace(anchor,replacement,1)
+          anchor = "  const planned=step.prescription||{};\n  const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;"
+          replacement = """  const planned=step.prescription||{};
+            const previousSet=previousSetDraftValues(execution);
+            const previousSetReuse=previousSet
+              ?`<div class=\"m26-field-grid\" data-session-previous-set><div class=\"m26-field\"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><button type=\"button\" data-session-action=\"reuse-previous-set\" aria-label=\"Usar los datos de la serie anterior\">Usar serie anterior</button></div></div>`
+              :'';
+            const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;"""
+          if text.count(anchor) != 1:
+              raise SystemExit('session-ui previous set anchor mismatch')
+          text = text.replace(anchor,replacement,1)
+          anchor = "        <h3>Registra lo que realmente hiciste</h3>\n        <div class=\"m26-field-grid\">"
+          replacement = "        <h3>Registra lo que realmente hiciste</h3>\n        ${previousSetReuse}\n        <div class=\"m26-field-grid\">"
+          if text.count(anchor) != 1:
+              raise SystemExit('session-ui entry anchor mismatch')
+          ui.write_text(text.replace(anchor,replacement,1),encoding='utf-8')
+
+          controller = Path('src/m26/workflows/session-controller.js')
+          text = controller.read_text(encoding='utf-8')
+          anchor = "  markExecutionSync,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft\n"
+          replacement = "  markExecutionSync,previousSetDraftValues,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft\n"
+          if text.count(anchor) != 1:
+              raise SystemExit('session-controller import anchor mismatch')
+          text = text.replace(anchor,replacement,1)
+          anchor = "const action=button.getAttribute('data-session-action');const context=getContext();if(action==='exit-session'){"
+          replacement = """const action=button.getAttribute('data-session-action');const context=getContext();if(action==='reuse-previous-set'){
+              const values=previousSetDraftValues(context?.execution);
+              if(!values)return;
+              for(const node of root.querySelectorAll?.('[data-set-field]')||[]){
+                const field=node.getAttribute('data-set-field');
+                if(field==='notes'||!Object.prototype.hasOwnProperty.call(values,field))continue;
+                node.value=values[field]??'';
+              }
+              const saved=context?.execution&&context?.session?updateActiveSetDraft(context.execution,context.session,fieldValues(root)):null;
+              if(saved)queueExecutionDraftPersist(context);
+              if(context?.actionState){context.actionState.status='success';context.actionState.message='Datos de la serie anterior copiados. Revísalos antes de confirmar.';}
+              renderSession();
+              return;
+            }if(action==='exit-session'){"""
+          if text.count(anchor) != 1:
+              raise SystemExit('session-controller click anchor mismatch')
+          controller.write_text(text.replace(anchor,replacement,1),encoding='utf-8')
+          PY
+          git diff --check
+          node --check src/m26/workflows/session-execution.js
+          node --check src/m26/workflows/session-ui.js
+          node --check src/m26/workflows/session-controller.js
+          node --test tests/m26_session_next_exercise_media.test.mjs
+          git diff -- src/m26/workflows/session-execution.js src/m26/workflows/session-ui.js src/m26/workflows/session-controller.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/m26/workflows/session-execution.js src/m26/workflows/session-ui.js src/m26/workflows/session-controller.js
+          git commit -m "feat(session): reuse previous set values"
+          git push origin HEAD:feat/session-reuse-previous-set
