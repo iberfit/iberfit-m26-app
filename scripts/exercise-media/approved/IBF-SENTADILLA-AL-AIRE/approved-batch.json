@@ -1,0 +1,50 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-SENTADILLA-AL-AIRE",
+      "local_path": "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE-approved-v1.webp",
+      "source_base64_parts": [
+        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/source.webp.b64.00",
+        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/source.webp.b64.01",
+        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/source.webp.b64.02",
+        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/source.webp.b64.03"
+      ],
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": ["visual", "biomechanics"],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-09-07",
+        "note": "Patrón IBERFIT aprobado: movimiento real, modelo consistente y maniquí unisex simple con zonas trabajadas."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-SENTADILLA-AL-AIRE/movement-2ab5434df034.webp",
+          "mime": "image/webp",
+          "width": 768,
+          "height": 960,
+          "sha256": "2ab5434df034778dc1036b90ba920cbfcc2385c27e334c4a8fc7b04f00afa568"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": ["cuádriceps", "glúteos"],
+          "secondary": ["core", "isquiotibiales"],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
