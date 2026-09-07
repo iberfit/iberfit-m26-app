@@ -10,6 +10,7 @@ import {
   startExecution,
 } from '../src/m26/workflows/session-execution.js';
 import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
+import {M26_ACTION_REGISTRY,assertActionAllowed} from '../src/m26/ui/interactive-audit.js';
 
 const exercise={
   id:'exercise-1',
@@ -93,6 +94,16 @@ test('Session Live offers explicit previous-set reuse only when a previous set e
   startExecution(firstExecution);
   const firstHtml=renderGuidedExecution({execution:firstExecution,session,catalog,mediaMap:null,role:'client'});
   assert.doesNotMatch(firstHtml,/data-session-action="reuse-previous-set"/);
+});
+
+test('previous-set reuse is registered for client and coach without becoming a remote command',()=>{
+  assert.deepEqual(M26_ACTION_REGISTRY['reuse-previous-set'],{
+    roles:['coach','client'],
+    domain:'execution',
+  });
+  assert.equal(assertActionAllowed('reuse-previous-set','client'),true);
+  assert.equal(assertActionAllowed('reuse-previous-set','coach'),true);
+  assert.equal(assertActionAllowed('reuse-previous-set','admin'),false);
 });
 
 test('controller copies locally, preserves current notes, persists the active draft and never dispatches reuse as a command',()=>{
