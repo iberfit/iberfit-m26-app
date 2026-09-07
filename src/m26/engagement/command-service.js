@@ -1,6 +1,6 @@
 import { engagementCapabilities } from './activity-capabilities.js';
 import { validatedRuntimeRegistry } from '../command-catalog.js';
-import { buildCheckinRegisterCommand,buildCheckinVoidCommand,buildHabitDefineCommand,buildHabitLogCommand,buildHabitArchiveCommand,buildPrivateNoteCreateCommand,buildPrivateNoteUpdateCommand,buildPrivateNoteArchiveCommand } from './command-builders.js';
+import { buildCheckinRegisterCommand,buildCheckinVoidCommand,buildHabitDefineCommand,buildHabitLogCommand,buildHabitArchiveCommand,buildPrivateNoteCreateCommand,buildPrivateNoteUpdateCommand,buildPrivateNoteArchiveCommand,buildCommercialRenewalCommand } from './command-builders.js';
 
 function roleAllowed(role,allowed){const normalized=String(role||'').toLowerCase()==='client'?'cliente':String(role||'').toLowerCase();if(!allowed.includes(normalized))throw new Error('M26_ENGAGEMENT_ROLE_FORBIDDEN');}
 export function createEngagementCommandService({commandBus,installedRegistry=[],getRole=()=>null,isOnline=()=>true}={}){
@@ -17,5 +17,6 @@ export function createEngagementCommandService({commandBus,installedRegistry=[],
     async createPrivateNote(input){requireFeature('privateNotes');roleAllowed(getRole(),['admin','coach']);if(!isOnline())throw new Error('M26_PRIVATE_NOTE_ONLINE_REQUIRED');return submit(buildPrivateNoteCreateCommand(input,options()));},
     async updatePrivateNote(input){requireFeature('privateNotes');roleAllowed(getRole(),['admin','coach']);if(!isOnline())throw new Error('M26_PRIVATE_NOTE_ONLINE_REQUIRED');return submit(buildPrivateNoteUpdateCommand(input,options()));},
     async archivePrivateNote(input){requireFeature('privateNotes');roleAllowed(getRole(),['admin','coach']);if(!isOnline())throw new Error('M26_PRIVATE_NOTE_ONLINE_REQUIRED');return submit(buildPrivateNoteArchiveCommand(input,options()));},
+    async recordCommercialRenewal(input){requireFeature('commercialRenewals');roleAllowed(getRole(),['admin','coach']);if(!isOnline())throw new Error('M26_RENEWAL_ONLINE_REQUIRED');return submit(buildCommercialRenewalCommand(input,options()));},
   });
 }
