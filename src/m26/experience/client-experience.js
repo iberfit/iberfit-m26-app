@@ -1,3 +1,5 @@
+import {isIriDeferred} from '../domain/initial-assessment.js';
+
 export const CLIENT_EXPERIENCE_STAGES=Object.freeze({
   onboarding:Object.freeze({
     key:'onboarding',
@@ -106,6 +108,8 @@ function action(key,label,area,reason){
 export function deriveClientExperience(summary={}){
   const profileReady=hasProfileEvidence(summary);
   const iri=iriReadiness(summary?.iri);
+  const iriDeferred=isIriDeferred(summary);
+  const iriBlocking=!iriDeferred&&!iri.confirmed;
   const cycleReady=Boolean(summary?.cycle);
   const nextAppointmentReady=Boolean(summary?.nextAppointment);
   const executions=Math.max(
@@ -117,7 +121,7 @@ export function deriveClientExperience(summary={}){
 
   if(!profileReady){
     stage=CLIENT_EXPERIENCE_STAGES.onboarding;
-  }else if(!iri.confirmed){
+  }else if(iriBlocking){
     stage=CLIENT_EXPERIENCE_STAGES.evaluation;
   }else if(!cycleReady){
     stage=CLIENT_EXPERIENCE_STAGES.planning;
@@ -130,14 +134,15 @@ export function deriveClientExperience(summary={}){
   const attention=[];
 
   if(!profileReady)attention.push('profile');
-  if(!iri.exists)attention.push('iri_missing');
+  if(iriDeferred&&!iri.confirmed)attention.push('iri_deferred');
+  else if(!iri.exists)attention.push('iri_missing');
   else if(!iri.confirmed)attention.push('iri_incomplete');
   if(!cycleReady)attention.push('planning');
   if(!nextAppointmentReady)attention.push('appointment');
 
   const processSteps=[
     profileReady,
-    iri.confirmed,
+    iri.confirmed||iriDeferred,
     cycleReady,
     nextAppointmentReady,
   ];
@@ -153,6 +158,9 @@ export function deriveClientExperience(summary={}){
       profile:profileReady,
       iriExists:iri.exists,
       iriConfirmed:iri.confirmed,
+      iriDeferred,
+      iriRequired:!iriDeferred,
+      iriBlocking,
       cycle:cycleReady,
       nextAppointment:nextAppointmentReady,
       executions,
@@ -250,7 +258,9 @@ export function experienceNextAction(
       'prepare_plan',
       'Preparar planificación',
       'planificacion',
-      'La evaluación está lista y falta una planificación.'
+      current.readiness.iriDeferred&&!current.readiness.iriConfirmed
+        ?'El expediente está listo para trabajar; el IRI puede realizarse cuando lo necesites.'
+        :'La evaluación está lista y falta una planificación.'
     );
   }
 

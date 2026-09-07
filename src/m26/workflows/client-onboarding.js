@@ -1,4 +1,5 @@
 import {normalizeClientModality} from '../domain/modality.js';
+import {INITIAL_ASSESSMENT_MODES,normalizeInitialAssessmentMode} from '../domain/initial-assessment.js';
 
 const EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const CLIENT_ONBOARDING_LOCAL_ID='pending-client';
@@ -61,10 +62,12 @@ export async function waitForCreatedClient({result,payload,fetchSnapshot,waitFn=
 }
 
 export function normalizeClientOnboardingDraft(input={}){
+  const initialAssessmentMode=normalizeInitialAssessmentMode(input.initialAssessmentMode??input.initial_assessment_mode);
   const modality=modalityLabel(input.modality);
   const weeklyFrequency=integer(input.weeklyFrequency,{min:1,max:14});
   const sessionDurationMinutes=integer(input.sessionDurationMinutes,{min:20,max:240});
   return Object.freeze({
+    initialAssessmentMode,
     name:clean(input.name,160),
     email:clean(input.email,254).toLowerCase(),
     phone:clean(input.phone,40),
@@ -90,7 +93,7 @@ export function normalizeClientOnboardingDraft(input={}){
     preferredContactTime:clean(input.preferredContactTime,120),
     timezone:clean(input.timezone,80)||'America/Santiago',
     level:clean(input.experienceLevel??input.level,100),
-    phase:clean(input.phase,100)||'Evaluación inicial',
+    phase:clean(input.phase,100)||(initialAssessmentMode===INITIAL_ASSESSMENT_MODES.deferred?'Inicio operativo':'Evaluación inicial'),
     restrictions:clean(input.restrictions,1000),
     pain:clean(input.pain,1000),
     history:clean(input.trainingHistory??input.history,1500),
@@ -109,16 +112,19 @@ export function normalizeClientOnboardingDraft(input={}){
 
 export function validateClientOnboardingDraft(input={}){
   const value=normalizeClientOnboardingDraft(input);const errors=[];
+  const deferred=value.initialAssessmentMode===INITIAL_ASSESSMENT_MODES.deferred;
   if(value.name.length<3)errors.push('name');
   if(!EMAIL.test(value.email))errors.push('email');
   if(!value.phone)errors.push('phone');
   if(!/^\d{4}-\d{2}-\d{2}$/.test(value.birthDate))errors.push('birthDate');
-  if(!['female','male'].includes(value.sexForNorms))errors.push('sexForNorms');
   if(!value.modality)errors.push('modality');
-  if(!value.weeklyFrequency)errors.push('weeklyFrequency');
-  if(!value.sessionDurationMinutes)errors.push('sessionDurationMinutes');
-  if(value.primaryObjective.length<10)errors.push('primaryObjective');
-  if(['Presencial','Híbrido'].includes(value.modality)&&!value.trainingAddress)errors.push('trainingAddress');
+  if(!deferred){
+    if(!['female','male'].includes(value.sexForNorms))errors.push('sexForNorms');
+    if(!value.weeklyFrequency)errors.push('weeklyFrequency');
+    if(!value.sessionDurationMinutes)errors.push('sessionDurationMinutes');
+    if(value.primaryObjective.length<10)errors.push('primaryObjective');
+    if(['Presencial','Híbrido'].includes(value.modality)&&!value.trainingAddress)errors.push('trainingAddress');
+  }
   return Object.freeze({ok:errors.length===0,errors:Object.freeze(errors),value});
 }
 
@@ -127,12 +133,14 @@ export function legacyClientDraftPayload(input={}){
   const value=check.value,requestId=onboardingRequestId(value);
   return Object.freeze({
     requestId,idempotencyKey:requestId,
+    initialAssessmentMode:value.initialAssessmentMode,
     name:value.name,email:value.email,phone:value.phone,modality:value.modality,
     frequency:value.frequency,objective:value.primaryObjective,zone:value.commune,address:value.trainingAddress,
     level:value.level,phase:value.phase,restrictions:value.restrictions,pain:value.pain,history:value.history,
     equipment:value.equipment,preferences:value.preferences,primaryLimiter:value.primaryLimiter,
     currentRecommendation:value.currentRecommendation,pending:value.pending,
     profile:{
+      initialAssessmentMode:value.initialAssessmentMode,
       birthDate:value.birthDate,sexForNorms:value.sexForNorms,genderIdentity:value.genderIdentity,pronouns:value.pronouns,
       email:value.email,phone:value.phone,preferredContactChannel:value.preferredContactChannel,
       preferredContactTime:value.preferredContactTime,timezone:value.timezone,modality:normalizeClientModality(value.modality),
