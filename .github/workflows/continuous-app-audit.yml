@@ -90,6 +90,9 @@ jobs:
           M26_AUDIT_APP_URL: https://app.iberfit.cl
         run: node scripts/audit/deep_product_audit.mjs
 
+      - name: Auditar experiencia estética y de entrenamiento
+        run: node scripts/audit/product_experience_audit.mjs
+
       - name: Conservar informe de auditoría
         if: always()
         uses: actions/upload-artifact@v4
