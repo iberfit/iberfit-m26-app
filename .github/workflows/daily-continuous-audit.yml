@@ -1,6 +1,11 @@
 name: IBERFIT Daily Continuous Audit Scheduler
 
 on:
+  push:
+    branches:
+      - prepublicacion/rc29
+    paths:
+      - '.github/workflows/daily-continuous-audit.yml'
   schedule:
     - cron: '17 12 * * *'
   workflow_dispatch:
