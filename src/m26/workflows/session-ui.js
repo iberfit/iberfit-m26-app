@@ -18,8 +18,8 @@ function currentSetResultSummary(result){
     result?.reps!=null?`${result.reps} rep${Number(result.reps)===1?'':'s'}`:null,
     result?.seconds!=null?`${result.seconds} s`:null,
     result?.load||null,
-    Number.isFinite(Number(result?.rpe))?`RPE ${result.rpe}`:null,
-    Number.isFinite(Number(result?.rir))?`RIR ${result.rir}`:null,
+    result?.rpe!=null&&Number.isFinite(Number(result.rpe))?`RPE ${result.rpe}`:null,
+    result?.rir!=null&&Number.isFinite(Number(result.rir))?`RIR ${result.rir}`:null,
   ].filter(Boolean).join(' · ')||'Serie registrada';
 }
 function renderCurrentExerciseHistory(execution,step){
