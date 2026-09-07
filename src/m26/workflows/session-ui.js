@@ -1,9 +1,18 @@
-import { currentStep } from './session-execution.js';
+import { currentStep,previousSetDraftValues } from './session-execution.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 function e(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
+function previousSetSummary(values){
+  return [
+    values?.reps?`${values.reps} reps`:null,
+    values?.seconds?`${values.seconds} s`:null,
+    values?.load||null,
+    values?.rpe?`RPE ${values.rpe}`:null,
+    values?.rir?`RIR ${values.rir}`:null,
+  ].filter(Boolean).join(' · ')||'Serie registrada';
+}
 function groupName(type){return ({biserie:'Biserie',triserie:'Triserie',circuito:'Circuito',amrap:'AMRAP',tabata:'Tabata'})[type]||type;}
 function syncBanner(execution){
   const status=execution?.syncStatus||'clean';if(status==='clean')return '';
@@ -590,8 +599,12 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
   if(!step)return '<section class="m26-panel"><h2>Sesión finalizada</h2></section>';
 
   const ex=catalog.get(step.exerciseId)||step.exercise||{};
-  const planned=step.prescription||{};
-  const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
+const planned=step.prescription||{};
+const previousSet=previousSetDraftValues(execution);
+const previousSetReuse=previousSet
+  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior">Usar serie anterior</button></div></div>`
+  :'';
+const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   const totals=executionTotals(execution);
   const progress=Math.max(
     0,
@@ -674,6 +687,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     :`<article class="m26-panel m26-session-live-entry" data-session-live-entry>
         <p class="m26-eyebrow">Serie ${e(step.setNumber)} de ${e(step.totalSets)}</p>
         <h3>Registra lo que realmente hiciste</h3>
+        ${previousSetReuse}
         <div class="m26-field-grid">
           <label>Repeticiones<input type="number" min="0" max="10000" data-set-field="reps"></label>
           <label>Tiempo (s)<input type="number" min="0" max="86400" data-set-field="seconds"></label>
