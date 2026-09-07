@@ -1,4 +1,4 @@
-name: Apply current exercise session history
+name: Apply session current-exercise history hardening
 
 on:
   push:
@@ -25,13 +25,15 @@ jobs:
           from pathlib import Path
           path=Path('src/m26/workflows/session-ui.js')
           text=path.read_text(encoding='utf-8')
-          old="""      Number.isFinite(Number(result?.rpe))?`RPE ${result.rpe}`:null,
-              Number.isFinite(Number(result?.rir))?`RIR ${result.rir}`:null,"""
-          new="""      result?.rpe!=null&&Number.isFinite(Number(result.rpe))?`RPE ${result.rpe}`:null,
-              result?.rir!=null&&Number.isFinite(Number(result.rir))?`RIR ${result.rir}`:null,"""
-          if text.count(old)!=1:
-              raise SystemExit('effort summary anchor mismatch')
-          path.write_text(text.replace(old,new,1),encoding='utf-8')
+          pairs=[
+            ("Number.isFinite(Number(result?.rpe))?`RPE ${result.rpe}`:null,","result?.rpe!=null&&Number.isFinite(Number(result.rpe))?`RPE ${result.rpe}`:null,"),
+            ("Number.isFinite(Number(result?.rir))?`RIR ${result.rir}`:null,","result?.rir!=null&&Number.isFinite(Number(result.rir))?`RIR ${result.rir}`:null,"),
+          ]
+          for old,new in pairs:
+            if text.count(old)!=1:
+              raise SystemExit(f'effort summary anchor mismatch: {old}')
+            text=text.replace(old,new,1)
+          path.write_text(text,encoding='utf-8')
           PY
           git diff --check
           node --check src/m26/workflows/session-ui.js
