@@ -23,7 +23,9 @@ test('remote command registry gate validates the entire semantic contract',()=>{
   const source=read('scripts/remote-gates/run_authenticated_readonly_gate.mjs');
   for(const field of ['snapshot_on_apply','conflict_sensitive','bootstrap_allowed'])assert.match(source,new RegExp(field),field);
   assert.match(source,/validateCommandCatalog\(remoteRegistry,M26_EXTENDED_COMMAND_REGISTRY,\{strict:true\}\)/u);
-  assert.match(source,/remoteRegistry\.length!==52/u);
+  assert.match(source,/const expectedCommands=M26_EXTENDED_COMMAND_REGISTRY\.length;/u);
+  assert.match(source,/remoteRegistry\.length!==expectedCommands/u);
+  assert.doesNotMatch(source,/remoteRegistry\.length!==52/u);
 });
 
 test('database ledger H I J K L M N O is represented after Phase B activation',()=>{
