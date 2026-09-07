@@ -74,3 +74,13 @@ test("apply sends multipart only to exact broker and verifies public bytes",asyn
   assert.equal(result.count,1);
   assert.equal(calls.length,2);
 });
+test("automatic publisher is pinned to canary push and exact trusted workflow",()=>{
+  const workflow=fs.readFileSync(new URL("../.github/workflows/exercise-media-publish-approved.yml",import.meta.url),"utf8");
+  const broker=fs.readFileSync(new URL("../supabase/functions/iberfit-exercise-media-publisher/index.ts",import.meta.url),"utf8");
+  assert.match(workflow,/push:\s*\n\s*branches:\s*\n\s*- canary\/rc74-4/);
+  assert.match(workflow,/scripts\/exercise-media\/approved\/\*\*\/approved-batch\.json/);
+  assert.match(workflow,/GITHUB_REF\" = 'refs\/heads\/canary\/rc74-4'/);
+  assert.match(broker,/EXPECTED_REF = "refs\/heads\/canary\/rc74-4"/);
+  assert.match(broker,/exercise-media-publish-approved\.yml@refs\/heads\/canary\/rc74-4/);
+  assert.match(broker,/"push"/);
+});
