@@ -14,6 +14,27 @@ export function onboardingAssessmentMode(form){
 
 export function onboardingPostCreateArea(form){return onboardingAssessmentMode(form)==='deferred'?'expediente':'iri';}
 
+export function onboardingChoiceMarkup(){
+  return `<section class="m26-form-section m26-panel-soft" data-onboarding-assessment-choice>
+    <div class="m26-form-section-title"><span>→</span><div><h3>¿Cómo quieres empezar?</h3><p>El IRI aporta un diagnóstico más completo, pero no bloquea el inicio del trabajo. Puedes realizarlo después.</p></div></div>
+    <div class="m26-field-grid">
+      <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="deferred" checked> <span><strong>Empezar a trabajar</strong><small> Crea el expediente con los datos esenciales y continúa directamente con planificación, agenda y sesiones.</small></span></label>
+      <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="iri"> <span><strong>Realizar evaluación IRI</strong><small> Crea el expediente y abre inmediatamente la evaluación inicial IBERFIT.</small></span></label>
+    </div>
+  </section>`;
+}
+
+export function ensureFlexibleOnboardingUi(form){
+  if(!form)return false;
+  if(!form.querySelector?.('[data-onboarding-assessment-choice]'))form.insertAdjacentHTML?.('afterbegin',onboardingChoiceMarkup());
+  const action=form.querySelector?.('[data-workflow-action="create-client-draft"]');
+  if(action){action.setAttribute?.('data-onboarding-submit','');}
+  const sticky=action?.closest?.('.m26-sticky-actions');
+  const copy=sticky?.querySelector?.('p');
+  if(copy)copy.setAttribute?.('data-onboarding-next-copy','');
+  return true;
+}
+
 function setRequired(field,required){
   if(!field)return;
   field.required=Boolean(required);
@@ -61,7 +82,12 @@ export function createWorkflowController(options={}){
   const {root,store}=options;
   const controller=createBaseWorkflowController({...options,store:navigationAwareStore(store,root)});
   let observer=null,mounted=false;
-  const syncCurrent=()=>syncFlexibleOnboardingForm(root?.querySelector?.(ONBOARDING_SELECTOR));
+  const syncCurrent=()=>{
+    const form=root?.querySelector?.(ONBOARDING_SELECTOR);
+    if(!form)return;
+    ensureFlexibleOnboardingUi(form);
+    syncFlexibleOnboardingForm(form);
+  };
   const onFormChange=(event)=>{if(event.target?.closest?.(ONBOARDING_SELECTOR))queueMicrotask(syncCurrent);};
   return Object.freeze({
     mount(){
