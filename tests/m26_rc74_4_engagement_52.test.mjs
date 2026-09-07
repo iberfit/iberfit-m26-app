@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {M26_COMMAND_REGISTRY,M26_EXTENDED_COMMAND_REGISTRY,validateCommandCatalog} from '../src/m26/command-catalog.js';
 
 const sql=readFileSync(new URL('../supabase/migrations/20260824174500_iberfit_rc74_4_engagement_52.sql',import.meta.url),'utf8');
+const remoteGate=readFileSync(new URL('../scripts/remote-gates/run_authenticated_readonly_gate.mjs',import.meta.url),'utf8');
 
 test('runtime conserva base 44 y extiende el catálogo canónico a 53',()=>{
   assert.equal(M26_COMMAND_REGISTRY.length,44);
@@ -12,6 +13,14 @@ test('runtime conserva base 44 y extiende el catálogo canónico a 53',()=>{
   assert.equal(check.ok,true);
   assert.equal(check.required,53);
   assert.equal(check.installed,53);
+});
+
+test('gate remoto deriva el conteo del catálogo canónico sin hardcode histórico',()=>{
+  assert.match(remoteGate,/const expectedCommands=M26_EXTENDED_COMMAND_REGISTRY\.length;/u);
+  assert.match(remoteGate,/remoteRegistry\.length!==expectedCommands/u);
+  assert.match(remoteGate,/expectedCommands,remoteCommands:remoteRegistry\.length/u);
+  assert.doesNotMatch(remoteGate,/remoteRegistry\.length!==52/u);
+  assert.doesNotMatch(remoteGate,/expectedCommands:52/u);
 });
 
 test('RC74.4E least privilege sigue vigente',()=>{
