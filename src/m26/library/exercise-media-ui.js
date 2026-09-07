@@ -72,6 +72,7 @@ export function renderExerciseMedia({
   showCredit=false,
   showQuality=false,
   fallback=true,
+  priority=!compact,
 }={}){
   const media=resolveExerciseMedia(manifest,exerciseId,{role});
   const experience=resolveExerciseMediaExperience(manifest,exerciseId,{role});
@@ -87,8 +88,9 @@ export function renderExerciseMedia({
     const labels=media.mode==='start_peak'
       ?['Posición inicial','Posición final']
       :['Referencia visual'];
+    const imageLoading=priority?'loading="eager" fetchpriority="high"':'loading="lazy"';
 
-    const frames=media.images.map((src,index)=>`<span class="m26-exercise-media-frame"><img class="m26-exercise-media-image" src="${e(src)}" alt="${e(`${name} · ${labels[index]||'referencia visual'}`)}" loading="lazy" decoding="async"><small>${e(labels[index]||'Referencia')}</small></span>`).join('');
+    const frames=media.images.map((src,index)=>`<span class="m26-exercise-media-frame"><img class="m26-exercise-media-image" src="${e(src)}" alt="${e(`${name} · ${labels[index]||'referencia visual'}`)}" ${imageLoading} decoding="async"><small>${e(labels[index]||'Referencia')}</small></span>`).join('');
 
     const quality=showQuality&&media.quality.startsWith('C')
       ?'<p class="m26-exercise-media-quality" role="status">Referencia visual pendiente de validación individual por el entrenador.</p>'
