@@ -41,6 +41,15 @@ function mediaManifest(...exercises){
   };
 }
 
+function targetText(prescription={}){
+  return [
+    prescription.reps||null,
+    prescription.tempo?`ritmo ${prescription.tempo}`:null,
+    Number.isFinite(Number(prescription.targetRpe))?`RPE ${prescription.targetRpe}`:null,
+    Number.isFinite(Number(prescription.targetRir))?`RIR ${prescription.targetRir}`:null,
+  ].filter(Boolean).join(' · ')||'Según indicación';
+}
+
 function renderRest({firstSets=1,withNextMedia=true}={}){
   const {draft,first,second}=makeSession({firstSets});
   const execution=createExecution({session:draft,clientId:'c1'});
@@ -57,15 +66,17 @@ function renderRest({firstSets=1,withNextMedia=true}={}){
     mediaMap,
     role:'client',
   });
-  return {html,first,second};
+  return {html,first,second,execution};
 }
 
-test('Session Live previews only the next different exercise during active rest',()=>{
-  const {html,first,second}=renderRest();
+test('Session Live previews the next different exercise and its target during active rest',()=>{
+  const {html,first,second,execution}=renderRest();
   assert.match(html,/data-session-live-state="rest"/);
+  assert.match(html,/data-session-next-exercise-preparation/);
   assert.match(html,/data-session-next-exercise-media/);
   assert.ok(html.includes(`data-exercise-media="${first.id}"`));
   assert.ok(html.includes(`data-exercise-media="${second.id}"`));
+  assert.ok(html.includes(`<span>Próximo objetivo</span><strong>${targetText(execution.queue[1].prescription)}</strong>`));
 
   const currentStart=html.indexOf(`data-exercise-media="${first.id}"`);
   const previewStart=html.indexOf('data-session-next-exercise-media');
@@ -77,6 +88,7 @@ test('Session Live previews only the next different exercise during active rest'
   assert.match(previewSlice,/loading="lazy" fetchpriority="low"/);
   assert.ok(previewSlice.includes(`alt="${second.name_es} · Referencia visual"`));
   assert.match(previewSlice,/aria-label="Vista previa del siguiente ejercicio"/);
+  assert.match(html,/aria-label="Preparación del siguiente ejercicio"/);
 });
 
 test('Session Live keeps same-exercise rest textual before the final set',()=>{
@@ -84,16 +96,19 @@ test('Session Live keeps same-exercise rest textual before the final set',()=>{
   assert.match(html,/data-session-next-preview/);
   assert.ok(html.includes(`Siguiente: <strong>${first.name_es}</strong>`));
   assert.doesNotMatch(html,/data-session-next-exercise-media/);
+  assert.doesNotMatch(html,/data-session-next-exercise-preparation/);
 });
 
-test('Session Live preserves the text fallback when next exercise media is unavailable',()=>{
-  const {html,second}=renderRest({withNextMedia:false});
+test('Session Live preserves next target preparation when next exercise media is unavailable',()=>{
+  const {html,second,execution}=renderRest({withNextMedia:false});
   assert.match(html,/data-session-next-preview/);
   assert.ok(html.includes(`Siguiente: <strong>${second.name_es}</strong>`));
   assert.doesNotMatch(html,/data-session-next-exercise-media/);
+  assert.match(html,/data-session-next-exercise-preparation/);
+  assert.ok(html.includes(`<span>Próximo objetivo</span><strong>${targetText(execution.queue[1].prescription)}</strong>`));
 });
 
-test('Session Live does not preview next exercise media outside active rest',()=>{
+test('Session Live does not preview next exercise preparation outside active rest',()=>{
   const {draft,first,second}=makeSession();
   const execution=createExecution({session:draft,clientId:'c1'});
   startExecution(execution);
@@ -107,6 +122,7 @@ test('Session Live does not preview next exercise media outside active rest',()=
     role:'client',
   });
   assert.doesNotMatch(html,/data-session-next-exercise-media/);
+  assert.doesNotMatch(html,/data-session-next-exercise-preparation/);
 });
 
 test('Session UI continues to use the shared exercise renderer for the rest preview',()=>{
