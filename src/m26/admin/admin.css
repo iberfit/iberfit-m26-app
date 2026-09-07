@@ -604,3 +604,87 @@
 }
 
 /* RC67_8_1_ADMIN_CHROMA_ALIGNMENT_END */
+
+/* ADMIN_PREMIUM_CONTROL_HIERARCHY_BEGIN */
+.m26-admin-route :is(
+  button,
+  .m26-admin-actions a,
+  .m26-admin-nav a,
+  .m26-admin-tabs a
+){
+  border-radius:var(--m26-admin-pill);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb,var(--m26-admin-surface-interactive) 84%,var(--m26-admin-accent) 16%),
+      color-mix(in srgb,var(--m26-admin-surface-soft) 92%,var(--m26-admin-accent) 8%)
+    );
+  border-color:
+    color-mix(in srgb,var(--m26-admin-accent) 28%,var(--m26-admin-border) 72%);
+  box-shadow:
+    0 8px 20px rgba(0,0,0,.16),
+    inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+.m26-admin-route :is(
+  .m26-admin-form > button[type="submit"],
+  .m26-admin-coach360-actions button:not(.m26-primary-action)
+){
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb,var(--m26-admin-surface-interactive) 72%,var(--m26-admin-accent) 28%),
+      color-mix(in srgb,var(--m26-admin-surface-soft) 84%,var(--m26-admin-accent) 16%)
+    );
+  border-color:
+    color-mix(in srgb,var(--m26-admin-accent) 48%,var(--m26-admin-border) 52%);
+}
+
+.m26-admin-route :is(
+  .m26-admin-priority > button,
+  .m26-primary-action
+){
+  color:#102418;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb,var(--m26-admin-accent) 96%,white 4%),
+      color-mix(in srgb,var(--m26-admin-accent) 82%,black 18%)
+    );
+  border-color:
+    color-mix(in srgb,var(--m26-admin-accent) 70%,white 30%);
+  box-shadow:
+    0 12px 28px color-mix(in srgb,var(--m26-admin-accent) 18%,transparent),
+    inset 0 1px 0 rgba(255,255,255,.26);
+}
+
+.m26-admin-route :is(
+  .m26-admin-priority > button:hover,
+  .m26-primary-action:hover
+){
+  color:#102418;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb,var(--m26-admin-accent) 100%,white 0%),
+      color-mix(in srgb,var(--m26-admin-accent) 88%,black 12%)
+    );
+  transform:translateY(-1px);
+}
+
+.m26-admin-route button:active{
+  transform:translateY(1px) scale(.99);
+}
+
+.m26-admin-route button:disabled,
+.m26-admin-route button[aria-disabled="true"]{
+  opacity:.48;
+  cursor:not-allowed;
+  transform:none;
+  box-shadow:none;
+}
+
+.m26-admin-route .m26-admin-danger-body button[type="submit"]{
+  border-radius:var(--m26-admin-pill);
+}
+/* ADMIN_PREMIUM_CONTROL_HIERARCHY_END */
