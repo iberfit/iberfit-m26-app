@@ -7,6 +7,7 @@ import {
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from './multi-role.js';
 import {deriveCoachLaunchJourney} from '../admin/view-model.js';
 import {computeProgressSummary} from '../engagement/progress-engine.js';
+import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
 
 const field=(record,...keys)=>{
   const body=record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};
@@ -109,6 +110,40 @@ const compactAppointment=(record,now)=>Object.freeze({
   confirmation:appointmentConfirmationState(record,now),
   changeRequest:clone(field(record,'changeRequest','change_request')),
 });
+const uniqueText=(values)=>Object.freeze([...new Set(values.map((value)=>String(value||'').trim()).filter(Boolean))]);
+function enrichExpedienteDecision(vm,role){
+  if(vm?.kind!=='expediente'||(role!=='coach'&&role!=='admin'))return vm;
+  const decisionBrief=buildIberfitDecisionBrief({
+    summary:vm.progress&&typeof vm.progress==='object'?vm.progress:{},
+    alerts:list(vm.alerts),
+  });
+  const cockpit=vm.coachCockpit&&typeof vm.coachCockpit==='object'?vm.coachCockpit:{};
+  const items=list(cockpit.items);
+  const current=items[0]&&typeof items[0]==='object'?items[0]:null;
+  const detail=uniqueText([
+    current?.detail,
+    ...decisionBrief.signals.slice(0,2),
+  ]).join(' · ');
+  const guidance=uniqueText([
+    current?.guidance,
+    decisionBrief.nextStep?`Siguiente paso: ${decisionBrief.nextStep}`:'',
+    decisionBrief.limitations[0]?`Límite de evidencia: ${decisionBrief.limitations[0]}`:'',
+  ]).join(' · ');
+  const focus=Object.freeze({
+    ...(current||{}),
+    kind:current?.kind||'info',
+    signalLabel:current?.signalLabel||`Confianza ${decisionBrief.confidence}`,
+    reason:current?.reason||decisionBrief.headline,
+    detail,
+    guidance,
+    source:current?.source||'decision-brief',
+  });
+  return Object.freeze({
+    ...vm,
+    decisionBrief,
+    coachCockpit:Object.freeze({...cockpit,items:Object.freeze([focus,...items.slice(1)])}),
+  });
+}
 export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
   if(!vm||!shellVm||!state)return vm;
   const role=String(shellVm.identity?.role||state.identity?.role||'');
@@ -125,7 +160,8 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
   const confirmationOpen=operationalAppointments.filter((item)=>item.confirmation.state==='open').length;
   const changeRequests=operationalAppointments.filter((item)=>item.confirmation.state==='change_requested').length;
   const coachLaunchJourney=role==='coach'?deriveCoachSelfLaunchJourney({state,identity:shellVm.identity||state.identity,now}):null;
-  return Object.freeze({...vm,rc39:Object.freeze({role,clientId:routeClientId||null,planningItems,appointments:Object.freeze(operationalAppointments),sessionProjections:Object.freeze(sessionProjections),needsPreparation,confirmationOpen,changeRequests,changeRequestAvailable,coachLaunchJourney,generatedAt:new Date(now).toISOString()})});
+  const enrichedVm=enrichExpedienteDecision(vm,role);
+  return Object.freeze({...enrichedVm,rc39:Object.freeze({role,clientId:routeClientId||null,planningItems,appointments:Object.freeze(operationalAppointments),sessionProjections:Object.freeze(sessionProjections),needsPreparation,confirmationOpen,changeRequests,changeRequestAvailable,coachLaunchJourney,generatedAt:new Date(now).toISOString()})});
 }
 export function augmentRc39ShellViewModel(vm,state){
   if(!vm||vm.mode!=='authenticated')return vm;
