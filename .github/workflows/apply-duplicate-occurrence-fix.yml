@@ -26,6 +26,16 @@ jobs:
           path.write_text(source)
           PY
           node .iberfit/apply-duplicate-occurrence-fix.mjs
+          python3 <<'PY'
+          from pathlib import Path
+          path=Path('src/m26/workflows/session-ui.js')
+          source=path.read_text()
+          old="  const resultKey=`${step.exerciseId}:${step.setNumber}`;\n  const recorded=execution.results?.[resultKey]||null;"
+          new="  const recorded=executionResultForStep(execution,step);"
+          if source.count(old) != 1:
+              raise SystemExit(f'ACTIVE_RESULT_ANCHOR_COUNT:{source.count(old)}')
+          path.write_text(source.replace(old,new))
+          PY
       - name: Validate focused regression
         run: |
           git diff --check
