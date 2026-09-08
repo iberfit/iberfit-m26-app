@@ -52,9 +52,10 @@ test('duplicated exercise occurrences keep independent recorded sets and current
   assert.doesNotThrow(()=>recordSet(execution,session,{reps:8,load:'70 kg',rpe:7.5,rir:3,notes:'segunda ocurrencia'}));
   const keys=Object.keys(execution.results);
   assert.equal(keys.length,3);
-  assert.ok(keys.some((key)=>key.includes('block-first')));
-  assert.ok(keys.some((key)=>key.includes('block-second')));
-  assert.equal(execution.results[keys.find((key)=>key.includes('block-second'))].blockId,'block-second');
+  assert.ok(keys.includes('block-first:'+exercise.id+':1'));
+  assert.ok(keys.includes('block-second:'+exercise.id+':1'));
+  assert.equal(execution.results['block-second:'+exercise.id+':1'].exerciseId,exercise.id);
+  assert.equal(Object.hasOwn(execution.results['block-second:'+exercise.id+':1'],'blockId'),false);
 
   const html=render(session,execution);
   const historyStart=html.indexOf('data-session-current-exercise-history');
@@ -97,4 +98,19 @@ test('legacy result keys are attributed only to the earliest compatible occurren
   assert.doesNotThrow(()=>recordSet(execution,session,{reps:8,load:'68 kg',rpe:7,rir:3}));
   assert.equal(Object.keys(execution.results).length,2);
   assert.equal(render(session,execution).includes('75 kg'),false);
+});
+
+
+test('unambiguous exercise keeps the legacy result and skip storage contract',()=>{
+  const session=makeSession();
+  session.blocks=[session.blocks[0]];
+  const execution=createExecution({session,clientId:session.clientId,executionId:'execution-legacy-contract'});
+  startExecution(execution);
+  recordSet(execution,session,{reps:10,load:'60 kg',rpe:7,rir:3});
+  assert.deepEqual(Object.keys(execution.results),[exercise.id+':1']);
+  assert.equal(Object.hasOwn(execution.results[exercise.id+':1'],'blockId'),false);
+  advanceExecution(execution);
+  skipExecutionSet(execution,session,{reason:'Ajuste puntual'});
+  assert.ok(Object.hasOwn(execution.skippedSets,exercise.id+':2'));
+  assert.equal(Object.hasOwn(execution.skippedSets[exercise.id+':2'],'blockId'),false);
 });
