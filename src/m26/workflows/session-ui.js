@@ -1,4 +1,4 @@
-import { currentStep,previousSetDraftValues } from './session-execution.js';
+import { currentStep,executionResultForStep,previousSetDraftValues } from './session-execution.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
@@ -24,12 +24,8 @@ function currentSetResultSummary(result){
 }
 function renderCurrentExerciseHistory(execution,step){
   const totalSets=Number(step?.totalSets||0);
-  const rows=Object.values(execution?.results||{})
-    .filter((result)=>
-      result?.exerciseId===step?.exerciseId&&
-      Number(result?.setNumber)>=1&&
-      Number(result?.setNumber)<=totalSets
-    )
+  const rows=Array.from({length:totalSets},(_,index)=>executionResultForStep(execution,step,index+1))
+    .filter(Boolean)
     .sort((a,b)=>Number(a.setNumber)-Number(b.setNumber));
   if(!rows.length)return '';
   const items=rows.map((result)=>`<div class="m26-field"><span>Serie ${e(result.setNumber)}</span><strong>${e(currentSetResultSummary(result))}</strong></div>`).join('');
@@ -676,8 +672,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     showCredit:true,
     fallback:false,
   });
-  const resultKey=`${step.exerciseId}:${step.setNumber}`;
-  const recorded=execution.results?.[resultKey]||null;
+  const recorded=executionResultForStep(execution,step);
   const restSeconds=restRemainingSeconds(execution);
   const restActive=Boolean(recorded&&restSeconds>0);
   const nextCopy=nextExecutionCopy(execution,catalog);
