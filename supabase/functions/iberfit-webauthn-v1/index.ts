@@ -7,7 +7,7 @@ import {
 } from 'npm:@simplewebauthn/server@13.3.3';
 
 const RP_NAME='IBERFIT';
-const FUNCTION_VERSION='rc74-webauthn-multihost-v2';
+const FUNCTION_VERSION='rc74-webauthn-multihost-rp-v3';
 const CHALLENGE_TTL_MS=5*60*1000;
 const ASSURANCE_TTL_MS=12*60*60*1000;
 const MAX_BODY_CHARS=600_000;
@@ -151,7 +151,7 @@ async function main(req){
   const body=await parseBody(req);const action=String(body.action||'').trim();
 
   if(action==='registration-options'){
-    const {data:existing,error:existingError}=await admin.from('iberfit_webauthn_credentials_v1').select('credential_id,transports').eq('user_id',user.id).is('revoked_at',null).limit(20);
+    const {data:existing,error:existingError}=await admin.from('iberfit_webauthn_credentials_v1').select('credential_id,transports').eq('user_id',user.id).eq('rp_id',rpID).is('revoked_at',null).limit(20);
     if(existingError)throw new Error('M26_WEBAUTHN_CREDENTIAL_READ_FAILED');
     const options=await generateRegistrationOptions({rpName:RP_NAME,rpID,userID:new TextEncoder().encode(String(user.id)),userName:String(user.email||user.id).slice(0,254),userDisplayName:String(user.email||'IBERFIT').slice(0,120),attestationType:'none',excludeCredentials:(existing||[]).map((item)=>({id:String(item.credential_id),transports:normalizedTransports(item.transports)})),authenticatorSelection:{residentKey:'preferred',userVerification:'required'},supportedAlgorithmIDs:[-7,-257]});
     const challengeId=await createChallenge(admin,{userId:user.id,sessionId,ceremony:'registration',challenge:options.challenge,origin});
@@ -166,14 +166,14 @@ async function main(req){
     const info=verification.registrationInfo;const registered=info.credential;const publicKeyB64=bytesToBase64Url(registered.publicKey);const counter=Number(registered.counter||0);
     if(!Number.isSafeInteger(counter)||counter<0)throw new Error('M26_WEBAUTHN_COUNTER_INVALID');
     const transports=normalizedTransports(registered.transports||credential?.response?.transports);
-    const {error:insertError}=await admin.from('iberfit_webauthn_credentials_v1').insert({user_id:user.id,credential_id:String(registered.id),public_key_b64:publicKeyB64,counter,transports,device_type:String(info.credentialDeviceType||'')||null,backed_up:Boolean(info.credentialBackedUp),friendly_name:`IBERFIT acceso seguro · ${rpID}`});
+    const {error:insertError}=await admin.from('iberfit_webauthn_credentials_v1').insert({user_id:user.id,rp_id:rpID,credential_id:String(registered.id),public_key_b64:publicKeyB64,counter,transports,device_type:String(info.credentialDeviceType||'')||null,backed_up:Boolean(info.credentialBackedUp),friendly_name:`IBERFIT acceso seguro · ${rpID}`});
     if(insertError)return fail(409,'M26_WEBAUTHN_CREDENTIAL_ALREADY_REGISTERED',origin);
     const expiresAt=await writeAssurance(admin,{userId:user.id,sessionId,credentialId:String(registered.id)});
     return response(200,{ok:true,verified:true,user:{id:user.id,email:user.email},privilegedRole,rpID,expiresAt,version:FUNCTION_VERSION},origin);
   }
 
   if(action==='authentication-options'){
-    const {data:credentials,error:readError}=await admin.from('iberfit_webauthn_credentials_v1').select('credential_id,transports').eq('user_id',user.id).is('revoked_at',null).limit(20);
+    const {data:credentials,error:readError}=await admin.from('iberfit_webauthn_credentials_v1').select('credential_id,transports').eq('user_id',user.id).eq('rp_id',rpID).is('revoked_at',null).limit(20);
     if(readError)throw new Error('M26_WEBAUTHN_CREDENTIAL_READ_FAILED');if(!credentials?.length)return fail(409,'M26_WEBAUTHN_NOT_ENROLLED',origin);
     const options=await generateAuthenticationOptions({rpID,allowCredentials:credentials.map((item)=>({id:String(item.credential_id),transports:normalizedTransports(item.transports)})),userVerification:'required'});
     const challengeId=await createChallenge(admin,{userId:user.id,sessionId,ceremony:'authentication',challenge:options.challenge,origin});
@@ -183,13 +183,13 @@ async function main(req){
   if(action==='authentication-verify'){
     const credential=credentialResponse(body.credentialResponse);
     const expectedChallenge=await consumeChallenge(admin,{challengeId:String(body.challengeId||''),userId:user.id,sessionId,ceremony:'authentication',origin});
-    const {data:stored,error:storedError}=await admin.from('iberfit_webauthn_credentials_v1').select('credential_id,public_key_b64,counter,transports').eq('user_id',user.id).eq('credential_id',credential.id).is('revoked_at',null).maybeSingle();
+    const {data:stored,error:storedError}=await admin.from('iberfit_webauthn_credentials_v1').select('credential_id,public_key_b64,counter,transports').eq('user_id',user.id).eq('rp_id',rpID).eq('credential_id',credential.id).is('revoked_at',null).maybeSingle();
     if(storedError||!stored)return fail(404,'M26_WEBAUTHN_CREDENTIAL_NOT_FOUND',origin);
     const counter=Number(stored.counter);if(!Number.isSafeInteger(counter)||counter<0)throw new Error('M26_WEBAUTHN_COUNTER_INVALID');
     let verification;try{verification=await verifyAuthenticationResponse({response:credential,expectedChallenge,expectedOrigin:origin,expectedRPID:rpID,requireUserVerification:true,credential:{id:String(stored.credential_id),publicKey:base64UrlToBytes(stored.public_key_b64),counter,transports:normalizedTransports(stored.transports)}});}catch{return fail(400,'M26_WEBAUTHN_AUTHENTICATION_VERIFICATION_FAILED',origin);}
     if(!verification?.verified)return fail(400,'M26_WEBAUTHN_AUTHENTICATION_NOT_VERIFIED',origin);
     const newCounter=Number(verification.authenticationInfo?.newCounter??counter);if(!Number.isSafeInteger(newCounter)||newCounter<0)throw new Error('M26_WEBAUTHN_COUNTER_INVALID');
-    const {error:updateError}=await admin.from('iberfit_webauthn_credentials_v1').update({counter:newCounter,last_used_at:new Date().toISOString()}).eq('user_id',user.id).eq('credential_id',credential.id).eq('counter',counter);
+    const {error:updateError}=await admin.from('iberfit_webauthn_credentials_v1').update({counter:newCounter,last_used_at:new Date().toISOString()}).eq('user_id',user.id).eq('rp_id',rpID).eq('credential_id',credential.id).eq('counter',counter);
     if(updateError)throw new Error('M26_WEBAUTHN_COUNTER_UPDATE_FAILED');
     const expiresAt=await writeAssurance(admin,{userId:user.id,sessionId,credentialId:credential.id});
     return response(200,{ok:true,verified:true,user:{id:user.id,email:user.email},privilegedRole,rpID,expiresAt,version:FUNCTION_VERSION},origin);
