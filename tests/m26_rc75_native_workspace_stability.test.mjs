@@ -30,14 +30,20 @@ test('RC75 mantiene búsqueda y Ajustes como superficies nativas accesibles',()=
   assert.match(native,/Busca un cliente, sección o acción/u);
 });
 
-test('RC75 simplifica Admin con una alta guiada sin fingir activación de cliente',()=>{
+test('RC75 mantiene alta guiada y la evolución ADMIN exige invitación real sin fingir activación',()=>{
   const native=read('src/m26/ui/native-workspace.js');
   const admin=read('src/m26/admin/controller.js');
+  const render=read('src/m26/admin/route-render.js');
+  const transport=read('src/m26/admin/transport.js');
   assert.match(native,/data-admin-intake-open/u);
   assert.match(native,/Nueva alta, sin perder información/u);
   assert.match(native,/Guardar datos iniciales/u);
   assert.match(admin,/ADMIN_LEAD_CREAR/u);
-  assert.doesNotMatch(admin,/ADMIN_CLIENTE_CREAR/u);
+  assert.match(admin,/ADMIN_CLIENTE_CREAR/u);
+  assert.match(render,/Crear cliente y enviar invitación/u);
+  assert.match(transport,/iberfit-admin-client-invite-v1/u);
+  assert.doesNotMatch(admin,/activatedAt\s*:/u);
+  assert.doesNotMatch(admin,/status\s*:\s*['"]activo['"]/u);
 });
 
 test('RC75 mantiene fail-closed en el backend canónico V12 sin bloquear producción',()=>{

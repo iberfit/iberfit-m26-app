@@ -1,5 +1,5 @@
 import {createPermissionSet} from '../shared/permission-set.js';
-export const M26_ADMIN_COLLECTION_KEYS=Object.freeze(['organizationUsers','applicationRoles','coachProfiles','coachClientAssignments','leads','clientLifecycle','operationalTasks','notificationTemplates','notificationDeliveries','automationRules','auditEvents']);
+export const M26_ADMIN_COLLECTION_KEYS=Object.freeze(['organizationUsers','applicationRoles','coachProfiles','coachClientAssignments','leads','clientLifecycle','clientAccess','operationalTasks','notificationTemplates','notificationDeliveries','automationRules','auditEvents']);
 const ALLOWED=Object.freeze({
   organizationUsers:['id','userId','email','name','status','primaryRole','roles','lastAccessAt','createdAt','updatedAt','revision'],
   applicationRoles:['id','userId','role','active','grantedAt','grantedBy','revision'],
@@ -7,6 +7,7 @@ const ALLOWED=Object.freeze({
   coachClientAssignments:['id','coachUserId','clientId','status','startsAt','endsAt','reason','createdAt','updatedAt','revision'],
   leads:['id','name','email','phone','source','objective','status','ownerUserId','nextActionAt','createdAt','updatedAt','revision'],
   clientLifecycle:['id','clientId','status','reason','effectiveAt','changedBy','createdAt','revision'],
+  clientAccess:['id','clientId','authUserId','email','status','revision','invitationAttemptCount','lastInvitationAttemptAt','invitationSentAt','invitationDeliveryStatus','invitationErrorCode','activatedAt','updatedAt'],
   operationalTasks:['id','type','entityType','entityId','clientId','assigneeUserId','status','priority','title','detail','dueAt','createdAt','updatedAt','resolvedAt','resolutionNote','revision'],
   notificationTemplates:['id','key','name','channel','subject','body','status','createdAt','updatedAt','revision'],
   notificationDeliveries:['id','templateKey','recipientType','recipientId','channel','status','scheduledAt','sentAt','errorCode','createdAt','revision'],
@@ -18,6 +19,12 @@ function clean(value,max=3000){if(value==null)return null;if(typeof value==='num
 function cleanObject(value,depth=0){if(value==null)return null;if(typeof value!=='object')return clean(value);if(depth>2)return null;if(Array.isArray(value))return value.slice(0,100).map((v)=>cleanObject(v,depth+1));const out={};for(const [k,v] of Object.entries(value).slice(0,80)){if(!SENSITIVE.test(k))out[k]=cleanObject(v,depth+1);}return out;}
 function projectRecord(key,record){const out={};for(const field of ALLOWED[key]||[]){const snake=field.replace(/[A-Z]/g,(m)=>`_${m.toLowerCase()}`);const value=record?.[field]??record?.[snake];if(value!==undefined)out[field]=(field==='roles'||field==='configuration')?cleanObject(value):clean(value);}return Object.freeze(out);}
 function emptyCollections(){return Object.freeze(Object.fromEntries(M26_ADMIN_COLLECTION_KEYS.map((k)=>[k,Object.freeze([])])));}
+function projectCollections(data={}){
+  const projected=Object.fromEntries(M26_ADMIN_COLLECTION_KEYS.map((key)=>[key,(Array.isArray(data[key])?data[key]:[]).slice(0,10000).map((record)=>projectRecord(key,record))]));
+  const accessByClient=new Map(projected.clientAccess.map((record)=>[String(record.clientId||''),record]));
+  projected.clientLifecycle=projected.clientLifecycle.map((record)=>Object.freeze({...record,access:accessByClient.get(String(record.clientId||''))||null}));
+  return Object.freeze(Object.fromEntries(Object.entries(projected).map(([key,value])=>[key,Object.freeze(value)])));
+}
 export function createAdminState(overrides={}){return Object.freeze({available:false,reason:'not_loaded',organization:null,permissions:createPermissionSet({capabilities:[],scopeType:'none'}),collections:emptyCollections(),analytics:Object.freeze({}),summary:Object.freeze({users:0,coaches:0,leads:0,activeClients:0,openTasks:0,failedNotifications:0,activeAutomations:0}),serverTime:null,revision:0,...structuredClone(overrides)});}
 export function projectAdminSnapshot(raw,identity={}){
   if(String(identity?.role||'').toLowerCase()!=='admin')return createAdminState({reason:'role_not_admin'});
@@ -27,7 +34,7 @@ export function projectAdminSnapshot(raw,identity={}){
   if(!organization.id)throw new Error('M26_ADMIN_ORGANIZATION_INVALID');
   const permissions=createPermissionSet({capabilities:Array.isArray(raw.permissions)?raw.permissions:raw.permissions?.capabilities||[],scopeType:'organization',organizationId:organization.id,revision:Number(raw.permissionRevision||0),issuedAt:raw.serverTime||Date.now()});
   const data=raw.data&&typeof raw.data==='object'?raw.data:{};
-  const collections=Object.freeze(Object.fromEntries(M26_ADMIN_COLLECTION_KEYS.map((key)=>[key,Object.freeze((Array.isArray(data[key])?data[key]:[]).slice(0,10000).map((r)=>projectRecord(key,r)))])));
+  const collections=projectCollections(data);
   const analytics=Object.freeze(cleanObject(raw.analytics)||{});
   return Object.freeze({available:true,reason:null,organization,permissions,collections,analytics,summary:Object.freeze({users:collections.organizationUsers.length,coaches:collections.coachProfiles.length,leads:collections.leads.length,activeClients:Number(analytics.activeClients||0),openTasks:collections.operationalTasks.filter((x)=>!['resolved','cancelled'].includes(String(x.status||'').toLowerCase())).length,failedNotifications:collections.notificationDeliveries.filter((x)=>x.status==='failed').length,activeAutomations:collections.automationRules.filter((x)=>x.status==='active').length}),serverTime:clean(raw.serverTime),revision:Number(raw.revision||0)});
 }
