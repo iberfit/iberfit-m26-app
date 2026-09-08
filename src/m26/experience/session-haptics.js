@@ -53,6 +53,36 @@ export function publishedSessionStartIds(root){
   return Object.freeze([...new Set(nodes.map(sessionStartEntityId).filter(Boolean))]);
 }
 
+export function ensureCoachPublishedSessionStartActions(root){
+  let added=0;
+  for(const control of nodesFor(root,COACH_PUBLISHED_SESSION_SELECTOR)){
+    const entityId=sessionStartEntityId(control);
+    if(!entityId)continue;
+    const card=control.closest?.('[data-publication-card]');
+    if(!card)continue;
+    const alreadyPresent=nodesFor(card,EXPLICIT_SESSION_START_SELECTOR)
+      .some((node)=>sessionStartEntityId(node)===entityId);
+    if(alreadyPresent)continue;
+    const documentLike=card.ownerDocument||control.ownerDocument||root?.ownerDocument;
+    if(!documentLike?.createElement)continue;
+    const host=documentLike.createElement('div');
+    host.className='m26-inline-actions';
+    host.setAttribute?.('data-coach-published-session-start',entityId);
+    const button=documentLike.createElement('button');
+    button.type='button';
+    button.className='m26-primary-action';
+    button.setAttribute?.('data-workflow-action','start-published-session');
+    button.setAttribute?.('data-entity-id',entityId);
+    button.textContent='Iniciar esta sesión';
+    host.append?.(button);
+    const publicationActions=control.closest?.('.m26-publication-actions');
+    if(publicationActions?.insertAdjacentElement)publicationActions.insertAdjacentElement('beforebegin',host);
+    else card.append?.(host);
+    added+=1;
+  }
+  return added;
+}
+
 export function sessionStartGuardReason(root,button){
   if(!button)return null;
   const action=String(button?.getAttribute?.('data-workflow-action')||button?.dataset?.workflowAction||'').trim();
@@ -140,6 +170,7 @@ export function createSessionHapticsController({root=globalThis.document?.queryS
   function inspect(){
     scheduled=false;
     if(!mounted)return;
+    ensureCoachPublishedSessionStartActions(root);
     ensureControl(root);
     const state=liveState(root);
     const rest=restSeconds(root);
