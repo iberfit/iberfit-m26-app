@@ -7,6 +7,9 @@ const PATTERNS=Object.freeze({
 });
 const SESSION_SELECTION_NOTICE_ID='m26-session-selection-required';
 const SESSION_SELECTION_MESSAGE='Hay varias sesiones publicadas. Elige una sesión concreta en la lista antes de iniciar.';
+const SESSION_PUBLISHED_REQUIRED_MESSAGE='No hay ninguna sesión publicada lista para iniciar. Publica una sesión o elige otra acción.';
+const EXPLICIT_SESSION_START_SELECTOR='[data-workflow-action="start-published-session"][data-entity-id]';
+const COACH_PUBLISHED_SESSION_SELECTOR='[data-workflow-action="manage-publication"][data-publication-entity="session"][data-publication-action="withdraw"][data-entity-id]';
 
 function safeStorage(storage=globalThis.localStorage){
   try{return storage||null;}catch{return null;}
@@ -38,16 +41,30 @@ function sessionStartEntityId(node){
   return String(node?.getAttribute?.('data-entity-id')||node?.dataset?.entityId||'').trim();
 }
 
+function nodesFor(root,selector){
+  return [...(root?.querySelectorAll?.(selector)||[])];
+}
+
 export function publishedSessionStartIds(root){
-  const nodes=[...(root?.querySelectorAll?.('[data-workflow-action="start-published-session"][data-entity-id]')||[])];
+  const nodes=[
+    ...nodesFor(root,EXPLICIT_SESSION_START_SELECTOR),
+    ...nodesFor(root,COACH_PUBLISHED_SESSION_SELECTOR),
+  ];
   return Object.freeze([...new Set(nodes.map(sessionStartEntityId).filter(Boolean))]);
 }
 
-export function sessionStartRequiresExplicitSelection(root,button){
-  if(!button)return false;
+export function sessionStartGuardReason(root,button){
+  if(!button)return null;
   const action=String(button?.getAttribute?.('data-workflow-action')||button?.dataset?.workflowAction||'').trim();
-  if(action!=='start-published-session'||sessionStartEntityId(button))return false;
-  return publishedSessionStartIds(root).length>1;
+  if(action!=='start-published-session'||sessionStartEntityId(button))return null;
+  const count=publishedSessionStartIds(root).length;
+  if(count===0)return 'published-required';
+  if(count>1)return 'selection-required';
+  return null;
+}
+
+export function sessionStartRequiresExplicitSelection(root,button){
+  return sessionStartGuardReason(root,button)==='selection-required';
 }
 
 function clearSessionSelectionNotice(root,button){
@@ -55,7 +72,7 @@ function clearSessionSelectionNotice(root,button){
   if(button?.getAttribute?.('aria-describedby')===SESSION_SELECTION_NOTICE_ID)button.removeAttribute?.('aria-describedby');
 }
 
-function announceSessionSelectionRequired(root,button){
+function announceSessionStartGuard(root,button,message){
   const documentLike=button?.ownerDocument||root?.ownerDocument;
   if(!documentLike?.createElement)return false;
   let notice=root?.querySelector?.(`[data-session-selection-guard="${SESSION_SELECTION_NOTICE_ID}"]`);
@@ -69,7 +86,7 @@ function announceSessionSelectionRequired(root,button){
     const host=button?.parentElement||button;
     host?.insertAdjacentElement?.('afterend',notice);
   }
-  notice.textContent=SESSION_SELECTION_MESSAGE;
+  notice.textContent=String(message||'');
   button?.setAttribute?.('aria-describedby',SESSION_SELECTION_NOTICE_ID);
   button?.focus?.({preventScroll:true});
   return true;
@@ -150,14 +167,19 @@ export function createSessionHapticsController({root=globalThis.document?.queryS
   function onClick(event){
     const button=event.target?.closest?.('[data-workflow-action="start-published-session"]');
     if(!button)return;
-    if(!sessionStartRequiresExplicitSelection(root,button)){
+    const reason=sessionStartGuardReason(root,button);
+    if(!reason){
       clearSessionSelectionNotice(root,button);
       return;
     }
     event.preventDefault?.();
     event.stopImmediatePropagation?.();
     event.stopPropagation?.();
-    announceSessionSelectionRequired(root,button);
+    announceSessionStartGuard(
+      root,
+      button,
+      reason==='selection-required'?SESSION_SELECTION_MESSAGE:SESSION_PUBLISHED_REQUIRED_MESSAGE,
+    );
   }
 
   return Object.freeze({
