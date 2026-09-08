@@ -1,6 +1,7 @@
 import {createM26Transport} from '../supabase-transport.js';
 
 const RPC=Object.freeze({context:'iberfit_application_context_v14',bootstrap:'iberfit_admin_bootstrap_v14',execute:'iberfit_admin_execute_v14'});
+const CLIENT_INVITE_FUNCTION='/functions/v1/iberfit-admin-client-invite-v1';
 const MISSING=/PGRST202|not find the function|M26_HTTP_404/i;
 const DEFAULT_TIMEOUT_MS=12_000;
 const PRIVILEGED_WEBAUTHN_FACTOR_ID='65000000-0000-4000-8000-000000000002';
@@ -20,12 +21,12 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
     return authTransport;
   };
 
-  async function rpc(name,token,params={}){
+  async function request(path,token,body){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),timeoutMs);
     try{
-      const response=await fetchImpl(`${url.origin}/rest/v1/rpc/${name}`,{
+      const response=await fetchImpl(`${url.origin}${path}`,{
         method:'POST',
         credentials:'omit',
         cache:'no-store',
@@ -38,25 +39,30 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
           'content-type':'application/json',
           'x-client-info':`iberfit-m26-admin/${runtime?.version||'26.0.0'}`,
         },
-        body:JSON.stringify(params),
+        body:JSON.stringify(body),
       });
-      const body=response.status===204
+      const payload=response.status===204
         ?null
         :(response.headers?.get?.('content-type')||'').includes('json')
           ?await response.json().catch(()=>({}))
           :await response.text().catch(()=>'');
       if(!response.ok){
-        const error=new Error(body?.message||body?.error||`M26_HTTP_${response.status}`);
+        const error=new Error(payload?.code||payload?.message||payload?.error||`M26_HTTP_${response.status}`);
         error.status=response.status;
+        error.body=payload;
         throw error;
       }
-      return Array.isArray(body)&&body.length===1?body[0]:body;
+      return Array.isArray(payload)&&payload.length===1?payload[0]:payload;
     }catch(error){
       if(error?.name==='AbortError')throw new Error('M26_TIMEOUT');
       throw error;
     }finally{
       clearTimeout(timer);
     }
+  }
+
+  async function rpc(name,token,params={}){
+    return request(`/rest/v1/rpc/${name}`,token,params);
   }
 
   async function optional(name,token,params={}){
@@ -71,6 +77,15 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
     }
   }
 
+  async function execute(token,command){
+    const type=String(command?.type||'').trim().toUpperCase();
+    const result=type==='ADMIN_CLIENTE_CREAR'
+      ?await request(CLIENT_INVITE_FUNCTION,token,{command})
+      :await rpc(RPC.execute,token,{p_command:command});
+    if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))throw new Error('M26_ADMIN_MUTATION_NOT_CONFIRMED');
+    return Object.freeze({...result});
+  }
+
   return Object.freeze({
     applicationContextOptional:(token)=>optional(RPC.context,token),
     bootstrapOptional:(token)=>optional(RPC.bootstrap,token),
@@ -79,10 +94,6 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
     authUser:(token)=>privilegedAuth().authUser(token),
     challengeWebAuthn:(token,factorId)=>privilegedAuth().challengeWebAuthn(token,factorId),
     verifyWebAuthn:(token,payload)=>privilegedAuth().verifyWebAuthn(token,payload),
-    execute:async(token,command)=>{
-      const result=await rpc(RPC.execute,token,{p_command:command});
-      if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))throw new Error('M26_ADMIN_MUTATION_NOT_CONFIRMED');
-      return Object.freeze({...result});
-    },
+    execute,
   });
 }
