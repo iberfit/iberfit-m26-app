@@ -46,11 +46,47 @@ function requireCoachActor(actor){
   if(!['coach','entrenador'].includes(role))throw new Error('M26_EXECUTION_COACH_ACTION_REQUIRED');
   return actor;
 }
-function resultKey(exerciseId,setNumber){return `${exerciseId}:${setNumber}`;}
+function resultKey(exerciseId,setNumber,blockId=null){
+  const legacy=`${exerciseId}:${setNumber}`;
+  return blockId?`${blockId}:${legacy}`:legacy;
+}
+function canUseLegacyEntry(execution,step,setNumber){
+  if(!step?.blockId)return true;
+  const occurrenceIndex=(execution?.queue||[]).findIndex((item)=>item?.blockId===step.blockId&&item?.exerciseId===step.exerciseId);
+  const firstCompatibleIndex=(execution?.queue||[]).findIndex((item)=>item?.exerciseId===step.exerciseId&&Number(item?.sets||0)>=Number(setNumber));
+  return occurrenceIndex>=0&&occurrenceIndex===firstCompatibleIndex;
+}
+function requiresScopedEntry(execution,step,setNumber=step?.setNumber){
+  if(!step?.blockId||!step?.exerciseId)return false;
+  const targetSet=Number(setNumber);
+  if(!Number.isInteger(targetSet)||targetSet<1)return false;
+  const compatible=(execution?.queue||[]).filter((item)=>item?.exerciseId===step.exerciseId&&Number(item?.sets||0)>=targetSet);
+  return compatible.length>1;
+}
+function storageKeyForStep(execution,step,setNumber=step?.setNumber){
+  return resultKey(step.exerciseId,setNumber,requiresScopedEntry(execution,step,setNumber)?step.blockId||null:null);
+}
+function storedEntry(store,execution,step,setNumber=step?.setNumber){
+  if(!store||!step?.exerciseId||!Number.isInteger(Number(setNumber))||Number(setNumber)<1)return null;
+  const scopedKey=resultKey(step.exerciseId,setNumber,step.blockId||null);
+  if(Object.hasOwn(store,scopedKey))return {key:scopedKey,value:store[scopedKey],legacy:false};
+  const legacyKey=resultKey(step.exerciseId,setNumber);
+  if(scopedKey!==legacyKey&&canUseLegacyEntry(execution,step,setNumber)&&Object.hasOwn(store,legacyKey)){
+    return {key:legacyKey,value:store[legacyKey],legacy:true};
+  }
+  return null;
+}
+export function executionResultForStep(execution,step,setNumber=step?.setNumber){
+  return storedEntry(execution?.results,execution,step,setNumber)?.value||null;
+}
+function skippedSetForStep(execution,step,setNumber=step?.setNumber){
+  return storedEntry(execution?.skippedSets,execution,step,setNumber)?.value||null;
+}
 export function previousSetDraftValues(execution){
   const item=execution?.queue?.[execution.index];
   if(!item||Number(execution.setIndex)<1)return null;
-  const previous=execution.results?.[resultKey(item.exerciseId,execution.setIndex)];
+  const previousSetNumber=Number(execution.setIndex);
+  const previous=executionResultForStep(execution,{...item,setNumber:previousSetNumber,totalSets:item.sets},previousSetNumber);
   if(!previous)return null;
   return {
     reps:previous.reps==null?'':String(previous.reps),
@@ -74,7 +110,7 @@ export function getActiveSetDraft(execution,session){
 export function updateActiveSetDraft(execution,session,input={}){
   if(execution?.status!=='active')return null;
   const identity=activeSetIdentity(execution,session);if(!identity)return null;
-  if(execution.results?.[resultKey(identity.exerciseId,identity.setNumber)]){delete execution.activeSetDraft;return null;}
+  if(executionResultForStep(execution,identity)){delete execution.activeSetDraft;return null;}
   execution.activeSetDraft={...identity,values:{reps:draftValue(input.reps,32),seconds:draftValue(input.seconds,32),load:draftValue(input.load,80),rpe:draftValue(input.rpe,32),rir:draftValue(input.rir,32),notes:draftValue(input.notes,1000)},updatedAt:now()};
   return clone(execution.activeSetDraft);
 }
@@ -160,8 +196,8 @@ export function cancelExecution(execution,reason,{actor=null}={}){
 export function recordSet(execution,session,input={}){
   if(execution.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
   const step=currentStep(execution,session);if(!step)throw new Error('M26_EXECUTION_STEP_MISSING');
-  const key=resultKey(step.exerciseId,step.setNumber);
-  if(execution.results[key])throw new Error('M26_EXECUTION_SET_ALREADY_RECORDED');
+  const key=storageKeyForStep(execution,step);
+  if(executionResultForStep(execution,step))throw new Error('M26_EXECUTION_SET_ALREADY_RECORDED');
   const result=validatedSetResult(step,input);
   execution.results[key]=result;clearActiveSetDraft(execution);
   event(execution,'SET_COMPLETED',result,input.actor);
@@ -170,10 +206,12 @@ export function recordSet(execution,session,input={}){
 export function correctSet(execution,session,input={}){
   if(execution.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
   const step=currentStep(execution,session);if(!step)throw new Error('M26_EXECUTION_STEP_MISSING');
-  const key=resultKey(step.exerciseId,step.setNumber);
-  const previous=execution.results[key];
-  if(!previous)throw new Error('M26_EXECUTION_SET_CORRECTION_TARGET_MISSING');
+  const previousEntry=storedEntry(execution.results,execution,step);
+  if(!previousEntry)throw new Error('M26_EXECUTION_SET_CORRECTION_TARGET_MISSING');
+  const key=storageKeyForStep(execution,step);
+  const previous=previousEntry.value;
   const next=validatedSetResult(step,input,previous);
+  if(previousEntry.key!==key)delete execution.results[previousEntry.key];
   execution.results[key]=next;
   event(execution,'SET_CORRECTED',{before:previous,after:next},input.actor);
   return execution;
@@ -194,9 +232,9 @@ export function adjustRest(execution,deltaSeconds,{actor=null}={}){
 export function advanceExecution(execution,{actor=null}={}){
   if(execution.status!=='active')throw new Error('M26_EXECUTION_ADVANCE_INVALID');
   const item=execution.queue[execution.index];if(!item)throw new Error('M26_EXECUTION_STEP_MISSING');
-  const key=resultKey(item.exerciseId,execution.setIndex+1);
+  const step={...item,setNumber:execution.setIndex+1,totalSets:item.sets};
   ensureDeviationStores(execution);
-  if(!execution.results[key]&&!execution.skippedSets[key])throw new Error('M26_EXECUTION_SET_NOT_RECORDED');
+  if(!executionResultForStep(execution,step)&&!skippedSetForStep(execution,step))throw new Error('M26_EXECUTION_SET_NOT_RECORDED');
   return moveForward(execution,actor);
 }
 export function retreatExecution(execution,{actor=null}={}){
@@ -216,8 +254,8 @@ export function substituteExercise(execution,session,{fromExerciseId,toExerciseI
   if(itemIndex<0)throw new Error('M26_EXECUTION_SUBSTITUTE_TARGET_MISSING');
   const item=execution.queue[itemIndex];
   if(itemIndex===execution.index){
-    const key=resultKey(item.exerciseId,execution.setIndex+1);
-    if(execution.results[key])throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
+    const step={...item,setNumber:execution.setIndex+1,totalSets:item.sets};
+    if(executionResultForStep(execution,step))throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
     clearActiveSetDraft(execution);
   }
   item.exerciseId=toExerciseId;
@@ -237,10 +275,11 @@ export function skipExecutionSet(execution,session,{reason,actor=null}={}){
   if(execution.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
   const step=currentStep(execution,session);if(!step)throw new Error('M26_EXECUTION_STEP_MISSING');
   const safeReason=requireReason(reason,'M26_EXECUTION_SKIP_SET_REASON_REQUIRED');
-  const key=resultKey(step.exerciseId,step.setNumber);
-  if(execution.results[key])throw new Error('M26_EXECUTION_SKIP_RECORDED_SET_FORBIDDEN');
+  const scoped=requiresScopedEntry(execution,step);
+  const key=storageKeyForStep(execution,step);
+  if(executionResultForStep(execution,step))throw new Error('M26_EXECUTION_SKIP_RECORDED_SET_FORBIDDEN');
   ensureDeviationStores(execution);
-  const entry={exerciseId:step.exerciseId,setNumber:step.setNumber,reason:safeReason,at:now(),actor:actorSnapshot(actor)};
+  const entry={...(scoped?{blockId:step.blockId||null}:{}),exerciseId:step.exerciseId,setNumber:step.setNumber,reason:safeReason,at:now(),actor:actorSnapshot(actor)};
   execution.skippedSets[key]=entry;
   event(execution,'SET_SKIPPED',entry,actor);
   return moveForward(execution,actor);
@@ -250,15 +289,19 @@ export function skipExecutionExercise(execution,session,{reason,actor=null}={}){
   const item=execution.queue[execution.index];if(!item)throw new Error('M26_EXECUTION_STEP_MISSING');
   const safeReason=requireReason(reason,'M26_EXECUTION_SKIP_EXERCISE_REASON_REQUIRED');
   ensureDeviationStores(execution);
-  const currentKey=resultKey(item.exerciseId,execution.setIndex+1);
-  const firstIndex=execution.results[currentKey]?execution.setIndex+1:execution.setIndex;
+  const currentStepSnapshot={...item,setNumber:execution.setIndex+1,totalSets:item.sets};
+  const firstIndex=executionResultForStep(execution,currentStepSnapshot)?execution.setIndex+1:execution.setIndex;
   if(firstIndex>=item.sets)throw new Error('M26_EXECUTION_SKIP_EXERCISE_NOTHING_REMAINING');
+  let scopedOccurrence=false;
   for(let i=firstIndex;i<item.sets;i+=1){
     const setNumber=i+1;
-    const key=resultKey(item.exerciseId,setNumber);
-    execution.skippedSets[key]={exerciseId:item.exerciseId,setNumber,reason:safeReason,at:now(),actor:actorSnapshot(actor),source:'exercise_skip'};
+    const step={...item,setNumber,totalSets:item.sets};
+    const scoped=requiresScopedEntry(execution,step,setNumber);
+    const key=storageKeyForStep(execution,step,setNumber);
+    scopedOccurrence=scopedOccurrence||scoped;
+    execution.skippedSets[key]={...(scoped?{blockId:item.blockId||null}:{}),exerciseId:item.exerciseId,setNumber,reason:safeReason,at:now(),actor:actorSnapshot(actor),source:'exercise_skip'};
   }
-  const deviation={exerciseId:item.exerciseId,fromSetNumber:firstIndex+1,toSetNumber:item.sets,reason:safeReason,at:now(),actor:actorSnapshot(actor)};
+  const deviation={...(scopedOccurrence?{blockId:item.blockId||null}:{}),exerciseId:item.exerciseId,fromSetNumber:firstIndex+1,toSetNumber:item.sets,reason:safeReason,at:now(),actor:actorSnapshot(actor)};
   execution.skippedExercises.push(deviation);
   event(execution,'EXERCISE_SKIPPED',deviation,actor);
   clearActiveSetDraft(execution);execution.restUntil=null;execution.index+=1;execution.setIndex=0;
