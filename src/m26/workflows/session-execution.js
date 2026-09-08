@@ -246,6 +246,14 @@ export function retreatExecution(execution,{actor=null}={}){
   if(execution.status==='awaiting_feedback'){execution.status='active';resumeExecutionClock(execution);}
   event(execution,'STEP_REWOUND',{index:execution.index,setIndex:execution.setIndex},actor);return execution;
 }
+function occurrenceHasResolvedSet(execution,item){
+  if(!item)return false;
+  for(let setNumber=1;setNumber<=Number(item.sets||0);setNumber+=1){
+    const step={...item,setNumber,totalSets:item.sets};
+    if(executionResultForStep(execution,step,setNumber)||skippedSetForStep(execution,step,setNumber))return true;
+  }
+  return false;
+}
 export function substituteExercise(execution,session,{fromExerciseId,toExerciseId,catalog,reason,actor=null}={}){
   const safeReason=requireReason(reason,'M26_EXECUTION_SUBSTITUTION_REASON_REQUIRED');
   if(!catalog?.has(toExerciseId))throw new Error('M26_EXECUTION_SUBSTITUTE_NOT_IN_CATALOG');
@@ -254,8 +262,7 @@ export function substituteExercise(execution,session,{fromExerciseId,toExerciseI
   if(itemIndex<0)throw new Error('M26_EXECUTION_SUBSTITUTE_TARGET_MISSING');
   const item=execution.queue[itemIndex];
   if(itemIndex===execution.index){
-    const step={...item,setNumber:execution.setIndex+1,totalSets:item.sets};
-    if(executionResultForStep(execution,step))throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
+    if(occurrenceHasResolvedSet(execution,item))throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
     clearActiveSetDraft(execution);
   }
   item.exerciseId=toExerciseId;
