@@ -158,9 +158,9 @@ begin
 end
 $function$;
 
-revoke all on function public.iberfit_client_invitation_begin_v26(uuid,text) from public;
-revoke all on function public.iberfit_client_invitation_finalize_v26(uuid,uuid,text) from public;
-revoke all on function public.iberfit_client_invitation_fail_v26(uuid,text) from public;
+revoke all on function public.iberfit_client_invitation_begin_v26(uuid,text) from public, anon, service_role;
+revoke all on function public.iberfit_client_invitation_finalize_v26(uuid,uuid,text) from public, anon, service_role;
+revoke all on function public.iberfit_client_invitation_fail_v26(uuid,text) from public, anon, service_role;
 grant execute on function public.iberfit_client_invitation_begin_v26(uuid,text) to authenticated;
 grant execute on function public.iberfit_client_invitation_finalize_v26(uuid,uuid,text) to authenticated;
 grant execute on function public.iberfit_client_invitation_fail_v26(uuid,text) to authenticated;
