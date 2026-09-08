@@ -39,6 +39,11 @@ function progressMutation(execution,commandBus,online){
   return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{execution.revision=remoteRevision(result,execution.revision);},execution)};
 }
 
+export function liveAddExerciseSelectionState(exerciseId,catalog){
+  const normalizedExerciseId=String(exerciseId||'').trim();
+  return Object.freeze({exerciseId:normalizedExerciseId,enabled:Boolean(normalizedExerciseId&&catalog?.has?.(normalizedExerciseId))});
+}
+
 export function dispatchSessionAction({action,draft,execution,session,catalog,payload={},commandBus,appointmentId,sessionRevision=0,online=true,offlinePermit={},actor=null}={}){
   switch(action){
     case 'add-exercise': addCatalogExercise(draft,payload.exerciseId,catalog,payload.prescription); return {kind:'draft',value:draft};
@@ -152,8 +157,24 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     const pain=root.querySelector?.('[data-session-feedback-pain]');if(pain)pain.checked=Boolean(values.pain);
     const painNotes=root.querySelector?.('[data-session-feedback-pain-notes]');if(painNotes)painNotes.value=values.painNotes??'';
   }
+  function syncLiveAddExerciseControl(context=getContext()){
+    const select=root.querySelector?.('[data-session-live-add-exercise]');
+    const button=root.querySelector?.('[data-session-action="add-live-exercise"]');
+    if(!button)return;
+    const state=liveAddExerciseSelectionState(select?.value,context?.catalog);
+    button.disabled=!state.enabled;
+    button.setAttribute?.('aria-disabled',state.enabled?'false':'true');
+    if(state.enabled)button.removeAttribute?.('title');
+    else button.setAttribute?.('title','Selecciona un ejercicio válido antes de añadirlo');
+    if(select){
+      const hasSelectableOption=Array.from(select.options||[]).some((option)=>String(option?.value||'').trim());
+      select.disabled=!hasSelectableOption;
+      if(hasSelectableOption)select.removeAttribute?.('aria-disabled');
+      else select.setAttribute?.('aria-disabled','true');
+    }
+  }
   const baseRender=render;
-  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());};
+  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
@@ -224,7 +245,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     catch{clearPendingSessionEntry(root);}
   }
   async function onShellRendered(){
-    hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());
+    hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());
     const pending=consumePendingSessionEntry(root);
     if(!pending)return;
     const context=getContext();
@@ -236,7 +257,10 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(pending.decision?.directStartAllowed!==true||pending.decision?.level!=='normal')return;
     await start();
   }
-  async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='reuse-previous-set'){
+  async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='add-live-exercise'){
+    const liveSelection=liveAddExerciseSelectionState(root.querySelector?.('[data-session-live-add-exercise]')?.value,context?.catalog);
+    if(!liveSelection.enabled){syncLiveAddExerciseControl(context);return;}
+  }if(action==='reuse-previous-set'){
   const values=previousSetDraftValues(context?.execution);
   if(!values)return;
   for(const node of root.querySelectorAll?.('[data-set-field]')||[]){
@@ -266,10 +290,12 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});return await result.value;};
     try{const outcome=actionState?await runAction(actionState,task):{ok:true,value:await task()};if(!outcome.ok)onError(outcome.error);if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}renderSession();}catch(error){await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){context.setQuery?.(search.value);renderSession();}
+    const liveAddSelect=event.target.closest?.('[data-session-live-add-exercise]');if(liveAddSelect)syncLiveAddExerciseControl(context);
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}
     const blockField=event.target.closest?.('[data-session-block-field]');if(blockField&&context.draft){try{dispatchSessionAction({...context,action:'update-block',payload:{blockId:blockField.getAttribute('data-block-id'),exerciseId:blockField.getAttribute('data-exercise-id')||null,field:blockField.getAttribute('data-session-block-field'),value:blockField.value}});}catch(error){onError(error);}}
     const setField=event.target.closest?.('[data-set-field]');if(setField&&context.execution&&context.session){try{const saved=updateActiveSetDraft(context.execution,context.session,fieldValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}}
     const feedbackField=event.target.closest?.('[data-session-feedback-rpe],[data-session-feedback-comment],[data-session-feedback-pain],[data-session-feedback-pain-notes]');if(feedbackField&&context.execution){try{const saved=updateFinalFeedbackDraft(context.execution,feedbackValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}}
     if(draftField||blockField)queueAutosave(context);}
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
+  function change(event){if(event.target.closest?.('[data-session-live-add-exercise]'))syncLiveAddExerciseControl(getContext());}
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
 }
