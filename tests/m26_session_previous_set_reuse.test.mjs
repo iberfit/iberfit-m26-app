@@ -96,6 +96,24 @@ test('Session Live offers explicit previous-set reuse only when a previous set e
   assert.doesNotMatch(firstHtml,/data-session-action="reuse-previous-set"/);
 });
 
+test('Session Live preserves RIR 0 in the reusable previous-set summary',()=>{
+  const session=makeSession();
+  const execution=createExecution({session,clientId:session.clientId,executionId:'execution-rir-zero'});
+  startExecution(execution);
+  recordSet(execution,session,{
+    reps:10,
+    load:'80 kg',
+    rpe:10,
+    rir:0,
+  });
+  advanceExecution(execution);
+
+  assert.equal(previousSetDraftValues(execution)?.rir,'0');
+  const html=renderGuidedExecution({execution,session,catalog,mediaMap:null,role:'client'});
+  assert.match(html,/data-session-previous-set/);
+  assert.match(html,/RIR 0/);
+});
+
 test('previous-set reuse is registered for client and coach without becoming a remote command',()=>{
   assert.deepEqual(M26_ACTION_REGISTRY['reuse-previous-set'],{
     roles:['coach','client'],
