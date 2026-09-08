@@ -10,7 +10,7 @@ function previousSetSummary(values){
     values?.seconds?`${values.seconds} s`:null,
     values?.load||null,
     values?.rpe?`RPE ${values.rpe}`:null,
-    values?.rir?`RIR ${values.rir}`:null,
+    values?.rir!=null&&Number.isFinite(Number(values.rir))?`RIR ${values.rir}`:null,
   ].filter(Boolean).join(' · ')||'Serie registrada';
 }
 function currentSetResultSummary(result){
