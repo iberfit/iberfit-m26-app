@@ -3,17 +3,17 @@ import assert from 'node:assert/strict';
 import {
   installClientOnboardingInvitationTransport,
   __clientOnboardingInvitationTransportInternals as internals,
-} from '../src/m26/workflows/client-onboarding-invitation-transport.js';
+} from '../src/m26/workflows/client-onboarding.js';
 
 test('only exact client-create RPCs on canonical Supabase origins are rerouted',()=>{
   const qa=new Request('https://gjztkdwfmunnzhtvxrsu.supabase.co/rest/v1/rpc/iberfit_create_client_draft_v12',{method:'POST'});
   const prod=new Request('https://pjhmrhejsoofmouedavw.supabase.co/rest/v1/rpc/iberfit_create_client_draft_v12',{method:'POST'});
   const bootstrap=new Request('https://gjztkdwfmunnzhtvxrsu.supabase.co/rest/v1/rpc/iberfit_bootstrap_v26',{method:'POST'});
   const foreign=new Request('https://example.com/rest/v1/rpc/iberfit_create_client_draft_v12',{method:'POST'});
-  assert.equal(internals.targetFor(qa),'https://gjztkdwfmunnzhtvxrsu.supabase.co/functions/v1/iberfit-client-onboarding-v1');
-  assert.equal(internals.targetFor(prod),'https://pjhmrhejsoofmouedavw.supabase.co/functions/v1/iberfit-client-onboarding-v1');
-  assert.equal(internals.targetFor(bootstrap),null);
-  assert.equal(internals.targetFor(foreign),null);
+  assert.equal(internals.invitationTarget(qa),'https://gjztkdwfmunnzhtvxrsu.supabase.co/functions/v1/iberfit-client-onboarding-v1');
+  assert.equal(internals.invitationTarget(prod),'https://pjhmrhejsoofmouedavw.supabase.co/functions/v1/iberfit-client-onboarding-v1');
+  assert.equal(internals.invitationTarget(bootstrap),null);
+  assert.equal(internals.invitationTarget(foreign),null);
 });
 
 test('reroute unwraps p_payload and preserves bearer headers without exposing server credentials',async()=>{
