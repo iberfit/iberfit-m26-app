@@ -43,7 +43,7 @@ test('RC75 mantiene alta guiada y la evolución ADMIN exige invitación real sin
   assert.match(render,/Crear cliente y enviar invitación/u);
   assert.match(transport,/iberfit-admin-client-invite-v1/u);
   assert.doesNotMatch(admin,/activatedAt\s*:/u);
-  assert.doesNotMatch(admin,/status\s*:\s*['\"]activo['\"]/u);
+  assert.doesNotMatch(admin,/status\s*:\s*['"]activo['"]/u);
 });
 
 test('RC75 mantiene fail-closed en el backend canónico V12 sin bloquear producción',()=>{
