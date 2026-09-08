@@ -1,0 +1,113 @@
+name: Temporary Session No Alternative Patch
+
+on:
+  push:
+    branches:
+      - fix/session-no-alternative-action
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/session-no-alternative-action
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply focused patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          ui = Path('src/m26/workflows/session-ui.js')
+          text = ui.read_text()
+          old = """  const alternatives=catalog.search('',{pattern:ex.pattern})
+    .filter((item)=>item.id!==step.exerciseId)
+    .slice(0,8)
+    .map((item)=>`<option value=\"${e(item.id)}\"${item.id===planned.alternativeId?' selected':''}>${e(item.name_es)}</option>`)
+    .join('');
+"""
+          new = """  const alternativeItems=catalog.search('',{pattern:ex.pattern})
+    .filter((item)=>item.id!==step.exerciseId)
+    .slice(0,8);
+  const alternatives=alternativeItems
+    .map((item)=>`<option value=\"${e(item.id)}\"${item.id===planned.alternativeId?' selected':''}>${e(item.name_es)}</option>`)
+    .join('');
+  const substitutionUnavailable=alternativeItems.length===0;
+"""
+          if old not in text:
+              raise SystemExit('alternatives anchor not found')
+          text = text.replace(old,new,1)
+          old = """  const substitutionLocked=!canSubstituteCurrentExercise(execution);
+"""
+          new = """  const substitutionLocked=!canSubstituteCurrentExercise(execution);
+  const substitutionDisabled=substitutionLocked||substitutionUnavailable;
+  const substitutionTitle=substitutionLocked
+    ?'Este ejercicio ya tiene progreso registrado'
+    :(substitutionUnavailable?'No hay alternativas compatibles disponibles':'');
+"""
+          if old not in text:
+              raise SystemExit('substitution lock anchor not found')
+          text = text.replace(old,new,1)
+          old = """          <label>Alternativa<select data-session-substitute>${alternatives}</select></label>
+"""
+          new = """          <label>Alternativa<select data-session-substitute ${substitutionUnavailable?'disabled aria-disabled=\"true\"':''}>${alternatives||'<option value=\"\">Sin alternativas compatibles</option>'}</select></label>
+"""
+          if old not in text:
+              raise SystemExit('alternative select anchor not found')
+          text = text.replace(old,new,1)
+          old = """          <button type=\"button\" data-session-action=\"substitute\" data-from-exercise-id=\"${e(step.exerciseId)}\" ${substitutionLocked?'disabled aria-disabled=\"true\" title=\"Este ejercicio ya tiene progreso registrado\"':''}>Usar alternativa</button>
+"""
+          new = """          <button type=\"button\" data-session-action=\"substitute\" data-from-exercise-id=\"${e(step.exerciseId)}\" ${substitutionDisabled?`disabled aria-disabled=\"true\" title=\"${e(substitutionTitle)}\"`:''}>Usar alternativa</button>
+"""
+          if old not in text:
+              raise SystemExit('substitute button anchor not found')
+          ui.write_text(text.replace(old,new,1))
+
+          test = Path('tests/m26_session_substitution_progress.test.mjs')
+          text = test.read_text()
+          anchor = """test('substitution remains allowed before the occurrence has progress',()=>{
+"""
+          addition = """test('substitution controls are disabled when no compatible alternative exists',()=>{
+  const only={id:'only-exercise',name_es:'Ejercicio único',pattern:'unique-pattern',cues:[]};
+  const lonelyCatalog={
+    get(id){return id===only.id?only:null;},
+    has(id){return id===only.id;},
+    search(){return [only];},
+  };
+  const session={
+    id:'session-no-alternative',clientId:'c-no-alternative',title:'Sin alternativa',durationMinutes:30,status:'published',
+    blocks:[{type:'exercise',id:'block-only',exerciseId:only.id,sets:1,reps:'10',restSeconds:60,tempo:'controlado',targetRpe:7,targetRir:3}],
+  };
+  const execution=createExecution({session,clientId:session.clientId,executionId:'exec-no-alternative'});
+  startExecution(execution);
+
+  const markup=renderGuidedExecution({execution,session,catalog:lonelyCatalog});
+  const select=markup.match(/<select[^>]+data-session-substitute[^>]*>/)?.[0]||'';
+  const button=markup.match(/<button[^>]+data-session-action=\"substitute\"[^>]*>/)?.[0]||'';
+  assert.match(select,/disabled aria-disabled=\"true\"/);
+  assert.match(markup,/Sin alternativas compatibles/);
+  assert.match(button,/disabled aria-disabled=\"true\"/);
+  assert.match(button,/title=\"No hay alternativas compatibles disponibles\"/);
+});
+
+"""
+          if anchor not in text:
+              raise SystemExit('test anchor not found')
+          test.write_text(text.replace(anchor,addition+anchor,1))
+      - name: Focused tests
+        run: node --test tests/m26_session_substitution_progress.test.mjs tests/m26_session_duplicate_exercise_occurrence.test.mjs tests/m26_session_current_exercise_history.test.mjs
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/m26/workflows/session-ui.js tests/m26_session_substitution_progress.test.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(session): disable unavailable substitution"
+          git push origin HEAD:fix/session-no-alternative-action
