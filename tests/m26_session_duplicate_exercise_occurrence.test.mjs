@@ -73,6 +73,22 @@ test('duplicated exercise occurrences keep independent recorded sets and current
   assert.equal(Object.keys(execution.results).length,4);
 });
 
+test('completion summary counts duplicated exercise occurrences independently',()=>{
+  const {session,execution}=makeExecution({sets:1});
+  recordSet(execution,session,{reps:10,load:'80 kg',rpe:8,rir:2});
+  advanceExecution(execution);
+  assert.equal(currentStep(execution,session).blockId,'block-second');
+  recordSet(execution,session,{reps:8,load:'70 kg',rpe:7.5,rir:3});
+  advanceExecution(execution);
+  assert.equal(execution.status,'awaiting_feedback');
+
+  const html=render(session,execution);
+  const start=html.indexOf('<span>Ejercicios registrados</span>');
+  const end=html.indexOf('</div>',start);
+  assert.ok(start>=0);
+  assert.match(html.slice(start,end),/2 \/ 2/);
+});
+
 test('a skipped set in the first occurrence does not resolve the duplicated occurrence',()=>{
   const {session,execution}=makeExecution();
   skipExecutionSet(execution,session,{reason:'Molestia puntual'});
