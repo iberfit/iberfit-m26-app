@@ -1,5 +1,8 @@
 import {normalizeClientModality} from '../domain/modality.js';
 import {INITIAL_ASSESSMENT_MODES,normalizeInitialAssessmentMode} from '../domain/initial-assessment.js';
+import {installClientOnboardingInvitationTransport} from './client-onboarding-invitation-transport.js';
+
+installClientOnboardingInvitationTransport();
 
 const EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const CLIENT_ONBOARDING_LOCAL_ID='pending-client';
@@ -153,7 +156,7 @@ export function legacyClientDraftPayload(input={}){
       experienceLevel:value.level,trainingHistory:value.history,currentTraining:value.currentTraining,
       restrictions:value.restrictions,pain:value.pain,preferences:value.preferences,
     },
-    accessEnabled:false,inviteClient:false,onboardingVersion:'m26-v12.2',
+    accessEnabled:false,inviteClient:true,onboardingVersion:'m26-v12.4-invitation',
   });
 }
 
