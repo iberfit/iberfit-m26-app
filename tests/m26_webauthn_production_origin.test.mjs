@@ -25,11 +25,11 @@ test('WebAuthn challenges and verification remain origin-bound',()=>{
   assert.match(source,/generateAuthenticationOptions\(\{rpID/u);
 });
 
-test('production-origin fix does not weaken privileged role or JWT checks',()=>{
+test('production-origin fix does not weaken privileged role or bearer validation',()=>{
+  assert.match(source,/authorization\.startsWith\('Bearer '\)/u);
   assert.match(source,/auth\.getUser\(token\)/u);
   assert.match(source,/M26_AUTH_SESSION_INVALID/u);
   assert.match(source,/iberfit_application_context_v14/u);
   assert.match(source,/M26_PRIVILEGED_ROLE_REQUIRED/u);
-  assert.match(source,/verify_jwt/u.test('verify_jwt')?/.*/u); // marker: JWT enforcement is deployment-level; source still validates the bearer token explicitly.
   assert.doesNotMatch(source,/service[_-]?role[^\n]*console\.log/iu);
 });
