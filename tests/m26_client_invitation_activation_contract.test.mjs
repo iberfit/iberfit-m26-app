@@ -23,6 +23,9 @@ test('invitation lifecycle remains privileged, scoped and audited',()=>{
   assert.match(migration,/CLIENTE_INVITACION_INTENTO/);
   assert.match(migration,/CLIENTE_INVITACION_COMPLETADA/);
   assert.match(migration,/CLIENTE_INVITACION_ERROR/);
+  assert.match(migration,/iberfit_client_invitation_begin_v26\(uuid,text\) from public, anon, service_role/);
+  assert.match(migration,/iberfit_client_invitation_finalize_v26\(uuid,uuid,text\) from public, anon, service_role/);
+  assert.match(migration,/iberfit_client_invitation_fail_v26\(uuid,text\) from public, anon, service_role/);
 });
 
 test('hosted onboarding persists the client before touching Auth and compensates only newly invited identities',()=>{
