@@ -663,11 +663,13 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   const liveAddOptions=isCoach
     ?catalog.search('').filter((item)=>item.id!==step.exerciseId).slice(0,60).map((item)=>`<option value="${e(item.id)}">${e(item.name_es)}</option>`).join('')
     :'';
-  const alternatives=catalog.search('',{pattern:ex.pattern})
+  const alternativeItems=catalog.search('',{pattern:ex.pattern})
     .filter((item)=>item.id!==step.exerciseId)
-    .slice(0,8)
+    .slice(0,8);
+  const alternatives=alternativeItems
     .map((item)=>`<option value="${e(item.id)}"${item.id===planned.alternativeId?' selected':''}>${e(item.name_es)}</option>`)
     .join('');
+  const substitutionUnavailable=alternativeItems.length===0;
   const visual=renderExerciseMedia({
     manifest:mediaMap,
     exercise:{...ex,id:step.exerciseId},
@@ -677,6 +679,10 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   });
   const recorded=executionResultForStep(execution,step);
   const substitutionLocked=!canSubstituteCurrentExercise(execution);
+  const substitutionDisabled=substitutionLocked||substitutionUnavailable;
+  const substitutionTitle=substitutionLocked
+    ?'Este ejercicio ya tiene progreso registrado'
+    :(substitutionUnavailable?'No hay alternativas compatibles disponibles':'');
   const restSeconds=restRemainingSeconds(execution);
   const restActive=Boolean(recorded&&restSeconds>0);
   const nextCopy=nextExecutionCopy(execution,catalog);
@@ -810,9 +816,9 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         <details class="m26-session-options">
           <summary>Ajustes y alternativas</summary>
           <p>Estos cambios afectan únicamente a la ejecución de hoy; no modifican el plan futuro.</p>
-          <label>Alternativa<select data-session-substitute>${alternatives}</select></label>
+          <label>Alternativa<select data-session-substitute ${substitutionUnavailable?'disabled aria-disabled="true"':''}>${alternatives||'<option value="">Sin alternativas compatibles</option>'}</select></label>
           <label>Motivo de sustitución<input maxlength="500" data-session-substitute-reason></label>
-          <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}" ${substitutionLocked?'disabled aria-disabled="true" title="Este ejercicio ya tiene progreso registrado"':''}>Usar alternativa</button>
+          <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}" ${substitutionDisabled?`disabled aria-disabled="true" title="${e(substitutionTitle)}"`:''}>Usar alternativa</button>
           <label>Motivo para omitir el resto del ejercicio<input maxlength="500" data-session-skip-exercise-reason></label>
           <button type="button" data-session-action="skip-exercise">Omitir ejercicio restante</button>
           ${isCoach?`<div class="m26-session-live-coach-tools">

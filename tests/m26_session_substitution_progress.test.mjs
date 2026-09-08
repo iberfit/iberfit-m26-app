@@ -17,6 +17,29 @@ function setup(){
   return {session,execution,from,to};
 }
 
+test('substitution controls are disabled when no compatible alternative exists',()=>{
+  const only={id:'only-exercise',name_es:'Ejercicio único',pattern:'unique-pattern',cues:[]};
+  const lonelyCatalog={
+    get(id){return id===only.id?only:null;},
+    has(id){return id===only.id;},
+    search(){return [only];},
+  };
+  const session={
+    id:'session-no-alternative',clientId:'c-no-alternative',title:'Sin alternativa',durationMinutes:30,status:'published',
+    blocks:[{type:'exercise',id:'block-only',exerciseId:only.id,sets:1,reps:'10',restSeconds:60,tempo:'controlado',targetRpe:7,targetRir:3}],
+  };
+  const execution=createExecution({session,clientId:session.clientId,executionId:'exec-no-alternative'});
+  startExecution(execution);
+
+  const markup=renderGuidedExecution({execution,session,catalog:lonelyCatalog});
+  const select=markup.match(/<select[^>]+data-session-substitute[^>]*>/)?.[0]||'';
+  const button=markup.match(/<button[^>]+data-session-action="substitute"[^>]*>/)?.[0]||'';
+  assert.match(select,/disabled aria-disabled="true"/);
+  assert.match(markup,/Sin alternativas compatibles/);
+  assert.match(button,/disabled aria-disabled="true"/);
+  assert.match(button,/title="No hay alternativas compatibles disponibles"/);
+});
+
 test('substitution remains allowed before the occurrence has progress',()=>{
   const {session,execution,from,to}=setup();
   substituteExercise(execution,session,{fromExerciseId:from,toExerciseId:to,catalog,reason:'Alternativa previa'});
