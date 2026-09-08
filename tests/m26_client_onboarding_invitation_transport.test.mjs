@@ -39,6 +39,6 @@ test('UI wording distinguishes sent, linked account, error and pending',()=>{
   assert.match(internals.invitationUi('sent').text,/enviada/u);
   assert.match(internals.invitationUi('linked_existing').text,/existente vinculada/u);
   assert.equal(internals.invitationUi('error').kind,'error');
-  assert.match(internals.invitationUi('error').text,/pendiente de reintento/u);
+  assert.match(internals.invitationUi('error').text,/marcada para reintento/u);
   assert.equal(internals.invitationUi('pending').kind,'pending');
 });
