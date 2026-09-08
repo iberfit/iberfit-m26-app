@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise} from '../src/m26/workflows/session-builder.js';
-import {createExecution,startExecution,recordSet,advanceExecution,skipExecutionSet,substituteExercise} from '../src/m26/workflows/session-execution.js';
+import {canSubstituteCurrentExercise,createExecution,startExecution,recordSet,advanceExecution,skipExecutionSet,substituteExercise} from '../src/m26/workflows/session-execution.js';
+import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
 
 const data=JSON.parse(fs.readFileSync(new URL('../baseline_m25_2/exercise-catalog-m25.json',import.meta.url)));
 const catalog=createExerciseCatalog(data);
@@ -25,9 +26,14 @@ test('substitution remains allowed before the occurrence has progress',()=>{
 test('substitution is blocked after an earlier set was recorded',()=>{
   const {session,execution,from,to}=setup();
   startExecution(execution);
+  assert.equal(canSubstituteCurrentExercise(execution),true);
   recordSet(execution,session,{reps:10,rpe:7});
   advanceExecution(execution);
   assert.equal(execution.setIndex,1);
+  assert.equal(canSubstituteCurrentExercise(execution),false);
+  const markup=renderGuidedExecution({execution,session,catalog});
+  const substituteButton=markup.match(/<button[^>]+data-session-action="substitute"[^>]*>/)?.[0]||'';
+  assert.match(substituteButton,/disabled aria-disabled="true"/);
   assert.throws(()=>substituteExercise(execution,session,{fromExerciseId:from,toExerciseId:to,catalog,reason:'Cambio tardío'}),/M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED/);
   assert.equal(execution.queue[0].exerciseId,from);
   assert.ok(execution.results[from+':1']);
@@ -38,6 +44,10 @@ test('substitution is blocked after an earlier set was explicitly skipped',()=>{
   startExecution(execution);
   skipExecutionSet(execution,session,{reason:'Molestia puntual'});
   assert.equal(execution.setIndex,1);
+  assert.equal(canSubstituteCurrentExercise(execution),false);
+  const markup=renderGuidedExecution({execution,session,catalog});
+  const substituteButton=markup.match(/<button[^>]+data-session-action="substitute"[^>]*>/)?.[0]||'';
+  assert.match(substituteButton,/disabled aria-disabled="true"/);
   assert.throws(()=>substituteExercise(execution,session,{fromExerciseId:from,toExerciseId:to,catalog,reason:'Cambio tardío'}),/M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED/);
   assert.equal(execution.queue[0].exerciseId,from);
   assert.ok(execution.skippedSets[from+':1']);

@@ -1,4 +1,4 @@
-import { currentStep,executionResultForStep,previousSetDraftValues } from './session-execution.js';
+import { canSubstituteCurrentExercise,currentStep,executionResultForStep,previousSetDraftValues } from './session-execution.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {deriveLiveSessionIntelligence} from '../intelligence/live-session-intelligence.js';
@@ -673,6 +673,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     fallback:false,
   });
   const recorded=executionResultForStep(execution,step);
+  const substitutionLocked=!canSubstituteCurrentExercise(execution);
   const restSeconds=restRemainingSeconds(execution);
   const restActive=Boolean(recorded&&restSeconds>0);
   const nextCopy=nextExecutionCopy(execution,catalog);
@@ -808,7 +809,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <p>Estos cambios afectan únicamente a la ejecución de hoy; no modifican el plan futuro.</p>
           <label>Alternativa<select data-session-substitute>${alternatives}</select></label>
           <label>Motivo de sustitución<input maxlength="500" data-session-substitute-reason></label>
-          <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}" ${recorded?'disabled aria-disabled="true" title="Continúa a la siguiente serie antes de sustituir"':''}>Usar alternativa</button>
+          <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}" ${substitutionLocked?'disabled aria-disabled="true" title="Este ejercicio ya tiene progreso registrado"':''}>Usar alternativa</button>
           <label>Motivo para omitir el resto del ejercicio<input maxlength="500" data-session-skip-exercise-reason></label>
           <button type="button" data-session-action="skip-exercise">Omitir ejercicio restante</button>
           ${isCoach?`<div class="m26-session-live-coach-tools">
