@@ -378,11 +378,14 @@ function executionTotals(execution){
   const completedSets=results.length;
   const skippedSets=skippedKeys.filter((key)=>!Object.prototype.hasOwnProperty.call(resultMap,key)).length;
   const resolvedSets=Math.min(totalSets,new Set([...resultKeys,...skippedKeys]).size);
-  const completedExercises=new Set(
-    results
-      .map((item)=>item?.exerciseId)
-      .filter(Boolean),
-  ).size;
+  const completedExercises=queue.filter((item)=>{
+    const sets=Math.max(0,Number(item?.sets||0));
+    for(let setNumber=1;setNumber<=sets;setNumber+=1){
+      const step={...item,setNumber,totalSets:item.sets};
+      if(executionResultForStep(execution,step,setNumber))return true;
+    }
+    return false;
+  }).length;
 
   return {
     completedSets,
