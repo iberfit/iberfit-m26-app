@@ -254,6 +254,10 @@ function occurrenceHasResolvedSet(execution,item){
   }
   return false;
 }
+export function canSubstituteCurrentExercise(execution){
+  const item=execution?.queue?.[execution.index];
+  return Boolean(item)&&!occurrenceHasResolvedSet(execution,item);
+}
 export function substituteExercise(execution,session,{fromExerciseId,toExerciseId,catalog,reason,actor=null}={}){
   const safeReason=requireReason(reason,'M26_EXECUTION_SUBSTITUTION_REASON_REQUIRED');
   if(!catalog?.has(toExerciseId))throw new Error('M26_EXECUTION_SUBSTITUTE_NOT_IN_CATALOG');
@@ -262,7 +266,7 @@ export function substituteExercise(execution,session,{fromExerciseId,toExerciseI
   if(itemIndex<0)throw new Error('M26_EXECUTION_SUBSTITUTE_TARGET_MISSING');
   const item=execution.queue[itemIndex];
   if(itemIndex===execution.index){
-    if(occurrenceHasResolvedSet(execution,item))throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
+    if(!canSubstituteCurrentExercise(execution))throw new Error('M26_EXECUTION_SUBSTITUTION_AFTER_SET_RECORDED');
     clearActiveSetDraft(execution);
   }
   item.exerciseId=toExerciseId;
