@@ -132,12 +132,18 @@ test('RC65-C1 FREE migración liga assurance a session_id real y bloquea tablas 
   assert.match(sql,/revoke all on function public\.iberfit_require_privileged_assurance_v65d\(\) from authenticated;/u);
 });
 
-test('RC65-C1 FREE Edge Function fija librerías, origin, UV required y challenge de un uso',()=>{
+test('RC65-C1 FREE Edge Function fija librerías, allowlist RP/Origin, UV required y challenge de un uso',()=>{
   const edge=fs.readFileSync('supabase/functions/iberfit-webauthn-v1/index.ts','utf8');
   assert.match(edge,/@simplewebauthn\/server@13\.3\.3/u);
   assert.match(edge,/@supabase\/supabase-js@2\.112\.4/u);
-  assert.match(edge,/const RP_ID='m26-canary\.iberfit\.cl'/u);
-  assert.match(edge,/const ORIGIN='https:\/\/m26-canary\.iberfit\.cl'/u);
+  assert.match(edge,/const ORIGIN_RP_IDS=Object\.freeze\(\{/u);
+  for(const [origin,rpId] of Object.entries({
+    'https://m26-canary.iberfit.cl':'m26-canary.iberfit.cl',
+    'https://app.iberfit.cl':'app.iberfit.cl',
+    'https://coach.iberfit.cl':'coach.iberfit.cl',
+  }))assert.ok(edge.includes(`'${origin}':'${rpId}'`),`missing strict WebAuthn RP binding ${origin}`);
+  assert.match(edge,/const context=requestContext\(req\);/u);
+  assert.match(edge,/if\(!context\)return fail\(403,'M26_WEBAUTHN_ORIGIN_FORBIDDEN'\)/u);
   assert.match(edge,/userVerification:'required'/u);
   assert.equal((edge.match(/requireUserVerification:true/gu)||[]).length,2);
   assert.match(edge,/consumed_at:now/u);
