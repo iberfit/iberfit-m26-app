@@ -7,7 +7,7 @@ const render = await readFile(new URL('../src/m26/admin/route-render.js', import
 const state = await readFile(new URL('../src/m26/admin/admin-state.js', import.meta.url), 'utf8');
 
 test('ADMIN clients surface exposes real create-and-invite action', () => {
-  assert.match(render, /data-admin-form=\"client-create\"/);
+  assert.match(render, /form\('client-create'/);
   assert.match(render, /Crear cliente y enviar invitación/);
   assert.match(render, /name=\"email\"[^>]*required/);
   assert.match(render, /name=\"modality\"[^>]*required/);
