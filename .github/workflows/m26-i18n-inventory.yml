@@ -1,0 +1,87 @@
+name: IBERFIT M26 i18n inventory
+
+on:
+  push:
+    branches:
+      - feat/full-i18n
+    paths:
+      - '.github/workflows/m26-i18n-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/full-i18n
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Extract candidate UI literals
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const path=require('path');
+          const roots=['src/m26','public/m26'];
+          const exts=new Set(['.js','.mjs','.html']);
+          const skipDirs=new Set(['node_modules','dist','.git']);
+          const files=[];
+          function walk(dir){
+            if(!fs.existsSync(dir))return;
+            for(const ent of fs.readdirSync(dir,{withFileTypes:true})){
+              if(skipDirs.has(ent.name))continue;
+              const p=path.join(dir,ent.name);
+              if(ent.isDirectory())walk(p); else if(exts.has(path.extname(ent.name)))files.push(p);
+            }
+          }
+          roots.forEach(walk);
+          const exact=new Map();
+          const refs=[];
+          const quoted=/(?:'([^'\\]*(?:\\.[^'\\]*)*)'|"([^"\\]*(?:\\.[^"\\]*)*)"|`([^`\\]*(?:\\.[^`\\]*)*)`)/g;
+          const human=(s)=>{
+            const v=String(s||'').replace(/\\[nrt]/g,' ').replace(/\$\{[^}]*\}/g,'{…}').trim();
+            if(v.length<2||v.length>280)return false;
+            if(!/[A-Za-zÁÉÍÓÚÜÑáéíóúüñÀ-ÿ]/u.test(v))return false;
+            if(/^(?:https?:|\/|\.\/|\.\.\/|#|\.|--|data-|aria-|m26:|M26_|IBERFIT_[A-Z0-9_]+$)/u.test(v))return false;
+            if(/^[a-z0-9_.:/-]+$/u.test(v)&&!v.includes(' '))return false;
+            if(/[{}<>]=?|=>|function\b|return\b|const\b|let\b|var\b|SELECT\b|INSERT\b|UPDATE\b|DELETE\b/iu.test(v))return false;
+            if(!/[\sÁÉÍÓÚÜÑáéíóúüñÀ-ÿ¿¡,.!?;:()]/u.test(v))return false;
+            return true;
+          };
+          for(const file of files){
+            const lines=fs.readFileSync(file,'utf8').split(/\r?\n/);
+            lines.forEach((line,i)=>{
+              quoted.lastIndex=0; let m;
+              while((m=quoted.exec(line))){
+                const raw=m[1]??m[2]??m[3]??'';
+                const value=raw.replace(/\\'/g,"'").replace(/\\"/g,'"').replace(/\\`/g,'`');
+                if(!human(value))continue;
+                const normalized=value.replace(/\s+/g,' ').trim();
+                exact.set(normalized,(exact.get(normalized)||0)+1);
+                refs.push({text:normalized,file,line:i+1});
+              }
+            });
+          }
+          const strings=[...exact].sort((a,b)=>a[0].localeCompare(b[0],'es')).map(([text,count])=>({text,count}));
+          fs.writeFileSync('i18n-candidate-strings.json',JSON.stringify({generatedAt:new Date().toISOString(),count:strings.length,strings},null,2)+'\n');
+          fs.writeFileSync('i18n-candidate-references.json',JSON.stringify({count:refs.length,references:refs},null,2)+'\n');
+          const byFile=new Map(); for(const r of refs)byFile.set(r.file,(byFile.get(r.file)||0)+1);
+          fs.writeFileSync('i18n-candidate-files.txt',[...byFile].sort((a,b)=>b[1]-a[1]).map(([f,n])=>`${String(n).padStart(4)}  ${f}`).join('\n')+'\n');
+          console.log(`candidate_strings=${strings.length} references=${refs.length} files=${byFile.size}`);
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m26-i18n-inventory-${{ github.run_id }}
+          path: |
+            i18n-candidate-strings.json
+            i18n-candidate-references.json
+            i18n-candidate-files.txt
+          if-no-files-found: error
+          retention-days: 7
