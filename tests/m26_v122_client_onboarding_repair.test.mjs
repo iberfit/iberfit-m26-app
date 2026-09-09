@@ -56,7 +56,7 @@ test('controlador guarda mientras se escribe, recupera y elimina el borrador del
   assert.equal(CLIENT_ONBOARDING_LOCAL_ID,'pending-client');
   assert.equal(CLIENT_ONBOARDING_DRAFT_SCOPE,'client-onboarding-v12');
   assert.match(source,/function queueOnboardingSave/);
-  assert.match(source,/onboardingForm\)\{clearControlValidation\(event\.target\);clearStatus\(root,'client-onboarding'\);queueOnboardingSave\(onboardingForm\)/);
+  assert.match(source,/onboardingForm\)\{editedOnboardingForms\.add\(onboardingForm\);clearControlValidation\(event\.target\);clearStatus\(root,'client-onboarding'\);queueOnboardingSave\(onboardingForm\)/);
   assert.match(source,/syncOnboardingFormState\(onboardingForm\);queueOnboardingSave\(onboardingForm\)/);
   assert.match(source,/globalThis\.addEventListener\?\.\('pagehide',onPageHide\)/);
   assert.match(source,/initializeOnboardingForm/);
@@ -111,6 +111,7 @@ test('formularios críticos no quedan ocultos detrás de barras adhesivas',()=>{
   assert.match(css,/V12\.2 · Formularios críticos sin controles superpuestos/);
   assert.match(css,/\.m26-onboarding \.m26-sticky-actions,[\s\S]*\[data-workflow-form="iri"\] \.m26-wizard-actions\{position:static/);
 });
+
 test('recuperación asíncrona del alta no pisa datos que el coach ya está escribiendo',()=>{
   const source=read('src/m26/app/workflow-controller.js');
   assert.match(source,/const editedOnboardingForms=new WeakSet\(\)/);
