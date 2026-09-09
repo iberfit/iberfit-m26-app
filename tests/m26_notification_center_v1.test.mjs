@@ -50,6 +50,8 @@ test('deduplica avisos persistidos por destino y conserva el estado no leído',(
   assert.equal(center.items[0].count,2);
   assert.equal(center.items[0].unread,true);
   assert.deepEqual(new Set(center.items[0].sourceIds),new Set(['n-1','n-2']));
+  assert.deepEqual(center.items[0].unreadSourceIds,['n-2']);
+  assert.equal(center.items[0].sourceId,'n-2');
 });
 
 test('no expone title/body persistidos ni detalle sensible del Action Center',()=>{
