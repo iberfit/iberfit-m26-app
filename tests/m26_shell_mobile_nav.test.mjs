@@ -54,3 +54,10 @@ test('pulido móvil mantiene safe-area y objetivos táctiles en el shell',()=>{
   assert.match(html,/min-height: 3\.25rem; touch-action: manipulation/u);
   assert.match(html,/scroll-padding-bottom: calc\(5rem \+ env\(safe-area-inset-bottom\)\)/u);
 });
+
+test('sidebar marca el grupo activo y permanece utilizable en escritorio',()=>{
+  const vm=createShellViewModel(readyState('coach',{activeArea:'agenda'}));
+  const html=renderM26Shell(vm);
+  assert.match(html,/<section class="m26-nav-group is-active-group">[\s\S]*?data-m26-area="agenda" aria-current="page"[\s\S]*?<\/section>/u);
+  assert.match(html,/\.m26-sidebar \{ position: sticky; top: 0; height: 100dvh; max-height: 100dvh; overscroll-behavior: contain; \}/u);
+});
