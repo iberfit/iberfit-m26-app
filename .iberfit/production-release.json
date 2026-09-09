@@ -1,0 +1,8 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "promote": true,
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "sourceSha": "8a1a089c300c5ddb568b40f0fc24bff3f905679a",
+  "sourceBranch": "canary/rc74-4"
+}
