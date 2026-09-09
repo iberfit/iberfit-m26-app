@@ -34,7 +34,7 @@ function applyRules(value,language,translatePart){
   if((m=value.match(/^RPE ([\d.,]+) · esfuerzo percibido confirmado$/u)))return pick(language,`RPE ${m[1]} · confirmed perceived effort`,`RPE ${m[1]} · effort perçu confirmé`,`RPE ${m[1]} · esforço percebido confirmado`);
   if((m=value.match(/^(\d+) completadas sobre (\d+) registradas en el periodo$/u)))return pick(language,`${m[1]} completed out of ${m[2]} recorded in the period`,`${m[1]} terminées sur ${m[2]} enregistrées sur la période`,`${m[1]} concluídas de ${m[2]} registadas no período`);
   if((m=value.match(/^([\d.,]+) h\/día$/u)))return pick(language,`${m[1]} h/day`,`${m[1]} h/jour`,`${m[1]} h/dia`);
-  if((m=value.match(/^(\d+) conexión(?:es)? registrada(?:s)?$/u)))return pick(language,`${m[1]} registered connection${m[1]==='1'?'':'s'}`,`${m[1]} connexion${m[1]==='1'?'':'s'} enregistrée${m[1]==='1'?'':'s'}`,`${m[1]} ${m[1]==='1'?'ligação registada':'ligações registadas'}`);
+  if((m=value.match(/^(\d+) conexi(?:ón|ones) registrada(?:s)?$/u)))return pick(language,`${m[1]} registered connection${m[1]==='1'?'':'s'}`,`${m[1]} connexion${m[1]==='1'?'':'s'} enregistrée${m[1]==='1'?'':'s'}`,`${m[1]} ${m[1]==='1'?'ligação registada':'ligações registadas'}`);
   if((m=value.match(/^Calidad (.+?)(?: · (\d+) muestra(?:s)? excluida(?:s)? de métricas)?$/u))){
     const grade=m[1];
     if(!m[2])return pick(language,`Quality ${grade}`,`Qualité ${grade}`,`Qualidade ${grade}`);
@@ -70,7 +70,7 @@ function applyRules(value,language,translatePart){
     return pick(language,`Device context ${review} (${m[2]}, ${m[3]} day${m[3]==='1'?'':'s'}): ${tTerm(m[4],language,translatePart)}.${end}`,`Contexte des appareils ${review} (${m[2]}, ${m[3]} jour${m[3]==='1'?'':'s'}) : ${tTerm(m[4],language,translatePart)}.${end}`,`Contexto de dispositivos ${review} (${m[2]}, ${m[3]} dia${m[3]==='1'?'':'s'}): ${tTerm(m[4],language,translatePart)}.${end}`);
   }
   if((m=value.match(/^(\d+) registro(?:s)? pendiente(?:s)?\.$/u)))return pick(language,`${m[1]} pending record${m[1]==='1'?'':'s'}.`,`${m[1]} enregistrement${m[1]==='1'?'':'s'} en attente.`,`${m[1]} registo${m[1]==='1'?'':'s'} pendente${m[1]==='1'?'':'s'}.`);
-  if((m=value.match(/^(.+) sincronizado con (\d+) permiso(?:s)? de lectura\.$/u)))return pick(language,`${m[1]} synced with ${m[2]} read permission${m[2]==='1'?'':'s'}.`,`${m[1]} synchronisé avec ${m[2]} autorisation${m[2]==='1'?'':'s'} de lecture.`,`${m[1]} sincronizado com ${m[2]} permissão${m[2]==='1'?'':'ões'} de leitura.`);
+  if((m=value.match(/^(.+) sincronizado con (\d+) permiso(?:s)? de lectura\.$/u)))return pick(language,`${m[1]} synced with ${m[2]} read permission${m[2]==='1'?'':'s'}.`,`${m[1]} synchronisé avec ${m[2]} autorisation${m[2]==='1'?'':'s'} de lecture.`,`${m[1]} sincronizado com ${m[2]} ${m[2]==='1'?'permissão':'permissões'} de leitura.`);
   if((m=value.match(/^(.+) conectado\. No hay resúmenes disponibles en el periodo seleccionado\.$/u)))return pick(language,`${m[1]} connected. No summaries are available for the selected period.`,`${m[1]} connecté. Aucun résumé n’est disponible pour la période sélectionnée.`,`${m[1]} ligado. Não há resumos disponíveis no período selecionado.`);
   if((m=value.match(/^(.+) Código: ([A-Z0-9_:-]+)\.$/u))){
     const prefix=tTerm(m[1],language,translatePart);
