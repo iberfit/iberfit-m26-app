@@ -168,6 +168,7 @@ export function createWorkflowController({
   let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,onboardingSaveTimer=null,iriTimer=null;
   const initializedIriForms=new WeakSet();
   const initializedOnboardingForms=new WeakSet();
+  const editedOnboardingForms=new WeakSet();
   const initializedAppointmentForms=new WeakSet();
   const catalogSearch=createExerciseSearchIndex(catalog?.list?.()||[]);
   function updateLibrary(){const query=String(root.querySelector?.('[data-library-search]')?.value||'').trim();const {role}=context();const filters=libraryFilterState(root);const searched=catalogSearch.search(query,{limit:catalog?.count||367});const filtered=filterLibraryItems(searched,filters,mediaMap,role);const grid=root.querySelector?.('[data-library-grid]');if(grid)grid.innerHTML=libraryCards(filtered,mediaMap,role);const node=root.querySelector?.('[data-library-status]');if(node)node.textContent=`${filtered.length} ${filtered.length===1?'ejercicio visible':'ejercicios visibles'} con los filtros actuales.`;return filtered;}
@@ -333,7 +334,7 @@ export function createWorkflowController({
   }
   async function initializeOnboardingForm(form){
     if(!form||initializedOnboardingForms.has(form))return;initializedOnboardingForms.add(form);
-    try{const saved=await draftRepository?.load?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);if(saved?.value){populateForm(form,saved.value);status(root,'client-onboarding','Borrador del nuevo expediente recuperado desde este dispositivo.','success');}}
+    try{const saved=await draftRepository?.load?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);if(saved?.value&&!editedOnboardingForms.has(form)){populateForm(form,saved.value);status(root,'client-onboarding','Borrador del nuevo expediente recuperado desde este dispositivo.','success');}}
     catch{status(root,'client-onboarding','No fue posible recuperar el borrador del expediente.','error');}
     syncOnboardingFormState(form);
   }
@@ -478,12 +479,12 @@ export function createWorkflowController({
       }
       computed(iriForm);clearStatus(root,'iri');queueIriSave();return;
     }
-    const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){clearControlValidation(event.target);clearStatus(root,'client-onboarding');queueOnboardingSave(onboardingForm);return;}
+    const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');queueOnboardingSave(onboardingForm);return;}
     const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);return;}
     const clientSearch=event.target.closest?.('[data-client-search]');if(clientSearch){updateClientList(clientSearch.value);return;}
     const search=event.target.closest?.('[data-library-search]');if(search){updateLibrary();return;}
   }
-  function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;computed(iriForm);queueIriSave();}
+  function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;computed(iriForm);queueIriSave();}
 
   function onPageHide(){const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(form)void saveOnboardingDraft(form).catch(()=>{});}
   return Object.freeze({
