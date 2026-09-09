@@ -1,5 +1,5 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { GoogleGenAI } from 'npm:@google/genai';
+import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { GoogleGenAI } from 'npm:@google/genai@2.21.0';
 
 const SOURCE_URL='https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json';
 const CANONICAL_URL=Deno.env.get('IBERFIT_CANONICAL_CATALOG_URL')||'https://iberfitapp.iberfit-cl.workers.dev/exercise-catalog-m25.json';
