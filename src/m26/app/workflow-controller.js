@@ -5,6 +5,7 @@ import {applyAdaptiveContext} from '../intelligence/adaptive-context.js';
 import {generateSessionProposal} from '../intelligence/session-engine.js';
 import {createM26Id} from '../platform/id.js';
 import {createExerciseSearchIndex} from '../exercises/search.js';
+import {exerciseDisplayName} from '../exercises/names.js';
 import {normalizeAppointmentModality,normalizeClientModality} from '../domain/modality.js';
 import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
 import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
@@ -161,7 +162,7 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
 }
 
 export function createWorkflowController({
-  root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,
+  root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,renameExercise=null,refreshCatalog=async()=>catalog,
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
@@ -170,8 +171,89 @@ export function createWorkflowController({
   const initializedOnboardingForms=new WeakSet();
   const editedOnboardingForms=new WeakSet();
   const initializedAppointmentForms=new WeakSet();
-  const catalogSearch=createExerciseSearchIndex(catalog?.list?.()||[]);
+  let catalogSearch=createExerciseSearchIndex(catalog?.list?.()||[]);
   function updateLibrary(){const query=String(root.querySelector?.('[data-library-search]')?.value||'').trim();const {role}=context();const filters=libraryFilterState(root);const searched=catalogSearch.search(query,{limit:catalog?.count||367});const filtered=filterLibraryItems(searched,filters,mediaMap,role);const grid=root.querySelector?.('[data-library-grid]');if(grid)grid.innerHTML=libraryCards(filtered,mediaMap,role);const node=root.querySelector?.('[data-library-status]');if(node)node.textContent=`${filtered.length} ${filtered.length===1?'ejercicio visible':'ejercicios visibles'} con los filtros actuales.`;return filtered;}
+  async function renameLibraryExercise(form){
+    const {role}=context();
+    if(role!=='admin')throw new Error('M26_EXERCISE_RENAME_ADMIN_REQUIRED');
+    if(!isOnline())throw new Error('M26_EXERCISE_RENAME_OFFLINE');
+    if(typeof renameExercise!=='function')throw new Error('M26_EXERCISE_RENAME_UNAVAILABLE');
+
+    const exerciseId=String(form?.dataset?.exerciseId||'').trim();
+    const nameEs=String(form?.elements?.namedItem?.('nameEs')?.value||'')
+      .replace(/\s+/gu,' ')
+      .trim();
+    const expectedRevision=Number(form?.dataset?.expectedRevision||0);
+
+    if(!exerciseId||nameEs.length<2||nameEs.length>160){
+      throw new Error('M26_EXERCISE_RENAME_INVALID');
+    }
+
+    const button=form.querySelector?.('button[type="submit"]');
+    const node=form.querySelector?.('[data-exercise-rename-status]');
+    const wasDisabled=Boolean(button?.disabled);
+
+    if(button){
+      button.disabled=true;
+      button.setAttribute?.('aria-busy','true');
+    }
+
+    if(node){
+      node.textContent='Validando nombre y generando traducciones…';
+      node.dataset.status='pending';
+    }
+
+    try{
+      const result=await renameExercise({
+        exerciseId,
+        nameEs,
+        expectedRevision,
+      });
+
+      const refreshed=await refreshCatalog();
+
+      if(refreshed?.list){
+        catalog=refreshed;
+        catalogSearch=createExerciseSearchIndex(catalog.list());
+      }
+
+      updateLibrary();
+
+      if(node){
+        node.textContent='Nombre actualizado globalmente. Traducciones automáticas listas.';
+        node.dataset.status='success';
+      }
+
+      emit(root,'m26:exercise-renamed',{
+        exerciseId,
+        revision:result?.revision||null,
+        translationStatus:'ready',
+      });
+
+      onRender();
+      return result;
+    }catch(error){
+      if(node){
+        const code=String(error?.message||error||'');
+        node.textContent=/REVISION_CONFLICT/.test(code)
+          ?'El ejercicio cambió desde que abriste la ficha. Recarga la biblioteca antes de volver a guardar.'
+          :friendlyError(error);
+        node.dataset.status='error';
+      }
+
+      emit(root,'m26:workflow-error',{
+        action:'rename-exercise',
+        code:String(error?.message||error),
+      });
+
+      return null;
+    }finally{
+      if(button){
+        button.disabled=wasDisabled;
+        button.removeAttribute?.('aria-busy');
+      }
+    }
+  }
   function updateClientList(queryOverride=null){
     const clock=()=>globalThis.performance?.now?.()??Date.now();
     const started=clock();
@@ -441,7 +523,7 @@ export function createWorkflowController({
     if(evidence.iriAvailable)contextBits.push('IRI disponible');
     const contextLabel=contextBits.length?contextBits.join(' · '):'Contexto histórico limitado: revisar manualmente.';
     const preview=root.querySelector?.('[data-intelligence-preview]');
-    if(preview)preview.innerHTML=`${coachQuestion?`<section class="m26-intelligence-brief"><p class="m26-eyebrow">Criterio del entrenador</p><p>${escape(coachQuestion)}</p></section>`:''}${contextWarnings.length?`<section class="m26-notice is-warning"><strong>Contexto incompleto</strong><p>${escape(contextWarnings.join(' '))}</p></section>`:''}<section class="m26-notice is-${proposal.requiresManualReview?'warning':'success'}"><strong>${escape(proposal.exercises.length)} ejercicios propuestos</strong><p>${escape(proposal.estimatedMinutes)} min · ${escape(proposal.structure.type)} · revisión del entrenador obligatoria.</p></section><div class="m26-stack">${proposal.exercises.map((item)=>`<article class="m26-list-card"><div><h3>${escape(item.name)}</h3><p>${escape(item.sets)} series · ${escape(item.reps)} · RPE ${escape(item.targetRpe)}${item.previousLoad!==null&&item.previousLoad!==undefined?` · última carga ${escape(item.previousLoad)} kg`:''}</p><small>${escape(item.loadInstruction||'Carga a revisar por el entrenador')}</small></div></article>`).join('')}</div>`;
+    if(preview)preview.innerHTML=`${coachQuestion?`<section class="m26-intelligence-brief"><p class="m26-eyebrow">Criterio del entrenador</p><p>${escape(coachQuestion)}</p></section>`:''}${contextWarnings.length?`<section class="m26-notice is-warning"><strong>Contexto incompleto</strong><p>${escape(contextWarnings.join(' '))}</p></section>`:''}<section class="m26-notice is-${proposal.requiresManualReview?'warning':'success'}"><strong>${escape(proposal.exercises.length)} ejercicios propuestos</strong><p>${escape(proposal.estimatedMinutes)} min · ${escape(proposal.structure.type)} · revisión del entrenador obligatoria.</p></section><div class="m26-stack">${proposal.exercises.map((item)=>`<article class="m26-list-card"><div><h3>${escape(exerciseDisplayName(catalog.get(item.exerciseId)||item))}</h3><p>${escape(item.sets)} series · ${escape(item.reps)} · RPE ${escape(item.targetRpe)}${item.previousLoad!==null&&item.previousLoad!==undefined?` · última carga ${escape(item.previousLoad)} kg`:''}</p><small>${escape(item.loadInstruction||'Carga a revisar por el entrenador')}</small></div></article>`).join('')}</div>`;
     status(root,'intelligence',proposal.requiresManualReview||contextWarnings.length?'Propuesta conservadora: requiere revisión manual.':'Propuesta lista para revisión.',proposal.requiresManualReview||contextWarnings.length?'pending':'success');
     emit(root,'m26:intelligence-proposal',{proposal});
     return proposal;
@@ -469,7 +551,7 @@ export function createWorkflowController({
     const form=button.closest?.('form');if(form&&button.type==='submit')return;
     event.preventDefault?.();await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);
   }
-  async function onSubmit(event){const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
+  async function onSubmit(event){const renameForm=event.target.closest?.('[data-exercise-rename-form]');if(renameForm){event.preventDefault?.();await renameLibraryExercise(renameForm);return;}const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
   function onInput(event){
     const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(iriForm){
       if(event.target?.name==='stepHeightCm'&&event.target.dataset)event.target.dataset.userEdited='true';

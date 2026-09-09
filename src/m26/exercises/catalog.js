@@ -1,4 +1,5 @@
 import {localiseExerciseForDisplay} from './castellano.js';
+import {exerciseSearchNames} from './names.js';
 const CATALOG_FETCH_TIMEOUT_MS=5_000;
 const TRUSTED_EXERCISE_MEDIA_ORIGINS=new Set(['https://pjhmrhejsoofmouedavw.supabase.co','https://gjztkdwfmunnzhtvxrsu.supabase.co']);
 const DYNAMIC_PUBLIC_CATALOG_RPC='iberfit_exercise_catalog_public_v1';
@@ -6,13 +7,26 @@ const DYNAMIC_PAGE_SIZE=200;
 const DYNAMIC_MAX_ROWS=5_000;
 function norm(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
 function stringList(value){return Object.freeze((Array.isArray(value)?value:[]).map((item)=>String(item||'').trim()).filter(Boolean));}
-function freezeExercise(raw){raw=localiseExerciseForDisplay(raw);const id=String(raw?.id||'').trim(),name=String(raw?.name_es||'').trim();if(!id||!name)return null;return Object.freeze({...raw,id,name_es:name,pattern:String(raw.pattern||'').trim(),equipment:String(raw.equipment||'').trim(),difficulty:String(raw.difficulty||'').trim(),intent:String(raw.intent||'').trim(),primary_muscles:stringList(raw.primary_muscles),secondary_muscles:stringList(raw.secondary_muscles),cues:stringList(raw.cues),instructions_es:stringList(raw.instructions_es),precautions:stringList(raw.precautions),tags:stringList(raw.tags),aliases:stringList(raw.aliases)});}
+function nameTranslations(value){
+  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  const output={};
+  for(const language of ['en','fr','pt']){
+    const name=String(source?.[language]||'')
+      .replace(/[\u0000-\u001f\u007f]/gu,' ')
+      .replace(/\s+/gu,' ')
+      .trim()
+      .slice(0,160);
+    if(name)output[language]=name;
+  }
+  return Object.freeze(output);
+}
+function freezeExercise(raw){raw=localiseExerciseForDisplay(raw);const id=String(raw?.id||'').trim(),name=String(raw?.name_es||'').trim();if(!id||!name)return null;return Object.freeze({...raw,id,name_es:name,name_translations:nameTranslations(raw?.name_translations),pattern:String(raw.pattern||'').trim(),equipment:String(raw.equipment||'').trim(),difficulty:String(raw.difficulty||'').trim(),intent:String(raw.intent||'').trim(),primary_muscles:stringList(raw.primary_muscles),secondary_muscles:stringList(raw.secondary_muscles),cues:stringList(raw.cues),instructions_es:stringList(raw.instructions_es),precautions:stringList(raw.precautions),tags:stringList(raw.tags),aliases:stringList(raw.aliases)});}
 export function createExerciseCatalog(records=[]){
  if(!Array.isArray(records))throw new Error('M26_EXERCISE_CATALOG_INVALID');const map=new Map();
  for(const raw of records){const ex=freezeExercise(raw);if(!ex)continue;if(map.has(ex.id))throw new Error(`M26_EXERCISE_DUPLICATE:${ex.id}`);map.set(ex.id,ex);}
  const list=Object.freeze([...map.values()]);
  const facets=Object.freeze({patterns:Object.freeze([...new Set(list.map(x=>x.pattern).filter(Boolean))].sort()),equipment:Object.freeze([...new Set(list.map(x=>x.equipment).filter(Boolean))].sort()),difficulty:Object.freeze([...new Set(list.map(x=>x.difficulty).filter(Boolean))].sort()),intent:Object.freeze([...new Set(list.map(x=>x.intent).filter(Boolean))].sort())});
- function search(query='',filters={}){const q=norm(query);return list.filter(ex=>{const hay=norm([ex.name_es,ex.pattern,ex.intent,ex.equipment,ex.difficulty,...ex.primary_muscles,...ex.secondary_muscles,...ex.tags,...ex.aliases].join(' '));if(q&&!hay.includes(q))return false;for(const [key,value] of Object.entries(filters||{})){if(value==null||value===''||(Array.isArray(value)&&!value.length))continue;const expected=Array.isArray(value)?value:[value];const actual=Array.isArray(ex[key])?ex[key].join(' '):ex[key];if(!expected.some(v=>norm(actual).includes(norm(v))))return false;}return true;});}
+ function search(query='',filters={}){const q=norm(query);return list.filter(ex=>{const hay=norm([...exerciseSearchNames(ex),ex.pattern,ex.intent,ex.equipment,ex.difficulty,...ex.primary_muscles,...ex.secondary_muscles,...ex.tags,...ex.aliases].join(' '));if(q&&!hay.includes(q))return false;for(const [key,value] of Object.entries(filters||{})){if(value==null||value===''||(Array.isArray(value)&&!value.length))continue;const expected=Array.isArray(value)?value:[value];const actual=Array.isArray(ex[key])?ex[key].join(' '):ex[key];if(!expected.some(v=>norm(actual).includes(norm(v))))return false;}return true;});}
  return Object.freeze({count:list.length,list:()=>list,get:id=>map.get(String(id))||null,has:id=>map.has(String(id)),search,facets});
 }
 export function mergeExerciseCatalogRecords(baseCatalog,remoteRows=[],{mediaOrigin=''}={}){

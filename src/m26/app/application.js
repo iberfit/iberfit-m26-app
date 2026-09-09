@@ -225,8 +225,9 @@ export async function createM26Application({root=document.querySelector('#app'),
     const currentUserId=session.user.id;refreshInFlight=transport.refresh(session.refreshToken).then((next)=>{if(next.user.id!==currentUserId)throw new Error('M26_REFRESH_IDENTITY_MISMATCH');session=next;vault.save(session);return session;}).finally(()=>{refreshInFlight=null;});
     return refreshInFlight;
   }
-  async function fetchCatalog(){
+  async function fetchCatalog({force=false}={}){
     qaStage('rc64-catalog-start');
+    if(force)catalog=null;
     if(!catalog)catalog=await loadExerciseCatalog('/baseline_m25_2/exercise-catalog-m25.json');
     qaStage('rc64-catalog-base-ready');
     if(!mediaMap){
@@ -524,7 +525,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       }),
     });
     mediaExperience=createExerciseVideoExperienceController({root});
-    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,getRegistry:()=>runtimeRegistry.registry,onRender:render,getIriExternalReport:(assessmentId)=>iriExternalReports.clientReportForPdf(assessmentId),createClientDraft:async(payload)=>{await refreshSessionIfNeeded();await transport.clientOnboardingPreflight(currentToken());const result=await transport.createClientDraft(currentToken(),payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(currentToken())});await hydrate({reason:'client-created'});return verified;}});
+    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,renameExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.renameExercise(currentToken(),payload);},refreshCatalog:()=>fetchCatalog({force:true}),getRegistry:()=>runtimeRegistry.registry,onRender:render,getIriExternalReport:(assessmentId)=>iriExternalReports.clientReportForPdf(assessmentId),createClientDraft:async(payload)=>{await refreshSessionIfNeeded();await transport.clientOnboardingPreflight(currentToken());const result=await transport.createClientDraft(currentToken(),payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(currentToken())});await hydrate({reason:'client-created'});return verified;}});
     engagement=createEngagementController({root,store,draftRepository,service,refreshState:({reason}={})=>hydrate({reason:reason||'engagement-refresh'})});wearables=createWearableController({root,store,ownerId,transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:({reason}={})=>hydrate({reason:reason||'wearables-refresh'}),isOnline:()=>navigator.onLine!==false});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
     communication=createCommunicationController({root,store,service:communicationService,render});
