@@ -1,5 +1,6 @@
 import {getIberfitLanguage} from './i18n.js';
 import {iberfitDynamicSurfaceTranslate} from './i18n-surface-dynamic.js';
+import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
@@ -297,9 +298,13 @@ export function iberfitSurfaceTranslate(value,{language=getIberfitLanguage()}={}
   const leading=source.match(/^\s*/u)?.[0]||'';
   const trailing=source.match(/\s*$/u)?.[0]||'';
   const core=source.slice(leading.length,source.length-trailing.length);
-  const composed=translateComposable(core,lang);
+  const exactOrExtra=iberfitExtraSurfaceTranslate(core,{language:lang});
+  const composed=exactOrExtra!==core?exactOrExtra:translateComposable(core,lang);
   const translated=composed===core
-    ?iberfitDynamicSurfaceTranslate(core,{language:lang,translatePart:(part)=>translateComposable(part,lang)})
+    ?iberfitDynamicSurfaceTranslate(core,{language:lang,translatePart:(part)=>{
+      const extraPart=iberfitExtraSurfaceTranslate(part,{language:lang});
+      return extraPart!==part?extraPart:translateComposable(part,lang);
+    }})
     :composed;
   return `${leading}${translated}${trailing}`;
 }
