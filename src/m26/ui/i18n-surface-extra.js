@@ -8,6 +8,7 @@ import {ONBOARDING_CLIENT_SURFACE_ROWS} from './i18n-surface-onboarding-client.j
 import {ADMIN_SURFACE_ROWS} from './i18n-surface-admin.js';
 import {WEARABLE_SURFACE_ROWS} from './i18n-surface-wearables.js';
 import {WORKSPACE_SURFACE_ROWS} from './i18n-surface-workspace.js';
+import {FINAL_RESIDUAL_SURFACE_ROWS} from './i18n-surface-final-residual.js';
 
 export const IBERFIT_EXTRA_SURFACE_ROWS=Object.freeze([
   ...ROUTE_SURFACE_ROWS_A,
@@ -20,6 +21,7 @@ export const IBERFIT_EXTRA_SURFACE_ROWS=Object.freeze([
   ...ADMIN_SURFACE_ROWS,
   ...WEARABLE_SURFACE_ROWS,
   ...WORKSPACE_SURFACE_ROWS,
+  ...FINAL_RESIDUAL_SURFACE_ROWS,
 ]);
 
 const LANGUAGE_INDEX=Object.freeze({en:1,fr:2,pt:3});
