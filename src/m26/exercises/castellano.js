@@ -212,7 +212,7 @@ export function castilianExerciseEquipment(value){
 export function localiseExerciseForDisplay(raw={}){
   const originalName=String(raw?.name_es||'').trim();
   const originalEquipment=String(raw?.equipment||'').trim();
-  const translatedName=castilianExerciseName(originalName);
+  const translatedName=raw?.name_admin_override===true?originalName:castilianExerciseName(originalName);
   const translatedEquipment=castilianExerciseEquipment(originalEquipment);
   const aliases=[...(Array.isArray(raw?.aliases)?raw.aliases:[])];
   if(originalName&&originalName!==translatedName&&!aliases.includes(originalName))aliases.push(originalName);

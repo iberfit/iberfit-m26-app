@@ -1,5 +1,6 @@
 import {resolveExerciseMedia,resolveExerciseMediaExperience,resolveExerciseMediaMetadata,REPDB_MEDIA_ATTRIBUTION} from './exercise-media.js';
 import {renderNativeExerciseVideo,renderExerciseTechnicalGuidance} from './exercise-video-player.js';
+import {exerciseDisplayName,exerciseSearchNames} from '../exercises/names.js';
 
 function e(value){
   return String(value??'')
@@ -76,7 +77,7 @@ export function renderExerciseMedia({
 }={}){
   const media=resolveExerciseMedia(manifest,exerciseId,{role});
   const experience=resolveExerciseMediaExperience(manifest,exerciseId,{role});
-  const name=exercise?.name_es||exercise?.name||'Ejercicio';
+  const name=exerciseDisplayName(exercise);
 
   if(!media&&!experience){
     if(!fallback)return '';
@@ -115,7 +116,7 @@ export function renderExerciseMedia({
 
 export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
   const searchText=[
-    item.name_es,item.pattern,item.equipment,item.difficulty,item.intent,
+    ...exerciseSearchNames(item),item.pattern,item.equipment,item.difficulty,item.intent,
     ...(item.primary_muscles||[]),
     ...(item.secondary_muscles||[]),
     ...(item.tags||[]),
@@ -144,7 +145,26 @@ export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
   ].filter(Boolean).join('');
   const detail=`<details class="m26-library-details"><summary><span>Protocolo y detalles</span><span class="m26-library-details-action" aria-hidden="true"></span></summary><div class="m26-library-details-panel"><div class="m26-library-facts">${facts}</div><p><strong>Músculos principales:</strong> ${e(primary)}</p>${secondary?`<p><strong>Músculos secundarios:</strong> ${e(secondary)}</p>`:''}${instructions.length?`<h4>Ejecución</h4><ol>${instructions.map((line)=>`<li>${e(line)}</li>`).join('')}</ol>`:'<p class="m26-notice is-warning">Este ejercicio necesita un protocolo de ejecución más detallado antes de utilizarse con clientes.</p>'}${precautions.length?`<p><strong>Precauciones:</strong> ${e(precautions.join(' · '))}</p>`:'<p><strong>Precauciones:</strong> Detener ante dolor, mareo o pérdida de control técnico.</p>'}</div></details>`;
 
-  return `<article class="m26-library-card" data-library-text="${e(searchText)}" data-exercise-id="${e(item.id)}">${media}<div class="m26-library-copy"><h3>${e(item.name_es||'Ejercicio')}</h3><p>${e(item.pattern||'Patrón por definir')} · ${e(item.equipment||'Sin material')}</p><small>${e(primary)}</small>${detail}</div></article>`;
+  const adminRename=role==='admin'
+    ?`<details class="m26-library-details m26-library-admin-edit">
+        <summary><span>Editar nombre global</span><span class="m26-library-details-action" aria-hidden="true"></span></summary>
+        <div class="m26-library-details-panel">
+          <form data-exercise-rename-form data-exercise-id="${e(item.id)}" data-expected-revision="${e(item.revision||0)}">
+            <label>
+              Nombre canónico en español
+              <input name="nameEs" value="${e(item.name_es||'')}" minlength="2" maxlength="160" autocomplete="off" required>
+            </label>
+            <p class="m26-data-footnote">El ID del ejercicio permanece estable. IBERFIT actualizará el nombre global y generará automáticamente inglés, francés y portugués antes de confirmar el cambio.</p>
+            <div class="m26-inline-actions">
+              <button type="submit" class="m26-primary-action">Guardar nombre global</button>
+            </div>
+            <p class="m26-data-footnote" data-exercise-rename-status role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </details>`
+    :'';
+
+  return `<article class="m26-library-card" data-library-text="${e(searchText)}" data-exercise-id="${e(item.id)}">${media}<div class="m26-library-copy"><h3>${e(exerciseDisplayName(item))}</h3><p>${e(item.pattern||'Patrón por definir')} · ${e(item.equipment||'Sin material')}</p><small>${e(primary)}</small>${detail}${adminRename}</div></article>`;
 }
 
 export function renderExerciseLibraryGroups(items=[],manifest,{role='coach'}={}){

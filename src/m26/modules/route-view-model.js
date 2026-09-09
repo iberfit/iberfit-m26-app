@@ -34,6 +34,7 @@ import {
 } from '../domain/civil-date.js';
 import { deriveAgeYears } from '../workflows/iri-profile.js';
 import {getIberfitLanguage,iberfitLanguageOptions,iberfitLocaleOptions,iberfitPlannedLanguages} from '../ui/i18n.js';
+import {exerciseDisplayName} from '../exercises/names.js';
 import {readIberfitExperiencePreferences,socialPolicyFromPreferences,notificationConsentFromPreferences} from '../ui/preferences.js';
 import {
   publicationSummary,
@@ -464,12 +465,7 @@ if (area === 'clientes') {
       [...exerciseCatalog.entries()]
         .map(([exerciseId,item])=>[
           exerciseId,
-          String(
-            item.name_es||
-            item.name||
-            item.nombre||
-            '',
-          ).trim(),
+          exerciseDisplayName(item,getIberfitLanguage()),
         ]),
     );
 
