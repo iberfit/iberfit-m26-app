@@ -59,7 +59,7 @@ function safeAction(role,areaValue,entityIdValue,label='Abrir'){
   return Object.freeze({
     type:role==='coach'&&contextual?'coach-client':'area',
     area,
-    entityId:contextual?entityId:null,
+    entityId:role==='coach'&&contextual?entityId:null,
     label:text(label,100)||'Abrir',
   });
 }
@@ -116,6 +116,7 @@ function persistentItem(notification,role,index){
     unread:!readAt,
     count:1,
     sourceIds:Object.freeze([id]),
+    unreadSourceIds:Object.freeze(readAt?[]:[id]),
   });
 }
 
@@ -153,6 +154,7 @@ function cockpitItem(item,role,index){
     unread:false,
     count:1,
     sourceIds:Object.freeze([]),
+    unreadSourceIds:Object.freeze([]),
   });
 }
 
@@ -169,6 +171,10 @@ function mergeItems(current,next){
   const nextRank=PRIORITY_RANK[next.priority]??99;
   const primary=nextRank<currentRank?next:current;
   const sourceIds=[...new Set([...current.sourceIds,...next.sourceIds])];
+  const unreadSourceIds=[...new Set([
+    ...list(current.unreadSourceIds),
+    ...list(next.unreadSourceIds),
+  ])];
   const unread=current.unread||next.unread;
   const readAt=unread?null:(newerDate(current.readAt,next.readAt)||null);
   return Object.freeze({
@@ -183,7 +189,8 @@ function mergeItems(current,next){
     unread,
     count:current.count+next.count,
     sourceIds:Object.freeze(sourceIds),
-    sourceId:sourceIds.find(Boolean)||null,
+    unreadSourceIds:Object.freeze(unreadSourceIds),
+    sourceId:unreadSourceIds[0]||sourceIds.find(Boolean)||null,
   });
 }
 
