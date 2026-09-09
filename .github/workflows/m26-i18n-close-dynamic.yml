@@ -1,0 +1,65 @@
+name: IBERFIT M26 i18n close dynamic
+
+on:
+  push:
+    branches:
+      - feat/full-i18n
+    paths:
+      - '.github/workflows/m26-i18n-close-dynamic.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/full-i18n
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Add final deterministic dynamic rules
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          p=Path('src/m26/ui/i18n-surface-dynamic.js')
+          s=p.read_text(encoding='utf-8')
+          marker="  // FINAL_I18N_DYNAMIC_FAMILIES\n"
+          if marker not in s:
+              anchor="  return value;\n}\n\nexport function iberfitDynamicSurfaceTranslate"
+              if anchor not in s: raise SystemExit('M26_I18N_DYNAMIC_ANCHOR_MISSING')
+              block="""  // FINAL_I18N_DYNAMIC_FAMILIES
+  if((m=value.match(/^(\\d+) sesiones\\/semana$/u)))return pick(language,`${m[1]} sessions/week`,`${m[1]} séances/semaine`,`${m[1]} sessões/semana`);
+  if((m=value.match(/^(\\d+) sesiones por semana$/u)))return pick(language,`${m[1]} sessions per week`,`${m[1]} séances par semaine`,`${m[1]} sessões por semana`);
+  if((m=value.match(/^Abrir seguimiento de (.+)$/u)))return pick(language,`Open follow-up for ${m[1]}`,`Ouvrir le suivi de ${m[1]}`,`Abrir acompanhamento de ${m[1]}`);
+  if((m=value.match(/^(\\d+) clientes$/u)))return pick(language,`${m[1]} clients`,`${m[1]} clients`,`${m[1]} clientes`);
+  if((m=value.match(/^([\\d.,]+) de ([\\d.,]+) h · (\\d+) clientes$/u)))return pick(language,`${m[1]} of ${m[2]} h · ${m[3]} clients`,`${m[1]} sur ${m[2]} h · ${m[3]} clients`,`${m[1]} de ${m[2]} h · ${m[3]} clientes`);
+  if((m=value.match(/^([\\d.,]+)% de carga$/u)))return pick(language,`${m[1]}% workload`,`${m[1]} % de charge`,`${m[1]}% de carga`);
+  if((m=value.match(/^(\\d+) de (\\d+) series resueltas · (.+)$/u)))return pick(language,`${m[1]} of ${m[2]} sets resolved · ${tTerm(m[3],language,translatePart)}`,`${m[1]} séries résolues sur ${m[2]} · ${tTerm(m[3],language,translatePart)}`,`${m[1]} de ${m[2]} séries resolvidas · ${tTerm(m[3],language,translatePart)}`);
+  if((m=value.match(/^(\\d+) de (\\d+) series$/u)))return pick(language,`${m[1]} of ${m[2]} sets`,`${m[1]} séries sur ${m[2]}`,`${m[1]} de ${m[2]} séries`);
+  if((m=value.match(/^Importación local disponible\\. (.+)$/u)))return pick(language,`Local import available. ${m[1]}`,`Import local disponible. ${m[1]}`,`Importação local disponível. ${m[1]}`);
+"""
+              s=s.replace(anchor,block+"  return value;\n}\n\nexport function iberfitDynamicSurfaceTranslate",1)
+              p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify final i18n contracts and regression
+        run: |
+          node --check src/m26/ui/i18n-surface-dynamic.js
+          node --check src/m26/ui/i18n-surface-extra.js
+          node --test tests/m26_full_surface_i18n.test.mjs tests/m26_full_surface_dynamic_i18n.test.mjs tests/m26_i18n_route_surface_catalogue.test.mjs tests/m26_admin_coach_workspace_i18n.test.mjs
+          npm run test:m26:product
+          npm run test:m26:rc74-4
+      - name: Commit functional patch and remove workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/m26-i18n-close-dynamic.yml || true
+          git add src/m26/ui/i18n-surface-dynamic.js tests/m26_full_surface_dynamic_i18n.test.mjs
+          git commit -m 'feat(i18n): close final dynamic surface patterns'
+          git push origin HEAD:feat/full-i18n
