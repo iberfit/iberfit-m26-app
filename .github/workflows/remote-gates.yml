@@ -63,6 +63,7 @@ jobs:
       - name: Preparar Playwright RC64.2B
         run: |
           npm ci
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
           npx playwright install --with-deps chromium
 
       - name: Validar Canary desplegado en navegador real
