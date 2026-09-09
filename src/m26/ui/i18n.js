@@ -256,3 +256,16 @@ export function iberfitTranslate(key,{language=getIberfitLanguage(),fallback=nul
   return fallback??String(key||'');
 }
 // RC74_4_I18N_WORKSPACE_V2_END
+
+// M26_FULL_SURFACE_I18N_BEGIN
+if(typeof document!=='undefined'){
+  queueMicrotask(()=>{
+    import('./i18n-surface.js')
+      .then(({installIberfitSurfaceI18n})=>{
+        const root=document.querySelector?.('#app');
+        if(root)installIberfitSurfaceI18n(root);
+      })
+      .catch((error)=>{try{console.error('[IBERFIT:i18n-surface]',error?.message||error);}catch{}});
+  });
+}
+// M26_FULL_SURFACE_I18N_END

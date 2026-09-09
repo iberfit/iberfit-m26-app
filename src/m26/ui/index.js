@@ -7,3 +7,4 @@ export * from '../design/role-surfaces.js';
 
 export * from './castellano.js';
 export * from './i18n-shell.js';
+export * from './i18n-surface.js';
