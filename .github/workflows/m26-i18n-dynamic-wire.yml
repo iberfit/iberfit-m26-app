@@ -22,11 +22,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Wire dynamic surface translator
+      - name: Fix and wire dynamic surface translator
         shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
+          dynamic=Path('src/m26/ui/i18n-surface-dynamic.js')
+          d=dynamic.read_text(encoding='utf-8')
+          d=d.replace("/^(\\d+) conexión(?:es)? registrada(?:s)?$/u","/^(\\d+) conexi(?:ón|ones) registrada(?:s)?$/u")
+          d=d.replace("`${m[1]} sincronizado com ${m[2]} permissão${m[2]==='1'?'':'ões'} de leitura.`","`${m[1]} sincronizado com ${m[2]} ${m[2]==='1'?'permissão':'permissões'} de leitura.`")
+          dynamic.write_text(d,encoding='utf-8')
+
           p=Path('src/m26/ui/i18n-surface.js')
           s=p.read_text(encoding='utf-8')
           imp="import {iberfitDynamicSurfaceTranslate} from './i18n-surface-dynamic.js';\n"
