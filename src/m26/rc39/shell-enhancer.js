@@ -21,6 +21,20 @@ const MOBILE_SHELL_POLISH=`
   .m26-main :is(input,textarea,select,[contenteditable="true"]) { scroll-margin-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
   .m26-shell:has(.m26-main :is(input,textarea,select,[contenteditable="true"]):focus) .m26-mobile-nav { transform: translateY(calc(100% + env(safe-area-inset-bottom))); opacity: 0; pointer-events: none; }
 }
+@media (max-width: 580px) {
+  .m26-topbar { gap: .65rem; padding: .75rem; }
+  .m26-topbar > div:first-child { min-width: 0; }
+  .m26-topbar h1 { font-size: clamp(1.35rem, 7vw, 1.75rem); line-height: 1.08; overflow-wrap: anywhere; }
+  .m26-topbar-actions { width: 100%; display: grid; grid-template-columns: minmax(0,1fr) auto auto auto; gap: .45rem; align-items: center; justify-content: stretch; }
+  .m26-topbar-actions .m26-client-selector, .m26-topbar-actions .m26-client-context { grid-column: 1 / -1; order: -2; width: 100%; max-width: none; min-width: 0; }
+  .m26-topbar-actions .m26-coach-command-launcher { grid-column: 1; width: 100%; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; }
+  .m26-topbar-actions .m26-coach-command-launcher > span { overflow: hidden; text-overflow: ellipsis; }
+  .m26-topbar-actions .m26-coach-command-launcher kbd { display: none; }
+  .m26-topbar-actions .m26-settings-menu, .m26-topbar-actions .m26-role-switcher, .m26-topbar-actions [data-m26-action="logout"] { margin: 0; min-width: 0; }
+  .m26-topbar-actions [data-m26-action="logout"] { white-space: nowrap; padding-inline: .65rem; font-size: .82rem; }
+  .m26-shell[data-m26-role="client"] .m26-topbar-actions { grid-template-columns: minmax(0,1fr) auto auto; }
+  .m26-shell[data-m26-role="client"] .m26-topbar-actions .m26-settings-menu { justify-self: end; }
+}
 @media (prefers-reduced-motion: reduce) {
   .m26-mobile-nav { transition: none; }
 }
