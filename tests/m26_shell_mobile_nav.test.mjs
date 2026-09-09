@@ -56,6 +56,15 @@ test('pulido móvil mantiene safe-area y objetivos táctiles en el shell',()=>{
   assert.match(html,/scroll-padding-bottom: calc\(5rem \+ env\(safe-area-inset-bottom\)\)/u);
 });
 
+test('Más abierto funciona como sheet móvil descartable por toque exterior',()=>{
+  const vm=createShellViewModel(readyState('client'));
+  const html=renderM26Shell(vm);
+  assert.match(html,/\.m26-mobile-more\[open\] > summary \{ position: fixed; inset: 0; z-index: 999;/u);
+  assert.match(html,/background: rgba\(2,10,7,\.58\); box-shadow: none; font-size: 0; cursor: pointer; backdrop-filter: blur\(2px\);/u);
+  assert.match(html,/\.m26-mobile-more\[open\] \.m26-mobile-more-menu \{ max-height: calc\(100dvh - 5\.75rem - max\(1rem, env\(safe-area-inset-top\)\)\);/u);
+  assert.match(html,/-webkit-overflow-scrolling: touch; scrollbar-gutter: stable;/u);
+});
+
 test('formularios móviles no quedan tapados por la navegación inferior',()=>{
   const vm=createShellViewModel(readyState('client'));
   const html=renderM26Shell(vm);
