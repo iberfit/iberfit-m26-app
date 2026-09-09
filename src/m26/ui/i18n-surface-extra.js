@@ -3,6 +3,7 @@ import {ROUTE_SURFACE_ROWS_B} from './i18n-surface-route-b.js';
 import {ROUTE_SURFACE_ROWS_C} from './i18n-surface-route-c.js';
 import {ROUTE_SURFACE_ROWS_D} from './i18n-surface-route-d.js';
 import {ROUTE_SURFACE_ROWS_E} from './i18n-surface-route-e.js';
+import {SESSION_SURFACE_ROWS} from './i18n-surface-session.js';
 
 export const IBERFIT_EXTRA_SURFACE_ROWS=Object.freeze([
   ...ROUTE_SURFACE_ROWS_A,
@@ -10,6 +11,7 @@ export const IBERFIT_EXTRA_SURFACE_ROWS=Object.freeze([
   ...ROUTE_SURFACE_ROWS_C,
   ...ROUTE_SURFACE_ROWS_D,
   ...ROUTE_SURFACE_ROWS_E,
+  ...SESSION_SURFACE_ROWS,
 ]);
 
 const LANGUAGE_INDEX=Object.freeze({en:1,fr:2,pt:3});
