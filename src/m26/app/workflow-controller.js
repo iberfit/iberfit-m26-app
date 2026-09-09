@@ -81,6 +81,9 @@ function clientName(record){const body=recordBody(record);return String(record?.
 function friendlyError(error){
   if(error?.userMessage)return String(error.userMessage);
   const code=String(error?.message||error||'');
+  if(/EXERCISE_NAME_DUPLICATE/.test(code))return 'Ya existe un ejercicio activo con ese nombre. Usa el existente o elige un nombre que lo diferencie.';
+  if(/EXERCISE_CREATE_NOT_VISIBLE/.test(code))return 'El ejercicio se creó, pero aún no apareció en el catálogo actualizado. No lo crees de nuevo hasta completar la verificación.';
+  if(/CUSTOM_EXERCISE_INVALID|CUSTOM_EXERCISE_LIST_INVALID/.test(code))return 'Revisa los datos del ejercicio personalizado antes de guardarlo.';
   if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
   if(/CLIENT_CREATE_CANARY_ONLY/.test(code))return 'La creación de clientes está limitada al entorno canary.';
   if(/CLIENT_ONBOARDING_BACKEND_REQUIRED/.test(code))return 'La actualización segura del alta todavía no está instalada en el backend. El borrador permanece guardado y no se ha creado ningún expediente.';
@@ -162,7 +165,7 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
 }
 
 export function createWorkflowController({
-  root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,renameExercise=null,refreshCatalog=async()=>catalog,
+  root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,createCustomExercise=null,renameExercise=null,refreshCatalog=async()=>catalog,
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
@@ -173,6 +176,69 @@ export function createWorkflowController({
   const initializedAppointmentForms=new WeakSet();
   let catalogSearch=createExerciseSearchIndex(catalog?.list?.()||[]);
   function updateLibrary(){const query=String(root.querySelector?.('[data-library-search]')?.value||'').trim();const {role}=context();const filters=libraryFilterState(root);const searched=catalogSearch.search(query,{limit:catalog?.count||367});const filtered=filterLibraryItems(searched,filters,mediaMap,role);const grid=root.querySelector?.('[data-library-grid]');if(grid)grid.innerHTML=libraryCards(filtered,mediaMap,role);const node=root.querySelector?.('[data-library-status]');if(node)node.textContent=`${filtered.length} ${filtered.length===1?'ejercicio visible':'ejercicios visibles'} con los filtros actuales.`;return filtered;}
+  async function createLibraryExercise(form){
+    const {role}=context();
+    if(!['coach','admin'].includes(role))throw new Error('M26_CUSTOM_EXERCISE_ROLE_REQUIRED');
+    if(!isOnline())throw new Error('M26_CUSTOM_EXERCISE_OFFLINE');
+    if(typeof createCustomExercise!=='function')throw new Error('M26_CUSTOM_EXERCISE_UNAVAILABLE');
+
+    ensureValidForm(form,{code:'M26_CUSTOM_EXERCISE_FORM_INVALID',summary:'Completa los datos obligatorios del ejercicio'});
+    const raw=values(form);
+    const clean=(value,max)=>String(value??'').replace(/\s+/gu,' ').trim().slice(0,max);
+    const list=(value,maxItems,maxLength)=>{
+      const out=[];const seen=new Set();
+      for(const item of String(value??'').split(/[\n,;]+/u)){
+        const text=clean(item,maxLength);if(!text)continue;
+        const key=foldSearch(text);if(seen.has(key))continue;
+        seen.add(key);out.push(text);
+      }
+      return out.slice(0,maxItems);
+    };
+    const payload={
+      nameEs:clean(raw.nameEs,160),
+      pattern:clean(raw.pattern,80),
+      intent:clean(raw.intent,80),
+      equipment:clean(raw.equipment,80),
+      difficulty:clean(raw.difficulty,40),
+      primaryMuscles:list(raw.primaryMuscles,12,80),
+      secondaryMuscles:list(raw.secondaryMuscles,12,80),
+      cues:list(raw.cues,12,240),
+      instructionsEs:list(raw.instructionsEs,20,240),
+      precautions:list(raw.precautions,12,240),
+    };
+    if([payload.nameEs,payload.pattern,payload.intent,payload.equipment,payload.difficulty].some((value)=>value.length<2))throw new Error('M26_CUSTOM_EXERCISE_INVALID');
+
+    const button=form.querySelector?.('button[type="submit"]');
+    const initialStatus=form.querySelector?.('[data-exercise-create-status]');
+    const wasDisabled=Boolean(button?.disabled);
+    if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
+    if(initialStatus){initialStatus.textContent='Creando ejercicio y actualizando el catálogo…';initialStatus.dataset.status='pending';}
+
+    try{
+      const result=await createCustomExercise(payload);
+      const refreshed=await refreshCatalog();
+      if(refreshed?.list){catalog=refreshed;catalogSearch=createExerciseSearchIndex(catalog.list());}
+      if(!catalog?.has?.(result.exerciseId))throw new Error('M26_EXERCISE_CREATE_NOT_VISIBLE');
+
+      onRender();
+      const search=root.querySelector?.('[data-library-search]');
+      if(search)search.value=String(result.nameEs||payload.nameEs);
+      for(const node of root.querySelectorAll?.('[data-library-filter]')||[])node.value='';
+      updateLibrary();
+      const successStatus=root.querySelector?.('[data-exercise-create-status]');
+      if(successStatus){successStatus.textContent='Ejercicio creado y disponible en el catálogo y en el constructor de sesiones.';successStatus.dataset.status='success';}
+      emit(root,'m26:exercise-created',{exerciseId:result.exerciseId,revision:result.revision||1,reviewStatus:'pendiente'});
+      return result;
+    }catch(error){
+      const node=root.querySelector?.('[data-exercise-create-status]')||initialStatus;
+      if(node){node.textContent=friendlyError(error);node.dataset.status='error';}
+      emit(root,'m26:workflow-error',{action:'create-custom-exercise',code:String(error?.message||error)});
+      throw error;
+    }finally{
+      if(button){button.disabled=wasDisabled;button.removeAttribute?.('aria-busy');}
+    }
+  }
+
   async function renameLibraryExercise(form){
     const {role}=context();
     if(role!=='admin')throw new Error('M26_EXERCISE_RENAME_ADMIN_REQUIRED');
@@ -551,7 +617,7 @@ export function createWorkflowController({
     const form=button.closest?.('form');if(form&&button.type==='submit')return;
     event.preventDefault?.();await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);
   }
-  async function onSubmit(event){const renameForm=event.target.closest?.('[data-exercise-rename-form]');if(renameForm){event.preventDefault?.();await renameLibraryExercise(renameForm);return;}const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
+  async function onSubmit(event){const createForm=event.target.closest?.('[data-exercise-create-form]');if(createForm){event.preventDefault?.();await createLibraryExercise(createForm);return;}const renameForm=event.target.closest?.('[data-exercise-rename-form]');if(renameForm){event.preventDefault?.();await renameLibraryExercise(renameForm);return;}const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
   function onInput(event){
     const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(iriForm){
       if(event.target?.name==='stepHeightCm'&&event.target.dataset)event.target.dataset.userEdited='true';
