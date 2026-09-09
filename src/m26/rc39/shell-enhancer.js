@@ -113,6 +113,14 @@ export function coachCommandItems(vm,query=''){
   const filtered=needle
     ? items.filter((item)=>normalizeCommandText(`${item.label} ${item.detail}`).includes(needle))
     : items;
+  if(!needle&&vm.canChangeClient){
+    const clients=filtered.filter((item)=>item.type==='client');
+    if(clients.length){
+      const clientLimit=Math.min(clients.length,Math.max(1,Math.floor(COACH_COMMAND_LIMIT/3)));
+      const areas=filtered.filter((item)=>item.type!=='client').slice(0,COACH_COMMAND_LIMIT-clientLimit);
+      return Object.freeze([...areas,...clients.slice(0,clientLimit)]);
+    }
+  }
   return Object.freeze(filtered.slice(0,COACH_COMMAND_LIMIT));
 }
 
