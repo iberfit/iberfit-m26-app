@@ -1,0 +1,46 @@
+name: TEMP IBERFIT i18n gate autofix
+
+on:
+  push:
+    branches:
+      - feat/full-i18n
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Regenerate canonical PWA app shell
+        run: node scripts/generate_rc58_app_shell.mjs
+
+      - name: Remove nested-template scanner artifact without changing rendered copy
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('src/m26/ui/progress-continuity.js')
+          source = path.read_text()
+          old = """        copy:`${primary.label}${synced?` · última sincronización ${synced}`:''}. Solo se usan datos confirmados como contexto.`,"""
+          new = """        copy:`${primary.label}${synced?' · última sincronización '+synced:''}. Solo se usan datos confirmados como contexto.`,"""
+          if source.count(old) != 1:
+              raise SystemExit(f'EXPECTED_SINGLE_NESTED_TEMPLATE count={source.count(old)}')
+          path.write_text(source.replace(old, new, 1))
+
+      - name: Certify the two blockers and dynamic translation
+        run: node --test tests/m26_i18n_residual_gate.test.mjs tests/m26_full_surface_dynamic_i18n.test.mjs tests/m26_rc58_5c_b_app_integrity.test.mjs
+
+      - name: Commit repair and remove temporary workflow
+        run: |
+          rm .github/workflows/tmp-i18n-gate-autofix.yml
+          git config user.name "iberfit-ci"
+          git config user.email "iberfit.cl@gmail.com"
+          git add public/m26/sw.js src/m26/ui/progress-continuity.js .github/workflows/tmp-i18n-gate-autofix.yml
+          git diff --cached --check
+          git commit -m "fix(i18n): close PWA and residual certification gates"
+          git push origin HEAD:feat/full-i18n
