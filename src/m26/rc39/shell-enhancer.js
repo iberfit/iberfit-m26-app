@@ -8,6 +8,11 @@ const escape=(value)=>String(value??'')
 const MOBILE_SHELL_POLISH=`
 .m26-mobile-more.is-active > summary { color: var(--m26-cream-100); border-color: rgba(228,205,152,.24); background: linear-gradient(135deg, rgba(200,166,93,.19), rgba(200,166,93,.07)); box-shadow: inset 0 -2px 0 rgba(214,182,109,.5); }
 .m26-mobile-more-menu .m26-nav-item.is-disabled { opacity: .38; cursor: not-allowed; }
+.m26-nav-group.is-active-group > h2 { color: rgba(228,205,152,.9); }
+@media (min-width: 901px) {
+  .m26-sidebar { position: sticky; top: 0; height: 100dvh; max-height: 100dvh; overscroll-behavior: contain; }
+  .m26-nav-group.is-active-group { position: relative; }
+}
 @media (max-width: 900px) {
   .m26-mobile-nav { padding-bottom: max(.55rem, env(safe-area-inset-bottom)); }
   .m26-mobile-nav .m26-nav-item, .m26-mobile-more > summary { min-height: 3.25rem; touch-action: manipulation; }
@@ -50,11 +55,8 @@ function enhanceMobileNavigationMarkup(markup,vm){
   if(!overflow.length||!out.includes('class="m26-mobile-more"'))return out;
   if(overflow.some((item)=>item.key===vm.activeArea)){
     out=out.replace(
-      '<details class="m26-mobile-more">',
-      '<details class="m26-mobile-more is-active" data-m26-more-active="true"><summary-replacement-placeholder>'
-    ).replace(
-      '<summary-replacement-placeholder><summary>',
-      '<summary aria-current="page">'
+      '<details class="m26-mobile-more"><summary>',
+      '<details class="m26-mobile-more is-active" data-m26-more-active="true"><summary aria-current="page">'
     );
   }
   if(vm.identity?.role==='coach'&&!vm.selectedClient){
@@ -67,6 +69,14 @@ function enhanceMobileNavigationMarkup(markup,vm){
   return out;
 }
 
+function markActiveNavigationGroup(markup){
+  return String(markup||'').replace(/<section class="m26-nav-group">[\s\S]*?<\/section>/gu,(section)=>
+    section.includes('aria-current="page"')
+      ? section.replace('<section class="m26-nav-group">','<section class="m26-nav-group is-active-group">')
+      : section
+  );
+}
+
 export function enhanceRc39ShellMarkup(markup,vm){
   if(vm?.mode!=='authenticated')return markup;
   let out=String(markup||'');
@@ -74,6 +84,7 @@ export function enhanceRc39ShellMarkup(markup,vm){
     out=enhanceCoachLaunchSelfMarkup(out,vm);
   }
   out=enhanceMobileNavigationMarkup(out,vm);
+  out=markActiveNavigationGroup(out);
   if(out.includes('<style data-m26-workspace-v2>')){
     out=out.replace('</style>',`${MOBILE_SHELL_POLISH}</style>`);
   }
