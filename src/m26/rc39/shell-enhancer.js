@@ -5,10 +5,10 @@ const escape=(value)=>String(value??'')
   .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
   .replaceAll('"','&quot;').replaceAll("'",'&#039;');
 
-const MOBILE_OVERFLOW_BOUND_DOCUMENTS=new WeakSet();
+const SHELL_DISCLOSURE_SELECTOR='.m26-mobile-more[open],.m26-settings-menu[open],.m26-role-switcher[open]';
+const SHELL_DISCLOSURE_BOUND_DOCUMENTS=new WeakSet();
 
-export function dismissOpenMobileOverflow(documentLike,{restoreFocus=true}={}){
-  const details=documentLike?.querySelector?.('.m26-mobile-more[open]');
+function closeDetailsDisclosure(details,{restoreFocus=true}={}){
   if(!details)return false;
   details.removeAttribute?.('open');
   if(restoreFocus){
@@ -19,14 +19,38 @@ export function dismissOpenMobileOverflow(documentLike,{restoreFocus=true}={}){
   return true;
 }
 
-export function bindMobileOverflowEscapeSupport(documentLike=globalThis.document){
-  if(!documentLike?.addEventListener||MOBILE_OVERFLOW_BOUND_DOCUMENTS.has(documentLike))return false;
+export function dismissOpenMobileOverflow(documentLike,{restoreFocus=true}={}){
+  return closeDetailsDisclosure(
+    documentLike?.querySelector?.('.m26-mobile-more[open]'),
+    {restoreFocus},
+  );
+}
+
+export function dismissOpenShellDisclosure(documentLike,{restoreFocus=true}={}){
+  return closeDetailsDisclosure(
+    documentLike?.querySelector?.(SHELL_DISCLOSURE_SELECTOR),
+    {restoreFocus},
+  );
+}
+
+export function bindShellDisclosureDismissSupport(documentLike=globalThis.document){
+  if(!documentLike?.addEventListener||SHELL_DISCLOSURE_BOUND_DOCUMENTS.has(documentLike))return false;
   documentLike.addEventListener('keydown',(event)=>{
     if(event?.key!=='Escape')return;
-    if(dismissOpenMobileOverflow(documentLike))event.preventDefault?.();
+    if(dismissOpenShellDisclosure(documentLike))event.preventDefault?.();
   });
-  MOBILE_OVERFLOW_BOUND_DOCUMENTS.add(documentLike);
+  documentLike.addEventListener('click',(event)=>{
+    const details=documentLike?.querySelector?.(SHELL_DISCLOSURE_SELECTOR);
+    if(!details)return;
+    if(typeof details.contains==='function'&&details.contains(event?.target))return;
+    closeDetailsDisclosure(details,{restoreFocus:false});
+  });
+  SHELL_DISCLOSURE_BOUND_DOCUMENTS.add(documentLike);
   return true;
+}
+
+export function bindMobileOverflowEscapeSupport(documentLike=globalThis.document){
+  return bindShellDisclosureDismissSupport(documentLike);
 }
 
 const MOBILE_SHELL_POLISH=`
@@ -125,7 +149,7 @@ function markActiveNavigationGroup(markup){
 
 export function enhanceRc39ShellMarkup(markup,vm){
   if(vm?.mode!=='authenticated')return markup;
-  bindMobileOverflowEscapeSupport();
+  bindShellDisclosureDismissSupport();
   let out=String(markup||'');
   if(vm.identity?.role==='coach'&&vm.activeArea==='hoy'&&vm.coachLaunchJourney){
     out=enhanceCoachLaunchSelfMarkup(out,vm);
