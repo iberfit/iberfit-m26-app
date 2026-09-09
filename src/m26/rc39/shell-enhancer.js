@@ -7,14 +7,20 @@ const escape=(value)=>String(value??'')
 
 const SHELL_DISCLOSURE_SELECTOR='.m26-mobile-more[open],.m26-settings-menu[open],.m26-role-switcher[open]';
 const SHELL_DISCLOSURE_BOUND_DOCUMENTS=new WeakSet();
+const COACH_COMMAND_BOUND_DOCUMENTS=new WeakSet();
+const COACH_COMMAND_CONTEXTS=new WeakMap();
+const COACH_COMMAND_LIMIT=12;
+
+function queueFocus(callback){
+  if(typeof globalThis.queueMicrotask==='function')globalThis.queueMicrotask(callback);
+  else callback();
+}
 
 function closeDetailsDisclosure(details,{restoreFocus=true}={}){
   if(!details)return false;
   details.removeAttribute?.('open');
   if(restoreFocus){
-    const restore=()=>details.querySelector?.('summary')?.focus?.({preventScroll:true});
-    if(typeof globalThis.queueMicrotask==='function')globalThis.queueMicrotask(restore);
-    else restore();
+    queueFocus(()=>details.querySelector?.('summary')?.focus?.({preventScroll:true}));
   }
   return true;
 }
@@ -51,6 +57,249 @@ export function bindShellDisclosureDismissSupport(documentLike=globalThis.docume
 
 export function bindMobileOverflowEscapeSupport(documentLike=globalThis.document){
   return bindShellDisclosureDismissSupport(documentLike);
+}
+
+function normalizeCommandText(value){
+  return String(value||'')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/gu,'')
+    .toLowerCase()
+    .trim();
+}
+
+function commandScopeLabel(item,vm){
+  const scope=String(item?.scope||'global');
+  if(scope==='global')return 'Sección';
+  const client=vm?.selectedClient?.name;
+  return client?`Cliente · ${client}`:'Requiere cliente activo';
+}
+
+function commandRouteDisabled(item,vm){
+  if(String(vm?.identity?.role||'')!=='coach')return false;
+  return !vm?.selectedClient&&['selected-client','client-context'].includes(String(item?.scope||''));
+}
+
+export function coachCommandItems(vm,query=''){
+  if(vm?.mode!=='authenticated'||!['coach','admin'].includes(String(vm?.identity?.role||'')))return Object.freeze([]);
+  const navigation=vm.navigation||{};
+  const seen=new Set();
+  const items=[];
+  for(const item of [...(navigation.primary||[]),...(navigation.context||[]),...(navigation.tools||[])]){
+    if(!item?.key||seen.has(item.key))continue;
+    seen.add(item.key);
+    items.push(Object.freeze({
+      type:'area',
+      key:`area:${item.key}`,
+      area:item.key,
+      label:item.label||item.title||item.key,
+      detail:commandScopeLabel(item,vm),
+      disabled:commandRouteDisabled(item,vm),
+    }));
+  }
+  if(vm.canChangeClient){
+    for(const client of vm.clientOptions||[]){
+      if(!client?.id)continue;
+      items.push(Object.freeze({
+        type:'client',
+        key:`client:${client.id}`,
+        clientId:client.id,
+        label:client.name||'Cliente',
+        detail:['Cliente',client.modality].filter(Boolean).join(' · '),
+        disabled:false,
+      }));
+    }
+  }
+  const needle=normalizeCommandText(query);
+  const filtered=needle
+    ? items.filter((item)=>normalizeCommandText(`${item.label} ${item.detail}`).includes(needle))
+    : items;
+  return Object.freeze(filtered.slice(0,COACH_COMMAND_LIMIT));
+}
+
+function editableCommandTarget(target){
+  const tag=String(target?.tagName||'').toLowerCase();
+  if(['input','textarea','select'].includes(tag)||target?.isContentEditable)return true;
+  return Boolean(target?.closest?.('input,textarea,select,[contenteditable="true"]'));
+}
+
+export function shouldOpenCoachCommandShortcut(event){
+  const key=String(event?.key||'').toLowerCase();
+  return key==='k'
+    &&Boolean(event?.ctrlKey||event?.metaKey)
+    &&!event?.altKey
+    &&!event?.shiftKey
+    &&!editableCommandTarget(event?.target);
+}
+
+function commandElements(documentLike){
+  return {
+    launcher:documentLike?.querySelector?.('[data-coach-command-open]')||null,
+    palette:documentLike?.querySelector?.('[data-coach-command-palette]')||null,
+    search:documentLike?.querySelector?.('[data-coach-command-search]')||null,
+    status:documentLike?.querySelector?.('[data-coach-command-status]')||null,
+    results:documentLike?.querySelector?.('[data-coach-command-results]')||null,
+  };
+}
+
+function createCommandResult(documentLike,item){
+  const button=documentLike?.createElement?.('button');
+  if(!button)return null;
+  button.type='button';
+  button.className='m26-coach-command-result';
+  button.dataset.coachCommandResult='true';
+  button.dataset.coachCommandKey=item.key;
+  if(item.type==='area')button.dataset.m26Area=item.area;
+  if(item.type==='client')button.dataset.m26SelectClient=item.clientId;
+  if(item.disabled){
+    button.disabled=true;
+    button.setAttribute?.('aria-disabled','true');
+  }
+  const label=documentLike.createElement('span');
+  label.textContent=item.label;
+  const detail=documentLike.createElement('small');
+  detail.textContent=item.detail;
+  button.append?.(label,detail);
+  return button;
+}
+
+export function renderCoachCommandResults(documentLike=globalThis.document,query=''){
+  const vm=COACH_COMMAND_CONTEXTS.get(documentLike);
+  const {results,status}=commandElements(documentLike);
+  if(!vm||!results)return Object.freeze([]);
+  const items=coachCommandItems(vm,query);
+  const nodes=items.map((item)=>createCommandResult(documentLike,item)).filter(Boolean);
+  if(!nodes.length&&documentLike?.createElement){
+    const empty=documentLike.createElement('div');
+    empty.className='m26-coach-command-empty';
+    empty.textContent='No hay resultados disponibles.';
+    nodes.push(empty);
+  }
+  results.replaceChildren?.(...nodes);
+  if(status){
+    status.textContent=items.length
+      ? `${items.length} ${items.length===1?'resultado disponible':'resultados disponibles'}`
+      : 'Sin resultados';
+  }
+  return items;
+}
+
+export function openCoachCommandPalette(documentLike=globalThis.document){
+  const vm=COACH_COMMAND_CONTEXTS.get(documentLike);
+  const {launcher,palette,search}=commandElements(documentLike);
+  if(!vm||!launcher||!palette||!search)return false;
+  dismissOpenShellDisclosure(documentLike,{restoreFocus:false});
+  palette.hidden=false;
+  launcher.setAttribute?.('aria-expanded','true');
+  search.value='';
+  renderCoachCommandResults(documentLike,'');
+  queueFocus(()=>search.focus?.({preventScroll:true}));
+  return true;
+}
+
+export function closeCoachCommandPalette(documentLike=globalThis.document,{restoreFocus=true}={}){
+  const {launcher,palette}=commandElements(documentLike);
+  if(!palette||palette.hidden)return false;
+  palette.hidden=true;
+  launcher?.setAttribute?.('aria-expanded','false');
+  if(restoreFocus&&launcher)queueFocus(()=>launcher.focus?.({preventScroll:true}));
+  return true;
+}
+
+function openCommandResultButtons(palette){
+  return [...(palette?.querySelectorAll?.('[data-coach-command-result]:not([disabled])')||[])];
+}
+
+function focusCommandResult(documentLike,direction){
+  const {palette,search}=commandElements(documentLike);
+  if(!palette||palette.hidden)return false;
+  const buttons=openCommandResultButtons(palette);
+  if(!buttons.length)return false;
+  const active=documentLike?.activeElement;
+  const index=buttons.indexOf(active);
+  const next=direction>0
+    ? (index<0?0:(index+1)%buttons.length)
+    : (index<0?buttons.length-1:(index-1+buttons.length)%buttons.length);
+  buttons[next]?.focus?.({preventScroll:true});
+  if(active===search&&direction<0)buttons[buttons.length-1]?.focus?.({preventScroll:true});
+  return true;
+}
+
+function trapCoachCommandTab(documentLike,event){
+  const {palette}=commandElements(documentLike);
+  if(!palette||palette.hidden)return false;
+  const focusables=[...(palette.querySelectorAll?.('[data-coach-command-close],[data-coach-command-search],[data-coach-command-result]:not([disabled])')||[])];
+  if(!focusables.length)return false;
+  const active=documentLike?.activeElement;
+  const first=focusables[0];
+  const last=focusables[focusables.length-1];
+  if(event?.shiftKey&&active===first){event.preventDefault?.();last.focus?.({preventScroll:true});return true;}
+  if(!event?.shiftKey&&active===last){event.preventDefault?.();first.focus?.({preventScroll:true});return true;}
+  return false;
+}
+
+export function bindCoachCommandPaletteSupport(documentLike=globalThis.document,vm=null){
+  if(!documentLike?.addEventListener)return false;
+  if(vm)COACH_COMMAND_CONTEXTS.set(documentLike,vm);
+  if(COACH_COMMAND_BOUND_DOCUMENTS.has(documentLike))return false;
+  documentLike.addEventListener('click',(event)=>{
+    const launcher=event?.target?.closest?.('[data-coach-command-open]');
+    if(launcher){
+      event.preventDefault?.();
+      openCoachCommandPalette(documentLike);
+      return;
+    }
+    const close=event?.target?.closest?.('[data-coach-command-close]');
+    if(close){
+      event.preventDefault?.();
+      closeCoachCommandPalette(documentLike);
+      return;
+    }
+    const result=event?.target?.closest?.('[data-coach-command-result]');
+    if(result){
+      closeCoachCommandPalette(documentLike,{restoreFocus:false});
+      return;
+    }
+    const {palette}=commandElements(documentLike);
+    if(palette&&!palette.hidden&&event?.target===palette){
+      closeCoachCommandPalette(documentLike);
+    }
+  });
+  documentLike.addEventListener('input',(event)=>{
+    const search=event?.target?.closest?.('[data-coach-command-search]');
+    if(search)renderCoachCommandResults(documentLike,search.value);
+  });
+  documentLike.addEventListener('keydown',(event)=>{
+    const {palette,search}=commandElements(documentLike);
+    const isOpen=Boolean(palette&&!palette.hidden);
+    if(isOpen&&event?.key==='Escape'){
+      event.preventDefault?.();
+      closeCoachCommandPalette(documentLike);
+      return;
+    }
+    if(isOpen&&event?.key==='ArrowDown'){
+      if(focusCommandResult(documentLike,1))event.preventDefault?.();
+      return;
+    }
+    if(isOpen&&event?.key==='ArrowUp'){
+      if(focusCommandResult(documentLike,-1))event.preventDefault?.();
+      return;
+    }
+    if(isOpen&&event?.key==='Enter'&&event?.target===search){
+      const first=openCommandResultButtons(palette)[0];
+      if(first){event.preventDefault?.();first.click?.();}
+      return;
+    }
+    if(isOpen&&event?.key==='Tab'){
+      trapCoachCommandTab(documentLike,event);
+      return;
+    }
+    if(shouldOpenCoachCommandShortcut(event)){
+      event.preventDefault?.();
+      openCoachCommandPalette(documentLike);
+    }
+  });
+  COACH_COMMAND_BOUND_DOCUMENTS.add(documentLike);
+  return true;
 }
 
 const MOBILE_SHELL_POLISH=`
@@ -147,14 +396,29 @@ function markActiveNavigationGroup(markup){
   );
 }
 
+function enhanceCoachCommandMarkup(markup){
+  let out=String(markup||'');
+  out=out.replace(
+    'data-coach-command-open aria-haspopup="dialog"',
+    'data-coach-command-open aria-haspopup="dialog" aria-controls="m26-coach-command-palette" aria-expanded="false"'
+  );
+  out=out.replace(
+    '<section class="m26-coach-command-backdrop" data-coach-command-palette role="dialog"',
+    '<section id="m26-coach-command-palette" class="m26-coach-command-backdrop" data-coach-command-palette role="dialog"'
+  );
+  return out;
+}
+
 export function enhanceRc39ShellMarkup(markup,vm){
   if(vm?.mode!=='authenticated')return markup;
   bindShellDisclosureDismissSupport();
+  bindCoachCommandPaletteSupport(globalThis.document,vm);
   let out=String(markup||'');
   if(vm.identity?.role==='coach'&&vm.activeArea==='hoy'&&vm.coachLaunchJourney){
     out=enhanceCoachLaunchSelfMarkup(out,vm);
   }
   out=enhanceMobileNavigationMarkup(out,vm);
+  out=enhanceCoachCommandMarkup(out);
   out=markActiveNavigationGroup(out);
   if(out.includes('<style data-m26-workspace-v2>')){
     out=out.replace('</style>',`${MOBILE_SHELL_POLISH}</style>`);
