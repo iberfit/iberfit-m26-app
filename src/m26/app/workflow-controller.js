@@ -82,7 +82,7 @@ function friendlyError(error){
   if(error?.userMessage)return String(error.userMessage);
   const code=String(error?.message||error||'');
   if(/EXERCISE_NAME_DUPLICATE/.test(code))return 'Ya existe un ejercicio activo con ese nombre. Usa el existente o elige un nombre que lo diferencie.';
-  if(/EXERCISE_CREATE_NOT_VISIBLE/.test(code))return 'El ejercicio se creÃ³, pero aÃºn no apareciÃ³ en el catÃ¡logo actualizado. No lo crees de nuevo hasta completar la verificaciÃ³n.';
+  if(/EXERCISE_CREATE_NOT_VISIBLE/.test(code))return 'El ejercicio se creó, pero aún no apareció en el catálogo actualizado. No lo crees de nuevo hasta completar la verificación.';
   if(/CUSTOM_EXERCISE_INVALID|CUSTOM_EXERCISE_LIST_INVALID/.test(code))return 'Revisa los datos del ejercicio personalizado antes de guardarlo.';
   if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
   if(/CLIENT_CREATE_CANARY_ONLY/.test(code))return 'La creación de clientes está limitada al entorno canary.';
@@ -212,7 +212,7 @@ export function createWorkflowController({
     const initialStatus=form.querySelector?.('[data-exercise-create-status]');
     const wasDisabled=Boolean(button?.disabled);
     if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
-    if(initialStatus){initialStatus.textContent='Creando ejercicio y actualizando el catÃ¡logoâ€¦';initialStatus.dataset.status='pending';}
+    if(initialStatus){initialStatus.textContent='Creando ejercicio y actualizando el catálogo…';initialStatus.dataset.status='pending';}
 
     try{
       const result=await createCustomExercise(payload);
@@ -226,7 +226,7 @@ export function createWorkflowController({
       for(const node of root.querySelectorAll?.('[data-library-filter]')||[])node.value='';
       updateLibrary();
       const successStatus=root.querySelector?.('[data-exercise-create-status]');
-      if(successStatus){successStatus.textContent='Ejercicio creado y disponible en el catÃ¡logo y en el constructor de sesiones.';successStatus.dataset.status='success';}
+      if(successStatus){successStatus.textContent='Ejercicio creado y disponible en el catálogo y en el constructor de sesiones.';successStatus.dataset.status='success';}
       emit(root,'m26:exercise-created',{exerciseId:result.exerciseId,revision:result.revision||1,reviewStatus:'pendiente'});
       return result;
     }catch(error){
