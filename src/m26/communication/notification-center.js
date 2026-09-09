@@ -64,6 +64,7 @@ function safeAction(role,areaValue,entityIdValue,label='Abrir'){
   });
 }
 
+// Preview copy stays generic; detailed client context remains behind role-safe actions.
 function safePersistentTitle(action){
   const area=action?.area||'';
   const labels={
