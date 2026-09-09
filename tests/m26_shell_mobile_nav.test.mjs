@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createProductionState} from '../src/m26/production-state.js';
 import {createShellViewModel} from '../src/m26/shell/shell-view-model.js';
 import {renderM26Shell} from '../src/m26/shell/shell-render.js';
+import {bindMobileOverflowEscapeSupport,dismissOpenMobileOverflow} from '../src/m26/rc39/shell-enhancer.js';
 
 const clientId='57339e70-7a99-48d6-820f-7d4a51f89d9d';
 
@@ -63,6 +64,43 @@ test('Más abierto funciona como sheet móvil descartable por toque exterior',()
   assert.match(html,/background: rgba\(2,10,7,\.58\); box-shadow: none; font-size: 0; cursor: pointer; backdrop-filter: blur\(2px\);/u);
   assert.match(html,/\.m26-mobile-more\[open\] \.m26-mobile-more-menu \{ max-height: calc\(100dvh - 5\.75rem - max\(1rem, env\(safe-area-inset-top\)\)\);/u);
   assert.match(html,/-webkit-overflow-scrolling: touch; scrollbar-gutter: stable;/u);
+});
+
+test('Escape cierra Más, evita el evento y restaura foco sin duplicar listeners',async()=>{
+  let open=true;
+  let focused=false;
+  let keydown=null;
+  let listenerCount=0;
+  const summary={focus(options){focused=options?.preventScroll===true;}};
+  const details={
+    removeAttribute(name){if(name==='open')open=false;},
+    querySelector(selector){return selector==='summary'?summary:null;},
+  };
+  const documentLike={
+    addEventListener(type,listener){
+      if(type==='keydown'){
+        listenerCount+=1;
+        keydown=listener;
+      }
+    },
+    querySelector(selector){return selector==='.m26-mobile-more[open]'&&open?details:null;},
+  };
+
+  assert.equal(bindMobileOverflowEscapeSupport(documentLike),true);
+  assert.equal(bindMobileOverflowEscapeSupport(documentLike),false);
+  assert.equal(listenerCount,1);
+
+  let prevented=false;
+  keydown({key:'Enter',preventDefault(){prevented=true;}});
+  assert.equal(open,true);
+  assert.equal(prevented,false);
+
+  keydown({key:'Escape',preventDefault(){prevented=true;}});
+  assert.equal(open,false);
+  assert.equal(prevented,true);
+  await Promise.resolve();
+  assert.equal(focused,true);
+  assert.equal(dismissOpenMobileOverflow(documentLike),false);
 });
 
 test('formularios móviles no quedan tapados por la navegación inferior',()=>{
