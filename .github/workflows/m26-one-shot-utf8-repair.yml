@@ -1,0 +1,70 @@
+name: IBERFIT one-shot UTF-8 repair
+
+on:
+  push:
+    branches:
+      - feat/coach-custom-exercises
+    paths:
+      - '.github/workflows/m26-one-shot-utf8-repair.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: m26-one-shot-utf8-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: feat/coach-custom-exercises
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Repair only mojibake signatures
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const files = [
+            'src/m26/app/workflow-controller.js',
+            'src/m26/modules/route-render.js',
+          ];
+          const replacements = [
+            ['\u00c3\u00a1','á'],['\u00c3\u00a9','é'],['\u00c3\u00ad','í'],['\u00c3\u00b3','ó'],['\u00c3\u00ba','ú'],['\u00c3\u00b1','ñ'],['\u00c3\u0081','Á'],['\u00c3\u0089','É'],['\u00c3\u008d','Í'],['\u00c3\u0093','Ó'],['\u00c3\u009a','Ú'],['\u00c3\u0091','Ñ'],
+            ['\u00c2\u00b7','·'],['\u00c2\u00a0',' '],['\u00e2\u20ac\u00a6','…'],['\u00e2\u20ac\u201c','–'],['\u00e2\u20ac\u201d','—'],['\u00e2\u20ac\u0153','“'],['\u00e2\u20ac\u009d','”'],['\u00e2\u20ac\u2122','’']
+          ];
+          for (const file of files) {
+            const before = fs.readFileSync(file, 'utf8');
+            let after = before;
+            for (const [bad, good] of replacements) after = after.split(bad).join(good);
+            if (after === before) throw new Error(`NO_REPAIR_APPLIED:${file}`);
+            if (/\u00c3|\u00c2|\u00e2/u.test(after)) throw new Error(`MOJIBAKE_REMAINS:${file}`);
+            fs.writeFileSync(file, after, 'utf8');
+          }
+          NODE
+
+      - name: Verify source integrity before commit
+        shell: bash
+        run: |
+          node --check src/m26/app/workflow-controller.js
+          node --check src/m26/modules/route-render.js
+          node --test tests/m26_rc58_5c_encoding_integrity.test.mjs
+          git diff --check
+
+      - name: Commit repaired source and remove one-shot workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/m26-one-shot-utf8-repair.yml
+          git config user.name "IBERFIT Automation"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/m26/app/workflow-controller.js src/m26/modules/route-render.js .github/workflows/m26-one-shot-utf8-repair.yml
+          git diff --cached --check
+          git commit -m "fix: normalize custom exercise UI UTF-8"
+          git push origin HEAD:feat/coach-custom-exercises
