@@ -5,6 +5,30 @@ const escape=(value)=>String(value??'')
   .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
   .replaceAll('"','&quot;').replaceAll("'",'&#039;');
 
+const MOBILE_OVERFLOW_BOUND_DOCUMENTS=new WeakSet();
+
+export function dismissOpenMobileOverflow(documentLike,{restoreFocus=true}={}){
+  const details=documentLike?.querySelector?.('.m26-mobile-more[open]');
+  if(!details)return false;
+  details.removeAttribute?.('open');
+  if(restoreFocus){
+    const restore=()=>details.querySelector?.('summary')?.focus?.({preventScroll:true});
+    if(typeof globalThis.queueMicrotask==='function')globalThis.queueMicrotask(restore);
+    else restore();
+  }
+  return true;
+}
+
+export function bindMobileOverflowEscapeSupport(documentLike=globalThis.document){
+  if(!documentLike?.addEventListener||MOBILE_OVERFLOW_BOUND_DOCUMENTS.has(documentLike))return false;
+  documentLike.addEventListener('keydown',(event)=>{
+    if(event?.key!=='Escape')return;
+    if(dismissOpenMobileOverflow(documentLike))event.preventDefault?.();
+  });
+  MOBILE_OVERFLOW_BOUND_DOCUMENTS.add(documentLike);
+  return true;
+}
+
 const MOBILE_SHELL_POLISH=`
 .m26-mobile-more.is-active > summary { color: var(--m26-cream-100); border-color: rgba(228,205,152,.24); background: linear-gradient(135deg, rgba(200,166,93,.19), rgba(200,166,93,.07)); box-shadow: inset 0 -2px 0 rgba(214,182,109,.5); }
 .m26-mobile-more-menu .m26-nav-item.is-disabled { opacity: .38; cursor: not-allowed; }
@@ -101,6 +125,7 @@ function markActiveNavigationGroup(markup){
 
 export function enhanceRc39ShellMarkup(markup,vm){
   if(vm?.mode!=='authenticated')return markup;
+  bindMobileOverflowEscapeSupport();
   let out=String(markup||'');
   if(vm.identity?.role==='coach'&&vm.activeArea==='hoy'&&vm.coachLaunchJourney){
     out=enhanceCoachLaunchSelfMarkup(out,vm);
