@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {iberfitDynamicSurfaceTranslate} from '../src/m26/ui/i18n-surface-dynamic.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const tx=(value,language)=>iberfitDynamicSurfaceTranslate(value,{language,translatePart:(part)=>part});
+const surface=(value,language)=>iberfitSurfaceTranslate(value,{language});
 
 test('dynamic surface translator covers runtime counters and user-preserving phrases',()=>{
   assert.equal(tx('3 ejercicios visibles con los filtros actuales.','en'),'3 exercises visible with the current filters.');
@@ -28,15 +30,15 @@ test('dynamic surface translator covers access errors and device continuity with
   assert.equal(tx('Coach · sesión en este dispositivo','en'),'Coach · session on this device');
 });
 
-test('dynamic surface translator closes final Admin planning and live-session families',()=>{
-  assert.equal(tx('3 sesiones/semana','en'),'3 sessions/week');
-  assert.equal(tx('2 sesiones por semana','fr'),'2 séances par semaine');
-  assert.equal(tx('Abrir seguimiento de Ana Pérez','pt'),'Abrir acompanhamento de Ana Pérez');
-  assert.equal(tx('12 clientes','en'),'12 clients');
-  assert.equal(tx('18 de 40 h · 12 clientes','fr'),'18 sur 40 h · 12 clients');
-  assert.equal(tx('45% de carga','pt'),'45% de carga');
-  assert.equal(tx('4 de 6 series resueltas · guardado','en'),'4 of 6 sets resolved · guardado');
-  assert.equal(tx('3 de 5 series','pt'),'3 de 5 séries');
+test('public surface translator closes final Admin planning and live-session families',()=>{
+  assert.equal(surface('3 sesiones/semana','en'),'3 sessions/week');
+  assert.equal(surface('2 sesiones por semana','fr'),'2 séances par semaine');
+  assert.equal(surface('Abrir seguimiento de Ana Pérez','pt'),'Abrir acompanhamento de Ana Pérez');
+  assert.equal(surface('12 clientes','en'),'12 clients');
+  assert.equal(surface('18 de 40 h · 12 clientes','fr'),'18 sur 40 h · 12 clients');
+  assert.equal(surface('45% de carga','pt'),'45% de carga');
+  assert.equal(surface('4 de 6 series resueltas · guardado','en'),'4 of 6 sets resolved · guardado');
+  assert.equal(surface('3 de 5 series','pt'),'3 de 5 séries');
 });
 
 test('dynamic translator leaves unmatched user/domain content untouched',()=>{
