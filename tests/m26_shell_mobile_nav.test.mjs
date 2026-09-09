@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createProductionState} from '../src/m26/production-state.js';
 import {createShellViewModel} from '../src/m26/shell/shell-view-model.js';
 import {renderM26Shell} from '../src/m26/shell/shell-render.js';
-import {bindMobileOverflowEscapeSupport,dismissOpenMobileOverflow} from '../src/m26/rc39/shell-enhancer.js';
+import {bindMobileOverflowEscapeSupport,bindShellDisclosureDismissSupport,dismissOpenMobileOverflow} from '../src/m26/rc39/shell-enhancer.js';
 
 const clientId='57339e70-7a99-48d6-820f-7d4a51f89d9d';
 
@@ -75,6 +75,7 @@ test('Escape cierra Más, evita el evento y restaura foco sin duplicar listeners
   const details={
     removeAttribute(name){if(name==='open')open=false;},
     querySelector(selector){return selector==='summary'?summary:null;},
+    contains(){return false;},
   };
   const documentLike={
     addEventListener(type,listener){
@@ -83,7 +84,7 @@ test('Escape cierra Más, evita el evento y restaura foco sin duplicar listeners
         keydown=listener;
       }
     },
-    querySelector(selector){return selector==='.m26-mobile-more[open]'&&open?details:null;},
+    querySelector(selector){return open&&String(selector).includes('.m26-mobile-more[open]')?details:null;},
   };
 
   assert.equal(bindMobileOverflowEscapeSupport(documentLike),true);
@@ -101,6 +102,39 @@ test('Escape cierra Más, evita el evento y restaura foco sin duplicar listeners
   await Promise.resolve();
   assert.equal(focused,true);
   assert.equal(dismissOpenMobileOverflow(documentLike),false);
+});
+
+test('disclosures del topbar cierran al pulsar fuera o Escape sin cerrar por clic interior',async()=>{
+  let open=true;
+  let focused=false;
+  const listeners={};
+  const inside={id:'inside'};
+  const outside={id:'outside'};
+  const summary={focus(options){focused=options?.preventScroll===true;}};
+  const details={
+    removeAttribute(name){if(name==='open')open=false;},
+    querySelector(selector){return selector==='summary'?summary:null;},
+    contains(target){return target===inside;},
+  };
+  const documentLike={
+    addEventListener(type,listener){listeners[type]=listener;},
+    querySelector(selector){return open&&String(selector).includes('.m26-settings-menu[open]')?details:null;},
+  };
+
+  assert.equal(bindShellDisclosureDismissSupport(documentLike),true);
+  listeners.click({target:inside});
+  assert.equal(open,true);
+  listeners.click({target:outside});
+  assert.equal(open,false);
+  assert.equal(focused,false);
+
+  open=true;
+  let prevented=false;
+  listeners.keydown({key:'Escape',preventDefault(){prevented=true;}});
+  assert.equal(open,false);
+  assert.equal(prevented,true);
+  await Promise.resolve();
+  assert.equal(focused,true);
 });
 
 test('formularios móviles no quedan tapados por la navegación inferior',()=>{
