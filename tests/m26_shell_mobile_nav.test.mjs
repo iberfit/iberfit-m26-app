@@ -30,10 +30,11 @@ function mobileOverflow(html){
   return match[1];
 }
 
-test('Más indica visual y semánticamente cuando contiene la sección activa',()=>{
+test('Más resalta la sección activa sin marcar el disclosure como página actual',()=>{
   const vm=createShellViewModel(readyState('client',{activeArea:'informes'}));
   const html=renderM26Shell(vm);
-  assert.match(html,/<details class="m26-mobile-more is-active" data-m26-more-active="true"><summary aria-current="page">/u);
+  assert.match(html,/<details class="m26-mobile-more is-active" data-m26-more-active="true"><summary>/u);
+  assert.doesNotMatch(html,/<details class="m26-mobile-more is-active"[^>]*><summary aria-current="page">/u);
   assert.match(mobileOverflow(html),/data-m26-area="informes" aria-current="page"/u);
 });
 
