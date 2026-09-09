@@ -1,0 +1,65 @@
+name: IBERFIT M26 i18n dynamic wire
+
+on:
+  push:
+    branches:
+      - feat/full-i18n
+    paths:
+      - '.github/workflows/m26-i18n-dynamic-wire.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/full-i18n
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Wire dynamic surface translator
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          p=Path('src/m26/ui/i18n-surface.js')
+          s=p.read_text(encoding='utf-8')
+          imp="import {iberfitDynamicSurfaceTranslate} from './i18n-surface-dynamic.js';\n"
+          if imp not in s:
+              needle="import {getIberfitLanguage} from './i18n.js';\n"
+              if needle not in s: raise SystemExit('M26_I18N_SURFACE_IMPORT_ANCHOR_MISSING')
+              s=s.replace(needle,needle+imp,1)
+          old="  const core=source.slice(leading.length,source.length-trailing.length);\n  return `${leading}${translateComposable(core,lang)}${trailing}`;"
+          new="  const core=source.slice(leading.length,source.length-trailing.length);\n  const composed=translateComposable(core,lang);\n  const translated=composed===core\n    ?iberfitDynamicSurfaceTranslate(core,{language:lang,translatePart:(part)=>translateComposable(part,lang)})\n    :composed;\n  return `${leading}${translated}${trailing}`;"
+          if old in s:
+              s=s.replace(old,new,1)
+          elif new not in s:
+              raise SystemExit('M26_I18N_SURFACE_TRANSLATE_ANCHOR_MISSING')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify syntax and focused i18n contracts
+        run: |
+          node --check src/m26/ui/i18n-surface.js
+          node --check src/m26/ui/i18n-surface-dynamic.js
+          node --test tests/m26_full_surface_i18n.test.mjs tests/m26_full_surface_dynamic_i18n.test.mjs tests/m26_admin_coach_workspace_i18n.test.mjs
+          npm run test:m26:product
+          npm run test:m26:rc74-4
+      - name: Commit clean functional wiring
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/m26-i18n-dynamic-wire.yml || true
+          git rm -f .github/workflows/m26-i18n-template-inventory.yml || true
+          git add src/m26/ui/i18n-surface.js src/m26/ui/i18n-surface-dynamic.js tests/m26_full_surface_dynamic_i18n.test.mjs
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+            exit 0
+          fi
+          git commit -m 'feat(i18n): translate dynamic application surface'
+          git push origin HEAD:feat/full-i18n
