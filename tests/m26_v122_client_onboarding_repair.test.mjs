@@ -111,3 +111,12 @@ test('formularios críticos no quedan ocultos detrás de barras adhesivas',()=>{
   assert.match(css,/V12\.2 · Formularios críticos sin controles superpuestos/);
   assert.match(css,/\.m26-onboarding \.m26-sticky-actions,[\s\S]*\[data-workflow-form="iri"\] \.m26-wizard-actions\{position:static/);
 });
+test('recuperación asíncrona del alta no pisa datos que el coach ya está escribiendo',()=>{
+  const source=read('src/m26/app/workflow-controller.js');
+  assert.match(source,/const editedOnboardingForms=new WeakSet\(\)/);
+  assert.match(source,/saved\?\.value&&!editedOnboardingForms\.has\(form\)/);
+  assert.equal(
+    (source.match(/editedOnboardingForms\.add\(onboardingForm\)/g)||[]).length,
+    2,
+  );
+});
