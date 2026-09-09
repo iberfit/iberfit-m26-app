@@ -1,0 +1,95 @@
+name: IBERFIT M26 i18n final certify
+
+on:
+  push:
+    branches:
+      - feat/full-i18n
+    paths:
+      - '.github/workflows/m26-i18n-final-certify.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/full-i18n
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify i18n syntax and tests
+        run: |
+          node --check src/m26/ui/i18n-surface.js
+          node --check src/m26/ui/i18n-surface-dynamic.js
+          node --check src/m26/ui/i18n-surface-extra.js
+          node --check src/m26/ui/i18n-surface-session.js
+          node --check src/m26/ui/i18n-surface-onboarding-client.js
+          node --check src/m26/ui/i18n-surface-admin.js
+          node --check src/m26/ui/i18n-surface-wearables.js
+          node --check src/m26/ui/i18n-surface-workspace.js
+          node --test tests/m26_full_surface_i18n.test.mjs tests/m26_full_surface_dynamic_i18n.test.mjs tests/m26_i18n_route_surface_catalogue.test.mjs tests/m26_admin_coach_workspace_i18n.test.mjs
+          npm run test:m26:product
+          npm run test:m26:rc74-4
+      - name: Audit untranslated rendered Spanish UI
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import {iberfitSurfaceTranslate} from './src/m26/ui/i18n-surface.js';
+          const roots=['src/m26/modules','src/m26/app','src/m26/admin','src/m26/ui','src/m26/workflows','src/m26/wearables','src/m26/onboarding'];
+          const excludes=[/i18n(?:-|\.)/,/guided-tour\.js$/,/(?:protocol|catalog|norms|evidence)/,/base\.js$/,/iri-report-document\.js$/,/report-workflow\.js$/,/iri-external-report-controller\.js$/,/iri-report-page\.js$/,/contextual-guidance\.js$/,/historical-acquisition\.js$/,/contracts\.js$/,/exercise-video-player\.js$/,/exercise-media\.js$/];
+          const files=[]; function walk(dir){if(!fs.existsSync(dir))return;for(const e of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isDirectory())walk(p);else if(/\.(?:js|mjs)$/u.test(e.name))files.push(p);}} roots.forEach(walk);
+          const spanish=/[áéíóúüñÁÉÍÓÚÜÑ¿¡]|\b(?:cliente|clientes|sesión|sesiones|entrenamiento|entrenador|agenda|revisar|pendiente|confirmad[oa]s?|disponible|datos|informe|cita|evaluación|progreso|siguiente|guardad[oa]|selecciona|bienestar|sueño|estrés|dispositivo|expediente|planificación|ejercicio|ejercicios|sincronización|contraseña|seguimiento|carga|series|repeticiones)\b/iu;
+          const quoted=/(?:'([^'\\]*(?:\\.[^'\\]*)*)'|"([^"\\]*(?:\\.[^"\\]*)*)"|`([^`\\]*(?:\\.[^`\\]*)*)`)/gs;
+          const staticResidual=[],dynamic=[];
+          function normalize(v){return String(v||'').replace(/\\'/g,"'").replace(/\\"/g,'"').replace(/\\[nrt]/g,' ').replace(/\s+/g,' ').trim();}
+          function evaluate(file,line,value,kind){
+            const text=normalize(value).replace(/^DYNAMIC_VALUE\s*|\s*DYNAMIC_VALUE$/gu,'').trim();
+            if(text.length<2||text.length>320||text.includes('DYNAMIC_VALUE')||!spanish.test(text))return;
+            if(/^(?:M26_|https?:|\/|\.|#|data-|aria-|admin-[a-z])/u.test(text))return;
+            if(iberfitSurfaceTranslate(text,{language:'en'})===text)staticResidual.push({file,line,text,kind});
+          }
+          for(const file of files){
+            if(excludes.some((r)=>r.test(file)))continue;
+            const src=fs.readFileSync(file,'utf8'); let m; quoted.lastIndex=0;
+            while((m=quoted.exec(src))){
+              const raw=m[1]??m[2]??m[3]??''; const line=src.slice(0,m.index).split(/\r?\n/u).length;
+              const templated=raw.replace(/\$\{[^}]*\}/gs,'DYNAMIC_VALUE');
+              if(raw.includes('${')){
+                const plain=normalize(templated);
+                if(plain.length>=2&&plain.length<=360&&spanish.test(plain))dynamic.push({file,line,template:plain});
+              }
+              if(/[<>]/u.test(templated)){
+                for(const hit of templated.matchAll(/>([^<>]+)</gs))evaluate(file,line,hit[1],'text-node');
+                for(const hit of templated.matchAll(/(?:placeholder|title|aria-label|aria-description)=["']([^"']+)["']/gs))evaluate(file,line,hit[1],'attribute');
+              }else if(!raw.includes('${'))evaluate(file,line,templated,'literal');
+            }
+          }
+          const uniqueStatic=[...new Map(staticResidual.map((x)=>[`${x.file}:${x.kind}:${x.text}`,x])).values()];
+          const uniqueDynamic=[...new Map(dynamic.map((x)=>[`${x.file}:${x.template}`,x])).values()];
+          fs.writeFileSync('i18n-static-residual.json',JSON.stringify({count:uniqueStatic.length,items:uniqueStatic},null,2)+'\n');
+          fs.writeFileSync('i18n-dynamic-residual.json',JSON.stringify({count:uniqueDynamic.length,items:uniqueDynamic},null,2)+'\n');
+          console.log(`rendered_static_residual=${uniqueStatic.length} dynamic_templates=${uniqueDynamic.length}`);
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m26-i18n-final-residual-${{ github.run_id }}
+          path: |
+            i18n-static-residual.json
+            i18n-dynamic-residual.json
+          retention-days: 7
+      - name: Remove temporary workflows
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/m26-i18n-final-certify.yml || true
+          git rm -f .github/workflows/m26-i18n-residual-audit.yml || true
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore(i18n): remove temporary audit workflows'
+          git push origin HEAD:feat/full-i18n
