@@ -17,6 +17,9 @@ const MOBILE_SHELL_POLISH=`
   .m26-mobile-nav { padding-bottom: max(.55rem, env(safe-area-inset-bottom)); transition: transform .16s ease, opacity .16s ease; }
   .m26-mobile-nav .m26-nav-item, .m26-mobile-more > summary { min-height: 3.25rem; touch-action: manipulation; }
   .m26-mobile-more-menu { overscroll-behavior: contain; }
+  .m26-mobile-more[open] > summary { position: fixed; inset: 0; z-index: 999; min-height: 0; padding: 0; border: 0; border-radius: 0; color: transparent; background: rgba(2,10,7,.58); box-shadow: none; font-size: 0; cursor: pointer; backdrop-filter: blur(2px); }
+  .m26-mobile-more[open] > summary:focus-visible { outline: none; }
+  .m26-mobile-more[open] .m26-mobile-more-menu { max-height: calc(100dvh - 5.75rem - max(1rem, env(safe-area-inset-top))); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
   .m26-main { scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
   .m26-main :is(input,textarea,select,[contenteditable="true"]) { scroll-margin-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
   .m26-shell:has(.m26-main :is(input,textarea,select,[contenteditable="true"]):focus) .m26-mobile-nav { transform: translateY(calc(100% + env(safe-area-inset-bottom))); opacity: 0; pointer-events: none; }
