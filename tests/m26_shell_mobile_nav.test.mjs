@@ -56,6 +56,15 @@ test('pulido móvil mantiene safe-area y objetivos táctiles en el shell',()=>{
   assert.match(html,/scroll-padding-bottom: calc\(5rem \+ env\(safe-area-inset-bottom\)\)/u);
 });
 
+test('formularios móviles no quedan tapados por la navegación inferior',()=>{
+  const vm=createShellViewModel(readyState('client'));
+  const html=renderM26Shell(vm);
+  assert.match(html,/scroll-margin-bottom: calc\(6\.5rem \+ env\(safe-area-inset-bottom\)\)/u);
+  assert.match(html,/\.m26-shell:has\(\.m26-main :is\(input,textarea,select,\[contenteditable="true"\]\):focus\) \.m26-mobile-nav/u);
+  assert.match(html,/transform: translateY\(calc\(100% \+ env\(safe-area-inset-bottom\)\)\); opacity: 0; pointer-events: none;/u);
+  assert.match(html,/@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.m26-mobile-nav \{ transition: none; \}/u);
+});
+
 test('sidebar marca el grupo activo y permanece utilizable en escritorio',()=>{
   const vm=createShellViewModel(readyState('coach',{activeArea:'agenda'}));
   const html=renderM26Shell(vm);
