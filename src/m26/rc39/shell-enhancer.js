@@ -56,7 +56,7 @@ function enhanceMobileNavigationMarkup(markup,vm){
   if(overflow.some((item)=>item.key===vm.activeArea)){
     out=out.replace(
       '<details class="m26-mobile-more"><summary>',
-      '<details class="m26-mobile-more is-active" data-m26-more-active="true"><summary aria-current="page">'
+      '<details class="m26-mobile-more is-active" data-m26-more-active="true"><summary>'
     );
   }
   if(vm.identity?.role==='coach'&&!vm.selectedClient){
