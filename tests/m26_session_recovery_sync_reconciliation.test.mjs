@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import {hasRetryablePendingOperations} from '../src/m26/app/application.js';
-import {reconcileExecutionSyncResult} from '../src/m26/workflows/session-recovery.js';
+import {
+  createExecutionRecoveryCoordinator,
+  reconcileExecutionSyncResult,
+} from '../src/m26/workflows/session-recovery.js';
 
 function execution(overrides={}){
   return {
@@ -19,13 +21,47 @@ function execution(overrides={}){
   };
 }
 
-test('login sync is requested only when retryable pending operations exist',()=>{
-  assert.equal(hasRetryablePendingOperations([]),false);
-  assert.equal(hasRetryablePendingOperations([{status:'conflict',retryable:false}]),false);
-  assert.equal(hasRetryablePendingOperations([{status:'pending',retryable:false}]),false);
-  assert.equal(hasRetryablePendingOperations([{status:'pending',retryable:true}]),true);
-  assert.equal(hasRetryablePendingOperations([{status:'pending'}]),true);
-});
+function coordinatorHarness({executionValue=execution(),syncResult,onSave,onRemove,onError}={}){
+  const context={
+    execution:executionValue,
+    session:{id:'session-1',clientId:'client-1',revision:7},
+    appointmentId:'appointment-1',
+    sessionRevision:7,
+  };
+  const saves=[];
+  const removals=[];
+  const store={
+    async save(value){
+      if(onSave)return onSave(value);
+      saves.push(structuredClone(value));
+      return value;
+    },
+    async load(){return null;},
+    async list(){return [];},
+    async remove(id){
+      if(onRemove)return onRemove(id);
+      removals.push(id);
+    },
+  };
+  const result=syncResult||{
+    online:true,
+    attempted:1,
+    results:[{
+      ok:true,
+      kind:'ack',
+      command:{operationId:'op-1'},
+      response:{executionRevision:4},
+    }],
+  };
+  const coordinator=createExecutionRecoveryCoordinator({
+    store,
+    commandBus:{flushPending:async()=>result},
+    isOnline:()=>true,
+    getActiveContext:()=>context,
+    onReconcileError:onError,
+  });
+  return {context,coordinator,result,saves,removals};
+}
 
 test('one ACK clears only its operation and keeps execution pending while more work remains',()=>{
   const value=execution();
@@ -86,7 +122,7 @@ test('network error leaves recovered execution untouched for a later retry',()=>
   assert.deepEqual(value,before);
 });
 
-test('sync results outside this execution lineage cannot mutate its recovery state',()=>{
+test('sync results outside this execution cannot mutate its recovery state',()=>{
   const value=execution();
   const before=structuredClone(value);
   const result=reconcileExecutionSyncResult(value,{
@@ -96,23 +132,92 @@ test('sync results outside this execution lineage cannot mutate its recovery sta
   assert.deepEqual(value,before);
 });
 
-test('authenticated setup inspects pending queue, starts listener and performs one conditional initial sync',()=>{
-  const source=fs.readFileSync('src/m26/app/application.js','utf8');
-  const start=source.indexOf("qaStage('rc64-post-login-local-reconciliation-start');");
-  const end=source.indexOf('function guardSessionNavigation',start);
-  assert.ok(start>=0&&end>start);
-  const block=source.slice(start,end);
-  assert.ok(block.includes('hasRetryablePendingOperations(await commandBus?.pending?.())'));
-  assert.ok(block.includes('reconcileExecutionSyncResult(sessionUi.execution,result)'));
-  assert.ok(block.includes('await recoveryCoordinator.persist({'));
-  assert.ok(block.includes('await recoveryCoordinator.settle(sessionUi.execution)'));
-  assert.ok(block.includes('connectivityStop=sync.start({emitInitial:false});'));
-  assert.ok(block.includes('if(pendingSyncAtLogin&&navigator.onLine!==false)'));
-  assert.ok(block.includes('await sync.sync();'));
+test('future connectivity sync reconciles and persists active recovered execution before mutating memory',async()=>{
+  const harness=coordinatorHarness();
+  const returned=await harness.coordinator.synchronize();
+
+  assert.strictEqual(returned,harness.result);
+  assert.equal(harness.saves.length,1);
+  assert.deepEqual(harness.saves[0].execution.pendingOperationIds,['op-2']);
+  assert.equal(harness.saves[0].execution.syncStatus,'pending');
+  assert.equal(harness.saves[0].execution.revision,4);
+  assert.deepEqual(harness.context.execution.pendingOperationIds,['op-2']);
+  assert.equal(harness.context.execution.revision,4);
 });
 
-test('initial pending inspection and connectivity sync remain fail-soft',()=>{
+test('failed local persistence keeps in-memory recovered execution conservative',async()=>{
+  const value=execution();
+  const before=structuredClone(value);
+  const errors=[];
+  const harness=coordinatorHarness({
+    executionValue:value,
+    onSave:async()=>{throw new Error('LOCAL_SAVE_FAILED');},
+    onError:(error)=>errors.push(error.message),
+  });
+
+  const returned=await harness.coordinator.synchronize();
+  assert.strictEqual(returned,harness.result);
+  assert.deepEqual(value,before);
+  assert.deepEqual(errors,['LOCAL_SAVE_FAILED']);
+});
+
+test('clean settled execution is removed from recovery after acknowledged queued completion',async()=>{
+  const value=execution({
+    status:'completed',
+    pendingOperationIds:['op-1'],
+  });
+  const harness=coordinatorHarness({
+    executionValue:value,
+    syncResult:{
+      online:true,
+      attempted:1,
+      results:[{
+        ok:true,
+        kind:'ack',
+        command:{operationId:'op-1'},
+        response:{executionRevision:8},
+      }],
+    },
+  });
+
+  await harness.coordinator.synchronize();
+  assert.deepEqual(harness.removals,['execution-1']);
+  assert.equal(harness.saves.length,0);
+  assert.equal(value.syncStatus,'clean');
+  assert.deepEqual(value.pendingOperationIds,[]);
+  assert.equal(value.revision,8);
+});
+
+test('offline synchronize preserves prior coordinator contract and performs no reconciliation',async()=>{
+  const value=execution();
+  const before=structuredClone(value);
+  let flushCalls=0;
+  const coordinator=createExecutionRecoveryCoordinator({
+    store:{save:async()=>{},load:async()=>null,list:async()=>[],remove:async()=>{}},
+    commandBus:{flushPending:async()=>{flushCalls+=1;return {online:true,attempted:1,results:[]};}},
+    isOnline:()=>false,
+    getActiveContext:()=>({execution:value,session:{id:'session-1',clientId:'client-1'}}),
+  });
+  const result=await coordinator.synchronize();
+  assert.deepEqual(result,{online:false,attempted:0,results:[]});
+  assert.equal(flushCalls,0);
+  assert.deepEqual(value,before);
+});
+
+test('application keeps zero-IO login boundary and wires reconciliation only into future connectivity',()=>{
   const source=fs.readFileSync('src/m26/app/application.js','utf8');
-  assert.ok(source.includes("catch(error){reportDiagnostic('pending-operation-inspection',error);}"));
-  assert.ok(source.includes("onError:(error)=>reportDiagnostic('connectivity-sync',error)"));
+  const start=source.indexOf('async function setupAuthenticated()');
+  const end=source.indexOf('function guardSessionNavigation',start);
+  assert.ok(start>=0&&end>start);
+  const setup=source.slice(start,end);
+
+  assert.ok(setup.includes('getActiveContext:()=>sessionUi'));
+  assert.ok(setup.includes("onReconcileError:(error)=>reportDiagnostic('session-recovery-reconcile',error)"));
+  assert.ok(setup.includes('connectivityStop=sync.start({emitInitial:false});'));
+  assert.doesNotMatch(setup,/await sync\.sync\(\)/u);
+  assert.doesNotMatch(setup,/commandBus\?\.pending/u);
+  assert.match(
+    setup,
+    /onResult:async\(\)=>\{\s*await refreshVerificationState\(\{repository:operationRepository,store\}\);\s*render\(\);\s*\},/u,
+  );
 });
