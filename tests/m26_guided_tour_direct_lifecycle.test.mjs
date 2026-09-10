@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import * as publicApi from '../src/m26/onboarding/guided-tour.js';
-import * as coreApi from '../src/m26/onboarding/guided-tour-core.js';
+import {existsSync} from 'node:fs';
 
 function fakeClassList(){
   const values=new Set();
@@ -103,14 +103,28 @@ function closeEvent(selector){
   };
 }
 
-test('guided-tour facade preserves every existing named export except the intentionally hardened controller factory',()=>{
-  for(const [key,value] of Object.entries(coreApi)){
-    if(key==='createGuidedTourController')continue;
+test('guided-tour remains a single canonical module while preserving the full public surface and hardened factory',()=>{
+  const expectedExports=[
+  "GUIDED_ONBOARDING_VERSION",
+  "GUIDED_ONBOARDING_SCHEMA_VERSION",
+  "guidedOnboardingCopy",
+  "guidedOnboardingTranslationCoverage",
+  "guidedOnboardingTrack",
+  "guidedOnboardingSettingsArea",
+  "guidedOnboardingScopeKey",
+  "normalizeGuidedOnboardingState",
+  "createGuidedOnboardingRepository",
+  "resolveGuidedOnboardingSteps",
+  "shouldAutoOpenGuidedOnboarding",
+  "renderGuidedOnboardingDialog",
+  "renderGuidedOnboardingSettings",
+  "__guidedOnboardingInternals"
+];
+  for(const key of expectedExports){
     assert.ok(Object.hasOwn(publicApi,key),`missing public export ${key}`);
-    assert.equal(publicApi[key],value,`public export changed: ${key}`);
   }
   assert.equal(typeof publicApi.createGuidedTourController,'function');
-  assert.notEqual(publicApi.createGuidedTourController,coreApi.createGuidedTourController);
+  assert.equal(existsSync(new URL('../src/m26/onboarding/guided-tour-core.js',import.meta.url)),false,'guided tour must remain single-module to avoid duplicated UI/i18n surfaces');
 });
 
 test('direct controller can open before mount and destroy without leaving dialog target or style residue',()=>{
