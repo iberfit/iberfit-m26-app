@@ -461,6 +461,11 @@ export async function createM26Application({root=document.querySelector('#app'),
     sessionUi={draft:null,query:'',actionState:createActionState(),session:snapshot.session,execution:snapshot.execution,appointmentId:snapshot.appointmentId||null};
     sessionUi.actionState.status='success';sessionUi.actionState.message='Sesión recuperada desde este dispositivo.';store.navigate('sesion');return true;
   }
+  async function restoreExecutionAfterAuthentication(){
+    if(pendingIriExternalReportIntent)return false;
+    try{return await restoreExecution();}
+    catch(error){reportDiagnostic('session-recovery-auto-restore',error);return false;}
+  }
   function surfaceWorkspaceError(error){
     const detail=reportDiagnostic('session-workspace',error);
     const message=`${friendlyError(error)} Código: ${detail.code}.`;
@@ -549,9 +554,11 @@ export async function createM26Application({root=document.querySelector('#app'),
     else if(controllerShellRole==='admin')qaStage('rc64-controller-shell-role-admin');
     else qaStage('rc64-controller-shell-role-missing');
     root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
+    const executionRestored=await restoreExecutionAfterAuthentication();
+    if(executionRestored)qaStage('rc64-session-auto-recovered');
     render();
     qaStage('rc64-final-render-ready');
-    await consumePendingIriExternalReportIntent();
+    if(!executionRestored)await consumePendingIriExternalReportIntent();
     qaStage('rc64-setup-ready');
 
     qaStage('rc64-post-login-local-reconciliation-start');
