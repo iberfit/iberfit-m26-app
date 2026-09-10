@@ -3,6 +3,17 @@ name: IBERFIT Session QA isolated
 on:
   pull_request:
     branches: [canary/rc74-4]
+    paths:
+      - 'src/m26/workflows/session-*.js'
+      - 'src/m26/command-bus.js'
+      - 'src/m26/ui/i18n-surface-session.js'
+      - 'tests/m26_session*.test.mjs'
+      - 'tests/m26_*draft_recovery.test.mjs'
+      - 'scripts/run_node_tests_offline.mjs'
+      - 'scripts/offline_network_guard.mjs'
+      - 'scripts/remote-gates/run_authenticated_readonly_gate.mjs'
+      - 'package.json'
+      - '.github/workflows/session-qa-isolated.yml'
   workflow_dispatch:
 
 permissions:
@@ -10,7 +21,7 @@ permissions:
 
 jobs:
   offline:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'fix/session-live-add-selection')
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
