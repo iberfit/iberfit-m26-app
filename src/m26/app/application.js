@@ -520,7 +520,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     adminService=createAdminCommandService({transport:adminTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getAdminState:()=>store.getState().admin,isOnline:()=>navigator.onLine!==false,refreshState:hydrate});
     communicationService=createCommunicationService({transport:communicationTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getState:()=>store.getState().communication,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false,refreshState:hydrate});
     qaStage('rc64-setup-services-ready');
-    recoveryStore=createExecutionRecoveryStore({ownerId});recoveryCoordinator=createExecutionRecoveryCoordinator({store:recoveryStore,commandBus,isOnline:()=>navigator.onLine!==false});
+    recoveryStore=createExecutionRecoveryStore({ownerId});recoveryCoordinator=createExecutionRecoveryCoordinator({store:recoveryStore,commandBus,isOnline:()=>navigator.onLine!==false,getActiveContext:()=>sessionUi,onReconcileError:(error)=>reportDiagnostic('session-recovery-reconcile',error)});
     iriExternalReports=createIriExternalReportController({root,store,runtime,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false});
     shell=createShellController({root,store,renderRoute});
     productivity=createCoachProductivityController({root,store,ownerId});

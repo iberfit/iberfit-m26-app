@@ -74,6 +74,73 @@ export function reconcileExecutionSnapshots({local,remote}={}){
   if(remoteRevision>localRevision)return {kind:'remote',snapshot:clone(remote),conflict:null};
   return {kind:'local',snapshot:clone(local),conflict:null};
 }
+function arrSyncIds(value){
+  if(!Array.isArray(value))return [];
+  return [...new Set(value.map((item)=>cleanId(item)).filter(Boolean))];
+}
+function syncOperationId(result){return cleanId(result?.command?.operationId||result?.operationId||'');}
+function syncRevision(result){
+  const values=[result?.response?.executionRevision,result?.response?.remoteRevision,result?.response?.revision]
+    .map((value)=>finiteInteger(value,{min:0}))
+    .filter((value)=>value!==null);
+  return values.length?Math.max(...values):null;
+}
+export function reconcileExecutionSyncResult(execution,syncResult={}){
+  if(!execution||typeof execution!=='object'||Array.isArray(execution))return Object.freeze({changed:false,matched:0,acked:0,conflicts:0,rejected:0,pending:0});
+  const pendingIds=new Set(arrSyncIds(execution.pendingOperationIds));
+  const originalStatus=String(execution.syncStatus||'clean');
+  const originalError=execution.lastSyncError??null;
+  let matched=0,acked=0,conflicts=0,rejected=0;
+  let maxRevision=finiteInteger(execution.revision,{min:0})??0;
+  let conflictCode=null,rejectedCode=null;
+  for(const result of Array.isArray(syncResult?.results)?syncResult.results:[]){
+    const operationId=syncOperationId(result);
+    if(!operationId||!pendingIds.has(operationId))continue;
+    const kind=String(result?.kind||'').toLowerCase();
+    if(result?.ok===true&&(kind==='ack'||kind==='duplicate')){
+      matched+=1;
+      pendingIds.delete(operationId);
+      acked+=1;
+      const revision=syncRevision(result);
+      if(revision!==null)maxRevision=Math.max(maxRevision,revision);
+      continue;
+    }
+    if(kind==='conflict'){
+      matched+=1;
+      pendingIds.delete(operationId);
+      conflicts+=1;
+      conflictCode=String(result?.response?.reason||result?.error||'REVISION_CONFLICT').slice(0,240);
+      continue;
+    }
+    if(kind==='rejected'){
+      matched+=1;
+      pendingIds.delete(operationId);
+      rejected+=1;
+      rejectedCode=String(result?.response?.reason||result?.error||'REJECTED').slice(0,240);
+    }
+  }
+  if(!matched)return Object.freeze({changed:false,matched:0,acked:0,conflicts:0,rejected:0,pending:pendingIds.size});
+  execution.pendingOperationIds=[...pendingIds];
+  execution.revision=maxRevision;
+  if(conflicts){
+    execution.syncStatus='conflict';
+    execution.lastSyncError=conflictCode;
+  }else if(rejected){
+    execution.syncStatus='rejected';
+    execution.lastSyncError=rejectedCode;
+  }else if(['conflict','rejected'].includes(originalStatus)){
+    execution.syncStatus=originalStatus;
+    execution.lastSyncError=originalError;
+  }else if(pendingIds.size){
+    execution.syncStatus='pending';
+    execution.lastSyncError=null;
+  }else{
+    execution.syncStatus='clean';
+    execution.lastSyncError=null;
+  }
+  return Object.freeze({changed:true,matched,acked,conflicts,rejected,pending:pendingIds.size});
+}
+
 export function createExecutionRecoveryStore({storage=createBrowserKeyValueStore(),ownerId,prefix='m26:execution:',now=()=>new Date(),ttlDays=30}={}){
   const owner=cleanId(ownerId);if(!owner)throw new Error('M26_RECOVERY_OWNER_REQUIRED');
   const ttl=finiteInteger(ttlDays,{min:1,max:365})??30;
@@ -103,8 +170,34 @@ export function createExecutionRecoveryStore({storage=createBrowserKeyValueStore
   return Object.freeze({ownerId:owner,save,load,list,remove,purgeExpired,clearOwner});
 }
 export function createMemoryExecutionRecoveryStore(options={}){return createExecutionRecoveryStore({...options,storage:createMemoryKeyValueStore()});}
-export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()=>globalThis.navigator?.onLine!==false}={}){
+export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()=>globalThis.navigator?.onLine!==false,getActiveContext=()=>null,onReconcileError=()=>{}}={}){
   if(!store?.save||!store?.load||!store?.list||!store?.remove)throw new Error('M26_RECOVERY_STORE_REQUIRED');
+  async function reconcileActiveContext(syncResult){
+    let context;
+    try{context=getActiveContext?.()||null;}catch(error){try{onReconcileError(error);}catch{}return false;}
+    if(!context?.execution||!context?.session)return false;
+    const nextExecution=clone(context.execution);
+    const reconciliation=reconcileExecutionSyncResult(nextExecution,syncResult);
+    if(!reconciliation.changed)return false;
+    try{
+      if(SETTLED.has(nextExecution.status)&&nextExecution.syncStatus==='clean'){
+        await store.remove(nextExecution.id);
+      }else{
+        await store.save({
+          execution:nextExecution,
+          session:context.session,
+          appointmentId:context.appointmentId||null,
+          sessionRevision:finiteInteger(context.sessionRevision??context.session?.revision??0,{min:0})??0,
+          dirty:nextExecution.syncStatus!=='clean',
+        });
+      }
+      Object.assign(context.execution,nextExecution);
+      return true;
+    }catch(error){
+      try{onReconcileError(error);}catch{}
+      return false;
+    }
+  }
   return Object.freeze({
     async persist(context){return store.save({...context,dirty:context?.execution?.syncStatus!=='clean'});},
     async recover(executionId){return store.load(executionId);},
@@ -112,6 +205,12 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
     async latest(options={}){return (await store.list(options))[0]||null;},
     async purgeExpired(){return store.purgeExpired?.()||0;},
     async settle(execution){if(SETTLED.has(execution?.status)&&execution?.syncStatus==='clean')await store.remove(execution.id);},
-    async synchronize(){if(!isOnline())return {online:false,attempted:0,results:[]};if(!commandBus?.flushPending)return {online:true,attempted:0,results:[]};return commandBus.flushPending();},
+    async synchronize(){
+      if(!isOnline())return {online:false,attempted:0,results:[]};
+      if(!commandBus?.flushPending)return {online:true,attempted:0,results:[]};
+      const result=await commandBus.flushPending();
+      await reconcileActiveContext(result);
+      return result;
+    },
   });
 }
