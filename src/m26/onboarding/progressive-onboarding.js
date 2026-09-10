@@ -1,6 +1,7 @@
 import {createGuidedTourController} from './guided-tour.js';
 
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
+export const PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE='data-m26-guided-tour-open';
 
 const ROLE_TRACKS=Object.freeze({
   coach:Object.freeze({
@@ -46,6 +47,58 @@ const ROLE_TRACKS=Object.freeze({
 
 const FLEXIBLE_ONBOARDING_SELECTOR='[data-workflow-form="client-onboarding"]';
 const IRI_ONLY_REQUIRED_FIELDS=Object.freeze(['sexForNorms','weeklyFrequency','sessionDurationMinutes','primaryObjective']);
+const PROGRESSIVE_ONBOARDING_COMPACT_STYLE_ATTRIBUTE='data-m26-guided-tour-compact-style';
+const compactStyleRegistry=new WeakMap();
+const PROGRESSIVE_ONBOARDING_COMPACT_STYLE_TEXT=`
+[${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-topbar{
+  gap:.65rem;
+  padding-block:.6rem;
+  transition:padding .16s ease,gap .16s ease;
+}
+[${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-topbar h1{
+  margin-top:.05rem;
+  font-size:clamp(1.35rem,2.6vw,1.9rem);
+}
+[${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-main{
+  padding-top:clamp(.75rem,2vw,1.35rem);
+  padding-bottom:clamp(.9rem,2vw,1.5rem);
+  scroll-padding-top:4.75rem;
+  transition:padding .16s ease;
+}
+@media (min-width:901px){
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-sidebar{
+    padding-block:.9rem;
+    transition:padding .16s ease;
+  }
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-brand{padding-bottom:.9rem;}
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-nav-group{margin-bottom:.72rem;}
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-nav-group>div{gap:.12rem;}
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-sidebar-footer{
+    margin-top:1rem;
+    padding-top:.75rem;
+  }
+}
+@media (max-width:900px){
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-topbar{
+    gap:.45rem;
+    padding-block:.5rem;
+  }
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-main{padding-top:.65rem;}
+  .m26-guided-tour{
+    bottom:calc(4.75rem + env(safe-area-inset-bottom));
+    max-height:min(58vh,32rem);
+  }
+}
+@media (max-width:580px){
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-topbar h1{font-size:1.35rem;}
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-topbar-actions{gap:.4rem;}
+}
+@media (prefers-reduced-motion:reduce){
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-topbar,
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-main,
+  [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-sidebar{transition:none;}
+}
+`;
 
 function text(value,max=160){
   return String(value??'').replace(/\s+/gu,' ').trim().slice(0,max);
@@ -92,6 +145,86 @@ function setRequired(field,required){
   field.required=Boolean(required);
   if(required)field.setAttribute?.('required','');
   else field.removeAttribute?.('required');
+}
+
+function guidedTourDocument(root,scope){
+  return root?.ownerDocument||scope?.document||globalThis.document||null;
+}
+
+function guidedTourIsOpen(documentLike){
+  return Boolean(documentLike?.querySelector?.('[data-m26-guided-tour]'));
+}
+
+function setGuidedTourOpenAttribute(root,open){
+  if(open)root?.setAttribute?.(PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE,'true');
+  else root?.removeAttribute?.(PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE);
+}
+
+function notifyGuidedTourOpenChange(callback,open){
+  if(typeof callback!=='function')return;
+  try{callback(Boolean(open));}catch{}
+}
+
+export function createProgressiveOnboardingOpenState({
+  root,
+  documentLike=root?.ownerDocument||globalThis.document,
+  onOpenChange,
+}={}){
+  let open=false;
+
+  function apply(next){
+    const normalized=Boolean(next);
+    setGuidedTourOpenAttribute(root,normalized);
+    if(normalized===open)return normalized;
+    open=normalized;
+    notifyGuidedTourOpenChange(onOpenChange,normalized);
+    return normalized;
+  }
+
+  return Object.freeze({
+    sync(){return apply(guidedTourIsOpen(documentLike));},
+    clear(){return apply(false);},
+    isOpen(){return open;},
+  });
+}
+
+function retainProgressiveOnboardingCompactStyle(documentLike){
+  if(!documentLike||!['object','function'].includes(typeof documentLike))return ()=>{};
+  const existing=compactStyleRegistry.get(documentLike);
+  if(existing){
+    existing.count+=1;
+    let released=false;
+    return ()=>{
+      if(released)return;
+      released=true;
+      existing.count-=1;
+      if(existing.count>0)return;
+      existing.node?.remove?.();
+      compactStyleRegistry.delete(documentLike);
+    };
+  }
+  let node=documentLike.querySelector?.(`[${PROGRESSIVE_ONBOARDING_COMPACT_STYLE_ATTRIBUTE}]`)||null;
+  if(!node){
+    node=documentLike.createElement?.('style')||null;
+    if(node){
+      node.setAttribute?.(PROGRESSIVE_ONBOARDING_COMPACT_STYLE_ATTRIBUTE,'');
+      node.textContent=PROGRESSIVE_ONBOARDING_COMPACT_STYLE_TEXT;
+      if(typeof documentLike.head?.append==='function')documentLike.head.append(node);
+      else documentLike.head?.appendChild?.(node);
+    }
+  }
+  if(!node)return ()=>{};
+  const record={node,count:1};
+  compactStyleRegistry.set(documentLike,record);
+  let released=false;
+  return ()=>{
+    if(released)return;
+    released=true;
+    record.count-=1;
+    if(record.count>0)return;
+    record.node?.remove?.();
+    compactStyleRegistry.delete(documentLike);
+  };
 }
 
 export function onboardingAssessmentMode(form){
@@ -272,12 +405,17 @@ export function createProgressiveOnboardingController({
   identityProvider=()=>({}),
   storage=globalThis.localStorage,
   scope=globalThis,
+  onOpenChange,
 }={}){
   if(!root?.addEventListener)throw new Error('M26_PROGRESSIVE_ONBOARDING_ROOT_REQUIRED');
 
+  const documentLike=guidedTourDocument(root,scope);
   const repository=createProgressiveOnboardingRepository({storage});
   const guidedTour=createGuidedTourController({root,identityProvider,storage,scope});
+  const tourOpenState=createProgressiveOnboardingOpenState({root,documentLike,onOpenChange});
   let observer=null;
+  let tourObserver=null;
+  let releaseCompactStyle=null;
   let mounted=false;
   let scheduled=false;
   let renderedPanel=null;
@@ -310,6 +448,28 @@ export function createProgressiveOnboardingController({
     ensureFlexibleOnboardingUi(form);
     syncFlexibleOnboardingForm(form);
     return true;
+  }
+
+  function syncTourOpenState(){
+    if(!mounted){
+      tourOpenState.clear();
+      return false;
+    }
+    return tourOpenState.sync();
+  }
+
+  function scheduleTourOpenStateSync(){
+    queueMicrotask(syncTourOpenState);
+  }
+
+  function onDocumentTourClick(event){
+    if(!event.target?.closest?.('[data-m26-guided-tour]'))return;
+    scheduleTourOpenStateSync();
+  }
+
+  function onDocumentTourKeydown(event){
+    if(event?.key!=='Escape')return;
+    scheduleTourOpenStateSync();
   }
 
   function removeOwned(){
@@ -379,6 +539,7 @@ export function createProgressiveOnboardingController({
     if(!context){
       removeOwned();
       guidedTour.refresh?.();
+      scheduleTourOpenStateSync();
       return;
     }
     const area=activeArea()||context.track.home;
@@ -391,6 +552,7 @@ export function createProgressiveOnboardingController({
     ensureLauncher(context,state);
     ensurePanel(context,state,area);
     guidedTour.refresh?.();
+    scheduleTourOpenStateSync();
   }
 
   function schedule(){
@@ -419,6 +581,7 @@ export function createProgressiveOnboardingController({
       event.preventDefault?.();
       repository.reset(context.key,context.role);
       guidedTour.open?.();
+      syncTourOpenState();
       schedule();
     }
   }
@@ -462,15 +625,22 @@ export function createProgressiveOnboardingController({
       root.addEventListener('submit',onFlexibleSubmit);
       root.addEventListener('m26:workflow-error',onWorkflowError);
       root.addEventListener('m26:toast',onWorkflowToast);
+      documentLike?.addEventListener?.('click',onDocumentTourClick,true);
+      documentLike?.addEventListener?.('keydown',onDocumentTourKeydown,true);
       if(typeof scope?.MutationObserver==='function'){
         observer=new scope.MutationObserver(schedule);
         observer.observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['aria-current']});
+        if(documentLike?.body){
+          tourObserver=new scope.MutationObserver(syncTourOpenState);
+          tourObserver.observe(documentLike.body,{childList:true});
+        }
       }
       guidedTour.mount?.();
+      releaseCompactStyle=retainProgressiveOnboardingCompactStyle(documentLike);
+      syncTourOpenState();
       schedule();
     },
     destroy(){
-      if(!mounted)return;
       mounted=false;
       scheduled=false;
       pendingClientStartArea=null;
@@ -480,14 +650,25 @@ export function createProgressiveOnboardingController({
       root.removeEventListener('submit',onFlexibleSubmit);
       root.removeEventListener('m26:workflow-error',onWorkflowError);
       root.removeEventListener('m26:toast',onWorkflowToast);
+      documentLike?.removeEventListener?.('click',onDocumentTourClick,true);
+      documentLike?.removeEventListener?.('keydown',onDocumentTourKeydown,true);
       observer?.disconnect?.();
       observer=null;
+      tourObserver?.disconnect?.();
+      tourObserver=null;
       guidedTour.destroy?.();
+      tourOpenState.clear();
+      releaseCompactStyle?.();
+      releaseCompactStyle=null;
       removeOwned();
     },
     refresh(){
       schedule();
       guidedTour.refresh?.();
+      scheduleTourOpenStateSync();
+    },
+    isTourOpen(){
+      return tourOpenState.isOpen();
     },
   });
 }
@@ -499,4 +680,6 @@ export const __progressiveOnboardingInternals=Object.freeze({
   fnv1a,
   named,
   setRequired,
+  guidedTourIsOpen,
+  PROGRESSIVE_ONBOARDING_COMPACT_STYLE_TEXT,
 });
