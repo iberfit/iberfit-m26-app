@@ -95,6 +95,7 @@ test('admin user update surface is compact and preserves the current status sele
   assert.match(admin,/currentStatus==='active'\?' selected':''/u);
   assert.match(admin,/currentStatus==='suspended'\?' selected':''/u);
   assert.match(admin,/currentStatus==='inactive'\?' selected':''/u);
-  assert.match(admin,/data-admin-form="user-status"/u);
-  assert.match(admin,/data-admin-form="role-change"/u);
+  assert.match(admin,/form\(\s*'user-status'/u);
+  assert.match(admin,/form\(\s*'role-change'/u);
+  assert.match(admin,/data-admin-form="\$\{kind\}"/u);
 });
