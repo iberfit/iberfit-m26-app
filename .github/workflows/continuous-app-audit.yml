@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          npm test 2>&1 | tee recovery/continuous-audit/full-node-regression.log
+          npm run test:offline 2>&1 | tee recovery/continuous-audit/full-node-regression.log
 
       - name: Translation Coverage Gate
         run: node --test tests/m26_rc74_18_translation_coverage_gate.test.mjs

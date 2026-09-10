@@ -23,14 +23,19 @@ const key=process.env.M26_SUPABASE_PUBLISHABLE_KEY;
 if(/service[_-]?role/i.test(key))throw new Error('RC74_4_SERVICE_ROLE_FORBIDDEN');
 const fingerprint=(value)=>value?createHash('sha256').update(`${PROJECT_REF}:${String(value)}`).digest('hex').slice(0,16):null;
 
+function qaRequestOptions(url,options){
+  const target=new URL(url);
+  if(target.origin!==`https://${PROJECT_REF}.supabase.co`||target.username||target.password)throw new Error('QA_GATE_EGRESS_DENIED');
+  return {...options,redirect:'error',signal:AbortSignal.timeout(20000)};
+}
 async function requestJson(url,options={}){
-  const response=await fetch(url,options);
+  const response=await fetch(url,qaRequestOptions(url,options));
   const body=await response.json().catch(()=>null);
   if(!response.ok)throw new Error(`RC74_4_REMOTE_REQUEST_FAILED:${response.status}:${new URL(url).pathname}`);
   return body;
 }
 async function requestResult(url,options={}){
-  const response=await fetch(url,options);
+  const response=await fetch(url,qaRequestOptions(url,options));
   const body=await response.json().catch(()=>null);
   return Object.freeze({ok:response.ok,status:Number(response.status)||0,body});
 }

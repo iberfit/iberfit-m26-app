@@ -1,4 +1,6 @@
 export const SESSION_SURFACE_ROWS=Object.freeze([
+['Selecciona un ejercicio válido antes de añadirlo','Select a valid exercise before adding it','Sélectionnez un exercice valide avant de l’ajouter','Selecione um exercício válido antes de o adicionar'],
+['Sincronizando el último ejercicio antes de permitir otra alta','Syncing the last exercise before another can be added','Synchronisation du dernier exercice avant d’en autoriser un autre','A sincronizar o último exercício antes de permitir adicionar outro'],
 ['Hoy en este ejercicio','Today on this exercise','Aujourd’hui sur cet exercice','Hoje neste exercício'],
 ['Series registradas hoy en este ejercicio','Sets recorded today for this exercise','Séries enregistrées aujourd’hui pour cet exercice','Séries registadas hoje neste exercício'],
 ['Guardado en este dispositivo · pendiente de sincronización.','Saved on this device · pending sync.','Enregistré sur cet appareil · synchronisation en attente.','Guardado neste dispositivo · sincronização pendente.'],
@@ -54,7 +56,7 @@ export const SESSION_SURFACE_ROWS=Object.freeze([
 ['Último paso: cerrar la sesión','Final step: close the session','Dernière étape : clôturer la séance','Último passo: fechar a sessão'],
 ['Tu ejecución ya está registrada. Añade el feedback final para completar el seguimiento.','Your execution is already recorded. Add final feedback to complete follow-up.','Votre exécution est déjà enregistrée. Ajoutez le feedback final pour terminer le suivi.','A sua execução já está registada. Adicione o feedback final para concluir o acompanhamento.'],
 ['Cuéntanos cómo te fue','Tell us how it went','Dites-nous comment cela s’est passé','Conte-nos como correu'],
-['RPE de la sesión','Session RPE','RPE de la séance','RPE da sessão'],
+['RPE de la sesión','Session RPE','RPE de séance','RPE da sessão'],
 ['Sesión en pausa','Session paused','Séance en pause','Sessão em pausa'],
 ['Tu progreso está conservado. El tiempo activo permanece detenido hasta reanudar.','Your progress is preserved. Active time remains stopped until you resume.','Votre progression est conservée. Le temps actif reste arrêté jusqu’à la reprise.','O seu progresso está preservado. O tempo ativo permanece parado até retomar.'],
 ['Reanudar sesión','Resume session','Reprendre la séance','Retomar sessão'],

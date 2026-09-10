@@ -66,7 +66,8 @@ test('RC74.4 ledger includes QA migrations M N and O',()=>{
 test('RC74.4 validator launches npm portably without direct npm.cmd spawn on Windows',()=>{
   const validator=read('scripts/run_rc74_4_validation.mjs');
   assert.match(validator,/process\.env\.npm_execpath/u);
-  assert.match(validator,/runNpm\('full-node-regression',\['test'\]\)/u);
+  assert.match(validator,/runNpm\('full-node-regression'/u);
+  assert.match(validator,/process\.env\.GITHUB_ACTIONS==='true'\?\['test:offline'\]/u);
   assert.doesNotMatch(validator,/process\.platform===['"]win32['"]\?['"]npm\.cmd/u);
   assert.match(validator,/RC74_4_PROCESS_START_FAILED/u);
 });
