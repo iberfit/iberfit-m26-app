@@ -11,8 +11,8 @@ test('Signature UX V2 is loaded after adaptive layout and cached by the PWA',()=
   const signature=app.indexOf("ensureSignatureUxV2Style();");
   const activation=app.indexOf("await activateFullStyles();");
   assert.ok(adaptive>=0&&signature>adaptive&&activation>signature,'signature layer must be registered after adaptive layout and before activation');
-  assert.match(app,/href='\\/src\\/m26\\/design\\/signature-ux-v2\\.css'/u);
-  assert.match(sw,/"\\/src\\/m26\\/design\\/signature-ux-v2\\.css"/u);
+  assert.ok(app.includes("link.href='/src/m26/design/signature-ux-v2.css';"));
+  assert.ok(sw.includes('"/src/m26/design/signature-ux-v2.css"'));
 });
 
 test('Signature UX V2 improves all roles and device classes without hiding product capabilities',()=>{
