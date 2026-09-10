@@ -75,6 +75,9 @@ const SHELL_BUNDLES=Object.freeze({
   }),
 });
 
+const LANGUAGE_CONTROL_SELECTOR='[data-m26-ui-language],[data-m26-ui-locale]';
+const LANGUAGE_GUARDS=new WeakMap();
+
 function shellLanguage(value=getIberfitLanguage()){
   const normalized=String(value||'').trim().toLowerCase();
   return Object.hasOwn(SHELL_BUNDLES,normalized)?normalized:'es';
@@ -82,6 +85,44 @@ function shellLanguage(value=getIberfitLanguage()){
 
 function interpolate(value,params={}){
   return String(value??'').replace(/\{([a-zA-Z0-9_.-]+)\}/g,(_,key)=>String(params?.[key]??`{${key}}`));
+}
+
+function now(){
+  try{return Number(globalThis?.performance?.now?.())||Date.now();}
+  catch{return Date.now();}
+}
+
+function scheduleAfterPaint(callback){
+  const windowLike=globalThis?.window||null;
+  let settled=false;
+  const run=()=>{
+    if(settled)return;
+    settled=true;
+    callback();
+  };
+  if(typeof windowLike?.requestAnimationFrame==='function')windowLike.requestAnimationFrame(run);
+  if(typeof globalThis.setTimeout==='function')return globalThis.setTimeout(run,250);
+  run();
+  return null;
+}
+
+function matchingLanguageControl(target){
+  return target?.closest?.(LANGUAGE_CONTROL_SELECTOR)||null;
+}
+
+function languageControls(root){
+  return [...(root?.querySelectorAll?.(LANGUAGE_CONTROL_SELECTOR)||[])];
+}
+
+function emitLanguageRuntimeEvent(root,name,detail){
+  const EventLike=root?.ownerDocument?.defaultView?.CustomEvent||globalThis?.CustomEvent;
+  if(typeof EventLike!=='function'||!root?.dispatchEvent)return false;
+  try{
+    root.dispatchEvent(new EventLike(name,{bubbles:false,detail}));
+    return true;
+  }catch{
+    return false;
+  }
 }
 
 export function iberfitShellTranslate(key,{language:requestedLanguage=getIberfitLanguage(),fallback=null,params={}}={}){
@@ -112,3 +153,123 @@ export function iberfitShellTranslationCoverage(){
     });
   }));
 }
+
+export function installIberfitLanguageSwitchRuntimeGuard(
+  root,
+  {
+    installSurfaceI18n,
+    schedule=scheduleAfterPaint,
+  }={}
+){
+  if(!root?.addEventListener)throw new Error('M26_I18N_RUNTIME_ROOT_REQUIRED');
+  if(typeof installSurfaceI18n!=='function')throw new Error('M26_I18N_RUNTIME_INSTALLER_REQUIRED');
+
+  const existing=LANGUAGE_GUARDS.get(root);
+  if(existing)return existing;
+
+  let generation=0;
+  let disconnected=false;
+  let surfaceState=installSurfaceI18n(root);
+  const touchedControls=new Set();
+
+  function setBusy(busy){
+    if(root?.dataset){
+      if(busy)root.dataset.m26I18nSwitching='true';
+      else delete root.dataset.m26I18nSwitching;
+    }
+    const current=languageControls(root);
+    if(busy){
+      for(const control of current){
+        touchedControls.add(control);
+        control.setAttribute?.('aria-busy','true');
+      }
+      return;
+    }
+    for(const control of new Set([...touchedControls,...current]))control.removeAttribute?.('aria-busy');
+    touchedControls.clear();
+  }
+
+  function settle(token,startedAt){
+    if(disconnected||token!==generation)return false;
+    let ok=false;
+    try{
+      surfaceState=installSurfaceI18n(root);
+      ok=true;
+      return true;
+    }catch(error){
+      emitLanguageRuntimeEvent(root,'m26:i18n-switch-failed',{
+        generation:token,
+        code:String(error?.message||'M26_I18N_RUNTIME_RECONNECT_FAILED').slice(0,120),
+      });
+      return false;
+    }finally{
+      setBusy(false);
+      emitLanguageRuntimeEvent(root,'m26:i18n-switch-settled',{
+        generation:token,
+        ok,
+        durationMs:Math.max(0,Math.round(now()-startedAt)),
+      });
+    }
+  }
+
+  function onChangeCapture(event){
+    if(!matchingLanguageControl(event?.target))return;
+
+    const token=++generation;
+    const startedAt=now();
+    setBusy(true);
+
+    try{surfaceState?.disconnect?.();}
+    catch(error){
+      emitLanguageRuntimeEvent(root,'m26:i18n-switch-observer-disconnect-failed',{
+        generation:token,
+        code:String(error?.message||'M26_I18N_RUNTIME_DISCONNECT_FAILED').slice(0,120),
+      });
+    }
+    surfaceState=null;
+
+    try{
+      schedule(()=>settle(token,startedAt));
+    }catch(error){
+      settle(token,startedAt);
+      emitLanguageRuntimeEvent(root,'m26:i18n-switch-scheduler-failed',{
+        generation:token,
+        code:String(error?.message||'M26_I18N_RUNTIME_SCHEDULER_FAILED').slice(0,120),
+      });
+    }
+  }
+
+  root.addEventListener('change',onChangeCapture,true);
+
+  const state=Object.freeze({
+    disconnect(){
+      if(disconnected)return;
+      disconnected=true;
+      generation+=1;
+      root.removeEventListener?.('change',onChangeCapture,true);
+      try{surfaceState?.disconnect?.();}catch{}
+      surfaceState=null;
+      setBusy(false);
+      LANGUAGE_GUARDS.delete(root);
+    },
+  });
+
+  LANGUAGE_GUARDS.set(root,state);
+  return state;
+}
+
+export async function bootstrapIberfitLanguageSwitchRuntimeGuard({documentLike=globalThis?.document}={}){
+  if(!documentLike?.querySelector)return null;
+  const root=documentLike.querySelector('#app');
+  if(!root)return null;
+  try{
+    const {installIberfitSurfaceI18n}=await import('./i18n-surface.js');
+    return installIberfitLanguageSwitchRuntimeGuard(root,{installSurfaceI18n:installIberfitSurfaceI18n});
+  }catch(error){
+    try{console.error('[IBERFIT:i18n-runtime-guard]',error?.message||error);}
+    catch{}
+    return null;
+  }
+}
+
+if(typeof document!=='undefined')void bootstrapIberfitLanguageSwitchRuntimeGuard();
