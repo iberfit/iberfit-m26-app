@@ -1,4 +1,4 @@
-import './i18n-runtime-guard.js';
+import './i18n-shell.js';
 import {iberfitLocaleOptions as i18nLocaleOptions,getIberfitLanguage,getIberfitLocale,setIberfitLocale} from './i18n.js';
 import {
   iberfitStatusLabel,
