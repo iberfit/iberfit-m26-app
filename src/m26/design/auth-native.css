@@ -1,5 +1,6 @@
 /* IBERFIT M26 · Premium native access surface
  * Scoped to authentication only. Product shell, roles and training modules are untouched.
+ * Visual increment: stronger hierarchy, state grammar and first-paint continuity.
  */
 
 .m26-auth-page,
@@ -18,8 +19,8 @@
     max(clamp(1rem, 3.5vw, 2.5rem), env(safe-area-inset-left));
   color: #f7f1e4;
   background:
-    radial-gradient(circle at 50% -8%, rgba(214, 181, 106, .13), transparent 34rem),
-    radial-gradient(circle at 8% 92%, rgba(39, 113, 80, .18), transparent 32rem),
+    radial-gradient(circle at 50% -10%, rgba(214, 181, 106, .16), transparent 31rem),
+    radial-gradient(circle at 4% 92%, rgba(39, 113, 80, .2), transparent 34rem),
     linear-gradient(155deg, #081a12 0%, #06130d 52%, #040d09 100%);
   isolation: isolate;
 }
@@ -30,28 +31,28 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: .28;
+  opacity: .2;
   background-image:
     linear-gradient(rgba(255, 255, 255, .018) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, .014) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: linear-gradient(to bottom, rgba(0,0,0,.55), transparent 72%);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .5), transparent 74%);
 }
 
 .m26-auth-card {
   position: relative;
-  width: min(29rem, 100%);
+  width: min(31rem, 100%);
   max-width: 100%;
   margin-block: auto;
-  padding: clamp(1.5rem, 4vw, 2.15rem);
+  padding: clamp(1.6rem, 4vw, 2.35rem);
   overflow: hidden;
   overflow-wrap: anywhere;
   border: 1px solid rgba(221, 190, 119, .18);
   border-radius: 1.75rem;
-  background: linear-gradient(165deg, rgba(15, 44, 31, .88), rgba(7, 25, 17, .92));
+  background: linear-gradient(165deg, rgba(15, 44, 31, .9), rgba(7, 25, 17, .94));
   box-shadow:
-    0 2rem 5rem rgba(0, 0, 0, .34),
-    inset 0 1px 0 rgba(255, 255, 255, .025);
+    0 2.2rem 5.5rem rgba(0, 0, 0, .36),
+    inset 0 1px 0 rgba(255, 255, 255, .035);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
@@ -60,39 +61,53 @@
   content: '';
   position: absolute;
   top: 0;
-  left: 12%;
-  width: 76%;
+  left: 10%;
+  width: 80%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(225, 196, 126, .55), transparent);
+  opacity: .88;
+  background: linear-gradient(90deg, transparent, rgba(225, 196, 126, .58), transparent);
+}
+
+.m26-auth-card::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  pointer-events: none;
+  border-radius: calc(1.75rem - 1px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .012);
+}
+
+.m26-auth-card[aria-busy='true']::before {
+  opacity: 1;
 }
 
 .m26-auth-brand {
   display: grid;
   justify-items: center;
-  gap: .58rem;
-  margin: 0 0 1.35rem;
+  gap: .52rem;
+  margin: 0 0 1.25rem;
   text-align: center;
 }
 
 .m26-auth-logo {
   display: block;
-  width: 4.45rem;
-  height: 4.45rem;
+  width: 4.2rem;
+  height: 4.2rem;
   margin: 0;
-  padding: .72rem;
+  padding: .68rem;
   object-fit: contain;
-  border: 1px solid rgba(221, 190, 119, .2);
-  border-radius: 1.25rem;
-  background: rgba(3, 14, 9, .34);
-  box-shadow: 0 .8rem 2rem rgba(0, 0, 0, .2);
+  border: 1px solid rgba(221, 190, 119, .22);
+  border-radius: 1.15rem;
+  background: rgba(3, 14, 9, .38);
+  box-shadow: 0 .9rem 2rem rgba(0, 0, 0, .22);
 }
 
 .m26-auth-card .m26-eyebrow {
   margin: 0;
   color: #d9bb77;
-  font-size: .69rem;
-  font-weight: 780;
-  letter-spacing: .18em;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .2em;
   line-height: 1;
   text-align: center;
   text-transform: uppercase;
@@ -107,32 +122,33 @@
 .m26-auth-kicker {
   margin: 0;
   color: #cdb986;
-  font-size: .69rem;
-  font-weight: 740;
-  letter-spacing: .13em;
+  font-size: .68rem;
+  font-weight: 760;
+  letter-spacing: .14em;
   line-height: 1.2;
   text-transform: uppercase;
 }
 
 .m26-auth-card h1 {
-  max-width: 16ch;
+  max-width: 18ch;
   margin: 0 auto;
   color: #fbf5e9;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(1.9rem, 6vw, 2.42rem);
-  font-weight: 560;
-  line-height: 1.04;
-  letter-spacing: -.025em;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: clamp(2rem, 6vw, 2.62rem);
+  font-weight: 680;
+  line-height: 1.02;
+  letter-spacing: -.04em;
+  text-align: center;
   text-wrap: balance;
 }
 
 .m26-auth-copy > p:last-child,
 .m26-auth-card > p:not(.m26-notice):not(.m26-auth-notice):not(.m26-field-help) {
-  max-width: 38ch;
+  max-width: 40ch;
   margin: 0 auto;
   color: #d7cfbf;
   font-size: .92rem;
-  line-height: 1.55;
+  line-height: 1.58;
   text-align: center;
   text-wrap: pretty;
 }
@@ -140,45 +156,50 @@
 .m26-auth-card form,
 .m26-auth-actions {
   display: grid;
-  gap: .86rem;
-  margin-top: 1.35rem;
+  gap: .9rem;
+  margin-top: 1.3rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid rgba(221, 190, 119, .1);
 }
 
 .m26-auth-card label {
   display: grid;
-  gap: .46rem;
-  color: #e4dccd;
-  font-size: .8rem;
+  gap: .48rem;
+  color: #e7dfd1;
+  font-size: .81rem;
   font-weight: 680;
-  letter-spacing: .01em;
+  letter-spacing: .005em;
 }
 
 .m26-auth-card input,
 .m26-auth-card button {
   width: 100%;
-  min-height: 3.2rem;
-  border-radius: .92rem;
+  min-height: 3.375rem;
+  border-radius: .9rem;
   font: inherit;
 }
 
 .m26-auth-card input {
-  padding: .78rem .9rem;
-  border: 1px solid rgba(226, 211, 178, .14);
+  padding: .82rem .92rem;
+  border: 1px solid rgba(226, 211, 178, .17);
   color: #fbf7ee;
-  background: rgba(2, 13, 8, .54);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .018);
+  background: rgba(2, 13, 8, .62);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .018),
+    0 .4rem 1rem rgba(0, 0, 0, .06);
   caret-color: #d9bb77;
   transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
 }
 
 .m26-auth-card input:hover {
-  border-color: rgba(221, 190, 119, .28);
+  border-color: rgba(221, 190, 119, .3);
+  background: rgba(2, 13, 8, .68);
 }
 
 .m26-auth-card input:focus {
-  border-color: rgba(222, 187, 105, .68);
-  background: rgba(2, 13, 8, .7);
-  box-shadow: 0 0 0 3px rgba(210, 174, 91, .11);
+  border-color: rgba(222, 187, 105, .72);
+  background: rgba(2, 13, 8, .76);
+  box-shadow: 0 0 0 3px rgba(210, 174, 91, .12);
 }
 
 .m26-password-field {
@@ -195,13 +216,13 @@
   right: .42rem;
   top: 50%;
   width: auto;
-  min-height: 2.3rem;
-  padding: .36rem .62rem;
+  min-height: 2.35rem;
+  padding: .36rem .64rem;
   transform: translateY(-50%);
   border: 0;
-  border-radius: .7rem;
-  color: #d9bb77;
-  background: rgba(217, 187, 119, .075);
+  border-radius: .68rem;
+  color: #e0c47f;
+  background: rgba(217, 187, 119, .08);
   font-size: .74rem;
   font-weight: 720;
 }
@@ -220,7 +241,7 @@
   gap: .5rem;
   color: #cfc7b8;
   font-size: .76rem;
-  font-weight: 560;
+  font-weight: 580;
   cursor: pointer;
 }
 
@@ -234,10 +255,10 @@
 }
 
 .m26-auth-card button {
-  padding: .74rem 1rem;
-  border: 1px solid rgba(221, 190, 119, .16);
+  padding: .76rem 1rem;
+  border: 1px solid rgba(221, 190, 119, .17);
   color: #f7f1e4;
-  background: rgba(217, 187, 119, .06);
+  background: rgba(217, 187, 119, .055);
   cursor: pointer;
   transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
 }
@@ -251,23 +272,23 @@
   color: #102318;
   background: linear-gradient(135deg, #dabb73, #c69d4e);
   box-shadow: 0 .72rem 1.8rem rgba(159, 119, 35, .16);
-  font-weight: 790;
+  font-weight: 800;
 }
 
 .m26-auth-card .m26-primary-action:not(:disabled):hover {
   background: linear-gradient(135deg, #e2c584, #cfa85d);
-  box-shadow: 0 .9rem 2.2rem rgba(159, 119, 35, .22);
+  box-shadow: 0 .9rem 2.2rem rgba(159, 119, 35, .21);
 }
 
 .m26-auth-card .m26-secondary-action {
   color: #ead8af;
   border-color: rgba(221, 190, 119, .22);
-  background: rgba(218, 187, 115, .075);
+  background: rgba(218, 187, 115, .07);
   font-weight: 690;
 }
 
 .m26-auth-card .m26-tertiary-action {
-  min-height: 2.7rem;
+  min-height: 2.75rem;
   border-color: transparent;
   color: #bfb7a8;
   background: transparent;
@@ -277,20 +298,24 @@
 .m26-auth-card .m26-auth-link {
   width: auto;
   min-height: auto;
-  padding: .28rem 0;
+  padding: .3rem 0;
   border: 0;
   border-radius: 0;
-  color: #d9bb77;
+  color: #dfc47f;
   background: transparent;
   box-shadow: none;
   font-size: .76rem;
-  font-weight: 620;
+  font-weight: 650;
 }
 
 .m26-auth-card button:disabled {
   opacity: .56;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.m26-auth-card[aria-busy='true'] .m26-primary-action {
+  cursor: progress;
 }
 
 .m26-auth-card input:focus-visible,
@@ -303,18 +328,19 @@
 .m26-notice,
 .m26-auth-notice {
   margin: 1rem 0 0;
-  padding: .78rem .88rem;
+  padding: .82rem .92rem;
   border: 1px solid rgba(221, 190, 119, .16);
-  border-radius: .92rem;
+  border-radius: .88rem;
   color: #d8cfbf;
   background: rgba(221, 190, 119, .055);
   font-size: .82rem;
-  line-height: 1.45;
-  text-align: center;
+  line-height: 1.48;
+  text-align: left;
 }
 
 .m26-notice.is-warning {
   border-color: rgba(226, 190, 104, .28);
+  background: rgba(125, 91, 30, .12);
 }
 
 .m26-auth-notice.is-error {
@@ -328,7 +354,7 @@
   max-width: 42ch;
   color: #aaa293;
   font-size: .74rem;
-  line-height: 1.48;
+  line-height: 1.5;
   text-align: center;
 }
 
@@ -339,9 +365,9 @@
 .m26-auth-card small {
   display: block;
   margin-top: 1rem;
-  color: #918b80;
+  color: #979084;
   font-size: .69rem;
-  line-height: 1.42;
+  line-height: 1.44;
   text-align: center;
 }
 
@@ -350,7 +376,9 @@
 }
 
 .m26-auth-canonical-link {
-  color: #e2c77f;
+  color: #e5cb87;
+  font-weight: 680;
+  text-underline-offset: .2em;
 }
 
 @media (max-height: 760px) and (min-width: 581px) {
@@ -364,34 +392,39 @@
     border-radius: 1.4rem;
   }
 
+  .m26-auth-card::after {
+    border-radius: calc(1.4rem - 1px);
+  }
+
   .m26-auth-brand {
-    gap: .38rem;
-    margin-bottom: .75rem;
+    gap: .36rem;
+    margin-bottom: .72rem;
   }
 
   .m26-auth-logo {
-    width: 3.5rem;
-    height: 3.5rem;
-    padding: .58rem;
+    width: 3.45rem;
+    height: 3.45rem;
+    padding: .56rem;
   }
 
   .m26-auth-card h1 {
-    font-size: clamp(1.68rem, 4vw, 2rem);
+    font-size: clamp(1.72rem, 4vw, 2.05rem);
   }
 
   .m26-auth-copy {
-    gap: .32rem;
+    gap: .3rem;
   }
 
   .m26-auth-card form,
   .m26-auth-actions {
     gap: .62rem;
-    margin-top: .8rem;
+    margin-top: .72rem;
+    padding-top: .72rem;
   }
 
   .m26-auth-card input,
   .m26-auth-card button {
-    min-height: 2.85rem;
+    min-height: 2.9rem;
   }
 
   .m26-notice,
@@ -416,21 +449,30 @@
     width: 100%;
     margin-block: auto;
     padding: 1.35rem 1.12rem;
-    border-radius: 1.45rem;
+    border-radius: 1.35rem;
+  }
+
+  .m26-auth-card::after {
+    border-radius: calc(1.35rem - 1px);
   }
 
   .m26-auth-brand {
-    margin-bottom: 1.05rem;
+    margin-bottom: 1rem;
   }
 
   .m26-auth-logo {
-    width: 4rem;
-    height: 4rem;
-    padding: .66rem;
+    width: 3.9rem;
+    height: 3.9rem;
+    padding: .64rem;
   }
 
   .m26-auth-card h1 {
-    font-size: clamp(1.78rem, 8.7vw, 2.18rem);
+    font-size: clamp(1.82rem, 8.7vw, 2.22rem);
+  }
+
+  .m26-auth-card form,
+  .m26-auth-actions {
+    padding-top: 1rem;
   }
 
   .m26-auth-options {
@@ -439,6 +481,23 @@
 
   .m26-auth-card .m26-auth-link {
     margin-left: auto;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .m26-auth-card {
+    border-color: rgba(237, 210, 145, .5);
+    background: #071b12;
+  }
+
+  .m26-auth-card input,
+  .m26-auth-card button {
+    border-color: rgba(247, 241, 228, .42);
+  }
+
+  .m26-notice,
+  .m26-auth-notice {
+    border-color: currentColor;
   }
 }
 

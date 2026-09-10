@@ -31,10 +31,14 @@ test('recordatorio normaliza únicamente un correo y nunca define una clave de c
   assert.match(source,/autocomplete="current-password"/u);
 });
 
-test('capa visual de acceso elimina tarjeta flotante en todos los tamaños',()=>{
+test('capa visual de acceso conserva una superficie premium coherente y responsive',()=>{
   const css=fs.readFileSync('src/m26/design/auth-native.css','utf8');
   assert.match(css,/\.m26-auth-page[\s\S]*?min-height:\s*100dvh/u);
-  assert.match(css,/\.m26-auth-card[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;/u);
-  assert.match(css,/\.m26-auth-logo[\s\S]*?justify|\.m26-auth-brand[\s\S]*?justify-items:\s*center/u);
+  assert.match(css,/\.m26-auth-card\s*\{[\s\S]*?border:\s*1px solid rgba\(221, 190, 119, \.18\);[\s\S]*?background:\s*linear-gradient\(165deg,[\s\S]*?box-shadow:/u);
+  assert.match(css,/\.m26-auth-card h1[\s\S]*?font-family:\s*Inter,/u);
+  assert.match(css,/\.m26-auth-card form,[\s\S]*?border-top:\s*1px solid rgba\(221, 190, 119, \.1\)/u);
+  assert.match(css,/\.m26-auth-card\[aria-busy='true'\]/u);
   assert.match(css,/@media \(max-width: 580px\)/u);
+  assert.match(css,/@media \(prefers-contrast: more\)/u);
+  assert.match(css,/@media \(prefers-reduced-motion: reduce\)/u);
 });
