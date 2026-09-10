@@ -49,6 +49,20 @@ function settleWithin(promise,timeoutMs,onTimeout=()=>{}){
   });
 }
 
+export function manualSessionSyncOutcome(execution,result={},error=null){
+  if(error)return Object.freeze({status:'retry',message:'No fue posible sincronizar ahora. Tu progreso sigue guardado en este dispositivo.'});
+  if(result?.online===false)return Object.freeze({status:'retry',message:'Sin conexión. Tu progreso sigue guardado en este dispositivo; vuelve a sincronizar cuando recuperes internet.'});
+  const status=String(execution?.syncStatus||'clean').toLowerCase();
+  if(status==='clean')return Object.freeze({status:'success',message:'Sincronización completada. Los cambios pendientes quedaron confirmados.'});
+  if(status==='conflict')return Object.freeze({status:'retry',message:'La sincronización detectó una versión más reciente. Tu progreso local está protegido y requiere revisión.'});
+  if(status==='rejected')return Object.freeze({status:'error',message:'El último cambio no pudo confirmarse. Tu progreso local se conserva para revisión.'});
+  const deferred=Math.max(0,Number(result?.deferred)||0);
+  const remaining=Math.max(0,Number(result?.remaining)||0);
+  if(deferred>0)return Object.freeze({status:'retry',message:'Aún hay cambios pendientes de su próximo reintento. Tu progreso sigue guardado de forma segura.'});
+  if(remaining>0)return Object.freeze({status:'retry',message:'Aún quedan cambios por sincronizar. Tu progreso local sigue protegido.'});
+  return Object.freeze({status:'retry',message:'La sincronización no pudo confirmar todos los cambios todavía. Tu progreso sigue guardado en este dispositivo.'});
+}
+
 export function liveAddExerciseSelectionState(exerciseId,catalog){
   const normalizedExerciseId=String(exerciseId||'').trim();
   return Object.freeze({exerciseId:normalizedExerciseId,enabled:Boolean(normalizedExerciseId&&catalog?.has?.(normalizedExerciseId))});
@@ -171,6 +185,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   }
   let liveAddPending=false,liveAddBlockedOperationId=null;
   let finishPending=false,finishBlockedOperationId=null;
+  let manualSyncPending=false;
   function syncLiveAddExerciseControl(context=getContext()){
     const select=root.querySelector?.('[data-session-live-add-exercise]');
     const button=root.querySelector?.('[data-session-action="add-live-exercise"]');
@@ -203,8 +218,18 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     else if(closable)button.removeAttribute?.('title');
     else button.setAttribute?.('title','La sesión ya no está pendiente de cierre');
   }
+  function syncManualSyncControl(context=getContext()){
+    const button=root.querySelector?.('[data-session-action="sync-now"]');
+    if(!button)return;
+    const pending=context?.execution?.syncStatus==='pending';
+    button.disabled=manualSyncPending||!pending;
+    button.setAttribute?.('aria-disabled',button.disabled?'true':'false');
+    if(manualSyncPending)button.setAttribute?.('title','Sincronización en curso');
+    else if(pending)button.removeAttribute?.('title');
+    else button.setAttribute?.('title','No hay cambios pendientes para sincronizar');
+  }
   const baseRender=render;
-  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());};
+  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
@@ -291,7 +316,32 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(liveAddPending||liveAddBlockedOperationId){syncLiveAddExerciseControl(context);return;}
     const liveSelection=liveAddExerciseSelectionState(root.querySelector?.('[data-session-live-add-exercise]')?.value,context?.catalog);
     if(!liveSelection.enabled){syncLiveAddExerciseControl(context);return;}
-  }if(action==='finish'&&(finishPending||finishBlockedOperationId)){syncFinishControl(context);return;}if(action==='reuse-previous-set'){
+  }if(action==='finish'&&(finishPending||finishBlockedOperationId)){syncFinishControl(context);return;}if(action==='sync-now'){
+  if(manualSyncPending){syncManualSyncControl(context);return;}
+  const actionState=context?.actionState;
+  const wasDisabled=button.disabled;
+  manualSyncPending=true;
+  button.disabled=true;
+  button.setAttribute('aria-busy','true');
+  syncManualSyncControl(context);
+  try{
+    if(!context?.execution||context.execution.syncStatus!=='pending')throw new Error('M26_SESSION_SYNC_NOT_PENDING');
+    if(!context?.recoveryCoordinator?.synchronize)throw new Error('M26_SESSION_SYNC_UNAVAILABLE');
+    const result=await context.recoveryCoordinator.synchronize();
+    const outcome=manualSessionSyncOutcome(context.execution,result);
+    if(actionState){actionState.status=outcome.status;actionState.message=outcome.message;}
+  }catch(error){
+    onError(error);
+    const outcome=manualSessionSyncOutcome(context?.execution,null,error);
+    if(actionState){actionState.status=outcome.status;actionState.message=outcome.message;}
+  }finally{
+    manualSyncPending=false;
+    button.disabled=wasDisabled;
+    button.removeAttribute('aria-busy');
+    renderSession();
+  }
+  return;
+}if(action==='reuse-previous-set'){
   const values=previousSetDraftValues(context?.execution);
   if(!values)return;
   for(const node of root.querySelectorAll?.('[data-set-field]')||[]){
