@@ -116,3 +116,26 @@ jobs:
           path: recovery/RC64_2B_AUTHENTICATED_SMOKE.json
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Capturar evidencia visual autenticada RC64 sin mutaciones
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: |
+          node qa/rc64/build-authenticated-surface.mjs
+          npx playwright test --config playwright.authenticated-visual.config.mjs
+
+      - name: Conservar evidencia visual autenticada RC64
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc64-authenticated-visual-evidence
+          path: recovery/rc64-authenticated-visual/**
+          if-no-files-found: error
+          retention-days: 7
