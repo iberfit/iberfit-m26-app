@@ -1,0 +1,59 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-REMO-CON-MANCUERNA-A-UNA-MANO",
+      "local_path": "scripts/exercise-media/approved/IBF-REMO-CON-MANCUERNA-A-UNA-MANO/IBF-REMO-CON-MANCUERNA-A-UNA-MANO-approved-69c6c0dabc03.webp",
+      "source_base64_parts": [
+        "scripts/exercise-media/approved/IBF-REMO-CON-MANCUERNA-A-UNA-MANO/IBF-REMO-CON-MANCUERNA-A-UNA-MANO.b64.00",
+        "scripts/exercise-media/approved/IBF-REMO-CON-MANCUERNA-A-UNA-MANO/IBF-REMO-CON-MANCUERNA-A-UNA-MANO.b64.01",
+        "scripts/exercise-media/approved/IBF-REMO-CON-MANCUERNA-A-UNA-MANO/IBF-REMO-CON-MANCUERNA-A-UNA-MANO.b64.02",
+        "scripts/exercise-media/approved/IBF-REMO-CON-MANCUERNA-A-UNA-MANO/IBF-REMO-CON-MANCUERNA-A-UNA-MANO.b64.03"
+      ],
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-09-10",
+        "note": "Patrón IBERFIT aprobado por el propietario: inicio + final, ejecución real, estética negro/verde/dorado y maniquí unisex simple con zonas trabajadas."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-REMO-CON-MANCUERNA-A-UNA-MANO/movement-69c6c0dabc03.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "69c6c0dabc0335fed4c1d7d3bec4aa11b26534302b768381628d6e85f11b98f1"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "dorsal ancho",
+            "romboides"
+          ],
+          "secondary": [
+            "bíceps",
+            "deltoide posterior"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}

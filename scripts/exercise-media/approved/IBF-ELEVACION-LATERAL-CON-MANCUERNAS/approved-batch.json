@@ -1,0 +1,58 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-ELEVACION-LATERAL-CON-MANCUERNAS",
+      "local_path": "scripts/exercise-media/approved/IBF-ELEVACION-LATERAL-CON-MANCUERNAS/IBF-ELEVACION-LATERAL-CON-MANCUERNAS-approved-fa7388901c8d.webp",
+      "source_base64_parts": [
+        "scripts/exercise-media/approved/IBF-ELEVACION-LATERAL-CON-MANCUERNAS/IBF-ELEVACION-LATERAL-CON-MANCUERNAS.b64.00",
+        "scripts/exercise-media/approved/IBF-ELEVACION-LATERAL-CON-MANCUERNAS/IBF-ELEVACION-LATERAL-CON-MANCUERNAS.b64.01",
+        "scripts/exercise-media/approved/IBF-ELEVACION-LATERAL-CON-MANCUERNAS/IBF-ELEVACION-LATERAL-CON-MANCUERNAS.b64.02",
+        "scripts/exercise-media/approved/IBF-ELEVACION-LATERAL-CON-MANCUERNAS/IBF-ELEVACION-LATERAL-CON-MANCUERNAS.b64.03"
+      ],
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "not_run",
+        "approved_at": "2026-09-10",
+        "note": "Patrón IBERFIT aprobado por el propietario: inicio + final, ejecución real, estética negro/verde/dorado y maniquí unisex simple con zonas trabajadas."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-ELEVACION-LATERAL-CON-MANCUERNAS/movement-fa7388901c8d.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "fa7388901c8d6271b5ead3578338db1a25a1d9ccff5743416f7d2bf2e25d2615"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "deltoide lateral"
+          ],
+          "secondary": [
+            "deltoide anterior",
+            "supraespinoso"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
