@@ -3,14 +3,15 @@
   "target": "prod",
   "items": [
     {
-      "exercise_id": "IBF-SENTADILLA-AL-AIRE",
-      "local_path": "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE-approved-e0cdc594a62d.webp",
+      "exercise_id": "IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS",
+      "local_path": "scripts/exercise-media/approved/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS-approved-11d1f82b3bf5.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.00",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.01",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.02",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.03",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.04"
+        "scripts/exercise-media/approved/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS.b64.00",
+        "scripts/exercise-media/approved/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS.b64.01",
+        "scripts/exercise-media/approved/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS.b64.02",
+        "scripts/exercise-media/approved/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS.b64.03",
+        "scripts/exercise-media/approved/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS.b64.04",
+        "scripts/exercise-media/approved/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS/IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS.b64.05"
       ],
       "human_approved": true,
       "publishable": true,
@@ -30,11 +31,11 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-SENTADILLA-AL-AIRE/movement-e0cdc594a62d.webp",
+          "path": "IBF-PRESS-VERTICAL-DE-PIE-CON-MANCUERNAS/movement-11d1f82b3bf5.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "e0cdc594a62d937cd9b0f31cf8eec19ab646866e23df6de850b9048635a0764f"
+          "sha256": "11d1f82b3bf5b3cea45ee02d5688bf281a54ae778cb353380ad79c0e35821ceb"
         },
         "published": true,
         "clientVisible": true,
@@ -45,11 +46,10 @@
         },
         "muscleZones": {
           "primary": [
-            "cuádriceps",
-            "glúteos"
+            "hombros",
+            "tríceps"
           ],
           "secondary": [
-            "isquiotibiales",
             "core"
           ],
           "display": "unisex-mannequin-simple-v1"
