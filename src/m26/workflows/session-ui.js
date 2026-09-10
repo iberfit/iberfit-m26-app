@@ -740,16 +740,16 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <button type="button" class="m26-primary-action" data-session-action="next">${restActive?'Continuar ahora':e(nextCopy.label)}</button>
         </div>
       </article>`
-    :`<article class="m26-panel m26-session-live-entry" data-session-live-entry>
+    :`<article class="m26-panel m26-session-live-entry" data-session-live-entry data-session-set-entry="current">
         <p class="m26-eyebrow">Serie ${e(step.setNumber)} de ${e(step.totalSets)}</p>
         <h3>Registra lo que realmente hiciste</h3>
         ${previousSetReuse}
-        <div class="m26-field-grid">
-          <label>Repeticiones<input type="number" min="0" max="10000" data-set-field="reps"></label>
-          <label>Tiempo (s)<input type="number" min="0" max="86400" data-set-field="seconds"></label>
-          <label>Carga<input type="text" maxlength="80" data-set-field="load"></label>
-          <label>RPE<input type="number" min="1" max="10" step="0.5" data-set-field="rpe" required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label>
-          <label>RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label>
+        <div class="m26-field-grid m26-session-set-fields">
+          <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
+          <label data-session-field-priority="primary">Tiempo (s)<input type="number" min="0" max="86400" inputmode="numeric" enterkeyhint="next" data-set-field="seconds"></label>
+          <label data-session-field-priority="primary">Carga<input type="text" maxlength="80" enterkeyhint="next" data-set-field="load"></label>
+          <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe" required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label>
+          <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label>
         </div>
         <details>
           <summary>Añadir una nota a esta serie</summary>

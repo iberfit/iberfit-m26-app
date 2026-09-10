@@ -114,15 +114,17 @@ function coachPriorityCard(item={}) {
           ?'pending'
           :'neutral';
 
-  return `<article class="m26-list-card m26-coach-priority-card">
+  return `<article class="m26-list-card m26-coach-priority-card" data-action-type="${escapeHtml(item.actionType||'manual-attention')}">
     <div>
       <p class="m26-eyebrow">${escapeHtml(item.stageLabel||'Seguimiento')}</p>
       <h3>${escapeHtml(item.clientName||'Cliente')}</h3>
       <p><strong>${escapeHtml(item.reason||'Revisión pendiente')}</strong></p>
       <small>${escapeHtml(item.detail||'')}</small>
+      <p class="m26-coach-priority-why"><span>Por qué ahora</span><strong>${escapeHtml(item.attentionWhy||item.guidance||'Requiere revisión del Coach.')}</strong></p>
       <strong class="m26-client-next">${escapeHtml(item.guidance||'Revisar expediente.')}</strong>
     </div>
     <div class="m26-list-card-actions">
+      ${item.actionTypeLabel?badge(item.actionTypeLabel,'neutral'):''}
       ${badge(item.signalLabel||'Seguimiento',tone)}
       <button
         type="button"
@@ -191,11 +193,11 @@ export function renderHoyRoute(vm) {
 
   const priorityQueue=
     !isClient&&cockpit
-      ?`<section class="m26-panel m26-panel-soft">
+      ?`<section class="m26-panel m26-panel-soft m26-coach-action-center" data-m26-coach-action-center aria-labelledby="m26-coach-action-center-title">
           <div class="m26-panel-heading">
             <div>
               <p class="m26-eyebrow">Atención de cartera</p>
-              <h2>Qué requiere tu decisión</h2>
+              <h2 id="m26-coach-action-center-title">Qué requiere tu decisión</h2>
               <p>Ordenado por bienestar, adherencia y etapa del recorrido. Estas señales orientan la revisión y no sustituyen tu criterio profesional.</p>
             </div>
             ${badge(queueLabel,queueTone)}
@@ -387,16 +389,16 @@ export function renderHoyRoute(vm) {
           </button>
         </div>
       </section>`;
-  return `<div class="m26-route m26-hoy-route">
+  return `<div class="m26-route m26-hoy-route" data-today-role="${escapeHtml(vm.role||'unknown')}">
     ${operationBanner(vm.operations)}
-    ${rc70DailyLoop}
-    <section class="m26-hero-panel"><div><p class="m26-eyebrow">IBERFIT · Hoy</p><h2>${heroTitle}</h2><p>${heroCopy}</p></div><div class="m26-hero-signal"><span>Estado operativo</span><strong>${operationalState}</strong></div></section>
-    <section class="m26-stat-grid">${stats.join('')}</section>
-    <section class="m26-content-grid">
-      <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Sesiones confirmadas de hoy</h2></div>${vm.appointments.length ? badge(countLabel(vm.appointments.length, 'confirmada', 'confirmadas'), 'success') : ''}</div><div class="m26-stack">${appointments}</div></div>
-      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Siguiente acción</p><h2>${escapeHtml(nextAction.title)}</h2><p>${escapeHtml(nextAction.copy)}</p>${iriDetail}${nextActionButton}</aside>
+    <section class="m26-hero-panel m26-today-hero" data-today-hero><div><p class="m26-eyebrow">IBERFIT · Hoy</p><h2>${heroTitle}</h2><p>${heroCopy}</p></div><div class="m26-hero-signal"><span>Estado operativo</span><strong>${operationalState}</strong></div></section>
+    <section class="m26-content-grid m26-today-decision-grid" data-today-decision-grid>
+      <aside class="m26-panel m26-panel-soft m26-today-next-action" data-today-next-action><p class="m26-eyebrow">Siguiente acción</p><h2>${escapeHtml(nextAction.title)}</h2><p>${escapeHtml(nextAction.copy)}</p>${iriDetail}${nextActionButton}</aside>
+      <div class="m26-panel m26-today-agenda"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda</p><h2>Sesiones confirmadas de hoy</h2></div>${vm.appointments.length ? badge(countLabel(vm.appointments.length, 'confirmada', 'confirmadas'), 'success') : ''}</div><div class="m26-stack">${appointments}</div></div>
     </section>
     ${priorityQueue}
+    ${rc70DailyLoop}
+    <section class="m26-stat-grid m26-today-stats">${stats.join('')}</section>
     ${clientShortcuts}
     ${proposals}
     ${clients ? `<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>Clientes</h2></div><button type="button" class="m26-text-action" data-m26-area="clientes">Ver todos</button></div><div class="m26-client-grid">${clients}</div></section>` : ''}

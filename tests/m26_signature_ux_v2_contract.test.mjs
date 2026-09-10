@@ -34,8 +34,18 @@ test('Signature UX V2 improves all roles and device classes without hiding produ
     assert.ok(css.includes(query),'missing responsive/accessibility query '+query);
   }
   const compact=css.replace(/\s+/g,'').toLowerCase();
-  for(const forbidden of ['display:none','visibility:hidden','pointer-events:none']){
-    assert.equal(compact.includes(forbidden),false,'presentation layer must not remove or disable capabilities: '+forbidden);
+  for(const forbidden of ['display:none','visibility:hidden']){
+    assert.equal(compact.includes(forbidden),false,'presentation layer must not remove capabilities: '+forbidden);
+  }
+  for(const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/gu)){
+    const selector=String(match[1]||'').trim();
+    const body=String(match[2]||'');
+    if(!/pointer-events\s*:\s*none/iu.test(body))continue;
+    assert.match(
+      selector,
+      /::(?:before|after)\s*$/u,
+      'pointer-events:none is allowed only on decorative pseudo-elements'
+    );
   }
 });
 
