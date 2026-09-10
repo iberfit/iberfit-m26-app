@@ -117,10 +117,15 @@ test('V2.1 visual hierarchy adapts without hiding controls or introducing intera
   assert.ok(css.includes('@media (max-width:390px)'));
   const added=css.slice(css.indexOf('/* Signature UX V2.1'));
   assert.doesNotMatch(added,/display\s*:\s*none|visibility\s*:\s*hidden/iu);
-  assert.doesNotMatch(
-    added,
-    /(?:button|a|input|select|textarea|summary|\[role="button"\])[^{}]*\{[^}]*pointer-events\s*:\s*none/iu,
-    'interactive controls must remain operable'
-  );
+  for(const match of added.matchAll(/([^{}]+)\{([^{}]*)\}/gu)){
+    const selector=String(match[1]||'').trim();
+    const body=String(match[2]||'');
+    if(!/pointer-events\s*:\s*none/iu.test(body))continue;
+    assert.match(
+      selector,
+      /::(?:before|after)\s*$/u,
+      'pointer-events:none is reserved for decorative pseudo-elements'
+    );
+  }
   assert.match(added,/\.m26-today-hero::after\{[\s\S]*pointer-events:none/u);
 });
