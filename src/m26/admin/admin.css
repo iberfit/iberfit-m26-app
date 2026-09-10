@@ -689,6 +689,23 @@
 }
 /* ADMIN_PREMIUM_CONTROL_HIERARCHY_END */
 
+/* ADMIN_USER_UPDATE_COMFORT_BEGIN */
+.m26-admin-user-card{align-content:start}
+.m26-admin-user-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.85rem}
+.m26-admin-user-card-head h3{margin:0 0 .2rem}
+.m26-admin-user-card-head p,.m26-admin-user-roles{margin:.15rem 0;color:var(--iberfit-color-text-secondary)}
+.m26-admin-user-management{margin-top:.9rem;border:1px solid var(--m26-admin-border);border-radius:.82rem;background:var(--m26-admin-surface-soft);overflow:hidden}
+.m26-admin-user-management>summary{display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:.7rem .8rem;cursor:pointer;font-weight:750;list-style:none}
+.m26-admin-user-management>summary::-webkit-details-marker{display:none}
+.m26-admin-user-management>summary::after{content:'+';font-size:1.1rem;color:var(--m26-admin-accent)}
+.m26-admin-user-management[open]>summary::after{content:'−'}
+.m26-admin-user-management-body{display:grid;gap:.7rem;padding:0 .75rem .75rem;border-top:1px solid var(--m26-admin-border)}
+.m26-admin-user-management .m26-admin-form{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:.75rem;background:color-mix(in srgb,var(--m26-admin-surface-soft) 88%,transparent)}
+.m26-admin-user-management .m26-admin-form label{display:grid;gap:.35rem}
+.m26-admin-user-management .m26-admin-form button[type="submit"]{grid-column:1 / -1;justify-self:start}
+@media(max-width:680px){.m26-admin-user-management .m26-admin-form{grid-template-columns:1fr}.m26-admin-user-card-head{display:grid}}
+/* ADMIN_USER_UPDATE_COMFORT_END */
+
 /* ADMIN_PREMIUM_DENSITY_BEGIN */
 
 /*

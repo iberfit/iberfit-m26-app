@@ -89,10 +89,18 @@ function confirmedAppointmentForSession(records=[],session,now=Date.now(),{early
 }
 function friendlyError(error){
   const code=String(error?.message||error||'');
-  if(/AUTH|SESSION_EXPIRED|401|403/.test(code))return 'La sesión perdió autorización. Vuelve a entrar.';
-  if(/TIMEOUT|NETWORK|FETCH/.test(code))return 'No fue posible conectar. Comprueba tu conexión a internet e inténtalo de nuevo.';
   if(/QA_ACCOUNT_REQUIRED/.test(code))return 'Esta cuenta no está autorizada para este acceso.';
+  if(/TIMEOUT|NETWORK|FETCH|Failed to fetch/i.test(code))return 'No fue posible conectar. Comprueba tu conexión a internet e inténtalo de nuevo.';
+  if(/AUTH|SESSION_EXPIRED|401/.test(code)||Number(error?.status||0)===401)return 'La sesión perdió autorización. Vuelve a entrar.';
+  if(Number(error?.status||0)===403)return 'La identidad es válida, pero esta cuenta no tiene permiso para completar esta acción.';
   return 'No fue posible completar la operación. Tu información local permanece protegida.';
+}
+function loginFailureMessage(error){
+  const code=String(error?.message||error||'');
+  if(/M26_AUTH_EMAIL_INVALID/u.test(code))return 'Revisa el correo de acceso.';
+  if(/M26_AUTH_PASSWORD_INVALID/u.test(code))return 'La contraseña debe tener entre 8 y 1024 caracteres.';
+  if(Number(error?.status||0)===400||/invalid login credentials|invalid_credentials|email or password/i.test(code))return 'El correo o la contraseña no coinciden.';
+  return friendlyError(error);
 }
 function diagnosticCode(error,stage='operation'){
   const raw=String(error?.message||'');
@@ -182,6 +190,12 @@ function invalidRecoverySession(error){
   return error?.status===401||error?.status===403||/RECOVERY_(?:TOKEN|SESSION|USER|UPDATE|IDENTITY)|QA_ACCOUNT_REQUIRED|JWT|expired/i.test(code);
 }
 
+export function sessionFailureRequiresFreshLogin(error){
+  const code=String(error?.message||error||'');
+  if(Number(error?.status||0)===401)return true;
+  return /M26_(?:SESSION_EXPIRED|AUTH_REQUIRED|REFRESH_IDENTITY_MISMATCH|MFA_IDENTITY_MISMATCH|AUTH_USER_INVALID_RESPONSE|QA_ACCOUNT_REQUIRED)/u.test(code);
+}
+
 export async function recoverExecutionAfterAuthentication({restoreExecution,pendingIriExternalReportIntent=false,reportDiagnostic}={}){
   if(pendingIriExternalReportIntent||typeof restoreExecution!=='function')return false;
   try{return Boolean(await restoreExecution());}
@@ -208,7 +222,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false;
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
 
   function authMessage(message='',noticeKind='status'){
@@ -221,6 +235,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     mode:authMode,
     noticeKind,
     mfa:mfaState,
+    sessionRetryAvailable,
   });
 }
   function currentToken(){return session?.token||null;}
@@ -507,9 +522,12 @@ export async function createM26Application({root=document.querySelector('#app'),
   async function setupAuthenticated(){
     qaStage('rc64-setup-start');
     destroyControllers();sessionUi=null;
-    const {installed,runtimeRegistry}=await hydrate({reason:'login'});
+    const [hydrationResult]=await Promise.all([
+      hydrate({reason:'login'}),
+      fetchCatalog(),
+    ]);
+    const {installed,runtimeRegistry}=hydrationResult;
     qaStage('rc64-setup-hydrate-ready');
-    await fetchCatalog();
     qaStage('rc64-setup-catalog-ready');
     const ownerId=session.user.id;
     operationRepository=createKeyValueOperationRepository({ownerId});draftRepository=createEngagementDraftRepository({ownerId});sessionTemplateRepository=createSessionTemplateRepository({ownerId});telemetryOutbox=createTelemetryDurableOutbox({ownerId});
@@ -557,7 +575,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     else if(controllerShellRole==='client')qaStage('rc64-controller-shell-role-client');
     else if(controllerShellRole==='admin')qaStage('rc64-controller-shell-role-admin');
     else qaStage('rc64-controller-shell-role-missing');
-    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
+    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
     const executionRestored=await restoreExecutionAfterAuthentication();
     if(executionRestored)qaStage('rc64-session-auto-recovered');
     render();
@@ -623,7 +641,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
-  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status'}={}){vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
+  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status'}={}){vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
   function onLogout(){const token=currentToken();finishLogout({token});}
   async function onLogoutAndClearDevice(){
     if(deviceClearBusy||!session)return false;
@@ -665,7 +683,31 @@ export async function createM26Application({root=document.querySelector('#app'),
       deviceClearBusy=false;
     }
   }
-  function destroyControllers(){telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers(){telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+async function onAccountPasswordRecovery(){
+  if(accountSecurityBusy||!session?.user?.email||!runtime.enabled)return false;
+  accountSecurityBusy=true;
+  try{
+    await refreshSessionIfNeeded();
+    await transport.requestPasswordRecovery(
+      session.user.email,
+      recoveryRedirectForRuntime(runtime,locationLike),
+    );
+    try{
+      globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message:'Te enviamos un enlace seguro para cambiar la contraseña sin cerrar esta sesión.'}}));
+    }catch{}
+    return true;
+  }catch(error){
+    reportDiagnostic('account-password-recovery',error);
+    try{
+      globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message:recoveryNetworkError(error)}}));
+    }catch{}
+    return false;
+  }finally{
+    accountSecurityBusy=false;
+  }
+}
+function onAccountPasswordRecoveryEvent(){void onAccountPasswordRecovery();}
 function onAuthClick(event) {
   const action = event.target.closest?.('[data-auth-action]')?.getAttribute?.('data-auth-action');
 
@@ -675,6 +717,11 @@ function onAuthClick(event) {
 
   if(action==='mfa-continue-webauthn'){
     void continueMfaWithWebAuthn().catch((error)=>reportDiagnostic('mfa-webauthn',error));
+    return;
+  }
+
+  if(action==='retry-session'){
+    void retrySession().catch((error)=>reportDiagnostic('session-retry',error));
     return;
   }
 
@@ -801,6 +848,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
 }
   async function continueAfterFirstFactor(){
     if(!session?.token)throw new Error('M26_AUTH_REQUIRED');
+    await refreshSessionIfNeeded();
     const assurance=await transport.authAssuranceContext(session.token);
     if(assurance.mfaRequired!==true){
       mfaState=null;
@@ -894,15 +942,113 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     }catch(error){
       loginBusy=false;
       authMode=initialKind==='challenge'?'mfa-challenge':'mfa-required';
-      authMessage('No fue posible completar la confirmación segura. Puedes intentarlo de nuevo.','error');
+      const code=String(error?.message||error||'');
+      const message=/M26_WEBAUTHN_(?:NOT_ALLOWED|CREDENTIAL_MISSING|INVALID_STATE)/u.test(code)
+        ?'No se completó la verificación del dispositivo. Puedes reintentar; si este equipo aún no está configurado, usa “Configurar este dispositivo”, o vuelve para usar otra cuenta.'
+        :'No fue posible completar la confirmación segura. Puedes intentarlo de nuevo.';
+      authMessage(message,'error');
       throw error;
     }finally{
       loginBusy=false;
     }
   }
 
-  async function login(email,password){if(loginBusy)return false;if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');loginBusy=true;authMessage('Confirmando identidad y permisos…');try{session=await transport.login(email,password);qaStage('rc64-login-token-ready');vault.save(session);store.reset();return await continueAfterFirstFactor();}catch(error){vault.clear();session=null;mfaState=null;destroyControllers();store.reset();loginBusy=false;const incident=diagnosticCode(error,'login');authMode='login';authMessage(`${friendlyError(error)} Código: ${incident}.`,'error');throw error;}finally{loginBusy=false;}}
-  async function resume(){if(!runtime.enabled){authMessage('El acceso no está disponible temporalmente en este sitio.');return false;}session=vault.load();if(!session){authMessage();return false;}try{return await continueAfterFirstFactor();}catch{vault.clear();session=null;mfaState=null;destroyControllers();store.reset();authMode='login';authMessage('La sesión expiró o perdió autorización. Vuelve a entrar.');return false;}}
+  function surfaceRetriableSessionFailure(error,stage='resume'){
+    destroyControllers();
+    store.reset();
+    mfaState=null;
+    authMode='login';
+    sessionRetryAvailable=true;
+    const incident=diagnosticCode(error,stage);
+    authMessage(`${friendlyError(error)} Tu sesión sigue guardada: puedes reintentar sin volver a escribir la contraseña. Código: ${incident}.`,'error');
+  }
+  function discardSessionAfterFailure(error,stage='resume'){
+    vault.clear();
+    session=null;
+    mfaState=null;
+    sessionRetryAvailable=false;
+    destroyControllers();
+    store.reset();
+    authMode='login';
+    const incident=diagnosticCode(error,stage);
+    authMessage(`La sesión expiró o perdió autorización. Vuelve a entrar. Código: ${incident}.`,'error');
+  }
+  async function retrySession(){
+    if(loginBusy||!runtime.enabled||!session?.token)return false;
+    loginBusy=true;
+    sessionRetryAvailable=false;
+    authMode='login';
+    authMessage('Reconectando tu sesión…');
+    try{
+      store.reset();
+      return await continueAfterFirstFactor();
+    }catch(error){
+      loginBusy=false;
+      if(sessionFailureRequiresFreshLogin(error))discardSessionAfterFailure(error,'session-retry');
+      else surfaceRetriableSessionFailure(error,'session-retry');
+      throw error;
+    }finally{
+      loginBusy=false;
+    }
+  }
+  async function login(email,password){
+    if(loginBusy)return false;
+    if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');
+    loginBusy=true;
+    sessionRetryAvailable=false;
+    authMessage('Confirmando identidad y permisos…');
+    let firstFactorAccepted=false;
+    try{
+      session=await transport.login(email,password);
+      firstFactorAccepted=true;
+      qaStage('rc64-login-token-ready');
+      vault.save(session);
+      store.reset();
+      return await continueAfterFirstFactor();
+    }catch(error){
+      loginBusy=false;
+      if(firstFactorAccepted&&session?.token&&!sessionFailureRequiresFreshLogin(error)){
+        surfaceRetriableSessionFailure(error,'login-setup');
+      }else{
+        vault.clear();
+        session=null;
+        mfaState=null;
+        sessionRetryAvailable=false;
+        destroyControllers();
+        store.reset();
+        authMode='login';
+        const incident=diagnosticCode(error,'login');
+        authMessage(`${loginFailureMessage(error)} Código: ${incident}.`,'error');
+      }
+      throw error;
+    }finally{
+      loginBusy=false;
+    }
+  }
+  async function resume(){
+    if(!runtime.enabled){
+      sessionRetryAvailable=false;
+      authMessage('El acceso no está disponible temporalmente en este sitio.');
+      return false;
+    }
+    session=vault.load();
+    if(!session){
+      sessionRetryAvailable=false;
+      authMessage();
+      return false;
+    }
+    try{
+      sessionRetryAvailable=false;
+      return await continueAfterFirstFactor();
+    }catch(error){
+      if(sessionFailureRequiresFreshLogin(error)){
+        discardSessionAfterFailure(error,'resume');
+      }else{
+        surfaceRetriableSessionFailure(error,'resume');
+      }
+      return false;
+    }
+  }
   async function onSubmit(event) {
   const form = event.target.closest?.('[data-auth-form]');
 
@@ -1005,4 +1151,4 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),runtime});
 }
 
-export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,recoveryRequestConfirmation,recoveryRedirectForRuntime,recoverExecutionAfterAuthentication,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});
+export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,loginFailureMessage,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,sessionFailureRequiresFreshLogin,recoveryRequestConfirmation,recoveryRedirectForRuntime,recoverExecutionAfterAuthentication,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});

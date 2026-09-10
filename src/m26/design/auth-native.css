@@ -482,6 +482,11 @@
   line-height: 1.48;
 }
 
+.m26-auth-retry-state .m26-secondary-action {
+  width: 100%;
+  margin-top: .72rem;
+}
+
 .m26-field-help {
   margin: .9rem auto 0;
   max-width: 42ch;

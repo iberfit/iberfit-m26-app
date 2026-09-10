@@ -969,6 +969,7 @@ function rc71SettingsSnapshot(
     identity:Object.freeze({
       id:identityId,
       name:String(shellVm.identity?.name||''),
+      email:String(shellVm.identity?.email||state?.identity?.email||''),
       roleLabel:String(
         shellVm.identity?.roleLabel||''
       ),

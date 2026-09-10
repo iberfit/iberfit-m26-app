@@ -3250,6 +3250,35 @@ m26-echart[data-density="compact"]{
   width: 100%;
 }
 
+.m26-account-summary {
+  display: grid;
+  gap: .5rem;
+  margin: .9rem 0 1rem;
+}
+
+.m26-account-summary > div {
+  display: grid;
+  grid-template-columns: minmax(7rem,.42fr) minmax(0,1fr);
+  gap: .7rem;
+  align-items: baseline;
+  padding: .62rem .72rem;
+  border: 1px solid var(--iberfit-shell-border,var(--iberfit-color-border));
+  border-radius: .72rem;
+  background: var(--iberfit-color-surface-raised);
+}
+
+.m26-account-summary dt {
+  color: var(--iberfit-color-text-secondary);
+  font-size: .78rem;
+}
+
+.m26-account-summary dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
 .m26-danger-action {
   min-height: 44px;
   padding: .7rem 1rem;
@@ -3286,6 +3315,11 @@ m26-echart[data-density="compact"]{
   .m26-settings-grid,
   .m26-session-recap {
     grid-template-columns: 1fr;
+  }
+
+  .m26-account-summary > div {
+    grid-template-columns: 1fr;
+    gap: .15rem;
   }
 }
 /* RC71_0_SOCIAL_SETTINGS_SESSION_CSS_END */

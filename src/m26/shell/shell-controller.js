@@ -336,6 +336,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
 
     const actionButton = event.target.closest?.('[data-m26-action]');
     const action=actionButton?.getAttribute('data-m26-action');
+    if(action==='account-password-recovery'){
+      root.dispatchEvent(new CustomEvent('m26:account-password-recovery',{bubbles:true}));
+      return;
+    }
     if(action==='logout'){
       root.dispatchEvent(new CustomEvent('m26:logout',{bubbles:true}));
       return;

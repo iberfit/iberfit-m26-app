@@ -2333,11 +2333,19 @@ export function renderSettingsRoute(vm){
         ${badge('Privacidad activa','success')}
       </article>
 
-      <article class="m26-panel m26-panel-soft">
-        <p class="m26-eyebrow">Cuenta</p>
+      <article class="m26-panel m26-panel-soft" data-settings-card="account">
+        <p class="m26-eyebrow">Cuenta y acceso</p>
         <h3>${escapeHtml(vm.identity?.name||'Cuenta IBERFIT')}</h3>
         <p>${escapeHtml(vm.identity?.roleLabel||vm.role||'')}</p>
-        <button type="button" class="m26-danger-action" data-m26-action="logout">Cerrar sesión</button>
+        <dl class="m26-account-summary">
+          <div><dt>Correo de acceso</dt><dd>${escapeHtml(vm.identity?.email||'No disponible')}</dd></div>
+          <div><dt>Sesión</dt><dd>Acceso recordado de forma segura en este dispositivo</dd></div>
+        </dl>
+        <div class="m26-inline-actions">
+          <button type="button" class="m26-primary-action" data-m26-action="account-password-recovery">Cambiar contraseña</button>
+          <button type="button" class="m26-danger-action" data-m26-action="logout">Cerrar sesión</button>
+        </div>
+        <p class="m26-data-footnote">El cambio de contraseña se inicia mediante un enlace seguro enviado al correo de acceso, sin cerrar esta sesión.</p>
       </article>
     </section>
   </div>`;
