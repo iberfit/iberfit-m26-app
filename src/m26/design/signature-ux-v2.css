@@ -1,0 +1,497 @@
+/* IBERFIT M26 · Signature UX V2
+ * Additive presentation layer loaded after adaptive-layout.css.
+ * Improves visual hierarchy, device ergonomics and cross-role consistency.
+ * No authorization, routing or business behavior lives here.
+ */
+
+:root{
+  --iberfit-v2-gutter:clamp(.85rem,2.25vw,2.25rem);
+  --iberfit-v2-card-radius:clamp(1rem,1.3vw,1.35rem);
+  --iberfit-v2-surface:linear-gradient(150deg,rgba(18,50,36,.92),rgba(8,27,19,.96));
+  --iberfit-v2-surface-soft:linear-gradient(150deg,rgba(23,58,42,.74),rgba(9,30,21,.82));
+  --iberfit-v2-line:color-mix(in srgb,var(--iberfit-color-accent-strong) 16%,transparent);
+  --iberfit-v2-line-strong:color-mix(in srgb,var(--iberfit-color-accent-strong) 28%,transparent);
+  --iberfit-v2-shadow:0 16px 42px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.035);
+  --iberfit-v2-shadow-hover:0 20px 52px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.055);
+  --iberfit-v2-copy:72ch;
+}
+
+body{
+  background:
+    radial-gradient(circle at 78% -15%,rgba(200,166,93,.08),transparent 34rem),
+    radial-gradient(circle at 5% 78%,rgba(53,124,91,.08),transparent 32rem),
+    var(--iberfit-color-canvas);
+}
+
+.m26-shell{
+  min-height:100dvh;
+  color:var(--iberfit-color-text-primary);
+  background:
+    linear-gradient(180deg,rgba(7,21,15,.98),rgba(6,18,13,.99));
+}
+
+.m26-shell .m26-workspace{
+  min-width:0;
+  background:
+    radial-gradient(circle at 88% 2%,color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 5%,transparent),transparent 30rem);
+}
+
+.m26-shell .m26-sidebar{
+  border-right:1px solid var(--iberfit-v2-line);
+  box-shadow:10px 0 38px rgba(0,0,0,.10);
+}
+
+.m26-shell .m26-brand{
+  min-height:4.25rem;
+}
+
+.m26-shell .m26-brand img{
+  filter:drop-shadow(0 8px 16px rgba(0,0,0,.24));
+}
+
+.m26-shell .m26-nav-group>div{
+  gap:.28rem;
+}
+
+.m26-shell .m26-nav-item{
+  position:relative;
+  overflow:clip;
+  border-color:transparent;
+  border-radius:.82rem;
+  color:color-mix(in srgb,var(--iberfit-color-text-secondary) 92%,white);
+  transition:
+    transform var(--iberfit-motion-fast) var(--iberfit-motion-easing-enter),
+    color var(--iberfit-motion-standard) var(--iberfit-motion-easing-standard),
+    border-color var(--iberfit-motion-standard) var(--iberfit-motion-easing-standard),
+    background var(--iberfit-motion-standard) var(--iberfit-motion-easing-standard),
+    box-shadow var(--iberfit-motion-standard) var(--iberfit-motion-easing-standard);
+}
+
+.m26-shell .m26-nav-item.is-active{
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 32%,transparent);
+  color:var(--iberfit-color-text-primary);
+  background:
+    linear-gradient(110deg,color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 18%,transparent),color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 5%,transparent));
+  box-shadow:inset 3px 0 color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent-strong)) 72%,transparent);
+}
+
+.m26-shell .m26-topbar{
+  border-bottom:1px solid var(--iberfit-v2-line);
+  background:linear-gradient(180deg,rgba(7,24,17,.94),rgba(7,21,15,.86));
+  box-shadow:0 12px 32px rgba(0,0,0,.10);
+  backdrop-filter:blur(24px) saturate(1.08);
+  -webkit-backdrop-filter:blur(24px) saturate(1.08);
+}
+
+.m26-shell .m26-topbar h1{
+  color:var(--iberfit-color-text-primary);
+  font-family:var(--iberfit-font-family-editorial);
+  font-weight:560;
+  letter-spacing:-.035em;
+  text-wrap:balance;
+}
+
+.m26-shell .m26-topbar-actions{
+  gap:.55rem;
+}
+
+.m26-shell .m26-main{
+  width:100%;
+  padding-left:max(var(--iberfit-v2-gutter),env(safe-area-inset-left));
+  padding-right:max(var(--iberfit-v2-gutter),env(safe-area-inset-right));
+}
+
+.m26-shell .m26-route{
+  width:min(100%,var(--iberfit-layout-content-max));
+  margin-inline:auto;
+  gap:clamp(.8rem,1.4vw,1.15rem);
+}
+
+.m26-shell .m26-route-intro{
+  gap:.4rem;
+  padding:.2rem .05rem .35rem;
+}
+
+.m26-shell .m26-route-intro :is(h1,h2){
+  max-width:24ch;
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:clamp(1.72rem,3.2vw,2.55rem);
+  font-weight:560;
+  line-height:1.02;
+  letter-spacing:-.04em;
+}
+
+.m26-shell .m26-route-intro>p:last-child{
+  max-width:var(--iberfit-v2-copy);
+  color:var(--iberfit-color-text-secondary);
+  line-height:1.6;
+}
+
+.m26-shell :is(
+  .m26-panel,.m26-panel-soft,.m26-admin-panel,.m26-client-card,.m26-list-card,
+  .m26-library-card,.m26-publication-card,.m26-client-content-card,
+  .m26-rc39-session-card,.m26-stat,.iberfit-card,.iberfit-panel,.iberfit-metric,
+  .m26-admin-stat,.m26-wearable-source,.m26-wearable-preview,.m26-route-placeholder
+){
+  border-color:var(--iberfit-v2-line);
+  border-radius:var(--iberfit-v2-card-radius);
+  box-shadow:var(--iberfit-v2-shadow);
+}
+
+.m26-shell :is(
+  .m26-panel,.m26-admin-panel,.m26-client-card,.m26-list-card,
+  .m26-library-card,.m26-publication-card,.m26-client-content-card,
+  .m26-rc39-session-card,.m26-wearable-source,.m26-wearable-preview
+){
+  background:var(--iberfit-v2-surface);
+}
+
+.m26-shell .m26-panel-soft{
+  background:var(--iberfit-v2-surface-soft);
+}
+
+.m26-shell :is(.m26-panel-heading,.m26-session-live-heading,.m26-profile-hero) :is(h2,h3),
+.m26-shell :is(.m26-card-title,.m26-client-card,.m26-list-card) strong{
+  text-wrap:balance;
+}
+
+.m26-shell :is(.m26-stat,.iberfit-metric,.m26-admin-stat){
+  background:
+    radial-gradient(circle at 92% 0%,color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 8%,transparent),transparent 9rem),
+    var(--iberfit-v2-surface-soft);
+}
+
+.m26-shell :is(.m26-stat strong,.iberfit-metric-value,.m26-admin-stat strong){
+  letter-spacing:-.025em;
+}
+
+.m26-shell :is(.m26-chip,.m26-badge,.iberfit-chip,.iberfit-badge){
+  border-color:var(--iberfit-v2-line);
+  backdrop-filter:blur(8px);
+}
+
+.m26-shell :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea){
+  min-height:max(46px,var(--iberfit-role-control-min,44px));
+  border-color:var(--iberfit-v2-line);
+  border-radius:.82rem;
+  background:linear-gradient(180deg,rgba(4,18,12,.78),rgba(7,26,18,.82));
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.18);
+}
+
+.m26-shell :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea):focus{
+  border-color:color-mix(in srgb,var(--iberfit-color-focus) 66%,transparent);
+  background:rgba(8,31,22,.94);
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--iberfit-color-focus) 10%,transparent),inset 0 1px 2px rgba(0,0,0,.14);
+}
+
+.m26-shell :is(.m26-primary-action,.iberfit-button[data-variant="primary"]){
+  border-color:color-mix(in srgb,var(--iberfit-color-accent-strong) 58%,transparent);
+  color:#0b1d14;
+  background:linear-gradient(135deg,#ecd69f 0%,#d2ae60 48%,#bd9442 100%);
+  box-shadow:0 10px 26px rgba(155,116,33,.20),inset 0 1px rgba(255,255,255,.34);
+}
+
+.m26-shell :is(.m26-primary-action,.iberfit-button[data-variant="primary"]):active{
+  box-shadow:0 6px 18px rgba(155,116,33,.16),inset 0 1px rgba(255,255,255,.22);
+}
+
+.m26-shell :is(.m26-text-action,.m26-icon-button,.iberfit-button[data-variant="quiet"]){
+  border-color:color-mix(in srgb,var(--iberfit-v2-line) 88%,transparent);
+  background:color-mix(in srgb,var(--iberfit-color-surface-base) 62%,transparent);
+}
+
+.m26-shell .m26-operation-status{
+  border-color:var(--iberfit-v2-line);
+  background:rgba(5,23,16,.62);
+  box-shadow:inset 0 1px rgba(255,255,255,.025);
+}
+
+.m26-shell :is(.m26-admin-table,.iberfit-table-shell){
+  border:1px solid var(--iberfit-v2-line);
+  border-radius:var(--iberfit-v2-card-radius);
+  background:rgba(5,22,15,.56);
+  box-shadow:var(--iberfit-v2-shadow);
+}
+
+.m26-shell :is(.m26-admin-table,.iberfit-table-shell) :is(th,td){
+  border-bottom-color:color-mix(in srgb,var(--iberfit-v2-line) 72%,transparent);
+}
+
+.m26-shell :is(.m26-admin-table,.iberfit-table-shell) th{
+  color:color-mix(in srgb,var(--iberfit-color-text-secondary) 90%,var(--iberfit-color-accent-strong));
+  letter-spacing:.065em;
+}
+
+.m26-shell .m26-profile-hero-premium,
+.m26-shell[data-m26-role="client"] :is(.m26-profile-hero,.m26-hero-panel){
+  border-color:var(--iberfit-v2-line-strong);
+  background:
+    radial-gradient(circle at 88% 4%,rgba(228,205,152,.13),transparent 20rem),
+    radial-gradient(circle at 8% 100%,rgba(64,137,100,.10),transparent 22rem),
+    linear-gradient(140deg,rgba(22,60,43,.98),rgba(6,26,18,.99));
+  box-shadow:0 24px 64px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.05);
+}
+
+.m26-shell[data-m26-role="client"] .m26-route{
+  max-width:1180px;
+}
+
+.m26-shell[data-m26-role="client"] .m26-panel{
+  padding:clamp(1rem,2.4vw,1.65rem);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-route{
+  max-width:1440px;
+}
+
+.m26-shell[data-m26-role="coach"] :is(.m26-client-grid,.m26-content-grid,.m26-stat-grid){
+  gap:clamp(.65rem,1.15vw,1rem);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-route{
+  max-width:1540px;
+}
+
+.m26-shell[data-m26-role="admin"] :is(.m26-admin-panel,.m26-admin-table){
+  border-radius:1rem;
+}
+
+/* Access: fast to understand, easy to operate, visually continuous with the app. */
+.m26-auth-page{
+  padding:
+    max(clamp(.85rem,3vw,2rem),env(safe-area-inset-top))
+    max(clamp(.85rem,3vw,2rem),env(safe-area-inset-right))
+    max(clamp(.85rem,3vw,2rem),env(safe-area-inset-bottom))
+    max(clamp(.85rem,3vw,2rem),env(safe-area-inset-left));
+  background:
+    radial-gradient(circle at 50% -12%,rgba(228,205,152,.18),transparent 28rem),
+    radial-gradient(circle at 2% 94%,rgba(52,134,93,.20),transparent 30rem),
+    linear-gradient(155deg,#091e15 0%,#06140e 52%,#030c08 100%);
+}
+
+.m26-auth-card{
+  width:min(32rem,100%);
+  border-color:rgba(228,205,152,.22);
+  border-radius:1.8rem;
+  background:linear-gradient(160deg,rgba(17,50,35,.94),rgba(5,22,15,.97));
+  box-shadow:0 30px 82px rgba(0,0,0,.38),inset 0 1px rgba(255,255,255,.045);
+}
+
+.m26-auth-card::before{
+  content:"";
+  position:absolute;
+  inset:0 0 auto;
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(240,217,162,.55),transparent);
+}
+
+.m26-auth-logo{
+  border-color:rgba(228,205,152,.28);
+  background:rgba(3,15,10,.44);
+  box-shadow:0 12px 28px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.04);
+}
+
+.m26-auth-card h1{
+  letter-spacing:-.045em;
+  text-wrap:balance;
+}
+
+.m26-auth-card form,
+.m26-auth-actions{
+  gap:.82rem;
+}
+
+.m26-auth-card input{
+  min-height:54px;
+  border-color:rgba(230,215,181,.20);
+  border-radius:.92rem;
+  background:linear-gradient(180deg,rgba(1,13,8,.72),rgba(5,24,16,.80));
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.22);
+}
+
+.m26-auth-card input:focus{
+  border-color:rgba(239,214,155,.62);
+  background:rgba(4,24,16,.94);
+  box-shadow:0 0 0 4px rgba(228,205,152,.10),inset 0 1px 3px rgba(0,0,0,.16);
+}
+
+.m26-auth-card .m26-primary-action{
+  min-height:54px;
+  border-color:rgba(239,215,158,.46);
+  color:#0c2117;
+  background:linear-gradient(135deg,#ecd69f,#d1ac5c 52%,#bf9441);
+  box-shadow:0 12px 30px rgba(149,108,28,.22),inset 0 1px rgba(255,255,255,.32);
+}
+
+.m26-auth-card .m26-auth-options{
+  min-height:2.2rem;
+}
+
+.m26-auth-card .m26-auth-link{
+  text-underline-offset:.2em;
+}
+
+.m26-auth-card .m26-auth-link:hover{
+  text-decoration:underline;
+}
+
+.m26-auth-card[data-auth-state="error"],
+.m26-auth-card[data-auth-state="blocked"],
+.m26-auth-card[data-auth-state="context-blocked"]{
+  border-color:color-mix(in srgb,var(--iberfit-color-danger) 38%,rgba(228,205,152,.22));
+}
+
+@media (hover:hover) and (pointer:fine){
+  .m26-shell .m26-nav-item:not(.is-active):hover{
+    transform:translateX(2px);
+    border-color:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 16%,transparent);
+    color:var(--iberfit-color-text-primary);
+    background:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 7%,transparent);
+  }
+
+  .m26-shell :is(
+    .m26-client-card,.m26-list-card,.m26-library-card,.m26-publication-card,
+    .m26-client-content-card,.m26-rc39-session-card,.m26-wearable-source
+  ):hover{
+    transform:translateY(-2px);
+    border-color:var(--iberfit-v2-line-strong);
+    box-shadow:var(--iberfit-v2-shadow-hover);
+  }
+
+  .m26-shell :is(.m26-primary-action,.m26-text-action,.m26-icon-button):not(:disabled):hover{
+    transform:translateY(-1px);
+  }
+}
+
+@media (max-width:1100px){
+  .m26-shell .m26-route{
+    max-width:100%;
+  }
+
+  .m26-shell .m26-topbar{
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+  }
+}
+
+@media (max-width:900px){
+  .m26-shell .m26-main{
+    padding-left:max(.8rem,env(safe-area-inset-left));
+    padding-right:max(.8rem,env(safe-area-inset-right));
+  }
+
+  .m26-shell .m26-topbar{
+    padding-left:max(.85rem,env(safe-area-inset-left));
+    padding-right:max(.85rem,env(safe-area-inset-right));
+  }
+
+  .m26-shell .m26-mobile-nav{
+    border-color:rgba(234,216,174,.17);
+    background:linear-gradient(180deg,rgba(20,61,43,.985),rgba(5,27,18,.995));
+    box-shadow:0 20px 52px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.08);
+    backdrop-filter:blur(24px) saturate(1.10);
+    -webkit-backdrop-filter:blur(24px) saturate(1.10);
+  }
+
+  .m26-shell .m26-mobile-nav .m26-nav-item{
+    border-radius:.88rem;
+  }
+
+  .m26-shell .m26-mobile-nav .m26-nav-item.is-active{
+    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 26%,transparent);
+  }
+}
+
+@media (max-width:580px){
+  .m26-shell .m26-route{
+    gap:.72rem;
+  }
+
+  .m26-shell .m26-route-intro :is(h1,h2){
+    font-size:clamp(1.55rem,8vw,2.05rem);
+  }
+
+  .m26-shell :is(
+    .m26-panel,.m26-panel-soft,.m26-client-card,.m26-list-card,.m26-library-card,
+    .m26-publication-card,.m26-client-content-card,.m26-rc39-session-card,.m26-stat,
+    .iberfit-card,.iberfit-panel,.iberfit-metric,.m26-admin-panel,.m26-admin-stat
+  ){
+    border-radius:1rem;
+  }
+
+  .m26-shell :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea){
+    min-height:50px;
+    font-size:16px;
+  }
+
+  .m26-shell :is(.m26-primary-action,.m26-text-action,.m26-icon-button){
+    min-height:48px;
+  }
+
+  .m26-auth-card{
+    width:100%;
+    border-radius:1.35rem;
+  }
+
+  .m26-auth-card form{
+    margin-top:1rem;
+    padding-top:1rem;
+  }
+}
+
+@media (max-width:390px){
+  .m26-auth-options{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .m26-auth-card .m26-auth-link{
+    width:100%;
+    margin-left:0;
+    text-align:left;
+  }
+}
+
+@media (max-height:640px) and (orientation:landscape){
+  .m26-auth-page{
+    align-items:start;
+  }
+
+  .m26-auth-card{
+    margin-block:.25rem;
+  }
+
+  .m26-shell .m26-topbar{
+    min-height:auto;
+  }
+}
+
+@media (min-width:1600px){
+  .m26-shell[data-m26-role="coach"] .m26-route,
+  .m26-shell[data-m26-role="admin"] .m26-route{
+    width:min(100%,1540px);
+  }
+}
+
+@media (pointer:coarse){
+  .m26-shell :is(button,[role="button"],input,select,textarea,.m26-nav-item,summary){
+    min-height:max(48px,var(--iberfit-role-control-min,44px));
+  }
+
+  .m26-auth-card :is(button,input){
+    min-height:54px;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .m26-shell .m26-nav-item,
+  .m26-shell :is(.m26-client-card,.m26-list-card,.m26-library-card,.m26-publication-card,.m26-client-content-card,.m26-rc39-session-card){
+    transform:none!important;
+  }
+}
+
+@media (prefers-contrast:more){
+  .m26-shell :is(.m26-panel,.m26-admin-panel,.m26-client-card,.m26-list-card,.m26-stat,.iberfit-card,.iberfit-panel){
+    border-color:currentColor;
+  }
+}
