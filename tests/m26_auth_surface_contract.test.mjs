@@ -62,7 +62,7 @@ test('auth premium conserva busy, error, backend bloqueado y salida del preview'
 test('auth premium conserva recovery dinámica, provisioning fail-closed y resiliencia visual',()=>{
   const accessSource=fs.readFileSync('src/m26/app/access-ui.js','utf8');
   assert.match(accessSource,/data-device-registration-error/u);
-  assert.match(accessSource,/role="alert"/u);
+  assert.match(accessSource,/setAttribute\('role','alert'\)/u);
   assert.match(accessSource,/mfa-register-device/u);
 
   const appSource=fs.readFileSync('src/m26/app/application.js','utf8');
