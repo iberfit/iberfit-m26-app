@@ -3,14 +3,15 @@
   "target": "prod",
   "items": [
     {
-      "exercise_id": "IBF-SENTADILLA-AL-AIRE",
-      "local_path": "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE-approved-e0cdc594a62d.webp",
+      "exercise_id": "IBF-ABDUCCION-DE-CADERA-LATERAL",
+      "local_path": "scripts/exercise-media/approved/IBF-ABDUCCION-DE-CADERA-LATERAL/IBF-ABDUCCION-DE-CADERA-LATERAL-approved-dcc6b97eb69e.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.00",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.01",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.02",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.03",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.04"
+        "scripts/exercise-media/approved/IBF-ABDUCCION-DE-CADERA-LATERAL/IBF-ABDUCCION-DE-CADERA-LATERAL.b64.00",
+        "scripts/exercise-media/approved/IBF-ABDUCCION-DE-CADERA-LATERAL/IBF-ABDUCCION-DE-CADERA-LATERAL.b64.01",
+        "scripts/exercise-media/approved/IBF-ABDUCCION-DE-CADERA-LATERAL/IBF-ABDUCCION-DE-CADERA-LATERAL.b64.02",
+        "scripts/exercise-media/approved/IBF-ABDUCCION-DE-CADERA-LATERAL/IBF-ABDUCCION-DE-CADERA-LATERAL.b64.03",
+        "scripts/exercise-media/approved/IBF-ABDUCCION-DE-CADERA-LATERAL/IBF-ABDUCCION-DE-CADERA-LATERAL.b64.04",
+        "scripts/exercise-media/approved/IBF-ABDUCCION-DE-CADERA-LATERAL/IBF-ABDUCCION-DE-CADERA-LATERAL.b64.05"
       ],
       "human_approved": true,
       "publishable": true,
@@ -30,11 +31,11 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-SENTADILLA-AL-AIRE/movement-e0cdc594a62d.webp",
+          "path": "IBF-ABDUCCION-DE-CADERA-LATERAL/movement-dcc6b97eb69e.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "e0cdc594a62d937cd9b0f31cf8eec19ab646866e23df6de850b9048635a0764f"
+          "sha256": "dcc6b97eb69ea4d3ecd99d35f50750aafce27c8dfe9e000f201e1773069b9113"
         },
         "published": true,
         "clientVisible": true,
@@ -45,11 +46,10 @@
         },
         "muscleZones": {
           "primary": [
-            "cuádriceps",
-            "glúteos"
+            "glúteo medio",
+            "abductores"
           ],
           "secondary": [
-            "isquiotibiales",
             "core"
           ],
           "display": "unisex-mannequin-simple-v1"

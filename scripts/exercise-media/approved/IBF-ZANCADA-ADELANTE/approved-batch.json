@@ -3,14 +3,15 @@
   "target": "prod",
   "items": [
     {
-      "exercise_id": "IBF-SENTADILLA-AL-AIRE",
-      "local_path": "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE-approved-e0cdc594a62d.webp",
+      "exercise_id": "IBF-ZANCADA-ADELANTE",
+      "local_path": "scripts/exercise-media/approved/IBF-ZANCADA-ADELANTE/IBF-ZANCADA-ADELANTE-approved-69f0750b16f2.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.00",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.01",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.02",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.03",
-        "scripts/exercise-media/approved/IBF-SENTADILLA-AL-AIRE/IBF-SENTADILLA-AL-AIRE.b64.04"
+        "scripts/exercise-media/approved/IBF-ZANCADA-ADELANTE/IBF-ZANCADA-ADELANTE.b64.00",
+        "scripts/exercise-media/approved/IBF-ZANCADA-ADELANTE/IBF-ZANCADA-ADELANTE.b64.01",
+        "scripts/exercise-media/approved/IBF-ZANCADA-ADELANTE/IBF-ZANCADA-ADELANTE.b64.02",
+        "scripts/exercise-media/approved/IBF-ZANCADA-ADELANTE/IBF-ZANCADA-ADELANTE.b64.03",
+        "scripts/exercise-media/approved/IBF-ZANCADA-ADELANTE/IBF-ZANCADA-ADELANTE.b64.04",
+        "scripts/exercise-media/approved/IBF-ZANCADA-ADELANTE/IBF-ZANCADA-ADELANTE.b64.05"
       ],
       "human_approved": true,
       "publishable": true,
@@ -30,11 +31,11 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-SENTADILLA-AL-AIRE/movement-e0cdc594a62d.webp",
+          "path": "IBF-ZANCADA-ADELANTE/movement-69f0750b16f2.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "e0cdc594a62d937cd9b0f31cf8eec19ab646866e23df6de850b9048635a0764f"
+          "sha256": "69f0750b16f2a49f85665e937114285c4a9f1bbbb3f39ffcedfb09c15f4d6b2d"
         },
         "published": true,
         "clientVisible": true,
