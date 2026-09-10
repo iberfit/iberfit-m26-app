@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {installIberfitLanguageSwitchRuntimeGuard} from '../src/m26/ui/i18n-runtime-guard.js';
+import {installIberfitLanguageSwitchRuntimeGuard} from '../src/m26/ui/i18n-shell.js';
 
 function fakeControl(kind='language'){
   const attributes=new Map();
@@ -90,8 +90,10 @@ test('language switch suspends reactive translation before shell render and reco
   assert.equal(surface.installs,2);
   assert.equal(root.dataset.m26I18nSwitching,undefined);
   assert.equal(renderedControl.getAttribute('aria-busy'),null);
+  assert.equal(oldControl.getAttribute('aria-busy'),null);
 
   guard.disconnect();
+  assert.deepEqual(surface.log,['install:1','disconnect:1','install:2','disconnect:2']);
 });
 
 test('rapid language changes coalesce stale reconciliation work instead of multiplying full DOM walks',()=>{
@@ -142,8 +144,9 @@ test('locale changes use the same bounded path and unrelated controls remain unt
   assert.deepEqual(surface.log,['install:1','disconnect:1','install:2']);
 });
 
-test('runtime guard is loaded through the existing backward-compatible locale bridge',()=>{
+test('runtime guard is loaded through the existing backward-compatible locale bridge without adding a PWA asset',()=>{
   const source=fs.readFileSync('src/m26/ui/castellano.js','utf8');
-  assert.match(source,/import '\.\/i18n-runtime-guard\.js';/u);
+  assert.match(source,/import '\.\/i18n-shell\.js';/u);
+  assert.doesNotMatch(source,/i18n-runtime-guard\.js/u);
   assert.match(source,/Backward-compatible bridge/u);
 });
