@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import {renderSessionSyncBanner} from '../src/m26/workflows/session-ui.js';
+import {assertActionAllowed} from '../src/m26/ui/interactive-audit.js';
 import {
   createSessionController,
   manualSessionSyncOutcome,
@@ -143,6 +144,12 @@ test('manual sync while offline keeps pending state and gives a truthful retry m
   assert.equal(harness.actionState.status,'retry');
   assert.match(harness.actionState.message,/Sin conexión/u);
   harness.controller.destroy();
+});
+
+test('manual sync is registered only for execution roles that can own a live session',()=>{
+  assert.equal(assertActionAllowed('sync-now','coach'),true);
+  assert.equal(assertActionAllowed('sync-now','client'),true);
+  assert.equal(assertActionAllowed('sync-now','admin'),false);
 });
 
 test('manual sync is coordination only and does not become a domain dispatch action',()=>{
