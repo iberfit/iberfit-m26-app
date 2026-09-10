@@ -19,4 +19,6 @@ export const FINAL_RESIDUAL_SURFACE_ROWS=Object.freeze([
 ['entrenador','Coach','Coach','Coach'],
 ['Dispositivo nativo','Native device','Appareil natif','Dispositivo nativo'],
 ['Solo se usan datos confirmados como contexto.','Only confirmed data is used as context.','Seules les données confirmées sont utilisées comme contexte.','Apenas dados confirmados são usados como contexto.'],
+['Identidad confirmada · acceso pendiente','Confirmed identity · access pending','Identité confirmée · accès en attente','Identidade confirmada · acesso pendente'],
+['La cuenta es válida, pero todavía no tiene una aplicación IBERFIT habilitada. Puedes volver a intentar el acceso o entrar con otra cuenta mientras se revisa la asignación.','The account is valid, but it does not yet have an IBERFIT application enabled. You can try access again or sign in with another account while the assignment is reviewed.','Le compte est valide, mais aucune application IBERFIT n’est encore activée. Vous pouvez réessayer d’accéder au service ou vous connecter avec un autre compte pendant la vérification de l’attribution.','A conta é válida, mas ainda não tem uma aplicação IBERFIT ativada. Pode tentar aceder novamente ou iniciar sessão com outra conta enquanto a atribuição é revista.'],
 ]);
