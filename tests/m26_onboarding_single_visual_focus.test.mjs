@@ -2,9 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const source=()=>fs.readFileSync('src/m26/onboarding/progressive-onboarding.js','utf8').replace(/\\r\
-/g,'\
-');
+const source=()=>fs.readFileSync('src/m26/onboarding/progressive-onboarding.js','utf8').replace(/\r\n/g,'\n');
 
 test('guided tour visually de-emphasizes the progressive panel without removing capabilities',()=>{
   const text=source();
@@ -18,7 +16,7 @@ test('guided tour visually de-emphasizes the progressive panel without removing 
   assert.ok(styles.includes('.m26-guided-tour{'));
   assert.ok(styles.includes('background:color-mix('));
   assert.ok(styles.includes('box-shadow:0 28px 90px'));
-  assert.doesNotMatch(styles,/display\\s*:\\s*none|visibility\\s*:\\s*hidden|pointer-events\\s*:\\s*none/iu);
+  assert.doesNotMatch(styles,/display\s*:\s*none|visibility\s*:\s*hidden|pointer-events\s*:\s*none/iu);
 });
 
 test('compact mobile guided tour further reduces background competition without blocking it',()=>{
@@ -32,7 +30,7 @@ test('compact mobile guided tour further reduces background competition without 
   assert.ok(mobile.includes('filter:saturate(.5) brightness(.74)'));
   assert.ok(mobile.includes('.m26-guided-tour'));
   assert.ok(mobile.includes('max-height:min(58vh,32rem)'));
-  assert.doesNotMatch(mobile,/display\\s*:\\s*none|visibility\\s*:\\s*hidden|pointer-events\\s*:\\s*none/iu);
+  assert.doesNotMatch(mobile,/display\s*:\s*none|visibility\s*:\s*hidden|pointer-events\s*:\s*none/iu);
 });
 
 test('reduced motion also covers progressive panel focus transition',()=>{
