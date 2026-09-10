@@ -340,6 +340,11 @@ function safeLanguage(value=getIberfitLanguage()){
   return COPY_LANGUAGES.includes(normalized)?normalized:'es';
 }
 
+function resolveGuidedOnboardingStorage(storage,scope=globalThis){
+  if(storage!==undefined)return storage;
+  try{return scope?.localStorage??globalThis.localStorage??null;}catch{return null;}
+}
+
 export function guidedOnboardingCopy(key,{language=getIberfitLanguage(),params={}}={}){
   const selected=COPY[safeLanguage(language)]||COPY.es;
   const raw=Object.hasOwn(selected,key)?selected[key]:Object.hasOwn(COPY.es,key)?COPY.es[key]:String(key||'');
@@ -395,12 +400,13 @@ export function normalizeGuidedOnboardingState(value={},role){
   });
 }
 
-export function createGuidedOnboardingRepository({storage=globalThis.localStorage}={}){
+export function createGuidedOnboardingRepository({storage,scope=globalThis}={}){
+  const resolvedStorage=resolveGuidedOnboardingStorage(storage,scope);
   const memory=new Map();
   function readRaw(key){
     if(!key)return null;
     try{
-      const raw=storage?.getItem?.(key);
+      const raw=resolvedStorage?.getItem?.(key);
       if(raw)return JSON.parse(raw);
     }catch{}
     return memory.get(key)||null;
@@ -417,7 +423,7 @@ export function createGuidedOnboardingRepository({storage=globalThis.localStorag
       activeStepId:state.activeStepId||null,
     };
     memory.set(key,Object.freeze({...safe}));
-    try{storage?.setItem?.(key,JSON.stringify(safe));}catch{}
+    try{resolvedStorage?.setItem?.(key,JSON.stringify(safe));}catch{}
     return true;
   }
   return Object.freeze({
@@ -510,11 +516,11 @@ export function renderGuidedOnboardingSettings({language=getIberfitLanguage()}={
 function createCoreGuidedTourController({
   root,
   identityProvider=()=>({}),
-  storage=globalThis.localStorage,
+  storage,
   scope=globalThis,
 }={}){
   if(!root?.addEventListener)throw new Error('M26_GUIDED_ONBOARDING_ROOT_REQUIRED');
-  const repository=createGuidedOnboardingRepository({storage});
+  const repository=createGuidedOnboardingRepository({storage,scope});
   const documentLike=root.ownerDocument||scope?.document||globalThis.document;
   let observer=null;
   let mounted=false;
@@ -526,6 +532,7 @@ function createCoreGuidedTourController({
   let activeStepId=null;
   let dialog=null;
   let lastContextKey=null;
+  let renderToken=0;
 
   function context(){
     const value=identityProvider?.()||{};
@@ -541,6 +548,7 @@ function createCoreGuidedTourController({
   }
 
   function removeDialog({restoreFocus=true}={}){
+    renderToken+=1;
     removeTarget(activeTarget);
     activeTarget=null;
     dialog?.removeEventListener?.('click',onDialogClick);
@@ -593,8 +601,12 @@ function createCoreGuidedTourController({
   }
 
   function focusDialog(){
+    const token=renderToken;
     const focusable=dialog?.querySelector?.('[data-m26-guided-tour-next]')||dialog;
-    queueMicrotask(()=>{try{focusable?.focus?.({preventScroll:true});}catch{}});
+    queueMicrotask(()=>{
+      if(token!==renderToken||!open||dialog?.isConnected===false)return;
+      try{focusable?.focus?.({preventScroll:true});}catch{}
+    });
   }
 
   function renderStep(contextValue,requestedStepId=activeStepId){
@@ -629,6 +641,7 @@ function createCoreGuidedTourController({
     }
     dialog=documentLike?.querySelector?.('[data-m26-guided-tour]')||null;
     dialog?.addEventListener?.('click',onDialogClick);
+    renderToken+=1;
     focusDialog();
     return true;
   }
@@ -753,12 +766,17 @@ function createCoreGuidedTourController({
     queueMicrotask(refreshNow);
   }
 
+  function onPageShow(){
+    refresh();
+  }
+
   return Object.freeze({
     mount(){
       if(mounted)return;
       mounted=true;
       root.addEventListener('click',onRootClick);
       documentLike?.addEventListener?.('keydown',onKeyDown);
+      scope?.addEventListener?.('pageshow',onPageShow);
       root.addEventListener?.('m26:shell-rendered',refresh);
       if(typeof scope?.MutationObserver==='function'){
         observer=new scope.MutationObserver(refresh);
@@ -774,6 +792,7 @@ function createCoreGuidedTourController({
       root.removeEventListener('click',onRootClick);
       root.removeEventListener?.('m26:shell-rendered',refresh);
       documentLike?.removeEventListener?.('keydown',onKeyDown);
+      scope?.removeEventListener?.('pageshow',onPageShow);
       observer?.disconnect?.();
       observer=null;
       removeDialog({restoreFocus:false});
