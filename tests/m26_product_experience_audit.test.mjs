@@ -80,9 +80,11 @@ test('el contrato anterior se conserva y la madurez visual se añade de forma co
   assert.equal(typeof report.summary.strengths,'number');
   assert.equal(typeof report.summary.opportunities,'number');
   assert.equal(typeof report.visualMaturity.score,'number');
+  assert.equal(typeof report.visualMaturity.structuralScore,'number');
   assert.equal(report.visualMaturity.maxScore,100);
   assert.equal(report.visualMaturity.requiresHumanVisualReview,true);
   assert.equal(report.summary.visualScore,report.visualMaturity.score);
+  assert.equal(report.summary.visualStructuralScore,report.visualMaturity.structuralScore);
 });
 
 test('intentionally-minimal nunca puede desaparecer detrás de un falso PASS premium',()=>{
@@ -92,7 +94,9 @@ test('intentionally-minimal nunca puede desaparecer detrás de un falso PASS pre
   assert.equal(gap.priority,'high');
   assert.equal(gap.domain,'aesthetic');
   assert.equal(report.visualMaturity.intentionallyMinimal,true);
-  assert.notEqual(report.visualMaturity.level,'elevated');
+  assert.equal(report.visualMaturity.structuralScore,100);
+  assert.equal(report.visualMaturity.score,70);
+  assert.equal(report.visualMaturity.level,'foundation-direction-limited');
   assert.ok(report.summary.opportunities>0);
   assert.ok(report.strengths.some((item)=>item.code==='PREMIUM_VISUAL_LAYERING'));
   assert.match(report.strengths.find((item)=>item.code==='PREMIUM_VISUAL_LAYERING').message,/por sí sola no certifica acabado premium/u);
@@ -105,5 +109,7 @@ test('la evaluación de madurez visual es determinista y separa estructura de re
   assert.deepEqual(first.visualMaturity,second.visualMaturity);
   assert.equal(first.visualMaturity.requiresHumanVisualReview,true);
   assert.equal(first.opportunities.some((item)=>item.code==='VISUAL_DIRECTION_MINIMAL_DELTA'),false);
-  assert.ok(first.visualMaturity.score>=70);
+  assert.equal(first.visualMaturity.structuralScore,100);
+  assert.equal(first.visualMaturity.score,100);
+  assert.equal(first.visualMaturity.level,'elevated');
 });
