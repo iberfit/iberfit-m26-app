@@ -72,6 +72,8 @@ export const ADMIN_SURFACE_ROWS=Object.freeze([
 ['Configuración actualizada.','Configuration updated.','Configuration mise à jour.','Configuração atualizada.'],
 ['La configuración JSON no es válida.','The JSON configuration is invalid.','La configuration JSON n’est pas valide.','A configuração JSON não é válida.'],
 ['No fue posible procesar la operación administrativa.','The administrative operation could not be processed.','Impossible de traiter l’opération administrative.','Não foi possível processar a operação administrativa.'],
+['El cambio quedó guardado, pero no fue posible actualizar la vista. Reintenta la conexión para refrescar los datos.','The change was saved, but the view could not be updated. Retry the connection to refresh the data.','La modification a été enregistrée, mais la vue n’a pas pu être mise à jour. Réessayez la connexion pour actualiser les données.','A alteração foi guardada, mas não foi possível atualizar a vista. Tente novamente a ligação para atualizar os dados.'],
+['Cambia la búsqueda o los filtros para volver a mostrar usuarios.','Change the search or filters to show users again.','Modifiez la recherche ou les filtres pour afficher de nouveau les utilisateurs.','Altere a pesquisa ou os filtros para voltar a mostrar utilizadores.'],
 ['CRM y clientes','CRM and clients','CRM et clients','CRM e clientes'],
 ['Agenda global','Global schedule','Agenda global','Agenda global'],
 ['Agenda y capacidad','Schedule and capacity','Agenda et capacité','Agenda e capacidade'],
