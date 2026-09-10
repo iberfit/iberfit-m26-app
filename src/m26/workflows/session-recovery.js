@@ -74,6 +74,71 @@ export function reconcileExecutionSnapshots({local,remote}={}){
   if(remoteRevision>localRevision)return {kind:'remote',snapshot:clone(remote),conflict:null};
   return {kind:'local',snapshot:clone(local),conflict:null};
 }
+function arrSyncIds(value){
+  if(!Array.isArray(value))return [];
+  return [...new Set(value.map((item)=>cleanId(item)).filter(Boolean))];
+}
+function syncOperationId(result){return cleanId(result?.command?.operationId||result?.operationId||'');}
+function syncRevision(result){
+  const values=[result?.response?.executionRevision,result?.response?.remoteRevision,result?.response?.revision]
+    .map((value)=>finiteInteger(value,{min:0}))
+    .filter((value)=>value!==null);
+  return values.length?Math.max(...values):null;
+}
+export function reconcileExecutionSyncResult(execution,syncResult={}){
+  if(!execution||typeof execution!=='object'||Array.isArray(execution))return Object.freeze({changed:false,matched:0,acked:0,conflicts:0,rejected:0,pending:0});
+  const pendingIds=new Set(arrSyncIds(execution.pendingOperationIds));
+  const originalStatus=String(execution.syncStatus||'clean');
+  const originalError=execution.lastSyncError??null;
+  let matched=0,acked=0,conflicts=0,rejected=0;
+  let maxRevision=finiteInteger(execution.revision,{min:0})??0;
+  let conflictCode=null,rejectedCode=null;
+  for(const result of Array.isArray(syncResult?.results)?syncResult.results:[]){
+    const operationId=syncOperationId(result);
+    if(!operationId||!pendingIds.has(operationId))continue;
+    matched+=1;
+    const kind=String(result?.kind||'').toLowerCase();
+    if(result?.ok===true&&(kind==='ack'||kind==='duplicate')){
+      pendingIds.delete(operationId);
+      acked+=1;
+      const revision=syncRevision(result);
+      if(revision!==null)maxRevision=Math.max(maxRevision,revision);
+      continue;
+    }
+    if(kind==='conflict'){
+      pendingIds.delete(operationId);
+      conflicts+=1;
+      conflictCode=String(result?.response?.reason||result?.error||'REVISION_CONFLICT').slice(0,240);
+      continue;
+    }
+    if(kind==='rejected'){
+      pendingIds.delete(operationId);
+      rejected+=1;
+      rejectedCode=String(result?.response?.reason||result?.error||'REJECTED').slice(0,240);
+    }
+  }
+  if(!matched)return Object.freeze({changed:false,matched:0,acked:0,conflicts:0,rejected:0,pending:pendingIds.size});
+  execution.pendingOperationIds=[...pendingIds];
+  execution.revision=maxRevision;
+  if(conflicts){
+    execution.syncStatus='conflict';
+    execution.lastSyncError=conflictCode;
+  }else if(rejected){
+    execution.syncStatus='rejected';
+    execution.lastSyncError=rejectedCode;
+  }else if(['conflict','rejected'].includes(originalStatus)){
+    execution.syncStatus=originalStatus;
+    execution.lastSyncError=originalError;
+  }else if(pendingIds.size){
+    execution.syncStatus='pending';
+    execution.lastSyncError=null;
+  }else{
+    execution.syncStatus='clean';
+    execution.lastSyncError=null;
+  }
+  return Object.freeze({changed:true,matched,acked,conflicts,rejected,pending:pendingIds.size});
+}
+
 export function createExecutionRecoveryStore({storage=createBrowserKeyValueStore(),ownerId,prefix='m26:execution:',now=()=>new Date(),ttlDays=30}={}){
   const owner=cleanId(ownerId);if(!owner)throw new Error('M26_RECOVERY_OWNER_REQUIRED');
   const ttl=finiteInteger(ttlDays,{min:1,max:365})??30;
