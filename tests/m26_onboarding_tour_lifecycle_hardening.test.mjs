@@ -126,7 +126,10 @@ test('controller wires optional outward state, redundant close detection and com
 });
 
 test('all real guided-tour exits remove the dialog so the bridge reports false',()=>{
-  const guided=read('src/m26/onboarding/guided-tour.js');
+  const guided=[
+    read('src/m26/onboarding/guided-tour.js'),
+    fs.existsSync('src/m26/onboarding/guided-tour-core.js')?read('src/m26/onboarding/guided-tour-core.js'):'',
+  ].join('\n');
   assert.match(guided,/function pause\(\)[\s\S]*?suppressed=true;\n\s*removeDialog\(\);/u);
   assert.match(guided,/function skip\(\)[\s\S]*?suppressed=true;\n\s*removeDialog\(\);/u);
   assert.match(guided,/function complete\(\)[\s\S]*?suppressed=true;\n\s*removeDialog\(\);/u);
