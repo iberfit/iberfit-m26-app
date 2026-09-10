@@ -151,6 +151,11 @@ function guidedTourDocument(root,scope){
   return root?.ownerDocument||scope?.document||globalThis.document||null;
 }
 
+function resolveProgressiveOnboardingStorage(storage,scope=globalThis){
+  if(storage!==undefined)return storage;
+  try{return scope?.localStorage??globalThis.localStorage??null;}catch{return null;}
+}
+
 function guidedTourIsOpen(documentLike){
   return Boolean(documentLike?.querySelector?.('[data-m26-guided-tour]'));
 }
@@ -183,6 +188,7 @@ export function createProgressiveOnboardingOpenState({
 
   return Object.freeze({
     sync(){return apply(guidedTourIsOpen(documentLike));},
+    set(value){return apply(value);},
     clear(){return apply(false);},
     isOpen(){return open;},
   });
@@ -331,14 +337,16 @@ export function progressiveOnboardingProgress({role,visited=[]}={}){
 }
 
 export function createProgressiveOnboardingRepository({
-  storage=globalThis.localStorage,
+  storage,
+  scope=globalThis,
 }={}){
+  const resolvedStorage=resolveProgressiveOnboardingStorage(storage,scope);
   const memory=new Map();
 
   function readRaw(key){
     if(!key)return null;
     try{
-      const raw=storage?.getItem?.(key);
+      const raw=resolvedStorage?.getItem?.(key);
       if(raw)return JSON.parse(raw);
     }catch{}
     return memory.get(key)||null;
@@ -354,7 +362,7 @@ export function createProgressiveOnboardingRepository({
       completed:Boolean(value.completed),
     });
     memory.set(key,safe);
-    try{storage?.setItem?.(key,JSON.stringify(safe));}catch{}
+    try{resolvedStorage?.setItem?.(key,JSON.stringify(safe));}catch{}
     return true;
   }
 
@@ -403,21 +411,29 @@ export function renderProgressiveOnboardingPanel({role,state}={}){
 export function createProgressiveOnboardingController({
   root,
   identityProvider=()=>({}),
-  storage=globalThis.localStorage,
+  storage,
   scope=globalThis,
   onOpenChange,
 }={}){
   if(!root?.addEventListener)throw new Error('M26_PROGRESSIVE_ONBOARDING_ROOT_REQUIRED');
 
   const documentLike=guidedTourDocument(root,scope);
-  const repository=createProgressiveOnboardingRepository({storage});
-  const guidedTour=createGuidedTourController({root,identityProvider,storage,scope});
+  const resolvedStorage=resolveProgressiveOnboardingStorage(storage,scope);
+  const repository=createProgressiveOnboardingRepository({storage:resolvedStorage,scope});
   const tourOpenState=createProgressiveOnboardingOpenState({root,documentLike,onOpenChange});
+  const guidedTour=createGuidedTourController({
+    root,
+    identityProvider,
+    storage:resolvedStorage,
+    scope,
+    onOpenChange:(open)=>tourOpenState.set(open),
+  });
   let observer=null;
   let tourObserver=null;
   let releaseCompactStyle=null;
   let mounted=false;
   let scheduled=false;
+  let tourOpenSyncScheduled=false;
   let renderedPanel=null;
   let renderedPanelKey=null;
   let pendingClientStartArea=null;
@@ -451,6 +467,7 @@ export function createProgressiveOnboardingController({
   }
 
   function syncTourOpenState(){
+    tourOpenSyncScheduled=false;
     if(!mounted){
       tourOpenState.clear();
       return false;
@@ -459,6 +476,8 @@ export function createProgressiveOnboardingController({
   }
 
   function scheduleTourOpenStateSync(){
+    if(tourOpenSyncScheduled)return;
+    tourOpenSyncScheduled=true;
     queueMicrotask(syncTourOpenState);
   }
 
@@ -469,6 +488,13 @@ export function createProgressiveOnboardingController({
 
   function onDocumentTourKeydown(event){
     if(event?.key!=='Escape')return;
+    scheduleTourOpenStateSync();
+  }
+
+  function onPageShow(){
+    if(!mounted)return;
+    guidedTour.refresh?.();
+    schedule();
     scheduleTourOpenStateSync();
   }
 
@@ -627,6 +653,7 @@ export function createProgressiveOnboardingController({
       root.addEventListener('m26:toast',onWorkflowToast);
       documentLike?.addEventListener?.('click',onDocumentTourClick,true);
       documentLike?.addEventListener?.('keydown',onDocumentTourKeydown,true);
+      scope?.addEventListener?.('pageshow',onPageShow);
       if(typeof scope?.MutationObserver==='function'){
         observer=new scope.MutationObserver(schedule);
         observer.observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['aria-current']});
@@ -643,6 +670,7 @@ export function createProgressiveOnboardingController({
     destroy(){
       mounted=false;
       scheduled=false;
+      tourOpenSyncScheduled=false;
       pendingClientStartArea=null;
       root.removeEventListener('click',onClick);
       root.removeEventListener('input',onFlexibleInput);
@@ -652,6 +680,7 @@ export function createProgressiveOnboardingController({
       root.removeEventListener('m26:toast',onWorkflowToast);
       documentLike?.removeEventListener?.('click',onDocumentTourClick,true);
       documentLike?.removeEventListener?.('keydown',onDocumentTourKeydown,true);
+      scope?.removeEventListener?.('pageshow',onPageShow);
       observer?.disconnect?.();
       observer=null;
       tourObserver?.disconnect?.();
