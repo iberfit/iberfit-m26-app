@@ -170,8 +170,34 @@ export function createExecutionRecoveryStore({storage=createBrowserKeyValueStore
   return Object.freeze({ownerId:owner,save,load,list,remove,purgeExpired,clearOwner});
 }
 export function createMemoryExecutionRecoveryStore(options={}){return createExecutionRecoveryStore({...options,storage:createMemoryKeyValueStore()});}
-export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()=>globalThis.navigator?.onLine!==false}={}){
+export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()=>globalThis.navigator?.onLine!==false,getActiveContext=()=>null,onReconcileError=()=>{}}={}){
   if(!store?.save||!store?.load||!store?.list||!store?.remove)throw new Error('M26_RECOVERY_STORE_REQUIRED');
+  async function reconcileActiveContext(syncResult){
+    let context;
+    try{context=getActiveContext?.()||null;}catch(error){try{onReconcileError(error);}catch{}return false;}
+    if(!context?.execution||!context?.session)return false;
+    const nextExecution=clone(context.execution);
+    const reconciliation=reconcileExecutionSyncResult(nextExecution,syncResult);
+    if(!reconciliation.changed)return false;
+    try{
+      if(SETTLED.has(nextExecution.status)&&nextExecution.syncStatus==='clean'){
+        await store.remove(nextExecution.id);
+      }else{
+        await store.save({
+          execution:nextExecution,
+          session:context.session,
+          appointmentId:context.appointmentId||null,
+          sessionRevision:finiteInteger(context.sessionRevision??context.session?.revision??0,{min:0})??0,
+          dirty:nextExecution.syncStatus!=='clean',
+        });
+      }
+      Object.assign(context.execution,nextExecution);
+      return true;
+    }catch(error){
+      try{onReconcileError(error);}catch{}
+      return false;
+    }
+  }
   return Object.freeze({
     async persist(context){return store.save({...context,dirty:context?.execution?.syncStatus!=='clean'});},
     async recover(executionId){return store.load(executionId);},
@@ -179,6 +205,12 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
     async latest(options={}){return (await store.list(options))[0]||null;},
     async purgeExpired(){return store.purgeExpired?.()||0;},
     async settle(execution){if(SETTLED.has(execution?.status)&&execution?.syncStatus==='clean')await store.remove(execution.id);},
-    async synchronize(){if(!isOnline())return {online:false,attempted:0,results:[]};if(!commandBus?.flushPending)return {online:true,attempted:0,results:[]};return commandBus.flushPending();},
+    async synchronize(){
+      if(!isOnline())return {online:false,attempted:0,results:[]};
+      if(!commandBus?.flushPending)return {online:true,attempted:0,results:[]};
+      const result=await commandBus.flushPending();
+      await reconcileActiveContext(result);
+      return result;
+    },
   });
 }
