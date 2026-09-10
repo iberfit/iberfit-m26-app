@@ -33,9 +33,9 @@ function renderCurrentExerciseHistory(execution,step){
   return `<section class="m26-panel m26-panel-soft" data-session-current-exercise-history aria-label="Series registradas hoy en este ejercicio"><p class="m26-eyebrow">Hoy en este ejercicio</p><div class="m26-field-grid">${items}</div></section>`;
 }
 function groupName(type){return ({biserie:'Biserie',triserie:'Triserie',circuito:'Circuito',amrap:'AMRAP',tabata:'Tabata'})[type]||type;}
-function syncBanner(execution){
+export function renderSessionSyncBanner(execution){
   const status=execution?.syncStatus||'clean';if(status==='clean')return '';
-  if(status==='pending')return '<div class="m26-sync-banner is-pending" role="status">Guardado en este dispositivo · pendiente de sincronización.</div>';
+  if(status==='pending')return '<div class="m26-sync-banner is-pending" role="status"><span>Guardado en este dispositivo · pendiente de sincronización.</span><button type="button" class="m26-text-action" data-session-action="sync-now">Sincronizar ahora</button></div>';
   if(status==='conflict')return '<div class="m26-sync-banner is-conflict" role="alert">Existe una versión más reciente. Tu progreso local está protegido y requiere revisión.</div>';
   return '<div class="m26-sync-banner is-rejected" role="alert">No fue posible confirmar el último cambio. El progreso local se conserva.</div>';
 }
@@ -504,7 +504,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
   const state=actionState&&actionState.status!=='idle'
     ?`<div class="m26-action-state is-${e(actionState.status)}" role="${actionState.status==='error'||actionState.status==='retry'?'alert':'status'}" aria-live="polite">${e(actionState.message|| (actionState.status==='loading'?'Procesando…':''))}</div>`
     :'';
-  const sync=syncBanner(execution);
+  const sync=renderSessionSyncBanner(execution);
   const goal=sessionLiveGoal(session);
 
   const isCoach=String(role||'').trim().toLowerCase()==='coach';

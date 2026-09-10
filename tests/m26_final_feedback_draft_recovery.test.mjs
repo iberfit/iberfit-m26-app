@@ -92,6 +92,6 @@ test('controlador captura, persiste e hidrata RPE, comentario, dolor y notas',()
   assert.ok(source.includes('pain.checked=Boolean(values.pain)'));
   assert.ok(source.includes('updateFinalFeedbackDraft(context.execution,feedbackValues(root))'));
   assert.ok(source.includes('if(saved)queueExecutionDraftPersist(context)'));
-  assert.ok(source.includes('render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());};'));
+  assert.ok(source.includes('render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());};'));
   assert.ok(source.includes('createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:'));
 });
