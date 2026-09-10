@@ -341,8 +341,8 @@ export function renderAccessUi({
     content = `
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Recuperación segura</p>
-        <h1 id="m26-auth-title" tabindex="-1">Crea o recupera tu acceso</h1>
-        <p>Introduce el correo asociado a tu cuenta. El enlace seguro te permitirá crear una contraseña nueva sin alterar el resto de tu perfil.</p>
+        <h1 id="m26-auth-title" tabindex="-1">Crear o recuperar contraseña</h1>
+        <p>Introduce el correo asociado a tu cuenta. Te enviaremos un enlace seguro para crear una contraseña nueva.</p>
       </div>
 
       ${recoveryFlowMarkup(1)}
@@ -385,8 +385,8 @@ export function renderAccessUi({
     content = `
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Recuperación segura</p>
-        <h1 id="m26-auth-title" tabindex="-1">Crea tu contraseña nueva</h1>
-        <p>El enlace seguro ya se ha validado. Define la contraseña que utilizarás a partir de ahora para entrar en IBERFIT.</p>
+        <h1 id="m26-auth-title" tabindex="-1">Crear contraseña nueva</h1>
+        <p>Introduce y confirma la contraseña que utilizarás para acceder.</p>
       </div>
 
       ${recoveryFlowMarkup(3)}
