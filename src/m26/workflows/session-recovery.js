@@ -96,9 +96,9 @@ export function reconcileExecutionSyncResult(execution,syncResult={}){
   for(const result of Array.isArray(syncResult?.results)?syncResult.results:[]){
     const operationId=syncOperationId(result);
     if(!operationId||!pendingIds.has(operationId))continue;
-    matched+=1;
     const kind=String(result?.kind||'').toLowerCase();
     if(result?.ok===true&&(kind==='ack'||kind==='duplicate')){
+      matched+=1;
       pendingIds.delete(operationId);
       acked+=1;
       const revision=syncRevision(result);
@@ -106,12 +106,14 @@ export function reconcileExecutionSyncResult(execution,syncResult={}){
       continue;
     }
     if(kind==='conflict'){
+      matched+=1;
       pendingIds.delete(operationId);
       conflicts+=1;
       conflictCode=String(result?.response?.reason||result?.error||'REVISION_CONFLICT').slice(0,240);
       continue;
     }
     if(kind==='rejected'){
+      matched+=1;
       pendingIds.delete(operationId);
       rejected+=1;
       rejectedCode=String(result?.response?.reason||result?.error||'REJECTED').slice(0,240);
