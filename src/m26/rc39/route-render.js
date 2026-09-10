@@ -148,11 +148,13 @@ function renderClientPlanning(vm){
   const contractModality=contractModalityOf(vm);
   const appExecutable=items.filter((item)=>experienceFor(item,'client',contractModality).clientLiveWorkout).length;
   const supervised=items.filter((item)=>['coach_led','live_online'].includes(item.ownership)).length;
+  const sessionCountLabel=items.length===1?'1 sesión publicada':`${items.length} sesiones publicadas`;
+  const sessionCountShort=items.length===1?'1 sesión':`${items.length} sesiones`;
   const cards=items.length?items.map((item)=>sessionCard(item,'client',contractModality)).join(''):`<section class="m26-empty"><h3>Tu semana aún no está publicada</h3><p>Cuando tu Coach la publique, cada sesión mostrará claramente si es presencial, autónoma o online en directo.</p></section>`;
   const overview=`<section class="m30-planning-overview" data-m30-planning-overview aria-label="Resumen de tu planificación">
     <div class="m30-planning-overview-copy">
       <p class="m26-eyebrow">Tu semana de un vistazo</p>
-      <h3>${items.length?escape(`${items.length} sesión${items.length===1?'':'es'} publicada${items.length===1?'':'s'}`):'Planificación pendiente'}</h3>
+      <h3>${items.length?escape(sessionCountLabel):'Planificación pendiente'}</h3>
       <p>Cada sesión mantiene su modalidad real, permisos de ejecución y contexto. IBERFIT no convierte una sesión supervisada en autónoma.</p>
     </div>
     <div class="m30-planning-overview-metrics">
@@ -161,7 +163,7 @@ function renderClientPlanning(vm){
       <div><span>En app</span><strong>${escape(appExecutable)}</strong><small>Live Workout</small></div>
     </div>
   </section>`;
-  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>Planificación · ${escape(clientModalityLabel(contractModality))}</h2><p>${escape(modalityIntro('client',contractModality))}</p></div>${statusBadge(`${items.length} sesiones`,'neutral')}</section>${overview}<section class="m26-rc39-week">${cards}</section></div>`;
+  return `<div class="m26-route m26-rc39-planning" data-m27-session-surface="planning"><section class="m26-route-intro"><div><p class="m26-eyebrow">Tu semana IBERFIT</p><h2>Planificación · ${escape(clientModalityLabel(contractModality))}</h2><p>${escape(modalityIntro('client',contractModality))}</p></div>${statusBadge(sessionCountShort,'neutral')}</section>${overview}<section class="m26-rc39-week">${cards}</section></div>`;
 }
 function renderCoachToday(vm){
   const items=vm.rc39?.sessionProjections||[];
