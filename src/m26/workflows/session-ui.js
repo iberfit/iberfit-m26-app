@@ -617,8 +617,12 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     const feedbackSummary=Number.isFinite(sessionRpe)
       ?`<p><strong>RPE de sesión ${e(sessionRpe)}/10</strong> · ${feedback.pain?'Molestia registrada para seguimiento.':'Sin dolor o molestia registrada.'}</p>`
       :'';
+    const progressActionLabel=isCoach?'Abrir Cliente 360':'Ver mi progreso';
+    const continuityCopy=isCoach
+      ?'El seguimiento del cliente ya puede continuar desde Cliente 360.'
+      :'Tu seguimiento ya puede continuar desde Progreso.';
     const completedActions=confirmed
-      ?`<div class="m26-session-live-actions"><button type="button" data-session-action="exit-session">Volver a sesiones</button><button type="button" class="m26-primary-action" data-m26-area="progreso">Ver mi progreso</button></div>`
+      ?`<div class="m26-session-live-actions"><button type="button" data-session-action="exit-session">Volver a sesiones</button><button type="button" class="m26-primary-action" data-m26-area="progreso">${e(progressActionLabel)}</button></div>`
       :`<button type="button" class="m26-primary-action" data-session-action="exit-session">Volver a sesiones</button>`;
 
     return `<section class="m26-guided m26-session-live" data-session-live-state="completed">
@@ -635,7 +639,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         </div>
         ${completedSessionSummary(execution)}
         ${feedbackSummary}
-        ${confirmed?'<p>Tu seguimiento ya puede continuar desde Progreso.</p>':''}
+        ${confirmed?`<p>${e(continuityCopy)}</p>`:''}
         ${completedActions}
       </div>
     </section>`;

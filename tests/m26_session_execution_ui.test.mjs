@@ -41,6 +41,22 @@ test('completed execution closes the loop into confirmed progress',()=>{
   assert.match(html,/>Ver mi progreso</);
   assert.match(html,/resultados y tu feedback quedaron confirmados/i);
 
+  const coachHtml=renderGuidedExecution({
+    execution:x,
+    session:s,
+    catalog,
+    role:'coach',
+  });
+
+  assert.match(coachHtml,/data-m26-area="progreso"/);
+  assert.match(coachHtml,/>Abrir Cliente 360</);
+  assert.doesNotMatch(coachHtml,/>Ver mi progreso</);
+  assert.match(
+    coachHtml,
+    /El seguimiento del cliente ya puede continuar desde Cliente 360\./
+  );
+  assert.doesNotMatch(html,/>Abrir Cliente 360</);
+
   markExecutionSync(
     x,
     'pending',
