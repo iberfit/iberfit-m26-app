@@ -4,12 +4,13 @@
   "items": [
     {
       "exercise_id": "IBF-PRESS-DE-PECHO-CON-MANCUERNAS",
-      "local_path": "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-approved-6a0c7ca12b88.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-approved-adaa8c05ec2b.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS.b64.00",
-        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS.b64.01",
-        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS.b64.02",
-        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS.b64.03"
+        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v2.b64.00",
+        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v2.b64.01",
+        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v2.b64.02",
+        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v2.b64.03a",
+        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v2.b64.03b"
       ],
       "human_approved": true,
       "publishable": true,
@@ -21,7 +22,7 @@
         ],
         "automatic_qa": "not_run",
         "approved_at": "2026-09-10",
-        "note": "Patrón IBERFIT aprobado por el propietario: inicio + final, ejecución real, estética negro/verde/dorado y maniquí unisex simple con zonas trabajadas."
+        "note": "Versión visual v2 aprobada explícitamente por el propietario: inicio + final, ejecución correcta, composición limpia y maniquí muscular discreto. No se añadió ni inventó logotipo o isotipo."
       },
       "media": {
         "schema": "iberfit.exercise.visual.v1",
@@ -29,11 +30,11 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-PRESS-DE-PECHO-CON-MANCUERNAS/movement-6a0c7ca12b88.webp",
+          "path": "IBF-PRESS-DE-PECHO-CON-MANCUERNAS/movement-adaa8c05ec2b.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "6a0c7ca12b88198eb73f81a9f0c04b5b08fc1d0b9bb6cd4b4ca0acbb4b1d64c1"
+          "sha256": "adaa8c05ec2b49720ad65a60d6c6c7393a1ee30a0bf5e16b2a13d4c12b548bc7"
         },
         "published": true,
         "clientVisible": true,
