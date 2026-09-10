@@ -182,6 +182,12 @@ function invalidRecoverySession(error){
   return error?.status===401||error?.status===403||/RECOVERY_(?:TOKEN|SESSION|USER|UPDATE|IDENTITY)|QA_ACCOUNT_REQUIRED|JWT|expired/i.test(code);
 }
 
+export async function recoverExecutionAfterAuthentication({restoreExecution,pendingIriExternalReportIntent=false,reportDiagnostic}={}){
+  if(pendingIriExternalReportIntent||typeof restoreExecution!=='function')return false;
+  try{return Boolean(await restoreExecution());}
+  catch(error){try{reportDiagnostic?.('session-recovery-auto-restore',error);}catch{}return false;}
+}
+
 export function privilegedMfaDecision(assurance={}){
   if(assurance?.webauthnRequired!==true){
     return Object.freeze({kind:'ready'});
@@ -461,6 +467,9 @@ export async function createM26Application({root=document.querySelector('#app'),
     sessionUi={draft:null,query:'',actionState:createActionState(),session:snapshot.session,execution:snapshot.execution,appointmentId:snapshot.appointmentId||null};
     sessionUi.actionState.status='success';sessionUi.actionState.message='Sesión recuperada desde este dispositivo.';store.navigate('sesion');return true;
   }
+  async function restoreExecutionAfterAuthentication(){
+    return recoverExecutionAfterAuthentication({restoreExecution,pendingIriExternalReportIntent,reportDiagnostic});
+  }
   function surfaceWorkspaceError(error){
     const detail=reportDiagnostic('session-workspace',error);
     const message=`${friendlyError(error)} Código: ${detail.code}.`;
@@ -549,9 +558,11 @@ export async function createM26Application({root=document.querySelector('#app'),
     else if(controllerShellRole==='admin')qaStage('rc64-controller-shell-role-admin');
     else qaStage('rc64-controller-shell-role-missing');
     root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
+    const executionRestored=await restoreExecutionAfterAuthentication();
+    if(executionRestored)qaStage('rc64-session-auto-recovered');
     render();
     qaStage('rc64-final-render-ready');
-    await consumePendingIriExternalReportIntent();
+    if(!executionRestored)await consumePendingIriExternalReportIntent();
     qaStage('rc64-setup-ready');
 
     qaStage('rc64-post-login-local-reconciliation-start');
@@ -994,4 +1005,4 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),runtime});
 }
 
-export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,recoveryRequestConfirmation,recoveryRedirectForRuntime,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});
+export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,recoveryRequestConfirmation,recoveryRedirectForRuntime,recoverExecutionAfterAuthentication,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});
