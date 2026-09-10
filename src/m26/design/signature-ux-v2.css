@@ -964,3 +964,222 @@ body{
     grid-template-columns:1fr;
   }
 }
+
+
+/* Signature UX V2.4 · Admin and agenda operational clarity */
+.m30-admin-command-route{
+  gap:clamp(.8rem,1.2vw,1.15rem);
+}
+
+.m30-admin-command-route>.m26-admin-hero{
+  position:relative;
+  overflow:clip;
+  border-color:var(--iberfit-v2-line-strong);
+  background:
+    radial-gradient(circle at 92% -18%,rgba(216,185,111,.10),transparent 22rem),
+    var(--iberfit-v2-surface);
+  box-shadow:var(--iberfit-v2-shadow);
+}
+
+.m30-admin-decision-center{
+  border-color:color-mix(in srgb,var(--iberfit-color-role-admin-accent) 34%,transparent)!important;
+  background:
+    radial-gradient(circle at 96% 0%,color-mix(in srgb,var(--iberfit-color-role-admin-accent) 10%,transparent),transparent 22rem),
+    var(--iberfit-v2-surface)!important;
+}
+
+.m30-admin-decision-center>.m26-admin-section-heading{
+  padding-bottom:.45rem;
+  border-bottom:1px solid color-mix(in srgb,var(--iberfit-v2-line) 72%,transparent);
+}
+
+.m30-admin-decision-center .m26-admin-priority{
+  min-height:5.3rem;
+  border-color:var(--iberfit-v2-line);
+  background:rgba(0,0,0,.10);
+}
+
+.m30-admin-decision-center .m26-admin-priority>button{
+  min-width:8.5rem;
+}
+
+.m30-admin-kpis{
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:.6rem;
+}
+
+.m30-admin-kpis .m26-admin-stat{
+  min-width:0;
+  padding:.85rem;
+}
+
+.m30-admin-kpis .m26-admin-stat span{
+  color:var(--iberfit-color-text-tertiary);
+  font-size:.66rem;
+  line-height:1.25;
+}
+
+.m30-admin-kpis .m26-admin-stat strong{
+  font-size:clamp(1.15rem,2vw,1.55rem);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.035em;
+}
+
+.m26-admin-route .m26-admin-table{
+  max-width:100%;
+  overflow:auto;
+  overscroll-behavior-inline:contain;
+  scrollbar-gutter:stable;
+  border-color:var(--iberfit-v2-line);
+}
+
+.m26-admin-route .m26-admin-table table{
+  min-width:680px;
+}
+
+.m26-admin-route .m26-admin-table thead th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  background:color-mix(in srgb,var(--iberfit-color-surface-raised) 96%,black);
+  backdrop-filter:blur(12px);
+}
+
+.m26-admin-route .m26-admin-table tbody tr{
+  transition:background var(--iberfit-motion-fast) var(--iberfit-motion-easing-standard);
+}
+
+.m26-admin-route .m26-admin-table tbody tr:hover{
+  background:color-mix(in srgb,var(--iberfit-color-role-admin-accent) 5%,transparent);
+}
+
+.m26-admin-route>.m26-admin-panel>.m26-admin-form,
+.m26-admin-route .m26-admin-assignment-create>.m26-admin-form{
+  grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));
+  gap:.7rem;
+}
+
+.m26-admin-route>.m26-admin-panel>.m26-admin-form>textarea,
+.m26-admin-route>.m26-admin-panel>.m26-admin-form>button[type="submit"],
+.m26-admin-route .m26-admin-assignment-create>.m26-admin-form>textarea,
+.m26-admin-route .m26-admin-assignment-create>.m26-admin-form>button[type="submit"]{
+  grid-column:1 / -1;
+}
+
+.m26-admin-route .m26-admin-table .m26-admin-form{
+  min-width:11rem;
+  margin:0;
+  padding:.55rem;
+  gap:.45rem;
+}
+
+.m26-admin-route .m26-admin-table .m26-admin-form :is(input,select,textarea){
+  min-height:42px;
+  font-size:.85rem;
+}
+
+.m30-admin-operations-grid{
+  align-items:start;
+}
+
+.m30-admin-audit{
+  max-height:32rem;
+  overflow:auto;
+}
+
+.m30-agenda-route{
+  gap:clamp(.75rem,1.2vw,1rem);
+}
+
+.m30-agenda-intro{
+  padding-bottom:.6rem;
+  border-bottom:1px solid color-mix(in srgb,var(--iberfit-v2-line) 65%,transparent);
+}
+
+.m30-agenda-calendar{
+  border-color:var(--iberfit-v2-line-strong)!important;
+  background:
+    radial-gradient(circle at 96% 0%,rgba(216,185,111,.075),transparent 20rem),
+    var(--iberfit-v2-surface)!important;
+}
+
+.m30-agenda-calendar .m26-rc62-agenda-calendar-shell{
+  max-width:100%;
+  overflow:auto;
+  overscroll-behavior-inline:contain;
+  scrollbar-gutter:stable;
+}
+
+.m30-agenda-list{
+  gap:.7rem;
+}
+
+.m30-agenda-list .m26-rc39-session-card{
+  border-color:var(--iberfit-v2-line);
+  background:
+    radial-gradient(circle at 100% 0%,color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 5%,transparent),transparent 13rem),
+    var(--iberfit-v2-surface-soft);
+}
+
+.m30-agenda-list .m26-rc39-session-card>header{
+  gap:.8rem;
+}
+
+.m30-agenda-list .m26-rc39-session-card>header h3{
+  text-wrap:balance;
+}
+
+@media (max-width:1180px){
+  .m30-admin-kpis{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
+@media (max-width:900px){
+  .m30-admin-operations-grid{
+    grid-template-columns:1fr;
+  }
+
+  .m30-admin-audit{
+    max-height:none;
+  }
+
+  .m30-agenda-calendar .m26-rc62-agenda-calendar-shell{
+    margin-inline:-.35rem;
+    padding-inline:.35rem;
+  }
+}
+
+@media (max-width:620px){
+  .m30-admin-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .m30-admin-decision-center .m26-admin-priority{
+    grid-template-columns:1fr;
+  }
+
+  .m30-admin-decision-center .m26-admin-priority>button{
+    width:100%;
+    min-width:0;
+  }
+
+  .m26-admin-route .m26-admin-table{
+    margin-inline:-.15rem;
+  }
+
+  .m30-agenda-list .m26-rc39-session-card{
+    padding:.9rem;
+  }
+}
+
+@media (max-width:390px){
+  .m30-admin-kpis{
+    grid-template-columns:1fr;
+  }
+
+  .m26-admin-route>.m26-admin-panel>.m26-admin-form,
+  .m26-admin-route .m26-admin-assignment-create>.m26-admin-form{
+    grid-template-columns:1fr;
+  }
+}
