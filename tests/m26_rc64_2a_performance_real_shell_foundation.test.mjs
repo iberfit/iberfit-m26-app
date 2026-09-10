@@ -107,7 +107,12 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
   assert.match(entry,/M26_STYLE_HREF_REQUIRED/u);
   assert.match(entry,/function ensureAdaptiveLayoutStyle\(\)/u);
   assert.match(entry,/link\.href='\/src\/m26\/design\/adaptive-layout\.css'/u);
-  assert.match(entry,/ensureAdaptiveLayoutStyle\(\);\s*await activateFullStyles\(\);/u);
+  assert.match(entry,/function ensureSignatureUxV2Style\(\)/u);
+  assert.match(entry,/link\.href='\/src\/m26\/design\/signature-ux-v2\.css'/u);
+  const adaptiveEnsure=entry.indexOf('ensureAdaptiveLayoutStyle();');
+  const signatureEnsure=entry.indexOf('ensureSignatureUxV2Style();',adaptiveEnsure+1);
+  const activateStyles=entry.indexOf('await activateFullStyles();',signatureEnsure+1);
+  assert.ok(adaptiveEnsure>=0&&signatureEnsure>adaptiveEnsure&&activateStyles>signatureEnsure);
   assert.match(entry,/await import\('\/src\/m26\/app\/application\.js'\)/u);
   assert.match(entry,/link\.media='all'/u);
   assert.match(entry,/M26_STYLE_LOAD_TIMEOUT/u);
