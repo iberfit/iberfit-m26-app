@@ -201,6 +201,7 @@ export function renderAccessUi({
   noticeKind = 'status',
   mfa = null,
   host = '',
+  sessionRetryAvailable = false,
 } = {}) {
   const normalizedMode=ACCESS_MODES.has(mode)?mode:'login';
   const disabled = busy || !backendReady;
@@ -269,6 +270,21 @@ export function renderAccessUi({
   const accessNote = qaOnly
     ? 'Acceso restringido a las cuentas autorizadas para esta revisión.'
     : 'Acceso privado para clientes y equipo IBERFIT.';
+  const retrySessionNotice=sessionRetryAvailable
+    ? `<div class="m26-auth-context-state m26-auth-retry-state" role="status" aria-label="Sesión disponible para reintentar">
+        <span class="m26-auth-context-mark" aria-hidden="true"></span>
+        <div>
+          <strong>Tu sesión sigue guardada</strong>
+          <p>No necesitas volver a escribir la contraseña. Reintenta la conexión o usa otra cuenta si lo prefieres.</p>
+          <button
+            type="button"
+            class="m26-secondary-action"
+            data-auth-action="retry-session"
+            ${busy ? 'disabled aria-disabled="true"' : ''}
+          >${busy ? 'Reconectando…' : 'Reintentar acceso'}</button>
+        </div>
+      </div>`
+    :'';
 
   let content = '';
 
@@ -294,7 +310,7 @@ export function renderAccessUi({
         </button>
 
         <button type="button" class="m26-tertiary-action" data-auth-action="mfa-logout">
-          Cerrar sesión
+          Volver y usar otra cuenta
         </button>
       </div>
 
@@ -331,7 +347,7 @@ export function renderAccessUi({
         </button>
 
         <button type="button" class="m26-tertiary-action" data-auth-action="mfa-logout">
-          Cerrar sesión
+          Volver y usar otra cuenta
         </button>
       </div>
 
@@ -476,6 +492,7 @@ export function renderAccessUi({
 
       ${contextNotice}
       ${notice}
+      ${retrySessionNotice}
 
       <form data-auth-form="login" aria-label="Acceso a IBERFIT">
         <label>

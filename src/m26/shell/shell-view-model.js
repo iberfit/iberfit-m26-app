@@ -72,6 +72,7 @@ function createShellViewModelBase(state) {
     identity: Object.freeze({
       id: state.identity.id,
       name: state.identity.name || state.identity.displayName || roleLabel(role),
+      email: state.identity.email || '',
       role,
       roleLabel: roleLabel(role),
     }),

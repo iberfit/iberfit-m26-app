@@ -81,7 +81,27 @@ function renderHome(vm){
     <section class="m26-admin-panel m30-admin-audit"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Trazabilidad</p><h3>Actividad administrativa reciente</h3></div></div>${vm.audit.length?vm.audit.slice(0,8).map((x)=>`<div class="m26-admin-list-item"><strong>${e(x.summary||x.eventType)}</strong><small>${e(x.occurredAt||'')}</small></div>`).join(''):empty('Sin eventos','Todavía no hay actividad administrativa.')}</section>
   </div>`;
 }
-function renderUsers(vm){const cards=vm.users.map((u)=>`<article class="m26-admin-panel"><h3>${e(u.name||u.email||'Usuario')}</h3><p>${e(u.email||'')}</p>${badge(u.status)}<p>${e((u.roles||[]).join(', ')||u.primaryRole||'Sin rol')}</p>${vm.canManageStatus?form('user-status',`<input type="hidden" name="userId" value="${e(u.userId||u.id)}"><input type="hidden" name="baseRevision" value="${e(u.revision||0)}"><select name="status"><option value="active">Activo</option><option value="suspended">Suspendido</option><option value="inactive">Inactivo</option></select><textarea name="reason" minlength="3" required placeholder="Motivo"></textarea>`,'Guardar estado'):''}${vm.canManageRoles?form('role-change',`<input type="hidden" name="userId" value="${e(u.userId||u.id)}"><select name="action"><option value="grant">Otorgar</option><option value="revoke">Revocar</option></select><select name="role"><option value="client">Cliente</option><option value="coach">Coach</option><option value="admin">Admin</option></select><textarea name="reason" minlength="3" required placeholder="Motivo"></textarea>`,'Cambiar acceso'):''}</article>`).join('');return `<div class="m26-admin-route">${intro('Identidad','Usuarios y accesos','Administra estados y aplicaciones autorizadas sin autoelevar permisos.')}<section class="m26-admin-cards">${cards||empty('Sin usuarios','No hay usuarios visibles.')}</section></div>`;}
+function renderUsers(vm){
+  const cards=vm.users.map((u)=>{
+    const currentStatus=String(u.status||'').trim().toLowerCase();
+    const currentRole=String(u.primaryRole||(u.roles||[])[0]||'').trim().toLowerCase();
+    const statusForm=vm.canManageStatus?form(
+      'user-status',
+      `<input type="hidden" name="userId" value="${e(u.userId||u.id)}"><input type="hidden" name="baseRevision" value="${e(u.revision||0)}"><label>Estado<select name="status"><option value="active"${currentStatus==='active'?' selected':''}>Activo</option><option value="suspended"${currentStatus==='suspended'?' selected':''}>Suspendido</option><option value="inactive"${currentStatus==='inactive'?' selected':''}>Inactivo</option></select></label><label>Motivo<textarea name="reason" minlength="3" required placeholder="Motivo del cambio"></textarea></label>`,
+      'Guardar estado',
+    ):'';
+    const roleForm=vm.canManageRoles?form(
+      'role-change',
+      `<input type="hidden" name="userId" value="${e(u.userId||u.id)}"><label>Acción<select name="action"><option value="grant">Otorgar acceso</option><option value="revoke">Revocar acceso</option></select></label><label>Aplicación<select name="role"><option value="client"${currentRole==='client'?' selected':''}>Cliente</option><option value="coach"${currentRole==='coach'?' selected':''}>Coach</option><option value="admin"${currentRole==='admin'?' selected':''}>Admin</option></select></label><label>Motivo<textarea name="reason" minlength="3" required placeholder="Motivo del cambio"></textarea></label>`,
+      'Actualizar acceso',
+    ):'';
+    const management=(statusForm||roleForm)
+      ?`<details class="m26-admin-user-management"><summary>Actualizar usuario</summary><div class="m26-admin-user-management-body">${statusForm}${roleForm}</div></details>`
+      :'';
+    return `<article class="m26-admin-panel m26-admin-user-card"><div class="m26-admin-user-card-head"><div><h3>${e(u.name||u.email||'Usuario')}</h3><p>${e(u.email||'')}</p></div>${badge(u.status)}</div><p class="m26-admin-user-roles">${e((u.roles||[]).join(', ')||u.primaryRole||'Sin rol')}</p>${management}</article>`;
+  }).join('');
+  return `<div class="m26-admin-route">${intro('Identidad','Usuarios y accesos','Consulta primero; abre solo el usuario que quieras cambiar. El estado actual queda preseleccionado para evitar modificaciones accidentales.')}<section class="m26-admin-cards">${cards||empty('Sin usuarios','No hay usuarios visibles.')}</section></div>`;
+}
 function renderTeam(vm){
   const profiles=vm.coachProfiles360||[];
   const activeCoaches=profiles.filter((coach)=>/active|activo/i.test(coach.status)).length;
