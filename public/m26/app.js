@@ -82,6 +82,21 @@ function ensureAdaptiveLayoutStyle(){
   return link;
 }
 
+function ensureSignatureUxV2Style(){
+  const existing=document.querySelector('link[data-iberfit-signature-v2-style]');
+  if(existing)return existing;
+
+  const link=document.createElement('link');
+  link.rel='stylesheet';
+  link.href='/src/m26/design/signature-ux-v2.css';
+  link.media='not all';
+  link.setAttribute('data-iberfit-full-style','');
+  link.setAttribute('data-iberfit-signature-v2-style','true');
+  document.head.append(link);
+
+  return link;
+}
+
 const SESSION_VALUE_STYLE_ID='m28-session-value-loop-styles';
 const SESSION_VALUE_STYLES=`
 .m28-training-value{display:flex;flex-wrap:wrap;gap:.38rem;margin:.18rem 0 .08rem}
@@ -460,6 +475,7 @@ async function loadFullApplication(){
 
   fullAppPromise=(async()=>{
     ensureAdaptiveLayoutStyle();
+    ensureSignatureUxV2Style();
     await activateFullStyles();
     const {createM26Application}=await import('/src/m26/app/application.js');
     const app=await createM26Application();
