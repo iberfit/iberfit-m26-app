@@ -91,8 +91,8 @@ test("approved sentadilla al aire fragmented source reconstructs to exact immuta
   const [entry]=validateApprovedBatch(batch,{sourceRoot:root});
   assert.equal(entry.id,"IBF-SENTADILLA-AL-AIRE");
   assert.equal(entry.mime,"image/webp");
-  assert.equal(entry.width,768);
-  assert.equal(entry.height,960);
-  assert.equal(entry.sha256,"2ab5434df034778dc1036b90ba920cbfcc2385c27e334c4a8fc7b04f00afa568");
-  assert.equal(entry.storagePath,"IBF-SENTADILLA-AL-AIRE/movement-2ab5434df034.webp");
+  assert.equal(entry.width,640);
+  assert.equal(entry.height,800);
+  assert.equal(entry.sha256,"e0cdc594a62d937cd9b0f31cf8eec19ab646866e23df6de850b9048635a0764f");
+  assert.equal(entry.storagePath,"IBF-SENTADILLA-AL-AIRE/movement-e0cdc594a62d.webp");
 });
