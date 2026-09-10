@@ -689,6 +689,60 @@
 }
 /* ADMIN_PREMIUM_CONTROL_HIERARCHY_END */
 
+/* ADMIN_USER_DIRECTORY_FAST_CONTROLS_BEGIN */
+.m26-admin-user-directory-tools{
+  display:grid;
+  grid-template-columns:minmax(14rem,1.6fr) repeat(2,minmax(9rem,.7fr)) auto;
+  gap:var(--iberfit-space-3);
+  align-items:end;
+  padding:var(--iberfit-space-4);
+  border:1px solid var(--m26-admin-border);
+  border-radius:var(--m26-admin-radius);
+  background:var(--m26-admin-surface);
+  box-shadow:var(--m26-admin-shadow);
+}
+.m26-admin-user-directory-tools label{
+  display:grid;
+  gap:.35rem;
+  min-width:0;
+  color:var(--iberfit-color-text-secondary);
+  font-size:var(--iberfit-font-size-xs);
+  font-weight:var(--iberfit-font-weight-semibold);
+}
+.m26-admin-user-directory-tools :is(input,select){
+  width:100%;
+  min-height:var(--m26-admin-control);
+  box-sizing:border-box;
+}
+.m26-admin-user-result-count{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:.35rem;
+  align-items:baseline;
+  min-height:var(--m26-admin-control);
+  padding:.65rem .85rem;
+  border:1px solid var(--m26-admin-border);
+  border-radius:var(--m26-admin-pill);
+  background:var(--m26-admin-surface-soft);
+  white-space:nowrap;
+}
+.m26-admin-user-result-count strong{font-variant-numeric:tabular-nums}
+.m26-admin-user-result-count span{color:var(--iberfit-color-text-secondary);font-size:var(--iberfit-font-size-xs)}
+.m26-admin-user-card[hidden],.m26-admin-user-no-results[hidden]{display:none!important}
+.m26-admin-user-last-access{display:block;margin-top:.28rem;color:var(--iberfit-color-text-muted);font-size:var(--iberfit-font-size-xs)}
+.m26-admin-form[data-admin-pending="true"]{opacity:.82}
+.m26-admin-form[aria-busy="true"]{cursor:progress}
+@media(max-width:900px){
+  .m26-admin-user-directory-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .m26-admin-user-search,.m26-admin-user-result-count{grid-column:1 / -1}
+}
+@media(max-width:560px){
+  .m26-admin-user-directory-tools{grid-template-columns:1fr;padding:.8rem}
+  .m26-admin-user-search,.m26-admin-user-result-count{grid-column:auto}
+  .m26-admin-user-result-count{white-space:normal}
+}
+/* ADMIN_USER_DIRECTORY_FAST_CONTROLS_END */
+
 /* ADMIN_USER_UPDATE_COMFORT_BEGIN */
 .m26-admin-user-card{align-content:start}
 .m26-admin-user-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.85rem}

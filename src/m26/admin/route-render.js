@@ -84,7 +84,10 @@ function renderHome(vm){
 function renderUsers(vm){
   const cards=vm.users.map((u)=>{
     const currentStatus=String(u.status||'').trim().toLowerCase();
-    const currentRole=String(u.primaryRole||(u.roles||[])[0]||'').trim().toLowerCase();
+    const roles=(Array.isArray(u.roles)?u.roles:[]).map((role)=>String(role||'').trim().toLowerCase()).filter(Boolean);
+    const currentRole=String(u.primaryRole||roles[0]||'').trim().toLowerCase();
+    const searchText=[u.name,u.email,u.primaryRole,...roles,u.status].filter(Boolean).join(' ').toLowerCase();
+    const roleTokens=`|${[...new Set([currentRole,...roles].filter(Boolean))].join('|')}|`;
     const statusForm=vm.canManageStatus?form(
       'user-status',
       `<input type="hidden" name="userId" value="${e(u.userId||u.id)}"><input type="hidden" name="baseRevision" value="${e(u.revision||0)}"><label>Estado<select name="status"><option value="active"${currentStatus==='active'?' selected':''}>Activo</option><option value="suspended"${currentStatus==='suspended'?' selected':''}>Suspendido</option><option value="inactive"${currentStatus==='inactive'?' selected':''}>Inactivo</option></select></label><label>Motivo<textarea name="reason" minlength="3" required placeholder="Motivo del cambio"></textarea></label>`,
@@ -98,9 +101,17 @@ function renderUsers(vm){
     const management=(statusForm||roleForm)
       ?`<details class="m26-admin-user-management"><summary>Actualizar usuario</summary><div class="m26-admin-user-management-body">${statusForm}${roleForm}</div></details>`
       :'';
-    return `<article class="m26-admin-panel m26-admin-user-card"><div class="m26-admin-user-card-head"><div><h3>${e(u.name||u.email||'Usuario')}</h3><p>${e(u.email||'')}</p></div>${badge(u.status)}</div><p class="m26-admin-user-roles">${e((u.roles||[]).join(', ')||u.primaryRole||'Sin rol')}</p>${management}</article>`;
+    const lastAccess=u.lastAccessAt?`<small class="m26-admin-user-last-access">Último acceso: ${e(u.lastAccessAt)}</small>`:'';
+    return `<article class="m26-admin-panel m26-admin-user-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}"><div class="m26-admin-user-card-head"><div><h3>${e(u.name||u.email||'Usuario')}</h3><p>${e(u.email||'')}</p>${lastAccess}</div>${badge(u.status)}</div><p class="m26-admin-user-roles">${e(roles.join(', ')||u.primaryRole||'Sin rol')}</p>${management}</article>`;
   }).join('');
-  return `<div class="m26-admin-route">${intro('Identidad','Usuarios y accesos','Consulta primero; abre solo el usuario que quieras cambiar. El estado actual queda preseleccionado para evitar modificaciones accidentales.')}<section class="m26-admin-cards">${cards||empty('Sin usuarios','No hay usuarios visibles.')}</section></div>`;
+  const controls=vm.users.length?`<section class="m26-admin-user-directory-tools" aria-label="Filtrar usuarios">
+    <label class="m26-admin-user-search"><span>Buscar</span><input type="search" data-admin-user-search autocomplete="off" placeholder="Nombre o correo" aria-label="Buscar usuario por nombre o correo"></label>
+    <label><span>Estado</span><select data-admin-user-filter="status" aria-label="Filtrar usuarios por estado"><option value="">Todos</option><option value="active">Activos</option><option value="suspended">Suspendidos</option><option value="inactive">Inactivos</option></select></label>
+    <label><span>Rol</span><select data-admin-user-filter="role" aria-label="Filtrar usuarios por rol"><option value="">Todos</option><option value="client">Cliente</option><option value="coach">Coach</option><option value="admin">Admin</option></select></label>
+    <div class="m26-admin-user-result-count" role="status" aria-live="polite"><strong data-admin-user-visible-count>${e(vm.users.length)}</strong><span>de ${e(vm.users.length)} usuarios</span></div>
+  </section>`:'';
+  const noResults=vm.users.length?`<section class="m26-admin-empty m26-admin-user-no-results" data-admin-user-no-results hidden><h3>Sin coincidencias</h3><p>Cambia la búsqueda o los filtros para volver a mostrar usuarios.</p></section>`:'';
+  return `<div class="m26-admin-route" data-admin-user-directory>${intro('Identidad','Usuarios y accesos','Busca, filtra y actualiza sin perder tiempo. Los cambios mantienen permisos, trazabilidad y confirmación del backend.')}${controls}<section class="m26-admin-cards" data-admin-user-results>${cards||empty('Sin usuarios','No hay usuarios visibles.')}</section>${noResults}</div>`;
 }
 function renderTeam(vm){
   const profiles=vm.coachProfiles360||[];

@@ -31,6 +31,7 @@ import {createRouteViewModel} from '../modules/route-view-model.js';
 import {renderRouteView} from '../modules/route-render.js';
 import {createWorkflowController} from './workflow-controller.js';
 import {createSessionVault,sessionExpiresSoon} from './session-vault.js';
+import {createHydrationCoordinator} from './hydration-coordinator.js';
 import {clearIberfitExperiencePreferences} from '../ui/preferences.js';
 import {inspectOwnerDeviceData,ownerDeviceClearPrompt,clearOwnerDeviceData} from '../privacy/device-data.js';
 import {renderAccessUi} from './access-ui.js';
@@ -259,7 +260,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-catalog-ready');
     return catalog;
   }
-  async function hydrate({reason='bootstrap'}={}){
+  async function hydratePass({reason='bootstrap'}={}){
     qaStage('rc64-hydrate-start');
     await refreshSessionIfNeeded();
     store.setHydration('loading');
@@ -300,6 +301,10 @@ export async function createM26Application({root=document.querySelector('#app'),
       qaStage('rc64-hydrate-ready');
       return {snapshot:enriched,installed,runtimeRegistry};
     }catch(error){store.setHydration('error',error);throw error;}
+  }
+  const hydrationCoordinator=createHydrationCoordinator(hydratePass);
+  function hydrate(options={}){
+    return hydrationCoordinator.request(options);
   }
   function renderRoute(shellVm,state){
     qaStage('rc64-route-start');
@@ -535,7 +540,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     telemetryRemoteSync=createTelemetryRemoteSync({transport,outbox:telemetryOutbox,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false,onDiagnostic:(code,error)=>reportDiagnostic(code,error)});
     commandBus=createCommandBus({transport,repository:operationRepository,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},rehydrate:hydrate,registry:runtimeRegistry.registry.length?runtimeRegistry.registry:M26_COMMAND_REGISTRY,getRole:()=>store.getState().identity?.role});
     const service=createEngagementCommandService({commandBus,installedRegistry:installed,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false});
-    adminService=createAdminCommandService({transport:adminTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getAdminState:()=>store.getState().admin,isOnline:()=>navigator.onLine!==false,refreshState:hydrate});
+    adminService=createAdminCommandService({transport:adminTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getAdminState:()=>store.getState().admin,isOnline:()=>navigator.onLine!==false,refreshState:hydrate,onRefreshError:(error)=>reportDiagnostic('admin-refresh-after-ack',error)});
     communicationService=createCommunicationService({transport:communicationTransport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},getState:()=>store.getState().communication,getRole:()=>store.getState().identity?.role,isOnline:()=>navigator.onLine!==false,refreshState:hydrate});
     qaStage('rc64-setup-services-ready');
     recoveryStore=createExecutionRecoveryStore({ownerId});recoveryCoordinator=createExecutionRecoveryCoordinator({store:recoveryStore,commandBus,isOnline:()=>navigator.onLine!==false,getActiveContext:()=>sessionUi,onReconcileError:(error)=>reportDiagnostic('session-recovery-reconcile',error)});
