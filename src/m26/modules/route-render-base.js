@@ -463,7 +463,7 @@ export function renderClientsRoute(vm) {
     return acc;
   },{critical:0,warning:0,info:0,clear:0});
   const followUpQueue=followUpRows.length
-    ? `<section class="m26-followup-panel" aria-labelledby="m26-followup-title">
+    ? `<section class="m26-followup-panel m30-clients-followup" aria-labelledby="m26-followup-title" data-client-priority-queue>
         <div class="m26-panel-heading">
           <div>
             <p class="m26-eyebrow">Seguimiento inteligente</p>
@@ -472,13 +472,13 @@ export function renderClientsRoute(vm) {
           </div>
           ${badge(`${followUpRows.length} cliente${followUpRows.length===1?'':'s'}`,'neutral')}
         </div>
-        <div class="m26-followup-summary" role="list" aria-label="Resumen de seguimiento">
+        <div class="m26-followup-summary m30-clients-followup-summary" role="list" aria-label="Resumen de seguimiento">
           <div role="listitem"><span>Prioritaria</span><strong>${followUpCounts.critical}</strong></div>
           <div role="listitem"><span>Requiere contexto</span><strong>${followUpCounts.warning}</strong></div>
           <div role="listitem"><span>Seguimiento activo</span><strong>${followUpCounts.info}</strong></div>
           <div role="listitem"><span>Sin alertas</span><strong>${followUpCounts.clear}</strong></div>
         </div>
-        <div class="m26-followup-list">
+        <div class="m26-followup-list m30-clients-followup-list">
           ${followUpRows.map((item)=>{
             const follow=item.followUp;
             const level=follow.signal?.level||'clear';
@@ -508,9 +508,9 @@ export function renderClientsRoute(vm) {
     ? `<div class="m26-client-grid" data-client-grid>${vm.clients.map((item) => clientCard(item, item.id === vm.selectedClientId)).join('')}</div>`
     : emptyState('Todavía no hay clientes', 'Crea el primer expediente para comenzar la evaluación inicial.');
   const productivity=['coach','admin'].includes(String(vm.role||''))
-    ? `<section class="m26-coach-productivity-toolbar" data-coach-productivity-toolbar><div><p class="m26-eyebrow">Productividad Coach</p><h3>Vistas y recientes</h3><p>Guarda combinaciones de búsqueda y filtros en este dispositivo. No se guardan datos de salud.</p></div><div class="m26-coach-productivity-controls"><label>Nombre de la vista<input data-coach-view-name maxlength="60" placeholder="Ej. Seguimiento activo"></label><label>Vistas guardadas<select data-coach-saved-view><option value="">Seleccionar vista…</option></select></label><button type="button" data-coach-save-view>Guardar vista actual</button><button type="button" data-coach-delete-view>Eliminar vista</button></div><div class="m26-coach-recents" data-coach-recents><span>Recientes</span><small>Aparecerán al abrir expedientes.</small></div><p class="m26-coach-productivity-status" data-coach-productivity-status role="status" aria-live="polite"></p></section>`
+    ? `<section class="m26-coach-productivity-toolbar m30-client-productivity" data-coach-productivity-toolbar><div><p class="m26-eyebrow">Productividad Coach</p><h3>Vistas y recientes</h3><p>Guarda combinaciones de búsqueda y filtros en este dispositivo. No se guardan datos de salud.</p></div><div class="m26-coach-productivity-controls"><label>Nombre de la vista<input data-coach-view-name maxlength="60" placeholder="Ej. Seguimiento activo"></label><label>Vistas guardadas<select data-coach-saved-view><option value="">Seleccionar vista…</option></select></label><button type="button" data-coach-save-view>Guardar vista actual</button><button type="button" data-coach-delete-view>Eliminar vista</button></div><div class="m26-coach-recents" data-coach-recents><span>Recientes</span><small>Aparecerán al abrir expedientes.</small></div><p class="m26-coach-productivity-status" data-coach-productivity-status role="status" aria-live="polite"></p></section>`
     : '';
-  return `<div class="m26-route">${followUpQueue}<section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel"><div class="m26-client-controls"><label>Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad, etapa o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Etapa del seguimiento<select data-client-filter="stage"><option value="">Todas</option><option value="onboarding">Alta incompleta</option><option value="evaluation">Evaluación pendiente</option><option value="planning">Planificación pendiente</option><option value="scheduling">Próxima cita pendiente</option><option value="active">Seguimiento activo</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div>${productivity}<p id="m26-client-search-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
+  return `<div class="m26-route m30-clients-route" data-clients-surface="portfolio"><section class="m26-route-intro m30-clients-intro"><div><p class="m26-eyebrow">Seguimiento de clientes</p><h2>Clientes y próximos pasos</h2><p>Abre un expediente, identifica la prioridad y continúa desde una única ruta de trabajo.</p></div>${badge(`${vm.clients.length} cliente${vm.clients.length === 1 ? '' : 's'}`, 'neutral')}</section>${followUpQueue}${vm.canCreate ? clientOnboardingForm() : ''}<section class="m26-panel m30-clients-directory"><div class="m26-client-controls m30-client-controls" aria-label="Buscar, filtrar y ordenar clientes"><label class="m30-client-search">Buscar cliente<input type="search" data-client-search autocomplete="off" spellcheck="false" enterkeyhint="search" autocapitalize="none" aria-describedby="m26-client-search-status" placeholder="Nombre, objetivo, modalidad, etapa o estado"></label><label>Estado del IRI<select data-client-filter="iri"><option value="">Todos</option><option value="pending">No iniciado</option><option value="progress">En progreso</option><option value="completed">Completado</option></select></label><label>Modalidad<select data-client-filter="modality"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrid">Híbrida</option><option value="online">Online</option></select></label><label>Etapa del seguimiento<select data-client-filter="stage"><option value="">Todas</option><option value="onboarding">Alta incompleta</option><option value="evaluation">Evaluación pendiente</option><option value="planning">Planificación pendiente</option><option value="scheduling">Próxima cita pendiente</option><option value="active">Seguimiento activo</option></select></label><label>Ordenar<select data-client-sort><option value="priority">Prioridad operativa</option><option value="name">Nombre</option></select></label><button type="button" data-client-clear>Limpiar filtros</button></div>${productivity}<p id="m26-client-search-status" class="m30-client-status" data-client-search-status role="status" aria-live="polite">Mostrando ${countLabel(vm.clients.length, 'cliente', 'clientes')}.</p>${content}</section></div>`;
 }
 
 function field(label, value) {
@@ -1583,7 +1583,7 @@ export function renderExpedienteRoute(vm) {
         </article>`;
 
   const recentContext=
-    `<section class="m26-panel" aria-label="Contexto reciente">
+    `<section class="m26-panel m30-expediente-context" aria-label="Contexto reciente">
       <div class="m26-panel-heading">
         <div>
           <p class="m26-eyebrow">Antes de decidir</p>
@@ -1649,9 +1649,9 @@ export function renderExpedienteRoute(vm) {
     );
   }
 
-  return `<div class="m26-route" data-m26-expediente data-m26-expediente-view="resumen">
+  return `<div class="m26-route m30-expediente-route" data-m26-expediente data-m26-expediente-view="resumen" data-expediente-surface="client-360">
     ${renderCoachFollowUpPlan(vm.alerts)}
-    <section class="m26-profile-hero m26-profile-hero-premium">
+    <section class="m26-profile-hero m26-profile-hero-premium m30-expediente-hero">
       <div class="m26-profile-brand-lockup">
         <div class="m26-profile-brand-orb">
           <img
@@ -1685,7 +1685,7 @@ export function renderExpedienteRoute(vm) {
       </div>
     </section>
         <nav
-      class="m26-expediente-tabs"
+      class="m26-expediente-tabs m30-expediente-tabs"
       role="tablist"
       aria-label="Vistas del expediente"
     >
@@ -1721,8 +1721,8 @@ export function renderExpedienteRoute(vm) {
         data-m26-expediente-tab="plan"
       >Plan</button>
     </nav>
-    <div class="m26-expediente-detail">
-<section class="m26-panel m26-panel-soft" aria-label="Estado actual del cliente" data-m26-expediente-section="resumen">
+    <div class="m26-expediente-detail m30-expediente-detail">
+<section class="m26-panel m26-panel-soft m30-expediente-current" aria-label="Estado actual del cliente" data-m26-expediente-section="resumen">
       <div class="m26-panel-heading">
         <div>
           <p class="m26-eyebrow">Lo importante antes de decidir</p>
@@ -1758,17 +1758,17 @@ export function renderExpedienteRoute(vm) {
     <section class="m26-stat-grid" data-m26-expediente-section="perfil">
       ${summaryStats.join('')}
     </section>
-    <section class="m26-profile-sections" data-m26-expediente-section="perfil">
+    <section class="m26-profile-sections m30-expediente-profile" data-m26-expediente-section="perfil">
       <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Identificación y baremos</p><h2>Datos de la persona</h2></div></div><div class="m26-field-grid">${field('Fecha de nacimiento', profile.birthDate)}${field('Sexo utilizado para baremos', profile.sexForNormsLabel)}${field('Identidad de género', profile.genderIdentity)}${field('Pronombres', profile.pronouns)}</div></section>
       <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Contacto</p><h2>Datos de contacto</h2></div></div><div class="m26-field-grid">${field('Correo electrónico', profile.email)}${field('Teléfono', profile.phone)}${field('Canal preferido', profile.preferredContactChannel)}${field('Horario de contacto', profile.preferredContactTime)}${field('Zona horaria', profile.timezone)}</div></section>
       <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Logística</p><h2>Entrenamiento</h2></div>${profile.logisticsRequired && !profile.trainingAddress ? badge('Dirección pendiente', 'warning') : ''}</div><div class="m26-field-grid">${field('Modalidad', data.modality)}${field('Dirección de entrenamiento', address)}${field('Tipo de lugar', profile.locationType)}${field('Acceso o punto de encuentro', profile.accessInstructions)}${field('Horario preferido', profile.preferredSchedule)}${field('Frecuencia semanal', profile.weeklyFrequency ? `${profile.weeklyFrequency} sesiones` : null)}${field('Duración habitual', profile.sessionDurationMinutes ? `${profile.sessionDurationMinutes} min` : null)}${field('Material disponible', listValue(profile.equipment))}</div></section>
       <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Objetivos y seguridad</p><h2>Contexto de trabajo</h2></div></div><div class="m26-field-grid">${field('Objetivo principal', profile.primaryObjective)}${field('Objetivos secundarios', listValue(profile.secondaryObjectives))}${field('Contacto de emergencia', emergency)}</div></section>
     </section>
-    <section class="m26-content-grid" data-m26-expediente-section="plan">
+    <section class="m26-content-grid m30-expediente-plan" data-m26-expediente-section="plan">
       <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Planificación</p><h2>Contexto de acompañamiento</h2></div></div><div class="m26-field-grid">${field('Estado', displayStatus)}${field('Ciclo activo', data.cycle?.name)}${field('Próxima cita confirmada', data.nextAppointment?.dateLabel)}${field('Seguimiento', vm.alertSignal?.label)}</div></div>
       <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Evaluación IRI</p><h2>${iri ? escapeHtml(iri.coverageLabel) : 'Pendiente'}</h2><p>${iri ? `${escapeHtml(iri.dateLabel)} · ${escapeHtml(iri.status)}` : 'No hay una evaluación IRI confirmada.'}</p><button type="button" class="m26-primary-action" data-m26-area="iri">Abrir evaluación IRI</button></aside>
     </section>
-    <section class="m26-panel" data-m26-expediente-section="plan"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Ruta de trabajo</p><h2>Continuar con este cliente</h2></div></div><div class="m26-action-grid"><button type="button" data-m26-area="planificacion">Planificación</button><button type="button" data-m26-area="sesion">Sesiones</button><button type="button" data-m26-area="progreso">Progreso</button><button type="button" data-m26-area="actividad">Registros de bienestar y hábitos</button><button type="button" data-m26-area="informes">Informes</button><button type="button" data-m26-area="notas">Notas privadas</button><button type="button" data-m26-area="inteligencia">Inteligencia IBERFIT</button></div></section>
+    <section class="m26-panel m30-expediente-actions" data-m26-expediente-section="plan"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Ruta de trabajo</p><h2>Continuar con este cliente</h2></div></div><div class="m26-action-grid"><button type="button" data-m26-area="planificacion">Planificación</button><button type="button" data-m26-area="sesion">Sesiones</button><button type="button" data-m26-area="progreso">Progreso</button><button type="button" data-m26-area="actividad">Registros de bienestar y hábitos</button><button type="button" data-m26-area="informes">Informes</button><button type="button" data-m26-area="notas">Notas privadas</button><button type="button" data-m26-area="inteligencia">Inteligencia IBERFIT</button></div></section>
       </div>
   ${renderExerciseProgressSection(vm.exerciseProgress,{compact:true})}</div>`;
 }
@@ -1865,7 +1865,7 @@ export function renderProgressRoute(vm){
   const summary=vm.summary;
   if(!summary)return `<div class="m26-route">${emptyState('Sin expediente disponible','No existe un cliente autorizado para calcular progreso.')}</div>`;
   const timeline=vm.timeline.length?vm.timeline.map(timelineItem).join(''):emptyState('Sin eventos de progreso','Los datos ausentes se mantienen como ausentes y no se convierten en cero.');
-  const adherenceVisual=Number.isFinite(summary.adherence)?`<section class="m26-panel m26-progress-overview" aria-label="Resumen visual de adherencia"><div class="m26-progress-heading"><span>Adherencia confirmada</span><strong>${formatPercent(summary.adherence)}</strong></div><meter min="0" max="1" value="${escapeHtml(Math.max(0,Math.min(1,summary.adherence)))}">${formatPercent(summary.adherence)}</meter><small>${escapeHtml(summary.completedSessions)} de ${escapeHtml(summary.plannedSessions)} sesiones confirmadas en la ventana seleccionada.</small></section>`:'';
+  const adherenceVisual=Number.isFinite(summary.adherence)?`<section class="m26-panel m26-progress-overview m30-progress-adherence" aria-label="Resumen visual de adherencia"><div class="m26-progress-heading"><span>Adherencia confirmada</span><strong>${formatPercent(summary.adherence)}</strong></div><meter min="0" max="1" value="${escapeHtml(Math.max(0,Math.min(1,summary.adherence)))}">${formatPercent(summary.adherence)}</meter><small>${escapeHtml(summary.completedSessions)} de ${escapeHtml(summary.plannedSessions)} sesiones confirmadas en la ventana seleccionada.</small></section>`:'';
   const wearable=summary.wearable||{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'};
   const unconfirmedCount=Number(summary.unconfirmedExecutions||0);
   const volumeTrend=Number.isFinite(summary.volumeDelta)
@@ -1878,10 +1878,10 @@ export function renderProgressRoute(vm){
     ?`<section class="m26-notice is-pending" role="status"><strong>Progreso protegido</strong><p>Sesiones fuera del cálculo por no estar confirmadas: ${escapeHtml(unconfirmedCount)}. Se incorporarán únicamente cuando queden confirmadas.</p></section>`
     :'';
   const hasCheckins=Number(summary.checkins||0)>0;
-  const wearablePanel=wearableHasData(wearable)?`<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Actividad de dispositivo</p><h2>Tendencia objetiva complementaria</h2></div>${badge(wearable.freshness==='reciente'?'Actualizada':'Revisar fecha','neutral')}</div><div class="m26-field-grid">${wearableMetric('Pasos medios',wearable.metrics?.steps)}${wearableMetric('Minutos activos',wearable.metrics?.activeMinutes,' min')}${wearableMetric('Sueño de dispositivo',sleepHoursPerDay(wearable.metrics?.sleepMinutes))}${wearableMetric('FC en reposo',wearable.metrics?.restingHeartRate,' lpm')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearable),{role:vm.role,compact:true})}<p class="m26-notice">Se presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.</p></section>`:`<details class="m26-panel m26-optional-section"><summary>Actividad de dispositivo · sin datos confirmados</summary><p>No hay información de dispositivos para este periodo. El progreso se calcula únicamente con sesiones, evaluaciones y registros confirmados.</p></details>`;
-  return `<div class="m26-route">
-    <section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
-    <section class="m26-stat-grid">
+  const wearablePanel=wearableHasData(wearable)?`<section class="m26-panel m30-progress-wearable"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Actividad de dispositivo</p><h2>Tendencia objetiva complementaria</h2></div>${badge(wearable.freshness==='reciente'?'Actualizada':'Revisar fecha','neutral')}</div><div class="m26-field-grid">${wearableMetric('Pasos medios',wearable.metrics?.steps)}${wearableMetric('Minutos activos',wearable.metrics?.activeMinutes,' min')}${wearableMetric('Sueño de dispositivo',sleepHoursPerDay(wearable.metrics?.sleepMinutes))}${wearableMetric('FC en reposo',wearable.metrics?.restingHeartRate,' lpm')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearable),{role:vm.role,compact:true})}<p class="m26-notice">Se presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.</p></section>`:`<details class="m26-panel m26-optional-section"><summary>Actividad de dispositivo · sin datos confirmados</summary><p>No hay información de dispositivos para este periodo. El progreso se calcula únicamente con sesiones, evaluaciones y registros confirmados.</p></details>`;
+  return `<div class="m26-route m30-progress-route" data-progress-surface="confirmed-evolution">
+    <section class="m26-route-intro m30-progress-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
+    <section class="m26-stat-grid m30-progress-kpis" aria-label="Indicadores confirmados de progreso">
       ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
       ${stat('Volumen medio',metricValue(summary.volume),'Carga × repeticiones cuando existe')}
@@ -1891,12 +1891,12 @@ export function renderProgressRoute(vm){
     ${sessionImpact}
     ${adherenceVisual}
     ${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
-    <section class="m26-content-grid">
-      <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Cronología</p><h2>Evolución registrada</h2></div>${badge(`${vm.timeline.length} eventos`,'neutral')}</div><div class="m26-timeline">${timeline}</div></div>
-      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Recuperación</p><h2>Promedio de bienestar</h2><div class="m26-wellbeing-grid">${wellbeingMeter('Energía',hasCheckins?summary.checkinAverage.energy:null,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',hasCheckins?summary.checkinAverage.sleep:null,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',hasCheckins?summary.checkinAverage.stress:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',hasCheckins?summary.checkinAverage.pain:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Fatiga',hasCheckins?summary.checkinAverage.fatigue:null,'0 ninguna · 10 máxima')}${wellbeingMeter('Motivación',hasCheckins?summary.checkinAverage.motivation:null,'0 ninguna · 10 máxima')}</div><p class="m26-notice">La aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.</p></aside>
+    <section class="m26-content-grid m30-progress-context">
+      <div class="m26-panel m30-progress-timeline"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Cronología</p><h2>Evolución registrada</h2></div>${badge(`${vm.timeline.length} eventos`,'neutral')}</div><div class="m26-timeline">${timeline}</div></div>
+      <aside class="m26-panel m26-panel-soft m30-progress-wellbeing"><p class="m26-eyebrow">Recuperación</p><h2>Promedio de bienestar</h2><div class="m26-wellbeing-grid">${wellbeingMeter('Energía',hasCheckins?summary.checkinAverage.energy:null,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',hasCheckins?summary.checkinAverage.sleep:null,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',hasCheckins?summary.checkinAverage.stress:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',hasCheckins?summary.checkinAverage.pain:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Fatiga',hasCheckins?summary.checkinAverage.fatigue:null,'0 ninguna · 10 máxima')}${wellbeingMeter('Motivación',hasCheckins?summary.checkinAverage.motivation:null,'0 ninguna · 10 máxima')}</div><p class="m26-notice">La aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.</p></aside>
     </section>
     ${wearablePanel}
-    <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Alertas explicables</p><h2>Qué requiere atención</h2></div></div>${renderAlerts(vm.alerts)}</section>
+    <section class="m26-panel m30-progress-alerts"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Alertas explicables</p><h2>Qué requiere atención</h2></div></div>${renderAlerts(vm.alerts)}</section>
   ${renderExerciseProgressSection(vm.exerciseProgress,{compact:false})}</div>`;
 }
 

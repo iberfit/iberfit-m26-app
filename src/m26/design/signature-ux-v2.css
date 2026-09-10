@@ -1753,3 +1753,306 @@ body{
     transform:none!important;
   }
 }
+
+
+/* Signature UX V2.7 · client portfolio, record and confirmed progress */
+.m30-clients-route,
+.m30-expediente-route,
+.m30-progress-route{
+  gap:clamp(.78rem,1.08vw,1.05rem);
+}
+
+.m30-clients-intro,
+.m30-progress-intro{
+  padding-bottom:.55rem;
+  border-bottom:1px solid color-mix(in srgb,var(--iberfit-v2-line) 68%,transparent);
+}
+
+.m30-clients-followup{
+  border-color:var(--iberfit-v2-line-strong);
+  background:
+    radial-gradient(circle at 96% 0%,rgba(216,185,111,.07),transparent 20rem),
+    var(--iberfit-v2-surface);
+  box-shadow:var(--iberfit-v2-shadow);
+}
+
+.m30-clients-followup-summary{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.55rem;
+}
+
+.m30-clients-followup-list{
+  gap:.5rem;
+}
+
+.m30-clients-followup-list .m26-followup-row{
+  border-color:var(--iberfit-v2-line);
+  border-radius:.82rem;
+  background:rgba(0,0,0,.08);
+}
+
+.m30-clients-directory{
+  position:relative;
+  border-color:var(--iberfit-v2-line-strong)!important;
+}
+
+.m30-client-controls{
+  position:sticky;
+  top:calc(4.7rem + env(safe-area-inset-top));
+  z-index:4;
+  grid-template-columns:minmax(18rem,1.7fr) repeat(4,minmax(8rem,.72fr)) auto;
+  gap:.55rem;
+  margin:0 0 .5rem;
+  padding:.7rem;
+  border:1px solid var(--iberfit-v2-line);
+  border-radius:.95rem;
+  background:rgba(5,24,16,.95);
+  box-shadow:0 10px 28px rgba(0,0,0,.17);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+
+.m30-client-search input{
+  min-height:50px!important;
+  font-size:1rem;
+}
+
+.m30-client-controls>button{
+  min-height:50px;
+  white-space:nowrap;
+}
+
+.m30-client-productivity{
+  margin-top:.7rem;
+  border-color:var(--iberfit-v2-line);
+  background:var(--iberfit-v2-surface-soft);
+}
+
+.m30-client-status{
+  margin:.55rem .1rem .75rem;
+  color:var(--iberfit-color-text-tertiary);
+  font-size:.72rem;
+}
+
+.m30-clients-directory .m26-client-grid{
+  gap:.65rem;
+}
+
+.m30-clients-directory .m26-client-card{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(216,185,111,.04),transparent 10rem),
+    var(--iberfit-v2-surface-soft);
+}
+
+.m30-expediente-hero{
+  position:relative;
+  overflow:clip;
+  border-color:var(--iberfit-v2-line-strong)!important;
+}
+
+.m30-expediente-tabs{
+  position:sticky;
+  top:calc(4.65rem + env(safe-area-inset-top));
+  z-index:5;
+  gap:.35rem;
+  padding:.45rem;
+  border:1px solid var(--iberfit-v2-line);
+  border-radius:.95rem;
+  background:rgba(5,24,16,.95);
+  box-shadow:0 10px 28px rgba(0,0,0,.16);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+
+.m30-expediente-tabs [role="tab"]{
+  min-height:46px;
+  border-radius:.72rem;
+}
+
+.m30-expediente-tabs [role="tab"][aria-selected="true"]{
+  border-color:color-mix(in srgb,var(--iberfit-color-accent-strong) 34%,transparent);
+  background:color-mix(in srgb,var(--iberfit-color-accent) 12%,transparent);
+}
+
+.m30-expediente-detail{
+  display:grid;
+  gap:.8rem;
+  min-width:0;
+}
+
+.m30-expediente-current{
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 28%,transparent)!important;
+  background:
+    radial-gradient(circle at 96% 0%,color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 7%,transparent),transparent 18rem),
+    var(--iberfit-v2-surface)!important;
+}
+
+.m30-expediente-current .m26-list-card-actions{
+  align-items:center;
+  gap:.75rem;
+}
+
+.m30-expediente-current .m26-list-card-actions>.m26-primary-action{
+  min-width:12rem;
+  min-height:50px;
+}
+
+.m30-expediente-context>.m26-content-grid,
+.m30-expediente-plan{
+  align-items:start;
+}
+
+.m30-expediente-profile{
+  gap:.7rem;
+}
+
+.m30-expediente-actions .m26-action-grid{
+  grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));
+}
+
+.m30-expediente-actions .m26-action-grid>button{
+  min-height:48px;
+}
+
+.m30-progress-kpis{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.6rem;
+}
+
+.m30-progress-adherence,
+.m30-progress-session{
+  border-color:var(--iberfit-v2-line-strong)!important;
+}
+
+.m30-progress-adherence{
+  background:
+    radial-gradient(circle at 94% 0%,rgba(216,185,111,.08),transparent 15rem),
+    var(--iberfit-v2-surface-soft)!important;
+}
+
+.m30-progress-context{
+  grid-template-columns:minmax(0,1.25fr) minmax(18rem,.75fr);
+  align-items:start;
+}
+
+.m30-progress-timeline{
+  min-width:0;
+}
+
+.m30-progress-wellbeing{
+  position:sticky;
+  top:5rem;
+}
+
+.m30-progress-wearable{
+  border-color:var(--iberfit-v2-line)!important;
+}
+
+.m30-progress-alerts{
+  border-color:color-mix(in srgb,var(--iberfit-color-warning) 18%,var(--iberfit-v2-line))!important;
+}
+
+.m30-progress-alerts .m26-alert-list{
+  gap:.55rem;
+}
+
+@media (hover:hover) and (pointer:fine){
+  .m30-clients-followup-list .m26-followup-row:hover{
+    transform:translateY(-1px);
+    border-color:var(--iberfit-v2-line-strong);
+  }
+}
+
+@media (max-width:1180px){
+  .m30-client-controls{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+
+  .m30-client-search{
+    grid-column:1 / -1;
+  }
+
+  .m30-progress-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width:900px){
+  .m30-client-controls{
+    position:static;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .m30-expediente-tabs{
+    top:calc(4rem + env(safe-area-inset-top));
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    scrollbar-width:thin;
+  }
+
+  .m30-expediente-tabs [role="tab"]{
+    flex:0 0 auto;
+    min-width:7rem;
+  }
+
+  .m30-progress-context{
+    grid-template-columns:1fr;
+  }
+
+  .m30-progress-wellbeing{
+    position:static;
+  }
+}
+
+@media (max-width:620px){
+  .m30-clients-followup-summary{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .m30-client-controls{
+    grid-template-columns:1fr;
+    padding:.65rem;
+  }
+
+  .m30-client-search{
+    grid-column:auto;
+  }
+
+  .m30-client-controls :is(input,select,button){
+    min-height:50px;
+    font-size:16px;
+  }
+
+  .m30-expediente-current .m26-list-card-actions{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .m30-expediente-current .m26-list-card-actions>.m26-primary-action{
+    width:100%;
+    min-width:0;
+  }
+
+  .m30-expediente-actions .m26-action-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .m30-progress-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width:390px){
+  .m30-clients-followup-summary,
+  .m30-expediente-actions .m26-action-grid,
+  .m30-progress-kpis{
+    grid-template-columns:1fr;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .m30-clients-followup-list .m26-followup-row,
+  .m30-clients-directory .m26-client-card{
+    transform:none!important;
+  }
+}
