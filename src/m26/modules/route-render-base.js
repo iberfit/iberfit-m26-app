@@ -1943,14 +1943,14 @@ export function renderActivityRoute(vm){
 }
 
 export function renderPrivateNotesRoute(vm){
-  const notes=vm.notes.length?vm.notes.map((item)=>{const body=item.body?.body||item.body?.note||item.body?.content||'';return `<article class="m26-list-card m26-private-note-card"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(body||'Nota sin contenido legible.')}</p></div>${badge(item.status,'neutral')}</article>`;}).join(''):emptyState('Sin notas privadas','No hay notas confirmadas visibles para este expediente.');
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Uso interno</p><h2>Notas privadas del entrenador</h2><p>Nunca son visibles para el cliente y requieren permisos internos específicos.</p></div>${badge(countLabel(vm.notes.length,'nota','notas'),'neutral')}</section>${capabilityNotice(vm.capability,'Notas privadas')}<section class="m26-panel">${notes}</section><section class="m26-panel m26-panel-soft"><label>Título<input data-private-note-title maxlength="140" value="Nota privada"></label><label>Nueva nota<textarea data-private-note-draft maxlength="4000"${vm.capability.ready?'':' disabled aria-disabled="true"'}></textarea></label><button type="button" class="m26-primary-action" data-engagement-action="save-private-note"${vm.capability.ready?'':' disabled aria-disabled="true"'}>Guardar nota privada</button><p role="status" data-engagement-status="private-note"></p></section></div>`;
+  const notes=vm.notes.length?vm.notes.map((item)=>{const body=item.body?.body||item.body?.note||item.body?.content||'';return `<article class="m26-list-card m26-private-note-card m30-private-note-card"><div><p class="m26-eyebrow">${escapeHtml(item.dateLabel)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(body||'Nota sin contenido legible.')}</p></div>${badge(item.status,'neutral')}</article>`;}).join(''):emptyState('Sin notas privadas','No hay notas confirmadas visibles para este expediente.');
+  return `<div class="m26-route m30-notes-route" data-notes-surface="private-coach"><section class="m26-route-intro m30-notes-intro"><div><p class="m26-eyebrow">Uso interno</p><h2>Notas privadas del entrenador</h2><p>Nunca son visibles para el cliente y requieren permisos internos específicos.</p></div>${badge(countLabel(vm.notes.length,'nota','notas'),'neutral')}</section>${capabilityNotice(vm.capability,'Notas privadas')}<section class="m26-panel m30-notes-list">${notes}</section><section class="m26-panel m26-panel-soft m30-notes-editor"><label>Título<input data-private-note-title maxlength="140" value="Nota privada"></label><label>Nueva nota<textarea data-private-note-draft maxlength="4000"${vm.capability.ready?'':' disabled aria-disabled="true"'}></textarea></label><button type="button" class="m26-primary-action" data-engagement-action="save-private-note"${vm.capability.ready?'':' disabled aria-disabled="true"'}>Guardar nota privada</button><p role="status" data-engagement-status="private-note"></p></section></div>`;
 }
 
 function operationCard(item){
   const actions=item.actions.map((action)=>`<button type="button" data-verification-action="${escapeHtml(action)}" data-operation-id="${escapeHtml(item.operationId)}">${action==='retry'?'Reintentar ahora':action==='discard_local'?'Descartar copia local':'Inspeccionar'}</button>`).join('');
   const retry=item.status==='pending'&&item.attempts?`<small>Intentos: ${escapeHtml(item.attempts)}${item.nextRetryAt?` · reintento automático desde ${escapeHtml(safeDateLabel(item.nextRetryAt))}`:''}</small>`:'';
-  return `<article class="m26-list-card"><div><p class="m26-eyebrow">${escapeHtml(castilianStatusLabel(item.status))}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(castilianOperationDetail(item.errorCode,item.entityType))}</p>${retry}</div><div class="m26-inline-actions">${actions}</div></article>`;
+  return `<article class="m26-list-card m30-verification-item" data-operation-status="${escapeHtml(item.status)}"><div><p class="m26-eyebrow">${escapeHtml(castilianStatusLabel(item.status))}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(castilianOperationDetail(item.errorCode,item.entityType))}</p>${retry}</div><div class="m26-inline-actions">${actions}</div></article>`;
 }
 export function renderVerificationRoute(vm){
   const center=vm.center;
@@ -1964,7 +1964,7 @@ export function renderVerificationRoute(vm){
   const stateBadge=hasItems
     ?badge(center.deploymentBlocked?'Bloqueo activo':'Operaciones cargadas',center.deploymentBlocked?'danger':'neutral')
     :badge('Estado local no comprobado','neutral');
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sincronización</p><h2>Estado de cambios</h2><p>Revisa cambios pendientes, conflictos o rechazos de este dispositivo. Puedes actualizar, reintentar o descartar un cambio local sin ocultar conflictos.</p></div><div class="m26-inline-actions">${stateBadge}<button type="button" data-verification-action="refresh">Actualizar estado local</button></div></section>${hasItems?`<section class="m26-stat-grid">${stat('Pendientes',center.summary.pending)}${stat('Conflictos',center.summary.conflicts)}${stat('Rechazadas',center.summary.rejected)}${stat('Total',center.summary.total)}</section>`:''}<section class="m26-panel"><div class="m26-stack">${content}</div></section></div>`;
+  return `<div class="m26-route m30-verification-route" data-verification-surface="sync-state"><section class="m26-route-intro m30-verification-intro"><div><p class="m26-eyebrow">Sincronización</p><h2>Estado de cambios</h2><p>Revisa cambios pendientes, conflictos o rechazos de este dispositivo. Puedes actualizar, reintentar o descartar un cambio local sin ocultar conflictos.</p></div><div class="m26-inline-actions">${stateBadge}<button type="button" data-verification-action="refresh">Actualizar estado local</button></div></section>${hasItems?`<section class="m26-stat-grid">${stat('Pendientes',center.summary.pending)}${stat('Conflictos',center.summary.conflicts)}${stat('Rechazadas',center.summary.rejected)}${stat('Total',center.summary.total)}</section>`:''}<section class="m26-panel m30-verification-panel"><div class="m26-stack">${content}</div></section></div>`;
 }
 
 
@@ -2103,14 +2103,14 @@ export function renderReportsRoute(vm){
   const isClient=vm.role==='client';
   const iriId=vm.latestIri?.id||'';
   const diagnosis=vm.iriDiagnosis||(vm.latestIri?{assessmentId:iriId,dateLabel:'Fecha de evaluación confirmada',classification:'Perfil IRI por dominios',processLabel:'Evaluación confirmada',revision:Number(vm.latestIri.revision||1)}:null);
-  const clientDiagnosis=isClient&&diagnosis?`<section class="m26-panel m26-iri-diagnosis-card" data-iri-diagnosis data-assessment-id="${escapeHtml(diagnosis.assessmentId)}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Documento principal</p><h2>Diagnóstico IRI</h2><p>Evaluación confirmada · ${escapeHtml(diagnosis.dateLabel)}</p></div>${badge(`Revisión ${diagnosis.revision}`,'success')}</div><div class="m26-iri-diagnosis-meta">${field('Fecha de evaluación',diagnosis.dateLabel)}${field('Clasificación',diagnosis.classification)}${field('Estado',diagnosis.processLabel)}${field('Versión o revisión',`Revisión ${diagnosis.revision}`)}</div><div class="m26-external-report-actions"><button type="button" class="m26-primary-action" data-m26-area="iri">Ver diagnóstico</button><button type="button" data-workflow-action="generate-client-iri-report" data-assessment-id="${escapeHtml(diagnosis.assessmentId)}">Generar o abrir PDF Cliente</button></div>${workflowStatus('iri-report')}<div data-iri-external-report-host data-assessment-id="${escapeHtml(diagnosis.assessmentId)}"></div></section>`:isClient?`<section class="m26-notice"><strong>Diagnóstico IRI pendiente</strong><p>Tu diagnóstico aparecerá aquí cuando la evaluación esté confirmada.</p></section>`:'';
-  const iriDocuments=!isClient&&iriId?`<section class="m26-panel m26-panel-soft m26-iri-report-access"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Diagnóstico inicial confirmado</p><h2>Documentos del IRI</h2><p>Se generan directamente desde la evaluación remota confirmada. No es necesario volver a completar el formulario.</p></div>${badge('Listos para generar','success')}</div><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-workflow-action="generate-client-iri-report">Abrir PDF Cliente</button><button type="button" data-workflow-action="generate-coach-iri-report">Abrir PDF Coach / Admin</button></div>${workflowStatus('iri-report')}</section>`:'';
-  const editor=vm.canManage?(iriId?`<form class="m26-panel m26-panel-soft m26-report-editor" data-workflow-form="report-approval"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Edición profesional</p><h2>Preparar informe IBERFIT</h2><p>El informe se aprobará como contenido interno. No será visible para el cliente hasta una publicación posterior y expresa.</p></div>${badge('Formato A4 premium','neutral')}</div><input type="hidden" name="assessmentId" value="${escapeHtml(iriId)}"><div class="m26-field-grid"><label class="m26-wide">Título<input name="title" maxlength="140" value="Informe de evolución IBERFIT" required></label><label>Inicio del periodo<input type="date" name="periodStart" required></label><label>Fin del periodo<input type="date" name="periodEnd" required></label><label class="m26-wide">Resumen del periodo<textarea name="summary" minlength="20" maxlength="2500" required></textarea></label><label class="m26-wide">Conclusiones<textarea name="conclusions" minlength="20" maxlength="2500" required></textarea></label><label class="m26-wide">Recomendaciones y próximos pasos<textarea name="recommendations" minlength="20" maxlength="2500" required></textarea></label></div><section class="m26-report-preview" aria-label="Criterios de revisión del informe"><p class="m26-eyebrow">Revisión previa</p><h3>Comprobación editorial</h3><p>Confirma que el texto distingue datos objetivos, interpretación profesional y próximos pasos; evita diagnósticos y afirmaciones no respaldadas.</p><label><input type="checkbox" name="reviewAccepted" required> He revisado íntegramente el contenido y confirmo que está listo para aprobación interna.</label></section><button type="submit" class="m26-primary-action" data-workflow-action="approve-report">Aprobar informe interno</button>${workflowStatus('report')}</form>`:`<section class="m26-notice is-warning" role="status"><strong>Falta un diagnóstico IRI confirmado</strong><p>El informe premium no puede prepararse hasta que exista una evaluación IRI trazable en el expediente.</p></section>`):'';
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Documentación</p><h2>${isClient?'Tus informes IBERFIT':'Informes y publicación'}</h2><p>${isClient?'Abre tu Diagnóstico IRI y consulta dentro de él su documento complementario de bioimpedancia.':'Los documentos del IRI se generan desde la evaluación confirmada. Los informes de evolución mantienen un ciclo separado de aprobación y publicación.'}</p></div>${badge(countLabel(vm.reports.length,'informe','informes'),'neutral')}</section>${clientDiagnosis}${iriDocuments}<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>${isClient?'Informes disponibles':'Informes de evolución'}</h2></div></div>${publicationList(vm.reports,'report',isClient?'Aún no hay informes disponibles':'Sin informes de evolución preparados',{clientView:isClient})}</section>${editor}${!editor?workflowStatus('report'):''}</div>`;
+  const clientDiagnosis=isClient&&diagnosis?`<section class="m26-panel m26-iri-diagnosis-card m30-report-primary" data-iri-diagnosis data-assessment-id="${escapeHtml(diagnosis.assessmentId)}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Documento principal</p><h2>Diagnóstico IRI</h2><p>Evaluación confirmada · ${escapeHtml(diagnosis.dateLabel)}</p></div>${badge(`Revisión ${diagnosis.revision}`,'success')}</div><div class="m26-iri-diagnosis-meta">${field('Fecha de evaluación',diagnosis.dateLabel)}${field('Clasificación',diagnosis.classification)}${field('Estado',diagnosis.processLabel)}${field('Versión o revisión',`Revisión ${diagnosis.revision}`)}</div><div class="m26-external-report-actions"><button type="button" class="m26-primary-action" data-m26-area="iri">Ver diagnóstico</button><button type="button" data-workflow-action="generate-client-iri-report" data-assessment-id="${escapeHtml(diagnosis.assessmentId)}">Generar o abrir PDF Cliente</button></div>${workflowStatus('iri-report')}<div data-iri-external-report-host data-assessment-id="${escapeHtml(diagnosis.assessmentId)}"></div></section>`:isClient?`<section class="m26-notice"><strong>Diagnóstico IRI pendiente</strong><p>Tu diagnóstico aparecerá aquí cuando la evaluación esté confirmada.</p></section>`:'';
+  const iriDocuments=!isClient&&iriId?`<section class="m26-panel m26-panel-soft m26-iri-report-access m30-report-iri-docs"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Diagnóstico inicial confirmado</p><h2>Documentos del IRI</h2><p>Se generan directamente desde la evaluación remota confirmada. No es necesario volver a completar el formulario.</p></div>${badge('Listos para generar','success')}</div><div class="m26-action-grid"><button type="button" class="m26-primary-action" data-workflow-action="generate-client-iri-report">Abrir PDF Cliente</button><button type="button" data-workflow-action="generate-coach-iri-report">Abrir PDF Coach / Admin</button></div>${workflowStatus('iri-report')}</section>`:'';
+  const editor=vm.canManage?(iriId?`<form class="m26-panel m26-panel-soft m26-report-editor m30-report-editor" data-workflow-form="report-approval"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Edición profesional</p><h2>Preparar informe IBERFIT</h2><p>El informe se aprobará como contenido interno. No será visible para el cliente hasta una publicación posterior y expresa.</p></div>${badge('Formato A4 premium','neutral')}</div><input type="hidden" name="assessmentId" value="${escapeHtml(iriId)}"><div class="m26-field-grid"><label class="m26-wide">Título<input name="title" maxlength="140" value="Informe de evolución IBERFIT" required></label><label>Inicio del periodo<input type="date" name="periodStart" required></label><label>Fin del periodo<input type="date" name="periodEnd" required></label><label class="m26-wide">Resumen del periodo<textarea name="summary" minlength="20" maxlength="2500" required></textarea></label><label class="m26-wide">Conclusiones<textarea name="conclusions" minlength="20" maxlength="2500" required></textarea></label><label class="m26-wide">Recomendaciones y próximos pasos<textarea name="recommendations" minlength="20" maxlength="2500" required></textarea></label></div><section class="m26-report-preview" aria-label="Criterios de revisión del informe"><p class="m26-eyebrow">Revisión previa</p><h3>Comprobación editorial</h3><p>Confirma que el texto distingue datos objetivos, interpretación profesional y próximos pasos; evita diagnósticos y afirmaciones no respaldadas.</p><label><input type="checkbox" name="reviewAccepted" required> He revisado íntegramente el contenido y confirmo que está listo para aprobación interna.</label></section><button type="submit" class="m26-primary-action" data-workflow-action="approve-report">Aprobar informe interno</button>${workflowStatus('report')}</form>`:`<section class="m26-notice is-warning" role="status"><strong>Falta un diagnóstico IRI confirmado</strong><p>El informe premium no puede prepararse hasta que exista una evaluación IRI trazable en el expediente.</p></section>`):'';
+  return `<div class="m26-route m30-reports-route" data-reports-role="${escapeHtml(vm.role||'unknown')}"><section class="m26-route-intro m30-reports-intro"><div><p class="m26-eyebrow">Documentación</p><h2>${isClient?'Tus informes IBERFIT':'Informes y publicación'}</h2><p>${isClient?'Abre tu Diagnóstico IRI y consulta dentro de él su documento complementario de bioimpedancia.':'Los documentos del IRI se generan desde la evaluación confirmada. Los informes de evolución mantienen un ciclo separado de aprobación y publicación.'}</p></div>${badge(countLabel(vm.reports.length,'informe','informes'),'neutral')}</section>${clientDiagnosis}${iriDocuments}<section class="m26-panel m30-report-list"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Seguimiento</p><h2>${isClient?'Informes disponibles':'Informes de evolución'}</h2></div></div>${publicationList(vm.reports,'report',isClient?'Aún no hay informes disponibles':'Sin informes de evolución preparados',{clientView:isClient})}</section>${editor}${!editor?workflowStatus('report'):''}</div>`;
 }
 export function renderIntelligenceRoute(vm){
-  const form=vm.canGenerate?`<form class="m26-panel m26-panel-soft" data-workflow-form="intelligence"><div class="m26-panel-heading"><div><p class="m26-eyebrow">La IA propone</p><h2>Generar propuesta de sesión</h2></div></div><div class="m26-field-grid"><label class="m26-wide">Pregunta o criterio del entrenador<textarea name="coachQuestion" maxlength="1200" placeholder="Ej.: Analiza los datos disponibles, señala limitaciones y propón próximos pasos sin publicar nada."></textarea></label><label>Objetivo<input name="goal" value="fuerza" required></label><label>Duración (min)<input type="number" min="20" max="120" name="durationMinutes" value="50" required></label><label>Experiencia<select name="experience"><option value="inicial">Inicial</option><option value="intermedio" selected>Intermedio</option><option value="avanzado">Avanzado</option></select></label><label>Modalidad<select name="modality"><option value="hibrido">Híbrido</option><option value="online">En línea</option><option value="presencial">Presencial</option></select></label><label>Edad calculada<input type="number" name="ageYears" value="${escapeHtml(vm.ageYears??'')}" readonly aria-describedby="m26-age-help"></label><p id="m26-age-help" class="m26-field-help">Se calcula automáticamente desde la fecha de nacimiento del expediente.</p><label>Material<input name="equipment" value="TRX,mancuernas"></label></div><button type="submit" class="m26-primary-action" data-workflow-action="generate-intelligence">Generar propuesta revisable</button>${vm.ageYears==null?'<p class="m26-notice is-warning">No hay fecha de nacimiento confirmada. La propuesta podrá generarse, pero no aplicará baremos dependientes de la edad.</p>':''}${workflowStatus('intelligence')}<div data-intelligence-preview></div></form>`:'';
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Motor IBERFIT</p><h2>Inteligencia con criterio</h2><p>Usa adherencia, recuperación y carga histórica. Nunca publica ni progresa cargas automáticamente.</p></div>${badge(vm.alerts.some((x)=>x.severity==='critical')?'Revisión requerida':'Contexto disponible',vm.alerts.some((x)=>x.severity==='critical')?'danger':'success')}</section>${form}<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>Propuestas confirmadas</h2></div></div>${recordList(vm.runs,'Sin propuestas remotas')}</section></div>`;
+  const form=vm.canGenerate?`<form class="m26-panel m26-panel-soft m30-intelligence-form" data-workflow-form="intelligence" aria-labelledby="m30-intelligence-form-title"><div class="m26-panel-heading"><div><p class="m26-eyebrow">La IA propone</p><h2 id="m30-intelligence-form-title">Generar propuesta de sesión</h2></div></div><div class="m26-field-grid"><label class="m26-wide">Pregunta o criterio del entrenador<textarea name="coachQuestion" maxlength="1200" placeholder="Ej.: Analiza los datos disponibles, señala limitaciones y propón próximos pasos sin publicar nada."></textarea></label><label>Objetivo<input name="goal" value="fuerza" required></label><label>Duración (min)<input type="number" min="20" max="120" name="durationMinutes" value="50" required></label><label>Experiencia<select name="experience"><option value="inicial">Inicial</option><option value="intermedio" selected>Intermedio</option><option value="avanzado">Avanzado</option></select></label><label>Modalidad<select name="modality"><option value="hibrido">Híbrido</option><option value="online">En línea</option><option value="presencial">Presencial</option></select></label><label>Edad calculada<input type="number" name="ageYears" value="${escapeHtml(vm.ageYears??'')}" readonly aria-describedby="m26-age-help"></label><p id="m26-age-help" class="m26-field-help">Se calcula automáticamente desde la fecha de nacimiento del expediente.</p><label>Material<input name="equipment" value="TRX,mancuernas"></label></div><button type="submit" class="m26-primary-action" data-workflow-action="generate-intelligence">Generar propuesta revisable</button>${vm.ageYears==null?'<p class="m26-notice is-warning">No hay fecha de nacimiento confirmada. La propuesta podrá generarse, pero no aplicará baremos dependientes de la edad.</p>':''}${workflowStatus('intelligence')}<div data-intelligence-preview></div></form>`:'';
+  return `<div class="m26-route m30-intelligence-route" data-intelligence-surface="coach-copilot"><section class="m26-route-intro m30-intelligence-intro"><div><p class="m26-eyebrow">Motor IBERFIT</p><h2>Inteligencia con criterio</h2><p>Usa adherencia, recuperación y carga histórica. Nunca publica ni progresa cargas automáticamente.</p></div>${badge(vm.alerts.some((x)=>x.severity==='critical')?'Revisión requerida':'Contexto disponible',vm.alerts.some((x)=>x.severity==='critical')?'danger':'success')}</section>${form}<section class="m26-panel m30-intelligence-history"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>Propuestas confirmadas</h2></div></div>${recordList(vm.runs,'Sin propuestas remotas')}</section></div>`;
 }
 /* RC71_0_CHALLENGE_SETTINGS_RENDER_BEGIN */
 function rc71ChallengeStatus(item){
@@ -2173,7 +2173,7 @@ export function renderChallengesRoute(vm){
         'Los retos aparecerán a partir de datos confirmados.'
       );
 
-  return `<div class="m26-route m26-challenges-route">
+  return `<div class="m26-route m26-challenges-route m30-challenges-route" data-challenges-surface="private-progress">
     <section class="m26-route-intro">
       <div>
         <p class="m26-eyebrow">IBERFIT · Retos</p>
@@ -2188,12 +2188,12 @@ export function renderChallengesRoute(vm){
       )}
     </section>
 
-    <section class="m26-challenge-grid">
+    <section class="m26-challenge-grid m30-challenge-grid" aria-label="Retos activos">
       ${cards}
     </section>
 
     <section class="m26-content-grid">
-      <div class="m26-panel">
+      <div class="m26-panel m30-challenge-privacy">
         <div class="m26-panel-heading">
           <div>
             <p class="m26-eyebrow">Comunidad IBERFIT</p>
@@ -2204,7 +2204,7 @@ export function renderChallengesRoute(vm){
         <p>${vm.social?.sharingEnabled?'Consentimiento activo para compartir manualmente con '+escapeHtml(vm.social.audience==='coach'?'tu Coach':'alcance privado')+'.':'Tus logros permanecen privados.'} No existe publicación automática ni ranking público.</p><button type="button" data-m26-area="ajustes">Revisar privacidad social</button>
       </div>
 
-      <aside class="m26-panel m26-panel-soft">
+      <aside class="m26-panel m26-panel-soft m30-challenge-next">
         <p class="m26-eyebrow">Siguiente paso</p>
         <h2>Usa el reto como contexto, no como presión</h2>
         <p>Revisa tu evolución o completa tus registros para mantener el seguimiento con datos reales.</p>
@@ -2253,7 +2253,7 @@ export function renderSettingsRoute(vm){
       <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(copy)}</small></span>
     </label>`;
 
-  return `<div class="m26-route m26-settings-route">
+  return `<div class="m26-route m26-settings-route m30-settings-route" data-settings-surface="preferences">
     <section class="m26-route-intro">
       <div>
         <p class="m26-eyebrow">IBERFIT · Ajustes</p>
@@ -2262,8 +2262,8 @@ export function renderSettingsRoute(vm){
       </div>
     </section>
 
-    <section class="m26-settings-grid">
-      <article class="m26-panel">
+    <section class="m26-settings-grid m30-settings-grid" aria-label="Preferencias de IBERFIT">
+      <article class="m26-panel m30-settings-card" data-settings-card="language">
         <p class="m26-eyebrow">Idioma</p>
         <h3>Idioma de la interfaz</h3>
         <label>
@@ -2274,7 +2274,7 @@ export function renderSettingsRoute(vm){
         <div class="m26-inline-actions">${plannedLanguages}</div>
       </article>
 
-      <article class="m26-panel">
+      <article class="m26-panel m30-settings-card" data-settings-card="locale">
         <p class="m26-eyebrow">Región</p>
         <h3>Fechas, números y formatos</h3>
         <label>
@@ -2284,7 +2284,7 @@ export function renderSettingsRoute(vm){
         <p class="m26-data-footnote">Idioma y región son preferencias distintas. Cambiar la región no cambia los textos de la interfaz.</p>
       </article>
 
-      <article class="m26-panel">
+      <article class="m26-panel m30-settings-card" data-settings-card="social">
         <p class="m26-eyebrow">Social</p>
         <h3>Compartir solo con consentimiento</h3>
         <label class="m26-consent">
@@ -2309,7 +2309,7 @@ export function renderSettingsRoute(vm){
         <p class="m26-notice"><strong>Bloqueado por diseño:</strong> publicación automática desactivada y ranking público desactivado.</p>
       </article>
 
-      <article class="m26-panel">
+      <article class="m26-panel m30-settings-card" data-settings-card="notifications">
         <p class="m26-eyebrow">Avisos</p>
         <h3>Qué quieres recibir</h3>
         ${notificationToggle('sessionReminders','Próxima sesión','Recordatorio de una sesión confirmada.')}
@@ -2321,21 +2321,21 @@ export function renderSettingsRoute(vm){
         <p class="m26-data-footnote">Estas preferencias registran consentimiento. No se solicita permiso push ni se promete entrega push hasta que exista el servicio. Los conflictos de sincronización siguen visibles siempre dentro de la app.</p>
       </article>
 
-      <article class="m26-panel">
+      <article class="m26-panel m30-settings-card" data-settings-card="wearables">
         <p class="m26-eyebrow">Wearables</p>
         <h3>Dispositivos y actividad</h3>
         <p>${escapeHtml(wearableNote)}</p>
         <button type="button" class="m26-primary-action" data-m26-area="actividad">Gestionar wearables</button>
       </article>
 
-      <article class="m26-panel">
+      <article class="m26-panel m30-settings-card" data-settings-card="privacy">
         <p class="m26-eyebrow">Privacidad</p>
         <h3>Control por defecto</h3>
         <p>Retos privados por defecto, preferencias aisladas por cuenta, sin publicación social automática, sin ranking público y notas privadas del entrenador fuera de la vista del cliente.</p>
         ${badge('Privacidad activa','success')}
       </article>
 
-      <article class="m26-panel m26-panel-soft">
+      <article class="m26-panel m26-panel-soft m30-settings-card m30-settings-account" data-settings-card="account">
         <p class="m26-eyebrow">Cuenta</p>
         <h3>${escapeHtml(vm.identity?.name||'Cuenta IBERFIT')}</h3>
         <p>${escapeHtml(vm.identity?.roleLabel||vm.role||'')}</p>
@@ -2376,7 +2376,7 @@ function renderIntelligenceDecisionBrief(brief){
     .join('');
 
   return `<section
-    class="m26-panel m26-panel-soft"
+    class="m26-panel m26-panel-soft m30-intelligence-brief"
     data-m26-intelligence-copilot
     aria-labelledby="m26-intelligence-copilot-title"
   >
@@ -2389,7 +2389,7 @@ function renderIntelligenceDecisionBrief(brief){
       ${badge(`Confianza ${brief.confidence}`,tone)}
     </div>
 
-    <div class="m26-content-grid">
+    <div class="m26-content-grid m30-intelligence-evidence">
       <article>
         <h3>Señales utilizadas</h3>
         <ul>${signals}</ul>
@@ -2405,7 +2405,7 @@ function renderIntelligenceDecisionBrief(brief){
       </article>
     </div>
 
-    <div class="m26-notice">
+    <div class="m26-notice m30-intelligence-next">
       <strong>Siguiente paso sugerido</strong>
       <p>${escapeHtml(brief.nextStep)}</p>
     </div>
