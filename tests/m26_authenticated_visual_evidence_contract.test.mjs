@@ -15,7 +15,7 @@ test('authenticated visual evidence captures only authorized read-only QA states
   assert.match(spec,/screenshotsContainSyntheticQaSurface:true/u);
   assert.match(spec,/authorized-admin-qa-account-not-configured/u);
   assert.match(spec,/captured:false/u);
-  assert.match(spec,/input\[type=\\"password\\"\]/u);
+  assert.match(spec,/input\[type="password"\]/u);
   assert.doesNotMatch(spec,/mfa-continue-webauthn[^\n]{0,180}\.click\(/u);
 });
 
