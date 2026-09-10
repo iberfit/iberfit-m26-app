@@ -13,6 +13,14 @@ function e(value) {
 
 export const REMEMBERED_EMAIL_STORAGE_KEY='iberfit.m26.remembered-email.v1';
 
+const ACCESS_MODES=new Set([
+  'login',
+  'request-recovery',
+  'update-password',
+  'mfa-required',
+  'mfa-challenge',
+]);
+
 export function normalizeRememberedEmail(value=''){
   const email=String(value||'').trim();
   if(!email||email.length>254||!email.includes('@'))return '';
@@ -100,10 +108,32 @@ function enhanceDeviceRegistration(root){
   return enhanced;
 }
 
+function enhancePasswordVisibility(root){
+  let enhanced=false;
+  for(const toggle of root?.querySelectorAll?.('[data-password-toggle]')||[]){
+    if(toggle.dataset?.iberfitPasswordToggleEnhanced==='true')continue;
+    if(toggle.dataset)toggle.dataset.iberfitPasswordToggleEnhanced='true';
+    toggle.addEventListener('click',()=>{
+      const targetId=toggle.getAttribute?.('aria-controls');
+      const input=targetId?root?.querySelector?.(`#${targetId}`):null;
+      if(!input)return;
+      const reveal=input.type==='password';
+      input.type=reveal?'text':'password';
+      toggle.textContent=reveal?'Ocultar':'Mostrar';
+      toggle.setAttribute?.('aria-pressed',reveal?'true':'false');
+      toggle.setAttribute?.('aria-label',reveal?'Ocultar contraseña':'Mostrar contraseña');
+      input.focus?.({preventScroll:true});
+    });
+    enhanced=true;
+  }
+  return enhanced;
+}
+
 export function enhanceAccessUi(root=globalThis.document,{storage:providedStorage=null}={}){
   const deviceEnhanced=enhanceDeviceRegistration(root);
+  const passwordEnhanced=enhancePasswordVisibility(root);
   const form=root?.querySelector?.('[data-auth-form="login"]');
-  if(!form||form.dataset?.iberfitAccessEnhanced==='true')return deviceEnhanced;
+  if(!form||form.dataset?.iberfitAccessEnhanced==='true')return deviceEnhanced||passwordEnhanced;
   if(form.dataset)form.dataset.iberfitAccessEnhanced='true';
 
   const emailInput=form.querySelector?.('input[name="email"]');
@@ -116,20 +146,6 @@ export function enhanceAccessUi(root=globalThis.document,{storage:providedStorag
   }
   if(rememberInput&&remembered){
     rememberInput.checked=true;
-  }
-
-  for(const toggle of form.querySelectorAll?.('[data-password-toggle]')||[]){
-    toggle.addEventListener('click',()=>{
-      const targetId=toggle.getAttribute('aria-controls');
-      const input=targetId?root.querySelector?.(`#${targetId}`):form.querySelector?.('input[name="password"]');
-      if(!input)return;
-      const reveal=input.type==='password';
-      input.type=reveal?'text':'password';
-      toggle.textContent=reveal?'Ocultar':'Mostrar';
-      toggle.setAttribute('aria-pressed',reveal?'true':'false');
-      toggle.setAttribute('aria-label',reveal?'Ocultar contraseña':'Mostrar contraseña');
-      input.focus?.({preventScroll:true});
-    });
   }
 
   rememberInput?.addEventListener('change',()=>{
@@ -156,6 +172,26 @@ function scheduleAccessEnhancement(){
   schedule(()=>{try{enhanceAccessUi(globalThis.document);}catch{}});
 }
 
+function recoveryFlowMarkup(currentStep){
+  const steps=[
+    ['Correo','Identifica tu cuenta'],
+    ['Enlace','Abre el acceso seguro'],
+    ['Contraseña','Crea la nueva clave'],
+  ];
+  return `
+    <ol class="m26-auth-flow" aria-label="Recuperación de acceso">
+      ${steps.map(([label,description],index)=>{
+        const step=index+1;
+        const state=step<currentStep?'complete':step===currentStep?'current':'upcoming';
+        return `<li class="m26-auth-flow-step is-${state}"${state==='current'?' aria-current="step"':''}>
+          <span class="m26-auth-flow-index" aria-hidden="true">${step}</span>
+          <span class="m26-auth-flow-label"><strong>${label}</strong><span>${description}</span></span>
+        </li>`;
+      }).join('')}
+    </ol>
+  `;
+}
+
 export function renderAccessUi({
   message = '',
   busy = false,
@@ -166,6 +202,7 @@ export function renderAccessUi({
   mfa = null,
   host = '',
 } = {}) {
+  const normalizedMode=ACCESS_MODES.has(mode)?mode:'login';
   const disabled = busy || !backendReady;
   const normalizedHost = String(host || '').trim().toLowerCase();
   const previewBlocked =
@@ -182,11 +219,52 @@ export function renderAccessUi({
           <p>Este enlace de revisión no admite acceso. Abre el Canary oficial para continuar.</p>
           <a class="m26-auth-canonical-link" href="https://m26-canary.iberfit.cl/">Abrir Canary oficial</a>
         </div>`
-      : '<p class="m26-notice is-warning">El acceso no está disponible temporalmente en este sitio.</p>';
+      : '<p class="m26-notice is-warning" role="status">El acceso no está disponible temporalmente en este sitio.</p>';
 
+  const rawMessage=String(message||'');
+  const contextBlocked=/M26_ROLE_CONTEXT_MISSING/u.test(rawMessage);
+  const sessionExpired=/sesión (?:expiró|perdió autorización)|sesión perdió autorización/iu.test(rawMessage);
+  const recoveryInvalid=normalizedMode==='request-recovery'&&noticeKind==='error'&&/enlace de recuperación|caducad/iu.test(rawMessage);
+  const normalizedNoticeKind=contextBlocked?'blocked':noticeKind==='error'?'error':noticeKind==='success'?'success':'status';
+  const assertive=['error','blocked'].includes(normalizedNoticeKind);
+  const noticeClass=normalizedNoticeKind==='error'
+    ?' is-error'
+    :normalizedNoticeKind==='blocked'
+      ?' is-blocked'
+      :normalizedNoticeKind==='success'
+        ?' is-success'
+        :'';
   const notice = message
-    ? `<p class="m26-auth-notice${noticeKind === 'error' ? ' is-error' : ''}" role="${noticeKind === 'error' ? 'alert' : 'status'}" aria-live="${noticeKind === 'error' ? 'assertive' : 'polite'}" aria-atomic="true">${e(message)}</p>`
+    ? `<p class="m26-auth-notice${noticeClass}" role="${assertive?'alert':'status'}" aria-live="${assertive?'assertive':'polite'}" aria-atomic="true">${e(message)}</p>`
     : '';
+  const contextNotice=contextBlocked
+    ? `<div class="m26-auth-context-state" role="status" aria-label="Estado del acceso">
+        <span class="m26-auth-context-mark" aria-hidden="true"></span>
+        <div>
+          <strong>Identidad confirmada · acceso pendiente</strong>
+          <p>La cuenta es válida, pero todavía no tiene una aplicación IBERFIT habilitada. Puedes volver a intentar el acceso o entrar con otra cuenta mientras se revisa la asignación.</p>
+        </div>
+      </div>`
+    :'';
+  const authState=previewBlocked
+    ?'blocked'
+    :!backendReady
+      ?'unavailable'
+      :busy
+        ?'busy'
+        :contextBlocked
+          ?'context-blocked'
+          :sessionExpired
+            ?'session-expired'
+            :recoveryInvalid
+              ?'recovery-invalid'
+              :normalizedNoticeKind==='error'
+                ?'error'
+                :normalizedNoticeKind==='success'
+                  ?'success'
+                  :message
+                    ?'status'
+                    :'ready';
 
   const accessNote = qaOnly
     ? 'Acceso restringido a las cuentas autorizadas para esta revisión.'
@@ -194,7 +272,7 @@ export function renderAccessUi({
 
   let content = '';
 
-  if (mode === 'mfa-required') {
+  if (normalizedMode === 'mfa-required') {
     content = `
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Verificación del dispositivo</p>
@@ -202,6 +280,7 @@ export function renderAccessUi({
         <p>Configura este dispositivo una sola vez. La confirmación se hará con Face ID, Touch ID, Windows Hello, PIN o la contraseña del propio dispositivo.</p>
       </div>
 
+      ${contextNotice}
       ${notice}
 
       <div class="m26-auth-actions">
@@ -221,7 +300,7 @@ export function renderAccessUi({
 
       <p class="m26-field-help m26-device-assurance">IBERFIT no recibe tu PIN, contraseña ni biometría. La verificación ocurre de forma nativa en este dispositivo, sin QR ni otro equipo.</p>
     `;
-  } else if (mode === 'mfa-challenge') {
+  } else if (normalizedMode === 'mfa-challenge') {
     content = `
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Verificación del dispositivo</p>
@@ -229,6 +308,7 @@ export function renderAccessUi({
         <p>Usa la seguridad nativa de este dispositivo para continuar. No necesitas escanear ningún QR ni usar otro equipo.</p>
       </div>
 
+      ${contextNotice}
       ${notice}
 
       <div class="m26-auth-actions">
@@ -257,11 +337,16 @@ export function renderAccessUi({
 
       <p class="m26-field-help m26-device-assurance">Si es la primera vez que entras desde este teléfono u ordenador, configúralo aquí. Tus otros dispositivos siguen intactos.</p>
     `;
-  } else if (mode === 'request-recovery') {
+  } else if (normalizedMode === 'request-recovery') {
     content = `
-      <h1 id="m26-auth-title" tabindex="-1">Crear o recuperar contraseña</h1>
-      <p>Introduce el correo asociado a tu cuenta. Te enviaremos un enlace seguro para crear una contraseña nueva.</p>
+      <div class="m26-auth-copy">
+        <p class="m26-auth-kicker">Recuperación segura</p>
+        <h1 id="m26-auth-title" tabindex="-1">Crear o recuperar contraseña</h1>
+        <p>Introduce el correo asociado a tu cuenta. Te enviaremos un enlace seguro para crear una contraseña nueva.</p>
+      </div>
 
+      ${recoveryFlowMarkup(1)}
+      ${contextNotice}
       ${notice}
 
       <form data-auth-form="request-recovery">
@@ -289,44 +374,72 @@ export function renderAccessUi({
 
         <button
           type="button"
+          class="m26-tertiary-action"
           data-auth-action="back-to-login"
         >
           Volver al acceso
         </button>
       </form>
     `;
-  } else if (mode === 'update-password') {
+  } else if (normalizedMode === 'update-password') {
     content = `
-      <h1 id="m26-auth-title" tabindex="-1">Crear contraseña nueva</h1>
-      <p>Introduce y confirma la contraseña que utilizarás para acceder.</p>
+      <div class="m26-auth-copy">
+        <p class="m26-auth-kicker">Recuperación segura</p>
+        <h1 id="m26-auth-title" tabindex="-1">Crear contraseña nueva</h1>
+        <p>Introduce y confirma la contraseña que utilizarás para acceder.</p>
+      </div>
 
+      ${recoveryFlowMarkup(3)}
+      ${contextNotice}
       ${notice}
 
       <form data-auth-form="update-password">
         <label>
           Contraseña nueva
-          <input
-            type="password"
-            name="password"
-            autocomplete="new-password"
-            aria-describedby="m26-password-requirements"
-            required
-            minlength="8"
-            maxlength="1024"
-          >
+          <span class="m26-password-field">
+            <input
+              id="m26-new-password"
+              type="password"
+              name="password"
+              autocomplete="new-password"
+              aria-describedby="m26-password-requirements"
+              required
+              minlength="8"
+              maxlength="1024"
+            >
+            <button
+              type="button"
+              class="m26-password-toggle"
+              data-password-toggle
+              aria-controls="m26-new-password"
+              aria-pressed="false"
+              aria-label="Mostrar contraseña"
+            >Mostrar</button>
+          </span>
         </label>
 
         <label>
           Confirmar contraseña
-          <input
-            type="password"
-            name="passwordConfirmation"
-            autocomplete="new-password"
-            aria-describedby="m26-password-requirements"
-            required
-            minlength="8"
-            maxlength="1024"
-          >
+          <span class="m26-password-field">
+            <input
+              id="m26-new-password-confirmation"
+              type="password"
+              name="passwordConfirmation"
+              autocomplete="new-password"
+              aria-describedby="m26-password-requirements"
+              required
+              minlength="8"
+              maxlength="1024"
+            >
+            <button
+              type="button"
+              class="m26-password-toggle"
+              data-password-toggle
+              aria-controls="m26-new-password-confirmation"
+              aria-pressed="false"
+              aria-label="Mostrar contraseña"
+            >Mostrar</button>
+          </span>
         </label>
 
         <p id="m26-password-requirements" class="m26-field-help">
@@ -343,6 +456,7 @@ export function renderAccessUi({
 
         <button
           type="button"
+          class="m26-tertiary-action"
           data-auth-action="back-to-login"
         >
           Volver al acceso
@@ -357,6 +471,7 @@ export function renderAccessUi({
         <p>Diagnóstico, planificación, control y seguimiento.</p>
       </div>
 
+      ${contextNotice}
       ${notice}
 
       <form data-auth-form="login">
@@ -426,8 +541,8 @@ export function renderAccessUi({
   scheduleAccessEnhancement();
 
   return `
-    <main class="m26-auth-page">
-      <section class="m26-auth-card" aria-labelledby="m26-auth-title" aria-busy="${busy ? 'true' : 'false'}">
+    <main class="m26-auth-page" data-auth-mode="${normalizedMode}" data-auth-state="${authState}">
+      <section class="m26-auth-card" data-auth-mode="${normalizedMode}" data-auth-state="${authState}" aria-labelledby="m26-auth-title" aria-busy="${busy ? 'true' : 'false'}">
         <header class="m26-auth-brand">
           <img
             class="m26-auth-logo"
