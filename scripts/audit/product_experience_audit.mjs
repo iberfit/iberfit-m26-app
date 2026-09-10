@@ -106,13 +106,15 @@ function evaluateVisualMaturity(files,css){
     visualDimension('dataVisualization','Lenguaje de datos',dataVisualization,VISUAL_DIMENSION_WEIGHTS.dataVisualization,dataVisualization?'La fuente de verdad incluye series, grid y missing state para visualización de datos.':'No se acredita un lenguaje de visualización de datos completo.'),
   ]);
 
-  const score=dimensions.reduce((sum,item)=>sum+(item.passed?item.weight:0),0);
+  const structuralScore=dimensions.reduce((sum,item)=>sum+(item.passed?item.weight:0),0);
   const declaredVisualDelta=String(meta?.visualDelta||'undeclared');
   const intentionallyMinimal=declaredVisualDelta==='intentionally-minimal';
-  const level=score>=85&&!intentionallyMinimal?'elevated':score>=70?'systematic-foundation':score>=50?'foundation':'incomplete-foundation';
+  const score=intentionallyMinimal?Math.min(structuralScore,70):structuralScore;
+  const level=intentionallyMinimal?'foundation-direction-limited':score>=85?'elevated':score>=70?'systematic-foundation':score>=50?'foundation':'incomplete-foundation';
 
   return Object.freeze({
     score,
+    structuralScore,
     maxScore:100,
     level,
     declaredVisualDelta,
@@ -146,7 +148,7 @@ export function evaluateProductExperience(files={}){
   if(has(css,/backdrop-filter\s*:/u)&&has(css,/linear-gradient\s*\(/u))strengths.push(strength('PREMIUM_VISUAL_LAYERING','aesthetic','Existe una base técnica de profundidad, transparencia y gradientes; por sí sola no certifica acabado premium.','Se detectan backdrop-filter y gradientes; la madurez se evalúa por separado.'));
 
   if(visualMaturity.intentionallyMinimal){
-    opportunities.push(opportunity('high','aesthetic','VISUAL_DIRECTION_MINIMAL_DELTA','La propia fuente de verdad declara que el salto visual es intencionadamente mínimo; no puede considerarse evidencia de acabado premium.','Elevar de forma aditiva el sistema visual completo —jerarquía, controles, composición, datos y estados— y cambiar esta declaración sólo después de validar capturas reales en Cliente, Coach y Admin.',`tokens.json meta.visualDelta=${visualMaturity.declaredVisualDelta}.`));
+    opportunities.push(opportunity('high','aesthetic','VISUAL_DIRECTION_MINIMAL_DELTA','La propia fuente de verdad declara que el salto visual es intencionadamente mínimo; no puede considerarse evidencia de acabado premium.','Elevar de forma aditiva el sistema visual completo —jerarquía, controles, composición, datos y estados— y cambiar esta declaración sólo después de validar capturas reales en Cliente, Coach y Admin.',`tokens.json meta.visualDelta=${visualMaturity.declaredVisualDelta}; readiness capped=${visualMaturity.score}/100.`));
   }else if(visualMaturity.declaredVisualDelta==='undeclared'){
     opportunities.push(opportunity('medium','aesthetic','VISUAL_DIRECTION_UNDECLARED','La intención de evolución visual no está declarada en la fuente de verdad.','Declarar el nivel/dirección visual únicamente cuando exista evidencia coherente en las superficies reales.','tokens.json no aporta meta.visualDelta.'));
   }
@@ -156,7 +158,7 @@ export function evaluateProductExperience(files={}){
     opportunities.push(opportunity('medium','aesthetic',`VISUAL_MATURITY_${dimension.id.replace(/([a-z])([A-Z])/gu,'$1_$2').toUpperCase()}`,`La dimensión “${dimension.label}” no alcanza todavía el contrato visual medible.`,`Completar ${dimension.label.toLowerCase()} sin retirar información, estados ni capacidades existentes.`,dimension.evidence));
   }
 
-  if(visualMaturity.score>=70)strengths.push(strength('VISUAL_SYSTEM_FOUNDATION','aesthetic',`El sistema visual acredita una fundación técnica de ${visualMaturity.score}/100, separada de la valoración subjetiva del acabado.`,`Nivel ${visualMaturity.level}; revisión humana obligatoria=${visualMaturity.requiresHumanVisualReview}.`));
+  if(visualMaturity.structuralScore>=70)strengths.push(strength('VISUAL_SYSTEM_FOUNDATION','aesthetic',`El sistema visual acredita una fundación estructural de ${visualMaturity.structuralScore}/100, separada de su preparación visual ${visualMaturity.score}/100 y de la valoración subjetiva del acabado.`,`Nivel ${visualMaturity.level}; revisión humana obligatoria=${visualMaturity.requiresHumanVisualReview}.`));
 
   if(has(all,/startViewTransition\s*\(/u))strengths.push(strength('ROUTE_VIEW_TRANSITIONS','aesthetic','La navegación puede usar transiciones de vista nativas.','Se detecta document.startViewTransition.'));
   else opportunities.push(opportunity('low','aesthetic','ROUTE_TRANSITION_OPPORTUNITY','La navegación puede sentirse aún más nativa entre áreas principales.','Evaluar transiciones de vista muy breves en cambios de ruta, desactivadas con reduced-motion y sin bloquear interacción.','No se detecta startViewTransition.'));
@@ -197,6 +199,7 @@ export function evaluateProductExperience(files={}){
       medium:ordered.filter((item)=>item.priority==='medium').length,
       low:ordered.filter((item)=>item.priority==='low').length,
       visualScore:visualMaturity.score,
+      visualStructuralScore:visualMaturity.structuralScore,
       requiresHumanVisualReview:visualMaturity.requiresHumanVisualReview,
     }),
   });
@@ -228,7 +231,8 @@ function markdown(report,generatedAt){
     `- Generada: ${generatedAt}`,
     `- Versión: ${report.version}`,
     `- Resultado técnico: **${report.result}**`,
-    `- Madurez visual determinista: **${report.visualMaturity.score}/${report.visualMaturity.maxScore} · ${report.visualMaturity.level}**`,
+    `- Preparación visual determinista: **${report.visualMaturity.score}/${report.visualMaturity.maxScore} · ${report.visualMaturity.level}**`,
+    `- Fundación estructural: **${report.visualMaturity.structuralScore}/${report.visualMaturity.maxScore}**`,
     `- Delta visual declarado: **${report.visualMaturity.declaredVisualDelta}**`,
     `- Revisión visual humana obligatoria: **${report.visualMaturity.requiresHumanVisualReview?'sí':'no'}**`,
     `- Fortalezas verificadas: ${report.summary.strengths}`,
@@ -247,7 +251,7 @@ function markdown(report,generatedAt){
   }
   lines.push('','## Fortalezas verificadas','');
   for(const item of report.strengths)lines.push(`- **${item.domain} · ${item.code}**: ${item.message}`);
-  lines.push('','> La puntuación visual es evidencia estructural, no una certificación subjetiva de acabado premium. La revisión de capturas reales de Cliente, Coach y Admin sigue siendo obligatoria.','> Las oportunidades son no bloqueantes: orientan evolución estética, app-like y de entrenamiento. Los fallos de seguridad/contrato siguen perteneciendo a los gates estrictos.','');
+  lines.push('','> La fundación estructural mide presencia/coherencia del sistema; la preparación visual incorpora límites declarados y no certifica por sí sola un acabado premium. La revisión de capturas reales de Cliente, Coach y Admin sigue siendo obligatoria.','> Las oportunidades son no bloqueantes: orientan evolución estética, app-like y de entrenamiento. Los fallos de seguridad/contrato siguen perteneciendo a los gates estrictos.','');
   return `${lines.join('\n')}\n`;
 }
 
@@ -266,7 +270,8 @@ export async function runProductExperienceAudit(){
   console.log(`Strengths=${report.summary.strengths}`);
   console.log(`Opportunities=${report.summary.opportunities}`);
   console.log(`HighOpportunities=${report.summary.high}`);
-  console.log(`VisualMaturity=${report.visualMaturity.score}/${report.visualMaturity.maxScore}`);
+  console.log(`VisualReadiness=${report.visualMaturity.score}/${report.visualMaturity.maxScore}`);
+  console.log(`VisualStructural=${report.visualMaturity.structuralScore}/${report.visualMaturity.maxScore}`);
   console.log(`VisualLevel=${report.visualMaturity.level}`);
   console.log(`HumanVisualReview=${report.visualMaturity.requiresHumanVisualReview}`);
   for(const item of report.opportunities.slice(0,8))console.log(`${item.priority.toUpperCase()}:${item.domain}:${item.code}:${item.message}`);
