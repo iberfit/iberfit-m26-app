@@ -4,7 +4,7 @@ import {createSessionController} from '../src/m26/workflows/session-controller.j
 import {createExecution,startExecution} from '../src/m26/workflows/session-execution.js';
 import {createActionState} from '../src/m26/ui/action-state.js';
 
-function harness(){
+function harness({liveAddTimeoutMs=20000}={}){
   const listeners=new Map();
   const nodes=new Map();
   function node(selector,value='',attrs={}){
@@ -24,7 +24,7 @@ function harness(){
   const execution=createExecution({session,clientId:'client-1',executionId:'execution-1'});startExecution(execution);
   const context={session,execution,catalog:new Set(['exercise-valid']),actor:{role:'coach'},actionState:createActionState()};
   const errors=[];
-  const controller=createSessionController({root,getContext:()=>context,render:()=>{},onError:e=>errors.push(e),
+  const controller=createSessionController({root,getContext:()=>context,render:()=>{},onError:e=>errors.push(e),liveAddTimeoutMs,
     liveTelemetryController:{stop:async()=>{},start:async()=>{}},lifecycleTarget:null,visibilityTarget:null});
   const fire=async(k,target)=>Promise.all([...listeners.get(k)||[]].map(fn=>fn({target,preventDefault(){}})));
   controller.mount();
@@ -72,4 +72,20 @@ test('pending add stays locked through change and shell render, rejects duplicat
   reject(new Error('M26_NETWORK_UNAVAILABLE'));await pending;
   assert.equal(h.button.disabled,false);assert.equal(h.select.disabled,false);assert.equal(h.button.getAttribute('aria-busy'),null);
   assert.equal(h.context.actionState.status,'offline');assert.equal(h.errors.length,1);h.controller.destroy();
+});
+
+test('never-settling live add exits busy state and cannot duplicate an uncertain operation',async()=>{
+  const h=harness({liveAddTimeoutMs:30});let calls=0,seenOperationId=null;
+  h.context.commandBus={execute:(command)=>{calls+=1;seenOperationId=command.operationId;return new Promise(()=>{});}};
+  h.select.value='exercise-valid';await h.fire('change',h.select);
+  await h.fire('click',h.button);
+  assert.equal(calls,1);assert.equal(h.execution.queue.length,2);
+  assert.equal(h.button.getAttribute('aria-busy'),null);
+  assert.equal(h.button.disabled,true);assert.equal(h.select.disabled,false);
+  assert.equal(h.execution.syncStatus,'pending');
+  assert.deepEqual(h.execution.pendingOperationIds,[seenOperationId]);
+  assert.equal(h.execution.lastSyncError,'M26_SESSION_ACTION_TIMEOUT');
+  await h.fire('click',h.button);
+  assert.equal(calls,1);assert.equal(h.execution.queue.length,2);
+  h.controller.destroy();
 });
