@@ -7,6 +7,8 @@ import {
 } from '../engagement/index.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
 import {IBERFIT_UI_LOCALE} from './castellano.js';
+import {clientHealthSummary} from '../modules/domain-selectors.js';
+import {deriveClientExperience,experienceNextAction} from '../experience/client-experience.js';
 
 const STYLE_ID='m27-cliente-360-core-styles';
 
@@ -23,6 +25,14 @@ const CLIENTE_360_CSS=`
 .m27-cliente-360-senal{display:grid;gap:.16rem;min-width:10rem;padding:.62rem .75rem;border:1px solid rgba(216,185,111,.14);border-radius:.85rem;background:rgba(255,255,255,.025);text-align:right}
 .m27-cliente-360-senal span{color:#a9a397;font-size:.64rem;text-transform:uppercase;letter-spacing:.09em}
 .m27-cliente-360-senal strong{color:#f3e8cf;font-size:.82rem}
+.m30-cliente-360-now{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.9rem;padding:.92rem 1rem;border:1px solid rgba(216,185,111,.24);border-radius:1rem;background:radial-gradient(circle at 92% 0%,rgba(216,185,111,.10),transparent 13rem),rgba(255,255,255,.028);box-shadow:inset 0 1px rgba(255,255,255,.03)}
+.m30-cliente-360-now-copy{display:grid;gap:.2rem;min-width:0}
+.m30-cliente-360-now-copy>span{color:#d8b96f;font-size:.62rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+.m30-cliente-360-now-copy h4{margin:0;color:#f8f2e7;font-size:clamp(1rem,2.3vw,1.35rem);letter-spacing:-.025em}
+.m30-cliente-360-now-copy p{max-width:64ch;margin:0;color:#aaa397;font-size:.72rem;line-height:1.5}
+.m30-cliente-360-why{display:flex;align-items:center;gap:.38rem;margin-top:.15rem;color:#bdb6aa;font-size:.66rem;line-height:1.4}
+.m30-cliente-360-why>strong{color:#e6d7b7;font-weight:700}
+.m30-cliente-360-now>button{min-height:2.8rem;white-space:nowrap}
 .m29-proof{display:grid;gap:.78rem;padding:.95rem;border:1px solid rgba(216,185,111,.2);border-radius:1rem;background:linear-gradient(145deg,rgba(216,185,111,.075),rgba(255,255,255,.018))}
 .m29-proof-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem}
 .m29-proof-head>div{display:grid;gap:.18rem}
@@ -76,7 +86,7 @@ const CLIENTE_360_CSS=`
 .m27-cliente-360-actions button:hover{border-color:rgba(216,185,111,.4);background:rgba(216,185,111,.09)}
 .m27-cliente-360-note{margin:0;padding:.68rem .75rem;border-left:3px solid rgba(216,185,111,.55);color:#aca69a;background:rgba(216,185,111,.035);font-size:.69rem;line-height:1.45}
 @media (max-width:960px){.m29-proof-grid{grid-template-columns:1fr}.m27-cliente-360-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-contexto{grid-template-columns:1fr}}
-@media (max-width:560px){.m27-cliente-360{padding:.85rem}.m27-cliente-360-header,.m29-proof-head{display:grid}.m27-cliente-360-senal{text-align:left;min-width:0}.m29-proof-head p{text-align:left}.m27-cliente-360-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-mini{grid-template-columns:1fr}.m27-cliente-360-timeline-head{display:grid;gap:.2rem}.m27-cliente-360-timeline-head p{text-align:left}.m27-cliente-360-timeline-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.m27-cliente-360-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-actions button{width:100%}}
+@media (max-width:560px){.m30-cliente-360-now{grid-template-columns:1fr;padding:.8rem}.m30-cliente-360-now>button{width:100%}.m27-cliente-360{padding:.85rem}.m27-cliente-360-header,.m29-proof-head{display:grid}.m27-cliente-360-senal{text-align:left;min-width:0}.m29-proof-head p{text-align:left}.m27-cliente-360-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-mini{grid-template-columns:1fr}.m27-cliente-360-timeline-head{display:grid;gap:.2rem}.m27-cliente-360-timeline-head p{text-align:left}.m27-cliente-360-timeline-meta{align-items:flex-start;flex-direction:column;gap:.1rem}.m27-cliente-360-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.m27-cliente-360-actions button{width:100%}}
 @media (max-width:360px){.m27-cliente-360-grid,.m27-cliente-360-actions{grid-template-columns:1fr}}
 `;
 
@@ -390,6 +400,40 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
   );
   header.append(identity,signalBox);
 
+  const topAlert=alerts[0]||null;
+  const journeySummary=clientHealthSummary(state,clientId,now);
+  const journey=deriveClientExperience(journeySummary||{});
+  const nextAction=experienceNextAction(journey,{role:String(viewModel.identity.role||'client')});
+  const nowPanel=createElement(document,'section','m30-cliente-360-now');
+  nowPanel.setAttribute('data-m30-cliente-360-now','true');
+  nowPanel.setAttribute('aria-label',viewModel.identity.role==='client'?'Tu siguiente paso':'Siguiente decisión');
+  const nowCopy=createElement(document,'div','m30-cliente-360-now-copy');
+  nowCopy.append(
+    createElement(document,'span','',viewModel.identity.role==='client'?'Ahora':'Siguiente decisión'),
+    createElement(document,'h4','',nextAction?.label||'Seguimiento disponible'),
+    createElement(
+      document,
+      'p',
+      '',
+      nextAction?.reason||
+      (viewModel.identity.role==='client'
+        ?'Revisa tu evolución confirmada y continúa desde los accesos disponibles.'
+        :'La vista reúne evidencia confirmada para decidir el siguiente paso sin automatizar el criterio.')
+    ),
+  );
+  const why=createElement(document,'div','m30-cliente-360-why');
+  why.append(
+    createElement(document,'span','',topAlert?'Por qué ahora':'Contexto'),
+    createElement(document,'strong','',topAlert?.title||signal?.label||'Datos confirmados disponibles'),
+  );
+  nowCopy.append(why);
+  nowPanel.append(nowCopy);
+  if(nextAction){
+    const nowAction=action(document,nextAction.label,nextAction.area);
+    nowAction.classList.add('m26-primary-action');
+    nowPanel.append(nowAction);
+  }
+
   const proof=proofOfProgressSection(document,longitudinal,String(viewModel.identity.role||''));
 
   const grid=createElement(document,'div','m27-cliente-360-grid');
@@ -447,7 +491,7 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
     'Cliente 360 no crea una puntuación global ni atribuye causas. Cada área conserva su significado y solo utiliza datos confirmados; el entrenador interpreta el contexto y decide.',
   );
 
-  section.append(header,proof,grid,context,evolution,actions,note);
+  section.append(header,nowPanel,proof,grid,context,evolution,actions,note);
   if(intro?.nextSibling)route.insertBefore(section,intro.nextSibling);
   else route.prepend(section);
   return true;

@@ -717,3 +717,142 @@ body{
     grid-column:auto;
   }
 }
+
+
+/* Signature UX V2.2 · Cliente 360 and planning clarity */
+.m26-shell .m27-cliente-360{
+  border-color:var(--iberfit-v2-line-strong);
+  box-shadow:0 24px 62px rgba(0,0,0,.20),inset 0 1px rgba(255,255,255,.035);
+}
+
+.m26-shell .m27-cliente-360-header{
+  padding-bottom:.55rem;
+  border-bottom:1px solid color-mix(in srgb,var(--iberfit-v2-line) 72%,transparent);
+}
+
+.m26-shell .m27-cliente-360-card{
+  transition:
+    transform var(--iberfit-motion-fast) var(--iberfit-motion-easing-enter),
+    border-color var(--iberfit-motion-normal) var(--iberfit-motion-easing-enter),
+    background var(--iberfit-motion-normal) var(--iberfit-motion-easing-enter);
+}
+
+.m26-shell .m27-cliente-360-card>strong{
+  font-variant-numeric:tabular-nums;
+}
+
+.m26-shell .m29-proof-card{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(216,185,111,.055),transparent 9rem),
+    rgba(0,0,0,.10);
+}
+
+.m30-planning-overview{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(20rem,.8fr);
+  gap:1rem;
+  align-items:center;
+  padding:1rem 1.1rem;
+  border:1px solid var(--iberfit-v2-line-strong);
+  border-radius:var(--iberfit-v2-card-radius);
+  background:
+    radial-gradient(circle at 90% -20%,rgba(216,185,111,.11),transparent 18rem),
+    var(--iberfit-v2-surface);
+  box-shadow:var(--iberfit-v2-shadow);
+}
+
+.m30-planning-overview-copy{
+  display:grid;
+  gap:.28rem;
+}
+
+.m30-planning-overview-copy h3{
+  margin:0;
+  color:var(--iberfit-color-text-primary);
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:clamp(1.25rem,2.4vw,1.7rem);
+  font-weight:560;
+  letter-spacing:-.035em;
+}
+
+.m30-planning-overview-copy>p:last-child{
+  max-width:62ch;
+  margin:0;
+  color:var(--iberfit-color-text-secondary);
+  font-size:.76rem;
+  line-height:1.5;
+}
+
+.m30-planning-overview-metrics{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.5rem;
+}
+
+.m30-planning-overview-metrics>div{
+  display:grid;
+  gap:.1rem;
+  min-width:0;
+  padding:.68rem;
+  border:1px solid var(--iberfit-v2-line);
+  border-radius:.78rem;
+  background:rgba(0,0,0,.10);
+}
+
+.m30-planning-overview-metrics span{
+  color:var(--iberfit-color-text-tertiary);
+  font-size:.61rem;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.m30-planning-overview-metrics strong{
+  color:var(--iberfit-color-text-primary);
+  font-size:1.28rem;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.035em;
+}
+
+.m30-planning-overview-metrics small{
+  color:var(--iberfit-color-text-secondary);
+  font-size:.64rem;
+}
+
+.m26-rc39-planning .m26-rc39-week{
+  gap:.8rem;
+}
+
+@media (hover:hover) and (pointer:fine){
+  .m26-shell .m27-cliente-360-card:hover{
+    transform:translateY(-2px);
+    border-color:var(--iberfit-v2-line-strong);
+    background:rgba(255,255,255,.035);
+  }
+}
+
+@media (max-width:900px){
+  .m30-planning-overview{
+    grid-template-columns:1fr;
+  }
+}
+
+@media (max-width:580px){
+  .m30-planning-overview{
+    padding:.85rem;
+  }
+
+  .m30-planning-overview-metrics{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+
+  .m30-planning-overview-metrics>div{
+    padding:.58rem .45rem;
+  }
+}
+
+@media (max-width:390px){
+  .m30-planning-overview-metrics{
+    grid-template-columns:1fr;
+  }
+}
