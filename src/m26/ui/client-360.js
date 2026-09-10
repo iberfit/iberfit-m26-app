@@ -7,6 +7,8 @@ import {
 } from '../engagement/index.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
 import {IBERFIT_UI_LOCALE} from './castellano.js';
+import {clientHealthSummary} from '../modules/domain-selectors.js';
+import {deriveClientExperience,experienceNextAction} from '../experience/client-experience.js';
 
 const STYLE_ID='m27-cliente-360-core-styles';
 
@@ -399,9 +401,9 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
   header.append(identity,signalBox);
 
   const topAlert=alerts[0]||null;
-  const nextAction=client?.nextAction&&client.nextAction.area
-    ?client.nextAction
-    :null;
+  const journeySummary=clientHealthSummary(state,clientId,now);
+  const journey=deriveClientExperience(journeySummary||{});
+  const nextAction=experienceNextAction(journey,{role:String(viewModel.identity.role||'client')});
   const nowPanel=createElement(document,'section','m30-cliente-360-now');
   nowPanel.setAttribute('data-m30-cliente-360-now','true');
   nowPanel.setAttribute('aria-label',viewModel.identity.role==='client'?'Tu siguiente paso':'Siguiente decisión del Coach');
