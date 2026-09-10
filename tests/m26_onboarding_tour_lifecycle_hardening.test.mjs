@@ -162,7 +162,7 @@ test('mobile tour clears the bottom navigation while desktop compacts chrome wit
 
 test('existing onboarding contracts remain intact while the new callback stays optional',()=>{
   const source=read('src/m26/onboarding/progressive-onboarding.js');
-  assert.match(source,/const guidedTour=createGuidedTourController\(\{root,identityProvider,storage,scope\}\);/u);
+  assert.match(source,/const guidedTour=createGuidedTourController\(\{[\s\S]*?root,[\s\S]*?identityProvider,[\s\S]*?storage:resolvedStorage,[\s\S]*?scope,[\s\S]*?onOpenChange:\(open\)=>tourOpenState\.set\(open\),[\s\S]*?\}\);/u);
   assert.match(source,/guidedTour\.mount\?\.\(\)/u);
   assert.match(source,/guidedTour\.destroy\?\.\(\)/u);
   assert.match(source,/guidedTour\.refresh\?\.\(\)/u);
