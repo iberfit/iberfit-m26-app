@@ -42,7 +42,9 @@ test('RC62.1 is Coach-first and does not broaden Client or Admin agenda',()=>{
   assert.equal(agendaRoleEligible('client'),false);
   assert.equal(agendaRoleEligible('admin'),false);
   const route=read('src/m26/rc39/route-render.js');
-  assert.match(route,/role==='coach'\?`<section class="m26-panel m26-rc62-agenda-calendar-panel"/u);
+  assert.match(route,/role==='coach'\?`<section class="[^"]*m26-rc62-agenda-calendar-panel[^"]*"/u);
+  assert.match(route,/data-rc62-agenda-calendar/u);
+  assert.match(route,/data-agenda-role="\$\{escape\(role\|\|'unknown'\)\}"/u);
 });
 
 test('RC62.1 calendar is day-week operational view without mutating interactions',()=>{

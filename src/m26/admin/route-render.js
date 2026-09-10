@@ -60,9 +60,13 @@ function renderHome(vm){
   const s=cc.summary||{};
   const priorities=cc.priorities?.length?cc.priorities.slice(0,8).map(commandPriority).join(''):empty('Servicio al día','No hay recorridos de cliente que requieran una decisión administrativa.');
   const loads=cc.coachLoad?.length?cc.coachLoad.map(coachLoadCard).join(''):empty('Sin carga registrada','La capacidad del equipo aparecerá aquí cuando exista información.');
-  return `<div class="m26-admin-route">
+  return `<div class="m26-admin-route m30-admin-command-route" data-admin-surface="command-center">
     ${intro('Dirección del servicio','IBERFIT Command Center','Una única vista para decidir qué necesita atención en clientes, equipo y operación.')}
-    <section class="m26-admin-stats">
+    <section class="m26-admin-panel m26-admin-command m30-admin-decision-center" data-admin-priority-center aria-labelledby="m30-admin-priority-title">
+      <div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Decisiones</p><h3 id="m30-admin-priority-title">Qué requiere atención ahora</h3><p>Priorizado por asignación y etapa del recorrido IBERFIT.</p></div>${badge(cc.priorities?.length?`${cc.priorities.length} por revisar`:'Al día')}</div>
+      <div class="m26-admin-priority-list">${priorities}</div>
+    </section>
+    <section class="m26-admin-stats m30-admin-kpis" aria-label="Indicadores de operación">
       ${stat('Clientes',s.totalClients??vm.summary.activeClients??0)}
       ${stat('Sin Coach',s.unassignedClients??0)}
       ${stat('IRI pendientes',s.iriPending??0)}
@@ -70,15 +74,11 @@ function renderHome(vm){
       ${stat('Sin próxima cita',s.schedulingPending??0)}
       ${stat('Coaches ≥85%',s.coachesNearCapacity??0)}
     </section>
-    <section class="m26-admin-panel m26-admin-command">
-      <div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Decisiones</p><h3>Qué requiere atención ahora</h3><p>Priorizado por asignación y etapa del recorrido IBERFIT.</p></div>${badge(cc.priorities?.length?`${cc.priorities.length} por revisar`:'Al día')}</div>
-      <div class="m26-admin-priority-list">${priorities}</div>
-    </section>
-    <section class="m26-admin-grid">
+    <section class="m26-admin-grid m30-admin-operations-grid">
       <article class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Equipo</p><h3>Capacidad de Coaches</h3></div></div><div class="m26-admin-load-list">${loads}</div></article>
       <article class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Operación</p><h3>Tareas abiertas</h3></div>${badge(s.criticalTasks?`${s.criticalTasks} prioritarias`:`${s.openTasks||0} abiertas`)}</div>${vm.tasks.length?vm.tasks.map((x)=>`<div class="m26-admin-list-item"><div><strong>${e(x.title||x.type)}</strong><small>${e(x.detail||'')}</small></div>${badge(x.status)}</div>`).join(''):empty('Sin tareas','No hay incidencias abiertas.')}</article>
     </section>
-    <section class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Trazabilidad</p><h3>Actividad administrativa reciente</h3></div></div>${vm.audit.length?vm.audit.slice(0,8).map((x)=>`<div class="m26-admin-list-item"><strong>${e(x.summary||x.eventType)}</strong><small>${e(x.occurredAt||'')}</small></div>`).join(''):empty('Sin eventos','Todavía no hay actividad administrativa.')}</section>
+    <section class="m26-admin-panel m30-admin-audit"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Trazabilidad</p><h3>Actividad administrativa reciente</h3></div></div>${vm.audit.length?vm.audit.slice(0,8).map((x)=>`<div class="m26-admin-list-item"><strong>${e(x.summary||x.eventType)}</strong><small>${e(x.occurredAt||'')}</small></div>`).join(''):empty('Sin eventos','Todavía no hay actividad administrativa.')}</section>
   </div>`;
 }
 function renderUsers(vm){const cards=vm.users.map((u)=>`<article class="m26-admin-panel"><h3>${e(u.name||u.email||'Usuario')}</h3><p>${e(u.email||'')}</p>${badge(u.status)}<p>${e((u.roles||[]).join(', ')||u.primaryRole||'Sin rol')}</p>${vm.canManageStatus?form('user-status',`<input type="hidden" name="userId" value="${e(u.userId||u.id)}"><input type="hidden" name="baseRevision" value="${e(u.revision||0)}"><select name="status"><option value="active">Activo</option><option value="suspended">Suspendido</option><option value="inactive">Inactivo</option></select><textarea name="reason" minlength="3" required placeholder="Motivo"></textarea>`,'Guardar estado'):''}${vm.canManageRoles?form('role-change',`<input type="hidden" name="userId" value="${e(u.userId||u.id)}"><select name="action"><option value="grant">Otorgar</option><option value="revoke">Revocar</option></select><select name="role"><option value="client">Cliente</option><option value="coach">Coach</option><option value="admin">Admin</option></select><textarea name="reason" minlength="3" required placeholder="Motivo"></textarea>`,'Cambiar acceso'):''}</article>`).join('');return `<div class="m26-admin-route">${intro('Identidad','Usuarios y accesos','Administra estados y aplicaciones autorizadas sin autoelevar permisos.')}<section class="m26-admin-cards">${cards||empty('Sin usuarios','No hay usuarios visibles.')}</section></div>`;}
