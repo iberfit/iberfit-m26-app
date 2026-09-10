@@ -218,7 +218,7 @@ function deviceSnapshot(state,clientId,{now=new Date()}={}){
       return Object.freeze({
         kind:'device-ok',
         title:'Dispositivo conectado',
-        copy:`${primary.label}${synced?` · última sincronización ${synced}`:''}. Solo se usan datos confirmados como contexto.`,
+        copy:`${primary.label}${synced?' · última sincronización '+synced:''}. Solo se usan datos confirmados como contexto.`,
         area:'actividad',
       });
     }

@@ -31,6 +31,7 @@ const CLIENT_ONBOARDING_RPC=Object.freeze({
   preflight:'iberfit_client_onboarding_preflight_v12',
   create:'iberfit_create_client_draft_v12',
 });
+const CUSTOM_EXERCISE_RPC='iberfit_create_custom_exercise_v1';
 const RC43_RPC=Object.freeze({
   health:'m26_backend_health_v43',
   bootstrap:'m26_backend_bootstrap_v43',
@@ -910,6 +911,125 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     }
     return Object.freeze({...item});
   }
+  async function createCustomExercise(token,payload={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('M26_CUSTOM_EXERCISE_INVALID');
+
+    const clean=(value,max)=>String(value??'')
+      .replace(/[\u0000-\u001f\u007f]/gu,' ')
+      .replace(/\s+/gu,' ')
+      .trim()
+      .slice(0,max);
+    const list=(value,maxItems,maxLength)=>{
+      if(value==null)return [];
+      if(!Array.isArray(value)||value.length>maxItems)throw new Error('M26_CUSTOM_EXERCISE_LIST_INVALID');
+      const out=[];
+      const seen=new Set();
+      for(const item of value){
+        const text=clean(item,maxLength);
+        if(!text)continue;
+        const key=text.toLocaleLowerCase('es');
+        if(seen.has(key))continue;
+        seen.add(key);out.push(text);
+      }
+      return out;
+    };
+
+    const nameEs=clean(payload.nameEs,160);
+    const pattern=clean(payload.pattern,80);
+    const intent=clean(payload.intent,80);
+    const equipment=clean(payload.equipment,80);
+    const difficulty=clean(payload.difficulty,40);
+    if(nameEs.length<2||pattern.length<2||intent.length<2||equipment.length<2||difficulty.length<2)throw new Error('M26_CUSTOM_EXERCISE_INVALID');
+
+    const result=await request('/rest/v1/rpc/'+CUSTOM_EXERCISE_RPC,{
+      method:'POST',
+      token,
+      body:JSON.stringify({
+        p_name_es:nameEs,
+        p_pattern:pattern,
+        p_intent:intent,
+        p_equipment:equipment,
+        p_difficulty:difficulty,
+        p_primary_muscles:list(payload.primaryMuscles,12,80),
+        p_secondary_muscles:list(payload.secondaryMuscles,12,80),
+        p_cues:list(payload.cues,12,240),
+        p_instructions_es:list(payload.instructionsEs,20,240),
+        p_precautions:list(payload.precautions,12,240),
+      }),
+    });
+    const item=Array.isArray(result)?result[0]:result;
+    if(
+      !item||
+      typeof item!=='object'||
+      Array.isArray(item)||
+      item.ok!==true||
+      !SAFE_ID_PATTERN.test(String(item.exerciseId||''))||
+      String(item.source||'')!=='IBERFIT_COACH_CUSTOM'||
+      String(item.reviewStatus||'')!=='pendiente'||
+      item.active!==true||
+      !Number.isInteger(Number(item.revision))||
+      Number(item.revision)<1
+    )throw new Error('M26_CUSTOM_EXERCISE_INVALID_RESPONSE');
+    return Object.freeze({...item});
+  }
+
+
+  async function renameExercise(
+    token,
+    {
+      exerciseId,
+      nameEs,
+      expectedRevision,
+    }={},
+  ){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+
+    const id=String(exerciseId||'').trim();
+    const name=String(nameEs||'')
+      .replace(/[\u0000-\u001f\u007f]/gu,' ')
+      .replace(/\s+/gu,' ')
+      .trim();
+
+    const revision=Number(expectedRevision);
+
+    if(!SAFE_ID_PATTERN.test(id)){
+      throw new Error('M26_EXERCISE_ID_INVALID');
+    }
+
+    if(name.length<2||name.length>160){
+      throw new Error('M26_EXERCISE_NAME_INVALID');
+    }
+
+    if(!Number.isInteger(revision)||revision<0){
+      throw new Error('M26_EXERCISE_REVISION_INVALID');
+    }
+
+    const result=await request(
+      '/functions/v1/iberfit-catalog-admin',
+      {
+        method:'POST',
+        token,
+        body:JSON.stringify({
+          action:'rename_exercise',
+          exerciseId:id,
+          nameEs:name,
+          expectedRevision:revision,
+        }),
+      },
+    );
+
+    if(
+      !result||
+      result.ok!==true||
+      String(result.exerciseId||'')!==id||
+      result.translationStatus!=='ready'
+    ){
+      throw new Error('M26_EXERCISE_RENAME_INVALID_RESPONSE');
+    }
+
+    return Object.freeze({...result});
+  }
 
   async function commandRegistry(token) {
     if (!token) throw new Error('M26_AUTH_REQUIRED');
@@ -948,6 +1068,8 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     recordMeasurement,
     saveTrainingSession,
     sendMessage,
+    createCustomExercise,
+    renameExercise,
     commandRegistry,
     clientOnboardingPreflight,
     createClientDraft,

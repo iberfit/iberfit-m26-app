@@ -6,6 +6,7 @@ import { inspectClientBootstrap } from './readonly-gate-bootstrap-privacy.mjs';
 // Privacy contract includes private.?notes?; empty containers are allowed, populated ones fail closed.
 
 const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
+const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const required=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
   'M26_QA_COACH_EMAIL','M26_QA_COACH_PASSWORD',
@@ -22,20 +23,21 @@ const key=process.env.M26_SUPABASE_PUBLISHABLE_KEY;
 if(/service[_-]?role/i.test(key))throw new Error('RC74_4_SERVICE_ROLE_FORBIDDEN');
 const fingerprint=(value)=>value?createHash('sha256').update(`${PROJECT_REF}:${String(value)}`).digest('hex').slice(0,16):null;
 
+function qaRequestOptions(url,options){
+  const target=new URL(url);
+  if(target.origin!==`https://${PROJECT_REF}.supabase.co`||target.username||target.password)throw new Error('QA_GATE_EGRESS_DENIED');
+  return {...options,redirect:'error',signal:AbortSignal.timeout(20000)};
+}
 async function requestJson(url,options={}){
-  const response=await fetch(url,options);
+  const response=await fetch(url,qaRequestOptions(url,options));
   const body=await response.json().catch(()=>null);
   if(!response.ok)throw new Error(`RC74_4_REMOTE_REQUEST_FAILED:${response.status}:${new URL(url).pathname}`);
   return body;
 }
 async function requestResult(url,options={}){
-  const response=await fetch(url,options);
+  const response=await fetch(url,qaRequestOptions(url,options));
   const body=await response.json().catch(()=>null);
-  return Object.freeze({
-    ok:response.ok,
-    status:Number(response.status)||0,
-    body,
-  });
+  return Object.freeze({ok:response.ok,status:Number(response.status)||0,body});
 }
 async function login(email,password){
   const body=await requestJson(`${base}/auth/v1/token?grant_type=password`,{
@@ -44,20 +46,23 @@ async function login(email,password){
   if(!body?.access_token||!body?.user?.id)throw new Error(`RC74_4_AUTH_FAILED:${email}`);
   return {token:body.access_token,userId:body.user.id};
 }
+function restHeaders(token){
+  return {apikey:key,authorization:`Bearer ${token}`,'content-type':'application/json',origin:CANARY_ORIGIN};
+}
 async function rpc(name,token,payload={}){
   return requestJson(`${base}/rest/v1/rpc/${name}`,{
-    method:'POST',headers:{apikey:key,authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify(payload),
+    method:'POST',headers:restHeaders(token),body:JSON.stringify(payload),
   });
 }
 async function rpcResult(name,token,payload={}){
   return requestResult(`${base}/rest/v1/rpc/${name}`,{
-    method:'POST',headers:{apikey:key,authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify(payload),
+    method:'POST',headers:restHeaders(token),body:JSON.stringify(payload),
   });
 }
 async function registry(token){
   const select='command_type,entity_type,event_name,allowed_roles,requires_reason,requires_preview,snapshot_on_apply,conflict_sensitive,bootstrap_allowed,enabled';
   return requestJson(`${base}/rest/v1/domain_command_registry_v26?select=${encodeURIComponent(select)}&order=command_type.asc`,{
-    method:'GET',headers:{apikey:key,authorization:`Bearer ${token}`},
+    method:'GET',headers:{apikey:key,authorization:`Bearer ${token}`,origin:CANARY_ORIGIN},
   });
 }
 const accounts=[
@@ -85,14 +90,10 @@ for(const session of sessions){
     const assurance=await rpc('iberfit_privileged_assurance_context_v65d',session.token,{});
     const reportedRole=normalizeRegistryRole(assurance?.privilegedRole);
     if(
-      assurance?.ok!==true||
-      assurance?.privileged!==true||
-      assurance?.mfaRequired!==true||
-      assurance?.webauthnRequired!==true||
-      assurance?.credentialEnrolled!==true||
-      assurance?.iberfitAssurance!=='required'||
-      assurance?.supabaseAal!=='aal1'||
-      reportedRole!=='coach'
+      assurance?.ok!==true||assurance?.privileged!==true||assurance?.mfaRequired!==true||
+      assurance?.webauthnRequired!==true||assurance?.credentialEnrolled!==true||
+      assurance?.iberfitAssurance!=='required'||assurance?.supabaseAal!=='aal1'||
+      assurance?.origin!==CANARY_ORIGIN||assurance?.rpId!=='m26-canary.iberfit.cl'||reportedRole!=='coach'
     ){
       throw new Error('RC65_C2_REMOTE_COACH_ASSURANCE_CONTRACT_FAILED');
     }
@@ -100,30 +101,16 @@ for(const session of sessions){
     const blocked=await rpcResult('iberfit_bootstrap_v26',session.token,{});
     const blockedMessage=String(blocked?.body?.message||'');
     const blockedCode=String(blocked?.body?.code||'');
-    if(
-      blocked?.status!==403||
-      blockedMessage!=='IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED'
-    ){
+    if(blocked?.status!==403||blockedMessage!=='IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED'){
       throw new Error(`RC65_C2_REMOTE_COACH_FAIL_CLOSED_MISMATCH:status=${blocked?.status||0}:message=${blockedMessage.slice(0,80)}`);
     }
 
     roles.push({
-      name:session.name,
-      userFingerprint:fingerprint(session.userId),
-      reportedRole,
-      clientFingerprint:null,
-      canaryActive:null,
-      environmentName:null,
-      privacy:null,
-      privilegedGate:{
-        ok:true,
-        status:403,
-        code:/^[A-Z0-9]{3,16}$/u.test(blockedCode)?blockedCode:'NONE',
-        message:'IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED',
-        iberfitAssurance:'required',
-        credentialEnrolled:true,
-        webauthnRequired:true,
-      },
+      name:session.name,userFingerprint:fingerprint(session.userId),reportedRole,clientFingerprint:null,
+      canaryActive:null,environmentName:null,privacy:null,
+      privilegedGate:{ok:true,status:403,code:/^[A-Z0-9]{3,16}$/u.test(blockedCode)?blockedCode:'NONE',
+        message:'IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED',iberfitAssurance:'required',credentialEnrolled:true,webauthnRequired:true,
+        origin:CANARY_ORIGIN,rpId:'m26-canary.iberfit.cl'},
     });
     continue;
   }
@@ -137,18 +124,9 @@ for(const session of sessions){
   if(privacy&&!privacy.ok)throw new Error(`RC74_4_CLIENT_BOOTSTRAP_LEAK:${session.name}:forbidden=${privacy.forbiddenKeys.length}:foreign=${privacy.foreignClientIds.length}`);
   if(expectedRole==='cliente')qaClientIds.push(clientId);
   roles.push({
-    name:session.name,
-    userFingerprint:fingerprint(session.userId),
-    reportedRole,
-    clientFingerprint:fingerprint(clientId),
-    canaryActive:bootstrap?.canary?.active===true,
-    environmentName:bootstrap?.environment?.name||bootstrap?.environment||null,
-    privacy:privacy?{
-      ok:privacy.ok,
-      forbiddenKeys:privacy.forbiddenKeys,
-      clientFingerprints:privacy.clientIds.map(fingerprint),
-      foreignClientFingerprints:privacy.foreignClientIds.map(fingerprint),
-    }:null,
+    name:session.name,userFingerprint:fingerprint(session.userId),reportedRole,clientFingerprint:fingerprint(clientId),
+    canaryActive:bootstrap?.canary?.active===true,environmentName:bootstrap?.environment?.name||bootstrap?.environment||null,
+    privacy:privacy?{ok:privacy.ok,forbiddenKeys:privacy.forbiddenKeys,clientFingerprints:privacy.clientIds.map(fingerprint),foreignClientFingerprints:privacy.foreignClientIds.map(fingerprint)}:null,
   });
 }
 assertDistinctQaClientIds(qaClientIds,RC29_QA_CLIENTS_NOT_DISTINCT);

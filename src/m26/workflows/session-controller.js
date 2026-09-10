@@ -157,19 +157,20 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     const pain=root.querySelector?.('[data-session-feedback-pain]');if(pain)pain.checked=Boolean(values.pain);
     const painNotes=root.querySelector?.('[data-session-feedback-pain-notes]');if(painNotes)painNotes.value=values.painNotes??'';
   }
+  let liveAddPending=false;
   function syncLiveAddExerciseControl(context=getContext()){
     const select=root.querySelector?.('[data-session-live-add-exercise]');
     const button=root.querySelector?.('[data-session-action="add-live-exercise"]');
     if(!button)return;
     const state=liveAddExerciseSelectionState(select?.value,context?.catalog);
-    button.disabled=!state.enabled;
-    button.setAttribute?.('aria-disabled',state.enabled?'false':'true');
+    button.disabled=liveAddPending||!state.enabled;
+    button.setAttribute?.('aria-disabled',!button.disabled?'false':'true');
     if(state.enabled)button.removeAttribute?.('title');
     else button.setAttribute?.('title','Selecciona un ejercicio válido antes de añadirlo');
     if(select){
-      const hasSelectableOption=Array.from(select.options||[]).some((option)=>String(option?.value||'').trim());
-      select.disabled=!hasSelectableOption;
-      if(hasSelectableOption)select.removeAttribute?.('aria-disabled');
+      const hasSelectableOption=Array.from(select.options||[]).some((option)=>!option?.disabled&&liveAddExerciseSelectionState(option?.value,context?.catalog).enabled);
+      select.disabled=liveAddPending||!hasSelectableOption;
+      if(!select.disabled)select.removeAttribute?.('aria-disabled');
       else select.setAttribute?.('aria-disabled','true');
     }
   }
@@ -258,6 +259,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     await start();
   }
   async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='add-live-exercise'){
+    if(liveAddPending)return;
     const liveSelection=liveAddExerciseSelectionState(root.querySelector?.('[data-session-live-add-exercise]')?.value,context?.catalog);
     if(!liveSelection.enabled){syncLiveAddExerciseControl(context);return;}
   }if(action==='reuse-previous-set'){
@@ -273,12 +275,14 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   if(context?.actionState){context.actionState.status='success';context.actionState.message='Datos de la serie anterior copiados. Revísalos antes de confirmar.';}
   renderSession();
   return;
-}if(action==='exit-session'){const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await persistContext(context);context.onExit?.();}catch(error){onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}const actionState=context.actionState;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
+}if(action==='exit-session'){const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await persistContext(context);context.onExit?.();}catch(error){onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}if(action==='add-live-exercise')liveAddPending=true;const actionState=context.actionState;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
     const task=async()=>{await flushAutosave(context);await flushExecutionDraft(context);if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
     if(action==='skip-set')payload.reason=root.querySelector?.('[data-session-skip-set-reason]')?.value;
     if(action==='skip-exercise')payload.reason=root.querySelector?.('[data-session-skip-exercise-reason]')?.value;
     if(action==='add-live-exercise'){
-      payload.exerciseId=root.querySelector?.('[data-session-live-add-exercise]')?.value;
+      const liveSelection=liveAddExerciseSelectionState(root.querySelector?.('[data-session-live-add-exercise]')?.value,context?.catalog);
+      if(!liveSelection.enabled)throw new Error('Selecciona un ejercicio válido antes de añadirlo');
+      payload.exerciseId=liveSelection.exerciseId;
       payload.sets=root.querySelector?.('[data-session-live-add-sets]')?.value;
       payload.reps=root.querySelector?.('[data-session-live-add-reps]')?.value;
       payload.restSeconds=root.querySelector?.('[data-session-live-add-rest]')?.value;
@@ -288,7 +292,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       payload.position='next';
     }
     if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});return await result.value;};
-    try{const outcome=actionState?await runAction(actionState,task):{ok:true,value:await task()};if(!outcome.ok)onError(outcome.error);if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}renderSession();}catch(error){await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}}
+    try{const outcome=actionState?await runAction(actionState,task):{ok:true,value:await task()};if(!outcome.ok)onError(outcome.error);if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}renderSession();}catch(error){await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){context.setQuery?.(search.value);renderSession();}
     const liveAddSelect=event.target.closest?.('[data-session-live-add-exercise]');if(liveAddSelect)syncLiveAddExerciseControl(context);
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}

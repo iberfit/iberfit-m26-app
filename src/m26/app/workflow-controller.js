@@ -5,6 +5,7 @@ import {applyAdaptiveContext} from '../intelligence/adaptive-context.js';
 import {generateSessionProposal} from '../intelligence/session-engine.js';
 import {createM26Id} from '../platform/id.js';
 import {createExerciseSearchIndex} from '../exercises/search.js';
+import {exerciseDisplayName} from '../exercises/names.js';
 import {normalizeAppointmentModality,normalizeClientModality} from '../domain/modality.js';
 import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
 import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
@@ -80,6 +81,9 @@ function clientName(record){const body=recordBody(record);return String(record?.
 function friendlyError(error){
   if(error?.userMessage)return String(error.userMessage);
   const code=String(error?.message||error||'');
+  if(/EXERCISE_NAME_DUPLICATE/.test(code))return 'Ya existe un ejercicio activo con ese nombre. Usa el existente o elige un nombre que lo diferencie.';
+  if(/EXERCISE_CREATE_NOT_VISIBLE/.test(code))return 'El ejercicio se creó, pero aún no apareció en el catálogo actualizado. No lo crees de nuevo hasta completar la verificación.';
+  if(/CUSTOM_EXERCISE_INVALID|CUSTOM_EXERCISE_LIST_INVALID/.test(code))return 'Revisa los datos del ejercicio personalizado antes de guardarlo.';
   if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
   if(/CLIENT_CREATE_CANARY_ONLY/.test(code))return 'La creación de clientes está limitada al entorno canary.';
   if(/CLIENT_ONBOARDING_BACKEND_REQUIRED/.test(code))return 'La actualización segura del alta todavía no está instalada en el backend. El borrador permanece guardado y no se ha creado ningún expediente.';
@@ -161,16 +165,161 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
 }
 
 export function createWorkflowController({
-  root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,
+  root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,createCustomExercise=null,renameExercise=null,refreshCatalog=async()=>catalog,
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
   let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,onboardingSaveTimer=null,iriTimer=null;
   const initializedIriForms=new WeakSet();
   const initializedOnboardingForms=new WeakSet();
+  const editedOnboardingForms=new WeakSet();
   const initializedAppointmentForms=new WeakSet();
-  const catalogSearch=createExerciseSearchIndex(catalog?.list?.()||[]);
+  let catalogSearch=createExerciseSearchIndex(catalog?.list?.()||[]);
   function updateLibrary(){const query=String(root.querySelector?.('[data-library-search]')?.value||'').trim();const {role}=context();const filters=libraryFilterState(root);const searched=catalogSearch.search(query,{limit:catalog?.count||367});const filtered=filterLibraryItems(searched,filters,mediaMap,role);const grid=root.querySelector?.('[data-library-grid]');if(grid)grid.innerHTML=libraryCards(filtered,mediaMap,role);const node=root.querySelector?.('[data-library-status]');if(node)node.textContent=`${filtered.length} ${filtered.length===1?'ejercicio visible':'ejercicios visibles'} con los filtros actuales.`;return filtered;}
+  async function createLibraryExercise(form){
+    const {role}=context();
+    if(!['coach','admin'].includes(role))throw new Error('M26_CUSTOM_EXERCISE_ROLE_REQUIRED');
+    if(!isOnline())throw new Error('M26_CUSTOM_EXERCISE_OFFLINE');
+    if(typeof createCustomExercise!=='function')throw new Error('M26_CUSTOM_EXERCISE_UNAVAILABLE');
+
+    ensureValidForm(form,{code:'M26_CUSTOM_EXERCISE_FORM_INVALID',summary:'Completa los datos obligatorios del ejercicio'});
+    const raw=values(form);
+    const clean=(value,max)=>String(value??'').replace(/\s+/gu,' ').trim().slice(0,max);
+    const list=(value,maxItems,maxLength)=>{
+      const out=[];const seen=new Set();
+      for(const item of String(value??'').split(/[\n,;]+/u)){
+        const text=clean(item,maxLength);if(!text)continue;
+        const key=foldSearch(text);if(seen.has(key))continue;
+        seen.add(key);out.push(text);
+      }
+      return out.slice(0,maxItems);
+    };
+    const payload={
+      nameEs:clean(raw.nameEs,160),
+      pattern:clean(raw.pattern,80),
+      intent:clean(raw.intent,80),
+      equipment:clean(raw.equipment,80),
+      difficulty:clean(raw.difficulty,40),
+      primaryMuscles:list(raw.primaryMuscles,12,80),
+      secondaryMuscles:list(raw.secondaryMuscles,12,80),
+      cues:list(raw.cues,12,240),
+      instructionsEs:list(raw.instructionsEs,20,240),
+      precautions:list(raw.precautions,12,240),
+    };
+    if([payload.nameEs,payload.pattern,payload.intent,payload.equipment,payload.difficulty].some((value)=>value.length<2))throw new Error('M26_CUSTOM_EXERCISE_INVALID');
+
+    const button=form.querySelector?.('button[type="submit"]');
+    const initialStatus=form.querySelector?.('[data-exercise-create-status]');
+    const wasDisabled=Boolean(button?.disabled);
+    if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
+    if(initialStatus){initialStatus.textContent='Creando ejercicio y actualizando el catálogo…';initialStatus.dataset.status='pending';}
+
+    try{
+      const result=await createCustomExercise(payload);
+      const refreshed=await refreshCatalog();
+      if(refreshed?.list){catalog=refreshed;catalogSearch=createExerciseSearchIndex(catalog.list());}
+      if(!catalog?.has?.(result.exerciseId))throw new Error('M26_EXERCISE_CREATE_NOT_VISIBLE');
+
+      onRender();
+      const search=root.querySelector?.('[data-library-search]');
+      if(search)search.value=String(result.nameEs||payload.nameEs);
+      for(const node of root.querySelectorAll?.('[data-library-filter]')||[])node.value='';
+      updateLibrary();
+      const successStatus=root.querySelector?.('[data-exercise-create-status]');
+      if(successStatus){successStatus.textContent='Ejercicio creado y disponible en el catálogo y en el constructor de sesiones.';successStatus.dataset.status='success';}
+      emit(root,'m26:exercise-created',{exerciseId:result.exerciseId,revision:result.revision||1,reviewStatus:'pendiente'});
+      return result;
+    }catch(error){
+      const node=root.querySelector?.('[data-exercise-create-status]')||initialStatus;
+      if(node){node.textContent=friendlyError(error);node.dataset.status='error';}
+      emit(root,'m26:workflow-error',{action:'create-custom-exercise',code:String(error?.message||error)});
+      throw error;
+    }finally{
+      if(button){button.disabled=wasDisabled;button.removeAttribute?.('aria-busy');}
+    }
+  }
+
+  async function renameLibraryExercise(form){
+    const {role}=context();
+    if(role!=='admin')throw new Error('M26_EXERCISE_RENAME_ADMIN_REQUIRED');
+    if(!isOnline())throw new Error('M26_EXERCISE_RENAME_OFFLINE');
+    if(typeof renameExercise!=='function')throw new Error('M26_EXERCISE_RENAME_UNAVAILABLE');
+
+    const exerciseId=String(form?.dataset?.exerciseId||'').trim();
+    const nameEs=String(form?.elements?.namedItem?.('nameEs')?.value||'')
+      .replace(/\s+/gu,' ')
+      .trim();
+    const expectedRevision=Number(form?.dataset?.expectedRevision||0);
+
+    if(!exerciseId||nameEs.length<2||nameEs.length>160){
+      throw new Error('M26_EXERCISE_RENAME_INVALID');
+    }
+
+    const button=form.querySelector?.('button[type="submit"]');
+    const node=form.querySelector?.('[data-exercise-rename-status]');
+    const wasDisabled=Boolean(button?.disabled);
+
+    if(button){
+      button.disabled=true;
+      button.setAttribute?.('aria-busy','true');
+    }
+
+    if(node){
+      node.textContent='Validando nombre y generando traducciones…';
+      node.dataset.status='pending';
+    }
+
+    try{
+      const result=await renameExercise({
+        exerciseId,
+        nameEs,
+        expectedRevision,
+      });
+
+      const refreshed=await refreshCatalog();
+
+      if(refreshed?.list){
+        catalog=refreshed;
+        catalogSearch=createExerciseSearchIndex(catalog.list());
+      }
+
+      updateLibrary();
+
+      if(node){
+        node.textContent='Nombre actualizado globalmente. Traducciones automáticas listas.';
+        node.dataset.status='success';
+      }
+
+      emit(root,'m26:exercise-renamed',{
+        exerciseId,
+        revision:result?.revision||null,
+        translationStatus:'ready',
+      });
+
+      onRender();
+      return result;
+    }catch(error){
+      if(node){
+        const code=String(error?.message||error||'');
+        node.textContent=/REVISION_CONFLICT/.test(code)
+          ?'El ejercicio cambió desde que abriste la ficha. Recarga la biblioteca antes de volver a guardar.'
+          :friendlyError(error);
+        node.dataset.status='error';
+      }
+
+      emit(root,'m26:workflow-error',{
+        action:'rename-exercise',
+        code:String(error?.message||error),
+      });
+
+      return null;
+    }finally{
+      if(button){
+        button.disabled=wasDisabled;
+        button.removeAttribute?.('aria-busy');
+      }
+    }
+  }
   function updateClientList(queryOverride=null){
     const clock=()=>globalThis.performance?.now?.()??Date.now();
     const started=clock();
@@ -333,7 +482,7 @@ export function createWorkflowController({
   }
   async function initializeOnboardingForm(form){
     if(!form||initializedOnboardingForms.has(form))return;initializedOnboardingForms.add(form);
-    try{const saved=await draftRepository?.load?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);if(saved?.value){populateForm(form,saved.value);status(root,'client-onboarding','Borrador del nuevo expediente recuperado desde este dispositivo.','success');}}
+    try{const saved=await draftRepository?.load?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);if(saved?.value&&!editedOnboardingForms.has(form)){populateForm(form,saved.value);status(root,'client-onboarding','Borrador del nuevo expediente recuperado desde este dispositivo.','success');}}
     catch{status(root,'client-onboarding','No fue posible recuperar el borrador del expediente.','error');}
     syncOnboardingFormState(form);
   }
@@ -403,7 +552,7 @@ export function createWorkflowController({
   async function createAppointment(){requireCoach();const form=root.querySelector?.('[data-workflow-form="appointment"]');if(!form)throw new Error('M26_APPOINTMENT_FORM_REQUIRED');syncAppointmentFormState(form,root);ensureValidForm(form);const raw=values(form);const clientId=requireVisibleClient(String(raw.clientId||''));const start=new Date(raw.startAt),end=new Date(raw.endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))throw new Error('M26_APPOINTMENT_DATE_INVALID');const modality=normalizeAppointmentModality(raw.modality);if(!modality)throw new Error('M26_APPOINTMENT_MODALITY_INVALID');const draft={clientId,startAt:start.toISOString(),endAt:end.toISOString(),modality,location:String(raw.location||'').trim().slice(0,300)};status(root,'appointment','Creando propuesta interna…','pending');const result=await withTimeout(commandBus.execute(buildAppointmentCommand(draft,0)),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');if(!result.ok){status(root,'appointment','La propuesta está pendiente de confirmación.','pending');return result;}await withTimeout(Promise.resolve(refreshState({reason:'appointment-created'})),15_000,'M26_WORKFLOW_REFRESH_TIMEOUT');status(root,'appointment','Propuesta de cita creada. Aún no es visible para el cliente.','success');form.reset();initializedAppointmentForms.delete(form);syncAppointmentFormState(form,root);initializedAppointmentForms.add(form);onRender();return result;}
   async function confirmAppointment(button){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_APPOINTMENT_CONFIRM_NOT_ALLOWED');const appointmentId=String(button?.dataset?.entityId||'').trim();if(!appointmentId)throw new Error('M26_APPOINTMENT_ID_REQUIRED');const {state}=context();const record=(state.collections.appointments||[]).find((item)=>String(item?.id||item?.body?.id||'')===appointmentId);if(!record)throw new Error('M26_APPOINTMENT_NOT_FOUND');const body=recordBody(record);const clientId=requireVisibleClient(String(record.clientId||record.client_id||body.clientId||body.client_id||''));status(root,'appointment','Confirmando la cita y preparando su visibilidad para el cliente…','pending');const result=await withTimeout(commandBus.execute(buildConfirmAppointmentCommand({clientId,appointmentId},Number(record.revision||body.revision||0))),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');if(!result.ok){status(root,'appointment','La cita sigue como propuesta y requiere revisión.','pending');return result;}const confirmed=await refreshAndFind('appointments',appointmentId,clientId);if(!confirmed||!/confirm/i.test(normalizedStatus(confirmed)))throw new Error('M26_APPOINTMENT_CONFIRM_NOT_PERSISTED');status(root,'appointment','Cita confirmada y visible para el cliente.','success');onRender();return result;}
   function reuseSession(button){requireCoach();const sessionId=String(button?.dataset?.entityId||'').trim();if(!sessionId)throw new Error('M26_SESSION_REUSE_ID_REQUIRED');const {clientId,state}=context();requireVisibleClient(clientId);const source=(state.collections.sessions||[]).find((item)=>String(item?.id||item?.body?.id||'')===sessionId&&String(item?.clientId||item?.client_id||item?.body?.clientId||item?.body?.client_id||'')===clientId);if(!source)throw new Error('M26_SESSION_REUSE_NOT_VISIBLE');emit(root,'m26:open-session-builder',{clientId,sourceSession:source});status(root,'session','Sesión cargada como borrador independiente. La original no se modifica.','success');}  function openBuilder(){requireCoach();const {clientId}=context();requireVisibleClient(clientId);emit(root,'m26:open-session-builder',{clientId});status(root,'session','Constructor abierto.','success');}
-  function startSession(button){const {clientId,state}=context();requireVisibleClient(clientId);const requestedId=String(button?.dataset?.entityId||'');const candidates=(state.collections.sessions||[]).filter((item)=>(item.clientId||item.client_id)===clientId&&PUBLISHED_SESSION_STATES.has(normalizedStatus(item))).sort((a,b)=>Number(b.revision||b.body?.revision||0)-Number(a.revision||a.body?.revision||0));const session=requestedId?candidates.find((item)=>String(item.id||item.body?.id||'')===requestedId):candidates[0];if(!session)throw new Error('M26_SESSION_PUBLISHED_REQUIRED');emit(root,'m26:start-session',{clientId,session});status(root,'session','Preparando sesión guiada.','success');}
+  function startSession(button){const {clientId,state}=context();requireVisibleClient(clientId);const requestedId=String(button?.dataset?.entityId||'');const candidates=(state.collections.sessions||[]).filter((item)=>(item.clientId||item.client_id||item.body?.clientId||item.body?.client_id)===clientId&&PUBLISHED_SESSION_STATES.has(normalizedStatus(item))).sort((a,b)=>Number(b.revision||b.body?.revision||0)-Number(a.revision||a.body?.revision||0));const session=requestedId?candidates.find((item)=>String(item.id||item.body?.id||'')===requestedId):candidates[0];if(!session)throw new Error('M26_SESSION_PUBLISHED_REQUIRED');emit(root,'m26:start-session',{clientId,session});status(root,'session','Preparando sesión guiada.','success');}
   function generateIntelligence(){
     requireCoach();
     const form=root.querySelector?.('[data-workflow-form="intelligence"]');
@@ -440,7 +589,7 @@ export function createWorkflowController({
     if(evidence.iriAvailable)contextBits.push('IRI disponible');
     const contextLabel=contextBits.length?contextBits.join(' · '):'Contexto histórico limitado: revisar manualmente.';
     const preview=root.querySelector?.('[data-intelligence-preview]');
-    if(preview)preview.innerHTML=`${coachQuestion?`<section class="m26-intelligence-brief"><p class="m26-eyebrow">Criterio del entrenador</p><p>${escape(coachQuestion)}</p></section>`:''}${contextWarnings.length?`<section class="m26-notice is-warning"><strong>Contexto incompleto</strong><p>${escape(contextWarnings.join(' '))}</p></section>`:''}<section class="m26-notice is-${proposal.requiresManualReview?'warning':'success'}"><strong>${escape(proposal.exercises.length)} ejercicios propuestos</strong><p>${escape(proposal.estimatedMinutes)} min · ${escape(proposal.structure.type)} · revisión del entrenador obligatoria.</p></section><div class="m26-stack">${proposal.exercises.map((item)=>`<article class="m26-list-card"><div><h3>${escape(item.name)}</h3><p>${escape(item.sets)} series · ${escape(item.reps)} · RPE ${escape(item.targetRpe)}${item.previousLoad!==null&&item.previousLoad!==undefined?` · última carga ${escape(item.previousLoad)} kg`:''}</p><small>${escape(item.loadInstruction||'Carga a revisar por el entrenador')}</small></div></article>`).join('')}</div>`;
+    if(preview)preview.innerHTML=`${coachQuestion?`<section class="m26-intelligence-brief"><p class="m26-eyebrow">Criterio del entrenador</p><p>${escape(coachQuestion)}</p></section>`:''}${contextWarnings.length?`<section class="m26-notice is-warning"><strong>Contexto incompleto</strong><p>${escape(contextWarnings.join(' '))}</p></section>`:''}<section class="m26-notice is-${proposal.requiresManualReview?'warning':'success'}"><strong>${escape(proposal.exercises.length)} ejercicios propuestos</strong><p>${escape(proposal.estimatedMinutes)} min · ${escape(proposal.structure.type)} · revisión del entrenador obligatoria.</p></section><div class="m26-stack">${proposal.exercises.map((item)=>`<article class="m26-list-card"><div><h3>${escape(exerciseDisplayName(catalog.get(item.exerciseId)||item))}</h3><p>${escape(item.sets)} series · ${escape(item.reps)} · RPE ${escape(item.targetRpe)}${item.previousLoad!==null&&item.previousLoad!==undefined?` · última carga ${escape(item.previousLoad)} kg`:''}</p><small>${escape(item.loadInstruction||'Carga a revisar por el entrenador')}</small></div></article>`).join('')}</div>`;
     status(root,'intelligence',proposal.requiresManualReview||contextWarnings.length?'Propuesta conservadora: requiere revisión manual.':'Propuesta lista para revisión.',proposal.requiresManualReview||contextWarnings.length?'pending':'success');
     emit(root,'m26:intelligence-proposal',{proposal});
     return proposal;
@@ -468,7 +617,7 @@ export function createWorkflowController({
     const form=button.closest?.('form');if(form&&button.type==='submit')return;
     event.preventDefault?.();await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);
   }
-  async function onSubmit(event){const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
+  async function onSubmit(event){const createForm=event.target.closest?.('[data-exercise-create-form]');if(createForm){event.preventDefault?.();await createLibraryExercise(createForm);return;}const renameForm=event.target.closest?.('[data-exercise-rename-form]');if(renameForm){event.preventDefault?.();await renameLibraryExercise(renameForm);return;}const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
   function onInput(event){
     const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(iriForm){
       if(event.target?.name==='stepHeightCm'&&event.target.dataset)event.target.dataset.userEdited='true';
@@ -478,12 +627,12 @@ export function createWorkflowController({
       }
       computed(iriForm);clearStatus(root,'iri');queueIriSave();return;
     }
-    const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){clearControlValidation(event.target);clearStatus(root,'client-onboarding');queueOnboardingSave(onboardingForm);return;}
+    const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');queueOnboardingSave(onboardingForm);return;}
     const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);return;}
     const clientSearch=event.target.closest?.('[data-client-search]');if(clientSearch){updateClientList(clientSearch.value);return;}
     const search=event.target.closest?.('[data-library-search]');if(search){updateLibrary();return;}
   }
-  function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;computed(iriForm);queueIriSave();}
+  function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;computed(iriForm);queueIriSave();}
 
   function onPageHide(){const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(form)void saveOnboardingDraft(form).catch(()=>{});}
   return Object.freeze({

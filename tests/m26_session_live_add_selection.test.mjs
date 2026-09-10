@@ -17,9 +17,9 @@ test('Coach live add remains disabled until a catalog exercise is selected',()=>
 test('session controller synchronizes and guards the live-add action across render and selection changes',()=>{
   const source=fs.readFileSync('src/m26/workflows/session-controller.js','utf8');
   assert.match(source,/function syncLiveAddExerciseControl\(context=getContext\(\)\)/u);
-  assert.match(source,/button\.disabled=!state\.enabled/u);
-  assert.match(source,/setAttribute\?\.\('aria-disabled',state\.enabled\?'false':'true'\)/u);
-  assert.match(source,/select\.disabled=!hasSelectableOption/u);
+  assert.match(source,/button\.disabled=liveAddPending\|\|!state\.enabled/u);
+  assert.match(source,/setAttribute\?\.\('aria-disabled',!button\.disabled\?'false':'true'\)/u);
+  assert.match(source,/select\.disabled=liveAddPending\|\|!hasSelectableOption/u);
   assert.match(source,/render=\(\)=>\{[^}]*syncLiveAddExerciseControl\(getContext\(\)\)/u);
   assert.match(source,/if\(action==='add-live-exercise'\)\{\s*const liveSelection=liveAddExerciseSelectionState/u);
   assert.match(source,/if\(!liveSelection\.enabled\)\{syncLiveAddExerciseControl\(context\);return;\}/u);

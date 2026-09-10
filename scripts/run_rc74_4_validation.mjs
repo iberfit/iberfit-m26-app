@@ -90,7 +90,7 @@ try{
   fs.mkdirSync(recovery,{recursive:true});
   assertSourceContracts();
   run('repository-hygiene',process.execPath,['scripts/remote-gates/check_repository_hygiene.mjs']);
-  runNpm('full-node-regression',['test']);
+  runNpm('full-node-regression',[process.env.GITHUB_ACTIONS==='true'?'run':'test',...(process.env.GITHUB_ACTIONS==='true'?['test:offline']:[])]);
   run('current-source-surface',process.execPath,['qa/rc64/build-current-surface.mjs']);
   run('rc74-runtime-generator',process.execPath,['scripts/generate_rc74_4_runtime_config.mjs'],{
     M26_SUPABASE_URL:`https://${QA_REF}.supabase.co`,

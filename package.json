@@ -7,6 +7,7 @@
     "test:iri:m25.2": "node --test tests/m25_2_iri_regression.test.mjs",
     "test:m26:core": "node --test tests/m26_core_recovery.test.mjs",
     "test": "node --test tests/*.test.mjs",
+    "test:offline": "node scripts/run_node_tests_offline.mjs",
     "audit:recovery": "node scripts/recovery_gate.mjs && node scripts/m26_recovery_gate.mjs",
     "gate": "npm run validate:rc29",
     "test:m26:shell": "node --test tests/m26_shell_roles.test.mjs",

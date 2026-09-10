@@ -52,7 +52,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          node scripts/fast_lane_affected_tests.mjs \
+          node scripts/run_node_tests_offline.mjs scripts/fast_lane_affected_tests.mjs \
             --base "${{ steps.base.outputs.ref }}" \
             --head HEAD 2>&1 | tee fast-lane.log
 

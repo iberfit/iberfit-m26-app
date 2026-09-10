@@ -18,13 +18,14 @@ const read=(path)=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const runtime={enabled:true,canary:true,qaOnly:true,url:'https://gjztkdwfmunnzhtvxrsu.supabase.co',projectRef:'gjztkdwfmunnzhtvxrsu',publishableKey:'publishable-test',timeoutMs:1000,version:'26.0.0-canary.36'};
 const valid={name:'Adriana QA',email:'adriana.qa@example.com',phone:'+56 9 1111 2222',birthDate:'1990-01-01',sexForNorms:'female',modality:'presencial',weeklyFrequency:'2',sessionDurationMinutes:'60',primaryObjective:'Mantener la salud y desarrollar fuerza.',trainingAddress:'Dirección QA'};
 
-test('alta V12.2 usa identificador idempotente estable y conserva contrato histórico',()=>{
+test('alta conserva idempotencia y acceso bloqueado mientras solicita invitación',()=>{
   const first=legacyClientDraftPayload(valid),second=legacyClientDraftPayload({...valid,name:'  Adriana QA  '});
   assert.equal(first.requestId,second.requestId);
   assert.equal(first.idempotencyKey,first.requestId);
   assert.match(first.requestId,/^onb-[0-9a-f]{8}$/);
-  assert.equal(first.onboardingVersion,'m26-v12.2');
+  assert.equal(first.onboardingVersion,'m26-v12.4-invitation');
   assert.equal(first.accessEnabled,false);
+  assert.equal(first.inviteClient,true);
 });
 
 test('verificación reconoce id y correo en formas remotas compatibles',async()=>{
@@ -55,7 +56,7 @@ test('controlador guarda mientras se escribe, recupera y elimina el borrador del
   assert.equal(CLIENT_ONBOARDING_LOCAL_ID,'pending-client');
   assert.equal(CLIENT_ONBOARDING_DRAFT_SCOPE,'client-onboarding-v12');
   assert.match(source,/function queueOnboardingSave/);
-  assert.match(source,/onboardingForm\)\{clearControlValidation\(event\.target\);clearStatus\(root,'client-onboarding'\);queueOnboardingSave\(onboardingForm\)/);
+  assert.match(source,/onboardingForm\)\{editedOnboardingForms\.add\(onboardingForm\);clearControlValidation\(event\.target\);clearStatus\(root,'client-onboarding'\);queueOnboardingSave\(onboardingForm\)/);
   assert.match(source,/syncOnboardingFormState\(onboardingForm\);queueOnboardingSave\(onboardingForm\)/);
   assert.match(source,/globalThis\.addEventListener\?\.\('pagehide',onPageHide\)/);
   assert.match(source,/initializeOnboardingForm/);
@@ -109,4 +110,14 @@ test('formularios críticos no quedan ocultos detrás de barras adhesivas',()=>{
   const css=read('src/m26/shell/shell.css');
   assert.match(css,/V12\.2 · Formularios críticos sin controles superpuestos/);
   assert.match(css,/\.m26-onboarding \.m26-sticky-actions,[\s\S]*\[data-workflow-form="iri"\] \.m26-wizard-actions\{position:static/);
+});
+
+test('recuperación asíncrona del alta no pisa datos que el coach ya está escribiendo',()=>{
+  const source=read('src/m26/app/workflow-controller.js');
+  assert.match(source,/const editedOnboardingForms=new WeakSet\(\)/);
+  assert.match(source,/saved\?\.value&&!editedOnboardingForms\.has\(form\)/);
+  assert.equal(
+    (source.match(/editedOnboardingForms\.add\(onboardingForm\)/g)||[]).length,
+    2,
+  );
 });

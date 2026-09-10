@@ -22,8 +22,8 @@ test('deferred crea un expediente operativo mínimo sin fingir un IRI completado
   assert.equal(payload.profile.initialAssessmentMode,'deferred');
   assert.equal(payload.phase,'Inicio operativo');
   assert.equal(payload.accessEnabled,false);
-  assert.equal(payload.inviteClient,false);
-  assert.equal(payload.onboardingVersion,'m26-v12.2');
+  assert.equal(payload.inviteClient,true);
+  assert.equal(payload.onboardingVersion,'m26-v12.4-invitation');
   assert.equal(Object.hasOwn(payload,'iriConfirmed'),false);
   assert.equal(isIriDeferred(payload),true);
   assert.equal(initialAssessmentModeFrom(payload),'deferred');

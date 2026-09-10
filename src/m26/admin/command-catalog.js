@@ -7,6 +7,7 @@ const COMMANDS=Object.freeze({
   ADMIN_ASIGNACION_FINALIZAR:{entityType:'coach_client_assignment',capability:ADMIN_CAPABILITIES.ASSIGNMENT_MANAGE,reason:true},
   ADMIN_LEAD_CREAR:{entityType:'lead',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:false},
   ADMIN_LEAD_ACTUALIZAR:{entityType:'lead',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:true},
+  ADMIN_CLIENTE_CREAR:{entityType:'client',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:false},
   ADMIN_CLIENTE_CAMBIAR_CICLO:{entityType:'client_lifecycle',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:true},
   ADMIN_CLIENTE_ELIMINAR:{entityType:'client',capability:ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE,reason:true},
   ADMIN_TAREA_CREAR:{entityType:'operational_task',capability:ADMIN_CAPABILITIES.OPERATION_MANAGE,reason:false},
