@@ -349,7 +349,7 @@ export function renderAccessUi({
       ${contextNotice}
       ${notice}
 
-      <form data-auth-form="request-recovery">
+      <form data-auth-form="request-recovery" aria-label="Recuperar acceso a IBERFIT">
         <label>
           Correo
           <input
@@ -357,6 +357,8 @@ export function renderAccessUi({
             name="email"
             autocomplete="email"
             inputmode="email"
+            enterkeyhint="send"
+            autocorrect="off"
             autocapitalize="none"
             spellcheck="false"
             maxlength="254"
@@ -393,7 +395,7 @@ export function renderAccessUi({
       ${contextNotice}
       ${notice}
 
-      <form data-auth-form="update-password">
+      <form data-auth-form="update-password" aria-label="Crear contraseña nueva">
         <label>
           Contraseña nueva
           <span class="m26-password-field">
@@ -426,6 +428,7 @@ export function renderAccessUi({
               type="password"
               name="passwordConfirmation"
               autocomplete="new-password"
+              enterkeyhint="done"
               aria-describedby="m26-password-requirements"
               required
               minlength="8"
@@ -474,7 +477,7 @@ export function renderAccessUi({
       ${contextNotice}
       ${notice}
 
-      <form data-auth-form="login">
+      <form data-auth-form="login" aria-label="Acceso a IBERFIT">
         <label>
           Correo
           <input
@@ -482,6 +485,8 @@ export function renderAccessUi({
             name="email"
             autocomplete="username"
             inputmode="email"
+            enterkeyhint="next"
+            autocorrect="off"
             autocapitalize="none"
             spellcheck="false"
             maxlength="254"
@@ -497,6 +502,7 @@ export function renderAccessUi({
               type="password"
               name="password"
               autocomplete="current-password"
+              enterkeyhint="go"
               required
               minlength="8"
               maxlength="1024"
