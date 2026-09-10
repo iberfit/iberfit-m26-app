@@ -44,7 +44,7 @@ import {renderSessionBuilder,renderGuidedExecution} from '../workflows/session-u
 import {buildExercisePerformanceMemory} from '../engagement/exercise-performance-engine.js';
 import {createSessionController} from '../workflows/session-controller.js';
 import {createActionState} from '../ui/action-state.js';
-import {createExecutionRecoveryStore,createExecutionRecoveryCoordinator} from '../workflows/session-recovery.js';
+import {createExecutionRecoveryStore,createExecutionRecoveryCoordinator,reconcileExecutionSyncResult} from '../workflows/session-recovery.js';
 import {registerM26ServiceWorker,createConnectivitySync} from '../platform/pwa.js';
 import {loadExerciseMediaMap} from '../library/exercise-media.js';
 import {createExerciseVideoExperienceController} from '../library/exercise-video-player.js';
@@ -180,6 +180,10 @@ function recoveryPasswordError(error){
 function invalidRecoverySession(error){
   const code=String(error?.message||error||'');
   return error?.status===401||error?.status===403||/RECOVERY_(?:TOKEN|SESSION|USER|UPDATE|IDENTITY)|QA_ACCOUNT_REQUIRED|JWT|expired/i.test(code);
+}
+
+export function hasRetryablePendingOperations(operations=[]){
+  return Array.isArray(operations)&&operations.some((item)=>item?.status==='pending'&&item?.retryable!==false);
 }
 
 export async function recoverExecutionAfterAuthentication({restoreExecution,pendingIriExternalReportIntent=false,reportDiagnostic}={}){
@@ -571,14 +575,34 @@ export async function createM26Application({root=document.querySelector('#app'),
     wearables.mount({syncInitial:false});
     qaStage('rc64-wearables-post-login-mount-ready');
 
+    let pendingSyncAtLogin=false;
+    try{pendingSyncAtLogin=hasRetryablePendingOperations(await commandBus?.pending?.());}
+    catch(error){reportDiagnostic('pending-operation-inspection',error);}
     const sync=createConnectivitySync({
       coordinator:recoveryCoordinator,
-      onResult:async()=>{
+      onResult:async(result)=>{
+        if(sessionUi?.execution){
+          const reconciliation=reconcileExecutionSyncResult(sessionUi.execution,result);
+          if(reconciliation.changed&&sessionUi.session){
+            await recoveryCoordinator.persist({
+              execution:sessionUi.execution,
+              session:sessionUi.session,
+              appointmentId:sessionUi.appointmentId||null,
+              sessionRevision:Number(sessionUi.session.revision||0),
+            });
+            await recoveryCoordinator.settle(sessionUi.execution);
+          }
+        }
         await refreshVerificationState({repository:operationRepository,store});
         render();
       },
+      onError:(error)=>reportDiagnostic('connectivity-sync',error),
     });
     connectivityStop=sync.start({emitInitial:false});
+    if(pendingSyncAtLogin&&navigator.onLine!==false){
+      await sync.sync();
+      qaStage('rc64-pending-sync-reconciled');
+    }
     telemetrySyncStop=telemetryRemoteSync.start({flushInitial:false});
     void registerM26ServiceWorker().catch(()=>{});
     qaStage('rc64-post-login-local-services-armed');
@@ -1005,4 +1029,4 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),runtime});
 }
 
-export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,recoveryRequestConfirmation,recoveryRedirectForRuntime,recoverExecutionAfterAuthentication,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});
+export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,recoveryRequestConfirmation,recoveryRedirectForRuntime,recoverExecutionAfterAuthentication,hasRetryablePendingOperations,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});
