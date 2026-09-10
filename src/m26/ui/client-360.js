@@ -406,7 +406,7 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
   const nextAction=experienceNextAction(journey,{role:String(viewModel.identity.role||'client')});
   const nowPanel=createElement(document,'section','m30-cliente-360-now');
   nowPanel.setAttribute('data-m30-cliente-360-now','true');
-  nowPanel.setAttribute('aria-label',viewModel.identity.role==='client'?'Tu siguiente paso':'Siguiente decisión del Coach');
+  nowPanel.setAttribute('aria-label',viewModel.identity.role==='client'?'Tu siguiente paso':'Siguiente decisión');
   const nowCopy=createElement(document,'div','m30-cliente-360-now-copy');
   nowCopy.append(
     createElement(document,'span','',viewModel.identity.role==='client'?'Ahora':'Siguiente decisión'),
