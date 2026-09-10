@@ -9,6 +9,7 @@ import {
 import { runAction } from '../ui/action-state.js';
 import { createLiveTelemetryController } from '../wearables/live-telemetry.js';
 import {setPendingSessionEntry,consumePendingSessionEntry,clearPendingSessionEntry} from '../intelligence/session-entry-intent.js';
+import {createM26Id} from '../platform/id.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function feedbackValues(root){return {sessionRpe:root.querySelector?.('[data-session-feedback-rpe]')?.value??'',comment:root.querySelector?.('[data-session-feedback-comment]')?.value??'',pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked),painNotes:root.querySelector?.('[data-session-feedback-pain-notes]')?.value??''};}
@@ -32,11 +33,20 @@ function enqueueAndApply(commandBus,command,apply,execution){
   return Promise.resolve(commandBus.enqueue(command)).then((result)=>{apply?.(result);markExecutionSync(execution,'pending',{operationId:result?.command?.operationId});return {...result,queued:true};});
 }
 function isOnline(value){return value!==false;}
-function progressMutation(execution,commandBus,online){
+function progressMutation(execution,commandBus,online,operationId=null){
   if(!commandBus)return {kind:'execution',value:execution};
-  const command=buildProgressExecutionCommand(execution,execution.revision||0);
+  const command={...buildProgressExecutionCommand(execution,execution.revision||0),...(operationId?{operationId}:{})};
   if(!isOnline(online))return {kind:'queued',value:enqueueAndApply(commandBus,command,null,execution)};
   return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{execution.revision=remoteRevision(result,execution.revision);},execution)};
+}
+function sessionActionTimeout(){const error=new Error('M26_SESSION_ACTION_TIMEOUT');error.code='M26_SESSION_ACTION_TIMEOUT';return error;}
+function settleWithin(promise,timeoutMs,onTimeout=()=>{}){
+  return new Promise((resolve,reject)=>{
+    let settled=false;
+    const finish=(handler,value)=>{if(settled)return;settled=true;clearTimeout(timer);handler(value);};
+    const timer=setTimeout(()=>{if(settled)return;settled=true;try{onTimeout();}catch{}reject(sessionActionTimeout());},timeoutMs);
+    Promise.resolve(promise).then((value)=>finish(resolve,value),(error)=>finish(reject,error));
+  });
 }
 
 export function liveAddExerciseSelectionState(exerciseId,catalog){
@@ -94,7 +104,7 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
     }
     case 'add-live-exercise': {
       addExecutionExercise(execution,{...payload,catalog,actor});
-      return progressMutation(execution,commandBus,online);
+      return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'previous': retreatExecution(execution,{actor}); return {kind:'execution',value:execution};
     case 'next': advanceExecution(execution,{actor}); return {kind:'execution',value:execution};
@@ -135,11 +145,12 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
   }
 }
 
-export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null,lifecycleTarget=globalThis,visibilityTarget=globalThis.document}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
+export function createSessionController({root,getContext,render,onError=()=>{},autosaveDelayMs=180,liveAddTimeoutMs=20000,liveTelemetryController=null,telemetryOutbox=null,telemetryRemoteSync=null,lifecycleTarget=globalThis,visibilityTarget=globalThis.document}){if(!root?.addEventListener)throw new Error('M26_SESSION_ROOT_REQUIRED');
   if(telemetryRemoteSync!==null&&typeof telemetryRemoteSync?.notifyStaged!=='function')throw new Error('M26_TELEMETRY_REMOTE_SYNC_INVALID');
   let mounted=false,autosaveTimer=null,scheduledContext=null,autosaveChain=Promise.resolve();
   let executionDraftTimer=null,scheduledExecutionContext=null,executionDraftChain=Promise.resolve();
   const safeDelay=Math.max(50,Math.min(2000,Number(autosaveDelayMs)||180));
+  const safeLiveAddTimeout=Math.max(20,Math.min(120000,Number(liveAddTimeoutMs)||20000));
   function hydrateActiveSetDraft(context=getContext()){
     const draft=context?.execution&&context?.session?getActiveSetDraft(context.execution,context.session):null;
     if(!draft)return;
@@ -157,15 +168,18 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     const pain=root.querySelector?.('[data-session-feedback-pain]');if(pain)pain.checked=Boolean(values.pain);
     const painNotes=root.querySelector?.('[data-session-feedback-pain-notes]');if(painNotes)painNotes.value=values.painNotes??'';
   }
-  let liveAddPending=false;
+  let liveAddPending=false,liveAddBlockedOperationId=null;
   function syncLiveAddExerciseControl(context=getContext()){
     const select=root.querySelector?.('[data-session-live-add-exercise]');
     const button=root.querySelector?.('[data-session-action="add-live-exercise"]');
     if(!button)return;
+    if(liveAddBlockedOperationId&&!new Set(context?.execution?.pendingOperationIds||[]).has(liveAddBlockedOperationId))liveAddBlockedOperationId=null;
     const state=liveAddExerciseSelectionState(select?.value,context?.catalog);
-    button.disabled=liveAddPending||!state.enabled;
+    const uncertain=Boolean(liveAddBlockedOperationId);
+    button.disabled=liveAddPending||uncertain||!state.enabled;
     button.setAttribute?.('aria-disabled',!button.disabled?'false':'true');
-    if(state.enabled)button.removeAttribute?.('title');
+    if(uncertain)button.setAttribute?.('title','Sincronizando el último ejercicio antes de permitir otra alta');
+    else if(state.enabled)button.removeAttribute?.('title');
     else button.setAttribute?.('title','Selecciona un ejercicio válido antes de añadirlo');
     if(select){
       const hasSelectableOption=Array.from(select.options||[]).some((option)=>!option?.disabled&&liveAddExerciseSelectionState(option?.value,context?.catalog).enabled);
@@ -259,7 +273,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     await start();
   }
   async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='add-live-exercise'){
-    if(liveAddPending)return;
+    if(liveAddPending||liveAddBlockedOperationId){syncLiveAddExerciseControl(context);return;}
     const liveSelection=liveAddExerciseSelectionState(root.querySelector?.('[data-session-live-add-exercise]')?.value,context?.catalog);
     if(!liveSelection.enabled){syncLiveAddExerciseControl(context);return;}
   }if(action==='reuse-previous-set'){
@@ -275,13 +289,18 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   if(context?.actionState){context.actionState.status='success';context.actionState.message='Datos de la serie anterior copiados. Revísalos antes de confirmar.';}
   renderSession();
   return;
-}if(action==='exit-session'){const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await persistContext(context);context.onExit?.();}catch(error){onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}if(action==='add-live-exercise')liveAddPending=true;const actionState=context.actionState;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
-    const task=async()=>{await flushAutosave(context);await flushExecutionDraft(context);if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
+}if(action==='exit-session'){const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await persistContext(context);context.onExit?.();}catch(error){onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}
+    const liveAddOperationId=action==='add-live-exercise'?createM26Id():null;
+    let liveAddDispatched=false,liveAddTimedOut=false;
+    if(action==='add-live-exercise')liveAddPending=true;
+    const actionState=context.actionState;const wasDisabled=button.disabled;button.setAttribute('aria-busy','true');button.disabled=true;
+    const task=async()=>{await flushAutosave(context);if(action==='add-live-exercise'&&liveAddTimedOut)throw sessionActionTimeout();await flushExecutionDraft(context);if(action==='add-live-exercise'&&liveAddTimedOut)throw sessionActionTimeout();if(action==='save-template'){const name=String(root.querySelector?.('[data-session-template-name]')?.value||'').trim();if(!context.saveTemplate)throw new Error('M26_SESSION_TEMPLATE_SAVE_UNAVAILABLE');return await context.saveTemplate(name);}if(action==='load-template'){const templateId=String(root.querySelector?.('[data-session-template-select]')?.value||'').trim();if(!templateId)throw new Error('M26_SESSION_TEMPLATE_SELECTION_REQUIRED');if(!context.loadTemplate)throw new Error('M26_SESSION_TEMPLATE_LOAD_UNAVAILABLE');return await context.loadTemplate(templateId);}const payload={exerciseId:button.getAttribute('data-exercise-id'),blockId:button.getAttribute('data-block-id'),groupType:button.getAttribute('data-group-type'),restSeconds:button.getAttribute('data-rest-seconds')||undefined,...fieldValues(root)};if(action==='start'){payload.appointmentId=context.appointmentId;payload.sessionRevision=context.sessionRevision;}if(action==='substitute'){payload.fromExerciseId=button.getAttribute('data-from-exercise-id');payload.toExerciseId=root.querySelector?.('[data-session-substitute]')?.value;payload.reason=root.querySelector?.('[data-session-substitute-reason]')?.value;}
     if(action==='skip-set')payload.reason=root.querySelector?.('[data-session-skip-set-reason]')?.value;
     if(action==='skip-exercise')payload.reason=root.querySelector?.('[data-session-skip-exercise-reason]')?.value;
     if(action==='add-live-exercise'){
       const liveSelection=liveAddExerciseSelectionState(root.querySelector?.('[data-session-live-add-exercise]')?.value,context?.catalog);
       if(!liveSelection.enabled)throw new Error('Selecciona un ejercicio válido antes de añadirlo');
+      payload.operationId=liveAddOperationId;
       payload.exerciseId=liveSelection.exerciseId;
       payload.sets=root.querySelector?.('[data-session-live-add-sets]')?.value;
       payload.reps=root.querySelector?.('[data-session-live-add-reps]')?.value;
@@ -291,8 +310,9 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       payload.targetRir=root.querySelector?.('[data-session-live-add-rir]')?.value;
       payload.position='next';
     }
-    if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});return await result.value;};
-    try{const outcome=actionState?await runAction(actionState,task):{ok:true,value:await task()};if(!outcome.ok)onError(outcome.error);if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}renderSession();}catch(error){await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}}}
+    if(action==='cancel'){payload.reason=root.querySelector?.('[data-session-cancel-reason]')?.value;}if(action==='finish'){payload.sessionRpe=root.querySelector?.('[data-session-feedback-rpe]')?.value;payload.comment=root.querySelector?.('[data-session-feedback-comment]')?.value;payload.pain=root.querySelector?.('[data-session-feedback-pain]')?.checked;payload.painNotes=root.querySelector?.('[data-session-feedback-pain-notes]')?.value;}const result=dispatchSessionAction({...context,action,payload});if(action==='add-live-exercise')liveAddDispatched=true;return await result.value;};
+    const runTask=action==='add-live-exercise'?()=>settleWithin(task(),safeLiveAddTimeout,()=>{liveAddTimedOut=true;if(liveAddDispatched){liveAddBlockedOperationId=liveAddOperationId;markExecutionSync(context.execution,'pending',{operationId:liveAddOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}}):task;
+    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok)onError(outcome.error);if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else if(timedOut)void persistContext(getContext()).catch(onError);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}renderSession();}catch(error){const timedOut=error?.code==='M26_SESSION_ACTION_TIMEOUT'||error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut)void persistContext(context).catch(onError);else await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){context.setQuery?.(search.value);renderSession();}
     const liveAddSelect=event.target.closest?.('[data-session-live-add-exercise]');if(liveAddSelect)syncLiveAddExerciseControl(context);
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}
