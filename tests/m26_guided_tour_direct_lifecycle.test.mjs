@@ -95,7 +95,11 @@ function createHarness(){
 function closeEvent(selector){
   return {
     preventDefault(){},
-    target:{closest(query){return query===selector?{}:null;}},
+    target:{
+      closest(query){
+        return query===selector||query==='[data-m26-guided-tour]'?{}:null;
+      },
+    },
   };
 }
 
