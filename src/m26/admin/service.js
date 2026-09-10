@@ -68,9 +68,30 @@ export function createAdminCommandService({
   isOnline=()=>true,
   refreshState=async()=>{},
   runPrivilegedCeremony=runWebAuthnCeremony,
+  refreshWaitMs=180,
+  onRefreshError=()=>{},
 }={}){
   if(!transport?.execute)throw new Error('M26_ADMIN_TRANSPORT_REQUIRED');
   const inFlight=new Map();
+  const boundedRefreshWait=Math.max(0,Math.min(Number(refreshWaitMs)||0,1_000));
+  async function refreshAfterAck(response){
+    const refreshPromise=Promise.resolve()
+      .then(()=>refreshState({reason:'admin-mutation-ack',response}))
+      .then(()=>Object.freeze({settled:true,ok:true}))
+      .catch((error)=>{
+        try{onRefreshError(error);}catch{}
+        return Object.freeze({settled:true,ok:false});
+      });
+    const outcome=await Promise.race([
+      refreshPromise,
+      new Promise((resolve)=>setTimeout(()=>resolve(Object.freeze({settled:false,ok:null})),boundedRefreshWait)),
+    ]);
+    return Object.freeze({
+      refreshPending:outcome.settled!==true,
+      refreshOk:outcome.settled===true?outcome.ok:null,
+      whenRefreshed:refreshPromise,
+    });
+  }
   return Object.freeze({
     execute(input){
       if(!isOnline())return Promise.reject(new Error('M26_ADMIN_ONLINE_REQUIRED'));
@@ -91,8 +112,8 @@ export function createAdminCommandService({
           await reauthenticatePrivileged(transport,token,runPrivilegedCeremony);
           response=await transport.execute(token,command);
         }
-        await refreshState({reason:'admin-mutation-ack',response});
-        return Object.freeze({ok:true,command,response});
+        const refresh=await refreshAfterAck(response);
+        return Object.freeze({ok:true,command,response,...refresh});
       })().finally(()=>inFlight.delete(command.operationId));
       inFlight.set(command.operationId,{signature,promise});
       return promise;

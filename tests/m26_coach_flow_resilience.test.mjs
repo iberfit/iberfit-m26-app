@@ -80,6 +80,7 @@ test('communication and admin DOM handlers consume rejected operations',async()=
 
   assert.match(admin,/function onSubmitEvent\(event\)/u);
   assert.match(admin,/void onSubmit\(event\)\.catch/u);
-  assert.match(admin,/finally\{\s*busy=false;\s*\}/u);
+  assert.match(admin,/finally\{\s*pendingLocks\.delete\(key\);\s*setFormPending\(form,false\);\s*syncPendingUserForms\(\);\s*\}/u);
+  assert.doesNotMatch(admin,/\blet busy=false\b/u);
   assert.doesNotMatch(admin,/catch\(error\)\{[^}]*throw error/u);
 });
