@@ -212,6 +212,8 @@ const ROWS=Object.freeze([
   ['En entrenamiento','Training in progress','En cours d’entraînement','Em treino'],
   ['Cliente 360','Client 360','Client 360','Cliente 360'],
   ['Abrir Cliente 360','Open Client 360','Ouvrir Client 360','Abrir Cliente 360'],
+  ['Ver mi progreso','View my progress','Voir ma progression','Ver o meu progresso'],
+  ['Tu seguimiento ya puede continuar desde Progreso.','Your follow-up can now continue from Progress.','Votre suivi peut maintenant se poursuivre depuis Progression.','O seu acompanhamento pode agora continuar a partir de Progresso.'],
   ['El seguimiento del cliente ya puede continuar desde Cliente 360.','Client follow-up can now continue in Client 360.','Le suivi du client peut désormais se poursuivre dans Client 360.','O acompanhamento do cliente pode agora continuar no Cliente 360.'],
   ['Ahora','Now','Maintenant','Agora'],
   ['Siguiente decisión','Next decision','Prochaine décision','Próxima decisão'],
