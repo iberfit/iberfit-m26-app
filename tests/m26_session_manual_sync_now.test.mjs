@@ -55,6 +55,10 @@ function controllerHarness({sync}={}){
     status:'active',
     syncStatus:'pending',
     pendingOperationIds:['op-1'],
+    queue:[{blockId:'block-1',exerciseId:'exercise-1',sets:1,prescription:{}}],
+    index:0,
+    setIndex:0,
+    results:{},
   };
   const actionState={status:'idle',message:''};
   let syncCalls=0;
