@@ -182,6 +182,12 @@ function invalidRecoverySession(error){
   return error?.status===401||error?.status===403||/RECOVERY_(?:TOKEN|SESSION|USER|UPDATE|IDENTITY)|QA_ACCOUNT_REQUIRED|JWT|expired/i.test(code);
 }
 
+export async function recoverExecutionAfterAuthentication({restoreExecution,pendingIriExternalReportIntent=false,reportDiagnostic}={}){
+  if(pendingIriExternalReportIntent||typeof restoreExecution!=='function')return false;
+  try{return Boolean(await restoreExecution());}
+  catch(error){try{reportDiagnostic?.('session-recovery-auto-restore',error);}catch{}return false;}
+}
+
 export function privilegedMfaDecision(assurance={}){
   if(assurance?.webauthnRequired!==true){
     return Object.freeze({kind:'ready'});
@@ -462,9 +468,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     sessionUi.actionState.status='success';sessionUi.actionState.message='Sesión recuperada desde este dispositivo.';store.navigate('sesion');return true;
   }
   async function restoreExecutionAfterAuthentication(){
-    if(pendingIriExternalReportIntent)return false;
-    try{return await restoreExecution();}
-    catch(error){reportDiagnostic('session-recovery-auto-restore',error);return false;}
+    return recoverExecutionAfterAuthentication({restoreExecution,pendingIriExternalReportIntent,reportDiagnostic});
   }
   function surfaceWorkspaceError(error){
     const detail=reportDiagnostic('session-workspace',error);
@@ -1001,4 +1005,4 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),runtime});
 }
 
-export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,recoveryRequestConfirmation,recoveryRedirectForRuntime,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});
+export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,recoveryRequestConfirmation,recoveryRedirectForRuntime,recoverExecutionAfterAuthentication,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});
