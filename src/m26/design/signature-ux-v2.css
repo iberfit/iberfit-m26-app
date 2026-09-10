@@ -856,3 +856,111 @@ body{
     grid-template-columns:1fr;
   }
 }
+
+
+/* Signature UX V2.3 · daily activity hierarchy */
+.m30-activity-route .m26-route-intro{
+  padding-bottom:.55rem;
+}
+
+.m30-activity-route>.m26-content-grid{
+  grid-template-columns:minmax(0,1.45fr) minmax(16rem,.7fr);
+  align-items:start;
+}
+
+.m30-activity-primary{
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 30%,transparent)!important;
+  background:
+    radial-gradient(circle at 92% -8%,color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 10%,transparent),transparent 18rem),
+    var(--iberfit-v2-surface)!important;
+}
+
+.m30-activity-primary>.m26-panel-heading{
+  padding-bottom:.45rem;
+  border-bottom:1px solid color-mix(in srgb,var(--iberfit-v2-line) 70%,transparent);
+}
+
+.m30-wellbeing-fields{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.65rem;
+}
+
+.m30-wellbeing-fields>.m26-wide{
+  grid-column:1 / -1;
+}
+
+.m30-activity-submit{
+  grid-template-columns:minmax(0,.55fr) minmax(0,1fr);
+  align-items:stretch;
+}
+
+.m30-activity-submit>.m26-primary-action{
+  min-height:52px;
+  justify-content:center;
+}
+
+.m30-activity-last{
+  position:sticky;
+  top:6rem;
+  border-color:var(--iberfit-v2-line-strong)!important;
+}
+
+.m30-habits-panel .m26-list-card{
+  min-height:0;
+}
+
+.m30-device-drawer{
+  overflow:clip;
+  border-style:dashed!important;
+  background:color-mix(in srgb,var(--iberfit-color-surface-base) 60%,transparent)!important;
+}
+
+.m30-device-drawer>summary{
+  min-height:3.35rem;
+  padding:.8rem .9rem;
+  font-weight:750;
+}
+
+.m30-device-drawer[open]{
+  border-style:solid!important;
+  background:var(--iberfit-v2-surface-soft)!important;
+}
+
+@media (max-width:900px){
+  .m30-activity-route>.m26-content-grid{
+    grid-template-columns:1fr;
+  }
+
+  .m30-activity-last{
+    position:static;
+  }
+
+  .m30-wellbeing-fields{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width:580px){
+  .m30-wellbeing-fields{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:.5rem;
+  }
+
+  .m30-activity-submit{
+    grid-template-columns:1fr;
+  }
+
+  .m30-activity-submit>*{
+    width:100%;
+  }
+
+  .m30-device-drawer>summary{
+    min-height:3.6rem;
+  }
+}
+
+@media (max-width:360px){
+  .m30-wellbeing-fields{
+    grid-template-columns:1fr;
+  }
+}
