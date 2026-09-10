@@ -558,7 +558,11 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <label><input type="checkbox" data-session-feedback-pain> Tuve dolor o molestia</label>
           <label>Detalle de dolor <small>Obligatorio si marcas dolor o molestia</small><textarea data-session-feedback-pain-notes maxlength="1000"></textarea></label>
         </div>
-        <button type="button" class="m26-primary-action" data-session-action="finish">Finalizar y guardar</button>
+        <p class="m26-notice">Puedes salir y terminar después. El feedback escrito se conserva en este dispositivo y la sesión no se marcará como completada hasta confirmar el cierre.</p>
+        <div class="m26-session-live-actions">
+          <button type="button" data-session-action="exit-session">Salir y terminar después</button>
+          <button type="button" class="m26-primary-action" data-session-action="finish">Finalizar y guardar</button>
+        </div>
       </div>
     </section>`;
   }

@@ -1,6 +1,8 @@
 export const SESSION_SURFACE_ROWS=Object.freeze([
 ['Selecciona un ejercicio válido antes de añadirlo','Select a valid exercise before adding it','Sélectionnez un exercice valide avant de l’ajouter','Selecione um exercício válido antes de o adicionar'],
 ['Sincronizando el último ejercicio antes de permitir otra alta','Syncing the last exercise before another can be added','Synchronisation du dernier exercice avant d’en autoriser un autre','A sincronizar o último exercício antes de permitir adicionar outro'],
+['Confirmando el cierre de la sesión antes de permitir otro intento','Confirming session closure before allowing another attempt','Confirmation de la clôture de la séance avant d’autoriser une nouvelle tentative','A confirmar o encerramento da sessão antes de permitir outra tentativa'],
+['La sesión ya no está pendiente de cierre','The session is no longer awaiting closure','La séance n’est plus en attente de clôture','A sessão já não está pendente de encerramento'],
 ['Hoy en este ejercicio','Today on this exercise','Aujourd’hui sur cet exercice','Hoje neste exercício'],
 ['Series registradas hoy en este ejercicio','Sets recorded today for this exercise','Séries enregistrées aujourd’hui pour cet exercice','Séries registadas hoje neste exercício'],
 ['Guardado en este dispositivo · pendiente de sincronización.','Saved on this device · pending sync.','Enregistré sur cet appareil · synchronisation en attente.','Guardado neste dispositivo · sincronização pendente.'],
@@ -57,6 +59,8 @@ export const SESSION_SURFACE_ROWS=Object.freeze([
 ['Tu ejecución ya está registrada. Añade el feedback final para completar el seguimiento.','Your execution is already recorded. Add final feedback to complete follow-up.','Votre exécution est déjà enregistrée. Ajoutez le feedback final pour terminer le suivi.','A sua execução já está registada. Adicione o feedback final para concluir o acompanhamento.'],
 ['Cuéntanos cómo te fue','Tell us how it went','Dites-nous comment cela s’est passé','Conte-nos como correu'],
 ['RPE de la sesión','Session RPE','RPE de séance','RPE da sessão'],
+['Puedes salir y terminar después. El feedback escrito se conserva en este dispositivo y la sesión no se marcará como completada hasta confirmar el cierre.','You can exit and finish later. Written feedback is kept on this device and the session will not be marked complete until closure is confirmed.','Vous pouvez quitter et terminer plus tard. Le feedback saisi est conservé sur cet appareil et la séance ne sera pas marquée comme terminée tant que sa clôture ne sera pas confirmée.','Pode sair e terminar mais tarde. O feedback escrito fica guardado neste dispositivo e a sessão não será marcada como concluída até o encerramento ser confirmado.'],
+['Salir y terminar después','Exit and finish later','Quitter et terminer plus tard','Sair e terminar mais tarde'],
 ['Sesión en pausa','Session paused','Séance en pause','Sessão em pausa'],
 ['Tu progreso está conservado. El tiempo activo permanece detenido hasta reanudar.','Your progress is preserved. Active time remains stopped until you resume.','Votre progression est conservée. Le temps actif reste arrêté jusqu’à la reprise.','O seu progresso está preservado. O tempo ativo permanece parado até retomar.'],
 ['Reanudar sesión','Resume session','Reprendre la séance','Retomar sessão'],
