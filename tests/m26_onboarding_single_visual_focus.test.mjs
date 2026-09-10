@@ -1,1 +1,54 @@
-import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport fs from 'node:fs';\n\nconst source=()=>fs.readFileSync('src/m26/onboarding/progressive-onboarding.js','utf8').replace(/\\r\\n/g,'\\n');\n\ntest('guided tour visually de-emphasizes the progressive panel without removing capabilities',()=>{\n  const text=source();\n  const start=text.indexOf('const PROGRESSIVE_ONBOARDING_COMPACT_STYLE_TEXT=');\n  assert.ok(start>=0);\n  const styles=text.slice(start,start+7000);\n\n  assert.ok(styles.includes('.m26-progressive-onboarding{'));\n  assert.ok(styles.includes('opacity:.42'));\n  assert.ok(styles.includes('filter:saturate(.62) brightness(.82)'));\n  assert.ok(styles.includes('.m26-guided-tour{'));\n  assert.ok(styles.includes('background:color-mix('));\n  assert.ok(styles.includes('box-shadow:0 28px 90px'));\n  assert.doesNotMatch(styles,/display\\s*:\\s*none|visibility\\s*:\\s*hidden|pointer-events\\s*:\\s*none/iu);\n});\n\ntest('compact mobile guided tour further reduces background competition without blocking it',()=>{\n  const text=source();\n  const start=text.indexOf('@media (max-width:900px)');\n  assert.ok(start>=0);\n  const mobile=text.slice(start,start+1800);\n\n  assert.ok(mobile.includes('.m26-progressive-onboarding'));\n  assert.ok(mobile.includes('opacity:.28'));\n  assert.ok(mobile.includes('filter:saturate(.5) brightness(.74)'));\n  assert.ok(mobile.includes('.m26-guided-tour'));\n  assert.ok(mobile.includes('max-height:min(58vh,32rem)'));\n  assert.doesNotMatch(mobile,/display\\s*:\\s*none|visibility\\s*:\\s*hidden|pointer-events\\s*:\\s*none/iu);\n});\n\ntest('reduced motion also covers progressive panel focus transition',()=>{\n  const text=source();\n  const start=text.indexOf('@media (prefers-reduced-motion:reduce)');\n  assert.ok(start>=0);\n  const reduced=text.slice(start,start+900);\n  assert.ok(reduced.includes('.m26-progressive-onboarding'));\n  assert.ok(reduced.includes('transition:none'));\n});\n\ntest('guided-tour-open lifecycle remains attribute driven and fail-soft',()=>{\n  const text=source();\n  assert.ok(text.includes("export const PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE='data-m26-guided-tour-open'"));\n  assert.ok(text.includes("if(open)root?.setAttribute?.(PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE,'true');"));\n  assert.ok(text.includes('else root?.removeAttribute?.(PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE);'));\n  assert.ok(text.includes('onOpenChange:(open)=>tourOpenState.set(open)'));\n  assert.ok(text.includes('tourOpenState.clear()'));\n});\n
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const source=()=>fs.readFileSync('src/m26/onboarding/progressive-onboarding.js','utf8').replace(/\\r\
+/g,'\
+');
+
+test('guided tour visually de-emphasizes the progressive panel without removing capabilities',()=>{
+  const text=source();
+  const start=text.indexOf('const PROGRESSIVE_ONBOARDING_COMPACT_STYLE_TEXT=');
+  assert.ok(start>=0);
+  const styles=text.slice(start,start+7000);
+
+  assert.ok(styles.includes('.m26-progressive-onboarding{'));
+  assert.ok(styles.includes('opacity:.42'));
+  assert.ok(styles.includes('filter:saturate(.62) brightness(.82)'));
+  assert.ok(styles.includes('.m26-guided-tour{'));
+  assert.ok(styles.includes('background:color-mix('));
+  assert.ok(styles.includes('box-shadow:0 28px 90px'));
+  assert.doesNotMatch(styles,/display\\s*:\\s*none|visibility\\s*:\\s*hidden|pointer-events\\s*:\\s*none/iu);
+});
+
+test('compact mobile guided tour further reduces background competition without blocking it',()=>{
+  const text=source();
+  const start=text.indexOf('@media (max-width:900px)');
+  assert.ok(start>=0);
+  const mobile=text.slice(start,start+1800);
+
+  assert.ok(mobile.includes('.m26-progressive-onboarding'));
+  assert.ok(mobile.includes('opacity:.28'));
+  assert.ok(mobile.includes('filter:saturate(.5) brightness(.74)'));
+  assert.ok(mobile.includes('.m26-guided-tour'));
+  assert.ok(mobile.includes('max-height:min(58vh,32rem)'));
+  assert.doesNotMatch(mobile,/display\\s*:\\s*none|visibility\\s*:\\s*hidden|pointer-events\\s*:\\s*none/iu);
+});
+
+test('reduced motion also covers progressive panel focus transition',()=>{
+  const text=source();
+  const start=text.indexOf('@media (prefers-reduced-motion:reduce)');
+  assert.ok(start>=0);
+  const reduced=text.slice(start,start+900);
+  assert.ok(reduced.includes('.m26-progressive-onboarding'));
+  assert.ok(reduced.includes('transition:none'));
+});
+
+test('guided-tour-open lifecycle remains attribute driven and fail-soft',()=>{
+  const text=source();
+  assert.ok(text.includes("export const PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE='data-m26-guided-tour-open'"));
+  assert.ok(text.includes("if(open)root?.setAttribute?.(PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE,'true');"));
+  assert.ok(text.includes('else root?.removeAttribute?.(PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE);'));
+  assert.ok(text.includes('onOpenChange:(open)=>tourOpenState.set(open)'));
+  assert.ok(text.includes('tourOpenState.clear()'));
+});
