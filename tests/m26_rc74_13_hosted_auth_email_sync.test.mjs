@@ -50,3 +50,17 @@ test('la publicación remota queda limitada al proyecto PROD y exige confirmaci�
   assert.match(workflow,/SYNC_IBERFIT_AUTH_EMAILS_PROD/u);
   assert.doesNotMatch(workflow,/push:/u);
 });
+
+
+test('la promoción PROD sincroniza y verifica emails antes del cutover de Cloudflare',()=>{
+  const workflow=read('.github/workflows/production-promote.yml');
+  const manifestGate=workflow.indexOf('Validate release manifest and exact source');
+  const emailSync=workflow.indexOf('Sync and verify IBERFIT Hosted Auth emails before cutover');
+  const deploy=workflow.indexOf('Deploy exact certified surface to production with Wrangler');
+  assert.ok(manifestGate>=0&&emailSync>manifestGate&&deploy>emailSync);
+  const block=workflow.slice(emailSync,deploy);
+  assert.match(block,/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/u);
+  assert.match(block,/SUPABASE_PROJECT_REF: \$\{\{ env\.PROD_SUPABASE_REF \}\}/u);
+  assert.match(block,/IBERFIT_AUTH_EMAIL_CONFIRMATION: 'SYNC_IBERFIT_AUTH_EMAILS_PROD'/u);
+  assert.match(block,/node scripts\/auth\/sync-hosted-auth-emails\.mjs --sync/u);
+});
