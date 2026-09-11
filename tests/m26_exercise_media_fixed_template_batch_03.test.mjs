@@ -9,12 +9,16 @@ test('fixed exercise-media template is locked to published 640x800 geometry',()=
   assert.match(compose,/W,H=640,800/);
   assert.match(compose,/im\.size==\(HALF,H\)/);
   assert.match(compose,/HALF=W\/\/2/);
-  assert.match(compose,/ANATOMY_BOX=\(360,0,640,180\)/);
+  assert.match(compose,/ANATOMY_BOX=\(360,8,632,178\)/);
   assert.match(compose,/LABEL_Y=610/);
   assert.match(compose,/label\(draw,'Inicio',HALF\/\/2\)/);
   assert.match(compose,/label\(draw,'Final',HALF\+HALF\/\/2\)/);
   assert.match(compose,/'app_overlay_asset':'\/public\/isotipo-iberfit\.png'/);
   assert.match(compose,/'ai_generated_branding':False/);
+  assert.match(compose,/'renderer':'deterministic-front-back-v1'/);
+  assert.match(compose,/canonical_catalog/);
+  assert.match(compose,/PRIMARY=\(94,196,113\)/);
+  assert.match(compose,/SECONDARY=\(113,157,120\)/);
 });
 
 test('phase generator uses identity + geometry refs without asking AI to invent branding',()=>{
@@ -40,4 +44,14 @@ test('workflow verifies the exact official master and isotype before generation'
     'IBF-PAJAROS-CON-MANCUERNAS',
     'IBF-PULLOVER-CON-MANCUERNA'
   ]) assert.match(wf,new RegExp(id));
+});
+
+
+test('visual QA blocks wrong or unclear muscle targeting and any invented branding',()=>{
+  const qa=read('scripts/exercise-media/qa-fixed-template.mjs');
+  assert.match(qa,/Canonical muscle targets:/);
+  assert.match(qa,/muscle_target_match/);
+  assert.match(qa,/anatomy_clarity/);
+  assert.match(qa,/no_unapproved_branding/);
+  assert.match(qa,/official IBERFIT isotype is applied separately by the app/);
 });
