@@ -122,17 +122,23 @@ test('server-side email assurance cannot degrade into OTP-only privileged access
   assert.doesNotMatch(edge,/console\.log\([^\n]*otpAccessToken/iu);
 });
 
-test('database assurance keeps WebAuthn and adds origin-bound email OTP without client table access',()=>{
-  const sql=fs.readFileSync('supabase/migrations/20260911033000_p0_email_privileged_assurance_v1.sql','utf8');
-  assert.match(sql,/create table if not exists public\.iberfit_email_privileged_assurance_v1/u);
-  assert.match(sql,/otp_session_id uuid primary key/u);
-  assert.match(sql,/origin text not null check/u);
-  assert.match(sql,/enable row level security/u);
-  assert.match(sql,/revoke all on table public\.iberfit_email_privileged_assurance_v1 from public,anon,authenticated/u);
-  assert.match(sql,/iberfit_privileged_assurance_v1/u);
-  assert.match(sql,/v_assurance_method:='webauthn'/u);
-  assert.match(sql,/v_assurance_method:='email_otp'/u);
-  assert.match(sql,/'iberfitAssurance'/u);
+test('database assurance keeps WebAuthn, preserves migration history and hardens OTP proof as one-time',()=>{
+  const v1=fs.readFileSync('supabase/migrations/20260911033000_p0_email_privileged_assurance_v1.sql','utf8');
+  const v2=fs.readFileSync('supabase/migrations/20260911033500_p0_email_assurance_one_time_proof_v2.sql','utf8');
+  assert.match(v1,/create table if not exists public\.iberfit_email_privileged_assurance_v1/u);
+  assert.match(v1,/otp_session_id uuid not null unique/u);
+  assert.match(v1,/primary key \(user_id, session_id\)/u);
+  assert.match(v1,/origin text not null check/u);
+  assert.match(v1,/enable row level security/u);
+  assert.match(v1,/revoke all on table public\.iberfit_email_privileged_assurance_v1 from public,anon,authenticated/u);
+  assert.match(v1,/iberfit_privileged_assurance_v1/u);
+  assert.match(v1,/v_assurance_method:='webauthn'/u);
+  assert.match(v1,/v_assurance_method:='email_otp'/u);
+  assert.match(v1,/'iberfitAssurance'/u);
+  assert.match(v2,/drop constraint if exists iberfit_email_privileged_assurance_v1_pkey/u);
+  assert.match(v2,/drop constraint if exists iberfit_email_privileged_assurance_v1_otp_session_id_key/u);
+  assert.match(v2,/primary key \(otp_session_id\)/u);
+  assert.match(v2,/Each Supabase email OTP session may establish privileged assurance exactly once/u);
 });
 
 test('IBERFIT OTP email is branded, personalized to the associated address and contains code instead of login link',()=>{
