@@ -244,7 +244,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
 
   function authMessage(message='',noticeKind='status'){
@@ -752,6 +752,17 @@ function onAuthClick(event) {
     return;
   }
 
+  if(action==='mfa-send-email-code'||action==='mfa-resend-email-code'){
+    void requestMfaEmailCode().catch((error)=>reportDiagnostic('mfa-email-code-request',error));
+    return;
+  }
+
+  if(action==='mfa-back-device'){
+    authMode=mfaDeviceMode();
+    authMessage();
+    return;
+  }
+
   if(action==='retry-session'){
     void retrySession().catch((error)=>reportDiagnostic('session-retry',error));
     return;
@@ -759,6 +770,9 @@ function onAuthClick(event) {
 
   if(action==='mfa-logout'){
     const token=currentToken();
+    const otpToken=emailOtpSession?.token||null;
+    emailOtpSession=null;
+    if(otpToken)void transport?.logout?.(otpToken).catch(()=>{});
     finishLogout({token});
     return;
   }
@@ -911,6 +925,78 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     loginBusy=false;
     authMessage();
     return false;
+  }
+
+  function mfaDeviceMode(){
+    return mfaState?.kind==='challenge'?'mfa-challenge':'mfa-required';
+  }
+
+  function emailOtpFailureMessage(error){
+    const code=String(error?.message||error||'');
+    if(Number(error?.status||0)===429||/rate.?limit|too many/i.test(code))return 'Por seguridad, espera un momento antes de solicitar otro código.';
+    if(Number(error?.status||0)===403||/PASSWORD_RECENT_REQUIRED/u.test(code))return 'Para usar el código por correo, vuelve a entrar con tu contraseña y solicita un código nuevo.';
+    if(Number(error?.status||0)===400||/otp|token.*invalid|expired/i.test(code))return 'El código no es válido o ha caducado. Solicita uno nuevo.';
+    return 'No fue posible completar la verificación por correo. Puedes reintentarlo o usar la seguridad del dispositivo.';
+  }
+
+  async function requestMfaEmailCode(){
+    if(loginBusy||!session?.token||!mfaState)return false;
+    loginBusy=true;
+    authMessage('Preparando tu código de acceso IBERFIT…');
+    try{
+      await refreshSessionIfNeeded();
+      const user=await transport.authUser(session.token);
+      if(user.id!==session.user.id)throw new Error('M26_MFA_IDENTITY_MISMATCH');
+      await transport.requestEmailOtp(user.email);
+      mfaState=Object.freeze({...mfaState,email:user.email});
+      authMode='mfa-email-code';
+      authMessage('Código enviado. Revisa el correo asociado a tu cuenta.');
+      return true;
+    }catch(error){
+      authMode=mfaDeviceMode();
+      authMessage(emailOtpFailureMessage(error),'error');
+      throw error;
+    }finally{
+      loginBusy=false;
+    }
+  }
+
+  async function verifyMfaEmailCode(otp){
+    if(loginBusy||!session?.token||!mfaState?.email)return false;
+    loginBusy=true;
+    authMode='mfa-email-code';
+    authMessage('Verificando el código y protegiendo tu sesión…');
+    let transientSession=null;
+    try{
+      await refreshSessionIfNeeded();
+      transientSession=await transport.verifyEmailOtp(mfaState.email,otp);
+      emailOtpSession=transientSession;
+      if(transientSession.user.id!==session.user.id)throw new Error('M26_EMAIL_OTP_IDENTITY_MISMATCH');
+      const verified=await transport.finalizeEmailAssurance(session.token,transientSession.token);
+      if(verified.user.id!==session.user.id)throw new Error('M26_EMAIL_ASSURANCE_IDENTITY_MISMATCH');
+      const assurance=await transport.authAssuranceContext(session.token);
+      if(
+        assurance.privileged!==true||
+        assurance.iberfitAssurance!=='verified'
+      )throw new Error('M26_PRIVILEGED_EMAIL_ASSURANCE_REQUIRED');
+
+      mfaState=null;
+      authMode='login';
+      store.reset();
+      qaStage('rc64-login-setup-start');
+      await setupAuthenticated();
+      qaStage('rc64-login-setup-ready');
+      return true;
+    }catch(error){
+      authMode='mfa-email-code';
+      authMessage(emailOtpFailureMessage(error),'error');
+      throw error;
+    }finally{
+      const otpToken=transientSession?.token||emailOtpSession?.token||null;
+      emailOtpSession=null;
+      if(otpToken)void transport?.logout?.(otpToken).catch(()=>{});
+      loginBusy=false;
+    }
   }
 
   async function continueMfaWithWebAuthn(){
@@ -1103,6 +1189,13 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       reportDiagnostic('login', error);
     }
 
+    return;
+  }
+
+  if (formType === 'mfa-email-code') {
+    await verifyMfaEmailCode(
+      data.get('otp')
+    ).catch((error)=>reportDiagnostic('mfa-email-code-verify',error));
     return;
   }
 
