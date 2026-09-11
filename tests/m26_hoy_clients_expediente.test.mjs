@@ -197,6 +197,87 @@ test('Hoy Cliente evita un CTA de Entrenar vacío cuando todavía no hay sesione
   );
 });
 
+test('Sesiones Cliente enlaza el CTA superior a una sesión publicada exacta', () => {
+  const state = ready('client', { activeArea: 'sesion' });
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.equal(vm.startableSession.id, 's1');
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session" data-entity-id="s1"/
+  );
+  assert.doesNotMatch(
+    html,
+    /data-workflow-action="start-published-session" disabled/
+  );
+});
+
+test('Sesiones selecciona explícitamente la publicación con mayor revisión', () => {
+  const base = ready('client');
+  const state = ready('client', {
+    activeArea: 'sesion',
+    collections: {
+      ...base.collections,
+      sessions: [
+        {
+          id: 's-old',
+          clientId: qa,
+          title: 'Sesión anterior',
+          status: 'publicado',
+          visibleToClient: true,
+          revision: 1,
+        },
+        {
+          id: 's-new',
+          clientId: qa,
+          title: 'Sesión Fuerza B',
+          status: 'publicado',
+          visibleToClient: true,
+          revision: 4,
+        },
+      ],
+    },
+  });
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.equal(vm.startableSession.id, 's-new');
+  assert.equal(vm.startableSession.title, 'Sesión Fuerza B');
+  assert.equal(vm.startableSession.publishedCount, 2);
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session" data-entity-id="s-new"/
+  );
+  assert.match(html, /m26-session-start-target">Sesión Fuerza B</);
+});
+
+test('Sesiones deshabilita el CTA superior si no existe publicación arrancable', () => {
+  const base = ready('client');
+  const state = ready('client', {
+    activeArea: 'sesion',
+    collections: {
+      ...base.collections,
+      sessions: [{
+        id: 's-draft',
+        clientId: qa,
+        title: 'Sesión todavía interna',
+        status: 'borrador',
+        visibleToClient: false,
+        revision: 2,
+      }],
+    },
+  });
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.equal(vm.startableSession, null);
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session" disabled aria-disabled="true"/
+  );
+});
+
 test('Clientes abre expediente mediante atributos de datos, no handlers inline', () => {
   const state = ready('coach', { activeArea: 'clientes' });
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
