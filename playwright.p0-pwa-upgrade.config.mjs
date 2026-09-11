@@ -15,9 +15,6 @@ export default defineConfig({
   use:{
     baseURL:'http://127.0.0.1:4186',
     browserName:'chromium',
-    viewport:{width:390,height:844},
-    hasTouch:true,
-    isMobile:true,
     serviceWorkers:'allow',
     trace:'retain-on-failure',
     screenshot:'only-on-failure',
@@ -29,8 +26,35 @@ export default defineConfig({
     reuseExistingServer:!CI,
     timeout:30_000,
   },
-  projects:[{
-    name:'p0-installed-pwa-mobile-chromium',
-    use:{browserName:'chromium'},
-  }],
+  projects:[
+    {
+      name:'p0-installed-pwa-desktop-chromium',
+      use:{
+        browserName:'chromium',
+        viewport:{width:1366,height:900},
+        hasTouch:false,
+        isMobile:false,
+      },
+    },
+    {
+      name:'p0-installed-pwa-tablet-chromium',
+      use:{
+        browserName:'chromium',
+        viewport:{width:820,height:1180},
+        hasTouch:true,
+        isMobile:true,
+        deviceScaleFactor:2,
+      },
+    },
+    {
+      name:'p0-installed-pwa-mobile-chromium',
+      use:{
+        browserName:'chromium',
+        viewport:{width:390,height:844},
+        hasTouch:true,
+        isMobile:true,
+        deviceScaleFactor:3,
+      },
+    },
+  ],
 });

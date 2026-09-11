@@ -4,7 +4,7 @@ const empty=(t,c)=>`<section class="m26-admin-empty"><h3>${e(t)}</h3><p>${e(c)}<
 const stat=(t,v)=>`<article class="m26-admin-stat"><span>${e(t)}</span><strong>${e(v)}</strong></article>`;
 const intro=(k,t,c)=>`<section class="m26-admin-hero"><p class="m26-eyebrow">${e(k)}</p><h2>${e(t)}</h2><p>${e(c)}</p></section>`;
 const rows=(headers,items)=>`<div class="m26-admin-table"><table><thead><tr>${headers.map((h)=>`<th>${e(h)}</th>`).join('')}</tr></thead><tbody>${items.join('')}</tbody></table></div>`;
-function form(kind,fields,button){return `<form data-admin-form="${kind}" class="m26-admin-form">${fields}<button type="submit">${e(button)}</button></form>`;}
+function form(kind,fields,button,{attrs='',submitAttrs=''}={}){return `<form data-admin-form="${kind}" class="m26-admin-form" ${attrs}>${fields}<button type="submit" ${submitAttrs}>${e(button)}</button></form>`;}
 function commandPriority(item){
   const action=item?.action||{};
   return `<article class="m26-admin-priority is-${e(item.kind||'process')}"><div><p class="m26-eyebrow">${e(item.stageLabel||'Seguimiento')}</p><h3>${e(item.clientName||'Cliente')}</h3><p>${e(action.reason||'Revisión pendiente')}</p><small>${e(item.coachNames?.length?`Coach: ${item.coachNames.join(', ')}`:'Sin Coach asignado')}</small></div><button type="button" data-m26-area="${e(action.area||'admin-clientes')}">${e(action.label||'Revisar')}</button></article>`;
@@ -184,8 +184,100 @@ function clientAccessLabel(c){
   if(delivery==='pending')return 'Invitación pendiente';
   return String(access.status||'').toLowerCase()==='invitacion_pendiente'?'Invitación pendiente':'Sin acceso';
 }
+function clientCreateWizardForm(){
+  const steps=`
+    <header class="m26-client-create-wizard-head">
+      <div>
+        <p class="m26-eyebrow">Alta guiada</p>
+        <h4>Crear cliente</h4>
+        <p>Completa el expediente por etapas. Puedes volver atrás y el borrador se conserva de forma temporal durante esta sesión de IBERFIT.</p>
+      </div>
+      <span data-client-draft-status class="m26-client-draft-status">Borrador temporal listo</span>
+    </header>
+    <nav class="m26-client-create-progress" aria-label="Pasos del alta">
+      <span data-client-step-indicator="1" aria-current="step"><b>1</b><em>Datos</em></span>
+      <span data-client-step-indicator="2"><b>2</b><em>Servicio</em></span>
+      <span data-client-step-indicator="3"><b>3</b><em>Objetivos</em></span>
+      <span data-client-step-indicator="4"><b>4</b><em>Contexto</em></span>
+      <span data-client-step-indicator="5"><b>5</b><em>Revisión</em></span>
+    </nav>
+
+    <fieldset class="m26-client-create-step" data-client-step="1">
+      <legend tabindex="-1" data-client-step-title>1 · Datos personales y contacto</legend>
+      <div class="m26-client-create-grid">
+        <label>Nombre completo<input name="name" maxlength="200" required autocomplete="name" placeholder="Nombre y apellidos"></label>
+        <label>Correo de acceso<input type="email" name="email" maxlength="254" required autocomplete="email" placeholder="cliente@correo.com"></label>
+        <label>Teléfono<input name="phone" maxlength="80" required autocomplete="tel" inputmode="tel" placeholder="+56 9 ..."></label>
+        <label>Fecha de nacimiento<input type="date" name="birthDate" autocomplete="bday"></label>
+        <label>Sexo para baremos IRI<select name="sexForNorms"><option value="">Completar después</option><option value="female">Mujer</option><option value="male">Hombre</option></select></label>
+        <label>Canal preferido<select name="preferredContactChannel"><option value="">Sin preferencia</option><option value="whatsapp">WhatsApp</option><option value="email">Correo</option><option value="phone">Teléfono</option></select></label>
+        <label class="m26-client-create-wide">Horario preferido de contacto<input name="preferredContactTime" maxlength="120" placeholder="Ej. tardes, después de las 18:00"></label>
+      </div>
+      <div class="m26-client-create-actions"><span></span><button type="button" class="m26-primary-action" data-client-wizard-next>Continuar</button></div>
+    </fieldset>
+
+    <fieldset class="m26-client-create-step" data-client-step="2" hidden>
+      <legend tabindex="-1" data-client-step-title>2 · Servicio y logística</legend>
+      <div class="m26-client-create-grid">
+        <label>Modalidad<select name="modality" required><option value="">Selecciona</option><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Online">Online</option></select></label>
+        <label>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" required inputmode="numeric" placeholder="2"></label>
+        <label>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" required inputmode="numeric" placeholder="60"></label>
+        <label>Diagnóstico inicial<select name="initialAssessmentMode" required><option value="iri">Realizar Diagnóstico IRI</option><option value="deferred">Posponer IRI</option></select></label>
+        <label>Comuna / zona<input name="zone" maxlength="120" autocomplete="address-level2" placeholder="Las Condes"></label>
+        <label>Dirección de entrenamiento<input name="address" maxlength="300" autocomplete="street-address" placeholder="Dirección o lugar habitual"></label>
+        <label class="m26-client-create-wide">Disponibilidad / horario<input name="preferredSchedule" maxlength="240" placeholder="Ej. lunes y jueves 19:00–21:00"></label>
+        <label>Tipo de lugar<input name="locationType" maxlength="80" placeholder="Domicilio, gimnasio, exterior…"></label>
+        <label class="m26-client-create-wide">Indicaciones de acceso<textarea name="accessInstructions" maxlength="500" placeholder="Conserjería, estacionamiento, acceso, etc."></textarea></label>
+      </div>
+      <div class="m26-client-create-actions"><button type="button" data-client-wizard-prev>Volver</button><button type="button" class="m26-primary-action" data-client-wizard-next>Continuar</button></div>
+    </fieldset>
+
+    <fieldset class="m26-client-create-step" data-client-step="3" hidden>
+      <legend tabindex="-1" data-client-step-title>3 · Objetivos y experiencia</legend>
+      <div class="m26-client-create-grid">
+        <label class="m26-client-create-wide">Objetivo principal<textarea name="objective" maxlength="1000" required placeholder="Qué quiere conseguir y por qué es importante"></textarea></label>
+        <label class="m26-client-create-wide">Objetivos secundarios<textarea name="secondaryObjectives" maxlength="1000" placeholder="Separados por coma o una línea por objetivo"></textarea></label>
+        <label>Nivel / experiencia<input name="level" maxlength="100" placeholder="Principiante, intermedio…"></label>
+        <label class="m26-client-create-wide">Historial de entrenamiento<textarea name="history" maxlength="1500" placeholder="Experiencia previa, deportes, periodos de inactividad…"></textarea></label>
+        <label class="m26-client-create-wide">Entrenamiento actual<textarea name="currentTraining" maxlength="1000" placeholder="Qué está haciendo actualmente"></textarea></label>
+      </div>
+      <div class="m26-client-create-actions"><button type="button" data-client-wizard-prev>Volver</button><button type="button" class="m26-primary-action" data-client-wizard-next>Continuar</button></div>
+    </fieldset>
+
+    <fieldset class="m26-client-create-step" data-client-step="4" hidden>
+      <legend tabindex="-1" data-client-step-title>4 · Contexto para entrenar mejor</legend>
+      <div class="m26-client-create-grid">
+        <label class="m26-client-create-wide">Restricciones relevantes<textarea name="restrictions" maxlength="1000" placeholder="Limitaciones o indicaciones relevantes para el entrenamiento"></textarea></label>
+        <label class="m26-client-create-wide">Dolor o molestias actuales<textarea name="pain" maxlength="1000" placeholder="Localización, situación y aquello que deba conocer el Coach"></textarea></label>
+        <label class="m26-client-create-wide">Material disponible<textarea name="equipment" maxlength="1200" placeholder="Mancuernas, TRX, bandas, gimnasio, sin material…"></textarea></label>
+        <label class="m26-client-create-wide">Preferencias<textarea name="preferences" maxlength="1200" placeholder="Preferencias, ejercicios que disfruta, contexto útil para adherencia"></textarea></label>
+        <label>Contacto de emergencia<input name="emergencyContactName" maxlength="160" autocomplete="off" placeholder="Nombre"></label>
+        <label>Relación<input name="emergencyContactRelation" maxlength="120" placeholder="Pareja, familiar…"></label>
+        <label>Teléfono de emergencia<input name="emergencyContactPhone" maxlength="80" inputmode="tel" placeholder="+56 9 ..."></label>
+      </div>
+      <div class="m26-client-create-actions"><button type="button" data-client-wizard-prev>Volver</button><button type="button" class="m26-primary-action" data-client-wizard-next>Revisar alta</button></div>
+    </fieldset>
+
+    <fieldset class="m26-client-create-step" data-client-step="5" hidden>
+      <legend tabindex="-1" data-client-step-title>5 · Revisión antes de crear</legend>
+      <p class="m26-client-review-lead">Comprueba lo esencial. Puedes volver a cualquier paso sin perder lo escrito.</p>
+      <div class="m26-client-create-review">
+        <button type="button" data-client-wizard-jump="1"><span>Cliente</span><strong data-client-review="identity">Sin completar</strong><small>Editar datos</small></button>
+        <button type="button" data-client-wizard-jump="2"><span>Servicio</span><strong data-client-review="service">Sin completar</strong><small>Editar servicio</small></button>
+        <button type="button" data-client-wizard-jump="3"><span>Objetivo</span><strong data-client-review="objective">Sin completar</strong><small>Editar objetivos</small></button>
+        <button type="button" data-client-wizard-jump="4"><span>Contexto</span><strong data-client-review="safety">Sin completar</strong><small>Editar contexto</small></button>
+      </div>
+      <div class="m26-admin-notice"><strong>Qué ocurrirá al confirmar</strong><p>IBERFIT creará el expediente, conservará estos datos en el perfil del cliente y preparará su invitación segura de acceso.</p></div>
+      <div class="m26-client-create-actions"><button type="button" data-client-wizard-prev>Volver</button><button type="button" data-client-wizard-discard>Descartar borrador</button></div>
+    </fieldset>
+  `;
+  return form('client-create',steps,'Crear cliente y enviar invitación',{
+    attrs:'data-client-create-wizard data-client-current-step="1" autocomplete="on"',
+    submitAttrs:'class="m26-primary-action" data-client-create-submit'
+  });
+}
 function renderClients(vm){
-  const create=vm.canManage?form('client-create',`<input name="name" maxlength="200" required placeholder="Nombre completo"><input type="email" name="email" maxlength="254" required autocomplete="email" placeholder="Correo"><input name="phone" maxlength="80" autocomplete="tel" placeholder="Teléfono"><select name="modality" required><option value="">Modalidad</option><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Online">Online</option></select><textarea name="objective" maxlength="1000" required placeholder="Objetivo principal"></textarea><input name="frequency" maxlength="100" required placeholder="Frecuencia prevista, p. ej. 2 sesiones por semana"><input name="zone" maxlength="120" placeholder="Comuna / zona"><input name="address" maxlength="300" placeholder="Dirección de entrenamiento"><input name="level" maxlength="100" placeholder="Nivel / experiencia"><textarea name="history" maxlength="1500" placeholder="Historial de entrenamiento"></textarea><textarea name="restrictions" maxlength="1000" placeholder="Restricciones relevantes"></textarea><textarea name="pain" maxlength="1000" placeholder="Dolor actual relevante"></textarea><textarea name="equipment" maxlength="1200" placeholder="Material disponible"></textarea><textarea name="preferences" maxlength="1200" placeholder="Preferencias"></textarea>`,'Crear cliente y enviar invitación'):'';
+  const create=vm.canManage?clientCreateWizardForm():'';
   const lead=vm.canManage?form('lead-create',`<input name="name" maxlength="200" required placeholder="Nombre"><input type="email" name="email" maxlength="254" placeholder="Correo"><input name="phone" maxlength="80" placeholder="Teléfono"><input name="source" maxlength="120" placeholder="Origen"><textarea name="objective" maxlength="1000" placeholder="Objetivo"></textarea>`,'Registrar lead'):'';
   const leadTable=rows(['Lead','Origen','Estado','Gestión'],vm.leads.map((l)=>`<tr><td><strong>${e(l.name)}</strong><small>${e(l.email||l.phone||'')}</small></td><td>${e(l.source||'')}</td><td>${badge(l.status)}</td><td>${vm.canManage?form('lead-update',`<input type="hidden" name="leadId" value="${e(l.id)}"><input type="hidden" name="baseRevision" value="${e(l.revision||0)}"><select name="status"><option value="new">Nuevo</option><option value="contacted">Contactado</option><option value="qualified">Cualificado</option><option value="evaluation">Evaluación</option><option value="won">Ganado</option><option value="lost">Perdido</option></select><input type="datetime-local" name="nextActionAt"><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar'):'—'}</td></tr>`));
   const clients=rows(['Cliente','Ciclo','Acceso','Coach','Gestión'],vm.clients.map((c)=>`<tr><td><strong>${e(c.name)}</strong><small>${e(c.email||c.id)}</small></td><td>${badge(c.lifecycle?.status||c.status)}</td><td>${badge(clientAccessLabel(c))}</td><td>${e(c.coachNames?.join(', ')||'Sin coach')}</td><td>${vm.canManage?`${form('client-lifecycle',`<input type="hidden" name="clientId" value="${e(c.id)}"><select name="status"><option value="onboarding">Onboarding</option><option value="active">Activo</option><option value="paused">Pausa</option><option value="inactive">Baja</option><option value="reactivation">Reactivación</option></select><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar')}${clientDelete(c)}`:'—'}</td></tr>`));

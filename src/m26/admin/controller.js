@@ -1,3 +1,4 @@
+import {createClientCreateWizard} from './client-create-wizard.js';
 const toast=(message)=>{try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}catch{}};
 const text=(data,key,max=4000)=>String(data.get(key)||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);
 const rev=(data)=>{const n=Number(data.get('baseRevision')||0);return Number.isInteger(n)&&n>=0?n:0;};
@@ -62,6 +63,10 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_ADMIN_CONTROLLER_CONTEXT_REQUIRED');
   const pendingLocks=new Set();
   const submitLabels=new WeakMap();
+  const clientWizard=createClientCreateWizard({
+    root,
+    getScopeKey:()=>String(store.getState().admin?.organization?.id||'default'),
+  });
   function setFormPending(form,pending){
     if(!form)return;
     const button=form.querySelector?.('button[type="submit"]');
@@ -95,7 +100,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       }
     }
   }
-  async function execute(input,success,{form,lockKey}={}){
+  async function execute(input,success,{form,lockKey,onSuccess}={}){
     const key=String(lockKey||input?.entityId||input?.type||'operation');
     if(pendingLocks.has(key)){
       toast('Ese registro ya tiene un cambio en curso.');
@@ -107,6 +112,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     const filters=userDirectoryFilterState(root);
     try{
       const result=await service.execute(input);
+      try{onSuccess?.(result);}catch{}
       const successMessage=typeof success==='function'?success(result):success;
       const initialMessage=result?.refreshPending===true
         ?`${successMessage} Actualizando la vista…`
@@ -127,6 +133,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         render();
         applyUserDirectoryFilters(root,filters);
         syncPendingUserForms();
+        clientWizard.sync();
       }
       return true;
     }catch(error){
@@ -146,14 +153,88 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     const data=new FormData(form);
     const org=store.getState().admin?.organization?.id;
     const lockKey=adminOperationLockKey(kind,data);
-    const run=(input,success)=>execute(input,success,{form,lockKey});
+    const run=(input,success,options={})=>execute(input,success,{form,lockKey,...options});
     if(kind==='user-status')return run({type:'ADMIN_USUARIO_CAMBIAR_ESTADO',entityId:text(data,'userId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{userId:text(data,'userId',200),status:text(data,'status',40)}},'Estado actualizado.');
     if(kind==='role-change'){const action=text(data,'action',20);return run({type:action==='revoke'?'ADMIN_ROL_REVOCAR':'ADMIN_ROL_OTORGAR',entityId:text(data,'userId',200),organizationId:org,reason:text(data,'reason',500),payload:{userId:text(data,'userId',200),role:text(data,'role',30)}},action==='revoke'?'Aplicación revocada.':'Aplicación autorizada.');}
     if(kind==='assignment-create')return run({type:'ADMIN_ASIGNACION_CREAR',entityId:org,organizationId:org,reason:text(data,'reason',500),payload:{coachUserId:text(data,'coachUserId',200),clientId:text(data,'clientId',200),startsAt:text(data,'startsAt',40)}},'Asignación creada.');
     if(kind==='assignment-end')return run({type:'ADMIN_ASIGNACION_FINALIZAR',entityId:text(data,'assignmentId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{assignmentId:text(data,'assignmentId',200)}},'Asignación finalizada.');
     if(kind==='lead-create')return run({type:'ADMIN_LEAD_CREAR',entityId:org,organizationId:org,payload:{name:text(data,'name',200),email:text(data,'email',254),phone:text(data,'phone',80),source:text(data,'source',120),objective:text(data,'objective',1000)}},'Lead registrado.');
     if(kind==='lead-update')return run({type:'ADMIN_LEAD_ACTUALIZAR',entityId:text(data,'leadId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{leadId:text(data,'leadId',200),status:text(data,'status',40),nextActionAt:text(data,'nextActionAt',80)}},'Lead actualizado.');
-    if(kind==='client-create')return run({type:'ADMIN_CLIENTE_CREAR',entityId:org,organizationId:org,payload:{name:text(data,'name',200),email:text(data,'email',254),phone:text(data,'phone',80),modality:text(data,'modality',40),objective:text(data,'objective',1000),frequency:text(data,'frequency',100),zone:text(data,'zone',120),address:text(data,'address',300),level:text(data,'level',100),history:text(data,'history',1500),restrictions:text(data,'restrictions',1000),pain:text(data,'pain',1000),equipment:text(data,'equipment',1200),preferences:text(data,'preferences',1200),profile:{email:text(data,'email',254),phone:text(data,'phone',80),timezone:'America/Santiago'}}},invitationSuccess);
+    if(kind==='client-create'){
+      if(!clientWizard.validateForSubmit(form))return false;
+      const weeklyFrequency=text(data,'weeklyFrequency',20);
+      const frequency=text(data,'frequency',100)||(weeklyFrequency?`${weeklyFrequency} sesiones por semana`:'');
+      const profile={
+        initialAssessmentMode:text(data,'initialAssessmentMode',30)||'iri',
+        birthDate:text(data,'birthDate',20),
+        sexForNorms:text(data,'sexForNorms',20),
+        email:text(data,'email',254),
+        phone:text(data,'phone',80),
+        preferredContactChannel:text(data,'preferredContactChannel',80),
+        preferredContactTime:text(data,'preferredContactTime',120),
+        timezone:'America/Santiago',
+        modality:text(data,'modality',40),
+        weeklyFrequency:Number(weeklyFrequency)||null,
+        sessionDurationMinutes:Number(text(data,'sessionDurationMinutes',20))||null,
+        preferredSchedule:text(data,'preferredSchedule',240),
+        commune:text(data,'zone',120),
+        trainingAddress:text(data,'address',300),
+        locationType:text(data,'locationType',80),
+        accessInstructions:text(data,'accessInstructions',500),
+        primaryObjective:text(data,'objective',1000),
+        secondaryObjectives:text(data,'secondaryObjectives',1000),
+        experienceLevel:text(data,'level',100),
+        trainingHistory:text(data,'history',1500),
+        currentTraining:text(data,'currentTraining',1000),
+        restrictions:text(data,'restrictions',1000),
+        pain:text(data,'pain',1000),
+        equipment:text(data,'equipment',1200),
+        preferences:text(data,'preferences',1200),
+        emergencyContactName:text(data,'emergencyContactName',160),
+        emergencyContactRelation:text(data,'emergencyContactRelation',120),
+        emergencyContactPhone:text(data,'emergencyContactPhone',80),
+      };
+      return run({
+        type:'ADMIN_CLIENTE_CREAR',
+        entityId:org,
+        organizationId:org,
+        payload:{
+          name:text(data,'name',200),
+          email:text(data,'email',254),
+          phone:text(data,'phone',80),
+          birthDate:profile.birthDate,
+          sexForNorms:profile.sexForNorms,
+          initialAssessmentMode:profile.initialAssessmentMode,
+          modality:profile.modality,
+          weeklyFrequency:profile.weeklyFrequency,
+          sessionDurationMinutes:profile.sessionDurationMinutes,
+          preferredSchedule:profile.preferredSchedule,
+          objective:profile.primaryObjective,
+          primaryObjective:profile.primaryObjective,
+          secondaryObjectives:profile.secondaryObjectives,
+          frequency,
+          zone:profile.commune,
+          commune:profile.commune,
+          address:profile.trainingAddress,
+          trainingAddress:profile.trainingAddress,
+          locationType:profile.locationType,
+          accessInstructions:profile.accessInstructions,
+          preferredContactChannel:profile.preferredContactChannel,
+          preferredContactTime:profile.preferredContactTime,
+          level:profile.experienceLevel,
+          history:profile.trainingHistory,
+          currentTraining:profile.currentTraining,
+          restrictions:profile.restrictions,
+          pain:profile.pain,
+          equipment:profile.equipment,
+          preferences:profile.preferences,
+          emergencyContactName:profile.emergencyContactName,
+          emergencyContactRelation:profile.emergencyContactRelation,
+          emergencyContactPhone:profile.emergencyContactPhone,
+          profile,
+        },
+      },invitationSuccess,{onSuccess:()=>clientWizard.clear()});
+    }
     if(kind==='client-lifecycle')return run({type:'ADMIN_CLIENTE_CAMBIAR_CICLO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),status:text(data,'status',40)}},'Ciclo actualizado.');
     if(kind==='client-delete'){
       const clientId=text(data,'clientId',200);
@@ -182,9 +263,11 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       root.addEventListener('submit',onSubmitEvent);
       root.addEventListener('input',onDirectoryFilter);
       root.addEventListener('change',onDirectoryFilter);
+      clientWizard.mount();
       applyUserDirectoryFilters(root);
     },
     destroy(){
+      clientWizard.destroy();
       root.removeEventListener('submit',onSubmitEvent);
       root.removeEventListener('input',onDirectoryFilter);
       root.removeEventListener('change',onDirectoryFilter);
