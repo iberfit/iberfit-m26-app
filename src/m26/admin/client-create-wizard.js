@@ -46,7 +46,8 @@ function firstInvalid(form,step){
 function labelFor(form,name,fallback='Sin completar'){
   const control=form?.elements?.namedItem?.(name);
   if(!control)return fallback;
-  if(control instanceof RadioNodeList){
+  const RadioList=globalThis.RadioNodeList;
+  if(typeof RadioList==='function'&&control instanceof RadioList){
     const value=String(control.value||'').trim();
     return value||fallback;
   }
