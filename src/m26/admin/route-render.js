@@ -190,9 +190,9 @@ function clientCreateWizardForm(){
       <div>
         <p class="m26-eyebrow">Alta guiada</p>
         <h4>Crear cliente</h4>
-        <p>Completa el expediente por etapas. Puedes volver atrás y el borrador se guarda automáticamente.</p>
+        <p>Completa el expediente por etapas. Puedes volver atrás y el borrador se conserva de forma temporal durante esta sesión de IBERFIT.</p>
       </div>
-      <span data-client-draft-status class="m26-client-draft-status">Borrador listo</span>
+      <span data-client-draft-status class="m26-client-draft-status">Borrador temporal listo</span>
     </header>
     <nav class="m26-client-create-progress" aria-label="Pasos del alta">
       <span data-client-step-indicator="1" aria-current="step"><b>1</b><em>Datos</em></span>
