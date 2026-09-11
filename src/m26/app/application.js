@@ -57,6 +57,7 @@ import {
   resolveIriExternalReportIntent,
 } from '../workflows/iri-external-report-controller.js';
 
+export const EMAIL_OTP_DEPLOYMENT_READY=false;
 const SESSION_DRAFT_SCOPE='session-builder';
 function qaStage(stage){
   const value=String(stage||'');
@@ -920,6 +921,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       kind:decision.kind,
       factorId:decision.factorId||null,
       privilegedRole:assurance.privilegedRole||null,
+      emailOtpAvailable:EMAIL_OTP_DEPLOYMENT_READY&&assurance.emailOtpAvailable===true,
     });
     authMode=decision.kind==='challenge'?'mfa-challenge':'mfa-required';
     loginBusy=false;
@@ -940,6 +942,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   }
 
   async function requestMfaEmailCode(){
+    if(mfaState?.emailOtpAvailable!==true)throw new Error('M26_EMAIL_OTP_CHANNEL_NOT_READY');
     if(loginBusy||!session?.token||!mfaState)return false;
     loginBusy=true;
     authMessage('Preparando tu código de acceso IBERFIT…');
