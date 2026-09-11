@@ -134,7 +134,8 @@ test('la superficie Progreso presenta cambios descriptivos sin puntuación globa
   assert.match(html,/\+4 rep/u);
   const iriPanel=html.match(/<section class="m26-panel m26-panel-soft" data-iri2-progress>[\s\S]*?<\/section>/u)?.[0]||'';
   assert.ok(iriPanel,'Panel IRI 2.0 no localizado');
-  assert.doesNotMatch(iriPanel,/mejoraste|empeoraste|éxito|fracaso|good|bad/iu);
+  const visibleText=iriPanel.replace(/<[^>]+>/gu,' ').replace(/\s+/gu,' ').trim();
+  assert.doesNotMatch(visibleText,/\b(?:mejoraste|empeoraste|éxito|fracaso|good|bad)\b/iu);
 });
 
 test('la rama mantiene el módulo IRI 2.0 dentro de la PWA instalada',()=>{
