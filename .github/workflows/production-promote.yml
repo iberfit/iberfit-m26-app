@@ -86,12 +86,39 @@ jobs:
             tests/m26_rc40_admin_complete.test.mjs \
             tests/m26_rc71_2_preferences_i18n.test.mjs
 
-      - name: Verify QA leaked-password protection before production
+      - name: Assess or enable QA leaked-password protection before production
+        id: qa-hibp
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           IBERFIT_AUTH_SECURITY_TARGET: qa
-          IBERFIT_AUTH_SECURITY_EVIDENCE_PATH: recovery/hosted-auth-security/production-qa-verify.json
-        run: node scripts/auth/sync-hosted-auth-security.mjs --verify --target qa
+          IBERFIT_AUTH_SECURITY_CONFIRMATION: ENABLE_IBERFIT_HIBP_QA
+          IBERFIT_AUTH_SECURITY_STATE_PATH: recovery/hosted-auth-security/production-qa-before.json
+          IBERFIT_AUTH_SECURITY_EVIDENCE_PATH: recovery/hosted-auth-security/production-qa-assess.json
+        run: node scripts/auth/sync-hosted-auth-security.mjs --enable --target qa
+
+      - name: Validate QA authenticated access after password-security assessment
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node scripts/remote-gates/run_authenticated_readonly_gate.mjs
+
+      - name: Roll back QA HIBP on production-gate compatibility failure
+        if: ${{ failure() && steps.qa-hibp.outputs.changed == 'true' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          IBERFIT_AUTH_SECURITY_TARGET: qa
+          IBERFIT_AUTH_SECURITY_ROLLBACK_CONFIRMATION: ROLLBACK_IBERFIT_HIBP_QA
+          IBERFIT_AUTH_SECURITY_STATE_PATH: recovery/hosted-auth-security/production-qa-before.json
+          IBERFIT_AUTH_SECURITY_EVIDENCE_PATH: recovery/hosted-auth-security/production-qa-rollback.json
+        run: node scripts/auth/sync-hosted-auth-security.mjs --restore-qa --target qa
 
       - name: Build canonical current surface
         run: node qa/rc64/build-current-surface.mjs
@@ -211,7 +238,7 @@ jobs:
           IBERFIT_AUTH_EMAIL_CONFIRMATION: 'SYNC_IBERFIT_AUTH_EMAILS_PROD'
         run: node scripts/auth/sync-hosted-auth-emails.mjs --sync
 
-      - name: Enable and verify leaked-password protection in PROD
+      - name: Assess or enable leaked-password protection in PROD
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           IBERFIT_AUTH_SECURITY_TARGET: prod
