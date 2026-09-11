@@ -253,6 +253,7 @@
     "quality:rc64:visual": "node qa/rc64/build-current-surface.mjs && playwright test --config playwright.visual.config.mjs",
     "quality:rc64:visual:update": "node qa/rc64/build-current-surface.mjs && playwright test --config playwright.visual.config.mjs --update-snapshots",
     "quality:rc64:auth-smoke": "node qa/rc64/build-authenticated-surface.mjs && playwright test --config playwright.authenticated.config.mjs",
+    "quality:p0:auth-no-freeze": "node qa/rc64/build-auth-no-freeze-surface.mjs && playwright test --config playwright.auth-no-freeze.config.mjs",
     "quality:p0:pwa-upgrade": "playwright test --config playwright.p0-pwa-upgrade.config.mjs"
   },
   "devDependencies": {

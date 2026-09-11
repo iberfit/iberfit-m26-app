@@ -105,6 +105,7 @@ const ACCESS_COPY=[
   'Reconectando tu sesión…',
   'Restaurando tu sesión segura…',
   'Confirmando identidad y permisos…',
+  'El acceso está tardando más de lo esperado. Puedes volver a intentarlo sin recargar la aplicación.',
   'Entrenamiento personal premium',
   'Un sistema claro para entrenar, medir y progresar.',
   'IBERFIT une diagnóstico, planificación, control de carga y seguimiento en una experiencia continua, dentro y fuera de cada sesión.',
@@ -138,5 +139,12 @@ test('English access copy uses natural product wording instead of mixed-language
   assert.equal(
     iberfitSurfaceTranslate('Un sistema claro para entrenar, medir y progresar.',{language:'en'}),
     'A clear system to train, measure and progress.',
+  );
+  assert.equal(
+    iberfitSurfaceTranslate(
+      'El acceso está tardando más de lo esperado. Puedes volver a intentarlo sin recargar la aplicación. Código: M26_AUTH_UI_TIMEOUT.',
+      {language:'en'},
+    ),
+    'Access is taking longer than expected. You can try again without reloading the app. Code: M26_AUTH_UI_TIMEOUT.',
   );
 });

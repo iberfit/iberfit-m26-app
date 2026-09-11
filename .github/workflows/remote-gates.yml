@@ -116,6 +116,9 @@ jobs:
           M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
         run: npm run quality:rc64:auth-smoke
 
+      - name: Reproducir P0 login colgado y certificar recuperación sin freeze
+        run: npm run quality:p0:auth-no-freeze
+
       - name: Conservar evidencia autenticada minimizada RC64.2B
         if: always()
         uses: actions/upload-artifact@v4
