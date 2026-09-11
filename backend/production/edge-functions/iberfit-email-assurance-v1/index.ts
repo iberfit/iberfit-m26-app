@@ -147,7 +147,7 @@ Deno.serve(async(req)=>{
     const expiresAt=new Date(now.getTime()+ASSURANCE_TTL_MS).toISOString();
     const {error:storeError}=await admin
       .from('iberfit_email_privileged_assurance_v1')
-      .upsert({
+      .insert({
         user_id:primaryUser.id,
         session_id:primarySessionId,
         otp_session_id:otpSessionId,
@@ -155,7 +155,7 @@ Deno.serve(async(req)=>{
         verified_at:now.toISOString(),
         expires_at:expiresAt,
         revoked_at:null,
-      },{onConflict:'user_id,session_id'});
+      });
     if(storeError){
       if(String(storeError.code||'')==='23505')return fail(409,'M26_EMAIL_ASSURANCE_OTP_ALREADY_USED',origin);
       throw new Error('M26_EMAIL_ASSURANCE_STORE_FAILED');
