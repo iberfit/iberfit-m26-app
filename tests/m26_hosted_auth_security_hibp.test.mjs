@@ -82,6 +82,14 @@ test('production promotion assesses QA and PROD before Cloudflare cutover',()=>{
   assert.match(workflow,/recovery\/hosted-auth-security\//u);
 });
 
+test('QA authenticated workflows share one non-cancelling concurrency queue',()=>{
+  const auth=read('.github/workflows/hosted-auth-security-hardening.yml');
+  const remote=read('.github/workflows/remote-gates.yml');
+  for(const workflow of [auth,remote]){
+    assert.match(workflow,/concurrency:\n\s+group: iberfit-qa-authenticated-gates\n\s+cancel-in-progress: false/u);
+  }
+});
+
 test('management token cannot be printed or embedded in evidence',()=>{
   const source=read('scripts/auth/sync-hosted-auth-security.mjs');
   assert.doesNotMatch(source,/console\.log\([^\n]*token/iu);
