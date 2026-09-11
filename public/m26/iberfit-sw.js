@@ -10,16 +10,21 @@ function isIberfitRootNavigation(request,url){
 }
 
 async function rootNavigationResponse(request){
+  const cache=await caches.open(SHELL);
   try{
-    const response=await fetch(request,{
-      credentials:'same-origin',
-      redirect:'error',
-    });
+    const response=await fetchWithDeadline(
+      request,
+      {
+        credentials:'same-origin',
+        redirect:'error',
+      },
+      NETWORK_TIMEOUT_MS,
+    );
     if(response?.ok)return response;
   }catch{}
 
-  return await caches.match('/m26/index.html')||
-    await caches.match('/m26/offline.html')||
+  return await cache.match('/m26/index.html')||
+    await cache.match('/m26/offline.html')||
     Response.error();
 }
 

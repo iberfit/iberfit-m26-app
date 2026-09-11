@@ -9,10 +9,14 @@ if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
 let fullAppPromise=null;
 
 const BOOTSTRAP_UPDATE_RELOAD_KEY='m26:bootstrap-update-reload-v1';
+const BOOTSTRAP_AUTO_REPAIR_PREFIX='m26:bootstrap-auto-repair-v1:';
+const BOOTSTRAP_PHASE_TIMEOUTS=Object.freeze({module:8000,create:4000,mount:18000,enhancement:5000,repair:5000});
 const IBERFIT_SHELL_CACHE_PREFIX='iberfit-m26-';
 const IBERFIT_CANONICAL_SW='/m26/iberfit-sw.js';
 let bootstrapRecoveryMounted=false;
 let bootstrapWatchdogTimer=null;
+let bootstrapAutoRepairTimer=null;
+let bootstrapPhase='initial';
 
 function safeBootstrapIncident(error){
   const value=String(error?.message||error||'M26_BOOTSTRAP_FAILED')
@@ -23,6 +27,27 @@ function safeBootstrapIncident(error){
 
 function clearBootstrapReloadGuard(){
   try{globalThis.sessionStorage?.removeItem?.(BOOTSTRAP_UPDATE_RELOAD_KEY);}catch{}
+}
+function bootstrapAutoRepairKey(){
+  const version=String(runtime?.version||'unknown').replace(/[^A-Za-z0-9._:-]/g,'_').slice(0,96)||'unknown';
+  return `${BOOTSTRAP_AUTO_REPAIR_PREFIX}${version}`;
+}
+function clearBootstrapAutoRepairGuard(){
+  try{globalThis.sessionStorage?.removeItem?.(bootstrapAutoRepairKey());}catch{}
+}
+function bootstrapDeadline(promise,timeoutMs,code){
+  let timer=null;
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_,reject)=>{
+      timer=globalThis.setTimeout?.(
+        ()=>reject(new Error(`${code}:${bootstrapPhase}`)),
+        Math.max(1000,Number(timeoutMs)||5000),
+      )??null;
+    }),
+  ]).finally(()=>{
+    if(timer!==null)globalThis.clearTimeout?.(timer);
+  });
 }
 
 function controllerReloadOnce(){
@@ -116,7 +141,30 @@ function clearBootstrapWatchdog(){
     globalThis.clearTimeout?.(bootstrapWatchdogTimer);
     bootstrapWatchdogTimer=null;
   }
+  if(bootstrapAutoRepairTimer!==null){
+    globalThis.clearTimeout?.(bootstrapAutoRepairTimer);
+    bootstrapAutoRepairTimer=null;
+  }
   root.querySelector?.('[data-bootstrap-slow-recovery]')?.remove?.();
+}
+
+async function autoRepairBootstrapOnce(){
+  if(globalThis.__IBERFIT_M26_APP__||bootstrapRecoveryMounted)return false;
+  const key=bootstrapAutoRepairKey();
+  try{
+    if(globalThis.sessionStorage?.getItem?.(key)==='1')return false;
+    globalThis.sessionStorage?.setItem?.(key,'1');
+  }catch{}
+  try{
+    bootstrapPhase='repair';
+    await bootstrapDeadline(
+      repairInstalledAppShell(),
+      BOOTSTRAP_PHASE_TIMEOUTS.repair,
+      'M26_BOOTSTRAP_AUTO_REPAIR_TIMEOUT',
+    );
+  }catch{}
+  globalThis.location?.reload?.();
+  return true;
 }
 
 function startBootstrapWatchdog(){
@@ -129,9 +177,13 @@ function startBootstrapWatchdog(){
     const notice=document.createElement('div');
     notice.className='m26-notice is-warning';
     notice.setAttribute('data-bootstrap-slow-recovery','');
-    notice.innerHTML='<strong>La carga está tardando más de lo normal.</strong><p>Puedes reparar los archivos temporales sin desinstalar IBERFIT ni borrar tus datos.</p><button type="button" class="m26-auth-link" data-bootstrap-action="repair">Reparar y recargar</button>';
+    notice.innerHTML='<strong>La carga está tardando más de lo normal.</strong><p>IBERFIT intentará reparar automáticamente los archivos temporales si el arranque no termina. Tu cuenta, sesión y borradores se conservan.</p><button type="button" class="m26-auth-link" data-bootstrap-action="repair">Reparar ahora y recargar</button>';
     card.append(notice);
   },8000)??null;
+  bootstrapAutoRepairTimer=globalThis.setTimeout?.(()=>{
+    bootstrapAutoRepairTimer=null;
+    void autoRepairBootstrapOnce();
+  },12000)??null;
 }
 
 function renderBootstrapRecovery(error){
@@ -146,6 +198,7 @@ async function retryFullApplicationFromRecovery(){
   try{
     const app=await loadFullApplication();
     clearBootstrapReloadGuard();
+    clearBootstrapAutoRepairGuard();
     root.removeEventListener('click',onBootstrapRecoveryClick);
     return Boolean(app);
   }catch(error){
@@ -643,26 +696,54 @@ async function loadFullApplication(){
   if(fullAppPromise)return fullAppPromise;
 
   fullAppPromise=(async()=>{
+    bootstrapPhase='styles';
     ensureAdaptiveLayoutStyle();
     ensureSignatureUxV2Style();
     await activateFullStyles();
-    const {createM26Application}=await import('/src/m26/app/application.js');
-    const app=await createM26Application();
-    await app.mount();
-    try{
-      globalThis.__IBERFIT_M26_SESSION_VALUE_LOOP__?.destroy?.();
-      globalThis.__IBERFIT_M26_SESSION_VALUE_LOOP__=await installSessionValueLoop({
-        root,
-        getState:()=>app.getState(),
-      });
-    }catch{
-      globalThis.__IBERFIT_M26_SESSION_VALUE_LOOP__=null;
-    }
+
+    bootstrapPhase='module';
+    const {createM26Application}=await bootstrapDeadline(
+      import('/src/m26/app/application.js'),
+      BOOTSTRAP_PHASE_TIMEOUTS.module,
+      'M26_BOOTSTRAP_MODULE_TIMEOUT',
+    );
+
+    bootstrapPhase='create';
+    const app=await bootstrapDeadline(
+      createM26Application(),
+      BOOTSTRAP_PHASE_TIMEOUTS.create,
+      'M26_BOOTSTRAP_CREATE_TIMEOUT',
+    );
+
+    bootstrapPhase='mount';
+    await bootstrapDeadline(
+      app.mount(),
+      BOOTSTRAP_PHASE_TIMEOUTS.mount,
+      'M26_BOOTSTRAP_MOUNT_TIMEOUT',
+    );
+
     globalThis.__IBERFIT_M26_APP__=app;
     clearBootstrapWatchdog();
     clearBootstrapReloadGuard();
+    clearBootstrapAutoRepairGuard();
     bootstrapRecoveryMounted=false;
     root.removeEventListener('click',onBootstrapRecoveryClick);
+
+    bootstrapPhase='enhancement';
+    try{
+      globalThis.__IBERFIT_M26_SESSION_VALUE_LOOP__?.destroy?.();
+      globalThis.__IBERFIT_M26_SESSION_VALUE_LOOP__=await bootstrapDeadline(
+        installSessionValueLoop({
+          root,
+          getState:()=>app.getState(),
+        }),
+        BOOTSTRAP_PHASE_TIMEOUTS.enhancement,
+        'M26_BOOTSTRAP_ENHANCEMENT_TIMEOUT',
+      );
+    }catch{
+      globalThis.__IBERFIT_M26_SESSION_VALUE_LOOP__=null;
+    }
+    bootstrapPhase='ready';
     return app;
   })();
 
