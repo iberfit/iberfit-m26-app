@@ -950,10 +950,12 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       await transport.requestEmailOtp(user.email);
       mfaState=Object.freeze({...mfaState,email:user.email});
       authMode='mfa-email-code';
+      loginBusy=false;
       authMessage('Código enviado. Revisa el correo asociado a tu cuenta.');
       return true;
     }catch(error){
       authMode=mfaDeviceMode();
+      loginBusy=false;
       authMessage(emailOtpFailureMessage(error),'error');
       throw error;
     }finally{
@@ -989,6 +991,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       return true;
     }catch(error){
       authMode='mfa-email-code';
+      loginBusy=false;
       authMessage(emailOtpFailureMessage(error),'error');
       throw error;
     }finally{
