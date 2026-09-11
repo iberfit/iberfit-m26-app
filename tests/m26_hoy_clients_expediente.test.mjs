@@ -197,67 +197,121 @@ test('Hoy Cliente evita un CTA de Entrenar vacío cuando todavía no hay sesione
   );
 });
 
-test('Sesiones Cliente enlaza el CTA superior a una sesión publicada exacta', () => {
+test('Sesiones Cliente no ofrece inicio autónomo para una sesión presencial dirigida por Coach', () => {
   const state = ready('client', { activeArea: 'sesion' });
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
   const html = renderRouteView(vm);
 
-  assert.equal(vm.startableSession.id, 's1');
-  assert.match(
-    html,
-    /data-workflow-action="start-published-session" data-entity-id="s1"/
-  );
+  assert.match(html, /data-rc39-session="s1"/);
+  assert.match(html, /Sesión con tu Coach/);
+  assert.doesNotMatch(html, /data-session-primary-start/);
   assert.doesNotMatch(
     html,
-    /data-workflow-action="start-published-session" disabled/
+    /data-workflow-action="start-published-session"/
   );
 });
 
-test('Sesiones selecciona explícitamente la publicación con mayor revisión', () => {
+test('Sesiones Cliente ofrece un CTA superior exacto cuando solo existe un Live Workout ejecutable', () => {
   const base = ready('client');
   const state = ready('client', {
     activeArea: 'sesion',
     collections: {
       ...base.collections,
+      appointments: [],
+      sessions: [{
+        id: 's-live',
+        clientId: qa,
+        title: 'Fuerza autónoma',
+        status: 'publicado',
+        visibleToClient: true,
+        clientVisibilityLevel: 'full',
+        deliveryOwnership: 'client_autonomous',
+        deliveryModality: 'guiada_en_app',
+        revision: 3,
+        blocks: [{
+          id: 'b1',
+          type: 'exercise',
+          exerciseId: 'exercise-squat',
+          name: 'Sentadilla goblet',
+          sets: 3,
+          reps: '8',
+          restSeconds: 75,
+        }],
+      }],
+    },
+  });
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.match(
+    html,
+    /data-session-primary-start data-workflow-action="start-published-session" data-entity-id="s-live"/
+  );
+  assert.match(html, />Comenzar · Fuerza autónoma<\/button>/);
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session" data-entity-id="s-live">Comenzar Live Workout<\/button>/
+  );
+});
+
+test('Sesiones Cliente nunca elige implícitamente entre varios Live Workout ejecutables', () => {
+  const base = ready('client');
+  const autonomous = (id, title, revision) => ({
+    id,
+    clientId: qa,
+    title,
+    status: 'publicado',
+    visibleToClient: true,
+    clientVisibilityLevel: 'full',
+    deliveryOwnership: 'client_autonomous',
+    deliveryModality: 'guiada_en_app',
+    revision,
+    blocks: [{
+      id: `block-${id}`,
+      type: 'exercise',
+      exerciseId: 'exercise-squat',
+      name: 'Sentadilla goblet',
+      sets: 3,
+      reps: '8',
+      restSeconds: 75,
+    }],
+  });
+  const state = ready('client', {
+    activeArea: 'sesion',
+    collections: {
+      ...base.collections,
+      appointments: [],
       sessions: [
-        {
-          id: 's-old',
-          clientId: qa,
-          title: 'Sesión anterior',
-          status: 'publicado',
-          visibleToClient: true,
-          revision: 1,
-        },
-        {
-          id: 's-new',
-          clientId: qa,
-          title: 'Sesión Fuerza B',
-          status: 'publicado',
-          visibleToClient: true,
-          revision: 4,
-        },
+        autonomous('s-old', 'Sesión A', 1),
+        autonomous('s-new', 'Sesión B', 4),
       ],
     },
   });
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
   const html = renderRouteView(vm);
 
-  assert.equal(vm.startableSession.id, 's-new');
-  assert.equal(vm.startableSession.title, 'Sesión Fuerza B');
-  assert.equal(vm.startableSession.publishedCount, 2);
+  assert.doesNotMatch(html, /data-session-primary-start/);
   assert.match(
     html,
-    /data-workflow-action="start-published-session" data-entity-id="s-new"/
+    /data-workflow-action="start-published-session" data-entity-id="s-old">Comenzar Live Workout<\/button>/
   );
-  assert.match(html, /m26-session-start-target">Sesión Fuerza B</);
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session" data-entity-id="s-new">Comenzar Live Workout<\/button>/
+  );
+  assert.equal(
+    [...html.matchAll(/data-workflow-action="start-published-session"/g)].length,
+    2
+  );
 });
 
-test('Sesiones deshabilita el CTA superior si no existe publicación arrancable', () => {
+test('Sesiones Cliente no ofrece CTA de inicio cuando no existe publicación ejecutable', () => {
   const base = ready('client');
   const state = ready('client', {
     activeArea: 'sesion',
     collections: {
       ...base.collections,
+      appointments: [],
       sessions: [{
         id: 's-draft',
         clientId: qa,
@@ -271,10 +325,11 @@ test('Sesiones deshabilita el CTA superior si no existe publicación arrancable'
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
   const html = renderRouteView(vm);
 
-  assert.equal(vm.startableSession, null);
-  assert.match(
+  assert.match(html, /<h3>Sin sesiones<\/h3>/);
+  assert.doesNotMatch(html, /data-session-primary-start/);
+  assert.doesNotMatch(
     html,
-    /data-workflow-action="start-published-session" disabled aria-disabled="true"/
+    /data-workflow-action="start-published-session"/
   );
 });
 
