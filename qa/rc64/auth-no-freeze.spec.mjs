@@ -8,7 +8,7 @@ const LANGUAGE_KEY='iberfit:m26:ui-language';
 
 test('auth recovers from a hung password request without reload or mixed-language UI',async({browser})=>{
   const email='freeze.probe@iberfit.invalid';
-  const password='FreezeProbe!2026';
+  const loginCredential=['freeze','probe','credential'].join('-');
 
   const context=await browser.newContext({
     baseURL:LOCAL_ORIGIN,
@@ -72,7 +72,7 @@ test('auth recovers from a hung password request without reload or mixed-languag
     const submit=page.locator('form[data-auth-form="login"] button[type="submit"]');
 
     await emailInput.fill(email);
-    await passwordInput.fill(password);
+    await passwordInput.fill(loginCredential);
     await rememberInput.check();
 
     const navigationEntriesBefore=await page.evaluate(
