@@ -161,8 +161,8 @@ test('RC65-C1 FREE UI sigue integrada, solo dispositivo local y sin QR ni app TO
   assert.match(required,/Protege tu acceso/u);
   assert.match(required,/Configurar este dispositivo/u);
   assert.match(required,/Face ID, Touch ID, Windows Hello, PIN o la contraseña del propio dispositivo/u);
-  assert.match(challenge,/Confirma que eres tú/u);
-  assert.match(challenge,/Confirmar en este dispositivo/u);
+  assert.match(challenge,/Verifica que eres tú/u);
+  assert.match(challenge,/Verificar con este dispositivo/u);
   assert.match(challenge,/No necesitas escanear ningún QR ni usar otro equipo/u);
   for(const markup of [required,challenge])assert.doesNotMatch(markup,/Google Authenticator|Authy|Código de 6 dígitos|qr_code|otpauth/iu);
 });
