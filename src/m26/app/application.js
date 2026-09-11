@@ -99,8 +99,12 @@ function friendlyError(error){
 }
 function loginFailureMessage(error){
   const code=String(error?.message||error||'');
+  const authCode=String(error?.body?.code||error?.body?.error_code||'').trim().toLowerCase();
   if(/M26_AUTH_EMAIL_INVALID/u.test(code))return 'Revisa el correo de acceso.';
   if(/M26_AUTH_PASSWORD_INVALID/u.test(code))return 'La contraseña debe tener entre 8 y 1024 caracteres.';
+  if(authCode==='weak_password'||/weak[_ -]?password|password[^\n]{0,80}(?:leak|pwn|compromis)/i.test(code)){
+    return 'Esta contraseña necesita renovarse por seguridad. Usa “¿Olvidaste tu contraseña?” para crear una nueva antes de continuar.';
+  }
   if(Number(error?.status||0)===400||/invalid login credentials|invalid_credentials|email or password/i.test(code))return 'El correo o la contraseña no coinciden.';
   return friendlyError(error);
 }
@@ -183,7 +187,11 @@ function recoveryNetworkError(error){
 }
 function recoveryPasswordError(error){
   const code=String(error?.message||error||'');
+  const authCode=String(error?.body?.code||error?.body?.error_code||'').trim().toLowerCase();
   if(/AUTH_PASSWORD_INVALID/.test(code))return 'La contraseña debe tener entre 8 y 1024 caracteres.';
+  if(authCode==='weak_password'||/weak[_ -]?password|password[^\n]{0,80}(?:leak|pwn|compromis)/i.test(code)){
+    return 'Esa contraseña aparece como débil o expuesta. Elige una contraseña nueva y única para proteger tu cuenta.';
+  }
   if(error?.status===0||/TIMEOUT|NETWORK|FETCH|Failed to fetch/i.test(code))return 'No fue posible conectar. La contraseña no se ha modificado; inténtalo de nuevo.';
   return RECOVERY_LINK_INVALID;
 }
