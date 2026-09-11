@@ -164,6 +164,7 @@ def main():
     ap.add_argument('--start',required=True)
     ap.add_argument('--final',required=True)
     ap.add_argument('--catalog',required=True)
+    ap.add_argument('--anatomy-source',required=False)  # backward-compatible; intentionally ignored
     ap.add_argument('--out',required=True)
     ap.add_argument('--meta',required=True)
     ap.add_argument('--exercise-id',required=True)
