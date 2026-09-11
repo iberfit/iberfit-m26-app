@@ -28,7 +28,7 @@ test('P0 email OTP entry is explicit, masked and optimized for one-time-code aut
     mode:'mfa-email-code',
     mfa:{kind:'challenge',email:'owner@iberfit.cl'},
   });
-  assert.equal(maskAccessEmail('owner@iberfit.cl'),'ow•••@iberfit.cl');
+  assert.equal(maskAccessEmail('owner@iberfit.cl'),'ow***@iberfit.cl');
   assert.match(html,/data-auth-form="mfa-email-code"/u);
   assert.match(html,/autocomplete="one-time-code"/u);
   assert.match(html,/inputmode="numeric"/u);
