@@ -48,6 +48,23 @@ test('QA workflow enables HIBP, validates real logins and rolls back only on fai
   assert.match(workflow,/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/u);
 });
 
+test('production promotion requires QA HIBP and enables PROD before Cloudflare cutover',()=>{
+  const workflow=read('.github/workflows/production-promote.yml');
+  const qaVerify=workflow.indexOf('Verify QA leaked-password protection before production');
+  const prodEnable=workflow.indexOf('Enable and verify leaked-password protection in PROD');
+  const discover=workflow.indexOf('Discover exact Cloudflare production target');
+  const deploy=workflow.indexOf('Deploy exact certified surface to production with Wrangler');
+  assert.ok(qaVerify>=0);
+  assert.ok(prodEnable>qaVerify);
+  assert.ok(discover>prodEnable);
+  assert.ok(deploy>discover);
+  const prodBlock=workflow.slice(prodEnable,discover);
+  assert.match(prodBlock,/ENABLE_IBERFIT_HIBP_PROD/u);
+  assert.match(prodBlock,/sync-hosted-auth-security\.mjs --enable --target prod/u);
+  assert.match(prodBlock,/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/u);
+  assert.match(workflow,/recovery\/hosted-auth-security\//u);
+});
+
 test('management token cannot be printed or embedded in evidence',()=>{
   const source=read('scripts/auth/sync-hosted-auth-security.mjs');
   assert.doesNotMatch(source,/console\.log\([^\n]*token/iu);
