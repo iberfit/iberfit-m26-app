@@ -136,6 +136,11 @@ test('English access copy uses natural product wording instead of mixed-language
   );
   assert.equal(iberfitSurfaceTranslate('Correo',{language:'en'}),'Email');
   assert.equal(iberfitSurfaceTranslate('Confirmando…',{language:'en'}),'Signing in…');
+  assert.equal(iberfitSurfaceTranslate('Verifica que eres tú',{language:'en'}),'Verify it’s you');
+  assert.equal(iberfitSurfaceTranslate('Verificando…',{language:'en'}),'Verifying…');
+  assert.equal(iberfitSurfaceTranslate('Verificar con este dispositivo',{language:'en'}),'Verify with this device');
+  assert.equal(iberfitSurfaceTranslate('Usar código por correo (recomendado)',{language:'en'}),'Use email code (recommended)');
+  assert.equal(iberfitSurfaceTranslate('Reparar acceso en este dispositivo',{language:'en'}),'Repair access on this device');
   assert.equal(
     iberfitSurfaceTranslate('Un sistema claro para entrenar, medir y progresar.',{language:'en'}),
     'A clear system to train, measure and progress.',
