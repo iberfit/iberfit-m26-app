@@ -92,9 +92,59 @@ function moduleScriptPaths(indexSource){
   return [...found];
 }
 function parseRuntime(source){
-  const match=String(source||'').match(/Object\.freeze\((\{[\s\S]*\})\)\s*;?\s*$/u);
-  if(!match)fail('PROD_DEEP_RUNTIME_SCHEMA_INVALID');
-  try{return JSON.parse(match[1]);}catch{fail('PROD_DEEP_RUNTIME_SCHEMA_INVALID');}
+  const text=String(source||'');
+  const marker='window.__IBERFIT_M26_RUNTIME__ = Object.freeze(';
+  const markerIndex=text.indexOf(marker);
+  if(markerIndex<0||text.indexOf(marker,markerIndex+marker.length)>=0){
+    fail('PROD_DEEP_RUNTIME_SCHEMA_INVALID');
+  }
+
+  let cursor=markerIndex+marker.length;
+  while(cursor<text.length&&/\s/u.test(text[cursor]))cursor+=1;
+  if(text[cursor]!=='{')fail('PROD_DEEP_RUNTIME_SCHEMA_INVALID');
+
+  const objectStart=cursor;
+  let depth=0;
+  let inString=false;
+  let escaped=false;
+  let objectEnd=-1;
+
+  for(;cursor<text.length;cursor+=1){
+    const char=text[cursor];
+    if(inString){
+      if(escaped){
+        escaped=false;
+        continue;
+      }
+      if(char==='\\'){
+        escaped=true;
+        continue;
+      }
+      if(char==='"')inString=false;
+      continue;
+    }
+    if(char==='"'){
+      inString=true;
+      continue;
+    }
+    if(char==='{'){
+      depth+=1;
+      continue;
+    }
+    if(char==='}'){
+      depth-=1;
+      if(depth<0)fail('PROD_DEEP_RUNTIME_SCHEMA_INVALID');
+      if(depth===0){
+        objectEnd=cursor+1;
+        break;
+      }
+    }
+  }
+
+  if(objectEnd<0||inString||depth!==0)fail('PROD_DEEP_RUNTIME_SCHEMA_INVALID');
+  if(!/^\s*\)\s*;/u.test(text.slice(objectEnd)))fail('PROD_DEEP_RUNTIME_SCHEMA_INVALID');
+  try{return JSON.parse(text.slice(objectStart,objectEnd));}
+  catch{fail('PROD_DEEP_RUNTIME_SCHEMA_INVALID');}
 }
 function assertExactReleaseIdentity(versionSource,runtimeSource,sourceSha){
   let version;
