@@ -33,7 +33,8 @@ test('user directory renders fast local search, filters and stable user identity
   assert.match(html,/data-admin-form="user-status"/u);
   assert.match(html,/data-admin-form="role-change"/u);
   assert.match(html,/option value="active" selected/u);
-  assert.match(html,/Último acceso:/u);
+  assert.match(html,/<dt>Último acceso<\/dt>/u);
+  assert.match(html,/Cuenta 360/u);
 });
 
 test('user filter matching is accent-insensitive and combines query, status and role',()=>{
