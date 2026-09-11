@@ -193,6 +193,16 @@ jobs:
           CF_PAGES_BRANCH: canary/rc38
         run: npm run validate:rc38:ci
 
+      - name: Preparar navegador P0 PWA RC74.4
+        if: ${condition}
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Certificar upgrade PWA N-1 a N sin bloqueos
+        if: ${condition}
+        run: npm run quality:p0:pwa-upgrade
+
       - name: Validar RC74.4 Phase B
         if: ${{ github.ref == 'refs/heads/canary/rc74-4' || github.head_ref == 'canary/rc74-4' || github.base_ref == 'canary/rc74-4' || github.ref == 'refs/heads/prep/final-production-rc74-4' || github.head_ref == 'prep/final-production-rc74-4' || github.base_ref == 'prep/final-production-rc74-4' }}
         env:
