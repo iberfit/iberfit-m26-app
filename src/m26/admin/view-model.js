@@ -62,6 +62,141 @@ function userRoles(user={}){
   return new Set([user?.primaryRole,...roles].map((value)=>String(value??'').trim().toLowerCase()).filter(Boolean));
 }
 function isCoachUser(user={}){return userRoles(user).has('coach');}
+const CLIENT_ACCESS_PRIORITY=Object.freeze({activo:0,invitacion_pendiente:1,suspendido:2,sin_acceso:3,revocado:4});
+function clientAccessStatus(value){
+  const status=normalizeStatus(value);
+  return Object.hasOwn(CLIENT_ACCESS_PRIORITY,status)?status:(status||'sin_acceso');
+}
+function sortClientAccessRows(rows=[]){
+  return [...rows].sort((a,b)=>{
+    const left=CLIENT_ACCESS_PRIORITY[clientAccessStatus(a?.status)]??99;
+    const right=CLIENT_ACCESS_PRIORITY[clientAccessStatus(b?.status)]??99;
+    if(left!==right)return left-right;
+    return String(b?.updatedAt||b?.updated_at||'').localeCompare(String(a?.updatedAt||a?.updated_at||''));
+  });
+}
+function accessIntegrityIssue(code,detail={}){
+  return Object.freeze({code,...detail});
+}
+export function buildAdminUser360({
+  users=[],
+  applicationRoles=[],
+  clients=[],
+  clientAccess=[],
+  coachProfiles=[],
+  assignments=[],
+}={}){
+  const orgUsers=(users||[]).map((user)=>Object.freeze(clone(user)));
+  const orgUserIds=new Set(orgUsers.map((user)=>recordId(user?.userId||user?.id)).filter(Boolean));
+  const clientById=new Map((clients||[]).map((client)=>[recordId(client?.id),client]));
+  const coachById=new Map((coachProfiles||[]).map((coach)=>[recordId(coach?.userId||coach?.id),coach]));
+  const rolesByUser=new Map();
+  for(const role of applicationRoles||[]){
+    if(role?.active!==true)continue;
+    const userId=recordId(role?.userId||role?.user_id);
+    const value=normalizeStatus(role?.role);
+    if(!userId||!['client','coach','admin'].includes(value))continue;
+    if(!rolesByUser.has(userId))rolesByUser.set(userId,new Set());
+    rolesByUser.get(userId).add(value);
+  }
+  const accessByUser=new Map();
+  const integrityIssues=[];
+  for(const access of clientAccess||[]){
+    const status=clientAccessStatus(access?.status);
+    const authUserId=recordId(access?.authUserId??access?.auth_user_id);
+    const clientId=recordId(access?.clientId??access?.client_id);
+    if(status==='activo'&&!authUserId){
+      integrityIssues.push(accessIntegrityIssue('ACTIVE_ACCESS_WITHOUT_AUTH_USER',{clientId,status}));
+    }
+    if(authUserId&&!orgUserIds.has(authUserId)){
+      integrityIssues.push(accessIntegrityIssue('AUTH_USER_OUTSIDE_ORGANIZATION',{authUserId,clientId,status}));
+    }
+    if(authUserId){
+      const list=accessByUser.get(authUserId)||[];
+      list.push(access);
+      accessByUser.set(authUserId,list);
+    }
+  }
+  for(const [authUserId,rows] of accessByUser){
+    if(rows.length>1){
+      integrityIssues.push(accessIntegrityIssue('MULTIPLE_CLIENT_ACCESS_LINKS',{authUserId,count:rows.length}));
+    }
+  }
+  const activeAssignments=(assignments||[]).filter((assignment)=>normalizeStatus(assignment?.status||'active')==='active');
+  const rows=orgUsers.map((user)=>{
+    const userId=recordId(user?.userId||user?.id);
+    const roleSet=userRoles(user);
+    for(const role of rolesByUser.get(userId)||[])roleSet.add(role);
+    const roles=[...roleSet].filter((role)=>['client','coach','admin'].includes(role));
+    const primaryRole=normalizeStatus(user?.primaryRole)||roles[0]||'';
+    const linkedAccess=sortClientAccessRows(accessByUser.get(userId)||[]);
+    const access=linkedAccess[0]||null;
+    const clientId=recordId(access?.clientId??access?.client_id);
+    const client=clientId?clientById.get(clientId)||null:null;
+    const coach=coachById.get(userId)||null;
+    const clientAssignments=clientId?activeAssignments.filter((assignment)=>recordId(assignment?.clientId)===clientId):[];
+    const coachAssignments=roles.includes('coach')?activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===userId):[];
+    const assignedCoachNames=clientAssignments.map((assignment)=>{
+      const item=coachById.get(recordId(assignment?.coachUserId));
+      return String(item?.name||item?.email||'').trim();
+    }).filter(Boolean);
+    const authEmail=String(user?.email||'').trim();
+    const contactEmail=String(access?.email||'').trim();
+    const rowIssues=[];
+    if(access&&clientId&&!client){
+      rowIssues.push(accessIntegrityIssue('CLIENT_LINK_NOT_VISIBLE',{clientId}));
+    }
+    if(linkedAccess.length>1){
+      rowIssues.push(accessIntegrityIssue('MULTIPLE_CLIENT_ACCESS_LINKS',{count:linkedAccess.length}));
+    }
+    return Object.freeze({
+      ...clone(user),
+      id:userId,
+      userId,
+      roles:Object.freeze(roles),
+      primaryRole,
+      authEmail,
+      contactEmail,
+      contactEmailDiffers:Boolean(contactEmail&&authEmail&&contactEmail.toLowerCase()!==authEmail.toLowerCase()),
+      access:access?Object.freeze({
+        id:recordId(access?.id),
+        clientId,
+        status:clientAccessStatus(access?.status),
+        authLinked:Boolean(recordId(access?.authUserId??access?.auth_user_id)),
+        invitationAttemptCount:Number(access?.invitationAttemptCount??access?.invitation_attempt_count??0)||0,
+        invitationSentAt:access?.invitationSentAt??access?.invitation_sent_at??null,
+        activatedAt:access?.activatedAt??access?.activated_at??null,
+        updatedAt:access?.updatedAt??access?.updated_at??null,
+      }):null,
+      client:client?Object.freeze({
+        id:clientId,
+        name:String(client?.name||'Cliente'),
+        modality:String(client?.modality||''),
+        lifecycleStatus:String(client?.lifecycle?.status||client?.status||''),
+      }):null,
+      assignedCoachNames:Object.freeze([...new Set(assignedCoachNames)]),
+      coach:coach?Object.freeze({
+        name:String(coach?.name||user?.name||'Coach'),
+        email:String(coach?.email||authEmail),
+        status:String(coach?.status||user?.status||''),
+        activeClientCount:coachAssignments.length,
+      }):null,
+      integrityIssues:Object.freeze(rowIssues),
+    });
+  }).sort((a,b)=>String(a.name||a.authEmail||'').localeCompare(String(b.name||b.authEmail||''),'es',{sensitivity:'base'}));
+  const activeUsers=rows.filter((row)=>isActiveStatus(row.status)).length;
+  const pendingInvitations=rows.filter((row)=>row.access?.status==='invitacion_pendiente').length;
+  return Object.freeze({
+    rows:Object.freeze(rows),
+    integrityIssues:Object.freeze(integrityIssues),
+    summary:Object.freeze({
+      total:rows.length,
+      activeUsers,
+      pendingInvitations,
+      integrityIssueCount:integrityIssues.length,
+    }),
+  });
+}
 function isBlockedStatus(value){return /suspend|block|inactive|inactivo|disabled|revoked/u.test(normalizeStatus(value));}
 function isActiveStatus(value){return /active|activo|enabled|operational|operativo/u.test(normalizeStatus(value));}
 function coachSubjects(coaches=[],users=[]){
@@ -233,7 +368,19 @@ export function createAdminRouteViewModel(base,shellVm,state){const role=String(
     const tasks=Object.freeze(clone(adminCollection(state,'operationalTasks')));
     return Object.freeze({...common,kind:'admin-inicio',clients,coaches,tasks:Object.freeze(clone(tasks.slice(0,12))),audit:Object.freeze(clone(adminCollection(state,'auditEvents').slice(0,12))),commandCenter:deriveAdminCommandCenter({clients,coaches,tasks})});
   }
-  if(area==='admin-usuarios')return Object.freeze({...common,kind:'admin-usuarios',users:Object.freeze(clone(adminCollection(state,'organizationUsers'))),roles:Object.freeze(clone(adminCollection(state,'applicationRoles'))),canManageStatus:adminCan(state.admin,ADMIN_CAPABILITIES.USER_MANAGE_STATUS),canManageRoles:adminCan(state.admin,ADMIN_CAPABILITIES.ROLE_MANAGE)});
+  if(area==='admin-usuarios'){
+    const users=Object.freeze(clone(adminCollection(state,'organizationUsers')));
+    const applicationRoles=Object.freeze(clone(adminCollection(state,'applicationRoles')));
+    const user360=buildAdminUser360({
+      users,
+      applicationRoles,
+      clients:clientRows(state),
+      clientAccess:clone(state.collections?.clientAccess||[]),
+      coachProfiles:clone(adminCollection(state,'coachProfiles')),
+      assignments:clone(adminCollection(state,'coachClientAssignments')),
+    });
+    return Object.freeze({...common,kind:'admin-usuarios',users:user360.rows,roles:applicationRoles,user360Summary:user360.summary,accessIntegrityIssues:user360.integrityIssues,canManageStatus:adminCan(state.admin,ADMIN_CAPABILITIES.USER_MANAGE_STATUS),canManageRoles:adminCan(state.admin,ADMIN_CAPABILITIES.ROLE_MANAGE)});
+  }
   if(area==='admin-equipo'){
     const coaches=Object.freeze(clone(adminCollection(state,'coachProfiles')));
     const users=Object.freeze(clone(adminCollection(state,'organizationUsers')));

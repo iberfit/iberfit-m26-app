@@ -1,4 +1,4 @@
-import {normalizeAuthorizedRoles,resolveActiveRole} from '../rc39/multi-role.js';
+import {normalizeAuthorizedRoles,resolveActiveRole,readPreferredApplicationRole,writePreferredApplicationRole,clearPreferredApplicationRole} from '../rc39/multi-role.js';
 import {createCommunicationTransport} from '../communication/transport.js';
 import {createCommunicationService} from '../communication/service.js';
 import {createCommunicationController} from '../communication/controller.js';
@@ -282,7 +282,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       const authorizedRoles=normalizeAuthorizedRoles({authorizedRoles:roleSource});
       const requestedRole=String(activeApplicationRole||'').trim().toLowerCase()||null;
       if(requestedRole&&!authorizedRoles.includes(requestedRole))throw new Error('M26_ROLE_SWITCH_FORBIDDEN');
-      const preferredRole=requestedRole||(authorizedRoles.includes('admin')?'admin':primaryRole);
+      const storedRole=readPreferredApplicationRole(session?.user?.id);
+      const preferredRole=requestedRole||(storedRole&&authorizedRoles.includes(storedRole)?storedRole:(authorizedRoles.includes('admin')?'admin':primaryRole));
       const activeRole=resolveActiveRole(authorizedRoles,preferredRole);
       if(!activeRole)throw new Error('M26_ROLE_CONTEXT_MISSING');
       const scopedSnapshot=filterSnapshotForAssignmentScope(snapshot,applicationContext,activeRole);
@@ -297,6 +298,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       const enriched={...scopedSnapshot,user:{...(scopedSnapshot.user||{}),role:activeRole,authorizedRoles,roleChoiceConfirmed:true},data:{...(scopedSnapshot.data||{}),appointments,wearableConnections:wearableV44.connections||[],wearableDailySummaries:wearableV44.dailySummaries||[],wearableConsents:wearableV44.consents||[]},environment:{...normalizedEnvironment,commandRegistry:installed,reason,backendV43,rc39:{authorizedRoles:extensions.rolesAvailable,appointmentChangeRequests:extensions.changeRequestsAvailable},wearableV44:{ready:wearableV44.ready===true,version:wearableV44.version||'RC44'},applicationContext:{available:applicationContext.available,organizationId:applicationContext.organizationId,membershipStatus:applicationContext.membershipStatus,assignmentScopeEnforced:applicationContext.assignmentScopeEnforced},admin:{available:adminExtension.available===true,reason:adminExtension.reason||null},communication:{available:communicationExtension.available===true,reason:communicationExtension.reason||null}},canary:{...(scopedSnapshot.canary||{}),version:scopedSnapshot.canary?.version||runtime.version||'26.0.0'},admin:adminExtension.available?adminExtension.data:null,communication:communicationExtension.available?communicationExtension.data:null};
       qaStage('rc64-hydrate-store-start');
       store.hydrate(enriched);
+      writePreferredApplicationRole(session?.user?.id,activeRole);
       qaStage('rc64-hydrate-store-ready');
       qaStage('rc64-hydrate-ready');
       return {snapshot:enriched,installed,runtimeRegistry};
@@ -674,7 +676,11 @@ export async function createM26Application({root=document.querySelector('#app'),
         wearables,
         sessionTemplates:sessionTemplateRepository,
         productivity,
-        clearPreferences:()=>clearIberfitExperiencePreferences(preferenceScope),
+        clearPreferences:()=>{
+          const experienceCleared=clearIberfitExperiencePreferences(preferenceScope);
+          const roleCleared=clearPreferredApplicationRole(preferenceScope);
+          return experienceCleared&&roleCleared;
+        },
       });
       finishLogout({
         token,
