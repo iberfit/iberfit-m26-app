@@ -101,6 +101,7 @@ test('premium client report remains exactly 7 pages and becomes longitudinal whe
   assert.match(html,/indicadores comparables/u);
   assert.match(html,/Cambios comparables desde la evaluación anterior/u);
   assert.match(html,/Silla 30 s \+4 rep/u);
+  assert.match(html,/Sin puntuación global/u);
 });
 
 test('first IRI 2.0 assessment establishes a baseline instead of fabricating progression',()=>{
