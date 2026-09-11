@@ -1,7 +1,7 @@
 const MAX_WEBAUTHN_JSON_BYTES=512_000;
 const BASE64URL_PATTERN=/^[A-Za-z0-9_-]+$/u;
 const SAME_DEVICE_HINT='client-device';
-const DEFAULT_WEBAUTHN_TIMEOUT_MS=45_000;
+const DEFAULT_WEBAUTHN_TIMEOUT_MS=20_000;
 
 function jsonClone(value,code){
   let text;

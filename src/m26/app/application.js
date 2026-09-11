@@ -57,7 +57,7 @@ import {
   resolveIriExternalReportIntent,
 } from '../workflows/iri-external-report-controller.js';
 
-export const EMAIL_OTP_DEPLOYMENT_READY=false;
+export const EMAIL_OTP_DEPLOYMENT_READY=true;
 const SESSION_DRAFT_SCOPE='session-builder';
 function qaStage(stage){
   const value=String(stage||'');
@@ -831,6 +831,54 @@ async function onAccountPasswordRecovery(){
   }
 }
 function onAccountPasswordRecoveryEvent(){void onAccountPasswordRecovery();}
+
+function isIberfitAuthWorkerRegistration(registration){
+  const workers=[registration?.active,registration?.waiting,registration?.installing].filter(Boolean);
+  return workers.some((worker)=>{
+    try{
+      const url=new URL(String(worker.scriptURL||''),globalThis.location?.origin);
+      return url.origin===globalThis.location?.origin&&
+        ['/m26/iberfit-sw.js','/m26/sw.js'].includes(url.pathname);
+    }catch{return false;}
+  });
+}
+
+async function repairAuthRuntime(){
+  if(loginBusy)return false;
+  loginBusy=true;
+  authMessage('Reparando los archivos seguros de acceso…');
+  try{
+    const sw=globalThis.navigator?.serviceWorker;
+    if(sw?.getRegistrations){
+      const registrations=await sw.getRegistrations().catch(()=>[]);
+      await Promise.all(
+        registrations
+          .filter(isIberfitAuthWorkerRegistration)
+          .map((registration)=>Promise.resolve(registration.unregister?.()).catch(()=>false)),
+      );
+    }
+    if(globalThis.caches?.keys){
+      const keys=await globalThis.caches.keys().catch(()=>[]);
+      await Promise.all(
+        keys
+          .filter((key)=>String(key).startsWith('iberfit-m26-'))
+          .map((key)=>globalThis.caches.delete(key).catch(()=>false)),
+      );
+    }
+    loginBusy=false;
+    authMessage('Acceso reparado. Recargando IBERFIT…','success');
+    globalThis.location?.reload?.();
+    return true;
+  }catch(error){
+    loginBusy=false;
+    authMode=mfaDeviceMode();
+    authMessage('No se pudieron limpiar los archivos temporales de acceso. Puedes usar el código por correo o volver a intentarlo.','error');
+    throw error;
+  }finally{
+    loginBusy=false;
+  }
+}
+
 function onAuthClick(event) {
   const action = event.target.closest?.('[data-auth-action]')?.getAttribute?.('data-auth-action');
 
@@ -851,6 +899,11 @@ function onAuthClick(event) {
   if(action==='mfa-back-device'){
     authMode=mfaDeviceMode();
     authMessage();
+    return;
+  }
+
+  if(action==='mfa-repair-access'){
+    void repairAuthRuntime().catch((error)=>reportDiagnostic('mfa-repair-access',error));
     return;
   }
 
@@ -1174,9 +1227,16 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       }
       authMode=initialKind==='challenge'?'mfa-challenge':'mfa-required';
       const code=String(error?.message||error||'');
-      const message=/M26_WEBAUTHN_(?:NOT_ALLOWED|CREDENTIAL_MISSING|INVALID_STATE)/u.test(code)
-        ?'No se completó la verificación del dispositivo. Puedes reintentar; si este equipo aún no está configurado, usa “Configurar este dispositivo”, o vuelve para usar otra cuenta.'
-        :'No fue posible completar la confirmación segura. Puedes intentarlo de nuevo.';
+      const emailFallback=mfaState?.emailOtpAvailable===true;
+      const message=/M26_WEBAUTHN_TIMEOUT/u.test(code)
+        ?emailFallback
+          ?'La seguridad del dispositivo no respondió a tiempo. Tu sesión sigue protegida: usa “Código por correo” para entrar ahora o vuelve a intentar la verificación del dispositivo.'
+          :'La seguridad del dispositivo no respondió a tiempo. Puedes reintentar o reparar los archivos temporales de acceso sin borrar tu cuenta ni tus datos.'
+        :/M26_WEBAUTHN_(?:NOT_ALLOWED|CREDENTIAL_MISSING|INVALID_STATE)/u.test(code)
+          ?emailFallback
+            ?'No se completó la verificación del dispositivo. Puedes usar “Código por correo”, volver a intentarlo o configurar este dispositivo.'
+            :'No se completó la verificación del dispositivo. Puedes reintentar; si este equipo aún no está configurado, usa “Configurar este dispositivo”.'
+          :'No fue posible completar la verificación segura. Puedes usar el código por correo o intentarlo de nuevo.';
       authMessage(message,'error');
       throw error;
     }finally{

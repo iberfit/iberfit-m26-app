@@ -39,12 +39,17 @@ test('auth premium conserva todos los flujos visibles y sus salidas seguras',()=
 
   const enroll=render('mfa-required');
   assert.match(enroll,/data-auth-action="mfa-continue-webauthn"/u);
+  assert.match(enroll,/data-auth-action="mfa-repair-access"/u);
   assert.match(enroll,/data-auth-action="mfa-logout"/u);
   assert.match(enroll,/m26-device-assurance/u);
 
-  const challenge=render('mfa-challenge');
+  const challenge=render('mfa-challenge',{mfa:{kind:'challenge',emailOtpAvailable:true}});
+  assert.match(challenge,/Verifica que eres tú/u);
   assert.match(challenge,/data-auth-action="mfa-continue-webauthn"/u);
+  assert.match(challenge,/data-auth-action="mfa-send-email-code"/u);
+  assert.match(challenge,/Usar código por correo \(recomendado\)/u);
   assert.match(challenge,/data-auth-action="mfa-register-device"/u);
+  assert.match(challenge,/data-auth-action="mfa-repair-access"/u);
   assert.match(challenge,/data-auth-action="mfa-logout"/u);
 });
 

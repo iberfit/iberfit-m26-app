@@ -10,8 +10,8 @@ const {
 }=__webauthnInternals;
 
 test('WebAuthn timeout keeps a safe production default and clamps invalid values',()=>{
-  assert.equal(DEFAULT_WEBAUTHN_TIMEOUT_MS,45_000);
-  assert.equal(normalizedTimeoutMs(undefined),45_000);
+  assert.equal(DEFAULT_WEBAUTHN_TIMEOUT_MS,20_000);
+  assert.equal(normalizedTimeoutMs(undefined),20_000);
   assert.equal(normalizedTimeoutMs(1),1_000);
   assert.equal(normalizedTimeoutMs(999_999),120_000);
 });

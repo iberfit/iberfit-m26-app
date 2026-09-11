@@ -303,7 +303,7 @@ export function renderAccessUi({
           data-auth-action="mfa-send-email-code"
           ${disabled ? 'disabled aria-disabled="true"' : ''}
         >
-          Usar código por correo
+          Usar código por correo (recomendado)
         </button>`
     : '';
   let content = '';
@@ -331,6 +331,15 @@ export function renderAccessUi({
 
         ${emailOtpAction}
 
+        <button
+          type="button"
+          class="m26-auth-link"
+          data-auth-action="mfa-repair-access"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >
+          Reparar acceso en este dispositivo
+        </button>
+
         <button type="button" class="m26-tertiary-action" data-auth-action="mfa-logout">
           Volver y usar otra cuenta
         </button>
@@ -342,7 +351,7 @@ export function renderAccessUi({
     content = `
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Verificación del dispositivo</p>
-        <h1 id="m26-auth-title" tabindex="-1">Confirma que eres tú</h1>
+        <h1 id="m26-auth-title" tabindex="-1">Verifica que eres tú</h1>
         <p>Usa la seguridad nativa de este dispositivo para continuar. No necesitas escanear ningún QR ni usar otro equipo.</p>
       </div>
 
@@ -356,7 +365,7 @@ export function renderAccessUi({
           data-auth-action="mfa-continue-webauthn"
           ${disabled ? 'disabled aria-disabled="true"' : ''}
         >
-          ${busy ? 'Confirmando…' : 'Confirmar en este dispositivo'}
+          ${busy ? 'Verificando…' : 'Verificar con este dispositivo'}
         </button>
 
         ${emailOtpAction}
@@ -368,6 +377,15 @@ export function renderAccessUi({
           ${disabled ? 'disabled aria-disabled="true"' : ''}
         >
           Configurar este dispositivo
+        </button>
+
+        <button
+          type="button"
+          class="m26-auth-link"
+          data-auth-action="mfa-repair-access"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >
+          Reparar acceso en este dispositivo
         </button>
 
         <button type="button" class="m26-tertiary-action" data-auth-action="mfa-logout">
