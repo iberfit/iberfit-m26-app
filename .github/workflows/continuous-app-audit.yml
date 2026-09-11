@@ -3,19 +3,31 @@ name: IBERFIT M26 Continuous App Audit
 on:
   pull_request:
     paths:
+      - 'public/m26/**'
       - 'src/m26/**'
+      - 'qa/p0-pwa-upgrade/**'
       - 'scripts/audit/**'
       - 'scripts/lib/**'
       - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.p0-pwa-upgrade.config.mjs'
+      - '.github/workflows/ci.yml'
       - '.github/workflows/continuous-app-audit.yml'
   push:
     branches:
       - canary/rc74-4
     paths:
+      - 'public/m26/**'
       - 'src/m26/**'
+      - 'qa/p0-pwa-upgrade/**'
       - 'scripts/audit/**'
       - 'scripts/lib/**'
       - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.p0-pwa-upgrade.config.mjs'
+      - '.github/workflows/ci.yml'
       - '.github/workflows/continuous-app-audit.yml'
   workflow_dispatch:
   workflow_call:
