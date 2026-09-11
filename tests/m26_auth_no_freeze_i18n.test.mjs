@@ -80,9 +80,9 @@ test('completing auth cancels timeout and stale completions cannot clear newer a
 test('login, resume and retry are all protected by the no-freeze watchdog',()=>{
   const source=fs.readFileSync('src/m26/app/application.js','utf8');
   for(const [fn,stage] of [
-    ['async function login(email,password)',"authWatchdog.begin('login')"],
-    ['async function resume()',"authWatchdog.begin('resume')"],
-    ['async function retrySession()',"authWatchdog.begin('session-retry')"],
+    ['async function login(email,password)',"beginAuthAttempt('login')"],
+    ['async function resume()',"beginAuthAttempt('resume')"],
+    ['async function retrySession()',"beginAuthAttempt('session-retry')"],
   ]){
     const start=source.indexOf(fn);
     assert.ok(start>=0,fn);
