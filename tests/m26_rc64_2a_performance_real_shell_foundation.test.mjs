@@ -99,7 +99,7 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
   assert.match(index,/Cargando acceso seguro a IBERFIT\.\.\./u);
 
   assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/mu);
-  assert.match(entry,/if\(runtime\.enabled\)\{\s*await loadFullApplication\(\);/u);
+  assert.match(entry,/if\(runtime\.enabled\)\{\s*startBootstrapWatchdog\(\);\s*try\{\s*await loadFullApplication\(\);\s*\}catch\(error\)\{\s*clearBootstrapWatchdog\(\);\s*renderBootstrapRecovery\(error\);\s*\}/u);
   assert.doesNotMatch(index,/href="\/src\/m26\/design\/adaptive-layout\.css"/u);
   assert.match(entry,/const pendingHref=link\.getAttribute\('data-href'\)/u);
   assert.match(entry,/const activeHref=link\.getAttribute\('href'\)/u);
@@ -145,7 +145,7 @@ test('RC64.2A initial HTML provides the settled disabled preauth shell before op
   assert.ok(staticIndex>=0&&moduleIndex>staticIndex);
 
   assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/mu);
-  assert.match(entry,/if\(runtime\.enabled\)\{\s*await loadFullApplication\(\);/u);
+  assert.match(entry,/if\(runtime\.enabled\)\{\s*startBootstrapWatchdog\(\);\s*try\{\s*await loadFullApplication\(\);\s*\}catch\(error\)\{\s*clearBootstrapWatchdog\(\);\s*renderBootstrapRecovery\(error\);\s*\}/u);
   assert.match(entry,/await import\('\/src\/m26\/app\/application\.js'\)/u);
 });
 test('RC64.2A current source contains RC28 mobile auth containment missing in historical RC15',()=>{
