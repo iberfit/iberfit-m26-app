@@ -54,7 +54,8 @@ test('worker canónico atiende solo la raíz y reutiliza el motor offline probad
   assert.match(canonicalSw,/url\.origin===self\.location\.origin/u);
   assert.match(canonicalSw,/fetchWithDeadline\(/u);
   assert.match(canonicalSw,/const cache=await caches\.open\(SHELL\)/u);
-  assert.match(canonicalSw,/cache\.match\('\/m26\/index\.html'\)/u);
+  assert.match(canonicalSw,/const pinnedShell=await cache\.match\('\/m26\/index\.html'\)/u);
+  assert.match(canonicalSw,/if\(pinnedShell\)return pinnedShell/u);
   assert.match(canonicalSw,/cache\.match\('\/m26\/offline\.html'\)/u);
   assert.doesNotMatch(canonicalSw,/caches\.match\('\/m26\/(?:index|offline)\.html'\)/u);
   assert.doesNotMatch(canonicalSw,/startsWith\('\/'\)/u);
@@ -75,4 +76,15 @@ test('el worker canónico queda fuera del APP_SHELL generado para evitar autocac
   assert.match(excludedBlock,/SW_REPO_PATH/u);
   assert.match(forbiddenBlock,/'\/m26\/iberfit-sw\.js'/u);
   assert.match(forbiddenBlock,/'\/m26\/sw\.js'/u);
+});
+
+
+test('worker principal mantiene JS y navegación ligados a una única release mientras cambia el controlador',()=>{
+  const sw=fs.readFileSync('public/m26/sw.js','utf8');
+  assert.match(sw,/function isReleasePinnedPath\(pathname\)/u);
+  assert.match(sw,/async function releaseCacheFirst\(request\)/u);
+  assert.match(sw,/const cached=await cache\.match\(request\);\s*if\(cached\)return cached;/u);
+  assert.match(sw,/event\.respondWith\(releaseCacheFirst\(request\)\)/u);
+  assert.match(sw,/async function releaseNavigationResponse\(request\)/u);
+  assert.doesNotMatch(sw,/isReleasePinnedPath[\s\S]{0,500}event\?\.waitUntil\?\.\(cache\.put\(request/u);
 });
