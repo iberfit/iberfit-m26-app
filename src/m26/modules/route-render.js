@@ -148,8 +148,26 @@ export function renderHoyRoute(vm) {
   const heroCopy = isClient
     ? 'Consulta lo que tienes preparado, registra cómo estás y continúa desde una única ruta clara.'
     : 'Primero las decisiones que requieren una acción; después, el resto del seguimiento.';
+  const clientSessionProjections=isClient&&Array.isArray(vm.rc39?.sessionProjections)
+    ?vm.rc39.sessionProjections.filter((item)=>item?.visible===true)
+    :[];
+  const clientExecutableSessionIds=new Set(
+    clientSessionProjections
+      .filter(
+        (item)=>
+          item?.canClientExecute===true&&
+          Array.isArray(item?.session?.blocks)&&
+          item.session.blocks.length>0
+      )
+      .map((item)=>String(item.id||'').trim())
+      .filter(Boolean)
+  );
   const appointments = vm.appointments.length
-    ? vm.appointments.map((item)=>appointmentCard(item,{canStartSession:['client','coach'].includes(String(vm.role||''))})).join('')
+    ? vm.appointments.map((item)=>appointmentCard(item,{
+        canStartSession:isClient
+          ?clientExecutableSessionIds.has(String(item?.sessionId||'').trim())
+          :String(vm.role||'')==='coach',
+      })).join('')
     : emptyState(
         'Sin sesiones confirmadas para hoy',
         isClient
@@ -337,11 +355,14 @@ export function renderHoyRoute(vm) {
     const clientRunnableAppointment=isClient
       ?vm.appointments.find((item)=>{
           const status=String(item?.statusRaw||'').trim().toLowerCase();
-          return Boolean(item?.sessionId)&&['confirmada','confirmado','confirmed'].includes(status);
+          const sessionId=String(item?.sessionId||'').trim();
+          return Boolean(sessionId)&&
+            ['confirmada','confirmado','confirmed'].includes(status)&&
+            clientExecutableSessionIds.has(sessionId);
         })||null
       :null;
     const clientSessionCount=isClient
-      ?Math.max(0,Number(client?.counts?.sessions||0))
+      ?clientSessionProjections.length
       :0;
     const clientPrimaryToday=clientRunnableAppointment
       ?`<button type="button" class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(clientRunnableAppointment.sessionId)}">

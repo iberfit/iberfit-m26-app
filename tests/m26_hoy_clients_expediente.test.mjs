@@ -117,39 +117,71 @@ test('Hoy renderiza datos reales del store sin fixtures', () => {
   assert.doesNotMatch(html, /CLI-DEMO|fixture|demo\.iberfit/i);
 });
 
-test('Hoy Cliente inicia directamente la sesión publicada vinculada a su cita', () => {
-  const state = ready('client');
-  const shellVm = createShellViewModel(state);
-  const vm = createRouteViewModel(shellVm, state, now);
-  const html = renderRouteView(vm);
-
-  assert.equal(vm.kind, 'hoy');
-  assert.equal(vm.appointments.length, 1);
-  assert.equal(vm.appointments[0].sessionId, 's1');
-
-  assert.match(
-    html,
-    /data-workflow-action="start-published-session"/
-  );
-
-  assert.match(
-    html,
-    /data-entity-id="s1"/
-  );
-
-  assert.match(
-    html,
-    />Iniciar entrenamiento</
-  );
-});
-test('Hoy Cliente prioriza Entrenar ahora cuando existe una sesión confirmada vinculada', () => {
-  const state = ready('client');
+test('Hoy Cliente inicia directamente una sesión autónoma confirmada vinculada', () => {
+  const base = ready('client');
+  const state = ready('client', {
+    collections: {
+      ...base.collections,
+      sessions: [{
+        id: 's1',
+        clientId: qa,
+        title: 'Entrenamiento autónomo',
+        status: 'publicado',
+        visibleToClient: true,
+        clientVisibilityLevel: 'full',
+        deliveryOwnership: 'client_autonomous',
+        deliveryModality: 'guiada_en_app',
+        revision: 2,
+        blocks: [{
+          id: 'b1',
+          type: 'exercise',
+          exerciseId: 'exercise-squat',
+          name: 'Sentadilla goblet',
+          sets: 3,
+          reps: '8',
+          restSeconds: 75,
+        }],
+      }],
+      appointments: [{
+        id: 'ap1',
+        client_id: qa,
+        session_id: 's1',
+        title: 'Entrenamiento autónomo',
+        start_at: '2026-07-18T18:00:00Z',
+        status: 'confirmado',
+        modality: 'guiada_en_app',
+      }],
+    },
+  });
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
   const html = renderRouteView(vm);
 
   assert.match(
     html,
     /class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="s1"[\s\S]*?<strong>Entrenar ahora<\/strong>/
+  );
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session" data-entity-id="s1">Iniciar entrenamiento<\/button>/
+  );
+});
+
+test('Hoy Cliente no convierte una cita presencial dirigida por Coach en entrenamiento autónomo', () => {
+  const state = ready('client');
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.match(
+    html,
+    /class="m26-today-action is-primary" data-m26-area="sesion"[\s\S]*?<strong>Abrir mis sesiones<\/strong>/
+  );
+  assert.doesNotMatch(
+    html,
+    /class="m26-today-action is-primary" data-workflow-action="start-published-session"/
+  );
+  assert.doesNotMatch(
+    html,
+    />Iniciar entrenamiento<\/button>/
   );
 });
 
@@ -194,6 +226,142 @@ test('Hoy Cliente evita un CTA de Entrenar vacío cuando todavía no hay sesione
   assert.doesNotMatch(
     html,
     /class="m26-today-action is-primary" data-m26-area="sesion"/
+  );
+});
+
+test('Sesiones Cliente no ofrece inicio autónomo para una sesión presencial dirigida por Coach', () => {
+  const state = ready('client', { activeArea: 'sesion' });
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.match(html, /data-rc39-session="s1"/);
+  assert.match(html, /Sesión con tu Coach/);
+  assert.doesNotMatch(html, /data-session-primary-start/);
+  assert.doesNotMatch(
+    html,
+    /data-workflow-action="start-published-session"/
+  );
+});
+
+test('Sesiones Cliente ofrece un CTA superior exacto cuando solo existe un Live Workout ejecutable', () => {
+  const base = ready('client');
+  const state = ready('client', {
+    activeArea: 'sesion',
+    collections: {
+      ...base.collections,
+      appointments: [],
+      sessions: [{
+        id: 's-live',
+        clientId: qa,
+        title: 'Fuerza autónoma',
+        status: 'publicado',
+        visibleToClient: true,
+        clientVisibilityLevel: 'full',
+        deliveryOwnership: 'client_autonomous',
+        deliveryModality: 'guiada_en_app',
+        revision: 3,
+        blocks: [{
+          id: 'b1',
+          type: 'exercise',
+          exerciseId: 'exercise-squat',
+          name: 'Sentadilla goblet',
+          sets: 3,
+          reps: '8',
+          restSeconds: 75,
+        }],
+      }],
+    },
+  });
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.match(
+    html,
+    /data-session-primary-start data-workflow-action="start-published-session" data-entity-id="s-live"/
+  );
+  assert.match(html, />Comenzar · Fuerza autónoma<\/button>/);
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session" data-entity-id="s-live">Comenzar Live Workout<\/button>/
+  );
+});
+
+test('Sesiones Cliente nunca elige implícitamente entre varios Live Workout ejecutables', () => {
+  const base = ready('client');
+  const autonomous = (id, title, revision) => ({
+    id,
+    clientId: qa,
+    title,
+    status: 'publicado',
+    visibleToClient: true,
+    clientVisibilityLevel: 'full',
+    deliveryOwnership: 'client_autonomous',
+    deliveryModality: 'guiada_en_app',
+    revision,
+    blocks: [{
+      id: `block-${id}`,
+      type: 'exercise',
+      exerciseId: 'exercise-squat',
+      name: 'Sentadilla goblet',
+      sets: 3,
+      reps: '8',
+      restSeconds: 75,
+    }],
+  });
+  const state = ready('client', {
+    activeArea: 'sesion',
+    collections: {
+      ...base.collections,
+      appointments: [],
+      sessions: [
+        autonomous('s-old', 'Sesión A', 1),
+        autonomous('s-new', 'Sesión B', 4),
+      ],
+    },
+  });
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.doesNotMatch(html, /data-session-primary-start/);
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session" data-entity-id="s-old">Comenzar Live Workout<\/button>/
+  );
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session" data-entity-id="s-new">Comenzar Live Workout<\/button>/
+  );
+  assert.equal(
+    [...html.matchAll(/data-workflow-action="start-published-session"/g)].length,
+    2
+  );
+});
+
+test('Sesiones Cliente no ofrece CTA de inicio cuando no existe publicación ejecutable', () => {
+  const base = ready('client');
+  const state = ready('client', {
+    activeArea: 'sesion',
+    collections: {
+      ...base.collections,
+      appointments: [],
+      sessions: [{
+        id: 's-draft',
+        clientId: qa,
+        title: 'Sesión todavía interna',
+        status: 'borrador',
+        visibleToClient: false,
+        revision: 2,
+      }],
+    },
+  });
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.match(html, /<h3>Sin sesiones<\/h3>/);
+  assert.doesNotMatch(html, /data-session-primary-start/);
+  assert.doesNotMatch(
+    html,
+    /data-workflow-action="start-published-session"/
   );
 });
 
