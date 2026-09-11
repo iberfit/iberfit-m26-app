@@ -107,7 +107,7 @@ test('user 360 consolidates active application roles and Coach/client relationsh
       {id:'as2',coachUserId:'u1',clientId:'c2',status:'ended'},
     ],
   });
-  assert.deepEqual(model.rows[0].roles.sort(),['admin','coach']);
+  assert.deepEqual([...model.rows[0].roles].sort(),['admin','coach']);
   assert.equal(model.rows[0].coach.activeClientCount,1);
 });
 
