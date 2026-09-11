@@ -4,7 +4,7 @@
 create table if not exists public.iberfit_email_privileged_assurance_v1 (
   user_id uuid not null references auth.users(id) on delete cascade,
   session_id uuid not null,
-  otp_session_id uuid primary key,
+  otp_session_id uuid not null unique,
   origin text not null check (origin in (
     'https://m26-canary.iberfit.cl',
     'https://app.iberfit.cl',
@@ -13,6 +13,7 @@ create table if not exists public.iberfit_email_privileged_assurance_v1 (
   verified_at timestamptz not null,
   expires_at timestamptz not null,
   revoked_at timestamptz null,
+  primary key (user_id, session_id),
   check (expires_at > verified_at)
 );
 
