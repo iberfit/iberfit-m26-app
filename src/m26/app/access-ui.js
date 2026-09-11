@@ -644,22 +644,49 @@ export function renderAccessUi({
 
   return `
     <main class="m26-auth-page" data-auth-mode="${normalizedMode}" data-auth-state="${authState}">
-      <section class="m26-auth-card" data-auth-mode="${normalizedMode}" data-auth-state="${authState}" aria-labelledby="m26-auth-title" aria-busy="${busy ? 'true' : 'false'}">
-        <header class="m26-auth-brand">
-          <img
-            class="m26-auth-logo"
-            src="/public/isotipo-iberfit.png"
-            alt=""
-            aria-hidden="true"
-          >
-          <p class="m26-eyebrow">IBERFIT</p>
-        </header>
+      <div class="m26-auth-stage">
+        <aside class="m26-auth-intro" aria-label="IBERFIT · entrenamiento personal">
+          <div class="m26-auth-intro-copy">
+            <p class="m26-auth-intro-kicker">Entrenamiento personal premium</p>
+            <h2>Un sistema claro para entrenar, medir y progresar.</h2>
+            <p>IBERFIT une diagnóstico, planificación, control de carga y seguimiento en una experiencia continua, dentro y fuera de cada sesión.</p>
+          </div>
 
-        ${content}
+          <dl class="m26-auth-pillars">
+            <div>
+              <dt>Diagnóstico</dt>
+              <dd>Punto de partida medible</dd>
+            </div>
+            <div>
+              <dt>Planificación</dt>
+              <dd>Carga y progresión con criterio</dd>
+            </div>
+            <div>
+              <dt>Seguimiento</dt>
+              <dd>Decisiones basadas en tu evolución</dd>
+            </div>
+          </dl>
 
-        ${blockedSiteNotice}
-        <small>${e(accessNote)}</small>
-      </section>
+          <p class="m26-auth-intro-trust">Acceso privado · datos protegidos · continuidad entre dispositivos</p>
+        </aside>
+
+        <section class="m26-auth-card" data-auth-mode="${normalizedMode}" data-auth-state="${authState}" aria-labelledby="m26-auth-title" aria-busy="${busy ? 'true' : 'false'}">
+          <header class="m26-auth-brand">
+            <img
+              class="m26-auth-logo"
+              src="/public/isotipo-iberfit.png"
+              alt=""
+              aria-hidden="true"
+            >
+            <p class="m26-eyebrow">IBERFIT</p>
+          </header>
+
+          ${content}
+
+          ${blockedSiteNotice}
+          <small>${e(accessNote)}</small>
+        </section>
+      </div>
     </main>
   `;
 }
