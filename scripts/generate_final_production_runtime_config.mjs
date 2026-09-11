@@ -85,6 +85,7 @@ const config={
   url:M26_PRODUCTION_SUPABASE_ORIGIN,
   publishableKey:key,
   qaOnly:false,
+  sourceSha,
   timeoutMs:12000,
   rpc:{
     bootstrap:'iberfit_bootstrap_v26',
@@ -104,7 +105,73 @@ const provenance={
   production:true,
 };
 
-fs.writeFileSync(target,`window.__IBERFIT_M26_RUNTIME__ = Object.freeze(${JSON.stringify(config,null,2)});\n`,'utf8');
+const runtimeSource=\`window.__IBERFIT_M26_RUNTIME__ = Object.freeze(\${JSON.stringify(config,null,2)});\n\`;
+const releaseGuard=\`
+;(function iberfitReleaseGuard(runtime){
+  if(!runtime||typeof runtime!=='object')return;
+  const sw=globalThis.navigator?.serviceWorker;
+  if(!sw?.register||!runtime.sourceSha)return;
+  const shortSha=String(runtime.sourceSha).slice(0,12);
+  const expectedCache=\`iberfit-m26-prod-\${shortSha}-shell\`;
+  const repairKey=\`m26:runtime-release-repair:\${runtime.version||shortSha}\`;
+  const activate=(worker)=>{
+    if(!worker?.postMessage)return false;
+    worker.postMessage({type:'SKIP_WAITING',release:runtime.version||shortSha});
+    return true;
+  };
+  const arm=(registration)=>{
+    if(registration.waiting)activate(registration.waiting);
+    const installing=registration.installing;
+    if(installing?.addEventListener){
+      installing.addEventListener('statechange',()=>{
+        if(installing.state==='installed')activate(registration.waiting||installing);
+      });
+    }
+    registration.addEventListener?.('updatefound',()=>{
+      const next=registration.installing;
+      if(!next?.addEventListener)return;
+      next.addEventListener('statechange',()=>{
+        if(next.state==='installed')activate(registration.waiting||next);
+      });
+    });
+  };
+  const cacheKeys=async()=>{
+    try{return globalThis.caches?.keys?await globalThis.caches.keys():[];}catch{return [];}
+  };
+  const repairStaleShell=async(registration)=>{
+    if(globalThis.navigator?.onLine===false)return false;
+    const keys=await cacheKeys();
+    if(keys.includes(expectedCache)){
+      try{globalThis.sessionStorage?.removeItem?.(repairKey);}catch{}
+      return false;
+    }
+    try{
+      if(globalThis.sessionStorage?.getItem?.(repairKey)==='1')return false;
+      globalThis.sessionStorage?.setItem?.(repairKey,'1');
+    }catch{}
+    try{await registration?.unregister?.();}catch{}
+    await Promise.all(
+      keys
+        .filter((key)=>String(key).startsWith('iberfit-m26-'))
+        .map((key)=>globalThis.caches.delete(key).catch(()=>false)),
+    );
+    globalThis.location?.reload?.();
+    return true;
+  };
+  void (async()=>{
+    let registration;
+    try{
+      registration=await sw.register('/m26/iberfit-sw.js',{scope:'/',updateViaCache:'none'});
+      arm(registration);
+      try{await registration.update?.();}catch{}
+      if(registration.waiting){activate(registration.waiting);return;}
+      if(registration.installing)return;
+      globalThis.setTimeout?.(()=>{void repairStaleShell(registration);},2500);
+    }catch{}
+  })();
+})(window.__IBERFIT_M26_RUNTIME__);
+\`;
+fs.writeFileSync(target,runtimeSource+releaseGuard,'utf8');
 fs.writeFileSync(versionTarget,`${JSON.stringify(provenance,null,2)}\n`,'utf8');
 for(const headersTarget of headersTargets)fs.writeFileSync(headersTarget,headers,'utf8');
 

@@ -7,6 +7,7 @@ const sw=read('public/m26/sw.js');
 const app=read('public/m26/app.js');
 const application=read('src/m26/app/application.js');
 const rootSw=read('public/m26/iberfit-sw.js');
+const runtimeGenerator=read('scripts/generate_final_production_runtime_config.mjs');
 
 test('P0 upgrade precaches only the critical secure shell so one optional asset cannot pin an old installed release',()=>{
   assert.match(sw,/const CRITICAL_APP_SHELL=Object\.freeze\(\[/u);
@@ -70,6 +71,32 @@ test('P0 root launch stays release-pinned while update recovery remains bounded'
   assert.doesNotMatch(rootSw,/PREVIOUS_SHELL/u);
 });
 
+test('P0 a newly activated release can force already-installed windows onto its own shell',()=>{
+  assert.match(sw,/let refreshClientsOnActivate=false;/u);
+  assert.match(sw,/async function refreshInstalledClients\(\)/u);
+  assert.match(sw,/self\.clients\.matchAll\(\{type:'window',includeUncontrolled:true\}\)/u);
+  assert.match(sw,/client\.postMessage\?\.\(\{type:'IBERFIT_RELEASE_ACTIVATED',version:VERSION\}\)/u);
+  assert.match(sw,/await client\.navigate\(url\.href\)/u);
+  assert.match(sw,/refreshClientsOnActivate=true;[\s\S]{0,180}?self\.skipWaiting\(\)/u);
+  assert.match(sw,/\.then\(\(\)=>refreshClientsOnActivate\?refreshInstalledClients\(\):undefined\)/u);
+});
+
+test('P0 no-store production runtime can self-repair a stale installed shell without deleting account data',()=>{
+  assert.match(runtimeGenerator,/sourceSha,/u);
+  assert.match(runtimeGenerator,/function iberfitReleaseGuard\(runtime\)/u);
+  assert.match(runtimeGenerator,/expectedCache=.*iberfit-m26-prod-/u);
+  assert.match(runtimeGenerator,/sw\.register\('\/m26\/iberfit-sw\.js',\{scope:'\/',updateViaCache:'none'\}\)/u);
+  assert.match(runtimeGenerator,/registration\.update\?\.\(\)/u);
+  assert.match(runtimeGenerator,/worker\.postMessage\(\{type:'SKIP_WAITING'/u);
+  assert.match(runtimeGenerator,/registration\?\.unregister\?\.\(\)/u);
+  assert.match(runtimeGenerator,/startsWith\('iberfit-m26-'\)/u);
+  assert.match(runtimeGenerator,/globalThis\.location\?\.reload\?\.\(\)/u);
+  const start=runtimeGenerator.indexOf('const repairStaleShell=async(registration)=>');
+  const end=runtimeGenerator.indexOf('void (async()=>',start);
+  const repair=runtimeGenerator.slice(start,end);
+  assert.ok(start>=0&&end>start);
+  assert.doesNotMatch(repair,/localStorage|indexedDB|session-vault|draft/u);
+});
 test('P0 app asks the active worker to warm the full release only after full app readiness',()=>{
   assert.match(app,/function warmReleaseCacheInBackground\(\)/u);
   assert.match(app,/registration\?\.active\?\.postMessage\?\.\(\{type:'WARM_RELEASE'\}\)/u);
