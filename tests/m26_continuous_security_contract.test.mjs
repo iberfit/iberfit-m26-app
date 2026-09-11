@@ -1,8 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
 
-const audit=fs.readFileSync('scripts/audit/continuous_app_audit.mjs','utf8').replace(/\r\n/g,'\n');
+const auditPath='scripts/audit/continuous_app_audit.mjs';
+const audit=fs.readFileSync(auditPath,'utf8').replace(/\r\n/g,'\n');
+
+test('continuous audit script parses under the CI Node runtime',()=>{
+  execFileSync(process.execPath,['--check',auditPath],{stdio:'pipe'});
+});
 
 test('continuous audit enforces production security headers fail-closed',()=>{
   for(const header of [
