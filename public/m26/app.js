@@ -12,6 +12,7 @@ const BOOTSTRAP_UPDATE_RELOAD_KEY='m26:bootstrap-update-reload-v1';
 const IBERFIT_SHELL_CACHE_PREFIX='iberfit-m26-';
 const IBERFIT_CANONICAL_SW='/m26/iberfit-sw.js';
 let bootstrapRecoveryMounted=false;
+let bootstrapWatchdogTimer=null;
 
 function safeBootstrapIncident(error){
   const value=String(error?.message||error||'M26_BOOTSTRAP_FAILED')
@@ -108,6 +109,29 @@ function bootstrapRecoveryMarkup(incident){
       </main>
     </div>
   `;
+}
+
+function clearBootstrapWatchdog(){
+  if(bootstrapWatchdogTimer!==null){
+    globalThis.clearTimeout?.(bootstrapWatchdogTimer);
+    bootstrapWatchdogTimer=null;
+  }
+  root.querySelector?.('[data-bootstrap-slow-recovery]')?.remove?.();
+}
+
+function startBootstrapWatchdog(){
+  clearBootstrapWatchdog();
+  bootstrapWatchdogTimer=globalThis.setTimeout?.(()=>{
+    bootstrapWatchdogTimer=null;
+    if(globalThis.__IBERFIT_M26_APP__||bootstrapRecoveryMounted)return;
+    const card=root.querySelector?.('.m26-auth-card');
+    if(!card||card.querySelector?.('[data-bootstrap-slow-recovery]'))return;
+    const notice=document.createElement('div');
+    notice.className='m26-notice is-warning';
+    notice.setAttribute('data-bootstrap-slow-recovery','');
+    notice.innerHTML='<strong>La carga está tardando más de lo normal.</strong><p>Puedes reparar los archivos temporales sin desinstalar IBERFIT ni borrar tus datos.</p><button type="button" class="m26-auth-link" data-bootstrap-action="repair">Reparar y recargar</button>';
+    card.append(notice);
+  },8000)??null;
 }
 
 function renderBootstrapRecovery(error){
@@ -635,6 +659,7 @@ async function loadFullApplication(){
       globalThis.__IBERFIT_M26_SESSION_VALUE_LOOP__=null;
     }
     globalThis.__IBERFIT_M26_APP__=app;
+    clearBootstrapWatchdog();
     clearBootstrapReloadGuard();
     bootstrapRecoveryMounted=false;
     root.removeEventListener('click',onBootstrapRecoveryClick);
@@ -650,9 +675,11 @@ async function loadFullApplication(){
 }
 
 if(runtime.enabled){
+  startBootstrapWatchdog();
   try{
     await loadFullApplication();
   }catch(error){
+    clearBootstrapWatchdog();
     renderBootstrapRecovery(error);
   }
 }else{
