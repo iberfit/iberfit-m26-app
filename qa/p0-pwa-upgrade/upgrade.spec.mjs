@@ -140,7 +140,13 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
   expect(afterUpgrade.draft).toContain('"revision":7');
   expect(afterUpgrade.controller).toContain('/m26/iberfit-sw.js');
 
-  // Full release warming is automatic after app readiness and must tolerate one broken optional asset.
+  // This fixture keeps runtime disabled to avoid any backend/auth dependency.
+  // Exercise the exact production WARM_RELEASE message contract against the real N worker;
+  // the structural P0 test separately locks that the app emits this only after full readiness.
+  await page.evaluate(async()=>{
+    const registration=await navigator.serviceWorker.ready;
+    registration.active?.postMessage({type:'WARM_RELEASE'});
+  });
   await expect.poll(async()=>Number((await state(request)).optionalFailures),{
     timeout:15_000,
     intervals:[100,250,500,1000],
