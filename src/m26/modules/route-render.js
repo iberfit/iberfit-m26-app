@@ -334,6 +334,44 @@ export function renderHoyRoute(vm) {
     ? `<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Accesos rápidos</p><h2>Tu ruta IBERFIT</h2><p>Solo se muestra contenido confirmado para ti.</p></div></div><div class="m26-action-grid"><button type="button" data-m26-area="actividad">Registrar bienestar</button><button type="button" data-m26-area="planificacion">Ver planificación</button><button type="button" data-m26-area="sesion">Abrir sesiones</button><button type="button" data-m26-area="progreso">Revisar progreso</button><button type="button" data-m26-area="informes">Consultar informes</button></div></section>`
     : '';
 
+    const clientRunnableAppointment=isClient
+      ?vm.appointments.find((item)=>{
+          const status=String(item?.statusRaw||'').trim().toLowerCase();
+          return Boolean(item?.sessionId)&&['confirmada','confirmado','confirmed'].includes(status);
+        })||null
+      :null;
+    const clientSessionCount=isClient
+      ?Math.max(0,Number(client?.counts?.sessions||0))
+      :0;
+    const clientPrimaryToday=clientRunnableAppointment
+      ?`<button type="button" class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(clientRunnableAppointment.sessionId)}">
+          <span>1</span>
+          <strong>Entrenar ahora</strong>
+          <small>${escapeHtml(clientRunnableAppointment.title||'Tu sesión confirmada está preparada para hoy.')}</small>
+        </button>`
+      :clientSessionCount>0
+        ?`<button type="button" class="m26-today-action is-primary" data-m26-area="sesion">
+            <span>1</span>
+            <strong>Abrir mis sesiones</strong>
+            <small>Tienes ${clientSessionCount} sesión${clientSessionCount===1?'':'es'} disponible${clientSessionCount===1?'':'s'} en tu planificación.</small>
+          </button>`
+        :`<button type="button" class="m26-today-action is-primary" data-m26-area="actividad">
+            <span>1</span>
+            <strong>Registrar cómo estoy</strong>
+            <small>Mientras tu entrenador prepara la siguiente sesión, actualiza energía, sueño, estrés, dolor, fatiga y motivación.</small>
+          </button>`;
+    const clientSecondaryToday=clientSessionCount>0||clientRunnableAppointment
+      ?`<button type="button" class="m26-today-action" data-m26-area="actividad">
+          <span>2</span>
+          <strong>Registrar cómo estoy</strong>
+          <small>Energía, sueño, estrés, dolor, fatiga, motivación y hábitos.</small>
+        </button>`
+      :`<button type="button" class="m26-today-action" data-m26-area="planificacion">
+          <span>2</span>
+          <strong>Revisar mi planificación</strong>
+          <small>Consulta tu plan y lo que ya esté confirmado mientras se prepara la siguiente sesión.</small>
+        </button>`;
+
     const rc70DailyLoop = isClient
     ? `<section class="m26-today-loop" aria-labelledby="m26-today-loop-title">
         <div class="m26-panel-heading">
@@ -344,16 +382,8 @@ export function renderHoyRoute(vm) {
           ${badge('Tres pasos', 'neutral')}
         </div>
         <div class="m26-today-action-grid">
-          <button type="button" class="m26-today-action is-primary" data-m26-area="sesion">
-            <span>1</span>
-            <strong>Entrenar</strong>
-            <small>Abre tus sesiones y continúa desde la acción publicada disponible.</small>
-          </button>
-          <button type="button" class="m26-today-action" data-m26-area="actividad">
-            <span>2</span>
-            <strong>Registrar cómo estoy</strong>
-            <small>Energía, sueño, estrés, dolor, fatiga, motivación y hábitos.</small>
-          </button>
+          ${clientPrimaryToday}
+          ${clientSecondaryToday}
           <button type="button" class="m26-today-action" data-m26-area="progreso">
             <span>3</span>
             <strong>Ver mi evolución</strong>
