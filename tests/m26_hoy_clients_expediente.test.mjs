@@ -142,6 +142,61 @@ test('Hoy Cliente inicia directamente la sesión publicada vinculada a su cita',
     />Iniciar entrenamiento</
   );
 });
+test('Hoy Cliente prioriza Entrenar ahora cuando existe una sesión confirmada vinculada', () => {
+  const state = ready('client');
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.match(
+    html,
+    /class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="s1"[\s\S]*?<strong>Entrenar ahora<\/strong>/
+  );
+});
+
+test('Hoy Cliente abre sus sesiones cuando hay sesión disponible pero no una cita vinculada hoy', () => {
+  const base = ready('client');
+  const state = ready('client', {
+    collections: {
+      ...base.collections,
+      appointments: [],
+    },
+  });
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.match(
+    html,
+    /class="m26-today-action is-primary" data-m26-area="sesion"[\s\S]*?<strong>Abrir mis sesiones<\/strong>/
+  );
+  assert.match(html, /Tienes 1 sesión disponible/);
+});
+
+test('Hoy Cliente evita un CTA de Entrenar vacío cuando todavía no hay sesiones', () => {
+  const base = ready('client');
+  const state = ready('client', {
+    collections: {
+      ...base.collections,
+      sessions: [],
+      appointments: [],
+    },
+  });
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.match(
+    html,
+    /class="m26-today-action is-primary" data-m26-area="actividad"[\s\S]*?<strong>Registrar cómo estoy<\/strong>/
+  );
+  assert.match(
+    html,
+    /data-m26-area="planificacion"[\s\S]*?<strong>Revisar mi planificación<\/strong>/
+  );
+  assert.doesNotMatch(
+    html,
+    /class="m26-today-action is-primary" data-m26-area="sesion"/
+  );
+});
+
 test('Clientes abre expediente mediante atributos de datos, no handlers inline', () => {
   const state = ready('coach', { activeArea: 'clientes' });
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
