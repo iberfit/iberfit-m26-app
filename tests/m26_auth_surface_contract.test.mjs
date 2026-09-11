@@ -51,6 +51,11 @@ test('auth premium conserva todos los flujos visibles y sus salidas seguras',()=
   assert.match(challenge,/data-auth-action="mfa-register-device"/u);
   assert.match(challenge,/data-auth-action="mfa-repair-access"/u);
   assert.match(challenge,/data-auth-action="mfa-logout"/u);
+
+  const recoveryChallenge=render('mfa-challenge',{mfa:{kind:'challenge',deviceRecoveryRecommended:true}});
+  assert.match(recoveryChallenge,/Reintentar verificación/u);
+  assert.match(recoveryChallenge,/Volver a vincular este dispositivo \(recomendado\)/u);
+  assert.match(recoveryChallenge,/class="m26-secondary-action"[\s\S]*?data-auth-action="mfa-register-device"/u);
 });
 
 test('auth premium conserva busy, error, backend bloqueado y salida del preview',()=>{

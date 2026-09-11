@@ -119,7 +119,7 @@ test('P0 a successful MFA ceremony is not reclassified as biometric failure if w
 });
 
 
-test('P0 email OTP remains server-gated and the certified branded channel is enabled in production code',()=>{
+test('P0 email OTP remains fail-closed until the branded SMTP delivery channel is certified',()=>{
   const challenge=renderAccessUi({
     backendReady:true,
     qaOnly:false,
@@ -130,6 +130,6 @@ test('P0 email OTP remains server-gated and the certified branded channel is ena
   assert.doesNotMatch(challenge,/data-auth-action="mfa-send-email-code"/u);
   assert.doesNotMatch(challenge,/Usar código por correo/u);
   const source=read('src/m26/app/application.js');
-  assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
+  assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=false;/u);
   assert.match(source,/if\(mfaState\?\.emailOtpAvailable!==true\)throw new Error\('M26_EMAIL_OTP_CHANNEL_NOT_READY'\)/u);
 });

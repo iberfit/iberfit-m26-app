@@ -200,6 +200,13 @@ function normalizedTimeoutMs(value){
   return Math.max(1_000,Math.min(120_000,Math.round(numeric)));
 }
 
+function withNativeTimeout(options,timeoutMs){
+  const duration=normalizedTimeoutMs(timeoutMs);
+  const current=Number(options?.timeout);
+  const timeout=Number.isFinite(current)&&current>0?Math.min(current,duration):duration;
+  return {...options,timeout};
+}
+
 async function withCeremonyTimeout(operation,{timeoutMs,AbortControllerImpl=globalThis.AbortController}={}){
   const duration=normalizedTimeoutMs(timeoutMs);
   const controller=typeof AbortControllerImpl==='function'?new AbortControllerImpl():null;
@@ -243,9 +250,12 @@ export async function runWebAuthnCeremony(challenge,{
   const type=String(challenge?.type||'').trim().toLowerCase();
   if(!['create','request'].includes(type))throw new Error('M26_WEBAUTHN_CHALLENGE_TYPE_INVALID');
   try{
-    const publicKey=type==='create'
-      ?creationOptions(challenge?.credentialOptions,PublicKeyCredentialImpl,friendlyName)
-      :requestOptions(challenge?.credentialOptions,PublicKeyCredentialImpl);
+    const publicKey=withNativeTimeout(
+      type==='create'
+        ?creationOptions(challenge?.credentialOptions,PublicKeyCredentialImpl,friendlyName)
+        :requestOptions(challenge?.credentialOptions,PublicKeyCredentialImpl),
+      timeoutMs,
+    );
     const credential=await withCeremonyTimeout(
       (signal)=>type==='create'
         ?navigatorLike.credentials.create({publicKey,...(signal?{signal}:{})})
@@ -271,5 +281,6 @@ export const __webauthnInternals=Object.freeze({
   preferSameDevice,
   credentialJson,
   normalizedTimeoutMs,
+  withNativeTimeout,
   withCeremonyTimeout,
 });

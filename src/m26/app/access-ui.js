@@ -296,6 +296,7 @@ export function renderAccessUi({
       </div>`
     :'';
 
+  const deviceRecoveryRecommended=mfa?.deviceRecoveryRecommended===true;
   const emailOtpAction=mfa?.emailOtpAvailable===true
     ? `<button
           type="button"
@@ -352,7 +353,9 @@ export function renderAccessUi({
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Verificación del dispositivo</p>
         <h1 id="m26-auth-title" tabindex="-1">Verifica que eres tú</h1>
-        <p>Usa la seguridad nativa de este dispositivo para continuar. No necesitas escanear ningún QR ni usar otro equipo.</p>
+        <p>${deviceRecoveryRecommended
+          ?'La verificación anterior no respondió. Vuelve a vincular este dispositivo para crear una credencial nueva y segura, o reintenta la verificación.'
+          :'Usa la seguridad nativa de este dispositivo para continuar. No necesitas escanear ningún QR ni usar otro equipo.'}</p>
       </div>
 
       ${contextNotice}
@@ -365,18 +368,18 @@ export function renderAccessUi({
           data-auth-action="mfa-continue-webauthn"
           ${disabled ? 'disabled aria-disabled="true"' : ''}
         >
-          ${busy ? 'Verificando…' : 'Verificar con este dispositivo'}
+          ${busy ? 'Verificando…' : deviceRecoveryRecommended ? 'Reintentar verificación' : 'Verificar con este dispositivo'}
         </button>
 
         ${emailOtpAction}
 
         <button
           type="button"
-          class="m26-auth-link"
+          class="${deviceRecoveryRecommended?'m26-secondary-action':'m26-auth-link'}"
           data-auth-action="mfa-register-device"
           ${disabled ? 'disabled aria-disabled="true"' : ''}
         >
-          Configurar este dispositivo
+          ${deviceRecoveryRecommended?'Volver a vincular este dispositivo (recomendado)':'Configurar este dispositivo'}
         </button>
 
         <button
