@@ -67,7 +67,7 @@ async function resolveFromBase(base,prefix,relative){
 }
 async function resolveRequestPath(pathname){
   if(pathname.includes('\0')||pathname.includes('\\'))return {status:400};
-  const relative=pathname.replace(/^\\/+/u,'');
+  const relative=pathname.replace(/^\/+/u,'');
   const rootResult=await resolveFromBase(root,rootPrefix,relative);
   if(rootResult.status!==404)return rootResult;
   return resolveFromBase(publicRoot,publicRootPrefix,relative);
