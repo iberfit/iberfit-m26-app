@@ -2095,7 +2095,6 @@ body{
   bottom:-1px;
   left:var(--iberfit-v2-gutter,.9rem);
   height:1px;
-  pointer-events:none;
   background:
     linear-gradient(
       90deg,
@@ -2171,7 +2170,6 @@ body{
   right:clamp(.8rem,2vw,1.5rem);
   left:clamp(.8rem,2vw,1.5rem);
   height:1px;
-  pointer-events:none;
   background:
     linear-gradient(
       90deg,
@@ -2219,7 +2217,6 @@ body{
   width:7rem;
   height:7rem;
   border-radius:50%;
-  pointer-events:none;
   background:
     radial-gradient(
       circle,
@@ -2274,7 +2271,6 @@ body{
   inset:1px 1px auto;
   height:44%;
   border-radius:inherit;
-  pointer-events:none;
   background:linear-gradient(180deg,rgba(255,255,255,.20),rgba(255,255,255,0));
   opacity:.72;
 }
@@ -2435,6 +2431,6 @@ body{
     .m26-panel,.m26-admin-panel,.m26-client-card,.m26-list-card,
     .m26-library-card,.m26-publication-card,.m26-client-content-card
   )::before{
-    display:none;
+    content:none;
   }
 }
