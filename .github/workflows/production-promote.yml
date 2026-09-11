@@ -86,6 +86,13 @@ jobs:
             tests/m26_rc40_admin_complete.test.mjs \
             tests/m26_rc71_2_preferences_i18n.test.mjs
 
+      - name: Verify QA leaked-password protection before production
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          IBERFIT_AUTH_SECURITY_TARGET: qa
+          IBERFIT_AUTH_SECURITY_EVIDENCE_PATH: recovery/hosted-auth-security/production-qa-verify.json
+        run: node scripts/auth/sync-hosted-auth-security.mjs --verify --target qa
+
       - name: Build canonical current surface
         run: node qa/rc64/build-current-surface.mjs
 
@@ -203,6 +210,15 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ env.PROD_SUPABASE_REF }}
           IBERFIT_AUTH_EMAIL_CONFIRMATION: 'SYNC_IBERFIT_AUTH_EMAILS_PROD'
         run: node scripts/auth/sync-hosted-auth-emails.mjs --sync
+
+      - name: Enable and verify leaked-password protection in PROD
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          IBERFIT_AUTH_SECURITY_TARGET: prod
+          IBERFIT_AUTH_SECURITY_CONFIRMATION: ENABLE_IBERFIT_HIBP_PROD
+          IBERFIT_AUTH_SECURITY_STATE_PATH: recovery/hosted-auth-security/prod-before.json
+          IBERFIT_AUTH_SECURITY_EVIDENCE_PATH: recovery/hosted-auth-security/prod-enable.json
+        run: node scripts/auth/sync-hosted-auth-security.mjs --enable --target prod
 
       - name: Discover exact Cloudflare production target
         env:
@@ -363,5 +379,6 @@ jobs:
             WRANGLER_PREFLIGHT.log
             WRANGLER_PRODUCTION.log
             recovery/continuous-audit/
+            recovery/hosted-auth-security/
           if-no-files-found: warn
           retention-days: 30
