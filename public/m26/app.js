@@ -18,7 +18,7 @@ let bootstrapWatchdogTimer=null;
 let bootstrapAutoRepairTimer=null;
 let bootstrapPhase='initial';
 
-const BOOTSTRAP_PHASES=new Set(['initial','styles','module','create','mount','enhancement','repair','ready']);
+const BOOTSTRAP_PHASES=new Set(['initial','auth-ready','auth-transport','auth-first-factor','styles','module','create','mount','enhancement','repair','ready']);
 function safeBootstrapPhase(){
   const phase=String(bootstrapPhase||'initial').trim().toLowerCase();
   return BOOTSTRAP_PHASES.has(phase)?phase:'unknown';
@@ -62,6 +62,192 @@ function bootstrapDeadline(promise,timeoutMs,code){
   ]).finally(()=>{
     if(timer!==null)globalThis.clearTimeout?.(timer);
   });
+}
+
+
+let minimalAuthInstalled=false;
+let minimalAuthBusy=false;
+
+function minimalAuthForm(){
+  return root.querySelector?.('[data-auth-form="login"]')||null;
+}
+function minimalAuthCard(){
+  return root.querySelector?.('.m26-auth-card')||null;
+}
+function setMinimalAuthNotice(message='',noticeKind='status'){
+  const card=minimalAuthCard();
+  if(!card)return false;
+  let notice=card.querySelector?.('[data-minimal-auth-notice]');
+  if(!notice){
+    notice=card.querySelector?.('.m26-notice');
+    if(notice)notice.setAttribute?.('data-minimal-auth-notice','');
+  }
+  if(!notice){
+    notice=document.createElement('p');
+    notice.className='m26-notice';
+    notice.setAttribute('data-minimal-auth-notice','');
+    card.append(notice);
+  }
+  notice.textContent=String(message||'Acceso seguro listo.');
+  notice.classList?.toggle?.('is-warning',noticeKind==='warning');
+  notice.classList?.toggle?.('is-error',noticeKind==='error');
+  if(noticeKind==='error')notice.classList?.add?.('m26-auth-notice');
+  else notice.classList?.remove?.('m26-auth-notice');
+  return true;
+}
+function setMinimalAuthBusy(busy){
+  const form=minimalAuthForm();
+  const card=minimalAuthCard();
+  if(!form)return false;
+  minimalAuthBusy=Boolean(busy);
+  card?.setAttribute?.('aria-busy',busy?'true':'false');
+  for(const control of form.querySelectorAll?.('input,button')||[]){
+    if(control.matches?.('[data-password-toggle]')){
+      control.disabled=Boolean(busy);
+      continue;
+    }
+    if(control.type==='submit'){
+      control.disabled=Boolean(busy);
+      control.setAttribute?.('aria-disabled',busy?'true':'false');
+      continue;
+    }
+    control.disabled=Boolean(busy);
+  }
+  return true;
+}
+function minimalAuthFailureMessage(error){
+  const code=String(error?.message||error||'');
+  if(/M26_AUTH_(?:EMAIL|PASSWORD)_INVALID/u.test(code))return 'Revisa el correo y la contraseña e inténtalo de nuevo.';
+  if(Number(error?.status||0)===400||/invalid login credentials|invalid_credentials/i.test(code))return 'El correo o la contraseña no son correctos.';
+  if(/M26_TIMEOUT|AbortError|Failed to fetch|NetworkError|fetch failed/i.test(code))return 'No fue posible conectar con el acceso seguro. Puedes reintentar sin borrar tus datos.';
+  return 'No fue posible completar el acceso. Puedes reintentar sin borrar tus datos.';
+}
+function surfaceDeferredFullAppFailure(error){
+  bootstrapPhase='auth-ready';
+  setMinimalAuthBusy(false);
+  setMinimalAuthNotice(
+    'El acceso sigue disponible. La aplicación completa no terminó de cargar; al entrar IBERFIT reintentará el arranque sin borrar tu sesión ni tus datos.',
+    'warning',
+  );
+  const card=minimalAuthCard();
+  if(card&&!card.querySelector?.('[data-minimal-auth-repair]')){
+    const repair=document.createElement('button');
+    repair.type='button';
+    repair.className='m26-auth-link';
+    repair.setAttribute('data-bootstrap-action','repair');
+    repair.setAttribute('data-minimal-auth-repair','');
+    repair.textContent='Reparar archivos temporales y recargar';
+    card.append(repair);
+  }
+  try{console.warn('[IBERFIT:bootstrap] '+safeBootstrapIncident(error));}catch{}
+}
+function enableMinimalAuthShell(){
+  const form=minimalAuthForm();
+  if(!form)return false;
+  const submit=form.querySelector?.('button[type="submit"]');
+  if(submit){
+    submit.disabled=false;
+    submit.setAttribute?.('aria-disabled','false');
+  }
+  bootstrapPhase='auth-ready';
+  setMinimalAuthNotice('Acceso seguro listo.');
+  return true;
+}
+function removeMinimalAuthBootstrap(){
+  if(!minimalAuthInstalled)return;
+  root.removeEventListener('submit',onMinimalAuthSubmit,true);
+  root.removeEventListener('click',onMinimalAuthClick,true);
+  minimalAuthInstalled=false;
+  minimalAuthBusy=false;
+}
+async function onMinimalAuthSubmit(event){
+  const form=event.target?.closest?.('[data-auth-form="login"]');
+  if(!form||!root.contains?.(form)||globalThis.__IBERFIT_M26_APP__)return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if(minimalAuthBusy)return;
+  if(typeof form.reportValidity==='function'&&!form.reportValidity())return;
+
+  const data=new FormData(form);
+  setMinimalAuthBusy(true);
+  setMinimalAuthNotice('Confirmando identidad…');
+  let firstFactorAccepted=false;
+
+  try{
+    bootstrapPhase='auth-transport';
+    const [transportModule,vaultModule]=await bootstrapDeadline(
+      Promise.all([
+        import('/src/m26/supabase-transport.js'),
+        import('/src/m26/app/session-vault.js'),
+      ]),
+      6000,
+      'M26_MINIMAL_AUTH_MODULE_TIMEOUT',
+    );
+    const resolvedRuntime=transportModule.resolveM26Runtime(runtime,globalThis.location);
+    const transport=transportModule.createM26Transport(resolvedRuntime);
+
+    bootstrapPhase='auth-first-factor';
+    const session=await transport.login(data.get('email'),data.get('password'));
+    firstFactorAccepted=true;
+    vaultModule.createSessionVault().save(session);
+    setMinimalAuthNotice('Identidad confirmada. Cargando tu espacio seguro…');
+
+    const readyApp=globalThis.__IBERFIT_M26_APP__;
+    if(readyApp?.resume){
+      await readyApp.resume();
+      return;
+    }
+
+    await loadFullApplication();
+  }catch(error){
+    if(firstFactorAccepted){
+      clearBootstrapWatchdog();
+      renderBootstrapRecovery(error);
+      return;
+    }
+    bootstrapPhase='auth-ready';
+    setMinimalAuthNotice(minimalAuthFailureMessage(error),'error');
+  }finally{
+    if(!globalThis.__IBERFIT_M26_APP__&&!bootstrapRecoveryMounted){
+      setMinimalAuthBusy(false);
+    }
+  }
+}
+async function onMinimalAuthClick(event){
+  if(globalThis.__IBERFIT_M26_APP__)return;
+  const toggle=event.target?.closest?.('[data-password-toggle]');
+  if(toggle){
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const id=String(toggle.getAttribute?.('aria-controls')||'');
+    const input=id?document.getElementById?.(id):minimalAuthForm()?.querySelector?.('input[name="password"]');
+    if(!input)return;
+    const reveal=input.type==='password';
+    input.type=reveal?'text':'password';
+    toggle.setAttribute?.('aria-pressed',reveal?'true':'false');
+    toggle.setAttribute?.('aria-label',reveal?'Ocultar contraseña':'Mostrar contraseña');
+    toggle.textContent=reveal?'Ocultar':'Mostrar';
+    return;
+  }
+
+  const forgot=event.target?.closest?.('[data-auth-action="forgot-password"]');
+  if(!forgot)return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  setMinimalAuthNotice('Cargando recuperación segura…');
+  try{
+    await loadFullApplication();
+    root.querySelector?.('[data-auth-action="forgot-password"]')?.click?.();
+  }catch(error){
+    surfaceDeferredFullAppFailure(error);
+  }
+}
+function installMinimalAuthBootstrap(){
+  if(minimalAuthInstalled)return enableMinimalAuthShell();
+  minimalAuthInstalled=true;
+  root.addEventListener('submit',onMinimalAuthSubmit,true);
+  root.addEventListener('click',onMinimalAuthClick,true);
+  return enableMinimalAuthShell();
 }
 
 function controllerReloadOnce(){
@@ -738,6 +924,7 @@ async function loadFullApplication(){
     );
 
     globalThis.__IBERFIT_M26_APP__=app;
+    removeMinimalAuthBootstrap();
     clearBootstrapWatchdog();
     clearBootstrapReloadGuard();
     clearBootstrapAutoRepairGuard();
@@ -771,12 +958,14 @@ async function loadFullApplication(){
 }
 
 if(runtime.enabled){
+  installMinimalAuthBootstrap();
   startBootstrapWatchdog();
   try{
     await loadFullApplication();
   }catch(error){
     clearBootstrapWatchdog();
-    renderBootstrapRecovery(error);
+    if(minimalAuthInstalled&&!minimalAuthBusy)surfaceDeferredFullAppFailure(error);
+    else renderBootstrapRecovery(error);
   }
 }else{
   async function elevateDisabledAuth(event){
