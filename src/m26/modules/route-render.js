@@ -148,8 +148,26 @@ export function renderHoyRoute(vm) {
   const heroCopy = isClient
     ? 'Consulta lo que tienes preparado, registra cómo estás y continúa desde una única ruta clara.'
     : 'Primero las decisiones que requieren una acción; después, el resto del seguimiento.';
+  const clientSessionProjections=isClient&&Array.isArray(vm.rc39?.sessionProjections)
+    ?vm.rc39.sessionProjections.filter((item)=>item?.visible===true)
+    :[];
+  const clientExecutableSessionIds=new Set(
+    clientSessionProjections
+      .filter(
+        (item)=>
+          item?.canClientExecute===true&&
+          Array.isArray(item?.session?.blocks)&&
+          item.session.blocks.length>0
+      )
+      .map((item)=>String(item.id||'').trim())
+      .filter(Boolean)
+  );
   const appointments = vm.appointments.length
-    ? vm.appointments.map((item)=>appointmentCard(item,{canStartSession:['client','coach'].includes(String(vm.role||''))})).join('')
+    ? vm.appointments.map((item)=>appointmentCard(item,{
+        canStartSession:isClient
+          ?clientExecutableSessionIds.has(String(item?.sessionId||'').trim())
+          :String(vm.role||'')==='coach',
+      })).join('')
     : emptyState(
         'Sin sesiones confirmadas para hoy',
         isClient
@@ -334,20 +352,6 @@ export function renderHoyRoute(vm) {
     ? `<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Accesos rápidos</p><h2>Tu ruta IBERFIT</h2><p>Solo se muestra contenido confirmado para ti.</p></div></div><div class="m26-action-grid"><button type="button" data-m26-area="actividad">Registrar bienestar</button><button type="button" data-m26-area="planificacion">Ver planificación</button><button type="button" data-m26-area="sesion">Abrir sesiones</button><button type="button" data-m26-area="progreso">Revisar progreso</button><button type="button" data-m26-area="informes">Consultar informes</button></div></section>`
     : '';
 
-    const clientSessionProjections=isClient&&Array.isArray(vm.rc39?.sessionProjections)
-      ?vm.rc39.sessionProjections.filter((item)=>item?.visible===true)
-      :[];
-    const clientExecutableSessionIds=new Set(
-      clientSessionProjections
-        .filter(
-          (item)=>
-            item?.canClientExecute===true&&
-            Array.isArray(item?.session?.blocks)&&
-            item.session.blocks.length>0
-        )
-        .map((item)=>String(item.id||'').trim())
-        .filter(Boolean)
-    );
     const clientRunnableAppointment=isClient
       ?vm.appointments.find((item)=>{
           const status=String(item?.statusRaw||'').trim().toLowerCase();
