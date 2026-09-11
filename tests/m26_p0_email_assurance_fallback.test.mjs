@@ -12,7 +12,7 @@ test('P0 privileged access keeps WebAuthn and adds email OTP as a second secure 
     qaOnly:false,
     host:'app.iberfit.cl',
     mode:'mfa-challenge',
-    mfa:{kind:'challenge',email:'owner@iberfit.cl'},
+    mfa:{kind:'challenge',email:'owner@iberfit.cl',emailOtpAvailable:true},
   });
   assert.match(html,/data-auth-action="mfa-continue-webauthn"/u);
   assert.match(html,/data-auth-action="mfa-send-email-code"/u);
@@ -26,7 +26,7 @@ test('P0 email OTP entry is explicit, masked and optimized for one-time-code aut
     qaOnly:false,
     host:'app.iberfit.cl',
     mode:'mfa-email-code',
-    mfa:{kind:'challenge',email:'owner@iberfit.cl'},
+    mfa:{kind:'challenge',email:'owner@iberfit.cl',emailOtpAvailable:true},
   });
   assert.equal(maskAccessEmail('owner@iberfit.cl'),'ow***@iberfit.cl');
   assert.match(html,/data-auth-form="mfa-email-code"/u);
@@ -116,4 +116,20 @@ test('P0 a successful MFA ceremony is not reclassified as biometric failure if w
   assert.match(block,/let assuranceVerified=false/u);
   assert.match(block,/assuranceVerified=true/u);
   assert.match(block,/surfaceRetriableSessionFailure\(error,'post-mfa-setup'\)/u);
+});
+
+
+test('P0 email OTP stays fail-closed until the branded delivery channel is certified',()=>{
+  const challenge=renderAccessUi({
+    backendReady:true,
+    qaOnly:false,
+    host:'app.iberfit.cl',
+    mode:'mfa-challenge',
+    mfa:{kind:'challenge',emailOtpAvailable:false},
+  });
+  assert.doesNotMatch(challenge,/data-auth-action="mfa-send-email-code"/u);
+  assert.doesNotMatch(challenge,/Usar código por correo/u);
+  const source=read('src/m26/app/application.js');
+  assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=false;/u);
+  assert.match(source,/if\(mfaState\?\.emailOtpAvailable!==true\)throw new Error\('M26_EMAIL_OTP_CHANNEL_NOT_READY'\)/u);
 });
