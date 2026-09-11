@@ -5,6 +5,7 @@ import {createCommunicationController} from '../communication/controller.js';
 import {createAdminTransport} from '../admin/transport.js';
 import {createAdminCommandService} from '../admin/service.js';
 import {createAdminController} from '../admin/controller.js';
+import {CLIENT_CREATE_HANDOFF_EVENT,normalizeClientWorkflowHandoff} from '../admin/client-create-handoff.js';
 import {normalizeApplicationContextExtension,filterSnapshotForAssignmentScope} from '../shared/integration-context.js';
 import {createRc39Transport,mergeRc39ChangeRequests} from '../rc39/transport.js';
 import {createRc39Controller} from '../rc39/controller.js';
@@ -23,6 +24,7 @@ import {createEngagementController} from '../engagement/engagement-controller.js
 import {createWearableController} from '../wearables/controller.js';
 import {createVerificationController,refreshVerificationState} from '../engagement/conflict-center.js';
 import {createShellController} from '../shell/shell-controller.js';
+import {resolveM26Route} from '../shell/route-guard.js';
 import {createCoachProductivityController} from '../productivity/coach-productivity.js';
 import {createM26MotionController} from '../motion/motion-controller.js';
 import {createContextualGuidanceController} from '../guidance/contextual-guidance.js';
@@ -207,6 +209,63 @@ export function sessionFailureRequiresFreshLogin(error){
   const code=String(error?.message||error||'');
   if(Number(error?.status||0)===401)return true;
   return /M26_(?:SESSION_EXPIRED|AUTH_REQUIRED|REFRESH_IDENTITY_MISMATCH|MFA_IDENTITY_MISMATCH|AUTH_USER_INVALID_RESPONSE|QA_ACCOUNT_REQUIRED)/u.test(code);
+}
+
+export async function executeClientCreateHandoff({
+  detail,
+  getState,
+  getActiveRole,
+  setActiveRole,
+  hydrate,
+  selectClient,
+  navigate,
+  render=()=>{},
+  sessionActive=false,
+}={}){
+  const target=normalizeClientWorkflowHandoff(detail);
+  if(typeof getState!=='function'||typeof setActiveRole!=='function'||typeof hydrate!=='function'||typeof selectClient!=='function'||typeof navigate!=='function'){
+    throw new Error('M26_CLIENT_HANDOFF_CONTEXT_REQUIRED');
+  }
+  if(sessionActive)throw new Error('M26_CLIENT_HANDOFF_SESSION_ACTIVE');
+
+  const beforeState=getState();
+  const authorizedRoles=normalizeAuthorizedRoles({
+    authorizedRoles:beforeState?.identity?.authorizedRoles||[],
+  });
+  if(!authorizedRoles.includes(target.role))throw new Error('M26_CLIENT_HANDOFF_COACH_ROLE_REQUIRED');
+
+  const previousRole=String(getActiveRole?.()||beforeState?.identity?.role||'').trim().toLowerCase()||null;
+  const switched=previousRole!==target.role;
+
+  try{
+    if(switched)setActiveRole(target.role);
+    await hydrate({reason:'admin-client-create-handoff'});
+
+    const nextState=getState();
+    if(String(nextState?.identity?.role||'').trim().toLowerCase()!==target.role){
+      throw new Error('M26_CLIENT_HANDOFF_ROLE_NOT_ACTIVE');
+    }
+    const visible=new Set((nextState?.collections?.clients||[]).map((item)=>String(item?.id||'')).filter(Boolean));
+    if(!visible.has(target.clientId))throw new Error('M26_CLIENT_HANDOFF_CLIENT_NOT_VISIBLE');
+
+    const decision=resolveM26Route({...nextState,selectedClientId:target.clientId},target.area);
+    if(!decision.allowed||decision.area!==target.area)throw new Error(decision.reason||'M26_CLIENT_HANDOFF_ROUTE_FORBIDDEN');
+
+    selectClient(target.clientId);
+    navigate(target.area);
+    render();
+    return target;
+  }catch(error){
+    if(switched){
+      setActiveRole(previousRole);
+      try{await hydrate({reason:'admin-client-create-handoff-rollback'});}
+      catch(rollbackError){
+        try{Object.defineProperty(error,'rollbackError',{value:rollbackError,configurable:true});}catch{}
+      }
+      try{render();}catch{}
+    }
+    throw error;
+  }
 }
 
 export async function recoverExecutionAfterAuthentication({
@@ -697,7 +756,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     else if(controllerShellRole==='client')qaStage('rc64-controller-shell-role-client');
     else if(controllerShellRole==='admin')qaStage('rc64-controller-shell-role-admin');
     else qaStage('rc64-controller-shell-role-missing');
-    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
+    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener(CLIENT_CREATE_HANDOFF_EVENT,onOpenClientWorkflowEvent);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
     const executionRestored=await restoreExecutionAfterAuthentication();
     if(executionRestored)qaStage('rc64-session-auto-recovered');
     render();
@@ -739,6 +798,37 @@ export async function createM26Application({root=document.querySelector('#app'),
     render();
     try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}
   }
+  async function onOpenClientWorkflow(event){
+    try{
+      await executeClientCreateHandoff({
+        detail:event?.detail,
+        getState:()=>store.getState(),
+        getActiveRole:()=>activeApplicationRole||store.getState().identity?.role||null,
+        setActiveRole:(role)=>{activeApplicationRole=role||null;},
+        hydrate,
+        selectClient:(clientId)=>store.selectClient(clientId),
+        navigate:(area)=>store.navigate(area),
+        render,
+        sessionActive:Boolean(sessionUi),
+      });
+      try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message:'Cliente creado. Abriendo su Diagnóstico IRI con los datos ya registrados.'}}));}catch{}
+      return true;
+    }catch(error){
+      const detail=reportDiagnostic('client-create-handoff',error);
+      const code=String(error?.message||error||'');
+      const message=/COACH_ROLE_REQUIRED/.test(code)
+        ?'Cliente creado correctamente. Esta cuenta no tiene un perfil Coach disponible para abrir el IRI automáticamente.'
+        :/CLIENT_NOT_VISIBLE/.test(code)
+          ?'Cliente creado correctamente. El expediente todavía no está visible en Coach; permanece guardado y podrás abrir su IRI cuando termine la sincronización.'
+          :/SESSION_ACTIVE/.test(code)
+            ?'Cliente creado correctamente. Finaliza o cierra la sesión activa antes de abrir su IRI.'
+            :`Cliente creado correctamente, pero no fue posible abrir el IRI automáticamente. Código: ${detail.code}.`;
+      try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}
+      return false;
+    }
+  }
+  function onOpenClientWorkflowEvent(event){void onOpenClientWorkflow(event);}
+
   async function onSwitchRole(event){
     const role=String(event?.detail?.role||'').trim().toLowerCase();
     const allowed=store.getState().identity?.authorizedRoles||[];
@@ -809,7 +899,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       deviceClearBusy=false;
     }
   }
-  function destroyControllers(){telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers(){telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener(CLIENT_CREATE_HANDOFF_EVENT,onOpenClientWorkflowEvent);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 async function onAccountPasswordRecovery(){
   if(accountSecurityBusy||!session?.user?.email||!runtime.enabled)return false;
   accountSecurityBusy=true;
