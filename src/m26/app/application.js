@@ -257,6 +257,7 @@ export function createAuthBusyWatchdog({
     timer=setTimeoutFn?.(()=>{
       if(id!==activeId)return;
       timer=null;
+      activeId+=1;
       onTimeout({id,stage});
     },safeTimeout)??null;
     return id;
