@@ -650,10 +650,12 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return { token: body.access_token, refreshToken: body.refresh_token || refreshToken, expiresAt: body.expires_at || null, user: body.user };
   }
 
-  async function logout(token) {
+  async function logout(token,{scope='global'}={}) {
     if (!token) return { ok: true, skipped: true };
-    await request('/auth/v1/logout', { method: 'POST', token });
-    return { ok: true };
+    const normalizedScope=String(scope||'global').trim().toLowerCase();
+    if(!['global','local','others'].includes(normalizedScope))throw new Error('M26_LOGOUT_SCOPE_INVALID');
+    await request(`/auth/v1/logout?scope=${encodeURIComponent(normalizedScope)}`, { method: 'POST', token });
+    return { ok: true, scope:normalizedScope };
   }
 
   async function rpc(name, token, params = {}) {
