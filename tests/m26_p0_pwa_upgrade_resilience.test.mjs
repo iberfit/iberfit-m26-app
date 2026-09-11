@@ -81,7 +81,29 @@ test('P0 app asks the active worker to warm the full release only after full app
   assert.ok(ready>=0&&warm>ready);
 });
 
-test('P0 stored-session launch immediately exposes secure restore progress instead of looking frozen',()=>{
+test('P0 stored-session cold start is non-blocking and exposes an explicit retry instead of freezing',()=>{
+  const start=application.indexOf('function mount()');
+  const end=application.indexOf('function destroy()',start);
+  assert.ok(start>=0&&end>start);
+  const mount=application.slice(start,end);
+  assert.match(mount,/session=vault\.load\(\)/u);
+  assert.match(mount,/sessionRetryAvailable=true/u);
+  assert.match(mount,/Tu sesión está guardada\. Puedes continuar sin bloquear el arranque de IBERFIT\./u);
+  assert.match(mount,/return Promise\.resolve\(false\)/u);
+  assert.doesNotMatch(mount,/return resume\(\)/u);
+  assert.doesNotMatch(mount,/continueAfterFirstFactor\(\)/u);
+});
+
+test('P0 explicit password login still continues automatically after the non-blocking application mount',()=>{
+  const start=app.indexOf('async function onMinimalAuthSubmit');
+  const end=app.indexOf('async function onMinimalAuthClick',start);
+  assert.ok(start>=0&&end>start);
+  const submit=app.slice(start,end);
+  assert.match(submit,/firstFactorAccepted=true/u);
+  assert.match(submit,/if\(firstFactorAccepted&&!identityReady\)\{\s*await loadedApp\.resume\(\);\s*return;/u);
+});
+
+test('P0 explicit session retry remains bounded to the saved identity and always releases the busy state',()=>{
   const start=application.indexOf('async function resume(){');
   const end=application.indexOf('async function onSubmit',start);
   assert.ok(start>=0&&end>start);
