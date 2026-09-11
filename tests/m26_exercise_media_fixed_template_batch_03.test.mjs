@@ -7,6 +7,7 @@ const read=(p)=>fs.readFileSync(p,'utf8').replace(/\r\n/g,'\n');
 test('fixed exercise-media template is locked to published 640x800 geometry',()=>{
   const compose=read('scripts/exercise-media/compose-fixed-template.py');
   assert.match(compose,/W,H=640,800/);
+  assert.match(compose,/im\.size==\(HALF,H\)/);
   assert.match(compose,/HALF=W\/\/2/);
   assert.match(compose,/ANATOMY_BOX=\(360,0,640,180\)/);
   assert.match(compose,/LABEL_Y=610/);
@@ -16,12 +17,14 @@ test('fixed exercise-media template is locked to published 640x800 geometry',()=
   assert.match(compose,/'ai_generated_branding':False/);
 });
 
-test('phase generator never asks AI to invent or reproduce IBERFIT branding',()=>{
+test('phase generator uses identity + geometry refs without asking AI to invent branding',()=>{
   const gen=read('scripts/exercise-media/generate-fixed-phase.mjs');
   assert.match(gen,/NO logo, NO symbol, NO letters, NO numbers, NO brand name, NO watermark/);
   assert.match(gen,/Exactly one athlete in the requested single phase/);
   assert.match(gen,/input_image_0/);
-  assert.doesNotMatch(gen,/input_image_1/);
+  assert.match(gen,/input_image_1/);
+  assert.match(gen,/POSE_REF/);
+  assert.match(gen,/strict abstract POSE AND EQUIPMENT GEOMETRY guide/);
   assert.doesNotMatch(gen,/logoReference/);
 });
 
