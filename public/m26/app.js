@@ -198,7 +198,14 @@ async function onMinimalAuthSubmit(event){
       return;
     }
 
-    await loadFullApplication();
+    const loadedApp=await loadFullApplication();
+    const identityReady=Boolean(loadedApp?.getState?.()?.identity?.id);
+    const continuationAlreadySurfaced=Boolean(
+      root.querySelector?.('[data-auth-action="mfa-continue-webauthn"],[data-auth-action="retry-session"]')
+    );
+    if(!identityReady&&!continuationAlreadySurfaced){
+      await loadedApp.resume();
+    }
   }catch(error){
     if(firstFactorAccepted){
       clearBootstrapWatchdog();
