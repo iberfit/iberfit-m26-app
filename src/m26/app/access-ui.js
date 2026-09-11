@@ -296,6 +296,16 @@ export function renderAccessUi({
       </div>`
     :'';
 
+  const emailOtpAction=mfa?.emailOtpAvailable===true
+    ? `<button
+          type="button"
+          class="m26-secondary-action"
+          data-auth-action="mfa-send-email-code"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >
+          Usar código por correo
+        </button>`
+    : '';
   let content = '';
 
   if (normalizedMode === 'mfa-required') {
@@ -319,14 +329,7 @@ export function renderAccessUi({
           ${busy ? 'Configurando…' : 'Configurar este dispositivo'}
         </button>
 
-        <button
-          type="button"
-          class="m26-secondary-action"
-          data-auth-action="mfa-send-email-code"
-          ${disabled ? 'disabled aria-disabled="true"' : ''}
-        >
-          Usar código por correo
-        </button>
+        ${emailOtpAction}
 
         <button type="button" class="m26-tertiary-action" data-auth-action="mfa-logout">
           Volver y usar otra cuenta
@@ -356,14 +359,7 @@ export function renderAccessUi({
           ${busy ? 'Confirmando…' : 'Confirmar en este dispositivo'}
         </button>
 
-        <button
-          type="button"
-          class="m26-secondary-action"
-          data-auth-action="mfa-send-email-code"
-          ${disabled ? 'disabled aria-disabled="true"' : ''}
-        >
-          Usar código por correo
-        </button>
+        ${emailOtpAction}
 
         <button
           type="button"

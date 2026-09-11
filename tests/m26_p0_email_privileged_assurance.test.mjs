@@ -35,7 +35,7 @@ test('privileged access UI keeps WebAuthn preferred and exposes email-code fallb
   const challenge=renderAccessUi({
     mode:'mfa-challenge',
     backendReady:true,
-    mfa:{kind:'challenge'},
+    mfa:{kind:'challenge',emailOtpAvailable:true},
   });
   assert.match(challenge,/data-auth-action="mfa-continue-webauthn"/u);
   assert.match(challenge,/data-auth-action="mfa-send-email-code"/u);
@@ -44,7 +44,7 @@ test('privileged access UI keeps WebAuthn preferred and exposes email-code fallb
   const code=renderAccessUi({
     mode:'mfa-email-code',
     backendReady:true,
-    mfa:{kind:'challenge',email:'seguridad@iberfit.cl'},
+    mfa:{kind:'challenge',email:'seguridad@iberfit.cl',emailOtpAvailable:true},
   });
   assert.match(code,/data-auth-form="mfa-email-code"/u);
   assert.match(code,/autocomplete="one-time-code"/u);
