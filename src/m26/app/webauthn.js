@@ -1,6 +1,7 @@
 const MAX_WEBAUTHN_JSON_BYTES=512_000;
 const BASE64URL_PATTERN=/^[A-Za-z0-9_-]+$/u;
 const SAME_DEVICE_HINT='client-device';
+const DEFAULT_WEBAUTHN_TIMEOUT_MS=45_000;
 
 function jsonClone(value,code){
   let text;
@@ -193,6 +194,32 @@ function ceremonyError(error){
   return new Error(map[name]||'M26_WEBAUTHN_CEREMONY_FAILED');
 }
 
+function normalizedTimeoutMs(value){
+  const numeric=Number(value);
+  if(!Number.isFinite(numeric))return DEFAULT_WEBAUTHN_TIMEOUT_MS;
+  return Math.max(1_000,Math.min(120_000,Math.round(numeric)));
+}
+
+async function withCeremonyTimeout(operation,{timeoutMs,AbortControllerImpl=globalThis.AbortController}={}){
+  const duration=normalizedTimeoutMs(timeoutMs);
+  const controller=typeof AbortControllerImpl==='function'?new AbortControllerImpl():null;
+  let timer=null;
+  const timeout=new Promise((_,reject)=>{
+    timer=setTimeout(()=>{
+      try{controller?.abort?.('M26_WEBAUTHN_TIMEOUT');}catch{}
+      reject(new Error('M26_WEBAUTHN_TIMEOUT'));
+    },duration);
+  });
+  try{
+    return await Promise.race([
+      Promise.resolve().then(()=>operation(controller?.signal)),
+      timeout,
+    ]);
+  }finally{
+    if(timer!==null)clearTimeout(timer);
+  }
+}
+
 export function webAuthnSupported({
   navigatorLike=globalThis.navigator,
   PublicKeyCredentialImpl=globalThis.PublicKeyCredential,
@@ -208,7 +235,9 @@ export function webAuthnSupported({
 export async function runWebAuthnCeremony(challenge,{
   navigatorLike=globalThis.navigator,
   PublicKeyCredentialImpl=globalThis.PublicKeyCredential,
+  AbortControllerImpl=globalThis.AbortController,
   friendlyName='IBERFIT',
+  timeoutMs=DEFAULT_WEBAUTHN_TIMEOUT_MS,
 }={}){
   if(!webAuthnSupported({navigatorLike,PublicKeyCredentialImpl}))throw new Error('M26_WEBAUTHN_UNSUPPORTED');
   const type=String(challenge?.type||'').trim().toLowerCase();
@@ -217,9 +246,12 @@ export async function runWebAuthnCeremony(challenge,{
     const publicKey=type==='create'
       ?creationOptions(challenge?.credentialOptions,PublicKeyCredentialImpl,friendlyName)
       :requestOptions(challenge?.credentialOptions,PublicKeyCredentialImpl);
-    const credential=type==='create'
-      ?await navigatorLike.credentials.create({publicKey})
-      :await navigatorLike.credentials.get({publicKey});
+    const credential=await withCeremonyTimeout(
+      (signal)=>type==='create'
+        ?navigatorLike.credentials.create({publicKey,...(signal?{signal}:{})})
+        :navigatorLike.credentials.get({publicKey,...(signal?{signal}:{})}),
+      {timeoutMs,AbortControllerImpl},
+    );
     if(!credential)throw new Error('M26_WEBAUTHN_CREDENTIAL_MISSING');
     return Object.freeze({
       type,
@@ -231,10 +263,13 @@ export async function runWebAuthnCeremony(challenge,{
 }
 
 export const __webauthnInternals=Object.freeze({
+  DEFAULT_WEBAUTHN_TIMEOUT_MS,
   decodeBase64Url,
   encodeBase64Url,
   fallbackCreationOptions,
   fallbackRequestOptions,
   preferSameDevice,
   credentialJson,
+  normalizedTimeoutMs,
+  withCeremonyTimeout,
 });
