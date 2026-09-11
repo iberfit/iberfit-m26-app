@@ -1173,16 +1173,22 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       authMessage();
       return false;
     }
+    loginBusy=true;
+    sessionRetryAvailable=false;
+    authMode='login';
+    authMessage('Restaurando tu sesión segura…');
     try{
-      sessionRetryAvailable=false;
       return await continueAfterFirstFactor();
     }catch(error){
+      loginBusy=false;
       if(sessionFailureRequiresFreshLogin(error)){
         discardSessionAfterFailure(error,'resume');
       }else{
         surfaceRetriableSessionFailure(error,'resume');
       }
       return false;
+    }finally{
+      loginBusy=false;
     }
   }
   async function onSubmit(event) {

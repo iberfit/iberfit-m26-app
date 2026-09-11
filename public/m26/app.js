@@ -306,6 +306,17 @@ async function prepareInstalledPwaUpdate(){
   return registration;
 }
 
+function warmReleaseCacheInBackground(){
+  const sw=globalThis.navigator?.serviceWorker;
+  if(!sw?.ready)return false;
+  void Promise.resolve(sw.ready)
+    .then((registration)=>{
+      registration?.active?.postMessage?.({type:'WARM_RELEASE'});
+    })
+    .catch(()=>{});
+  return true;
+}
+
 function isIberfitWorkerRegistration(registration){
   const workers=[registration?.active,registration?.waiting,registration?.installing].filter(Boolean);
   return workers.some((worker)=>{
@@ -967,6 +978,7 @@ async function loadFullApplication(){
       globalThis.__IBERFIT_M26_SESSION_VALUE_LOOP__=null;
     }
     bootstrapPhase='ready';
+    warmReleaseCacheInBackground();
     return app;
   })();
 
