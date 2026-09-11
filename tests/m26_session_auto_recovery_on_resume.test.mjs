@@ -45,6 +45,22 @@ test('diagnostic failures cannot turn recovery failure into an authentication bl
   assert.equal(restored,false);
 });
 
+test('a blocked local recovery store cannot hold authenticated entry indefinitely',async()=>{
+  const diagnostics=[];
+  const started=Date.now();
+  const restored=await recoverExecutionAfterAuthentication({
+    restoreExecution:()=>new Promise(()=>{}),
+    timeoutMs:20,
+    reportDiagnostic:(code,error)=>diagnostics.push({code,message:error.message}),
+  });
+  assert.equal(restored,false);
+  assert.ok(Date.now()-started<500,'post-login recovery must fail open promptly');
+  assert.deepEqual(diagnostics,[{
+    code:'session-recovery-auto-restore',
+    message:'M26_SESSION_RECOVERY_TIMEOUT',
+  }]);
+});
+
 test('authenticated setup restores before first final render and only consumes deep-link when not restored',()=>{
   const source=fs.readFileSync('src/m26/app/application.js','utf8');
   const setupStart=source.indexOf('async function setupAuthenticated()');
