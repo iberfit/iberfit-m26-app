@@ -20,7 +20,9 @@ function runtime(qaOnly=false){
 }
 
 function mockFetch(environment){
-  return async (url)=>({
+  return async (url,options={})=>{
+    assert.equal(options.headers?.Authorization,'Bearer health-token');
+    return ({
     ok:true,
     status:200,
     headers:{
@@ -41,32 +43,41 @@ function mockFetch(environment){
     },
     async text(){return '';},
   });
+  };
 }
 
 test('health RPC accepts production only for production runtime',async()=>{
   const transport=createM26Transport(runtime(false),{fetchImpl:mockFetch('production')});
-  assert.equal((await transport.backendHealth()).environment,'production');
-  assert.equal((await transport.draftBackendHealth()).environment,'production');
-  assert.equal((await transport.wearableHealth()).environment,'production');
+  assert.equal((await transport.backendHealth('health-token')).environment,'production');
+  assert.equal((await transport.draftBackendHealth('health-token')).environment,'production');
+  assert.equal((await transport.wearableHealth('health-token')).environment,'production');
 });
 
 test('health RPC accepts qa only for QA runtime',async()=>{
   const transport=createM26Transport(runtime(true),{fetchImpl:mockFetch('qa')});
-  assert.equal((await transport.backendHealth()).environment,'qa');
-  assert.equal((await transport.draftBackendHealth()).environment,'qa');
-  assert.equal((await transport.wearableHealth()).environment,'qa');
+  assert.equal((await transport.backendHealth('health-token')).environment,'qa');
+  assert.equal((await transport.draftBackendHealth('health-token')).environment,'qa');
+  assert.equal((await transport.wearableHealth('health-token')).environment,'qa');
+});
+
+
+test('health RPCs fail closed without an authenticated session token',async()=>{
+  const transport=createM26Transport(runtime(false),{fetchImpl:async()=>{throw new Error('network must not be reached');}});
+  await assert.rejects(transport.backendHealth(),/M26_RC43_HEALTH_AUTH_REQUIRED/);
+  await assert.rejects(transport.draftBackendHealth(),/M26_RC431_HEALTH_AUTH_REQUIRED/);
+  await assert.rejects(transport.wearableHealth(),/M26_RC44_HEALTH_AUTH_REQUIRED/);
 });
 
 test('health RPC fails closed on production/QA environment mixing',async()=>{
   const production=createM26Transport(runtime(false),{fetchImpl:mockFetch('qa')});
-  await assert.rejects(production.backendHealth(),/M26_RC43_BACKEND_NOT_READY/);
-  await assert.rejects(production.draftBackendHealth(),/M26_RC431_BACKEND_NOT_READY/);
-  await assert.rejects(production.wearableHealth(),/M26_RC44_BACKEND_NOT_READY/);
+  await assert.rejects(production.backendHealth('health-token'),/M26_RC43_BACKEND_NOT_READY/);
+  await assert.rejects(production.draftBackendHealth('health-token'),/M26_RC431_BACKEND_NOT_READY/);
+  await assert.rejects(production.wearableHealth('health-token'),/M26_RC44_BACKEND_NOT_READY/);
 
   const qa=createM26Transport(runtime(true),{fetchImpl:mockFetch('production')});
-  await assert.rejects(qa.backendHealth(),/M26_RC43_BACKEND_NOT_READY/);
-  await assert.rejects(qa.draftBackendHealth(),/M26_RC431_BACKEND_NOT_READY/);
-  await assert.rejects(qa.wearableHealth(),/M26_RC44_BACKEND_NOT_READY/);
+  await assert.rejects(qa.backendHealth('health-token'),/M26_RC43_BACKEND_NOT_READY/);
+  await assert.rejects(qa.draftBackendHealth('health-token'),/M26_RC431_BACKEND_NOT_READY/);
+  await assert.rejects(qa.wearableHealth('health-token'),/M26_RC44_BACKEND_NOT_READY/);
 });
 
 function jsonResponse(body,status=200){
