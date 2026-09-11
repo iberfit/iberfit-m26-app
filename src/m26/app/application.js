@@ -1286,7 +1286,18 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     return Promise.resolve(false);
   }
 
-  return resume();
+  session=vault.load();
+  loginBusy=false;
+  authMode='login';
+  if(session?.token){
+    sessionRetryAvailable=true;
+    authMessage('Tu sesión está guardada. Puedes continuar sin bloquear el arranque de IBERFIT.');
+  }else{
+    sessionRetryAvailable=false;
+    authMessage();
+  }
+
+  return Promise.resolve(false);
 }
   function destroy() {
   const recoveryToken = recoverySession?.accessToken || null;
