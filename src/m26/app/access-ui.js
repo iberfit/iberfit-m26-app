@@ -33,7 +33,7 @@ export function maskAccessEmail(value=''){
   const [local='',domain='']=email.split('@');
   if(!local||!domain)return '';
   const visible=local.length<=2?local.slice(0,1):local.slice(0,2);
-  const hiddenCount=Math.max(2,Math.min(6,local.length-visible));
+  const hiddenCount=Math.max(2,Math.min(6,local.length-visible.length));
   return `${visible}${'*'.repeat(hiddenCount)}@${domain}`;
 }
 
