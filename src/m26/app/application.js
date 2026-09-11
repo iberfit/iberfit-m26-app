@@ -1299,9 +1299,9 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       }
       return false;
     }finally{
+      loginBusy=false;
       if(authWatchdog.isCurrent(authAttemptId)){
         completeAuthAttempt(authAttemptId);
-        loginBusy=false;
       }
     }
   }
