@@ -169,7 +169,7 @@ jobs:
               qa="recovery/exercise-media-fixed/${id}-qa-a${attempt}.json"
               python3 scripts/exercise-media/compose-fixed-template.py --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --start "$start" --final "$final" --anatomy-source "$anatomy" --out "$out" --meta "$meta"
               set +e
-              node scripts/exercise-media/qa-fixed-template.mjs --exercise-id "$id" --image "$out" --out "$qa" | tee "recovery/${id}-qa-a${attempt}.log"
+              node scripts/exercise-media/qa-fixed-template.mjs --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --image "$out" --out "$qa" | tee "recovery/${id}-qa-a${attempt}.log"
               qa_rc=${PIPESTATUS[0]}
               set -e
               confidence="$(node -e "const x=require('./$qa');process.stdout.write(String(x.review&&x.review.confidence||0))" 2>/dev/null || printf 0)"
