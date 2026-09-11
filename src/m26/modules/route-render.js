@@ -334,14 +334,31 @@ export function renderHoyRoute(vm) {
     ? `<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Accesos rápidos</p><h2>Tu ruta IBERFIT</h2><p>Solo se muestra contenido confirmado para ti.</p></div></div><div class="m26-action-grid"><button type="button" data-m26-area="actividad">Registrar bienestar</button><button type="button" data-m26-area="planificacion">Ver planificación</button><button type="button" data-m26-area="sesion">Abrir sesiones</button><button type="button" data-m26-area="progreso">Revisar progreso</button><button type="button" data-m26-area="informes">Consultar informes</button></div></section>`
     : '';
 
+    const clientSessionProjections=isClient&&Array.isArray(vm.rc39?.sessionProjections)
+      ?vm.rc39.sessionProjections.filter((item)=>item?.visible===true)
+      :[];
+    const clientExecutableSessionIds=new Set(
+      clientSessionProjections
+        .filter(
+          (item)=>
+            item?.canClientExecute===true&&
+            Array.isArray(item?.session?.blocks)&&
+            item.session.blocks.length>0
+        )
+        .map((item)=>String(item.id||'').trim())
+        .filter(Boolean)
+    );
     const clientRunnableAppointment=isClient
       ?vm.appointments.find((item)=>{
           const status=String(item?.statusRaw||'').trim().toLowerCase();
-          return Boolean(item?.sessionId)&&['confirmada','confirmado','confirmed'].includes(status);
+          const sessionId=String(item?.sessionId||'').trim();
+          return Boolean(sessionId)&&
+            ['confirmada','confirmado','confirmed'].includes(status)&&
+            clientExecutableSessionIds.has(sessionId);
         })||null
       :null;
     const clientSessionCount=isClient
-      ?Math.max(0,Number(client?.counts?.sessions||0))
+      ?clientSessionProjections.length
       :0;
     const clientPrimaryToday=clientRunnableAppointment
       ?`<button type="button" class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(clientRunnableAppointment.sessionId)}">
