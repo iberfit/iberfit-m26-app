@@ -114,7 +114,7 @@ test('RC65-C1 FREE aplicación conserva sesión Supabase y exige iberfitAssuranc
   assert.match(source,/assurance\.iberfitAssurance!=='verified'/u);
   assert.match(source,/M26_PRIVILEGED_WEBAUTHN_REQUIRED/u);
   assert.doesNotMatch(source,/assurance\.aal!=='aal2'/u);
-  const verifyArea=source.match(/const next=await transport\.verifyWebAuthn[\s\S]{0,1800}?const \[assurance,user\]=await Promise\.all/u)?.[0]||'';
+  const verifyArea=source.match(/const next=await boundedMfaBackend\(\(\)=>transport\.verifyWebAuthn[\s\S]{0,2400}?const \[assurance,user\]=await boundedMfaBackend\(\(\)=>Promise\.all/u)?.[0]||'';
   assert.ok(verifyArea);
   assert.doesNotMatch(verifyArea,/session=next|vault\.save\(session\)/u);
 });
