@@ -19,9 +19,10 @@ def cover_center(im,w,h):
     return im.crop((x,y,x+w,y+h))
 
 def panel(im):
-    # The phase generator reserves the central 50% horizontally.
-    full=cover_center(im,640,800)
-    return full.crop((160,0,480,800))
+    # Phase generation is native 320x800, exactly one fixed-template half.
+    im=im.convert('RGB')
+    if im.size==(HALF,H): return im
+    return im.resize((HALF,H),Image.Resampling.LANCZOS)
 
 def feather_paste(dst, patch, xy, feather=18):
     patch=patch.convert('RGB')
