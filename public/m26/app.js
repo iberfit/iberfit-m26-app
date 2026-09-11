@@ -153,16 +153,19 @@ function enableMinimalAuthShell(){
   setMinimalAuthNotice('Acceso seguro listo.');
   return true;
 }
-function removeMinimalAuthBootstrap(){
-  if(!minimalAuthInstalled)return;
+function removeMinimalAuthBootstrap({force=false}={}){
+  if(!minimalAuthInstalled)return true;
+  if(minimalAuthBusy&&!force)return false;
   root.removeEventListener('submit',onMinimalAuthSubmit,true);
   root.removeEventListener('click',onMinimalAuthClick,true);
   minimalAuthInstalled=false;
   minimalAuthBusy=false;
+  return true;
 }
 async function onMinimalAuthSubmit(event){
   const form=event.target?.closest?.('[data-auth-form="login"]');
-  if(!form||!root.contains?.(form)||globalThis.__IBERFIT_M26_APP__)return;
+  if(!form||!root.contains?.(form))return;
+  if(globalThis.__IBERFIT_M26_APP__&&!minimalAuthBusy)return;
   event.preventDefault();
   event.stopImmediatePropagation();
   if(minimalAuthBusy)return;
@@ -215,13 +218,24 @@ async function onMinimalAuthSubmit(event){
     bootstrapPhase='auth-ready';
     setMinimalAuthNotice(minimalAuthFailureMessage(error),'error');
   }finally{
-    if(!globalThis.__IBERFIT_M26_APP__&&!bootstrapRecoveryMounted){
+    if(globalThis.__IBERFIT_M26_APP__){
+      minimalAuthBusy=false;
+      removeMinimalAuthBootstrap({force:true});
+    }else if(!bootstrapRecoveryMounted){
       setMinimalAuthBusy(false);
     }
   }
 }
 async function onMinimalAuthClick(event){
-  if(globalThis.__IBERFIT_M26_APP__)return;
+  if(globalThis.__IBERFIT_M26_APP__&&!minimalAuthBusy)return;
+  if(minimalAuthBusy){
+    const blocked=event.target?.closest?.('[data-auth-action],[data-password-toggle]');
+    if(blocked){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+    return;
+  }
   const toggle=event.target?.closest?.('[data-password-toggle]');
   if(toggle){
     event.preventDefault();
