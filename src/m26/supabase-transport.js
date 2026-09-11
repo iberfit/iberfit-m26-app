@@ -514,6 +514,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       mfaRequired:body.mfaRequired,
       webauthnRequired:body.webauthnRequired,
       credentialEnrolled:body.credentialEnrolled,
+      emailOtpAvailable:body.emailOtpAvailable===true,
       iberfitAssurance:String(body.iberfitAssurance),
       verifiedAt:body.verifiedAt??null,
       expiresAt:body.expiresAt??null,
