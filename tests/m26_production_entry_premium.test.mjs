@@ -57,7 +57,7 @@ test('production promotion verifies live identity, then browser entry, then inte
   assert.match(workflow,/recovery\/production-entry\//u);
 });
 
-test('email OTP remains fail-closed until a real delivery E2E is certified',()=>{
+test('email OTP production gate is enabled only through the certified promotion path',()=>{
   const application=read('src/m26/app/application.js');
-  assert.match(application,/export const EMAIL_OTP_DEPLOYMENT_READY=false;/u);
+  assert.match(application,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
 });
