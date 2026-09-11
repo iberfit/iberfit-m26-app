@@ -970,6 +970,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     }
 
     const user=await transport.authUser(session.token);
+    assertActiveAuthAttempt(authAttemptId);
     if(user.id!==session.user.id)throw new Error('M26_MFA_IDENTITY_MISMATCH');
     const decision=privilegedMfaDecision(assurance,user.factors);
     if(decision.kind==='ready'){
@@ -1036,6 +1037,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     authMessage('Verificando el código y protegiendo tu sesión…');
     let transientSession=null;
     let assuranceVerified=false;
+    let authAttemptId=null;
     try{
       await refreshSessionIfNeeded();
       transientSession=await transport.verifyEmailOtp(mfaState.email,otp);
@@ -1054,10 +1056,15 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       authMode='login';
       store.reset();
       qaStage('rc64-login-setup-start');
-      await setupAuthenticated({authAttemptId});
+      authAttemptId=beginAuthAttempt();
+      await runBoundedAuthContinuation(
+        ()=>setupAuthenticated({authAttemptId}),
+        authAttemptId,
+      );
       qaStage('rc64-login-setup-ready');
       return true;
     }catch(error){
+      if(authAttemptId!==null)invalidateAuthAttempt(authAttemptId);
       loginBusy=false;
       if(assuranceVerified){
         surfaceRetriableSessionFailure(error,'post-email-mfa-setup');
@@ -1085,6 +1092,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     const expectedRole=mfaState.privilegedRole||null;
     const initialKind=mfaState.kind;
     let assuranceVerified=false;
+    let authAttemptId=null;
     loginBusy=true;
     authMessage(initialKind==='challenge'?'Preparando la confirmación segura…':'Preparando el acceso seguro…');
     try{
@@ -1131,10 +1139,15 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       authMode='login';
       store.reset();
       qaStage('rc64-login-setup-start');
-      await setupAuthenticated({authAttemptId});
+      authAttemptId=beginAuthAttempt();
+      await runBoundedAuthContinuation(
+        ()=>setupAuthenticated({authAttemptId}),
+        authAttemptId,
+      );
       qaStage('rc64-login-setup-ready');
       return true;
     }catch(error){
+      if(authAttemptId!==null)invalidateAuthAttempt(authAttemptId);
       loginBusy=false;
       if(assuranceVerified){
         surfaceRetriableSessionFailure(error,'post-mfa-setup');
