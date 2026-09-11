@@ -15,9 +15,9 @@ const runtime={
   version:'test-email-assurance',
   timeoutMs:2000,
   rpc:{
-    bootstrap:'m26_bootstrap',
-    preflight:'m26_preflight',
-    execute:'m26_execute',
+    bootstrap:'iberfit_bootstrap_v26',
+    preflight:'iberfit_command_preflight_v26',
+    execute:'iberfit_execute_command_v26',
   },
 };
 
@@ -125,7 +125,7 @@ test('server-side email assurance cannot degrade into OTP-only privileged access
 test('database assurance keeps WebAuthn and adds origin-bound email OTP without client table access',()=>{
   const sql=fs.readFileSync('supabase/migrations/20260911033000_p0_email_privileged_assurance_v1.sql','utf8');
   assert.match(sql,/create table if not exists public\.iberfit_email_privileged_assurance_v1/u);
-  assert.match(sql,/otp_session_id uuid not null unique/u);
+  assert.match(sql,/otp_session_id uuid primary key/u);
   assert.match(sql,/origin text not null check/u);
   assert.match(sql,/enable row level security/u);
   assert.match(sql,/revoke all on table public\.iberfit_email_privileged_assurance_v1 from public,anon,authenticated/u);
