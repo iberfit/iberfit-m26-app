@@ -72,7 +72,11 @@ async function registerCurrentDevice(button){
     const user=await boundedDeviceBackend(()=>transport.authUser(session.token));
     if(user.id!==session.user.id)throw new Error('M26_MFA_IDENTITY_MISMATCH');
     const enrollment=await boundedDeviceBackend(()=>transport.enrollWebAuthn(session.token));
-    const challenge=await boundedDeviceBackend(()=>transport.challengeWebAuthn(session.token,enrollment.factorId));
+    const challenge=await boundedDeviceBackend(()=>transport.challengeWebAuthn(
+      session.token,
+      enrollment.factorId,
+      {replaceExisting:true},
+    ));
     if(challenge.type!=='create')throw new Error('M26_WEBAUTHN_CHALLENGE_TYPE_MISMATCH');
     const ceremony=await runWebAuthnCeremony(challenge,{friendlyName:'IBERFIT · este dispositivo'});
     const verified=await boundedDeviceBackend(()=>transport.verifyWebAuthn(session.token,{
@@ -80,6 +84,7 @@ async function registerCurrentDevice(button){
       challengeId:challenge.challengeId,
       type:ceremony.type,
       credentialResponse:ceremony.credentialResponse,
+      replaceExisting:true,
     }));
     if(verified.user.id!==session.user.id)throw new Error('M26_MFA_IDENTITY_MISMATCH');
     const assurance=await boundedDeviceBackend(()=>transport.authAssuranceContext(session.token));
@@ -108,7 +113,13 @@ function surfaceDeviceRegistrationError(root,error){
   const code=String(error?.message||error||'');
   if(notice)notice.textContent=/M26_(?:WEBAUTHN_BACKEND_TIMEOUT|TIMEOUT)/u.test(code)
     ?'La configuración segura no recibió respuesta a tiempo. El acceso ya está liberado: inténtalo de nuevo o usa “Reparar acceso en este dispositivo”.'
-    :'No se pudo configurar este dispositivo. Comprueba que tiene PIN, contraseña o biometría activados e inténtalo de nuevo.';
+    :/M26_WEBAUTHN_INVALID_STATE/u.test(code)
+      ?'Windows ya tiene una credencial de IBERFIT para este equipo. IBERFIT intentará reemplazarla de forma segura al volver a vincular este dispositivo.'
+      :/M26_WEBAUTHN_NOT_ALLOWED/u.test(code)
+        ?'Windows no completó la verificación del dispositivo. Comprueba que Windows Hello o el PIN estén disponibles y vuelve a intentarlo.'
+        :/M26_WEBAUTHN_(?:REGISTRATION_VERIFICATION_FAILED|REGISTRATION_NOT_VERIFIED)/u.test(code)
+          ?'Windows creó la credencial, pero el servidor no pudo validarla. Vuelve a vincular este dispositivo; no se modificaron tus otros dispositivos.'
+          :`No se pudo configurar este dispositivo. Código: ${code||'M26_DEVICE_REGISTRATION_FAILED'}.`;
 }
 
 function enhanceDeviceRegistration(root){
