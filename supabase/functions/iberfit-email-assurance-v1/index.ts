@@ -151,6 +151,7 @@ Deno.serve(async(req)=>{
         user_id:primaryUser.id,
         session_id:primarySessionId,
         otp_session_id:otpSessionId,
+        origin,
         verified_at:now.toISOString(),
         expires_at:expiresAt,
         revoked_at:null,
