@@ -150,6 +150,10 @@ test('RC65-C1 FREE Edge Function fija librerías, allowlist RP/Origin, UV requir
   assert.match(edge,/\.is\('consumed_at',null\)\.gt\('expires_at',now\)/u);
   assert.match(edge,/sessionId=String\(claims\?\.session_id/u);
   assert.match(edge,/M26_PRIVILEGED_ROLE_REQUIRED/u);
+  assert.match(edge,/async function hasVerifiedRpAssurance/u);
+  assert.match(edge,/M26_WEBAUTHN_EXISTING_VERIFICATION_REQUIRED/u);
+  assert.match(edge,/if\(existing\?\.length\)[\s\S]{0,500}?hasVerifiedRpAssurance/u);
+  assert.match(edge,/Number\(existingCount\|\|0\)>0[\s\S]{0,500}?hasVerifiedRpAssurance/u);
 
   const config=fs.readFileSync('supabase/config.toml','utf8');
   assert.match(config,/\[functions\.iberfit-webauthn-v1\][\s\S]*verify_jwt\s*=\s*true/u);
