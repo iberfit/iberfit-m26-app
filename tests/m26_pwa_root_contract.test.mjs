@@ -65,7 +65,7 @@ test('protecciones históricas de caché y mutaciones permanecen intactas',()=>{
   assert.match(legacySw,/NEVER_CACHE_PREFIXES/u);
   assert.match(legacySw,/NEVER_CACHE_MEDIA_PREFIXES/u);
   assert.match(legacySw,/request\.method!=='GET'/u);
-  assert.match(legacySw,/isRuntimeConfig/u);
+  assert.match(legacySw,/isMutableReleaseMetadata/u);
   assert.match(legacySw,/VERSION='m26-rc63-2'/u);
 });
 
