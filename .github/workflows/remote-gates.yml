@@ -27,6 +27,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: iberfit-qa-authenticated-gates
+  cancel-in-progress: false
+
 jobs:
   preflight:
     if: ${{ github.event_name == 'push' || inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
