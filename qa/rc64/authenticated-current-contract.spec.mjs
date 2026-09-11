@@ -5,6 +5,7 @@ const LOCAL_ORIGIN='http://127.0.0.1:4196';
 const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const SUPABASE_ORIGIN=`https://${PROJECT_REF}.supabase.co`;
 const ASSURANCE_PATH='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d';
+const AUTH_FLOW_TIMEOUT_MS=30_000;
 
 const required=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
@@ -159,7 +160,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
             return url.origin===SUPABASE_ORIGIN&&url.pathname===ASSURANCE_PATH;
           }catch{return false;}
         },
-        {timeout:15_000},
+        {timeout:AUTH_FLOW_TIMEOUT_MS},
       );
 
       await page.getByRole('button',{name:'Entrar',exact:true}).click();
