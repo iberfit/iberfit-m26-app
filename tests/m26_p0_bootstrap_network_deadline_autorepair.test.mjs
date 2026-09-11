@@ -84,7 +84,7 @@ test('P0 successful bootstrap clears the one-shot auto-repair guard so future ge
 
 
 test('P0 slow-start and recovery surfaces expose only safe phase and release diagnostics',()=>{
-  assert.match(app,/const BOOTSTRAP_PHASES=new Set\(\['initial','styles','module','create','mount','enhancement','repair','ready'\]\)/u);
+  assert.match(app,/const BOOTSTRAP_PHASES=new Set\(\['initial','auth-ready','auth-transport','auth-first-factor','styles','module','create','mount','enhancement','repair','ready'\]\)/u);
   assert.match(app,/function safeBootstrapPhase\(\)/u);
   assert.match(app,/function safeBootstrapRelease\(\)/u);
   assert.match(app,/function bootstrapDiagnosticText\(\)/u);
