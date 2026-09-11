@@ -52,8 +52,11 @@ test('worker canónico atiende solo la raíz y reutiliza el motor offline probad
   assert.match(canonicalSw,/request\.method==='GET'/u);
   assert.match(canonicalSw,/request\.mode==='navigate'/u);
   assert.match(canonicalSw,/url\.origin===self\.location\.origin/u);
-  assert.match(canonicalSw,/caches\.match\('\/m26\/index\.html'\)/u);
-  assert.match(canonicalSw,/caches\.match\('\/m26\/offline\.html'\)/u);
+  assert.match(canonicalSw,/fetchWithDeadline\(/u);
+  assert.match(canonicalSw,/const cache=await caches\.open\(SHELL\)/u);
+  assert.match(canonicalSw,/cache\.match\('\/m26\/index\.html'\)/u);
+  assert.match(canonicalSw,/cache\.match\('\/m26\/offline\.html'\)/u);
+  assert.doesNotMatch(canonicalSw,/caches\.match\('\/m26\/(?:index|offline)\.html'\)/u);
   assert.doesNotMatch(canonicalSw,/startsWith\('\/'\)/u);
 });
 
