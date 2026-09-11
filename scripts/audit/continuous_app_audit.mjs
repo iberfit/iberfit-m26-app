@@ -323,7 +323,7 @@ function auditProductionSecurityHeaders(response){
 }
 
 function runtimePublishableKey(body){
-  const match=String(body||'').match(/[\"']?publishableKey[\"']?\s*:\s*[\"']([^\"']{8,512})[\"']/u);
+  const match=String(body||'').match(/["']?publishableKey["']?\s*:\s*["']([^"']{8,512})["']/u);
   return match?.[1]||null;
 }
 
