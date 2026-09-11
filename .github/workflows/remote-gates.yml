@@ -117,16 +117,7 @@ jobs:
         run: npm run quality:rc64:auth-smoke
 
       - name: Reproducir P0 login colgado y certificar recuperación sin freeze
-        env:
-          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
-          M26_QA_ONLY: 'true'
-          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
-          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
-          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
-          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
-        run: |
-          node qa/rc64/build-authenticated-surface.mjs
-          npx playwright test --config playwright.auth-no-freeze.config.mjs
+        run: npm run quality:p0:auth-no-freeze
 
       - name: Conservar evidencia autenticada minimizada RC64.2B
         if: always()
