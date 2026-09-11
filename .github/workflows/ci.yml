@@ -203,6 +203,10 @@ jobs:
         if: ${{ github.ref == 'refs/heads/canary/rc74-4' || github.head_ref == 'canary/rc74-4' || github.base_ref == 'canary/rc74-4' || github.ref == 'refs/heads/prep/final-production-rc74-4' || github.head_ref == 'prep/final-production-rc74-4' || github.base_ref == 'prep/final-production-rc74-4' }}
         run: npm run quality:p0:pwa-upgrade
 
+      - name: Certificar P0 auth no-freeze en Chromium hermético
+        if: ${{ github.ref == 'refs/heads/canary/rc74-4' || github.head_ref == 'canary/rc74-4' || github.base_ref == 'canary/rc74-4' || github.ref == 'refs/heads/prep/final-production-rc74-4' || github.head_ref == 'prep/final-production-rc74-4' || github.base_ref == 'prep/final-production-rc74-4' }}
+        run: npm run quality:p0:auth-no-freeze
+
       - name: Validar RC74.4 Phase B
         if: ${{ github.ref == 'refs/heads/canary/rc74-4' || github.head_ref == 'canary/rc74-4' || github.base_ref == 'canary/rc74-4' || github.ref == 'refs/heads/prep/final-production-rc74-4' || github.head_ref == 'prep/final-production-rc74-4' || github.base_ref == 'prep/final-production-rc74-4' }}
         env:
