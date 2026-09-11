@@ -49,7 +49,7 @@ test('privileged access UI keeps WebAuthn preferred and exposes email-code fallb
   assert.match(code,/data-auth-form="mfa-email-code"/u);
   assert.match(code,/autocomplete="one-time-code"/u);
   assert.match(code,/pattern="\[0-9\]\{6\}"/u);
-  assert.match(code,/se••••••@iberfit\.cl/u);
+  assert.match(code,/se\*\*\*\*\*\*@iberfit\.cl/u);
   assert.doesNotMatch(code,/seguridad@iberfit\.cl/u);
 });
 
