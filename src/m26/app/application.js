@@ -992,8 +992,12 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       qaStage('rc64-login-setup-ready');
       return true;
     }catch(error){
-      authMode='mfa-email-code';
       loginBusy=false;
+      if(assuranceVerified){
+        surfaceRetriableSessionFailure(error,'post-email-mfa-setup');
+        throw error;
+      }
+      authMode='mfa-email-code';
       authMessage(emailOtpFailureMessage(error),'error');
       throw error;
     }finally{
