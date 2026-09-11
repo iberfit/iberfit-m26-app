@@ -4,13 +4,14 @@
   "items": [
     {
       "exercise_id": "IBF-PRESS-DE-PECHO-CON-MANCUERNAS",
-      "local_path": "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-approved-adaa8c05ec2b.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-approved-13944c1c2674.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v2.b64.00",
-        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v2.b64.01",
-        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v2.b64.02",
-        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v2.b64.03a",
-        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v2.b64.03b"
+        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v3.b64.00",
+        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v3.b64.01",
+        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v3.b64.02",
+        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v3.b64.03",
+        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v3.b64.04",
+        "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v3.b64.05"
       ],
       "human_approved": true,
       "publishable": true,
@@ -21,8 +22,8 @@
           "biomechanics"
         ],
         "automatic_qa": "not_run",
-        "approved_at": "2026-09-10",
-        "note": "Versión visual v2 aprobada explícitamente por el propietario: inicio + final, ejecución correcta, composición limpia y maniquí muscular discreto. No se añadió ni inventó logotipo o isotipo."
+        "approved_at": "2026-09-11",
+        "note": "Versión v3 aprobada explícitamente por el propietario: press de pecho con mancuernas, Inicio + Final claros, mismo formato maestro de la biblioteca. Sin isotipo inventado dentro del asset; el isotipo oficial real lo superpone la app desde /public/isotipo-iberfit.png."
       },
       "media": {
         "schema": "iberfit.exercise.visual.v1",
@@ -30,11 +31,11 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-PRESS-DE-PECHO-CON-MANCUERNAS/movement-adaa8c05ec2b.webp",
+          "path": "IBF-PRESS-DE-PECHO-CON-MANCUERNAS/movement-13944c1c2674.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "adaa8c05ec2b49720ad65a60d6c6c7393a1ee30a0bf5e16b2a13d4c12b548bc7"
+          "sha256": "13944c1c2674955876162082aaf6ccaf3e6298c9969644812ac263b0a5c82428"
         },
         "published": true,
         "clientVisible": true,
