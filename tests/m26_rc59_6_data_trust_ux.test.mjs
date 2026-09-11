@@ -135,7 +135,7 @@ test('RC59.6 registro diario preserva procedencia fecha calidad y método VFC',(
   assert.equal(trust.missing,false);
 });
 
-test('RC59.6 tira de confianza es visible y no esconde dato faltante',()=>{
+test('RC59.6 tira de confianza es visible y no esconde ausencia de datos',()=>{
   const html=renderDataTrustStrip(createDataTrust({
     source:'wearableDailySummaries',
     quality:'sin_datos',
@@ -149,7 +149,9 @@ test('RC59.6 tira de confianza es visible y no esconde dato faltante',()=>{
   assert.match(html,/Fecha/u);
   assert.match(html,/Calidad/u);
   assert.match(html,/Cobertura/u);
-  assert.match(html,/Dato faltante/u);
+  assert.match(html,/Sin datos confirmados/u);
+  assert.match(html,/data-data-trust-missing="true"/u);
+  assert.match(html,/Los datos ausentes se mantienen como ausentes y no se convierten en cero\./u);
   assert.match(html,/Método/u);
 });
 
@@ -198,7 +200,7 @@ test('RC59.6 reto canónico conserva asOf método y descriptor de confianza',()=
   assert.equal(trust.missing,false);
 });
 
-test('RC59.6 consentimiento pendiente se representa como dato faltante y no elegible',()=>{
+test('RC59.6 consentimiento pendiente se representa como ausencia de datos y no elegible',()=>{
   const evaluation=evaluateChallenge(
     stateFixture(),
     CLIENT,
