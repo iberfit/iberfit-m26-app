@@ -48,14 +48,14 @@ test('auth premium conserva todos los flujos visibles y sus salidas seguras',()=
   assert.match(challenge,/data-auth-action="mfa-continue-webauthn"/u);
   assert.match(challenge,/data-auth-action="mfa-send-email-code"/u);
   assert.match(challenge,/Usar código por correo \(recomendado\)/u);
-  assert.match(challenge,/data-auth-action="mfa-register-device"/u);
+  assert.doesNotMatch(challenge,/data-auth-action="mfa-register-device"/u);
   assert.match(challenge,/data-auth-action="mfa-repair-access"/u);
   assert.match(challenge,/data-auth-action="mfa-logout"/u);
 
   const recoveryChallenge=render('mfa-challenge',{mfa:{kind:'challenge',deviceRecoveryRecommended:true}});
   assert.match(recoveryChallenge,/Reintentar verificación/u);
-  assert.match(recoveryChallenge,/Volver a vincular este dispositivo \(recomendado\)/u);
-  assert.match(recoveryChallenge,/class="m26-secondary-action"[\s\S]*?data-auth-action="mfa-register-device"/u);
+  assert.match(recoveryChallenge,/Por seguridad, un dispositivo nuevo solo puede añadirse después de verificar una credencial existente/u);
+  assert.doesNotMatch(recoveryChallenge,/data-auth-action="mfa-register-device"/u);
 });
 
 test('auth premium conserva busy, error, backend bloqueado y salida del preview',()=>{
