@@ -1,12 +1,9 @@
 name: IBERFIT Hosted Auth Email Sync
 
 on:
-  workflow_dispatch:
-    inputs:
-      confirmation:
-        description: 'Escribe SYNC_IBERFIT_AUTH_EMAILS_PROD para publicar las plantillas Hosted Auth en PROD'
-        required: true
-        type: string
+  push:
+    branches:
+      - 'ops/sync-auth-email-adcbe066'
 
 permissions:
   contents: read
@@ -17,7 +14,7 @@ concurrency:
 
 env:
   SUPABASE_PROJECT_REF: 'pjhmrhejsoofmouedavw'
-  IBERFIT_AUTH_EMAIL_CONFIRMATION: ${{ inputs.confirmation }}
+  IBERFIT_AUTH_EMAIL_CONFIRMATION: 'SYNC_IBERFIT_AUTH_EMAILS_PROD'
 
 jobs:
   sync-hosted-auth-emails:
