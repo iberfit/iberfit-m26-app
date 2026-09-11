@@ -772,7 +772,7 @@ function onAuthClick(event) {
     const token=currentToken();
     const otpToken=emailOtpSession?.token||null;
     emailOtpSession=null;
-    if(otpToken)void transport?.logout?.(otpToken).catch(()=>{});
+    if(otpToken)void transport?.logout?.(otpToken,{scope:'local'}).catch(()=>{});
     finishLogout({token});
     return;
   }
@@ -788,7 +788,7 @@ function onAuthClick(event) {
     recoverySession = null;
     authMode = 'login';
     authMessage();
-    void transport?.logout?.(recoveryToken).catch(() => {});
+    void transport?.logout?.(recoveryToken,{scope:'local'}).catch(() => {});
   }
 }
 async function requestRecovery(email) {
@@ -865,7 +865,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     );
 
     recoverySession = null;
-    await transport.logout(recoveryToken).catch(() => {});
+    await transport.logout(recoveryToken,{scope:'local'}).catch(() => {});
 
     loginBusy = false;
     authMode = 'login';
@@ -883,7 +883,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       recoverySession = null;
       authMode = 'request-recovery';
       authMessage(RECOVERY_LINK_INVALID, 'error');
-      void transport?.logout?.(recoveryToken).catch(() => {});
+      void transport?.logout?.(recoveryToken,{scope:'local'}).catch(() => {});
     } else {
       authMode = 'update-password';
       authMessage(recoveryPasswordError(error), 'error');
@@ -1003,7 +1003,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     }finally{
       const otpToken=transientSession?.token||emailOtpSession?.token||null;
       emailOtpSession=null;
-      if(otpToken)void transport?.logout?.(otpToken).catch(()=>{});
+      if(otpToken)void transport?.logout?.(otpToken,{scope:'local'}).catch(()=>{});
       loginBusy=false;
     }
   }
@@ -1286,7 +1286,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   store.reset();
   root.removeEventListener('submit', onSubmit);
   root.removeEventListener('click', onAuthClick);
-  void transport?.logout?.(recoveryToken).catch(() => {});
+  void transport?.logout?.(recoveryToken,{scope:'local'}).catch(() => {});
 }
   return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),runtime});
 }
