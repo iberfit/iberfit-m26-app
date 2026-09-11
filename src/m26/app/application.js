@@ -197,10 +197,31 @@ export function sessionFailureRequiresFreshLogin(error){
   return /M26_(?:SESSION_EXPIRED|AUTH_REQUIRED|REFRESH_IDENTITY_MISMATCH|MFA_IDENTITY_MISMATCH|AUTH_USER_INVALID_RESPONSE|QA_ACCOUNT_REQUIRED)/u.test(code);
 }
 
-export async function recoverExecutionAfterAuthentication({restoreExecution,pendingIriExternalReportIntent=false,reportDiagnostic}={}){
+export async function recoverExecutionAfterAuthentication({
+  restoreExecution,
+  pendingIriExternalReportIntent=false,
+  reportDiagnostic,
+  timeoutMs=1500,
+  setTimeoutFn=globalThis.setTimeout,
+  clearTimeoutFn=globalThis.clearTimeout,
+}={}){
   if(pendingIriExternalReportIntent||typeof restoreExecution!=='function')return false;
-  try{return Boolean(await restoreExecution());}
-  catch(error){try{reportDiagnostic?.('session-recovery-auto-restore',error);}catch{}return false;}
+  const safeTimeout=Math.max(50,Math.min(Number(timeoutMs)||1500,5000));
+  let timer=null;
+  try{
+    const result=await Promise.race([
+      Promise.resolve().then(()=>restoreExecution()),
+      new Promise((_,reject)=>{
+        timer=setTimeoutFn?.(()=>reject(new Error('M26_SESSION_RECOVERY_TIMEOUT')),safeTimeout)??null;
+      }),
+    ]);
+    return Boolean(result);
+  }catch(error){
+    try{reportDiagnostic?.('session-recovery-auto-restore',error);}catch{}
+    return false;
+  }finally{
+    if(timer!==null)clearTimeoutFn?.(timer);
+  }
 }
 
 export function privilegedMfaDecision(assurance={}){
