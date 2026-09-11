@@ -37,28 +37,45 @@ test('QA and PROD use exact project refs and explicit independent confirmations'
   assert.equal(TARGETS.prod.rollbackConfirmation,null);
 });
 
-test('QA workflow enables HIBP, validates real logins and rolls back only on failure',()=>{
+test('only the exact HIBP PATCH 402 is classified as a plan limitation',()=>{
+  const {ManagementApiError,isPlanLimitedHibpError}=__hostedAuthSecurityInternals;
+  assert.equal(isPlanLimitedHibpError(new ManagementApiError('PATCH',402)),true);
+  assert.equal(isPlanLimitedHibpError(new ManagementApiError('GET',402)),false);
+  assert.equal(isPlanLimitedHibpError(new ManagementApiError('PATCH',401)),false);
+  assert.equal(isPlanLimitedHibpError(new ManagementApiError('PATCH',403)),false);
+  assert.equal(isPlanLimitedHibpError(new ManagementApiError('PATCH',429)),false);
+  assert.equal(isPlanLimitedHibpError(new ManagementApiError('PATCH',500)),false);
+});
+
+test('QA workflow assesses HIBP, validates real logins and rolls back only if it changed',()=>{
   const workflow=read('.github/workflows/hosted-auth-security-hardening.yml');
   assert.match(workflow,/environment: m26-canary-readonly/u);
   assert.match(workflow,/sync-hosted-auth-security\.mjs --enable --target qa/u);
   assert.match(workflow,/run_authenticated_readonly_gate\.mjs/u);
-  assert.match(workflow,/sync-hosted-auth-security\.mjs --verify --target qa/u);
-  assert.match(workflow,/failure\(\) && steps\.hibp\.outcome == 'success'/u);
+  assert.match(workflow,/plan_limited_pro_feature/u);
+  assert.match(workflow,/managementStatus===402/u);
+  assert.match(workflow,/failure\(\) && steps\.hibp\.outputs\.changed == 'true'/u);
   assert.match(workflow,/sync-hosted-auth-security\.mjs --restore-qa --target qa/u);
   assert.match(workflow,/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/u);
 });
 
-test('production promotion requires QA HIBP and enables PROD before Cloudflare cutover',()=>{
+test('production promotion assesses QA and PROD before Cloudflare cutover',()=>{
   const workflow=read('.github/workflows/production-promote.yml');
-  const qaVerify=workflow.indexOf('Verify QA leaked-password protection before production');
-  const prodEnable=workflow.indexOf('Enable and verify leaked-password protection in PROD');
+  const qaAssess=workflow.indexOf('Assess or enable QA leaked-password protection before production');
+  const qaLogin=workflow.indexOf('Validate QA authenticated access after password-security assessment');
+  const prodAssess=workflow.indexOf('Assess or enable leaked-password protection in PROD');
   const discover=workflow.indexOf('Discover exact Cloudflare production target');
   const deploy=workflow.indexOf('Deploy exact certified surface to production with Wrangler');
-  assert.ok(qaVerify>=0);
-  assert.ok(prodEnable>qaVerify);
-  assert.ok(discover>prodEnable);
+  assert.ok(qaAssess>=0);
+  assert.ok(qaLogin>qaAssess);
+  assert.ok(prodAssess>qaLogin);
+  assert.ok(discover>prodAssess);
   assert.ok(deploy>discover);
-  const prodBlock=workflow.slice(prodEnable,discover);
+  const qaBlock=workflow.slice(qaAssess,prodAssess);
+  assert.match(qaBlock,/ENABLE_IBERFIT_HIBP_QA/u);
+  assert.match(qaBlock,/run_authenticated_readonly_gate\.mjs/u);
+  assert.match(qaBlock,/steps\.qa-hibp\.outputs\.changed == 'true'/u);
+  const prodBlock=workflow.slice(prodAssess,discover);
   assert.match(prodBlock,/ENABLE_IBERFIT_HIBP_PROD/u);
   assert.match(prodBlock,/sync-hosted-auth-security\.mjs --enable --target prod/u);
   assert.match(prodBlock,/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/u);

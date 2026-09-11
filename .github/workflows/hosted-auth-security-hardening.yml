@@ -47,7 +47,7 @@ jobs:
       - name: Prepare Hosted Auth security evidence
         run: mkdir -p recovery/hosted-auth-security
 
-      - name: Enable leaked-password protection in QA
+      - name: Assess or enable leaked-password protection in QA
         id: hibp
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -71,15 +71,26 @@ jobs:
           M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
         run: node scripts/remote-gates/run_authenticated_readonly_gate.mjs
 
-      - name: Verify HIBP remains enabled in QA
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          IBERFIT_AUTH_SECURITY_TARGET: qa
-          IBERFIT_AUTH_SECURITY_EVIDENCE_PATH: recovery/hosted-auth-security/qa-verify.json
-        run: node scripts/auth/sync-hosted-auth-security.mjs --verify --target qa
+      - name: Verify documented QA HIBP disposition
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const evidence=JSON.parse(fs.readFileSync('recovery/hosted-auth-security/qa-enable.json','utf8'));
+          const enabled=evidence.after===true&&evidence.disposition==='enabled';
+          const planLimited=evidence.after===false
+            && evidence.planLimited===true
+            && evidence.managementStatus===402
+            && evidence.disposition==='plan_limited_pro_feature';
+          if(!enabled&&!planLimited)throw new Error('IBERFIT_QA_HIBP_DISPOSITION_INVALID');
+          console.log(JSON.stringify({
+            target:evidence.target,
+            disposition:evidence.disposition,
+            managementStatus:evidence.managementStatus,
+          }));
+          NODE
 
       - name: Roll back QA HIBP on compatibility failure
-        if: ${{ failure() && steps.hibp.outcome == 'success' }}
+        if: ${{ failure() && steps.hibp.outputs.changed == 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           IBERFIT_AUTH_SECURITY_TARGET: qa

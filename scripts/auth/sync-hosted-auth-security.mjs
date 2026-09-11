@@ -23,6 +23,19 @@ const ALLOWED_PATCH_KEYS=new Set(['password_hibp_enabled']);
 const nonEmpty=(value)=>typeof value==='string'&&value.trim().length>0;
 const fail=(code)=>{throw new Error(code);};
 
+class ManagementApiError extends Error{
+  constructor(method,status){
+    super(`IBERFIT_AUTH_SECURITY_MANAGEMENT_API_${method}_${status}`);
+    this.name='ManagementApiError';
+    this.method=method;
+    this.status=status;
+  }
+}
+const isPlanLimitedHibpError=(error)=>
+  error instanceof ManagementApiError
+  && error.method==='PATCH'
+  && error.status===402;
+
 function targetConfig(target){
   const normalized=String(target||'').trim().toLowerCase();
   const config=TARGETS[normalized];
@@ -60,7 +73,7 @@ async function managementRequest({token,projectRef,method='GET',body}){
     });
     let data={};
     try{data=await response.json();}catch{}
-    if(!response.ok)fail(`IBERFIT_AUTH_SECURITY_MANAGEMENT_API_${method}_${response.status}`);
+    if(!response.ok)throw new ManagementApiError(method,response.status);
     if(!data||typeof data!=='object'||Array.isArray(data))fail('IBERFIT_AUTH_SECURITY_REMOTE_CONFIG_INVALID');
     return data;
   }catch(error){
@@ -75,6 +88,13 @@ async function writeEvidence(file,value){
   await fs.mkdir(path.dirname(resolved),{recursive:true});
   await fs.writeFile(resolved,JSON.stringify(value,null,2)+'\n','utf8');
   return resolved;
+}
+async function writeGithubOutputs(values){
+  if(!nonEmpty(process.env.GITHUB_OUTPUT))return;
+  const lines=Object.entries(values)
+    .map(([key,value])=>`${key}=${String(value)}`)
+    .join('\n');
+  await fs.appendFile(process.env.GITHUB_OUTPUT,lines+'\n','utf8');
 }
 async function readState(file){
   const raw=JSON.parse(await fs.readFile(path.resolve(file),'utf8'));
@@ -120,17 +140,28 @@ export async function enableHostedAuthSecurity({
     }));
   }
   let changed=false;
+  let planLimited=false;
   if(!before.passwordHibpEnabled){
-    await managementRequest({
-      token,
-      projectRef:config.projectRef,
-      method:'PATCH',
-      body:{password_hibp_enabled:true},
-    });
-    changed=true;
+    try{
+      await managementRequest({
+        token,
+        projectRef:config.projectRef,
+        method:'PATCH',
+        body:{password_hibp_enabled:true},
+      });
+      changed=true;
+    }catch(error){
+      if(!isPlanLimitedHibpError(error))throw error;
+      planLimited=true;
+    }
   }
   const after=await readHostedAuthSecurity({token,target:config.target});
-  if(after.passwordHibpEnabled!==true)fail('IBERFIT_AUTH_SECURITY_REMOTE_VERIFY_FAILED');
+  if(!planLimited&&after.passwordHibpEnabled!==true)fail('IBERFIT_AUTH_SECURITY_REMOTE_VERIFY_FAILED');
+  const disposition=after.passwordHibpEnabled===true
+    ?'enabled'
+    :planLimited
+      ?'plan_limited_pro_feature'
+      :'unverified';
   const result=Object.freeze({
     ok:true,
     mode:'enable',
@@ -139,6 +170,9 @@ export async function enableHostedAuthSecurity({
     changed,
     before:before.passwordHibpEnabled,
     after:after.passwordHibpEnabled,
+    planLimited,
+    managementStatus:planLimited?402:null,
+    disposition,
   });
   if(evidencePath)await writeEvidence(evidencePath,result);
   return result;
@@ -199,6 +233,11 @@ async function main(){
       statePath,
       evidencePath,
     });
+    await writeGithubOutputs({
+      changed:result.changed===true,
+      plan_limited:result.planLimited===true,
+      disposition:result.disposition,
+    });
   }else if(mode==='restore-qa'){
     result=await restoreQaHostedAuthSecurity({
       token,
@@ -226,5 +265,7 @@ export const __hostedAuthSecurityInternals=Object.freeze({
   STATE_SCHEMA,
   TARGETS,
   ALLOWED_PATCH_KEYS:Object.freeze([...ALLOWED_PATCH_KEYS]),
+  ManagementApiError,
+  isPlanLimitedHibpError,
   sanitizePatch,
 });

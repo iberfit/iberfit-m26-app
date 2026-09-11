@@ -77,22 +77,35 @@ are present in PROD product functionality and have dedicated source-contract tes
 No bulk revoke or bulk conversion to `SECURITY INVOKER` is permitted. Each function
 must retain or improve its consumer authorization contract.
 
-## Leaked password protection · unresolved external Auth setting
+## Leaked password protection · documented plan limitation
 
 Security Advisor reports Supabase leaked-password protection disabled.
 
 Current Supabase documentation states:
 - the feature rejects passwords found through the HaveIBeenPwned Pwned Passwords API;
 - it is configured in hosted Auth settings;
-- it is available on Pro Plan and above;
+- it is available on **Pro Plan and above**;
 - strengthened password requirements can affect existing users at password sign-in
   and password-change flows, so QA validation is required before production.
 
-This is **not** a SQL migration setting and must not be approximated by database DDL.
-The current ChatGPT Supabase connector exposes database/project/function/advisor
-operations but no hosted Auth-configuration mutation. Enabling it therefore requires
-authorized hosted Auth/Management configuration, followed by QA checks for sign-in,
-recovery, password change and existing-user compatibility before PROD.
+On 2026-09-11 an authorized Supabase Management API token successfully read the QA
+Auth configuration, then the exact PATCH
+`{"password_hibp_enabled":true}` returned HTTP **402**. This is consistent with the
+documented plan restriction rather than an authentication/authorization failure.
 
-Until that external setting is enabled and verified, this warning remains open rather
-than being mislabeled as resolved.
+Release policy is therefore fail-closed and plan-aware:
+- QA and PROD always attempt to enable HIBP through the Management API;
+- only an exact **PATCH 402** may be classified as
+  `plan_limited_pro_feature`;
+- 401, 403, 429, 5xx, timeouts, malformed responses, or failed verification remain
+  hard deployment failures;
+- QA authenticated Coach/Client access is exercised after the password-security
+  assessment;
+- QA is rolled back only if the Auth setting actually changed and compatibility
+  later fails;
+- evidence records the target, boolean result, HTTP 402 classification and
+  disposition without recording tokens or passwords.
+
+This warning therefore remains **open and explicitly documented**, not falsely marked
+as resolved. If either Supabase project moves to Pro or above, the same workflow will
+automatically enable HIBP and verify it before Cloudflare production cutover.
