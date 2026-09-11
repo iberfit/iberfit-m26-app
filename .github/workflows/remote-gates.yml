@@ -14,6 +14,8 @@ on:
       - 'package-lock.json'
       - '.github/workflows/ci.yml'
       - '.github/workflows/continuous-app-audit.yml'
+      - '.github/workflows/hosted-auth-security-hardening.yml'
+      - '.github/workflows/production-promote.yml'
       - '.github/workflows/remote-gates.yml'
   workflow_dispatch:
     inputs:
