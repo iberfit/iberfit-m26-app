@@ -39,6 +39,7 @@ import {readIberfitExperiencePreferences,socialPolicyFromPreferences,notificatio
 import {
   publicationSummary,
   publicationCounts,
+  publicationStatus,
 } from '../workflows/publication-workflow.js';
 import { clientContentView } from '../publication/client-content.js';
 
@@ -687,6 +688,37 @@ if (area === 'clientes') {
     const sessions = recordsForClient(state, 'sessions', clientId);
     const executions = recordsForClient(state, 'sessionExecutions', clientId);
     const role = String(shellVm.identity?.role || '');
+    const startableSessions=sessions
+      .filter((record)=>{
+        if(publicationStatus(record)!=='published')return false;
+        if(role!=='client')return true;
+        return publicationSummary({
+          entity:'session',
+          record,
+          role,
+        }).visibleToClient===true;
+      })
+      .sort(
+        (a,b)=>
+          Number(b?.revision??b?.body?.revision??0)-
+          Number(a?.revision??a?.body?.revision??0)
+      );
+    const startableRecord=startableSessions[0]||null;
+    const startableSession=startableRecord
+      ?Object.freeze({
+          id:String(
+            startableRecord?.id||
+            startableRecord?.body?.id||
+            ''
+          ).trim(),
+          title:
+            clientContentView(
+              'session',
+              startableRecord
+            ).title,
+          publishedCount:startableSessions.length,
+        })
+      :null;
     return Object.freeze({
       kind: 'sesion',
       clientId,
@@ -694,6 +726,7 @@ if (area === 'clientes') {
       canBuild: ['admin', 'coach'].includes(role),
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       sessionCounts: publicationCounts(sessions),
+      startableSession,
       executions: Object.freeze(executions.map(compactActivity)),
     });
   }
