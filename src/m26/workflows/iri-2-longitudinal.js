@@ -1,0 +1,252 @@
+export const IRI2_SNAPSHOT_SCHEMA='iberfit-iri2-snapshot-v1';
+export const IRI2_LONGITUDINAL_SCHEMA='iberfit-iri2-longitudinal-v1';
+
+function finite(value){
+  const n=Number(value);
+  return Number.isFinite(n)?n:null;
+}
+function clean(value,max=500){
+  return String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
+}
+function dateValue(value){
+  const raw=clean(value,32);
+  const ts=Date.parse(raw);
+  return Number.isFinite(ts)?ts:null;
+}
+function sameValue(a,b){
+  if(a===null||a===undefined||b===null||b===undefined)return false;
+  return String(a).trim().toLowerCase()===String(b).trim().toLowerCase();
+}
+function sameNumber(a,b,tolerance=.001){
+  const x=finite(a),y=finite(b);
+  return x!==null&&y!==null&&Math.abs(x-y)<=tolerance;
+}
+function protocolKey(parts=[]){
+  return parts.map((value)=>clean(value,120).toLowerCase()).join('|');
+}
+function metric(id,label,value,unit='',meta={}){
+  const numeric=finite(value);
+  return Object.freeze({id,label,value:numeric,unit,...meta});
+}
+function strengthProtocol(record={}){
+  return protocolKey([
+    record.variant,
+    record.supportHeightCm,
+    record.handleHeightCm,
+    record.configuration,
+    record.protocolVersion,
+  ]);
+}
+function cardioProtocol(record={}){
+  return protocolKey([
+    record.protocol,
+    record.stepHeightCm,
+    record.cadenceBpm,
+  ]);
+}
+function compositionProtocol(record={}){
+  return protocolKey([record.method,record.device]);
+}
+function snapshotMetrics(draft={}){
+  const body=draft.bodyComposition||{};
+  const mobility=draft.mobility||{};
+  const strength=draft.strength||{};
+  const cardio=draft.cardio||{};
+  return Object.freeze({
+    weightKg:metric('weightKg','Peso',body.weightKg,'kg',{domain:'composition',comparison:'descriptive'}),
+    waistCm:metric('waistCm','Cintura',body.waistCm,'cm',{domain:'composition',comparison:'descriptive'}),
+    bodyFatPercent:metric('bodyFatPercent','Grasa corporal',body.bodyFatPercent,'%',{
+      domain:'composition',
+      comparison:'protocol',
+      protocol:compositionProtocol(body),
+    }),
+    muscleMassKg:metric('muscleMassKg','Masa muscular',body.muscleMassKg,'kg',{
+      domain:'composition',
+      comparison:'protocol',
+      protocol:compositionProtocol(body),
+    }),
+    chairStandReps:metric('chairStandReps','Silla 30 s',strength.chairStand?.repetitions,'rep',{
+      domain:'strength',
+      comparison:'protocol',
+      valid:strength.chairStand?.valid===true,
+      protocol:strengthProtocol(strength.chairStand),
+    }),
+    pushReps:metric('pushReps','Empuje',strength.push?.repetitions,'rep',{
+      domain:'strength',
+      comparison:'protocol',
+      valid:strength.push?.valid===true,
+      protocol:strengthProtocol(strength.push),
+    }),
+    trxRowReps:metric('trxRowReps','Remo TRX',strength.trxRow?.repetitions,'rep',{
+      domain:'strength',
+      comparison:'protocol',
+      valid:strength.trxRow?.valid===true,
+      protocol:strengthProtocol(strength.trxRow),
+    }),
+    frontPlankSeconds:metric('frontPlankSeconds','Plancha frontal',strength.core?.frontPlankSeconds,'s',{
+      domain:'strength',
+      comparison:'descriptive',
+    }),
+    ankleLeftCm:metric('ankleLeftCm','Tobillo izquierdo',mobility.ankle?.leftBest,'cm',{
+      domain:'mobility',
+      comparison:'descriptive',
+    }),
+    ankleRightCm:metric('ankleRightCm','Tobillo derecho',mobility.ankle?.rightBest,'cm',{
+      domain:'mobility',
+      comparison:'descriptive',
+    }),
+    posteriorLeftCm:metric('posteriorLeftCm','Cadena posterior izquierda',mobility.posteriorChain?.leftBest,'cm',{
+      domain:'mobility',
+      comparison:'descriptive',
+    }),
+    posteriorRightCm:metric('posteriorRightCm','Cadena posterior derecha',mobility.posteriorChain?.rightBest,'cm',{
+      domain:'mobility',
+      comparison:'descriptive',
+    }),
+    cardioDeltaOneMinute:metric('cardioDeltaOneMinute','Recuperación FC 1 min',cardio.deltaOneMinute,'lpm',{
+      domain:'cardio',
+      comparison:'protocol',
+      valid:cardio.valid===true,
+      protocol:cardioProtocol(cardio),
+    }),
+    restingHr:metric('restingHr','FC reposo',cardio.restingHr,'lpm',{
+      domain:'cardio',
+      comparison:'descriptive',
+    }),
+  });
+}
+
+export function iri2SnapshotFromDraft(draft={}){
+  const diagnosis=draft.diagnosis||{};
+  return Object.freeze({
+    schema:IRI2_SNAPSHOT_SCHEMA,
+    assessmentId:clean(draft.assessmentId||draft.id,120),
+    clientId:clean(draft.clientId,120),
+    assessmentDate:clean(draft.assessmentDate,32),
+    timestamp:dateValue(draft.assessmentDate),
+    metrics:snapshotMetrics(draft),
+    decision:Object.freeze({
+      strengths:Object.freeze(Array.isArray(diagnosis.strengths)?diagnosis.strengths.map((x)=>clean(x,500)).filter(Boolean):[]),
+      priorities:Object.freeze(Array.isArray(diagnosis.priorities)?diagnosis.priorities.map((x)=>clean(x,500)).filter(Boolean):[]),
+      coachInterpretation:clean(diagnosis.coachInterpretation,2000),
+      trainingImplications:clean(diagnosis.trainingImplications,2000),
+      initialPlan:clean(diagnosis.initialPlan,2000),
+      recommendedFrequency:clean(diagnosis.recommendedFrequency,240),
+      reevaluationDate:clean(diagnosis.reevaluationDate,32),
+      reviewAccepted:diagnosis.reviewAccepted===true,
+    }),
+  });
+}
+
+function comparable(previous,current){
+  if(previous?.value===null||current?.value===null)return false;
+  if(previous.comparison==='protocol'||current.comparison==='protocol'){
+    if(previous.valid===false||current.valid===false)return false;
+    const p=clean(previous.protocol,500),c=clean(current.protocol,500);
+    if(!p||!c||p!==c)return false;
+  }
+  return true;
+}
+function compareMetric(previous,current){
+  if(!comparable(previous,current))return Object.freeze({
+    id:current?.id||previous?.id||'metric',
+    label:current?.label||previous?.label||'Métrica',
+    comparable:false,
+    reason:'protocol_or_value_not_comparable',
+  });
+  const delta=Number((current.value-previous.value).toFixed(3));
+  const relative=previous.value===0?null:Number(((delta/Math.abs(previous.value))*100).toFixed(1));
+  const trend=Math.abs(delta)<0.0005?'stable':delta>0?'up':'down';
+  return Object.freeze({
+    id:current.id,
+    label:current.label,
+    unit:current.unit,
+    domain:current.domain,
+    comparable:true,
+    previous:previous.value,
+    current:current.value,
+    delta,
+    relative,
+    trend,
+    comparison:current.comparison,
+  });
+}
+function sortSnapshots(items=[]){
+  return [...items]
+    .filter(Boolean)
+    .sort((a,b)=>(a.timestamp??Number.MAX_SAFE_INTEGER)-(b.timestamp??Number.MAX_SAFE_INTEGER));
+}
+function sameClient(current,candidate){
+  if(!current?.clientId||!candidate?.clientId)return true;
+  return current.clientId===candidate.clientId;
+}
+
+export function buildIri2LongitudinalProfile({current,history=[]}={}){
+  if(!current)throw new Error('M26_IRI2_CURRENT_REQUIRED');
+  const currentSnapshot=current.schema===IRI2_SNAPSHOT_SCHEMA?current:iri2SnapshotFromDraft(current);
+  const prior=sortSnapshots(
+    (Array.isArray(history)?history:[])
+      .map((item)=>item?.schema===IRI2_SNAPSHOT_SCHEMA?item:iri2SnapshotFromDraft(item))
+      .filter((item)=>item.assessmentId!==currentSnapshot.assessmentId&&sameClient(currentSnapshot,item)),
+  ).filter((item)=>item.timestamp===null||currentSnapshot.timestamp===null||item.timestamp<=currentSnapshot.timestamp);
+  const previous=prior.at(-1)||null;
+  const baseline=prior[0]||null;
+  const comparisons=[];
+  if(previous){
+    for(const [id,currentMetric] of Object.entries(currentSnapshot.metrics)){
+      const previousMetric=previous.metrics?.[id];
+      if(!previousMetric)continue;
+      comparisons.push(compareMetric(previousMetric,currentMetric));
+    }
+  }
+  const comparableMetrics=comparisons.filter((item)=>item.comparable);
+  const headline=comparableMetrics
+    .filter((item)=>Math.abs(item.delta)>0.0005)
+    .sort((a,b)=>Math.abs(b.relative??b.delta)-Math.abs(a.relative??a.delta))
+    .slice(0,4);
+  const domainCoverage={};
+  for(const item of comparableMetrics){
+    const domain=item.domain||'other';
+    domainCoverage[domain]=(domainCoverage[domain]||0)+1;
+  }
+  return Object.freeze({
+    schema:IRI2_LONGITUDINAL_SCHEMA,
+    current:currentSnapshot,
+    previous,
+    baseline,
+    assessments:Object.freeze([...prior,currentSnapshot]),
+    comparison:Object.freeze({
+      available:Boolean(previous),
+      previousAssessmentId:previous?.assessmentId||null,
+      previousAssessmentDate:previous?.assessmentDate||null,
+      comparableCount:comparableMetrics.length,
+      totalCompared:comparisons.length,
+      metrics:Object.freeze(comparisons),
+      headline:Object.freeze(headline),
+      domainCoverage:Object.freeze(domainCoverage),
+    }),
+  });
+}
+
+export function iri2ComparisonSummary(profile={}){
+  const comparison=profile?.comparison;
+  if(!comparison?.available)return Object.freeze({
+    available:false,
+    label:'Primera evaluación',
+    detail:'Se establece la línea de base para futuras comparaciones.',
+  });
+  if(!comparison.comparableCount)return Object.freeze({
+    available:true,
+    label:'Reevaluación registrada',
+    detail:'No hay protocolos suficientemente comparables para cuantificar cambios de forma fiable.',
+  });
+  return Object.freeze({
+    available:true,
+    label:`${comparison.comparableCount} indicadores comparables`,
+    detail:`Comparación con ${comparison.previousAssessmentDate||'la evaluación anterior'} sin puntuación global.`,
+  });
+}
+
+export const __iri2LongitudinalInternals=Object.freeze({
+  finite,clean,dateValue,sameValue,sameNumber,protocolKey,metric,strengthProtocol,cardioProtocol,compositionProtocol,snapshotMetrics,comparable,compareMetric,sortSnapshots,sameClient,
+});
