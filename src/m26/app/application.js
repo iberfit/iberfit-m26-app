@@ -298,9 +298,11 @@ export async function createM26Application({root=document.querySelector('#app'),
   let activeApplicationRole=null;
   let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
+  let currentAuthAttemptId=null;
   const authWatchdog=createAuthBusyWatchdog({
     timeoutMs:Math.max(AUTH_BUSY_WATCHDOG_MS,Number(runtime.timeoutMs||0)+4_000),
     onTimeout:({stage})=>{
+      currentAuthAttemptId=null;
       if(!loginBusy)return;
       loginBusy=false;
       if(session?.token){
@@ -316,6 +318,21 @@ export async function createM26Application({root=document.querySelector('#app'),
       }
     },
   });
+  function beginAuthAttempt(stage){
+    const id=authWatchdog.begin(stage);
+    currentAuthAttemptId=id;
+    return id;
+  }
+  function completeAuthAttempt(id){
+    if(id===null||id===undefined)return false;
+    const completed=authWatchdog.complete(id);
+    if(completed&&currentAuthAttemptId===id)currentAuthAttemptId=null;
+    return completed;
+  }
+  function invalidateAuthAttempt(){
+    currentAuthAttemptId=null;
+    authWatchdog.invalidate();
+  }
 
   function authMessage(message='',noticeKind='status'){
   root.innerHTML=renderAccessUi({
@@ -617,7 +634,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       return false;
     }
   }
-  async function setupAuthenticated({authAttemptId=null}={}){
+  async function setupAuthenticated(){
+    const authAttemptId=currentAuthAttemptId;
     qaStage('rc64-setup-start');
     destroyControllers();sessionUi=null;
     const [hydrationResult]=await Promise.all([
@@ -662,7 +680,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-shell-mount-start');
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
     shell.mount();
-    if(authAttemptId!==null&&authWatchdog.complete(authAttemptId))loginBusy=false;
+    if(authAttemptId!==null&&completeAuthAttempt(authAttemptId))loginBusy=false;
     qaStage('rc64-shell-mount-ready');
     const mountedShellRole=root.querySelector?.('.m26-shell[data-m26-role]')?.getAttribute('data-m26-role')||'';
     if(mountedShellRole==='coach')qaStage('rc64-shell-role-coach');
@@ -742,7 +760,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
-  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status'}={}){authWatchdog.invalidate();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
+  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status'}={}){invalidateAuthAttempt();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
   function onLogout(){const token=currentToken();finishLogout({token});}
   async function onLogoutAndClearDevice(){
     if(deviceClearBusy||!session)return false;
@@ -965,7 +983,8 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     throw error;
   }
 }
-  async function continueAfterFirstFactor({authAttemptId=null}={}){
+  async function continueAfterFirstFactor(){
+    const authAttemptId=currentAuthAttemptId;
     if(!session?.token)throw new Error('M26_AUTH_REQUIRED');
     await refreshSessionIfNeeded();
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
@@ -975,7 +994,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       mfaState=null;
       authMode='login';
       qaStage('rc64-login-setup-start');
-      await setupAuthenticated({authAttemptId});
+      await setupAuthenticated();
       qaStage('rc64-login-setup-ready');
       return true;
     }
@@ -988,7 +1007,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       mfaState=null;
       authMode='login';
       qaStage('rc64-login-setup-start');
-      await setupAuthenticated({authAttemptId});
+      await setupAuthenticated();
       qaStage('rc64-login-setup-ready');
       return true;
     }
@@ -1000,7 +1019,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     });
     authMode=decision.kind==='challenge'?'mfa-challenge':'mfa-required';
     loginBusy=false;
-    if(authAttemptId!==null)authWatchdog.complete(authAttemptId);
+    if(authAttemptId!==null)completeAuthAttempt(authAttemptId);
     authMessage();
     return false;
   }
@@ -1190,21 +1209,21 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     loginBusy=true;
     sessionRetryAvailable=false;
     authMode='login';
-    const authAttemptId=authWatchdog.begin('session-retry');
+    const authAttemptId=beginAuthAttempt('session-retry');
     authMessage('Reconectando tu sesión…');
     try{
       store.reset();
-      return await continueAfterFirstFactor({authAttemptId});
+      return await continueAfterFirstFactor();
     }catch(error){
       if(!authWatchdog.isCurrent(authAttemptId))return false;
       loginBusy=false;
-      authWatchdog.complete(authAttemptId);
+      completeAuthAttempt(authAttemptId);
       if(sessionFailureRequiresFreshLogin(error))discardSessionAfterFailure(error,'session-retry');
       else surfaceRetriableSessionFailure(error,'session-retry');
       throw error;
     }finally{
       if(authWatchdog.isCurrent(authAttemptId)){
-        authWatchdog.complete(authAttemptId);
+        completeAuthAttempt(authAttemptId);
         loginBusy=false;
       }
     }
@@ -1214,7 +1233,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');
     loginBusy=true;
     sessionRetryAvailable=false;
-    const authAttemptId=authWatchdog.begin('login');
+    const authAttemptId=beginAuthAttempt('login');
     authMessage('Confirmando identidad y permisos…');
     let firstFactorAccepted=false;
     try{
@@ -1224,11 +1243,11 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       qaStage('rc64-login-token-ready');
       vault.save(session);
       store.reset();
-      return await continueAfterFirstFactor({authAttemptId});
+      return await continueAfterFirstFactor();
     }catch(error){
       if(!authWatchdog.isCurrent(authAttemptId))return false;
       loginBusy=false;
-      authWatchdog.complete(authAttemptId);
+      completeAuthAttempt(authAttemptId);
       if(firstFactorAccepted&&session?.token&&!sessionFailureRequiresFreshLogin(error)){
         surfaceRetriableSessionFailure(error,'login-setup');
       }else{
@@ -1245,7 +1264,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       throw error;
     }finally{
       if(authWatchdog.isCurrent(authAttemptId)){
-        authWatchdog.complete(authAttemptId);
+        completeAuthAttempt(authAttemptId);
         loginBusy=false;
       }
     }
@@ -1265,14 +1284,14 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     loginBusy=true;
     sessionRetryAvailable=false;
     authMode='login';
-    const authAttemptId=authWatchdog.begin('resume');
+    const authAttemptId=beginAuthAttempt('resume');
     authMessage('Restaurando tu sesión segura…');
     try{
-      return await continueAfterFirstFactor({authAttemptId});
+      return await continueAfterFirstFactor();
     }catch(error){
       if(!authWatchdog.isCurrent(authAttemptId))return false;
       loginBusy=false;
-      authWatchdog.complete(authAttemptId);
+      completeAuthAttempt(authAttemptId);
       if(sessionFailureRequiresFreshLogin(error)){
         discardSessionAfterFailure(error,'resume');
       }else{
@@ -1281,7 +1300,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       return false;
     }finally{
       if(authWatchdog.isCurrent(authAttemptId)){
-        authWatchdog.complete(authAttemptId);
+        completeAuthAttempt(authAttemptId);
         loginBusy=false;
       }
     }
@@ -1395,7 +1414,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   return Promise.resolve(false);
 }
   function destroy() {
-  authWatchdog.invalidate();
+  invalidateAuthAttempt();
   loginBusy=false;
   const recoveryToken = recoverySession?.accessToken || null;
   recoverySession = null;
