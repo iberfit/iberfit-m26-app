@@ -64,15 +64,19 @@ test('P0 server-bound email assurance requires two distinct recent factors for t
 });
 
 test('P0 email assurance storage is inaccessible to browser roles and one OTP session is single-use',()=>{
-  const sql=read('supabase/migrations/20260911033000_p0_email_privileged_assurance_v1.sql');
-  assert.match(sql,/otp_session_id uuid primary key/u);
-  assert.match(sql,/enable row level security/u);
-  assert.match(sql,/revoke all on table public\.iberfit_email_privileged_assurance_v1 from public,anon,authenticated/u);
-  assert.match(sql,/grant select,insert,update,delete on table public\.iberfit_email_privileged_assurance_v1 to service_role/u);
-  assert.match(sql,/v_assurance_method:='webauthn'/u);
-  assert.match(sql,/v_assurance_method:='email_otp'/u);
-  assert.match(sql,/a\.origin=v_origin/u);
-  assert.match(sql,/'emailOtpAvailable'/u);
+  const v1=read('supabase/migrations/20260911033000_p0_email_privileged_assurance_v1.sql');
+  const v2=read('supabase/migrations/20260911033500_p0_email_assurance_one_time_proof_v2.sql');
+  assert.match(v1,/otp_session_id uuid not null unique/u);
+  assert.match(v1,/primary key \(user_id, session_id\)/u);
+  assert.match(v1,/enable row level security/u);
+  assert.match(v1,/revoke all on table public\.iberfit_email_privileged_assurance_v1 from public,anon,authenticated/u);
+  assert.match(v1,/grant select,insert,update,delete on table public\.iberfit_email_privileged_assurance_v1 to service_role/u);
+  assert.match(v1,/v_assurance_method:='webauthn'/u);
+  assert.match(v1,/v_assurance_method:='email_otp'/u);
+  assert.match(v1,/a\.origin=v_origin/u);
+  assert.match(v1,/'emailOtpAvailable'/u);
+  assert.match(v2,/primary key \(otp_session_id\)/u);
+  assert.match(v2,/Each Supabase email OTP session may establish privileged assurance exactly once/u);
 });
 
 test('P0 branded access email uses the official six-digit token and preserves the IBERFIT email system',()=>{
@@ -89,6 +93,18 @@ test('P0 branded access email uses the official six-digit token and preserves th
   assert.equal(magic.subject,'Tu código de acceso IBERFIT');
   assert.deepEqual(magic.requires,['{{ .Token }}','{{ .Email }}']);
   assert.deepEqual(confirmation.requires,['{{ .ConfirmationURL }}']);
+});
+
+test('P0 a verified email assurance keeps the primary session retriable if workspace setup fails afterwards',()=>{
+  const source=read('src/m26/app/application.js');
+  const start=source.indexOf('async function verifyMfaEmailCode(otp)');
+  const end=source.indexOf('async function continueMfaWithWebAuthn()',start);
+  assert.ok(start>=0&&end>start);
+  const block=source.slice(start,end);
+  assert.match(block,/let assuranceVerified=false/u);
+  assert.match(block,/assuranceVerified=true/u);
+  assert.match(block,/surfaceRetriableSessionFailure\(error,'post-email-mfa-setup'\)/u);
+  assert.match(block,/void transport\?\.logout\?\.\(otpToken\)/u);
 });
 
 test('P0 a successful MFA ceremony is not reclassified as biometric failure if workspace setup fails afterwards',()=>{
