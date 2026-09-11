@@ -1,15 +1,46 @@
-const DRAFT_SCHEMA='iberfit.admin.client-create-draft.v2';
-const DRAFT_PREFIX='iberfit:m26:admin-client-create:v2:';
+const DRAFT_SCHEMA='iberfit.admin.client-create-draft.v3';
+const DRAFT_PREFIX='iberfit:m26:admin-client-create:v3:';
+const LEGACY_DRAFT_PREFIX='iberfit:m26:admin-client-create:v2:';
+const DRAFT_MAX_AGE_MS=8*60*60*1000;
+const DRAFT_FUTURE_SKEW_MS=5*60*1000;
+const INPUT_SAVE_DELAY_MS=250;
 const DEFAULT_STEP=1;
 const MAX_STEP=5;
+
+function safeStorage(storage){
+  if(!storage)return null;
+  try{
+    const probe='__iberfit_client_draft_probe__';
+    storage.setItem(probe,'1');
+    storage.removeItem(probe);
+    return storage;
+  }catch{return null;}
+}
+function globalStorage(name){
+  try{return safeStorage(globalThis[name]);}catch{return null;}
+}
+function defaultDraftStorage(){
+  return globalStorage('sessionStorage');
+}
+function defaultPersistentStorage(){
+  return globalStorage('localStorage');
+}
 
 function clampStep(value){
   const n=Number(value);
   return Number.isInteger(n)?Math.max(1,Math.min(MAX_STEP,n)):DEFAULT_STEP;
 }
+function safeScope(scopeKey){
+  return String(scopeKey||'default').replace(/[^A-Za-z0-9._:-]/g,'_').slice(0,120)||'default';
+}
 function keyFor(scopeKey){
-  const safe=String(scopeKey||'default').replace(/[^A-Za-z0-9._:-]/g,'_').slice(0,120)||'default';
-  return `${DRAFT_PREFIX}${safe}`;
+  return `${DRAFT_PREFIX}${safeScope(scopeKey)}`;
+}
+function legacyKeyFor(scopeKey){
+  return `${LEGACY_DRAFT_PREFIX}${safeScope(scopeKey)}`;
+}
+function removeStored(storage,key){
+  try{storage?.removeItem?.(key);}catch{}
 }
 function fieldValue(control){
   if(!control?.name)return null;
@@ -96,12 +127,26 @@ function setStep(form,step,{focus=false}={}){
   updateReview(form);
   return next;
 }
-function readDraft(storage,key){
+function readDraft(storage,key,{now=Date.now(),maxAgeMs=DRAFT_MAX_AGE_MS}={}){
   try{
     const parsed=JSON.parse(storage?.getItem?.(key)||'null');
-    if(parsed?.schema!==DRAFT_SCHEMA||typeof parsed?.fields!=='object')return null;
+    if(parsed?.schema!==DRAFT_SCHEMA||typeof parsed?.fields!=='object'){
+      removeStored(storage,key);
+      return null;
+    }
+    const savedAt=Date.parse(String(parsed.savedAt||''));
+    const current=Number(now);
+    const maxAge=Number(maxAgeMs);
+    if(!Number.isFinite(savedAt)||!Number.isFinite(current)||!Number.isFinite(maxAge)||maxAge<1||
+      savedAt>current+DRAFT_FUTURE_SKEW_MS||current-savedAt>maxAge){
+      removeStored(storage,key);
+      return null;
+    }
     return parsed;
-  }catch{return null;}
+  }catch{
+    removeStored(storage,key);
+    return null;
+  }
 }
 function writeDraft(storage,key,form){
   const payload={
@@ -118,16 +163,30 @@ function writeDraft(storage,key,form){
 
 export function createClientCreateWizard({
   root,
-  storage=globalThis.localStorage,
+  storage=defaultDraftStorage(),
+  persistentStorage=defaultPersistentStorage(),
   getScopeKey=()=> 'default',
 }={}){
   if(!root?.addEventListener)throw new Error('M26_CLIENT_CREATE_WIZARD_ROOT_REQUIRED');
   let mounted=false;
+  let saveTimer=null;
+  let pendingForm=null;
   const draftKey=()=>keyFor(getScopeKey?.());
+  function clearPersistentDraftResidue(){
+    if(!persistentStorage||persistentStorage===storage)return;
+    removeStored(persistentStorage,legacyKeyFor(getScopeKey?.()));
+    removeStored(persistentStorage,keyFor(getScopeKey?.()));
+  }
+  function cancelScheduledSave(){
+    if(saveTimer!==null)globalThis.clearTimeout?.(saveTimer);
+    saveTimer=null;
+    pendingForm=null;
+  }
 
   function initialize(form){
     if(!form||form.dataset.clientWizardReady==='true')return false;
     form.dataset.clientWizardReady='true';
+    clearPersistentDraftResidue();
     const draft=readDraft(storage,draftKey());
     if(draft){
       assign(form,draft.fields);
@@ -148,11 +207,32 @@ export function createClientCreateWizard({
   }
   function save(form){
     if(!form)return null;
+    cancelScheduledSave();
     initialize(form);
     return writeDraft(storage,draftKey(),form);
   }
+  function scheduleSave(form){
+    if(!form)return;
+    pendingForm=form;
+    if(saveTimer!==null)globalThis.clearTimeout?.(saveTimer);
+    saveTimer=globalThis.setTimeout?.(()=>{
+      const target=pendingForm;
+      saveTimer=null;
+      pendingForm=null;
+      if(target)writeDraft(storage,draftKey(),target);
+    },INPUT_SAVE_DELAY_MS)??null;
+  }
+  function flushScheduledSave(){
+    const target=pendingForm;
+    if(saveTimer!==null)globalThis.clearTimeout?.(saveTimer);
+    saveTimer=null;
+    pendingForm=null;
+    if(target)writeDraft(storage,draftKey(),target);
+  }
   function clear(){
-    try{storage?.removeItem?.(draftKey());}catch{}
+    cancelScheduledSave();
+    removeStored(storage,draftKey());
+    clearPersistentDraftResidue();
   }
   function revealFirstInvalid(form){
     initialize(form);
@@ -214,7 +294,8 @@ export function createClientCreateWizard({
     if(!form)return;
     initialize(form);
     updateReview(form);
-    save(form);
+    if(event.type==='change')save(form);
+    else scheduleSave(form);
   }
   return Object.freeze({
     mount(){
@@ -227,6 +308,7 @@ export function createClientCreateWizard({
     },
     destroy(){
       if(!mounted)return;
+      flushScheduledSave();
       mounted=false;
       root.removeEventListener('click',onClick);
       root.removeEventListener('input',onInput);
@@ -241,5 +323,6 @@ export function createClientCreateWizard({
 }
 
 export const __clientCreateWizardInternals=Object.freeze({
-  DRAFT_SCHEMA,DRAFT_PREFIX,MAX_STEP,clampStep,keyFor,collect,assign,setStep,readDraft,writeDraft,
+  DRAFT_SCHEMA,DRAFT_PREFIX,LEGACY_DRAFT_PREFIX,DRAFT_MAX_AGE_MS,INPUT_SAVE_DELAY_MS,MAX_STEP,
+  clampStep,keyFor,legacyKeyFor,collect,assign,setStep,readDraft,writeDraft,
 });
