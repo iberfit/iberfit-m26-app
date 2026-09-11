@@ -198,7 +198,16 @@ function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;
   const contractModality=contractModalityOf(vm);
   const items=(vm.rc39?.sessionProjections||[]).filter((item)=>role!=='client'||item.visible);
-  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sesiones · ${escape(clientModalityLabel(contractModality))}</p><h2>${role==='client'?'Tu entrenamiento':'Preparación y ejecución'}</h2><p>${escape(modalityIntro(role,contractModality))}</p></div>${['coach','admin'].includes(role)?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>':''}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality)).join(''):'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p></section>'}</section></div>`;
+  const executable=role==='client'
+    ?items.filter((item)=>experienceFor(item,role,contractModality).clientLiveWorkout)
+    :[];
+  const clientPrimary=executable.length===1
+    ?`<button type="button" class="m26-primary-action m26-session-primary-start" data-session-primary-start data-workflow-action="start-published-session" data-entity-id="${escape(executable[0].id)}" aria-label="Comenzar Live Workout · ${escape(executable[0].title)}">Comenzar · ${escape(executable[0].title)}</button>`
+    :'';
+  const routePrimary=['coach','admin'].includes(role)
+    ?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Crear sesión</button>'
+    :clientPrimary;
+  return `<div class="m26-route m26-rc39-sessions" data-m27-session-surface="sessions" data-client-modality="${escape(normalizeClientModality(contractModality)||'unknown')}"><section class="m26-route-intro"><div><p class="m26-eyebrow">Sesiones · ${escape(clientModalityLabel(contractModality))}</p><h2>${role==='client'?'Tu entrenamiento':'Preparación y ejecución'}</h2><p>${escape(modalityIntro(role,contractModality))}</p></div>${routePrimary}</section><section class="m26-rc39-week">${items.length?items.map((item)=>sessionCard(item,role,contractModality)).join(''):'<section class="m26-empty"><h3>Sin sesiones</h3><p>No hay sesiones dentro del expediente activo.</p></section>'}</section></div>`;
 }
 export function renderRc39Route(vm){
   if(!vm?.rc39)return null;
