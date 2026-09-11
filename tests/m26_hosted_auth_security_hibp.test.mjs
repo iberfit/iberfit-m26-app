@@ -59,27 +59,21 @@ test('QA workflow assesses HIBP, validates real logins and rolls back only if it
   assert.match(workflow,/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/u);
 });
 
-test('production promotion assesses QA and PROD before Cloudflare cutover',()=>{
+test('production promotion consumes certified canary QA gates and assesses PROD before Cloudflare cutover',()=>{
   const workflow=read('.github/workflows/production-promote.yml');
-  const qaAssess=workflow.indexOf('Assess or enable QA leaked-password protection before production');
-  const qaLogin=workflow.indexOf('Validate QA authenticated access after password-security assessment');
   const prodAssess=workflow.indexOf('Assess or enable leaked-password protection in PROD');
   const discover=workflow.indexOf('Discover exact Cloudflare production target');
   const deploy=workflow.indexOf('Deploy exact certified surface to production with Wrangler');
-  assert.ok(qaAssess>=0);
-  assert.ok(qaLogin>qaAssess);
-  assert.ok(prodAssess>qaLogin);
+  assert.ok(prodAssess>=0);
   assert.ok(discover>prodAssess);
   assert.ok(deploy>discover);
-  const qaBlock=workflow.slice(qaAssess,prodAssess);
-  assert.match(qaBlock,/ENABLE_IBERFIT_HIBP_QA/u);
-  assert.match(qaBlock,/run_authenticated_readonly_gate\.mjs/u);
-  assert.match(qaBlock,/steps\.qa-hibp\.outputs\.changed == 'true'/u);
   const prodBlock=workflow.slice(prodAssess,discover);
   assert.match(prodBlock,/ENABLE_IBERFIT_HIBP_PROD/u);
   assert.match(prodBlock,/sync-hosted-auth-security\.mjs --enable --target prod/u);
   assert.match(prodBlock,/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/u);
   assert.match(workflow,/recovery\/hosted-auth-security\//u);
+  assert.doesNotMatch(workflow,/M26_QA_COACH_(?:EMAIL|PASSWORD)|M26_QA_CLIENT_[AB]_(?:EMAIL|PASSWORD)/u);
+  assert.doesNotMatch(workflow,/run_authenticated_readonly_gate\.mjs/u);
 });
 
 test('QA authenticated workflows share one non-cancelling concurrency queue',()=>{
