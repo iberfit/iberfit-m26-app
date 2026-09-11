@@ -156,3 +156,24 @@ test('IBERFIT OTP email is branded, personalized to the associated address and c
   assert.match(html,/iberfit-email-access-hero\.jpg/u);
   assert.doesNotMatch(html,/\{\{ \.ConfirmationURL \}\}/u);
 });
+
+
+test('transient OTP logout is local while explicit account logout keeps global scope',async()=>{
+  const calls=[];
+  const transport=createM26Transport(runtime,{fetchImpl:async(url,options)=>{
+    calls.push({url,options});
+    return response(null,204);
+  }});
+  const local=await transport.logout('otp-access-token',{scope:'local'});
+  const global=await transport.logout('primary-access-token');
+  assert.equal(local.scope,'local');
+  assert.equal(global.scope,'global');
+  assert.match(calls[0].url,/\/auth\/v1\/logout\?scope=local$/u);
+  assert.match(calls[1].url,/\/auth\/v1\/logout\?scope=global$/u);
+  await assert.rejects(()=>transport.logout('token',{scope:'invalid'}),/M26_LOGOUT_SCOPE_INVALID/u);
+
+  const app=fs.readFileSync('src/m26/app/application.js','utf8');
+  assert.match(app,/logout\?\.\(otpToken,\{scope:'local'\}\)/u);
+  assert.match(app,/logout\?\.\(recoveryToken,\{scope:'local'\}\)/u);
+  assert.match(app,/finishLogout[\s\S]{0,500}logout\?\.\(token\)/u);
+});
