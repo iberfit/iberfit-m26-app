@@ -2056,3 +2056,381 @@ body{
     transform:none!important;
   }
 }
+
+
+/* ========================================================================
+   IBERFIT · Signature Elevation V3
+   Additive premium polish after the established V2/M27 layers.
+   Presentation only: no routing, authorization, persistence or domain logic.
+   ======================================================================== */
+
+.m26-shell{
+  --iberfit-signature-hairline:color-mix(in srgb,var(--iberfit-color-accent-strong) 18%,transparent);
+  --iberfit-signature-highlight:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 22%,transparent);
+  --iberfit-signature-highlight-soft:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 8%,transparent);
+  --iberfit-signature-panel-shadow:
+    0 1px 0 rgba(255,255,255,.035) inset,
+    0 18px 46px rgba(0,0,0,.16);
+  --iberfit-signature-panel-shadow-hover:
+    0 1px 0 rgba(255,255,255,.055) inset,
+    0 24px 58px rgba(0,0,0,.22);
+}
+
+.m26-shell ::selection{
+  color:var(--iberfit-color-canvas);
+  background:color-mix(in srgb,var(--iberfit-color-accent-strong) 82%,white);
+}
+
+/* Stronger app-level framing without turning the viewport into a card. */
+.m26-shell .m26-topbar{
+  position:relative;
+  isolation:isolate;
+}
+
+.m26-shell .m26-topbar::after{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  right:var(--iberfit-v2-gutter,.9rem);
+  bottom:-1px;
+  left:var(--iberfit-v2-gutter,.9rem);
+  height:1px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      var(--iberfit-signature-highlight),
+      color-mix(in srgb,var(--iberfit-color-accent-strong) 20%,transparent),
+      transparent
+    );
+  opacity:.82;
+}
+
+.m26-shell .m26-route-intro{
+  position:relative;
+  padding-bottom:clamp(.55rem,1vw,.8rem);
+}
+
+.m26-shell .m26-route-intro::after{
+  content:"";
+  width:min(13rem,44vw);
+  height:2px;
+  margin-top:.18rem;
+  border-radius:999px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 68%,transparent),
+      color-mix(in srgb,var(--iberfit-color-accent-strong) 22%,transparent),
+      transparent
+    );
+  box-shadow:0 0 24px var(--iberfit-signature-highlight-soft);
+}
+
+.m26-shell .m26-route-intro :is(h1,h2){
+  text-shadow:0 12px 34px rgba(0,0,0,.16);
+}
+
+.m26-shell .m26-eyebrow{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  gap:.42rem;
+}
+
+.m26-shell .m26-eyebrow::before{
+  content:"";
+  width:.42rem;
+  height:.42rem;
+  flex:0 0 auto;
+  border-radius:50%;
+  background:var(--iberfit-role-accent,var(--iberfit-color-accent));
+  box-shadow:0 0 0 4px var(--iberfit-signature-highlight-soft);
+}
+
+/* Panels gain a consistent premium edge and clearer internal hierarchy. */
+.m26-shell :is(
+  .m26-panel,.m26-admin-panel,.m26-client-card,.m26-list-card,
+  .m26-library-card,.m26-publication-card,.m26-client-content-card,
+  .m26-rc39-session-card,.m26-wearable-source,.m26-wearable-preview,
+  .iberfit-card,.iberfit-panel
+){
+  position:relative;
+  background-clip:padding-box;
+}
+
+.m26-shell :is(
+  .m26-panel,.m26-admin-panel,.m26-client-card,.m26-list-card,
+  .m26-library-card,.m26-publication-card,.m26-client-content-card,
+  .m26-rc39-session-card,.m26-wearable-source,.m26-wearable-preview
+)::before{
+  content:"";
+  position:absolute;
+  top:-1px;
+  right:clamp(.8rem,2vw,1.5rem);
+  left:clamp(.8rem,2vw,1.5rem);
+  height:1px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb,var(--iberfit-color-text-primary) 13%,transparent),
+      var(--iberfit-signature-highlight),
+      transparent
+    );
+}
+
+.m26-shell :is(.m26-panel-heading,.m26-session-live-heading){
+  position:relative;
+  padding-bottom:clamp(.5rem,1vw,.72rem);
+}
+
+.m26-shell :is(.m26-panel-heading,.m26-session-live-heading)::after{
+  content:"";
+  position:absolute;
+  right:0;
+  bottom:0;
+  left:0;
+  height:1px;
+  background:
+    linear-gradient(
+      90deg,
+      var(--iberfit-signature-hairline),
+      color-mix(in srgb,var(--iberfit-signature-hairline) 25%,transparent),
+      transparent 78%
+    );
+}
+
+/* KPI hierarchy: numbers read first, context remains quiet. */
+.m26-shell :is(.m26-stat,.iberfit-metric,.m26-admin-stat,.iberfit-kpi,.m26-data-kpis>div){
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+}
+
+.m26-shell :is(.m26-stat,.iberfit-metric,.m26-admin-stat,.iberfit-kpi,.m26-data-kpis>div)::after{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  top:-3.4rem;
+  right:-3.2rem;
+  width:7rem;
+  height:7rem;
+  border-radius:50%;
+  background:
+    radial-gradient(
+      circle,
+      color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 16%,transparent),
+      transparent 68%
+    );
+}
+
+.m26-shell :is(
+  .m26-stat strong,.iberfit-metric-value,.m26-admin-stat strong,
+  .iberfit-kpi-value,.iberfit-kpi>strong,.m26-data-kpis strong
+){
+  color:var(--iberfit-color-text-primary);
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 8px 24px rgba(0,0,0,.14);
+}
+
+.m26-shell :is(.m26-stat,.iberfit-metric,.m26-admin-stat,.m26-data-kpis>div) :is(small,span):first-child{
+  color:color-mix(in srgb,var(--iberfit-color-text-secondary) 88%,var(--iberfit-color-accent-strong));
+}
+
+/* Inputs feel substantial without sacrificing compact Coach/Admin density. */
+.m26-shell :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea){
+  outline:none;
+}
+
+.m26-shell :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea)::placeholder{
+  color:color-mix(in srgb,var(--iberfit-color-text-secondary) 62%,transparent);
+}
+
+.m26-shell :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea):focus-visible{
+  border-color:color-mix(in srgb,var(--iberfit-color-focus) 72%,transparent);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb,var(--iberfit-color-focus) 11%,transparent),
+    0 10px 26px rgba(0,0,0,.14),
+    inset 0 1px 2px rgba(0,0,0,.12);
+}
+
+/* Primary actions have a controlled metallic highlight instead of a flat fill. */
+.m26-shell :is(.m26-primary-action,.iberfit-button[data-variant="primary"]){
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  font-weight:760;
+  letter-spacing:.012em;
+}
+
+.m26-shell :is(.m26-primary-action,.iberfit-button[data-variant="primary"])::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:1px 1px auto;
+  height:44%;
+  border-radius:inherit;
+  background:linear-gradient(180deg,rgba(255,255,255,.20),rgba(255,255,255,0));
+  opacity:.72;
+}
+
+.m26-shell :is(.m26-text-action,.m26-icon-button,.iberfit-button[data-variant="quiet"]){
+  box-shadow:inset 0 1px rgba(255,255,255,.028);
+}
+
+/* Tables and data surfaces read more like a native professional product. */
+.m26-shell :is(.m26-admin-table,.iberfit-table-shell){
+  overflow:auto;
+  box-shadow:var(--iberfit-signature-panel-shadow);
+}
+
+.m26-shell :is(.m26-admin-table,.iberfit-table-shell) thead th{
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb,var(--iberfit-color-surface-base) 96%,var(--iberfit-role-accent,var(--iberfit-color-accent)) 4%),
+      color-mix(in srgb,var(--iberfit-color-surface-base) 98%,black)
+    );
+  backdrop-filter:blur(14px);
+}
+
+.m26-shell :is(.m26-admin-table,.iberfit-table-shell) tbody tr:last-child td{
+  border-bottom-color:transparent;
+}
+
+.m26-shell .m26-echart{
+  background:
+    linear-gradient(to right,var(--iberfit-data-grid) 1px,transparent 1px),
+    linear-gradient(to bottom,var(--iberfit-data-grid) 1px,transparent 1px),
+    radial-gradient(circle at 88% 2%,var(--iberfit-signature-highlight-soft),transparent 13rem),
+    var(--iberfit-color-surface-raised);
+  background-size:48px 48px,48px 48px,auto,auto;
+  box-shadow:inset 0 1px rgba(255,255,255,.025);
+}
+
+.m26-shell .m26-data-kpis>div{
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 7%,transparent),
+      color-mix(in srgb,var(--iberfit-color-surface-raised) 92%,transparent)
+    );
+}
+
+/* Role distinction stays within one brand system. */
+.m26-shell[data-m26-role="client"] .m26-workspace{
+  background:
+    radial-gradient(circle at 88% 2%,rgba(200,166,93,.075),transparent 32rem),
+    radial-gradient(circle at 10% 96%,rgba(67,137,101,.055),transparent 30rem);
+}
+
+.m26-shell[data-m26-role="coach"] .m26-workspace{
+  background:
+    radial-gradient(circle at 88% 2%,color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-success)) 7%,transparent),transparent 32rem);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-workspace{
+  background:
+    radial-gradient(circle at 88% 2%,rgba(49,168,152,.075),transparent 32rem);
+}
+
+.m26-shell[data-m26-role="admin"] :is(.m26-admin-panel,.m26-admin-table){
+  --iberfit-signature-highlight:rgba(49,168,152,.18);
+}
+
+/* Mobile navigation reads as a native persistent command rail. */
+@media (max-width:900px){
+  .m26-shell .m26-mobile-nav{
+    background:
+      linear-gradient(180deg,rgba(8,29,20,.90),rgba(4,17,12,.985));
+    border-top-color:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 20%,var(--iberfit-color-border));
+    box-shadow:
+      0 -18px 42px rgba(0,0,0,.34),
+      inset 0 1px rgba(255,255,255,.052);
+  }
+
+  .m26-shell .m26-mobile-nav .m26-nav-item{
+    position:relative;
+  }
+
+  .m26-shell .m26-mobile-nav .m26-nav-item.is-active{
+    border-color:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 32%,transparent);
+    background:
+      radial-gradient(circle at 50% -20%,color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 20%,transparent),transparent 70%),
+      color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 10%,transparent);
+    box-shadow:
+      inset 0 1px rgba(255,255,255,.055),
+      0 8px 22px rgba(0,0,0,.16);
+  }
+
+  .m26-shell .m26-mobile-nav .m26-nav-item.is-active::before{
+    content:"";
+    position:absolute;
+    top:.18rem;
+    left:50%;
+    width:1.5rem;
+    height:2px;
+    border-radius:999px;
+    transform:translateX(-50%);
+    background:var(--iberfit-role-accent,var(--iberfit-color-accent));
+    box-shadow:0 0 12px var(--iberfit-signature-highlight);
+  }
+}
+
+/* Desktop pointer polish is progressive and completely absent on touch. */
+@media (hover:hover) and (pointer:fine){
+  .m26-shell :is(
+    .m26-client-card,.m26-list-card,.m26-library-card,
+    .m26-publication-card,.m26-client-content-card,.m26-rc39-session-card
+  ):hover{
+    transform:translateY(-3px);
+    border-color:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 34%,transparent);
+    box-shadow:var(--iberfit-signature-panel-shadow-hover);
+  }
+
+  .m26-shell :is(.m26-primary-action,.iberfit-button[data-variant="primary"]):not(:disabled):hover{
+    transform:translateY(-1px);
+    filter:saturate(1.04) brightness(1.035);
+    box-shadow:
+      0 15px 34px rgba(155,116,33,.24),
+      inset 0 1px rgba(255,255,255,.38);
+  }
+
+  .m26-shell :is(.m26-text-action,.m26-icon-button,.iberfit-button[data-variant="quiet"]):not(:disabled):hover{
+    border-color:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 28%,var(--iberfit-color-border));
+    background:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 8%,var(--iberfit-color-surface-base));
+  }
+
+  .m26-shell :is(.m26-admin-table,.iberfit-table-shell) tbody tr:hover{
+    background:color-mix(in srgb,var(--iberfit-role-accent,var(--iberfit-color-accent)) 7%,transparent);
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .m26-shell :is(
+    .m26-client-card,.m26-list-card,.m26-library-card,
+    .m26-publication-card,.m26-client-content-card,.m26-rc39-session-card,
+    .m26-primary-action,.iberfit-button
+  ){
+    transform:none !important;
+    filter:none !important;
+  }
+}
+
+@media (forced-colors:active){
+  .m26-shell .m26-route-intro::after,
+  .m26-shell .m26-topbar::after,
+  .m26-shell .m26-eyebrow::before,
+  .m26-shell .m26-mobile-nav .m26-nav-item.is-active::before{
+    background:CanvasText;
+    box-shadow:none;
+  }
+
+  .m26-shell :is(
+    .m26-panel,.m26-admin-panel,.m26-client-card,.m26-list-card,
+    .m26-library-card,.m26-publication-card,.m26-client-content-card
+  )::before{
+    content:none;
+  }
+}
