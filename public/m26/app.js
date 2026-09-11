@@ -203,6 +203,10 @@ async function onMinimalAuthSubmit(event){
 
     const loadedApp=await loadFullApplication();
     const identityReady=Boolean(loadedApp?.getState?.()?.identity?.id);
+    if(firstFactorAccepted&&!identityReady){
+      await loadedApp.resume();
+      return;
+    }
     const continuationAlreadySurfaced=Boolean(
       root.querySelector?.('[data-auth-action="mfa-continue-webauthn"],[data-auth-action="retry-session"]')
     );
