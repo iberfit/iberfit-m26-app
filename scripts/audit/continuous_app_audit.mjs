@@ -323,7 +323,7 @@ function auditProductionSecurityHeaders(response){
 }
 
 function runtimePublishableKey(body){
-  const match=String(body||'').match(/publishableKey\s*:\s*['"]([^'"]{8,512})['"]/u);
+  const match=String(body||'').match(/[\"']?publishableKey[\"']?\s*:\s*[\"']([^\"']{8,512})[\"']/u);
   return match?.[1]||null;
 }
 
@@ -385,67 +385,73 @@ async function auditAnonymousHealthRpcBoundaries(publishableKey){
 }
 
 async function auditClientOnboardingBackendReadiness(){
-  const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),15000);
-  try{
-    const response=await fetch(ADMIN_CLIENT_INVITE_EDGE_URL,{
-      method:'OPTIONS',
-      redirect:'manual',
-      cache:'no-store',
-      headers:{
-        'origin':APP_URL,
-        'access-control-request-method':'POST',
-        'access-control-request-headers':'authorization, apikey, content-type',
-        'user-agent':'IBERFIT-M26-Continuous-Auditor/1.0',
-      },
-      signal:controller.signal,
-    });
-    coverage.live.adminClientInviteEdgeStatus=response.status;
-    coverage.live.adminClientInviteEdgeAllowOrigin=response.headers.get('access-control-allow-origin')||null;
-    if(response.status!==204){
-      addFinding(
-        'critical',
-        'LIVE_ADMIN_CLIENT_INVITE_EDGE_UNAVAILABLE',
-        `El onboarding Admin de clientes no respondió al preflight esperado (HTTP ${response.status}).`,
-        {url:ADMIN_CLIENT_INVITE_EDGE_URL,status:response.status},
+  let lastError=null;
+  for(let attempt=1;attempt<=2;attempt+=1){
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),15000);
+    try{
+      const response=await fetch(ADMIN_CLIENT_INVITE_EDGE_URL,{
+        method:'OPTIONS',
+        redirect:'manual',
+        cache:'no-store',
+        headers:{
+          'origin':APP_URL,
+          'access-control-request-method':'POST',
+          'access-control-request-headers':'authorization, apikey, content-type',
+          'user-agent':'IBERFIT-M26-Continuous-Auditor/1.1',
+        },
+        signal:controller.signal,
+      });
+      coverage.live.adminClientInviteEdgeStatus=response.status;
+      coverage.live.adminClientInviteEdgeAllowOrigin=response.headers.get('access-control-allow-origin')||null;
+      coverage.live.adminClientInviteEdgeAttempts=attempt;
+      if(response.status!==204){
+        addFinding(
+          'critical',
+          'LIVE_ADMIN_CLIENT_INVITE_EDGE_UNAVAILABLE',
+          `El onboarding Admin de clientes no respondió al preflight esperado (HTTP ${response.status}).`,
+          {url:ADMIN_CLIENT_INVITE_EDGE_URL,status:response.status},
+        );
+        return;
+      }
+      const allowOrigin=response.headers.get('access-control-allow-origin');
+      if(allowOrigin!==APP_URL){
+        addFinding(
+          'critical',
+          'LIVE_ADMIN_CLIENT_INVITE_CORS_INVALID',
+          'La Edge Function de onboarding Admin no autoriza explícitamente el origen productivo.',
+          {url:ADMIN_CLIENT_INVITE_EDGE_URL,allowOrigin},
+        );
+        return;
+      }
+      const methods=String(response.headers.get('access-control-allow-methods')||'').toUpperCase();
+      if(!methods.split(/\s*,\s*/u).includes('POST')){
+        addFinding(
+          'critical',
+          'LIVE_ADMIN_CLIENT_INVITE_POST_NOT_ALLOWED',
+          'La Edge Function de onboarding Admin no declara POST en CORS.',
+          {url:ADMIN_CLIENT_INVITE_EDGE_URL,methods},
+        );
+        return;
+      }
+      addStrength(
+        'LIVE_ADMIN_CLIENT_ONBOARDING_EDGE_READY',
+        'La Edge Function productiva para crear e invitar clientes está disponible y autoriza app.iberfit.cl.',
+        {status:response.status,attempt},
       );
       return;
+    }catch(error){
+      lastError=error;
+    }finally{
+      clearTimeout(timeout);
     }
-    const allowOrigin=response.headers.get('access-control-allow-origin');
-    if(allowOrigin!==APP_URL){
-      addFinding(
-        'critical',
-        'LIVE_ADMIN_CLIENT_INVITE_CORS_INVALID',
-        'La Edge Function de onboarding Admin no autoriza explícitamente el origen productivo.',
-        {url:ADMIN_CLIENT_INVITE_EDGE_URL,allowOrigin},
-      );
-      return;
-    }
-    const methods=String(response.headers.get('access-control-allow-methods')||'').toUpperCase();
-    if(!methods.split(/\s*,\s*/u).includes('POST')){
-      addFinding(
-        'critical',
-        'LIVE_ADMIN_CLIENT_INVITE_POST_NOT_ALLOWED',
-        'La Edge Function de onboarding Admin no declara POST en CORS.',
-        {url:ADMIN_CLIENT_INVITE_EDGE_URL,methods},
-      );
-      return;
-    }
-    addStrength(
-      'LIVE_ADMIN_CLIENT_ONBOARDING_EDGE_READY',
-      'La Edge Function productiva para crear e invitar clientes está disponible y autoriza app.iberfit.cl.',
-      {status:response.status},
-    );
-  }catch(error){
-    addFinding(
-      'critical',
-      'LIVE_ADMIN_CLIENT_INVITE_EDGE_READ_FAILED',
-      `No se pudo comprobar la Edge Function productiva de onboarding: ${error?.message||String(error)}.`,
-      {url:ADMIN_CLIENT_INVITE_EDGE_URL},
-    );
-  }finally{
-    clearTimeout(timeout);
   }
+  addFinding(
+    'critical',
+    'LIVE_ADMIN_CLIENT_INVITE_EDGE_READ_FAILED',
+    `No se pudo comprobar la Edge Function productiva de onboarding tras dos intentos: ${lastError?.message||String(lastError)}.`,
+    {url:ADMIN_CLIENT_INVITE_EDGE_URL},
+  );
 }
 
 async function auditLivePublicSurface(){
