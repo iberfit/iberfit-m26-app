@@ -4,7 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 const MODEL='@cf/black-forest-labs/flux-2-klein-4b';
-const WIDTH=640;
+const WIDTH=320;
 const HEIGHT=800;
 
 const PHASES={
@@ -74,7 +74,8 @@ function promptFor(exercise,phase){
     'Input image 0 is the approved IBERFIT male identity reference ONLY. Preserve the same face, hair, beard, age, complexion and natural non-bodybuilder build. Do not copy the reference pose.',
     'The athlete wears a completely plain black short-sleeve technical shirt, plain black shorts and plain black training shoes. NO logo, NO symbol, NO letters, NO numbers, NO brand name, NO watermark anywhere on clothing, equipment, walls or image.',
     'Environment: premium dark charcoal gym, black equipment, subtle warm-gold and restrained green architectural accent light, realistic commercial photography, no poster design, no infographic, no text.',
-    'Composition is critical because this image will be mechanically cropped into one half of a fixed IBERFIT 640x800 template. Keep the entire athlete and every relevant hand, foot and piece of equipment inside the CENTRAL 50 PERCENT of the image width, with generous empty dark-gym margin on both sides. Do not crop head, hands, weights or feet.',
+    'Input image 1 is a strict abstract POSE AND EQUIPMENT GEOMETRY guide for this exact phase. Match its body orientation, joint relationships, support points and equipment placement closely. Ignore its colors and drawing style. Do not copy any text because it contains none.',
+    'This photograph is already the exact narrow half-panel of the final 640x800 IBERFIT template. Fill the 320x800 vertical frame naturally while keeping the entire athlete and every relevant hand, foot and piece of equipment visible. Scale the athlete down if necessary rather than cropping critical anatomy or equipment.',
     `Exercise: ${exercise.name_es||id}. Movement pattern: ${exercise.pattern||''}. Equipment: ${exercise.equipment||''}.`,
     `Required ${phase==='start'?'START':'FINAL'} phase: ${phaseText}`,
     'Biomechanics must be clearly correct and anatomically possible. Neutral and exercise-appropriate spine, realistic joint angles, correct grip/support, no duplicated limbs, no extra fingers, no malformed equipment, no background people.',
@@ -86,6 +87,7 @@ async function main(){
   const phase=exact(arg('--phase'),'PHASE');
   const catalog=exact(arg('--catalog'),'CATALOG');
   const athlete=exact(arg('--athlete-ref'),'ATHLETE_REF');
+  const pose=exact(arg('--pose-ref'),'POSE_REF');
   const outDir=exact(arg('--out-dir'),'OUT_DIR');
   const attempt=Number(arg('--attempt')||1);
   if(!['start','final'].includes(phase))throw new Error('PHASE_INVALID');
@@ -94,6 +96,7 @@ async function main(){
   const token=exact(process.env.IBERFIT_AI_PROXY_TOKEN,'IBERFIT_AI_PROXY_TOKEN');
   const exercise=readCatalog(catalog,id);
   const bytes=fs.readFileSync(athlete);
+  const poseBytes=fs.readFileSync(pose);
   const form=new FormData();
   form.append('model',MODEL);
   form.append('prompt',promptFor(exercise,phase));
@@ -102,6 +105,7 @@ async function main(){
   form.append('guidance','4.5');
   form.append('seed',String(seedFor(id,phase,attempt)));
   form.append('input_image_0',new Blob([bytes],{type:'image/png'}),'iberfit-athlete-reference.png');
+  form.append('input_image_1',new Blob([poseBytes],{type:'image/png'}),'iberfit-pose-guide.png');
   const res=await fetch(proxy,{method:'POST',headers:{authorization:`Bearer ${token}`},body:form,redirect:'error'});
   if(!res.ok)throw new Error(`GENERATE_HTTP_${res.status}:${(await res.text()).slice(0,700)}`);
   const payload=await res.json();
@@ -115,7 +119,7 @@ async function main(){
     schema:'iberfit.exercise.phase-candidate.v1',
     exercise_id:id,phase,attempt,model:payload.model||MODEL,mime,width:WIDTH,height:HEIGHT,
     seed:seedFor(id,phase,attempt),prompt_sha256:crypto.createHash('sha256').update(promptFor(exercise,phase)).digest('hex'),
-    generated_at:new Date().toISOString(),publishable:false
+    pose_reference:path.basename(pose),generated_at:new Date().toISOString(),publishable:false
   },null,2)+'\n');
   console.log(JSON.stringify({ok:true,id,phase,attempt,file,mime,bytes:image.length}));
 }
