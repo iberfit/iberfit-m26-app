@@ -121,6 +121,28 @@ async function writeAssurance(admin,{userId,sessionId,credentialId}){
   return expires.toISOString();
 }
 
+async function hasVerifiedRpAssurance(admin,{userId,sessionId,rpID}){
+  const now=new Date().toISOString();
+  const {data,error}=await admin
+    .from('iberfit_privileged_assurance_v1')
+    .select('credential_id,expires_at')
+    .eq('user_id',userId)
+    .eq('session_id',sessionId)
+    .is('revoked_at',null)
+    .gt('expires_at',now)
+    .maybeSingle();
+  if(error||!data?.credential_id)return false;
+  const {data:credential,error:credentialError}=await admin
+    .from('iberfit_webauthn_credentials_v1')
+    .select('credential_id')
+    .eq('user_id',userId)
+    .eq('rp_id',rpID)
+    .eq('credential_id',String(data.credential_id))
+    .is('revoked_at',null)
+    .maybeSingle();
+  return !credentialError&&Boolean(credential?.credential_id);
+}
+
 async function main(req){
   const context=requestContext(req);
   if(!context)return fail(403,'M26_WEBAUTHN_ORIGIN_FORBIDDEN');
@@ -153,6 +175,10 @@ async function main(req){
   if(action==='registration-options'){
     const {data:existing,error:existingError}=await admin.from('iberfit_webauthn_credentials_v1').select('credential_id,transports').eq('user_id',user.id).eq('rp_id',rpID).is('revoked_at',null).limit(20);
     if(existingError)throw new Error('M26_WEBAUTHN_CREDENTIAL_READ_FAILED');
+    if(existing?.length){
+      const existingAssurance=await hasVerifiedRpAssurance(admin,{userId:user.id,sessionId,rpID});
+      if(!existingAssurance)return fail(403,'M26_WEBAUTHN_EXISTING_VERIFICATION_REQUIRED',origin);
+    }
     const options=await generateRegistrationOptions({rpName:RP_NAME,rpID,userID:new TextEncoder().encode(String(user.id)),userName:String(user.email||user.id).slice(0,254),userDisplayName:String(user.email||'IBERFIT').slice(0,120),attestationType:'none',excludeCredentials:(existing||[]).map((item)=>({id:String(item.credential_id),transports:normalizedTransports(item.transports)})),authenticatorSelection:{residentKey:'preferred',userVerification:'required'},supportedAlgorithmIDs:[-7,-257]});
     const challengeId=await createChallenge(admin,{userId:user.id,sessionId,ceremony:'registration',challenge:options.challenge,origin});
     return response(200,{ok:true,challengeId,type:'create',credentialOptions:{publicKey:options},privilegedRole,rpID,version:FUNCTION_VERSION},origin);
@@ -160,6 +186,17 @@ async function main(req){
 
   if(action==='registration-verify'){
     const credential=credentialResponse(body.credentialResponse);
+    const {count:existingCount,error:existingCountError}=await admin
+      .from('iberfit_webauthn_credentials_v1')
+      .select('id',{count:'exact',head:true})
+      .eq('user_id',user.id)
+      .eq('rp_id',rpID)
+      .is('revoked_at',null);
+    if(existingCountError)throw new Error('M26_WEBAUTHN_CREDENTIAL_READ_FAILED');
+    if(Number(existingCount||0)>0){
+      const existingAssurance=await hasVerifiedRpAssurance(admin,{userId:user.id,sessionId,rpID});
+      if(!existingAssurance)return fail(403,'M26_WEBAUTHN_EXISTING_VERIFICATION_REQUIRED',origin);
+    }
     const expectedChallenge=await consumeChallenge(admin,{challengeId:String(body.challengeId||''),userId:user.id,sessionId,ceremony:'registration',origin});
     let verification;try{verification=await verifyRegistrationResponse({response:credential,expectedChallenge,expectedOrigin:origin,expectedRPID:rpID,requireUserVerification:true});}catch{return fail(400,'M26_WEBAUTHN_REGISTRATION_VERIFICATION_FAILED',origin);}
     if(!verification?.verified||!verification.registrationInfo)return fail(400,'M26_WEBAUTHN_REGISTRATION_NOT_VERIFIED',origin);
