@@ -117,39 +117,71 @@ test('Hoy renderiza datos reales del store sin fixtures', () => {
   assert.doesNotMatch(html, /CLI-DEMO|fixture|demo\.iberfit/i);
 });
 
-test('Hoy Cliente inicia directamente la sesión publicada vinculada a su cita', () => {
-  const state = ready('client');
-  const shellVm = createShellViewModel(state);
-  const vm = createRouteViewModel(shellVm, state, now);
-  const html = renderRouteView(vm);
-
-  assert.equal(vm.kind, 'hoy');
-  assert.equal(vm.appointments.length, 1);
-  assert.equal(vm.appointments[0].sessionId, 's1');
-
-  assert.match(
-    html,
-    /data-workflow-action="start-published-session"/
-  );
-
-  assert.match(
-    html,
-    /data-entity-id="s1"/
-  );
-
-  assert.match(
-    html,
-    />Iniciar entrenamiento</
-  );
-});
-test('Hoy Cliente prioriza Entrenar ahora cuando existe una sesión confirmada vinculada', () => {
-  const state = ready('client');
+test('Hoy Cliente inicia directamente una sesión autónoma confirmada vinculada', () => {
+  const base = ready('client');
+  const state = ready('client', {
+    collections: {
+      ...base.collections,
+      sessions: [{
+        id: 's1',
+        clientId: qa,
+        title: 'Entrenamiento autónomo',
+        status: 'publicado',
+        visibleToClient: true,
+        clientVisibilityLevel: 'full',
+        deliveryOwnership: 'client_autonomous',
+        deliveryModality: 'guiada_en_app',
+        revision: 2,
+        blocks: [{
+          id: 'b1',
+          type: 'exercise',
+          exerciseId: 'exercise-squat',
+          name: 'Sentadilla goblet',
+          sets: 3,
+          reps: '8',
+          restSeconds: 75,
+        }],
+      }],
+      appointments: [{
+        id: 'ap1',
+        client_id: qa,
+        session_id: 's1',
+        title: 'Entrenamiento autónomo',
+        start_at: '2026-07-18T18:00:00Z',
+        status: 'confirmado',
+        modality: 'guiada_en_app',
+      }],
+    },
+  });
   const vm = createRouteViewModel(createShellViewModel(state), state, now);
   const html = renderRouteView(vm);
 
   assert.match(
     html,
     /class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="s1"[\s\S]*?<strong>Entrenar ahora<\/strong>/
+  );
+  assert.match(
+    html,
+    /data-workflow-action="start-published-session" data-entity-id="s1">Iniciar entrenamiento<\/button>/
+  );
+});
+
+test('Hoy Cliente no convierte una cita presencial dirigida por Coach en entrenamiento autónomo', () => {
+  const state = ready('client');
+  const vm = createRouteViewModel(createShellViewModel(state), state, now);
+  const html = renderRouteView(vm);
+
+  assert.match(
+    html,
+    /class="m26-today-action is-primary" data-m26-area="sesion"[\s\S]*?<strong>Abrir mis sesiones<\/strong>/
+  );
+  assert.doesNotMatch(
+    html,
+    /class="m26-today-action is-primary" data-workflow-action="start-published-session"/
+  );
+  assert.doesNotMatch(
+    html,
+    />Iniciar entrenamiento<\/button>/
   );
 });
 
