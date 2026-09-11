@@ -1,4 +1,5 @@
 import {createClientCreateWizard} from './client-create-wizard.js';
+import {buildClientCreateHandoff,dispatchClientCreateHandoff} from './client-create-handoff.js';
 const toast=(message)=>{try{globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}catch{}};
 const text=(data,key,max=4000)=>String(data.get(key)||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);
 const rev=(data)=>{const n=Number(data.get('baseRevision')||0);return Number.isInteger(n)&&n>=0?n:0;};
@@ -233,7 +234,16 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           emergencyContactPhone:profile.emergencyContactPhone,
           profile,
         },
-      },invitationSuccess,{onSuccess:()=>clientWizard.clear()});
+      },invitationSuccess,{onSuccess:(result)=>{
+        clientWizard.clear();
+        const handoff=buildClientCreateHandoff({
+          result,
+          initialAssessmentMode:profile.initialAssessmentMode,
+        });
+        if(!handoff)return;
+        const schedule=globalThis.queueMicrotask||((callback)=>Promise.resolve().then(callback));
+        schedule(()=>dispatchClientCreateHandoff(root,handoff));
+      }});
     }
     if(kind==='client-lifecycle')return run({type:'ADMIN_CLIENTE_CAMBIAR_CICLO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),status:text(data,'status',40)}},'Ciclo actualizado.');
     if(kind==='client-delete'){
