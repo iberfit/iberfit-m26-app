@@ -14,6 +14,8 @@ on:
       - 'playwright.p0-pwa-upgrade.config.mjs'
       - '.github/workflows/ci.yml'
       - '.github/workflows/remote-gates.yml'
+      - '.github/workflows/hosted-auth-security-hardening.yml'
+      - '.github/workflows/production-promote.yml'
       - '.github/workflows/continuous-app-audit.yml'
   push:
     branches:
@@ -30,6 +32,8 @@ on:
       - 'playwright.p0-pwa-upgrade.config.mjs'
       - '.github/workflows/ci.yml'
       - '.github/workflows/remote-gates.yml'
+      - '.github/workflows/hosted-auth-security-hardening.yml'
+      - '.github/workflows/production-promote.yml'
       - '.github/workflows/continuous-app-audit.yml'
   workflow_dispatch:
   workflow_call:
