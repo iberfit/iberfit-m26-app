@@ -185,7 +185,19 @@ jobs:
           ! grep -R -Eqi 'supabase[[:space:]]+(db|migration)|wrangler[[:space:]]+deploy' .github/workflows/production-promote.yml
           find .tmp/rc64-current-surface -type f -print0 | sort -z | xargs -0 sha256sum > PRODUCTION_PROMOTION.sha256
 
+      - name: Resolve privileged email OTP rollout gate
+        id: email-otp
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Fq 'export const EMAIL_OTP_DEPLOYMENT_READY=true;' src/m26/app/application.js; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Sync and verify IBERFIT Hosted Auth emails before cutover
+        if: ${{ steps.email-otp.outputs.enabled == 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ env.PROD_SUPABASE_REF }}
