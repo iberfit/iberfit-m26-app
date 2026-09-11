@@ -88,10 +88,10 @@ test('auth recovers from a hung password request without reload or mixed-languag
 
     const notice=page.locator('.m26-auth-notice.is-error');
     await expect(notice).toContainText(
-      'Access is taking longer than expected. You can try again without reloading the app.',
-      {timeout:25_000},
+      'Could not connect. Check your internet connection and try again.',
+      {timeout:20_000},
     );
-    await expect(notice).toContainText('Code: M26_AUTH_UI_TIMEOUT.');
+    await expect(notice).toContainText('Code: M26_TIMEOUT.');
 
     const recoveredSubmit=page.locator('form[data-auth-form="login"] button[type="submit"]');
     const recoveredEmail=page.locator('input[name="email"]');
