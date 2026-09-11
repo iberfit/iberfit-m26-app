@@ -18,6 +18,8 @@ const CLIENT_ID='continuous-audit-client';
 const NOW=new Date();
 const APP_URL=String(process.env.M26_AUDIT_APP_URL||'https://app.iberfit.cl').replace(/\/+$/,'');
 const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
+const PROD_SUPABASE_URL=`https://${PROD_PROJECT_REF}.supabase.co`;
+const ADMIN_CLIENT_INVITE_EDGE_URL=`${PROD_SUPABASE_URL}/functions/v1/iberfit-admin-client-invite-v1`;
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const OUTPUT_DIR=path.resolve(process.cwd(),'recovery','continuous-audit');
 const OUTPUT_JSON=path.join(OUTPUT_DIR,'latest.json');
@@ -280,6 +282,70 @@ async function fetchAuditUrl(url,label){
   }
 }
 
+async function auditClientOnboardingBackendReadiness(){
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),15000);
+  try{
+    const response=await fetch(ADMIN_CLIENT_INVITE_EDGE_URL,{
+      method:'OPTIONS',
+      redirect:'manual',
+      cache:'no-store',
+      headers:{
+        'origin':APP_URL,
+        'access-control-request-method':'POST',
+        'access-control-request-headers':'authorization, apikey, content-type',
+        'user-agent':'IBERFIT-M26-Continuous-Auditor/1.0',
+      },
+      signal:controller.signal,
+    });
+    coverage.live.adminClientInviteEdgeStatus=response.status;
+    coverage.live.adminClientInviteEdgeAllowOrigin=response.headers.get('access-control-allow-origin')||null;
+    if(response.status!==204){
+      addFinding(
+        'critical',
+        'LIVE_ADMIN_CLIENT_INVITE_EDGE_UNAVAILABLE',
+        `El onboarding Admin de clientes no respondió al preflight esperado (HTTP ${response.status}).`,
+        {url:ADMIN_CLIENT_INVITE_EDGE_URL,status:response.status},
+      );
+      return;
+    }
+    const allowOrigin=response.headers.get('access-control-allow-origin');
+    if(allowOrigin!==APP_URL){
+      addFinding(
+        'critical',
+        'LIVE_ADMIN_CLIENT_INVITE_CORS_INVALID',
+        'La Edge Function de onboarding Admin no autoriza explícitamente el origen productivo.',
+        {url:ADMIN_CLIENT_INVITE_EDGE_URL,allowOrigin},
+      );
+      return;
+    }
+    const methods=String(response.headers.get('access-control-allow-methods')||'').toUpperCase();
+    if(!methods.split(/\s*,\s*/u).includes('POST')){
+      addFinding(
+        'critical',
+        'LIVE_ADMIN_CLIENT_INVITE_POST_NOT_ALLOWED',
+        'La Edge Function de onboarding Admin no declara POST en CORS.',
+        {url:ADMIN_CLIENT_INVITE_EDGE_URL,methods},
+      );
+      return;
+    }
+    addStrength(
+      'LIVE_ADMIN_CLIENT_ONBOARDING_EDGE_READY',
+      'La Edge Function productiva para crear e invitar clientes está disponible y autoriza app.iberfit.cl.',
+      {status:response.status},
+    );
+  }catch(error){
+    addFinding(
+      'critical',
+      'LIVE_ADMIN_CLIENT_INVITE_EDGE_READ_FAILED',
+      `No se pudo comprobar la Edge Function productiva de onboarding: ${error?.message||String(error)}.`,
+      {url:ADMIN_CLIENT_INVITE_EDGE_URL},
+    );
+  }finally{
+    clearTimeout(timeout);
+  }
+}
+
 async function auditLivePublicSurface(){
   const root=await fetchAuditUrl(`${APP_URL}/`,'la portada pública de producción');
   if(root){
@@ -418,6 +484,7 @@ async function main(){
   auditRoleNavigation();
   auditRouteGuardAndRendering();
   await auditLivePublicSurface();
+  await auditClientOnboardingBackendReadiness();
   await writeReport();
 }
 
