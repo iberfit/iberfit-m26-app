@@ -104,7 +104,7 @@ test('P0 a verified email assurance keeps the primary session retriable if works
   assert.match(block,/let assuranceVerified=false/u);
   assert.match(block,/assuranceVerified=true/u);
   assert.match(block,/surfaceRetriableSessionFailure\(error,'post-email-mfa-setup'\)/u);
-  assert.match(block,/void transport\?\.logout\?\.\(otpToken\)/u);
+  assert.match(block,/void transport\?\.logout\?\.\(otpToken,\{scope:'local'\}\)/u);
 });
 
 test('P0 a successful MFA ceremony is not reclassified as biometric failure if workspace setup fails afterwards',()=>{
