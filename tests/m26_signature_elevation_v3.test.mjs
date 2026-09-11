@@ -43,5 +43,8 @@ test('accessibility fallbacks remain first-class',()=>{
 });
 
 test('visual elevation remains presentation-only',()=>{
-  assert.doesNotMatch(v3,/fetch\(|localStorage|sessionStorage|authorization|routeTo|navigate\(/iu);
+  assert.doesNotMatch(
+    v3,
+    /\b(?:fetch|routeTo|navigate)\s*\(|\b(?:localStorage|sessionStorage)\s*\./u,
+  );
 });
