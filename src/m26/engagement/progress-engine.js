@@ -1,5 +1,7 @@
 import {summarizeWearableData} from '../wearables/normalization.js';
 import {parseDateValue} from '../domain/civil-date.js';
+import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../workflows/iri-first-session.js';
+import {buildIri2LongitudinalProfile,iri2ComparisonSummary} from '../workflows/iri-2-longitudinal.js';
 function clone(value){return value==null?value:structuredClone(value);}
 function arr(value){return Array.isArray(value)?value:[];}
 function first(record,...keys){for(const key of keys){const value=record?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
@@ -94,6 +96,62 @@ function iriDomainCoverage(record){
 }
 function safePositiveInteger(value,{fallback,min=1,max=3650}={}){const parsed=Number(value);return Number.isInteger(parsed)&&parsed>=min&&parsed<=max?parsed:fallback;}
 
+function iriRecordBody(record={}){
+  return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;
+}
+function iriConfirmedRecord(record={}){
+  const item=iriRecordBody(record);
+  return Boolean(item?.firstSessionCompletedAt||item?.first_session_completed_at);
+}
+function iriRecordClientId(record={}){
+  const item=iriRecordBody(record);
+  return String(first(record,'clientId','client_id','clienteId','cliente_id')||first(item,'clientId','client_id','clienteId','cliente_id')||'').trim();
+}
+function iri2ProgressSummary(state,clientId){
+  const expectedClient=String(clientId||'').trim();
+  const drafts=[];
+  for(const record of collection(state,'iriAssessments')){
+    if(iriRecordClientId(record)!==expectedClient)continue;
+    if(!iriConfirmedRecord(record))continue;
+    try{
+      const draft=confirmedFirstSessionDraft(record,clientId);
+      if(!validateFirstSessionDraft(draft).ok)continue;
+      drafts.push(draft);
+    }catch{}
+  }
+  drafts.sort((a,b)=>String(a.assessmentDate||'').localeCompare(String(b.assessmentDate||''))||String(a.assessmentId||'').localeCompare(String(b.assessmentId||'')));
+  const current=drafts.at(-1)||null;
+  if(!current)return null;
+  const history=drafts.slice(0,-1);
+  const profile=buildIri2LongitudinalProfile({current,history});
+  const summary=iri2ComparisonSummary(profile);
+  return Object.freeze({
+    confirmedCount:drafts.length,
+    currentAssessmentId:current.assessmentId||null,
+    currentAssessmentDate:current.assessmentDate||null,
+    previousAssessmentId:profile.comparison.previousAssessmentId||null,
+    previousAssessmentDate:profile.comparison.previousAssessmentDate||null,
+    available:Boolean(profile.comparison.available),
+    comparableCount:Number(profile.comparison.comparableCount||0),
+    totalCompared:Number(profile.comparison.totalCompared||0),
+    label:summary.label,
+    detail:summary.detail,
+    headline:Object.freeze(
+      (profile.comparison.headline||[]).slice(0,4).map((item)=>Object.freeze({
+        id:item.id,
+        label:item.label,
+        unit:item.unit||'',
+        previous:item.previous,
+        current:item.current,
+        delta:item.delta,
+        relative:item.relative,
+        trend:item.trend,
+      }))
+    ),
+  });
+}
+
+
 export function progressWindow({now=new Date(),days=28}={}){
   const end=safeDate(now);if(!end)throw new Error('M26_PROGRESS_NOW_INVALID');
   const safeDays=safePositiveInteger(days,{fallback:28,min:1,max:3650});
@@ -131,6 +189,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const iri=forClient(state,'iriAssessments',clientId).map(unwrap).sort(byDateDesc);
   const iriCoverage=iri.map(iriDomainCoverage);
   const iriDelta=iriCoverage.length>=2&&iriCoverage[0]>0&&iriCoverage[1]>0?iriCoverage[0]-iriCoverage[1]:null;
+  const iri2=iri2ProgressSummary(state,clientId);
   const sortedExecutions=[...completedExecutions].sort(byDateDesc);
   const lastExecution=sortedExecutions[0]||null;
   const lastExecutionRpe=lastExecution?rpeValues(lastExecution):[];
@@ -142,6 +201,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
     plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence:round(adherence,3),
     averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
     iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:iri.length>1?iriCoverage[1]:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
+    iri2,
     checkins:checkins.length,latestCheckin:latestCheckin?clone(checkinValues(latestCheckin)):null,
     checkinAverage:Object.freeze({
       energy:round(average(checkinSeries.map((x)=>x.energy)),1),sleep:round(average(checkinSeries.map((x)=>x.sleep)),1),

@@ -1883,6 +1883,32 @@ function renderCoachFollowUpPlan(alerts=[]){
 
 function formatPercent(value){ return Number.isFinite(value) ? `${Math.round(value * 100)}%` : 'Sin dato'; }
 function metricValue(value, suffix=''){ return value === null || value === undefined ? 'Sin dato' : `${value}${suffix}`; }
+
+function iri2DeltaText(item={}){
+  const value=Number(item.delta);
+  if(!Number.isFinite(value))return 'Sin cambio comparable';
+  const rounded=Number(value.toFixed(Math.abs(value)<10?1:0));
+  const prefix=rounded>0?'+':'';
+  return `${prefix}${rounded}${item.unit?` ${item.unit}`:''}`;
+}
+function renderIri2ProgressPanel(iri2){
+  if(!iri2)return '';
+  const metrics=Array.isArray(iri2.headline)?iri2.headline:[];
+  const metricCards=metrics.length
+    ?`<div class="m26-stat-grid">${metrics.map((item)=>stat(item.label,iri2DeltaText(item),'vs. evaluación anterior · cambio descriptivo')).join('')}</div>`
+    :'';
+  const comparisonBadge=iri2.comparableCount>0
+    ?badge(`${iri2.comparableCount} indicadores comparables`,'success')
+    :badge(iri2.label||'Línea base IRI','neutral');
+  const previous=iri2.previousAssessmentDate
+    ?`Comparación con ${safeDateLabel(iri2.previousAssessmentDate)}.`
+    :'Primera evaluación confirmada: se establece la línea base.';
+  return `<section class="m26-panel m26-panel-soft" data-iri2-progress>
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">IRI 2.0 longitudinal</p><h2>Evolución IRI 2.0</h2><p>${escapeHtml(iri2.detail||previous)}</p></div>${comparisonBadge}</div>
+    ${metricCards}
+    <p class="m26-notice"><strong>Sin puntuación global</strong> · Solo se muestran cambios entre evaluaciones confirmadas y mediciones metodológicamente comparables.</p>
+  </section>`;
+}
 function sleepHoursPerDay(minutes){
   const numeric=Number(minutes);
   if(!Number.isFinite(numeric))return 'Sin dato';
@@ -1938,6 +1964,7 @@ export function renderProgressRoute(vm){
     </section>
     ${pendingProgressNotice}
     ${sessionImpact}
+    ${renderIri2ProgressPanel(summary.iri2)}
     ${adherenceVisual}
     ${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
     <section class="m26-content-grid">
