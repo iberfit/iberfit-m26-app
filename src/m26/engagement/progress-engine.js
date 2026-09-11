@@ -96,13 +96,22 @@ function iriDomainCoverage(record){
 }
 function safePositiveInteger(value,{fallback,min=1,max=3650}={}){const parsed=Number(value);return Number.isInteger(parsed)&&parsed>=min&&parsed<=max?parsed:fallback;}
 
+function iriRecordBody(record={}){
+  return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;
+}
 function iriConfirmedRecord(record={}){
-  const item=record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;
+  const item=iriRecordBody(record);
   return Boolean(item?.firstSessionCompletedAt||item?.first_session_completed_at);
 }
+function iriRecordClientId(record={}){
+  const item=iriRecordBody(record);
+  return String(first(record,'clientId','client_id','clienteId','cliente_id')||first(item,'clientId','client_id','clienteId','cliente_id')||'').trim();
+}
 function iri2ProgressSummary(state,clientId){
+  const expectedClient=String(clientId||'').trim();
   const drafts=[];
-  for(const record of forClient(state,'iriAssessments',clientId)){
+  for(const record of collection(state,'iriAssessments')){
+    if(iriRecordClientId(record)!==expectedClient)continue;
     if(!iriConfirmedRecord(record))continue;
     try{
       const draft=confirmedFirstSessionDraft(record,clientId);
