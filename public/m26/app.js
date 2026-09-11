@@ -18,6 +18,20 @@ let bootstrapWatchdogTimer=null;
 let bootstrapAutoRepairTimer=null;
 let bootstrapPhase='initial';
 
+const BOOTSTRAP_PHASES=new Set(['initial','styles','module','create','mount','enhancement','repair','ready']);
+function safeBootstrapPhase(){
+  const phase=String(bootstrapPhase||'initial').trim().toLowerCase();
+  return BOOTSTRAP_PHASES.has(phase)?phase:'unknown';
+}
+function safeBootstrapRelease(){
+  return String(runtime?.version||'unknown')
+    .replace(/[^A-Za-z0-9._:-]/g,'_')
+    .slice(0,72)||'unknown';
+}
+function bootstrapDiagnosticText(){
+  return `Fase: ${safeBootstrapPhase()} · Release: ${safeBootstrapRelease()}`;
+}
+
 function safeBootstrapIncident(error){
   const value=String(error?.message||error||'M26_BOOTSTRAP_FAILED')
     .replace(/[^A-Za-z0-9:_-]/g,'_')
@@ -129,6 +143,7 @@ function bootstrapRecoveryMarkup(incident){
             <button type="button" class="m26-auth-link" data-bootstrap-action="repair">Reparar la app y recargar</button>
           </div>
           <p class="m26-notice is-warning">La reparación solo limpia archivos temporales de la aplicación y el Service Worker. No borra tus datos de cuenta ni los borradores locales.</p>
+          <small data-bootstrap-phase>${bootstrapDiagnosticText()}</small>
           <small>Código: ${String(incident||'M26_BOOTSTRAP_FAILED')}</small>
         </section>
       </main>
@@ -177,7 +192,7 @@ function startBootstrapWatchdog(){
     const notice=document.createElement('div');
     notice.className='m26-notice is-warning';
     notice.setAttribute('data-bootstrap-slow-recovery','');
-    notice.innerHTML='<strong>La carga está tardando más de lo normal.</strong><p>IBERFIT intentará reparar automáticamente los archivos temporales si el arranque no termina. Tu cuenta, sesión y borradores se conservan.</p><button type="button" class="m26-auth-link" data-bootstrap-action="repair">Reparar ahora y recargar</button>';
+    notice.innerHTML=`<strong>La carga está tardando más de lo normal.</strong><p>IBERFIT intentará reparar automáticamente los archivos temporales si el arranque no termina. Tu cuenta, sesión y borradores se conservan.</p><small data-bootstrap-phase>${bootstrapDiagnosticText()}</small><button type="button" class="m26-auth-link" data-bootstrap-action="repair">Reparar ahora y recargar</button>`;
     card.append(notice);
   },8000)??null;
   bootstrapAutoRepairTimer=globalThis.setTimeout?.(()=>{
