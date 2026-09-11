@@ -305,6 +305,20 @@ jobs:
           M26_VERIFY_DELAY_MS='4000' \
           node scripts/verify_production_surface.mjs
 
+      - name: Prepare production browser entry smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
+          npx playwright install --with-deps chromium
+
+      - name: Verify production entry is interactive in Chromium
+        env:
+          M26_PROD_APP_URL: https://app.iberfit.cl
+          M26_PROD_SOURCE_SHA: ${{ env.SOURCE_SHA }}
+        run: npx playwright test --config playwright.production-entry.config.mjs
+
       - name: Run integral production audit read-only
         env:
           M26_AUDIT_APP_URL: https://app.iberfit.cl
@@ -373,5 +387,6 @@ jobs:
             WRANGLER_PRODUCTION.log
             recovery/continuous-audit/
             recovery/hosted-auth-security/
+            recovery/production-entry/
           if-no-files-found: warn
           retention-days: 30

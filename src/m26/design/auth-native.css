@@ -39,6 +39,121 @@
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .5), transparent 74%);
 }
 
+.m26-auth-stage {
+  width: min(72rem, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(1.25rem, 4vw, 4.5rem);
+}
+
+.m26-auth-intro {
+  display: none;
+}
+
+@media (min-width: 980px) {
+  .m26-auth-stage {
+    grid-template-columns: minmax(0, 1fr) minmax(27rem, 31rem);
+  }
+
+  .m26-auth-intro {
+    position: relative;
+    display: grid;
+    align-content: center;
+    gap: 2rem;
+    min-height: 34rem;
+    padding: clamp(1rem, 2vw, 2rem) 0;
+  }
+
+  .m26-auth-intro::before {
+    content: '';
+    position: absolute;
+    inset: 8% auto 8% -10%;
+    width: 22rem;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(211, 179, 101, .08), transparent 68%);
+    filter: blur(2px);
+    pointer-events: none;
+  }
+
+  .m26-auth-intro-copy {
+    position: relative;
+    display: grid;
+    gap: 1rem;
+    max-width: 34rem;
+  }
+
+  .m26-auth-intro-kicker {
+    margin: 0;
+    color: #d9bb77;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+  }
+
+  .m26-auth-intro h2 {
+    max-width: 13ch;
+    margin: 0;
+    color: #fbf5e9;
+    font-family: 'Source Serif 4 Variable', Georgia, 'Times New Roman', serif;
+    font-size: clamp(2.7rem, 5vw, 4.7rem);
+    font-weight: 560;
+    line-height: .98;
+    letter-spacing: -.045em;
+    text-wrap: balance;
+  }
+
+  .m26-auth-intro-copy > p:last-child {
+    max-width: 42rem;
+    margin: 0;
+    color: #cfc7b8;
+    font-size: 1rem;
+    line-height: 1.65;
+    text-wrap: pretty;
+  }
+
+  .m26-auth-pillars {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .65rem;
+    margin: 0;
+  }
+
+  .m26-auth-pillars > div {
+    min-width: 0;
+    padding: .95rem 1rem;
+    border: 1px solid rgba(221, 190, 119, .12);
+    border-radius: 1rem;
+    background: linear-gradient(145deg, rgba(18, 50, 36, .42), rgba(7, 25, 17, .2));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .02);
+  }
+
+  .m26-auth-pillars dt {
+    color: #ead8af;
+    font-size: .76rem;
+    font-weight: 760;
+    letter-spacing: .01em;
+  }
+
+  .m26-auth-pillars dd {
+    margin: .34rem 0 0;
+    color: #9f998f;
+    font-size: .7rem;
+    line-height: 1.45;
+  }
+
+  .m26-auth-intro-trust {
+    position: relative;
+    margin: 0;
+    color: #8f8a81;
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+}
+
 .m26-auth-card {
   position: relative;
   width: min(31rem, 100%);
