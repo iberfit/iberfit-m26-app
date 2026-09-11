@@ -11,10 +11,14 @@ function isIberfitRootNavigation(request,url){
 
 async function rootNavigationResponse(request){
   const cache=await caches.open(SHELL);
+  const pinnedShell=await cache.match('/m26/index.html');
+  if(pinnedShell)return pinnedShell;
+
   try{
     const response=await fetchWithDeadline(
       request,
       {
+        cache:'reload',
         credentials:'same-origin',
         redirect:'error',
       },
@@ -23,8 +27,7 @@ async function rootNavigationResponse(request){
     if(response?.ok)return response;
   }catch{}
 
-  return await cache.match('/m26/index.html')||
-    await cache.match('/m26/offline.html')||
+  return await cache.match('/m26/offline.html')||
     Response.error();
 }
 

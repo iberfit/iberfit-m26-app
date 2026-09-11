@@ -22,7 +22,9 @@ test('P0 bootstrap never leaves the installed app as a dead disabled login scree
   assert.match(source,/8000/u);
   assert.match(source,/La carga está tardando más de lo normal\./u);
   assert.match(source,/data-bootstrap-action="repair"/u);
-  assert.match(source,/try\{\s*await loadFullApplication\(\);\s*\}catch\(error\)\{\s*clearBootstrapWatchdog\(\);\s*renderBootstrapRecovery\(error\);\s*\}/u);
+  assert.match(source,/installMinimalAuthBootstrap\(\);[\s\S]*startBootstrapWatchdog\(\);[\s\S]*await loadFullApplication\(\);/u);
+  assert.match(source,/surfaceDeferredFullAppFailure\(error\)/u);
+  assert.match(source,/renderBootstrapRecovery\(error\)/u);
   assert.match(source,/La aplicación no terminó de cargar/u);
   assert.match(source,/Reintentar carga/u);
   assert.match(source,/Reparar la app y recargar/u);
@@ -57,4 +59,17 @@ test('P0 reload guard prevents service-worker activation loops and is removed af
   assert.match(source,/setItem\?\.\(BOOTSTRAP_UPDATE_RELOAD_KEY,'1'\)/u);
   assert.match(source,/clearBootstrapReloadGuard\(\);/u);
   assert.match(source,/globalThis\.location\?\.reload\?\.\(\)/u);
+});
+
+
+test('P0 static login is usable before the full application module graph is ready',()=>{
+  const installIndex=source.indexOf('installMinimalAuthBootstrap();');
+  const loadIndex=source.indexOf('await loadFullApplication();',installIndex);
+  assert.ok(installIndex>=0&&loadIndex>installIndex);
+  assert.match(source,/button\[type="submit"\][\s\S]*disabled=false/u);
+  assert.match(source,/root\.addEventListener\('submit',onMinimalAuthSubmit,true\)/u);
+  assert.match(source,/import\('\/src\/m26\/supabase-transport\.js'\)/u);
+  assert.match(source,/import\('\/src\/m26\/app\/session-vault\.js'\)/u);
+  assert.match(source,/createSessionVault\(\)\.save\(session\)/u);
+  assert.match(source,/await loadedApp\.resume\(\)/u);
 });

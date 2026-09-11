@@ -53,7 +53,7 @@ test('RC41 mantiene fuera de caché autenticación y runtime', () => {
   );
 
   assert.equal(
-    serviceWorker.includes('isRuntimeConfig'),
+    serviceWorker.includes('isMutableReleaseMetadata'),
     true,
   );
 

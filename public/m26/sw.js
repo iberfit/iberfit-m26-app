@@ -10,8 +10,20 @@ const NEVER_CACHE_PREFIXES=['/auth/v1/','/api/','/rest/v1/','/rpc/','/functions/
 const NEVER_CACHE_MEDIA_PREFIXES=['/public/iberfit/exercises/video/'];
 const CACHEABLE_PREFIXES=['/m26/','/src/m26/','/baseline_m25_2/','/public/iberfit/exercises/','/public/vendor/repdb/'];
 const CACHE_FIRST_PATHS=new Set(['/m26/manifest.webmanifest','/public/isotipo-iberfit.png','/baseline_m25_2/exercise-catalog-m25.json','/public/iberfit/exercises/iberfit-exercise-media-v1.json','/public/iberfit/exercises/iberfit-exercise-media-v2.json','/public/vendor/repdb/iberfit-canonical-media-map-v1.json','/m26/icons/icon-192.png','/m26/icons/icon-512.png','/m26/icons/icon-maskable-192.png','/m26/icons/icon-maskable-512.png','/m26/icons/apple-touch-icon-180.png']);
-function isRuntimeConfig(pathname){return pathname==='/m26/runtime-config.js'||pathname==='/m26/runtime-config.example.js';}
-function isProtected(request,url){return request.method!=='GET'||url.origin!==self.location.origin||NEVER_CACHE_PREFIXES.some((prefix)=>url.pathname.startsWith(prefix))||NEVER_CACHE_MEDIA_PREFIXES.some((prefix)=>url.pathname.startsWith(prefix))||isRuntimeConfig(url.pathname);}
+function isMutableReleaseMetadata(pathname){
+  return [
+    '/m26/runtime-config.js',
+    '/m26/runtime-config.example.js',
+    '/m26/version.json',
+    '/m26/sw.js',
+    '/m26/iberfit-sw.js',
+  ].includes(pathname);
+}
+function isProtected(request,url){return request.method!=='GET'||url.origin!==self.location.origin||NEVER_CACHE_PREFIXES.some((prefix)=>url.pathname.startsWith(prefix))||NEVER_CACHE_MEDIA_PREFIXES.some((prefix)=>url.pathname.startsWith(prefix))||isMutableReleaseMetadata(url.pathname);}
+function isReleasePinnedPath(pathname){
+  return pathname.startsWith('/src/m26/')||
+    (pathname.startsWith('/m26/')&&!isMutableReleaseMetadata(pathname));
+}
 function isCacheablePath(pathname){return CACHEABLE_PREFIXES.some((prefix)=>pathname.startsWith(prefix))||pathname==='/public/isotipo-iberfit.png';}
 function shouldStore(response){return response?.ok&&response.type!=='opaqueredirect'&&!/no-store/i.test(response.headers?.get?.('cache-control')||'');}
 async function fetchWithDeadline(input,init={},timeoutMs=NETWORK_TIMEOUT_MS){
@@ -52,6 +64,48 @@ async function installShell(){
       }
     )
   );
+}
+async function releaseCacheFirst(request){
+  const cache=await caches.open(SHELL);
+  const cached=await cache.match(request);
+  if(cached)return cached;
+  try{
+    const response=await fetchWithDeadline(
+      request,
+      {
+        cache:'reload',
+        credentials:'same-origin',
+        redirect:'error',
+      },
+      NETWORK_TIMEOUT_MS,
+    );
+    if(shouldStore(response))await cache.put(request,response.clone());
+    return response;
+  }catch{
+    return Response.error();
+  }
+}
+async function releaseNavigationResponse(request){
+  const cache=await caches.open(SHELL);
+  const direct=await cache.match(request);
+  if(direct)return direct;
+  const shell=await cache.match('/m26/index.html');
+  if(shell)return shell;
+  try{
+    const response=await fetchWithDeadline(
+      request,
+      {
+        cache:'reload',
+        credentials:'same-origin',
+        redirect:'error',
+      },
+      NETWORK_TIMEOUT_MS,
+    );
+    if(shouldStore(response))await cache.put(request,response.clone());
+    return response;
+  }catch{
+    return await cache.match('/m26/offline.html')||Response.error();
+  }
 }
 async function cacheFirst(request,event){
   const cache=await caches.open(SHELL);
@@ -139,21 +193,12 @@ self.addEventListener(
 
     if(request.mode==='navigate'){
       if(!url.pathname.startsWith('/m26/'))return;
+      event.respondWith(releaseNavigationResponse(request));
+      return;
+    }
 
-      event.respondWith(
-        networkFirst(
-          request,
-          {
-            fallback:'/m26/index.html',
-            event,
-          }
-        ).then(
-          async(response)=>
-            response.ok
-              ?response
-              :await caches.match(OFFLINE)||response
-        )
-      );
+    if(isReleasePinnedPath(url.pathname)){
+      event.respondWith(releaseCacheFirst(request));
       return;
     }
 
