@@ -66,10 +66,10 @@ test('la promoción PROD sincroniza y verifica emails antes del cutover de Cloud
 });
 
 
-test('la promoción certifica y sincroniza el correo OTP antes del cutover cuando el canal está habilitado',()=>{
+test('la promoción mantiene el correo OTP fail-closed mientras PROD no tenga SMTP propio certificado',()=>{
   const workflow=read('.github/workflows/production-promote.yml');
   const app=read('src/m26/app/application.js');
-  assert.match(app,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
+  assert.match(app,/export const EMAIL_OTP_DEPLOYMENT_READY=false;/u);
   assert.match(workflow,/Resolve privileged email OTP rollout gate/u);
   assert.match(workflow,/grep -Fq 'export const EMAIL_OTP_DEPLOYMENT_READY=true;' src\/m26\/app\/application\.js/u);
   assert.match(workflow,/if: \$\{\{ steps\.email-otp\.outputs\.enabled == 'true' \}\}/u);
