@@ -7,7 +7,7 @@ import {
 } from 'npm:@simplewebauthn/server@13.3.3';
 
 const RP_NAME='IBERFIT';
-const FUNCTION_VERSION='rc74-webauthn-multihost-rp-v3';
+const FUNCTION_VERSION='rc74-webauthn-multihost-rp-v4';
 const CHALLENGE_TTL_MS=5*60*1000;
 const ASSURANCE_TTL_MS=12*60*60*1000;
 const MAX_BODY_CHARS=600_000;
