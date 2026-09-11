@@ -21,7 +21,7 @@ function runtime(qaOnly=false){
 
 function mockFetch(environment){
   return async (url,options={})=>{
-    assert.equal(options.headers?.Authorization,'Bearer health-token');
+    assert.equal(options.headers?.authorization,'Bearer health-token');
     return ({
     ok:true,
     status:200,
