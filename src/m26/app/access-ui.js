@@ -34,7 +34,7 @@ export function maskAccessEmail(value=''){
   if(!local||!domain)return '';
   const visible=local.length<=2?local.slice(0,1):local.slice(0,2);
   const hiddenCount=Math.max(2,Math.min(6,local.length-visible));
-  return `${visible}${'\u2022'.repeat(hiddenCount)}@${domain}`;
+  return `${visible}${'*'.repeat(hiddenCount)}@${domain}`;
 }
 
 function safeStorage(storageLike){
