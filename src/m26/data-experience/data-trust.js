@@ -153,7 +153,7 @@ export function createDataTrust(input={}){
     coverage:coverageValue,
     coverageLabel:formatCoverage(coverageValue),
     missing,
-    missingLabel:missing?'Dato faltante':'Dato disponible',
+    missingLabel:missing?'Sin datos confirmados':'Dato disponible',
     method,
     methodLabel:methodLabel(method),
     providers:providerList,
@@ -254,8 +254,11 @@ export function renderDataTrustStrip(trustInput,{role='client',compact=false}={}
   const reason=professional&&trust.reason
     ?`<span class="m26-data-trust-reason">Limitación: ${escapeHtml(trust.reason.replaceAll('_',' '))}</span>`
     :'';
+  const absenceNote=trust.missing&&!compact
+    ?'<span class="m26-data-trust-absence">Los datos ausentes se mantienen como ausentes y no se convierten en cero.</span>'
+    :'';
 
-  return `<div class="m26-data-trust-strip${compact?' is-compact':''}" data-data-trust="visible" aria-label="Confianza del dato">${items.join('')}${providerDetail}${reason}</div>`;
+  return `<div class="m26-data-trust-strip${compact?' is-compact':''}" data-data-trust="visible" data-data-trust-missing="${trust.missing?'true':'false'}" aria-label="Confianza del dato">${items.join('')}${providerDetail}${reason}${absenceNote}</div>`;
 }
 
 export const __dataTrustInternals=Object.freeze({
