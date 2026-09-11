@@ -57,7 +57,7 @@ import {
   resolveIriExternalReportIntent,
 } from '../workflows/iri-external-report-controller.js';
 
-export const EMAIL_OTP_DEPLOYMENT_READY=true;
+export const EMAIL_OTP_DEPLOYMENT_READY=false;
 const SESSION_DRAFT_SCOPE='session-builder';
 function qaStage(stage){
   const value=String(stage||'');
@@ -1227,6 +1227,10 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       }
       authMode=initialKind==='challenge'?'mfa-challenge':'mfa-required';
       const code=String(error?.message||error||'');
+      const deviceRecoveryRecommended=initialKind==='challenge'&&/M26_WEBAUTHN_(?:TIMEOUT|NOT_ALLOWED|CREDENTIAL_MISSING|INVALID_STATE)/u.test(code);
+      if(deviceRecoveryRecommended&&mfaState){
+        mfaState=Object.freeze({...mfaState,deviceRecoveryRecommended:true});
+      }
       const emailFallback=mfaState?.emailOtpAvailable===true;
       const message=/M26_WEBAUTHN_TIMEOUT/u.test(code)
         ?emailFallback
