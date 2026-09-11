@@ -8,6 +8,22 @@ const app=read('public/m26/app.js');
 const application=read('src/m26/app/application.js');
 const rootSw=read('public/m26/iberfit-sw.js');
 const runtimeGenerator=read('scripts/generate_final_production_runtime_config.mjs');
+const pwaUpgradeConfig=read('playwright.p0-pwa-upgrade.config.mjs');
+const productionEntryConfig=read('playwright.production-entry.config.mjs');
+
+test('P0 installed upgrade and live production entry certify desktop tablet and mobile device classes',()=>{
+  for(const project of [
+    'p0-installed-pwa-desktop-chromium',
+    'p0-installed-pwa-tablet-chromium',
+    'p0-installed-pwa-mobile-chromium',
+  ])assert.ok(pwaUpgradeConfig.includes(project),`installed PWA matrix missing ${project}`);
+
+  for(const project of [
+    'production-entry-desktop-chromium',
+    'production-entry-tablet-chromium',
+    'production-entry-mobile-chromium',
+  ])assert.ok(productionEntryConfig.includes(project),`production entry matrix missing ${project}`);
+});
 
 test('P0 upgrade precaches only the critical secure shell so one optional asset cannot pin an old installed release',()=>{
   assert.match(sw,/const CRITICAL_APP_SHELL=Object\.freeze\(\[/u);

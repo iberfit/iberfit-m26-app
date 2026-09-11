@@ -105,15 +105,13 @@ const provenance={
   production:true,
 };
 
-const runtimeSource=\`window.__IBERFIT_M26_RUNTIME__ = Object.freeze(\${JSON.stringify(config,null,2)});\n\`;
-const releaseGuard=\`
-;(function iberfitReleaseGuard(runtime){
+function iberfitReleaseGuard(runtime){
   if(!runtime||typeof runtime!=='object')return;
   const sw=globalThis.navigator?.serviceWorker;
   if(!sw?.register||!runtime.sourceSha)return;
   const shortSha=String(runtime.sourceSha).slice(0,12);
-  const expectedCache=\`iberfit-m26-prod-\${shortSha}-shell\`;
-  const repairKey=\`m26:runtime-release-repair:\${runtime.version||shortSha}\`;
+  const expectedCache=`iberfit-m26-prod-${shortSha}-shell`;
+  const repairKey=`m26:runtime-release-repair:${runtime.version||shortSha}`;
   const activate=(worker)=>{
     if(!worker?.postMessage)return false;
     worker.postMessage({type:'SKIP_WAITING',release:runtime.version||shortSha});
@@ -169,8 +167,9 @@ const releaseGuard=\`
       globalThis.setTimeout?.(()=>{void repairStaleShell(registration);},2500);
     }catch{}
   })();
-})(window.__IBERFIT_M26_RUNTIME__);
-\`;
+}
+const runtimeSource=`window.__IBERFIT_M26_RUNTIME__ = Object.freeze(${JSON.stringify(config,null,2)});\n`;
+const releaseGuard=`\n;(${iberfitReleaseGuard.toString()})(window.__IBERFIT_M26_RUNTIME__);\n`;
 fs.writeFileSync(target,runtimeSource+releaseGuard,'utf8');
 fs.writeFileSync(versionTarget,`${JSON.stringify(provenance,null,2)}\n`,'utf8');
 for(const headersTarget of headersTargets)fs.writeFileSync(headersTarget,headers,'utf8');

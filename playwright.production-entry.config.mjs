@@ -31,6 +31,16 @@ export default defineConfig({
       },
     },
     {
+      name:'production-entry-tablet-chromium',
+      use:{
+        browserName:'chromium',
+        viewport:{width:820,height:1180},
+        hasTouch:true,
+        isMobile:true,
+        deviceScaleFactor:2,
+      },
+    },
+    {
       name:'production-entry-mobile-chromium',
       use:{
         browserName:'chromium',

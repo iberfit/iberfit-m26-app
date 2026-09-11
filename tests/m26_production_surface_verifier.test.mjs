@@ -55,6 +55,34 @@ test('production surface contract remains fail-closed for stale SHA, QA and priv
   assert.throws(()=>validateProductionSurface(fixtures({runtime:{publishableKey:['service','role'].join('_')}})),/PROD_SURFACE_RUNTIME_PRIVILEGED_KEY_FORBIDDEN/u);
 });
 
+test('production surface accepts the no-store release guard appended after the canonical runtime object',()=>{
+  const valid=fixtures();
+  const guarded={
+    ...valid,
+    runtimeSource:`${valid.runtimeSource}
+;(function iberfitReleaseGuard(runtime){
+  const state={phase:'repair',nested:{safe:true}};
+  if(runtime?.sourceSha&&state.nested.safe)globalThis.__IBERFIT_RELEASE_GUARD_TEST__=state;
+})(window.__IBERFIT_M26_RUNTIME__);
+`
+  };
+  const result=validateProductionSurface(guarded);
+  assert.equal(result.ok,true);
+  assert.equal(result.sourceSha,SOURCE_SHA);
+});
+
+test('production surface runtime parser remains fail-closed for duplicate or malformed canonical assignments',()=>{
+  const valid=fixtures();
+  assert.throws(
+    ()=>validateProductionSurface({...valid,runtimeSource:`${valid.runtimeSource}\n${valid.runtimeSource}`}),
+    /PROD_SURFACE_RUNTIME_SCHEMA_INVALID/u
+  );
+  assert.throws(
+    ()=>validateProductionSurface({...valid,runtimeSource:'window.__IBERFIT_M26_RUNTIME__ = Object.freeze({"enabled":true}' }),
+    /PROD_SURFACE_RUNTIME_SCHEMA_INVALID/u
+  );
+});
+
 test('production preflight retries transient propagation and validates one coherent deployed surface',async()=>{
   let versionRequests=0;
   const valid=fixtures();
