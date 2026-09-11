@@ -6,6 +6,7 @@ import {__webauthnInternals} from '../src/m26/app/webauthn.js';
 const {
   DEFAULT_WEBAUTHN_TIMEOUT_MS,
   normalizedTimeoutMs,
+  withNativeTimeout,
   withCeremonyTimeout,
 }=__webauthnInternals;
 
@@ -14,6 +15,12 @@ test('WebAuthn timeout keeps a safe production default and clamps invalid values
   assert.equal(normalizedTimeoutMs(undefined),20_000);
   assert.equal(normalizedTimeoutMs(1),1_000);
   assert.equal(normalizedTimeoutMs(999_999),120_000);
+});
+
+test('native WebAuthn options receive the same bounded deadline used by the JS watchdog',()=>{
+  assert.equal(withNativeTimeout({},20_000).timeout,20_000);
+  assert.equal(withNativeTimeout({timeout:60_000},20_000).timeout,20_000);
+  assert.equal(withNativeTimeout({timeout:8_000},20_000).timeout,8_000);
 });
 
 test('a WebAuthn ceremony that never settles is aborted and released instead of freezing forever',async()=>{
