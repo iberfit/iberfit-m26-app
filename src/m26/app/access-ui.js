@@ -362,7 +362,7 @@ export function renderAccessUi({
         <p class="m26-auth-kicker">Verificación del dispositivo</p>
         <h1 id="m26-auth-title" tabindex="-1">Verifica que eres tú</h1>
         <p>${deviceRecoveryRecommended
-          ?'La verificación anterior no respondió. Vuelve a vincular este dispositivo para crear una credencial nueva y segura, o reintenta la verificación.'
+          ?'La verificación anterior no respondió. Reintenta la verificación o repara el acceso local. Por seguridad, un dispositivo nuevo solo puede añadirse después de verificar una credencial existente.'
           :'Usa la seguridad nativa de este dispositivo para continuar. No necesitas escanear ningún QR ni usar otro equipo.'}</p>
       </div>
 
@@ -383,15 +383,6 @@ export function renderAccessUi({
 
         <button
           type="button"
-          class="${deviceRecoveryRecommended?'m26-secondary-action':'m26-auth-link'}"
-          data-auth-action="mfa-register-device"
-          ${disabled ? 'disabled aria-disabled="true"' : ''}
-        >
-          ${deviceRecoveryRecommended?'Volver a vincular este dispositivo (recomendado)':'Configurar este dispositivo'}
-        </button>
-
-        <button
-          type="button"
           class="m26-auth-link"
           data-auth-action="mfa-repair-access"
           ${disabled ? 'disabled aria-disabled="true"' : ''}
@@ -404,7 +395,7 @@ export function renderAccessUi({
         </button>
       </div>
 
-      <p class="m26-field-help m26-device-assurance">Si es la primera vez que entras desde este teléfono u ordenador, configúralo aquí. Tus otros dispositivos siguen intactos.</p>
+      <p class="m26-field-help m26-device-assurance">Los dispositivos nuevos se añaden desde una sesión ya verificada. Si pierdes todos tus dispositivos de confianza, IBERFIT debe recuperar el acceso mediante un flujo reforzado.</p>
     `;
   } else if (normalizedMode === 'mfa-email-code') {
     const maskedEmail=maskAccessEmail(mfa?.email||'');

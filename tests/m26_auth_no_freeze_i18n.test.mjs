@@ -142,7 +142,20 @@ test('English access copy uses natural product wording instead of mixed-language
   assert.equal(iberfitSurfaceTranslate('Usar código por correo (recomendado)',{language:'en'}),'Use email code (recommended)');
   assert.equal(iberfitSurfaceTranslate('Reparar acceso en este dispositivo',{language:'en'}),'Repair access on this device');
   assert.equal(iberfitSurfaceTranslate('Reintentar verificación',{language:'en'}),'Retry verification');
-  assert.equal(iberfitSurfaceTranslate('Volver a vincular este dispositivo (recomendado)',{language:'en'}),'Set up this device again (recommended)');
+  assert.equal(
+    iberfitSurfaceTranslate(
+      'La verificación anterior no respondió. Reintenta la verificación o repara el acceso local. Por seguridad, un dispositivo nuevo solo puede añadirse después de verificar una credencial existente.',
+      {language:'en'},
+    ),
+    'The previous verification did not respond. Retry verification or repair local access. For security, a new device can only be added after an existing credential has been verified.',
+  );
+  assert.equal(
+    iberfitSurfaceTranslate(
+      'Los dispositivos nuevos se añaden desde una sesión ya verificada. Si pierdes todos tus dispositivos de confianza, IBERFIT debe recuperar el acceso mediante un flujo reforzado.',
+      {language:'en'},
+    ),
+    'New devices are added from an already verified session. If you lose all trusted devices, IBERFIT must recover access through a reinforced recovery flow.',
+  );
   assert.equal(
     iberfitSurfaceTranslate('Un sistema claro para entrenar, medir y progresar.',{language:'en'}),
     'A clear system to train, measure and progress.',

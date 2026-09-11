@@ -17,7 +17,7 @@ test('P0 privileged access keeps WebAuthn and adds email OTP as a second secure 
   assert.match(html,/data-auth-action="mfa-continue-webauthn"/u);
   assert.match(html,/data-auth-action="mfa-send-email-code"/u);
   assert.match(html,/Usar código por correo/u);
-  assert.match(html,/Configurar este dispositivo/u);
+  assert.doesNotMatch(html,/data-auth-action="mfa-register-device"/u);
 });
 
 test('P0 email OTP entry is explicit, masked and optimized for one-time-code autofill',()=>{
