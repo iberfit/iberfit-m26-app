@@ -32,6 +32,7 @@ const ROWS=Object.freeze([
   ['Gestión','Management','Gestion','Gestão'],
   ['Configuración','Configuration','Configuration','Configuração'],
   ['Borrador guardado automáticamente','Draft saved automatically','Brouillon enregistré automatiquement','Rascunho guardado automaticamente'],
+  ['Borrador descartado','Draft discarded','Brouillon supprimé','Rascunho descartado'],
   ['Crear cliente','Create client','Créer un client','Criar cliente'],
   ['Borrador temporal listo','Temporary draft ready','Brouillon temporaire prêt','Rascunho temporário pronto'],
   ['Completa el expediente por etapas. Puedes volver atrás y el borrador se conserva de forma temporal durante esta sesión de IBERFIT.','Complete the client record step by step. You can go back and the draft is kept temporarily during this IBERFIT session.','Complétez le dossier client étape par étape. Vous pouvez revenir en arrière et le brouillon est conservé temporairement pendant cette session IBERFIT.','Complete o registo do cliente por etapas. Pode voltar atrás e o rascunho é mantido temporariamente durante esta sessão IBERFIT.'],
