@@ -1,6 +1,7 @@
 import {createSessionVault} from './session-vault.js';
 import {runWebAuthnCeremony,webAuthnSupported} from './webauthn.js';
 import {resolveM26Runtime,createM26Transport} from '../supabase-transport.js';
+import {withAuthOperationTimeout} from './auth-operation-timeout.js';
 
 function e(value) {
   return String(value ?? '')
@@ -56,6 +57,10 @@ function safeRemove(storage,key){
 
 async function registerCurrentDevice(button){
   if(!webAuthnSupported())throw new Error('M26_WEBAUTHN_UNSUPPORTED');
+  const boundedDeviceBackend=(operation)=>withAuthOperationTimeout(operation,{
+    timeoutMs:10_000,
+    code:'M26_WEBAUTHN_BACKEND_TIMEOUT',
+  });
   const runtime=resolveM26Runtime(globalThis.__IBERFIT_M26_RUNTIME__||{},globalThis.location);
   if(!runtime.enabled)throw new Error('M26_BACKEND_DISABLED');
   const session=createSessionVault().load();
@@ -64,20 +69,20 @@ async function registerCurrentDevice(button){
   const originalLabel=String(button?.textContent||'Configurar este dispositivo').trim();
   if(button){button.disabled=true;button.setAttribute('aria-disabled','true');button.textContent='Abriendo seguridad del dispositivo…';}
   try{
-    const user=await transport.authUser(session.token);
+    const user=await boundedDeviceBackend(()=>transport.authUser(session.token));
     if(user.id!==session.user.id)throw new Error('M26_MFA_IDENTITY_MISMATCH');
-    const enrollment=await transport.enrollWebAuthn(session.token);
-    const challenge=await transport.challengeWebAuthn(session.token,enrollment.factorId);
+    const enrollment=await boundedDeviceBackend(()=>transport.enrollWebAuthn(session.token));
+    const challenge=await boundedDeviceBackend(()=>transport.challengeWebAuthn(session.token,enrollment.factorId));
     if(challenge.type!=='create')throw new Error('M26_WEBAUTHN_CHALLENGE_TYPE_MISMATCH');
     const ceremony=await runWebAuthnCeremony(challenge,{friendlyName:'IBERFIT · este dispositivo'});
-    const verified=await transport.verifyWebAuthn(session.token,{
+    const verified=await boundedDeviceBackend(()=>transport.verifyWebAuthn(session.token,{
       factorId:enrollment.factorId,
       challengeId:challenge.challengeId,
       type:ceremony.type,
       credentialResponse:ceremony.credentialResponse,
-    });
+    }));
     if(verified.user.id!==session.user.id)throw new Error('M26_MFA_IDENTITY_MISMATCH');
-    const assurance=await transport.authAssuranceContext(session.token);
+    const assurance=await boundedDeviceBackend(()=>transport.authAssuranceContext(session.token));
     if(assurance.iberfitAssurance!=='verified')throw new Error('M26_PRIVILEGED_WEBAUTHN_REQUIRED');
     if(button)button.textContent='Dispositivo configurado';
     globalThis.location?.reload?.();
@@ -88,7 +93,7 @@ async function registerCurrentDevice(button){
   }
 }
 
-function surfaceDeviceRegistrationError(root){
+function surfaceDeviceRegistrationError(root,error){
   const card=root?.querySelector?.('.m26-auth-card');
   const actions=card?.querySelector?.('.m26-auth-actions');
   if(!card||!actions)return;
@@ -100,7 +105,10 @@ function surfaceDeviceRegistrationError(root){
     notice.setAttribute('role','alert');
     actions.before(notice);
   }
-  if(notice)notice.textContent='No se pudo configurar este dispositivo. Comprueba que tiene PIN, contraseña o biometría activados e inténtalo de nuevo.';
+  const code=String(error?.message||error||'');
+  if(notice)notice.textContent=/M26_(?:WEBAUTHN_BACKEND_TIMEOUT|TIMEOUT)/u.test(code)
+    ?'La configuración segura no recibió respuesta a tiempo. El acceso ya está liberado: inténtalo de nuevo o usa “Reparar acceso en este dispositivo”.'
+    :'No se pudo configurar este dispositivo. Comprueba que tiene PIN, contraseña o biometría activados e inténtalo de nuevo.';
 }
 
 function enhanceDeviceRegistration(root){
@@ -111,7 +119,7 @@ function enhanceDeviceRegistration(root){
     button.addEventListener('click',(event)=>{
       event.preventDefault?.();
       event.stopPropagation?.();
-      void registerCurrentDevice(button).catch(()=>surfaceDeviceRegistrationError(root));
+      void registerCurrentDevice(button).catch((error)=>surfaceDeviceRegistrationError(root,error));
     });
     enhanced=true;
   }

@@ -36,6 +36,7 @@ import {clearIberfitExperiencePreferences} from '../ui/preferences.js';
 import {inspectOwnerDeviceData,ownerDeviceClearPrompt,clearOwnerDeviceData} from '../privacy/device-data.js';
 import {renderAccessUi} from './access-ui.js';
 import {runWebAuthnCeremony,webAuthnSupported} from './webauthn.js';
+import {withAuthOperationTimeout} from './auth-operation-timeout.js';
 import {inspectPasswordRecoveryHash,recoveryUrlWithoutFragment} from './password-recovery.js';
 import {loadExerciseCatalog} from '../exercises/catalog.js';
 import {createSessionDraft} from '../workflows/session-builder.js';
@@ -58,6 +59,8 @@ import {
 } from '../workflows/iri-external-report-controller.js';
 
 export const EMAIL_OTP_DEPLOYMENT_READY=false;
+const MFA_BACKEND_TIMEOUT_MS=10_000;
+const POST_MFA_SETUP_TIMEOUT_MS=30_000;
 const SESSION_DRAFT_SCOPE='session-builder';
 function qaStage(stage){
   const value=String(stage||'');
@@ -1161,6 +1164,10 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
 
   async function continueMfaWithWebAuthn(){
     if(loginBusy||!session?.token||!mfaState)return false;
+    const boundedMfaBackend=(operation)=>withAuthOperationTimeout(operation,{
+      timeoutMs:MFA_BACKEND_TIMEOUT_MS,
+      code:'M26_WEBAUTHN_BACKEND_TIMEOUT',
+    });
     if(!['enroll-required','registration','challenge'].includes(mfaState.kind))return false;
     if(!webAuthnSupported()){
       authMessage('Este navegador o dispositivo no permite el acceso seguro requerido para esta cuenta.','error');
@@ -1175,16 +1182,18 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     try{
       let factorId=mfaState.factorId||null;
       if(initialKind==='enroll-required'){
-        const enrollment=await transport.enrollWebAuthn(session.token);
+        const enrollment=await boundedMfaBackend(()=>transport.enrollWebAuthn(session.token));
         factorId=enrollment.factorId;
       }
       if(!factorId)throw new Error('M26_MFA_FACTOR_ID_INVALID');
-      const challenge=await transport.challengeWebAuthn(session.token,factorId);
+      const challenge=await boundedMfaBackend(()=>transport.challengeWebAuthn(session.token,factorId));
+      authMessage(initialKind==='challenge'?'Abriendo la seguridad de este dispositivo…':'Abriendo la configuración segura del dispositivo…');
       const expectedType=initialKind==='challenge'?'request':'create';
       if(challenge.type!==expectedType)throw new Error('M26_WEBAUTHN_CHALLENGE_TYPE_MISMATCH');
       const ceremony=await runWebAuthnCeremony(challenge,{friendlyName:'IBERFIT acceso seguro'});
       if(ceremony.type!==challenge.type)throw new Error('M26_WEBAUTHN_CEREMONY_TYPE_MISMATCH');
-      const next=await transport.verifyWebAuthn(
+      authMessage('Comprobando la verificación segura…');
+      const next=await boundedMfaBackend(()=>transport.verifyWebAuthn(
         session.token,
         {
           factorId,
@@ -1192,13 +1201,13 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
           type:ceremony.type,
           credentialResponse:ceremony.credentialResponse,
         },
-      );
+      ));
       if(next.user.id!==currentUserId)throw new Error('M26_MFA_IDENTITY_MISMATCH');
 
-      const [assurance,user]=await Promise.all([
+      const [assurance,user]=await boundedMfaBackend(()=>Promise.all([
         transport.authAssuranceContext(session.token),
         transport.authUser(session.token),
-      ]);
+      ]));
       if(user.id!==currentUserId)throw new Error('M26_MFA_IDENTITY_MISMATCH');
       const finalDecision=privilegedMfaDecision(assurance,user.factors);
       if(
@@ -1216,7 +1225,10 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       authMode='login';
       store.reset();
       qaStage('rc64-login-setup-start');
-      await setupAuthenticated();
+      await withAuthOperationTimeout(
+        ()=>setupAuthenticated(),
+        {timeoutMs:POST_MFA_SETUP_TIMEOUT_MS,code:'M26_POST_MFA_SETUP_TIMEOUT'},
+      );
       qaStage('rc64-login-setup-ready');
       return true;
     }catch(error){
@@ -1227,12 +1239,18 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       }
       authMode=initialKind==='challenge'?'mfa-challenge':'mfa-required';
       const code=String(error?.message||error||'');
-      const deviceRecoveryRecommended=initialKind==='challenge'&&/M26_WEBAUTHN_(?:TIMEOUT|NOT_ALLOWED|CREDENTIAL_MISSING|INVALID_STATE)/u.test(code);
+      const backendTimeout=/M26_(?:WEBAUTHN_BACKEND_TIMEOUT|TIMEOUT)/u.test(code);
+      const deviceRecoveryRecommended=initialKind==='challenge'&&(
+        backendTimeout||
+        /M26_WEBAUTHN_(?:TIMEOUT|NOT_ALLOWED|CREDENTIAL_MISSING|INVALID_STATE)/u.test(code)
+      );
       if(deviceRecoveryRecommended&&mfaState){
         mfaState=Object.freeze({...mfaState,deviceRecoveryRecommended:true});
       }
       const emailFallback=mfaState?.emailOtpAvailable===true;
-      const message=/M26_WEBAUTHN_TIMEOUT/u.test(code)
+      const message=backendTimeout
+        ?'La verificación segura no recibió respuesta a tiempo. IBERFIT ha liberado el acceso para evitar un bloqueo. Vuelve a vincular este dispositivo (recomendado) o reintenta la verificación.'
+        :/M26_WEBAUTHN_TIMEOUT/u.test(code)
         ?emailFallback
           ?'La seguridad del dispositivo no respondió a tiempo. Tu sesión sigue protegida: usa “Código por correo” para entrar ahora o vuelve a intentar la verificación del dispositivo.'
           :'La seguridad del dispositivo no respondió a tiempo. Puedes reintentar o reparar los archivos temporales de acceso sin borrar tu cuenta ni tus datos.'
