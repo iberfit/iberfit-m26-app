@@ -14,12 +14,7 @@ const required=[
   'M26_QA_CLIENT_A_PASSWORD',
 ];
 
-test('auth recovers from a hung password request without reload or mixed-language UI',async({browser},testInfo)=>{
-  test.skip(
-    testInfo.project.name!=='authenticated-readonly-chromium',
-    'One real Chromium viewport is sufficient for the network-hang state-machine regression.',
-  );
-
+test('auth recovers from a hung password request without reload or mixed-language UI',async({browser})=>{
   const missing=required.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
   expect(process.env.M26_PROJECT_REF).toBe(PROJECT_REF);
