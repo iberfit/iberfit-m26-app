@@ -23,6 +23,19 @@ const ALLOWED_PATCH_KEYS=new Set(['password_hibp_enabled']);
 const nonEmpty=(value)=>typeof value==='string'&&value.trim().length>0;
 const fail=(code)=>{throw new Error(code);};
 
+class ManagementApiError extends Error{
+  constructor(method,status){
+    super(`IBERFIT_AUTH_SECURITY_MANAGEMENT_API_${method}_${status}`);
+    this.name='ManagementApiError';
+    this.method=method;
+    this.status=status;
+  }
+}
+const isPlanLimitedHibpError=(error)=>
+  error instanceof ManagementApiError
+  && error.method==='PATCH'
+  && error.status===402;
+
 function targetConfig(target){
   const normalized=String(target||'').trim().toLowerCase();
   const config=TARGETS[normalized];
