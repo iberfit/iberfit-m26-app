@@ -1066,7 +1066,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       authMode='login';
       store.reset();
       qaStage('rc64-login-setup-start');
-      await setupAuthenticated({authAttemptId});
+      await setupAuthenticated();
       qaStage('rc64-login-setup-ready');
       return true;
     }catch(error){
@@ -1143,7 +1143,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       authMode='login';
       store.reset();
       qaStage('rc64-login-setup-start');
-      await setupAuthenticated({authAttemptId});
+      await setupAuthenticated();
       qaStage('rc64-login-setup-ready');
       return true;
     }catch(error){
