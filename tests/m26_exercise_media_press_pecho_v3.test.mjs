@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 
 const manifestPath='scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/approved-batch.json';
-const expectedSha='13944c1c2674955876162082aaf6ccaf3e6298c9969644812ac263b0a5c82428';
-const expectedPath='IBF-PRESS-DE-PECHO-CON-MANCUERNAS/movement-13944c1c2674.webp';
+const expectedSha='450fda7f82ffdf10442be58d098e8a2db0aeba15a07872c814068efff9135c82';
+const expectedPath='IBF-PRESS-DE-PECHO-CON-MANCUERNAS/movement-450fda7f82ff.webp';
 
 test('press de pecho v3 cumple contrato approved-only y reconstruye bytes exactos',()=>{
   const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));
