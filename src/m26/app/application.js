@@ -59,6 +59,7 @@ import {
 
 export const EMAIL_OTP_DEPLOYMENT_READY=false;
 const SESSION_DRAFT_SCOPE='session-builder';
+const AUTH_CONTINUATION_TIMEOUT_MS=18_000;
 function qaStage(stage){
   const value=String(stage||'');
   if(!/^rc64-[a-z0-9-]{1,64}$/u.test(value))return;
@@ -233,6 +234,34 @@ export async function recoverExecutionAfterAuthentication({
   }
 }
 
+export async function runAuthenticationContinuationWithDeadline({
+  run,
+  timeoutMs=AUTH_CONTINUATION_TIMEOUT_MS,
+  setTimeoutFn=globalThis.setTimeout,
+  clearTimeoutFn=globalThis.clearTimeout,
+  onTimeout=null,
+}={}){
+  if(typeof run!=='function')throw new Error('M26_AUTH_CONTINUATION_REQUIRED');
+  const safeTimeout=Math.max(5_000,Math.min(Number(timeoutMs)||AUTH_CONTINUATION_TIMEOUT_MS,30_000));
+  let timer=null;
+  let timedOut=false;
+  try{
+    return await Promise.race([
+      Promise.resolve().then(()=>run()),
+      new Promise((_,reject)=>{
+        timer=setTimeoutFn?.(()=>{
+          timedOut=true;
+          try{onTimeout?.();}catch{}
+          reject(new Error('M26_AUTH_CONTINUATION_TIMEOUT'));
+        },safeTimeout)??null;
+      }),
+    ]);
+  }finally{
+    if(timer!==null)clearTimeoutFn?.(timer);
+    if(!timedOut)timer=null;
+  }
+}
+
 export function privilegedMfaDecision(assurance={}){
   if(assurance?.webauthnRequired!==true){
     return Object.freeze({kind:'ready'});
@@ -255,6 +284,23 @@ export async function createM26Application({root=document.querySelector('#app'),
   let activeApplicationRole=null;
   let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
+  let authAttemptEpoch=0;
+
+  function beginAuthAttempt(){authAttemptEpoch+=1;return authAttemptEpoch;}
+  function invalidateAuthAttempt(attemptId=null){
+    if(attemptId===null||attemptId===authAttemptEpoch)authAttemptEpoch+=1;
+    return authAttemptEpoch;
+  }
+  function assertActiveAuthAttempt(attemptId=null){
+    if(attemptId!==null&&attemptId!==authAttemptEpoch)throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
+    return true;
+  }
+  function runBoundedAuthContinuation(run,attemptId){
+    return runAuthenticationContinuationWithDeadline({
+      run,
+      onTimeout:()=>invalidateAuthAttempt(attemptId),
+    });
+  }
 
   function authMessage(message='',noticeKind='status'){
   root.innerHTML=renderAccessUi({
@@ -290,9 +336,11 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-catalog-ready');
     return catalog;
   }
-  async function hydratePass({reason='bootstrap'}={}){
+  async function hydratePass({reason='bootstrap',authAttemptId=null}={}){
+    assertActiveAuthAttempt(authAttemptId);
     qaStage('rc64-hydrate-start');
     await refreshSessionIfNeeded();
+    assertActiveAuthAttempt(authAttemptId);
     store.setHydration('loading');
     try{
       const [snapshot,installed,extensions,contextExtension,backendV43,wearableV44]=await Promise.all([
@@ -327,6 +375,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       const appointments=mergeRc39ChangeRequests(scopedSnapshot?.data?.appointments||[],extensions.changeRequests||[]);
       const enriched={...scopedSnapshot,user:{...(scopedSnapshot.user||{}),role:activeRole,authorizedRoles,roleChoiceConfirmed:true},data:{...(scopedSnapshot.data||{}),appointments,wearableConnections:wearableV44.connections||[],wearableDailySummaries:wearableV44.dailySummaries||[],wearableConsents:wearableV44.consents||[]},environment:{...normalizedEnvironment,commandRegistry:installed,reason,backendV43,rc39:{authorizedRoles:extensions.rolesAvailable,appointmentChangeRequests:extensions.changeRequestsAvailable},wearableV44:{ready:wearableV44.ready===true,version:wearableV44.version||'RC44'},applicationContext:{available:applicationContext.available,organizationId:applicationContext.organizationId,membershipStatus:applicationContext.membershipStatus,assignmentScopeEnforced:applicationContext.assignmentScopeEnforced},admin:{available:adminExtension.available===true,reason:adminExtension.reason||null},communication:{available:communicationExtension.available===true,reason:communicationExtension.reason||null}},canary:{...(scopedSnapshot.canary||{}),version:scopedSnapshot.canary?.version||runtime.version||'26.0.0'},admin:adminExtension.available?adminExtension.data:null,communication:communicationExtension.available?communicationExtension.data:null};
       qaStage('rc64-hydrate-store-start');
+      assertActiveAuthAttempt(authAttemptId);
       store.hydrate(enriched);
       writePreferredApplicationRole(session?.user?.id,activeRole);
       qaStage('rc64-hydrate-store-ready');
@@ -556,13 +605,15 @@ export async function createM26Application({root=document.querySelector('#app'),
       return false;
     }
   }
-  async function setupAuthenticated(){
+  async function setupAuthenticated({authAttemptId=null}={}){
+    assertActiveAuthAttempt(authAttemptId);
     qaStage('rc64-setup-start');
     destroyControllers();sessionUi=null;
     const [hydrationResult]=await Promise.all([
-      hydrate({reason:'login'}),
+      hydrate({reason:'login',authAttemptId}),
       fetchCatalog(),
     ]);
+    assertActiveAuthAttempt(authAttemptId);
     const {installed,runtimeRegistry}=hydrationResult;
     qaStage('rc64-setup-hydrate-ready');
     qaStage('rc64-setup-catalog-ready');
@@ -597,6 +648,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},autosaveDraft:saveSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,actor:{userId:String(store.getState().identity?.id||session?.user?.id||'')||null,role:String(store.getState().identity?.role||'').trim().toLowerCase()||null,clientId:String(store.getState().identity?.clientId||'')||null},appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
     qaStage('rc64-setup-controllers-ready');
     root.addEventListener('click',guardSessionNavigation,true);
+    assertActiveAuthAttempt(authAttemptId);
     qaStage('rc64-shell-mount-start');
     shell.mount();
     qaStage('rc64-shell-mount-ready');
@@ -678,7 +730,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
-  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status'}={}){vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
+  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status'}={}){invalidateAuthAttempt();vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
   function onLogout(){const token=currentToken();finishLogout({token});}
   async function onLogoutAndClearDevice(){
     if(deviceClearBusy||!session)return false;
@@ -901,15 +953,18 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     throw error;
   }
 }
-  async function continueAfterFirstFactor(){
+  async function continueAfterFirstFactor(authAttemptId=null){
+    assertActiveAuthAttempt(authAttemptId);
     if(!session?.token)throw new Error('M26_AUTH_REQUIRED');
     await refreshSessionIfNeeded();
+    assertActiveAuthAttempt(authAttemptId);
     const assurance=await transport.authAssuranceContext(session.token);
+    assertActiveAuthAttempt(authAttemptId);
     if(assurance.mfaRequired!==true){
       mfaState=null;
       authMode='login';
       qaStage('rc64-login-setup-start');
-      await setupAuthenticated();
+      await setupAuthenticated({authAttemptId});
       qaStage('rc64-login-setup-ready');
       return true;
     }
@@ -921,7 +976,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       mfaState=null;
       authMode='login';
       qaStage('rc64-login-setup-start');
-      await setupAuthenticated();
+      await setupAuthenticated({authAttemptId});
       qaStage('rc64-login-setup-ready');
       return true;
     }
@@ -999,7 +1054,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       authMode='login';
       store.reset();
       qaStage('rc64-login-setup-start');
-      await setupAuthenticated();
+      await setupAuthenticated({authAttemptId});
       qaStage('rc64-login-setup-ready');
       return true;
     }catch(error){
@@ -1076,7 +1131,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       authMode='login';
       store.reset();
       qaStage('rc64-login-setup-start');
-      await setupAuthenticated();
+      await setupAuthenticated({authAttemptId});
       qaStage('rc64-login-setup-ready');
       return true;
     }catch(error){
@@ -1098,6 +1153,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   }
 
   function surfaceRetriableSessionFailure(error,stage='resume'){
+    invalidateAuthAttempt();
     destroyControllers();
     store.reset();
     mfaState=null;
@@ -1107,6 +1163,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     authMessage(`${friendlyError(error)} Tu sesión sigue guardada: puedes reintentar sin volver a escribir la contraseña. Código: ${incident}.`,'error');
   }
   function discardSessionAfterFailure(error,stage='resume'){
+    invalidateAuthAttempt();
     vault.clear();
     session=null;
     mfaState=null;
@@ -1119,14 +1176,19 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   }
   async function retrySession(){
     if(loginBusy||!runtime.enabled||!session?.token)return false;
+    const authAttemptId=beginAuthAttempt();
     loginBusy=true;
     sessionRetryAvailable=false;
     authMode='login';
     authMessage('Reconectando tu sesión…');
     try{
       store.reset();
-      return await continueAfterFirstFactor();
+      return await runBoundedAuthContinuation(
+        ()=>continueAfterFirstFactor(authAttemptId),
+        authAttemptId,
+      );
     }catch(error){
+      invalidateAuthAttempt(authAttemptId);
       loginBusy=false;
       if(sessionFailureRequiresFreshLogin(error))discardSessionAfterFailure(error,'session-retry');
       else surfaceRetriableSessionFailure(error,'session-retry');
@@ -1148,7 +1210,11 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       qaStage('rc64-login-token-ready');
       vault.save(session);
       store.reset();
-      return await continueAfterFirstFactor();
+      const authAttemptId=beginAuthAttempt();
+      return await runBoundedAuthContinuation(
+        ()=>continueAfterFirstFactor(authAttemptId),
+        authAttemptId,
+      );
     }catch(error){
       loginBusy=false;
       if(firstFactorAccepted&&session?.token&&!sessionFailureRequiresFreshLogin(error)){
@@ -1181,13 +1247,18 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       authMessage();
       return false;
     }
+    const authAttemptId=beginAuthAttempt();
     loginBusy=true;
     sessionRetryAvailable=false;
     authMode='login';
     authMessage('Restaurando tu sesión segura…');
     try{
-      return await continueAfterFirstFactor();
+      return await runBoundedAuthContinuation(
+        ()=>continueAfterFirstFactor(authAttemptId),
+        authAttemptId,
+      );
     }catch(error){
+      invalidateAuthAttempt(authAttemptId);
       loginBusy=false;
       if(sessionFailureRequiresFreshLogin(error)){
         discardSessionAfterFailure(error,'resume');
@@ -1319,4 +1390,4 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),runtime});
 }
 
-export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,loginFailureMessage,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,sessionFailureRequiresFreshLogin,recoveryRequestConfirmation,recoveryRedirectForRuntime,recoverExecutionAfterAuthentication,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS});
+export const __applicationInternals=Object.freeze({normalizePublishedSession,publishedSessionForClient,confirmedAppointmentForSession,friendlyError,loginFailureMessage,recoveryNetworkError,recoveryPasswordError,invalidRecoverySession,sessionFailureRequiresFreshLogin,recoveryRequestConfirmation,recoveryRedirectForRuntime,recoverExecutionAfterAuthentication,runAuthenticationContinuationWithDeadline,RECOVERY_REQUEST_CONFIRMATION,RECOVERY_REQUEST_CONFIRMATION_PUBLIC,RECOVERY_LINK_INVALID,APPOINTMENT_EARLY_WINDOW_MS,APPOINTMENT_LATE_WINDOW_MS,AUTH_CONTINUATION_TIMEOUT_MS});
