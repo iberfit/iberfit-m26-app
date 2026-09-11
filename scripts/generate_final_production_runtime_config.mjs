@@ -8,8 +8,6 @@ import {
 } from '../src/m26/supabase-transport.js';
 
 const APPROVED_SOURCE_BRANCH='canary/rc74-4';
-const VERSION='26.0.0-production.rc74.4';
-const RELEASE='IBERFIT_M26_PRODUCTION_RC74_4';
 
 const required=['M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY','M26_SOURCE_SHA','M26_SOURCE_BRANCH'];
 const missing=required.filter((name)=>!String(process.env[name]||'').trim());
@@ -23,6 +21,9 @@ const promotionHead=String(process.env.M26_PROMOTION_HEAD||'').trim().toLowerCas
 if(!/^[0-9a-f]{40}$/u.test(sourceSha))throw new Error('FINAL_PROD_RUNTIME_SOURCE_SHA_INVALID');
 if(sourceBranch!==APPROVED_SOURCE_BRANCH)throw new Error('FINAL_PROD_RUNTIME_SOURCE_BRANCH_MISMATCH');
 if(promotionHead&&promotionHead!==sourceSha)throw new Error('FINAL_PROD_RUNTIME_PROMOTION_HEAD_MISMATCH');
+const shortSha=sourceSha.slice(0,12);
+const VERSION=`26.0.0-production.${shortSha}`;
+const RELEASE=`IBERFIT_M26_PRODUCTION_${shortSha.toUpperCase()}`;
 
 const url=new URL(String(process.env.M26_SUPABASE_URL||''));
 if(url.origin!==M26_PRODUCTION_SUPABASE_ORIGIN||url.pathname!=='/'||url.search||url.hash||url.username||url.password){
