@@ -24,6 +24,7 @@ const CANONICAL_RPC=Object.freeze({
 });
 const RC65C_AUTH_ASSURANCE_RPC='iberfit_privileged_assurance_context_v65d';
 const RC65C_WEBAUTHN_FUNCTION='/functions/v1/iberfit-webauthn-v1';
+const RC65_EMAIL_ASSURANCE_FUNCTION='/functions/v1/iberfit-email-assurance-v1';
 const RC65C_WEBAUTHN_REGISTRATION_FACTOR_ID='65000000-0000-4000-8000-000000000001';
 const RC65C_WEBAUTHN_AUTHENTICATION_FACTOR_ID='65000000-0000-4000-8000-000000000002';
 const CLIENT_ONBOARDING_RPC=Object.freeze({
@@ -232,6 +233,75 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       expiresAt: body.expires_at || null,
       user: body.user,
     };
+  }
+
+  function normalizeEmailOtpAddress(email){
+    const normalizedEmail=String(email||'').trim().toLowerCase();
+    if(normalizedEmail.length<5||normalizedEmail.length>MAX_AUTH_EMAIL_CHARS||!normalizedEmail.includes('@')||/[\u0000-\u001f\u007f]/u.test(normalizedEmail)){
+      throw new Error('M26_AUTH_EMAIL_INVALID');
+    }
+    if(runtime.qaOnly&&!isQaAuthorizedEmail(normalizedEmail))throw new Error('M26_QA_ACCOUNT_REQUIRED');
+    return normalizedEmail;
+  }
+
+  async function requestEmailOtp(email){
+    const normalizedEmail=normalizeEmailOtpAddress(email);
+    await request('/auth/v1/otp',{
+      method:'POST',
+      body:JSON.stringify({
+        email:normalizedEmail,
+        create_user:false,
+      }),
+    });
+    return Object.freeze({ok:true,email:normalizedEmail});
+  }
+
+  async function verifyEmailOtp(email,otp){
+    const normalizedEmail=normalizeEmailOtpAddress(email);
+    const token=String(otp||'').replace(/\s+/gu,'');
+    if(!/^\d{6}$/u.test(token))throw new Error('M26_EMAIL_OTP_INVALID');
+    const body=validateAuthBody(await request('/auth/v1/verify',{
+      method:'POST',
+      body:JSON.stringify({
+        email:normalizedEmail,
+        token,
+        type:'email',
+      }),
+    }),'M26_EMAIL_OTP_VERIFY_INVALID_RESPONSE');
+    if(body.user.email!==normalizedEmail)throw new Error('M26_EMAIL_OTP_IDENTITY_MISMATCH');
+    return Object.freeze({
+      token:body.access_token,
+      refreshToken:body.refresh_token||null,
+      expiresAt:body.expires_at||null,
+      user:body.user,
+    });
+  }
+
+  async function finalizeEmailAssurance(primaryToken,otpAccessToken){
+    const primary=String(primaryToken||'');
+    const otpToken=String(otpAccessToken||'');
+    if(!primary||primary.length>MAX_TOKEN_CHARS)throw new Error('M26_AUTH_TOKEN_INVALID');
+    if(!otpToken||otpToken.length>MAX_TOKEN_CHARS)throw new Error('M26_EMAIL_OTP_SESSION_INVALID');
+    const body=await request(RC65_EMAIL_ASSURANCE_FUNCTION,{
+      method:'POST',
+      token:primary,
+      body:JSON.stringify({otpAccessToken:otpToken}),
+    });
+    if(
+      !body||
+      typeof body!=='object'||
+      Array.isArray(body)||
+      body.ok!==true||
+      body.verified!==true||
+      body.method!=='email_otp'||
+      !SAFE_ID_PATTERN.test(String(body?.user?.id||''))
+    )throw new Error('M26_EMAIL_ASSURANCE_INVALID_RESPONSE');
+    return Object.freeze({
+      verified:true,
+      method:'email_otp',
+      user:Object.freeze({id:String(body.user.id),email:String(body.user.email||'').trim().toLowerCase()}),
+      expiresAt:body.expiresAt??null,
+    });
   }
 
   async function requestPasswordRecovery(email, redirectTo) {
@@ -580,10 +650,12 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return { token: body.access_token, refreshToken: body.refresh_token || refreshToken, expiresAt: body.expires_at || null, user: body.user };
   }
 
-  async function logout(token) {
+  async function logout(token,{scope='global'}={}) {
     if (!token) return { ok: true, skipped: true };
-    await request('/auth/v1/logout', { method: 'POST', token });
-    return { ok: true };
+    const normalizedScope=String(scope||'global').trim().toLowerCase();
+    if(!['global','local','others'].includes(normalizedScope))throw new Error('M26_LOGOUT_SCOPE_INVALID');
+    await request(`/auth/v1/logout?scope=${encodeURIComponent(normalizedScope)}`, { method: 'POST', token });
+    return { ok: true, scope:normalizedScope };
   }
 
   async function rpc(name, token, params = {}) {
@@ -1042,6 +1114,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
   return Object.freeze({
     runtime,
     login,
+    requestEmailOtp,
+    verifyEmailOtp,
+    finalizeEmailAssurance,
     requestPasswordRecovery,
     updatePassword,
     refresh,

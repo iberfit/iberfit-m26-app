@@ -197,10 +197,31 @@ export function sessionFailureRequiresFreshLogin(error){
   return /M26_(?:SESSION_EXPIRED|AUTH_REQUIRED|REFRESH_IDENTITY_MISMATCH|MFA_IDENTITY_MISMATCH|AUTH_USER_INVALID_RESPONSE|QA_ACCOUNT_REQUIRED)/u.test(code);
 }
 
-export async function recoverExecutionAfterAuthentication({restoreExecution,pendingIriExternalReportIntent=false,reportDiagnostic}={}){
+export async function recoverExecutionAfterAuthentication({
+  restoreExecution,
+  pendingIriExternalReportIntent=false,
+  reportDiagnostic,
+  timeoutMs=1500,
+  setTimeoutFn=globalThis.setTimeout,
+  clearTimeoutFn=globalThis.clearTimeout,
+}={}){
   if(pendingIriExternalReportIntent||typeof restoreExecution!=='function')return false;
-  try{return Boolean(await restoreExecution());}
-  catch(error){try{reportDiagnostic?.('session-recovery-auto-restore',error);}catch{}return false;}
+  const safeTimeout=Math.max(50,Math.min(Number(timeoutMs)||1500,5000));
+  let timer=null;
+  try{
+    const result=await Promise.race([
+      Promise.resolve().then(()=>restoreExecution()),
+      new Promise((_,reject)=>{
+        timer=setTimeoutFn?.(()=>reject(new Error('M26_SESSION_RECOVERY_TIMEOUT')),safeTimeout)??null;
+      }),
+    ]);
+    return Boolean(result);
+  }catch(error){
+    try{reportDiagnostic?.('session-recovery-auto-restore',error);}catch{}
+    return false;
+  }finally{
+    if(timer!==null)clearTimeoutFn?.(timer);
+  }
 }
 
 export function privilegedMfaDecision(assurance={}){
@@ -223,7 +244,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
 
   function authMessage(message='',noticeKind='status'){
@@ -731,6 +752,17 @@ function onAuthClick(event) {
     return;
   }
 
+  if(action==='mfa-send-email-code'||action==='mfa-resend-email-code'){
+    void requestMfaEmailCode().catch((error)=>reportDiagnostic('mfa-email-code-request',error));
+    return;
+  }
+
+  if(action==='mfa-back-device'){
+    authMode=mfaDeviceMode();
+    authMessage();
+    return;
+  }
+
   if(action==='retry-session'){
     void retrySession().catch((error)=>reportDiagnostic('session-retry',error));
     return;
@@ -738,6 +770,9 @@ function onAuthClick(event) {
 
   if(action==='mfa-logout'){
     const token=currentToken();
+    const otpToken=emailOtpSession?.token||null;
+    emailOtpSession=null;
+    if(otpToken)void transport?.logout?.(otpToken,{scope:'local'}).catch(()=>{});
     finishLogout({token});
     return;
   }
@@ -753,7 +788,7 @@ function onAuthClick(event) {
     recoverySession = null;
     authMode = 'login';
     authMessage();
-    void transport?.logout?.(recoveryToken).catch(() => {});
+    void transport?.logout?.(recoveryToken,{scope:'local'}).catch(() => {});
   }
 }
 async function requestRecovery(email) {
@@ -830,7 +865,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     );
 
     recoverySession = null;
-    await transport.logout(recoveryToken).catch(() => {});
+    await transport.logout(recoveryToken,{scope:'local'}).catch(() => {});
 
     loginBusy = false;
     authMode = 'login';
@@ -848,7 +883,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       recoverySession = null;
       authMode = 'request-recovery';
       authMessage(RECOVERY_LINK_INVALID, 'error');
-      void transport?.logout?.(recoveryToken).catch(() => {});
+      void transport?.logout?.(recoveryToken,{scope:'local'}).catch(() => {});
     } else {
       authMode = 'update-password';
       authMessage(recoveryPasswordError(error), 'error');
@@ -892,6 +927,87 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     return false;
   }
 
+  function mfaDeviceMode(){
+    return mfaState?.kind==='challenge'?'mfa-challenge':'mfa-required';
+  }
+
+  function emailOtpFailureMessage(error){
+    const code=String(error?.message||error||'');
+    if(Number(error?.status||0)===429||/rate.?limit|too many/i.test(code))return 'Por seguridad, espera un momento antes de solicitar otro código.';
+    if(Number(error?.status||0)===403||/PASSWORD_RECENT_REQUIRED/u.test(code))return 'Para usar el código por correo, vuelve a entrar con tu contraseña y solicita un código nuevo.';
+    if(Number(error?.status||0)===400||/otp|token.*invalid|expired/i.test(code))return 'El código no es válido o ha caducado. Solicita uno nuevo.';
+    return 'No fue posible completar la verificación por correo. Puedes reintentarlo o usar la seguridad del dispositivo.';
+  }
+
+  async function requestMfaEmailCode(){
+    if(loginBusy||!session?.token||!mfaState)return false;
+    loginBusy=true;
+    authMessage('Preparando tu código de acceso IBERFIT…');
+    try{
+      await refreshSessionIfNeeded();
+      const user=await transport.authUser(session.token);
+      if(user.id!==session.user.id)throw new Error('M26_MFA_IDENTITY_MISMATCH');
+      await transport.requestEmailOtp(user.email);
+      mfaState=Object.freeze({...mfaState,email:user.email});
+      authMode='mfa-email-code';
+      loginBusy=false;
+      authMessage('Código enviado. Revisa el correo asociado a tu cuenta.');
+      return true;
+    }catch(error){
+      authMode=mfaDeviceMode();
+      loginBusy=false;
+      authMessage(emailOtpFailureMessage(error),'error');
+      throw error;
+    }finally{
+      loginBusy=false;
+    }
+  }
+
+  async function verifyMfaEmailCode(otp){
+    if(loginBusy||!session?.token||!mfaState?.email)return false;
+    loginBusy=true;
+    authMode='mfa-email-code';
+    authMessage('Verificando el código y protegiendo tu sesión…');
+    let transientSession=null;
+    let assuranceVerified=false;
+    try{
+      await refreshSessionIfNeeded();
+      transientSession=await transport.verifyEmailOtp(mfaState.email,otp);
+      emailOtpSession=transientSession;
+      if(transientSession.user.id!==session.user.id)throw new Error('M26_EMAIL_OTP_IDENTITY_MISMATCH');
+      const verified=await transport.finalizeEmailAssurance(session.token,transientSession.token);
+      if(verified.user.id!==session.user.id)throw new Error('M26_EMAIL_ASSURANCE_IDENTITY_MISMATCH');
+      const assurance=await transport.authAssuranceContext(session.token);
+      if(
+        assurance.privileged!==true||
+        assurance.iberfitAssurance!=='verified'
+      )throw new Error('M26_PRIVILEGED_EMAIL_ASSURANCE_REQUIRED');
+
+      assuranceVerified=true;
+      mfaState=null;
+      authMode='login';
+      store.reset();
+      qaStage('rc64-login-setup-start');
+      await setupAuthenticated();
+      qaStage('rc64-login-setup-ready');
+      return true;
+    }catch(error){
+      loginBusy=false;
+      if(assuranceVerified){
+        surfaceRetriableSessionFailure(error,'post-email-mfa-setup');
+        throw error;
+      }
+      authMode='mfa-email-code';
+      authMessage(emailOtpFailureMessage(error),'error');
+      throw error;
+    }finally{
+      const otpToken=transientSession?.token||emailOtpSession?.token||null;
+      emailOtpSession=null;
+      if(otpToken)void transport?.logout?.(otpToken,{scope:'local'}).catch(()=>{});
+      loginBusy=false;
+    }
+  }
+
   async function continueMfaWithWebAuthn(){
     if(loginBusy||!session?.token||!mfaState)return false;
     if(!['enroll-required','registration','challenge'].includes(mfaState.kind))return false;
@@ -902,6 +1018,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     const currentUserId=session.user.id;
     const expectedRole=mfaState.privilegedRole||null;
     const initialKind=mfaState.kind;
+    let assuranceVerified=false;
     loginBusy=true;
     authMessage(initialKind==='challenge'?'Preparando la confirmación segura…':'Preparando el acceso seguro…');
     try{
@@ -943,6 +1060,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
         throw new Error('M26_PRIVILEGED_WEBAUTHN_REQUIRED');
       }
 
+      assuranceVerified=true;
       mfaState=null;
       authMode='login';
       store.reset();
@@ -952,6 +1070,10 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       return true;
     }catch(error){
       loginBusy=false;
+      if(assuranceVerified){
+        surfaceRetriableSessionFailure(error,'post-mfa-setup');
+        throw error;
+      }
       authMode=initialKind==='challenge'?'mfa-challenge':'mfa-required';
       const code=String(error?.message||error||'');
       const message=/M26_WEBAUTHN_(?:NOT_ALLOWED|CREDENTIAL_MISSING|INVALID_STATE)/u.test(code)
@@ -1085,6 +1207,13 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     return;
   }
 
+  if (formType === 'mfa-email-code') {
+    await verifyMfaEmailCode(
+      data.get('otp')
+    ).catch((error)=>reportDiagnostic('mfa-email-code-verify',error));
+    return;
+  }
+
   if (formType === 'request-recovery') {
     await requestRecovery(
       data.get('email')
@@ -1157,7 +1286,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   store.reset();
   root.removeEventListener('submit', onSubmit);
   root.removeEventListener('click', onAuthClick);
-  void transport?.logout?.(recoveryToken).catch(() => {});
+  void transport?.logout?.(recoveryToken,{scope:'local'}).catch(() => {});
 }
   return Object.freeze({mount,destroy,login,resume,getState:()=>store.getState(),runtime});
 }

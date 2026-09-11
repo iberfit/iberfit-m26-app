@@ -19,12 +19,22 @@ const ACCESS_MODES=new Set([
   'update-password',
   'mfa-required',
   'mfa-challenge',
+  'mfa-email-code',
 ]);
 
 export function normalizeRememberedEmail(value=''){
   const email=String(value||'').trim();
   if(!email||email.length>254||!email.includes('@'))return '';
   return email;
+}
+
+export function maskAccessEmail(value=''){
+  const email=normalizeRememberedEmail(value);
+  const [local='',domain='']=email.split('@');
+  if(!local||!domain)return '';
+  const visible=local.length<=2?local.slice(0,1):local.slice(0,2);
+  const hiddenCount=Math.max(2,Math.min(6,local.length-visible.length));
+  return `${visible}${'*'.repeat(hiddenCount)}@${domain}`;
 }
 
 function safeStorage(storageLike){
@@ -309,6 +319,15 @@ export function renderAccessUi({
           ${busy ? 'Configurando…' : 'Configurar este dispositivo'}
         </button>
 
+        <button
+          type="button"
+          class="m26-secondary-action"
+          data-auth-action="mfa-send-email-code"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >
+          Usar código por correo
+        </button>
+
         <button type="button" class="m26-tertiary-action" data-auth-action="mfa-logout">
           Volver y usar otra cuenta
         </button>
@@ -340,6 +359,15 @@ export function renderAccessUi({
         <button
           type="button"
           class="m26-secondary-action"
+          data-auth-action="mfa-send-email-code"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >
+          Usar código por correo
+        </button>
+
+        <button
+          type="button"
+          class="m26-auth-link"
           data-auth-action="mfa-register-device"
           ${disabled ? 'disabled aria-disabled="true"' : ''}
         >
@@ -352,6 +380,61 @@ export function renderAccessUi({
       </div>
 
       <p class="m26-field-help m26-device-assurance">Si es la primera vez que entras desde este teléfono u ordenador, configúralo aquí. Tus otros dispositivos siguen intactos.</p>
+    `;
+  } else if (normalizedMode === 'mfa-email-code') {
+    const maskedEmail=maskAccessEmail(mfa?.email||'');
+    content = `
+      <div class="m26-auth-copy">
+        <p class="m26-auth-kicker">Verificación por correo</p>
+        <h1 id="m26-auth-title" tabindex="-1">Introduce tu código IBERFIT</h1>
+        <p>Te hemos enviado un código de 6 dígitos al correo asociado${maskedEmail?` (${e(maskedEmail)})`:''}. Es personal y de un solo uso.</p>
+      </div>
+
+      ${contextNotice}
+      ${notice}
+
+      <form data-auth-form="mfa-email-code" aria-label="Verificar acceso con código IBERFIT">
+        <label>
+          Código de acceso
+          <input
+            type="text"
+            name="otp"
+            autocomplete="one-time-code"
+            inputmode="numeric"
+            pattern="[0-9]{6}"
+            minlength="6"
+            maxlength="6"
+            enterkeyhint="done"
+            aria-describedby="m26-email-code-help"
+            required
+          >
+        </label>
+        <p id="m26-email-code-help" class="m26-field-help">El código caduca por seguridad y nunca debes compartirlo con otra persona.</p>
+
+        <button
+          type="submit"
+          class="m26-primary-action"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >${busy ? 'Verificando…' : 'Verificar y entrar'}</button>
+
+        <button
+          type="button"
+          class="m26-secondary-action"
+          data-auth-action="mfa-resend-email-code"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >Reenviar código</button>
+
+        <button
+          type="button"
+          class="m26-auth-link"
+          data-auth-action="mfa-back-device"
+          ${busy ? 'disabled aria-disabled="true"' : ''}
+        >Usar seguridad del dispositivo</button>
+
+        <button type="button" class="m26-tertiary-action" data-auth-action="mfa-logout">
+          Volver y usar otra cuenta
+        </button>
+      </form>
     `;
   } else if (normalizedMode === 'request-recovery') {
     content = `

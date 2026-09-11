@@ -332,7 +332,7 @@ test('RC30 valida identidad QA antes del PUT y revoca después de actualizar', a
 
       if (url.includes('/auth/v1/recover')) return response({});
       if (url.endsWith('/auth/v1/user')) return response(user);
-      if (url.endsWith('/auth/v1/logout')) return response(null, 204);
+      if (url.endsWith('/auth/v1/logout?scope=local')) return response(null, 204);
       return response({}, 404);
     },
   });
@@ -441,7 +441,7 @@ test('RC30 actualiza una sola vez, no acepta contraseñas distintas y cierra la 
       }));
 
       assert.deepEqual(calls.map((call) => call.options.method), ['GET', 'PUT', 'POST']);
-      assert.equal(calls[2].url.endsWith('/auth/v1/logout'), true);
+      assert.equal(calls[2].url.endsWith('/auth/v1/logout?scope=local'), true);
       assert.match(root.innerHTML, /Contraseña actualizada/);
       assert.match(root.innerHTML, /data-auth-form="login"/);
 
