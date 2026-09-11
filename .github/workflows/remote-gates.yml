@@ -12,6 +12,8 @@ on:
       - 'tests/**'
       - 'package.json'
       - 'package-lock.json'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/continuous-app-audit.yml'
       - '.github/workflows/remote-gates.yml'
   workflow_dispatch:
     inputs:
