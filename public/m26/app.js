@@ -8,6 +8,145 @@ if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
 
 let fullAppPromise=null;
 
+const BOOTSTRAP_UPDATE_RELOAD_KEY='m26:bootstrap-update-reload-v1';
+const IBERFIT_SHELL_CACHE_PREFIX='iberfit-m26-';
+const IBERFIT_CANONICAL_SW='/m26/iberfit-sw.js';
+let bootstrapRecoveryMounted=false;
+
+function safeBootstrapIncident(error){
+  const value=String(error?.message||error||'M26_BOOTSTRAP_FAILED')
+    .replace(/[^A-Za-z0-9:_-]/g,'_')
+    .slice(0,96);
+  return value||'M26_BOOTSTRAP_FAILED';
+}
+
+function clearBootstrapReloadGuard(){
+  try{globalThis.sessionStorage?.removeItem?.(BOOTSTRAP_UPDATE_RELOAD_KEY);}catch{}
+}
+
+function controllerReloadOnce(){
+  try{
+    if(globalThis.sessionStorage?.getItem?.(BOOTSTRAP_UPDATE_RELOAD_KEY)==='1')return false;
+    globalThis.sessionStorage?.setItem?.(BOOTSTRAP_UPDATE_RELOAD_KEY,'1');
+  }catch{}
+  globalThis.location?.reload?.();
+  return true;
+}
+
+function activateWaitingWorkerAtColdStart(registration){
+  const waiting=registration?.waiting;
+  if(!waiting||!globalThis.navigator?.serviceWorker?.controller)return false;
+  const onControllerChange=()=>controllerReloadOnce();
+  globalThis.navigator.serviceWorker.addEventListener?.('controllerchange',onControllerChange,{once:true});
+  waiting.postMessage?.({type:'SKIP_WAITING'});
+  return true;
+}
+
+async function prepareInstalledPwaUpdate(){
+  const sw=globalThis.navigator?.serviceWorker;
+  if(!sw?.register)return null;
+  const registration=await sw.register(IBERFIT_CANONICAL_SW,{scope:'/',updateViaCache:'none'});
+  const armInstalling=()=>{
+    const installing=registration.installing;
+    if(!installing?.addEventListener)return;
+    installing.addEventListener('statechange',()=>{
+      if(installing.state==='installed')activateWaitingWorkerAtColdStart(registration);
+    });
+  };
+  registration.addEventListener?.('updatefound',armInstalling);
+  activateWaitingWorkerAtColdStart(registration);
+  void registration.update?.().catch(()=>{});
+  return registration;
+}
+
+function isIberfitWorkerRegistration(registration){
+  const workers=[registration?.active,registration?.waiting,registration?.installing].filter(Boolean);
+  return workers.some((worker)=>{
+    try{
+      const url=new URL(String(worker.scriptURL||''),globalThis.location?.origin);
+      return url.origin===globalThis.location?.origin&&
+        ['/m26/iberfit-sw.js','/m26/sw.js'].includes(url.pathname);
+    }catch{return false;}
+  });
+}
+
+async function repairInstalledAppShell(){
+  const sw=globalThis.navigator?.serviceWorker;
+  if(sw?.getRegistrations){
+    const registrations=await sw.getRegistrations().catch(()=>[]);
+    await Promise.all(
+      registrations
+        .filter(isIberfitWorkerRegistration)
+        .map((registration)=>registration.unregister?.().catch?.(()=>false)??false),
+    );
+  }
+  if(globalThis.caches?.keys){
+    const keys=await globalThis.caches.keys().catch(()=>[]);
+    await Promise.all(
+      keys
+        .filter((key)=>String(key).startsWith(IBERFIT_SHELL_CACHE_PREFIX))
+        .map((key)=>globalThis.caches.delete(key).catch(()=>false)),
+    );
+  }
+}
+
+function bootstrapRecoveryMarkup(incident){
+  return `
+    <div class="m26-auth-shell">
+      <main class="m26-auth-page">
+        <section class="m26-auth-card" aria-labelledby="m26-bootstrap-recovery-title">
+          <p class="m26-eyebrow">Acceso IBERFIT</p>
+          <h1 id="m26-bootstrap-recovery-title">La aplicación no terminó de cargar</h1>
+          <p>Tu cuenta, tu sesión y los datos locales de entrenamiento se conservan. No necesitas desinstalar IBERFIT.</p>
+          <div class="m26-auth-actions">
+            <button type="button" class="m26-primary-action" data-bootstrap-action="retry">Reintentar carga</button>
+            <button type="button" class="m26-auth-link" data-bootstrap-action="repair">Reparar la app y recargar</button>
+          </div>
+          <p class="m26-notice is-warning">La reparación solo limpia archivos temporales de la aplicación y el Service Worker. No borra tus datos de cuenta ni los borradores locales.</p>
+          <small>Código: ${String(incident||'M26_BOOTSTRAP_FAILED')}</small>
+        </section>
+      </main>
+    </div>
+  `;
+}
+
+function renderBootstrapRecovery(error){
+  bootstrapRecoveryMounted=true;
+  root.innerHTML=bootstrapRecoveryMarkup(safeBootstrapIncident(error));
+}
+
+async function retryFullApplicationFromRecovery(){
+  if(!bootstrapRecoveryMounted)return false;
+  bootstrapRecoveryMounted=false;
+  fullAppPromise=null;
+  try{
+    const app=await loadFullApplication();
+    clearBootstrapReloadGuard();
+    root.removeEventListener('click',onBootstrapRecoveryClick);
+    return Boolean(app);
+  }catch(error){
+    renderBootstrapRecovery(error);
+    return false;
+  }
+}
+
+async function onBootstrapRecoveryClick(event){
+  const action=event.target?.closest?.('[data-bootstrap-action]')?.getAttribute?.('data-bootstrap-action');
+  if(!action)return;
+  event.preventDefault();
+  const button=event.target?.closest?.('button');
+  if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
+  if(action==='repair'){
+    await repairInstalledAppShell().catch(()=>{});
+    globalThis.location?.reload?.();
+    return;
+  }
+  await retryFullApplicationFromRecovery();
+}
+
+root.addEventListener('click',onBootstrapRecoveryClick);
+void prepareInstalledPwaUpdate().catch(()=>{});
+
 function scheduleQualityRuntimeObservability(){
   const start=async()=>{
     const {installQualityRuntimeObservability}=await import('/src/m26/quality/runtime-observability.js');
@@ -33,7 +172,7 @@ scheduleQualityRuntimeObservability();
 async function activateFullStyles(){
   const links=[...document.querySelectorAll('link[data-iberfit-full-style]')];
 
-  await Promise.all(links.map((link)=>new Promise((resolve,reject)=>{
+  const results=await Promise.allSettled(links.map((link)=>new Promise((resolve,reject)=>{
     const pendingHref=link.getAttribute('data-href');
     const activeHref=link.getAttribute('href');
     const targetHref=activeHref||pendingHref;
@@ -65,6 +204,12 @@ async function activateFullStyles(){
     link.media='all';
     if(link.sheet)queueMicrotask(()=>finish());
   })));
+
+  const failed=results.filter((result)=>result.status==='rejected');
+  if(failed.length){
+    try{console.warn('[IBERFIT:bootstrap] M26_STYLE_RECOVERY_ACTIVE');}catch{}
+  }
+  return Object.freeze({ok:failed.length===0,failed:failed.length});
 }
 
 function ensureAdaptiveLayoutStyle(){
@@ -490,6 +635,9 @@ async function loadFullApplication(){
       globalThis.__IBERFIT_M26_SESSION_VALUE_LOOP__=null;
     }
     globalThis.__IBERFIT_M26_APP__=app;
+    clearBootstrapReloadGuard();
+    bootstrapRecoveryMounted=false;
+    root.removeEventListener('click',onBootstrapRecoveryClick);
     return app;
   })();
 
@@ -502,7 +650,11 @@ async function loadFullApplication(){
 }
 
 if(runtime.enabled){
-  await loadFullApplication();
+  try{
+    await loadFullApplication();
+  }catch(error){
+    renderBootstrapRecovery(error);
+  }
 }else{
   async function elevateDisabledAuth(event){
     const action=event.target.closest?.('[data-auth-action]')?.getAttribute?.('data-auth-action');
