@@ -73,3 +73,16 @@ test('P0 static login is usable before the full application module graph is read
   assert.match(source,/createSessionVault\(\)\.save\(session\)/u);
   assert.match(source,/await loadedApp\.resume\(\)/u);
 });
+
+
+test('P0 minimal-to-full auth handoff cannot launch a second login while first factor is in flight',()=>{
+  const removeStart=source.indexOf('function removeMinimalAuthBootstrap');
+  const submitStart=source.indexOf('async function onMinimalAuthSubmit',removeStart);
+  const clickStart=source.indexOf('async function onMinimalAuthClick',submitStart);
+  assert.ok(removeStart>=0&&submitStart>removeStart&&clickStart>submitStart);
+  assert.match(source,/if\(minimalAuthBusy&&!force\)return false/u);
+  assert.match(source,/if\(globalThis\.__IBERFIT_M26_APP__&&!minimalAuthBusy\)return/u);
+  assert.match(source,/event\.stopImmediatePropagation\(\)/u);
+  assert.match(source,/removeMinimalAuthBootstrap\(\{force:true\}\)/u);
+  assert.match(source,/\[data-auth-action\],\[data-password-toggle\]/u);
+});
