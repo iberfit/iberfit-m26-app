@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: iberfit-hosted-auth-security-qa
+  group: iberfit-qa-authenticated-gates
   cancel-in-progress: false
 
 jobs:
