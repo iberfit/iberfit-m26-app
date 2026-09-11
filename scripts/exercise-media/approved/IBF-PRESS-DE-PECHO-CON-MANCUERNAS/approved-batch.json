@@ -4,7 +4,7 @@
   "items": [
     {
       "exercise_id": "IBF-PRESS-DE-PECHO-CON-MANCUERNAS",
-      "local_path": "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-approved-13944c1c2674.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-approved-450fda7f82ff.webp",
       "source_base64_parts": [
         "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v3.b64.00",
         "scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-v3.b64.01",
@@ -23,7 +23,7 @@
         ],
         "automatic_qa": "not_run",
         "approved_at": "2026-09-11",
-        "note": "Versión v3 aprobada explícitamente por el propietario: press de pecho con mancuernas, Inicio + Final claros, mismo formato maestro de la biblioteca. Sin isotipo inventado dentro del asset; el isotipo oficial real lo superpone la app desde /public/isotipo-iberfit.png."
+        "note": "Versión v3 aprobada explícitamente por el propietario: press de pecho con mancuernas, Inicio + Final claros, mismo formato maestro de la biblioteca. Los bytes WebP publicados corresponden a la codificación verificada de esta composición. Sin isotipo inventado dentro del asset; el isotipo oficial real lo superpone la app desde /public/isotipo-iberfit.png."
       },
       "media": {
         "schema": "iberfit.exercise.visual.v1",
@@ -31,11 +31,11 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-PRESS-DE-PECHO-CON-MANCUERNAS/movement-13944c1c2674.webp",
+          "path": "IBF-PRESS-DE-PECHO-CON-MANCUERNAS/movement-450fda7f82ff.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "13944c1c2674955876162082aaf6ccaf3e6298c9969644812ac263b0a5c82428"
+          "sha256": "450fda7f82ffdf10442be58d098e8a2db0aeba15a07872c814068efff9135c82"
         },
         "published": true,
         "clientVisible": true,
