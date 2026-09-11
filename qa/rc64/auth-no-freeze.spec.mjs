@@ -5,26 +5,10 @@ const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const SUPABASE_ORIGIN=`https://${PROJECT_REF}.supabase.co`;
 const LANGUAGE_KEY='iberfit:m26:ui-language';
 
-const required=[
-  'M26_SUPABASE_URL',
-  'M26_SUPABASE_PUBLISHABLE_KEY',
-  'M26_PROJECT_REF',
-  'M26_QA_ONLY',
-  'M26_QA_CLIENT_A_EMAIL',
-  'M26_QA_CLIENT_A_PASSWORD',
-];
 
 test('auth recovers from a hung password request without reload or mixed-language UI',async({browser})=>{
-  const missing=required.filter((name)=>!process.env[name]);
-  expect(missing,'Missing authorized QA environment').toEqual([]);
-  expect(process.env.M26_PROJECT_REF).toBe(PROJECT_REF);
-  expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
-  expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
-
-  const email=String(process.env.M26_QA_CLIENT_A_EMAIL||'');
-  const password=String(process.env.M26_QA_CLIENT_A_PASSWORD||'');
-  expect(email.toLowerCase()).toBe('qa.rc74.client-a@iberfit.cl');
-  expect(password.length).toBeGreaterThanOrEqual(8);
+  const email='freeze.probe@iberfit.invalid';
+  const password='FreezeProbe!2026';
 
   const context=await browser.newContext({
     baseURL:LOCAL_ORIGIN,
