@@ -969,6 +969,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     authMode='mfa-email-code';
     authMessage('Verificando el código y protegiendo tu sesión…');
     let transientSession=null;
+    let assuranceVerified=false;
     try{
       await refreshSessionIfNeeded();
       transientSession=await transport.verifyEmailOtp(mfaState.email,otp);
@@ -982,6 +983,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
         assurance.iberfitAssurance!=='verified'
       )throw new Error('M26_PRIVILEGED_EMAIL_ASSURANCE_REQUIRED');
 
+      assuranceVerified=true;
       mfaState=null;
       authMode='login';
       store.reset();
@@ -1012,6 +1014,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     const currentUserId=session.user.id;
     const expectedRole=mfaState.privilegedRole||null;
     const initialKind=mfaState.kind;
+    let assuranceVerified=false;
     loginBusy=true;
     authMessage(initialKind==='challenge'?'Preparando la confirmación segura…':'Preparando el acceso seguro…');
     try{
@@ -1053,6 +1056,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
         throw new Error('M26_PRIVILEGED_WEBAUTHN_REQUIRED');
       }
 
+      assuranceVerified=true;
       mfaState=null;
       authMode='login';
       store.reset();
@@ -1062,6 +1066,10 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       return true;
     }catch(error){
       loginBusy=false;
+      if(assuranceVerified){
+        surfaceRetriableSessionFailure(error,'post-mfa-setup');
+        throw error;
+      }
       authMode=initialKind==='challenge'?'mfa-challenge':'mfa-required';
       const code=String(error?.message||error||'');
       const message=/M26_WEBAUTHN_(?:NOT_ALLOWED|CREDENTIAL_MISSING|INVALID_STATE)/u.test(code)
