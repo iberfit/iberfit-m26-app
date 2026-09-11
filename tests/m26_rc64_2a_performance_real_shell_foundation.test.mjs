@@ -113,7 +113,7 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
   const signatureEnsure=entry.indexOf('ensureSignatureUxV2Style();',adaptiveEnsure+1);
   const activateStyles=entry.indexOf('await activateFullStyles();',signatureEnsure+1);
   assert.ok(adaptiveEnsure>=0&&signatureEnsure>adaptiveEnsure&&activateStyles>signatureEnsure);
-  assert.match(entry,/await import\('\/src\/m26\/app\/application\.js'\)/u);
+  assert.match(entry,/import\('\/src\/m26\/app\/application\.js'\)/u);\n  assert.match(entry,/M26_BOOTSTRAP_MODULE_TIMEOUT/u);
   assert.match(entry,/link\.media='all'/u);
   assert.match(entry,/M26_STYLE_LOAD_TIMEOUT/u);
   assert.match(entry,/M26_BACKEND_DISABLED/u);
@@ -146,7 +146,7 @@ test('RC64.2A initial HTML provides the settled disabled preauth shell before op
 
   assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/mu);
   assert.match(entry,/if\(runtime\.enabled\)\{\s*startBootstrapWatchdog\(\);\s*try\{\s*await loadFullApplication\(\);\s*\}catch\(error\)\{\s*clearBootstrapWatchdog\(\);\s*renderBootstrapRecovery\(error\);\s*\}/u);
-  assert.match(entry,/await import\('\/src\/m26\/app\/application\.js'\)/u);
+  assert.match(entry,/import\('\/src\/m26\/app\/application\.js'\)/u);\n  assert.match(entry,/M26_BOOTSTRAP_MODULE_TIMEOUT/u);
 });
 test('RC64.2A current source contains RC28 mobile auth containment missing in historical RC15',()=>{
   const current=read('src/m26/shell/shell.css');
