@@ -1,0 +1,98 @@
+name: IBERFIT Hosted Auth Security QA
+
+on:
+  push:
+    branches:
+      - canary/rc74-4
+    paths:
+      - 'scripts/auth/sync-hosted-auth-security.mjs'
+      - 'src/m26/app/application.js'
+      - 'tests/m26_hosted_auth_security_hibp.test.mjs'
+      - '.github/workflows/hosted-auth-security-hardening.yml'
+      - '.github/workflows/production-promote.yml'
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Escribe ENABLE_IBERFIT_HIBP_QA'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-hosted-auth-security-qa
+  cancel-in-progress: false
+
+jobs:
+  harden-and-verify-qa:
+    name: qa-hibp-fail-closed
+    if: ${{ github.event_name == 'push' || inputs.confirmation == 'ENABLE_IBERFIT_HIBP_QA' }}
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Prepare Hosted Auth security evidence
+        run: mkdir -p recovery/hosted-auth-security
+
+      - name: Enable leaked-password protection in QA
+        id: hibp
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          IBERFIT_AUTH_SECURITY_TARGET: qa
+          IBERFIT_AUTH_SECURITY_CONFIRMATION: ENABLE_IBERFIT_HIBP_QA
+          IBERFIT_AUTH_SECURITY_STATE_PATH: recovery/hosted-auth-security/qa-before.json
+          IBERFIT_AUTH_SECURITY_EVIDENCE_PATH: recovery/hosted-auth-security/qa-enable.json
+        run: node scripts/auth/sync-hosted-auth-security.mjs --enable --target qa
+
+      - name: Verify authenticated QA accounts after HIBP
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node scripts/remote-gates/run_authenticated_readonly_gate.mjs
+
+      - name: Verify HIBP remains enabled in QA
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          IBERFIT_AUTH_SECURITY_TARGET: qa
+          IBERFIT_AUTH_SECURITY_EVIDENCE_PATH: recovery/hosted-auth-security/qa-verify.json
+        run: node scripts/auth/sync-hosted-auth-security.mjs --verify --target qa
+
+      - name: Roll back QA HIBP on compatibility failure
+        if: ${{ failure() && steps.hibp.outcome == 'success' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          IBERFIT_AUTH_SECURITY_TARGET: qa
+          IBERFIT_AUTH_SECURITY_ROLLBACK_CONFIRMATION: ROLLBACK_IBERFIT_HIBP_QA
+          IBERFIT_AUTH_SECURITY_STATE_PATH: recovery/hosted-auth-security/qa-before.json
+          IBERFIT_AUTH_SECURITY_EVIDENCE_PATH: recovery/hosted-auth-security/qa-rollback.json
+        run: node scripts/auth/sync-hosted-auth-security.mjs --restore-qa --target qa
+
+      - name: Preserve Hosted Auth security evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-hosted-auth-security-qa-${{ github.run_id }}
+          path: recovery/hosted-auth-security/
+          if-no-files-found: warn
+          retention-days: 30
