@@ -12,7 +12,7 @@ test('duplicate INSERT policies are consolidated with explicit OR semantics',()=
   assert.match(source,/client_timeline_insert_authorized/);
   assert.match(source,/clients_insert_authorized/);
   assert.match(source,/is_assigned_coach\(client_id\)[\s\S]*or[\s\S]*iberfit_role/i);
-  assert.match(source,/iberfit_current_role\(\)[\s\S]*='admin'[\s\S]*or[\s\S]*iberfit_role\(\)[\s\S]*='coach'/i);
+  assert.match(source,/iberfit_current_role\(\)[\s\S]*=\s*'admin'[\s\S]*or[\s\S]*iberfit_role\(\)[\s\S]*=\s*'coach'/i);
 });
 
 test('ALL write policies are split so SELECT has one permissive policy',()=>{
