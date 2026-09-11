@@ -4,8 +4,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 const MODEL='@cf/black-forest-labs/flux-2-klein-4b';
-const WIDTH=768;
-const HEIGHT=960;
+const WIDTH=640;
+const HEIGHT=800;
 
 const PHASES={
   'IBF-APERTURAS-CON-MANCUERNAS':{
