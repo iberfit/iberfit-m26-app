@@ -679,8 +679,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...item});
   }
 
-  async function backendHealth(){
-    const result=await request('/rest/v1/rpc/'+RC43_RPC.health,{method:'POST',body:'{}'});
+  async function backendHealth(token){
+    if(!token)throw new Error('M26_RC43_HEALTH_AUTH_REQUIRED');
+    const result=await request('/rest/v1/rpc/'+RC43_RPC.health,{method:'POST',token,body:'{}'});
     const item=normalizeRc43Result(result,'M26_RC43_HEALTH_INVALID_RESPONSE');
     if(item.ready!==true||item.version!=='RC43'||item.environment!==runtime.environment)throw new Error('M26_RC43_BACKEND_NOT_READY');
     return item;
@@ -725,8 +726,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return clientId;
   }
 
-  async function draftBackendHealth(){
-    const result=await request('/rest/v1/rpc/'+RC431_RPC.health,{method:'POST',body:'{}'});
+  async function draftBackendHealth(token){
+    if(!token)throw new Error('M26_RC431_HEALTH_AUTH_REQUIRED');
+    const result=await request('/rest/v1/rpc/'+RC431_RPC.health,{method:'POST',token,body:'{}'});
     const item=normalizeRc43Result(result,'M26_RC431_HEALTH_INVALID_RESPONSE');
     if(item.ready!==true||item.version!=='RC43.1'||item.environment!==runtime.environment)throw new Error('M26_RC431_BACKEND_NOT_READY');
     return item;
@@ -797,8 +799,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({...item});
   }
 
-  async function wearableHealth(){
-    const result=await request('/rest/v1/rpc/'+RC44_RPC.health,{method:'POST',body:'{}'});
+  async function wearableHealth(token){
+    if(!token)throw new Error('M26_RC44_HEALTH_AUTH_REQUIRED');
+    const result=await request('/rest/v1/rpc/'+RC44_RPC.health,{method:'POST',token,body:'{}'});
     const item=normalizeRc44Result(result,'M26_RC44_HEALTH_INVALID_RESPONSE');
     if(item.ready!==true||item.version!=='RC44'||item.environment!==runtime.environment)throw new Error('M26_RC44_BACKEND_NOT_READY');
     return item;
