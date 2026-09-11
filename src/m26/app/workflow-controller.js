@@ -75,6 +75,35 @@ function libraryFilterState(root){const out={};for(const node of root.querySelec
 function clientFilterState(root){const out={};for(const node of root.querySelectorAll?.('[data-client-filter]')||[])out[node.getAttribute('data-client-filter')]=foldSearch(node.value);return out;}
 function filterLibraryItems(items,filters,mediaMap,role){return items.filter((item)=>{const equipment=foldSearch(item.equipment);const pattern=foldSearch(item.pattern);if(filters.equipment&&!equipment.includes(filters.equipment))return false;if(filters.pattern&&!pattern.includes(filters.pattern))return false;if(filters.visual){const has=Boolean(resolveExerciseMedia(mediaMap,item.id,{role}));if(filters.visual==='with-image'&&!has)return false;if(filters.visual==='without-image'&&has)return false;}return true;});}
 function recordBody(record={}){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:record;}
+function iriAssessmentId(record={}){const body=recordBody(record);return String(record?.id||body?.id||'').trim();}
+function iriAssessmentClientId(record={}){const body=recordBody(record);return String(record?.clientId||record?.client_id||body?.clientId||body?.client_id||'').trim();}
+function iriAssessmentDate(record={}){const body=recordBody(record);return String(body?.assessmentDate||body?.assessment_date||record?.assessmentDate||record?.assessment_date||'').trim();}
+function iriAssessmentConfirmed(record={}){const body=recordBody(record);return Boolean(body?.firstSessionCompletedAt||body?.first_session_completed_at);}
+export function confirmedIriHistoryForReport(state={},clientId='',currentAssessmentId='',currentAssessmentDate=''){
+  const expectedClient=String(clientId||'').trim();
+  const currentId=String(currentAssessmentId||'').trim();
+  const currentDate=String(currentAssessmentDate||'').trim();
+  if(!expectedClient)return Object.freeze([]);
+  const history=[];
+  const seen=new Set();
+  for(const record of state?.collections?.iriAssessments||[]){
+    if(iriAssessmentClientId(record)!==expectedClient)continue;
+    const assessmentId=iriAssessmentId(record);
+    if(!assessmentId||assessmentId===currentId||seen.has(assessmentId))continue;
+    if(!iriAssessmentConfirmed(record))continue;
+    const assessmentDate=iriAssessmentDate(record);
+    if(currentDate&&assessmentDate&&assessmentDate>currentDate)continue;
+    try{
+      const draft=confirmedFirstSessionDraft(record,expectedClient);
+      const check=validateFirstSessionDraft(draft);
+      if(!check.ok)continue;
+      seen.add(assessmentId);
+      history.push(draft);
+    }catch{}
+  }
+  history.sort((a,b)=>String(a.assessmentDate||'').localeCompare(String(b.assessmentDate||''))||String(a.assessmentId||'').localeCompare(String(b.assessmentId||'')));
+  return Object.freeze(history);
+}
 function clientRecordId(value){return createdClientResultId(value);}
 function clientEmail(record){return clientDraftEmail(record);}
 function clientName(record){const body=recordBody(record);return String(record?.name||record?.fullName||body?.name||body?.fullName||'Cliente IBERFIT').trim();}
@@ -532,7 +561,7 @@ export function createWorkflowController({
   }
   function iriReportStatusScope(){return root.querySelector?.('[data-workflow-form="iri"]')?'iri':'iri-report';}
   async function generateIriReport(variant){
-    const {role,clientId}=context();
+    const {role,clientId,state}=context();
     if(variant!=='client'&&!['admin','coach'].includes(role))throw new Error('M26_WORKFLOW_ROLE_FORBIDDEN');
     if(variant==='coach')requireCoach();
     requireVisibleClient(clientId);
@@ -544,7 +573,8 @@ export function createWorkflowController({
         if(!printTarget)throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
         externalReport=await getIriExternalReport(draft.assessmentId);
       }
-      const result=openIriReportPrint({...reportContext(draft),variant,externalReport,printTarget});status(root,iriReportStatusScope(),variant==='client'?'Informe Cliente preparado para guardar como PDF.':'Informe Coach / Admin preparado para guardar como PDF.','success');return result;
+      const longitudinalHistory=confirmedIriHistoryForReport(state,clientId,draft.assessmentId,draft.assessmentDate);
+      const result=openIriReportPrint({...reportContext(draft),variant,externalReport,longitudinalHistory,printTarget});status(root,iriReportStatusScope(),variant==='client'?'Informe Cliente preparado para guardar como PDF.':'Informe Coach / Admin preparado para guardar como PDF.','success');return result;
     }catch(error){try{printTarget?.close?.();}catch{}throw error;}
   }
 
