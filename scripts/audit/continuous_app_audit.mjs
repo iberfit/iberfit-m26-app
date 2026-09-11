@@ -12,7 +12,7 @@ import { createShellViewModel } from '../../src/m26/shell/shell-view-model.js';
 import { createRouteViewModel } from '../../src/m26/modules/route-view-model.js';
 import { renderRouteView } from '../../src/m26/modules/route-render.js';
 
-const AUDIT_VERSION='1.0.0';
+const AUDIT_VERSION='1.1.0';
 const ROLES=Object.freeze(['client','coach','admin']);
 const CLIENT_ID='continuous-audit-client';
 const NOW=new Date();
@@ -20,6 +20,11 @@ const APP_URL=String(process.env.M26_AUDIT_APP_URL||'https://app.iberfit.cl').re
 const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
 const PROD_SUPABASE_URL=`https://${PROD_PROJECT_REF}.supabase.co`;
 const ADMIN_CLIENT_INVITE_EDGE_URL=`${PROD_SUPABASE_URL}/functions/v1/iberfit-admin-client-invite-v1`;
+const AUTHENTICATED_HEALTH_RPCS=Object.freeze([
+  'm26_backend_health_v43',
+  'm26_backend_health_v431',
+  'm26_wearable_health_v44',
+]);
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const OUTPUT_DIR=path.resolve(process.cwd(),'recovery','continuous-audit');
 const OUTPUT_JSON=path.join(OUTPUT_DIR,'latest.json');
@@ -282,6 +287,103 @@ async function fetchAuditUrl(url,label){
   }
 }
 
+
+function auditProductionSecurityHeaders(response){
+  const header=(name)=>String(response.headers.get(name)||'').trim();
+  const required=Object.freeze([
+    ['content-security-policy',(value)=>value.includes("default-src 'self'")&&value.includes("script-src 'self'")&&value.includes("object-src 'none'")&&value.includes("frame-ancestors 'none'")&&!value.includes("'unsafe-eval'")],
+    ['strict-transport-security',(value)=>/max-age=(?:[3-9]\d{7}|\d{9,})/u.test(value)&&/includeSubDomains/i.test(value)],
+    ['x-content-type-options',(value)=>value.toLowerCase()==='nosniff'],
+    ['x-frame-options',(value)=>value.toUpperCase()==='DENY'],
+    ['referrer-policy',(value)=>value.toLowerCase()==='no-referrer'],
+    ['permissions-policy',(value)=>['camera=()','microphone=()','geolocation=()'].every((rule)=>value.includes(rule))],
+    ['cross-origin-opener-policy',(value)=>value.toLowerCase()==='same-origin'],
+    ['cross-origin-resource-policy',(value)=>value.toLowerCase()==='same-origin'],
+  ]);
+  const failed=[];
+  for(const [name,valid] of required){
+    const value=header(name);
+    if(!value||!valid(value))failed.push(name);
+  }
+  coverage.live.securityHeaders={checked:required.map(([name])=>name),failed};
+  if(failed.length){
+    addFinding(
+      'critical',
+      'LIVE_SECURITY_HEADERS_INVALID',
+      `Producción perdió cabeceras de seguridad obligatorias: ${failed.join(', ')}.`,
+      {headers:failed},
+    );
+    return false;
+  }
+  addStrength(
+    'LIVE_SECURITY_HEADERS_HARDENED',
+    'Producción mantiene CSP estricta, HSTS, anti-framing, no-sniff, privacidad de referrer, Permissions-Policy y aislamiento cross-origin.',
+  );
+  return true;
+}
+
+function runtimePublishableKey(body){
+  const match=String(body||'').match(/publishableKey\s*:\s*['"]([^'"]{8,512})['"]/u);
+  return match?.[1]||null;
+}
+
+async function auditAnonymousHealthRpcBoundaries(publishableKey){
+  if(!publishableKey){
+    addFinding('critical','LIVE_PUBLISHABLE_KEY_NOT_DISCOVERABLE','No fue posible validar el perímetro anónimo de RPC porque runtime-config no expone la clave pública esperada.');
+    return;
+  }
+  const exposed=[];
+  const statuses={};
+  for(const rpc of AUTHENTICATED_HEALTH_RPCS){
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),15000);
+    try{
+      const response=await fetch(`${PROD_SUPABASE_URL}/rest/v1/rpc/${rpc}`,{
+        method:'POST',
+        redirect:'error',
+        cache:'no-store',
+        credentials:'omit',
+        headers:{
+          apikey:publishableKey,
+          authorization:`Bearer ${publishableKey}`,
+          'content-type':'application/json',
+          'user-agent':'IBERFIT-M26-Continuous-Auditor/1.1',
+        },
+        body:'{}',
+        signal:controller.signal,
+      });
+      statuses[rpc]=response.status;
+      if(response.ok)exposed.push(rpc);
+    }catch(error){
+      statuses[rpc]=String(error?.name||'NETWORK_ERROR').slice(0,40);
+      addFinding(
+        'critical',
+        'LIVE_ANON_HEALTH_RPC_PROBE_FAILED',
+        `No se pudo verificar el perímetro anónimo de ${rpc}.`,
+        {rpc},
+      );
+    }finally{
+      clearTimeout(timeout);
+    }
+  }
+  coverage.live.anonymousHealthRpcStatuses=statuses;
+  if(exposed.length){
+    addFinding(
+      'critical',
+      'LIVE_ANON_HEALTH_RPC_EXPOSED',
+      `RPC de salud autenticadas volvieron a aceptar ejecución anónima: ${exposed.join(', ')}.`,
+      {rpcs:exposed},
+    );
+    return;
+  }
+  if(Object.keys(statuses).length===AUTHENTICATED_HEALTH_RPCS.length){
+    addStrength(
+      'LIVE_HEALTH_RPCS_AUTH_BOUND',
+      'Las RPC de salud operativa rechazan el rol anónimo y permanecen limitadas a sesiones autenticadas.',
+    );
+  }
+}
+
 async function auditClientOnboardingBackendReadiness(){
   const controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort(),15000);
@@ -360,6 +462,7 @@ async function auditLivePublicSurface(){
       addFinding('critical','LIVE_SERVICE_ROLE_MARKER','La portada pública contiene un marcador service_role prohibido.',{url:`${APP_URL}/`});
     }
 
+    auditProductionSecurityHeaders(root.response);
     const csp=root.response.headers.get('content-security-policy');
     coverage.live.contentSecurityPolicy=Boolean(csp);
     if(!csp){
@@ -398,6 +501,9 @@ async function auditLivePublicSurface(){
         'LIVE_RUNTIME_PROD_BOUND',
         'runtime-config público está vinculado a PROD y no expone el project ref de QA ni QA-only=true.',
       );
+    }
+    if(runtime.response.ok){
+      await auditAnonymousHealthRpcBoundaries(runtimePublishableKey(runtime.body));
     }
   }
 }
