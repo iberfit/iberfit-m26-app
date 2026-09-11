@@ -84,6 +84,18 @@ test('Progreso expone IRI 2.0 solo desde evaluaciones confirmadas y comparables'
   assert.equal(Object.hasOwn(summary.iri2,'score'),false);
 });
 
+test('IRI 2.0 de Progreso queda aislado por cliente y descarta evaluaciones ajenas',()=>{
+  const state=stateWithIri();
+  const foreign=iriRecord({id:'iri-other',date:'2026-09-11',chair:30,push:25,weight:90});
+  foreign.clientId='c2';
+  foreign.body={...foreign.body,clientId:'c2'};
+  state.collections.iriAssessments.push(foreign);
+  const summary=computeProgressSummary(state,'c1',{now:NOW,days:120});
+  assert.equal(summary.iri2.confirmedCount,2);
+  assert.equal(summary.iri2.currentAssessmentId,'iri-new');
+  assert.equal(summary.iri2.headline.some((item)=>item.current===30),false);
+});
+
 test('Progreso conserva línea base sin fabricar evolución cuando solo hay un IRI confirmado',()=>{
   const state=stateWithIri();
   state.collections.iriAssessments=[state.collections.iriAssessments[1]];
