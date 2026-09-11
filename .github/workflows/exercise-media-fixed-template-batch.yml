@@ -75,6 +75,8 @@ jobs:
               im.save(out,'PNG')
           PY
           echo "ATHLETE_REFERENCE=recovery/exercise-media-reference-normalized/athlete.png" >> "$GITHUB_ENV"
+          python3 scripts/exercise-media/create-batch03-pose-guides.py --out-dir recovery/exercise-media-pose-guides
+          echo "POSE_GUIDE_DIR=recovery/exercise-media-pose-guides" >> "$GITHUB_ENV"
 
       - name: Rehidratar referencias visuales aprobadas
         shell: bash
@@ -147,22 +149,39 @@ jobs:
                 ;;
             esac
             echo "=== $id ==="
-            node scripts/exercise-media/generate-fixed-phase.mjs --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --phase start --attempt 1 --athlete-ref "$ATHLETE_REFERENCE" --out-dir recovery/exercise-media-fixed
-            node scripts/exercise-media/generate-fixed-phase.mjs --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --phase final --attempt 1 --athlete-ref "$ATHLETE_REFERENCE" --out-dir recovery/exercise-media-fixed
-            start="$(find recovery/exercise-media-fixed -maxdepth 1 -type f -name "${id}-start-a1.*" ! -name '*.json' | head -n 1)"
-            final="$(find recovery/exercise-media-fixed -maxdepth 1 -type f -name "${id}-final-a1.*" ! -name '*.json' | head -n 1)"
-            test -s "$start"
-            test -s "$final"
-            out="recovery/exercise-media-fixed/${id}-fixed.webp"
-            meta="recovery/exercise-media-fixed/${id}-fixed.json"
-            python3 scripts/exercise-media/compose-fixed-template.py --exercise-id "$id" --start "$start" --final "$final" --anatomy-source "$anatomy" --out "$out" --meta "$meta"
-            set +e
-            node scripts/exercise-media/qa-fixed-template.mjs --exercise-id "$id" --image "$out" --out "recovery/exercise-media-fixed/${id}-qa.json" | tee "recovery/${id}-qa.log"
-            qa_rc=${PIPESTATUS[0]}
-            set -e
-            confidence="$(node -e "const x=require('./recovery/exercise-media-fixed/${id}-qa.json');process.stdout.write(String(x.review&&x.review.confidence||0))" 2>/dev/null || printf 0)"
-            printf '%s\t%s\t%s\n' "$id" "$qa_rc" "$confidence" >> recovery/fixed-batch-summary.tsv
-            if [[ "$qa_rc" -ne 0 ]]; then failures=$((failures+1)); fi
+            passed=0
+            final_confidence=0
+            final_attempt=0
+            for attempt in 1 2 3; do
+              echo "--- attempt $attempt ---"
+              pose_start="$POSE_GUIDE_DIR/${id}-start.png"
+              pose_final="$POSE_GUIDE_DIR/${id}-final.png"
+              test -s "$pose_start"
+              test -s "$pose_final"
+              node scripts/exercise-media/generate-fixed-phase.mjs --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --phase start --attempt "$attempt" --athlete-ref "$ATHLETE_REFERENCE" --pose-ref "$pose_start" --out-dir recovery/exercise-media-fixed
+              node scripts/exercise-media/generate-fixed-phase.mjs --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --phase final --attempt "$attempt" --athlete-ref "$ATHLETE_REFERENCE" --pose-ref "$pose_final" --out-dir recovery/exercise-media-fixed
+              start="$(find recovery/exercise-media-fixed -maxdepth 1 -type f -name "${id}-start-a${attempt}.*" ! -name '*.json' | head -n 1)"
+              final="$(find recovery/exercise-media-fixed -maxdepth 1 -type f -name "${id}-final-a${attempt}.*" ! -name '*.json' | head -n 1)"
+              test -s "$start"
+              test -s "$final"
+              out="recovery/exercise-media-fixed/${id}-fixed-a${attempt}.webp"
+              meta="recovery/exercise-media-fixed/${id}-fixed-a${attempt}.json"
+              qa="recovery/exercise-media-fixed/${id}-qa-a${attempt}.json"
+              python3 scripts/exercise-media/compose-fixed-template.py --exercise-id "$id" --start "$start" --final "$final" --anatomy-source "$anatomy" --out "$out" --meta "$meta"
+              set +e
+              node scripts/exercise-media/qa-fixed-template.mjs --exercise-id "$id" --image "$out" --out "$qa" | tee "recovery/${id}-qa-a${attempt}.log"
+              qa_rc=${PIPESTATUS[0]}
+              set -e
+              confidence="$(node -e "const x=require('./$qa');process.stdout.write(String(x.review&&x.review.confidence||0))" 2>/dev/null || printf 0)"
+              final_confidence="$confidence"
+              final_attempt="$attempt"
+              if [[ "$qa_rc" -eq 0 ]]; then
+                passed=1
+                break
+              fi
+            done
+            printf '%s\t%s\t%s\t%s\n' "$id" "$passed" "$final_attempt" "$final_confidence" >> recovery/fixed-batch-summary.tsv
+            if [[ "$passed" -ne 1 ]]; then failures=$((failures+1)); fi
           done
           cat recovery/fixed-batch-summary.tsv
           test "$failures" -eq 0
