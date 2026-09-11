@@ -575,7 +575,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     });
   }
 
-  async function challengeWebAuthn(token,factorId){
+  async function challengeWebAuthn(token,factorId,{replaceExisting=false}={}){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
     const id=normalizeMfaFactorId(factorId);
     const action=id===RC65C_WEBAUTHN_REGISTRATION_FACTOR_ID
@@ -587,7 +587,10 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     const body=await request(RC65C_WEBAUTHN_FUNCTION,{
       method:'POST',
       token,
-      body:JSON.stringify({action}),
+      body:JSON.stringify({
+        action,
+        ...(action==='registration-options'&&replaceExisting===true?{replaceExisting:true}:{}),
+      }),
     });
     if(!body||typeof body!=='object'||Array.isArray(body)||body.ok!==true)throw new Error('M26_WEBAUTHN_CHALLENGE_INVALID_RESPONSE');
     const challengeId=String(body.challengeId||'').trim();
@@ -600,7 +603,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return Object.freeze({challengeId,type,credentialOptions});
   }
 
-  async function verifyWebAuthn(token,{factorId,challengeId,type,credentialResponse}={}){
+  async function verifyWebAuthn(token,{factorId,challengeId,type,credentialResponse,replaceExisting=false}={}){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
     const id=normalizeMfaFactorId(factorId);
     const challenge=String(challengeId||'').trim();
@@ -619,6 +622,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
         action,
         challengeId:challenge,
         credentialResponse:credential,
+        ...(actionType==='create'&&replaceExisting===true?{replaceExisting:true}:{}),
       }),
     });
     const userId=String(body?.user?.id||'');
