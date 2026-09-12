@@ -43,9 +43,18 @@ test('WebAuthn authentication bounds backend stages and avoids a redundant post-
   assert.match(block,/next\.privilegedRole!==expectedRole/u);
   assert.doesNotMatch(block,/transport\.authAssuranceContext/u);
   assert.doesNotMatch(block,/transport\.authUser/u);
-  assert.match(source,/POST_MFA_SETUP_TIMEOUT_MS=18_000/u);
+  assert.match(source,/POST_MFA_SETUP_TIMEOUT_MS=12_000/u);
   assert.match(source,/M26_WEBAUTHN_BACKEND_TIMEOUT/u);
   assert.match(source,/M26_POST_MFA_SETUP_TIMEOUT/u);
+  assert.match(source,/OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000/u);
+  assert.match(source,/AUTH_CATALOG_TIMEOUT_MS=6_000/u);
+  assert.match(source,/optionalAuthBootstrap\(\s*\(\)=>rc39Transport\.extensions/u);
+  assert.match(source,/optionalAuthBootstrap\(\s*\(\)=>adminTransport\.applicationContextOptional/u);
+  assert.match(source,/optionalAuthBootstrap\(\s*\(\)=>transport\.wearableBootstrap/u);
+  assert.match(source,/withAuthOperationTimeout\(\s*\(\)=>fetchCatalog\(\)/u);
+  assert.match(block,/authMode='post-mfa-loading'/u);
+  assert.match(block,/beginAuthAttempt\('post-mfa-setup'\)/u);
+  assert.match(source,/function surfaceRetriableSessionFailure[\s\S]{0,180}?invalidateAuthAttempt\(\)/u);
   assert.match(source,/Verificación segura confirmada\. Cargando IBERFIT…/u);
 });
 
