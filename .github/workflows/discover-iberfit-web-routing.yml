@@ -1,0 +1,62 @@
+name: Discover iberfit.cl routing
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/discover-iberfit-web-routing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DOMAIN: 'iberfit.cl'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolver DNS y cabeceras públicas
+        shell: bash
+        run: |
+          set -u
+          echo '=== DNS A ==='
+          dig +short A "$DOMAIN" || true
+          echo '=== DNS AAAA ==='
+          dig +short AAAA "$DOMAIN" || true
+          echo '=== DNS CNAME ==='
+          dig +short CNAME "$DOMAIN" || true
+          echo '=== WWW ==='
+          dig +short CNAME "www.$DOMAIN" || true
+          dig +short A "www.$DOMAIN" || true
+          echo '=== HTTP HEAD ==='
+          curl --silent --show-error --location --max-time 20 -D - -o /dev/null "https://$DOMAIN/" || true
+
+      - name: Consultar zona Cloudflare si el token lo permite
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -u
+          AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json')
+          CODE="$(curl --silent --show-error -o /tmp/zones.json -w '%{http_code}' "${AUTH[@]}" "https://api.cloudflare.com/client/v4/zones?name=${DOMAIN}")"
+          echo "ZONES_HTTP=$CODE"
+          cat /tmp/zones.json || true
+          ZONE_ID="$(node -e "try{const x=require('/tmp/zones.json');process.stdout.write(x.result?.[0]?.id||'')}catch{}")"
+          if [ -z "$ZONE_ID" ]; then exit 0; fi
+          echo "ZONE_ID=$ZONE_ID"
+          for endpoint in \
+            "dns_records?name=${DOMAIN}" \
+            "dns_records?name=www.${DOMAIN}" \
+            "workers/routes"; do
+            SAFE="$(echo "$endpoint" | tr '/?=&' '____')"
+            CODE="$(curl --silent --show-error -o "/tmp/${SAFE}.json" -w '%{http_code}' "${AUTH[@]}" "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/${endpoint}")"
+            echo "ENDPOINT=${endpoint} HTTP=${CODE}"
+            cat "/tmp/${SAFE}.json" || true
+            echo
+          done
