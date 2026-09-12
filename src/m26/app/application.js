@@ -151,6 +151,29 @@ function reportDiagnostic(stage,error){
   return detail;
 }
 
+function reportSoftDiagnostic(stage,error){
+  const status=Number.isInteger(error?.status)
+    ?error.status
+    :null;
+  const detail=Object.freeze({
+    stage:String(stage||'operation')
+      .replace(/[^a-z0-9_-]+/giu,'-')
+      .slice(0,60),
+    code:diagnosticCode(error,stage),
+    status,
+    severity:'degraded',
+  });
+  try{
+    globalThis.dispatchEvent?.(
+      new CustomEvent(
+        'm26:diagnostic',
+        {detail},
+      ),
+    );
+  }catch{}
+  return detail;
+}
+
 
 const RECOVERY_REQUEST_CONFIRMATION='Si el correo corresponde a una cuenta QA autorizada, recibirás un enlace para crear una contraseña nueva.';
 const RECOVERY_REQUEST_CONFIRMATION_PUBLIC='Si el correo corresponde a una cuenta IBERFIT, recibirás un enlace para crear una contraseña nueva.';
@@ -360,7 +383,7 @@ export async function createM26Application({root=document.querySelector('#app'),
         code:'M26_OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT',
       });
     }catch(error){
-      reportDiagnostic(`optional-auth-bootstrap-${String(stage||'optional')}`,error);
+      reportSoftDiagnostic(`optional-auth-bootstrap-${String(stage||'optional')}`,error);
       return fallback;
     }
   }
