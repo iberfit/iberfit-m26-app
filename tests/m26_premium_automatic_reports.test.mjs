@@ -53,6 +53,14 @@ test('portfolio automático usa evidencia canónica y habilita los seis tipos cu
   assert.equal(reports.find((report)=>report.id==='reassessment').periodStart,'2026-03-01');
   assert.equal(reports.find((report)=>report.id==='post-session').periodEnd,'2026-09-03');
   assert.match(reports.find((report)=>report.id==='year-in-iberfit').summary,/historial canónico/u);
+  const diagnostic=reports.find((report)=>report.id==='iri');
+  const reassessment=reports.find((report)=>report.id==='reassessment');
+  const monthly=reports.find((report)=>report.id==='monthly');
+  const quarterly=reports.find((report)=>report.id==='quarterly');
+  assert.ok(diagnostic.evidence.some((item)=>item.source==='iriAssessments'));
+  assert.ok(reassessment.evidence.some((item)=>item.source==='iriAssessments'));
+  assert.equal(monthly.evidence.some((item)=>item.source==='iriAssessments'),false);
+  assert.equal(quarterly.evidence.some((item)=>item.source==='iriAssessments'),false);
 });
 
 test('sin evidencia no inventa ceros ni métricas: devuelve insufficient-data con motivo explícito',()=>{
@@ -143,4 +151,15 @@ test('informes históricos sin tipo premium conservan el contrato anterior sin m
   assert.equal(legacy.sourceAssessmentId,undefined);
   assert.equal(legacy.sourceAssessmentRevision,undefined);
   assert.equal(legacy.dataPolicy,undefined);
+});
+
+test('informes de proceso no convierten el diagnóstico IRI en una señal cotidiana de evolución',()=>{
+  const reports=buildPremiumReportPortfolio(stateWithHistory(),'c1',{now:NOW});
+  for(const type of ['monthly','quarterly','year-in-iberfit']){
+    const report=reports.find((item)=>item.id===type);
+    assert.ok(report?.ready);
+    assert.equal(report.evidence.some((item)=>item.source==='iriAssessments'),false);
+  }
+  assert.ok(reports.find((item)=>item.id==='iri').evidence.some((item)=>item.source==='iriAssessments'));
+  assert.ok(reports.find((item)=>item.id==='reassessment').evidence.some((item)=>item.source==='iriAssessments'));
 });
