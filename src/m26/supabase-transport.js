@@ -216,13 +216,41 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     }
   }
 
+  const authRetryDelay=typeof dependencies.authRetryDelay==='function'
+    ?dependencies.authRetryDelay
+    :(ms)=>new Promise((resolve)=>setTimeout(resolve,ms));
+
+  function transientPasswordLoginError(error){
+    const status=Number(error?.status||0);
+    if([502,503,504].includes(status))return true;
+    const code=String(error?.message||error||'');
+    return error?.name==='TypeError'||/Failed to fetch|NetworkError|network request failed/i.test(code);
+  }
+
+  async function passwordLoginRequest(payload){
+    let firstError=null;
+    for(let attempt=0;attempt<2;attempt+=1){
+      try{
+        return await request('/auth/v1/token?grant_type=password',{
+          method:'POST',
+          body:JSON.stringify(payload),
+        });
+      }catch(error){
+        if(attempt>0||!transientPasswordLoginError(error))throw error;
+        firstError=error;
+        await authRetryDelay(220);
+      }
+    }
+    throw firstError||new Error('M26_AUTH_TRANSIENT_RETRY_FAILED');
+  }
+
   async function login(email, password) {
     const normalizedEmail=String(email||'').trim().toLowerCase();const normalizedPassword=String(password||'');
     if(normalizedEmail.length<5||normalizedEmail.length>MAX_AUTH_EMAIL_CHARS||!normalizedEmail.includes('@'))throw new Error('M26_AUTH_EMAIL_INVALID');
     if(normalizedPassword.length<8||normalizedPassword.length>1024)throw new Error('M26_AUTH_PASSWORD_INVALID');
-    const body = validateAuthBody(await request('/auth/v1/token?grant_type=password', {
-      method: 'POST',
-      body: JSON.stringify({ email: normalizedEmail, password: normalizedPassword }),
+    const body = validateAuthBody(await passwordLoginRequest({
+      email:normalizedEmail,
+      password:normalizedPassword,
     }));
     if (runtime.qaOnly && !isQaAuthorizedEmail(body.user.email)) {
       throw new Error('M26_QA_ACCOUNT_REQUIRED');
