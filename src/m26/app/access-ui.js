@@ -21,6 +21,7 @@ const ACCESS_MODES=new Set([
   'mfa-required',
   'mfa-challenge',
   'mfa-email-code',
+  'post-mfa-loading',
 ]);
 
 export function normalizeRememberedEmail(value=''){
@@ -317,7 +318,30 @@ export function renderAccessUi({
     : '';
   let content = '';
 
-  if (normalizedMode === 'mfa-required') {
+  if (normalizedMode === 'post-mfa-loading') {
+    content = `
+      <div class="m26-auth-copy" data-auth-loading="verified">
+        <p class="m26-auth-kicker">Acceso verificado</p>
+        <h1 id="m26-auth-title" tabindex="-1">Entrando en IBERFIT</h1>
+        <p>La identidad ya está confirmada. Estamos cargando tu entorno seguro.</p>
+      </div>
+
+      ${notice}
+
+      <div class="m26-auth-actions">
+        <button
+          type="button"
+          class="m26-primary-action"
+          disabled
+          aria-disabled="true"
+        >
+          Cargando tu espacio…
+        </button>
+      </div>
+
+      <p class="m26-field-help m26-device-assurance">Si la carga segura tarda demasiado, IBERFIT liberará esta pantalla para que puedas reintentar sin repetir la contraseña.</p>
+    `;
+  } else if (normalizedMode === 'mfa-required') {
     content = `
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Verificación del dispositivo</p>

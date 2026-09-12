@@ -196,6 +196,7 @@ test('RC65-C1 FREE Edge Function fija librerías, allowlist RP/Origin, UV requir
 test('RC65-C1 FREE UI sigue integrada, solo dispositivo local y sin QR ni app TOTP',()=>{
   const required=renderAccessUi({mode:'mfa-required',mfa:{kind:'enroll-required',privilegedRole:'coach'}});
   const challenge=renderAccessUi({mode:'mfa-challenge',mfa:{factorId:AUTHENTICATION_FACTOR_ID,privilegedRole:'admin'}});
+  const verifiedLoading=renderAccessUi({mode:'post-mfa-loading',busy:true,message:'Verificación segura confirmada. Cargando IBERFIT…',noticeKind:'success'});
   assert.match(required,/Protege tu acceso/u);
   assert.match(required,/Configurar este dispositivo/u);
   assert.match(required,/Face ID, Touch ID, Windows Hello, PIN o la contraseña del propio dispositivo/u);
@@ -203,7 +204,13 @@ test('RC65-C1 FREE UI sigue integrada, solo dispositivo local y sin QR ni app TO
   assert.match(challenge,/Verificar con este dispositivo/u);
   assert.match(challenge,/No necesitas escanear ningún QR ni usar otro equipo/u);
   assert.doesNotMatch(challenge,/data-auth-action="mfa-register-device"/u);
-  for(const markup of [required,challenge])assert.doesNotMatch(markup,/Google Authenticator|Authy|Código de 6 dígitos|qr_code|otpauth/iu);
+  assert.match(verifiedLoading,/data-auth-loading="verified"/u);
+  assert.match(verifiedLoading,/Acceso verificado/u);
+  assert.match(verifiedLoading,/Entrando en IBERFIT/u);
+  assert.match(verifiedLoading,/Cargando tu espacio…/u);
+  assert.doesNotMatch(verifiedLoading,/data-auth-action="mfa-continue-webauthn"/u);
+  assert.doesNotMatch(verifiedLoading,/Verifica que eres tú|Verificando…/u);
+  for(const markup of [required,challenge,verifiedLoading])assert.doesNotMatch(markup,/Google Authenticator|Authy|Código de 6 dígitos|qr_code|otpauth/iu);
 });
 
 test('RC65-C1 FREE smoke remoto permanece read-only y bloquea Coach antes de bootstrap',()=>{

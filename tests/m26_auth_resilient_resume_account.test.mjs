@@ -68,8 +68,10 @@ test('authenticated startup overlaps catalog loading with remote hydration',()=>
   const end=app.indexOf('\n  function guardSessionNavigation',start);
   assert.ok(start>=0&&end>start);
   const block=app.slice(start,end);
-  assert.match(block,/const \[hydrationResult\]=await Promise\.all\(\[\s*hydrate\(\{reason:'login'\}\),\s*fetchCatalog\(\),\s*\]\);/u);
-  assert.doesNotMatch(block,/await hydrate\(\{reason:'login'\}\);[\s\S]{0,200}await fetchCatalog\(\)/u);
+  assert.match(block,/const \[hydrationResult\]=await Promise\.all\(\[/u);
+  assert.match(block,/hydrate\(\{reason:'login'\}\),/u);
+  assert.match(block,/withAuthOperationTimeout\(\s*\(\)=>fetchCatalog\(\),\s*\{timeoutMs:AUTH_CATALOG_TIMEOUT_MS,code:'M26_AUTH_CATALOG_TIMEOUT'\},\s*\)/u);
+  assert.doesNotMatch(block,/await hydrate\(\{reason:'login'\}\);[\s\S]{0,260}await (?:withAuthOperationTimeout\([^)]*fetchCatalog|fetchCatalog\(\))/u);
 });
 
 test('settings expose account identity and safe password recovery without hiding logout',()=>{
