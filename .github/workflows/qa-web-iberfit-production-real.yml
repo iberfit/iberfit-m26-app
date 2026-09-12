@@ -1,0 +1,163 @@
+name: QA WEB IBERFIT production real
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.iberfit/web-production-qa.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-web-iberfit-production-real
+  cancel-in-progress: false
+
+env:
+  WEB_SHA: '8d6fcb12a9472e9ef78b9973ca3d0cd9d71244ab'
+  BASE_URL: 'https://iberfit.cl'
+  CF_ZONE_ID: '44302103d0c37a304bad49fbbe0501d5'
+  APP_DOMAIN: 'app.iberfit.cl'
+  APP_TARGET: 'iberfit-m26-production.pages.dev'
+
+jobs:
+  qa-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar marcador QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('.iberfit/web-production-qa.json','utf8'));
+          if(x.schema!=='iberfit.web.production-qa.v1') throw new Error('QA_MARKER_SCHEMA_INVALID');
+          if(x.domain!=='iberfit.cl') throw new Error('QA_DOMAIN_INVALID');
+          if(x.candidateSha!==process.env.WEB_SHA) throw new Error('QA_SHA_INVALID');
+          NODE
+
+      - name: Descargar QA exacto de candidata certificada
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/iberfit/iberfitweb.git /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=1 origin "${WEB_SHA}"
+          git -C /tmp/iberfitweb checkout --detach "${WEB_SHA}"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "${WEB_SHA}"
+          test -s /tmp/iberfitweb/.github/scripts/qa_v628_dispositivos.mjs
+
+      - name: Preflight producción real
+        shell: bash
+        run: |
+          set -euo pipefail
+          routes=(
+            /
+            /diagnostico-iri/
+            /contacto/
+            /metodo/
+            /sobre-iberfit/
+            /online/
+            /entrenador-personal-las-condes/
+            /privacidad/
+            /en/
+            /robots.txt
+            /sitemap.xml
+          )
+          mkdir -p /tmp/http
+          stamp="$(date +%s)"
+          for path in "${routes[@]}"; do
+            safe="$(echo "$path" | sed 's#[^A-Za-z0-9]#_#g')"
+            code="$(curl --silent --show-error --location --retry 8 --retry-all-errors               --connect-timeout 10 --max-time 30               -o "/tmp/http/${safe}.body" -D "/tmp/http/${safe}.headers"               -w '%{http_code}' "${BASE_URL}${path}?qa=${stamp}")"
+            echo "${path} -> ${code}"
+            test "${code}" = "200"
+          done
+          grep -Fq '>A distancia</a>' /tmp/http/_.body
+          grep -Fq '/assets/analytics.v628.js' /tmp/http/_.body
+          grep -Fq '<link href="https://iberfit.cl/" rel="canonical"' /tmp/http/_.body
+          if grep -Fq '>Online</a>' /tmp/http/_.body; then
+            echo LEGACY_SPANISH_ONLINE_VISIBLE
+            exit 71
+          fi
+          if grep -Fq 'static.cloudflareinsights.com' /tmp/http/_.body; then
+            echo CLOUDFLARE_RUM_INJECTION_PRESENT
+            exit 72
+          fi
+          grep -Fq 'Sitemap: https://iberfit.cl/sitemap.xml' /tmp/http/_robots_txt.body
+          grep -Fq '<lastmod>2026-09-12</lastmod>' /tmp/http/_sitemap_xml.body
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar Playwright
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/iberfitweb
+          npm install --no-save playwright@1.62.1
+          npx playwright install --with-deps chromium
+
+      - name: QA multidispositivo producción real
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/iberfitweb
+          BASE_URL="${BASE_URL}" QA_OUT="/tmp/evidence/web-iberfit-production-real"             node .github/scripts/qa_v628_dispositivos.mjs
+
+      - name: Verificar analytics, CSP y app aislada
+        env:
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location "${BASE_URL}/assets/analytics.v628.js" -o /tmp/analytics.js
+          curl --fail --silent --show-error --location "${BASE_URL}/assets/analytics-config.js" -o /tmp/analytics-config.js
+          grep -Fq 'generate_lead' /tmp/analytics.js
+          grep -Fq 'G-JXD1JSN7K3' /tmp/analytics-config.js
+          grep -Eiq 'consent|analytics_storage' /tmp/analytics.js /tmp/analytics-config.js
+
+          curl --fail --silent --show-error -D /tmp/root.headers -o /dev/null "${BASE_URL}/"
+          grep -Eiq "^content-security-policy:.*script-src[^\r\n]*'self'" /tmp/root.headers
+          if grep -Eiq '^content-security-policy:.*static\.cloudflareinsights\.com' /tmp/root.headers; then
+            echo CSP_WAS_WEAKENED_FOR_CLOUDFLARE_RUM
+            exit 73
+          fi
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer ${CLOUDFLARE_DNS_TOKEN}"             -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?name=${APP_DOMAIN}"             -o /tmp/app-dns.json
+          node <<'NODE'
+          const x=require('/tmp/app-dns.json');
+          const rows=x.result||[];
+          if(rows.length!==1 || rows[0].type!=='CNAME' ||
+             String(rows[0].content).replace(/\.$/,'')!==process.env.APP_TARGET ||
+             rows[0].proxied!==true) {
+            throw new Error('APP_DNS_UNEXPECTED:'+JSON.stringify(rows));
+          }
+          console.log('APP_ISOLATION_CERTIFIED=true');
+          NODE
+
+      - name: Verificar www canónico
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error -D /tmp/www.headers -o /dev/null -w '%{http_code}' https://www.iberfit.cl/)"
+          echo "WWW_HTTP=${code}"
+          test "$code" = "301" -o "$code" = "308"
+          grep -Eiq '^location:[[:space:]]*https://iberfit\.cl/?([[:space:]]|$)' /tmp/www.headers
+
+      - name: Guardar evidencia producción
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-web-iberfit-production-real-${{ github.run_id }}
+          path: |
+            /tmp/evidence/web-iberfit-production-real
+            /tmp/http
+            /tmp/root.headers
+            /tmp/www.headers
+            /tmp/app-dns.json
+          if-no-files-found: warn
+          retention-days: 90
