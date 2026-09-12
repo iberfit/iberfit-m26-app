@@ -1891,22 +1891,22 @@ function iri2DeltaText(item={}){
   const prefix=rounded>0?'+':'';
   return `${prefix}${rounded}${item.unit?` ${item.unit}`:''}`;
 }
-function renderIri2ProgressPanel(iri2){
-  if(!iri2)return '';
-  const metrics=Array.isArray(iri2.headline)?iri2.headline:[];
+function renderIri2ProgressPanel(evolution){
+  if(!evolution)return '';
+  const metrics=Array.isArray(evolution.headline)?evolution.headline:[];
   const metricCards=metrics.length
-    ?`<div class="m26-stat-grid">${metrics.map((item)=>stat(item.label,iri2DeltaText(item),'vs. evaluación anterior · cambio descriptivo')).join('')}</div>`
+    ?`<div class="m26-stat-grid">${metrics.map((item)=>stat(item.label,iri2DeltaText(item),'vs. reevaluación anterior · cambio descriptivo')).join('')}</div>`
     :'';
-  const comparisonBadge=iri2.comparableCount>0
-    ?badge(`${iri2.comparableCount} indicadores comparables`,'success')
-    :badge(iri2.label||'Línea base IRI','neutral');
-  const previous=iri2.previousAssessmentDate
-    ?`Comparación con ${safeDateLabel(iri2.previousAssessmentDate)}.`
-    :'Primera evaluación confirmada: se establece la línea base.';
-  return `<section class="m26-panel m26-panel-soft" data-iri2-progress>
-    <div class="m26-panel-heading"><div><p class="m26-eyebrow">IRI 2.0 longitudinal</p><h2>Evolución IRI 2.0</h2><p>${escapeHtml(iri2.detail||previous)}</p></div>${comparisonBadge}</div>
+  const comparisonBadge=evolution.comparableCount>0
+    ?badge(`${evolution.comparableCount} indicadores comparables`,'success')
+    :badge(evolution.label||'Diagnóstico IRI inicial','neutral');
+  const previous=evolution.previousAssessmentDate
+    ?`Seguimiento comparado con la reevaluación del ${safeDateLabel(evolution.previousAssessmentDate)}.`
+    :'Diagnóstico IRI inicial confirmado: este es el punto de partida del proceso.';
+  return `<section class="m26-panel m26-panel-soft" data-evolution-progress data-iri2-progress>
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Evolución y seguimiento</p><h2>Evolución del proceso</h2><p>${escapeHtml(evolution.detail||previous)}</p></div>${comparisonBadge}</div>
     ${metricCards}
-    <p class="m26-notice"><strong>Sin puntuación global</strong> · Solo se muestran cambios entre evaluaciones confirmadas y mediciones metodológicamente comparables.</p>
+    <p class="m26-notice"><strong>Sin puntuación global</strong> · El Diagnóstico IRI establece el punto de partida; las reevaluaciones IRI son hitos comparables dentro del seguimiento continuo.</p>
   </section>`;
 }
 function sleepHoursPerDay(minutes){
@@ -1964,7 +1964,7 @@ export function renderProgressRoute(vm){
     </section>
     ${pendingProgressNotice}
     ${sessionImpact}
-    ${renderIri2ProgressPanel(summary.iri2)}
+    ${renderIri2ProgressPanel(summary.evolution||summary.iri2)}
     ${adherenceVisual}
     ${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
     <section class="m26-content-grid">
