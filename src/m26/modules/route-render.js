@@ -2085,6 +2085,52 @@ function iriDomainState(label, complete) {
   return `<article class="m26-domain-status"><span>${escapeHtml(label)}</span>${badge(complete ? 'Registrado' : 'Sin registro', complete ? 'success' : 'neutral')}</article>`;
 }
 
+function decisionExcerpt(value,max=420){
+  const text=String(value||'').replace(/\s+/gu,' ').trim();
+  if(text.length<=max)return text;
+  const slice=text.slice(0,Math.max(0,max-1));
+  const lastSpace=slice.lastIndexOf(' ');
+  return `${slice.slice(0,lastSpace>max*.6?lastSpace:slice.length).trim()}…`;
+}
+function iriDecisionChangeCopy(entry={}){
+  const changes=entry.changes||{};
+  const parts=[];
+  if(changes.prioritiesAdded?.length)parts.push(`Prioridades añadidas: ${changes.prioritiesAdded.join(' · ')}`);
+  if(changes.prioritiesRemoved?.length)parts.push(`Prioridades retiradas: ${changes.prioritiesRemoved.join(' · ')}`);
+  if(changes.planChanged)parts.push('Plan acordado actualizado');
+  if(changes.implicationsChanged)parts.push('Implicación para el entrenamiento actualizada');
+  if(changes.frequencyChanged)parts.push('Frecuencia revisada');
+  if(changes.reevaluationChanged)parts.push('Próxima reevaluación revisada');
+  return parts.join(' · ');
+}
+function iriDecisionLogPanel(log={}){
+  const entries=Array.isArray(log.entries)?[...log.entries].reverse().slice(0,4):[];
+  const content=entries.length
+    ?`<div class="m26-stack">${entries.map((entry)=>{
+        const priorities=Array.isArray(entry.priorities)&&entry.priorities.length
+          ?`<ul>${entry.priorities.slice(0,4).map((item)=>`<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+          :'<p>Sin prioridades registradas.</p>';
+        const changeCopy=iriDecisionChangeCopy(entry);
+        return `<article class="m26-list-card m26-iri-decision-entry">
+          <div>
+            <p class="m26-eyebrow">${escapeHtml(entry.assessmentDate||'Sin fecha')} · ${escapeHtml(entry.label||'Decisión IRI')}</p>
+            <h3>Prioridades</h3>
+            ${priorities}
+            ${entry.trainingImplications?`<p><strong>Implicación para el entrenamiento:</strong> ${escapeHtml(decisionExcerpt(entry.trainingImplications))}</p>`:''}
+            ${entry.initialPlan?`<p><strong>Plan acordado:</strong> ${escapeHtml(decisionExcerpt(entry.initialPlan))}</p>`:''}
+            <p><strong>Frecuencia:</strong> ${escapeHtml(entry.recommendedFrequency||'Sin registro')} · <strong>Próxima reevaluación:</strong> ${escapeHtml(entry.reevaluationDate||'Por definir')}</p>
+            ${changeCopy?`<small>${escapeHtml(changeCopy)}</small>`:''}
+          </div>
+          ${badge(entry.label||'Decisión IRI',entry.changes?.changed?'pending':'neutral')}
+        </article>`;
+      }).join('')}</div>`
+    :emptyState('Sin decisiones confirmadas','El historial aparecerá cuando se confirme una evaluación IRI con prioridades y plan.');
+  return `<section class="m26-panel m26-panel-soft m26-iri-decision-log" data-iri-decision-log>
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial de decisiones</p><h2>Qué se decidió y por qué</h2><p>Solo evaluaciones IRI confirmadas. La app muestra cambios documentados y no los interpreta automáticamente como mejor o peor.</p></div>${badge(`${Number(log.count||0)} decisión${Number(log.count||0)===1?'':'es'}`,'neutral')}</div>
+    ${content}
+  </section>`;
+}
+
 function requiredLabel(labelText,required){return `${escapeHtml(labelText)}${required?' <span class="m26-required" aria-hidden="true">*</span>':''}`;}
 function iriInput(labelText,name,{type='text',value='',min=null,max=null,step=null,required=false,wide=false,help='',readonly=false}={}){
   const attributes=[`name="${escapeHtml(name)}"`,`type="${escapeHtml(type)}"`,min!==null?`min="${escapeHtml(min)}"`:'',max!==null?`max="${escapeHtml(max)}"`:'',step!==null?`step="${escapeHtml(step)}"`:'',required?'required aria-required="true"':'',readonly?'readonly':''].filter(Boolean).join(' ');
@@ -2143,7 +2189,7 @@ export function renderIriRoute(vm) {
   steps.push(iriStep(6,'revision','Diagnóstico y entrega','Separa datos objetivos, interpretación profesional y próximos pasos.',`<section class="m26-comparability" data-iri-comparability role="status" aria-live="polite">La comparabilidad se comprobará al registrar la configuración de cada prueba.</section><div class="m26-review-summary"><div><span>Completitud</span><strong data-iri-computed="completion">0%</strong></div><div><span>Recuperación FC</span><strong data-iri-computed="delta">—</strong></div><div><span>Documento cliente</span><strong>7 páginas</strong></div><div><span>Documento interno</span><strong>14 páginas + anexos</strong></div></div><div class="m26-field-grid">${iriTextarea('Fortalezas','diagnosisStrengths',{max:1000,placeholder:'Una por línea',required:true})}${iriTextarea('Prioridades','diagnosisPriorities',{max:1000,placeholder:'Una por línea',required:true})}${iriTextarea('Interpretación del Coach','coachInterpretation',{max:2200,required:true})}${iriTextarea('Implicaciones para el entrenamiento','trainingImplications',{max:2200})}${iriTextarea('Plan inicial','initialPlan',{max:2200,required:true})}${iriInput('Frecuencia recomendada','recommendedFrequency')}${iriInput('Fecha de reevaluación','reevaluationDate',{type:'date'})}<label class="m26-wide m26-consent"><input type="checkbox" name="reviewAccepted" required> He revisado el contenido, los protocolos, las limitaciones y la coherencia del diagnóstico.</label></div><section class="m26-report-choice"><article><img src="/public/isotipo-iberfit.png" alt=""><div><h4>Versión Cliente</h4><p>Resumen visual, comprensible y accionable.</p></div><button type="button" data-workflow-action="generate-client-iri-report"${iriConfirmed?'':' disabled aria-disabled="true" title="Confirma primero la evaluación IRI"'}>Generar PDF Cliente</button></article><article><img src="/public/isotipo-iberfit.png" alt=""><div><h4>Versión Coach / Admin</h4><p>Datos completos, protocolos, validez y trazabilidad.</p></div><button type="button" data-workflow-action="generate-coach-iri-report"${iriConfirmed?'':' disabled aria-disabled="true" title="Confirma primero la evaluación IRI"'}>Generar PDF interno</button></article></section>${iriConfirmed?'':'<p class="m26-notice is-warning">Los informes se habilitan únicamente después de confirmar y verificar la evaluación en el expediente.</p>'}`));
   const editor=vm.canEdit?`<form class="m26-panel m26-iri-wizard" data-workflow-form="iri" data-iri-step-index="0"><input type="hidden" name="entityId" value="${escapeHtml(current.id||'')}"><div class="m26-stepper" role="list">${['Expediente','Entrevista','Composición','Movilidad','Fuerza','Cardio','Revisión'].map((labelText,index)=>`<button type="button" role="listitem" data-iri-step-jump="${index}"${index===0?' class="is-active"':''}><span>${index+1}</span><small>${labelText}</small></button>`).join('')}</div><div class="m26-progress-track"><i data-iri-progress style="width:14.3%"></i></div>${steps.join('')}<div class="m26-wizard-actions"><button type="button" data-workflow-action="iri-prev" disabled aria-disabled="true">Anterior</button><button type="button" data-workflow-action="save-iri-draft">Guardar borrador</button><button type="button" class="m26-primary-action" data-workflow-action="iri-next">Validar y continuar</button><button type="submit" class="m26-primary-action" data-workflow-action="complete-iri" hidden${current.id?'':' disabled aria-disabled="true"'}>Confirmar evaluación IRI</button></div>${current.id?'':'<p class="m26-notice is-warning">El expediente debe devolver una entidad IRI remota antes de poder confirmar. El borrador y los informes internos pueden prepararse igualmente.</p>'}${workflowStatus('iri')}</form>`:'';
   const domainCards=summary?`<div class="m26-domain-grid">${iriDomainState('Respuesta cardiovascular',summary.domains.cardiovascular)}${iriDomainState('Composición corporal',summary.domains.bodyComposition)}${iriDomainState('Fuerza por patrón',summary.domains.strength)}</div>`:emptyState('Sin evaluación confirmada','Los datos ausentes se mantienen como “Sin registro”.');
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Primera sesión y diagnóstico</p><h2>Índice de Rendimiento IBERFIT</h2><p>Proceso guiado de 7 etapas. Los 3 dominios de resultado resumen evidencia objetiva y nunca forman una puntuación global.</p></div>${badge(summary?summary.processLabel||summary.coverageLabel:'Pendiente',summary?.confirmed?'success':'warning')}</section>${personContext}<section class="m26-content-grid"><article class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Última evaluación confirmada</p><h2>${escapeHtml(summary?.dateLabel||'Sin fecha')}</h2><p>${escapeHtml(summary?.processLabel||'No hay evaluación confirmada.')}</p><p>${escapeHtml(summary?.coverageLabel||'Los dominios de resultado aún no están confirmados.')}</p>${domainCards}<p class="m26-notice">No se presenta una puntuación global automática cuando la evidencia no cubre dominios comparables.</p></article><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>Evaluaciones registradas</h2></div>${badge(countLabel(vm.history.length,'registro','registros'),'neutral')}</div>${recordList(vm.history,'Sin evaluaciones IRI')}</section></section>${editor}</div>`;
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Primera sesión y diagnóstico</p><h2>Índice de Rendimiento IBERFIT</h2><p>Proceso guiado de 7 etapas. Los 3 dominios de resultado resumen evidencia objetiva y nunca forman una puntuación global.</p></div>${badge(summary?summary.processLabel||summary.coverageLabel:'Pendiente',summary?.confirmed?'success':'warning')}</section>${personContext}${iriDecisionLogPanel(vm.decisionLog)}<section class="m26-content-grid"><article class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Última evaluación confirmada</p><h2>${escapeHtml(summary?.dateLabel||'Sin fecha')}</h2><p>${escapeHtml(summary?.processLabel||'No hay evaluación confirmada.')}</p><p>${escapeHtml(summary?.coverageLabel||'Los dominios de resultado aún no están confirmados.')}</p>${domainCards}<p class="m26-notice">No se presenta una puntuación global automática cuando la evidencia no cubre dominios comparables.</p></article><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>Evaluaciones registradas</h2></div>${badge(countLabel(vm.history.length,'registro','registros'),'neutral')}</div>${recordList(vm.history,'Sin evaluaciones IRI')}</section></section>${editor}</div>`;
 }
 
 export function renderPlanningRoute(vm){
