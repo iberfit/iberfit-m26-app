@@ -414,12 +414,21 @@ export function renderAccessUi({
           Reparar acceso en este dispositivo
         </button>
 
+        <button
+          type="button"
+          class="m26-auth-link"
+          data-auth-action="mfa-account-recovery"
+          ${disabled ? 'disabled aria-disabled="true"' : ''}
+        >
+          Recuperar acceso por correo
+        </button>
+
         <button type="button" class="m26-tertiary-action" data-auth-action="mfa-logout">
           Volver y usar otra cuenta
         </button>
       </div>
 
-      <p class="m26-field-help m26-device-assurance">Los dispositivos nuevos se añaden desde una sesión ya verificada. Si pierdes todos tus dispositivos de confianza, IBERFIT debe recuperar el acceso mediante un flujo reforzado.</p>
+      <p class="m26-field-help m26-device-assurance">Los dispositivos nuevos se añaden desde una sesión ya verificada. Si pierdes todos tus dispositivos de confianza, usa la recuperación segura por correo para restablecerlos y configurar este equipo.</p>
     `;
   } else if (normalizedMode === 'mfa-email-code') {
     const maskedEmail=maskAccessEmail(mfa?.email||'');
