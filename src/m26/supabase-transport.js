@@ -532,7 +532,6 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       email.length<3||
       email.length>MAX_AUTH_EMAIL_CHARS||
       !email.includes('@')||
-      !['admin','coach'].includes(privilegedRole)||
       /[\u0000-\u001f\u007f]/u.test(email)
     ){
       throw new Error('M26_AUTH_USER_INVALID_RESPONSE');
@@ -635,6 +634,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       email.length<3||
       email.length>MAX_AUTH_EMAIL_CHARS||
       !email.includes('@')||
+      !['admin','coach'].includes(privilegedRole)||
       /[ -]/u.test(email)
     )throw new Error('M26_WEBAUTHN_VERIFY_INVALID_RESPONSE');
     if(runtime.qaOnly&&!isQaAuthorizedEmail(email))throw new Error('M26_QA_ACCOUNT_REQUIRED');
