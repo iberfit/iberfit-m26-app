@@ -28,7 +28,7 @@ test('route view transitions respect prefers-reduced-motion',()=>{
   assert.equal(updates,1);
 });
 
-test('route view transitions use the native API once when supported',()=>{
+test('route view transitions use the native API once on non-touch pointer devices',()=>{
   let updates=0;
   let starts=0;
   const token={finished:Promise.resolve()};
@@ -39,12 +39,29 @@ test('route view transitions use the native API once when supported',()=>{
       return token;
     },
   };
-  const windowLike={matchMedia:()=>media(false)};
+  const windowLike={
+    navigator:{maxTouchPoints:0},
+    matchMedia:(query)=>media(query==='(pointer: coarse)'?false:false),
+  };
   assert.equal(routeViewTransitionsEnabled({documentLike,windowLike}),true);
   const transition=runRouteViewTransition(()=>{updates+=1;},{documentLike,windowLike});
   assert.equal(transition,token);
   assert.equal(starts,1);
   assert.equal(updates,1);
+});
+
+test('route view transitions fail open synchronously on coarse or touch-capable devices',()=>{
+  const documentLike={startViewTransition(){throw new Error('must not be called on touch');}};
+
+  for(const windowLike of [
+    {navigator:{maxTouchPoints:1},matchMedia:()=>media(false)},
+    {navigator:{maxTouchPoints:0},matchMedia:(query)=>media(query==='(pointer: coarse)')},
+  ]){
+    let updates=0;
+    assert.equal(routeViewTransitionsEnabled({documentLike,windowLike}),false);
+    assert.equal(runRouteViewTransition(()=>{updates+=1;},{documentLike,windowLike}),null);
+    assert.equal(updates,1);
+  }
 });
 
 test('route view transitions fail open without duplicating an invoked update',()=>{
