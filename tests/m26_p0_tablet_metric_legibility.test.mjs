@@ -10,7 +10,7 @@ test('tablet portrait metric grids retain two readable columns after the full ad
   assert.ok(marker>=0,'final tablet portrait legibility override must exist');
   const tail=css.slice(marker);
   assert.match(tail,/@media \(orientation: portrait\) and \(min-width: 901px\) and \(max-width: 1100px\)/u);
-  assert.match(tail,/\[data-m26-layout="expanded-touch"\] \.m26-stat-grid/u);
+  assert.match(tail,/\.m26-shell\[data-m26-input="touch"\] \.m26-stat-grid/u);
   assert.match(tail,/grid-template-columns: repeat\(2,minmax\(0,1fr\)\) !important/u);
 });
 
