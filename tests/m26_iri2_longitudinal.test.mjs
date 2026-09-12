@@ -4,13 +4,27 @@ import assert from 'node:assert/strict';
 import {normalizeFirstSessionDraft} from '../src/m26/workflows/iri-first-session.js';
 import {
   IRI2_SNAPSHOT_SCHEMA,
+  buildIri2DecisionLog,
   buildIri2LongitudinalProfile,
   iri2ComparisonSummary,
   iri2SnapshotFromDraft,
 } from '../src/m26/workflows/iri-2-longitudinal.js';
 import {buildIriReportHtml} from '../src/m26/workflows/iri-report-document.js';
 
-function makeDraft({id,date,chair=14,push=8,weight=66}={}){
+function makeDraft({
+  id,
+  date,
+  chair=14,
+  push=8,
+  weight=66,
+  clientId='CLIENT-IRI2',
+  priorities='Aumentar fuerza funcional',
+  plan='Plan inicial de ocho semanas con seguimiento estructurado.',
+  implications='Progresar fuerza manteniendo protocolos comparables.',
+  frequency='2 sesiones por semana',
+  reevaluationDate='',
+  accepted=true,
+}={}){
   return normalizeFirstSessionDraft({
     assessmentDate:date,
     birthDate:'1988-04-16',
@@ -43,13 +57,14 @@ function makeDraft({id,date,chair=14,push=8,weight=66}={}){
     cardioSkipped:'on',
     cardioSkipReason:'No se realizó en esta sesión.',
     diagnosisStrengths:'Buena adherencia y control técnico',
-    diagnosisPriorities:'Aumentar fuerza funcional',
+    diagnosisPriorities:priorities,
     coachInterpretation:'Perfil apto para iniciar una progresión individualizada.',
-    trainingImplications:'Progresar fuerza manteniendo protocolos comparables.',
-    initialPlan:'Plan inicial de ocho semanas con seguimiento estructurado.',
-    recommendedFrequency:'2 sesiones por semana',
-    reviewAccepted:'on',
-  },{id},'CLIENT-IRI2');
+    trainingImplications:implications,
+    initialPlan:plan,
+    recommendedFrequency:frequency,
+    reevaluationDate,
+    reviewAccepted:accepted?'on':'',
+  },{id},clientId);
 }
 
 test('IRI 2.0 snapshots preserve decisions and objective metrics without inventing a global score',()=>{
@@ -111,4 +126,65 @@ test('first IRI 2.0 assessment establishes a baseline instead of fabricating pro
   assert.equal(summary.available,false);
   assert.equal(summary.label,'Primera evaluación');
   assert.match(summary.detail,/línea de base/u);
+});
+
+
+test('IRI 2.0 decision log includes only confirmed reviewed decisions and records factual strategy changes',()=>{
+  const first=makeDraft({
+    id:'33333333-3333-4333-8333-333333333333',
+    date:'2026-01-11',
+    priorities:'Fuerza tren inferior, Movilidad tobillo',
+    plan:'Bloque inicial de ocho semanas centrado en técnica y fuerza.',
+    frequency:'2 sesiones por semana',
+    reevaluationDate:'2026-03-11',
+  });
+  const second=makeDraft({
+    id:'44444444-4444-4444-8444-444444444444',
+    date:'2026-03-11',
+    priorities:'Fuerza tren inferior, Capacidad cardiorrespiratoria',
+    plan:'Segundo bloque con fuerza mantenida y progresión cardiorrespiratoria.',
+    implications:'Mantener fuerza y añadir trabajo cardiorrespiratorio progresivo.',
+    frequency:'3 sesiones por semana',
+    reevaluationDate:'2026-05-11',
+  });
+  const unreviewed=makeDraft({
+    id:'55555555-5555-4555-8555-555555555555',
+    date:'2026-05-11',
+    priorities:'No debe aparecer',
+    accepted:false,
+  });
+
+  const log=buildIri2DecisionLog({assessments:[second,unreviewed,first]});
+  assert.equal(log.count,2);
+  assert.equal(log.entries[0].label,'Decisión inicial');
+  assert.equal(log.entries[1].label,'Prioridades actualizadas');
+  assert.deepEqual(log.entries[1].changes.prioritiesAdded,['Capacidad cardiorrespiratoria']);
+  assert.deepEqual(log.entries[1].changes.prioritiesRemoved,['Movilidad tobillo']);
+  assert.equal(log.entries[1].changes.planChanged,true);
+  assert.equal(log.entries[1].changes.implicationsChanged,true);
+  assert.equal(log.entries[1].changes.frequencyChanged,true);
+  assert.equal(log.entries[1].changes.reevaluationChanged,true);
+  assert.equal(log.latest.initialPlan,'Segundo bloque con fuerza mantenida y progresión cardiorrespiratoria.');
+  assert.equal('compositeScore' in log,false);
+});
+
+test('IRI 2.0 decision log never mixes decisions from a different client',()=>{
+  const first=makeDraft({
+    id:'66666666-6666-4666-8666-666666666666',
+    date:'2026-02-01',
+    clientId:'CLIENT-A',
+    priorities:'Fuerza',
+  });
+  const otherClient=makeDraft({
+    id:'77777777-7777-4777-8777-777777777777',
+    date:'2026-03-01',
+    clientId:'CLIENT-B',
+    priorities:'Cardio',
+  });
+
+  const log=buildIri2DecisionLog({assessments:[first,otherClient]});
+  assert.equal(log.clientId,'CLIENT-A');
+  assert.equal(log.count,1);
+  assert.equal(log.entries[0].assessmentId,'66666666-6666-4666-8666-666666666666');
+  assert.deepEqual(log.entries[0].priorities,['Fuerza']);
 });
