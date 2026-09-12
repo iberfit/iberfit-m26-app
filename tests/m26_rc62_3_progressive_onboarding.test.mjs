@@ -115,7 +115,9 @@ test('RC62.3 application owns onboarding lifecycle and identity scope',()=>{
 test('RC62.3 controller remains presentation local-only and reuses canonical navigation events',()=>{
   const source=read('src/m26/onboarding/progressive-onboarding.js');
   assert.match(source,/data-m26-area/u);
-  assert.match(source,/MutationObserver/u);
+  assert.match(source,/m26:shell-rendered/u);
+  assert.match(source,/tourObserver\.observe\(documentLike\.body,\{childList:true\}\)/u);
+  assert.doesNotMatch(source,/\.observe\(root,\{childList:true,subtree:true/u);
   assert.match(source,/localStorage/u);
   assert.doesNotMatch(source,/commandBus|transport\.|supabase|fetch\(|XMLHttpRequest|service_role/iu);
 });
