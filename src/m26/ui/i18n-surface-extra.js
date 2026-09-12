@@ -60,7 +60,7 @@ function runtimeExtra(source,language){
   if((match=source.match(/^Tienes (\d+) (?:sesión|sesiones) (?:disponible|disponibles) en tu planificación\.$/u))){
     if(language==='en')return `You have ${match[1]} session${match[1]==='1'?'':'s'} available in your planning.`;
     if(language==='fr')return `Vous avez ${match[1]} séance${match[1]==='1'?'':'s'} disponible${match[1]==='1'?'':'s'} dans votre planification.`;
-    return `Tem ${match[1]} sessão${match[1]==='1'?'':'ões'} ${match[1]==='1'?'disponível':'disponíveis'} no seu planeamento.`;
+    return `Tem ${match[1]} ${match[1]==='1'?'sessão':'sessões'} ${match[1]==='1'?'disponível':'disponíveis'} no seu planeamento.`;
   }
   if((match=source.match(/^Comenzar · (.+)$/u))){
     if(language==='en')return `Start · ${match[1]}`;
