@@ -195,6 +195,69 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
           page.locator('[data-m26-action="logout"]'),
           'Authenticated client must retain a semantic logout action even when session controls live inside Settings',
         ).toHaveCount(1,{timeout:5_000});
+
+        await expect(
+          page.locator('[data-m26-interaction-ready="true"]'),
+          'Authenticated shell must explicitly reach interaction-ready state',
+        ).toHaveCount(1,{timeout:5_000});
+
+        const navigationTarget=await page.evaluate(()=>{
+          const shellNode=document.querySelector('.m26-shell[data-m26-role="client"]');
+          if(!shellNode)return null;
+          const candidates=[...shellNode.querySelectorAll('[data-m26-area]')];
+          const visible=(node)=>{
+            const style=getComputedStyle(node);
+            const rect=node.getBoundingClientRect();
+            return style.display!=='none'&&style.visibility!=='hidden'&&rect.width>0&&rect.height>0;
+          };
+          const target=candidates.find((node)=>
+            visible(node)&&
+            !node.disabled&&
+            node.getAttribute('aria-disabled')!=='true'&&
+            node.getAttribute('aria-current')!=='page'&&
+            String(node.getAttribute('data-m26-area')||'').trim()
+          );
+          return target?String(target.getAttribute('data-m26-area')||''):null;
+        });
+        expect(navigationTarget,'Authenticated shell must expose a second interactive route').toBeTruthy();
+
+        const navigationCandidates=shell.locator(`[data-m26-area="${navigationTarget}"]`);
+        let navigationControl=null;
+        for(let index=0;index<await navigationCandidates.count();index+=1){
+          const candidate=navigationCandidates.nth(index);
+          if(await candidate.isVisible()){
+            navigationControl=candidate;
+            break;
+          }
+        }
+        expect(navigationControl,'A visible route control must be clickable').toBeTruthy();
+        await navigationControl.click({timeout:5_000});
+        await expect.poll(
+          ()=>page.evaluate((area)=>[...document.querySelectorAll('[data-m26-area]')].some((node)=>
+            node.getAttribute('data-m26-area')===area&&node.getAttribute('aria-current')==='page'
+          ),navigationTarget),
+          {timeout:5_000,message:'Route click must update canonical navigation state'},
+        ).toBe(true);
+
+        const settingsSummary=shell.locator('.m26-settings-menu > summary');
+        await expect(settingsSummary).toBeVisible({timeout:5_000});
+        await settingsSummary.click({timeout:5_000});
+        await expect(shell.locator('.m26-settings-menu')).toHaveAttribute('open','',{timeout:5_000});
+
+        const localeSelector=shell.locator('[data-m26-ui-locale]');
+        await expect(localeSelector).toBeVisible({timeout:5_000});
+        await expect(localeSelector).toBeEnabled({timeout:5_000});
+        const originalLocale=await localeSelector.inputValue();
+        const localeOptions=await localeSelector.locator('option').evaluateAll((options)=>
+          options.map((option)=>String(option.value||'')).filter(Boolean)
+        );
+        const alternateLocale=localeOptions.find((value)=>value!==originalLocale)||originalLocale;
+        await localeSelector.selectOption(alternateLocale);
+        await expect(localeSelector).toHaveValue(alternateLocale,{timeout:5_000});
+        if(alternateLocale!==originalLocale){
+          await localeSelector.selectOption(originalLocale);
+          await expect(localeSelector).toHaveValue(originalLocale,{timeout:5_000});
+        }
       }
 
       const quality=await page.evaluate(async()=>{
@@ -228,6 +291,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         consoleErrors:0,
         pageErrors:0,
         qualityObservability:'memory-only-no-transport',
+        interactionVerified:account.role==='client',
       }));
 
       console.log(`RC64_2B_CURRENT_ACCOUNT_PASS:${account.name}`);
@@ -237,7 +301,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
   }
 
   const evidence=Object.freeze({
-    schema:'iberfit.rc64.2b.authenticated-current-contract.v3',
+    schema:'iberfit.rc64.2b.authenticated-current-contract.v4',
     source:'current-source-qa-surface',
     projectRef:PROJECT_REF,
     mode:'authenticated-readonly-browser',
