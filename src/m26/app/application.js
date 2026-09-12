@@ -447,7 +447,6 @@ export async function createM26Application({root=document.querySelector('#app'),
           Object.assign(new Error('M26_CONTROLLER_MOUNT_SLOW'),{durationMs}),
         );
       }
-      qaStage(`rc64-controller-${name}-mounted`);
     }
     if(generation!==progressiveControllerMountGeneration||!session)return false;
     if(root?.dataset)root.dataset.m26Controllers='ready';
