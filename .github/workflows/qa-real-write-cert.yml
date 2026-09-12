@@ -1,0 +1,63 @@
+name: IBERFIT QA Real Write Certification
+
+on:
+  pull_request:
+    branches: [canary/rc74-4]
+    paths:
+      - 'scripts/remote-gates/run_qa_real_write_gate.mjs'
+      - '.github/workflows/qa-real-write-cert.yml'
+      - 'src/m26/command-bus.js'
+      - 'src/m26/supabase-transport.js'
+      - 'src/m26/workflows/**'
+  push:
+    branches: [canary/rc74-4]
+    paths:
+      - 'scripts/remote-gates/run_qa_real_write_gate.mjs'
+      - '.github/workflows/qa-real-write-cert.yml'
+      - 'src/m26/command-bus.js'
+      - 'src/m26/supabase-transport.js'
+      - 'src/m26/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-qa-real-write-cert
+  cancel-in-progress: false
+
+jobs:
+  qa-real-write:
+    name: client-write-persist-read
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Execute controlled QA write and verify persisted row under RLS
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: node scripts/remote-gates/run_qa_real_write_gate.mjs
+
+      - name: Preserve minimised write evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-qa-real-write-${{ github.run_id }}
+          path: recovery/P0_QA_REAL_WRITE_EVIDENCE.json
+          if-no-files-found: error
+          retention-days: 30
