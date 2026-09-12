@@ -1922,16 +1922,11 @@ function renderPlanExecutionPanel(plan){
   }
   const latest=plan.latest;
   const latestCopy=latest
-    ?`${latest.sessionTitle} · ${safeDateLabel(latest.completedAt)} · ${latest.plannedSets} / ${latest.recordedSets} / ${latest.skippedSets}`
+    ?`${latest.sessionTitle} · ${safeDateLabel(latest.completedAt)}`
     :'Sin sesión comparable reciente';
-  const adjustmentCopy=[
-    plan.substitutions?`${plan.substitutions} sustitución${plan.substitutions===1?'':'es'}`:null,
-    plan.addedSets?`${plan.addedSets} serie${plan.addedSets===1?'':'s'} añadida${plan.addedSets===1?'':'s'}`:null,
-    plan.addedExercises?`${plan.addedExercises} ejercicio${plan.addedExercises===1?'':'s'} añadido${plan.addedExercises===1?'':'s'}`:null,
-  ].filter(Boolean).join(' · ')||'Sin ajustes explícitos registrados';
   const unresolved=Number(plan.unresolvedPlannedSets||0);
   return `<section class="m26-panel" data-evolution-plan-execution>
-    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Evolución y seguimiento</p><h2>De lo planificado a lo realizado</h2><p>Comparación descriptiva entre la planificación publicada y la ejecución confirmada.</p></div>${badge(`Evidencia ${plan.quality}`,'neutral')}</div>
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Evolución y seguimiento</p><h2>De lo planificado a lo realizado</h2><p>Comparación descriptiva entre la planificación publicada y la ejecución confirmada.</p></div>${badge('Evidencia descriptiva','neutral')}</div>
     <div class="m26-stat-grid">
       ${stat('Sesiones comparables',plan.comparedSessions,`${plan.asPlannedSessions} sin ajustes explícitos · ${plan.adjustedSessions} con ajustes`)}
       ${stat('Series previstas',plan.plannedSets,'Planificación publicada')}
@@ -1941,7 +1936,9 @@ function renderPlanExecutionPanel(plan){
     <div class="m26-field-grid">
       ${field('Última sesión comparable',latestCopy)}
       ${field('Previstas / registradas / omitidas',latest?`${latest.plannedSets} / ${latest.recordedSets} / ${latest.skippedSets}`:'Sin dato')}
-      ${field('Ajustes registrados',adjustmentCopy)}
+      ${field('Sustituciones',plan.substitutions||0)}
+      ${field('Series añadidas',plan.addedSets||0)}
+      ${field('Ejercicios añadidos',plan.addedExercises||0)}
       ${field('Series previstas sin resolver',unresolved||'Ninguna')}
     </div>
     ${Number(plan.unmatchedExecutions||0)>0?`<p class="m26-notice">Fuera del recuento: ${escapeHtml(plan.unmatchedExecutions)} ejecución${plan.unmatchedExecutions===1?'':'es'} sin una sesión publicada comparable.</p>`:''}
