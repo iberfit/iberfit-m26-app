@@ -2,6 +2,7 @@ import {createM26Transport} from '../supabase-transport.js';
 
 const RPC=Object.freeze({context:'iberfit_application_context_v14',bootstrap:'iberfit_admin_bootstrap_v14',execute:'iberfit_admin_execute_v14'});
 const CLIENT_INVITE_FUNCTION='/functions/v1/iberfit-admin-client-invite-v1';
+const USER_DECOMMISSION_FUNCTION='/functions/v1/iberfit-admin-user-decommission-v1';
 const MISSING=/PGRST202|not find the function|M26_HTTP_404/i;
 const DEFAULT_TIMEOUT_MS=12_000;
 const PRIVILEGED_WEBAUTHN_FACTOR_ID='65000000-0000-4000-8000-000000000002';
@@ -81,7 +82,9 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
     const type=String(command?.type||'').trim().toUpperCase();
     const result=type==='ADMIN_CLIENTE_CREAR'
       ?await request(CLIENT_INVITE_FUNCTION,token,{command})
-      :await rpc(RPC.execute,token,{p_command:command});
+      :type==='ADMIN_USUARIO_ELIMINAR'
+        ?await request(USER_DECOMMISSION_FUNCTION,token,{command})
+        :await rpc(RPC.execute,token,{p_command:command});
     if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))throw new Error('M26_ADMIN_MUTATION_NOT_CONFIRMED');
     return Object.freeze({...result});
   }
