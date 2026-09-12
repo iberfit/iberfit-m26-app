@@ -1,0 +1,178 @@
+name: Preview WEB IBERFIT V6.29
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.iberfit/web-v629-preview.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-v629-preview
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+  PREVIEW_BRANCH: 'v629-experience'
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar marcador
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const m=JSON.parse(fs.readFileSync('.iberfit/web-v629-preview.json','utf8'));
+          if(m.schema!=='iberfit.web.v629-preview.v1') throw new Error('PREVIEW_SCHEMA_INVALID');
+          if(!/^[0-9a-f]{40}$/.test(m.webSha||'')) throw new Error('WEB_SHA_INVALID');
+          if(m.branch!=='work/web-v6-29-experience') throw new Error('WEB_BRANCH_INVALID');
+          fs.appendFileSync(process.env.GITHUB_ENV,'WEB_SHA='+m.webSha+'\n');
+          NODE
+
+      - name: Descargar candidata exacta
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/iberfit/iberfitweb.git /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=1 origin "${WEB_SHA}"
+          git -C /tmp/iberfitweb checkout --detach "${WEB_SHA}"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "${WEB_SHA}"
+          test -s /tmp/iberfitweb/candidate/v628/assets/experience.v629.css
+          test -s /tmp/iberfitweb/candidate/v628/assets/experience.v629.js
+          grep -Fq 'data-review-carousel' /tmp/iberfitweb/candidate/v628/index.html
+          grep -Fq 'experience.v629.js' /tmp/iberfitweb/candidate/v628/online/index.html
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Desplegar preview Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/iberfitweb
+          npx --yes wrangler@4.120.0 pages deploy candidate/v628             --project-name "${CF_PROJECT}"             --branch "${PREVIEW_BRANCH}"             --commit-hash "${WEB_SHA}"             --commit-message "IBERFIT V6.29 experience preview" | tee /tmp/wrangler-preview.log
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments"             -o /tmp/deployments.json
+
+          WEB_SHA="${WEB_SHA}" node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          if(!x.success||!Array.isArray(x.result)) throw new Error('DEPLOYMENTS_LOOKUP_FAILED');
+          const d=x.result.find(v=>v.environment==='preview' &&
+            v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA);
+          if(!d) throw new Error('V629_PREVIEW_NOT_FOUND');
+          if(d.latest_stage?.status && d.latest_stage.status!=='success') throw new Error('V629_PREVIEW_NOT_SUCCESS');
+          fs.appendFileSync(process.env.GITHUB_ENV,'PREVIEW_URL='+d.url+'\n');
+          console.log('V629_PREVIEW_ID='+d.id);
+          console.log('V629_PREVIEW_URL='+d.url);
+          NODE
+
+      - name: Smoke real de preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in / /online/ /entrenador-personal-las-condes/ /entrenador-personal-vitacura/ /entrenamiento-personal-providencia/ /personal-trainer-nunoa/ /entrenador-personal-lo-barnechea/ /entrenador-personal-la-reina/ /entrenador-personal-penalolen/; do
+            code="$(curl --silent --show-error --location --retry 8 --retry-all-errors               --connect-timeout 10 --max-time 30 -o /tmp/page.html -w '%{http_code}' "${PREVIEW_URL}${path}")"
+            echo "${path} -> ${code}"
+            test "${code}" = '200'
+          done
+          curl --fail --silent --show-error "${PREVIEW_URL}/assets/experience.v629.css" -o /tmp/experience.css
+          curl --fail --silent --show-error "${PREVIEW_URL}/assets/experience.v629.js" -o /tmp/experience.js
+          grep -Fq '.country-panel' /tmp/experience.css
+          grep -Fq 'review_carousel_change' /tmp/experience.js
+
+      - name: QA browser real de preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright@1.62.1
+          npx playwright install --with-deps chromium
+          cat > /tmp/qa-preview.js <<'NODE'
+          const { chromium } = require('playwright');
+          const base=process.env.PREVIEW_URL;
+          const locals=[
+            ['/entrenador-personal-las-condes/','Las Condes'],
+            ['/entrenador-personal-vitacura/','Vitacura'],
+            ['/entrenamiento-personal-providencia/','Providencia'],
+            ['/personal-trainer-nunoa/','Ñuñoa'],
+            ['/entrenador-personal-lo-barnechea/','Lo Barnechea'],
+            ['/entrenador-personal-la-reina/','La Reina'],
+            ['/entrenador-personal-penalolen/','Peñalolén']
+          ];
+          const ok=(c,m)=>{if(!c)throw new Error(m)};
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            try{
+              const ctx=await browser.newContext({viewport:{width:1440,height:1000}});
+              const home=await ctx.newPage();
+              await home.goto(base+'/',{waitUntil:'networkidle'});
+              await home.locator('.review-carousel-shell').waitFor();
+              ok(await home.locator('.review-slide.is-active').count()===1,'preview home active review != 1');
+              const a=await home.locator('.review-slide.is-active').getAttribute('data-review-index');
+              await home.waitForTimeout(2250);
+              const b=await home.locator('.review-slide.is-active').getAttribute('data-review-index');
+              ok(a!==b,'preview carousel no auto advance');
+              ok(await home.locator('.review-source-row a[href*="google"]').count()===0,'preview review outbound Google');
+              await home.close();
+
+              const online=await ctx.newPage();
+              await online.goto(base+'/online/',{waitUntil:'networkidle'});
+              await online.locator('[data-country-selector]').waitFor();
+              ok(await online.locator('.country-option').count()===7,'preview country count');
+              await online.locator('[data-country="ES"]').click();
+              ok((await online.locator('[data-country-currency]').textContent()).trim()==='EUR','preview country EUR');
+              await online.close();
+
+              for(const [route,place] of locals){
+                const p=await ctx.newPage();
+                await p.goto(base+route,{waitUntil:'networkidle'});
+                await p.locator('.local-place-badge').waitFor();
+                ok((await p.locator('.local-place-badge strong').textContent()).trim()===place,route+' badge mismatch');
+                ok(await p.locator('.local-service-chip').count()===3,route+' service chips');
+                const overflow=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+                ok(overflow<=2,route+' overflow '+overflow);
+                await p.close();
+              }
+              await ctx.close();
+
+              const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2});
+              for(const route of ['/', '/online/', ...locals.map(x=>x[0])]){
+                const p=await mobile.newPage();
+                await p.goto(base+route,{waitUntil:'networkidle'});
+                const overflow=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+                ok(overflow<=2,route+' mobile overflow '+overflow);
+                await p.close();
+              }
+              await mobile.close();
+              console.log('V629_PREVIEW_BROWSER_QA=PASS');
+            } finally { await browser.close(); }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+          PREVIEW_URL="${PREVIEW_URL}" NODE_PATH="$GITHUB_WORKSPACE/node_modules" node /tmp/qa-preview.js
+
+      - name: Guardar evidencia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-v629-preview-${{ github.run_id }}
+          path: |
+            /tmp/wrangler-preview.log
+            /tmp/deployments.json
+            /tmp/experience.css
+            /tmp/experience.js
+          if-no-files-found: warn
+          retention-days: 30
