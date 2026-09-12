@@ -1,0 +1,6 @@
+{
+  "schema": "iberfit.web.production-qa.v1",
+  "domain": "iberfit.cl",
+  "candidateSha": "8d6fcb12a9472e9ef78b9973ca3d0cd9d71244ab",
+  "note": "QA profunda post-cutover V6.28."
+}
