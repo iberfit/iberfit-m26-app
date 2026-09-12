@@ -190,6 +190,14 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
           page.locator('[data-auth-action="mfa-continue-webauthn"]'),
           'Coach WebAuthn gate must expose the same-device verification action',
         ).toBeVisible({timeout:5_000});
+        expect(
+          assurance.emailOtpAvailable,
+          'QA privileged assurance must advertise the independently secured email OTP fallback',
+        ).toBe(true);
+        await expect(
+          page.locator('[data-auth-action="mfa-send-email-code"]'),
+          'A new or unavailable WebAuthn device must expose the email-code fallback instead of dead-ending access',
+        ).toBeVisible({timeout:5_000});
       }else{
         expect(assurance.mfaRequired).toBe(false);
         await expect(

@@ -66,14 +66,16 @@ test('la promoción PROD sincroniza y verifica emails antes del cutover de Cloud
 });
 
 
-test('la promoción mantiene el correo OTP fail-closed mientras PROD no tenga SMTP propio certificado',()=>{
+test('la promoción activa OTP solo con Hosted Auth y SMTP propio verificados antes del cutover',()=>{
   const workflow=read('.github/workflows/production-promote.yml');
   const app=read('src/m26/app/application.js');
-  assert.match(app,/export const EMAIL_OTP_DEPLOYMENT_READY=false;/u);
+  assert.match(app,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
   assert.match(workflow,/Resolve privileged email OTP rollout gate/u);
   assert.match(workflow,/grep -Fq 'export const EMAIL_OTP_DEPLOYMENT_READY=true;' src\/m26\/app\/application\.js/u);
   assert.match(workflow,/if: \$\{\{ steps\.email-otp\.outputs\.enabled == 'true' \}\}/u);
   const sync=workflow.indexOf('Sync and verify IBERFIT Hosted Auth emails before cutover');
   const deploy=workflow.indexOf('Deploy exact certified surface to production with Wrangler');
   assert.ok(sync>=0&&deploy>sync);
+  const block=workflow.slice(sync,deploy);
+  assert.match(block,/sync-hosted-auth-emails\.mjs --sync/u);
 });
