@@ -1,0 +1,5 @@
+{
+  "schema": "iberfit.web.zone.discovery.v1",
+  "domain": "iberfit.cl",
+  "readOnly": true
+}
