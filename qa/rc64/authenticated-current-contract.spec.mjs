@@ -220,10 +220,44 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         const settingsSummary=page.locator('details.m26-settings-menu > summary').first();
         if(await settingsSummary.count()){
           await settingsSummary.click({timeout:5_000});
+          const settingsMenu=page.locator('details.m26-settings-menu').first();
           await expect(
-            page.locator('details.m26-settings-menu').first(),
+            settingsMenu,
             'Native settings control must accept pointer/touch interaction after login',
           ).toHaveAttribute('open','',{timeout:5_000});
+
+          const localeSelector=page.locator('[data-m26-ui-locale]').first();
+          await expect(
+            localeSelector,
+            'Native locale selector must remain usable while authenticated controllers continue mounting',
+          ).toBeVisible({timeout:5_000});
+          await expect(localeSelector).toBeEnabled({timeout:5_000});
+          await localeSelector.focus();
+          const originalLocale=await localeSelector.inputValue();
+          const localeOptions=await localeSelector.locator('option').evaluateAll((options)=>
+            options.map((option)=>String(option.value||'')).filter(Boolean)
+          );
+          expect(localeOptions.length,'Locale selector must expose more than one real option for interaction QA').toBeGreaterThan(1);
+          const alternateLocale=localeOptions.find((value)=>value!==originalLocale);
+          expect(alternateLocale).toBeTruthy();
+
+          await localeSelector.selectOption(alternateLocale);
+          const updatedLocaleSelector=page.locator('[data-m26-ui-locale]').first();
+          await expect(
+            settingsMenu,
+            'Changing a native selector must not collapse Settings or eject the user',
+          ).toHaveAttribute('open','',{timeout:5_000});
+          await expect(updatedLocaleSelector).toHaveValue(alternateLocale,{timeout:5_000});
+          await expect(
+            updatedLocaleSelector,
+            'Shell rerender must restore focus to the replacement native selector',
+          ).toBeFocused({timeout:5_000});
+
+          await updatedLocaleSelector.selectOption(originalLocale);
+          const restoredLocaleSelector=page.locator('[data-m26-ui-locale]').first();
+          await expect(settingsMenu).toHaveAttribute('open','',{timeout:5_000});
+          await expect(restoredLocaleSelector).toHaveValue(originalLocale,{timeout:5_000});
+          await expect(restoredLocaleSelector).toBeFocused({timeout:5_000});
         }
 
         const eventLoopDelay=await page.evaluate(()=>new Promise((resolve)=>{
