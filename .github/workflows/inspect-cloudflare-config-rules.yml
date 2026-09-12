@@ -26,6 +26,18 @@ jobs:
           CODE="$(curl --silent --show-error -o /tmp/rulesets.json -w '%{http_code}'             -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/rulesets")"
           echo "DEDICATED_RULESETS_HTTP=${CODE}"
           cat /tmp/rulesets.json || true
+      - name: Probar entrypoint http_config_settings con token dedicado
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+        shell: bash
+        run: |
+          set -u
+          CODE="$(curl --silent --show-error -o /tmp/config-entrypoint.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/rulesets/phases/http_config_settings/entrypoint")"
+          echo "DEDICATED_CONFIG_ENTRYPOINT_HTTP=${CODE}"
+          cat /tmp/config-entrypoint.json || true
+
       - name: Probar reglas con token Pages existente
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
