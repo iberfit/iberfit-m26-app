@@ -507,6 +507,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       root.dispatchEvent(new CustomEvent('m26:account-password-recovery',{bubbles:true}));
       return;
     }
+    if(action==='account-add-trusted-device'){
+      root.dispatchEvent(new CustomEvent('m26:add-trusted-device',{bubbles:true,detail:{source:actionButton}}));
+      return;
+    }
     if(action==='logout'){
       root.dispatchEvent(new CustomEvent('m26:logout',{bubbles:true}));
       return;
