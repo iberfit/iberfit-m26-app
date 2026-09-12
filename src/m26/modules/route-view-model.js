@@ -6,7 +6,7 @@ import {augmentRc39ViewModel} from '../rc39/view-model.js';
 import {
   clientsOverview, clientHealthSummary, todayOverview, domainValue, domainDate, domainStatus, recordsForClient, } from './domain-selectors.js';
 import {
-  computeProgressSummary, buildProgressTimeline, deriveAdherenceAlerts, adherenceSignal, buildVerificationCenter, engagementCapabilities, listExercisePerformanceMemories, buildExerciseLongitudinalProgress } from '../engagement/index.js';
+  computeProgressSummary, buildProgressTimeline, buildPlanExecutionSummary, deriveAdherenceAlerts, adherenceSignal, buildVerificationCenter, engagementCapabilities, listExercisePerformanceMemories, buildExerciseLongitudinalProgress } from '../engagement/index.js';
 import {
   projectExercisePerformanceForRole,
 } from '../engagement/exercise-performance-engine.js';
@@ -543,6 +543,7 @@ if (area === 'clientes') {
   if (area === 'progreso') {
     const clientId = routeClientId(shellVm, state);
     const summary = computeProgressSummary(state, clientId, { now });
+    const planExecution = buildPlanExecutionSummary(state, clientId, { now, days:summary?.days||28 });
     const alerts = deriveAdherenceAlerts(state, clientId, { now });
     const longitudinal = clientId
       ? buildLongitudinalAggregation(state, clientId, { now })
@@ -552,6 +553,7 @@ if (area === 'clientes') {
       clientId,
       role: String(shellVm.identity?.role || ''),
       summary,
+      planExecution,
       longitudinal,
       timeline: Object.freeze(buildProgressTimeline(state, clientId, { now })),
       alerts: Object.freeze(alerts),
