@@ -185,7 +185,11 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
   }
 
-  function renderNow(state = store.getState()) {
+  function renderNow(state = store.getState(),{force=false}={}) {
+    if(!force&&shellInteractionActive()){
+      queuedState=state;
+      return false;
+    }
     const viewModel = createShellViewModel(state);
     const routeMarkup = viewModel.mode === 'authenticated' ? renderRoute(viewModel, state) : '';
     const markup=renderM26Shell(viewModel, routeMarkup);
