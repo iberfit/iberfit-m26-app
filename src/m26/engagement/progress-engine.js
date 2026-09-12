@@ -152,6 +152,140 @@ function iri2ProgressSummary(state,clientId){
 }
 
 
+
+function planPositiveCount(value,fallback=1){
+  const count=Number(value);
+  return Number.isInteger(count)&&count>=1&&count<=100?count:fallback;
+}
+function planSessionShape(record={}){
+  const session=unwrap(record)||{};
+  let plannedSets=0;
+  let plannedExercises=0;
+  for(const block of arr(session.blocks)){
+    const directExercise=first(block,'exerciseId','exercise_id');
+    if(String(block?.type||'').trim().toLowerCase()==='exercise'&&directExercise){
+      plannedExercises+=1;
+      plannedSets+=planPositiveCount(first(block,'sets'),1);
+      continue;
+    }
+    const exerciseIds=arr(first(block,'exerciseIds','exercise_ids')).map((id)=>String(id||'').trim()).filter(Boolean);
+    if(!exerciseIds.length)continue;
+    const rounds=planPositiveCount(first(block,'rounds'),1);
+    plannedExercises+=exerciseIds.length;
+    plannedSets+=exerciseIds.length*rounds;
+  }
+  return Object.freeze({plannedSets,plannedExercises});
+}
+function executionSkippedSetCount(record={}){
+  const execution=unwrap(record)||{};
+  const skipped=execution.skippedSets;
+  if(Array.isArray(skipped))return skipped.filter(Boolean).length;
+  if(skipped&&typeof skipped==='object')return Object.values(skipped).filter(Boolean).length;
+  return 0;
+}
+function executionEventCount(record,type){
+  const expected=String(type||'').trim().toUpperCase();
+  return arr((unwrap(record)||{}).events).filter((item)=>String(item?.type||'').trim().toUpperCase()===expected).length;
+}
+function planExecutionQuality(compared){
+  return compared>=6?'alta':compared>=2?'media':compared>=1?'limitada':'insuficiente';
+}
+export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28}={}){
+  if(!clientId)return null;
+  const window=progressWindow({now,days});
+  const sessions=new Map();
+  for(const original of collection(state,'sessions')){
+    const session=unwrap(original)||{};
+    const id=String(first(session,'id','sessionId','session_id')||'').trim();
+    const scopedClient=String(clientIdOf(session)||'').trim();
+    if(!id||(scopedClient&&scopedClient!==String(clientId)))continue;
+    sessions.set(id,session);
+  }
+
+  const blocked=unconfirmedCompletionIds(state);
+  const completed=forClient(state,'sessionExecutions',clientId)
+    .map(unwrap)
+    .filter((item)=>executionIsConfirmed(item,blocked))
+    .filter((item)=>['completed','complete','completado'].includes(statusOf(item)))
+    .filter((item)=>within(dateOf(item),window.start,window.end))
+    .sort(byDateDesc);
+
+  const rows=[];
+  let unmatchedExecutions=0;
+  for(const execution of completed){
+    const sessionId=String(first(execution,'sessionId','session_id')||'').trim();
+    const session=sessionId?sessions.get(sessionId):null;
+    if(!session){unmatchedExecutions+=1;continue;}
+    const shape=planSessionShape(session);
+    if(!shape.plannedSets){unmatchedExecutions+=1;continue;}
+    const recordedSets=setRows(execution).length;
+    const skippedSets=executionSkippedSetCount(execution);
+    const addedSets=executionEventCount(execution,'SET_ADDED');
+    const addedExercises=executionEventCount(execution,'EXERCISE_ADDED');
+    const substitutions=executionEventCount(execution,'EXERCISE_SUBSTITUTED');
+    const explicitAdjustments=addedSets+addedExercises+substitutions;
+    const resolvedPlannedSets=Math.min(shape.plannedSets,recordedSets+skippedSets);
+    const unresolvedPlannedSets=Math.max(0,shape.plannedSets-resolvedPlannedSets);
+    const asPlanned=recordedSets===shape.plannedSets&&skippedSets===0&&explicitAdjustments===0;
+    rows.push(Object.freeze({
+      executionId:String(first(execution,'id','executionId','execution_id')||''),
+      sessionId,
+      sessionTitle:String(first(session,'title','name','nombre')||'Sesión IBERFIT').trim().slice(0,120),
+      completedAt:dateOf(execution)||null,
+      plannedExercises:shape.plannedExercises,
+      plannedSets:shape.plannedSets,
+      recordedSets,
+      skippedSets,
+      unresolvedPlannedSets,
+      addedSets,
+      addedExercises,
+      substitutions,
+      explicitAdjustments,
+      asPlanned,
+    }));
+  }
+
+  const totals=rows.reduce((acc,row)=>{
+    acc.plannedExercises+=row.plannedExercises;
+    acc.plannedSets+=row.plannedSets;
+    acc.recordedSets+=row.recordedSets;
+    acc.skippedSets+=row.skippedSets;
+    acc.unresolvedPlannedSets+=row.unresolvedPlannedSets;
+    acc.addedSets+=row.addedSets;
+    acc.addedExercises+=row.addedExercises;
+    acc.substitutions+=row.substitutions;
+    acc.explicitAdjustments+=row.explicitAdjustments;
+    if(row.asPlanned)acc.asPlannedSessions+=1;
+    else acc.adjustedSessions+=1;
+    return acc;
+  },{plannedExercises:0,plannedSets:0,recordedSets:0,skippedSets:0,unresolvedPlannedSets:0,addedSets:0,addedExercises:0,substitutions:0,explicitAdjustments:0,asPlannedSessions:0,adjustedSessions:0});
+
+  const comparedSessions=rows.length;
+  const summary=comparedSessions
+    ?`${comparedSessions} sesión${comparedSessions===1?'':'es'} comparada${comparedSessions===1?'':'s'} · ${totals.plannedSets} series previstas · ${totals.recordedSets} registradas · ${totals.skippedSets} omitidas · ${totals.explicitAdjustments} ajustes explícitos`
+    :'Sin sesiones con plan publicado comparable en la ventana.';
+
+  return Object.freeze({
+    clientId:String(clientId),
+    days:window.days,
+    startAt:window.start.toISOString(),
+    endAt:window.end.toISOString(),
+    comparedSessions,
+    unmatchedExecutions,
+    quality:planExecutionQuality(comparedSessions),
+    ...totals,
+    summary,
+    latest:rows[0]||null,
+    sessions:Object.freeze(rows),
+    semantics:Object.freeze({
+      neutral:'Describe diferencias entre la prescripción publicada y la ejecución confirmada; no las clasifica como mejores o peores.',
+      skipped:'Una serie omitida se conserva como omitida y nunca se cuenta como registrada.',
+      adjustments:'Sustituciones, series añadidas y ejercicios añadidos se informan como ajustes explícitos, sin automatizar decisiones del Coach.',
+      missing:'Una ejecución sin sesión publicada comparable queda fuera del recuento y se informa por separado.',
+    }),
+  });
+}
+
 export function progressWindow({now=new Date(),days=28}={}){
   const end=safeDate(now);if(!end)throw new Error('M26_PROGRESS_NOW_INVALID');
   const safeDays=safePositiveInteger(days,{fallback:28,min:1,max:3650});
