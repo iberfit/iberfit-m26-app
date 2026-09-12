@@ -58,7 +58,7 @@ import {
   resolveIriExternalReportIntent,
 } from '../workflows/iri-external-report-controller.js';
 
-export const EMAIL_OTP_DEPLOYMENT_READY=true;
+export const EMAIL_OTP_DEPLOYMENT_READY=false;
 const MFA_BACKEND_TIMEOUT_MS=10_000;
 const POST_MFA_SETUP_TIMEOUT_MS=12_000;
 const OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000;

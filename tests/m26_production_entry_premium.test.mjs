@@ -57,10 +57,10 @@ test('production promotion verifies live identity, then browser entry, then inte
   assert.match(workflow,/recovery\/production-entry\//u);
 });
 
-test('email OTP rollout remains fail-closed behind certified Hosted Auth SMTP before production cutover',()=>{
+test('email OTP rollout remains held while production has no certified custom SMTP',()=>{
   const application=read('src/m26/app/application.js');
   const workflow=read('.github/workflows/production-promote.yml');
-  assert.match(application,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
+  assert.match(application,/export const EMAIL_OTP_DEPLOYMENT_READY=false;/u);
   assert.match(workflow,/Resolve privileged email OTP rollout gate/u);
   assert.match(workflow,/if: \$\{\{ steps\.email-otp\.outputs\.enabled == 'true' \}\}/u);
   const sync=workflow.indexOf('Sync and verify IBERFIT Hosted Auth emails before cutover');

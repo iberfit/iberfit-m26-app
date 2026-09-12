@@ -119,7 +119,7 @@ test('P0 a successful MFA ceremony is not reclassified as biometric failure if w
 });
 
 
-test('P0 email OTP rollout is enabled only through the certified backend availability gate',()=>{
+test('P0 email OTP capability remains implemented but rollout stays held until custom SMTP is certified',()=>{
   const available=renderAccessUi({
     backendReady:true,
     qaOnly:false,
@@ -138,7 +138,7 @@ test('P0 email OTP rollout is enabled only through the certified backend availab
   assert.match(available,/Usar código por correo/u);
   assert.doesNotMatch(unavailable,/data-auth-action="mfa-send-email-code"/u);
   const source=read('src/m26/app/application.js');
-  assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
+  assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=false;/u);
   assert.match(source,/emailOtpAvailable:EMAIL_OTP_DEPLOYMENT_READY&&assurance\.emailOtpAvailable===true/u);
   assert.match(source,/if\(mfaState\?\.emailOtpAvailable!==true\)throw new Error\('M26_EMAIL_OTP_CHANNEL_NOT_READY'\)/u);
 });
