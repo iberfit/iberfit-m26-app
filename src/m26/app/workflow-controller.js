@@ -120,13 +120,20 @@ export function iriExecutionEvidenceForReport(state={},clientId='',history=[],cu
   if(!Number.isFinite(startAt.getTime())||!Number.isFinite(endAt.getTime())||endAt.getTime()<=startAt.getTime())return null;
   const summary=computeProgressSummary(state,expectedClient,{startAt,endAt});
   if(!summary)return null;
+  const plannedSessions=Number(summary.scheduledAppointments||0);
+  const completedPlannedSessions=Number(summary.completedScheduledAppointments||0);
+  const planningComparable=summary.planningComparable===true&&plannedSessions>0;
   return Object.freeze({
     schema:'iberfit-iri2-execution-evidence-v1',
     fromAssessmentDate:previousDate,
     toAssessmentDate:currentDate,
-    plannedSessions:Number(summary.plannedSessions||0),
+    plannedSessions,
+    completedPlannedSessions,
     completedSessions:Number(summary.completedSessions||0),
-    adherence:Number.isFinite(summary.adherence)?summary.adherence:null,
+    confirmedExecutionRecords:Number(summary.confirmedExecutionRecords||0),
+    unlinkedConfirmedExecutions:Number(summary.unlinkedConfirmedExecutions||0),
+    planningComparable,
+    adherence:planningComparable?Math.min(1,completedPlannedSessions/plannedSessions):null,
     unconfirmedExecutions:Number(summary.unconfirmedExecutions||0),
     dataQuality:String(summary.dataQuality||'limitada'),
     source:'appointments+sessionExecutions',
