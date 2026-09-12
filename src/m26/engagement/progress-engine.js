@@ -1,7 +1,7 @@
 import {summarizeWearableData} from '../wearables/normalization.js';
 import {parseDateValue} from '../domain/civil-date.js';
 import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../workflows/iri-first-session.js';
-import {buildIri2LongitudinalProfile,iri2ComparisonSummary} from '../workflows/iri-2-longitudinal.js';
+import {buildEvolutionProfile,evolutionComparisonSummary,EVOLUTION_FOLLOWUP_KIND,IRI_INITIAL_DIAGNOSTIC_KIND} from '../workflows/iri-2-longitudinal.js';
 function clone(value){return value==null?value:structuredClone(value);}
 function arr(value){return Array.isArray(value)?value:[];}
 function first(record,...keys){for(const key of keys){const value=record?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
@@ -123,9 +123,12 @@ function iri2ProgressSummary(state,clientId){
   const current=drafts.at(-1)||null;
   if(!current)return null;
   const history=drafts.slice(0,-1);
-  const profile=buildIri2LongitudinalProfile({current,history});
-  const summary=iri2ComparisonSummary(profile);
+  const profile=buildEvolutionProfile({current,history});
+  const summary=evolutionComparisonSummary(profile);
   return Object.freeze({
+    kind:summary.phase||profile?.semantics?.phase||(history.length?EVOLUTION_FOLLOWUP_KIND:IRI_INITIAL_DIAGNOSTIC_KIND),
+    initialDiagnosticKind:IRI_INITIAL_DIAGNOSTIC_KIND,
+    followupKind:EVOLUTION_FOLLOWUP_KIND,
     confirmedCount:drafts.length,
     currentAssessmentId:current.assessmentId||null,
     currentAssessmentDate:current.assessmentDate||null,
@@ -189,7 +192,8 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const iri=forClient(state,'iriAssessments',clientId).map(unwrap).sort(byDateDesc);
   const iriCoverage=iri.map(iriDomainCoverage);
   const iriDelta=iriCoverage.length>=2&&iriCoverage[0]>0&&iriCoverage[1]>0?iriCoverage[0]-iriCoverage[1]:null;
-  const iri2=iri2ProgressSummary(state,clientId);
+  const evolution=iri2ProgressSummary(state,clientId);
+  const iri2=evolution;
   const sortedExecutions=[...completedExecutions].sort(byDateDesc);
   const lastExecution=sortedExecutions[0]||null;
   const lastExecutionRpe=lastExecution?rpeValues(lastExecution):[];
@@ -201,6 +205,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
     plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence:round(adherence,3),
     averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
     iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:iri.length>1?iriCoverage[1]:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
+    evolution,
     iri2,
     checkins:checkins.length,latestCheckin:latestCheckin?clone(checkinValues(latestCheckin)):null,
     checkinAverage:Object.freeze({

@@ -1,5 +1,7 @@
 export const IRI2_SNAPSHOT_SCHEMA='iberfit-iri2-snapshot-v1';
 export const IRI2_LONGITUDINAL_SCHEMA='iberfit-iri2-longitudinal-v1';
+export const IRI_INITIAL_DIAGNOSTIC_KIND='iri-initial-diagnostic';
+export const EVOLUTION_FOLLOWUP_KIND='evolution-followup';
 
 function finite(value){
   const n=Number(value);
@@ -321,6 +323,11 @@ export function buildIri2LongitudinalProfile({current,history=[]}={}){
   }
   return Object.freeze({
     schema:IRI2_LONGITUDINAL_SCHEMA,
+    semantics:Object.freeze({
+      initialDiagnostic:IRI_INITIAL_DIAGNOSTIC_KIND,
+      followup:EVOLUTION_FOLLOWUP_KIND,
+      phase:previous?EVOLUTION_FOLLOWUP_KIND:IRI_INITIAL_DIAGNOSTIC_KIND,
+    }),
     current:currentSnapshot,
     previous,
     baseline,
@@ -342,20 +349,26 @@ export function iri2ComparisonSummary(profile={}){
   const comparison=profile?.comparison;
   if(!comparison?.available)return Object.freeze({
     available:false,
-    label:'Primera evaluación',
-    detail:'Se establece la línea de base para futuras comparaciones.',
+    phase:IRI_INITIAL_DIAGNOSTIC_KIND,
+    label:'Diagnóstico IRI inicial',
+    detail:'Establece el punto de partida para el seguimiento posterior.',
   });
   if(!comparison.comparableCount)return Object.freeze({
     available:true,
-    label:'Reevaluación registrada',
-    detail:'No hay protocolos suficientemente comparables para cuantificar cambios de forma fiable.',
+    phase:EVOLUTION_FOLLOWUP_KIND,
+    label:'Seguimiento registrado',
+    detail:'Hay una reevaluación, pero no existen protocolos suficientemente comparables para cuantificar cambios de forma fiable.',
   });
   return Object.freeze({
     available:true,
+    phase:EVOLUTION_FOLLOWUP_KIND,
     label:`${comparison.comparableCount} indicadores comparables`,
-    detail:`Comparación con ${comparison.previousAssessmentDate||'la evaluación anterior'} sin puntuación global.`,
+    detail:`Seguimiento comparado con ${comparison.previousAssessmentDate||'la evaluación anterior'}, sin puntuación global.`,
   });
 }
+
+export const buildEvolutionProfile=buildIri2LongitudinalProfile;
+export const evolutionComparisonSummary=iri2ComparisonSummary;
 
 export const __iri2LongitudinalInternals=Object.freeze({
   finite,clean,dateValue,IRI_PRIORITY_DOMAINS,IRI_PRIORITY_STATUSES,normalizedPriorityRecords,priorityRecordFingerprint,sameValue,sameNumber,protocolKey,metric,strengthProtocol,cardioProtocol,compositionProtocol,snapshotMetrics,comparable,compareMetric,sortSnapshots,sameClient,normalizedDecisionList,decisionHasContent,normalizedKey,decisionListDelta,decisionEntry,
