@@ -31,15 +31,22 @@ test('an auth backend operation that never settles is released by the hard deadl
   assert.ok(Date.now()-startedAt<2_000,'auth UI must not wait indefinitely for a stalled backend operation');
 });
 
-test('WebAuthn authentication bounds every backend stage and post-MFA bootstrap',()=>{
+test('WebAuthn authentication bounds backend stages and avoids a redundant post-verify roundtrip',()=>{
   const source=fs.readFileSync('src/m26/app/application.js','utf8');
-  assert.match(source,/boundedMfaBackend\(\(\)=>transport\.enrollWebAuthn/u);
-  assert.match(source,/boundedMfaBackend\(\(\)=>transport\.challengeWebAuthn/u);
-  assert.match(source,/boundedMfaBackend\(\(\)=>transport\.verifyWebAuthn/u);
-  assert.match(source,/boundedMfaBackend\(\(\)=>Promise\.all/u);
+  const start=source.indexOf('async function continueMfaWithWebAuthn()');
+  const end=source.indexOf('function surfaceRetriableSessionFailure',start);
+  assert.ok(start>=0&&end>start);
+  const block=source.slice(start,end);
+  assert.match(block,/boundedMfaBackend\(\(\)=>transport\.enrollWebAuthn/u);
+  assert.match(block,/boundedMfaBackend\(\(\)=>transport\.challengeWebAuthn/u);
+  assert.match(block,/boundedMfaBackend\(\(\)=>transport\.verifyWebAuthn/u);
+  assert.match(block,/next\.privilegedRole!==expectedRole/u);
+  assert.doesNotMatch(block,/transport\.authAssuranceContext/u);
+  assert.doesNotMatch(block,/transport\.authUser/u);
+  assert.match(source,/POST_MFA_SETUP_TIMEOUT_MS=18_000/u);
   assert.match(source,/M26_WEBAUTHN_BACKEND_TIMEOUT/u);
   assert.match(source,/M26_POST_MFA_SETUP_TIMEOUT/u);
-  assert.match(source,/Vuelve a vincular este dispositivo \(recomendado\)/u);
+  assert.match(source,/Verificación segura confirmada\. Cargando IBERFIT…/u);
 });
 
 test('device re-enrollment also bounds backend calls so recovery cannot freeze',()=>{
