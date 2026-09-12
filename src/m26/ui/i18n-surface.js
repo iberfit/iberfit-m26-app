@@ -90,6 +90,7 @@ const ROWS=Object.freeze([
   ['IRI 2.0 longitudinal','Longitudinal IRI 2.0','IRI 2.0 longitudinal','IRI 2.0 longitudinal'],
   ['Evolución IRI 2.0','IRI 2.0 evolution','Évolution IRI 2.0','Evolução IRI 2.0'],
   ['Diagnóstico IRI inicial','Initial IRI assessment','Évaluation IRI initiale','Avaliação IRI inicial'],
+  ['Diagnóstico IRI inicial confirmado: este es el punto de partida.','Initial IRI assessment confirmed: this is the starting point.','Évaluation IRI initiale confirmée : c’est le point de départ.','Avaliação IRI inicial confirmada: este é o ponto de partida.'],
   ['Establece el punto de partida para el seguimiento posterior.','Establishes the starting point for subsequent follow-up.','Établit le point de départ du suivi ultérieur.','Estabelece o ponto de partida para o acompanhamento posterior.'],
   ['Seguimiento registrado','Follow-up recorded','Suivi enregistré','Acompanhamento registado'],
   ['Hay una reevaluación, pero no existen protocolos suficientemente comparables para cuantificar cambios de forma fiable.','A reassessment is recorded, but the protocols are not sufficiently comparable to quantify changes reliably.','Une réévaluation est enregistrée, mais les protocoles ne sont pas suffisamment comparables pour quantifier les changements de façon fiable.','Existe uma reavaliação registada, mas os protocolos não são suficientemente comparáveis para quantificar alterações de forma fiável.'],
