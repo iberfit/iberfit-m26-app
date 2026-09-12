@@ -3,24 +3,39 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import {renderPlanningRoute} from '../src/m26/modules/route-render.js';
-import {buildIri2DecisionLog,buildIriPlanningSeed,iri2SnapshotFromDraft} from '../src/m26/workflows/iri-2-longitudinal.js';
+import {normalizeFirstSessionDraft} from '../src/m26/workflows/iri-first-session.js';
+import {buildIri2DecisionLog,buildIriPlanningSeed} from '../src/m26/workflows/iri-2-longitudinal.js';
 
 function decisionDraft(){
-  return iri2SnapshotFromDraft({
-    id:'88888888-8888-4888-8888-888888888888',
-    clientId:'57339e70-7a99-48d6-820f-7d4a51f89d9d',
+  return normalizeFirstSessionDraft({
     assessmentDate:'2026-06-01',
-    firstSessionCompletedAt:'2026-06-01T10:00:00Z',
-    body:{
-      assessmentDate:'2026-06-01',
-      diagnosisPriorities:'Fuerza tren inferior\nCardio',
-      initialPlan:'Ciclo de ocho semanas con énfasis en fuerza y progresión cardiorrespiratoria.',
-      trainingImplications:'Mantener técnica de fuerza e introducir cardio de forma progresiva.',
-      recommendedFrequency:'3 sesiones por semana',
-      reevaluationDate:'2026-08-01',
-      reviewAccepted:true,
-    },
-  });
+    birthDate:'1988-04-16',
+    sexForNorms:'female',
+    email:'planning@example.com',
+    phone:'+56 9 1111 2222',
+    modality:'hibrido',
+    trainingAddress:'Dirección de prueba',
+    primaryObjective:'Mejorar fuerza, salud y capacidad física general',
+    trainingExperience:'Intermedia',
+    availability:'Tres tardes',
+    screeningAccepted:'on',
+    bodyCompositionSkipped:'on',
+    bodyCompositionSkipReason:'No realizada para esta prueba de contrato.',
+    mobilitySkipped:'on',
+    mobilitySkipReason:'No realizada para esta prueba de contrato.',
+    strengthSkipped:'on',
+    strengthSkipReason:'No realizada para esta prueba de contrato.',
+    cardioSkipped:'on',
+    cardioSkipReason:'No realizada para esta prueba de contrato.',
+    diagnosisStrengths:'Buena adherencia y control técnico',
+    diagnosisPriorities:'Fuerza tren inferior\nCardio',
+    coachInterpretation:'Perfil apto para iniciar una progresión individualizada.',
+    initialPlan:'Ciclo de ocho semanas con énfasis en fuerza y progresión cardiorrespiratoria.',
+    trainingImplications:'Mantener técnica de fuerza e introducir cardio de forma progresiva.',
+    recommendedFrequency:'3 sesiones por semana',
+    reevaluationDate:'2026-08-01',
+    reviewAccepted:'on',
+  },{id:'88888888-8888-4888-8888-888888888888'},'57339e70-7a99-48d6-820f-7d4a51f89d9d');
 }
 
 function planningVm(overrides={}){
