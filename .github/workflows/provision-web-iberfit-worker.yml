@@ -1,0 +1,76 @@
+name: Provision WEB IBERFIT Worker
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - 'infra/cloudflare/web-iberfit/**'
+      - '.github/workflows/provision-web-iberfit-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-worker-provision
+  cancel-in-progress: true
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  WORKER_NAME: 'web-iberfit'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout infraestructura
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validar aislamiento
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s infra/cloudflare/web-iberfit/worker.js
+          ! grep -R -Fq 'app.iberfit.cl' infra/cloudflare/web-iberfit
+          ! grep -R -Fq 'iberfitapp' infra/cloudflare/web-iberfit
+          grep -Fq "worker: 'web-iberfit'" infra/cloudflare/web-iberfit/worker.js
+          grep -Fq "productionDomainBound: false" infra/cloudflare/web-iberfit/worker.js
+
+      - name: Crear o actualizar Worker WEB IBERFIT
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 41; }
+          npx --yes "wrangler@${WRANGLER_VERSION}" deploy \
+            infra/cloudflare/web-iberfit/worker.js \
+            --name "${WORKER_NAME}" \
+            --compatibility-date 2026-09-12
+
+      - name: Verificar Worker en Cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${WORKER_NAME}/settings" \
+            -o /tmp/web-iberfit-worker-settings.json
+          node <<'NODE'
+          const fs=require('fs');
+          const data=JSON.parse(fs.readFileSync('/tmp/web-iberfit-worker-settings.json','utf8'));
+          if(!data.success) throw new Error('WEB_IBERFIT_WORKER_LOOKUP_FAILED');
+          console.log('WEB IBERFIT Worker verificado en Cloudflare');
+          NODE
