@@ -198,8 +198,23 @@ jobs:
           WORKER_DOMAIN_ID="$(node -e "const x=require('/tmp/cutover-before/apex-worker-domain.json');process.stdout.write(x?.id||'')")"
           if [ -n "$WORKER_DOMAIN_ID" ]; then
             echo "DETACHING_OLD_WORKER_CUSTOM_DOMAIN=${WORKER_DOMAIN_ID}"
-            curl --fail --silent --show-error -X DELETE "${DNS_AUTH[@]}"               "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/domains/${WORKER_DOMAIN_ID}"               -o /tmp/worker-domain-detach.json
-            node -e "const x=require('/tmp/worker-domain-detach.json');if(!x.success)process.exit(1)"
+            DETACH_CODE="$(curl --silent --show-error -X DELETE               -o /tmp/worker-domain-detach.body -w '%{http_code}' "${DNS_AUTH[@]}"               "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/domains/${WORKER_DOMAIN_ID}")"
+            echo "WORKER_CUSTOM_DOMAIN_DETACH_HTTP=${DETACH_CODE}"
+            case "$DETACH_CODE" in
+              200|204) ;;
+              *) cat /tmp/worker-domain-detach.body || true; exit 54 ;;
+            esac
+
+            DETACHED=false
+            for i in $(seq 1 12); do
+              curl --fail --silent --show-error "${DNS_AUTH[@]}"                 "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/domains?hostname=${DOMAIN}"                 -o /tmp/worker-domains-after-detach.json
+              COUNT="$(node -e "const x=require('/tmp/worker-domains-after-detach.json');if(!x.success)process.exit(1);process.stdout.write(String((x.result||[]).filter(d=>d.hostname===process.env.DOMAIN).length))")"
+              echo "WORKER_CUSTOM_DOMAIN_REMAINING=${COUNT}"
+              if [ "$COUNT" = "0" ]; then DETACHED=true; break; fi
+              sleep 2
+            done
+            test "$DETACHED" = "true"
+            echo WORKER_CUSTOM_DOMAIN_DETACHED=true
           fi
 
           curl --fail --silent --show-error "${DNS_AUTH[@]}"             "${DNS_BASE}?name=${DOMAIN}" -o /tmp/apex-after-detach.json
