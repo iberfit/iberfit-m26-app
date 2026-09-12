@@ -1,7 +1,7 @@
 import {summarizeWearableData} from '../wearables/normalization.js';
 import {parseDateValue} from '../domain/civil-date.js';
 import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../workflows/iri-first-session.js';
-import {buildIri2LongitudinalProfile,iri2ComparisonSummary} from '../workflows/iri-2-longitudinal.js';
+import {buildIriLongitudinalProfile,iriMilestoneComparisonSummary} from '../workflows/iri-2-longitudinal.js';
 function clone(value){return value==null?value:structuredClone(value);}
 function arr(value){return Array.isArray(value)?value:[];}
 function first(record,...keys){for(const key of keys){const value=record?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
@@ -107,7 +107,7 @@ function iriRecordClientId(record={}){
   const item=iriRecordBody(record);
   return String(first(record,'clientId','client_id','clienteId','cliente_id')||first(item,'clientId','client_id','clienteId','cliente_id')||'').trim();
 }
-function iri2ProgressSummary(state,clientId){
+function iriMilestoneSummary(state,clientId){
   const expectedClient=String(clientId||'').trim();
   const drafts=[];
   for(const record of collection(state,'iriAssessments')){
@@ -123,8 +123,8 @@ function iri2ProgressSummary(state,clientId){
   const current=drafts.at(-1)||null;
   if(!current)return null;
   const history=drafts.slice(0,-1);
-  const profile=buildIri2LongitudinalProfile({current,history});
-  const summary=iri2ComparisonSummary(profile);
+  const profile=buildIriLongitudinalProfile({current,history});
+  const summary=iriMilestoneComparisonSummary(profile);
   return Object.freeze({
     confirmedCount:drafts.length,
     currentAssessmentId:current.assessmentId||null,
@@ -151,6 +151,153 @@ function iri2ProgressSummary(state,clientId){
   });
 }
 
+
+
+function plannedPositiveCount(value,fallback=1){
+  const count=Number(value);
+  return Number.isInteger(count)&&count>=1&&count<=100?count:fallback;
+}
+
+function sessionPlanShape(record={}){
+  const session=unwrap(record)||{};
+  let plannedSets=0;
+  let plannedExercises=0;
+  for(const block of arr(session.blocks)){
+    const directExercise=String(first(block,'exerciseId','exercise_id')||'').trim();
+    const type=String(first(block,'type','kind')||'').trim().toLowerCase();
+    if(directExercise&&(!type||type==='exercise')){
+      plannedExercises+=1;
+      plannedSets+=plannedPositiveCount(first(block,'sets'),1);
+      continue;
+    }
+    const nestedIds=[
+      ...arr(first(block,'exerciseIds','exercise_ids')),
+      ...arr(block.exercises).map((item)=>first(item,'exerciseId','exercise_id','id')),
+      ...arr(block.items).map((item)=>first(item,'exerciseId','exercise_id','id')),
+    ].map((value)=>String(value||'').trim()).filter(Boolean);
+    if(!nestedIds.length)continue;
+    const rounds=plannedPositiveCount(first(block,'rounds','sets'),1);
+    plannedExercises+=nestedIds.length;
+    plannedSets+=nestedIds.length*rounds;
+  }
+  return Object.freeze({plannedSets,plannedExercises});
+}
+
+function skippedSetCount(record={}){
+  const execution=unwrap(record)||{};
+  const skipped=execution.skippedSets??execution.skipped_sets;
+  if(Array.isArray(skipped))return skipped.filter(Boolean).length;
+  if(skipped&&typeof skipped==='object')return Object.values(skipped).filter(Boolean).length;
+  return 0;
+}
+
+function executionEventRows(record={}){
+  const execution=unwrap(record)||{};
+  return arr(execution.events).filter((item)=>item&&typeof item==='object');
+}
+
+function executionEventCount(record,type){
+  const expected=String(type||'').trim().toUpperCase();
+  return executionEventRows(record).filter((item)=>String(item?.type||'').trim().toUpperCase()===expected).length;
+}
+
+function planExecutionQuality(compared){
+  return compared>=6?'alta':compared>=2?'media':compared>=1?'limitada':'insuficiente';
+}
+
+export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28}={}){
+  if(!clientId)return null;
+  const window=progressWindow({now,days});
+  const expectedClient=String(clientId);
+
+  const sessions=new Map();
+  for(const original of collection(state,'sessions')){
+    const session=unwrap(original)||{};
+    const scopedClient=String(clientIdOf(session)||clientIdOf(original)||'');
+    if(scopedClient&&scopedClient!==expectedClient)continue;
+    const id=String(first(session,'id','sessionId','session_id')||first(original,'id','sessionId','session_id')||'').trim();
+    if(id)sessions.set(id,session);
+  }
+
+  const blocked=unconfirmedCompletionIds(state);
+  const completed=forClient(state,'sessionExecutions',clientId)
+    .map(unwrap)
+    .filter((item)=>executionIsConfirmed(item,blocked))
+    .filter((item)=>['completed','complete','completado'].includes(statusOf(item)))
+    .filter((item)=>within(dateOf(item),window.start,window.end))
+    .sort(byDateDesc);
+
+  const rows=[];
+  let unmatchedExecutions=0;
+  for(const execution of completed){
+    const sessionId=String(first(execution,'sessionId','session_id')||'').trim();
+    const session=sessionId?sessions.get(sessionId):null;
+    if(!session){unmatchedExecutions+=1;continue;}
+    const shape=sessionPlanShape(session);
+    if(!shape.plannedSets){unmatchedExecutions+=1;continue;}
+
+    const recordedSets=setRows(execution).length;
+    const skippedSets=skippedSetCount(execution);
+    const addedSets=executionEventCount(execution,'SET_ADDED');
+    const addedExercises=executionEventCount(execution,'EXERCISE_ADDED');
+    const substitutions=executionEventCount(execution,'EXERCISE_SUBSTITUTED');
+    const explicitAdjustments=addedSets+addedExercises+substitutions;
+    const asPlanned=recordedSets===shape.plannedSets&&skippedSets===0&&explicitAdjustments===0;
+
+    rows.push(Object.freeze({
+      executionId:String(first(execution,'id','executionId','execution_id')||''),
+      sessionId,
+      sessionTitle:String(first(session,'title','name','nombre')||first(execution,'title','sessionTitle','session_title')||'Sesión IBERFIT').trim().slice(0,120),
+      completedAt:dateOf(execution)||null,
+      plannedExercises:shape.plannedExercises,
+      plannedSets:shape.plannedSets,
+      recordedSets,
+      skippedSets,
+      addedSets,
+      addedExercises,
+      substitutions,
+      explicitAdjustments,
+      asPlanned,
+    }));
+  }
+
+  const totals=rows.reduce((acc,row)=>{
+    acc.plannedExercises+=row.plannedExercises;
+    acc.plannedSets+=row.plannedSets;
+    acc.recordedSets+=row.recordedSets;
+    acc.skippedSets+=row.skippedSets;
+    acc.addedSets+=row.addedSets;
+    acc.addedExercises+=row.addedExercises;
+    acc.substitutions+=row.substitutions;
+    acc.explicitAdjustments+=row.explicitAdjustments;
+    if(row.asPlanned)acc.asPlannedSessions+=1;
+    else acc.adjustedSessions+=1;
+    return acc;
+  },{plannedExercises:0,plannedSets:0,recordedSets:0,skippedSets:0,addedSets:0,addedExercises:0,substitutions:0,explicitAdjustments:0,asPlannedSessions:0,adjustedSessions:0});
+
+  const comparedSessions=rows.length;
+  return Object.freeze({
+    clientId:expectedClient,
+    days:window.days,
+    startAt:window.start.toISOString(),
+    endAt:window.end.toISOString(),
+    comparedSessions,
+    unmatchedExecutions,
+    quality:planExecutionQuality(comparedSessions),
+    ...totals,
+    latest:rows[0]||null,
+    sessions:Object.freeze(rows),
+    summary:comparedSessions
+      ?`${comparedSessions} sesión${comparedSessions===1?'':'es'} comparable${comparedSessions===1?'':'s'} · ${totals.plannedSets} series previstas · ${totals.recordedSets} registradas · ${totals.skippedSets} omitidas · ${totals.explicitAdjustments} ajustes explícitos`
+      :'Sin sesiones con una planificación publicada comparable en la ventana.',
+    semantics:Object.freeze({
+      neutral:'Describe diferencias entre la planificación publicada y la ejecución confirmada; no las clasifica como mejores o peores.',
+      skipped:'Una serie omitida se conserva como omitida y nunca se cuenta como registrada.',
+      adjustments:'Sustituciones, series añadidas y ejercicios añadidos se informan como ajustes explícitos; el Coach interpreta el contexto.',
+      missing:'Una ejecución sin una sesión publicada comparable queda fuera del recuento y se informa por separado.',
+    }),
+  });
+}
 
 export function progressWindow({now=new Date(),days=28}={}){
   const end=safeDate(now);if(!end)throw new Error('M26_PROGRESS_NOW_INVALID');
@@ -189,7 +336,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const iri=forClient(state,'iriAssessments',clientId).map(unwrap).sort(byDateDesc);
   const iriCoverage=iri.map(iriDomainCoverage);
   const iriDelta=iriCoverage.length>=2&&iriCoverage[0]>0&&iriCoverage[1]>0?iriCoverage[0]-iriCoverage[1]:null;
-  const iri2=iri2ProgressSummary(state,clientId);
+  const iriMilestones=iriMilestoneSummary(state,clientId);
   const sortedExecutions=[...completedExecutions].sort(byDateDesc);
   const lastExecution=sortedExecutions[0]||null;
   const lastExecutionRpe=lastExecution?rpeValues(lastExecution):[];
@@ -201,7 +348,8 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
     plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence:round(adherence,3),
     averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
     iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:iri.length>1?iriCoverage[1]:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
-    iri2,
+    iriMilestones,
+    iri2:iriMilestones,
     checkins:checkins.length,latestCheckin:latestCheckin?clone(checkinValues(latestCheckin)):null,
     checkinAverage:Object.freeze({
       energy:round(average(checkinSeries.map((x)=>x.energy)),1),sleep:round(average(checkinSeries.map((x)=>x.sleep)),1),
