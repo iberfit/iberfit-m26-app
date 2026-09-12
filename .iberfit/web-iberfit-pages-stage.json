@@ -5,6 +5,6 @@
   "productionBranch": "production",
   "approved": true,
   "domainPromoted": false,
-  "retryRevision": 1,
-  "retryReason": "smoke-home-temp-path"
+  "retryRevision": 2,
+  "retryReason": "exact-smoke-paths"
 }
