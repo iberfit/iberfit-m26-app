@@ -6,6 +6,7 @@ import {
   IRI2_SNAPSHOT_SCHEMA,
   buildIri2DecisionLog,
   buildIri2LongitudinalProfile,
+  buildIri2PlanningSeed,
   iri2ComparisonSummary,
   iri2SnapshotFromDraft,
 } from '../src/m26/workflows/iri-2-longitudinal.js';
@@ -187,4 +188,41 @@ test('IRI 2.0 decision log never mixes decisions from a different client',()=>{
   assert.equal(log.count,1);
   assert.equal(log.entries[0].assessmentId,'66666666-6666-4666-8666-666666666666');
   assert.deepEqual(log.entries[0].priorities,['Fuerza']);
+});
+
+
+test('IRI 2.0 planning seed uses the latest confirmed decision but still requires Coach review',()=>{
+  const assessment=makeDraft({
+    id:'88888888-8888-4888-8888-888888888888',
+    date:'2026-06-01',
+    priorities:'Fuerza tren inferior, Cardio',
+    plan:'Ciclo de ocho semanas con énfasis en fuerza y progresión cardiorrespiratoria.',
+    implications:'Mantener técnica de fuerza e introducir cardio de forma progresiva.',
+    frequency:'3 sesiones por semana',
+    reevaluationDate:'2026-08-01',
+  });
+  const decisionLog=buildIri2DecisionLog({assessments:[assessment]});
+  const seed=buildIri2PlanningSeed({
+    decisionLog,
+    profile:{
+      weeklyFrequency:2,
+      sessionDurationMinutes:55,
+      modality:'Híbrido',
+    },
+  });
+
+  assert.equal(seed.sourceAssessmentId,'88888888-8888-4888-8888-888888888888');
+  assert.equal(seed.suggestedWeeklyFrequency,3);
+  assert.equal(seed.suggestedSessionDurationMinutes,55);
+  assert.equal(seed.suggestedModality,'hibrido');
+  assert.match(seed.suggestedGoal,/Ciclo de ocho semanas/u);
+  assert.deepEqual(seed.priorities,['Fuerza tren inferior','Cardio']);
+  assert.equal(seed.reevaluationDate,'2026-08-01');
+  assert.equal(seed.requiresCoachReview,true);
+  assert.equal('published' in seed,false);
+  assert.equal('validated' in seed,false);
+});
+
+test('IRI 2.0 planning seed is absent without a confirmed decision',()=>{
+  assert.equal(buildIri2PlanningSeed({decisionLog:{latest:null},profile:{weeklyFrequency:2}}),null);
 });
