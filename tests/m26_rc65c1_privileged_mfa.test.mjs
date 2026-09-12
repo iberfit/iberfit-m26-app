@@ -49,6 +49,22 @@ test('RC65-C1 FREE decisión privilegiada exige assurance IBERFIT antes del boot
   assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'verified',credentialEnrolled:true,supabaseAal:'aal1'},[]),{kind:'ready'});
 });
 
+test('RC65-C1 FREE authUser permanece independiente del rol privilegiado verificado por WebAuthn',async()=>{
+  const previous=globalThis.fetch;
+  globalThis.fetch=async(url,options={})=>{
+    const parsed=new URL(String(url));
+    assert.equal(String(options.method||'GET').toUpperCase(),'GET');
+    assert.equal(parsed.pathname,'/auth/v1/user');
+    return jsonResponse({id:USER_ID,email:'qa.rc74.coach@iberfit.cl',factors:[]});
+  };
+  try{
+    const user=await createM26Transport(runtime()).authUser(ACCESS_TOKEN);
+    assert.equal(user.id,USER_ID);
+    assert.equal(user.email,'qa.rc74.coach@iberfit.cl');
+    assert.deepEqual(user.factors,[]);
+  }finally{globalThis.fetch=previous;}
+});
+
 test('RC65-C1 FREE assurance RPC v65d normaliza contrato server-side',async()=>{
   const calls=[];const previous=globalThis.fetch;
   globalThis.fetch=async(url,options={})=>{
