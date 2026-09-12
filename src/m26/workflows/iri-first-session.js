@@ -1,6 +1,33 @@
 import {buildIriProtocolRecords,flattenIriProtocolRecords} from './iri-protocol-catalog.js';
 const SCHEMA='iberfit-iri-first-session-v1';
 export const IRI_FIRST_SESSION_STEPS=Object.freeze(['perfil','entrevista','composicion','movilidad','fuerza','cardio','revision']);
+const IRI_PRIORITY_DOMAINS=Object.freeze(['general','composition','mobility','strength','cardio','recovery','adherence','other']);
+const IRI_PRIORITY_STATUSES=Object.freeze(['active','maintain','completed','paused']);
+
+function priorityRecords(raw={},existing=[],priorities=[],fallbackReviewDate=''){
+  const previous=Array.isArray(existing)?existing:[];
+  const labels=Array.isArray(priorities)?priorities:[];
+  const records=[];
+  const count=Math.min(4,Math.max(labels.length,previous.length));
+  for(let index=0;index<count;index++){
+    const slot=index+1;
+    const prior=previous[index]&&typeof previous[index]==='object'&&!Array.isArray(previous[index])?previous[index]:{};
+    const label=text(labels[index]||prior.label,180);
+    if(!label)continue;
+    const domainRaw=text(raw[`priority${slot}Domain`]??prior.domain,40).toLowerCase();
+    const statusRaw=text(raw[`priority${slot}Status`]??prior.status,40).toLowerCase();
+    records.push(Object.freeze({
+      label,
+      domain:IRI_PRIORITY_DOMAINS.includes(domainRaw)?domainRaw:'general',
+      rationale:text(raw[`priority${slot}Rationale`]??prior.rationale,600),
+      target:text(raw[`priority${slot}Target`]??prior.target,400),
+      strategy:text(raw[`priority${slot}Strategy`]??prior.strategy,800),
+      reviewDate:text(raw[`priority${slot}ReviewDate`]||prior.reviewDate||fallbackReviewDate,10),
+      status:IRI_PRIORITY_STATUSES.includes(statusRaw)?statusRaw:'active',
+    }));
+  }
+  return Object.freeze(records);
+}
 
 function text(value,max=1200){return String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 function num(value,{min=-Infinity,max=Infinity}={}){if(value===null||value===undefined||value==='')return null;const number=Number(value);return Number.isFinite(number)&&number>=min&&number<=max?number:null;}
@@ -115,11 +142,15 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
     valid:bool(raw.cardioValid),symptoms:text(raw.cardioSymptoms,600),stopReason:text(raw.cardioStopReason,600),notes:text(raw.cardioNotes,1000),
   };
   cardio.deltaOneMinute=finalHr!==null&&oneMinuteHr!==null?finalHr-oneMinuteHr:null;
+  const existingDiagnosis=body.diagnosis&&typeof body.diagnosis==='object'&&!Array.isArray(body.diagnosis)?body.diagnosis:{};
+  const diagnosisPriorities=list(raw.diagnosisPriorities??(Array.isArray(existingDiagnosis.priorities)?existingDiagnosis.priorities.join('\n'):''),6);
+  const diagnosisReevaluationDate=text(raw.reevaluationDate??existingDiagnosis.reevaluationDate,10);
   const diagnosis={
-    strengths:list(raw.diagnosisStrengths,6),priorities:list(raw.diagnosisPriorities,6),
-    coachInterpretation:text(raw.coachInterpretation,2200),trainingImplications:text(raw.trainingImplications,2200),
-    initialPlan:text(raw.initialPlan,2200),recommendedFrequency:text(raw.recommendedFrequency,200),
-    reevaluationDate:text(raw.reevaluationDate,10),reviewAccepted:bool(raw.reviewAccepted),
+    strengths:list(raw.diagnosisStrengths??(Array.isArray(existingDiagnosis.strengths)?existingDiagnosis.strengths.join('\n'):''),6),priorities:diagnosisPriorities,
+    priorityRecords:priorityRecords(raw,existingDiagnosis.priorityRecords,diagnosisPriorities,diagnosisReevaluationDate),
+    coachInterpretation:text(raw.coachInterpretation??existingDiagnosis.coachInterpretation,2200),trainingImplications:text(raw.trainingImplications??existingDiagnosis.trainingImplications,2200),
+    initialPlan:text(raw.initialPlan??existingDiagnosis.initialPlan,2200),recommendedFrequency:text(raw.recommendedFrequency??existingDiagnosis.recommendedFrequency,200),
+    reevaluationDate:diagnosisReevaluationDate,reviewAccepted:bool(raw.reviewAccepted),
   };
   const protocolRecords=buildIriProtocolRecords({raw,existingRecords:body.protocolRecords||body.protocol_records||[],assessmentDate,bodyComposition,mobility,strength,cardio});
   return Object.freeze({schema:SCHEMA,clientId:text(clientId||body.clientId||body.client_id,200),assessmentId:text(current?.id||body.id,200),assessmentDate,personProfile:Object.freeze(personProfile),interview:Object.freeze(interview),bodyComposition:Object.freeze(bodyComposition),mobility:Object.freeze(mobility),strength:Object.freeze(strength),cardio:Object.freeze(cardio),diagnosis:Object.freeze(diagnosis),protocolRecords,updatedAt:new Date().toISOString()});
@@ -209,9 +240,18 @@ export function flattenFirstSessionDraft(draft={}){
     strengthSkipped:s.skipped,strengthSkipReason:s.skipReason||'',chairStand30s:s.chairStand?.repetitions??'',chairHeightCm:s.chairStand?.chairHeightCm??'',chairStandValid:s.chairStand?.valid,pushVariant:s.push?.variant||'',pushUps:s.push?.repetitions??'',pushSupportHeightCm:s.push?.supportHeightCm??'',pushValid:s.push?.valid,trxRowRepetitions:s.trxRow?.repetitions??'',trxHandleHeightCm:s.trxRow?.handleHeightCm??'',trxHeelDistanceCm:s.trxRow?.heelDistanceCm??'',trxPosition:s.trxRow?.position||'',trxValid:s.trxRow?.valid,frontPlankSeconds:s.core?.frontPlankSeconds??'',sidePlankLeftSeconds:s.core?.sidePlankLeftSeconds??'',sidePlankRightSeconds:s.core?.sidePlankRightSeconds??'',coreQuality:s.core?.quality||'',corePain:s.core?.pain||'',posteriorChainProtocol:s.posteriorChain?.protocol||'',posteriorChainSeconds:s.posteriorChain?.seconds??'',posteriorEquipmentCompatible:s.posteriorChain?.equipmentCompatible,posteriorNotPerformedReason:s.posteriorChain?.notPerformedReason||'',posteriorChainPain:s.posteriorChain?.pain||'',strengthNotes:s.notes||'',
     cardioSkipped:c.skipped,cardioSkipReason:c.skipReason||'',cardioProtocol:c.protocol||'',stepHeightCm:c.stepHeightCm??'',cadenceBpm:c.cadenceBpm??'',cardioDurationSeconds:c.durationSeconds??'',restingHr:c.restingHr??'',stepFinalHr:c.finalHr??'',stepOneMinuteHr:c.oneMinuteHr??'',twoMinuteHr:c.twoMinuteHr??'',cardioRpe:c.rpe??'',cardioValid:c.valid,cardioSymptoms:c.symptoms||'',cardioStopReason:c.stopReason||'',cardioNotes:c.notes||'',
     diagnosisStrengths:(d.strengths||[]).join('\n'),diagnosisPriorities:(d.priorities||[]).join('\n'),coachInterpretation:d.coachInterpretation||'',trainingImplications:d.trainingImplications||'',initialPlan:d.initialPlan||'',recommendedFrequency:d.recommendedFrequency||'',reevaluationDate:d.reevaluationDate||'',reviewAccepted:d.reviewAccepted};
+  (Array.isArray(d.priorityRecords)?d.priorityRecords:[]).slice(0,4).forEach((priority,index)=>{
+    const slot=index+1;const item=priority&&typeof priority==='object'?priority:{};
+    out[`priority${slot}Domain`]=item.domain||'general';
+    out[`priority${slot}Rationale`]=item.rationale||'';
+    out[`priority${slot}Target`]=item.target||'';
+    out[`priority${slot}Strategy`]=item.strategy||'';
+    out[`priority${slot}ReviewDate`]=item.reviewDate||'';
+    out[`priority${slot}Status`]=item.status||'active';
+  });
   Object.assign(out,flattenIriProtocolRecords(draft.protocolRecords||[]));
   for(const [prefix,trials] of [['ankleLeft',m.ankle?.leftTrials],['ankleRight',m.ankle?.rightTrials],['posteriorLeft',m.posteriorChain?.leftTrials],['posteriorRight',m.posteriorChain?.rightTrials]])(trials||[]).slice(0,3).forEach((value,index)=>{out[`${prefix}${index+1}`]=value;});
   return out;
 }
 
-export const __iriFirstSessionInternals=Object.freeze({SCHEMA,text,num,bool,list,values,best,average,difference,stepErrors,hasBodyMeasurement,coreDomainCoverage,confirmedObject,confirmedArray});
+export const __iriFirstSessionInternals=Object.freeze({SCHEMA,IRI_PRIORITY_DOMAINS,IRI_PRIORITY_STATUSES,text,num,bool,list,values,best,average,difference,priorityRecords,stepErrors,hasBodyMeasurement,coreDomainCoverage,confirmedObject,confirmedArray});

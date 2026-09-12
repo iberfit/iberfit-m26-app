@@ -188,3 +188,43 @@ test('IRI 2.0 decision log never mixes decisions from a different client',()=>{
   assert.equal(log.entries[0].assessmentId,'66666666-6666-4666-8666-666666666666');
   assert.deepEqual(log.entries[0].priorities,['Fuerza']);
 });
+
+
+test('IRI 2.0 structured priorities remain backward compatible and detect factual detail changes',()=>{
+  const raw={
+    assessmentDate:'2026-09-11',
+    diagnosisStrengths:'Buena adherencia',
+    diagnosisPriorities:'Fuerza tren inferior\nMovilidad tobillo',
+    priority1Domain:'strength',
+    priority1Rationale:'Mejorar la capacidad funcional observada.',
+    priority1Target:'20 repeticiones comparables.',
+    priority1Strategy:'Dos sesiones semanales de fuerza.',
+    priority1ReviewDate:'2026-10-15',
+    priority1Status:'active',
+    priority2Domain:'mobility',
+    coachInterpretation:'Interpretación profesional suficiente para una planificación prudente.',
+    trainingImplications:'Mantener técnica y progresar únicamente con respuesta favorable.',
+    initialPlan:'Plan inicial de ocho semanas con seguimiento estructurado.',
+    recommendedFrequency:'2 sesiones por semana',
+    reevaluationDate:'2026-10-15',
+    reviewAccepted:'on',
+  };
+  const first=normalizeFirstSessionDraft(raw,{id:'88888888-8888-4888-8888-888888888888'},'CLIENT-STRUCTURED');
+  const second=normalizeFirstSessionDraft({...raw,assessmentDate:'2026-10-15',priority1Target:'22 repeticiones comparables.'},{id:'99999999-9999-4999-8999-999999999999'},'CLIENT-STRUCTURED');
+
+  assert.deepEqual(first.diagnosis.priorities,['Fuerza tren inferior','Movilidad tobillo']);
+  assert.equal(first.diagnosis.priorityRecords[0].domain,'strength');
+  assert.equal(first.diagnosis.priorityRecords[0].status,'active');
+  assert.equal(first.diagnosis.priorityRecords[1].domain,'mobility');
+  assert.equal(first.diagnosis.priorityRecords[1].reviewDate,'2026-10-15');
+
+  const snapshot=iri2SnapshotFromDraft(second);
+  assert.equal(snapshot.decision.priorityRecords[0].target,'22 repeticiones comparables.');
+  assert.equal('compositeScore' in snapshot,false);
+
+  const log=buildIri2DecisionLog({assessments:[first,second]});
+  assert.equal(log.entries[1].changes.prioritiesChanged,false);
+  assert.equal(log.entries[1].changes.priorityDetailsChanged,true);
+  assert.equal(log.entries[1].label,'Plan revisado');
+  assert.equal(log.entries[1].priorityRecords[0].target,'22 repeticiones comparables.');
+});

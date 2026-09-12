@@ -13,6 +13,22 @@ function dateValue(value){
   const ts=Date.parse(raw);
   return Number.isFinite(ts)?ts:null;
 }
+const IRI_PRIORITY_DOMAINS=Object.freeze(['general','composition','mobility','strength','cardio','recovery','adherence','other']);
+const IRI_PRIORITY_STATUSES=Object.freeze(['active','maintain','completed','paused']);
+function normalizedPriorityRecords(records=[],labels=[],fallbackReviewDate=''){
+  const source=Array.isArray(records)?records:[];
+  const fallback=Array.isArray(labels)?labels.map((item)=>clean(item,500)).filter(Boolean):[];
+  const count=Math.min(6,Math.max(source.length,fallback.length));
+  const normalized=[];
+  for(let index=0;index<count;index++){
+    const item=source[index]&&typeof source[index]==='object'&&!Array.isArray(source[index])?source[index]:{};
+    const label=clean(item.label||fallback[index],500);if(!label)continue;
+    const domain=clean(item.domain,40).toLowerCase(),status=clean(item.status,40).toLowerCase();
+    normalized.push(Object.freeze({label,domain:IRI_PRIORITY_DOMAINS.includes(domain)?domain:'general',rationale:clean(item.rationale,800),target:clean(item.target,600),strategy:clean(item.strategy,1200),reviewDate:clean(item.reviewDate||fallbackReviewDate,32),status:IRI_PRIORITY_STATUSES.includes(status)?status:'active'}));
+  }
+  return Object.freeze(normalized);
+}
+function priorityRecordFingerprint(records=[]){return JSON.stringify((Array.isArray(records)?records:[]).map((item)=>[clean(item?.label,500),clean(item?.domain,40),clean(item?.rationale,800),clean(item?.target,600),clean(item?.strategy,1200),clean(item?.reviewDate,32),clean(item?.status,40)]));}
 function sameValue(a,b){
   if(a===null||a===undefined||b===null||b===undefined)return false;
   return String(a).trim().toLowerCase()===String(b).trim().toLowerCase();
@@ -128,6 +144,7 @@ export function iri2SnapshotFromDraft(draft={}){
     decision:Object.freeze({
       strengths:Object.freeze(Array.isArray(diagnosis.strengths)?diagnosis.strengths.map((x)=>clean(x,500)).filter(Boolean):[]),
       priorities:Object.freeze(Array.isArray(diagnosis.priorities)?diagnosis.priorities.map((x)=>clean(x,500)).filter(Boolean):[]),
+      priorityRecords:normalizedPriorityRecords(diagnosis.priorityRecords,diagnosis.priorities,diagnosis.reevaluationDate),
       coachInterpretation:clean(diagnosis.coachInterpretation,2000),
       trainingImplications:clean(diagnosis.trainingImplications,2000),
       initialPlan:clean(diagnosis.initialPlan,2000),
@@ -188,6 +205,7 @@ function normalizedDecisionList(value=[]){
 function decisionHasContent(decision={}){
   return Boolean(
     normalizedDecisionList(decision.priorities).length||
+    normalizedPriorityRecords(decision.priorityRecords,decision.priorities,decision.reevaluationDate).length||
     normalizedDecisionList(decision.strengths).length||
     clean(decision.coachInterpretation,2000)||
     clean(decision.trainingImplications,2000)||
@@ -214,11 +232,12 @@ function decisionEntry(snapshot,previous=null){
   const decision=snapshot?.decision||{};
   const previousDecision=previous?.decision||{};
   const priorities=decisionListDelta(previousDecision.priorities,decision.priorities);
+  const priorityDetailsChanged=Boolean(previous)&&priorityRecordFingerprint(previousDecision.priorityRecords)!==priorityRecordFingerprint(decision.priorityRecords);
   const planChanged=Boolean(previous)&&normalizedKey(previousDecision.initialPlan)!==normalizedKey(decision.initialPlan);
   const implicationsChanged=Boolean(previous)&&normalizedKey(previousDecision.trainingImplications)!==normalizedKey(decision.trainingImplications);
   const frequencyChanged=Boolean(previous)&&normalizedKey(previousDecision.recommendedFrequency)!==normalizedKey(decision.recommendedFrequency);
   const reevaluationChanged=Boolean(previous)&&normalizedKey(previousDecision.reevaluationDate)!==normalizedKey(decision.reevaluationDate);
-  const changed=Boolean(previous)&&(priorities.changed||planChanged||implicationsChanged||frequencyChanged||reevaluationChanged);
+  const changed=Boolean(previous)&&(priorities.changed||priorityDetailsChanged||planChanged||implicationsChanged||frequencyChanged||reevaluationChanged);
   const label=!previous
     ?'Decisión inicial'
     :priorities.changed
@@ -232,6 +251,7 @@ function decisionEntry(snapshot,previous=null){
     label,
     strengths:Object.freeze(normalizedDecisionList(decision.strengths)),
     priorities:Object.freeze(normalizedDecisionList(decision.priorities)),
+    priorityRecords:normalizedPriorityRecords(decision.priorityRecords,decision.priorities,decision.reevaluationDate),
     coachInterpretation:clean(decision.coachInterpretation,2000),
     trainingImplications:clean(decision.trainingImplications,2000),
     initialPlan:clean(decision.initialPlan,2000),
@@ -240,6 +260,7 @@ function decisionEntry(snapshot,previous=null){
     changes:Object.freeze({
       changed,
       prioritiesChanged:priorities.changed,
+      priorityDetailsChanged,
       prioritiesAdded:priorities.added,
       prioritiesRemoved:priorities.removed,
       planChanged,
@@ -337,5 +358,5 @@ export function iri2ComparisonSummary(profile={}){
 }
 
 export const __iri2LongitudinalInternals=Object.freeze({
-  finite,clean,dateValue,sameValue,sameNumber,protocolKey,metric,strengthProtocol,cardioProtocol,compositionProtocol,snapshotMetrics,comparable,compareMetric,sortSnapshots,sameClient,normalizedDecisionList,decisionHasContent,normalizedKey,decisionListDelta,decisionEntry,
+  finite,clean,dateValue,IRI_PRIORITY_DOMAINS,IRI_PRIORITY_STATUSES,normalizedPriorityRecords,priorityRecordFingerprint,sameValue,sameNumber,protocolKey,metric,strengthProtocol,cardioProtocol,compositionProtocol,snapshotMetrics,comparable,compareMetric,sortSnapshots,sameClient,normalizedDecisionList,decisionHasContent,normalizedKey,decisionListDelta,decisionEntry,
 });
