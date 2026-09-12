@@ -1,0 +1,6 @@
+{
+  "schema": "iberfit.web.v630-preview.v1",
+  "branch": "work/web-v6-30-hardening",
+  "webSha": "61866591d91f2350f62c646307f453ded7a8dd16",
+  "note": "Preview V6.30 hardening: isotipo/header, CTA oscuros, contraste, no-JS, microcopy y robustez visual."
+}
