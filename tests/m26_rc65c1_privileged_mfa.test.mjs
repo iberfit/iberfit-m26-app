@@ -109,14 +109,24 @@ test('RC65-C1 FREE fuente transport no depende del Advanced MFA de Supabase',()=
   assert.doesNotMatch(source,/M26_MFA_AAL2_WEBAUTHN_REQUIRED/u);
 });
 
-test('RC65-C1 FREE aplicación conserva sesión Supabase y exige iberfitAssurance verified',()=>{
+test('RC65-C1 FREE mantiene assurance server-side y evita repetirla tras una verificación WebAuthn exitosa',()=>{
   const source=fs.readFileSync('src/m26/app/application.js','utf8');
+  const transport=fs.readFileSync('src/m26/supabase-transport.js','utf8');
   assert.match(source,/assurance\.iberfitAssurance!=='verified'/u);
   assert.match(source,/M26_PRIVILEGED_WEBAUTHN_REQUIRED/u);
   assert.doesNotMatch(source,/assurance\.aal!=='aal2'/u);
-  const verifyArea=source.match(/const next=await boundedMfaBackend\(\(\)=>transport\.verifyWebAuthn[\s\S]{0,2400}?const \[assurance,user\]=await boundedMfaBackend\(\(\)=>Promise\.all/u)?.[0]||'';
-  assert.ok(verifyArea);
+  const start=source.indexOf('async function continueMfaWithWebAuthn()');
+  const end=source.indexOf('function surfaceRetriableSessionFailure',start);
+  assert.ok(start>=0&&end>start);
+  const verifyArea=source.slice(start,end);
+  assert.match(verifyArea,/const next=await boundedMfaBackend\(\(\)=>transport\.verifyWebAuthn/u);
+  assert.match(verifyArea,/next\.privilegedRole!==expectedRole/u);
+  assert.doesNotMatch(verifyArea,/transport\.authAssuranceContext/u);
+  assert.doesNotMatch(verifyArea,/transport\.authUser/u);
   assert.doesNotMatch(verifyArea,/session=next|vault\.save\(session\)/u);
+  assert.match(transport,/const privilegedRole=String\(body\?\.privilegedRole\|\|''\)\.trim\(\)\.toLowerCase\(\)/u);
+  assert.match(transport,/!\['admin','coach'\]\.includes\(privilegedRole\)/u);
+  assert.match(transport,/privilegedRole,/u);
 });
 
 test('RC65-C1 FREE migración liga assurance a session_id real y bloquea tablas al cliente',()=>{
