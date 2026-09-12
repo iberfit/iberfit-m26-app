@@ -1,0 +1,153 @@
+name: QA WEB IBERFIT V6.30 visual targeted
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.iberfit/web-v630-visual-qa.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-v630-visual-targeted
+  cancel-in-progress: false
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar marcador
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const m=JSON.parse(fs.readFileSync('.iberfit/web-v630-visual-qa.json','utf8'));
+          if(m.schema!=='iberfit.web.v630-visual-qa.v1') throw new Error('SCHEMA_INVALID');
+          if(!/^[0-9a-f]{40}$/.test(m.webSha||'')) throw new Error('SHA_INVALID');
+          fs.appendFileSync(process.env.GITHUB_ENV,'WEB_SHA='+m.webSha+'\n');
+          NODE
+
+      - name: Descargar candidata exacta
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/iberfit/iberfitweb.git /tmp/web
+          git -C /tmp/web fetch --depth=1 origin "${WEB_SHA}"
+          git -C /tmp/web checkout --detach "${WEB_SHA}"
+          test "$(git -C /tmp/web rev-parse HEAD)" = "${WEB_SHA}"
+          test "$(cat /tmp/web/candidate/v628/VERSION)" = "6.30"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar navegador
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/web
+          npm install --no-save playwright@1.62.1
+          npx playwright install --with-deps chromium
+
+      - name: Servir candidata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 --directory /tmp/web/candidate/v628 >/tmp/server.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:4173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/server.log
+          exit 1
+
+      - name: Auditar las 33 rutas
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v630-targeted
+          cat > /tmp/audit.js <<'NODE'
+          const {chromium}=require('playwright');
+          const fs=require('fs');
+          const base='http://127.0.0.1:4173';
+          const routes=[
+            '/','/diagnostico-iri/','/metodo/','/presencial/','/hibrido/','/online/','/sobre-iberfit/','/contacto/','/privacidad/',
+            '/entrenador-personal-las-condes/','/entrenador-personal-vitacura/','/entrenamiento-personal-providencia/','/personal-trainer-nunoa/','/entrenador-personal-lo-barnechea/','/entrenador-personal-la-reina/','/entrenador-personal-penalolen/',
+            '/en/','/en/iri-assessment/','/en/method/','/en/in-person/','/en/hybrid/','/en/online/','/en/about/','/en/contact/','/en/privacy/',
+            '/en/personal-trainer-las-condes/','/en/personal-trainer-vitacura/','/en/personal-training-providencia/','/en/personal-trainer-nunoa/','/en/personal-trainer-lo-barnechea/','/en/personal-trainer-la-reina/','/en/personal-trainer-penalolen/'
+          ];
+          const ok=(c,m)=>{if(!c)throw new Error(m)};
+          const rgb=s=>{const m=String(s).match(/rgba?\(([^)]+)\)/i);if(!m)return null;const p=m[1].split(',').map(x=>+x.trim());return {r:p[0],g:p[1],b:p[2],a:p.length>3?p[3]:1}};
+          const lin=c=>{c/=255;return c<=.03928?c/12.92:Math.pow((c+.055)/1.055,2.4)};
+          const lum=c=>.2126*lin(c.r)+.7152*lin(c.g)+.0722*lin(c.b);
+          const ratio=(a,b)=>{const A=lum(a),B=lum(b);return (Math.max(A,B)+.05)/(Math.min(A,B)+.05)};
+          const notes=[];
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            try{
+              const desktop=await browser.newContext({viewport:{width:1440,height:1000}});
+              for(const route of routes){
+                const p=await desktop.newPage();
+                const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
+                const res=await p.goto(base+route,{waitUntil:'networkidle'});ok(res&&res.ok(),route+' HTTP');ok(!errs.length,route+' console '+errs.join('|'));
+                const h1=await p.locator('h1').first().evaluate(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return {o:+s.opacity,v:s.visibility,d:s.display,w:r.width,h:r.height}});
+                ok(h1.o>.9&&h1.v!=='hidden'&&h1.d!=='none'&&h1.w>0&&h1.h>0,route+' H1 hidden');
+
+                const logo=await p.locator('.site-header .brand-mark').first().evaluate(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return {bg:s.backgroundColor,pad:parseFloat(s.paddingTop),w:r.width,h:r.height}});
+                const lbg=rgb(logo.bg);ok(lbg&&lbg.a>.9&&logo.pad>=4&&logo.w>=44&&logo.h>=44,route+' logo support');
+
+                const panels=p.locator('.cta-panel-inner');
+                for(let i=0;i<await panels.count();i++){
+                  const d=await panels.nth(i).evaluate(el=>{const h=el.querySelector('h1,h2,h3,h4');if(!h)return null;const hs=getComputedStyle(h),bs=getComputedStyle(el),r=h.getBoundingClientRect();return {fg:hs.color,bg:bs.backgroundColor,o:+hs.opacity,v:hs.visibility,w:r.width,h:r.height}});
+                  if(d){ok(d.o>.9&&d.v!=='hidden'&&d.w>0&&d.h>0,route+' CTA hidden');ok(ratio(rgb(d.fg),rgb(d.bg))>=4.5,route+' CTA contrast '+JSON.stringify(d))}
+                }
+
+                await p.evaluate(async()=>{const max=document.documentElement.scrollHeight;for(let y=0;y<max;y+=500){scrollTo(0,y);await new Promise(r=>setTimeout(r,25))}scrollTo(0,max);await new Promise(r=>setTimeout(r,750))});
+                const hidden=await p.locator('.reveal').evaluateAll(els=>els.filter(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return r.width>0&&r.height>0&&(+s.opacity<.85||s.visibility==='hidden')}).map(el=>({c:el.className,t:(el.textContent||'').trim().slice(0,50),o:getComputedStyle(el).opacity})));
+                ok(!hidden.length,route+' reveal hidden '+JSON.stringify(hidden.slice(0,5)));
+
+                const broken=await p.locator('img').evaluateAll(imgs=>imgs.filter(i=>i.getBoundingClientRect().width>0&&(!i.complete||i.naturalWidth===0)).map(i=>i.src));
+                ok(!broken.length,route+' broken images '+JSON.stringify(broken));
+                const ov=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);ok(ov<=2,route+' desktop overflow '+ov);
+                await p.close();
+              }
+              notes.push('33 desktop routes PASS');
+              await desktop.close();
+
+              const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2});
+              for(const route of ['/','/diagnostico-iri/','/presencial/','/sobre-iberfit/','/contacto/','/entrenador-personal-las-condes/','/en/','/en/in-person/','/en/about/','/en/contact/','/en/personal-trainer-las-condes/']){
+                const p=await mobile.newPage();await p.goto(base+route,{waitUntil:'networkidle'});
+                const ov=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);ok(ov<=2,route+' mobile overflow '+ov);
+                const small=await p.evaluate(()=>[...document.querySelectorAll('button,.btn,.consent-close,.review-carousel-btn,.review-carousel-dot,.menu-toggle,.device-dock a,.nav-mobile-languages a')].filter(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0&&(r.width<43.5||r.height<43.5)}).map(el=>({c:el.className,w:el.getBoundingClientRect().width,h:el.getBoundingClientRect().height})));
+                ok(!small.length,route+' touch targets '+JSON.stringify(small.slice(0,6)));await p.close();
+              }
+              notes.push('mobile touch/overflow PASS');await mobile.close();
+
+              const nojs=await browser.newContext({viewport:{width:390,height:844},javaScriptEnabled:false});
+              for(const route of ['/','/metodo/','/sobre-iberfit/','/contacto/','/en/','/en/method/','/en/about/','/en/contact/']){
+                const p=await nojs.newPage();await p.goto(base+route,{waitUntil:'domcontentloaded'});
+                const hidden=await p.locator('.reveal').evaluateAll(els=>els.filter(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return r.width>0&&r.height>0&&(+s.opacity<.9||s.visibility==='hidden')}).length);ok(hidden===0,route+' nojs reveal');
+                const nav=await p.locator('.navlinks').first().evaluate(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return {d:s.display,v:s.visibility,w:r.width,h:r.height}});ok(nav.d!=='none'&&nav.v!=='hidden'&&nav.w>0&&nav.h>0,route+' nojs nav');await p.close();
+              }
+              notes.push('no-JS PASS');await nojs.close();
+              fs.writeFileSync('/tmp/v630-targeted/report.json',JSON.stringify({ok:true,notes},null,2));
+              console.log('V630_TARGETED_VISUAL_QA=PASS');
+            } finally {await browser.close()}
+          })().catch(e=>{fs.writeFileSync('/tmp/v630-targeted/report.json',JSON.stringify({ok:false,error:e.stack||String(e)},null,2));console.error(e.stack||e);process.exit(1)});
+          NODE
+          NODE_PATH="/tmp/web/node_modules" node /tmp/audit.js
+
+      - name: Guardar evidencia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-v630-visual-targeted-${{ github.run_id }}
+          path: /tmp/v630-targeted
+          if-no-files-found: warn
+          retention-days: 30
