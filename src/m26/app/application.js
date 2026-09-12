@@ -60,7 +60,9 @@ import {
 
 export const EMAIL_OTP_DEPLOYMENT_READY=false;
 const MFA_BACKEND_TIMEOUT_MS=10_000;
-const POST_MFA_SETUP_TIMEOUT_MS=18_000;
+const POST_MFA_SETUP_TIMEOUT_MS=12_000;
+const OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS=4_000;
+const AUTH_CATALOG_TIMEOUT_MS=6_000;
 const SESSION_DRAFT_SCOPE='session-builder';
 function qaStage(stage){
   const value=String(stage||'');
@@ -350,6 +352,18 @@ export async function createM26Application({root=document.querySelector('#app'),
     sessionRetryAvailable,
   });
 }
+
+  async function optionalAuthBootstrap(operation,fallback,stage='optional'){
+    try{
+      return await withAuthOperationTimeout(operation,{
+        timeoutMs:OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT_MS,
+        code:'M26_OPTIONAL_AUTH_BOOTSTRAP_TIMEOUT',
+      });
+    }catch(error){
+      reportDiagnostic(`optional-auth-bootstrap-${String(stage||'optional')}`,error);
+      return fallback;
+    }
+  }
   function currentToken(){return session?.token||null;}
   async function refreshSessionIfNeeded(){
     if(!session||!nextExpiry(session))return session;
@@ -379,10 +393,26 @@ export async function createM26Application({root=document.querySelector('#app'),
       const [snapshot,installed,extensions,contextExtension,backendV43,wearableV44]=await Promise.all([
         transport.bootstrap(currentToken()),
         transport.commandRegistry(currentToken()),
-        rc39Transport?rc39Transport.extensions(currentToken()):Promise.resolve({rolesAvailable:false,authorizedRoles:[],changeRequestsAvailable:false,changeRequests:[]}),
-        adminTransport?adminTransport.applicationContextOptional(currentToken()):Promise.resolve({available:false,reason:'disabled',data:null}),
-        transport.backendBootstrap(currentToken()),
-        transport.wearableBootstrap(currentToken()),
+        rc39Transport?optionalAuthBootstrap(
+          ()=>rc39Transport.extensions(currentToken()),
+          {rolesAvailable:false,authorizedRoles:[],changeRequestsAvailable:false,changeRequests:[]},
+          'rc39',
+        ):Promise.resolve({rolesAvailable:false,authorizedRoles:[],changeRequestsAvailable:false,changeRequests:[]}),
+        adminTransport?optionalAuthBootstrap(
+          ()=>adminTransport.applicationContextOptional(currentToken()),
+          {available:false,reason:'timeout_or_unavailable',data:null},
+          'application-context',
+        ):Promise.resolve({available:false,reason:'disabled',data:null}),
+        optionalAuthBootstrap(
+          ()=>transport.backendBootstrap(currentToken()),
+          {available:false,ready:false,reason:'timeout_or_unavailable'},
+          'backend-v43',
+        ),
+        optionalAuthBootstrap(
+          ()=>transport.wearableBootstrap(currentToken()),
+          {ready:false,version:'RC44',connections:[],dailySummaries:[],consents:[]},
+          'wearables',
+        ),
       ]);
       qaStage('rc64-hydrate-primary-ready');
       const runtimeRegistry=validatedRuntimeRegistry(installed);
@@ -400,8 +430,16 @@ export async function createM26Application({root=document.querySelector('#app'),
       const scopedSnapshot=filterSnapshotForAssignmentScope(snapshot,applicationContext,activeRole);
       qaStage('rc64-hydrate-scope-ready');
       const [adminExtension,communicationExtension]=await Promise.all([
-        activeRole==='admin'&&adminTransport?adminTransport.bootstrapOptional(currentToken()):Promise.resolve({available:false,reason:'role_not_admin',data:null}),
-        ['client','coach'].includes(activeRole)&&communicationTransport?communicationTransport.bootstrapOptional(currentToken(),{application:activeRole}):Promise.resolve({available:false,reason:'unsupported',data:null}),
+        activeRole==='admin'&&adminTransport?optionalAuthBootstrap(
+          ()=>adminTransport.bootstrapOptional(currentToken()),
+          {available:false,reason:'timeout_or_unavailable',data:null},
+          'admin',
+        ):Promise.resolve({available:false,reason:'role_not_admin',data:null}),
+        ['client','coach'].includes(activeRole)&&communicationTransport?optionalAuthBootstrap(
+          ()=>communicationTransport.bootstrapOptional(currentToken(),{application:activeRole}),
+          {available:false,reason:'timeout_or_unavailable',data:null},
+          'communication',
+        ):Promise.resolve({available:false,reason:'unsupported',data:null}),
       ]);
       qaStage('rc64-hydrate-secondary-ready');
       const rawEnvironment=scopedSnapshot?.environment;const normalizedEnvironment=typeof rawEnvironment==='string'?{mode:rawEnvironment}:rawEnvironment&&typeof rawEnvironment==='object'&&!Array.isArray(rawEnvironment)?rawEnvironment:{};
@@ -643,7 +681,10 @@ export async function createM26Application({root=document.querySelector('#app'),
     destroyControllers();sessionUi=null;
     const [hydrationResult]=await Promise.all([
       hydrate({reason:'login'}),
-      fetchCatalog(),
+      withAuthOperationTimeout(
+        ()=>fetchCatalog(),
+        {timeoutMs:AUTH_CATALOG_TIMEOUT_MS,code:'M26_AUTH_CATALOG_TIMEOUT'},
+      ),
     ]);
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
     const {installed,runtimeRegistry}=hydrationResult;
@@ -1207,9 +1248,11 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       if(next.privilegedRole!==expectedRole)throw new Error('M26_PRIVILEGED_WEBAUTHN_REQUIRED');
 
       assuranceVerified=true;
-      authMessage('Verificación segura confirmada. Cargando IBERFIT…');
       mfaState=null;
-      authMode='login';
+      authMode='post-mfa-loading';
+      sessionRetryAvailable=false;
+      beginAuthAttempt('post-mfa-setup');
+      authMessage('Verificación segura confirmada. Cargando IBERFIT…','success');
       store.reset();
       qaStage('rc64-login-setup-start');
       await withAuthOperationTimeout(
@@ -1254,6 +1297,8 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   }
 
   function surfaceRetriableSessionFailure(error,stage='resume'){
+    invalidateAuthAttempt();
+    loginBusy=false;
     destroyControllers();
     store.reset();
     mfaState=null;
