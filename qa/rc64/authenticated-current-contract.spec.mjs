@@ -65,6 +65,35 @@ async function readAssurance(response){
   return payload;
 }
 
+async function visibleAreaTarget(page,area){
+  const selector=`[data-m26-area="${area}"]:visible`;
+  const direct=page.locator(selector).first();
+  if(await direct.count()&&await direct.isVisible())return direct;
+
+  const mobileMore=page.locator('details.m26-mobile-more').first();
+  if(await mobileMore.count()){
+    const open=await mobileMore.getAttribute('open');
+    if(open===null){
+      const summary=mobileMore.locator('summary').first();
+      await expect(summary,`Mobile More disclosure must be available before opening ${area}`).toBeVisible({timeout:5_000});
+      await summary.click({timeout:5_000});
+    }
+  }
+
+  const target=page.locator(selector).first();
+  await expect(target,`Area ${area} must be reachable through the visible responsive navigation`).toBeVisible({timeout:5_000});
+  return target;
+}
+
+async function openArea(page,area){
+  const target=await visibleAreaTarget(page,area);
+  await target.click({timeout:5_000});
+  await expect(
+    page.locator(`[data-m26-area="${area}"][aria-current="page"]:visible`).first(),
+    `Area ${area} must become active after pointer/touch navigation`,
+  ).toBeVisible({timeout:5_000});
+}
+
 test('RC64.2B current WebAuthn contract authenticates QA Coach and Client without mutations',async({browser})=>{
   const missing=required.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
@@ -219,6 +248,49 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
             'Native settings control must accept pointer/touch interaction after login',
           ).toHaveAttribute('open','',{timeout:5_000});
         }
+
+        await openArea(page,'actividad');
+        const energyInput=page.locator('form[data-engagement-form="checkin"] input[name="energy"]').first();
+        const notesInput=page.locator('form[data-engagement-form="checkin"] textarea[name="notes"]').first();
+        await expect(energyInput,'Activity numeric input must be visible on every responsive layout').toBeVisible({timeout:5_000});
+        await energyInput.fill('7');
+        await expect(energyInput).toHaveValue('7');
+        await expect(notesInput,'Activity textarea must be visible on every responsive layout').toBeVisible({timeout:5_000});
+        await notesInput.fill('responsive interaction probe');
+        await page.waitForTimeout(350);
+        await expect(
+          page.locator('form[data-engagement-form="checkin"] input[name="energy"]').first(),
+          'Focused numeric input must survive progressive controller renders without being ejected',
+        ).toHaveValue('7');
+        await expect(
+          page.locator('form[data-engagement-form="checkin"] textarea[name="notes"]').first(),
+          'Focused textarea must survive progressive controller renders without being ejected',
+        ).toHaveValue('responsive interaction probe');
+
+        await openArea(page,'ajustes');
+        const localeSelect=page.locator('[data-m26-ui-locale]').first();
+        await expect(localeSelect,'Locale select must be interactive after authenticated startup').toBeVisible({timeout:5_000});
+        const localeState=await localeSelect.evaluate((node)=>({
+          current:node.value,
+          options:[...node.options].map((option)=>option.value).filter(Boolean),
+        }));
+        expect(localeState.options.length).toBeGreaterThan(1);
+        const nextLocale=localeState.options.find((value)=>value!==localeState.current);
+        expect(nextLocale).toBeTruthy();
+        await localeSelect.selectOption(nextLocale);
+        await expect(
+          page.locator('[data-m26-ui-locale]').first(),
+          'Locale select change must complete even when the shell rerenders after the native change event',
+        ).toHaveValue(nextLocale,{timeout:5_000});
+
+        const notificationToggle=page.locator('[data-m26-preference="notifications.sessionReminders"]').first();
+        await expect(notificationToggle,'Preference checkbox must remain touch/click interactive').toBeVisible({timeout:5_000});
+        const beforeToggle=await notificationToggle.isChecked();
+        await notificationToggle.click({timeout:5_000});
+        await expect(
+          page.locator('[data-m26-preference="notifications.sessionReminders"]').first(),
+          'Preference checkbox state must survive the shell rerender',
+        ).toBeChecked({checked:!beforeToggle,timeout:5_000});
       }
 
       const quality=await page.evaluate(async()=>{
@@ -253,6 +325,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         pageErrors:0,
         qualityObservability:'memory-only-no-transport',
         interactionVerified:account.role==='client',
+        responsiveControlsVerified:account.role==='client',
       }));
 
       console.log(`RC64_2B_CURRENT_ACCOUNT_PASS:${account.name}`);
