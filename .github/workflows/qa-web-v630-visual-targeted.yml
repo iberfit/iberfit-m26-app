@@ -108,7 +108,7 @@ jobs:
                   if(d){ok(d.o>.9&&d.v!=='hidden'&&d.w>0&&d.h>0,route+' CTA hidden');ok(ratio(rgb(d.fg),rgb(d.bg))>=4.5,route+' CTA contrast '+JSON.stringify(d))}
                 }
 
-                await p.evaluate(async()=>{const max=document.documentElement.scrollHeight;for(let y=0;y<max;y+=500){scrollTo(0,y);await new Promise(r=>setTimeout(r,25))}scrollTo(0,max);await new Promise(r=>setTimeout(r,750))});
+                await p.evaluate(async()=>{const max=document.documentElement.scrollHeight;for(let y=0;y<max;y+=500){scrollTo(0,y);await new Promise(r=>setTimeout(r,25))}scrollTo(0,max);await new Promise(r=>setTimeout(r,1600))});
                 const hidden=await p.locator('.reveal').evaluateAll(els=>els.filter(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return r.width>0&&r.height>0&&(+s.opacity<.85||s.visibility==='hidden')}).map(el=>({c:el.className,t:(el.textContent||'').trim().slice(0,50),o:getComputedStyle(el).opacity})));
                 ok(!hidden.length,route+' reveal hidden '+JSON.stringify(hidden.slice(0,5)));
 
