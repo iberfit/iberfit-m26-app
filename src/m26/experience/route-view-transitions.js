@@ -1,7 +1,10 @@
 export function routeViewTransitionsEnabled({documentLike=globalThis.document,windowLike=documentLike?.defaultView||globalThis.window}={}){
   if(typeof documentLike?.startViewTransition!=='function')return false;
   try{
-    return windowLike?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches!==true;
+    const reduced=windowLike?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
+    const coarse=windowLike?.matchMedia?.('(pointer: coarse)')?.matches===true;
+    const touchPoints=Number(windowLike?.navigator?.maxTouchPoints||0);
+    return !reduced&&!coarse&&touchPoints<=0;
   }catch{
     return false;
   }
