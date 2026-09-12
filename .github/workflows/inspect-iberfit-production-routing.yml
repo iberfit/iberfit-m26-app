@@ -80,3 +80,16 @@ jobs:
           echo '=== STAGING ==='
           dig +short A "web.${DOMAIN}" || true
           dig +short CNAME "web.${DOMAIN}" || true
+
+      - name: Inspeccionar comportamiento HTTP actual
+        shell: bash
+        run: |
+          set -euo pipefail
+          for host in "${DOMAIN}" "www.${DOMAIN}"; do
+            safe="$(echo "$host" | tr '.' '_')"
+            curl --silent --show-error --max-time 30               -D "/tmp/${safe}.headers" -o "/tmp/${safe}.body"               "https://${host}/" || true
+            echo "=== HTTP ${host} ==="
+            awk 'BEGIN{IGNORECASE=1} /^HTTP\// || /^location:/ || /^server:/ || /^cf-ray:/ || /^cache-control:/ {print}' "/tmp/${safe}.headers" || true
+            if grep -Fq '>Online</a>' "/tmp/${safe}.body"; then echo "FINGERPRINT_${safe}=PRE_V628"; fi
+            if grep -Fq '>A distancia</a>' "/tmp/${safe}.body"; then echo "FINGERPRINT_${safe}=V628"; fi
+          done
