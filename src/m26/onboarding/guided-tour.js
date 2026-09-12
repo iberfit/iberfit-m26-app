@@ -522,7 +522,6 @@ function createCoreGuidedTourController({
   if(!root?.addEventListener)throw new Error('M26_GUIDED_ONBOARDING_ROOT_REQUIRED');
   const repository=createGuidedOnboardingRepository({storage,scope});
   const documentLike=root.ownerDocument||scope?.document||globalThis.document;
-  let observer=null;
   let mounted=false;
   let scheduled=false;
   let open=false;
@@ -778,10 +777,6 @@ function createCoreGuidedTourController({
       documentLike?.addEventListener?.('keydown',onKeyDown);
       scope?.addEventListener?.('pageshow',onPageShow);
       root.addEventListener?.('m26:shell-rendered',refresh);
-      if(typeof scope?.MutationObserver==='function'){
-        observer=new scope.MutationObserver(refresh);
-        observer.observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['aria-current']});
-      }
       ensureStyle(documentLike);
       refresh();
     },
@@ -793,8 +788,6 @@ function createCoreGuidedTourController({
       root.removeEventListener?.('m26:shell-rendered',refresh);
       documentLike?.removeEventListener?.('keydown',onKeyDown);
       scope?.removeEventListener?.('pageshow',onPageShow);
-      observer?.disconnect?.();
-      observer=null;
       removeDialog({restoreFocus:false});
       root.querySelector?.('[data-m26-guided-tour-settings]')?.remove?.();
       root.querySelector?.('[data-progressive-onboarding-launcher]')?.removeAttribute?.('data-m26-guided-tour-open');

@@ -195,3 +195,11 @@ test('guided onboarding remains local-only and does not add transport database o
   assert.doesNotMatch(source,/driver\.js|driverjs|from ['"]driver/iu);
   assert.match(source,/localStorage/u);
 });
+
+test('guided onboarding refreshes from explicit shell lifecycle without observing the full workspace DOM',()=>{
+  const source=read('src/m26/onboarding/guided-tour.js');
+  assert.match(source,/root\.addEventListener\?\.\('m26:shell-rendered',refresh\)/u);
+  assert.match(source,/root\.removeEventListener\?\.\('m26:shell-rendered',refresh\)/u);
+  assert.doesNotMatch(source,/observer\.observe\(root,\{childList:true,subtree:true/u);
+});
+

@@ -64,3 +64,34 @@ test('route view transitions fail open without duplicating an invoked update',()
   runRouteViewTransition(()=>{updates+=1;},{documentLike:afterCallback,windowLike});
   assert.equal(updates,1);
 });
+
+test('route view transitions fail soft by skipping a stalled native transition',()=>{
+  let updates=0;
+  let skips=0;
+  let scheduled=null;
+  const token={
+    finished:new Promise(()=>{}),
+    skipTransition(){skips+=1;},
+  };
+  const documentLike={
+    startViewTransition(callback){
+      callback();
+      return token;
+    },
+  };
+  const windowLike={
+    matchMedia:()=>media(false),
+    setTimeout(callback,ms){scheduled={callback,ms};return 7;},
+    clearTimeout(){},
+  };
+  const transition=runRouteViewTransition(
+    ()=>{updates+=1;},
+    {documentLike,windowLike,maxDurationMs:240},
+  );
+  assert.equal(transition,token);
+  assert.equal(updates,1);
+  assert.equal(scheduled.ms,240);
+  scheduled.callback();
+  assert.equal(skips,1);
+});
+

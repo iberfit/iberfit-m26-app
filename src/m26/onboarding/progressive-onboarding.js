@@ -444,7 +444,6 @@ export function createProgressiveOnboardingController({
     scope,
     onOpenChange:(open)=>tourOpenState.set(open),
   });
-  let observer=null;
   let tourObserver=null;
   let releaseCompactStyle=null;
   let mounted=false;
@@ -510,6 +509,12 @@ export function createProgressiveOnboardingController({
   function onPageShow(){
     if(!mounted)return;
     guidedTour.refresh?.();
+    schedule();
+    scheduleTourOpenStateSync();
+  }
+
+  function onShellRendered(){
+    if(!mounted)return;
     schedule();
     scheduleTourOpenStateSync();
   }
@@ -670,13 +675,10 @@ export function createProgressiveOnboardingController({
       documentLike?.addEventListener?.('click',onDocumentTourClick,true);
       documentLike?.addEventListener?.('keydown',onDocumentTourKeydown,true);
       scope?.addEventListener?.('pageshow',onPageShow);
-      if(typeof scope?.MutationObserver==='function'){
-        observer=new scope.MutationObserver(schedule);
-        observer.observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['aria-current']});
-        if(documentLike?.body){
-          tourObserver=new scope.MutationObserver(syncTourOpenState);
-          tourObserver.observe(documentLike.body,{childList:true});
-        }
+      root.addEventListener?.('m26:shell-rendered',onShellRendered);
+      if(typeof scope?.MutationObserver==='function'&&documentLike?.body){
+        tourObserver=new scope.MutationObserver(syncTourOpenState);
+        tourObserver.observe(documentLike.body,{childList:true});
       }
       guidedTour.mount?.();
       releaseCompactStyle=retainProgressiveOnboardingCompactStyle(documentLike);
@@ -697,8 +699,7 @@ export function createProgressiveOnboardingController({
       documentLike?.removeEventListener?.('click',onDocumentTourClick,true);
       documentLike?.removeEventListener?.('keydown',onDocumentTourKeydown,true);
       scope?.removeEventListener?.('pageshow',onPageShow);
-      observer?.disconnect?.();
-      observer=null;
+      root.removeEventListener?.('m26:shell-rendered',onShellRendered);
       tourObserver?.disconnect?.();
       tourObserver=null;
       guidedTour.destroy?.();
