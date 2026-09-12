@@ -185,6 +185,36 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
   }
 
+  function renderWorkspaceFrame(state=store.getState()){
+    const viewModel=createShellViewModel(state);
+    const markup=renderM26Shell(viewModel,'');
+    if(markup===lastMarkup){clearClientSwitchBusy();return false;}
+    root.innerHTML=markup;
+    lastMarkup=markup;
+    syncAdaptiveLayout();
+    clearClientSwitchBusy();
+    root.dispatchEvent(new CustomEvent('m26:shell-frame-ready',{bubbles:false,detail:{role:viewModel.identity?.role||'',area:viewModel.activeArea||''}}));
+    return true;
+  }
+
+  function scheduleProgressiveRouteRender(){
+    const token=generation;
+    const run=()=>{
+      if(token!==generation||!unsubscribe)return;
+      renderNow(store.getState(),{force:true});
+    };
+    const windowLike=adaptiveWindow||root.ownerDocument?.defaultView||globalThis.window||null;
+    if(typeof windowLike?.requestAnimationFrame==='function'){
+      windowLike.requestAnimationFrame(()=>{
+        windowLike.requestAnimationFrame(run);
+      });
+      return true;
+    }
+    const timer=globalThis.setTimeout?.(run,0);
+    if(timer===undefined||timer===null)queueMicrotask(run);
+    return true;
+  }
+
   function renderNow(state = store.getState(),{force=false}={}) {
     if(!force&&shellInteractionActive()){
       queuedState=state;
@@ -436,7 +466,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     switchClient(selector.value,{openExpediente:false,source:selector});
   }
 
-  function mount() {
+  function mount({progressive=false}={}) {
     if (unsubscribe) return;
     generation+=1;
     adaptiveWindow=root.ownerDocument?.defaultView||globalThis.window||null;
@@ -450,7 +480,14 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     adaptiveWindow?.addEventListener?.('orientationchange',syncAdaptiveLayout,{passive:true});
     unsubscribe = store.subscribe(scheduleRender);
     syncAdaptiveLayout();
-    renderNow();
+    const state=store.getState();
+    const authenticated=createShellViewModel(state).mode==='authenticated';
+    if(progressive&&authenticated){
+      renderWorkspaceFrame(state);
+      scheduleProgressiveRouteRender();
+      return;
+    }
+    renderNow(state);
   }
 
   function destroy() {
