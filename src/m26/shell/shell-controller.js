@@ -155,14 +155,46 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let lastMarkup='';
   let adaptiveWindow=null;
   let interactionPointerTarget=null;
+  let interactionPointerTimer=null;
 
   const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
+  const INTERACTION_POINTER_LOCK_MS=1800;
   function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||null;}
   function focusedInteractiveControl(){
     const active=root.ownerDocument?.activeElement;
     return active&&root.contains?.(active)&&active.matches?.(SHELL_INTERACTIVE_SELECTOR)?active:null;
   }
-  function shellInteractionActive(){return Boolean(interactionPointerTarget||focusedInteractiveControl());}
+  function clearPointerInteractionLock(){
+    if(interactionPointerTimer!==null){
+      globalThis.clearTimeout?.(interactionPointerTimer);
+      interactionPointerTimer=null;
+    }
+    interactionPointerTarget=null;
+  }
+  function armPointerInteractionLock(control){
+    clearPointerInteractionLock();
+    if(!control)return false;
+    interactionPointerTarget=control;
+    interactionPointerTimer=globalThis.setTimeout?.(()=>{
+      interactionPointerTimer=null;
+      interactionPointerTarget=null;
+      queueMicrotask(flushDeferredRender);
+    },INTERACTION_POINTER_LOCK_MS)??null;
+    return true;
+  }
+  function shellInteractionActive(){
+    if(interactionPointerTarget&&interactionPointerTarget.isConnected===false)clearPointerInteractionLock();
+    return Boolean(interactionPointerTarget||focusedInteractiveControl());
+  }
+  function releaseActiveInteraction({blurFocused=false}={}){
+    clearPointerInteractionLock();
+    const focused=focusedInteractiveControl();
+    if(blurFocused&&focused){
+      try{focused.blur?.();}catch{}
+    }
+    queueMicrotask(flushDeferredRender);
+    return Boolean(focused);
+  }
 
   function syncAdaptiveLayout(){
     const target=adaptiveWindow||root.ownerDocument?.defaultView||globalThis.window||null;
@@ -248,14 +280,18 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
   function onPointerDown(event){
-    interactionPointerTarget=interactiveControl(event.target);
+    armPointerInteractionLock(interactiveControl(event.target));
   }
   function onPointerRelease(){
-    interactionPointerTarget=null;
+    clearPointerInteractionLock();
     queueMicrotask(flushDeferredRender);
   }
   function onFocusOut(event){
     if(!interactiveControl(event.target))return;
+    queueMicrotask(flushDeferredRender);
+  }
+  function onInteractionBoundary(){
+    clearPointerInteractionLock();
     queueMicrotask(flushDeferredRender);
   }
 
@@ -321,6 +357,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
   function onClick(event) {
+    if(!interactiveControl(event.target))releaseActiveInteraction({blurFocused:true});
     const intakeButton=event.target.closest?.('[data-admin-intake-open]');
     if(intakeButton){
       event.preventDefault?.();
@@ -405,7 +442,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       try{
         setIberfitLanguage(String(languageSelector.value||'').trim());
         lastMarkup='';
-        renderNow(store.getState());
+        releaseActiveInteraction({blurFocused:true});
+        scheduleRender(store.getState());
         focusMain();
       }catch(error){
         root.dispatchEvent(new CustomEvent('m26:access-denied',{bubbles:true,detail:{code:error.message}}));
@@ -418,7 +456,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       try{
         setIberfitUiLocale(String(localeSelector.value||'').trim());
         lastMarkup='';
-        renderNow(store.getState());
+        releaseActiveInteraction({blurFocused:true});
+        scheduleRender(store.getState());
         focusMain();
       }catch(error){
         root.dispatchEvent(new CustomEvent('m26:access-denied',{bubbles:true,detail:{code:error.message}}));
@@ -436,7 +475,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       try{
         updateIberfitExperiencePreference(scope,path,value);
         lastMarkup='';
-        renderNow(store.getState());
+        releaseActiveInteraction({blurFocused:true});
+        scheduleRender(store.getState());
         focusMain();
       }catch(error){
         root.dispatchEvent(new CustomEvent('m26:access-denied',{bubbles:true,detail:{code:error.message}}));
@@ -446,7 +486,9 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
 
     const selector = event.target.closest?.('[data-m26-client-select]');
     if (!selector) return;
-    switchClient(selector.value,{openExpediente:false,source:selector});
+    const value=selector.value;
+    releaseActiveInteraction({blurFocused:true});
+    switchClient(value,{openExpediente:false,source:selector});
   }
 
   function mount({progressive=false}={}) {
@@ -459,6 +501,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     root.addEventListener('pointerup',onPointerRelease,{passive:true});
     root.addEventListener('pointercancel',onPointerRelease,{passive:true});
     root.addEventListener('focusout',onFocusOut);
+    adaptiveWindow?.addEventListener?.('pointerup',onPointerRelease,{passive:true});
+    adaptiveWindow?.addEventListener?.('pointercancel',onPointerRelease,{passive:true});
+    adaptiveWindow?.addEventListener?.('blur',onInteractionBoundary,{passive:true});
+    adaptiveWindow?.addEventListener?.('pagehide',onInteractionBoundary,{passive:true});
     adaptiveWindow?.addEventListener?.('resize',syncAdaptiveLayout,{passive:true});
     adaptiveWindow?.addEventListener?.('orientationchange',syncAdaptiveLayout,{passive:true});
     unsubscribe = store.subscribe(scheduleRender);
@@ -476,13 +522,17 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     generation+=1;
     renderQueued=false;
     queuedState=null;
-    interactionPointerTarget=null;
+    clearPointerInteractionLock();
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
     root.removeEventListener('pointerdown',onPointerDown);
     root.removeEventListener('pointerup',onPointerRelease);
     root.removeEventListener('pointercancel',onPointerRelease);
     root.removeEventListener('focusout',onFocusOut);
+    adaptiveWindow?.removeEventListener?.('pointerup',onPointerRelease);
+    adaptiveWindow?.removeEventListener?.('pointercancel',onPointerRelease);
+    adaptiveWindow?.removeEventListener?.('blur',onInteractionBoundary);
+    adaptiveWindow?.removeEventListener?.('pagehide',onInteractionBoundary);
     adaptiveWindow?.removeEventListener?.('resize',syncAdaptiveLayout);
     adaptiveWindow?.removeEventListener?.('orientationchange',syncAdaptiveLayout);
     adaptiveWindow=null;
