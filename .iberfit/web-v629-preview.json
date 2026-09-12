@@ -1,6 +1,6 @@
 {
   "schema": "iberfit.web.v629-preview.v1",
   "branch": "work/web-v6-29-experience",
-  "webSha": "32379db9917fe48aa17950fac8a6949c2ac31a40",
-  "note": "Preview V6.29 tras QA local PASS: carruseles, historia España-Alemania-España-Chile, comunas con parques/zonas verdes."
+  "webSha": "020bc8b15728bdde99fe4baa224d050eecb27440",
+  "note": "Preview V6.29 certificada: QA regresión V6.28 + QA específica ES/EN + no-JS + parques/zonas verdes + carruseles."
 }
