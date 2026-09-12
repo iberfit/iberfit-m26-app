@@ -1,0 +1,7 @@
+{
+  "schema": "iberfit.web.v630-production.v1",
+  "branch": "work/web-v6-30-hardening",
+  "webSha": "61866591d91f2350f62c646307f453ded7a8dd16",
+  "approved": true,
+  "note": "Promoción V6.30 autorizada tras quality SUCCESS, multidispositivo SUCCESS, preview Cloudflare SUCCESS y gate visual 33 rutas SUCCESS."
+}
