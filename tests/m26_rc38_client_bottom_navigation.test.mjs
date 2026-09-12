@@ -74,3 +74,11 @@ test('La barra respeta móvil, accesibilidad, safe-area, impresión y movimiento
   assert.match(css, /@media print/);
   assert.match(css, /\.m26-client-bottom-nav-layer\s*\{\s*display:\s*none\s*!important;/s);
 });
+
+test('escritorio con puntero conserva todas las rutas en sidebar y evita navegación Cliente duplicada', () => {
+  assert.match(css, /@media \(min-width:\s*901px\) and \(hover:\s*hover\) and \(pointer:\s*fine\)/u);
+  assert.match(css, /\.m26-client-bottom-nav-layer\s*\{\s*display:\s*none;/su);
+  assert.match(css, /\.m26-client-route-shell\s*\{\s*padding-bottom:\s*0;/su);
+  assert.match(css, /@media \(max-width:\s*690px\)/u);
+});
+
