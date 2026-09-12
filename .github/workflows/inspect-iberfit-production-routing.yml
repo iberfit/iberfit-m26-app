@@ -1,0 +1,82 @@
+name: Inspect IBERFIT production routing with DNS token
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/inspect-iberfit-production-routing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+      CF_ZONE_ID: '44302103d0c37a304bad49fbbe0501d5'
+      DOMAIN: 'iberfit.cl'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Leer DNS exacto de producción y subdominios
+        env:
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_DNS_TOKEN:-}" || { echo CLOUDFLARE_WEB_DNS_TOKEN_MISSING; exit 41; }
+          AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_DNS_TOKEN}" -H 'Content-Type: application/json')
+          for name in "${DOMAIN}" "www.${DOMAIN}" "app.${DOMAIN}" "web.${DOMAIN}"; do
+            safe="$(echo "$name" | tr '.' '_')"
+            curl --fail --silent --show-error "${AUTH[@]}"               "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?name=${name}"               -o "/tmp/${safe}.json"
+            NAME="$name" FILE="/tmp/${safe}.json" node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync(process.env.FILE,'utf8'));
+          if(!x.success||!Array.isArray(x.result)) throw new Error('DNS_READ_FAILED:'+process.env.NAME);
+          console.log('DNS_RECORDS '+process.env.NAME+'='+JSON.stringify(x.result.map(r=>({
+            id:r.id,type:r.type,name:r.name,content:r.content,proxied:r.proxied,ttl:r.ttl
+          }))));
+          NODE
+          done
+
+      - name: Leer Worker routes de la zona si el token lo permite
+        env:
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+        shell: bash
+        run: |
+          set -u
+          CODE="$(curl --silent --show-error -o /tmp/routes.json -w '%{http_code}'             -H "Authorization: Bearer ${CLOUDFLARE_DNS_TOKEN}"             -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/workers/routes")"
+          echo "WORKER_ROUTES_HTTP=${CODE}"
+          if [ "$CODE" = "200" ]; then
+            node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/routes.json','utf8'));
+          console.log('WORKER_ROUTES='+JSON.stringify((x.result||[]).map(r=>({
+            id:r.id,pattern:r.pattern,script:r.script
+          }))));
+          NODE
+          else
+            cat /tmp/routes.json || true
+          fi
+
+      - name: Resumen público
+        shell: bash
+        run: |
+          set -u
+          echo '=== APEX ==='
+          dig +short A "${DOMAIN}" || true
+          dig +short AAAA "${DOMAIN}" || true
+          dig +short CNAME "${DOMAIN}" || true
+          echo '=== WWW ==='
+          dig +short A "www.${DOMAIN}" || true
+          dig +short CNAME "www.${DOMAIN}" || true
+          echo '=== APP ==='
+          dig +short A "app.${DOMAIN}" || true
+          dig +short CNAME "app.${DOMAIN}" || true
+          echo '=== STAGING ==='
+          dig +short A "web.${DOMAIN}" || true
+          dig +short CNAME "web.${DOMAIN}" || true
