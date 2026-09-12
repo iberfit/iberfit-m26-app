@@ -331,6 +331,7 @@ test('RC30 valida identidad QA antes del PUT y revoca después de actualizar', a
       calls.push({ url, options });
 
       if (url.includes('/auth/v1/recover')) return response({});
+      if (url.includes('/rest/v1/rpc/iberfit_recover_privileged_device_v1')) return response({ok:true,required:false,reset:false,kind:'not-required'});
       if (url.endsWith('/auth/v1/user')) return response(user);
       if (url.endsWith('/auth/v1/logout?scope=local')) return response(null, 204);
       return response({}, 404);
@@ -361,16 +362,28 @@ test('RC30 valida identidad QA antes del PUT y revoca después de actualizar', a
     /RECOVERY_REDIRECT_INVALID/
   );
 
+  const deviceRecovery = await transport.recoverPrivilegedWebAuthn('fake-recovery-access');
+  assert.deepEqual(deviceRecovery,{
+    ok:true,
+    required:false,
+    reset:false,
+    kind:'not-required',
+    credentialsRevoked:0,
+    assuranceRevoked:0,
+  });
+
   const updated = await transport.updatePassword(
     'fake-recovery-access',
     TEST_CREDENTIAL
   );
 
-  assert.equal(calls[1].options.method, 'GET');
-  assert.equal(calls[2].options.method, 'PUT');
-  assert.equal(calls[1].url, calls[2].url);
+  assert.equal(calls[1].url.endsWith('/rest/v1/rpc/iberfit_recover_privileged_device_v1'),true);
+  assert.equal(calls[1].options.method,'POST');
+  assert.equal(calls[2].options.method, 'GET');
+  assert.equal(calls[3].options.method, 'PUT');
+  assert.equal(calls[2].url, calls[3].url);
   assert.deepEqual(
-    JSON.parse(calls[2].options.body),
+    JSON.parse(calls[3].options.body),
     { password: TEST_CREDENTIAL }
   );
   assert.equal(updated.email, user.email);
@@ -407,8 +420,11 @@ test('RC30 actualiza una sola vez, no acepta contraseñas distintas y cierra la 
   };
   globalThis.fetch = async (url, options) => {
     calls.push({ url, options });
+    if (url.includes('/rest/v1/rpc/iberfit_recover_privileged_device_v1')) {
+      return response({ok:true,required:true,reset:true,kind:'ack',credentialsRevoked:1,assuranceRevoked:1});
+    }
     if (url.endsWith('/auth/v1/user')) return response(user);
-    if (url.endsWith('/auth/v1/logout')) return response(null, 204);
+    if (url.endsWith('/auth/v1/logout?scope=local')) return response(null, 204);
     return response({}, 404);
   };
 
@@ -440,9 +456,10 @@ test('RC30 actualiza una sola vez, no acepta contraseñas distintas y cierra la 
         passwordConfirmation: TEST_CREDENTIAL,
       }));
 
-      assert.deepEqual(calls.map((call) => call.options.method), ['GET', 'PUT', 'POST']);
-      assert.equal(calls[2].url.endsWith('/auth/v1/logout?scope=local'), true);
-      assert.match(root.innerHTML, /Contraseña actualizada/);
+      assert.deepEqual(calls.map((call) => call.options.method), ['POST', 'GET', 'PUT', 'POST']);
+      assert.equal(calls[0].url.endsWith('/rest/v1/rpc/iberfit_recover_privileged_device_v1'), true);
+      assert.equal(calls[3].url.endsWith('/auth/v1/logout?scope=local'), true);
+      assert.match(root.innerHTML, /dispositivos de confianza restablecidos/);
       assert.match(root.innerHTML, /data-auth-form="login"/);
 
       app.destroy();
