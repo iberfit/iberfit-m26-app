@@ -16,8 +16,8 @@ test('Admin user inputs, dropdowns and filters remain interactive through a real
 
   const search=page.locator('[data-admin-user-search]');
   await search.click();
-  await search.fill('coach');
-  await expect(search).toHaveValue('coach');
+  await search.fill('coach.interaccion@iberfit.cl');
+  await expect(search).toHaveValue('coach.interaccion@iberfit.cl');
   await expect(search).toBeFocused();
   await expect(page.locator('[data-admin-user-visible-count]')).toHaveText('1');
 
@@ -62,7 +62,7 @@ test('Admin user inputs, dropdowns and filters remain interactive through a real
   await statusForm.locator('textarea[name="reason"]').fill('Cambio QA controlado');
   await statusForm.locator('button[type="submit"]').click();
 
-  await expect(search).toHaveValue('coach');
+  await expect(search).toHaveValue('coach.interaccion@iberfit.cl');
   await expect(statusFilter).toHaveValue('active');
   await expect(roleFilter).toHaveValue('coach');
   await expect(page.locator('[data-admin-user-visible-count]')).toHaveText('0');
