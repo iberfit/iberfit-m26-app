@@ -92,7 +92,7 @@ test('RC60.1 application monta y destruye productivity con owner aislado',()=>{
   const app=read('src/m26/app/application.js');
   assert.match(app,/createCoachProductivityController/u);
   assert.match(app,/ownerId/u);
-  assert.match(app,/productivity\.mount\(\)/u);
+  assert.match(app,/\{name:'productivity',controller:productivity\}/u);
   assert.match(app,/productivity\?\.destroy/u);
 });
 

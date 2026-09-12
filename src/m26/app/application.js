@@ -325,6 +325,8 @@ export async function createM26Application({root=document.querySelector('#app'),
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
   let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
+  let progressiveControllerMountGeneration=0;
+  let progressiveControllerMountPromise=null;
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
   let currentAuthAttemptId=null;
   const authWatchdog=createAuthBusyWatchdog({
@@ -396,6 +398,60 @@ export async function createM26Application({root=document.querySelector('#app'),
       }
       if(timer===null)queueMicrotask(finish);
     });
+  }
+
+  function yieldMainThread({timeoutMs=32}={}){
+    return new Promise((resolve)=>{
+      const windowLike=root.ownerDocument?.defaultView||globalThis.window||globalThis;
+      let settled=false;
+      let timer=null;
+      const finish=()=>{
+        if(settled)return;
+        settled=true;
+        if(timer!==null)globalThis.clearTimeout?.(timer);
+        resolve();
+      };
+      timer=globalThis.setTimeout?.(finish,Math.max(16,Math.min(Number(timeoutMs)||32,250)))??null;
+      if(typeof windowLike?.requestAnimationFrame==='function'){
+        windowLike.requestAnimationFrame(finish);
+        return;
+      }
+      if(timer===null)queueMicrotask(finish);
+    });
+  }
+
+  function cancelProgressiveControllerMounts(){
+    progressiveControllerMountGeneration+=1;
+    progressiveControllerMountPromise=null;
+    if(root?.dataset)delete root.dataset.m26Controllers;
+    return progressiveControllerMountGeneration;
+  }
+
+  async function mountControllersProgressively(entries,{generation=progressiveControllerMountGeneration}={}){
+    const safeEntries=Array.isArray(entries)?entries:[];
+    if(root?.dataset)root.dataset.m26Controllers='mounting';
+    for(const entry of safeEntries){
+      await yieldMainThread();
+      if(generation!==progressiveControllerMountGeneration||!session)return false;
+      const name=String(entry?.name||'controller').replace(/[^a-z0-9_-]+/giu,'-').slice(0,60);
+      const started=Date.now();
+      try{
+        entry?.controller?.mount?.();
+      }catch(error){
+        reportDiagnostic(`controller-mount-${name}`,error);
+      }
+      const durationMs=Math.max(0,Date.now()-started);
+      if(durationMs>100){
+        reportSoftDiagnostic(
+          `controller-mount-slow-${name}`,
+          Object.assign(new Error('M26_CONTROLLER_MOUNT_SLOW'),{durationMs}),
+        );
+      }
+    }
+    if(generation!==progressiveControllerMountGeneration||!session)return false;
+    if(root?.dataset)root.dataset.m26Controllers='ready';
+    qaStage('rc64-controller-mounts-ready');
+    return true;
   }
 
   async function optionalAuthBootstrap(operation,fallback,stage='optional'){
@@ -780,40 +836,71 @@ export async function createM26Application({root=document.querySelector('#app'),
     else if(mountedShellRole==='client')qaStage('rc64-shell-role-client');
     else if(mountedShellRole==='admin')qaStage('rc64-shell-role-admin');
     else qaStage('rc64-shell-role-missing');
-    motion.mount();guidance.mount();onboarding.mount();mediaExperience.mount();productivity.mount();workflow.mount();engagement.mount();verification.mount();rc39.mount();communication.mount();admin.mount();sessionController.mount();iriExternalReports.mount();
-    qaStage('rc64-controller-mounts-ready');
+    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
     if(authAttemptId!==null&&completeAuthAttempt(authAttemptId))loginBusy=false;
+    if(root?.dataset)root.dataset.m26Interactive='ready';
+    qaStage('rc64-shell-interactive-ready');
     qaStage('rc64-shell-mount-ready');
+
     const controllerShellRole=root.querySelector?.('.m26-shell[data-m26-role]')?.getAttribute('data-m26-role')||'';
     if(controllerShellRole==='coach')qaStage('rc64-controller-shell-role-coach');
     else if(controllerShellRole==='client')qaStage('rc64-controller-shell-role-client');
     else if(controllerShellRole==='admin')qaStage('rc64-controller-shell-role-admin');
     else qaStage('rc64-controller-shell-role-missing');
-    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
-    const executionRestored=await restoreExecutionAfterAuthentication();
-    if(executionRestored)qaStage('rc64-session-auto-recovered');
-    render();
-    qaStage('rc64-final-render-ready');
-    if(!executionRestored)await consumePendingIriExternalReportIntent();
-    qaStage('rc64-setup-ready');
 
-    qaStage('rc64-post-login-local-reconciliation-start');
+    const mountGeneration=++progressiveControllerMountGeneration;
+    const controllerEntries=[
+      {name:'motion',controller:motion},
+      {name:'guidance',controller:guidance},
+      {name:'onboarding',controller:onboarding},
+      {name:'media-experience',controller:mediaExperience},
+      {name:'productivity',controller:productivity},
+      {name:'workflow',controller:workflow},
+      {name:'engagement',controller:engagement},
+      {name:'verification',controller:verification},
+      {name:'rc39',controller:rc39},
+      {name:'communication',controller:communication},
+      {name:'admin',controller:admin},
+      {name:'session',controller:sessionController},
+      {name:'iri-external-reports',controller:iriExternalReports},
+    ];
 
+    progressiveControllerMountPromise=(async()=>{
+      const mounted=await mountControllersProgressively(controllerEntries,{generation:mountGeneration});
+      if(!mounted)return false;
+      if(mountGeneration!==progressiveControllerMountGeneration||!session)return false;
 
-    wearables.mount({syncInitial:false});
-    qaStage('rc64-wearables-post-login-mount-ready');
+      const executionRestored=await restoreExecutionAfterAuthentication();
+      if(mountGeneration!==progressiveControllerMountGeneration||!session)return false;
+      if(executionRestored)qaStage('rc64-session-auto-recovered');
+      render();
+      qaStage('rc64-final-render-ready');
+      if(!executionRestored)await consumePendingIriExternalReportIntent();
+      if(mountGeneration!==progressiveControllerMountGeneration||!session)return false;
+      qaStage('rc64-setup-ready');
 
-    const sync=createConnectivitySync({
-      coordinator:recoveryCoordinator,
-      onResult:async()=>{
-        await refreshVerificationState({repository:operationRepository,store});
-        render();
-      },
+      qaStage('rc64-post-login-local-reconciliation-start');
+      await yieldMainThread();
+      if(mountGeneration!==progressiveControllerMountGeneration||!session)return false;
+      wearables.mount({syncInitial:false});
+      qaStage('rc64-wearables-post-login-mount-ready');
+
+      const sync=createConnectivitySync({
+        coordinator:recoveryCoordinator,
+        onResult:async()=>{
+          await refreshVerificationState({repository:operationRepository,store});
+          render();
+        },
+      });
+      connectivityStop=sync.start({emitInitial:false});
+      telemetrySyncStop=telemetryRemoteSync.start({flushInitial:false});
+      void registerM26ServiceWorker().catch(()=>{});
+      qaStage('rc64-post-login-local-services-armed');
+      return true;
+    })().catch((error)=>{
+      reportDiagnostic('progressive-controller-mounts',error);
+      return false;
     });
-    connectivityStop=sync.start({emitInitial:false});
-    telemetrySyncStop=telemetryRemoteSync.start({flushInitial:false});
-    void registerM26ServiceWorker().catch(()=>{});
-    qaStage('rc64-post-login-local-services-armed');
 
 
   }
@@ -901,7 +988,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       deviceClearBusy=false;
     }
   }
-  function destroyControllers(){telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers(){cancelProgressiveControllerMounts();if(root?.dataset)delete root.dataset.m26Interactive;telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 async function onAccountPasswordRecovery(){
   if(accountSecurityBusy||!session?.user?.email||!runtime.enabled)return false;
   accountSecurityBusy=true;

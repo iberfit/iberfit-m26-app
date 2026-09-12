@@ -197,7 +197,7 @@ test('RC63.2 application owns media experience lifecycle',()=>{
   const app=read('src/m26/app/application.js');
   assert.match(app,/createExerciseVideoExperienceController/u);
   assert.match(app,/mediaExperience=createExerciseVideoExperienceController\(\{root\}\)/u);
-  assert.match(app,/mediaExperience\.mount\(\)/u);
+  assert.match(app,/\{name:'media-experience',controller:mediaExperience\}/u);
   assert.match(app,/mediaExperience\?\.destroy/u);
 });
 

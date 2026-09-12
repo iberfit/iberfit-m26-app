@@ -75,7 +75,7 @@ test('RC61.1 application owns motion lifecycle instead of global side effects',(
   const app=read('src/m26/app/application.js');
   assert.match(app,/createM26MotionController/u);
   assert.match(app,/motion=createM26MotionController\(\{root\}\)/u);
-  assert.match(app,/motion\.mount\(\)/u);
+  assert.match(app,/\{name:'motion',controller:motion\}/u);
   assert.match(app,/motion\?\.destroy/u);
 });
 

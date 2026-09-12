@@ -87,8 +87,8 @@ test('post-MFA mobile handoff paints authenticated shell before catalog and heav
   const catalogLoad=block.indexOf('()=>fetchCatalog()');
   const controllersReady=block.indexOf("qaStage('rc64-setup-controllers-ready')");
   const fullRoute=block.indexOf("qaStage('rc64-shell-route-ready')");
-  const controllerMounts=block.indexOf("qaStage('rc64-controller-mounts-ready')");
   const authComplete=block.indexOf('completeAuthAttempt(authAttemptId)');
+  const progressiveControllers=block.indexOf('progressiveControllerMountPromise=(async()=>{');
 
   assert.ok(hydrateReady>=0);
   assert.ok(progressiveMount>hydrateReady);
@@ -96,11 +96,22 @@ test('post-MFA mobile handoff paints authenticated shell before catalog and heav
   assert.ok(catalogLoad>firstPaint);
   assert.ok(controllersReady>catalogLoad);
   assert.ok(fullRoute>controllersReady);
-  assert.ok(controllerMounts>fullRoute);
-  assert.ok(authComplete>controllerMounts);
+  assert.ok(authComplete>fullRoute);
+  assert.ok(progressiveControllers>authComplete);
   assert.match(source,/function yieldWorkspacePaint\(\{timeoutMs=180\}=\{\}\)/u);
   assert.match(source,/requestAnimationFrame\(\(\)=>\{\s*windowLike\.requestAnimationFrame\(finish\)/u);
   assert.match(source,/setTimeout\?\.\(finish,Math\.max\(50,Math\.min\(Number\(timeoutMs\)\|\|180,500\)\)\)/u);
+  assert.match(source,/function yieldMainThread\(\{timeoutMs=32\}=\{\}\)/u);
+  assert.match(source,/async function mountControllersProgressively/u);
+  assert.match(source,/async function mountControllersProgressively[\s\S]{0,1800}?qaStage\('rc64-controller-mounts-ready'\)/u);
+  assert.match(source,/root\.dataset\.m26Interactive='ready'/u);
+  assert.match(source,/root\.dataset\.m26Controllers='mounting'/u);
+  assert.match(source,/root\.dataset\.m26Controllers='ready'/u);
+  assert.match(source,/cancelProgressiveControllerMounts\(\)/u);
+  assert.match(block,/const controllerEntries=\[/u);
+  assert.match(block,/\{name:'workflow',controller:workflow\}/u);
+  assert.match(block,/\{name:'session',controller:sessionController\}/u);
+  assert.match(block,/progressiveControllerMountPromise=\(async\(\)=>\{/u);
 });
 
 test('progressive shell mount never computes the heavy route before the first authenticated frame',()=>{
