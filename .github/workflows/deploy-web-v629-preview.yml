@@ -50,7 +50,9 @@ jobs:
           test -s /tmp/iberfitweb/candidate/v628/assets/experience.v629.css
           test -s /tmp/iberfitweb/candidate/v628/assets/experience.v629.js
           grep -Fq 'data-review-carousel' /tmp/iberfitweb/candidate/v628/index.html
-          grep -Fq 'experience.v629.js' /tmp/iberfitweb/candidate/v628/online/index.html
+          grep -Fq 'experience.v629.js' /tmp/iberfitweb/candidate/v628/index.html
+          grep -Fq 'experience.v629.js' /tmp/iberfitweb/candidate/v628/sobre-iberfit/index.html
+          ! grep -Fq 'experience.v629.js' /tmp/iberfitweb/candidate/v628/online/index.html
 
       - uses: actions/setup-node@v4
         with:
