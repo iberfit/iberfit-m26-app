@@ -1,0 +1,56 @@
+name: IBERFIT WebAuthn Recovery QA
+
+on:
+  pull_request:
+    branches: [canary/rc74-4]
+    paths:
+      - 'supabase/migrations/20260912152000_webauthn_password_recovery_reset_v1.sql'
+      - 'src/m26/app/application.js'
+      - 'src/m26/app/access-ui.js'
+      - 'src/m26/supabase-transport.js'
+      - 'scripts/remote-gates/run_webauthn_recovery_negative_gate.mjs'
+      - '.github/workflows/webauthn-recovery-qa.yml'
+  push:
+    branches: [canary/rc74-4]
+    paths:
+      - 'supabase/migrations/20260912152000_webauthn_password_recovery_reset_v1.sql'
+      - 'src/m26/app/application.js'
+      - 'src/m26/app/access-ui.js'
+      - 'src/m26/supabase-transport.js'
+      - 'scripts/remote-gates/run_webauthn_recovery_negative_gate.mjs'
+      - '.github/workflows/webauthn-recovery-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-webauthn-recovery-qa
+  cancel-in-progress: false
+
+jobs:
+  negative-normal-session:
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prove normal authenticated session cannot reset WebAuthn
+        env:
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: node scripts/remote-gates/run_webauthn_recovery_negative_gate.mjs
+      - name: Preserve minimised negative evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webauthn-recovery-negative-${{ github.run_id }}
+          path: recovery/P0_WEBAUTHN_RECOVERY_NEGATIVE_QA.json
+          if-no-files-found: error
+          retention-days: 30
