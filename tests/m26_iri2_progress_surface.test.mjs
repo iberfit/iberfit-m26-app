@@ -71,49 +71,53 @@ function stateWithIri(){
   };
 }
 
-test('Progreso expone IRI 2.0 solo desde evaluaciones confirmadas y comparables',()=>{
+test('Progreso expone evolución desde hitos IRI confirmados y mantiene alias legacy',()=>{
   const summary=computeProgressSummary(stateWithIri(),'c1',{now:NOW,days:120});
-  assert.ok(summary.iri2);
-  assert.equal(summary.iri2.confirmedCount,2);
-  assert.equal(summary.iri2.currentAssessmentId,'iri-new');
-  assert.equal(summary.iri2.previousAssessmentId,'iri-old');
-  assert.ok(summary.iri2.comparableCount>=2);
-  const chair=summary.iri2.headline.find((item)=>item.id==='chairStandReps');
+  assert.ok(summary.evolution);
+  assert.equal(summary.evolution,summary.iri2);
+  assert.equal(summary.evolution.kind,'evolution-followup');
+  assert.equal(summary.evolution.confirmedCount,2);
+  assert.equal(summary.evolution.currentAssessmentId,'iri-new');
+  assert.equal(summary.evolution.previousAssessmentId,'iri-old');
+  assert.ok(summary.evolution.comparableCount>=2);
+  const chair=summary.evolution.headline.find((item)=>item.id==='chairStandReps');
   assert.ok(chair);
   assert.equal(chair.delta,4);
-  assert.equal(Object.hasOwn(summary.iri2,'score'),false);
+  assert.equal(Object.hasOwn(summary.evolution,'score'),false);
 });
 
-test('IRI 2.0 reconoce clientId canónico cuando está anidado en body',()=>{
+test('Evolución reconoce clientId canónico cuando está anidado en body',()=>{
   const state=stateWithIri();
   state.collections.iriAssessments=state.collections.iriAssessments
     .filter((item)=>item.id!=='iri-draft')
     .map((item)=>({id:item.id,assessmentDate:item.assessmentDate,body:{...item.body,clientId:'c1'}}));
   const summary=computeProgressSummary(state,'c1',{now:NOW,days:120});
-  assert.equal(summary.iri2.confirmedCount,2);
-  assert.equal(summary.iri2.currentAssessmentId,'iri-new');
+  assert.equal(summary.evolution.confirmedCount,2);
+  assert.equal(summary.evolution.currentAssessmentId,'iri-new');
 });
 
-test('IRI 2.0 de Progreso queda aislado por cliente y descarta evaluaciones ajenas',()=>{
+test('Evolución queda aislada por cliente y descarta evaluaciones IRI ajenas',()=>{
   const state=stateWithIri();
   const foreign=iriRecord({id:'iri-other',date:'2026-09-11',chair:30,push:25,weight:90});
   foreign.clientId='c2';
   foreign.body={...foreign.body,clientId:'c2'};
   state.collections.iriAssessments.push(foreign);
   const summary=computeProgressSummary(state,'c1',{now:NOW,days:120});
-  assert.equal(summary.iri2.confirmedCount,2);
-  assert.equal(summary.iri2.currentAssessmentId,'iri-new');
-  assert.equal(summary.iri2.headline.some((item)=>item.current===30),false);
+  assert.equal(summary.evolution.confirmedCount,2);
+  assert.equal(summary.evolution.currentAssessmentId,'iri-new');
+  assert.equal(summary.evolution.headline.some((item)=>item.current===30),false);
 });
 
 test('Progreso conserva línea base sin fabricar evolución cuando solo hay un IRI confirmado',()=>{
   const state=stateWithIri();
   state.collections.iriAssessments=[state.collections.iriAssessments[1]];
   const summary=computeProgressSummary(state,'c1',{now:NOW,days:120});
-  assert.equal(summary.iri2.confirmedCount,1);
-  assert.equal(summary.iri2.available,false);
-  assert.equal(summary.iri2.comparableCount,0);
-  assert.match(summary.iri2.detail,/línea de base/u);
+  assert.equal(summary.evolution.confirmedCount,1);
+  assert.equal(summary.evolution.kind,'iri-initial-diagnostic');
+  assert.equal(summary.evolution.available,false);
+  assert.equal(summary.evolution.comparableCount,0);
+  assert.equal(summary.evolution.label,'Diagnóstico IRI inicial');
+  assert.match(summary.evolution.detail,/punto de partida/u);
 });
 
 test('la superficie Progreso presenta cambios descriptivos sin puntuación global ni juicio de valor',()=>{
@@ -127,14 +131,18 @@ test('la superficie Progreso presenta cambios descriptivos sin puntuación globa
     longitudinal:null,
     exerciseProgress:[],
   });
+  assert.match(html,/data-evolution-progress/u);
   assert.match(html,/data-iri2-progress/u);
-  assert.match(html,/Evolución IRI 2\.0/u);
+  assert.match(html,/Evolución y seguimiento/u);
+  assert.match(html,/Evolución del proceso/u);
+  assert.doesNotMatch(html,/Evolución IRI 2\.0/u);
+  assert.match(html,/Diagnóstico IRI establece el punto de partida/u);
   assert.match(html,/Sin puntuación global/u);
   assert.match(html,/Silla 30 s/u);
   assert.match(html,/\+4 rep/u);
-  const iriPanel=html.match(/<section class="m26-panel m26-panel-soft" data-iri2-progress>[\s\S]*?<\/section>/u)?.[0]||'';
-  assert.ok(iriPanel,'Panel IRI 2.0 no localizado');
-  const visibleText=iriPanel.replace(/<[^>]+>/gu,' ').replace(/\s+/gu,' ').trim();
+  const evolutionPanel=html.match(/<section class="m26-panel m26-panel-soft" data-evolution-progress data-iri2-progress>[\s\S]*?<\/section>/u)?.[0]||'';
+  assert.ok(evolutionPanel,'Panel de Evolución y seguimiento no localizado');
+  const visibleText=evolutionPanel.replace(/<[^>]+>/gu,' ').replace(/\s+/gu,' ').trim();
   assert.doesNotMatch(visibleText,/\b(?:mejoraste|empeoraste|éxito|fracaso|good|bad)\b/iu);
 });
 
