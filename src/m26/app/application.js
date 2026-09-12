@@ -942,7 +942,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
-  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status'}={}){invalidateAuthAttempt();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
+  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status',scope='global'}={}){invalidateAuthAttempt();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token,{scope}).catch(()=>{});}
   function onLogout(){const token=currentToken();finishLogout({token});}
   async function onLogoutAndClearDevice(){
     if(deviceClearBusy||!session)return false;
@@ -1054,7 +1054,7 @@ async function repairAuthRuntime(){
   }catch(error){
     loginBusy=false;
     authMode=mfaDeviceMode();
-    authMessage('No se pudieron limpiar los archivos temporales de acceso. Puedes usar el código por correo o volver a intentarlo.','error');
+    authMessage('No se pudieron limpiar los archivos temporales de acceso. Puedes volver a intentarlo o usar la recuperación segura por correo.','error');
     throw error;
   }finally{
     loginBusy=false;
@@ -1086,6 +1086,14 @@ function onAuthClick(event) {
 
   if(action==='mfa-repair-access'){
     void repairAuthRuntime().catch((error)=>reportDiagnostic('mfa-repair-access',error));
+    return;
+  }
+
+  if(action==='mfa-account-recovery'){
+    const token=currentToken();
+    finishLogout({token,scope:'local',message:''});
+    authMode='request-recovery';
+    authMessage();
     return;
   }
 
@@ -1185,6 +1193,8 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   try {
     const recoveryToken = recoverySession.accessToken;
 
+    const deviceRecovery=await transport.recoverPrivilegedWebAuthn(recoveryToken);
+
     await transport.updatePassword(
       recoveryToken,
       nextPassword
@@ -1197,7 +1207,9 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     authMode = 'login';
 
     authMessage(
-      'Contraseña actualizada. Ya puedes entrar con la contraseña nueva.'
+      deviceRecovery.required&&deviceRecovery.reset
+        ?'Contraseña actualizada y dispositivos de confianza restablecidos. Entra de nuevo para configurar este dispositivo.'
+        :'Contraseña actualizada. Ya puedes entrar con la contraseña nueva.'
     );
 
     return true;
