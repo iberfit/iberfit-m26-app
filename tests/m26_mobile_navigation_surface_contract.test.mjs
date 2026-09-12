@@ -13,6 +13,7 @@ test('mobile More exposes an active state when the current route lives outside q
 });
 
 test('authenticated smoke clicks the real sidebar or mobile navigation, not arbitrary workspace actions',()=>{
+  assert.match(smoke,/\.m26-client-bottom-nav \[data-m26-area\]/u);
   assert.match(smoke,/\.m26-mobile-nav \[data-m26-area\]/u);
   assert.match(smoke,/\.m26-sidebar \[data-m26-area\]/u);
   assert.doesNotMatch(smoke,/const targetAreaButton=page\.locator\('\[data-m26-area\]:not/u);
