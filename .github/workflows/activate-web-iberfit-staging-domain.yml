@@ -74,17 +74,17 @@ jobs:
 
       - name: Crear CNAME staging de forma fail-closed
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN || secrets.CLOUDFLARE_DNS_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json')
+          AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_DNS_TOKEN}" -H 'Content-Type: application/json')
           DNS_BASE="https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records"
           CODE="$(curl --silent --show-error -o /tmp/dns.json -w '%{http_code}' "${AUTH[@]}"             "${DNS_BASE}?name=${DOMAIN}")"
 
           if [ "$CODE" != "200" ]; then
             cat /tmp/dns.json || true
-            echo 'MISSING_PERMISSION=Zone -> DNS -> Edit (DNS Write) scoped only to zone iberfit.cl'
+            echo 'MISSING_PERMISSION=CLOUDFLARE_WEB_DNS_TOKEN with Zone -> DNS -> Edit (DNS Write), scoped only to zone iberfit.cl'
             echo 'No DNS change was attempted.'
             exit 45
           fi
