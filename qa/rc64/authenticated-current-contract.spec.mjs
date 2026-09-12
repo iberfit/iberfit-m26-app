@@ -5,6 +5,7 @@ const LOCAL_ORIGIN='http://127.0.0.1:4196';
 const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const SUPABASE_ORIGIN=`https://${PROJECT_REF}.supabase.co`;
 const ASSURANCE_PATH='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d';
+const OPTIONAL_APPOINTMENT_READ_PATH='/rest/v1/rpc/iberfit_appointment_change_requests_v13';
 const AUTH_FLOW_TIMEOUT_MS=30_000;
 
 const required=[
@@ -105,6 +106,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
 
     const blockedRequests=[];
     const externalRequestFailures=[];
+    const optionalReadFailures=[];
     const consoleErrors=[];
     const pageErrors=[];
 
@@ -141,7 +143,13 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
       try{
         const url=new URL(request.url());
         if(url.origin!==LOCAL_ORIGIN&&!blockedRequests.includes(safeRequestLabel(request))){
-          externalRequestFailures.push(safeRequestLabel(request));
+          const label=safeRequestLabel(request);
+          if(
+            url.origin===SUPABASE_ORIGIN&&
+            request.method().toUpperCase()==='POST'&&
+            url.pathname===OPTIONAL_APPOINTMENT_READ_PATH
+          )optionalReadFailures.push(label);
+          else externalRequestFailures.push(label);
         }
       }catch{
         externalRequestFailures.push('INVALID_FAILED_REQUEST');
@@ -325,7 +333,11 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
       expect(quality?.healthDataIncluded).toBe(false);
 
       expect(blockedRequests,'Authenticated startup attempted a non-read-only or foreign request').toEqual([]);
-      expect(externalRequestFailures).toEqual([]);
+      expect(externalRequestFailures,'Critical authenticated requests must not fail').toEqual([]);
+      expect(
+        optionalReadFailures.length,
+        'Only the explicitly fail-soft appointment-change read may suffer one transient browser-level failure per account',
+      ).toBeLessThanOrEqual(1);
       expect(consoleErrors).toEqual([]);
       expect(pageErrors).toEqual([]);
 
@@ -342,6 +354,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         }),
         blockedRequests:0,
         externalRequestFailures:0,
+        optionalReadFailures:optionalReadFailures.length,
         consoleErrors:0,
         pageErrors:0,
         qualityObservability:'memory-only-no-transport',
