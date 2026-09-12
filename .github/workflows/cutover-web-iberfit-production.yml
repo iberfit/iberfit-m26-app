@@ -1,0 +1,363 @@
+name: Cutover WEB IBERFIT production
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.iberfit/web-production-cutover.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-production-cutover
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_ZONE_ID: '44302103d0c37a304bad49fbbe0501d5'
+  CF_PROJECT: 'web-iberfit'
+  CF_ROLLBACK_PROJECT: 'web-iberfit-rollback'
+  DOMAIN: 'iberfit.cl'
+  WWW_DOMAIN: 'www.iberfit.cl'
+  STAGING_DOMAIN: 'web.iberfit.cl'
+  APP_DOMAIN: 'app.iberfit.cl'
+  PAGES_TARGET: 'web-iberfit.pages.dev'
+  APP_TARGET: 'iberfit-m26-production.pages.dev'
+  CERTIFIED_SHA: '8d6fcb12a9472e9ef78b9973ca3d0cd9d71244ab'
+
+jobs:
+  cutover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar autorización exacta
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .iberfit/web-production-cutover.json
+          node <<'NODE'
+          const fs=require('fs');
+          const m=JSON.parse(fs.readFileSync('.iberfit/web-production-cutover.json','utf8'));
+          if(m.schema!=='iberfit.web.production-cutover.v1') throw new Error('CUTOVER_SCHEMA_INVALID');
+          if(m.approved!==true) throw new Error('CUTOVER_NOT_APPROVED');
+          if(m.domain!=='iberfit.cl') throw new Error('CUTOVER_DOMAIN_INVALID');
+          if(m.project!=='web-iberfit') throw new Error('CUTOVER_PROJECT_INVALID');
+          if(m.candidateSha!==process.env.CERTIFIED_SHA) throw new Error('CUTOVER_SHA_INVALID');
+          NODE
+
+      - name: Preflight staging, rollback y candidata certificada
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json')
+
+          curl --fail --silent --show-error "${AUTH[@]}"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments"             -o /tmp/deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          if(!x.success||!Array.isArray(x.result)) throw new Error('PAGES_DEPLOYMENTS_LOOKUP_FAILED');
+          const d=x.result.find(v=>v.environment==='production' &&
+            v.deployment_trigger?.metadata?.commit_hash===process.env.CERTIFIED_SHA);
+          if(!d) throw new Error('CERTIFIED_SHA_NOT_DEPLOYED');
+          if(d.latest_stage?.status && d.latest_stage.status!=='success') throw new Error('CERTIFIED_DEPLOYMENT_NOT_SUCCESS');
+          console.log('CERTIFIED_DEPLOYMENT='+d.id);
+          NODE
+
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors             "https://${STAGING_DOMAIN}/" -o /tmp/staging.html
+          grep -Fq '>A distancia</a>' /tmp/staging.html
+          grep -Fq '/assets/analytics.v628.js' /tmp/staging.html
+
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors             "https://${CF_ROLLBACK_PROJECT}.pages.dev/" -o /tmp/rollback.html
+          test -s /tmp/rollback.html
+          if grep -Fq '/assets/analytics.v628.js' /tmp/rollback.html; then
+            echo ROLLBACK_NOT_DISTINCT_FROM_V628
+            exit 31
+          fi
+
+      - name: Capturar estado previo y comprobar permisos
+        env:
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cutover-before
+          DNS_AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_DNS_TOKEN}" -H 'Content-Type: application/json')
+          PAGES_AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json')
+
+          for name in "${DOMAIN}" "${WWW_DOMAIN}" "${APP_DOMAIN}" "${STAGING_DOMAIN}"; do
+            safe="$(echo "$name" | tr '.' '_')"
+            curl --fail --silent --show-error "${DNS_AUTH[@]}"               "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?name=${name}"               -o "/tmp/cutover-before/dns-${safe}.json"
+          done
+
+          CODE="$(curl --silent --show-error -o /tmp/cutover-before/worker-domains.json -w '%{http_code}'             "${DNS_AUTH[@]}"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/domains")"
+          echo "WORKER_DOMAINS_HTTP=${CODE}"
+          if [ "$CODE" != "200" ]; then
+            cat /tmp/cutover-before/worker-domains.json || true
+            echo 'MISSING_PERMISSION=Account -> Workers Scripts -> Edit on CLOUDFLARE_WEB_DNS_TOKEN'
+            exit 45
+          fi
+
+          curl --fail --silent --show-error "${DNS_AUTH[@]}"             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/workers/routes"             -o /tmp/cutover-before/worker-routes.json
+
+          curl --fail --silent --show-error "${PAGES_AUTH[@]}"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/domains"             -o /tmp/cutover-before/pages-domains.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const read=name=>JSON.parse(fs.readFileSync(name,'utf8'));
+          const apex=read('/tmp/cutover-before/dns-iberfit_cl.json');
+          const app=read('/tmp/cutover-before/dns-app_iberfit_cl.json');
+          const staging=read('/tmp/cutover-before/dns-web_iberfit_cl.json');
+          const routes=read('/tmp/cutover-before/worker-routes.json');
+          const workers=read('/tmp/cutover-before/worker-domains.json');
+          if(!apex.success||!app.success||!staging.success||!routes.success||!workers.success) throw new Error('PREFLIGHT_LOOKUP_FAILED');
+
+          const appRows=app.result||[];
+          if(appRows.length!==1 || appRows[0].type!=='CNAME' ||
+             String(appRows[0].content).replace(/\.$/,'')!==process.env.APP_TARGET) {
+            throw new Error('APP_DNS_UNEXPECTED:'+JSON.stringify(appRows));
+          }
+
+          const stageRows=staging.result||[];
+          if(stageRows.length!==1 || stageRows[0].type!=='CNAME' ||
+             String(stageRows[0].content).replace(/\.$/,'')!==process.env.PAGES_TARGET) {
+            throw new Error('STAGING_DNS_UNEXPECTED:'+JSON.stringify(stageRows));
+          }
+
+          if((routes.result||[]).length!==0) throw new Error('WORKER_ROUTES_PRESENT:'+JSON.stringify(routes.result));
+
+          const custom=(workers.result||[]).filter(d=>d.hostname===process.env.DOMAIN);
+          if(custom.length>1) throw new Error('MULTIPLE_APEX_WORKER_DOMAINS:'+JSON.stringify(custom));
+          fs.writeFileSync('/tmp/cutover-before/apex-worker-domain.json', JSON.stringify(custom[0]||null,null,2));
+
+          const ipRows=(apex.result||[]).filter(r=>['A','AAAA','CNAME'].includes(r.type));
+          for(const r of ipRows){
+            const content=String(r.content).replace(/\.$/,'');
+            const placeholder=(r.type==='AAAA' && content==='100::') ||
+              (r.type==='A' && ['192.0.2.0','192.0.2.1'].includes(content));
+            const alreadyPages=r.type==='CNAME' && content===process.env.PAGES_TARGET;
+            if(!placeholder && !alreadyPages) throw new Error('APEX_DNS_CONFLICT:'+JSON.stringify(r));
+            if(placeholder && r.proxied!==true) throw new Error('APEX_PLACEHOLDER_NOT_PROXIED:'+JSON.stringify(r));
+          }
+          console.log('APEX_WORKER_CUSTOM_DOMAIN='+JSON.stringify(custom[0]||null));
+          console.log('APP_DNS_PROTECTED=true');
+          NODE
+
+      - name: Aplicar cutover controlado
+        env:
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DNS_AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_DNS_TOKEN}" -H 'Content-Type: application/json')
+          PAGES_AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json')
+          DNS_BASE="https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records"
+          PAGES_DOMAINS="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/domains"
+
+          WORKER_DOMAIN_ID="$(node -e "const x=require('/tmp/cutover-before/apex-worker-domain.json');process.stdout.write(x?.id||'')")"
+          if [ -n "$WORKER_DOMAIN_ID" ]; then
+            echo "DETACHING_OLD_WORKER_CUSTOM_DOMAIN=${WORKER_DOMAIN_ID}"
+            curl --fail --silent --show-error -X DELETE "${DNS_AUTH[@]}"               "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/domains/${WORKER_DOMAIN_ID}"               -o /tmp/worker-domain-detach.json
+            node -e "const x=require('/tmp/worker-domain-detach.json');if(!x.success)process.exit(1)"
+          fi
+
+          curl --fail --silent --show-error "${DNS_AUTH[@]}"             "${DNS_BASE}?name=${DOMAIN}" -o /tmp/apex-after-detach.json
+
+          node <<'NODE' >/tmp/delete-apex-ids.txt
+          const x=require('/tmp/apex-after-detach.json');
+          if(!x.success||!Array.isArray(x.result)) throw new Error('APEX_RELOOKUP_FAILED');
+          for(const r of x.result){
+            if(!['A','AAAA','CNAME'].includes(r.type)) continue;
+            const content=String(r.content).replace(/\.$/,'');
+            if(r.type==='CNAME' && content===process.env.PAGES_TARGET) continue;
+            const placeholder=(r.type==='AAAA'&&content==='100::') ||
+              (r.type==='A'&&['192.0.2.0','192.0.2.1'].includes(content));
+            if(!placeholder) throw new Error('APEX_CONFLICT_AFTER_DETACH:'+JSON.stringify(r));
+            console.log(r.id);
+          }
+          NODE
+          while read -r id; do
+            [ -z "$id" ] && continue
+            curl --fail --silent --show-error -X DELETE "${DNS_AUTH[@]}" "${DNS_BASE}/${id}" >/dev/null
+            echo "DELETED_PLACEHOLDER_DNS=${id}"
+          done </tmp/delete-apex-ids.txt
+
+          DOMAIN_CODE="$(curl --silent --show-error -o /tmp/pages-domain.json -w '%{http_code}'             "${PAGES_AUTH[@]}" "${PAGES_DOMAINS}/${DOMAIN}")"
+          if [ "$DOMAIN_CODE" = "404" ]; then
+            curl --fail --silent --show-error -X POST "${PAGES_AUTH[@]}"               --data "{\"name\":\"${DOMAIN}\"}"               "${PAGES_DOMAINS}" -o /tmp/pages-domain-created.json
+            echo PAGES_APEX_ASSOCIATION=created
+          elif [ "$DOMAIN_CODE" = "200" ]; then
+            echo PAGES_APEX_ASSOCIATION=existing
+          else
+            cat /tmp/pages-domain.json
+            exit 51
+          fi
+
+          sleep 3
+          curl --fail --silent --show-error "${DNS_AUTH[@]}"             "${DNS_BASE}?name=${DOMAIN}" -o /tmp/apex-pages-dns.json
+          ACTION="$(node <<'NODE'
+          const x=require('/tmp/apex-pages-dns.json');
+          if(!x.success||!Array.isArray(x.result)) throw new Error('APEX_PAGES_DNS_LOOKUP_FAILED');
+          const rows=x.result.filter(r=>['A','AAAA','CNAME'].includes(r.type));
+          const exact=rows.filter(r=>r.type==='CNAME' &&
+            String(r.content).replace(/\.$/,'')===process.env.PAGES_TARGET);
+          if(exact.length===1){process.stdout.write('keep');process.exit(0)}
+          if(rows.length===0){process.stdout.write('create');process.exit(0)}
+          console.error('APEX_DNS_AFTER_PAGES_CONFLICT='+JSON.stringify(rows));
+          process.exit(52);
+          NODE
+          )"
+          if [ "$ACTION" = "create" ]; then
+            node <<'NODE' >/tmp/apex-cname.json
+          console.log(JSON.stringify({
+            type:'CNAME',name:process.env.DOMAIN,content:process.env.PAGES_TARGET,ttl:1,proxied:true
+          }));
+          NODE
+            curl --fail --silent --show-error -X POST "${DNS_AUTH[@]}"               --data @/tmp/apex-cname.json "${DNS_BASE}" -o /tmp/apex-cname-created.json
+            node -e "const x=require('/tmp/apex-cname-created.json');if(!x.success)process.exit(1)"
+            echo APEX_CNAME_CREATED=true
+          fi
+
+          STATUS='unknown'
+          for i in $(seq 1 72); do
+            curl --fail --silent --show-error "${PAGES_AUTH[@]}"               "${PAGES_DOMAINS}/${DOMAIN}" -o /tmp/pages-domain-current.json
+            STATUS="$(node -e "const x=require('/tmp/pages-domain-current.json');process.stdout.write(x.result?.status||'unknown')")"
+            VERIFY="$(node -e "const x=require('/tmp/pages-domain-current.json');process.stdout.write(x.result?.verification_data?.status||'unknown')")"
+            ERROR="$(node -e "const x=require('/tmp/pages-domain-current.json');process.stdout.write(x.result?.verification_data?.error_message||'')")"
+            echo "PAGES_DOMAIN_STATUS=${STATUS} VERIFY=${VERIFY} ERROR=${ERROR}"
+            [ "$STATUS" = "active" ] && break
+            [ "$STATUS" = "error" ] && { cat /tmp/pages-domain-current.json; exit 53; }
+            sleep 5
+          done
+          test "$STATUS" = "active"
+
+      - name: QA inmediato de producción
+        env:
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          stamp="$(date +%s)"
+          routes=(/ /diagnostico-iri/ /contacto/ /metodo/ /sobre-iberfit/ /online/ /entrenador-personal-las-condes/ /privacidad/ /en/ /robots.txt /sitemap.xml)
+          mkdir -p /tmp/post
+          for path in "${routes[@]}"; do
+            safe="$(echo "$path" | sed 's#[^A-Za-z0-9]#_#g')"
+            code="$(curl --silent --show-error --location --retry 8 --retry-all-errors               --connect-timeout 10 --max-time 30               -o "/tmp/post/${safe}.body" -D "/tmp/post/${safe}.headers"               -w '%{http_code}' "https://${DOMAIN}${path}?cutover=${stamp}")"
+            echo "${path} -> ${code}"
+            test "$code" = "200"
+          done
+
+          grep -Fq '>A distancia</a>' /tmp/post/_.body
+          grep -Fq '/assets/analytics.v628.js' /tmp/post/_.body
+          grep -Fq '<link href="https://iberfit.cl/" rel="canonical"' /tmp/post/_.body
+          grep -Fq 'Sitemap: https://iberfit.cl/sitemap.xml' /tmp/post/_robots_txt.body
+          grep -Fq '<lastmod>2026-09-12</lastmod>' /tmp/post/_sitemap_xml.body
+
+          WWW_CODE="$(curl --silent --show-error -D /tmp/www.headers -o /dev/null -w '%{http_code}' "https://${WWW_DOMAIN}/")"
+          echo "WWW_CODE=${WWW_CODE}"
+          test "$WWW_CODE" = "301" -o "$WWW_CODE" = "308"
+          grep -Eiq '^location:[[:space:]]*https://iberfit\.cl/?([[:space:]]|$)' /tmp/www.headers
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer ${CLOUDFLARE_DNS_TOKEN}"             -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?name=${APP_DOMAIN}"             -o /tmp/app-after.json
+          node <<'NODE'
+          const x=require('/tmp/app-after.json');
+          const rows=x.result||[];
+          if(rows.length!==1 || rows[0].type!=='CNAME' ||
+             String(rows[0].content).replace(/\.$/,'')!==process.env.APP_TARGET) {
+            throw new Error('APP_DNS_CHANGED:'+JSON.stringify(rows));
+          }
+          console.log('APP_DNS_UNCHANGED=true');
+          NODE
+          echo PRODUCTION_V628_CERTIFIED=true
+
+      - name: Rollback automático si falla después del snapshot
+        if: failure()
+        env:
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set +e
+          test -d /tmp/cutover-before || { echo 'ROLLBACK_SKIPPED_NO_MUTATION_SNAPSHOT'; exit 0; }
+          DNS_AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_DNS_TOKEN}" -H 'Content-Type: application/json')
+          PAGES_AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json')
+          DNS_BASE="https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records"
+          PAGES_DOMAINS="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/domains"
+
+          echo ROLLBACK_BEGIN=true
+          curl --silent --show-error -X DELETE "${PAGES_AUTH[@]}"             "${PAGES_DOMAINS}/${DOMAIN}" >/tmp/rollback-pages-detach.json 2>/dev/null || true
+
+          curl --silent --show-error "${DNS_AUTH[@]}" "${DNS_BASE}?name=${DOMAIN}" -o /tmp/current-apex.json
+          node <<'NODE' >/tmp/current-pages-cname-ids.txt
+          const fs=require('fs');
+          try{
+            const x=JSON.parse(fs.readFileSync('/tmp/current-apex.json','utf8'));
+            for(const r of x.result||[]){
+              if(r.type==='CNAME' && String(r.content).replace(/\.$/,'')===process.env.PAGES_TARGET) console.log(r.id);
+            }
+          }catch{}
+          NODE
+          while read -r id; do
+            [ -z "$id" ] && continue
+            curl --silent --show-error -X DELETE "${DNS_AUTH[@]}" "${DNS_BASE}/${id}" >/dev/null || true
+          done </tmp/current-pages-cname-ids.txt
+
+          OLD_WORKER_SERVICE="$(node -e "try{const x=require('/tmp/cutover-before/apex-worker-domain.json');process.stdout.write(x?.service||'')}catch{}")"
+          if [ -n "$OLD_WORKER_SERVICE" ]; then
+            node <<'NODE' >/tmp/reattach-worker.json
+          const x=require('/tmp/cutover-before/apex-worker-domain.json');
+          console.log(JSON.stringify({
+            hostname:x.hostname,
+            service:x.service,
+            zone_id:x.zone_id,
+            zone_name:x.zone_name
+          }));
+          NODE
+            curl --silent --show-error -X PUT "${DNS_AUTH[@]}"               --data @/tmp/reattach-worker.json               "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/domains"               -o /tmp/reattach-worker-result.json
+            echo ROLLBACK_WORKER_CUSTOM_DOMAIN_REATTACHED=true
+          else
+            node <<'NODE' >/tmp/old-resolution-records.jsonl
+          const x=require('/tmp/cutover-before/dns-iberfit_cl.json');
+          for(const r of x.result||[]){
+            if(!['A','AAAA','CNAME'].includes(r.type)) continue;
+            console.log(JSON.stringify({
+              type:r.type,name:r.name,content:r.content,ttl:r.ttl===1?1:r.ttl,proxied:r.proxied
+            }));
+          }
+          NODE
+            while IFS= read -r row; do
+              [ -z "$row" ] && continue
+              curl --silent --show-error -X POST "${DNS_AUTH[@]}"                 --data "$row" "${DNS_BASE}" >/dev/null || true
+            done </tmp/old-resolution-records.jsonl
+            echo ROLLBACK_OLD_DNS_RESTORED=true
+          fi
+
+          sleep 5
+          curl --silent --show-error --location --retry 4 --retry-all-errors "https://${DOMAIN}/" -o /tmp/rollback-check.html || true
+          if grep -Fq '>Online</a>' /tmp/rollback-check.html; then
+            echo ROLLBACK_PRE_V628_RESTORED=true
+          else
+            echo ROLLBACK_REQUIRES_ATTENTION=true
+          fi
+
+      - name: Guardar evidencia de cutover
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-iberfit-production-cutover-${{ github.run_id }}
+          path: |
+            .iberfit/web-production-cutover.json
+            /tmp/cutover-before
+            /tmp/post
+            /tmp/pages-domain-current.json
+            /tmp/app-after.json
+            /tmp/www.headers
+          if-no-files-found: warn
+          retention-days: 90
