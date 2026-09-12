@@ -92,6 +92,7 @@ for(const session of sessions){
     if(
       assurance?.ok!==true||assurance?.privileged!==true||assurance?.mfaRequired!==true||
       assurance?.webauthnRequired!==true||assurance?.credentialEnrolled!==true||
+      assurance?.emailOtpAvailable!==true||
       assurance?.iberfitAssurance!=='required'||assurance?.supabaseAal!=='aal1'||
       assurance?.origin!==CANARY_ORIGIN||assurance?.rpId!=='m26-canary.iberfit.cl'||reportedRole!=='coach'
     ){
@@ -109,7 +110,7 @@ for(const session of sessions){
       name:session.name,userFingerprint:fingerprint(session.userId),reportedRole,clientFingerprint:null,
       canaryActive:null,environmentName:null,privacy:null,
       privilegedGate:{ok:true,status:403,code:/^[A-Z0-9]{3,16}$/u.test(blockedCode)?blockedCode:'NONE',
-        message:'IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED',iberfitAssurance:'required',credentialEnrolled:true,webauthnRequired:true,
+        message:'IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED',iberfitAssurance:'required',credentialEnrolled:true,webauthnRequired:true,emailOtpAvailable:true,
         origin:CANARY_ORIGIN,rpId:'m26-canary.iberfit.cl'},
     });
     continue;
