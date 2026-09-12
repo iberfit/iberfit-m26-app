@@ -132,7 +132,12 @@ test('mobile native editable controls keep an interaction hold and preserve focu
   assert.match(source,/root\.addEventListener\('pointercancel',onPointerCancel/u);
   assert.match(source,/root\.addEventListener\('focusin',onFocusIn\)/u);
   assert.match(source,/function rerenderPreservingControl\(control\)/u);
-  assert.match(source,/if\(snapshot\?\.settingsOpen\)[\s\S]{0,220}?settings\.open=true/u);
+  assert.match(source,/function restoreControlContinuity\(snapshot,\{defer=false\}=\{\}\)/u);
+  assert.match(source,/pendingI18nContinuitySnapshot=snapshot/u);
+  assert.match(source,/root\.addEventListener\('m26:i18n-switch-settled',onI18nSwitchSettled\)/u);
+  assert.match(source,/root\.removeEventListener\('m26:i18n-switch-settled',onI18nSwitchSettled\)/u);
+  assert.match(source,/function onI18nSwitchSettled\(\)[\s\S]{0,260}?restoreControlContinuity\(snapshot,\{defer:true\}\)/u);
+  assert.match(source,/if\(snapshot\.settingsOpen\)[\s\S]{0,220}?settings\.open=true/u);
   assert.match(source,/replacement\?\.focus\?\.\(\{preventScroll:true\}\)/u);
 
   const localeStart=source.indexOf("const localeSelector=event.target.closest?.('[data-m26-ui-locale]')");
