@@ -391,6 +391,12 @@ body {
   line-height: 1.48;
 }
 
+.m26-shell .m26-stat strong {
+  overflow-wrap:break-word;
+  word-break:normal;
+  hyphens:none;
+}
+
 .m26-shell .m26-stat-grid,
 .m26-shell .m26-admin-stats {
   gap: clamp(.6rem,1.4vw,.85rem);
