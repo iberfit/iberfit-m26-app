@@ -65,7 +65,7 @@ async function readAssurance(response){
   return payload;
 }
 
-test('RC64.2B current WebAuthn contract authenticates QA Coach and Client without mutations',async({browser},testInfo)=>{
+test('RC64.2B current WebAuthn contract authenticates QA Coach and Client without mutations',async({browser,browserName},testInfo)=>{
   const missing=required.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
   expect(process.env.M26_PROJECT_REF).toBe(PROJECT_REF);
@@ -130,9 +130,12 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
     const page=await context.newPage();
     const projectName=String(testInfo.project.name||'');
     const touchProfile=/tablet|mobile/iu.test(projectName);
-    const cpuThrottleRate=touchProfile?6:3;
-    const cdp=await context.newCDPSession(page);
-    await cdp.send('Emulation.setCPUThrottlingRate',{rate:cpuThrottleRate});
+    const chromiumEngine=browserName==='chromium';
+    const cpuThrottleRate=chromiumEngine?(touchProfile?6:3):1;
+    if(chromiumEngine){
+      const cdp=await context.newCDPSession(page);
+      await cdp.send('Emulation.setCPUThrottlingRate',{rate:cpuThrottleRate});
+    }
 
     page.on('requestfailed',(request)=>{
       try{
@@ -274,12 +277,12 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         }));
         expect(
           Number(eventLoopDelay),
-          'Authenticated workspace must return control to the event loop under CPU throttling',
+          chromiumEngine?'Authenticated workspace must return control to the event loop under CPU throttling':'Authenticated workspace must return control to the event loop',
         ).toBeLessThan(1_500);
 
         await expect(
           page.locator('.m26-shell'),
-          'Authenticated shell must remain interactive after throttled navigation and settings interactions',
+          chromiumEngine?'Authenticated shell must remain interactive after throttled navigation and settings interactions':'Authenticated shell must remain interactive after navigation and settings interactions',
         ).toHaveAttribute('data-m26-role',account.role,{timeout:5_000});
       }
 
@@ -315,7 +318,9 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         pageErrors:0,
         qualityObservability:'memory-only-no-transport',
         interactionVerified:account.role==='client',
+        browserEngine:browserName,
         cpuThrottleRate,
+        cpuThrottled:chromiumEngine,
         touchProfile,
       }));
 
