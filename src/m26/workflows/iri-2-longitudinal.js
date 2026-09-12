@@ -270,6 +270,43 @@ export function buildIri2DecisionLog({assessments=[]}={}){
   });
 }
 
+function parseWeeklyFrequency(value){
+  const raw=clean(value,240);
+  const match=raw.match(/(?:^|\D)(\d{1,2})(?:\D|$)/u);
+  const number=Number(match?.[1]);
+  return Number.isInteger(number)&&number>=1&&number<=14?number:null;
+}
+function planningDuration(value){
+  const number=Number(value);
+  return Number.isFinite(number)&&number>=20&&number<=240?Math.round(number):null;
+}
+function planningModality(value){
+  const raw=clean(value,80).toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/gu,'');
+  if(raw==='presencial')return 'presencial';
+  if(raw==='hibrido'||raw==='hybrid')return 'hibrido';
+  if(raw==='online'||raw==='en linea'||raw==='remoto')return 'online';
+  return null;
+}
+
+export function buildIri2PlanningSeed({decisionLog,profile={}}={}){
+  const latest=decisionLog?.latest||null;
+  if(!latest)return null;
+  const priorities=normalizedDecisionList(latest.priorities);
+  const suggestedGoal=clean(latest.initialPlan,500)||clean(priorities.join(' · '),500);
+  return Object.freeze({
+    sourceAssessmentId:clean(latest.assessmentId,120)||null,
+    sourceAssessmentDate:clean(latest.assessmentDate,32)||null,
+    priorities:Object.freeze(priorities),
+    trainingImplications:clean(latest.trainingImplications,1200),
+    suggestedGoal,
+    suggestedWeeklyFrequency:parseWeeklyFrequency(latest.recommendedFrequency)??parseWeeklyFrequency(profile.weeklyFrequency),
+    suggestedSessionDurationMinutes:planningDuration(profile.sessionDurationMinutes),
+    suggestedModality:planningModality(profile.modality),
+    reevaluationDate:clean(latest.reevaluationDate,32)||null,
+    requiresCoachReview:true,
+  });
+}
+
 export function buildIri2LongitudinalProfile({current,history=[]}={}){
   if(!current)throw new Error('M26_IRI2_CURRENT_REQUIRED');
   const currentSnapshot=current.schema===IRI2_SNAPSHOT_SCHEMA?current:iri2SnapshotFromDraft(current);
@@ -337,5 +374,5 @@ export function iri2ComparisonSummary(profile={}){
 }
 
 export const __iri2LongitudinalInternals=Object.freeze({
-  finite,clean,dateValue,sameValue,sameNumber,protocolKey,metric,strengthProtocol,cardioProtocol,compositionProtocol,snapshotMetrics,comparable,compareMetric,sortSnapshots,sameClient,normalizedDecisionList,decisionHasContent,normalizedKey,decisionListDelta,decisionEntry,
+  finite,clean,dateValue,sameValue,sameNumber,protocolKey,metric,strengthProtocol,cardioProtocol,compositionProtocol,snapshotMetrics,comparable,compareMetric,sortSnapshots,sameClient,normalizedDecisionList,decisionHasContent,normalizedKey,decisionListDelta,decisionEntry,parseWeeklyFrequency,planningDuration,planningModality,
 });
