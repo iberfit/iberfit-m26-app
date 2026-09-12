@@ -9,6 +9,7 @@ import {ADMIN_SURFACE_ROWS} from './i18n-surface-admin.js';
 import {WEARABLE_SURFACE_ROWS} from './i18n-surface-wearables.js';
 import {WORKSPACE_SURFACE_ROWS} from './i18n-surface-workspace.js';
 import {FINAL_RESIDUAL_SURFACE_ROWS} from './i18n-surface-final-residual.js';
+import {P0_CLIENT_AUTH_SURFACE_ROWS} from './i18n-surface-p0-client-auth.js';
 
 export const IBERFIT_EXTRA_SURFACE_ROWS=Object.freeze([
   ...ROUTE_SURFACE_ROWS_A,
@@ -22,6 +23,7 @@ export const IBERFIT_EXTRA_SURFACE_ROWS=Object.freeze([
   ...WEARABLE_SURFACE_ROWS,
   ...WORKSPACE_SURFACE_ROWS,
   ...FINAL_RESIDUAL_SURFACE_ROWS,
+  ...P0_CLIENT_AUTH_SURFACE_ROWS,
 ]);
 
 const LANGUAGE_INDEX=Object.freeze({en:1,fr:2,pt:3});
@@ -44,6 +46,26 @@ function runtimeExtra(source,language){
     if(language==='en')return `${match[1]} sessions per week`;
     if(language==='fr')return `${match[1]} séances par semaine`;
     return `${match[1]} sessões por semana`;
+  }
+  if((match=source.match(/^(\d+) sesiones publicadas$/u))){
+    if(language==='en')return `${match[1]} published sessions`;
+    if(language==='fr')return `${match[1]} séances publiées`;
+    return `${match[1]} sessões publicadas`;
+  }
+  if((match=source.match(/^(\d+) sesiones$/u))){
+    if(language==='en')return `${match[1]} sessions`;
+    if(language==='fr')return `${match[1]} séances`;
+    return `${match[1]} sessões`;
+  }
+  if((match=source.match(/^Tienes (\d+) (?:sesión|sesiones) (?:disponible|disponibles) en tu planificación\.$/u))){
+    if(language==='en')return `You have ${match[1]} session${match[1]==='1'?'':'s'} available in your planning.`;
+    if(language==='fr')return `Vous avez ${match[1]} séance${match[1]==='1'?'':'s'} disponible${match[1]==='1'?'':'s'} dans votre planification.`;
+    return `Tem ${match[1]} ${match[1]==='1'?'sessão':'sessões'} ${match[1]==='1'?'disponível':'disponíveis'} no seu planeamento.`;
+  }
+  if((match=source.match(/^Comenzar · (.+)$/u))){
+    if(language==='en')return `Start · ${match[1]}`;
+    if(language==='fr')return `Démarrer · ${match[1]}`;
+    return `Iniciar · ${match[1]}`;
   }
   if((match=source.match(/^Abrir seguimiento de (.+)$/u))){
     if(language==='en')return `Open follow-up for ${match[1]}`;
