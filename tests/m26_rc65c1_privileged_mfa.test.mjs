@@ -140,19 +140,19 @@ test('RC65-C1 FREE mantiene assurance server-side y evita repetirla tras una ver
   assert.doesNotMatch(verifyArea,/transport\.authAssuranceContext/u);
   assert.doesNotMatch(verifyArea,/transport\.authUser/u);
   assert.doesNotMatch(verifyArea,/session=next|vault\.save\(session\)/u);
-  assert.match(transport,/const privilegedRole=String\\(body\\?\\.privilegedRole\\|\\|''\\)\\.trim\\(\\)\\.toLowerCase\\(\\)/u);
+  assert.ok(transport.includes("const privilegedRole=String(body?.privilegedRole||'').trim().toLowerCase()"));
   const authUserStart=transport.indexOf('async function authUser(token)');
   const authUserEnd=transport.indexOf('function normalizeWebAuthnAction',authUserStart);
   assert.ok(authUserStart>=0&&authUserEnd>authUserStart);
   const authUserArea=transport.slice(authUserStart,authUserEnd);
-  assert.doesNotMatch(authUserArea,/privilegedRole/u);
+  assert.equal(authUserArea.includes('privilegedRole'),false);
   const verifyStart=transport.indexOf('async function verifyWebAuthn');
   const verifyEnd=transport.indexOf('async function refresh',verifyStart);
   assert.ok(verifyStart>=0&&verifyEnd>verifyStart);
   const verifyTransportArea=transport.slice(verifyStart,verifyEnd);
-  assert.match(verifyTransportArea,/const privilegedRole=String\\(body\\?\\.privilegedRole\\|\\|''\\)\\.trim\\(\\)\\.toLowerCase\\(\\)/u);
-  assert.match(verifyTransportArea,/!\\['admin','coach'\\]\\.includes\\(privilegedRole\\)/u);
-  assert.match(verifyTransportArea,/privilegedRole,/u);
+  assert.ok(verifyTransportArea.includes("const privilegedRole=String(body?.privilegedRole||'').trim().toLowerCase()"));
+  assert.ok(verifyTransportArea.includes("!['admin','coach'].includes(privilegedRole)"));
+  assert.ok(verifyTransportArea.includes('privilegedRole'));
 });
 
 test('RC65-C1 FREE migración liga assurance a session_id real y bloquea tablas al cliente',()=>{
