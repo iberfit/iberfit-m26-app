@@ -154,6 +154,15 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let generation=0;
   let lastMarkup='';
   let adaptiveWindow=null;
+  let interactionPointerTarget=null;
+
+  const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
+  function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||null;}
+  function focusedInteractiveControl(){
+    const active=root.ownerDocument?.activeElement;
+    return active&&root.contains?.(active)&&active.matches?.(SHELL_INTERACTIVE_SELECTOR)?active:null;
+  }
+  function shellInteractionActive(){return Boolean(interactionPointerTarget||focusedInteractiveControl());}
 
   function syncAdaptiveLayout(){
     const target=adaptiveWindow||root.ownerDocument?.defaultView||globalThis.window||null;
@@ -176,7 +185,11 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
   }
 
-  function renderNow(state = store.getState()) {
+  function renderNow(state = store.getState(),{force=false}={}) {
+    if(!force&&shellInteractionActive()){
+      queuedState=state;
+      return false;
+    }
     const viewModel = createShellViewModel(state);
     const routeMarkup = viewModel.mode === 'authenticated' ? renderRoute(viewModel, state) : '';
     const markup=renderM26Shell(viewModel, routeMarkup);
@@ -196,18 +209,41 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     return true;
   }
 
+  function flushDeferredRender(){
+    if(renderQueued||!queuedState||shellInteractionActive())return false;
+    const next=queuedState;
+    queuedState=null;
+    interactionPointerTarget=null;
+    scheduleRender(next);
+    return true;
+  }
+
   function scheduleRender(state=store.getState()){
     queuedState=state;
+    if(shellInteractionActive())return;
     if(renderQueued)return;
     renderQueued=true;
     const token=generation;
     queueMicrotask(()=>{
       renderQueued=false;
       if(token!==generation)return;
+      if(shellInteractionActive())return;
       const next=queuedState;
       queuedState=null;
       renderNow(next);
     });
+  }
+
+  function onPointerDown(event){
+    interactionPointerTarget=interactiveControl(event.target);
+  }
+  function onPointerRelease(){
+    interactionPointerTarget=null;
+    queueMicrotask(flushDeferredRender);
+  }
+  function onFocusOut(event){
+    if(!interactiveControl(event.target))return;
+    queueMicrotask(flushDeferredRender);
   }
 
   function focusMain(){queueMicrotask(()=>root.querySelector?.('#m26-main')?.focus?.({preventScroll:false}));}
@@ -406,6 +442,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     adaptiveWindow=root.ownerDocument?.defaultView||globalThis.window||null;
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);
+    root.addEventListener('pointerdown',onPointerDown,{passive:true});
+    root.addEventListener('pointerup',onPointerRelease,{passive:true});
+    root.addEventListener('pointercancel',onPointerRelease,{passive:true});
+    root.addEventListener('focusout',onFocusOut);
     adaptiveWindow?.addEventListener?.('resize',syncAdaptiveLayout,{passive:true});
     adaptiveWindow?.addEventListener?.('orientationchange',syncAdaptiveLayout,{passive:true});
     unsubscribe = store.subscribe(scheduleRender);
@@ -417,8 +457,13 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     generation+=1;
     renderQueued=false;
     queuedState=null;
+    interactionPointerTarget=null;
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
+    root.removeEventListener('pointerdown',onPointerDown);
+    root.removeEventListener('pointerup',onPointerRelease);
+    root.removeEventListener('pointercancel',onPointerRelease);
+    root.removeEventListener('focusout',onFocusOut);
     adaptiveWindow?.removeEventListener?.('resize',syncAdaptiveLayout);
     adaptiveWindow?.removeEventListener?.('orientationchange',syncAdaptiveLayout);
     adaptiveWindow=null;
