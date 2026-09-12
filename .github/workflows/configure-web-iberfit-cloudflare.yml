@@ -1,0 +1,140 @@
+name: Configure WEB IBERFIT Cloudflare privacy
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/configure-web-iberfit-cloudflare.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: configure-web-iberfit-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_ZONE_ID: '44302103d0c37a304bad49fbbe0501d5'
+      RULE_REF: 'iberfit_web_disable_rum_v1'
+      RULE_EXPR: '(http.host in {"iberfit.cl" "www.iberfit.cl" "web.iberfit.cl"})'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Crear o verificar Configuration Rule de privacidad
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH=(-H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json')
+          BASE="https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/rulesets"
+
+          CODE="$(curl --silent --show-error -o /tmp/entry.json -w '%{http_code}'             "${AUTH[@]}" "${BASE}/phases/http_config_settings/entrypoint")"
+          echo "ENTRYPOINT_HTTP=${CODE}"
+
+          if [ "$CODE" = "404" ]; then
+            node <<'NODE' >/tmp/create.json
+          const body = {
+            name: 'IBERFIT Web configuration',
+            description: 'Configuración Cloudflare exclusiva de la web corporativa IBERFIT.',
+            kind: 'zone',
+            phase: 'http_config_settings',
+            rules: [{
+              action: 'set_config',
+              action_parameters: { disable_rum: true },
+              expression: process.env.RULE_EXPR,
+              description: 'Desactivar Cloudflare RUM en web corporativa; analytics propios respetan consentimiento.',
+              enabled: true,
+              ref: process.env.RULE_REF
+            }]
+          };
+          process.stdout.write(JSON.stringify(body));
+          NODE
+            curl --fail --silent --show-error -X POST "${AUTH[@]}"               --data @/tmp/create.json "${BASE}" -o /tmp/create-result.json
+            node <<'NODE'
+          const x=require('/tmp/create-result.json');
+          if(!x.success) throw new Error(JSON.stringify(x.errors||x));
+          const r=(x.result?.rules||[]).find(v=>v.ref===process.env.RULE_REF);
+          if(!r) throw new Error('RULE_NOT_CREATED');
+          console.log('CONFIG_RULE_CREATED='+r.id);
+          NODE
+          elif [ "$CODE" = "200" ]; then
+            RULESET_ID="$(node -e "const x=require('/tmp/entry.json');if(!x.success||!x.result?.id)process.exit(1);process.stdout.write(x.result.id)")"
+            MATCH_COUNT="$(node -e "const x=require('/tmp/entry.json');process.stdout.write(String((x.result?.rules||[]).filter(r=>r.ref===process.env.RULE_REF).length))")"
+            if [ "$MATCH_COUNT" = "0" ]; then
+              node <<'NODE' >/tmp/rule.json
+          process.stdout.write(JSON.stringify({
+            action:'set_config',
+            action_parameters:{disable_rum:true},
+            expression:process.env.RULE_EXPR,
+            description:'Desactivar Cloudflare RUM en web corporativa; analytics propios respetan consentimiento.',
+            enabled:true,
+            ref:process.env.RULE_REF
+          }));
+          NODE
+              curl --fail --silent --show-error -X POST "${AUTH[@]}"                 --data @/tmp/rule.json "${BASE}/${RULESET_ID}/rules" -o /tmp/rule-result.json
+              node <<'NODE'
+          const x=require('/tmp/rule-result.json');
+          if(!x.success) throw new Error(JSON.stringify(x.errors||x));
+          if(x.result?.ref!==process.env.RULE_REF) throw new Error('RULE_NOT_ADDED');
+          console.log('CONFIG_RULE_ADDED='+x.result.id);
+          NODE
+            elif [ "$MATCH_COUNT" = "1" ]; then
+              node <<'NODE'
+          const x=require('/tmp/entry.json');
+          const r=(x.result?.rules||[]).find(v=>v.ref===process.env.RULE_REF);
+          if(r.action!=='set_config' ||
+             r.action_parameters?.disable_rum!==true ||
+             r.expression!==process.env.RULE_EXPR ||
+             r.enabled===false) {
+            throw new Error('EXISTING_RULE_MISMATCH:'+JSON.stringify(r));
+          }
+          console.log('CONFIG_RULE_ALREADY_CORRECT='+r.id);
+          NODE
+            else
+              echo DUPLICATE_IBERFIT_CONFIG_RULES
+              exit 61
+            fi
+          else
+            cat /tmp/entry.json || true
+            exit 60
+          fi
+
+      - name: Verificar regla efectiva y exclusión de app
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/rulesets/phases/http_config_settings/entrypoint"             -o /tmp/final.json
+          node <<'NODE'
+          const x=require('/tmp/final.json');
+          const r=(x.result?.rules||[]).find(v=>v.ref===process.env.RULE_REF);
+          if(!r) throw new Error('FINAL_RULE_MISSING');
+          if(r.action_parameters?.disable_rum!==true) throw new Error('RUM_NOT_DISABLED');
+          if(r.expression!==process.env.RULE_EXPR) throw new Error('RULE_SCOPE_MISMATCH');
+          if(r.expression.includes('app.iberfit.cl')) throw new Error('APP_MUST_BE_EXCLUDED');
+          console.log('RUM_DISABLED_SCOPE='+r.expression);
+          console.log('APP_EXCLUDED=true');
+          NODE
+
+      - name: Confirmar beacon ausente en staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 20); do
+            curl --fail --silent --show-error --location "https://web.iberfit.cl/?rumcheck=${i}" -o /tmp/web.html
+            if ! grep -Fq 'static.cloudflareinsights.com' /tmp/web.html; then
+              echo CLOUDFLARE_RUM_INJECTION_ABSENT=true
+              exit 0
+            fi
+            sleep 3
+          done
+          echo CLOUDFLARE_RUM_INJECTION_STILL_PRESENT
+          exit 62
