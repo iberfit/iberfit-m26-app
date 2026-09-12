@@ -186,7 +186,8 @@ test('existing progressive onboarding lifecycle now owns the common guided tour 
   assert.match(progressive,/guidedTour\.destroy/u);
   assert.match(progressive,/guidedTour\.refresh/u);
   assert.match(app,/createProgressiveOnboardingController/u);
-  assert.match(app,/onboarding\.mount\(\)/u);
+  assert.match(app,/\['onboarding',onboarding\]/u);
+  assert.match(app,/mountAuthenticatedControllersProgressively/u);
 });
 
 test('guided onboarding refreshes from explicit shell lifecycle without observing the full workspace DOM',()=>{
