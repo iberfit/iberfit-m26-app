@@ -277,6 +277,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .m26-mobile-more > summary::-webkit-details-marker { display: none; }
 .m26-mobile-more > summary:focus-visible { outline: 3px solid rgba(228,205,152,.44); outline-offset: 2px; }
 .m26-mobile-more[open] > summary { color: var(--m26-cream-100); border-color: rgba(228,205,152,.22); background: rgba(200,166,93,.12); }
+.m26-mobile-more[data-m26-more-active="true"] > summary { color: var(--m26-cream-100); border-color: rgba(228,205,152,.3); background: rgba(200,166,93,.16); box-shadow: inset 0 -2px 0 var(--m26-gold-300); }
 .m26-mobile-more-menu { position: absolute; right: 0; bottom: calc(100% + .65rem); width: min(20rem, calc(100vw - 1rem)); max-height: min(70dvh, 34rem); overflow-y: auto; display: grid; gap: .3rem; padding: .65rem; border: 1px solid var(--m26-line); border-radius: 1rem; background: rgba(7,21,15,.99); box-shadow: var(--m26-shadow); z-index: 30; }
 .m26-mobile-more-menu .m26-nav-item { min-height: 3rem; padding: .65rem .8rem; text-align: left; font-size: .78rem; }
 @media (max-width: 900px) {
