@@ -1,0 +1,324 @@
+name: Promote WEB IBERFIT V6.29 production
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.iberfit/web-v629-production.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-v629-production
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_ZONE_ID: '44302103d0c37a304bad49fbbe0501d5'
+  CF_PROJECT: 'web-iberfit'
+  PROD_BRANCH: 'production'
+  DOMAIN: 'iberfit.cl'
+  APP_DOMAIN: 'app.iberfit.cl'
+  APP_TARGET: 'iberfit-m26-production.pages.dev'
+  ROLLBACK_SHA: '8d6fcb12a9472e9ef78b9973ca3d0cd9d71244ab'
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar autorización exacta
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const m=JSON.parse(fs.readFileSync('.iberfit/web-v629-production.json','utf8'));
+          if(m.schema!=='iberfit.web.v629-production.v1') throw new Error('PROD_SCHEMA_INVALID');
+          if(m.approved!==true) throw new Error('PROD_NOT_APPROVED');
+          if(m.branch!=='work/web-v6-29-experience') throw new Error('WEB_BRANCH_INVALID');
+          if(!/^[0-9a-f]{40}$/.test(m.webSha||'')) throw new Error('WEB_SHA_INVALID');
+          fs.appendFileSync(process.env.GITHUB_ENV,'WEB_SHA='+m.webSha+'\n');
+          NODE
+
+      - name: Descargar nueva candidata y rollback exactos
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/iberfit/iberfitweb.git /tmp/iberfitweb-new
+          git -C /tmp/iberfitweb-new fetch --depth=1 origin "${WEB_SHA}"
+          git -C /tmp/iberfitweb-new checkout --detach "${WEB_SHA}"
+          test "$(git -C /tmp/iberfitweb-new rev-parse HEAD)" = "${WEB_SHA}"
+
+          git clone --filter=blob:none --no-checkout https://github.com/iberfit/iberfitweb.git /tmp/iberfitweb-old
+          git -C /tmp/iberfitweb-old fetch --depth=1 origin "${ROLLBACK_SHA}"
+          git -C /tmp/iberfitweb-old checkout --detach "${ROLLBACK_SHA}"
+          test "$(git -C /tmp/iberfitweb-old rev-parse HEAD)" = "${ROLLBACK_SHA}"
+
+          test -s /tmp/iberfitweb-new/candidate/v628/assets/experience.v629.css
+          test -s /tmp/iberfitweb-new/candidate/v628/assets/experience.v629.js
+          grep -Fq 'Parque o zona verde' /tmp/iberfitweb-new/candidate/v628/presencial/index.html
+          grep -Fq 'Park or green space' /tmp/iberfitweb-new/candidate/v628/en/in-person/index.html
+          grep -Fq '🇩🇪' /tmp/iberfitweb-new/candidate/v628/sobre-iberfit/index.html
+          grep -Fq '🇩🇪' /tmp/iberfitweb-new/candidate/v628/en/about/index.html
+          ! grep -Fq 'experience.v629.js' /tmp/iberfitweb-old/candidate/v628/index.html
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Preflight Cloudflare, preview y aislamiento app
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAGES_AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json')
+          DNS_AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_DNS_TOKEN}" -H 'Content-Type: application/json')
+
+          curl --fail --silent --show-error "${PAGES_AUTH[@]}"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}"             -o /tmp/project-before.json
+          curl --fail --silent --show-error "${PAGES_AUTH[@]}"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments"             -o /tmp/deployments-before.json
+          curl --fail --silent --show-error "${PAGES_AUTH[@]}"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/domains/${DOMAIN}"             -o /tmp/domain-before.json
+          curl --fail --silent --show-error "${DNS_AUTH[@]}"             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?name=${APP_DOMAIN}"             -o /tmp/app-before.json
+          curl --fail --silent --show-error "${DNS_AUTH[@]}"             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/rulesets/phases/http_config_settings/entrypoint"             -o /tmp/config-before.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const project=JSON.parse(fs.readFileSync('/tmp/project-before.json','utf8'));
+          const deps=JSON.parse(fs.readFileSync('/tmp/deployments-before.json','utf8'));
+          const domain=JSON.parse(fs.readFileSync('/tmp/domain-before.json','utf8'));
+          const app=JSON.parse(fs.readFileSync('/tmp/app-before.json','utf8'));
+          const config=JSON.parse(fs.readFileSync('/tmp/config-before.json','utf8'));
+          if(!project.success||project.result?.production_branch!=='production') throw new Error('PRODUCTION_BRANCH_UNEXPECTED');
+          if(!deps.success||!Array.isArray(deps.result)) throw new Error('DEPLOYMENTS_LOOKUP_FAILED');
+
+          const preview=deps.result.find(d=>d.environment==='preview' &&
+            d.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA);
+          if(!preview || (preview.latest_stage?.status && preview.latest_stage.status!=='success')) {
+            throw new Error('EXACT_PREVIEW_NOT_CERTIFIED:'+process.env.WEB_SHA);
+          }
+
+          const prod=deps.result.find(d=>d.environment==='production');
+          if(!prod) throw new Error('CURRENT_PRODUCTION_MISSING');
+          const current=prod.deployment_trigger?.metadata?.commit_hash||'';
+          if(current!==process.env.ROLLBACK_SHA) throw new Error('PRODUCTION_CHANGED_CONCURRENTLY:'+current);
+          fs.writeFileSync('/tmp/current-prod.json',JSON.stringify({id:prod.id,url:prod.url,sha:current},null,2));
+
+          if(!domain.success||domain.result?.status!=='active') throw new Error('PRODUCTION_DOMAIN_NOT_ACTIVE');
+
+          const rows=app.result||[];
+          if(rows.length!==1||rows[0].type!=='CNAME'||String(rows[0].content).replace(/\.$/,'')!==process.env.APP_TARGET) {
+            throw new Error('APP_DNS_UNEXPECTED:'+JSON.stringify(rows));
+          }
+
+          const rum=(config.result?.rules||[]).filter(r=>r.ref==='iberfit_web_disable_rum_v1');
+          if(rum.length!==1||rum[0].action_parameters?.disable_rum!==true||rum[0].enabled===false) {
+            throw new Error('PRIVACY_RULE_MISSING');
+          }
+
+          console.log('PREVIEW_CERTIFIED_ID='+preview.id);
+          console.log('CURRENT_PRODUCTION_ID='+prod.id);
+          console.log('CURRENT_PRODUCTION_SHA='+current);
+          console.log('APP_ISOLATION_OK=true');
+          console.log('PRIVACY_RULE_OK=true');
+          NODE
+
+      - name: Desplegar V6.29 a producción
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/iberfitweb-new
+          npx --yes wrangler@4.120.0 pages deploy candidate/v628             --project-name "${CF_PROJECT}"             --branch "${PROD_BRANCH}"             --commit-hash "${WEB_SHA}"             --commit-message "IBERFIT V6.29 experience production" | tee /tmp/wrangler-production.log
+          touch /tmp/production-mutated
+
+          for i in $(seq 1 30); do
+            curl --fail --silent --show-error               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"               -H 'Content-Type: application/json'               "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments"               -o /tmp/deployments-after.json
+            STATUS="$(WEB_SHA="${WEB_SHA}" node <<'NODE'
+          const x=require('/tmp/deployments-after.json');
+          const d=(x.result||[]).find(v=>v.environment==='production' &&
+            v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA);
+          if(!d){process.stdout.write('missing');process.exit(0)}
+          process.stdout.write(d.latest_stage?.status||'success');
+          NODE
+            )"
+            echo "PRODUCTION_DEPLOYMENT_STATUS=${STATUS}"
+            [ "$STATUS" = "success" ] && break
+            [ "$STATUS" = "failure" ] && exit 71
+            sleep 4
+          done
+          test "$STATUS" = "success"
+
+      - name: Esperar huella V6.29 en dominio real
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for i in $(seq 1 45); do
+            stamp="$(date +%s)"
+            curl --silent --show-error --location --retry 3 --retry-all-errors               "https://${DOMAIN}/?v629=${stamp}" -o /tmp/prod-home.html || true
+            curl --silent --show-error --location --retry 3 --retry-all-errors               "https://${DOMAIN}/sobre-iberfit/?v629=${stamp}" -o /tmp/prod-about.html || true
+            curl --silent --show-error --location --retry 3 --retry-all-errors               "https://${DOMAIN}/entrenador-personal-las-condes/?v629=${stamp}" -o /tmp/prod-local.html || true
+            if grep -Fq '/assets/experience.v629.js' /tmp/prod-home.html &&
+               grep -Fq 'review-source-row--internal' /tmp/prod-home.html &&
+               grep -Fq '🇩🇪' /tmp/prod-about.html &&
+               grep -Fq 'Parque o zona verde' /tmp/prod-local.html; then
+              ok=1
+              break
+            fi
+            sleep 4
+          done
+          test "$ok" = "1"
+          echo PRODUCTION_V629_FINGERPRINT=true
+
+      - name: QA multidispositivo producción real
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/iberfitweb-new
+          npm install --no-save playwright@1.62.1
+          npx playwright install --with-deps chromium
+          BASE_URL="https://${DOMAIN}" QA_OUT="/tmp/v629-production-general"             node .github/scripts/qa_v628_dispositivos.mjs
+
+      - name: QA específica V6.29 producción y aislamiento app
+        env:
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/qa-prod-v629.js <<'NODE'
+          const { chromium } = require('playwright');
+          const base='https://iberfit.cl';
+          const locals=[
+            ['/entrenador-personal-las-condes/','Las Condes','Parque o zona verde'],
+            ['/entrenador-personal-vitacura/','Vitacura','Parque o zona verde'],
+            ['/entrenamiento-personal-providencia/','Providencia','Parque o zona verde'],
+            ['/personal-trainer-nunoa/','Ñuñoa','Parque o zona verde'],
+            ['/entrenador-personal-lo-barnechea/','Lo Barnechea','Parque o zona verde'],
+            ['/entrenador-personal-la-reina/','La Reina','Parque o zona verde'],
+            ['/entrenador-personal-penalolen/','Peñalolén','Parque o zona verde'],
+            ['/en/personal-trainer-las-condes/','Las Condes','Park or green space'],
+            ['/en/personal-trainer-vitacura/','Vitacura','Park or green space'],
+            ['/en/personal-training-providencia/','Providencia','Park or green space'],
+            ['/en/personal-trainer-nunoa/','Ñuñoa','Park or green space'],
+            ['/en/personal-trainer-lo-barnechea/','Lo Barnechea','Park or green space'],
+            ['/en/personal-trainer-la-reina/','La Reina','Park or green space'],
+            ['/en/personal-trainer-penalolen/','Peñalolén','Park or green space']
+          ];
+          const ok=(c,m)=>{if(!c)throw new Error(m)};
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            try{
+              const ctx=await browser.newContext({viewport:{width:1440,height:1000}});
+              for(const route of ['/','/sobre-iberfit/','/en/','/en/about/']){
+                const p=await ctx.newPage();
+                await p.goto(base+route,{waitUntil:'networkidle'});
+                await p.locator('.review-carousel-shell').waitFor();
+                ok(await p.locator('.review-slide.is-active').count()===1,route+' carousel');
+                ok(await p.locator('.review-source-row a[href*="google"]').count()===0,route+' review outbound');
+                await p.close();
+              }
+              for(const [route,names] of [
+                ['/sobre-iberfit/',['España','Alemania','España','Chile']],
+                ['/en/about/',['Spain','Germany','Spain','Chile']]
+              ]){
+                const p=await ctx.newPage();
+                await p.goto(base+route,{waitUntil:'networkidle'});
+                ok(JSON.stringify((await p.locator('.brand-journey article strong').allTextContents()).map(x=>x.trim()))===JSON.stringify(names),route+' journey');
+                await p.close();
+              }
+              for(const [route,place,park] of locals){
+                const p=await ctx.newPage();
+                await p.goto(base+route,{waitUntil:'networkidle'});
+                ok((await p.locator('.local-place-badge strong').textContent()).trim()===place,route+' badge');
+                ok(await p.locator('.local-service-chip').count()===4,route+' env count');
+                ok((await p.locator('.local-service-strip').innerText()).includes(park),route+' park');
+                await p.close();
+              }
+              for(const route of ['/online/','/en/online/']){
+                const p=await ctx.newPage(); await p.goto(base+route,{waitUntil:'networkidle'});
+                ok(await p.locator('[data-country-selector]').count()===0,route+' country selector');
+                await p.close();
+              }
+              await ctx.close();
+
+              const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2});
+              for(const route of ['/', '/sobre-iberfit/', '/presencial/', '/en/', '/en/about/', '/en/in-person/', ...locals.map(x=>x[0])]){
+                const p=await mobile.newPage(); await p.goto(base+route,{waitUntil:'networkidle'});
+                const overflow=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+                ok(overflow<=2,route+' mobile overflow '+overflow); await p.close();
+              }
+              await mobile.close();
+              console.log('PRODUCTION_V629_FEATURE_QA=PASS');
+            } finally { await browser.close(); }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+          NODE_PATH="/tmp/iberfitweb-new/node_modules" node /tmp/qa-prod-v629.js
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer ${CLOUDFLARE_DNS_TOKEN}"             -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?name=${APP_DOMAIN}"             -o /tmp/app-after-v629.json
+          node <<'NODE'
+          const x=require('/tmp/app-after-v629.json');
+          const rows=x.result||[];
+          if(rows.length!==1||rows[0].type!=='CNAME'||String(rows[0].content).replace(/\.$/,'')!==process.env.APP_TARGET) {
+            throw new Error('APP_DNS_CHANGED:'+JSON.stringify(rows));
+          }
+          console.log('APP_DNS_UNCHANGED=true');
+          NODE
+
+      - name: Rollback automático a V6.28 si falla después del despliegue
+        if: failure()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set +e
+          test -f /tmp/production-mutated || { echo ROLLBACK_SKIPPED_NO_PRODUCTION_MUTATION; exit 0; }
+          echo ROLLBACK_TO_V628_BEGIN=true
+          cd /tmp/iberfitweb-old
+          npx --yes wrangler@4.120.0 pages deploy candidate/v628             --project-name "${CF_PROJECT}"             --branch "${PROD_BRANCH}"             --commit-hash "${ROLLBACK_SHA}"             --commit-message "Rollback IBERFIT to certified V6.28" | tee /tmp/wrangler-rollback-v628.log
+
+          restored=0
+          for i in $(seq 1 45); do
+            stamp="$(date +%s)"
+            curl --silent --show-error --location "https://${DOMAIN}/?rollback=${stamp}" -o /tmp/rollback-home.html || true
+            if ! grep -Fq '/assets/experience.v629.js' /tmp/rollback-home.html &&
+               grep -Fq '>A distancia</a>' /tmp/rollback-home.html; then
+              restored=1
+              break
+            fi
+            sleep 4
+          done
+          if [ "$restored" = "1" ]; then
+            echo ROLLBACK_V628_RESTORED=true
+          else
+            echo ROLLBACK_V628_REQUIRES_ATTENTION=true
+          fi
+
+      - name: Guardar evidencia producción
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-v629-production-${{ github.run_id }}
+          path: |
+            .iberfit/web-v629-production.json
+            /tmp/project-before.json
+            /tmp/deployments-before.json
+            /tmp/deployments-after.json
+            /tmp/domain-before.json
+            /tmp/app-before.json
+            /tmp/app-after-v629.json
+            /tmp/config-before.json
+            /tmp/current-prod.json
+            /tmp/wrangler-production.log
+            /tmp/wrangler-rollback-v628.log
+            /tmp/v629-production-general
+          if-no-files-found: warn
+          retention-days: 90
