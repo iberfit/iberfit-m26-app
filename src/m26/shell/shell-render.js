@@ -172,7 +172,7 @@ function renderM26ShellBase(vm, routeMarkup = '') {
   const quickMobileItems = vm.navigation.mobile.slice(0, 4);
   const moreMobileItems = allMobileItems.filter((item) => !quickMobileItems.some((quick) => quick.key === item.key));
   const mobileMoreActive=moreMobileItems.some((item)=>item.key===vm.activeArea);
-  const mobileMore = moreMobileItems.length ? `<details class="m26-mobile-more"${mobileMoreActive?' data-m26-more-active="true"':''}><summary${mobileMoreActive?' class="is-active" aria-current="page"':''}>${escapeHtml(tx('common.more','Más'))}</summary><div class="m26-mobile-more-menu">${moreMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}</div></details>` : '';
+  const mobileMore = moreMobileItems.length ? `<details class="m26-mobile-more${mobileMoreActive?' is-active':''}"${mobileMoreActive?' data-m26-more-active="true"':''}><summary>${escapeHtml(tx('common.more','Más'))}</summary><div class="m26-mobile-more-menu">${moreMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}</div></details>` : '';
   const productivity=coachProductivityShell(vm);
   const pageTitle=tx(`area.${vm.activeArea}.title`,vm.page.title);
   const identityRoleLabel=tx(`shell.role.${vm.identity.role}`,vm.identity.roleLabel);
