@@ -4,5 +4,5 @@
   "domain": "iberfit.cl",
   "project": "web-iberfit",
   "candidateSha": "8d6fcb12a9472e9ef78b9973ca3d0cd9d71244ab",
-  "note": "Cutover autorizado tras staging real PASS, privacidad Cloudflare certificada y dry-run fail-closed."
+  "note": "Retry autorizado tras corregir manejo 204 del detach Worker y recertificar rollback exacto PRE_V628."
 }
