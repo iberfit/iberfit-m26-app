@@ -29,7 +29,7 @@ test('continuous audit enforces production security headers fail-closed',()=>{
   assert.match(audit,/unsafe-eval/u);
 });
 
-test('continuous audit proves health RPCs remain unavailable to anon',()=>{
+test('continuous audit proves anon boundaries with a valid publishable key and no fabricated user JWT',()=>{
   for(const rpc of [
     'm26_backend_health_v43',
     'm26_backend_health_v431',
@@ -37,11 +37,25 @@ test('continuous audit proves health RPCs remain unavailable to anon',()=>{
   ]){
     assert.ok(audit.includes(rpc),`missing protected health RPC ${rpc}`);
   }
-  assert.match(audit,/authorization:/u);
-  assert.match(audit,/Bearer/u);
-  assert.match(audit,/if\(response\.ok\)exposed\.push\(rpc\)/u);
-  assert.match(audit,/LIVE_ANON_HEALTH_RPC_EXPOSED/u);
-  assert.match(audit,/LIVE_HEALTH_RPCS_AUTH_BOUND/u);
+  assert.match(audit,/const PUBLIC_BRAND_RPC='iberfit_exercise_catalog_public_v1';/u);
+
+  const requestStart=audit.indexOf('async function postSupabaseRpc');
+  const postureStart=audit.indexOf('async function auditAnonymousRpcPosture',requestStart);
+  assert.ok(requestStart>=0&&postureStart>requestStart);
+  const requestBlock=audit.slice(requestStart,postureStart);
+  assert.match(requestBlock,/apikey:publishableKey/u);
+  assert.doesNotMatch(requestBlock,/authorization\s*:/iu);
+  assert.doesNotMatch(requestBlock,/Bearer/u);
+
+  const releaseStart=audit.indexOf('async function auditReleaseCoherence',postureStart);
+  assert.ok(releaseStart>postureStart);
+  const postureBlock=audit.slice(postureStart,releaseStart);
+  assert.ok(postureBlock.indexOf('rpc:PUBLIC_BRAND_RPC')>=0);
+  assert.ok(postureBlock.indexOf('for(const rpc of AUTHENTICATED_HEALTH_RPCS)')>postureBlock.indexOf('rpc:PUBLIC_BRAND_RPC'));
+  assert.match(postureBlock,/if\(response\.ok\)exposed\.push\(rpc\)/u);
+  assert.match(postureBlock,/LIVE_PUBLIC_BRAND_RPC_SCOPED/u);
+  assert.match(postureBlock,/LIVE_ANON_HEALTH_RPC_EXPOSED/u);
+  assert.match(postureBlock,/LIVE_HEALTH_RPCS_AUTH_BOUND/u);
 });
 
 test('continuous audit does not store the publishable key in report coverage',()=>{
