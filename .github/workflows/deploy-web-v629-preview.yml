@@ -85,7 +85,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for path in / /online/ /entrenador-personal-las-condes/ /entrenador-personal-vitacura/ /entrenamiento-personal-providencia/ /personal-trainer-nunoa/ /entrenador-personal-lo-barnechea/ /entrenador-personal-la-reina/ /entrenador-personal-penalolen/; do
+          for path in / /sobre-iberfit/ /online/ /entrenador-personal-las-condes/ /entrenador-personal-vitacura/ /entrenamiento-personal-providencia/ /personal-trainer-nunoa/ /entrenador-personal-lo-barnechea/ /entrenador-personal-la-reina/ /entrenador-personal-penalolen/; do
             code="$(curl --silent --show-error --location --retry 8 --retry-all-errors               --connect-timeout 10 --max-time 30 -o /tmp/page.html -w '%{http_code}' "${PREVIEW_URL}${path}")"
             echo "${path} -> ${code}"
             test "${code}" = '200'
@@ -129,12 +129,19 @@ jobs:
               ok(await home.locator('.review-source-row a[href*="google"]').count()===0,'preview review outbound Google');
               await home.close();
 
+              const about=await ctx.newPage();
+              await about.goto(base+'/sobre-iberfit/',{waitUntil:'networkidle'});
+              await about.locator('.review-carousel-shell').waitFor();
+              const journeyNames=(await about.locator('.brand-journey article strong').allTextContents()).map(x=>x.trim());
+              const journeyFlags=(await about.locator('.brand-journey .journey-flag').allTextContents()).map(x=>x.trim());
+              ok(JSON.stringify(journeyNames)===JSON.stringify(['España','Alemania','España','Chile']),'preview journey countries');
+              ok(JSON.stringify(journeyFlags)===JSON.stringify(['🇪🇸','🇩🇪','🇪🇸','🇨🇱']),'preview journey flags');
+              ok(await about.locator('.review-source-row a[href*="google"]').count()===0,'preview about review outbound Google');
+              await about.close();
+
               const online=await ctx.newPage();
               await online.goto(base+'/online/',{waitUntil:'networkidle'});
-              await online.locator('[data-country-selector]').waitFor();
-              ok(await online.locator('.country-option').count()===7,'preview country count');
-              await online.locator('[data-country="ES"]').click();
-              ok((await online.locator('[data-country-currency]').textContent()).trim()==='EUR','preview country EUR');
+              ok(await online.locator('[data-country-selector]').count()===0,'preview online must not have country selector');
               await online.close();
 
               for(const [route,place] of locals){
@@ -142,7 +149,9 @@ jobs:
                 await p.goto(base+route,{waitUntil:'networkidle'});
                 await p.locator('.local-place-badge').waitFor();
                 ok((await p.locator('.local-place-badge strong').textContent()).trim()===place,route+' badge mismatch');
-                ok(await p.locator('.local-service-chip').count()===3,route+' service chips');
+                ok(await p.locator('.local-service-chip').count()===4,route+' service chips');
+                const chips=(await p.locator('.local-service-chip').allTextContents()).join(' ');
+                ok(/Parque o zona verde/i.test(chips),route+' missing park/green area');
                 const overflow=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
                 ok(overflow<=2,route+' overflow '+overflow);
                 await p.close();
@@ -150,7 +159,7 @@ jobs:
               await ctx.close();
 
               const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2});
-              for(const route of ['/', '/online/', ...locals.map(x=>x[0])]){
+              for(const route of ['/', '/sobre-iberfit/', '/online/', ...locals.map(x=>x[0])]){
                 const p=await mobile.newPage();
                 await p.goto(base+route,{waitUntil:'networkidle'});
                 const overflow=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
