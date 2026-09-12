@@ -23,6 +23,7 @@ const CANONICAL_RPC=Object.freeze({
   execute:'iberfit_execute_command_v26',
 });
 const RC65C_AUTH_ASSURANCE_RPC='iberfit_privileged_assurance_context_v65d';
+const RC65C_WEBAUTHN_RECOVERY_RPC='iberfit_recover_privileged_device_v1';
 const RC65C_WEBAUTHN_FUNCTION='/functions/v1/iberfit-webauthn-v1';
 const RC65_EMAIL_ASSURANCE_FUNCTION='/functions/v1/iberfit-email-assurance-v1';
 const RC65C_WEBAUTHN_REGISTRATION_FACTOR_ID='65000000-0000-4000-8000-000000000001';
@@ -519,6 +520,41 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       verifiedAt:body.verifiedAt??null,
       expiresAt:body.expiresAt??null,
       supabaseAal:String(body.supabaseAal),
+    });
+  }
+
+  async function recoverPrivilegedWebAuthn(token){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    const body=await request('/rest/v1/rpc/'+RC65C_WEBAUTHN_RECOVERY_RPC,{
+      method:'POST',
+      token,
+      body:'{}',
+    });
+    const kind=String(body?.kind||'');
+    if(
+      !body||
+      typeof body!=='object'||
+      Array.isArray(body)||
+      body.ok!==true||
+      typeof body.required!=='boolean'||
+      typeof body.reset!=='boolean'||
+      !['ack','duplicate','not-required'].includes(kind)||
+      (body.required===false&&(body.reset!==false||kind!=='not-required'))||
+      (body.required===true&&body.reset!==true)
+    )throw new Error('M26_WEBAUTHN_RECOVERY_INVALID_RESPONSE');
+    const credentialsRevoked=Number(body.credentialsRevoked||0);
+    const assuranceRevoked=Number(body.assuranceRevoked||0);
+    if(
+      !Number.isSafeInteger(credentialsRevoked)||credentialsRevoked<0||
+      !Number.isSafeInteger(assuranceRevoked)||assuranceRevoked<0
+    )throw new Error('M26_WEBAUTHN_RECOVERY_INVALID_RESPONSE');
+    return Object.freeze({
+      ok:true,
+      required:body.required,
+      reset:body.reset,
+      kind,
+      credentialsRevoked,
+      assuranceRevoked,
     });
   }
 
@@ -1129,6 +1165,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     refresh,
     logout,
     authAssuranceContext,
+    recoverPrivilegedWebAuthn,
     authUser,
     enrollWebAuthn,
     challengeWebAuthn,
