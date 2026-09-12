@@ -1,8 +1,8 @@
 {
   "schema": "iberfit.web.production-cutover.v1",
-  "approved": false,
+  "approved": true,
   "domain": "iberfit.cl",
   "project": "web-iberfit",
   "candidateSha": "8d6fcb12a9472e9ef78b9973ca3d0cd9d71244ab",
-  "note": "Dry-run de workflow. Debe abortar antes de cualquier mutacion."
+  "note": "Cutover autorizado tras staging real certificado, privacidad Cloudflare corregida y dry-run fail-closed."
 }
