@@ -89,7 +89,7 @@ test('RC62.2 application owns guidance lifecycle',()=>{
   const app=read('src/m26/app/application.js');
   assert.match(app,/createContextualGuidanceController/u);
   assert.match(app,/guidance=createContextualGuidanceController\(\{root\}\)/u);
-  assert.match(app,/guidance\.mount\(\)/u);
+  assert.match(app,/\{name:'guidance',controller:guidance\}/u);
   assert.match(app,/guidance\?\.destroy/u);
 });
 
