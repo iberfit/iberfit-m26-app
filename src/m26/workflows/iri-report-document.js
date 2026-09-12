@@ -94,8 +94,58 @@ function clientIriExternalReportComplement(draft,report,appOrigin){
   return card('Documento complementario',`<div class="iri-complement"><p class="iri-complement-kicker">Informe de bioimpedancia</p><p>Este documento complementa los resultados de composición corporal del Diagnóstico IRI.</p><small>${escapeHtml(format)} · versión ${escapeHtml(report.version||1)}</small><a class="iri-complement-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir informe de bioimpedancia</a></div>`,'soft');
 }
 function reportCover({clientName,date,coachName,logoUrl,internal,clientId=''}){return page({number:1,cover:true,internal,logoUrl,title:'',content:`<img class="cover-watermark" src="${escapeHtml(logoUrl)}" alt="" aria-hidden="true"><div class="cover-orbit one"></div><div class="cover-orbit two"></div><div class="cover-lockup"><img class="cover-isotipo" src="${escapeHtml(logoUrl)}" alt="Isotipo IBERFIT"><div class="cover-wordmark"><strong>IBERFIT</strong><span>Entrenamiento personal<br>con criterio</span></div></div><div class="cover-copy"><p>${internal?'INFORME IRI · COACH / ADMIN':'INFORME DE EVALUACIÓN IRI'}</p><h1>Índice de<br>Rendimiento<br>IBERFIT</h1><div class="gold-line"></div><span class="cover-claim">Diagnóstico · Planificación · Control · Seguimiento</span></div><div class="cover-data"><div class="cover-data-primary"><span>Cliente</span><strong>${escapeHtml(clientName)}</strong></div><div><span>Fecha de evaluación</span><strong>${escapeHtml(dateLabel(date,'Fecha no disponible'))}</strong></div><div><span>Entrenador</span><strong>${escapeHtml(coachName)}</strong></div>${internal?`<div><span>Expediente</span><strong>${escapeHtml(label(clientId,'Sin identificador'))}</strong></div>`:''}<div class="cover-tags"><em>${internal?'USO INTERNO':'INFORME CLIENTE'}</em><em>DATOS TRAZABLES</em></div></div>`});}
+function iriExecutionEvidenceSummary(evidence=null){
+  if(!evidence||evidence.schema!=='iberfit-iri2-execution-evidence-v1')return null;
+  const planned=Number(evidence.plannedSessions);
+  const completedPlanned=Number(evidence.completedPlannedSessions);
+  const executions=Number(evidence.confirmedExecutionRecords);
+  const unlinked=Number(evidence.unlinkedConfirmedExecutions);
+  const pending=Number(evidence.unconfirmedExecutions);
+  if(![planned,completedPlanned,executions,unlinked,pending].every((value)=>Number.isFinite(value)&&value>=0))return null;
+  const from=dateLabel(evidence.fromAssessmentDate,'fecha previa no disponible');
+  const to=dateLabel(evidence.toAssessmentDate,'fecha actual no disponible');
+  const planningComparable=evidence.planningComparable===true&&planned>0;
+  const ratio=planningComparable?Math.round(Math.min(1,completedPlanned/planned)*100):null;
+  if(planningComparable){
+    return Object.freeze({
+      planningComparable:true,
+      planned,
+      completedPlanned,
+      executions,
+      unlinked,
+      pending,
+      ratio,
+      label:`${completedPlanned} de ${planned} citas planificadas con finalización confirmada`,
+      detail:`Entre ${from} y ${to} · cobertura plan/ejecución ${ratio}%.${unlinked?` ${unlinked} ejecución${unlinked===1?'':'es'} confirmada${unlinked===1?'':'s'} sin cita comparable se mantiene${unlinked===1?'':'n'} separada${unlinked===1?'':'s'}.`:''}`,
+    });
+  }
+  if(executions>0){
+    return Object.freeze({
+      planningComparable:false,
+      planned,
+      completedPlanned,
+      executions,
+      unlinked,
+      pending,
+      ratio:null,
+      label:`${executions} ejecución${executions===1?'':'es'} confirmada${executions===1?'':'s'} en el intervalo`,
+      detail:`Entre ${from} y ${to} · sin citas planificadas comparables; no se calcula proporción plan/ejecución.`,
+    });
+  }
+  return Object.freeze({
+    planningComparable:false,
+    planned,
+    completedPlanned,
+    executions,
+    unlinked,
+    pending,
+    ratio:null,
+    label:'Sin evidencia plan/ejecución comparable',
+    detail:`Entre ${from} y ${to} no constan citas planificadas ni ejecuciones confirmadas suficientes para cuantificar esta relación.`,
+  });
+}
 function clientPages(draft,context){
-  const {clientName,coachName,logoUrl,externalReport,appOrigin,longitudinalHistory=[]}=context;
+  const {clientName,coachName,logoUrl,externalReport,appOrigin,longitudinalHistory=[],executionEvidence=null}=context;
   const p=draft.personProfile||{},i=draft.interview||{},b=draft.bodyComposition||{},m=draft.mobility||{},s=draft.strength||{},c=draft.cardio||{},d=draft.diagnosis||{};
   const longitudinal=buildIri2LongitudinalProfile({current:draft,history:longitudinalHistory});
   const evolution=iri2ComparisonSummary(longitudinal);
@@ -103,7 +153,8 @@ function clientPages(draft,context){
     .slice(0,3)
     .map((item)=>`${item.label} ${item.delta>0?'+':''}${number(item.delta,Math.abs(item.delta)%1?1:0)} ${item.unit}`)
     .join(' · ');
-  const completion=firstSessionCompletion(draft);const pages=[];
+  const executionSummary=iriExecutionEvidenceSummary(executionEvidence);
+  const completion=firstSessionCompletion(draft);const executionSummary=iriExecutionEvidenceSummary(executionEvidence);const pages=[];
   pages.push(reportCover({clientName,date:draft.assessmentDate,coachName,logoUrl,internal:false}));
   pages.push(page({number:2,title:'Tu punto de partida',eyebrow:'01 · RESUMEN EJECUTIVO',logoUrl,content:`<p class="lead">Esta evaluación resume tu situación actual y orienta un plan alineado con tus objetivos.</p>${completionPanel(completion,draft)}<div class="summary-layout"><div>${card('Tus fortalezas',`<ul class="checks">${listItems(d.strengths,3)}</ul>`)}${card('Tus prioridades',`<ol class="priorities">${listItems(d.priorities,3)}</ol>`)}</div>${card('Evidencia por áreas',`${domainEvidenceGrid(draft)}<p class="caption">Cada área muestra datos disponibles, validez y limitaciones. No se calcula una puntuación global ni un percentil universal.</p>`,'chart-card domain-card')}
 </div><div class="summary-band"><div><span>Confianza de la evaluación</span><strong>${completion.percent===100&&d.reviewAccepted?'Alta':'En revisión'}</strong></div><div><span>Evolución IRI 2.0</span><strong>${escapeHtml(evolution.label)}</strong><small>Sin puntuación global · ${escapeHtml(evolution.detail)}</small></div><div><span>Próxima revisión</span><strong>${escapeHtml(dateLabel(d.reevaluationDate,'Por definir'))}</strong></div></div>`}));
@@ -114,15 +165,15 @@ function clientPages(draft,context){
   const clientCardioContent=c.skipped
     ?`<div class="two-col cardio"><div>${card('Área cardiorrespiratoria',`<div class="not-evaluated-panel"><span>NO EVALUADO</span><h3>La prueba no se realizó</h3><p>${escapeHtml(label(c.skipReason,'Motivo no registrado'))}</p></div>`,'chart-card')}</div><div>${card('Qué significa',`<p>No se calculan frecuencia cardiaca final, recuperación, ΔFC, baremo ni clasificación cardiorrespiratoria.</p><p>Esta ausencia queda documentada y no se sustituye por estimaciones.</p>`,'highlight')}${card('Próxima evaluación',`<p><strong>${escapeHtml(dateLabel(d.reevaluationDate,'Por definir'))}</strong></p><p>El Coach decidirá cuándo es apropiado completar esta área.</p>`,'soft')}</div></div>${clientTestExplanation({title:'Área cardiorrespiratoria',observed:'La prueba no se realizó en esta evaluación.',importance:'Permite mantener la interpretación honesta y separar los datos medidos de los pendientes.',result:`No evaluado. Motivo: ${label(c.skipReason,'No registrado')}.`,decision:excerpt(d.trainingImplications,420,'La progresión cardiorrespiratoria se ajustará de forma prudente hasta disponer de una medición válida.')})}`
     :`<div class="two-col cardio"><div>${card('YMCA · 3 minutos',`${heartRateChart(c)}<div class="metrics compact">${metric('FC reposo',c.restingHr!==null?`${number(c.restingHr)} lpm`:'—')}${metric('FC final',c.finalHr!==null?`${number(c.finalHr)} lpm`:'—')}${metric('Recuperación 1 min',c.deltaOneMinute!==null?`${number(c.deltaOneMinute)} lpm`:'—')}</div>`,'chart-card')}</div><div>${card('Interpretación',`<p>${escapeHtml(excerpt(d.trainingImplications,440,'La interpretación final será revisada por el Coach.'))}</p><div class="mini-list">${row('Protocolo',c.protocol)}${row('Escalón',c.stepHeightCm!==null?number(c.stepHeightCm,1)+' cm':'—')}${row('Cadencia',c.cadenceBpm!==null?number(c.cadenceBpm)+' pulsos/min':'—')}${row('RPE final',c.rpe!==null?number(c.rpe,1)+'/10':'—')}${row('Validez',yesNo(c.valid))}</div>`)}${card('Próxima evaluación',`<p><strong>${escapeHtml(dateLabel(d.reevaluationDate,'Por definir'))}</strong></p><p>Revisión del progreso y actualización del perfil IRI.</p>`,'soft')}</div></div>${clientTestExplanation({title:'Step test de 3 minutos',observed:'Respuesta de la frecuencia cardiaca al esfuerzo y durante el primer minuto de recuperación.',importance:'Orienta la dosificación inicial del trabajo cardiorrespiratorio.',result:`FC final ${number(c.finalHr)} lpm · recuperación ${number(c.deltaOneMinute)} lpm.`,decision:excerpt(d.trainingImplications,420,'Ajustar intensidad y progresión según tolerancia y evolución.')})}`;
-  pages.push(page({number:7,title:'Capacidad cardiorrespiratoria y plan',eyebrow:'06 · CARDIORRESPIRATORIO Y PRÓXIMOS PASOS',logoUrl,content:`${clientCardioContent}<section class="plan-band"><h3>Plan inicial</h3><p>${escapeHtml(excerpt(d.initialPlan,620,'Plan inicial pendiente'))}</p><div><span>Frecuencia recomendada</span><strong>${escapeHtml(label(d.recommendedFrequency,'Por definir'))}</strong></div>${evolutionHeadline?`<div><span>Cambios comparables desde la evaluación anterior</span><strong>${escapeHtml(evolutionHeadline)}</strong></div>`:''}</section>`}));
+  pages.push(page({number:7,title:'Capacidad cardiorrespiratoria y plan',eyebrow:'06 · CARDIORRESPIRATORIO Y PRÓXIMOS PASOS',logoUrl,content:`${clientCardioContent}<section class="plan-band"><h3>Plan inicial</h3><p>${escapeHtml(excerpt(d.initialPlan,620,'Plan inicial pendiente'))}</p><div><span>Frecuencia recomendada</span><strong>${escapeHtml(label(d.recommendedFrequency,'Por definir'))}</strong></div>${evolutionHeadline?`<div><span>Cambios comparables desde la evaluación anterior</span><strong>${escapeHtml(evolutionHeadline)}</strong></div>`:''}${executionSummary?`<div><span>Ejecución confirmada entre evaluaciones</span><strong>${escapeHtml(executionSummary.label)}</strong><small>${escapeHtml(executionSummary.detail)}</small></div>`:''}</section>`}));
   return pages;
 }
 
 function mobilityTrialRows(mobility={}){const ankle=mobility.ankle||{},posterior=mobility.posteriorChain||{};const max=Math.max(ankle.leftTrials?.length||0,ankle.rightTrials?.length||0,posterior.leftTrials?.length||0,posterior.rightTrials?.length||0,3);return Array.from({length:max},(_,index)=>[String(index+1),ankle.leftTrials?.[index]!==undefined?`${number(ankle.leftTrials[index],1)} cm`:'—',ankle.rightTrials?.[index]!==undefined?`${number(ankle.rightTrials[index],1)} cm`:'—',posterior.leftTrials?.[index]!==undefined?`${number(posterior.leftTrials[index],1)} cm`:'—',posterior.rightTrials?.[index]!==undefined?`${number(posterior.rightTrials[index],1)} cm`:'—']);}
-function rawDataPages(draft,context,startNumber){const raw=JSON.stringify({reportContext:{clientName:context.clientName,coachName:context.coachName,clientId:context.clientId},draft},null,2);const lines=raw.split('\n');const chunks=[];let current=[];let count=0;for(const line of lines){const length=line.length+1;if(current.length&&count+length>1500){chunks.push(current.join('\n'));current=[];count=0;}current.push(line);count+=length;}if(current.length)chunks.push(current.join('\n'));return chunks.map((chunk,index)=>page({number:startNumber+index,title:`Anexo íntegro de datos · ${index+1}/${chunks.length}`,eyebrow:'ANEXO DINÁMICO · TRAZABILIDAD',logoUrl:context.logoUrl,internal:true,annex:true,content:`<p class="annex-intro">Representación completa del borrador normalizado utilizado para generar este informe. Conserva campos, valores nulos, variantes y observaciones.</p><pre class="raw-data">${escapeHtml(chunk)}</pre>`}));}
+function rawDataPages(draft,context,startNumber){const raw=JSON.stringify({reportContext:{clientName:context.clientName,coachName:context.coachName,clientId:context.clientId,executionEvidence:context.executionEvidence||null},draft},null,2);const lines=raw.split('\n');const chunks=[];let current=[];let count=0;for(const line of lines){const length=line.length+1;if(current.length&&count+length>1500){chunks.push(current.join('\n'));current=[];count=0;}current.push(line);count+=length;}if(current.length)chunks.push(current.join('\n'));return chunks.map((chunk,index)=>page({number:startNumber+index,title:`Anexo íntegro de datos · ${index+1}/${chunks.length}`,eyebrow:'ANEXO DINÁMICO · TRAZABILIDAD',logoUrl:context.logoUrl,internal:true,annex:true,content:`<p class="annex-intro">Representación completa del borrador normalizado utilizado para generar este informe. Conserva campos, valores nulos, variantes y observaciones.</p><pre class="raw-data">${escapeHtml(chunk)}</pre>`}));}
 
 function coachPages(draft,context){
-  const {clientName,coachName,logoUrl,clientId=''}=context;
+  const {clientName,coachName,logoUrl,clientId='',executionEvidence=null}=context;
   const p=draft.personProfile||{},i=draft.interview||{},b=draft.bodyComposition||{},m=draft.mobility||{},s=draft.strength||{},c=draft.cardio||{},d=draft.diagnosis||{};
   const completion=firstSessionCompletion(draft);const pages=[];
   pages.push(reportCover({clientName,date:draft.assessmentDate,coachName,logoUrl,internal:true,clientId}));
@@ -141,7 +192,7 @@ function coachPages(draft,context){
     :`<div class="protocol-strip"><span>${escapeHtml(label(c.protocol))}</span><span>Escalón ${c.stepHeightCm!==null?number(c.stepHeightCm,1)+' cm':'—'}</span><span>${c.cadenceBpm!==null?number(c.cadenceBpm)+' pulsos/min':'Cadencia pendiente'}</span><span>${c.durationSeconds!==null?number(c.durationSeconds)+' s':'Duración pendiente'}</span></div><div class="two-col"><div>${card('Recuperación de frecuencia cardiaca',`${heartRateChart(c)}<div class="metrics compact">${metric('FC reposo',c.restingHr!==null?number(c.restingHr)+' lpm':'—')}${metric('FC final',c.finalHr!==null?number(c.finalHr)+' lpm':'—')}${metric('ΔFC 1 min',c.deltaOneMinute!==null?number(c.deltaOneMinute)+' lpm':'—')}</div>`,'chart-card')}</div><div>${card('Registro técnico',`<div class="mini-list">${row('FC al minuto',c.oneMinuteHr!==null?number(c.oneMinuteHr)+' lpm':'—')}${row('FC a los 2 minutos',c.twoMinuteHr!==null?number(c.twoMinuteHr)+' lpm':'—')}${row('RPE',c.rpe!==null?number(c.rpe,1)+'/10':'—')}${row('Válida',yesNo(c.valid))}${row('Síntomas',excerpt(c.symptoms,420))}${row('Motivo de detención',excerpt(c.stopReason,420))}${row('Notas',excerpt(c.notes,520))}</div>`)}</div></div>`;
   pages.push(page({number:11,title:'Evaluación cardiorrespiratoria',eyebrow:'10 · CARDIORRESPIRATORIO',logoUrl,internal:true,content:coachCardioContent}));
   pages.push(page({number:12,title:'Diagnóstico por dominios',eyebrow:'11 · COBERTURA, VALIDEZ Y LIMITACIONES',logoUrl,internal:true,content:`<div class="two-col">${card('Composición corporal',`<p>${b.skipped?'No realizada: '+escapeHtml(label(b.skipReason)):escapeHtml(`Mediciones registradas: ${[b.weightKg,b.bodyFatPercent,b.leanMassKg,b.muscleMassKg,b.waistCm].filter((value)=>value!==null).length}. Interpretación descriptiva.`)}</p>`)}${card('Movilidad',`<p>${m.skipped?'No realizada: '+escapeHtml(label(m.skipReason)):escapeHtml(`Tobillo: asimetría ${number(m.ankle?.asymmetryCm,1)} cm. Cadena posterior: ${number(m.posteriorChain?.asymmetryCm,1)} cm.`)}</p>`)}${card('Fuerza',`<p>${s.skipped?'No realizada: '+escapeHtml(label(s.skipReason)):escapeHtml(`Silla, empuje, TRX y tronco registrados. Variantes y validez conservadas individualmente.`)}</p>`)}${card('Cardiorrespiratorio',`<p>${c.skipped?'No realizada: '+escapeHtml(label(c.skipReason)):escapeHtml(`Protocolo ${label(c.protocol)}. ΔFC al minuto: ${number(c.deltaOneMinute)} lpm. Validez: ${yesNo(c.valid)}.`)}</p>`)}</div>${card('Justificación del resultado global',`<p>No se calcula una puntuación universal mientras no exista cobertura normativa compatible y consolidada para todos los dominios. El resultado se presenta como perfil por dominios, medidas objetivas, validez y limitaciones.</p>`,'highlight')}${card('Fuentes y baremos',`<div class="mini-list">${row('Sexo para baremos',p.sexForNorms)}${row('Fecha evaluación',dateLabel(draft.assessmentDate))}${row('Motor',draft.schema||draft.firstSessionSchema||'iberfit-iri-first-session-v1')}${row('Cobertura normativa', 'Debe declararse por prueba antes de usar percentiles')}${row('Protocolos adaptados', 'Referencia individual; no se mezclan con el protocolo estándar')}</div>`,'soft')}` }));
-  pages.push(page({number:13,title:'Interpretación y planificación',eyebrow:'12 · DECISIÓN DEL COACH',logoUrl,internal:true,content:`${card('Interpretación completa del Coach',`<p>${escapeHtml(excerpt(d.coachInterpretation,1100))}</p>`,'highlight')}${card('Implicaciones para el entrenamiento',`<p>${escapeHtml(excerpt(d.trainingImplications,1050))}</p><ul class="checks">${listItems(d.priorities,6)}</ul>`)}<div class="two-col">${card('Plan inicial',`<p>${escapeHtml(excerpt(d.initialPlan,760))}</p><div class="mini-list">${row('Frecuencia recomendada',d.recommendedFrequency)}</div>`)}${card('Reevaluación y control',`<div class="mini-list">${row('Fecha',dateLabel(d.reevaluationDate,'Por definir'))}${row('Revisión aceptada',yesNo(d.reviewAccepted))}${row('Actualización del borrador',dateLabel(draft.updatedAt?.slice?.(0,10)))}${row('Criterio', 'Repetir protocolos comparables y documentar cambios')}</div>`)}</div>${card('Trazabilidad',`<div class="mini-list">${row('Esquema',draft.schema||'iberfit-iri-first-session-v1')}${row('Cliente',clientId)}${row('Completitud',completion.complete+'/'+completion.total)}${row('Advertencia','Evaluación de rendimiento; no sustituye una evaluación clínica')}${row('Anexo íntegro','Incluido a continuación con todos los campos normalizados')}</div>`,'soft')}` }));
+  pages.push(page({number:13,title:'Interpretación y planificación',eyebrow:'12 · DECISIÓN DEL COACH',logoUrl,internal:true,content:`${card('Interpretación completa del Coach',`<p>${escapeHtml(excerpt(d.coachInterpretation,1100))}</p>`,'highlight')}${card('Implicaciones para el entrenamiento',`<p>${escapeHtml(excerpt(d.trainingImplications,1050))}</p><ul class="checks">${listItems(d.priorities,6)}</ul>`)}<div class="two-col">${card('Plan inicial',`<p>${escapeHtml(excerpt(d.initialPlan,760))}</p><div class="mini-list">${row('Frecuencia recomendada',d.recommendedFrequency)}</div>`)}${card('Reevaluación y control',`<div class="mini-list">${row('Fecha',dateLabel(d.reevaluationDate,'Por definir'))}${row('Revisión aceptada',yesNo(d.reviewAccepted))}${row('Actualización del borrador',dateLabel(draft.updatedAt?.slice?.(0,10)))}${row('Criterio', 'Repetir protocolos comparables y documentar cambios')}</div>`)}${executionSummary?card('Planificación vs. ejecución confirmada',`<div class="mini-list">${row('Intervalo',dateLabel(executionEvidence.fromAssessmentDate)+' → '+dateLabel(executionEvidence.toAssessmentDate))}${row('Citas planificadas',String(executionSummary.planned))}${row('Planificadas finalizadas',String(executionSummary.completedPlanned))}${row('Ejecuciones confirmadas',String(executionSummary.executions))}${row('Sin cita comparable',String(executionSummary.unlinked))}${row('Pendientes de confirmación',String(executionSummary.pending))}${row('Cobertura plan/ejecución',executionSummary.ratio===null?'No calculable':executionSummary.ratio+'%')}</div><p class="caption">Lectura descriptiva de registros canónicos; no modifica automáticamente la planificación ni implica una valoración de éxito o fracaso.</p>`,'soft'):''}</div>${card('Trazabilidad',`<div class="mini-list">${row('Esquema',draft.schema||'iberfit-iri-first-session-v1')}${row('Cliente',clientId)}${row('Completitud',completion.complete+'/'+completion.total)}${row('Advertencia','Evaluación de rendimiento; no sustituye una evaluación clínica')}${row('Anexo íntegro','Incluido a continuación con todos los campos normalizados')}</div>`,'soft')}` }));
   pages.push(page({number:14,title:'Trazabilidad de protocolos',eyebrow:'13 · VERSIONES Y COMPARABILIDAD',logoUrl,internal:true,content:`${card('Registro por prueba',compactTable(['Prueba','Lado','Variante','Configuración','Versión','Validez','Adaptación o suspensión'],protocolTraceRows(draft.protocolRecords||[]),['15%','7%','13%','22%','14%','9%','20%']),'table-card')}<p class="caption">Una reevaluación solo se considera directamente comparable cuando coinciden la versión, la variante y la configuración registrada.</p>`}));
   pages.push(...rawDataPages(draft,context,15));
   return pages;
@@ -397,9 +448,9 @@ const REPORT_DYNAMIC_CSS=[
   ...Array.from({length:101},(_,index)=>`.w-pct-${index}{width:${index}%}`),
 ].join('');
 const REPORT_STYLESHEET=`${REPORT_CSS}${PREMIUM_RC36_CSS}${REPORT_DYNAMIC_CSS}`;
-export function buildIriReportHtml({draft,variant='client',clientName='Cliente IBERFIT',coachName='Coach IBERFIT',clientId='',logoUrl='/public/isotipo-iberfit.png',stylesheetHref='',externalReport=null,appOrigin=undefined,longitudinalHistory=[]}={}){
+export function buildIriReportHtml({draft,variant='client',clientName='Cliente IBERFIT',coachName='Coach IBERFIT',clientId='',logoUrl='/public/isotipo-iberfit.png',stylesheetHref='',externalReport=null,appOrigin=undefined,longitudinalHistory=[],executionEvidence=null}={}){
   if(!draft||!['client','coach'].includes(variant))throw new Error('M26_IRI_REPORT_DOCUMENT_INVALID');
-  const context={clientName:clean(clientName,160)||'Cliente IBERFIT',coachName:clean(coachName,160)||'Coach IBERFIT',clientId:clean(clientId,200),logoUrl,externalReport,appOrigin,longitudinalHistory:Array.isArray(longitudinalHistory)?longitudinalHistory:[]};
+  const context={clientName:clean(clientName,160)||'Cliente IBERFIT',coachName:clean(coachName,160)||'Coach IBERFIT',clientId:clean(clientId,200),logoUrl,externalReport,appOrigin,longitudinalHistory:Array.isArray(longitudinalHistory)?longitudinalHistory:[],executionEvidence:executionEvidence&&typeof executionEvidence==='object'?executionEvidence:null};
   const pages=variant==='client'?clientPages(draft,context):coachPages(draft,context);
   if(variant==='client'&&pages.length!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
   if(variant==='coach'&&pages.length<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
@@ -567,9 +618,9 @@ export function prepareIriReportPrintTarget(openWindow=globalThis.open){
   try{popup.opener=null;}catch{}
   return popup;
 }
-export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,externalReport=null,longitudinalHistory=[],printTarget=null,openWindow=globalThis.open,locationLike=globalThis.location}={}){
+export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,externalReport=null,longitudinalHistory=[],executionEvidence=null,printTarget=null,openWindow=globalThis.open,locationLike=globalThis.location}={}){
   const stylesheetHref=reportStylesheetUrl(locationLike);
-  const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl,stylesheetHref,externalReport,appOrigin:locationLike?.origin,longitudinalHistory});
+  const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl,stylesheetHref,externalReport,appOrigin:locationLike?.origin,longitudinalHistory,executionEvidence});
   const pageCount=(html.match(/class="pdf-page(?:\s|")/gu)||[]).length;
   if(variant==='client'&&pageCount!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
   if(variant==='coach'&&pageCount<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
@@ -582,4 +633,4 @@ export function openIriReportPrint({draft,variant='client',clientName,coachName,
   return {ok:true,variant,pages:pageCount,mode:'direct-window'};
 }
 
-export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,excerpt,distinctText,number,dateLabel,heartRateChart,coverageScore,clientIriExternalReportComplement,REPORT_CSS,PREMIUM_RC36_CSS,REPORT_DYNAMIC_CSS,REPORT_STYLESHEET,REPORT_FIT_LEVELS,widthClass,percentWidthClass,reportStylesheetUrl,directIriReportHtml,reportPageNumber,reportPageContentFits,fitLevelForRatio,fitReportPages,reportLayoutReady,waitForReportAssets,bindDirectIriReportWindow,mountIriReportDocument,rawDataPages});
+export const __iriReportInternals=Object.freeze({escapeHtml,clean,label,excerpt,distinctText,number,dateLabel,heartRateChart,coverageScore,clientIriExternalReportComplement,iriExecutionEvidenceSummary,REPORT_CSS,PREMIUM_RC36_CSS,REPORT_DYNAMIC_CSS,REPORT_STYLESHEET,REPORT_FIT_LEVELS,widthClass,percentWidthClass,reportStylesheetUrl,directIriReportHtml,reportPageNumber,reportPageContentFits,fitLevelForRatio,fitReportPages,reportLayoutReady,waitForReportAssets,bindDirectIriReportWindow,mountIriReportDocument,rawDataPages});
