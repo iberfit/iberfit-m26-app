@@ -80,6 +80,14 @@ jobs:
             exit 31
           fi
 
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors             "https://${DOMAIN}/?precutover=1" -o /tmp/precutover-production.html
+          grep -Fq '>Online</a>' /tmp/precutover-production.html
+          if grep -Fq '>A distancia</a>' /tmp/precutover-production.html; then
+            echo PRODUCTION_ALREADY_V628_ABORTING
+            exit 32
+          fi
+          echo PRE_CUTOVER_PRODUCTION_FINGERPRINT=PRE_V628
+
       - name: Capturar estado previo y comprobar permisos
         env:
           CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
@@ -108,15 +116,19 @@ jobs:
 
           curl --fail --silent --show-error "${PAGES_AUTH[@]}"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/domains"             -o /tmp/cutover-before/pages-domains.json
 
+          curl --fail --silent --show-error "${DNS_AUTH[@]}"             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/rulesets/phases/http_config_settings/entrypoint"             -o /tmp/cutover-before/config-rules.json
+
           node <<'NODE'
           const fs=require('fs');
           const read=name=>JSON.parse(fs.readFileSync(name,'utf8'));
           const apex=read('/tmp/cutover-before/dns-iberfit_cl.json');
           const app=read('/tmp/cutover-before/dns-app_iberfit_cl.json');
           const staging=read('/tmp/cutover-before/dns-web_iberfit_cl.json');
+          const www=read('/tmp/cutover-before/dns-www_iberfit_cl.json');
           const routes=read('/tmp/cutover-before/worker-routes.json');
           const workers=read('/tmp/cutover-before/worker-domains.json');
-          if(!apex.success||!app.success||!staging.success||!routes.success||!workers.success) throw new Error('PREFLIGHT_LOOKUP_FAILED');
+          const config=read('/tmp/cutover-before/config-rules.json');
+          if(!apex.success||!app.success||!staging.success||!www.success||!routes.success||!workers.success||!config.success) throw new Error('PREFLIGHT_LOOKUP_FAILED');
 
           const appRows=app.result||[];
           if(appRows.length!==1 || appRows[0].type!=='CNAME' ||
@@ -133,19 +145,41 @@ jobs:
           if((routes.result||[]).length!==0) throw new Error('WORKER_ROUTES_PRESENT:'+JSON.stringify(routes.result));
 
           const custom=(workers.result||[]).filter(d=>d.hostname===process.env.DOMAIN);
-          if(custom.length>1) throw new Error('MULTIPLE_APEX_WORKER_DOMAINS:'+JSON.stringify(custom));
-          fs.writeFileSync('/tmp/cutover-before/apex-worker-domain.json', JSON.stringify(custom[0]||null,null,2));
+          if(custom.length!==1) throw new Error('EXPECTED_ONE_APEX_WORKER_CUSTOM_DOMAIN:'+JSON.stringify(custom));
+          if(custom[0].service!=='iberfit' || custom[0].zone_id!==process.env.CF_ZONE_ID) {
+            throw new Error('UNEXPECTED_APEX_WORKER_CUSTOM_DOMAIN:'+JSON.stringify(custom[0]));
+          }
+          fs.writeFileSync('/tmp/cutover-before/apex-worker-domain.json', JSON.stringify(custom[0],null,2));
 
           const ipRows=(apex.result||[]).filter(r=>['A','AAAA','CNAME'].includes(r.type));
-          for(const r of ipRows){
-            const content=String(r.content).replace(/\.$/,'');
-            const placeholder=(r.type==='AAAA' && content==='100::') ||
-              (r.type==='A' && ['192.0.2.0','192.0.2.1'].includes(content));
-            const alreadyPages=r.type==='CNAME' && content===process.env.PAGES_TARGET;
-            if(!placeholder && !alreadyPages) throw new Error('APEX_DNS_CONFLICT:'+JSON.stringify(r));
-            if(placeholder && r.proxied!==true) throw new Error('APEX_PLACEHOLDER_NOT_PROXIED:'+JSON.stringify(r));
+          if(ipRows.length!==1 ||
+             ipRows[0].type!=='AAAA' ||
+             String(ipRows[0].content).replace(/\.$/,'')!=='100::' ||
+             ipRows[0].proxied!==true) {
+            throw new Error('APEX_DNS_NOT_EXPECTED_WORKER_PLACEHOLDER:'+JSON.stringify(ipRows));
           }
-          console.log('APEX_WORKER_CUSTOM_DOMAIN='+JSON.stringify(custom[0]||null));
+
+          const wwwRows=(www.result||[]).filter(r=>['A','AAAA','CNAME'].includes(r.type));
+          if(wwwRows.length!==1 ||
+             wwwRows[0].type!=='A' ||
+             String(wwwRows[0].content).replace(/\.$/,'')!=='192.0.2.0' ||
+             wwwRows[0].proxied!==true) {
+            throw new Error('WWW_DNS_UNEXPECTED:'+JSON.stringify(wwwRows));
+          }
+
+          const rum=(config.result?.rules||[]).filter(r=>r.ref==='iberfit_web_disable_rum_v1');
+          if(rum.length!==1 ||
+             rum[0].action!=='set_config' ||
+             rum[0].action_parameters?.disable_rum!==true ||
+             rum[0].enabled===false ||
+             rum[0].expression!=='(http.host in {"iberfit.cl" "www.iberfit.cl" "web.iberfit.cl"})') {
+            throw new Error('PRIVACY_CONFIG_RULE_UNEXPECTED:'+JSON.stringify(rum));
+          }
+
+          console.log('APEX_WORKER_CUSTOM_DOMAIN='+JSON.stringify(custom[0]));
+          console.log('APEX_WORKER_PLACEHOLDER_PROTECTED=true');
+          console.log('WWW_REDIRECT_DNS_PROTECTED=true');
+          console.log('PRIVACY_RULE_PROTECTED=true');
           console.log('APP_DNS_PROTECTED=true');
           NODE
 
@@ -321,6 +355,7 @@ jobs:
           }));
           NODE
             curl --silent --show-error -X PUT "${DNS_AUTH[@]}"               --data @/tmp/reattach-worker.json               "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/domains"               -o /tmp/reattach-worker-result.json
+            node -e "const x=require('/tmp/reattach-worker-result.json');if(!x.success||x.result?.hostname!==process.env.DOMAIN||x.result?.service!=='iberfit')process.exit(1)"
             echo ROLLBACK_WORKER_CUSTOM_DOMAIN_REATTACHED=true
           else
             node <<'NODE' >/tmp/old-resolution-records.jsonl
