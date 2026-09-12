@@ -22,7 +22,7 @@ function priorityRecords(raw={},existing=[],priorities=[],fallbackReviewDate='')
       rationale:text(raw[`priority${slot}Rationale`]??prior.rationale,600),
       target:text(raw[`priority${slot}Target`]??prior.target,400),
       strategy:text(raw[`priority${slot}Strategy`]??prior.strategy,800),
-      reviewDate:text(raw[`priority${slot}ReviewDate`]??prior.reviewDate??fallbackReviewDate,10),
+      reviewDate:text(raw[`priority${slot}ReviewDate`]||prior.reviewDate||fallbackReviewDate,10),
       status:IRI_PRIORITY_STATUSES.includes(statusRaw)?statusRaw:'active',
     }));
   }
@@ -150,7 +150,7 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
     priorityRecords:priorityRecords(raw,existingDiagnosis.priorityRecords,diagnosisPriorities,diagnosisReevaluationDate),
     coachInterpretation:text(raw.coachInterpretation??existingDiagnosis.coachInterpretation,2200),trainingImplications:text(raw.trainingImplications??existingDiagnosis.trainingImplications,2200),
     initialPlan:text(raw.initialPlan??existingDiagnosis.initialPlan,2200),recommendedFrequency:text(raw.recommendedFrequency??existingDiagnosis.recommendedFrequency,200),
-    reevaluationDate:diagnosisReevaluationDate,reviewAccepted:bool(raw.reviewAccepted??existingDiagnosis.reviewAccepted),
+    reevaluationDate:diagnosisReevaluationDate,reviewAccepted:bool(raw.reviewAccepted),
   };
   const protocolRecords=buildIriProtocolRecords({raw,existingRecords:body.protocolRecords||body.protocol_records||[],assessmentDate,bodyComposition,mobility,strength,cardio});
   return Object.freeze({schema:SCHEMA,clientId:text(clientId||body.clientId||body.client_id,200),assessmentId:text(current?.id||body.id,200),assessmentDate,personProfile:Object.freeze(personProfile),interview:Object.freeze(interview),bodyComposition:Object.freeze(bodyComposition),mobility:Object.freeze(mobility),strength:Object.freeze(strength),cardio:Object.freeze(cardio),diagnosis:Object.freeze(diagnosis),protocolRecords,updatedAt:new Date().toISOString()});
