@@ -112,6 +112,16 @@ function iberfitReleaseGuard(runtime){
   const shortSha=String(runtime.sourceSha).slice(0,12);
   const expectedCache=`iberfit-m26-prod-${shortSha}-shell`;
   const repairKey=`m26:runtime-release-repair:${runtime.version||shortSha}`;
+  const controllerReloadKey=`m26:runtime-controller-reload:${runtime.version||shortSha}`;
+  const reloadOnControllerChange=()=>{
+    try{
+      if(globalThis.sessionStorage?.getItem?.(controllerReloadKey)==='1')return false;
+      globalThis.sessionStorage?.setItem?.(controllerReloadKey,'1');
+    }catch{}
+    globalThis.location?.reload?.();
+    return true;
+  };
+  if(sw.controller)sw.addEventListener?.('controllerchange',reloadOnControllerChange,{once:true});
   const activate=(worker)=>{
     if(!worker?.postMessage)return false;
     worker.postMessage({type:'SKIP_WAITING',release:runtime.version||shortSha});
@@ -140,7 +150,10 @@ function iberfitReleaseGuard(runtime){
     if(globalThis.navigator?.onLine===false)return false;
     const keys=await cacheKeys();
     if(keys.includes(expectedCache)){
-      try{globalThis.sessionStorage?.removeItem?.(repairKey);}catch{}
+      try{
+        globalThis.sessionStorage?.removeItem?.(repairKey);
+        globalThis.sessionStorage?.removeItem?.(controllerReloadKey);
+      }catch{}
       return false;
     }
     try{
