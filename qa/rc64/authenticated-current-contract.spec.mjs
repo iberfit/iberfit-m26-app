@@ -271,6 +271,25 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
           await expect(restoredLocaleSelector).toBeFocused({timeout:5_000});
         }
 
+        if(projectName==='authenticated-readonly-tablet-chromium'){
+          const tabletStatGrid=page.locator('.m26-stat-grid:visible').first();
+          if(await tabletStatGrid.count()){
+            const columns=await tabletStatGrid.evaluate((element)=>
+              getComputedStyle(element).gridTemplateColumns.split(/\s+/u).filter(Boolean).length
+            );
+            expect(columns,'Portrait tablet metric grid must use two readable columns').toBe(2);
+          }
+        }
+        if(projectName==='authenticated-readonly-tablet-landscape-chromium'){
+          const landscapeStatGrid=page.locator('.m26-stat-grid:visible').first();
+          if(await landscapeStatGrid.count()){
+            const columns=await landscapeStatGrid.evaluate((element)=>
+              getComputedStyle(element).gridTemplateColumns.split(/\s+/u).filter(Boolean).length
+            );
+            expect(columns,'Landscape tablet metric grid should preserve four-column density').toBe(4);
+          }
+        }
+
         const eventLoopDelay=await page.evaluate(()=>new Promise((resolve)=>{
           const started=performance.now();
           setTimeout(()=>resolve(Math.max(0,performance.now()-started)),0);
