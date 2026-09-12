@@ -1,0 +1,7 @@
+{
+  "schema": "iberfit.web.v629-production.v1",
+  "branch": "work/web-v6-29-experience",
+  "webSha": "020bc8b15728bdde99fe4baa224d050eecb27440",
+  "approved": true,
+  "note": "Promoción V6.29 autorizada tras QA local completa y preview Cloudflare real PASS."
+}
