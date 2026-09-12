@@ -1,0 +1,53 @@
+name: IBERFIT Admin Interaction Matrix
+
+on:
+  pull_request:
+    branches: [canary/rc74-4]
+    paths:
+      - 'src/m26/admin/**'
+      - 'src/m26/design/**'
+      - 'qa/admin-interaction/**'
+      - 'playwright.admin-interaction.config.mjs'
+      - '.github/workflows/admin-interaction-matrix.yml'
+  push:
+    branches: [canary/rc74-4]
+    paths:
+      - 'src/m26/admin/**'
+      - 'src/m26/design/**'
+      - 'qa/admin-interaction/**'
+      - 'playwright.admin-interaction.config.mjs'
+      - '.github/workflows/admin-interaction-matrix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-admin-interaction-matrix
+  cancel-in-progress: false
+
+jobs:
+  browser-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium WebKit and Firefox
+        run: npx playwright install --with-deps chromium webkit firefox
+      - name: Exercise real Admin inputs selects focus and rerender
+        run: npx playwright test --config playwright.admin-interaction.config.mjs
+      - name: Preserve failures only
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-interaction-matrix-${{ github.run_id }}
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 14

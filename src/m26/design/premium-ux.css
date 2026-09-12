@@ -219,6 +219,18 @@ body {
   .m26-main { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
 }
 
+/* Touch devices keep form controls at 16px across phone and tablet widths.
+ * This prevents iOS/WebKit focus zoom and keeps native select text legible. */
+.m26-shell[data-m26-input="touch"] :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) {
+  font-size: 16px;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .m26-shell :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) {
+    font-size: 16px;
+  }
+}
+
 @media (max-width: 580px) {
   .m26-topbar h1 { max-width: 18ch; font-size: clamp(1.45rem, 7vw, 1.9rem); line-height: 1.08; }
   .m26-topbar-actions { margin-inline: -.1rem; padding: .1rem .1rem .35rem; }
