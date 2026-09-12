@@ -12,7 +12,7 @@ import { createShellViewModel } from '../../src/m26/shell/shell-view-model.js';
 import { createRouteViewModel } from '../../src/m26/modules/route-view-model.js';
 import { renderRouteView } from '../../src/m26/modules/route-render.js';
 
-const AUDIT_VERSION='1.1.0';
+const AUDIT_VERSION='1.2.0';
 const ROLES=Object.freeze(['client','coach','admin']);
 const CLIENT_ID='continuous-audit-client';
 const NOW=new Date();
@@ -25,6 +25,7 @@ const AUTHENTICATED_HEALTH_RPCS=Object.freeze([
   'm26_backend_health_v431',
   'm26_wearable_health_v44',
 ]);
+const PUBLIC_BRAND_RPC='iberfit_exercise_catalog_public_v1';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const OUTPUT_DIR=path.resolve(process.cwd(),'recovery','continuous-audit');
 const OUTPUT_JSON=path.join(OUTPUT_DIR,'latest.json');
@@ -291,12 +292,12 @@ async function fetchAuditUrl(url,label){
 function auditProductionSecurityHeaders(response){
   const header=(name)=>String(response.headers.get(name)||'').trim();
   const required=Object.freeze([
-    ['content-security-policy',(value)=>value.includes("default-src 'self'")&&value.includes("script-src 'self'")&&value.includes("object-src 'none'")&&value.includes("frame-ancestors 'none'")&&!value.includes("'unsafe-eval'")],
+    ['content-security-policy',(value)=>value.includes("default-src 'self'")&&value.includes("script-src 'self'")&&value.includes("object-src 'none'")&&value.includes("frame-ancestors 'none'")&&value.includes("base-uri 'none'")&&!value.includes("'unsafe-eval'")],
     ['strict-transport-security',(value)=>/max-age=(?:[3-9]\d{7}|\d{9,})/u.test(value)&&/includeSubDomains/i.test(value)],
     ['x-content-type-options',(value)=>value.toLowerCase()==='nosniff'],
     ['x-frame-options',(value)=>value.toUpperCase()==='DENY'],
     ['referrer-policy',(value)=>value.toLowerCase()==='no-referrer'],
-    ['permissions-policy',(value)=>['camera=()','microphone=()','geolocation=()'].every((rule)=>value.includes(rule))],
+    ['permissions-policy',(value)=>['camera=()','microphone=()','geolocation=()','payment=()','usb=()'].every((rule)=>value.includes(rule))],
     ['cross-origin-opener-policy',(value)=>value.toLowerCase()==='same-origin'],
     ['cross-origin-resource-policy',(value)=>value.toLowerCase()==='same-origin'],
   ]);
@@ -327,31 +328,70 @@ function runtimePublishableKey(body){
   return match?.[1]||null;
 }
 
-async function auditAnonymousHealthRpcBoundaries(publishableKey){
-  if(!publishableKey){
-    addFinding('critical','LIVE_PUBLISHABLE_KEY_NOT_DISCOVERABLE','No fue posible validar el perímetro anónimo de RPC porque runtime-config no expone la clave pública esperada.');
+async function postSupabaseRpc({publishableKey,rpc,body='{}'}={}){
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),15000);
+  try{
+    return await fetch(`${PROD_SUPABASE_URL}/rest/v1/rpc/${rpc}`,{
+      method:'POST',
+      redirect:'error',
+      cache:'no-store',
+      credentials:'omit',
+      headers:{
+        apikey:publishableKey,
+        'content-type':'application/json',
+        'user-agent':'IBERFIT-M26-Continuous-Auditor/1.2',
+      },
+      body,
+      signal:controller.signal,
+    });
+  }finally{
+    clearTimeout(timeout);
+  }
+}
+
+async function auditAnonymousRpcPosture(publishableKey){
+  if(!publishableKey||!publishableKey.startsWith('sb_publishable_')){
+    addFinding('critical','LIVE_PUBLISHABLE_KEY_NOT_DISCOVERABLE','No fue posible validar el perímetro anónimo porque runtime-config no expone la clave pública moderna esperada.');
     return;
   }
+
+  let publicProbeOk=false;
+  try{
+    const publicProbe=await postSupabaseRpc({
+      publishableKey,
+      rpc:PUBLIC_BRAND_RPC,
+      body:JSON.stringify({p_limit:1,p_offset:0}),
+    });
+    coverage.live.publicBrandRpcStatus=publicProbe.status;
+    publicProbeOk=publicProbe.ok;
+    if(!publicProbe.ok){
+      addFinding(
+        'critical',
+        'LIVE_PUBLIC_BRAND_RPC_UNAVAILABLE',
+        'El RPC público del catálogo de ejercicios dejó de responder al rol anónimo con la clave publicable válida.',
+        {status:publicProbe.status},
+      );
+    }else{
+      addStrength(
+        'LIVE_PUBLIC_BRAND_RPC_SCOPED',
+        'La clave publicable funciona para contenido público de marca antes de probar los límites de RPC internas.',
+      );
+    }
+  }catch(error){
+    coverage.live.publicBrandRpcStatus=String(error?.name||'NETWORK_ERROR').slice(0,40);
+    addFinding(
+      'critical',
+      'LIVE_PUBLIC_BRAND_RPC_PROBE_FAILED',
+      `No se pudo validar el RPC público de catálogo: ${error?.message||String(error)}.`,
+    );
+  }
+
   const exposed=[];
   const statuses={};
   for(const rpc of AUTHENTICATED_HEALTH_RPCS){
-    const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),15000);
     try{
-      const response=await fetch(`${PROD_SUPABASE_URL}/rest/v1/rpc/${rpc}`,{
-        method:'POST',
-        redirect:'error',
-        cache:'no-store',
-        credentials:'omit',
-        headers:{
-          apikey:publishableKey,
-          authorization:`Bearer ${publishableKey}`,
-          'content-type':'application/json',
-          'user-agent':'IBERFIT-M26-Continuous-Auditor/1.1',
-        },
-        body:'{}',
-        signal:controller.signal,
-      });
+      const response=await postSupabaseRpc({publishableKey,rpc});
       statuses[rpc]=response.status;
       if(response.ok)exposed.push(rpc);
     }catch(error){
@@ -362,26 +402,88 @@ async function auditAnonymousHealthRpcBoundaries(publishableKey){
         `No se pudo verificar el perímetro anónimo de ${rpc}.`,
         {rpc},
       );
-    }finally{
-      clearTimeout(timeout);
     }
   }
+
   coverage.live.anonymousHealthRpcStatuses=statuses;
   if(exposed.length){
     addFinding(
       'critical',
       'LIVE_ANON_HEALTH_RPC_EXPOSED',
-      `RPC de salud autenticadas volvieron a aceptar ejecución anónima: ${exposed.join(', ')}.`,
+      `RPC de salud autenticadas aceptan ejecución anónima: ${exposed.join(', ')}.`,
       {rpcs:exposed},
     );
     return;
   }
-  if(Object.keys(statuses).length===AUTHENTICATED_HEALTH_RPCS.length){
+
+  if(publicProbeOk&&Object.keys(statuses).length===AUTHENTICATED_HEALTH_RPCS.length){
     addStrength(
       'LIVE_HEALTH_RPCS_AUTH_BOUND',
-      'Las RPC de salud operativa rechazan el rol anónimo y permanecen limitadas a sesiones autenticadas.',
+      'Una clave publicable válida accede al contenido público, mientras las RPC de salud internas rechazan el rol anónimo.',
     );
   }
+}
+
+async function auditReleaseCoherence(){
+  const versionResult=await fetchAuditUrl(`${APP_URL}/m26/version.json`,'identidad de release productiva');
+  const swResult=await fetchAuditUrl(`${APP_URL}/m26/sw.js`,'Service Worker productivo');
+  if(!versionResult?.response?.ok||!swResult?.response?.ok)return;
+
+  let version;
+  try{
+    version=JSON.parse(versionResult.body);
+  }catch{
+    addFinding('critical','LIVE_VERSION_JSON_INVALID','version.json de producción no es JSON válido.');
+    return;
+  }
+
+  const sourceSha=String(version?.sourceSha||'').trim();
+  const short=sourceSha.slice(0,12);
+  const expectedVersion=`26.0.0-production.${short}`;
+  const expectedSw=`m26-prod-${short}`;
+  const swVersion=(swResult.body.match(/^const VERSION='([^']+)';/m)||[])[1]||'';
+  const previousSw=(swResult.body.match(/^const PREVIOUS_VERSION='([^']+)';/m)||[])[1]||'';
+  const swScope=String(swResult.response.headers.get('service-worker-allowed')||'').trim();
+
+  coverage.live.sourceSha=sourceSha||null;
+  coverage.live.releaseVersion=version?.version||null;
+  coverage.live.serviceWorkerVersion=swVersion||null;
+  coverage.live.previousServiceWorkerVersion=previousSw||null;
+  coverage.live.serviceWorkerAllowed=swScope||null;
+
+  if(swScope!=='/'){
+    addFinding(
+      'critical',
+      'LIVE_SW_SCOPE_HEADER_INVALID',
+      'El Service Worker productivo no declara Service-Worker-Allowed: /.',
+      {value:swScope||null},
+    );
+  }
+
+  if(
+    !/^[0-9a-f]{40}$/u.test(sourceSha)||
+    version?.environment!=='PRODUCTION'||
+    version?.production!==true||
+    version?.qaOnly!==false||
+    version?.projectRef!==PROD_PROJECT_REF||
+    version?.version!==expectedVersion||
+    swVersion!==expectedSw||
+    !previousSw||
+    previousSw===swVersion
+  ){
+    addFinding(
+      'critical',
+      'LIVE_RELEASE_COHERENCE_INVALID',
+      'version.json y Service Worker no pertenecen inequívocamente a la misma release productiva.',
+      {sourceSha,version:version?.version||null,swVersion,previousSw},
+    );
+    return;
+  }
+
+  addStrength(
+    'LIVE_RELEASE_COHERENT',
+    `version.json y Service Worker están sellados sobre la misma release ${short}, con una versión previa distinta para recuperación.`,
+  );
 }
 
 async function auditClientOnboardingBackendReadiness(){
@@ -509,7 +611,7 @@ async function auditLivePublicSurface(){
       );
     }
     if(runtime.response.ok){
-      await auditAnonymousHealthRpcBoundaries(runtimePublishableKey(runtime.body));
+      await auditAnonymousRpcPosture(runtimePublishableKey(runtime.body));
     }
   }
 }
@@ -596,6 +698,7 @@ async function main(){
   auditRoleNavigation();
   auditRouteGuardAndRendering();
   await auditLivePublicSurface();
+  await auditReleaseCoherence();
   await auditClientOnboardingBackendReadiness();
   await writeReport();
 }
