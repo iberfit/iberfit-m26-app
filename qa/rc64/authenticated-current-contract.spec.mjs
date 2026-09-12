@@ -218,14 +218,23 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
           'Authenticated workspace must declare interaction readiness before optional controllers finish mounting',
         ).toHaveCount(1,{timeout:5_000});
 
-        const targetAreaButton=page.locator('[data-m26-area]:not([aria-current="page"]):not([disabled]):visible').first();
-        await expect(targetAreaButton,'Authenticated workspace must expose at least one visible enabled navigation target for the active responsive layout').toBeVisible({timeout:5_000});
-        const targetArea=await targetAreaButton.getAttribute('data-m26-area');
-        expect(targetArea).toBeTruthy();
-        await targetAreaButton.click({timeout:5_000});
+        const visibleNavigationTarget=page.locator(
+          '.m26-mobile-nav [data-m26-area]:not([aria-current="page"]):not([disabled]):visible, .m26-sidebar [data-m26-area]:not([aria-current="page"]):not([disabled]):visible',
+        ).first();
         await expect(
-          page.locator(`[data-m26-area="${targetArea}"][aria-current="page"]:visible`).first(),
+          visibleNavigationTarget,
+          'Authenticated workspace must expose at least one visible enabled target inside the actual navigation surface for the active responsive layout',
+        ).toBeVisible({timeout:5_000});
+        const targetArea=await visibleNavigationTarget.getAttribute('data-m26-area');
+        expect(targetArea).toBeTruthy();
+        await visibleNavigationTarget.click({timeout:5_000});
+        await expect(
+          page.locator(`.m26-mobile-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-sidebar [data-m26-area="${targetArea}"][aria-current="page"]:visible`).first(),
           'Navigation click must remain responsive on the visible desktop/tablet/mobile navigation surface while post-auth controllers mount progressively',
+        ).toBeVisible({timeout:5_000});
+        await expect(
+          page.locator('[data-m26-shell-root], .m26-shell').first(),
+          'Navigation must keep the authenticated shell mounted after the route switch',
         ).toBeVisible({timeout:5_000});
 
         const settingsSummary=page.locator('details.m26-settings-menu > summary').first();
