@@ -1,0 +1,80 @@
+name: Provision WEB IBERFIT rollback
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/provision-web-iberfit-rollback.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-rollback-provision
+  cancel-in-progress: true
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit-rollback'
+  WEB_REPO: 'https://github.com/iberfit/iberfitweb.git'
+  BACKUP_SHA: '0c5445e64fa952a9fd75dccd4084f174e9bca462'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Crear proyecto rollback si no existe
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}"
+          CODE="$(curl --silent --show-error -o /tmp/project.json -w '%{http_code}' -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "$URL")"
+          if [ "$CODE" = "404" ]; then
+            curl --fail --silent --show-error -X POST \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H 'Content-Type: application/json' \
+              --data '{"name":"web-iberfit-rollback","production_branch":"production"}' \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects" >/tmp/created.json
+          elif [ "$CODE" != "200" ]; then cat /tmp/project.json; exit 42; fi
+
+      - name: Descargar snapshot antiguo exacto
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout "$WEB_REPO" /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=1 origin "$BACKUP_SHA"
+          git -C /tmp/iberfitweb checkout --detach "$BACKUP_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "$BACKUP_SHA"
+          test -s /tmp/iberfitweb/recovery/live-production/site/index.html
+          test -s /tmp/iberfitweb/recovery/live-production/site/robots.txt
+
+      - name: Desplegar snapshot antiguo
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/recovery/live-production/site \
+            --project-name "$CF_PROJECT" --branch production \
+            --commit-hash "$BACKUP_SHA" \
+            --commit-message 'IBERFIT pre-V6.28 rollback snapshot'
+
+      - name: Verificar rollback disponible
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 4 --retry-all-errors "https://${CF_PROJECT}.pages.dev/" -o /tmp/home.html
+          test -s /tmp/home.html
+          echo 'WEB IBERFIT rollback listo.'
