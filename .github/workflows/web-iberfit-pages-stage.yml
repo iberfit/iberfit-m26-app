@@ -1,0 +1,188 @@
+name: WEB IBERFIT · Pages Staging
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-bootstrap-20260912
+    paths:
+      - ".iberfit/web-iberfit-pages-stage.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-pages-stage
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: "5b03d387427d367674b9d05b8bdf7c84"
+  CF_PROJECT: "web-iberfit"
+  CF_PRODUCTION_BRANCH: "production"
+  WRANGLER_VERSION: "4.120.0"
+  WEB_REPO: "iberfit/iberfitweb"
+  WEB_SOURCE_REF: "b5da4c191a13923417385824cf0a80340b0f4221"
+  WEB_CANDIDATE_SHA: "8d6fcb12a9472e9ef78b9973ca3d0cd9d71244ab"
+
+jobs:
+  stage-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout puente aislado
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout web certificada
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: ${{ env.WEB_SOURCE_REF }}
+          path: web
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validar candidata exacta
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd web
+          test "$(git rev-parse HEAD)" = "$WEB_SOURCE_REF"
+          test -z "$(git diff --name-only "$WEB_CANDIDATE_SHA" "$WEB_SOURCE_REF" -- candidate/v628)"
+          test -s candidate/v628/index.html
+          test -s candidate/v628/404.html
+          test -s candidate/v628/_headers
+          test -s candidate/v628/_redirects
+          test -s candidate/v628/sitemap.xml
+          test -s candidate/v628/robots.txt
+          grep -q 'max-image-preview:large' candidate/v628/index.html
+          grep -q '<lastmod>2026-09-12</lastmod>' candidate/v628/sitemap.xml
+          grep -q 'generate_lead' candidate/v628/assets/analytics.v628.js
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Crear proyecto WEB IBERFIT si no existe
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo CLOUDFLARE_API_TOKEN_MISSING; exit 41; }
+          HTTP="$(curl --silent --show-error -o /tmp/web-project.json -w '%{http_code}'             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             -H "Content-Type: application/json"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}")"
+          if [ "$HTTP" = "404" ]; then
+            echo "Creando proyecto Pages ${CF_PROJECT}"
+            npx --yes "wrangler@${WRANGLER_VERSION}" pages project create "${CF_PROJECT}"               --production-branch "${CF_PRODUCTION_BRANCH}"
+          elif [ "$HTTP" = "200" ]; then
+            node -e "const x=require('/tmp/web-project.json'); if(!x.success||x.result.name!=='web-iberfit') process.exit(2)"
+            echo "Proyecto ${CF_PROJECT} ya existe"
+          else
+            cat /tmp/web-project.json
+            echo "PROJECT_LOOKUP_HTTP_$HTTP"
+            exit 42
+          fi
+
+      - name: Verificar proyecto antes del staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             -H "Content-Type: application/json"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}"             -o WEB_IBERFIT_PROJECT_BEFORE.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('WEB_IBERFIT_PROJECT_BEFORE.json','utf8'));
+          if(!x.success||!x.result)throw new Error('WEB_IBERFIT_PROJECT_LOOKUP_FAILED');
+          const p=x.result;
+          if(p.name!=='web-iberfit')throw new Error('WRONG_PROJECT:'+p.name);
+          if(p.production_branch!=='production')throw new Error('WRONG_PRODUCTION_BRANCH:'+p.production_branch);
+          if((p.domains||[]).includes('iberfit.cl'))throw new Error('DOMAIN_ALREADY_BOUND_BEFORE_STAGE');
+          console.log(JSON.stringify({name:p.name,subdomain:p.subdomain,domains:p.domains||[],productionBranch:p.production_branch},null,2));
+          NODE
+
+      - name: Desplegar candidata como preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          STAGE_BRANCH="stage-${WEB_CANDIDATE_SHA:0:12}"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy web/candidate/v628             --project-name "${CF_PROJECT}"             --branch "$STAGE_BRANCH"             --commit-hash "${WEB_CANDIDATE_SHA}"             --commit-message "WEB IBERFIT staging ${WEB_CANDIDATE_SHA:0:12}"             --commit-dirty=true | tee WRANGLER_WEB_IBERFIT_PAGES_STAGE.log
+          STAGE_URL="$(grep -Eo 'https://[a-z0-9]+\.web-iberfit\.pages\.dev' WRANGLER_WEB_IBERFIT_PAGES_STAGE.log | tail -1)"
+          if [ -z "$STAGE_URL" ]; then
+            STAGE_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' WRANGLER_WEB_IBERFIT_PAGES_STAGE.log | tail -1)"
+          fi
+          test -n "$STAGE_URL" || { echo WEB_IBERFIT_STAGE_URL_MISSING; cat WRANGLER_WEB_IBERFIT_PAGES_STAGE.log; exit 43; }
+          echo "STAGE_URL=$STAGE_URL" >> "$GITHUB_ENV"
+          echo "STAGE_BRANCH=$STAGE_BRANCH" >> "$GITHUB_ENV"
+          echo "WEB IBERFIT Pages staging: $STAGE_URL"
+
+      - name: Smoke HTTP real
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in / /diagnostico-iri/ /contacto/ /en/ /sitemap.xml /robots.txt; do
+            OUT="/tmp/web-iberfit-$(echo "$path" | tr '/.' '__').out"
+            curl --fail --silent --show-error --location --retry 10 --retry-all-errors               "${STAGE_URL}${path}" -o "$OUT"
+          done
+          grep -q 'IBERFIT' /tmp/web-iberfit-__.out
+          grep -q 'https://iberfit.cl/' /tmp/web-iberfit-_sitemap_xml.out
+          grep -q 'Sitemap: https://iberfit.cl/sitemap.xml' /tmp/web-iberfit-_robots_txt.out
+
+      - name: QA multidispositivo contra Pages real
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright@1.62.1
+          npx playwright install --with-deps chromium
+          BASE_URL="$STAGE_URL" QA_OUT="evidence/web-iberfit-pages-stage"             node web/.github/scripts/qa_v628_dispositivos.mjs
+
+      - name: Confirmar deployment exacto
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             -H "Content-Type: application/json"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments"             -o WEB_IBERFIT_DEPLOYMENTS.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('WEB_IBERFIT_DEPLOYMENTS.json','utf8'));
+          if(!x.success||!Array.isArray(x.result))throw new Error('DEPLOYMENT_LIST_FAILED');
+          const expected=process.env.WEB_CANDIDATE_SHA;
+          const exact=x.result.find(d=>d.deployment_trigger?.metadata?.commit_hash===expected);
+          if(!exact)throw new Error('EXACT_STAGE_DEPLOYMENT_NOT_FOUND');
+          if(exact.environment!=='preview')throw new Error('STAGE_WAS_NOT_PREVIEW:'+exact.environment);
+          if(exact.latest_stage?.status!=='success')throw new Error('STAGE_NOT_SUCCESS:'+exact.latest_stage?.status);
+          const evidence={
+            project:'web-iberfit',
+            candidateSha:expected,
+            deploymentId:exact.id,
+            deploymentUrl:exact.url,
+            stageUrl:process.env.STAGE_URL,
+            stageBranch:process.env.STAGE_BRANCH,
+            environment:exact.environment,
+            productionDomainBound:false,
+            verifiedAt:new Date().toISOString()
+          };
+          fs.writeFileSync('WEB_IBERFIT_PAGES_STAGE_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
+          console.log(JSON.stringify(evidence,null,2));
+          NODE
+
+      - name: Guardar evidencia Pages staging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-iberfit-pages-stage-${{ github.run_id }}
+          path: |
+            .iberfit/web-iberfit-pages-stage.json
+            WEB_IBERFIT_PROJECT_BEFORE.json
+            WRANGLER_WEB_IBERFIT_PAGES_STAGE.log
+            WEB_IBERFIT_DEPLOYMENTS.json
+            WEB_IBERFIT_PAGES_STAGE_EVIDENCE.json
+            evidence/web-iberfit-pages-stage
+          if-no-files-found: warn
+          retention-days: 30
