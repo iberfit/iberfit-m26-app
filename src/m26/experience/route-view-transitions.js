@@ -1,7 +1,12 @@
 export function routeViewTransitionsEnabled({documentLike=globalThis.document,windowLike=documentLike?.defaultView||globalThis.window}={}){
   if(typeof documentLike?.startViewTransition!=='function')return false;
   try{
-    return windowLike?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches!==true;
+    const reducedMotion=windowLike?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
+    const coarsePointer=windowLike?.matchMedia?.('(pointer: coarse)')?.matches===true;
+    const touchPoints=Number(windowLike?.navigator?.maxTouchPoints||0);
+    // Route changes are functional; View Transitions are decorative. On touch/coarse
+    // devices navigate synchronously so Safari/iOS can never defer the route update.
+    return !reducedMotion&&!coarsePointer&&touchPoints<=0;
   }catch{
     return false;
   }
