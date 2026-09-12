@@ -72,6 +72,8 @@ test('Admin user inputs, dropdowns and filters remain interactive through a real
   await expect(coachCard).toBeVisible();
 
   if(test.info().project.name.includes('mobile')||test.info().project.name.includes('tablet')){
+    await expect(statusFilter).toBeVisible();
+    await expect(statusFilter).toBeEnabled();
     const metrics=await statusFilter.evaluate((el)=>{
       const rect=el.getBoundingClientRect();
       return {height:rect.height,fontSize:parseFloat(getComputedStyle(el).fontSize)};
