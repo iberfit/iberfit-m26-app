@@ -37,8 +37,11 @@ function stateWithHistory(){
   };
 }
 
-test('catálogo premium contiene exactamente los seis informes del roadmap',()=>{
+test('catálogo premium separa diagnóstico IRI, reevaluación IRI y seguimiento',()=>{
   assert.deepEqual(PREMIUM_REPORT_TYPES.map((item)=>item.id),['iri','post-session','monthly','reassessment','quarterly','year-in-iberfit']);
+  assert.equal(PREMIUM_REPORT_TYPES.find((item)=>item.id==='iri')?.label,'Diagnóstico IRI');
+  assert.equal(PREMIUM_REPORT_TYPES.find((item)=>item.id==='reassessment')?.label,'Informe de reevaluación IRI');
+  assert.equal(PREMIUM_REPORT_MODEL_VERSION,'iberfit-premium-report-lineage-v1');
 });
 
 test('portfolio automático usa evidencia canónica y habilita los seis tipos cuando existe historial suficiente',()=>{
@@ -114,7 +117,7 @@ test('aprobación conserva tipo, comentario y procedencia sin romper el contrato
   assert.equal(command.payload.patch.reportModelVersion,PREMIUM_REPORT_MODEL_VERSION);
   assert.equal(command.payload.patch.sourceAssessmentId,'iri-new');
   assert.equal(command.payload.patch.sourceAssessmentRevision,5);
-  assert.match(command.payload.patch.evidenceSignature,/"modelVersion":"iri2-premium-report-v1"/u);
+  assert.match(command.payload.patch.evidenceSignature,/"modelVersion":"iberfit-premium-report-lineage-v1"/u);
   assert.match(command.payload.patch.evidenceSignature,/"assessmentRevision":5/u);
   assert.deepEqual(command.payload.patch.evidence,[{label:'Sesiones ejecutadas',text:'3',source:'sessionExecutions',quality:'alta'}]);
   assert.equal(command.payload.patch.visibleToClient,false);
@@ -132,7 +135,7 @@ test('firma de evidencia cambia ante cualquier cambio factual y no depende del c
   assert.notEqual(first.evidenceSignature,changedEvidence.evidenceSignature);
 });
 
-test('informes históricos sin tipo premium conservan el contrato anterior sin metadatos IRI 2.0',()=>{
+test('informes históricos sin tipo premium conservan el contrato anterior sin metadatos de trazabilidad premium',()=>{
   const legacy=normalizeReportDraft({
     id:'legacy-report',clientId:'c1',assessmentId:'iri-old',title:'Informe histórico',periodStart:'2026-03-01',periodEnd:'2026-03-01',
     summary:'Resumen histórico suficientemente descriptivo para conservar compatibilidad.',conclusions:'Conclusiones históricas revisadas y conservadas sin migración forzada.',recommendations:'Mantener el registro histórico tal como fue aprobado originalmente.',reviewAccepted:true,
