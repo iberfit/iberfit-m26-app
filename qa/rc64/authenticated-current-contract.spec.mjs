@@ -201,23 +201,23 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
           'Authenticated workspace must declare interaction readiness before optional controllers finish mounting',
         ).toHaveCount(1,{timeout:5_000});
 
-        const targetAreaButton=page.locator('[data-m26-area]:not([aria-current="page"]):not([disabled])').first();
-        await expect(targetAreaButton,'Authenticated workspace must expose at least one enabled navigation target').toBeVisible({timeout:5_000});
+        const targetAreaButton=page.locator('[data-m26-area]:visible:not([aria-current="page"]):not([disabled])').first();
+        await expect(targetAreaButton,'Authenticated workspace must expose at least one visible enabled navigation target').toBeVisible({timeout:5_000});
         const targetArea=await targetAreaButton.getAttribute('data-m26-area');
         expect(targetArea).toBeTruthy();
         await targetAreaButton.click({timeout:5_000});
         await expect(
-          page.locator(`[data-m26-area="${targetArea}"][aria-current="page"]`).first(),
-          'Navigation click must remain responsive while post-auth controllers mount progressively',
+          page.locator(`[data-m26-area="${targetArea}"][aria-current="page"]:visible`).first(),
+          'Visible navigation must remain responsive while post-auth controllers mount progressively',
         ).toBeVisible({timeout:5_000});
 
-        const settingsSummary=page.locator('details.m26-settings-menu > summary').first();
+        const settingsSummary=page.locator('details.m26-settings-menu > summary:visible').first();
         if(await settingsSummary.count()){
           await settingsSummary.click({timeout:5_000});
           await expect(
-            page.locator('details.m26-settings-menu').first(),
-            'Native settings control must accept pointer/touch interaction after login',
-          ).toHaveAttribute('open','',{timeout:5_000});
+            page.locator('details.m26-settings-menu[open]:visible').first(),
+            'Native visible settings control must accept pointer/touch interaction after login',
+          ).toBeVisible({timeout:5_000});
         }
       }
 
