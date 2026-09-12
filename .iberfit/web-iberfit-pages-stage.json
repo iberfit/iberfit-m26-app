@@ -1,0 +1,8 @@
+{
+  "schema": "iberfit.web.pages.stage.v1",
+  "project": "web-iberfit",
+  "candidateSha": "8d6fcb12a9472e9ef78b9973ca3d0cd9d71244ab",
+  "productionBranch": "production",
+  "approved": true,
+  "domainPromoted": false
+}
