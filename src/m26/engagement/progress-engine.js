@@ -207,7 +207,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,st
   const dataQuality=dataPoints>=8?'alta':dataPoints>=3?'media':'limitada';
   return Object.freeze({
     clientId,startAt:start.toISOString(),endAt:end.toISOString(),days:window.days,
-    plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence:round(adherence,3),
+    plannedSessions:plannedCount,scheduledAppointments:planned.length,completedSessions:confirmedCompleted,confirmedExecutionRecords:completedExecutions.length,planningComparable:planned.length>0,adherence:round(adherence,3),
     averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
     iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:iri.length>1?iriCoverage[1]:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
     iri2,
