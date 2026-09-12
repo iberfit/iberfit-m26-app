@@ -1,0 +1,210 @@
+name: IBERFIT Exercise Media Fixed Template Batch 03
+
+on:
+  pull_request:
+    branches:
+      - canary/rc74-4
+    paths:
+      - '.github/workflows/exercise-media-fixed-template-batch.yml'
+      - 'scripts/exercise-media/generate-fixed-phase.mjs'
+      - 'scripts/exercise-media/compose-fixed-template.py'
+      - 'scripts/exercise-media/qa-fixed-template.mjs'
+      - 'scripts/exercise-media/worker-ai-proxy.mjs'
+      - 'scripts/exercise-media/wrangler.ai-fixed-template.toml'
+      - 'public/iberfit/master/IBERFIT_MALE_MASTER_V1/**'
+      - 'public/isotipo-iberfit.png'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-exercise-media-fixed-template-batch-03-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  MASTER: public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.jpg
+  OFFICIAL_ISOTYPE: public/isotipo-iberfit.png
+  WRANGLER_CONFIG: scripts/exercise-media/wrangler.ai-fixed-template.toml
+  PAGES_AI_PROJECT: iberfit-exercise-fixed-${{ github.run_id }}-${{ github.run_attempt }}
+  PAGES_AI_DIR: recovery/exercise-media-pages-proxy
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  TARGETS: >-
+    IBF-APERTURAS-CON-MANCUERNAS
+    IBF-DOMINADA-PRONADA
+    IBF-BUENOS-DIAS-CON-BARRA
+    IBF-PAJAROS-CON-MANCUERNAS
+    IBF-PULLOVER-CON-MANCUERNA
+
+jobs:
+  generate-fixed-template:
+    name: generate-fixed-template
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verificar master e isotipo oficiales
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$MASTER"
+          test -s "$OFFICIAL_ISOTYPE"
+          test "$(sha256sum "$MASTER" | awk '{print $1}')" = "b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb"
+          test "$(sha256sum "$OFFICIAL_ISOTYPE" | awk '{print $1}')" = "d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa"
+          echo "IBERFIT_OFFICIAL_MASTER_AND_ISOTYPE=PASS"
+
+      - name: Preparar Python y referencia de identidad
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --quiet 'Pillow==11.3.0'
+          mkdir -p recovery/exercise-media-fixed recovery/exercise-media-reference-normalized
+          MASTER="$MASTER" python3 - <<'PY'
+          import os
+          from PIL import Image, ImageOps
+          src=os.environ['MASTER']
+          out='recovery/exercise-media-reference-normalized/athlete.png'
+          with Image.open(src) as im:
+              im=ImageOps.exif_transpose(im).convert('RGB')
+              im=ImageOps.contain(im,(512,512))
+              im.save(out,'PNG')
+          PY
+          echo "ATHLETE_REFERENCE=recovery/exercise-media-reference-normalized/athlete.png" >> "$GITHUB_ENV"
+          python3 scripts/exercise-media/create-batch03-pose-guides.py --out-dir recovery/exercise-media-pose-guides
+          echo "POSE_GUIDE_DIR=recovery/exercise-media-pose-guides" >> "$GITHUB_ENV"
+
+      - name: Rehidratar referencias visuales aprobadas
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > recovery/anatomy-manifests.txt <<'EOF'
+          scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/approved-batch.json
+          scripts/exercise-media/approved/IBF-REMO-CON-MANCUERNA-A-UNA-MANO/approved-batch.json
+          scripts/exercise-media/approved/IBF-PESO-MUERTO-RUMANO-CON-MANCUERNAS/approved-batch.json
+          EOF
+          node scripts/exercise-media/rehydrate-approved-assets.mjs --source-root . --manifest-list recovery/anatomy-manifests.txt
+          test -s scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-approved-adaa8c05ec2b.webp
+          test -s scripts/exercise-media/approved/IBF-REMO-CON-MANCUERNA-A-UNA-MANO/IBF-REMO-CON-MANCUERNA-A-UNA-MANO-approved-69c6c0dabc03.webp
+          test -s scripts/exercise-media/approved/IBF-PESO-MUERTO-RUMANO-CON-MANCUERNAS/IBF-PESO-MUERTO-RUMANO-CON-MANCUERNAS-approved-e804560ff8fe.webp
+
+      - name: Preparar Pages Function AI aislada
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          if [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then echo 'Cloudflare account ID supplied by repository configuration.'; fi
+          rm -rf "$PAGES_AI_DIR"
+          mkdir -p "$PAGES_AI_DIR"
+          cp scripts/exercise-media/worker-ai-proxy.mjs "$PAGES_AI_DIR/_worker.js"
+          cp "$WRANGLER_CONFIG" wrangler.toml
+          sed -i "s/^name = .*/name = \"$PAGES_AI_PROJECT\"/" wrangler.toml
+          printf '%s\n' 'IBERFIT fixed exercise media AI proxy' > "$PAGES_AI_DIR/index.html"
+          smoke_token="$(openssl rand -hex 32)"
+          echo "::add-mask::$smoke_token"
+          npx --yes wrangler@4 pages project create "$PAGES_AI_PROJECT" --production-branch smoke --compatibility-date 2026-09-05
+          printf '%s' "$smoke_token" | npx --yes wrangler@4 pages secret put SMOKE_TOKEN --project-name "$PAGES_AI_PROJECT"
+          npx --yes wrangler@4 pages deploy "$PAGES_AI_DIR" --project-name "$PAGES_AI_PROJECT" --branch smoke --commit-dirty=true | tee recovery/fixed-pages-deploy.log
+          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' recovery/fixed-pages-deploy.log | tail -n 1)"
+          stable_url="https://${PAGES_AI_PROJECT}.pages.dev"
+          proxy_url=''
+          for attempt in $(seq 1 24); do
+            for candidate_url in "$stable_url" "$preview_url"; do
+              if curl --fail --silent --show-error --connect-timeout 5 --max-time 8 -X POST -H "Authorization: Bearer $smoke_token" "$candidate_url/health" > recovery/fixed-health.json; then
+                if node -e "const x=require('./recovery/fixed-health.json');if(x.ok!==true||x.ai!==true)process.exit(1)"; then
+                  proxy_url="$candidate_url"
+                  break 2
+                fi
+              fi
+            done
+            sleep 3
+          done
+          test -n "$proxy_url"
+          echo "IBERFIT_AI_PROXY_URL=$proxy_url" >> "$GITHUB_ENV"
+          echo "IBERFIT_AI_PROXY_TOKEN=$smoke_token" >> "$GITHUB_ENV"
+
+      - name: Generar, componer y auditar lote 03
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > recovery/fixed-batch-summary.tsv
+          failures=0
+          for id in $TARGETS; do
+            case "$id" in
+              IBF-APERTURAS-CON-MANCUERNAS)
+                anatomy="scripts/exercise-media/approved/IBF-PRESS-DE-PECHO-CON-MANCUERNAS/IBF-PRESS-DE-PECHO-CON-MANCUERNAS-approved-adaa8c05ec2b.webp"
+                ;;
+              IBF-BUENOS-DIAS-CON-BARRA)
+                anatomy="scripts/exercise-media/approved/IBF-PESO-MUERTO-RUMANO-CON-MANCUERNAS/IBF-PESO-MUERTO-RUMANO-CON-MANCUERNAS-approved-e804560ff8fe.webp"
+                ;;
+              *)
+                anatomy="scripts/exercise-media/approved/IBF-REMO-CON-MANCUERNA-A-UNA-MANO/IBF-REMO-CON-MANCUERNA-A-UNA-MANO-approved-69c6c0dabc03.webp"
+                ;;
+            esac
+            echo "=== $id ==="
+            passed=0
+            final_confidence=0
+            final_attempt=0
+            for attempt in 1 2 3; do
+              echo "--- attempt $attempt ---"
+              pose_start="$POSE_GUIDE_DIR/${id}-start.png"
+              pose_final="$POSE_GUIDE_DIR/${id}-final.png"
+              test -s "$pose_start"
+              test -s "$pose_final"
+              node scripts/exercise-media/generate-fixed-phase.mjs --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --phase start --attempt "$attempt" --athlete-ref "$ATHLETE_REFERENCE" --pose-ref "$pose_start" --out-dir recovery/exercise-media-fixed
+              node scripts/exercise-media/generate-fixed-phase.mjs --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --phase final --attempt "$attempt" --athlete-ref "$ATHLETE_REFERENCE" --pose-ref "$pose_final" --out-dir recovery/exercise-media-fixed
+              start="$(find recovery/exercise-media-fixed -maxdepth 1 -type f -name "${id}-start-a${attempt}.*" ! -name '*.json' | head -n 1)"
+              final="$(find recovery/exercise-media-fixed -maxdepth 1 -type f -name "${id}-final-a${attempt}.*" ! -name '*.json' | head -n 1)"
+              test -s "$start"
+              test -s "$final"
+              out="recovery/exercise-media-fixed/${id}-fixed-a${attempt}.webp"
+              meta="recovery/exercise-media-fixed/${id}-fixed-a${attempt}.json"
+              qa="recovery/exercise-media-fixed/${id}-qa-a${attempt}.json"
+              python3 scripts/exercise-media/compose-fixed-template.py --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --start "$start" --final "$final" --anatomy-source "$anatomy" --out "$out" --meta "$meta"
+              set +e
+              node scripts/exercise-media/qa-fixed-template.mjs --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --image "$out" --out "$qa" | tee "recovery/${id}-qa-a${attempt}.log"
+              qa_rc=${PIPESTATUS[0]}
+              set -e
+              confidence="$(node -e "const x=require('./$qa');process.stdout.write(String(x.review&&x.review.confidence||0))" 2>/dev/null || printf 0)"
+              final_confidence="$confidence"
+              final_attempt="$attempt"
+              if [[ "$qa_rc" -eq 0 ]]; then
+                passed=1
+                break
+              fi
+            done
+            printf '%s\t%s\t%s\t%s\n' "$id" "$passed" "$final_attempt" "$final_confidence" >> recovery/fixed-batch-summary.tsv
+            if [[ "$passed" -ne 1 ]]; then failures=$((failures+1)); fi
+          done
+          cat recovery/fixed-batch-summary.tsv
+          test "$failures" -eq 0
+
+      - name: Conservar candidatos y evidencia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-exercise-media-fixed-batch-03-${{ github.run_id }}
+          path: |
+            recovery/exercise-media-fixed/**
+            recovery/*-qa.log
+            recovery/fixed-batch-summary.tsv
+            recovery/fixed-pages-deploy.log
+            recovery/fixed-health.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Retirar Pages Function AI aislada
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 pages project delete "$PAGES_AI_PROJECT" --yes
