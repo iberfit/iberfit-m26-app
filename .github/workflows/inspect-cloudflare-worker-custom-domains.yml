@@ -1,0 +1,41 @@
+name: Inspect Cloudflare Worker custom domains
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/inspect-cloudflare-worker-custom-domains.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Listar Worker custom domains
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -u
+          CODE="$(curl --silent --show-error -o /tmp/domains.json -w '%{http_code}'             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/domains")"
+          echo "WORKERS_DOMAINS_HTTP=${CODE}"
+          cat /tmp/domains.json
+          echo
+          if [ "$CODE" = "200" ]; then
+            node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/domains.json','utf8'));
+          console.log('WORKERS_CUSTOM_DOMAINS='+JSON.stringify((x.result||[]).map(d=>({
+            id:d.id,hostname:d.hostname,service:d.service,zone_id:d.zone_id,zone_name:d.zone_name
+          }))));
+          NODE
+          fi
