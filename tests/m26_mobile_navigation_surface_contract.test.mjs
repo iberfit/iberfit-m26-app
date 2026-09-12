@@ -8,9 +8,10 @@ const smoke=await readFile(new URL('../qa/rc64/authenticated-current-contract.sp
 
 test('mobile More exposes an active state when the current route lives outside quick navigation',()=>{
   assert.match(shell,/mobileMoreActive=moreMobileItems\.some/u);
+  assert.match(shell,/m26-mobile-more\$\{mobileMoreActive\?' is-active'/u);
   assert.match(shell,/data-m26-more-active="true"/u);
-  assert.match(shell,/summary\$\{mobileMoreActive\?' class="is-active" aria-current="page"'/u);
-  assert.match(css,/m26-mobile-more\[data-m26-more-active="true"\]\s*>\s*summary/u);
+  assert.doesNotMatch(shell,/summary[^>]*aria-current="page"/u);
+  assert.match(css,/m26-mobile-more\.is-active\s*>\s*summary/u);
 });
 
 test('authenticated smoke clicks the real sidebar or mobile navigation, not arbitrary workspace actions',()=>{
