@@ -199,6 +199,14 @@ test('RC64 authenticated visual evidence is real QA, read-only and fail-closed',
         await expect(shell,'Client canonical shell must render after read-only authentication').toHaveCount(1,{timeout:25_000});
         await expect(shell).toBeVisible({timeout:5_000});
         await expect(page.locator('[data-m26-action="logout"]')).toHaveCount(1,{timeout:5_000});
+        await expect(
+          page.locator('[data-m26-interactive="ready"]'),
+          'Visual evidence must capture the final interactive workspace, never the intermediate shell mount',
+        ).toHaveCount(1,{timeout:10_000});
+        await expect(
+          page.locator('.m26-route').first(),
+          'Visual evidence requires route content before taking the screenshot',
+        ).toBeVisible({timeout:10_000});
         captures.push(await capture(page,{
           account,
           project:testInfo.project.name,

@@ -225,6 +225,20 @@
   }
 }
 
+/* Desktop/fine-pointer already has the complete persistent sidebar.
+ * Keep the bottom dock for touch and compact layouts, but avoid duplicate navigation
+ * on large pointer-driven workstations. No destination is removed: the sidebar
+ * preserves the complete Client route contract. */
+@media (min-width: 901px) and (hover: hover) and (pointer: fine) {
+  .m26-client-bottom-nav-layer {
+    display: none;
+  }
+
+  .m26-client-route-shell {
+    padding-bottom: 0;
+  }
+}
+
 @media (max-width: 690px) {
   .m26-client-route-shell {
     padding-bottom: calc(100px + env(safe-area-inset-bottom));

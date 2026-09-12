@@ -40,5 +40,17 @@ export default defineConfig({
       name:'authenticated-readonly-mobile-chromium',
       use:{browserName:'chromium',viewport:{width:390,height:844},hasTouch:true,isMobile:true},
     },
+    {
+      name:'authenticated-readonly-webkit',
+      use:{browserName:'webkit',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false},
+    },
+    {
+      name:'authenticated-readonly-mobile-webkit',
+      use:{browserName:'webkit',viewport:{width:390,height:844},hasTouch:true,isMobile:true},
+    },
+    {
+      name:'authenticated-readonly-firefox',
+      use:{browserName:'firefox',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false},
+    },
   ],
 });

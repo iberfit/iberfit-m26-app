@@ -684,8 +684,73 @@
   box-shadow:none;
 }
 
+.m26-admin-route :is(
+  [data-admin-form="user-delete"],
+  [data-admin-form="client-delete"]
+){
+  border-color:color-mix(in srgb,var(--iberfit-color-danger) 46%,var(--m26-admin-border));
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb,var(--iberfit-color-danger) 8%,var(--iberfit-color-surface-raised)),
+      color-mix(in srgb,var(--iberfit-color-danger) 3%,var(--iberfit-color-surface-base))
+    );
+  box-shadow:
+    0 16px 36px color-mix(in srgb,var(--iberfit-color-danger) 10%,transparent),
+    inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.m26-admin-route .m26-admin-danger-body{
+  display:grid;
+  gap:var(--iberfit-space-3);
+}
+
+.m26-admin-route .m26-admin-danger-body > p{
+  margin:0;
+}
+
+.m26-admin-route .m26-admin-danger-body .m26-eyebrow{
+  color:var(--iberfit-color-danger);
+}
+
+.m26-admin-route .m26-admin-danger-check{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:var(--iberfit-space-3);
+  align-items:start;
+  padding:var(--iberfit-space-3);
+  border:1px solid color-mix(in srgb,var(--iberfit-color-danger) 28%,transparent);
+  border-radius:var(--iberfit-radius-md);
+  background:color-mix(in srgb,var(--iberfit-color-danger) 6%,transparent);
+}
+
+.m26-admin-route .m26-admin-danger-check input[type="checkbox"]{
+  width:var(--iberfit-size-touch-target);
+  min-width:var(--iberfit-size-touch-target);
+  height:var(--iberfit-size-touch-target);
+  min-height:var(--iberfit-size-touch-target);
+  margin:0;
+}
+
 .m26-admin-route .m26-admin-danger-body button[type="submit"]{
   border-radius:var(--m26-admin-pill);
+}
+
+.m26-admin-route :is(
+  [data-admin-form="user-delete"],
+  [data-admin-form="client-delete"]
+) button[type="submit"]{
+  border-color:color-mix(in srgb,var(--iberfit-color-danger) 70%,white 8%);
+  border-radius:var(--m26-admin-pill);
+  color:var(--iberfit-color-text-primary);
+  background:color-mix(in srgb,var(--iberfit-color-danger) 68%,#5d1717 32%);
+}
+
+.m26-admin-route :is(
+  [data-admin-form="user-delete"],
+  [data-admin-form="client-delete"]
+) button[type="submit"]:hover{
+  background:color-mix(in srgb,var(--iberfit-color-danger) 82%,#5d1717 18%);
 }
 /* ADMIN_PREMIUM_CONTROL_HIERARCHY_END */
 

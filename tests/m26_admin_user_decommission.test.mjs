@@ -97,3 +97,14 @@ test('Auth identity is soft-deleted only by the service-role Edge Function after
   const deleteAt=edge.indexOf('service.auth.admin.deleteUser(targetUserId,true)');
   assert.ok(rpcAt>=0&&deleteAt>rpcAt,'transactional access revocation must commit before Auth soft-delete');
 });
+
+test('Admin destructive account controls keep a global critical visual treatment and touch-size acknowledgement',()=>{
+  const css=read('src/m26/admin/admin.css');
+  assert.match(css,/\[data-admin-form="user-delete"\]/u);
+  assert.match(css,/\[data-admin-form="client-delete"\]/u);
+  assert.match(css,/var\(--iberfit-color-danger\)/u);
+  assert.match(css,/\.m26-admin-danger-check/u);
+  assert.match(css,/width:var\(--iberfit-size-touch-target\)/u);
+  assert.match(css,/height:var\(--iberfit-size-touch-target\)/u);
+});
+

@@ -16,6 +16,9 @@ test('authenticated visual evidence captures only authorized read-only QA states
   assert.match(spec,/authorized-admin-qa-account-not-configured/u);
   assert.match(spec,/captured:false/u);
   assert.match(spec,/input\[type="password"\]/u);
+  assert.match(spec,/data-m26-interactive="ready"/u);
+  assert.match(spec,/Visual evidence must capture the final interactive workspace/u);
+  assert.match(spec,/page\.locator\('\.m26-route'\)\.first\(\)/u);
   assert.doesNotMatch(spec,/mfa-continue-webauthn[^\n]{0,180}\.click\(/u);
 });
 

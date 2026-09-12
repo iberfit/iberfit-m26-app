@@ -72,7 +72,7 @@ jobs:
         run: |
           npm ci
           sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit firefox
 
       - name: Validar Canary desplegado en navegador real
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirmation == 'READ_ONLY_REMOTE_GATE' && github.ref_name == 'canary/rc74-4' }}
