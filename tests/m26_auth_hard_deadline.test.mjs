@@ -103,6 +103,33 @@ test('post-MFA mobile handoff paints authenticated shell before catalog and heav
   assert.match(source,/setTimeout\?\.\(finish,Math\.max\(50,Math\.min\(Number\(timeoutMs\)\|\|180,500\)\)\)/u);
 });
 
+test('authenticated controller startup yields between modules and exposes interaction readiness first',()=>{
+  const source=fs.readFileSync('src/m26/app/application.js','utf8');
+  const start=source.indexOf('async function setupAuthenticated()');
+  const end=source.indexOf('function guardSessionNavigation',start);
+  assert.ok(start>=0&&end>start);
+  const block=source.slice(start,end);
+
+  assert.match(source,/function yieldInteractionTurn\(\{timeoutMs=96\}=\{\}\)/u);
+  assert.match(source,/async function mountAuthenticatedControllersProgressively/u);
+  assert.match(source,/for\(const \[name,controller\] of entries\)\{\s*await yieldInteractionTurn\(\)/u);
+  assert.match(block,/root\.dataset\.m26InteractionReady='true'/u);
+  assert.match(block,/m26:interaction-ready/u);
+
+  const interactionReady=block.indexOf("qaStage('rc64-shell-interaction-ready')");
+  const progressiveMounts=block.indexOf('await mountAuthenticatedControllersProgressively([');
+  const controllerReady=block.indexOf("qaStage('rc64-controller-mounts-ready')");
+  assert.ok(interactionReady>=0);
+  assert.ok(progressiveMounts>interactionReady);
+  assert.ok(controllerReady>progressiveMounts);
+
+  assert.doesNotMatch(
+    block,
+    /motion\.mount\(\);guidance\.mount\(\);onboarding\.mount\(\);mediaExperience\.mount\(\);productivity\.mount\(\)/u,
+  );
+  assert.match(source,/function destroyControllers\(\)\{if\(root\?\.dataset\)delete root\.dataset\.m26InteractionReady/u);
+});
+
 test('progressive shell mount never computes the heavy route before the first authenticated frame',()=>{
   const source=fs.readFileSync('src/m26/shell/shell-controller.js','utf8');
   assert.match(source,/function renderWorkspaceFrame\(state=store\.getState\(\)\)/u);
