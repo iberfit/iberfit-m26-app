@@ -131,22 +131,24 @@ test('la superficie Progreso presenta cambios descriptivos sin puntuación globa
     longitudinal:null,
     exerciseProgress:[],
   });
+  assert.match(html,/data-iri-milestones/u);
   assert.match(html,/data-evolution-progress/u);
   assert.match(html,/data-iri2-progress/u);
-  assert.match(html,/Evolución y seguimiento/u);
-  assert.match(html,/Evolución del proceso/u);
+  assert.match(html,/Diagnóstico y reevaluación IRI/u);
+  assert.match(html,/Hitos IRI comparables/u);
   assert.doesNotMatch(html,/Evolución IRI 2\.0/u);
-  assert.match(html,/Diagnóstico IRI establece el punto de partida/u);
+  assert.match(html,/Diagnóstico IRI establece la línea base/u);
+  assert.match(html,/seguimiento cotidiano se presenta por separado/u);
   assert.match(html,/Sin puntuación global/u);
   assert.match(html,/Silla 30 s/u);
   assert.match(html,/\+4 rep/u);
-  const evolutionPanel=html.match(/<section class="m26-panel m26-panel-soft" data-evolution-progress data-iri2-progress>[\s\S]*?<\/section>/u)?.[0]||'';
-  assert.ok(evolutionPanel,'Panel de Evolución y seguimiento no localizado');
+  const evolutionPanel=html.match(/<section class="m26-panel m26-panel-soft" data-iri-milestones data-evolution-progress data-iri2-progress>[\s\S]*?<\/section>/u)?.[0]||'';
+  assert.ok(evolutionPanel,'Panel de hitos IRI no localizado');
   const visibleText=evolutionPanel.replace(/<[^>]+>/gu,' ').replace(/\s+/gu,' ').trim();
   assert.doesNotMatch(visibleText,/\b(?:mejoraste|empeoraste|éxito|fracaso|good|bad)\b/iu);
 });
 
-test('la rama mantiene el módulo IRI 2.0 dentro de la PWA instalada',()=>{
+test('la PWA mantiene el motor longitudinal IRI como compatibilidad interna',()=>{
   const sw=fs.readFileSync(new URL('../public/m26/sw.js',import.meta.url),'utf8');
   assert.match(sw,/\/src\/m26\/workflows\/iri-2-longitudinal\.js/u);
 });
