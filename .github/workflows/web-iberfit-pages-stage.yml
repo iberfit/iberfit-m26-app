@@ -125,13 +125,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for path in / /diagnostico-iri/ /contacto/ /en/ /sitemap.xml /robots.txt; do
-            OUT="/tmp/web-iberfit-$(echo "$path" | tr '/.' '__').out"
-            curl --fail --silent --show-error --location --retry 10 --retry-all-errors               "${STAGE_URL}${path}" -o "$OUT"
-          done
-          grep -q 'IBERFIT' /tmp/web-iberfit-__.out
-          grep -q 'https://iberfit.cl/' /tmp/web-iberfit-_sitemap_xml.out
-          grep -q 'Sitemap: https://iberfit.cl/sitemap.xml' /tmp/web-iberfit-_robots_txt.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors --connect-timeout 5 --max-time 25 "${STAGE_URL}/" -o /tmp/web-iberfit-home.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors --connect-timeout 5 --max-time 25 "${STAGE_URL}/diagnostico-iri/" -o /tmp/web-iberfit-iri.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors --connect-timeout 5 --max-time 25 "${STAGE_URL}/contacto/" -o /tmp/web-iberfit-contact.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors --connect-timeout 5 --max-time 25 "${STAGE_URL}/en/" -o /tmp/web-iberfit-en.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors --connect-timeout 5 --max-time 25 "${STAGE_URL}/sitemap.xml" -o /tmp/web-iberfit-sitemap.xml
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors --connect-timeout 5 --max-time 25 "${STAGE_URL}/robots.txt" -o /tmp/web-iberfit-robots.txt
+          grep -q 'IBERFIT' /tmp/web-iberfit-home.out
+          grep -q 'Diagnóstico IRI' /tmp/web-iberfit-iri.out
+          grep -q 'Contacto' /tmp/web-iberfit-contact.out
+          grep -q 'Personal training' /tmp/web-iberfit-en.out
+          grep -q 'https://iberfit.cl/' /tmp/web-iberfit-sitemap.xml
+          grep -q 'Sitemap: https://iberfit.cl/sitemap.xml' /tmp/web-iberfit-robots.txt
 
       - name: QA multidispositivo contra Pages real
         shell: bash
