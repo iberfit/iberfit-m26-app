@@ -108,7 +108,7 @@ test('RC62.3 application owns onboarding lifecycle and identity scope',()=>{
   assert.match(app,/createProgressiveOnboardingController/u);
   assert.match(app,/onboarding=createProgressiveOnboardingController/u);
   assert.match(app,/userId:session\?\.user\?\.id\|\|''/u);
-  assert.match(app,/onboarding\.mount\(\)/u);
+  assert.match(app,/\{name:'onboarding',controller:onboarding\}/u);
   assert.match(app,/onboarding\?\.destroy/u);
 });
 
