@@ -69,11 +69,20 @@ export function createRc39Transport({runtime,fetchImpl=globalThis.fetch}={}){
       clearTimeout(timer);
     }
   }
-  async function optional(name,token,params={}){
+  async function optional(name,token,params={},options={}){
     try{return {available:true,data:await rpc(name,token,params)};}
     catch(error){
-      if(error?.status===404||MISSING.test(String(error?.message||error))){
+      const message=String(error?.message||error||'');
+      if(error?.status===404||MISSING.test(message)){
         return {available:false,data:null};
+      }
+      const transientAllowed=options?.transientNetwork===true;
+      const transientNetwork=
+        message==='M26_TIMEOUT'||
+        error?.name==='TypeError'||
+        /Failed to fetch|NetworkError|network request failed|Load failed/i.test(message);
+      if(transientAllowed&&transientNetwork){
+        return {available:false,data:null,transientFailure:true};
       }
       throw error;
     }
@@ -81,7 +90,7 @@ export function createRc39Transport({runtime,fetchImpl=globalThis.fetch}={}){
   async function extensions(token){
     const [roles,changes]=await Promise.all([
       optional(RPC.roles,token,{}),
-      optional(RPC.listChanges,token,{}),
+      optional(RPC.listChanges,token,{}, {transientNetwork:true}),
     ]);
     const rawRoles=roles.data?.roles;
     const authorizedRoles=Array.isArray(rawRoles)
