@@ -349,7 +349,7 @@ export function renderHoyRoute(vm) {
   if (!isClient && proposalCount) stats.push(stat('Propuestas pendientes', proposalCount, 'Requieren una decisión'));
   if (vm.operations.conflicts) stats.push(stat('Conflictos por resolver', vm.operations.conflicts, 'Resolver antes de continuar'));
   const clientShortcuts = isClient
-    ? `<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Accesos rápidos</p><h2>Tu ruta IBERFIT</h2><p>Solo se muestra contenido confirmado para ti.</p></div></div><div class="m26-action-grid"><button type="button" data-m26-area="actividad">Registrar bienestar</button><button type="button" data-m26-area="planificacion">Ver planificación</button><button type="button" data-m26-area="sesion">Abrir sesiones</button><button type="button" data-m26-area="progreso">Revisar progreso</button><button type="button" data-m26-area="informes">Consultar informes</button></div></section>`
+    ? `<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Accesos rápidos</p><h2>Tu ruta IBERFIT</h2><p>Solo se muestra contenido confirmado para ti.</p></div></div><div class="m26-action-grid"><button type="button" data-m26-area="actividad">Registrar bienestar</button><button type="button" data-m26-area="planificacion">Ver planificación</button><button type="button" data-m26-area="sesion">Abrir sesiones</button><button type="button" data-m26-area="progreso">Ver evolución</button><button type="button" data-m26-area="informes">Consultar informes</button></div></section>`
     : '';
 
     const clientRunnableAppointment=isClient
@@ -1891,7 +1891,8 @@ function iri2DeltaText(item={}){
   const prefix=rounded>0?'+':'';
   return `${prefix}${rounded}${item.unit?` ${item.unit}`:''}`;
 }
-function renderIri2ProgressPanel(iri2){
+function renderIriComparisonPanel(iriComparison){
+  const iri2=iriComparison;
   if(!iri2)return '';
   const metrics=Array.isArray(iri2.headline)?iri2.headline:[];
   const metricCards=metrics.length
@@ -1903,8 +1904,8 @@ function renderIri2ProgressPanel(iri2){
   const previous=iri2.previousAssessmentDate
     ?`Comparación con ${safeDateLabel(iri2.previousAssessmentDate)}.`
     :'Primera evaluación confirmada: se establece la línea base.';
-  return `<section class="m26-panel m26-panel-soft" data-iri2-progress>
-    <div class="m26-panel-heading"><div><p class="m26-eyebrow">IRI 2.0 longitudinal</p><h2>Evolución IRI 2.0</h2><p>${escapeHtml(iri2.detail||previous)}</p></div>${comparisonBadge}</div>
+  return `<section class="m26-panel m26-panel-soft" data-iri-comparison data-iri2-progress>
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Reevaluaciones IRI</p><h2>Cambios entre evaluaciones</h2><p>${escapeHtml(iri2.detail||previous)}</p></div>${comparisonBadge}</div>
     ${metricCards}
     <p class="m26-notice"><strong>Sin puntuación global</strong> · Solo se muestran cambios entre evaluaciones confirmadas y mediciones metodológicamente comparables.</p>
   </section>`;
@@ -1955,7 +1956,7 @@ export function renderProgressRoute(vm){
   const hasCheckins=Number(summary.checkins||0)>0;
   const wearablePanel=wearableHasData(wearable)?`<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Actividad de dispositivo</p><h2>Tendencia objetiva complementaria</h2></div>${badge(wearable.freshness==='reciente'?'Actualizada':'Revisar fecha','neutral')}</div><div class="m26-field-grid">${wearableMetric('Pasos medios',wearable.metrics?.steps)}${wearableMetric('Minutos activos',wearable.metrics?.activeMinutes,' min')}${wearableMetric('Sueño de dispositivo',sleepHoursPerDay(wearable.metrics?.sleepMinutes))}${wearableMetric('FC en reposo',wearable.metrics?.restingHeartRate,' lpm')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearable),{role:vm.role,compact:true})}<p class="m26-notice">Se presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.</p></section>`:`<details class="m26-panel m26-optional-section"><summary>Actividad de dispositivo · sin datos confirmados</summary><p>No hay información de dispositivos para este periodo. El progreso se calcula únicamente con sesiones, evaluaciones y registros confirmados.</p></details>`;
   return `<div class="m26-route">
-    <section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
+    <section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Evolución y seguimiento</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
     <section class="m26-stat-grid">
       ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
@@ -1964,7 +1965,7 @@ export function renderProgressRoute(vm){
     </section>
     ${pendingProgressNotice}
     ${sessionImpact}
-    ${renderIri2ProgressPanel(summary.iri2)}
+    ${renderIriComparisonPanel(summary.iriComparison||summary.iri2)}
     ${adherenceVisual}
     ${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
     <section class="m26-content-grid">
