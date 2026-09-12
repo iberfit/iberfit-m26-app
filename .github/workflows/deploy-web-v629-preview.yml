@@ -85,15 +85,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for path in / /sobre-iberfit/ /online/ /entrenador-personal-las-condes/ /entrenador-personal-vitacura/ /entrenamiento-personal-providencia/ /personal-trainer-nunoa/ /entrenador-personal-lo-barnechea/ /entrenador-personal-la-reina/ /entrenador-personal-penalolen/; do
+          for path in \
+            / /sobre-iberfit/ /presencial/ /contacto/ /online/ \
+            /entrenador-personal-las-condes/ /entrenador-personal-vitacura/ /entrenamiento-personal-providencia/ /personal-trainer-nunoa/ /entrenador-personal-lo-barnechea/ /entrenador-personal-la-reina/ /entrenador-personal-penalolen/ \
+            /en/ /en/about/ /en/in-person/ /en/contact/ /en/online/ \
+            /en/personal-trainer-las-condes/ /en/personal-trainer-vitacura/ /en/personal-training-providencia/ /en/personal-trainer-nunoa/ /en/personal-trainer-lo-barnechea/ /en/personal-trainer-la-reina/ /en/personal-trainer-penalolen/; do
             code="$(curl --silent --show-error --location --retry 8 --retry-all-errors               --connect-timeout 10 --max-time 30 -o /tmp/page.html -w '%{http_code}' "${PREVIEW_URL}${path}")"
             echo "${path} -> ${code}"
             test "${code}" = '200'
           done
           curl --fail --silent --show-error "${PREVIEW_URL}/assets/experience.v629.css" -o /tmp/experience.css
           curl --fail --silent --show-error "${PREVIEW_URL}/assets/experience.v629.js" -o /tmp/experience.js
-          grep -Fq '.country-panel' /tmp/experience.css
+          grep -Fq '.local-place-badge' /tmp/experience.css
+          grep -Fq '.journey-flag' /tmp/experience.css
           grep -Fq 'review_carousel_change' /tmp/experience.js
+          ! grep -Fq 'country-selector' /tmp/experience.js
 
       - name: QA browser real de preview
         shell: bash
@@ -105,13 +111,20 @@ jobs:
           const { chromium } = require('playwright');
           const base=process.env.PREVIEW_URL;
           const locals=[
-            ['/entrenador-personal-las-condes/','Las Condes'],
-            ['/entrenador-personal-vitacura/','Vitacura'],
-            ['/entrenamiento-personal-providencia/','Providencia'],
-            ['/personal-trainer-nunoa/','Ñuñoa'],
-            ['/entrenador-personal-lo-barnechea/','Lo Barnechea'],
-            ['/entrenador-personal-la-reina/','La Reina'],
-            ['/entrenador-personal-penalolen/','Peñalolén']
+            ['/entrenador-personal-las-condes/','Las Condes','es'],
+            ['/entrenador-personal-vitacura/','Vitacura','es'],
+            ['/entrenamiento-personal-providencia/','Providencia','es'],
+            ['/personal-trainer-nunoa/','Ñuñoa','es'],
+            ['/entrenador-personal-lo-barnechea/','Lo Barnechea','es'],
+            ['/entrenador-personal-la-reina/','La Reina','es'],
+            ['/entrenador-personal-penalolen/','Peñalolén','es'],
+            ['/en/personal-trainer-las-condes/','Las Condes','en'],
+            ['/en/personal-trainer-vitacura/','Vitacura','en'],
+            ['/en/personal-training-providencia/','Providencia','en'],
+            ['/en/personal-trainer-nunoa/','Ñuñoa','en'],
+            ['/en/personal-trainer-lo-barnechea/','Lo Barnechea','en'],
+            ['/en/personal-trainer-la-reina/','La Reina','en'],
+            ['/en/personal-trainer-penalolen/','Peñalolén','en']
           ];
           const ok=(c,m)=>{if(!c)throw new Error(m)};
           (async()=>{
@@ -129,37 +142,63 @@ jobs:
               ok(await home.locator('.review-source-row a[href*="google"]').count()===0,'preview review outbound Google');
               await home.close();
 
-              const about=await ctx.newPage();
-              await about.goto(base+'/sobre-iberfit/',{waitUntil:'networkidle'});
-              await about.locator('.review-carousel-shell').waitFor();
-              const journeyNames=(await about.locator('.brand-journey article strong').allTextContents()).map(x=>x.trim());
-              const journeyFlags=(await about.locator('.brand-journey .journey-flag').allTextContents()).map(x=>x.trim());
-              ok(JSON.stringify(journeyNames)===JSON.stringify(['España','Alemania','España','Chile']),'preview journey countries');
-              ok(JSON.stringify(journeyFlags)===JSON.stringify(['🇪🇸','🇩🇪','🇪🇸','🇨🇱']),'preview journey flags');
-              ok(await about.locator('.review-source-row a[href*="google"]').count()===0,'preview about review outbound Google');
-              await about.close();
+              for(const [route,names] of [
+                ['/sobre-iberfit/',['España','Alemania','España','Chile']],
+                ['/en/about/',['Spain','Germany','Spain','Chile']]
+              ]){
+                const about=await ctx.newPage();
+                await about.goto(base+route,{waitUntil:'networkidle'});
+                await about.locator('.review-carousel-shell').waitFor();
+                const journeyNames=(await about.locator('.brand-journey article strong').allTextContents()).map(x=>x.trim());
+                const journeyFlags=(await about.locator('.brand-journey .journey-flag').allTextContents()).map(x=>x.trim());
+                ok(JSON.stringify(journeyNames)===JSON.stringify(names),route+' journey countries');
+                ok(JSON.stringify(journeyFlags)===JSON.stringify(['🇪🇸','🇩🇪','🇪🇸','🇨🇱']),route+' journey flags');
+                ok(await about.locator('.review-source-row a[href*="google"]').count()===0,route+' review outbound Google');
+                await about.close();
+              }
 
-              const online=await ctx.newPage();
-              await online.goto(base+'/online/',{waitUntil:'networkidle'});
-              ok(await online.locator('[data-country-selector]').count()===0,'preview online must not have country selector');
-              await online.close();
+              for(const route of ['/online/','/en/online/']){
+                const online=await ctx.newPage();
+                await online.goto(base+route,{waitUntil:'networkidle'});
+                ok(await online.locator('[data-country-selector]').count()===0,route+' must not have country selector');
+                await online.close();
+              }
 
-              for(const [route,place] of locals){
+              for(const [route,place,lang] of locals){
                 const p=await ctx.newPage();
                 await p.goto(base+route,{waitUntil:'networkidle'});
                 await p.locator('.local-place-badge').waitFor();
                 ok((await p.locator('.local-place-badge strong').textContent()).trim()===place,route+' badge mismatch');
                 ok(await p.locator('.local-service-chip').count()===4,route+' service chips');
                 const chips=(await p.locator('.local-service-chip').allTextContents()).join(' ');
-                ok(/Parque o zona verde/i.test(chips),route+' missing park/green area');
+                ok(lang==='en'?/Park or green space/i.test(chips):/Parque o zona verde/i.test(chips),route+' missing park/green area');
                 const overflow=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
                 ok(overflow<=2,route+' overflow '+overflow);
                 await p.close();
               }
               await ctx.close();
 
+              for(const [route,needle] of [['/presencial/','Parque o zona verde'],['/en/in-person/','Park or green space']]){
+                const p=await ctx.newPage();
+                await p.goto(base+route,{waitUntil:'networkidle'});
+                ok(await p.locator('.local-service-chip').count()===4,route+' environment count');
+                ok((await p.locator('.local-service-strip').innerText()).includes(needle),route+' park missing');
+                await p.close();
+              }
+              await ctx.close();
+
+              const noJs=await browser.newContext({viewport:{width:390,height:844},javaScriptEnabled:false});
+              for(const [route] of locals){
+                const p=await noJs.newPage();
+                await p.goto(base+route,{waitUntil:'domcontentloaded'});
+                ok(await p.locator('.local-place-badge').count()===1,route+' no-JS badge missing');
+                ok(await p.locator('.local-service-chip').count()===4,route+' no-JS environments missing');
+                await p.close();
+              }
+              await noJs.close();
+
               const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2});
-              for(const route of ['/', '/sobre-iberfit/', '/online/', ...locals.map(x=>x[0])]){
+              for(const route of ['/', '/sobre-iberfit/', '/presencial/', '/online/', '/en/', '/en/about/', '/en/in-person/', '/en/online/', ...locals.map(x=>x[0])]){
                 const p=await mobile.newPage();
                 await p.goto(base+route,{waitUntil:'networkidle'});
                 const overflow=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
