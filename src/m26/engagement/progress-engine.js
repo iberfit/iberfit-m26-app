@@ -189,7 +189,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const iri=forClient(state,'iriAssessments',clientId).map(unwrap).sort(byDateDesc);
   const iriCoverage=iri.map(iriDomainCoverage);
   const iriDelta=iriCoverage.length>=2&&iriCoverage[0]>0&&iriCoverage[1]>0?iriCoverage[0]-iriCoverage[1]:null;
-  const iri2=iri2ProgressSummary(state,clientId);
+  const iriComparison=iri2ProgressSummary(state,clientId);
   const sortedExecutions=[...completedExecutions].sort(byDateDesc);
   const lastExecution=sortedExecutions[0]||null;
   const lastExecutionRpe=lastExecution?rpeValues(lastExecution):[];
@@ -201,7 +201,8 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
     plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence:round(adherence,3),
     averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
     iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:iri.length>1?iriCoverage[1]:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
-    iri2,
+    iriComparison,
+    iri2:iriComparison,
     checkins:checkins.length,latestCheckin:latestCheckin?clone(checkinValues(latestCheckin)):null,
     checkinAverage:Object.freeze({
       energy:round(average(checkinSeries.map((x)=>x.energy)),1),sleep:round(average(checkinSeries.map((x)=>x.sleep)),1),
