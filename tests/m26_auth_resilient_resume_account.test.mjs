@@ -62,16 +62,22 @@ test('login feedback distinguishes credentials from transient access failures',(
   );
 });
 
-test('authenticated startup overlaps catalog loading with remote hydration',()=>{
+test('authenticated startup prioritizes a visible secure workspace before catalog loading',()=>{
   const app=read('src/m26/app/application.js');
   const start=app.indexOf('async function setupAuthenticated()');
   const end=app.indexOf('\n  function guardSessionNavigation',start);
   assert.ok(start>=0&&end>start);
   const block=app.slice(start,end);
-  assert.match(block,/const \[hydrationResult\]=await Promise\.all\(\[/u);
-  assert.match(block,/hydrate\(\{reason:'login'\}\),/u);
+  const hydrate=block.indexOf("const hydrationResult=await hydrate({reason:'login'})");
+  const shell=block.indexOf('shell.mount({progressive:true})');
+  const paint=block.indexOf('await yieldWorkspacePaint()');
+  const catalog=block.indexOf('()=>fetchCatalog()');
+  assert.ok(hydrate>=0);
+  assert.ok(shell>hydrate);
+  assert.ok(paint>shell);
+  assert.ok(catalog>paint);
   assert.match(block,/withAuthOperationTimeout\(\s*\(\)=>fetchCatalog\(\),\s*\{timeoutMs:AUTH_CATALOG_TIMEOUT_MS,code:'M26_AUTH_CATALOG_TIMEOUT'\},\s*\)/u);
-  assert.doesNotMatch(block,/await hydrate\(\{reason:'login'\}\);[\s\S]{0,260}await (?:withAuthOperationTimeout\([^)]*fetchCatalog|fetchCatalog\(\))/u);
+  assert.doesNotMatch(block,/const \[hydrationResult\]=await Promise\.all\(\[/u);
 });
 
 test('settings expose account identity and safe password recovery without hiding logout',()=>{
