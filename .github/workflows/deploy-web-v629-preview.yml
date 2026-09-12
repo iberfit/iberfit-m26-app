@@ -178,7 +178,6 @@ jobs:
                 ok(overflow<=2,route+' overflow '+overflow);
                 await p.close();
               }
-              await ctx.close();
 
               for(const [route,needle] of [['/presencial/','Parque o zona verde'],['/en/in-person/','Park or green space']]){
                 const p=await ctx.newPage();
