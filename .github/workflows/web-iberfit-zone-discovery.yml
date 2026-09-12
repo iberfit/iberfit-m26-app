@@ -1,0 +1,69 @@
+name: WEB IBERFIT · Cloudflare Zone Discovery
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-bootstrap-20260912
+    paths:
+      - ".iberfit/web-iberfit-zone-discovery.json"
+
+permissions:
+  contents: read
+
+jobs:
+  zone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Leer zona y DNS sin modificar
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: "5b03d387427d367674b9d05b8bdf7c84"
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || exit 41
+          curl --silent --show-error             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             -H "Content-Type: application/json"             "https://api.cloudflare.com/client/v4/zones?name=iberfit.cl&account.id=${CF_ACCOUNT_ID}"             -o CLOUDFLARE_ZONE.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('CLOUDFLARE_ZONE.json','utf8'));
+          console.log(JSON.stringify(x,null,2));
+          if(!x.success||!Array.isArray(x.result)||x.result.length!==1){
+            fs.writeFileSync('ZONE_DISCOVERY_STATUS.json',JSON.stringify({zoneReadable:false,errors:x.errors||[]},null,2)+'\n');
+            process.exit(0);
+          }
+          const z=x.result[0];
+          fs.writeFileSync('ZONE_ID.txt',z.id+'\n');
+          fs.writeFileSync('ZONE_DISCOVERY_STATUS.json',JSON.stringify({zoneReadable:true,zoneId:z.id,name:z.name,status:z.status,nameServers:z.name_servers||[]},null,2)+'\n');
+          NODE
+          if [ -f ZONE_ID.txt ]; then
+            ZONE_ID="$(cat ZONE_ID.txt)"
+            curl --silent --show-error               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"               -H "Content-Type: application/json"               "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?name=iberfit.cl&per_page=100"               -o CLOUDFLARE_APEX_DNS.json
+            curl --silent --show-error               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"               -H "Content-Type: application/json"               "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?name=www.iberfit.cl&per_page=100"               -o CLOUDFLARE_WWW_DNS.json
+            curl --silent --show-error               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"               -H "Content-Type: application/json"               "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/workers/routes"               -o CLOUDFLARE_WORKER_ROUTES.json
+            node <<'NODE'
+            const fs=require('fs');
+            for(const file of ['CLOUDFLARE_APEX_DNS.json','CLOUDFLARE_WWW_DNS.json','CLOUDFLARE_WORKER_ROUTES.json']){
+              const x=JSON.parse(fs.readFileSync(file,'utf8'));
+              console.log(file,JSON.stringify({success:x.success,errors:x.errors,result:x.result},null,2));
+            }
+            NODE
+          fi
+
+      - name: Guardar evidencia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-iberfit-zone-discovery-${{ github.run_id }}
+          path: |
+            CLOUDFLARE_ZONE.json
+            ZONE_DISCOVERY_STATUS.json
+            ZONE_ID.txt
+            CLOUDFLARE_APEX_DNS.json
+            CLOUDFLARE_WWW_DNS.json
+            CLOUDFLARE_WORKER_ROUTES.json
+          if-no-files-found: warn
+          retention-days: 30
