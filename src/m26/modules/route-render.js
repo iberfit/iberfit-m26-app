@@ -1916,8 +1916,8 @@ function renderPlanExecutionPanel(plan){
   if(!plan.comparedSessions){
     return `<details class="m26-panel m26-optional-section" data-evolution-plan-execution>
       <summary>Planificación vs ejecución · aún sin sesiones comparables</summary>
-      <p>${escapeHtml(plan.summary||'Se necesita una sesión publicada y una ejecución confirmada para comparar.')}</p>
-      ${Number(plan.unmatchedExecutions||0)>0?`<p class="m26-notice">${escapeHtml(plan.unmatchedExecutions)} ejecución${plan.unmatchedExecutions===1?'':'es'} sin una planificación publicada comparable. Se mantiene${plan.unmatchedExecutions===1?'':'n'} fuera del recuento.</p>`:''}
+      <p>Se necesita una sesión publicada y una ejecución confirmada para comparar.</p>
+      ${Number(plan.unmatchedExecutions||0)>0?`<div class="m26-field-grid">${field('Ejecuciones sin plan comparable',plan.unmatchedExecutions)}</div>`:''}
     </details>`;
   }
   const latest=plan.latest;
@@ -1928,7 +1928,7 @@ function renderPlanExecutionPanel(plan){
   return `<section class="m26-panel" data-evolution-plan-execution>
     <div class="m26-panel-heading"><div><p class="m26-eyebrow">Evolución y seguimiento</p><h2>De lo planificado a lo realizado</h2><p>Comparación descriptiva entre la planificación publicada y la ejecución confirmada.</p></div>${badge('Evidencia descriptiva','neutral')}</div>
     <div class="m26-stat-grid">
-      ${stat('Sesiones comparables',plan.comparedSessions,`${plan.asPlannedSessions} sin ajustes explícitos · ${plan.adjustedSessions} con ajustes`)}
+      ${stat('Sesiones comparables',plan.comparedSessions,'Ventana actual')}
       ${stat('Series previstas',plan.plannedSets,'Planificación publicada')}
       ${stat('Series registradas',plan.recordedSets,'Ejecución confirmada')}
       ${stat('Series omitidas',plan.skippedSets,'Nunca se cuentan como registradas')}
@@ -1936,12 +1936,14 @@ function renderPlanExecutionPanel(plan){
     <div class="m26-field-grid">
       ${field('Última sesión comparable',latestCopy)}
       ${field('Previstas / registradas / omitidas',latest?`${latest.plannedSets} / ${latest.recordedSets} / ${latest.skippedSets}`:'Sin dato')}
+      ${field('Sesiones sin ajustes explícitos',plan.asPlannedSessions||0)}
+      ${field('Sesiones con ajustes explícitos',plan.adjustedSessions||0)}
       ${field('Sustituciones',plan.substitutions||0)}
       ${field('Series añadidas',plan.addedSets||0)}
       ${field('Ejercicios añadidos',plan.addedExercises||0)}
       ${field('Series previstas sin resolver',unresolved||'Ninguna')}
+      ${field('Ejecuciones sin plan comparable',plan.unmatchedExecutions||0)}
     </div>
-    ${Number(plan.unmatchedExecutions||0)>0?`<p class="m26-notice">Fuera del recuento: ${escapeHtml(plan.unmatchedExecutions)} ejecución${plan.unmatchedExecutions===1?'':'es'} sin una sesión publicada comparable.</p>`:''}
     <p class="m26-notice"><strong>Lectura descriptiva.</strong> Omitir, sustituir o añadir trabajo no se clasifica automáticamente como mejor o peor. IBERFIT conserva lo ocurrido y el Coach interpreta el contexto.</p>
   </section>`;
 }
