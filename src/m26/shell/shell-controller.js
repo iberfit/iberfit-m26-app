@@ -156,6 +156,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let adaptiveWindow=null;
   let interactionPointerTarget=null;
   let interactionReleaseTimer=null;
+  let pendingI18nContinuitySnapshot=null;
 
   const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
   const INTERACTION_RELEASE_GRACE_MS=900;
@@ -224,19 +225,45 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     return null;
   }
 
+  function restoreControlContinuity(snapshot,{defer=false}={}){
+    if(!snapshot)return false;
+    const apply=()=>{
+      if(snapshot.settingsOpen){
+        const settings=root.querySelector?.('details.m26-settings-menu');
+        if(settings)settings.open=true;
+      }
+      const replacement=findContinuityControl(snapshot);
+      replacement?.focus?.({preventScroll:true});
+      return Boolean(replacement);
+    };
+    if(!defer)return apply();
+
+    const windowLike=adaptiveWindow||root.ownerDocument?.defaultView||globalThis.window||globalThis;
+    const run=()=>queueMicrotask(apply);
+    if(typeof windowLike?.requestAnimationFrame==='function')windowLike.requestAnimationFrame(run);
+    else run();
+    return true;
+  }
+
   function rerenderPreservingControl(control){
     const snapshot=captureControlContinuity(control);
     releasePointerInteraction({deferRender:false});
     queuedState=null;
     lastMarkup='';
     const rendered=renderNow(store.getState(),{force:true});
-    if(snapshot?.settingsOpen){
-      const settings=root.querySelector?.('details.m26-settings-menu');
-      if(settings)settings.open=true;
+    if(snapshot?.kind==='locale'||snapshot?.kind==='language'){
+      pendingI18nContinuitySnapshot=snapshot;
+      restoreControlContinuity(snapshot,{defer:true});
+    }else{
+      restoreControlContinuity(snapshot);
     }
-    const replacement=findContinuityControl(snapshot);
-    replacement?.focus?.({preventScroll:true});
     return rendered;
+  }
+
+  function onI18nSwitchSettled(){
+    const snapshot=pendingI18nContinuitySnapshot;
+    pendingI18nContinuitySnapshot=null;
+    restoreControlContinuity(snapshot,{defer:true});
   }
 
   function syncAdaptiveLayout(){
@@ -548,6 +575,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     adaptiveWindow=root.ownerDocument?.defaultView||globalThis.window||null;
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);
+    root.addEventListener('m26:i18n-switch-settled',onI18nSwitchSettled);
     root.addEventListener('pointerdown',onPointerDown,{passive:true});
     root.addEventListener('pointerup',onPointerRelease,{passive:true});
     root.addEventListener('pointercancel',onPointerCancel,{passive:true});
@@ -570,10 +598,12 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     generation+=1;
     renderQueued=false;
     queuedState=null;
+    pendingI18nContinuitySnapshot=null;
     clearInteractionReleaseTimer();
     interactionPointerTarget=null;
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
+    root.removeEventListener('m26:i18n-switch-settled',onI18nSwitchSettled);
     root.removeEventListener('pointerdown',onPointerDown);
     root.removeEventListener('pointerup',onPointerRelease);
     root.removeEventListener('pointercancel',onPointerCancel);
