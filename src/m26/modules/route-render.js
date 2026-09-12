@@ -1884,29 +1884,65 @@ function renderCoachFollowUpPlan(alerts=[]){
 function formatPercent(value){ return Number.isFinite(value) ? `${Math.round(value * 100)}%` : 'Sin dato'; }
 function metricValue(value, suffix=''){ return value === null || value === undefined ? 'Sin dato' : `${value}${suffix}`; }
 
-function iri2DeltaText(item={}){
+function iriMilestoneDeltaText(item={}){
   const value=Number(item.delta);
   if(!Number.isFinite(value))return 'Sin cambio comparable';
   const rounded=Number(value.toFixed(Math.abs(value)<10?1:0));
   const prefix=rounded>0?'+':'';
   return `${prefix}${rounded}${item.unit?` ${item.unit}`:''}`;
 }
-function renderIri2ProgressPanel(iri2){
-  if(!iri2)return '';
-  const metrics=Array.isArray(iri2.headline)?iri2.headline:[];
+function renderIriMilestonePanel(milestones){
+  if(!milestones)return '';
+  const metrics=Array.isArray(milestones.headline)?milestones.headline:[];
   const metricCards=metrics.length
-    ?`<div class="m26-stat-grid">${metrics.map((item)=>stat(item.label,iri2DeltaText(item),'vs. evaluación anterior · cambio descriptivo')).join('')}</div>`
+    ?`<div class="m26-stat-grid">${metrics.map((item)=>stat(item.label,iriMilestoneDeltaText(item),'vs. reevaluación IRI anterior · cambio descriptivo')).join('')}</div>`
     :'';
-  const comparisonBadge=iri2.comparableCount>0
-    ?badge(`${iri2.comparableCount} indicadores comparables`,'success')
-    :badge(iri2.label||'Línea base IRI','neutral');
-  const previous=iri2.previousAssessmentDate
-    ?`Comparación con ${safeDateLabel(iri2.previousAssessmentDate)}.`
-    :'Primera evaluación confirmada: se establece la línea base.';
-  return `<section class="m26-panel m26-panel-soft" data-iri2-progress>
-    <div class="m26-panel-heading"><div><p class="m26-eyebrow">IRI 2.0 longitudinal</p><h2>Evolución IRI 2.0</h2><p>${escapeHtml(iri2.detail||previous)}</p></div>${comparisonBadge}</div>
+  const comparisonBadge=milestones.comparableCount>0
+    ?badge(`${milestones.comparableCount} indicadores comparables`,'success')
+    :badge(milestones.label||'Línea base IRI','neutral');
+  const previous=milestones.previousAssessmentDate
+    ?`Comparación con la reevaluación IRI del ${safeDateLabel(milestones.previousAssessmentDate)}.`
+    :'Primer diagnóstico IRI confirmado: se establece el punto de partida.';
+  const title=milestones.comparableCount>0?'Hitos IRI comparables':'Diagnóstico IRI · línea base';
+  return `<section class="m26-panel m26-panel-soft" data-iri-milestones data-iri2-progress>
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Diagnóstico y reevaluación</p><h2>${escapeHtml(title)}</h2><p>${escapeHtml(milestones.detail||previous)}</p></div>${comparisonBadge}</div>
     ${metricCards}
-    <p class="m26-notice"><strong>Sin puntuación global</strong> · Solo se muestran cambios entre evaluaciones confirmadas y mediciones metodológicamente comparables.</p>
+    <p class="m26-notice"><strong>IRI es el punto de partida.</strong> Cuando se repite con metodología comparable aporta hitos de reevaluación. El seguimiento cotidiano se muestra por separado y nunca se convierte en una puntuación global.</p>
+  </section>`;
+}
+
+function renderPlanExecutionPanel(plan){
+  if(!plan)return '';
+  if(!plan.comparedSessions){
+    return `<details class="m26-panel m26-optional-section" data-evolution-plan-execution>
+      <summary>Plan vs ejecución · aún sin sesiones comparables</summary>
+      <p>${escapeHtml(plan.summary||'Se necesita una sesión publicada y una ejecución confirmada para comparar.')}</p>
+      ${Number(plan.unmatchedExecutions||0)>0?`<p class="m26-notice">${escapeHtml(plan.unmatchedExecutions)} ejecución${plan.unmatchedExecutions===1?'':'es'} sin una planificación publicada comparable. Se mantiene${plan.unmatchedExecutions===1?'':'n'} fuera del recuento.</p>`:''}
+    </details>`;
+  }
+  const latest=plan.latest;
+  const latestCopy=latest
+    ?`${latest.sessionTitle} · ${safeDateLabel(latest.completedAt)} · ${latest.plannedSets} previstas / ${latest.recordedSets} registradas / ${latest.skippedSets} omitidas`
+    :'Sin sesión comparable reciente';
+  const adjustmentCopy=[
+    plan.substitutions?`${plan.substitutions} sustitución${plan.substitutions===1?'':'es'}`:null,
+    plan.addedSets?`${plan.addedSets} serie${plan.addedSets===1?'':'s'} añadida${plan.addedSets===1?'':'s'}`:null,
+    plan.addedExercises?`${plan.addedExercises} ejercicio${plan.addedExercises===1?'':'s'} añadido${plan.addedExercises===1?'':'s'}`:null,
+  ].filter(Boolean).join(' · ')||'Sin ajustes explícitos registrados';
+  return `<section class="m26-panel" data-evolution-plan-execution>
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Evolución · plan vs ejecución</p><h2>De la planificación a lo realmente realizado</h2><p>${escapeHtml(plan.summary)}</p></div>${badge(`Evidencia ${plan.quality}`,'neutral')}</div>
+    <div class="m26-stat-grid">
+      ${stat('Sesiones comparables',plan.comparedSessions,`${plan.asPlannedSessions} sin ajustes explícitos · ${plan.adjustedSessions} con ajustes`)}
+      ${stat('Series previstas',plan.plannedSets,'Prescripción publicada')}
+      ${stat('Series registradas',plan.recordedSets,'Ejecución confirmada')}
+      ${stat('Series omitidas',plan.skippedSets,'Se mantienen separadas de las registradas')}
+    </div>
+    <div class="m26-field-grid">
+      ${field('Última sesión comparable',latestCopy)}
+      ${field('Ajustes registrados',adjustmentCopy)}
+    </div>
+    ${Number(plan.unmatchedExecutions||0)>0?`<p class="m26-notice">Fuera del recuento: ${escapeHtml(plan.unmatchedExecutions)} ejecución${plan.unmatchedExecutions===1?'':'es'} sin una sesión publicada comparable.</p>`:''}
+    <p class="m26-notice"><strong>Lectura descriptiva.</strong> Omitir, sustituir o añadir trabajo no se clasifica automáticamente como mejor o peor. IBERFIT conserva lo ocurrido y el Coach interpreta el contexto.</p>
   </section>`;
 }
 function sleepHoursPerDay(minutes){
@@ -1960,11 +1996,12 @@ export function renderProgressRoute(vm){
       ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
       ${stat('Volumen medio',metricValue(summary.volume),'Carga × repeticiones cuando existe')}
-      ${stat('Evaluaciones IRI',summary.iriCurrent===null?'Sin evaluación':'Datos disponibles',summary.iriDelta===null?'Sin dos evaluaciones comparables':'Comparar por dominios, no por puntuación global')}
+      ${stat('Hitos IRI',summary.iriCurrent===null?'Sin diagnóstico':'Datos disponibles',summary.iriDelta===null?'Diagnóstico inicial o sin reevaluación comparable':'Diagnóstico y reevaluaciones se comparan por dominios')}
     </section>
     ${pendingProgressNotice}
     ${sessionImpact}
-    ${renderIri2ProgressPanel(summary.iri2)}
+    ${renderPlanExecutionPanel(vm.planExecution)}
+    ${renderIriMilestonePanel(summary.iriMilestones||summary.iri2)}
     ${adherenceVisual}
     ${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
     <section class="m26-content-grid">
