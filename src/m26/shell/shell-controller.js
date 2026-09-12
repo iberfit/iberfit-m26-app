@@ -22,10 +22,11 @@ function coachActionText(key,params={}){
   return iberfitDomainTranslate(key,{params});
 }
 
-function coachTodayViewModel(shellVm,state){
+function coachTodayViewModel(shellVm,state,routeVm=null){
   if(shellVm?.mode!=='authenticated')return null;
   if(shellVm?.identity?.role!=='coach')return null;
   if(shellVm?.activeArea!=='hoy')return null;
+  if(routeVm?.kind==='hoy'&&routeVm?.role==='coach')return routeVm;
   return createRouteViewModel(shellVm,state,new Date());
 }
 
@@ -84,11 +85,11 @@ function enhanceCoachPriorityCard(card,item){
   }
 }
 
-export function enhanceCoachActionCenter({root,shellVm,state}={}){
-  const routeVm=coachTodayViewModel(shellVm,state);
-  if(!routeVm?.coachCockpit)return false;
+export function enhanceCoachActionCenter({root,shellVm,state,routeVm=null}={}){
+  const resolvedRouteVm=coachTodayViewModel(shellVm,state,routeVm);
+  if(!resolvedRouteVm?.coachCockpit)return false;
 
-  const cockpit=routeVm.coachCockpit;
+  const cockpit=resolvedRouteVm.coachCockpit;
   const panel=coachPriorityPanel(root);
   if(!panel)return false;
 
@@ -144,7 +145,7 @@ export function resolveAdaptiveLayout({width = 1440,coarsePointer = false,touchP
   return 'expanded-pointer';
 }
 
-export function createShellController({ root, store, renderRoute = () => '' }) {
+export function createShellController({ root, store, renderRoute = () => '', getRouteViewModel = () => null }) {
   if (!root?.addEventListener) throw new Error('M26_SHELL_ROOT_REQUIRED');
   if (!store?.getState || !store?.subscribe || !store?.navigate || !store?.selectClient) throw new Error('M26_SHELL_STORE_REQUIRED');
 
@@ -205,12 +206,13 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
     const viewModel = createShellViewModel(state);
     const routeMarkup = viewModel.mode === 'authenticated' ? renderRoute(viewModel, state) : '';
+    const routeVm=viewModel.mode === 'authenticated'?getRouteViewModel?.()||null:null;
     const markup=renderM26Shell(viewModel, routeMarkup);
     if(markup===lastMarkup){clearClientSwitchBusy();return false;}
     root.innerHTML = markup;
     lastMarkup=markup;
     syncAdaptiveLayout();
-    enhanceCoachActionCenter({root,shellVm:viewModel,state});
+    enhanceCoachActionCenter({root,shellVm:viewModel,state,routeVm});
     enhanceNativeWorkspace({root,viewModel});
     enhanceCliente360({root,viewModel,state});
     enhanceProgressContinuity({root,viewModel,state});
