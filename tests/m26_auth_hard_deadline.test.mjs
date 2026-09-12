@@ -51,6 +51,9 @@ test('WebAuthn authentication bounds backend stages and avoids a redundant post-
   assert.match(source,/optionalAuthBootstrap\(\s*\(\)=>rc39Transport\.extensions/u);
   assert.match(source,/optionalAuthBootstrap\(\s*\(\)=>adminTransport\.applicationContextOptional/u);
   assert.match(source,/optionalAuthBootstrap\(\s*\(\)=>transport\.wearableBootstrap/u);
+  assert.match(source,/reportNonBlockingDiagnostic\(\`optional-auth-bootstrap-/u);
+  assert.match(source,/function reportNonBlockingDiagnostic[\s\S]{0,800}?console\.warn/u);
+  assert.doesNotMatch(source,/function optionalAuthBootstrap[\s\S]{0,500}?reportDiagnostic\(/u);
   assert.match(source,/withAuthOperationTimeout\(\s*\(\)=>fetchCatalog\(\)/u);
   assert.match(block,/authMode='post-mfa-loading'/u);
   assert.match(block,/beginAuthAttempt\('post-mfa-setup'\)/u);
