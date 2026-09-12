@@ -361,7 +361,7 @@ export function augmentAdminShellViewModel(vm,state){
     }),
   });
 }
-export function createAdminRouteViewModel(base,shellVm,state){const role=String(shellVm?.identity?.role||state?.identity?.role||'');const area=String(shellVm?.activeArea||state?.activeArea||'');if(role!=='admin'||!area.startsWith('admin-'))return base;if(state?.admin?.available!==true)return Object.freeze({...base,admin:true,kind:'admin-unavailable',reason:state?.admin?.reason||'backend_unavailable'});if(!routeAllowedForAdmin(state.admin,area))return Object.freeze({...base,admin:true,kind:'admin-forbidden'});const common={...base,admin:true,area,organization:clone(state.admin.organization),summary:clone(state.admin.summary),analytics:clone(state.admin.analytics)};
+export function createAdminRouteViewModel(base,shellVm,state){const role=String(shellVm?.identity?.role||state?.identity?.role||'');const area=String(shellVm?.activeArea||state?.activeArea||'');if(role!=='admin'||!area.startsWith('admin-'))return base;if(state?.admin?.available!==true)return Object.freeze({...base,admin:true,kind:'admin-unavailable',reason:state?.admin?.reason||'backend_unavailable'});if(!routeAllowedForAdmin(state.admin,area))return Object.freeze({...base,admin:true,kind:'admin-forbidden'});const common={...base,admin:true,area,currentUserId:String(shellVm?.identity?.id||state?.identity?.id||''),organization:clone(state.admin.organization),summary:clone(state.admin.summary),analytics:clone(state.admin.analytics)};
   if(area==='admin-inicio'){
     const clients=clientRows(state);
     const coaches=Object.freeze(clone(adminCollection(state,'coachProfiles')));

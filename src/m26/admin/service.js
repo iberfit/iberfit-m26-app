@@ -1,7 +1,7 @@
 import {runWebAuthnCeremony} from '../app/webauthn.js';
 import {createAdminCommand} from './command-catalog.js';
 
-const PRIVILEGED_REAUTH_COMMANDS=new Set(['ADMIN_CLIENTE_CREAR','ADMIN_CLIENTE_ELIMINAR']);
+const PRIVILEGED_REAUTH_COMMANDS=new Set(['ADMIN_CLIENTE_CREAR','ADMIN_CLIENTE_ELIMINAR','ADMIN_USUARIO_ELIMINAR']);
 
 function canonical(value){
   if(Array.isArray(value))return value.map(canonical);
