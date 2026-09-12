@@ -186,7 +186,7 @@ test('existing progressive onboarding lifecycle now owns the common guided tour 
   assert.match(progressive,/guidedTour\.destroy/u);
   assert.match(progressive,/guidedTour\.refresh/u);
   assert.match(app,/createProgressiveOnboardingController/u);
-  assert.match(app,/onboarding\.mount\(\)/u);
+  assert.match(app,/\{name:'onboarding',controller:onboarding\}/u);
 });
 
 test('guided onboarding remains local-only and does not add transport database or external tour dependencies',()=>{
