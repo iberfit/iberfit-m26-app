@@ -1,0 +1,258 @@
+name: Preview WEB IBERFIT V6.30
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.iberfit/web-v630-preview.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-v630-preview
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+  PREVIEW_BRANCH: 'v630-hardening'
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar marcador
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const m=JSON.parse(fs.readFileSync('.iberfit/web-v630-preview.json','utf8'));
+          if(m.schema!=='iberfit.web.v630-preview.v1') throw new Error('PREVIEW_SCHEMA_INVALID');
+          if(!/^[0-9a-f]{40}$/.test(m.webSha||'')) throw new Error('WEB_SHA_INVALID');
+          if(m.branch!=='work/web-v6-30-hardening') throw new Error('WEB_BRANCH_INVALID');
+          fs.appendFileSync(process.env.GITHUB_ENV,'WEB_SHA='+m.webSha+'\n');
+          NODE
+
+      - name: Descargar candidata exacta
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/iberfit/iberfitweb.git /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=1 origin "${WEB_SHA}"
+          git -C /tmp/iberfitweb checkout --detach "${WEB_SHA}"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "${WEB_SHA}"
+          test -s /tmp/iberfitweb/candidate/v628/assets/experience.v629.css
+          test -s /tmp/iberfitweb/candidate/v628/assets/experience.v629.js
+          test "$(cat /tmp/iberfitweb/candidate/v628/VERSION)" = "6.30"
+          test -s /tmp/iberfitweb/candidate/v628/assets/hardening.v630.css
+          test -s /tmp/iberfitweb/candidate/v628/assets/noscript.v630.css
+          test -s /tmp/iberfitweb/candidate/v628/assets/hardening.v630.js
+          grep -Fq '/assets/hardening.v630.css' /tmp/iberfitweb/candidate/v628/index.html
+          grep -Fq '/assets/noscript.v630.css' /tmp/iberfitweb/candidate/v628/index.html
+          grep -Fq '/assets/hardening.v630.js' /tmp/iberfitweb/candidate/v628/index.html
+          grep -Fq 'data-review-carousel' /tmp/iberfitweb/candidate/v628/index.html
+          grep -Fq 'experience.v629.js' /tmp/iberfitweb/candidate/v628/index.html
+          grep -Fq 'experience.v629.js' /tmp/iberfitweb/candidate/v628/sobre-iberfit/index.html
+          ! grep -Fq 'experience.v629.js' /tmp/iberfitweb/candidate/v628/online/index.html
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Desplegar preview Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/iberfitweb
+          npx --yes wrangler@4.120.0 pages deploy candidate/v628             --project-name "${CF_PROJECT}"             --branch "${PREVIEW_BRANCH}"             --commit-hash "${WEB_SHA}"             --commit-message "IBERFIT V6.30 experience preview" | tee /tmp/wrangler-preview.log
+
+          curl --fail --silent --show-error             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments"             -o /tmp/deployments.json
+
+          WEB_SHA="${WEB_SHA}" node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          if(!x.success||!Array.isArray(x.result)) throw new Error('DEPLOYMENTS_LOOKUP_FAILED');
+          const d=x.result.find(v=>v.environment==='preview' &&
+            v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA);
+          if(!d) throw new Error('V630_PREVIEW_NOT_FOUND');
+          if(d.latest_stage?.status && d.latest_stage.status!=='success') throw new Error('V630_PREVIEW_NOT_SUCCESS');
+          fs.appendFileSync(process.env.GITHUB_ENV,'PREVIEW_URL='+d.url+'\n');
+          console.log('V630_PREVIEW_ID='+d.id);
+          console.log('V630_PREVIEW_URL='+d.url);
+          NODE
+
+      - name: Smoke real de preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in \
+            / /sobre-iberfit/ /presencial/ /contacto/ /online/ \
+            /entrenador-personal-las-condes/ /entrenador-personal-vitacura/ /entrenamiento-personal-providencia/ /personal-trainer-nunoa/ /entrenador-personal-lo-barnechea/ /entrenador-personal-la-reina/ /entrenador-personal-penalolen/ \
+            /en/ /en/about/ /en/in-person/ /en/contact/ /en/online/ \
+            /en/personal-trainer-las-condes/ /en/personal-trainer-vitacura/ /en/personal-training-providencia/ /en/personal-trainer-nunoa/ /en/personal-trainer-lo-barnechea/ /en/personal-trainer-la-reina/ /en/personal-trainer-penalolen/; do
+            code="$(curl --silent --show-error --location --retry 8 --retry-all-errors               --connect-timeout 10 --max-time 30 -o /tmp/page.html -w '%{http_code}' "${PREVIEW_URL}${path}")"
+            echo "${path} -> ${code}"
+            test "${code}" = '200'
+          done
+          curl --fail --silent --show-error "${PREVIEW_URL}/assets/experience.v629.css" -o /tmp/experience.css
+          curl --fail --silent --show-error "${PREVIEW_URL}/assets/experience.v629.js" -o /tmp/experience.js
+          grep -Fq '.local-place-badge' /tmp/experience.css
+          grep -Fq '.journey-flag' /tmp/experience.css
+          grep -Fq 'review_carousel_change' /tmp/experience.js
+          ! grep -Fq 'country-selector' /tmp/experience.js
+          curl --fail --silent --show-error "${PREVIEW_URL}/assets/hardening.v630.css" -o /tmp/hardening.css
+          curl --fail --silent --show-error "${PREVIEW_URL}/assets/noscript.v630.css" -o /tmp/noscript.css
+          curl --fail --silent --show-error "${PREVIEW_URL}/assets/hardening.v630.js" -o /tmp/hardening.js
+          grep -Fq '.cta-panel-inner h1' /tmp/hardening.css
+          grep -Fq '.site-header .brand-mark' /tmp/hardening.css
+          grep -Fq '.menu-toggle{display:none!important}' /tmp/noscript.css
+
+      - name: QA browser real de preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright@1.62.1
+          npx playwright install --with-deps chromium
+          cat > /tmp/qa-preview.js <<'NODE'
+          const { chromium } = require('playwright');
+          const base=process.env.PREVIEW_URL;
+          const locals=[
+            ['/entrenador-personal-las-condes/','Las Condes','es'],
+            ['/entrenador-personal-vitacura/','Vitacura','es'],
+            ['/entrenamiento-personal-providencia/','Providencia','es'],
+            ['/personal-trainer-nunoa/','Ñuñoa','es'],
+            ['/entrenador-personal-lo-barnechea/','Lo Barnechea','es'],
+            ['/entrenador-personal-la-reina/','La Reina','es'],
+            ['/entrenador-personal-penalolen/','Peñalolén','es'],
+            ['/en/personal-trainer-las-condes/','Las Condes','en'],
+            ['/en/personal-trainer-vitacura/','Vitacura','en'],
+            ['/en/personal-training-providencia/','Providencia','en'],
+            ['/en/personal-trainer-nunoa/','Ñuñoa','en'],
+            ['/en/personal-trainer-lo-barnechea/','Lo Barnechea','en'],
+            ['/en/personal-trainer-la-reina/','La Reina','en'],
+            ['/en/personal-trainer-penalolen/','Peñalolén','en']
+          ];
+          const ok=(c,m)=>{if(!c)throw new Error(m)};
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            try{
+              const ctx=await browser.newContext({viewport:{width:1440,height:1000}});
+              const home=await ctx.newPage();
+              await home.goto(base+'/',{waitUntil:'networkidle'});
+              await home.locator('.review-carousel-shell').waitFor();
+              ok(await home.locator('.review-slide.is-active').count()===1,'preview home active review != 1');
+              const a=await home.locator('.review-slide.is-active').getAttribute('data-review-index');
+              await home.waitForTimeout(2250);
+              const b=await home.locator('.review-slide.is-active').getAttribute('data-review-index');
+              ok(a!==b,'preview carousel no auto advance');
+              ok(await home.locator('.review-source-row a[href*="google"]').count()===0,'preview review outbound Google');
+              await home.close();
+
+              for(const [route,names] of [
+                ['/sobre-iberfit/',['España','Alemania','España','Chile']],
+                ['/en/about/',['Spain','Germany','Spain','Chile']]
+              ]){
+                const about=await ctx.newPage();
+                await about.goto(base+route,{waitUntil:'networkidle'});
+                await about.locator('.review-carousel-shell').waitFor();
+                const journeyNames=(await about.locator('.brand-journey article strong').allTextContents()).map(x=>x.trim());
+                const journeyFlags=(await about.locator('.brand-journey .journey-flag').allTextContents()).map(x=>x.trim());
+                ok(JSON.stringify(journeyNames)===JSON.stringify(names),route+' journey countries');
+                ok(JSON.stringify(journeyFlags)===JSON.stringify(['🇪🇸','🇩🇪','🇪🇸','🇨🇱']),route+' journey flags');
+                ok(await about.locator('.review-source-row a[href*="google"]').count()===0,route+' review outbound Google');
+                await about.close();
+              }
+
+              for(const route of ['/online/','/en/online/']){
+                const online=await ctx.newPage();
+                await online.goto(base+route,{waitUntil:'networkidle'});
+                ok(await online.locator('[data-country-selector]').count()===0,route+' must not have country selector');
+                await online.close();
+              }
+
+              for(const [route,place,lang] of locals){
+                const p=await ctx.newPage();
+                await p.goto(base+route,{waitUntil:'networkidle'});
+                await p.locator('.local-place-badge').waitFor();
+                ok((await p.locator('.local-place-badge strong').textContent()).trim()===place,route+' badge mismatch');
+                ok(await p.locator('.local-service-chip').count()===4,route+' service chips');
+                const chips=(await p.locator('.local-service-chip').allTextContents()).join(' ');
+                ok(lang==='en'?/Park or green space/i.test(chips):/Parque o zona verde/i.test(chips),route+' missing park/green area');
+                const overflow=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+                ok(overflow<=2,route+' overflow '+overflow);
+                await p.close();
+              }
+
+              for(const [route,needle] of [['/presencial/','Parque o zona verde'],['/en/in-person/','Park or green space']]){
+                const p=await ctx.newPage();
+                await p.goto(base+route,{waitUntil:'networkidle'});
+                ok(await p.locator('.local-service-chip').count()===4,route+' environment count');
+                ok((await p.locator('.local-service-strip').innerText()).includes(needle),route+' park missing');
+                await p.close();
+              }
+              await ctx.close();
+
+              const noJs=await browser.newContext({viewport:{width:390,height:844},javaScriptEnabled:false});
+              for(const [route] of locals){
+                const p=await noJs.newPage();
+                await p.goto(base+route,{waitUntil:'domcontentloaded'});
+                ok(await p.locator('.local-place-badge').count()===1,route+' no-JS badge missing');
+                ok(await p.locator('.local-service-chip').count()===4,route+' no-JS environments missing');
+                await p.close();
+              }
+              await noJs.close();
+
+              const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2});
+              for(const route of ['/', '/sobre-iberfit/', '/presencial/', '/online/', '/en/', '/en/about/', '/en/in-person/', '/en/online/', ...locals.map(x=>x[0])]){
+                const p=await mobile.newPage();
+                await p.goto(base+route,{waitUntil:'networkidle'});
+                const overflow=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+                ok(overflow<=2,route+' mobile overflow '+overflow);
+                await p.close();
+              }
+              await mobile.close();
+
+              const noJsNav=await browser.newContext({viewport:{width:390,height:844},javaScriptEnabled:false});
+              for(const route of ['/', '/metodo/', '/sobre-iberfit/', '/contacto/', '/en/', '/en/method/', '/en/about/', '/en/contact/']){
+                const p=await noJsNav.newPage();
+                await p.goto(base+route,{waitUntil:'domcontentloaded'});
+                const hidden=await p.locator('.reveal').evaluateAll(els=>els.filter(el=>{
+                  const s=getComputedStyle(el),r=el.getBoundingClientRect();
+                  return r.width>0&&r.height>0&&(parseFloat(s.opacity)<.9||s.visibility==='hidden');
+                }).length);
+                ok(hidden===0,route+' no-JS reveal hidden');
+                const nav=await p.locator('.navlinks').first().evaluate(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return {display:s.display,visibility:s.visibility,w:r.width,h:r.height}});
+                ok(nav.display!=='none'&&nav.visibility!=='hidden'&&nav.w>0&&nav.h>0,route+' no-JS mobile nav');
+                await p.close();
+              }
+              await noJsNav.close();
+              console.log('V630_PREVIEW_BROWSER_QA=PASS');
+            } finally { await browser.close(); }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+          PREVIEW_URL="${PREVIEW_URL}" NODE_PATH="$GITHUB_WORKSPACE/node_modules" node /tmp/qa-preview.js
+
+      - name: Guardar evidencia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-v630-preview-${{ github.run_id }}
+          path: |
+            /tmp/wrangler-preview.log
+            /tmp/deployments.json
+            /tmp/experience.css
+            /tmp/experience.js
+            /tmp/hardening.css
+            /tmp/noscript.css
+            /tmp/hardening.js
+          if-no-files-found: warn
+          retention-days: 30
