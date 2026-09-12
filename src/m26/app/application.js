@@ -376,6 +376,20 @@ export async function createM26Application({root=document.querySelector('#app'),
   });
 }
 
+  function yieldWorkspacePaint(){
+    return new Promise((resolve)=>{
+      const windowLike=root.ownerDocument?.defaultView||globalThis.window||globalThis;
+      if(typeof windowLike?.requestAnimationFrame==='function'){
+        windowLike.requestAnimationFrame(()=>{
+          windowLike.requestAnimationFrame(resolve);
+        });
+        return;
+      }
+      const timer=globalThis.setTimeout?.(resolve,0);
+      if(timer===undefined||timer===null)queueMicrotask(resolve);
+    });
+  }
+
   async function optionalAuthBootstrap(operation,fallback,stage='optional'){
     try{
       return await withAuthOperationTimeout(operation,{
@@ -702,17 +716,24 @@ export async function createM26Application({root=document.querySelector('#app'),
     const authAttemptId=currentAuthAttemptId;
     qaStage('rc64-setup-start');
     destroyControllers();sessionUi=null;
-    const [hydrationResult]=await Promise.all([
-      hydrate({reason:'login'}),
-      withAuthOperationTimeout(
-        ()=>fetchCatalog(),
-        {timeoutMs:AUTH_CATALOG_TIMEOUT_MS,code:'M26_AUTH_CATALOG_TIMEOUT'},
-      ),
-    ]);
+    const hydrationResult=await hydrate({reason:'login'});
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
     const {installed,runtimeRegistry}=hydrationResult;
     qaStage('rc64-setup-hydrate-ready');
+
+    shell=createShellController({root,store,renderRoute});
+    qaStage('rc64-shell-mount-start');
+    shell.mount({progressive:true});
+    qaStage('rc64-shell-frame-ready');
+    await yieldWorkspacePaint();
+    qaStage('rc64-shell-first-paint-ready');
+
+    await withAuthOperationTimeout(
+      ()=>fetchCatalog(),
+      {timeoutMs:AUTH_CATALOG_TIMEOUT_MS,code:'M26_AUTH_CATALOG_TIMEOUT'},
+    );
     qaStage('rc64-setup-catalog-ready');
+
     const ownerId=session.user.id;
     operationRepository=createKeyValueOperationRepository({ownerId});draftRepository=createEngagementDraftRepository({ownerId});sessionTemplateRepository=createSessionTemplateRepository({ownerId});telemetryOutbox=createTelemetryDurableOutbox({ownerId});
     qaStage('rc64-setup-repositories-ready');
@@ -724,7 +745,6 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-setup-services-ready');
     recoveryStore=createExecutionRecoveryStore({ownerId});recoveryCoordinator=createExecutionRecoveryCoordinator({store:recoveryStore,commandBus,isOnline:()=>navigator.onLine!==false,getActiveContext:()=>sessionUi,onReconcileError:(error)=>reportDiagnostic('session-recovery-reconcile',error)});
     iriExternalReports=createIriExternalReportController({root,store,runtime,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},isOnline:()=>navigator.onLine!==false});
-    shell=createShellController({root,store,renderRoute});
     productivity=createCoachProductivityController({root,store,ownerId});
     motion=createM26MotionController({root});
     guidance=createContextualGuidanceController({root});
@@ -744,11 +764,9 @@ export async function createM26Application({root=document.querySelector('#app'),
     sessionController=createSessionController({root,telemetryOutbox,telemetryRemoteSync,getContext:()=>({...(sessionUi||{}),catalog,commandBus,online:navigator.onLine!==false,recoveryCoordinator,setQuery:(query)=>{if(sessionUi)sessionUi.query=query;},autosaveDraft:saveSessionDraft,saveTemplate:saveCurrentSessionTemplate,loadTemplate:loadCurrentSessionTemplate,onPublished:async()=>{const clientId=sessionUi?.draft?.clientId;await clearSessionDraft(clientId);sessionUi=null;store.navigate('sesion');},onExit:exitSessionWorkspace,actor:{userId:String(store.getState().identity?.id||session?.user?.id||'')||null,role:String(store.getState().identity?.role||'').trim().toLowerCase()||null,clientId:String(store.getState().identity?.clientId||'')||null},appointmentId:sessionUi?.appointmentId||null,sessionRevision:sessionUi?.session?.revision||0}),render,onError:(error)=>{if(sessionUi){sessionUi.actionState.status='error';sessionUi.actionState.message=friendlyError(error);}render();}});
     qaStage('rc64-setup-controllers-ready');
     root.addEventListener('click',guardSessionNavigation,true);
-    qaStage('rc64-shell-mount-start');
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
-    shell.mount();
-    if(authAttemptId!==null&&completeAuthAttempt(authAttemptId))loginBusy=false;
-    qaStage('rc64-shell-mount-ready');
+    render();
+    qaStage('rc64-shell-route-ready');
     const mountedShellRole=root.querySelector?.('.m26-shell[data-m26-role]')?.getAttribute('data-m26-role')||'';
     if(mountedShellRole==='coach')qaStage('rc64-shell-role-coach');
     else if(mountedShellRole==='client')qaStage('rc64-shell-role-client');
@@ -756,6 +774,8 @@ export async function createM26Application({root=document.querySelector('#app'),
     else qaStage('rc64-shell-role-missing');
     motion.mount();guidance.mount();onboarding.mount();mediaExperience.mount();productivity.mount();workflow.mount();engagement.mount();verification.mount();rc39.mount();communication.mount();admin.mount();sessionController.mount();iriExternalReports.mount();
     qaStage('rc64-controller-mounts-ready');
+    if(authAttemptId!==null&&completeAuthAttempt(authAttemptId))loginBusy=false;
+    qaStage('rc64-shell-mount-ready');
     const controllerShellRole=root.querySelector?.('.m26-shell[data-m26-role]')?.getAttribute('data-m26-role')||'';
     if(controllerShellRole==='coach')qaStage('rc64-controller-shell-role-coach');
     else if(controllerShellRole==='client')qaStage('rc64-controller-shell-role-client');
