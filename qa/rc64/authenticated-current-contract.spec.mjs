@@ -195,6 +195,30 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
           page.locator('[data-m26-action="logout"]'),
           'Authenticated client must retain a semantic logout action even when session controls live inside Settings',
         ).toHaveCount(1,{timeout:5_000});
+
+        await expect(
+          page.locator('[data-m26-interactive="ready"]'),
+          'Authenticated workspace must declare interaction readiness before optional controllers finish mounting',
+        ).toHaveCount(1,{timeout:5_000});
+
+        const targetAreaButton=page.locator('[data-m26-area]:not([aria-current="page"]):not([disabled])').first();
+        await expect(targetAreaButton,'Authenticated workspace must expose at least one enabled navigation target').toBeVisible({timeout:5_000});
+        const targetArea=await targetAreaButton.getAttribute('data-m26-area');
+        expect(targetArea).toBeTruthy();
+        await targetAreaButton.click({timeout:5_000});
+        await expect(
+          page.locator(`[data-m26-area="${targetArea}"][aria-current="page"]`).first(),
+          'Navigation click must remain responsive while post-auth controllers mount progressively',
+        ).toBeVisible({timeout:5_000});
+
+        const settingsSummary=page.locator('details.m26-settings-menu > summary').first();
+        if(await settingsSummary.count()){
+          await settingsSummary.click({timeout:5_000});
+          await expect(
+            page.locator('details.m26-settings-menu').first(),
+            'Native settings control must accept pointer/touch interaction after login',
+          ).toHaveAttribute('open','',{timeout:5_000});
+        }
       }
 
       const quality=await page.evaluate(async()=>{
@@ -228,6 +252,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         consoleErrors:0,
         pageErrors:0,
         qualityObservability:'memory-only-no-transport',
+        interactionVerified:account.role==='client',
       }));
 
       console.log(`RC64_2B_CURRENT_ACCOUNT_PASS:${account.name}`);
