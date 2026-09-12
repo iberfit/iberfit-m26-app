@@ -46,11 +46,15 @@ test('Admin user deletion UI requires double confirmation and never exposes self
   assert.match(html,/pattern="ELIMINAR"/u);
   assert.match(html,/Eliminar cuenta/u);
   assert.match(html,/Cuenta Admin actual protegida/u);
+  assert.match(html,/Impacto operativo/u);
+  assert.match(html,/2<\/strong> clientes activos asignados/u);
+  assert.match(html,/quedarán sin Coach hasta que reasignes uno/u);
   assert.equal((html.match(/data-admin-form="user-delete"/gu)||[]).length,1);
 });
 
 test('Database decommission is fail-closed, idempotent and preserves protected history',()=>{
   const sql=read('supabase/migrations/20260912143000_admin_user_decommission_v1.sql');
+  const ackGuard=read('supabase/migrations/20260912231500_admin_user_decommission_ack_guard.sql');
 
   assert.match(sql,/iberfit_require_privileged_assurance_v65d/u);
   assert.match(sql,/iberfit_admin_require_v14/u);
@@ -76,6 +80,10 @@ test('Database decommission is fail-closed, idempotent and preserves protected h
   assert.match(sql,/iberfit_privileged_assurance_v1[\s\S]*revoked_at/u);
   assert.match(sql,/iberfit_email_privileged_assurance_v1[\s\S]*revoked_at/u);
   assert.match(sql,/iberfit_admin_audit_events/u);
+  assert.match(ackGuard,/ADMIN_USUARIO_ELIMINAR/u);
+  assert.match(ackGuard,/confirmAcknowledged/u);
+  assert.match(ackGuard,/IBERFIT_ADMIN_USER_DELETE_ACK_REQUIRED/u);
+  assert.match(ackGuard,/return public\.iberfit_admin_decommission_user_v1\(p_command,v_context\)/u);
   assert.doesNotMatch(sql,/delete\s+from\s+auth\.users/iu);
   assert.doesNotMatch(sql,/delete\s+from\s+public\.(consent_acceptances_v17|data_subject_requests_v17|iberfit_admin_audit_events)/iu);
 });
