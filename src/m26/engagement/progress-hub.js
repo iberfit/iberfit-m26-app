@@ -105,17 +105,6 @@ export function buildProgressHub(state,clientId,{now=new Date()}={}){
       quality:checkins>=8?'alta':checkins>=3?'media':'limitada',
     }),
     Object.freeze({
-      id:'iri',
-      label:'IRI',
-      status:iriCoverage===null?'insufficient':iriCoverage>=3?'strong':iriCoverage>=1?'building':'review',
-      value:iriCoverage,
-      unit:'de 3 dominios',
-      evidence:summary28.iriAssessmentCount?`${summary28.iriAssessmentCount} evaluación${summary28.iriAssessmentCount===1?'':'es'} registrada${summary28.iriAssessmentCount===1?'':'s'}`:'Sin evaluación IRI comparable',
-      context:Number.isFinite(summary28.iriDelta)?`Cambio de cobertura ${summary28.iriDelta>0?'+':''}${summary28.iriDelta}`:'Sin comparación suficiente',
-      source:'iriAssessments',
-      quality:iriCoverage===3?'alta':iriCoverage?'media':'limitada',
-    }),
-    Object.freeze({
       id:'activity',
       label:'Actividad',
       status:wearableDays>=5?'strong':wearableDays>=1?'building':'insufficient',
@@ -128,18 +117,38 @@ export function buildProgressHub(state,clientId,{now=new Date()}={}){
     }),
   ]);
 
+  const diagnosticBaseline=Object.freeze({
+    id:'iri-diagnosis',
+    label:'Diagnóstico IRI',
+    role:'initial-diagnostic',
+    contributesToEvolution:false,
+    available:Number(summary28.iriAssessmentCount||0)>0,
+    reassessmentAvailable:Number(summary28.iriAssessmentCount||0)>1,
+    coverage:iriCoverage,
+    unit:'de 3 dominios',
+    assessments:Number(summary28.iriAssessmentCount||0),
+    evidence:summary28.iriAssessmentCount
+      ?`${summary28.iriAssessmentCount} hito${summary28.iriAssessmentCount===1?'':'s'} IRI confirmado${summary28.iriAssessmentCount===1?'':'s'}`
+      :'Sin diagnóstico IRI confirmado',
+    context:Number.isFinite(summary28.iriDelta)
+      ?`Reevaluación disponible · diferencia de cobertura ${summary28.iriDelta>0?'+':''}${summary28.iriDelta}`
+      :'El IRI establece el punto de partida; la evolución cotidiana se sigue por separado.',
+    source:'iriAssessments',
+    quality:iriCoverage===3?'alta':iriCoverage?'media':'limitada',
+  });
   const actionable=pillars.filter((pillar)=>pillar.status==='review');
   const evidenceCount=pillars.filter((pillar)=>pillar.status!=='insufficient').length;
   return Object.freeze({
     clientId,
     generatedAt:new Date(now).toISOString(),
     pillars,
+    diagnosticBaseline,
     evidenceCount,
     totalPillars:pillars.length,
     actionable:Object.freeze(actionable.map((pillar)=>pillar.id)),
     headline:evidenceCount
       ?`${evidenceCount} de ${pillars.length} áreas con evidencia reciente`
-      :'Construyendo tu línea base de progreso',
-    note:'Progress Hub reúne señales confirmadas sin convertirlas en una puntuación global ni modificar automáticamente la planificación.',
+      :'Construyendo tu seguimiento',
+    note:'Evolución reúne señales confirmadas del proceso sin convertirlas en una puntuación global ni modificar automáticamente la planificación. El Diagnóstico IRI se conserva aparte como punto de partida y como hito de reevaluación.',
   });
 }

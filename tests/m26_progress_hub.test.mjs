@@ -33,11 +33,20 @@ function sampleState(){
 test('Progress Hub aggregates existing evidence without a global score',()=>{
   const hub=buildProgressHub(sampleState(),'c1',{now:NOW});
   assert.equal(hub.clientId,'c1');
-  assert.equal(hub.totalPillars,6);
-  assert.equal(hub.pillars.length,6);
+  assert.equal(hub.totalPillars,5);
+  assert.equal(hub.pillars.length,5);
   assert.equal(Object.hasOwn(hub,'score'),false);
   assert.match(hub.note,/sin convertirlas en una puntuación global/u);
-  assert.deepEqual(hub.pillars.map((pillar)=>pillar.id),['consistency','strength','volume','wellbeing','iri','activity']);
+  assert.deepEqual(hub.pillars.map((pillar)=>pillar.id),['consistency','strength','volume','wellbeing','activity']);
+  assert.equal(hub.pillars.some((pillar)=>pillar.id==='iri'),false);
+  assert.equal(hub.diagnosticBaseline.id,'iri-diagnosis');
+  assert.equal(hub.diagnosticBaseline.label,'Diagnóstico IRI');
+  assert.equal(hub.diagnosticBaseline.contributesToEvolution,false);
+  assert.equal(hub.diagnosticBaseline.available,true);
+  assert.equal(hub.diagnosticBaseline.reassessmentAvailable,false);
+  assert.equal(hub.diagnosticBaseline.coverage,3);
+  assert.match(hub.diagnosticBaseline.context,/punto de partida/u);
+  assert.match(hub.note,/Diagnóstico IRI se conserva aparte/u);
 });
 
 test('Progress Hub strength uses repeated confirmed exercise evidence',()=>{
@@ -67,4 +76,29 @@ test('Progress Hub stays isolated by clientId',()=>{
 
 test('Progress Hub returns null without a client',()=>{
   assert.equal(buildProgressHub(sampleState(),null,{now:NOW}),null);
+});
+
+test('Progress Hub conserva reevaluaciones IRI como hitos separados y no como pilares de evolución',()=>{
+  const state=sampleState();
+  state.collections.iriAssessments.unshift({
+    id:'iri2',clientId:'c1',assessmentDate:'2026-09-05T10:00:00Z',
+    stepFinalHr:148,stepOneMinuteHr:112,bodyComposition:{weightKg:69.5},strengthPatterns:{squat:2},
+  });
+  const hub=buildProgressHub(state,'c1',{now:NOW});
+  assert.equal(hub.totalPillars,5);
+  assert.equal(hub.pillars.some((pillar)=>pillar.source==='iriAssessments'),false);
+  assert.equal(hub.diagnosticBaseline.available,true);
+  assert.equal(hub.diagnosticBaseline.reassessmentAvailable,true);
+  assert.equal(hub.diagnosticBaseline.assessments,2);
+  assert.match(hub.diagnosticBaseline.context,/Reevaluación disponible/u);
+});
+
+test('Progress Hub sin IRI mantiene Evolución disponible sin fabricar un diagnóstico',()=>{
+  const state=sampleState();
+  state.collections.iriAssessments=[];
+  const hub=buildProgressHub(state,'c1',{now:NOW});
+  assert.equal(hub.totalPillars,5);
+  assert.equal(hub.diagnosticBaseline.available,false);
+  assert.equal(hub.diagnosticBaseline.coverage,null);
+  assert.match(hub.diagnosticBaseline.evidence,/Sin diagnóstico IRI confirmado/u);
 });
