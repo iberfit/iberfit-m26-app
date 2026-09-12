@@ -156,6 +156,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
   let lastMarkup='';
   let adaptiveWindow=null;
   let interactionPointerTarget=null;
+  let routeRenderingReady=true;
 
   const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
   function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||null;}
@@ -205,8 +206,9 @@ export function createShellController({ root, store, renderRoute = () => '', get
       return false;
     }
     const viewModel = createShellViewModel(state);
-    const routeMarkup = viewModel.mode === 'authenticated' ? renderRoute(viewModel, state) : '';
-    const routeVm=viewModel.mode === 'authenticated'?getRouteViewModel?.()||null:null;
+    const shouldRenderRoute=viewModel.mode==='authenticated'&&routeRenderingReady;
+    const routeMarkup = shouldRenderRoute ? renderRoute(viewModel, state) : '';
+    const routeVm=shouldRenderRoute?getRouteViewModel?.()||null:null;
     const markup=renderM26Shell(viewModel, routeMarkup);
     if(markup===lastMarkup){clearClientSwitchBusy();return false;}
     root.innerHTML = markup;
@@ -468,10 +470,19 @@ export function createShellController({ root, store, renderRoute = () => '', get
     const state=store.getState();
     const authenticated=createShellViewModel(state).mode==='authenticated';
     if(progressive&&authenticated){
+      routeRenderingReady=false;
       renderWorkspaceFrame(state);
       return;
     }
+    routeRenderingReady=true;
     renderNow(state);
+  }
+
+  function activateRoutes(){
+    if(routeRenderingReady)return false;
+    routeRenderingReady=true;
+    lastMarkup='';
+    return renderNow(store.getState(),{force:true});
   }
 
   function destroy() {
@@ -479,6 +490,7 @@ export function createShellController({ root, store, renderRoute = () => '', get
     renderQueued=false;
     queuedState=null;
     interactionPointerTarget=null;
+    routeRenderingReady=true;
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
     root.removeEventListener('pointerdown',onPointerDown);
@@ -495,5 +507,5 @@ export function createShellController({ root, store, renderRoute = () => '', get
     clearClientSwitchBusy();
   }
 
-  return Object.freeze({ mount, destroy, render:renderNow, scheduleRender });
+  return Object.freeze({ mount, destroy, render:renderNow, scheduleRender, activateRoutes, routesReady:()=>routeRenderingReady });
 }
