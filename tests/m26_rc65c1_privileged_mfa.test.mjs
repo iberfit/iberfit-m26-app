@@ -125,8 +125,16 @@ test('RC65-C1 FREE mantiene assurance server-side y evita repetirla tras una ver
   assert.doesNotMatch(verifyArea,/transport\.authUser/u);
   assert.doesNotMatch(verifyArea,/session=next|vault\.save\(session\)/u);
   assert.match(transport,/const privilegedRole=String\(body\?\.privilegedRole\|\|''\)\.trim\(\)\.toLowerCase\(\)/u);
-  assert.match(transport,/!\['admin','coach'\]\.includes\(privilegedRole\)/u);
-  assert.match(transport,/privilegedRole,/u);
+  const authUserStart=transport.indexOf('async function authUser(token)');
+  const authUserEnd=transport.indexOf('function normalizeWebAuthnAction',authUserStart);
+  const verifyStart=transport.indexOf('async function verifyWebAuthn',authUserEnd);
+  const verifyEnd=transport.indexOf('async function refresh',verifyStart);
+  assert.ok(authUserStart>=0&&authUserEnd>authUserStart&&verifyStart>authUserEnd&&verifyEnd>verifyStart);
+  const authUserBlock=transport.slice(authUserStart,authUserEnd);
+  const verifyBlock=transport.slice(verifyStart,verifyEnd);
+  assert.doesNotMatch(authUserBlock,/privilegedRole/u);
+  assert.match(verifyBlock,/!\['admin','coach'\]\.includes\(privilegedRole\)/u);
+  assert.match(verifyBlock,/privilegedRole,/u);
 });
 
 test('RC65-C1 FREE migración liga assurance a session_id real y bloquea tablas al cliente',()=>{
