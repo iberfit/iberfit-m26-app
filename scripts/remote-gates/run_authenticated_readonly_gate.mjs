@@ -138,6 +138,10 @@ for(const session of sessions){
   const reportedRole=normalizeRegistryRole(bootstrap?.user?.role);
   if(reportedRole!==expectedRole)throw new Error(`RC74_4_ROLE_MISMATCH:${session.name}:${reportedRole}`);
   const clientId=bootstrap?.user?.clientId||bootstrap?.user?.client_id||null;
+  const appointmentChanges=await rpc('iberfit_appointment_change_requests_v13',session.token,{});
+  if(!appointmentChanges||typeof appointmentChanges!=='object'||!Array.isArray(appointmentChanges.requests)){
+    throw new Error(`RC74_4_APPOINTMENT_CHANGE_READ_CONTRACT_FAILED:${session.name}`);
+  }
   if(expectedRole==='cliente'&&!clientId)throw new Error(`RC74_4_CLIENT_ID_MISSING:${session.name}`);
   const privacy=expectedRole==='cliente'?inspectClientBootstrap(bootstrap,clientId):null;
   if(privacy&&!privacy.ok)throw new Error(`RC74_4_CLIENT_BOOTSTRAP_LEAK:${session.name}:forbidden=${privacy.forbiddenKeys.length}:foreign=${privacy.foreignClientIds.length}`);
@@ -146,6 +150,7 @@ for(const session of sessions){
     name:session.name,userFingerprint:fingerprint(session.userId),reportedRole,clientFingerprint:fingerprint(clientId),
     canaryActive:bootstrap?.canary?.active===true,environmentName:bootstrap?.environment?.name||bootstrap?.environment||null,
     privacy:privacy?{ok:privacy.ok,forbiddenKeys:privacy.forbiddenKeys,clientFingerprints:privacy.clientIds.map(fingerprint),foreignClientFingerprints:privacy.foreignClientIds.map(fingerprint)}:null,
+    appointmentChangeRead:{ok:true,requestCount:appointmentChanges.requests.length},
   });
 }
 assertDistinctQaClientIds(qaClientIds,RC29_QA_CLIENTS_NOT_DISTINCT);
