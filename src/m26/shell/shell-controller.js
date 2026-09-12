@@ -155,6 +155,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let lastMarkup='';
   let adaptiveWindow=null;
   let interactionPointerTarget=null;
+  let progressiveBootstrap=false;
 
   const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
   function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||null;}
@@ -199,6 +200,14 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
 
 
   function renderNow(state = store.getState(),{force=false}={}) {
+    if(progressiveBootstrap&&!force){
+      if(shellInteractionActive()){
+        queuedState=state;
+        return false;
+      }
+      queuedState=null;
+      return renderWorkspaceFrame(state);
+    }
     if(!force&&shellInteractionActive()){
       queuedState=state;
       return false;
@@ -243,6 +252,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       if(shellInteractionActive())return;
       const next=queuedState;
       queuedState=null;
+      if(progressiveBootstrap){
+        renderWorkspaceFrame(next);
+        return;
+      }
       renderNow(next);
     });
   }
@@ -449,6 +462,18 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     switchClient(selector.value,{openExpediente:false,source:selector});
   }
 
+  function activate(){
+    if(!progressiveBootstrap)return renderNow(store.getState());
+    progressiveBootstrap=false;
+    const next=queuedState||store.getState();
+    queuedState=null;
+    if(shellInteractionActive()){
+      queuedState=next;
+      return false;
+    }
+    return renderNow(next);
+  }
+
   function mount({progressive=false}={}) {
     if (unsubscribe) return;
     generation+=1;
@@ -465,7 +490,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     syncAdaptiveLayout();
     const state=store.getState();
     const authenticated=createShellViewModel(state).mode==='authenticated';
-    if(progressive&&authenticated){
+    progressiveBootstrap=Boolean(progressive&&authenticated);
+    if(progressiveBootstrap){
       renderWorkspaceFrame(state);
       return;
     }
@@ -477,6 +503,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     renderQueued=false;
     queuedState=null;
     interactionPointerTarget=null;
+    progressiveBootstrap=false;
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
     root.removeEventListener('pointerdown',onPointerDown);
@@ -493,5 +520,5 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     clearClientSwitchBusy();
   }
 
-  return Object.freeze({ mount, destroy, render:renderNow, scheduleRender });
+  return Object.freeze({ mount, activate, destroy, render:renderNow, scheduleRender, isProgressive:()=>progressiveBootstrap });
 }
