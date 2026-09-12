@@ -178,7 +178,22 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,st
   const blockedExecutionIds=unconfirmedCompletionIds(state);
   const executions=executionRows.filter((item)=>executionIsConfirmed(item,blockedExecutionIds));
   const completedExecutions=executions.filter((item)=>['completado','completed','complete'].includes(statusOf(item)));
-  const completedIds=new Set(completedExecutions.map((item)=>first(item,'appointmentId','appointment_id')).filter(Boolean));
+  const completedIds=new Set(completedExecutions.map((item)=>first(item,'appointmentId','appointment_id')).filter(Boolean).map(String));
+  const plannedAppointmentIds=new Set(planned.map((item)=>first(item,'id','appointmentId','appointment_id')).filter(Boolean).map(String));
+  const completedPlannedAppointmentIds=new Set(
+    completedAppointments
+      .map((item)=>first(item,'id','appointmentId','appointment_id'))
+      .filter(Boolean)
+      .map(String)
+  );
+  for(const appointmentId of completedIds){
+    if(plannedAppointmentIds.has(appointmentId))completedPlannedAppointmentIds.add(appointmentId);
+  }
+  const completedScheduledAppointments=Math.min(planned.length,completedPlannedAppointmentIds.size);
+  const unlinkedConfirmedExecutions=completedExecutions.filter((item)=>{
+    const appointmentId=first(item,'appointmentId','appointment_id');
+    return !appointmentId||!plannedAppointmentIds.has(String(appointmentId));
+  }).length;
   const confirmedCompleted=Math.max(completedAppointments.length,completedIds.size,completedExecutions.length);
   const plannedCount=planned.length||completedExecutions.length;
   const adherence=plannedCount?Math.min(1,confirmedCompleted/plannedCount):null;
@@ -207,7 +222,7 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28,st
   const dataQuality=dataPoints>=8?'alta':dataPoints>=3?'media':'limitada';
   return Object.freeze({
     clientId,startAt:start.toISOString(),endAt:end.toISOString(),days:window.days,
-    plannedSessions:plannedCount,scheduledAppointments:planned.length,completedSessions:confirmedCompleted,confirmedExecutionRecords:completedExecutions.length,planningComparable:planned.length>0,adherence:round(adherence,3),
+    plannedSessions:plannedCount,scheduledAppointments:planned.length,completedScheduledAppointments,completedSessions:confirmedCompleted,confirmedExecutionRecords:completedExecutions.length,unlinkedConfirmedExecutions,planningComparable:planned.length>0,adherence:round(adherence,3),
     averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
     iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:iri.length>1?iriCoverage[1]:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
     iri2,
