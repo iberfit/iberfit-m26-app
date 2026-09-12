@@ -1922,7 +1922,7 @@ function renderPlanExecutionPanel(plan){
   }
   const latest=plan.latest;
   const latestCopy=latest
-    ?`${latest.sessionTitle} · ${safeDateLabel(latest.completedAt)} · ${latest.plannedSets} previstas / ${latest.recordedSets} registradas / ${latest.skippedSets} omitidas`
+    ?`${latest.sessionTitle} · ${safeDateLabel(latest.completedAt)} · ${latest.plannedSets} / ${latest.recordedSets} / ${latest.skippedSets}`
     :'Sin sesión comparable reciente';
   const adjustmentCopy=[
     plan.substitutions?`${plan.substitutions} sustitución${plan.substitutions===1?'':'es'}`:null,
@@ -1931,7 +1931,7 @@ function renderPlanExecutionPanel(plan){
   ].filter(Boolean).join(' · ')||'Sin ajustes explícitos registrados';
   const unresolved=Number(plan.unresolvedPlannedSets||0);
   return `<section class="m26-panel" data-evolution-plan-execution>
-    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Evolución y seguimiento</p><h2>De lo planificado a lo realizado</h2><p>${escapeHtml(plan.summary)}</p></div>${badge(`Evidencia ${plan.quality}`,'neutral')}</div>
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Evolución y seguimiento</p><h2>De lo planificado a lo realizado</h2><p>Comparación descriptiva entre la planificación publicada y la ejecución confirmada.</p></div>${badge(`Evidencia ${plan.quality}`,'neutral')}</div>
     <div class="m26-stat-grid">
       ${stat('Sesiones comparables',plan.comparedSessions,`${plan.asPlannedSessions} sin ajustes explícitos · ${plan.adjustedSessions} con ajustes`)}
       ${stat('Series previstas',plan.plannedSets,'Planificación publicada')}
@@ -1940,6 +1940,7 @@ function renderPlanExecutionPanel(plan){
     </div>
     <div class="m26-field-grid">
       ${field('Última sesión comparable',latestCopy)}
+      ${field('Previstas / registradas / omitidas',latest?`${latest.plannedSets} / ${latest.recordedSets} / ${latest.skippedSets}`:'Sin dato')}
       ${field('Ajustes registrados',adjustmentCopy)}
       ${field('Series previstas sin resolver',unresolved||'Ninguna')}
     </div>
