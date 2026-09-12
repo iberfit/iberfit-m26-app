@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-import {buildPremiumReportPortfolio,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand,premiumReportUiCandidates,installPremiumReportUi} from '../src/m26/workflows/report-workflow.js';
+import {buildPremiumReportPortfolio,PREMIUM_REPORT_MODEL_VERSION,PREMIUM_REPORT_TYPES,buildApproveReportDraftCommand,normalizeReportDraft,premiumReportUiCandidates,installPremiumReportUi} from '../src/m26/workflows/report-workflow.js';
 
 const NOW=new Date('2026-09-06T12:00:00Z');
 
@@ -23,8 +23,8 @@ function stateWithHistory(){
         {id:'e3',clientId:'c1',sessionId:'s1',appointmentId:'a3',status:'completed',syncStatus:'clean',completedAt:'2026-09-03T11:00:00Z',title:'Fuerza C',results:{x:{exerciseId:'squat',reps:8,loadKg:50,rpe:7}}},
       ],
       iriAssessments:[
-        {id:'iri-old',clientId:'c1',status:'confirmed',firstSessionCompletedAt:'2026-03-01T12:00:00Z',assessmentDate:'2026-03-01T10:00:00Z',stepFinalHr:155,stepOneMinuteHr:120,bodyComposition:{weightKg:71},strengthPatterns:{squat:1}},
-        {id:'iri-new',clientId:'c1',status:'confirmed',firstSessionCompletedAt:'2026-09-01T12:00:00Z',assessmentDate:'2026-09-01T10:00:00Z',stepFinalHr:150,stepOneMinuteHr:115,bodyComposition:{weightKg:70},strengthPatterns:{squat:1}},
+        {id:'iri-old',clientId:'c1',revision:3,status:'confirmed',firstSessionCompletedAt:'2026-03-01T12:00:00Z',assessmentDate:'2026-03-01T10:00:00Z',stepFinalHr:155,stepOneMinuteHr:120,bodyComposition:{weightKg:71},strengthPatterns:{squat:1}},
+        {id:'iri-new',clientId:'c1',revision:5,status:'confirmed',firstSessionCompletedAt:'2026-09-01T12:00:00Z',assessmentDate:'2026-09-01T10:00:00Z',stepFinalHr:150,stepOneMinuteHr:115,bodyComposition:{weightKg:70},strengthPatterns:{squat:1}},
       ],
       checkins:[
         {id:'ch1',clientId:'c1',createdAt:'2026-09-01T08:00:00Z',energy:8,sleep:7,stress:3,pain:1},
@@ -49,6 +49,7 @@ test('portfolio automático usa evidencia canónica y habilita los seis tipos cu
   assert.ok(reports.every((report)=>report.dataPolicy==='canonical-only'));
   assert.ok(reports.every((report)=>report.coachCommentLabel==='Comentario del coach'));
   assert.ok(reports.every((report)=>report.evidence.length>0));
+  assert.ok(reports.every((report)=>report.assessmentRevision===5));
   assert.equal(reports.find((report)=>report.id==='reassessment').periodStart,'2026-03-01');
   assert.equal(reports.find((report)=>report.id==='post-session').periodEnd,'2026-09-03');
   assert.match(reports.find((report)=>report.id==='year-in-iberfit').summary,/historial canónico/u);
@@ -103,13 +104,43 @@ test('aprobación conserva tipo, comentario y procedencia sin romper el contrato
   const command=buildApproveReportDraftCommand({
     id:'report-1',clientId:'c1',assessmentId:'iri-new',reportType:'monthly',title:'Informe mensual IBERFIT',periodStart:'2026-08-08',periodEnd:'2026-09-06',
     summary:'Resumen construido únicamente con evidencia canónica confirmada.',conclusions:'Conclusiones revisadas por el coach con trazabilidad suficiente.',recommendations:'Mantener seguimiento y revisar la siguiente etapa con el cliente.',
-    coachComment:'Buena continuidad este mes; mantener progresión prudente.',evidence:[{label:'Sesiones ejecutadas',text:'3',source:'sessionExecutions',quality:'alta'}],reviewAccepted:true,
+    coachComment:'Buena continuidad este mes; mantener progresión prudente.',sourceAssessmentRevision:5,evidence:[{label:'Sesiones ejecutadas',text:'3',source:'sessionExecutions',quality:'alta'}],reviewAccepted:true,
   },2);
   assert.equal(command.type,'INFORME_APROBAR');
   assert.equal(command.baseRevision,2);
   assert.equal(command.payload.patch.reportType,'monthly');
   assert.equal(command.payload.patch.coachComment,'Buena continuidad este mes; mantener progresión prudente.');
   assert.equal(command.payload.patch.dataPolicy,'canonical-only');
+  assert.equal(command.payload.patch.reportModelVersion,PREMIUM_REPORT_MODEL_VERSION);
+  assert.equal(command.payload.patch.sourceAssessmentId,'iri-new');
+  assert.equal(command.payload.patch.sourceAssessmentRevision,5);
+  assert.match(command.payload.patch.evidenceSignature,/"modelVersion":"iri2-premium-report-v1"/u);
+  assert.match(command.payload.patch.evidenceSignature,/"assessmentRevision":5/u);
   assert.deepEqual(command.payload.patch.evidence,[{label:'Sesiones ejecutadas',text:'3',source:'sessionExecutions',quality:'alta'}]);
   assert.equal(command.payload.patch.visibleToClient,false);
+});
+
+test('firma de evidencia cambia ante cualquier cambio factual y no depende del comentario del Coach',()=>{
+  const common={
+    id:'report-lineage',clientId:'c1',assessmentId:'iri-new',sourceAssessmentRevision:5,reportType:'monthly',title:'Informe mensual IBERFIT',periodStart:'2026-08-08',periodEnd:'2026-09-06',
+    summary:'Resumen construido únicamente con evidencia canónica confirmada.',conclusions:'Conclusiones revisadas por el coach con trazabilidad suficiente.',recommendations:'Mantener seguimiento y revisar la siguiente etapa con el cliente.',reviewAccepted:true,
+  };
+  const first=buildApproveReportDraftCommand({...common,coachComment:'Comentario A',evidence:[{label:'Sesiones ejecutadas',text:'3',source:'sessionExecutions',quality:'alta'}]},1).payload.patch;
+  const sameEvidence=buildApproveReportDraftCommand({...common,coachComment:'Comentario B',evidence:[{label:'Sesiones ejecutadas',text:'3',source:'sessionExecutions',quality:'alta'}]},1).payload.patch;
+  const changedEvidence=buildApproveReportDraftCommand({...common,coachComment:'Comentario A',evidence:[{label:'Sesiones ejecutadas',text:'4',source:'sessionExecutions',quality:'alta'}]},1).payload.patch;
+  assert.equal(first.evidenceSignature,sameEvidence.evidenceSignature);
+  assert.notEqual(first.evidenceSignature,changedEvidence.evidenceSignature);
+});
+
+test('informes históricos sin tipo premium conservan el contrato anterior sin metadatos IRI 2.0',()=>{
+  const legacy=normalizeReportDraft({
+    id:'legacy-report',clientId:'c1',assessmentId:'iri-old',title:'Informe histórico',periodStart:'2026-03-01',periodEnd:'2026-03-01',
+    summary:'Resumen histórico suficientemente descriptivo para conservar compatibilidad.',conclusions:'Conclusiones históricas revisadas y conservadas sin migración forzada.',recommendations:'Mantener el registro histórico tal como fue aprobado originalmente.',reviewAccepted:true,
+  });
+  assert.equal(legacy.reportType,undefined);
+  assert.equal(legacy.reportModelVersion,undefined);
+  assert.equal(legacy.evidenceSignature,undefined);
+  assert.equal(legacy.sourceAssessmentId,undefined);
+  assert.equal(legacy.sourceAssessmentRevision,undefined);
+  assert.equal(legacy.dataPolicy,undefined);
 });
