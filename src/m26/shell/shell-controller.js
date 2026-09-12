@@ -197,23 +197,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     return true;
   }
 
-  function scheduleProgressiveRouteRender(){
-    const token=generation;
-    const run=()=>{
-      if(token!==generation||!unsubscribe)return;
-      renderNow(store.getState(),{force:true});
-    };
-    const windowLike=adaptiveWindow||root.ownerDocument?.defaultView||globalThis.window||null;
-    if(typeof windowLike?.requestAnimationFrame==='function'){
-      windowLike.requestAnimationFrame(()=>{
-        windowLike.requestAnimationFrame(run);
-      });
-      return true;
-    }
-    const timer=globalThis.setTimeout?.(run,0);
-    if(timer===undefined||timer===null)queueMicrotask(run);
-    return true;
-  }
 
   function renderNow(state = store.getState(),{force=false}={}) {
     if(!force&&shellInteractionActive()){
@@ -484,7 +467,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const authenticated=createShellViewModel(state).mode==='authenticated';
     if(progressive&&authenticated){
       renderWorkspaceFrame(state);
-      scheduleProgressiveRouteRender();
       return;
     }
     renderNow(state);
