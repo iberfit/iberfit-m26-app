@@ -34,7 +34,7 @@ import {
 } from '../domain/civil-date.js';
 import { deriveAgeYears } from '../workflows/iri-profile.js';
 import {confirmedFirstSessionDraft} from '../workflows/iri-first-session.js';
-import {buildIri2DecisionLog} from '../workflows/iri-2-longitudinal.js';
+import {buildIri2DecisionLog,buildIriPlanningSeed} from '../workflows/iri-2-longitudinal.js';
 import {getIberfitLanguage,iberfitLanguageOptions,iberfitLocaleOptions,iberfitPlannedLanguages} from '../ui/i18n.js';
 import {exerciseDisplayName} from '../exercises/names.js';
 import {readIberfitExperiencePreferences,socialPolicyFromPreferences,notificationConsentFromPreferences} from '../ui/preferences.js';
@@ -664,11 +664,24 @@ if (area === 'clientes') {
     const cycles = recordsForClient(state, 'trainingCycles', clientId);
     const sessions = recordsForClient(state, 'sessions', clientId);
     const role = String(shellVm.identity?.role || '');
+    const canEdit=['admin','coach'].includes(role);
+    const rawProfile=recordsForClient(state,'clientProfiles',clientId)[0]||null;
+    const client=(state?.collections?.clients||[]).find((item)=>item.id===clientId);
+    const profile=normalizeClientProfile(rawProfile||{},client||{});
+    const assessments=recordsForClient(state,'iriAssessments',clientId).sort(
+      (a,b)=>String(domainDate(b)||'').localeCompare(String(domainDate(a)||''))
+    );
+    const confirmedDecisionDrafts=assessments
+      .filter((record)=>compactIri(record)?.confirmed)
+      .map((record)=>confirmedFirstSessionDraft(record,clientId));
+    const decisionLog=buildIri2DecisionLog({assessments:confirmedDecisionDrafts});
+    const iriPlanningSeed=canEdit?buildIriPlanningSeed({decisionLog,profile}):null;
     return Object.freeze({
       kind: 'planificacion',
       clientId,
       role,
-      canEdit: ['admin', 'coach'].includes(role),
+      canEdit,
+      iriPlanningSeed,
       cycles: Object.freeze(publicationItems(cycles, 'planning', role)),
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       cycleCounts: publicationCounts(cycles),
