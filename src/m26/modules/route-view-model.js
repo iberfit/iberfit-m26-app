@@ -33,6 +33,8 @@ import {
   formatIberfitDate,
 } from '../domain/civil-date.js';
 import { deriveAgeYears } from '../workflows/iri-profile.js';
+import {confirmedFirstSessionDraft} from '../workflows/iri-first-session.js';
+import {buildIri2DecisionLog} from '../workflows/iri-2-longitudinal.js';
 import {getIberfitLanguage,iberfitLanguageOptions,iberfitLocaleOptions,iberfitPlannedLanguages} from '../ui/i18n.js';
 import {exerciseDisplayName} from '../exercises/names.js';
 import {readIberfitExperiencePreferences,socialPolicyFromPreferences,notificationConsentFromPreferences} from '../ui/preferences.js';
@@ -634,6 +636,10 @@ if (area === 'clientes') {
       mergeProfileFallback(rawProfile || {}, profileFromIri(current)),
       client || {}
     );
+    const confirmedDecisionDrafts=assessments
+      .filter((record)=>compactIri(record)?.confirmed)
+      .map((record)=>confirmedFirstSessionDraft(record,clientId));
+    const decisionLog=buildIri2DecisionLog({assessments:confirmedDecisionDrafts});
 
     return Object.freeze({
       kind: 'iri',
@@ -642,6 +648,7 @@ if (area === 'clientes') {
       current: clone(current),
       currentSummary: compactIri(current),
       history: Object.freeze(assessments.map(compactActivity)),
+      decisionLog,
       profile,
       sourceProfile: clone(rawProfile),
       canEdit: ['admin', 'coach'].includes(
