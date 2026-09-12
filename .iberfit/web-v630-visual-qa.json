@@ -1,5 +1,5 @@
 {
   "schema": "iberfit.web.v630-visual-qa.v1",
   "webSha": "61866591d91f2350f62c646307f453ded7a8dd16",
-  "note": "Gate visual independiente sobre candidata exacta V6.30 ya certificada en preview Cloudflare."
+  "note": "Gate visual V6.30 · rerun con espera completa de transición reveal (1.6 s)."
 }
