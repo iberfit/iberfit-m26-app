@@ -3,9 +3,13 @@ import assert from 'node:assert/strict';
 
 import {normalizeFirstSessionDraft} from '../src/m26/workflows/iri-first-session.js';
 import {
+  EVOLUTION_FOLLOWUP_KIND,
+  IRI_INITIAL_DIAGNOSTIC_KIND,
   IRI2_SNAPSHOT_SCHEMA,
+  buildEvolutionProfile,
   buildIri2DecisionLog,
   buildIri2LongitudinalProfile,
+  evolutionComparisonSummary,
   iri2ComparisonSummary,
   iri2SnapshotFromDraft,
 } from '../src/m26/workflows/iri-2-longitudinal.js';
@@ -80,7 +84,8 @@ test('IRI 2.0 snapshots preserve decisions and objective metrics without inventi
 test('IRI 2.0 compares only compatible protocol measurements and keeps descriptive change separate from judgement',()=>{
   const previous=makeDraft({id:'11111111-1111-4111-8111-111111111111',date:'2026-06-11',chair:14,push:8,weight:67});
   const current=makeDraft({id:'22222222-2222-4222-8222-222222222222',date:'2026-09-11',chair:18,push:10,weight:65});
-  const profile=buildIri2LongitudinalProfile({current,history:[previous]});
+  const profile=buildEvolutionProfile({current,history:[previous]});
+  assert.equal(profile.semantics.phase,EVOLUTION_FOLLOWUP_KIND);
   assert.equal(profile.comparison.available,true);
   const chair=profile.comparison.metrics.find((item)=>item.id==='chairStandReps');
   assert.equal(chair.comparable,true);
@@ -112,20 +117,27 @@ test('premium client report remains exactly 7 pages and becomes longitudinal whe
     longitudinalHistory:[previous],
   });
   assert.equal((html.match(/class="pdf-page/g)||[]).length,7);
-  assert.match(html,/Evolución IRI 2\.0/u);
+  assert.match(html,/INFORME DE EVALUACIÓN IRI/u);
+  assert.match(html,/Evolución y seguimiento/u);
+  assert.doesNotMatch(html,/Evolución IRI 2\.0/u);
+  assert.match(html,/El Diagnóstico IRI marca el punto de partida/u);
   assert.match(html,/indicadores comparables/u);
   assert.match(html,/Cambios comparables desde la evaluación anterior/u);
   assert.match(html,/Silla 30 s \+4 rep/u);
   assert.match(html,/Sin puntuación global/u);
 });
 
-test('first IRI 2.0 assessment establishes a baseline instead of fabricating progression',()=>{
+test('el primer IRI es Diagnóstico inicial y establece el punto de partida, no una evolución',()=>{
   const current=makeDraft({id:'22222222-2222-4222-8222-222222222222',date:'2026-09-11'});
-  const profile=buildIri2LongitudinalProfile({current,history:[]});
-  const summary=iri2ComparisonSummary(profile);
+  const profile=buildEvolutionProfile({current,history:[]});
+  const summary=evolutionComparisonSummary(profile);
+  assert.equal(profile.semantics.phase,IRI_INITIAL_DIAGNOSTIC_KIND);
   assert.equal(summary.available,false);
-  assert.equal(summary.label,'Primera evaluación');
-  assert.match(summary.detail,/línea de base/u);
+  assert.equal(summary.phase,IRI_INITIAL_DIAGNOSTIC_KIND);
+  assert.equal(summary.label,'Diagnóstico IRI inicial');
+  assert.match(summary.detail,/punto de partida/u);
+  assert.equal(buildIri2LongitudinalProfile,buildEvolutionProfile);
+  assert.equal(iri2ComparisonSummary,evolutionComparisonSummary);
 });
 
 
