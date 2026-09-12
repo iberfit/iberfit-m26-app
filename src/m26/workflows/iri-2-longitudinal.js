@@ -176,9 +176,94 @@ function sortSnapshots(items=[]){
     .filter(Boolean)
     .sort((a,b)=>(a.timestamp??Number.MAX_SAFE_INTEGER)-(b.timestamp??Number.MAX_SAFE_INTEGER));
 }
-function sameClient(current,candidate){
-  if(!current?.clientId||!candidate?.clientId)return true;
-  return current.clientId===candidate.clientId;
+function normalizedDecisionList(value=[]){
+  return (Array.isArray(value)?value:[])
+    .map((item)=>clean(item,500))
+    .filter(Boolean);
+}
+function decisionHasContent(decision={}){
+  return Boolean(
+    normalizedDecisionList(decision.priorities).length||
+    normalizedDecisionList(decision.strengths).length||
+    clean(decision.coachInterpretation,2000)||
+    clean(decision.trainingImplications,2000)||
+    clean(decision.initialPlan,2000)||
+    clean(decision.recommendedFrequency,240)||
+    clean(decision.reevaluationDate,32)
+  );
+}
+function normalizedKey(value){
+  return clean(value,2000).toLocaleLowerCase('es');
+}
+function decisionListDelta(previous=[],current=[]){
+  const before=normalizedDecisionList(previous);
+  const after=normalizedDecisionList(current);
+  const beforeKeys=new Set(before.map(normalizedKey));
+  const afterKeys=new Set(after.map(normalizedKey));
+  return Object.freeze({
+    changed:before.length!==after.length||before.some((item)=>!afterKeys.has(normalizedKey(item))),
+    added:Object.freeze(after.filter((item)=>!beforeKeys.has(normalizedKey(item)))),
+    removed:Object.freeze(before.filter((item)=>!afterKeys.has(normalizedKey(item)))),
+  });
+}
+function decisionEntry(snapshot,previous=null){
+  const decision=snapshot?.decision||{};
+  const previousDecision=previous?.decision||{};
+  const priorities=decisionListDelta(previousDecision.priorities,decision.priorities);
+  const planChanged=Boolean(previous)&&normalizedKey(previousDecision.initialPlan)!==normalizedKey(decision.initialPlan);
+  const implicationsChanged=Boolean(previous)&&normalizedKey(previousDecision.trainingImplications)!==normalizedKey(decision.trainingImplications);
+  const frequencyChanged=Boolean(previous)&&normalizedKey(previousDecision.recommendedFrequency)!==normalizedKey(decision.recommendedFrequency);
+  const reevaluationChanged=Boolean(previous)&&normalizedKey(previousDecision.reevaluationDate)!==normalizedKey(decision.reevaluationDate);
+  const changed=Boolean(previous)&&(priorities.changed||planChanged||implicationsChanged||frequencyChanged||reevaluationChanged);
+  const label=!previous
+    ?'Decisión inicial'
+    :priorities.changed
+      ?'Prioridades actualizadas'
+      :changed
+        ?'Plan revisado'
+        :'Decisión mantenida';
+  return Object.freeze({
+    assessmentId:snapshot.assessmentId||null,
+    assessmentDate:snapshot.assessmentDate||null,
+    label,
+    strengths:Object.freeze(normalizedDecisionList(decision.strengths)),
+    priorities:Object.freeze(normalizedDecisionList(decision.priorities)),
+    coachInterpretation:clean(decision.coachInterpretation,2000),
+    trainingImplications:clean(decision.trainingImplications,2000),
+    initialPlan:clean(decision.initialPlan,2000),
+    recommendedFrequency:clean(decision.recommendedFrequency,240),
+    reevaluationDate:clean(decision.reevaluationDate,32),
+    changes:Object.freeze({
+      changed,
+      prioritiesChanged:priorities.changed,
+      prioritiesAdded:priorities.added,
+      prioritiesRemoved:priorities.removed,
+      planChanged,
+      implicationsChanged,
+      frequencyChanged,
+      reevaluationChanged,
+    }),
+  });
+}
+
+export function buildIri2DecisionLog({assessments=[]}={}){
+  const snapshots=sortSnapshots(
+    (Array.isArray(assessments)?assessments:[])
+      .map((item)=>item?.schema===IRI2_SNAPSHOT_SCHEMA?item:iri2SnapshotFromDraft(item))
+  );
+  const scope=snapshots.find((item)=>item?.clientId)?.clientId||'';
+  const confirmed=snapshots.filter((item)=>
+    (!scope||!item.clientId||item.clientId===scope)&&
+    item.decision?.reviewAccepted===true&&
+    decisionHasContent(item.decision)
+  );
+  const entries=confirmed.map((snapshot,index)=>decisionEntry(snapshot,confirmed[index-1]||null));
+  return Object.freeze({
+    clientId:scope||null,
+    count:entries.length,
+    latest:entries.at(-1)||null,
+    entries:Object.freeze(entries),
+  });
 }
 
 export function buildIri2LongitudinalProfile({current,history=[]}={}){
@@ -248,5 +333,5 @@ export function iri2ComparisonSummary(profile={}){
 }
 
 export const __iri2LongitudinalInternals=Object.freeze({
-  finite,clean,dateValue,sameValue,sameNumber,protocolKey,metric,strengthProtocol,cardioProtocol,compositionProtocol,snapshotMetrics,comparable,compareMetric,sortSnapshots,sameClient,
+  finite,clean,dateValue,sameValue,sameNumber,protocolKey,metric,strengthProtocol,cardioProtocol,compositionProtocol,snapshotMetrics,comparable,compareMetric,sortSnapshots,sameClient,normalizedDecisionList,decisionHasContent,normalizedKey,decisionListDelta,decisionEntry,
 });
