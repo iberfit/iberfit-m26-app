@@ -1,0 +1,85 @@
+name: WEB IBERFIT · Descubrir Producción Actual
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-bootstrap-20260912
+    paths:
+      - ".iberfit/web-iberfit-live-discovery.json"
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Auditar DNS y HTTP actuales
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "### UTC"
+            date -u
+            echo
+            echo "### NS"
+            dig +noall +answer NS iberfit.cl
+            echo
+            echo "### SOA"
+            dig +noall +answer SOA iberfit.cl
+            echo
+            echo "### A"
+            dig +noall +answer A iberfit.cl
+            echo
+            echo "### AAAA"
+            dig +noall +answer AAAA iberfit.cl
+            echo
+            echo "### CNAME apex"
+            dig +noall +answer CNAME iberfit.cl
+            echo
+            echo "### WWW"
+            dig +noall +answer A www.iberfit.cl
+            dig +noall +answer CNAME www.iberfit.cl
+          } | tee WEB_IBERFIT_LIVE_DNS.txt
+
+          curl --silent --show-error --location --max-time 30             --dump-header WEB_IBERFIT_LIVE_HEADERS.txt             --output WEB_IBERFIT_LIVE_HOME.html             https://iberfit.cl/
+
+          curl --silent --show-error --head --max-time 30             https://iberfit.cl/ | tee WEB_IBERFIT_LIVE_HEAD.txt
+
+          curl --silent --show-error --location --max-time 30             --dump-header WEB_IBERFIT_LIVE_SITEMAP_HEADERS.txt             --output WEB_IBERFIT_LIVE_SITEMAP.xml             https://iberfit.cl/sitemap.xml
+
+          sha256sum WEB_IBERFIT_LIVE_HOME.html WEB_IBERFIT_LIVE_SITEMAP.xml             | tee WEB_IBERFIT_LIVE_HTTP.sha256
+
+          python - <<'PY'
+          from pathlib import Path
+          html=Path("WEB_IBERFIT_LIVE_HOME.html").read_text("utf-8",errors="replace")
+          facts={
+            "has_old_online_spanish": ">Online<" in html or "Online desde cualquier lugar" in html,
+            "has_new_intent_router": "intent-router" in html,
+            "has_new_a_distancia": "A distancia" in html,
+            "bytes": len(html.encode("utf-8")),
+          }
+          import json
+          Path("WEB_IBERFIT_LIVE_IDENTITY.json").write_text(json.dumps(facts,indent=2)+"\n")
+          print(json.dumps(facts,indent=2))
+          PY
+
+      - name: Guardar descubrimiento
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-iberfit-live-discovery-${{ github.run_id }}
+          path: |
+            WEB_IBERFIT_LIVE_DNS.txt
+            WEB_IBERFIT_LIVE_HEADERS.txt
+            WEB_IBERFIT_LIVE_HEAD.txt
+            WEB_IBERFIT_LIVE_HOME.html
+            WEB_IBERFIT_LIVE_SITEMAP_HEADERS.txt
+            WEB_IBERFIT_LIVE_SITEMAP.xml
+            WEB_IBERFIT_LIVE_HTTP.sha256
+            WEB_IBERFIT_LIVE_IDENTITY.json
+          if-no-files-found: error
+          retention-days: 30
