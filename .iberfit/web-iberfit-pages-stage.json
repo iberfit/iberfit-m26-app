@@ -4,5 +4,7 @@
   "candidateSha": "8d6fcb12a9472e9ef78b9973ca3d0cd9d71244ab",
   "productionBranch": "production",
   "approved": true,
-  "domainPromoted": false
+  "domainPromoted": false,
+  "retryRevision": 1,
+  "retryReason": "smoke-home-temp-path"
 }
