@@ -357,6 +357,11 @@ export function iri2ComparisonSummary(profile={}){
   });
 }
 
+// Compatibilidad: el módulo conserva sus exports históricos IRI2, pero las nuevas capas
+// de producto usan nombres que distinguen diagnóstico/reevaluación de Evolución.
+export const buildIriLongitudinalProfile=buildIri2LongitudinalProfile;
+export const iriMilestoneComparisonSummary=iri2ComparisonSummary;
+
 export const __iri2LongitudinalInternals=Object.freeze({
   finite,clean,dateValue,IRI_PRIORITY_DOMAINS,IRI_PRIORITY_STATUSES,normalizedPriorityRecords,priorityRecordFingerprint,sameValue,sameNumber,protocolKey,metric,strengthProtocol,cardioProtocol,compositionProtocol,snapshotMetrics,comparable,compareMetric,sortSnapshots,sameClient,normalizedDecisionList,decisionHasContent,normalizedKey,decisionListDelta,decisionEntry,
 });
