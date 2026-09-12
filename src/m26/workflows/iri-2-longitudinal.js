@@ -176,6 +176,10 @@ function sortSnapshots(items=[]){
     .filter(Boolean)
     .sort((a,b)=>(a.timestamp??Number.MAX_SAFE_INTEGER)-(b.timestamp??Number.MAX_SAFE_INTEGER));
 }
+function sameClient(current,candidate){
+  if(!current?.clientId||!candidate?.clientId)return true;
+  return current.clientId===candidate.clientId;
+}
 function normalizedDecisionList(value=[]){
   return (Array.isArray(value)?value:[])
     .map((item)=>clean(item,500))
