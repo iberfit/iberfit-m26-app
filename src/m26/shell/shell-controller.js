@@ -453,6 +453,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     generation+=1;
     renderQueued=false;
     queuedState=null;
+    interactionPointerTarget=null;
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
     root.removeEventListener('pointerdown',onPointerDown);
