@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.web.bootstrap.v1",
+  "worker": "web-iberfit",
+  "webRepo": "iberfit/iberfitweb",
+  "webSourceRef": "b5da4c191a13923417385824cf0a80340b0f4221",
+  "candidateSha": "8d6fcb12a9472e9ef78b9973ca3d0cd9d71244ab",
+  "approved": true,
+  "domainPromoted": false
+}
