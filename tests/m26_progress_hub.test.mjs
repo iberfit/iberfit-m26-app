@@ -38,6 +38,9 @@ test('Progress Hub aggregates existing evidence without a global score',()=>{
   assert.equal(Object.hasOwn(hub,'score'),false);
   assert.match(hub.note,/sin convertirlas en una puntuación global/u);
   assert.deepEqual(hub.pillars.map((pillar)=>pillar.id),['consistency','strength','volume','wellbeing','iri','activity']);
+  const iri=hub.pillars.find((pillar)=>pillar.id==='iri');
+  assert.equal(iri.label,'Hitos IRI');
+  assert.match(iri.context,/línea base|seguimiento cotidiano|Reevaluación comparable/u);
 });
 
 test('Progress Hub strength uses repeated confirmed exercise evidence',()=>{
