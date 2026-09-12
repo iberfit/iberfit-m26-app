@@ -1,6 +1,7 @@
 import {assertAdminCapability,ADMIN_CAPABILITIES} from './permission-policy.js';
 const COMMANDS=Object.freeze({
   ADMIN_USUARIO_CAMBIAR_ESTADO:{entityType:'admin_user',capability:ADMIN_CAPABILITIES.USER_MANAGE_STATUS,reason:true},
+  ADMIN_USUARIO_ELIMINAR:{entityType:'admin_user',capability:ADMIN_CAPABILITIES.USER_MANAGE_STATUS,reason:true},
   ADMIN_ROL_OTORGAR:{entityType:'application_role',capability:ADMIN_CAPABILITIES.ROLE_MANAGE,reason:true},
   ADMIN_ROL_REVOCAR:{entityType:'application_role',capability:ADMIN_CAPABILITIES.ROLE_MANAGE,reason:true},
   ADMIN_ASIGNACION_CREAR:{entityType:'coach_client_assignment',capability:ADMIN_CAPABILITIES.ASSIGNMENT_MANAGE,reason:true},
