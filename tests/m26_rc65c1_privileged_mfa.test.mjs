@@ -49,6 +49,22 @@ test('RC65-C1 FREE decisión privilegiada exige assurance IBERFIT antes del boot
   assert.deepEqual(privilegedMfaDecision({webauthnRequired:true,iberfitAssurance:'verified',credentialEnrolled:true,supabaseAal:'aal1'},[]),{kind:'ready'});
 });
 
+test('RC65-C1 FREE authUser permanece independiente del rol privilegiado verificado por WebAuthn',async()=>{
+  const previous=globalThis.fetch;
+  globalThis.fetch=async(url,options={})=>{
+    const parsed=new URL(String(url));
+    assert.equal(String(options.method||'GET').toUpperCase(),'GET');
+    assert.equal(parsed.pathname,'/auth/v1/user');
+    return jsonResponse({id:USER_ID,email:'qa.rc74.coach@iberfit.cl',factors:[]});
+  };
+  try{
+    const user=await createM26Transport(runtime()).authUser(ACCESS_TOKEN);
+    assert.equal(user.id,USER_ID);
+    assert.equal(user.email,'qa.rc74.coach@iberfit.cl');
+    assert.deepEqual(user.factors,[]);
+  }finally{globalThis.fetch=previous;}
+});
+
 test('RC65-C1 FREE assurance RPC v65d normaliza contrato server-side',async()=>{
   const calls=[];const previous=globalThis.fetch;
   globalThis.fetch=async(url,options={})=>{
@@ -124,9 +140,19 @@ test('RC65-C1 FREE mantiene assurance server-side y evita repetirla tras una ver
   assert.doesNotMatch(verifyArea,/transport\.authAssuranceContext/u);
   assert.doesNotMatch(verifyArea,/transport\.authUser/u);
   assert.doesNotMatch(verifyArea,/session=next|vault\.save\(session\)/u);
-  assert.match(transport,/const privilegedRole=String\(body\?\.privilegedRole\|\|''\)\.trim\(\)\.toLowerCase\(\)/u);
-  assert.match(transport,/!\['admin','coach'\]\.includes\(privilegedRole\)/u);
-  assert.match(transport,/privilegedRole,/u);
+  assert.match(transport,/const privilegedRole=String\\(body\\?\\.privilegedRole\\|\\|''\\)\\.trim\\(\\)\\.toLowerCase\\(\\)/u);
+  const authUserStart=transport.indexOf('async function authUser(token)');
+  const authUserEnd=transport.indexOf('function normalizeWebAuthnAction',authUserStart);
+  assert.ok(authUserStart>=0&&authUserEnd>authUserStart);
+  const authUserArea=transport.slice(authUserStart,authUserEnd);
+  assert.doesNotMatch(authUserArea,/privilegedRole/u);
+  const verifyStart=transport.indexOf('async function verifyWebAuthn');
+  const verifyEnd=transport.indexOf('async function refresh',verifyStart);
+  assert.ok(verifyStart>=0&&verifyEnd>verifyStart);
+  const verifyTransportArea=transport.slice(verifyStart,verifyEnd);
+  assert.match(verifyTransportArea,/const privilegedRole=String\\(body\\?\\.privilegedRole\\|\\|''\\)\\.trim\\(\\)\\.toLowerCase\\(\\)/u);
+  assert.match(verifyTransportArea,/!\\['admin','coach'\\]\\.includes\\(privilegedRole\\)/u);
+  assert.match(verifyTransportArea,/privilegedRole,/u);
 });
 
 test('RC65-C1 FREE migración liga assurance a session_id real y bloquea tablas al cliente',()=>{
