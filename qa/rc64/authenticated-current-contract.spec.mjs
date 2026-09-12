@@ -219,7 +219,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         ).toHaveCount(1,{timeout:5_000});
 
         const visibleNavigationTarget=page.locator(
-          '.m26-mobile-nav [data-m26-area]:not([aria-current="page"]):not([disabled]):visible, .m26-sidebar [data-m26-area]:not([aria-current="page"]):not([disabled]):visible',
+          '.m26-client-bottom-nav [data-m26-area]:not([aria-current="page"]):not([disabled]):visible, .m26-mobile-nav [data-m26-area]:not([aria-current="page"]):not([disabled]):visible, .m26-sidebar [data-m26-area]:not([aria-current="page"]):not([disabled]):visible',
         ).first();
         await expect(
           visibleNavigationTarget,
@@ -229,7 +229,7 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         expect(targetArea).toBeTruthy();
         await visibleNavigationTarget.click({timeout:5_000});
         await expect(
-          page.locator(`.m26-mobile-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-sidebar [data-m26-area="${targetArea}"][aria-current="page"]:visible`).first(),
+          page.locator(`.m26-client-bottom-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-mobile-nav [data-m26-area="${targetArea}"][aria-current="page"]:visible, .m26-sidebar [data-m26-area="${targetArea}"][aria-current="page"]:visible`).first(),
           'Navigation click must remain responsive on the visible desktop/tablet/mobile navigation surface while post-auth controllers mount progressively',
         ).toBeVisible({timeout:5_000});
         await expect(
