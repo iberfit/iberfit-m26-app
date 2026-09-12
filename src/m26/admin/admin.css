@@ -732,6 +732,10 @@
   margin:0;
 }
 
+.m26-admin-route .m26-admin-danger-body button[type="submit"]{
+  border-radius:var(--m26-admin-pill);
+}
+
 .m26-admin-route :is(
   [data-admin-form="user-delete"],
   [data-admin-form="client-delete"]
