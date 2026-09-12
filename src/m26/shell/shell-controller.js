@@ -493,7 +493,12 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       const documentLike=root.ownerDocument||globalThis.document;
       runRouteViewTransition(
         ()=>{
-          store.navigate(decision.area);
+          const navigatedState=store.navigate(decision.area);
+          // Navigation is an explicit user commitment. Paint the destination immediately
+          // instead of relying only on the subscribed microtask render; this keeps
+          // WebKit/mobile route feedback deterministic while the post-auth controller
+          // rail is still mounting. The subscription remains as a harmless fallback.
+          renderNow(navigatedState,{force:true});
           focusMain();
         },
         {documentLike,windowLike:documentLike?.defaultView||globalThis.window},
