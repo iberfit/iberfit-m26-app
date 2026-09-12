@@ -109,8 +109,17 @@ function renderUsers(vm){
       `<input type="hidden" name="userId" value="${e(u.userId||u.id)}"><label>Acción<select name="action"><option value="grant">Otorgar acceso</option><option value="revoke">Revocar acceso</option></select></label><label>Aplicación<select name="role"><option value="client"${currentRole==='client'?' selected':''}>Cliente</option><option value="coach"${currentRole==='coach'?' selected':''}>Coach</option><option value="admin"${currentRole==='admin'?' selected':''}>Admin</option></select></label><label>Motivo<textarea name="reason" minlength="3" required placeholder="Motivo del cambio"></textarea></label>`,
       'Actualizar acceso',
     ):'';
-    const management=(statusForm||roleForm)
-      ?`<details class="m26-admin-user-management"><summary>Actualizar usuario</summary><div class="m26-admin-user-management-body">${statusForm}${roleForm}</div></details>`
+    const userId=String(u.userId||u.id||'');
+    const deleteExpected=String(u.authEmail||u.email||userId).trim();
+    const isCurrentUser=userId&&userId===String(vm.currentUserId||'');
+    const deleteForm=vm.canManageStatus&&!isCurrentUser?form(
+      'user-delete',
+      `<input type="hidden" name="userId" value="${e(userId)}"><input type="hidden" name="confirmUserId" value="${e(userId)}"><input type="hidden" name="baseRevision" value="${e(u.revision||0)}"><div class="m26-admin-danger-body"><p class="m26-eyebrow">Zona crítica</p><p>Da de baja la cuenta, revoca roles, sesiones privilegiadas, asignaciones y disponibilidad. IBERFIT conserva únicamente el histórico necesario y la identidad Auth queda anonimizada mediante soft-delete.</p><label class="m26-admin-danger-check"><input type="checkbox" name="confirmAcknowledged" value="yes" required><span>Entiendo que esta cuenta perderá acceso inmediatamente.</span></label><label>Confirma el correo o identificador<input name="confirmValue" required autocomplete="off" value="" placeholder="${e(deleteExpected)}"></label><label>Escribe ELIMINAR<input name="confirmPhrase" required autocomplete="off" pattern="ELIMINAR" placeholder="ELIMINAR"></label><label>Motivo<textarea name="reason" minlength="8" maxlength="500" required placeholder="Motivo de la baja"></textarea></label></div>`,
+      'Eliminar cuenta',
+    ):'';
+    const selfGuard=vm.canManageStatus&&isCurrentUser?'<div class="m26-admin-notice"><strong>Cuenta Admin actual protegida</strong><p>No puedes eliminar la cuenta con la que estás administrando IBERFIT.</p></div>':'';
+    const management=(statusForm||roleForm||deleteForm||selfGuard)
+      ?`<details class="m26-admin-user-management"><summary>Actualizar usuario</summary><div class="m26-admin-user-management-body">${statusForm}${roleForm}${deleteForm}${selfGuard}</div></details>`
       :'';
     const lastAccess=u.lastAccessAt?e(u.lastAccessAt):'Sin acceso registrado';
     const relation=u.client
