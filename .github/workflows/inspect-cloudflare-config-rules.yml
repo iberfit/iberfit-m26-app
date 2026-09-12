@@ -1,0 +1,37 @@
+name: Inspect Cloudflare config rules access
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/inspect-cloudflare-config-rules.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    env:
+      CF_ZONE_ID: '44302103d0c37a304bad49fbbe0501d5'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probar reglas con token web dedicado
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_WEB_DNS_TOKEN }}
+        shell: bash
+        run: |
+          set -u
+          CODE="$(curl --silent --show-error -o /tmp/rulesets.json -w '%{http_code}'             -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/rulesets")"
+          echo "DEDICATED_RULESETS_HTTP=${CODE}"
+          cat /tmp/rulesets.json || true
+      - name: Probar reglas con token Pages existente
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -u
+          CODE="$(curl --silent --show-error -o /tmp/rulesets-pages.json -w '%{http_code}'             -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/rulesets")"
+          echo "PAGES_TOKEN_RULESETS_HTTP=${CODE}"
+          cat /tmp/rulesets-pages.json || true
