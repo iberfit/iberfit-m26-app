@@ -72,7 +72,7 @@ test('Admin user inputs, dropdowns and filters remain interactive through a real
   await expect(coachCard).toBeVisible();
 
   if(test.info().project.name.includes('mobile')||test.info().project.name.includes('tablet')){
-    const metrics=await page.locator('.m26-admin-form select').first().evaluate((el)=>{
+    const metrics=await statusFilter.evaluate((el)=>{
       const rect=el.getBoundingClientRect();
       return {height:rect.height,fontSize:parseFloat(getComputedStyle(el).fontSize)};
     });
