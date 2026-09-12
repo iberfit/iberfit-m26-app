@@ -155,14 +155,89 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let lastMarkup='';
   let adaptiveWindow=null;
   let interactionPointerTarget=null;
+  let interactionReleaseTimer=null;
 
   const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
+  const INTERACTION_RELEASE_GRACE_MS=900;
+  const NATIVE_SELECT_INTERACTION_HOLD_MS=30_000;
   function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||null;}
   function focusedInteractiveControl(){
     const active=root.ownerDocument?.activeElement;
     return active&&root.contains?.(active)&&active.matches?.(SHELL_INTERACTIVE_SELECTOR)?active:null;
   }
   function shellInteractionActive(){return Boolean(interactionPointerTarget||focusedInteractiveControl());}
+
+  function clearInteractionReleaseTimer(){
+    if(interactionReleaseTimer===null)return;
+    const clearTimer=adaptiveWindow?.clearTimeout?.bind?.(adaptiveWindow)||globalThis.clearTimeout?.bind?.(globalThis);
+    clearTimer?.(interactionReleaseTimer);
+    interactionReleaseTimer=null;
+  }
+
+  function releasePointerInteraction({deferRender=true}={}){
+    clearInteractionReleaseTimer();
+    interactionPointerTarget=null;
+    if(deferRender)queueMicrotask(flushDeferredRender);
+  }
+
+  function schedulePointerRelease(control){
+    clearInteractionReleaseTimer();
+    if(!control){
+      releasePointerInteraction();
+      return;
+    }
+    if(focusedInteractiveControl()===control){
+      releasePointerInteraction();
+      return;
+    }
+    const tag=String(control?.tagName||'').toLowerCase();
+    const timeoutMs=tag==='select'?NATIVE_SELECT_INTERACTION_HOLD_MS:INTERACTION_RELEASE_GRACE_MS;
+    const setTimer=adaptiveWindow?.setTimeout?.bind?.(adaptiveWindow)||globalThis.setTimeout?.bind?.(globalThis);
+    if(typeof setTimer!=='function'){
+      releasePointerInteraction();
+      return;
+    }
+    interactionReleaseTimer=setTimer(()=>{
+      interactionReleaseTimer=null;
+      interactionPointerTarget=null;
+      queueMicrotask(flushDeferredRender);
+    },timeoutMs);
+  }
+
+  function captureControlContinuity(control){
+    if(!control)return null;
+    const settingsOpen=Boolean(control.closest?.('details.m26-settings-menu')?.open);
+    if(control.matches?.('[data-m26-ui-locale]'))return Object.freeze({kind:'locale',settingsOpen});
+    if(control.matches?.('[data-m26-ui-language]'))return Object.freeze({kind:'language',value:String(control.value||''),settingsOpen});
+    if(control.matches?.('[data-m26-preference]'))return Object.freeze({kind:'preference',path:String(control.getAttribute?.('data-m26-preference')||''),settingsOpen});
+    if(control.matches?.('[data-m26-client-select]'))return Object.freeze({kind:'client',settingsOpen:false});
+    return null;
+  }
+
+  function findContinuityControl(snapshot){
+    if(!snapshot)return null;
+    const controls=[...(root.querySelectorAll?.(SHELL_INTERACTIVE_SELECTOR)||[])];
+    if(snapshot.kind==='locale')return controls.find((node)=>node.matches?.('[data-m26-ui-locale]'))||null;
+    if(snapshot.kind==='language')return controls.find((node)=>node.matches?.('[data-m26-ui-language]')&&String(node.value||'')===snapshot.value)||null;
+    if(snapshot.kind==='preference')return controls.find((node)=>node.matches?.('[data-m26-preference]')&&String(node.getAttribute?.('data-m26-preference')||'')===snapshot.path)||null;
+    if(snapshot.kind==='client')return controls.find((node)=>node.matches?.('[data-m26-client-select]'))||null;
+    return null;
+  }
+
+  function rerenderPreservingControl(control){
+    const snapshot=captureControlContinuity(control);
+    releasePointerInteraction({deferRender:false});
+    queuedState=null;
+    lastMarkup='';
+    const rendered=renderNow(store.getState(),{force:true});
+    if(snapshot?.settingsOpen){
+      const settings=root.querySelector?.('details.m26-settings-menu');
+      if(settings)settings.open=true;
+    }
+    const replacement=findContinuityControl(snapshot);
+    replacement?.focus?.({preventScroll:true});
+    return rendered;
+  }
 
   function syncAdaptiveLayout(){
     const target=adaptiveWindow||root.ownerDocument?.defaultView||globalThis.window||null;
@@ -248,14 +323,29 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
   function onPointerDown(event){
+    const previous=interactionPointerTarget;
+    clearInteractionReleaseTimer();
     interactionPointerTarget=interactiveControl(event.target);
+    if(previous&&!interactionPointerTarget)queueMicrotask(flushDeferredRender);
   }
   function onPointerRelease(){
-    interactionPointerTarget=null;
-    queueMicrotask(flushDeferredRender);
+    schedulePointerRelease(interactionPointerTarget);
+  }
+  function onPointerCancel(){
+    releasePointerInteraction();
+  }
+  function onFocusIn(event){
+    const control=interactiveControl(event.target);
+    if(!control)return;
+    if(interactionPointerTarget===control){
+      clearInteractionReleaseTimer();
+      interactionPointerTarget=null;
+    }
   }
   function onFocusOut(event){
-    if(!interactiveControl(event.target))return;
+    const control=interactiveControl(event.target);
+    if(!control)return;
+    if(interactionPointerTarget===control)releasePointerInteraction({deferRender:false});
     queueMicrotask(flushDeferredRender);
   }
 
@@ -266,7 +356,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     source?.setAttribute?.('aria-busy','true');
   }
 
-  function switchClient(rawClientId,{openExpediente=false,source=null}={}){
+  function switchClient(rawClientId,{openExpediente=false,source=null,preserveSourceFocus=false}={}){
     const current=store.getState();
     const requested=String(rawClientId||'').trim();
     if(!requested){
@@ -285,7 +375,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       markClientSwitchBusy(source);
       if(!sameClient)store.selectClient(clientId);
       if(openExpediente&&!alreadyOpen)store.navigate('expediente');
-      focusMain();
+      if(preserveSourceFocus&&source)rerenderPreservingControl(source);
+      else focusMain();
       return true;
     }catch(error){
       clearClientSwitchBusy();
@@ -400,13 +491,16 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
   function onChange(event) {
+    const committedControl=interactiveControl(event.target);
+    if(committedControl&&interactionPointerTarget===committedControl){
+      releasePointerInteraction({deferRender:false});
+    }
+
     const languageSelector=event.target.closest?.('[data-m26-ui-language]');
     if(languageSelector){
       try{
         setIberfitLanguage(String(languageSelector.value||'').trim());
-        lastMarkup='';
-        renderNow(store.getState());
-        focusMain();
+        rerenderPreservingControl(languageSelector);
       }catch(error){
         root.dispatchEvent(new CustomEvent('m26:access-denied',{bubbles:true,detail:{code:error.message}}));
       }
@@ -417,9 +511,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     if(localeSelector){
       try{
         setIberfitUiLocale(String(localeSelector.value||'').trim());
-        lastMarkup='';
-        renderNow(store.getState());
-        focusMain();
+        rerenderPreservingControl(localeSelector);
       }catch(error){
         root.dispatchEvent(new CustomEvent('m26:access-denied',{bubbles:true,detail:{code:error.message}}));
       }
@@ -435,9 +527,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       const value=preferenceControl.type==='checkbox'?Boolean(preferenceControl.checked):String(preferenceControl.value||'').trim();
       try{
         updateIberfitExperiencePreference(scope,path,value);
-        lastMarkup='';
-        renderNow(store.getState());
-        focusMain();
+        rerenderPreservingControl(preferenceControl);
       }catch(error){
         root.dispatchEvent(new CustomEvent('m26:access-denied',{bubbles:true,detail:{code:error.message}}));
       }
@@ -445,8 +535,11 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
 
     const selector = event.target.closest?.('[data-m26-client-select]');
-    if (!selector) return;
-    switchClient(selector.value,{openExpediente:false,source:selector});
+    if (!selector){
+      if(committedControl)queueMicrotask(flushDeferredRender);
+      return;
+    }
+    switchClient(selector.value,{openExpediente:false,source:selector,preserveSourceFocus:true});
   }
 
   function mount({progressive=false}={}) {
@@ -457,7 +550,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     root.addEventListener('change', onChange);
     root.addEventListener('pointerdown',onPointerDown,{passive:true});
     root.addEventListener('pointerup',onPointerRelease,{passive:true});
-    root.addEventListener('pointercancel',onPointerRelease,{passive:true});
+    root.addEventListener('pointercancel',onPointerCancel,{passive:true});
+    root.addEventListener('focusin',onFocusIn);
     root.addEventListener('focusout',onFocusOut);
     adaptiveWindow?.addEventListener?.('resize',syncAdaptiveLayout,{passive:true});
     adaptiveWindow?.addEventListener?.('orientationchange',syncAdaptiveLayout,{passive:true});
@@ -476,12 +570,14 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     generation+=1;
     renderQueued=false;
     queuedState=null;
+    clearInteractionReleaseTimer();
     interactionPointerTarget=null;
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
     root.removeEventListener('pointerdown',onPointerDown);
     root.removeEventListener('pointerup',onPointerRelease);
-    root.removeEventListener('pointercancel',onPointerRelease);
+    root.removeEventListener('pointercancel',onPointerCancel);
+    root.removeEventListener('focusin',onFocusIn);
     root.removeEventListener('focusout',onFocusOut);
     adaptiveWindow?.removeEventListener?.('resize',syncAdaptiveLayout);
     adaptiveWindow?.removeEventListener?.('orientationchange',syncAdaptiveLayout);

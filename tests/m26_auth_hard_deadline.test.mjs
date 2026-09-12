@@ -122,3 +122,26 @@ test('progressive shell mount never computes the heavy route before the first au
   assert.match(source,/function mount\(\{progressive=false\}=\{\}\)/u);
   assert.match(source,/if\(progressive&&authenticated\)\{\s*renderWorkspaceFrame\(state\);\s*return;\s*\}/u);
 });
+
+test('mobile native editable controls keep an interaction hold and preserve focus across shell rerenders',()=>{
+  const source=fs.readFileSync('src/m26/shell/shell-controller.js','utf8');
+
+  assert.match(source,/const NATIVE_SELECT_INTERACTION_HOLD_MS=30_000/u);
+  assert.match(source,/function schedulePointerRelease\(control\)/u);
+  assert.match(source,/tag==='select'\?NATIVE_SELECT_INTERACTION_HOLD_MS:INTERACTION_RELEASE_GRACE_MS/u);
+  assert.match(source,/root\.addEventListener\('pointercancel',onPointerCancel/u);
+  assert.match(source,/root\.addEventListener\('focusin',onFocusIn\)/u);
+  assert.match(source,/function rerenderPreservingControl\(control\)/u);
+  assert.match(source,/if\(snapshot\?\.settingsOpen\)[\s\S]{0,220}?settings\.open=true/u);
+  assert.match(source,/replacement\?\.focus\?\.\(\{preventScroll:true\}\)/u);
+
+  const localeStart=source.indexOf("const localeSelector=event.target.closest?.('[data-m26-ui-locale]')");
+  const preferenceStart=source.indexOf('// RC71_2_PREFERENCES_CHANGE_BEGIN',localeStart);
+  assert.ok(localeStart>=0&&preferenceStart>localeStart);
+  const localeBlock=source.slice(localeStart,preferenceStart);
+  assert.match(localeBlock,/rerenderPreservingControl\(localeSelector\)/u);
+  assert.doesNotMatch(localeBlock,/focusMain\(\)/u);
+
+  assert.match(source,/switchClient\(selector\.value,\{openExpediente:false,source:selector,preserveSourceFocus:true\}\)/u);
+});
+
