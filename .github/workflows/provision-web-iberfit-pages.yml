@@ -51,7 +51,7 @@ jobs:
               -X POST \
               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
               -H 'Content-Type: application/json' \
-              --data '{"name":"web-iberfit","production_branch":"main"}' \
+              --data '{"name":"web-iberfit","production_branch":"production"}' \
               "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects" \
               -o /tmp/project-created.json
           elif [ "$CODE" != "200" ]; then
@@ -68,6 +68,7 @@ jobs:
           if(x.result.name!=='web-iberfit') throw new Error('WRONG_PROJECT_NAME');
           const domains=Array.isArray(x.result.domains)?x.result.domains:[];
           if(domains.includes('app.iberfit.cl')) throw new Error('APP_DOMAIN_COLLISION');
+          if(x.result.production_branch!=='production') throw new Error(`UNEXPECTED_PRODUCTION_BRANCH:${x.result.production_branch}`);
           console.log(JSON.stringify({name:x.result.name,subdomain:x.result.subdomain,production_branch:x.result.production_branch,domains},null,2));
           NODE
 
@@ -95,7 +96,7 @@ jobs:
           set -euo pipefail
           npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 \
             --project-name "$CF_PROJECT" \
-            --branch main \
+            --branch production \
             --commit-hash "$WEB_SHA" \
             --commit-message 'WEB IBERFIT V6.28 SEO certified'
 
