@@ -532,6 +532,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       email.length<3||
       email.length>MAX_AUTH_EMAIL_CHARS||
       !email.includes('@')||
+      !['admin','coach'].includes(privilegedRole)||
       /[\u0000-\u001f\u007f]/u.test(email)
     ){
       throw new Error('M26_AUTH_USER_INVALID_RESPONSE');
@@ -623,6 +624,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     });
     const userId=String(body?.user?.id||'');
     const email=String(body?.user?.email||'').trim().toLowerCase();
+    const privilegedRole=String(body?.privilegedRole||'').trim().toLowerCase();
     if(
       !body||
       typeof body!=='object'||
@@ -638,6 +640,7 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     if(runtime.qaOnly&&!isQaAuthorizedEmail(email))throw new Error('M26_QA_ACCOUNT_REQUIRED');
     return Object.freeze({
       user:Object.freeze({id:userId,email}),
+      privilegedRole,
       expiresAt:body.expiresAt??null,
     });
   }
