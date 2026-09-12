@@ -1,0 +1,47 @@
+name: Check WEB IBERFIT domain claim
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/check-web-iberfit-domain-claim.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+      CF_PROJECT: 'web-iberfit'
+      DOMAIN: 'iberfit.cl'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Consultar dominios y validar capacidad sin cambiar DNS
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/domains"
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "$BASE" -o /tmp/domains-before.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/domains-before.json','utf8'));
+          if(!x.success||!Array.isArray(x.result))throw new Error('PAGES_DOMAINS_LOOKUP_FAILED');
+          console.log('DOMAINS_BEFORE='+JSON.stringify(x.result.map(d=>({name:d.name,status:d.status,verification_data:d.verification_data||null}))));
+          if(x.result.some(d=>d.name===process.env.DOMAIN))throw new Error('DOMAIN_ALREADY_ATTACHED_UNEXPECTEDLY');
+          NODE
+
+          # No POST aquí: este workflow es intencionadamente de solo lectura.
+          # Verificamos únicamente que el endpoint de dominios sea accesible con el token actual.
+          echo 'DOMAIN_CLAIM_READ_ENDPOINT_OK=true'
