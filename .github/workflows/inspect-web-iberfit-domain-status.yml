@@ -1,4 +1,4 @@
-name: Inspect WEB IBERFIT domain status
+name: Inspect WEB IBERFIT release readiness
 
 on:
   push:
@@ -14,28 +14,145 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
       CF_PROJECT: 'web-iberfit'
-      DOMAIN: 'web.iberfit.cl'
+      CF_ROLLBACK_PROJECT: 'web-iberfit-rollback'
+      STAGING_DOMAIN: 'web.iberfit.cl'
+      PRODUCTION_DOMAIN: 'iberfit.cl'
+      CERTIFIED_SHA: '8d6fcb12a9472e9ef78b9973ca3d0cd9d71244ab'
     steps:
       - uses: actions/checkout@v4
-      - name: Estado exacto del dominio
+
+      - name: Inspeccionar proyectos Pages y dominio staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          curl --silent --show-error \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H 'Content-Type: application/json' \
-            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/domains/${DOMAIN}" \
-            -o /tmp/domain.json
+          AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json')
+
+          curl --fail --silent --show-error "${AUTH[@]}"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}"             -o /tmp/project.json
+          curl --fail --silent --show-error "${AUTH[@]}"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments"             -o /tmp/deployments.json
+          curl --fail --silent --show-error "${AUTH[@]}"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_ROLLBACK_PROJECT}"             -o /tmp/rollback-project.json
+
+          DOMAIN_CODE="$(curl --silent --show-error -o /tmp/domain.json -w '%{http_code}' "${AUTH[@]}"             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/domains/${STAGING_DOMAIN}")"
+
           node <<'NODE'
           const fs=require('fs');
-          const x=JSON.parse(fs.readFileSync('/tmp/domain.json','utf8'));
-          console.log(JSON.stringify({success:x.success,result:x.result,errors:x.errors,messages:x.messages},null,2));
+          const project=JSON.parse(fs.readFileSync('/tmp/project.json','utf8'));
+          const deployments=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const rollback=JSON.parse(fs.readFileSync('/tmp/rollback-project.json','utf8'));
+          const domainCode=process.env.DOMAIN_CODE;
+          const domain=fs.existsSync('/tmp/domain.json') ? JSON.parse(fs.readFileSync('/tmp/domain.json','utf8')) : null;
+
+          if(!project.success || !project.result) throw new Error('WEB_IBERFIT_PROJECT_LOOKUP_FAILED');
+          if(!deployments.success || !Array.isArray(deployments.result)) throw new Error('WEB_IBERFIT_DEPLOYMENTS_LOOKUP_FAILED');
+          if(!rollback.success || !rollback.result) throw new Error('WEB_IBERFIT_ROLLBACK_LOOKUP_FAILED');
+
+          const exact=deployments.result.find(d =>
+            d.environment==='production' &&
+            d.deployment_trigger?.metadata?.commit_hash===process.env.CERTIFIED_SHA
+          );
+          if(!exact) throw new Error('CERTIFIED_SHA_NOT_PRESENT_IN_PAGES');
+          if(exact.latest_stage?.status && exact.latest_stage.status!=='success') {
+            throw new Error('CERTIFIED_SHA_DEPLOYMENT_NOT_SUCCESS:'+exact.latest_stage.status);
+          }
+
+          const summary={
+            project:{
+              name:project.result.name,
+              subdomain:project.result.subdomain,
+              production_branch:project.result.production_branch,
+              domains:project.result.domains||[]
+            },
+            certifiedDeployment:{
+              id:exact.id,
+              url:exact.url,
+              sha:process.env.CERTIFIED_SHA,
+              latest_stage:exact.latest_stage||null
+            },
+            rollback:{
+              name:rollback.result.name,
+              subdomain:rollback.result.subdomain,
+              domains:rollback.result.domains||[]
+            },
+            staging:{
+              httpCode:domainCode,
+              result:domain?.result||null,
+              errors:domain?.errors||[]
+            }
+          };
+          console.log('CLOUDFLARE_SUMMARY='+JSON.stringify(summary));
           NODE
-          echo 'DNS:'
-          dig +short CNAME "$DOMAIN" || true
-          dig +short A "$DOMAIN" || true
+
+      - name: Verificar endpoints públicos y huellas de versión
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          fetch() {
+            local label="$1"
+            local url="$2"
+            local out="$3"
+            local headers="$4"
+            local code
+            code="$(curl --silent --show-error --location --retry 5 --retry-all-errors               --connect-timeout 10 --max-time 30               -D "$headers" -o "$out" -w '%{http_code}' "$url" || true)"
+            echo "HTTP ${label}=${code}"
+            echo "${code}"
+          }
+
+          PAGES_CODE="$(fetch pages "https://${CF_PROJECT}.pages.dev/" /tmp/pages.html /tmp/pages.headers | tail -1)"
+          test "$PAGES_CODE" = "200"
+          grep -Fq 'Entrenamiento personal con criterio' /tmp/pages.html
+          grep -Fq '>A distancia</a>' /tmp/pages.html
+          grep -Fq '/assets/analytics.v628.js' /tmp/pages.html
+
+          ROLLBACK_CODE="$(fetch rollback "https://${CF_ROLLBACK_PROJECT}.pages.dev/" /tmp/rollback.html /tmp/rollback.headers | tail -1)"
+          test "$ROLLBACK_CODE" = "200"
+          test -s /tmp/rollback.html
+          if grep -Fq '/assets/analytics.v628.js' /tmp/rollback.html; then
+            echo 'ROLLBACK_UNEXPECTEDLY_MATCHES_V628=true'
+            exit 51
+          fi
+
+          PROD_CODE="$(fetch production "https://${PRODUCTION_DOMAIN}/" /tmp/production.html /tmp/production.headers | tail -1)"
+          test "$PROD_CODE" = "200"
+          test -s /tmp/production.html
+          if grep -Fq '>A distancia</a>' /tmp/production.html && grep -Fq '/assets/analytics.v628.js' /tmp/production.html; then
+            echo 'PRODUCTION_FINGERPRINT=V628_CERTIFIED'
+          else
+            echo 'PRODUCTION_FINGERPRINT=PRE_V628_OR_OTHER'
+          fi
+
+          STAGE_CODE="$(fetch staging "https://${STAGING_DOMAIN}/" /tmp/staging.html /tmp/staging.headers | tail -1)"
+          if [ "$STAGE_CODE" = "200" ]; then
+            grep -Fq '>A distancia</a>' /tmp/staging.html
+            grep -Fq '/assets/analytics.v628.js' /tmp/staging.html
+            echo 'STAGING_PUBLIC=ACTIVE_V628'
+          else
+            echo "STAGING_PUBLIC=NOT_READY_HTTP_${STAGE_CODE}"
+          fi
+
+      - name: Resolver DNS público sin credenciales de zona
+        shell: bash
+        run: |
+          set -u
+          echo '=== production ==='
+          dig +short A "${PRODUCTION_DOMAIN}" || true
+          dig +short AAAA "${PRODUCTION_DOMAIN}" || true
+          dig +short CNAME "${PRODUCTION_DOMAIN}" || true
+          echo '=== staging ==='
+          dig +short CNAME "${STAGING_DOMAIN}" || true
+          dig +short A "${STAGING_DOMAIN}" || true
+
+      - name: Resumen de readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'READINESS: certified Pages deployment reachable = yes'
+          echo 'READINESS: rollback reachable and distinct from V6.28 = yes'
+          echo 'READINESS: production reachable = yes'
+          echo 'READINESS: staging may remain blocked until DNS CNAME is created'
+          echo 'No DNS or domain mutation was performed.'
