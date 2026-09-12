@@ -2208,7 +2208,7 @@ function iriPlanningContextPanel(seed){
       <div>
         <p class="m26-eyebrow">Contexto IRI confirmado</p>
         <h2>Base para este ciclo</h2>
-        <p>Evaluación ${escapeHtml(seed.sourceAssessmentDate||'confirmada')}. IBERFIT propone estos datos como punto de partida; no crea, valida ni publica un plan automáticamente.</p>
+        <p><strong>Evaluación confirmada:</strong> ${escapeHtml(seed.sourceAssessmentDate||'Sin fecha')}</p><p>IBERFIT propone estos datos como punto de partida; no crea, valida ni publica un plan automáticamente.</p>
       </div>
       ${badge('Revisión del Coach obligatoria','warning')}
     </div>
