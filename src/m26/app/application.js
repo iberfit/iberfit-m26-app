@@ -398,6 +398,35 @@ export async function createM26Application({root=document.querySelector('#app'),
     });
   }
 
+  function yieldInteractionTurn({timeoutMs=96}={}){
+    return new Promise((resolve)=>{
+      const windowLike=root.ownerDocument?.defaultView||globalThis.window||globalThis;
+      let settled=false;
+      let timer=null;
+      const finish=()=>{
+        if(settled)return;
+        settled=true;
+        if(timer!==null)globalThis.clearTimeout?.(timer);
+        resolve();
+      };
+      timer=globalThis.setTimeout?.(finish,Math.max(32,Math.min(Number(timeoutMs)||96,250)))??null;
+      if(typeof windowLike?.requestAnimationFrame==='function'){
+        windowLike.requestAnimationFrame(finish);
+        return;
+      }
+      if(timer===null)queueMicrotask(finish);
+    });
+  }
+
+  async function mountAuthenticatedControllersProgressively(entries,{authAttemptId=null}={}){
+    for(const [name,controller] of entries){
+      await yieldInteractionTurn();
+      if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
+      controller?.mount?.();
+      qaStage(`rc64-controller-${String(name||'unknown').replace(/[^a-z0-9-]+/giu,'-')}-ready`);
+    }
+  }
+
   async function optionalAuthBootstrap(operation,fallback,stage='optional'){
     try{
       return await withAuthOperationTimeout(operation,{
@@ -724,6 +753,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     const authAttemptId=currentAuthAttemptId;
     qaStage('rc64-setup-start');
     destroyControllers();sessionUi=null;
+    if(root?.dataset)delete root.dataset.m26InteractionReady;
     const hydrationResult=await hydrate({reason:'login'});
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
     const {installed,runtimeRegistry}=hydrationResult;
@@ -773,14 +803,33 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-setup-controllers-ready');
     root.addEventListener('click',guardSessionNavigation,true);
     if(authAttemptId!==null&&!authWatchdog.isCurrent(authAttemptId))throw new Error('M26_AUTH_ATTEMPT_SUPERSEDED');
+    await yieldInteractionTurn();
     render();
     qaStage('rc64-shell-route-ready');
+    await yieldInteractionTurn();
+    if(root?.dataset)root.dataset.m26InteractionReady='true';
+    root.dispatchEvent(new CustomEvent('m26:interaction-ready',{bubbles:false}));
+    qaStage('rc64-shell-interaction-ready');
     const mountedShellRole=root.querySelector?.('.m26-shell[data-m26-role]')?.getAttribute('data-m26-role')||'';
     if(mountedShellRole==='coach')qaStage('rc64-shell-role-coach');
     else if(mountedShellRole==='client')qaStage('rc64-shell-role-client');
     else if(mountedShellRole==='admin')qaStage('rc64-shell-role-admin');
     else qaStage('rc64-shell-role-missing');
-    motion.mount();guidance.mount();onboarding.mount();mediaExperience.mount();productivity.mount();workflow.mount();engagement.mount();verification.mount();rc39.mount();communication.mount();admin.mount();sessionController.mount();iriExternalReports.mount();
+    await mountAuthenticatedControllersProgressively([
+      ['workflow',workflow],
+      ['session',sessionController],
+      ['engagement',engagement],
+      ['verification',verification],
+      ['admin',admin],
+      ['communication',communication],
+      ['iri-reports',iriExternalReports],
+      ['rc39',rc39],
+      ['productivity',productivity],
+      ['media',mediaExperience],
+      ['guidance',guidance],
+      ['onboarding',onboarding],
+      ['motion',motion],
+    ],{authAttemptId});
     qaStage('rc64-controller-mounts-ready');
     if(authAttemptId!==null&&completeAuthAttempt(authAttemptId))loginBusy=false;
     qaStage('rc64-shell-mount-ready');
@@ -901,7 +950,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       deviceClearBusy=false;
     }
   }
-  function destroyControllers(){telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers(){if(root?.dataset)delete root.dataset.m26InteractionReady;telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 async function onAccountPasswordRecovery(){
   if(accountSecurityBusy||!session?.user?.email||!runtime.enabled)return false;
   accountSecurityBusy=true;
