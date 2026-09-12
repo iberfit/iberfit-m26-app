@@ -159,9 +159,18 @@ export function progressWindow({now=new Date(),days=28}={}){
   return {start,end,days:safeDays};
 }
 
-export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={}){
+function progressRange({now=new Date(),days=28,startAt=null,endAt=null}={}){
+  const hasExplicit=startAt!==null||endAt!==null;
+  if(!hasExplicit)return progressWindow({now,days});
+  const start=safeDate(startAt),end=safeDate(endAt);
+  if(!start||!end||start.getTime()>end.getTime())throw new Error('M26_PROGRESS_RANGE_INVALID');
+  const spanDays=Math.max(1,Math.ceil((end.getTime()-start.getTime())/86_400_000));
+  return Object.freeze({start,end,days:spanDays});
+}
+
+export function computeProgressSummary(state,clientId,{now=new Date(),days=28,startAt=null,endAt=null}={}){
   if(!clientId)return null;
-  const window=progressWindow({now,days}),{start,end}=window;
+  const window=progressRange({now,days,startAt,endAt}),{start,end}=window;
   const appointments=forClient(state,'appointments',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
   const planned=appointments.filter((item)=>!['cancelado','cancelled','anulado','annulled'].includes(statusOf(item)));
   const completedAppointments=planned.filter((item)=>['completado','completed'].includes(statusOf(item)));
