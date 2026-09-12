@@ -72,3 +72,42 @@ test('device re-enrollment also bounds backend calls so recovery cannot freeze',
   assert.match(source,/boundedDeviceBackend\(\(\)=>transport\.verifyWebAuthn/u);
   assert.match(source,/boundedDeviceBackend\(\(\)=>transport\.authAssuranceContext/u);
 });
+
+
+test('post-MFA mobile handoff paints authenticated shell before catalog and heavy controllers',()=>{
+  const source=fs.readFileSync('src/m26/app/application.js','utf8');
+  const start=source.indexOf('async function setupAuthenticated()');
+  const end=source.indexOf('function guardSessionNavigation',start);
+  assert.ok(start>=0&&end>start);
+  const block=source.slice(start,end);
+
+  const hydrateReady=block.indexOf("qaStage('rc64-setup-hydrate-ready')");
+  const progressiveMount=block.indexOf('shell.mount({progressive:true})');
+  const firstPaint=block.indexOf('await yieldWorkspacePaint()');
+  const catalogLoad=block.indexOf('()=>fetchCatalog()');
+  const controllersReady=block.indexOf("qaStage('rc64-setup-controllers-ready')");
+  const fullRoute=block.indexOf("qaStage('rc64-shell-route-ready')");
+  const controllerMounts=block.indexOf("qaStage('rc64-controller-mounts-ready')");
+  const authComplete=block.indexOf('completeAuthAttempt(authAttemptId)');
+
+  assert.ok(hydrateReady>=0);
+  assert.ok(progressiveMount>hydrateReady);
+  assert.ok(firstPaint>progressiveMount);
+  assert.ok(catalogLoad>firstPaint);
+  assert.ok(controllersReady>catalogLoad);
+  assert.ok(fullRoute>controllersReady);
+  assert.ok(controllerMounts>fullRoute);
+  assert.ok(authComplete>controllerMounts);
+  assert.match(source,/function yieldWorkspacePaint\(\{timeoutMs=180\}=\{\}\)/u);
+  assert.match(source,/requestAnimationFrame\(\(\)=>\{\s*windowLike\.requestAnimationFrame\(finish\)/u);
+  assert.match(source,/setTimeout\?\.\(finish,Math\.max\(50,Math\.min\(Number\(timeoutMs\)\|\|180,500\)\)\)/u);
+});
+
+test('progressive shell mount never computes the heavy route before the first authenticated frame',()=>{
+  const source=fs.readFileSync('src/m26/shell/shell-controller.js','utf8');
+  assert.match(source,/function renderWorkspaceFrame\(state=store\.getState\(\)\)/u);
+  assert.match(source,/renderM26Shell\(viewModel,''\)/u);
+  assert.match(source,/m26:shell-frame-ready/u);
+  assert.match(source,/function mount\(\{progressive=false\}=\{\}\)/u);
+  assert.match(source,/if\(progressive&&authenticated\)\{\s*renderWorkspaceFrame\(state\);\s*return;\s*\}/u);
+});
