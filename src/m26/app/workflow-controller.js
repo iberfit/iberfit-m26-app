@@ -32,6 +32,7 @@ import {
 import {scoreNormedTest} from '../norms/norms-engine.js';
 import {deriveAgeYears} from '../workflows/iri-profile.js';
 import {protocolComparabilityWarnings} from '../workflows/iri-protocol-catalog.js';
+import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {rankCoachClientDocuments} from '../productivity/coach-productivity.js';
 import {classifyCoachListMeasurement,markCoachListMeasurement} from '../productivity/large-list-policy.js';
 
@@ -103,6 +104,33 @@ export function confirmedIriHistoryForReport(state={},clientId='',currentAssessm
   }
   history.sort((a,b)=>String(a.assessmentDate||'').localeCompare(String(b.assessmentDate||''))||String(a.assessmentId||'').localeCompare(String(b.assessmentId||'')));
   return Object.freeze(history);
+}
+
+export function iriExecutionEvidenceForReport(state={},clientId='',history=[],currentAssessmentDate=''){
+  const expectedClient=String(clientId||'').trim();
+  const currentDate=String(currentAssessmentDate||'').trim();
+  const previous=[...(Array.isArray(history)?history:[])]
+    .filter((item)=>item&&String(item.assessmentDate||'').trim())
+    .sort((a,b)=>String(a.assessmentDate||'').localeCompare(String(b.assessmentDate||'')))
+    .at(-1)||null;
+  const previousDate=String(previous?.assessmentDate||'').trim();
+  if(!expectedClient||!/^\d{4}-\d{2}-\d{2}$/u.test(previousDate)||!/^\d{4}-\d{2}-\d{2}$/u.test(currentDate))return null;
+  const startAt=new Date(`${previousDate}T00:00:00.000Z`);
+  const endAt=new Date(`${currentDate}T23:59:59.999Z`);
+  if(!Number.isFinite(startAt.getTime())||!Number.isFinite(endAt.getTime())||endAt.getTime()<=startAt.getTime())return null;
+  const summary=computeProgressSummary(state,expectedClient,{startAt,endAt});
+  if(!summary)return null;
+  return Object.freeze({
+    schema:'iberfit-iri2-execution-evidence-v1',
+    fromAssessmentDate:previousDate,
+    toAssessmentDate:currentDate,
+    plannedSessions:Number(summary.plannedSessions||0),
+    completedSessions:Number(summary.completedSessions||0),
+    adherence:Number.isFinite(summary.adherence)?summary.adherence:null,
+    unconfirmedExecutions:Number(summary.unconfirmedExecutions||0),
+    dataQuality:String(summary.dataQuality||'limitada'),
+    source:'appointments+sessionExecutions',
+  });
 }
 function clientRecordId(value){return createdClientResultId(value);}
 function clientEmail(record){return clientDraftEmail(record);}
@@ -574,7 +602,8 @@ export function createWorkflowController({
         externalReport=await getIriExternalReport(draft.assessmentId);
       }
       const longitudinalHistory=confirmedIriHistoryForReport(state,clientId,draft.assessmentId,draft.assessmentDate);
-      const result=openIriReportPrint({...reportContext(draft),variant,externalReport,longitudinalHistory,printTarget});status(root,iriReportStatusScope(),variant==='client'?'Informe Cliente preparado para guardar como PDF.':'Informe Coach / Admin preparado para guardar como PDF.','success');return result;
+      const executionEvidence=iriExecutionEvidenceForReport(state,clientId,longitudinalHistory,draft.assessmentDate);
+      const result=openIriReportPrint({...reportContext(draft),variant,externalReport,longitudinalHistory,executionEvidence,printTarget});status(root,iriReportStatusScope(),variant==='client'?'Informe Cliente preparado para guardar como PDF.':'Informe Coach / Admin preparado para guardar como PDF.','success');return result;
     }catch(error){try{printTarget?.close?.();}catch{}throw error;}
   }
 
