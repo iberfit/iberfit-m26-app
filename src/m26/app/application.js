@@ -376,17 +376,25 @@ export async function createM26Application({root=document.querySelector('#app'),
   });
 }
 
-  function yieldWorkspacePaint(){
+  function yieldWorkspacePaint({timeoutMs=180}={}){
     return new Promise((resolve)=>{
       const windowLike=root.ownerDocument?.defaultView||globalThis.window||globalThis;
+      let settled=false;
+      let timer=null;
+      const finish=()=>{
+        if(settled)return;
+        settled=true;
+        if(timer!==null)globalThis.clearTimeout?.(timer);
+        resolve();
+      };
+      timer=globalThis.setTimeout?.(finish,Math.max(50,Math.min(Number(timeoutMs)||180,500)))??null;
       if(typeof windowLike?.requestAnimationFrame==='function'){
         windowLike.requestAnimationFrame(()=>{
-          windowLike.requestAnimationFrame(resolve);
+          windowLike.requestAnimationFrame(finish);
         });
         return;
       }
-      const timer=globalThis.setTimeout?.(resolve,0);
-      if(timer===undefined||timer===null)queueMicrotask(resolve);
+      if(timer===null)queueMicrotask(finish);
     });
   }
 
