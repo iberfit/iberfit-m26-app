@@ -65,7 +65,7 @@ async function readAssurance(response){
   return payload;
 }
 
-test('RC64.2B current WebAuthn contract authenticates QA Coach and Client without mutations',async({browser})=>{
+test('RC64.2B current WebAuthn contract authenticates QA Coach and Client without mutations',async({browser},testInfo)=>{
   const missing=required.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
   expect(process.env.M26_PROJECT_REF).toBe(PROJECT_REF);
@@ -128,6 +128,12 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
     });
 
     const page=await context.newPage();
+    const projectName=String(testInfo.project.name||'');
+    const touchProfile=/tablet|mobile/iu.test(projectName);
+    const cpuThrottleRate=touchProfile?6:3;
+    const cdp=await context.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate',{rate:cpuThrottleRate});
+
     page.on('requestfailed',(request)=>{
       try{
         const url=new URL(request.url());
@@ -219,6 +225,20 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
             'Native settings control must accept pointer/touch interaction after login',
           ).toHaveAttribute('open','',{timeout:5_000});
         }
+
+        const eventLoopDelay=await page.evaluate(()=>new Promise((resolve)=>{
+          const started=performance.now();
+          setTimeout(()=>resolve(Math.max(0,performance.now()-started)),0);
+        }));
+        expect(
+          Number(eventLoopDelay),
+          'Authenticated workspace must return control to the event loop under CPU throttling',
+        ).toBeLessThan(1_500);
+
+        await expect(
+          page.locator('.m26-shell'),
+          'Authenticated shell must remain interactive after throttled navigation and settings interactions',
+        ).toHaveAttribute('data-m26-role',account.role,{timeout:5_000});
       }
 
       const quality=await page.evaluate(async()=>{
@@ -253,6 +273,8 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         pageErrors:0,
         qualityObservability:'memory-only-no-transport',
         interactionVerified:account.role==='client',
+        cpuThrottleRate,
+        touchProfile,
       }));
 
       console.log(`RC64_2B_CURRENT_ACCOUNT_PASS:${account.name}`);
