@@ -66,8 +66,8 @@ const PROGRESSIVE_ONBOARDING_COMPACT_STYLE_TEXT=`
   transition:padding .16s ease;
 }
 [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-progressive-onboarding{
-  opacity:.42;
-  filter:saturate(.62) brightness(.82);
+  opacity:.62;
+  filter:saturate(.82) brightness(.9);
   border-color:color-mix(in srgb,var(--iberfit-color-border) 58%,transparent);
   box-shadow:none;
   transition:opacity .16s ease,filter .16s ease,border-color .16s ease,box-shadow .16s ease;
@@ -96,8 +96,8 @@ const PROGRESSIVE_ONBOARDING_COMPACT_STYLE_TEXT=`
   }
   [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-main{padding-top:.65rem;}
   [${PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE}="true"] .m26-progressive-onboarding{
-    opacity:.28;
-    filter:saturate(.5) brightness(.74);
+    opacity:.54;
+    filter:saturate(.78) brightness(.86);
   }
   .m26-guided-tour{
     bottom:calc(4.75rem + env(safe-area-inset-bottom));

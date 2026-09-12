@@ -11,8 +11,8 @@ test('guided tour visually de-emphasizes the progressive panel without removing 
   const styles=text.slice(start,start+7000);
 
   assert.ok(styles.includes('.m26-progressive-onboarding{'));
-  assert.ok(styles.includes('opacity:.42'));
-  assert.ok(styles.includes('filter:saturate(.62) brightness(.82)'));
+  assert.ok(styles.includes('opacity:.62'));
+  assert.ok(styles.includes('filter:saturate(.82) brightness(.9)'));
   assert.ok(styles.includes('.m26-guided-tour{'));
   assert.ok(styles.includes('background:color-mix('));
   assert.ok(styles.includes('box-shadow:0 28px 90px'));
@@ -26,8 +26,8 @@ test('compact mobile guided tour further reduces background competition without 
   const mobile=text.slice(start,start+1800);
 
   assert.ok(mobile.includes('.m26-progressive-onboarding'));
-  assert.ok(mobile.includes('opacity:.28'));
-  assert.ok(mobile.includes('filter:saturate(.5) brightness(.74)'));
+  assert.ok(mobile.includes('opacity:.54'));
+  assert.ok(mobile.includes('filter:saturate(.78) brightness(.86)'));
   assert.ok(mobile.includes('.m26-guided-tour'));
   assert.ok(mobile.includes('max-height:min(58vh,32rem)'));
   assert.doesNotMatch(mobile,/display\s*:\s*none|visibility\s*:\s*hidden|pointer-events\s*:\s*none/iu);
