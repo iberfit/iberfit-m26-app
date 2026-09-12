@@ -29,10 +29,28 @@ function qaRequestOptions(url,options){
   return {...options,redirect:'error',signal:AbortSignal.timeout(20000)};
 }
 async function requestJson(url,options={}){
-  const response=await fetch(url,qaRequestOptions(url,options));
-  const body=await response.json().catch(()=>null);
-  if(!response.ok)throw new Error(`RC74_4_REMOTE_REQUEST_FAILED:${response.status}:${new URL(url).pathname}`);
-  return body;
+  const target=new URL(url);
+  const authTokenRequest=target.pathname==='/auth/v1/token'&&options?.method==='POST';
+  for(let attempt=0;attempt<(authTokenRequest?2:1);attempt+=1){
+    try{
+      const response=await fetch(url,qaRequestOptions(url,options));
+      const body=await response.json().catch(()=>null);
+      if(response.ok)return body;
+      if(authTokenRequest&&attempt===0&&[502,503,504].includes(Number(response.status)||0)){
+        await new Promise((resolve)=>setTimeout(resolve,220));
+        continue;
+      }
+      throw new Error(`RC74_4_REMOTE_REQUEST_FAILED:${response.status}:${target.pathname}`);
+    }catch(error){
+      const transientNetwork=error?.name==='TypeError'||/Failed to fetch|NetworkError|network request failed/i.test(String(error?.message||error||''));
+      if(authTokenRequest&&attempt===0&&transientNetwork){
+        await new Promise((resolve)=>setTimeout(resolve,220));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error(`RC74_4_REMOTE_REQUEST_FAILED:TRANSIENT_RETRY_EXHAUSTED:${target.pathname}`);
 }
 async function requestResult(url,options={}){
   const response=await fetch(url,qaRequestOptions(url,options));
