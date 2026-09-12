@@ -119,17 +119,26 @@ test('P0 a successful MFA ceremony is not reclassified as biometric failure if w
 });
 
 
-test('P0 email OTP remains fail-closed until the branded SMTP delivery channel is certified',()=>{
-  const challenge=renderAccessUi({
+test('P0 email OTP rollout is enabled only through the certified backend availability gate',()=>{
+  const available=renderAccessUi({
+    backendReady:true,
+    qaOnly:false,
+    host:'app.iberfit.cl',
+    mode:'mfa-challenge',
+    mfa:{kind:'challenge',emailOtpAvailable:true},
+  });
+  const unavailable=renderAccessUi({
     backendReady:true,
     qaOnly:false,
     host:'app.iberfit.cl',
     mode:'mfa-challenge',
     mfa:{kind:'challenge',emailOtpAvailable:false},
   });
-  assert.doesNotMatch(challenge,/data-auth-action="mfa-send-email-code"/u);
-  assert.doesNotMatch(challenge,/Usar código por correo/u);
+  assert.match(available,/data-auth-action="mfa-send-email-code"/u);
+  assert.match(available,/Usar código por correo/u);
+  assert.doesNotMatch(unavailable,/data-auth-action="mfa-send-email-code"/u);
   const source=read('src/m26/app/application.js');
-  assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=false;/u);
+  assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
+  assert.match(source,/emailOtpAvailable:EMAIL_OTP_DEPLOYMENT_READY&&assurance\.emailOtpAvailable===true/u);
   assert.match(source,/if\(mfaState\?\.emailOtpAvailable!==true\)throw new Error\('M26_EMAIL_OTP_CHANNEL_NOT_READY'\)/u);
 });
