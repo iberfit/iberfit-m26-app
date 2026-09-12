@@ -11,7 +11,7 @@ export const M26_AREAS = Object.freeze({
   planificacion: Object.freeze({ key: 'planificacion', label: 'Planificación', title: 'Planificación', scope: 'client-context', roles: ['coach', 'client'] }),
   agenda: Object.freeze({ key: 'agenda', label: 'Agenda', title: 'Agenda', scope: 'global', roles: ['coach'] }),
   sesion: Object.freeze({ key: 'sesion', label: 'Sesiones', title: 'Sesiones', scope: 'client-context', roles: ['coach', 'client'] }),
-  progreso: Object.freeze({ key: 'progreso', label: 'Cliente 360', title: 'Cliente 360 · Progreso y seguimiento', scope: 'client-context', roles: ['coach', 'client'] }),
+  progreso: Object.freeze({ key: 'progreso', label: 'Evolución', title: 'Evolución y seguimiento', scope: 'client-context', roles: ['coach', 'client'] }),
   actividad: Object.freeze({ key: 'actividad', label: 'Actividad', title: 'Actividad, hábitos y dispositivos', scope: 'client-context', roles: ['coach', 'client'] }),
   notas: Object.freeze({ key: 'notas', label: 'Notas privadas', title: 'Notas privadas del entrenador', scope: 'selected-client', roles: ['coach'] }),
   inteligencia: Object.freeze({ key: 'inteligencia', label: 'Inteligencia', title: 'Inteligencia IBERFIT', scope: 'selected-client', roles: ['coach'] }),
