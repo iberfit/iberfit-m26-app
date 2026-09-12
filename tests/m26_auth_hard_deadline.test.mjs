@@ -52,7 +52,7 @@ test('WebAuthn authentication bounds backend stages and avoids a redundant post-
   assert.match(source,/optionalAuthBootstrap\(\s*\(\)=>adminTransport\.applicationContextOptional/u);
   assert.match(source,/optionalAuthBootstrap\(\s*\(\)=>transport\.wearableBootstrap/u);
   assert.match(source,/function reportSoftDiagnostic/u);
-  assert.match(source,/reportSoftDiagnostic\(\`optional-auth-bootstrap-/u);
+  assert.ok(source.includes('reportSoftDiagnostic(`optional-auth-bootstrap-'));
   const optionalStart=source.indexOf('async function optionalAuthBootstrap');
   const optionalEnd=source.indexOf('\n  }\n',optionalStart)+4;
   const optionalBlock=source.slice(optionalStart,optionalEnd);
