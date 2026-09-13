@@ -938,7 +938,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
 
   const setPanel=recorded
     ?`<article
-        class="m26-panel m26-panel-soft m26-session-rest-focus${restActive?' is-active':''}"
+        class="m26-panel m26-panel-soft m26-session-rest-focus m26-session-rest-focus-v3${restActive?' is-active':''}"
         data-session-rest-focus
         data-session-rest-active="${restActive?'true':'false'}"
       >
@@ -952,6 +952,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
             <strong>${restActive?e(restSeconds)+' s':'Continuar'}</strong>
           </div>
         </div>
+        <p class="m26-session-rest-guidance">Tu serie ya está guardada. Descansa o continúa cuando estés preparado.</p>
         ${restActive?`<div class="m26-session-rest-current-media" aria-label="Ejercicio actual">${visual}</div>`:''}
         <p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>
         ${nextExercisePreview}
@@ -973,9 +974,10 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <button type="button" class="m26-primary-action" data-session-action="next">${restActive?'Continuar ahora':e(nextCopy.label)}</button>
         </div>
       </article>`
-    :`<article class="m26-panel m26-session-live-entry" data-session-live-entry data-session-set-entry="current">
+    :`<article class="m26-panel m26-session-live-entry m26-session-live-entry-v3" data-session-live-entry data-session-set-entry="current">
         <p class="m26-eyebrow">Serie ${e(step.setNumber)} de ${e(step.totalSets)}</p>
         <h3>Registra lo que realmente hiciste</h3>
+        <p class="m26-session-set-rule">Registra repeticiones o tiempo. La carga es opcional; el RPE es obligatorio.</p>
         ${previousSetReuse}
         <div class="m26-field-grid m26-session-set-fields">
           <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
@@ -998,7 +1000,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
 
   const cues=(ex.cues||[]).join(' · ');
 
-  return `<section class="m26-guided m26-session-live m26-session-live-v2" data-session-live-state="${restActive?'rest':'active'}">
+  return `<section class="m26-guided m26-session-live m26-session-live-v2 m26-session-live-v3" data-session-live-state="${restActive?'rest':'active'}" data-session-live-v3>
     ${state}
     ${sync}
     <header class="m26-session-live-hero">
@@ -1020,12 +1022,16 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
 
     ${touchFocus}
 
-    <div class="m26-session-live-workbench">
+    <div class="m26-session-live-quick-actions" aria-label="Acciones de navegación">
+      <button type="button" data-session-action="previous">Anterior</button>
+    </div>
+
+    <div class="m26-session-live-workbench is-${restActive?'rest':'active'}">
       <main class="m26-session-live-primary" aria-label="Registro de la serie actual">
         ${setPanel}
       </main>
 
-      <aside class="m26-session-live-context" aria-label="Contexto del ejercicio actual">
+      <aside class="m26-session-live-context m26-session-live-context-v3" aria-label="Contexto del ejercicio actual">
         ${restActive?'':visual}
         <section class="m26-panel m26-prescription-summary" data-session-live-prescription>
           <p class="m26-eyebrow">Objetivo de esta serie</p>
@@ -1052,15 +1058,15 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         ${planned.prescriptionNotes?`<section class="m26-session-live-cues" aria-label="Indicaciones planificadas"><span>Indicaciones del Coach</span><strong>${e(planned.prescriptionNotes)}</strong></section>`:''}
         ${planned.progression?`<details class="m26-session-options m26-session-progression"><summary>Progresión prevista</summary><p>${e(planned.progression)}</p><small>Referencia de planificación; no modifica automáticamente la ejecución de hoy.</small></details>`:''}
         ${cues?`<section class="m26-session-live-cues" aria-label="Indicaciones del ejercicio"><span>Claves técnicas</span><strong>${e(cues)}</strong></section>`:''}
-        ${renderExerciseMemorySession(exerciseMemory)}
-        ${currentExerciseHistory}
-        <section class="m26-panel m26-panel-soft m26-session-live-options">
-          <h3>Ajustes de sesión</h3>
-          <div class="m26-inline-actions">
-            <button type="button" data-session-action="previous">Anterior</button>
-          </div>
-          <details class="m26-session-options">
-            <summary>Ajustes y alternativas</summary>
+        <details class="m26-session-live-secondary-context">
+          <summary>Historial, datos y ajustes</summary>
+          <div class="m26-session-live-secondary-body">
+            ${renderExerciseMemorySession(exerciseMemory)}
+            ${currentExerciseHistory}
+            <section class="m26-panel m26-panel-soft m26-session-live-options">
+              <h3>Ajustes de sesión</h3>
+              <details class="m26-session-options">
+                <summary>Ajustes y alternativas</summary>
             <p>Estos cambios afectan únicamente a la ejecución de hoy; no modifican el plan futuro.</p>
             <label>Alternativa<select data-session-substitute ${substitutionUnavailable?'disabled aria-disabled="true"':''}>${alternatives||'<option value="">Sin alternativas compatibles</option>'}</select></label>
             <label>Motivo de sustitución<input maxlength="500" data-session-substitute-reason></label>
@@ -1082,13 +1088,15 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
               <button type="button" data-session-action="add-live-exercise">Añadir ejercicio a la sesión de hoy</button>
             </div>`:''}
           </details>
-          <details class="m26-session-options">
-            <summary>Pausa o cancelación</summary>
-            <button type="button" data-session-action="pause">Pausar sesión</button>
-            <label>Motivo para cancelar<input maxlength="500" data-session-cancel-reason></label>
-            <button type="button" data-session-action="cancel">Cancelar sesión</button>
-          </details>
-        </section>
+              <details class="m26-session-options">
+                <summary>Pausa o cancelación</summary>
+                <button type="button" data-session-action="pause">Pausar sesión</button>
+                <label>Motivo para cancelar<input maxlength="500" data-session-cancel-reason></label>
+                <button type="button" data-session-action="cancel">Cancelar sesión</button>
+              </details>
+            </section>
+          </div>
+        </details>
       </aside>
     </div>
 
