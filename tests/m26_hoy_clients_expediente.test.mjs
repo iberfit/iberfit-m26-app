@@ -584,6 +584,10 @@ test('Cliente 360 v2 ordena identidad, decisión y evolución sin perder profund
   assert.match(html, /<small>Fase<\/small><strong>Seguimiento activo<\/strong>/);
   assert.match(html, /<small>Próxima cita<\/small>/);
   assert.match(html, /Próxima acción/);
+  assert.match(
+    html,
+    /m26-client360-header-action[\s\S]*?data-m26-area="progreso"[\s\S]*?>Revisar progreso<\/button>/
+  );
   assert.match(html, /m26-client360-now/);
   assert.match(html, /Lo importante ahora/);
   assert.match(html, /m26-client360-evolution/);
