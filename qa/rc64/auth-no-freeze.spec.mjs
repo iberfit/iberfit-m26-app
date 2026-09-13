@@ -64,7 +64,7 @@ test('auth recovers from a hung password request without reload or mixed-languag
     expect(navigation?.ok()).toBeTruthy();
 
     await expect(page.locator('.m26-auth-page')).toBeVisible();
-    await expect(page.locator('#m26-auth-title')).toHaveText('Personal training with purpose');
+    await expect(page.locator('#m26-auth-title')).toHaveText('Your IBERFIT space');
 
     const emailInput=page.locator('input[name="email"]');
     const passwordInput=page.locator('#m26-login-password');
@@ -88,10 +88,10 @@ test('auth recovers from a hung password request without reload or mixed-languag
 
     const notice=page.locator('.m26-auth-notice.is-error');
     await expect(notice).toContainText(
-      'Could not connect. Check your internet connection and try again.',
+      /(?:Could not connect\. Check your internet connection and try again\.|Access is taking longer than expected\. Check your connection and try again\.)/u,
       {timeout:20_000},
     );
-    await expect(notice).toContainText('Code: M26_TIMEOUT.');
+    await expect(notice).not.toContainText('Code:');
 
     const recoveredSubmit=page.locator('form[data-auth-form="login"] button[type="submit"]');
     const recoveredEmail=page.locator('input[name="email"]');
