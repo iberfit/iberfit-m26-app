@@ -221,7 +221,12 @@ test('RC64.2B1 app installs observability dynamically and real-shell verifies it
   assert.match(spec,/iberfit\.quality-runtime-observability\.v1/u);
   assert.match(spec,/identityIncluded\)\.toBe\(false\)/u);
   assert.match(spec,/healthDataIncluded\)\.toBe\(false\)/u);
+  assert.match(spec,/runtimeErrorDetailsIncluded\)\.toBe\(false\)/u);
+  assert.match(spec,/measurement\)\.toBe\('field-local-session'\)/u);
+  assert.match(spec,/aggregation\)\.toBe\('none'\)/u);
   assert.match(spec,/interactionLatencyLabel\)\.toBe\('candidate-not-inp'\)/u);
+  assert.match(spec,/runtimeErrorCount\)\.toBe\(0\)/u);
+  assert.match(spec,/unhandledRejectionCount\)\.toBe\(0\)/u);
 });
 
 test('RC64.2B1 visual regression is canonical Linux-only and uses Playwright screenshots',()=>{
