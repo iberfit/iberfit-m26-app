@@ -38,6 +38,16 @@ function cancelFrame(frame){
   globalThis.clearTimeout?.(frame.id);
 }
 
+function safeChartOperation(operation){
+  if(typeof operation!=='function')return true;
+  try{
+    operation();
+    return true;
+  }catch{
+    return false;
+  }
+}
+
 function finite(value){
   return finiteOptionalNumber(value);
 }
@@ -437,43 +447,77 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
     #intersectionObserver=null;
     #resizeFrame=null;
     #started=false;
+    #lifecycleVersion=0;
 
     connectedCallback(){
+      const lifecycleVersion=++this.#lifecycleVersion;
       this.setAttribute('data-chart-state','pending');
 
       if(typeof globalThis.IntersectionObserver==='function'){
-        this.#intersectionObserver=
-          new globalThis.IntersectionObserver(
-            (entries)=>{
-              if(entries.some((entry)=>entry.isIntersecting)){
-                this.#intersectionObserver?.disconnect();
-                this.#intersectionObserver=null;
-                void this.#start();
-              }
-            },
-            {rootMargin:'240px 0px'}
+        try{
+          this.#intersectionObserver=
+            new globalThis.IntersectionObserver(
+              (entries)=>{
+                if(entries.some((entry)=>entry.isIntersecting)){
+                  const observer=this.#intersectionObserver;
+                  this.#intersectionObserver=null;
+                  safeChartOperation(()=>observer?.disconnect?.());
+                  void this.#start(lifecycleVersion);
+                }
+              },
+              {rootMargin:'240px 0px'}
+            );
+          this.#intersectionObserver.observe(this);
+          return;
+        }catch{
+          safeChartOperation(
+            ()=>this.#intersectionObserver?.disconnect?.()
           );
-        this.#intersectionObserver.observe(this);
-        return;
+          this.#intersectionObserver=null;
+        }
       }
 
-      void this.#start();
+      void this.#start(lifecycleVersion);
     }
 
     disconnectedCallback(){
-      this.#intersectionObserver?.disconnect();
+      this.#lifecycleVersion+=1;
+      safeChartOperation(
+        ()=>this.#intersectionObserver?.disconnect?.()
+      );
       this.#intersectionObserver=null;
-      this.#resizeObserver?.disconnect();
+      safeChartOperation(
+        ()=>this.#resizeObserver?.disconnect?.()
+      );
       this.#resizeObserver=null;
-      cancelFrame(this.#resizeFrame);
+      safeChartOperation(()=>cancelFrame(this.#resizeFrame));
       this.#resizeFrame=null;
-      this.#chart?.dispose?.();
+      safeChartOperation(()=>this.#chart?.dispose?.());
       this.#chart=null;
       this.#started=false;
     }
 
-    async #start(){
-      if(this.#started)return;
+    #renderUnavailable(){
+      const resizeObserver=this.#resizeObserver;
+      this.#resizeObserver=null;
+      safeChartOperation(()=>resizeObserver?.disconnect?.());
+      safeChartOperation(()=>cancelFrame(this.#resizeFrame));
+      this.#resizeFrame=null;
+
+      const chart=this.#chart;
+      this.#chart=null;
+      safeChartOperation(()=>chart?.dispose?.());
+
+      this.setAttribute('data-chart-state','unavailable');
+      this.textContent=
+        'Gráfico no disponible. Los mismos datos siguen disponibles en la tabla.';
+    }
+
+    async #start(lifecycleVersion=this.#lifecycleVersion){
+      if(
+        this.#started
+        ||lifecycleVersion!==this.#lifecycleVersion
+      )return;
       this.#started=true;
 
       const points=parsePoints(this);
@@ -495,6 +539,7 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
 
       try{
         const echarts=await loadEchartsModule();
+        if(lifecycleVersion!==this.#lifecycleVersion)return;
         if(typeof echarts?.init!=='function'){
           throw new Error('M26_ECHARTS_INIT_UNAVAILABLE');
         }
@@ -539,26 +584,49 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
         );
 
         if(typeof globalThis.ResizeObserver==='function'){
-          this.#resizeObserver=
-            new globalThis.ResizeObserver(
-              ()=>{
-                if(this.#resizeFrame)return;
-                this.#resizeFrame=requestFrame(()=>{
-                  this.#resizeFrame=null;
-                  this.#chart?.resize?.();
-                });
-              }
+          try{
+            this.#resizeObserver=
+              new globalThis.ResizeObserver(
+                ()=>{
+                  if(this.#resizeFrame)return;
+                  const chart=this.#chart;
+                  const scheduled=safeChartOperation(()=>{
+                    this.#resizeFrame=requestFrame(()=>{
+                      this.#resizeFrame=null;
+                      if(
+                        lifecycleVersion!==this.#lifecycleVersion
+                        ||chart!==this.#chart
+                      )return;
+                      const resized=safeChartOperation(
+                        ()=>chart?.resize?.()
+                      );
+                      if(
+                        !resized
+                        &&chart===this.#chart
+                        &&lifecycleVersion===this.#lifecycleVersion
+                      ){
+                        this.#renderUnavailable();
+                      }
+                    });
+                  });
+                  if(!scheduled){
+                    this.#resizeFrame=null;
+                    this.#renderUnavailable();
+                  }
+                }
+              );
+            this.#resizeObserver.observe(this);
+          }catch{
+            safeChartOperation(
+              ()=>this.#resizeObserver?.disconnect?.()
             );
-          this.#resizeObserver.observe(this);
+            this.#resizeObserver=null;
+          }
         }
 
         this.setAttribute('data-chart-state','ready');
       }catch{
-        this.#chart?.dispose?.();
-        this.#chart=null;
-        this.setAttribute('data-chart-state','unavailable');
-        this.textContent=
-          'Gráfico no disponible. Los mismos datos siguen disponibles en la tabla.';
+        this.#renderUnavailable();
       }
     }
   }
@@ -578,4 +646,5 @@ export const __echartsElementInternals=Object.freeze({
   loadEchartsModule,
   reducedMotion,
   canRegister,
+  safeChartOperation,
 });
