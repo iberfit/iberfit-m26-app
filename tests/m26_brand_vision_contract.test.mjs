@@ -8,12 +8,16 @@ const workflow=fs.readFileSync('.github/workflows/daily-use-visual-evidence.yml'
 
 test('production loads signature and brand vision after historical design layers',()=>{
   const premium=html.indexOf('/src/m26/design/premium-ux.css');
+  const adaptive=html.indexOf('/src/m26/design/adaptive-layout.css');
   const signature=html.indexOf('/src/m26/design/signature-ux-v2.css');
   const auth=html.indexOf('/src/m26/design/auth-native.css');
   const brand=html.indexOf('/src/m26/design/brand-vision.css');
-  assert.ok(premium>=0&&signature>premium);
+  assert.ok(premium>=0&&adaptive>premium);
+  assert.ok(signature>adaptive);
   assert.ok(auth>signature);
   assert.ok(brand>auth);
+  assert.match(html,/adaptive-layout\.css[^>]+data-iberfit-adaptive-style="true"/u);
+  assert.match(html,/signature-ux-v2\.css[^>]+data-iberfit-signature-v2-style="true"/u);
 });
 
 test('brand vision keeps navigation dark and workspace light without changing behavior',()=>{
