@@ -303,7 +303,8 @@ declare
 begin
   select * into v_tracking from public.domain_command_registry_v26 where command_type='ACCION_SEGUIMIENTO_REGISTRAR';
   select * into v_outcome from public.domain_command_registry_v26 where command_type='ACCION_RESULTADO_REGISTRAR';
-  if not found
+  if v_tracking.command_type is null
+     or v_outcome.command_type is null
      or v_tracking.entity_type<>'action_outcome'
      or v_outcome.entity_type<>'action_outcome'
      or v_tracking.allowed_roles<>array['admin','coach']::text[]
