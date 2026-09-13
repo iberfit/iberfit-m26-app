@@ -23,7 +23,7 @@ export const P0_CLIENT_AUTH_SURFACE_ROWS=Object.freeze([
   ['Preparando acceso seguro…','Preparing secure access…','Préparation de l’accès sécurisé…','A preparar o acesso seguro…'],
   ['Tu acceso está preparado','Your access is ready','Votre accès est prêt','O seu acesso está preparado'],
   ['Continuar en IBERFIT','Continue in IBERFIT','Continuer dans IBERFIT','Continuar no IBERFIT'],
-  ['Tu sesión sigue protegida en este dispositivo. Continúa sin volver a escribir la contraseña.','Your session remains protected on this device. Continue without entering your password again.','Votre session reste protégée sur cet appareil. Continuez sans saisir à nouveau votre mot de passe.','A sua sessão continua protegida neste dispositivo. Continue sem voltar a introduzir a palavra-passe.'],
+  ['No hemos podido completar la conexión. Tu sesión sigue protegida en este dispositivo; continúa sin volver a escribir la contraseña.','We could not complete the connection. Your session remains protected on this device; continue without entering your password again.','Connexion non terminée. Votre session reste protégée sur cet appareil ; continuez sans saisir à nouveau votre mot de passe.','Não foi possível concluir a ligação. A sua sessão continua protegida neste dispositivo; continue sem voltar a introduzir a palavra-passe.'],
   ['Cuenta guardada','Saved account','Compte enregistré','Conta guardada'],
   ['Continuar','Continue','Continuer','Continuar'],
   ['Continuando…','Continuing…','Continuation…','A continuar…'],
