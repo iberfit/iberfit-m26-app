@@ -45,9 +45,7 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   const authCardRule=css.match(/\.m26-auth-card\{([^}]*)\}/u)?.[1]||'';
   assert.match(authCardRule,/margin-block:auto(?:;|$)/u);
   assert.match(authCardRule,/border-radius:1\.75rem/u);
-  assert.match(authCardRule,/color-scheme:light/u);
-  assert.match(authCardRule,/linear-gradient\(180deg,#fffdf8,#f8f4eb\)/u);
-  assert.match(authCardRule,/box-shadow:/u);
+  assert.match(css,/PREAUTH PREMIUM ENTRY V2[\s\S]*?\.m26-auth-card\{[^}]*color-scheme:light[^}]*linear-gradient\(180deg,#fffdf8,#f8f4eb\)[^}]*box-shadow:/u);
   assert.match(css,/\.m26-auth-brand\{[^}]*justify-items:center/u);
   assert.match(css,/\.m26-auth-logo\{[^}]*object-fit:contain/u);
   assert.match(css,/\.m26-password-toggle/u);
