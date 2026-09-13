@@ -119,7 +119,8 @@ function liveTelemetryStrip(execution,catalog){
 
   return `<section class="m26-panel m26-panel-soft m26-live-telemetry m26-live-intelligence" aria-live="polite"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Inteligencia de sesión en vivo</p><h3>FC actual · ${e(bpmText(intelligence.currentHeartRateBpm))}</h3><p>${e(source)} · ${e(state)} · ${e(qualityText(intelligence,live))}</p></div></div><div class="m26-live-intelligence-grid"><div class="m26-live-intelligence-metric"><span>FC actual</span><strong>${e(bpmText(intelligence.currentHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>FC media</span><strong>${e(bpmText(intelligence.averageHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>FC máxima</span><strong>${e(bpmText(intelligence.maxHeartRateBpm))}</strong></div><div class="m26-live-intelligence-metric"><span>Cobertura</span><strong>${e(intelligence.interpretableEventCount)} / ${e(intelligence.rawEventCount)}</strong><small>interpretables / raw</small></div></div>${telemetrySparkline(intelligence.timeline.points)}<div class="m26-live-context-grid">${responseMarkup}${recoveryMarkup}${correlationMarkup}</div><details class="m26-live-method"><summary>Cómo se calcula</summary><p>FC media/mínima/máxima: ${e(intelligence.methodology.heartRate)}.</p><p>Calidad: ${e(intelligence.methodology.qualityFilter)}.</p><p>Recuperación: ${e(intelligence.methodology.recovery)}.</p><p>RPE/RIR: ${e(intelligence.methodology.rpeRirCorrelation)}.</p></details><p class="m26-notice">Dato → contexto → entrenador decide. Esta información no modifica automáticamente la prescripción, las cargas, las series ni los ejercicios.</p></section>`;
 }function alternativeOptions(catalog,currentExerciseId,pattern='',selectedId=null){return `<option value=""${selectedId?'':' selected'}>Sin alternativa fijada</option>${catalog.search('',pattern?{pattern}:{}).filter((item)=>item.id!==currentExerciseId).slice(0,40).map((item)=>`<option value="${e(item.id)}"${item.id===selectedId?' selected':''}>${e(exerciseDisplayName(item))}</option>`).join('')}`;}
-function blockField({blockId,exerciseId='',field,label,value,type='text',min='',max='',step='',maxLength=''}){const guidance=field==='targetRpe'?renderGuidanceTrigger('training-load',{label:'Ayuda sobre carga, RPE y RIR'}):'';return `<label><span class="m26-guidance-inline">${e(label)}${guidance}</span><input type="${e(type)}" value="${e(value)}" data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''}${min!==''?` min="${e(min)}"`:''}${max!==''?` max="${e(max)}"`:''}${step!==''?` step="${e(step)}"`:''}${maxLength!==''?` maxlength="${e(maxLength)}"`:''}></label>`;}
+function blockField({blockId,exerciseId='',field,label,value,type='text',min='',max='',step='',maxLength='',placeholder=''}){const guidance=field==='targetRpe'?renderGuidanceTrigger('training-load',{label:'Ayuda sobre carga, RPE y RIR'}):'';return `<label><span class="m26-guidance-inline">${e(label)}${guidance}</span><input type="${e(type)}" value="${e(value)}" data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''}${min!==''?` min="${e(min)}"`:''}${max!==''?` max="${e(max)}"`:''}${step!==''?` step="${e(step)}"`:''}${maxLength!==''?` maxlength="${e(maxLength)}"`:''}${placeholder?` placeholder="${e(placeholder)}"`:''}></label>`;}
+function blockTextarea({blockId,exerciseId='',field,label,value='',maxLength=500,placeholder=''}){return `<label class="m26-wide"><span>${e(label)}</span><textarea data-session-block-field="${e(field)}" data-block-id="${e(blockId)}"${exerciseId?` data-exercise-id="${e(exerciseId)}"`:''} maxlength="${e(maxLength)}"${placeholder?` placeholder="${e(placeholder)}"`:''}>${e(value)}</textarea></label>`;}
 function draftMetrics(draft={}){
   let exercises=0,workUnits=0,groups=0;
   for(const block of draft.blocks||[]){
@@ -350,19 +351,195 @@ function renderExerciseMemorySession(memory){
     </small>
   </section>`;
 }
-function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor){const exercise=catalog.get(block.exerciseId)||{id:block.exerciseId,name_es:block.name||block.exerciseId,pattern:''};const visual=renderExerciseMedia({manifest:mediaMap,exercise,role,compact:true,fallback:true});const memory=exerciseMemoryFor?.(block.exerciseId)||null;return `<article class="m26-builder-block m26-builder-editor" data-block-id="${e(block.id)}"><header>${visual}<span>${index+1}</span><div><strong>${e(exerciseDisplayName(exercise))}</strong><small>${e(exercise.pattern||'Ejercicio')} · bloque individual</small></div><div class="m26-inline-actions"><button type="button" data-session-action="move-up" data-block-id="${e(block.id)}" aria-label="Mover ${e(exerciseDisplayName(exercise))} hacia arriba">↑</button><button type="button" data-session-action="move-down" data-block-id="${e(block.id)}" aria-label="Mover ${e(exerciseDisplayName(exercise))} hacia abajo">↓</button><button type="button" data-session-action="duplicate-block" data-block-id="${e(block.id)}">Duplicar</button><button type="button" data-session-action="remove-block" data-block-id="${e(block.id)}">Eliminar</button></div></header>${renderExerciseMemoryInline(memory)}<div class="m26-field-grid">${blockField({blockId:block.id,field:'sets',label:'Series',value:block.sets,type:'number',min:1,max:100})}${blockField({blockId:block.id,field:'reps',label:'Repeticiones/tiempo objetivo',value:block.reps,maxLength:80})}${blockField({blockId:block.id,field:'restSeconds',label:'Descanso (s)',value:block.restSeconds,type:'number',min:1,max:3600})}${blockField({blockId:block.id,field:'tempo',label:'Ritmo de ejecución',value:block.tempo,maxLength:80})}${blockField({blockId:block.id,field:'targetRpe',label:'RPE objetivo',value:block.targetRpe,type:'number',min:1,max:10,step:.5})}${blockField({blockId:block.id,field:'targetRir',label:'RIR objetivo',value:block.targetRir,type:'number',min:0,max:10,step:.5})}<label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(block.id)}">${alternativeOptions(catalog,block.exerciseId,exercise.pattern,block.alternativeId)}</select></label></div></article>`;}
-function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemoryFor){const exercise=catalog.get(exerciseId)||{id:exerciseId,name_es:exerciseId,pattern:''};const p=group.prescriptions?.[exerciseId]||{};const visual=renderExerciseMedia({manifest:mediaMap,exercise,role,compact:true,fallback:true});const memory=exerciseMemoryFor?.(exerciseId)||null;return `<section class="m26-group-prescription"><div class="m26-group-prescription-heading">${visual}<h4>${e(exerciseDisplayName(exercise))}</h4></div>${renderExerciseMemoryInline(memory)}<div class="m26-field-grid">${blockField({blockId:group.id,exerciseId,field:'reps',label:'Repeticiones/tiempo',value:p.reps||'8–12',maxLength:80})}${blockField({blockId:group.id,exerciseId,field:'restSeconds',label:'Descanso (s)',value:p.restSeconds||60,type:'number',min:1,max:3600})}${blockField({blockId:group.id,exerciseId,field:'tempo',label:'Ritmo de ejecución',value:p.tempo||'controlado',maxLength:80})}${blockField({blockId:group.id,exerciseId,field:'targetRpe',label:'RPE',value:p.targetRpe||7,type:'number',min:1,max:10,step:.5})}${blockField({blockId:group.id,exerciseId,field:'targetRir',label:'RIR',value:p.targetRir??3,type:'number',min:0,max:10,step:.5})}<label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(group.id)}" data-exercise-id="${e(exerciseId)}">${alternativeOptions(catalog,exerciseId,exercise.pattern,p.alternativeId)}</select></label></div></section>`;}
-function groupEditor(group,catalog,index,mediaMap,role,exerciseMemoryFor){const exercises=(group.exerciseIds||[]).map((id)=>groupExerciseEditor(group,id,catalog,mediaMap,role,exerciseMemoryFor)).join('')||'<p class="m26-empty-copy">Selecciona ejercicios desde la biblioteca.</p>';return `<article class="m26-builder-block m26-builder-editor" data-block-id="${e(group.id)}"><header><span>${index+1}</span><div><strong>${e(groupName(group.type))}</strong><small>${e((group.exerciseIds||[]).length)} ejercicios</small></div><div class="m26-inline-actions"><button type="button" data-session-action="move-up" data-block-id="${e(group.id)}" aria-label="Mover grupo hacia arriba">↑</button><button type="button" data-session-action="move-down" data-block-id="${e(group.id)}" aria-label="Mover grupo hacia abajo">↓</button><button type="button" data-session-action="duplicate-block" data-block-id="${e(group.id)}">Duplicar</button><button type="button" data-session-action="remove-block" data-block-id="${e(group.id)}">Eliminar</button></div></header><div class="m26-field-grid">${blockField({blockId:group.id,field:'rounds',label:'Rondas',value:group.rounds,type:'number',min:1,max:100})}</div>${exercises}</article>`;}
-function previewMarkup(draft,catalog,mediaMap,role){const blocks=draft.blocks.map((block,index)=>{if(block.type==='exercise'){const ex=catalog.get(block.exerciseId)||{id:block.exerciseId,name_es:block.name||block.exerciseId};const visual=renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true});return `<li class="m26-session-preview-item">${visual}<div><strong>${index+1}. ${e(exerciseDisplayName(ex))}</strong><p>${e(block.sets)} series · ${e(block.reps)} · descanso ${e(block.restSeconds)} s · RPE ${e(block.targetRpe)}</p></div></li>`;}const exerciseLines=(block.exerciseIds||[]).map((id)=>{const ex=catalog.get(id)||{id,name_es:id};return `<span class="m26-session-preview-exercise">${renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true})}<strong>${e(exerciseDisplayName(ex))}</strong></span>`;}).join('');return `<li class="m26-session-preview-group"><strong>${index+1}. ${e(groupName(block.type))} · ${e(block.rounds)} rondas</strong><div>${exerciseLines}</div></li>`;}).join('');return `<section class="m26-panel m26-session-preview" aria-label="Vista previa de la sesión"><p class="m26-eyebrow">Revisión previa</p><h3>${e(draft.title)}</h3><p>${e(draft.durationMinutes)} minutos · ${e(draft.blocks.length)} bloques</p><ol>${blocks}</ol>${mediaMap?renderExerciseMediaCredit():''}<div class="m26-inline-actions"><button type="button" data-session-action="edit-preview">Seguir editando</button><button type="button" class="m26-primary-action" data-session-action="publish">Publicar sesión</button></div></section>`;}
+function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor){
+  const exercise=catalog.get(block.exerciseId)||{id:block.exerciseId,name_es:block.name||block.exerciseId,pattern:''};
+  const visual=renderExerciseMedia({manifest:mediaMap,exercise,role,compact:true,fallback:true});
+  const memory=exerciseMemoryFor?.(block.exerciseId)||null;
+  const name=exerciseDisplayName(exercise);
+  return `<article class="m26-builder-block m26-builder-editor" data-block-id="${e(block.id)}">
+    <header>
+      ${visual}
+      <span>${index+1}</span>
+      <div><strong>${e(name)}</strong><small>${e(exercise.pattern||'Ejercicio')} · bloque individual</small></div>
+      <div class="m26-inline-actions">
+        <button type="button" data-session-action="move-up" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia arriba">↑</button>
+        <button type="button" data-session-action="move-down" data-block-id="${e(block.id)}" aria-label="Mover ${e(name)} hacia abajo">↓</button>
+        <button type="button" data-session-action="duplicate-block" data-block-id="${e(block.id)}">Duplicar</button>
+        <button type="button" data-session-action="remove-block" data-block-id="${e(block.id)}">Eliminar</button>
+      </div>
+    </header>
+    ${renderExerciseMemoryInline(memory)}
+    <div class="m26-field-grid m26-builder-core-prescription">
+      ${blockField({blockId:block.id,field:'sets',label:'Series',value:block.sets,type:'number',min:1,max:100})}
+      ${blockField({blockId:block.id,field:'reps',label:'Repeticiones/tiempo objetivo',value:block.reps,maxLength:40})}
+      ${blockField({blockId:block.id,field:'plannedLoad',label:'Carga planificada',value:block.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
+      ${blockField({blockId:block.id,field:'restSeconds',label:'Descanso (s)',value:block.restSeconds,type:'number',min:1,max:3600})}
+    </div>
+    <details class="m26-builder-prescription-details">
+      <summary>Prescripción y alternativas</summary>
+      <div class="m26-field-grid">
+        ${blockField({blockId:block.id,field:'tempo',label:'Ritmo de ejecución',value:block.tempo,maxLength:40})}
+        ${blockField({blockId:block.id,field:'targetRpe',label:'RPE objetivo',value:block.targetRpe,type:'number',min:1,max:10,step:.5})}
+        ${blockField({blockId:block.id,field:'targetRir',label:'RIR objetivo',value:block.targetRir,type:'number',min:0,max:10,step:.5})}
+        <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(block.id)}">${alternativeOptions(catalog,block.exerciseId,exercise.pattern,block.alternativeId)}</select></label>
+        ${blockTextarea({blockId:block.id,field:'prescriptionNotes',label:'Indicaciones para la ejecución',value:block.prescriptionNotes||'',maxLength:1000,placeholder:'Claves técnicas o ajustes específicos para esta sesión'})}
+        ${blockTextarea({blockId:block.id,field:'progression',label:'Progresión prevista',value:block.progression||'',maxLength:500,placeholder:'Criterio para avanzar o retroceder en próximas exposiciones'})}
+      </div>
+    </details>
+  </article>`;
+}
+function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemoryFor){
+  const exercise=catalog.get(exerciseId)||{id:exerciseId,name_es:exerciseId,pattern:''};
+  const p=group.prescriptions?.[exerciseId]||{};
+  const visual=renderExerciseMedia({manifest:mediaMap,exercise,role,compact:true,fallback:true});
+  const memory=exerciseMemoryFor?.(exerciseId)||null;
+  return `<section class="m26-group-prescription">
+    <div class="m26-group-prescription-heading">${visual}<h4>${e(exerciseDisplayName(exercise))}</h4></div>
+    ${renderExerciseMemoryInline(memory)}
+    <div class="m26-field-grid m26-builder-core-prescription">
+      ${blockField({blockId:group.id,exerciseId,field:'reps',label:'Repeticiones/tiempo',value:p.reps||'8–12',maxLength:40})}
+      ${blockField({blockId:group.id,exerciseId,field:'plannedLoad',label:'Carga planificada',value:p.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
+      ${blockField({blockId:group.id,exerciseId,field:'restSeconds',label:'Descanso (s)',value:p.restSeconds||60,type:'number',min:1,max:3600})}
+    </div>
+    <details class="m26-builder-prescription-details">
+      <summary>Prescripción y alternativas</summary>
+      <div class="m26-field-grid">
+        ${blockField({blockId:group.id,exerciseId,field:'tempo',label:'Ritmo de ejecución',value:p.tempo||'controlado',maxLength:40})}
+        ${blockField({blockId:group.id,exerciseId,field:'targetRpe',label:'RPE',value:p.targetRpe||7,type:'number',min:1,max:10,step:.5})}
+        ${blockField({blockId:group.id,exerciseId,field:'targetRir',label:'RIR',value:p.targetRir??3,type:'number',min:0,max:10,step:.5})}
+        <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(group.id)}" data-exercise-id="${e(exerciseId)}">${alternativeOptions(catalog,exerciseId,exercise.pattern,p.alternativeId)}</select></label>
+        ${blockTextarea({blockId:group.id,exerciseId,field:'prescriptionNotes',label:'Indicaciones para la ejecución',value:p.prescriptionNotes||'',maxLength:1000})}
+        ${blockTextarea({blockId:group.id,exerciseId,field:'progression',label:'Progresión prevista',value:p.progression||'',maxLength:500})}
+      </div>
+    </details>
+  </section>`;
+}
+function groupEditor(group,catalog,index,mediaMap,role,exerciseMemoryFor){
+  const exercises=(group.exerciseIds||[]).map((id)=>groupExerciseEditor(group,id,catalog,mediaMap,role,exerciseMemoryFor)).join('')||'<p class="m26-empty-copy">Selecciona ejercicios desde la biblioteca.</p>';
+  return `<article class="m26-builder-block m26-builder-editor" data-block-id="${e(group.id)}">
+    <header>
+      <span>${index+1}</span>
+      <div><strong>${e(groupName(group.type))}</strong><small>${e((group.exerciseIds||[]).length)} ejercicios</small></div>
+      <div class="m26-inline-actions">
+        <button type="button" data-session-action="move-up" data-block-id="${e(group.id)}" aria-label="Mover grupo hacia arriba">↑</button>
+        <button type="button" data-session-action="move-down" data-block-id="${e(group.id)}" aria-label="Mover grupo hacia abajo">↓</button>
+        <button type="button" data-session-action="duplicate-block" data-block-id="${e(group.id)}">Duplicar</button>
+        <button type="button" data-session-action="remove-block" data-block-id="${e(group.id)}">Eliminar</button>
+      </div>
+    </header>
+    <div class="m26-field-grid">${blockField({blockId:group.id,field:'rounds',label:'Rondas',value:group.rounds,type:'number',min:1,max:100})}</div>
+    ${exercises}
+  </article>`;
+}
+function prescriptionPreviewDetails(p={}){
+  const optional=[
+    p.plannedLoad?`Carga ${e(p.plannedLoad)}`:'',
+    p.tempo?`ritmo ${e(p.tempo)}`:'',
+    Number.isFinite(Number(p.targetRpe))?`RPE ${e(p.targetRpe)}`:'',
+    Number.isFinite(Number(p.targetRir))?`RIR ${e(p.targetRir)}`:'',
+  ].filter(Boolean).join(' · ');
+  const guidance=[
+    p.prescriptionNotes?`<p><strong>Indicaciones:</strong> ${e(p.prescriptionNotes)}</p>`:'',
+    p.progression?`<p><strong>Progresión:</strong> ${e(p.progression)}</p>`:'',
+  ].join('');
+  return `<p>${optional}</p>${guidance}`;
+}
+function previewMarkup(draft,catalog,mediaMap,role){
+  const blocks=draft.blocks.map((block,index)=>{
+    if(block.type==='exercise'){
+      const ex=catalog.get(block.exerciseId)||{id:block.exerciseId,name_es:block.name||block.exerciseId};
+      const visual=renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true});
+      return `<li class="m26-session-preview-item">${visual}<div><strong>${index+1}. ${e(exerciseDisplayName(ex))}</strong><p>${e(block.sets)} series · ${e(block.reps)} · descanso ${e(block.restSeconds)} s</p>${prescriptionPreviewDetails(block)}</div></li>`;
+    }
+    const exerciseLines=(block.exerciseIds||[]).map((id)=>{
+      const ex=catalog.get(id)||{id,name_es:id};
+      const p=block.prescriptions?.[id]||{};
+      return `<span class="m26-session-preview-exercise">${renderExerciseMedia({manifest:mediaMap,exercise:ex,role,compact:true,fallback:true})}<span><strong>${e(exerciseDisplayName(ex))}</strong><small>${e(p.reps||'Según indicación')}${p.plannedLoad?` · ${e(p.plannedLoad)}`:''}</small></span></span>`;
+    }).join('');
+    return `<li class="m26-session-preview-group"><strong>${index+1}. ${e(groupName(block.type))} · ${e(block.rounds)} rondas</strong><div>${exerciseLines}</div></li>`;
+  }).join('');
+  return `<section class="m26-panel m26-session-preview" aria-label="Vista previa de la sesión">
+    <p class="m26-eyebrow">Revisión previa</p>
+    <h3>${e(draft.title)}</h3>
+    <p>${e(draft.durationMinutes)} minutos · ${e(draft.blocks.length)} bloques</p>
+    <ol>${blocks}</ol>
+    ${mediaMap?renderExerciseMediaCredit():''}
+    <div class="m26-inline-actions">
+      <button type="button" data-session-action="edit-preview">Seguir editando</button>
+      <button type="button" class="m26-primary-action" data-session-action="publish">Publicar sesión</button>
+    </div>
+  </section>`;
+}
 export function renderSessionBuilder({draft,catalog,query='',filters={},templates=[],actionState,mediaMap,role='coach',exerciseMemoryFor=null}={}){
   const results=catalog.search(query,filters).slice(0,24);
   const blocks=(draft.blocks||[]).map((block,index)=>block.type==='exercise'?exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor):groupEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor)).join('')||'<p class="m26-empty-copy">Añade ejercicios desde la biblioteca.</p>';
   const metrics=draftMetrics(draft);
-  const cards=results.map((item)=>`<button type="button" class="m26-exercise-result" data-session-action="add-exercise" data-exercise-id="${e(item.id)}">${renderExerciseMedia({manifest:mediaMap,exercise:item,role,compact:true,fallback:true})}<span class="m26-exercise-result-copy"><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small><em>${e((item.primary_muscles||[]).join(' · ')||'Musculatura no especificada')}</em></span></button>`).join('')||'<p class="m26-empty-copy">No hay coincidencias.</p>';
+  const cards=results.map((item)=>`<button type="button" class="m26-exercise-result" data-session-action="add-exercise" data-exercise-id="${e(item.id)}">${renderExerciseMedia({manifest:mediaMap,exercise:item,role,compact:true,fallback:true})}<span class="m26-exercise-result-copy"><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small><em>${e((item.primary_muscles||[]).join(' · ')||'Musculatura no especificada')}</em></span><span class="m26-exercise-result-add" aria-hidden="true">＋</span></button>`).join('')||'<p class="m26-empty-copy">No hay coincidencias.</p>';
   const primary=draft.previewAccepted?'':`<button type="button" class="m26-primary-action" data-session-action="preview">Revisar sesión</button><button type="button" data-session-action="publish" disabled aria-disabled="true" title="Revisa la sesión antes de publicarla">Publicar sesión</button>`;
   const templateOptions=(templates||[]).map((item)=>`<option value="${e(item.id)}">${e(item.name)} · v${e(item.version)} · ${e(item.blockCount)} bloques</option>`).join('');
-  const templateControls=['coach','admin'].includes(String(role||''))?`<section class="m26-panel m26-panel-soft" data-session-template-tools><div class="m26-panel-heading"><div><p class="m26-eyebrow">Reutilización</p><h3>Plantillas versionadas</h3><p>Se guardan en este dispositivo para tu usuario y no contienen el identificador del cliente.</p></div></div><div class="m26-field-grid"><label>Plantilla guardada<select data-session-template-select><option value="">Seleccionar plantilla…</option>${templateOptions}</select></label><label>Guardar sesión actual como plantilla<input data-session-template-name maxlength="60" placeholder="Ej. Fuerza base A"></label></div><div class="m26-inline-actions"><button type="button" data-session-action="load-template"${templateOptions?'':' disabled aria-disabled="true"'}>Usar plantilla</button><button type="button" data-session-action="save-template">Guardar nueva versión</button></div></section>`:'';
-  return `<section class="m26-session-builder"><header><div><p class="m26-eyebrow">Constructor</p><h2>${e(draft.title)}</h2></div><div class="m26-inline-actions"><button type="button" data-session-action="save-draft">Guardar borrador</button><button type="button" data-session-action="exit-session">Salir</button>${primary}</div></header>${actionState?`<div class="m26-action-state is-${e(actionState.status)}" role="status">${e(actionState.message)}</div>`:''}${templateControls}<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Resumen de sesión</p><h3>${plural(metrics.exercises,'ejercicio','ejercicios')} · ${plural(metrics.workUnits,'serie/ronda','series/rondas')}</h3><p>${plural(metrics.blocks,'bloque','bloques')}${metrics.groups?` · ${plural(metrics.groups,'grupo','grupos')}`:''} · ${e(draft.durationMinutes)} min previstos</p></div></div></section><section class="m26-panel m26-panel-soft"><div class="m26-field-grid"><label>Título<input data-session-draft-field="title" maxlength="120" value="${e(draft.title)}"></label><label>Duración estimada (min)<input type="number" min="10" max="240" data-session-draft-field="durationMinutes" value="${e(draft.durationMinutes)}"></label></div></section>${draft.previewAccepted?previewMarkup(draft,catalog,mediaMap,role):`<div class="m26-builder-grid"><div class="m26-panel"><label>Buscar ejercicio<input type="search" value="${e(query)}" data-session-search autocomplete="off"></label><div class="m26-exercise-results">${cards}</div>${mediaMap?renderExerciseMediaCredit({compact:true}):''}</div><div class="m26-panel"><div class="m26-builder-toolbar"><button type="button" data-session-action="add-group" data-group-type="biserie">Biserie</button><button type="button" data-session-action="add-group" data-group-type="triserie">Triserie</button><button type="button" data-session-action="add-group" data-group-type="circuito">Circuito</button><button type="button" data-session-action="add-group" data-group-type="amrap">AMRAP</button><button type="button" data-session-action="add-group" data-group-type="tabata">Tabata</button>${draft.activeGroupId?'<button type="button" data-session-action="close-group">Cerrar grupo activo</button>':''}</div>${draft.activeGroupId?'<p class="m26-notice">Selecciona ejercicios para completar el grupo activo.</p>':''}<div class="m26-builder-blocks">${blocks}</div></div></div>`}</section>`;
+  const templateControls=['coach','admin'].includes(String(role||''))?`<details class="m26-panel m26-panel-soft m26-builder-template-drawer" data-session-template-tools>
+    <summary><span><small>Reutilización</small><strong>Plantillas versionadas</strong></span><span>${templates?.length||0} guardadas</span></summary>
+    <div class="m26-builder-template-body">
+      <p>Se guardan en este dispositivo para tu usuario y no contienen el identificador del cliente.</p>
+      <div class="m26-field-grid">
+        <label>Plantilla guardada<select data-session-template-select><option value="">Seleccionar plantilla…</option>${templateOptions}</select></label>
+        <label>Guardar sesión actual como plantilla<input data-session-template-name maxlength="60" placeholder="Ej. Fuerza base A"></label>
+      </div>
+      <div class="m26-inline-actions">
+        <button type="button" data-session-action="load-template"${templateOptions?'':' disabled aria-disabled="true"'}>Usar plantilla</button>
+        <button type="button" data-session-action="save-template">Guardar nueva versión</button>
+      </div>
+    </div>
+  </details>`:'';
+  return `<section class="m26-session-builder m26-session-builder-v2" data-session-builder-workbench-v2>
+    <header class="m26-builder-commandbar">
+      <div>
+        <p class="m26-eyebrow">Constructor de sesión</p>
+        <h2>${e(draft.title)}</h2>
+        <p>Construye rápido; la revisión final sigue siendo obligatoria antes de publicar.</p>
+      </div>
+      <div class="m26-inline-actions">
+        <button type="button" data-session-action="save-draft">Guardar borrador</button>
+        <button type="button" data-session-action="exit-session">Salir</button>
+        ${primary}
+      </div>
+    </header>
+    ${actionState?`<div class="m26-action-state is-${e(actionState.status)}" role="status">${e(actionState.message)}</div>`:''}
+    <section class="m26-builder-session-strip" aria-label="Resumen de la sesión">
+      <div><span>Ejercicios</span><strong>${e(metrics.exercises)}</strong></div>
+      <div><span>Trabajo</span><strong>${e(metrics.workUnits)}</strong><small>series / rondas</small></div>
+      <div><span>Bloques</span><strong>${e(metrics.blocks)}</strong>${metrics.groups?`<small>${e(metrics.groups)} grupos</small>`:''}</div>
+      <div><span>Duración</span><strong>${e(draft.durationMinutes)} min</strong></div>
+    </section>
+    <section class="m26-panel m26-panel-soft m26-builder-session-meta">
+      <div class="m26-field-grid">
+        <label>Título<input data-session-draft-field="title" maxlength="120" value="${e(draft.title)}"></label>
+        <label>Duración estimada (min)<input type="number" min="10" max="240" data-session-draft-field="durationMinutes" value="${e(draft.durationMinutes)}"></label>
+      </div>
+    </section>
+    ${templateControls}
+    ${draft.previewAccepted?previewMarkup(draft,catalog,mediaMap,role):`<div class="m26-builder-grid m26-builder-workbench-grid">
+      <aside class="m26-panel m26-builder-library" aria-label="Biblioteca de ejercicios">
+        <div class="m26-builder-column-heading"><div><p class="m26-eyebrow">Añadir</p><h3>Biblioteca</h3></div><span>${e(results.length)} resultados</span></div>
+        <label>Buscar ejercicio<input type="search" value="${e(query)}" data-session-search autocomplete="off" placeholder="Nombre, patrón o material"></label>
+        <div class="m26-exercise-results">${cards}</div>
+        ${mediaMap?renderExerciseMediaCredit({compact:true}):''}
+      </aside>
+      <main class="m26-panel m26-builder-program" aria-label="Estructura de la sesión">
+        <div class="m26-builder-column-heading"><div><p class="m26-eyebrow">Sesión</p><h3>Orden y prescripción</h3></div><span>${e(metrics.blocks)} bloques</span></div>
+        <div class="m26-builder-toolbar" aria-label="Añadir estructura de entrenamiento">
+          <button type="button" data-session-action="add-group" data-group-type="biserie">Biserie</button>
+          <button type="button" data-session-action="add-group" data-group-type="triserie">Triserie</button>
+          <button type="button" data-session-action="add-group" data-group-type="circuito">Circuito</button>
+          <button type="button" data-session-action="add-group" data-group-type="amrap">AMRAP</button>
+          <button type="button" data-session-action="add-group" data-group-type="tabata">Tabata</button>
+          ${draft.activeGroupId?'<button type="button" data-session-action="close-group">Cerrar grupo activo</button>':''}
+        </div>
+        ${draft.activeGroupId?'<p class="m26-notice">Selecciona ejercicios para completar el grupo activo.</p>':''}
+        <div class="m26-builder-blocks">${blocks}</div>
+      </main>
+    </div>`}
+  </section>`;
 }
 // RC71_1_SESSION_LIVE_UX_BEGIN
 function executionTotals(execution){
