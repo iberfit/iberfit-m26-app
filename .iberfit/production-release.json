@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "b6f4de78f4b054079f89b9f45f6f0222e7176a37",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción GREEN Action Outcome Tracking V1"
+}
