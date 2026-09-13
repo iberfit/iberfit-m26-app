@@ -3062,7 +3062,7 @@ function renderNextSessionPreparation(prep){
     <div class="m26-next-session-actions">
       <button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Revisar sesión en constructor</button>
       <button type="button" data-m26-area="expediente">Abrir expediente completo</button>
-      ${session.id?`<button type="button" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(session.id)}">Iniciar sesión preparada</button>`:''}
+      ${session.startable===true&&session.id?`<button type="button" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(session.id)}">Iniciar sesión preparada</button>`:''}
     </div>
     <p class="m26-data-footnote">${escapeHtml(prep.safety.note)} La revisión del Coach es obligatoria antes de convertir este contexto en una decisión.</p>
   </section>`;
