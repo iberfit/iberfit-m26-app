@@ -812,7 +812,7 @@
 .m26-auth-intro-copy>p:last-child{max-width:38rem;color:rgba(248,242,230,.68)}
 .m26-auth-pillars>div{border-color:rgba(223,193,126,.13);background:linear-gradient(150deg,rgba(255,255,255,.035),rgba(255,255,255,.012))}
 .m26-auth-pillars dt{color:#f0dbad}.m26-auth-pillars dd{color:rgba(248,242,230,.54)}.m26-auth-intro-trust{color:rgba(248,242,230,.44)}
-.m26-auth-card{color-scheme:light;color:#17271f;border-color:rgba(21,57,40,.10);background:radial-gradient(circle at 100% 0%,rgba(198,157,80,.08),transparent 16rem),linear-gradient(180deg,#fffdf8,#f8f4eb);box-shadow:0 2.2rem 5.5rem rgba(4,22,14,.28),0 .35rem 1.4rem rgba(4,22,14,.08),inset 0 1px rgba(255,255,255,.92);backdrop-filter:none;-webkit-backdrop-filter:none}
+.m26-auth-card{color-scheme:light;color:#17271f;border-color:rgba(21,57,40,.10)!important;background:radial-gradient(circle at 100% 0%,rgba(198,157,80,.08),transparent 16rem),linear-gradient(180deg,#fffdf8,#f8f4eb)!important;box-shadow:0 2.2rem 5.5rem rgba(4,22,14,.28),0 .35rem 1.4rem rgba(4,22,14,.08),inset 0 1px rgba(255,255,255,.92)!important;backdrop-filter:none;-webkit-backdrop-filter:none}
 .m26-auth-logo{border-color:rgba(223,193,126,.24);background:linear-gradient(145deg,#123c2b,#082319);box-shadow:0 .9rem 2rem rgba(8,35,24,.16)}
 .m26-auth-card .m26-eyebrow,.m26-auth-kicker{color:#866a34}.m26-auth-card h1{max-width:16ch;color:#17271f;font-weight:720}.m26-auth-copy>p:last-child{color:#5f6e65}
 .m26-auth-card form,.m26-auth-actions{border-top-color:rgba(21,57,40,.09)}.m26-auth-card label{color:#33473b}
