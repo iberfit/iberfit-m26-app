@@ -5,6 +5,47 @@ const stat=(t,v)=>`<article class="m26-admin-stat"><span>${e(t)}</span><strong>$
 const intro=(k,t,c)=>`<section class="m26-admin-hero"><p class="m26-eyebrow">${e(k)}</p><h2>${e(t)}</h2><p>${e(c)}</p></section>`;
 const rows=(headers,items)=>`<div class="m26-admin-table"><table><thead><tr>${headers.map((h)=>`<th>${e(h)}</th>`).join('')}</tr></thead><tbody>${items.join('')}</tbody></table></div>`;
 function form(kind,fields,button,{attrs='',submitAttrs=''}={}){return `<form data-admin-form="${kind}" class="m26-admin-form" ${attrs}>${fields}<button type="submit" ${submitAttrs}>${e(button)}</button></form>`;}
+function adminStatusLabel(value){
+  const key=String(value||'').trim().toLowerCase();
+  return ({
+    active:'Activo',
+    suspended:'Suspendido',
+    inactive:'Inactivo',
+    pending:'Pendiente',
+    ended:'Finalizado',
+    paused:'En pausa',
+    onboarding:'Incorporación',
+    reactivation:'Reactivación',
+    new:'Nuevo',
+    contacted:'Contactado',
+    qualified:'Cualificado',
+    evaluation:'Evaluación',
+    won:'Ganado',
+    lost:'Perdido',
+  })[key]||String(value||'Sin estado');
+}
+function adminRoleLabel(value){
+  const key=String(value||'').trim().toLowerCase();
+  return ({client:'Cliente',coach:'Coach',admin:'Admin'})[key]||String(value||'Sin rol');
+}
+function adminDateLabel(value){
+  if(!value)return '';
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime()))return String(value);
+  try{
+    return new Intl.DateTimeFormat('es-CL',{
+      timeZone:'America/Santiago',
+      day:'2-digit',
+      month:'short',
+      year:'numeric',
+      hour:'2-digit',
+      minute:'2-digit',
+      hour12:false,
+    }).format(date).replace(/,\s*/u,' · ');
+  }catch{
+    return String(value);
+  }
+}
 function commandPriority(item){
   const action=item?.action||{};
   return `<article class="m26-admin-priority is-${e(item.kind||'process')}"><div><p class="m26-eyebrow">${e(item.stageLabel||'Seguimiento')}</p><h3>${e(item.clientName||'Cliente')}</h3><p>${e(action.reason||'Revisión pendiente')}</p><small>${e(item.coachNames?.length?`Coach: ${item.coachNames.join(', ')}`:'Sin Coach asignado')}</small></div><button type="button" data-m26-area="${e(action.area||'admin-clientes')}">${e(action.label||'Revisar')}</button></article>`;
@@ -125,9 +166,9 @@ function renderUsers(vm){
     const management=(statusForm||roleForm||deleteForm||selfGuard)
       ?`<details class="m26-admin-user-management"><summary>Actualizar usuario</summary><div class="m26-admin-user-management-body">${statusForm}${roleForm}${deleteForm}${selfGuard}</div></details>`
       :'';
-    const lastAccess=u.lastAccessAt?e(u.lastAccessAt):'Sin acceso registrado';
+    const lastAccess=u.lastAccessAt?e(adminDateLabel(u.lastAccessAt)):'Sin acceso registrado';
     const relation=u.client
-      ?`<strong>${e(u.client.name)}</strong><small>${e([u.client.modality,u.client.lifecycleStatus].filter(Boolean).join(' · ')||'Expediente cliente')}</small>`
+      ?`<strong>${e(u.client.name)}</strong><small>${e([u.client.modality,adminStatusLabel(u.client.lifecycleStatus)].filter(Boolean).join(' · ')||'Expediente cliente')}</small>`
       :u.coach
         ?`<strong>Coach</strong><small>${e(`${u.coach.activeClientCount||0} clientes activos asignados`)}</small>`
         :'<strong>Sin relación operativa</strong><small>La identidad no está vinculada a un expediente visible.</small>';
@@ -147,7 +188,7 @@ function renderUsers(vm){
     const integrity=(u.integrityIssues||[]).length
       ?`<div class="m26-admin-user360-warning" role="status"><strong>Revisión de integridad requerida</strong><small>${e((u.integrityIssues||[]).map((issue)=>issue.code).join(' · '))}</small></div>`
       :'';
-    return `<article class="m26-admin-panel m26-admin-user-card m26-admin-user360-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}"><div class="m26-admin-user-card-head"><div><p class="m26-eyebrow">Cuenta 360</p><h3>${e(u.name||u.authEmail||u.email||'Usuario')}</h3><p>${e(u.authEmail||u.email||'')}</p></div>${badge(u.status)}</div><div class="m26-admin-user360-roles">${roles.length?roles.map((role)=>badge(role)).join(''):badge('Sin rol')}</div><dl class="m26-admin-user360-grid"><div><dt>Último acceso</dt><dd><strong>${lastAccess}</strong><small>Registro de autenticación disponible para esta identidad</small></dd></div><div><dt>Relación operativa</dt><dd>${relation}</dd></div><div><dt>Acceso Cliente</dt><dd>${access}</dd></div><div><dt>Correo de contacto</dt><dd>${contact}</dd></div><div><dt>Coach / cartera</dt><dd>${coachRelation}</dd></div><div><dt>Activación</dt><dd><strong>${u.access?.activatedAt?e(u.access.activatedAt):u.access?.invitationSentAt?'Invitación enviada':'Sin activación registrada'}</strong><small>${u.access?.invitationSentAt?e(`Invitación: ${u.access.invitationSentAt}`):'Sin envío de invitación visible'}</small></dd></div></dl>${integrity}${management}</article>`;
+    return `<article class="m26-admin-panel m26-admin-user-card m26-admin-user360-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}"><div class="m26-admin-user-card-head"><div><p class="m26-eyebrow">Cuenta 360</p><h3>${e(u.name||u.authEmail||u.email||'Usuario')}</h3><p>${e(u.authEmail||u.email||'')}</p></div>${badge(adminStatusLabel(u.status))}</div><div class="m26-admin-user360-roles">${roles.length?roles.map((role)=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</div><dl class="m26-admin-user360-grid"><div><dt>Último acceso</dt><dd><strong>${lastAccess}</strong><small>Registro de autenticación disponible para esta identidad</small></dd></div><div><dt>Relación operativa</dt><dd>${relation}</dd></div><div><dt>Acceso Cliente</dt><dd>${access}</dd></div><div><dt>Correo de contacto</dt><dd>${contact}</dd></div><div><dt>Coach / cartera</dt><dd>${coachRelation}</dd></div><div><dt>Activación</dt><dd><strong>${u.access?.activatedAt?e(adminDateLabel(u.access.activatedAt)):u.access?.invitationSentAt?'Invitación enviada':'Sin activación registrada'}</strong><small>${u.access?.invitationSentAt?e(`Invitación: ${adminDateLabel(u.access.invitationSentAt)}`):'Sin envío de invitación visible'}</small></dd></div></dl>${integrity}${management}</article>`;
   }).join('');
   const controls=vm.users.length?`<section class="m26-admin-user-directory-tools" aria-label="Filtrar usuarios">
     <label class="m26-admin-user-search"><span>Buscar</span><input type="search" data-admin-user-search autocomplete="off" placeholder="Nombre, correo, cliente o Coach" aria-label="Buscar usuario por nombre, correo, cliente o Coach"></label>
@@ -291,7 +332,7 @@ function clientCreateWizardForm(){
 }
 function renderClients(vm){
   const create=vm.canManage?clientCreateWizardForm():'';
-  const lead=vm.canManage?form('lead-create',`<input name="name" maxlength="200" required placeholder="Nombre"><input type="email" name="email" maxlength="254" placeholder="Correo"><input name="phone" maxlength="80" placeholder="Teléfono"><input name="source" maxlength="120" placeholder="Origen"><textarea name="objective" maxlength="1000" placeholder="Objetivo"></textarea>`,'Registrar lead'):'';
+  const lead=vm.canManage?`<section class="m26-admin-panel m26-admin-lead-capture"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Prospección</p><h3>Registrar lead</h3><p>Guarda un contacto inicial para seguimiento comercial. Todavía no crea un expediente de cliente ni envía acceso a la app.</p></div>${badge('Contacto inicial')}</div>${form('lead-create',`<input name="name" maxlength="200" required placeholder="Nombre"><input type="email" name="email" maxlength="254" placeholder="Correo"><input name="phone" maxlength="80" placeholder="Teléfono"><input name="source" maxlength="120" placeholder="Origen"><textarea name="objective" maxlength="1000" placeholder="Objetivo o necesidad principal"></textarea>`,'Registrar lead')}</section>`:'';
   const leadTable=rows(['Lead','Origen','Estado','Gestión'],vm.leads.map((l)=>`<tr><td><strong>${e(l.name)}</strong><small>${e(l.email||l.phone||'')}</small></td><td>${e(l.source||'')}</td><td>${badge(l.status)}</td><td>${vm.canManage?form('lead-update',`<input type="hidden" name="leadId" value="${e(l.id)}"><input type="hidden" name="baseRevision" value="${e(l.revision||0)}"><select name="status"><option value="new">Nuevo</option><option value="contacted">Contactado</option><option value="qualified">Cualificado</option><option value="evaluation">Evaluación</option><option value="won">Ganado</option><option value="lost">Perdido</option></select><input type="datetime-local" name="nextActionAt"><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar'):'—'}</td></tr>`));
   const clients=rows(['Cliente','Ciclo','Acceso','Coach','Gestión'],vm.clients.map((c)=>`<tr><td><strong>${e(c.name)}</strong><small>${e(c.email||c.id)}</small></td><td>${badge(c.lifecycle?.status||c.status)}</td><td>${badge(clientAccessLabel(c))}</td><td>${e(c.coachNames?.join(', ')||'Sin coach')}</td><td>${vm.canManage?`${form('client-lifecycle',`<input type="hidden" name="clientId" value="${e(c.id)}"><select name="status"><option value="onboarding">Onboarding</option><option value="active">Activo</option><option value="paused">Pausa</option><option value="inactive">Baja</option><option value="reactivation">Reactivación</option></select><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar')}${clientDelete(c)}`:'—'}</td></tr>`));
   const dangerStyle=`<style>.m26-admin-danger{margin-top:.7rem;border:1px solid color-mix(in srgb,#9f2d2d 40%,transparent);border-radius:14px;background:color-mix(in srgb,#9f2d2d 6%,transparent);overflow:hidden}.m26-admin-danger>summary{cursor:pointer;padding:.7rem .85rem;font-weight:700;color:#8f2424;list-style:none}.m26-admin-danger>summary::-webkit-details-marker{display:none}.m26-admin-danger-body{padding:.1rem .85rem .85rem;display:grid;gap:.65rem}.m26-admin-danger-body h4,.m26-admin-danger-body p{margin:0}.m26-admin-danger-body dl{display:grid;gap:.35rem;margin:.2rem 0}.m26-admin-danger-body dl div{display:grid;grid-template-columns:minmax(72px,.4fr) 1fr;gap:.5rem}.m26-admin-danger-body dt{font-weight:700}.m26-admin-danger-body dd{margin:0;overflow-wrap:anywhere}.m26-admin-danger-body .m26-admin-form{display:grid;gap:.55rem}.m26-admin-danger-body label{display:grid;gap:.28rem;font-size:.9rem}.m26-admin-danger-check{grid-template-columns:auto 1fr!important;align-items:start}.m26-admin-danger-body button[type=submit]{background:#9f2d2d!important;border-color:#9f2d2d!important;color:#fff!important}</style>`;
