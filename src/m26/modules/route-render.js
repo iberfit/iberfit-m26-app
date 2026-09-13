@@ -420,7 +420,7 @@ function renderClientHoyRoute(vm) {
       eyebrow:'Tu sesión de hoy',
       title:runnable.title||firstProjection?.session?.title||'Entrenamiento IBERFIT',
       detail:[runnable.dateLabel,runnable.modality].filter(Boolean).join(' · ')||'Preparada para comenzar',
-      markup:`<button type="button" class="m26-today-action is-primary m26-client-home-primary" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(runnable.sessionId)}">
+      markup:`<button type="button" class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(runnable.sessionId)}">
         <span aria-hidden="true">▶</span>
         <strong>Entrenar ahora</strong>
         <small>${escapeHtml(runnable.title||'Tu sesión confirmada está preparada para hoy.')}</small>
@@ -431,7 +431,7 @@ function renderClientHoyRoute(vm) {
       eyebrow:'Tu entrenamiento',
       title:firstProjection?.session?.title||'Tu planificación está preparada',
       detail:`${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'}`,
-      markup:`<button type="button" class="m26-today-action is-primary m26-client-home-primary" data-m26-area="sesion">
+      markup:`<button type="button" class="m26-today-action is-primary" data-m26-area="sesion">
         <span aria-hidden="true">▶</span>
         <strong>Abrir mis sesiones</strong>
         <small>Tienes ${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'} en tu planificación.</small>
@@ -442,7 +442,7 @@ function renderClientHoyRoute(vm) {
       eyebrow:'Tu siguiente paso',
       title:'Actualiza cómo estás hoy',
       detail:'Un registro breve mantiene tu seguimiento al día.',
-      markup:`<button type="button" class="m26-today-action is-primary m26-client-home-primary" data-m26-area="actividad">
+      markup:`<button type="button" class="m26-today-action is-primary" data-m26-area="actividad">
         <span aria-hidden="true">＋</span>
         <strong>Registrar cómo estoy</strong>
         <small>Energía, sueño, estrés, dolor, fatiga y motivación.</small>
@@ -508,18 +508,23 @@ function renderClientHoyRoute(vm) {
     <section class="m26-client-home-actions" aria-label="Acciones rápidas">
       <button type="button" data-m26-area="actividad">
         <span aria-hidden="true">♡</span>
-        <strong>Bienestar</strong>
-        <small>Registrar cómo estoy</small>
+        <strong>Registrar bienestar</strong>
+        <small>Cómo estoy hoy</small>
       </button>
-      <button type="button" data-m26-area="progreso">
-        <span aria-hidden="true">↗</span>
-        <strong>Progreso</strong>
-        <small>Ver mi evolución</small>
+      <button type="button" data-m26-area="planificacion">
+        <span aria-hidden="true">◇</span>
+        <strong>Ver planificación</strong>
+        <small>Plan confirmado</small>
       </button>
       <button type="button" data-m26-area="sesion">
         <span aria-hidden="true">▶</span>
-        <strong>Entrenamientos</strong>
-        <small>Mis sesiones</small>
+        <strong>Abrir sesiones</strong>
+        <small>Entrenamientos disponibles</small>
+      </button>
+      <button type="button" data-m26-area="informes">
+        <span aria-hidden="true">↗</span>
+        <strong>Consultar informes</strong>
+        <small>Evaluaciones compartidas</small>
       </button>
     </section>
 
