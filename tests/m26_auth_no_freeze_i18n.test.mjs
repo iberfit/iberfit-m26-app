@@ -95,6 +95,16 @@ test('login, resume and retry are all protected by the no-freeze watchdog',()=>{
 
 const ACCESS_COPY=[
   'Acceso privado',
+  'Preparando tu espacio',
+  'Reconociendo este dispositivo y recuperando tu sesión de forma segura.',
+  'Preparando acceso seguro…',
+  'Tu acceso está preparado',
+  'Continuar en IBERFIT',
+  'No hemos podido completar la conexión. Tu sesión sigue protegida en este dispositivo; continúa sin volver a escribir la contraseña.',
+  'Continuar',
+  'Usar otra cuenta',
+  'Tu espacio IBERFIT',
+  'Entra para continuar con tu planificación, tus sesiones y tu evolución.',
   'Entrenamiento personal con criterio',
   'Diagnóstico, planificación, control y seguimiento.',
   'Correo',
@@ -136,6 +146,9 @@ test('English access copy uses natural product wording instead of mixed-language
   );
   assert.equal(iberfitSurfaceTranslate('Correo',{language:'en'}),'Email');
   assert.equal(iberfitSurfaceTranslate('Confirmando…',{language:'en'}),'Signing in…');
+  assert.equal(iberfitSurfaceTranslate('Preparando tu espacio',{language:'en'}),'Preparing your space');
+  assert.equal(iberfitSurfaceTranslate('Continuar en IBERFIT',{language:'en'}),'Continue in IBERFIT');
+  assert.equal(iberfitSurfaceTranslate('Usar otra cuenta',{language:'en'}),'Use another account');
   assert.equal(iberfitSurfaceTranslate('Verifica que eres tú',{language:'en'}),'Verify it’s you');
   assert.equal(iberfitSurfaceTranslate('Verificando…',{language:'en'}),'Verifying…');
   assert.equal(iberfitSurfaceTranslate('Verificar con este dispositivo',{language:'en'}),'Verify with this device');
