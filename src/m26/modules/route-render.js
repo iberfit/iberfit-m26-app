@@ -1164,6 +1164,129 @@ function exerciseProgressSparkline(points,key){
   </svg>`;
 }
 
+function exerciseProgressChartModel(exercise){
+  const history=Array.isArray(exercise?.history)
+    ?exercise.history
+    :[];
+
+  const definitions=[
+    {
+      key:'maxLoadKg',
+      label:'Carga máxima confirmada',
+      unit:'kg',
+      priority:0,
+    },
+    {
+      key:'bestReps',
+      label:'Mejor serie de repeticiones',
+      unit:'rep',
+      priority:1,
+    },
+    {
+      key:'totalSeconds',
+      label:'Tiempo total confirmado',
+      unit:'s',
+      priority:2,
+    },
+    {
+      key:'volumeKgReps',
+      label:'Volumen confirmado',
+      unit:'kg·rep',
+      priority:3,
+    },
+  ];
+
+  const candidates=definitions
+    .map((definition)=>{
+      const points=history
+        .map((point)=>{
+          const value=Number(point?.[definition.key]);
+          const date=String(point?.at||'').slice(0,10);
+          return Number.isFinite(value)&&/^\d{4}-\d{2}-\d{2}$/u.test(date)
+            ?Object.freeze({date,value})
+            :null;
+        })
+        .filter(Boolean);
+
+      return Object.freeze({
+        ...definition,
+        points:Object.freeze(points),
+      });
+    })
+    .filter((candidate)=>candidate.points.length>=2)
+    .sort(
+      (a,b)=>
+        b.points.length-a.points.length||
+        a.priority-b.priority
+    );
+
+  const selected=candidates[0]||null;
+  if(!selected)return null;
+
+  const referenceValue=Math.max(
+    ...selected.points.map((point)=>point.value)
+  );
+
+  return Object.freeze({
+    key:selected.key,
+    label:selected.label,
+    unit:selected.unit,
+    points:selected.points,
+    pointCount:selected.points.length,
+    referenceValue,
+    referenceLabel:'Máximo registrado',
+  });
+}
+
+function exerciseProgressChart(exercise,{compact=false}={}){
+  const model=exerciseProgressChartModel(exercise);
+
+  if(!model){
+    return `<div
+      class="m26-exercise-progress-chart is-empty"
+      data-m26-exercise-analytics="v2"
+      data-m26-exercise-chart-state="insufficient"
+    >
+      <p><strong>Sin serie gráfica comparable todavía.</strong> La tabla conserva los registros disponibles sin convertir ausencias en cero.</p>
+    </div>`;
+  }
+
+  const payload=escapeHtml(
+    JSON.stringify(model.points)
+  );
+
+  return `<section
+    class="m26-exercise-progress-chart"
+    data-m26-exercise-analytics="v2"
+    data-m26-exercise-chart-state="ready"
+    data-m26-exercise-chart-metric="${escapeHtml(model.key)}"
+  >
+    <div class="m26-exercise-progress-chart-heading">
+      <div>
+        <small>Métrica con mayor cobertura comparable</small>
+        <strong>${escapeHtml(model.label)}</strong>
+      </div>
+      ${badge(`${model.pointCount} registros`,'neutral')}
+    </div>
+
+    <m26-echart
+      class="m26-echart m26-exercise-progress-echart"
+      data-label="${escapeHtml(model.label)}"
+      data-unit="${escapeHtml(model.unit)}"
+      data-tone="neutral"
+      data-density="${compact?'compact':'standard'}"
+      data-points="${payload}"
+      data-reference-value="${escapeHtml(model.referenceValue)}"
+      data-reference-label="${escapeHtml(model.referenceLabel)}"
+      aria-label="${escapeHtml(
+        `${exercise?.exerciseName||'Ejercicio'}: ${model.label}, ${model.pointCount} registros comparables. Máximo registrado ${model.referenceValue} ${model.unit}. La gráfica no interpreta progreso automáticamente.`
+      )}"
+    ></m26-echart>
+
+    <p class="m26-data-footnote">Se prioriza la métrica comparable con mayor cobertura. El cambio numérico no se interpreta automáticamente como mejora o retroceso.</p>
+  </section>`;
+}
+
 function exercisePointLoad(point){
   if(Number.isFinite(point?.maxLoadKg)){
     return `${point.maxLoadKg} kg`;
@@ -1219,9 +1342,9 @@ function renderExerciseProgressSection(
       ? history.slice(0,5)
       : history.slice(0,16);
 
-    const loadSpark=exerciseProgressSparkline(
-      exercise.history||[],
-      'maxLoadKg'
+    const progressChart=exerciseProgressChart(
+      exercise,
+      {compact}
     );
 
     const historyRows=visibleHistory.map((point)=>`
@@ -1288,7 +1411,7 @@ function renderExerciseProgressSection(
           ${exerciseProgressTrend(exercise.rirTrend,'RIR')}
         </div>
 
-        ${loadSpark}
+        ${progressChart}
 
         <div class="m26-table-scroll">
           <table class="m26-exercise-progress-table">
