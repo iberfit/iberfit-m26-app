@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createProductionState, stateFromBootstrap } from '../src/m26/production-state.js';
 import { computeProgressSummary, buildProgressTimeline } from '../src/m26/engagement/progress-engine.js';
 import { deriveAdherenceAlerts } from '../src/m26/engagement/adherence-engine.js';
@@ -99,11 +100,24 @@ test('progreso excluye ejecuciones sin confirmar y explica el impacto de la últ
   assert.match(html,/Sesiones fuera del cálculo por no estar confirmadas: 1/);
 });
 test('alertas son explicables y priorizan dolor, recuperación y adherencia',()=>{
-  const alerts=deriveAdherenceAlerts(hydrated(),clientId,{now});
+  const state=hydrated();
+  const alerts=deriveAdherenceAlerts(state,clientId,{now});
   assert.equal(alerts[0].id,'pain-high');
   assert.ok(alerts.some((item)=>item.id==='recovery-context'));
   assert.ok(alerts.some((item)=>item.id==='adherence-low'));
   assert.ok(alerts.every((item)=>item.detail&&item.action&&item.source));
+
+  const summary=computeProgressSummary(state,clientId,{now,days:28});
+  const reused=deriveAdherenceAlerts(state,clientId,{now,summary});
+  assert.deepEqual(reused,alerts);
+});
+
+test('cartera reutiliza el resumen de progreso de 28 días al derivar alertas',()=>{
+  const source=fs.readFileSync('src/m26/modules/route-view-model.js','utf8');
+  const adherence=fs.readFileSync('src/m26/engagement/adherence-engine.js','utf8');
+  assert.match(source,/computeProgressSummary\(state,client\.id,\{now,days:28\}\)/u);
+  assert.match(source,/deriveAdherenceAlerts\(state,client\.id,\{now,summary:progress\}\)/u);
+  assert.match(adherence,/providedSummary\?\.clientId===clientId&&Number\(providedSummary\?\.days\)===28/u);
 });
 
 test('cronología mezcla IRI, ejecuciones y check-ins confirmados',()=>{
