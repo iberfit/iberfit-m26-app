@@ -332,7 +332,7 @@ export function renderAccessUi({
       <div class="m26-auth-copy m26-auth-copy-compact">
         <p class="m26-auth-kicker">Tu acceso está preparado</p>
         <h1 id="m26-auth-title" tabindex="-1">Continuar en IBERFIT</h1>
-        <p>Tu sesión sigue protegida en este dispositivo. Continúa sin volver a escribir la contraseña.</p>
+        <p>No hemos podido completar la conexión. Tu sesión sigue protegida en este dispositivo; continúa sin volver a escribir la contraseña.</p>
       </div>
 
       ${rememberedSessionEmail
