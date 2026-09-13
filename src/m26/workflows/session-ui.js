@@ -372,14 +372,14 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor){
     ${renderExerciseMemoryInline(memory)}
     <div class="m26-field-grid m26-builder-core-prescription">
       ${blockField({blockId:block.id,field:'sets',label:'Series',value:block.sets,type:'number',min:1,max:100})}
-      ${blockField({blockId:block.id,field:'reps',label:'Repeticiones/tiempo objetivo',value:block.reps,maxLength:40})}
+      ${blockField({blockId:block.id,field:'reps',label:'Repeticiones/tiempo objetivo',value:block.reps,maxLength:80})}
       ${blockField({blockId:block.id,field:'plannedLoad',label:'Carga planificada',value:block.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
       ${blockField({blockId:block.id,field:'restSeconds',label:'Descanso (s)',value:block.restSeconds,type:'number',min:1,max:3600})}
     </div>
     <details class="m26-builder-prescription-details">
       <summary>Prescripción y alternativas</summary>
       <div class="m26-field-grid">
-        ${blockField({blockId:block.id,field:'tempo',label:'Ritmo de ejecución',value:block.tempo,maxLength:40})}
+        ${blockField({blockId:block.id,field:'tempo',label:'Ritmo de ejecución',value:block.tempo,maxLength:80})}
         ${blockField({blockId:block.id,field:'targetRpe',label:'RPE objetivo',value:block.targetRpe,type:'number',min:1,max:10,step:.5})}
         ${blockField({blockId:block.id,field:'targetRir',label:'RIR objetivo',value:block.targetRir,type:'number',min:0,max:10,step:.5})}
         <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(block.id)}">${alternativeOptions(catalog,block.exerciseId,exercise.pattern,block.alternativeId)}</select></label>
@@ -398,14 +398,14 @@ function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemo
     <div class="m26-group-prescription-heading">${visual}<h4>${e(exerciseDisplayName(exercise))}</h4></div>
     ${renderExerciseMemoryInline(memory)}
     <div class="m26-field-grid m26-builder-core-prescription">
-      ${blockField({blockId:group.id,exerciseId,field:'reps',label:'Repeticiones/tiempo',value:p.reps||'8–12',maxLength:40})}
+      ${blockField({blockId:group.id,exerciseId,field:'reps',label:'Repeticiones/tiempo',value:p.reps||'8–12',maxLength:80})}
       ${blockField({blockId:group.id,exerciseId,field:'plannedLoad',label:'Carga planificada',value:p.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
       ${blockField({blockId:group.id,exerciseId,field:'restSeconds',label:'Descanso (s)',value:p.restSeconds||60,type:'number',min:1,max:3600})}
     </div>
     <details class="m26-builder-prescription-details">
       <summary>Prescripción y alternativas</summary>
       <div class="m26-field-grid">
-        ${blockField({blockId:group.id,exerciseId,field:'tempo',label:'Ritmo de ejecución',value:p.tempo||'controlado',maxLength:40})}
+        ${blockField({blockId:group.id,exerciseId,field:'tempo',label:'Ritmo de ejecución',value:p.tempo||'controlado',maxLength:80})}
         ${blockField({blockId:group.id,exerciseId,field:'targetRpe',label:'RPE',value:p.targetRpe||7,type:'number',min:1,max:10,step:.5})}
         ${blockField({blockId:group.id,exerciseId,field:'targetRir',label:'RIR',value:p.targetRir??3,type:'number',min:0,max:10,step:.5})}
         <label>Alternativa<select data-session-block-field="alternativeId" data-block-id="${e(group.id)}" data-exercise-id="${e(exerciseId)}">${alternativeOptions(catalog,exerciseId,exercise.pattern,p.alternativeId)}</select></label>
@@ -506,7 +506,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
       </div>
     </header>
     ${actionState?`<div class="m26-action-state is-${e(actionState.status)}" role="status">${e(actionState.message)}</div>`:''}
-    <section class="m26-builder-session-strip" aria-label="Resumen de sesión">
+    <section class="m26-builder-session-strip" aria-label="Resumen de sesión · ${e(plural(metrics.exercises,'ejercicio','ejercicios'))} · ${e(plural(metrics.workUnits,'serie/ronda','series/rondas'))}">
       <div><span>Ejercicios</span><strong>${e(metrics.exercises)}</strong></div>
       <div><span>Trabajo</span><strong>${e(metrics.workUnits)}</strong><small>series / rondas</small></div>
       <div><span>Bloques</span><strong>${e(metrics.blocks)}</strong>${metrics.groups?`<small>${e(metrics.groups)} grupos</small>`:''}</div>
