@@ -1,6 +1,6 @@
 # IBERFIT · Device Experience Policy
 
-Estado: Phase A activa
+Estado: Phase A GREEN · Phase B foundation activa
 Fecha: 2026-09-13
 
 ## Principio
@@ -87,12 +87,31 @@ Unifica en un gate:
 - cuatro perfiles principales donde aplica.
 
 ### Phase B
-Cerrar:
-1. Coach post-WebAuthn en desktop/tablet portrait/tablet landscape/mobile.
-2. Admin autenticado QA en desktop/tablet/mobile.
-3. teclado virtual/orientación/modales/scroll largo;
-4. sesión live diferenciada por dispositivo;
-5. error recovery task-level.
+
+#### Foundation V1
+Añade una matriz de tareas de fuente actual sobre las cuatro superficies para evitar que el gate sea sólo “renderiza en varios tamaños”.
+
+Valida explícitamente:
+- Cliente: Hoy, Progreso, sesión live y feedback.
+- Coach: Hoy, Clientes, Expediente y Programar.
+- Admin: Usuarios y alta de cliente.
+- ausencia de overflow horizontal;
+- navegación acorde al dispositivo;
+- ruta de foco real;
+- acciones táctiles materialmente utilizables;
+- interacción del wizard/gestión Admin;
+- capturas y métricas por tarea/dispositivo.
+
+La UI Coach de esta capa se etiqueta `synthetic-post-assurance-ui`: valida el workspace que debe existir después del assurance, pero **no** suplanta WebAuthn ni convierte esa evidencia en auth GREEN.
+
+Admin se etiqueta `synthetic-authorized-ui`: valida tareas y responsive, pero **no** afirma autenticación Admin real.
+
+#### Pendiente para cerrar Phase B
+1. Coach post-WebAuthn real y reproducible en desktop/tablet portrait/tablet landscape/mobile, sin bypass.
+2. Admin autenticado QA real en desktop/tablet/móvil.
+3. teclado virtual/orientación/modales/scroll largo.
+4. error recovery task-level con estados de red y reanudación.
+5. ampliar PWA a tablet landscape si la tarea instalada lo requiere.
 
 ## Regla de producto
 
