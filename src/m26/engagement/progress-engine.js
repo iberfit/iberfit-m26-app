@@ -2,29 +2,16 @@ import {summarizeWearableData} from '../wearables/normalization.js';
 import {parseDateValue} from '../domain/civil-date.js';
 import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../workflows/iri-first-session.js';
 import {buildEvolutionProfile,evolutionComparisonSummary,EVOLUTION_FOLLOWUP_KIND,IRI_INITIAL_DIAGNOSTIC_KIND} from '../workflows/iri-2-longitudinal.js';
+import {
+  confirmedSessionExecutionsForClient,
+  unconfirmedSessionExecutionIds as unconfirmedCompletionIds,
+  sessionExecutionIsConfirmed as executionIsConfirmed,
+} from '../domain/session-execution-truth.js';
 function clone(value){return value==null?value:structuredClone(value);}
 function arr(value){return Array.isArray(value)?value:[];}
 function first(record,...keys){for(const key of keys){const value=record?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
 function clientIdOf(record){return first(record,'clientId','client_id','clienteId','cliente_id');}
 function statusOf(record){return String(first(record,'status','estado')||'').trim().toLowerCase();}
-function unconfirmedCompletionIds(state){
-  const ids=new Set();
-  for(const key of ['pendingOperations','conflicts','rejectedOperations']){
-    for(const operation of arr(state?.[key])){
-      const item=unwrap(operation)||{};
-      const type=String(first(item,'type','commandType','command_type')||'').trim().toUpperCase();
-      if(type!=='EJECUCION_COMPLETAR')continue;
-      const entityId=first(item,'entityId','entity_id','executionId','execution_id');
-      if(entityId)ids.add(String(entityId));
-    }
-  }
-  return ids;
-}
-function executionIsConfirmed(record,unconfirmedIds=new Set()){
-  const sync=String(first(record,'syncStatus','sync_status')||'').trim().toLowerCase();
-  const id=String(first(record,'id','executionId','execution_id')||'');
-  return (!sync||sync==='clean')&&!unconfirmedIds.has(id);
-}
 function dateOf(record){return first(record,
   'completedAt','completed_at','endedAt','ended_at','recordedAt','recorded_at',
   'assessmentDate','assessment_date','evaluatedAt','evaluated_at','startAt','start_at',
@@ -63,8 +50,15 @@ function rpeValues(execution){return setRows(execution).map((row)=>number(first(
 function volumeOf(execution){
   return setRows(execution).reduce((total,row)=>{
     const reps=number(first(row,'reps','actualReps','actual_reps'));
-    const load=number(first(row,'loadKg','load_kg','load','weightKg','weight_kg'));
-    return total+(Number.isFinite(reps)&&reps>=0&&Number.isFinite(load)&&load>=0?reps*load:0);
+    const loadKg=epKnownLoadKg(row);
+    return total+(
+      Number.isFinite(reps)&&
+      reps>=0&&
+      Number.isFinite(loadKg)&&
+      loadKg>=0
+        ?reps*loadKg
+        :0
+    );
   },0);
 }
 function checkinValues(record){
@@ -756,10 +750,13 @@ export function buildExerciseLongitudinalProgress(
     });
   }
 
-  const executions=forClient(
+  const executions=confirmedSessionExecutionsForClient(
     state,
-    'sessionExecutions',
-    clientId
+    clientId,
+    {
+      requireCompleted:false,
+      requireDate:false,
+    }
   );
 
   const sessions=epSessionMap(state);
