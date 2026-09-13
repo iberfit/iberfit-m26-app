@@ -31,20 +31,54 @@ test('only invalid identity/session failures force a fresh login',()=>{
   assert.equal(sessionFailureRequiresFreshLogin(new Error('Failed to fetch')),false);
 });
 
-test('retryable failures keep a password-free resume action while preserving normal login',()=>{
+test('retryable failures expose a password-free recovery state without leaking the login form',()=>{
   const html=renderAccessUi({
+    mode:'recoverable-session',
     backendReady:true,
     qaOnly:false,
     host:'app.iberfit.cl',
     sessionRetryAvailable:true,
-    message:'No fue posible conectar.',
-    noticeKind:'error',
+    sessionIdentity:{email:'client@iberfit.cl'},
   });
-  assert.match(html,/Tu sesión sigue guardada/u);
+  assert.match(html,/data-auth-mode="recoverable-session"/u);
+  assert.match(html,/data-auth-state="recoverable-session"/u);
+  assert.match(html,/Continuar en IBERFIT/u);
   assert.match(html,/data-auth-action="retry-session"/u);
-  assert.match(html,/Reintentar acceso/u);
-  assert.match(html,/data-auth-form="login"/u);
-  assert.match(html,/autocomplete="current-password"/u);
+  assert.match(html,/data-auth-action="use-another-account"/u);
+  assert.match(html,/cl\*{4}@iberfit\.cl/u);
+  assert.doesNotMatch(html,/data-auth-form="login"/u);
+  assert.doesNotMatch(html,/autocomplete="current-password"/u);
+});
+
+
+test('mount recognises a saved session and schedules silent continuation before exposing signed-out login',()=>{
+  const app=read('src/m26/app/application.js');
+  const start=app.indexOf('function mount()');
+  const end=app.indexOf('function destroy()',start);
+  assert.ok(start>=0&&end>start);
+  const block=app.slice(start,end);
+  assert.match(block,/session=vault\.load\(\)/u);
+  assert.match(block,/if\(session\?\.token\)\{/u);
+  assert.match(block,/authMode='checking-session'/u);
+  assert.match(block,/sessionRetryAvailable=false/u);
+  assert.match(block,/continueSavedSession/u);
+  assert.match(block,/void resume\(\)/u);
+  assert.doesNotMatch(block,/Tu sesión está guardada/u);
+});
+
+test('expired and invalid-credential errors keep diagnostic codes out of primary login copy',()=>{
+  const app=read('src/m26/app/application.js');
+  const discardStart=app.indexOf("function discardSessionAfterFailure");
+  const discardEnd=app.indexOf("async function retrySession",discardStart);
+  const discard=app.slice(discardStart,discardEnd);
+  assert.match(discard,/Tu sesión ha caducado\. Vuelve a entrar para continuar\./u);
+  assert.doesNotMatch(discard,/Código:/u);
+
+  const loginStart=app.indexOf("async function login(email,password)");
+  const loginEnd=app.indexOf("async function resume()",loginStart);
+  const login=app.slice(loginStart,loginEnd);
+  assert.match(login,/authMessage\(loginFailureMessage\(error\),'error'\)/u);
+  assert.doesNotMatch(login,/Código:/u);
 });
 
 test('login feedback distinguishes credentials from transient access failures',()=>{

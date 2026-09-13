@@ -63,10 +63,15 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   assert.match(html,/class="m26-auth-stage"/u);
   assert.match(html,/class="m26-auth-intro"/u);
   assert.match(html,/class="m26-auth-kicker">Acceso privado/u);
-  assert.match(html,/Bienvenido a IBERFIT/u);
+  assert.match(html,/data-static-auth-bootstrap="true" data-auth-mode="checking-session" data-auth-state="checking-session"/u);
+  assert.match(html,/data-auth-mode="checking-session"/u);
+  assert.match(html,/data-auth-state="checking-session"/u);
+  assert.match(html,/Preparando tu espacio/u);
   assert.match(html,/<h1 id="m26-auth-title"/u);
+  assert.match(html,/data-auth-form="login" aria-label="Acceso a IBERFIT" hidden aria-hidden="true"/u);
   assert.match(html,/data-password-toggle/u);
   assert.match(html,/name="rememberEmail"/u);
+  assert.doesNotMatch(html,/m26-notice is-warning/u);
   assert.match(html,/\/src\/m26\/design\/auth-native\.css/u);
 
   const hash=crypto.createHash('sha256').update(inline,'utf8').digest('base64');

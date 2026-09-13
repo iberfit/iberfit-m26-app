@@ -92,3 +92,19 @@ test('P0 slow-start and recovery surfaces expose only safe phase and release dia
   assert.match(app,/Fase: \$\{safeBootstrapPhase\(\)\} · Release: \$\{safeBootstrapRelease\(\)\}/u);
   assert.doesNotMatch(app,/bootstrapDiagnosticText\([\s\S]{0,160}(?:email|userId|token|authorization)/iu);
 });
+
+test('P0 auth bootstrap does not flash the signed-out form and reveals it only if the full app fails',()=>{
+  assert.match(app,/function enableMinimalAuthShell\(\{reveal=false\}=\{\}\)/u);
+  assert.match(app,/if\(!reveal\)return true;/u);
+  assert.match(app,/form\.hidden=false;/u);
+  assert.match(app,/form\.removeAttribute\?\.\('aria-hidden'\)/u);
+  const failureStart=app.indexOf('function surfaceDeferredFullAppFailure');
+  const failureEnd=app.indexOf('function enableMinimalAuthShell',failureStart);
+  assert.ok(failureStart>=0&&failureEnd>failureStart);
+  assert.match(app.slice(failureStart,failureEnd),/enableMinimalAuthShell\(\{reveal:true\}\)/u);
+  const installStart=app.indexOf('function installMinimalAuthBootstrap');
+  const installEnd=app.indexOf('function controllerReloadOnce',installStart);
+  assert.ok(installStart>=0&&installEnd>installStart);
+  assert.match(app.slice(installStart,installEnd),/enableMinimalAuthShell\(\{reveal:false\}\)/u);
+});
+

@@ -16,6 +16,8 @@ export const REMEMBERED_EMAIL_STORAGE_KEY='iberfit.m26.remembered-email.v1';
 
 const ACCESS_MODES=new Set([
   'login',
+  'checking-session',
+  'recoverable-session',
   'request-recovery',
   'update-password',
   'mfa-required',
@@ -221,8 +223,12 @@ export function renderAccessUi({
   mfa = null,
   host = '',
   sessionRetryAvailable = false,
+  sessionIdentity = null,
 } = {}) {
   const normalizedMode=ACCESS_MODES.has(mode)?mode:'login';
+  const recoverableSession=normalizedMode==='recoverable-session'||sessionRetryAvailable===true;
+  const checkingSession=normalizedMode==='checking-session';
+  const rememberedSessionEmail=maskAccessEmail(sessionIdentity?.email||'');
   const disabled = busy || !backendReady;
   const normalizedHost = String(host || '').trim().toLowerCase();
   const previewBlocked =
@@ -266,45 +272,33 @@ export function renderAccessUi({
         </div>
       </div>`
     :'';
-  const authState=previewBlocked
-    ?'blocked'
-    :!backendReady
+  const authState=checkingSession
+    ?'checking-session'
+    :recoverableSession
+      ?'recoverable-session'
+      :previewBlocked
+        ?'blocked'
+        :!backendReady
       ?'unavailable'
-      :busy
-        ?'busy'
-        :contextBlocked
-          ?'context-blocked'
-          :sessionExpired
-            ?'session-expired'
-            :recoveryInvalid
-              ?'recovery-invalid'
-              :normalizedNoticeKind==='error'
-                ?'error'
-                :normalizedNoticeKind==='success'
-                  ?'success'
-                  :message
-                    ?'status'
-                    :'ready';
+          :busy
+            ?'busy'
+            :contextBlocked
+              ?'context-blocked'
+              :sessionExpired
+                ?'session-expired'
+                :recoveryInvalid
+                  ?'recovery-invalid'
+                  :normalizedNoticeKind==='error'
+                    ?'error'
+                    :normalizedNoticeKind==='success'
+                      ?'success'
+                      :message
+                        ?'status'
+                        :'ready';
 
   const accessNote = qaOnly
     ? 'Acceso restringido a las cuentas autorizadas para esta revisión.'
     : 'Acceso protegido por autenticación y permisos de cuenta.';
-  const retrySessionNotice=sessionRetryAvailable
-    ? `<div class="m26-auth-context-state m26-auth-retry-state" role="status" aria-label="Sesión disponible para reintentar">
-        <span class="m26-auth-context-mark" aria-hidden="true"></span>
-        <div>
-          <strong>Tu sesión sigue guardada</strong>
-          <p>No necesitas volver a escribir la contraseña. Reintenta la conexión o usa otra cuenta si lo prefieres.</p>
-          <button
-            type="button"
-            class="m26-secondary-action"
-            data-auth-action="retry-session"
-            ${busy ? 'disabled aria-disabled="true"' : ''}
-          >${busy ? 'Reconectando…' : 'Reintentar acceso'}</button>
-        </div>
-      </div>`
-    :'';
-
   const deviceRecoveryRecommended=mfa?.deviceRecoveryRecommended===true;
   const emailOtpAction=mfa?.emailOtpAvailable===true
     ? `<button
@@ -318,7 +312,53 @@ export function renderAccessUi({
     : '';
   let content = '';
 
-  if (normalizedMode === 'post-mfa-loading') {
+  if (checkingSession) {
+    content = `
+      <div class="m26-auth-copy m26-auth-copy-compact" data-auth-loading="session">
+        <p class="m26-auth-kicker">Acceso privado</p>
+        <h1 id="m26-auth-title" tabindex="-1">Preparando tu espacio</h1>
+        <p>Reconociendo este dispositivo y recuperando tu sesión de forma segura.</p>
+      </div>
+
+      <div class="m26-auth-actions m26-auth-actions-compact" role="status" aria-live="polite" aria-atomic="true">
+        <button type="button" class="m26-primary-action m26-auth-progress-action" disabled aria-disabled="true">
+          <span class="m26-auth-progress-mark" aria-hidden="true"></span>
+          <span>Preparando acceso seguro…</span>
+        </button>
+      </div>
+    `;
+  } else if (recoverableSession) {
+    content = `
+      <div class="m26-auth-copy m26-auth-copy-compact">
+        <p class="m26-auth-kicker">Tu acceso está preparado</p>
+        <h1 id="m26-auth-title" tabindex="-1">Continuar en IBERFIT</h1>
+        <p>No hemos podido completar la conexión. Tu sesión sigue protegida en este dispositivo; continúa sin volver a escribir la contraseña.</p>
+      </div>
+
+      ${rememberedSessionEmail
+        ? `<p class="m26-auth-account" aria-label="Cuenta guardada">${e(rememberedSessionEmail)}</p>`
+        : ''}
+      ${contextNotice}
+
+      <div class="m26-auth-actions m26-auth-actions-compact">
+        <button
+          type="button"
+          class="m26-primary-action"
+          data-auth-action="retry-session"
+          ${busy ? 'disabled aria-disabled="true"' : ''}
+        >${busy ? 'Continuando…' : 'Continuar'}</button>
+
+        <button
+          type="button"
+          class="m26-tertiary-action"
+          data-auth-action="use-another-account"
+          ${busy ? 'disabled aria-disabled="true"' : ''}
+        >Usar otra cuenta</button>
+      </div>
+
+      <p class="m26-field-help m26-auth-recovery-help">Si tu cuenta requiere verificación del dispositivo, IBERFIT la solicitará al continuar.</p>
+    `;
+  } else if (normalizedMode === 'post-mfa-loading') {
     content = `
       <div class="m26-auth-copy" data-auth-loading="verified">
         <p class="m26-auth-kicker">Acceso verificado</p>
@@ -607,15 +647,14 @@ export function renderAccessUi({
     `;
   } else {
     content = `
-      <div class="m26-auth-copy">
+      <div class="m26-auth-copy m26-auth-copy-compact">
         <p class="m26-auth-kicker">Acceso privado</p>
-        <h1 id="m26-auth-title" tabindex="-1">Entrenamiento personal con criterio</h1>
-        <p>Bienvenido a IBERFIT. Accede a tu espacio privado y continúa exactamente donde lo dejaste.</p>
+        <h1 id="m26-auth-title" tabindex="-1">Tu espacio IBERFIT</h1>
+        <p>Entra para continuar con tu planificación, tus sesiones y tu evolución.</p>
       </div>
 
       ${contextNotice}
       ${notice}
-      ${retrySessionNotice}
 
       <form data-auth-form="login" aria-label="Acceso a IBERFIT">
         <label>

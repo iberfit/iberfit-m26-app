@@ -410,8 +410,8 @@ export async function createM26Application({root=document.querySelector('#app'),
       }else{
         authMode='login';
         sessionRetryAvailable=false;
-        const incident=diagnosticCode(new Error('M26_AUTH_UI_TIMEOUT'),stage||'auth');
-        authMessage(`El acceso está tardando más de lo esperado. Puedes volver a intentarlo sin recargar la aplicación. Código: ${incident}.`,'error');
+        reportSoftDiagnostic('auth-ui-timeout',new Error('M26_AUTH_UI_TIMEOUT'));
+        authMessage('El acceso está tardando más de lo esperado. Comprueba tu conexión y vuelve a intentarlo.','error');
       }
     },
   });
@@ -442,6 +442,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     noticeKind,
     mfa:mfaState,
     sessionRetryAvailable,
+    sessionIdentity:session?.user||null,
   });
 }
 
@@ -1009,7 +1010,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
-  function finishLogout({token,message='Sesión cerrada de forma segura.',noticeKind='status'}={}){invalidateAuthAttempt();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
+  function finishLogout({token,message='',noticeKind='status'}={}){invalidateAuthAttempt();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
   function onLogout(){const token=currentToken();finishLogout({token});}
   async function onLogoutAndClearDevice(){
     if(deviceClearBusy||!session)return false;
@@ -1158,6 +1159,22 @@ function onAuthClick(event) {
 
   if(action==='retry-session'){
     void retrySession().catch((error)=>reportDiagnostic('session-retry',error));
+    return;
+  }
+
+  if(action==='use-another-account'){
+    const token=currentToken();
+    invalidateAuthAttempt();
+    loginBusy=false;
+    vault.clear();
+    session=null;
+    mfaState=null;
+    sessionRetryAvailable=false;
+    authMode='login';
+    destroyControllers();
+    store.reset();
+    authMessage();
+    void transport?.logout?.(token,{scope:'local'}).catch(()=>{});
     return;
   }
 
@@ -1507,10 +1524,11 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     destroyControllers();
     store.reset();
     mfaState=null;
-    authMode='login';
+    authMode='recoverable-session';
     sessionRetryAvailable=true;
-    const incident=diagnosticCode(error,stage);
-    authMessage(`${friendlyError(error)} Tu sesión sigue guardada: puedes reintentar sin volver a escribir la contraseña. Código: ${incident}.`,'error');
+    reportSoftDiagnostic(`auth-recoverable-${String(stage||'resume')}`,error);
+    const contextMissing=/M26_ROLE_CONTEXT_MISSING/u.test(String(error?.message||error||''));
+    authMessage(contextMissing?'M26_ROLE_CONTEXT_MISSING':'',contextMissing?'error':'status');
   }
   function discardSessionAfterFailure(error,stage='resume'){
     vault.clear();
@@ -1520,16 +1538,16 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     destroyControllers();
     store.reset();
     authMode='login';
-    const incident=diagnosticCode(error,stage);
-    authMessage(`La sesión expiró o perdió autorización. Vuelve a entrar. Código: ${incident}.`,'error');
+    reportSoftDiagnostic(`auth-session-ended-${String(stage||'resume')}`,error);
+    authMessage('Tu sesión ha caducado. Vuelve a entrar para continuar.','error');
   }
   async function retrySession(){
     if(loginBusy||!runtime.enabled||!session?.token)return false;
     loginBusy=true;
     sessionRetryAvailable=false;
-    authMode='login';
+    authMode='checking-session';
     const authAttemptId=beginAuthAttempt('session-retry');
-    authMessage('Reconectando tu sesión…');
+    authMessage();
     try{
       store.reset();
       return await continueAfterFirstFactor();
@@ -1577,8 +1595,8 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
         destroyControllers();
         store.reset();
         authMode='login';
-        const incident=diagnosticCode(error,'login');
-        authMessage(`${loginFailureMessage(error)} Código: ${incident}.`,'error');
+        reportSoftDiagnostic('auth-login-failed',error);
+        authMessage(loginFailureMessage(error),'error');
       }
       throw error;
     }finally{
@@ -1602,9 +1620,9 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     }
     loginBusy=true;
     sessionRetryAvailable=false;
-    authMode='login';
+    authMode='checking-session';
     const authAttemptId=beginAuthAttempt('resume');
-    authMessage('Restaurando tu sesión segura…');
+    authMessage();
     try{
       return await continueAfterFirstFactor();
     }catch(error){
@@ -1721,11 +1739,15 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
 
   session=vault.load();
   loginBusy=false;
-  authMode='login';
   if(session?.token){
-    sessionRetryAvailable=true;
-    authMessage('Tu sesión está guardada. Puedes continuar sin bloquear el arranque de IBERFIT.');
+    authMode='checking-session';
+    sessionRetryAvailable=false;
+    authMessage();
+    const continueSavedSession=()=>{void resume().catch((error)=>reportDiagnostic('resume',error));};
+    if(typeof globalThis.setTimeout==='function')globalThis.setTimeout(continueSavedSession,0);
+    else queueMicrotask(continueSavedSession);
   }else{
+    authMode='login';
     sessionRetryAvailable=false;
     authMessage();
   }

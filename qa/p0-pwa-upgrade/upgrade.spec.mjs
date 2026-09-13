@@ -52,7 +52,7 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
 
   const initial=await page.goto('/m26/index.html',{waitUntil:'domcontentloaded'});
   expect(initial?.ok()).toBeTruthy();
-  await expect(page.getByRole('heading',{name:'Entrenamiento personal con criterio'})).toBeVisible();
+  await expect(page.locator('.m26-auth-page')).toHaveAttribute('data-auth-state','unavailable');
   await page.waitForFunction(()=>globalThis.__IBERFIT_P0_BROWSER_RELEASE__==='n1');
   await page.evaluate(()=>navigator.serviceWorker.ready);
   if(!await page.evaluate(()=>Boolean(navigator.serviceWorker.controller))){
@@ -90,12 +90,12 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
   await page.reload({waitUntil:'domcontentloaded'});
 
   // The pinned N-1 shell must remain immediately usable while N installs.
-  await expect(page.getByRole('heading',{name:'Entrenamiento personal con criterio'})).toBeVisible({timeout:3_000});
+  await expect(page.locator('.m26-auth-page')).toHaveAttribute('data-auth-state','unavailable',{timeout:3_000});
 
   // The app's own update path must activate N, observe controllerchange and perform at most one reload.
   await page.waitForFunction(()=>globalThis.__IBERFIT_P0_BROWSER_RELEASE__==='n',null,{timeout:20_000});
   await waitForController(page);
-  await expect(page.getByRole('heading',{name:'Entrenamiento personal con criterio'})).toBeVisible();
+  await expect(page.locator('.m26-auth-page')).toHaveAttribute('data-auth-state','unavailable');
 
   const afterUpgrade=await page.evaluate(async({sessionKey,draftKey,currentCache,previousCache})=>{
     const {createSessionVault}=await import('/src/m26/app/session-vault.js');

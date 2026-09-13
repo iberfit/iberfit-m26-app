@@ -16,6 +16,24 @@ test('auth premium conserva todos los flujos visibles y sus salidas seguras',()=
   assert.match(login,/name="rememberEmail"/u);
   assert.match(login,/data-password-toggle/u);
 
+  const checking=render('checking-session',{busy:true});
+  assert.match(checking,/data-auth-mode="checking-session"/u);
+  assert.match(checking,/data-auth-state="checking-session"/u);
+  assert.match(checking,/Preparando tu espacio/u);
+  assert.doesNotMatch(checking,/data-auth-form="login"/u);
+  assert.doesNotMatch(checking,/autocomplete="current-password"/u);
+
+  const recoverable=render('recoverable-session',{
+    sessionRetryAvailable:true,
+    sessionIdentity:{email:'client@iberfit.cl'},
+  });
+  assert.match(recoverable,/data-auth-mode="recoverable-session"/u);
+  assert.match(recoverable,/data-auth-state="recoverable-session"/u);
+  assert.match(recoverable,/data-auth-action="retry-session"/u);
+  assert.match(recoverable,/data-auth-action="use-another-account"/u);
+  assert.doesNotMatch(recoverable,/data-auth-form="login"/u);
+  assert.doesNotMatch(recoverable,/autocomplete="current-password"/u);
+
   const recovery=render('request-recovery');
   assert.match(recovery,/data-auth-mode="request-recovery"/u);
   assert.match(recovery,/Recuperación segura/u);
@@ -116,7 +134,7 @@ test('auth premium conserva recovery dinámica, provisioning fail-closed y resil
   const appSource=fs.readFileSync('src/m26/app/application.js','utf8');
   assert.match(appSource,/M26_ROLE_CONTEXT_MISSING/u);
   assert.match(appSource,/M26_ROLE_SWITCH_FORBIDDEN/u);
-  assert.match(appSource,/La sesión expiró o perdió autorización\. Vuelve a entrar\./u);
+  assert.match(appSource,/Tu sesión ha caducado\. Vuelve a entrar para continuar\./u);
 
   const css=fs.readFileSync('src/m26/design/auth-native.css','utf8');
   assert.match(css,/env\(safe-area-inset-top\)/u);
