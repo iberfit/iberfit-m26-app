@@ -288,7 +288,7 @@ export function renderAccessUi({
 
   const accessNote = qaOnly
     ? 'Acceso restringido a las cuentas autorizadas para esta revisión.'
-    : 'Acceso privado para clientes y equipo IBERFIT.';
+    : 'Acceso protegido por autenticación y permisos de cuenta.';
   const retrySessionNotice=sessionRetryAvailable
     ? `<div class="m26-auth-context-state m26-auth-retry-state" role="status" aria-label="Sesión disponible para reintentar">
         <span class="m26-auth-context-mark" aria-hidden="true"></span>
@@ -610,7 +610,7 @@ export function renderAccessUi({
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Acceso privado</p>
         <h1 id="m26-auth-title" tabindex="-1">Entrenamiento personal con criterio</h1>
-        <p>Diagnóstico, planificación, control y seguimiento.</p>
+        <p>Bienvenido a IBERFIT. Accede a tu espacio privado y continúa exactamente donde lo dejaste.</p>
       </div>
 
       ${contextNotice}
@@ -691,23 +691,23 @@ export function renderAccessUi({
       <div class="m26-auth-stage">
         <aside class="m26-auth-intro" aria-label="IBERFIT · entrenamiento personal">
           <div class="m26-auth-intro-copy">
-            <p class="m26-auth-intro-kicker">Entrenamiento personal premium</p>
-            <h2>Un sistema claro para entrenar, medir y progresar.</h2>
-            <p>IBERFIT une diagnóstico, planificación, control de carga y seguimiento en una experiencia continua, dentro y fuera de cada sesión.</p>
+            <p class="m26-auth-intro-kicker">Entrenamiento personal con criterio</p>
+            <h2>Todo tu proceso de entrenamiento, en un solo lugar.</h2>
+            <p>Diagnóstico IRI, planificación, sesiones y evolución conectados para que cada decisión tenga contexto.</p>
           </div>
 
           <dl class="m26-auth-pillars">
             <div>
-              <dt>Diagnóstico</dt>
-              <dd>Punto de partida medible</dd>
+              <dt>Diagnóstico IRI</dt>
+              <dd>Tu punto de partida</dd>
             </div>
             <div>
               <dt>Planificación</dt>
-              <dd>Carga y progresión con criterio</dd>
+              <dd>Qué toca y por qué</dd>
             </div>
             <div>
-              <dt>Seguimiento</dt>
-              <dd>Decisiones basadas en tu evolución</dd>
+              <dt>Seguimiento y evolución</dt>
+              <dd>Progreso y seguimiento</dd>
             </div>
           </dl>
 
