@@ -91,6 +91,7 @@ test('progreso excluye ejecuciones sin confirmar y explica el impacto de la últ
   const shell=createShellViewModel(state);
   const vm=createRouteViewModel(shell,state,now);
   const html=renderRouteView(vm);
+  assert.deepEqual(vm.summary,vm.longitudinal.progress.d28);
 
   assert.match(html,/Última sesión confirmada/);
   assert.match(html,/Incluida en progreso/);
@@ -118,6 +119,13 @@ test('cartera reutiliza el resumen de progreso de 28 días al derivar alertas',(
   assert.match(source,/computeProgressSummary\(state,client\.id,\{now,days:28\}\)/u);
   assert.match(source,/deriveAdherenceAlerts\(state,client\.id,\{now,summary:progress\}\)/u);
   assert.match(adherence,/providedSummary\?\.clientId===clientId&&Number\(providedSummary\?\.days\)===28/u);
+});
+
+test('rutas que ya calculan progreso reutilizan el resumen de 28 días para alertas',()=>{
+  const source=fs.readFileSync('src/m26/modules/route-view-model.js','utf8');
+  assert.match(source,/summary: progress/u);
+  assert.match(source,/longitudinal\?\.progress\?\.d28/u);
+  assert.match(source,/deriveAdherenceAlerts\(state, clientId, \{ now, summary \}\)/u);
 });
 
 test('cronología mezcla IRI, ejecuciones y check-ins confirmados',()=>{
