@@ -573,7 +573,9 @@ export function createProgressiveOnboardingController({
       renderedPanelKey=renderedPanel?key:null;
       return;
     }
-    main.insertAdjacentHTML?.('afterbegin',markup);
+    const todayLoop=main.querySelector?.('.m26-today-loop');
+    if(todayLoop?.insertAdjacentHTML)todayLoop.insertAdjacentHTML('afterend',markup);
+    else main.insertAdjacentHTML?.('afterbegin',markup);
     renderedPanel=root.querySelector?.('[data-progressive-onboarding-panel]')||null;
     renderedPanelKey=renderedPanel?key:null;
   }
