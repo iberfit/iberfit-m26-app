@@ -136,7 +136,7 @@ test('RC59.4 contiene fallos tardíos del motor gráfico sin romper la superfici
   assert.match(source,/#renderUnavailable\(\)/u);
   assert.match(
     source,
-    /if\(!resized\)this\.#renderUnavailable\(\)/u
+    /if\(\s*!resized[\s\S]*lifecycleVersion===this\.#lifecycleVersion[\s\S]*\)\{\s*this\.#renderUnavailable\(\);/u
   );
   assert.match(
     source,
