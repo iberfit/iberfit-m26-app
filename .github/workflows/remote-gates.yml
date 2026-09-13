@@ -96,7 +96,7 @@ jobs:
         run: npm run quality:rc64:visual:update
 
       - name: Conservar candidatos visuales Linux
-        if: ${{ always() && steps.visual_candidates.outcome != 'skipped' }}
+        if: ${{ steps.visual_candidates.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: rc64-2b-linux-visual-baseline-candidates
@@ -105,6 +105,7 @@ jobs:
           retention-days: 7
 
       - name: Ejecutar smoke autenticado RC64.2B sobre fuente actual sin mutaciones
+        id: auth_smoke
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
           M26_QA_ONLY: 'true'
@@ -120,15 +121,16 @@ jobs:
         run: npm run quality:p0:auth-no-freeze
 
       - name: Conservar evidencia autenticada minimizada RC64.2B
-        if: always()
+        if: ${{ steps.auth_smoke.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: rc64-2b-authenticated-readonly-evidence
           path: recovery/RC64_2B_AUTHENTICATED_SMOKE.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
 
       - name: Capturar evidencia visual autenticada RC64 sin mutaciones
+        id: authenticated_visual
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
           M26_QA_ONLY: 'true'
@@ -143,7 +145,7 @@ jobs:
           npx playwright test --config playwright.authenticated-visual.config.mjs
 
       - name: Conservar evidencia visual autenticada RC64
-        if: always()
+        if: ${{ steps.authenticated_visual.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: rc64-authenticated-visual-evidence
