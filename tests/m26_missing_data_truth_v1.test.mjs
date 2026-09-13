@@ -97,8 +97,7 @@ test('progress route renders missing wellbeing and sleep as missing while keepin
       evolution:null,
       iri2:null,
       checkins:1,
-      checkinAverage:{},
-      latestCheckin:{
+      checkinAverage:{
         energy:5,
         sleep:null,
         stress:undefined,
@@ -106,7 +105,6 @@ test('progress route renders missing wellbeing and sleep as missing while keepin
         fatigue:0,
         motivation:7,
       },
-      latestCheckinAt:'2026-09-12T12:00:00.000Z',
       wearable:{
         metrics:{
           steps:null,
@@ -136,7 +134,7 @@ test('progress route renders missing wellbeing and sleep as missing while keepin
   assert.match(html,/<span>Estrés<\/span><strong>Sin dato<\/strong>/u);
   assert.match(html,/<span>Dolor<\/span><strong>Sin dato<\/strong>/u);
   assert.match(html,/<span>Fatiga<\/span><strong>0\/10<\/strong>/u);
-  assert.match(html,/<span>Sueño objetivo<\/span><strong>Sin dato<\/strong>/u);
+  assert.match(html,/<span>Sueño de dispositivo<\/span><strong>Sin dato<\/strong>/u);
   assert.doesNotMatch(html,/<span>Sueño<\/span><strong>0\/10<\/strong>/u);
-  assert.doesNotMatch(html,/<span>Sueño objetivo<\/span><strong>0 h\/día<\/strong>/u);
+  assert.doesNotMatch(html,/<span>Sueño de dispositivo<\/span><strong>0 h\/día<\/strong>/u);
 });
