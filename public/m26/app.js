@@ -287,6 +287,33 @@ function installMinimalAuthBootstrap(){
   return enableMinimalAuthShell({reveal:false});
 }
 
+function settleDisabledAuthShell(){
+  const card=minimalAuthCard();
+  const form=minimalAuthForm();
+  if(form){
+    form.hidden=true;
+    form.setAttribute?.('hidden','');
+    form.setAttribute?.('aria-hidden','true');
+  }
+  card?.setAttribute?.('data-auth-mode','login');
+  card?.setAttribute?.('data-auth-state','unavailable');
+  card?.setAttribute?.('aria-busy','false');
+  const title=card?.querySelector?.('#m26-auth-title');
+  if(title)title.textContent='Acceso privado';
+  const copy=card?.querySelector?.('.m26-auth-copy>p:last-child');
+  if(copy)copy.textContent='Este entorno no tiene el acceso de cuenta habilitado.';
+  const actions=card?.querySelector?.('.m26-auth-actions');
+  if(actions){
+    actions.setAttribute?.('role','status');
+    actions.setAttribute?.('aria-live','polite');
+    actions.textContent='Acceso no disponible temporalmente.';
+  }
+  const page=root.querySelector?.('.m26-auth-page');
+  page?.setAttribute?.('data-auth-mode','login');
+  page?.setAttribute?.('data-auth-state','unavailable');
+  return true;
+}
+
 function controllerReloadOnce(){
   try{
     if(globalThis.sessionStorage?.getItem?.(BOOTSTRAP_UPDATE_RELOAD_KEY)==='1')return false;
@@ -1031,6 +1058,7 @@ if(runtime.enabled){
     else renderBootstrapRecovery(error);
   }
 }else{
+  settleDisabledAuthShell();
   async function elevateDisabledAuth(event){
     const action=event.target.closest?.('[data-auth-action]')?.getAttribute?.('data-auth-action');
     if(action!=='forgot-password')return;
