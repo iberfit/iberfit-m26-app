@@ -320,8 +320,7 @@ function renderAgenda(vm){
     }).join('')
     :'<section class="m26-empty"><h3>Agenda vacía</h3><p>No hay citas dentro del alcance actual.</p></section>';
 
-  const calendar=role==='coach'
-    ?`<section class="m26-panel m26-rc62-agenda-calendar-panel m30-agenda-calendar" aria-labelledby="m26-rc62-agenda-title">
+  const calendar=role==='coach'?`<section class="m26-panel m26-rc62-agenda-calendar-panel m30-agenda-calendar" aria-labelledby="m26-rc62-agenda-title">
         <div class="m26-panel-heading">
           <div>
             <p class="m26-eyebrow">Vista operativa</p>
