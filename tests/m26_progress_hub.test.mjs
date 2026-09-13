@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {buildProgressHub} from '../src/m26/engagement/index.js';
 
 const NOW=new Date('2026-09-06T12:00:00Z');
@@ -29,6 +30,12 @@ function sampleState(){
     pendingOperations:[],conflicts:[],rejectedOperations:[],
   };
 }
+
+test('Progress Hub reutiliza su resumen 28d al construir ventanas y evita un cálculo duplicado',()=>{
+  const source=fs.readFileSync('src/m26/engagement/progress-hub.js','utf8');
+  assert.match(source,/summaries:\{28:summary28\}/u);
+  assert.match(source,/computeProgressSummary\(state,clientId,\{now,days:28\}\)/u);
+});
 
 test('Progress Hub aggregates existing evidence without a global score',()=>{
   const hub=buildProgressHub(sampleState(),'c1',{now:NOW});
