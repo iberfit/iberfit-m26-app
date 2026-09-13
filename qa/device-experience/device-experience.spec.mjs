@@ -123,6 +123,9 @@ async function exerciseAdminTask(page,task){
   await expect(form).toBeVisible();
   await form.locator('input[name="name"]').fill('Cliente QA Device Gate');
   await form.locator('input[name="email"]').fill('device-gate@example.invalid');
+  await form.locator('input[name="phone"]').fill('+56 9 5555 0102');
+  await form.locator('select[name="sexForNorms"]').selectOption('female');
+  await form.locator('select[name="preferredContactChannel"]').selectOption('email');
   const next=form.locator('[data-client-step="1"] [data-client-wizard-next]');
   await expect(next).toBeVisible();
   await next.click();
