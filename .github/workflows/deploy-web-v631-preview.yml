@@ -120,6 +120,10 @@ jobs:
           grep -Fq '.site-header .brand-mark' /tmp/hardening.css
           grep -Fq '.menu-toggle{display:none!important}' /tmp/noscript.css
           curl --fail --silent --show-error "${PREVIEW_URL}/assets/polish.v631.css" -o /tmp/polish-v631.css
+          curl --fail --silent --show-error -D /tmp/app-v628.headers "${PREVIEW_URL}/assets/app.v628.js" -o /tmp/app-v628.js
+          grep -Fq 'max-width:1380px' /tmp/app-v628.js
+          grep -Eiq '^cache-control: .*max-age=0.*must-revalidate' /tmp/app-v628.headers
+          ! grep -Eiq '^cache-control: .*immutable' /tmp/app-v628.headers
           grep -Fq -- '--v631-canvas:#faf7f1' /tmp/polish-v631.css
           grep -Fq 'html:not(.js-v631) .reveal' /tmp/polish-v631.css
           curl --fail --silent --show-error "${PREVIEW_URL}/" -o /tmp/home-v631.html
@@ -209,7 +213,11 @@ jobs:
                 ok((await p.locator('.local-service-strip').innerText()).includes(needle),route+' park missing');
                 await p.close();
               }
-              await ctx.close();
+              if(width<=720){
+              ok(d.h1Left>=-1&&d.h1Right<=width+1&&d.h1Scroll<=d.h1Client+1,`${width} hero title clipped ${JSON.stringify(d)}`);
+              ok(d.h1WordBreak==='normal'&&d.h1OverflowWrap==='normal',`${width} hero word split ${JSON.stringify(d)}`);
+            }
+            await ctx.close();
 
               const noJs=await browser.newContext({viewport:{width:390,height:844},javaScriptEnabled:false});
               for(const [route] of locals){
@@ -273,7 +281,7 @@ jobs:
               const h=document.querySelector('.site-header'), main=document.querySelector('main'), menu=document.querySelector('.menu-toggle'), nav=document.querySelector('.navlinks'), cta=document.querySelector('.nav-cta'), mark=document.querySelector('.brand-mark'), hero=document.querySelector('.hero h1');
               const hs=getComputedStyle(h),mains=getComputedStyle(main),ms=getComputedStyle(menu),ns=getComputedStyle(nav),cs=getComputedStyle(cta),is=getComputedStyle(mark);
               const hr=h.getBoundingClientRect(),mr=menu.getBoundingClientRect(),nr=nav.getBoundingClientRect(),cr=cta.getBoundingClientRect(),ir=mark.getBoundingClientRect(),tr=hero.getBoundingClientRect();
-              return {headerH:hr.height,headerBg:hs.backgroundColor,mainBg:mains.backgroundColor,menuDisplay:ms.display,menuW:mr.width,menuH:mr.height,navDisplay:ns.display,navW:nr.width,navH:nr.height,ctaDisplay:cs.display,ctaW:cr.width,ctaH:cr.height,markBg:is.backgroundColor,markPad:parseFloat(is.paddingTop),markW:ir.width,markH:ir.height,h1W:tr.width,h1H:tr.height};
+              return {headerH:hr.height,headerBg:hs.backgroundColor,mainBg:mains.backgroundColor,menuDisplay:ms.display,menuW:mr.width,menuH:mr.height,navDisplay:ns.display,navW:nr.width,navH:nr.height,ctaDisplay:cs.display,ctaW:cr.width,ctaH:cr.height,markBg:is.backgroundColor,markPad:parseFloat(is.paddingTop),markW:ir.width,markH:ir.height,h1W:tr.width,h1H:tr.height,h1Left:tr.left,h1Right:tr.right,h1Scroll:hero.scrollWidth,h1Client:hero.clientWidth,h1WordBreak:getComputedStyle(hero).wordBreak,h1OverflowWrap:getComputedStyle(hero).overflowWrap};
             });
             ok(d.headerH<=90,`${width} header too high ${d.headerH}`);
             if(width>=861){
@@ -286,7 +294,7 @@ jobs:
             ok(d.h1W>0&&d.h1H>0,`${width} h1 hidden`);
             const hb=rgb(d.headerBg),mainb=rgb(d.mainBg);
             ok(hb&&mainb&&dist(hb,mainb)>12,`${width} header/main insufficient separation`);
-            ok((d.markBg==='rgba(0, 0, 0, 0)'||d.markBg==='transparent')&&d.markPad<=.5,`${width} mark artificial tile`);
+            const mb=rgb(d.markBg);ok(mb&&mb[0]>=245&&mb[1]>=238&&mb[2]>=225&&d.markPad>=4,`${width} mark isolation`);
             if(width>=1390){ ok(d.menuDisplay==='none',`${width} menu should be hidden`); ok(d.navDisplay!=='none'&&d.navW>0,`${width} full nav hidden`); }
             else {
               ok(d.menuDisplay!=='none'&&d.menuW>=44&&d.menuH>=44,`${width} menu target`);
@@ -294,10 +302,16 @@ jobs:
               const toggle=p.locator('.menu-toggle');
               ok((await toggle.getAttribute('aria-expanded'))==='false',`${width} aria-expanded initial`);
               await toggle.click();
+              await p.waitForTimeout(120);
               ok((await toggle.getAttribute('aria-expanded'))==='true',`${width} aria-expanded open`);
               ok(await p.locator('.navlinks').evaluate(el=>getComputedStyle(el).display!=='none'),`${width} menu did not open`);
               ok(await p.locator('.navlinks a').count()>=8,`${width} links missing`);
+              if(width>=861){
+                const a11y=await p.evaluate(()=>({backdrop:!!document.querySelector('.nav-panel-backdrop.is-visible')&&getComputedStyle(document.querySelector('.nav-panel-backdrop')).visibility!=='hidden',locked:document.body.classList.contains('nav-panel-open')&&getComputedStyle(document.body).overflow==='hidden',focus:!!document.activeElement?.closest?.('.navlinks'),inert:!!document.querySelector('main')?.inert,hidden:document.querySelector('.navlinks')?.getAttribute('aria-hidden')}));
+                ok(a11y.backdrop&&a11y.locked&&a11y.focus&&a11y.inert&&a11y.hidden==='false',`${width} compact accessibility ${JSON.stringify(a11y)}`);
+              }
               await p.keyboard.press('Escape');
+              await p.waitForTimeout(80);
               ok((await toggle.getAttribute('aria-expanded'))==='false',`${width} aria-expanded after Escape`);
               ok(!(await p.locator('.navlinks').evaluate(el=>el.classList.contains('open'))),`${width} Escape did not close menu`);
             }
@@ -306,7 +320,7 @@ jobs:
           (async()=>{
             const browser=await chromium.launch({headless:true});
             try{
-              for(const [w,h] of [[1600,1000],[1365,900],[1024,900],[768,1024],[390,844]]) await pageCheck(browser,w,h);
+              for(const [w,h] of [[1600,1000],[1365,900],[1024,900],[768,1024],[430,932],[390,844],[360,800],[320,568]]) await pageCheck(browser,w,h);
               const routes=['/','/diagnostico-iri/','/metodo/','/presencial/','/sobre-iberfit/','/contacto/','/entrenador-personal-las-condes/','/en/','/en/iri-assessment/','/en/method/','/en/in-person/','/en/about/','/en/contact/','/en/personal-trainer-las-condes/'];
               const ctx=await browser.newContext({viewport:{width:1365,height:900}});
               for(const route of routes){const p=await ctx.newPage();await p.goto(base+route,{waitUntil:'networkidle'});ok((await p.locator('h1').count())===1,route+' H1 count');const of=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);ok(of<=2,route+' overflow');await p.close()}
