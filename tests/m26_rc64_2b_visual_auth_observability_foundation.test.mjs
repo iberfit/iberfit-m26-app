@@ -60,12 +60,155 @@ test('RC64.2B1 quality observability is bounded memory-only and contains no iden
   assert.equal(snapshot.transport,'none');
   assert.equal(snapshot.identityIncluded,false);
   assert.equal(snapshot.healthDataIncluded,false);
+  assert.equal(snapshot.runtimeErrorDetailsIncluded,false);
+  assert.equal(snapshot.urlIncluded,false);
+  assert.equal(snapshot.stackIncluded,false);
   assert.equal(snapshot.fieldP75Claimed,false);
   assert.equal(snapshot.inpClaimed,false);
   assert.equal(snapshot.metrics.interactionLatencyLabel,'candidate-not-inp');
   assert.equal(snapshot.diagnostics.length,2);
   assert.deepEqual(Object.keys(snapshot.diagnostics[0]).sort(),['code','stage','status']);
   assert.doesNotMatch(JSON.stringify(snapshot),/secret@example|heartRateBpm|userId/iu);
+});
+
+test('RC64.2B1 field-local observability captures vitals long frames and sanitized runtime failures',async()=>{
+  const mod=await import('../src/m26/quality/runtime-observability.js');
+  const listeners=new Map();
+  const observers=new Map();
+  const scope={
+    addEventListener:(type,fn)=>listeners.set(type,fn),
+    removeEventListener:(type)=>listeners.delete(type),
+  };
+
+  class FakePerformanceObserver{
+    constructor(callback){
+      this.callback=callback;
+      this.type=null;
+      this.disconnected=false;
+    }
+    observe(options){
+      this.type=options.type;
+      observers.set(options.type,this);
+    }
+    disconnect(){
+      this.disconnected=true;
+    }
+    emit(entries){
+      this.callback({getEntries:()=>entries});
+    }
+  }
+
+  const collector=mod.createQualityRuntimeObservability({
+    scope,
+    limit:16,
+    PerformanceObserverImpl:FakePerformanceObserver,
+  }).start();
+
+  observers.get('paint')?.emit([
+    {name:'first-contentful-paint',startTime:null},
+    {name:'first-contentful-paint',startTime:123.456},
+  ]);
+  observers.get('largest-contentful-paint')?.emit([
+    {startTime:845.678},
+  ]);
+  observers.get('layout-shift')?.emit([
+    {value:0.01,hadRecentInput:false},
+    {value:null,hadRecentInput:false},
+    {value:0.02,hadRecentInput:true},
+  ]);
+  observers.get('event')?.emit([
+    {interactionId:0,duration:999},
+    {interactionId:1,duration:null},
+    {interactionId:2,duration:72.345},
+  ]);
+  observers.get('long-animation-frame')?.emit([
+    {duration:80.125},
+    {duration:120.555},
+  ]);
+
+  listeners.get('m26:diagnostic')?.({
+    detail:{
+      stage:'hydrate',
+      code:'M26_TIMEOUT',
+      status:504,
+      email:'secret@example.com',
+    },
+  });
+  listeners.get('error')?.({
+    target:scope,
+    error:new Error('secret runtime message'),
+    message:'secret runtime message',
+    filename:'https://secret.example/app.js',
+  });
+  listeners.get('error')?.({
+    target:{tagName:'SCRIPT',src:'https://secret.example/vendor.js'},
+  });
+  listeners.get('unhandledrejection')?.({
+    reason:new Error('secret rejection'),
+  });
+  listeners.get('securitypolicyviolation')?.({
+    blockedURI:'https://secret.example/tracker',
+  });
+
+  const snapshot=collector.snapshot();
+  assert.equal(snapshot.measurement,'field-local-session');
+  assert.equal(snapshot.aggregation,'none');
+  assert.equal(snapshot.fieldP75Claimed,false);
+  assert.equal(snapshot.inpClaimed,false);
+  assert.equal(snapshot.metrics.fcpMs,123.46);
+  assert.equal(snapshot.metrics.lcpMs,845.68);
+  assert.equal(snapshot.metrics.cls,0.01);
+  assert.equal(snapshot.metrics.interactionLatencyMaxMs,72.35);
+  assert.equal(snapshot.metrics.interactionLatencyLabel,'candidate-not-inp');
+  assert.equal(snapshot.metrics.longFrameCount,2);
+  assert.equal(snapshot.metrics.longFrameMaxMs,120.56);
+  assert.equal(snapshot.metrics.longFrameEntryType,'long-animation-frame');
+  assert.equal(snapshot.metrics.runtimeErrorCount,1);
+  assert.equal(snapshot.metrics.resourceErrorCount,1);
+  assert.equal(snapshot.metrics.unhandledRejectionCount,1);
+  assert.equal(snapshot.metrics.securityPolicyViolationCount,1);
+  assert.equal(snapshot.runtimeErrorDetailsIncluded,false);
+  assert.equal(snapshot.urlIncluded,false);
+  assert.equal(snapshot.stackIncluded,false);
+  assert.doesNotMatch(
+    JSON.stringify(snapshot),
+    /secret@example|secret runtime|secret rejection|secret\.example|filename|blockedURI/iu
+  );
+
+  collector.destroy();
+  assert.equal(listeners.size,0);
+  for(const observer of observers.values()){
+    assert.equal(observer.disconnected,true);
+  }
+});
+
+test('RC64.2B1 field-local long-frame collector falls back without weakening privacy',async()=>{
+  const mod=await import('../src/m26/quality/runtime-observability.js');
+  const observed=[];
+  const scope={
+    addEventListener(){},
+    removeEventListener(){},
+  };
+  class FakePerformanceObserver{
+    constructor(callback){this.callback=callback;}
+    observe(options){
+      if(options.type==='long-animation-frame'){
+        throw new Error('unsupported');
+      }
+      observed.push(options.type);
+    }
+    disconnect(){}
+  }
+
+  const collector=mod.createQualityRuntimeObservability({
+    scope,
+    PerformanceObserverImpl:FakePerformanceObserver,
+  }).start();
+
+  assert.equal(observed.includes('longtask'),true);
+  assert.equal(collector.snapshot().transport,'none');
+  assert.equal(collector.snapshot().identityIncluded,false);
+  collector.destroy();
 });
 
 test('RC64.2B1 app installs observability dynamically and real-shell verifies its privacy flags',()=>{
