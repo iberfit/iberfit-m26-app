@@ -108,4 +108,5 @@ export const SESSION_SURFACE_ROWS=Object.freeze([
 ['Resumen de la sesión','Session summary','Résumé de la séance','Resumo da sessão'],
 ['Estructura de la sesión','Session structure','Structure de la séance','Estrutura da sessão'],
 ['Nombre, patrón o material','Name, pattern, or equipment','Nom, schéma ou matériel','Nome, padrão ou material'],
+['Biblioteca de ejercicios','Exercise library','Bibliothèque d’exercices','Biblioteca de exercícios'],
 ]);
