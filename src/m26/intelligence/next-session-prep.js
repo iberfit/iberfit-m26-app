@@ -1,6 +1,6 @@
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
-import {actionOutcomeEntities,summarizeActionOutcomes} from './action-outcome.js';
+import {summarizeActionOutcomes} from './action-outcome.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
 function unwrap(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?{...record,...record.body}:record||{};}
@@ -34,6 +34,7 @@ function nextAppointment(state,clientId,now){
     .filter((item)=>(safeDate(field(item,'startAt','start_at'))?.getTime()||0)>=nowMs)
     .sort(byDateAsc)[0]||null;
 }
+const STARTABLE_SESSION_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
 function sessionForPreparation(state,clientId,appointment){
   const sessions=forClient(state,'sessions',clientId);
   const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim();
@@ -41,10 +42,10 @@ function sessionForPreparation(state,clientId,appointment){
     const exact=sessions.find((item)=>idOf(item)===appointmentSessionId);
     if(exact)return exact;
   }
-  const visible=sessions
-    .filter((item)=>['publicado','publicada','published','aprobado','aprobada','approved'].includes(statusOf(item)))
+  const published=sessions
+    .filter((item)=>STARTABLE_SESSION_STATES.has(statusOf(item)))
     .sort(byDateDesc);
-  return visible[0]||sessions.sort(byDateDesc)[0]||null;
+  return published[0]||sessions.sort(byDateDesc)[0]||null;
 }
 function latestExecution(state,clientId){
   return forClient(state,'sessionExecutions',clientId)
@@ -127,6 +128,16 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
   const appointmentStart=field(appointment,'startAt','start_at')||null;
   const appointmentEnd=field(appointment,'endAt','end_at')||null;
   const sessionId=idOf(session)||null;
+  const sessionStatus=session?statusOf(session):null;
+  const sessionStartable=Boolean(sessionId&&STARTABLE_SESSION_STATES.has(sessionStatus));
+  const appointmentSessionId=String(field(appointment,'sessionId','session_id')||'').trim()||null;
+  const sessionSource=sessionId&&appointmentSessionId===sessionId
+    ?'appointment'
+    :sessionStartable
+      ?'published'
+      :sessionId
+        ?'draft-fallback'
+        :'none';
   const adherencePercent=percent(progress?.adherence);
 
   return Object.freeze({
@@ -136,7 +147,9 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
     session:Object.freeze({
       id:sessionId,
       title:session?titleOf(session):null,
-      status:session?statusOf(session):null,
+      status:sessionStatus,
+      startable:sessionStartable,
+      source:sessionSource,
     }),
     appointment:appointment?Object.freeze({
       id:idOf(appointment)||null,
@@ -196,4 +209,5 @@ export function buildNextSessionPreparation(state,clientId,{now=new Date(),exerc
 export const __nextSessionPreparationInternals=Object.freeze({
   unwrap,field,clientIdOf,dateOf,statusOf,nextAppointment,sessionForPreparation,
   latestExecution,feedbackOf,recentExerciseMemory,reviewReasons,loadLabel,
+  STARTABLE_SESSION_STATES,
 });
