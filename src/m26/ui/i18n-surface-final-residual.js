@@ -37,4 +37,5 @@ export const FINAL_RESIDUAL_SURFACE_ROWS=Object.freeze([
 ['Contacto inicial','Initial contact','Contact initial','Contacto inicial'],
 ['Guarda un contacto inicial para seguimiento comercial. Todavía no crea un expediente de cliente ni envía acceso a la app.','Save an initial contact for commercial follow-up. This does not yet create a client record or send app access.','Enregistrez un contact initial pour le suivi commercial. Cela ne crée pas encore de dossier client et n’envoie pas d’accès à l’application.','Guarde um contacto inicial para acompanhamento comercial. Isto ainda não cria um processo de cliente nem envia acesso à app.'],
 ['Objetivo o necesidad principal','Main goal or need','Objectif ou besoin principal','Objetivo ou necessidade principal'],
+['Acceso protegido por autenticación y permisos de cuenta.','Access protected by authentication and account permissions.','Accès protégé par authentification et autorisations du compte.','Acesso protegido por autenticação e permissões da conta.'],
 ]);
