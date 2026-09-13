@@ -199,4 +199,9 @@ export const WORKSPACE_SURFACE_ROWS=Object.freeze([
 ['Agenda y citas','Schedule and appointments','Agenda et rendez-vous','Agenda e marcações'],
 ['Crear cita','Create appointment','Créer un rendez-vous','Criar marcação'],
 ['Estado operativo de la agenda','Schedule operational status','État opérationnel de l’agenda','Estado operacional da agenda'],
+["Agenda del cliente","Client schedule","Agenda du client","Agenda do cliente"],
+["Planificar cliente","Plan client","Planifier le client","Planear cliente"],
+["Acciones Coach","Coach actions","Actions Coach","Ações do Coach"],
+["El tiempo de estos atajos se medirá solo en este dispositivo, sin guardar nombres ni datos de salud.","Shortcut time will be measured only on this device, without storing names or health data.","Le temps de ces raccourcis sera mesuré uniquement sur cet appareil, sans enregistrer de noms ni de données de santé.","O tempo destes atalhos será medido apenas neste dispositivo, sem guardar nomes nem dados de saúde."],
+["Mediana en este dispositivo","Median on this device","Médiane sur cet appareil","Mediana neste dispositivo"],
 ]);
