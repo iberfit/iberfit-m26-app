@@ -2,6 +2,41 @@ import {IBERFIT_DESIGN_TOKENS} from '../design/tokens.generated.js';
 export const ECHARTS_DATA_EXPERIENCE_VERSION='6.1.0';
 export const ECHARTS_VENDOR_URL='/m26/vendor/echarts-6.1.0.esm.min.js';
 
+let echartsModulePromise=null;
+
+function loadEchartsModule(){
+  if(!echartsModulePromise){
+    echartsModulePromise=import(ECHARTS_VENDOR_URL)
+      .catch((error)=>{
+        echartsModulePromise=null;
+        throw error;
+      });
+  }
+  return echartsModulePromise;
+}
+
+function requestFrame(callback){
+  if(typeof globalThis.requestAnimationFrame==='function'){
+    return Object.freeze({
+      kind:'raf',
+      id:globalThis.requestAnimationFrame(callback),
+    });
+  }
+  return Object.freeze({
+    kind:'timeout',
+    id:globalThis.setTimeout?.(callback,16),
+  });
+}
+
+function cancelFrame(frame){
+  if(!frame)return;
+  if(frame.kind==='raf'){
+    globalThis.cancelAnimationFrame?.(frame.id);
+    return;
+  }
+  globalThis.clearTimeout?.(frame.id);
+}
+
 function finite(value){
   const number=Number(value);
   return Number.isFinite(number)?number:null;
@@ -51,6 +86,88 @@ function chartToneColor(tone){
     ||dataViz.series1;
 }
 
+function formatChartCategory(value){
+  const text=String(value||'').trim();
+  const match=text.match(/^(\d{4})-(\d{2})-(\d{2})$/u);
+  return match
+    ?`${match[3]}/${match[2]}`
+    :text;
+}
+
+function formatMetricValue(value,unit=''){
+  const number=finite(value);
+  if(number===null)return '—';
+  const formatted=new Intl.NumberFormat('es-CL',{
+    maximumFractionDigits:1,
+    minimumFractionDigits:0,
+  }).format(number);
+  return `${formatted}${unit?` ${unit}`:''}`;
+}
+
+function referenceLineData({
+  referenceValue=null,
+  referenceLabel='Media 28 días',
+  comparisonValue=null,
+  comparisonLabel='28 días previos',
+  unit='',
+  compact=false,
+  axisText='currentColor',
+  currentColor='#888',
+  comparisonColor='#999',
+}={}){
+  const lines=[];
+  const current=finite(referenceValue);
+  const previous=finite(comparisonValue);
+
+  if(current!==null){
+    lines.push(Object.freeze({
+      name:String(referenceLabel||'Media 28 días'),
+      yAxis:current,
+      lineStyle:Object.freeze({
+        color:currentColor,
+        type:'solid',
+        width:1.25,
+        opacity:.78,
+      }),
+      label:Object.freeze({
+        show:!compact,
+        position:'insideEndTop',
+        color:axisText,
+        fontSize:10,
+        formatter:`${String(referenceLabel||'Media 28 días')}: ${formatMetricValue(current,unit)}`,
+      }),
+    }));
+  }
+
+  if(previous!==null){
+    lines.push(Object.freeze({
+      name:String(comparisonLabel||'28 días previos'),
+      yAxis:previous,
+      lineStyle:Object.freeze({
+        color:comparisonColor,
+        type:'dashed',
+        width:1.1,
+        opacity:.7,
+      }),
+      label:Object.freeze({
+        show:!compact,
+        position:'insideEndBottom',
+        color:axisText,
+        fontSize:10,
+        formatter:`${String(comparisonLabel||'28 días previos')}: ${formatMetricValue(previous,unit)}`,
+      }),
+    }));
+  }
+
+  return Object.freeze(lines);
+}
+
+function finiteAttribute(element,name){
+  const raw=element?.getAttribute?.(name);
+  if(raw===null||raw===undefined||String(raw).trim()==='')return null;
+  return finite(raw);
+}
+
 export function buildLongitudinalLineOption({
   points=[],
   label='Métrica',
@@ -59,6 +176,10 @@ export function buildLongitudinalLineOption({
   reducedMotion=false,
   tone='default',
   density='standard',
+  referenceValue=null,
+  referenceLabel='Media 28 días',
+  comparisonValue=null,
+  comparisonLabel='28 días previos',
 }={}){
   const normalized=(Array.isArray(points)?points:[])
     .map(chartInputPoint)
@@ -73,9 +194,6 @@ export function buildLongitudinalLineOption({
   const semantic=
     IBERFIT_DESIGN_TOKENS.color.semantic;
 
-  const primitive=
-    IBERFIT_DESIGN_TOKENS.color.primitive;
-
   const seriesColor=
     chartToneColor(tone);
 
@@ -85,6 +203,20 @@ export function buildLongitudinalLineOption({
 
   const axisText=
     semantic.textSecondary;
+
+  const references=referenceLineData({
+    referenceValue,
+    referenceLabel,
+    comparisonValue,
+    comparisonLabel,
+    unit,
+    compact,
+    axisText,
+    currentColor:dataViz.series3,
+    comparisonColor:dataViz.series6,
+  });
+
+  const latest=normalized.at(-1)||null;
 
   return Object.freeze({
     animation:!reducedMotion,
@@ -133,6 +265,14 @@ export function buildLongitudinalLineOption({
       confine:true,
       backgroundColor:semantic.surfaceOverlay,
       borderColor:semantic.border,
+      axisPointer:Object.freeze({
+        type:'line',
+        lineStyle:Object.freeze({
+          color:dataViz.grid,
+          width:1,
+        }),
+      }),
+      valueFormatter:(value)=>formatMetricValue(value,unit),
       textStyle:Object.freeze({
         color:semantic.textPrimary,
       }),
@@ -147,6 +287,7 @@ export function buildLongitudinalLineOption({
       axisLabel:Object.freeze({
         hideOverlap:true,
         color:axisText,
+        formatter:formatChartCategory,
         ...(compact
           ?Object.freeze({
               fontSize:10,
@@ -219,6 +360,33 @@ export function buildLongitudinalLineOption({
             ?0.28
             :0.2,
         connectNulls:false,
+        emphasis:Object.freeze({
+          focus:'series',
+        }),
+        markPoint:latest
+          ?Object.freeze({
+              silent:true,
+              symbol:'circle',
+              symbolSize:9,
+              label:Object.freeze({show:false}),
+              data:Object.freeze([
+                Object.freeze({
+                  coord:Object.freeze([
+                    latest.category,
+                    latest.value,
+                  ]),
+                  value:latest.value,
+                }),
+              ]),
+            })
+          :undefined,
+        markLine:references.length
+          ?Object.freeze({
+              silent:true,
+              symbol:Object.freeze(['none','none']),
+              data:references,
+            })
+          :undefined,
         lineStyle:Object.freeze({
           width:
             compact
@@ -267,6 +435,7 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
     #chart=null;
     #resizeObserver=null;
     #intersectionObserver=null;
+    #resizeFrame=null;
     #started=false;
 
     connectedCallback(){
@@ -296,6 +465,8 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
       this.#intersectionObserver=null;
       this.#resizeObserver?.disconnect();
       this.#resizeObserver=null;
+      cancelFrame(this.#resizeFrame);
+      this.#resizeFrame=null;
       this.#chart?.dispose?.();
       this.#chart=null;
       this.#started=false;
@@ -323,7 +494,7 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
       this.replaceChildren(mount);
 
       try{
-        const echarts=await import(ECHARTS_VENDOR_URL);
+        const echarts=await loadEchartsModule();
         if(typeof echarts?.init!=='function'){
           throw new Error('M26_ECHARTS_INIT_UNAVAILABLE');
         }
@@ -350,6 +521,16 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
             density:
               this.getAttribute('data-density')
               ||'standard',
+            referenceValue:
+              finiteAttribute(this,'data-reference-value'),
+            referenceLabel:
+              this.getAttribute('data-reference-label')
+              ||'Media 28 días',
+            comparisonValue:
+              finiteAttribute(this,'data-comparison-value'),
+            comparisonLabel:
+              this.getAttribute('data-comparison-label')
+              ||'28 días previos',
           }),
           {
             notMerge:true,
@@ -360,7 +541,13 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
         if(typeof globalThis.ResizeObserver==='function'){
           this.#resizeObserver=
             new globalThis.ResizeObserver(
-              ()=>this.#chart?.resize?.()
+              ()=>{
+                if(this.#resizeFrame)return;
+                this.#resizeFrame=requestFrame(()=>{
+                  this.#resizeFrame=null;
+                  this.#chart?.resize?.();
+                });
+              }
             );
           this.#resizeObserver.observe(this);
         }
@@ -384,6 +571,11 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
 
 export const __echartsElementInternals=Object.freeze({
   chartPoint,
+  formatChartCategory,
+  formatMetricValue,
+  referenceLineData,
+  finiteAttribute,
+  loadEchartsModule,
   reducedMotion,
   canRegister,
 });
