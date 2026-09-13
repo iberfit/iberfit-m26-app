@@ -1,4 +1,9 @@
 import {parseDateValue} from '../domain/civil-date.js';
+import {
+  unconfirmedSessionExecutionIds as blockedCompletionIds,
+  sessionExecutionIsConfirmed as executionConfirmed,
+  sessionExecutionIsCompleted as executionCompleted,
+} from '../domain/session-execution-truth.js';
 
 const COMPLETE_STATUSES=new Set(['completed','completado','complete']);
 
@@ -121,83 +126,6 @@ function setRows(execution){
   }
 
   return [];
-}
-
-function blockedCompletionIds(state){
-  const ids=new Set();
-
-  for(const key of [
-    'pendingOperations',
-    'conflicts',
-    'rejectedOperations',
-  ]){
-    for(const operation of arr(state?.[key])){
-      const item=unwrap(operation)||{};
-
-      const type=String(
-        first(
-          item,
-          'type',
-          'commandType',
-          'command_type',
-        )||'',
-      )
-        .trim()
-        .toUpperCase();
-
-      if(type!=='EJECUCION_COMPLETAR')continue;
-
-      const id=first(
-        item,
-        'entityId',
-        'entity_id',
-        'executionId',
-        'execution_id',
-      );
-
-      if(id)ids.add(String(id));
-    }
-  }
-
-  return ids;
-}
-
-function executionConfirmed(record,blocked){
-  const item=unwrap(record)||{};
-
-  const sync=String(
-    first(
-      item,
-      'syncStatus',
-      'sync_status',
-    )||'',
-  )
-    .trim()
-    .toLowerCase();
-
-  const id=String(
-    first(
-      item,
-      'id',
-      'executionId',
-      'execution_id',
-    )||'',
-  );
-
-  return (!sync||sync==='clean')&&!blocked.has(id);
-}
-
-function executionCompleted(record){
-  const item=unwrap(record)||{};
-
-  const status=String(
-    first(item,'status','estado')||'',
-  )
-    .trim()
-    .toLowerCase();
-
-  return COMPLETE_STATUSES.has(status)||
-    (!status&&Boolean(executionDate(item)));
 }
 
 export function normalizeExerciseLoad(row={}){

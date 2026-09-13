@@ -1,5 +1,6 @@
 import {buildProgressHub} from '../engagement/progress-hub.js';
 import {createM26Id} from '../platform/id.js';
+import {confirmedSessionExecutionsForClient} from '../domain/session-execution-truth.js';
 
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 const DAY_MS=86_400_000;
@@ -43,7 +44,7 @@ export function buildPremiumReportPortfolio(state,clientId,{now=new Date()}={}){
   if(!clientId)return Object.freeze([]);
   const end=new Date(now).toISOString().slice(0,10);
   const iris=sortNewest(recordsForClient(state,'iriAssessments',clientId).filter(confirmedIri));
-  const executions=sortNewest(recordsForClient(state,'sessionExecutions',clientId).filter((record)=>recordDate(record)));
+  const executions=sortNewest(confirmedSessionExecutionsForClient(state,clientId,{requireCompleted:true,requireDate:true}));
   const latestIri=iris[0]||null;
   const latestExecution=executions[0]||null;
   const progress=buildProgressHub(state,clientId,{now});
