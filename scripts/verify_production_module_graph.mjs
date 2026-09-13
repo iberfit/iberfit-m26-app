@@ -4,6 +4,8 @@ import {verifyProductionSurface} from './verify_production_surface.mjs';
 const MAX_MODULES=420;
 const BATCH_SIZE=16;
 const DEFAULT_TIMEOUT_MS=10_000;
+export const PRODUCTION_DEEP_DEFAULT_ATTEMPTS=8;
+export const PRODUCTION_DEEP_DEFAULT_DELAY_MS=2_000;
 const JS_MIME=/(?:application|text)\/(?:javascript|ecmascript)|text\/js/iu;
 
 function fail(code){
@@ -237,11 +239,12 @@ export async function verifyProductionModuleGraph({
   prodProjectRef,
   prodSupabaseUrl,
   qaProjectRef,
-  attempts=2,
-  delayMs=1500,
+  attempts=PRODUCTION_DEEP_DEFAULT_ATTEMPTS,
+  delayMs=PRODUCTION_DEEP_DEFAULT_DELAY_MS,
   timeoutMs=DEFAULT_TIMEOUT_MS,
   fetchImpl=globalThis.fetch,
   sleepImpl=(ms)=>new Promise(resolve=>setTimeout(resolve,ms)),
+  onRetry=()=>{},
 }){
   const origin=exactOrigin(baseUrl);
   const sha=required(sourceSha,'PROD_DEEP_SOURCE_SHA_MISSING');
@@ -326,6 +329,11 @@ export async function verifyProductionModuleGraph({
     }catch(error){
       lastError=error;
       if(attempt>=Number(attempts||1))break;
+      onRetry({
+        attempt,
+        totalAttempts:Number(attempts||1),
+        code:error?.code||error?.message||'PROD_DEEP_UNKNOWN_FAILURE',
+      });
       await sleepImpl(delayMs);
     }
   }
@@ -340,9 +348,10 @@ async function main(){
     prodProjectRef:process.env.M26_VERIFY_PROD_PROJECT_REF,
     prodSupabaseUrl:process.env.M26_VERIFY_PROD_SUPABASE_URL,
     qaProjectRef:process.env.M26_VERIFY_QA_PROJECT_REF,
-    attempts:Number(process.env.M26_VERIFY_DEEP_ATTEMPTS||2),
-    delayMs:Number(process.env.M26_VERIFY_DEEP_DELAY_MS||1500),
+    attempts:Number(process.env.M26_VERIFY_DEEP_ATTEMPTS||PRODUCTION_DEEP_DEFAULT_ATTEMPTS),
+    delayMs:Number(process.env.M26_VERIFY_DEEP_DELAY_MS||PRODUCTION_DEEP_DEFAULT_DELAY_MS),
     timeoutMs:Number(process.env.M26_VERIFY_TIMEOUT_MS||DEFAULT_TIMEOUT_MS),
+    onRetry:({attempt,totalAttempts,code})=>console.warn(`PROD_DEEP_VERIFY_RETRY:${attempt}/${totalAttempts}:${code}`),
   });
   console.log(JSON.stringify(result,null,2));
 }
