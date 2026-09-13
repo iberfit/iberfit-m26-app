@@ -85,6 +85,8 @@ test('generated production SQL is fail-closed and contains only the production p
     'ACCION_RESULTADO_REGISTRAR',
     'iberfit_validate_action_outcome_v26',
     '20260913220500_action_outcome_tracking_v26.sql',
+    '20260913222000_action_outcome_preflight_bootstrap_v26.sql',
+    'iberfit_base_entity_v26_pre_action_outcome',
   ])assert.ok(sql.includes(required),`required production contract: ${required}`);
 
   for(const sourceName of [
