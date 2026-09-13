@@ -2924,6 +2924,7 @@ export function renderPlanningRoute(vm){
     ${cycleSummary}
     ${!isClient?iriPlanningContextPanel(seed):''}
     ${editor}
+    <p class="m26-planning-publication-note">Aprobar no lo hace visible para el cliente.</p>
     <section class="m26-content-grid m26-planning-publication-grid">
       <section class="m26-panel">
         <div class="m26-panel-heading"><div><p class="m26-eyebrow">Ciclos</p><h2>${isClient?'Tu plan vigente':'Versiones y publicación'}</h2></div>${!isClient?badge(`${approvedCycles} aprobados`,'neutral'):''}</div>
