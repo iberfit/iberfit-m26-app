@@ -84,15 +84,20 @@ test('RC41 elimina el catch silencioso exacto del login', () => {
   );
 });
 
-test('RC41 muestra códigos sanitizados de incidencia', () => {
+test('RC41 mantiene códigos sanitizados en observabilidad sin exponerlos en el login principal', () => {
   assert.equal(
     application.includes('function diagnosticCode('),
     true,
   );
 
   assert.equal(
-    application.includes('Código: ${incident}'),
+    application.includes('code:diagnosticCode(error,stage)'),
     true,
+  );
+
+  assert.equal(
+    application.includes('authMessage(\`\${loginFailureMessage(error)} Código:'),
+    false,
   );
 
   assert.equal(
