@@ -19,14 +19,37 @@ async function shot(page,name){
   return path;
 }
 
+async function expectCanonicalAdminShell(page,{form=null}={}){
+  const shell=page.locator('.m26-shell.m26-admin-shell');
+  const route=shell.locator('.m26-workspace .m26-main .m26-admin-route').first();
+  await expect(shell).toBeVisible();
+  await expect(route).toBeVisible();
+
+  const viewport=page.viewportSize();
+  const routeBox=await route.boundingBox();
+  expect(viewport).not.toBeNull();
+  expect(routeBox).not.toBeNull();
+
+  const routeRatio=viewport.width>900?0.45:0.80;
+  expect(routeBox.width).toBeGreaterThan(viewport.width*routeRatio);
+
+  if(form){
+    const formBox=await form.boundingBox();
+    expect(formBox).not.toBeNull();
+    const formRatio=viewport.width>900?0.38:0.72;
+    expect(formBox.width).toBeGreaterThan(viewport.width*formRatio);
+  }
+}
+
 test.beforeAll(async()=>{await mkdir(OUT,{recursive:true});});
 
 test('Admin users and client-create surfaces produce current visual evidence',async({page},testInfo)=>{
   const project=testInfo.project.name;
-  const evidence={schema:'iberfit.daily-use-admin-visual.v1',project,captures:[]};
+  const evidence={schema:'iberfit.daily-use-admin-visual.v2',project,captures:[]};
 
   await page.goto('/qa/admin-interaction/fixture.html?route=users',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.mounted===true)).toBe(true);
+  await expectCanonicalAdminShell(page);
   await expect(page.locator('[data-admin-user-card]').first()).toBeVisible();
   evidence.captures.push(await shot(page,project+'-admin-users'));
 
@@ -41,6 +64,7 @@ test('Admin users and client-create surfaces produce current visual evidence',as
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__?.mounted===true)).toBe(true);
   const form=page.locator('[data-admin-form="client-create"]');
   await expect(form).toBeVisible();
+  await expectCanonicalAdminShell(page,{form});
   evidence.captures.push(await shot(page,project+'-admin-client-create-step1'));
 
   await form.locator('input[name="name"]').fill('Cliente QA Visual');
