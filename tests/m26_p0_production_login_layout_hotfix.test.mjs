@@ -63,6 +63,7 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   assert.match(html,/class="m26-auth-stage"/u);
   assert.match(html,/class="m26-auth-intro"/u);
   assert.match(html,/class="m26-auth-kicker">Acceso privado/u);
+  assert.match(html,/data-static-auth-bootstrap="true" data-auth-mode="checking-session" data-auth-state="checking-session"/u);
   assert.match(html,/data-auth-mode="checking-session"/u);
   assert.match(html,/data-auth-state="checking-session"/u);
   assert.match(html,/Preparando tu espacio/u);
