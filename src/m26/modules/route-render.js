@@ -1954,15 +1954,34 @@ export function renderExpedienteRoute(vm) {
       ?pulseSourceAction[focus.source]||null
       :null;
 
-  const pulseActionArea=
+  const rawPulseActionArea=
     structuralPulseAction
-      ?focus?.nextAction?.area||'progreso'
-      :contextualPulseAction?.area||'progreso';
+      ?focus?.nextAction?.area||data.nextAction?.area||'progreso'
+      :contextualPulseAction?.area||data.nextAction?.area||'progreso';
+
+  const rawPulseActionLabel=
+    structuralPulseAction
+      ?focus?.nextAction?.label||data.nextAction?.label||'Revisar seguimiento'
+      :contextualPulseAction?.label||data.nextAction?.label||'Revisar progreso';
+
+  const pulseActionArea=
+    rawPulseActionArea==='expediente'
+      ?'progreso'
+      :rawPulseActionArea;
 
   const pulseActionLabel=
-    structuralPulseAction
-      ?focus?.nextAction?.label||'Revisar seguimiento'
-      :contextualPulseAction?.label||'Revisar progreso';
+    rawPulseActionArea==='expediente'
+      ?'Revisar progreso'
+      :rawPulseActionLabel;
+
+  const clientPhase=
+    data.experience?.stageLabel||
+    data.cycle?.name||
+    (iri?.confirmed?'Seguimiento activo':'Diagnóstico inicial');
+
+  const nextAppointmentLabel=
+    data.nextAppointment?.dateLabel||
+    'Sin cita confirmada';
 
   const lastSessionLabel=
     progress.lastExecutionAt
@@ -2241,8 +2260,7 @@ export function renderExpedienteRoute(vm) {
     );
   }
 
-  return `<div class="m26-route" data-m26-expediente data-m26-expediente-view="resumen">
-    ${renderCoachFollowUpPlan(vm.alerts)}
+  return `<div class="m26-route m26-client360-v2" data-m26-expediente data-m26-expediente-view="resumen">
     <section class="m26-profile-hero m26-profile-hero-premium">
       <div class="m26-profile-brand-lockup">
         <div class="m26-profile-brand-orb">
@@ -2258,22 +2276,23 @@ export function renderExpedienteRoute(vm) {
       </div>
 
       <div class="m26-profile-hero-copy">
-        <div class="m26-profile-brand-word">
-          <img
-            src="/isotipo-iberfit.png"
-            alt=""
-            aria-hidden="true"
-          >
-          <span>IBERFIT</span>
-        </div>
-
-        <p class="m26-eyebrow">Cliente 360º · Expediente profesional</p>
+        <p class="m26-eyebrow">Cliente 360º</p>
         <h2>${escapeHtml(data.name)}</h2>
-        <p>${escapeHtml(data.modality)} · ${escapeHtml(displayStatus)}</p>
+        <div class="m26-client360-header-facts" aria-label="Resumen del cliente">
+          <span><small>Modalidad</small><strong>${escapeHtml(data.modality)}</strong></span>
+          <span><small>Fase</small><strong>${escapeHtml(clientPhase)}</strong></span>
+          <span><small>Próxima cita</small><strong>${escapeHtml(nextAppointmentLabel)}</strong></span>
+        </div>
       </div>
 
-      <div class="m26-profile-hero-status">
+      <div class="m26-profile-hero-status m26-client360-header-action">
         ${accessBadge(data)}
+        <small>Próxima acción</small>
+        <button
+          type="button"
+          class="m26-primary-action"
+          data-m26-area="${escapeHtml(pulseActionArea)}"
+        >${escapeHtml(pulseActionLabel)}</button>
       </div>
     </section>
         <nav
@@ -2314,10 +2333,10 @@ export function renderExpedienteRoute(vm) {
       >Plan</button>
     </nav>
     <div class="m26-expediente-detail">
-<section class="m26-panel m26-panel-soft" aria-label="Estado actual del cliente" data-m26-expediente-section="resumen">
+<section class="m26-panel m26-panel-soft m26-client360-now" aria-label="Estado actual del cliente" data-m26-expediente-section="resumen">
       <div class="m26-panel-heading">
         <div>
-          <p class="m26-eyebrow">Lo importante antes de decidir</p>
+          <p class="m26-eyebrow">Lo importante ahora</p>
           <h2>Estado actual</h2>
           <p><strong>${escapeHtml(pulseTitle)}</strong>. ${escapeHtml(pulseCopy)}</p>
         </div>
@@ -2339,11 +2358,24 @@ export function renderExpedienteRoute(vm) {
       </div>
     </section>
 
-    ${renderExercisePerformanceOverview(vm.exercisePerformance)}
+    <div class="m26-client360-evolution" data-m26-expediente-section="resumen">
+      <div class="m26-client360-section-heading">
+        <div>
+          <p class="m26-eyebrow">Evolución</p>
+          <h2>Rendimiento y evolución</h2>
+          <p>Memoria longitudinal y tendencias confirmadas para decidir sin perder contexto.</p>
+        </div>
+      </div>
+      ${renderExercisePerformanceOverview(vm.exercisePerformance)}
+      <details class="m26-client360-progress-details">
+        <summary>Ver evolución detallada</summary>
+        ${renderExerciseProgressSection(vm.exerciseProgress,{compact:true})}
+      </details>
+    </div>
 
     <div data-m26-expediente-section="resumen">${pendingProgressNotice}</div>
 
-    <div data-m26-expediente-section="contexto">${recentContext}</div>
+    <div class="m26-client360-context" data-m26-expediente-section="contexto">${recentContext}${vm.coachCockpit?renderCoachFollowUpPlan(vm.alerts):''}</div>
 
     <div data-m26-expediente-section="perfil">${profileMissingNotice(profile)}</div>
 
@@ -2362,7 +2394,7 @@ export function renderExpedienteRoute(vm) {
     </section>
     <section class="m26-panel" data-m26-expediente-section="plan"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Ruta de trabajo</p><h2>Continuar con este cliente</h2></div></div><div class="m26-action-grid"><button type="button" data-m26-area="planificacion">Planificación</button><button type="button" data-m26-area="sesion">Sesiones</button><button type="button" data-m26-area="progreso">Progreso</button><button type="button" data-m26-area="actividad">Registros de bienestar y hábitos</button><button type="button" data-m26-area="informes">Informes</button><button type="button" data-m26-area="notas">Notas privadas</button><button type="button" data-m26-area="inteligencia">Inteligencia IBERFIT</button></div></section>
       </div>
-  ${renderExerciseProgressSection(vm.exerciseProgress,{compact:true})}</div>`;
+  </div>`;
 }
 
 /* RC70_4_FOLLOWUP_RENDER_BEGIN */

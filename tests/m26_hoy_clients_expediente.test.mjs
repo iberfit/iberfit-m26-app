@@ -422,7 +422,7 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   assert.match(html, /data-m26-expediente-section="perfil"/);
   assert.match(html, /data-m26-expediente-section="plan"/);
   assert.match(html, /Estado actual/);
-  assert.match(html, /Lo importante antes de decidir/);
+  assert.match(html, /Lo importante ahora/);
   assert.match(html, /Última sesión confirmada/);
   assert.match(html, /RPE 8/);
 
@@ -561,4 +561,66 @@ test('operaciones pendientes se muestran como no confirmadas', () => {
   const html = renderRouteView(vm);
   assert.match(html, /Ningún cambio se muestra como confirmado/);
   assert.match(html, /Sincronizando/);
+});
+
+
+test('Cliente 360 v2 ordena identidad, decisión y evolución sin perder profundidad', () => {
+  const state = ready('coach', { activeArea: 'expediente' });
+  const vm = createRouteViewModel(
+    createShellViewModel(state),
+    state,
+    now,
+    {
+      catalog: [{
+        id: 'exercise-squat',
+        name_es: 'Sentadilla goblet',
+      }],
+    }
+  );
+  const html = renderRouteView(vm);
+
+  assert.match(html, /m26-client360-v2/);
+  assert.match(html, /m26-client360-header-facts/);
+  assert.match(html, /<small>Fase<\/small><strong>Seguimiento activo<\/strong>/);
+  assert.match(html, /<small>Próxima cita<\/small>/);
+  assert.match(html, /Próxima acción/);
+  assert.match(
+    html,
+    /m26-client360-header-action[\s\S]*?data-m26-area="progreso"[\s\S]*?>Revisar progreso<\/button>/
+  );
+  assert.match(html, /m26-client360-now/);
+  assert.match(html, /Lo importante ahora/);
+  assert.match(html, /m26-client360-evolution/);
+  assert.match(html, /Rendimiento y evolución/);
+  assert.match(html, /m26-client360-progress-details/);
+  assert.match(html, /Ver evolución detallada/);
+
+  const headerIndex = html.indexOf('Cliente 360º');
+  const nowIndex = html.indexOf('Lo importante ahora');
+  const evolutionIndex = html.indexOf('Rendimiento y evolución');
+  const contextIndex = html.indexOf('Contexto reciente');
+
+  assert.ok(headerIndex >= 0);
+  assert.ok(nowIndex > headerIndex);
+  assert.ok(evolutionIndex > nowIndex);
+  assert.ok(contextIndex > evolutionIndex);
+
+  assert.match(html, /Sentadilla goblet/);
+  assert.match(html, /Bienestar confirmado/);
+  assert.match(html, /Dispositivos · últimos 7 días/);
+  assert.match(html, /Correo electrónico/);
+  assert.match(html, /Evaluación IRI/);
+});
+
+test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', () => {
+  const state = ready('client', { activeArea: 'expediente' });
+  const vm = createRouteViewModel(
+    createShellViewModel(state),
+    state,
+    now
+  );
+  const html = renderRouteView(vm);
+
+  assert.equal(vm.coachCockpit, null);
+  assert.doesNotMatch(html, /Siguiente acción del Coach/);
 });

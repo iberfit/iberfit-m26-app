@@ -1044,3 +1044,285 @@
   }
 }
 
+
+
+/* CLIENT360_DECISION_V2_BEGIN */
+.m26-shell .m26-client360-v2{
+  gap:clamp(.72rem,1.25vw,1.05rem);
+  min-width:0;
+}
+
+.m26-shell .m26-client360-v2 .m26-profile-hero-premium{
+  position:relative;
+  min-height:auto;
+  overflow:hidden;
+  grid-template-columns:auto minmax(0,1fr) minmax(14rem,.36fr);
+  align-items:center;
+  gap:clamp(1rem,2vw,1.65rem);
+  padding:clamp(1.15rem,2.4vw,1.75rem);
+}
+
+.m26-shell .m26-client360-v2 .m26-profile-brand-lockup{
+  width:5.35rem;
+  height:5.35rem;
+}
+
+.m26-shell .m26-client360-v2 .m26-profile-brand-orb{
+  width:4.9rem;
+  height:4.9rem;
+  transform:none;
+  border-color:color-mix(in srgb,var(--iberfit-color-accent-strong) 42%,transparent);
+  background:
+    radial-gradient(circle at 28% 20%,rgba(255,255,255,.08),transparent 38%),
+    linear-gradient(145deg,#173d2d,#071d14);
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.08),
+    0 16px 30px rgba(0,0,0,.24);
+}
+
+.m26-shell .m26-client360-v2 .m26-profile-brand-logo{
+  width:3rem;
+  height:3rem;
+}
+
+.m26-shell .m26-client360-v2 .m26-profile-hero-copy h2{
+  margin:.16rem 0 0;
+  font-size:clamp(2rem,3.4vw,3rem);
+  letter-spacing:-.045em;
+  text-wrap:balance;
+}
+
+.m26-shell .m26-client360-v2 .m26-profile-hero-copy > .m26-eyebrow{
+  color:color-mix(in srgb,var(--iberfit-color-accent-strong) 82%,var(--iberfit-color-text-primary));
+}
+
+.m26-client360-header-facts{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.55rem;
+  margin-top:1rem;
+}
+
+.m26-client360-header-facts > span{
+  min-width:0;
+  display:grid;
+  gap:.2rem;
+  padding:.66rem .72rem;
+  border:1px solid rgba(235,219,182,.11);
+  border-radius:.78rem;
+  background:rgba(2,15,10,.30);
+  box-shadow:inset 0 1px rgba(255,255,255,.025);
+}
+
+.m26-client360-header-facts small{
+  color:rgba(248,242,230,.58) !important;
+  font-size:.7rem;
+  font-weight:650;
+  letter-spacing:.025em;
+}
+
+.m26-client360-header-facts strong{
+  min-width:0;
+  overflow-wrap:anywhere;
+  color:var(--iberfit-color-text-primary);
+  font-size:.88rem;
+  line-height:1.25;
+}
+
+.m26-shell .m26-client360-header-action{
+  min-width:0;
+  display:grid;
+  align-content:center;
+  gap:.55rem;
+  padding:1rem 0 1rem 1.15rem;
+  border-left:1px solid rgba(235,219,182,.13);
+}
+
+.m26-client360-header-action > small{
+  color:rgba(248,242,230,.58) !important;
+  font-size:.72rem;
+  font-weight:700;
+  letter-spacing:.035em;
+}
+
+.m26-client360-header-action .m26-badge{
+  justify-self:start;
+  margin-bottom:.15rem;
+}
+
+.m26-client360-header-action .m26-primary-action{
+  width:100%;
+  min-height:46px;
+  justify-content:center;
+}
+
+.m26-shell .m26-client360-v2 .m26-client360-now{
+  border-color:color-mix(in srgb,var(--iberfit-color-accent-strong) 24%,var(--iberfit-color-border));
+  background:
+    radial-gradient(circle at 96% 0%,color-mix(in srgb,var(--iberfit-color-accent-strong) 7%,transparent),transparent 18rem),
+    linear-gradient(145deg,color-mix(in srgb,var(--iberfit-color-surface-raised) 96%,transparent),color-mix(in srgb,var(--iberfit-color-surface-base) 98%,transparent));
+  box-shadow:var(--iberfit-v2-shadow);
+}
+
+.m26-client360-now .m26-panel-heading{
+  align-items:flex-start;
+}
+
+.m26-client360-now .m26-panel-heading p:last-child{
+  max-width:72ch;
+}
+
+.m26-client360-evolution{
+  display:grid;
+  gap:.8rem;
+  min-width:0;
+}
+
+.m26-client360-section-heading{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:1rem;
+  padding:.1rem .1rem 0;
+}
+
+.m26-client360-section-heading h2{
+  margin:.15rem 0 .25rem;
+}
+
+.m26-client360-section-heading p:last-child{
+  max-width:70ch;
+  margin:0;
+  color:var(--iberfit-color-text-secondary);
+}
+
+.m26-client360-progress-details{
+  min-width:0;
+  border:1px solid var(--iberfit-v2-line);
+  border-radius:var(--iberfit-v2-card-radius);
+  background:color-mix(in srgb,var(--iberfit-color-surface-base) 72%,transparent);
+  overflow:hidden;
+}
+
+.m26-client360-progress-details > summary{
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  padding:.8rem 1rem;
+  cursor:pointer;
+  color:var(--iberfit-color-text-primary);
+  font-weight:750;
+  list-style:none;
+}
+
+.m26-client360-progress-details > summary::-webkit-details-marker{
+  display:none;
+}
+
+.m26-client360-progress-details > summary::after{
+  content:"＋";
+  flex:0 0 auto;
+  color:var(--iberfit-color-accent-strong);
+  font-size:1.05rem;
+}
+
+.m26-client360-progress-details[open] > summary::after{
+  content:"−";
+}
+
+.m26-client360-progress-details > .m26-panel{
+  margin:.15rem .75rem .75rem;
+}
+
+.m26-client360-context{
+  display:grid;
+  gap:.8rem;
+  min-width:0;
+}
+
+.m26-shell .m26-client360-v2 .m26-followup-plan{
+  box-shadow:none;
+}
+
+@media (max-width:1100px){
+  .m26-shell .m26-client360-v2 .m26-profile-hero-premium{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+
+  .m26-shell .m26-client360-header-action{
+    grid-column:1 / -1;
+    grid-template-columns:auto minmax(0,1fr) minmax(13rem,.42fr);
+    align-items:center;
+    padding:.9rem 0 0;
+    border-left:0;
+    border-top:1px solid rgba(235,219,182,.13);
+  }
+
+  .m26-client360-header-action > small{
+    align-self:center;
+  }
+}
+
+@media (max-width:719px){
+  .m26-shell .m26-client360-v2 .m26-profile-hero-premium{
+    grid-template-columns:auto minmax(0,1fr);
+    gap:.75rem;
+    padding:.88rem;
+  }
+
+  .m26-shell .m26-client360-v2 .m26-profile-brand-lockup{
+    width:3.9rem;
+    height:3.9rem;
+  }
+
+  .m26-shell .m26-client360-v2 .m26-profile-brand-orb{
+    width:3.65rem;
+    height:3.65rem;
+    border-radius:1rem;
+  }
+
+  .m26-shell .m26-client360-v2 .m26-profile-brand-logo{
+    width:2.45rem;
+    height:2.45rem;
+  }
+
+  .m26-shell .m26-client360-v2 .m26-profile-hero-copy h2{
+    font-size:clamp(1.62rem,7.8vw,2.05rem);
+  }
+
+  .m26-client360-header-facts{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:.4rem;
+    margin-top:.72rem;
+  }
+
+  .m26-client360-header-facts > span{
+    padding:.55rem .6rem;
+  }
+
+  .m26-client360-header-facts > span:nth-child(3){
+    grid-column:1 / -1;
+  }
+
+  .m26-shell .m26-client360-header-action{
+    grid-column:1 / -1;
+    grid-template-columns:1fr;
+    gap:.42rem;
+    padding:.75rem 0 0;
+  }
+
+  .m26-client360-header-action .m26-primary-action{
+    min-height:48px;
+  }
+
+  .m26-client360-section-heading{
+    align-items:flex-start;
+  }
+
+  .m26-client360-progress-details > .m26-panel{
+    margin:.1rem .45rem .45rem;
+  }
+}
+/* CLIENT360_DECISION_V2_END */
