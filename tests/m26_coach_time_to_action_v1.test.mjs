@@ -114,7 +114,7 @@ test('métricas locales guardan solo milisegundos por tipo y limitan la historia
   assert.equal(JSON.stringify(raw).includes('Ana Demo'),false);
   assert.equal(JSON.stringify(raw).includes('pain'),false);
   assert.equal(JSON.stringify(raw).includes('health'),false);
-  assert.match(insight.textContent,/Mediana en este dispositivo/u);
+  assert.match(insight.innerHTML,/Mediana en este dispositivo/u);
 });
 
 test('mediana y migración de workspace anterior son deterministas',()=>{
