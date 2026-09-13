@@ -246,3 +246,86 @@ test('Session Live conserva contrato histórico de ajustes y alternativas RC48',
   assert.match(html,/<details class="m26-session-options">/);
   assert.match(html,/Ajustes y alternativas/);
 });
+
+
+test('Session Live V2 pone la serie actual y la referencia antes que el contexto secundario',()=>{
+  const s=session();
+  const x=createExecution({session:s,clientId:'c1'});
+  startExecution(x);
+  const html=renderGuidedExecution({execution:x,session:s,catalog});
+
+  assert.match(html,/m26-session-live-v2/u);
+  assert.match(html,/data-session-touch-focus/u);
+  assert.match(html,/Serie actual/u);
+  assert.match(html,/Objetivo/u);
+  assert.match(html,/Referencia anterior/u);
+  assert.match(html,/Descanso previsto/u);
+  assert.match(html,/aria-label="Registro de la serie actual"/u);
+  assert.match(html,/aria-label="Contexto del ejercicio actual"/u);
+
+  const focus=html.indexOf('data-session-touch-focus');
+  const entry=html.indexOf('data-session-live-entry');
+  const prescription=html.indexOf('data-session-live-prescription');
+  assert.ok(focus>=0&&entry>focus&&prescription>entry);
+});
+
+test('Session Live V2 muestra referencia histórica sin autocompletar la carga',()=>{
+  const s=session();
+  const exerciseId=s.blocks[0].exerciseId;
+  const x=createExecution({session:s,clientId:'c1'});
+  startExecution(x);
+
+  const memory={
+    clientId:'c1',
+    exerciseId,
+    exposureCount:2,
+    latest:{
+      completedAt:'2026-09-10T10:00:00Z',
+      lastLoad:{raw:'24 kg',value:24,unit:'kg',comparableKey:'kg'},
+      sets:[],
+      averageRpe:7.5,
+      averageRir:2,
+    },
+    comparison:{lastLoad:null},
+  };
+
+  const html=renderGuidedExecution({
+    execution:x,
+    session:s,
+    catalog,
+    exerciseMemoryFor:(id)=>id===exerciseId?memory:null,
+  });
+
+  assert.match(html,/Referencia anterior/u);
+  assert.match(html,/24 kg/u);
+  assert.match(html,/data-set-field="load">/u);
+  assert.doesNotMatch(html,/data-set-field="load"[^>]*value="24 kg"/u);
+});
+
+test('Session Live V2 mantiene el descanso como acción dominante',()=>{
+  const s=session();
+  const x=createExecution({session:s,clientId:'c1'});
+  startExecution(x);
+  recordSet(x,s,{reps:10,load:'20 kg',rpe:7});
+  x.restUntil=new Date(Date.now()+60000).toISOString();
+
+  const html=renderGuidedExecution({execution:x,session:s,catalog});
+  assert.match(html,/m26-session-live-v2/u);
+  assert.match(html,/data-session-live-state="rest"/u);
+  assert.match(html,/data-session-touch-focus/u);
+  assert.match(html,/Completada/u);
+  assert.match(html,/m26-session-rest-countdown/u);
+  assert.match(html,/Continuar ahora/u);
+});
+
+test('Session Live V2 tiene geometría táctil explícita para tablet y móvil',()=>{
+  const css=fs.readFileSync(
+    new URL('../src/m26/design/role-surfaces.css',import.meta.url),
+    'utf8',
+  );
+  assert.match(css,/IBERFIT SESSION LIVE V2 · touch-first execution/u);
+  assert.match(css,/\.m26-session-live-workbench\{[\s\S]*?grid-template-columns:minmax\(0,1\.08fr\) minmax\(20rem,\.92fr\)/u);
+  assert.match(css,/@media\(max-width:900px\)[\s\S]*?--m26-session-touch-control:60px/u);
+  assert.match(css,/@media\(max-width:580px\)[\s\S]*?min-height:4\.35rem/u);
+  assert.match(css,/\.m26-session-set-focus-number strong\{[\s\S]*?font-size:clamp\(2\.2rem,5vw,3\.5rem\)/u);
+});
