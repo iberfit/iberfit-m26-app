@@ -167,6 +167,7 @@ function nextSessionPreparation(execution,catalog,mediaMap,role){
   const planned=next.prescription||{};
   const target=[
     planned.reps||null,
+    planned.plannedLoad?`carga ${planned.plannedLoad}`:null,
     planned.tempo?`ritmo ${planned.tempo}`:null,
     Number.isFinite(Number(planned.targetRpe))?`RPE ${planned.targetRpe}`:null,
     Number.isFinite(Number(planned.targetRir))?`RIR ${planned.targetRir}`:null,
@@ -680,6 +681,7 @@ function completedSessionSummary(execution){
 function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=false}={}){
   const target=[
     planned?.reps||null,
+    planned?.plannedLoad?`Carga ${planned.plannedLoad}`:null,
     Number.isFinite(Number(planned?.targetRpe))?`RPE ${planned.targetRpe}`:null,
     Number.isFinite(Number(planned?.targetRir))?`RIR ${planned.targetRir}`:null,
   ].filter(Boolean).join(' · ')||'Según indicación';
@@ -1032,6 +1034,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
               <span>Repeticiones/tiempo</span>
               <strong>${e(planned.reps||'Según indicación')}</strong>
             </div>
+            ${planned.plannedLoad?`<div class="m26-field"><span>Carga planificada</span><strong>${e(planned.plannedLoad)}</strong><small>No se autocompleta</small></div>`:''}
             <div class="m26-field">
               <span>Descanso</span>
               <strong>${e(planned.restSeconds||60)} s</strong>
@@ -1046,6 +1049,8 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
             </div>
           </div>
         </section>
+        ${planned.prescriptionNotes?`<section class="m26-session-live-cues" aria-label="Indicaciones planificadas"><span>Indicaciones del Coach</span><strong>${e(planned.prescriptionNotes)}</strong></section>`:''}
+        ${planned.progression?`<details class="m26-session-options m26-session-progression"><summary>Progresión prevista</summary><p>${e(planned.progression)}</p><small>Referencia de planificación; no modifica automáticamente la ejecución de hoy.</small></details>`:''}
         ${cues?`<section class="m26-session-live-cues" aria-label="Indicaciones del ejercicio"><span>Claves técnicas</span><strong>${e(cues)}</strong></section>`:''}
         ${renderExerciseMemorySession(exerciseMemory)}
         ${currentExerciseHistory}
