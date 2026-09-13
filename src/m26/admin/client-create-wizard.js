@@ -297,6 +297,10 @@ export function createClientCreateWizard({
     if(event.type==='change')save(form);
     else scheduleSave(form);
   }
+  function onShellRendered(){
+    flushScheduledSave();
+    sync();
+  }
   return Object.freeze({
     mount(){
       if(mounted)return;
@@ -304,6 +308,7 @@ export function createClientCreateWizard({
       root.addEventListener('click',onClick);
       root.addEventListener('input',onInput);
       root.addEventListener('change',onInput);
+      root.addEventListener('m26:shell-rendered',onShellRendered);
       sync();
     },
     destroy(){
@@ -313,6 +318,7 @@ export function createClientCreateWizard({
       root.removeEventListener('click',onClick);
       root.removeEventListener('input',onInput);
       root.removeEventListener('change',onInput);
+      root.removeEventListener('m26:shell-rendered',onShellRendered);
     },
     sync,
     save,
