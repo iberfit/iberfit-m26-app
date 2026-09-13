@@ -223,3 +223,18 @@ test('migration instala dos comandos, privacidad y wrapper canónico fail-closed
   assert.match(sql,/revoke all on function public\.iberfit_execute_command_v26_pre_action_outcome\(jsonb\) from public,anon,authenticated/iu);
   assert.doesNotMatch(sql,/grant execute on function public\.iberfit_execute_command_v26_pre_action_outcome\(jsonb\) to authenticated/iu);
 });
+
+
+test('preflight bootstrap fix creates a non-mutating action_outcome base entity',()=>{
+  const sql=fs.readFileSync(new URL('../supabase/migrations/20260913222000_action_outcome_preflight_bootstrap_v26.sql',import.meta.url),'utf8');
+  for(const marker of [
+    'iberfit_base_entity_v26_pre_action_outcome',
+    "p_entity_type='action_outcome'",
+    "'status','borrador'",
+    "'revision',0",
+    "'visibleToClient',false",
+    'domain_entities_v26',
+  ])assert.ok(sql.includes(marker),marker);
+  assert.match(sql,/revoke all on function public\.iberfit_base_entity_v26_pre_action_outcome\(text,uuid,uuid\)[\s\S]*?from public,anon,authenticated/iu);
+  assert.match(sql,/grant execute on function public\.iberfit_base_entity_v26\(text,uuid,uuid\)[\s\S]*?to service_role/iu);
+});
