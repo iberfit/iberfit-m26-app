@@ -134,7 +134,7 @@ test('auth premium conserva recovery dinámica, provisioning fail-closed y resil
   const appSource=fs.readFileSync('src/m26/app/application.js','utf8');
   assert.match(appSource,/M26_ROLE_CONTEXT_MISSING/u);
   assert.match(appSource,/M26_ROLE_SWITCH_FORBIDDEN/u);
-  assert.match(appSource,/La sesión expiró o perdió autorización\. Vuelve a entrar\./u);
+  assert.match(appSource,/Tu sesión ha caducado\. Vuelve a entrar para continuar\./u);
 
   const css=fs.readFileSync('src/m26/design/auth-native.css','utf8');
   assert.match(css,/env\(safe-area-inset-top\)/u);
