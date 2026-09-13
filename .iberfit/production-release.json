@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "894a73e04cf46da29ad461f1e4acdcf5b85f059e",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción GREEN con Agenda V2 y Live Workout Focus V3"
+}
