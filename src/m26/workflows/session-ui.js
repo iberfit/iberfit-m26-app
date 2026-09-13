@@ -773,6 +773,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
             <strong>${restActive?e(restSeconds)+' s':'Continuar'}</strong>
           </div>
         </div>
+        ${restActive?`<div class="m26-session-rest-current-media" aria-label="Ejercicio actual">${visual}</div>`:''}
         <p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>
         ${nextExercisePreview}
         <details class="m26-session-options">
@@ -846,7 +847,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
       </main>
 
       <aside class="m26-session-live-context" aria-label="Contexto del ejercicio actual">
-        ${visual}
+        ${restActive?'':visual}
         <section class="m26-panel m26-prescription-summary" data-session-live-prescription>
           <p class="m26-eyebrow">Objetivo de esta serie</p>
           <div class="m26-field-grid">
