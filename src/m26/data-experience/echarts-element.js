@@ -1,4 +1,5 @@
 import {IBERFIT_DESIGN_TOKENS} from '../design/tokens.generated.js';
+import {finiteOptionalNumber} from '../domain/optional-number.js';
 export const ECHARTS_DATA_EXPERIENCE_VERSION='6.1.0';
 export const ECHARTS_VENDOR_URL='/m26/vendor/echarts-6.1.0.esm.min.js';
 
@@ -38,8 +39,7 @@ function cancelFrame(frame){
 }
 
 function finite(value){
-  const number=Number(value);
-  return Number.isFinite(number)?number:null;
+  return finiteOptionalNumber(value);
 }
 
 function chartPoint(point){
