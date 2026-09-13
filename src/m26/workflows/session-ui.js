@@ -506,7 +506,7 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
       </div>
     </header>
     ${actionState?`<div class="m26-action-state is-${e(actionState.status)}" role="status">${e(actionState.message)}</div>`:''}
-    <section class="m26-builder-session-strip" aria-label="Resumen de la sesión">
+    <section class="m26-builder-session-strip" aria-label="Resumen de sesión">
       <div><span>Ejercicios</span><strong>${e(metrics.exercises)}</strong></div>
       <div><span>Trabajo</span><strong>${e(metrics.workUnits)}</strong><small>series / rondas</small></div>
       <div><span>Bloques</span><strong>${e(metrics.blocks)}</strong>${metrics.groups?`<small>${e(metrics.groups)} grupos</small>`:''}</div>
