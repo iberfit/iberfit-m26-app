@@ -1538,8 +1538,8 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     destroyControllers();
     store.reset();
     authMode='login';
-    const incident=diagnosticCode(error,stage);
-    authMessage(`La sesión expiró o perdió autorización. Vuelve a entrar. Código: ${incident}.`,'error');
+    reportSoftDiagnostic(`auth-session-ended-${String(stage||'resume')}`,error);
+    authMessage('Tu sesión ha caducado. Vuelve a entrar para continuar.','error');
   }
   async function retrySession(){
     if(loginBusy||!runtime.enabled||!session?.token)return false;
@@ -1595,8 +1595,8 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
         destroyControllers();
         store.reset();
         authMode='login';
-        const incident=diagnosticCode(error,'login');
-        authMessage(`${loginFailureMessage(error)} Código: ${incident}.`,'error');
+        reportSoftDiagnostic('auth-login-failed',error);
+        authMessage(loginFailureMessage(error),'error');
       }
       throw error;
     }finally{
@@ -1739,11 +1739,15 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
 
   session=vault.load();
   loginBusy=false;
-  authMode='login';
   if(session?.token){
-    sessionRetryAvailable=true;
-    authMessage('Tu sesión está guardada. Puedes continuar sin bloquear el arranque de IBERFIT.');
+    authMode='checking-session';
+    sessionRetryAvailable=false;
+    authMessage();
+    const continueSavedSession=()=>{void resume().catch((error)=>reportDiagnostic('resume',error));};
+    if(typeof globalThis.setTimeout==='function')globalThis.setTimeout(continueSavedSession,0);
+    else queueMicrotask(continueSavedSession);
   }else{
+    authMode='login';
     sessionRetryAvailable=false;
     authMessage();
   }
