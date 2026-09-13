@@ -1,6 +1,7 @@
 import './echarts-element.js';
 import {longitudinalMetricTrust,renderDataTrustStrip} from './data-trust.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
+import {finiteOptionalNumber} from '../domain/optional-number.js';
 
 const CLIENT_METRICS=Object.freeze([
   'steps',
@@ -39,8 +40,7 @@ function escapeHtml(value){
 }
 
 function finite(value){
-  const number=Number(value);
-  return Number.isFinite(number)?number:null;
+  return finiteOptionalNumber(value);
 }
 
 function roleKey(role){

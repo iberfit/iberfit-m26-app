@@ -4,6 +4,7 @@ import {renderAdminRoute} from '../admin/route-render.js';
 import {renderRc39Route} from '../rc39/route-render.js';
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
+import {finiteOptionalNumber} from '../domain/optional-number.js';
 import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
@@ -2077,8 +2078,8 @@ function renderPlanExecutionPanel(plan){
   </section>`;
 }
 function sleepHoursPerDay(minutes){
-  const numeric=Number(minutes);
-  if(!Number.isFinite(numeric))return 'Sin dato';
+  const numeric=finiteOptionalNumber(minutes);
+  if(numeric===null)return 'Sin dato';
   const hours=Math.round((numeric/60)*10)/10;
   return `${hours} h/día`;
 }
@@ -2090,8 +2091,8 @@ function renderAlerts(alerts=[]){
 }
 function timelineItem(item){return `<article class="m26-timeline-item"><div class="m26-timeline-dot" aria-hidden="true"></div><div><p class="m26-eyebrow">${escapeHtml(safeDateLabel(item.date))}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.detail||item.status||'Registro confirmado')}</p></div></article>`;}
 function wellbeingMeter(label,value,anchors){
-  const numeric=Number(value);
-  if(!Number.isFinite(numeric))return `<div class="m26-wellbeing-meter is-empty"><div><span>${escapeHtml(label)}</span><strong>Sin dato</strong></div><small>${escapeHtml(anchors)}</small></div>`;
+  const numeric=finiteOptionalNumber(value);
+  if(numeric===null)return `<div class="m26-wellbeing-meter is-empty"><div><span>${escapeHtml(label)}</span><strong>Sin dato</strong></div><small>${escapeHtml(anchors)}</small></div>`;
   const bounded=Math.max(0,Math.min(10,numeric));
   return `<div class="m26-wellbeing-meter"><div><span>${escapeHtml(label)}</span><strong>${escapeHtml(numeric)}/10</strong></div><meter min="0" max="10" value="${escapeHtml(bounded)}" aria-label="${escapeHtml(label)}: ${escapeHtml(numeric)} de 10"></meter><small>${escapeHtml(anchors)}</small></div>`;
 }
