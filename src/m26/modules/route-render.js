@@ -458,7 +458,7 @@ function clientOnboardingForm() {
   return `<details class="m26-panel m26-onboarding" data-client-onboarding>
     <summary><span><small>Nuevo expediente</small><strong>Añadir una persona</strong></span><span class="m26-summary-action">Crear expediente</span></summary>
     <form data-workflow-form="client-onboarding" class="m26-onboarding-form" novalidate>
-      <section class="m26-form-section"><div class="m26-form-section-title"><span>1</span><div><h3>Identidad y contacto</h3><p>Datos necesarios para crear el expediente. No se envía ninguna invitación.</p></div></div><div class="m26-field-grid">
+      <section class="m26-form-section"><div class="m26-form-section-title"><span>1</span><div><h3>Identidad y contacto</h3><p>Datos necesarios para crear el expediente y preparar el acceso del cliente. IBERFIT enviará la invitación al correo cuando corresponda.</p></div></div><div class="m26-field-grid">
         <label>Nombre completo<input name="name" autocomplete="name" maxlength="160" required></label>
         <label>Correo electrónico<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
         <label>Teléfono<input name="phone" autocomplete="tel" maxlength="40" required></label>
@@ -493,7 +493,7 @@ function clientOnboardingForm() {
       <section class="m26-form-section"><div class="m26-form-section-title"><span>4</span><div><h3>Contacto de emergencia</h3><p>Opcional en el alta; recomendable antes de iniciar la evaluación física.</p></div></div><div class="m26-field-grid">
         <label>Nombre<input name="emergencyContactName" maxlength="160"></label><label>Relación<input name="emergencyContactRelation" maxlength="120"></label><label>Teléfono<input name="emergencyContactPhone" maxlength="40"></label>
       </div></section>
-      <div class="m26-sticky-actions"><p><strong>El acceso permanece desactivado.</strong> Primero se crea el expediente y se completa el diagnóstico IRI.</p><button type="submit" class="m26-primary-action" data-workflow-action="create-client-draft">Crear expediente y abrir primera sesión</button></div>${workflowStatus('client-onboarding')}
+      <div class="m26-sticky-actions"><p><strong>Alta protegida.</strong> Se crea el expediente, se verifica que quede visible y se prepara el acceso asociado al correo. Después continuarás al diagnóstico IRI.</p><button type="submit" class="m26-primary-action" data-workflow-action="create-client-draft">Crear expediente y abrir diagnóstico IRI</button></div>${workflowStatus('client-onboarding')}
     </form>
   </details>`;
 }

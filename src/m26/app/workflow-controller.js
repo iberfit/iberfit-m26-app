@@ -113,6 +113,9 @@ function friendlyError(error){
   if(/EXERCISE_NAME_DUPLICATE/.test(code))return 'Ya existe un ejercicio activo con ese nombre. Usa el existente o elige un nombre que lo diferencie.';
   if(/EXERCISE_CREATE_NOT_VISIBLE/.test(code))return 'El ejercicio se creó, pero aún no apareció en el catálogo actualizado. No lo crees de nuevo hasta completar la verificación.';
   if(/CUSTOM_EXERCISE_INVALID|CUSTOM_EXERCISE_LIST_INVALID/.test(code))return 'Revisa los datos del ejercicio personalizado antes de guardarlo.';
+  if(/M26_PRIVILEGED_ACTION_TIMEOUT|M26_WEBAUTHN_BACKEND_TIMEOUT/.test(code))return 'La confirmación segura tardó demasiado. El expediente no se ha creado; puedes reintentarlo sin perder el formulario.';
+  if(/M26_WEBAUTHN_UNSUPPORTED/.test(code))return 'Este dispositivo no permite la confirmación segura necesaria para crear el expediente. Tu formulario permanece guardado.';
+  if(/M26_PRIVILEGED_ACTION_(?:IDENTITY_MISMATCH|ASSURANCE_INVALID|FACTOR_INVALID|CHALLENGE_INVALID|CEREMONY_INVALID|NOT_CONFIRMED|AUTH_REQUIRED)/.test(code))return 'No se pudo confirmar de forma segura tu identidad. El expediente no se ha creado y el formulario permanece guardado.';
   if(/ROLE|FORBIDDEN|CLIENT_CONTEXT|NOT_VISIBLE/.test(code))return 'No tienes permiso o falta seleccionar un cliente válido.';
   if(/CLIENT_CREATE_CANARY_ONLY/.test(code))return 'La creación de clientes está limitada al entorno canary.';
   if(/CLIENT_ONBOARDING_BACKEND_REQUIRED/.test(code))return 'La actualización segura del alta todavía no está instalada en el backend. El borrador permanece guardado y no se ha creado ningún expediente.';

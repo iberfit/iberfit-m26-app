@@ -317,6 +317,73 @@ export function privilegedMfaDecision(assurance={}){
   return Object.freeze({kind:'enroll-required'});
 }
 
+export async function ensurePrivilegedActionAssurance({
+  transport,
+  token,
+  userId,
+  runCeremony=runWebAuthnCeremony,
+  webAuthnAvailable=webAuthnSupported,
+  friendlyName='IBERFIT · confirmar acción segura',
+  timeoutMs=MFA_BACKEND_TIMEOUT_MS,
+}={}){
+  if(!transport||!token)throw new Error('M26_PRIVILEGED_ACTION_AUTH_REQUIRED');
+  const bounded=(operation)=>withAuthOperationTimeout(operation,{
+    timeoutMs:Math.max(1_000,Math.min(Number(timeoutMs)||MFA_BACKEND_TIMEOUT_MS,30_000)),
+    code:'M26_PRIVILEGED_ACTION_TIMEOUT',
+  });
+  const assurance=await bounded(()=>transport.authAssuranceContext(token));
+  const decision=privilegedMfaDecision(assurance);
+  if(decision.kind==='ready'){
+    return Object.freeze({verified:true,performed:false,kind:'ready'});
+  }
+  if(typeof webAuthnAvailable!=='function'||webAuthnAvailable()!==true){
+    throw new Error('M26_WEBAUTHN_UNSUPPORTED');
+  }
+  const user=await bounded(()=>transport.authUser(token));
+  const expectedUserId=String(userId||'').trim();
+  if(!expectedUserId||String(user?.id||'').trim()!==expectedUserId){
+    throw new Error('M26_PRIVILEGED_ACTION_IDENTITY_MISMATCH');
+  }
+
+  let factorId=String(decision.factorId||'').trim();
+  let expectedType='request';
+  if(decision.kind==='enroll-required'){
+    const enrollment=await bounded(()=>transport.enrollWebAuthn(token));
+    factorId=String(enrollment?.factorId||'').trim();
+    expectedType='create';
+  }else if(decision.kind!=='challenge'){
+    throw new Error('M26_PRIVILEGED_ACTION_ASSURANCE_INVALID');
+  }
+  if(!factorId)throw new Error('M26_PRIVILEGED_ACTION_FACTOR_INVALID');
+
+  const challenge=await bounded(()=>transport.challengeWebAuthn(token,factorId));
+  if(challenge?.type!==expectedType){
+    throw new Error('M26_PRIVILEGED_ACTION_CHALLENGE_INVALID');
+  }
+  const ceremony=await runCeremony(challenge,{friendlyName});
+  if(ceremony?.type!==challenge.type){
+    throw new Error('M26_PRIVILEGED_ACTION_CEREMONY_INVALID');
+  }
+  const verified=await bounded(()=>transport.verifyWebAuthn(token,{
+    factorId,
+    challengeId:challenge.challengeId,
+    type:ceremony.type,
+    credentialResponse:ceremony.credentialResponse,
+  }));
+  if(String(verified?.user?.id||'').trim()!==expectedUserId){
+    throw new Error('M26_PRIVILEGED_ACTION_IDENTITY_MISMATCH');
+  }
+
+  const finalAssurance=await bounded(()=>transport.authAssuranceContext(token));
+  if(
+    finalAssurance?.webauthnRequired===true&&
+    finalAssurance?.iberfitAssurance!=='verified'
+  ){
+    throw new Error('M26_PRIVILEGED_ACTION_NOT_CONFIRMED');
+  }
+  return Object.freeze({verified:true,performed:true,kind:decision.kind});
+}
+
 export async function createM26Application({root=document.querySelector('#app'),runtimeConfig=globalThis.__IBERFIT_M26_RUNTIME__||{},locationLike=globalThis.location,historyLike=globalThis.history}={}){
   if(!root)throw new Error('M26_APP_ROOT_REQUIRED');
   const runtime=resolveM26Runtime(runtimeConfig,locationLike);const vault=createSessionVault();
@@ -820,7 +887,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       }),
     });
     mediaExperience=createExerciseVideoExperienceController({root});
-    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,createCustomExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.createCustomExercise(currentToken(),payload);},renameExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.renameExercise(currentToken(),payload);},refreshCatalog:()=>fetchCatalog({force:true}),getRegistry:()=>runtimeRegistry.registry,onRender:render,getIriExternalReport:(assessmentId)=>iriExternalReports.clientReportForPdf(assessmentId),createClientDraft:async(payload)=>{await refreshSessionIfNeeded();await transport.clientOnboardingPreflight(currentToken());const result=await transport.createClientDraft(currentToken(),payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(currentToken())});await hydrate({reason:'client-created'});return verified;}});
+    workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,createCustomExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.createCustomExercise(currentToken(),payload);},renameExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.renameExercise(currentToken(),payload);},refreshCatalog:()=>fetchCatalog({force:true}),getRegistry:()=>runtimeRegistry.registry,onRender:render,getIriExternalReport:(assessmentId)=>iriExternalReports.clientReportForPdf(assessmentId),createClientDraft:async(payload)=>{await refreshSessionIfNeeded();const token=currentToken();await ensurePrivilegedActionAssurance({transport,token,userId:session?.user?.id,friendlyName:'IBERFIT · confirmar creación de cliente'});await transport.clientOnboardingPreflight(token);const result=await transport.createClientDraft(token,payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(token)});await hydrate({reason:'client-created'});return verified;}});
     engagement=createEngagementController({root,store,draftRepository,service,refreshState:({reason}={})=>hydrate({reason:reason||'engagement-refresh'})});wearables=createWearableController({root,store,ownerId,transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:({reason}={})=>hydrate({reason:reason||'wearables-refresh'}),isOnline:()=>navigator.onLine!==false});verification=createVerificationController({root,commandBus,repository:operationRepository,store});
     rc39=createRc39Controller({root,store,commandBus,transport:rc39Transport,getToken:async()=>{await refreshSessionIfNeeded();return currentToken();},refreshState:hydrate,render});
     communication=createCommunicationController({root,store,service:communicationService,render});
