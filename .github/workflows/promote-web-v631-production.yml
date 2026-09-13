@@ -134,7 +134,7 @@ jobs:
           console.log('PRIVACY_RULE_OK=true');
           NODE
 
-      - name: Desplegar V6.30 a producción
+      - name: Desplegar V6.31 a producción
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
@@ -163,16 +163,16 @@ jobs:
           done
           test "$STATUS" = "success"
 
-      - name: Esperar huella V6.30 en dominio real
+      - name: Esperar huella V6.31 en dominio real
         shell: bash
         run: |
           set -euo pipefail
           ok=0
           for i in $(seq 1 45); do
             stamp="$(date +%s)"
-            curl --silent --show-error --location --retry 3 --retry-all-errors               "https://${DOMAIN}/?v630=${stamp}" -o /tmp/prod-home.html || true
-            curl --silent --show-error --location --retry 3 --retry-all-errors               "https://${DOMAIN}/sobre-iberfit/?v630=${stamp}" -o /tmp/prod-about.html || true
-            curl --silent --show-error --location --retry 3 --retry-all-errors               "https://${DOMAIN}/entrenador-personal-las-condes/?v630=${stamp}" -o /tmp/prod-local.html || true
+            curl --silent --show-error --location --retry 3 --retry-all-errors               "https://${DOMAIN}/?v631=${stamp}" -o /tmp/prod-home.html || true
+            curl --silent --show-error --location --retry 3 --retry-all-errors               "https://${DOMAIN}/sobre-iberfit/?v631=${stamp}" -o /tmp/prod-about.html || true
+            curl --silent --show-error --location --retry 3 --retry-all-errors               "https://${DOMAIN}/entrenador-personal-las-condes/?v631=${stamp}" -o /tmp/prod-local.html || true
             if grep -Fq '/assets/hardening.v630.css' /tmp/prod-home.html &&
                grep -Fq '/assets/hardening.v630.js' /tmp/prod-home.html &&
                grep -Fq '/assets/polish.v631.css' /tmp/prod-home.html &&
@@ -194,7 +194,7 @@ jobs:
           cd /tmp/iberfitweb-new
           npm install --no-save playwright@1.62.1
           npx playwright install --with-deps chromium
-          BASE_URL="https://${DOMAIN}" QA_OUT="/tmp/v630-production-general"             node .github/scripts/qa_v628_dispositivos.mjs
+          BASE_URL="https://${DOMAIN}" QA_OUT="/tmp/v631-production-general"             node .github/scripts/qa_v628_dispositivos.mjs
 
       - name: QA visual crítica V6.31 en producción
         env:
@@ -219,7 +219,7 @@ jobs:
                 await p.goto(base+route,{waitUntil:'networkidle'});
                 const logo=await p.locator('.site-header .brand-mark').first().evaluate(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return {bg:s.backgroundColor,pad:parseFloat(s.paddingTop),w:r.width,h:r.height}});
                 const bg=parse(logo.bg);
-                ok(bg&&bg.a>.9&&logo.pad>=4&&logo.w>=44&&logo.h>=44,route+' header logo support');
+                ok((!bg||bg.a<.08)&&logo.pad<=.5&&logo.w>=40&&logo.h>=40,route+' header logo integration');
                 const panels=p.locator('.cta-panel-inner');
                 for(let i=0;i<await panels.count();i++){
                   const d=await panels.nth(i).evaluate(el=>{const h=el.querySelector('h1,h2,h3,h4');if(!h)return null;const hs=getComputedStyle(h),bs=getComputedStyle(el),r=h.getBoundingClientRect();return {fg:hs.color,bg:bs.backgroundColor,w:r.width,h:r.height,opacity:+hs.opacity,visibility:hs.visibility}});
@@ -249,7 +249,7 @@ jobs:
                 if(width>=1390){ok(st.nav!=='none',width+' full nav hidden');ok(st.toggle==='none',width+' menu visible');}
                 else{
                   ok(st.toggle!=='none'&&st.tw>=44&&st.th>=44,width+' menu target');
-                  if(width>=861){ok(st.nav==='none',width+' nav should start collapsed');ok(st.cta!=='none'&&st.cw>0&&st.ch>0,width+' header CTA hidden');}
+                  if(width>=861){ok(st.nav==='none',width+' nav should start collapsed');ok(st.cta!=='none'&&st.cw>=44&&st.ch>=44,width+' header CTA target');}
                   else ok(st.hw>0&&st.hh>0,width+' hero CTA hidden');
                   const t=p.locator('.menu-toggle');
                   ok((await t.getAttribute('aria-expanded'))==='false',width+' aria initial');
@@ -264,7 +264,7 @@ jobs:
                 const p=await nojs.newPage(); await p.goto(base+route,{waitUntil:'networkidle'});
                 const hidden=await p.locator('.reveal').evaluateAll(els=>els.filter(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return r.width>0&&r.height>0&&(+s.opacity<.9||s.visibility==='hidden')}).length);
                 const polish=await p.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--v631-canvas').trim());
-                ok(polish==='#f3ece2',route+' V6.31 CSS not applied');
+                ok(polish==='#faf7f1',route+' V6.31 CSS not applied');
                 ok(hidden===0,route+' no-JS reveal hidden');
                 const nav=await p.locator('.navlinks').first().evaluate(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return {display:s.display,visibility:s.visibility,w:r.width,h:r.height}});
                 ok(nav.display!=='none'&&nav.visibility!=='hidden'&&nav.w>0&&nav.h>0,route+' no-JS nav');
@@ -334,6 +334,6 @@ jobs:
             /tmp/current-prod.json
             /tmp/wrangler-production.log
             /tmp/wrangler-rollback-v629.log
-            /tmp/v630-production-general
+            /tmp/v631-production-general
           if-no-files-found: warn
           retention-days: 90
