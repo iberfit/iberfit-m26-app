@@ -139,7 +139,7 @@ function coachHomeClientCard(client={}) {
   const name=client.name||'Cliente';
   const modality=client.modality||'Modalidad por definir';
   const nextLabel=client.nextAction?.label||'Revisar seguimiento';
-  const nextAppointment=client.nextAppointment?.dateLabel||null;
+  const nextAppointment=client.nextAppointment?.dateLabel||'Sin cita programada';
 
   return `<article class="m26-coach-home-client">
     <button
@@ -150,7 +150,7 @@ function coachHomeClientCard(client={}) {
       <span class="m26-coach-home-client-avatar" aria-hidden="true">${escapeHtml(name.slice(0,1).toUpperCase())}</span>
       <span class="m26-coach-home-client-copy">
         <strong>${escapeHtml(name)}</strong>
-        <small>${escapeHtml(modality)}${nextAppointment?` · ${escapeHtml(nextAppointment)}`:''}</small>
+        <small>${escapeHtml(modality)} · ${escapeHtml(nextAppointment)}</small>
         <span>${escapeHtml(nextLabel)}</span>
       </span>
       <b aria-hidden="true">→</b>
@@ -167,6 +167,9 @@ function renderCoachHoyRoute(vm) {
   const queueItems=(cockpit?.items||[]).slice(0,4);
   const riskFocus=cockpit?.riskFocus||null;
   const processFocus=(cockpit?.items||[]).find((item)=>item?.kind==='process')||null;
+  const fallbackClientAction=!cockpit
+    ?clients.find((item)=>item?.nextAction?.label)||null
+    :null;
   const todayAppointment=appointments[0]||null;
   const upcomingAppointment=upcoming[0]||null;
 
@@ -237,6 +240,16 @@ function renderCoachHoyRoute(vm) {
       area:processFocus.nextAction?.area||'clientes',
       clientId:processFocus.clientId||null,
       label:processFocus.actionCtaLabel||processFocus.nextAction?.label||'Abrir expediente',
+    };
+  }else if(fallbackClientAction){
+    primary={
+      tone:'pending',
+      eyebrow:'Siguiente acción',
+      title:fallbackClientAction.nextAction?.label||'Revisar seguimiento',
+      copy:fallbackClientAction.nextAction?.reason||'Continúa con el siguiente paso del cliente.',
+      area:fallbackClientAction.nextAction?.area||'clientes',
+      clientId:fallbackClientAction.id||null,
+      label:fallbackClientAction.nextAction?.label||'Abrir expediente',
     };
   }else if(upcomingAppointment){
     const client=appointmentClient(upcomingAppointment);
