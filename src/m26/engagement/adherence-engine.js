@@ -55,8 +55,11 @@ function postSessionFeedbackSignal(state,clientId,{now=new Date()}={}){
   );
 }
 
-export function deriveAdherenceAlerts(state,clientId,{now=new Date()}={}){
-  const summary=computeProgressSummary(state,clientId,{now,days:28});
+export function deriveAdherenceAlerts(state,clientId,{now=new Date(),summary:providedSummary=null}={}){
+  const summary=
+    providedSummary?.clientId===clientId&&Number(providedSummary?.days)===28
+      ?providedSummary
+      :computeProgressSummary(state,clientId,{now,days:28});
   if(!summary)return [];
   const alerts=[];
   const checkin=summary.latestCheckin||{};
