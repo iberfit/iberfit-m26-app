@@ -84,6 +84,7 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
     '/src/m26/design/signature-ux-v2.css',
     '/src/m26/design/auth-native.css',
     '/src/m26/design/brand-vision.css',
+    '/src/m26/design/dark-iberfit-v2.css',
   ];
   const deferred=[...index.matchAll(/<link[^>]*data-href="[^"]+\.css"[^>]*data-iberfit-full-style[^>]*media="not all"[^>]*>/gu)];
   assert.equal(deferred.length,fullStylePaths.length);
