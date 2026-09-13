@@ -34,6 +34,7 @@ const INVOKER_COMPAT_SOURCE='20260831025746_rc65_c2_c3_invoker_assurance_compat.
 const FINAL_P0_SOURCE='20260831042719_final_launch_p0_revoke_legacy_client_create.sql';
 const CRM_RENEWAL_SOURCE='20260906210000_crm_renewal_command_v26.sql';
 const ACTION_OUTCOME_SOURCE='20260913220500_action_outcome_tracking_v26.sql';
+const ACTION_OUTCOME_PREFLIGHT_FIX_SOURCE='20260913222000_action_outcome_preflight_bootstrap_v26.sql';
 
 const PROD_ORIGINS=Object.freeze([
   'https://app.iberfit.cl',
@@ -220,6 +221,7 @@ export function buildFinalProductionPromotion(){
   parts.push(section(`PORT · ${FINAL_P0_SOURCE}`,readMigration(FINAL_P0_SOURCE)));
   parts.push(section(`PORT · ${CRM_RENEWAL_SOURCE}`,readMigration(CRM_RENEWAL_SOURCE)));
   parts.push(section(`PORT · ${ACTION_OUTCOME_SOURCE}`,readMigration(ACTION_OUTCOME_SOURCE)));
+  parts.push(section(`PORT · ${ACTION_OUTCOME_PREFLIGHT_FIX_SOURCE}`,readMigration(ACTION_OUTCOME_PREFLIGHT_FIX_SOURCE)));
   parts.push(section('99 · FINAL PRODUCTION POSTCHECK',finalPostcheckSql()));
 
   const sql=parts.join('\n').replace(/\r\n/gu,'\n');
