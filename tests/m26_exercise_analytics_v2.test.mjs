@@ -157,6 +157,8 @@ test('Exercise Analytics V2 selects the most covered comparable metric per exerc
   assert.match(html,/data-reference-label="Máximo registrado"/u);
   assert.match(html,/data-tone="neutral"/u);
   assert.match(html,/Métrica con mayor cobertura comparable/u);
+  assert.doesNotMatch(html,/data-reference-value="0"/u);
+  assert.doesNotMatch(html,/sesiónes/u);
 });
 
 test('Exercise Analytics V2 never treats ambiguous load text as kg',()=>{
@@ -177,6 +179,7 @@ test('Exercise Analytics V2 never treats ambiguous load text as kg',()=>{
 
   assert.match(flexiones,/data-m26-exercise-chart-metric="bestReps"/u);
   assert.doesNotMatch(flexiones,/data-m26-exercise-chart-metric="maxLoadKg"/u);
+  assert.doesNotMatch(flexiones,/data-reference-value="0"/u);
   assert.match(flexiones,/Peso corporal/u);
 });
 
