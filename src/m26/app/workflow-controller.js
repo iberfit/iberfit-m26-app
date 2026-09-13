@@ -198,7 +198,7 @@ export function createWorkflowController({
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
-  let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,onboardingSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null;
+  let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,onboardingSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null,clientListScheduledGrid=null;
   let clientListMeasurementGrid=null;
   const clientListMeasurements=[];
   const initializedClientGrids=new WeakSet();
@@ -387,9 +387,11 @@ export function createWorkflowController({
       clientListRaf=null;
     }
     pendingClientQuery=null;
+    clientListScheduledGrid=null;
   }
   function scheduleClientListUpdate(queryOverride=null){
     pendingClientQuery=queryOverride;
+    clientListScheduledGrid=root.querySelector?.('[data-client-grid]')||null;
     if(clientListRaf!==null)return;
     const raf=globalThis.requestAnimationFrame;
     if(typeof raf!=='function'){
@@ -401,7 +403,11 @@ export function createWorkflowController({
     clientListRaf=raf(()=>{
       clientListRaf=null;
       const query=pendingClientQuery;
+      const scheduledGrid=clientListScheduledGrid;
       pendingClientQuery=null;
+      clientListScheduledGrid=null;
+      const currentGrid=root.querySelector?.('[data-client-grid]')||null;
+      if(scheduledGrid&&scheduledGrid!==currentGrid)return;
       updateClientList(query);
     });
   }
