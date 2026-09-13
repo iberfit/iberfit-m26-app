@@ -438,7 +438,7 @@ if (area === 'clientes') {
       ? computeProgressSummary(state, state.selectedClientId, { now })
       : null;
     const alerts = state.selectedClientId
-      ? deriveAdherenceAlerts(state, state.selectedClientId, { now })
+      ? deriveAdherenceAlerts(state, state.selectedClientId, { now, summary: progress })
       : [];
     const role = String(shellVm.identity?.role || '');
     const compact = summary
@@ -542,12 +542,13 @@ if (area === 'clientes') {
 
   if (area === 'progreso') {
     const clientId = routeClientId(shellVm, state);
-    const summary = computeProgressSummary(state, clientId, { now });
-    const planExecution = buildPlanExecutionSummary(state, clientId, { now, days: summary?.days||28 });
-    const alerts = deriveAdherenceAlerts(state, clientId, { now });
     const longitudinal = clientId
       ? buildLongitudinalAggregation(state, clientId, { now })
       : null;
+    const summary = longitudinal?.progress?.d28
+      ?? (clientId ? computeProgressSummary(state, clientId, { now, days: 28 }) : null);
+    const planExecution = buildPlanExecutionSummary(state, clientId, { now, days: summary?.days||28 });
+    const alerts = deriveAdherenceAlerts(state, clientId, { now, summary });
     return Object.freeze({exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
       kind: 'progreso',
       clientId,
@@ -759,7 +760,7 @@ if (area === 'clientes') {
       ? computeProgressSummary(state, clientId, { now })
       : null;
     const alerts = clientId
-      ? deriveAdherenceAlerts(state, clientId, { now })
+      ? deriveAdherenceAlerts(state, clientId, { now, summary })
       : [];
     const rawProfile = recordsForClient(state, 'clientProfiles', clientId)[0] || null;
     const client = (state?.collections?.clients || []).find(
