@@ -168,7 +168,7 @@ function renderUsers(vm){
       :'';
     const lastAccess=u.lastAccessAt?e(adminDateLabel(u.lastAccessAt)):'Sin acceso registrado';
     const relation=u.client
-      ?`<strong>${e(u.client.name)}</strong><small>${e([u.client.modality,adminStatusLabel(u.client.lifecycleStatus)].filter(Boolean).join(' · ')||'Expediente cliente')}</small>`
+      ?`<strong>${e(u.client.name)}</strong><small>${e([u.client.modality,u.client.lifecycleStatus?adminStatusLabel(u.client.lifecycleStatus):null].filter(Boolean).join(' · ')||'Expediente cliente')}</small>`
       :u.coach
         ?`<strong>Coach</strong><small>${e(`${u.coach.activeClientCount||0} clientes activos asignados`)}</small>`
         :'<strong>Sin relación operativa</strong><small>La identidad no está vinculada a un expediente visible.</small>';
