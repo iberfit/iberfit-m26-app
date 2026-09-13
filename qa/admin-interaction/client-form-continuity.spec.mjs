@@ -58,12 +58,6 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
   await expect(access).toBeFocused();
   await expect(access).toHaveValue('Acceso por conserjería; llamar al llegar.');
 
-  await form.locator('[data-client-step="2"] [data-client-wizard-next]').click();
-  await expect(form.locator('[data-client-step="3"]')).toBeVisible();
-  await expect(form.locator('select[name="modality"]')).toHaveValue('Híbrido');
-  await expect(form.locator('input[name="weeklyFrequency"]')).toHaveValue('2');
-  await expect(access).toHaveValue('Acceso por conserjería; llamar al llegar.');
-
   if(test.info().project.name.includes('mobile')||test.info().project.name.includes('tablet')){
     const controls=await Promise.all([
       form.locator('select[name="modality"]').evaluate((el)=>({height:el.getBoundingClientRect().height,fontSize:parseFloat(getComputedStyle(el).fontSize)})),
@@ -74,6 +68,12 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
       expect(metrics.fontSize).toBeGreaterThanOrEqual(16);
     }
   }
+
+  await form.locator('[data-client-step="2"] [data-client-wizard-next]').click();
+  await expect(form.locator('[data-client-step="3"]')).toBeVisible();
+  await expect(form.locator('select[name="modality"]')).toHaveValue('Híbrido');
+  await expect(form.locator('input[name="weeklyFrequency"]')).toHaveValue('2');
+  await expect(access).toHaveValue('Acceso por conserjería; llamar al llegar.');
 
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
