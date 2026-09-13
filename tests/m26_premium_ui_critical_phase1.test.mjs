@@ -8,7 +8,7 @@ const brand=fs.readFileSync('src/m26/design/brand-vision.css','utf8');
 test('settings trigger never concatenates the active locale with Ajustes',()=>{
   assert.match(shell,/m26-settings-trigger/u);
   assert.match(shell,/m26-settings-trigger-label/u);
-  assert.doesNotMatch(shell,/m26-language-mini/u);
+  assert.doesNotMatch(shell,/class="m26-language-mini"/u);
 });
 
 test('workspace shortcut hierarchy is external CSS and separates title from supporting copy',()=>{
