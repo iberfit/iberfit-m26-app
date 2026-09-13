@@ -150,6 +150,19 @@ test('RC59.4 contiene fallos tardíos del motor gráfico sin romper la superfici
     source,
     /catch\{[\s\S]*this\.#renderUnavailable\(\);\s*\}/u
   );
+  assert.match(source,/#lifecycleVersion=0/u);
+  assert.match(
+    source,
+    /const lifecycleVersion=\+\+this\.#lifecycleVersion/u
+  );
+  assert.match(
+    source,
+    /const echarts=await loadEchartsModule\(\);[\s\S]*lifecycleVersion!==this\.#lifecycleVersion/u
+  );
+  assert.match(
+    source,
+    /chart!==this\.#chart/u
+  );
 });
 
 test('RC59.4 Cliente recibe lectura simple de 28 días y no densidad profesional',()=>{
