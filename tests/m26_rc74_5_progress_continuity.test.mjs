@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {buildAdherenceWindows} from '../src/m26/engagement/progress-continuity.js';
+import {computeProgressSummary} from '../src/m26/engagement/progress-engine.js';
 import {buildCoachFollowUpPlan,deriveAdherenceAlerts} from '../src/m26/engagement/adherence-engine.js';
 import {buildClientHomeSnapshot} from '../src/m26/ui/progress-continuity.js';
 
@@ -60,6 +61,22 @@ test('constancia reutiliza el progreso confirmado en ventanas 7 28 y 90 sin conv
   const empty=buildAdherenceWindows({collections:{appointments:[],sessionExecutions:[],iriAssessments:[],checkins:[],wearableDailySummaries:[]}},clientId,{now});
   assert.ok(empty.every((item)=>item.adherence===null));
   assert.ok(empty.every((item)=>item.hasPlan===false));
+});
+
+test('constancia acepta summaries precomputados solo cuando cliente y ventana coinciden',()=>{
+  const source=state();
+  const summary28=computeProgressSummary(source,clientId,{now,days:28});
+  const normal=buildAdherenceWindows(source,clientId,{now,windows:[7,28,90]});
+  const reused=buildAdherenceWindows(source,clientId,{now,windows:[7,28,90],summaries:{28:summary28}});
+  assert.deepEqual(reused,normal);
+
+  const wrongClient={...summary28,clientId:'otro-cliente',plannedSessions:999,completedSessions:999,adherence:1};
+  const rejectedClient=buildAdherenceWindows(source,clientId,{now,windows:[28],summaries:{28:wrongClient}});
+  assert.deepEqual(rejectedClient,[normal.find((item)=>item.days===28)]);
+
+  const wrongDays={...summary28,days:7,plannedSessions:999,completedSessions:999,adherence:1};
+  const rejectedDays=buildAdherenceWindows(source,clientId,{now,windows:[28],summaries:{28:wrongDays}});
+  assert.deepEqual(rejectedDays,[normal.find((item)=>item.days===28)]);
 });
 
 test('inicio cliente resume próxima cita, constancia y bienestar sin inventar datos',()=>{
