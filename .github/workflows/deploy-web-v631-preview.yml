@@ -120,7 +120,7 @@ jobs:
           grep -Fq '.site-header .brand-mark' /tmp/hardening.css
           grep -Fq '.menu-toggle{display:none!important}' /tmp/noscript.css
           curl --fail --silent --show-error "${PREVIEW_URL}/assets/polish.v631.css" -o /tmp/polish-v631.css
-          grep -Fq -- '--v631-canvas:#f3ece2' /tmp/polish-v631.css
+          grep -Fq -- '--v631-canvas:#faf7f1' /tmp/polish-v631.css
           grep -Fq 'html:not(.js-v631) .reveal' /tmp/polish-v631.css
           curl --fail --silent --show-error "${PREVIEW_URL}/" -o /tmp/home-v631.html
           grep -Fq '/assets/polish.v631.css' /tmp/home-v631.html
@@ -240,7 +240,7 @@ jobs:
                   return r.width>0&&r.height>0&&(parseFloat(s.opacity)<.9||s.visibility==='hidden');
                 }).length);
                 const polish=await p.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--v631-canvas').trim());
-                ok(polish==='#f3ece2',route+' V6.31 CSS not applied');
+                ok(polish==='#faf7f1',route+' V6.31 CSS not applied');
                 ok(hidden===0,route+' no-JS reveal hidden');
                 const nav=await p.locator('.navlinks').first().evaluate(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return {display:s.display,visibility:s.visibility,w:r.width,h:r.height}});
                 ok(nav.display!=='none'&&nav.visibility!=='hidden'&&nav.w>0&&nav.h>0,route+' no-JS mobile nav');
@@ -270,23 +270,23 @@ jobs:
             const overflow=await p.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
             ok(overflow<=2,`${width} overflow ${overflow}`);
             const d=await p.evaluate(()=>{
-              const h=document.querySelector('.site-header'), body=document.body, menu=document.querySelector('.menu-toggle'), nav=document.querySelector('.navlinks'), cta=document.querySelector('.nav-cta'), mark=document.querySelector('.brand-mark'), hero=document.querySelector('.hero h1');
-              const hs=getComputedStyle(h),bs=getComputedStyle(body),ms=getComputedStyle(menu),ns=getComputedStyle(nav),cs=getComputedStyle(cta),is=getComputedStyle(mark);
+              const h=document.querySelector('.site-header'), main=document.querySelector('main'), menu=document.querySelector('.menu-toggle'), nav=document.querySelector('.navlinks'), cta=document.querySelector('.nav-cta'), mark=document.querySelector('.brand-mark'), hero=document.querySelector('.hero h1');
+              const hs=getComputedStyle(h),mains=getComputedStyle(main),ms=getComputedStyle(menu),ns=getComputedStyle(nav),cs=getComputedStyle(cta),is=getComputedStyle(mark);
               const hr=h.getBoundingClientRect(),mr=menu.getBoundingClientRect(),nr=nav.getBoundingClientRect(),cr=cta.getBoundingClientRect(),ir=mark.getBoundingClientRect(),tr=hero.getBoundingClientRect();
-              return {headerH:hr.height,headerBg:hs.backgroundColor,bodyBg:bs.backgroundColor,menuDisplay:ms.display,menuW:mr.width,menuH:mr.height,navDisplay:ns.display,navW:nr.width,navH:nr.height,ctaDisplay:cs.display,ctaW:cr.width,ctaH:cr.height,markBg:is.backgroundColor,markW:ir.width,markH:ir.height,h1W:tr.width,h1H:tr.height};
+              return {headerH:hr.height,headerBg:hs.backgroundColor,mainBg:mains.backgroundColor,menuDisplay:ms.display,menuW:mr.width,menuH:mr.height,navDisplay:ns.display,navW:nr.width,navH:nr.height,ctaDisplay:cs.display,ctaW:cr.width,ctaH:cr.height,markBg:is.backgroundColor,markPad:parseFloat(is.paddingTop),markW:ir.width,markH:ir.height,h1W:tr.width,h1H:tr.height};
             });
             ok(d.headerH<=90,`${width} header too high ${d.headerH}`);
             if(width>=861){
-              ok(d.ctaDisplay!=='none'&&d.ctaW>0&&d.ctaH>0,`${width} header CTA hidden`);
+              ok(d.ctaDisplay!=='none'&&d.ctaW>=44&&d.ctaH>=44,`${width} header CTA target`);
             }else{
               const heroCta=p.locator('.hero-actions .btn-primary').first();
               ok(await heroCta.isVisible(),`${width} hero CTA hidden`);
             }
             ok(d.markW>=40&&d.markH>=40,`${width} mark too small`);
             ok(d.h1W>0&&d.h1H>0,`${width} h1 hidden`);
-            const hb=rgb(d.headerBg),bb=rgb(d.bodyBg),mb=rgb(d.markBg);
-            ok(hb&&bb&&dist(hb,bb)>12,`${width} header/body insufficient separation`);
-            ok(mb&&mb[1]>mb[0]&&mb[1]>mb[2],`${width} mark support not green`);
+            const hb=rgb(d.headerBg),mainb=rgb(d.mainBg);
+            ok(hb&&mainb&&dist(hb,mainb)>12,`${width} header/main insufficient separation`);
+            ok((d.markBg==='rgba(0, 0, 0, 0)'||d.markBg==='transparent')&&d.markPad<=.5,`${width} mark artificial tile`);
             if(width>=1390){ ok(d.menuDisplay==='none',`${width} menu should be hidden`); ok(d.navDisplay!=='none'&&d.navW>0,`${width} full nav hidden`); }
             else {
               ok(d.menuDisplay!=='none'&&d.menuW>=44&&d.menuH>=44,`${width} menu target`);
@@ -317,7 +317,7 @@ jobs:
                 ok(!(await p.locator('html').evaluate(el=>el.classList.contains('js-v631'))),route+' js-v631 present without JS');
                 const hidden=await p.locator('.reveal').evaluateAll(els=>els.filter(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return r.width>0&&r.height>0&&(+s.opacity<.9||s.visibility==='hidden')}).length);
                 const polish=await p.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--v631-canvas').trim());
-                ok(polish==='#f3ece2',route+' V6.31 CSS not applied');
+                ok(polish==='#faf7f1',route+' V6.31 CSS not applied');
                 ok(hidden===0,route+' no-JS reveal hidden');
                 const nav=await p.locator('.navlinks').first().evaluate(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return {display:s.display,vis:s.visibility,w:r.width,h:r.height}});
                 ok(nav.display!=='none'&&nav.vis!=='hidden'&&nav.w>0&&nav.h>0,route+' no-JS nav hidden');
