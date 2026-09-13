@@ -109,4 +109,8 @@ export const SESSION_SURFACE_ROWS=Object.freeze([
 ['Estructura de la sesión','Session structure','Structure de la séance','Estrutura da sessão'],
 ['Nombre, patrón o material','Name, pattern, or equipment','Nom, schéma ou matériel','Nome, padrão ou material'],
 ['Biblioteca de ejercicios','Exercise library','Bibliothèque d’exercices','Biblioteca de exercícios'],
+['Tu serie ya está guardada. Descansa o continúa cuando estés preparado.','Your set is saved. Rest or continue when you are ready.','Votre série est enregistrée. Reposez-vous ou continuez lorsque vous êtes prêt.','A sua série está guardada. Descanse ou continue quando estiver preparado.'],
+['Registra repeticiones o tiempo. La carga es opcional; el RPE es obligatorio.','Record reps or time. Load is optional; RPE is required.','Enregistrez les répétitions ou le temps. La charge est facultative ; le RPE est obligatoire.','Registe repetições ou tempo. A carga é opcional; o RPE é obrigatório.'],
+['Acciones de navegación','Navigation actions','Actions de navigation','Ações de navegação'],
+['Historial, datos y ajustes','History, data and adjustments','Historique, données et ajustements','Histórico, dados e ajustes'],
 ]);
