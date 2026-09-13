@@ -1355,3 +1355,157 @@ body {
   .m26-action-outcome-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 /* ACTION_OUTCOME_TRACKING_V1_END */
+
+
+/* NEXT_SESSION_PREPARATION_V1_BEGIN */
+.m26-next-session-prep{
+  display:grid;
+  gap:.9rem;
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,#d8b96f) 28%,transparent)!important;
+  background:linear-gradient(155deg,rgba(216,185,111,.07),rgba(5,24,15,.84))!important;
+}
+.m26-next-session-summary{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.55rem;
+}
+.m26-next-session-summary>article{
+  display:grid;
+  gap:.2rem;
+  min-width:0;
+  padding:.72rem .78rem;
+  border:1px solid rgba(216,185,111,.12);
+  border-radius:.82rem;
+  background:rgba(0,0,0,.13);
+}
+.m26-next-session-summary span,
+.m26-next-session-summary small,
+.m26-next-session-card small{
+  color:var(--m26-muted,#aaa);
+  font-size:.68rem;
+}
+.m26-next-session-summary strong{
+  overflow:hidden;
+  font-size:.94rem;
+  text-overflow:ellipsis;
+}
+.m26-next-session-review{
+  padding:.72rem .82rem;
+  border:1px solid rgba(226,179,82,.22);
+  border-radius:.8rem;
+  background:rgba(226,179,82,.07);
+}
+.m26-next-session-review strong{font-size:.82rem}
+.m26-next-session-review ul{
+  margin:.4rem 0 0;
+  padding-left:1.05rem;
+  color:#c9c1b5;
+  font-size:.73rem;
+  line-height:1.48;
+}
+.m26-next-session-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.65rem;
+}
+.m26-next-session-card{
+  display:grid;
+  gap:.58rem;
+  min-width:0;
+  padding:.78rem;
+  border:1px solid rgba(216,185,111,.11);
+  border-radius:.82rem;
+  background:rgba(255,255,255,.018);
+}
+.m26-next-session-card-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:.7rem;
+}
+.m26-next-session-card-head h3{margin:.08rem 0!important;font-size:.92rem!important}
+.m26-next-session-card p{margin:0;color:#bdb6aa;font-size:.73rem;line-height:1.48}
+.m26-next-session-signal-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.42rem;
+}
+.m26-next-session-signal-grid>span{
+  display:grid;
+  gap:.08rem;
+  padding:.48rem .52rem;
+  border:1px solid rgba(216,185,111,.09);
+  border-radius:.65rem;
+  background:rgba(0,0,0,.1);
+}
+.m26-next-session-signal-grid strong{font-size:.88rem}
+.m26-next-session-load-card{grid-column:1/-1}
+.m26-next-session-loads{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.46rem;
+}
+.m26-next-session-loads article{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  padding:.58rem .62rem;
+  border:1px solid rgba(216,185,111,.09);
+  border-radius:.68rem;
+  background:rgba(0,0,0,.09);
+}
+.m26-next-session-loads article>div{display:grid;gap:.1rem;min-width:0}
+.m26-next-session-loads strong{
+  overflow:hidden;
+  font-size:.76rem;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.m26-next-session-loads span{
+  flex:0 0 auto;
+  color:#d7c59a;
+  font-size:.69rem;
+}
+.m26-next-session-decisions{display:grid;gap:.45rem}
+.m26-next-session-decisions article{
+  display:grid;
+  gap:.28rem;
+  padding:.55rem;
+  border:1px solid rgba(216,185,111,.09);
+  border-radius:.66rem;
+  background:rgba(0,0,0,.08);
+}
+.m26-next-session-decisions article>div{
+  display:flex;
+  justify-content:space-between;
+  gap:.55rem;
+}
+.m26-next-session-decisions p{font-size:.68rem}
+.m26-next-session-empty{
+  margin:0!important;
+  color:var(--m26-muted,#aaa)!important;
+  font-size:.7rem!important;
+}
+.m26-next-session-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.52rem;
+}
+.m26-next-session-actions button{min-height:2.75rem}
+@media(max-width:980px){
+  .m26-next-session-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .m26-next-session-grid,
+  .m26-next-session-loads{grid-template-columns:1fr}
+}
+@media(max-width:520px){
+  .m26-next-session-summary{grid-template-columns:1fr}
+  .m26-next-session-card-head{flex-direction:column}
+  .m26-next-session-signal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .m26-next-session-loads article{align-items:flex-start;flex-direction:column}
+  .m26-next-session-actions{display:grid}
+  .m26-next-session-actions button{width:100%}
+}
+/* NEXT_SESSION_PREPARATION_V1_END */
