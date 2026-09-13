@@ -135,8 +135,232 @@ function coachPriorityCard(item={}) {
   </article>`;
 }
 
+function coachHomeClientCard(client={}) {
+  const name=client.name||'Cliente';
+  const modality=client.modality||'Modalidad por definir';
+  const nextLabel=client.nextAction?.label||'Revisar seguimiento';
+  const nextAppointment=client.nextAppointment?.dateLabel||null;
+
+  return `<article class="m26-coach-home-client">
+    <button
+      type="button"
+      data-m26-select-client="${escapeHtml(client.id||'')}"
+      aria-label="Abrir expediente de ${escapeHtml(name)}"
+    >
+      <span class="m26-coach-home-client-avatar" aria-hidden="true">${escapeHtml(name.slice(0,1).toUpperCase())}</span>
+      <span class="m26-coach-home-client-copy">
+        <strong>${escapeHtml(name)}</strong>
+        <small>${escapeHtml(modality)}${nextAppointment?` · ${escapeHtml(nextAppointment)}`:''}</small>
+        <span>${escapeHtml(nextLabel)}</span>
+      </span>
+      <b aria-hidden="true">→</b>
+    </button>
+  </article>`;
+}
+
+function renderCoachHoyRoute(vm) {
+  const cockpit=vm.coachCockpit||null;
+  const proposalCount=vm.proposals?.length||0;
+  const appointments=Array.isArray(vm.appointments)?vm.appointments:[];
+  const upcoming=Array.isArray(vm.upcoming)?vm.upcoming:[];
+  const clients=Array.isArray(vm.clients)?vm.clients:[];
+  const queueItems=(cockpit?.items||[]).slice(0,4);
+  const riskFocus=cockpit?.riskFocus||null;
+  const processFocus=(cockpit?.items||[]).find((item)=>item?.kind==='process')||null;
+  const todayAppointment=appointments[0]||null;
+  const upcomingAppointment=upcoming[0]||null;
+
+  const appointmentClient=(appointment)=>{
+    const clientId=String(appointment?.clientId||'').trim();
+    return clients.find((item)=>String(item?.id||'').trim()===clientId)||null;
+  };
+
+  let primary={
+    tone:'success',
+    eyebrow:'Todo al día',
+    title:'Tu cartera está al día',
+    copy:clients.length
+      ?'Continúa con la próxima sesión o prepara trabajo futuro.'
+      :'Cuando tengas clientes asignados, su siguiente acción aparecerá aquí.',
+    area:clients.length?'agenda':'clientes',
+    clientId:null,
+    label:clients.length?'Abrir agenda':'Abrir clientes',
+  };
+
+  if(vm.operations?.conflicts){
+    primary={
+      tone:'danger',
+      eyebrow:'Requiere atención',
+      title:'Resolver conflicto operativo',
+      copy:'Hay cambios que necesitan revisión antes de continuar.',
+      area:'verificacion',
+      clientId:null,
+      label:'Revisar operaciones',
+    };
+  }else if(riskFocus){
+    primary={
+      tone:riskFocus.kind==='critical'?'danger':'warning',
+      eyebrow:'Prioridad ahora',
+      title:riskFocus.clientName||'Cliente',
+      copy:riskFocus.reason||riskFocus.signalLabel||'Revisión pendiente',
+      area:'expediente',
+      clientId:riskFocus.clientId||null,
+      label:'Abrir expediente',
+    };
+  }else if(proposalCount){
+    primary={
+      tone:'pending',
+      eyebrow:'Decisión pendiente',
+      title:countLabel(proposalCount,'Propuesta por revisar','Propuestas por revisar'),
+      copy:'Confirma o ajusta la agenda antes de continuar.',
+      area:'agenda',
+      clientId:null,
+      label:'Revisar propuestas',
+    };
+  }else if(todayAppointment){
+    const client=appointmentClient(todayAppointment);
+    primary={
+      tone:'success',
+      eyebrow:'Próxima sesión',
+      title:client?.name||todayAppointment.title||'Sesión de hoy',
+      copy:[todayAppointment.dateLabel,todayAppointment.modality].filter(Boolean).join(' · '),
+      area:'agenda',
+      clientId:client?.id||todayAppointment.clientId||null,
+      label:client?.id||todayAppointment.clientId?'Preparar sesión':'Abrir agenda',
+    };
+  }else if(processFocus){
+    primary={
+      tone:'pending',
+      eyebrow:'Siguiente decisión',
+      title:processFocus.clientName||'Seguimiento',
+      copy:processFocus.reason||processFocus.stageLabel||'Hay un paso del recorrido por completar.',
+      area:processFocus.nextAction?.area||'clientes',
+      clientId:processFocus.clientId||null,
+      label:processFocus.actionCtaLabel||processFocus.nextAction?.label||'Abrir expediente',
+    };
+  }else if(upcomingAppointment){
+    const client=appointmentClient(upcomingAppointment);
+    primary={
+      tone:'neutral',
+      eyebrow:'Próxima cita',
+      title:client?.name||upcomingAppointment.title||'Próxima sesión',
+      copy:[upcomingAppointment.dateLabel,upcomingAppointment.modality].filter(Boolean).join(' · '),
+      area:'agenda',
+      clientId:client?.id||upcomingAppointment.clientId||null,
+      label:client?.id||upcomingAppointment.clientId?'Preparar sesión':'Abrir agenda',
+    };
+  }
+
+  const primaryAction=primary.clientId
+    ?`<button type="button" class="m26-primary-action" data-m26-select-client="${escapeHtml(primary.clientId)}">${escapeHtml(primary.label)}</button>`
+    :`<button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(primary.area)}">${escapeHtml(primary.label)}</button>`;
+
+  const attentionCount=Number(cockpit?.attentionCount||0);
+  const attentionStatus=attentionCount
+    ?countLabel(attentionCount,'requiere atención','requieren atención')
+    :'Cartera al día';
+
+  const agendaBody=appointments.length
+    ?appointments.slice(0,4).map((item)=>appointmentCard(item,{canStartSession:true})).join('')
+    :`<div class="m26-coach-home-clear">
+        <span aria-hidden="true">✓</span>
+        <div><strong>Agenda libre hoy</strong><small>Sin sesiones confirmadas.</small></div>
+      </div>`;
+
+  const attentionBody=cockpit?.totalClients===0
+    ?`<div class="m26-coach-home-clear">
+        <span aria-hidden="true">+</span>
+        <div><strong>Empieza por tu cartera</strong><small>Añade o recibe tu primer cliente.</small></div>
+      </div>`
+    :queueItems.length
+      ?`<div class="m26-stack">${queueItems.map(coachPriorityCard).join('')}</div>`
+      :`<div class="m26-coach-home-clear">
+          <span aria-hidden="true">✓</span>
+          <div><strong>Cartera al día</strong><small>Sin revisiones prioritarias.</small></div>
+        </div>`;
+
+  const clientsBody=clients.length
+    ?clients.slice(0,6).map(coachHomeClientCard).join('')
+    :`<div class="m26-coach-home-clear">
+        <span aria-hidden="true">+</span>
+        <div><strong>Sin clientes asignados</strong><small>Tu cartera aparecerá aquí.</small></div>
+      </div>`;
+
+  return `<div class="m26-route m26-hoy-route m26-coach-home-v1">
+    ${operationBanner(vm.operations||{})}
+    <section class="m26-coach-home-command" aria-labelledby="m26-coach-priority-title">
+      <div class="m26-coach-home-command-copy">
+        <p class="m26-eyebrow">${escapeHtml(primary.eyebrow)}</p>
+        <h2 id="m26-coach-priority-title">${escapeHtml(primary.title)}</h2>
+        <p>${escapeHtml(primary.copy)}</p>
+        <div class="m26-coach-home-command-actions">
+          ${primaryAction}
+          ${badge(primary.tone==='success'?'Listo':primary.eyebrow,primary.tone)}
+        </div>
+      </div>
+      <div class="m26-coach-home-glance" aria-label="Resumen de hoy">
+        <span><strong>${escapeHtml(cockpit?.totalClients||clients.length)}</strong> clientes en cartera</span>
+        <span><strong>${escapeHtml(appointments.length)}</strong> sesiones hoy</span>
+        <span><strong>${escapeHtml(attentionStatus)}</strong></span>
+      </div>
+    </section>
+
+    <nav class="m26-coach-home-quick" aria-label="Acciones rápidas">
+      <button type="button" data-m26-area="clientes"><span aria-hidden="true">＋</span><strong>Cliente</strong></button>
+      <button type="button" data-m26-area="planificacion"><span aria-hidden="true">◇</span><strong>Programar entrenamiento</strong></button>
+      <button type="button" data-m26-area="agenda"><span aria-hidden="true">□</span><strong>Agenda</strong></button>
+    </nav>
+
+    <div class="m26-coach-home-grid">
+      <section class="m26-panel m26-coach-home-section m26-coach-home-agenda">
+        <div class="m26-panel-heading">
+          <div>
+            <p class="m26-eyebrow">Hoy</p>
+            <h2>Agenda</h2>
+          </div>
+          ${appointments.length?badge(countLabel(appointments.length,'sesión','sesiones'),'success'):''}
+        </div>
+        <div class="m26-stack">${agendaBody}</div>
+        <button type="button" class="m26-text-action" data-m26-area="agenda">Abrir agenda completa</button>
+      </section>
+
+      <section class="m26-panel m26-panel-soft m26-coach-home-section m26-coach-home-attention">
+        <div class="m26-panel-heading">
+          <div>
+            <p class="m26-eyebrow">Atención de cartera</p>
+            <h2>Atención</h2>
+          </div>
+          ${badge(attentionStatus,attentionCount?'warning':'success')}
+        </div>
+        ${attentionBody}
+        ${(cockpit?.items?.length||0)>4?'<button type="button" class="m26-text-action" data-m26-area="clientes">Ver todas las prioridades</button>':''}
+      </section>
+    </div>
+
+    ${proposalCount?`<section class="m26-coach-home-proposals">
+      <div>
+        <p class="m26-eyebrow">Pendiente</p>
+        <strong>${escapeHtml(countLabel(proposalCount,'propuesta necesita decisión','propuestas necesitan decisión'))}</strong>
+      </div>
+      <button type="button" class="m26-text-action" data-m26-area="agenda">Revisar</button>
+    </section>`:''}
+
+    <section class="m26-panel m26-coach-home-section m26-coach-home-clients">
+      <div class="m26-panel-heading">
+        <div>
+          <p class="m26-eyebrow">Cartera</p>
+          <h2>Clientes</h2>
+        </div>
+        <button type="button" class="m26-text-action" data-m26-area="clientes">Ver todos</button>
+      </div>
+      <div class="m26-coach-home-client-grid">${clientsBody}</div>
+    </section>
+  </div>`;
+}
+
 export function renderHoyRoute(vm) {
   const isClient = vm.role === 'client';
+  if(vm.role==='coach')return renderCoachHoyRoute(vm);
   const client = vm.clients[0] || null;
   const proposalCount = vm.proposals?.length || 0;
   const cockpit =
