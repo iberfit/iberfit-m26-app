@@ -30,6 +30,16 @@ test('Brand Vision remains authoritative after hydration for every auth mode',()
   assert.match(access,/\.m26-auth-copy>p:last-child\{color:#5f6e65\}/u);
 });
 
+test('Brand Vision keeps login controls legible over later premium input layers',()=>{
+  const css=fs.readFileSync('src/m26/design/brand-vision.css','utf8');
+  const access=css.slice(css.indexOf('/* ACCESS VISION · premium entry */'),css.indexOf('/* FIRST SCREEN V1 · decision first */'));
+  assert.ok(access.includes('border-color:rgba(21,57,40,.14)!important'));
+  assert.ok(access.includes('color:#17271f!important'));
+  assert.ok(access.includes('background:#fffefa!important'));
+  assert.ok(access.includes('box-shadow:0 0 0 4px rgba(198,157,80,.16)!important'));
+  assert.ok(access.includes('.m26-auth-card .m26-password-toggle{color:#295b43;background:rgba(29,96,67,.07)}'));
+});
+
 test('recordatorio normaliza únicamente un correo y nunca define una clave de contraseña',()=>{
   assert.equal(REMEMBERED_EMAIL_STORAGE_KEY,'iberfit.m26.remembered-email.v1');
   assert.equal(normalizeRememberedEmail('  persona@iberfit.cl  '),'persona@iberfit.cl');
