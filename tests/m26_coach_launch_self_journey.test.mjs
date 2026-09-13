@@ -141,7 +141,7 @@ test('Coach shell carries launch evidence and injects it into canonical Today wi
   const markup=enhanceRc39ShellMarkup(canonical,shellVm);
   assert.match(markup,/data-coach-launch-self=/u);
   assert.match(markup,/Tu recorrido como Coach/u);
-  assert.match(markup,/Prioridades de hoy/u);
-  assert.match(markup,/Control operativo/u);
+  assert.match(markup,/m26-coach-home-v1/u);
+  assert.match(markup,/Acciones rápidas/u);
   assert.match(markup,/Pendiente de verificación administrativa/u);
 });
