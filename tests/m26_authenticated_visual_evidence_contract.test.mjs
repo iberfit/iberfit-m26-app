@@ -20,7 +20,7 @@ test('authenticated visual evidence captures only authorized read-only QA states
   assert.match(spec,/Visual evidence must capture the final interactive workspace/u);
   assert.match(spec,/page\.locator\('\.m26-route'\)\.first\(\)/u);
   assert.match(spec,/data-m26-area="progreso"/u);
-  assert.match(spec,/Progreso y adherencia/u);
+  assert.match(spec,/data-m27-cliente-360/u);
   assert.match(spec,/authenticated-progress/u);
   assert.match(spec,/suffix:'progress'/u);
   assert.match(spec,/data-m26-exercise-analytics="v2"/u);
