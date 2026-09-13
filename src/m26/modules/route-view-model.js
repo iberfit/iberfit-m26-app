@@ -398,8 +398,8 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
   // RC70_1_1_FOLLOWUP_HELPER_BEGIN
 function buildClientFollowUpSummary(summary,state,now){
   const client=compactSummary(summary);
-  const alerts=deriveAdherenceAlerts(state,client.id,{now});
-  const progress=computeProgressSummary(state,client.id,{now});
+  const progress=computeProgressSummary(state,client.id,{now,days:28});
+  const alerts=deriveAdherenceAlerts(state,client.id,{now,summary:progress});
   const signal=adherenceSignal(alerts);
   const topAlert=alerts[0]||null;
   return Object.freeze({

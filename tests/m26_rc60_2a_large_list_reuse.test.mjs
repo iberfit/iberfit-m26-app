@@ -13,6 +13,7 @@ import {
   COACH_LARGE_LIST_MIN_ITEMS,
   COACH_LARGE_LIST_FRAME_BUDGET_MS,
   classifyCoachListMeasurement,
+  decideCoachVirtualization,
 } from '../src/m26/productivity/large-list-policy.js';
 
 const read=(path)=>fs.readFileSync(path,'utf8').replace(/\r\n/g,'\n');
@@ -122,10 +123,35 @@ test('RC60.2A instrumenta la lista de clientes antes de introducir virtualizaci�
   const policy=read('src/m26/productivity/large-list-policy.js');
   const pkg=read('package.json');
   assert.match(workflow,/classifyCoachListMeasurement/u);
+  assert.match(workflow,/decideCoachVirtualization/u);
   assert.match(workflow,/markCoachListMeasurement/u);
   assert.match(workflow,/data-client-grid/u);
+  assert.match(workflow,/data-list-virtualization-decision/u);
+  assert.match(workflow,/data-list-automatic-adoption/u);
   assert.match(policy,/data-list-virtualization-recommended/u);
   assert.doesNotMatch(pkg,/tanstack\/virtual/iu);
+});
+
+test('RC60.2A solo declara candidata a virtualización tras tres muestras runtime lentas consecutivas',()=>{
+  const slow=()=>classifyCoachListMeasurement({count:240,visibleCount:240,elapsedMs:31,source:'runtime'});
+  assert.equal(decideCoachVirtualization([slow(),slow()]).decision,'defer');
+  const candidate=decideCoachVirtualization([slow(),slow(),slow()]);
+  assert.equal(candidate.decision,'candidate');
+  assert.equal(candidate.runtimeSamples,3);
+  assert.equal(candidate.automaticAdoption,false);
+  const mixed=decideCoachVirtualization([slow(),classifyCoachListMeasurement({count:240,elapsedMs:9,source:'runtime'}),slow()]);
+  assert.equal(mixed.decision,'defer');
+});
+
+test('RC60.2A optimiza el render de cartera sin truncar clientes ni activar virtualización automática',()=>{
+  const workflow=read('src/m26/app/workflow-controller.js');
+  assert.match(workflow,/requestAnimationFrame/u);
+  assert.match(workflow,/cancelAnimationFrame/u);
+  assert.match(workflow,/createDocumentFragment/u);
+  assert.match(workflow,/initializedClientGrids/u);
+  assert.match(workflow,/clientListMeasurements\.length>3/u);
+  assert.match(workflow,/cards\[index\]\.hidden!==hidden/u);
+  assert.doesNotMatch(workflow,/cards\.slice\(0,\s*120\)|ranked\.slice\(0,\s*120\)/u);
 });
 
 test('RC60.2A Sesiones ofrece reutilizar original sin mutarla',()=>{
