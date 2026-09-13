@@ -31,20 +31,23 @@ test('only invalid identity/session failures force a fresh login',()=>{
   assert.equal(sessionFailureRequiresFreshLogin(new Error('Failed to fetch')),false);
 });
 
-test('retryable failures keep a password-free resume action while preserving normal login',()=>{
+test('retryable failures expose a password-free recovery state without leaking the login form',()=>{
   const html=renderAccessUi({
+    mode:'recoverable-session',
     backendReady:true,
     qaOnly:false,
     host:'app.iberfit.cl',
     sessionRetryAvailable:true,
-    message:'No fue posible conectar.',
-    noticeKind:'error',
+    sessionIdentity:{email:'client@iberfit.cl'},
   });
-  assert.match(html,/Tu sesión sigue guardada/u);
+  assert.match(html,/data-auth-mode="recoverable-session"/u);
+  assert.match(html,/data-auth-state="recoverable-session"/u);
+  assert.match(html,/Continuar en IBERFIT/u);
   assert.match(html,/data-auth-action="retry-session"/u);
-  assert.match(html,/Reintentar acceso/u);
-  assert.match(html,/data-auth-form="login"/u);
-  assert.match(html,/autocomplete="current-password"/u);
+  assert.match(html,/data-auth-action="use-another-account"/u);
+  assert.match(html,/cl\*{4}@iberfit\.cl/u);
+  assert.doesNotMatch(html,/data-auth-form="login"/u);
+  assert.doesNotMatch(html,/autocomplete="current-password"/u);
 });
 
 test('login feedback distinguishes credentials from transient access failures',()=>{
