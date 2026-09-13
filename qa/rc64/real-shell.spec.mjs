@@ -55,9 +55,22 @@ test('preauth-disabled-runtime actual launch candidate has no console network or
   expect(quality?.transport).toBe('none');
   expect(quality?.identityIncluded).toBe(false);
   expect(quality?.healthDataIncluded).toBe(false);
+  expect(quality?.runtimeErrorDetailsIncluded).toBe(false);
+  expect(quality?.urlIncluded).toBe(false);
+  expect(quality?.stackIncluded).toBe(false);
+  expect(quality?.measurement).toBe('field-local-session');
+  expect(quality?.aggregation).toBe('none');
   expect(quality?.fieldP75Claimed).toBe(false);
   expect(quality?.inpClaimed).toBe(false);
   expect(quality?.metrics?.interactionLatencyLabel).toBe('candidate-not-inp');
+  expect(quality?.metrics?.runtimeErrorCount).toBe(0);
+  expect(quality?.metrics?.resourceErrorCount).toBe(0);
+  expect(quality?.metrics?.unhandledRejectionCount).toBe(0);
+  expect(quality?.metrics?.securityPolicyViolationCount).toBe(0);
+  expect(quality?.metrics).toHaveProperty('fcpMs');
+  expect(quality?.metrics).toHaveProperty('lcpMs');
+  expect(quality?.metrics).toHaveProperty('cls');
+  expect(quality?.metrics).toHaveProperty('longFrameCount');
 
   expect(observed.externalRequests).toEqual([]);
   expect(observed.errors).toEqual([]);

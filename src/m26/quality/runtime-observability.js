@@ -1,11 +1,12 @@
+import {finiteOptionalNumber} from '../domain/optional-number.js';
+
 export const QUALITY_RUNTIME_OBSERVABILITY_SCHEMA_VERSION='iberfit.quality-runtime-observability.v1';
 
 const DEFAULT_LIMIT=32;
 const DIAGNOSTIC_CODE=/^M26_[A-Z0-9_:-]{2,120}$/u;
 
 function finite(value){
-  const number=Number(value);
-  return Number.isFinite(number)?number:null;
+  return finiteOptionalNumber(value);
 }
 
 function rounded(value,digits=2){
@@ -49,13 +50,62 @@ export function createQualityRuntimeObservability({
   const diagnostics=[];
   const observers=[];
   let started=false;
+  let fcpMs=null;
   let lcpMs=null;
   let cls=0;
   let interactionLatencyMaxMs=null;
+  let longFrameCount=0;
+  let longFrameMaxMs=null;
+  let longFrameEntryType=null;
+  let runtimeErrorCount=0;
+  let resourceErrorCount=0;
+  let unhandledRejectionCount=0;
+  let securityPolicyViolationCount=0;
+
+  function pushDiagnostic(detail){
+    diagnostics.push(safeDiagnostic(detail));
+    if(diagnostics.length>cap)diagnostics.splice(0,diagnostics.length-cap);
+  }
 
   function boundedDiagnostic(event){
-    diagnostics.push(safeDiagnostic(event?.detail));
-    if(diagnostics.length>cap)diagnostics.splice(0,diagnostics.length-cap);
+    pushDiagnostic(event?.detail);
+  }
+
+  function captureRuntimeError(event){
+    const resourceFailure=Boolean(
+      event?.target
+      &&event.target!==scope
+      &&event?.error==null
+    );
+    if(resourceFailure){
+      resourceErrorCount+=1;
+      pushDiagnostic({
+        stage:'runtime',
+        code:'M26_RUNTIME_RESOURCE_ERROR',
+      });
+      return;
+    }
+    runtimeErrorCount+=1;
+    pushDiagnostic({
+      stage:'runtime',
+      code:'M26_RUNTIME_ERROR',
+    });
+  }
+
+  function captureUnhandledRejection(){
+    unhandledRejectionCount+=1;
+    pushDiagnostic({
+      stage:'runtime',
+      code:'M26_UNHANDLED_REJECTION',
+    });
+  }
+
+  function captureSecurityPolicyViolation(){
+    securityPolicyViolationCount+=1;
+    pushDiagnostic({
+      stage:'security',
+      code:'M26_SECURITY_POLICY_VIOLATION',
+    });
   }
 
   function observe(type,callback,options={}){
@@ -70,10 +120,37 @@ export function createQualityRuntimeObservability({
     }
   }
 
+  function recordLongFrames(entries,type){
+    for(const entry of entries){
+      const value=finite(entry?.duration);
+      if(value===null||value<0)continue;
+      longFrameCount+=1;
+      longFrameEntryType=type;
+      const duration=rounded(value,2);
+      longFrameMaxMs=longFrameMaxMs===null
+        ?duration
+        :Math.max(longFrameMaxMs,duration);
+    }
+  }
+
   function start(){
     if(started)return api;
     started=true;
     scope?.addEventListener?.('m26:diagnostic',boundedDiagnostic);
+    scope?.addEventListener?.('error',captureRuntimeError,true);
+    scope?.addEventListener?.('unhandledrejection',captureUnhandledRejection);
+    scope?.addEventListener?.(
+      'securitypolicyviolation',
+      captureSecurityPolicyViolation
+    );
+
+    observe('paint',(entries)=>{
+      for(const entry of entries){
+        if(entry?.name!=='first-contentful-paint')continue;
+        const value=finite(entry?.startTime);
+        if(value!==null)fcpMs=rounded(value,2);
+      }
+    });
 
     observe('largest-contentful-paint',(entries)=>{
       for(const entry of entries){
@@ -92,7 +169,8 @@ export function createQualityRuntimeObservability({
 
     observe('event',(entries)=>{
       for(const entry of entries){
-        if(!(Number(entry?.interactionId)>0))continue;
+        const interactionId=finite(entry?.interactionId);
+        if(interactionId===null||interactionId<=0)continue;
         const value=finite(entry?.duration);
         if(value===null||value<0)continue;
         interactionLatencyMaxMs=interactionLatencyMaxMs===null
@@ -100,6 +178,17 @@ export function createQualityRuntimeObservability({
           :Math.max(interactionLatencyMaxMs,rounded(value,2));
       }
     },{durationThreshold:40});
+
+    const loafObserved=observe(
+      'long-animation-frame',
+      (entries)=>recordLongFrames(entries,'long-animation-frame')
+    );
+    if(!loafObserved){
+      observe(
+        'longtask',
+        (entries)=>recordLongFrames(entries,'longtask')
+      );
+    }
 
     return api;
   }
@@ -109,15 +198,28 @@ export function createQualityRuntimeObservability({
       schemaVersion:QUALITY_RUNTIME_OBSERVABILITY_SCHEMA_VERSION,
       storage:'memory-only',
       transport:'none',
+      measurement:'field-local-session',
+      aggregation:'none',
       identityIncluded:false,
       healthDataIncluded:false,
+      runtimeErrorDetailsIncluded:false,
+      urlIncluded:false,
+      stackIncluded:false,
       fieldP75Claimed:false,
       inpClaimed:false,
       metrics:{
+        fcpMs,
         lcpMs,
         cls,
         interactionLatencyMaxMs,
         interactionLatencyLabel:'candidate-not-inp',
+        longFrameCount,
+        longFrameMaxMs,
+        longFrameEntryType,
+        runtimeErrorCount,
+        resourceErrorCount,
+        unhandledRejectionCount,
+        securityPolicyViolationCount,
       },
       diagnostics:[...diagnostics],
     });
@@ -126,6 +228,15 @@ export function createQualityRuntimeObservability({
   function destroy(){
     if(started){
       scope?.removeEventListener?.('m26:diagnostic',boundedDiagnostic);
+      scope?.removeEventListener?.('error',captureRuntimeError,true);
+      scope?.removeEventListener?.(
+        'unhandledrejection',
+        captureUnhandledRejection
+      );
+      scope?.removeEventListener?.(
+        'securitypolicyviolation',
+        captureSecurityPolicyViolation
+      );
       started=false;
     }
     for(const observer of observers.splice(0)){
