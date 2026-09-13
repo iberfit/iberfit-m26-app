@@ -29,7 +29,7 @@ test('Client Home starts with one dominant daily action and no generic KPI grid'
   const html=renderHoyRoute(vm());
   assert.match(html,/m26-client-home-v1/u);
   assert.match(html,/Hola, Cynthia/u);
-  assert.match(html,/class="m26-today-action is-primary m26-client-home-primary" data-m26-area="actividad"/u);
+  assert.match(html,/class="m26-today-action is-primary" data-m26-area="actividad"/u);
   assert.match(html,/Registrar cómo estoy/u);
   assert.match(html,/Sin sesión confirmada hoy/u);
   assert.doesNotMatch(html,/m26-stat-grid/u);
@@ -55,7 +55,7 @@ test('Client Home promotes an executable confirmed session without ambiguity',()
   }));
   assert.match(
     html,
-    /class="m26-today-action is-primary m26-client-home-primary" data-workflow-action="start-published-session" data-entity-id="s1"/u,
+    /class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="s1"/u,
   );
   assert.match(html,/Entrenar ahora/u);
   assert.match(html,/Fuerza y potencia/u);
@@ -73,7 +73,7 @@ test('Client Home opens sessions when training exists but no linked runnable app
   }));
   assert.match(
     html,
-    /class="m26-today-action is-primary m26-client-home-primary" data-m26-area="sesion"/u,
+    /class="m26-today-action is-primary" data-m26-area="sesion"/u,
   );
   assert.match(html,/Abrir mis sesiones/u);
   assert.match(html,/Tienes 1 sesión disponible/u);
@@ -88,15 +88,16 @@ test('Client Home exposes only useful daily context instead of sad-zero KPI card
   assert.match(html,/Fuerza Base/u);
   assert.match(html,/Diagnóstico IRI/u);
   assert.match(html,/Baseline confirmado/u);
-  assert.match(html,/Bienestar/u);
-  assert.match(html,/Progreso/u);
-  assert.match(html,/Entrenamientos/u);
+  assert.match(html,/Registrar bienestar/u);
+  assert.match(html,/Ver planificación/u);
+  assert.match(html,/Abrir sesiones/u);
+  assert.match(html,/Consultar informes/u);
   assert.doesNotMatch(html,/Sesiones confirmadas hoy/u);
 });
 
 test('Client Home has explicit mobile-first responsive hierarchy',()=>{
   assert.match(css,/CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE/u);
-  assert.match(css,/\.m26-client-home-primary\{[\s\S]*?min-height:6\.8rem/u);
+  assert.match(css,/\.m26-client-home-primary-zone \.m26-today-action\.is-primary\{[\s\S]*?min-height:6\.8rem/u);
   assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-glance\{[\s\S]*?grid-template-columns:1fr/u);
   assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-actions\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/u);
 });
