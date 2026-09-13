@@ -125,6 +125,7 @@ function minimalAuthFailureMessage(error){
 function surfaceDeferredFullAppFailure(error){
   bootstrapPhase='auth-ready';
   setMinimalAuthBusy(false);
+  enableMinimalAuthShell({reveal:true});
   setMinimalAuthNotice(
     'El acceso sigue disponible. La aplicación completa no terminó de cargar; al entrar IBERFIT reintentará el arranque sin borrar tu sesión ni tus datos.',
     'warning',
@@ -141,16 +142,27 @@ function surfaceDeferredFullAppFailure(error){
   }
   try{console.warn('[IBERFIT:bootstrap] '+safeBootstrapIncident(error));}catch{}
 }
-function enableMinimalAuthShell(){
+function enableMinimalAuthShell({reveal=false}={}){
   const form=minimalAuthForm();
   if(!form)return false;
+  bootstrapPhase='auth-ready';
+  if(!reveal)return true;
+  form.hidden=false;
+  form.removeAttribute?.('hidden');
+  form.removeAttribute?.('aria-hidden');
+  const card=minimalAuthCard();
+  card?.setAttribute?.('data-auth-mode','login');
+  card?.setAttribute?.('data-auth-state','ready');
+  card?.setAttribute?.('aria-busy','false');
+  const title=card?.querySelector?.('#m26-auth-title');
+  if(title)title.textContent='Tu espacio IBERFIT';
+  const copy=card?.querySelector?.('.m26-auth-copy>p:last-child');
+  if(copy)copy.textContent='Entra para continuar con tu planificación, tus sesiones y tu evolución.';
   const submit=form.querySelector?.('button[type="submit"]');
   if(submit){
     submit.disabled=false;
     submit.setAttribute?.('aria-disabled','false');
   }
-  bootstrapPhase='auth-ready';
-  setMinimalAuthNotice('Acceso seguro listo.');
   return true;
 }
 function removeMinimalAuthBootstrap({force=false}={}){
@@ -268,11 +280,11 @@ async function onMinimalAuthClick(event){
   }
 }
 function installMinimalAuthBootstrap(){
-  if(minimalAuthInstalled)return enableMinimalAuthShell();
+  if(minimalAuthInstalled)return enableMinimalAuthShell({reveal:false});
   minimalAuthInstalled=true;
   root.addEventListener('submit',onMinimalAuthSubmit,true);
   root.addEventListener('click',onMinimalAuthClick,true);
-  return enableMinimalAuthShell();
+  return enableMinimalAuthShell({reveal:false});
 }
 
 function controllerReloadOnce(){
