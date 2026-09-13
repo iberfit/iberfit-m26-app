@@ -212,9 +212,10 @@ export function createCoachProductivityController({root,store,ownerId,storage=gl
     const host=root.querySelector?.('[data-coach-command-insights]');
     if(!host)return [];
     const rows=taskInsightRows();
-    host.textContent=rows.length
-      ?`Mediana en este dispositivo · ${rows.map((item)=>`${item.label}: ${Math.max(0.1,Math.round(item.medianMs/100)/10)} s`).join(' · ')}`
+    const markup=rows.length
+      ?`<span>Mediana en este dispositivo</span>${rows.map((item)=>`<span><b>${escapeHtml(item.label)}</b>: ${Math.max(0.1,Math.round(item.medianMs/100)/10)} s</span>`).join('')}`
       :'El tiempo de estos atajos se medirá solo en este dispositivo, sin guardar nombres ni datos de salud.';
+    setHtmlIfChanged(host,markup);
     return rows;
   }
   function recordTaskSample(taskKey,elapsedMs){
