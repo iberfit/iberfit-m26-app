@@ -950,3 +950,198 @@
   .m26-shell .m26-workspace .m26-hoy-route .m26-today-action.is-primary{grid-column:auto}
   .m26-shell .m26-workspace .m26-hoy-route .m26-today-action{min-height:0}
 }
+
+/* IBERFIT PREMIUM UI CRITICAL PHASE 1
+ * Production-safe external styles. These rules intentionally do not rely on
+ * the inline workspace style block because the production CSP only permits
+ * explicitly hashed inline styles.
+ */
+.m26-shell .m26-settings-menu{
+  position:relative;
+}
+.m26-shell .m26-settings-menu > summary{
+  list-style:none;
+}
+.m26-shell .m26-settings-menu > summary::marker{
+  content:'';
+}
+.m26-shell .m26-settings-trigger{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:.5rem;
+  white-space:nowrap;
+}
+.m26-shell .m26-settings-trigger-icon{
+  display:inline-grid;
+  place-items:center;
+  width:1.1rem;
+  height:1.1rem;
+  flex:0 0 auto;
+  line-height:1;
+}
+.m26-shell .m26-settings-trigger-label{
+  display:block;
+  line-height:1.2;
+}
+.m26-shell .m26-settings-popover{
+  position:absolute;
+  right:0;
+  top:calc(100% + .65rem);
+  z-index:80;
+  width:min(31rem,calc(100vw - 2rem));
+  max-height:min(78vh,44rem);
+  overflow:auto;
+  padding:1.1rem;
+  border:1px solid rgba(214,182,109,.24);
+  border-radius:1.1rem;
+  color:#f8f2e6;
+  background:#0c2419;
+  box-shadow:0 24px 70px rgba(0,0,0,.42);
+}
+.m26-shell .m26-settings-popover header h2{
+  margin:.2rem 0 .3rem;
+  color:#fffaf0;
+}
+.m26-shell .m26-settings-popover header p:last-child{
+  margin:.25rem 0 0;
+  color:rgba(248,242,230,.72);
+}
+.m26-shell .m26-settings-block{
+  display:grid;
+  gap:.75rem;
+  padding:1rem 0;
+  border-top:1px solid rgba(214,182,109,.14);
+}
+.m26-shell .m26-settings-block:first-of-type{
+  margin-top:.85rem;
+}
+.m26-shell .m26-settings-block p,
+.m26-shell .m26-settings-block small,
+.m26-shell .m26-settings-hint{
+  color:rgba(248,242,230,.68);
+}
+.m26-shell .m26-language-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.55rem;
+}
+.m26-shell .m26-language-option{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:.65rem;
+  min-height:4.25rem;
+  padding:.7rem;
+  border:1px solid rgba(214,182,109,.16);
+  border-radius:.85rem;
+  color:#f8f2e6;
+  background:rgba(255,255,255,.025);
+  cursor:pointer;
+}
+.m26-shell .m26-language-option input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+.m26-shell .m26-language-option > span:last-child{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.5rem;
+  min-width:0;
+  flex:1;
+}
+.m26-shell .m26-language-option.is-active{
+  border-color:rgba(214,182,109,.58);
+  background:rgba(214,182,109,.1);
+}
+
+.m26-shell .m26-workspace-home{
+  display:grid;
+  gap:.85rem;
+  margin:0 0 1.15rem;
+}
+.m26-shell .m26-workspace-actions{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.7rem;
+}
+.m26-shell .m26-workspace-action{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:start;
+  gap:.75rem;
+  min-width:0;
+  text-align:left;
+}
+.m26-shell .m26-workspace-action > span:nth-child(2){
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:.35rem;
+}
+.m26-shell .m26-workspace-action > span:nth-child(2) > strong,
+.m26-shell .m26-workspace-action > span:nth-child(2) > small{
+  display:block;
+  width:100%;
+  margin:0;
+}
+.m26-shell .m26-workspace-action > span:nth-child(2) > strong{
+  line-height:1.2;
+  text-wrap:balance;
+}
+.m26-shell .m26-workspace-action > span:nth-child(2) > small{
+  line-height:1.45;
+  text-wrap:pretty;
+}
+.m26-shell .m26-workspace-action > b{
+  align-self:start;
+  line-height:1.2;
+}
+
+/* Command Center dark bands must never inherit the canonical light-surface ink. */
+.m26-shell .m26-workspace .m30-admin-command-route > .m26-admin-hero,
+.m26-shell .m26-workspace .m30-admin-decision-center{
+  color:#f8f2e6 !important;
+}
+.m26-shell .m26-workspace .m30-admin-command-route > .m26-admin-hero :is(h1,h2,h3,strong),
+.m26-shell .m26-workspace .m30-admin-decision-center :is(h1,h2,h3,strong){
+  color:#fffaf0 !important;
+}
+.m26-shell .m26-workspace .m30-admin-command-route > .m26-admin-hero :is(p,small),
+.m26-shell .m26-workspace .m30-admin-decision-center :is(p,small){
+  color:rgba(248,242,230,.74) !important;
+}
+.m26-shell .m26-workspace .m30-admin-command-route > .m26-admin-hero .m26-eyebrow,
+.m26-shell .m26-workspace .m30-admin-decision-center .m26-eyebrow{
+  color:#dfc27e !important;
+}
+.m26-shell .m26-workspace .m30-admin-decision-center .m26-admin-badge{
+  color:#f4e4b9;
+  border-color:rgba(223,194,126,.28);
+  background:rgba(223,194,126,.08);
+}
+
+@media(max-width:1180px){
+  .m26-shell .m26-workspace-actions{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:720px){
+  .m26-shell .m26-workspace-actions{
+    grid-template-columns:1fr;
+  }
+  .m26-shell .m26-settings-popover{
+    position:fixed;
+    left:1rem;
+    right:1rem;
+    top:4.5rem;
+    width:auto;
+  }
+  .m26-shell .m26-language-grid{
+    grid-template-columns:1fr;
+  }
+}
+
