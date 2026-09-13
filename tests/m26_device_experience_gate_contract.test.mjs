@@ -60,19 +60,19 @@ test('Installed PWA continuity keeps desktop tablet and mobile device classes',(
 });
 
 test('Phase A gate is explicit about real and synthetic coverage',()=>{
-  assert.match(workflow,/task-differentiation-matrix/u);
+  assert.match(workflow,/workflow-matrix/u);
   assert.match(workflow,/playwright\.device-experience\.config\.mjs/u);
   assert.match(workflow,/client-real-coach-webauthn-matrix/u);
   assert.match(workflow,/admin-synthetic-task-matrix/u);
   assert.match(workflow,/pwa-installed-device-matrix/u);
   assert.match(workflow,/device-experience-gate-phase-a/u);
-  assert.match(workflow,/DEVICE_TASK_DIFFERENTIATION_V1=GREEN/u);
+  assert.match(workflow,/DEVICE_WORKFLOW_MATRIX_V1=GREEN/u);
   assert.match(workflow,/KNOWN_GAP_COACH_POST_WEBAUTHN=YELLOW/u);
   assert.match(workflow,/KNOWN_GAP_ADMIN_AUTHENTICATED=YELLOW/u);
 });
 
 
-test('Task-differentiation matrix covers current-source Client Coach and Admin tasks on all four surfaces',()=>{
+test('Device workflow matrix covers current-source Client Coach and Admin tasks on all four surfaces',()=>{
   for(const token of [
     'client-hoy','client-progreso','client-session-live','client-feedback',
     'coach-hoy','coach-clientes','coach-expediente','coach-programar',
