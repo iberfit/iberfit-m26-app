@@ -377,8 +377,170 @@ function renderCoachHoyRoute(vm) {
   </div>`;
 }
 
+function renderClientHoyRoute(vm) {
+  const client=vm.clients?.[0]||null;
+  const name=client?.name||'IBERFIT';
+  const appointments=Array.isArray(vm.appointments)?vm.appointments:[];
+  const upcoming=Array.isArray(vm.upcoming)?vm.upcoming:[];
+  const projections=Array.isArray(vm.rc39?.sessionProjections)
+    ?vm.rc39.sessionProjections.filter((item)=>item?.visible===true)
+    :[];
+  const executableIds=new Set(
+    projections
+      .filter(
+        (item)=>
+          item?.canClientExecute===true&&
+          Array.isArray(item?.session?.blocks)&&
+          item.session.blocks.length>0
+      )
+      .map((item)=>String(item.id||'').trim())
+      .filter(Boolean)
+  );
+
+  const runnable=appointments.find((item)=>{
+    const status=String(item?.statusRaw||'').trim().toLowerCase();
+    const sessionId=String(item?.sessionId||'').trim();
+    return Boolean(sessionId)&&
+      ['confirmada','confirmado','confirmed'].includes(status)&&
+      executableIds.has(sessionId);
+  })||null;
+
+  const firstProjection=projections[0]||null;
+  const nextAppointment=appointments[0]||upcoming[0]||null;
+  const planName=client?.cycle?.name||null;
+  const iriLabel=client?.iri?.confirmed
+    ?client.iri.processLabel||client.iri.coverageLabel||'Confirmado'
+    :client?.iri
+      ?client.iri.processLabel||'En proceso'
+      :'Pendiente';
+
+  let primary;
+  if(runnable){
+    primary={
+      eyebrow:'Tu sesión de hoy',
+      title:runnable.title||firstProjection?.session?.title||'Entrenamiento IBERFIT',
+      detail:[runnable.dateLabel,runnable.modality].filter(Boolean).join(' · ')||'Preparada para comenzar',
+      markup:`<button type="button" class="m26-today-action is-primary m26-client-home-primary" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(runnable.sessionId)}">
+        <span aria-hidden="true">▶</span>
+        <strong>Entrenar ahora</strong>
+        <small>${escapeHtml(runnable.title||'Tu sesión confirmada está preparada para hoy.')}</small>
+      </button>`,
+    };
+  }else if(projections.length){
+    primary={
+      eyebrow:'Tu entrenamiento',
+      title:firstProjection?.session?.title||'Tu planificación está preparada',
+      detail:`${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'}`,
+      markup:`<button type="button" class="m26-today-action is-primary m26-client-home-primary" data-m26-area="sesion">
+        <span aria-hidden="true">▶</span>
+        <strong>Abrir mis sesiones</strong>
+        <small>Tienes ${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'} en tu planificación.</small>
+      </button>`,
+    };
+  }else{
+    primary={
+      eyebrow:'Tu siguiente paso',
+      title:'Actualiza cómo estás hoy',
+      detail:'Un registro breve mantiene tu seguimiento al día.',
+      markup:`<button type="button" class="m26-today-action is-primary m26-client-home-primary" data-m26-area="actividad">
+        <span aria-hidden="true">＋</span>
+        <strong>Registrar cómo estoy</strong>
+        <small>Energía, sueño, estrés, dolor, fatiga y motivación.</small>
+      </button>`,
+    };
+  }
+
+  const appointmentMarkup=appointments.length
+    ?appointments.slice(0,2).map((item)=>appointmentCard(item,{
+        canStartSession:executableIds.has(String(item?.sessionId||'').trim()),
+      })).join('')
+    :`<div class="m26-client-home-clear">
+        <span aria-hidden="true">✓</span>
+        <div><strong>Sin sesión confirmada hoy</strong><small>Tu siguiente cita aparecerá aquí cuando quede confirmada.</small></div>
+      </div>`;
+
+  const nextAction=client?.nextAction||null;
+  const nextActionMarkup=nextAction
+    ?`<button type="button" class="m26-client-home-context-action" data-m26-area="${escapeHtml(nextAction.area||'actividad')}">
+        <span>Siguiente paso</span>
+        <strong>${escapeHtml(nextAction.label||'Continuar')}</strong>
+        <small>${escapeHtml(nextAction.reason||'Continúa con tu recorrido IBERFIT.')}</small>
+      </button>`
+    :'';
+
+  return `<div class="m26-route m26-hoy-route m26-client-home-v1">
+    ${operationBanner(vm.operations||{})}
+
+    <section class="m26-client-home-hero" aria-labelledby="m26-client-home-title">
+      <div class="m26-client-home-greeting">
+        <p class="m26-eyebrow">IBERFIT · Hoy</p>
+        <h2 id="m26-client-home-title">Hola, ${escapeHtml(name)}</h2>
+        <p>${escapeHtml(primary.detail)}</p>
+      </div>
+      <div class="m26-client-home-status">
+        <span>${escapeHtml(primary.eyebrow)}</span>
+        <strong>${escapeHtml(primary.title)}</strong>
+      </div>
+    </section>
+
+    <section class="m26-client-home-primary-zone" aria-label="Acción principal de hoy">
+      ${primary.markup}
+    </section>
+
+    <section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
+      <button type="button" data-m26-area="agenda">
+        <span>Próxima cita</span>
+        <strong>${escapeHtml(nextAppointment?.dateLabel||'Por confirmar')}</strong>
+        <small>${escapeHtml(nextAppointment?.title||'Tu Coach la añadirá aquí')}</small>
+      </button>
+      <button type="button" data-m26-area="planificacion">
+        <span>Tu plan</span>
+        <strong>${escapeHtml(planName||'En preparación')}</strong>
+        <small>${planName?'Plan confirmado':'Tu Coach lo publicará cuando esté listo'}</small>
+      </button>
+      <button type="button" data-m26-area="iri">
+        <span>Diagnóstico IRI</span>
+        <strong>${escapeHtml(iriLabel)}</strong>
+        <small>Punto de partida y reevaluación</small>
+      </button>
+    </section>
+
+    <section class="m26-client-home-actions" aria-label="Acciones rápidas">
+      <button type="button" data-m26-area="actividad">
+        <span aria-hidden="true">♡</span>
+        <strong>Bienestar</strong>
+        <small>Registrar cómo estoy</small>
+      </button>
+      <button type="button" data-m26-area="progreso">
+        <span aria-hidden="true">↗</span>
+        <strong>Progreso</strong>
+        <small>Ver mi evolución</small>
+      </button>
+      <button type="button" data-m26-area="sesion">
+        <span aria-hidden="true">▶</span>
+        <strong>Entrenamientos</strong>
+        <small>Mis sesiones</small>
+      </button>
+    </section>
+
+    ${nextActionMarkup}
+
+    <section class="m26-panel m26-client-home-agenda">
+      <div class="m26-panel-heading">
+        <div>
+          <p class="m26-eyebrow">Hoy</p>
+          <h2>Agenda</h2>
+        </div>
+        ${appointments.length?badge(countLabel(appointments.length,'sesión','sesiones'),'success'):''}
+      </div>
+      <div class="m26-stack">${appointmentMarkup}</div>
+    </section>
+  </div>`;
+}
+
 export function renderHoyRoute(vm) {
   const isClient = vm.role === 'client';
+  if(isClient)return renderClientHoyRoute(vm);
   if(vm.role==='coach')return renderCoachHoyRoute(vm);
   const client = vm.clients[0] || null;
   const proposalCount = vm.proposals?.length || 0;
