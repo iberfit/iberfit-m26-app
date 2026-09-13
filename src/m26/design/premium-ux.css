@@ -1064,9 +1064,6 @@ body {
   font-weight:760;
 }
 
-.m26-session-live-v3 .m26-session-live-secondary-context>summary::-webkit-details-marker{
-  display:none;
-}
 
 .m26-session-live-v3 .m26-session-live-secondary-context>summary::after{
   content:"＋";
