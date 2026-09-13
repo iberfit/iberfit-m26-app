@@ -1200,7 +1200,13 @@ function exerciseProgressChartModel(exercise){
     .map((definition)=>{
       const points=history
         .map((point)=>{
-          const value=Number(point?.[definition.key]);
+          const raw=point?.[definition.key];
+          const value=
+            raw===null||
+            raw===undefined||
+            raw===''
+              ?null
+              :Number(raw);
           const date=String(point?.at||'').slice(0,10);
           return Number.isFinite(value)&&/^\d{4}-\d{2}-\d{2}$/u.test(date)
             ?Object.freeze({date,value})
@@ -1367,7 +1373,7 @@ function renderExerciseProgressSection(
       <summary>
         <span>
           <strong>${escapeHtml(exercise.exerciseName)}</strong>
-          <small>${exercise.sessions} sesión${exercise.sessions===1?'':'es'} · ${exercise.totalSets} serie${exercise.totalSets===1?'':'s'} · dato ${escapeHtml(exercise.dataQuality)}</small>
+          <small>${exercise.sessions===1?'1 sesión':`${exercise.sessions} sesiones`} · ${exercise.totalSets} serie${exercise.totalSets===1?'':'s'} · dato ${escapeHtml(exercise.dataQuality)}</small>
         </span>
         <span class="m26-exercise-progress-current">
           <strong>${escapeHtml(exercisePointLoad(latest))}</strong>
