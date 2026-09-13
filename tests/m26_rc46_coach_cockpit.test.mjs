@@ -286,3 +286,68 @@ test(
     );
   }
 );
+
+test(
+  'Coach Home prioriza una decisión dominante antes que módulos secundarios',
+  ()=>{
+    const sourceClient=client('C1','Cynthia');
+    const html=renderHoyRoute({
+      role:'coach',
+      clients:[sourceClient],
+      appointments:[{
+        id:'A1',
+        clientId:'C1',
+        sessionId:'S1',
+        title:'Fuerza global',
+        dateLabel:'18:00',
+        status:'Confirmada',
+        statusRaw:'confirmada',
+        modality:'Presencial',
+        location:'Las Condes',
+      }],
+      proposals:[],
+      upcoming:[],
+      operations:{pending:0,conflicts:0,rejected:0},
+      coachCockpit:deriveCoachCockpit([{client:sourceClient,alerts:[]}]),
+    });
+
+    assert.match(html,/m26-coach-home-v1/u);
+    assert.match(html,/Próxima sesión/u);
+    assert.match(html,/Cynthia/u);
+    assert.match(html,/Preparar sesión/u);
+    assert.match(html,/aria-label="Acciones rápidas"/u);
+    assert.match(html,/>Programar entrenamiento</u);
+
+    const command=html.indexOf('m26-coach-home-command');
+    const agenda=html.indexOf('m26-coach-home-agenda');
+    const attention=html.indexOf('m26-coach-home-attention');
+    const clients=html.indexOf('m26-coach-home-clients');
+    assert.ok(command>=0&&agenda>command&&attention>command&&clients>attention);
+  }
+);
+
+test(
+  'Coach Home convierte el cero operativo en un estado positivo y accionable',
+  ()=>{
+    const sourceClient=client('C1','Ana');
+    const html=renderHoyRoute({
+      role:'coach',
+      clients:[sourceClient],
+      appointments:[],
+      proposals:[],
+      upcoming:[],
+      operations:{pending:0,conflicts:0,rejected:0},
+      coachCockpit:deriveCoachCockpit([{client:sourceClient,alerts:[]}]),
+    });
+
+    assert.match(html,/Todo al día/u);
+    assert.match(html,/Agenda libre hoy/u);
+    assert.match(html,/Cartera al día/u);
+    assert.doesNotMatch(html,/Clientes que requieren atención/u);
+    assert.doesNotMatch(html,/m26-stat-grid/u);
+    assert.doesNotMatch(
+      html,
+      /Estas señales orientan la revisión y no sustituyen tu criterio profesional/u
+    );
+  }
+);

@@ -151,9 +151,10 @@ test('Hoy separa propuestas de sesiones confirmadas', () => {
 
   assert.deepEqual(vm.appointments.map((item) => item.id), ['CONFIRMED-RC32']);
   assert.deepEqual(vm.proposals.map((item) => item.id), ['PROPOSAL-RC32']);
-  assert.match(html, /Sesiones confirmadas hoy/);
-  assert.match(html, /Propuestas de hoy/);
-  assert.match(html, /1 propuesta/);
+  assert.match(html, /m26-coach-home-agenda/);
+  assert.match(html, /Sesión confirmada/);
+  assert.match(html, /m26-coach-home-proposals/);
+  assert.match(html, /1 propuesta necesita decisión/);
   assert.doesNotMatch(html, /Agenda confirmada/);
 });
 

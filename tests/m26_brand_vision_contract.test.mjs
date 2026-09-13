@@ -49,3 +49,21 @@ test('visual evidence runs when design shell or production entry changes',()=>{
     "public/m26/index.html",
   ])assert.ok(workflow.includes(expected),expected);
 });
+
+
+test('Coach Home uses decision-first responsive geometry',()=>{
+  const darkV2=fs.readFileSync('src/m26/design/dark-iberfit-v2.css','utf8');
+  assert.match(darkV2,/COACH HOME V1 · DECISION-FIRST WORKTABLE/u);
+  assert.match(
+    darkV2,
+    /\.m26-coach-home-grid\{[\s\S]*?grid-template-columns:minmax\(0,1\.2fr\) minmax\(19rem,\.8fr\)/u,
+  );
+  assert.match(
+    darkV2,
+    /@media\(max-width:900px\)[\s\S]*?\.m26-coach-home-grid\{[\s\S]*?grid-template-columns:1fr/u,
+  );
+  assert.match(
+    darkV2,
+    /@media\(max-width:580px\)[\s\S]*?\.m26-coach-home-client-grid\{[\s\S]*?grid-template-columns:1fr/u,
+  );
+});
