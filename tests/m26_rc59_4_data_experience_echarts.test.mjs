@@ -144,7 +144,7 @@ test('RC59.4 contiene fallos tardíos del motor gráfico sin romper la superfici
   );
   assert.match(
     source,
-    /catch\{[\s\S]*this\.#intersectionObserver=null;[\s\S]*\}\s*\}\s*void this\.#start\(\)/u
+    /this\.#intersectionObserver=null;[\s\S]*void this\.#start\(lifecycleVersion\)/u
   );
   assert.match(
     source,
