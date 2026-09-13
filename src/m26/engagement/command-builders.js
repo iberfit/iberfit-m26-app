@@ -2,6 +2,7 @@ import { createM26Id } from '../platform/id.js';
 import { createCommand } from '../command-bus.js';
 import { M26_EXTENDED_COMMAND_REGISTRY } from '../command-catalog.js';
 import { validateCheckinDraft, validateHabitDefinitionDraft, validateHabitLogDraft } from './activity-drafts.js';
+import {validateActionDecisionDraft,validateActionOutcomeDraft} from '../intelligence/action-outcome.js';
 
 function id(){return createM26Id();}
 function text(value,max){return String(value||'').trim().slice(0,max);}
@@ -53,4 +54,38 @@ export function buildCommercialRenewalCommand({clientId,renewal={},entityId=id()
   if(!Number.isInteger(revision)||revision<0)throw new Error('M26_RENEWAL_REVISION_INVALID');
   const patch={renewalDate:date,renewalStatus,commercialPlan:optionalBoundedText(renewal?.commercialPlan,140,'M26_RENEWAL_PLAN_INVALID'),notes:optionalBoundedText(renewal?.notes,1000,'M26_RENEWAL_NOTES_INVALID')};
   return build({operationId,type:'RENOVACION_REGISTRAR',entityType:'renewal',entityId,clientId:requireClient(clientId),baseRevision:revision,payload:{patch}},options);
+}
+
+
+export function buildActionTrackingCommand({clientId,tracking={},entityId=id(),baseRevision=0,operationId}={},options={}){
+  const validation=validateActionDecisionDraft(tracking);
+  if(!validation.ok)throw new Error(`M26_ACTION_TRACKING_INVALID:${validation.errors.join(',')}`);
+  const revision=Number(baseRevision);
+  if(!Number.isInteger(revision)||revision<0)throw new Error('M26_ACTION_TRACKING_REVISION_INVALID');
+  return build({
+    operationId,
+    type:'ACCION_SEGUIMIENTO_REGISTRAR',
+    entityType:'action_outcome',
+    entityId,
+    clientId:requireClient(clientId),
+    baseRevision:revision,
+    payload:{patch:{id:entityId,clientId,...validation.value}},
+  },options);
+}
+
+export function buildActionOutcomeCommand({clientId,trackingId,outcome={},baseRevision,operationId}={},options={}){
+  if(!trackingId)throw new Error('M26_ACTION_OUTCOME_ID_REQUIRED');
+  const revision=Number(baseRevision);
+  if(!Number.isInteger(revision)||revision<1)throw new Error('M26_ACTION_OUTCOME_REVISION_REQUIRED');
+  const validation=validateActionOutcomeDraft(outcome);
+  if(!validation.ok)throw new Error(`M26_ACTION_OUTCOME_INVALID:${validation.errors.join(',')}`);
+  return build({
+    operationId,
+    type:'ACCION_RESULTADO_REGISTRAR',
+    entityType:'action_outcome',
+    entityId:trackingId,
+    clientId:requireClient(clientId),
+    baseRevision:revision,
+    payload:{patch:validation.value},
+  },options);
 }
