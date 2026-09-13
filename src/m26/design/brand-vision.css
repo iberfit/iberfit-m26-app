@@ -932,3 +932,187 @@
   .m26-shell .m26-workspace .m26-hoy-route .m26-today-action.is-primary{grid-column:auto}
   .m26-shell .m26-workspace .m26-hoy-route .m26-today-action{min-height:0}
 }
+
+
+/* CLIENT HIERARCHY V3 · decision dominance without removing guidance */
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding{
+  width:min(100%,1180px);
+  margin:0 auto .5rem;
+  gap:.68rem;
+  padding:.78rem .9rem;
+  border-color:rgba(23,56,40,.09);
+  border-radius:.95rem;
+  background:rgba(248,245,238,.76);
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-heading{
+  align-items:center;
+  gap:.75rem 1rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-heading h2{
+  margin:.08rem 0 .16rem;
+  color:#33483c;
+  font-size:clamp(.98rem,1.5vw,1.12rem);
+  letter-spacing:-.018em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-heading p{
+  color:#748078;
+  font-size:.74rem;
+  line-height:1.4;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-heading .m26-eyebrow{
+  color:#8d7b55;
+  font-size:.58rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-meter{
+  grid-template-columns:auto minmax(7rem,13rem);
+  align-items:center;
+  gap:.55rem .8rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-meter span{
+  color:#758078;
+  font-size:.7rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-meter progress{
+  min-height:.42rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding ol{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.45rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-step{
+  gap:.55rem;
+  padding:.58rem .68rem;
+  border-color:rgba(23,56,40,.08);
+  border-radius:.78rem;
+  background:rgba(255,254,250,.72);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-step strong{
+  color:#425349;
+  font-size:.78rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-step p{
+  margin:.12rem 0 0;
+  color:#7b857f;
+  font-size:.69rem;
+  line-height:1.34;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-check{
+  width:1.65rem;
+  height:1.65rem;
+  color:#6c785f;
+  border-color:rgba(23,56,40,.12);
+  background:#f5f2ea;
+  font-size:.7rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding :is(
+  .m26-text-action,
+  .m26-icon-button,
+  .m26-primary-action
+){
+  min-height:2.4rem;
+  padding:.42rem .66rem;
+  border-color:rgba(29,96,67,.13);
+  color:#315e47;
+  background:rgba(29,96,67,.045);
+  box-shadow:none;
+  font-size:.72rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding .m26-primary-action:hover:not(:disabled){
+  border-color:rgba(29,96,67,.22);
+  color:#244d39;
+  background:rgba(29,96,67,.075);
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-note{
+  color:#818a84;
+  font-size:.66rem;
+  line-height:1.36;
+}
+
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-hoy-route .m26-today-loop{
+  position:relative;
+  overflow:hidden;
+  padding:clamp(1rem,2vw,1.25rem);
+  border-color:rgba(29,96,67,.16);
+  background:
+    radial-gradient(circle at 94% -10%,rgba(198,157,80,.10),transparent 13rem),
+    linear-gradient(145deg,#fffefa,#fbf7ee);
+  box-shadow:
+    0 18px 42px rgba(27,65,45,.10),
+    inset 0 1px rgba(255,255,255,.88);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-hoy-route .m26-today-loop::before{
+  content:"";
+  position:absolute;
+  inset:0 auto 0 0;
+  width:3px;
+  background:linear-gradient(180deg,#c69d50,#1d6043);
+  pointer-events:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-hoy-route .m26-today-loop .m26-panel-heading{
+  margin-bottom:.82rem;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-hoy-route .m26-today-loop .m26-panel-heading h2{
+  margin-top:.08rem;
+  font-size:clamp(1.34rem,2.3vw,1.72rem);
+  font-weight:760;
+  letter-spacing:-.038em;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-hoy-route .m26-today-action{
+  border-color:rgba(23,56,40,.10);
+  background:rgba(255,254,250,.82);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-hoy-route .m26-today-action.is-primary{
+  min-height:7.4rem;
+  border-color:rgba(223,193,126,.25);
+  box-shadow:
+    0 18px 38px rgba(12,48,32,.16),
+    inset 0 1px rgba(255,255,255,.05);
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-hoy-route>.m26-hero-panel{
+  border-color:rgba(23,56,40,.08);
+  background:rgba(249,246,239,.66);
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-hoy-route>.m26-stat-grid .m26-stat{
+  border-color:rgba(23,56,40,.08);
+  background:rgba(249,246,239,.72);
+  box-shadow:none;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-hoy-route>.m26-content-grid>.m26-panel{
+  border-color:rgba(23,56,40,.09);
+  box-shadow:0 6px 18px rgba(27,65,45,.045);
+}
+
+.m26-shell .m26-workspace button:disabled,
+.m26-shell .m26-workspace [aria-disabled="true"]{
+  opacity:.7;
+  color:#758078;
+  border-color:rgba(23,56,40,.11);
+  background:#efede7;
+  box-shadow:none;
+  filter:saturate(.72);
+}
+
+@media(max-width:719px){
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding{
+    margin-bottom:.35rem;
+    padding:.7rem .74rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-heading{
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-meter{
+    grid-template-columns:1fr;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding ol{
+    grid-template-columns:1fr;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-progressive-onboarding-step{
+    padding:.54rem .6rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-workspace .m26-hoy-route .m26-today-loop{
+    padding:.85rem;
+  }
+}
