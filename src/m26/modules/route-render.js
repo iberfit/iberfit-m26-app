@@ -207,16 +207,6 @@ function renderCoachHoyRoute(vm) {
       clientId:riskFocus.clientId||null,
       label:'Abrir expediente',
     };
-  }else if(proposalCount){
-    primary={
-      tone:'pending',
-      eyebrow:'Decisión pendiente',
-      title:countLabel(proposalCount,'Propuesta por revisar','Propuestas por revisar'),
-      copy:'Confirma o ajusta la agenda antes de continuar.',
-      area:'agenda',
-      clientId:null,
-      label:'Revisar propuestas',
-    };
   }else if(todayAppointment){
     const client=appointmentClient(todayAppointment);
     primary={
@@ -227,6 +217,16 @@ function renderCoachHoyRoute(vm) {
       area:'agenda',
       clientId:client?.id||todayAppointment.clientId||null,
       label:client?.id||todayAppointment.clientId?'Preparar sesión':'Abrir agenda',
+    };
+  }else if(proposalCount){
+    primary={
+      tone:'pending',
+      eyebrow:'Decisión pendiente',
+      title:countLabel(proposalCount,'Propuesta por revisar','Propuestas por revisar'),
+      copy:'Confirma o ajusta la agenda antes de continuar.',
+      area:'agenda',
+      clientId:null,
+      label:'Revisar propuestas',
     };
   }else if(processFocus){
     primary={
@@ -304,8 +304,8 @@ function renderCoachHoyRoute(vm) {
         </div>
       </div>
       <div class="m26-coach-home-glance" aria-label="Resumen de hoy">
-        <span><strong>${escapeHtml(cockpit?.totalClients||clients.length)}</strong> clientes en cartera</span>
-        <span><strong>${escapeHtml(appointments.length)}</strong> sesiones hoy</span>
+        <span><strong>${escapeHtml((cockpit?.totalClients||clients.length)||'Sin clientes')}</strong>${(cockpit?.totalClients||clients.length)?' clientes en cartera':''}</span>
+        <span><strong>${escapeHtml(appointments.length||'Agenda libre')}</strong>${appointments.length?' sesiones hoy':''}</span>
         <span><strong>${escapeHtml(attentionStatus)}</strong></span>
         ${operationStatus?`<span class="m26-coach-home-sync"><strong>${escapeHtml(operationStatus)}</strong></span>`:''}
       </div>
