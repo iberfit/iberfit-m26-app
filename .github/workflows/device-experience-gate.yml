@@ -56,8 +56,8 @@ jobs:
       - run: npm ci
       - run: node --test tests/m26_device_experience_gate_contract.test.mjs
 
-  task-differentiation:
-    name: task-differentiation-matrix
+  workflow-matrix:
+    name: workflow-matrix-matrix
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -75,11 +75,11 @@ jobs:
         run: node qa/rc13_generate_visual_cases.mjs
       - name: Validate task hierarchy, focus, touch and overflow by device
         run: npx playwright test --config playwright.device-experience.config.mjs
-      - name: Preserve task-differentiation evidence
+      - name: Preserve workflow-matrix evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: device-gate-task-differentiation-${{ github.run_id }}
+          name: device-gate-workflow-matrix-${{ github.run_id }}
           path: |
             recovery/device-experience/
             test-results/
@@ -205,14 +205,14 @@ jobs:
   gate:
     name: device-experience-gate-phase-a
     if: always()
-    needs: [contract,task-differentiation,client-coach-qa,admin-task-matrix,pwa-upgrade]
+    needs: [contract,workflow-matrix,client-coach-qa,admin-task-matrix,pwa-upgrade]
     runs-on: ubuntu-latest
     steps:
       - name: Require all Phase A jobs
         shell: bash
         env:
           CONTRACT: ${{ needs.contract.result }}
-          TASKS: ${{ needs.task-differentiation.result }}
+          TASKS: ${{ needs.workflow-matrix.result }}
           CLIENT_COACH: ${{ needs.client-coach-qa.result }}
           ADMIN: ${{ needs.admin-task-matrix.result }}
           PWA: ${{ needs.pwa-upgrade.result }}
@@ -225,6 +225,6 @@ jobs:
           test "$ADMIN" = success
           test "$PWA" = success
           echo 'DEVICE_EXPERIENCE_GATE_PHASE_A=GREEN'
-          echo 'DEVICE_TASK_DIFFERENTIATION_V1=GREEN'
+          echo 'DEVICE_WORKFLOW_MATRIX_V1=GREEN'
           echo 'KNOWN_GAP_COACH_POST_WEBAUTHN=YELLOW'
           echo 'KNOWN_GAP_ADMIN_AUTHENTICATED=YELLOW'
