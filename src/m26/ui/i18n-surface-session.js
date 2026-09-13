@@ -89,7 +89,7 @@ export const SESSION_SURFACE_ROWS=Object.freeze([
 ['Motivo para omitir el resto del ejercicio','Reason to skip the rest of the exercise','Motif pour ignorer le reste de l’exercice','Motivo para omitir o restante exercício'],
 ['Omitir ejercicio restante','Skip remaining exercise','Ignorer le reste de l’exercice','Omitir exercício restante'],
 ['Pausa o cancelación','Pause or cancellation','Pause ou annulation','Pausa ou cancelamento'],
-['Pausar sesión','Pause session','Mettre la séance en pause','Pausar sessão']
+['Pausar sesión','Pause session','Mettre la séance en pause','Pausar sessão'],
 ['Constructor de sesión','Session builder','Constructeur de séance','Construtor de sessão'],
 ['Construye rápido; la revisión final sigue siendo obligatoria antes de publicar.','Build quickly; final review remains required before publishing.','Construisez rapidement ; la révision finale reste obligatoire avant publication.','Construa rapidamente; a revisão final continua obrigatória antes de publicar.'],
 ['Carga planificada','Planned load','Charge planifiée','Carga planeada'],
