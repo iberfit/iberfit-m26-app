@@ -9,6 +9,7 @@ import {
 import {
   computeProgressSummary,
 } from '../engagement/progress-engine.js';
+import {finiteOptionalNumber} from '../domain/optional-number.js';
 
 export const LONGITUDINAL_AGGREGATION_SCHEMA_VERSION=
   'iberfit.longitudinal-aggregation.v1';
@@ -121,8 +122,8 @@ function metricDailySeries(records,key,range){
 
   for(const record of records){
     if(record.date<range.startDate||record.date>range.endDate)continue;
-    const value=Number(record?.metrics?.[key]);
-    if(!Number.isFinite(value))continue;
+    const value=finiteOptionalNumber(record?.metrics?.[key]);
+    if(value===null)continue;
 
     if(!grouped.has(record.date)){
       grouped.set(record.date,{
