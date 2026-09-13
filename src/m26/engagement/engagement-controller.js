@@ -85,6 +85,7 @@ export function createEngagementController({root,store,draftRepository,service,s
   function ensureActionOutcomeManagers(){
     const {state,role}=context();
     if(!['admin','coach'].includes(role))return false;
+    if(service?.capabilities?.actionOutcomeTracking?.ready!==true)return false;
     const documentLike=root.ownerDocument||globalThis.document;
     if(!documentLike?.createElement)return false;
     for(const card of root.querySelectorAll?.('.m26-client-card')||[]){
