@@ -87,9 +87,12 @@ async function dismissGuidedTourForBaseline(page){
   return false;
 }
 
-async function capture(page,{account,project,state}){
+async function capture(page,{account,project,state,suffix='' }){
   await settleVisual(page);
-  const file=`${safeSlug(account.role)}-${safeSlug(account.name)}-${safeSlug(project)}.png`;
+  const variant=String(suffix||'').trim()
+    ?`-${safeSlug(suffix)}`
+    :'';
+  const file=`${safeSlug(account.role)}-${safeSlug(account.name)}-${safeSlug(project)}${variant}.png`;
   const path=`${OUT_DIR}/${file}`;
   const masks=[
     page.locator('input[type="email"]'),
@@ -226,6 +229,34 @@ test('RC64 authenticated visual evidence is real QA, read-only and fail-closed',
           project:testInfo.project.name,
           state:'authenticated-shell',
         }));
+
+        const progressNav=page.locator('[data-m26-area="progreso"]:visible').first();
+        await expect(
+          progressNav,
+          'Client visual evidence requires a visible Progreso navigation action',
+        ).toBeVisible({timeout:5_000});
+        await progressNav.click();
+        await expect(
+          page.getByRole('heading',{name:'Progreso y adherencia',exact:true}),
+          'Client visual evidence must render the canonical Progreso route',
+        ).toBeVisible({timeout:10_000});
+        await expect(
+          page.locator('[data-m26-area="progreso"][aria-current="page"]:visible').first(),
+        ).toBeVisible({timeout:5_000});
+
+        const exerciseAnalyticsCount=await page
+          .locator('[data-m26-exercise-analytics="v2"]')
+          .count();
+
+        captures.push({
+          ...(await capture(page,{
+            account,
+            project:testInfo.project.name,
+            state:'authenticated-progress',
+            suffix:'progress',
+          })),
+          exerciseAnalyticsCount,
+        });
       }
 
       expect(blockedRequests,'Visual evidence attempted a mutation or foreign request').toEqual([]);
