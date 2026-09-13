@@ -273,6 +273,46 @@ test('RC64.2B1 authenticated browser smoke blocks mutation paths and persists on
   assert.match(spec,/credentialsPersisted:false/u);
   assert.match(spec,/identityPersisted:false/u);
   assert.match(spec,/healthDataPersisted:false/u);
+  assert.match(spec,/measurement\)\.toBe\('field-local-session'\)/u);
+  assert.match(spec,/aggregation\)\.toBe\('none'\)/u);
+  assert.match(spec,/fieldP75Claimed\)\.toBe\(false\)/u);
+  assert.match(spec,/inpClaimed\)\.toBe\(false\)/u);
+  assert.match(spec,/runtimeErrorDetailsIncluded\)\.toBe\(false\)/u);
+  assert.match(spec,/qualityFieldP75Claimed:false/u);
+  assert.match(spec,/qualityInpClaimed:false/u);
+  assert.match(
+    spec,
+    /qualityObservability:'field-local-session-memory-only-no-transport'/u
+  );
+
+  const qualityEvidenceStart=spec.indexOf('qualityMetrics:Object.freeze({');
+  const qualityEvidenceEnd=spec.indexOf('}),',qualityEvidenceStart);
+  assert.ok(qualityEvidenceStart>=0&&qualityEvidenceEnd>qualityEvidenceStart);
+  const qualityEvidence=spec.slice(
+    qualityEvidenceStart,
+    qualityEvidenceEnd+3
+  );
+  for(const safeField of [
+    'fcpMs',
+    'lcpMs',
+    'cls',
+    'interactionLatencyMaxMs',
+    'interactionLatencyLabel',
+    'longFrameCount',
+    'longFrameMaxMs',
+    'longFrameEntryType',
+    'runtimeErrorCount',
+    'resourceErrorCount',
+    'unhandledRejectionCount',
+    'securityPolicyViolationCount',
+  ]){
+    assert.match(qualityEvidence,new RegExp(`\\b${safeField}\\b`,'u'));
+  }
+  assert.doesNotMatch(
+    qualityEvidence,
+    /diagnostic|stack|message|url|email|token|clientId|sessionId|heartRate|rrIntervals/iu
+  );
+
   assert.doesNotMatch(spec,/M26_QA_CLIENT_B_/u);
   assert.doesNotMatch(spec,/service_role_key|password123|secret@example/iu);
 });

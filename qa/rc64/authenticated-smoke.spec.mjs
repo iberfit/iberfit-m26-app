@@ -899,8 +899,22 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
     expect(quality?.schemaVersion).toBe('iberfit.quality-runtime-observability.v1');
     expect(quality?.storage).toBe('memory-only');
     expect(quality?.transport).toBe('none');
+    expect(quality?.measurement).toBe('field-local-session');
+    expect(quality?.aggregation).toBe('none');
     expect(quality?.identityIncluded).toBe(false);
     expect(quality?.healthDataIncluded).toBe(false);
+    expect(quality?.runtimeErrorDetailsIncluded).toBe(false);
+    expect(quality?.urlIncluded).toBe(false);
+    expect(quality?.stackIncluded).toBe(false);
+    expect(quality?.fieldP75Claimed).toBe(false);
+    expect(quality?.inpClaimed).toBe(false);
+    expect(quality?.metrics?.interactionLatencyLabel).toBe('candidate-not-inp');
+    expect(quality?.metrics?.runtimeErrorCount).toBe(0);
+    expect(quality?.metrics?.resourceErrorCount).toBe(0);
+    expect(quality?.metrics?.unhandledRejectionCount).toBe(0);
+    expect(quality?.metrics?.securityPolicyViolationCount).toBe(0);
+    expect(Number.isInteger(quality?.metrics?.longFrameCount)).toBe(true);
+    expect(quality?.metrics?.longFrameCount).toBeGreaterThanOrEqual(0);
 
     expect(blockedExternal).toBe(0);
     expect(requestFailures).toBe(0);
@@ -914,7 +928,27 @@ test('RC64.2B current-source authenticated smoke is real QA and mutation-blocked
       requestFailures,
       consoleErrors,
       pageErrors,
-      qualityObservability:'memory-only-no-transport',
+      qualityObservability:'field-local-session-memory-only-no-transport',
+      qualityFieldP75Claimed:false,
+      qualityInpClaimed:false,
+      qualityMetrics:Object.freeze({
+        fcpMs:quality?.metrics?.fcpMs??null,
+        lcpMs:quality?.metrics?.lcpMs??null,
+        cls:quality?.metrics?.cls??null,
+        interactionLatencyMaxMs:
+          quality?.metrics?.interactionLatencyMaxMs??null,
+        interactionLatencyLabel:
+          quality?.metrics?.interactionLatencyLabel||'candidate-not-inp',
+        longFrameCount:quality?.metrics?.longFrameCount??0,
+        longFrameMaxMs:quality?.metrics?.longFrameMaxMs??null,
+        longFrameEntryType:quality?.metrics?.longFrameEntryType??null,
+        runtimeErrorCount:quality?.metrics?.runtimeErrorCount??0,
+        resourceErrorCount:quality?.metrics?.resourceErrorCount??0,
+        unhandledRejectionCount:
+          quality?.metrics?.unhandledRejectionCount??0,
+        securityPolicyViolationCount:
+          quality?.metrics?.securityPolicyViolationCount??0,
+      }),
     }));
 
     console.log(`RC64_2B_ACCOUNT_PASS:${account.name}`);
