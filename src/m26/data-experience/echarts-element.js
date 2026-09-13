@@ -38,6 +38,16 @@ function cancelFrame(frame){
   globalThis.clearTimeout?.(frame.id);
 }
 
+function safeChartOperation(operation){
+  if(typeof operation!=='function')return true;
+  try{
+    operation();
+    return true;
+  }catch{
+    return false;
+  }
+}
+
 function finite(value){
   return finiteOptionalNumber(value);
 }
@@ -442,34 +452,62 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
       this.setAttribute('data-chart-state','pending');
 
       if(typeof globalThis.IntersectionObserver==='function'){
-        this.#intersectionObserver=
-          new globalThis.IntersectionObserver(
-            (entries)=>{
-              if(entries.some((entry)=>entry.isIntersecting)){
-                this.#intersectionObserver?.disconnect();
-                this.#intersectionObserver=null;
-                void this.#start();
-              }
-            },
-            {rootMargin:'240px 0px'}
+        try{
+          this.#intersectionObserver=
+            new globalThis.IntersectionObserver(
+              (entries)=>{
+                if(entries.some((entry)=>entry.isIntersecting)){
+                  const observer=this.#intersectionObserver;
+                  this.#intersectionObserver=null;
+                  safeChartOperation(()=>observer?.disconnect?.());
+                  void this.#start();
+                }
+              },
+              {rootMargin:'240px 0px'}
+            );
+          this.#intersectionObserver.observe(this);
+          return;
+        }catch{
+          safeChartOperation(
+            ()=>this.#intersectionObserver?.disconnect?.()
           );
-        this.#intersectionObserver.observe(this);
-        return;
+          this.#intersectionObserver=null;
+        }
       }
 
       void this.#start();
     }
 
     disconnectedCallback(){
-      this.#intersectionObserver?.disconnect();
+      safeChartOperation(
+        ()=>this.#intersectionObserver?.disconnect?.()
+      );
       this.#intersectionObserver=null;
-      this.#resizeObserver?.disconnect();
+      safeChartOperation(
+        ()=>this.#resizeObserver?.disconnect?.()
+      );
       this.#resizeObserver=null;
-      cancelFrame(this.#resizeFrame);
+      safeChartOperation(()=>cancelFrame(this.#resizeFrame));
       this.#resizeFrame=null;
-      this.#chart?.dispose?.();
+      safeChartOperation(()=>this.#chart?.dispose?.());
       this.#chart=null;
       this.#started=false;
+    }
+
+    #renderUnavailable(){
+      const resizeObserver=this.#resizeObserver;
+      this.#resizeObserver=null;
+      safeChartOperation(()=>resizeObserver?.disconnect?.());
+      safeChartOperation(()=>cancelFrame(this.#resizeFrame));
+      this.#resizeFrame=null;
+
+      const chart=this.#chart;
+      this.#chart=null;
+      safeChartOperation(()=>chart?.dispose?.());
+
+      this.setAttribute('data-chart-state','unavailable');
+      this.textContent=
+        'Gráfico no disponible. Los mismos datos siguen disponibles en la tabla.';
     }
 
     async #start(){
@@ -539,26 +577,38 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
         );
 
         if(typeof globalThis.ResizeObserver==='function'){
-          this.#resizeObserver=
-            new globalThis.ResizeObserver(
-              ()=>{
-                if(this.#resizeFrame)return;
-                this.#resizeFrame=requestFrame(()=>{
-                  this.#resizeFrame=null;
-                  this.#chart?.resize?.();
-                });
-              }
+          try{
+            this.#resizeObserver=
+              new globalThis.ResizeObserver(
+                ()=>{
+                  if(this.#resizeFrame)return;
+                  const scheduled=safeChartOperation(()=>{
+                    this.#resizeFrame=requestFrame(()=>{
+                      this.#resizeFrame=null;
+                      const resized=safeChartOperation(
+                        ()=>this.#chart?.resize?.()
+                      );
+                      if(!resized)this.#renderUnavailable();
+                    });
+                  });
+                  if(!scheduled){
+                    this.#resizeFrame=null;
+                    this.#renderUnavailable();
+                  }
+                }
+              );
+            this.#resizeObserver.observe(this);
+          }catch{
+            safeChartOperation(
+              ()=>this.#resizeObserver?.disconnect?.()
             );
-          this.#resizeObserver.observe(this);
+            this.#resizeObserver=null;
+          }
         }
 
         this.setAttribute('data-chart-state','ready');
       }catch{
-        this.#chart?.dispose?.();
-        this.#chart=null;
-        this.setAttribute('data-chart-state','unavailable');
-        this.textContent=
-          'Gráfico no disponible. Los mismos datos siguen disponibles en la tabla.';
+        this.#renderUnavailable();
       }
     }
   }
@@ -578,4 +628,5 @@ export const __echartsElementInternals=Object.freeze({
   loadEchartsModule,
   reducedMotion,
   canRegister,
+  safeChartOperation,
 });
