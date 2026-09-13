@@ -373,7 +373,7 @@ function renderAgenda(vm){
         ?'Aquí aparecen únicamente las citas disponibles para ti.'
         :'Confirma propuestas, atiende cambios y prepara sesiones sin salir de la agenda.'}</p>
     </div>
-    ${statusBadge(`${appointments.length} ${appointments.length===1?'registro':'registros'}`,'neutral')}
+    ${statusBadge(String(appointments.length),'neutral')}
   </div>`;
 
   return `<div
