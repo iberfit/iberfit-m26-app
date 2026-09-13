@@ -1187,3 +1187,171 @@ body {
   }
 }
 /* LIVE_WORKOUT_FOCUS_V3_END */
+
+
+/* ACTION_OUTCOME_TRACKING_V1_BEGIN */
+.m26-action-outcome-manager{
+  margin-top:.6rem;
+  overflow:hidden;
+  border:1px solid color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 16%,transparent);
+  border-radius:.9rem;
+  background:color-mix(in srgb,var(--iberfit-color-surface-base,#0d2419) 90%,transparent);
+}
+.m26-action-outcome-manager>summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  min-height:3.2rem;
+  padding:.72rem .82rem;
+  cursor:pointer;
+  color:var(--iberfit-color-text-primary,#f7f1e4);
+  font-weight:760;
+}
+.m26-action-outcome-manager>summary small{
+  color:var(--m26-muted,#aaa);
+  font-size:.7rem;
+  font-weight:650;
+  text-align:right;
+}
+.m26-action-outcome-metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.45rem;
+  padding:.7rem .75rem 0;
+}
+.m26-action-outcome-metrics>span{
+  display:grid;
+  gap:.12rem;
+  min-width:0;
+  padding:.55rem .6rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 10%,transparent);
+  border-radius:.72rem;
+  background:rgba(255,255,255,.018);
+}
+.m26-action-outcome-metrics strong{font-size:.92rem}
+.m26-action-outcome-metrics small{
+  overflow:hidden;
+  color:var(--m26-muted,#aaa);
+  font-size:.62rem;
+  line-height:1.25;
+  text-overflow:ellipsis;
+}
+.m26-action-tracking-form,
+.m26-action-outcome-item form{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.58rem;
+}
+.m26-action-tracking-form{
+  margin:.75rem;
+  padding:.72rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 12%,transparent);
+  border-radius:.78rem;
+  background:rgba(0,0,0,.08);
+}
+.m26-action-tracking-form label,
+.m26-action-outcome-item form label{
+  display:grid;
+  gap:.3rem;
+  min-width:0;
+  color:var(--m26-muted,#aaa);
+  font-size:.69rem;
+  font-weight:670;
+}
+.m26-action-tracking-form textarea,
+.m26-action-outcome-item form textarea{
+  min-height:5.2rem;
+  resize:vertical;
+}
+.m26-action-tracking-form :is(input,select,textarea),
+.m26-action-outcome-item form :is(input,select,textarea){
+  width:100%;
+  min-width:0;
+}
+.m26-action-tracking-form label:has(textarea),
+.m26-action-outcome-item form label:has(textarea),
+.m26-action-outcome-guard,
+.m26-action-tracking-form>button,
+.m26-action-tracking-form>[data-engagement-status],
+.m26-action-outcome-item form>button,
+.m26-action-outcome-item form>[data-engagement-status]{
+  grid-column:1 / -1;
+}
+.m26-action-outcome-guard{
+  color:var(--m26-muted,#aaa);
+  font-size:.65rem;
+  line-height:1.4;
+}
+.m26-action-tracking-form>button,
+.m26-action-outcome-item form>button{
+  min-height:2.9rem;
+}
+.m26-action-outcome-history{
+  display:grid;
+  gap:.58rem;
+  padding:.1rem .75rem .75rem;
+}
+.m26-action-outcome-history h4{
+  margin:.2rem 0 0;
+  font-size:.82rem;
+}
+.m26-action-outcome-item{
+  display:grid;
+  gap:.48rem;
+  padding:.68rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-border,rgba(228,205,152,.16)) 82%,transparent);
+  border-radius:.75rem;
+  background:rgba(255,255,255,.014);
+}
+.m26-action-outcome-item>div:first-child{
+  display:flex;
+  justify-content:space-between;
+  gap:.65rem;
+}
+.m26-action-outcome-item>div:first-child small{
+  color:var(--m26-muted,#aaa);
+  font-size:.66rem;
+}
+.m26-action-outcome-item p{
+  margin:0;
+  color:var(--m26-muted,#aaa);
+  font-size:.7rem;
+  line-height:1.42;
+}
+.m26-action-outcome-item p b{color:var(--iberfit-color-text-primary,#f7f1e4)}
+.m26-action-outcome-item[data-status="abierto"]{
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 24%,transparent);
+}
+.m26-action-outcome-result{
+  padding:.52rem .58rem;
+  border-radius:.62rem;
+  background:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 7%,transparent);
+}
+.m26-action-outcome-empty{
+  margin:.1rem 0;
+  color:var(--m26-muted,#aaa);
+  font-size:.7rem;
+  line-height:1.45;
+}
+@media (max-width:900px){
+  .m26-action-outcome-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:580px){
+  .m26-action-outcome-manager>summary{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .m26-action-outcome-manager>summary small{text-align:left}
+  .m26-action-tracking-form,
+  .m26-action-outcome-item form{grid-template-columns:minmax(0,1fr)}
+  .m26-action-tracking-form label:has(textarea),
+  .m26-action-outcome-item form label:has(textarea),
+  .m26-action-outcome-guard,
+  .m26-action-tracking-form>button,
+  .m26-action-tracking-form>[data-engagement-status],
+  .m26-action-outcome-item form>button,
+  .m26-action-outcome-item form>[data-engagement-status]{grid-column:auto}
+  .m26-action-outcome-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+/* ACTION_OUTCOME_TRACKING_V1_END */
