@@ -309,10 +309,7 @@ function renderAgenda(vm){
   const confirmationOpen=Number(vm.rc39?.confirmationOpen||0);
   const changeRequests=Number(vm.rc39?.changeRequests||0);
   const needsPreparation=Number(vm.rc39?.needsPreparation||0);
-  const nextAppointment=appointments.find((item)=>{
-    const time=item?.startAt?new Date(item.startAt).getTime():NaN;
-    return Number.isFinite(time)&&time>=Date.now()-86_400_000;
-  })||appointments[0]||null;
+  const nextAppointment=appointments[0]||null;
 
   const cards=appointments.length
     ?appointments.map((appointment)=>{
@@ -342,7 +339,7 @@ function renderAgenda(vm){
           <p class="m26-eyebrow">Siguiente decisión</p>
           <h3>${proposedCount?'Revisar propuestas':'Preparar la próxima cita'}</h3>
           <p>${proposedCount
-            ?`${proposedCount} ${proposedCount===1?'propuesta permanece interna':'propuestas permanecen internas'} hasta confirmación.`
+            ?'Las propuestas permanecen internas hasta confirmación.'
             :'Crea una propuesta sin hacerla visible al cliente hasta que la confirmes.'}</p>
         </div>
         <div class="m30-agenda-decision-metrics">
