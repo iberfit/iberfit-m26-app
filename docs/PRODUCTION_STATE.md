@@ -41,7 +41,8 @@ PR #323 dejó el acceso en modelo state-first:
 ## Canary
 
 - Rama: `canary/rc74-4`
-- Baseline de código que produjo LIVE: `6d06d033fe09b6802bef21e0f30374b48c78edda`
+- HEAD Canary actual: `fbe770e583b12ac88c479b51abc4f74d937b9cb5` (PR #325 · Device Experience Gate Phase A).
+- Baseline de código que produjo LIVE: `6d06d033fe09b6802bef21e0f30374b48c78edda`.
 - P0 técnico demostrado: 0.
 - Rama protegida: `false` a este checkpoint.
 - Los cambios documentales posteriores pueden mover HEAD sin cambiar el runtime productivo; distinguir siempre HEAD de Canary de source SHA LIVE.
@@ -60,15 +61,15 @@ PR #323 dejó el acceso en modelo state-first:
 Ninguno demostrado.
 
 ### P1
-1. Convertir la evidencia visual actual en un Device Experience Gate real: Cliente + Coach post-WebAuthn + Admin autenticado × desktop/tablet portrait/tablet landscape/mobile.
+1. **Device Experience Gate Phase B**: cerrar Coach post-WebAuthn y Admin autenticado real; Phase A ya está GREEN con Cliente QA real, Coach fail-closed, Admin sintético y PWA.
 2. Proteger `canary/rc74-4` con PR/checks obligatorios.
 3. Cerrar el loop `señal -> decisión -> intervención -> outcome`.
 4. Instrumentar funnel y capacidad operativa: lead -> IRI -> plan -> primera sesión -> adherencia -> 30/90/180 -> reactivación/referral/revenue + minutos Coach/cliente.
-5. Certificar PWA/update/offline y task differentiation por dispositivo.
+5. Completar task differentiation: modal, teclado/focus, error recovery y sesión live por dispositivo.
 
 ## Fuente de verdad documental
 
-HQ deja de vivir sólo en `chore/iberfit-hq-bootstrap`. Debe integrarse en la línea técnica para que STATE/BACKLOG acompañen el sistema real.
+HQ ya está integrado en la línea técnica mediante PR #324. STATE/BACKLOG/operating/release/decisions acompañan Canary.
 
 ## GO para producción
 
@@ -85,8 +86,8 @@ HQ deja de vivir sólo en `chore/iberfit-hq-bootstrap`. Debe integrarse en la l�
 
 ## Siguiente acción exacta
 
-1. Integrar esta documentación HQ en Canary.
-2. Crear Device Experience Gate multidispositivo/rol con tareas reales.
-3. Resolver protección de `canary/rc74-4`.
-4. Implementar outcome tracking.
+1. Resolver protección de `canary/rc74-4`.
+2. Device Experience Gate Phase B: Coach post-WebAuthn + Admin autenticado real.
+3. Implementar Action Outcome Tracking.
+4. Implementar “Preparar próxima sesión”.
 5. Instrumentar negocio/capacidad operativa.
