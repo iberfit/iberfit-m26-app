@@ -6,6 +6,7 @@ import {
   deriveAdherenceAlerts,
 } from '../engagement/index.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
+import {finiteOptionalNumber} from '../domain/optional-number.js';
 import {IBERFIT_UI_LOCALE} from './castellano.js';
 import {clientHealthSummary} from '../modules/domain-selectors.js';
 import {deriveClientExperience,experienceNextAction} from '../experience/client-experience.js';
@@ -150,11 +151,11 @@ function action(document,label,area){
 }
 
 function wearableMetric(summary,key,suffix=''){
-  return number(Number(summary?.wearable?.metrics?.[key]),suffix);
+  return number(finiteOptionalNumber(summary?.wearable?.metrics?.[key]),suffix);
 }
 
 function wellbeingValue(summary,key){
-  return number(Number(summary?.checkinAverage?.[key]),'/10');
+  return number(finiteOptionalNumber(summary?.checkinAverage?.[key]),'/10');
 }
 
 // RC74_17_PROOF_OF_PROGRESS_BEGIN
@@ -168,8 +169,8 @@ function proofMetric(exercise){
   const history=Array.isArray(exercise?.history)?exercise.history:[];
   for(const definition of PROOF_METRICS){
     const points=history
-      .map((point)=>({at:point?.at,value:Number(point?.[definition.key])}))
-      .filter((point)=>point.at&&Number.isFinite(point.value));
+      .map((point)=>({at:point?.at,value:finiteOptionalNumber(point?.[definition.key])}))
+      .filter((point)=>point.at&&point.value!==null);
     const trend=exercise?.[definition.trendKey];
     if(points.length>=2&&trend?.direction&&trend.direction!=='indeterminate'){
       return Object.freeze({...definition,points:Object.freeze(points.slice(-8)),trend});
@@ -496,3 +497,9 @@ export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
   else route.prepend(section);
   return true;
 }
+
+export const __client360Internals=Object.freeze({
+  wearableMetric,
+  wellbeingValue,
+  proofMetric,
+});
