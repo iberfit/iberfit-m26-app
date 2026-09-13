@@ -2860,10 +2860,81 @@ export function renderPlanningRoute(vm){
   const cycleModality=String(cycle.modality||cycle.modalidad||seed?.suggestedModality||'hibrido').toLowerCase();
   const weeklyFrequency=cycle.weeklyFrequency||cycle.weekly_frequency||seed?.suggestedWeeklyFrequency||2;
   const sessionDuration=cycle.sessionDurationMinutes||cycle.session_duration_minutes||seed?.suggestedSessionDurationMinutes||60;
-  const editor=vm.canEdit?`<form class="m26-panel m26-panel-soft" data-workflow-form="planning"${suggestedGoal?' data-iri-seeded="true"':''}><div class="m26-panel-heading"><div><p class="m26-eyebrow">Entrenador</p><h2>Preparar ciclo de entrenamiento</h2><p>Validar crea una versión interna. Después deberá aprobarse y publicarse de forma expresa.</p></div></div><input type="hidden" name="entityId" value="${escapeHtml(vm.currentCycle?.id||cycle.id||'')}"><div class="m26-field-grid"><label>Nombre del ciclo<input name="name" maxlength="120" value="${escapeHtml(cycle.name||cycle.nombre||'')}" required></label><label>Inicio<input type="date" name="startDate" value="${escapeHtml(String(cycle.startDate||cycle.start_date||'').slice(0,10))}" required></label><label>Fin<input type="date" name="endDate" value="${escapeHtml(String(cycle.endDate||cycle.end_date||'').slice(0,10))}" required></label><label>Modalidad<select name="modality" required><option value="presencial"${selectedOption(cycleModality,'presencial')}>Presencial</option><option value="hibrido"${selectedOption(cycleModality,'hibrido')}>Híbrido</option><option value="online"${selectedOption(cycleModality,'online')}>Online</option></select></label><label>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" value="${escapeHtml(weeklyFrequency)}" required></label><label>Duración habitual (min)<input type="number" name="sessionDurationMinutes" min="20" max="240" value="${escapeHtml(sessionDuration)}" required></label><label class="m26-wide">Objetivo<textarea name="goal" maxlength="500" required>${escapeHtml(cycleGoal||suggestedGoal)}</textarea>${suggestedGoal?'<small>Propuesta inicial desde el IRI confirmado. Revisa y adapta antes de validar.</small>':''}</label></div><button type="submit" class="m26-primary-action" data-workflow-action="validate-plan">Validar borrador</button>${workflowStatus('planning')}</form>`:'';
-  const title=isClient?'Tu planificación':'Planificación y publicación';
-  const copy=isClient?'Aquí tienes tu plan actual y las sesiones que ya están listas para ti.':'Cada contenido pasa por validación, aprobación y publicación. Aprobar no lo hace visible para el cliente.';
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Planificación</p><h2>${title}</h2><p>${copy}</p></div>${badge(countLabel(vm.sessions.length,'sesión','sesiones'),'neutral')}</section>${!isClient?iriPlanningContextPanel(seed):''}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Ciclos</p><h2>${isClient?'Tu plan vigente':'Ciclos en gestión'}</h2></div>${!isClient?badge(`${vm.cycleCounts?.approved||0} aprobados`,'neutral'):''}</div>${publicationList(vm.cycles,'planning',isClient?'Aún no hay un plan disponible':'Sin ciclos preparados',{clientView:isClient})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Sesiones</p><h2>${isClient?'Sesiones de tu plan':'Estado de las sesiones'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient})}</section></section>${editor}</div>`;
+  const cycleName=String(cycle.name||cycle.nombre||'').trim();
+  const hasCycle=Boolean(vm.currentCycle?.id||cycle.id||cycleName);
+  const approvedCycles=Number(vm.cycleCounts?.approved||0);
+  const publishedSessions=Number(vm.sessionCounts?.published||0);
+  const totalSessions=Array.isArray(vm.sessions)?vm.sessions.length:0;
+  const editor=vm.canEdit?`<form class="m26-panel m26-panel-soft m26-planning-cycle-editor" data-workflow-form="planning"${suggestedGoal?' data-iri-seeded="true"':''}>
+    <div class="m26-panel-heading">
+      <div>
+        <p class="m26-eyebrow">${hasCycle?'Ciclo actual':'Primer paso'}</p>
+        <h2>${hasCycle?'Revisar ciclo de entrenamiento':'Crear ciclo de entrenamiento'}</h2>
+        <p>Define el marco del trabajo. Validar crea una versión interna; aprobar y publicar siguen siendo decisiones separadas.</p>
+      </div>
+      ${hasCycle?badge('Borrador editable','neutral'):''}
+    </div>
+    <input type="hidden" name="entityId" value="${escapeHtml(vm.currentCycle?.id||cycle.id||'')}">
+    <div class="m26-field-grid">
+      <label>Nombre del ciclo<input name="name" maxlength="120" value="${escapeHtml(cycleName)}" required></label>
+      <label>Inicio<input type="date" name="startDate" value="${escapeHtml(String(cycle.startDate||cycle.start_date||'').slice(0,10))}" required></label>
+      <label>Fin<input type="date" name="endDate" value="${escapeHtml(String(cycle.endDate||cycle.end_date||'').slice(0,10))}" required></label>
+      <label>Modalidad<select name="modality" required><option value="presencial"${selectedOption(cycleModality,'presencial')}>Presencial</option><option value="hibrido"${selectedOption(cycleModality,'hibrido')}>Híbrido</option><option value="online"${selectedOption(cycleModality,'online')}>Online</option></select></label>
+      <label>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" value="${escapeHtml(weeklyFrequency)}" required></label>
+      <label>Duración habitual (min)<input type="number" name="sessionDurationMinutes" min="20" max="240" value="${escapeHtml(sessionDuration)}" required></label>
+      <label class="m26-wide">Objetivo<textarea name="goal" maxlength="500" required>${escapeHtml(cycleGoal||suggestedGoal)}</textarea>${suggestedGoal?'<small>Propuesta inicial desde el IRI confirmado. Revisa y adapta antes de validar.</small>':''}</label>
+    </div>
+    <div class="m26-inline-actions">
+      <button type="submit" class="m26-primary-action" data-workflow-action="validate-plan">${hasCycle?'Validar cambios':'Validar borrador'}</button>
+      ${hasCycle?'<button type="button" data-workflow-action="open-session-builder">Construir sesión</button>':''}
+    </div>
+    ${workflowStatus('planning')}
+  </form>`:'';
+  const title=isClient?'Tu planificación':'Planificación';
+  const copy=isClient?'Aquí tienes tu plan actual y las sesiones que ya están listas para ti.':'Del ciclo a la sesión: primero decide el marco, después construye y publica solo cuando esté revisado.';
+  const nextAction=!isClient
+    ?`<section class="m26-planning-next" aria-label="Siguiente decisión de planificación">
+        <div>
+          <p class="m26-eyebrow">Siguiente decisión</p>
+          <h3>${hasCycle?'Construir y revisar sesiones':'Definir el ciclo'}</h3>
+          <p>${hasCycle?'El ciclo ya da contexto. Usa el constructor para preparar cada sesión y revisa antes de publicar.':'Crea el ciclo para fijar objetivo, frecuencia, modalidad y duración antes de programar sesiones.'}</p>
+        </div>
+        <div class="m26-planning-next-metrics">
+          <span><small>Ciclos aprobados</small><strong>${escapeHtml(approvedCycles)}</strong></span>
+          <span><small>Sesiones</small><strong>${escapeHtml(totalSessions)}</strong></span>
+          <span><small>Publicadas</small><strong>${escapeHtml(publishedSessions)}</strong></span>
+        </div>
+        <div class="m26-inline-actions">
+          ${hasCycle?'<button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Construir sesión</button>':'<button type="button" class="m26-primary-action" data-m26-planning-focus-cycle>Definir ciclo</button>'}
+        </div>
+      </section>`
+    :'';
+  const cycleSummary=!isClient&&hasCycle?`<section class="m26-planning-current-cycle" aria-label="Marco del ciclo actual">
+    <div><span>Ciclo</span><strong>${escapeHtml(cycleName||'Sin nombre')}</strong></div>
+    <div><span>Modalidad</span><strong>${escapeHtml(cycleModality==='hibrido'?'Híbrido':cycleModality==='online'?'Online':'Presencial')}</strong></div>
+    <div><span>Frecuencia</span><strong>${escapeHtml(weeklyFrequency)} / semana</strong></div>
+    <div><span>Duración</span><strong>${escapeHtml(sessionDuration)} min</strong></div>
+  </section>`:'';
+  return `<div class="m26-route m26-planning-workbench-v2" data-planning-workbench-v2>
+    <section class="m26-route-intro m26-planning-intro">
+      <div><p class="m26-eyebrow">Planificación</p><h2>${title}</h2><p>${copy}</p></div>
+      ${badge(countLabel(vm.sessions.length,'sesión','sesiones'),'neutral')}
+    </section>
+    ${nextAction}
+    ${cycleSummary}
+    ${!isClient?iriPlanningContextPanel(seed):''}
+    ${editor}
+    <section class="m26-content-grid m26-planning-publication-grid">
+      <section class="m26-panel">
+        <div class="m26-panel-heading"><div><p class="m26-eyebrow">Ciclos</p><h2>${isClient?'Tu plan vigente':'Versiones y publicación'}</h2></div>${!isClient?badge(`${approvedCycles} aprobados`,'neutral'):''}</div>
+        ${publicationList(vm.cycles,'planning',isClient?'Aún no hay un plan disponible':'Sin ciclos preparados',{clientView:isClient})}
+      </section>
+      <section class="m26-panel">
+        <div class="m26-panel-heading"><div><p class="m26-eyebrow">Sesiones</p><h2>${isClient?'Sesiones de tu plan':'Sesiones del ciclo'}</h2></div>${!isClient?badge(`${publishedSessions} publicadas`,'success'):''}</div>
+        ${publicationList(vm.sessions,'session',isClient?'Aún no hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient})}
+      </section>
+    </section>
+  </div>`;
 }
 export function renderAgendaRoute(vm) {
   const options = vm.clients
