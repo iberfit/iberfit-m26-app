@@ -500,6 +500,41 @@ function completedSessionSummary(execution){
   </div>`;
 }
 
+function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=false}={}){
+  const target=[
+    planned?.reps||null,
+    Number.isFinite(Number(planned?.targetRpe))?`RPE ${planned.targetRpe}`:null,
+    Number.isFinite(Number(planned?.targetRir))?`RIR ${planned.targetRir}`:null,
+  ].filter(Boolean).join(' · ')||'Según indicación';
+
+  const previous=previousSet
+    ?previousSetSummary(previousSet)
+    :exerciseMemory?.latest?.lastLoad?.raw||null;
+
+  return `<section
+    class="m26-session-set-focus${restActive?' is-rest':''}"
+    data-session-touch-focus
+    aria-label="Serie actual y referencia"
+  >
+    <div class="m26-session-set-focus-number">
+      <span>${restActive?'Completada':'Serie actual'}</span>
+      <strong>${e(step?.setNumber||1)}<small>/${e(step?.totalSets||1)}</small></strong>
+    </div>
+    <div>
+      <span>Objetivo</span>
+      <strong>${e(target)}</strong>
+    </div>
+    <div>
+      <span>Referencia anterior</span>
+      <strong>${e(previous||'Sin referencia confirmada')}</strong>
+    </div>
+    <div>
+      <span>Descanso previsto</span>
+      <strong>${e(planned?.restSeconds||60)} s</strong>
+    </div>
+  </section>`;
+}
+
 export function renderGuidedExecution({execution,session,catalog,actionState,mediaMap,role='client',exerciseMemoryFor=null}={}){
   const state=actionState&&actionState.status!=='idle'
     ?`<div class="m26-action-state is-${e(actionState.status)}" role="${actionState.status==='error'||actionState.status==='retry'?'alert':'status'}" aria-live="polite">${e(actionState.message|| (actionState.status==='loading'?'Procesando…':''))}</div>`
@@ -707,6 +742,20 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         recorded.rir!=null&&Number.isFinite(Number(recorded.rir))?`RIR ${recorded.rir}`:null,
       ].filter(Boolean).join(' · ')
     :'';
+  const touchFocus=sessionSetFocus({
+    step,
+    planned,
+    previousSet,
+    exerciseMemory,
+    restActive,
+  });
+  const liveTelemetry=liveTelemetryStrip(execution,catalog);
+  const liveTelemetryDisclosure=liveTelemetry
+    ?`<details class="m26-session-live-data">
+        <summary>Datos en vivo y contexto</summary>
+        ${liveTelemetry}
+      </details>`
+    :'';
 
   const setPanel=recorded
     ?`<article
@@ -724,6 +773,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
             <strong>${restActive?e(restSeconds)+' s':'Continuar'}</strong>
           </div>
         </div>
+        ${restActive?`<div class="m26-session-rest-current-media" aria-label="Ejercicio actual">${visual}</div>`:''}
         <p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>
         ${nextExercisePreview}
         <details class="m26-session-options">
@@ -769,7 +819,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
 
   const cues=(ex.cues||[]).join(' · ');
 
-  return `<section class="m26-guided m26-session-live" data-session-live-state="${restActive?'rest':'active'}">
+  return `<section class="m26-guided m26-session-live m26-session-live-v2" data-session-live-state="${restActive?'rest':'active'}">
     ${state}
     ${sync}
     <header class="m26-session-live-hero">
@@ -788,71 +838,79 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
       <progress class="m26-progress" max="100" value="${progress}" aria-label="Progreso ${progress}%">${progress}%</progress>
       ${goal}
     </header>
-    ${liveTelemetryStrip(execution,catalog)}
-    ${visual}
-    <section class="m26-panel m26-prescription-summary" data-session-live-prescription>
-      <p class="m26-eyebrow">Objetivo de esta serie</p>
-      <div class="m26-field-grid">
-        <div class="m26-field">
-          <span>Repeticiones/tiempo</span>
-          <strong>${e(planned.reps||'Según indicación')}</strong>
-        </div>
-        <div class="m26-field">
-          <span>Descanso</span>
-          <strong>${e(planned.restSeconds||60)} s</strong>
-        </div>
-        <div class="m26-field">
-          <span>Ritmo de ejecución</span>
-          <strong>${e(planned.tempo||'Controlado')}</strong>
-        </div>
-        <div class="m26-field">
-          <span>Esfuerzo</span>
-          <strong>RPE ${e(planned.targetRpe||7)} · RIR ${e(planned.targetRir??3)}</strong>
-        </div>
-      </div>
-    </section>
-    ${cues?`<section class="m26-session-live-cues" aria-label="Indicaciones del ejercicio"><span>Claves técnicas</span><strong>${e(cues)}</strong></section>`:''}
-    ${renderExerciseMemorySession(exerciseMemory)}
-    ${currentExerciseHistory}
-    <div class="m26-guided-main">
-      ${setPanel}
-      <aside class="m26-panel m26-panel-soft m26-session-live-options">
-        <h3>Ajustes de sesión</h3>
-        <p>Las modificaciones son explícitas y quedan bajo tu control; la app no cambia la prescripción automáticamente.</p>
-        <div class="m26-inline-actions">
-          <button type="button" data-session-action="previous">Anterior</button>
-        </div>
-        <details class="m26-session-options">
-          <summary>Ajustes y alternativas</summary>
-          <p>Estos cambios afectan únicamente a la ejecución de hoy; no modifican el plan futuro.</p>
-          <label>Alternativa<select data-session-substitute ${substitutionUnavailable?'disabled aria-disabled="true"':''}>${alternatives||'<option value="">Sin alternativas compatibles</option>'}</select></label>
-          <label>Motivo de sustitución<input maxlength="500" data-session-substitute-reason></label>
-          <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}" ${substitutionDisabled?`disabled aria-disabled="true" title="${e(substitutionTitle)}"`:''}>Usar alternativa</button>
-          <label>Motivo para omitir el resto del ejercicio<input maxlength="500" data-session-skip-exercise-reason></label>
-          <button type="button" data-session-action="skip-exercise">Omitir ejercicio restante</button>
-          ${isCoach?`<div class="m26-session-live-coach-tools">
-            <h4>Ajuste estructural del Coach</h4>
-            <button type="button" data-session-action="add-set">Añadir una serie a este ejercicio</button>
-            <label>Añadir ejercicio después del actual<select data-session-live-add-exercise><option value="">Seleccionar ejercicio…</option>${liveAddOptions}</select></label>
-            <div class="m26-field-grid">
-              <label>Series<input type="number" min="1" max="100" value="1" data-session-live-add-sets></label>
-              <label>Repeticiones/tiempo<input maxlength="40" value="10" data-session-live-add-reps></label>
-              <label>Descanso (s)<input type="number" min="1" max="3600" value="60" data-session-live-add-rest></label>
-              <label>Ritmo<input maxlength="40" value="controlado" data-session-live-add-tempo></label>
-              <label>RPE objetivo<input type="number" min="1" max="10" step="0.5" value="7" data-session-live-add-rpe></label>
-              <label>RIR objetivo<input type="number" min="0" max="10" step="0.5" value="3" data-session-live-add-rir></label>
+
+    ${touchFocus}
+
+    <div class="m26-session-live-workbench">
+      <main class="m26-session-live-primary" aria-label="Registro de la serie actual">
+        ${setPanel}
+      </main>
+
+      <aside class="m26-session-live-context" aria-label="Contexto del ejercicio actual">
+        ${restActive?'':visual}
+        <section class="m26-panel m26-prescription-summary" data-session-live-prescription>
+          <p class="m26-eyebrow">Objetivo de esta serie</p>
+          <div class="m26-field-grid">
+            <div class="m26-field">
+              <span>Repeticiones/tiempo</span>
+              <strong>${e(planned.reps||'Según indicación')}</strong>
             </div>
-            <button type="button" data-session-action="add-live-exercise">Añadir ejercicio a la sesión de hoy</button>
-          </div>`:''}
-        </details>
-        <details class="m26-session-options">
-          <summary>Pausa o cancelación</summary>
-          <button type="button" data-session-action="pause">Pausar sesión</button>
-          <label>Motivo para cancelar<input maxlength="500" data-session-cancel-reason></label>
-          <button type="button" data-session-action="cancel">Cancelar sesión</button>
-        </details>
+            <div class="m26-field">
+              <span>Descanso</span>
+              <strong>${e(planned.restSeconds||60)} s</strong>
+            </div>
+            <div class="m26-field">
+              <span>Ritmo de ejecución</span>
+              <strong>${e(planned.tempo||'Controlado')}</strong>
+            </div>
+            <div class="m26-field">
+              <span>Esfuerzo</span>
+              <strong>RPE ${e(planned.targetRpe||7)} · RIR ${e(planned.targetRir??3)}</strong>
+            </div>
+          </div>
+        </section>
+        ${cues?`<section class="m26-session-live-cues" aria-label="Indicaciones del ejercicio"><span>Claves técnicas</span><strong>${e(cues)}</strong></section>`:''}
+        ${renderExerciseMemorySession(exerciseMemory)}
+        ${currentExerciseHistory}
+        <section class="m26-panel m26-panel-soft m26-session-live-options">
+          <h3>Ajustes de sesión</h3>
+          <div class="m26-inline-actions">
+            <button type="button" data-session-action="previous">Anterior</button>
+          </div>
+          <details class="m26-session-options">
+            <summary>Ajustes y alternativas</summary>
+            <p>Estos cambios afectan únicamente a la ejecución de hoy; no modifican el plan futuro.</p>
+            <label>Alternativa<select data-session-substitute ${substitutionUnavailable?'disabled aria-disabled="true"':''}>${alternatives||'<option value="">Sin alternativas compatibles</option>'}</select></label>
+            <label>Motivo de sustitución<input maxlength="500" data-session-substitute-reason></label>
+            <button type="button" data-session-action="substitute" data-from-exercise-id="${e(step.exerciseId)}" ${substitutionDisabled?`disabled aria-disabled="true" title="${e(substitutionTitle)}"`:''}>Usar alternativa</button>
+            <label>Motivo para omitir el resto del ejercicio<input maxlength="500" data-session-skip-exercise-reason></label>
+            <button type="button" data-session-action="skip-exercise">Omitir ejercicio restante</button>
+            ${isCoach?`<div class="m26-session-live-coach-tools">
+              <h4>Ajuste estructural del Coach</h4>
+              <button type="button" data-session-action="add-set">Añadir una serie a este ejercicio</button>
+              <label>Añadir ejercicio después del actual<select data-session-live-add-exercise><option value="">Seleccionar ejercicio…</option>${liveAddOptions}</select></label>
+              <div class="m26-field-grid">
+                <label>Series<input type="number" min="1" max="100" value="1" data-session-live-add-sets></label>
+                <label>Repeticiones/tiempo<input maxlength="40" value="10" data-session-live-add-reps></label>
+                <label>Descanso (s)<input type="number" min="1" max="3600" value="60" data-session-live-add-rest></label>
+                <label>Ritmo<input maxlength="40" value="controlado" data-session-live-add-tempo></label>
+                <label>RPE objetivo<input type="number" min="1" max="10" step="0.5" value="7" data-session-live-add-rpe></label>
+                <label>RIR objetivo<input type="number" min="0" max="10" step="0.5" value="3" data-session-live-add-rir></label>
+              </div>
+              <button type="button" data-session-action="add-live-exercise">Añadir ejercicio a la sesión de hoy</button>
+            </div>`:''}
+          </details>
+          <details class="m26-session-options">
+            <summary>Pausa o cancelación</summary>
+            <button type="button" data-session-action="pause">Pausar sesión</button>
+            <label>Motivo para cancelar<input maxlength="500" data-session-cancel-reason></label>
+            <button type="button" data-session-action="cancel">Cancelar sesión</button>
+          </details>
+        </section>
       </aside>
     </div>
+
+    ${liveTelemetryDisclosure}
   </section>`;
 }
 // RC71_1_SESSION_LIVE_UX_END
