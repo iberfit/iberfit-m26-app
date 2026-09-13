@@ -962,8 +962,8 @@
 .m26-shell .m26-settings-menu > summary{
   list-style:none;
 }
-.m26-shell .m26-settings-menu > summary::-webkit-details-marker{
-  display:none;
+.m26-shell .m26-settings-menu > summary::marker{
+  content:'';
 }
 .m26-shell .m26-settings-trigger{
   display:inline-flex;
