@@ -77,3 +77,61 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
 
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
+
+
+test('touch tap gives text fields native focus before typing and releases the mobile nav',async({page,browserName},testInfo)=>{
+  const touchProject=testInfo.project.name.includes('mobile')||testInfo.project.name.includes('tablet');
+  test.skip(!touchProject,'Touch-entry contract only applies to touch projects.');
+
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/client-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__?.mounted===true)).toBe(true);
+
+  await page.evaluate(()=>{
+    globalThis.__IBERFIT_TOUCH_POINTERS__=[];
+    document.addEventListener('pointerdown',(event)=>{
+      const target=event.target?.closest?.('input,textarea');
+      if(target)globalThis.__IBERFIT_TOUCH_POINTERS__.push(String(event.pointerType||''));
+    },true);
+  });
+
+  const root=page.locator('#qa-root');
+  const form=page.locator('[data-admin-form="client-create"]');
+  const name=form.locator('input[name="name"]');
+  await name.scrollIntoViewIfNeeded();
+  await name.evaluate((node)=>node.blur());
+  await name.tap();
+
+  await expect(name).toBeFocused();
+  await expect(root).toHaveAttribute('data-m26-text-entry-active','true');
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_TOUCH_POINTERS__?.at(-1)||'')).toBe('touch');
+
+  const hit=await name.evaluate((node)=>{
+    const rect=node.getBoundingClientRect();
+    const x=rect.left+rect.width/2;
+    const y=rect.top+rect.height/2;
+    const top=document.elementFromPoint(x,y);
+    return top===node||Boolean(node.contains?.(top));
+  });
+  expect(hit).toBe(true);
+
+  const nav=page.locator('.m26-mobile-nav');
+  if(await nav.count()){
+    await expect(nav).toHaveCSS('pointer-events','none');
+    await expect(nav).toHaveCSS('opacity','0');
+  }
+
+  await page.keyboard.type('Cliente táctil');
+  await expect(name).toHaveValue('Cliente táctil');
+
+  const email=form.locator('input[name="email"]');
+  await email.tap();
+  await expect(email).toBeFocused();
+  await page.keyboard.type('touch.qa@example.com');
+  await expect(email).toHaveValue('touch.qa@example.com');
+
+  await email.evaluate((node)=>node.blur());
+  await expect.poll(()=>root.getAttribute('data-m26-text-entry-active')).toBeNull();
+
+  expect(errors,browserName+' emitted browser errors').toEqual([]);
+});
