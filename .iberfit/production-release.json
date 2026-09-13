@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "75339c3b0dd75588a49e183e32edbd2b3f58b7ad",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción GREEN · Prepare Next Session + preauth hidden contract + remote preflight closure"
+}
