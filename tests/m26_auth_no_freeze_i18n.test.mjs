@@ -131,7 +131,7 @@ test('premium access copy is complete in every selectable non-Spanish language',
     for(const source of ACCESS_COPY){
       const translated=iberfitSurfaceTranslate(source,{language});
       assert.ok(translated.trim(),language+': '+source);
-      const legitimatelyIdentical=language==='pt'&&source==='Entrar';
+      const legitimatelyIdentical=language==='pt'&&['Entrar','Continuar'].includes(source);
       if(!legitimatelyIdentical){
         assert.notEqual(translated,source,language+' must translate: '+source);
       }
