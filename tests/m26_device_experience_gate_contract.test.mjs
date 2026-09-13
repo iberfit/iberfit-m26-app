@@ -90,10 +90,21 @@ test('Task-differentiation matrix covers current-source Client Coach and Admin t
     'width:390,height:844',
   ])assert.ok(deviceConfig.includes(token),`missing device task matrix token: ${token}`);
 
+  assert.match(deviceSpec,/CURRENT_SOURCE_STYLES/u);
+  assert.match(deviceSpec,/\/src\/m26\/design\/tokens\.css/u);
+  assert.match(deviceSpec,/\/src\/m26\/design\/primitives\.css/u);
   assert.match(deviceSpec,/horizontalOverflow/u);
   assert.match(deviceSpec,/assertFocusPath/u);
   assert.match(deviceSpec,/materiallySmall/u);
   assert.match(deviceSpec,/synthetic-post-assurance-ui/u);
   assert.match(deviceSpec,/synthetic-authorized-ui/u);
   assert.doesNotMatch(deviceSpec,/authCertified:true/u);
+});
+
+test('contextual help preserves the canonical touch target inside data-trust labels',()=>{
+  const primitives=read('src/m26/design/primitives.css');
+  assert.match(
+    primitives,
+    /\.m26-data-trust-label \.m26-guidance-trigger\{[\s\S]*?min-width:var\(--iberfit-size-touch-target\);[\s\S]*?min-height:var\(--iberfit-size-touch-target\);/u,
+  );
 });
