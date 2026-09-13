@@ -86,6 +86,7 @@ export const WORKSPACE_SURFACE_ROWS=Object.freeze([
 ['Registrar bienestar','Log wellbeing','Enregistrer le bien-être','Registar bem-estar'],
 ['Cómo estoy hoy','How I feel today','Comment je me sens aujourd’hui','Como estou hoje'],
 ['Ver planificación','View plan','Voir la planification','Ver planeamento'],
+['Revisar mi planificación','Review my plan','Revoir ma planification','Rever o meu planeamento'],
 ['Abrir sesiones','Open sessions','Ouvrir les séances','Abrir sessões'],
 ['Entrenamientos disponibles','Available training sessions','Entraînements disponibles','Treinos disponíveis'],
 ['Consultar informes','View reports','Consulter les rapports','Consultar relatórios'],
