@@ -64,6 +64,18 @@ const experiencePanel=(experience,role)=>{
 };
 const cardActions=(item,role,experience)=>{
   const actions=[];
+  const appointmentBody=item.appointment?.body&&typeof item.appointment.body==='object'
+    ?item.appointment.body
+    :item.appointment||{};
+  const appointmentStatus=String(
+    item.appointment?.status||
+    appointmentBody.status||
+    appointmentBody.estado||
+    ''
+  ).trim().toLowerCase();
+  if(['coach','admin'].includes(role)&&item.appointmentId&&['propuesta','pendiente','proposal','pending'].includes(appointmentStatus)){
+    actions.push(`<button type="button" class="m26-primary-action" data-workflow-action="confirm-appointment" data-entity-id="${escape(item.appointmentId)}">Confirmar cita</button>`);
+  }
   if(item.calendarVisible&&item.appointment){
     let event=null;
     try{event=appointmentCalendarEvent(item.appointment);}catch{}
@@ -181,18 +193,215 @@ function renderCoachToday(vm){
   }).join(''):`<section class="m26-empty"><h3>Sin citas para hoy</h3><p>La agenda no contiene sesiones programadas para este día.</p></section>`;
   return `<div class="m26-route m26-rc39-coach-today"><section class="m26-hero-panel"><div><p class="m26-eyebrow">Centro operativo</p><h2>${vm.role==='admin'?'Operación administrativa y soporte':'Día de Carlos'}</h2><p>Confirmaciones, sesiones y acciones pendientes en una sola vista.</p></div><div class="m26-hero-signal"><span>Hoy</span><strong>${escape(String(todayAppointments.length))} citas</strong></div></section><section class="m26-stat-grid"><article class="m26-stat"><span>Confirmaciones abiertas</span><strong>${escape(vm.rc39?.confirmationOpen||0)}</strong><small>Ventana de 48 horas</small></article><article class="m26-stat"><span>Cambios solicitados</span><strong>${escape(vm.rc39?.changeRequests||0)}</strong><small>Requieren respuesta</small></article><article class="m26-stat"><span>Sesiones sin contenido</span><strong>${escape(vm.rc39?.needsPreparation||0)}</strong><small>Preparar antes de la cita</small></article></section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Agenda de hoy</p><h2>Orden operativo</h2></div></div><div class="m26-stack">${list}</div></section></div>`;
 }
+function agendaAppointmentStatus(appointment={}){
+  return String(appointment.status||'').trim().toLowerCase();
+}
+
+function agendaClientOptions(vm={}){
+  return (vm.clients||[]).map((item)=>{
+    const profile=item.profile||{};
+    const address=[profile.trainingAddress,profile.commune].filter(Boolean).join(' · ');
+    return `<option
+      value="${escape(item.id)}"
+      data-training-address="${escape(address)}"
+      data-client-modality="${escape(profile.modality||item.modality||'')}"
+      ${item.id===vm.selectedClientId?'selected':''}
+    >${escape(item.name||'Cliente')}</option>`;
+  }).join('');
+}
+
+function renderAgendaProposalForm(vm,role){
+  if(!['coach','admin'].includes(role))return '';
+  const options=agendaClientOptions(vm);
+  return `<form
+    id="m26-agenda-proposal-form"
+    class="m26-panel m26-panel-soft m30-agenda-proposal"
+    data-workflow-form="appointment"
+    aria-labelledby="m26-agenda-proposal-title"
+  >
+    <div class="m26-panel-heading">
+      <div>
+        <p class="m26-eyebrow">Nueva propuesta</p>
+        <h2 id="m26-agenda-proposal-title">Crear propuesta de cita</h2>
+        <p>La propuesta permanece interna hasta que la cita sea confirmada.</p>
+      </div>
+      ${statusBadge('Privada hasta confirmar','neutral')}
+    </div>
+    <div class="m26-field-grid">
+      <label>Cliente
+        <select name="clientId" required>
+          ${options||'<option value="">Sin clientes disponibles</option>'}
+        </select>
+      </label>
+      <label>Modalidad de esta cita
+        <select name="modality" required>
+          <option value="presencial">Presencial</option>
+          <option value="guiada_en_app">Guiada en la aplicación</option>
+          <option value="online">En línea</option>
+        </select>
+      </label>
+      <label>Inicio
+        <input type="datetime-local" name="startAt" required>
+      </label>
+      <label>Fin
+        <input type="datetime-local" name="endAt" required>
+      </label>
+      <label class="m26-wide">Ubicación
+        <input name="location" maxlength="300" autocomplete="street-address" aria-describedby="m26-location-help">
+      </label>
+      <p id="m26-location-help" class="m26-field-help m26-wide">La dirección habitual del expediente se propone automáticamente para citas presenciales.</p>
+    </div>
+    <div class="m26-inline-actions">
+      <button type="submit" class="m26-primary-action" data-workflow-action="create-appointment">Crear propuesta de cita</button>
+    </div>
+    <div data-workflow-status="appointment" aria-live="polite"></div>
+  </form>`;
+}
+
+function renderAgendaStandaloneCard(appointment,role){
+  const status=agendaAppointmentStatus(appointment);
+  const confirmable=['coach','admin'].includes(role)&&
+    ['propuesta','pendiente','proposal','pending'].includes(status);
+  const detail=[
+    modalityLabel(appointment.modality),
+    appointment.location,
+  ].filter(Boolean).join(' · ');
+  const controls=confirmable
+    ?`<div class="m26-rc39-card-actions">
+        <button
+          type="button"
+          class="m26-primary-action"
+          data-workflow-action="confirm-appointment"
+          data-entity-id="${escape(appointment.id)}"
+        >Confirmar cita</button>
+        <small>Al confirmar será visible para el cliente.</small>
+      </div>`
+    :'';
+  return `<article
+    class="m26-rc39-session-card m30-agenda-appointment-card"
+    data-appointment-card="${escape(appointment.id)}"
+    tabindex="-1"
+  >
+    <header>
+      <div>
+        <p class="m26-eyebrow">Cita sin sesión enlazada</p>
+        <h3>${escape(appointment.title)}</h3>
+        <p>${escape(formatDate(appointment.startAt))}</p>
+      </div>
+      ${statusBadge(appointment.status||'Sin estado',/confirm|realiz|complet/i.test(status)?'success':'neutral')}
+    </header>
+    ${detail?`<p class="m26-rc39-location">${escape(detail)}</p>`:''}
+    ${controls}
+  </article>`;
+}
+
 function renderAgenda(vm){
   const role=vm.role||vm.rc39?.role;
+  const isClient=role==='client';
+  const canManage=['coach','admin'].includes(role);
   const contractModality=contractModalityOf(vm);
   const projections=vm.rc39?.sessionProjections||[];
   const appointments=vm.rc39?.appointments||[];
-  const cards=appointments.length?appointments.map((appointment)=>{
-    const item=projections.find((projection)=>projection.appointmentId===appointment.id);
-    if(item)return sessionCard(item,role,contractModality);
-    return `<article class="m26-rc39-session-card" data-appointment-card="${escape(appointment.id)}" tabindex="-1"><header><div><p class="m26-eyebrow">Cita sin sesión enlazada</p><h3>${escape(appointment.title)}</h3><p>${escape(formatDate(appointment.startAt))}</p></div>${statusBadge(appointment.status||'Sin estado','neutral')}</header>${appointment.location?`<p>${escape(appointment.location)}</p>`:''}</article>`;
-  }).join(''):`<section class="m26-empty"><h3>Agenda vacía</h3><p>No hay citas dentro del alcance actual.</p></section>`;
-  const calendar=role==='coach'?`<section class="m26-panel m26-rc62-agenda-calendar-panel m30-agenda-calendar" aria-labelledby="m26-rc62-agenda-title"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Vista operativa</p><h2 id="m26-rc62-agenda-title">Semana y día</h2><p>Explora la distribución horaria. Las acciones y el detalle completo permanecen en las tarjetas de agenda.</p></div></div><div class="m26-rc62-agenda-calendar-shell" data-rc62-agenda-calendar aria-label="Calendario operativo del Coach"></div></section>`:'';
-  return `<div class="m26-route m26-rc39-agenda m30-agenda-route" data-m27-session-surface="agenda" data-agenda-role="${escape(role||'unknown')}"><section class="m26-route-intro m30-agenda-intro"><div><p class="m26-eyebrow">${role==='client'?'Tu agenda':'Agenda operativa'}</p><h2>Sesiones por día</h2><p>${escape(modalityIntro(role,contractModality))}</p></div></section>${calendar}<section class="m26-rc39-week m30-agenda-list" aria-label="Sesiones y citas de la agenda">${cards}</section></div>`;
+
+  const proposedCount=appointments.filter((item)=>
+    ['propuesta','pendiente','proposal','pending'].includes(agendaAppointmentStatus(item))
+  ).length;
+  const confirmationOpen=Number(vm.rc39?.confirmationOpen||0);
+  const changeRequests=Number(vm.rc39?.changeRequests||0);
+  const needsPreparation=Number(vm.rc39?.needsPreparation||0);
+  const nextAppointment=appointments.find((item)=>{
+    const time=item?.startAt?new Date(item.startAt).getTime():NaN;
+    return Number.isFinite(time)&&time>=Date.now()-86_400_000;
+  })||appointments[0]||null;
+
+  const cards=appointments.length
+    ?appointments.map((appointment)=>{
+      const item=projections.find((projection)=>projection.appointmentId===appointment.id);
+      return item
+        ?sessionCard(item,role,contractModality)
+        :renderAgendaStandaloneCard(appointment,role);
+    }).join('')
+    :'<section class="m26-empty"><h3>Agenda vacía</h3><p>No hay citas dentro del alcance actual.</p></section>';
+
+  const calendar=role==='coach'
+    ?`<section class="m26-panel m26-rc62-agenda-calendar-panel m30-agenda-calendar" aria-labelledby="m26-rc62-agenda-title">
+        <div class="m26-panel-heading">
+          <div>
+            <p class="m26-eyebrow">Vista operativa</p>
+            <h2 id="m26-rc62-agenda-title">Semana y día</h2>
+            <p>Explora la distribución horaria. Las acciones y el detalle completo permanecen en las tarjetas de agenda.</p>
+          </div>
+        </div>
+        <div class="m26-rc62-agenda-calendar-shell" data-rc62-agenda-calendar aria-label="Calendario operativo del Coach"></div>
+      </section>`
+    :'';
+
+  const decisionStrip=canManage
+    ?`<section class="m30-agenda-decision-strip" aria-label="Estado operativo de la agenda">
+        <div>
+          <p class="m26-eyebrow">Siguiente decisión</p>
+          <h3>${proposedCount?'Revisar propuestas':'Preparar la próxima cita'}</h3>
+          <p>${proposedCount
+            ?`${proposedCount} ${proposedCount===1?'propuesta permanece interna':'propuestas permanecen internas'} hasta confirmación.`
+            :'Crea una propuesta sin hacerla visible al cliente hasta que la confirmes.'}</p>
+        </div>
+        <div class="m30-agenda-decision-metrics">
+          <span><small>Propuestas</small><strong>${escape(proposedCount)}</strong></span>
+          <span><small>Confirmaciones abiertas</small><strong>${escape(confirmationOpen)}</strong></span>
+          <span><small>Cambios solicitados</small><strong>${escape(changeRequests)}</strong></span>
+          <span><small>Por preparar</small><strong>${escape(needsPreparation)}</strong></span>
+        </div>
+        <div class="m26-inline-actions">
+          <a class="m26-primary-action" href="#m26-agenda-proposal-form">Nueva propuesta</a>
+        </div>
+      </section>`
+    :'';
+
+  const clientNext=isClient&&nextAppointment
+    ?`<section class="m30-agenda-client-next" aria-label="Próxima cita">
+        <div>
+          <p class="m26-eyebrow">Próxima cita</p>
+          <h3>${escape(nextAppointment.title||'Sesión IBERFIT')}</h3>
+          <p>${escape(formatDate(nextAppointment.startAt))}</p>
+        </div>
+        ${statusBadge(nextAppointment.status||'Confirmada','success')}
+      </section>`
+    :'';
+
+  const listHeading=`<div class="m30-agenda-list-heading">
+    <div>
+      <p class="m26-eyebrow">${isClient?'Tus citas':'Operación'}</p>
+      <h2>Citas y sesiones</h2>
+      <p>${isClient
+        ?'Aquí aparecen únicamente las citas disponibles para ti.'
+        :'Confirma propuestas, atiende cambios y prepara sesiones sin salir de la agenda.'}</p>
+    </div>
+    ${statusBadge(`${appointments.length} ${appointments.length===1?'registro':'registros'}`,'neutral')}
+  </div>`;
+
+  return `<div
+    class="m26-route m26-rc39-agenda m30-agenda-route m30-agenda-workbench-v2"
+    data-m27-session-surface="agenda"
+    data-agenda-role="${escape(role||'unknown')}"
+    data-agenda-workbench-v2
+  >
+    <section class="m26-route-intro m30-agenda-intro">
+      <div>
+        <p class="m26-eyebrow">${isClient?'Tu agenda':'Agenda operativa'}</p>
+        <h2>${isClient?'Tus próximas sesiones':'Agenda y citas'}</h2>
+        <p>${escape(modalityIntro(role,contractModality))}</p>
+      </div>
+      ${canManage?'<a class="m26-primary-action" href="#m26-agenda-proposal-form">Crear cita</a>':''}
+    </section>
+    ${decisionStrip}
+    ${clientNext}
+    ${calendar}
+    <section class="m26-panel m30-agenda-list-panel">
+      ${listHeading}
+      <div class="m26-rc39-week m30-agenda-list" aria-label="Sesiones y citas de la agenda">${cards}</div>
+    </section>
+    ${renderAgendaProposalForm(vm,role)}
+  </div>`;
 }
 function renderSessions(vm){
   const role=vm.role||vm.rc39?.role;
