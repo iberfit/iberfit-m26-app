@@ -1,5 +1,6 @@
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {listExercisePerformanceMemories} from '../engagement/exercise-performance-engine.js';
+import {confirmedSessionExecutionsForClient} from '../domain/session-execution-truth.js';
 import {summarizeActionOutcomes} from './action-outcome.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
@@ -48,9 +49,11 @@ function sessionForPreparation(state,clientId,appointment){
   return published[0]||sessions.sort(byDateDesc)[0]||null;
 }
 function latestExecution(state,clientId){
-  return forClient(state,'sessionExecutions',clientId)
-    .filter((item)=>['completado','completed','complete'].includes(statusOf(item)))
-    .sort(byDateDesc)[0]||null;
+  return [...confirmedSessionExecutionsForClient(
+    state,
+    clientId,
+    {requireCompleted:true,requireDate:false},
+  )].sort(byDateDesc)[0]||null;
 }
 function latestIri(state,clientId){
   return forClient(state,'iriAssessments',clientId).sort(byDateDesc)[0]||null;
