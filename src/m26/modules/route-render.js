@@ -491,7 +491,7 @@ function renderClientHoyRoute(vm) {
     </section>
 
     <section class="m26-client-home-glance" aria-label="Tu contexto de hoy">
-      <button type="button" data-m26-area="agenda">
+      <button type="button" data-m26-area="sesion">
         <span>Próxima cita</span>
         <strong>${escapeHtml(nextAppointment?.dateLabel||'Por confirmar')}</strong>
         <small>${escapeHtml(nextAppointment?.title||'Tu Coach la añadirá aquí')}</small>
@@ -501,7 +501,7 @@ function renderClientHoyRoute(vm) {
         <strong>${escapeHtml(planName||'En preparación')}</strong>
         <small>${planName?'Plan confirmado':'Tu Coach lo publicará cuando esté listo'}</small>
       </button>
-      <button type="button" data-m26-area="iri">
+      <button type="button" data-m26-area="informes">
         <span>Diagnóstico IRI</span>
         <strong>${escapeHtml(iriLabel)}</strong>
         <small>Punto de partida y reevaluación</small>
