@@ -44,9 +44,9 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   assert.match(css,/\.m26-auth-page\{[^}]*display:grid;[^}]*place-items:center;/u);
   const authCardRule=css.match(/\.m26-auth-card\{([^}]*)\}/u)?.[1]||'';
   assert.match(authCardRule,/margin-block:auto(?:;|$)/u);
-  assert.match(authCardRule,/border:1px solid rgba\(221,190,119,\.18\)/u);
   assert.match(authCardRule,/border-radius:1\.75rem/u);
-  assert.match(authCardRule,/linear-gradient\(165deg/u);
+  assert.match(authCardRule,/color-scheme:light/u);
+  assert.match(authCardRule,/linear-gradient\(180deg,#fffdf8,#f8f4eb\)/u);
   assert.match(authCardRule,/box-shadow:/u);
   assert.match(css,/\.m26-auth-brand\{[^}]*justify-items:center/u);
   assert.match(css,/\.m26-auth-logo\{[^}]*object-fit:contain/u);
@@ -62,7 +62,10 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   assert.equal(inline,css);
   assert.match(html,/class="m26-auth-logo" src="\/public\/isotipo-iberfit\.png"/u);
   assert.match(html,/<p class="m26-eyebrow">IBERFIT<\/p>/u);
+  assert.match(html,/class="m26-auth-stage"/u);
+  assert.match(html,/class="m26-auth-intro"/u);
   assert.match(html,/class="m26-auth-kicker">Acceso privado/u);
+  assert.match(html,/Bienvenido a IBERFIT/u);
   assert.match(html,/<h1 id="m26-auth-title"/u);
   assert.match(html,/data-password-toggle/u);
   assert.match(html,/name="rememberEmail"/u);
