@@ -93,6 +93,7 @@ export function normalizeActionOutcomeEntity(record={}){
   if(!id)return null;
 
   return Object.freeze({
+    entityType:ACTION_OUTCOME_ENTITY_TYPE,
     id,
     clientId,
     revision:integer(field(record,'revision')),
