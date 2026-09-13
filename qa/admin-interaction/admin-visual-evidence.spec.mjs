@@ -31,6 +31,33 @@ async function expectCanonicalAdminShell(page,{form=null}={}){
   await expect(route).toBeVisible();
   await expect(navIcon).toBeVisible();
 
+  const vision=await page.evaluate(()=>{
+    const shell=document.querySelector('.m26-shell');
+    const workspace=shell?.querySelector('.m26-workspace');
+    const sidebar=shell?.querySelector('.m26-sidebar');
+    const mobileNav=shell?.querySelector('.m26-mobile-nav');
+    const panel=shell?.querySelector('.m26-admin-panel,.m26-admin-stat,.m26-admin-table');
+    const ws=workspace?getComputedStyle(workspace):null;
+    const nav=sidebar&&getComputedStyle(sidebar).display!=='none'?getComputedStyle(sidebar):(mobileNav?getComputedStyle(mobileNav):null);
+    const surface=panel?getComputedStyle(panel):null;
+    return {
+      workspaceScheme:ws?.colorScheme||'',
+      workspaceInk:ws?.getPropertyValue('--iberfit-color-text-primary').trim()||'',
+      workspaceBackground:ws?.backgroundImage||'',
+      workspaceBackgroundColor:ws?.backgroundColor||'',
+      navScheme:nav?.colorScheme||'',
+      navBackground:nav?.backgroundImage||'',
+      surfaceBackground:surface?.backgroundColor||'',
+    };
+  });
+  expect(vision.workspaceScheme).toContain('light');
+  expect(vision.workspaceInk).toBe('#15271e');
+  expect(vision.workspaceBackground).toContain('linear-gradient');
+  expect(vision.workspaceBackgroundColor).toBe('rgb(243, 238, 227)');
+  expect(vision.navScheme).toContain('dark');
+  expect(vision.navBackground).toContain('linear-gradient');
+  expect(vision.surfaceBackground).not.toBe('rgba(0, 0, 0, 0)');
+
   const iconBox=await navIcon.boundingBox();
   const routeBox=await route.boundingBox();
   expect(routeBox).not.toBeNull();

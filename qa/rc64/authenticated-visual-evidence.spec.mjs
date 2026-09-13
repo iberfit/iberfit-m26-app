@@ -74,6 +74,19 @@ async function settleVisual(page){
   await page.waitForTimeout(120);
 }
 
+async function dismissGuidedTourForBaseline(page){
+  const tour=page.locator('[data-m26-guided-tour]');
+  if(await tour.count()===0)return false;
+  const close=page.locator('[data-m26-guided-tour-close]').first();
+  if(await close.count()){
+    await close.click();
+    await expect(tour).toHaveCount(0,{timeout:3_000});
+    await page.waitForTimeout(80);
+    return true;
+  }
+  return false;
+}
+
 async function capture(page,{account,project,state}){
   await settleVisual(page);
   const file=`${safeSlug(account.role)}-${safeSlug(account.name)}-${safeSlug(project)}.png`;
@@ -207,6 +220,7 @@ test('RC64 authenticated visual evidence is real QA, read-only and fail-closed',
           page.locator('.m26-route').first(),
           'Visual evidence requires route content before taking the screenshot',
         ).toBeVisible({timeout:10_000});
+        await dismissGuidedTourForBaseline(page);
         captures.push(await capture(page,{
           account,
           project:testInfo.project.name,

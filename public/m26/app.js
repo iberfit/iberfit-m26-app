@@ -527,8 +527,13 @@ async function activateFullStyles(){
 }
 
 function ensureAdaptiveLayoutStyle(){
-  const existing=document.querySelector('link[data-iberfit-adaptive-style]');
-  if(existing)return existing;
+  const existing=document.querySelector(
+    'link[data-iberfit-adaptive-style],link[data-href="/src/m26/design/adaptive-layout.css"],link[href="/src/m26/design/adaptive-layout.css"]'
+  );
+  if(existing){
+    existing.setAttribute('data-iberfit-adaptive-style','true');
+    return existing;
+  }
 
   const link=document.createElement('link');
   link.rel='stylesheet';
@@ -536,7 +541,16 @@ function ensureAdaptiveLayoutStyle(){
   link.media='not all';
   link.setAttribute('data-iberfit-full-style','');
   link.setAttribute('data-iberfit-adaptive-style','true');
-  document.head.append(link);
+
+  const signature=document.querySelector(
+    'link[data-iberfit-signature-v2-style],link[data-href="/src/m26/design/signature-ux-v2.css"],link[href="/src/m26/design/signature-ux-v2.css"]'
+  );
+  const brand=document.querySelector(
+    'link[data-href="/src/m26/design/brand-vision.css"],link[href="/src/m26/design/brand-vision.css"]'
+  );
+  const anchor=signature||brand;
+  if(anchor?.parentNode)anchor.parentNode.insertBefore(link,anchor);
+  else document.head.append(link);
 
   return link;
 }

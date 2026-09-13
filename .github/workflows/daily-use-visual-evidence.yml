@@ -5,6 +5,12 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/admin/**'
+      - 'src/m26/design/**'
+      - 'src/m26/shell/**'
+      - 'src/m26/rc39/**'
+      - 'public/m26/index.html'
+      - 'qa/admin-interaction/fixture.html'
+      - 'qa/admin-interaction/client-form-continuity.fixture.html'
       - 'qa/admin-interaction/admin-visual-evidence.spec.mjs'
       - 'playwright.daily-admin-visual.config.mjs'
       - '.github/workflows/daily-use-visual-evidence.yml'
@@ -12,6 +18,12 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/admin/**'
+      - 'src/m26/design/**'
+      - 'src/m26/shell/**'
+      - 'src/m26/rc39/**'
+      - 'public/m26/index.html'
+      - 'qa/admin-interaction/fixture.html'
+      - 'qa/admin-interaction/client-form-continuity.fixture.html'
       - 'qa/admin-interaction/admin-visual-evidence.spec.mjs'
       - 'playwright.daily-admin-visual.config.mjs'
       - '.github/workflows/daily-use-visual-evidence.yml'
