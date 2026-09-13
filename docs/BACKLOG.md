@@ -15,20 +15,26 @@ Promotion run: `34776097179 = SUCCESS`
 - [x] Recuperar proyecto Cloudflare productivo exacto y ruta de rollback.
 - [x] Promover y verificar el lote actual en `app.iberfit.cl`.
 - [x] Integrar PR #323 de acceso premium state-first.
-- [ ] Integrar HQ vivo en la línea técnica.
+- [x] Integrar HQ vivo en la línea técnica (PR #324).
 - [ ] Proteger `canary/rc74-4` con PR + required checks.
 - [ ] Mantener release por SHA exacto y rollback verificable.
 
 ## P1 · Device Experience Gate
 
-- [ ] Cliente autenticado: desktop 1440×1000.
-- [ ] Cliente autenticado: tablet portrait 1024×1366.
-- [ ] Cliente autenticado: tablet landscape 1366×1024.
-- [ ] Cliente autenticado: móvil 390×844.
-- [ ] Coach post-WebAuthn real/sintético seguro en las cuatro clases.
-- [ ] Admin autenticado QA/sintético en desktop/tablet/móvil.
-- [ ] Cubrir navegación, formulario largo, select/input, modal, scroll, teclado/focus, error recovery y sesión live.
-- [ ] Suite PWA/update/offline separada GREEN.
+### Phase A · GREEN (PR #325)
+- [x] Cliente QA real: desktop 1440×1000.
+- [x] Cliente QA real: tablet portrait 1024×1366.
+- [x] Cliente QA real: tablet landscape 1366×1024.
+- [x] Cliente QA real: móvil 390×844.
+- [x] Coach: login + WebAuthn fail-closed en las cuatro clases.
+- [x] Admin sintético: desktop/tablet portrait/tablet landscape/móvil con tareas de formulario, focus y gestión.
+- [x] Suite PWA/update N-1→N separada GREEN.
+- [x] Política semántica: desktop=analizar/construir; tablet=entrenar/operar; móvil=actuar/completar.
+
+### Phase B · abierta
+- [ ] Coach post-WebAuthn seguro en las cuatro clases.
+- [ ] Admin autenticado QA real en desktop/tablet/móvil.
+- [ ] Modal, scroll largo, teclado virtual/focus, error recovery y sesión live por dispositivo.
 
 Criterio: no basta renderizar; cada dispositivo debe validar tareas representativas.
 
@@ -76,8 +82,8 @@ Marketplace, feed social, leaderboard general, chatbot genérico, gamificación 
 
 ## Siguientes 5 acciones
 
-1. Device Experience Gate completo.
-2. Protección de Canary.
+1. Protección de Canary.
+2. Device Experience Gate Phase B.
 3. Action Outcome Tracking.
 4. Preparar próxima sesión.
 5. Instrumentación funnel/capacidad/revenue.
