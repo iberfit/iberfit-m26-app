@@ -706,7 +706,7 @@ export function renderAccessUi({
               <dd>Qué toca y por qué</dd>
             </div>
             <div>
-              <dt>Evolución</dt>
+              <dt>Seguimiento y evolución</dt>
               <dd>Progreso y seguimiento</dd>
             </div>
           </dl>
