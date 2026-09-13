@@ -55,7 +55,7 @@ export function rankCoachClientDocuments(documents=[],{query='',filters={},sort=
   return Object.freeze(ordered);
 }
 
-export function buildCoachCommandEntries({areas=[],clients=[],selectedClientId=null}={}){
+export function buildCoachCommandEntries({areas=[],clients=[],selectedClientId=null,role='coach'}={}){
   const areaEntries=uniqueBy((Array.isArray(areas)?areas:[]).map((item)=>({
     id:`area:${text(item?.area,100)}`,type:'area',target:text(item?.area,100),label:text(item?.label,160)||text(item?.area,100),group:'Navegación',
     keywords:foldCoachSearch(`${item?.label||''} ${item?.area||''} abrir ir módulo`),
@@ -65,7 +65,7 @@ export function buildCoachCommandEntries({areas=[],clients=[],selectedClientId=n
     id:`client:${text(client?.id,160)}`,type:'client',target:text(client?.id,160),label:`Abrir ${text(client?.name,160)||'cliente'}`,group:'Clientes',
     keywords:foldCoachSearch([client?.name,client?.modality,client?.profile?.primaryObjective,client?.experience?.stageLabel,client?.id===selectedClientId?'expediente activo':''].filter(Boolean).join(' ')),
   })).filter((item)=>item.target),(item)=>item.id);
-  const actionEntries=uniqueBy(safeClients.flatMap((client)=>{
+  const actionEntries=String(role||'').toLowerCase()==='coach'?uniqueBy(safeClients.flatMap((client)=>{
     const clientId=text(client?.id,160);const clientName=text(client?.name,160)||'cliente';
     if(!clientId)return [];
     return Object.entries(COACH_PRODUCTIVITY_TASKS).map(([taskKey,definition])=>({
@@ -81,7 +81,7 @@ export function buildCoachCommandEntries({areas=[],clients=[],selectedClientId=n
         client?.experience?.stageLabel,definition.label,taskKey,
       ].filter(Boolean).join(' ')),
     }));
-  }),(item)=>item.id);
+  }),(item)=>item.id):[];
   return Object.freeze([...areaEntries,...clientEntries,...actionEntries].map(Object.freeze));
 }
 
@@ -191,7 +191,7 @@ export function createCoachProductivityController({root,store,ownerId,storage=gl
     return uniqueBy(items,(item)=>item.area);
   }
 
-  function commandEntries(){const state=store.getState();return buildCoachCommandEntries({areas:commandAreas(),clients:state?.collections?.clients||[],selectedClientId:state?.selectedClientId||null});}
+  function commandEntries(){const state=store.getState();return buildCoachCommandEntries({areas:commandAreas(),clients:state?.collections?.clients||[],selectedClientId:state?.selectedClientId||null,role:role()});}
 
   function renderPalette(query=''){
     const host=root.querySelector?.('[data-coach-command-results]');if(!host)return [];
