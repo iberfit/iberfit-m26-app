@@ -54,6 +54,7 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   assert.match(css,/@media\(max-width:580px\)/u);
   assert.match(css,/\.m26-auth-notice\.is-error/u);
   assert.match(css,/linear-gradient\(135deg,#dabb73,#c69d4e\)/u);
+  assert.match(css,/\.m26-auth-card \[hidden\]\{display:none!important\}/u);
 
   const html=fs.readFileSync('public/m26/index.html','utf8');
   const inline=html.match(/<style data-iberfit-preauth-critical>([\s\S]*?)<\/style>/u)?.[1];
