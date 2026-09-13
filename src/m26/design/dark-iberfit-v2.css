@@ -757,7 +757,7 @@
   min-width:0;
 }
 
-.m26-shell[data-m26-role="client"] .m26-client-home-primary{
+.m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary{
   width:100%;
   min-height:6.8rem;
   display:grid;
@@ -775,7 +775,7 @@
   text-align:left;
 }
 
-.m26-shell[data-m26-role="client"] .m26-client-home-primary > span{
+.m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary > span{
   grid-row:1 / span 2;
   display:grid;
   place-items:center;
@@ -787,14 +787,14 @@
   font-size:1rem;
 }
 
-.m26-shell[data-m26-role="client"] .m26-client-home-primary strong{
+.m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary strong{
   align-self:end;
   color:#fffaf0;
   font-size:1.15rem;
   line-height:1.1;
 }
 
-.m26-shell[data-m26-role="client"] .m26-client-home-primary small{
+.m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary small{
   align-self:start;
   color:rgba(244,244,240,.72);
   font-size:.78rem;
@@ -851,7 +851,7 @@
 
 .m26-shell[data-m26-role="client"] .m26-client-home-actions{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:.65rem;
 }
 
@@ -992,12 +992,12 @@
   .m26-shell[data-m26-role="client"] .m26-client-home-status{
     padding:.75rem .8rem;
   }
-  .m26-shell[data-m26-role="client"] .m26-client-home-primary{
+  .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary{
     min-height:7.2rem;
     padding:1rem;
     border-radius:1rem;
   }
-  .m26-shell[data-m26-role="client"] .m26-client-home-primary strong{
+  .m26-shell[data-m26-role="client"] .m26-client-home-primary-zone .m26-today-action.is-primary strong{
     font-size:1.2rem;
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-glance{
@@ -1007,7 +1007,7 @@
     min-height:4.8rem;
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-actions{
-    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-columns:repeat(2,minmax(0,1fr));
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-actions button{
     display:grid;
