@@ -460,10 +460,13 @@ function renderClientHoyRoute(vm) {
       </div>`;
 
   const nextAction=client?.nextAction||null;
+  const nextActionLabel=nextAction?.area==='planificacion'
+    ?'Revisar mi planificación'
+    :nextAction?.label||'Continuar';
   const nextActionMarkup=nextAction
     ?`<button type="button" class="m26-client-home-context-action" data-m26-area="${escapeHtml(nextAction.area||'actividad')}">
         <span>Siguiente paso</span>
-        <strong>${escapeHtml(nextAction.label||'Continuar')}</strong>
+        <strong>${escapeHtml(nextActionLabel)}</strong>
         <small>${escapeHtml(nextAction.reason||'Continúa con tu recorrido IBERFIT.')}</small>
       </button>`
     :'';
