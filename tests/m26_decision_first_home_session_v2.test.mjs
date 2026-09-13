@@ -129,3 +129,15 @@ test('V2.1 visual hierarchy adapts without hiding controls or introducing intera
   }
   assert.match(added,/\.m26-today-hero::after\{[\s\S]*pointer-events:none/u);
 });
+
+
+test('Brand Vision keeps Today decision-first without hiding existing actions',()=>{
+  const css=read('src/m26/design/brand-vision.css');
+  const vision=css.slice(css.indexOf('/* FIRST SCREEN V1 · decision first */'));
+  assert.match(vision,/\.m26-hoy-route \.m26-today-action\.is-primary\{/u);
+  assert.match(vision,/linear-gradient\(145deg,#174832,#0b2d20/u);
+  assert.match(vision,/\.m26-workspace-home \.m26-workspace-hero\{/u);
+  assert.match(vision,/min-height:auto/u);
+  assert.match(vision,/@media\(max-width:580px\)/u);
+  assert.doesNotMatch(vision,/display\s*:\s*none|visibility\s*:\s*hidden/iu);
+});
