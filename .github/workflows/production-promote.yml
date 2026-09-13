@@ -129,12 +129,16 @@ jobs:
           let sw=fs.readFileSync(swPath,'utf8').replace(/\r\n?/g,'\n');
           const liveSw=fs.readFileSync('/tmp/sw.live.js','utf8').replace(/\r\n?/g,'\n');
           const liveVersion=(liveSw.match(/^const VERSION='([^']+)'/m)||[])[1];
+          const livePreviousVersion=(liveSw.match(/^const PREVIOUS_VERSION='([^']+)'/m)||[])[1];
           if(!liveVersion)throw new Error('LIVE_SW_VERSION_MISSING');
+          if(!livePreviousVersion)throw new Error('LIVE_SW_PREVIOUS_VERSION_MISSING');
           if(!/^const VERSION='[^']+';/m.test(sw))throw new Error('SOURCE_SW_VERSION_MISSING');
           if(!/^const PREVIOUS_VERSION='[^']+';/m.test(sw))throw new Error('SOURCE_SW_PREVIOUS_VERSION_MISSING');
           const releaseVersion=`m26-prod-${process.env.SHORT_SHA}`;
+          const previousVersion=liveVersion===releaseVersion?livePreviousVersion:liveVersion;
+          if(previousVersion===releaseVersion)throw new Error('LIVE_SW_LINEAGE_COLLAPSED');
           sw=sw.replace(/^const VERSION='[^']+';/m,`const VERSION='${releaseVersion}';`);
-          sw=sw.replace(/^const PREVIOUS_VERSION='[^']+';/m,`const PREVIOUS_VERSION='${liveVersion}';`);
+          sw=sw.replace(/^const PREVIOUS_VERSION='[^']+';/m,`const PREVIOUS_VERSION='${previousVersion}';`);
           if(!sw.includes('/src/m26/design/auth-native.css'))throw new Error('PROD_SW_AUTH_NATIVE_MISSING');
           fs.writeFileSync(swPath,sw,'utf8');
 
