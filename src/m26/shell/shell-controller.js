@@ -158,13 +158,14 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let interactionReleaseTimer=null;
   let pendingI18nContinuitySnapshot=null;
 
-  const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
+  const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"],form button';
+  const SHELL_FOCUS_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
   const INTERACTION_RELEASE_GRACE_MS=900;
   const NATIVE_SELECT_INTERACTION_HOLD_MS=30_000;
   function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||null;}
   function focusedInteractiveControl(){
     const active=root.ownerDocument?.activeElement;
-    return active&&root.contains?.(active)&&active.matches?.(SHELL_INTERACTIVE_SELECTOR)?active:null;
+    return active&&root.contains?.(active)&&active.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR)?active:null;
   }
   function shellInteractionActive(){return Boolean(interactionPointerTarget||focusedInteractiveControl());}
 
@@ -187,11 +188,11 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       releasePointerInteraction();
       return;
     }
-    if(focusedInteractiveControl()===control){
+    const tag=String(control?.tagName||'').toLowerCase();
+    if(tag!=='select'&&focusedInteractiveControl()===control){
       releasePointerInteraction();
       return;
     }
-    const tag=String(control?.tagName||'').toLowerCase();
     const timeoutMs=tag==='select'?NATIVE_SELECT_INTERACTION_HOLD_MS:INTERACTION_RELEASE_GRACE_MS;
     const setTimer=adaptiveWindow?.setTimeout?.bind?.(adaptiveWindow)||globalThis.setTimeout?.bind?.(globalThis);
     if(typeof setTimer!=='function'){
@@ -364,7 +365,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function onFocusIn(event){
     const control=interactiveControl(event.target);
     if(!control)return;
-    if(interactionPointerTarget===control){
+    const tag=String(control?.tagName||'').toLowerCase();
+    if(interactionPointerTarget===control&&!['select','button'].includes(tag)){
       clearInteractionReleaseTimer();
       interactionPointerTarget=null;
     }
@@ -372,7 +374,9 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function onFocusOut(event){
     const control=interactiveControl(event.target);
     if(!control)return;
-    if(interactionPointerTarget===control)releasePointerInteraction({deferRender:false});
+    if(interactionPointerTarget===control&&String(control?.tagName||'').toLowerCase()!=='select'){
+      releasePointerInteraction({deferRender:false});
+    }
     queueMicrotask(flushDeferredRender);
   }
 
@@ -563,7 +567,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
 
     const selector = event.target.closest?.('[data-m26-client-select]');
     if (!selector){
-      if(committedControl)queueMicrotask(flushDeferredRender);
+      if(committedControl&&!committedControl.closest?.('form')&&!shellInteractionActive())queueMicrotask(flushDeferredRender);
       return;
     }
     switchClient(selector.value,{openExpediente:false,source:selector,preserveSourceFocus:true});
