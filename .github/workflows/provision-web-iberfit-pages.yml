@@ -144,14 +144,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for path in /VERSION / /contacto/ /diagnostico-iri/ /privacidad/ /en/ /sitemap.xml /robots.txt /llms.txt; do
-            curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
-              "${PREVIEW_URL}${path}?cb=${GITHUB_RUN_ID}" \
-              -o "/tmp/v632-$(echo "${path}" | tr '/.' '__').out"
-          done
-          test "$(tr -d '\r\n ' < /tmp/v632-_VERSION.out)" = "${WEB_VERSION}"
-          grep -q 'IBERFIT' /tmp/v632-__.out
-          grep -q '^# IBERFIT' /tmp/v632-_llms_txt.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?cb=${GITHUB_RUN_ID}" -o /tmp/v632-version.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/?cb=${GITHUB_RUN_ID}" -o /tmp/v632-home.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/contacto/?cb=${GITHUB_RUN_ID}" -o /tmp/v632-contacto.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/diagnostico-iri/?cb=${GITHUB_RUN_ID}" -o /tmp/v632-iri.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/privacidad/?cb=${GITHUB_RUN_ID}" -o /tmp/v632-privacidad.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/en/?cb=${GITHUB_RUN_ID}" -o /tmp/v632-en.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/sitemap.xml?cb=${GITHUB_RUN_ID}" -o /tmp/v632-sitemap.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/robots.txt?cb=${GITHUB_RUN_ID}" -o /tmp/v632-robots.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/llms.txt?cb=${GITHUB_RUN_ID}" -o /tmp/v632-llms.out
+          test "$(tr -d '\r\n ' < /tmp/v632-version.out)" = "${WEB_VERSION}"
+          grep -q 'IBERFIT' /tmp/v632-home.out
+          grep -q '^# IBERFIT' /tmp/v632-llms.out
 
       - name: Desplegar V6.32 en producción
         env:
