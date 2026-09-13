@@ -1,0 +1,303 @@
+/* IBERFIT Dark Premium V2
+ * Final visual contract for authenticated product surfaces.
+ * Role behavior, routing, data and permissions remain untouched.
+ */
+
+.m26-shell{
+  color-scheme:dark;
+  --iberfit-vision-forest:#09130f;
+  --iberfit-vision-forest-2:#121f1b;
+  --iberfit-vision-forest-3:#244536;
+  --iberfit-vision-cream:#09130f;
+  --iberfit-vision-cream-2:#0d1a15;
+  --iberfit-vision-paper:#121f1b;
+  --iberfit-vision-paper-2:#152720;
+  --iberfit-vision-ink:#f4f4f0;
+  --iberfit-vision-ink-2:#c1c5be;
+  --iberfit-vision-ink-3:#909a92;
+  --iberfit-vision-gold:#b99856;
+  --iberfit-vision-gold-2:#d8c08a;
+  --iberfit-vision-line:rgba(216,192,138,.14);
+  --iberfit-vision-line-strong:rgba(216,192,138,.26);
+  --iberfit-vision-shadow:0 14px 34px rgba(0,0,0,.18),0 1px 0 rgba(255,255,255,.025);
+  --iberfit-vision-shadow-raised:0 20px 48px rgba(0,0,0,.24),0 1px 0 rgba(255,255,255,.035);
+  color:var(--iberfit-color-text-primary);
+  background:#09130f;
+}
+
+.m26-shell .m26-workspace{
+  color:var(--iberfit-color-text-primary);
+  background:
+    radial-gradient(circle at 92% 0%,rgba(185,152,86,.065),transparent 28rem),
+    radial-gradient(circle at 8% 44%,rgba(53,104,77,.055),transparent 34rem),
+    linear-gradient(155deg,#0b1712 0%,#09130f 56%,#07100c 100%);
+}
+
+.m26-shell .m26-main{
+  color:var(--iberfit-color-text-primary);
+  background:transparent;
+}
+
+.m26-shell .m26-topbar{
+  color:var(--iberfit-color-text-primary);
+  border-bottom-color:rgba(216,192,138,.09);
+  background:rgba(9,19,15,.90);
+  box-shadow:0 10px 32px rgba(0,0,0,.14);
+  backdrop-filter:blur(18px) saturate(1.08);
+}
+
+.m26-shell .m26-topbar h1,
+.m26-shell .m26-route h1,
+.m26-shell .m26-route h2,
+.m26-shell .m26-route h3,
+.m26-shell .m26-route h4{
+  color:var(--iberfit-color-text-primary);
+}
+
+.m26-shell .m26-eyebrow,
+.m26-shell .m26-workspace-section-title{
+  color:var(--iberfit-color-accent-strong);
+}
+
+.m26-shell .m26-workspace .m26-workspace-hero{
+  color:var(--iberfit-color-text-primary);
+  border-color:rgba(216,192,138,.14);
+  background:
+    radial-gradient(circle at 90% -12%,rgba(216,192,138,.11),transparent 18rem),
+    linear-gradient(145deg,rgba(20,39,31,.96),rgba(12,27,21,.98));
+  box-shadow:var(--iberfit-vision-shadow);
+}
+
+.m26-shell .m26-workspace .m26-workspace-hero :is(h2,strong){
+  color:var(--iberfit-color-text-primary);
+}
+
+.m26-shell .m26-workspace .m26-workspace-hero p:last-child{
+  color:var(--iberfit-color-text-secondary);
+}
+
+.m26-shell .m26-workspace .m26-workspace-action{
+  min-height:6.6rem;
+  border-color:rgba(216,192,138,.13);
+  color:var(--iberfit-color-text-primary);
+  background:
+    linear-gradient(145deg,rgba(22,39,32,.94),rgba(15,29,24,.98));
+  box-shadow:var(--iberfit-vision-shadow);
+}
+
+.m26-shell .m26-workspace .m26-workspace-action:hover:not(:disabled){
+  border-color:rgba(216,192,138,.29);
+  background:
+    linear-gradient(145deg,rgba(28,49,40,.96),rgba(17,34,27,.99));
+  box-shadow:var(--iberfit-vision-shadow-raised);
+}
+
+.m26-shell .m26-workspace .m26-workspace-action strong{
+  color:var(--iberfit-color-text-primary);
+}
+
+.m26-shell .m26-workspace .m26-workspace-action small{
+  color:var(--iberfit-color-text-secondary);
+}
+
+.m26-shell .m26-workspace .m26-workspace-action-icon{
+  color:var(--iberfit-color-accent-strong);
+  background:rgba(185,152,86,.09);
+}
+
+.m26-shell .m26-workspace :is(
+  .m26-panel,
+  .m26-panel-soft,
+  .m26-stat,
+  .m26-list-card,
+  .m26-client-card,
+  .m26-library-card,
+  .m26-publication-card,
+  .m26-client-content-card,
+  .m26-admin-panel,
+  .m26-admin-stat,
+  .m26-admin-priority,
+  .m26-admin-table,
+  .m26-admin-empty,
+  .m26-rc39-session-card,
+  .m26-wearable-source,
+  .m26-wearable-preview,
+  .m26-route-placeholder,
+  .iberfit-card,
+  .iberfit-panel,
+  .iberfit-metric,
+  .m27-cliente-360,
+  .m27-cliente-360-card,
+  .m29-proof-card,
+  .m30-planning-overview
+){
+  color:var(--iberfit-color-text-primary);
+  border-color:rgba(216,192,138,.12);
+  background:
+    linear-gradient(150deg,rgba(20,35,30,.95),rgba(13,27,22,.98));
+  box-shadow:var(--iberfit-vision-shadow);
+}
+
+.m26-shell .m26-workspace .m26-panel-soft{
+  background:rgba(17,31,26,.92);
+}
+
+.m26-shell .m26-workspace :is(
+  .m26-stat,
+  .m26-admin-stat,
+  .iberfit-metric
+){
+  background:
+    radial-gradient(circle at 92% 0%,rgba(185,152,86,.07),transparent 8rem),
+    linear-gradient(150deg,rgba(22,39,32,.96),rgba(13,27,22,.99));
+}
+
+.m26-shell .m26-workspace :is(
+  p,
+  small,
+  .m26-muted,
+  .m26-stat span,
+  .m26-mini-metric span,
+  .m26-admin-stat span,
+  .iberfit-metric-label
+){
+  color:var(--iberfit-color-text-secondary);
+}
+
+.m26-shell .m26-workspace :is(
+  .m26-stat strong,
+  .m26-mini-metric strong,
+  .m26-admin-stat strong,
+  .iberfit-metric-value
+){
+  color:var(--iberfit-color-text-primary);
+}
+
+.m26-shell .m26-workspace :is(input,select,textarea){
+  color:var(--iberfit-color-text-primary);
+  border-color:rgba(216,192,138,.14);
+  background:rgba(7,17,13,.72);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.m26-shell .m26-workspace :is(input,textarea)::placeholder{
+  color:#879189;
+}
+
+.m26-shell .m26-workspace :is(input,select,textarea):focus-visible{
+  border-color:rgba(216,192,138,.44);
+  outline:3px solid rgba(227,204,149,.28);
+  outline-offset:2px;
+}
+
+.m26-shell .m26-workspace :is(
+  button,
+  .m26-icon-button,
+  .m26-text-action
+){
+  color:var(--iberfit-color-text-primary);
+}
+
+.m26-shell .m26-workspace .m26-primary-action{
+  color:#f4f4f0;
+  border-color:rgba(126,167,145,.48);
+  background:
+    linear-gradient(180deg,#285943,#1d4735);
+  box-shadow:
+    0 10px 24px rgba(4,20,13,.28),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.m26-shell .m26-workspace .m26-primary-action:hover:not(:disabled){
+  background:
+    linear-gradient(180deg,#31684e,#23513d);
+}
+
+.m26-shell .m26-workspace .m26-admin-table th{
+  color:var(--iberfit-color-accent-strong);
+  background:rgba(12,26,21,.96);
+}
+
+.m26-shell .m26-workspace .m26-admin-table :is(td,th){
+  border-color:rgba(216,192,138,.09);
+}
+
+.m26-shell .m26-workspace .m26-admin-badge,
+.m26-shell .m26-workspace .m26-badge{
+  color:#e3d4b3;
+  border-color:rgba(216,192,138,.18);
+  background:rgba(185,152,86,.07);
+}
+
+.m26-shell .m26-workspace .m30-admin-command-route > .m26-admin-hero,
+.m26-shell .m26-workspace .m30-admin-decision-center{
+  color:var(--iberfit-color-text-primary)!important;
+  border-color:rgba(216,192,138,.15)!important;
+  background:
+    radial-gradient(circle at 94% -10%,rgba(185,152,86,.09),transparent 19rem),
+    linear-gradient(145deg,#132820,#0d2019)!important;
+}
+
+.m26-shell .m26-workspace .m30-admin-command-route > .m26-admin-hero :is(h2,h3,strong),
+.m26-shell .m26-workspace .m30-admin-decision-center :is(h2,h3,strong){
+  color:var(--iberfit-color-text-primary)!important;
+}
+
+.m26-shell .m26-workspace .m30-admin-command-route > .m26-admin-hero :is(p,small),
+.m26-shell .m26-workspace .m30-admin-decision-center :is(p,small){
+  color:var(--iberfit-color-text-secondary)!important;
+}
+
+.m26-shell .m26-workspace .m30-admin-command-route > .m26-admin-hero .m26-eyebrow,
+.m26-shell .m26-workspace .m30-admin-decision-center .m26-eyebrow{
+  color:var(--iberfit-color-accent-strong)!important;
+}
+
+.m26-shell[data-m26-role="admin"] .m26-sidebar,
+.m26-shell[data-m26-role="coach"] .m26-sidebar,
+.m26-shell[data-m26-role="client"] .m26-sidebar{
+  background:
+    radial-gradient(circle at 30% 0%,rgba(185,152,86,.07),transparent 18rem),
+    linear-gradient(180deg,#0d2119 0%,#091b14 62%,#07150f 100%);
+}
+
+.m26-shell[data-m26-role="admin"] .m26-nav-group h2,
+.m26-shell[data-m26-role="coach"] .m26-nav-group h2,
+.m26-shell[data-m26-role="client"] .m26-nav-group h2{
+  color:rgba(244,244,240,.48);
+}
+
+.m26-shell[data-m26-role] .m26-nav-item.is-active{
+  color:var(--iberfit-color-text-primary);
+  border-color:rgba(216,192,138,.22);
+  background:
+    linear-gradient(145deg,rgba(185,152,86,.11),rgba(185,152,86,.035));
+  box-shadow:
+    inset 3px 0 0 var(--iberfit-color-accent),
+    inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.m26-shell[data-m26-role] .m26-eyebrow,
+.m26-shell[data-m26-role] .m26-sidebar-footer span,
+.m26-shell[data-m26-role] .m26-client-selector span,
+.m26-shell[data-m26-role] .m26-client-context span{
+  color:var(--iberfit-color-accent-strong);
+}
+
+@media(max-width:900px){
+  .m26-shell .m26-topbar{
+    background:rgba(9,19,15,.96);
+  }
+}
+
+@media(prefers-contrast:more){
+  .m26-shell .m26-workspace :is(
+    .m26-panel,
+    .m26-admin-panel,
+    .m26-stat,
+    .m26-admin-stat,
+    .m26-workspace-action
+  ){
+    border-color:rgba(244,244,240,.34);
+  }
+}
