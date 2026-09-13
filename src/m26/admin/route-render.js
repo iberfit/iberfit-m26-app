@@ -28,13 +28,13 @@ function adminRoleLabel(value){
   const key=String(value||'').trim().toLowerCase();
   return ({client:'Cliente',coach:'Coach',admin:'Admin'})[key]||String(value||'Sin rol');
 }
-function adminDateLabel(value){
+function adminDateLabel(value,{timeZone='America/Santiago',locale='es-CL'}={}){
   if(!value)return '';
   const date=new Date(value);
   if(Number.isNaN(date.getTime()))return String(value);
   try{
-    return new Intl.DateTimeFormat('es-CL',{
-      timeZone:'America/Santiago',
+    return new Intl.DateTimeFormat(String(locale||'es-CL'),{
+      timeZone:String(timeZone||'America/Santiago'),
       day:'2-digit',
       month:'short',
       year:'numeric',
@@ -166,7 +166,8 @@ function renderUsers(vm){
     const management=(statusForm||roleForm||deleteForm||selfGuard)
       ?`<details class="m26-admin-user-management"><summary>Actualizar usuario</summary><div class="m26-admin-user-management-body">${statusForm}${roleForm}${deleteForm}${selfGuard}</div></details>`
       :'';
-    const lastAccess=u.lastAccessAt?e(adminDateLabel(u.lastAccessAt)):'Sin acceso registrado';
+    const dateContext={timeZone:vm.organization?.timezone||'America/Santiago',locale:vm.organization?.locale||'es-CL'};
+    const lastAccess=u.lastAccessAt?e(adminDateLabel(u.lastAccessAt,dateContext)):'Sin acceso registrado';
     const relation=u.client
       ?`<strong>${e(u.client.name)}</strong><small>${e([u.client.modality,u.client.lifecycleStatus?adminStatusLabel(u.client.lifecycleStatus):null].filter(Boolean).join(' · ')||'Expediente cliente')}</small>`
       :u.coach
@@ -188,7 +189,7 @@ function renderUsers(vm){
     const integrity=(u.integrityIssues||[]).length
       ?`<div class="m26-admin-user360-warning" role="status"><strong>Revisión de integridad requerida</strong><small>${e((u.integrityIssues||[]).map((issue)=>issue.code).join(' · '))}</small></div>`
       :'';
-    return `<article class="m26-admin-panel m26-admin-user-card m26-admin-user360-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}"><div class="m26-admin-user-card-head"><div><p class="m26-eyebrow">Cuenta 360</p><h3>${e(u.name||u.authEmail||u.email||'Usuario')}</h3><p>${e(u.authEmail||u.email||'')}</p></div>${badge(adminStatusLabel(u.status))}</div><div class="m26-admin-user360-roles">${roles.length?roles.map((role)=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</div><dl class="m26-admin-user360-grid"><div><dt>Último acceso</dt><dd><strong>${lastAccess}</strong><small>Registro de autenticación disponible para esta identidad</small></dd></div><div><dt>Relación operativa</dt><dd>${relation}</dd></div><div><dt>Acceso Cliente</dt><dd>${access}</dd></div><div><dt>Correo de contacto</dt><dd>${contact}</dd></div><div><dt>Coach / cartera</dt><dd>${coachRelation}</dd></div><div><dt>Activación</dt><dd><strong>${u.access?.activatedAt?e(adminDateLabel(u.access.activatedAt)):u.access?.invitationSentAt?'Invitación enviada':'Sin activación registrada'}</strong><small>${u.access?.invitationSentAt?e(`Invitación: ${adminDateLabel(u.access.invitationSentAt)}`):'Sin envío de invitación visible'}</small></dd></div></dl>${integrity}${management}</article>`;
+    return `<article class="m26-admin-panel m26-admin-user-card m26-admin-user360-card" data-admin-user-card data-user-id="${e(u.userId||u.id)}" data-user-search="${e(searchText)}" data-user-status="${e(currentStatus)}" data-user-roles="${e(roleTokens)}"><div class="m26-admin-user-card-head"><div><p class="m26-eyebrow">Cuenta 360</p><h3>${e(u.name||u.authEmail||u.email||'Usuario')}</h3><p>${e(u.authEmail||u.email||'')}</p></div>${badge(adminStatusLabel(u.status))}</div><div class="m26-admin-user360-roles">${roles.length?roles.map((role)=>badge(adminRoleLabel(role))).join(''):badge('Sin rol')}</div><dl class="m26-admin-user360-grid"><div><dt>Último acceso</dt><dd><strong>${lastAccess}</strong><small>Registro de autenticación disponible para esta identidad</small></dd></div><div><dt>Relación operativa</dt><dd>${relation}</dd></div><div><dt>Acceso Cliente</dt><dd>${access}</dd></div><div><dt>Correo de contacto</dt><dd>${contact}</dd></div><div><dt>Coach / cartera</dt><dd>${coachRelation}</dd></div><div><dt>Activación</dt><dd><strong>${u.access?.activatedAt?e(adminDateLabel(u.access.activatedAt,dateContext)):u.access?.invitationSentAt?'Invitación enviada':'Sin activación registrada'}</strong><small>${u.access?.invitationSentAt?e(`Invitación: ${adminDateLabel(u.access.invitationSentAt,dateContext)}`):'Sin envío de invitación visible'}</small></dd></div></dl>${integrity}${management}</article>`;
   }).join('');
   const controls=vm.users.length?`<section class="m26-admin-user-directory-tools" aria-label="Filtrar usuarios">
     <label class="m26-admin-user-search"><span>Buscar</span><input type="search" data-admin-user-search autocomplete="off" placeholder="Nombre, correo, cliente o Coach" aria-label="Buscar usuario por nombre, correo, cliente o Coach"></label>
