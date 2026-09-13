@@ -447,8 +447,10 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
     #intersectionObserver=null;
     #resizeFrame=null;
     #started=false;
+    #lifecycleVersion=0;
 
     connectedCallback(){
+      const lifecycleVersion=++this.#lifecycleVersion;
       this.setAttribute('data-chart-state','pending');
 
       if(typeof globalThis.IntersectionObserver==='function'){
@@ -460,7 +462,7 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
                   const observer=this.#intersectionObserver;
                   this.#intersectionObserver=null;
                   safeChartOperation(()=>observer?.disconnect?.());
-                  void this.#start();
+                  void this.#start(lifecycleVersion);
                 }
               },
               {rootMargin:'240px 0px'}
@@ -475,10 +477,11 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
         }
       }
 
-      void this.#start();
+      void this.#start(lifecycleVersion);
     }
 
     disconnectedCallback(){
+      this.#lifecycleVersion+=1;
       safeChartOperation(
         ()=>this.#intersectionObserver?.disconnect?.()
       );
@@ -510,8 +513,11 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
         'Gráfico no disponible. Los mismos datos siguen disponibles en la tabla.';
     }
 
-    async #start(){
-      if(this.#started)return;
+    async #start(lifecycleVersion=this.#lifecycleVersion){
+      if(
+        this.#started
+        ||lifecycleVersion!==this.#lifecycleVersion
+      )return;
       this.#started=true;
 
       const points=parsePoints(this);
@@ -533,6 +539,7 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
 
       try{
         const echarts=await loadEchartsModule();
+        if(lifecycleVersion!==this.#lifecycleVersion)return;
         if(typeof echarts?.init!=='function'){
           throw new Error('M26_ECHARTS_INIT_UNAVAILABLE');
         }
@@ -582,13 +589,24 @@ if(canRegister()&&!globalThis.customElements.get('m26-echart')){
               new globalThis.ResizeObserver(
                 ()=>{
                   if(this.#resizeFrame)return;
+                  const chart=this.#chart;
                   const scheduled=safeChartOperation(()=>{
                     this.#resizeFrame=requestFrame(()=>{
                       this.#resizeFrame=null;
+                      if(
+                        lifecycleVersion!==this.#lifecycleVersion
+                        ||chart!==this.#chart
+                      )return;
                       const resized=safeChartOperation(
-                        ()=>this.#chart?.resize?.()
+                        ()=>chart?.resize?.()
                       );
-                      if(!resized)this.#renderUnavailable();
+                      if(
+                        !resized
+                        &&chart===this.#chart
+                        &&lifecycleVersion===this.#lifecycleVersion
+                      ){
+                        this.#renderUnavailable();
+                      }
                     });
                   });
                   if(!scheduled){
