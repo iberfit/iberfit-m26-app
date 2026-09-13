@@ -159,6 +159,41 @@ test('feedback con molestia solo genera seguimiento cuando la sesión está conf
   assert.ok(!alerts.some((item)=>item.id==='post-session-discomfort'));
 });
 
+test('ventanas 7/28/90 reutilizan resúmenes precomputados solo si pertenecen al mismo cliente y ventana',()=>{
+  const summary28=Object.freeze({
+    clientId,
+    days:28,
+    plannedSessions:9,
+    completedSessions:7,
+    adherence:0.777,
+    dataQuality:'alta',
+    unconfirmedExecutions:2,
+  });
+  const reused=buildAdherenceWindows(
+    {collections:{}},
+    clientId,
+    {now,windows:[28],summaries:{28:summary28}},
+  );
+  assert.deepEqual(reused,[{
+    days:28,
+    label:'28 días',
+    plannedSessions:9,
+    completedSessions:7,
+    adherence:0.777,
+    hasPlan:true,
+    dataQuality:'alta',
+    unconfirmedExecutions:2,
+  }]);
+
+  const rejected=buildAdherenceWindows(
+    {collections:{}},
+    clientId,
+    {now,windows:[28],summaries:{28:{...summary28,clientId:'otro-cliente'}}},
+  );
+  assert.equal(rejected[0].plannedSessions,0);
+  assert.equal(rejected[0].adherence,null);
+});
+
 test('la señal post-sesión exige decisión del Entrenador y nunca prescribe automáticamente',()=>{
   const signal=deriveAdherenceAlerts(state(),clientId,{now}).find((item)=>item.id==='post-session-discomfort');
   const plan=buildCoachFollowUpPlan([signal]);
