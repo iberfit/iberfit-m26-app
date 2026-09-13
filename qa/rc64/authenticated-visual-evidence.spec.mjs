@@ -237,8 +237,8 @@ test('RC64 authenticated visual evidence is real QA, read-only and fail-closed',
         ).toBeVisible({timeout:5_000});
         await progressNav.click();
         await expect(
-          page.getByRole('heading',{name:'Progreso y adherencia',exact:true}),
-          'Client visual evidence must render the canonical Progreso route',
+          page.locator('[data-m27-cliente-360]'),
+          'Client visual evidence must render the enhanced Cliente 360 Progreso route',
         ).toBeVisible({timeout:10_000});
         await expect(
           page.locator('[data-m26-area="progreso"][aria-current="page"]:visible').first(),
