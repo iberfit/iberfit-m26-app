@@ -22,6 +22,6 @@ test('production bootstrap is neutral and never advertises a review-only lockout
   const html=fs.readFileSync('public/m26/index.html','utf8');
   assert.doesNotMatch(html,/Acceso restringido a las cuentas autorizadas para esta revisión/u);
   assert.doesNotMatch(html,/El acceso no está disponible temporalmente en este sitio/u);
-  assert.match(html,/Cargando acceso seguro a IBERFIT.../u);
+  assert.match(html,/Preparando acceso seguro…/u);
   assert.match(html,/Acceso protegido por autenticación y permisos de cuenta./u);
 });
