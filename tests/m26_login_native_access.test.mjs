@@ -34,7 +34,10 @@ test('recordatorio normaliza únicamente un correo y nunca define una clave de c
 test('capa visual de acceso conserva una superficie premium coherente y responsive',()=>{
   const css=fs.readFileSync('src/m26/design/auth-native.css','utf8');
   assert.match(css,/\.m26-auth-page[\s\S]*?min-height:\s*100dvh/u);
-  assert.match(css,/\.m26-auth-card\s*\{[\s\S]*?border:\s*1px solid rgba\(221, 190, 119, \.18\);[\s\S]*?background:\s*linear-gradient\(165deg,[\s\S]*?box-shadow:/u);
+  const brand=fs.readFileSync('src/m26/design/brand-vision.css','utf8');
+  assert.match(css,/\.m26-auth-card\s*\{[\s\S]*?box-shadow:/u);
+  assert.match(brand,/ACCESS VISION · premium entry/u);
+  assert.match(brand,/\.m26-auth-card\{[\s\S]*?color-scheme:light[\s\S]*?linear-gradient\(180deg,#fffdf8,#f8f4eb\)/u);
   assert.match(css,/\.m26-auth-card h1[\s\S]*?font-family:\s*Inter,/u);
   assert.match(css,/\.m26-auth-card form,[\s\S]*?border-top:\s*1px solid rgba\(221, 190, 119, \.1\)/u);
   assert.match(css,/\.m26-auth-card\[aria-busy='true'\]/u);
