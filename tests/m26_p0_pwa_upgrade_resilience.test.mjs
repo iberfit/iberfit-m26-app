@@ -124,14 +124,16 @@ test('P0 app asks the active worker to warm the full release only after full app
   assert.ok(ready>=0&&warm>ready);
 });
 
-test('P0 stored-session cold start is non-blocking and exposes an explicit retry instead of freezing',()=>{
+test('P0 stored-session cold start remains non-blocking while scheduling silent bounded continuation',()=>{
   const start=application.indexOf('function mount()');
   const end=application.indexOf('function destroy()',start);
   assert.ok(start>=0&&end>start);
   const mount=application.slice(start,end);
   assert.match(mount,/session=vault\.load\(\)/u);
-  assert.match(mount,/sessionRetryAvailable=true/u);
-  assert.match(mount,/Tu sesión está guardada\. Puedes continuar sin bloquear el arranque de IBERFIT\./u);
+  assert.match(mount,/authMode='checking-session'/u);
+  assert.match(mount,/sessionRetryAvailable=false/u);
+  assert.match(mount,/continueSavedSession/u);
+  assert.match(mount,/void resume\(\)/u);
   assert.match(mount,/return Promise\.resolve\(false\)/u);
   assert.doesNotMatch(mount,/return resume\(\)/u);
   assert.doesNotMatch(mount,/continueAfterFirstFactor\(\)/u);
@@ -153,7 +155,8 @@ test('P0 explicit session retry remains bounded to the saved identity and always
   const resume=application.slice(start,end);
   assert.match(resume,/session=vault\.load\(\)/u);
   assert.match(resume,/loginBusy=true/u);
-  assert.match(resume,/authMessage\('Restaurando tu sesión segura…'\)/u);
+  assert.match(resume,/authMode='checking-session'/u);
+  assert.match(resume,/authMessage\(\)/u);
   assert.match(resume,/return await continueAfterFirstFactor\(\)/u);
   assert.match(resume,/finally\{\s*loginBusy=false/u);
   assert.match(resume,/surfaceRetriableSessionFailure\(error,'resume'\)/u);
