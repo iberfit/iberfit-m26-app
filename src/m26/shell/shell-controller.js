@@ -159,12 +159,13 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let pendingI18nContinuitySnapshot=null;
 
   const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"],form button';
+  const SHELL_FOCUS_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
   const INTERACTION_RELEASE_GRACE_MS=900;
   const NATIVE_SELECT_INTERACTION_HOLD_MS=30_000;
   function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||null;}
   function focusedInteractiveControl(){
     const active=root.ownerDocument?.activeElement;
-    return active&&root.contains?.(active)&&active.matches?.(SHELL_INTERACTIVE_SELECTOR)?active:null;
+    return active&&root.contains?.(active)&&active.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR)?active:null;
   }
   function shellInteractionActive(){return Boolean(interactionPointerTarget||focusedInteractiveControl());}
 
@@ -364,7 +365,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function onFocusIn(event){
     const control=interactiveControl(event.target);
     if(!control)return;
-    if(interactionPointerTarget===control&&String(control?.tagName||'').toLowerCase()!=='select'){
+    const tag=String(control?.tagName||'').toLowerCase();
+    if(interactionPointerTarget===control&&!['select','button'].includes(tag)){
       clearInteractionReleaseTimer();
       interactionPointerTarget=null;
     }
