@@ -245,6 +245,8 @@ test('RC64.2B1 visual regression is canonical Linux-only and uses Playwright scr
   assert.match(spec,/data-auth-mode="login"/u);
   assert.match(spec,/data-auth-state="unavailable"/u);
   assert.match(spec,/m26-auth-title/u);
+  assert.match(spec,/data-auth-form/u);
+  assert.match(spec,/m26-primary-action/u);
   assert.match(spec,/m26-notice\.is-warning/u);
   assert.match(spec,/toHaveScreenshot\('preauth-disabled\.png'/u);
   assert.doesNotMatch(spec,/Entrenamiento personal con criterio/u);
