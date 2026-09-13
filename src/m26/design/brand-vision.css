@@ -98,7 +98,7 @@
 .m26-shell .m26-sidebar-footer strong{color:#fffaf0}
 
 /* Light workspace remaps semantic tokens locally; sidebar remains dark. */
-.m26-shell .m26-workspace{
+.m26-shell[data-m26-role] > .m26-workspace{
   color-scheme:light;
   --iberfit-color-canvas:var(--iberfit-vision-cream);
   --iberfit-color-surface-base:var(--iberfit-vision-cream-2);
@@ -123,9 +123,11 @@
   --m26-text-muted:var(--iberfit-vision-ink-3);
   min-width:0;
   color:var(--iberfit-vision-ink);
-  background:
+  background-color:var(--iberfit-vision-cream);
+  background-image:
     radial-gradient(circle at 94% -8%,rgba(198,157,80,.09),transparent 27rem),
     linear-gradient(180deg,#f8f4eb 0%,#f3eee3 56%,#f0eadf 100%);
+  background-repeat:no-repeat;
 }
 
 /* Calm executive header. */
