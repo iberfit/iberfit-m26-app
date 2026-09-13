@@ -19,9 +19,9 @@ env:
   CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
   CF_PROJECT: 'web-iberfit'
   WEB_REPO: 'https://github.com/iberfit/iberfitweb.git'
-  WEB_SHA: '30f927950e63e5d045934b95c497d3560e0ad877'
-  WEB_VERSION: '6.32'
-  QA_RUN_ID: '34755942536'
+  WEB_SHA: '106069577adbc92a83dfe16cf7900903df430af7'
+  WEB_VERSION: '6.33'
+  QA_RUN_ID: '34774637897'
   WRANGLER_VERSION: '4.120.0'
 
 jobs:
@@ -84,7 +84,7 @@ jobs:
           },null,2));
           NODE
 
-      - name: Verificar QA certificada V6.32
+      - name: Verificar QA certificada V6.33
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -94,10 +94,10 @@ jobs:
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" \
-            -o /tmp/qa-v632.json
+            -o /tmp/qa-v633.json
           node <<'NODE'
           const fs=require('fs');
-          const x=JSON.parse(fs.readFileSync('/tmp/qa-v632.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/qa-v633.json','utf8'));
           if(x.head_sha!==process.env.WEB_SHA) throw new Error('QA_SHA_MISMATCH:'+x.head_sha);
           if(x.status!=='completed'||x.conclusion!=='success') throw new Error('QA_NOT_SUCCESS:'+x.status+':'+x.conclusion);
           console.log(JSON.stringify({run:x.id,name:x.name,sha:x.head_sha,conclusion:x.conclusion},null,2));
@@ -116,48 +116,66 @@ jobs:
           test -s /tmp/iberfitweb/candidate/v628/sitemap.xml
           test -s /tmp/iberfitweb/candidate/v628/robots.txt
           test -s /tmp/iberfitweb/candidate/v628/llms.txt
-          test -s /tmp/iberfitweb/candidate/v628/assets/quality.v632.css
+          test -s /tmp/iberfitweb/candidate/v628/assets/quality.v633.css
+          test -s /tmp/iberfitweb/candidate/v628/assets/flag-es.svg
+          test -s /tmp/iberfitweb/candidate/v628/assets/flag-de.svg
+          test -s /tmp/iberfitweb/candidate/v628/assets/flag-cl.svg
+          grep -q 'brand-journey--editorial' /tmp/iberfitweb/candidate/v628/sobre-iberfit/index.html
+          grep -q 'quality.v633.css' /tmp/iberfitweb/candidate/v628/sobre-iberfit/index.html
+          grep -q '/assets/flag-cl.svg' /tmp/iberfitweb/candidate/v628/sobre-iberfit/index.html
           test "$(tr -d '\r\n ' < /tmp/iberfitweb/candidate/v628/VERSION)" = "${WEB_VERSION}"
           grep -q 'max-image-preview:large' /tmp/iberfitweb/candidate/v628/index.html
           grep -q 'generate_lead' /tmp/iberfitweb/candidate/v628/assets/analytics.v628.js
 
-      - name: Desplegar preview V6.32
+      - name: Desplegar preview V6.33
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
         shell: bash
         run: |
           set -euo pipefail
-          PREVIEW_BRANCH="v632-review-${GITHUB_RUN_ID}"
+          PREVIEW_BRANCH="v633-review-${GITHUB_RUN_ID}"
           npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 \
             --project-name "${CF_PROJECT}" \
             --branch "${PREVIEW_BRANCH}" \
             --commit-hash "${WEB_SHA}" \
-            --commit-message 'WEB IBERFIT V6.32 certified preview' \
+            --commit-message 'WEB IBERFIT V6.33 certified preview' \
             | tee /tmp/wrangler-preview.log
           PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-preview.log | tail -1)"
           test -n "${PREVIEW_URL}" || { echo PREVIEW_URL_NOT_FOUND; cat /tmp/wrangler-preview.log; exit 42; }
           echo "PREVIEW_URL=${PREVIEW_URL}" >> "${GITHUB_ENV}"
           echo "Preview URL: ${PREVIEW_URL}"
 
-      - name: Smoke preview V6.32
+      - name: Smoke preview V6.33
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?cb=${GITHUB_RUN_ID}" -o /tmp/v632-version.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/?cb=${GITHUB_RUN_ID}" -o /tmp/v632-home.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/contacto/?cb=${GITHUB_RUN_ID}" -o /tmp/v632-contacto.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/diagnostico-iri/?cb=${GITHUB_RUN_ID}" -o /tmp/v632-iri.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/privacidad/?cb=${GITHUB_RUN_ID}" -o /tmp/v632-privacidad.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/en/?cb=${GITHUB_RUN_ID}" -o /tmp/v632-en.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/sitemap.xml?cb=${GITHUB_RUN_ID}" -o /tmp/v632-sitemap.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/robots.txt?cb=${GITHUB_RUN_ID}" -o /tmp/v632-robots.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/llms.txt?cb=${GITHUB_RUN_ID}" -o /tmp/v632-llms.out
-          test "$(tr -d '\r\n ' < /tmp/v632-version.out)" = "${WEB_VERSION}"
-          grep -q 'IBERFIT' /tmp/v632-home.out
-          grep -q '^# IBERFIT' /tmp/v632-llms.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?cb=${GITHUB_RUN_ID}" -o /tmp/v633-version.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/?cb=${GITHUB_RUN_ID}" -o /tmp/v633-home.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/contacto/?cb=${GITHUB_RUN_ID}" -o /tmp/v633-contacto.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/diagnostico-iri/?cb=${GITHUB_RUN_ID}" -o /tmp/v633-iri.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/privacidad/?cb=${GITHUB_RUN_ID}" -o /tmp/v633-privacidad.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/en/?cb=${GITHUB_RUN_ID}" -o /tmp/v633-en.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/sitemap.xml?cb=${GITHUB_RUN_ID}" -o /tmp/v633-sitemap.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/robots.txt?cb=${GITHUB_RUN_ID}" -o /tmp/v633-robots.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/llms.txt?cb=${GITHUB_RUN_ID}" -o /tmp/v633-llms.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/sobre-iberfit/?cb=${GITHUB_RUN_ID}" -o /tmp/v633-about.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/en/about/?cb=${GITHUB_RUN_ID}" -o /tmp/v633-about-en.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/assets/flag-es.svg?cb=${GITHUB_RUN_ID}" -o /tmp/v633-flag-es.svg
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/assets/flag-de.svg?cb=${GITHUB_RUN_ID}" -o /tmp/v633-flag-de.svg
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/assets/flag-cl.svg?cb=${GITHUB_RUN_ID}" -o /tmp/v633-flag-cl.svg
+          test "$(tr -d '\r\n ' < /tmp/v633-version.out)" = "${WEB_VERSION}"
+          grep -q 'IBERFIT' /tmp/v633-home.out
+          grep -q '^# IBERFIT' /tmp/v633-llms.out
+          grep -q 'brand-journey--editorial' /tmp/v633-about.out
+          grep -q 'quality.v633.css' /tmp/v633-about.out
+          grep -q '/assets/flag-cl.svg' /tmp/v633-about.out
+          grep -q 'brand-journey--editorial' /tmp/v633-about-en.out
+          grep -q '<svg' /tmp/v633-flag-es.svg
+          grep -q '<svg' /tmp/v633-flag-de.svg
+          grep -q '<svg' /tmp/v633-flag-cl.svg
 
-      - name: Desplegar V6.32 en producción
+      - name: Desplegar V6.33 en producción
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
@@ -168,7 +186,7 @@ jobs:
             --project-name "${CF_PROJECT}" \
             --branch production \
             --commit-hash "${WEB_SHA}" \
-            --commit-message 'WEB IBERFIT V6.32 production' \
+            --commit-message 'WEB IBERFIT V6.33 production' \
             | tee /tmp/wrangler-production.log
           PRODUCTION_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-production.log | tail -1)"
           test -n "${PRODUCTION_URL}" || { echo PRODUCTION_URL_NOT_FOUND; cat /tmp/wrangler-production.log; exit 43; }
@@ -194,6 +212,13 @@ jobs:
           curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
             "https://iberfit.cl/?cb=${GITHUB_RUN_ID}" -o /tmp/iberfit-home.html
           grep -q 'IBERFIT' /tmp/iberfit-home.html
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
+            "https://iberfit.cl/sobre-iberfit/?cb=${GITHUB_RUN_ID}" -o /tmp/iberfit-about.html
+          grep -q 'brand-journey--editorial' /tmp/iberfit-about.html
+          grep -q 'quality.v633.css' /tmp/iberfit-about.html
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
+            "https://iberfit.cl/assets/flag-cl.svg?cb=${GITHUB_RUN_ID}" -o /tmp/iberfit-flag-cl.svg
+          grep -q '<svg' /tmp/iberfit-flag-cl.svg
 
           curl --fail --silent --show-error \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
@@ -220,7 +245,7 @@ jobs:
             rollbackDeploymentId:process.env.ROLLBACK_DEPLOYMENT_ID,
             verifiedAt:new Date().toISOString()
           };
-          fs.writeFileSync('/tmp/V632_PRODUCTION_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
+          fs.writeFileSync('/tmp/V633_PRODUCTION_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
           console.log(JSON.stringify(evidence,null,2));
           NODE
 
@@ -228,14 +253,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: web-iberfit-v632-production-${{ github.run_id }}
+          name: web-iberfit-v633-production-${{ github.run_id }}
           path: |
             /tmp/project.json
             /tmp/deployments-before.json
-            /tmp/qa-v632.json
+            /tmp/qa-v633.json
             /tmp/wrangler-preview.log
             /tmp/wrangler-production.log
             /tmp/deployments-after.json
-            /tmp/V632_PRODUCTION_EVIDENCE.json
+            /tmp/V633_PRODUCTION_EVIDENCE.json
           if-no-files-found: warn
           retention-days: 30
