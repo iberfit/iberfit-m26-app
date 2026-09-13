@@ -99,7 +99,7 @@ test('Client Home has explicit mobile-first responsive hierarchy',()=>{
   assert.match(css,/CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE/u);
   assert.match(css,/\.m26-client-home-primary-zone \.m26-today-action\.is-primary\{[\s\S]*?min-height:6\.8rem/u);
   assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-glance\{[\s\S]*?grid-template-columns:1fr/u);
-  assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-actions\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/u);
+  assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-actions\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/u);
 });
 
 test('stable Client Home copy is translated',()=>{
