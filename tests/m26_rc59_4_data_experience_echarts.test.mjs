@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import {
   buildLongitudinalLineOption,
   ECHARTS_DATA_EXPERIENCE_VERSION,
+  __echartsElementInternals,
 } from '../src/m26/data-experience/echarts-element.js';
 import {
   renderLongitudinalDataExperience,
@@ -110,6 +111,44 @@ test('RC59.4 renderer usa SVG, carga diferida, resize, dispose y movimiento redu
   assert.match(
     source,
     /Gráfico no disponible\. Los mismos datos siguen disponibles en la tabla/u
+  );
+});
+
+test('RC59.4 contiene fallos tardíos del motor gráfico sin romper la superficie',()=>{
+  const source=read('src/m26/data-experience/echarts-element.js');
+  let completed=false;
+
+  assert.equal(
+    __echartsElementInternals.safeChartOperation(()=>{
+      completed=true;
+    }),
+    true
+  );
+  assert.equal(completed,true);
+  assert.equal(
+    __echartsElementInternals.safeChartOperation(()=>{
+      throw new Error('resize failed');
+    }),
+    false
+  );
+
+  assert.match(source,/safeChartOperation/u);
+  assert.match(source,/#renderUnavailable\(\)/u);
+  assert.match(
+    source,
+    /if\(!resized\)this\.#renderUnavailable\(\)/u
+  );
+  assert.match(
+    source,
+    /if\(!scheduled\)[\s\S]*this\.#renderUnavailable\(\)/u
+  );
+  assert.match(
+    source,
+    /catch\{[\s\S]*this\.#intersectionObserver=null;[\s\S]*\}\s*\}\s*void this\.#start\(\)/u
+  );
+  assert.match(
+    source,
+    /catch\{[\s\S]*this\.#renderUnavailable\(\);\s*\}/u
   );
 });
 
