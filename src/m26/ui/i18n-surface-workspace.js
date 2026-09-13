@@ -57,6 +57,8 @@ export const WORKSPACE_SURFACE_ROWS=Object.freeze([
 ['Aprobar informe','Approve report','Approuver le rapport','Aprovar relatório'],
 ['Retirar informe','Withdraw report','Retirer le rapport','Retirar relatório'],
 ['Pendiente de aprobación','Pending approval','En attente d’approbation','Pendente de aprovação'],
+['Agenda libre','Schedule clear','Agenda libre','Agenda livre'],
+['Sin clientes','No clients','Aucun client','Sem clientes'],
 ['Todo al día','All caught up','Tout est à jour','Tudo em dia'],
 ['Tu cartera está al día','Your client roster is up to date','Votre portefeuille clients est à jour','A sua carteira de clientes está em dia'],
 ['Continúa con la próxima sesión o prepara trabajo futuro.','Continue with the next session or prepare upcoming work.','Poursuivez avec la prochaine séance ou préparez la suite.','Continue com a próxima sessão ou prepare o trabalho seguinte.'],
