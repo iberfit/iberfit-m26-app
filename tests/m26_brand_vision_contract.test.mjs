@@ -19,7 +19,7 @@ test('production loads signature and brand vision after historical design layers
 test('brand vision keeps navigation dark and workspace light without changing behavior',()=>{
   assert.match(vision,/\.m26-shell \.m26-sidebar\{/u);
   assert.match(vision,/linear-gradient\(180deg,#0e3022/u);
-  assert.match(vision,/\.m26-shell \.m26-workspace\{/u);
+  assert.match(vision,/\.m26-shell\[data-m26-role\] > \.m26-workspace\{/u);
   assert.match(vision,/--iberfit-vision-cream:#f3eee3/u);
   assert.match(vision,/--iberfit-color-text-primary:var\(--iberfit-vision-ink\)/u);
   assert.match(vision,/color-scheme:light/u);
