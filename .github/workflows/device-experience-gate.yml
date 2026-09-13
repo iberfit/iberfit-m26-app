@@ -1,0 +1,195 @@
+name: IBERFIT Device Experience Gate
+
+on:
+  pull_request:
+    branches: [canary/rc74-4]
+    paths:
+      - 'src/m26/**'
+      - 'public/m26/**'
+      - 'qa/**'
+      - 'playwright.authenticated.config.mjs'
+      - 'playwright.authenticated-visual.config.mjs'
+      - 'playwright.admin-interaction.config.mjs'
+      - 'playwright.daily-admin-visual.config.mjs'
+      - 'playwright.p0-pwa-upgrade.config.mjs'
+      - 'docs/DEVICE_EXPERIENCE_POLICY.md'
+      - 'tests/m26_device_experience_gate_contract.test.mjs'
+      - '.github/workflows/device-experience-gate.yml'
+  push:
+    branches: [canary/rc74-4]
+    paths:
+      - 'src/m26/**'
+      - 'public/m26/**'
+      - 'qa/**'
+      - 'playwright.authenticated.config.mjs'
+      - 'playwright.authenticated-visual.config.mjs'
+      - 'playwright.admin-interaction.config.mjs'
+      - 'playwright.daily-admin-visual.config.mjs'
+      - 'playwright.p0-pwa-upgrade.config.mjs'
+      - 'docs/DEVICE_EXPERIENCE_POLICY.md'
+      - 'tests/m26_device_experience_gate_contract.test.mjs'
+      - '.github/workflows/device-experience-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-device-experience-gate
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: device-policy-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/m26_device_experience_gate_contract.test.mjs
+
+  client-coach-qa:
+    name: client-real-coach-webauthn-matrix
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build authenticated QA surface
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+        run: node qa/rc64/build-authenticated-surface.mjs
+      - name: Exercise authenticated tasks by device
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: |
+          npx playwright test --config playwright.authenticated.config.mjs             --project=authenticated-readonly-chromium             --project=authenticated-readonly-tablet-chromium             --project=authenticated-readonly-tablet-landscape-chromium             --project=authenticated-readonly-mobile-chromium
+      - name: Capture authenticated visual states by device
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: |
+          npx playwright test --config playwright.authenticated-visual.config.mjs             --project=authenticated-visual-desktop-chromium             --project=authenticated-visual-tablet-chromium             --project=authenticated-visual-tablet-landscape-chromium             --project=authenticated-visual-mobile-chromium
+      - name: Preserve authenticated device evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-gate-client-coach-${{ github.run_id }}
+          path: |
+            recovery/RC64_2B_AUTHENTICATED_SMOKE.json
+            recovery/rc64-authenticated-visual/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 30
+
+  admin-task-matrix:
+    name: admin-synthetic-task-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Exercise Admin tasks by device
+        run: |
+          npx playwright test --config playwright.admin-interaction.config.mjs             --project=admin-desktop-chromium             --project=admin-tablet-chromium             --project=admin-tablet-landscape-chromium             --project=admin-mobile-chromium
+      - name: Capture Admin visual task states
+        run: npx playwright test --config playwright.daily-admin-visual.config.mjs
+      - name: Preserve Admin evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-gate-admin-${{ github.run_id }}
+          path: |
+            recovery/daily-use-visual/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 30
+
+  pwa-upgrade:
+    name: pwa-installed-device-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Certify installed PWA continuity
+        run: npm run quality:p0:pwa-upgrade
+      - name: Preserve PWA failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-gate-pwa-${{ github.run_id }}
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 30
+
+  gate:
+    name: device-experience-gate-phase-a
+    if: always()
+    needs: [contract,client-coach-qa,admin-task-matrix,pwa-upgrade]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all Phase A jobs
+        shell: bash
+        env:
+          CONTRACT: ${{ needs.contract.result }}
+          CLIENT_COACH: ${{ needs.client-coach-qa.result }}
+          ADMIN: ${{ needs.admin-task-matrix.result }}
+          PWA: ${{ needs.pwa-upgrade.result }}
+        run: |
+          set -euo pipefail
+          printf 'contract=%s\nclient_coach=%s\nadmin=%s\npwa=%s\n' "$CONTRACT" "$CLIENT_COACH" "$ADMIN" "$PWA"
+          test "$CONTRACT" = success
+          test "$CLIENT_COACH" = success
+          test "$ADMIN" = success
+          test "$PWA" = success
+          echo 'DEVICE_EXPERIENCE_GATE_PHASE_A=GREEN'
+          echo 'KNOWN_GAP_COACH_POST_WEBAUTHN=YELLOW'
+          echo 'KNOWN_GAP_ADMIN_AUTHENTICATED=YELLOW'
