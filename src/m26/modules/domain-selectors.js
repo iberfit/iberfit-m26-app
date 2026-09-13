@@ -204,6 +204,83 @@ export function todaysAppointments(
     .map(clone);
 }
 
+const CLIENT_HEALTH_INDEX_KEYS = Object.freeze([
+  'clientProfiles',
+  'clientAccess',
+  'iriAssessments',
+  'reports',
+  'trainingCycles',
+  'sessions',
+  'sessionExecutions',
+  'appointments',
+]);
+
+function buildClientHealthIndex(state) {
+  const index = Object.create(null);
+  for (const key of CLIENT_HEALTH_INDEX_KEYS) {
+    const grouped = new Map();
+    for (const record of list(state, key)) {
+      const clientId = clientIdOf(record);
+      if (!clientId) continue;
+      const rows = grouped.get(clientId);
+      if (rows) rows.push(record);
+      else grouped.set(clientId, [record]);
+    }
+    index[key] = grouped;
+  }
+  return index;
+}
+
+function indexedRows(index, key, clientId) {
+  return index?.[key]?.get(clientId) || [];
+}
+
+function latestIndexed(index, key, clientId) {
+  const rows = indexedRows(index, key, clientId);
+  if (!rows.length) return null;
+  const latest = [...rows].sort(byNewest)[0] || null;
+  return clone(latest);
+}
+
+function indexedUpcomingAppointments(index, clientId, now, limit = 3) {
+  return indexedRows(index, 'appointments', clientId)
+    .filter((record) => appointmentMatchesScope(record, { confirmedOnly: true }))
+    .filter((record) => {
+      const date = safeDate(dateValue(record));
+      return date && date.getTime() >= now.getTime() - 60_000;
+    })
+    .sort(bySoonest)
+    .slice(0, limit)
+    .map(clone);
+}
+
+function indexedClientHealthSummary(client, clientId, index, now) {
+  if (!client) return null;
+  const cycles = indexedRows(index, 'trainingCycles', clientId);
+  const cycle =
+    cycles.find((item) =>
+      ['activo', 'active', 'publicado', 'published'].includes(statusOf(item))
+    ) ||
+    [...cycles].sort(byNewest)[0] ||
+    null;
+  const appointments = indexedUpcomingAppointments(index, clientId, now, 3);
+
+  return {
+    client: clone(client),
+    profile: latestIndexed(index, 'clientProfiles', clientId),
+    access: latestIndexed(index, 'clientAccess', clientId),
+    iri: latestIndexed(index, 'iriAssessments', clientId),
+    report: latestIndexed(index, 'reports', clientId),
+    cycle: clone(cycle),
+    counts: {
+      sessions: indexedRows(index, 'sessions', clientId).length,
+      executions: indexedRows(index, 'sessionExecutions', clientId).length,
+      appointments: appointments.length,
+    },
+    nextAppointment: appointments[0] || null,
+  };
+}
+
 export function clientHealthSummary(state, clientId = state?.selectedClientId, now = new Date()) {
   const client =
     list(state, 'clients').find((item) => item.id === clientId) ||
@@ -241,8 +318,28 @@ export function clientHealthSummary(state, clientId = state?.selectedClientId, n
 }
 
 export function clientsOverview(state, now = new Date()) {
-  return list(state, 'clients')
-    .map((client) => clientHealthSummary(state, client.id, now))
+  const clients = list(state, 'clients');
+  if (!clients.length) return [];
+
+  const index = buildClientHealthIndex(state);
+  const firstClientById = new Map();
+  for (const client of clients) {
+    if (client?.id && !firstClientById.has(client.id)) {
+      firstClientById.set(client.id, client);
+    }
+  }
+
+  return clients
+    .map((client) => {
+      const clientId = client?.id;
+      if (!clientId) return clientHealthSummary(state, clientId, now);
+      return indexedClientHealthSummary(
+        firstClientById.get(clientId) || client,
+        clientId,
+        index,
+        now
+      );
+    })
     .filter(Boolean);
 }
 

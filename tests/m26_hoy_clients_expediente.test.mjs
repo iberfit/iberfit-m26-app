@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createProductionState } from '../src/m26/production-state.js';
 import { createShellViewModel } from '../src/m26/shell/shell-view-model.js';
 import { createRouteViewModel } from '../src/m26/modules/route-view-model.js';
 import { renderRouteView } from '../src/m26/modules/route-render.js';
-import { clientsOverview, todayOverview, recordsForClient } from '../src/m26/modules/domain-selectors.js';
+import { clientsOverview, clientHealthSummary, todayOverview, recordsForClient } from '../src/m26/modules/domain-selectors.js';
 
 const qa = '57339e70-7a99-48d6-820f-7d4a51f89d9d';
 const other = '11111111-1111-4111-8111-111111111111';
@@ -100,6 +101,23 @@ test('overview Coach conserva cartera visible y métricas por expediente', () =>
   assert.equal(rows[0].iri.id, 'i1');
   assert.equal(rows[0].counts.sessions, 1);
   assert.equal(rows[1].counts.sessions, 0);
+});
+
+test('overview indexado conserva paridad exacta con el resumen individual', () => {
+  const state = ready('coach');
+  const indexed = clientsOverview(state, now);
+  const reference = state.collections.clients
+    .map((client) => clientHealthSummary(state, client.id, now))
+    .filter(Boolean);
+  assert.deepEqual(indexed, reference);
+});
+
+test('overview de cartera indexa colecciones una vez sin cambiar el contrato público', () => {
+  const source = fs.readFileSync('src/m26/modules/domain-selectors.js', 'utf8');
+  assert.match(source, /function buildClientHealthIndex\(state\)/u);
+  assert.match(source, /const index = buildClientHealthIndex\(state\)/u);
+  assert.match(source, /indexedClientHealthSummary/u);
+  assert.match(source, /CLIENT_HEALTH_INDEX_KEYS/u);
 });
 
 test('Hoy renderiza datos reales del store sin fixtures', () => {
