@@ -609,8 +609,8 @@ export function renderAccessUi({
     content = `
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Acceso privado</p>
-        <h1 id="m26-auth-title" tabindex="-1">Entrenamiento personal con criterio</h1>
-        <p>Diagnóstico, planificación, control y seguimiento.</p>
+        <h1 id="m26-auth-title" tabindex="-1">Bienvenido a IBERFIT</h1>
+        <p>Accede a tu espacio privado y continúa exactamente donde lo dejaste.</p>
       </div>
 
       ${contextNotice}
@@ -691,23 +691,23 @@ export function renderAccessUi({
       <div class="m26-auth-stage">
         <aside class="m26-auth-intro" aria-label="IBERFIT · entrenamiento personal">
           <div class="m26-auth-intro-copy">
-            <p class="m26-auth-intro-kicker">Entrenamiento personal premium</p>
-            <h2>Un sistema claro para entrenar, medir y progresar.</h2>
-            <p>IBERFIT une diagnóstico, planificación, control de carga y seguimiento en una experiencia continua, dentro y fuera de cada sesión.</p>
+            <p class="m26-auth-intro-kicker">IBERFIT · Entrenamiento personal</p>
+            <h2>Todo tu proceso de entrenamiento, en un solo lugar.</h2>
+            <p>Diagnóstico IRI, planificación, sesiones y evolución conectados para que cada decisión tenga contexto.</p>
           </div>
 
           <dl class="m26-auth-pillars">
             <div>
-              <dt>Diagnóstico</dt>
-              <dd>Punto de partida medible</dd>
+              <dt>Diagnóstico IRI</dt>
+              <dd>Tu punto de partida</dd>
             </div>
             <div>
-              <dt>Planificación</dt>
-              <dd>Carga y progresión con criterio</dd>
+              <dt>Plan semanal</dt>
+              <dd>Qué toca y por qué</dd>
             </div>
             <div>
-              <dt>Seguimiento</dt>
-              <dd>Decisiones basadas en tu evolución</dd>
+              <dt>Evolución</dt>
+              <dd>Progreso y seguimiento</dd>
             </div>
           </dl>
 
