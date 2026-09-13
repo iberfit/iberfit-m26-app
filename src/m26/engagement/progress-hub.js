@@ -49,7 +49,11 @@ export function buildProgressHub(state,clientId,{now=new Date()}={}){
   if(!clientId)return null;
   const summary28=computeProgressSummary(state,clientId,{now,days:28});
   if(!summary28)return null;
-  const windows=buildAdherenceWindows(state,clientId,{now,windows:[7,28,90]});
+  const windows=buildAdherenceWindows(
+    state,
+    clientId,
+    {now,windows:[7,28,90],summaries:{28:summary28}},
+  );
   const byDays=new Map(windows.map((window)=>[window.days,window]));
   const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12});
   const strength=trendEvidence(memories);
