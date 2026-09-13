@@ -27,6 +27,7 @@ export default defineConfig({
   projects:[
     {name:'admin-visual-desktop',use:{browserName:'chromium',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false}},
     {name:'admin-visual-tablet',use:{browserName:'chromium',viewport:{width:1024,height:1366},hasTouch:true,isMobile:true}},
+    {name:'admin-visual-tablet-landscape',use:{browserName:'chromium',viewport:{width:1366,height:1024},hasTouch:true,isMobile:true}},
     {name:'admin-visual-mobile',use:{browserName:'chromium',viewport:{width:390,height:844},hasTouch:true,isMobile:true}},
   ],
 });
