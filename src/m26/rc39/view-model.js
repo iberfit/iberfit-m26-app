@@ -236,7 +236,10 @@ export function augmentRc39ViewModel(vm,shellVm,state,now=new Date()){
   const changeRequestAvailable=state?.environment?.rc39?.appointmentChangeRequests===true;
   const planningItems=Object.freeze(buildClientPlanningItems({sessions:relevantSessions,appointments:relevantAppointments,now}).map((item)=>Object.freeze({...item,changeRequestAvailable})));
   const operationalAppointments=(role==='client'?relevantAppointments:appointments).map((item)=>compactAppointment(item,now)).sort((a,b)=>(dateMs(a.startAt)??Number.MAX_SAFE_INTEGER)-(dateMs(b.startAt)??Number.MAX_SAFE_INTEGER));
-  const sessionProjections=relevantSessions.map((session)=>clientSessionProjection(session,appointmentForSession(relevantAppointments,session),now));
+  const sessionProjections=relevantSessions.map((session)=>Object.freeze({
+    ...clientSessionProjection(session,appointmentForSession(relevantAppointments,session),now),
+    changeRequestAvailable,
+  }));
   const needsPreparation=sessionProjections.filter((item)=>!item.session?.blocks?.length).length;
   const confirmationOpen=operationalAppointments.filter((item)=>item.confirmation.state==='open').length;
   const changeRequests=operationalAppointments.filter((item)=>item.confirmation.state==='change_requested').length;
