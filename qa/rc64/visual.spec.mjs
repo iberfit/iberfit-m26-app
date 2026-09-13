@@ -7,9 +7,10 @@ test('RC64.2B canonical disabled preauth visual',async({page})=>{
 
   const authSurface=page.locator('.m26-auth-page[data-auth-mode="login"][data-auth-state="unavailable"]');
   await expect(authSurface).toBeVisible();
-  await expect(page.locator('#m26-auth-title')).toBeVisible();
+  await expect(page.locator('.m26-auth-card')).toHaveAttribute('aria-busy','false');
+  await expect(page.locator('#m26-auth-title')).toHaveText('Acceso privado');
   await expect(page.locator('.m26-auth-logo')).toBeVisible();
-  await expect(page.locator('[data-auth-form="login"] .m26-primary-action')).toBeDisabled();
-  await expect(page.locator('.m26-notice.is-warning')).toContainText('El acceso no está disponible');
+  await expect(page.locator('[data-auth-form="login"]')).toBeHidden();
+  await expect(page.locator('.m26-auth-actions')).toContainText('Acceso no disponible temporalmente.');
   await expect(page).toHaveScreenshot('preauth-disabled.png',{fullPage:true});
 });

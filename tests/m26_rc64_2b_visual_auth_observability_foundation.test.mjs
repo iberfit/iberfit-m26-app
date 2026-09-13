@@ -244,10 +244,11 @@ test('RC64.2B1 visual regression is canonical Linux-only and uses Playwright scr
   assert.match(config,/timezoneId:'America\/Santiago'/u);
   assert.match(spec,/data-auth-mode="login"/u);
   assert.match(spec,/data-auth-state="unavailable"/u);
-  assert.match(spec,/m26-auth-title/u);
+  assert.match(spec,/aria-busy/u);
+  assert.match(spec,/Acceso privado/u);
   assert.match(spec,/data-auth-form/u);
-  assert.match(spec,/m26-primary-action/u);
-  assert.match(spec,/m26-notice\.is-warning/u);
+  assert.match(spec,/toBeHidden/u);
+  assert.match(spec,/Acceso no disponible temporalmente/u);
   assert.match(spec,/toHaveScreenshot\('preauth-disabled\.png'/u);
   assert.doesNotMatch(spec,/Entrenamiento personal con criterio/u);
   assert.doesNotMatch(`${config}\n${spec}`,/percy|chromatic/iu);
