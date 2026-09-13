@@ -22,13 +22,19 @@ async function shot(page,name){
 async function expectCanonicalAdminShell(page,{form=null}={}){
   const shell=page.locator('.m26-shell.m26-admin-shell');
   const route=shell.locator('.m26-workspace .m26-main .m26-admin-route').first();
+  const navIcon=shell.locator('.m26-nav-icon').first();
   await expect(shell).toBeVisible();
   await expect(route).toBeVisible();
+  await expect(navIcon).toBeVisible();
 
   const viewport=page.viewportSize();
+  const iconBox=await navIcon.boundingBox();
   const routeBox=await route.boundingBox();
   expect(viewport).not.toBeNull();
   expect(routeBox).not.toBeNull();
+  expect(iconBox).not.toBeNull();
+  expect(iconBox.width).toBeLessThanOrEqual(24);
+  expect(iconBox.height).toBeLessThanOrEqual(24);
 
   const routeRatio=viewport.width>900?0.45:0.80;
   expect(routeBox.width).toBeGreaterThan(viewport.width*routeRatio);
