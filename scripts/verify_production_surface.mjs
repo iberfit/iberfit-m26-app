@@ -1,5 +1,9 @@
 import {pathToFileURL} from 'node:url';
-import {verifyProductionModuleGraph} from './verify_production_module_graph.mjs';
+import {
+  PRODUCTION_DEEP_DEFAULT_ATTEMPTS,
+  PRODUCTION_DEEP_DEFAULT_DELAY_MS,
+  verifyProductionModuleGraph,
+} from './verify_production_module_graph.mjs';
 
 export const PRODUCTION_SURFACE_CONTRACT='iberfit.production.surface.v1';
 
@@ -230,9 +234,10 @@ async function main(){
     prodProjectRef:process.env.M26_VERIFY_PROD_PROJECT_REF,
     prodSupabaseUrl:process.env.M26_VERIFY_PROD_SUPABASE_URL,
     qaProjectRef:process.env.M26_VERIFY_QA_PROJECT_REF,
-    attempts:Number(process.env.M26_VERIFY_DEEP_ATTEMPTS||2),
-    delayMs:Number(process.env.M26_VERIFY_DEEP_DELAY_MS||1500),
+    attempts:Number(process.env.M26_VERIFY_DEEP_ATTEMPTS||PRODUCTION_DEEP_DEFAULT_ATTEMPTS),
+    delayMs:Number(process.env.M26_VERIFY_DEEP_DELAY_MS||PRODUCTION_DEEP_DEFAULT_DELAY_MS),
     timeoutMs:Number(process.env.M26_VERIFY_TIMEOUT_MS||DEFAULT_TIMEOUT_MS),
+    onRetry:({attempt,totalAttempts,code})=>console.warn(`PROD_DEEP_VERIFY_RETRY:${attempt}/${totalAttempts}:${code}`),
   });
   console.log(JSON.stringify({...result,deepModuleGraph:deep},null,2));
 }
