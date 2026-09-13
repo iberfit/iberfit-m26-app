@@ -8,53 +8,53 @@ function deepFreeze(value){
 }
 
 export const IBERFIT_DESIGN_TOKENS=deepFreeze({
-  "version": "58.1.0",
+  "version": "58.2.0",
   "meta": {
     "name": "IBERFIT Premium Dark",
     "sourceOfTruth": true,
-    "visualDelta": "intentionally-minimal",
+    "visualDelta": "dark-premium-v2",
     "accessibilityBaseline": "WCAG 2.2 AA",
     "touchTargetRecommendedPx": 44
   },
   "color": {
     "primitive": {
-      "forest950": "#07150f",
-      "forest900": "#0d2419",
-      "forest800": "#143424",
-      "forest700": "#1d4933",
-      "gold500": "#c8a65d",
-      "gold300": "#e4cd98",
-      "cream100": "#f7f1e4",
-      "cream300": "#ddd4c1",
-      "muted": "#c8c0af",
-      "danger": "#d79a91",
-      "success": "#8bc7a2",
-      "warning": "#e7c98a",
-      "info": "#89b8d8",
-      "lavender": "#c6a8d8",
-      "admin": "#31a898"
+      "forest950": "#09130f",
+      "forest900": "#121f1b",
+      "forest800": "#182c25",
+      "forest700": "#244536",
+      "gold500": "#b99856",
+      "gold300": "#d8c08a",
+      "cream100": "#f4f4f0",
+      "cream300": "#d7d6cf",
+      "muted": "#b6bbb4",
+      "danger": "#d58e86",
+      "success": "#79b792",
+      "warning": "#d8b66f",
+      "info": "#83a9bf",
+      "lavender": "#bca8c8",
+      "admin": "#78a18e"
     },
     "semantic": {
-      "canvas": "#07150f",
-      "surfaceBase": "#0d2419",
-      "surfaceRaised": "rgba(15,40,31,0.88)",
-      "surfaceOverlay": "rgba(7,21,15,0.96)",
-      "textPrimary": "#f7f1e4",
-      "textSecondary": "#c8c0af",
-      "textSubtle": "#ddd4c1",
-      "accent": "#c8a65d",
-      "accentStrong": "#e4cd98",
-      "border": "rgba(228,205,152,0.18)",
-      "borderStrong": "rgba(228,205,152,0.36)",
-      "focus": "#f2dca8",
-      "success": "#8bc7a2",
-      "warning": "#e7c98a",
-      "danger": "#d79a91",
-      "info": "#89b8d8"
+      "canvas": "#09130f",
+      "surfaceBase": "#121f1b",
+      "surfaceRaised": "rgba(20,35,30,0.92)",
+      "surfaceOverlay": "rgba(9,19,15,0.97)",
+      "textPrimary": "#f4f4f0",
+      "textSecondary": "#b6bbb4",
+      "textSubtle": "#d7d6cf",
+      "accent": "#b99856",
+      "accentStrong": "#d8c08a",
+      "border": "rgba(216,192,138,0.16)",
+      "borderStrong": "rgba(216,192,138,0.30)",
+      "focus": "#e3cc95",
+      "success": "#79b792",
+      "warning": "#d8b66f",
+      "danger": "#d58e86",
+      "info": "#83a9bf"
     },
     "role": {
-      "adminAccent": "#31a898",
-      "adminAccentSoft": "rgba(49,168,152,0.14)"
+      "adminAccent": "#78a18e",
+      "adminAccentSoft": "rgba(120,161,142,0.14)"
     },
     "dataViz": {
       "series1": "#7fa894",
