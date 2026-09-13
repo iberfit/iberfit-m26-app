@@ -3,6 +3,17 @@ import {test,expect} from '@playwright/test';
 
 const OUT='recovery/device-experience';
 
+const CURRENT_SOURCE_STYLES=Object.freeze([
+  '/src/m26/design/tokens.css',
+  '/src/m26/design/typography.css',
+  '/src/m26/design/icons.css',
+  '/src/m26/design/primitives.css',
+  '/src/m26/design/role-surfaces.css',
+  '/src/m26/design/premium-ux.css',
+  '/src/m26/design/signature-ux-v2.css',
+]);
+
+
 const TASKS=Object.freeze([
   {id:'client-hoy',role:'client',url:'/qa/rc13_visual_cases/client_hoy_mobile.html',evidence:'synthetic-current-source-ui'},
   {id:'client-progreso',role:'client',url:'/qa/rc13_visual_cases/client_progreso_tablet.html',evidence:'synthetic-current-source-ui'},
@@ -22,6 +33,12 @@ function safeSlug(value){
     .replace(/[^a-z0-9]+/gu,'-')
     .replace(/^-+|-+$/gu,'')
     .slice(0,90)||'unknown';
+}
+
+async function applyCurrentSourceStyles(page){
+  for(const url of CURRENT_SOURCE_STYLES){
+    await page.addStyleTag({url});
+  }
 }
 
 async function settle(page){
@@ -94,7 +111,7 @@ async function exerciseAdminTask(page,task){
   ).toBe(true);
 
   if(task.id==='admin-users'){
-    const details=page.locator('[data-admin-user-card]').first().locator('details.m26-admin-user-management');
+    const details=page.locator('[data-admin-user-card][data-user-id="22222222-2222-4222-8222-222222222222"]').locator('details.m26-admin-user-management');
     await expect(details).toBeVisible();
     await details.locator('summary').click();
     await expect(details).toHaveAttribute('open','');
@@ -126,6 +143,7 @@ test('Device Experience Gate validates representative tasks by role and device',
     expect(response?.ok(),task.id+' must load').toBeTruthy();
 
     if(task.role==='admin')await exerciseAdminTask(page,task);
+    else await applyCurrentSourceStyles(page);
 
     const shell=page.locator('.m26-shell').first();
     await expect(shell,task.id+' must render the canonical shell').toBeVisible();
