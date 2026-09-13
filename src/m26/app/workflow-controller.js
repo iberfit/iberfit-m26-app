@@ -33,7 +33,7 @@ import {scoreNormedTest} from '../norms/norms-engine.js';
 import {deriveAgeYears} from '../workflows/iri-profile.js';
 import {protocolComparabilityWarnings} from '../workflows/iri-protocol-catalog.js';
 import {rankCoachClientDocuments} from '../productivity/coach-productivity.js';
-import {classifyCoachListMeasurement,markCoachListMeasurement} from '../productivity/large-list-policy.js';
+import {classifyCoachListMeasurement,decideCoachVirtualization,markCoachListMeasurement} from '../productivity/large-list-policy.js';
 
 const IRI_DRAFT_SCOPE='iri-first-session';
 const PUBLISHED_SESSION_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
@@ -198,7 +198,10 @@ export function createWorkflowController({
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
-  let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,onboardingSaveTimer=null,iriTimer=null;
+  let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,onboardingSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null;
+  let clientListMeasurementGrid=null;
+  const clientListMeasurements=[];
+  const initializedClientGrids=new WeakSet();
   const initializedIriForms=new WeakSet();
   const initializedOnboardingForms=new WeakSet();
   const editedOnboardingForms=new WeakSet();
@@ -349,6 +352,59 @@ export function createWorkflowController({
       }
     }
   }
+  function markClientListDecision(grid,decision){
+    if(!grid||!decision)return false;
+    const values={
+      'data-list-virtualization-decision':decision.decision,
+      'data-list-virtualization-reason':decision.reason,
+      'data-list-runtime-samples':decision.runtimeSamples,
+      'data-list-automatic-adoption':decision.automaticAdoption?'true':'false',
+    };
+    for(const [name,value] of Object.entries(values))grid.setAttribute?.(name,String(value));
+    return true;
+  }
+  function reorderClientCards(grid,cards,ranked,visibleIds){
+    if(!grid)return false;
+    const ordered=[
+      ...ranked.map((item)=>cards[Number(item.id)]).filter(Boolean),
+      ...cards.filter((_,index)=>!visibleIds.has(String(index))),
+    ];
+    const current=[...(grid.children||[])];
+    const orderChanged=current.length!==ordered.length||ordered.some((card,index)=>current[index]!==card);
+    if(!orderChanged)return false;
+    const fragment=grid.ownerDocument?.createDocumentFragment?.()||globalThis.document?.createDocumentFragment?.();
+    if(fragment){
+      for(const card of ordered)fragment.appendChild(card);
+      grid.appendChild(fragment);
+      return true;
+    }
+    for(const card of ordered)grid.appendChild(card);
+    return true;
+  }
+  function cancelScheduledClientListUpdate(){
+    if(clientListRaf!==null){
+      try{globalThis.cancelAnimationFrame?.(clientListRaf);}catch{}
+      clientListRaf=null;
+    }
+    pendingClientQuery=null;
+  }
+  function scheduleClientListUpdate(queryOverride=null){
+    pendingClientQuery=queryOverride;
+    if(clientListRaf!==null)return;
+    const raf=globalThis.requestAnimationFrame;
+    if(typeof raf!=='function'){
+      const query=pendingClientQuery;
+      pendingClientQuery=null;
+      updateClientList(query);
+      return;
+    }
+    clientListRaf=raf(()=>{
+      clientListRaf=null;
+      const query=pendingClientQuery;
+      pendingClientQuery=null;
+      updateClientList(query);
+    });
+  }
   function updateClientList(queryOverride=null){
     const clock=()=>globalThis.performance?.now?.()??Date.now();
     const started=clock();
@@ -356,17 +412,41 @@ export function createWorkflowController({
     const filters=clientFilterState(root);
     const sort=String(root.querySelector?.('[data-client-sort]')?.value||'priority');
     const grid=root.querySelector?.('[data-client-grid]');
-    const cards=[...(root.querySelectorAll?.('[data-client-text]')||[])];
-    const documents=cards.map((card,index)=>({id:String(index),name:String(card.dataset?.clientName||''),text:String(card.getAttribute?.('data-client-text')||''),iri:String(card.getAttribute?.('data-client-iri')||''),modality:String(card.getAttribute?.('data-client-modality')||''),stage:String(card.getAttribute?.('data-client-stage')||''),priority:Number(card.dataset?.clientPriority||99)}));
+    const cards=[...(grid?.querySelectorAll?.('[data-client-text]')||root.querySelectorAll?.('[data-client-text]')||[])];
+    if(grid!==clientListMeasurementGrid){
+      clientListMeasurementGrid=grid;
+      clientListMeasurements.length=0;
+    }
+    const documents=cards.map((card,index)=>({
+      id:String(index),
+      name:String(card.dataset?.clientName||''),
+      text:String(card.getAttribute?.('data-client-text')||''),
+      iri:String(card.getAttribute?.('data-client-iri')||''),
+      modality:String(card.getAttribute?.('data-client-modality')||''),
+      stage:String(card.getAttribute?.('data-client-stage')||''),
+      priority:Number(card.dataset?.clientPriority||99),
+    }));
     const ranked=rankCoachClientDocuments(documents,{query,filters,sort});
     const visibleIds=new Set(ranked.map((item)=>item.id));
-    for(let index=0;index<cards.length;index++)cards[index].hidden=!visibleIds.has(String(index));
-    if(grid){for(const item of ranked)grid.appendChild(cards[Number(item.id)]);for(let index=0;index<cards.length;index++){if(!visibleIds.has(String(index)))grid.appendChild(cards[index]);}}
+    for(let index=0;index<cards.length;index++){
+      const hidden=!visibleIds.has(String(index));
+      if(cards[index].hidden!==hidden)cards[index].hidden=hidden;
+    }
+    reorderClientCards(grid,cards,ranked,visibleIds);
     const visible=ranked.length;
     const measurement=classifyCoachListMeasurement({count:cards.length,visibleCount:visible,elapsedMs:clock()-started});
+    clientListMeasurements.push(measurement);
+    if(clientListMeasurements.length>3)clientListMeasurements.splice(0,clientListMeasurements.length-3);
+    const decision=decideCoachVirtualization(clientListMeasurements);
     markCoachListMeasurement(grid,measurement);
+    markClientListDecision(grid,decision);
     const node=root.querySelector?.('[data-client-search-status]');
-    if(node){const hasFilters=Boolean(filters.iri||filters.modality||filters.stage);node.textContent=query&&!hasFilters?`${visible} ${visible===1?'cliente encontrado':'clientes encontrados'} con búsqueda tolerante.`:`${visible} ${visible===1?'cliente visible':'clientes visibles'} con los filtros actuales.`;}
+    if(node){
+      const hasFilters=Boolean(filters.iri||filters.modality||filters.stage);
+      node.textContent=query&&!hasFilters
+        ?`${visible} ${visible===1?'cliente encontrado':'clientes encontrados'} con búsqueda tolerante.`
+        :`${visible} ${visible===1?'cliente visible':'clientes visibles'} con los filtros actuales.`;
+    }
     return visible;
   }
 
@@ -526,6 +606,7 @@ export function createWorkflowController({
     const onboardingForm=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(onboardingForm)void initializeOnboardingForm(onboardingForm);
     const iriForm=root.querySelector?.('[data-workflow-form="iri"]');if(iriForm)void initializeIriForm(iriForm);
     const appointmentForm=root.querySelector?.('[data-workflow-form="appointment"]');if(appointmentForm&&!initializedAppointmentForms.has(appointmentForm)){initializedAppointmentForms.add(appointmentForm);syncAppointmentFormState(appointmentForm,root);}
+    const clientGrid=root.querySelector?.('[data-client-grid]');if(clientGrid&&!initializedClientGrids.has(clientGrid)){initializedClientGrids.add(clientGrid);scheduleClientListUpdate();}
     restoreStatuses(root);
   }
   function queueScan(){if(scanQueued)return;scanQueued=true;queueMicrotask(scanRouteForms);}
@@ -638,7 +719,7 @@ export function createWorkflowController({
     finally{if(button){button.disabled=wasDisabled;button.removeAttribute?.('aria-busy');}}
   }
   async function onClick(event){
-    const clearClients=event.target.closest?.('[data-client-clear]');if(clearClients){event.preventDefault?.();const search=root.querySelector?.('[data-client-search]');if(search)search.value='';for(const node of root.querySelectorAll?.('[data-client-filter]')||[])node.value='';const sort=root.querySelector?.('[data-client-sort]');if(sort)sort.value='priority';updateClientList();return;}
+    const clearClients=event.target.closest?.('[data-client-clear]');if(clearClients){event.preventDefault?.();cancelScheduledClientListUpdate();const search=root.querySelector?.('[data-client-search]');if(search)search.value='';for(const node of root.querySelectorAll?.('[data-client-filter]')||[])node.value='';const sort=root.querySelector?.('[data-client-sort]');if(sort)sort.value='priority';updateClientList();return;}
     const clearLibrary=event.target.closest?.('[data-library-clear]');if(clearLibrary){event.preventDefault?.();const search=root.querySelector?.('[data-library-search]');if(search)search.value='';for(const node of root.querySelectorAll?.('[data-library-filter]')||[])node.value='';updateLibrary();return;}
     const registerProtocol=event.target.closest?.('[data-iri-register-target]');if(registerProtocol){event.preventDefault?.();const form=registerProtocol.closest?.('[data-workflow-form="iri"]');const target=form?.elements?.namedItem?.(registerProtocol.getAttribute?.('data-iri-register-target'));const card=registerProtocol.closest?.('[data-iri-protocol]');if(card)card.open=false;target?.scrollIntoView?.({block:'center',behavior:'smooth'});target?.focus?.();return;}
     const timerButton=event.target.closest?.('[data-iri-timer-action]');if(timerButton){event.preventDefault?.();const form=timerButton.closest?.('[data-workflow-form="iri"]');controlIriTimer(form,timerButton.getAttribute?.('data-iri-timer-action'));return;}
@@ -659,14 +740,14 @@ export function createWorkflowController({
     }
     const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');queueOnboardingSave(onboardingForm);return;}
     const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);return;}
-    const clientSearch=event.target.closest?.('[data-client-search]');if(clientSearch){updateClientList(clientSearch.value);return;}
+    const clientSearch=event.target.closest?.('[data-client-search]');if(clientSearch){scheduleClientListUpdate(clientSearch.value);return;}
     const search=event.target.closest?.('[data-library-search]');if(search){updateLibrary();return;}
   }
-  function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;computed(iriForm);queueIriSave();}
+  function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;computed(iriForm);queueIriSave();}
 
   function onPageHide(){const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(form)void saveOnboardingDraft(form).catch(()=>{});}
   return Object.freeze({
     mount(){if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('input',onInput);root.addEventListener('change',onChange);globalThis.addEventListener?.('pagehide',onPageHide);if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>queueScan());observer.observe(root,{childList:true,subtree:true});}queueScan();mounted=true;},
-    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(onboardingSaveTimer);stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
+    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(onboardingSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
   });
 }
