@@ -137,7 +137,7 @@ export function createQualityRuntimeObservability({
     if(started)return api;
     started=true;
     scope?.addEventListener?.('m26:diagnostic',boundedDiagnostic);
-    scope?.addEventListener?.('error',captureRuntimeError);
+    scope?.addEventListener?.('error',captureRuntimeError,true);
     scope?.addEventListener?.('unhandledrejection',captureUnhandledRejection);
     scope?.addEventListener?.(
       'securitypolicyviolation',
@@ -228,7 +228,7 @@ export function createQualityRuntimeObservability({
   function destroy(){
     if(started){
       scope?.removeEventListener?.('m26:diagnostic',boundedDiagnostic);
-      scope?.removeEventListener?.('error',captureRuntimeError);
+      scope?.removeEventListener?.('error',captureRuntimeError,true);
       scope?.removeEventListener?.(
         'unhandledrejection',
         captureUnhandledRejection
