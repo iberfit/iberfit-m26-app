@@ -181,4 +181,5 @@ export const WORKSPACE_SURFACE_ROWS=Object.freeze([
 ['Sesiones del ciclo','Cycle sessions','Séances du cycle','Sessões do ciclo'],
 ['Define el marco del trabajo. Validar crea una versión interna; aprobar y publicar siguen siendo decisiones separadas.','Define the working framework. Validation creates an internal version; approval and publishing remain separate decisions.','Définissez le cadre de travail. La validation crée une version interne ; l’approbation et la publication restent des décisions distinctes.','Defina o enquadramento do trabalho. A validação cria uma versão interna; aprovação e publicação continuam decisões separadas.'],
 ['Del ciclo a la sesión','From cycle to session','Du cycle à la séance','Do ciclo à sessão'],
+['Aprobar no lo hace visible para el cliente.','Approval does not make it visible to the client.','L’approbation ne le rend pas visible pour le client.','A aprovação não o torna visível para o cliente.'],
 ]);
