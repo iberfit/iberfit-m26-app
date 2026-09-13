@@ -1611,8 +1611,8 @@
   gap:var(--iberfit-space-1);
 }
 .m26-data-trust-label .m26-guidance-trigger{
-  min-width:2rem;
-  min-height:2rem;
+  min-width:var(--iberfit-size-touch-target);
+  min-height:var(--iberfit-size-touch-target);
 }
 .m26-guidance-popover{
   position:fixed;
