@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const html=fs.readFileSync('public/m26/index.html','utf8');
 const vision=fs.readFileSync('src/m26/design/brand-vision.css','utf8');
+const darkV2=fs.readFileSync('src/m26/design/dark-iberfit-v2.css','utf8');
 const workflow=fs.readFileSync('.github/workflows/daily-use-visual-evidence.yml','utf8');
 const bootstrap=fs.readFileSync('public/m26/app.js','utf8');
 
@@ -12,24 +13,27 @@ test('production loads signature and brand vision after historical design layers
   const signature=html.indexOf('/src/m26/design/signature-ux-v2.css');
   const auth=html.indexOf('/src/m26/design/auth-native.css');
   const brand=html.indexOf('/src/m26/design/brand-vision.css');
+  const dark=html.indexOf('/src/m26/design/dark-iberfit-v2.css');
   assert.ok(premium>=0&&signature>premium);
   assert.ok(auth>signature);
   assert.ok(brand>auth);
+  assert.ok(dark>brand);
   assert.doesNotMatch(html,/data-href="\/src\/m26\/design\/adaptive-layout\.css"/u);
   assert.match(html,/signature-ux-v2\.css[^>]+data-iberfit-signature-v2-style="true"/u);
   assert.match(bootstrap,/const anchor=signature\|\|brand;/u);
   assert.match(bootstrap,/anchor\.parentNode\.insertBefore\(link,anchor\)/u);
 });
 
-test('brand vision keeps navigation dark and workspace light without changing behavior',()=>{
+test('Dark IBERFIT V2 supersedes the historical light workspace without changing behavior',()=>{
   assert.match(vision,/\.m26-shell \.m26-sidebar\{/u);
-  assert.match(vision,/linear-gradient\(180deg,#0e3022/u);
-  assert.match(vision,/\.m26-shell\[data-m26-role\] > \.m26-workspace\{/u);
   assert.match(vision,/--iberfit-vision-cream:#f3eee3/u);
-  assert.match(vision,/--iberfit-color-text-primary:var\(--iberfit-vision-ink\)/u);
-  assert.match(vision,/color-scheme:light/u);
-  assert.match(vision,/\.m26-shell \.m26-workspace \.m26-mobile-nav\{/u);
-  assert.match(vision,/color-scheme:dark/u);
+  assert.match(darkV2,/\.m26-shell\{/u);
+  assert.match(darkV2,/--iberfit-vision-cream:#09130f/u);
+  assert.match(darkV2,/--iberfit-vision-paper:#121f1b/u);
+  assert.match(darkV2,/\.m26-shell \.m26-workspace\{/u);
+  assert.match(darkV2,/linear-gradient\(155deg,#0b1712/u);
+  assert.match(darkV2,/\.m26-shell \.m26-workspace \.m26-workspace-action\{/u);
+  assert.doesNotMatch(darkV2,/color-scheme:light/u);
 });
 
 test('touch controls remain comfortable in the new visual layer',()=>{

@@ -43,9 +43,9 @@ test('raster observations are not silently promoted to canonical recolor tokens'
   assert.equal(truth.colorPolicy.observedGoldFamilyMean,'#FADC84');
 });
 
-test('existing product gold remains separate and unchanged in RC58.5A',()=>{
-  assert.equal(tokens.color.primitive.gold500,'#c8a65d');
-  assert.equal(tokens.color.primitive.gold300,'#e4cd98');
+test('product UI gold remains separate from the official raster logo recolor policy',()=>{
+  assert.equal(tokens.color.primitive.gold500,'#b99856');
+  assert.equal(tokens.color.primitive.gold300,'#d8c08a');
   assert.equal(truth.colorPolicy.productUiGold500,tokens.color.primitive.gold500);
   assert.equal(truth.colorPolicy.productUiGold300,tokens.color.primitive.gold300);
   assert.equal(truth.colorPolicy.productUiGoldsAreLogoRecolorValues,false);
