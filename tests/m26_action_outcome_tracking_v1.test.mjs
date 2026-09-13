@@ -197,7 +197,8 @@ test('workspace Action Outcome conserva evidencia, progressive disclosure y resp
   assert.match(controller,/data-engagement-form','action-outcome/);
   assert.match(controller,/recordActionTracking/);
   assert.match(controller,/recordActionOutcome/);
-  assert.match(controller,/visibleToClient/);
+  const domain=fs.readFileSync(new URL('../src/m26/intelligence/action-outcome.js',import.meta.url),'utf8');
+  assert.match(domain,/visibleToClient:false/);
   assert.match(css,/ACTION_OUTCOME_TRACKING_V1_BEGIN/);
   assert.match(css,/\.m26-action-outcome-manager/);
   assert.match(css,/@media \(max-width:580px\)/);
