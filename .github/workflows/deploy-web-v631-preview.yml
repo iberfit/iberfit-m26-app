@@ -214,7 +214,7 @@ jobs:
               const noJs=await browser.newContext({viewport:{width:390,height:844},javaScriptEnabled:false});
               for(const [route] of locals){
                 const p=await noJs.newPage();
-                await p.goto(base+route,{waitUntil:'domcontentloaded'});
+                await p.goto(base+route,{waitUntil:'networkidle'});
                 ok(await p.locator('.local-place-badge').count()===1,route+' no-JS badge missing');
                 ok(await p.locator('.local-service-chip').count()===4,route+' no-JS environments missing');
                 await p.close();
@@ -234,11 +234,13 @@ jobs:
               const noJsNav=await browser.newContext({viewport:{width:390,height:844},javaScriptEnabled:false});
               for(const route of ['/', '/metodo/', '/sobre-iberfit/', '/contacto/', '/en/', '/en/method/', '/en/about/', '/en/contact/']){
                 const p=await noJsNav.newPage();
-                await p.goto(base+route,{waitUntil:'domcontentloaded'});
+                await p.goto(base+route,{waitUntil:'networkidle'});
                 const hidden=await p.locator('.reveal').evaluateAll(els=>els.filter(el=>{
                   const s=getComputedStyle(el),r=el.getBoundingClientRect();
                   return r.width>0&&r.height>0&&(parseFloat(s.opacity)<.9||s.visibility==='hidden');
                 }).length);
+                const polish=await p.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--v631-canvas').trim());
+                ok(polish==='#f3ece2',route+' V6.31 CSS not applied');
                 ok(hidden===0,route+' no-JS reveal hidden');
                 const nav=await p.locator('.navlinks').first().evaluate(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return {display:s.display,visibility:s.visibility,w:r.width,h:r.height}});
                 ok(nav.display!=='none'&&nav.visibility!=='hidden'&&nav.w>0&&nav.h>0,route+' no-JS mobile nav');
@@ -301,9 +303,11 @@ jobs:
               await ctx.close();
               const nojs=await browser.newContext({viewport:{width:390,height:844},javaScriptEnabled:false});
               for(const route of ['/','/metodo/','/sobre-iberfit/','/contacto/','/en/','/en/method/','/en/about/','/en/contact/']){
-                const p=await nojs.newPage();await p.goto(base+route,{waitUntil:'domcontentloaded'});
+                const p=await nojs.newPage();await p.goto(base+route,{waitUntil:'networkidle'});
                 ok(!(await p.locator('html').evaluate(el=>el.classList.contains('js-v631'))),route+' js-v631 present without JS');
                 const hidden=await p.locator('.reveal').evaluateAll(els=>els.filter(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return r.width>0&&r.height>0&&(+s.opacity<.9||s.visibility==='hidden')}).length);
+                const polish=await p.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--v631-canvas').trim());
+                ok(polish==='#f3ece2',route+' V6.31 CSS not applied');
                 ok(hidden===0,route+' no-JS reveal hidden');
                 const nav=await p.locator('.navlinks').first().evaluate(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return {display:s.display,vis:s.visibility,w:r.width,h:r.height}});
                 ok(nav.display!=='none'&&nav.vis!=='hidden'&&nav.w>0&&nav.h>0,route+' no-JS nav hidden');
