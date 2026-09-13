@@ -112,3 +112,12 @@ test('stable Client Home copy is translated',()=>{
     'Registrar cómo estoy',
   ])assert.ok(i18n.includes(phrase),phrase);
 });
+
+
+test('Client Home never links to Coach-only agenda or IRI routes',()=>{
+  const html=renderHoyRoute(vm());
+  assert.match(html,/data-m26-area="sesion"[\s\S]*?<span>Próxima cita<\/span>/u);
+  assert.match(html,/data-m26-area="informes"[\s\S]*?<span>Diagnóstico IRI<\/span>/u);
+  assert.doesNotMatch(html,/data-m26-area="agenda"/u);
+  assert.doesNotMatch(html,/data-m26-area="iri"/u);
+});
