@@ -1182,6 +1182,98 @@
     overflow: visible;
   }
 }
+/* IBERFIT Exercise Analytics V2 · comparable evidence charts */
+.m26-exercise-progress-chart {
+  display: grid;
+  gap: var(--iberfit-space-3);
+  min-width: 0;
+  padding: var(--iberfit-space-3);
+  border: 1px solid var(--iberfit-color-border);
+  border-radius: var(--iberfit-radius-lg);
+  background:
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--iberfit-color-accent) 4%, transparent),
+      var(--iberfit-color-surface-raised)
+    );
+}
+
+.m26-exercise-progress-chart.is-empty {
+  padding-block: var(--iberfit-space-3);
+  color: var(--iberfit-color-text-secondary);
+}
+
+.m26-exercise-progress-chart.is-empty p {
+  margin: 0;
+}
+
+.m26-exercise-progress-chart-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--iberfit-space-3);
+  min-width: 0;
+}
+
+.m26-exercise-progress-chart-heading > div {
+  display: grid;
+  gap: var(--iberfit-space-1);
+  min-width: 0;
+}
+
+.m26-exercise-progress-chart-heading small {
+  color: var(--iberfit-color-text-secondary);
+  font-size: var(--iberfit-font-size-xs);
+}
+
+.m26-exercise-progress-chart-heading strong {
+  overflow-wrap: anywhere;
+}
+
+.m26-exercise-progress-echart,
+.m26-exercise-progress-echart .m26-echart-canvas {
+  min-height: 250px;
+}
+
+.m26-exercise-progress-echart[data-density="compact"],
+.m26-exercise-progress-echart[data-density="compact"] .m26-echart-canvas {
+  min-height: 180px;
+}
+
+.m26-exercise-progress-chart .m26-data-footnote {
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  .m26-exercise-progress-chart {
+    padding: var(--iberfit-space-2);
+  }
+
+  .m26-exercise-progress-chart-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .m26-exercise-progress-echart,
+  .m26-exercise-progress-echart .m26-echart-canvas,
+  .m26-exercise-progress-echart[data-density="compact"],
+  .m26-exercise-progress-echart[data-density="compact"] .m26-echart-canvas {
+    min-height: 210px;
+  }
+}
+
+@media (forced-colors: active) {
+  .m26-exercise-progress-chart {
+    border-color: CanvasText;
+  }
+}
+
+@media print {
+  .m26-exercise-progress-chart {
+    break-inside: avoid;
+  }
+}
+
 /* IBERFIT Data Intelligence V1 · decision-grade longitudinal summaries */
 .m26-data-snapshot {
   display: grid;

@@ -107,5 +107,14 @@ export const ROUTE_SURFACE_ROWS_C=Object.freeze([
 ['Tu diagnóstico aparecerá aquí cuando esté confirmado.','Your assessment will appear here once it is confirmed.','Votre diagnostic apparaîtra ici une fois confirmé.','O seu diagnóstico aparecerá aqui quando estiver confirmado.'],
 ['Diagnóstico inicial confirmado','Initial assessment confirmed','Diagnostic initial confirmé','Diagnóstico inicial confirmado'],
 ['Se generan directamente desde la evaluación confirmada.','Generated directly from the confirmed assessment.','Générés directement à partir de l’évaluation confirmée.','São gerados diretamente a partir da avaliação confirmada.'],
-['Abrir PDF Cliente','Open Client PDF','Ouvrir le PDF Client','Abrir PDF Cliente']
+['Abrir PDF Cliente','Open Client PDF','Ouvrir le PDF Client','Abrir PDF Cliente'],
+['Carga máxima confirmada','Confirmed maximum load','Charge maximale confirmée','Carga máxima confirmada'],
+['Mejor serie de repeticiones','Best repetition set','Meilleure série de répétitions','Melhor série de repetições'],
+['Tiempo total confirmado','Confirmed total time','Temps total confirmé','Tempo total confirmado'],
+['Volumen confirmado','Confirmed volume','Volume confirmé','Volume confirmado'],
+['Sin serie gráfica comparable todavía.','No comparable chart series yet.','Pas encore de série graphique comparable.','Ainda não existe uma série gráfica comparável.'],
+['La tabla conserva los registros disponibles sin convertir ausencias en cero.','The table preserves available records without turning missing values into zero.','Le tableau conserve les enregistrements disponibles sans transformer les données absentes en zéro.','A tabela preserva os registos disponíveis sem converter ausências em zero.'],
+['Métrica con mayor cobertura comparable','Metric with the highest comparable coverage','Mesure avec la meilleure couverture comparable','Métrica com maior cobertura comparável'],
+['Máximo registrado','Recorded maximum','Maximum enregistré','Máximo registado'],
+['Se prioriza la métrica comparable con mayor cobertura. El cambio numérico no se interpreta automáticamente como mejora o retroceso.','The comparable metric with the greatest coverage is prioritised. Numeric change is not automatically interpreted as improvement or regression.','La mesure comparable avec la meilleure couverture est priorisée. Une variation numérique n’est pas automatiquement interprétée comme une amélioration ou une régression.','É priorizada a métrica comparável com maior cobertura. A alteração numérica não é interpretada automaticamente como melhoria ou retrocesso.']
 ]);
