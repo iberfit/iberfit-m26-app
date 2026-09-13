@@ -17,12 +17,20 @@ function windowLabel(days){
   return `${days} días`;
 }
 
-export function buildAdherenceWindows(state,clientId,{now=new Date(),windows=M26_ADHERENCE_WINDOWS}={}){
+function reusableSummary(summaries,clientId,days){
+  if(!summaries||typeof summaries!=='object')return null;
+  const candidate=summaries?.[days]??summaries?.[`d${days}`]??null;
+  if(!candidate||String(candidate.clientId||'')!==String(clientId||''))return null;
+  return Number(candidate.days)===days?candidate:null;
+}
+
+export function buildAdherenceWindows(state,clientId,{now=new Date(),windows=M26_ADHERENCE_WINDOWS,summaries=null}={}){
   if(!clientId)return Object.freeze([]);
 
   return Object.freeze(
     normalizedWindows(windows).map((days)=>{
-      const summary=computeProgressSummary(state,clientId,{now,days});
+      const summary=reusableSummary(summaries,clientId,days)
+        ??computeProgressSummary(state,clientId,{now,days});
       const plannedSessions=Number(summary?.plannedSessions||0);
       const completedSessions=Number(summary?.completedSessions||0);
       const adherence=Number.isFinite(summary?.adherence)?summary.adherence:null;
