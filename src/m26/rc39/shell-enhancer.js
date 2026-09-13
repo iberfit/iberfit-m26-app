@@ -327,7 +327,8 @@ const MOBILE_SHELL_POLISH=`
   .m26-mobile-more[open] .m26-mobile-more-menu { max-height: calc(100dvh - 5.75rem - max(1rem, env(safe-area-inset-top))); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
   .m26-main { scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
   .m26-main :is(input,textarea,select,[contenteditable="true"]) { scroll-margin-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
-  .m26-shell:has(.m26-main :is(input,textarea,select,[contenteditable="true"]):focus) .m26-mobile-nav { transform: translateY(calc(100% + env(safe-area-inset-bottom))); opacity: 0; pointer-events: none; }
+  .m26-shell:has(.m26-main :is(input,textarea,select,[contenteditable="true"]):focus) .m26-mobile-nav,
+  [data-m26-text-entry-active="true"] .m26-mobile-nav { transform: translateY(calc(100% + env(safe-area-inset-bottom))); opacity: 0; pointer-events: none; }
 }
 @media (max-width: 580px) {
   .m26-topbar { gap: .65rem; padding: .75rem; }

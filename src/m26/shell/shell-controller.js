@@ -160,6 +160,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
 
   const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"],form button';
   const SHELL_FOCUS_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
+  const SHELL_TOUCH_TEXT_ENTRY_SELECTOR='textarea,[contenteditable="true"],input:not([type]),input[type="text"],input[type="email"],input[type="tel"],input[type="search"],input[type="url"],input[type="number"],input[type="password"]';
   const INTERACTION_RELEASE_GRACE_MS=900;
   const NATIVE_SELECT_INTERACTION_HOLD_MS=30_000;
   function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||null;}
@@ -168,6 +169,24 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     return active&&root.contains?.(active)&&active.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR)?active:null;
   }
   function shellInteractionActive(){return Boolean(interactionPointerTarget||focusedInteractiveControl());}
+  function touchTextEntry(node){return node?.closest?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR)||null;}
+  function touchInputMode(event){
+    const pointerType=String(event?.pointerType||'').toLowerCase();
+    return pointerType==='touch'||root?.dataset?.m26Input==='touch';
+  }
+  function markTextEntryActive(control){
+    if(!root?.dataset)return;
+    if(control&&root.contains?.(control)&&control.matches?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR))root.dataset.m26TextEntryActive='true';
+    else delete root.dataset.m26TextEntryActive;
+  }
+  function focusTouchTextEntry(control,event){
+    if(!control||!touchInputMode(event)||control.disabled||control.readOnly)return false;
+    markTextEntryActive(control);
+    if(root.ownerDocument?.activeElement===control)return true;
+    try{control.focus?.({preventScroll:true});}
+    catch{control.focus?.();}
+    return root.ownerDocument?.activeElement===control;
+  }
 
   function clearInteractionReleaseTimer(){
     if(interactionReleaseTimer===null)return;
@@ -354,6 +373,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const previous=interactionPointerTarget;
     clearInteractionReleaseTimer();
     interactionPointerTarget=interactiveControl(event.target);
+    const textEntry=touchTextEntry(event.target);
+    if(textEntry)focusTouchTextEntry(textEntry,event);
     if(previous&&!interactionPointerTarget)queueMicrotask(flushDeferredRender);
   }
   function onPointerRelease(){
@@ -365,6 +386,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function onFocusIn(event){
     const control=interactiveControl(event.target);
     if(!control)return;
+    markTextEntryActive(touchTextEntry(control));
     const tag=String(control?.tagName||'').toLowerCase();
     if(interactionPointerTarget===control&&!['select','button'].includes(tag)){
       clearInteractionReleaseTimer();
@@ -377,7 +399,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     if(interactionPointerTarget===control&&String(control?.tagName||'').toLowerCase()!=='select'){
       releasePointerInteraction({deferRender:false});
     }
-    queueMicrotask(flushDeferredRender);
+    queueMicrotask(()=>{
+      markTextEntryActive(touchTextEntry(root.ownerDocument?.activeElement));
+      flushDeferredRender();
+    });
   }
 
   function focusMain(){queueMicrotask(()=>root.querySelector?.('#m26-main')?.focus?.({preventScroll:false}));}
@@ -605,6 +630,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     pendingI18nContinuitySnapshot=null;
     clearInteractionReleaseTimer();
     interactionPointerTarget=null;
+    markTextEntryActive(null);
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
     root.removeEventListener('m26:i18n-switch-settled',onI18nSwitchSettled);
