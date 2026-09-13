@@ -826,6 +826,13 @@
 
 
 /* ACCESS STATE V3 · state-first continuity */
+.m26-auth-page[data-auth-mode='login'] .m26-auth-stage,
+.m26-auth-page[data-auth-mode='checking-session'] .m26-auth-stage,
+.m26-auth-page[data-auth-mode='recoverable-session'] .m26-auth-stage{width:min(31rem,100%);grid-template-columns:minmax(0,1fr)!important}
+.m26-auth-page[data-auth-mode='login'] .m26-auth-intro,
+.m26-auth-page[data-auth-mode='checking-session'] .m26-auth-intro,
+.m26-auth-page[data-auth-mode='recoverable-session'] .m26-auth-intro{display:none!important}
+
 .m26-auth-card[data-auth-mode='login'],
 .m26-auth-card[data-auth-mode='checking-session'],
 .m26-auth-card[data-auth-mode='recoverable-session']{width:min(30rem,100%)}
