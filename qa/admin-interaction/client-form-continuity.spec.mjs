@@ -117,8 +117,11 @@ test('touch tap gives text fields native focus before typing and releases the mo
 
   const nav=page.locator('.m26-mobile-nav');
   if(await nav.count()){
-    await expect(nav).toHaveCSS('pointer-events','none');
-    await expect(nav).toHaveCSS('opacity','0');
+    const visibleBeforeFocus=await nav.evaluate((node)=>getComputedStyle(node).display!=='none');
+    if(visibleBeforeFocus){
+      await expect(nav).toHaveCSS('pointer-events','none');
+      await expect(nav).toHaveCSS('opacity','0');
+    }
   }
 
   await page.keyboard.type('Cliente táctil');
