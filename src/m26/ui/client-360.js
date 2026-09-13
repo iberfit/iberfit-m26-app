@@ -170,7 +170,7 @@ function proofMetric(exercise){
   for(const definition of PROOF_METRICS){
     const points=history
       .map((point)=>({at:point?.at,value:finiteOptionalNumber(point?.[definition.key])}))
-      .filter((point)=>point.at&&point.value!==null);
+      .filter((point)=>point.at&&Number.isFinite(point.value));
     const trend=exercise?.[definition.trendKey];
     if(points.length>=2&&trend?.direction&&trend.direction!=='indeterminate'){
       return Object.freeze({...definition,points:Object.freeze(points.slice(-8)),trend});
