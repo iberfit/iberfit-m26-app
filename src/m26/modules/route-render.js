@@ -2951,13 +2951,131 @@ export function renderAgendaRoute(vm) {
   return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Agenda del entrenador</p><h2>Citas y propuestas</h2><p>Las propuestas son internas. El cliente solo recibe citas confirmadas.</p></div>${badge(countLabel(vm.appointments.length, 'registro', 'registros'), 'neutral')}</section><section class="m26-panel"><div class="m26-stack">${vm.appointments.length ? vm.appointments.map((item)=>appointmentCard(item,{canManage:['admin','coach'].includes(String(vm.role||''))})).join('') : emptyState('Agenda vacía', 'No hay citas ni propuestas registradas.')}</div></section>${form}</div>`;
 }
 
+function nextSessionPrepDate(value){
+  return value
+    ?formatIberfitDate(value,{locale:IBERFIT_UI_LOCALE,includeTime:'auto'})||String(value)
+    :'Sin fecha confirmada';
+}
+function nextSessionPrepCheckin(prep){
+  const row=prep?.progress?.latestCheckin;
+  if(!row)return '<p class="m26-next-session-empty">Sin check-in reciente confirmado.</p>';
+  const parts=[
+    ['Energía',row.energy],
+    ['Sueño',row.sleep],
+    ['Estrés',row.stress],
+    ['Dolor',row.pain],
+    ['Fatiga',row.fatigue],
+    ['Motivación',row.motivation],
+  ].filter(([,value])=>Number.isFinite(Number(value)));
+  if(!parts.length)return '<p class="m26-next-session-empty">Check-in registrado sin valores comparables.</p>';
+  return `<div class="m26-next-session-signal-grid">${parts.map(([label,value])=>`<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`).join('')}</div>`;
+}
+function nextSessionPrepExerciseRows(prep){
+  const rows=Array.isArray(prep?.exerciseMemory)?prep.exerciseMemory:[];
+  if(!rows.length)return '<p class="m26-next-session-empty">Todavía no hay cargas confirmadas de sesiones anteriores.</p>';
+  return `<div class="m26-next-session-loads">${rows.slice(0,6).map((item)=>{
+    const metrics=[
+      item.lastLoad?item.lastLoad:null,
+      Number.isFinite(item.averageRpe)?`RPE ${item.averageRpe}`:null,
+      Number.isFinite(item.averageRir)?`RIR ${item.averageRir}`:null,
+    ].filter(Boolean).join(' · ');
+    return `<article><div><strong>${escapeHtml(item.exerciseName||item.exerciseId)}</strong><small>${escapeHtml(nextSessionPrepDate(item.completedAt))}</small></div><span>${escapeHtml(metrics||'Exposición confirmada')}</span></article>`;
+  }).join('')}</div>`;
+}
+function nextSessionPrepDecisionRows(prep){
+  const rows=Array.isArray(prep?.decisions?.open)?prep.decisions.open:[];
+  if(!rows.length)return '<p class="m26-next-session-empty">Sin decisiones Action Outcome abiertas.</p>';
+  return `<div class="m26-next-session-decisions">${rows.map((item)=>`<article><div><strong>${escapeHtml(item.signalSummary||'Señal registrada')}</strong>${badge(item.reviewAt?`Revisar ${item.reviewAt}`:'Pendiente','neutral')}</div><p><b>Decisión</b> · ${escapeHtml(item.decisionSummary||'Sin detalle')}</p><p><b>Intervención</b> · ${escapeHtml(item.interventionSummary||'Sin detalle')}</p><p><b>Esperado</b> · ${escapeHtml(item.expectedOutcome||'Sin detalle')}</p></article>`).join('')}</div>`;
+}
+function renderNextSessionPreparation(prep){
+  if(!prep)return '';
+  const appointment=prep.appointment;
+  const session=prep.session||{};
+  const adherence=Number.isFinite(prep?.progress?.adherencePercent)
+    ?`${prep.progress.adherencePercent}%`
+    :'—';
+  const reasons=Array.isArray(prep.reviewReasons)?prep.reviewReasons:[];
+  const feedback=prep?.lastExecution?.feedback||{};
+  const feedbackParts=[
+    Number.isFinite(prep?.progress?.lastExecutionRpe)?`RPE sesión ${prep.progress.lastExecutionRpe}`:null,
+    feedback.comment||null,
+    feedback.pain?'Dolor registrado en la última sesión':null,
+    feedback.painNotes||null,
+  ].filter(Boolean);
+  const iri=prep.iri;
+  const tone=prep.reviewRequired?'warning':'success';
+  return `<section class="m26-panel m26-next-session-prep" data-next-session-preparation>
+    <div class="m26-panel-heading">
+      <div>
+        <p class="m26-eyebrow">Preparar próxima sesión</p>
+        <h2>Contexto operativo antes de entrenar</h2>
+        <p>Reúne datos confirmados para reducir búsquedas y ayudar al Coach a revisar el contexto antes de decidir.</p>
+      </div>
+      ${badge(prep.reviewRequired?'Revisión del Coach requerida':'Contexto listo',tone)}
+    </div>
+    <div class="m26-next-session-summary">
+      <article>
+        <span>Próxima sesión</span>
+        <strong>${escapeHtml(session.title||'Sin sesión preparada')}</strong>
+        <small>${escapeHtml(appointment?nextSessionPrepDate(appointment.startAt):'Sin cita futura confirmada')}</small>
+      </article>
+      <article>
+        <span>Adherencia · 28 días</span>
+        <strong>${escapeHtml(adherence)}</strong>
+        <small>${escapeHtml(`${prep.progress.completedSessions} de ${prep.progress.plannedSessions} sesiones confirmadas`)}</small>
+      </article>
+      <article>
+        <span>Calidad de contexto</span>
+        <strong>${escapeHtml(prep.progress.dataQuality||'limitada')}</strong>
+        <small>${escapeHtml(`${prep.evidence.exerciseMemories} ejercicios con memoria · ${prep.decisions.openCount} decisiones abiertas`)}</small>
+      </article>
+      <article>
+        <span>Última ejecución</span>
+        <strong>${escapeHtml(prep.progress.lastExecutionRpe==null?'Sin RPE':`RPE ${prep.progress.lastExecutionRpe}`)}</strong>
+        <small>${escapeHtml(nextSessionPrepDate(prep.progress.lastExecutionAt))}</small>
+      </article>
+    </div>
+    ${reasons.length?`<div class="m26-next-session-review"><strong>Antes de iniciar, revisa</strong><ul>${reasons.map((item)=>`<li>${escapeHtml(item.label)}</li>`).join('')}</ul></div>`:''}
+    <div class="m26-next-session-grid">
+      <article class="m26-next-session-card">
+        <div class="m26-next-session-card-head"><div><p class="m26-eyebrow">Bienestar</p><h3>Último check-in</h3></div><small>${escapeHtml(nextSessionPrepDate(prep.progress.latestCheckinAt))}</small></div>
+        ${nextSessionPrepCheckin(prep)}
+      </article>
+      <article class="m26-next-session-card">
+        <div class="m26-next-session-card-head"><div><p class="m26-eyebrow">Última sesión</p><h3>Feedback y esfuerzo</h3></div><small>${escapeHtml(nextSessionPrepDate(prep.progress.lastExecutionAt))}</small></div>
+        <p>${escapeHtml(feedbackParts.join(' · ')||'Sin feedback final confirmado.')}</p>
+      </article>
+      <article class="m26-next-session-card">
+        <div class="m26-next-session-card-head"><div><p class="m26-eyebrow">Diagnóstico / evolución</p><h3>Contexto IRI</h3></div><small>${escapeHtml(iri?nextSessionPrepDate(iri.assessmentDate):'Sin IRI confirmado')}</small></div>
+        <p>${escapeHtml(iri?.label||iri?.detail||'Sin contexto IRI disponible.')}</p>
+        ${iri?.detail&&iri.detail!==iri.label?`<small>${escapeHtml(iri.detail)}</small>`:''}
+      </article>
+      <article class="m26-next-session-card">
+        <div class="m26-next-session-card-head"><div><p class="m26-eyebrow">Criterio pendiente</p><h3>Decisiones abiertas</h3></div>${badge(countLabel(prep.decisions.openCount,'abierta','abiertas'),prep.decisions.overdueCount?'warning':'neutral')}</div>
+        ${nextSessionPrepDecisionRows(prep)}
+      </article>
+    </div>
+    <article class="m26-next-session-card m26-next-session-load-card">
+      <div class="m26-next-session-card-head"><div><p class="m26-eyebrow">Memoria de ejecución</p><h3>Cargas y esfuerzo recientes por ejercicio</h3></div><small>Datos confirmados</small></div>
+      ${nextSessionPrepExerciseRows(prep)}
+    </article>
+    <div class="m26-next-session-actions">
+      <button type="button" class="m26-primary-action" data-workflow-action="open-session-builder">Revisar sesión en constructor</button>
+      <button type="button" data-m26-area="expediente">Abrir expediente completo</button>
+      ${session.startable===true&&session.id?`<button type="button" data-workflow-action="start-published-session" data-entity-id="${escapeHtml(session.id)}">Iniciar sesión preparada</button>`:''}
+    </div>
+    <p class="m26-data-footnote">${escapeHtml(prep.safety.note)} La revisión del Coach es obligatoria antes de convertir este contexto en una decisión.</p>
+  </section>`;
+}
+
 export function renderSessionsRoute(vm){
   const isClient=vm.role==='client';
   const directStart=`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session"${vm.sessions.length?'':' disabled aria-disabled="true"'}>${isClient?'Iniciar sesión guiada':'Iniciar sesión programada'}</button>`;
   const primary=vm.canBuild
     ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="open-session-builder">Continuar o crear sesión</button>${directStart}</div>`
     :directStart;
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section><section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
+  const prep=!isClient?renderNextSessionPreparation(vm.nextSessionPreparation):'';
+  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
 }
 export function renderReportsRoute(vm){
   const isClient=vm.role==='client';

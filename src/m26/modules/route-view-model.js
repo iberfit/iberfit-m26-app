@@ -1,4 +1,5 @@
 import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
+import {buildNextSessionPreparation} from '../intelligence/next-session-prep.js';
 import { deriveCoachCockpit} from '../experience/coach-cockpit.js';
 import {createCommunicationRouteViewModel} from '../communication/view-model.js';
 import {createAdminRouteViewModel} from '../admin/view-model.js';
@@ -710,6 +711,27 @@ if (area === 'clientes') {
     const sessions = recordsForClient(state, 'sessions', clientId);
     const executions = recordsForClient(state, 'sessionExecutions', clientId);
     const role = String(shellVm.identity?.role || '');
+    const catalogNames=new Map(
+      (options.catalog||[])
+        .filter((item)=>item?.id)
+        .map((item)=>[
+          String(item.id),
+          exerciseDisplayName(item,getIberfitLanguage()),
+        ]),
+    );
+    const nextSessionPreparation=
+      clientId&&['admin','coach'].includes(role)
+        ?buildNextSessionPreparation(
+            state,
+            clientId,
+            {
+              now,
+              exerciseName:(exerciseId)=>
+                catalogNames.get(String(exerciseId))||
+                String(exerciseId||'Ejercicio'),
+            },
+          )
+        :null;
     return Object.freeze({
       kind: 'sesion',
       clientId,
@@ -718,6 +740,7 @@ if (area === 'clientes') {
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       sessionCounts: publicationCounts(sessions),
       executions: Object.freeze(executions.map(compactActivity)),
+      nextSessionPreparation,
     });
   }
 
