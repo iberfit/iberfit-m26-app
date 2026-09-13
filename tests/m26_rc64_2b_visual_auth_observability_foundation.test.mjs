@@ -242,7 +242,12 @@ test('RC64.2B1 visual regression is canonical Linux-only and uses Playwright scr
   assert.match(config,/844/u);
   assert.match(config,/locale:'es-ES'/u);
   assert.match(config,/timezoneId:'America\/Santiago'/u);
+  assert.match(spec,/data-auth-mode=\"login\"/u);
+  assert.match(spec,/data-auth-state=\"unavailable\"/u);
+  assert.match(spec,/m26-auth-title/u);
+  assert.match(spec,/m26-notice\.is-warning/u);
   assert.match(spec,/toHaveScreenshot\('preauth-disabled\.png'/u);
+  assert.doesNotMatch(spec,/Entrenamiento personal con criterio/u);
   assert.doesNotMatch(`${config}\n${spec}`,/percy|chromatic/iu);
 });
 
@@ -326,6 +331,12 @@ test('RC64.2B1 protected workflow generates Linux candidates and auth evidence w
   assert.match(workflow,/rc64-2b-linux-visual-baseline-candidates/u);
   assert.match(workflow,/quality:rc64:auth-smoke/u);
   assert.match(workflow,/rc64-2b-authenticated-readonly-evidence/u);
+  assert.match(workflow,/steps\.visual_candidates\.outcome == 'success'/u);
+  assert.match(workflow,/id: auth_smoke/u);
+  assert.match(workflow,/steps\.auth_smoke\.outcome == 'success'/u);
+  assert.match(workflow,/id: authenticated_visual/u);
+  assert.match(workflow,/steps\.authenticated_visual\.outcome == 'success'/u);
+  assert.doesNotMatch(workflow,/always\(\) && steps\.visual_candidates/u);
   assert.doesNotMatch(workflow,/contents:\s*write/u);
   assert.doesNotMatch(workflow,/git push|wrangler|pages deploy/iu);
 });
