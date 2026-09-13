@@ -8,6 +8,8 @@ on:
       - 'public/m26/**'
       - 'qa/**'
       - 'playwright.authenticated.config.mjs'
+      - 'playwright.device-experience.config.mjs'
+      - 'playwright.device-experience.config.mjs'
       - 'playwright.authenticated-visual.config.mjs'
       - 'playwright.admin-interaction.config.mjs'
       - 'playwright.daily-admin-visual.config.mjs'
@@ -53,6 +55,36 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --test tests/m26_device_experience_gate_contract.test.mjs
+
+  workflow-matrix:
+    name: workflow-matrix-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Generate current-source role/task fixtures
+        run: node qa/rc13_generate_visual_cases.mjs
+      - name: Validate task hierarchy, focus, touch and overflow by device
+        run: npx playwright test --config playwright.device-experience.config.mjs
+      - name: Preserve workflow-matrix evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-gate-workflow-matrix-${{ github.run_id }}
+          path: |
+            recovery/device-experience/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 30
 
   client-coach-qa:
     name: client-real-coach-webauthn-matrix
@@ -173,23 +205,26 @@ jobs:
   gate:
     name: device-experience-gate-phase-a
     if: always()
-    needs: [contract,client-coach-qa,admin-task-matrix,pwa-upgrade]
+    needs: [contract,workflow-matrix,client-coach-qa,admin-task-matrix,pwa-upgrade]
     runs-on: ubuntu-latest
     steps:
       - name: Require all Phase A jobs
         shell: bash
         env:
           CONTRACT: ${{ needs.contract.result }}
+          TASKS: ${{ needs.workflow-matrix.result }}
           CLIENT_COACH: ${{ needs.client-coach-qa.result }}
           ADMIN: ${{ needs.admin-task-matrix.result }}
           PWA: ${{ needs.pwa-upgrade.result }}
         run: |
           set -euo pipefail
-          printf 'contract=%s\nclient_coach=%s\nadmin=%s\npwa=%s\n' "$CONTRACT" "$CLIENT_COACH" "$ADMIN" "$PWA"
+          printf 'contract=%s\ntasks=%s\nclient_coach=%s\nadmin=%s\npwa=%s\n' "$CONTRACT" "$TASKS" "$CLIENT_COACH" "$ADMIN" "$PWA"
           test "$CONTRACT" = success
+          test "$TASKS" = success
           test "$CLIENT_COACH" = success
           test "$ADMIN" = success
           test "$PWA" = success
           echo 'DEVICE_EXPERIENCE_GATE_PHASE_A=GREEN'
+          echo 'DEVICE_WORKFLOW_MATRIX_V1=GREEN'
           echo 'KNOWN_GAP_COACH_POST_WEBAUTHN=YELLOW'
           echo 'KNOWN_GAP_ADMIN_AUTHENTICATED=YELLOW'

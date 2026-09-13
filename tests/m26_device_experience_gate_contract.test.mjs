@@ -5,6 +5,8 @@ import fs from 'node:fs';
 const read=(p)=>fs.readFileSync(p,'utf8');
 
 const authenticated=read('playwright.authenticated.config.mjs');
+const deviceConfig=read('playwright.device-experience.config.mjs');
+const deviceSpec=read('qa/device-experience/device-experience.spec.mjs');
 const visual=read('playwright.authenticated-visual.config.mjs');
 const admin=read('playwright.admin-interaction.config.mjs');
 const adminVisual=read('playwright.daily-admin-visual.config.mjs');
@@ -58,10 +60,51 @@ test('Installed PWA continuity keeps desktop tablet and mobile device classes',(
 });
 
 test('Phase A gate is explicit about real and synthetic coverage',()=>{
+  assert.match(workflow,/workflow-matrix/u);
+  assert.match(workflow,/playwright\.device-experience\.config\.mjs/u);
   assert.match(workflow,/client-real-coach-webauthn-matrix/u);
   assert.match(workflow,/admin-synthetic-task-matrix/u);
   assert.match(workflow,/pwa-installed-device-matrix/u);
   assert.match(workflow,/device-experience-gate-phase-a/u);
+  assert.match(workflow,/DEVICE_WORKFLOW_MATRIX_V1=GREEN/u);
   assert.match(workflow,/KNOWN_GAP_COACH_POST_WEBAUTHN=YELLOW/u);
   assert.match(workflow,/KNOWN_GAP_ADMIN_AUTHENTICATED=YELLOW/u);
+});
+
+
+test('Device workflow matrix covers current-source Client Coach and Admin tasks on all four surfaces',()=>{
+  for(const token of [
+    'client-hoy','client-progreso','client-session-live','client-feedback',
+    'coach-hoy','coach-clientes','coach-expediente','coach-programar',
+    'admin-users','admin-client-create',
+  ])assert.ok(deviceSpec.includes(token),`missing task token: ${token}`);
+
+  for(const token of [
+    'device-desktop-chromium',
+    'device-tablet-portrait-chromium',
+    'device-tablet-landscape-chromium',
+    'device-mobile-chromium',
+    'width:1440,height:1000',
+    'width:1024,height:1366',
+    'width:1366,height:1024',
+    'width:390,height:844',
+  ])assert.ok(deviceConfig.includes(token),`missing device task matrix token: ${token}`);
+
+  assert.match(deviceSpec,/CURRENT_SOURCE_STYLES/u);
+  assert.match(deviceSpec,/\/src\/m26\/design\/tokens\.css/u);
+  assert.match(deviceSpec,/\/src\/m26\/design\/primitives\.css/u);
+  assert.match(deviceSpec,/horizontalOverflow/u);
+  assert.match(deviceSpec,/assertFocusPath/u);
+  assert.match(deviceSpec,/materiallySmall/u);
+  assert.match(deviceSpec,/synthetic-post-assurance-ui/u);
+  assert.match(deviceSpec,/synthetic-authorized-ui/u);
+  assert.doesNotMatch(deviceSpec,/authCertified:true/u);
+});
+
+test('contextual help preserves the canonical touch target inside data-trust labels',()=>{
+  const primitives=read('src/m26/design/primitives.css');
+  assert.match(
+    primitives,
+    /\.m26-data-trust-label \.m26-guidance-trigger\{[\s\S]*?min-width:var\(--iberfit-size-touch-target\);[\s\S]*?min-height:var\(--iberfit-size-touch-target\);/u,
+  );
 });
