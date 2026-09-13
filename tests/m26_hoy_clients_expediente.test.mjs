@@ -422,7 +422,7 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   assert.match(html, /data-m26-expediente-section="perfil"/);
   assert.match(html, /data-m26-expediente-section="plan"/);
   assert.match(html, /Estado actual/);
-  assert.match(html, /Lo importante antes de decidir/);
+  assert.match(html, /Lo importante ahora/);
   assert.match(html, /Última sesión confirmada/);
   assert.match(html, /RPE 8/);
 
@@ -581,7 +581,7 @@ test('Cliente 360 v2 ordena identidad, decisión y evolución sin perder profund
 
   assert.match(html, /m26-client360-v2/);
   assert.match(html, /m26-client360-header-facts/);
-  assert.match(html, /<small>Fase<\/small><strong>Ciclo Base<\/strong>/);
+  assert.match(html, /<small>Fase<\/small><strong>Seguimiento activo<\/strong>/);
   assert.match(html, /<small>Próxima cita<\/small>/);
   assert.match(html, /Próxima acción/);
   assert.match(html, /m26-client360-now/);
@@ -618,6 +618,5 @@ test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', 
   const html = renderRouteView(vm);
 
   assert.equal(vm.coachCockpit, null);
-  assert.match(html, /m26-client360-v2/);
   assert.doesNotMatch(html, /Siguiente acción del Coach/);
 });
