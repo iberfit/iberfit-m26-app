@@ -9,7 +9,7 @@ test('RC64.2B canonical disabled preauth visual',async({page})=>{
   await expect(authSurface).toBeVisible();
   await expect(page.locator('#m26-auth-title')).toBeVisible();
   await expect(page.locator('.m26-auth-logo')).toBeVisible();
-  await expect(page.getByRole('button',{name:'Entrar'})).toBeDisabled();
+  await expect(page.locator('[data-auth-form="login"] .m26-primary-action')).toBeDisabled();
   await expect(page.locator('.m26-notice.is-warning')).toContainText('El acceso no está disponible');
   await expect(page).toHaveScreenshot('preauth-disabled.png',{fullPage:true});
 });
