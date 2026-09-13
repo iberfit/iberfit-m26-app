@@ -785,3 +785,81 @@
     transition: none;
   }
 }
+
+/* AUTH ENTRY STATE MACHINE V3 · premium, compact and device-safe */
+.m26-auth-card[data-auth-mode='login'],
+.m26-auth-card[data-auth-mode='checking-session'],
+.m26-auth-card[data-auth-mode='recoverable-session']{
+  width:min(30rem,100%);
+}
+.m26-auth-copy-compact{gap:.42rem}
+.m26-auth-card[data-auth-mode='login'] .m26-auth-brand,
+.m26-auth-card[data-auth-mode='checking-session'] .m26-auth-brand,
+.m26-auth-card[data-auth-mode='recoverable-session'] .m26-auth-brand{margin-bottom:1rem}
+.m26-auth-card[data-auth-mode='login'] h1,
+.m26-auth-card[data-auth-mode='checking-session'] h1,
+.m26-auth-card[data-auth-mode='recoverable-session'] h1{
+  max-width:17ch;
+  font-size:clamp(1.82rem,4.4vw,2.34rem);
+  line-height:1.04;
+}
+.m26-auth-card[data-auth-mode='login'] form{margin-top:1.05rem;padding-top:1rem}
+.m26-auth-actions-compact{margin-top:1rem;padding-top:1rem}
+.m26-auth-account{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:max-content;
+  max-width:100%;
+  margin:1rem auto 0;
+  padding:.5rem .72rem;
+  border:1px solid rgba(29,96,67,.13);
+  border-radius:999px;
+  color:#315744;
+  background:rgba(29,96,67,.055);
+  font-size:.76rem;
+  font-weight:700;
+  letter-spacing:.01em;
+}
+.m26-auth-recovery-help{
+  max-width:36ch;
+  margin:.78rem auto 0;
+  text-align:center;
+}
+.m26-auth-progress-action{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.62rem;
+}
+.m26-auth-progress-mark{
+  width:.72rem;
+  height:.72rem;
+  flex:0 0 auto;
+  border:2px solid currentColor;
+  border-right-color:transparent;
+  border-radius:50%;
+  animation:m26-auth-spin .8s linear infinite;
+}
+@keyframes m26-auth-spin{to{transform:rotate(360deg)}}
+@media (min-width:980px) and (max-width:1119px){
+  .m26-auth-stage{width:min(31rem,100%);grid-template-columns:minmax(0,1fr)!important}
+  .m26-auth-intro{display:none!important}
+}
+@media (max-width:580px){
+  .m26-auth-card[data-auth-mode='login'],
+  .m26-auth-card[data-auth-mode='checking-session'],
+  .m26-auth-card[data-auth-mode='recoverable-session']{
+    padding:1.18rem 1rem 1rem;
+  }
+  .m26-auth-card[data-auth-mode='login'] h1,
+  .m26-auth-card[data-auth-mode='checking-session'] h1,
+  .m26-auth-card[data-auth-mode='recoverable-session'] h1{
+    font-size:clamp(1.7rem,8vw,2.04rem);
+  }
+  .m26-auth-card[data-auth-mode='login'] form{gap:.78rem}
+}
+@media (prefers-reduced-motion:reduce){
+  .m26-auth-progress-mark{animation:none;border-right-color:currentColor}
+}
+
