@@ -186,6 +186,33 @@ test('RC59.3 agrega adherencia 7 28 90 y cambio contra baseline',()=>{
   assert.equal(result.adherence.d90,0.625);
 });
 
+test('RC59.3 métricas wearable nulas o vacías siguen ausentes y nunca se convierten en cero',()=>{
+  const state=stateFixture();
+  const latest=state.collections.wearableDailySummaries.find(
+    (record)=>record.date===day(0)
+  );
+  latest.steps=null;
+  latest.sleepMinutes='';
+
+  const result=buildLongitudinalAggregation(
+    state,
+    CLIENT,
+    {now:NOW}
+  );
+  const steps=result.windows.d7.metrics.steps;
+  const sleep=result.windows.d7.metrics.sleepMinutes;
+
+  assert.equal(steps.daysWithData,6);
+  assert.equal(steps.coverage,0.857);
+  assert.equal(steps.average,8000);
+  assert.equal(steps.min,8000);
+  assert.equal(steps.max,8000);
+  assert.ok(!steps.points.some((point)=>point.date===day(0)));
+  assert.equal(sleep.daysWithData,6);
+  assert.equal(sleep.average,450);
+  assert.equal(result.windows.d7.daysWithAnyData,7);
+});
+
 test('RC59.3 comparativa temporal entrega valores y cobertura sin imputar faltantes',()=>{
   const state=stateFixture();
   state.collections.wearableDailySummaries=
