@@ -97,8 +97,11 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
 
   assert.match(index,/data-static-auth-bootstrap="true"/u);
   assert.match(index,/class="m26-auth-logo" src="\/public\/isotipo-iberfit\.png"/u);
+  assert.match(index,/data-auth-form="login" aria-label="Acceso a IBERFIT" hidden aria-hidden="true"/u);
   assert.match(index,/<button[\s\S]*?disabled[\s\S]*?aria-disabled="true"[\s\S]*?>[\s\S]*?Entrar[\s\S]*?<\/button>/u);
-  assert.match(index,/Cargando acceso seguro a IBERFIT\.\.\./u);
+  assert.match(index,/Preparando acceso seguro…/u);
+  assert.match(entry,/function settleDisabledAuthShell\(\)/u);
+  assert.match(entry,/settleDisabledAuthShell\(\);/u);
 
   assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/mu);
   assert.match(entry,/if\(runtime\.enabled\)\{\s*installMinimalAuthBootstrap\(\);\s*startBootstrapWatchdog\(\);/u);
@@ -130,18 +133,16 @@ test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fet
   assert.match(critical,/max-width:100%/u);
 });
 
-test('RC64.2A initial HTML provides the settled disabled preauth shell before optional full-app elevation',()=>{
+test('RC64.2A initial HTML starts in checking state and disabled runtime settles without an infinite spinner',()=>{
   const index=read('public/m26/index.html');
   const entry=read('public/m26/app.js');
 
-  assert.match(index,/data-static-auth-bootstrap="true"/u);
-  assert.match(index,/aria-busy="false"/u);
-  assert.match(index,/Entrenamiento personal con criterio/u);
-  assert.match(index,/Diagnóstico, planificación, control y seguimiento\./u);
-  assert.match(index,/data-auth-form="login"/u);
+  assert.match(index,/data-static-auth-bootstrap="true" data-auth-mode="checking-session" data-auth-state="checking-session"/u);
+  assert.match(index,/aria-busy="true"/u);
+  assert.match(index,/Preparando tu espacio/u);
+  assert.match(index,/data-auth-form="login" aria-label="Acceso a IBERFIT" hidden aria-hidden="true"/u);
   assert.match(index,/type="submit"[\s\S]*?disabled[\s\S]*?aria-disabled="true"[\s\S]*?>[\s\S]*?Entrar/u);
-  assert.match(index,/Cargando acceso seguro a IBERFIT\.\.\./u);
-  assert.doesNotMatch(index,/Preparando acceso seguro…/u);
+  assert.match(index,/Preparando acceso seguro…/u);
   assert.match(index,/class="m26-auth-logo" src="\/public\/isotipo-iberfit\.png"/u);
   assert.doesNotMatch(index,/rel="preload" href="\/m26\/fonts\/inter-latin-wght-normal\.woff2"/u);
 
@@ -151,8 +152,10 @@ test('RC64.2A initial HTML provides the settled disabled preauth shell before op
 
   assert.doesNotMatch(entry,/^import\s+\{createM26Application\}/mu);
   assert.match(entry,/if\(runtime\.enabled\)\{\s*installMinimalAuthBootstrap\(\);\s*startBootstrapWatchdog\(\);/u);
-  assert.match(entry,/if\(minimalAuthInstalled&&!minimalAuthBusy\)surfaceDeferredFullAppFailure\(error\)/u);
-  assert.match(entry,/else renderBootstrapRecovery\(error\)/u);
+  assert.match(entry,/function settleDisabledAuthShell\(\)/u);
+  assert.match(entry,/data-auth-state','unavailable'/u);
+  assert.match(entry,/Acceso no disponible temporalmente\./u);
+  assert.match(entry,/else\{\s*settleDisabledAuthShell\(\);/u);
   assert.match(entry,/import\('\/src\/m26\/app\/application\.js'\)/u);
   assert.match(entry,/M26_BOOTSTRAP_MODULE_TIMEOUT/u);
 });
