@@ -5,19 +5,20 @@ import fs from 'node:fs';
 const html=fs.readFileSync('public/m26/index.html','utf8');
 const vision=fs.readFileSync('src/m26/design/brand-vision.css','utf8');
 const workflow=fs.readFileSync('.github/workflows/daily-use-visual-evidence.yml','utf8');
+const bootstrap=fs.readFileSync('public/m26/app.js','utf8');
 
 test('production loads signature and brand vision after historical design layers',()=>{
   const premium=html.indexOf('/src/m26/design/premium-ux.css');
-  const adaptive=html.indexOf('/src/m26/design/adaptive-layout.css');
   const signature=html.indexOf('/src/m26/design/signature-ux-v2.css');
   const auth=html.indexOf('/src/m26/design/auth-native.css');
   const brand=html.indexOf('/src/m26/design/brand-vision.css');
-  assert.ok(premium>=0&&adaptive>premium);
-  assert.ok(signature>adaptive);
+  assert.ok(premium>=0&&signature>premium);
   assert.ok(auth>signature);
   assert.ok(brand>auth);
-  assert.match(html,/adaptive-layout\.css[^>]+data-iberfit-adaptive-style="true"/u);
+  assert.doesNotMatch(html,/data-href="\/src\/m26\/design\/adaptive-layout\.css"/u);
   assert.match(html,/signature-ux-v2\.css[^>]+data-iberfit-signature-v2-style="true"/u);
+  assert.match(bootstrap,/const anchor=signature\|\|brand;/u);
+  assert.match(bootstrap,/anchor\.parentNode\.insertBefore\(link,anchor\)/u);
 });
 
 test('brand vision keeps navigation dark and workspace light without changing behavior',()=>{
