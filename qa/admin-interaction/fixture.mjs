@@ -1,5 +1,7 @@
 import {renderAdminRoute} from '../../src/m26/admin/route-render.js';
 import {createAdminController} from '../../src/m26/admin/controller.js';
+import {renderM26Shell} from '../../src/m26/shell/shell-render.js';
+import {createShellViewModel} from '../../src/m26/shell/shell-view-model.js';
 
 const root=document.querySelector('#qa-root');
 if(!root)throw new Error('QA_ADMIN_ROOT_MISSING');
@@ -10,9 +12,34 @@ const CLIENT='33333333-3333-4333-8333-333333333333';
 const CLIENT_ID='44444444-4444-4444-8444-444444444444';
 const ORG='00000000-0000-4000-8000-000000000140';
 
+const route=new URLSearchParams(location.search).get('route')==='clients'?'clients':'users';
+const activeArea=route==='clients'?'admin-clientes':'admin-usuarios';
+
 const state={
+  identity:{
+    id:CURRENT_ADMIN,
+    name:'Admin QA',
+    email:'admin.qa@iberfit.cl',
+    role:'admin',
+    authorizedRoles:['admin'],
+  },
+  hydration:{status:'ready',serverTime:'2026-09-12T12:00:00.000Z'},
+  activeArea,
+  selectedClientId:null,
+  pendingOperations:[],
+  conflicts:[],
+  rejectedOperations:[],
+  metrics:{},
+  collections:{
+    clients:[],
+    appointments:[],
+    sessions:[],
+    clientAccess:[],
+  },
   admin:{
+    available:true,
     organization:{id:ORG,name:'IBERFIT QA',timezone:'America/Santiago',locale:'es-CL',revision:7},
+    summary:{},
   },
 };
 
@@ -59,11 +86,11 @@ function clientsVm(){
   };
 }
 
-const route=new URLSearchParams(location.search).get('route')==='clients'?'clients':'users';
 let vm=route==='clients'?clientsVm():usersVm();
 
 function render(){
-  root.innerHTML=renderAdminRoute(vm);
+  const shellVm=createShellViewModel(state);
+  root.innerHTML=renderM26Shell(shellVm,renderAdminRoute(vm));
 }
 
 const service={
