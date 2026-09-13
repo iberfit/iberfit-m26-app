@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f1f316cf871fa602a73c4ec14b490f1b56b1768d",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción GREEN final: Planificación V2, Agenda V2, Live Workout V3 y lineage idempotente de Service Worker"
+}
