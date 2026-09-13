@@ -609,8 +609,8 @@ export function renderAccessUi({
     content = `
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Acceso privado</p>
-        <h1 id="m26-auth-title" tabindex="-1">Bienvenido a IBERFIT</h1>
-        <p>Accede a tu espacio privado y continúa exactamente donde lo dejaste.</p>
+        <h1 id="m26-auth-title" tabindex="-1">Entrenamiento personal con criterio</h1>
+        <p>Bienvenido a IBERFIT. Accede a tu espacio privado y continúa exactamente donde lo dejaste.</p>
       </div>
 
       ${contextNotice}
