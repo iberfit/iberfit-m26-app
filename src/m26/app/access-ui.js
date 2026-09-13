@@ -288,7 +288,7 @@ export function renderAccessUi({
 
   const accessNote = qaOnly
     ? 'Acceso restringido a las cuentas autorizadas para esta revisión.'
-    : 'Acceso privado para clientes y equipo IBERFIT.';
+    : 'Acceso protegido por autenticación y permisos de cuenta.';
   const retrySessionNotice=sessionRetryAvailable
     ? `<div class="m26-auth-context-state m26-auth-retry-state" role="status" aria-label="Sesión disponible para reintentar">
         <span class="m26-auth-context-mark" aria-hidden="true"></span>
@@ -691,7 +691,7 @@ export function renderAccessUi({
       <div class="m26-auth-stage">
         <aside class="m26-auth-intro" aria-label="IBERFIT · entrenamiento personal">
           <div class="m26-auth-intro-copy">
-            <p class="m26-auth-intro-kicker">IBERFIT · Entrenamiento personal</p>
+            <p class="m26-auth-intro-kicker">Entrenamiento personal con criterio</p>
             <h2>Todo tu proceso de entrenamiento, en un solo lugar.</h2>
             <p>Diagnóstico IRI, planificación, sesiones y evolución conectados para que cada decisión tenga contexto.</p>
           </div>
@@ -702,7 +702,7 @@ export function renderAccessUi({
               <dd>Tu punto de partida</dd>
             </div>
             <div>
-              <dt>Plan semanal</dt>
+              <dt>Planificación</dt>
               <dd>Qué toca y por qué</dd>
             </div>
             <div>
