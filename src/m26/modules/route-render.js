@@ -1954,15 +1954,25 @@ export function renderExpedienteRoute(vm) {
       ?pulseSourceAction[focus.source]||null
       :null;
 
-  const pulseActionArea=
+  const rawPulseActionArea=
     structuralPulseAction
-      ?focus?.nextAction?.area||'progreso'
+      ?focus?.nextAction?.area||data.nextAction?.area||'progreso'
       :contextualPulseAction?.area||data.nextAction?.area||'progreso';
 
-  const pulseActionLabel=
+  const rawPulseActionLabel=
     structuralPulseAction
-      ?focus?.nextAction?.label||'Revisar seguimiento'
+      ?focus?.nextAction?.label||data.nextAction?.label||'Revisar seguimiento'
       :contextualPulseAction?.label||data.nextAction?.label||'Revisar progreso';
+
+  const pulseActionArea=
+    rawPulseActionArea==='expediente'
+      ?'progreso'
+      :rawPulseActionArea;
+
+  const pulseActionLabel=
+    rawPulseActionArea==='expediente'
+      ?'Revisar progreso'
+      :rawPulseActionLabel;
 
   const clientPhase=
     data.experience?.stageLabel||
