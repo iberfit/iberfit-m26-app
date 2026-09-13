@@ -16,10 +16,13 @@ function normalizeName(value){return text(value,60).normalize('NFD').replace(/[\
 function safePrescription(input={}){
   return {
     reps:text(input.reps||'8–12',40)||'8–12',
+    plannedLoad:text(input.plannedLoad,80),
     restSeconds:positiveInt(input.restSeconds,60,{min:1,max:3600}),
     tempo:text(input.tempo||'controlado',40)||'controlado',
     targetRpe:number(input.targetRpe,7,{min:1,max:10}),
     targetRir:number(input.targetRir,3,{min:0,max:10}),
+    prescriptionNotes:text(input.prescriptionNotes,1000),
+    progression:text(input.progression,500),
     alternativeId:text(input.alternativeId,160)||null,
   };
 }
