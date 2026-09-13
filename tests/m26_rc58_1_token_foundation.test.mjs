@@ -21,7 +21,7 @@ const wearXml=read('native/android-host/wear-app/src/main/res/values/iberfit_des
 const foundation=read('docs/RC58_1_TOKEN_FOUNDATION.md');
 
 test('RC58.1 usa una fuente canónica y generación reproducible',()=>{
-  assert.equal(IBERFIT_DESIGN_TOKENS.version,'58.1.0');
+  assert.equal(IBERFIT_DESIGN_TOKENS.version,'58.2.0');
   assert.equal(IBERFIT_DESIGN_TOKENS.meta.sourceOfTruth,true);
   const check=spawnSync(process.execPath,['scripts/generate_rc58_design_tokens.mjs','--check'],{
     cwd:process.cwd(),encoding:'utf8'
@@ -32,17 +32,17 @@ test('RC58.1 usa una fuente canónica y generación reproducible',()=>{
 
 test('contrato RC12 conserva paleta y escala pública',()=>{
   assert.deepEqual(M26_PALETTE,{
-    forest950:'#07150f',
-    forest900:'#0d2419',
-    forest800:'#143424',
-    forest700:'#1d4933',
-    cream100:'#f7f1e4',
-    cream300:'#ddd4c1',
-    muted:'#c8c0af',
-    gold500:'#c8a65d',
-    gold300:'#e4cd98',
-    danger:'#d79a91',
-    success:'#8bc7a2',
+    forest950:'#09130f',
+    forest900:'#121f1b',
+    forest800:'#182c25',
+    forest700:'#244536',
+    cream100:'#f4f4f0',
+    cream300:'#d7d6cf',
+    muted:'#b6bbb4',
+    gold500:'#b99856',
+    gold300:'#d8c08a',
+    danger:'#d58e86',
+    success:'#79b792',
   });
   assert.deepEqual(M26_DESIGN_TOKENS.spacing,['0.25rem','0.5rem','0.75rem','1rem','1.5rem','2rem','3rem']);
   assert.equal(M26_DESIGN_TOKENS.touchTargetPx,44);
@@ -54,7 +54,7 @@ test('tokens CSS preceden al shell y el shell consume aliases canónicos',()=>{
   const shellPosition=indexHtml.indexOf('/src/m26/shell/shell.css');
   assert.ok(tokenPosition>0);
   assert.ok(shellPosition>tokenPosition);
-  assert.match(tokensCss,/--iberfit-color-canvas:\s*#07150f/);
+  assert.match(tokensCss,/--iberfit-color-canvas:\s*#09130f/);
   assert.match(tokensCss,/--m26-forest-950:\s*var\(--iberfit-color-forest-950\)/);
   assert.match(shellCss,/--m26-forest-950:\s*var\(--iberfit-color-forest-950\)/);
   assert.match(shellCss,/--m26-serif:\s*var\(--iberfit-font-family-editorial\)/);
@@ -64,9 +64,9 @@ test('tokens CSS preceden al shell y el shell consume aliases canónicos',()=>{
 
 test('mappings Android Phone y Wear derivan del mismo source',()=>{
   assert.equal(phoneXml,wearXml);
-  assert.match(phoneXml,/name="iberfit_color_canvas">#FF07150F</);
+  assert.match(phoneXml,/name="iberfit_color_canvas">#FF09130F</);
   assert.match(phoneXml,/name="iberfit_touch_target">44dp</);
-  assert.match(phoneXml,/name="iberfit_color_admin_accent">#FF31A898</);
+  assert.match(phoneXml,/name="iberfit_color_admin_accent">#FF78A18E</);
 });
 
 test('data-viz foundation tiene seis series distintas y contraste visible',()=>{
