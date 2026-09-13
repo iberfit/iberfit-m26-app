@@ -4,12 +4,19 @@ const GROUP_TYPES=new Set(['biserie','triserie','circuito','amrap','tabata']);
 function positiveInt(value,fallback,{min=1,max=100}={}){const n=Number(value);return Number.isInteger(n)&&n>=min&&n<=max?n:fallback;}
 function boundedNumber(value,fallback,{min=0,max=10}={}){const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback;}
 function text(value,fallback='',max=120){const out=String(value??fallback).trim();return out.slice(0,max)||String(fallback);}
+function optionalText(input,fallback='',max=500){
+  const candidate=input===undefined||input===null?fallback:input;
+  return String(candidate??'').trim().slice(0,max);
+}
 function normalizePrescription(input={},fallback={}){return {
   reps:text(input.reps,fallback.reps||'8–12',40),
+  plannedLoad:optionalText(input.plannedLoad,fallback.plannedLoad||'',80),
   restSeconds:positiveInt(input.restSeconds,fallback.restSeconds||60,{min:1,max:3600}),
   tempo:text(input.tempo,fallback.tempo||'controlado',40),
   targetRpe:boundedNumber(input.targetRpe,fallback.targetRpe||7,{min:1,max:10}),
   targetRir:boundedNumber(input.targetRir,fallback.targetRir??3,{min:0,max:10}),
+  prescriptionNotes:optionalText(input.prescriptionNotes,fallback.prescriptionNotes||'',1000),
+  progression:optionalText(input.progression,fallback.progression||'',500),
   alternativeId:input.alternativeId||fallback.alternativeId||null,
 };}
 export function createSessionDraft({clientId,title='Sesión IBERFIT',durationMinutes=50}={}){if(!clientId)throw new Error('M26_SESSION_CLIENT_REQUIRED');return {id:createM26Id(),clientId,title:text(title,'Sesión IBERFIT',120),durationMinutes:positiveInt(durationMinutes,50,{min:10,max:240}),status:'draft',previewAccepted:false,blocks:[],revision:0};}
@@ -44,6 +51,9 @@ export function updateSessionDraft(draft,field,value){if(field==='title')draft.t
 export function updateSessionBlock(draft,{blockId,field,value,exerciseId=null,catalog}={}){const block=draft.blocks.find((item)=>item.id===blockId);if(!block)throw new Error('M26_SESSION_BLOCK_MISSING');if(block.type==='exercise'){
   if(field==='sets')block.sets=positiveInt(value,block.sets||3);
   else if(['reps','tempo'].includes(field))block[field]=text(value,block[field],40);
+  else if(field==='plannedLoad')block.plannedLoad=optionalText(value,block.plannedLoad||'',80);
+  else if(field==='prescriptionNotes')block.prescriptionNotes=optionalText(value,block.prescriptionNotes||'',1000);
+  else if(field==='progression')block.progression=optionalText(value,block.progression||'',500);
   else if(field==='restSeconds')block.restSeconds=positiveInt(value,block.restSeconds||60,{min:1,max:3600});
   else if(field==='targetRpe')block.targetRpe=boundedNumber(value,block.targetRpe||7,{min:1,max:10});
   else if(field==='targetRir')block.targetRir=boundedNumber(value,block.targetRir??3,{min:0,max:10});
@@ -66,7 +76,7 @@ export function validateSessionDraft(draft,catalog){
   if(b.type==='exercise'){
    const sets=Number(b.sets),rest=Number(b.restSeconds),rpe=Number(b.targetRpe),rir=Number(b.targetRir);
    if(!catalog.has(b.exerciseId))errors.push(`exercise:${b.exerciseId}`);
-   if(!Number.isInteger(sets)||sets<1||sets>100||!String(b.reps||'').trim()||String(b.reps).length>40||!Number.isFinite(rest)||rest<1||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(b.tempo||'').length>40)errors.push(`prescription:${b.exerciseId}`);
+   if(!Number.isInteger(sets)||sets<1||sets>100||!String(b.reps||'').trim()||String(b.reps).length>40||String(b.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<1||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(b.tempo||'').length>40||String(b.prescriptionNotes||'').length>1000||String(b.progression||'').length>500)errors.push(`prescription:${b.exerciseId}`);
    if(b.alternativeId&&(!catalog.has(b.alternativeId)||b.alternativeId===b.exerciseId))errors.push(`alternative:${b.exerciseId}`);
   }else{
    if(!GROUP_TYPES.has(b.type)){errors.push(`groupType:${b.id}`);continue;}
@@ -77,7 +87,7 @@ export function validateSessionDraft(draft,catalog){
    for(const id of ids){
     if(!catalog.has(id))errors.push(`exercise:${id}`);
     const p=b.prescriptions?.[id],rest=Number(p?.restSeconds),rpe=Number(p?.targetRpe),rir=Number(p?.targetRir);
-    if(!p||!String(p.reps||'').trim()||String(p.reps).length>40||!Number.isFinite(rest)||rest<1||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(p.tempo||'').length>40)errors.push(`prescription:${id}`);
+    if(!p||!String(p.reps||'').trim()||String(p.reps).length>40||String(p.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<1||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(p.tempo||'').length>40||String(p.prescriptionNotes||'').length>1000||String(p.progression||'').length>500)errors.push(`prescription:${id}`);
     if(p?.alternativeId&&(!catalog.has(p.alternativeId)||p.alternativeId===id))errors.push(`alternative:${id}`);
    }
   }
