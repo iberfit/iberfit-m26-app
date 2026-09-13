@@ -259,6 +259,11 @@ function renderCoachHoyRoute(vm) {
   const attentionStatus=attentionCount
     ?countLabel(attentionCount,'requiere atención','requieren atención')
     :'Cartera al día';
+  const operationStatus=vm.operations?.pending
+    ?'Sincronizando cambios'
+    :vm.operations?.rejected
+      ?'Cambios por revisar'
+      :null;
 
   const agendaBody=appointments.length
     ?appointments.slice(0,4).map((item)=>appointmentCard(item,{canStartSession:true})).join('')
@@ -302,6 +307,7 @@ function renderCoachHoyRoute(vm) {
         <span><strong>${escapeHtml(cockpit?.totalClients||clients.length)}</strong> clientes en cartera</span>
         <span><strong>${escapeHtml(appointments.length)}</strong> sesiones hoy</span>
         <span><strong>${escapeHtml(attentionStatus)}</strong></span>
+        ${operationStatus?`<span class="m26-coach-home-sync"><strong>${escapeHtml(operationStatus)}</strong></span>`:''}
       </div>
     </section>
 
