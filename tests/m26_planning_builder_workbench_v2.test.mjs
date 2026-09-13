@@ -169,11 +169,16 @@ test('prescripción extendida funciona también dentro de grupos',()=>{
   });
   closeTrainingGroup(draft);
 
-  const converted=draft.blocks[0];
-  assert.equal(converted.type,'exercise');
-  assert.equal(converted.plannedLoad,'peso corporal');
-  assert.equal(converted.prescriptionNotes,'Ritmo sostenible.');
-  assert.match(converted.progression,/Añadir una ronda/);
+  const groupDraft=draft.blocks[0];
+  assert.equal(groupDraft.type,'amrap');
+  assert.equal(groupDraft.prescriptions[exerciseId].plannedLoad,'peso corporal');
+  assert.equal(groupDraft.prescriptions[exerciseId].prescriptionNotes,'Ritmo sostenible.');
+  assert.match(groupDraft.prescriptions[exerciseId].progression,/Añadir una ronda/);
+  assert.equal(validateSessionDraft(draft,catalog).ok,true);
+
+  const execution=createExecution({session:draft,clientId:draft.clientId});
+  assert.equal(execution.queue[0].prescription.plannedLoad,'peso corporal');
+  assert.match(execution.queue[0].prescription.progression,/Añadir una ronda/);
 });
 
 test('Planificación V2 orienta del ciclo a la sesión sin saltarse publicación',()=>{
