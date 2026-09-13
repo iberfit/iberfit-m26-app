@@ -55,7 +55,7 @@ export function rankCoachClientDocuments(documents=[],{query='',filters={},sort=
   return Object.freeze(ordered);
 }
 
-export function buildCoachCommandEntries({areas=[],clients=[],selectedClientId=null,role='coach'}={}){
+export function buildCoachCommandEntries({areas=[],clients=[],selectedClientId=null,role=null}={}){
   const areaEntries=uniqueBy((Array.isArray(areas)?areas:[]).map((item)=>({
     id:`area:${text(item?.area,100)}`,type:'area',target:text(item?.area,100),label:text(item?.label,160)||text(item?.area,100),group:'Navegación',
     keywords:foldCoachSearch(`${item?.label||''} ${item?.area||''} abrir ir módulo`),
