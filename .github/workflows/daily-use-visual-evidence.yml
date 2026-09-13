@@ -4,12 +4,14 @@ on:
   pull_request:
     branches: [canary/rc74-4]
     paths:
+      - 'src/m26/admin/**'
       - 'qa/admin-interaction/admin-visual-evidence.spec.mjs'
       - 'playwright.daily-admin-visual.config.mjs'
       - '.github/workflows/daily-use-visual-evidence.yml'
   push:
     branches: [canary/rc74-4]
     paths:
+      - 'src/m26/admin/**'
       - 'qa/admin-interaction/admin-visual-evidence.spec.mjs'
       - 'playwright.daily-admin-visual.config.mjs'
       - '.github/workflows/daily-use-visual-evidence.yml'

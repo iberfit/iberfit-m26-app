@@ -1019,6 +1019,25 @@
 @media(max-width:680px){.m26-admin-user360-grid{grid-template-columns:1fr}}
 
 
+/* ADMIN_LEAD_CAPTURE_CONTEXT_BEGIN */
+.m26-admin-lead-capture{
+  border-color:color-mix(in srgb,var(--m26-admin-accent) 32%,var(--m26-admin-border) 68%);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb,var(--m26-admin-accent) 7%,var(--m26-admin-surface-soft) 93%),
+      var(--m26-admin-surface-soft)
+    );
+}
+.m26-admin-lead-capture .m26-admin-section-heading{margin-bottom:.3rem}
+.m26-admin-lead-capture > .m26-admin-form{margin-top:.35rem}
+.m26-admin-lead-capture .m26-admin-badge{white-space:nowrap}
+@media(max-width:620px){
+  .m26-admin-lead-capture .m26-admin-section-heading{display:grid}
+  .m26-admin-lead-capture .m26-admin-badge{justify-self:start}
+}
+/* ADMIN_LEAD_CAPTURE_CONTEXT_END */
+
 /* ADMIN_CLIENT_CREATE_WIZARD_V2_BEGIN */
 .m26-client-create-wizard-head{
   grid-column:1 / -1;
