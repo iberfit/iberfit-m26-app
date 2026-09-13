@@ -1182,6 +1182,65 @@
     overflow: visible;
   }
 }
+/* IBERFIT Data Intelligence V1 · decision-grade longitudinal summaries */
+.m26-data-snapshot {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--iberfit-space-2);
+}
+
+.m26-data-snapshot > span {
+  display: grid;
+  align-content: start;
+  gap: var(--iberfit-space-1);
+  min-width: 0;
+  padding: var(--iberfit-space-2) var(--iberfit-space-3);
+  border: 1px solid var(--iberfit-color-border);
+  border-radius: var(--iberfit-radius-md);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--iberfit-color-accent) 5%, transparent),
+      var(--iberfit-color-surface-raised)
+    );
+}
+
+.m26-data-snapshot small {
+  color: var(--iberfit-color-text-secondary);
+  font-size: var(--iberfit-font-size-xs);
+}
+
+.m26-data-snapshot strong {
+  color: var(--iberfit-color-text-primary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.m26-data-metric-card .m26-echart {
+  min-height: 260px;
+}
+
+.m26-data-metric-card .m26-echart-canvas {
+  min-height: 260px;
+}
+
+@media (max-width: 560px) {
+  .m26-data-snapshot {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .m26-data-metric-card .m26-echart,
+  .m26-data-metric-card .m26-echart-canvas {
+    min-height: 230px;
+  }
+}
+
+@media (forced-colors: active) {
+  .m26-data-snapshot > span {
+    border-color: CanvasText;
+  }
+}
+
 /* IBERFIT RC59.6 · Data Trust UX */
 .m26-data-trust-strip {
   display: flex;

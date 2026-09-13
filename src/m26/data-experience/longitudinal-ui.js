@@ -73,6 +73,32 @@ function valueText(value,unit,digits=1){
     :`${numberText(number,digits)}${unit?` ${unit}`:''}`;
 }
 
+function rangeText(metric,unit){
+  const minimum=finite(metric?.min);
+  const maximum=finite(metric?.max);
+  if(minimum===null||maximum===null)return '—';
+  return `${valueText(minimum,unit,1)} – ${valueText(maximum,unit,1)}`;
+}
+
+function dataDaysText(metric){
+  const days=Number(metric?.daysWithData);
+  const total=Number(metric?.days);
+  if(!Number.isFinite(days)||days<0)return '—';
+  if(Number.isFinite(total)&&total>0)return `${days} / ${total}`;
+  return String(days);
+}
+
+function chartReferenceAttributes({d28,comparison,professional=false}={}){
+  const reference=finite(d28?.average);
+  const baseline=professional&&comparison?.comparable
+    ?finite(comparison?.baselineAverage)
+    :null;
+  return [
+    reference===null?'':` data-reference-value="${escapeHtml(reference)}" data-reference-label="Media 28 días"`,
+    baseline===null?'':` data-comparison-value="${escapeHtml(baseline)}" data-comparison-label="28 días previos"`,
+  ].join('');
+}
+
 function metricMeta(metric,key){
   return Object.freeze({
     label:metric?.label||FALLBACK_META[key]?.label||key,
@@ -194,11 +220,19 @@ function metricCard(aggregate,key,role){
   const trust=longitudinalMetricTrust(metric,aggregate?.dataTrust);
   const trustStrip=renderDataTrustStrip(trust,{role,compact:!professional});
   const metricGuidance=key==='hrvMs'?renderGuidanceTrigger('vfc',{label:'Ayuda sobre VFC'}):'';
+  const latestDate=metric?.latestDate||'';
+  const references=chartReferenceAttributes({
+    d28,
+    comparison,
+    professional,
+  });
 
   const clientSummary=`
     <div class="m26-data-kpis">
+      <div><span>Último dato</span><strong>${escapeHtml(valueText(metric?.latest,meta.unit,1))}</strong><small>${escapeHtml(latestDate||'Sin fecha')}</small></div>
       <div><span>Media 28 días</span><strong>${escapeHtml(valueText(d28?.average,meta.unit,1))}</strong></div>
-      <div><span>Cobertura</span><strong>${escapeHtml(percent(d28?.coverage))}</strong></div>
+      <div><span>Rango 28 días</span><strong>${escapeHtml(rangeText(d28,meta.unit))}</strong></div>
+      <div><span>Cobertura</span><strong>${escapeHtml(percent(d28?.coverage))}</strong><small>${escapeHtml(dataDaysText(d28))} días con dato</small></div>
     </div>
     <p>${escapeHtml(changeCopy(comparison,meta.unit))}</p>
     <p class="m26-data-next-step"><small>${escapeHtml(metricNextStepCopy(comparison,key))}</small></p>
@@ -211,13 +245,18 @@ function metricCard(aggregate,key,role){
       <div><span>28 días</span><strong>${escapeHtml(valueText(d28?.average,meta.unit,1))}</strong><small>${escapeHtml(percent(d28?.coverage))} cobertura</small></div>
       <div><span>90 días</span><strong>${escapeHtml(valueText(d90?.average,meta.unit,1))}</strong><small>${escapeHtml(percent(d90?.coverage))} cobertura</small></div>
     </div>
+    <div class="m26-data-snapshot" aria-label="Resumen del periodo">
+      <span><small>Último</small><strong>${escapeHtml(valueText(metric?.latest,meta.unit,1))}</strong><small>${escapeHtml(latestDate||'Sin fecha')}</small></span>
+      <span><small>Rango 90 días</small><strong>${escapeHtml(rangeText(d90,meta.unit))}</strong></span>
+      <span><small>Días con dato</small><strong>${escapeHtml(dataDaysText(d90))}</strong></span>
+    </div>
     <p>${escapeHtml(changeCopy(comparison,meta.unit))}</p>
     <p>${escapeHtml(trendCopy(trend,meta.unit))}</p>
     <p>${escapeHtml(providerCopy(metric))} ${escapeHtml(vfcMethodCopy(metric))}</p>
     ${trustStrip}
   `;
 
-  return `<article class="m26-panel m26-data-metric-card" data-metric="${escapeHtml(key)}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${professional?'Comparativa longitudinal':'Evolución'}</p><div class="m26-guidance-inline"><h3>${escapeHtml(meta.label)}</h3>${metricGuidance}</div></div><span class="m26-chip">${professional?'90 días':'28 días'}</span></div>${professional?coachSummary:clientSummary}<m26-echart class="m26-echart" data-label="${escapeHtml(meta.label)}" data-unit="${escapeHtml(meta.unit)}" data-points="${chartPayload(metric.points)}" aria-label="${escapeHtml(`${meta.label}, evolución de ${professional?'90':'28'} días`)}"></m26-echart>${fallbackTable(metric,meta)}</article>`;
+  return `<article class="m26-panel m26-data-metric-card" data-metric="${escapeHtml(key)}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${professional?'Comparativa longitudinal':'Evolución'}</p><div class="m26-guidance-inline"><h3>${escapeHtml(meta.label)}</h3>${metricGuidance}</div></div><span class="m26-chip">${professional?'90 días':'28 días'}</span></div>${professional?coachSummary:clientSummary}<m26-echart class="m26-echart" data-label="${escapeHtml(meta.label)}" data-unit="${escapeHtml(meta.unit)}" data-points="${chartPayload(metric.points)}"${references} aria-label="${escapeHtml(`${meta.label}, evolución de ${professional?'90':'28'} días con media de 28 días${professional&&comparison?.comparable?' y baseline previo':''}`)}"></m26-echart>${fallbackTable(metric,meta)}</article>`;
 }
 
 function adherencePanel(aggregate,role){
@@ -265,4 +304,7 @@ export const __longitudinalUiInternals=Object.freeze({
   fallbackTable,
   metricCard,
   metricNextStepCopy,
+  rangeText,
+  dataDaysText,
+  chartReferenceAttributes,
 });
