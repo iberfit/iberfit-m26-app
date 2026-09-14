@@ -10,22 +10,22 @@ const SOURCE_COPY=Object.freeze({
   pause:'Lo vemos luego',
   close:'Cerrar por ahora',
   'welcome-home.title':'Hola. Antes de dejarte a tu aire…',
-  'welcome-home.body':'Quiero enseñarte dónde está cada cosa para que no tengas que ir buscándola. Empezamos aquí: Hoy reúne lo que realmente importa ahora.',
+  'welcome-home.body':'Te enseño lo importante y te dejo tranquilo. Empezamos aquí: en Hoy verás qué toca ahora y qué merece tu atención. Nada más.',
   'welcome-home.cta':'Vamos',
-  'welcome-plan.title':'Ven, mira esto.',
-  'welcome-plan.body':'Aquí está tu planificación. Tu Coach prepara el camino y tú siempre puedes volver aquí para entender qué toca y cómo encaja dentro de tu proceso.',
-  'welcome-plan.cta':'Sigue conmigo',
-  'welcome-session.title':'Cuando toque entrenar, te traigo aquí.',
-  'welcome-session.body':'En Sesiones tienes el entrenamiento listo para ejecutar: ejercicios, series, carga, descansos e indicaciones. Sin ir saltando entre pantallas.',
-  'welcome-session.cta':'Enséñame lo siguiente',
-  'welcome-progress.title':'Y aquí empieza a verse el proceso.',
-  'welcome-progress.body':'Progreso junta lo que vas haciendo y lo convierte en una lectura útil de tu evolución. No son números por tener números.',
-  'welcome-progress.cta':'Una cosa más',
-  'welcome-messages.title':'Tu Coach sigue cerca.',
-  'welcome-messages.body':'Si necesitas preguntar algo, contar cómo te fue o comentar un cambio, Mensajes mantiene la conversación dentro del proceso.',
-  'welcome-messages.cta':'Volvamos a Hoy',
+  'welcome-plan.title':'Esta es tu hoja de ruta.',
+  'welcome-plan.body':'Aquí tienes lo que tu Coach ha preparado para ti. No necesitas memorizar nada: cuando quieras saber qué toca y por qué, vuelves aquí.',
+  'welcome-plan.cta':'Sigo',
+  'welcome-session.title':'Y cuando toque entrenar, vengo contigo.',
+  'welcome-session.body':'Aquí tienes la sesión lista: ejercicios, series, carga, descansos y las indicaciones de tu Coach. Tú entrenas; la app se encarga de que no tengas que ir buscando cosas.',
+  'welcome-session.cta':'Seguimos',
+  'welcome-progress.title':'Esto es lo que va cambiando.',
+  'welcome-progress.body':'Aquí ves tu evolución con contexto: qué has hecho, cómo vas respondiendo y qué merece la pena revisar. Sin llenar la pantalla de números porque sí.',
+  'welcome-progress.cta':'Una última cosa',
+  'welcome-messages.title':'Y si necesitas hablar, aquí.',
+  'welcome-messages.body':'Una duda, una sensación después de entrenar, un cambio de horario… se lo cuentas a tu Coach desde aquí y seguimos desde el mismo sitio.',
+  'welcome-messages.cta':'Te devuelvo a Hoy',
   'welcome-finish.title':'Ya está. Te dejo aquí.',
-  'welcome-finish.body':'A partir de ahora no voy a estar apareciendo todo el rato. Solo volveré cuando pueda ayudarte de verdad —o cuando tú me llames.',
+  'welcome-finish.body':'No voy a ir apareciendo por toda la app. Volveré solo cuando pueda ayudarte de verdad —o cuando tú me llames desde Guía IBERFIT.',
   'welcome-finish.cta':'Perfecto',
 });
 
@@ -289,7 +289,9 @@ export function clientGuidedWelcomeStep(index=0){
 
 function dialogHtml(step){
   const copyId=step.id;
-  return `<aside class="m26-client-guided-welcome" data-m26-client-guided-welcome role="dialog" aria-modal="false" aria-labelledby="m26-client-guided-welcome-title" aria-describedby="m26-client-guided-welcome-copy"><div class="m26-client-guided-welcome-head"><div><p class="m26-eyebrow">${esc(tr('eyebrow','Tu guía IBERFIT'))}</p><h2 id="m26-client-guided-welcome-title">${esc(tr(`${copyId}.title`,copyId))}</h2></div><button type="button" class="m26-icon-button" data-m26-client-guided-welcome-pause aria-label="${esc(tr('close','Cerrar por ahora'))}">×</button></div><p class="m26-client-guided-welcome-copy" id="m26-client-guided-welcome-copy">${esc(tr(`${copyId}.body`,''))}</p><div class="m26-client-guided-welcome-actions"><button type="button" class="m26-text-action" data-m26-client-guided-welcome-pause>${esc(tr('pause','Lo vemos luego'))}</button><button type="button" class="m26-primary-action" data-m26-client-guided-welcome-next>${esc(tr(`${copyId}.cta`,'Seguir'))}</button></div></aside>`;
+  const final=copyId==='welcome-finish';
+  const pauseAction=final?'':`<button type="button" class="m26-text-action" data-m26-client-guided-welcome-pause>${esc(tr('pause','Lo vemos luego'))}</button>`;
+  return `<aside class="m26-client-guided-welcome" data-m26-client-guided-welcome role="dialog" aria-modal="false" aria-labelledby="m26-client-guided-welcome-title" aria-describedby="m26-client-guided-welcome-copy"><div class="m26-client-guided-welcome-head"><div><p class="m26-eyebrow">${esc(tr('eyebrow','Tu guía IBERFIT'))}</p><h2 id="m26-client-guided-welcome-title">${esc(tr(`${copyId}.title`,copyId))}</h2></div><button type="button" class="m26-icon-button" data-m26-client-guided-welcome-pause aria-label="${esc(tr('close','Cerrar por ahora'))}">×</button></div><p class="m26-client-guided-welcome-copy" id="m26-client-guided-welcome-copy">${esc(tr(`${copyId}.body`,''))}</p><div class="m26-client-guided-welcome-actions">${pauseAction}<button type="button" class="m26-primary-action" data-m26-client-guided-welcome-next>${esc(tr(`${copyId}.cta`,'Seguir'))}</button></div></aside>`;
 }
 function ensureStyle(doc){
   let node=doc?.querySelector?.('[data-m26-client-guided-welcome-style]');
@@ -589,7 +591,7 @@ export function createClientGuidedWelcomeController({
       }else complete(ctx);
       return;
     }
-    if(!dialog||activeStep?.id!==step.id)show(step,{focus:false});
+    if(!dialog||activeStep?.id!==step.id)show(step,{focus:step.id==='welcome-finish'});
     else if(resolved!==activeTarget){
       activeTarget?.classList?.remove?.('m26-client-guided-welcome-target');
       activeTarget?.removeAttribute?.('data-m26-client-guided-welcome-target-active');
