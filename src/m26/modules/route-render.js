@@ -3410,7 +3410,7 @@ export function renderSettingsRoute(vm){
               </div>
               <div class="m26-settings-privacy-note">
                 ${badge('Privacidad activa','success')}
-                <p>Retos privados por defecto, preferencias aisladas por cuenta, sin publicación automática, sin ranking público y notas privadas del entrenador fuera de la vista del cliente.</p>
+                <p>Retos privados por defecto, preferencias aisladas por cuenta, publicación automática desactivada, ranking público desactivado y notas privadas del entrenador fuera de la vista del cliente.</p>
               </div>
             </div>
           </div>
