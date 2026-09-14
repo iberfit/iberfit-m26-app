@@ -26,6 +26,16 @@ test('browser matrix includes full-shell client form continuity regression',()=>
 });
 
 
+test('label and form pointerdown acquire interaction protection before native focus transfer',()=>{
+  assert.match(shell,/function labelControl\(node\)/u);
+  assert.match(shell,/label\.control\|\|null/u);
+  assert.match(shell,/label\.querySelector\?\.\(SHELL_FOCUS_INTERACTIVE_SELECTOR\)/u);
+  assert.match(shell,/function interactiveControl\(node\)\{return node\?\.closest\?\.\(SHELL_INTERACTIVE_SELECTOR\)\|\|labelControl\(node\)\|\|null;\}/u);
+  assert.match(shell,/const pointerForm=interactionForm\(event\.target\);/u);
+  assert.match(shell,/if\(pointerForm\)formInteractionTarget=pointerForm;/u);
+  assert.match(shell,/if\(previous&&!interactionPointerTarget&&!formInteractionTarget\)queueMicrotask\(flushDeferredRender\);/u);
+});
+
 test('touch text entry is focused inside the user gesture and mobile navigation yields',()=>{
   assert.match(shell,/SHELL_TOUCH_TEXT_ENTRY_SELECTOR/u);
   assert.match(shell,/function focusTouchTextEntry\(control,event\)/u);

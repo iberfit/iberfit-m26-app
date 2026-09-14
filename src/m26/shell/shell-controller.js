@@ -165,14 +165,32 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   const SHELL_TOUCH_TEXT_ENTRY_SELECTOR='textarea,[contenteditable="true"],input:not([type]),input[type="text"],input[type="email"],input[type="tel"],input[type="search"],input[type="url"],input[type="number"],input[type="password"]';
   const INTERACTION_RELEASE_GRACE_MS=900;
   const NATIVE_SELECT_INTERACTION_HOLD_MS=30_000;
-  function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||null;}
-  function interactionForm(node){return node?.closest?.('form')||null;}
+  function labelControl(node){
+    const label=node?.closest?.('label');
+    if(!label)return null;
+    const explicit=label.control||null;
+    if(explicit&&root.contains?.(explicit)&&explicit.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR))return explicit;
+    const forId=String(label.getAttribute?.('for')||'').trim();
+    if(forId){
+      const linked=root.ownerDocument?.getElementById?.(forId)||null;
+      if(linked&&root.contains?.(linked)&&linked.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR))return linked;
+    }
+    const nested=label.querySelector?.(SHELL_FOCUS_INTERACTIVE_SELECTOR)||null;
+    return nested&&root.contains?.(nested)?nested:null;
+  }
+  function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||labelControl(node)||null;}
+  function interactionForm(node){return node?.closest?.('form')||labelControl(node)?.closest?.('form')||null;}
   function focusedInteractiveControl(){
     const active=root.ownerDocument?.activeElement;
     return active&&root.contains?.(active)&&active.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR)?active:null;
   }
   function shellInteractionActive(){return Boolean(interactionPointerTarget||interactionFocusTarget||focusedInteractiveControl()||(formInteractionTarget&&root.contains?.(formInteractionTarget)));}
-  function touchTextEntry(node){return node?.closest?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR)||null;}
+  function touchTextEntry(node){
+    const direct=node?.closest?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR)||null;
+    if(direct)return direct;
+    const control=labelControl(node);
+    return control?.matches?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR)?control:null;
+  }
   function touchInputMode(event){
     const pointerType=String(event?.pointerType||'').toLowerCase();
     return pointerType==='touch'||root?.dataset?.m26Input==='touch';
@@ -406,13 +424,15 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const previous=interactionPointerTarget;
     clearInteractionReleaseTimer();
     const submitControl=event.target?.closest?.('button[type="submit"],input[type="submit"]');
-    if(formInteractionTarget&&(!formInteractionTarget.contains?.(event.target)||submitControl?.closest?.('form')===formInteractionTarget)){
+    const pointerForm=interactionForm(event.target);
+    if(formInteractionTarget&&(!pointerForm||pointerForm!==formInteractionTarget||submitControl?.closest?.('form')===formInteractionTarget)){
       releaseFormInteraction({deferRender:false});
     }
+    if(pointerForm)formInteractionTarget=pointerForm;
     interactionPointerTarget=interactiveControl(event.target);
     const textEntry=touchTextEntry(event.target);
     if(textEntry)focusTouchTextEntry(textEntry,event);
-    if(previous&&!interactionPointerTarget)queueMicrotask(flushDeferredRender);
+    if(previous&&!interactionPointerTarget&&!formInteractionTarget)queueMicrotask(flushDeferredRender);
   }
   function onPointerRelease(){
     schedulePointerRelease(interactionPointerTarget);
