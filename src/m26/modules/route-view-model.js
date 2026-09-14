@@ -379,6 +379,20 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
           )
         :null;
     qaStage('rc64-hoy-cockpit-ready');
+
+    const challengeSnapshot=
+      overview.role==='client'&&clientId
+        ?rc71ChallengeSnapshot(state,clientId,now)
+        :null;
+    const challengePreview=
+      challengeSnapshot?.challenges?.find((item)=>
+        item?.available===true&&
+        (
+          item.id==='plan'||
+          Number(item.current||0)>0
+        )
+      )||null;
+
     qaStage('rc64-hoy-ready');
 
     return Object.freeze({
@@ -389,6 +403,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
       upcoming: Object.freeze(overview.upcoming.map(compactAppointment)),
       clients: Object.freeze(clients),
       coachCockpit,
+      challengePreview:challengePreview?Object.freeze({...challengePreview}):null,
       operations: Object.freeze(overview.operations),
       alerts: Object.freeze(alerts),
       alertSignal: Object.freeze(adherenceSignal(alerts)),

@@ -413,6 +413,37 @@ function renderClientHoyRoute(vm) {
     :client?.iri
       ?client.iri.processLabel||'En proceso'
       :'Pendiente';
+  const planReady=Boolean(planName||projections.length);
+  const challenge=vm.challengePreview||null;
+  const challengeProgress=challenge&&Number.isFinite(Number(challenge.progress))
+    ?Math.max(0,Math.min(100,Number(challenge.progress)))
+    :null;
+  const challengeCurrent=challenge?.current===null||challenge?.current===undefined
+    ?'—'
+    :`${challenge.current} ${challenge.unit||''}`.trim();
+  const challengeTarget=challenge?.target===null||challenge?.target===undefined
+    ?''
+    :`de ${challenge.target} ${challenge.unit||''}`.trim();
+  const challengePreviewMarkup=challenge
+    ?`<section class="m26-panel m26-panel-soft m26-client-home-community" data-m26-community-entry data-m26-client-guide="challenge-entry">
+        <div class="m26-panel-heading">
+          <div>
+            <p class="m26-eyebrow">Tu reto</p>
+            <h2>${escapeHtml(challenge.title||'Retos y comunidad')}</h2>
+            <p>${escapeHtml(challenge.detail||'Constancia y objetivos con datos confirmados.')}</p>
+          </div>
+          ${badge(challenge.completed?'Completado':challengeProgress===null?'Activo':`${challengeProgress}%`,challenge.completed?'success':'neutral')}
+        </div>
+        <div class="m26-challenge-value">
+          <strong>${escapeHtml(challengeCurrent)}</strong>
+          <small>${escapeHtml(challengeTarget)}</small>
+        </div>
+        ${challengeProgress===null?'':`<progress max="100" value="${escapeHtml(challengeProgress)}" aria-label="${escapeHtml(challenge.title||'Reto')} ${escapeHtml(challengeProgress)}%">${escapeHtml(challengeProgress)}%</progress>`}
+        <div class="m26-inline-actions">
+          <button type="button" class="m26-primary-action" data-m26-area="retos">Ver reto</button>
+        </div>
+      </section>`
+    :'';
 
   let primary;
   if(runnable){
@@ -474,7 +505,7 @@ function renderClientHoyRoute(vm) {
   return `<div class="m26-route m26-hoy-route m26-client-home-v1">
     ${operationBanner(vm.operations||{})}
 
-    <section class="m26-client-home-hero" aria-labelledby="m26-client-home-title">
+    <section class="m26-client-home-hero" aria-labelledby="m26-client-home-title" data-m26-client-guide="today">
       <div class="m26-client-home-greeting">
         <p class="m26-eyebrow">IBERFIT · Hoy</p>
         <h2 id="m26-client-home-title">Hola, ${escapeHtml(name)}</h2>
@@ -496,7 +527,7 @@ function renderClientHoyRoute(vm) {
         <strong>${escapeHtml(nextAppointment?.dateLabel||'Por confirmar')}</strong>
         <small>${escapeHtml(nextAppointment?.title||'Tu Coach la añadirá aquí')}</small>
       </button>
-      <button type="button" data-m26-area="planificacion">
+      <button type="button" data-m26-area="planificacion"${planReady?' data-m26-client-guide="plan-entry"':''}>
         <span>Tu plan</span>
         <strong>${escapeHtml(planName||'En preparación')}</strong>
         <small>${planName?'Plan confirmado':'Tu Coach lo publicará cuando esté listo'}</small>
@@ -530,6 +561,8 @@ function renderClientHoyRoute(vm) {
         <small>Evaluaciones compartidas</small>
       </button>
     </section>
+
+    ${challengePreviewMarkup}
 
     ${nextActionMarkup}
 
@@ -2566,9 +2599,18 @@ export function renderProgressRoute(vm){
     ?`<section class="m26-notice is-pending" role="status"><strong>Progreso protegido</strong><p>Sesiones fuera del cálculo por no estar confirmadas: ${escapeHtml(unconfirmedCount)}. Se incorporarán únicamente cuando queden confirmadas.</p></section>`
     :'';
   const hasCheckins=Number(summary.checkins||0)>0;
+  const hasProgressEvidence=
+    Number(summary.completedSessions||0)>0||
+    hasCheckins||
+    vm.timeline.length>0||
+    (summary.iriCurrent!==null&&summary.iriCurrent!==undefined)||
+    wearableHasData(summary.wearable||{});
+  const clientProgressGuideAttribute=vm.role==='client'&&hasProgressEvidence
+    ?' data-m26-client-guide="progress-surface"'
+    :'';
   const wearablePanel=wearableHasData(wearable)?`<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Actividad de dispositivo</p><h2>Tendencia objetiva complementaria</h2></div>${badge(wearable.freshness==='reciente'?'Actualizada':'Revisar fecha','neutral')}</div><div class="m26-field-grid">${wearableMetric('Pasos medios',wearable.metrics?.steps)}${wearableMetric('Minutos activos',wearable.metrics?.activeMinutes,' min')}${wearableMetric('Sueño de dispositivo',sleepHoursPerDay(wearable.metrics?.sleepMinutes))}${wearableMetric('FC en reposo',wearable.metrics?.restingHeartRate,' lpm')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearable),{role:vm.role,compact:true})}<p class="m26-notice">Se presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.</p></section>`:`<details class="m26-panel m26-optional-section"><summary>Actividad de dispositivo · sin datos confirmados</summary><p>No hay información de dispositivos para este periodo. El progreso se calcula únicamente con sesiones, evaluaciones y registros confirmados.</p></details>`;
   return `<div class="m26-route">
-    <section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
+    <section class="m26-route-intro"${clientProgressGuideAttribute}><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
     <section class="m26-stat-grid">
       ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
@@ -2915,8 +2957,11 @@ export function renderPlanningRoute(vm){
     <div><span>Frecuencia</span><strong>${escapeHtml(weeklyFrequency)} / semana</strong></div>
     <div><span>Duración</span><strong>${escapeHtml(sessionDuration)} min</strong></div>
   </section>`:'';
+  const clientPlanGuideAttribute=isClient&&(hasCycle||vm.sessions.length)
+    ?' data-m26-client-guide="plan-surface"'
+    :'';
   return `<div class="m26-route m26-planning-workbench-v2" data-planning-workbench-v2>
-    <section class="m26-route-intro m26-planning-intro">
+    <section class="m26-route-intro m26-planning-intro"${clientPlanGuideAttribute}>
       <div><p class="m26-eyebrow">Planificación</p><h2>${title}</h2><p>${copy}</p></div>
       ${badge(countLabel(vm.sessions.length,'sesión','sesiones'),'neutral')}
     </section>
@@ -3070,12 +3115,15 @@ function renderNextSessionPreparation(prep){
 
 export function renderSessionsRoute(vm){
   const isClient=vm.role==='client';
+  const clientSessionGuideAttribute=isClient&&vm.sessions.length
+    ?' data-m26-client-guide="session-surface"'
+    :'';
   const directStart=`<button type="button" class="m26-primary-action" data-workflow-action="start-published-session"${vm.sessions.length?'':' disabled aria-disabled="true"'}>${isClient?'Iniciar sesión guiada':'Iniciar sesión programada'}</button>`;
   const primary=vm.canBuild
     ?`<div class="m26-inline-actions"><button type="button" data-workflow-action="open-session-builder">Continuar o crear sesión</button>${directStart}</div>`
     :directStart;
   const prep=!isClient?renderNextSessionPreparation(vm.nextSessionPreparation):'';
-  return `<div class="m26-route"><section class="m26-route-intro"><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
+  return `<div class="m26-route"><section class="m26-route-intro"${clientSessionGuideAttribute}><div><p class="m26-eyebrow">Motor de sesiones</p><h2>${isClient?'Tus sesiones guiadas':'Construcción y publicación de sesiones'}</h2><p>${isClient?'Elige la sesión preparada para ti y sigue las indicaciones paso a paso.':'Construye desde el catálogo, revisa la vista previa y controla de forma expresa qué recibe el cliente.'}</p></div>${primary}</section>${prep}<section class="m26-content-grid"><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">${isClient?'Disponibles':'Ciclo de publicación'}</p><h2>${isClient?'Sesiones para realizar':'Sesiones del expediente'}</h2></div>${!isClient?badge(`${vm.sessionCounts?.published||0} publicadas`,'success'):''}</div>${publicationList(vm.sessions,'session',isClient?'No hay sesiones disponibles':'Sin sesiones preparadas',{clientView:isClient})}</section><section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial</p><h2>${isClient?'Tus sesiones realizadas':'Ejecuciones confirmadas'}</h2></div></div>${recordList(vm.executions,'Sin ejecuciones confirmadas')}</section></section>${!isClient?'<p class="m26-notice">Los borradores locales no aparecen como publicados: se recuperan con “Continuar o crear sesión”.</p>':''}${workflowStatus('session')}</div>`;
 }
 export function renderReportsRoute(vm){
   const isClient=vm.role==='client';
@@ -3144,6 +3192,11 @@ export function renderChallengesRoute(vm){
     ? vm.challenges
     : [];
 
+  const activeChallenges=challenges.filter((item)=>item?.available===true);
+  const challengeGuideAttribute=activeChallenges.length
+    ?' data-m26-client-guide="challenge-surface"'
+    :'';
+
   const cards=challenges.length
     ? challenges.map(rc71ChallengeCard).join('')
     : emptyState(
@@ -3152,11 +3205,11 @@ export function renderChallengesRoute(vm){
       );
 
   return `<div class="m26-route m26-challenges-route">
-    <section class="m26-route-intro">
+    <section class="m26-route-intro" data-m26-community-intro${challengeGuideAttribute}>
       <div>
-        <p class="m26-eyebrow">IBERFIT · Retos</p>
-        <h2>Retos que acompañan tu proceso</h2>
-        <p>Objetivos transparentes basados en planificación, registros y datos confirmados. Sin inventar rendimiento.</p>
+        <p class="m26-eyebrow">IBERFIT · Retos y comunidad</p>
+        <h2>Constancia, objetivos y comunidad con criterio</h2>
+        <p>Retos personales construidos con datos confirmados. La comunidad se activa de forma explícita y nunca convierte datos de salud en contenido público.</p>
       </div>
       ${badge(
         vm.social?.visibility==='private'
@@ -3175,11 +3228,11 @@ export function renderChallengesRoute(vm){
         <div class="m26-panel-heading">
           <div>
             <p class="m26-eyebrow">Comunidad IBERFIT</p>
-            <h2>Social, con privacidad primero</h2>
+            <h2>Compartir solo cuando aporta valor</h2>
           </div>
           ${badge(vm.social?.sharingEnabled?'Compartir manual habilitado':'Privado por defecto',vm.social?.sharingEnabled?'neutral':'success')}
         </div>
-        <p>${vm.social?.sharingEnabled?'Consentimiento activo para compartir manualmente con '+escapeHtml(vm.social.audience==='coach'?'tu Coach':'alcance privado')+'.':'Tus logros permanecen privados.'} No existe publicación automática ni ranking público.</p><button type="button" data-m26-area="ajustes">Revisar privacidad social</button>
+        <p>${vm.social?.sharingEnabled?'Tienes activo el permiso para compartir manualmente con '+escapeHtml(vm.social.audience==='coach'?'tu Coach':'alcance privado')+'.':'Tus retos e hitos permanecen privados.'} IBERFIT no publica automáticamente ni expone un ranking público.</p><p class="m26-data-footnote">Los futuros retos de grupo requerirán invitación y participación explícitas. Hasta entonces, la app no simula comunidad ni posiciones que no existan.</p><button type="button" data-m26-area="ajustes">Revisar privacidad social</button>
       </div>
 
       <aside class="m26-panel m26-panel-soft">
@@ -3462,7 +3515,7 @@ function clientBottomNavItem(item,currentKind){
 
 function clientBottomNavMore(currentKind){
   const active=CLIENT_BOTTOM_NAV_MORE_KINDS.includes(currentKind);
-  return `<details class="m26-client-bottom-nav-more${active?' is-active':''}"><summary class="m26-client-bottom-nav-item${active?' is-active':''}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon('mas')}</span><span class="m26-client-bottom-nav-label">Más</span><span class="m26-client-bottom-nav-spark" aria-hidden="true">✦</span></summary><div class="m26-client-bottom-nav-menu" role="menu" aria-label="Más opciones"><button type="button" role="menuitem" data-m26-area="informes"><span>Informes</span><small>Evaluaciones y evolución compartida</small></button><button type="button" role="menuitem" data-m26-area="actividad"><span>Bienestar y hábitos</span><small>Registros y dispositivos</small></button><button type="button" role="menuitem" data-m26-area="mensajes"><span>Mensajes</span><small>Habla con tu entrenador</small></button><button type="button" role="menuitem" data-m26-area="retos"><span>Retos</span><small>Objetivos y continuidad</small></button><button type="button" role="menuitem" data-m26-area="ajustes"><span>Ajustes</span><small>Preferencias y privacidad</small></button></div></details>`;
+  return `<details class="m26-client-bottom-nav-more${active?' is-active':''}"><summary class="m26-client-bottom-nav-item${active?' is-active':''}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon('mas')}</span><span class="m26-client-bottom-nav-label">Más</span><span class="m26-client-bottom-nav-spark" aria-hidden="true">✦</span></summary><div class="m26-client-bottom-nav-menu" role="menu" aria-label="Más opciones"><button type="button" role="menuitem" data-m26-area="informes"><span>Informes</span><small>Evaluaciones y evolución compartida</small></button><button type="button" role="menuitem" data-m26-area="actividad"><span>Bienestar y hábitos</span><small>Registros y dispositivos</small></button><button type="button" role="menuitem" data-m26-area="mensajes"><span>Mensajes</span><small>Habla con tu entrenador</small></button><button type="button" role="menuitem" data-m26-area="retos"><span>Retos y comunidad</span><small>Constancia, objetivos e hitos</small></button><button type="button" role="menuitem" data-m26-area="ajustes"><span>Ajustes</span><small>Preferencias y privacidad</small></button></div></details>`;
 }
 
 

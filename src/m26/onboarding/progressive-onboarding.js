@@ -1,4 +1,5 @@
 import {createGuidedTourController} from './guided-tour.js';
+import {createClientContextualGuideController} from './client-contextual-guide.js';
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
@@ -445,6 +446,12 @@ export function createProgressiveOnboardingController({
     scope,
     onOpenChange:(open)=>tourOpenState.set(open),
   });
+  const clientContextGuide=createClientContextualGuideController({
+    root,
+    identityProvider,
+    storage:resolvedStorage,
+    scope,
+  });
   let tourObserver=null;
   let releaseCompactStyle=null;
   let mounted=false;
@@ -452,6 +459,14 @@ export function createProgressiveOnboardingController({
   let tourOpenSyncScheduled=false;
   let renderedPanel=null;
   let renderedPanelKey=null;
+
+  function syncClientContextualGuideMode(){
+    const value=identityProvider?.()||{};
+    const client=text(value.role,40).toLowerCase()==='client';
+    if(client)root.setAttribute?.('data-m26-client-contextual-guide-enabled','true');
+    else root.removeAttribute?.('data-m26-client-contextual-guide-enabled');
+    return client;
+  }
 
   function identity(){
     const value=identityProvider?.()||{};
@@ -539,9 +554,19 @@ export function createProgressiveOnboardingController({
       launcher.setAttribute('data-progressive-onboarding-open','');
       host.prepend?.(launcher);
     }
-    setAttributeIfChanged(launcher,'data-m26-area',context.track.home);
-    setTextIfChanged(launcher,state.completed?'Guía completada':'Guía');
-    setAttributeIfChanged(launcher,'aria-label',state.completed?'Abrir guía progresiva completada':'Abrir guía progresiva');
+    if(context.role==='client'){
+      launcher.removeAttribute?.('data-m26-area');
+      launcher.removeAttribute?.('data-progressive-onboarding-open');
+      launcher.setAttribute?.('data-m26-client-context-guide-open','');
+      setTextIfChanged(launcher,'Guía');
+      setAttributeIfChanged(launcher,'aria-label','Abrir guía contextual de esta pantalla');
+    }else{
+      launcher.removeAttribute?.('data-m26-client-context-guide-open');
+      launcher.setAttribute?.('data-progressive-onboarding-open','');
+      setAttributeIfChanged(launcher,'data-m26-area',context.track.home);
+      setTextIfChanged(launcher,state.completed?'Guía completada':'Guía');
+      setAttributeIfChanged(launcher,'aria-label',state.completed?'Abrir guía progresiva completada':'Abrir guía progresiva');
+    }
   }
 
   function panelRenderKey(context,state){
@@ -556,7 +581,7 @@ export function createProgressiveOnboardingController({
 
   function ensurePanel(context,state,area){
     const existing=root.querySelector?.('[data-progressive-onboarding-panel]');
-    if(area!==context.track.home||state.hidden){
+    if(context.role==='client'||area!==context.track.home||state.hidden){
       existing?.remove?.();
       renderedPanel=null;
       renderedPanelKey=null;
@@ -581,25 +606,30 @@ export function createProgressiveOnboardingController({
   function render(){
     scheduled=false;
     if(!mounted)return;
+    syncClientContextualGuideMode();
     syncFlexibleClientStart();
     const context=identity();
     if(!context){
       removeOwned();
       guidedTour.refresh?.();
+      clientContextGuide.refresh?.();
       scheduleTourOpenStateSync();
       return;
     }
     const area=activeArea()||context.track.home;
     let state=repository.read(context.key,context.role);
-    const nextState=recordProgressiveOnboardingArea(state,context.role,area);
-    if(nextState!==state){
-      repository.write(context.key,nextState);
-      state=nextState;
+    if(context.role!=='client'){
+      const nextState=recordProgressiveOnboardingArea(state,context.role,area);
+      if(nextState!==state){
+        repository.write(context.key,nextState);
+        state=nextState;
+      }
     }
     ensureLauncher(context,state);
     ensurePanel(context,state,area);
     guidedTour.refresh?.();
     scheduleTourOpenStateSync();
+    clientContextGuide.refresh?.();
   }
 
   function schedule(){
@@ -662,7 +692,9 @@ export function createProgressiveOnboardingController({
         tourObserver=new scope.MutationObserver(syncTourOpenState);
         tourObserver.observe(documentLike.body,{childList:true});
       }
+      syncClientContextualGuideMode();
       guidedTour.mount?.();
+      clientContextGuide.mount?.();
       releaseCompactStyle=retainProgressiveOnboardingCompactStyle(documentLike);
       syncTourOpenState();
       schedule();
@@ -682,6 +714,8 @@ export function createProgressiveOnboardingController({
       tourObserver?.disconnect?.();
       tourObserver=null;
       guidedTour.destroy?.();
+      clientContextGuide.destroy?.();
+      root.removeAttribute?.('data-m26-client-contextual-guide-enabled');
       tourOpenState.clear();
       releaseCompactStyle?.();
       releaseCompactStyle=null;
@@ -690,6 +724,7 @@ export function createProgressiveOnboardingController({
     refresh(){
       schedule();
       guidedTour.refresh?.();
+      clientContextGuide.refresh?.();
       scheduleTourOpenStateSync();
     },
     isTourOpen(){
