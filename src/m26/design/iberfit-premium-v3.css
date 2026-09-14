@@ -697,7 +697,7 @@
   border:0!important;
   border-left:1px solid var(--iberfit-v3-line)!important;
   border-radius:0!important;
-  background:transparent!important;
+  background:linear-gradient(180deg,rgba(23,40,32,.34),rgba(16,29,24,.18))!important;
   box-shadow:none!important;
 }
 
