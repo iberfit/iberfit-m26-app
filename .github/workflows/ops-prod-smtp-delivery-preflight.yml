@@ -1,0 +1,74 @@
+name: IBERFIT PROD SMTP Delivery Preflight
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.github/workflows/ops-prod-smtp-delivery-preflight.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-prod-smtp-delivery-preflight
+  cancel-in-progress: false
+
+jobs:
+  smtp-delivery-preflight:
+    name: smtp-auth-domain-delivery-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Authenticate SMTP and send one technical verification email
+        env:
+          SMTP_HOST: ${{ secrets.IBERFIT_SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.IBERFIT_SMTP_PORT }}
+          SMTP_USER: ${{ secrets.IBERFIT_SMTP_USER }}
+          SMTP_PASS: ${{ secrets.IBERFIT_SMTP_PASS }}
+          SMTP_ADMIN_EMAIL: ${{ secrets.IBERFIT_SMTP_ADMIN_EMAIL }}
+          SMTP_SENDER_NAME: ${{ secrets.IBERFIT_SMTP_SENDER_NAME }}
+          PREFLIGHT_TO: 'iberfit.cl@gmail.com'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os, ssl, smtplib
+          from email.message import EmailMessage
+          from email.utils import formataddr
+
+          host=os.environ["SMTP_HOST"].strip()
+          port=int(os.environ["SMTP_PORT"])
+          user=os.environ["SMTP_USER"].strip()
+          password=os.environ["SMTP_PASS"]
+          sender=os.environ["SMTP_ADMIN_EMAIL"].strip()
+          sender_name=os.environ["SMTP_SENDER_NAME"].strip()
+          recipient=os.environ["PREFLIGHT_TO"].strip()
+
+          if not all([host,user,password,sender,sender_name,recipient]):
+              raise SystemExit("SMTP_PREFLIGHT_REQUIRED_VALUE_MISSING")
+
+          msg=EmailMessage()
+          msg["From"]=formataddr((sender_name,sender))
+          msg["To"]=recipient
+          msg["Subject"]="IBERFIT · verificación técnica de correo"
+          msg.set_content(
+              "Verificación técnica del canal de correo de autenticación de IBERFIT.\n"
+              "No requiere ninguna acción.\n"
+          )
+
+          context=ssl.create_default_context()
+          if port == 465:
+              with smtplib.SMTP_SSL(host,port,context=context,timeout=20) as smtp:
+                  smtp.login(user,password)
+                  smtp.send_message(msg)
+          else:
+              with smtplib.SMTP(host,port,timeout=20) as smtp:
+                  smtp.ehlo()
+                  smtp.starttls(context=context)
+                  smtp.ehlo()
+                  smtp.login(user,password)
+                  smtp.send_message(msg)
+
+          print("SMTP_DELIVERY_PREFLIGHT_OK")
+          PY
