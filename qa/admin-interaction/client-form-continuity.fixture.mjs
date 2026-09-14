@@ -36,18 +36,19 @@ const vm={
 };
 
 const subscribers=new Set();
+let refreshRevision=0;
 const store={
   getState:()=>state,
   subscribe(listener){subscribers.add(listener);return ()=>subscribers.delete(listener);},
   navigate(area){state.activeArea=String(area||state.activeArea);for(const listener of subscribers)listener(state);},
   selectClient(clientId){state.selectedClientId=clientId||null;for(const listener of subscribers)listener(state);},
 };
-function queueShellRefresh(){for(const listener of subscribers)listener(state);}
+function queueShellRefresh(){refreshRevision+=1;for(const listener of subscribers)listener(state);}
 
 const shell=createShellController({
   root,
   store,
-  renderRoute:()=>renderAdminRoute(vm),
+  renderRoute:()=>`${renderAdminRoute(vm)}<span hidden data-qa-refresh-revision="${refreshRevision}"></span>`,
 });
 shell.mount();
 
