@@ -35,6 +35,27 @@ test('Client guided welcome is a short Genie-led journey that starts and finishe
   assert.doesNotMatch(Object.values(SOURCE_COPY).join(' '),/Paso\s+\d+\s+de\s+\d+/iu);
 });
 
+test('Guided welcome resolves canonical shell navigation before technical route kinds',()=>{
+  const {currentArea}=__clientGuidedWelcomeInternals;
+  const canonicalRoot={
+    querySelector(selector){
+      if(selector==='[data-m26-area][aria-current="page"]')return {getAttribute:()=> 'mensajes'};
+      if(selector==='[data-client-bottom-nav-route]')return {getAttribute:()=> 'communication'};
+      return null;
+    },
+  };
+  assert.equal(currentArea(canonicalRoot),'mensajes');
+
+  const fallbackRoot={
+    querySelector(selector){
+      if(selector==='[data-m26-area][aria-current="page"]')return null;
+      if(selector==='[data-client-bottom-nav-route]')return {getAttribute:()=> 'communication-unavailable'};
+      return null;
+    },
+  };
+  assert.equal(currentArea(fallbackRoot),'mensajes');
+});
+
 test('Guided welcome persistence is client-only, hashed and contains no personal data',()=>{
   const key=clientGuidedWelcomeScopeKey({userId:'private-client-id',role:'client'});
   assert.match(key,/^iberfit\.m26\.client-guided-welcome\.v1:[a-f0-9]{8}$/u);
