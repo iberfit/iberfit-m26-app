@@ -44,7 +44,7 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   assert.match(css,/\.m26-auth-page\{[^}]*display:grid;[^}]*place-items:center;/u);
   const authCardRule=css.match(/\.m26-auth-card\{([^}]*)\}/u)?.[1]||'';
   assert.match(authCardRule,/margin-block:auto(?:;|$)/u);
-  assert.match(authCardRule,/border-radius:1\.75rem/u);
+  assert.match(authCardRule,/border-radius:12px/u);
   assert.match(css,/PREAUTH PREMIUM DIGITAL V3/u);
   assert.match(css,/\.m26-auth-card\{[^}]*color-scheme:dark[^}]*linear-gradient\(155deg,rgba\(26,46,38,\.96\),rgba\(16,29,24,\.985\)\)[^}]*box-shadow:/u);
   assert.match(css,/url\("\/public\/isotipo-iberfit\.png"\)/u);
