@@ -158,7 +158,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let interactionFocusTarget=null;
   let interactionReleaseTimer=null;
   let formInteractionTarget=null;
-  let formInteractionReleaseTimer=null;
   let pendingI18nContinuitySnapshot=null;
 
   const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"],form button';
@@ -166,7 +165,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   const SHELL_TOUCH_TEXT_ENTRY_SELECTOR='textarea,[contenteditable="true"],input:not([type]),input[type="text"],input[type="email"],input[type="tel"],input[type="search"],input[type="url"],input[type="number"],input[type="password"]';
   const INTERACTION_RELEASE_GRACE_MS=900;
   const NATIVE_SELECT_INTERACTION_HOLD_MS=30_000;
-  const FORM_INTERACTION_RELEASE_GRACE_MS=1_200;
   function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||null;}
   function interactionForm(node){return node?.closest?.('form')||null;}
   function focusedInteractiveControl(){
@@ -199,39 +197,16 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     clearTimer?.(interactionReleaseTimer);
     interactionReleaseTimer=null;
   }
-  function clearFormInteractionReleaseTimer(){
-    if(formInteractionReleaseTimer===null)return;
-    const clearTimer=adaptiveWindow?.clearTimeout?.bind?.(adaptiveWindow)||globalThis.clearTimeout?.bind?.(globalThis);
-    clearTimer?.(formInteractionReleaseTimer);
-    formInteractionReleaseTimer=null;
-  }
-
   function holdFormInteraction(node){
     const form=interactionForm(node);
     if(!form||!root.contains?.(form))return false;
-    clearFormInteractionReleaseTimer();
     formInteractionTarget=form;
     return true;
   }
 
-  function releaseFormInteraction({deferRender=true,graceMs=0}={}){
-    clearFormInteractionReleaseTimer();
-    const finish=()=>{
-      formInteractionReleaseTimer=null;
-      formInteractionTarget=null;
-      if(deferRender)queueMicrotask(flushDeferredRender);
-    };
-    const delay=Math.max(0,Number(graceMs)||0);
-    if(delay===0){
-      finish();
-      return;
-    }
-    const setTimer=adaptiveWindow?.setTimeout?.bind?.(adaptiveWindow)||globalThis.setTimeout?.bind?.(globalThis);
-    if(typeof setTimer!=='function'){
-      finish();
-      return;
-    }
-    formInteractionReleaseTimer=setTimer(finish,delay);
+  function releaseFormInteraction({deferRender=true}={}){
+    formInteractionTarget=null;
+    if(deferRender)queueMicrotask(flushDeferredRender);
   }
 
 
@@ -412,7 +387,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function onPointerDown(event){
     const previous=interactionPointerTarget;
     clearInteractionReleaseTimer();
-    if(formInteractionTarget&&!formInteractionTarget.contains?.(event.target))releaseFormInteraction({deferRender:false});
+    const submitControl=event.target?.closest?.('button[type="submit"],input[type="submit"]');
+    if(formInteractionTarget&&(!formInteractionTarget.contains?.(event.target)||submitControl?.closest?.('form')===formInteractionTarget)){
+      releaseFormInteraction({deferRender:false});
+    }
     interactionPointerTarget=interactiveControl(event.target);
     const textEntry=touchTextEntry(event.target);
     if(textEntry)focusTouchTextEntry(textEntry,event);
@@ -425,6 +403,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     releasePointerInteraction();
   }
   function onFocusIn(event){
+    if(formInteractionTarget&&!formInteractionTarget.contains?.(event.target))releaseFormInteraction({deferRender:false});
     const control=interactiveControl(event.target);
     if(!control)return;
     holdFormInteraction(control);
@@ -439,7 +418,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function onFocusOut(event){
     const control=interactiveControl(event.target);
     if(!control)return;
-    const form=interactionForm(control);
     if(interactionPointerTarget===control&&String(control?.tagName||'').toLowerCase()!=='select'){
       releasePointerInteraction({deferRender:false});
     }
@@ -447,13 +425,9 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       const active=focusedInteractiveControl();
       interactionFocusTarget=active;
       markTextEntryActive(touchTextEntry(active));
-      const activeForm=interactionForm(active);
-      if(form&&form===formInteractionTarget&&activeForm!==form){
-        releaseFormInteraction({graceMs:FORM_INTERACTION_RELEASE_GRACE_MS});
-        return;
-      }
-      if(activeForm&&activeForm===formInteractionTarget){
-        clearFormInteractionReleaseTimer();
+      const rawActive=root.ownerDocument?.activeElement;
+      if(formInteractionTarget&&rawActive&&rawActive!==root.ownerDocument?.body&&!formInteractionTarget.contains?.(rawActive)){
+        releaseFormInteraction();
         return;
       }
       flushDeferredRender();
@@ -464,6 +438,16 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const control=interactiveControl(event.target);
     if(!control)return;
     holdFormInteraction(control);
+  }
+
+  function onFormSubmit(event){
+    const form=event.target?.closest?.('form');
+    if(!form||form!==formInteractionTarget)return;
+    const active=root.ownerDocument?.activeElement;
+    if(active&&form.contains?.(active))active.blur?.();
+    interactionFocusTarget=null;
+    markTextEntryActive(null);
+    releaseFormInteraction({deferRender:false});
   }
 
   function focusMain(){queueMicrotask(()=>root.querySelector?.('#m26-main')?.focus?.({preventScroll:false}));}
@@ -666,6 +650,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);
     root.addEventListener('input',onInputActivity);
+    root.addEventListener('submit',onFormSubmit);
     root.addEventListener('m26:i18n-switch-settled',onI18nSwitchSettled);
     root.addEventListener('pointerdown',onPointerDown,{passive:true});
     root.addEventListener('pointerup',onPointerRelease,{passive:true});
@@ -693,12 +678,12 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     clearInteractionReleaseTimer();
     interactionPointerTarget=null;
     interactionFocusTarget=null;
-    clearFormInteractionReleaseTimer();
     formInteractionTarget=null;
     markTextEntryActive(null);
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
     root.removeEventListener('input',onInputActivity);
+    root.removeEventListener('submit',onFormSubmit);
     root.removeEventListener('m26:i18n-switch-settled',onI18nSwitchSettled);
     root.removeEventListener('pointerdown',onPointerDown);
     root.removeEventListener('pointerup',onPointerRelease);
