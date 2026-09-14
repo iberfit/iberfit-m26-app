@@ -246,47 +246,74 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         ).toBeVisible({timeout:5_000});
 
         const settingsSummary=page.locator('details.m26-settings-menu > summary').first();
-        if(await settingsSummary.count()){
+        const settingsSummaryVisible=
+          await settingsSummary.count()&&
+          await settingsSummary.isVisible().catch(()=>false);
+        let settingsMenu=null;
+
+        if(settingsSummaryVisible){
           await settingsSummary.click({timeout:5_000});
-          const settingsMenu=page.locator('details.m26-settings-menu').first();
+          settingsMenu=page.locator('details.m26-settings-menu').first();
           await expect(
             settingsMenu,
-            'Native settings control must accept pointer/touch interaction after login',
+            'Visible desktop Settings control must accept pointer interaction after login',
           ).toHaveAttribute('open','',{timeout:5_000});
-
-          const localeSelector=page.locator('[data-m26-ui-locale]').first();
+        }else{
+          const clientMore=page.locator('.m26-client-bottom-nav-more > summary:visible').first();
           await expect(
-            localeSelector,
-            'Native locale selector must remain usable while authenticated controllers continue mounting',
+            clientMore,
+            'Touch/compact Client layouts must expose Settings through More when the sidebar account zone is not visible',
           ).toBeVisible({timeout:5_000});
-          await expect(localeSelector).toBeEnabled({timeout:5_000});
-          await localeSelector.focus();
-          const originalLocale=await localeSelector.inputValue();
-          const localeOptions=await localeSelector.locator('option').evaluateAll((options)=>
-            options.map((option)=>String(option.value||'')).filter(Boolean)
-          );
-          expect(localeOptions.length,'Locale selector must expose more than one real option for interaction QA').toBeGreaterThan(1);
-          const alternateLocale=localeOptions.find((value)=>value!==originalLocale);
-          expect(alternateLocale).toBeTruthy();
+          await clientMore.click({timeout:5_000});
+          const settingsRouteAction=page.locator('.m26-client-bottom-nav-menu [data-m26-area="ajustes"]:visible').first();
+          await expect(settingsRouteAction,'Settings must remain reachable from the visible Client navigation').toBeVisible({timeout:5_000});
+          await settingsRouteAction.click({timeout:5_000});
+          await expect(
+            page.locator('[data-client-bottom-nav-route="ajustes"]'),
+            'Opening Settings from More must keep the authenticated Client shell mounted',
+          ).toHaveCount(1,{timeout:5_000});
+        }
 
-          await localeSelector.selectOption(alternateLocale);
-          const updatedLocaleSelector=page.locator('[data-m26-ui-locale]').first();
+        const localeSelector=page.locator('[data-m26-ui-locale]:visible').first();
+        await expect(
+          localeSelector,
+          'A visible native locale selector must remain usable in either the sidebar popover or full Settings route',
+        ).toBeVisible({timeout:5_000});
+        await expect(localeSelector).toBeEnabled({timeout:5_000});
+        await localeSelector.focus();
+        const originalLocale=await localeSelector.inputValue();
+        const localeOptions=await localeSelector.locator('option').evaluateAll((options)=>
+          options.map((option)=>String(option.value||'')).filter(Boolean)
+        );
+        expect(localeOptions.length,'Locale selector must expose more than one real option for interaction QA').toBeGreaterThan(1);
+        const alternateLocale=localeOptions.find((value)=>value!==originalLocale);
+        expect(alternateLocale).toBeTruthy();
+
+        await localeSelector.selectOption(alternateLocale);
+        const updatedLocaleSelector=page.locator('[data-m26-ui-locale]:visible').first();
+        if(settingsMenu){
           await expect(
             settingsMenu,
-            'Changing a native selector must not collapse Settings or eject the user',
+            'Changing a native selector must not collapse the visible Settings popover or eject the user',
           ).toHaveAttribute('open','',{timeout:5_000});
-          await expect(updatedLocaleSelector).toHaveValue(alternateLocale,{timeout:5_000});
+        }else{
           await expect(
-            updatedLocaleSelector,
-            'Shell rerender must restore focus to the replacement native selector',
-          ).toBeFocused({timeout:5_000});
-
-          await updatedLocaleSelector.selectOption(originalLocale);
-          const restoredLocaleSelector=page.locator('[data-m26-ui-locale]').first();
-          await expect(settingsMenu).toHaveAttribute('open','',{timeout:5_000});
-          await expect(restoredLocaleSelector).toHaveValue(originalLocale,{timeout:5_000});
-          await expect(restoredLocaleSelector).toBeFocused({timeout:5_000});
+            page.locator('[data-client-bottom-nav-route="ajustes"]'),
+            'Changing a native selector must keep the full Settings route active',
+          ).toHaveCount(1,{timeout:5_000});
         }
+        await expect(updatedLocaleSelector).toHaveValue(alternateLocale,{timeout:5_000});
+        await expect(
+          updatedLocaleSelector,
+          'Shell rerender must restore focus to the replacement native selector',
+        ).toBeFocused({timeout:5_000});
+
+        await updatedLocaleSelector.selectOption(originalLocale);
+        const restoredLocaleSelector=page.locator('[data-m26-ui-locale]:visible').first();
+        if(settingsMenu)await expect(settingsMenu).toHaveAttribute('open','',{timeout:5_000});
+        else await expect(page.locator('[data-client-bottom-nav-route="ajustes"]')).toHaveCount(1,{timeout:5_000});
+        await expect(restoredLocaleSelector).toHaveValue(originalLocale,{timeout:5_000});
+        await expect(restoredLocaleSelector).toBeFocused({timeout:5_000});
 
         if(projectName==='authenticated-readonly-tablet-chromium'){
           const tabletStatGrid=page.locator('.m26-stat-grid:visible').first();
