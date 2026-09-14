@@ -429,7 +429,7 @@ function clientEditDialog(vm={}){
         </footer>
       </form>
     </div>
-  </dialog><script type="application/json" data-admin-client-edit-data>${safeJson(records)}</script>`;
+  </dialog><div data-admin-client-edit-data hidden aria-hidden="true">${e(safeJson(records))}</div>`;
 }
 function renderClients(vm){
   const create=vm.canManage?clientCreateWizardForm(vm):'';
