@@ -37,6 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     concurrency:
       group: iberfit-qa-shared-auth-readonly
+      queue: max
       cancel-in-progress: false
     environment: m26-canary-readonly
     timeout-minutes: 15
