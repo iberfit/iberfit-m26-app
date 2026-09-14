@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "b2750cc1716e44a7510c3066bc347976c3be1153",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Unified real-client baseline: P0 form interaction stability, lead/client UX separation with i18n, canonical app-only invitation CORS, bodyless OPTIONS 204 regression, Edge Function v26.2 already verified in PROD."
+}
