@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "de9b46c7cbb823c6eb529f7d8676f1630312069e",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Shell and Client hierarchy cleanup: declutter topbar and Settings hierarchy, remove redundant Client identity and fixed Guide from topbar, preserve contextual/manual Guide through sidebar and More, show only actionable Today context, compact duplicate next actions and completed challenges, preserve responsive focus/accessibility and existing security/auth behavior."
+}
