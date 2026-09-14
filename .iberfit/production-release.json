@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "ac1ded8c8b300a9ce79a8bd41b33b17ca82d4752",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Real client onboarding: responsible Coach selection/assignment with Admin+Coach smart default. PROD migration admin_client_create_responsible_coach_v26 already applied and verified. Retains P0 form stability, lead/client separation and invite CORS hardening."
+}
