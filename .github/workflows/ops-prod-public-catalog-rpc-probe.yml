@@ -1,0 +1,47 @@
+name: IBERFIT PROD Public Catalog RPC Probe
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.github/workflows/ops-prod-public-catalog-rpc-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Probe public catalog RPC read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const url='https://pjhmrhejsoofmouedavw.supabase.co/rest/v1/rpc/iberfit_exercise_catalog_public_v1';
+          const key='sb_publishable_R5hU49RTDLAFFx46j4b4Hg_l8o0Pg2k';
+          const attempts=[];
+          for(let i=1;i<=5;i+=1){
+            const started=Date.now();
+            let status='network_error',ok=false,body='';
+            try{
+              const controller=new AbortController();
+              const timer=setTimeout(()=>controller.abort(),15000);
+              const r=await fetch(url,{
+                method:'POST',
+                headers:{apikey:key,'content-type':'application/json','user-agent':'IBERFIT-Public-Catalog-Probe/1.0'},
+                body:JSON.stringify({p_limit:1,p_offset:0}),
+                signal:controller.signal,
+              });
+              clearTimeout(timer);
+              status=r.status; ok=r.ok; body=(await r.text()).slice(0,200);
+            }catch(error){body=String(error?.name||error||'network_error');}
+            attempts.push({attempt:i,status,ok,ms:Date.now()-started,body});
+            if(ok)break;
+            await new Promise(r=>setTimeout(r,2000));
+          }
+          console.log(JSON.stringify({attempts},null,2));
+          if(!attempts.some(x=>x.ok))throw new Error('PUBLIC_CATALOG_RPC_UNAVAILABLE');
+          NODE
