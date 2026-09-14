@@ -93,7 +93,7 @@ function labelFor(form,name,fallback='Sin completar'){
 function updateReview(form){
   const map={
     identity:['name','email','phone'],
-    service:['modality','weeklyFrequency','sessionDurationMinutes'],
+    service:['modality','weeklyFrequency','sessionDurationMinutes','coachUserId'],
     objective:['objective','level'],
     logistics:['zone','address','preferredSchedule'],
     safety:['restrictions','pain','emergencyContactName'],

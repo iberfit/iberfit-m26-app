@@ -239,7 +239,18 @@ function clientAccessLabel(c){
   if(delivery==='pending')return 'Invitación pendiente';
   return String(access.status||'').toLowerCase()==='invitacion_pendiente'?'Invitación pendiente':'Sin acceso';
 }
-function clientCreateWizardForm(){
+function clientCreateWizardForm(vm={}){
+  const currentUserId=String(vm?.currentUserId||'').trim();
+  const eligibleCoaches=(Array.isArray(vm?.coaches)?vm.coaches:[])
+    .filter((coach)=>!/(?:suspended|inactive|blocked|suspendido|inactivo|bloqueado)/iu.test(String(coach?.status||'')))
+    .map((coach)=>({
+      id:String(coach?.userId||coach?.id||'').trim(),
+      name:String(coach?.name||coach?.email||'Coach').trim()||'Coach',
+    }))
+    .filter((coach)=>coach.id);
+  const selfCoach=eligibleCoaches.find((coach)=>coach.id===currentUserId)||null;
+  const defaultCoach=selfCoach||(eligibleCoaches.length===1?eligibleCoaches[0]:null);
+  const coachOptions=`<option value=""${defaultCoach?'':' selected'}>Asignar después</option>${eligibleCoaches.map((coach)=>`<option value="${e(coach.id)}"${defaultCoach?.id===coach.id?' selected':''}>${e(coach.name)}</option>`).join('')}`;
   const steps=`
     <header class="m26-client-create-wizard-head">
       <div>
@@ -278,6 +289,7 @@ function clientCreateWizardForm(){
         <label>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" required inputmode="numeric" placeholder="2"></label>
         <label>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" required inputmode="numeric" placeholder="60"></label>
         <label>Diagnóstico inicial<select name="initialAssessmentMode" required><option value="iri">Realizar Diagnóstico IRI</option><option value="deferred">Posponer IRI</option></select></label>
+        <label>Coach responsable<select name="coachUserId">${coachOptions}</select></label>
         <label>Comuna / zona<input name="zone" maxlength="120" autocomplete="address-level2" placeholder="Las Condes"></label>
         <label>Dirección de entrenamiento<input name="address" maxlength="300" autocomplete="street-address" placeholder="Dirección o lugar habitual"></label>
         <label class="m26-client-create-wide">Disponibilidad / horario<input name="preferredSchedule" maxlength="240" placeholder="Ej. lunes y jueves 19:00–21:00"></label>
@@ -322,7 +334,7 @@ function clientCreateWizardForm(){
         <button type="button" data-client-wizard-jump="3"><span>Objetivo</span><strong data-client-review="objective">Sin completar</strong><small>Editar objetivos</small></button>
         <button type="button" data-client-wizard-jump="4"><span>Contexto</span><strong data-client-review="safety">Sin completar</strong><small>Editar contexto</small></button>
       </div>
-      <div class="m26-admin-notice"><strong>Qué ocurrirá al confirmar</strong><p>IBERFIT creará el expediente, conservará estos datos en el perfil del cliente y preparará su invitación segura de acceso.</p></div>
+      <div class="m26-admin-notice"><strong>Qué ocurrirá al confirmar</strong><p>IBERFIT creará el expediente, vinculará al Coach responsable si has seleccionado uno, conservará estos datos en el perfil del cliente y preparará su invitación segura de acceso.</p></div>
       <div class="m26-client-create-actions"><button type="button" data-client-wizard-prev>Volver</button><button type="button" data-client-wizard-discard>Descartar borrador</button></div>
     </fieldset>
   `;
@@ -332,7 +344,7 @@ function clientCreateWizardForm(){
   });
 }
 function renderClients(vm){
-  const create=vm.canManage?clientCreateWizardForm():'';
+  const create=vm.canManage?clientCreateWizardForm(vm):'';
   const lead=vm.canManage?`<section class="m26-admin-panel m26-admin-lead-capture"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Prospección</p><h3>Registrar lead</h3><p>Guarda un contacto inicial para seguimiento comercial. Todavía no crea un expediente de cliente ni envía acceso a la app.</p></div>${badge('Contacto inicial')}</div>${form('lead-create',`<input name="name" maxlength="200" required placeholder="Nombre"><input type="email" name="email" maxlength="254" placeholder="Correo"><input name="phone" maxlength="80" placeholder="Teléfono"><input name="source" maxlength="120" placeholder="Origen"><textarea name="objective" maxlength="1000" placeholder="Objetivo o necesidad principal"></textarea>`,'Registrar lead')}</section>`:'';
   const leadTable=rows(['Lead','Origen','Estado','Gestión'],vm.leads.map((l)=>`<tr><td><strong>${e(l.name)}</strong><small>${e(l.email||l.phone||'')}</small></td><td>${e(l.source||'')}</td><td>${badge(l.status)}</td><td>${vm.canManage?form('lead-update',`<input type="hidden" name="leadId" value="${e(l.id)}"><input type="hidden" name="baseRevision" value="${e(l.revision||0)}"><select name="status"><option value="new">Nuevo</option><option value="contacted">Contactado</option><option value="qualified">Cualificado</option><option value="evaluation">Evaluación</option><option value="won">Ganado</option><option value="lost">Perdido</option></select><input type="datetime-local" name="nextActionAt"><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar'):'—'}</td></tr>`));
   const clients=rows(['Cliente','Ciclo','Acceso','Coach','Gestión'],vm.clients.map((c)=>`<tr><td><strong>${e(c.name)}</strong><small>${e(c.email||c.id)}</small></td><td>${badge(c.lifecycle?.status||c.status)}</td><td>${badge(clientAccessLabel(c))}</td><td>${e(c.coachNames?.join(', ')||'Sin coach')}</td><td>${vm.canManage?`${form('client-lifecycle',`<input type="hidden" name="clientId" value="${e(c.id)}"><select name="status"><option value="onboarding">Onboarding</option><option value="active">Activo</option><option value="paused">Pausa</option><option value="inactive">Baja</option><option value="reactivation">Reactivación</option></select><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar')}${clientDelete(c)}`:'—'}</td></tr>`));
