@@ -413,3 +413,30 @@
     border-color:rgba(245,245,240,.30)!important;
   }
 }
+
+
+/* ---------- New-device email verification ---------- */
+.m26-auth-card .m26-email-otp-action{
+  min-height:50px;
+  color:#E6D6AA!important;
+  border-color:rgba(197,160,89,.26)!important;
+  background:rgba(197,160,89,.075)!important;
+}
+.m26-auth-card .m26-email-otp-action:hover:not(:disabled){
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.42)!important;
+  background:rgba(197,160,89,.11)!important;
+}
+.m26-auth-card .m26-email-otp-help,
+.m26-auth-card .m26-auth-new-device-help{
+  margin:.12rem 0 0;
+  color:#8E9D95!important;
+  font-size:.72rem;
+  line-height:1.48;
+}
+.m26-auth-card .m26-auth-new-device-help{
+  padding:.72rem .78rem;
+  border:1px solid rgba(197,160,89,.10);
+  border-radius:8px;
+  background:rgba(197,160,89,.035);
+}
