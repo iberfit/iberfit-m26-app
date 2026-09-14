@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "b2e4a20c7f5b6a7696cdfa96b66e11956f9493a6",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción runtime-equivalente al Canary funcional certificado 39e160fb; cambios posteriores solo documentales. Auth PROD cerrado con SMTP/OTP/DMARC/reauth."
+}
