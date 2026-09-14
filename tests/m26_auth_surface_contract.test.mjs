@@ -65,7 +65,7 @@ test('auth premium conserva todos los flujos visibles y sus salidas seguras',()=
   assert.match(challenge,/Verifica que eres tú/u);
   assert.match(challenge,/data-auth-action="mfa-continue-webauthn"/u);
   assert.match(challenge,/data-auth-action="mfa-send-email-code"/u);
-  assert.match(challenge,/Usar código por correo \(recomendado\)/u);
+  assert.match(challenge,/Enviar código al correo asociado/u);
   assert.doesNotMatch(challenge,/data-auth-action="mfa-register-device"/u);
   assert.match(challenge,/data-auth-action="mfa-repair-access"/u);
   assert.match(challenge,/data-auth-action="mfa-logout"/u);
