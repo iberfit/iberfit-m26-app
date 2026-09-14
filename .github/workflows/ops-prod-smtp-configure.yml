@@ -94,11 +94,13 @@ jobs:
             smtp_admin_email:String(before.smtp_admin_email||''),
             smtp_sender_name:String(before.smtp_sender_name||''),
           };
+          const customBefore=Boolean(safeBefore.smtp_host&&safeBefore.smtp_admin_email&&safeBefore.smtp_port>0);
+          if(customBefore)throw new Error('SMTP_EXISTING_CUSTOM_CONFIG_REFUSES_OVERWRITE');
           fs.writeFileSync('recovery/smtp/prod-before-sanitized.json',JSON.stringify({
             schema:'iberfit.smtp-state.v1',
             projectRef:ref,
             siteUrl:String(before.site_url||''),
-            configured:Boolean(safeBefore.smtp_host&&safeBefore.smtp_admin_email&&safeBefore.smtp_port>0),
+            configured:customBefore,
             hostConfigured:Boolean(safeBefore.smtp_host),
             port:safeBefore.smtp_port||null,
             userConfigured:Boolean(safeBefore.smtp_user),
@@ -146,16 +148,21 @@ jobs:
           }catch(error){
             if(changed){
               try{
-                const rollback={
-                  smtp_host:safeBefore.smtp_host,
-                  smtp_port:safeBefore.smtp_port,
-                  smtp_user:safeBefore.smtp_user,
-                  smtp_admin_email:safeBefore.smtp_admin_email,
-                  smtp_sender_name:safeBefore.smtp_sender_name,
-                };
-                if(safeBefore.smtp_host&&safeBefore.smtp_admin_email&&safeBefore.smtp_port>0){
-                  await request('PATCH',rollback);
-                }
+                await request('PATCH',{
+                  smtp_host:'',
+                  smtp_port:0,
+                  smtp_user:'',
+                  smtp_pass:'',
+                  smtp_admin_email:'',
+                  smtp_sender_name:'',
+                });
+                const rollbackCheck=await request();
+                const rollbackReady=Boolean(
+                  String(rollbackCheck.smtp_host||'').trim()
+                  && String(rollbackCheck.smtp_admin_email||'').trim()
+                  && Number(rollbackCheck.smtp_port)>0
+                );
+                if(rollbackReady)throw new Error('SMTP_ROLLBACK_VERIFY_FAILED');
               }catch{}
             }
             throw error;
