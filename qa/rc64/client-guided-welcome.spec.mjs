@@ -42,16 +42,21 @@ function slug(value){
 }
 
 async function expectJourneyState(page,{area,title,state}){
+  const canonical=page.locator(`[data-m26-area="${area}"][aria-current="page"]`);
+  await expect.poll(
+    ()=>canonical.count(),
+    {message:`Genie must set canonical shell area ${area}`,timeout:8_000},
+  ).toBeGreaterThan(0);
+
+  const routeSurface=area==='mensajes'
+    ?page.locator('[data-client-bottom-nav-route="communication"],[data-client-bottom-nav-route="communication-unavailable"]').first()
+    :page.locator(`[data-client-bottom-nav-route="${area}"]`).first();
+
   await expect(
-    page.locator(`[data-m26-area="${area}"][aria-current="page"]`).first(),
-    `Genie must take the client to canonical area ${area}`,
+    routeSurface,
+    `Genie must render the visible route surface for ${area}`,
   ).toBeVisible({timeout:8_000});
-  if(area==='mensajes'){
-    await expect(
-      page.locator('[data-client-bottom-nav-route="communication"],[data-client-bottom-nav-route="communication-unavailable"]').first(),
-      'Messages may render through the communication view model while the shell area remains mensajes',
-    ).toHaveCount(1,{timeout:8_000});
-  }
+
   const welcome=page.locator('[data-m26-client-guided-welcome]');
   await expect(welcome).toBeVisible({timeout:8_000});
   await expect(welcome.locator('#m26-client-guided-welcome-title')).toHaveText(title,{timeout:5_000});
@@ -162,7 +167,11 @@ test('Client Genie owns first-run navigation, can pause/resume, returns to Today
 
     await page.locator('[data-m26-client-guided-welcome-next]').click({timeout:5_000});
     await expect(page.locator('[data-m26-client-guided-welcome]')).toHaveCount(0,{timeout:5_000});
-    await expect(page.locator('[data-m26-area="hoy"][aria-current="page"]').first()).toBeVisible({timeout:5_000});
+    await expect.poll(
+      ()=>page.locator('[data-m26-area="hoy"][aria-current="page"]').count(),
+      {message:'Completion must leave the canonical shell on Today',timeout:5_000},
+    ).toBeGreaterThan(0);
+    await expect(page.locator('[data-client-bottom-nav-route="hoy"]').first()).toBeVisible({timeout:5_000});
     await expect(shell).not.toHaveAttribute('data-m26-client-guided-welcome-active','true');
 
     // After completion the same Guide control belongs to contextual help again.
