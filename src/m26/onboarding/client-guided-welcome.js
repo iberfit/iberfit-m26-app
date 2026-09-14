@@ -371,6 +371,12 @@ export function createClientGuidedWelcomeController({
     try{resolvedStorage?.setItem?.(ctx.key,JSON.stringify(safe));}catch{}
     return true;
   }
+  function setContextGuideLaunchersHidden(hidden){
+    for(const launcher of root.querySelectorAll?.('[data-m26-client-context-guide-open]')||[]){
+      if(hidden)launcher.setAttribute?.('hidden','');
+      else launcher.removeAttribute?.('hidden');
+    }
+  }
   function close({restoreFocus=true,preservePresence=false}={}){
     activeTarget?.classList?.remove?.('m26-client-guided-welcome-target');
     activeTarget?.removeAttribute?.('data-m26-client-guided-welcome-target-active');
@@ -398,6 +404,7 @@ export function createClientGuidedWelcomeController({
     if(state.status==='completed'||state.status==='skipped')return false;
     write(ctx,{...state,status:'paused'});
     deactivate();
+    setContextGuideLaunchersHidden(false);
     close();
     return true;
   }
@@ -405,6 +412,7 @@ export function createClientGuidedWelcomeController({
     const state=read(ctx);
     write(ctx,{...state,status:'completed',completedVersion:CLIENT_GUIDED_WELCOME_VERSION,stepIndex:STEPS.length-1});
     deactivate();
+    setContextGuideLaunchersHidden(false);
     close({restoreFocus:false});
     try{
       const EventCtor=scope?.CustomEvent||globalThis.CustomEvent;
@@ -520,6 +528,7 @@ export function createClientGuidedWelcomeController({
     const nextStatus='in-progress';
     write(ctx,{...state,status:nextStatus,stepIndex:state.stepIndex||0});
     root.setAttribute?.('data-m26-client-guided-welcome-active','true');
+    setContextGuideLaunchersHidden(true);
     const step=clientGuidedWelcomeStep(state.stepIndex||0);
     if(!navigate(step.area)){
       pause(ctx);
@@ -554,6 +563,7 @@ export function createClientGuidedWelcomeController({
       return;
     }
     root.setAttribute?.('data-m26-client-guided-welcome-active','true');
+    setContextGuideLaunchersHidden(true);
     const step=clientGuidedWelcomeStep(state.stepIndex);
     const current=currentArea(root);
     if(navigationPending&&current===navigationPending)navigationPending=null;
