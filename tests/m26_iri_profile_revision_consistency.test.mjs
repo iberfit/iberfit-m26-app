@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const migration=fs.readFileSync('supabase/migrations/20260914143500_iri_profile_revision_consistency_v26.sql','utf8').replace(/\r\n/g,'\n');
+const migration=fs.readFileSync('supabase/migrations/20260914144702_iri_profile_revision_consistency_v26.sql','utf8').replace(/\r\n/g,'\n');
 const controller=fs.readFileSync('src/m26/app/workflow-controller.js','utf8').replace(/\r\n/g,'\n');
 const render=fs.readFileSync('src/m26/modules/route-render.js','utf8').replace(/\r\n/g,'\n');
 const viewModel=fs.readFileSync('src/m26/modules/route-view-model.js','utf8').replace(/\r\n/g,'\n');
