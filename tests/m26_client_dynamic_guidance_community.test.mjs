@@ -235,8 +235,9 @@ test('Legacy linear checklist is hidden for Client while Coach and Admin keep th
   assert.match(progressive,/if\(context\.role!=='client'\)/u);
   assert.match(progressive,/data-m26-client-contextual-guide-enabled/u);
   assert.match(guided,/role==='client'.*data-m26-client-contextual-guide-enabled/su);
-  assert.match(progressive,/launcher\.removeAttribute\?\.\('data-m26-area'\)/u);
-  assert.match(progressive,/launcher\.removeAttribute\?\.\('data-progressive-onboarding-open'\)/u);
+  assert.match(progressive,/context\.role==='client'[\s\S]*data-m26-client-context-guide-open/u);
+  assert.match(progressive,/root\.querySelector\?\.\('\[data-progressive-onboarding-launcher\]'\)\?\.remove\?\.\(\)/u);
+  assert.match(progressive,/if\(context\.role==='client'\)\{[\s\S]*?return;\s*\}\s*const host=root\.querySelector\?\.\('\.m26-topbar-actions'\)/u);
   assert.match(progressive,/guidedTour\.mount/u);
   assert.match(progressive,/clientContextGuide\.mount/u);
   assert.match(progressive,/guidedTour\.destroy/u);
@@ -278,6 +279,34 @@ test('Today shows an actual challenge only when there is useful challenge contex
   assert.match(activeHtml,/3 sesiones/u);
   assert.match(activeHtml,/75%/u);
   assert.match(activeHtml,/data-m26-area="retos"/u);
+});
+
+test('Completed challenge stays discoverable without occupying a full dashboard panel',()=>{
+  const html=renderHoyRoute({
+    role:'client',
+    clients:[{name:'Cliente',iri:null,nextAction:null}],
+    appointments:[],
+    upcoming:[],
+    rc39:{sessionProjections:[]},
+    operations:{},
+    challengePreview:{
+      id:'plan',
+      title:'Cumplir tu planificación',
+      detail:'Objetivo confirmado.',
+      current:4,
+      target:4,
+      unit:'sesiones',
+      progress:100,
+      completed:true,
+      available:true,
+    },
+  });
+  assert.match(html,/m26-client-home-community is-completed/u);
+  assert.match(html,/Reto completado/u);
+  assert.match(html,/data-m26-client-guide="challenge-entry"/u);
+  assert.match(html,/data-m26-area="retos"/u);
+  assert.doesNotMatch(html,/class="m26-panel m26-panel-soft m26-client-home-community"/u);
+  assert.doesNotMatch(html,/<progress max="100"/u);
 });
 
 test('Plan and session moments on Today are driven by real availability',()=>{
@@ -398,6 +427,16 @@ test('Challenges route stays private by default, does not fake social state, and
     social:{visibility:'private',sharingEnabled:false,audience:'private'},
   });
   assert.match(activeHtml,/data-m26-client-guide="challenge-surface"/u);
+});
+
+test('Client manual Guide access lives in sidebar utility and Más, never in the topbar',()=>{
+  const shell=read('src/m26/shell/shell-render.js');
+  const progressive=read('src/m26/onboarding/progressive-onboarding.js');
+  const route=read('src/m26/modules/route-render.js');
+  assert.match(shell,/m26-sidebar-guide[\s\S]*data-m26-client-context-guide-open/u);
+  assert.match(route,/Guía IBERFIT<\/span><small>Explica esta pantalla/u);
+  assert.match(progressive,/if\(context\.role==='client'\)[\s\S]*querySelectorAll\?\.\('\[data-m26-client-context-guide-open\]'\)/u);
+  assert.match(progressive,/if\(context\.role==='client'\)\{[\s\S]*?return;\s*\}\s*const host=root\.querySelector\?\.\('\.m26-topbar-actions'\)/u);
 });
 
 test('Client bottom navigation remains five primary destinations and Retos stays reachable through Más',()=>{

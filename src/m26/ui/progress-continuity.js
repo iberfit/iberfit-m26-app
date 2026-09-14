@@ -23,21 +23,19 @@ const STYLES=`
 .m27-constancia-window>strong{color:#f8f2e7;font-size:clamp(1.22rem,2.6vw,1.7rem);font-variant-numeric:tabular-nums;letter-spacing:-.035em;line-height:1.05}
 .m27-constancia-window>small{color:#a9a397;font-size:.66rem;line-height:1.4}
 .m27-constancia-window[data-has-plan="false"]>strong{font-size:.9rem;line-height:1.25;letter-spacing:-.01em}
-.m27-client-home{display:grid;gap:.82rem;padding:1rem;border:1px solid rgba(216,185,111,.2);border-radius:1.05rem;background:linear-gradient(145deg,rgba(216,185,111,.075),rgba(255,255,255,.018));box-shadow:0 18px 45px rgba(10,18,14,.08)}
-.m27-client-home-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem}
-.m27-client-home-head>div{display:grid;gap:.14rem}
-.m27-client-home-head h3{margin:0;color:var(--m26-text,#17231d);font-size:clamp(1rem,2vw,1.25rem);letter-spacing:-.025em}
-.m27-client-home-head p{max-width:38rem;margin:0;color:var(--m26-text-muted,#6b675f);font-size:.73rem;line-height:1.48;text-align:right}
-.m27-client-home-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.62rem}
-.m27-client-home-card{display:grid;align-content:start;gap:.32rem;min-height:9rem;padding:.82rem;border:1px solid rgba(216,185,111,.14);border-radius:.88rem;background:rgba(255,255,255,.035)}
-.m27-client-home-card>span{color:var(--m26-gold,#a98534);font-size:.61rem;font-weight:800;letter-spacing:.085em;text-transform:uppercase}
-.m27-client-home-card>strong{color:var(--m26-text,#17231d);font-size:1rem;letter-spacing:-.02em;line-height:1.2}
-.m27-client-home-card>small{min-height:2.9em;color:var(--m26-text-muted,#6b675f);font-size:.69rem;line-height:1.43}
-.m27-client-home-card>button{justify-self:start;margin-top:auto;padding:0;border:0;background:transparent;color:var(--m26-gold,#8f7028);font:inherit;font-size:.7rem;font-weight:800;cursor:pointer}
+.m27-client-home{display:grid;gap:.62rem;padding:.72rem .78rem;border:1px solid rgba(216,185,111,.12);border-radius:.9rem;background:rgba(255,255,255,.015)}
+.m27-client-home-head{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.m27-client-home-head>div{display:flex;align-items:baseline;gap:.55rem;min-width:0}
+.m27-client-home-head h3{margin:0;color:var(--m26-text,#17231d);font-size:.88rem;letter-spacing:-.015em}
+.m27-client-home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(13.5rem,1fr));gap:.5rem}
+.m27-client-home-card{display:grid;align-content:start;gap:.24rem;min-height:0;padding:.68rem .72rem;border:1px solid rgba(216,185,111,.1);border-radius:.72rem;background:rgba(255,255,255,.025)}
+.m27-client-home-card>span{color:var(--m26-gold,#a98534);font-size:.58rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.m27-client-home-card>strong{color:var(--m26-text,#17231d);font-size:.88rem;letter-spacing:-.012em;line-height:1.22}
+.m27-client-home-card>small{color:var(--m26-text-muted,#6b675f);font-size:.66rem;line-height:1.4}
+.m27-client-home-card>button{justify-self:start;margin-top:.18rem;padding:0;border:0;background:transparent;color:var(--m26-gold,#8f7028);font:inherit;font-size:.68rem;font-weight:800;cursor:pointer}
 .m27-client-home-card>button:hover,.m27-client-home-card>button:focus-visible{text-decoration:underline;text-underline-offset:.18rem}
-.m27-client-home-card[data-home-kind="train-now"]{border-color:rgba(216,185,111,.42);background:linear-gradient(145deg,rgba(216,185,111,.11),rgba(255,255,255,.035))}
-.m27-client-home-card[data-attention-level="critical"],.m27-client-home-card[data-home-kind="device-action"]{border-color:rgba(149,67,54,.28)}
-.m27-client-home-card[data-attention-level="warning"],.m27-client-home-card[data-home-kind="communication"]{border-color:rgba(169,133,52,.3)}
+.m27-client-home-card[data-attention-level="critical"]{border-color:rgba(149,67,54,.28)}
+.m27-client-home-card[data-attention-level="warning"],.m27-client-home-card[data-home-kind="communication"]{border-color:rgba(169,133,52,.24)}
 .m27-session-feedback-premium{position:relative;overflow:hidden}
 .m27-session-feedback-explainer{margin:.3rem 0 .95rem;padding:.72rem .8rem;border-left:3px solid rgba(216,185,111,.65);border-radius:.2rem .7rem .7rem .2rem;background:rgba(216,185,111,.055);color:var(--m26-text-muted,#6b675f);font-size:.78rem;line-height:1.5}
 .m27-session-continuity{display:grid;gap:.22rem;margin:.85rem 0;padding:.82rem .88rem;border:1px solid rgba(216,185,111,.2);border-radius:.82rem;background:rgba(216,185,111,.055)}
@@ -45,7 +43,7 @@ const STYLES=`
 .m27-session-continuity>strong{color:var(--m26-text,#17231d);font-size:.94rem;letter-spacing:-.015em}
 .m27-session-continuity>p{margin:0;color:var(--m26-text-muted,#6b675f);font-size:.76rem;line-height:1.48}
 @media (max-width:980px){.m27-client-home-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:560px){.m27-constancia{padding:.78rem}.m27-constancia-head,.m27-client-home-head{display:grid;gap:.28rem}.m27-constancia-head p,.m27-client-home-head p{text-align:left}.m27-constancia-grid,.m27-client-home-grid{grid-template-columns:1fr}.m27-constancia-window,.m27-client-home-card{min-height:0}.m27-client-home{padding:.82rem}}
+@media (max-width:560px){.m27-constancia{padding:.78rem}.m27-constancia-head{display:grid;gap:.28rem}.m27-constancia-head p{text-align:left}.m27-constancia-grid,.m27-client-home-grid{grid-template-columns:1fr}.m27-constancia-window,.m27-client-home-card{min-height:0}.m27-client-home{padding:.68rem}.m27-client-home-head>div{display:grid;gap:.1rem}}
 @media (prefers-reduced-motion:reduce){.m27-constancia-window,.m27-session-continuity,.m27-client-home-card{scroll-behavior:auto}}
 `;
 
@@ -293,87 +291,87 @@ function createTrainingButton(document,snapshot){
   return button;
 }
 
+function clientHomeContextItems(snapshot){
+  const items=[];
+  const constancy=snapshot?.constancy;
+  if(constancy?.hasPlan&&Number.isFinite(constancy.adherence)){
+    items.push(Object.freeze({
+      kind:'constancy',
+      kicker:'Constancia · 28 días',
+      title:`${Math.round(constancy.adherence*100)}% confirmado`,
+      copy:adherenceDetail(constancy),
+      action:'Ver progreso',
+      area:'progreso',
+      level:'normal',
+    }));
+  }
+
+  const attention=snapshot?.attention;
+  if(['critical','warning'].includes(String(attention?.level||''))){
+    items.push(Object.freeze({
+      kind:'attention',
+      kicker:attention.level==='critical'?'Atención prioritaria':'Conviene revisar',
+      title:attention.title,
+      copy:attention.copy,
+      action:attention.area==='actividad'?'Revisar bienestar':'Revisar seguimiento',
+      area:attention.area,
+      level:attention.level,
+    }));
+  }
+
+  if(snapshot?.communication){
+    items.push(Object.freeze({
+      kind:'communication',
+      kicker:'Mensajes',
+      title:snapshot.communication.title,
+      copy:snapshot.communication.copy,
+      action:'Abrir Mensajes',
+      area:snapshot.communication.area,
+      level:'normal',
+    }));
+  }
+
+  if(['device-action','device-stale'].includes(String(snapshot?.device?.kind||''))){
+    items.push(Object.freeze({
+      kind:'device',
+      kicker:'Dispositivos',
+      title:snapshot.device.title,
+      copy:snapshot.device.copy,
+      action:'Revisar Dispositivos',
+      area:snapshot.device.area,
+      level:snapshot.device.kind==='device-action'?'warning':'normal',
+    }));
+  }
+
+  return Object.freeze(items.slice(0,3));
+}
+
 function buildClientHomeSection(document,snapshot){
+  const items=clientHomeContextItems(snapshot);
+  if(!items.length)return null;
+
   const section=create(document,'section','m27-client-home');
   section.setAttribute('data-m27-client-home','true');
-  section.setAttribute('aria-label','Resumen de hoy del cliente');
+  section.setAttribute('aria-label','Contexto útil de hoy');
 
   const head=create(document,'div','m27-client-home-head');
   const titles=create(document,'div');
   titles.append(
-    create(document,'span','m27-constancia-kicker','Tu día IBERFIT'),
-    create(document,'h3','','Entrenamiento, constancia y contexto'),
+    create(document,'span','m27-constancia-kicker','Para tener en cuenta'),
+    create(document,'h3','','Contexto útil de hoy'),
   );
-  head.append(
-    titles,
-    create(document,'p','','Solo datos confirmados: qué viene ahora, cómo mantienes el ritmo y qué contexto conviene tener presente.'),
-  );
+  head.append(titles);
 
   const grid=create(document,'div','m27-client-home-grid');
-  const todayTraining=snapshot.todayTraining;
-  const appointment=snapshot.nextAppointment;
-  const appointmentCard=create(document,'article','m27-client-home-card');
-  if(todayTraining?.ready)appointmentCard.setAttribute('data-home-kind','train-now');
-  appointmentCard.append(
-    create(document,'span','',todayTraining?'Entrenamiento de hoy':'Próximo entrenamiento'),
-    create(document,'strong','',todayTraining
-      ?todayTraining.title
-      :appointment
-        ?formatIberfitDate(appointment.startAt,{locale:'es-CL',includeTime:true})||'Cita confirmada'
-        :'Por confirmar'),
-    create(document,'small','',todayTraining?.copy||appointmentDetail(appointment)),
-    createTrainingButton(document,todayTraining||{actionLabel:'Ver agenda',area:'agenda'}),
-  );
-
-  const constancy=snapshot.constancy;
-  const constancyCard=create(document,'article','m27-client-home-card');
-  constancyCard.append(
-    create(document,'span','','Constancia · 28 días'),
-    create(document,'strong','',adherenceValue(constancy)),
-    create(document,'small','',adherenceDetail(constancy)),
-    createAreaButton(document,'Ver Cliente 360','progreso'),
-  );
-
-  const wellbeingCard=create(document,'article','m27-client-home-card');
-  wellbeingCard.append(
-    create(document,'span','','Cómo estás'),
-    create(document,'strong','',snapshot.wellbeing?'Contexto registrado':'Sin registro reciente'),
-    create(document,'small','',wellbeingDetail({latestCheckin:snapshot.wellbeing,latestCheckinAt:snapshot.latestCheckinAt})),
-    createAreaButton(document,'Registrar bienestar','actividad'),
-  );
-
-  const attention=snapshot.attention;
-  const attentionCard=create(document,'article','m27-client-home-card');
-  attentionCard.setAttribute('data-attention-level',attention.level);
-  attentionCard.append(
-    create(document,'span','','Atención'),
-    create(document,'strong','',attention.title),
-    create(document,'small','',attention.copy),
-    createAreaButton(document,attention.area==='actividad'?'Revisar bienestar':'Revisar seguimiento',attention.area),
-  );
-
-  grid.append(appointmentCard,constancyCard,wellbeingCard,attentionCard);
-
-  if(snapshot.communication){
+  for(const item of items){
     const card=create(document,'article','m27-client-home-card');
-    card.setAttribute('data-home-kind','communication');
+    card.setAttribute('data-home-kind',item.kind);
+    if(item.level&&item.level!=='normal')card.setAttribute('data-attention-level',item.level);
     card.append(
-      create(document,'span','','Comunicación'),
-      create(document,'strong','',snapshot.communication.title),
-      create(document,'small','',snapshot.communication.copy),
-      createAreaButton(document,'Abrir Mensajes',snapshot.communication.area),
-    );
-    grid.append(card);
-  }
-
-  if(snapshot.device){
-    const card=create(document,'article','m27-client-home-card');
-    card.setAttribute('data-home-kind',snapshot.device.kind);
-    card.append(
-      create(document,'span','','Dispositivos'),
-      create(document,'strong','',snapshot.device.title),
-      create(document,'small','',snapshot.device.copy),
-      createAreaButton(document,'Ver Dispositivos',snapshot.device.area),
+      create(document,'span','',item.kicker),
+      create(document,'strong','',item.title),
+      create(document,'small','',item.copy),
+      createAreaButton(document,item.action,item.area),
     );
     grid.append(card);
   }
@@ -394,9 +392,10 @@ function enhanceClientHome({root,viewModel,state,now}){
   const snapshot=buildClientHomeSnapshot(state,clientId,{now});
   if(!snapshot)return false;
   const section=buildClientHomeSection(root.ownerDocument,snapshot);
-  const hero=host.querySelector?.('.m26-hero-panel');
-  if(hero?.nextSibling)host.insertBefore(section,hero.nextSibling);
-  else if(hero)host.append(section);
+  if(!section)return false;
+  const primary=host.querySelector?.('.m26-client-home-primary-zone');
+  if(primary?.nextSibling)host.insertBefore(section,primary.nextSibling);
+  else if(primary)host.append(section);
   else host.prepend(section);
   return true;
 }
@@ -523,3 +522,4 @@ export function enhanceProgressContinuity({root,viewModel,state,now=new Date()}=
   const completed=enhanceCompletedClosure({root});
   return Boolean(home||constancy||feedback||completed);
 }
+export const __progressContinuityInternals=Object.freeze({clientHomeContextItems});

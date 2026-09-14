@@ -640,13 +640,14 @@ export function createClientContextualGuideController({
     }
     return Boolean(dialog);
   }
+  function guideLaunchers(){
+    return [...(root.querySelectorAll?.('[data-m26-client-context-guide-open]')||[])];
+  }
   function decorate(current){
-    const launcher=root.querySelector?.('[data-progressive-onboarding-launcher]');
-    if(launcher){
+    for(const launcher of guideLaunchers()){
       launcher.removeAttribute?.('hidden');
-      launcher.setAttribute?.('data-m26-client-context-guide-open','');
       launcher.setAttribute?.('aria-label',tr('launcherLabel','Abrir guía contextual de esta pantalla'));
-      launcher.textContent=tr('launcher','Guía');
+      if(launcher.hasAttribute?.('data-progressive-onboarding-launcher'))launcher.textContent=tr('launcher','Guía');
     }
     const settings=root.querySelector?.('[data-m26-client-context-guide-settings]');
     if(current!=='ajustes'){settings?.remove?.();return;}
@@ -664,7 +665,7 @@ export function createClientContextualGuideController({
     if(lastKey&&lastKey!==ctx.key)close({restoreFocus:false});
     lastKey=ctx.key;
     if(clientGuideSuppressed(root)){
-      root.querySelector?.('[data-progressive-onboarding-launcher]')?.setAttribute?.('hidden','');
+      for(const launcher of guideLaunchers())launcher.setAttribute?.('hidden','');
       close({restoreFocus:false});
       return;
     }
