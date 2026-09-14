@@ -138,3 +138,36 @@ test('touch tap gives text fields native focus before typing and releases the mo
 
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
+
+
+test('real client form survives transient mobile blur while a shell refresh is queued',async({page},testInfo)=>{
+  const touchProject=testInfo.project.name.includes('mobile')||testInfo.project.name.includes('tablet');
+  test.skip(!touchProject,'Transient blur regression targets touch/browser keyboard behavior.');
+
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/client-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__?.mounted===true)).toBe(true);
+
+  const form=page.locator('[data-admin-form="client-create"]');
+  await form.evaluate((node)=>{node.dataset.qaFormIdentity='transient-blur-form';});
+  const name=form.locator('input[name="name"]');
+
+  await name.tap();
+  await page.keyboard.type('Cliente real');
+  await expect(name).toHaveValue('Cliente real');
+
+  await page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__.queueShellRefresh());
+  await name.evaluate((node)=>node.blur());
+  await page.waitForTimeout(120);
+
+  await expect(form).toHaveAttribute('data-qa-form-identity','transient-blur-form');
+  await expect(name).toHaveValue('Cliente real');
+
+  await name.tap();
+  await page.keyboard.type(' estable');
+  await expect(name).toHaveValue('Cliente real estable');
+
+  await page.waitForTimeout(1300);
+  await expect(name).toHaveValue('Cliente real estable');
+  expect(errors).toEqual([]);
+});
