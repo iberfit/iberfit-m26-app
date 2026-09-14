@@ -23,10 +23,22 @@ test('Client guide is contextual, can expose more than one useful hint on Today,
   const today=clientContextualGuideTipsForArea('hoy');
   assert.deepEqual(
     today.map((tip)=>tip.id),
-    ['client-context-today','client-context-plan-ready','client-context-challenge-ready']
+    [
+      'client-moment-session-ready',
+      'client-context-plan-ready',
+      'client-context-challenge-ready',
+      'client-context-today',
+      'client-feature-challenges-community',
+    ]
   );
+  assert.equal(today[0].kind,'moment');
+  assert.equal(today[0].actionArea,'sesion');
+  assert.deepEqual(today[0].seenAlso,['client-context-session']);
   assert.equal(today[1].actionArea,'planificacion');
+  assert.deepEqual(today[1].seenAlso,['client-context-plan']);
   assert.equal(today[2].actionArea,'retos');
+  assert.equal(today.at(-1).kind,'feature');
+  assert.deepEqual(today.at(-1).excludeSelectors,['[data-m26-client-guide="challenge-entry"]']);
 
   for(const area of ['planificacion','sesion','progreso','actividad','mensajes','retos','ajustes']){
     const tip=clientContextualGuideTipForArea(area);
@@ -78,6 +90,7 @@ test('Legacy client onboarding state migrates without repeating already-known ar
   assert.ok(seed.seenTipIds.includes('client-context-today'));
   assert.ok(seed.seenTipIds.includes('client-context-plan-ready'));
   assert.ok(seed.seenTipIds.includes('client-context-plan'));
+  assert.ok(seed.seenTipIds.includes('client-moment-session-ready'));
   assert.ok(seed.seenTipIds.includes('client-context-session'));
   assert.equal(seed.seenTipIds.includes('client-context-progress'),false);
   assert.equal(seed.legacyMigrated,true);
@@ -231,7 +244,7 @@ test('Today shows an actual challenge only when there is useful challenge contex
   assert.match(activeHtml,/data-m26-area="retos"/u);
 });
 
-test('Plan discovery target exists on Today only when a real plan or published session is available',()=>{
+test('Plan and session moments on Today are driven by real availability',()=>{
   const base={
     role:'client',
     clients:[{name:'Cliente',iri:null,nextAction:null}],
@@ -239,8 +252,17 @@ test('Plan discovery target exists on Today only when a real plan or published s
     upcoming:[],
     operations:{},
   };
-  const withoutPlan=renderHoyRoute({...base,rc39:{sessionProjections:[]}});
-  assert.doesNotMatch(withoutPlan,/data-m26-client-guide="plan-entry"/u);
+  const withoutContent=renderHoyRoute({...base,rc39:{sessionProjections:[]}});
+  assert.doesNotMatch(withoutContent,/data-m26-client-guide="plan-entry"/u);
+  assert.doesNotMatch(withoutContent,/data-m26-client-guide="session-entry"/u);
+
+  const planOnly=renderHoyRoute({
+    ...base,
+    clients:[{name:'Cliente',iri:null,nextAction:null,cycle:{name:'Fuerza base'}}],
+    rc39:{sessionProjections:[]},
+  });
+  assert.match(planOnly,/data-m26-client-guide="plan-entry"/u);
+  assert.doesNotMatch(planOnly,/data-m26-client-guide="session-entry"/u);
 
   const withSession=renderHoyRoute({
     ...base,
@@ -252,8 +274,20 @@ test('Plan discovery target exists on Today only when a real plan or published s
     }]},
   });
   assert.match(withSession,/data-m26-client-guide="plan-entry"/u);
+  assert.match(withSession,/data-m26-client-guide="session-entry"/u);
 });
 
+test('Moment guidance prioritizes actionable facts and avoids duplicate route explanations',()=>{
+  const guide=read('src/m26/onboarding/client-contextual-guide.js');
+  assert.match(guide,/priority:120[\s\S]*client-moment-session-ready/u);
+  assert.match(guide,/sort\(\(left,right\)=>Number\(right\.priority\|\|0\)-Number\(left\.priority\|\|0\)\)/u);
+  assert.match(guide,/\.\.\.\(Array\.isArray\(tip\.seenAlso\)\?tip\.seenAlso:\[\]\)/u);
+  assert.match(guide,/tip\.excludeSelectors/u);
+  assert.match(guide,/client-feature-challenges-community/u);
+  const shell=renderRouteView({kind:'hoy',role:'client',clients:[],appointments:[],upcoming:[],rc39:{sessionProjections:[]},operations:{}});
+  assert.match(shell,/m26-client-bottom-nav-more/u);
+  assert.match(shell,/Retos y comunidad/u);
+});
 test('Planning, session, progress and challenge guidance targets are conditional rather than generic route fallbacks',()=>{
   const source=read('src/m26/modules/route-render.js');
   assert.match(source,/data-m26-client-guide="plan-surface"/u);
