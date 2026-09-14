@@ -1,5 +1,6 @@
 import {renderCommunicationRoute} from '../communication/route-render.js';
 import {buildCoachFollowUpPlan} from '../engagement/adherence-engine.js';
+import {progressSummaryHasEvidence} from '../engagement/progress-engine.js';
 import {renderAdminRoute} from '../admin/route-render.js';
 import {renderRc39Route} from '../rc39/route-render.js';
 import {IBERFIT_UI_LOCALE,castilianEntityLabel,castilianOperationDetail,castilianPlatformLabel,castilianSourceLabel,castilianStatusLabel} from '../ui/castellano.js';
@@ -2599,12 +2600,7 @@ export function renderProgressRoute(vm){
     ?`<section class="m26-notice is-pending" role="status"><strong>Progreso protegido</strong><p>Sesiones fuera del cálculo por no estar confirmadas: ${escapeHtml(unconfirmedCount)}. Se incorporarán únicamente cuando queden confirmadas.</p></section>`
     :'';
   const hasCheckins=Number(summary.checkins||0)>0;
-  const hasProgressEvidence=
-    Number(summary.completedSessions||0)>0||
-    hasCheckins||
-    vm.timeline.length>0||
-    (summary.iriCurrent!==null&&summary.iriCurrent!==undefined)||
-    wearableHasData(summary.wearable||{});
+  const hasProgressEvidence=progressSummaryHasEvidence(summary,{timelineCount:vm.timeline.length});
   const clientProgressGuideAttribute=vm.role==='client'&&hasProgressEvidence
     ?' data-m26-client-guide="progress-surface"'
     :'';
@@ -3508,9 +3504,10 @@ function clientBottomNavIcon(name){
   return icons[name]||icons.mas;
 }
 
-function clientBottomNavItem(item,currentKind){
+function clientBottomNavItem(item,currentKind,{guideMoment=null}={}){
   const active=item.activeKinds.includes(currentKind);
-  return `<button type="button" class="m26-client-bottom-nav-item${active?' is-active':''}" data-m26-area="${escapeHtml(item.area)}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon(item.key)}</span><span class="m26-client-bottom-nav-label">${escapeHtml(item.label)}</span></button>`;
+  const guideAttribute=guideMoment?` data-m26-client-guide="${escapeHtml(guideMoment)}"`:'';
+  return `<button type="button" class="m26-client-bottom-nav-item${active?' is-active':''}" data-m26-area="${escapeHtml(item.area)}"${guideAttribute}${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon(item.key)}</span><span class="m26-client-bottom-nav-label">${escapeHtml(item.label)}</span></button>`;
 }
 
 function clientBottomNavMore(currentKind){
@@ -3522,7 +3519,18 @@ function clientBottomNavMore(currentKind){
 
 function renderClientBottomNav(vm){
   const currentKind=String(vm?.kind||'hoy');
-  return `<div class="m26-client-bottom-nav-layer"><nav class="m26-client-bottom-nav" aria-label="Navegación principal de la aplicación cliente">${CLIENT_BOTTOM_NAV_ITEMS.map((item)=>clientBottomNavItem(item,currentKind)).join('')}${clientBottomNavMore(currentKind)}</nav></div>`;
+  return `<div class="m26-client-bottom-nav-layer"><nav class="m26-client-bottom-nav" aria-label="Navegación principal de la aplicación cliente">${CLIENT_BOTTOM_NAV_ITEMS.map((item)=>clientBottomNavItem(
+    item,
+    currentKind,
+    {
+      guideMoment:
+        currentKind==='hoy'&&
+        item.area==='progreso'&&
+        vm?.progressReady===true
+          ?'progress-entry'
+          :null,
+    },
+  )).join('')}${clientBottomNavMore(currentKind)}</nav></div>`;
 }
 
 function renderClientRouteShell(vm,content){
