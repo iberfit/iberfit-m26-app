@@ -351,6 +351,9 @@ test('Today exposes the progress moment only when the view model confirms meanin
 
 test('Planning, session, progress and challenge guidance targets are conditional rather than generic route fallbacks',()=>{
   const source=read('src/m26/modules/route-render.js');
+  const viewModel=read('src/m26/modules/route-view-model.js');
+  assert.match(viewModel,/const progressReady=progressSummaryHasEvidence\(clientProgressSummary\)/u);
+  assert.match(viewModel,/progressReady,/u);
   assert.match(source,/data-m26-client-guide="plan-surface"/u);
   assert.match(source,/data-m26-client-guide="session-surface"/u);
   assert.match(source,/data-m26-client-guide="progress-surface"/u);
