@@ -40,7 +40,7 @@ test('Premium Digital V3 keeps semantic status colors separate from gold',()=>{
   assert.equal(tokens.color.primitive.cream100,'#F5F5F0');
   assert.equal(tokens.color.primitive.muted,'#9AA8A1');
   assert.equal(tokens.color.primitive.success,'#10B981');
-  assert.equal(tokens.color.primitive.danger,'#EF4444');
+  assert.equal(tokens.color.primitive.danger,'#F87171');
   assert.equal(tokens.radius.sm,8);
   assert.equal(tokens.radius.md,12);
 });
