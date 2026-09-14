@@ -106,7 +106,7 @@ export const WORKSPACE_SURFACE_ROWS=Object.freeze([
 ['Plan confirmado','Confirmed plan','Plan confirmé','Plano confirmado'],
 ['Tu Coach lo publicará cuando esté listo','Your Coach will publish it when ready','Votre Coach le publiera lorsqu’il sera prêt','O seu Coach irá publicá-lo quando estiver pronto'],
 ['Diagnóstico IRI','IRI diagnosis','Diagnostic IRI','Diagnóstico IRI'],
-['Punto de partida y reevaluación','Baseline and reassessment','Point de départ et réévaluation','Ponto de partida e reavaliação'],
+['Tu punto de partida','Your starting point','Votre point de départ','O seu ponto de partida'],
 ['Bienestar','Wellbeing','Bien-être','Bem-estar'],
 ['Registrar cómo estoy','Log how I feel','Enregistrer mon état','Registar como estou'],
 ['Progreso','Progress','Progrès','Progresso'],
