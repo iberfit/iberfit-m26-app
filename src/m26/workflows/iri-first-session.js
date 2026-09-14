@@ -153,7 +153,7 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
     reevaluationDate:diagnosisReevaluationDate,reviewAccepted:bool(raw.reviewAccepted),
   };
   const protocolRecords=buildIriProtocolRecords({raw,existingRecords:body.protocolRecords||body.protocol_records||[],assessmentDate,bodyComposition,mobility,strength,cardio});
-  return Object.freeze({schema:SCHEMA,clientId:text(clientId||body.clientId||body.client_id,200),assessmentId:text(current?.id||body.id,200),assessmentDate,personProfile:Object.freeze(personProfile),interview:Object.freeze(interview),bodyComposition:Object.freeze(bodyComposition),mobility:Object.freeze(mobility),strength:Object.freeze(strength),cardio:Object.freeze(cardio),diagnosis:Object.freeze(diagnosis),protocolRecords,updatedAt:new Date().toISOString()});
+  return Object.freeze({schema:SCHEMA,clientId:text(clientId||body.clientId||body.client_id,200),assessmentId:text(current?.id||body.id,200),assessmentDate,canonicalClientRevision:num(raw.canonicalClientRevision??body.canonicalClientRevision,{min:0,max:Number.MAX_SAFE_INTEGER}),canonicalProfileRevision:num(raw.canonicalProfileRevision??body.canonicalProfileRevision,{min:0,max:Number.MAX_SAFE_INTEGER}),personProfile:Object.freeze(personProfile),interview:Object.freeze(interview),bodyComposition:Object.freeze(bodyComposition),mobility:Object.freeze(mobility),strength:Object.freeze(strength),cardio:Object.freeze(cardio),diagnosis:Object.freeze(diagnosis),protocolRecords,updatedAt:new Date().toISOString()});
 }
 
 function hasBodyMeasurement(value){return [value.weightKg,value.bodyFatPercent,value.leanMassKg,value.muscleMassKg,value.waistCm].some((item)=>item!==null);}
@@ -219,6 +219,8 @@ export function buildIriCommandDraftFromFirstSession(draft,current={}){
   const weightBearingLunge=average([draft.mobility.ankle.leftBest,draft.mobility.ankle.rightBest].filter((value)=>value!==null));
   return {
     ...assessmentBody(current),id:current.id,clientId:draft.clientId,assessmentDate:draft.assessmentDate,
+    canonicalClientRevision:draft.canonicalClientRevision,
+    canonicalProfileRevision:draft.canonicalProfileRevision,
     birthDate:draft.personProfile.birthDate,sexForNorms:draft.personProfile.sexForNorms,
     stepFinalHr:draft.cardio.skipped?null:draft.cardio.finalHr,stepOneMinuteHr:draft.cardio.skipped?null:draft.cardio.oneMinuteHr,
     ...(standardPush?{pushUps:draft.strength.push.repetitions}:{}),
