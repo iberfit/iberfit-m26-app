@@ -604,3 +604,66 @@
 .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user-result-count span{
   color:var(--iberfit-v3-text-secondary)!important;
 }
+
+
+/* ---------- Admin / topbar light-button closure ---------- */
+.m26-shell .m26-workspace .m26-topbar :is(
+  .m26-coach-command-launcher,
+  .m26-icon-button,
+  .m26-text-action
+){
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.14)!important;
+  background:#172720!important;
+  box-shadow:none!important;
+}
+.m26-shell .m26-workspace .m26-topbar :is(
+  .m26-coach-command-launcher,
+  .m26-icon-button,
+  .m26-text-action
+):hover:not(:disabled){
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.28)!important;
+  background:#1A2E26!important;
+}
+
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route button:not([type="submit"]),
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route :is(
+  [data-admin-form="user-status"],
+  [data-admin-form="role-change"],
+  [data-admin-form="client-access"],
+  [data-admin-form="client-status"]
+) button[type="submit"]{
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.14)!important;
+  background:#172720!important;
+  box-shadow:none!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route button:not([type="submit"]):hover:not(:disabled),
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route :is(
+  [data-admin-form="user-status"],
+  [data-admin-form="role-change"],
+  [data-admin-form="client-access"],
+  [data-admin-form="client-status"]
+) button[type="submit"]:hover:not(:disabled){
+  border-color:rgba(197,160,89,.28)!important;
+  background:#1A2E26!important;
+}
+
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route :is(
+  [data-admin-form="user-delete"],
+  [data-admin-form="client-delete"]
+) button[type="submit"]{
+  color:#FFE3E3!important;
+  border-color:rgba(248,113,113,.38)!important;
+  background:linear-gradient(180deg,#6B2929,#4D1D1D)!important;
+  box-shadow:none!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route :is(
+  [data-admin-form="user-delete"],
+  [data-admin-form="client-delete"]
+) button[type="submit"]:hover:not(:disabled){
+  color:#FFF1F1!important;
+  border-color:rgba(248,113,113,.54)!important;
+  background:linear-gradient(180deg,#7A3030,#572020)!important;
+}
