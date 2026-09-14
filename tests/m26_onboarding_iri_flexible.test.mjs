@@ -31,10 +31,10 @@ test('deferred crea un expediente operativo mínimo sin fingir un IRI completado
 
 test('la superficie de alta ofrece las dos rutas sin eliminar el IRI',()=>{
   const html=onboardingChoiceMarkup();
-  assert.match(html,/Empezar a trabajar/);
-  assert.match(html,/Realizar evaluación IRI/);
-  assert.match(html,/name="initialAssessmentMode" value="deferred" checked/);
-  assert.match(html,/name="initialAssessmentMode" value="iri"/);
+  assert.match(html,/Realizar Diagnóstico IRI/);
+  assert.match(html,/Posponer el IRI/);
+  assert.match(html,/name="initialAssessmentMode" value="iri" checked/);
+  assert.match(html,/name="initialAssessmentMode" value="deferred"/);
 });
 
 test('la navegación posterior respeta la decisión explícita',()=>{
