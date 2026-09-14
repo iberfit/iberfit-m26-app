@@ -549,9 +549,17 @@ export function createClientContextualGuideController({
     const current=area(root)||'hoy';
     decorate(current);
     const next=eligibleTip(ctx,current);
+    const resolvedTarget=dialog&&activeTip?target(root,activeTip):null;
     const changingArea=Boolean(dialog&&activeTip?.area!==current);
-    const missingTarget=Boolean(dialog&&activeTip&&!target(root,activeTip));
+    const missingTarget=Boolean(dialog&&activeTip&&!resolvedTarget);
     if(changingArea||missingTarget)close({restoreFocus:false,preservePresence:Boolean(next)});
+    else if(dialog&&resolvedTarget&&resolvedTarget!==activeTarget){
+      activeTarget?.classList?.remove?.('m26-client-context-guide-target');
+      activeTarget?.removeAttribute?.('data-m26-client-context-guide-target-active');
+      activeTarget=resolvedTarget;
+      activeTarget.classList?.add?.('m26-client-context-guide-target');
+      activeTarget.setAttribute?.('data-m26-client-context-guide-target-active','true');
+    }
     if(!dialog&&next)show(ctx,next);
     else if(!dialog&&!next)hidePresence(presence);
     else schedulePosition();
@@ -622,6 +630,7 @@ export function createClientContextualGuideController({
     },
     refresh,
     openCurrent(){
+      if(clientGuideSuppressed(root))return false;
       const ctx=context();
       const current=area(root)||'hoy';
       const tip=ctx?eligibleTip(ctx,current,{force:true}):null;
