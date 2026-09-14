@@ -158,7 +158,7 @@ test('real client form survives transient mobile blur while a shell refresh is q
 
   await page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__.queueShellRefresh());
   await name.evaluate((node)=>node.blur());
-  await page.waitForTimeout(120);
+  await page.waitForTimeout(1600);
 
   await expect(form).toHaveAttribute('data-qa-form-identity','transient-blur-form');
   await expect(name).toHaveValue('Cliente real');
