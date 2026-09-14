@@ -157,10 +157,10 @@
   isolation:isolate;
   color-scheme:dark!important;
   color:var(--iberfit-v3-text)!important;
-  background-color:var(--iberfit-v3-canvas)!important;
   background:
     radial-gradient(circle at 94% 3%,rgba(197,160,89,.035),transparent 26rem),
     linear-gradient(160deg,#0C1612 0%,var(--iberfit-v3-canvas) 58%,#09100D 100%)!important;
+  background-color:var(--iberfit-v3-canvas)!important;
 }
 .m26-shell .m26-workspace::before{
   content:'';
