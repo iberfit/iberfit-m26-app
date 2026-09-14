@@ -39,6 +39,9 @@ concurrency:
 jobs:
   capture:
     runs-on: ubuntu-latest
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      cancel-in-progress: false
     environment: m26-canary-readonly
     timeout-minutes: 25
     steps:
