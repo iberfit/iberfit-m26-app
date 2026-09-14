@@ -303,12 +303,13 @@ export function renderAccessUi({
   const emailOtpAction=mfa?.emailOtpAvailable===true
     ? `<button
           type="button"
-          class="m26-secondary-action"
+          class="m26-secondary-action m26-email-otp-action"
           data-auth-action="mfa-send-email-code"
           ${disabled ? 'disabled aria-disabled="true"' : ''}
         >
-          Usar código por correo (recomendado)
-        </button>`
+          Enviar código al correo asociado
+        </button>
+        <p class="m26-field-help m26-email-otp-help">Si este no es tu dispositivo habitual, puedes verificar el acceso con un código de 6 dígitos. Tu contraseña sigue siendo el primer factor de seguridad.</p>`
     : '';
   let content = '';
 
@@ -386,7 +387,7 @@ export function renderAccessUi({
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Verificación del dispositivo</p>
         <h1 id="m26-auth-title" tabindex="-1">Protege tu acceso</h1>
-        <p>Configura este dispositivo una sola vez. La confirmación se hará con Face ID, Touch ID, Windows Hello, PIN o la contraseña del propio dispositivo.</p>
+        <p>Configura este dispositivo una sola vez. La confirmación se hará con Face ID, Touch ID, Windows Hello, PIN o la contraseña del propio dispositivo. Si estás entrando desde otro equipo, también puedes usar el correo asociado a tu cuenta.</p>
       </div>
 
       ${contextNotice}
@@ -427,7 +428,7 @@ export function renderAccessUi({
         <h1 id="m26-auth-title" tabindex="-1">Verifica que eres tú</h1>
         <p>${deviceRecoveryRecommended
           ?'La verificación anterior no respondió. Reintenta la verificación o repara el acceso local. Por seguridad, un dispositivo nuevo solo puede añadirse después de verificar una credencial existente.'
-          :'Usa la seguridad nativa de este dispositivo para continuar. No necesitas escanear ningún QR ni usar otro equipo.'}</p>
+          :'Usa la seguridad nativa de este dispositivo para continuar. Si no es tu dispositivo habitual, puedes recibir un código en el correo asociado.'}</p>
       </div>
 
       ${contextNotice}
@@ -467,7 +468,7 @@ export function renderAccessUi({
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Verificación por correo</p>
         <h1 id="m26-auth-title" tabindex="-1">Introduce tu código IBERFIT</h1>
-        <p>Te hemos enviado un código de 6 dígitos al correo asociado${maskedEmail?` (${e(maskedEmail)})`:''}. Es personal y de un solo uso.</p>
+        <p>Te hemos enviado un código de 6 dígitos al correo asociado${maskedEmail?` (${e(maskedEmail)})`:''}. Confirma el acceso desde este dispositivo; el código es personal y de un solo uso.</p>
       </div>
 
       ${contextNotice}
@@ -489,7 +490,7 @@ export function renderAccessUi({
             required
           >
         </label>
-        <p id="m26-email-code-help" class="m26-field-help">El código caduca por seguridad y nunca debes compartirlo con otra persona.</p>
+        <p id="m26-email-code-help" class="m26-field-help">El código caduca por seguridad, solo puede utilizarse una vez y nunca debes compartirlo con otra persona.</p>
 
         <button
           type="submit"
@@ -719,6 +720,8 @@ export function renderAccessUi({
         >
           ${busy ? 'Confirmando…' : 'Entrar'}
         </button>
+
+        <p class="m26-field-help m26-auth-new-device-help">¿Estás en otro dispositivo? Tras confirmar tu contraseña, IBERFIT puede enviarte un código de 6 dígitos al correo asociado para verificar el acceso.</p>
       </form>
     `;
   }
