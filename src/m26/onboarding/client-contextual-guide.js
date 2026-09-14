@@ -148,6 +148,40 @@ const STYLE=`
   scroll-margin:7rem 1rem;
 }
 .m26-client-context-guide-settings{margin-top:1rem}
+.m26-client-guide-presence{
+  position:fixed;
+  z-index:1212;
+  left:1rem;
+  top:1rem;
+  width:3rem;
+  height:3rem;
+  display:grid;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent,#d8b96f) 58%,transparent);
+  border-radius:999px;
+  background:color-mix(in srgb,var(--iberfit-color-surface-overlay,#10281e) 97%,black);
+  box-shadow:0 12px 30px rgba(0,0,0,.24),0 0 0 3px color-mix(in srgb,var(--iberfit-color-accent,#d8b96f) 10%,transparent);
+  pointer-events:none;
+  opacity:0;
+  transform:translateZ(0) scale(.92);
+  transition:left 280ms cubic-bezier(.22,.8,.24,1),top 280ms cubic-bezier(.22,.8,.24,1),opacity 160ms ease,transform 220ms ease;
+  will-change:left,top,opacity,transform;
+}
+.m26-client-guide-presence.is-visible{opacity:1;transform:translateZ(0) scale(1)}
+.m26-client-guide-presence img{
+  display:block;
+  width:68%;
+  height:68%;
+  object-fit:contain;
+  user-select:none;
+  -webkit-user-drag:none;
+}
+.m26-client-guide-presence.is-arriving{animation:m26-client-guide-arrive 520ms cubic-bezier(.2,.8,.2,1) both}
+@keyframes m26-client-guide-arrive{
+  0%{opacity:0;transform:translateZ(0) scale(.82)}
+  55%{opacity:1;transform:translateZ(0) scale(1.035)}
+  100%{opacity:1;transform:translateZ(0) scale(1)}
+}
 @media(max-width:690px){
   .m26-client-context-guide{
     left:.75rem!important;
@@ -158,11 +192,12 @@ const STYLE=`
     max-height:min(48vh,26rem);
     overflow:auto;
   }
+  .m26-client-guide-presence{width:2.7rem;height:2.7rem}
 }
 @media(prefers-reduced-motion:reduce){
-  .m26-client-context-guide,.m26-client-context-guide-target{scroll-behavior:auto;transition:none!important;animation:none!important}
+  .m26-client-context-guide,.m26-client-context-guide-target,.m26-client-guide-presence{scroll-behavior:auto;transition:none!important;animation:none!important}
 }
-@media print{.m26-client-context-guide,.m26-client-context-guide-settings{display:none!important}}
+@media print{.m26-client-context-guide,.m26-client-context-guide-settings,.m26-client-guide-presence{display:none!important}}
 `;
 
 function txt(value,max=240){return String(value??'').replace(/\s+/gu,' ').trim().slice(0,max);}
@@ -262,6 +297,61 @@ function ensureStyle(doc){
   doc.head?.append?.(node);
   return node;
 }
+function presenceHtml(){
+  return '<div class="m26-client-guide-presence" data-m26-client-guide-presence aria-hidden="true"><img src="/public/isotipo-iberfit.png" alt="" draggable="false"></div>';
+}
+function ensurePresence(doc){
+  let node=doc?.querySelector?.('[data-m26-client-guide-presence]');
+  if(node||!doc?.body?.insertAdjacentHTML)return node;
+  doc.body.insertAdjacentHTML('beforeend',presenceHtml());
+  return doc.querySelector?.('[data-m26-client-guide-presence]')||null;
+}
+function hidePresence(node){
+  if(!node)return;
+  node.classList?.remove?.('is-visible','is-arriving');
+}
+function clientGuideSuppressed(root){
+  return Boolean(root?.querySelector?.('[data-session-live-v3],[data-session-live-state],[data-session-touch-focus]'));
+}
+function positionPresence(node,targetNode,scope,{arriving=false}={}){
+  if(!node||!targetNode)return false;
+  try{
+    const rect=targetNode.getBoundingClientRect?.();
+    const width=Number(scope?.innerWidth||0);
+    const height=Number(scope?.innerHeight||0);
+    if(!rect||!width||!height)return false;
+    const mobile=width<=690;
+    const size=mobile?43:48;
+    const margin=mobile?10:14;
+    const gap=mobile?8:10;
+    const bottomReserve=mobile?104:margin;
+    const outside=Number(rect.bottom||0)<margin||Number(rect.top||0)>height-bottomReserve||Number(rect.right||0)<0||Number(rect.left||0)>width;
+    if(outside){hidePresence(node);return false;}
+    let left=Number(rect.right||0)+gap;
+    if(left+size>width-margin)left=Number(rect.left||0)-size-gap;
+    if(left<margin)left=Math.min(width-size-margin,Math.max(margin,Number(rect.left||margin)+gap));
+    let top=Number(rect.top||0)+Math.min(24,Math.max(0,(Number(rect.height||size)-size)/2));
+    top=Math.max(margin,Math.min(height-size-bottomReserve,top));
+    const first=!node.hasAttribute?.('data-m26-client-guide-positioned');
+    if(first)node.style.transition='none';
+    node.style.left=`${Math.round(left)}px`;
+    node.style.top=`${Math.round(top)}px`;
+    node.setAttribute?.('data-m26-client-guide-positioned','true');
+    node.classList?.add?.('is-visible');
+    if(!arriving)node.classList?.remove?.('is-arriving');
+    if(arriving&&!reduced(scope)){
+      node.classList?.remove?.('is-arriving');
+      void node.offsetWidth;
+      node.classList?.add?.('is-arriving');
+    }
+    if(first){
+      const restore=()=>node.style?.removeProperty?.('transition');
+      if(typeof scope?.requestAnimationFrame==='function')scope.requestAnimationFrame(restore);
+      else queueMicrotask(restore);
+    }
+    return true;
+  }catch{return false;}
+}
 function dialogHtml(tip){
   const copyId=tip.copyId||tip.id;
   const action=tip.actionArea
@@ -324,6 +414,7 @@ export function createClientContextualGuideController({
   let activeTip=null;
   let activeTarget=null;
   let dialog=null;
+  let presence=null;
   let lastKey=null;
   let previousFocus=null;
   let positionFrame=null;
@@ -354,13 +445,14 @@ export function createClientContextualGuideController({
       legacyMigrated:true,
     });
   }
-  function close({restoreFocus=true}={}){
+  function close({restoreFocus=true,preservePresence=false}={}){
     activeTarget?.classList?.remove?.('m26-client-context-guide-target');
     activeTarget?.removeAttribute?.('data-m26-client-context-guide-target-active');
     activeTarget=null;
     dialog?.remove?.();
     dialog=null;
     activeTip=null;
+    if(!preservePresence)hidePresence(presence);
     if(positionFrame!==null){
       try{scope?.cancelAnimationFrame?.(positionFrame);}catch{}
       positionFrame=null;
@@ -390,10 +482,11 @@ export function createClientContextualGuideController({
     return null;
   }
   function schedulePosition(){
-    if(positionFrame!==null||!dialog||!activeTarget)return;
+    if(positionFrame!==null||!activeTarget)return;
     const run=()=>{
       positionFrame=null;
       if(dialog&&activeTarget)positionDialog(dialog,activeTarget,scope);
+      if(presence&&activeTarget)positionPresence(presence,activeTarget,scope);
     };
     if(typeof scope?.requestAnimationFrame==='function')positionFrame=scope.requestAnimationFrame(run);
     else queueMicrotask(run);
@@ -404,7 +497,7 @@ export function createClientContextualGuideController({
     const state=stateWithLegacy(ctx);
     if(!force&&(state.seenTipIds.includes(tip.id)||state.dismissedTipIds.includes(tip.id)))return false;
     ensureStyle(doc);
-    close({restoreFocus:false});
+    close({restoreFocus:false,preservePresence:true});
     activeTip=tip;
     activeTarget=node;
     previousFocus=force?doc?.activeElement||null:null;
@@ -413,6 +506,8 @@ export function createClientContextualGuideController({
     if(!isVisibleInViewport(node,scope)){
       try{node.scrollIntoView?.({block:'center',inline:'nearest',behavior:reduced(scope)?'auto':'smooth'});}catch{}
     }
+    presence=presence||ensurePresence(doc);
+    positionPresence(presence,node,scope,{arriving:!presence?.classList?.contains?.('is-visible')});
     doc?.body?.insertAdjacentHTML?.('beforeend',dialogHtml(tip));
     dialog=doc?.querySelector?.('[data-m26-client-context-guide]')||null;
     schedulePosition();
@@ -426,6 +521,7 @@ export function createClientContextualGuideController({
   function decorate(current){
     const launcher=root.querySelector?.('[data-progressive-onboarding-launcher]');
     if(launcher){
+      launcher.removeAttribute?.('hidden');
       launcher.setAttribute?.('data-m26-client-context-guide-open','');
       launcher.setAttribute?.('aria-label',tr('launcherLabel','Abrir guía contextual de esta pantalla'));
       launcher.textContent=tr('launcher','Guía');
@@ -445,12 +541,19 @@ export function createClientContextualGuideController({
     }
     if(lastKey&&lastKey!==ctx.key)close({restoreFocus:false});
     lastKey=ctx.key;
+    if(clientGuideSuppressed(root)){
+      root.querySelector?.('[data-progressive-onboarding-launcher]')?.setAttribute?.('hidden','');
+      close({restoreFocus:false});
+      return;
+    }
     const current=area(root)||'hoy';
     decorate(current);
     const next=eligibleTip(ctx,current);
-    if(dialog&&activeTip?.area!==current)close({restoreFocus:false});
-    if(dialog&&activeTip&&!target(root,activeTip))close({restoreFocus:false});
+    const changingArea=Boolean(dialog&&activeTip?.area!==current);
+    const missingTarget=Boolean(dialog&&activeTip&&!target(root,activeTip));
+    if(changingArea||missingTarget)close({restoreFocus:false,preservePresence:Boolean(next)});
     if(!dialog&&next)show(ctx,next);
+    else if(!dialog&&!next)hidePresence(presence);
     else schedulePosition();
   }
   function refresh(){
@@ -463,10 +566,11 @@ export function createClientContextualGuideController({
     const actionArea=activeTip.actionArea;
     const tip=activeTip;
     markSeen(ctx,tip);
-    close({restoreFocus:false});
+    close({restoreFocus:false,preservePresence:true});
     const destination=root.querySelector?.(`[data-m26-area="${actionArea}"]`);
-    destination?.click?.();
-    return Boolean(destination);
+    if(!destination){hidePresence(presence);return false;}
+    destination.click?.();
+    return true;
   }
   function click(event){
     const ctx=context();
@@ -534,6 +638,8 @@ export function createClientContextualGuideController({
       scope?.removeEventListener?.('resize',schedulePosition);
       scope?.removeEventListener?.('scroll',schedulePosition,true);
       close({restoreFocus:false});
+      presence?.remove?.();
+      presence=null;
       root.querySelector?.('[data-m26-client-context-guide-settings]')?.remove?.();
       doc?.querySelector?.('[data-m26-client-context-guide-style]')?.remove?.();
     },
@@ -547,5 +653,7 @@ export const __clientContextualGuideInternals=Object.freeze({
   area,
   target,
   positionDialog,
+  positionPresence,
+  clientGuideSuppressed,
   isVisibleInViewport,
 });
