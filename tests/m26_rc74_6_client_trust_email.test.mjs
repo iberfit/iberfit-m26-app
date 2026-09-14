@@ -85,7 +85,7 @@ test('la familia de correos usa la marca real y no expone tokens ni Supabase al 
   for(const path of templatePaths){
     assert.ok(fs.existsSync(path),`${path} debe existir`);
     const html=fs.readFileSync(path,'utf8');
-    assert.match(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
+    assert.match(html,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
     assert.match(html,/IBERFIT/u);
     assert.doesNotMatch(html,/supabase\.co/iu);
     assert.doesNotMatch(html,/TokenHash/u);
@@ -99,7 +99,8 @@ test('activación y recuperación priorizan un CTA real y accesible',()=>{
   assert.match(invite,/Tu espacio IBERFIT/u);
   assert.match(invite,/href="\{\{ \.ConfirmationURL \}\}"/u);
   assert.match(invite,/Activar mi acceso/u);
-  assert.match(invite,/iberfit-email-access-hero\.jpg/u);
+  assert.match(invite,/https:\/\/app\.iberfit\.cl\/public\/iberfit-email-access-hero\.jpg/u);
+  assert.doesNotMatch(recovery,/iberfit-email-access-hero\.jpg/u);
   assert.match(recovery,/href="\{\{ \.ConfirmationURL \}\}"/u);
   assert.match(recovery,/Recuperar mi acceso/u);
   assert.doesNotMatch(invite,/\{\{ \.Token \}\}/u);
