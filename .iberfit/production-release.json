@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "845c852e90d7337914578efa56a9753317039530",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "P0 real form interaction fix: preserve Admin client form DOM across transient mobile blur; certified post-merge across CI, Admin matrix, Device Experience, visual evidence and read-only gates."
+}
