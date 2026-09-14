@@ -3,7 +3,7 @@
 Checkpoint: 2026-09-14
 Producción source SHA: `396ad52cfd4c1a4d75e4e306838d85bffa77b105`
 Promotion run válido: `34793087805 = SUCCESS`
-Canary certificado: `39e160fb54d1e866823a8150ecd9270359129444`
+Canary funcional certificado: `39e160fb54d1e866823a8150ecd9270359129444`
 
 ## P0 · guardrails permanentes
 
