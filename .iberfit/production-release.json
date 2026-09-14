@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "2a656a5b60910374b9c6bbb90633a36c47d95590",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Admin Users 360 premium hierarchy cleanup: calmer editorial directory, reduced nested-card chrome, preserved full identity/access/coach/activation detail and all management actions, responsive desktop/tablet/mobile behavior, no backend/RLS/permissions changes."
+}
