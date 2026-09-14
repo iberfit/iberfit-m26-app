@@ -442,7 +442,12 @@ export function createProgressiveOnboardingController({
   const tourOpenState=createProgressiveOnboardingOpenState({root,documentLike,onOpenChange});
   const guidedTour=createGuidedTourController({
     root,
-    identityProvider,
+    identityProvider:()=>{
+      const value=identityProvider?.()||{};
+      return text(value.role,40).toLowerCase()==='client'
+        ?{...value,role:'client-context-only'}
+        :value;
+    },
     storage:resolvedStorage,
     scope,
     onOpenChange:(open)=>tourOpenState.set(open),
