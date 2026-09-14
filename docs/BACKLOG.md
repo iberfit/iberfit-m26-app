@@ -1,8 +1,9 @@
 # IBERFIT · Backlog Vivo
 
-Checkpoint: 2026-09-13
-Producción source SHA: `6d06d033fe09b6802bef21e0f30374b48c78edda`
-Promotion run: `34776097179 = SUCCESS`
+Checkpoint: 2026-09-14
+Producción source SHA: `396ad52cfd4c1a4d75e4e306838d85bffa77b105`
+Promotion run válido: `34793087805 = SUCCESS`
+Canary certificado: `39e160fb54d1e866823a8150ecd9270359129444`
 
 ## P0 · guardrails permanentes
 
@@ -10,80 +11,80 @@ Promotion run: `34776097179 = SUCCESS`
 - [ ] Nunca hacer pruebas destructivas con usuarios/datos reales.
 - [ ] Ante P0 LIVE: hotfix mínimo desde identidad LIVE exacta.
 
-## P1 · gobernanza y release
+## P1 · release / Auth
 
-- [x] Recuperar proyecto Cloudflare productivo exacto y ruta de rollback.
-- [x] Promover y verificar el lote actual en `app.iberfit.cl`.
-- [x] Integrar PR #323 de acceso premium state-first.
-- [x] Integrar HQ vivo en la línea técnica (PR #324).
+- [x] Recuperar proyecto Cloudflare productivo exacto y rollback.
+- [x] Mantener promoción por SHA exacto y fail-closed.
+- [x] Corregir `site_url` PROD a `https://app.iberfit.cl/`.
+- [x] Cerrar signup público y elevar mínimo de contraseña a 8.
+- [x] Añadir contrato de Auth Hosted readiness.
+- [x] Evitar interferencia/cancelación entre suites QA autenticadas compartidas.
+- [ ] Crear proveedor SMTP transaccional para Auth.
+- [ ] Verificar dominio/subdominio de envío con SPF/DKIM/DMARC.
+- [ ] Cargar los 6 secretos SMTP operativos sin exponerlos.
+- [ ] Configurar SMTP PROD con rollback fail-closed.
+- [ ] Sincronizar y validar las 13 plantillas Hosted Auth.
+- [ ] E2E real: OTP nuevo dispositivo, recovery, invite, resend, expiry, replay y mala conexión.
+- [ ] Activar reauthentication de cambio de contraseña después del E2E de correo.
+- [ ] Promover el siguiente lote sólo con Auth readiness GREEN.
+
+## P1 · gobernanza
+
 - [ ] Proteger `canary/rc74-4` con PR + required checks.
-- [ ] Mantener release por SHA exacto y rollback verificable.
+- [ ] Mantener documentación STATE/BACKLOG/RELEASE alineada con SHA real.
 
-## P1 · Device Experience Gate
+## P1 · experiencia por dispositivo / rol
 
-### Phase A · GREEN (PR #325)
-- [x] Cliente QA real: desktop 1440×1000.
-- [x] Cliente QA real: tablet portrait 1024×1366.
-- [x] Cliente QA real: tablet landscape 1366×1024.
-- [x] Cliente QA real: móvil 390×844.
-- [x] Coach: login + WebAuthn fail-closed en las cuatro clases.
-- [x] Admin sintético: desktop/tablet portrait/tablet landscape/móvil con tareas de formulario, focus y gestión.
-- [x] Suite PWA/update N-1→N separada GREEN.
-- [x] Política semántica: desktop=analizar/construir; tablet=entrenar/operar; móvil=actuar/completar.
-
-### Phase B · abierta
-- [ ] Coach post-WebAuthn seguro en las cuatro clases.
-- [ ] Admin autenticado QA real en desktop/tablet/móvil.
+- [x] Cliente QA real desktop/tablet/móvil.
+- [x] Coach fail-closed + Device Gate certificado en el lote actual.
+- [x] Admin sintético y PWA/update matrix certificados.
+- [x] Focus/input/select P0 corregido.
+- [x] Acciones Coach de un paso portadas sobre Canary certificado.
+- [ ] Admin autenticado QA real desktop/tablet/móvil.
+- [ ] Coach post-WebAuthn representativo en las cuatro clases.
 - [ ] Modal, scroll largo, teclado virtual/focus, error recovery y sesión live por dispositivo.
-
-Criterio: no basta renderizar; cada dispositivo debe validar tareas representativas.
+- [ ] Recertificar alta/edición/baja controlada de Cliente y Coach sin freezes.
 
 ## P1 · producto / entrenamiento
 
-- [ ] **Action Outcome Tracking**: registrar señal, decisión Coach, intervención y outcome.
-- [ ] **Preparar próxima sesión**: IRI + plan + última carga + feedback + dolor/recuperación + adherencia + pendientes; Coach confirma.
-- [ ] **IRI longitudinal**: reevaluación y progreso visible sin sobreinterpretar ruido.
-- [ ] **Reactivación asistida**: borrador contextual ante caída de adherencia; sin envío autónomo inicial.
-- [ ] **Hoy contextual**: una próxima acción prioritaria para Cliente.
+- [ ] **Preparar próxima sesión**: IRI inicial separado de evolución + plan + última carga + feedback + dolor/recuperación + adherencia + pendientes; Coach confirma.
+- [ ] **Action Outcome Tracking**: señal, decisión Coach, intervención y outcome.
+- [ ] **Seguimiento longitudinal**: progreso y reevaluaciones sin mezclar con el Diagnóstico IRI inicial.
+- [ ] Sesión Coach ultrarrápida: ejercicios, variantes, series, repeticiones, carga, descanso, alternativas, biseries/triseries/circuitos/AMRAP/Tabata y feedback.
+- [ ] **Reactivación asistida** ante caída de adherencia.
+- [ ] **Hoy contextual** con una próxima acción útil para Cliente.
+
+## P1 · seguridad / backend
+
+- [ ] Auditar por intención los 2 SECURITY DEFINER ejecutables por anon y los RPC privilegiados ejecutables por authenticated; confirmar checks internos antes de tocar grants.
+- [ ] Revisar las tablas RLS sin policy y documentar cuáles son deliberadamente inaccesibles por Data API.
+- [ ] Evaluar índices de FKs sólo contra consultas reales/EXPLAIN; no añadir 51 índices automáticamente.
+- [ ] Leaked password protection: disponible sólo en plan Supabase Pro; decidir upgrade por seguridad/operación, no activable en Free.
 
 ## P1 · negocio / escalabilidad
 
-- [ ] Funnel: lead -> conversación -> IRI -> cliente -> plan -> primera sesión -> 30/90/180.
+- [ ] Funnel lead -> conversación -> IRI -> cliente -> plan -> primera sesión -> 30/90/180.
 - [ ] Instrumentar reactivación, referral y revenue.
 - [ ] Medir minutos Coach/cliente/semana.
 - [ ] Medir clientes activos/Coach, ocupación, capacidad y margen/hora por modalidad.
 - [ ] Cohortes de adherencia/retención y outcome de intervenciones.
 
-## P2 · UX / visual
+## P2 · UX / visual / rendimiento
 
 - [ ] Unificar “requiere atención / siguiente acción” entre Cliente, Coach y Admin.
 - [ ] Progreso longitudinal con más jerarquía que tarjetas aisladas.
-- [ ] Menos contenedores, más espacio/tipografía cuando no comprometa información.
+- [ ] Menos contenedores; más espacio y tipografía sin perder densidad útil.
 - [ ] Empty states siempre accionables.
 - [ ] Gráficas responsive semánticas: móvil resume, desktop explora.
-
-## P2 · rendimiento / accesibilidad
-
-- [ ] Core Web Vitals / presupuesto por dispositivo en superficie productiva.
+- [ ] Core Web Vitals / presupuesto por dispositivo.
 - [ ] Auditoría manual de contraste, focus, teclado, lector y touch targets.
 - [ ] Medir arranque, auth bootstrap y navegación.
 - [ ] Mantener observabilidad sin exposición de datos.
 
-## Backend / seguridad
-
-- [x] PROD Supabase reconocido como baseline actual.
-- [x] Bundle SQL histórico `33656032685` retirado.
-- [x] WebAuthn productivo inventariado y mantenido fail-closed.
-- [ ] Cualquier cambio futuro DB = delta nuevo desde PROD live.
-
-## No priorizar ahora
-
-Marketplace, feed social, leaderboard general, chatbot genérico, gamificación decorativa o rediseño total mientras no cierren outcomes, multidispositivo y métricas de negocio.
-
 ## Siguientes 5 acciones
 
-1. Protección de Canary.
-2. Device Experience Gate Phase B.
-3. Action Outcome Tracking.
-4. Preparar próxima sesión.
-5. Instrumentación funnel/capacidad/revenue.
+1. SMTP Auth + DNS + E2E real.
+2. Protección de Canary.
+3. Admin/Coach authenticated device completion.
+4. Sesión Coach y CRUD diario sin freezes.
+5. Outcome tracking + funnel/capacidad/revenue.
