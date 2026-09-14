@@ -542,6 +542,14 @@ export function createProgressiveOnboardingController({
   }
 
   function ensureLauncher(context,state){
+    if(context.role==='client'){
+      root.querySelector?.('[data-progressive-onboarding-launcher]')?.remove?.();
+      for(const launcher of root.querySelectorAll?.('[data-m26-client-context-guide-open]')||[]){
+        launcher.removeAttribute?.('hidden');
+        setAttributeIfChanged(launcher,'aria-label','Abrir guía contextual de esta pantalla');
+      }
+      return;
+    }
     const host=root.querySelector?.('.m26-topbar-actions');
     if(!host)return;
     let launcher=root.querySelector?.('[data-progressive-onboarding-launcher]');
@@ -554,19 +562,11 @@ export function createProgressiveOnboardingController({
       launcher.setAttribute('data-progressive-onboarding-open','');
       host.prepend?.(launcher);
     }
-    if(context.role==='client'){
-      launcher.removeAttribute?.('data-m26-area');
-      launcher.removeAttribute?.('data-progressive-onboarding-open');
-      launcher.setAttribute?.('data-m26-client-context-guide-open','');
-      setTextIfChanged(launcher,'Guía');
-      setAttributeIfChanged(launcher,'aria-label','Abrir guía contextual de esta pantalla');
-    }else{
-      launcher.removeAttribute?.('data-m26-client-context-guide-open');
-      launcher.setAttribute?.('data-progressive-onboarding-open','');
-      setAttributeIfChanged(launcher,'data-m26-area',context.track.home);
-      setTextIfChanged(launcher,state.completed?'Guía completada':'Guía');
-      setAttributeIfChanged(launcher,'aria-label',state.completed?'Abrir guía progresiva completada':'Abrir guía progresiva');
-    }
+    launcher.removeAttribute?.('data-m26-client-context-guide-open');
+    launcher.setAttribute?.('data-progressive-onboarding-open','');
+    setAttributeIfChanged(launcher,'data-m26-area',context.track.home);
+    setTextIfChanged(launcher,state.completed?'Guía completada':'Guía');
+    setAttributeIfChanged(launcher,'aria-label',state.completed?'Abrir guía progresiva completada':'Abrir guía progresiva');
   }
 
   function panelRenderKey(context,state){
