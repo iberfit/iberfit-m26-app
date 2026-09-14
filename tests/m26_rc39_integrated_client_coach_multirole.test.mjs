@@ -98,6 +98,14 @@ test('extensión backend falla cerrada y no rompe el login cuando aún no está 
   assert.equal(out.changeRequestsAvailable,false);
 });
 
+test('selector Coach Admin permanece accesible en escritorio y dentro de Más en móvil',()=>{
+  const enhancer=read('src/m26/rc39/shell-enhancer.js');
+  assert.match(enhancer,/class="m26-sidebar-logout"[\s\S]*data-m26-action="logout"/u);
+  assert.match(enhancer,/m26-mobile-role-switch/u);
+  assert.match(enhancer,/role="group" aria-label="Cambiar aplicación"/u);
+  assert.match(enhancer,/data-m26-switch-role/u);
+});
+
 test('integración protege bloques summary_only y elimina navegación duplicada',()=>{
   const projection=read('src/m26/security/role-projection.js');
   const css=read('src/m26/rc39/rc39.css');

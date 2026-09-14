@@ -146,14 +146,16 @@ test('formularios móviles no quedan tapados por la navegación inferior',()=>{
   assert.match(html,/@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.m26-mobile-nav \{ transition: none; \}/u);
 });
 
-test('topbar estrecho conserva funciones con composición móvil determinista',()=>{
+test('topbar estrecho conserva solo contexto de trabajo y deja la cuenta en Más',()=>{
   const vm=createShellViewModel(readyState('coach'));
   const html=renderM26Shell(vm);
-  assert.match(html,/@media \(max-width: 580px\)[\s\S]*?\.m26-topbar-actions \{ width: 100%; display: grid; grid-template-columns: minmax\(0,1fr\) auto auto auto;/u);
-  assert.match(html,/\.m26-topbar-actions \.m26-client-selector, \.m26-topbar-actions \.m26-client-context \{ grid-column: 1 \/ -1; order: -2; width: 100%;/u);
-  assert.match(html,/\.m26-topbar-actions \.m26-coach-command-launcher \{ grid-column: 1; width: 100%; min-width: 0; max-width: 100%;/u);
+  assert.match(html,/@media \(max-width: 580px\)[\s\S]*?\.m26-topbar-actions \{ width: 100%; display: grid; grid-template-columns: minmax\(0,1fr\);/u);
+  assert.match(html,/\.m26-topbar-actions \.m26-client-selector, \.m26-topbar-actions \.m26-client-context \{ width: 100%; max-width: none; min-width: 0; \}/u);
+  assert.match(html,/\.m26-topbar-actions \.m26-coach-command-launcher \{ width: 100%; min-width: 0; max-width: 100%;/u);
   assert.match(html,/\.m26-topbar-actions \.m26-coach-command-launcher kbd \{ display: none; \}/u);
-  assert.match(html,/\.m26-topbar-actions \[data-m26-action="logout"\] \{ white-space: nowrap; padding-inline: \.65rem; font-size: \.82rem; \}/u);
+  assert.doesNotMatch(html,/\.m26-topbar-actions \[data-m26-action="logout"\]/u);
+  assert.match(html,/@media\(max-width:900px\)\{\.m26-sidebar\{display:none\}/u);
+  assert.equal((html.match(/data-m26-action="logout"/gu)||[]).length,1);
 });
 
 test('sidebar marca el grupo activo y permanece utilizable en escritorio',()=>{

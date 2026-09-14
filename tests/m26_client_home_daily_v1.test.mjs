@@ -88,10 +88,12 @@ test('Client Home exposes only useful daily context instead of sad-zero KPI card
   assert.match(html,/Fuerza Base/u);
   assert.match(html,/Diagnóstico IRI/u);
   assert.match(html,/Baseline confirmado/u);
-  assert.match(html,/Registrar bienestar/u);
-  assert.match(html,/Ver planificación/u);
-  assert.match(html,/Abrir sesiones/u);
-  assert.match(html,/Consultar informes/u);
+  assert.match(html,/class="m26-client-home-secondary-actions"/u);
+  assert.match(html,/>Bienestar<\/button>/u);
+  assert.match(html,/>Mensajes<\/button>/u);
+  assert.match(html,/>Informes<\/button>/u);
+  assert.match(html,/Tu punto de partida/u);
+  assert.doesNotMatch(html,/m26-client-home-actions/u);
   assert.doesNotMatch(html,/Sesiones confirmadas hoy/u);
 });
 
@@ -99,7 +101,8 @@ test('Client Home has explicit mobile-first responsive hierarchy',()=>{
   assert.match(css,/CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE/u);
   assert.match(css,/\.m26-client-home-primary-zone \.m26-today-action\.is-primary\{[\s\S]*?min-height:6\.8rem/u);
   assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-glance\{[\s\S]*?grid-template-columns:1fr/u);
-  assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-actions\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/u);
+  assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-secondary-actions\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/u);
+  assert.match(css,/\.m26-client-home-status\{[\s\S]*?border-left:1px solid/u);
 });
 
 test('stable Client Home copy is translated',()=>{

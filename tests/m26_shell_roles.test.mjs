@@ -120,7 +120,11 @@ test('shell renderiza marca y estructura accesible sin manejadores inline', () =
   assert.match(html, /id="m26-main"/);
   assert.doesNotMatch(html, /onclick=/i);
   assert.doesNotMatch(html, /<script/i);
-  assert.match(html, /Sin cambios locales pendientes/);
+  assert.doesNotMatch(html, /Sin cambios locales pendientes/);
+  assert.match(html, /<h1 id="m26-page-title">Hoy<\/h1>/u);
+  assert.match(html, /class="m26-sidebar-footer"/u);
+  assert.match(html, /data-m26-action="logout"/u);
+  assert.doesNotMatch(html, /m26-topbar-actions[^<]*[\s\S]{0,600}data-m26-action="logout"/u);
   assert.doesNotMatch(html, /Sin operaciones pendientes/);
   assert.doesNotMatch(html, /Todo sincronizado/);
   assert.doesNotMatch(html, /Todo confirmado/);

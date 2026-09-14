@@ -67,8 +67,17 @@ test('RC22 resumen wearable para check-in es explícito y no contiene datos crud
   assert.match(text,/revisado localmente/);assert.match(text,/Datos no sincronizados/);assert.doesNotMatch(text,/clientId|accepted|correo|token/i);assert.doesNotMatch(text,/sueño:/);
 });
 
-test('RC22 shell incorpora salto de contenido, título asociado y estado vivo',()=>{
-  const html=renderM26Shell(createShellViewModel(readyState()),'<section>Contenido</section>');assert.match(html,/m26-skip-link/);assert.match(html,/aria-labelledby="m26-page-title"/);assert.match(html,/m26-operation-status[^>]*role="status"/);assert.doesNotMatch(html,/aria-current="false"/);
+test('RC22 shell mantiene accesibilidad y reserva el estado vivo para operaciones accionables',()=>{
+  const clear=renderM26Shell(createShellViewModel(readyState()),'<section>Contenido</section>');
+  assert.match(clear,/m26-skip-link/);
+  assert.match(clear,/aria-labelledby="m26-page-title"/);
+  assert.doesNotMatch(clear,/m26-operation-status[^>]*role="status"/);
+  assert.doesNotMatch(clear,/aria-current="false"/);
+
+  const pendingState={...readyState(),pendingOperations:[{...command,status:'pending'}]};
+  const pending=renderM26Shell(createShellViewModel(pendingState),'<section>Contenido</section>');
+  assert.match(pending,/m26-operation-status[^>]*role="status"/);
+  assert.match(pending,/pendiente/u);
 });
 
 test('RC22 elimina marcadores operativos RC17 y respeta movimiento reducido',()=>{
