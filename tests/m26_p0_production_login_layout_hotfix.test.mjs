@@ -44,8 +44,12 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   assert.match(css,/\.m26-auth-page\{[^}]*display:grid;[^}]*place-items:center;/u);
   const authCardRule=css.match(/\.m26-auth-card\{([^}]*)\}/u)?.[1]||'';
   assert.match(authCardRule,/margin-block:auto(?:;|$)/u);
-  assert.match(authCardRule,/border-radius:1\.75rem/u);
-  assert.match(css,/PREAUTH PREMIUM ENTRY V2[\s\S]*?\.m26-auth-card\{[^}]*color-scheme:light[^}]*linear-gradient\(180deg,#fffdf8,#f8f4eb\)[^}]*box-shadow:/u);
+  assert.match(authCardRule,/border-radius:12px/u);
+  assert.match(css,/PREAUTH PREMIUM DIGITAL V3/u);
+  assert.match(css,/\.m26-auth-card\{[^}]*color-scheme:dark[^}]*linear-gradient\(155deg,rgba\(26,46,38,\.96\),rgba\(16,29,24,\.985\)\)[^}]*box-shadow:/u);
+  assert.match(css,/url\("\/public\/isotipo-iberfit\.png"\)/u);
+  assert.doesNotMatch(css,/color-scheme:light/u);
+  assert.doesNotMatch(css,/#fffdf8|#f8f4eb/iu);
   assert.match(css,/\.m26-auth-brand\{[^}]*justify-items:center/u);
   assert.match(css,/\.m26-auth-logo\{[^}]*object-fit:contain/u);
   assert.match(css,/\.m26-password-toggle/u);
@@ -53,7 +57,7 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   assert.match(css,/@media\(max-height:760px\) and \(min-width:581px\)/u);
   assert.match(css,/@media\(max-width:580px\)/u);
   assert.match(css,/\.m26-auth-notice\.is-error/u);
-  assert.match(css,/linear-gradient\(135deg,#dabb73,#c69d4e\)/u);
+  assert.match(css,/linear-gradient\(180deg,#D0AD63,#B88E43\)/u);
   assert.match(css,/\.m26-auth-card \[hidden\]\{display:none!important\}/u);
 
   const html=fs.readFileSync('public/m26/index.html','utf8');
@@ -74,6 +78,8 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   assert.match(html,/name="rememberEmail"/u);
   assert.doesNotMatch(html,/m26-notice is-warning/u);
   assert.match(html,/\/src\/m26\/design\/auth-native\.css/u);
+  assert.match(html,/\/src\/m26\/design\/iberfit-premium-v3\.css/u);
+  assert.match(html,/<meta name="theme-color" content="#0B1310">/u);
 
   const hash=crypto.createHash('sha256').update(inline,'utf8').digest('base64');
   const headers=fs.readFileSync('public/m26/_headers','utf8');

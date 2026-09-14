@@ -44,8 +44,8 @@ test('raster observations are not silently promoted to canonical recolor tokens'
 });
 
 test('product UI gold remains separate from the official raster logo recolor policy',()=>{
-  assert.equal(tokens.color.primitive.gold500,'#b99856');
-  assert.equal(tokens.color.primitive.gold300,'#d8c08a');
+  assert.equal(tokens.color.primitive.gold500,'#C5A059');
+  assert.equal(tokens.color.primitive.gold300,'#D7BA7C');
   assert.equal(truth.colorPolicy.productUiGold500,tokens.color.primitive.gold500);
   assert.equal(truth.colorPolicy.productUiGold300,tokens.color.primitive.gold300);
   assert.equal(truth.colorPolicy.productUiGoldsAreLogoRecolorValues,false);

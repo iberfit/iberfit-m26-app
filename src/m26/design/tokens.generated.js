@@ -8,53 +8,53 @@ function deepFreeze(value){
 }
 
 export const IBERFIT_DESIGN_TOKENS=deepFreeze({
-  "version": "58.2.0",
+  "version": "58.3.0",
   "meta": {
-    "name": "IBERFIT Premium Dark",
+    "name": "IBERFIT Premium Digital",
     "sourceOfTruth": true,
-    "visualDelta": "dark-premium-v2",
+    "visualDelta": "premium-digital-v3",
     "accessibilityBaseline": "WCAG 2.2 AA",
     "touchTargetRecommendedPx": 44
   },
   "color": {
     "primitive": {
-      "forest950": "#09130f",
-      "forest900": "#121f1b",
-      "forest800": "#182c25",
-      "forest700": "#244536",
-      "gold500": "#b99856",
-      "gold300": "#d8c08a",
-      "cream100": "#f4f4f0",
-      "cream300": "#d7d6cf",
-      "muted": "#b6bbb4",
-      "danger": "#d58e86",
-      "success": "#79b792",
+      "forest950": "#0B1310",
+      "forest900": "#13221C",
+      "forest800": "#1A2E26",
+      "forest700": "#254338",
+      "gold500": "#C5A059",
+      "gold300": "#D7BA7C",
+      "cream100": "#F5F5F0",
+      "cream300": "#CDD4D0",
+      "muted": "#9AA8A1",
+      "danger": "#F87171",
+      "success": "#10B981",
       "warning": "#d8b66f",
       "info": "#83a9bf",
       "lavender": "#bca8c8",
-      "admin": "#78a18e"
+      "admin": "#C5A059"
     },
     "semantic": {
-      "canvas": "#09130f",
-      "surfaceBase": "#121f1b",
-      "surfaceRaised": "rgba(20,35,30,0.92)",
-      "surfaceOverlay": "rgba(9,19,15,0.97)",
-      "textPrimary": "#f4f4f0",
-      "textSecondary": "#b6bbb4",
-      "textSubtle": "#d7d6cf",
-      "accent": "#b99856",
-      "accentStrong": "#d8c08a",
-      "border": "rgba(216,192,138,0.16)",
-      "borderStrong": "rgba(216,192,138,0.30)",
-      "focus": "#e3cc95",
-      "success": "#79b792",
+      "canvas": "#0B1310",
+      "surfaceBase": "#13221C",
+      "surfaceRaised": "rgba(26,46,38,0.94)",
+      "surfaceOverlay": "rgba(11,19,16,0.98)",
+      "textPrimary": "#F5F5F0",
+      "textSecondary": "#9AA8A1",
+      "textSubtle": "#CDD4D0",
+      "accent": "#C5A059",
+      "accentStrong": "#D7BA7C",
+      "border": "rgba(197,160,89,0.15)",
+      "borderStrong": "rgba(197,160,89,0.30)",
+      "focus": "#D7BA7C",
+      "success": "#10B981",
       "warning": "#d8b66f",
-      "danger": "#d58e86",
+      "danger": "#F87171",
       "info": "#83a9bf"
     },
     "role": {
-      "adminAccent": "#78a18e",
-      "adminAccentSoft": "rgba(120,161,142,0.14)"
+      "adminAccent": "#C5A059",
+      "adminAccentSoft": "rgba(197,160,89,0.12)"
     },
     "dataViz": {
       "series1": "#7fa894",
@@ -78,16 +78,16 @@ export const IBERFIT_DESIGN_TOKENS=deepFreeze({
     "8": 64
   },
   "radius": {
-    "sm": 10.4,
-    "md": 14.4,
-    "lg": 20,
-    "xl": 24,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 20,
     "pill": 999
   },
   "shadow": {
-    "subtle": "0 12px 34px rgba(2,10,7,0.16)",
-    "elevated": "0 24px 70px rgba(2,10,7,0.28)",
-    "floating": "0 24px 55px rgba(0,0,0,0.46)"
+    "subtle": "0 10px 28px rgba(0,0,0,0.14)",
+    "elevated": "0 18px 48px rgba(0,0,0,0.20)",
+    "floating": "0 24px 64px rgba(0,0,0,0.32)"
   },
   "typography": {
     "family": {

@@ -1,0 +1,415 @@
+/* IBERFIT Premium Digital System V3
+ * Visual-only master layer. No routing, permissions, data, business logic or behavior changes.
+ * Direction: dark precision, warm ivory, restrained satin gold, real IBERFIT isotipo watermark.
+ */
+
+:root{
+  --iberfit-v3-canvas:#0B1310;
+  --iberfit-v3-surface:#13221C;
+  --iberfit-v3-surface-raised:#1A2E26;
+  --iberfit-v3-surface-deep:#0E1A15;
+  --iberfit-v3-text:#F5F5F0;
+  --iberfit-v3-text-secondary:#9AA8A1;
+  --iberfit-v3-gold:#C5A059;
+  --iberfit-v3-gold-soft:rgba(197,160,89,.15);
+  --iberfit-v3-line:rgba(197,160,89,.15);
+  --iberfit-v3-line-soft:rgba(245,245,240,.07);
+  --iberfit-v3-success:#10B981;
+  --iberfit-v3-danger:#EF4444;
+  --iberfit-v3-radius-card:12px;
+  --iberfit-v3-radius-btn:8px;
+  --iberfit-v3-shadow:0 18px 48px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.018);
+  --iberfit-color-canvas:var(--iberfit-v3-canvas);
+  --iberfit-color-surface-base:var(--iberfit-v3-surface);
+  --iberfit-color-surface-raised:var(--iberfit-v3-surface-raised);
+  --iberfit-color-text-primary:var(--iberfit-v3-text);
+  --iberfit-color-text-secondary:var(--iberfit-v3-text-secondary);
+  --iberfit-color-accent:var(--iberfit-v3-gold);
+  --iberfit-color-border:var(--iberfit-v3-line);
+  --m26-forest-950:var(--iberfit-v3-canvas);
+  --m26-forest-900:var(--iberfit-v3-surface);
+  --m26-forest-800:var(--iberfit-v3-surface-raised);
+  --m26-gold-500:var(--iberfit-v3-gold);
+  --m26-cream-100:var(--iberfit-v3-text);
+  --m26-cream-300:var(--iberfit-v3-text-secondary);
+  --m26-muted:var(--iberfit-v3-text-secondary);
+  --m26-line:var(--iberfit-v3-line);
+}
+
+/* ---------- Authentication: same visual language from first paint onward ---------- */
+.m26-auth-page{
+  position:relative;
+  overflow:hidden;
+  color-scheme:dark;
+  color:var(--iberfit-v3-text);
+  background:
+    radial-gradient(circle at 80% 12%,rgba(197,160,89,.055),transparent 24rem),
+    linear-gradient(145deg,#0D1713 0%,var(--iberfit-v3-canvas) 52%,#080F0C 100%);
+}
+.m26-auth-page::after{
+  content:'';
+  position:fixed;
+  width:min(54vw,42rem);
+  aspect-ratio:1;
+  right:-10rem;
+  bottom:-13rem;
+  z-index:0;
+  pointer-events:none;
+  opacity:.035;
+  background:url('/public/isotipo-iberfit.png') center/contain no-repeat;
+  filter:grayscale(1) brightness(2.2);
+}
+.m26-auth-stage{position:relative;z-index:1}
+.m26-auth-intro::before{display:none!important}
+.m26-auth-intro h2,
+.m26-auth-card h1{font-family:var(--iberfit-font-family-ui,Inter,ui-sans-serif,system-ui,sans-serif)!important}
+.m26-auth-card{
+  color-scheme:dark!important;
+  color:var(--iberfit-v3-text)!important;
+  border:1px solid var(--iberfit-v3-line)!important;
+  border-radius:var(--iberfit-v3-radius-card)!important;
+  background:
+    linear-gradient(155deg,rgba(26,46,38,.96),rgba(16,29,24,.985))!important;
+  box-shadow:0 28px 72px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.025)!important;
+  backdrop-filter:blur(18px)!important;
+  -webkit-backdrop-filter:blur(18px)!important;
+}
+.m26-auth-card::before{
+  left:8%!important;
+  width:84%!important;
+  opacity:.58!important;
+  background:linear-gradient(90deg,transparent,rgba(197,160,89,.42),transparent)!important;
+}
+.m26-auth-logo{
+  border-color:rgba(197,160,89,.22)!important;
+  background:rgba(11,19,16,.72)!important;
+  box-shadow:0 12px 28px rgba(0,0,0,.22)!important;
+}
+.m26-auth-card .m26-eyebrow,
+.m26-auth-kicker,
+.m26-auth-intro-kicker{color:#D7BA7C!important}
+.m26-auth-card h1,
+.m26-auth-card label,
+.m26-auth-intro h2,
+.m26-auth-pillars dt{color:var(--iberfit-v3-text)!important}
+.m26-auth-copy>p:last-child,
+.m26-auth-card>p,
+.m26-auth-intro-copy>p:last-child,
+.m26-auth-intro-trust,
+.m26-auth-pillars dd,
+.m26-auth-card small,
+.m26-auth-card .m26-remember-email{color:var(--iberfit-v3-text-secondary)!important}
+.m26-auth-pillars>div{
+  border-color:var(--iberfit-v3-line)!important;
+  background:rgba(19,34,28,.58)!important;
+}
+.m26-auth-card form,
+.m26-auth-actions{border-top-color:var(--iberfit-v3-line-soft)!important}
+.m26-auth-card input{
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.16)!important;
+  background:#0E1A15!important;
+  caret-color:var(--iberfit-v3-gold)!important;
+}
+.m26-auth-card input::placeholder{color:#718078!important}
+.m26-password-toggle{
+  color:#D9C28B!important;
+  background:rgba(197,160,89,.08)!important;
+}
+.m26-auth-card button{
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.14)!important;
+  background:#172720!important;
+}
+.m26-auth-card .m26-primary-action{
+  color:#17150F!important;
+  border-color:#D0AE67!important;
+  background:linear-gradient(180deg,#D0AD63,#B88E43)!important;
+  box-shadow:0 10px 28px rgba(140,104,42,.18),inset 0 1px rgba(255,255,255,.20)!important;
+}
+.m26-auth-card .m26-auth-link{color:#D8BC7B!important;background:transparent!important}
+.m26-notice,.m26-auth-notice{
+  color:var(--iberfit-v3-text-secondary)!important;
+  border-color:var(--iberfit-v3-line)!important;
+  background:rgba(197,160,89,.055)!important;
+}
+
+/* ---------- Global shell ---------- */
+.m26-shell{
+  position:relative;
+  isolation:isolate;
+  color-scheme:dark!important;
+  color:var(--iberfit-v3-text)!important;
+  background:var(--iberfit-v3-canvas)!important;
+}
+.m26-shell .m26-workspace{
+  position:relative;
+  isolation:isolate;
+  color:var(--iberfit-v3-text)!important;
+  background:
+    radial-gradient(circle at 94% 3%,rgba(197,160,89,.035),transparent 26rem),
+    linear-gradient(160deg,#0C1612 0%,var(--iberfit-v3-canvas) 58%,#09100D 100%)!important;
+}
+.m26-shell .m26-workspace::before{
+  content:'';
+  position:fixed;
+  width:min(36vw,30rem);
+  aspect-ratio:1;
+  top:7rem;
+  right:-7rem;
+  z-index:0;
+  pointer-events:none;
+  opacity:.022;
+  background:url('/public/isotipo-iberfit.png') center/contain no-repeat;
+  filter:grayscale(1) brightness(2.4);
+}
+.m26-shell .m26-workspace>*{position:relative;z-index:1}
+.m26-shell .m26-main{color:var(--iberfit-v3-text)!important;background:transparent!important}
+.m26-shell .m26-topbar{
+  color:var(--iberfit-v3-text)!important;
+  border-bottom:1px solid rgba(197,160,89,.09)!important;
+  background:rgba(11,19,16,.94)!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.14)!important;
+  backdrop-filter:blur(18px) saturate(1.04)!important;
+}
+.m26-shell .m26-sidebar{
+  border-right:1px solid rgba(197,160,89,.10)!important;
+  background:linear-gradient(180deg,#11241B 0%,#0D1C16 58%,#0A1511 100%)!important;
+}
+.m26-shell .m26-brand img{filter:none!important}
+.m26-shell .m26-brand strong,
+.m26-shell :is(h1,h2,h3,h4,strong){color:var(--iberfit-v3-text)}
+.m26-shell :is(p,small,.m26-muted){color:var(--iberfit-v3-text-secondary)}
+
+/* Navigation: selection is readable, gold is reserved for state and priority. */
+.m26-shell .m26-nav-group h2,
+.m26-shell .m26-eyebrow,
+.m26-shell .m26-workspace-section-title,
+.m26-shell .m26-sidebar-footer span{
+  color:#CDB071!important;
+}
+.m26-shell .m26-nav-item{
+  color:#AAB5AF!important;
+  border-radius:var(--iberfit-v3-radius-btn)!important;
+}
+.m26-shell .m26-nav-item:hover{
+  color:var(--iberfit-v3-text)!important;
+  background:rgba(245,245,240,.045)!important;
+}
+.m26-shell .m26-nav-item.is-active{
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.18)!important;
+  background:linear-gradient(90deg,rgba(197,160,89,.12),rgba(197,160,89,.035))!important;
+  box-shadow:inset 3px 0 0 var(--iberfit-v3-gold)!important;
+}
+
+/* ---------- Surface system: remove white/light islands ---------- */
+.m26-shell .m26-workspace :is(
+  .m26-workspace-hero,.m26-workspace-action,.m26-panel,.m26-panel-soft,.m26-stat,
+  .m26-list-card,.m26-client-card,.m26-library-card,.m26-publication-card,
+  .m26-client-content-card,.m26-admin-panel,.m26-admin-stat,.m26-admin-priority,
+  .m26-admin-table,.m26-admin-empty,.m26-rc39-session-card,.m26-wearable-source,
+  .m26-wearable-preview,.m26-route-placeholder,.iberfit-card,.iberfit-panel,
+  .iberfit-metric,.m27-cliente-360,.m27-cliente-360-card,.m29-proof-card,
+  .m30-planning-overview,.m26-field,.m26-coach-action-center,
+  .m26-admin-user-directory-tools,.m26-admin-user-management
+){
+  color:var(--iberfit-v3-text)!important;
+  border-color:var(--iberfit-v3-line)!important;
+  border-radius:var(--iberfit-v3-radius-card)!important;
+  background:linear-gradient(150deg,rgba(19,34,28,.96),rgba(14,26,21,.985))!important;
+  box-shadow:var(--iberfit-v3-shadow)!important;
+}
+.m26-shell .m26-workspace :is(
+  .m26-stat,.m26-admin-stat,.iberfit-metric
+){
+  background:
+    radial-gradient(circle at 100% 0%,rgba(197,160,89,.055),transparent 9rem),
+    linear-gradient(150deg,#172820,#101D18)!important;
+}
+.m26-shell .m26-workspace :is(
+  .m26-panel-soft,.m26-field
+){background:#101E18!important}
+.m26-shell .m26-workspace :is(
+  .m26-stat strong,.m26-admin-stat strong,.iberfit-metric-value,.m26-mini-metric strong
+){color:var(--iberfit-v3-text)!important}
+.m26-shell .m26-workspace :is(
+  .m26-stat span,.m26-admin-stat span,.iberfit-metric-label,.m26-mini-metric span
+){color:var(--iberfit-v3-text-secondary)!important}
+
+/* Inputs and controls */
+.m26-shell .m26-workspace :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea){
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.14)!important;
+  border-radius:var(--iberfit-v3-radius-btn)!important;
+  background:#0E1B16!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.018)!important;
+}
+.m26-shell .m26-workspace :is(input,textarea)::placeholder{color:#748179!important}
+.m26-shell .m26-workspace :is(input,select,textarea):focus-visible{
+  border-color:rgba(197,160,89,.55)!important;
+  outline:3px solid rgba(197,160,89,.16)!important;
+  outline-offset:2px!important;
+}
+.m26-shell .m26-workspace :is(
+  .m26-text-action,.m26-icon-button,.iberfit-button[data-variant="quiet"],
+  .m26-inline-actions button,.m26-action-grid button
+){
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.14)!important;
+  border-radius:var(--iberfit-v3-radius-btn)!important;
+  background:#172720!important;
+  box-shadow:none!important;
+}
+.m26-shell .m26-workspace :is(.m26-primary-action,.iberfit-button[data-variant="primary"]){
+  color:#17150F!important;
+  border-color:#D0AD63!important;
+  border-radius:var(--iberfit-v3-radius-btn)!important;
+  background:linear-gradient(180deg,#D1AE65,#B98F44)!important;
+  box-shadow:0 10px 24px rgba(134,100,39,.16),inset 0 1px rgba(255,255,255,.20)!important;
+  font-weight:760!important;
+}
+.m26-shell .m26-workspace :is(.m26-primary-action,.iberfit-button[data-variant="primary"]):hover:not(:disabled){
+  background:linear-gradient(180deg,#DCBC76,#C29A50)!important;
+}
+
+/* Status has meaning; gold is not used as a generic success color. */
+.m26-shell .m26-workspace :is(.m26-badge,.m26-chip,.iberfit-badge,.iberfit-chip){
+  color:#C6D0CA!important;
+  border-color:rgba(245,245,240,.08)!important;
+  background:#172720!important;
+}
+.m26-shell .m26-workspace :is(.m26-badge.is-success,.iberfit-badge[data-tone="success"]){
+  color:#8DE0BD!important;
+  border-color:rgba(16,185,129,.22)!important;
+  background:rgba(16,185,129,.085)!important;
+}
+.m26-shell .m26-workspace :is(.m26-notice.is-danger,.m26-badge.is-danger,.iberfit-badge[data-tone="danger"]){
+  color:#FFA3A3!important;
+  border-color:rgba(239,68,68,.28)!important;
+  background:rgba(239,68,68,.085)!important;
+}
+
+/* Tables and dense admin surfaces */
+.m26-shell .m26-workspace :is(.m26-admin-table,.iberfit-table-shell){
+  overflow:auto;
+  color:var(--iberfit-v3-text)!important;
+  border:1px solid var(--iberfit-v3-line)!important;
+  background:#101D18!important;
+}
+.m26-shell .m26-workspace :is(.m26-admin-table,.iberfit-table-shell) table{color:var(--iberfit-v3-text)!important;background:transparent!important}
+.m26-shell .m26-workspace :is(.m26-admin-table,.iberfit-table-shell) th{
+  color:#CDB071!important;
+  background:#15251E!important;
+  border-bottom-color:rgba(197,160,89,.10)!important;
+}
+.m26-shell .m26-workspace :is(.m26-admin-table,.iberfit-table-shell) td{
+  color:#C5CEC8!important;
+  border-bottom-color:rgba(245,245,240,.055)!important;
+}
+.m26-shell .m26-workspace :is(.m26-admin-table,.iberfit-table-shell) tbody tr:hover{background:rgba(197,160,89,.035)!important}
+
+/* Admin command center */
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route{
+  --m26-admin-surface:#13221C;
+  --m26-admin-surface-soft:#101D18;
+  --m26-admin-surface-interactive:#1A2E26;
+  --m26-admin-border:var(--iberfit-v3-line);
+  --m26-admin-border-strong:rgba(197,160,89,.26);
+  --m26-admin-accent:var(--iberfit-v3-gold);
+  color:var(--iberfit-v3-text)!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m30-admin-command-route>.m26-admin-hero,
+.m26-shell[data-m26-role="admin"] .m26-workspace .m30-admin-decision-center{
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.18)!important;
+  background:
+    radial-gradient(circle at 95% 0%,rgba(197,160,89,.07),transparent 18rem),
+    linear-gradient(145deg,#172A22,#101E18)!important;
+}
+
+/* Coach: low cognitive load, priority first */
+.m26-shell[data-m26-role="coach"] .m26-coach-home-command{
+  border-color:rgba(197,160,89,.18)!important;
+  border-radius:var(--iberfit-v3-radius-card)!important;
+  background:
+    radial-gradient(circle at 96% 0%,rgba(197,160,89,.075),transparent 18rem),
+    linear-gradient(145deg,#172B22,#101E18)!important;
+  box-shadow:var(--iberfit-v3-shadow)!important;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-glance,
+.m26-shell[data-m26-role="coach"] .m26-coach-home-quick button{
+  border-color:rgba(197,160,89,.11)!important;
+  background:#14241D!important;
+}
+.m26-shell[data-m26-role="coach"] .m26-coach-home-quick button:hover{background:#192D24!important}
+.m26-shell[data-m26-role="coach"] :is(.m26-client-card.is-active,.m26-client-card[aria-current="true"],[data-selected-client="true"]){
+  border-color:rgba(197,160,89,.42)!important;
+  background:linear-gradient(145deg,#1A2E26,#14241D)!important;
+  box-shadow:inset 3px 0 0 var(--iberfit-v3-gold),var(--iberfit-v3-shadow)!important;
+}
+
+/* Client: tactile execution, not dashboard density */
+.m26-shell[data-m26-role="client"] .m26-workspace :is(
+  .m26-profile-hero,.m26-profile-hero-premium,.m26-hero-panel,.m26-today-hero,.m26-session-live-hero
+){
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.18)!important;
+  background:
+    radial-gradient(circle at 96% 0%,rgba(197,160,89,.09),transparent 15rem),
+    linear-gradient(145deg,#172B22,#0F1D17)!important;
+  box-shadow:var(--iberfit-v3-shadow)!important;
+}
+.m26-shell[data-m26-role="client"] .m26-workspace :is(
+  .m26-profile-hero,.m26-profile-hero-premium,.m26-hero-panel,.m26-today-hero,.m26-session-live-hero
+) :is(p,small,span:not(.m26-badge)){color:#A8B3AD!important}
+.m26-shell[data-m26-role="client"] .m26-workspace .m26-primary-action{min-height:52px}
+.m26-shell[data-m26-role="client"] .m26-workspace :is(button,input,select){touch-action:manipulation}
+
+/* Settings and bottom navigation keep continuity with the shell. */
+.m26-shell .m26-workspace .m26-settings-popover,
+.m26-shell .m26-workspace .m26-mobile-more-menu{
+  color-scheme:dark!important;
+  color:var(--iberfit-v3-text)!important;
+  border-color:var(--iberfit-v3-line)!important;
+  background:#11211A!important;
+}
+.m26-shell .m26-workspace .m26-mobile-nav{
+  color-scheme:dark!important;
+  border-top:1px solid rgba(197,160,89,.11)!important;
+  background:rgba(11,19,16,.98)!important;
+  box-shadow:0 -10px 26px rgba(0,0,0,.18)!important;
+}
+.m26-shell .m26-workspace .m26-mobile-nav .m26-nav-item{color:#88968F!important}
+.m26-shell .m26-workspace .m26-mobile-nav .m26-nav-item.is-active{
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.14)!important;
+  background:rgba(197,160,89,.075)!important;
+  box-shadow:inset 0 2px 0 var(--iberfit-v3-gold)!important;
+}
+
+/* Responsive density */
+@media(max-width:900px){
+  .m26-shell .m26-workspace::before{width:min(52vw,22rem);right:-7rem;top:5rem;opacity:.018}
+  .m26-shell .m26-topbar{background:rgba(11,19,16,.97)!important}
+}
+@media(max-width:719px){
+  .m26-shell .m26-workspace .m26-topbar{
+    color:var(--iberfit-v3-text)!important;
+    background:rgba(11,19,16,.98)!important;
+  }
+  .m26-shell .m26-workspace .m26-main{
+    padding:.78rem max(.72rem,env(safe-area-inset-right)) calc(5.9rem + env(safe-area-inset-bottom)) max(.72rem,env(safe-area-inset-left));
+  }
+  .m26-shell .m26-workspace :is(.m26-panel,.m26-stat,.m26-list-card,.m26-client-card,.m26-admin-panel,.m26-admin-stat,.iberfit-card,.iberfit-panel,.iberfit-metric){
+    border-radius:10px!important;
+  }
+  .m26-auth-page::after{width:74vw;right:-26vw;bottom:-10vw;opacity:.028}
+}
+
+/* High contrast remains readable without turning the product white. */
+@media(prefers-contrast:more){
+  .m26-shell .m26-workspace :is(.m26-panel,.m26-stat,.m26-admin-panel,.m26-admin-stat,.m26-list-card,.m26-client-card){
+    border-color:rgba(245,245,240,.30)!important;
+  }
+}
