@@ -246,6 +246,9 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={})
     iri: compactIri(summary.iri),
     cycle: summary.cycle
       ? {
+          id: text(summary.cycle, 'id') || null,
+          revision: Number(text(summary.cycle, 'revision') || 0),
+          updatedAt: text(summary.cycle, 'updatedAt', 'updated_at', 'modifiedAt', 'modified_at') || domainDate(summary.cycle) || null,
           name:
             text(summary.cycle, 'name', 'nombre', 'title', 'titulo') ||
             'Ciclo de entrenamiento',
@@ -392,6 +395,12 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
           Number(item.current||0)>0
         )
       )||null;
+    const clientGuide=
+      overview.role==='client'
+        ?Object.freeze({
+            adherenceReview:alerts.some((item)=>item?.id==='adherence-low'),
+          })
+        :null;
 
     qaStage('rc64-hoy-ready');
 
@@ -404,6 +413,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
       clients: Object.freeze(clients),
       coachCockpit,
       challengePreview:challengePreview?Object.freeze({...challengePreview}):null,
+      clientGuide,
       operations: Object.freeze(overview.operations),
       alerts: Object.freeze(alerts),
       alertSignal: Object.freeze(adherenceSignal(alerts)),

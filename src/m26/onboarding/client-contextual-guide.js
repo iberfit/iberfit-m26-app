@@ -16,10 +16,14 @@ const SOURCE_COPY=Object.freeze({
   launcher:'Guía',
   'client-context-today.title':'Este es tu día en IBERFIT',
   'client-context-today.body':'Aquí verás lo importante sin tener que buscarlo. IBERFIT prioriza lo que tiene sentido ahora: entrenar, registrar cómo estás o continuar con el siguiente paso.',
-  'client-moment-plan-ready.title':'Tu planificación ya está disponible',
-  'client-moment-plan-ready.body':'Tu Coach ya ha dejado contenido preparado para ti. Puedes entrar ahora y ver cómo encajan las próximas sesiones dentro de tu proceso.',
-  'client-moment-session-ready.title':'Ya tienes una sesión preparada',
-  'client-moment-session-ready.body':'Hay un entrenamiento disponible para ti. Cuando quieras empezar, IBERFIT te irá mostrando ejercicios, series, carga, descansos e indicaciones sin sacarte del flujo.',
+  'client-moment-plan-ready.title':'Tu planificación tiene novedades',
+  'client-moment-plan-ready.body':'Tu Coach ha preparado o actualizado tu planificación. Puedes entrar para ver qué ha cambiado y cómo encajan las próximas sesiones dentro de tu proceso.',
+  'client-moment-session-ready.title':'Tu entrenamiento tiene novedades',
+  'client-moment-session-ready.body':'Hay una sesión nueva o actualizada disponible para ti. Cuando quieras empezar, IBERFIT te irá mostrando ejercicios, series, carga, descansos e indicaciones sin sacarte del flujo.',
+  'client-moment-adherence-review.title':'Tu continuidad merece una revisión',
+  'client-moment-adherence-review.body':'Con suficientes sesiones planificadas para comparar, la continuidad confirmada de las últimas semanas está por debajo de lo previsto. Ver Progreso puede ayudarte a revisar qué está ocurriendo sin asumir una causa.',
+  'client-moment-progress-meaningful.title':'Ya hay historial suficiente para leer una tendencia',
+  'client-moment-progress-meaningful.body':'Ahora hay varios datos confirmados que permiten comparar parte de tu evolución con más contexto. IBERFIT muestra tendencias y adherencia, pero no atribuye causas automáticamente.',
   'client-context-plan.title':'Tu planificación ya tiene contexto',
   'client-context-plan.body':'Aquí encontrarás lo que tu Coach ha preparado para ti y cómo encajan tus sesiones dentro del proceso.',
   'client-context-session.title':'Este es el espacio para entrenar',
@@ -46,8 +50,19 @@ const TIPS=Object.freeze([
     priority:120,
     area:'hoy',
     actionArea:'sesion',
-    seenAlso:Object.freeze(['client-context-session']),
+    repeatOnEvent:true,
+    seenAlso:Object.freeze(['client-context-session','client-context-plan-ready']),
     selectors:Object.freeze(['[data-m26-client-guide="session-entry"]']),
+  }),
+  Object.freeze({
+    id:'client-moment-adherence-review',
+    copyId:'client-moment-adherence-review',
+    kind:'moment',
+    priority:110,
+    area:'hoy',
+    actionArea:'progreso',
+    seenAlso:Object.freeze(['client-context-progress','client-moment-progress-meaningful']),
+    selectors:Object.freeze(['[data-m26-client-guide="adherence-entry"]']),
   }),
   Object.freeze({
     id:'client-context-plan-ready',
@@ -56,6 +71,7 @@ const TIPS=Object.freeze([
     priority:100,
     area:'hoy',
     actionArea:'planificacion',
+    repeatOnEvent:true,
     seenAlso:Object.freeze(['client-context-plan']),
     selectors:Object.freeze(['[data-m26-client-guide="plan-entry"]']),
   }),
@@ -66,6 +82,7 @@ const TIPS=Object.freeze([
     priority:90,
     area:'hoy',
     actionArea:'retos',
+    repeatOnEvent:true,
     seenAlso:Object.freeze(['client-context-challenges']),
     selectors:Object.freeze(['[data-m26-client-guide="challenge-entry"]']),
   }),
@@ -104,10 +121,19 @@ const TIPS=Object.freeze([
     selectors:Object.freeze(['[data-m26-client-guide="session-surface"]']),
   }),
   Object.freeze({
+    id:'client-moment-progress-meaningful',
+    copyId:'client-moment-progress-meaningful',
+    kind:'moment',
+    priority:100,
+    area:'progreso',
+    seenAlso:Object.freeze(['client-context-progress']),
+    selectors:Object.freeze(['[data-m26-client-guide-insight="progress-ready"]']),
+  }),
+  Object.freeze({
     id:'client-context-progress',
     copyId:'client-context-progress',
-    kind:'moment',
-    priority:80,
+    kind:'orientation',
+    priority:60,
     area:'progreso',
     selectors:Object.freeze(['[data-m26-client-guide="progress-surface"]']),
   }),
@@ -278,10 +304,17 @@ export function normalizeClientContextualGuideState(value={}){
       .map((item)=>txt(item,80))
       .filter((item)=>allowed.has(item))
   ));
+  const eventKeys=(items)=>Array.from(new Set(
+    (Array.isArray(items)?items:[])
+      .map((item)=>txt(item,120))
+      .filter((item)=>/^client-[a-z0-9-]+:[a-f0-9]{8}$/u.test(item))
+  )).slice(-64);
   return Object.freeze({
     schemaVersion:CLIENT_CONTEXTUAL_GUIDE_SCHEMA_VERSION,
     seenTipIds:Object.freeze(unique(value?.seenTipIds)),
     dismissedTipIds:Object.freeze(unique(value?.dismissedTipIds)),
+    seenEventKeys:Object.freeze(eventKeys(value?.seenEventKeys)),
+    dismissedEventKeys:Object.freeze(eventKeys(value?.dismissedEventKeys)),
     legacyMigrated:Boolean(value?.legacyMigrated),
   });
 }
@@ -339,6 +372,19 @@ function target(root,tip){
     if(node)return node;
   }
   return null;
+}
+function eventReceiptKey(tip,node){
+  if(tip?.repeatOnEvent!==true||!node)return null;
+  const raw=txt(node.getAttribute?.('data-m26-client-guide-event-key'),240);
+  return raw?`${tip.id}:${h(raw)}`:null;
+}
+function tipAvailableInState(tip,node,state,{force=false}={}){
+  if(force)return true;
+  const eventKey=eventReceiptKey(tip,node);
+  if(eventKey){
+    return !state.seenEventKeys.includes(eventKey)&&!state.dismissedEventKeys.includes(eventKey);
+  }
+  return !state.seenTipIds.includes(tip.id)&&!state.dismissedTipIds.includes(tip.id);
 }
 function ensureStyle(doc){
   let node=doc?.querySelector?.('[data-m26-client-context-guide-style]');
@@ -484,6 +530,8 @@ export function createClientContextualGuideController({
     const merged=normalizeClientContextualGuideState({
       seenTipIds:[...current.seenTipIds,...legacy.seenTipIds],
       dismissedTipIds:[...current.dismissedTipIds,...legacy.dismissedTipIds],
+      seenEventKeys:current.seenEventKeys,
+      dismissedEventKeys:current.dismissedEventKeys,
       legacyMigrated:true,
     });
     repo.write(ctx.key,merged);
@@ -494,6 +542,8 @@ export function createClientContextualGuideController({
     repo.write(ctx.key,{
       seenTipIds:patch.seenTipIds||current.seenTipIds,
       dismissedTipIds:patch.dismissedTipIds||current.dismissedTipIds,
+      seenEventKeys:patch.seenEventKeys||current.seenEventKeys,
+      dismissedEventKeys:patch.dismissedEventKeys||current.dismissedEventKeys,
       legacyMigrated:true,
     });
   }
@@ -515,25 +565,40 @@ export function createClientContextualGuideController({
       try{focus?.focus?.({preventScroll:true});}catch{}
     }
   }
-  function markSeen(ctx,tip){
+  function markSeen(ctx,tip,node=activeTarget){
     const state=stateWithLegacy(ctx);
-    persist(ctx,{seenTipIds:[
-      ...state.seenTipIds,
-      tip.id,
-      ...(Array.isArray(tip.seenAlso)?tip.seenAlso:[]),
-    ]});
+    const linkedTips=(Array.isArray(tip.seenAlso)?tip.seenAlso:[])
+      .map((id)=>TIPS.find((candidate)=>candidate.id===id))
+      .filter(Boolean);
+    const eventKeys=[
+      eventReceiptKey(tip,node),
+      ...linkedTips.map((linked)=>eventReceiptKey(linked,target(root,linked))),
+    ].filter(Boolean);
+    persist(ctx,{
+      seenTipIds:[
+        ...state.seenTipIds,
+        tip.id,
+        ...(Array.isArray(tip.seenAlso)?tip.seenAlso:[]),
+      ],
+      seenEventKeys:[...state.seenEventKeys,...eventKeys],
+    });
   }
-  function markDismissed(ctx,tip){
+  function markDismissed(ctx,tip,node=activeTarget){
     const state=stateWithLegacy(ctx);
+    const eventKey=eventReceiptKey(tip,node);
+    if(eventKey){
+      persist(ctx,{dismissedEventKeys:[...state.dismissedEventKeys,eventKey]});
+      return;
+    }
     persist(ctx,{dismissedTipIds:[...state.dismissedTipIds,tip.id]});
   }
   function eligibleTip(ctx,current,{force=false}={}){
     const state=stateWithLegacy(ctx);
     for(const tip of clientContextualGuideTipsForArea(current)){
-      if(!target(root,tip))continue;
+      const node=target(root,tip);
+      if(!node)continue;
       if((tip.excludeSelectors||[]).some((selector)=>root?.querySelector?.(selector)))continue;
-      if(force)return tip;
-      if(state.seenTipIds.includes(tip.id)||state.dismissedTipIds.includes(tip.id))continue;
+      if(!tipAvailableInState(tip,node,state,{force}))continue;
       return tip;
     }
     return null;
@@ -552,7 +617,7 @@ export function createClientContextualGuideController({
     const node=target(root,tip);
     if(!ctx||!tip||!node)return false;
     const state=stateWithLegacy(ctx);
-    if(!force&&(state.seenTipIds.includes(tip.id)||state.dismissedTipIds.includes(tip.id)))return false;
+    if(!tipAvailableInState(tip,node,state,{force}))return false;
     ensureStyle(doc);
     close({restoreFocus:false,preservePresence:true});
     activeTip=tip;
@@ -721,5 +786,7 @@ export const __clientContextualGuideInternals=Object.freeze({
   positionDialog,
   positionPresence,
   clientGuideSuppressed,
+  eventReceiptKey,
+  tipAvailableInState,
   isVisibleInViewport,
 });
