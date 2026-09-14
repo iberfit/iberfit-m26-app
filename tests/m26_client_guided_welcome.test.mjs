@@ -91,6 +91,7 @@ test('Welcome and contextual help never compete, and Live Workout still wins',()
   const progressive=read('src/m26/onboarding/progressive-onboarding.js');
   const contextual=read('src/m26/onboarding/client-contextual-guide.js');
   assert.match(progressive,/createClientGuidedWelcomeController/u);
+  assert.match(progressive,/role:'client-context-only'/u);
   assert.match(progressive,/clientGuidedWelcome\.mount\?\.\(\);\s*clientContextGuide\.mount/u);
   assert.match(progressive,/clientGuidedWelcome\.destroy\?\.\(\);\s*clientContextGuide\.destroy/u);
   assert.match(progressive,/clientGuidedWelcome\.refresh\?\.\(\);\s*clientContextGuide\.refresh/u);
