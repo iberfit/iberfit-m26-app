@@ -541,7 +541,6 @@ function renderClientHoyRoute(vm) {
 
     <section class="m26-client-home-hero" aria-labelledby="m26-client-home-title" data-m26-client-guide="today">
       <div class="m26-client-home-greeting">
-        <p class="m26-eyebrow">IBERFIT · Hoy</p>
         <h2 id="m26-client-home-title">Hola, ${escapeHtml(name)}</h2>
         <p>${escapeHtml(primary.detail)}</p>
       </div>
@@ -569,32 +568,15 @@ function renderClientHoyRoute(vm) {
       <button type="button" data-m26-area="informes">
         <span>Diagnóstico IRI</span>
         <strong>${escapeHtml(iriLabel)}</strong>
-        <small>Punto de partida y reevaluación</small>
+        <small>Tu punto de partida</small>
       </button>
     </section>
 
-    <section class="m26-client-home-actions" aria-label="Acciones rápidas">
-      <button type="button" data-m26-area="actividad">
-        <span aria-hidden="true">♡</span>
-        <strong>Registrar bienestar</strong>
-        <small>Cómo estoy hoy</small>
-      </button>
-      <button type="button" data-m26-area="planificacion">
-        <span aria-hidden="true">◇</span>
-        <strong>Ver planificación</strong>
-        <small>Plan confirmado</small>
-      </button>
-      <button type="button" data-m26-area="sesion">
-        <span aria-hidden="true">▶</span>
-        <strong>Abrir sesiones</strong>
-        <small>Entrenamientos disponibles</small>
-      </button>
-      <button type="button" data-m26-area="informes">
-        <span aria-hidden="true">↗</span>
-        <strong>Consultar informes</strong>
-        <small>Evaluaciones compartidas</small>
-      </button>
-    </section>
+    <nav class="m26-client-home-secondary-actions" aria-label="Accesos secundarios">
+      <button type="button" data-m26-area="actividad">Bienestar</button>
+      <button type="button" data-m26-area="mensajes">Mensajes</button>
+      <button type="button" data-m26-area="informes">Informes</button>
+    </nav>
 
     ${challengePreviewMarkup}
 
