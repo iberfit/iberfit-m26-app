@@ -17,6 +17,17 @@ function clientRows(state){
     assignments.set(String(x.clientId),list);
   }
   const coaches=new Map(adminCollection(state,'coachProfiles').map((x)=>[String(x.userId||x.id),x]));
+  const profiles=new Map();
+  for(const item of state.collections?.clientProfiles||[]){
+    const clientId=String(item?.clientId||item?.client_id||'').trim();
+    if(!clientId)continue;
+    const current=profiles.get(clientId);
+    const score=(value)=>[Number(value?.version||0)||0,Number(value?.revision||0)||0];
+    const left=current?score(current):[-1,-1];
+    const right=score(item);
+    if(!current||right[0]>left[0]||(right[0]===left[0]&&right[1]>=left[1]))profiles.set(clientId,item);
+  }
+  const accessByClient=new Map((state.collections?.clientAccess||[]).map((item)=>[String(item?.clientId||item?.client_id||''),item]));
   const summaries=new Map(clientsOverview(state).map((summary)=>[String(summary?.client?.id||''),summary]));
   return Object.freeze((state.collections?.clients||[]).map((x)=>{
     const id=String(x.id||'');
@@ -29,6 +40,9 @@ function clientRows(state){
     const adaptiveContext=buildAdaptiveSessionContext(state,id,{now});
     const adaptiveExperience=deriveAdaptiveExperience({experience,baseAction:structuralNextAction,adaptiveContext,role:'admin'});
     const nextAction=adaptiveExperience.action;
+    const rawProfile=profiles.get(id)||null;
+    const profile=rawProfile?.profile&&typeof rawProfile.profile==='object'&&!Array.isArray(rawProfile.profile)?clone(rawProfile.profile):{};
+    const access=clone(accessByClient.get(id)||null);
     const activeAssignments=Object.freeze(clone(assignments.get(id)||[]));
     const coachNames=Object.freeze(activeAssignments.map((assignment)=>{
       const coach=coaches.get(String(assignment.coachUserId||''));
@@ -37,9 +51,12 @@ function clientRows(state){
     return Object.freeze({
       id,
       name:String(x.name||x.nombre||'Cliente'),
-      email:String(x.email||'').trim(),
+      email:String(profile.email||rawProfile?.email||access?.email||x.email||'').trim(),
+      revision:Number(x.revision||0)||0,
       status:String(x.status||''),
-      modality:String(x.modality||x.modalidad||''),
+      modality:String(x.modality||x.modalidad||profile.modality||''),
+      profile:Object.freeze(profile),
+      access,
       lifecycle:clone(life.get(id)||null),
       assignments:activeAssignments,
       coachNames,
