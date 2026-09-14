@@ -1310,3 +1310,17 @@
   .m26-admin-client-edit-shell{max-height:100dvh;height:100dvh;padding-top:env(safe-area-inset-top)}
 }
 /* ADMIN_CLIENT_PROFILE_EDITOR_V1_END */
+
+
+/* ADMIN_POST_CREATE_CLIENT_CONTINUITY_V1 */
+.m26-admin-route tr[data-admin-client-created="true"]>td{
+  background:color-mix(in srgb,var(--m26-admin-accent) 11%,var(--m26-admin-surface));
+}
+.m26-admin-route tr[data-admin-client-created="true"]>td:first-child{
+  box-shadow:inset 3px 0 0 var(--m26-admin-accent);
+}
+.m26-admin-route tr[data-admin-client-created="true"] [data-admin-client-edit-open]:focus-visible{
+  outline:2px solid var(--m26-admin-accent);
+  outline-offset:3px;
+}
+/* ADMIN_POST_CREATE_CLIENT_CONTINUITY_V1_END */
