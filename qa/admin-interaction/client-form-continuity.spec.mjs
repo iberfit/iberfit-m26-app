@@ -140,6 +140,57 @@ test('touch tap gives text fields native focus before typing and releases the mo
 });
 
 
+test('label taps keep text inputs and native selects alive while a shell refresh is queued',async({page},testInfo)=>{
+  const touchProject=testInfo.project.name.includes('mobile')||testInfo.project.name.includes('tablet');
+  test.skip(!touchProject,'Label-tap regression targets touch pointer behavior.');
+
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/client-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__?.mounted===true)).toBe(true);
+
+  const form=page.locator('[data-admin-form="client-create"]');
+  await form.evaluate((node)=>{node.dataset.qaFormIdentity='label-tap-form';});
+
+  const name=form.locator('input[name="name"]');
+  const nameLabel=form.locator('label:has(input[name="name"])').first();
+  await nameLabel.evaluate((label)=>{
+    if(label.querySelector('[data-qa-label-hit]'))return;
+    const marker=document.createElement('span');
+    marker.setAttribute('data-qa-label-hit','name');
+    marker.textContent='Nombre completo';
+    label.insertBefore(marker,label.firstChild);
+  });
+  await page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__.queueShellRefresh());
+  await nameLabel.locator('[data-qa-label-hit="name"]').tap();
+  await expect(name).toBeFocused();
+  await page.keyboard.type('Cliente por label');
+  await expect(name).toHaveValue('Cliente por label');
+  await expect(form).toHaveAttribute('data-qa-form-identity','label-tap-form');
+
+  const sex=form.locator('select[name="sexForNorms"]');
+  const sexLabel=form.locator('label:has(select[name="sexForNorms"])').first();
+  await sexLabel.evaluate((label)=>{
+    if(label.querySelector('[data-qa-label-hit]'))return;
+    const marker=document.createElement('span');
+    marker.setAttribute('data-qa-label-hit','sex');
+    marker.textContent='Sexo para baremos IRI';
+    label.insertBefore(marker,label.firstChild);
+  });
+  await sex.evaluate((node)=>{
+    globalThis.__IBERFIT_QA_SELECT_NODE__=node;
+  });
+  await page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__.queueShellRefresh());
+  await sexLabel.locator('[data-qa-label-hit="sex"]').tap();
+  await page.waitForTimeout(120);
+  const sameSelect=await sex.evaluate((node)=>globalThis.__IBERFIT_QA_SELECT_NODE__===node);
+  expect(sameSelect,'Native select must not be replaced between label tap and selection').toBe(true);
+  await sex.selectOption('female');
+  await expect(sex).toHaveValue('female');
+  await expect(name).toHaveValue('Cliente por label');
+
+  expect(errors).toEqual([]);
+});
+
 test('real client form survives transient mobile blur while a shell refresh is queued',async({page},testInfo)=>{
   const touchProject=testInfo.project.name.includes('mobile')||testInfo.project.name.includes('tablet');
   test.skip(!touchProject,'Transient blur regression targets touch/browser keyboard behavior.');
