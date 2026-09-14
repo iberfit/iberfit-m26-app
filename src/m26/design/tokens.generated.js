@@ -27,7 +27,7 @@ export const IBERFIT_DESIGN_TOKENS=deepFreeze({
       "cream100": "#F5F5F0",
       "cream300": "#CDD4D0",
       "muted": "#9AA8A1",
-      "danger": "#EF4444",
+      "danger": "#F87171",
       "success": "#10B981",
       "warning": "#d8b66f",
       "info": "#83a9bf",
@@ -49,7 +49,7 @@ export const IBERFIT_DESIGN_TOKENS=deepFreeze({
       "focus": "#D7BA7C",
       "success": "#10B981",
       "warning": "#d8b66f",
-      "danger": "#EF4444",
+      "danger": "#F87171",
       "info": "#83a9bf"
     },
     "role": {
