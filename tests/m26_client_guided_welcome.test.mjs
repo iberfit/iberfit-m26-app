@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {clientGenieVisualMarkup,__clientGenieVisualInternals} from '../src/m26/onboarding/client-genie-visual.js';
 import {
   CLIENT_GUIDED_WELCOME_VERSION,
   CLIENT_GUIDED_WELCOME_SCHEMA_VERSION,
@@ -120,24 +121,49 @@ test('Welcome and contextual help never compete, and Live Workout still wins',()
   assert.match(contextual,/data-session-live-v3/u);
 });
 
-test('Guided welcome is accessible, motion-safe, responsive and animation-asset ready',()=>{
+test('Guided welcome is accessible, motion-safe, responsive and uses the vector Genie',()=>{
   const source=read('src/m26/onboarding/client-guided-welcome.js');
   assert.match(source,/aria-modal="false"/u);
   assert.match(source,/min-height:44px/u);
   assert.match(source,/safe-area-inset-bottom/u);
   assert.match(source,/prefers-reduced-motion:reduce/u);
+  assert.match(source,/clientGenieVisualMarkup/u);
   assert.match(source,/data-m26-client-guide-state/u);
-  assert.match(source,/src="\/public\/isotipo-iberfit\.png"/u);
+  assert.match(source,/m26-client-genie-float/u);
+  assert.match(source,/data-m26-client-guide-side="right"/u);
+  assert.match(source,/background:\s*linear-gradient\(145deg,rgba\(255,251,236/u);
+  assert.match(source,/m26-client-guide-target-breathe/u);
+  assert.match(source,/\.m26-client-guided-welcome-presence \*,\s*\.m26-client-guided-welcome-target::after\{\s*transition:none!important;\s*animation:none!important;/u);
   assert.match(source,/guideState:'idle'/u);
   assert.match(source,/guideState:'pointing'/u);
   assert.match(source,/guideState:'success'/u);
   assert.match(source,/const final=copyId==='welcome-finish'/u);
   assert.match(source,/show\(step,\{focus:step\.id==='welcome-finish'\}\)/u);
-  assert.doesNotMatch(source,/animation:[^;]*infinite/iu);
+  assert.doesNotMatch(source,/<img src="\/public\/isotipo-iberfit\.png"/u);
   assert.doesNotMatch(source,/setInterval|MutationObserver/u);
 });
 
-test('PWA shell precaches the guided welcome so installed clients keep the journey offline after update',()=>{
+test('PWA shell precaches guided welcome and its vector Genie module for installed clients',()=>{
   const sw=read('public/m26/sw.js');
   assert.match(sw,/"\/src\/m26\/onboarding\/client-guided-welcome\.js"/u);
+  assert.match(sw,/"\/src\/m26\/onboarding\/client-genie-visual\.js"/u);
+});
+
+test('Vector Genie stays brand-native, dependency-free and state driven',()=>{
+  const svg=clientGenieVisualMarkup();
+  assert.deepEqual(__clientGenieVisualInternals.stateNames,['idle','pointing','success','alert']);
+  assert.match(svg,/viewBox="0 0 512 512"/u);
+  assert.match(svg,/class="m26-client-genie"/u);
+  assert.match(svg,/m26-genie__flame/u);
+  assert.match(svg,/m26-genie__tail/u);
+  assert.match(svg,/m26-genie__arm--right/u);
+  assert.match(svg,/m26-genie__core/u);
+  assert.match(svg,/href="\/public\/isotipo-iberfit\.png"/u);
+  assert.doesNotMatch(svg,/<script|<foreignObject|javascript:/iu);
+  assert.match(svg,/m26-genie__ring--left/u);
+  assert.match(svg,/m26-genie__shoulder--right/u);
+  assert.ok(Buffer.byteLength(svg,'utf8')<18_000,'Vector Genie should remain lightweight');
+  const pkg=JSON.parse(read('package.json'));
+  const dependencies={...(pkg.dependencies||{}),...(pkg.devDependencies||{})};
+  assert.equal(Object.keys(dependencies).some((name)=>/lottie|dotlottie|rive|gsap|anime|motion/iu.test(name)),false);
 });
