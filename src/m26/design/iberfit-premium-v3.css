@@ -152,7 +152,23 @@
   color:var(--iberfit-v3-text)!important;
   background:var(--iberfit-v3-canvas)!important;
 }
+.m26-shell[data-m26-role] > .m26-workspace,
 .m26-shell .m26-workspace{
+  --iberfit-color-canvas:var(--iberfit-v3-canvas)!important;
+  --iberfit-color-surface-base:var(--iberfit-v3-surface)!important;
+  --iberfit-color-surface-raised:var(--iberfit-v3-surface-raised)!important;
+  --iberfit-color-surface-overlay:#101D18!important;
+  --iberfit-color-text-primary:var(--iberfit-v3-text)!important;
+  --iberfit-color-text-secondary:var(--iberfit-v3-text-secondary)!important;
+  --iberfit-color-text-subtle:#CDD4D0!important;
+  --iberfit-color-border:var(--iberfit-v3-line)!important;
+  --iberfit-color-border-strong:rgba(197,160,89,.30)!important;
+  --iberfit-color-accent:var(--iberfit-v3-gold)!important;
+  --iberfit-color-accent-strong:#D7BA7C!important;
+  --m26-cream-100:var(--iberfit-v3-text)!important;
+  --m26-cream-300:#CDD4D0!important;
+  --m26-muted:var(--iberfit-v3-text-secondary)!important;
+  --m26-line:var(--iberfit-v3-line)!important;
   position:relative;
   isolation:isolate;
   color-scheme:dark!important;
