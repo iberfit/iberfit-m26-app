@@ -7,6 +7,7 @@ import {createM26Id} from '../platform/id.js';
 import {createExerciseSearchIndex} from '../exercises/search.js';
 import {exerciseDisplayName} from '../exercises/names.js';
 import {normalizeAppointmentModality,normalizeClientModality} from '../domain/modality.js';
+import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {buildPublicationCommand,publicationConfig} from '../workflows/publication-workflow.js';
 import {buildApproveReportDraftCommand} from '../workflows/report-workflow.js';
 import {renderExerciseLibraryGroups} from '../library/exercise-media-ui.js';
@@ -626,7 +627,7 @@ export function createWorkflowController({
     const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(!form)throw new Error('M26_CLIENT_FORM_REQUIRED');ensureValidForm(form,{code:'M26_CLIENT_ONBOARDING_INVALID',labels:ONBOARDING_FIELD_LABELS,summary:'Completa los datos obligatorios del expediente'});const raw=values(form);const payload=legacyClientDraftPayload(raw);
     await saveOnboardingDraft(form);status(root,'client-onboarding','Verificando backend y creando expediente protegido…','pending');const outcome=await createClientDraft(payload);const result=outcome?.result||outcome;const state=store.getState();const resultId=clientRecordId(result);const created=outcome?.client||(state.collections.clients||[]).find((item)=>String(item.id)===resultId)||(state.collections.clients||[]).find((item)=>clientEmail(item)===payload.email);
     if(!created?.id)throw new Error('M26_CLIENT_CREATE_NOT_PERSISTED');
-    const nextArea=payload.initialAssessmentMode==='deferred'?'expediente':'iri';
+    const nextArea=initialAssessmentPostCreateArea(payload.initialAssessmentMode);
     await draftRepository?.remove?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE);store.selectClient?.(created.id);store.navigate?.(nextArea);onRender();emit(root,'m26:toast',{message:nextArea==='iri'?`Expediente de ${clientName(created)} creado. Continúa con el Diagnóstico IRI inicial.`:`Expediente de ${clientName(created)} creado. El Diagnóstico IRI queda disponible para realizarlo después.`});
     return result;
   }
