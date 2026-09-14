@@ -237,7 +237,7 @@ test('Legacy linear checklist is hidden for Client while Coach and Admin keep th
   assert.match(guided,/role==='client'.*data-m26-client-contextual-guide-enabled/su);
   assert.match(progressive,/context\.role==='client'[\s\S]*data-m26-client-context-guide-open/u);
   assert.match(progressive,/root\.querySelector\?\.\('\[data-progressive-onboarding-launcher\]'\)\?\.remove\?\.\(\)/u);
-  assert.doesNotMatch(progressive,/context\.role==='client'[\s\S]{0,900}host\.prepend\?\.\(launcher\)/u);
+  assert.match(progressive,/if\(context\.role==='client'\)\{[\s\S]*?return;\s*\}\s*const host=root\.querySelector\?\.\('\.m26-topbar-actions'\)/u);
   assert.match(progressive,/guidedTour\.mount/u);
   assert.match(progressive,/clientContextGuide\.mount/u);
   assert.match(progressive,/guidedTour\.destroy/u);
@@ -408,7 +408,7 @@ test('Client manual Guide access lives in sidebar utility and Más, never in the
   assert.match(shell,/m26-sidebar-guide[\s\S]*data-m26-client-context-guide-open/u);
   assert.match(route,/Guía IBERFIT<\/span><small>Explica esta pantalla/u);
   assert.match(progressive,/if\(context\.role==='client'\)[\s\S]*querySelectorAll\?\.\('\[data-m26-client-context-guide-open\]'\)/u);
-  assert.doesNotMatch(progressive,/if\(context\.role==='client'\)[\s\S]{0,1000}m26-topbar-actions/u);
+  assert.match(progressive,/if\(context\.role==='client'\)\{[\s\S]*?return;\s*\}\s*const host=root\.querySelector\?\.\('\.m26-topbar-actions'\)/u);
 });
 
 test('Client bottom navigation remains five primary destinations and Retos stays reachable through Más',()=>{
