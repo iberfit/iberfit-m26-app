@@ -7,14 +7,14 @@ Estado: checkpoint verificable alineado con Canary, producción y Auth.
 
 - Dominio: `https://app.iberfit.cl`
 - Estado: PRODUCCIÓN REAL.
-- Source SHA desplegado: `396ad52cfd4c1a4d75e4e306838d85bffa77b105`
+- Source SHA desplegado: `b2e4a20c7f5b6a7696cdfa96b66e11956f9493a6`
 - Source branch del lote: `canary/rc74-4`
-- Promotion workflow verificado: `34793087805 · IBERFIT Production Promotion = SUCCESS`
-- Release branch: `release/prod-396ad52cfd4c`
+- Promotion workflow verificado: `34805512111 · IBERFIT Production Promotion = SUCCESS`
+- Release branch: `release/prod-b2e4a20c7f5b`
 - Cloudflare Pages productivo: `iberfit-m26-production`
 - Supabase PROD ref: `pjhmrhejsoofmouedavw`
 
-Un intento posterior de promoción (`34794436834`, candidato `59305d7e...`) falló antes del despliegue en el gate de Hosted Auth emails. Wrangler y los pasos posteriores quedaron omitidos, por lo que no sustituyó el runtime LIVE anterior.
+Un intento inmediatamente anterior (`34805438220`) falló antes del despliegue porque el generador productivo exige `sourceBranch=canary/rc74-4`; Wrangler y el cutover quedaron omitidos. Se corrigió sin debilitar el guardrail y la promoción válida `34805512111` completó deploy, identidad, smoke Chromium, auditoría read-only y evidencia de rollback.
 
 La promoción productiva válida certificó source/manifest exactos, regresión, build canónico, rollback, preflight, deploy con Wrangler, identidad productiva, smoke browser y auditoría read-only.
 
@@ -47,12 +47,16 @@ PROD mantiene:
 - autoconfirm deshabilitado;
 - secure email change habilitado.
 
-Bloqueo actual de release:
-- no existe todavía SMTP personalizado completo para Auth;
-- los secretos SMTP operativos siguen ausentes;
-- Hosted Auth emails no deben sincronizarse ni promoverse hasta disponer de SMTP real.
+Estado Auth productivo:
+- SMTP personalizado Resend operativo desde `acceso@auth.iberfit.cl`;
+- SPF, DKIM y DMARC verificados; DMARC `p=quarantine` para `auth.iberfit.cl`;
+- 13 plantillas Hosted Auth IBERFIT sincronizadas y verificadas con rollback protegido;
+- OTP email de 6 dígitos, expiración 3600 s y límite global de correo Auth 30/h;
+- OTP real y recovery real entregados a Gmail IBERFIT;
+- secure password change habilitado;
+- secretos SMTP presentes en GitHub sin exposición de valores.
 
-El workflow operacional de configuración SMTP vive sólo en `ops/prod-auth-readiness-4baf6d52`; no debe fusionarse en Canary. Su rollback fue endurecido para fallar cerrado y rechazar configuración SMTP parcial legible. No ejecutarlo hasta disponer de credenciales reales verificadas.
+El workflow operacional SMTP permanece aislado en `ops/prod-auth-readiness-4baf6d52` y no debe fusionarse en Canary.
 
 ## Supabase / seguridad
 
@@ -69,10 +73,10 @@ El workflow operacional de configuración SMTP vive sólo en `ops/prod-auth-read
 Ninguno demostrado en el Canary certificado.
 
 ### P1
-1. Completar SMTP Auth productivo, DNS de entregabilidad y E2E real de correo.
-2. Proteger `canary/rc74-4` con PR + required checks.
-3. Completar validación autenticada real de Admin y Coach post-WebAuthn donde falte.
-4. Cerrar flujos diarios de alta/edición/baja controlada y sesión Coach sin freezes.
+1. Proteger `canary/rc74-4` con PR + required checks.
+2. Completar validación autenticada real de Admin y Coach post-WebAuthn donde falte.
+3. Cerrar flujos diarios de alta/edición/baja controlada y sesión Coach sin freezes.
+4. Completar edge cases Auth restantes: invite, resend, expiry/replay y mala conexión.
 5. Instrumentar señal -> decisión -> intervención -> outcome y funnel/capacidad/revenue con utilidad real.
 
 ## GO para una próxima promoción
@@ -89,9 +93,8 @@ Sólo cuando:
 
 ## Siguiente acción exacta
 
-1. Terminar SMTP externo y DNS.
-2. Configurar secretos SMTP sin exponer valores.
-3. Ejecutar configuración fail-closed y verificar.
-4. Sincronizar 13 plantillas Hosted Auth.
-5. Probar OTP/recovery/invite/resend/expiry/replay y mala conexión.
-6. Sólo entonces promover el SHA funcional certificado mediante `.github/workflows/production-promote.yml`.
+1. Proteger Canary con PR + required checks.
+2. Completar Admin/Coach autenticado por dispositivo.
+3. Validar alta/edición/baja controlada y sesión Coach real sin freezes.
+4. Completar edge cases Auth pendientes sin degradar el canal ya certificado.
+5. Continuar mejoras de producto, rendimiento, datos y negocio sobre el nuevo baseline LIVE.
