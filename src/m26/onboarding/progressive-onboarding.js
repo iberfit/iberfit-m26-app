@@ -1,5 +1,6 @@
 import {createGuidedTourController} from './guided-tour.js';
 import {createClientContextualGuideController} from './client-contextual-guide.js';
+import {createClientGuidedWelcomeController} from './client-guided-welcome.js';
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
@@ -446,6 +447,12 @@ export function createProgressiveOnboardingController({
     scope,
     onOpenChange:(open)=>tourOpenState.set(open),
   });
+  const clientGuidedWelcome=createClientGuidedWelcomeController({
+    root,
+    identityProvider,
+    storage:resolvedStorage,
+    scope,
+  });
   const clientContextGuide=createClientContextualGuideController({
     root,
     identityProvider,
@@ -612,6 +619,7 @@ export function createProgressiveOnboardingController({
     if(!context){
       removeOwned();
       guidedTour.refresh?.();
+      clientGuidedWelcome.refresh?.();
       clientContextGuide.refresh?.();
       scheduleTourOpenStateSync();
       return;
@@ -694,6 +702,7 @@ export function createProgressiveOnboardingController({
       }
       syncClientContextualGuideMode();
       guidedTour.mount?.();
+      clientGuidedWelcome.mount?.();
       clientContextGuide.mount?.();
       releaseCompactStyle=retainProgressiveOnboardingCompactStyle(documentLike);
       syncTourOpenState();
@@ -714,6 +723,7 @@ export function createProgressiveOnboardingController({
       tourObserver?.disconnect?.();
       tourObserver=null;
       guidedTour.destroy?.();
+      clientGuidedWelcome.destroy?.();
       clientContextGuide.destroy?.();
       root.removeAttribute?.('data-m26-client-contextual-guide-enabled');
       tourOpenState.clear();
