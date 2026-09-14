@@ -66,17 +66,19 @@ test('privileged email fallback is two-factor server-side and cannot become OTP-
   assert.match(edge,/M26_PRIVILEGED_ROLE_REQUIRED/u);
 });
 
-test('access-code emails use Premium Digital V3 and only the official IBERFIT identity asset',()=>{
+test('access-code emails use the premium light IBERFIT system and only the official identity asset',()=>{
   for(const path of [
     'supabase/templates/iberfit-magic-link.html',
     'supabase/templates/iberfit-reauthentication.html',
   ]){
     const html=read(path);
-    assert.match(html,/#0B1310/iu);
-    assert.match(html,/#13221C/iu);
-    assert.match(html,/#F5F5F0/iu);
-    assert.match(html,/#C5A059/iu);
-    assert.match(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
+    assert.match(html,/#f3f0e8/iu);
+    assert.match(html,/#fbf8f0/iu);
+    assert.match(html,/#0d3328/iu);
+    assert.match(html,/#c8a24a/iu);
+    assert.match(html,/font-family:Georgia,'Times New Roman',serif/iu);
+    assert.match(html,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
+    assert.doesNotMatch(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
     assert.doesNotMatch(html,/iberfit-email-access-hero\.jpg/u);
   }
 });
