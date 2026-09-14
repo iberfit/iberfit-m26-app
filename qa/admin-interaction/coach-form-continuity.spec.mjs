@@ -160,7 +160,7 @@ test('Coach client list filters keep their exact DOM nodes through store refresh
 
   await page.evaluate(()=>document.activeElement?.blur?.());
   await page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__.setClientScenario('one'));
-  await expect(page.getByText('Ana Pérez',{exact:true}).first()).toBeVisible();
+  await expect(page.locator('.m26-client-card h3').filter({hasText:/^Ana Pérez$/u})).toHaveCount(1);
   await expect(page.locator('[data-client-search]')).toBeVisible();
 
   await page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__.setClientScenario('zero'));
@@ -262,7 +262,7 @@ test('Focused form buttons never retain the persistent shell interaction lease',
   await expect(button).toBeFocused();
 
   await page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__.setClientScenario('one'));
-  await expect(page.getByText('Ana Pérez',{exact:true}).first()).toBeVisible();
+  await expect(page.locator('.m26-client-card h3').filter({hasText:/^Ana Pérez$/u})).toBeVisible();
 
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
