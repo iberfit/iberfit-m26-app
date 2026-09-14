@@ -10,7 +10,7 @@ Baseline LIVE verificado al 2026-09-14:
 - Cloudflare project: `iberfit-m26-production`;
 - Supabase PROD: `pjhmrhejsoofmouedavw`.
 
-Canary certificado:
+Canary funcional certificado:
 - `39e160fb54d1e866823a8150ecd9270359129444`;
 - CI, auditoría continua, Device Gate, Daily Visual y Remote Gates en GREEN.
 
@@ -40,7 +40,7 @@ No mezclar features/refactors opcionales.
 
 ## Carril 2 · PRODUCT EVOLUTION
 
-Base: Canary certificado vigente.
+Base: último SHA funcional certificado de Canary; los commits exclusivamente documentales pueden mover el HEAD sin alterar el runtime.
 
 Flujo:
 1. rama pequeña;
