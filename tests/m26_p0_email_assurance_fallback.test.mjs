@@ -16,7 +16,7 @@ test('P0 privileged access keeps WebAuthn and adds email OTP as a second secure 
   });
   assert.match(html,/data-auth-action="mfa-continue-webauthn"/u);
   assert.match(html,/data-auth-action="mfa-send-email-code"/u);
-  assert.match(html,/Usar código por correo/u);
+  assert.match(html,/Enviar código al correo asociado/u);
   assert.doesNotMatch(html,/data-auth-action="mfa-register-device"/u);
 });
 
@@ -137,7 +137,7 @@ test('P0 email OTP rollout is enabled only behind the production custom-SMTP syn
     mfa:{kind:'challenge',emailOtpAvailable:false},
   });
   assert.match(available,/data-auth-action="mfa-send-email-code"/u);
-  assert.match(available,/Usar código por correo/u);
+  assert.match(available,/Enviar código al correo asociado/u);
   assert.doesNotMatch(unavailable,/data-auth-action="mfa-send-email-code"/u);
   const source=read('src/m26/app/application.js');
   assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
