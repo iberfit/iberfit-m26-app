@@ -123,8 +123,9 @@ test(
 
     assert.match(
       shell,
-      /vm\.identity\.role==='admin'\?'admin-configuracion':'ajustes'/u
+      /function settingsAreaForRole\(role\)\{\s*return role==='admin'\?'admin-configuracion':'ajustes';\s*\}/u
     );
+    assert.match(shell,/const settingsArea=settingsAreaForRole\(vm\.identity\.role\)/u);
 
     assert.equal(
       iberfitTranslate(
