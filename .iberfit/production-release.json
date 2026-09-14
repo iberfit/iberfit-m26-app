@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f9ac78022ada884967295ae9bdb6b7a08d35708a",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Client Genie visual V2: richer brand-native vector anatomy, conversational cream/gold speech bubble, responsive side-aware Genie/dialog positioning, focused spotlight overlay, idle/pointing/success/alert states, reduced-motion safety, PWA precache, and four-device authenticated certification. No backend, Supabase, auth, RLS or user-data changes."
+}
