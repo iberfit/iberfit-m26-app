@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "05bc6973474de5ec8da226562fca4d81088df343",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "IRI-first onboarding handoff: make the initial IRI diagnosis the recommended default after client creation, preserve explicit deferral, remove double navigation, centralize destination policy, add Alta-to-IRI contract coverage and complete i18n classification. Retains certified Admin post-create continuity and all prior production hardening."
+}
