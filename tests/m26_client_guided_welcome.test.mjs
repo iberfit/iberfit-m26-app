@@ -29,9 +29,9 @@ test('Client guided welcome is a short Genie-led journey that starts and finishe
   assert.equal(clientGuidedWelcomeStep(0).id,'welcome-home');
   assert.equal(clientGuidedWelcomeStep(99).id,'welcome-finish');
   assert.match(SOURCE_COPY['welcome-home.title'],/Antes de dejarte a tu aire/u);
-  assert.match(SOURCE_COPY['welcome-plan.title'],/Ven, mira esto/u);
-  assert.match(SOURCE_COPY['welcome-session.title'],/te traigo aquí/u);
-  assert.match(SOURCE_COPY['welcome-finish.body'],/no voy a estar apareciendo todo el rato/u);
+  assert.match(SOURCE_COPY['welcome-plan.title'],/hoja de ruta/u);
+  assert.match(SOURCE_COPY['welcome-session.title'],/vengo contigo/u);
+  assert.match(SOURCE_COPY['welcome-finish.body'],/Guía IBERFIT/u);
   assert.doesNotMatch(Object.values(SOURCE_COPY).join(' '),/Paso\s+\d+\s+de\s+\d+/iu);
 });
 
@@ -131,6 +131,8 @@ test('Guided welcome is accessible, motion-safe, responsive and animation-asset 
   assert.match(source,/guideState:'idle'/u);
   assert.match(source,/guideState:'pointing'/u);
   assert.match(source,/guideState:'success'/u);
+  assert.match(source,/const final=copyId==='welcome-finish'/u);
+  assert.match(source,/show\(step,\{focus:step\.id==='welcome-finish'\}\)/u);
   assert.doesNotMatch(source,/animation:[^;]*infinite/iu);
   assert.doesNotMatch(source,/setInterval|MutationObserver/u);
 });
