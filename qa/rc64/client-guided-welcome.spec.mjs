@@ -60,7 +60,13 @@ async function expectJourneyState(page,{area,title,state}){
   const welcome=page.locator('[data-m26-client-guided-welcome]');
   await expect(welcome).toBeVisible({timeout:8_000});
   await expect(welcome.locator('#m26-client-guided-welcome-title')).toHaveText(title,{timeout:5_000});
-  await expect(page.locator('[data-m26-client-guided-welcome-presence]')).toHaveAttribute('data-m26-client-guide-state',state);
+  const presence=page.locator('[data-m26-client-guided-welcome-presence]');
+  await expect(presence).toHaveAttribute('data-m26-client-guide-state',state);
+  await expect(presence.locator('[data-m26-client-genie]'),'Guided welcome must render the vector Genie rather than the old logo placeholder').toHaveCount(1);
+  await expect(presence.locator('img'),'Genie presence must not fall back to a raster mascot image').toHaveCount(0);
+  const presenceBox=await presence.boundingBox();
+  expect(presenceBox?.height||0,'Genie must remain legible at UI scale').toBeGreaterThanOrEqual(70);
+  expect(presenceBox?.height||0,'Genie must remain a controlled guide, not a screen-dominating mascot').toBeLessThanOrEqual(130);
   await expect(page.locator('[data-m26-client-context-guide]'),'Contextual help must stay silent while the first-run journey owns the experience').toHaveCount(0);
   await expect(page.locator('[data-m26-guided-tour]'),'Legacy numbered tour must never compete with the Client Genie journey').toHaveCount(0);
 }
