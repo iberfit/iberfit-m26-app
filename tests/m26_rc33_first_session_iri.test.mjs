@@ -9,6 +9,7 @@ import {
 import {
   buildIriCommandDraftFromFirstSession,
   firstSessionCompletion,
+  flattenFirstSessionDraft,
   normalizeFirstSessionDraft,
   validateFirstSessionDraft,
 } from '../src/m26/workflows/iri-first-session.js';
@@ -40,6 +41,33 @@ test('primera sesión completa produce draft trazable para IRI existente',()=>{
   const check=validateFirstSessionDraft(draft);assert.equal(check.ok,true,check.errors.join(','));assert.equal(firstSessionCompletion(draft).percent,100);assert.equal(draft.cardio.deltaOneMinute,29);assert.equal(draft.mobility.ankle.leftBest,8.4);
   const commandDraft=buildIriCommandDraftFromFirstSession(draft,{id:'IRI-RC33',clientId:'CLIENT-RC33',revision:2});
   assert.equal(commandDraft.pushUps,12);assert.equal(commandDraft.chairStand30s,18);assert.equal(commandDraft.firstSessionSchema,'iberfit-iri-first-session-v1');assert.equal(commandDraft.cardio.protocol,'ymca-3min-standard');
+});
+
+test('IRI protege la revisión canónica y no la restaura desde un borrador local',()=>{
+  const draft=normalizeFirstSessionDraft(validRaw({canonicalClientRevision:'4',canonicalProfileRevision:'7'}),{id:'IRI-RC33',clientId:'CLIENT-RC33'},'CLIENT-RC33');
+  assert.equal(draft.canonicalClientRevision,4);
+  assert.equal(draft.canonicalProfileRevision,7);
+  const commandDraft=buildIriCommandDraftFromFirstSession(draft,{id:'IRI-RC33',clientId:'CLIENT-RC33',revision:2});
+  assert.equal(commandDraft.canonicalClientRevision,4);
+  assert.equal(commandDraft.canonicalProfileRevision,7);
+  const restored=flattenFirstSessionDraft(draft);
+  assert.equal(Object.hasOwn(restored,'canonicalClientRevision'),false);
+  assert.equal(Object.hasOwn(restored,'canonicalProfileRevision'),false);
+
+  const html=renderIriRoute({
+    current:{id:'IRI-RC33',clientId:'CLIENT-RC33'},
+    currentSummary:null,
+    profile:{birthDate:'1992-04-11',sexForNorms:'female',sexForNormsLabel:'Mujer',email:'cliente@example.com',phone:'+56 9',modality:'hibrido',modalityLabel:'Híbrido',trainingAddress:'Av. IBERFIT 123'},
+    sourceProfile:{},
+    canonicalClientRevision:4,
+    canonicalProfileRevision:7,
+    canEdit:true,
+    history:[],
+    decisionLog:{latest:null,entries:[]},
+  });
+  assert.match(html,/name="canonicalClientRevision" value="4"/u);
+  assert.match(html,/name="canonicalProfileRevision" value="7"/u);
+  assert.match(html,/La ficha del cliente es la fuente operativa/u);
 });
 
 test('variantes adaptadas de empuje no se mezclan con el baremo estándar',()=>{
