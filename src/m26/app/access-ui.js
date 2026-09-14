@@ -300,7 +300,8 @@ export function renderAccessUi({
     ? 'Acceso restringido a las cuentas autorizadas para esta revisión.'
     : 'Acceso protegido por autenticación y permisos de cuenta.';
   const deviceRecoveryRecommended=mfa?.deviceRecoveryRecommended===true;
-  const emailOtpAction=mfa?.emailOtpAvailable===true
+  const emailOtpAvailable=mfa?.emailOtpAvailable===true;
+  const emailOtpAction=emailOtpAvailable
     ? `<button
           type="button"
           class="m26-secondary-action m26-email-otp-action"
@@ -387,7 +388,9 @@ export function renderAccessUi({
       <div class="m26-auth-copy">
         <p class="m26-auth-kicker">Verificación del dispositivo</p>
         <h1 id="m26-auth-title" tabindex="-1">Protege tu acceso</h1>
-        <p>Configura este dispositivo una sola vez. La confirmación se hará con Face ID, Touch ID, Windows Hello, PIN o la contraseña del propio dispositivo. Si estás entrando desde otro equipo, también puedes usar el correo asociado a tu cuenta.</p>
+        <p>${emailOtpAvailable
+          ?'Configura este dispositivo una sola vez. La confirmación se hará con Face ID, Touch ID, Windows Hello, PIN o la contraseña del propio dispositivo. Si estás entrando desde otro equipo, también puedes usar el correo asociado a tu cuenta.'
+          :'Configura este dispositivo una sola vez. La confirmación se hará con Face ID, Touch ID, Windows Hello, PIN o la contraseña del propio dispositivo.'}</p>
       </div>
 
       ${contextNotice}
@@ -428,7 +431,9 @@ export function renderAccessUi({
         <h1 id="m26-auth-title" tabindex="-1">Verifica que eres tú</h1>
         <p>${deviceRecoveryRecommended
           ?'La verificación anterior no respondió. Reintenta la verificación o repara el acceso local. Por seguridad, un dispositivo nuevo solo puede añadirse después de verificar una credencial existente.'
-          :'Usa la seguridad nativa de este dispositivo para continuar. Si no es tu dispositivo habitual, puedes recibir un código en el correo asociado.'}</p>
+          :emailOtpAvailable
+            ?'Usa la seguridad nativa de este dispositivo para continuar. Si no es tu dispositivo habitual, puedes recibir un código en el correo asociado.'
+            :'Usa la seguridad nativa de este dispositivo para continuar. No necesitas escanear ningún QR ni usar otro equipo.'}</p>
       </div>
 
       ${contextNotice}
