@@ -1,5 +1,16 @@
 import {test,expect} from '@playwright/test';
 
+
+async function queueClientRefreshDuringNextPointerDown(page){
+  await page.evaluate(()=>{
+    const root=document.querySelector('#qa-root');
+    if(!root)throw new Error('QA_CLIENT_FORM_ROOT_MISSING');
+    root.addEventListener('pointerdown',()=>{
+      globalThis.__IBERFIT_CLIENT_FORM_QA__?.queueShellRefresh?.();
+    },{capture:true,once:true});
+  });
+}
+
 function browserErrors(page){
   const errors=[];
   page.on('pageerror',(error)=>errors.push(String(error?.message||error)));
@@ -160,7 +171,7 @@ test('label taps keep text inputs and native selects alive while a shell refresh
     marker.textContent='Nombre completo';
     label.insertBefore(marker,label.firstChild);
   });
-  await page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__.queueShellRefresh());
+  await queueClientRefreshDuringNextPointerDown(page);
   await nameLabel.locator('[data-qa-label-hit="name"]').tap();
   await expect(name).toBeFocused();
   await page.keyboard.type('Cliente por label');
@@ -179,7 +190,7 @@ test('label taps keep text inputs and native selects alive while a shell refresh
   await sex.evaluate((node)=>{
     globalThis.__IBERFIT_QA_SELECT_NODE__=node;
   });
-  await page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__.queueShellRefresh());
+  await queueClientRefreshDuringNextPointerDown(page);
   await sexLabel.locator('[data-qa-label-hit="sex"]').tap();
   await page.waitForTimeout(120);
   const sameSelect=await sex.evaluate((node)=>globalThis.__IBERFIT_QA_SELECT_NODE__===node);
