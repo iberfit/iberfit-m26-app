@@ -25,6 +25,7 @@ test('Client guide is contextual, can expose more than one useful hint on Today,
     today.map((tip)=>tip.id),
     [
       'client-moment-session-ready',
+      'client-moment-adherence-review',
       'client-context-plan-ready',
       'client-context-challenge-ready',
       'client-context-today',
@@ -33,10 +34,15 @@ test('Client guide is contextual, can expose more than one useful hint on Today,
   );
   assert.equal(today[0].kind,'moment');
   assert.equal(today[0].actionArea,'sesion');
-  assert.deepEqual(today[0].seenAlso,['client-context-session']);
-  assert.equal(today[1].actionArea,'planificacion');
-  assert.deepEqual(today[1].seenAlso,['client-context-plan']);
-  assert.equal(today[2].actionArea,'retos');
+  assert.equal(today[0].repeatOnEvent,true);
+  assert.deepEqual(today[0].seenAlso,['client-context-session','client-context-plan-ready']);
+  assert.equal(today[1].actionArea,'progreso');
+  assert.equal(today[1].repeatOnEvent,undefined);
+  assert.equal(today[2].actionArea,'planificacion');
+  assert.equal(today[2].repeatOnEvent,true);
+  assert.deepEqual(today[2].seenAlso,['client-context-plan']);
+  assert.equal(today[3].actionArea,'retos');
+  assert.equal(today[3].repeatOnEvent,true);
   assert.equal(today.at(-1).kind,'feature');
   assert.deepEqual(today.at(-1).excludeSelectors,['[data-m26-client-guide="challenge-entry"]']);
 
@@ -63,15 +69,44 @@ test('Client guide persistence stores only safe hint ids, including persistent d
   repo.write(key,{
     seenTipIds:['client-context-today','client-context-today','not-real'],
     dismissedTipIds:['client-context-progress','not-real'],
+    seenEventKeys:['client-moment-session-ready:abcdef12','raw-session-id'],
+    dismissedEventKeys:['client-context-plan-ready:1234abcd','secret@example.com'],
     health:{pain:9},
     email:'secret@example.com',
   });
   const stored=JSON.parse(calls.at(-1)[1]);
   assert.deepEqual(stored.seenTipIds,['client-context-today']);
   assert.deepEqual(stored.dismissedTipIds,['client-context-progress']);
-  assert.deepEqual(Object.keys(stored).sort(),['dismissedTipIds','legacyMigrated','schemaVersion','seenTipIds']);
-  assert.doesNotMatch(JSON.stringify(stored),/pain|secret@example\.com/u);
+  assert.deepEqual(stored.seenEventKeys,['client-moment-session-ready:abcdef12']);
+  assert.deepEqual(stored.dismissedEventKeys,['client-context-plan-ready:1234abcd']);
+  assert.deepEqual(
+    Object.keys(stored).sort(),
+    ['dismissedEventKeys','dismissedTipIds','legacyMigrated','schemaVersion','seenEventKeys','seenTipIds']
+  );
+  assert.doesNotMatch(JSON.stringify(stored),/pain|secret@example\.com|raw-session-id/u);
 });
+
+test('Recurring moments are keyed to opaque event receipts instead of being permanently silenced after the first session',()=>{
+  const today=clientContextualGuideTipsForArea('hoy');
+  const sessionTip=today.find((tip)=>tip.id==='client-moment-session-ready');
+  const {eventReceiptKey,tipAvailableInState}=__clientContextualGuideInternals;
+  const nodeA={getAttribute(name){return name==='data-m26-client-guide-event-key'?'session-event-a':null;}};
+  const nodeB={getAttribute(name){return name==='data-m26-client-guide-event-key'?'session-event-b':null;}};
+  const receiptA=eventReceiptKey(sessionTip,nodeA);
+  const receiptB=eventReceiptKey(sessionTip,nodeB);
+  assert.match(receiptA,/^client-moment-session-ready:[a-f0-9]{8}$/u);
+  assert.match(receiptB,/^client-moment-session-ready:[a-f0-9]{8}$/u);
+  assert.notEqual(receiptA,receiptB);
+  assert.doesNotMatch(receiptA,/session-event-a/u);
+
+  const state=normalizeClientContextualGuideState({
+    seenTipIds:['client-moment-session-ready'],
+    seenEventKeys:[receiptA],
+  });
+  assert.equal(tipAvailableInState(sessionTip,nodeA,state),false);
+  assert.equal(tipAvailableInState(sessionTip,nodeB,state),true);
+});
+
 
 test('Legacy client onboarding state migrates without repeating already-known areas',()=>{
   const userId='legacy-client-1';
@@ -238,6 +273,7 @@ test('Today shows an actual challenge only when there is useful challenge contex
   });
   assert.match(activeHtml,/data-m26-community-entry/u);
   assert.match(activeHtml,/data-m26-client-guide="challenge-entry"/u);
+  assert.match(activeHtml,/data-m26-client-guide-event-key="[a-f0-9]{8}"/u);
   assert.match(activeHtml,/Cumplir tu planificación/u);
   assert.match(activeHtml,/3 sesiones/u);
   assert.match(activeHtml,/75%/u);
@@ -258,10 +294,12 @@ test('Plan and session moments on Today are driven by real availability',()=>{
 
   const planOnly=renderHoyRoute({
     ...base,
-    clients:[{name:'Cliente',iri:null,nextAction:null,cycle:{name:'Fuerza base'}}],
+    clients:[{name:'Cliente',iri:null,nextAction:null,cycle:{id:'cycle-private-1',revision:3,updatedAt:'2026-09-14T10:00:00Z',name:'Fuerza base',status:'Confirmado'}}],
     rc39:{sessionProjections:[]},
   });
   assert.match(planOnly,/data-m26-client-guide="plan-entry"/u);
+  assert.match(planOnly,/data-m26-client-guide-event-key="[a-f0-9]{8}"/u);
+  assert.doesNotMatch(planOnly,/cycle-private-1/u);
   assert.doesNotMatch(planOnly,/data-m26-client-guide="session-entry"/u);
 
   const withSession=renderHoyRoute({
@@ -270,11 +308,12 @@ test('Plan and session moments on Today are driven by real availability',()=>{
       id:'S1',
       visible:true,
       canClientExecute:false,
-      session:{title:'Sesión',blocks:[]},
+      session:{title:'Sesión',revision:2,updatedAt:'2026-09-14T11:00:00Z',blocks:[]},
     }]},
   });
   assert.match(withSession,/data-m26-client-guide="plan-entry"/u);
   assert.match(withSession,/data-m26-client-guide="session-entry"/u);
+  assert.match(withSession,/data-m26-client-guide="session-entry" data-m26-client-guide-event-key="[a-f0-9]{8}"/u);
 });
 
 test('Moment guidance prioritizes actionable facts and avoids duplicate route explanations',()=>{
@@ -288,6 +327,36 @@ test('Moment guidance prioritizes actionable facts and avoids duplicate route ex
   assert.match(shell,/m26-client-bottom-nav-more/u);
   assert.match(shell,/Retos y comunidad/u);
 });
+test('Meaningful progress and low-adherence guidance only appear from confirmed non-clinical thresholds',()=>{
+  const source=read('src/m26/modules/route-render.js');
+  const vmSource=read('src/m26/modules/route-view-model.js');
+
+  assert.match(source,/summary\.dataQuality!=='limitada'/u);
+  assert.match(source,/Number\(summary\.completedSessions\|\|0\)>=2/u);
+  assert.match(source,/Number\(summary\.checkins\|\|0\)>=3/u);
+  assert.match(source,/Number\(summary\.iriAssessmentCount\|\|0\)>=2/u);
+  assert.match(source,/data-m26-client-guide-insight="progress-ready"/u);
+
+  const guideBlock=vmSource.slice(
+    vmSource.indexOf('const clientGuide='),
+    vmSource.indexOf("qaStage('rc64-hoy-ready')")
+  );
+  assert.match(guideBlock,/item\?\.id==='adherence-low'/u);
+  assert.doesNotMatch(guideBlock,/pain-high|recovery-context|post-session-discomfort/u);
+
+  const shell=renderRouteView({
+    kind:'hoy',
+    role:'client',
+    clients:[{name:'Cliente',iri:null,nextAction:null}],
+    appointments:[],
+    upcoming:[],
+    rc39:{sessionProjections:[]},
+    operations:{},
+    clientGuide:{adherenceReview:true},
+  });
+  assert.match(shell,/data-m26-area="progreso" data-m26-client-guide="adherence-entry"/u);
+});
+
 test('Planning, session, progress and challenge guidance targets are conditional rather than generic route fallbacks',()=>{
   const source=read('src/m26/modules/route-render.js');
   assert.match(source,/data-m26-client-guide="plan-surface"/u);
