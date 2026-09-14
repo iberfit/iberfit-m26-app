@@ -133,6 +133,8 @@ test('Legacy linear checklist is hidden for Client while Coach and Admin keep th
   assert.match(progressive,/if\(context\.role!=='client'\)/u);
   assert.match(progressive,/data-m26-client-contextual-guide-enabled/u);
   assert.match(guided,/role==='client'.*data-m26-client-contextual-guide-enabled/su);
+  assert.match(progressive,/launcher\.removeAttribute\?\.\('data-m26-area'\)/u);
+  assert.match(progressive,/launcher\.removeAttribute\?\.\('data-progressive-onboarding-open'\)/u);
   assert.match(progressive,/guidedTour\.mount/u);
   assert.match(progressive,/clientContextGuide\.mount/u);
   assert.match(progressive,/guidedTour\.destroy/u);
