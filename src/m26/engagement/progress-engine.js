@@ -362,6 +362,23 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   });
 }
 
+export function progressSummaryHasEvidence(summary,{timelineCount=0}={}){
+  if(!summary)return false;
+  const wearable=summary.wearable||{};
+  const metrics=wearable.metrics||{};
+  const wearableHasData=
+    Number(wearable.daysWithData||0)>0||
+    Object.values(metrics).some((value)=>value!==null&&value!==undefined&&value!=='')||
+    (wearable.providers||[]).length>0;
+  return (
+    Number(summary.completedSessions||0)>0||
+    Number(summary.checkins||0)>0||
+    Number(timelineCount||0)>0||
+    (summary.iriCurrent!==null&&summary.iriCurrent!==undefined)||
+    wearableHasData
+  );
+}
+
 export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,limit=24}={}){
   if(!clientId)return [];
   const {start,end}=progressWindow({now,days});
