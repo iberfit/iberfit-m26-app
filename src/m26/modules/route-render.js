@@ -531,6 +531,17 @@ function renderClientHoyRoute(vm) {
       </button>
     </section>
 
+    <section class="m26-panel m26-panel-soft m26-client-home-community" data-m26-community-entry>
+      <div class="m26-panel-heading">
+        <div>
+          <p class="m26-eyebrow">Retos y comunidad</p>
+          <h2>Constancia que se ve, sin convertirlo en presión</h2>
+          <p>Consulta retos personales basados en datos confirmados, hitos y opciones sociales con privacidad por defecto.</p>
+        </div>
+        <button type="button" class="m26-primary-action" data-m26-area="retos">Explorar retos y comunidad</button>
+      </div>
+    </section>
+
     ${nextActionMarkup}
 
     <section class="m26-panel m26-client-home-agenda">
@@ -3152,11 +3163,11 @@ export function renderChallengesRoute(vm){
       );
 
   return `<div class="m26-route m26-challenges-route">
-    <section class="m26-route-intro">
+    <section class="m26-route-intro" data-m26-community-intro>
       <div>
-        <p class="m26-eyebrow">IBERFIT · Retos</p>
-        <h2>Retos que acompañan tu proceso</h2>
-        <p>Objetivos transparentes basados en planificación, registros y datos confirmados. Sin inventar rendimiento.</p>
+        <p class="m26-eyebrow">IBERFIT · Retos y comunidad</p>
+        <h2>Constancia, objetivos y comunidad con criterio</h2>
+        <p>Retos personales construidos con datos confirmados. La comunidad se activa de forma explícita y nunca convierte datos de salud en contenido público.</p>
       </div>
       ${badge(
         vm.social?.visibility==='private'
@@ -3175,11 +3186,11 @@ export function renderChallengesRoute(vm){
         <div class="m26-panel-heading">
           <div>
             <p class="m26-eyebrow">Comunidad IBERFIT</p>
-            <h2>Social, con privacidad primero</h2>
+            <h2>Compartir solo cuando aporta valor</h2>
           </div>
           ${badge(vm.social?.sharingEnabled?'Compartir manual habilitado':'Privado por defecto',vm.social?.sharingEnabled?'neutral':'success')}
         </div>
-        <p>${vm.social?.sharingEnabled?'Consentimiento activo para compartir manualmente con '+escapeHtml(vm.social.audience==='coach'?'tu Coach':'alcance privado')+'.':'Tus logros permanecen privados.'} No existe publicación automática ni ranking público.</p><button type="button" data-m26-area="ajustes">Revisar privacidad social</button>
+        <p>${vm.social?.sharingEnabled?'Tienes activo el permiso para compartir manualmente con '+escapeHtml(vm.social.audience==='coach'?'tu Coach':'alcance privado')+'.':'Tus retos e hitos permanecen privados.'} IBERFIT no publica automáticamente ni expone un ranking público.</p><p class="m26-data-footnote">Los futuros retos de grupo requerirán invitación y participación explícitas. Hasta entonces, la app no simula comunidad ni posiciones que no existan.</p><button type="button" data-m26-area="ajustes">Revisar privacidad social</button>
       </div>
 
       <aside class="m26-panel m26-panel-soft">
@@ -3462,7 +3473,7 @@ function clientBottomNavItem(item,currentKind){
 
 function clientBottomNavMore(currentKind){
   const active=CLIENT_BOTTOM_NAV_MORE_KINDS.includes(currentKind);
-  return `<details class="m26-client-bottom-nav-more${active?' is-active':''}"><summary class="m26-client-bottom-nav-item${active?' is-active':''}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon('mas')}</span><span class="m26-client-bottom-nav-label">Más</span><span class="m26-client-bottom-nav-spark" aria-hidden="true">✦</span></summary><div class="m26-client-bottom-nav-menu" role="menu" aria-label="Más opciones"><button type="button" role="menuitem" data-m26-area="informes"><span>Informes</span><small>Evaluaciones y evolución compartida</small></button><button type="button" role="menuitem" data-m26-area="actividad"><span>Bienestar y hábitos</span><small>Registros y dispositivos</small></button><button type="button" role="menuitem" data-m26-area="mensajes"><span>Mensajes</span><small>Habla con tu entrenador</small></button><button type="button" role="menuitem" data-m26-area="retos"><span>Retos</span><small>Objetivos y continuidad</small></button><button type="button" role="menuitem" data-m26-area="ajustes"><span>Ajustes</span><small>Preferencias y privacidad</small></button></div></details>`;
+  return `<details class="m26-client-bottom-nav-more${active?' is-active':''}"><summary class="m26-client-bottom-nav-item${active?' is-active':''}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon('mas')}</span><span class="m26-client-bottom-nav-label">Más</span><span class="m26-client-bottom-nav-spark" aria-hidden="true">✦</span></summary><div class="m26-client-bottom-nav-menu" role="menu" aria-label="Más opciones"><button type="button" role="menuitem" data-m26-area="informes"><span>Informes</span><small>Evaluaciones y evolución compartida</small></button><button type="button" role="menuitem" data-m26-area="actividad"><span>Bienestar y hábitos</span><small>Registros y dispositivos</small></button><button type="button" role="menuitem" data-m26-area="mensajes"><span>Mensajes</span><small>Habla con tu entrenador</small></button><button type="button" role="menuitem" data-m26-area="retos"><span>Retos y comunidad</span><small>Constancia, objetivos e hitos</small></button><button type="button" role="menuitem" data-m26-area="ajustes"><span>Ajustes</span><small>Preferencias y privacidad</small></button></div></details>`;
 }
 
 
