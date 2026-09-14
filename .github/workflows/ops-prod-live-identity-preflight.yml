@@ -36,3 +36,5 @@ jobs:
           if(safe.projectRef!=='pjhmrhejsoofmouedavw')throw new Error('LIVE_PROJECT_REF_INVALID');
           if(safe.qaOnly!==false)throw new Error('LIVE_QA_ONLY_INVALID');
           NODE
+
+# Verify live marker: after-prod-b2e4a20c-promotion
