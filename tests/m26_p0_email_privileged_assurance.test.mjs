@@ -39,7 +39,7 @@ test('privileged access UI keeps WebAuthn preferred and exposes email-code fallb
   });
   assert.match(challenge,/data-auth-action="mfa-continue-webauthn"/u);
   assert.match(challenge,/data-auth-action="mfa-send-email-code"/u);
-  assert.match(challenge,/Usar código por correo/u);
+  assert.match(challenge,/Enviar código al correo asociado/u);
 
   const code=renderAccessUi({
     mode:'mfa-email-code',
