@@ -133,7 +133,7 @@ test('Guided welcome is accessible, motion-safe, responsive and uses the vector 
   assert.match(source,/data-m26-client-guide-side="right"/u);
   assert.match(source,/background:\s*linear-gradient\(145deg,rgba\(255,251,236/u);
   assert.match(source,/m26-client-guide-target-breathe/u);
-  assert.match(source,/\.m26-client-guided-welcome-presence \*\{\s*transition:none!important;\s*animation:none!important;/u);
+  assert.match(source,/\.m26-client-guided-welcome-presence \*,\s*\.m26-client-guided-welcome-target::after\{\s*transition:none!important;\s*animation:none!important;/u);
   assert.match(source,/guideState:'idle'/u);
   assert.match(source,/guideState:'pointing'/u);
   assert.match(source,/guideState:'success'/u);
