@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "464b5c62181f757bee15509c4d59bb5bb3cf16f9",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Admin post-create continuity: after a real client creation, preserve the created client context through immediate or delayed refresh, locate the persisted record, provide accessible focus on Editar ficha and stable visual highlighting. Retains certified P0 form stability, invite CORS hardening, responsible Coach assignment and safe client profile editing."
+}
