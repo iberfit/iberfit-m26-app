@@ -441,12 +441,7 @@ export function createProgressiveOnboardingController({
   const tourOpenState=createProgressiveOnboardingOpenState({root,documentLike,onOpenChange});
   const guidedTour=createGuidedTourController({
     root,
-    identityProvider:()=>{
-      const value=identityProvider?.()||{};
-      return text(value.role,40).toLowerCase()==='client'
-        ?{...value,role:'client-contextual'}
-        :value;
-    },
+    identityProvider,
     storage:resolvedStorage,
     scope,
     onOpenChange:(open)=>tourOpenState.set(open),
@@ -464,6 +459,14 @@ export function createProgressiveOnboardingController({
   let tourOpenSyncScheduled=false;
   let renderedPanel=null;
   let renderedPanelKey=null;
+
+  function syncClientContextualGuideMode(){
+    const value=identityProvider?.()||{};
+    const client=text(value.role,40).toLowerCase()==='client';
+    if(client)root.setAttribute?.('data-m26-client-contextual-guide-enabled','true');
+    else root.removeAttribute?.('data-m26-client-contextual-guide-enabled');
+    return client;
+  }
 
   function identity(){
     const value=identityProvider?.()||{};
@@ -600,6 +603,7 @@ export function createProgressiveOnboardingController({
   function render(){
     scheduled=false;
     if(!mounted)return;
+    syncClientContextualGuideMode();
     syncFlexibleClientStart();
     const context=identity();
     if(!context){
@@ -621,8 +625,8 @@ export function createProgressiveOnboardingController({
     ensureLauncher(context,state);
     ensurePanel(context,state,area);
     guidedTour.refresh?.();
-    clientContextGuide.refresh?.();
     scheduleTourOpenStateSync();
+    clientContextGuide.refresh?.();
   }
 
   function schedule(){
@@ -685,6 +689,7 @@ export function createProgressiveOnboardingController({
         tourObserver=new scope.MutationObserver(syncTourOpenState);
         tourObserver.observe(documentLike.body,{childList:true});
       }
+      syncClientContextualGuideMode();
       guidedTour.mount?.();
       clientContextGuide.mount?.();
       releaseCompactStyle=retainProgressiveOnboardingCompactStyle(documentLike);
@@ -707,6 +712,7 @@ export function createProgressiveOnboardingController({
       tourObserver=null;
       guidedTour.destroy?.();
       clientContextGuide.destroy?.();
+      root.removeAttribute?.('data-m26-client-contextual-guide-enabled');
       tourOpenState.clear();
       releaseCompactStyle?.();
       releaseCompactStyle=null;
