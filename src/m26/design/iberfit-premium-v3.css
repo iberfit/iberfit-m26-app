@@ -136,6 +136,16 @@
 
 /* ---------- Global shell ---------- */
 .m26-shell{
+  --iberfit-color-canvas:var(--iberfit-v3-canvas);
+  --iberfit-color-surface-base:var(--iberfit-v3-surface);
+  --iberfit-color-surface-raised:var(--iberfit-v3-surface-raised);
+  --iberfit-color-text-primary:var(--iberfit-v3-text);
+  --iberfit-color-text-secondary:var(--iberfit-v3-text-secondary);
+  --iberfit-color-text-subtle:#CDD4D0;
+  --iberfit-color-accent:var(--iberfit-v3-gold);
+  --iberfit-color-accent-strong:#D7BA7C;
+  --iberfit-color-border:var(--iberfit-v3-line);
+  --iberfit-color-border-strong:rgba(197,160,89,.30);
   position:relative;
   isolation:isolate;
   color-scheme:dark!important;
@@ -145,7 +155,9 @@
 .m26-shell .m26-workspace{
   position:relative;
   isolation:isolate;
+  color-scheme:dark!important;
   color:var(--iberfit-v3-text)!important;
+  background-color:var(--iberfit-v3-canvas)!important;
   background:
     radial-gradient(circle at 94% 3%,rgba(197,160,89,.035),transparent 26rem),
     linear-gradient(160deg,#0C1612 0%,var(--iberfit-v3-canvas) 58%,#09100D 100%)!important;
