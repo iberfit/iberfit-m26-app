@@ -14,38 +14,19 @@ const runtime={
   host:'app.iberfit.cl',
   version:'test-email-assurance',
   timeoutMs:2000,
-  rpc:{
-    bootstrap:'iberfit_bootstrap_v26',
-    preflight:'iberfit_command_preflight_v26',
-    execute:'iberfit_execute_command_v26',
-  },
+  rpc:{bootstrap:'iberfit_bootstrap_v26',preflight:'iberfit_command_preflight_v26',execute:'iberfit_execute_command_v26'},
 };
 
 function response(body,status=200){
-  return {
-    ok:status>=200&&status<300,
-    status,
-    headers:{get(name){return name==='content-type'?'application/json':null;}},
-    json:async()=>body,
-    text:async()=>JSON.stringify(body),
-  };
+  return {ok:status>=200&&status<300,status,headers:{get(name){return name==='content-type'?'application/json':null;}},json:async()=>body,text:async()=>JSON.stringify(body)};
 }
 
 test('privileged access UI keeps WebAuthn preferred and exposes email-code fallback',()=>{
-  const challenge=renderAccessUi({
-    mode:'mfa-challenge',
-    backendReady:true,
-    mfa:{kind:'challenge',emailOtpAvailable:true},
-  });
+  const challenge=renderAccessUi({mode:'mfa-challenge',backendReady:true,mfa:{kind:'challenge',emailOtpAvailable:true}});
   assert.match(challenge,/data-auth-action="mfa-continue-webauthn"/u);
   assert.match(challenge,/data-auth-action="mfa-send-email-code"/u);
   assert.match(challenge,/Enviar código al correo asociado/u);
-
-  const code=renderAccessUi({
-    mode:'mfa-email-code',
-    backendReady:true,
-    mfa:{kind:'challenge',email:'seguridad@iberfit.cl',emailOtpAvailable:true},
-  });
+  const code=renderAccessUi({mode:'mfa-email-code',backendReady:true,mfa:{kind:'challenge',email:'seguridad@iberfit.cl',emailOtpAvailable:true}});
   assert.match(code,/data-auth-form="mfa-email-code"/u);
   assert.match(code,/autocomplete="one-time-code"/u);
   assert.match(code,/pattern="\[0-9\]\{6\}"/u);
@@ -55,53 +36,26 @@ test('privileged access UI keeps WebAuthn preferred and exposes email-code fallb
 
 test('email OTP request never creates a new account',async()=>{
   const calls=[];
-  const transport=createM26Transport(runtime,{fetchImpl:async(url,options)=>{
-    calls.push({url,options});
-    return response({});
-  }});
+  const transport=createM26Transport(runtime,{fetchImpl:async(url,options)=>{calls.push({url,options});return response({});}});
   await transport.requestEmailOtp('Seguridad@IBERFIT.CL');
   assert.equal(calls.length,1);
   assert.match(calls[0].url,/\/auth\/v1\/otp$/u);
-  assert.deepEqual(JSON.parse(calls[0].options.body),{
-    email:'seguridad@iberfit.cl',
-    create_user:false,
-  });
+  assert.deepEqual(JSON.parse(calls[0].options.body),{email:'seguridad@iberfit.cl',create_user:false});
 });
 
 test('email OTP verification creates only a transient session and validates identity',async()=>{
   const calls=[];
-  const transport=createM26Transport(runtime,{fetchImpl:async(url,options)=>{
-    calls.push({url,options});
-    return response({
-      access_token:'otp-access-token',
-      refresh_token:'otp-refresh-token',
-      expires_at:2000000000,
-      user:{id:'user-email-assurance-1',email:'seguridad@iberfit.cl'},
-    });
-  }});
+  const transport=createM26Transport(runtime,{fetchImpl:async(url,options)=>{calls.push({url,options});return response({access_token:'otp-access-token',refresh_token:'otp-refresh-token',expires_at:2000000000,user:{id:'user-email-assurance-1',email:'seguridad@iberfit.cl'}});}});
   const session=await transport.verifyEmailOtp('seguridad@iberfit.cl','123456');
   assert.equal(session.user.id,'user-email-assurance-1');
   assert.match(calls[0].url,/\/auth\/v1\/verify$/u);
-  assert.deepEqual(JSON.parse(calls[0].options.body),{
-    email:'seguridad@iberfit.cl',
-    token:'123456',
-    type:'email',
-  });
+  assert.deepEqual(JSON.parse(calls[0].options.body),{email:'seguridad@iberfit.cl',token:'123456',type:'email'});
   await assert.rejects(()=>transport.verifyEmailOtp('seguridad@iberfit.cl','12345'),/M26_EMAIL_OTP_INVALID/u);
 });
 
 test('email assurance finalizer binds OTP proof to the existing password session',async()=>{
   const calls=[];
-  const transport=createM26Transport(runtime,{fetchImpl:async(url,options)=>{
-    calls.push({url,options});
-    return response({
-      ok:true,
-      verified:true,
-      method:'email_otp',
-      user:{id:'user-email-assurance-1',email:'seguridad@iberfit.cl'},
-      expiresAt:'2026-09-11T06:00:00.000Z',
-    });
-  }});
+  const transport=createM26Transport(runtime,{fetchImpl:async(url,options)=>{calls.push({url,options});return response({ok:true,verified:true,method:'email_otp',user:{id:'user-email-assurance-1',email:'seguridad@iberfit.cl'},expiresAt:'2026-09-11T06:00:00.000Z'});}});
   const result=await transport.finalizeEmailAssurance('primary-password-token','otp-access-token');
   assert.equal(result.method,'email_otp');
   assert.match(calls[0].url,/\/functions\/v1\/iberfit-email-assurance-v1$/u);
@@ -141,7 +95,7 @@ test('database assurance keeps WebAuthn, preserves migration history and hardens
   assert.match(v2,/Each Supabase email OTP session may establish privileged assurance exactly once/u);
 });
 
-test('IBERFIT OTP email is branded, personalized to the associated address and contains code instead of login link',()=>{
+test('IBERFIT OTP email is branded, personalized and uses the premium light system',()=>{
   const html=fs.readFileSync('supabase/templates/iberfit-magic-link.html','utf8');
   const manifest=JSON.parse(fs.readFileSync('supabase/templates/iberfit-hosted-auth-email-manifest.json','utf8'));
   const entry=manifest.templates.find((item)=>item.id==='magic_link');
@@ -150,20 +104,18 @@ test('IBERFIT OTP email is branded, personalized to the associated address and c
   assert.deepEqual(entry.requires,['{{ .Token }}','{{ .Email }}']);
   assert.match(html,/\{\{ \.Token \}\}/u);
   assert.match(html,/\{\{ \.Email \}\}/u);
-  assert.match(html,/#0B1310/iu);
-  assert.match(html,/#C5A059/iu);
-  assert.match(html,/isotipo-iberfit\.png/u);
+  assert.match(html,/#f3f0e8/iu);
+  assert.match(html,/#0d3328/iu);
+  assert.match(html,/#c8a24a/iu);
+  assert.match(html,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
+  assert.match(html,/mailto:\{\{ \.Email \}\}/u);
   assert.doesNotMatch(html,/iberfit-email-access-hero\.jpg/u);
   assert.doesNotMatch(html,/\{\{ \.ConfirmationURL \}\}/u);
 });
 
-
 test('transient OTP logout is local while explicit account logout keeps global scope',async()=>{
   const calls=[];
-  const transport=createM26Transport(runtime,{fetchImpl:async(url,options)=>{
-    calls.push({url,options});
-    return response(null,204);
-  }});
+  const transport=createM26Transport(runtime,{fetchImpl:async(url,options)=>{calls.push({url,options});return response(null,204);}});
   const local=await transport.logout('otp-access-token',{scope:'local'});
   const global=await transport.logout('primary-access-token');
   assert.equal(local.scope,'local');
@@ -171,7 +123,6 @@ test('transient OTP logout is local while explicit account logout keeps global s
   assert.match(calls[0].url,/\/auth\/v1\/logout\?scope=local$/u);
   assert.match(calls[1].url,/\/auth\/v1\/logout\?scope=global$/u);
   await assert.rejects(()=>transport.logout('token',{scope:'invalid'}),/M26_LOGOUT_SCOPE_INVALID/u);
-
   const app=fs.readFileSync('src/m26/app/application.js','utf8');
   assert.match(app,/logout\?\.\(otpToken,\{scope:'local'\}\)/u);
   assert.match(app,/logout\?\.\(recoveryToken,\{scope:'local'\}\)/u);
