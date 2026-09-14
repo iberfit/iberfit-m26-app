@@ -1,0 +1,147 @@
+name: IBERFIT QA Auth Config Hardening
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.github/workflows/ops-qa-auth-config-hardening.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-qa-auth-config-hardening
+  cancel-in-progress: false
+
+env:
+  QA_SUPABASE_REF: 'gjztkdwfmunnzhtvxrsu'
+  QA_SUPABASE_URL: 'https://gjztkdwfmunnzhtvxrsu.supabase.co'
+
+jobs:
+  harden-qa-auth:
+    name: harden-qa-auth-with-rollback
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact operational branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Capture QA Auth config and apply bounded hardening
+        id: harden
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/auth-config-hardening
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const ref=process.env.QA_SUPABASE_REF;
+          const token=process.env.SUPABASE_ACCESS_TOKEN;
+          if(!token)throw new Error('SUPABASE_ACCESS_TOKEN_MISSING');
+          const endpoint=`https://api.supabase.com/v1/projects/${ref}/config/auth`;
+          async function req(method='GET',body){
+            const r=await fetch(endpoint,{
+              method,
+              headers:{Authorization:`Bearer ${token}`,Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},
+              ...(body?{body:JSON.stringify(body)}:{})
+            });
+            let data={}; try{data=await r.json();}catch{}
+            if(!r.ok)throw new Error(`QA_AUTH_CONFIG_${method}_FAILED_${r.status}`);
+            return data;
+          }
+          const before=await req();
+          const state={
+            schema:'iberfit.auth-config-hardening-state.v1',
+            target:'qa',
+            projectRef:ref,
+            disable_signup:before.disable_signup===true,
+            password_min_length:Number(before.password_min_length),
+            security_update_password_require_reauthentication:before.security_update_password_require_reauthentication===true
+          };
+          fs.writeFileSync('recovery/auth-config-hardening/qa-before.json',JSON.stringify(state,null,2)+'\n');
+          const patch={
+            disable_signup:true,
+            password_min_length:8,
+            security_update_password_require_reauthentication:true
+          };
+          const needsChange=state.disable_signup!==true
+            || state.password_min_length!==8
+            || state.security_update_password_require_reauthentication!==true;
+          if(needsChange)await req('PATCH',patch);
+          const after=await req();
+          const ok=after.disable_signup===true
+            && Number(after.password_min_length)===8
+            && after.security_update_password_require_reauthentication===true;
+          if(!ok)throw new Error('QA_AUTH_CONFIG_VERIFY_FAILED');
+          const evidence={schema:'iberfit.auth-config-hardening-evidence.v1',target:'qa',projectRef:ref,changed:needsChange,before:state,after:patch,verified:true};
+          fs.writeFileSync('recovery/auth-config-hardening/qa-after.json',JSON.stringify(evidence,null,2)+'\n');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`changed=${needsChange?'true':'false'}\n`);
+          console.log(JSON.stringify({target:'qa',changed:needsChange,verified:true,disableSignup:true,passwordMinLength:8,reauthPasswordChange:true}));
+          NODE
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify authenticated QA accounts after Auth hardening
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node scripts/remote-gates/run_authenticated_readonly_gate.mjs
+
+      - name: Roll back QA Auth config on compatibility failure
+        if: ${{ failure() && steps.harden.outputs.changed == 'true' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const state=JSON.parse(fs.readFileSync('recovery/auth-config-hardening/qa-before.json','utf8'));
+          if(state.schema!=='iberfit.auth-config-hardening-state.v1'||state.target!=='qa')throw new Error('QA_AUTH_ROLLBACK_STATE_INVALID');
+          const endpoint=`https://api.supabase.com/v1/projects/${state.projectRef}/config/auth`;
+          const token=process.env.SUPABASE_ACCESS_TOKEN;
+          const patch={
+            disable_signup:state.disable_signup,
+            password_min_length:state.password_min_length,
+            security_update_password_require_reauthentication:state.security_update_password_require_reauthentication
+          };
+          const r=await fetch(endpoint,{method:'PATCH',headers:{Authorization:`Bearer ${token}`,Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(patch)});
+          if(!r.ok)throw new Error(`QA_AUTH_ROLLBACK_PATCH_FAILED_${r.status}`);
+          const verify=await fetch(endpoint,{headers:{Authorization:`Bearer ${token}`,Accept:'application/json'}});
+          const after=await verify.json();
+          if(!verify.ok
+             || after.disable_signup!==patch.disable_signup
+             || Number(after.password_min_length)!==Number(patch.password_min_length)
+             || after.security_update_password_require_reauthentication!==patch.security_update_password_require_reauthentication){
+            throw new Error('QA_AUTH_ROLLBACK_VERIFY_FAILED');
+          }
+          fs.writeFileSync('recovery/auth-config-hardening/qa-rollback.json',JSON.stringify({ok:true,target:'qa',restored:patch},null,2)+'\n');
+          NODE
+
+      - name: Preserve Auth hardening evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-qa-auth-config-hardening-${{ github.run_id }}
+          path: recovery/auth-config-hardening/
+          if-no-files-found: warn
+          retention-days: 30
