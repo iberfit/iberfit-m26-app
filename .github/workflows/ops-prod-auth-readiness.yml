@@ -80,7 +80,34 @@ jobs:
             siteUrlConfigured:Boolean(siteUrl),
             siteUrl,
             siteUrlMatchesApp,
-            uriAllowList:Array.isArray(config.uri_allow_list)?config.uri_allow_list:String(config.uri_allow_list||'').split(',').map((value)=>value.trim()).filter(Boolean)
+            uriAllowList:Array.isArray(config.uri_allow_list)?config.uri_allow_list:String(config.uri_allow_list||'').split(',').map((value)=>value.trim()).filter(Boolean),
+            authSecurity:{
+              disableSignup:config.disable_signup===true,
+              externalEmailEnabled:config.external_email_enabled===true,
+              externalAnonymousUsersEnabled:config.external_anonymous_users_enabled===true,
+              mailerAutoconfirm:config.mailer_autoconfirm===true,
+              mailerAllowUnverifiedEmailSignIns:config.mailer_allow_unverified_email_sign_ins===true,
+              mailerSecureEmailChangeEnabled:config.mailer_secure_email_change_enabled===true,
+              mailerOtpExp:Number.isFinite(Number(config.mailer_otp_exp))?Number(config.mailer_otp_exp):null,
+              mailerOtpLength:Number.isFinite(Number(config.mailer_otp_length))?Number(config.mailer_otp_length):null,
+              jwtExp:Number.isFinite(Number(config.jwt_exp))?Number(config.jwt_exp):null,
+              refreshTokenRotationEnabled:config.refresh_token_rotation_enabled===true,
+              refreshTokenReuseInterval:Number.isFinite(Number(config.security_refresh_token_reuse_interval))?Number(config.security_refresh_token_reuse_interval):null,
+              passwordMinLength:Number.isFinite(Number(config.password_min_length))?Number(config.password_min_length):null,
+              passwordRequiredCharacters:String(config.password_required_characters||''),
+              passwordHibpEnabled:config.password_hibp_enabled===true,
+              updatePasswordRequireReauthentication:config.security_update_password_require_reauthentication===true,
+              captchaEnabled:config.security_captcha_enabled===true,
+              captchaProvider:String(config.security_captcha_provider||''),
+              sessionsSinglePerUser:config.sessions_single_per_user===true,
+              sessionsTimebox:Number.isFinite(Number(config.sessions_timebox))?Number(config.sessions_timebox):null,
+              sessionsInactivityTimeout:Number.isFinite(Number(config.sessions_inactivity_timeout))?Number(config.sessions_inactivity_timeout):null,
+              rateLimitEmailSent:Number.isFinite(Number(config.rate_limit_email_sent))?Number(config.rate_limit_email_sent):null,
+              rateLimitOtp:Number.isFinite(Number(config.rate_limit_otp))?Number(config.rate_limit_otp):null,
+              rateLimitVerify:Number.isFinite(Number(config.rate_limit_verify))?Number(config.rate_limit_verify):null,
+              rateLimitTokenRefresh:Number.isFinite(Number(config.rate_limit_token_refresh))?Number(config.rate_limit_token_refresh):null,
+              mfaMaxEnrolledFactors:Number.isFinite(Number(config.mfa_max_enrolled_factors))?Number(config.mfa_max_enrolled_factors):null
+            }
           };
           fs.writeFileSync('PROD_AUTH_SMTP_READINESS.json',JSON.stringify(evidence,null,2)+'\n','utf8');
           console.log(JSON.stringify(evidence,null,2));
