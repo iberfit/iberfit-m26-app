@@ -152,7 +152,7 @@ const TIPS=Object.freeze([
       '[data-client-bottom-nav-route="ajustes"]',
     ]),
   }),
-])
+]);
 
 const LEGACY_PROGRESSIVE_MAP=Object.freeze({
   'client-today':Object.freeze(['client-context-today']),
