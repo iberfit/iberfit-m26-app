@@ -24,6 +24,8 @@ const SOURCE_COPY=Object.freeze({
   'client-context-plan.body':'Aquí encontrarás lo que tu Coach ha preparado para ti y cómo encajan tus sesiones dentro del proceso.',
   'client-context-session.title':'Este es el espacio para entrenar',
   'client-context-session.body':'En Sesiones encontrarás los entrenamientos que tu Coach haya dejado disponibles. Durante la ejecución podrás seguir ejercicios, series, carga, descansos e indicaciones.',
+  'client-moment-progress-ready.title':'Ya hay progreso que merece contexto',
+  'client-moment-progress-ready.body':'IBERFIT ya dispone de datos confirmados suficientes para mostrarte una evolución útil. En Progreso verás lo que realmente existe, sin convertir ausencias en cero ni sacar conclusiones automáticas.',
   'client-context-progress.title':'Tu progreso necesita contexto',
   'client-context-progress.body':'Aquí se combinan adherencia, evolución y resultados confirmados. IBERFIT evita convertir la falta de datos en un cero o en una conclusión automática.',
   'client-context-activity.title':'Tus registros completan la historia',
@@ -68,6 +70,16 @@ const TIPS=Object.freeze([
     actionArea:'retos',
     seenAlso:Object.freeze(['client-context-challenges']),
     selectors:Object.freeze(['[data-m26-client-guide="challenge-entry"]']),
+  }),
+  Object.freeze({
+    id:'client-moment-progress-ready',
+    copyId:'client-moment-progress-ready',
+    kind:'moment',
+    priority:80,
+    area:'hoy',
+    actionArea:'progreso',
+    seenAlso:Object.freeze(['client-context-progress']),
+    selectors:Object.freeze(['[data-m26-client-guide="progress-entry"]']),
   }),
   Object.freeze({
     id:'client-context-today',
@@ -158,7 +170,7 @@ const LEGACY_PROGRESSIVE_MAP=Object.freeze({
   'client-today':Object.freeze(['client-context-today']),
   'client-plan':Object.freeze(['client-context-plan-ready','client-context-plan']),
   'client-session':Object.freeze(['client-moment-session-ready','client-context-session']),
-  'client-progress':Object.freeze(['client-context-progress']),
+  'client-progress':Object.freeze(['client-moment-progress-ready','client-context-progress']),
   'client-activity':Object.freeze(['client-context-activity']),
 });
 const LEGACY_GUIDED_ALL=Object.freeze([
