@@ -459,29 +459,39 @@ function renderClientHoyRoute(vm) {
     ?''
     :`de ${challenge.target} ${challenge.unit||''}`.trim();
   const challengePreviewMarkup=challenge
-    ?`<section class="m26-panel m26-panel-soft m26-client-home-community" data-m26-community-entry data-m26-client-guide="challenge-entry" data-m26-client-guide-event-key="${escapeHtml(challengeGuideEventKey)}">
-        <div class="m26-panel-heading">
+    ?challenge.completed
+      ?`<section class="m26-client-home-community is-completed" data-m26-community-entry data-m26-client-guide="challenge-entry" data-m26-client-guide-event-key="${escapeHtml(challengeGuideEventKey)}">
           <div>
-            <p class="m26-eyebrow">Tu reto</p>
-            <h2>${escapeHtml(challenge.title||'Retos y comunidad')}</h2>
-            <p>${escapeHtml(challenge.detail||'Constancia y objetivos con datos confirmados.')}</p>
+            <p class="m26-eyebrow">Reto completado</p>
+            <strong>${escapeHtml(challenge.title||'Objetivo conseguido')}</strong>
+            <small>${escapeHtml(challenge.detail||'El hito queda registrado con datos confirmados.')}</small>
           </div>
-          ${badge(challenge.completed?'Completado':challengeProgress===null?'Activo':`${challengeProgress}%`,challenge.completed?'success':'neutral')}
-        </div>
-        <div class="m26-challenge-value">
-          <strong>${escapeHtml(challengeCurrent)}</strong>
-          <small>${escapeHtml(challengeTarget)}</small>
-        </div>
-        ${challengeProgress===null?'':`<progress max="100" value="${escapeHtml(challengeProgress)}" aria-label="${escapeHtml(challenge.title||'Reto')} ${escapeHtml(challengeProgress)}%">${escapeHtml(challengeProgress)}%</progress>`}
-        <div class="m26-inline-actions">
-          <button type="button" class="m26-primary-action" data-m26-area="retos">Ver reto</button>
-        </div>
-      </section>`
+          <button type="button" data-m26-area="retos">Ver reto</button>
+        </section>`
+      :`<section class="m26-panel m26-panel-soft m26-client-home-community" data-m26-community-entry data-m26-client-guide="challenge-entry" data-m26-client-guide-event-key="${escapeHtml(challengeGuideEventKey)}">
+          <div class="m26-panel-heading">
+            <div>
+              <p class="m26-eyebrow">Tu reto</p>
+              <h2>${escapeHtml(challenge.title||'Retos y comunidad')}</h2>
+              <p>${escapeHtml(challenge.detail||'Constancia y objetivos con datos confirmados.')}</p>
+            </div>
+            ${badge(challengeProgress===null?'Activo':`${challengeProgress}%`,'neutral')}
+          </div>
+          <div class="m26-challenge-value">
+            <strong>${escapeHtml(challengeCurrent)}</strong>
+            <small>${escapeHtml(challengeTarget)}</small>
+          </div>
+          ${challengeProgress===null?'':`<progress max="100" value="${escapeHtml(challengeProgress)}" aria-label="${escapeHtml(challenge.title||'Reto')} ${escapeHtml(challengeProgress)}%">${escapeHtml(challengeProgress)}%</progress>`}
+          <div class="m26-inline-actions">
+            <button type="button" class="m26-primary-action" data-m26-area="retos">Ver reto</button>
+          </div>
+        </section>`
     :'';
 
   let primary;
   if(runnable){
     primary={
+      area:'sesion',
       eyebrow:'Tu sesión de hoy',
       title:runnable.title||firstProjection?.session?.title||'Entrenamiento IBERFIT',
       detail:[runnable.dateLabel,runnable.modality].filter(Boolean).join(' · ')||'Preparada para comenzar',
@@ -493,6 +503,7 @@ function renderClientHoyRoute(vm) {
     };
   }else if(projections.length){
     primary={
+      area:'sesion',
       eyebrow:'Tu entrenamiento',
       title:firstProjection?.session?.title||'Tu planificación está preparada',
       detail:`${projections.length} sesión${projections.length===1?'':'es'} disponible${projections.length===1?'':'s'}`,
@@ -504,6 +515,7 @@ function renderClientHoyRoute(vm) {
     };
   }else{
     primary={
+      area:'actividad',
       eyebrow:'Tu siguiente paso',
       title:'Actualiza cómo estás hoy',
       detail:'Un registro breve mantiene tu seguimiento al día.',
@@ -528,8 +540,9 @@ function renderClientHoyRoute(vm) {
   const nextActionLabel=nextAction?.area==='planificacion'
     ?'Revisar mi planificación'
     :nextAction?.label||'Continuar';
-  const nextActionMarkup=nextAction
-    ?`<button type="button" class="m26-client-home-context-action" data-m26-area="${escapeHtml(nextAction.area||'actividad')}">
+  const nextActionArea=String(nextAction?.area||'actividad');
+  const nextActionMarkup=nextAction&&nextActionArea!==primary.area
+    ?`<button type="button" class="m26-client-home-context-action" data-m26-area="${escapeHtml(nextActionArea)}">
         <span>Siguiente paso</span>
         <strong>${escapeHtml(nextActionLabel)}</strong>
         <small>${escapeHtml(nextAction.reason||'Continúa con tu recorrido IBERFIT.')}</small>
