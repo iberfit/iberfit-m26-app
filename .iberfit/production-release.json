@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "509c64069b356bd2a9dafd70704478cf97e702a9",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Admin real client flow UX: lead capture clearly separated from client expediente/invitation; P0 form stability retained; invitation Edge hardening deployed separately to PROD v26.2."
+}
