@@ -279,7 +279,7 @@ test('Plan and session moments on Today are driven by real availability',()=>{
 
 test('Moment guidance prioritizes actionable facts and avoids duplicate route explanations',()=>{
   const guide=read('src/m26/onboarding/client-contextual-guide.js');
-  assert.match(guide,/priority:120[\s\S]*client-moment-session-ready/u);
+  assert.match(guide,/client-moment-session-ready[\s\S]*priority:120/u);
   assert.match(guide,/sort\(\(left,right\)=>Number\(right\.priority\|\|0\)-Number\(left\.priority\|\|0\)\)/u);
   assert.match(guide,/\.\.\.\(Array\.isArray\(tip\.seenAlso\)\?tip\.seenAlso:\[\]\)/u);
   assert.match(guide,/tip\.excludeSelectors/u);
