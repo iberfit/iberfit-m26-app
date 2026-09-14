@@ -26,7 +26,9 @@ test('client profile update keeps access email out of general editing and synchr
   assert.doesNotMatch(migration,/update public\.client_access_v26[\s\S]*set[\s\S]*email\s*=/iu);
   assert.match(render,/Correo de acceso/u);
   assert.match(render,/flujo de seguridad separado/u);
-  assert.doesNotMatch(render,/data-admin-form="client-profile-update"[\s\S]*name="email"/u);
+  const editForm=render.match(/data-admin-form="client-profile-update"[\s\S]*?<\/form>/u)?.[0]||'';
+  assert.ok(editForm,'client profile update form must be present');
+  assert.doesNotMatch(editForm,/name="email"/u);
 });
 
 test('confirmed IRI history is immutable while the initial draft stays synchronized',()=>{
