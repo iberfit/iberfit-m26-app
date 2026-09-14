@@ -157,6 +157,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let interactionPointerTarget=null;
   let interactionFocusTarget=null;
   let interactionReleaseTimer=null;
+  let formInteractionTarget=null;
   let pendingI18nContinuitySnapshot=null;
 
   const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"],form button';
@@ -165,11 +166,12 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   const INTERACTION_RELEASE_GRACE_MS=900;
   const NATIVE_SELECT_INTERACTION_HOLD_MS=30_000;
   function interactiveControl(node){return node?.closest?.(SHELL_INTERACTIVE_SELECTOR)||null;}
+  function interactionForm(node){return node?.closest?.('form')||null;}
   function focusedInteractiveControl(){
     const active=root.ownerDocument?.activeElement;
     return active&&root.contains?.(active)&&active.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR)?active:null;
   }
-  function shellInteractionActive(){return Boolean(interactionPointerTarget||interactionFocusTarget||focusedInteractiveControl());}
+  function shellInteractionActive(){return Boolean(interactionPointerTarget||interactionFocusTarget||focusedInteractiveControl()||(formInteractionTarget&&root.contains?.(formInteractionTarget)));}
   function touchTextEntry(node){return node?.closest?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR)||null;}
   function touchInputMode(event){
     const pointerType=String(event?.pointerType||'').toLowerCase();
@@ -195,6 +197,18 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     clearTimer?.(interactionReleaseTimer);
     interactionReleaseTimer=null;
   }
+  function holdFormInteraction(node){
+    const form=interactionForm(node);
+    if(!form||!root.contains?.(form))return false;
+    formInteractionTarget=form;
+    return true;
+  }
+
+  function releaseFormInteraction({deferRender=true}={}){
+    formInteractionTarget=null;
+    if(deferRender)queueMicrotask(flushDeferredRender);
+  }
+
 
   function releasePointerInteraction({deferRender=true}={}){
     clearInteractionReleaseTimer();
@@ -373,6 +387,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function onPointerDown(event){
     const previous=interactionPointerTarget;
     clearInteractionReleaseTimer();
+    const submitControl=event.target?.closest?.('button[type="submit"],input[type="submit"]');
+    if(formInteractionTarget&&(!formInteractionTarget.contains?.(event.target)||submitControl?.closest?.('form')===formInteractionTarget)){
+      releaseFormInteraction({deferRender:false});
+    }
     interactionPointerTarget=interactiveControl(event.target);
     const textEntry=touchTextEntry(event.target);
     if(textEntry)focusTouchTextEntry(textEntry,event);
@@ -385,8 +403,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     releasePointerInteraction();
   }
   function onFocusIn(event){
+    if(formInteractionTarget&&!formInteractionTarget.contains?.(event.target))releaseFormInteraction({deferRender:false});
     const control=interactiveControl(event.target);
     if(!control)return;
+    holdFormInteraction(control);
     interactionFocusTarget=control.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR)?control:null;
     markTextEntryActive(touchTextEntry(control));
     const tag=String(control?.tagName||'').toLowerCase();
@@ -405,8 +425,29 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       const active=focusedInteractiveControl();
       interactionFocusTarget=active;
       markTextEntryActive(touchTextEntry(active));
+      const rawActive=root.ownerDocument?.activeElement;
+      if(formInteractionTarget&&rawActive&&rawActive!==root.ownerDocument?.body&&!formInteractionTarget.contains?.(rawActive)){
+        releaseFormInteraction();
+        return;
+      }
       flushDeferredRender();
     });
+  }
+
+  function onInputActivity(event){
+    const control=interactiveControl(event.target);
+    if(!control)return;
+    holdFormInteraction(control);
+  }
+
+  function onFormSubmit(event){
+    const form=event.target?.closest?.('form');
+    if(!form||form!==formInteractionTarget)return;
+    const active=root.ownerDocument?.activeElement;
+    if(active&&form.contains?.(active))active.blur?.();
+    interactionFocusTarget=null;
+    markTextEntryActive(null);
+    releaseFormInteraction({deferRender:false});
   }
 
   function focusMain(){queueMicrotask(()=>root.querySelector?.('#m26-main')?.focus?.({preventScroll:false}));}
@@ -608,6 +649,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     adaptiveWindow=root.ownerDocument?.defaultView||globalThis.window||null;
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);
+    root.addEventListener('input',onInputActivity);
+    root.addEventListener('submit',onFormSubmit);
     root.addEventListener('m26:i18n-switch-settled',onI18nSwitchSettled);
     root.addEventListener('pointerdown',onPointerDown,{passive:true});
     root.addEventListener('pointerup',onPointerRelease,{passive:true});
@@ -635,9 +678,12 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     clearInteractionReleaseTimer();
     interactionPointerTarget=null;
     interactionFocusTarget=null;
+    formInteractionTarget=null;
     markTextEntryActive(null);
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);
+    root.removeEventListener('input',onInputActivity);
+    root.removeEventListener('submit',onFormSubmit);
     root.removeEventListener('m26:i18n-switch-settled',onI18nSwitchSettled);
     root.removeEventListener('pointerdown',onPointerDown);
     root.removeEventListener('pointerup',onPointerRelease);
