@@ -199,8 +199,10 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       if(result?.refreshPending===true&&result?.whenRefreshed?.then){
         void result.whenRefreshed.then((outcome)=>{
           if(outcome?.ok===true){
+            render();
             applyUserDirectoryFilters(root,filters);
             syncPendingUserForms();
+            clientWizard.sync();
             restoreCreatedClientFocus();
             return;
           }
