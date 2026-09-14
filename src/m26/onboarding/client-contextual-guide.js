@@ -409,7 +409,10 @@ function hidePresence(node){
   node.classList?.remove?.('is-visible','is-arriving');
 }
 function clientGuideSuppressed(root){
-  return Boolean(root?.querySelector?.('[data-session-live-v3],[data-session-live-state],[data-session-touch-focus]'));
+  return Boolean(
+    root?.hasAttribute?.('data-m26-client-guided-welcome-active')||
+    root?.querySelector?.('[data-session-live-v3],[data-session-live-state],[data-session-touch-focus]')
+  );
 }
 function positionPresence(node,targetNode,scope,{arriving=false}={}){
   if(!node||!targetNode)return false;
