@@ -239,8 +239,8 @@ const STYLE=`
   z-index:1232;
   left:1rem;
   top:1rem;
-  width:7rem;
-  height:8.8rem;
+  width:7.45rem;
+  height:9.35rem;
   display:grid;
   place-items:center;
   pointer-events:none;
@@ -388,8 +388,8 @@ const STYLE=`
   .m26-client-guided-welcome-copy{font-size:.9rem;line-height:1.48}
   .m26-client-guided-welcome-actions{margin-top:.78rem}
   .m26-client-guided-welcome-presence{
-    width:5.15rem;
-    height:6.45rem;
+    width:5.85rem;
+    height:7.35rem;
   }
 }
 @media(prefers-reduced-motion:reduce){
@@ -407,7 +407,7 @@ const STYLE=`
 @media print{
   .m26-client-guided-welcome,.m26-client-guided-welcome-presence{display:none!important}
 }
-`
+`;
 
 function text(value,max=240){return String(value??'').replace(/\s+/gu,' ').trim().slice(0,max);}
 function esc(value){return String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');}
