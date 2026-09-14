@@ -281,6 +281,34 @@ test('Today shows an actual challenge only when there is useful challenge contex
   assert.match(activeHtml,/data-m26-area="retos"/u);
 });
 
+test('Completed challenge stays discoverable without occupying a full dashboard panel',()=>{
+  const html=renderHoyRoute({
+    role:'client',
+    clients:[{name:'Cliente',iri:null,nextAction:null}],
+    appointments:[],
+    upcoming:[],
+    rc39:{sessionProjections:[]},
+    operations:{},
+    challengePreview:{
+      id:'plan',
+      title:'Cumplir tu planificación',
+      detail:'Objetivo confirmado.',
+      current:4,
+      target:4,
+      unit:'sesiones',
+      progress:100,
+      completed:true,
+      available:true,
+    },
+  });
+  assert.match(html,/m26-client-home-community is-completed/u);
+  assert.match(html,/Reto completado/u);
+  assert.match(html,/data-m26-client-guide="challenge-entry"/u);
+  assert.match(html,/data-m26-area="retos"/u);
+  assert.doesNotMatch(html,/class="m26-panel m26-panel-soft m26-client-home-community"/u);
+  assert.doesNotMatch(html,/<progress max="100"/u);
+});
+
 test('Plan and session moments on Today are driven by real availability',()=>{
   const base={
     role:'client',
