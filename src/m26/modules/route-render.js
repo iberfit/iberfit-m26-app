@@ -3331,102 +3331,128 @@ export function renderSettingsRoute(vm){
     </label>`;
 
   return `<div class="m26-route m26-settings-route">
-    <section class="m26-route-intro">
+    <section class="m26-settings-intro">
       <div>
-        <p class="m26-eyebrow">IBERFIT · Ajustes</p>
-        <h2>Cuenta, idioma, avisos y privacidad</h2>
-        <p>Preferencias de experiencia separadas de datos clínicos, decisiones de entrenamiento y permisos operativos.</p>
+        <p class="m26-eyebrow">Preferencias</p>
+        <h2>Tu cuenta y experiencia</h2>
+        <p>Ajusta cómo quieres usar IBERFIT sin mezclar estas preferencias con decisiones de entrenamiento, datos clínicos o permisos operativos.</p>
       </div>
     </section>
 
-    <section class="m26-settings-grid">
-      <article class="m26-panel">
-        <p class="m26-eyebrow">Idioma</p>
-        <h3>Idioma de la interfaz</h3>
-        <label>
-          Idioma
-          <select data-m26-ui-language>${languageOptions}</select>
-        </label>
-        <p class="m26-data-footnote">Solo aparecen idiomas con traducción completa. La arquitectura ya contempla Español, English, Deutsch, Français y Português.</p>
-        <div class="m26-inline-actions">${plannedLanguages}</div>
-      </article>
+    <div class="m26-settings-layout">
+      <nav class="m26-settings-rail" aria-label="Secciones de ajustes">
+        <p class="m26-eyebrow">Ajustes</p>
+        <a href="#m26-settings-experience">Experiencia</a>
+        <a href="#m26-settings-notifications">Avisos</a>
+        <a href="#m26-settings-privacy">Privacidad y datos</a>
+        <a href="#m26-settings-account">Cuenta y acceso</a>
+      </nav>
 
-      <article class="m26-panel">
-        <p class="m26-eyebrow">Región</p>
-        <h3>Fechas, números y formatos</h3>
-        <label>
-          Región y formato
-          <select data-m26-ui-locale data-m26-language>${localeOptions}</select>
-        </label>
-        <p class="m26-data-footnote">Idioma y región son preferencias distintas. Cambiar la región no cambia los textos de la interfaz.</p>
-      </article>
+      <div class="m26-settings-content">
+        <section class="m26-settings-section" id="m26-settings-experience">
+          <header>
+            <p class="m26-eyebrow">Experiencia</p>
+            <h3>Idioma y formato</h3>
+            <p>Dos preferencias sencillas para que la interfaz y los formatos se adapten a ti.</p>
+          </header>
+          <div class="m26-settings-field-grid">
+            <label>
+              <span>Idioma de la interfaz</span>
+              <select data-m26-ui-language>${languageOptions}</select>
+              <small>Solo aparecen idiomas con traducción completa.</small>
+            </label>
+            <label>
+              <span>Región y formato</span>
+              <select data-m26-ui-locale data-m26-language>${localeOptions}</select>
+              <small>Cambia fechas y números, no el idioma de los textos.</small>
+            </label>
+          </div>
+          ${plannedLanguages?`<div class="m26-settings-coming-soon"><span>Idiomas previstos</span><div>${plannedLanguages}</div></div>`:''}
+        </section>
 
-      <article class="m26-panel">
-        <p class="m26-eyebrow">Social</p>
-        <h3>Compartir solo con consentimiento</h3>
-        <label class="m26-consent">
-          <input type="checkbox" data-m26-preference="social.sharingEnabled"${checked(Boolean(social.sharingEnabled))}>
-          <span><strong>Permitir compartir manualmente</strong><small>Nunca publica por sí solo.</small></span>
-        </label>
-        <label>
-          Alcance
-          <select data-m26-preference="social.audience"${social.sharingEnabled?'':' disabled aria-disabled="true"'}>
-            <option value="private"${social.audience==='private'?' selected':''}>Solo yo</option>
-            <option value="coach"${social.audience==='coach'?' selected':''}>Mi Coach</option>
-          </select>
-        </label>
-        <label class="m26-consent">
-          <input type="checkbox" data-m26-preference="social.shareSessionSummary"${checked(Boolean(social.shareSessionSummary))}${social.sharingEnabled?'':' disabled aria-disabled="true"'}>
-          <span><strong>Resumen de sesiones</strong><small>Autoriza compartirlo manualmente con el alcance elegido.</small></span>
-        </label>
-        <label class="m26-consent">
-          <input type="checkbox" data-m26-preference="social.shareMilestones"${checked(Boolean(social.shareMilestones))}${social.sharingEnabled?'':' disabled aria-disabled="true"'}>
-          <span><strong>Hitos</strong><small>Solo hitos confirmados; nunca peso, IMC, dolor, IRI o datos clínicos.</small></span>
-        </label>
-        <p class="m26-notice"><strong>Bloqueado por diseño:</strong> publicación automática desactivada y ranking público desactivado.</p>
-      </article>
+        <section class="m26-settings-section" id="m26-settings-notifications">
+          <header>
+            <p class="m26-eyebrow">Avisos</p>
+            <h3>Solo lo que merece interrumpirte</h3>
+            <p>Elige qué novedades quieres recibir. Los conflictos de sincronización esenciales siguen visibles siempre dentro de la app.</p>
+          </header>
+          <div class="m26-settings-consent-grid">
+            ${notificationToggle('sessionReminders','Próxima sesión','Recordatorio de una sesión confirmada.')}
+            ${notificationToggle('scheduleChanges','Cambios de agenda','Cambios confirmados en fecha u hora.')}
+            ${notificationToggle('planPublished','Plan publicado','Cuando el Coach publica una planificación.')}
+            ${notificationToggle('coachMessages','Mensajes del Coach','Avisos asociados a comunicación real del Coach.')}
+            ${notificationToggle('challenges','Retos','Cambios relevantes en retos privados.')}
+            ${notificationToggle('milestones','Hitos','Hitos calculados únicamente desde datos confirmados.')}
+          </div>
+          <p class="m26-data-footnote">Estas preferencias registran consentimiento. No se solicita permiso push ni se promete entrega push hasta que exista el servicio.</p>
+        </section>
 
-      <article class="m26-panel">
-        <p class="m26-eyebrow">Avisos</p>
-        <h3>Qué quieres recibir</h3>
-        ${notificationToggle('sessionReminders','Próxima sesión','Recordatorio de una sesión confirmada.')}
-        ${notificationToggle('scheduleChanges','Cambios de agenda','Cambios confirmados en fecha u hora.')}
-        ${notificationToggle('planPublished','Plan publicado','Cuando el Coach publica una planificación.')}
-        ${notificationToggle('coachMessages','Mensajes del Coach','Avisos asociados a comunicación real del Coach.')}
-        ${notificationToggle('challenges','Retos','Cambios relevantes en retos privados.')}
-        ${notificationToggle('milestones','Hitos','Hitos calculados únicamente desde datos confirmados.')}
-        <p class="m26-data-footnote">Estas preferencias registran consentimiento. No se solicita permiso push ni se promete entrega push hasta que exista el servicio. Los conflictos de sincronización siguen visibles siempre dentro de la app.</p>
-      </article>
+        <section class="m26-settings-section" id="m26-settings-privacy">
+          <header>
+            <p class="m26-eyebrow">Privacidad y datos</p>
+            <h3>Compartir es una decisión explícita</h3>
+            <p>IBERFIT mantiene la experiencia privada por defecto y separa claramente comunidad, dispositivos y datos de entrenamiento.</p>
+          </header>
 
-      <article class="m26-panel">
-        <p class="m26-eyebrow">Wearables</p>
-        <h3>Dispositivos y actividad</h3>
-        <p>${escapeHtml(wearableNote)}</p>
-        <button type="button" class="m26-primary-action" data-m26-area="actividad">Gestionar wearables</button>
-      </article>
+          <div class="m26-settings-split">
+            <div class="m26-settings-subsection">
+              <h4>Retos y comunidad</h4>
+              <label class="m26-consent">
+                <input type="checkbox" data-m26-preference="social.sharingEnabled"${checked(Boolean(social.sharingEnabled))}>
+                <span><strong>Permitir compartir manualmente</strong><small>Nunca publica por sí solo.</small></span>
+              </label>
+              <label>
+                <span>Alcance</span>
+                <select data-m26-preference="social.audience"${social.sharingEnabled?'':' disabled aria-disabled="true"'}>
+                  <option value="private"${social.audience==='private'?' selected':''}>Solo yo</option>
+                  <option value="coach"${social.audience==='coach'?' selected':''}>Mi Coach</option>
+                </select>
+              </label>
+              <label class="m26-consent">
+                <input type="checkbox" data-m26-preference="social.shareSessionSummary"${checked(Boolean(social.shareSessionSummary))}${social.sharingEnabled?'':' disabled aria-disabled="true"'}>
+                <span><strong>Resumen de sesiones</strong><small>Autoriza compartirlo manualmente con el alcance elegido.</small></span>
+              </label>
+              <label class="m26-consent">
+                <input type="checkbox" data-m26-preference="social.shareMilestones"${checked(Boolean(social.shareMilestones))}${social.sharingEnabled?'':' disabled aria-disabled="true"'}>
+                <span><strong>Hitos</strong><small>Solo hitos confirmados; nunca peso, IMC, dolor, IRI o datos clínicos.</small></span>
+              </label>
+            </div>
 
-      <article class="m26-panel">
-        <p class="m26-eyebrow">Privacidad</p>
-        <h3>Control por defecto</h3>
-        <p>Retos privados por defecto, preferencias aisladas por cuenta, sin publicación social automática, sin ranking público y notas privadas del entrenador fuera de la vista del cliente.</p>
-        ${badge('Privacidad activa','success')}
-      </article>
+            <div class="m26-settings-subsection">
+              <div class="m26-settings-subsection-heading">
+                <div>
+                  <h4>Dispositivos y actividad</h4>
+                  <p>${escapeHtml(wearableNote)}</p>
+                </div>
+                <button type="button" data-m26-area="actividad">Gestionar</button>
+              </div>
+              <div class="m26-settings-privacy-note">
+                ${badge('Privacidad activa','success')}
+                <p>Retos privados por defecto, preferencias aisladas por cuenta, sin publicación automática, sin ranking público y notas privadas del entrenador fuera de la vista del cliente.</p>
+              </div>
+            </div>
+          </div>
+        </section>
 
-      <article class="m26-panel m26-panel-soft" data-settings-card="account">
-        <p class="m26-eyebrow">Cuenta y acceso</p>
-        <h3>${escapeHtml(vm.identity?.name||'Cuenta IBERFIT')}</h3>
-        <p>${escapeHtml(vm.identity?.roleLabel||vm.role||'')}</p>
-        <dl class="m26-account-summary">
-          <div><dt>Correo de acceso</dt><dd>${escapeHtml(vm.identity?.email||'No disponible')}</dd></div>
-          <div><dt>Sesión</dt><dd>Acceso recordado de forma segura en este dispositivo</dd></div>
-        </dl>
-        <div class="m26-inline-actions">
-          <button type="button" class="m26-primary-action" data-m26-action="account-password-recovery">Cambiar contraseña</button>
-          <button type="button" class="m26-danger-action" data-m26-action="logout">Cerrar sesión</button>
-        </div>
-        <p class="m26-data-footnote">El cambio de contraseña se inicia mediante un enlace seguro enviado al correo de acceso, sin cerrar esta sesión.</p>
-      </article>
-    </section>
+        <section class="m26-settings-section m26-settings-account" id="m26-settings-account" data-settings-card="account">
+          <header>
+            <p class="m26-eyebrow">Cuenta y acceso</p>
+            <h3>${escapeHtml(vm.identity?.name||'Cuenta IBERFIT')}</h3>
+            <p>${escapeHtml(vm.identity?.roleLabel||vm.role||'')}</p>
+          </header>
+          <dl class="m26-account-summary">
+            <div><dt>Correo de acceso</dt><dd>${escapeHtml(vm.identity?.email||'No disponible')}</dd></div>
+            <div><dt>Sesión</dt><dd>Acceso recordado de forma segura en este dispositivo</dd></div>
+          </dl>
+          <div class="m26-settings-account-actions">
+            <button type="button" class="m26-primary-action" data-m26-action="account-password-recovery">Cambiar contraseña</button>
+            <button type="button" data-m26-action="logout">Cerrar sesión</button>
+            <button type="button" class="m26-danger-action" data-m26-action="logout-clear-device">Cerrar sesión y borrar datos de este dispositivo</button>
+          </div>
+          <p class="m26-data-footnote">El cambio de contraseña se inicia mediante un enlace seguro enviado al correo de acceso, sin cerrar esta sesión. Borrar este dispositivo elimina únicamente el estado local asociado a esta sesión.</p>
+        </section>
+      </div>
+    </div>
   </div>`;
 }
 /* RC71_2_CHALLENGE_SETTINGS_RENDER_END */
