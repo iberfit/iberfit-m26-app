@@ -177,7 +177,8 @@ test('Admin and Coach surfaces both retain real client-create capability',()=>{
   assert.match(workflow,/async function createClient\(\)[\s\S]*?requireCoach\(\)/u);
   assert.match(workflow,/M26_CLIENT_CREATE_NOT_PERSISTED/u);
   assert.match(workflow,/store\.selectClient\?\.\(created\.id\)/u);
-  assert.match(workflow,/store\.navigate\?\.\('iri'\)/u);
+  assert.match(workflow,/const nextArea=initialAssessmentPostCreateArea\(payload\.initialAssessmentMode\)/u);
+  assert.match(workflow,/store\.navigate\?\.\(nextArea\)/u);
   assert.match(workflow,/M26_PRIVILEGED_ACTION_TIMEOUT/u);
 
   assert.match(application,/ensurePrivilegedActionAssurance\(\{transport,token,userId:session\?\.user\?\.id/u);

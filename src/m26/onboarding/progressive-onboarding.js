@@ -1,4 +1,5 @@
 import {createGuidedTourController} from './guided-tour.js';
+import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
 export const PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE='data-m26-guided-tour-open';
@@ -255,15 +256,15 @@ export function onboardingAssessmentMode(form){
 }
 
 export function onboardingPostCreateArea(form){
-  return onboardingAssessmentMode(form)==='deferred'?'expediente':'iri';
+  return initialAssessmentPostCreateArea(onboardingAssessmentMode(form));
 }
 
 export function onboardingChoiceMarkup(){
   return `<section class="m26-form-section m26-panel-soft" data-onboarding-assessment-choice>
-    <div class="m26-form-section-title"><span>→</span><div><h3>¿Cómo quieres empezar?</h3><p>El IRI aporta un diagnóstico más completo, pero no bloquea el inicio del trabajo. Puedes realizarlo después.</p></div></div>
+    <div class="m26-form-section-title"><span>→</span><div><h3>¿Cómo quieres empezar?</h3><p>El Diagnóstico IRI es el punto de partida recomendado de IBERFIT: registra cómo empieza la persona y orienta las primeras decisiones. Si hoy no corresponde realizarlo, puedes posponerlo sin perder el expediente.</p></div></div>
     <div class="m26-field-grid">
-      <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="deferred" checked> <span><strong>Empezar a trabajar</strong><small> Crea el expediente con los datos esenciales y continúa directamente con planificación, agenda y sesiones.</small></span></label>
-      <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="iri"> <span><strong>Realizar evaluación IRI</strong><small> Crea el expediente y abre inmediatamente la evaluación inicial IBERFIT.</small></span></label>
+      <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="iri" checked> <span><strong>Realizar Diagnóstico IRI</strong><small> Crea el expediente y abre inmediatamente la evaluación inicial IBERFIT.</small></span></label>
+      <label class="m26-consent"><input type="radio" name="initialAssessmentMode" value="deferred"> <span><strong>Posponer el IRI</strong><small> Crea el expediente con los datos esenciales y continúa con el trabajo operativo. El diagnóstico inicial seguirá disponible para realizarlo después.</small></span></label>
     </div>
   </section>`;
 }
@@ -451,7 +452,6 @@ export function createProgressiveOnboardingController({
   let tourOpenSyncScheduled=false;
   let renderedPanel=null;
   let renderedPanelKey=null;
-  let pendingClientStartArea=null;
 
   function identity(){
     const value=identityProvider?.()||{};
@@ -644,22 +644,6 @@ export function createProgressiveOnboardingController({
     if(!form)return;
     ensureFlexibleOnboardingUi(form);
     syncFlexibleOnboardingForm(form);
-    pendingClientStartArea=onboardingPostCreateArea(form);
-  }
-
-  function onWorkflowError(event){
-    if(event?.detail?.action==='create-client-draft')pendingClientStartArea=null;
-  }
-
-  function onWorkflowToast(event){
-    if(pendingClientStartArea!=='expediente')return;
-    const message=String(event?.detail?.message||'');
-    if(!/^Expediente de .+ creado\./u.test(message))return;
-    pendingClientStartArea=null;
-    queueMicrotask(()=>{
-      const target=root.querySelector?.('[data-m26-area="expediente"]');
-      target?.click?.();
-    });
   }
 
   return Object.freeze({
@@ -670,8 +654,6 @@ export function createProgressiveOnboardingController({
       root.addEventListener('input',onFlexibleInput);
       root.addEventListener('change',onFlexibleInput);
       root.addEventListener('submit',onFlexibleSubmit);
-      root.addEventListener('m26:workflow-error',onWorkflowError);
-      root.addEventListener('m26:toast',onWorkflowToast);
       documentLike?.addEventListener?.('click',onDocumentTourClick,true);
       documentLike?.addEventListener?.('keydown',onDocumentTourKeydown,true);
       scope?.addEventListener?.('pageshow',onPageShow);
@@ -689,13 +671,10 @@ export function createProgressiveOnboardingController({
       mounted=false;
       scheduled=false;
       tourOpenSyncScheduled=false;
-      pendingClientStartArea=null;
       root.removeEventListener('click',onClick);
       root.removeEventListener('input',onFlexibleInput);
       root.removeEventListener('change',onFlexibleInput);
       root.removeEventListener('submit',onFlexibleSubmit);
-      root.removeEventListener('m26:workflow-error',onWorkflowError);
-      root.removeEventListener('m26:toast',onWorkflowToast);
       documentLike?.removeEventListener?.('click',onDocumentTourClick,true);
       documentLike?.removeEventListener?.('keydown',onDocumentTourKeydown,true);
       scope?.removeEventListener?.('pageshow',onPageShow);

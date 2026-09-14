@@ -46,4 +46,10 @@ export function isIriDeferred(record={}){
   return initialAssessmentModeFrom(record)===INITIAL_ASSESSMENT_MODES.deferred;
 }
 
+export function initialAssessmentPostCreateArea(value){
+  return normalizeInitialAssessmentMode(value)===INITIAL_ASSESSMENT_MODES.deferred
+    ?'expediente'
+    :'iri';
+}
+
 export const __initialAssessmentInternals=Object.freeze({bodyOf,profileOf,clean});
