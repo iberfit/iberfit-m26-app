@@ -36,8 +36,10 @@ test('RC75 mantiene alta guiada y la evolución ADMIN exige invitación real sin
   const render=read('src/m26/admin/route-render.js');
   const transport=read('src/m26/admin/transport.js');
   assert.match(native,/data-admin-intake-open/u);
-  assert.match(native,/Nueva alta, sin perder información/u);
-  assert.match(native,/Guardar datos iniciales/u);
+  assert.match(native,/Registrar un lead/u);
+  assert.match(native,/Guardar lead/u);
+  assert.match(native,/utiliza “Nuevo cliente” para crear su expediente real/u);
+  assert.doesNotMatch(native,/Nueva alta, sin perder información/u);
   assert.match(admin,/ADMIN_LEAD_CREAR/u);
   assert.match(admin,/ADMIN_CLIENTE_CREAR/u);
   assert.match(render,/Crear cliente y enviar invitación/u);

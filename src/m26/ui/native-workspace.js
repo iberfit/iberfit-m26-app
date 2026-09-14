@@ -88,13 +88,13 @@ function enhanceAdminIntake(root,viewModel){
     if(!control.getAttribute?.('aria-label'))control.setAttribute?.('aria-label',textLabel(control));
   }
   const submit=form.querySelector?.('button[type="submit"]');
-  if(submit)submit.textContent='Guardar datos iniciales';
+  if(submit)submit.textContent='Guardar lead';
   const heading=doc.createElement('div');
   heading.className='m26-admin-form-heading';
   const headingStrong=doc.createElement('strong');
-  headingStrong.textContent='Paso 1 · Datos esenciales';
+  headingStrong.textContent='Contacto comercial';
   const headingSmall=doc.createElement('small');
-  headingSmall.textContent='Guarda identidad, contacto y objetivo sin activar una cuenta ni conceder acceso.';
+  headingSmall.textContent='Registra un contacto potencial sin crear todavía un expediente ni conceder acceso.';
   heading.append(headingStrong,headingSmall);
   form.prepend(heading);
   const card=doc.createElement('section');
@@ -103,20 +103,20 @@ function enhanceAdminIntake(root,viewModel){
   const content=doc.createElement('div');
   const eyebrow=doc.createElement('p');
   eyebrow.className='m26-eyebrow';
-  eyebrow.textContent='Alta de cliente';
+  eyebrow.textContent='Prospección';
   const title=doc.createElement('h3');
-  title.textContent='Nueva alta, sin perder información';
+  title.textContent='Registrar un lead';
   const copy=doc.createElement('p');
-  copy.textContent='Empieza por los datos esenciales. Se conserva el contacto como entrada administrativa y la activación de acceso permanece separada y auditada.';
+  copy.textContent='Úsalo solo para contactos potenciales. Cuando la persona pase a ser cliente, utiliza “Nuevo cliente” para crear su expediente real y enviar el acceso.';
   const steps=doc.createElement('div');
   steps.className='m26-admin-intake-steps';
-  for(const label of ['1 · Datos esenciales','2 · Validar expediente','3 · Asignar Coach']){
+  for(const label of ['1 · Registrar contacto','2 · Cualificar','3 · Convertir en cliente']){
     const chip=doc.createElement('span');chip.textContent=label;steps.append(chip);
   }
   content.append(eyebrow,title,copy,steps);
   const open=doc.createElement('button');
   open.type='button';
-  open.textContent='Empezar alta';
+  open.textContent='Registrar lead';
   open.setAttribute('data-admin-intake-open','true');
   open.setAttribute('aria-expanded','false');
   card.append(content,open);
@@ -129,7 +129,7 @@ export function openNativeAdminIntake(root){
   if(!form)return false;
   form.hidden=false;
   button?.setAttribute?.('aria-expanded','true');
-  if(button)button.textContent='Alta en curso';
+  if(button)button.textContent='Lead en curso';
   queueMicrotask(()=>form.querySelector?.('input[name="name"]')?.focus?.({preventScroll:false}));
   return true;
 }
