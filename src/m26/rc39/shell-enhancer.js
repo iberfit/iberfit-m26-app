@@ -322,6 +322,11 @@ const MOBILE_SHELL_POLISH=`
   .m26-mobile-nav { padding-bottom: max(.55rem, env(safe-area-inset-bottom)); transition: transform .16s ease, opacity .16s ease; }
   .m26-mobile-nav .m26-nav-item, .m26-mobile-more > summary { min-height: 3.25rem; touch-action: manipulation; }
   .m26-mobile-more-menu { overscroll-behavior: contain; }
+  .m26-mobile-role-switch { display:grid; gap:.35rem; padding:.45rem 0 .55rem; }
+  .m26-mobile-role-switch > span { color:var(--m26-muted); font-size:.68rem; font-weight:760; letter-spacing:.08em; text-transform:uppercase; }
+  .m26-mobile-role-switch button { width:100%; min-height:3.15rem; display:grid; gap:.12rem; padding:.6rem .7rem; border:1px solid var(--m26-line); border-radius:.7rem; color:var(--m26-cream-100); background:transparent; text-align:left; }
+  .m26-mobile-role-switch button span { color:var(--m26-muted); font-size:.72rem; }
+  .m26-mobile-role-switch button[aria-current="true"] { border-color:rgba(214,182,109,.38); background:rgba(214,182,109,.08); }
   .m26-mobile-more[open] > summary { position: fixed; inset: 0; z-index: 999; min-height: 0; padding: 0; border: 0; border-radius: 0; color: transparent; background: rgba(2,10,7,.58); box-shadow: none; font-size: 0; cursor: pointer; backdrop-filter: blur(2px); }
   .m26-mobile-more[open] > summary:focus-visible { outline: none; }
   .m26-mobile-more[open] .m26-mobile-more-menu { max-height: calc(100dvh - 5.75rem - max(1rem, env(safe-area-inset-top))); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
@@ -431,8 +436,13 @@ export function enhanceRc39ShellMarkup(markup,vm){
   const switcher=vm.canSwitchApplication?`<details class="m26-role-switcher"><summary>${escape(roleApplicationLabel(vm.identity.role))}</summary><div class="m26-role-switcher-menu" role="menu" aria-label="Cambiar aplicación">${roleButtons(vm)}</div></details>`:'';
   if(switcher){
     out=out.replace(
-      /(<button\b[^>]*data-m26-action="logout"[^>]*>)/u,
+      /(<button\b[^>]*class="m26-sidebar-logout"[^>]*data-m26-action="logout"[^>]*>)/u,
       `${switcher}$1`
+    );
+    const mobileRoleSwitch=`<div class="m26-mobile-role-switch" role="group" aria-label="Cambiar aplicación"><span>Aplicación</span>${roleButtons(vm)}</div>`;
+    out=out.replace(
+      '<div class="m26-mobile-more-account">',
+      `<div class="m26-mobile-more-account">${mobileRoleSwitch}`
     );
   }
   if(vm.needsRoleChoice){
