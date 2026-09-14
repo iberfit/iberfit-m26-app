@@ -2603,7 +2603,7 @@ export function renderProgressRoute(vm){
     Number(summary.completedSessions||0)>0||
     hasCheckins||
     vm.timeline.length>0||
-    summary.iriCurrent!==null||
+    (summary.iriCurrent!==null&&summary.iriCurrent!==undefined)||
     wearableHasData(summary.wearable||{});
   const clientProgressGuideAttribute=vm.role==='client'&&hasProgressEvidence
     ?' data-m26-client-guide="progress-surface"'
