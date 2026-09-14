@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "4e23b8ed1812301470334f17c075c910a8b1a27e",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "IRI canonical-profile consistency: carry live client/profile revisions into IRI completion, preserve local draft on conflict, keep the client record as operational source of truth, and preserve confirmed IRI as a diagnostic snapshot. Includes QA-certified migration 20260914144702, applied to QA only at release creation; production DB migration will be applied after the compatible frontend is verified live."
+}
