@@ -10,10 +10,20 @@ const API_ORIGIN='https://api.supabase.com';
 const PROD_REF='pjhmrhejsoofmouedavw';
 const EXACT_CONFIRMATION='SYNC_IBERFIT_AUTH_EMAILS_PROD';
 const PROD_SITE_URL='https://app.iberfit.cl/';
+const LEGACY_ISOTYPE_URL='https://app.iberfit.cl/isotipo-iberfit.png';
+const PUBLIC_ISOTYPE_URL='https://app.iberfit.cl/public/isotipo-iberfit.png';
+const LEGACY_HERO_URL='https://app.iberfit.cl/iberfit-email-access-hero.jpg';
+const PUBLIC_HERO_URL='https://app.iberfit.cl/public/iberfit-email-access-hero.jpg';
 
 const sha256=(value)=>crypto.createHash('sha256').update(value).digest('hex');
 const nonEmpty=(value)=>typeof value==='string'&&value.trim().length>0;
 const fail=(code)=>{throw new Error(code);};
+
+export function normalizeHostedAuthAssets(html=''){
+  return String(html)
+    .replaceAll(LEGACY_ISOTYPE_URL,PUBLIC_ISOTYPE_URL)
+    .replaceAll(LEGACY_HERO_URL,PUBLIC_HERO_URL);
+}
 
 export async function buildHostedAuthPatch({root=ROOT,manifestPath=DEFAULT_MANIFEST}={}){
   const manifest=JSON.parse(await fs.readFile(manifestPath,'utf8'));
@@ -31,8 +41,11 @@ export async function buildHostedAuthPatch({root=ROOT,manifestPath=DEFAULT_MANIF
     }
     const absolute=path.resolve(root,item.file);
     if(!absolute.startsWith(root+path.sep))fail('IBERFIT_AUTH_EMAIL_TEMPLATE_PATH_INVALID');
-    const html=await fs.readFile(absolute,'utf8');
-    if(!html.includes('https://app.iberfit.cl/isotipo-iberfit.png')||!html.includes('IBERFIT'))fail(`IBERFIT_AUTH_EMAIL_BRANDING_INVALID:${item.id}`);
+    const sourceHtml=await fs.readFile(absolute,'utf8');
+    const html=normalizeHostedAuthAssets(sourceHtml);
+    if(!html.includes('IBERFIT'))fail(`IBERFIT_AUTH_EMAIL_BRANDING_INVALID:${item.id}`);
+    if(/<img\b/iu.test(html)&&!html.includes(PUBLIC_ISOTYPE_URL)&&!html.includes(PUBLIC_HERO_URL))fail(`IBERFIT_AUTH_EMAIL_ASSET_URL_INVALID:${item.id}`);
+    if(html.includes(LEGACY_ISOTYPE_URL)||html.includes(LEGACY_HERO_URL))fail(`IBERFIT_AUTH_EMAIL_LEGACY_ASSET_URL:${item.id}`);
     if(/supabase\.co|TokenHash|service[_ -]?role|sb_secret_|service_role/iu.test(html))fail(`IBERFIT_AUTH_EMAIL_SECRET_LEAK_CONTRACT:${item.id}`);
     for(const required of item.requires||[])if(!html.includes(required))fail(`IBERFIT_AUTH_EMAIL_REQUIRED_VARIABLE_MISSING:${item.id}`);
     patch[item.subjectKey]=item.subject;
@@ -116,4 +129,14 @@ async function main(){
 const invoked=process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href;
 if(invoked)main().catch((error)=>{console.error(String(error?.message||error));process.exitCode=1;});
 
-export const __hostedAuthEmailInternals=Object.freeze({PROD_REF,PROD_SITE_URL,EXACT_CONFIRMATION,DEFAULT_MANIFEST,sha256});
+export const __hostedAuthEmailInternals=Object.freeze({
+  PROD_REF,
+  PROD_SITE_URL,
+  EXACT_CONFIRMATION,
+  DEFAULT_MANIFEST,
+  LEGACY_ISOTYPE_URL,
+  PUBLIC_ISOTYPE_URL,
+  LEGACY_HERO_URL,
+  PUBLIC_HERO_URL,
+  sha256,
+});
