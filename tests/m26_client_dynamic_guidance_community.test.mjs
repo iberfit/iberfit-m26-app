@@ -140,6 +140,8 @@ test('Guía IBERFIT uses the official living brand mark without becoming an inte
   assert.match(guide,/prefers-reduced-motion/u);
   assert.doesNotMatch(guide,/animation:[^;]*infinite/iu);
   assert.doesNotMatch(guide,/MutationObserver|setInterval/u);
+  assert.match(guide,/resolvedTarget&&resolvedTarget!==activeTarget/u);
+  assert.match(guide,/openCurrent\(\)\{\s*if\(clientGuideSuppressed\(root\)\)return false;/u);
 
   const {clientGuideSuppressed,positionPresence}=__clientContextualGuideInternals;
   assert.equal(clientGuideSuppressed({querySelector(){return {dataset:{}};}}),true);
