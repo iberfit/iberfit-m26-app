@@ -1,0 +1,44 @@
+name: IBERFIT PROD Auth OTP Preflight
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.github/workflows/ops-prod-auth-otp-preflight.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-prod-auth-otp-preflight
+  cancel-in-progress: false
+
+env:
+  PROD_SUPABASE_URL: 'https://pjhmrhejsoofmouedavw.supabase.co'
+  PROD_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_R5hU49RTDLAFFx46j4b4Hg_l8o0Pg2k'
+  OTP_EMAIL: 'iberfit.cl@gmail.com'
+
+jobs:
+  otp-preflight:
+    name: request-existing-user-email-otp
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Request OTP for existing IBERFIT account only
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --output /tmp/otp-response.json --write-out '%{http_code}'             --request POST "${PROD_SUPABASE_URL}/auth/v1/otp"             --header "apikey: ${PROD_SUPABASE_PUBLISHABLE_KEY}"             --header "Authorization: Bearer ${PROD_SUPABASE_PUBLISHABLE_KEY}"             --header 'Content-Type: application/json'             --data "$(node -e 'process.stdout.write(JSON.stringify({email:process.env.OTP_EMAIL,create_user:false}))')")"
+          if [ "$code" != "200" ]; then
+            echo "OTP_PREFLIGHT_HTTP_$code"
+            node - <<'NODE'
+            const fs=require('fs');
+            let x={};
+            try{x=JSON.parse(fs.readFileSync('/tmp/otp-response.json','utf8'));}catch{}
+            const safe={code:x.code||null,error_code:x.error_code||null,msg:x.msg||x.message||null};
+            console.log(JSON.stringify(safe));
+            NODE
+            exit 1
+          fi
+          echo "OTP_PREFLIGHT_REQUEST_ACCEPTED"
