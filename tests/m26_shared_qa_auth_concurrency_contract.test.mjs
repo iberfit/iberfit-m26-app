@@ -16,7 +16,7 @@ function jobBlock(source,start,next){
   return source.slice(begin,end===-1?source.length:end);
 }
 
-test('shared authenticated QA jobs use one non-cancelling cross-workflow concurrency group',()=>{
+test('shared authenticated QA jobs use one queued non-cancelling cross-workflow concurrency group',()=>{
   const dailyCapture=jobBlock(daily,'  capture:');
   const deviceAuth=jobBlock(device,'  client-coach-qa:','\n  admin-task-matrix:');
   const remotePreflight=jobBlock(remote,'  preflight:');
@@ -26,7 +26,7 @@ test('shared authenticated QA jobs use one non-cancelling cross-workflow concurr
     ['device authenticated matrix',deviceAuth],
     ['remote authenticated gate',remotePreflight],
   ]){
-    assert.match(block,new RegExp(`concurrency:\\s+group: ${sharedGroup}\\s+cancel-in-progress: false`,'u'),`${name} must serialize shared QA credentials`);
+    assert.match(block,new RegExp(`concurrency:\\s+group: ${sharedGroup}\\s+queue: max\\s+cancel-in-progress: false`,'u'),`${name} must serialize shared QA credentials`);
     assert.match(block,/environment: m26-canary-readonly/u,`${name} must remain on the authorized read-only QA environment`);
   }
 });
