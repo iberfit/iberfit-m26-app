@@ -41,7 +41,7 @@ test('contrato RC12 conserva paleta y escala pública',()=>{
     muted:'#9AA8A1',
     gold500:'#C5A059',
     gold300:'#D7BA7C',
-    danger:'#EF4444',
+    danger:'#F87171',
     success:'#10B981',
   });
   assert.deepEqual(M26_DESIGN_TOKENS.spacing,['0.25rem','0.5rem','0.75rem','1rem','1.5rem','2rem','3rem']);
