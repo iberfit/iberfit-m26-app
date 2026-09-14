@@ -66,10 +66,10 @@ test('la promoción PROD sincroniza y verifica emails antes del cutover de Cloud
 });
 
 
-test('la promoción mantiene OTP preparado pero desactivado hasta certificar SMTP propio',()=>{
+test('la promoción activa OTP solo con sincronización y verificación SMTP fail-closed',()=>{
   const workflow=read('.github/workflows/production-promote.yml');
   const app=read('src/m26/app/application.js');
-  assert.match(app,/export const EMAIL_OTP_DEPLOYMENT_READY=false;/u);
+  assert.match(app,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
   assert.match(workflow,/Resolve privileged email OTP rollout gate/u);
   assert.match(workflow,/grep -Fq 'export const EMAIL_OTP_DEPLOYMENT_READY=true;' src\/m26\/app\/application\.js/u);
   assert.match(workflow,/if: \$\{\{ steps\.email-otp\.outputs\.enabled == 'true' \}\}/u);
@@ -78,4 +78,7 @@ test('la promoción mantiene OTP preparado pero desactivado hasta certificar SMT
   assert.ok(sync>=0&&deploy>sync);
   const block=workflow.slice(sync,deploy);
   assert.match(block,/sync-hosted-auth-emails\.mjs --sync/u);
+  const syncSource=read('scripts/auth/sync-hosted-auth-emails.mjs');
+  assert.match(syncSource,/assertCustomSmtp\(before\)/u);
+  assert.match(syncSource,/IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED/u);
 });
