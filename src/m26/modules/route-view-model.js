@@ -655,6 +655,8 @@ if (area === 'clientes') {
       decisionLog,
       profile,
       sourceProfile: clone(rawProfile),
+      canonicalClientRevision: Number(client?.revision ?? client?.body?.revision ?? 0),
+      canonicalProfileRevision: Number(rawProfile?.revision ?? rawProfile?.body?.revision ?? 0),
       canEdit: ['admin', 'coach'].includes(
         String(shellVm.identity?.role || '')
       ),
