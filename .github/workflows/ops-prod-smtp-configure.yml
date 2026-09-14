@@ -94,13 +94,19 @@ jobs:
             smtp_admin_email:String(before.smtp_admin_email||''),
             smtp_sender_name:String(before.smtp_sender_name||''),
           };
-          const customBefore=Boolean(safeBefore.smtp_host&&safeBefore.smtp_admin_email&&safeBefore.smtp_port>0);
-          if(customBefore)throw new Error('SMTP_EXISTING_CUSTOM_CONFIG_REFUSES_OVERWRITE');
+          const readableSmtpBefore=Boolean(
+            safeBefore.smtp_host ||
+            safeBefore.smtp_port > 0 ||
+            safeBefore.smtp_user ||
+            safeBefore.smtp_admin_email ||
+            safeBefore.smtp_sender_name
+          );
+          if(readableSmtpBefore)throw new Error('SMTP_EXISTING_OR_PARTIAL_CONFIG_REFUSES_OVERWRITE');
           fs.writeFileSync('recovery/smtp/prod-before-sanitized.json',JSON.stringify({
             schema:'iberfit.smtp-state.v1',
             projectRef:ref,
             siteUrl:String(before.site_url||''),
-            configured:customBefore,
+            configured:readableSmtpBefore,
             hostConfigured:Boolean(safeBefore.smtp_host),
             port:safeBefore.smtp_port||null,
             userConfigured:Boolean(safeBefore.smtp_user),
@@ -147,6 +153,7 @@ jobs:
             console.log(JSON.stringify({ok:true,customSmtpReady:true,projectRef:ref,port:Number(after.smtp_port),siteUrl:String(after.site_url||'')}));
           }catch(error){
             if(changed){
+              let rollbackError=null;
               try{
                 await request('PATCH',{
                   smtp_host:'',
@@ -157,13 +164,22 @@ jobs:
                   smtp_sender_name:'',
                 });
                 const rollbackCheck=await request();
-                const rollbackReady=Boolean(
-                  String(rollbackCheck.smtp_host||'').trim()
-                  && String(rollbackCheck.smtp_admin_email||'').trim()
-                  && Number(rollbackCheck.smtp_port)>0
+                const rollbackClean=
+                  !String(rollbackCheck.smtp_host||'').trim() &&
+                  !(Number(rollbackCheck.smtp_port)>0) &&
+                  !String(rollbackCheck.smtp_user||'').trim() &&
+                  !String(rollbackCheck.smtp_admin_email||'').trim() &&
+                  !String(rollbackCheck.smtp_sender_name||'').trim();
+                if(!rollbackClean)throw new Error('SMTP_ROLLBACK_VERIFY_FAILED');
+              }catch(candidate){
+                rollbackError=candidate;
+              }
+              if(rollbackError){
+                throw new AggregateError(
+                  [error,rollbackError],
+                  `SMTP_CONFIG_FAILED_AND_ROLLBACK_FAILED:${String(error?.message||error)}:${String(rollbackError?.message||rollbackError)}`
                 );
-                if(rollbackReady)throw new Error('SMTP_ROLLBACK_VERIFY_FAILED');
-              }catch{}
+              }
             }
             throw error;
           }
