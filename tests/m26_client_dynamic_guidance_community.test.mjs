@@ -171,6 +171,10 @@ test('Guía IBERFIT uses the official living brand mark without becoming an inte
   assert.ok(classes.has('is-visible'));
   assert.ok(classes.has('is-arriving'));
   assert.ok(attrs.has('data-m26-client-guide-positioned'));
+
+  const offscreen={getBoundingClientRect(){return {left:100,right:300,top:900,bottom:980,width:200,height:80};}};
+  assert.equal(positionPresence(presence,offscreen,scope),false);
+  assert.equal(classes.has('is-visible'),false);
 });
 
 test('Legacy linear checklist is hidden for Client while Coach and Admin keep the durable tour lifecycle',()=>{
