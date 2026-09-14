@@ -61,7 +61,7 @@ const TIPS=Object.freeze([
     priority:110,
     area:'hoy',
     actionArea:'progreso',
-    seenAlso:Object.freeze(['client-context-progress']),
+    seenAlso:Object.freeze(['client-context-progress','client-moment-progress-meaningful']),
     selectors:Object.freeze(['[data-m26-client-guide="adherence-entry"]']),
   }),
   Object.freeze({
