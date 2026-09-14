@@ -78,7 +78,9 @@ jobs:
             smtpUserConfigured,
             smtpSenderNameConfigured,
             siteUrlConfigured:Boolean(siteUrl),
-            siteUrlMatchesApp
+            siteUrl,
+            siteUrlMatchesApp,
+            uriAllowList:Array.isArray(config.uri_allow_list)?config.uri_allow_list:String(config.uri_allow_list||'').split(',').map((value)=>value.trim()).filter(Boolean)
           };
           fs.writeFileSync('PROD_AUTH_SMTP_READINESS.json',JSON.stringify(evidence,null,2)+'\n','utf8');
           console.log(JSON.stringify(evidence,null,2));
