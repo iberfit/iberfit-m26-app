@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "53df592624ac6cd0dc90db7ce343cb7d848bace6",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Living IBERFIT contextual guide presence: official isotipo, context movement, reduced-motion support, Live Workout suppression, responsive/offscreen-safe positioning, and rerender-safe target rebinding. Includes premium light Hosted Auth email fixes already synced and verified."
+}
