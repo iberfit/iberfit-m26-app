@@ -46,6 +46,7 @@ test('shell accessibility, access and operation states translate without changin
 
   assert.match(shell,/applyIberfitDocumentLanguage\(vm\.language\)/u);
   assert.match(shell,/data-m26-action="logout"/u);
-  assert.match(shell,/data-m26-action="logout-clear-device"/u);
+  assert.doesNotMatch(shell,/data-m26-action="logout-clear-device"/u);
+  assert.match(shell,/class="m26-sidebar-footer"/u);
   assert.doesNotMatch(shell,/innerHTML\s*=/u);
 });
