@@ -58,8 +58,13 @@ function allNavigationItems(vm){
   return map;
 }
 
+function settingsAreaForRole(role){
+  return role==='admin'?'admin-configuracion':'ajustes';
+}
+
 function groupedNavigation(vm){
   const map=allNavigationItems(vm);
+  map.delete(settingsAreaForRole(vm.identity.role));
   const groups=ROLE_NAV_GROUPS[vm.identity.role]||[];
   const used=new Set();
   const markup=groups.map((group)=>{
@@ -92,6 +97,7 @@ function coachProductivityShell(vm){
 }
 
 function operationStatus(operations) {
+  if(!operations?.pending&&!operations?.conflicts&&!operations?.rejected)return '';
   const labels = [];
   if (operations.pending) labels.push(tx(`shell.operations.pending.${operations.pending===1?'one':'other'}`,`${operations.pending} pendiente${operations.pending === 1 ? '' : 's'}`,{count:operations.pending}));
   if (operations.conflicts) labels.push(tx(`shell.operations.conflicts.${operations.conflicts===1?'one':'other'}`,`${operations.conflicts} conflicto${operations.conflicts === 1 ? '' : 's'}`,{count:operations.conflicts}));
@@ -106,8 +112,20 @@ function settingsMenu(vm){
     return `<label class="m26-language-option${active?' is-active':''}"><input type="radio" name="m26-ui-language" value="${escapeHtml(item.value)}" data-m26-ui-language${active?' checked':''}><span class="m26-language-flag" aria-hidden="true">${escapeHtml(item.flag||'')}</span><span><strong>${escapeHtml(item.label)}</strong><small>${active?'✓':''}</small></span></label>`;
   }).join('');
   const localeOptions=(vm.localeOptions||[]).map((item)=>`<option value="${escapeHtml(item.value)}"${item.value===vm.locale?' selected':''}>${escapeHtml(item.label)}</option>`).join('');
-  const settingsArea=vm.identity.role==='admin'?'admin-configuracion':'ajustes';
+  const settingsArea=settingsAreaForRole(vm.identity.role);
   return `<details class="m26-settings-menu"><summary class="m26-icon-button m26-settings-trigger" aria-label="${escapeHtml(tx('settings.open','Ajustes'))}"><span class="m26-settings-trigger-icon" aria-hidden="true">⚙</span><span class="m26-settings-trigger-label">${escapeHtml(tx('settings.open','Ajustes'))}</span></summary><section class="m26-settings-popover"><header><p class="m26-eyebrow">IBERFIT</p><h2>${escapeHtml(tx('settings.title','Ajustes'))}</h2><p>${escapeHtml(tx('settings.subtitle','Personaliza tu experiencia IBERFIT'))}</p></header><div class="m26-settings-block"><div><strong>${escapeHtml(tx('settings.language','Idioma de la aplicación'))}</strong><p>${escapeHtml(tx('settings.languageCopy','Elige el idioma de la aplicación.'))}</p></div><div class="m26-language-grid" role="radiogroup" aria-label="${escapeHtml(tx('settings.language','Idioma'))}">${languageOptions}</div></div><div class="m26-settings-block"><label><strong>${escapeHtml(tx('settings.region','Región y formato'))}</strong><small>${escapeHtml(tx('settings.regionCopy','Ajusta formatos regionales.'))}</small><select data-m26-ui-locale>${localeOptions}</select></label></div><p class="m26-settings-hint">${escapeHtml(tx('settings.savedLocal','La preferencia se guarda en este dispositivo.'))}</p><button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(settingsArea)}">${escapeHtml(tx('settings.fullSettings','Abrir todos los ajustes'))}</button></section></details>`;
+}
+
+function sidebarAccount(vm){
+  const identityRoleLabel=tx(`shell.role.${vm.identity.role}`,vm.identity.roleLabel);
+  return `<div class="m26-sidebar-footer">
+    <div class="m26-sidebar-identity">
+      <span>${escapeHtml(identityRoleLabel)}</span>
+      <strong>${escapeHtml(vm.identity.name)}</strong>
+    </div>
+    ${settingsMenu(vm)}
+    <button type="button" class="m26-sidebar-logout" data-m26-action="logout">${escapeHtml(tx('common.logout','Cerrar sesión'))}</button>
+  </div>`;
 }
 
 const QUICK_ACTIONS=Object.freeze({
@@ -174,19 +192,18 @@ function renderM26ShellBase(vm, routeMarkup = '') {
   const mobileMoreActive=moreMobileItems.some((item)=>item.key===vm.activeArea);
   const mobileMore = moreMobileItems.length ? `<details class="m26-mobile-more${mobileMoreActive?' is-active':''}"${mobileMoreActive?' data-m26-more-active="true"':''}><summary>${escapeHtml(tx('common.more','Más'))}</summary><div class="m26-mobile-more-menu">${moreMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}</div></details>` : '';
   const productivity=coachProductivityShell(vm);
-  const pageTitle=tx(`area.${vm.activeArea}.title`,vm.page.title);
-  const identityRoleLabel=tx(`shell.role.${vm.identity.role}`,vm.identity.roleLabel);
+  const pageTitle=tx(`area.${vm.activeArea}.label`,vm.page.label);
 
   return `${shellStyles()}<div class="m26-shell" data-m26-role="${escapeHtml(vm.identity.role)}"><a class="m26-skip-link" href="#m26-main">${escapeHtml(tx('shell.skipToContent','Saltar al contenido'))}</a>
     <aside class="m26-sidebar" aria-label="${escapeHtml(tx('shell.accessibility.navigation','Navegación IBERFIT'))}">
       <div class="m26-brand"><img src="/public/isotipo-iberfit.png" alt="" aria-hidden="true"><div><strong>IBERFIT</strong><span>${escapeHtml(tx('shell.product','Entrenamiento personal con criterio'))}</span></div></div>
-      ${groupedNavigation(vm)}
-      <div class="m26-sidebar-footer"><span>${escapeHtml(identityRoleLabel)}</span><strong>${escapeHtml(vm.identity.name)}</strong></div>
+      <div class="m26-sidebar-navigation">${groupedNavigation(vm)}</div>
+      ${sidebarAccount(vm)}
     </aside>
     <section class="m26-workspace">
       <header class="m26-topbar">
-        <div><p class="m26-eyebrow">${escapeHtml(identityRoleLabel)}</p><h1 id="m26-page-title">${escapeHtml(pageTitle)}</h1></div>
-        <div class="m26-topbar-actions">${productivity.launcher}${clientSelector(vm)}${operationStatus(vm.operations)}${settingsMenu(vm)}<button type="button" class="m26-icon-button" data-m26-action="logout">${escapeHtml(tx('common.logout','Cerrar sesión'))}</button><button type="button" class="m26-danger-action" data-m26-action="logout-clear-device">${escapeHtml(tx('common.logoutClear','Cerrar sesión y borrar datos de este dispositivo'))}</button></div>
+        <div class="m26-topbar-heading"><h1 id="m26-page-title">${escapeHtml(pageTitle)}</h1></div>
+        <div class="m26-topbar-actions">${productivity.launcher}${clientSelector(vm)}${operationStatus(vm.operations)}</div>
       </header>
       <main id="m26-main" class="m26-main" tabindex="-1" aria-labelledby="m26-page-title">${workspaceHome(vm)}${routeContent}</main>
       <nav class="m26-mobile-nav" aria-label="IBERFIT">${quickMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}${mobileMore}</nav>
