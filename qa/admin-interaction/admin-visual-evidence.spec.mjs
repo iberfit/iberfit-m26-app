@@ -47,7 +47,9 @@ async function expectCanonicalAdminShell(page,{form=null}={}){
       workspaceBackgroundColor:ws?.backgroundColor||'',
       navScheme:nav?.colorScheme||'',
       navBackground:nav?.backgroundImage||'',
+      navBackgroundColor:nav?.backgroundColor||'',
       surfaceBackground:surface?.backgroundColor||'',
+      surfaceBackgroundImage:surface?.backgroundImage||'',
     };
   });
   expect(vision.workspaceScheme).toContain('dark');
@@ -55,8 +57,10 @@ async function expectCanonicalAdminShell(page,{form=null}={}){
   expect(vision.workspaceBackground).toContain('linear-gradient');
   expect(vision.workspaceBackgroundColor).toBe('rgb(11, 19, 16)');
   expect(vision.navScheme).toContain('dark');
-  expect(vision.navBackground).toContain('linear-gradient');
-  expect(vision.surfaceBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(vision.navBackground+' '+vision.navBackgroundColor).toMatch(/linear-gradient|rgba?\(11,\s*19,\s*16/u);
+  expect(vision.navBackground+' '+vision.navBackgroundColor).not.toMatch(/rgb\(255,\s*255,\s*255\)|rgb\(243,\s*238,\s*227\)/u);
+  expect(vision.surfaceBackgroundImage).toContain('linear-gradient');
+  expect(vision.surfaceBackgroundImage).not.toMatch(/rgb\(255,\s*255,\s*255\)|rgb\(243,\s*238,\s*227\)/u);
 
   const iconBox=await navIcon.boundingBox();
   const routeBox=await route.boundingBox();
