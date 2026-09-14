@@ -628,6 +628,7 @@
 }
 
 .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route button:not([type="submit"]),
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-form button[type="submit"]:not(.m26-primary-action),
 .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route :is(
   [data-admin-form="user-status"],
   [data-admin-form="role-change"],
@@ -640,6 +641,7 @@
   box-shadow:none!important;
 }
 .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route button:not([type="submit"]):hover:not(:disabled),
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-form button[type="submit"]:not(.m26-primary-action):hover:not(:disabled),
 .m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route :is(
   [data-admin-form="user-status"],
   [data-admin-form="role-change"],
