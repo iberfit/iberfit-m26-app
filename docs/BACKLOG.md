@@ -1,8 +1,8 @@
 # IBERFIT · Backlog Vivo
 
 Checkpoint: 2026-09-14
-Producción source SHA: `396ad52cfd4c1a4d75e4e306838d85bffa77b105`
-Promotion run válido: `34793087805 = SUCCESS`
+Producción source SHA: `b2e4a20c7f5b6a7696cdfa96b66e11956f9493a6`
+Promotion run válido: `34805512111 = SUCCESS`
 Canary funcional certificado: `39e160fb54d1e866823a8150ecd9270359129444`
 
 ## P0 · guardrails permanentes
@@ -19,14 +19,14 @@ Canary funcional certificado: `39e160fb54d1e866823a8150ecd9270359129444`
 - [x] Cerrar signup público y elevar mínimo de contraseña a 8.
 - [x] Añadir contrato de Auth Hosted readiness.
 - [x] Evitar interferencia/cancelación entre suites QA autenticadas compartidas.
-- [ ] Crear proveedor SMTP transaccional para Auth.
-- [ ] Verificar dominio/subdominio de envío con SPF/DKIM/DMARC.
-- [ ] Cargar los 6 secretos SMTP operativos sin exponerlos.
-- [ ] Configurar SMTP PROD con rollback fail-closed.
-- [ ] Sincronizar y validar las 13 plantillas Hosted Auth.
-- [ ] E2E real: OTP nuevo dispositivo, recovery, invite, resend, expiry, replay y mala conexión.
-- [ ] Activar reauthentication de cambio de contraseña después del E2E de correo.
-- [ ] Promover el siguiente lote sólo con Auth readiness GREEN.
+- [x] Crear proveedor SMTP transaccional para Auth.
+- [x] Verificar dominio/subdominio de envío con SPF/DKIM/DMARC.
+- [x] Cargar los 6 secretos SMTP operativos sin exponerlos.
+- [x] Configurar SMTP PROD con rollback fail-closed.
+- [x] Sincronizar y validar las 13 plantillas Hosted Auth.
+- [ ] E2E real completo: OTP y recovery verificados; quedan invite, resend, expiry, replay y mala conexión.
+- [x] Activar reauthentication de cambio de contraseña tras certificar SMTP, OTP, recovery y DMARC.
+- [x] Promover lote `b2e4a20c...` con Auth readiness GREEN y verificación LIVE.
 
 ## P1 · gobernanza
 
@@ -83,8 +83,8 @@ Canary funcional certificado: `39e160fb54d1e866823a8150ecd9270359129444`
 
 ## Siguientes 5 acciones
 
-1. SMTP Auth + DNS + E2E real.
-2. Protección de Canary.
-3. Admin/Coach authenticated device completion.
-4. Sesión Coach y CRUD diario sin freezes.
+1. Protección de Canary.
+2. Admin/Coach authenticated device completion.
+3. Sesión Coach y CRUD diario sin freezes.
+4. Edge cases Auth restantes sin degradar el canal certificado.
 5. Outcome tracking + funnel/capacidad/revenue.

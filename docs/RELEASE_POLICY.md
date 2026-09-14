@@ -5,8 +5,8 @@
 `app.iberfit.cl` tiene usuarios reales. Producción debe tratarse como un sistema activo y no como un entorno de prueba.
 
 Baseline LIVE verificado al 2026-09-14:
-- source SHA: `396ad52cfd4c1a4d75e4e306838d85bffa77b105`;
-- promotion run: `34793087805 = SUCCESS`;
+- source SHA: `b2e4a20c7f5b6a7696cdfa96b66e11956f9493a6`;
+- promotion run: `34805512111 = SUCCESS`;
 - Cloudflare project: `iberfit-m26-production`;
 - Supabase PROD: `pjhmrhejsoofmouedavw`.
 
@@ -14,7 +14,7 @@ Canary funcional certificado:
 - `39e160fb54d1e866823a8150ecd9270359129444`;
 - CI, auditoría continua, Device Gate, Daily Visual y Remote Gates en GREEN.
 
-Existe un bloqueo deliberado de promoción mientras no haya SMTP Auth personalizado completo y correo real E2E validado.
+SMTP Auth productivo, OTP de 6 dígitos, recovery real, SPF/DKIM/DMARC y secure password change están activos y verificados. Los edge cases de invite/resend/expiry/replay/mala conexión siguen siendo cobertura P1, no un bloqueo retroactivo del baseline ya certificado.
 
 ## Carril 1 · LIVE SUPPORT / HOTFIX
 
@@ -85,7 +85,7 @@ Siempre high-risk:
 - WebAuthn/assurance probado para rutas privilegiadas;
 - correo Auth con SMTP productivo, SPF/DKIM/DMARC y E2E real antes de depender de OTP/recovery/invite.
 
-No habilitar password-change reauthentication hasta que el canal de correo real haya sido certificado para no crear un bloqueo de cuenta.
+Password-change reauthentication está habilitado porque el canal de correo real ya fue certificado con entrega, OTP, recovery y autenticación de dominio.
 
 ## Device Experience Gate
 
