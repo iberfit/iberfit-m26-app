@@ -36,8 +36,8 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo 'SUPABASE_ACCESS_TOKEN_MISSING'; exit 41; }
-          node <<'NODE'
-          const fs=require('fs');
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
           const projectRef=process.env.PROD_SUPABASE_REF;
           const token=process.env.SUPABASE_ACCESS_TOKEN;
           const appUrl=process.env.APP_URL;
