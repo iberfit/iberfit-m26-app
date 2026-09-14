@@ -140,6 +140,14 @@ test('Client contextual guide has no numbered tour/checklist, does not observe t
   assert.doesNotMatch(guide,/Paso \{current\}|data-m26-guided-tour-next|data-m26-guided-tour-previous|<progress/iu);
 });
 
+test('Visual guide closes during live training and rebinds safely after route rerenders',()=>{
+  const guide=read('src/m26/onboarding/client-contextual-guide.js');
+  assert.match(guide,/root\.querySelector\?\.\('\[data-session-live-state\]'\)/u);
+  assert.match(guide,/close\(\{restoreFocus:false\}\);\s*return;/u);
+  assert.match(guide,/resolvedTarget!==activeTarget/u);
+  assert.match(guide,/data-m26-client-context-guide-target-active/u);
+});
+
 test('Legacy linear checklist is hidden for Client while Coach and Admin keep the durable tour lifecycle',()=>{
   const progressive=read('src/m26/onboarding/progressive-onboarding.js');
   const guided=read('src/m26/onboarding/guided-tour.js');
