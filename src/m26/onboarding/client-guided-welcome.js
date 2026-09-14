@@ -112,34 +112,135 @@ const STYLE=`
 .m26-client-guided-welcome{
   position:fixed;
   z-index:1230;
-  width:min(26rem,calc(100vw - 2rem));
-  padding:1.05rem 1.1rem;
-  border:1px solid color-mix(in srgb,var(--iberfit-color-accent,#c5a059) 44%,transparent);
-  border-radius:1.15rem;
-  background:color-mix(in srgb,var(--iberfit-color-surface-overlay,#10281e) 97%,black);
-  box-shadow:0 26px 78px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,248,220,.025);
+  width:min(27rem,calc(100vw - 2rem));
+  padding:1.18rem 1.25rem 1.08rem;
+  border:1px solid rgba(205,166,80,.58);
+  border-radius:1.55rem;
+  color:#10231b;
+  background:
+    linear-gradient(145deg,rgba(255,251,236,.975),rgba(245,234,202,.94)),
+    rgba(255,248,220,.96);
+  box-shadow:
+    0 24px 70px rgba(0,0,0,.34),
+    0 0 0 1px rgba(255,255,255,.38) inset,
+    0 0 34px rgba(197,160,89,.13);
+  backdrop-filter:blur(16px) saturate(1.08);
+  -webkit-backdrop-filter:blur(16px) saturate(1.08);
+  overflow:visible;
+  transform-origin:50% 100%;
 }
-.m26-client-guided-welcome-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.85rem}
-.m26-client-guided-welcome h2{margin:.18rem 0 0;font-size:clamp(1.1rem,2vw,1.28rem);line-height:1.2;letter-spacing:-.018em}
-.m26-client-guided-welcome-copy{margin:.76rem 0 0;line-height:1.58;color:var(--iberfit-color-text-secondary,#cbd5cf)}
-.m26-client-guided-welcome-actions{display:flex;justify-content:flex-end;gap:.55rem;margin-top:.95rem;flex-wrap:wrap}
+.m26-client-guided-welcome::before{
+  content:'';
+  position:absolute;
+  z-index:-1;
+  width:2.2rem;
+  height:2.2rem;
+  right:-.66rem;
+  bottom:1.15rem;
+  border-right:1px solid rgba(205,166,80,.58);
+  border-bottom:1px solid rgba(205,166,80,.58);
+  background:linear-gradient(135deg,rgba(248,238,210,.98),rgba(255,249,230,.96));
+  transform:rotate(-45deg) skew(7deg,7deg);
+  border-radius:0 0 .65rem 0;
+  box-shadow:6px 8px 18px rgba(0,0,0,.08);
+}
+.m26-client-guided-welcome[data-m26-client-guide-side="left"]::before{
+  left:-.66rem;
+  right:auto;
+  transform:rotate(135deg) skew(7deg,7deg);
+}
+.m26-client-guided-welcome::after{
+  content:'';
+  position:absolute;
+  inset:-1px;
+  pointer-events:none;
+  border-radius:inherit;
+  background:linear-gradient(120deg,rgba(255,255,255,.44),transparent 34%,transparent 70%,rgba(197,160,89,.1));
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  mask-composite:exclude;
+  -webkit-mask-composite:xor;
+  padding:1px;
+}
+.m26-client-guided-welcome-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.9rem}
+.m26-client-guided-welcome .m26-eyebrow{
+  margin:0 0 .32rem;
+  color:#8c6827;
+  font-size:.69rem;
+  font-weight:750;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+.m26-client-guided-welcome h2{
+  margin:0;
+  color:#10231b;
+  font-family:var(--iberfit-font-display,Georgia,serif);
+  font-size:clamp(1.18rem,2vw,1.42rem);
+  line-height:1.16;
+  letter-spacing:-.022em;
+}
+.m26-client-guided-welcome-copy{
+  margin:.72rem 0 0;
+  max-width:38ch;
+  color:#385047;
+  line-height:1.55;
+  font-size:.94rem;
+}
+.m26-client-guided-welcome .m26-icon-button{
+  flex:0 0 auto;
+  color:#6f5b2f;
+  border:1px solid rgba(122,94,41,.22);
+  background:rgba(255,255,255,.3);
+}
+.m26-client-guided-welcome-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:.62rem;
+  margin-top:1rem;
+  flex-wrap:wrap;
+}
 .m26-client-guided-welcome-actions button,.m26-client-guided-welcome-head button{min-height:44px;min-width:44px}
+.m26-client-guided-welcome .m26-primary-action{
+  border:1px solid #bb8d37;
+  color:#14251e;
+  background:linear-gradient(180deg,#f1d58e,#d5ad58);
+  box-shadow:0 8px 20px rgba(134,94,25,.18),inset 0 1px 0 rgba(255,255,255,.55);
+}
+.m26-client-guided-welcome .m26-primary-action:hover{filter:brightness(1.025)}
+.m26-client-guided-welcome .m26-text-action{
+  color:#53675f;
+  background:transparent;
+}
 .m26-client-guided-welcome-target{
   position:relative;
   z-index:1220!important;
-  outline:2px solid color-mix(in srgb,var(--iberfit-color-accent,#c5a059) 78%,white 4%);
-  outline-offset:4px;
-  border-radius:max(.5rem,var(--iberfit-radius-md,.75rem));
-  box-shadow:0 0 0 9999px rgba(4,18,13,.68),0 0 30px rgba(197,160,89,.18)!important;
+  outline:2px solid rgba(233,196,111,.95);
+  outline-offset:5px;
+  border-radius:max(.55rem,var(--iberfit-radius-md,.75rem));
+  box-shadow:
+    0 0 0 9999px rgba(4,18,13,.72),
+    0 0 0 1px rgba(255,248,220,.23),
+    0 0 34px rgba(226,185,91,.26)!important;
   scroll-margin:7rem 1rem;
+  isolation:isolate;
+}
+.m26-client-guided-welcome-target::after{
+  content:'';
+  position:absolute;
+  inset:-6px;
+  pointer-events:none;
+  border-radius:inherit;
+  box-shadow:0 0 26px rgba(238,205,125,.18);
+  animation:m26-client-guide-target-breathe 2.2s ease-in-out infinite;
 }
 .m26-client-guided-welcome-presence{
   position:fixed;
   z-index:1232;
   left:1rem;
   top:1rem;
-  width:5.75rem;
-  height:7.15rem;
+  width:7rem;
+  height:8.8rem;
   display:grid;
   place-items:center;
   pointer-events:none;
@@ -152,10 +253,22 @@ const STYLE=`
 .m26-client-guided-welcome-presence::before{
   content:'';
   position:absolute;
-  inset:18% 5% 2%;
+  inset:16% -2% 0;
   border-radius:50%;
-  background:radial-gradient(ellipse at 50% 48%,rgba(255,248,220,.09),rgba(197,160,89,.035) 48%,transparent 72%);
-  filter:blur(1px);
+  background:radial-gradient(ellipse at 50% 45%,rgba(255,248,220,.16),rgba(197,160,89,.055) 47%,transparent 72%);
+  filter:blur(2px);
+}
+.m26-client-guided-welcome-presence::after{
+  content:'';
+  position:absolute;
+  width:4.6rem;
+  height:1.05rem;
+  left:50%;
+  bottom:.12rem;
+  transform:translateX(-50%);
+  border-radius:50%;
+  background:radial-gradient(ellipse,rgba(222,182,85,.22),transparent 70%);
+  filter:blur(4px);
 }
 .m26-client-genie{
   position:relative;
@@ -164,7 +277,12 @@ const STYLE=`
   width:100%;
   height:100%;
   overflow:visible;
-  filter:drop-shadow(0 10px 20px rgba(0,0,0,.32)) drop-shadow(0 0 8px rgba(197,160,89,.12));
+  filter:
+    drop-shadow(0 12px 20px rgba(0,0,0,.34))
+    drop-shadow(0 0 10px rgba(197,160,89,.18));
+}
+.m26-client-guided-welcome-presence[data-m26-client-guide-side="right"] .m26-client-genie{
+  transform:scaleX(-1);
 }
 .m26-client-genie .m26-genie__body{
   transform-origin:50% 58%;
@@ -219,7 +337,7 @@ const STYLE=`
   animation:m26-client-genie-core-success 1.2s ease-in-out infinite;
 }
 .m26-client-guided-welcome-presence[data-m26-client-guide-state="success"]::before{
-  background:radial-gradient(ellipse at 50% 48%,rgba(255,248,220,.14),rgba(255,215,0,.055) 48%,transparent 74%);
+  background:radial-gradient(ellipse at 50% 48%,rgba(255,248,220,.18),rgba(255,215,0,.075) 48%,transparent 74%);
 }
 .m26-client-guided-welcome-presence[data-m26-client-guide-state="alert"] .m26-genie__arm--right{
   transform-origin:34% 12%;
@@ -230,7 +348,7 @@ const STYLE=`
   animation:m26-client-genie-alert 1.55s ease-in-out infinite;
 }
 .m26-client-guided-welcome-presence[data-m26-client-guide-state="alert"]::before{
-  background:radial-gradient(ellipse at 50% 48%,rgba(255,191,0,.1),rgba(197,160,89,.035) 48%,transparent 72%);
+  background:radial-gradient(ellipse at 50% 48%,rgba(255,191,0,.14),rgba(197,160,89,.045) 48%,transparent 72%);
 }
 .m26-client-guided-welcome-presence.is-visible{opacity:1;transform:translateZ(0) scale(1)}
 .m26-client-guided-welcome-presence.is-arriving{animation:m26-client-guided-welcome-arrive 520ms cubic-bezier(.2,.8,.2,1) both}
@@ -239,6 +357,7 @@ const STYLE=`
   58%{opacity:1;transform:translateZ(0) translateY(-2px) scale(1.025)}
   100%{opacity:1;transform:translateZ(0) translateY(0) scale(1)}
 }
+@keyframes m26-client-guide-target-breathe{0%,100%{opacity:.65}50%{opacity:1}}
 @keyframes m26-client-genie-float{0%,100%{transform:translateY(2px)}50%{transform:translateY(-6px)}}
 @keyframes m26-client-genie-flame{0%,100%{transform:rotate(-1deg) scaleY(.99)}50%{transform:rotate(1.7deg) scaleY(1.025)}}
 @keyframes m26-client-genie-tail{0%,100%{transform:rotate(-.4deg)}50%{transform:rotate(1.35deg)}}
@@ -249,15 +368,29 @@ const STYLE=`
 @keyframes m26-client-genie-alert{0%,100%{transform:translateY(0);opacity:.68}50%{transform:translateY(-4px);opacity:1}}
 @media(max-width:690px){
   .m26-client-guided-welcome{
-    left:.75rem!important;
-    right:.75rem!important;
+    left:.7rem!important;
+    right:.7rem!important;
     top:auto!important;
-    bottom:calc(5.35rem + env(safe-area-inset-bottom))!important;
+    bottom:calc(1rem + env(safe-area-inset-bottom))!important;
     width:auto;
-    max-height:min(48vh,27rem);
-    overflow:auto;
+    max-height:min(44vh,23rem);
+    overflow:visible;
+    border-radius:1.35rem;
+    padding:1rem 1.05rem .95rem;
   }
-  .m26-client-guided-welcome-presence{width:4.35rem;height:5.45rem}
+  .m26-client-guided-welcome::before{
+    left:auto!important;
+    right:1.25rem!important;
+    top:-.58rem;
+    bottom:auto;
+    transform:rotate(225deg) skew(7deg,7deg)!important;
+  }
+  .m26-client-guided-welcome-copy{font-size:.9rem;line-height:1.48}
+  .m26-client-guided-welcome-actions{margin-top:.78rem}
+  .m26-client-guided-welcome-presence{
+    width:5.15rem;
+    height:6.45rem;
+  }
 }
 @media(prefers-reduced-motion:reduce){
   .m26-client-guided-welcome,.m26-client-guided-welcome-target,.m26-client-guided-welcome-presence{
@@ -265,7 +398,8 @@ const STYLE=`
     transition:none!important;
     animation:none!important;
   }
-  .m26-client-guided-welcome-presence *{
+  .m26-client-guided-welcome-presence *,
+  .m26-client-guided-welcome-target::after{
     transition:none!important;
     animation:none!important;
   }
@@ -273,7 +407,7 @@ const STYLE=`
 @media print{
   .m26-client-guided-welcome,.m26-client-guided-welcome-presence{display:none!important}
 }
-`;
+`
 
 function text(value,max=240){return String(value??'').replace(/\s+/gu,' ').trim().slice(0,max);}
 function esc(value){return String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');}
@@ -365,7 +499,7 @@ function dialogHtml(step){
   const copyId=step.id;
   const final=copyId==='welcome-finish';
   const pauseAction=final?'':`<button type="button" class="m26-text-action" data-m26-client-guided-welcome-pause>${esc(tr('pause','Lo vemos luego'))}</button>`;
-  return `<aside class="m26-client-guided-welcome" data-m26-client-guided-welcome role="dialog" aria-modal="false" aria-labelledby="m26-client-guided-welcome-title" aria-describedby="m26-client-guided-welcome-copy"><div class="m26-client-guided-welcome-head"><div><p class="m26-eyebrow">${esc(tr('eyebrow','Tu guía IBERFIT'))}</p><h2 id="m26-client-guided-welcome-title">${esc(tr(`${copyId}.title`,copyId))}</h2></div><button type="button" class="m26-icon-button" data-m26-client-guided-welcome-pause aria-label="${esc(tr('close','Cerrar por ahora'))}">×</button></div><p class="m26-client-guided-welcome-copy" id="m26-client-guided-welcome-copy">${esc(tr(`${copyId}.body`,''))}</p><div class="m26-client-guided-welcome-actions">${pauseAction}<button type="button" class="m26-primary-action" data-m26-client-guided-welcome-next>${esc(tr(`${copyId}.cta`,'Seguir'))}</button></div></aside>`;
+  return `<aside class="m26-client-guided-welcome" data-m26-client-guided-welcome data-m26-client-guide-side="right" role="dialog" aria-modal="false" aria-labelledby="m26-client-guided-welcome-title" aria-describedby="m26-client-guided-welcome-copy"><div class="m26-client-guided-welcome-head"><div><p class="m26-eyebrow">${esc(tr('eyebrow','Tu guía IBERFIT'))}</p><h2 id="m26-client-guided-welcome-title">${esc(tr(`${copyId}.title`,copyId))}</h2></div><button type="button" class="m26-icon-button" data-m26-client-guided-welcome-pause aria-label="${esc(tr('close','Cerrar por ahora'))}">×</button></div><p class="m26-client-guided-welcome-copy" id="m26-client-guided-welcome-copy">${esc(tr(`${copyId}.body`,''))}</p><div class="m26-client-guided-welcome-actions">${pauseAction}<button type="button" class="m26-primary-action" data-m26-client-guided-welcome-next>${esc(tr(`${copyId}.cta`,'Seguir'))}</button></div></aside>`;
 }
 function ensureStyle(doc){
   let node=doc?.querySelector?.('[data-m26-client-guided-welcome-style]');
@@ -382,7 +516,7 @@ function ensurePresence(doc){
   doc.body.insertAdjacentHTML('beforeend',`<div class="m26-client-guided-welcome-presence" data-m26-client-guided-welcome-presence data-m26-client-guide-state="idle" aria-hidden="true">${clientGenieVisualMarkup()}</div>`);
   return doc.querySelector?.('[data-m26-client-guided-welcome-presence]')||null;
 }
-function position(node,target,scope,{arriving=false}={}){
+function position(node,target,scope,{arriving=false,dialog=null}={}){
   if(!node||!target)return false;
   try{
     const rect=target.getBoundingClientRect?.();
@@ -391,18 +525,39 @@ function position(node,target,scope,{arriving=false}={}){
     if(!rect||!width||!height)return false;
     const mobile=width<=690;
     const margin=mobile?10:14;
-    const gap=mobile?8:12;
-    const bottomReserve=mobile?112:margin;
+    const bottomReserve=mobile?96:margin;
     const presenceRect=node.getBoundingClientRect?.();
-    const nodeWidth=Math.max(1,Number(presenceRect?.width||(mobile?70:92)));
-    const nodeHeight=Math.max(1,Number(presenceRect?.height||(mobile?87:114)));
+    const nodeWidth=Math.max(1,Number(presenceRect?.width||(mobile?82:112)));
+    const nodeHeight=Math.max(1,Number(presenceRect?.height||(mobile?103:141)));
     const outside=Number(rect.bottom||0)<margin||Number(rect.top||0)>height-bottomReserve||Number(rect.right||0)<0||Number(rect.left||0)>width;
     if(outside){node.classList?.remove?.('is-visible','is-arriving');return false;}
-    const left=Math.min(width-nodeWidth-margin,Math.max(margin,Number(rect.right||0)-nodeWidth*.82));
-    const preferredTop=Number(rect.top||0)-nodeHeight-gap;
-    const top=preferredTop>=margin?preferredTop:Math.min(height-nodeHeight-bottomReserve,Number(rect.bottom||0)+gap);
+
+    let side='right';
+    let left=margin;
+    let top=margin;
+    if(mobile){
+      left=Math.min(width-nodeWidth-margin,Math.max(margin,width-nodeWidth-18));
+      const dialogRect=dialog?.getBoundingClientRect?.();
+      top=Math.max(margin,Number(dialogRect?.top||height*.56)-nodeHeight+10);
+    }else{
+      const dialogRect=dialog?.getBoundingClientRect?.();
+      const dLeft=Number(dialogRect?.left||rect.left);
+      const dRight=Number(dialogRect?.right||rect.right);
+      const dTop=Number(dialogRect?.top||rect.top);
+      const dBottom=Number(dialogRect?.bottom||rect.bottom);
+      const roomRight=width-dRight-margin;
+      const roomLeft=dLeft-margin;
+      side=roomRight>=nodeWidth+12||roomRight>=roomLeft?'right':'left';
+      left=side==='right'
+        ?Math.min(width-nodeWidth-margin,dRight+10)
+        :Math.max(margin,dLeft-nodeWidth-10);
+      top=Math.min(height-nodeHeight-bottomReserve,Math.max(margin,dBottom-nodeHeight*.72));
+    }
+
+    node.setAttribute?.('data-m26-client-guide-side',side);
+    dialog?.setAttribute?.('data-m26-client-guide-side',side);
     node.style.left=`${Math.round(left)}px`;
-    node.style.top=`${Math.round(Math.max(margin,top))}px`;
+    node.style.top=`${Math.round(top)}px`;
     node.classList?.add?.('is-visible');
     if(arriving&&!reduced(scope)){
       node.classList?.remove?.('is-arriving');
@@ -533,12 +688,15 @@ export function createClientGuidedWelcomeController({
           try{
             const rect=activeTarget.getBoundingClientRect?.();
             const box=dialog.getBoundingClientRect?.();
-            const margin=16,gap=12;
-            const boxWidth=Number(box?.width||416),boxHeight=Number(box?.height||230);
+            const margin=16,gap=14;
+            const boxWidth=Number(box?.width||432),boxHeight=Number(box?.height||240);
             const viewportWidth=Number(scope?.innerWidth||1200),viewportHeight=Number(scope?.innerHeight||800);
-            let left=Math.min(viewportWidth-boxWidth-margin,Math.max(margin,Number(rect?.right||margin)-boxWidth));
+            let left=Math.min(viewportWidth-boxWidth-margin,Math.max(margin,Number(rect?.left||margin)));
             let top=Number(rect?.bottom||margin)+gap;
             if(top+boxHeight>viewportHeight-margin)top=Math.max(margin,Number(rect?.top||margin)-boxHeight-gap);
+            if(left+boxWidth+128>viewportWidth-margin&&Number(rect?.right||0)-boxWidth-128>margin){
+              left=Math.max(margin,Number(rect.right)-boxWidth);
+            }
             dialog.style.left=`${Math.round(left)}px`;
             dialog.style.top=`${Math.round(top)}px`;
             dialog.style.right='auto';
@@ -546,7 +704,7 @@ export function createClientGuidedWelcomeController({
           }catch{}
         }
       }
-      if(presence&&activeTarget)position(presence,activeTarget,scope);
+      if(presence&&activeTarget)position(presence,activeTarget,scope,{dialog});
     };
     if(typeof scope?.requestAnimationFrame==='function')positionFrame=scope.requestAnimationFrame(run);
     else queueMicrotask(run);
@@ -566,7 +724,7 @@ export function createClientGuidedWelcomeController({
     }
     presence=presence||ensurePresence(doc);
     presence?.setAttribute?.('data-m26-client-guide-state',step.guideState||'idle');
-    position(presence,target,scope,{arriving:!presence?.classList?.contains?.('is-visible')});
+    position(presence,target,scope,{arriving:!presence?.classList?.contains?.('is-visible'),dialog});
     doc?.body?.insertAdjacentHTML?.('beforeend',dialogHtml(step));
     dialog=doc?.querySelector?.('[data-m26-client-guided-welcome]')||null;
     schedulePosition();
