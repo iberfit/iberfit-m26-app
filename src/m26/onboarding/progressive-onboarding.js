@@ -1,4 +1,5 @@
 import {createGuidedTourController} from './guided-tour.js';
+import {createClientContextualGuideController} from './client-contextual-guide.js';
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
@@ -440,10 +441,21 @@ export function createProgressiveOnboardingController({
   const tourOpenState=createProgressiveOnboardingOpenState({root,documentLike,onOpenChange});
   const guidedTour=createGuidedTourController({
     root,
-    identityProvider,
+    identityProvider:()=>{
+      const value=identityProvider?.()||{};
+      return text(value.role,40).toLowerCase()==='client'
+        ?{...value,role:'client-contextual'}
+        :value;
+    },
     storage:resolvedStorage,
     scope,
     onOpenChange:(open)=>tourOpenState.set(open),
+  });
+  const clientContextGuide=createClientContextualGuideController({
+    root,
+    identityProvider,
+    storage:resolvedStorage,
+    scope,
   });
   let tourObserver=null;
   let releaseCompactStyle=null;
@@ -540,8 +552,15 @@ export function createProgressiveOnboardingController({
       host.prepend?.(launcher);
     }
     setAttributeIfChanged(launcher,'data-m26-area',context.track.home);
-    setTextIfChanged(launcher,state.completed?'Guía completada':'Guía');
-    setAttributeIfChanged(launcher,'aria-label',state.completed?'Abrir guía progresiva completada':'Abrir guía progresiva');
+    if(context.role==='client'){
+      launcher.setAttribute?.('data-m26-client-context-guide-open','');
+      setTextIfChanged(launcher,'Guía');
+      setAttributeIfChanged(launcher,'aria-label','Abrir guía contextual de esta pantalla');
+    }else{
+      launcher.removeAttribute?.('data-m26-client-context-guide-open');
+      setTextIfChanged(launcher,state.completed?'Guía completada':'Guía');
+      setAttributeIfChanged(launcher,'aria-label',state.completed?'Abrir guía progresiva completada':'Abrir guía progresiva');
+    }
   }
 
   function panelRenderKey(context,state){
@@ -556,7 +575,7 @@ export function createProgressiveOnboardingController({
 
   function ensurePanel(context,state,area){
     const existing=root.querySelector?.('[data-progressive-onboarding-panel]');
-    if(area!==context.track.home||state.hidden){
+    if(context.role==='client'||area!==context.track.home||state.hidden){
       existing?.remove?.();
       renderedPanel=null;
       renderedPanelKey=null;
@@ -586,19 +605,23 @@ export function createProgressiveOnboardingController({
     if(!context){
       removeOwned();
       guidedTour.refresh?.();
+      clientContextGuide.refresh?.();
       scheduleTourOpenStateSync();
       return;
     }
     const area=activeArea()||context.track.home;
     let state=repository.read(context.key,context.role);
-    const nextState=recordProgressiveOnboardingArea(state,context.role,area);
-    if(nextState!==state){
-      repository.write(context.key,nextState);
-      state=nextState;
+    if(context.role!=='client'){
+      const nextState=recordProgressiveOnboardingArea(state,context.role,area);
+      if(nextState!==state){
+        repository.write(context.key,nextState);
+        state=nextState;
+      }
     }
     ensureLauncher(context,state);
     ensurePanel(context,state,area);
     guidedTour.refresh?.();
+    clientContextGuide.refresh?.();
     scheduleTourOpenStateSync();
   }
 
@@ -663,6 +686,7 @@ export function createProgressiveOnboardingController({
         tourObserver.observe(documentLike.body,{childList:true});
       }
       guidedTour.mount?.();
+      clientContextGuide.mount?.();
       releaseCompactStyle=retainProgressiveOnboardingCompactStyle(documentLike);
       syncTourOpenState();
       schedule();
@@ -682,6 +706,7 @@ export function createProgressiveOnboardingController({
       tourObserver?.disconnect?.();
       tourObserver=null;
       guidedTour.destroy?.();
+      clientContextGuide.destroy?.();
       tourOpenState.clear();
       releaseCompactStyle?.();
       releaseCompactStyle=null;
@@ -690,6 +715,7 @@ export function createProgressiveOnboardingController({
     refresh(){
       schedule();
       guidedTour.refresh?.();
+      clientContextGuide.refresh?.();
       scheduleTourOpenStateSync();
     },
     isTourOpen(){
