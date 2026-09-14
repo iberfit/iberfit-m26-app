@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {buildAdherenceWindows} from '../src/m26/engagement/progress-continuity.js';
 import {computeProgressSummary} from '../src/m26/engagement/progress-engine.js';
 import {buildCoachFollowUpPlan,deriveAdherenceAlerts} from '../src/m26/engagement/adherence-engine.js';
-import {buildClientHomeSnapshot} from '../src/m26/ui/progress-continuity.js';
+import {buildClientHomeSnapshot,__progressContinuityInternals} from '../src/m26/ui/progress-continuity.js';
 
 const clientId='client-progress-continuity';
 const now=new Date('2026-09-04T12:00:00Z');
@@ -105,6 +105,35 @@ test('inicio cliente resume próxima cita, constancia y bienestar sin inventar d
   assert.notEqual(empty.attention.title,'Dolor elevado informado');
 });
 
+test('inicio cliente visual solo eleva contexto accionable y omite duplicados tranquilos',()=>{
+  const quietState={
+    collections:{
+      appointments:[],
+      sessionExecutions:[],
+      iriAssessments:[],
+      checkins:[{id:'c1',clientId,createdAt:'2026-09-04T08:00:00Z',energy:7,sleep:8,stress:3,pain:1}],
+      wearableDailySummaries:[],
+      wearableConnections:[{id:'w1',clientId,provider:'normalized_file',status:'active',lastSyncedAt:'2026-09-04T10:00:00Z',scopes:['steps']}],
+      trainingCycles:[],
+    },
+    communication:{available:true,threads:[],notifications:[]},
+    pendingOperations:[],
+    conflicts:[],
+    rejectedOperations:[],
+  };
+  const quietSnapshot=buildClientHomeSnapshot(quietState,clientId,{now});
+  assert.equal(quietSnapshot.constancy.hasPlan,false);
+  assert.equal(quietSnapshot.attention.level,'info');
+  assert.equal(quietSnapshot.device.kind,'device-ok');
+  assert.deepEqual(__progressContinuityInternals.clientHomeContextItems(quietSnapshot),[]);
+
+  const actionable=buildClientHomeSnapshot(state(),clientId,{now});
+  const items=__progressContinuityInternals.clientHomeContextItems(actionable);
+  assert.deepEqual(items.map((item)=>item.kind),['constancy','attention','communication']);
+  assert.ok(items.every((item)=>item.kind!=='device'));
+  assert.ok(items.length<=3);
+});
+
 test('inicio cliente eleva comunicaciones pendientes y Dispositivos solo cuando aportan valor',()=>{
   const snapshot=buildClientHomeSnapshot(state(),clientId,{now});
   assert.ok(snapshot.communication);
@@ -196,18 +225,17 @@ test('la capa premium de continuidad es idempotente, española y no introduce ob
   assert.match(ui,/Constancia de entrenamiento en 7, 28 y 90 días/);
   assert.match(ui,/Cierre post-sesión/);
   assert.match(ui,/Ver Cliente 360/);
-  assert.match(ui,/Tu día IBERFIT/);
-  assert.match(ui,/Próximo entrenamiento/);
-  assert.match(ui,/Entrenamiento de hoy/);
+  assert.match(ui,/Para tener en cuenta/);
+  assert.match(ui,/Contexto útil de hoy/);
   assert.match(entryPolicy,/Iniciar entrenamiento/);
   assert.match(entryPolicy,/Revisar antes de entrenar/);
   assert.match(ui,/Constancia · 28 días/);
-  assert.match(ui,/Cómo estás/);
   assert.match(ui,/Comunicación/);
   assert.match(ui,/Dispositivos/);
-  assert.match(ui,/Solo datos confirmados/);
   assert.match(ui,/data-m27-client-home/);
   assert.match(ui,/data-home-kind/);
+  assert.doesNotMatch(ui,/Tu día IBERFIT/);
+  assert.doesNotMatch(ui,/Próximo entrenamiento/);
   assert.match(ui,/no cambia el plan automáticamente/i);
   assert.match(ui,/data-m27-constancia/);
   assert.match(ui,/data-m27-session-continuity/);
