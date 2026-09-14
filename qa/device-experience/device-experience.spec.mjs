@@ -11,6 +11,8 @@ const CURRENT_SOURCE_STYLES=Object.freeze([
   '/src/m26/design/role-surfaces.css',
   '/src/m26/design/premium-ux.css',
   '/src/m26/design/signature-ux-v2.css',
+  '/src/m26/design/dark-iberfit-v2.css',
+  '/src/m26/design/iberfit-premium-v3.css',
 ]);
 
 
