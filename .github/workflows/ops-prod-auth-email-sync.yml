@@ -1,0 +1,131 @@
+name: IBERFIT PROD Hosted Auth Email Sync
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.github/workflows/ops-prod-auth-email-sync.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-prod-auth-email-sync
+  cancel-in-progress: false
+
+env:
+  PROD_SUPABASE_REF: 'pjhmrhejsoofmouedavw'
+  CERTIFIED_SOURCE_SHA: '39e160fb54d1e866823a8150ecd9270359129444'
+
+jobs:
+  sync-hosted-auth-email:
+    name: sync-13-hosted-auth-emails-fail-closed
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact certified functional source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CERTIFIED_SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Sync and verify 13 templates with rollback guard
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/hosted-auth-email
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import {
+            buildHostedAuthPatch,
+            assertProductionAuthBaseline,
+            assertCustomSmtp
+          } from './scripts/auth/sync-hosted-auth-emails.mjs';
+
+          const token=String(process.env.SUPABASE_ACCESS_TOKEN||'');
+          const ref=process.env.PROD_SUPABASE_REF;
+          if(!token)throw new Error('SUPABASE_ACCESS_TOKEN_REQUIRED');
+
+          const endpoint=`https://api.supabase.com/v1/projects/${encodeURIComponent(ref)}/config/auth`;
+          async function request(method='GET',body){
+            const response=await fetch(endpoint,{
+              method,
+              headers:{Authorization:`Bearer ${token}`,Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},
+              ...(body?{body:JSON.stringify(body)}:{})
+            });
+            let data={};
+            try{data=await response.json();}catch{}
+            if(!response.ok)throw new Error(`AUTH_EMAIL_MANAGEMENT_API_${method}_${response.status}`);
+            return data||{};
+          }
+
+          const built=await buildHostedAuthPatch();
+          const before=await request();
+          assertProductionAuthBaseline(before);
+          assertCustomSmtp(before);
+
+          const keys=Object.keys(built.patch);
+          const rollback={};
+          for(const key of keys){
+            if(!(key in before))throw new Error(`AUTH_EMAIL_ROLLBACK_BASELINE_MISSING:${key}`);
+            rollback[key]=before[key];
+          }
+
+          fs.writeFileSync('recovery/hosted-auth-email/before-sanitized.json',JSON.stringify({
+            schema:'iberfit.auth-email-before.v1',
+            projectRef:ref,
+            sourceSha:process.env.CERTIFIED_SOURCE_SHA,
+            templateCount:built.manifest.templates.length,
+            targetKeys:keys,
+            customSmtpReady:true,
+            siteUrl:String(before.site_url||''),
+            hashes:built.hashes
+          },null,2)+'\n');
+
+          let mutationAttempted=false;
+          try{
+            mutationAttempted=true;
+            await request('PATCH',built.patch);
+            const after=await request();
+            for(const [key,value] of Object.entries(built.patch)){
+              if(after[key]!==value)throw new Error(`AUTH_EMAIL_REMOTE_VERIFY_FAILED:${key}`);
+            }
+            fs.writeFileSync('recovery/hosted-auth-email/after-sanitized.json',JSON.stringify({
+              schema:'iberfit.auth-email-sync-evidence.v1',
+              ok:true,
+              projectRef:ref,
+              sourceSha:process.env.CERTIFIED_SOURCE_SHA,
+              templateCount:built.manifest.templates.length,
+              verifiedKeys:keys.length,
+              hashes:built.hashes
+            },null,2)+'\n');
+            console.log(JSON.stringify({ok:true,projectRef:ref,templateCount:built.manifest.templates.length,verifiedKeys:keys.length}));
+          }catch(error){
+            if(mutationAttempted){
+              let rollbackError=null;
+              try{
+                await request('PATCH',rollback);
+                const restored=await request();
+                for(const [key,value] of Object.entries(rollback)){
+                  if(restored[key]!==value)throw new Error(`AUTH_EMAIL_ROLLBACK_VERIFY_FAILED:${key}`);
+                }
+              }catch(candidate){rollbackError=candidate;}
+              if(rollbackError){
+                throw new AggregateError([error,rollbackError],`AUTH_EMAIL_SYNC_AND_ROLLBACK_FAILED:${String(error?.message||error)}:${String(rollbackError?.message||rollbackError)}`);
+              }
+            }
+            throw error;
+          }
+          NODE
+
+      - name: Preserve sanitized email sync evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-prod-auth-email-sync-${{ github.run_id }}
+          path: recovery/hosted-auth-email/
+          if-no-files-found: warn
+          retention-days: 30
