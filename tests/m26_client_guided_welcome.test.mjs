@@ -130,6 +130,9 @@ test('Guided welcome is accessible, motion-safe, responsive and uses the vector 
   assert.match(source,/clientGenieVisualMarkup/u);
   assert.match(source,/data-m26-client-guide-state/u);
   assert.match(source,/m26-client-genie-float/u);
+  assert.match(source,/data-m26-client-guide-side="right"/u);
+  assert.match(source,/background:\s*linear-gradient\(145deg,rgba\(255,251,236/u);
+  assert.match(source,/m26-client-guide-target-breathe/u);
   assert.match(source,/\.m26-client-guided-welcome-presence \*\{\s*transition:none!important;\s*animation:none!important;/u);
   assert.match(source,/guideState:'idle'/u);
   assert.match(source,/guideState:'pointing'/u);
@@ -157,7 +160,9 @@ test('Vector Genie stays brand-native, dependency-free and state driven',()=>{
   assert.match(svg,/m26-genie__core/u);
   assert.match(svg,/href="\/public\/isotipo-iberfit\.png"/u);
   assert.doesNotMatch(svg,/<script|<foreignObject|javascript:/iu);
-  assert.ok(Buffer.byteLength(svg,'utf8')<14_000,'Vector Genie should remain lightweight');
+  assert.match(svg,/m26-genie__ring--left/u);
+  assert.match(svg,/m26-genie__shoulder--right/u);
+  assert.ok(Buffer.byteLength(svg,'utf8')<18_000,'Vector Genie should remain lightweight');
   const pkg=JSON.parse(read('package.json'));
   const dependencies={...(pkg.dependencies||{}),...(pkg.devDependencies||{})};
   assert.equal(Object.keys(dependencies).some((name)=>/lottie|dotlottie|rive|gsap|anime|motion/iu.test(name)),false);
