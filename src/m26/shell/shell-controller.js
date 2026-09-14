@@ -191,24 +191,11 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const control=labelControl(node);
     return control?.matches?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR)?control:null;
   }
-  function touchInputMode(event){
-    const pointerType=String(event?.pointerType||'').toLowerCase();
-    return pointerType==='touch'||root?.dataset?.m26Input==='touch';
-  }
   function markTextEntryActive(control){
     if(!root?.dataset)return;
     if(control&&root.contains?.(control)&&control.matches?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR))root.dataset.m26TextEntryActive='true';
     else delete root.dataset.m26TextEntryActive;
   }
-  function focusTouchTextEntry(control,event){
-    if(!control||!touchInputMode(event)||control.disabled||control.readOnly)return false;
-    markTextEntryActive(control);
-    if(root.ownerDocument?.activeElement===control)return true;
-    try{control.focus?.({preventScroll:true});}
-    catch{control.focus?.();}
-    return root.ownerDocument?.activeElement===control;
-  }
-
   function clearInteractionReleaseTimer(){
     if(interactionReleaseTimer===null)return;
     const clearTimer=adaptiveWindow?.clearTimeout?.bind?.(adaptiveWindow)||globalThis.clearTimeout?.bind?.(globalThis);
@@ -430,8 +417,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
     if(pointerForm)formInteractionTarget=pointerForm;
     interactionPointerTarget=interactiveControl(event.target);
-    const textEntry=touchTextEntry(event.target);
-    if(textEntry)focusTouchTextEntry(textEntry,event);
     if(previous&&!interactionPointerTarget&&!formInteractionTarget)queueMicrotask(flushDeferredRender);
   }
   function onPointerRelease(){
