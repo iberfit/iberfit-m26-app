@@ -440,3 +440,104 @@
   border-radius:8px;
   background:rgba(197,160,89,.035);
 }
+
+
+/* ---------- P0 form-control stability + residual light-surface closure ---------- */
+/* V3 deliberately removes the legacy 3D card plane. Native inputs/select popovers
+ * must live in a stable, untransformed coordinate space on every device. */
+.m26-shell .m26-main{
+  perspective:none!important;
+}
+.m26-shell .m26-route{
+  transform-style:flat!important;
+}
+.m26-shell .m26-workspace :is(
+  .m26-panel,.m26-panel-soft,.m26-admin-panel,.m26-client-card,.m26-list-card,
+  .m26-library-card,.m26-publication-card,.m26-client-content-card,
+  .m26-rc39-session-card,.m26-stat,.iberfit-metric,.m26-admin-stat
+){
+  transform:none!important;
+  will-change:auto!important;
+}
+.m26-shell .m26-workspace :is(
+  .m26-panel,.m26-panel-soft,.m26-admin-panel,.m26-client-card,.m26-list-card,
+  .m26-library-card,.m26-publication-card,.m26-client-content-card,
+  .m26-rc39-session-card,.m26-stat,.iberfit-metric,.m26-admin-stat
+):hover,
+.m26-shell .m26-workspace :is(
+  .m26-panel,.m26-panel-soft,.m26-admin-panel,.m26-client-card,.m26-list-card,
+  .m26-library-card,.m26-publication-card,.m26-client-content-card,
+  .m26-rc39-session-card,.m26-stat,.iberfit-metric,.m26-admin-stat
+):focus-within{
+  transform:none!important;
+}
+
+/* Every native editor stays above decorative layers and receives the pointer itself. */
+.m26-shell .m26-workspace :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea,[contenteditable="true"]){
+  position:relative;
+  z-index:2;
+  pointer-events:auto!important;
+  opacity:1!important;
+}
+.m26-shell[data-m26-text-entry-active="true"] .m26-workspace :is(
+  .m26-panel,.m26-panel-soft,.m26-admin-panel,.m26-client-card,.m26-list-card
+){
+  transform:none!important;
+  transition-property:border-color,background-color,box-shadow!important;
+}
+
+/* Coach productivity was an uncovered V2 island in the first V3 rollout. */
+.m26-shell .m26-workspace .m26-coach-productivity-toolbar{
+  color:var(--iberfit-v3-text)!important;
+  border:1px solid var(--iberfit-v3-line)!important;
+  border-radius:var(--iberfit-v3-radius-card)!important;
+  background:
+    radial-gradient(circle at 100% 0%,rgba(197,160,89,.045),transparent 16rem),
+    linear-gradient(150deg,#14251D,#0F1C17)!important;
+  box-shadow:var(--iberfit-v3-shadow)!important;
+}
+.m26-shell .m26-workspace .m26-coach-productivity-toolbar :is(h2,h3,strong,label){
+  color:var(--iberfit-v3-text)!important;
+}
+.m26-shell .m26-workspace .m26-coach-productivity-toolbar :is(p,small,.m26-coach-recents span){
+  color:var(--iberfit-v3-text-secondary)!important;
+}
+.m26-shell .m26-workspace .m26-coach-productivity-controls :is(input,select){
+  color:var(--iberfit-v3-text)!important;
+  border:1px solid rgba(197,160,89,.14)!important;
+  background:#0E1B16!important;
+}
+.m26-shell .m26-workspace .m26-coach-productivity-controls button{
+  color:var(--iberfit-v3-text)!important;
+  border:1px solid rgba(197,160,89,.14)!important;
+  background:#172720!important;
+  box-shadow:none!important;
+}
+.m26-shell .m26-workspace .m26-coach-productivity-controls button:disabled{
+  color:#718078!important;
+  background:#111E19!important;
+  opacity:.72!important;
+}
+
+/* Client onboarding uses the same stable premium form language. */
+.m26-shell .m26-workspace .m26-onboarding,
+.m26-shell .m26-workspace .m26-onboarding-form,
+.m26-shell .m26-workspace .m26-form-section{
+  color:var(--iberfit-v3-text)!important;
+}
+.m26-shell .m26-workspace .m26-onboarding-form .m26-form-section{
+  border-color:rgba(197,160,89,.11)!important;
+  background:rgba(14,27,22,.58)!important;
+}
+.m26-shell .m26-workspace .m26-onboarding-form :is(label,h3){
+  color:var(--iberfit-v3-text)!important;
+}
+.m26-shell .m26-workspace .m26-onboarding-form :is(label>small,.m26-form-section-title p){
+  color:var(--iberfit-v3-text-secondary)!important;
+}
+
+@media (hover:hover) and (pointer:fine){
+  .m26-shell .m26-workspace :is(input,select,textarea):hover{
+    border-color:rgba(197,160,89,.26)!important;
+  }
+}
