@@ -111,6 +111,19 @@ test('Legacy completed or skipped guided tour is respected while dynamic help re
   assert.ok(skipped.dismissedTipIds.includes('client-context-challenges'));
 });
 
+test('Client visual guide presence reuses the official isotipo and remains decorative, bounded and motion-safe',()=>{
+  const guide=read('src/m26/onboarding/client-contextual-guide.js');
+  assert.match(guide,/GUIDE_MARK_ASSET='\/public\/isotipo-iberfit\.png'/u);
+  assert.match(guide,/data-m26-client-context-guide-mark aria-hidden="true"/u);
+  assert.match(guide,/pointer-events:none/u);
+  assert.match(guide,/m26-client-guide-arrive \.26s/u);
+  assert.match(guide,/m26-client-guide-signal 1\.1s[^\n]* 1 both/u);
+  assert.match(guide,/positionGuideMark/u);
+  assert.match(guide,/prefers-reduced-motion:reduce/u);
+  assert.match(guide,/\.m26-client-context-guide-mark::after\{scroll-behavior:auto;transition:none!important;animation:none!important\}/u);
+  assert.doesNotMatch(guide,/animation-iteration-count:\s*infinite|\binfinite\b/iu);
+});
+
 test('Client contextual guide has no numbered tour/checklist, does not observe the whole DOM, and protects mobile/a11y behaviour',()=>{
   const guide=read('src/m26/onboarding/client-contextual-guide.js');
   assert.match(guide,/data-m26-client-context-guide/u);
@@ -253,7 +266,8 @@ test('Client bottom navigation remains five primary destinations and Retos stays
   assert.doesNotMatch(source,/CLIENT_BOTTOM_NAV_ITEMS[\s\S]*?\{key:'retos'/u);
 });
 
-test('PWA shell includes contextual guide so installed clients do not lose guidance offline after update',()=>{
+test('PWA shell includes contextual guide and official guide mark so installed clients do not lose guidance offline after update',()=>{
   const sw=read('public/m26/sw.js');
   assert.match(sw,/"\/src\/m26\/onboarding\/client-contextual-guide\.js"/u);
+  assert.match(sw,/"\/public\/isotipo-iberfit\.png"/u);
 });
