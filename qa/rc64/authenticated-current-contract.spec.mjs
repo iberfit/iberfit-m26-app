@@ -227,7 +227,8 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
         ).toHaveCount(1,{timeout:5_000});
 
         const guidedWelcome=page.locator('[data-m26-client-guided-welcome]');
-        if(await guidedWelcome.count()){
+        await guidedWelcome.waitFor({state:'visible',timeout:5_000}).catch(()=>{});
+        if(await guidedWelcome.isVisible().catch(()=>false)){
           await page.locator('[data-m26-client-guided-welcome-pause]').first().click({timeout:5_000});
           await expect(
             guidedWelcome,
