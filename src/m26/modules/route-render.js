@@ -21,6 +21,15 @@ function stat(label, value, note = '') {
 function badge(text, kind = 'neutral') { return `<span class="m26-badge is-${escapeHtml(kind)}">${escapeHtml(text)}</span>`; }
 function countLabel(count,singular,plural){const value=Number(count||0);return `${value} ${value===1?singular:(plural||`${singular}s`)}`;}
 function foldSearch(value){return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();}
+function guideEventToken(...parts){
+  let hash=0x811c9dc5;
+  const source=JSON.stringify(parts);
+  for(const char of source){
+    hash^=char.charCodeAt(0);
+    hash=Math.imul(hash,0x01000193);
+  }
+  return (hash>>>0).toString(16).padStart(8,'0');
+}
 function operationBanner(operations) {
   if (!operations.pending && !operations.conflicts && !operations.rejected) return '';
   const parts = [];
@@ -414,7 +423,32 @@ function renderClientHoyRoute(vm) {
       ?client.iri.processLabel||'En proceso'
       :'Pendiente';
   const planReady=Boolean(planName||projections.length);
+  const sessionGuideEventKey=projections.length
+    ?guideEventToken(
+        'session',
+        projections.map((item)=>[
+          item?.id||null,
+          item?.session?.revision??0,
+          item?.session?.updatedAt||item?.session?.updated_at||null,
+          item?.session?.title||null,
+          Array.isArray(item?.session?.blocks)?item.session.blocks.length:0,
+        ])
+      )
+    :'';
+  const planGuideEventKey=planName
+    ?guideEventToken(
+        'plan',
+        client?.cycle?.id||null,
+        client?.cycle?.revision??0,
+        client?.cycle?.updatedAt||null,
+        planName,
+        client?.cycle?.status||null
+      )
+    :'';
   const challenge=vm.challengePreview||null;
+  const challengeGuideEventKey=challenge
+    ?guideEventToken('challenge',challenge.id||null,challenge.title||null,challenge.target??null)
+    :'';
   const challengeProgress=challenge&&Number.isFinite(Number(challenge.progress))
     ?Math.max(0,Math.min(100,Number(challenge.progress)))
     :null;
@@ -425,7 +459,7 @@ function renderClientHoyRoute(vm) {
     ?''
     :`de ${challenge.target} ${challenge.unit||''}`.trim();
   const challengePreviewMarkup=challenge
-    ?`<section class="m26-panel m26-panel-soft m26-client-home-community" data-m26-community-entry data-m26-client-guide="challenge-entry">
+    ?`<section class="m26-panel m26-panel-soft m26-client-home-community" data-m26-community-entry data-m26-client-guide="challenge-entry" data-m26-client-guide-event-key="${escapeHtml(challengeGuideEventKey)}">
         <div class="m26-panel-heading">
           <div>
             <p class="m26-eyebrow">Tu reto</p>
@@ -517,7 +551,7 @@ function renderClientHoyRoute(vm) {
       </div>
     </section>
 
-    <section class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?' data-m26-client-guide="session-entry"':''}>
+    <section class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?` data-m26-client-guide="session-entry" data-m26-client-guide-event-key="${escapeHtml(sessionGuideEventKey)}"`:''}>
       ${primary.markup}
     </section>
 
@@ -527,7 +561,7 @@ function renderClientHoyRoute(vm) {
         <strong>${escapeHtml(nextAppointment?.dateLabel||'Por confirmar')}</strong>
         <small>${escapeHtml(nextAppointment?.title||'Tu Coach la añadirá aquí')}</small>
       </button>
-      <button type="button" data-m26-area="planificacion"${planReady?' data-m26-client-guide="plan-entry"':''}>
+      <button type="button" data-m26-area="planificacion"${planReady?` data-m26-client-guide="plan-entry"${planGuideEventKey?` data-m26-client-guide-event-key="${escapeHtml(planGuideEventKey)}"`:''}`:''}>
         <span>Tu plan</span>
         <strong>${escapeHtml(planName||'En preparación')}</strong>
         <small>${planName?'Plan confirmado':'Tu Coach lo publicará cuando esté listo'}</small>
@@ -2608,9 +2642,21 @@ export function renderProgressRoute(vm){
   const clientProgressGuideAttribute=vm.role==='client'&&hasProgressEvidence
     ?' data-m26-client-guide="progress-surface"'
     :'';
+  const meaningfulProgress=
+    vm.role==='client'&&
+    summary.dataQuality!=='limitada'&&
+    (
+      Number(summary.completedSessions||0)>=2||
+      Number(summary.checkins||0)>=3||
+      Number(summary.iriAssessmentCount||0)>=2||
+      Number(summary.wearable?.daysWithData||0)>=3
+    );
+  const clientProgressInsightAttribute=meaningfulProgress
+    ?' data-m26-client-guide-insight="progress-ready"'
+    :'';
   const wearablePanel=wearableHasData(wearable)?`<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Actividad de dispositivo</p><h2>Tendencia objetiva complementaria</h2></div>${badge(wearable.freshness==='reciente'?'Actualizada':'Revisar fecha','neutral')}</div><div class="m26-field-grid">${wearableMetric('Pasos medios',wearable.metrics?.steps)}${wearableMetric('Minutos activos',wearable.metrics?.activeMinutes,' min')}${wearableMetric('Sueño de dispositivo',sleepHoursPerDay(wearable.metrics?.sleepMinutes))}${wearableMetric('FC en reposo',wearable.metrics?.restingHeartRate,' lpm')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearable),{role:vm.role,compact:true})}<p class="m26-notice">Se presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.</p></section>`:`<details class="m26-panel m26-optional-section"><summary>Actividad de dispositivo · sin datos confirmados</summary><p>No hay información de dispositivos para este periodo. El progreso se calcula únicamente con sesiones, evaluaciones y registros confirmados.</p></details>`;
   return `<div class="m26-route">
-    <section class="m26-route-intro"${clientProgressGuideAttribute}><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
+    <section class="m26-route-intro"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
     <section class="m26-stat-grid">
       ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
@@ -3508,9 +3554,12 @@ function clientBottomNavIcon(name){
   return icons[name]||icons.mas;
 }
 
-function clientBottomNavItem(item,currentKind){
+function clientBottomNavItem(item,currentKind,{adherenceReview=false}={}){
   const active=item.activeKinds.includes(currentKind);
-  return `<button type="button" class="m26-client-bottom-nav-item${active?' is-active':''}" data-m26-area="${escapeHtml(item.area)}"${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon(item.key)}</span><span class="m26-client-bottom-nav-label">${escapeHtml(item.label)}</span></button>`;
+  const guideAttribute=item.area==='progreso'&&adherenceReview
+    ?' data-m26-client-guide="adherence-entry"'
+    :'';
+  return `<button type="button" class="m26-client-bottom-nav-item${active?' is-active':''}" data-m26-area="${escapeHtml(item.area)}"${guideAttribute}${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon(item.key)}</span><span class="m26-client-bottom-nav-label">${escapeHtml(item.label)}</span></button>`;
 }
 
 function clientBottomNavMore(currentKind){
@@ -3522,7 +3571,12 @@ function clientBottomNavMore(currentKind){
 
 function renderClientBottomNav(vm){
   const currentKind=String(vm?.kind||'hoy');
-  return `<div class="m26-client-bottom-nav-layer"><nav class="m26-client-bottom-nav" aria-label="Navegación principal de la aplicación cliente">${CLIENT_BOTTOM_NAV_ITEMS.map((item)=>clientBottomNavItem(item,currentKind)).join('')}${clientBottomNavMore(currentKind)}</nav></div>`;
+  const guidance={
+    adherenceReview:
+      currentKind==='hoy'&&
+      vm?.clientGuide?.adherenceReview===true,
+  };
+  return `<div class="m26-client-bottom-nav-layer"><nav class="m26-client-bottom-nav" aria-label="Navegación principal de la aplicación cliente">${CLIENT_BOTTOM_NAV_ITEMS.map((item)=>clientBottomNavItem(item,currentKind,guidance)).join('')}${clientBottomNavMore(currentKind)}</nav></div>`;
 }
 
 function renderClientRouteShell(vm,content){
