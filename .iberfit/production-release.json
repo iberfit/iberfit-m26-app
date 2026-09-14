@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "e8ede82e20776848a485d5df2de77dc402d617e5",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Client Genie visual V2.1 + P0 form interaction hardening. Canary head e8ede82e2077 is tree-identical to fully certified f90a5391e911, with no file changes between them. Includes conversational Genie scale refinement and shell-level protection for inputs/selects from first label/container pointerdown so focus and native dropdown interaction survive queued shell refreshes. No backend, Supabase, auth, RLS or user-data model changes."
+}
