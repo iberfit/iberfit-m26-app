@@ -93,6 +93,18 @@ test('view model Cliente oculta cualquier otro cliente visible por error', () =>
   assert.equal(vm.canChangeClient, false);
 });
 
+test('Cliente mantiene una topbar silenciosa sin repetir su expediente ni la Guía', () => {
+  const vm = createShellViewModel(readyState('client', { activeArea: 'hoy' }));
+  const html = renderM26Shell(vm);
+  const topbar = html.match(/<header class="m26-topbar">([\s\S]*?)<\/header>/u)?.[1]||'';
+  assert.match(topbar,/<h1 id="m26-page-title">Hoy<\/h1>/u);
+  assert.doesNotMatch(topbar,/Expediente activo/u);
+  assert.doesNotMatch(topbar,/Guía/u);
+  assert.doesNotMatch(topbar,/m26-client-context/u);
+  assert.match(html,/class="m26-sidebar-guide"/u);
+  assert.match(html,/Guía IBERFIT/u);
+});
+
 test('view model Coach conserva selector y contexto activo', () => {
   const vm = createShellViewModel(readyState('coach', { activeArea: 'expediente' }));
   assert.equal(vm.clientOptions.length, 2);
