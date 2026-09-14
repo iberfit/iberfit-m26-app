@@ -32,7 +32,7 @@ test('RC74.6 registra el comando destructivo sólo dentro del command membrane A
   assert.match(controller,/confirmAcknowledged/u);
   assert.match(controller,/confirmPhrase/u);
   assert.match(controller,/IBERFIT_CLIENT_DELETE_PROTECTED_HISTORY/u);
-  assert.match(viewModel,/email:String\(x\.email\|\|''\)\.trim\(\)/u);
+  assert.match(viewModel,/email:String\(profile\.email\|\|rawProfile\?\.email\|\|access\?\.email\|\|x\.email\|\|''\)\.trim\(\)/u);
 });
 
 test('la acción de eliminación aparece sólo con capacidad Admin y exige confirmación fuerte',()=>{
