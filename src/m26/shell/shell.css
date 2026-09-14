@@ -1938,3 +1938,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
     padding-inline:.5rem;
   }
 }
+
+
+.m26-mobile-more-account{
+  margin-top:.35rem;
+  padding-top:.35rem;
+  border-top:1px solid color-mix(in srgb,var(--m26-line) 72%,transparent);
+}
+.m26-mobile-more-account .m26-nav-item{
+  color:var(--m26-muted);
+}
