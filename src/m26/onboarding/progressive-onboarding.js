@@ -1,4 +1,5 @@
 import {createGuidedTourController} from './guided-tour.js';
+import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
 export const PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE='data-m26-guided-tour-open';
@@ -255,7 +256,7 @@ export function onboardingAssessmentMode(form){
 }
 
 export function onboardingPostCreateArea(form){
-  return onboardingAssessmentMode(form)==='deferred'?'expediente':'iri';
+  return initialAssessmentPostCreateArea(onboardingAssessmentMode(form));
 }
 
 export function onboardingChoiceMarkup(){
