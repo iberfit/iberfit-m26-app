@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "7c28bddefd0bdfaacc1efa1f57b1f8a61b4bfec4",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Shell declutter and settings hierarchy: quiet compact topbar, settings/account moved to sidebar footer, clear-state sync hidden, grouped premium settings workspace, reduced Today chrome, compact secondary actions, IRI kept as point-of-start concept, responsive focus continuity fixed."
+}
