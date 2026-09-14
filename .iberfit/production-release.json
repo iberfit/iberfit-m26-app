@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "16b5cea8f817af0764a5ce0383f2794bb5cbf78f",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Premium light Hosted Auth email system: improve OTP legibility and hierarchy, style associated email with IBERFIT branding, remove the fragile recovery hero, fix public identity asset paths across the full Hosted Auth family, preserve MFA/WebAuthn/security contracts, and publish the verified templates to Supabase PROD before the Cloudflare cutover."
+}
