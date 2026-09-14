@@ -75,16 +75,27 @@ async function settleVisual(page){
 }
 
 async function dismissGuidedTourForBaseline(page){
-  const tour=page.locator('[data-m26-guided-tour]');
-  if(await tour.count()===0)return false;
-  const close=page.locator('[data-m26-guided-tour-close]').first();
-  if(await close.count()){
-    await close.click();
-    await expect(tour).toHaveCount(0,{timeout:3_000});
-    await page.waitForTimeout(80);
-    return true;
+  let dismissed=false;
+  const welcome=page.locator('[data-m26-client-guided-welcome]');
+  if(await welcome.count()){
+    const pause=page.locator('[data-m26-client-guided-welcome-pause]').first();
+    if(await pause.count()){
+      await pause.click();
+      await expect(welcome).toHaveCount(0,{timeout:3_000});
+      dismissed=true;
+    }
   }
-  return false;
+  const tour=page.locator('[data-m26-guided-tour]');
+  if(await tour.count()){
+    const close=page.locator('[data-m26-guided-tour-close]').first();
+    if(await close.count()){
+      await close.click();
+      await expect(tour).toHaveCount(0,{timeout:3_000});
+      dismissed=true;
+    }
+  }
+  if(dismissed)await page.waitForTimeout(80);
+  return dismissed;
 }
 
 async function capture(page,{account,project,state,suffix='' }){
