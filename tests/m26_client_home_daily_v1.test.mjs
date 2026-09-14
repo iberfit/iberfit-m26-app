@@ -97,11 +97,29 @@ test('Client Home exposes only useful daily context instead of sad-zero KPI card
   assert.doesNotMatch(html,/Sesiones confirmadas hoy/u);
 });
 
+test('Client Home never repeats the same next action below the primary action',()=>{
+  const same=renderHoyRoute(vm());
+  assert.doesNotMatch(same,/m26-client-home-context-action/u);
+
+  const distinct=renderHoyRoute(vm({
+    clients:[{
+      id:'c1',
+      name:'Cynthia',
+      cycle:{name:'Fuerza Base'},
+      iri:{confirmed:true,processLabel:'Baseline confirmado'},
+      nextAction:{area:'planificacion',label:'Revisar planificación',reason:'Hay un cambio confirmado en el plan.'},
+    }],
+  }));
+  assert.match(distinct,/class="m26-client-home-context-action" data-m26-area="planificacion"/u);
+  assert.match(distinct,/Revisar mi planificación/u);
+});
+
 test('Client Home has explicit mobile-first responsive hierarchy',()=>{
   assert.match(css,/CLIENT HOME V1 · PREMIUM DAILY MOBILE EXPERIENCE/u);
   assert.match(css,/\.m26-client-home-primary-zone \.m26-today-action\.is-primary\{[\s\S]*?min-height:6\.8rem/u);
   assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-glance\{[\s\S]*?grid-template-columns:1fr/u);
   assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-secondary-actions\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/u);
+  assert.match(css,/@media\(max-width:680px\)[\s\S]*?\.m26-client-home-context-action\{[\s\S]*?grid-template-columns:minmax\(0,1fr\)/u);
   assert.match(css,/\.m26-client-home-status\{[\s\S]*?border-left:1px solid/u);
 });
 
