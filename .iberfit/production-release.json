@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "05e55396a77f7c6c35c31239a755a60a0e2be50d",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Client Genie guided welcome V1: human first-run dialogue, automatic Today → Planning → Sessions → Progress → Messages → Today navigation, pause/resume, contextual-help handoff, four-device authenticated certification, accessibility-safe focus, ES/EN/FR/PT surface coverage, PWA/offline support, preserved visual evidence. Current isotipo presence remains an intentional temporary visual fallback until the final animated Genie asset is integrated."
+}
