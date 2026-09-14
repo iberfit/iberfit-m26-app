@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "225f8c6ccc9058b16ad334ed3307d79c13a32e18",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Client contextual guide moments: prioritize real session, planning and challenge availability over generic orientation; add low-noise Retos/community discovery through More; deduplicate linked route guidance; preserve living guide, Live Workout suppression, privacy, responsive and reduced-motion behaviour."
+}
