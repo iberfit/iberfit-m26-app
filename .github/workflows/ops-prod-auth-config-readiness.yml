@@ -58,4 +58,5 @@ jobs:
           },null,2));
           NODE
 
-# Verify marker: after-dashboard-otp-length-6
+
+# Verify marker: after-dashboard-email-rate-30
