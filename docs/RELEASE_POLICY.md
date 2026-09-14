@@ -2,20 +2,30 @@
 
 ## Contexto actual
 
-`app.iberfit.cl` tiene usuarios reales. Al checkpoint 2026-09-13, producción fue promovida correctamente desde `canary/rc74-4` source SHA `6d06d033fe09b6802bef21e0f30374b48c78edda` mediante run `34776097179`.
+`app.iberfit.cl` tiene usuarios reales. Producción debe tratarse como un sistema activo y no como un entorno de prueba.
 
-No existe ya el antiguo bloqueo “no conocemos Cloudflare productivo”. El proyecto productivo y el rollback se resuelven durante el workflow de promoción.
+Baseline LIVE verificado al 2026-09-14:
+- source SHA: `396ad52cfd4c1a4d75e4e306838d85bffa77b105`;
+- promotion run: `34793087805 = SUCCESS`;
+- Cloudflare project: `iberfit-m26-production`;
+- Supabase PROD: `pjhmrhejsoofmouedavw`.
+
+Canary certificado:
+- `39e160fb54d1e866823a8150ecd9270359129444`;
+- CI, auditoría continua, Device Gate, Daily Visual y Remote Gates en GREEN.
+
+Existe un bloqueo deliberado de promoción mientras no haya SMTP Auth personalizado completo y correo real E2E validado.
 
 ## Carril 1 · LIVE SUPPORT / HOTFIX
 
-Usar para P0/P1 reales.
+Usar sólo para P0/P1 reales en producción.
 
 Base: identidad LIVE exacta leída en ese momento.
 
 Flujo:
 1. leer LIVE;
-2. rama hotfix mínima;
-3. reproducir read-only/QA;
+2. reproducir sin mutar producción;
+3. rama hotfix mínima;
 4. fix mínimo;
 5. tests focales;
 6. QA equivalente;
@@ -24,23 +34,23 @@ Flujo:
 9. deploy controlado;
 10. smoke;
 11. actualizar STATE;
-12. reconciliar con evolución.
+12. reconciliar con Canary.
 
 No mezclar features/refactors opcionales.
 
 ## Carril 2 · PRODUCT EVOLUTION
 
-Base: Canary vigente.
+Base: Canary certificado vigente.
 
 Flujo:
 1. rama pequeña;
-2. objetivo/criterio de cierre;
+2. objetivo y criterio de cierre;
 3. implementación;
 4. tests;
 5. PR;
 6. integración Canary;
-7. QA autenticado/visual;
-8. gates por dispositivo y rol si aplica;
+7. recertificación sobre el merge SHA exacto;
+8. QA autenticado/visual proporcional;
 9. lote de promoción;
 10. workflow productivo fail-closed.
 
@@ -53,14 +63,17 @@ La promoción estándar debe:
 - construir superficie canónica;
 - generar runtime PROD;
 - capturar rollback;
-- preflight en Pages;
+- ejecutar preflight;
+- sincronizar/verificar Auth email sólo si SMTP readiness está completo;
 - desplegar con Wrangler;
 - verificar identidad exacta de `app.iberfit.cl`;
 - ejecutar smoke browser;
 - ejecutar auditoría read-only;
 - registrar evidencia.
 
-## Auth / RLS / WebAuthn
+Nunca saltar `.github/workflows/production-promote.yml` para publicar una build de la app.
+
+## Auth / SMTP / RLS / WebAuthn
 
 Siempre high-risk:
 - separación Cliente/Coach/Admin;
@@ -68,8 +81,11 @@ Siempre high-risk:
 - privilegio fail-closed;
 - recovery/refresh;
 - 401/403 esperados;
-- no almacenar password;
-- QA post-MFA cuando el cambio afecta Coach/Admin.
+- no almacenar passwords ni credenciales SMTP en código;
+- WebAuthn/assurance probado para rutas privilegiadas;
+- correo Auth con SMTP productivo, SPF/DKIM/DMARC y E2E real antes de depender de OTP/recovery/invite.
+
+No habilitar password-change reauthentication hasta que el canal de correo real haya sido certificado para no crear un bloqueo de cuenta.
 
 ## Device Experience Gate
 
@@ -79,8 +95,10 @@ Cambios relevantes de shell/rutas/UX crítica deben probar:
 - tablet landscape cuando sea operativamente relevante;
 - móvil;
 - touch/focus/scroll;
-- estados loading/empty/error;
+- estados loading/empty/error/recovery;
 - tarea real, no sólo captura.
+
+Los workflows que comparten las mismas cuentas QA autenticadas deben serializar esa sección mediante la cola compartida; no volver a ejecutar esas suites en paralelo contra las mismas sesiones.
 
 ## DB
 
@@ -90,14 +108,16 @@ Cambios relevantes de shell/rutas/UX crítica deben probar:
 - RLS/privilegios revisados;
 - compatibilidad backward;
 - rollback/expand-contract cuando aplique;
+- no crear índices sólo para silenciar advisors: comprobar consultas y coste real;
 - bundle histórico `33656032685` permanece retirado.
 
 ## GO
 
 Sólo si:
 - source/candidato exactos;
-- checks verdes;
+- checks verdes sobre el SHA a promover;
 - QA proporcional;
+- SMTP/Auth GREEN cuando el lote dependa de correo;
 - rollback;
 - P0=0;
 - P1 del lote resueltos o excepción explícita;
@@ -105,4 +125,4 @@ Sólo si:
 
 ## NO-GO
 
-SHA ambiguo, gate rojo, auth/RLS dudoso, migration no validada, rollback inexistente, producción state desactualizado o rama movida inesperadamente.
+SHA ambiguo, gate rojo/cancelado, auth/RLS dudoso, SMTP incompleto cuando el flujo lo requiere, migration no validada, rollback inexistente, producción state desactualizado o rama movida inesperadamente.
