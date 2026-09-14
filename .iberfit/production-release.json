@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f90a5391e911efc9b742e6ab15a992e91baf4e4d",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Client Genie visual V2.1 + P0 form interaction hardening: stronger conversational Genie presence within the 120–150 px mobile product spec, plus shell-level protection for inputs/selects from the first label/container pointerdown so native focus and dropdown interaction survive queued shell refreshes. Certified by Fast Lane, Continuous Audit, CI, Daily Use Visual Evidence, Admin Interaction Matrix, remote read-only gates and Device Experience. No backend, Supabase, auth, RLS or user-data model changes."
+}
