@@ -109,16 +109,40 @@ function closeClientEditDialog(root){
 }
 
 function invitationSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();if(delivery==='sent')return 'Cliente creado. Invitación enviada correctamente.';if(delivery==='error')return 'Cliente creado, pero la invitación no pudo enviarse. Queda pendiente para reintento.';if(delivery==='pending')return 'Cliente creado. Invitación en proceso.';return 'Cliente creado y acceso preparado.';}
+function createdClientId(result={}){
+  const response=Array.isArray(result?.response)?result.response[0]:result?.response;
+  const candidates=[
+    response?.clientId,response?.client_id,response?.entityId,response?.entity_id,
+    response?.data?.clientId,response?.data?.client_id,
+    result?.clientId,result?.client_id,result?.entityId,result?.entity_id,
+  ];
+  return candidates.map((value)=>String(value||'').trim()).find(Boolean)||'';
+}
 function adminError(error){const value=String(error?.message||error||'');if(/V26_CLIENT_PROFILE_REVISION_CONFLICT/.test(value))return 'La ficha cambió mientras la estabas editando. La vista se actualizará para que revises la última versión antes de guardar de nuevo.';if(/V26_CLIENT_PROFILE_(?:NAME|OBJECTIVE|MODALITY|FREQUENCY|DURATION)_INVALID/.test(value))return 'Revisa los datos obligatorios de la ficha antes de guardar.';if(/ONLINE_REQUIRED/.test(value))return 'Esta operación administrativa requiere conexión.';if(/IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED/.test(value))return 'Confirma tu identidad con la verificación segura de IBERFIT antes de continuar.';if(/ADMIN_USER_DELETE_SELF_FORBIDDEN|USER_DELETE_SELF_FORBIDDEN/.test(value))return 'No puedes eliminar la cuenta con la que estás administrando IBERFIT.';if(/ADMIN_USER_DELETE_LAST_ADMIN_PROTECTED|LAST_ADMIN_PROTECTED/.test(value))return 'IBERFIT protege al último Admin activo. Autoriza otro Admin antes de eliminar esta cuenta.';if(/ADMIN_USER_DELETE_ACK_REQUIRED/.test(value))return 'Debes confirmar que entiendes la pérdida inmediata de acceso antes de eliminar la cuenta.';if(/ADMIN_USER_DELETE_CONFIRMATION_INVALID|USER_DECOMMISSION_COMMAND_INVALID/.test(value))return 'La confirmación no coincide con la cuenta. Revisa el correo y escribe ELIMINAR.';if(/ADMIN_USER_DELETE_REVISION_CONFLICT/.test(value))return 'La cuenta cambió mientras la estabas revisando. Actualiza la vista y vuelve a intentarlo.';if(/ADMIN_USER_AUTH_SOFT_DELETE|USER_DECOMMISSION_FAILED/.test(value))return 'El acceso ya quedó revocado, pero falta terminar la baja de identidad. Reintenta para completar el cierre seguro.';if(/V26_INVITATION_RATE_LIMITED/.test(value))return 'El cliente se creó, pero el proveedor limitó temporalmente el envío. La invitación queda pendiente.';if(/V26_INVITATION|V26_ADMIN_CLIENT_CREATE/.test(value))return 'No fue posible completar el alta segura del cliente.';if(/IBERFIT_CLIENT_DELETE_PROTECTED_HISTORY/.test(value))return 'Este cliente conserva registros protegidos que IBERFIT no puede eliminar. El expediente permanece intacto.';if(/IBERFIT_CLIENT_DELETE_UNMANAGED_REFERENCE/.test(value))return 'IBERFIT detectó información vinculada que todavía no tiene una política de eliminación segura. No se ha borrado nada.';if(/IBERFIT_CLIENT_DELETE_CONFIRMATION_INVALID/.test(value))return 'La confirmación no coincide con el cliente. Revisa el correo o nombre y escribe ELIMINAR.';if(/IBERFIT_CLIENT_DELETE_NOT_FOUND|V65E_CLIENT_SCOPE/.test(value))return 'El cliente no existe o no pertenece a esta organización.';return 'No fue posible confirmar el cambio.';}
 export function createAdminController({root,store,service,render=()=>{}}={}){
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_ADMIN_CONTROLLER_CONTEXT_REQUIRED');
   const pendingLocks=new Set();
   const submitLabels=new WeakMap();
   let clientEditReturnFocus=null;
+  let pendingCreatedClientId='';
   const clientWizard=createClientCreateWizard({
     root,
     getScopeKey:()=>String(store.getState().admin?.organization?.id||'default'),
   });
+  function restoreCreatedClientFocus(){
+    const clientId=String(pendingCreatedClientId||'').trim();
+    if(!clientId)return false;
+    const rows=Array.from(root?.querySelectorAll?.('[data-admin-client-id]')||[]);
+    const row=rows.find((node)=>String(node?.getAttribute?.('data-admin-client-id')||'').trim()===clientId);
+    if(!row)return false;
+    for(const node of Array.from(root?.querySelectorAll?.('[data-admin-client-created]')||[]))node.removeAttribute?.('data-admin-client-created');
+    row.setAttribute?.('data-admin-client-created','true');
+    const target=row.querySelector?.('[data-admin-client-edit-open]')||row;
+    try{target.focus?.({preventScroll:true});}catch{target.focus?.();}
+    try{row.scrollIntoView?.({block:'center'});}catch{row.scrollIntoView?.();}
+    pendingCreatedClientId='';
+    return true;
+  }
   function setFormPending(form,pending){
     if(!form)return;
     const button=form.querySelector?.('button[type="submit"]');
@@ -175,8 +199,11 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       if(result?.refreshPending===true&&result?.whenRefreshed?.then){
         void result.whenRefreshed.then((outcome)=>{
           if(outcome?.ok===true){
+            render();
             applyUserDirectoryFilters(root,filters);
             syncPendingUserForms();
+            clientWizard.sync();
+            restoreCreatedClientFocus();
             return;
           }
           toast('El cambio quedó guardado, pero no fue posible actualizar la vista. Reintenta la conexión para refrescar los datos.');
@@ -186,6 +213,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         applyUserDirectoryFilters(root,filters);
         syncPendingUserForms();
         clientWizard.sync();
+        restoreCreatedClientFocus();
       }
       return true;
     }catch(error){
@@ -327,7 +355,11 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           emergencyContactPhone:profile.emergencyContactPhone,
           profile,
         },
-      },invitationSuccess,{onSuccess:()=>clientWizard.clear()});
+      },invitationSuccess,{onSuccess:(result)=>{
+        const clientId=createdClientId(result);
+        if(clientId)pendingCreatedClientId=clientId;
+        clientWizard.clear();
+      }});
     }
     if(kind==='client-lifecycle')return run({type:'ADMIN_CLIENTE_CAMBIAR_CICLO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),status:text(data,'status',40)}},'Ciclo actualizado.');
     if(kind==='client-delete'){
@@ -399,4 +431,5 @@ export const __adminControllerInternals=Object.freeze({
   adminOperationLockKey,
   userDirectoryFilterState,
   applyUserDirectoryFilters,
+  createdClientId,
 });
