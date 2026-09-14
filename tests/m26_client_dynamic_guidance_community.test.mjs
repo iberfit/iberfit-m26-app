@@ -57,9 +57,13 @@ test('Client contextual guide has no numbered tour, checklist, progress meter or
   assert.match(progressive,/if\(context\.role!=='client'\)/u);
 });
 
-test('Legacy linear guide is filtered away for Client but remains available for Coach and Admin',()=>{
+test('Legacy linear guide is disabled for Client through contextual mode while Coach and Admin keep the durable tour contract',()=>{
   const progressive=read('src/m26/onboarding/progressive-onboarding.js');
-  assert.match(progressive,/role:'client-contextual'/u);
+  const guided=read('src/m26/onboarding/guided-tour.js');
+  assert.match(progressive,/data-m26-client-contextual-guide-enabled/u);
+  assert.match(progressive,/syncClientContextualGuideMode/u);
+  assert.match(guided,/role==='client'.*data-m26-client-contextual-guide-enabled/su);
+  assert.match(progressive,/const guidedTour=createGuidedTourController\(\{[\s\S]*?root,[\s\S]*?identityProvider,[\s\S]*?storage:resolvedStorage,[\s\S]*?scope,/u);
   assert.match(progressive,/guidedTour\.mount/u);
   assert.match(progressive,/clientContextGuide\.mount/u);
   assert.match(progressive,/guidedTour\.destroy/u);
