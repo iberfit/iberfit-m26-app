@@ -35,6 +35,9 @@ jobs:
   preflight:
     if: ${{ github.event_name == 'push' || inputs.confirmation == 'READ_ONLY_REMOTE_GATE' }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      cancel-in-progress: false
     environment: m26-canary-readonly
     timeout-minutes: 15
     steps:
