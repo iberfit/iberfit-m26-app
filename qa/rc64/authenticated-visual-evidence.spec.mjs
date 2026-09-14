@@ -77,7 +77,8 @@ async function settleVisual(page){
 async function dismissGuidedTourForBaseline(page){
   let dismissed=false;
   const welcome=page.locator('[data-m26-client-guided-welcome]');
-  if(await welcome.count()){
+  await welcome.waitFor({state:'visible',timeout:3_000}).catch(()=>{});
+  if(await welcome.isVisible().catch(()=>false)){
     const pause=page.locator('[data-m26-client-guided-welcome-pause]').first();
     if(await pause.count()){
       await pause.click();
