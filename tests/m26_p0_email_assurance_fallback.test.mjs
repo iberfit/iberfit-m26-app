@@ -119,7 +119,7 @@ test('P0 a successful MFA ceremony is not reclassified as biometric failure if w
 });
 
 
-test('P0 email OTP capability remains implemented but rollout stays held until custom SMTP is certified',()=>{
+test('P0 email OTP rollout is enabled only behind the production custom-SMTP sync gate',()=>{
   const available=renderAccessUi({
     backendReady:true,
     qaOnly:false,
@@ -138,7 +138,12 @@ test('P0 email OTP capability remains implemented but rollout stays held until c
   assert.match(available,/Usar código por correo/u);
   assert.doesNotMatch(unavailable,/data-auth-action="mfa-send-email-code"/u);
   const source=read('src/m26/app/application.js');
-  assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=false;/u);
+  assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
   assert.match(source,/emailOtpAvailable:EMAIL_OTP_DEPLOYMENT_READY&&assurance\.emailOtpAvailable===true/u);
   assert.match(source,/if\(mfaState\?\.emailOtpAvailable!==true\)throw new Error\('M26_EMAIL_OTP_CHANNEL_NOT_READY'\)/u);
+  const promotion=read('.github/workflows/production-promote.yml');
+  const sync=read('scripts/auth/sync-hosted-auth-emails.mjs');
+  assert.match(promotion,/Sync and verify IBERFIT Hosted Auth emails before cutover/u);
+  assert.match(promotion,/steps\.email-otp\.outputs\.enabled == 'true'/u);
+  assert.match(sync,/assertCustomSmtp\(before\)/u);
 });
