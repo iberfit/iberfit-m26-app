@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "c484b484463761bcf28f49a711ca71b0e5ff5bbd",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Admin real client profile editing: responsive safe editor, optimistic concurrency, audited privileged backend, confirmed IRI immutability and access-email separation. PROD migration admin_client_profile_update_v26 applied and verified. Retains P0 form stability, responsible Coach assignment and invitation CORS hardening."
+}
