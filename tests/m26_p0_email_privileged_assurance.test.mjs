@@ -39,7 +39,7 @@ test('privileged access UI keeps WebAuthn preferred and exposes email-code fallb
   });
   assert.match(challenge,/data-auth-action="mfa-continue-webauthn"/u);
   assert.match(challenge,/data-auth-action="mfa-send-email-code"/u);
-  assert.match(challenge,/Usar código por correo/u);
+  assert.match(challenge,/Enviar código al correo asociado/u);
 
   const code=renderAccessUi({
     mode:'mfa-email-code',
@@ -150,10 +150,10 @@ test('IBERFIT OTP email is branded, personalized to the associated address and c
   assert.deepEqual(entry.requires,['{{ .Token }}','{{ .Email }}']);
   assert.match(html,/\{\{ \.Token \}\}/u);
   assert.match(html,/\{\{ \.Email \}\}/u);
-  assert.match(html,/#0d3328/iu);
-  assert.match(html,/#d0aa50/iu);
+  assert.match(html,/#0B1310/iu);
+  assert.match(html,/#C5A059/iu);
   assert.match(html,/isotipo-iberfit\.png/u);
-  assert.match(html,/iberfit-email-access-hero\.jpg/u);
+  assert.doesNotMatch(html,/iberfit-email-access-hero\.jpg/u);
   assert.doesNotMatch(html,/\{\{ \.ConfirmationURL \}\}/u);
 });
 

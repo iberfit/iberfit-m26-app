@@ -16,7 +16,7 @@ test('P0 privileged access keeps WebAuthn and adds email OTP as a second secure 
   });
   assert.match(html,/data-auth-action="mfa-continue-webauthn"/u);
   assert.match(html,/data-auth-action="mfa-send-email-code"/u);
-  assert.match(html,/Usar código por correo/u);
+  assert.match(html,/Enviar código al correo asociado/u);
   assert.doesNotMatch(html,/data-auth-action="mfa-register-device"/u);
 });
 
@@ -88,9 +88,11 @@ test('P0 branded access email uses the official six-digit token and preserves th
   assert.match(html,/\{\{ \.Email \}\}/u);
   assert.doesNotMatch(html,/ConfirmationURL/u);
   assert.match(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
-  assert.match(html,/iberfit-email-access-hero\.jpg/u);
+  assert.doesNotMatch(html,/iberfit-email-access-hero\.jpg/u);
   assert.match(html,/IBERFIT nunca te pedirá este código por teléfono, WhatsApp ni mensaje directo/u);
   assert.equal(magic.subject,'Tu código de acceso IBERFIT');
+  assert.match(html,/#0B1310/iu);
+  assert.match(html,/#C5A059/iu);
   assert.deepEqual(magic.requires,['{{ .Token }}','{{ .Email }}']);
   assert.deepEqual(confirmation.requires,['{{ .ConfirmationURL }}']);
 });
@@ -119,7 +121,7 @@ test('P0 a successful MFA ceremony is not reclassified as biometric failure if w
 });
 
 
-test('P0 email OTP capability remains implemented but rollout stays held until custom SMTP is certified',()=>{
+test('P0 email OTP rollout is enabled only behind the production custom-SMTP sync gate',()=>{
   const available=renderAccessUi({
     backendReady:true,
     qaOnly:false,
@@ -135,10 +137,15 @@ test('P0 email OTP capability remains implemented but rollout stays held until c
     mfa:{kind:'challenge',emailOtpAvailable:false},
   });
   assert.match(available,/data-auth-action="mfa-send-email-code"/u);
-  assert.match(available,/Usar código por correo/u);
+  assert.match(available,/Enviar código al correo asociado/u);
   assert.doesNotMatch(unavailable,/data-auth-action="mfa-send-email-code"/u);
   const source=read('src/m26/app/application.js');
-  assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=false;/u);
+  assert.match(source,/export const EMAIL_OTP_DEPLOYMENT_READY=true;/u);
   assert.match(source,/emailOtpAvailable:EMAIL_OTP_DEPLOYMENT_READY&&assurance\.emailOtpAvailable===true/u);
   assert.match(source,/if\(mfaState\?\.emailOtpAvailable!==true\)throw new Error\('M26_EMAIL_OTP_CHANNEL_NOT_READY'\)/u);
+  const promotion=read('.github/workflows/production-promote.yml');
+  const sync=read('scripts/auth/sync-hosted-auth-emails.mjs');
+  assert.match(promotion,/Sync and verify IBERFIT Hosted Auth emails before cutover/u);
+  assert.match(promotion,/steps\.email-otp\.outputs\.enabled == 'true'/u);
+  assert.match(sync,/assertCustomSmtp\(before\)/u);
 });
