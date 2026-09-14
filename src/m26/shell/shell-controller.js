@@ -155,6 +155,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let lastMarkup='';
   let adaptiveWindow=null;
   let interactionPointerTarget=null;
+  let interactionFocusTarget=null;
   let interactionReleaseTimer=null;
   let pendingI18nContinuitySnapshot=null;
 
@@ -168,7 +169,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const active=root.ownerDocument?.activeElement;
     return active&&root.contains?.(active)&&active.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR)?active:null;
   }
-  function shellInteractionActive(){return Boolean(interactionPointerTarget||focusedInteractiveControl());}
+  function shellInteractionActive(){return Boolean(interactionPointerTarget||interactionFocusTarget||focusedInteractiveControl());}
   function touchTextEntry(node){return node?.closest?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR)||null;}
   function touchInputMode(event){
     const pointerType=String(event?.pointerType||'').toLowerCase();
@@ -386,6 +387,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function onFocusIn(event){
     const control=interactiveControl(event.target);
     if(!control)return;
+    interactionFocusTarget=control.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR)?control:null;
     markTextEntryActive(touchTextEntry(control));
     const tag=String(control?.tagName||'').toLowerCase();
     if(interactionPointerTarget===control&&!['select','button'].includes(tag)){
@@ -400,7 +402,9 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       releasePointerInteraction({deferRender:false});
     }
     queueMicrotask(()=>{
-      markTextEntryActive(touchTextEntry(root.ownerDocument?.activeElement));
+      const active=focusedInteractiveControl();
+      interactionFocusTarget=active;
+      markTextEntryActive(touchTextEntry(active));
       flushDeferredRender();
     });
   }
@@ -630,6 +634,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     pendingI18nContinuitySnapshot=null;
     clearInteractionReleaseTimer();
     interactionPointerTarget=null;
+    interactionFocusTarget=null;
     markTextEntryActive(null);
     root.removeEventListener('click', onClick);
     root.removeEventListener('change', onChange);

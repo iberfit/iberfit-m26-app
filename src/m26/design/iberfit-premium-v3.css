@@ -136,19 +136,47 @@
 
 /* ---------- Global shell ---------- */
 .m26-shell{
+  --iberfit-color-canvas:var(--iberfit-v3-canvas);
+  --iberfit-color-surface-base:var(--iberfit-v3-surface);
+  --iberfit-color-surface-raised:var(--iberfit-v3-surface-raised);
+  --iberfit-color-text-primary:var(--iberfit-v3-text);
+  --iberfit-color-text-secondary:var(--iberfit-v3-text-secondary);
+  --iberfit-color-text-subtle:#CDD4D0;
+  --iberfit-color-accent:var(--iberfit-v3-gold);
+  --iberfit-color-accent-strong:#D7BA7C;
+  --iberfit-color-border:var(--iberfit-v3-line);
+  --iberfit-color-border-strong:rgba(197,160,89,.30);
   position:relative;
   isolation:isolate;
   color-scheme:dark!important;
   color:var(--iberfit-v3-text)!important;
   background:var(--iberfit-v3-canvas)!important;
 }
+.m26-shell[data-m26-role] > .m26-workspace,
 .m26-shell .m26-workspace{
+  --iberfit-color-canvas:var(--iberfit-v3-canvas)!important;
+  --iberfit-color-surface-base:var(--iberfit-v3-surface)!important;
+  --iberfit-color-surface-raised:var(--iberfit-v3-surface-raised)!important;
+  --iberfit-color-surface-overlay:#101D18!important;
+  --iberfit-color-text-primary:var(--iberfit-v3-text)!important;
+  --iberfit-color-text-secondary:var(--iberfit-v3-text-secondary)!important;
+  --iberfit-color-text-subtle:#CDD4D0!important;
+  --iberfit-color-border:var(--iberfit-v3-line)!important;
+  --iberfit-color-border-strong:rgba(197,160,89,.30)!important;
+  --iberfit-color-accent:var(--iberfit-v3-gold)!important;
+  --iberfit-color-accent-strong:#D7BA7C!important;
+  --m26-cream-100:var(--iberfit-v3-text)!important;
+  --m26-cream-300:#CDD4D0!important;
+  --m26-muted:var(--iberfit-v3-text-secondary)!important;
+  --m26-line:var(--iberfit-v3-line)!important;
   position:relative;
   isolation:isolate;
+  color-scheme:dark!important;
   color:var(--iberfit-v3-text)!important;
   background:
     radial-gradient(circle at 94% 3%,rgba(197,160,89,.035),transparent 26rem),
     linear-gradient(160deg,#0C1612 0%,var(--iberfit-v3-canvas) 58%,#09100D 100%)!important;
+  background-color:var(--iberfit-v3-canvas)!important;
 }
 .m26-shell .m26-workspace::before{
   content:'';
@@ -439,4 +467,205 @@
   border:1px solid rgba(197,160,89,.10);
   border-radius:8px;
   background:rgba(197,160,89,.035);
+}
+
+
+/* ---------- P0 form-control stability + residual light-surface closure ---------- */
+/* V3 deliberately removes the legacy 3D card plane. Native inputs/select popovers
+ * must live in a stable, untransformed coordinate space on every device. */
+.m26-shell .m26-main{
+  perspective:none!important;
+}
+.m26-shell .m26-route{
+  transform-style:flat!important;
+}
+.m26-shell .m26-workspace :is(
+  .m26-panel,.m26-panel-soft,.m26-admin-panel,.m26-client-card,.m26-list-card,
+  .m26-library-card,.m26-publication-card,.m26-client-content-card,
+  .m26-rc39-session-card,.m26-stat,.iberfit-metric,.m26-admin-stat
+){
+  transform:none!important;
+  will-change:auto!important;
+}
+.m26-shell .m26-workspace :is(
+  .m26-panel,.m26-panel-soft,.m26-admin-panel,.m26-client-card,.m26-list-card,
+  .m26-library-card,.m26-publication-card,.m26-client-content-card,
+  .m26-rc39-session-card,.m26-stat,.iberfit-metric,.m26-admin-stat
+):hover,
+.m26-shell .m26-workspace :is(
+  .m26-panel,.m26-panel-soft,.m26-admin-panel,.m26-client-card,.m26-list-card,
+  .m26-library-card,.m26-publication-card,.m26-client-content-card,
+  .m26-rc39-session-card,.m26-stat,.iberfit-metric,.m26-admin-stat
+):focus-within{
+  transform:none!important;
+}
+
+/* Every native editor stays above decorative layers and receives the pointer itself. */
+.m26-shell .m26-workspace :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea,[contenteditable="true"]){
+  position:relative;
+  z-index:2;
+  pointer-events:auto!important;
+  opacity:1!important;
+}
+.m26-shell[data-m26-text-entry-active="true"] .m26-workspace :is(
+  .m26-panel,.m26-panel-soft,.m26-admin-panel,.m26-client-card,.m26-list-card
+){
+  transform:none!important;
+  transition-property:border-color,background-color,box-shadow!important;
+}
+
+/* Coach productivity was an uncovered V2 island in the first V3 rollout. */
+.m26-shell .m26-workspace .m26-coach-productivity-toolbar{
+  color:var(--iberfit-v3-text)!important;
+  border:1px solid var(--iberfit-v3-line)!important;
+  border-radius:var(--iberfit-v3-radius-card)!important;
+  background:
+    radial-gradient(circle at 100% 0%,rgba(197,160,89,.045),transparent 16rem),
+    linear-gradient(150deg,#14251D,#0F1C17)!important;
+  box-shadow:var(--iberfit-v3-shadow)!important;
+}
+.m26-shell .m26-workspace .m26-coach-productivity-toolbar :is(h2,h3,strong,label){
+  color:var(--iberfit-v3-text)!important;
+}
+.m26-shell .m26-workspace .m26-coach-productivity-toolbar :is(p,small,.m26-coach-recents span){
+  color:var(--iberfit-v3-text-secondary)!important;
+}
+.m26-shell .m26-workspace .m26-coach-productivity-controls :is(input,select){
+  color:var(--iberfit-v3-text)!important;
+  border:1px solid rgba(197,160,89,.14)!important;
+  background:#0E1B16!important;
+}
+.m26-shell .m26-workspace .m26-coach-productivity-controls button{
+  color:var(--iberfit-v3-text)!important;
+  border:1px solid rgba(197,160,89,.14)!important;
+  background:#172720!important;
+  box-shadow:none!important;
+}
+.m26-shell .m26-workspace .m26-coach-productivity-controls button:disabled{
+  color:#718078!important;
+  background:#111E19!important;
+  opacity:.72!important;
+}
+
+/* Client onboarding uses the same stable premium form language. */
+.m26-shell .m26-workspace .m26-onboarding,
+.m26-shell .m26-workspace .m26-onboarding-form,
+.m26-shell .m26-workspace .m26-form-section{
+  color:var(--iberfit-v3-text)!important;
+}
+.m26-shell .m26-workspace .m26-onboarding-form .m26-form-section{
+  border-color:rgba(197,160,89,.11)!important;
+  background:rgba(14,27,22,.58)!important;
+}
+.m26-shell .m26-workspace .m26-onboarding-form :is(label,h3){
+  color:var(--iberfit-v3-text)!important;
+}
+.m26-shell .m26-workspace .m26-onboarding-form :is(label>small,.m26-form-section-title p){
+  color:var(--iberfit-v3-text-secondary)!important;
+}
+
+@media (hover:hover) and (pointer:fine){
+  .m26-shell .m26-workspace :is(input,select,textarea):hover{
+    border-color:rgba(197,160,89,.26)!important;
+  }
+}
+
+
+/* ---------- Residual light-surface closure ---------- */
+.m26-shell .m26-workspace .m26-operation-status{
+  color:var(--iberfit-v3-text-secondary)!important;
+  border-color:rgba(197,160,89,.12)!important;
+  background:rgba(16,29,24,.94)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.018)!important;
+}
+.m26-shell .m26-workspace .m26-hoy-route .m26-today-loop{
+  color:var(--iberfit-v3-text)!important;
+  border-color:var(--iberfit-v3-line)!important;
+  background:
+    radial-gradient(circle at 96% 0%,rgba(197,160,89,.045),transparent 14rem),
+    linear-gradient(150deg,#14251D,#0F1C17)!important;
+  box-shadow:var(--iberfit-v3-shadow)!important;
+}
+.m26-shell .m26-workspace .m26-hoy-route .m26-today-action{
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.12)!important;
+  background:#13221C!important;
+  box-shadow:none!important;
+}
+.m26-shell .m26-workspace .m26-hoy-route .m26-today-action:hover:not(:disabled){
+  border-color:rgba(197,160,89,.28)!important;
+  background:#182B23!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user-result-count{
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.12)!important;
+  background:#101E18!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user-result-count span{
+  color:var(--iberfit-v3-text-secondary)!important;
+}
+
+
+/* ---------- Admin / topbar light-button closure ---------- */
+.m26-shell .m26-workspace .m26-topbar :is(
+  .m26-coach-command-launcher,
+  .m26-icon-button,
+  .m26-text-action
+){
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.14)!important;
+  background:#172720!important;
+  box-shadow:none!important;
+}
+.m26-shell .m26-workspace .m26-topbar :is(
+  .m26-coach-command-launcher,
+  .m26-icon-button,
+  .m26-text-action
+):hover:not(:disabled){
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.28)!important;
+  background:#1A2E26!important;
+}
+
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route button:not([type="submit"]),
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-form button[type="submit"]:not(.m26-primary-action),
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route :is(
+  [data-admin-form="user-status"],
+  [data-admin-form="role-change"],
+  [data-admin-form="client-access"],
+  [data-admin-form="client-status"]
+) button[type="submit"]{
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.14)!important;
+  background:#172720!important;
+  box-shadow:none!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route button:not([type="submit"]):hover:not(:disabled),
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route .m26-admin-form button[type="submit"]:not(.m26-primary-action):hover:not(:disabled),
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route :is(
+  [data-admin-form="user-status"],
+  [data-admin-form="role-change"],
+  [data-admin-form="client-access"],
+  [data-admin-form="client-status"]
+) button[type="submit"]:hover:not(:disabled){
+  border-color:rgba(197,160,89,.28)!important;
+  background:#1A2E26!important;
+}
+
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route :is(
+  [data-admin-form="user-delete"],
+  [data-admin-form="client-delete"]
+) button[type="submit"]{
+  color:#FFE3E3!important;
+  border-color:rgba(248,113,113,.38)!important;
+  background:linear-gradient(180deg,#6B2929,#4D1D1D)!important;
+  box-shadow:none!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-route :is(
+  [data-admin-form="user-delete"],
+  [data-admin-form="client-delete"]
+) button[type="submit"]:hover:not(:disabled){
+  color:#FFF1F1!important;
+  border-color:rgba(248,113,113,.54)!important;
+  background:linear-gradient(180deg,#7A3030,#572020)!important;
 }

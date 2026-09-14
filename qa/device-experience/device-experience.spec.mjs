@@ -11,6 +11,8 @@ const CURRENT_SOURCE_STYLES=Object.freeze([
   '/src/m26/design/role-surfaces.css',
   '/src/m26/design/premium-ux.css',
   '/src/m26/design/signature-ux-v2.css',
+  '/src/m26/design/dark-iberfit-v2.css',
+  '/src/m26/design/iberfit-premium-v3.css',
 ]);
 
 
@@ -95,6 +97,43 @@ async function layoutMetrics(page){
   });
 }
 
+async function lightSurfaceViolations(page){
+  return page.evaluate(()=>{
+    const parse=(value)=>{
+      const match=String(value||'').match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*(\d*\.?\d+))?\s*\)/u);
+      if(!match)return null;
+      return {r:Number(match[1]),g:Number(match[2]),b:Number(match[3]),a:match[4]===undefined?1:Number(match[4])};
+    };
+    const main=document.querySelector('.m26-main,.m26-admin-route,.m26-workspace');
+    if(!main)return [];
+    return [...main.querySelectorAll('*')]
+      .filter((element)=>!['IMG','SVG','PATH','CANVAS','VIDEO','SOURCE'].includes(element.tagName))
+      .map((element)=>{
+        const style=getComputedStyle(element);
+        const box=element.getBoundingClientRect();
+        const color=parse(style.backgroundColor);
+        return {element,style,box,color};
+      })
+      .filter(({style,box,color})=>{
+        if(!color||color.a<.45)return false;
+        if(style.display==='none'||style.visibility==='hidden'||box.width<=0||box.height<=0)return false;
+        if(box.width*box.height<6000)return false;
+        if(style.backgroundImage&&style.backgroundImage!=='none')return false;
+        return color.r>=230&&color.g>=230&&color.b>=225;
+      })
+      .slice(0,12)
+      .map(({element,box,color})=>({
+        tag:element.tagName.toLowerCase(),
+        className:String(element.className||'').slice(0,180),
+        id:String(element.id||''),
+        text:String(element.textContent||'').trim().replace(/\s+/gu,' ').slice(0,120),
+        width:Math.round(box.width),
+        height:Math.round(box.height),
+        background:`rgba(${color.r},${color.g},${color.b},${color.a})`,
+      }));
+  });
+}
+
 async function assertFocusPath(page){
   const candidate=page.locator(
     '.m26-main button:visible:enabled, .m26-main select:visible:enabled, .m26-admin-route button:visible:enabled, .m26-admin-route select:visible:enabled, .m26-admin-route summary:visible, .m26-mobile-nav button:visible:enabled, .m26-sidebar button:visible:enabled'
@@ -154,6 +193,12 @@ test('Device Experience Gate validates representative tasks by role and device',
 
     const metrics=await layoutMetrics(page);
     expect(metrics.horizontalOverflow,task.id+' must not overflow horizontally').toBe(false);
+
+    const lightSurfaces=await lightSurfaceViolations(page);
+    expect(
+      lightSurfaces,
+      task.id+' contains residual large light surfaces incompatible with Premium V3: '+JSON.stringify(lightSurfaces),
+    ).toEqual([]);
     expect(metrics.shellVisible).toBe(true);
     expect(metrics.mainWidth).toBeGreaterThan(viewport.width*0.55);
 
