@@ -152,7 +152,7 @@ test('label taps keep text inputs and native selects alive while a shell refresh
   await form.evaluate((node)=>{node.dataset.qaFormIdentity='label-tap-form';});
 
   const name=form.locator('input[name="name"]');
-  const nameLabel=form.locator('label').filter({has:name});
+  const nameLabel=form.locator('label:has(input[name="name"])').first();
   await nameLabel.evaluate((label)=>{
     if(label.querySelector('[data-qa-label-hit]'))return;
     const marker=document.createElement('span');
@@ -168,7 +168,7 @@ test('label taps keep text inputs and native selects alive while a shell refresh
   await expect(form).toHaveAttribute('data-qa-form-identity','label-tap-form');
 
   const sex=form.locator('select[name="sexForNorms"]');
-  const sexLabel=form.locator('label').filter({has:sex});
+  const sexLabel=form.locator('label:has(select[name="sexForNorms"])').first();
   await sexLabel.evaluate((label)=>{
     if(label.querySelector('[data-qa-label-hit]'))return;
     const marker=document.createElement('span');
