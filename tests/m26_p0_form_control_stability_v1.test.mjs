@@ -33,3 +33,23 @@ test('visual and browser gates exercise the final V3 layer and the real Coach on
   assert.match(device,/\/src\/m26\/design\/iberfit-premium-v3\.css/u);
   assert.match(matrix,/coach-form-continuity\.spec\.mjs/u);
 });
+
+
+test('Coach regression matrix explicitly covers every daily-use client-list control and cross-browser projects',()=>{
+  const coach=fs.readFileSync('qa/admin-interaction/coach-form-continuity.spec.mjs','utf8');
+  const fixture=fs.readFileSync('qa/admin-interaction/coach-form-continuity.fixture.mjs','utf8');
+  assert.match(coach,/\[data-client-search\]/u);
+  assert.match(coach,/data-client-filter="iri"/u);
+  assert.match(coach,/data-client-filter="modality"/u);
+  assert.match(coach,/data-client-filter="stage"/u);
+  assert.match(coach,/\[data-client-sort\]/u);
+  assert.match(coach,/\[data-coach-view-name\]/u);
+  assert.match(coach,/\[data-coach-saved-view\]/u);
+  for(const name of ['name','email','phone','birthDate','sexForNorms','genderIdentity','pronouns','preferredContactChannel','modality','weeklyFrequency','sessionDurationMinutes','locationType','accessInstructions','primaryObjective']){
+    assert.match(coach,new RegExp('name=["\\\\]'+name.replace(/[.*+?^$\{\}()|[\]\\]/g,'\\$&')));
+  }
+  assert.match(coach,/must preserve the exact active DOM node/u);
+  assert.match(fixture,/setClientScenario/u);
+  assert.match(matrix,/browserName:'webkit'/u);
+  assert.match(matrix,/browserName:'firefox'/u);
+});
