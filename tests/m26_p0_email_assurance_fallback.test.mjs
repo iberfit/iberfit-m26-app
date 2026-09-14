@@ -7,13 +7,7 @@ import {renderAccessUi,maskAccessEmail} from '../src/m26/app/access-ui.js';
 const read=(path)=>fs.readFileSync(path,'utf8').replace(/\r\n?/gu,'\n');
 
 test('P0 privileged access keeps WebAuthn and adds email OTP as a second secure path',()=>{
-  const html=renderAccessUi({
-    backendReady:true,
-    qaOnly:false,
-    host:'app.iberfit.cl',
-    mode:'mfa-challenge',
-    mfa:{kind:'challenge',email:'owner@iberfit.cl',emailOtpAvailable:true},
-  });
+  const html=renderAccessUi({backendReady:true,qaOnly:false,host:'app.iberfit.cl',mode:'mfa-challenge',mfa:{kind:'challenge',email:'owner@iberfit.cl',emailOtpAvailable:true}});
   assert.match(html,/data-auth-action="mfa-continue-webauthn"/u);
   assert.match(html,/data-auth-action="mfa-send-email-code"/u);
   assert.match(html,/Enviar código al correo asociado/u);
@@ -21,13 +15,7 @@ test('P0 privileged access keeps WebAuthn and adds email OTP as a second secure 
 });
 
 test('P0 email OTP entry is explicit, masked and optimized for one-time-code autofill',()=>{
-  const html=renderAccessUi({
-    backendReady:true,
-    qaOnly:false,
-    host:'app.iberfit.cl',
-    mode:'mfa-email-code',
-    mfa:{kind:'challenge',email:'owner@iberfit.cl',emailOtpAvailable:true},
-  });
+  const html=renderAccessUi({backendReady:true,qaOnly:false,host:'app.iberfit.cl',mode:'mfa-email-code',mfa:{kind:'challenge',email:'owner@iberfit.cl',emailOtpAvailable:true}});
   assert.equal(maskAccessEmail('owner@iberfit.cl'),'ow***@iberfit.cl');
   assert.match(html,/data-auth-form="mfa-email-code"/u);
   assert.match(html,/autocomplete="one-time-code"/u);
@@ -79,7 +67,7 @@ test('P0 email assurance storage is inaccessible to browser roles and one OTP se
   assert.match(v2,/Each Supabase email OTP session may establish privileged assurance exactly once/u);
 });
 
-test('P0 branded access email uses the official six-digit token and preserves the IBERFIT email system',()=>{
+test('P0 branded access email uses the official six-digit token and premium light IBERFIT system',()=>{
   const html=read('supabase/templates/iberfit-magic-link.html');
   const manifest=JSON.parse(read('supabase/templates/iberfit-hosted-auth-email-manifest.json'));
   const magic=manifest.templates.find((item)=>item.id==='magic_link');
@@ -87,12 +75,15 @@ test('P0 branded access email uses the official six-digit token and preserves th
   assert.match(html,/\{\{ \.Token \}\}/u);
   assert.match(html,/\{\{ \.Email \}\}/u);
   assert.doesNotMatch(html,/ConfirmationURL/u);
-  assert.match(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
+  assert.match(html,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
+  assert.doesNotMatch(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
   assert.doesNotMatch(html,/iberfit-email-access-hero\.jpg/u);
   assert.match(html,/IBERFIT nunca te pedirá este código por teléfono, WhatsApp ni mensaje directo/u);
   assert.equal(magic.subject,'Tu código de acceso IBERFIT');
-  assert.match(html,/#0B1310/iu);
-  assert.match(html,/#C5A059/iu);
+  assert.match(html,/#f3f0e8/iu);
+  assert.match(html,/#0d3328/iu);
+  assert.match(html,/#c8a24a/iu);
+  assert.match(html,/font-size:38px/iu);
   assert.deepEqual(magic.requires,['{{ .Token }}','{{ .Email }}']);
   assert.deepEqual(confirmation.requires,['{{ .ConfirmationURL }}']);
 });
@@ -120,22 +111,9 @@ test('P0 a successful MFA ceremony is not reclassified as biometric failure if w
   assert.match(block,/surfaceRetriableSessionFailure\(error,'post-mfa-setup'\)/u);
 });
 
-
 test('P0 email OTP rollout is enabled only behind the production custom-SMTP sync gate',()=>{
-  const available=renderAccessUi({
-    backendReady:true,
-    qaOnly:false,
-    host:'app.iberfit.cl',
-    mode:'mfa-challenge',
-    mfa:{kind:'challenge',emailOtpAvailable:true},
-  });
-  const unavailable=renderAccessUi({
-    backendReady:true,
-    qaOnly:false,
-    host:'app.iberfit.cl',
-    mode:'mfa-challenge',
-    mfa:{kind:'challenge',emailOtpAvailable:false},
-  });
+  const available=renderAccessUi({backendReady:true,qaOnly:false,host:'app.iberfit.cl',mode:'mfa-challenge',mfa:{kind:'challenge',emailOtpAvailable:true}});
+  const unavailable=renderAccessUi({backendReady:true,qaOnly:false,host:'app.iberfit.cl',mode:'mfa-challenge',mfa:{kind:'challenge',emailOtpAvailable:false}});
   assert.match(available,/data-auth-action="mfa-send-email-code"/u);
   assert.match(available,/Enviar código al correo asociado/u);
   assert.doesNotMatch(unavailable,/data-auth-action="mfa-send-email-code"/u);
