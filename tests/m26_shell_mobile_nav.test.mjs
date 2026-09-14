@@ -154,7 +154,8 @@ test('topbar estrecho conserva solo contexto de trabajo y deja la cuenta en Más
   assert.match(html,/\.m26-topbar-actions \.m26-coach-command-launcher \{ width: 100%; min-width: 0; max-width: 100%;/u);
   assert.match(html,/\.m26-topbar-actions \.m26-coach-command-launcher kbd \{ display: none; \}/u);
   assert.doesNotMatch(html,/\.m26-topbar-actions \[data-m26-action="logout"\]/u);
-  assert.match(mobileOverflow(html),/m26-mobile-more-account[\s\S]*data-m26-action="logout"/u);
+  assert.match(html,/@media\(max-width:900px\)\{\.m26-sidebar\{display:none\}/u);
+  assert.equal((html.match(/data-m26-action="logout"/gu)||[]).length,1);
 });
 
 test('sidebar marca el grupo activo y permanece utilizable en escritorio',()=>{
