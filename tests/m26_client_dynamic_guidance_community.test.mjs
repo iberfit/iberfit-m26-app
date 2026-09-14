@@ -56,7 +56,7 @@ test('Client guide persistence stores only safe hint ids, including persistent d
   const stored=JSON.parse(calls.at(-1)[1]);
   assert.deepEqual(stored.seenTipIds,['client-context-today']);
   assert.deepEqual(stored.dismissedTipIds,['client-context-progress']);
-  assert.deepEqual(Object.keys(stored).sort(),['dismissedTipIds','schemaVersion','seenTipIds']);
+  assert.deepEqual(Object.keys(stored).sort(),['dismissedTipIds','legacyMigrated','schemaVersion','seenTipIds']);
   assert.doesNotMatch(JSON.stringify(stored),/pain|secret@example\.com/u);
 });
 
@@ -79,6 +79,7 @@ test('Legacy client onboarding state migrates without repeating already-known ar
   assert.ok(seed.seenTipIds.includes('client-context-plan'));
   assert.ok(seed.seenTipIds.includes('client-context-session'));
   assert.equal(seed.seenTipIds.includes('client-context-progress'),false);
+  assert.equal(seed.legacyMigrated,true);
 });
 
 test('Legacy completed or skipped guided tour is respected while dynamic help remains manually reopenable',()=>{
@@ -94,6 +95,7 @@ test('Legacy completed or skipped guided tour is respected while dynamic help re
         :null;
     }},
   });
+  assert.equal(completed.legacyMigrated,true);
   assert.ok(completed.seenTipIds.includes('client-context-progress'));
   assert.ok(completed.seenTipIds.includes('client-context-messages'));
 
