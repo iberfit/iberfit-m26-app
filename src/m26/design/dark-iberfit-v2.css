@@ -910,6 +910,51 @@
   font-size:.69rem;
 }
 
+.m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  min-height:4.5rem;
+  padding:.75rem .9rem;
+  border:1px solid rgba(121,183,146,.16);
+  border-radius:.9rem;
+  background:rgba(121,183,146,.04);
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed > div{
+  min-width:0;
+  display:grid;
+  gap:.12rem;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed .m26-eyebrow{
+  margin:0;
+  color:#9ac9ad;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed strong{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:.88rem;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed small{
+  color:var(--iberfit-color-text-secondary);
+  font-size:.7rem;
+  line-height:1.4;
+}
+.m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed > button{
+  flex:0 0 auto;
+  min-height:44px;
+  padding:.55rem .7rem;
+  border:1px solid rgba(216,192,138,.16);
+  border-radius:.7rem;
+  color:var(--iberfit-color-text-primary);
+  background:transparent;
+  font:inherit;
+  font-size:.76rem;
+  font-weight:760;
+}
+
 .m26-shell[data-m26-role="client"] .m26-client-home-agenda{
   display:grid;
   gap:.75rem;
@@ -1006,11 +1051,23 @@
     font-size:.76rem;
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-context-action{
-    grid-template-columns:1fr auto;
+    grid-template-columns:minmax(0,1fr);
   }
-  .m26-shell[data-m26-role="client"] .m26-client-home-context-action > span{
+  .m26-shell[data-m26-role="client"] .m26-client-home-context-action > span,
+  .m26-shell[data-m26-role="client"] .m26-client-home-context-action strong,
+  .m26-shell[data-m26-role="client"] .m26-client-home-context-action small{
     grid-row:auto;
-    grid-column:1 / -1;
+    grid-column:1;
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+  .m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:.55rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-client-home-community.is-completed strong{
+    white-space:normal;
   }
 }
 
