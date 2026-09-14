@@ -137,9 +137,9 @@ test('Client Genie owns first-run navigation, can pause/resume, returns to Today
       state:'idle',
     });
 
-    await mkdir('test-results',{recursive:true});
+    await mkdir('recovery/client-genie-welcome',{recursive:true});
     await page.screenshot({
-      path:`test-results/client-genie-welcome-${slug(testInfo.project.name)}.png`,
+      path:`recovery/client-genie-welcome/client-genie-welcome-${slug(testInfo.project.name)}.png`,
       fullPage:true,
       animations:'disabled',
       caret:'hide',
@@ -159,7 +159,7 @@ test('Client Genie owns first-run navigation, can pause/resume, returns to Today
     }
 
     await page.screenshot({
-      path:`test-results/client-genie-finish-${slug(testInfo.project.name)}.png`,
+      path:`recovery/client-genie-welcome/client-genie-finish-${slug(testInfo.project.name)}.png`,
       fullPage:true,
       animations:'disabled',
       caret:'hide',
