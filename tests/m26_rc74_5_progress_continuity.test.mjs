@@ -230,7 +230,7 @@ test('la capa premium de continuidad es idempotente, española y no introduce ob
   assert.match(entryPolicy,/Iniciar entrenamiento/);
   assert.match(entryPolicy,/Revisar antes de entrenar/);
   assert.match(ui,/Constancia · 28 días/);
-  assert.match(ui,/Comunicación/);
+  assert.match(ui,/kind:'communication'/u);
   assert.match(ui,/Dispositivos/);
   assert.match(ui,/data-m27-client-home/);
   assert.match(ui,/data-home-kind/);
