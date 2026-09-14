@@ -1,0 +1,95 @@
+name: IBERFIT PROD Auth SMTP Readiness
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.github/workflows/ops-prod-auth-readiness.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-prod-auth-smtp-readiness
+  cancel-in-progress: false
+
+env:
+  PROD_SUPABASE_REF: 'pjhmrhejsoofmouedavw'
+  APP_URL: 'https://app.iberfit.cl'
+
+jobs:
+  certify-prod-smtp:
+    name: certify-prod-smtp-read-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact operational branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Read and certify PROD Auth SMTP without exposing secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo 'SUPABASE_ACCESS_TOKEN_MISSING'; exit 41; }
+          node <<'NODE'
+          const fs=require('fs');
+          const projectRef=process.env.PROD_SUPABASE_REF;
+          const token=process.env.SUPABASE_ACCESS_TOKEN;
+          const appUrl=process.env.APP_URL;
+          const nonEmpty=(value)=>typeof value==='string'&&value.trim().length>0;
+
+          const response=await fetch(`https://api.supabase.com/v1/projects/${encodeURIComponent(projectRef)}/config/auth`,{
+            headers:{Authorization:`Bearer ${token}`,Accept:'application/json'}
+          });
+          let config=null;
+          try{config=await response.json();}catch{}
+          if(!response.ok)throw new Error(`PROD_AUTH_CONFIG_READ_FAILED_${response.status}`);
+          config=config||{};
+
+          const smtpHostConfigured=nonEmpty(config.smtp_host);
+          const smtpAdminConfigured=nonEmpty(config.smtp_admin_email);
+          const smtpPort=Number(config.smtp_port);
+          const smtpPortConfigured=Number.isFinite(smtpPort)&&smtpPort>0;
+          const smtpUserConfigured=nonEmpty(config.smtp_user);
+          const smtpSenderNameConfigured=nonEmpty(config.smtp_sender_name);
+          const siteUrl=String(config.site_url||'').trim();
+          const siteUrlMatchesApp=siteUrl===appUrl||siteUrl===appUrl+'/';
+
+          let smtpAdminDomain=null;
+          if(smtpAdminConfigured){
+            const at=config.smtp_admin_email.lastIndexOf('@');
+            smtpAdminDomain=at>0?config.smtp_admin_email.slice(at+1).toLowerCase():null;
+          }
+
+          const evidence={
+            schema:'iberfit.prod-auth-smtp-readiness.v1',
+            projectRef,
+            customSmtpReady:smtpHostConfigured&&smtpAdminConfigured&&smtpPortConfigured,
+            smtpHostConfigured,
+            smtpPortConfigured,
+            smtpPort:smtpPortConfigured?smtpPort:null,
+            smtpAdminConfigured,
+            smtpAdminDomain,
+            smtpUserConfigured,
+            smtpSenderNameConfigured,
+            siteUrlConfigured:Boolean(siteUrl),
+            siteUrlMatchesApp
+          };
+          fs.writeFileSync('PROD_AUTH_SMTP_READINESS.json',JSON.stringify(evidence,null,2)+'\n','utf8');
+          console.log(JSON.stringify(evidence,null,2));
+          if(!evidence.customSmtpReady)throw new Error('IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED');
+          NODE
+
+      - name: Preserve sanitized readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-prod-auth-smtp-readiness-${{ github.run_id }}
+          path: PROD_AUTH_SMTP_READINESS.json
+          if-no-files-found: warn
+          retention-days: 30
