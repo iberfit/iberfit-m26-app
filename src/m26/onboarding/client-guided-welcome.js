@@ -85,7 +85,11 @@ const STEPS=Object.freeze([
     seenAlso:Object.freeze(['client-context-messages']),
     selectors:Object.freeze([
       '[data-client-bottom-nav-route="mensajes"] .m26-route-intro',
+      '[data-client-bottom-nav-route="communication"] .m26-route-intro',
+      '[data-client-bottom-nav-route="communication-unavailable"] .m26-route-intro',
       '[data-client-bottom-nav-route="mensajes"]',
+      '[data-client-bottom-nav-route="communication"]',
+      '[data-client-bottom-nav-route="communication-unavailable"]',
       '#m26-main',
     ]),
   }),
@@ -204,11 +208,17 @@ function tr(key,fallback){return iberfitSurfaceTranslate(SOURCE_COPY[key]||fallb
 function storageOf(storage,scope){if(storage!==undefined)return storage;try{return scope?.localStorage??null;}catch{return null;}}
 function reduced(scope){try{return Boolean(scope?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);}catch{return false;}}
 function currentArea(root){
-  return text(
-    root?.querySelector?.('[data-client-bottom-nav-route]')?.getAttribute?.('data-client-bottom-nav-route')||
+  const canonical=text(
     root?.querySelector?.('[data-m26-area][aria-current="page"]')?.getAttribute?.('data-m26-area'),
     80
-  )||'hoy';
+  );
+  if(canonical)return canonical;
+  const routeKind=text(
+    root?.querySelector?.('[data-client-bottom-nav-route]')?.getAttribute?.('data-client-bottom-nav-route'),
+    80
+  );
+  if(['communication','communication-unavailable'].includes(routeKind))return 'mensajes';
+  return routeKind||'hoy';
 }
 function visibleDestination(root,area){
   const items=[...(root?.querySelectorAll?.(`[data-m26-area="${area}"]`)||[])];
