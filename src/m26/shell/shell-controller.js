@@ -245,6 +245,49 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     },timeoutMs);
   }
 
+  function disclosureBaseKey(details){
+    if(!details)return '';
+    const id=String(details.id||'').trim();
+    if(id)return 'id:'+id;
+    const data=[...(details.attributes||[])]
+      .filter((attr)=>String(attr?.name||'').startsWith('data-'))
+      .map((attr)=>String(attr.name)+'='+String(attr.value||''))
+      .sort()
+      .join('|');
+    const classes=[...(details.classList||[])].sort().join('.');
+    const summary=String(details.querySelector?.(':scope > summary')?.textContent||'').replace(/\s+/gu,' ').trim().slice(0,160);
+    return [classes,data,summary].join('::');
+  }
+
+  function captureDisclosureContinuity(){
+    const details=[...(root.querySelectorAll?.('details')||[])];
+    const seen=new Map();
+    const open=[];
+    for(const node of details){
+      const key=disclosureBaseKey(node);
+      const ordinal=seen.get(key)||0;
+      seen.set(key,ordinal+1);
+      if(node.open||node.hasAttribute?.('open'))open.push(Object.freeze({key,ordinal}));
+    }
+    return open;
+  }
+
+  function restoreDisclosureContinuity(snapshot=[]){
+    if(!snapshot?.length)return false;
+    const wanted=new Map(snapshot.map((item)=>[item.key+':'+item.ordinal,true]));
+    const seen=new Map();
+    let restored=false;
+    for(const node of root.querySelectorAll?.('details')||[]){
+      const key=disclosureBaseKey(node);
+      const ordinal=seen.get(key)||0;
+      seen.set(key,ordinal+1);
+      if(!wanted.has(key+':'+ordinal))continue;
+      node.open=true;
+      restored=true;
+    }
+    return restored;
+  }
+
   function continuitySurface(control){
     if(control?.closest?.('.m26-settings-route'))return 'settings-route';
     if(control?.closest?.('details.m26-settings-menu'))return 'settings-popover';
@@ -367,8 +410,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const routeMarkup = viewModel.mode === 'authenticated' ? renderRoute(viewModel, state) : '';
     const markup=renderM26Shell(viewModel, routeMarkup);
     if(markup===lastMarkup){clearClientSwitchBusy();return false;}
+    const disclosureSnapshot=captureDisclosureContinuity();
     root.innerHTML = markup;
     lastMarkup=markup;
+    restoreDisclosureContinuity(disclosureSnapshot);
     syncAdaptiveLayout();
     enhanceCoachActionCenter({root,shellVm:viewModel,state});
     enhanceNativeWorkspace({root,viewModel});
