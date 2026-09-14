@@ -1,4 +1,5 @@
 const e=(v)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+const safeJson=(value)=>JSON.stringify(value??null).replaceAll('&','\\u0026').replaceAll('<','\\u003c').replaceAll('>','\\u003e').replaceAll('\\u2028','\\u2028').replaceAll('\\u2029','\\u2029');
 const badge=(v)=>`<span class="m26-admin-badge">${e(v||'Sin estado')}</span>`;
 const empty=(t,c)=>`<section class="m26-admin-empty"><h3>${e(t)}</h3><p>${e(c)}</p></section>`;
 const stat=(t,v)=>`<article class="m26-admin-stat"><span>${e(t)}</span><strong>${e(v)}</strong></article>`;
@@ -343,13 +344,100 @@ function clientCreateWizardForm(vm={}){
     submitAttrs:'class="m26-primary-action" data-client-create-submit'
   });
 }
+function clientEditPayload(client={}){
+  const p=client?.profile||{};
+  return {
+    clientId:String(client.id||''),
+    baseRevision:Number(client.revision||0)||0,
+    name:String(client.name||''),
+    email:String(client.email||''),
+    phone:String(p.phone||''),
+    birthDate:String(p.birthDate||''),
+    sexForNorms:String(p.sexForNorms||''),
+    preferredContactChannel:String(p.preferredContactChannel||''),
+    preferredContactTime:String(p.preferredContactTime||''),
+    modality:String(client.modality||p.modality||''),
+    weeklyFrequency:p.weeklyFrequency==null?'':String(p.weeklyFrequency),
+    sessionDurationMinutes:p.sessionDurationMinutes==null?'':String(p.sessionDurationMinutes),
+    initialAssessmentMode:String(p.initialAssessmentMode||'iri'),
+    zone:String(p.commune||''),
+    address:String(p.trainingAddress||''),
+    preferredSchedule:String(p.preferredSchedule||''),
+    locationType:String(p.locationType||''),
+    accessInstructions:String(p.accessInstructions||''),
+    objective:String(client.objective||p.primaryObjective||''),
+    secondaryObjectives:String(p.secondaryObjectives||''),
+    level:String(p.experienceLevel||''),
+    history:String(p.trainingHistory||''),
+    currentTraining:String(p.currentTraining||''),
+    restrictions:String(p.restrictions||''),
+    pain:String(p.pain||''),
+    equipment:String(p.equipment||p.equipmentAvailable||''),
+    preferences:String(p.preferences||''),
+    emergencyContactName:String(p.emergencyContactName||''),
+    emergencyContactRelation:String(p.emergencyContactRelation||''),
+    emergencyContactPhone:String(p.emergencyContactPhone||''),
+  };
+}
+function clientEditDialog(vm={}){
+  const records=(vm.clients||[]).map(clientEditPayload);
+  return `<dialog class="m26-admin-client-edit-dialog" data-admin-client-edit-dialog aria-labelledby="m26-client-edit-title">
+    <div class="m26-admin-client-edit-shell">
+      <header>
+        <div><p class="m26-eyebrow">Expediente real</p><h3 id="m26-client-edit-title">Editar ficha de cliente</h3><p>Actualiza datos operativos sin alterar el historial IRI ya confirmado.</p></div>
+        <button type="button" class="m26-icon-button" data-admin-client-edit-close aria-label="Cerrar editor">×</button>
+      </header>
+      <form data-admin-form="client-profile-update" class="m26-admin-form m26-admin-client-edit-form" autocomplete="on">
+        <input type="hidden" name="clientId">
+        <input type="hidden" name="baseRevision">
+        <section class="m26-admin-client-edit-access">
+          <div><span>Correo de acceso</span><strong data-admin-client-edit-email>—</strong></div>
+          <small>El correo de acceso está vinculado a la identidad y a la invitación. Se gestiona por un flujo de seguridad separado.</small>
+        </section>
+        <div class="m26-client-create-grid">
+          <label>Nombre completo<input name="name" maxlength="200" required autocomplete="name"></label>
+          <label>Teléfono<input name="phone" maxlength="80" autocomplete="tel" inputmode="tel"></label>
+          <label>Fecha de nacimiento<input type="date" name="birthDate" autocomplete="bday"></label>
+          <label>Sexo para baremos IRI<select name="sexForNorms"><option value="">Completar después</option><option value="female">Mujer</option><option value="male">Hombre</option></select></label>
+          <label>Canal preferido<select name="preferredContactChannel"><option value="">Sin preferencia</option><option value="whatsapp">WhatsApp</option><option value="email">Correo</option><option value="phone">Teléfono</option></select></label>
+          <label>Horario preferido de contacto<input name="preferredContactTime" maxlength="120"></label>
+          <label>Modalidad<select name="modality" required><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Online">Online</option></select></label>
+          <label>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" required inputmode="numeric"></label>
+          <label>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" required inputmode="numeric"></label>
+          <label>Diagnóstico inicial<select name="initialAssessmentMode" required><option value="iri">Realizar Diagnóstico IRI</option><option value="deferred">Posponer IRI</option></select></label>
+          <label>Comuna / zona<input name="zone" maxlength="120" autocomplete="address-level2"></label>
+          <label>Dirección de entrenamiento<input name="address" maxlength="300" autocomplete="street-address"></label>
+          <label class="m26-client-create-wide">Disponibilidad / horario<input name="preferredSchedule" maxlength="240"></label>
+          <label>Tipo de lugar<input name="locationType" maxlength="80"></label>
+          <label class="m26-client-create-wide">Indicaciones de acceso<textarea name="accessInstructions" maxlength="500"></textarea></label>
+          <label class="m26-client-create-wide">Objetivo principal<textarea name="objective" maxlength="1000" required></textarea></label>
+          <label class="m26-client-create-wide">Objetivos secundarios<textarea name="secondaryObjectives" maxlength="1000"></textarea></label>
+          <label>Nivel / experiencia<input name="level" maxlength="100"></label>
+          <label class="m26-client-create-wide">Historial de entrenamiento<textarea name="history" maxlength="1500"></textarea></label>
+          <label class="m26-client-create-wide">Entrenamiento actual<textarea name="currentTraining" maxlength="1000"></textarea></label>
+          <label class="m26-client-create-wide">Restricciones relevantes<textarea name="restrictions" maxlength="1000"></textarea></label>
+          <label class="m26-client-create-wide">Dolor o molestias actuales<textarea name="pain" maxlength="1000"></textarea></label>
+          <label class="m26-client-create-wide">Material disponible<textarea name="equipment" maxlength="1200"></textarea></label>
+          <label class="m26-client-create-wide">Preferencias<textarea name="preferences" maxlength="1200"></textarea></label>
+          <label>Contacto de emergencia<input name="emergencyContactName" maxlength="160" autocomplete="off"></label>
+          <label>Relación<input name="emergencyContactRelation" maxlength="120"></label>
+          <label>Teléfono de emergencia<input name="emergencyContactPhone" maxlength="80" inputmode="tel"></label>
+        </div>
+        <footer class="m26-admin-client-edit-actions">
+          <button type="button" data-admin-client-edit-close>Cancelar</button>
+          <button type="submit" class="m26-primary-action">Guardar cambios</button>
+        </footer>
+      </form>
+    </div>
+  </dialog><script type="application/json" data-admin-client-edit-data>${safeJson(records)}</script>`;
+}
 function renderClients(vm){
   const create=vm.canManage?clientCreateWizardForm(vm):'';
   const lead=vm.canManage?`<section class="m26-admin-panel m26-admin-lead-capture"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Prospección</p><h3>Registrar lead</h3><p>Guarda un contacto inicial para seguimiento comercial. Todavía no crea un expediente de cliente ni envía acceso a la app.</p></div>${badge('Contacto inicial')}</div>${form('lead-create',`<input name="name" maxlength="200" required placeholder="Nombre"><input type="email" name="email" maxlength="254" placeholder="Correo"><input name="phone" maxlength="80" placeholder="Teléfono"><input name="source" maxlength="120" placeholder="Origen"><textarea name="objective" maxlength="1000" placeholder="Objetivo o necesidad principal"></textarea>`,'Registrar lead')}</section>`:'';
   const leadTable=rows(['Lead','Origen','Estado','Gestión'],vm.leads.map((l)=>`<tr><td><strong>${e(l.name)}</strong><small>${e(l.email||l.phone||'')}</small></td><td>${e(l.source||'')}</td><td>${badge(l.status)}</td><td>${vm.canManage?form('lead-update',`<input type="hidden" name="leadId" value="${e(l.id)}"><input type="hidden" name="baseRevision" value="${e(l.revision||0)}"><select name="status"><option value="new">Nuevo</option><option value="contacted">Contactado</option><option value="qualified">Cualificado</option><option value="evaluation">Evaluación</option><option value="won">Ganado</option><option value="lost">Perdido</option></select><input type="datetime-local" name="nextActionAt"><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar'):'—'}</td></tr>`));
-  const clients=rows(['Cliente','Ciclo','Acceso','Coach','Gestión'],vm.clients.map((c)=>`<tr><td><strong>${e(c.name)}</strong><small>${e(c.email||c.id)}</small></td><td>${badge(c.lifecycle?.status||c.status)}</td><td>${badge(clientAccessLabel(c))}</td><td>${e(c.coachNames?.join(', ')||'Sin coach')}</td><td>${vm.canManage?`${form('client-lifecycle',`<input type="hidden" name="clientId" value="${e(c.id)}"><select name="status"><option value="onboarding">Onboarding</option><option value="active">Activo</option><option value="paused">Pausa</option><option value="inactive">Baja</option><option value="reactivation">Reactivación</option></select><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar')}${clientDelete(c)}`:'—'}</td></tr>`));
+  const clients=rows(['Cliente','Ciclo','Acceso','Coach','Gestión'],vm.clients.map((c)=>`<tr><td><strong>${e(c.name)}</strong><small>${e(c.email||c.id)}</small></td><td>${badge(c.lifecycle?.status||c.status)}</td><td>${badge(clientAccessLabel(c))}</td><td>${e(c.coachNames?.join(', ')||'Sin coach')}</td><td>${vm.canManage?`<div class="m26-admin-client-row-actions"><button type="button" data-admin-client-edit-open="${e(c.id)}">Editar ficha</button>${form('client-lifecycle',`<input type="hidden" name="clientId" value="${e(c.id)}"><select name="status"><option value="onboarding">Onboarding</option><option value="active">Activo</option><option value="paused">Pausa</option><option value="inactive">Baja</option><option value="reactivation">Reactivación</option></select><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar')}${clientDelete(c)}</div>`:'—'}</td></tr>`));
   const dangerStyle=`<style>.m26-admin-danger{margin-top:.7rem;border:1px solid color-mix(in srgb,#9f2d2d 40%,transparent);border-radius:14px;background:color-mix(in srgb,#9f2d2d 6%,transparent);overflow:hidden}.m26-admin-danger>summary{cursor:pointer;padding:.7rem .85rem;font-weight:700;color:#8f2424;list-style:none}.m26-admin-danger>summary::-webkit-details-marker{display:none}.m26-admin-danger-body{padding:.1rem .85rem .85rem;display:grid;gap:.65rem}.m26-admin-danger-body h4,.m26-admin-danger-body p{margin:0}.m26-admin-danger-body dl{display:grid;gap:.35rem;margin:.2rem 0}.m26-admin-danger-body dl div{display:grid;grid-template-columns:minmax(72px,.4fr) 1fr;gap:.5rem}.m26-admin-danger-body dt{font-weight:700}.m26-admin-danger-body dd{margin:0;overflow-wrap:anywhere}.m26-admin-danger-body .m26-admin-form{display:grid;gap:.55rem}.m26-admin-danger-body label{display:grid;gap:.28rem;font-size:.9rem}.m26-admin-danger-check{grid-template-columns:auto 1fr!important;align-items:start}.m26-admin-danger-body button[type=submit]{background:#9f2d2d!important;border-color:#9f2d2d!important;color:#fff!important}</style>`;
-  return `<div class="m26-admin-route">${dangerStyle}${intro('Servicio','Personas y clientes','Acompaña el recorrido desde el primer contacto hasta la reactivación.')}${vm.canManage?`<section class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Alta segura</p><h3>Nuevo cliente</h3><p>IBERFIT crea el expediente y envía el acceso mediante autenticación alojada. El estado queda trazado hasta la activación.</p></div></div>${create}</section>`:''}${lead}<section class="m26-admin-panel"><h3>Leads</h3>${vm.leads.length?leadTable:empty('Sin leads','Los contactos aparecerán aquí.')}</section><section class="m26-admin-panel"><h3>Clientes</h3>${vm.clients.length?clients:empty('Sin clientes','No hay expedientes visibles.')}</section></div>`;
+  return `<div class="m26-admin-route">${dangerStyle}${intro('Servicio','Personas y clientes','Acompaña el recorrido desde el primer contacto hasta la reactivación.')}${vm.canManage?`<section class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Alta segura</p><h3>Nuevo cliente</h3><p>IBERFIT crea el expediente y envía el acceso mediante autenticación alojada. El estado queda trazado hasta la activación.</p></div></div>${create}</section>`:''}${lead}<section class="m26-admin-panel"><h3>Leads</h3>${vm.leads.length?leadTable:empty('Sin leads','Los contactos aparecerán aquí.')}</section><section class="m26-admin-panel"><h3>Clientes</h3>${vm.clients.length?clients:empty('Sin clientes','No hay expedientes visibles.')}</section>${vm.canManage&&vm.clients.length?clientEditDialog(vm):''}</div>`;
 }
 function renderSimple(vm){if(vm.kind==='admin-agenda')return `<div class="m26-admin-route">${intro('Capacidad','Agenda global','Supervisa todas las citas y modalidades.')}<section class="m26-admin-panel">${vm.appointments.length?rows(['Fecha','Cliente','Estado'],vm.appointments.map((x)=>`<tr><td>${e(x.startAt||x.start_at||x.date||'')}</td><td>${e(x.clientId||x.client_id||'')}</td><td>${badge(x.status)}</td></tr>`)):empty('Agenda vacía','No hay citas visibles.')}</section></div>`;
   if(vm.kind==='admin-operaciones'){const create=vm.canManage?form('task-create',`<select name="priority"><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option></select><input name="taskType" value="manual_review"><input name="title" required placeholder="Título"><textarea name="detail" placeholder="Detalle"></textarea>`,'Crear tarea'):'';return `<div class="m26-admin-route">${intro('Control','Centro operativo','Centraliza incidencias y excepciones.')}${create}<section class="m26-admin-panel">${vm.tasks.length?vm.tasks.map((x)=>`<div class="m26-admin-list-item"><div><strong>${e(x.title||x.type)}</strong><p>${e(x.detail||'')}</p></div>${badge(x.status)}${vm.canManage&&!['resolved','cancelled'].includes(x.status)?form('task-resolve',`<input type="hidden" name="taskId" value="${e(x.id)}"><input type="hidden" name="baseRevision" value="${e(x.revision||0)}"><input name="reason" minlength="3" required placeholder="Resolución">`,'Resolver'):''}</div>`).join(''):empty('Sin tareas','No hay incidencias abiertas.')}</section></div>`;}
