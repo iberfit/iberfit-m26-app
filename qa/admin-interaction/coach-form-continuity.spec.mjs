@@ -250,3 +250,19 @@ test('Coach create-client keeps all daily-use fields usable while shell state re
 
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
+
+
+test('Focused form buttons never retain the persistent shell interaction lease',async({page,browserName})=>{
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/coach-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__?.mounted===true)).toBe(true);
+
+  const button=page.locator('[data-coach-save-view]');
+  await button.focus();
+  await expect(button).toBeFocused();
+
+  await page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__.setClientScenario('one'));
+  await expect(page.getByText('Ana Pérez',{exact:true}).first()).toBeVisible();
+
+  expect(errors,browserName+' emitted browser errors').toEqual([]);
+});

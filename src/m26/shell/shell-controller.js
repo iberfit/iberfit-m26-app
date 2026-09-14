@@ -387,7 +387,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   function onFocusIn(event){
     const control=interactiveControl(event.target);
     if(!control)return;
-    interactionFocusTarget=control;
+    interactionFocusTarget=control.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR)?control:null;
     markTextEntryActive(touchTextEntry(control));
     const tag=String(control?.tagName||'').toLowerCase();
     if(interactionPointerTarget===control&&!['select','button'].includes(tag)){
@@ -402,8 +402,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       releasePointerInteraction({deferRender:false});
     }
     queueMicrotask(()=>{
-      const active=interactiveControl(root.ownerDocument?.activeElement);
-      interactionFocusTarget=active&&root.contains?.(active)?active:null;
+      const active=focusedInteractiveControl();
+      interactionFocusTarget=active;
       markTextEntryActive(touchTextEntry(active));
       flushDeferredRender();
     });

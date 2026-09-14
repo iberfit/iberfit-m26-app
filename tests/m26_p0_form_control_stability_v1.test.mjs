@@ -46,10 +46,18 @@ test('Coach regression matrix explicitly covers every daily-use client-list cont
   assert.match(coach,/\[data-coach-view-name\]/u);
   assert.match(coach,/\[data-coach-saved-view\]/u);
   for(const name of ['name','email','phone','birthDate','sexForNorms','genderIdentity','pronouns','preferredContactChannel','modality','weeklyFrequency','sessionDurationMinutes','locationType','accessInstructions','primaryObjective']){
-    assert.match(coach,new RegExp('name=["\\\\]'+name.replace(/[.*+?^$\{\}()|[\]\\]/g,'\\$&')));
+    assert.ok(coach.includes(`[name="${name}"]`),`Coach continuity coverage missing ${name}`);
   }
   assert.match(coach,/must preserve the exact active DOM node/u);
   assert.match(fixture,/setClientScenario/u);
   assert.match(matrix,/browserName:'webkit'/u);
   assert.match(matrix,/browserName:'firefox'/u);
+});
+
+
+test('focused buttons do not hold the long-lived form-control lease',()=>{
+  assert.match(shell,/interactionFocusTarget=control\.matches\?\.\(SHELL_FOCUS_INTERACTIVE_SELECTOR\)\?control:null;/u);
+  assert.match(shell,/const active=focusedInteractiveControl\(\);\s*interactionFocusTarget=active;/u);
+  const coach=fs.readFileSync('qa/admin-interaction/coach-form-continuity.spec.mjs','utf8');
+  assert.match(coach,/Focused form buttons never retain the persistent shell interaction lease/u);
 });
