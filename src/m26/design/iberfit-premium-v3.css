@@ -569,3 +569,38 @@
     border-color:rgba(197,160,89,.26)!important;
   }
 }
+
+
+/* ---------- Residual light-surface closure ---------- */
+.m26-shell .m26-workspace .m26-operation-status{
+  color:var(--iberfit-v3-text-secondary)!important;
+  border-color:rgba(197,160,89,.12)!important;
+  background:rgba(16,29,24,.94)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.018)!important;
+}
+.m26-shell .m26-workspace .m26-hoy-route .m26-today-loop{
+  color:var(--iberfit-v3-text)!important;
+  border-color:var(--iberfit-v3-line)!important;
+  background:
+    radial-gradient(circle at 96% 0%,rgba(197,160,89,.045),transparent 14rem),
+    linear-gradient(150deg,#14251D,#0F1C17)!important;
+  box-shadow:var(--iberfit-v3-shadow)!important;
+}
+.m26-shell .m26-workspace .m26-hoy-route .m26-today-action{
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.12)!important;
+  background:#13221C!important;
+  box-shadow:none!important;
+}
+.m26-shell .m26-workspace .m26-hoy-route .m26-today-action:hover:not(:disabled){
+  border-color:rgba(197,160,89,.28)!important;
+  background:#182B23!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user-result-count{
+  color:var(--iberfit-v3-text)!important;
+  border-color:rgba(197,160,89,.12)!important;
+  background:#101E18!important;
+}
+.m26-shell[data-m26-role="admin"] .m26-workspace .m26-admin-user-result-count span{
+  color:var(--iberfit-v3-text-secondary)!important;
+}
