@@ -24,9 +24,11 @@ test('desktop navigation removes the duplicate settings destination semantically
   assert.doesNotMatch(css,/:has\(\.m26-nav-item\[data-m26-area="ajustes"\]\)/u);
 });
 
-test('compact layouts use navigation More while the desktop sidebar account control stays out of the topbar',async()=>{
+test('compact layouts use navigation More for Settings while preserving one semantic shell logout',async()=>{
   const [shell,css]=await Promise.all([read(shellUrl),read(settingsSurfaceUrl)]);
-  assert.match(shell,/mobileAccountAction=[\s\S]*data-m26-action="logout"/u);
+  assert.match(shell,/mobileAccountSlot='<div class="m26-mobile-more-account"><\/div>'/u);
+  assert.match(shell,/@media\(max-width:900px\)\{\.m26-sidebar\{display:none\}/u);
+  assert.equal((shell.match(/data-m26-action="logout"/gu)||[]).length,1);
   assert.match(css,/@media\(max-width:900px\)[\s\S]*\.m26-sidebar-footer \.m26-settings-menu\{display:none\}/u);
 });
 
