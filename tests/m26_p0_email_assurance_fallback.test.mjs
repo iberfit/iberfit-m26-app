@@ -88,9 +88,11 @@ test('P0 branded access email uses the official six-digit token and preserves th
   assert.match(html,/\{\{ \.Email \}\}/u);
   assert.doesNotMatch(html,/ConfirmationURL/u);
   assert.match(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
-  assert.match(html,/iberfit-email-access-hero\.jpg/u);
+  assert.doesNotMatch(html,/iberfit-email-access-hero\.jpg/u);
   assert.match(html,/IBERFIT nunca te pedirá este código por teléfono, WhatsApp ni mensaje directo/u);
   assert.equal(magic.subject,'Tu código de acceso IBERFIT');
+  assert.match(html,/#0B1310/iu);
+  assert.match(html,/#C5A059/iu);
   assert.deepEqual(magic.requires,['{{ .Token }}','{{ .Email }}']);
   assert.deepEqual(confirmation.requires,['{{ .ConfirmationURL }}']);
 });
