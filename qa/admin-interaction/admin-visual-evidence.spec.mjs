@@ -50,10 +50,10 @@ async function expectCanonicalAdminShell(page,{form=null}={}){
       surfaceBackground:surface?.backgroundColor||'',
     };
   });
-  expect(vision.workspaceScheme).toContain('light');
-  expect(vision.workspaceInk).toBe('#15271e');
+  expect(vision.workspaceScheme).toContain('dark');
+  expect(vision.workspaceInk.toLowerCase()).toBe('#f5f5f0');
   expect(vision.workspaceBackground).toContain('linear-gradient');
-  expect(vision.workspaceBackgroundColor).toBe('rgb(243, 238, 227)');
+  expect(vision.workspaceBackgroundColor).toBe('rgb(11, 19, 16)');
   expect(vision.navScheme).toContain('dark');
   expect(vision.navBackground).toContain('linear-gradient');
   expect(vision.surfaceBackground).not.toBe('rgba(0, 0, 0, 0)');
