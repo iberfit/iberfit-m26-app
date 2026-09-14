@@ -9,6 +9,7 @@ const DEFAULT_MANIFEST=path.join(ROOT,'supabase/templates/iberfit-hosted-auth-em
 const API_ORIGIN='https://api.supabase.com';
 const PROD_REF='pjhmrhejsoofmouedavw';
 const EXACT_CONFIRMATION='SYNC_IBERFIT_AUTH_EMAILS_PROD';
+const PROD_SITE_URL='https://app.iberfit.cl/';
 
 const sha256=(value)=>crypto.createHash('sha256').update(value).digest('hex');
 const nonEmpty=(value)=>typeof value==='string'&&value.trim().length>0;
@@ -56,8 +57,28 @@ async function managementRequest({token,projectRef,method='GET',body}){
   return data||{};
 }
 
+export function assertProductionAuthBaseline(config={}){
+  if(String(config.site_url||'').trim()!==PROD_SITE_URL)fail('IBERFIT_AUTH_EMAIL_SITE_URL_REQUIRED');
+  if(config.disable_signup!==true)fail('IBERFIT_AUTH_EMAIL_PUBLIC_SIGNUP_MUST_BE_DISABLED');
+  if(!Number.isFinite(Number(config.password_min_length))||Number(config.password_min_length)<8)fail('IBERFIT_AUTH_EMAIL_PASSWORD_BASELINE_REQUIRED');
+  if(config.external_anonymous_users_enabled===true)fail('IBERFIT_AUTH_EMAIL_ANONYMOUS_USERS_FORBIDDEN');
+  if(config.mailer_autoconfirm===true)fail('IBERFIT_AUTH_EMAIL_CONFIRMATION_REQUIRED');
+  if(config.mailer_allow_unverified_email_sign_ins===true)fail('IBERFIT_AUTH_EMAIL_UNVERIFIED_SIGNIN_FORBIDDEN');
+  if(config.mailer_secure_email_change_enabled!==true)fail('IBERFIT_AUTH_EMAIL_SECURE_CHANGE_REQUIRED');
+  return true;
+}
+
 export function assertCustomSmtp(config={}){
-  if(!nonEmpty(config.smtp_host)||!nonEmpty(config.smtp_admin_email)||!Number.isFinite(Number(config.smtp_port))||Number(config.smtp_port)<=0){
+  const port=Number(config.smtp_port);
+  if(
+    !nonEmpty(config.smtp_host)
+    || !nonEmpty(config.smtp_admin_email)
+    || !nonEmpty(config.smtp_user)
+    || !nonEmpty(config.smtp_sender_name)
+    || !Number.isFinite(port)
+    || port<=0
+    || port>65535
+  ){
     fail('IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED');
   }
   return true;
@@ -69,6 +90,7 @@ export async function syncHostedAuthEmails({token,projectRef=PROD_REF,confirmati
   if(!nonEmpty(token))fail('IBERFIT_AUTH_EMAIL_MANAGEMENT_TOKEN_REQUIRED');
   const built=await buildHostedAuthPatch({root,manifestPath});
   const before=await managementRequest({token,projectRef});
+  assertProductionAuthBaseline(before);
   assertCustomSmtp(before);
   await managementRequest({token,projectRef,method:'PATCH',body:built.patch});
   const after=await managementRequest({token,projectRef});
@@ -94,4 +116,4 @@ async function main(){
 const invoked=process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href;
 if(invoked)main().catch((error)=>{console.error(String(error?.message||error));process.exitCode=1;});
 
-export const __hostedAuthEmailInternals=Object.freeze({PROD_REF,EXACT_CONFIRMATION,DEFAULT_MANIFEST,sha256});
+export const __hostedAuthEmailInternals=Object.freeze({PROD_REF,PROD_SITE_URL,EXACT_CONFIRMATION,DEFAULT_MANIFEST,sha256});
