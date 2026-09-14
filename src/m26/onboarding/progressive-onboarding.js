@@ -554,13 +554,16 @@ export function createProgressiveOnboardingController({
       launcher.setAttribute('data-progressive-onboarding-open','');
       host.prepend?.(launcher);
     }
-    setAttributeIfChanged(launcher,'data-m26-area',context.track.home);
     if(context.role==='client'){
+      launcher.removeAttribute?.('data-m26-area');
+      launcher.removeAttribute?.('data-progressive-onboarding-open');
       launcher.setAttribute?.('data-m26-client-context-guide-open','');
       setTextIfChanged(launcher,'Guía');
       setAttributeIfChanged(launcher,'aria-label','Abrir guía contextual de esta pantalla');
     }else{
       launcher.removeAttribute?.('data-m26-client-context-guide-open');
+      launcher.setAttribute?.('data-progressive-onboarding-open','');
+      setAttributeIfChanged(launcher,'data-m26-area',context.track.home);
       setTextIfChanged(launcher,state.completed?'Guía completada':'Guía');
       setAttributeIfChanged(launcher,'aria-label',state.completed?'Abrir guía progresiva completada':'Abrir guía progresiva');
     }
