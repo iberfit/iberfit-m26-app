@@ -16,6 +16,10 @@ const SOURCE_COPY=Object.freeze({
   launcher:'Guía',
   'client-context-today.title':'Este es tu día en IBERFIT',
   'client-context-today.body':'Aquí verás lo importante sin tener que buscarlo. IBERFIT prioriza lo que tiene sentido ahora: entrenar, registrar cómo estás o continuar con el siguiente paso.',
+  'client-moment-plan-ready.title':'Tu planificación ya está disponible',
+  'client-moment-plan-ready.body':'Tu Coach ya ha dejado contenido preparado para ti. Puedes entrar ahora y ver cómo encajan las próximas sesiones dentro de tu proceso.',
+  'client-moment-session-ready.title':'Ya tienes una sesión preparada',
+  'client-moment-session-ready.body':'Hay un entrenamiento disponible para ti. Cuando quieras empezar, IBERFIT te irá mostrando ejercicios, series, carga, descansos e indicaciones sin sacarte del flujo.',
   'client-context-plan.title':'Tu planificación ya tiene contexto',
   'client-context-plan.body':'Aquí encontrarás lo que tu Coach ha preparado para ti y cómo encajan tus sesiones dentro del proceso.',
   'client-context-session.title':'Este es el espacio para entrenar',
@@ -28,52 +32,90 @@ const SOURCE_COPY=Object.freeze({
   'client-context-messages.body':'Mensajes mantiene el contexto con tu Coach entre sesiones. Úsalo para dudas, seguimiento y cambios que necesiten conversación.',
   'client-context-challenges.title':'Tu reto ya forma parte del proceso',
   'client-context-challenges.body':'Los retos convierten constancia, hábitos y objetivos confirmados en progreso visible. La parte social es privada por defecto y nunca publica datos de salud automáticamente.',
+  'client-feature-challenges.title':'Retos y comunidad están dentro de Más',
+  'client-feature-challenges.body':'Cuando no haya un reto activo, puedes entrar desde Más para conocer este espacio. La participación social es opcional, privada por defecto y nunca publica datos de salud automáticamente.',
   'client-context-settings.title':'Tú decides cómo quieres vivir la app',
   'client-context-settings.body':'En Ajustes controlas idioma, avisos, privacidad y permisos de experiencia. También puedes volver a abrir esta explicación cuando la necesites.',
 });
 
 const TIPS=Object.freeze([
   Object.freeze({
-    id:'client-context-today',
-    copyId:'client-context-today',
+    id:'client-moment-session-ready',
+    copyId:'client-moment-session-ready',
+    kind:'moment',
+    priority:120,
     area:'hoy',
-    selectors:Object.freeze(['[data-m26-client-guide="today"]']),
+    actionArea:'sesion',
+    seenAlso:Object.freeze(['client-context-session']),
+    selectors:Object.freeze(['[data-m26-client-guide="session-entry"]']),
   }),
   Object.freeze({
     id:'client-context-plan-ready',
-    copyId:'client-context-plan',
+    copyId:'client-moment-plan-ready',
+    kind:'moment',
+    priority:100,
     area:'hoy',
     actionArea:'planificacion',
+    seenAlso:Object.freeze(['client-context-plan']),
     selectors:Object.freeze(['[data-m26-client-guide="plan-entry"]']),
   }),
   Object.freeze({
     id:'client-context-challenge-ready',
     copyId:'client-context-challenges',
+    kind:'moment',
+    priority:90,
     area:'hoy',
     actionArea:'retos',
+    seenAlso:Object.freeze(['client-context-challenges']),
     selectors:Object.freeze(['[data-m26-client-guide="challenge-entry"]']),
+  }),
+  Object.freeze({
+    id:'client-context-today',
+    copyId:'client-context-today',
+    kind:'orientation',
+    priority:50,
+    area:'hoy',
+    selectors:Object.freeze(['[data-m26-client-guide="today"]']),
+  }),
+  Object.freeze({
+    id:'client-feature-challenges-community',
+    copyId:'client-feature-challenges',
+    kind:'feature',
+    priority:20,
+    area:'hoy',
+    actionArea:'retos',
+    selectors:Object.freeze(['.m26-client-bottom-nav-more > summary']),
+    excludeSelectors:Object.freeze(['[data-m26-client-guide="challenge-entry"]']),
   }),
   Object.freeze({
     id:'client-context-plan',
     copyId:'client-context-plan',
+    kind:'orientation',
+    priority:50,
     area:'planificacion',
     selectors:Object.freeze(['[data-m26-client-guide="plan-surface"]']),
   }),
   Object.freeze({
     id:'client-context-session',
     copyId:'client-context-session',
+    kind:'orientation',
+    priority:50,
     area:'sesion',
     selectors:Object.freeze(['[data-m26-client-guide="session-surface"]']),
   }),
   Object.freeze({
     id:'client-context-progress',
     copyId:'client-context-progress',
+    kind:'moment',
+    priority:80,
     area:'progreso',
     selectors:Object.freeze(['[data-m26-client-guide="progress-surface"]']),
   }),
   Object.freeze({
     id:'client-context-activity',
     copyId:'client-context-activity',
+    kind:'orientation',
+    priority:40,
     area:'actividad',
     selectors:Object.freeze([
       '[data-client-bottom-nav-route="actividad"] .m26-route-intro',
@@ -83,6 +125,8 @@ const TIPS=Object.freeze([
   Object.freeze({
     id:'client-context-messages',
     copyId:'client-context-messages',
+    kind:'orientation',
+    priority:40,
     area:'mensajes',
     selectors:Object.freeze([
       '[data-client-bottom-nav-route="mensajes"] .m26-route-intro',
@@ -92,24 +136,28 @@ const TIPS=Object.freeze([
   Object.freeze({
     id:'client-context-challenges',
     copyId:'client-context-challenges',
+    kind:'moment',
+    priority:80,
     area:'retos',
     selectors:Object.freeze(['[data-m26-client-guide="challenge-surface"]']),
   }),
   Object.freeze({
     id:'client-context-settings',
     copyId:'client-context-settings',
+    kind:'orientation',
+    priority:30,
     area:'ajustes',
     selectors:Object.freeze([
       '[data-client-bottom-nav-route="ajustes"] .m26-route-intro',
       '[data-client-bottom-nav-route="ajustes"]',
     ]),
   }),
-]);
+])
 
 const LEGACY_PROGRESSIVE_MAP=Object.freeze({
   'client-today':Object.freeze(['client-context-today']),
   'client-plan':Object.freeze(['client-context-plan-ready','client-context-plan']),
-  'client-session':Object.freeze(['client-context-session']),
+  'client-session':Object.freeze(['client-moment-session-ready','client-context-session']),
   'client-progress':Object.freeze(['client-context-progress']),
   'client-activity':Object.freeze(['client-context-activity']),
 });
@@ -210,7 +258,11 @@ function readJson(storage,key){try{const raw=storage?.getItem?.(key);return raw?
 
 export function clientContextualGuideTipsForArea(area){
   const current=txt(area,80);
-  return Object.freeze(TIPS.filter((tip)=>tip.area===current));
+  return Object.freeze(
+    TIPS
+      .filter((tip)=>tip.area===current)
+      .sort((left,right)=>Number(right.priority||0)-Number(left.priority||0))
+  );
 }
 export function clientContextualGuideTipForArea(area){return clientContextualGuideTipsForArea(area)[0]||null;}
 export function clientContextualGuideScopeKey({userId,role}={}){
@@ -465,7 +517,11 @@ export function createClientContextualGuideController({
   }
   function markSeen(ctx,tip){
     const state=stateWithLegacy(ctx);
-    persist(ctx,{seenTipIds:[...state.seenTipIds,tip.id]});
+    persist(ctx,{seenTipIds:[
+      ...state.seenTipIds,
+      tip.id,
+      ...(Array.isArray(tip.seenAlso)?tip.seenAlso:[]),
+    ]});
   }
   function markDismissed(ctx,tip){
     const state=stateWithLegacy(ctx);
@@ -475,6 +531,7 @@ export function createClientContextualGuideController({
     const state=stateWithLegacy(ctx);
     for(const tip of clientContextualGuideTipsForArea(current)){
       if(!target(root,tip))continue;
+      if((tip.excludeSelectors||[]).some((selector)=>root?.querySelector?.(selector)))continue;
       if(force)return tip;
       if(state.seenTipIds.includes(tip.id)||state.dismissedTipIds.includes(tip.id))continue;
       return tip;
