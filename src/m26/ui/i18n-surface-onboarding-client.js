@@ -107,7 +107,7 @@ export const ONBOARDING_CLIENT_SURFACE_ROWS=Object.freeze([
 ['Utiliza al menos 8 caracteres y una contraseña distinta de las que uses en otros servicios.','Use at least 8 characters and a password different from those you use for other services.','Utilisez au moins 8 caractères et un mot de passe différent de ceux utilisés pour d’autres services.','Utilize pelo menos 8 caracteres e uma palavra-passe diferente das que usa noutros serviços.'],
 ['Entrenamiento personal con criterio','Personal training with purpose','Coaching personnalisé avec méthode','Treino personalizado com critério'],
 ['Diagnóstico, planificación, control y seguimiento.','Assessment, planning, control and follow-up.','Diagnostic, planification, contrôle et suivi.','Diagnóstico, planeamento, controlo e acompanhamento.'],
-['Primera vez o no recuerdo mi contraseña','First time here or forgot your password','Première connexion ou mot de passe oublié','Primeiro acesso ou não se lembra da palavra-passe']
+['Primera vez o no recuerdo mi contraseña','First time here or forgot your password','Première connexion ou mot de passe oublié','Primeiro acesso ou não se lembra da palavra-passe'],
 ["Guía IBERFIT","IBERFIT guide","Guide IBERFIT","Guia IBERFIT"],
 ["Cerrar y seguir usando la app","Close and keep using the app","Fermer et continuer dans l’application","Fechar e continuar a usar a app"],
 ["Ahora no","Not now","Pas maintenant","Agora não"],
