@@ -1,0 +1,172 @@
+name: IBERFIT PROD SMTP Configure
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.iberfit/ops/run-prod-smtp-config.marker'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-prod-smtp-config
+  cancel-in-progress: false
+
+env:
+  PROD_SUPABASE_REF: 'pjhmrhejsoofmouedavw'
+  EXPECTED_SITE_URL: 'https://app.iberfit.cl/'
+
+jobs:
+  configure-prod-smtp:
+    name: configure-prod-smtp-fail-closed
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact operational branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configure and verify custom SMTP with rollback guard
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SMTP_HOST: ${{ secrets.IBERFIT_SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.IBERFIT_SMTP_PORT }}
+          SMTP_USER: ${{ secrets.IBERFIT_SMTP_USER }}
+          SMTP_PASS: ${{ secrets.IBERFIT_SMTP_PASS }}
+          SMTP_ADMIN_EMAIL: ${{ secrets.IBERFIT_SMTP_ADMIN_EMAIL }}
+          SMTP_SENDER_NAME: ${{ secrets.IBERFIT_SMTP_SENDER_NAME }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/smtp
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const ref=process.env.PROD_SUPABASE_REF;
+          const token=String(process.env.SUPABASE_ACCESS_TOKEN||'');
+          const host=String(process.env.SMTP_HOST||'').trim();
+          const port=Number(process.env.SMTP_PORT);
+          const user=String(process.env.SMTP_USER||'').trim();
+          const pass=String(process.env.SMTP_PASS||'');
+          const adminEmail=String(process.env.SMTP_ADMIN_EMAIL||'').trim().toLowerCase();
+          const senderName=String(process.env.SMTP_SENDER_NAME||'').trim();
+
+          const required=[
+            ['SUPABASE_ACCESS_TOKEN',token],
+            ['IBERFIT_SMTP_HOST',host],
+            ['IBERFIT_SMTP_USER',user],
+            ['IBERFIT_SMTP_PASS',pass],
+            ['IBERFIT_SMTP_ADMIN_EMAIL',adminEmail],
+            ['IBERFIT_SMTP_SENDER_NAME',senderName],
+          ];
+          for(const [name,value] of required){
+            if(!value)throw new Error(`SMTP_SECRET_REQUIRED:${name}`);
+          }
+          if(!Number.isInteger(port)||port<1||port>65535)throw new Error('SMTP_PORT_INVALID');
+          if(!adminEmail.includes('@')||adminEmail.length>254)throw new Error('SMTP_ADMIN_EMAIL_INVALID');
+          if(host.length>255||user.length>320||senderName.length>120||pass.length>4096)throw new Error('SMTP_SECRET_SHAPE_INVALID');
+
+          const endpoint=`https://api.supabase.com/v1/projects/${encodeURIComponent(ref)}/config/auth`;
+          async function request(method='GET',body){
+            const response=await fetch(endpoint,{
+              method,
+              headers:{Authorization:`Bearer ${token}`,Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},
+              ...(body?{body:JSON.stringify(body)}:{})
+            });
+            let data={};
+            try{data=await response.json();}catch{}
+            if(!response.ok)throw new Error(`SMTP_MANAGEMENT_API_${method}_${response.status}`);
+            return data||{};
+          }
+
+          const before=await request();
+          if(String(before.site_url||'')!==process.env.EXPECTED_SITE_URL){
+            throw new Error('SMTP_SITE_URL_DRIFT');
+          }
+
+          const safeBefore={
+            smtp_host:String(before.smtp_host||''),
+            smtp_port:Number(before.smtp_port)||0,
+            smtp_user:String(before.smtp_user||''),
+            smtp_admin_email:String(before.smtp_admin_email||''),
+            smtp_sender_name:String(before.smtp_sender_name||''),
+          };
+          fs.writeFileSync('recovery/smtp/prod-before-sanitized.json',JSON.stringify({
+            schema:'iberfit.smtp-state.v1',
+            projectRef:ref,
+            siteUrl:String(before.site_url||''),
+            configured:Boolean(safeBefore.smtp_host&&safeBefore.smtp_admin_email&&safeBefore.smtp_port>0),
+            hostConfigured:Boolean(safeBefore.smtp_host),
+            port:safeBefore.smtp_port||null,
+            userConfigured:Boolean(safeBefore.smtp_user),
+            adminEmailDomain:safeBefore.smtp_admin_email.includes('@')?safeBefore.smtp_admin_email.split('@').pop():null,
+            senderNameConfigured:Boolean(safeBefore.smtp_sender_name)
+          },null,2)+'\n');
+
+          const patch={
+            smtp_host:host,
+            smtp_port:port,
+            smtp_user:user,
+            smtp_pass:pass,
+            smtp_admin_email:adminEmail,
+            smtp_sender_name:senderName,
+          };
+
+          let changed=false;
+          try{
+            await request('PATCH',patch);
+            changed=true;
+            const after=await request();
+            const verified=
+              String(after.site_url||'')===process.env.EXPECTED_SITE_URL &&
+              String(after.smtp_host||'').trim()===host &&
+              Number(after.smtp_port)===port &&
+              String(after.smtp_user||'').trim()===user &&
+              String(after.smtp_admin_email||'').trim().toLowerCase()===adminEmail &&
+              String(after.smtp_sender_name||'').trim()===senderName;
+
+            if(!verified)throw new Error('SMTP_REMOTE_VERIFY_FAILED');
+
+            fs.writeFileSync('recovery/smtp/prod-after-sanitized.json',JSON.stringify({
+              schema:'iberfit.smtp-evidence.v1',
+              projectRef:ref,
+              siteUrl:String(after.site_url||''),
+              customSmtpReady:true,
+              hostConfigured:true,
+              port:Number(after.smtp_port),
+              userConfigured:true,
+              adminEmailDomain:adminEmail.split('@').pop(),
+              senderNameConfigured:true,
+              changed
+            },null,2)+'\n');
+            console.log(JSON.stringify({ok:true,customSmtpReady:true,projectRef:ref,port:Number(after.smtp_port),siteUrl:String(after.site_url||'')}));
+          }catch(error){
+            if(changed){
+              try{
+                const rollback={
+                  smtp_host:safeBefore.smtp_host,
+                  smtp_port:safeBefore.smtp_port,
+                  smtp_user:safeBefore.smtp_user,
+                  smtp_admin_email:safeBefore.smtp_admin_email,
+                  smtp_sender_name:safeBefore.smtp_sender_name,
+                };
+                if(safeBefore.smtp_host&&safeBefore.smtp_admin_email&&safeBefore.smtp_port>0){
+                  await request('PATCH',rollback);
+                }
+              }catch{}
+            }
+            throw error;
+          }
+          NODE
+
+      - name: Preserve sanitized SMTP evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-prod-smtp-${{ github.run_id }}
+          path: recovery/smtp/
+          if-no-files-found: warn
+          retention-days: 30
