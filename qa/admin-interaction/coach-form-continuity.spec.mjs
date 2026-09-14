@@ -48,6 +48,10 @@ test('Coach client onboarding inputs and selects survive background shell refres
   await channel.selectOption('Correo electrónico');
   await expect(channel).toHaveValue('Correo electrónico');
 
+  await name.scrollIntoViewIfNeeded();
+  await name.click();
+  await expect(name).toBeFocused();
+
   const hit=await name.evaluate((node)=>{
     const box=node.getBoundingClientRect();
     const top=document.elementFromPoint(box.left+box.width/2,box.top+box.height/2);
