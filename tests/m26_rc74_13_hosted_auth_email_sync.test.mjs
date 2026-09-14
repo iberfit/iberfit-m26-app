@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import {buildHostedAuthPatch,assertCustomSmtp,__hostedAuthEmailInternals} from '../scripts/auth/sync-hosted-auth-emails.mjs';
+import {buildHostedAuthPatch,assertCustomSmtp,assertProductionAuthBaseline,__hostedAuthEmailInternals} from '../scripts/auth/sync-hosted-auth-emails.mjs';
 
 const read=(path)=>fs.readFileSync(path,'utf8');
 
@@ -29,16 +29,44 @@ test('la reautenticación usa el OTP oficial sin exponer TokenHash ni secretos',
   assert.match(html,/Confirma que eres tú/u);
 });
 
-test('el sincronizador exige SMTP propio antes de permitir Hosted Auth',()=>{
-  assert.equal(assertCustomSmtp({smtp_host:'smtp.resend.com',smtp_admin_email:'no-reply@iberfit.cl',smtp_port:587}),true);
+test('el sincronizador exige baseline Auth PROD y SMTP propio antes de permitir Hosted Auth',()=>{
+  const baseline={
+    site_url:'https://app.iberfit.cl/',
+    disable_signup:true,
+    password_min_length:8,
+    external_anonymous_users_enabled:false,
+    mailer_autoconfirm:false,
+    mailer_allow_unverified_email_sign_ins:false,
+    mailer_secure_email_change_enabled:true,
+  };
+  assert.equal(assertProductionAuthBaseline(baseline),true);
+  assert.throws(()=>assertProductionAuthBaseline({...baseline,site_url:'https://m26-canary.iberfit.cl/'}),/SITE_URL_REQUIRED/u);
+  assert.throws(()=>assertProductionAuthBaseline({...baseline,disable_signup:false}),/PUBLIC_SIGNUP_MUST_BE_DISABLED/u);
+  assert.throws(()=>assertProductionAuthBaseline({...baseline,password_min_length:6}),/PASSWORD_BASELINE_REQUIRED/u);
+  assert.throws(()=>assertProductionAuthBaseline({...baseline,external_anonymous_users_enabled:true}),/ANONYMOUS_USERS_FORBIDDEN/u);
+  assert.throws(()=>assertProductionAuthBaseline({...baseline,mailer_autoconfirm:true}),/CONFIRMATION_REQUIRED/u);
+  assert.throws(()=>assertProductionAuthBaseline({...baseline,mailer_allow_unverified_email_sign_ins:true}),/UNVERIFIED_SIGNIN_FORBIDDEN/u);
+  assert.throws(()=>assertProductionAuthBaseline({...baseline,mailer_secure_email_change_enabled:false}),/SECURE_CHANGE_REQUIRED/u);
+
+  const smtp={
+    smtp_host:'smtp.provider.test',
+    smtp_admin_email:'no-reply@iberfit.cl',
+    smtp_user:'iberfit-smtp-user',
+    smtp_sender_name:'IBERFIT',
+    smtp_port:587,
+  };
+  assert.equal(assertCustomSmtp(smtp),true);
   assert.throws(()=>assertCustomSmtp({}),/IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED/u);
-  assert.throws(()=>assertCustomSmtp({smtp_host:'smtp.resend.com',smtp_admin_email:'',smtp_port:587}),/IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED/u);
+  assert.throws(()=>assertCustomSmtp({...smtp,smtp_user:''}),/IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED/u);
+  assert.throws(()=>assertCustomSmtp({...smtp,smtp_sender_name:''}),/IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED/u);
+  assert.throws(()=>assertCustomSmtp({...smtp,smtp_port:70000}),/IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED/u);
 });
 
 test('la publicación remota queda limitada al proyecto PROD y exige confirmación exacta',()=>{
   const source=read('scripts/auth/sync-hosted-auth-emails.mjs');
   const workflow=read('.github/workflows/hosted-auth-email-sync.yml');
   assert.equal(__hostedAuthEmailInternals.PROD_REF,'pjhmrhejsoofmouedavw');
+  assert.equal(__hostedAuthEmailInternals.PROD_SITE_URL,'https://app.iberfit.cl/');
   assert.equal(__hostedAuthEmailInternals.EXACT_CONFIRMATION,'SYNC_IBERFIT_AUTH_EMAILS_PROD');
   assert.match(source,/IBERFIT_AUTH_EMAIL_PROD_REF_REQUIRED/u);
   assert.match(source,/IBERFIT_AUTH_EMAIL_EXPLICIT_CONFIRMATION_REQUIRED/u);
@@ -79,6 +107,7 @@ test('la promoción activa OTP solo con sincronización y verificación SMTP fai
   const block=workflow.slice(sync,deploy);
   assert.match(block,/sync-hosted-auth-emails\.mjs --sync/u);
   const syncSource=read('scripts/auth/sync-hosted-auth-emails.mjs');
+  assert.match(syncSource,/assertProductionAuthBaseline\(before\)/u);
   assert.match(syncSource,/assertCustomSmtp\(before\)/u);
   assert.match(syncSource,/IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED/u);
 });
