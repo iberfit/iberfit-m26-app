@@ -146,10 +146,10 @@ test('Client Genie owns first-run navigation, can pause/resume, returns to Today
     });
 
     const journey=[
-      {area:'planificacion',title:'Ven, mira esto.',state:'pointing'},
-      {area:'sesion',title:'Cuando toque entrenar, te traigo aquí.',state:'pointing'},
-      {area:'progreso',title:'Y aquí empieza a verse el proceso.',state:'pointing'},
-      {area:'mensajes',title:'Tu Coach sigue cerca.',state:'pointing'},
+      {area:'planificacion',title:'Esta es tu hoja de ruta.',state:'pointing'},
+      {area:'sesion',title:'Y cuando toque entrenar, vengo contigo.',state:'pointing'},
+      {area:'progreso',title:'Esto es lo que va cambiando.',state:'pointing'},
+      {area:'mensajes',title:'Y si necesitas hablar, aquí.',state:'pointing'},
       {area:'hoy',title:'Ya está. Te dejo aquí.',state:'success'},
     ];
 
@@ -157,6 +157,13 @@ test('Client Genie owns first-run navigation, can pause/resume, returns to Today
       await page.locator('[data-m26-client-guided-welcome-next]').click({timeout:5_000});
       await expectJourneyState(page,step);
     }
+
+    await expect(page.locator('.m26-skip-link')).not.toBeVisible();
+    await expect(
+      page.locator('.m26-client-guided-welcome-actions [data-m26-client-guided-welcome-pause]'),
+      'Finish should not offer a redundant “later” action',
+    ).toHaveCount(0);
+    await expect(page.locator('[data-m26-client-guided-welcome-next]')).toBeFocused();
 
     await page.screenshot({
       path:`recovery/client-genie-welcome/client-genie-finish-${slug(testInfo.project.name)}.png`,
