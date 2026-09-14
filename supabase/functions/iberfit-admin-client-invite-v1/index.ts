@@ -1,10 +1,8 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 
-const FUNCTION_VERSION='admin-client-invite-v26.1';
+const FUNCTION_VERSION='admin-client-invite-v26.2';
 const ALLOWED_ORIGINS=new Set([
-  'https://m26-canary.iberfit.cl',
   'https://app.iberfit.cl',
-  'https://coach.iberfit.cl',
 ]);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MAX_BODY=160_000;

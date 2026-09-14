@@ -43,3 +43,11 @@ test('invitation flow remains fail-closed behind admin authorization and privile
   assert.match(edge, /ALLOWED_ORIGINS/);
   assert.match(edge, /authorization\.startsWith\('Bearer '\)/);
 });
+
+
+test('production invitation Edge Function accepts only the canonical app origin', () => {
+  assert.match(edge, /const ALLOWED_ORIGINS=new Set\(\[\s*'https:\/\/app\.iberfit\.cl',?\s*\]\);/u);
+  assert.doesNotMatch(edge, /m26-canary\.iberfit\.cl/u);
+  assert.doesNotMatch(edge, /coach\.iberfit\.cl/u);
+  assert.match(edge, /const FUNCTION_VERSION='admin-client-invite-v26\.2';/u);
+});
