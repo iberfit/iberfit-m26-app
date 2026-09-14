@@ -325,6 +325,8 @@ function positionPresence(node,targetNode,scope,{arriving=false}={}){
     const margin=mobile?10:14;
     const gap=mobile?8:10;
     const bottomReserve=mobile?104:margin;
+    const outside=Number(rect.bottom||0)<margin||Number(rect.top||0)>height-bottomReserve||Number(rect.right||0)<0||Number(rect.left||0)>width;
+    if(outside){hidePresence(node);return false;}
     let left=Number(rect.right||0)+gap;
     if(left+size>width-margin)left=Number(rect.left||0)-size-gap;
     if(left<margin)left=Math.min(width-size-margin,Math.max(margin,Number(rect.left||margin)+gap));
@@ -336,6 +338,7 @@ function positionPresence(node,targetNode,scope,{arriving=false}={}){
     node.style.top=`${Math.round(top)}px`;
     node.setAttribute?.('data-m26-client-guide-positioned','true');
     node.classList?.add?.('is-visible');
+    if(!arriving)node.classList?.remove?.('is-arriving');
     if(arriving&&!reduced(scope)){
       node.classList?.remove?.('is-arriving');
       void node.offsetWidth;
@@ -565,8 +568,9 @@ export function createClientContextualGuideController({
     markSeen(ctx,tip);
     close({restoreFocus:false,preservePresence:true});
     const destination=root.querySelector?.(`[data-m26-area="${actionArea}"]`);
-    destination?.click?.();
-    return Boolean(destination);
+    if(!destination){hidePresence(presence);return false;}
+    destination.click?.();
+    return true;
   }
   function click(event){
     const ctx=context();
