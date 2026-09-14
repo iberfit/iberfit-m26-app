@@ -81,6 +81,7 @@ function groupedNavigation(vm){
 }
 
 function clientSelector(vm) {
+  if(String(vm?.identity?.role||'')==='client')return '';
   if (!vm.selectedClient && !vm.canChangeClient) return '';
   if (!vm.canChangeClient) {
     return `<div class="m26-client-context"><span>${escapeHtml(tx('common.selectedClient','Expediente activo'))}</span><strong>${escapeHtml(vm.selectedClient?.name || tx('common.noClient','Sin expediente disponible'))}</strong>${vm.selectedClient?.modality ? `<small>${escapeHtml(vm.selectedClient.modality)}</small>` : ''}</div>`;
@@ -118,11 +119,15 @@ function settingsMenu(vm){
 
 function sidebarAccount(vm){
   const identityRoleLabel=tx(`shell.role.${vm.identity.role}`,vm.identity.roleLabel);
+  const guide=String(vm?.identity?.role||'')==='client'
+    ?`<button type="button" class="m26-sidebar-guide" data-m26-client-context-guide-open aria-label="Abrir guía contextual de esta pantalla">Guía IBERFIT</button>`
+    :'';
   return `<div class="m26-sidebar-footer">
     <div class="m26-sidebar-identity">
       <span>${escapeHtml(identityRoleLabel)}</span>
       <strong>${escapeHtml(vm.identity.name)}</strong>
     </div>
+    ${guide}
     ${settingsMenu(vm)}
     <button type="button" class="m26-sidebar-logout" data-m26-action="logout">${escapeHtml(tx('common.logout','Cerrar sesión'))}</button>
   </div>`;
