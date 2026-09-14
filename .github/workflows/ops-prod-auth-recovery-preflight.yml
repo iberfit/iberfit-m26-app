@@ -1,0 +1,57 @@
+name: IBERFIT PROD Auth Recovery Preflight
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.github/workflows/ops-prod-auth-recovery-preflight.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-prod-auth-recovery-preflight
+  cancel-in-progress: false
+
+env:
+  PROD_SUPABASE_URL: 'https://pjhmrhejsoofmouedavw.supabase.co'
+  PROD_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_R5hU49RTDLAFFx46j4b4Hg_l8o0Pg2k'
+  RECOVERY_EMAIL: 'iberfit.cl@gmail.com'
+  REDIRECT_TO: 'https://app.iberfit.cl/'
+
+jobs:
+  recovery-preflight:
+    name: request-existing-user-recovery-email
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Request password recovery without changing account state
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const url=process.env.PROD_SUPABASE_URL+'/auth/v1/recover?redirect_to='+encodeURIComponent(process.env.REDIRECT_TO);
+          const key=process.env.PROD_SUPABASE_PUBLISHABLE_KEY;
+          const email=process.env.RECOVERY_EMAIL;
+          const response=await fetch(url,{
+            method:'POST',
+            headers:{
+              apikey:key,
+              Authorization:`Bearer ${key}`,
+              'Content-Type':'application/json'
+            },
+            body:JSON.stringify({email})
+          });
+          let body={};
+          try{body=await response.json();}catch{}
+          if(!response.ok){
+            console.log(JSON.stringify({
+              status:response.status,
+              code:body.code||body.error_code||null,
+              message:body.msg||body.message||null
+            }));
+            throw new Error(`RECOVERY_PREFLIGHT_HTTP_${response.status}`);
+          }
+          console.log(JSON.stringify({ok:true,status:response.status,requestAccepted:true}));
+          NODE
