@@ -536,6 +536,7 @@ function createCoreGuidedTourController({
   function context(){
     const value=identityProvider?.()||{};
     const role=text(value.role,40).toLowerCase();
+    if(role==='client'&&root?.getAttribute?.('data-m26-client-contextual-guide-enabled')==='true')return null;
     const userId=text(value.userId,240);
     const tour=guidedOnboardingTrack(role);
     const key=guidedOnboardingScopeKey({userId,role});
