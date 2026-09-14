@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {legacyClientDraftPayload,validateClientOnboardingDraft} from '../src/m26/workflows/client-onboarding.js';
-import {initialAssessmentModeFrom,isIriDeferred} from '../src/m26/domain/initial-assessment.js';
+import {initialAssessmentModeFrom,initialAssessmentPostCreateArea,isIriDeferred} from '../src/m26/domain/initial-assessment.js';
 import {onboardingChoiceMarkup,onboardingPostCreateArea,syncFlexibleOnboardingForm} from '../src/m26/onboarding/progressive-onboarding.js';
 
 const minimal={name:'Ana Pérez',email:'ana@example.com',phone:'+56911111111',birthDate:'1990-02-03',modality:'online'};
@@ -42,6 +42,13 @@ test('la navegación posterior respeta la decisión explícita',()=>{
   assert.equal(onboardingPostCreateArea(form('deferred')),'expediente');
   assert.equal(onboardingPostCreateArea(form('iri')),'iri');
   assert.equal(onboardingPostCreateArea(null),'iri');
+});
+
+test('la política de destino es única y mantiene IRI como fallback recomendado',()=>{
+  assert.equal(initialAssessmentPostCreateArea('iri'),'iri');
+  assert.equal(initialAssessmentPostCreateArea('deferred'),'expediente');
+  assert.equal(initialAssessmentPostCreateArea(''),'iri');
+  assert.equal(initialAssessmentPostCreateArea('desconocido'),'iri');
 });
 
 test('deferred relaja sólo los campos propios del IRI y mantiene identidad básica',()=>{
