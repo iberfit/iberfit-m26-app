@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "39e160fb54d1e866823a8150ecd9270359129444",
+  "sourceBranch": "candidate/prod-39e160fb54d1",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción certificada tras cierre de SMTP/Auth, OTP 6 dígitos, DMARC y Secure password change"
+}
