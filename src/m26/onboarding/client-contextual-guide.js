@@ -195,6 +195,7 @@ export function normalizeClientContextualGuideState(value={}){
     schemaVersion:CLIENT_CONTEXTUAL_GUIDE_SCHEMA_VERSION,
     seenTipIds:Object.freeze(unique(value?.seenTipIds)),
     dismissedTipIds:Object.freeze(unique(value?.dismissedTipIds)),
+    legacyMigrated:Boolean(value?.legacyMigrated),
   });
 }
 
@@ -212,7 +213,11 @@ export function legacyClientContextualGuideSeed({storage,userId}={}){
   const guidedSkipped=Number(guided.onboardingSkippedVersion||0)>=1||guided.status==='skipped';
   if(guidedCompleted)seen.push(...LEGACY_GUIDED_ALL);
   const dismissed=guidedSkipped?[...TIPS.map((tip)=>tip.id)]:[];
-  return normalizeClientContextualGuideState({seenTipIds:seen,dismissedTipIds:dismissed});
+  return normalizeClientContextualGuideState({
+    seenTipIds:seen,
+    dismissedTipIds:dismissed,
+    legacyMigrated:true,
+  });
 }
 
 export function createClientContextualGuideRepository({storage,scope=globalThis}={}){
@@ -331,15 +336,14 @@ export function createClientContextualGuideController({
   }
   function stateWithLegacy(ctx){
     const current=repo.read(ctx.key);
+    if(current.legacyMigrated)return current;
     const legacy=legacyClientContextualGuideSeed({storage:resolvedStorage,userId:ctx.userId});
     const merged=normalizeClientContextualGuideState({
       seenTipIds:[...current.seenTipIds,...legacy.seenTipIds],
       dismissedTipIds:[...current.dismissedTipIds,...legacy.dismissedTipIds],
+      legacyMigrated:true,
     });
-    if(
-      merged.seenTipIds.length!==current.seenTipIds.length||
-      merged.dismissedTipIds.length!==current.dismissedTipIds.length
-    )repo.write(ctx.key,merged);
+    repo.write(ctx.key,merged);
     return merged;
   }
   function persist(ctx,patch){
@@ -347,6 +351,7 @@ export function createClientContextualGuideController({
     repo.write(ctx.key,{
       seenTipIds:patch.seenTipIds||current.seenTipIds,
       dismissedTipIds:patch.dismissedTipIds||current.dismissedTipIds,
+      legacyMigrated:true,
     });
   }
   function close({restoreFocus=true}={}){
