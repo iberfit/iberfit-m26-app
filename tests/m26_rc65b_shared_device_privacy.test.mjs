@@ -171,12 +171,14 @@ test('RC65-B productividad elimina únicamente su workspace owner-scoped',()=>{
 
 test('RC65-B UI separa logout normal de borrado destructivo también bajo i18n',()=>{
   const shell=fs.readFileSync('src/m26/shell/shell-render.js','utf8');
+  const route=fs.readFileSync('src/m26/modules/route-render.js','utf8');
   const controller=fs.readFileSync('src/m26/shell/shell-controller.js','utf8');
   const app=fs.readFileSync('src/m26/app/application.js','utf8');
   const wearable=fs.readFileSync('src/m26/wearables/controller.js','utf8');
 
   assert.match(shell,/data-m26-action="logout">\$\{escapeHtml\(tx\('common\.logout','Cerrar sesión'\)\)\}/u);
-  assert.match(shell,/data-m26-action="logout-clear-device">\$\{escapeHtml\(tx\('common\.logoutClear','Cerrar sesión y borrar datos de este dispositivo'\)\)\}/u);
+  assert.doesNotMatch(shell,/data-m26-action="logout-clear-device"/u);
+  assert.match(route,/data-m26-action="logout-clear-device">Cerrar sesión y borrar datos de este dispositivo<\/button>/u);
   assert.match(controller,/m26:logout-and-clear-device/u);
   assert.match(app,/root\.addEventListener\('m26:logout-and-clear-device',onLogoutAndClearDevice\)/u);
   assert.match(app,/function onLogout\(\)\{const token=currentToken\(\);finishLogout\(\{token\}\);\}/u);
