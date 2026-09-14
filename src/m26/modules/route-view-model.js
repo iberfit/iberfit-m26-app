@@ -7,7 +7,7 @@ import {augmentRc39ViewModel} from '../rc39/view-model.js';
 import {
   clientsOverview, clientHealthSummary, todayOverview, domainValue, domainDate, domainStatus, recordsForClient, } from './domain-selectors.js';
 import {
-  computeProgressSummary, buildPlanExecutionSummary, buildProgressTimeline, deriveAdherenceAlerts, adherenceSignal, buildVerificationCenter, engagementCapabilities, listExercisePerformanceMemories, buildExerciseLongitudinalProgress } from '../engagement/index.js';
+  computeProgressSummary, progressSummaryHasEvidence, buildPlanExecutionSummary, buildProgressTimeline, deriveAdherenceAlerts, adherenceSignal, buildVerificationCenter, engagementCapabilities, listExercisePerformanceMemories, buildExerciseLongitudinalProgress } from '../engagement/index.js';
 import {
   projectExercisePerformanceForRole,
 } from '../engagement/exercise-performance-engine.js';
@@ -380,6 +380,12 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
         :null;
     qaStage('rc64-hoy-cockpit-ready');
 
+    const clientProgressSummary=
+      overview.role==='client'&&clientId
+        ?computeProgressSummary(state,clientId,{now,days:28})
+        :null;
+    const progressReady=progressSummaryHasEvidence(clientProgressSummary);
+
     const challengeSnapshot=
       overview.role==='client'&&clientId
         ?rc71ChallengeSnapshot(state,clientId,now)
@@ -403,6 +409,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
       upcoming: Object.freeze(overview.upcoming.map(compactAppointment)),
       clients: Object.freeze(clients),
       coachCockpit,
+      progressReady,
       challengePreview:challengePreview?Object.freeze({...challengePreview}):null,
       operations: Object.freeze(overview.operations),
       alerts: Object.freeze(alerts),
