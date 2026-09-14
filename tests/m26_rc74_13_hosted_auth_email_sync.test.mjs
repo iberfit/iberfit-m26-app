@@ -2,7 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import {buildHostedAuthPatch,assertCustomSmtp,assertProductionAuthBaseline,__hostedAuthEmailInternals} from '../scripts/auth/sync-hosted-auth-emails.mjs';
+import {
+  buildHostedAuthPatch,
+  assertCustomSmtp,
+  assertProductionAuthBaseline,
+  normalizeHostedAuthAssets,
+  __hostedAuthEmailInternals,
+} from '../scripts/auth/sync-hosted-auth-emails.mjs';
 
 const read=(path)=>fs.readFileSync(path,'utf8');
 
@@ -25,8 +31,47 @@ test('la reautenticación usa el OTP oficial sin exponer TokenHash ni secretos',
   const html=read('supabase/templates/iberfit-reauthentication.html');
   assert.match(html,/\{\{ \.Token \}\}/u);
   assert.doesNotMatch(html,/TokenHash|service[_ -]?role|supabase\.co/iu);
-  assert.match(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
+  assert.match(html,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
   assert.match(html,/Confirma que eres tú/u);
+});
+
+test('OTP y recuperación usan el sistema visual claro premium y evitan arte roto',()=>{
+  const magic=read('supabase/templates/iberfit-magic-link.html');
+  const reauth=read('supabase/templates/iberfit-reauthentication.html');
+  const recovery=read('supabase/templates/iberfit-recovery.html');
+
+  for(const html of [magic,reauth,recovery]){
+    assert.match(html,/background:#f3f0e8/u);
+    assert.match(html,/font-family:Georgia,'Times New Roman',serif/u);
+    assert.match(html,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
+    assert.doesNotMatch(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
+  }
+
+  assert.match(magic,/font-size:38px/u);
+  assert.match(magic,/border:2px solid #c8a24a/u);
+  assert.match(magic,/mailto:\{\{ \.Email \}\}/u);
+  assert.match(magic,/color:#9b7429/u);
+  assert.match(reauth,/font-size:38px/u);
+  assert.doesNotMatch(recovery,/Experiencia IBERFIT|iberfit-email-access-hero\.jpg/u);
+});
+
+test('el sincronizador normaliza cualquier ruta antigua de activos antes de publicar',async()=>{
+  const legacy='<img src="https://app.iberfit.cl/isotipo-iberfit.png"><img src="https://app.iberfit.cl/iberfit-email-access-hero.jpg">';
+  const normalized=normalizeHostedAuthAssets(legacy);
+  assert.match(normalized,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
+  assert.match(normalized,/https:\/\/app\.iberfit\.cl\/public\/iberfit-email-access-hero\.jpg/u);
+  assert.doesNotMatch(normalized,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
+  assert.doesNotMatch(normalized,/https:\/\/app\.iberfit\.cl\/iberfit-email-access-hero\.jpg/u);
+
+  const {patch}=await buildHostedAuthPatch();
+  const htmlValues=Object.entries(patch)
+    .filter(([key])=>key.includes('templates_'))
+    .map(([,value])=>String(value));
+  assert.equal(htmlValues.length,13);
+  for(const html of htmlValues){
+    assert.doesNotMatch(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
+    assert.doesNotMatch(html,/https:\/\/app\.iberfit\.cl\/iberfit-email-access-hero\.jpg/u);
+  }
 });
 
 test('el sincronizador exige baseline Auth PROD y SMTP propio antes de permitir Hosted Auth',()=>{
@@ -68,6 +113,7 @@ test('la publicación remota queda limitada al proyecto PROD y exige confirmaci�
   assert.equal(__hostedAuthEmailInternals.PROD_REF,'pjhmrhejsoofmouedavw');
   assert.equal(__hostedAuthEmailInternals.PROD_SITE_URL,'https://app.iberfit.cl/');
   assert.equal(__hostedAuthEmailInternals.EXACT_CONFIRMATION,'SYNC_IBERFIT_AUTH_EMAILS_PROD');
+  assert.equal(__hostedAuthEmailInternals.PUBLIC_ISOTYPE_URL,'https://app.iberfit.cl/public/isotipo-iberfit.png');
   assert.match(source,/IBERFIT_AUTH_EMAIL_PROD_REF_REQUIRED/u);
   assert.match(source,/IBERFIT_AUTH_EMAIL_EXPLICIT_CONFIRMATION_REQUIRED/u);
   assert.match(source,/IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED/u);
@@ -78,7 +124,6 @@ test('la publicación remota queda limitada al proyecto PROD y exige confirmaci�
   assert.match(workflow,/SYNC_IBERFIT_AUTH_EMAILS_PROD/u);
   assert.doesNotMatch(workflow,/push:/u);
 });
-
 
 test('la promoción PROD sincroniza y verifica emails antes del cutover de Cloudflare',()=>{
   const workflow=read('.github/workflows/production-promote.yml');
@@ -92,7 +137,6 @@ test('la promoción PROD sincroniza y verifica emails antes del cutover de Cloud
   assert.match(block,/IBERFIT_AUTH_EMAIL_CONFIRMATION: 'SYNC_IBERFIT_AUTH_EMAILS_PROD'/u);
   assert.match(block,/node scripts\/auth\/sync-hosted-auth-emails\.mjs --sync/u);
 });
-
 
 test('la promoción activa OTP solo con sincronización y verificación SMTP fail-closed',()=>{
   const workflow=read('.github/workflows/production-promote.yml');
