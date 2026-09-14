@@ -240,19 +240,37 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     },timeoutMs);
   }
 
+  function continuitySurface(control){
+    if(control?.closest?.('.m26-settings-route'))return 'settings-route';
+    if(control?.closest?.('details.m26-settings-menu'))return 'settings-popover';
+    return 'shell';
+  }
+
   function captureControlContinuity(control){
     if(!control)return null;
     const settingsOpen=Boolean(control.closest?.('details.m26-settings-menu')?.open);
-    if(control.matches?.('[data-m26-ui-locale]'))return Object.freeze({kind:'locale',settingsOpen});
-    if(control.matches?.('[data-m26-ui-language]'))return Object.freeze({kind:'language',value:String(control.value||''),settingsOpen});
-    if(control.matches?.('[data-m26-preference]'))return Object.freeze({kind:'preference',path:String(control.getAttribute?.('data-m26-preference')||''),settingsOpen});
-    if(control.matches?.('[data-m26-client-select]'))return Object.freeze({kind:'client',settingsOpen:false});
+    const surface=continuitySurface(control);
+    if(control.matches?.('[data-m26-ui-locale]'))return Object.freeze({kind:'locale',settingsOpen,surface});
+    if(control.matches?.('[data-m26-ui-language]'))return Object.freeze({kind:'language',value:String(control.value||''),settingsOpen,surface});
+    if(control.matches?.('[data-m26-preference]'))return Object.freeze({kind:'preference',path:String(control.getAttribute?.('data-m26-preference')||''),settingsOpen,surface});
+    if(control.matches?.('[data-m26-client-select]'))return Object.freeze({kind:'client',settingsOpen:false,surface});
     return null;
+  }
+
+  function continuityControls(snapshot){
+    if(!snapshot)return [];
+    const surfaceRoot=
+      snapshot.surface==='settings-route'
+        ?root.querySelector?.('.m26-settings-route')
+        :snapshot.surface==='settings-popover'
+          ?root.querySelector?.('details.m26-settings-menu')
+          :root;
+    return [...(surfaceRoot?.querySelectorAll?.(SHELL_INTERACTIVE_SELECTOR)||[])];
   }
 
   function findContinuityControl(snapshot){
     if(!snapshot)return null;
-    const controls=[...(root.querySelectorAll?.(SHELL_INTERACTIVE_SELECTOR)||[])];
+    const controls=continuityControls(snapshot);
     if(snapshot.kind==='locale')return controls.find((node)=>node.matches?.('[data-m26-ui-locale]'))||null;
     if(snapshot.kind==='language')return controls.find((node)=>node.matches?.('[data-m26-ui-language]')&&String(node.value||'')===snapshot.value)||null;
     if(snapshot.kind==='preference')return controls.find((node)=>node.matches?.('[data-m26-preference]')&&String(node.getAttribute?.('data-m26-preference')||'')===snapshot.path)||null;
