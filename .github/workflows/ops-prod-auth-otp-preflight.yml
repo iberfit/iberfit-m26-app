@@ -29,16 +29,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          code="$(curl --silent --show-error --output /tmp/otp-response.json --write-out '%{http_code}'             --request POST "${PROD_SUPABASE_URL}/auth/v1/otp"             --header "apikey: ${PROD_SUPABASE_PUBLISHABLE_KEY}"             --header "Authorization: Bearer ${PROD_SUPABASE_PUBLISHABLE_KEY}"             --header 'Content-Type: application/json'             --data "$(node -e 'process.stdout.write(JSON.stringify({email:process.env.OTP_EMAIL,create_user:false}))')")"
-          if [ "$code" != "200" ]; then
-            echo "OTP_PREFLIGHT_HTTP_$code"
-            node - <<'NODE'
-            const fs=require('fs');
-            let x={};
-            try{x=JSON.parse(fs.readFileSync('/tmp/otp-response.json','utf8'));}catch{}
-            const safe={code:x.code||null,error_code:x.error_code||null,msg:x.msg||x.message||null};
-            console.log(JSON.stringify(safe));
-            NODE
-            exit 1
-          fi
-          echo "OTP_PREFLIGHT_REQUEST_ACCEPTED"
+          node --input-type=module <<'NODE'
+          const url=process.env.PROD_SUPABASE_URL+'/auth/v1/otp';
+          const key=process.env.PROD_SUPABASE_PUBLISHABLE_KEY;
+          const email=process.env.OTP_EMAIL;
+          const response=await fetch(url,{
+            method:'POST',
+            headers:{
+              apikey:key,
+              Authorization:`Bearer ${key}`,
+              'Content-Type':'application/json'
+            },
+            body:JSON.stringify({email,create_user:false})
+          });
+          let body={};
+          try{body=await response.json();}catch{}
+          if(!response.ok){
+            console.log(JSON.stringify({
+              status:response.status,
+              code:body.code||body.error_code||null,
+              message:body.msg||body.message||null
+            }));
+            throw new Error(`OTP_PREFLIGHT_HTTP_${response.status}`);
+          }
+          console.log(JSON.stringify({ok:true,status:response.status,requestAccepted:true}));
+          NODE
