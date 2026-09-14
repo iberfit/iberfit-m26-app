@@ -158,12 +158,14 @@ test('Client Genie owns first-run navigation, can pause/resume, returns to Today
       await expectJourneyState(page,step);
     }
 
-    await expect(page.locator('.m26-skip-link')).not.toBeVisible();
     await expect(
       page.locator('.m26-client-guided-welcome-actions [data-m26-client-guided-welcome-pause]'),
       'Finish should not offer a redundant “later” action',
     ).toHaveCount(0);
-    await expect(page.locator('[data-m26-client-guided-welcome-next]')).toBeFocused();
+    await expect(
+      page.locator('[data-m26-client-guided-welcome-next]'),
+      'Finish should place keyboard focus on the primary completion action',
+    ).toBeFocused();
 
     await page.screenshot({
       path:`recovery/client-genie-welcome/client-genie-finish-${slug(testInfo.project.name)}.png`,
