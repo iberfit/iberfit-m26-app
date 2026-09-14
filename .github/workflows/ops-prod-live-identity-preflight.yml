@@ -1,0 +1,38 @@
+name: IBERFIT PROD Live Identity Preflight
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.github/workflows/ops-prod-live-identity-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  live-identity:
+    name: read-live-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read live production identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 4 --retry-all-errors             'https://app.iberfit.cl/m26/version.json' -o /tmp/version.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const v=JSON.parse(fs.readFileSync('/tmp/version.json','utf8'));
+          const safe={
+            sourceSha:v.sourceSha||null,
+            sourceBranch:v.sourceBranch||null,
+            projectRef:v.projectRef||null,
+            qaOnly:v.qaOnly??null,
+            buildMode:v.buildMode||null
+          };
+          console.log(JSON.stringify(safe,null,2));
+          if(!/^[0-9a-f]{40}$/.test(String(safe.sourceSha||'')))throw new Error('LIVE_SOURCE_SHA_INVALID');
+          if(safe.projectRef!=='pjhmrhejsoofmouedavw')throw new Error('LIVE_PROJECT_REF_INVALID');
+          if(safe.qaOnly!==false)throw new Error('LIVE_QA_ONLY_INVALID');
+          NODE
