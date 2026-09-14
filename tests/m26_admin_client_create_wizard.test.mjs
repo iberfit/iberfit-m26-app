@@ -55,7 +55,9 @@ test('client create wizard preserves navigation, draft recovery and review befor
   assert.match(render,/data-client-review="identity"/u);
   assert.match(controller,/createClientCreateWizard/u);
   assert.match(controller,/clientWizard\.validateForSubmit\(form\)/u);
-  assert.match(controller,/onSuccess:\(\)=>clientWizard\.clear\(\)/u);
+  assert.match(controller,/onSuccess:\(result\)=>\{/u);
+  assert.match(controller,/const clientId=createdClientId\(result\);/u);
+  assert.match(controller,/clientWizard\.clear\(\);/u);
 });
 
 test('client create payload captures richer profile data needed by IRI 2.0 without removing legacy fields',()=>{
