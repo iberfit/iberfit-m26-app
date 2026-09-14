@@ -1,6 +1,7 @@
 import {iberfitSurfaceTranslate} from '../ui/i18n-surface.js';
 
 export const CLIENT_CONTEXTUAL_GUIDE_SCHEMA_VERSION='iberfit.client-contextual-guide.v1';
+const GUIDE_MARK_ASSET='/public/isotipo-iberfit.png';
 
 const SOURCE_COPY=Object.freeze({
   eyebrow:'Guía IBERFIT',
@@ -140,6 +141,44 @@ const STYLE=`
 .m26-client-context-guide-copy{margin:.75rem 0 0;line-height:1.55}
 .m26-client-context-guide-actions{display:flex;justify-content:flex-end;gap:.55rem;margin-top:.9rem;flex-wrap:wrap}
 .m26-client-context-guide-actions button,.m26-client-context-guide-head button{min-height:44px;min-width:44px}
+.m26-client-context-guide-mark{
+  position:fixed;
+  z-index:1212;
+  width:46px;
+  height:46px;
+  display:grid;
+  place-items:center;
+  pointer-events:none;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent,#d8b96f) 72%,transparent);
+  border-radius:15px;
+  background:#0d3328;
+  box-shadow:0 12px 34px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.03) inset;
+  animation:m26-client-guide-arrive .26s cubic-bezier(.2,.8,.2,1) both;
+}
+.m26-client-context-guide-mark img{
+  display:block;
+  width:28px;
+  height:28px;
+  object-fit:contain;
+}
+.m26-client-context-guide-mark::after{
+  content:'';
+  position:absolute;
+  inset:-5px;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-accent,#d8b96f) 58%,transparent);
+  border-radius:19px;
+  pointer-events:none;
+  opacity:0;
+  animation:m26-client-guide-signal 1.1s ease-out .18s 1 both;
+}
+@keyframes m26-client-guide-arrive{
+  from{opacity:0;transform:translate3d(0,6px,0) scale(.94)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+@keyframes m26-client-guide-signal{
+  0%{opacity:.55;transform:scale(.78)}
+  100%{opacity:0;transform:scale(1.38)}
+}
 .m26-client-context-guide-target{
   position:relative;
   outline:2px solid color-mix(in srgb,var(--iberfit-color-accent,#d8b96f) 72%,transparent);
@@ -160,9 +199,9 @@ const STYLE=`
   }
 }
 @media(prefers-reduced-motion:reduce){
-  .m26-client-context-guide,.m26-client-context-guide-target{scroll-behavior:auto;transition:none!important;animation:none!important}
+  .m26-client-context-guide,.m26-client-context-guide-target,.m26-client-context-guide-mark,.m26-client-context-guide-mark::after{scroll-behavior:auto;transition:none!important;animation:none!important}
 }
-@media print{.m26-client-context-guide,.m26-client-context-guide-settings{display:none!important}}
+@media print{.m26-client-context-guide,.m26-client-context-guide-mark,.m26-client-context-guide-settings{display:none!important}}
 `;
 
 function txt(value,max=240){return String(value??'').replace(/\s+/gu,' ').trim().slice(0,max);}
@@ -269,6 +308,9 @@ function dialogHtml(tip){
     :`<button type="button" class="m26-primary-action" data-m26-client-context-guide-ack>${esc(tr('understood','Entendido'))}</button>`;
   return `<aside class="m26-client-context-guide" data-m26-client-context-guide role="dialog" aria-modal="false" aria-labelledby="m26-client-context-guide-title" aria-describedby="m26-client-context-guide-copy"><div class="m26-client-context-guide-head"><div><p class="m26-eyebrow">${esc(tr('eyebrow','Guía IBERFIT'))}</p><h2 id="m26-client-context-guide-title">${esc(tr(`${copyId}.title`,tip.area))}</h2></div><button type="button" class="m26-icon-button" data-m26-client-context-guide-later aria-label="${esc(tr('close','Cerrar'))}">×</button></div><p class="m26-client-context-guide-copy" id="m26-client-context-guide-copy">${esc(tr(`${copyId}.body`,''))}</p><div class="m26-client-context-guide-actions"><button type="button" class="m26-text-action" data-m26-client-context-guide-later>${esc(tr('later','Ahora no'))}</button>${action}</div></aside>`;
 }
+function guideMarkHtml(){
+  return `<div class="m26-client-context-guide-mark" data-m26-client-context-guide-mark aria-hidden="true"><img src="${GUIDE_MARK_ASSET}" width="28" height="28" alt="" decoding="async"></div>`;
+}
 function settingsHtml(){
   return `<section class="iberfit-card m26-client-context-guide-settings" data-m26-client-context-guide-settings><p class="m26-eyebrow">${esc(tr('help','Ayuda'))}</p><h2>${esc(tr('settingsTitle','Guía dinámica'))}</h2><p>${esc(tr('settingsBody','La guía te acompaña dentro de cada área cuando puede ayudarte.'))}</p><button type="button" class="m26-text-action" data-m26-client-context-guide-open>${esc(tr('reopen','Explicar esta pantalla'))}</button></section>`;
 }
@@ -280,6 +322,29 @@ function isVisibleInViewport(node,scope){
     if(!rect||!height||!width)return true;
     return rect.top>=0&&rect.left>=0&&rect.bottom<=height&&rect.right<=width;
   }catch{return true;}
+}
+function positionGuideMark(mark,node,scope){
+  if(!mark||!node)return;
+  try{
+    const rect=node.getBoundingClientRect?.();
+    const width=Number(scope?.innerWidth||0);
+    const height=Number(scope?.innerHeight||0);
+    if(!rect||!width||!height)return;
+    const compact=width<=690;
+    const size=compact?42:46;
+    const margin=compact?10:14;
+    const gap=compact?8:10;
+    let left=Number(rect.right||0)-size;
+    let top=Number(rect.top||0)-size-gap;
+    if(left<margin)left=Number(rect.left||0)+gap;
+    if(left+size>width-margin)left=width-size-margin;
+    if(top<margin)top=Number(rect.top||0)+gap;
+    if(top+size>height-margin)top=Math.max(margin,height-size-margin);
+    mark.style.width=`${size}px`;
+    mark.style.height=`${size}px`;
+    mark.style.left=`${Math.round(Math.max(margin,left))}px`;
+    mark.style.top=`${Math.round(Math.max(margin,top))}px`;
+  }catch{}
 }
 function positionDialog(dialog,node,scope){
   if(!dialog||!node)return;
@@ -324,6 +389,7 @@ export function createClientContextualGuideController({
   let activeTip=null;
   let activeTarget=null;
   let dialog=null;
+  let guideMark=null;
   let lastKey=null;
   let previousFocus=null;
   let positionFrame=null;
@@ -360,6 +426,8 @@ export function createClientContextualGuideController({
     activeTarget=null;
     dialog?.remove?.();
     dialog=null;
+    guideMark?.remove?.();
+    guideMark=null;
     activeTip=null;
     if(positionFrame!==null){
       try{scope?.cancelAnimationFrame?.(positionFrame);}catch{}
@@ -390,10 +458,11 @@ export function createClientContextualGuideController({
     return null;
   }
   function schedulePosition(){
-    if(positionFrame!==null||!dialog||!activeTarget)return;
+    if(positionFrame!==null||!activeTarget||(!dialog&&!guideMark))return;
     const run=()=>{
       positionFrame=null;
       if(dialog&&activeTarget)positionDialog(dialog,activeTarget,scope);
+      if(guideMark&&activeTarget)positionGuideMark(guideMark,activeTarget,scope);
     };
     if(typeof scope?.requestAnimationFrame==='function')positionFrame=scope.requestAnimationFrame(run);
     else queueMicrotask(run);
@@ -413,6 +482,8 @@ export function createClientContextualGuideController({
     if(!isVisibleInViewport(node,scope)){
       try{node.scrollIntoView?.({block:'center',inline:'nearest',behavior:reduced(scope)?'auto':'smooth'});}catch{}
     }
+    doc?.body?.insertAdjacentHTML?.('beforeend',guideMarkHtml());
+    guideMark=doc?.querySelector?.('[data-m26-client-context-guide-mark]')||null;
     doc?.body?.insertAdjacentHTML?.('beforeend',dialogHtml(tip));
     dialog=doc?.querySelector?.('[data-m26-client-context-guide]')||null;
     schedulePosition();
@@ -547,5 +618,7 @@ export const __clientContextualGuideInternals=Object.freeze({
   area,
   target,
   positionDialog,
+  positionGuideMark,
+  GUIDE_MARK_ASSET,
   isVisibleInViewport,
 });
