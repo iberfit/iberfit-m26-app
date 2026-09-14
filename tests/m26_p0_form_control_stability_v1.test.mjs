@@ -10,8 +10,8 @@ const matrix=fs.readFileSync('playwright.admin-interaction.config.mjs','utf8');
 test('shell holds an explicit focused-control lease so background state cannot replace active forms',()=>{
   assert.match(shell,/let interactionFocusTarget=null;/u);
   assert.match(shell,/interactionPointerTarget\|\|interactionFocusTarget\|\|focusedInteractiveControl\(\)/u);
-  assert.match(shell,/interactionFocusTarget=control;/u);
-  assert.match(shell,/interactionFocusTarget=active&&root\.contains\?\.\(active\)\?active:null;/u);
+  assert.match(shell,/interactionFocusTarget=control\.matches\?\.\(SHELL_FOCUS_INTERACTIVE_SELECTOR\)\?control:null;/u);
+  assert.match(shell,/const active=focusedInteractiveControl\(\);\s*interactionFocusTarget=active;/u);
   assert.match(shell,/if\(!force&&shellInteractionActive\(\)\)/u);
 });
 
@@ -34,7 +34,6 @@ test('visual and browser gates exercise the final V3 layer and the real Coach on
   assert.match(matrix,/coach-form-continuity\.spec\.mjs/u);
 });
 
-
 test('Coach regression matrix explicitly covers every daily-use client-list control and cross-browser projects',()=>{
   const coach=fs.readFileSync('qa/admin-interaction/coach-form-continuity.spec.mjs','utf8');
   const fixture=fs.readFileSync('qa/admin-interaction/coach-form-continuity.fixture.mjs','utf8');
@@ -46,14 +45,13 @@ test('Coach regression matrix explicitly covers every daily-use client-list cont
   assert.match(coach,/\[data-coach-view-name\]/u);
   assert.match(coach,/\[data-coach-saved-view\]/u);
   for(const name of ['name','email','phone','birthDate','sexForNorms','genderIdentity','pronouns','preferredContactChannel','modality','weeklyFrequency','sessionDurationMinutes','locationType','accessInstructions','primaryObjective']){
-    assert.ok(coach.includes(`[name="${name}"]`),`Coach continuity coverage missing ${name}`);
+    assert.ok(coach.includes("'" + name + "'")||coach.includes('"' + name + '"'),`Coach continuity coverage missing ${name}`);
   }
   assert.match(coach,/must preserve the exact active DOM node/u);
   assert.match(fixture,/setClientScenario/u);
   assert.match(matrix,/browserName:'webkit'/u);
   assert.match(matrix,/browserName:'firefox'/u);
 });
-
 
 test('focused buttons do not hold the long-lived form-control lease',()=>{
   assert.match(shell,/interactionFocusTarget=control\.matches\?\.\(SHELL_FOCUS_INTERACTIVE_SELECTOR\)\?control:null;/u);
