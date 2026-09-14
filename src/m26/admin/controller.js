@@ -206,6 +206,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           birthDate:profile.birthDate,
           sexForNorms:profile.sexForNorms,
           initialAssessmentMode:profile.initialAssessmentMode,
+          coachUserId:text(data,'coachUserId',200),
           modality:profile.modality,
           weeklyFrequency:profile.weeklyFrequency,
           sessionDurationMinutes:profile.sessionDurationMinutes,
