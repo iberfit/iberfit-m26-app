@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "94aa0699aa0d279b17797558cd0764ce82c062b4",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Client dynamic contextual guidance and real challenge discovery: replace linear Client onboarding with state-aware non-blocking guidance, preserve Coach/Admin tour behaviour, surface challenges only from confirmed useful context, keep community private by default, and certify desktop/tablet/mobile/PWA accessibility and interaction."
+}
