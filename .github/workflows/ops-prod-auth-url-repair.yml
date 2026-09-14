@@ -1,0 +1,101 @@
+name: IBERFIT PROD Auth URL Repair
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.github/workflows/ops-prod-auth-url-repair.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-prod-auth-url-repair
+  cancel-in-progress: false
+
+env:
+  PROD_SUPABASE_REF: 'pjhmrhejsoofmouedavw'
+  EXPECTED_OLD_SITE_URL: 'https://m26-canary.iberfit.cl/'
+  TARGET_SITE_URL: 'https://app.iberfit.cl/'
+
+jobs:
+  repair-prod-auth-url:
+    name: repair-prod-auth-site-url-fail-closed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact operational branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Repair and verify PROD Auth site_url
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo 'SUPABASE_ACCESS_TOKEN_MISSING'; exit 41; }
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const projectRef=process.env.PROD_SUPABASE_REF;
+          const token=process.env.SUPABASE_ACCESS_TOKEN;
+          const expectedOld=process.env.EXPECTED_OLD_SITE_URL;
+          const target=process.env.TARGET_SITE_URL;
+          const endpoint=`https://api.supabase.com/v1/projects/${encodeURIComponent(projectRef)}/config/auth`;
+
+          async function request(method='GET',body){
+            const response=await fetch(endpoint,{
+              method,
+              headers:{Authorization:`Bearer ${token}`,Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},
+              ...(body?{body:JSON.stringify(body)}:{})
+            });
+            let data=null;
+            try{data=await response.json();}catch{}
+            if(!response.ok)throw new Error(`PROD_AUTH_URL_${method}_FAILED_${response.status}`);
+            return data||{};
+          }
+
+          const before=await request();
+          const beforeUrl=String(before.site_url||'').trim();
+          if(beforeUrl!==expectedOld&&beforeUrl!==target){
+            throw new Error(`PROD_AUTH_SITE_URL_UNEXPECTED:${beforeUrl}`);
+          }
+
+          let changed=false;
+          if(beforeUrl!==target){
+            await request('PATCH',{site_url:target});
+            changed=true;
+          }
+
+          const after=await request();
+          const afterUrl=String(after.site_url||'').trim();
+          if(afterUrl!==target){
+            if(changed){
+              try{await request('PATCH',{site_url:beforeUrl});}catch{}
+            }
+            throw new Error(`PROD_AUTH_SITE_URL_VERIFY_FAILED:${afterUrl}`);
+          }
+
+          const evidence={
+            schema:'iberfit.prod-auth-url-repair.v1',
+            projectRef,
+            beforeSiteUrl:beforeUrl,
+            afterSiteUrl:afterUrl,
+            changed,
+            verified:true
+          };
+          fs.writeFileSync('PROD_AUTH_URL_REPAIR.json',JSON.stringify(evidence,null,2)+'\n','utf8');
+          console.log(JSON.stringify(evidence,null,2));
+          NODE
+
+      - name: Preserve URL repair evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-prod-auth-url-repair-${{ github.run_id }}
+          path: PROD_AUTH_URL_REPAIR.json
+          if-no-files-found: warn
+          retention-days: 30
