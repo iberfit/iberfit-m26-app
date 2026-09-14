@@ -1,4 +1,5 @@
 import {iberfitSurfaceTranslate} from '../ui/i18n-surface.js';
+import {clientGenieVisualMarkup} from './client-genie-visual.js';
 
 export const CLIENT_GUIDED_WELCOME_VERSION=1;
 export const CLIENT_GUIDED_WELCOME_SCHEMA_VERSION='iberfit.client-guided-welcome.v1';
@@ -137,46 +138,115 @@ const STYLE=`
   z-index:1232;
   left:1rem;
   top:1rem;
-  width:4.25rem;
-  height:4.25rem;
+  width:5.75rem;
+  height:7.15rem;
   display:grid;
   place-items:center;
   pointer-events:none;
   opacity:0;
-  transform:translateZ(0) scale(.92);
+  transform:translateZ(0) scale(.93);
   transition:left 300ms cubic-bezier(.22,.8,.24,1),top 300ms cubic-bezier(.22,.8,.24,1),opacity 170ms ease,transform 230ms ease;
   will-change:left,top,opacity,transform;
+  contain:layout paint style;
 }
 .m26-client-guided-welcome-presence::before{
   content:'';
   position:absolute;
-  inset:8%;
-  border:1px solid color-mix(in srgb,var(--iberfit-color-accent,#c5a059) 48%,transparent);
-  border-radius:999px;
-  background:radial-gradient(circle,rgba(255,248,220,.08),rgba(197,160,89,.025) 58%,transparent 72%);
-  box-shadow:0 10px 28px rgba(0,0,0,.22),0 0 0 3px rgba(197,160,89,.05);
+  inset:18% 5% 2%;
+  border-radius:50%;
+  background:radial-gradient(ellipse at 50% 48%,rgba(255,248,220,.09),rgba(197,160,89,.035) 48%,transparent 72%);
+  filter:blur(1px);
 }
-.m26-client-guided-welcome-presence img{
+.m26-client-genie{
   position:relative;
   z-index:1;
   display:block;
-  width:68%;
-  height:68%;
-  object-fit:contain;
-  user-select:none;
-  -webkit-user-drag:none;
-  filter:drop-shadow(0 5px 12px rgba(197,160,89,.16));
+  width:100%;
+  height:100%;
+  overflow:visible;
+  filter:drop-shadow(0 10px 20px rgba(0,0,0,.32)) drop-shadow(0 0 8px rgba(197,160,89,.12));
+}
+.m26-client-genie .m26-genie__body{
+  transform-origin:50% 58%;
+  animation:m26-client-genie-float 2.75s ease-in-out infinite;
+}
+.m26-client-genie .m26-genie__flame{
+  transform-box:fill-box;
+  transform-origin:50% 88%;
+  animation:m26-client-genie-flame 2.05s ease-in-out infinite;
+}
+.m26-client-genie .m26-genie__tail{
+  transform-box:fill-box;
+  transform-origin:50% 12%;
+  animation:m26-client-genie-tail 3.15s ease-in-out infinite;
+}
+.m26-client-genie .m26-genie__core{
+  transform-box:fill-box;
+  transform-origin:center;
+  animation:m26-client-genie-core 2.35s ease-in-out infinite;
+}
+.m26-client-genie .m26-genie__arm{
+  transform-box:fill-box;
+  transition:transform 420ms cubic-bezier(.2,.8,.2,1);
+}
+.m26-client-genie .m26-genie__beam,
+.m26-client-genie .m26-genie__particles,
+.m26-client-genie .m26-genie__alert{
+  opacity:0;
+  transition:opacity 180ms ease;
+}
+.m26-client-guided-welcome-presence[data-m26-client-guide-state="pointing"] .m26-genie__arm--right{
+  transform-origin:34% 12%;
+  transform:rotate(-39deg) translate(1.3rem,-.1rem);
+}
+.m26-client-guided-welcome-presence[data-m26-client-guide-state="pointing"] .m26-genie__beam{
+  opacity:1;
+  animation:m26-client-genie-beam 1.4s ease-in-out infinite;
+}
+.m26-client-guided-welcome-presence[data-m26-client-guide-state="success"] .m26-genie__arm--left{
+  transform-origin:66% 12%;
+  transform:rotate(73deg) translate(-.1rem,-1rem);
+}
+.m26-client-guided-welcome-presence[data-m26-client-guide-state="success"] .m26-genie__arm--right{
+  transform-origin:34% 12%;
+  transform:rotate(-73deg) translate(.1rem,-1rem);
+}
+.m26-client-guided-welcome-presence[data-m26-client-guide-state="success"] .m26-genie__particles{
+  opacity:1;
+  animation:m26-client-genie-burst 1.65s ease-out infinite;
+}
+.m26-client-guided-welcome-presence[data-m26-client-guide-state="success"] .m26-genie__core{
+  animation:m26-client-genie-core-success 1.2s ease-in-out infinite;
+}
+.m26-client-guided-welcome-presence[data-m26-client-guide-state="success"]::before{
+  background:radial-gradient(ellipse at 50% 48%,rgba(255,248,220,.14),rgba(255,215,0,.055) 48%,transparent 74%);
+}
+.m26-client-guided-welcome-presence[data-m26-client-guide-state="alert"] .m26-genie__arm--right{
+  transform-origin:34% 12%;
+  transform:rotate(-56deg) translate(.55rem,-.35rem);
+}
+.m26-client-guided-welcome-presence[data-m26-client-guide-state="alert"] .m26-genie__alert{
+  opacity:1;
+  animation:m26-client-genie-alert 1.55s ease-in-out infinite;
+}
+.m26-client-guided-welcome-presence[data-m26-client-guide-state="alert"]::before{
+  background:radial-gradient(ellipse at 50% 48%,rgba(255,191,0,.1),rgba(197,160,89,.035) 48%,transparent 72%);
 }
 .m26-client-guided-welcome-presence.is-visible{opacity:1;transform:translateZ(0) scale(1)}
 .m26-client-guided-welcome-presence.is-arriving{animation:m26-client-guided-welcome-arrive 520ms cubic-bezier(.2,.8,.2,1) both}
-.m26-client-guided-welcome-presence[data-m26-client-guide-state="success"]::before{
-  box-shadow:0 10px 28px rgba(0,0,0,.22),0 0 0 4px rgba(197,160,89,.07),0 0 26px rgba(255,215,0,.12);
-}
 @keyframes m26-client-guided-welcome-arrive{
   0%{opacity:0;transform:translateZ(0) translateY(8px) scale(.84)}
   58%{opacity:1;transform:translateZ(0) translateY(-2px) scale(1.025)}
   100%{opacity:1;transform:translateZ(0) translateY(0) scale(1)}
 }
+@keyframes m26-client-genie-float{0%,100%{transform:translateY(2px)}50%{transform:translateY(-6px)}}
+@keyframes m26-client-genie-flame{0%,100%{transform:rotate(-1deg) scaleY(.99)}50%{transform:rotate(1.7deg) scaleY(1.025)}}
+@keyframes m26-client-genie-tail{0%,100%{transform:rotate(-.4deg)}50%{transform:rotate(1.35deg)}}
+@keyframes m26-client-genie-core{0%,100%{transform:scale(.95);opacity:.84}50%{transform:scale(1.065);opacity:1}}
+@keyframes m26-client-genie-core-success{0%,100%{transform:scale(.96)}50%{transform:scale(1.17)}}
+@keyframes m26-client-genie-beam{0%,100%{opacity:.38}50%{opacity:1}}
+@keyframes m26-client-genie-burst{0%{transform:scale(.82);opacity:0}30%{opacity:1}100%{transform:scale(1.15);opacity:0}}
+@keyframes m26-client-genie-alert{0%,100%{transform:translateY(0);opacity:.68}50%{transform:translateY(-4px);opacity:1}}
 @media(max-width:690px){
   .m26-client-guided-welcome{
     left:.75rem!important;
@@ -187,11 +257,15 @@ const STYLE=`
     max-height:min(48vh,27rem);
     overflow:auto;
   }
-  .m26-client-guided-welcome-presence{width:3.8rem;height:3.8rem}
+  .m26-client-guided-welcome-presence{width:4.35rem;height:5.45rem}
 }
 @media(prefers-reduced-motion:reduce){
   .m26-client-guided-welcome,.m26-client-guided-welcome-target,.m26-client-guided-welcome-presence{
     scroll-behavior:auto!important;
+    transition:none!important;
+    animation:none!important;
+  }
+  .m26-client-guided-welcome-presence *{
     transition:none!important;
     animation:none!important;
   }
@@ -305,7 +379,7 @@ function ensureStyle(doc){
 function ensurePresence(doc){
   let node=doc?.querySelector?.('[data-m26-client-guided-welcome-presence]');
   if(node||!doc?.body?.insertAdjacentHTML)return node;
-  doc.body.insertAdjacentHTML('beforeend','<div class="m26-client-guided-welcome-presence" data-m26-client-guided-welcome-presence data-m26-client-guide-state="idle" aria-hidden="true"><img src="/public/isotipo-iberfit.png" alt="" draggable="false"></div>');
+  doc.body.insertAdjacentHTML('beforeend',`<div class="m26-client-guided-welcome-presence" data-m26-client-guided-welcome-presence data-m26-client-guide-state="idle" aria-hidden="true">${clientGenieVisualMarkup()}</div>`);
   return doc.querySelector?.('[data-m26-client-guided-welcome-presence]')||null;
 }
 function position(node,target,scope,{arriving=false}={}){
@@ -316,15 +390,17 @@ function position(node,target,scope,{arriving=false}={}){
     const height=Number(scope?.innerHeight||0);
     if(!rect||!width||!height)return false;
     const mobile=width<=690;
-    const size=mobile?61:68;
     const margin=mobile?10:14;
     const gap=mobile?8:12;
     const bottomReserve=mobile?112:margin;
+    const presenceRect=node.getBoundingClientRect?.();
+    const nodeWidth=Math.max(1,Number(presenceRect?.width||mobile?70:92));
+    const nodeHeight=Math.max(1,Number(presenceRect?.height||mobile?87:114));
     const outside=Number(rect.bottom||0)<margin||Number(rect.top||0)>height-bottomReserve||Number(rect.right||0)<0||Number(rect.left||0)>width;
     if(outside){node.classList?.remove?.('is-visible','is-arriving');return false;}
-    const left=Math.min(width-size-margin,Math.max(margin,Number(rect.right||0)-size));
-    const preferredTop=Number(rect.top||0)-size-gap;
-    const top=preferredTop>=margin?preferredTop:Math.min(height-size-bottomReserve,Number(rect.bottom||0)+gap);
+    const left=Math.min(width-nodeWidth-margin,Math.max(margin,Number(rect.right||0)-nodeWidth*.82));
+    const preferredTop=Number(rect.top||0)-nodeHeight-gap;
+    const top=preferredTop>=margin?preferredTop:Math.min(height-nodeHeight-bottomReserve,Number(rect.bottom||0)+gap);
     node.style.left=`${Math.round(left)}px`;
     node.style.top=`${Math.round(Math.max(margin,top))}px`;
     node.classList?.add?.('is-visible');
