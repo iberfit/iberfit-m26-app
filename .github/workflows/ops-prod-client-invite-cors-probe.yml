@@ -1,0 +1,46 @@
+name: IBERFIT PROD Client Invite CORS Probe
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.github/workflows/ops-prod-client-invite-cors-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify canonical preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const url='https://pjhmrhejsoofmouedavw.supabase.co/functions/v1/iberfit-admin-client-invite-v1';
+          const r=await fetch(url,{
+            method:'OPTIONS',
+            redirect:'manual',
+            headers:{
+              origin:'https://app.iberfit.cl',
+              'access-control-request-method':'POST',
+              'access-control-request-headers':'authorization, apikey, content-type',
+              'user-agent':'IBERFIT-CORS-Probe/1.0'
+            }
+          });
+          const body=await r.text();
+          const result={
+            status:r.status,
+            allowOrigin:r.headers.get('access-control-allow-origin'),
+            allowMethods:r.headers.get('access-control-allow-methods'),
+            bodyLength:body.length
+          };
+          console.log(JSON.stringify(result,null,2));
+          if(r.status!==204)throw new Error('CORS_PREFLIGHT_STATUS_INVALID');
+          if(result.allowOrigin!=='https://app.iberfit.cl')throw new Error('CORS_ORIGIN_INVALID');
+          if(!String(result.allowMethods||'').toUpperCase().split(/\s*,\s*/).includes('POST'))throw new Error('CORS_POST_NOT_ALLOWED');
+          if(result.bodyLength!==0)throw new Error('CORS_204_BODY_NOT_EMPTY');
+          NODE
