@@ -21,7 +21,7 @@ function cors(origin=''){
   return headers;
 }
 function reply(status:number,body:unknown,origin=''){
-  return new Response(JSON.stringify(body),{status,headers:cors(origin)});
+  return new Response(status===204?null:JSON.stringify(body),{status,headers:cors(origin)});
 }
 function codeOf(error:unknown,fallback='V26_INVITATION_SEND_FAILED'){
   const raw=String((error as {message?:string})?.message||error||'').toUpperCase();

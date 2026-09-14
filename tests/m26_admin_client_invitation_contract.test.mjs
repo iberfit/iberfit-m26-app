@@ -51,3 +51,11 @@ test('production invitation Edge Function accepts only the canonical app origin'
   assert.doesNotMatch(edge, /coach\.iberfit\.cl/u);
   assert.match(edge, /const FUNCTION_VERSION='admin-client-invite-v26\.2';/u);
 });
+
+
+test('OPTIONS 204 never carries a response body and preserves canonical CORS', () => {
+  assert.match(edge, /new Response\(status===204\?null:JSON\.stringify\(body\),\{status,headers:cors\(origin\)\}\)/u);
+  assert.match(edge, /if\(req\.method==='OPTIONS'\)return reply\(ALLOWED_ORIGINS\.has\(origin\)\?204:403,\{\},origin\)/u);
+  assert.match(edge, /'https:\/\/app\.iberfit\.cl'/u);
+  assert.doesNotMatch(edge, /m26-canary\.iberfit\.cl|coach\.iberfit\.cl/u);
+});
