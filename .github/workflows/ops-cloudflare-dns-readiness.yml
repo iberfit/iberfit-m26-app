@@ -1,0 +1,43 @@
+name: IBERFIT Cloudflare DNS Readiness
+
+on:
+  push:
+    branches:
+      - 'ops/prod-auth-readiness-4baf6d52'
+    paths:
+      - '.github/workflows/ops-cloudflare-dns-readiness.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  dns-readiness:
+    name: inspect-iberfit-dns-read-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Inspect Cloudflare zone and DMARC without mutation
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo CLOUDFLARE_TOKEN_MISSING; exit 1; }
+          curl --fail --silent --show-error             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/zones?name=iberfit.cl&account.id=${CF_ACCOUNT_ID}"             -o /tmp/zones.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/zones.json','utf8'));
+          if(!x.success||!Array.isArray(x.result)||x.result.length!==1)throw new Error('CF_ZONE_LOOKUP_FAILED');
+          const zone=x.result[0];
+          console.log(JSON.stringify({zoneName:zone.name,zoneId:zone.id,status:zone.status}));
+          fs.writeFileSync('/tmp/zone-id',zone.id);
+          NODE
+          ZONE_ID="$(cat /tmp/zone-id)"
+          curl --fail --silent --show-error             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             -H 'Content-Type: application/json'             "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=TXT&name=_dmarc.auth.iberfit.cl"             -o /tmp/dmarc.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/dmarc.json','utf8'));
+          if(!x.success||!Array.isArray(x.result))throw new Error('CF_DNS_READ_FAILED');
+          console.log(JSON.stringify({dmarcRecordCount:x.result.length,dmarcRecords:x.result.map(r=>({id:r.id,name:r.name,type:r.type,content:r.content,ttl:r.ttl}))}));
+          NODE
