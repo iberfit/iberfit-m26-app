@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "ff61fa9d039e179c4bb55495d083f51de9ba8908",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Client guidance significance layer: repeat only on genuinely new opaque session/plan/challenge events, surface meaningful confirmed progress thresholds, and guide low adherence only from the deterministic non-clinical adherence-low signal. Preserve Live Workout suppression, privacy, reduced motion, responsive behaviour and existing premium Hosted Auth emails."
+}
