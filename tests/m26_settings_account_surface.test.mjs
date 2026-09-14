@@ -2,26 +2,48 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import test from 'node:test';
 
-const indexUrl=new URL('../public/m26/index.html',import.meta.url);
+const shellUrl=new URL('../src/m26/shell/shell-render.js',import.meta.url);
 const settingsSurfaceUrl=new URL('../src/m26/design/icons.css',import.meta.url);
+const routeUrl=new URL('../src/m26/modules/route-render.js',import.meta.url);
+const shellCssUrl=new URL('../src/m26/shell/shell.css',import.meta.url);
 
-async function indexHtml(){return readFile(indexUrl,'utf8');}
-async function settingsSurfaceCss(){return readFile(settingsSurfaceUrl,'utf8');}
+async function read(url){return readFile(url,'utf8');}
 
-test('settings quick access leaves the topbar on desktop and anchors to the sidebar account zone',async()=>{
-  const [html,css]=await Promise.all([indexHtml(),settingsSurfaceCss()]);
-  assert.ok(html.includes('data-href="/src/m26/design/icons.css" data-iberfit-full-style'));
-  assert.ok(css.includes('.m26-shell[data-m26-layout="expanded-pointer"] .m26-topbar .m26-settings-menu{position:fixed;left:1rem;bottom:'));
-  assert.ok(css.includes('.m26-shell[data-m26-layout="expanded-pointer"] .m26-settings-popover{position:fixed;left:17.35rem;right:auto;top:auto;bottom:'));
+test('settings and account controls live in the sidebar footer instead of competing in the topbar',async()=>{
+  const [shell,css]=await Promise.all([read(shellUrl),read(settingsSurfaceUrl)]);
+  assert.match(shell,/function sidebarAccount\(vm\)[\s\S]*m26-sidebar-footer[\s\S]*\$\{settingsMenu\(vm\)\}[\s\S]*m26-sidebar-logout/u);
+  assert.match(shell,/<div class="m26-topbar-actions">\$\{productivity\.launcher\}\$\{clientSelector\(vm\)\}\$\{operationStatus\(vm\.operations\)\}<\/div>/u);
+  assert.doesNotMatch(shell,/m26-topbar-actions[^\n]*settingsMenu\(vm\)/u);
+  assert.match(css,/\.m26-sidebar-footer \.m26-settings-menu/u);
+  assert.doesNotMatch(css,/\.m26-topbar \.m26-settings-menu/u);
 });
 
-test('client and coach desktop navigation do not duplicate Ajustes',async()=>{
-  const css=await settingsSurfaceCss();
-  assert.ok(css.includes('[data-m26-role="coach"] .m26-sidebar .m26-nav-item[data-m26-area="ajustes"]{display:none}'));
-  assert.ok(css.includes('[data-m26-role="client"] .m26-sidebar .m26-nav-group:has(.m26-nav-item[data-m26-area="ajustes"]){display:none}'));
+test('desktop navigation removes the duplicate settings destination semantically rather than hiding it with CSS',async()=>{
+  const [shell,css]=await Promise.all([read(shellUrl),read(settingsSurfaceUrl)]);
+  assert.match(shell,/map\.delete\(settingsAreaForRole\(vm\.identity\.role\)\)/u);
+  assert.doesNotMatch(css,/:has\(\.m26-nav-item\[data-m26-area="ajustes"\]\)/u);
 });
 
-test('compact touch removes the floating quick-settings control so mobile uses Más',async()=>{
-  const css=await settingsSurfaceCss();
-  assert.ok(css.includes('.m26-shell[data-m26-layout="compact-touch"] .m26-topbar .m26-settings-menu{display:none}'));
+test('compact layouts use navigation More while the desktop sidebar account control stays out of the topbar',async()=>{
+  const [shell,css]=await Promise.all([read(shellUrl),read(settingsSurfaceUrl)]);
+  assert.match(shell,/mobileAccountAction=[\s\S]*data-m26-action="logout"/u);
+  assert.match(css,/@media\(max-width:900px\)[\s\S]*\.m26-sidebar-footer \.m26-settings-menu\{display:none\}/u);
+});
+
+test('full settings surface is grouped, spacious and keeps safe account recovery and device clearing',async()=>{
+  const [route,css]=await Promise.all([read(routeUrl),read(shellCssUrl)]);
+  for(const id of [
+    'm26-settings-experience',
+    'm26-settings-notifications',
+    'm26-settings-privacy',
+    'm26-settings-account',
+  ])assert.match(route,new RegExp(`id="${id}"`,'u'));
+  assert.match(route,/m26-settings-layout/u);
+  assert.match(route,/m26-settings-rail/u);
+  assert.match(route,/m26-settings-content/u);
+  assert.match(route,/data-m26-action="account-password-recovery"/u);
+  assert.match(route,/data-m26-action="logout-clear-device"/u);
+  assert.match(css,/\.m26-settings-layout\{/u);
+  assert.match(css,/grid-template-columns:minmax\(10rem,13rem\) minmax\(0,1fr\)/u);
+  assert.match(css,/@media\(max-width:900px\)[\s\S]*\.m26-settings-rail\{display:none\}/u);
 });
