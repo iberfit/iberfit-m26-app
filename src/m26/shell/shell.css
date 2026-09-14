@@ -1900,11 +1900,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 
 
-.m26-mobile-more-account{
+.m26-mobile-more-account:empty{display:none}
+.m26-mobile-more-account:not(:empty){
   margin-top:.35rem;
   padding-top:.35rem;
   border-top:1px solid color-mix(in srgb,var(--m26-line) 72%,transparent);
-}
-.m26-mobile-more-account .m26-nav-item{
-  color:var(--m26-muted);
 }
