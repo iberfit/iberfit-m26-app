@@ -21,7 +21,7 @@ La promoción productiva válida certificó source/manifest exactos, regresión,
 ## Canary certificado
 
 - Rama: `canary/rc74-4`
-- HEAD certificado: `39e160fb54d1e866823a8150ecd9270359129444`
+- SHA funcional certificado: `39e160fb54d1e866823a8150ecd9270359129444`
 - Merge asociado: PR #351 · queue shared authenticated QA gates.
 - P0 funcional demostrado: 0 en el lote certificado.
 - Rama protegida: `false` al checkpoint; sigue siendo deuda P1 de gobernanza.
@@ -34,6 +34,8 @@ Evidencia post-merge exacta sobre `39e160fb...`:
 - Gates remotos de solo lectura: SUCCESS.
 
 La serialización compartida de QA autenticado usa una cola común con `queue: max` para evitar interferencias y cancelaciones entre Daily, Device y Remote manteniendo en paralelo las superficies que no comparten sesión.
+
+Los commits exclusivamente documentales posteriores pueden mover el HEAD de Canary sin invalidar el SHA funcional certificado; producción siempre se promueve desde un source SHA funcional explícito.
 
 ## Auth / correo transaccional
 
@@ -92,4 +94,4 @@ Sólo cuando:
 3. Ejecutar configuración fail-closed y verificar.
 4. Sincronizar 13 plantillas Hosted Auth.
 5. Probar OTP/recovery/invite/resend/expiry/replay y mala conexión.
-6. Sólo entonces promover el SHA certificado mediante `.github/workflows/production-promote.yml`.
+6. Sólo entonces promover el SHA funcional certificado mediante `.github/workflows/production-promote.yml`.
