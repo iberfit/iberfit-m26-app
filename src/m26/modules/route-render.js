@@ -517,7 +517,7 @@ function renderClientHoyRoute(vm) {
       </div>
     </section>
 
-    <section class="m26-client-home-primary-zone" aria-label="Acción principal de hoy">
+    <section class="m26-client-home-primary-zone" aria-label="Acción principal de hoy"${projections.length?' data-m26-client-guide="session-entry"':''}>
       ${primary.markup}
     </section>
 
