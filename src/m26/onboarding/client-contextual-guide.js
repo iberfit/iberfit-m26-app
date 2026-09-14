@@ -518,9 +518,23 @@ export function createClientContextualGuideController({
     lastKey=ctx.key;
     const current=area(root)||'hoy';
     decorate(current);
+    if(root.querySelector?.('[data-session-live-state]')){
+      close({restoreFocus:false});
+      return;
+    }
     const next=eligibleTip(ctx,current);
     if(dialog&&activeTip?.area!==current)close({restoreFocus:false});
-    if(dialog&&activeTip&&!target(root,activeTip))close({restoreFocus:false});
+    if(dialog&&activeTip){
+      const resolvedTarget=target(root,activeTip);
+      if(!resolvedTarget)close({restoreFocus:false});
+      else if(resolvedTarget!==activeTarget){
+        activeTarget?.classList?.remove?.('m26-client-context-guide-target');
+        activeTarget?.removeAttribute?.('data-m26-client-context-guide-target-active');
+        activeTarget=resolvedTarget;
+        activeTarget.classList?.add?.('m26-client-context-guide-target');
+        activeTarget.setAttribute?.('data-m26-client-context-guide-target-active','true');
+      }
+    }
     if(!dialog&&next)show(ctx,next);
     else schedulePosition();
   }
