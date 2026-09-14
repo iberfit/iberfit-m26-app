@@ -1,6 +1,12 @@
 import Fuse from '../vendor/fuse-7.5.0.basic.min.js';
 
-export const COACH_PRODUCTIVITY_SCHEMA_VERSION='iberfit.coach-productivity.v1';
+export const COACH_PRODUCTIVITY_SCHEMA_VERSION='iberfit.coach-productivity.v2';
+export const COACH_PRODUCTIVITY_MAX_TASK_SAMPLES=30;
+export const COACH_PRODUCTIVITY_TASKS=Object.freeze({
+  'prepare-session':Object.freeze({label:'Preparar sesión',area:'sesion'}),
+  'client-agenda':Object.freeze({label:'Agenda del cliente',area:'agenda'}),
+  'client-plan':Object.freeze({label:'Planificar cliente',area:'planificacion'}),
+});
 export const FUSE_COACH_PRODUCTIVITY_VERSION='7.5.0';
 export const COACH_PRODUCTIVITY_MAX_SAVED_VIEWS=10;
 export const COACH_PRODUCTIVITY_MAX_RECENTS=6;
@@ -49,16 +55,34 @@ export function rankCoachClientDocuments(documents=[],{query='',filters={},sort=
   return Object.freeze(ordered);
 }
 
-export function buildCoachCommandEntries({areas=[],clients=[],selectedClientId=null}={}){
+export function buildCoachCommandEntries({areas=[],clients=[],selectedClientId=null,role=null}={}){
   const areaEntries=uniqueBy((Array.isArray(areas)?areas:[]).map((item)=>({
     id:`area:${text(item?.area,100)}`,type:'area',target:text(item?.area,100),label:text(item?.label,160)||text(item?.area,100),group:'Navegación',
     keywords:foldCoachSearch(`${item?.label||''} ${item?.area||''} abrir ir módulo`),
   })).filter((item)=>item.target&&item.label),(item)=>item.id);
-  const clientEntries=uniqueBy((Array.isArray(clients)?clients:[]).map((client)=>({
+  const safeClients=Array.isArray(clients)?clients:[];
+  const clientEntries=uniqueBy(safeClients.map((client)=>({
     id:`client:${text(client?.id,160)}`,type:'client',target:text(client?.id,160),label:`Abrir ${text(client?.name,160)||'cliente'}`,group:'Clientes',
     keywords:foldCoachSearch([client?.name,client?.modality,client?.profile?.primaryObjective,client?.experience?.stageLabel,client?.id===selectedClientId?'expediente activo':''].filter(Boolean).join(' ')),
   })).filter((item)=>item.target),(item)=>item.id);
-  return Object.freeze([...areaEntries,...clientEntries].map(Object.freeze));
+  const actionEntries=String(role||'').toLowerCase()==='coach'?uniqueBy(safeClients.flatMap((client)=>{
+    const clientId=text(client?.id,160);const clientName=text(client?.name,160)||'cliente';
+    if(!clientId)return [];
+    return Object.entries(COACH_PRODUCTIVITY_TASKS).map(([taskKey,definition])=>({
+      id:`task:${taskKey}:${clientId}`,
+      type:'coach-action',
+      target:clientId,
+      area:definition.area,
+      taskKey,
+      label:`${definition.label} · ${clientName}`,
+      group:'Acciones Coach',
+      keywords:foldCoachSearch([
+        clientName,client?.modality,client?.profile?.primaryObjective,
+        client?.experience?.stageLabel,definition.label,taskKey,
+      ].filter(Boolean).join(' ')),
+    }));
+  }),(item)=>item.id):[];
+  return Object.freeze([...areaEntries,...clientEntries,...actionEntries].map(Object.freeze));
 }
 
 export function rankCoachCommandEntries(entries=[],query='',{limit=12}={}){
@@ -82,7 +106,24 @@ export function normalizeCoachSavedView(input={}){
   });
 }
 
-function emptyWorkspace(){return {schemaVersion:COACH_PRODUCTIVITY_SCHEMA_VERSION,savedViews:[],recents:[]};}
+function normalizeTaskMetrics(value){
+  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  const output={};
+  for(const taskKey of Object.keys(COACH_PRODUCTIVITY_TASKS)){
+    output[taskKey]=(Array.isArray(source[taskKey])?source[taskKey]:[])
+      .map(Number)
+      .filter((item)=>Number.isFinite(item)&&item>=0&&item<=3_600_000)
+      .slice(-COACH_PRODUCTIVITY_MAX_TASK_SAMPLES);
+  }
+  return output;
+}
+function median(values=[]){
+  const rows=(Array.isArray(values)?values:[]).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
+  if(!rows.length)return null;
+  const mid=Math.floor(rows.length/2);
+  return rows.length%2?rows[mid]:(rows[mid-1]+rows[mid])/2;
+}
+function emptyWorkspace(){return {schemaVersion:COACH_PRODUCTIVITY_SCHEMA_VERSION,savedViews:[],recents:[],taskMetrics:normalizeTaskMetrics({})};}
 
 function readWorkspace(storage,key){
   if(!storage?.getItem)return emptyWorkspace();
@@ -90,14 +131,20 @@ function readWorkspace(storage,key){
     const parsed=JSON.parse(storage.getItem(key)||'null');if(!parsed||typeof parsed!=='object')return emptyWorkspace();
     const savedViews=(Array.isArray(parsed.savedViews)?parsed.savedViews:[]).map((item)=>{try{return normalizeCoachSavedView(item);}catch{return null;}}).filter(Boolean).slice(0,COACH_PRODUCTIVITY_MAX_SAVED_VIEWS);
     const recents=uniqueBy((Array.isArray(parsed.recents)?parsed.recents:[]).map((value)=>text(value,160)).filter(Boolean),(value)=>value).slice(0,COACH_PRODUCTIVITY_MAX_RECENTS);
-    return {schemaVersion:COACH_PRODUCTIVITY_SCHEMA_VERSION,savedViews,recents};
+    const taskMetrics=normalizeTaskMetrics(parsed.taskMetrics);
+    return {schemaVersion:COACH_PRODUCTIVITY_SCHEMA_VERSION,savedViews,recents,taskMetrics};
   }catch{return emptyWorkspace();}
 }
 
 function writeWorkspace(storage,key,workspace){
   if(!storage?.setItem)return false;
   try{
-    storage.setItem(key,JSON.stringify({schemaVersion:COACH_PRODUCTIVITY_SCHEMA_VERSION,savedViews:(workspace.savedViews||[]).slice(0,COACH_PRODUCTIVITY_MAX_SAVED_VIEWS),recents:(workspace.recents||[]).slice(0,COACH_PRODUCTIVITY_MAX_RECENTS)}));
+    storage.setItem(key,JSON.stringify({
+      schemaVersion:COACH_PRODUCTIVITY_SCHEMA_VERSION,
+      savedViews:(workspace.savedViews||[]).slice(0,COACH_PRODUCTIVITY_MAX_SAVED_VIEWS),
+      recents:(workspace.recents||[]).slice(0,COACH_PRODUCTIVITY_MAX_RECENTS),
+      taskMetrics:normalizeTaskMetrics(workspace.taskMetrics),
+    }));
     return true;
   }catch{return false;}
 }
@@ -120,14 +167,18 @@ function currentClientFilterState(root){
 function dispatchInput(node){if(!node?.dispatchEvent)return;const EventCtor=globalThis.Event;if(typeof EventCtor==='function')node.dispatchEvent(new EventCtor('input',{bubbles:true}));}
 
 function renderCommandResult(entry){
-  const action=entry.type==='client'?`data-m26-select-client="${escapeHtml(entry.target)}"`:`data-m26-area="${escapeHtml(entry.target)}"`;
+  const action=entry.type==='client'
+    ?`data-m26-select-client="${escapeHtml(entry.target)}"`
+    :entry.type==='coach-action'
+      ?`data-m26-coach-action="true" data-m26-client-id="${escapeHtml(entry.target)}" data-m26-target-area="${escapeHtml(entry.area)}" data-coach-task-key="${escapeHtml(entry.taskKey)}"`
+      :`data-m26-area="${escapeHtml(entry.target)}"`;
   return `<button type="button" class="m26-coach-command-result" data-coach-command-result="${escapeHtml(entry.id)}" ${action}><span>${escapeHtml(entry.label)}</span><small>${escapeHtml(entry.group)}</small></button>`;
 }
 
-export function createCoachProductivityController({root,store,ownerId,storage=globalThis.localStorage}={}){
+export function createCoachProductivityController({root,store,ownerId,storage=globalThis.localStorage,now=()=>Date.now()}={}){
   if(!root?.addEventListener||!store?.getState)throw new Error('M26_COACH_PRODUCTIVITY_REQUIRED');
   const storageKey=coachProductivityStorageKey(ownerId);
-  let mounted=false;let hydrationQueued=false;let unsubscribeStore=null;
+  let mounted=false;let hydrationQueued=false;let unsubscribeStore=null;let paletteOpenedAt=null;
 
   function workspace(){return readWorkspace(storage,storageKey);}
   function persist(next){return writeWorkspace(storage,storageKey,next);}
@@ -140,7 +191,7 @@ export function createCoachProductivityController({root,store,ownerId,storage=gl
     return uniqueBy(items,(item)=>item.area);
   }
 
-  function commandEntries(){const state=store.getState();return buildCoachCommandEntries({areas:commandAreas(),clients:state?.collections?.clients||[],selectedClientId:state?.selectedClientId||null});}
+  function commandEntries(){const state=store.getState();return buildCoachCommandEntries({areas:commandAreas(),clients:state?.collections?.clients||[],selectedClientId:state?.selectedClientId||null,role:role()});}
 
   function renderPalette(query=''){
     const host=root.querySelector?.('[data-coach-command-results]');if(!host)return [];
@@ -149,12 +200,42 @@ export function createCoachProductivityController({root,store,ownerId,storage=gl
     const statusNode=root.querySelector?.('[data-coach-command-status]');if(statusNode)statusNode.textContent=`${results.length} ${results.length===1?'resultado':'resultados'}.`;
     return results;
   }
+  function taskInsightRows(){
+    const metrics=workspace().taskMetrics||{};
+    return Object.entries(COACH_PRODUCTIVITY_TASKS).map(([taskKey,definition])=>{
+      const samples=Array.isArray(metrics[taskKey])?metrics[taskKey]:[];
+      const value=median(samples);
+      return Object.freeze({taskKey,label:definition.label,samples:samples.length,medianMs:value});
+    }).filter((item)=>Number.isFinite(item.medianMs));
+  }
+  function renderTaskInsights(){
+    const host=root.querySelector?.('[data-coach-command-insights]');
+    if(!host)return [];
+    const rows=taskInsightRows();
+    const markup=rows.length
+      ?`<span>Mediana en este dispositivo</span>${rows.map((item)=>`<span><b>${escapeHtml(item.label)}</b>: ${Math.max(0.1,Math.round(item.medianMs/100)/10)} s</span>`).join('')}`
+      :'El tiempo de estos atajos se medirá solo en este dispositivo, sin guardar nombres ni datos de salud.';
+    setHtmlIfChanged(host,markup);
+    return rows;
+  }
+  function recordTaskSample(taskKey,elapsedMs){
+    if(!Object.prototype.hasOwnProperty.call(COACH_PRODUCTIVITY_TASKS,taskKey))return false;
+    const elapsed=Number(elapsedMs);
+    if(!Number.isFinite(elapsed)||elapsed<0||elapsed>3_600_000)return false;
+    const current=workspace();
+    const metrics=normalizeTaskMetrics(current.taskMetrics);
+    metrics[taskKey]=[...(metrics[taskKey]||[]),Math.round(elapsed)].slice(-COACH_PRODUCTIVITY_MAX_TASK_SAMPLES);
+    const saved=persist({...current,taskMetrics:metrics});
+    if(saved)renderTaskInsights();
+    return saved;
+  }
+
 
   function openPalette(){
     if(!enabled())return false;const palette=root.querySelector?.('[data-coach-command-palette]');const input=root.querySelector?.('[data-coach-command-search]');if(!palette||!input)return false;
-    palette.hidden=false;palette.setAttribute('data-open','true');input.value='';renderPalette('');queueMicrotask(()=>input.focus?.({preventScroll:false}));return true;
+    paletteOpenedAt=Number(now());palette.hidden=false;palette.setAttribute('data-open','true');input.value='';renderPalette('');renderTaskInsights();queueMicrotask(()=>input.focus?.({preventScroll:false}));return true;
   }
-  function closePalette(){const palette=root.querySelector?.('[data-coach-command-palette]');if(!palette)return false;palette.hidden=true;palette.removeAttribute('data-open');return true;}
+  function closePalette(){const palette=root.querySelector?.('[data-coach-command-palette]');if(!palette)return false;palette.hidden=true;palette.removeAttribute('data-open');paletteOpenedAt=null;return true;}
   function status(message,kind='info'){const node=root.querySelector?.('[data-coach-productivity-status]');if(!node)return;node.textContent=String(message||'');node.dataset.status=kind;}
 
   function savedViewOptions(){
@@ -173,7 +254,7 @@ export function createCoachProductivityController({root,store,ownerId,storage=gl
       :'<span>Recientes</span><small>Aparecerán al abrir expedientes.</small>');
   }
 
-  function hydrate(){hydrationQueued=false;if(!enabled())return;savedViewOptions();renderRecents();}
+  function hydrate(){hydrationQueued=false;if(!enabled())return;savedViewOptions();renderRecents();renderTaskInsights();}
   function queueHydrate(){if(hydrationQueued)return;hydrationQueued=true;queueMicrotask(hydrate);}
   function onShellRendered(){queueHydrate();}
 
@@ -207,7 +288,12 @@ export function createCoachProductivityController({root,store,ownerId,storage=gl
     const save=event.target.closest?.('[data-coach-save-view]');if(save){event.preventDefault?.();saveView();return;}
     const remove=event.target.closest?.('[data-coach-delete-view]');if(remove){event.preventDefault?.();deleteView();return;}
     const client=event.target.closest?.('[data-m26-select-client]');if(client&&enabled())rememberClient(client.getAttribute?.('data-m26-select-client'));
-    const result=event.target.closest?.('[data-coach-command-result]');if(result)closePalette();
+    const result=event.target.closest?.('[data-coach-command-result]');
+    if(result){
+      const taskKey=String(result.getAttribute?.('data-coach-task-key')||'').trim();
+      if(taskKey&&Number.isFinite(paletteOpenedAt))recordTaskSample(taskKey,Math.max(0,Number(now())-paletteOpenedAt));
+      closePalette();
+    }
   }
   function onInput(event){const input=event.target.closest?.('[data-coach-command-search]');if(input)renderPalette(input.value);}
   function onChange(event){const saved=event.target.closest?.('[data-coach-saved-view]');if(saved&&saved.value)applyView(saved.value);}
@@ -228,9 +314,9 @@ export function createCoachProductivityController({root,store,ownerId,storage=gl
     destroy(){
       if(!mounted)return;root.removeEventListener('click',onClick);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);root.removeEventListener('m26:shell-rendered',onShellRendered);globalThis.removeEventListener?.('keydown',onKeydown);unsubscribeStore?.();unsubscribeStore=null;mounted=false;
     },
-    openPalette,closePalette,renderPalette,
+    openPalette,closePalette,renderPalette,renderTaskInsights,recordTaskSample,
     clearOwner(){try{storage?.removeItem?.(storageKey);return true;}catch{return false;}},
   });
 }
 
-export const __coachProductivityInternals=Object.freeze({readWorkspace,writeWorkspace,currentClientFilterState,uniqueBy,safePriority,setHtmlIfChanged});
+export const __coachProductivityInternals=Object.freeze({readWorkspace,writeWorkspace,currentClientFilterState,uniqueBy,safePriority,setHtmlIfChanged,normalizeTaskMetrics,median,renderCommandResult});
