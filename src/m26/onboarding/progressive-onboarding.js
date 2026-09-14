@@ -637,6 +637,7 @@ export function createProgressiveOnboardingController({
     ensurePanel(context,state,area);
     guidedTour.refresh?.();
     scheduleTourOpenStateSync();
+    clientGuidedWelcome.refresh?.();
     clientContextGuide.refresh?.();
   }
 
@@ -734,6 +735,7 @@ export function createProgressiveOnboardingController({
     refresh(){
       schedule();
       guidedTour.refresh?.();
+      clientGuidedWelcome.refresh?.();
       clientContextGuide.refresh?.();
       scheduleTourOpenStateSync();
     },
