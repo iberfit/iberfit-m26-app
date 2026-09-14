@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const read=(p)=>fs.readFileSync(p,'utf8');
 
 const authenticated=read('playwright.authenticated.config.mjs');
+const genie=read('playwright.client-guided-welcome.config.mjs');
 const deviceConfig=read('playwright.device-experience.config.mjs');
 const deviceSpec=read('qa/device-experience/device-experience.spec.mjs');
 const visual=read('playwright.authenticated-visual.config.mjs');
@@ -33,6 +34,22 @@ test('Client authenticated matrix covers desktop tablet portrait landscape and m
     'width:1366,height:1024',
     'width:390,height:844',
   ])assert.ok(authenticated.includes(token),`missing authenticated matrix token: ${token}`);
+});
+
+test('Client Genie journey is a permanent four-device authenticated gate',()=>{
+  for(const token of [
+    'client-guided-welcome.spec.mjs',
+    'client-genie-desktop-chromium',
+    'client-genie-tablet-chromium',
+    'client-genie-tablet-landscape-chromium',
+    'client-genie-mobile-chromium',
+    'width:1440,height:1000',
+    'width:1024,height:1366',
+    'width:1366,height:1024',
+    'width:390,height:844',
+  ])assert.ok(genie.includes(token),`missing Genie matrix token: ${token}`);
+  assert.match(workflow,/Exercise Client Genie guided welcome by device/u);
+  assert.match(workflow,/playwright\.client-guided-welcome\.config\.mjs/u);
 });
 
 test('Authenticated visual matrix mirrors all four primary device classes',()=>{
