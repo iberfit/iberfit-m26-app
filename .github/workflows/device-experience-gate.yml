@@ -8,6 +8,7 @@ on:
       - 'public/m26/**'
       - 'qa/**'
       - 'playwright.authenticated.config.mjs'
+      - 'playwright.client-guided-welcome.config.mjs'
       - 'playwright.device-experience.config.mjs'
       - 'playwright.device-experience.config.mjs'
       - 'playwright.authenticated-visual.config.mjs'
@@ -24,6 +25,7 @@ on:
       - 'public/m26/**'
       - 'qa/**'
       - 'playwright.authenticated.config.mjs'
+      - 'playwright.client-guided-welcome.config.mjs'
       - 'playwright.authenticated-visual.config.mjs'
       - 'playwright.admin-interaction.config.mjs'
       - 'playwright.daily-admin-visual.config.mjs'
@@ -125,6 +127,16 @@ jobs:
           M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
         run: |
           npx playwright test --config playwright.authenticated.config.mjs             --project=authenticated-readonly-chromium             --project=authenticated-readonly-tablet-chromium             --project=authenticated-readonly-tablet-landscape-chromium             --project=authenticated-readonly-mobile-chromium
+      - name: Exercise Client Genie guided welcome by device
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: |
+          npx playwright test --config playwright.client-guided-welcome.config.mjs             --project=client-genie-desktop-chromium             --project=client-genie-tablet-chromium             --project=client-genie-tablet-landscape-chromium             --project=client-genie-mobile-chromium
       - name: Capture authenticated visual states by device
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
@@ -145,6 +157,7 @@ jobs:
           path: |
             recovery/RC64_2B_AUTHENTICATED_SMOKE.json
             recovery/rc64-authenticated-visual/
+            recovery/client-genie-welcome/
             test-results/
           if-no-files-found: warn
           retention-days: 30

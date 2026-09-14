@@ -226,6 +226,16 @@ test('RC64.2B current WebAuthn contract authenticates QA Coach and Client withou
           'Authenticated workspace must declare interaction readiness before optional controllers finish mounting',
         ).toHaveCount(1,{timeout:5_000});
 
+        const guidedWelcome=page.locator('[data-m26-client-guided-welcome]');
+        await guidedWelcome.waitFor({state:'visible',timeout:5_000}).catch(()=>{});
+        if(await guidedWelcome.isVisible().catch(()=>false)){
+          await page.locator('[data-m26-client-guided-welcome-pause]').first().click({timeout:5_000});
+          await expect(
+            guidedWelcome,
+            'Generic authenticated interaction QA must pause the first-run guide before testing free navigation',
+          ).toHaveCount(0,{timeout:5_000});
+        }
+
         const visibleNavigationTarget=page.locator(
           '.m26-client-bottom-nav [data-m26-area]:not([aria-current="page"]):not([disabled]):visible, .m26-mobile-nav [data-m26-area]:not([aria-current="page"]):not([disabled]):visible, .m26-sidebar [data-m26-area]:not([aria-current="page"]):not([disabled]):visible',
         ).first();
