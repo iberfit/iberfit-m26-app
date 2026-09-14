@@ -20,7 +20,7 @@ test('real client creation extracts the persisted client id from supported Admin
 test('successful Admin creation preserves the new client context after refresh',()=>{
   assert.match(controller,/let pendingCreatedClientId='';/u);
   assert.match(controller,/if\(clientId\)pendingCreatedClientId=clientId;/u);
-  assert.match(controller,/restoreCreatedClientFocus\(\);\n\s+return;/u);
+  assert.match(controller,/if\(outcome\?\.ok===true\)\{\n\s+render\(\);[\s\S]*?clientWizard\.sync\(\);\n\s+restoreCreatedClientFocus\(\);\n\s+return;/u);
   assert.match(controller,/clientWizard\.sync\(\);\n\s+restoreCreatedClientFocus\(\);/u);
   assert.match(controller,/\[data-admin-client-edit-open\]/u);
   assert.match(controller,/scrollIntoView/u);
