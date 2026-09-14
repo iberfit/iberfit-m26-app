@@ -13,6 +13,7 @@ import {
   __clientContextualGuideInternals,
 } from '../src/m26/onboarding/client-contextual-guide.js';
 import {renderChallengesRoute,renderHoyRoute,renderRouteView} from '../src/m26/modules/route-render.js';
+import {progressSummaryHasEvidence} from '../src/m26/engagement/progress-engine.js';
 
 const read=(path)=>fs.readFileSync(path,'utf8').replace(/\r\n/g,'\n');
 
@@ -27,6 +28,7 @@ test('Client guide is contextual, can expose more than one useful hint on Today,
       'client-moment-session-ready',
       'client-context-plan-ready',
       'client-context-challenge-ready',
+      'client-moment-progress-ready',
       'client-context-today',
       'client-feature-challenges-community',
     ]
@@ -37,6 +39,8 @@ test('Client guide is contextual, can expose more than one useful hint on Today,
   assert.equal(today[1].actionArea,'planificacion');
   assert.deepEqual(today[1].seenAlso,['client-context-plan']);
   assert.equal(today[2].actionArea,'retos');
+  assert.equal(today[3].actionArea,'progreso');
+  assert.deepEqual(today[3].seenAlso,['client-context-progress']);
   assert.equal(today.at(-1).kind,'feature');
   assert.deepEqual(today.at(-1).excludeSelectors,['[data-m26-client-guide="challenge-entry"]']);
 
@@ -288,11 +292,69 @@ test('Moment guidance prioritizes actionable facts and avoids duplicate route ex
   assert.match(shell,/m26-client-bottom-nav-more/u);
   assert.match(shell,/Retos y comunidad/u);
 });
+test('Meaningful progress evidence is centralized and missing data never becomes progress',()=>{
+  assert.equal(progressSummaryHasEvidence(null),false);
+  assert.equal(progressSummaryHasEvidence({
+    completedSessions:0,
+    checkins:0,
+    iriCurrent:null,
+    wearable:{daysWithData:0,metrics:{},providers:[]},
+  }),false);
+  assert.equal(progressSummaryHasEvidence({
+    completedSessions:1,
+    checkins:0,
+    iriCurrent:null,
+    wearable:{daysWithData:0,metrics:{},providers:[]},
+  }),true);
+  assert.equal(progressSummaryHasEvidence({
+    completedSessions:0,
+    checkins:1,
+    iriCurrent:null,
+    wearable:{daysWithData:0,metrics:{},providers:[]},
+  }),true);
+  assert.equal(progressSummaryHasEvidence({
+    completedSessions:0,
+    checkins:0,
+    iriCurrent:0,
+    wearable:{daysWithData:0,metrics:{},providers:[]},
+  }),true);
+  assert.equal(progressSummaryHasEvidence({
+    completedSessions:0,
+    checkins:0,
+    iriCurrent:null,
+    wearable:{daysWithData:0,metrics:{steps:4200},providers:[]},
+  }),true);
+  assert.equal(progressSummaryHasEvidence({
+    completedSessions:0,
+    checkins:0,
+    iriCurrent:null,
+    wearable:{daysWithData:0,metrics:{},providers:[]},
+  },{timelineCount:1}),true);
+});
+
+test('Today exposes the progress moment only when the view model confirms meaningful progress',()=>{
+  const base={
+    kind:'hoy',
+    role:'client',
+    clients:[{name:'Cliente',iri:null,nextAction:null}],
+    appointments:[],
+    upcoming:[],
+    rc39:{sessionProjections:[]},
+    operations:{},
+  };
+  const withoutProgress=renderRouteView({...base,progressReady:false});
+  assert.doesNotMatch(withoutProgress,/data-m26-client-guide="progress-entry"/u);
+
+  const withProgress=renderRouteView({...base,progressReady:true});
+  assert.match(withProgress,/data-m26-area="progreso" data-m26-client-guide="progress-entry"/u);
+});
+
 test('Planning, session, progress and challenge guidance targets are conditional rather than generic route fallbacks',()=>{
   const source=read('src/m26/modules/route-render.js');
   assert.match(source,/data-m26-client-guide="plan-surface"/u);
   assert.match(source,/data-m26-client-guide="session-surface"/u);
   assert.match(source,/data-m26-client-guide="progress-surface"/u);
+  assert.match(source,/progressSummaryHasEvidence\(summary,\{timelineCount:vm\.timeline\.length\}\)/u);
   assert.match(source,/data-m26-client-guide="challenge-surface"/u);
 
   const guide=read('src/m26/onboarding/client-contextual-guide.js');
