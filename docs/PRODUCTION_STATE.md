@@ -1,93 +1,97 @@
 # IBERFIT · Production State
 
-Última actualización documental: 2026-09-13
-Estado: checkpoint verificable y alineado con producción.
+Última actualización documental: 2026-09-14
+Estado: checkpoint verificable alineado con Canary, producción y Auth.
 
 ## Producción LIVE
 
 - Dominio: `https://app.iberfit.cl`
 - Estado: PRODUCCIÓN REAL.
-- Source SHA desplegado: `6d06d033fe09b6802bef21e0f30374b48c78edda`
-- Source branch: `canary/rc74-4`
-- Promotion workflow: `34776097179 · IBERFIT Production Promotion`
-- Resultado: `success`
+- Source SHA desplegado: `396ad52cfd4c1a4d75e4e306838d85bffa77b105`
+- Source branch del lote: `canary/rc74-4`
+- Promotion workflow verificado: `34793087805 · IBERFIT Production Promotion = SUCCESS`
+- Release branch: `release/prod-396ad52cfd4c`
 - Cloudflare Pages productivo: `iberfit-m26-production`
 - Supabase PROD ref: `pjhmrhejsoofmouedavw`
 
-La promoción certificó:
-- manifest/source exactos;
-- regresión completa;
-- build canónico;
-- metadata de rollback;
-- runtime productivo determinista;
-- preflight sobre el mismo proyecto Pages;
-- despliegue productivo con Wrangler;
-- verificación exacta de `app.iberfit.cl`;
-- smoke de entrada en Chromium;
-- auditoría integral productiva read-only;
-- evidencia exacta de deployment y rollback.
+Un intento posterior de promoción (`34794436834`, candidato `59305d7e...`) falló antes del despliegue en el gate de Hosted Auth emails. Wrangler y los pasos posteriores quedaron omitidos, por lo que no sustituyó el runtime LIVE anterior.
 
-## Cambio de acceso incluido
+La promoción productiva válida certificó source/manifest exactos, regresión, build canónico, rollback, preflight, deploy con Wrangler, identidad productiva, smoke browser y auditoría read-only.
 
-PR #323 dejó el acceso en modelo state-first:
-- primer paint en estado de comprobación, sin flash del formulario;
-- recuperación silenciosa de sesión guardada;
-- estado recuperable sin volver a pedir contraseña;
-- login tradicional sólo cuando realmente está signed-out;
-- errores técnicos fuera del copy principal;
-- fallback de bootstrap sin congelación;
-- comportamiento responsive y reduced-motion reforzado.
-
-## Canary
+## Canary certificado
 
 - Rama: `canary/rc74-4`
-- HEAD Canary actual: `fbe770e583b12ac88c479b51abc4f74d937b9cb5` (PR #325 · Device Experience Gate Phase A).
-- Baseline de código que produjo LIVE: `6d06d033fe09b6802bef21e0f30374b48c78edda`.
-- P0 técnico demostrado: 0.
-- Rama protegida: `false` a este checkpoint.
-- Los cambios documentales posteriores pueden mover HEAD sin cambiar el runtime productivo; distinguir siempre HEAD de Canary de source SHA LIVE.
+- SHA funcional certificado: `39e160fb54d1e866823a8150ecd9270359129444`
+- Merge asociado: PR #351 · queue shared authenticated QA gates.
+- P0 funcional demostrado: 0 en el lote certificado.
+- Rama protegida: `false` al checkpoint; sigue siendo deuda P1 de gobernanza.
+
+Evidencia post-merge exacta sobre `39e160fb...`:
+- IBERFIT M26 CI: SUCCESS.
+- Continuous App Audit: SUCCESS.
+- Device Experience Gate: SUCCESS.
+- Daily Use Visual Evidence: SUCCESS.
+- Gates remotos de solo lectura: SUCCESS.
+
+La serialización compartida de QA autenticado usa una cola común con `queue: max` para evitar interferencias y cancelaciones entre Daily, Device y Remote manteniendo en paralelo las superficies que no comparten sesión.
+
+Los commits exclusivamente documentales posteriores pueden mover el HEAD de Canary sin invalidar el SHA funcional certificado; producción siempre se promueve desde un source SHA funcional explícito.
+
+## Auth / correo transaccional
+
+PROD mantiene:
+- `site_url = https://app.iberfit.cl/`
+- signup público deshabilitado;
+- longitud mínima de contraseña >= 8;
+- anonymous deshabilitado;
+- autoconfirm deshabilitado;
+- secure email change habilitado.
+
+Bloqueo actual de release:
+- no existe todavía SMTP personalizado completo para Auth;
+- los secretos SMTP operativos siguen ausentes;
+- Hosted Auth emails no deben sincronizarse ni promoverse hasta disponer de SMTP real.
+
+El workflow operacional de configuración SMTP vive sólo en `ops/prod-auth-readiness-4baf6d52`; no debe fusionarse en Canary. Su rollback fue endurecido para fallar cerrado y rechazar configuración SMTP parcial legible. No ejecutarlo hasta disponer de credenciales reales verificadas.
 
 ## Supabase / seguridad
 
-- QA ref: `gjztkdwfmunnzhtvxrsu`
-- PROD ref: `pjhmrhejsoofmouedavw`
+- PROD: `pjhmrhejsoofmouedavw` · `ACTIVE_HEALTHY`.
+- QA: `gjztkdwfmunnzhtvxrsu`.
 - WebAuthn privilegiado: mantener fail-closed.
 - Bundle SQL histórico `33656032685`: SUPERSEDED; no ejecutar.
-- Cualquier cambio DB futuro debe ser delta desde el baseline productivo live, no reejecución histórica.
+- Cualquier cambio DB futuro debe ser un delta nuevo desde el baseline productivo real.
+- Los avisos de Security Advisor sobre RLS sin políticas y SECURITY DEFINER deben revisarse por intención y rutas de autorización antes de modificar nada; no aplicar políticas o índices cosméticos a ciegas.
 
 ## P0 / P1 actuales
 
 ### P0
-Ninguno demostrado.
+Ninguno demostrado en el Canary certificado.
 
 ### P1
-1. **Device Experience Gate Phase B**: cerrar Coach post-WebAuthn y Admin autenticado real; Phase A ya está GREEN con Cliente QA real, Coach fail-closed, Admin sintético y PWA.
-2. Proteger `canary/rc74-4` con PR/checks obligatorios.
-3. Cerrar el loop `señal -> decisión -> intervención -> outcome`.
-4. Instrumentar funnel y capacidad operativa: lead -> IRI -> plan -> primera sesión -> adherencia -> 30/90/180 -> reactivación/referral/revenue + minutos Coach/cliente.
-5. Completar task differentiation: modal, teclado/focus, error recovery y sesión live por dispositivo.
+1. Completar SMTP Auth productivo, DNS de entregabilidad y E2E real de correo.
+2. Proteger `canary/rc74-4` con PR + required checks.
+3. Completar validación autenticada real de Admin y Coach post-WebAuthn donde falte.
+4. Cerrar flujos diarios de alta/edición/baja controlada y sesión Coach sin freezes.
+5. Instrumentar señal -> decisión -> intervención -> outcome y funnel/capacidad/revenue con utilidad real.
 
-## Fuente de verdad documental
+## GO para una próxima promoción
 
-HQ ya está integrado en la línea técnica mediante PR #324. STATE/BACKLOG/operating/release/decisions acompañan Canary.
-
-## GO para producción
-
-- LIVE exacto identificado;
-- candidato exacto;
-- diff entendido;
-- CI/gates verdes;
-- QA proporcional;
-- auth/roles/RLS/WebAuthn según riesgo;
+Sólo cuando:
+- source/candidato exactos;
+- Canary certificado;
+- SMTP/Auth readiness GREEN;
+- plantillas Hosted Auth sincronizadas y verificadas;
+- correo real E2E probado;
 - rollback identificable;
-- evidencia retenida;
-- smoke post-deploy;
+- smoke y auditoría post-deploy;
 - ninguna mutación accidental de PROD.
 
 ## Siguiente acción exacta
 
-1. Resolver protección de `canary/rc74-4`.
-2. Device Experience Gate Phase B: Coach post-WebAuthn + Admin autenticado real.
-3. Implementar Action Outcome Tracking.
-4. Implementar “Preparar próxima sesión”.
-5. Instrumentar negocio/capacidad operativa.
+1. Terminar SMTP externo y DNS.
+2. Configurar secretos SMTP sin exponer valores.
+3. Ejecutar configuración fail-closed y verificar.
+4. Sincronizar 13 plantillas Hosted Auth.
+5. Probar OTP/recovery/invite/resend/expiry/replay y mala conexión.
+6. Sólo entonces promover el SHA funcional certificado mediante `.github/workflows/production-promote.yml`.
