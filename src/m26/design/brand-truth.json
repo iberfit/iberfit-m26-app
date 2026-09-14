@@ -1,5 +1,5 @@
 {
-  "version": "58.5.2",
+  "version": "58.5.3",
   "status": "canonical-brand-asset-confirmed",
   "officialAsset": {
     "path": "public/isotipo-iberfit.png",
@@ -23,8 +23,8 @@
     "observedTopExactColor": "#FBDD8B",
     "observedGoldFamilyMean": "#FADC84",
     "observationsAreCanonicalTokens": false,
-    "productUiGold500": "#b99856",
-    "productUiGold300": "#d8c08a",
+    "productUiGold500": "#C5A059",
+    "productUiGold300": "#D7BA7C",
     "productUiGoldsAreLogoRecolorValues": false,
     "commercialCurrentCssIsBrandSourceOfTruth": false
   },
