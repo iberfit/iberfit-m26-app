@@ -259,6 +259,26 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     return [classes,data,summary].join('::');
   }
 
+  function syncMobileMoreBackground(details,open){
+    const shell=details?.closest?.('.m26-shell');
+    const workspace=shell?.querySelector?.(':scope > .m26-workspace');
+    if(!workspace)return false;
+    const targets=[
+      workspace.querySelector?.(':scope > .m26-topbar'),
+      workspace.querySelector?.(':scope > .m26-main'),
+    ].filter(Boolean);
+    for(const node of targets){
+      if(open){
+        if(!node.hasAttribute?.('inert'))node.dataset.m26MobileMoreInert='true';
+        node.setAttribute?.('inert','');
+      }else if(node.dataset?.m26MobileMoreInert==='true'){
+        node.removeAttribute?.('inert');
+        delete node.dataset.m26MobileMoreInert;
+      }
+    }
+    return targets.length>0;
+  }
+
   function captureDisclosureContinuity(){
     const details=[...(root.querySelectorAll?.('details')||[])];
     const seen=new Map();
@@ -285,6 +305,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       node.open=true;
       node.setAttribute?.('open','');
       node.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded','true');
+      if(node.matches?.('details.m26-mobile-more'))syncMobileMoreBackground(node,true);
       restored=true;
     }
     return restored;
@@ -598,6 +619,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     if(next)details.setAttribute?.('open','');
     else details.removeAttribute?.('open');
     details.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded',next?'true':'false');
+    syncMobileMoreBackground(details,next);
     return next;
   }
 
@@ -772,6 +794,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   }
 
   function destroy() {
+    const openMobileMore=root.querySelector?.('details.m26-mobile-more[open]');
+    if(openMobileMore)setMobileMoreOpen(openMobileMore,false);
     generation+=1;
     renderQueued=false;
     queuedState=null;
