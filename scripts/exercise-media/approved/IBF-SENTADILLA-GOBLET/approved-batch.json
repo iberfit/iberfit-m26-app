@@ -4,21 +4,21 @@
   "items": [
     {
       "exercise_id": "IBF-SENTADILLA-GOBLET",
-      "local_path": "scripts/exercise-media/approved/IBF-SENTADILLA-GOBLET/IBF-SENTADILLA-GOBLET-approved-859fadb57853.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-SENTADILLA-GOBLET/IBF-SENTADILLA-GOBLET-approved-882b8cef4a71.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-SENTADILLA-GOBLET/IBF-SENTADILLA-GOBLET.b64.00"
+        "scripts/exercise-media/approved/IBF-SENTADILLA-GOBLET/IBF-SENTADILLA-GOBLET.v3q80.b64.00",
+        "scripts/exercise-media/approved/IBF-SENTADILLA-GOBLET/IBF-SENTADILLA-GOBLET.v3q80.b64.01",
+        "scripts/exercise-media/approved/IBF-SENTADILLA-GOBLET/IBF-SENTADILLA-GOBLET.v3q80.b64.02",
+        "scripts/exercise-media/approved/IBF-SENTADILLA-GOBLET/IBF-SENTADILLA-GOBLET.v3q80.b64.03"
       ],
       "human_approved": true,
       "publishable": true,
       "approval": {
         "method": "human_owner_approval",
-        "scopes": [
-          "visual",
-          "biomechanics"
-        ],
+        "scopes": ["visual","biomechanics"],
         "automatic_qa": "passed",
         "approved_at": "2026-09-14",
-        "note": "El propietario autorizó la continuación automática bajo el contrato visual cerrado. Asset revisado contra el catálogo real y validado visual y biomecánicamente antes de publicación."
+        "note": "Corrección visual aprobada por el propietario: conserva la biomecánica del lote 03, alinea el asset con la biblioteca IBERFIT ya publicada, elimina branding redundante fuera de la camiseta y prioriza el ejercicio. Solo isotipo oficial pequeño en camiseta; fondo degradado y maniquí discreto."
       },
       "media": {
         "schema": "iberfit.exercise.visual.v1",
@@ -26,29 +26,20 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-SENTADILLA-GOBLET/movement-859fadb57853.webp",
+          "path": "IBF-SENTADILLA-GOBLET/movement-882b8cef4a71.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "859fadb57853c66ee12fc211a90bb43d6911c8a25311fc553d34c008f8396b55"
+          "sha256": "882b8cef4a71b4c787573c1aa89ed3d734a32c09cef017b730d24e98365e9e45"
         },
         "published": true,
         "clientVisible": true,
         "coachVisible": true,
-        "qa": {
-          "biomechanics": "approved",
-          "visual": "approved"
-        },
+        "qa": {"biomechanics":"approved","visual":"approved"},
         "muscleZones": {
-          "primary": [
-            "cuádriceps",
-            "glúteos"
-          ],
-          "secondary": [
-            "aductores",
-            "core"
-          ],
-          "display": "unisex-mannequin-simple-v1"
+          "primary":["cuádriceps","glúteos"],
+          "secondary":["aductores","core"],
+          "display":"unisex-mannequin-simple-v1"
         }
       }
     }
