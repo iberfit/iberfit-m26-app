@@ -141,6 +141,7 @@ async function selectCheckin(token,entityId,clientId){
   );
 }
 
+try{
 const [coach,clientA,clientB]=await Promise.all([
   login(process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD),
   login(process.env.M26_QA_CLIENT_A_EMAIL,process.env.M26_QA_CLIENT_A_PASSWORD),
@@ -291,35 +292,37 @@ const clientAnnulCommand={
 const clientAnnulPreflight=await rpc('iberfit_command_preflight_v26',clientA.token,{p_command:clientAnnulCommand});
 assertRejected(clientAnnulPreflight,'QA_WRITE_CLIENT_ROLE_BOUNDARY','ROLE_NOT_ALLOWED');
 
-const coachAnnulOperationId=randomUUID();
+const coachAssurance=await rpc('iberfit_privileged_assurance_context_v65d',coach.token,{});
+if(
+  coachAssurance?.ok!==true||
+  coachAssurance?.privileged!==true||
+  coachAssurance?.mfaRequired!==true||
+  coachAssurance?.webauthnRequired!==true||
+  coachAssurance?.iberfitAssurance!=='required'
+){
+  throw new Error('QA_WRITE_COACH_ASSURANCE_CONTRACT_MISMATCH');
+}
+
 const coachAnnulCommand={
   ...clientAnnulCommand,
-  operationId:coachAnnulOperationId,
-  reason:'QA write certification cleanup',
+  operationId:randomUUID(),
+  reason:'QA write certification privileged boundary',
 };
-const coachPreflight=await rpc('iberfit_command_preflight_v26',coach.token,{p_command:coachAnnulCommand});
-if(String(coachPreflight?.kind||'').toLowerCase()!=='ack'){
-  throw new Error(`QA_WRITE_COACH_ANNUL_PREFLIGHT_NOT_ACK:${String(coachPreflight?.reason||coachPreflight?.kind||'unknown')}`);
+const coachPreflight=await rpcResult('iberfit_command_preflight_v26',coach.token,{p_command:coachAnnulCommand});
+const coachBlockedMessage=String(coachPreflight?.body?.message||'');
+if(coachPreflight?.status!==403||coachBlockedMessage!=='IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED'){
+  throw new Error(`QA_WRITE_COACH_ASSURANCE_FAIL_CLOSED_MISMATCH:${coachPreflight?.status||0}:${coachBlockedMessage.slice(0,80)}`);
 }
-const coachResult=await rpc('iberfit_execute_command_v26',coach.token,{p_command:coachAnnulCommand});
-assertAck(coachResult,'QA_WRITE_COACH_ANNUL',2,{duplicate:false});
 
 rows=await selectCheckin(clientA.token,entityId,clientAId);
-if(!Array.isArray(rows)||rows.length!==1)throw new Error('QA_WRITE_ANNULLED_ROW_NOT_VISIBLE');
+if(!Array.isArray(rows)||rows.length!==1)throw new Error('QA_WRITE_ROW_MISSING_AFTER_COACH_BLOCK');
 row=rows[0];
-if(String(row.status)!=='anulado'||Number(row.revision)!==2||String(row.notes)!==note){
-  throw new Error('QA_WRITE_ANNULLED_ROW_MISMATCH');
+if(String(row.status)!=='confirmado'||Number(row.revision)!==1||String(row.notes)!==note){
+  throw new Error('QA_WRITE_COACH_BLOCK_MUTATED_ROW');
 }
 
-const coachReplay=await rpc('iberfit_execute_command_v26',coach.token,{p_command:coachAnnulCommand});
-assertAck(coachReplay,'QA_WRITE_COACH_ANNUL_REPLAY',2,{duplicate:true});
-
-const coachCollisionCommand={...coachAnnulCommand,reason:'QA write certification collision'};
-const coachCollision=await rpc('iberfit_command_preflight_v26',coach.token,{p_command:coachCollisionCommand});
-assertRejected(coachCollision,'QA_WRITE_COACH_COLLISION','OPERATION_ID_COLLISION');
-
 const clientBAfterRows=await selectCheckin(clientB.token,entityId,null);
-if(!Array.isArray(clientBAfterRows)||clientBAfterRows.length!==0)throw new Error('QA_WRITE_CROSS_CLIENT_READ_LEAK_AFTER_ANNUL');
+if(!Array.isArray(clientBAfterRows)||clientBAfterRows.length!==0)throw new Error('QA_WRITE_CROSS_CLIENT_READ_LEAK_AFTER_COACH_BLOCK');
 
 const evidence={
   schema:'iberfit.qa-real-write.v2',
@@ -333,7 +336,7 @@ const evidence={
     realDataAllowed:environment.realDataAllowed,
     productionBlocked:environment.productionBlocked,
   },
-  mutation:'CHECKIN_REGISTRAR -> CHECKIN_ANULAR',
+  mutation:'CHECKIN_REGISTRAR',
   create:{
     preflightKind:String(preflight?.kind||'unknown'),
     resultKind:String(result?.kind||'unknown'),
@@ -353,13 +356,13 @@ const evidence={
     crossClientReadDenied:true,
     crossClientCommandDenied:crossClientPreflight.status===403,
     clientAnnulDenied:String(clientAnnulPreflight?.reason||'')==='ROLE_NOT_ALLOWED',
-    coachAnnulAllowed:true,
+    coachMutationRequiresPrivilegedAssurance:coachPreflight.status===403&&coachBlockedMessage==='IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED',
   },
-  cleanup:{
-    finalStatus:String(row.status),
-    finalRevision:Number(row.revision),
-    coachReplayDuplicate:coachReplay?.duplicate===true,
-    coachCollisionReason:String(coachCollision?.reason||''),
+  finalState:{
+    status:String(row.status),
+    revision:Number(row.revision),
+    syntheticQaRecord:true,
+    privilegedCleanupIntentionallyNotBypassed:true,
   },
   values:{energy:5,sleep:5,stress:5,pain:0,fatigue:5,motivation:5},
   actorFingerprints:{
@@ -376,3 +379,22 @@ const evidence={
 await mkdir('recovery',{recursive:true});
 await writeFile('recovery/P0_QA_REAL_WRITE_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
 console.log(JSON.stringify(evidence,null,2));
+}catch(error){
+  const failureEvidence={
+    schema:'iberfit.qa-real-write.v2',
+    generatedAt:new Date().toISOString(),
+    project:PROJECT_REF,
+    origin:CANARY_ORIGIN,
+    qaOnly:true,
+    serviceRoleUsed:false,
+    passed:false,
+    error:{
+      name:String(error?.name||'Error').slice(0,80),
+      code:String(error?.code||'').slice(0,80),
+      message:String(error?.message||error||'UNKNOWN').replace(/[\r\n]+/gu,' ').slice(0,240),
+    },
+  };
+  await mkdir('recovery',{recursive:true});
+  await writeFile('recovery/P0_QA_REAL_WRITE_EVIDENCE.json',JSON.stringify(failureEvidence,null,2)+'\n');
+  throw error;
+}
