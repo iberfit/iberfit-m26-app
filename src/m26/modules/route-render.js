@@ -3036,7 +3036,7 @@ function renderClientProgressStage(vm,stage){
   </section>`;
 }
 
-function renderProgressRoute(vm){
+export function renderProgressRoute(vm){
   const summary=vm.summary;
   if(!summary)return `<div class="m26-route">${emptyState('Sin expediente disponible','No existe un cliente autorizado para calcular progreso.')}</div>`;
   const timeline=vm.timeline.length?vm.timeline.map(timelineItem).join(''):emptyState('Sin eventos de progreso','Los datos ausentes se mantienen como ausentes y no se convierten en cero.');
