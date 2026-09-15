@@ -45,3 +45,11 @@ test('touch text entry keeps native browser focus semantics through pointer rele
   assert.match(shell,/m26TextEntryActive/u);
   assert.match(shellEnhancer,/data-m26-text-entry-active="true"[\s\S]*?\.m26-mobile-nav[\s\S]*?pointer-events:\s*none/u);
 });
+
+
+test('open disclosures survive shell replacement without forcing unrelated controls',()=>{
+  assert.match(shell,/function disclosureBaseKey\(details\)/u);
+  assert.match(shell,/function captureDisclosureContinuity\(\)/u);
+  assert.match(shell,/function restoreDisclosureContinuity\(snapshot=\[\]\)/u);
+  assert.match(shell,/const disclosureSnapshot=captureDisclosureContinuity\(\);\s*root\.innerHTML = markup;\s*lastMarkup=markup;\s*restoreDisclosureContinuity\(disclosureSnapshot\);/u);
+});
