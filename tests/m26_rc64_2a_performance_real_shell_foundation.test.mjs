@@ -389,3 +389,27 @@ test('RC64.2A fullscreen device canvas is a permanent product contract',()=>{
   assert.match(adaptive,/compact-touch[\s\S]*\.m26-mobile-nav[\s\S]*left:\s*0\s*!important/u);
   assert.match(adaptive,/safe-area-inset-bottom/u);
 });
+
+
+test('production promotion fails closed on Lighthouse budgets before deployment and reuses one Chromium install',()=>{
+  const production=read('.github/workflows/production-promote.yml');
+  const buildIndex=production.indexOf('- name: Build canonical current surface');
+  const prepareIndex=production.indexOf('- name: Prepare production quality browser');
+  const lighthouseIndex=production.indexOf('- name: Enforce Lighthouse budgets on exact source');
+  const deployIndex=production.indexOf('- name: Deploy exact certified surface to production with Wrangler');
+  const browserVerifyIndex=production.indexOf('- name: Verify production browser tooling remains ready');
+
+  assert.ok(buildIndex>=0);
+  assert.ok(prepareIndex>buildIndex);
+  assert.ok(lighthouseIndex>prepareIndex);
+  assert.ok(deployIndex>lighthouseIndex);
+  assert.ok(browserVerifyIndex>deployIndex);
+
+  assert.match(production,/node qa\/rc64\/run-lighthouse\.mjs/u);
+  assert.match(production,/test -s \.lighthouseci\/rc64-2a\/summary\.json/u);
+  assert.match(production,/\.lighthouseci\/rc64-2a\/summary\.json/u);
+  assert.match(production,/PROD_CHROMIUM_NOT_READY/u);
+
+  const installs=[...production.matchAll(/npx playwright install --with-deps chromium/gu)];
+  assert.equal(installs.length,1);
+});
