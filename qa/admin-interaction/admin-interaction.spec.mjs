@@ -170,6 +170,8 @@ test('Admin mobile Más opens reliably and navigates through the real shell cont
   const menu=more.locator('.m26-mobile-more-menu');
 
   await expect(more).toBeVisible();
+  await expect(summary).toHaveAttribute('aria-expanded','false');
+  await expect(summary).toHaveAttribute('aria-controls','m26-mobile-more-menu');
   await summary.tap();
   await expect(more).toHaveAttribute('open','');
   await expect(summary).toHaveAttribute('aria-expanded','true');
