@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import {
+  advanceExecution,
   advanceExpiredRest,
   beginRest,
   createExecution,
@@ -122,6 +123,68 @@ test('internal expired-rest dispatch uses the normal progress persistence comman
   assert.equal(commands[0].type,'EJECUCION_GUARDAR_PROGRESO');
   assert.equal(commands[0].payload.progressSnapshot.setIndex,1);
   assert.equal(execution.revision,3);
+});
+
+test('manual previous persists a real rewind but avoids a redundant write at the first step',async()=>{
+  const {session,execution}=executionWithRecordedSet({restMs:60000});
+  advanceExecution(execution,{actor:coach()});
+  const commands=[];
+  const commandBus={
+    async execute(command){
+      commands.push(structuredClone(command));
+      return {ok:true,kind:'applied',command,response:{remoteRevision:5}};
+    },
+  };
+  const rewound=dispatchSessionAction({
+    action:'previous',
+    execution,
+    session,
+    catalog,
+    actor:coach(),
+    commandBus,
+  });
+  assert.equal(rewound.kind,'command');
+  await rewound.value;
+  assert.equal(execution.setIndex,0);
+  assert.equal(commands[0]?.type,'EJECUCION_GUARDAR_PROGRESO');
+  assert.equal(commands[0]?.payload?.progressSnapshot?.setIndex,0);
+
+  const firstSession=makeSession({sets:2});
+  const firstExecution=createExecution({session:firstSession,clientId:firstSession.clientId,executionId:'execution-first-step'});
+  startExecution(firstExecution,{actor:coach()});
+  const firstCommands=[];
+  const first=dispatchSessionAction({
+    action:'previous',
+    execution:firstExecution,
+    session:firstSession,
+    catalog,
+    actor:coach(),
+    commandBus:{async execute(command){firstCommands.push(command);return {ok:true,kind:'applied',command,response:{remoteRevision:2}};}},
+  });
+  assert.equal(first.kind,'execution');
+  assert.equal(firstCommands.length,0);
+});
+
+test('rest adjustments persist through the normal progress command path',async()=>{
+  for(const [action,expectedDirection] of [['rest-plus',1],['rest-minus',-1]]){
+    const {session,execution}=executionWithRecordedSet({restMs:60000});
+    const before=new Date(execution.restUntil).getTime();
+    const commands=[];
+    const commandBus={
+      async execute(command){
+        commands.push(structuredClone(command));
+        return {ok:true,kind:'applied',command,response:{remoteRevision:6}};
+      },
+    };
+    const result=dispatchSessionAction({action,execution,session,catalog,actor:coach(),commandBus});
+    assert.equal(result.kind,'command');
+    await result.value;
+    const after=new Date(execution.restUntil).getTime();
+    assert.equal(Math.sign(after-before),expectedDirection);
+    assert.equal(commands.length,1);
+    assert.equal(commands[0]?.type,'EJECUCION_GUARDAR_PROGRESO');
+    assert.equal(commands[0]?.payload?.progressSnapshot?.restUntil,execution.restUntil);
+  }
 });
 
 test('manual next also persists the advanced step through the progress command bus',async()=>{
