@@ -11,4 +11,4 @@ export const ADMIN_AREAS=Object.freeze({
   'admin-auditoria':{key:'admin-auditoria',label:'Auditoría',title:'Auditoría y trazabilidad',scope:'admin-global',roles:['admin']},
   'admin-configuracion':{key:'admin-configuracion',label:'Configuración',title:'Configuración de IBERFIT',scope:'admin-global',roles:['admin']},
 });
-export const ADMIN_NAVIGATION=Object.freeze({primary:['admin-inicio','admin-usuarios','admin-equipo','admin-clientes','admin-agenda'],context:['admin-operaciones','admin-comunicacion','admin-automatizaciones','admin-analitica'],tools:['admin-auditoria','admin-configuracion'],mobile:['admin-inicio','admin-usuarios','admin-agenda','admin-operaciones','admin-equipo']});
+export const ADMIN_NAVIGATION=Object.freeze({primary:['admin-inicio','admin-usuarios','admin-equipo','admin-clientes','admin-agenda'],context:['admin-operaciones','admin-comunicacion','admin-automatizaciones','biblioteca','admin-analitica'],tools:['admin-auditoria','admin-configuracion'],mobile:['admin-inicio','admin-usuarios','admin-agenda','admin-operaciones','admin-equipo']});

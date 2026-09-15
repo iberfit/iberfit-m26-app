@@ -78,16 +78,25 @@ test('Cliente conserva Retos y Ajustes permitidos',()=>{
   }
 });
 
-test('Admin permanece aislado en namespace admin-* sin metadata contradictoria',()=>{
+test('Admin mantiene aislamiento salvo Biblioteca compartida explícitamente autorizada',()=>{
   assert.equal(M26_AREAS.retos.roles.includes('admin'),false);
   assert.equal(M26_AREAS.ajustes.roles.includes('admin'),false);
+  assert.deepEqual(M26_AREAS.biblioteca.roles,['coach','admin']);
   assert.equal(areaAllowedForRole('retos','admin'),false);
   assert.equal(areaAllowedForRole('ajustes','admin'),false);
+  assert.equal(areaAllowedForRole('biblioteca','admin'),true);
   assert.equal(resolveM26Route(readyState('admin'),'retos').area,'admin-inicio');
   assert.equal(resolveM26Route(readyState('admin'),'ajustes').area,'admin-inicio');
+  const library=resolveM26Route(readyState('admin'),'biblioteca');
+  assert.equal(library.area,'biblioteca');
+  assert.equal(library.allowed,true);
 });
 
 test('La corrección no altera la navegación móvil Coach ni la navegación Cliente canónica',()=>{
+  assert.equal(
+    navigationKeys('admin').context.includes('biblioteca'),
+    true,
+  );
   assert.deepEqual(
     navigationKeys('coach').mobile,
     ['hoy','clientes','agenda','mensajes'],
