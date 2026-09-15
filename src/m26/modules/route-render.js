@@ -2767,7 +2767,51 @@ export function renderExpedienteRoute(vm) {
       :'<p class="m26-coach-workspace-empty">Sin resultado cerrado todavía.</p>';
 
   const clientSummarySurface=
-    `${summarySurface}`;
+    `<section class="m26-panel m26-panel-soft m26-client360-now" aria-label="Estado actual del cliente" data-m26-expediente-section="resumen">
+      <div class="m26-panel-heading">
+        <div>
+          <p class="m26-eyebrow">Lo importante ahora</p>
+          <h2>Estado actual</h2>
+          <p><strong>${escapeHtml(pulseTitle)}</strong>. ${escapeHtml(pulseCopy)}</p>
+        </div>
+        ${badge(pulseLabel,focusTone)}
+      </div>
+
+      <div class="m26-stat-grid">
+        ${pulseStats}
+      </div>
+
+      <div class="m26-list-card-actions">
+        <button
+          type="button"
+          class="m26-primary-action"
+          data-m26-area="${escapeHtml(pulseActionArea)}"
+        >${escapeHtml(pulseActionLabel)}</button>
+
+        <small>${escapeHtml(pulseGuidance)} · Resumen construido con datos confirmados y reglas explicables.</small>
+      </div>
+    </section>
+
+    <div class="m26-client360-evolution" data-m26-expediente-section="resumen">
+      <div class="m26-client360-section-heading">
+        <div>
+          <p class="m26-eyebrow">Evolución</p>
+          <h2>Rendimiento y evolución</h2>
+          <p>Memoria longitudinal y tendencias confirmadas para decidir sin perder contexto.</p>
+        </div>
+      </div>
+      ${renderExercisePerformanceOverview(vm.exercisePerformance)}
+      <details class="m26-client360-progress-details">
+        <summary>Ver evolución detallada</summary>
+        ${renderExerciseProgressSection(vm.exerciseProgress,{
+          compact:true,
+          role:vm.role,
+          performance:vm.exercisePerformance,
+        })}
+      </details>
+    </div>
+
+    <div data-m26-expediente-section="resumen">${pendingProgressNotice}</div>`;
 
   const coachWorkspaceSurface=
     `<section class="m26-panel m26-coach-client-workspace" data-m26-expediente-section="resumen" data-coach-client-workspace>
@@ -2951,51 +2995,7 @@ export function renderExpedienteRoute(vm) {
       >Plan</button>
     </nav>
     <div class="m26-expediente-detail">
-<section class="m26-panel m26-panel-soft m26-client360-now" aria-label="Estado actual del cliente" data-m26-expediente-section="resumen">
-      <div class="m26-panel-heading">
-        <div>
-          <p class="m26-eyebrow">Lo importante ahora</p>
-          <h2>Estado actual</h2>
-          <p><strong>${escapeHtml(pulseTitle)}</strong>. ${escapeHtml(pulseCopy)}</p>
-        </div>
-        ${badge(pulseLabel,focusTone)}
-      </div>
-
-      <div class="m26-stat-grid">
-        ${pulseStats}
-      </div>
-
-      <div class="m26-list-card-actions">
-        <button
-          type="button"
-          class="m26-primary-action"
-          data-m26-area="${escapeHtml(pulseActionArea)}"
-        >${escapeHtml(pulseActionLabel)}</button>
-
-        <small>${escapeHtml(pulseGuidance)} · Resumen construido con datos confirmados y reglas explicables.</small>
-      </div>
-    </section>
-
-    <div class="m26-client360-evolution" data-m26-expediente-section="resumen">
-      <div class="m26-client360-section-heading">
-        <div>
-          <p class="m26-eyebrow">Evolución</p>
-          <h2>Rendimiento y evolución</h2>
-          <p>Memoria longitudinal y tendencias confirmadas para decidir sin perder contexto.</p>
-        </div>
-      </div>
-      ${renderExercisePerformanceOverview(vm.exercisePerformance)}
-      <details class="m26-client360-progress-details">
-        <summary>Ver evolución detallada</summary>
-        ${renderExerciseProgressSection(vm.exerciseProgress,{
-          compact:true,
-          role:vm.role,
-          performance:vm.exercisePerformance,
-        })}
-      </details>
-    </div>
-
-    <div data-m26-expediente-section="resumen">${pendingProgressNotice}</div>
+${summarySurface}
 
     <div class="m26-client360-context" data-m26-expediente-section="contexto">${recentContext}${vm.coachCockpit?renderCoachFollowUpPlan(vm.alerts):''}</div>
 
