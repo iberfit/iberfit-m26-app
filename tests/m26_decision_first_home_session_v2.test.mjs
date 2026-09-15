@@ -141,3 +141,15 @@ test('Brand Vision keeps Today decision-first without hiding existing actions',(
   assert.match(vision,/@media\(max-width:580px\)/u);
   assert.doesNotMatch(vision,/display\s*:\s*none|visibility\s*:\s*hidden/iu);
 });
+
+
+test('progressive onboarding preserves Today decision-first priority',()=>{
+  const onboarding=read('src/m26/onboarding/progressive-onboarding.js');
+  assert.match(onboarding,/const todayLoop=main\.querySelector\?\.\('\.m26-today-loop'\)/u);
+  assert.match(onboarding,/todayLoop\.insertAdjacentHTML\('afterend',markup\)/u);
+  assert.match(onboarding,/else main\.insertAdjacentHTML\?\.\('afterbegin',markup\)/u);
+  const loopLookup=onboarding.indexOf("main.querySelector?.('.m26-today-loop')");
+  const afterEnd=onboarding.indexOf("todayLoop.insertAdjacentHTML('afterend',markup)",loopLookup);
+  const fallback=onboarding.indexOf("main.insertAdjacentHTML?.('afterbegin',markup)",afterEnd);
+  assert.ok(loopLookup>=0&&afterEnd>loopLookup&&fallback>afterEnd);
+});
