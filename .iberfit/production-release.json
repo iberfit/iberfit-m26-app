@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "9489b6df6c2be1166418bce0017623c3973c5040",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promote certified Canary including Coach one-tap repeat previous set, strengthened QA real-write certification, Admin mobile More fix lineage, and Coach quick RPE controls. All post-merge CI, device, visual, admin interaction, remote read-only and real-write gates are green."
+}
