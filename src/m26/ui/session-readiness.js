@@ -349,6 +349,10 @@ function focusProxyButton(document,live,selector,{primary=false}={}){
   proxy.type='button';
   proxy.setAttribute('data-session-focus-proxy','true');
   proxy.dataset.sessionFocusTarget=selector;
+  const ariaLabel=target.getAttribute?.('aria-label');
+  const title=target.getAttribute?.('title');
+  if(ariaLabel)proxy.setAttribute('aria-label',ariaLabel);
+  if(title)proxy.setAttribute('title',title);
   proxy.disabled=Boolean(target.disabled);
   proxy.setAttribute('aria-disabled',proxy.disabled?'true':'false');
   return proxy;
