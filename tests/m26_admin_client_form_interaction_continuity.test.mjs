@@ -65,3 +65,10 @@ test('all buttons hold only the short pointer lease so click cannot be swallowed
   assert.match(shell,/SHELL_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\],details > summary,button'/u);
   assert.match(shell,/SHELL_FOCUS_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\]'/u);
 });
+
+
+test('external shell render requests cannot bypass active form interaction leases',()=>{
+  assert.match(shell,/function renderSafely\(state=store\.getState\(\)\)\{[\s\S]*?if\(shellInteractionActive\(\)\)\{[\s\S]*?queuedState=state;[\s\S]*?return false;[\s\S]*?return renderNow\(state\);/u);
+  assert.match(shell,/return Object\.freeze\(\{ mount, destroy, render:renderSafely, scheduleRender \}\);/u);
+  assert.doesNotMatch(shell,/render:renderNow/u);
+});
