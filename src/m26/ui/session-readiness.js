@@ -203,6 +203,28 @@ export function sessionFocusPlan({state='',hasCompleteSet=false,hasNext=false}={
   return null;
 }
 
+export function sessionFocusSecondarySelectors({
+  state='',
+  role='',
+  hasRepeat=false,
+  hasRestMinus=false,
+  hasRestPlus=false,
+}={}){
+  const normalizedState=String(state||'').trim().toLowerCase();
+  const normalizedRole=String(role||'').trim().toLowerCase();
+  if(normalizedRole!=='coach')return Object.freeze([]);
+  if(normalizedState==='active'&&hasRepeat){
+    return Object.freeze(['[data-session-action="repeat-previous-set"]']);
+  }
+  if(normalizedState==='rest'){
+    return Object.freeze([
+      hasRestMinus?'[data-session-action="rest-minus"]':null,
+      hasRestPlus?'[data-session-action="rest-plus"]':null,
+    ].filter(Boolean));
+  }
+  return Object.freeze([]);
+}
+
 function focusStateFor(root){
   let state=ROOT_STATE.get(root);
   if(state)return state;
@@ -349,22 +371,16 @@ function buildFocusDock(document,live,plan,role='client'){
   meta.append(wake);
 
   const actions=create(document,'div','m27-session-focus-actions');
-  if(isCoach&&plan.state==='active'){
-    const repeat=focusProxyButton(
-      document,
-      live,
-      '[data-session-action="repeat-previous-set"]',
-    );
-    if(repeat)actions.append(repeat);
-  }
-  if(isCoach&&plan.state==='rest'){
-    for(const selector of [
-      '[data-session-action="rest-minus"]',
-      '[data-session-action="rest-plus"]',
-    ]){
-      const restControl=focusProxyButton(document,live,selector);
-      if(restControl)actions.append(restControl);
-    }
+  const secondarySelectors=sessionFocusSecondarySelectors({
+    state:plan.state,
+    role,
+    hasRepeat:Boolean(live.querySelector?.('[data-session-action="repeat-previous-set"]')),
+    hasRestMinus:Boolean(live.querySelector?.('[data-session-action="rest-minus"]')),
+    hasRestPlus:Boolean(live.querySelector?.('[data-session-action="rest-plus"]')),
+  });
+  for(const selector of secondarySelectors){
+    const secondary=focusProxyButton(document,live,selector);
+    if(secondary)actions.append(secondary);
   }
   const primary=focusProxyButton(
     document,
