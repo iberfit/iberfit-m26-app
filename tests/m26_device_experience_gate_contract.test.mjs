@@ -8,6 +8,7 @@ const authenticated=read('playwright.authenticated.config.mjs');
 const genie=read('playwright.client-guided-welcome.config.mjs');
 const deviceConfig=read('playwright.device-experience.config.mjs');
 const deviceSpec=read('qa/device-experience/device-experience.spec.mjs');
+const visualCasesGenerator=read('qa/rc13_generate_visual_cases.mjs');
 const visual=read('playwright.authenticated-visual.config.mjs');
 const admin=read('playwright.admin-interaction.config.mjs');
 const adminVisual=read('playwright.daily-admin-visual.config.mjs');
@@ -124,4 +125,13 @@ test('contextual help preserves the canonical touch target inside data-trust lab
     primitives,
     /\.m26-data-trust-label \.m26-guidance-trigger\{[\s\S]*?min-width:var\(--iberfit-size-touch-target\);[\s\S]*?min-height:var\(--iberfit-size-touch-target\);/u,
   );
+});
+
+
+test('Device IRI fixture uses current domain evidence and never revives the obsolete global score model',()=>{
+  assert.match(visualCasesGenerator,/firstSessionCompletedAt/u);
+  assert.match(visualCasesGenerator,/bodyComposition:\{weightKg:/u);
+  assert.match(visualCasesGenerator,/strengthPatterns:\{/u);
+  assert.match(visualCasesGenerator,/diagnosis:\{strengths:/u);
+  assert.doesNotMatch(visualCasesGenerator,/score:72|score:67|Buen nivel funcional|Nivel funcional medio/u);
 });
