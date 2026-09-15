@@ -178,9 +178,12 @@ test('Admin mobile Más opens reliably and navigates through the real shell cont
   await expect(menu).toBeVisible();
   await expect(page.locator('#m26-main')).toHaveAttribute('inert','');
   await expect(page.locator('.m26-topbar')).toHaveAttribute('inert','');
+  await expect(page.locator('.m26-shell')).toHaveAttribute('data-m26-mobile-more-open','true');
+  await expect(page.locator('.m26-shell')).toHaveCSS('pointer-events','none');
   await expect(page.locator('.m26-workspace')).toHaveAttribute('data-m26-mobile-more-open','true');
   await expect(page.locator('.m26-workspace')).toHaveCSS('pointer-events','none');
   await expect(page.locator('.m26-mobile-nav')).toHaveCSS('pointer-events','auto');
+  await expect(menu).toHaveCSS('pointer-events','auto');
 
   const library=menu.locator('[data-m26-area="biblioteca"]');
   await expect(library).toBeVisible();
@@ -190,6 +193,7 @@ test('Admin mobile Más opens reliably and navigates through the real shell cont
   await expect(page.locator('[data-qa-current-area="biblioteca"]')).toBeVisible();
   await expect(page.locator('#m26-main')).not.toHaveAttribute('inert','');
   await expect(page.locator('.m26-topbar')).not.toHaveAttribute('inert','');
+  await expect(page.locator('.m26-shell')).not.toHaveAttribute('data-m26-mobile-more-open','true');
   await expect(page.locator('.m26-workspace')).not.toHaveAttribute('data-m26-mobile-more-open','true');
 
   const rerenderedMore=page.locator('details.m26-mobile-more');
