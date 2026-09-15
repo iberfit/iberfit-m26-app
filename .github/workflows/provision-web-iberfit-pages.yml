@@ -214,30 +214,62 @@ jobs:
         run: |
           set -euo pipefail
 
+          # 1) La URL inmutable del deployment debe servir exactamente la candidata certificada.
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
+            "${PRODUCTION_URL}/VERSION?cb=${GITHUB_RUN_ID}" -o /tmp/v634-pages-version.out
+          test "$(tr -d '\r\n ' < /tmp/v634-pages-version.out)" = "${WEB_VERSION}"
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
+            "${PRODUCTION_URL}/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-pages-home.html
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
+            "${PRODUCTION_URL}/sobre-iberfit/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-pages-about.html
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
+            "${PRODUCTION_URL}/online/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-pages-online.html
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
+            "${PRODUCTION_URL}/entrenador-personal-las-condes/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-pages-las-condes.html
+          grep -q 'authenticity-editorial' /tmp/v634-pages-home.html
+          grep -q 'founder-identity-section' /tmp/v634-pages-about.html
+          grep -q 'quality.v634.css' /tmp/v634-pages-about.html
+          grep -q 'Entrenamiento personal online y a distancia' /tmp/v634-pages-online.html
+          grep -q 'local-context-note' /tmp/v634-pages-las-condes.html
+
+          # 2) El dominio real puede tardar unos segundos en propagar HTML en todos los edges.
+          # Esperamos a que VERSION y los marcadores críticos pertenezcan al mismo release.
           ok=0
-          for attempt in $(seq 1 15); do
-            v="$(curl --silent --show-error --location --max-time 20 \
-              "https://iberfit.cl/VERSION?cb=${GITHUB_RUN_ID}-${attempt}" 2>/dev/null | tr -d '\r\n ' || true)"
-            if [ "${v}" = "${WEB_VERSION}" ]; then ok=1; break; fi
+          for attempt in $(seq 1 20); do
+            suffix="${GITHUB_RUN_ID}-${attempt}"
+            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' \
+              "https://iberfit.cl/VERSION?cb=${suffix}" -o /tmp/iberfit-version.out || true
+            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' \
+              "https://iberfit.cl/?cb=${suffix}" -o /tmp/iberfit-home.html || true
+            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' \
+              "https://iberfit.cl/sobre-iberfit/?cb=${suffix}" -o /tmp/iberfit-about.html || true
+            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' \
+              "https://iberfit.cl/online/?cb=${suffix}" -o /tmp/iberfit-online.html || true
+            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' \
+              "https://iberfit.cl/entrenador-personal-las-condes/?cb=${suffix}" -o /tmp/iberfit-las-condes.html || true
+
+            version="$(tr -d '\r\n ' < /tmp/iberfit-version.out 2>/dev/null || true)"
+            home=0; about=0; online=0; local=0
+            grep -q 'authenticity-editorial' /tmp/iberfit-home.html 2>/dev/null && home=1 || true
+            grep -q 'founder-identity-section' /tmp/iberfit-about.html 2>/dev/null && about=1 || true
+            grep -q 'Entrenamiento personal online y a distancia' /tmp/iberfit-online.html 2>/dev/null && online=1 || true
+            grep -q 'local-context-note' /tmp/iberfit-las-condes.html 2>/dev/null && local=1 || true
+
+            echo "Production propagation attempt ${attempt}: version=${version:-missing} home=${home} about=${about} online=${online} local=${local}"
+            if [ "${version}" = "${WEB_VERSION}" ] && [ "${home}" = "1" ] && [ "${about}" = "1" ] && [ "${online}" = "1" ] && [ "${local}" = "1" ]; then
+              ok=1
+              break
+            fi
             sleep 4
           done
-          test "${ok}" = "1" || { echo IBERFIT_CL_VERSION_MISMATCH; exit 44; }
+          if [ "${ok}" != "1" ]; then
+            echo 'IBERFIT_CL_RELEASE_NOT_CONSISTENT'
+            echo "VERSION=$(cat /tmp/iberfit-version.out 2>/dev/null || true)"
+            grep -Eo 'quality\.v63[0-9]\.css|authenticity-editorial|founder-identity-section|Entrenamiento personal online y a distancia|local-context-note' \
+              /tmp/iberfit-home.html /tmp/iberfit-about.html /tmp/iberfit-online.html /tmp/iberfit-las-condes.html 2>/dev/null || true
+            exit 44
+          fi
 
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
-            "https://iberfit.cl/?cb=${GITHUB_RUN_ID}" -o /tmp/iberfit-home.html
-          grep -q 'IBERFIT' /tmp/iberfit-home.html
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
-            "https://iberfit.cl/sobre-iberfit/?cb=${GITHUB_RUN_ID}" -o /tmp/iberfit-about.html
-          grep -q 'brand-journey--editorial' /tmp/iberfit-about.html
-          grep -q 'founder-identity-section' /tmp/iberfit-about.html
-          grep -q 'quality.v634.css' /tmp/iberfit-about.html
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
-            "https://iberfit.cl/online/?cb=${GITHUB_RUN_ID}" -o /tmp/iberfit-online.html
-          grep -q 'Entrenamiento personal online y a distancia' /tmp/iberfit-online.html
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
-            "https://iberfit.cl/entrenador-personal-las-condes/?cb=${GITHUB_RUN_ID}" -o /tmp/iberfit-las-condes.html
-          grep -q 'local-context-note' /tmp/iberfit-las-condes.html
-          grep -q 'authenticity-editorial' /tmp/iberfit-home.html
           curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
             "https://iberfit.cl/assets/flag-cl.svg?cb=${GITHUB_RUN_ID}" -o /tmp/iberfit-flag-cl.svg
           grep -q '<svg' /tmp/iberfit-flag-cl.svg
