@@ -61,7 +61,7 @@ test('Client progress starts with meaning before empty analytics',()=>{
 
   assert.equal(model.stage,'starting');
   assert.match(model.title,/construyendo tu historial/iu);
-  assert.match(model.next,/1 sesión más/iu);
+  assert.match(model.next,/al menos dos sesiones confirmadas/iu);
 
   const html=render('client',summary({
     completedSessions:1,
