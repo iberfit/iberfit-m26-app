@@ -53,4 +53,4 @@ export function areaDefinition(value){const key=canonicalArea(value);return key?
 function resolveItems(keys){return keys.map((key)=>M26_AREAS[key]);}
 export function navigationForRole(value){const role=assertKnownRole(value);const model=NAVIGATION[role];return Object.freeze({role,primary:Object.freeze(resolveItems(model.primary)),context:Object.freeze(resolveItems(model.context)),tools:Object.freeze(resolveItems(model.tools)),mobile:Object.freeze(resolveItems(model.mobile))});}
 export function roleHome(value){const role=assertKnownRole(value);return role==='admin'?'admin-inicio':'hoy';}
-export function areaAllowedForRole(area,role){const definition=areaDefinition(area);const normalized=assertKnownRole(role);return Boolean(definition?.roles?.includes(normalized));}
+export function areaAllowedForRole(area,role){const definition=areaDefinition(area);const normalized=assertKnownRole(role);if(normalized==='admin')return Boolean((definition?.key?.startsWith('admin-')||definition?.key==='biblioteca')&&definition?.roles?.includes('admin'));return Boolean(definition?.roles?.includes(normalized));}
