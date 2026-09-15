@@ -205,7 +205,7 @@ function renderM26ShellBase(vm, routeMarkup = '') {
   const moreMobileItems = allMobileItems.filter((item) => !quickMobileItems.some((quick) => quick.key === item.key));
   const mobileMoreActive=moreMobileItems.some((item)=>item.key===vm.activeArea);
   const mobileAccountSlot='<div class="m26-mobile-more-account"></div>';
-  const mobileMore = moreMobileItems.length ? `<details class="m26-mobile-more${mobileMoreActive?' is-active':''}"${mobileMoreActive?' data-m26-more-active="true"':''}><summary>${escapeHtml(tx('common.more','Más'))}</summary><div class="m26-mobile-more-menu">${moreMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}${mobileAccountSlot}</div></details>` : '';
+  const mobileMore = moreMobileItems.length ? `<details class="m26-mobile-more${mobileMoreActive?' is-active':''}"${mobileMoreActive?' data-m26-more-active="true"':''}><summary aria-expanded="false" aria-controls="m26-mobile-more-menu" aria-haspopup="menu">${escapeHtml(tx('common.more','Más'))}</summary><div id="m26-mobile-more-menu" class="m26-mobile-more-menu" role="menu">${moreMobileItems.map((item) => navItem(item, vm.activeArea)).join('')}${mobileAccountSlot}</div></details>` : '';
   const productivity=coachProductivityShell(vm);
   const pageTitle=tx(`area.${vm.activeArea}.label`,vm.page.label);
 

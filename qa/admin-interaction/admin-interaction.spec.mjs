@@ -156,3 +156,79 @@ test('Admin client-create wizard preserves entered values while selects and step
 
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
+
+
+test('Admin mobile Más opens reliably and navigates through the real shell controller',async({page,browserName},testInfo)=>{
+  test.skip(!testInfo.project.name.startsWith('admin-mobile-'),'Mobile disclosure regression only.');
+
+  const errors=capturePageErrors(page);
+  await page.goto('/qa/admin-interaction/mobile-shell.fixture.html',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_MOBILE_SHELL_QA__?.mounted===true)).toBe(true);
+
+  const more=page.locator('details.m26-mobile-more');
+  const summary=more.locator(':scope > summary');
+  const menu=more.locator('.m26-mobile-more-menu');
+
+  await expect(more).toBeVisible();
+  await expect(summary).toHaveAttribute('aria-expanded','false');
+  await expect(summary).toHaveAttribute('aria-controls','m26-mobile-more-menu');
+  await summary.tap();
+  await expect(more).toHaveAttribute('open','');
+  await expect(summary).toHaveAttribute('aria-expanded','true');
+  await expect(menu).toBeVisible();
+  await expect(page.locator('#m26-main')).toHaveAttribute('inert','');
+  await expect(page.locator('.m26-topbar')).toHaveAttribute('inert','');
+  await expect(page.locator('.m26-shell')).toHaveAttribute('data-m26-mobile-more-open','true');
+  await expect(page.locator('.m26-workspace')).toHaveAttribute('data-m26-mobile-more-open','true');
+  await expect(page.locator('.m26-mobile-nav')).toHaveCSS('overflow-x','visible');
+  await expect(page.locator('.m26-mobile-nav')).toHaveCSS('overflow-y','visible');
+
+  const library=menu.locator('[data-m26-area="biblioteca"]');
+  await expect(library).toBeVisible();
+  const hitTarget=await library.evaluate((el)=>{
+    const rect=el.getBoundingClientRect();
+    const x=rect.left+rect.width/2;
+    const y=rect.top+rect.height/2;
+    const hit=document.elementFromPoint(x,y);
+    return {
+      matches:hit===el||Boolean(el.contains(hit)),
+      hitTag:String(hit?.tagName||''),
+      hitClass:String(hit?.className||''),
+      hitArea:String(hit?.getAttribute?.('data-m26-area')||''),
+    };
+  });
+  expect(hitTarget.matches,JSON.stringify(hitTarget)).toBe(true);
+  await library.tap();
+
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_MOBILE_SHELL_QA__?.activeArea())).toBe('biblioteca');
+  await expect(page.locator('[data-qa-current-area="biblioteca"]')).toBeVisible();
+  await expect(page.locator('#m26-main')).not.toHaveAttribute('inert','');
+  await expect(page.locator('.m26-topbar')).not.toHaveAttribute('inert','');
+  await expect(page.locator('.m26-shell')).not.toHaveAttribute('data-m26-mobile-more-open','true');
+  await expect(page.locator('.m26-workspace')).not.toHaveAttribute('data-m26-mobile-more-open','true');
+
+  const rerenderedMore=page.locator('details.m26-mobile-more');
+  const rerenderedSummary=rerenderedMore.locator(':scope > summary');
+  await expect(rerenderedMore).not.toHaveAttribute('open','');
+  await rerenderedSummary.tap();
+  await expect(rerenderedMore).toHaveAttribute('open','');
+  await expect(rerenderedSummary).toHaveAttribute('aria-expanded','true');
+  await expect(page.locator('#m26-main')).toHaveAttribute('inert','');
+
+  await page.keyboard.press('Escape');
+  await expect(rerenderedMore).not.toHaveAttribute('open','');
+  await expect(rerenderedSummary).toHaveAttribute('aria-expanded','false');
+  await expect(page.locator('#m26-main')).not.toHaveAttribute('inert','');
+  await expect(page.locator('.m26-topbar')).not.toHaveAttribute('inert','');
+
+  await rerenderedSummary.tap();
+  await expect(rerenderedMore).toHaveAttribute('open','');
+  await expect(page.locator('#m26-main')).toHaveAttribute('inert','');
+  await rerenderedSummary.tap({position:{x:3,y:3}});
+  await expect(rerenderedMore).not.toHaveAttribute('open','');
+  await expect(rerenderedSummary).toHaveAttribute('aria-expanded','false');
+  await expect(page.locator('#m26-main')).not.toHaveAttribute('inert','');
+  await expect(page.locator('.m26-topbar')).not.toHaveAttribute('inert','');
+
+  expect(errors,browserName+' emitted browser errors').toEqual([]);
+});

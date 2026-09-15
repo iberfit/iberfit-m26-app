@@ -335,3 +335,26 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 @media print{
   .m26-session-experience{background:transparent;box-shadow:none}
 }
+
+/* Admin/Coach mobile overflow behaves as a true modal sheet while open.
+ * On narrow phones the legacy nav uses horizontal overflow. The overflow
+ * must be released while Más is open so the sheet above the bar remains
+ * inside the browser hit-testing region. Background content is made inert
+ * by the shell controller; the nav itself stays interactive. */
+@media (max-width: 900px) {
+  .m26-shell[data-m26-mobile-more-open="true"] > .m26-workspace > .m26-mobile-nav {
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    z-index: 1200 !important;
+    isolation: isolate;
+  }
+
+  .m26-shell[data-m26-mobile-more-open="true"] .m26-mobile-more {
+    overflow: visible;
+  }
+
+  .m26-shell[data-m26-mobile-more-open="true"] .m26-mobile-more[open] .m26-mobile-more-menu {
+    z-index: 1202;
+  }
+}
