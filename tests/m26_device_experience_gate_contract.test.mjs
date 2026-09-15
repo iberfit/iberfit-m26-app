@@ -92,7 +92,7 @@ test('Phase A gate is explicit about real and synthetic coverage',()=>{
 test('Device workflow matrix covers current-source Client Coach and Admin tasks on all four surfaces',()=>{
   for(const token of [
     'client-hoy','client-progreso','client-session-live','client-feedback',
-    'coach-hoy','coach-clientes','coach-expediente','coach-programar',
+    'coach-hoy','coach-clientes','coach-expediente','coach-iri','coach-planificacion','coach-programar',
     'admin-users','admin-client-create',
   ])assert.ok(deviceSpec.includes(token),`missing task token: ${token}`);
 
