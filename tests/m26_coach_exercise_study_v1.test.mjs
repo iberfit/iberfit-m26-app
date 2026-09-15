@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import {renderProgressRoute} from '../src/m26/modules/route-render.js';
+import {__progressContinuityInternals} from '../src/m26/ui/progress-continuity.js';
 
 function summaryFixture(){
   return {
@@ -348,4 +349,63 @@ test('Coach Exercise Study CSS preserves premium responsive and accessibility co
   assert.match(block,/@media \(max-width: 560px\)/u);
   assert.match(block,/@media \(forced-colors: active\)/u);
   assert.match(block,/@media print/u);
+});
+
+
+test('Coach Exercise Study V2 adds a focused searchable workspace without changing Client rendering',()=>{
+  const source=fs.readFileSync(
+    new URL('../src/m26/ui/progress-continuity.js',import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source,/function enhanceCoachExerciseFocus/u);
+  assert.match(source,/\['coach','admin'\]\.includes\(role\)/u);
+  assert.match(source,/area!==['"]progreso['"]/u);
+  assert.match(source,/data-m27-exercise-focus/u);
+  assert.match(source,/data-m27-exercise-search/u);
+  assert.match(source,/data-m27-exercise-select/u);
+  assert.match(source,/item\.card\.remove\(\)/u);
+  assert.match(source,/state\.active\.replaceChildren\(next\)/u);
+});
+
+test('Coach Exercise Study V2 search is accent-insensitive and window semantics are bounded',()=>{
+  const {
+    exerciseFocusText,
+    exerciseFocusLimit,
+    exerciseFocusWindowCopy,
+  }=__progressContinuityInternals;
+
+  assert.equal(exerciseFocusText('Prensa Única'),'prensa unica');
+  assert.equal(exerciseFocusText('SENTADILLA'),'sentadilla');
+  assert.equal(exerciseFocusLimit(4),4);
+  assert.equal(exerciseFocusLimit(8),8);
+  assert.equal(exerciseFocusLimit(12),12);
+  assert.equal(exerciseFocusLimit('all'),Number.POSITIVE_INFINITY);
+  assert.equal(exerciseFocusLimit(99),8);
+  assert.match(exerciseFocusWindowCopy(8),/Últimas 8 exposiciones/u);
+  assert.match(exerciseFocusWindowCopy('all'),/Todo el historial/u);
+});
+
+test('Coach Exercise Study V2 keeps full chart points available for future visual windows',()=>{
+  const source=fs.readFileSync(
+    new URL('../src/m26/modules/route-render.js',import.meta.url),
+    'utf8',
+  );
+
+  assert.match(
+    source,
+    /data-points="\$\{payload\}"[\s\S]*?data-all-points="\$\{payload\}"/u,
+  );
+});
+
+test('Coach Exercise Study V2 keeps deeper trend history for Coach while Client remains compact',()=>{
+  const source=fs.readFileSync(
+    new URL('../src/m26/engagement/exercise-performance-engine.js',import.meta.url),
+    'utf8',
+  );
+
+  assert.match(
+    source,
+    /window:[\s\S]*normalizedRole==='client'[\s\S]*\?8[\s\S]*:50/u,
+  );
 });
