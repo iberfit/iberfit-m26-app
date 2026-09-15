@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import {renderProgressRoute} from '../src/m26/modules/route-render.js';
+import {__progressContinuityInternals} from '../src/m26/ui/progress-continuity.js';
 
 function summaryFixture(){
   return {
@@ -348,4 +349,28 @@ test('Coach Exercise Study CSS preserves premium responsive and accessibility co
   assert.match(block,/@media \(max-width: 560px\)/u);
   assert.match(block,/@media \(forced-colors: active\)/u);
   assert.match(block,/@media print/u);
+});
+
+
+test('Coach Exercise Study V2 adds a focused searchable workspace without changing Client rendering',()=>{
+  const source=fs.readFileSync(
+    new URL('../src/m26/ui/progress-continuity.js',import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source,/function enhanceCoachExerciseFocus/u);
+  assert.match(source,/\['coach','admin'\]\.includes\(role\)/u);
+  assert.match(source,/area!==['"]progreso['"]/u);
+  assert.match(source,/data-m27-exercise-focus/u);
+  assert.match(source,/data-m27-exercise-search/u);
+  assert.match(source,/data-m27-exercise-select/u);
+  assert.match(source,/item\.card\.remove\(\)/u);
+  assert.match(source,/state\.active\.replaceChildren\(next\)/u);
+});
+
+test('Coach Exercise Study V2 search is accent-insensitive',()=>{
+  const {exerciseFocusText}=__progressContinuityInternals;
+
+  assert.equal(exerciseFocusText('Prensa Única'),'prensa unica');
+  assert.equal(exerciseFocusText('SENTADILLA'),'sentadilla');
 });

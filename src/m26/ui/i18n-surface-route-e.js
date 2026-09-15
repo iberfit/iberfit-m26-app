@@ -101,4 +101,11 @@ export const ROUTE_SURFACE_ROWS_E=Object.freeze([
 ["Cobertura de carga","Load coverage","Couverture de charge","Cobertura de carga"],
 ["Series con kg explícitos sobre el total registrado","Sets with explicit kg over all recorded sets","Séries avec kg explicites sur l’ensemble des séries enregistrées","Séries com kg explícitos sobre o total registado"],
 ["Cambios respecto a la exposición anterior","Changes versus the previous exposure","Évolutions par rapport à l’exposition précédente","Alterações face à exposição anterior"],
+["Todo el historial visible. La lectura Coach mantiene la evidencia confirmada completa.","All history is visible. The Coach view retains the full confirmed evidence.","Tout l’historique est visible. La vue Coach conserve l’ensemble des preuves confirmées.","Todo o histórico está visível. A vista Coach mantém toda a evidência confirmada."],
+["Estudio por ejercicio","Exercise study","Étude par exercice","Estudo por exercício"],
+["Buscar ejercicio","Search exercise","Rechercher un exercice","Pesquisar exercício"],
+["Nombre del ejercicio","Exercise name","Nom de l’exercice","Nome do exercício"],
+["Ejercicios con historial confirmado","Exercises with confirmed history","Exercices avec historique confirmé","Exercícios com histórico confirmado"],
+["Historial confirmado","Confirmed history","Historique confirmé","Histórico confirmado"],
+["No hay ejercicios que coincidan con la búsqueda.","No exercises match your search.","Aucun exercice ne correspond à la recherche.","Nenhum exercício corresponde à pesquisa."],
 ]);
