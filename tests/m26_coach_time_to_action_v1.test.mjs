@@ -284,3 +284,28 @@ test('Preparar sesión desde una cita de Hoy abre Sesiones y no Agenda cuando el
   assert.match(html,/>Preparar sesión</u);
   assert.doesNotMatch(html,/class="m26-primary-action"[^>]*data-m26-target-area="agenda"/u);
 });
+
+
+test('cita con clientId no visible degrada a Agenda sin intentar selección no autorizada',()=>{
+  const html=renderHoyRoute({
+    role:'coach',
+    appointments:[{
+      id:'appointment-hidden-client',
+      clientId:'99999999-9999-4999-8999-999999999999',
+      title:'Sesión pendiente',
+      dateLabel:'Hoy · 19:00',
+      modality:'Online',
+      status:'confirmed',
+    }],
+    proposals:[],
+    upcoming:[],
+    clients:[],
+    coachCockpit:{items:[],attentionCount:0,totalClients:0,riskFocus:null},
+    operations:{pending:0,conflicts:0,rejected:0},
+  });
+
+  assert.match(html,/class="m26-primary-action"[^>]*data-m26-area="agenda"/u);
+  assert.match(html,/>Abrir agenda</u);
+  assert.doesNotMatch(html,/class="m26-primary-action"[^>]*data-m26-coach-action="true"/u);
+  assert.doesNotMatch(html,/data-m26-client-id="99999999-9999-4999-8999-999999999999"/u);
+});
