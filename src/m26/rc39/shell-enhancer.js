@@ -21,6 +21,7 @@ function releaseMobileMoreBackground(details){
   const shell=details.closest?.('.m26-shell');
   const workspace=shell?.querySelector?.(':scope > .m26-workspace');
   if(!workspace)return false;
+  delete shell.dataset.m26MobileMoreOpen;
   delete workspace.dataset.m26MobileMoreOpen;
   const targets=[
     workspace.querySelector?.(':scope > .m26-topbar'),
