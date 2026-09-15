@@ -19,16 +19,15 @@ env:
   CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
   CF_PROJECT: 'web-iberfit'
   WEB_REPO: 'https://github.com/iberfit/iberfitweb.git'
-  WEB_SHA: 'ba7a49234cf42fef964b0fffdebfdbe1ab58aecb'
-  WEB_VERSION: '6.34'
-  QA_RUN_ID: '34975369337'
+  WEB_SHA: '44d9c5192207789605ee39b34be483068298c955'
+  WEB_VERSION: '6.35'
+  QA_RUN_ID: '34984390553'
   WRANGLER_VERSION: '4.120.0'
 
 jobs:
   provision:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
     steps:
       - name: Checkout infraestructura
         uses: actions/checkout@v4
@@ -70,21 +69,14 @@ jobs:
 
           const d=JSON.parse(fs.readFileSync('/tmp/deployments-before.json','utf8'));
           if(!d.success||!Array.isArray(d.result)) throw new Error('DEPLOYMENTS_LOOKUP_FAILED');
-          const current=d.result
-            .filter(v=>v.environment==='production')
+          const current=d.result.filter(v=>v.environment==='production')
             .sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
           if(!current?.id) throw new Error('NO_PRODUCTION_ROLLBACK_POINT');
           fs.appendFileSync(process.env.GITHUB_ENV,'ROLLBACK_DEPLOYMENT_ID='+current.id+'\n');
-          console.log(JSON.stringify({
-            project:p.result.name,
-            subdomain:p.result.subdomain,
-            production_branch:p.result.production_branch,
-            domains,
-            rollbackDeploymentId:current.id
-          },null,2));
+          console.log(JSON.stringify({project:p.result.name,domains,rollbackDeploymentId:current.id},null,2));
           NODE
 
-      - name: Verificar QA certificada V6.34
+      - name: Verificar QA certificada V6.35
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -94,10 +86,10 @@ jobs:
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" \
-            -o /tmp/qa-v634.json
+            -o /tmp/qa-v635.json
           node <<'NODE'
           const fs=require('fs');
-          const x=JSON.parse(fs.readFileSync('/tmp/qa-v634.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/qa-v635.json','utf8'));
           if(x.head_sha!==process.env.WEB_SHA) throw new Error('QA_SHA_MISMATCH:'+x.head_sha);
           if(x.status!=='completed'||x.conclusion!=='success') throw new Error('QA_NOT_SUCCESS:'+x.status+':'+x.conclusion);
           console.log(JSON.stringify({run:x.id,name:x.name,sha:x.head_sha,conclusion:x.conclusion},null,2));
@@ -111,85 +103,79 @@ jobs:
           git -C /tmp/iberfitweb fetch --depth=1 origin "${WEB_SHA}"
           git -C /tmp/iberfitweb checkout --detach "${WEB_SHA}"
           test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "${WEB_SHA}"
-          test -s /tmp/iberfitweb/candidate/v628/index.html
-          test -s /tmp/iberfitweb/candidate/v628/404.html
-          test -s /tmp/iberfitweb/candidate/v628/sitemap.xml
-          test -s /tmp/iberfitweb/candidate/v628/robots.txt
-          test -s /tmp/iberfitweb/candidate/v628/llms.txt
-          test -s /tmp/iberfitweb/candidate/v628/assets/quality.v634.css
-          grep -q 'authenticity-editorial' /tmp/iberfitweb/candidate/v628/index.html
-          grep -q 'Entrenamiento personal online y a distancia' /tmp/iberfitweb/candidate/v628/online/index.html
-          grep -q 'founder-identity-section' /tmp/iberfitweb/candidate/v628/sobre-iberfit/index.html
-          grep -q 'local-context-note' /tmp/iberfitweb/candidate/v628/entrenador-personal-las-condes/index.html
-          grep -q 'local-context-note' /tmp/iberfitweb/candidate/v628/en/personal-trainer-las-condes/index.html
-          test -s /tmp/iberfitweb/candidate/v628/assets/flag-es.svg
-          test -s /tmp/iberfitweb/candidate/v628/assets/flag-de.svg
-          test -s /tmp/iberfitweb/candidate/v628/assets/flag-cl.svg
-          grep -q 'brand-journey--editorial' /tmp/iberfitweb/candidate/v628/sobre-iberfit/index.html
-          grep -q 'quality.v634.css' /tmp/iberfitweb/candidate/v628/sobre-iberfit/index.html
-          grep -q '/assets/flag-cl.svg' /tmp/iberfitweb/candidate/v628/sobre-iberfit/index.html
-          test "$(tr -d '\r\n ' < /tmp/iberfitweb/candidate/v628/VERSION)" = "${WEB_VERSION}"
-          grep -q 'max-image-preview:large' /tmp/iberfitweb/candidate/v628/index.html
-          grep -q 'generate_lead' /tmp/iberfitweb/candidate/v628/assets/analytics.v628.js
 
-      - name: Desplegar preview V6.34
+          base=/tmp/iberfitweb/candidate/v628
+          test "$(tr -d '\r\n ' < "${base}/VERSION")" = "${WEB_VERSION}"
+          test -s "${base}/index.html"
+          test -s "${base}/404.html"
+          test -s "${base}/sitemap.xml"
+          test -s "${base}/robots.txt"
+          test -s "${base}/llms.txt"
+          test -s "${base}/assets/quality.v635.css"
+          test -s "${base}/assets/flag-es.svg"
+          test -s "${base}/assets/flag-de.svg"
+          test -s "${base}/assets/flag-cl.svg"
+
+          grep -q 'authenticity-editorial' "${base}/index.html"
+          grep -q 'Entrenamiento personal online y a distancia' "${base}/online/index.html"
+          grep -q 'brand-journey--editorial' "${base}/sobre-iberfit/index.html"
+          grep -q 'formación universitaria en España' "${base}/sobre-iberfit/index.html"
+          grep -q 'contextos distintos, el español y el alemán' "${base}/sobre-iberfit/index.html"
+          grep -q 'Spanish and German contexts' "${base}/en/about/index.html"
+          grep -q 'local-context-note' "${base}/entrenador-personal-las-condes/index.html"
+          grep -q 'local-context-note' "${base}/en/personal-trainer-las-condes/index.html"
+          grep -q 'quality.v635.css' "${base}/sobre-iberfit/index.html"
+
+          ! grep -R -ni --exclude-dir='.git' 'Carlos' "${base}"
+          ! grep -R -n --include='*.html' '#founder' "${base}"
+          ! grep -R -n --include='*.html' 'founder-identity-section' "${base}"
+
+      - name: Desplegar preview V6.35
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
         shell: bash
         run: |
           set -euo pipefail
-          PREVIEW_BRANCH="v634-review-${GITHUB_RUN_ID}"
+          PREVIEW_BRANCH="v635-review-${GITHUB_RUN_ID}"
           npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 \
             --project-name "${CF_PROJECT}" \
             --branch "${PREVIEW_BRANCH}" \
             --commit-hash "${WEB_SHA}" \
-            --commit-message 'WEB IBERFIT V6.34 certified preview' \
+            --commit-message 'WEB IBERFIT V6.35 certified preview' \
             | tee /tmp/wrangler-preview.log
           PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-preview.log | tail -1)"
-          test -n "${PREVIEW_URL}" || { echo PREVIEW_URL_NOT_FOUND; cat /tmp/wrangler-preview.log; exit 42; }
+          test -n "${PREVIEW_URL}" || { echo PREVIEW_URL_NOT_FOUND; exit 42; }
           echo "PREVIEW_URL=${PREVIEW_URL}" >> "${GITHUB_ENV}"
-          echo "Preview URL: ${PREVIEW_URL}"
 
-      - name: Smoke preview V6.34
+      - name: Smoke preview V6.35
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?cb=${GITHUB_RUN_ID}" -o /tmp/v634-version.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-home.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/contacto/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-contacto.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/diagnostico-iri/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-iri.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/privacidad/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-privacidad.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/en/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-en.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/sitemap.xml?cb=${GITHUB_RUN_ID}" -o /tmp/v634-sitemap.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/robots.txt?cb=${GITHUB_RUN_ID}" -o /tmp/v634-robots.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/llms.txt?cb=${GITHUB_RUN_ID}" -o /tmp/v634-llms.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/sobre-iberfit/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-about.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/en/about/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-about-en.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/online/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-online.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/entrenador-personal-las-condes/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-las-condes.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/entrenador-personal-vitacura/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-vitacura.out
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/assets/flag-es.svg?cb=${GITHUB_RUN_ID}" -o /tmp/v634-flag-es.svg
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/assets/flag-de.svg?cb=${GITHUB_RUN_ID}" -o /tmp/v634-flag-de.svg
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/assets/flag-cl.svg?cb=${GITHUB_RUN_ID}" -o /tmp/v634-flag-cl.svg
-          test "$(tr -d '\r\n ' < /tmp/v634-version.out)" = "${WEB_VERSION}"
-          grep -q 'IBERFIT' /tmp/v634-home.out
-          grep -q '^# IBERFIT' /tmp/v634-llms.out
-          grep -q 'brand-journey--editorial' /tmp/v634-about.out
-          grep -q 'founder-identity-section' /tmp/v634-about.out
-          grep -q 'quality.v634.css' /tmp/v634-about.out
-          grep -q '/assets/flag-cl.svg' /tmp/v634-about.out
-          grep -q 'brand-journey--editorial' /tmp/v634-about-en.out
-          grep -q 'founder-identity-section' /tmp/v634-about-en.out
-          grep -q 'Entrenamiento personal online y a distancia' /tmp/v634-online.out
-          grep -q 'local-context-note' /tmp/v634-las-condes.out
-          grep -q 'local-context-note' /tmp/v634-vitacura.out
-          grep -q 'authenticity-editorial' /tmp/v634-home.out
-          grep -q '<svg' /tmp/v634-flag-es.svg
-          grep -q '<svg' /tmp/v634-flag-de.svg
-          grep -q '<svg' /tmp/v634-flag-cl.svg
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?cb=${GITHUB_RUN_ID}" -o /tmp/v635-version.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/?cb=${GITHUB_RUN_ID}" -o /tmp/v635-home.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/sobre-iberfit/?cb=${GITHUB_RUN_ID}" -o /tmp/v635-about.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/en/about/?cb=${GITHUB_RUN_ID}" -o /tmp/v635-about-en.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/online/?cb=${GITHUB_RUN_ID}" -o /tmp/v635-online.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/entrenador-personal-las-condes/?cb=${GITHUB_RUN_ID}" -o /tmp/v635-las-condes.out
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PREVIEW_URL}/llms.txt?cb=${GITHUB_RUN_ID}" -o /tmp/v635-llms.out
 
-      - name: Desplegar V6.34 en producción
+          test "$(tr -d '\r\n ' < /tmp/v635-version.out)" = "${WEB_VERSION}"
+          grep -q 'authenticity-editorial' /tmp/v635-home.out
+          grep -q 'brand-journey--editorial' /tmp/v635-about.out
+          grep -q 'formación universitaria en España' /tmp/v635-about.out
+          grep -q 'contextos distintos, el español y el alemán' /tmp/v635-about.out
+          grep -q 'Spanish and German contexts' /tmp/v635-about-en.out
+          grep -q 'quality.v635.css' /tmp/v635-about.out
+          grep -q 'Entrenamiento personal online y a distancia' /tmp/v635-online.out
+          grep -q 'local-context-note' /tmp/v635-las-condes.out
+          grep -q 'historia pública debe presentarse como origen y evolución de la marca' /tmp/v635-llms.out
+          ! grep -qi 'Carlos' /tmp/v635-about.out
+          ! grep -qi 'Carlos' /tmp/v635-about-en.out
+          ! grep -q '#founder' /tmp/v635-about.out
+          ! grep -q 'founder-identity-section' /tmp/v635-about.out
+
+      - name: Desplegar V6.35 en producción
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
@@ -200,12 +186,11 @@ jobs:
             --project-name "${CF_PROJECT}" \
             --branch production \
             --commit-hash "${WEB_SHA}" \
-            --commit-message 'WEB IBERFIT V6.34 production' \
+            --commit-message 'WEB IBERFIT V6.35 production' \
             | tee /tmp/wrangler-production.log
           PRODUCTION_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-production.log | tail -1)"
-          test -n "${PRODUCTION_URL}" || { echo PRODUCTION_URL_NOT_FOUND; cat /tmp/wrangler-production.log; exit 43; }
+          test -n "${PRODUCTION_URL}" || { echo PRODUCTION_URL_NOT_FOUND; exit 43; }
           echo "PRODUCTION_URL=${PRODUCTION_URL}" >> "${GITHUB_ENV}"
-          echo "Production Pages URL: ${PRODUCTION_URL}"
 
       - name: Verificar producción y dominio real
         env:
@@ -214,65 +199,41 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 1) La URL inmutable del deployment debe servir exactamente la candidata certificada.
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
-            "${PRODUCTION_URL}/VERSION?cb=${GITHUB_RUN_ID}" -o /tmp/v634-pages-version.out
-          test "$(tr -d '\r\n ' < /tmp/v634-pages-version.out)" = "${WEB_VERSION}"
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
-            "${PRODUCTION_URL}/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-pages-home.html
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
-            "${PRODUCTION_URL}/sobre-iberfit/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-pages-about.html
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
-            "${PRODUCTION_URL}/online/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-pages-online.html
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
-            "${PRODUCTION_URL}/entrenador-personal-las-condes/?cb=${GITHUB_RUN_ID}" -o /tmp/v634-pages-las-condes.html
-          grep -q 'authenticity-editorial' /tmp/v634-pages-home.html
-          grep -q 'founder-identity-section' /tmp/v634-pages-about.html
-          grep -q 'quality.v634.css' /tmp/v634-pages-about.html
-          grep -q 'Entrenamiento personal online y a distancia' /tmp/v634-pages-online.html
-          grep -q 'local-context-note' /tmp/v634-pages-las-condes.html
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PRODUCTION_URL}/VERSION?cb=${GITHUB_RUN_ID}" -o /tmp/v635-pages-version.out
+          test "$(tr -d '\r\n ' < /tmp/v635-pages-version.out)" = "${WEB_VERSION}"
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "${PRODUCTION_URL}/sobre-iberfit/?cb=${GITHUB_RUN_ID}" -o /tmp/v635-pages-about.html
+          grep -q 'brand-journey--editorial' /tmp/v635-pages-about.html
+          grep -q 'formación universitaria en España' /tmp/v635-pages-about.html
+          grep -q 'quality.v635.css' /tmp/v635-pages-about.html
+          ! grep -qi 'Carlos' /tmp/v635-pages-about.html
+          ! grep -q '#founder' /tmp/v635-pages-about.html
+          ! grep -q 'founder-identity-section' /tmp/v635-pages-about.html
 
-          # 2) El dominio real puede tardar unos segundos en propagar HTML en todos los edges.
-          # Esperamos a que VERSION y los marcadores críticos pertenezcan al mismo release.
           ok=0
           for attempt in $(seq 1 20); do
             suffix="${GITHUB_RUN_ID}-${attempt}"
-            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' \
-              "https://iberfit.cl/VERSION?cb=${suffix}" -o /tmp/iberfit-version.out || true
-            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' \
-              "https://iberfit.cl/?cb=${suffix}" -o /tmp/iberfit-home.html || true
-            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' \
-              "https://iberfit.cl/sobre-iberfit/?cb=${suffix}" -o /tmp/iberfit-about.html || true
-            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' \
-              "https://iberfit.cl/online/?cb=${suffix}" -o /tmp/iberfit-online.html || true
-            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' \
-              "https://iberfit.cl/entrenador-personal-las-condes/?cb=${suffix}" -o /tmp/iberfit-las-condes.html || true
+            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' "https://iberfit.cl/VERSION?cb=${suffix}" -o /tmp/iberfit-version.out || true
+            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' "https://iberfit.cl/?cb=${suffix}" -o /tmp/iberfit-home.html || true
+            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' "https://iberfit.cl/sobre-iberfit/?cb=${suffix}" -o /tmp/iberfit-about.html || true
+            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' "https://iberfit.cl/online/?cb=${suffix}" -o /tmp/iberfit-online.html || true
+            curl --silent --show-error --location --max-time 20 -H 'Cache-Control: no-cache' "https://iberfit.cl/entrenador-personal-las-condes/?cb=${suffix}" -o /tmp/iberfit-las-condes.html || true
 
             version="$(tr -d '\r\n ' < /tmp/iberfit-version.out 2>/dev/null || true)"
-            home=0; about=0; online=0; local=0
+            home=0; about=0; clean=0; online=0; local=0
             grep -q 'authenticity-editorial' /tmp/iberfit-home.html 2>/dev/null && home=1 || true
-            grep -q 'founder-identity-section' /tmp/iberfit-about.html 2>/dev/null && about=1 || true
+            grep -q 'brand-journey--editorial' /tmp/iberfit-about.html 2>/dev/null && grep -q 'formación universitaria en España' /tmp/iberfit-about.html 2>/dev/null && about=1 || true
+            if ! grep -qi 'Carlos' /tmp/iberfit-about.html 2>/dev/null && ! grep -q '#founder' /tmp/iberfit-about.html 2>/dev/null && ! grep -q 'founder-identity-section' /tmp/iberfit-about.html 2>/dev/null; then clean=1; fi
             grep -q 'Entrenamiento personal online y a distancia' /tmp/iberfit-online.html 2>/dev/null && online=1 || true
             grep -q 'local-context-note' /tmp/iberfit-las-condes.html 2>/dev/null && local=1 || true
 
-            echo "Production propagation attempt ${attempt}: version=${version:-missing} home=${home} about=${about} online=${online} local=${local}"
-            if [ "${version}" = "${WEB_VERSION}" ] && [ "${home}" = "1" ] && [ "${about}" = "1" ] && [ "${online}" = "1" ] && [ "${local}" = "1" ]; then
+            echo "Production propagation attempt ${attempt}: version=${version:-missing} home=${home} about=${about} clean=${clean} online=${online} local=${local}"
+            if [ "${version}" = "${WEB_VERSION}" ] && [ "${home}" = "1" ] && [ "${about}" = "1" ] && [ "${clean}" = "1" ] && [ "${online}" = "1" ] && [ "${local}" = "1" ]; then
               ok=1
               break
             fi
             sleep 4
           done
-          if [ "${ok}" != "1" ]; then
-            echo 'IBERFIT_CL_RELEASE_NOT_CONSISTENT'
-            echo "VERSION=$(cat /tmp/iberfit-version.out 2>/dev/null || true)"
-            grep -Eo 'quality\.v63[0-9]\.css|authenticity-editorial|founder-identity-section|Entrenamiento personal online y a distancia|local-context-note' \
-              /tmp/iberfit-home.html /tmp/iberfit-about.html /tmp/iberfit-online.html /tmp/iberfit-las-condes.html 2>/dev/null || true
-            exit 44
-          fi
-
-          curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
-            "https://iberfit.cl/assets/flag-cl.svg?cb=${GITHUB_RUN_ID}" -o /tmp/iberfit-flag-cl.svg
-          grep -q '<svg' /tmp/iberfit-flag-cl.svg
+          test "${ok}" = "1" || { echo IBERFIT_CL_RELEASE_NOT_CONSISTENT; exit 44; }
 
           curl --fail --silent --show-error \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
@@ -299,7 +260,7 @@ jobs:
             rollbackDeploymentId:process.env.ROLLBACK_DEPLOYMENT_ID,
             verifiedAt:new Date().toISOString()
           };
-          fs.writeFileSync('/tmp/V634_PRODUCTION_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
+          fs.writeFileSync('/tmp/V635_PRODUCTION_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
           console.log(JSON.stringify(evidence,null,2));
           NODE
 
@@ -307,14 +268,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: web-iberfit-v634-production-${{ github.run_id }}
+          name: web-iberfit-v635-production-${{ github.run_id }}
           path: |
             /tmp/project.json
             /tmp/deployments-before.json
-            /tmp/qa-v634.json
+            /tmp/qa-v635.json
             /tmp/wrangler-preview.log
             /tmp/wrangler-production.log
             /tmp/deployments-after.json
-            /tmp/V634_PRODUCTION_EVIDENCE.json
+            /tmp/V635_PRODUCTION_EVIDENCE.json
           if-no-files-found: warn
           retention-days: 30
