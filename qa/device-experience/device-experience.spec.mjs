@@ -182,8 +182,13 @@ async function exerciseAdminTask(page,task){
 
 async function assertSettingsReachable(page,task,viewport){
   if(IMMERSIVE_SESSION_TASK_IDS.has(task.id)){
-    const exit=page.locator('[data-session-action="exit-session"]').first();
-    await expect(exit,task.id+' immersive session must expose a safe exit before account navigation').toBeVisible();
+    const recoveryAction=task.id==='client-feedback'
+      ?page.locator('[data-session-action="exit-session"]').first()
+      :page.locator('[data-session-action="pause"]').first();
+    await expect(
+      recoveryAction,
+      task.id+' immersive session must expose a safe recovery action before account navigation',
+    ).toBeVisible();
     return;
   }
 
