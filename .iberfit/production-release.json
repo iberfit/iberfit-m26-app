@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "9bc8040f793dab6addf98a3f155d80ce369c7d50",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "P0 form focus closure. All external shell renders now respect active form interaction leases, preventing pointerup/click controller renders from replacing focused inputs/selects. Certified with desktop mouse pointerup regression, Admin Interaction Matrix, CI, Device Experience, visual evidence, continuous audit and authenticated remote smoke. No backend, Supabase, auth, RLS, permissions or user-data model changes."
+}
