@@ -335,3 +335,28 @@ html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 @media print{
   .m26-session-experience{background:transparent;box-shadow:none}
 }
+
+/* Admin/Coach mobile overflow behaves as a true modal sheet while open.
+ * The workspace cannot intercept taps behind the fixed backdrop; only the
+ * persistent mobile navigation and its overflow remain hit-testable. */
+@media (max-width: 900px) {
+  .m26-workspace[data-m26-mobile-more-open="true"] {
+    pointer-events: none;
+  }
+
+  .m26-workspace[data-m26-mobile-more-open="true"] > .m26-mobile-nav {
+    pointer-events: auto;
+    z-index: 1200 !important;
+    isolation: isolate;
+  }
+
+  .m26-workspace[data-m26-mobile-more-open="true"] .m26-mobile-more[open] > summary,
+  .m26-workspace[data-m26-mobile-more-open="true"] .m26-mobile-more[open] .m26-mobile-more-menu {
+    pointer-events: auto;
+  }
+
+  .m26-workspace[data-m26-mobile-more-open="true"] .m26-mobile-more[open] .m26-mobile-more-menu {
+    z-index: 1202;
+  }
+}
+
