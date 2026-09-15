@@ -28,6 +28,7 @@ test('Coach create-client disclosure and text focus survive touch release plus a
 
   const details=page.locator('[data-client-onboarding]');
   const summary=details.locator('summary');
+  await queueCoachRefreshDuringNextTouchRelease(page);
   await summary.tap();
   await page.waitForTimeout(320);
   await expect(details).toHaveAttribute('open','');
