@@ -283,6 +283,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       seen.set(key,ordinal+1);
       if(!wanted.has(key+':'+ordinal))continue;
       node.open=true;
+      node.setAttribute?.('open','');
+      node.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded','true');
       restored=true;
     }
     return restored;
@@ -589,7 +591,27 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
   }
 
+  function setMobileMoreOpen(details,open){
+    if(!details?.matches?.('details.m26-mobile-more'))return false;
+    const next=Boolean(open);
+    details.open=next;
+    if(next)details.setAttribute?.('open','');
+    else details.removeAttribute?.('open');
+    details.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded',next?'true':'false');
+    return next;
+  }
+
   function onClick(event) {
+    const mobileMoreSummary=event.target.closest?.('.m26-mobile-more > summary');
+    if(mobileMoreSummary){
+      const details=mobileMoreSummary.closest?.('details.m26-mobile-more');
+      if(details){
+        event.preventDefault?.();
+        setMobileMoreOpen(details,!(details.open||details.hasAttribute?.('open')));
+        return;
+      }
+    }
+
     const intakeButton=event.target.closest?.('[data-admin-intake-open]');
     if(intakeButton){
       event.preventDefault?.();
@@ -634,6 +656,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
 
     const areaButton = event.target.closest?.('[data-m26-area]');
     if (areaButton) {
+      const mobileMore=areaButton.closest?.('details.m26-mobile-more');
+      if(mobileMore)setMobileMoreOpen(mobileMore,false);
       const nextArea = areaButton.getAttribute('data-m26-area');
       const current=store.getState();
       const decision = resolveM26Route(current, nextArea);
