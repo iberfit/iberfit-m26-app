@@ -29,17 +29,37 @@ const STYLES=`
 .m27-session-focus-wake{display:inline-flex;align-items:center;gap:.3rem;width:max-content;margin-top:.08rem;color:var(--m26-text-muted,#6b675f);font-size:.58rem;font-weight:750}
 .m27-session-focus-wake[hidden]{display:none}
 .m27-session-focus-wake::before{content:'';width:.42rem;height:.42rem;border-radius:50%;background:var(--m26-gold,#a98534);box-shadow:0 0 0 .2rem rgba(169,133,52,.12)}
-.m27-session-focus-dock>button{min-height:3.15rem;min-width:8.6rem;padding:.72rem 1rem;border:1px solid rgba(216,185,111,.48);border-radius:.86rem;background:linear-gradient(135deg,var(--m26-green,#153328),#0f271f);color:#fff;font:inherit;font-size:.78rem;font-weight:850;letter-spacing:-.01em;box-shadow:0 10px 26px rgba(8,25,19,.18);cursor:pointer}
-.m27-session-focus-dock>button:disabled{cursor:not-allowed;opacity:.58}
-.m27-session-focus-dock>button:focus-visible{outline:3px solid rgba(216,185,111,.42);outline-offset:3px}
+.m27-session-focus-actions{display:flex;align-items:center;justify-content:flex-end;gap:.42rem;flex:0 0 auto}
+.m27-session-focus-primary,
+.m27-session-focus-secondary{min-height:3.15rem;border-radius:.86rem;font:inherit;font-weight:850;cursor:pointer;touch-action:manipulation}
+.m27-session-focus-primary{min-width:8.6rem;padding:.72rem 1rem;border:1px solid rgba(216,185,111,.48);background:linear-gradient(135deg,var(--m26-green,#153328),#0f271f);color:#fff;font-size:.78rem;letter-spacing:-.01em;box-shadow:0 10px 26px rgba(8,25,19,.18)}
+.m27-session-focus-secondary{min-width:3.15rem;padding:.65rem .72rem;border:1px solid rgba(216,185,111,.28);background:color-mix(in srgb,var(--m26-surface,#f7f1e7) 88%,var(--m26-green,#153328) 12%);color:var(--m26-text,#17231d);font-size:.72rem;box-shadow:none}
+.m27-session-focus-primary:disabled,
+.m27-session-focus-secondary:disabled{cursor:not-allowed;opacity:.58}
+.m27-session-focus-primary:focus-visible,
+.m27-session-focus-secondary:focus-visible{outline:3px solid rgba(216,185,111,.42);outline-offset:3px}
+@media (min-width:761px) and (max-width:1180px){
+  .m27-session-focus-active.m27-session-focus-coach{padding-bottom:6rem}
+  .m27-session-focus-dock.is-coach{position:fixed;z-index:78;right:max(1rem,env(safe-area-inset-right));bottom:max(1rem,env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;gap:1rem;max-width:min(46rem,calc(100vw - 2rem));padding:.72rem .78rem;border:1px solid rgba(216,185,111,.28);border-radius:1rem;background:color-mix(in srgb,var(--m26-surface,#f7f1e7) 93%,transparent);box-shadow:0 18px 48px rgba(9,25,19,.2);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+}
 @media (max-width:820px){.m27-session-readiness-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:760px){
   .m27-session-focus-active{padding-bottom:6.7rem}
   .m27-session-focus-dock{position:fixed;z-index:80;left:max(.72rem,env(safe-area-inset-left));right:max(.72rem,env(safe-area-inset-right));bottom:calc(max(.65rem,env(safe-area-inset-bottom)) + 4.55rem);display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.68rem .72rem;border:1px solid rgba(216,185,111,.28);border-radius:1rem;background:color-mix(in srgb,var(--m26-surface,#f7f1e7) 91%,transparent);box-shadow:0 18px 48px rgba(9,25,19,.2);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 }
 @media (max-width:560px){.m27-session-readiness-head{display:grid;gap:.3rem}.m27-session-readiness-head p{text-align:left}.m27-session-readiness-grid{grid-template-columns:1fr}}
-@media (max-width:430px){.m27-session-focus-dock{gap:.58rem;padding:.62rem}.m27-session-focus-dock>button{min-width:7.6rem;max-width:48%;padding:.7rem .78rem}.m27-session-focus-meta>strong{font-size:.76rem}}
-@media (prefers-reduced-motion:reduce){.m27-session-focus-dock>button{scroll-behavior:auto}}
+@media (max-width:430px){
+  .m27-session-focus-dock:not(.is-coach){gap:.58rem;padding:.62rem}
+  .m27-session-focus-dock:not(.is-coach) .m27-session-focus-actions{max-width:48%}
+  .m27-session-focus-dock:not(.is-coach) .m27-session-focus-primary{min-width:7.6rem;max-width:100%;padding:.7rem .78rem}
+  .m27-session-focus-dock.is-coach{align-items:stretch;flex-direction:column;gap:.48rem;padding:.62rem}
+  .m27-session-focus-dock.is-coach .m27-session-focus-actions{width:100%}
+  .m27-session-focus-dock.is-coach .m27-session-focus-primary{flex:1 1 auto;min-width:0;padding:.7rem .78rem}
+  .m27-session-focus-dock.is-coach .m27-session-focus-secondary{flex:0 0 3.15rem;padding:.62rem .55rem}
+  .m27-session-focus-meta>strong{font-size:.76rem}
+}
+@media (forced-colors:active){.m27-session-focus-dock,.m27-session-focus-primary,.m27-session-focus-secondary{border-color:ButtonText}.m27-session-focus-primary,.m27-session-focus-secondary{forced-color-adjust:auto}}
+@media (prefers-reduced-motion:reduce){.m27-session-focus-primary,.m27-session-focus-secondary{scroll-behavior:auto}}
 `;
 
 function create(document,tag,className,text){
@@ -188,11 +208,33 @@ export function sessionFocusPlan({state='',hasCompleteSet=false,hasNext=false}={
   return null;
 }
 
+export function sessionFocusSecondarySelectors({
+  state='',
+  role='',
+  hasRepeat=false,
+  hasRestMinus=false,
+  hasRestPlus=false,
+}={}){
+  const normalizedState=String(state||'').trim().toLowerCase();
+  const normalizedRole=String(role||'').trim().toLowerCase();
+  if(normalizedRole!=='coach')return Object.freeze([]);
+  if(normalizedState==='active'&&hasRepeat){
+    return Object.freeze(['[data-session-action="repeat-previous-set"]']);
+  }
+  if(normalizedState==='rest'){
+    return Object.freeze([
+      hasRestMinus?'[data-session-action="rest-minus"]':null,
+      hasRestPlus?'[data-session-action="rest-plus"]':null,
+    ].filter(Boolean));
+  }
+  return Object.freeze([]);
+}
+
 function focusStateFor(root){
   let state=ROOT_STATE.get(root);
   if(state)return state;
   const document=root.ownerDocument;
-  state={wakeLock:null,wakeRequest:null,destroyed:false,enabled:false,refreshTimer:null,onClick:null,onVisibility:null};
+  state={wakeLock:null,wakeRequest:null,destroyed:false,enabled:false,role:'',refreshTimer:null,onClick:null,onVisibility:null};
   state.onClick=(event)=>{
     const proxy=event.target?.closest?.('[data-session-focus-proxy]');
     if(proxy&&root.contains?.(proxy)){
@@ -291,16 +333,42 @@ function focusContext(live,state){
 }
 
 function removeFocusDock(root){
-  for(const live of root.querySelectorAll?.('[data-session-live-state]')||[])live.classList?.remove?.('m27-session-focus-active');
+  for(const live of root.querySelectorAll?.('[data-session-live-state]')||[]){
+    live.classList?.remove?.('m27-session-focus-active');
+    live.classList?.remove?.('m27-session-focus-coach');
+  }
   root.querySelector?.('[data-session-focus-dock]')?.remove?.();
 }
 
-function buildFocusDock(document,live,plan){
+function focusProxyButton(document,live,selector,{primary=false}={}){
+  const target=live.querySelector?.(selector);
+  if(!target)return null;
+  const proxy=create(
+    document,
+    'button',
+    primary?'m27-session-focus-primary':'m27-session-focus-secondary',
+    target.textContent?.trim()||target.getAttribute?.('aria-label')||'',
+  );
+  proxy.type='button';
+  proxy.setAttribute('data-session-focus-proxy','true');
+  proxy.dataset.sessionFocusTarget=selector;
+  const ariaLabel=target.getAttribute?.('aria-label');
+  const title=target.getAttribute?.('title');
+  if(ariaLabel)proxy.setAttribute('aria-label',ariaLabel);
+  if(title)proxy.setAttribute('title',title);
+  proxy.disabled=Boolean(target.disabled);
+  proxy.setAttribute('aria-disabled',proxy.disabled?'true':'false');
+  return proxy;
+}
+
+function buildFocusDock(document,live,plan,role='client'){
   const target=live.querySelector?.(plan.targetSelector);
   if(!target)return null;
   const context=focusContext(live,plan.state);
-  const dock=create(document,'aside','m27-session-focus-dock');
+  const isCoach=String(role||'').trim().toLowerCase()==='coach';
+  const dock=create(document,'aside',`m27-session-focus-dock${isCoach?' is-coach':''}`);
   dock.setAttribute('data-session-focus-dock','true');
+  dock.setAttribute('data-session-focus-role',isCoach?'coach':'client');
   dock.setAttribute('aria-label','Control rápido de la sesión');
 
   const meta=create(document,'div','m27-session-focus-meta');
@@ -314,13 +382,27 @@ function buildFocusDock(document,live,plan){
   wake.hidden=true;
   meta.append(wake);
 
-  const proxy=create(document,'button','',target.textContent?.trim()||plan.fallbackLabel);
-  proxy.type='button';
-  proxy.setAttribute('data-session-focus-proxy','true');
-  proxy.dataset.sessionFocusTarget=plan.targetSelector;
-  proxy.disabled=Boolean(target.disabled);
-  proxy.setAttribute('aria-disabled',proxy.disabled?'true':'false');
-  dock.append(meta,proxy);
+  const actions=create(document,'div','m27-session-focus-actions');
+  const secondarySelectors=sessionFocusSecondarySelectors({
+    state:plan.state,
+    role,
+    hasRepeat:Boolean(live.querySelector?.('[data-session-action="repeat-previous-set"]')),
+    hasRestMinus:Boolean(live.querySelector?.('[data-session-action="rest-minus"]')),
+    hasRestPlus:Boolean(live.querySelector?.('[data-session-action="rest-plus"]')),
+  });
+  for(const selector of secondarySelectors){
+    const secondary=focusProxyButton(document,live,selector);
+    if(secondary)actions.append(secondary);
+  }
+  const primary=focusProxyButton(
+    document,
+    live,
+    plan.targetSelector,
+    {primary:true},
+  );
+  if(!primary)return null;
+  actions.append(primary);
+  dock.append(meta,actions);
   return dock;
 }
 
@@ -346,9 +428,10 @@ function refreshSessionFocus(root){
   if(!plan)return false;
 
   installStyles(root.ownerDocument);
-  const dock=buildFocusDock(root.ownerDocument,live,plan);
+  const dock=buildFocusDock(root.ownerDocument,live,plan,state.role);
   if(!dock)return false;
   live.classList.add('m27-session-focus-active');
+  if(state.role==='coach')live.classList.add('m27-session-focus-coach');
   live.append(dock);
   wakeBadge(root,Boolean(state.wakeLock));
   return true;
@@ -370,6 +453,7 @@ export function enhanceSessionFocus({root,viewModel}={}){
   const state=focusStateFor(root);
   const role=String(viewModel?.identity?.role||'').trim().toLowerCase();
   const area=String(viewModel?.activeArea||'').trim().toLowerCase();
+  state.role=role;
   state.enabled=area==='sesion'&&['client','coach'].includes(role);
   return refreshSessionFocus(root);
 }
