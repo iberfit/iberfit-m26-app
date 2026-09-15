@@ -19,8 +19,11 @@ function queueFocus(callback){
 function closeDetailsDisclosure(details,{restoreFocus=true}={}){
   if(!details)return false;
   details.removeAttribute?.('open');
+  if('open' in details)details.open=false;
+  const summary=details.querySelector?.('summary');
+  summary?.setAttribute?.('aria-expanded','false');
   if(restoreFocus){
-    queueFocus(()=>details.querySelector?.('summary')?.focus?.({preventScroll:true}));
+    queueFocus(()=>summary?.focus?.({preventScroll:true}));
   }
   return true;
 }
