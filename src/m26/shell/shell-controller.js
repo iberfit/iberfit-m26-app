@@ -264,8 +264,13 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const workspace=shell?.querySelector?.(':scope > .m26-workspace');
     if(!workspace)return false;
     const next=Boolean(open);
-    if(next)workspace.dataset.m26MobileMoreOpen='true';
-    else delete workspace.dataset.m26MobileMoreOpen;
+    if(next){
+      shell.dataset.m26MobileMoreOpen='true';
+      workspace.dataset.m26MobileMoreOpen='true';
+    }else{
+      delete shell.dataset.m26MobileMoreOpen;
+      delete workspace.dataset.m26MobileMoreOpen;
+    }
     const targets=[
       workspace.querySelector?.(':scope > .m26-topbar'),
       workspace.querySelector?.(':scope > .m26-main'),
