@@ -183,12 +183,20 @@ async function exerciseAdminTask(page,task){
 async function assertSettingsReachable(page,task,viewport){
   if(IMMERSIVE_SESSION_TASK_IDS.has(task.id)){
     if(task.id==='client-session-live'){
+      const secondaryContext=page.locator('.m26-session-live-secondary-context > summary').first();
+      await expect(
+        secondaryContext,
+        task.id+' immersive session must expose secondary session context',
+      ).toBeVisible();
+      await secondaryContext.click();
+
       const recoveryDisclosure=page.locator('.m26-session-options > summary').filter({hasText:'Pausa o cancelación'}).first();
       await expect(
         recoveryDisclosure,
-        task.id+' immersive session must expose the pause/cancel recovery disclosure',
+        task.id+' immersive session must expose the pause/cancel recovery disclosure after opening session context',
       ).toBeVisible();
       await recoveryDisclosure.click();
+
       await expect(
         page.locator('[data-session-action="pause"]').first(),
         task.id+' immersive session must expose pause after opening recovery controls',
