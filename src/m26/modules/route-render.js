@@ -1793,9 +1793,15 @@ function exercisePointLoad(point){
 }
 
 
-function exerciseStudyNumber(value,digits=1){
+function exerciseStudyFinite(value){
+  if(value===null||value===undefined||value==='')return null;
   const number=Number(value);
-  if(!Number.isFinite(number))return null;
+  return Number.isFinite(number)?number:null;
+}
+
+function exerciseStudyNumber(value,digits=1){
+  const number=exerciseStudyFinite(value);
+  if(number===null)return null;
   const factor=10**digits;
   return Math.round(number*factor)/factor;
 }
@@ -1807,15 +1813,15 @@ function exerciseStudySigned(value,suffix=''){
 }
 
 function exerciseStudyMetricCurrent(metric){
-  const value=Number(metric?.latest?.value);
-  if(!Number.isFinite(value))return 'Sin dato comparable';
+  const value=exerciseStudyFinite(metric?.latest?.value);
+  if(value===null)return 'Sin dato comparable';
   const unit=metric?.unit?` ${metric.unit}`:'';
   return `${value}${unit}`;
 }
 
 function exerciseStudyMetricDelta(metric){
-  const value=Number(metric?.percentageDelta);
-  if(!metric?.comparable||!Number.isFinite(value)){
+  const value=exerciseStudyFinite(metric?.percentageDelta);
+  if(!metric?.comparable||value===null){
     return 'Sin dos referencias comparables';
   }
   return `${value>0?'+':''}${exerciseStudyNumber(value,1)}% desde la primera referencia comparable`;
@@ -1838,9 +1844,9 @@ function exerciseStudyChart(metricKey,metric,label,assessment,{compact=false}={}
     ?metric.points
         .map((point)=>({
           date:String(point?.completedAt||'').slice(0,10),
-          value:Number(point?.value),
+          value:exerciseStudyFinite(point?.value),
         }))
-        .filter((point)=>/^\d{4}-\d{2}-\d{2}$/u.test(point.date)&&Number.isFinite(point.value))
+        .filter((point)=>/^\d{4}-\d{2}-\d{2}$/u.test(point.date)&&point.value!==null)
     :[];
 
   if(points.length<2)return '';
@@ -1912,26 +1918,26 @@ function renderCoachExerciseStudy(exercise,performance,{compact=false}={}){
   const volume=metrics.volumeKg||null;
   const rpe=metrics.averageRpe||null;
   const rir=metrics.averageRir||null;
-  const cadence=Number(trend.averageGapDays);
-  const coverage=Number(exercise?.loadCoverage);
+  const cadence=exerciseStudyFinite(trend.averageGapDays);
+  const coverage=exerciseStudyFinite(exercise?.loadCoverage);
   const recentEvidence=assessment?.evidence||{};
 
-  const loadRecent=Number(recentEvidence.loadDeltaPercent);
-  const outputRecent=Number(recentEvidence.outputDeltaPercent);
-  const rpeRecent=Number(recentEvidence.rpeDelta);
-  const rirRecent=Number(recentEvidence.rirDelta);
+  const loadRecent=exerciseStudyFinite(recentEvidence.loadDeltaPercent);
+  const outputRecent=exerciseStudyFinite(recentEvidence.outputDeltaPercent);
+  const rpeRecent=exerciseStudyFinite(recentEvidence.rpeDelta);
+  const rirRecent=exerciseStudyFinite(recentEvidence.rirDelta);
 
   const recentSignals=[
-    Number.isFinite(loadRecent)
+    loadRecent!==null
       ?`Carga vs anterior ${exerciseStudySigned(loadRecent,'%')}`
       :null,
-    Number.isFinite(outputRecent)
+    outputRecent!==null
       ?`Rendimiento vs anterior ${exerciseStudySigned(outputRecent,'%')}`
       :null,
-    Number.isFinite(rpeRecent)
+    rpeRecent!==null
       ?`RPE Δ ${exerciseStudySigned(rpeRecent)}`
       :null,
-    Number.isFinite(rirRecent)
+    rirRecent!==null
       ?`RIR Δ ${exerciseStudySigned(rirRecent)}`
       :null,
   ].filter(Boolean);
@@ -1972,24 +1978,24 @@ function renderCoachExerciseStudy(exercise,performance,{compact=false}={}){
     },
     {
       label:'Cadencia',
-      value:Number.isFinite(cadence)?`${cadence} días`:'Sin cadencia comparable',
+      value:cadence!==null?`${cadence} días`:'Sin cadencia comparable',
       detail:`${Number(facts.exposureCount||0)} exposiciones confirmadas`,
     },
     {
       label:'Cobertura de carga',
-      value:Number.isFinite(coverage)?`${Math.round(coverage*100)}%`:'Sin dato',
+      value:coverage!==null?`${Math.round(coverage*100)}%`:'Sin dato',
       detail:'Series con kg explícitos sobre el total registrado',
     },
     {
       label:'Esfuerzo actual',
-      value:Number.isFinite(Number(rpe?.latest?.value))
+      value:exerciseStudyFinite(rpe?.latest?.value)!==null
         ?`RPE ${rpe.latest.value}`
-        :Number.isFinite(Number(rir?.latest?.value))
+        :exerciseStudyFinite(rir?.latest?.value)!==null
           ?`RIR ${rir.latest.value}`
           :'Sin esfuerzo comparable',
-      detail:Number.isFinite(Number(rpe?.absoluteDelta))
+      detail:exerciseStudyFinite(rpe?.absoluteDelta)!==null
         ?`RPE desde inicio ${exerciseStudySigned(rpe.absoluteDelta)}`
-        :Number.isFinite(Number(rir?.absoluteDelta))
+        :exerciseStudyFinite(rir?.absoluteDelta)!==null
           ?`RIR desde inicio ${exerciseStudySigned(rir.absoluteDelta)}`
           :'Sin dos referencias comparables',
     },
