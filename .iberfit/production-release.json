@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "42b60d33ec0e2a961a563643ad99a3cde584fa9f",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Certified Admin mobile Más navigation fix. The mobile overflow menu now releases legacy horizontal nav overflow while open, remains keyboard/Escape recoverable, and is protected by real Chromium/WebKit interaction plus direct hit-testing of Biblioteca. No Supabase schema, RLS, auth backend, permissions, or user-data model changes."
+}
