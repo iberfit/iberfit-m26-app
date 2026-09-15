@@ -1431,6 +1431,7 @@ function exerciseMemorySparkline(memory){
         data-label="${escapeHtml(metricLabel)}"
         data-unit="${escapeHtml(metric?.unit||'')}"
         data-points="${payload}"
+      data-all-points="${payload}"
         aria-label="${escapeHtml(aria)}"
       ></m26-echart>
     </figure>
@@ -1767,6 +1768,7 @@ function exerciseProgressChart(exercise,{compact=false}={}){
       data-tone="neutral"
       data-density="${compact?'compact':'standard'}"
       data-points="${payload}"
+      data-all-points="${payload}"
       data-reference-value="${escapeHtml(model.referenceValue)}"
       data-reference-label="${escapeHtml(model.referenceLabel)}"
       aria-label="${escapeHtml(
@@ -1875,6 +1877,7 @@ function exerciseStudyChart(metricKey,metric,label,assessment,{compact=false}={}
       data-tone="${escapeHtml(tone)}"
       data-density="${compact?'compact':'standard'}"
       data-points="${payload}"
+      data-all-points="${payload}"
       aria-label="${escapeHtml(`${label}. ${delta}.`)}"
     ></m26-echart>
   </section>`;
