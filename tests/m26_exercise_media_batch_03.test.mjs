@@ -5,14 +5,14 @@ import path from "node:path";
 import { validateApprovedBatch } from "../scripts/exercise-media/publish-approved-via-broker.mjs";
 
 const CASES = [
-  ["IBF-SENTADILLA-GOBLET","859fadb57853c66ee12fc211a90bb43d6911c8a25311fc553d34c008f8396b55"],
-  ["IBF-DEAD-BUG","272bc2b23fd2f85ee572926f4d69e760de1f679a642c42c03f12bb3f7fdb85f8"],
-  ["IBF-FLEXION-DE-BRAZOS","72fe887a9a4a394b667bb6dda2aeef6a64a86c9b046cb2923192adb34b5de1b8"],
-  ["IBF-PUENTE-DE-GLUTEOS","fa9cd7979e0522c7e6badcae8e0cd93aa41f8058153f16682be24d212c05eafd"],
-  ["IBF-BIRD-DOG","0183cccae55da15a7ce485f901d78e9fc237aafd26cc834e542c82eaf3523219"]
+  ["IBF-SENTADILLA-GOBLET","d97df4fe70655937634fa52b8322c9a88f20339f7384dbccdda627c7d4e44d5b"],
+  ["IBF-DEAD-BUG","dc07119534408d47e65df8730aa6cbfd4a7afa5703d56a69c8d5538a47f443d5"],
+  ["IBF-FLEXION-DE-BRAZOS","7a1eb670b632862dc3b8f777a0606193662eb9589121e8ca149c6ca3e6878ee9"],
+  ["IBF-PUENTE-DE-GLUTEOS","cbf7a3ffbd1cf162384b1cc5ded03beeb246a7a28246b47aaf148230c766c430"],
+  ["IBF-BIRD-DOG","4703af975e27a27d471b692bc7b2631b80e67a4a15815063365d1c4f5e3029cc"]
 ];
 
-test("approved IBERFIT batch 03 reconstructs exact immutable WebP assets", () => {
+test("approved IBERFIT batch 03 reconstructs exact final immutable WebP assets", () => {
   const root = process.cwd();
   for (const [id, sha256] of CASES) {
     const manifestPath = path.join(root,"scripts","exercise-media","approved",id,"approved-batch.json");
@@ -30,5 +30,6 @@ test("approved IBERFIT batch 03 reconstructs exact immutable WebP assets", () =>
     assert.equal(batch.items[0].media.coachVisible,true);
     assert.equal(batch.items[0].media.qa.visual,"approved");
     assert.equal(batch.items[0].media.qa.biomechanics,"approved");
+    assert.ok(batch.items[0].source_base64_parts.every((part)=>part.includes(".final-v4.b64.")));
   }
 });
