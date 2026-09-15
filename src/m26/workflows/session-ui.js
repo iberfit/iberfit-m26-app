@@ -901,6 +901,13 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     fallback:false,
   });
   const recorded=executionResultForStep(execution,step);
+  const currentQueueItem=execution?.queue?.[execution.index]||null;
+  const coachExtraSetReady=Boolean(
+    isCoach&&
+    recorded&&
+    Number(execution.setIndex)+1===Number(currentQueueItem?.sets||0)&&
+    Number(currentQueueItem?.sets||0)<100
+  );
   const substitutionLocked=!canSubstituteCurrentExercise(execution);
   const substitutionDisabled=substitutionLocked||substitutionUnavailable;
   const substitutionTitle=substitutionLocked
@@ -971,6 +978,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         </details>
         <div class="m26-session-live-actions">
           ${restActive?'<button type="button" data-session-action="rest-minus">−15 s</button><button type="button" data-session-action="rest-plus">+15 s</button>':''}
+          ${coachExtraSetReady?'<button type="button" class="m26-session-fast-action m26-session-extra-set-action" data-session-action="extra-set-now" aria-label="Añadir una serie extra y continuar directamente con ella">+ 1 serie y seguir</button>':''}
           <button type="button" class="m26-primary-action" data-session-action="next">${restActive?'Continuar ahora':e(nextCopy.label)}</button>
         </div>
       </article>`
