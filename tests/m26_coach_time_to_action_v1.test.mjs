@@ -205,3 +205,107 @@ test('Hoy Coach conserva navegación simple cuando no existe cliente concreto',(
   assert.match(html,/class="m26-primary-action"[^>]*data-m26-area="clientes"/u);
   assert.doesNotMatch(html,/class="m26-primary-action"[^>]*data-m26-coach-action="true"/u);
 });
+
+
+test('tarjeta de cliente en Hoy abre directamente su siguiente acción segura',()=>{
+  const html=renderHoyRoute({
+    role:'coach',
+    appointments:[],
+    proposals:[],
+    upcoming:[],
+    clients:[{
+      id:clientId,
+      name:'Ana Demo',
+      modality:'presencial',
+      nextAppointment:{dateLabel:'Mañana · 10:00'},
+      nextAction:{
+        label:'Iniciar diagnóstico IRI',
+        area:'iri',
+        reason:'La evaluación está pendiente.',
+      },
+    }],
+    coachCockpit:{items:[],attentionCount:0,totalClients:1,riskFocus:null},
+    operations:{pending:0,conflicts:0,rejected:0},
+  });
+
+  assert.match(html,/class="m26-coach-home-client"/u);
+  assert.match(html,/class="m26-coach-home-client"[\s\S]*?data-m26-coach-action="true"/u);
+  assert.match(html,new RegExp(`class="m26-coach-home-client"[\\s\\S]*?data-m26-client-id="${clientId}"`,'u'));
+  assert.match(html,/class="m26-coach-home-client"[\s\S]*?data-m26-target-area="iri"/u);
+  assert.match(html,/aria-label="Iniciar diagnóstico IRI · Ana Demo"/u);
+});
+
+test('tarjeta de cliente sin destino explícito conserva apertura de expediente sin inventar ruta',()=>{
+  const html=renderHoyRoute({
+    role:'coach',
+    appointments:[],
+    proposals:[],
+    upcoming:[],
+    clients:[{
+      id:clientId,
+      name:'Ana Demo',
+      modality:'presencial',
+      nextAction:{label:'Revisar seguimiento'},
+    }],
+    coachCockpit:{items:[],attentionCount:0,totalClients:1,riskFocus:null},
+    operations:{pending:0,conflicts:0,rejected:0},
+  });
+
+  assert.match(html,new RegExp(`class="m26-coach-home-client"[\\s\\S]*?data-m26-select-client="${clientId}"`,'u'));
+  assert.doesNotMatch(html,/class="m26-coach-home-client"[\s\S]*?data-m26-target-area=/u);
+});
+
+
+test('Preparar sesión desde una cita de Hoy abre Sesiones y no Agenda cuando el cliente es conocido',()=>{
+  const html=renderHoyRoute({
+    role:'coach',
+    appointments:[{
+      id:'appointment-today-1',
+      clientId,
+      title:'Sesión de fuerza',
+      dateLabel:'Hoy · 18:00',
+      modality:'Presencial',
+      status:'confirmed',
+    }],
+    proposals:[],
+    upcoming:[],
+    clients:[{
+      id:clientId,
+      name:'Ana Demo',
+      modality:'presencial',
+      nextAction:{label:'Revisar seguimiento',area:'expediente'},
+    }],
+    coachCockpit:{items:[],attentionCount:0,totalClients:1,riskFocus:null},
+    operations:{pending:0,conflicts:0,rejected:0},
+  });
+
+  assert.match(html,/class="m26-primary-action"[^>]*data-m26-coach-action="true"/u);
+  assert.match(html,/class="m26-primary-action"[^>]*data-m26-target-area="sesion"/u);
+  assert.match(html,/>Preparar sesión</u);
+  assert.doesNotMatch(html,/class="m26-primary-action"[^>]*data-m26-target-area="agenda"/u);
+});
+
+
+test('cita con clientId no visible degrada a Agenda sin intentar selección no autorizada',()=>{
+  const html=renderHoyRoute({
+    role:'coach',
+    appointments:[{
+      id:'appointment-hidden-client',
+      clientId:'99999999-9999-4999-8999-999999999999',
+      title:'Sesión pendiente',
+      dateLabel:'Hoy · 19:00',
+      modality:'Online',
+      status:'confirmed',
+    }],
+    proposals:[],
+    upcoming:[],
+    clients:[],
+    coachCockpit:{items:[],attentionCount:0,totalClients:0,riskFocus:null},
+    operations:{pending:0,conflicts:0,rejected:0},
+  });
+
+  assert.match(html,/class="m26-primary-action"[^>]*data-m26-area="agenda"/u);
+  assert.match(html,/>Abrir agenda</u);
+  assert.doesNotMatch(html,/class="m26-primary-action"[^>]*data-m26-coach-action="true"/u);
+  assert.doesNotMatch(html,/data-m26-client-id="99999999-9999-4999-8999-999999999999"/u);
+});

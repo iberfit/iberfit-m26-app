@@ -44,7 +44,7 @@ function stateFor(role,area){
   });
 }
 
-function ids(html){return [...String(html).matchAll(/\bid="([^"]+)"/g)].map((m)=>m[1]);}
+function ids(html){return [...String(html).matchAll(/(?:^|[\s<])id="([^"]+)"/g)].map((m)=>m[1]);}
 function areaTargets(html){return uniq([...String(html).matchAll(/data-m26-area="([^"]+)"/g)].map((m)=>m[1]));}
 
 function auditIcons(){

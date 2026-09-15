@@ -7,7 +7,7 @@ import {augmentRc39ViewModel} from '../rc39/view-model.js';
 import {
   clientsOverview, clientHealthSummary, todayOverview, domainValue, domainDate, domainStatus, recordsForClient, } from './domain-selectors.js';
 import {
-  computeProgressSummary, buildPlanExecutionSummary, buildProgressTimeline, deriveAdherenceAlerts, adherenceSignal, buildVerificationCenter, engagementCapabilities, listExercisePerformanceMemories, buildExerciseLongitudinalProgress } from '../engagement/index.js';
+  computeProgressSummary, progressSummaryHasEvolutionEvidence, buildPlanExecutionSummary, buildProgressTimeline, deriveAdherenceAlerts, adherenceSignal, buildVerificationCenter, engagementCapabilities, listExercisePerformanceMemories, buildExerciseLongitudinalProgress } from '../engagement/index.js';
 import {
   projectExercisePerformanceForRole,
 } from '../engagement/exercise-performance-engine.js';
@@ -395,10 +395,15 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
           Number(item.current||0)>0
         )
       )||null;
+    const clientProgressSummary=
+      overview.role==='client'&&clientId
+        ?computeProgressSummary(state,clientId,{now,days:28})
+        :null;
     const clientGuide=
       overview.role==='client'
         ?Object.freeze({
             adherenceReview:alerts.some((item)=>item?.id==='adherence-low'),
+            progressReady:progressSummaryHasEvolutionEvidence(clientProgressSummary),
           })
         :null;
 

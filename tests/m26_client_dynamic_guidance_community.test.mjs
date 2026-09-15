@@ -13,6 +13,7 @@ import {
   __clientContextualGuideInternals,
 } from '../src/m26/onboarding/client-contextual-guide.js';
 import {renderChallengesRoute,renderHoyRoute,renderRouteView} from '../src/m26/modules/route-render.js';
+import {progressSummaryHasEvolutionEvidence} from '../src/m26/engagement/progress-engine.js';
 
 const read=(path)=>fs.readFileSync(path,'utf8').replace(/\r\n/g,'\n');
 
@@ -28,6 +29,7 @@ test('Client guide is contextual, can expose more than one useful hint on Today,
       'client-moment-adherence-review',
       'client-context-plan-ready',
       'client-context-challenge-ready',
+      'client-moment-progress-ready',
       'client-context-today',
       'client-feature-challenges-community',
     ]
@@ -43,6 +45,9 @@ test('Client guide is contextual, can expose more than one useful hint on Today,
   assert.deepEqual(today[2].seenAlso,['client-context-plan']);
   assert.equal(today[3].actionArea,'retos');
   assert.equal(today[3].repeatOnEvent,true);
+  assert.equal(today[4].actionArea,'progreso');
+  assert.equal(today[4].repeatOnEvent,undefined);
+  assert.deepEqual(today[4].seenAlso,['client-context-progress']);
   assert.equal(today.at(-1).kind,'feature');
   assert.deepEqual(today.at(-1).excludeSelectors,['[data-m26-client-guide="challenge-entry"]']);
 
@@ -464,4 +469,55 @@ test('Client bottom navigation remains five primary destinations and Retos stays
 test('PWA shell includes contextual guide so installed clients do not lose guidance offline after update',()=>{
   const sw=read('public/m26/sw.js');
   assert.match(sw,/"\/src\/m26\/onboarding\/client-contextual-guide\.js"/u);
+});
+
+
+test('Progreso se descubre solo con evolución posterior al IRI inicial',()=>{
+  const baselineOnly={
+    completedSessions:0,
+    checkins:0,
+    iriAssessmentCount:1,
+    iriCurrent:3,
+    wearable:{daysWithData:0,metrics:{steps:null},providers:['garmin_connect']},
+  };
+  assert.equal(progressSummaryHasEvolutionEvidence(null),false);
+  assert.equal(progressSummaryHasEvolutionEvidence(baselineOnly),false);
+
+  assert.equal(progressSummaryHasEvolutionEvidence({...baselineOnly,completedSessions:1}),true);
+  assert.equal(progressSummaryHasEvolutionEvidence({...baselineOnly,checkins:1}),true);
+  assert.equal(progressSummaryHasEvolutionEvidence({...baselineOnly,iriAssessmentCount:2}),true);
+  assert.equal(progressSummaryHasEvolutionEvidence({
+    ...baselineOnly,
+    wearable:{daysWithData:1,metrics:{steps:7400},providers:['garmin_connect']},
+  }),true);
+
+  const source=read('src/m26/modules/route-render.js');
+  assert.match(source,/const hasProgressEvidence=progressSummaryHasEvolutionEvidence\(summary\)/u);
+  assert.doesNotMatch(source,/const hasProgressEvidence=[\s\S]{0,240}summary\.iriCurrent/u);
+
+  const vmSource=read('src/m26/modules/route-view-model.js');
+  assert.match(vmSource,/progressReady:progressSummaryHasEvolutionEvidence\(clientProgressSummary\)/u);
+});
+
+test('Hoy guía a Progreso cuando existe evolución real y mantiene la alerta de adherencia como prioridad',()=>{
+  const base={
+    kind:'hoy',
+    role:'client',
+    clients:[],
+    appointments:[],
+    upcoming:[],
+    rc39:{sessionProjections:[]},
+    operations:{},
+  };
+
+  const ready=renderRouteView({...base,clientGuide:{adherenceReview:false,progressReady:true}});
+  assert.match(ready,/data-m26-area="progreso" data-m26-client-guide="progress-entry"/u);
+
+  const adherence=renderRouteView({...base,clientGuide:{adherenceReview:true,progressReady:true}});
+  assert.match(adherence,/data-m26-area="progreso" data-m26-client-guide="adherence-entry"/u);
+  assert.doesNotMatch(adherence,/data-m26-client-guide="progress-entry"/u);
+
+  const guide=read('src/m26/onboarding/client-contextual-guide.js');
+  assert.match(guide,/id:'client-moment-progress-ready'[\s\S]*?priority:80[\s\S]*?area:'hoy'[\s\S]*?actionArea:'progreso'/u);
+  assert.match(guide,/sin mezclar el Diagnóstico IRI inicial con tu evolución/u);
 });
