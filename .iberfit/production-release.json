@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "69a1e45c17c899630a175fcf37c046d5aa340d86",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Coach daily-use speed improvements. Today primary priorities and client cards now use the existing safe compound navigation contract to select the visible client and open the canonical destination in one gesture. Prepare-session now opens Sessions, while hidden/unavailable appointment clients fall back safely to Agenda. Includes hardened deep audit DOM id parsing. No backend, Supabase, auth, RLS, permissions or user-data model changes."
+}
