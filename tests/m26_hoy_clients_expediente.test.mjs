@@ -75,7 +75,58 @@ function ready(role = 'coach', overrides = {}) {
         { id: 'ap1', client_id: qa, session_id: 's1', title: 'Sesión presencial', start_at: '2026-07-18T18:00:00Z', status: 'confirmado', location: 'Las Condes', modality: 'presencial' },
         { id: 'ap2', client_id: other, title: 'Sesión online', start_at: '2026-07-18T20:00:00Z', status: 'confirmado' },
       ],
-      intelligenceRuns: [], domainEvents: [], coachAvailability: [], m26Entities: [],
+      intelligenceRuns: [], domainEvents: [], coachAvailability: [], m26Entities: [
+        {
+          entityType: 'action_outcome',
+          entityId: '22222222-2222-4222-8222-222222222222',
+          clientId: qa,
+          status: 'abierto',
+          revision: 1,
+          body: {
+            id: '22222222-2222-4222-8222-222222222222',
+            clientId: qa,
+            status: 'abierto',
+            revision: 1,
+            visibleToClient: false,
+            signalSource: 'session',
+            signalSummary: 'RPE alto en accesorios.',
+            decisionSummary: 'Mantener técnica y revisar densidad.',
+            interventionType: 'recovery',
+            interventionSummary: 'Aumentar descanso entre bloques.',
+            expectedOutcome: 'RPE estable en la siguiente exposición.',
+            reviewAt: '2026-07-17',
+            createdAt: '2026-07-16T12:00:00Z',
+            updatedAt: '2026-07-16T12:00:00Z',
+          },
+        },
+        {
+          entityType: 'action_outcome',
+          entityId: '33333333-3333-4333-8333-333333333333',
+          clientId: qa,
+          status: 'cerrado',
+          revision: 2,
+          body: {
+            id: '33333333-3333-4333-8333-333333333333',
+            clientId: qa,
+            status: 'cerrado',
+            revision: 2,
+            visibleToClient: false,
+            signalSource: 'progress',
+            signalSummary: 'Técnica estable en sentadilla.',
+            decisionSummary: 'Mantener variante una semana.',
+            interventionType: 'exercise_selection',
+            interventionSummary: 'Mantener sentadilla goblet.',
+            expectedOutcome: 'Conservar calidad técnica.',
+            reviewAt: '2026-07-16',
+            outcomeStatus: 'stable',
+            outcomeSummary: 'La técnica se mantuvo estable.',
+            outcomeEvidence: 'Registro posterior confirmado.',
+            reviewedAt: '2026-07-17',
+            createdAt: '2026-07-15T12:00:00Z',
+            updatedAt: '2026-07-17T20:00:00Z',
+          },
+        },
+      ],
     },
     ...overrides,
   });
@@ -593,6 +644,11 @@ test('Workspace Coach ordena ahora, sesiones, decisiones y evolución sin perder
   assert.match(html, /Cliente · mesa de decisión/);
   assert.match(html, /Decidir en segundos/);
   assert.match(html, /Señal → decisión → acción → resultado/);
+  assert.match(html, /RPE alto en accesorios\./);
+  assert.match(html, /Mantener técnica y revisar densidad\./);
+  assert.match(html, /Aumentar descanso entre bloques\./);
+  assert.match(html, /La técnica se mantuvo estable\./);
+  assert.match(html, /Resultado posterior registrado; no atribuye causalidad\./);
   assert.match(html, /m26-client360-progress-details/);
   assert.match(html, /Ver evolución detallada/);
   assert.match(html, /data-m26-area="sesion"/);
