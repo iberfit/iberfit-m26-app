@@ -149,12 +149,19 @@ function coachHomeClientCard(client={}) {
   const modality=client.modality||'Modalidad por definir';
   const nextLabel=client.nextAction?.label||'Revisar seguimiento';
   const nextAppointment=client.nextAppointment?.dateLabel||'Sin cita programada';
+  const targetArea=String(client.nextAction?.area||'').trim();
+  const actionAttrs=targetArea
+    ?`data-m26-coach-action="true" data-m26-client-id="${escapeHtml(client.id||'')}" data-m26-target-area="${escapeHtml(targetArea)}"`
+    :`data-m26-select-client="${escapeHtml(client.id||'')}"`;
+  const ariaLabel=targetArea
+    ?`${nextLabel} · ${name}`
+    :`Abrir expediente de ${name}`;
 
   return `<article class="m26-coach-home-client">
     <button
       type="button"
-      data-m26-select-client="${escapeHtml(client.id||'')}"
-      aria-label="Abrir expediente de ${escapeHtml(name)}"
+      ${actionAttrs}
+      aria-label="${escapeHtml(ariaLabel)}"
     >
       <span class="m26-coach-home-client-avatar" aria-hidden="true">${escapeHtml(name.slice(0,1).toUpperCase())}</span>
       <span class="m26-coach-home-client-copy">
@@ -226,9 +233,9 @@ function renderCoachHoyRoute(vm) {
       eyebrow:'Próxima sesión',
       title:client?.name||todayAppointment.title||'Sesión de hoy',
       copy:[todayAppointment.dateLabel,todayAppointment.modality].filter(Boolean).join(' · '),
-      area:'agenda',
-      clientId:client?.id||todayAppointment.clientId||null,
-      label:client?.id||todayAppointment.clientId?'Preparar sesión':'Abrir agenda',
+      area:client?.id?'sesion':'agenda',
+      clientId:client?.id||null,
+      label:client?.id?'Preparar sesión':'Abrir agenda',
     };
   }else if(proposalCount){
     primary={
@@ -267,9 +274,9 @@ function renderCoachHoyRoute(vm) {
       eyebrow:'Próxima cita',
       title:client?.name||upcomingAppointment.title||'Próxima sesión',
       copy:[upcomingAppointment.dateLabel,upcomingAppointment.modality].filter(Boolean).join(' · '),
-      area:'agenda',
-      clientId:client?.id||upcomingAppointment.clientId||null,
-      label:client?.id||upcomingAppointment.clientId?'Preparar sesión':'Abrir agenda',
+      area:client?.id?'sesion':'agenda',
+      clientId:client?.id||null,
+      label:client?.id?'Preparar sesión':'Abrir agenda',
     };
   }
 

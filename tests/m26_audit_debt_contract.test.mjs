@@ -42,3 +42,9 @@ test('deep product audit cubre rutas, privacidad, fuente desplegable y LIVE sin 
   assert.match(deepAudit,/method:'GET'/u);
   assert.match(deepAudit,/Read-only: no autentica cuentas reales, no ejecuta comandos de dominio y no modifica producción/u);
 });
+
+
+test('deep audit no confunde data-*-id con un id DOM real',()=>{
+  assert.match(deepAudit,/matchAll\(\/\(\?:\^\|\[\\s<\]\)id=/u);
+  assert.doesNotMatch(deepAudit,/matchAll\(\/\\bid=/u);
+});
