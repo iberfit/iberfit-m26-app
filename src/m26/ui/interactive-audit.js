@@ -23,6 +23,7 @@ export const M26_ACTION_REGISTRY=Object.freeze({
   'repeat-previous-set':{roles:['coach'],domain:'execution'},
   'correct-set':{roles:['coach','client'],domain:'execution'},
   'add-set':{roles:['coach'],domain:'execution'},
+  'extra-set-now':{roles:['coach'],domain:'execution'},
   'skip-set':{roles:['coach','client'],domain:'execution'},
   'skip-exercise':{roles:['coach','client'],domain:'execution'},
   'add-live-exercise':{roles:['coach'],domain:'execution'},
