@@ -188,3 +188,22 @@ test('Client progress progressive disclosure CSS is responsive and accessible',(
   assert.match(block,/@media \(forced-colors:active\)/u);
   assert.match(block,/@media print/u);
 });
+
+
+test('Client uses one canonical Progress surface while Cliente 360 remains Coach-only',()=>{
+  const runtime=fs.readFileSync(
+    new URL('../src/m26/ui/client-360.js',import.meta.url),
+    'utf8',
+  );
+  const navigation=fs.readFileSync(
+    new URL('../src/m26/shell/navigation.js',import.meta.url),
+    'utf8',
+  );
+
+  assert.match(runtime,/role==='coach'/u);
+  assert.doesNotMatch(runtime,/\['client','coach'\]\.includes/u);
+  assert.match(
+    navigation,
+    /progreso: Object\.freeze\(\{ key: 'progreso', label: 'Progreso', title: 'Progreso y seguimiento'/u,
+  );
+});
