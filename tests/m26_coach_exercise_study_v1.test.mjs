@@ -260,6 +260,45 @@ test('Coach Exercise Study renders multiple evidence charts and only colors the 
   );
 });
 
+
+test('Coach Exercise Study never converts missing metrics into zero',()=>{
+  const performance=performanceFixture();
+  performance[0].facts.trend.averageGapDays=null;
+  performance[0].facts.trend.metrics.volumeKg={
+    comparable:false,
+    points:[],
+    latest:null,
+    first:null,
+    absoluteDelta:null,
+    percentageDelta:null,
+  };
+  performance[0].coachAssessment.evidence.loadDeltaPercent=null;
+  performance[0].coachAssessment.evidence.outputDeltaPercent=null;
+  performance[0].coachAssessment.evidence.rpeDelta=null;
+  performance[0].coachAssessment.evidence.rirDelta=null;
+
+  const progress=exerciseProgressFixture();
+  progress.exercises[0].loadCoverage=null;
+
+  const html=renderProgressRoute({
+    role:'coach',
+    summary:summaryFixture(),
+    signal:{label:'Al día',level:'neutral'},
+    timeline:[],
+    longitudinal:null,
+    alerts:[],
+    planExecution:null,
+    exerciseProgress:progress,
+    exercisePerformance:performance,
+  });
+
+  assert.match(html,/Sin cadencia comparable/u);
+  assert.match(html,/Cobertura de carga[\s\S]*?Sin dato/u);
+  assert.match(html,/Volumen[\s\S]*?Sin dato comparable/u);
+  assert.doesNotMatch(html,/Carga vs anterior \+?0%/u);
+  assert.doesNotMatch(html,/Rendimiento vs anterior \+?0%/u);
+});
+
 test('Client keeps factual exercise evolution without Coach interpretation layer',()=>{
   const html=render('client');
 
