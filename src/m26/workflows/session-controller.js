@@ -125,7 +125,12 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       addExecutionExercise(execution,{...payload,catalog,actor});
       return progressMutation(execution,commandBus,online,payload.operationId);
     }
-    case 'previous': retreatExecution(execution,{actor}); return {kind:'execution',value:execution};
+    case 'previous': {
+      const before=[execution.status,execution.index,execution.setIndex,execution.restUntil].join(':');
+      retreatExecution(execution,{actor});
+      const after=[execution.status,execution.index,execution.setIndex,execution.restUntil].join(':');
+      return before===after?{kind:'execution',value:execution}:progressMutation(execution,commandBus,online);
+    }
     case 'next': {
       advanceExecution(execution,{actor});
       return progressMutation(execution,commandBus,online);
@@ -134,8 +139,14 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       advanceExpiredRest(execution,session,{actor,nowMs:payload.nowMs??Date.now()});
       return progressMutation(execution,commandBus,online);
     }
-    case 'rest-minus': adjustRest(execution,-15,{actor}); return {kind:'execution',value:execution};
-    case 'rest-plus': adjustRest(execution,15,{actor}); return {kind:'execution',value:execution};
+    case 'rest-minus': {
+      adjustRest(execution,-15,{actor});
+      return progressMutation(execution,commandBus,online);
+    }
+    case 'rest-plus': {
+      adjustRest(execution,15,{actor});
+      return progressMutation(execution,commandBus,online);
+    }
     case 'substitute': {
       substituteExercise(execution,session,{fromExerciseId:payload.fromExerciseId,toExerciseId:payload.toExerciseId,catalog,reason:payload.reason,actor});
       return progressMutation(execution,commandBus,online);
