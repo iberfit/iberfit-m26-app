@@ -451,8 +451,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     enhanceNativeWorkspace({root,viewModel});
     enhanceCliente360({root,viewModel,state});
     enhanceProgressContinuity({root,viewModel,state});
-    enhanceExerciseHistoryWindow({root,viewModel});
     enhanceSessionReadiness({root,viewModel,state});
+    enhanceExerciseHistoryWindow({root,viewModel});
     enhanceSessionFocus({root,viewModel});
     revalidatePendingSessionEntry(root,{state,now:new Date(),buildContext:buildAdaptiveSessionContext,buildDecision:buildSessionEntryDecision});
     clearClientSwitchBusy();
