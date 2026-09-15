@@ -1024,6 +1024,38 @@ body {
   line-height:1.35;
 }
 
+.m26-session-live-v3 .m26-session-coach-rpe-quick{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:.42rem;
+  margin:.55rem 0 .2rem;
+}
+
+.m26-session-live-v3 .m26-session-coach-rpe-quick>span{
+  margin-right:.12rem;
+  color:var(--m26-muted,#aaa);
+  font-size:.72rem;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+
+.m26-session-live-v3 .m26-session-coach-rpe-quick button{
+  min-width:3rem;
+  min-height:2.8rem;
+  padding:.48rem .72rem;
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 28%,transparent);
+  font-variant-numeric:tabular-nums;
+  font-weight:800;
+}
+
+.m26-session-live-v3 .m26-session-coach-rpe-quick button[aria-pressed="true"]{
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 72%,transparent);
+  background:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 18%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 20%,transparent);
+}
+
 .m26-session-live-v3 .m26-session-rest-focus-v3{
   min-height:clamp(21rem,45vh,32rem);
   display:grid;
