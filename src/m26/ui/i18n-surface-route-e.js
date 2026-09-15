@@ -111,5 +111,6 @@ export const ROUTE_SURFACE_ROWS_E=Object.freeze([
 ["Ventana visual del historial del ejercicio","Visual window for exercise history","Fenêtre visuelle de l’historique de l’exercice","Janela visual do histórico do exercício"],
 ["Ventana visual","Visual window","Fenêtre visuelle","Janela visual"],
 ["Todo","All","Tout","Tudo"],
-["Ajusta la gráfica principal y la tabla visible; el estudio Coach conserva su lectura confirmada.","Adjusts the main chart and visible table; the Coach study keeps its confirmed interpretation.","Ajuste le graphique principal et le tableau visible ; l’étude Coach conserve son interprétation confirmée.","Ajusta o gráfico principal e a tabela visível; o estudo Coach mantém a sua leitura confirmada."],
+["El contador corresponde a la gráfica principal; la tabla conserva sus últimas referencias renderizadas y el estudio Coach su lectura confirmada.","The counter refers to the main chart; the table keeps its latest rendered references and the Coach study keeps its confirmed interpretation.","Le compteur correspond au graphique principal ; le tableau conserve ses dernières références affichées et l’étude Coach son interprétation confirmée.","O contador corresponde ao gráfico principal; a tabela mantém as últimas referências renderizadas e o estudo Coach a sua leitura confirmada."],
+["Registros visibles en la gráfica","Visible records in the chart","Enregistrements visibles dans le graphique","Registos visíveis no gráfico"],
 ]);
