@@ -89,6 +89,21 @@ jobs:
       - name: Build canonical current surface
         run: node qa/rc64/build-current-surface.mjs
 
+      - name: Prepare production quality browser
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
+          npx playwright install --with-deps chromium
+
+      - name: Enforce Lighthouse budgets on exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node qa/rc64/run-lighthouse.mjs
+          test -s .lighthouseci/rc64-2a/summary.json
+
       - name: Capture current production rollback metadata
         shell: bash
         run: |
@@ -309,13 +324,11 @@ jobs:
           M26_VERIFY_DELAY_MS='4000' \
           node scripts/verify_production_surface.mjs
 
-      - name: Prepare production browser entry smoke
+      - name: Verify production browser tooling remains ready
         shell: bash
         run: |
           set -euo pipefail
-          npm ci
-          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
-          npx playwright install --with-deps chromium
+          node --input-type=module -e "import fs from 'node:fs'; import {chromium} from '@playwright/test'; if(!fs.existsSync(chromium.executablePath())) throw new Error('PROD_CHROMIUM_NOT_READY');"
 
       - name: Verify production entry is interactive in Chromium
         env:
@@ -389,6 +402,7 @@ jobs:
             CLOUDFLARE_PROD_DEPLOYMENTS.json
             WRANGLER_PREFLIGHT.log
             WRANGLER_PRODUCTION.log
+            .lighthouseci/rc64-2a/summary.json
             recovery/continuous-audit/
             recovery/hosted-auth-security/
             recovery/production-entry/
