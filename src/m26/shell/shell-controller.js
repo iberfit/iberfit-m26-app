@@ -160,7 +160,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let formInteractionTarget=null;
   let pendingI18nContinuitySnapshot=null;
 
-  const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"],form button';
+  const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"],details > summary,form button';
   const SHELL_FOCUS_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
   const SHELL_TOUCH_TEXT_ENTRY_SELECTOR='textarea,[contenteditable="true"],input:not([type]),input[type="text"],input[type="email"],input[type="tel"],input[type="search"],input[type="url"],input[type="number"],input[type="password"]';
   const INTERACTION_RELEASE_GRACE_MS=900;
