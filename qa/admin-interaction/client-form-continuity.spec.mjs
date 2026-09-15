@@ -1,5 +1,15 @@
 import {test,expect} from '@playwright/test';
 
+async function queueClientRefreshDuringNextTouchRelease(page){
+  await page.evaluate(()=>{
+    const root=document.querySelector('#qa-root');
+    if(!root)throw new Error('QA_CLIENT_FORM_ROOT_MISSING');
+    root.addEventListener('pointerup',()=>{
+      globalThis.__IBERFIT_CLIENT_FORM_QA__?.queueShellRefresh?.();
+    },{capture:true,once:true});
+  });
+}
+
 function browserErrors(page){
   const errors=[];
   page.on('pageerror',(error)=>errors.push(String(error?.message||error)));
@@ -100,7 +110,9 @@ test('touch tap gives text fields native focus before typing and releases the mo
   const name=form.locator('input[name="name"]');
   await name.scrollIntoViewIfNeeded();
   await name.evaluate((node)=>node.blur());
+  await queueClientRefreshDuringNextTouchRelease(page);
   await name.tap();
+  await page.waitForTimeout(320);
 
   await expect(name).toBeFocused();
   await expect(root).toHaveAttribute('data-m26-text-entry-active','true');
@@ -128,10 +140,14 @@ test('touch tap gives text fields native focus before typing and releases the mo
   await expect(name).toHaveValue('Cliente táctil');
 
   const email=form.locator('input[name="email"]');
+  await queueClientRefreshDuringNextTouchRelease(page);
   await email.tap();
+  await page.waitForTimeout(320);
   await expect(email).toBeFocused();
   await page.keyboard.type('touch.qa@example.com');
   await expect(email).toHaveValue('touch.qa@example.com');
+  await page.waitForTimeout(950);
+  await expect(email).toBeFocused();
 
   await email.evaluate((node)=>node.blur());
   await expect.poll(()=>root.getAttribute('data-m26-text-entry-active')).toBeNull();
@@ -160,7 +176,7 @@ test('label taps keep text inputs and native selects alive while a shell refresh
     marker.textContent='Nombre completo';
     label.insertBefore(marker,label.firstChild);
   });
-  await page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__.queueShellRefresh());
+  await queueClientRefreshDuringNextTouchRelease(page);
   await nameLabel.locator('[data-qa-label-hit="name"]').tap();
   await expect(name).toBeFocused();
   await page.keyboard.type('Cliente por label');
@@ -179,7 +195,7 @@ test('label taps keep text inputs and native selects alive while a shell refresh
   await sex.evaluate((node)=>{
     globalThis.__IBERFIT_QA_SELECT_NODE__=node;
   });
-  await page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__.queueShellRefresh());
+  await queueClientRefreshDuringNextTouchRelease(page);
   await sexLabel.locator('[data-qa-label-hit="sex"]').tap();
   await page.waitForTimeout(120);
   const sameSelect=await sex.evaluate((node)=>globalThis.__IBERFIT_QA_SELECT_NODE__===node);

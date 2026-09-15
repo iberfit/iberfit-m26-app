@@ -31,13 +31,14 @@ const state={
 };
 
 const subscribers=new Set();
+let refreshRevision=0;
 const store={
   getState:()=>state,
   subscribe(listener){subscribers.add(listener);return ()=>subscribers.delete(listener);},
   navigate(area){state.activeArea=String(area||state.activeArea);for(const listener of subscribers)listener(state);},
   selectClient(clientId){state.selectedClientId=clientId||null;for(const listener of subscribers)listener(state);},
 };
-function notify(){for(const listener of subscribers)listener(state);}
+function notify(){refreshRevision+=1;for(const listener of subscribers)listener(state);}
 function queueShellRefresh(){notify();}
 function setClientScenario(mode='zero'){
   state.collections.clients=mode==='one'?[SAMPLE_CLIENT]:[];
@@ -57,12 +58,12 @@ function startRefreshBurst({count=32,intervalMs=8}={}){
 const shell=createShellController({
   root,
   store,
-  renderRoute:()=>renderClientsRoute({
+  renderRoute:()=>`${renderClientsRoute({
     role:'coach',
     clients:state.collections.clients,
     selectedClientId:state.selectedClientId,
     canCreate:true,
-  }),
+  })}<span hidden data-qa-refresh-revision="${refreshRevision}"></span>`,
 });
 shell.mount();
 

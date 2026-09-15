@@ -160,7 +160,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
   let formInteractionTarget=null;
   let pendingI18nContinuitySnapshot=null;
 
-  const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"],form button';
+  const SHELL_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"],details > summary,button';
   const SHELL_FOCUS_INTERACTIVE_SELECTOR='input,textarea,select,[contenteditable="true"]';
   const SHELL_TOUCH_TEXT_ENTRY_SELECTOR='textarea,[contenteditable="true"],input:not([type]),input[type="text"],input[type="email"],input[type="tel"],input[type="search"],input[type="url"],input[type="number"],input[type="password"]';
   const INTERACTION_RELEASE_GRACE_MS=900;
@@ -191,24 +191,11 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const control=labelControl(node);
     return control?.matches?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR)?control:null;
   }
-  function touchInputMode(event){
-    const pointerType=String(event?.pointerType||'').toLowerCase();
-    return pointerType==='touch'||root?.dataset?.m26Input==='touch';
-  }
   function markTextEntryActive(control){
     if(!root?.dataset)return;
     if(control&&root.contains?.(control)&&control.matches?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR))root.dataset.m26TextEntryActive='true';
     else delete root.dataset.m26TextEntryActive;
   }
-  function focusTouchTextEntry(control,event){
-    if(!control||!touchInputMode(event)||control.disabled||control.readOnly)return false;
-    markTextEntryActive(control);
-    if(root.ownerDocument?.activeElement===control)return true;
-    try{control.focus?.({preventScroll:true});}
-    catch{control.focus?.();}
-    return root.ownerDocument?.activeElement===control;
-  }
-
   function clearInteractionReleaseTimer(){
     if(interactionReleaseTimer===null)return;
     const clearTimer=adaptiveWindow?.clearTimeout?.bind?.(adaptiveWindow)||globalThis.clearTimeout?.bind?.(globalThis);
@@ -256,6 +243,49 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       interactionPointerTarget=null;
       queueMicrotask(flushDeferredRender);
     },timeoutMs);
+  }
+
+  function disclosureBaseKey(details){
+    if(!details)return '';
+    const id=String(details.id||'').trim();
+    if(id)return 'id:'+id;
+    const data=[...(details.attributes||[])]
+      .filter((attr)=>String(attr?.name||'').startsWith('data-'))
+      .map((attr)=>String(attr.name)+'='+String(attr.value||''))
+      .sort()
+      .join('|');
+    const classes=[...(details.classList||[])].sort().join('.');
+    const summary=String(details.querySelector?.(':scope > summary')?.textContent||'').replace(/\s+/gu,' ').trim().slice(0,160);
+    return [classes,data,summary].join('::');
+  }
+
+  function captureDisclosureContinuity(){
+    const details=[...(root.querySelectorAll?.('details')||[])];
+    const seen=new Map();
+    const open=[];
+    for(const node of details){
+      const key=disclosureBaseKey(node);
+      const ordinal=seen.get(key)||0;
+      seen.set(key,ordinal+1);
+      if(node.open||node.hasAttribute?.('open'))open.push(Object.freeze({key,ordinal}));
+    }
+    return open;
+  }
+
+  function restoreDisclosureContinuity(snapshot=[]){
+    if(!snapshot?.length)return false;
+    const wanted=new Map(snapshot.map((item)=>[item.key+':'+item.ordinal,true]));
+    const seen=new Map();
+    let restored=false;
+    for(const node of root.querySelectorAll?.('details')||[]){
+      const key=disclosureBaseKey(node);
+      const ordinal=seen.get(key)||0;
+      seen.set(key,ordinal+1);
+      if(!wanted.has(key+':'+ordinal))continue;
+      node.open=true;
+      restored=true;
+    }
+    return restored;
   }
 
   function continuitySurface(control){
@@ -380,8 +410,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const routeMarkup = viewModel.mode === 'authenticated' ? renderRoute(viewModel, state) : '';
     const markup=renderM26Shell(viewModel, routeMarkup);
     if(markup===lastMarkup){clearClientSwitchBusy();return false;}
+    const disclosureSnapshot=captureDisclosureContinuity();
     root.innerHTML = markup;
     lastMarkup=markup;
+    restoreDisclosureContinuity(disclosureSnapshot);
     syncAdaptiveLayout();
     enhanceCoachActionCenter({root,shellVm:viewModel,state});
     enhanceNativeWorkspace({root,viewModel});
@@ -430,8 +462,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
     if(pointerForm)formInteractionTarget=pointerForm;
     interactionPointerTarget=interactiveControl(event.target);
-    const textEntry=touchTextEntry(event.target);
-    if(textEntry)focusTouchTextEntry(textEntry,event);
     if(previous&&!interactionPointerTarget&&!formInteractionTarget)queueMicrotask(flushDeferredRender);
   }
   function onPointerRelease(){

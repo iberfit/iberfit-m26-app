@@ -1,11 +1,55 @@
 import {test,expect} from '@playwright/test';
 
+async function queueCoachRefreshDuringNextTouchRelease(page){
+  await page.evaluate(()=>{
+    const root=document.querySelector('#qa-root');
+    if(!root)throw new Error('QA_COACH_FORM_ROOT_MISSING');
+    root.addEventListener('pointerup',()=>{
+      globalThis.__IBERFIT_COACH_FORM_QA__?.queueShellRefresh?.();
+    },{capture:true,once:true});
+  });
+}
+
 function browserErrors(page){
   const errors=[];
   page.on('pageerror',(error)=>errors.push(String(error?.message||error)));
   page.on('console',(message)=>{if(message.type()==='error')errors.push('console:'+message.text());});
   return errors;
 }
+
+
+test('Coach create-client disclosure and text focus survive touch release plus a real shell rerender',async({page},testInfo)=>{
+  const touchProject=testInfo.project.name.includes('mobile')||testInfo.project.name.includes('tablet');
+  test.skip(!touchProject,'Touch-release regression only applies to touch projects.');
+
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/coach-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__?.mounted===true)).toBe(true);
+
+  const details=page.locator('[data-client-onboarding]');
+  const summary=details.locator('summary');
+  await queueCoachRefreshDuringNextTouchRelease(page);
+  await summary.tap();
+  await page.waitForTimeout(320);
+  await expect(details).toHaveAttribute('open','');
+
+  await page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__.queueShellRefresh());
+  await page.waitForTimeout(320);
+  await expect(details).toHaveAttribute('open','');
+
+  const name=details.locator('input[name="name"]');
+  await queueCoachRefreshDuringNextTouchRelease(page);
+  await name.tap();
+  await page.waitForTimeout(320);
+  await expect(name).toBeFocused();
+  await page.keyboard.type('Persistente al soltar',{delay:6});
+  await expect(name).toHaveValue('Persistente al soltar');
+  await page.waitForTimeout(950);
+  await expect(name).toBeFocused();
+  await expect(details).toHaveAttribute('open','');
+
+  expect(errors).toEqual([]);
+});
 
 test('Coach client onboarding inputs and selects survive background shell refreshes',async({page,browserName})=>{
   const errors=browserErrors(page);
