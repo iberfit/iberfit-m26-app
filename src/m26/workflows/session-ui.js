@@ -874,6 +874,28 @@ const planned=step.prescription||{};
 const coachQuickRpe=isCoach
   ?`<div class="m26-session-coach-rpe-quick" aria-label="RPE rápido"><span>RPE rápido</span>${coachQuickRpeValues(planned.targetRpe).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
   :'';
+const setEntryFields=isCoach
+  ?`<div class="m26-session-coach-set-fields" data-session-coach-set-fields>
+      <div class="m26-session-coach-work-fields" data-session-entry-group="work">
+        <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
+        <label data-session-field-priority="primary">Tiempo (s)<input type="number" min="0" max="86400" inputmode="numeric" enterkeyhint="next" data-set-field="seconds"></label>
+      </div>
+      <label class="m26-session-coach-load-field" data-session-field-priority="primary" data-session-entry-group="load">Carga<input type="text" maxlength="80" enterkeyhint="next" data-set-field="load"></label>
+      <div class="m26-session-coach-effort-fields" data-session-entry-group="effort">
+        <div class="m26-session-coach-effort-pair">
+          <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe" data-session-enter-complete required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label>
+          <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label>
+        </div>
+        ${coachQuickRpe}
+      </div>
+    </div>`
+  :`<div class="m26-field-grid m26-session-set-fields">
+      <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
+      <label data-session-field-priority="primary">Tiempo (s)<input type="number" min="0" max="86400" inputmode="numeric" enterkeyhint="next" data-set-field="seconds"></label>
+      <label data-session-field-priority="primary">Carga<input type="text" maxlength="80" enterkeyhint="next" data-set-field="load"></label>
+      <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe" required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label>
+      <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label>
+    </div>`;
 const previousSet=previousSetDraftValues(execution);
 const previousSetReuse=previousSet
   ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds||60)}" aria-label="Repetir los datos de la serie anterior y completar esta serie">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Acción rápida del Coach · no copia notas.</small>':''}</div></div>`
@@ -997,14 +1019,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         <h3>Registra lo que realmente hiciste</h3>
         <p class="m26-session-set-rule">Registra repeticiones o tiempo. La carga es opcional; el RPE es obligatorio.</p>
         ${previousSetReuse}
-        <div class="m26-field-grid m26-session-set-fields">
-          <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
-          <label data-session-field-priority="primary">Tiempo (s)<input type="number" min="0" max="86400" inputmode="numeric" enterkeyhint="next" data-set-field="seconds"></label>
-          <label data-session-field-priority="primary">Carga<input type="text" maxlength="80" enterkeyhint="next" data-set-field="load"></label>
-          <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe"${isCoach?' data-session-enter-complete':''} required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label>
-          <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label>
-        </div>
-        ${coachQuickRpe}
+        ${setEntryFields}
         <details>
           <summary>Añadir una nota a esta serie</summary>
           <label>Notas<textarea maxlength="1000" data-set-field="notes"></textarea></label>
