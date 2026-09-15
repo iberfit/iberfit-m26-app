@@ -21,6 +21,7 @@ function releaseMobileMoreBackground(details){
   const shell=details.closest?.('.m26-shell');
   const workspace=shell?.querySelector?.(':scope > .m26-workspace');
   if(!workspace)return false;
+  delete workspace.dataset.m26MobileMoreOpen;
   const targets=[
     workspace.querySelector?.(':scope > .m26-topbar'),
     workspace.querySelector?.(':scope > .m26-main'),
@@ -341,11 +342,8 @@ const MOBILE_SHELL_POLISH=`
 }
 @media (max-width: 900px) {
   .m26-mobile-nav { padding-bottom: max(.55rem, env(safe-area-inset-bottom)); transition: transform .16s ease, opacity .16s ease; }
-  .m26-mobile-nav:has(.m26-mobile-more[open]) { z-index: 1200 !important; isolation: isolate; }
   .m26-mobile-nav .m26-nav-item, .m26-mobile-more > summary { min-height: 3.25rem; touch-action: manipulation; }
   .m26-mobile-more-menu { overscroll-behavior: contain; }
-  .m26-mobile-more[open] > summary { pointer-events: auto; }
-  .m26-mobile-more[open] .m26-mobile-more-menu { z-index: 1202; pointer-events: auto; }
   .m26-mobile-role-switch { display:grid; gap:.35rem; padding:.45rem 0 .55rem; }
   .m26-mobile-role-switch > span { color:var(--m26-muted); font-size:.68rem; font-weight:760; letter-spacing:.08em; text-transform:uppercase; }
   .m26-mobile-role-switch button { width:100%; min-height:3.15rem; display:grid; gap:.12rem; padding:.6rem .7rem; border:1px solid var(--m26-line); border-radius:.7rem; color:var(--m26-cream-100); background:transparent; text-align:left; }
