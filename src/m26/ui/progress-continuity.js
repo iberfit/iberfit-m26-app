@@ -913,6 +913,78 @@ function buildExerciseFocusWorkspace(
   return state;
 }
 
+function enhanceCoachExerciseFocus({
+  root,
+  viewModel,
+}){
+  const role=
+    String(
+      viewModel?.identity?.role||
+      ''
+    ).trim().toLowerCase();
+  const area=
+    String(
+      viewModel?.activeArea||
+      ''
+    ).trim().toLowerCase();
+
+  if(
+    !['coach','admin'].includes(role)||
+    area!=='progreso'
+  ){
+    return false;
+  }
+
+  if(
+    root.querySelector?.(
+      '[data-m27-exercise-focus]'
+    )
+  ){
+    return true;
+  }
+
+  if(
+    !root.querySelector?.(
+      '[data-m26-coach-exercise-study-summary]'
+    )
+  ){
+    return false;
+  }
+
+  const list=
+    root.querySelector?.(
+      '.m26-exercise-progress-panel .m26-exercise-progress-list'
+    );
+
+  if(!list){
+    return false;
+  }
+
+  bindExerciseFocus(root);
+
+  const previous=
+    EXERCISE_FOCUS_STATE.get(root)||
+    {};
+
+  const state=
+    buildExerciseFocusWorkspace(
+      root,
+      list,
+      previous,
+    );
+
+  if(!state){
+    return false;
+  }
+
+  EXERCISE_FOCUS_STATE.set(
+    root,
+    state,
+  );
+
+  return true;
+}
+
 function enhanceFeedbackClosure({root,viewModel}){
   const panel=root.querySelector?.('[data-session-live-state="feedback"] [data-session-live-feedback]');
   if(!panel)return false;
@@ -976,8 +1048,15 @@ export function enhanceProgressContinuity({root,viewModel,state,now=new Date()}=
   installStyles(root.ownerDocument);
   const home=enhanceClientHome({root,viewModel,state,now});
   const constancy=enhanceConstancy({root,viewModel,state,now});
+  const exerciseFocus=enhanceCoachExerciseFocus({root,viewModel});
   const feedback=enhanceFeedbackClosure({root,viewModel});
   const completed=enhanceCompletedClosure({root});
-  return Boolean(home||constancy||feedback||completed);
+  return Boolean(home||constancy||exerciseFocus||feedback||completed);
 }
-export const __progressContinuityInternals=Object.freeze({clientHomeContextItems});
+export const __progressContinuityInternals=Object.freeze({
+  clientHomeContextItems,
+  exerciseFocusText,
+  exerciseFocusLimit,
+  exerciseFocusWindowCopy,
+  exerciseFocusFilter,
+});
