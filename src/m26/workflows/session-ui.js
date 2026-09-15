@@ -966,7 +966,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
         ${restActive?`<div class="m26-session-rest-current-media" aria-label="Ejercicio actual">${visual}</div>`:''}
         <p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>
         ${nextExercisePreview}
-        <details class="m26-session-options">
+        <details class="m26-session-options" data-session-rest-correction>
           <summary>Corregir esta serie</summary>
           <p>La corrección queda registrada como un evento distinto; no borra silenciosamente el dato anterior.</p>
           <div class="m26-field-grid">
