@@ -1,0 +1,56 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-FLEXION-DE-BRAZOS",
+      "local_path": "scripts/exercise-media/approved/IBF-FLEXION-DE-BRAZOS/IBF-FLEXION-DE-BRAZOS-approved-72fe887a9a4a.webp",
+      "source_base64_parts": [
+        "scripts/exercise-media/approved/IBF-FLEXION-DE-BRAZOS/IBF-FLEXION-DE-BRAZOS.b64.00"
+      ],
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "passed",
+        "approved_at": "2026-09-14",
+        "note": "El propietario autorizó la continuación automática bajo el contrato visual cerrado. Asset revisado contra el catálogo real y validado visual y biomecánicamente antes de publicación."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-FLEXION-DE-BRAZOS/movement-72fe887a9a4a.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "72fe887a9a4a394b667bb6dda2aeef6a64a86c9b046cb2923192adb34b5de1b8"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "pectoral",
+            "tríceps"
+          ],
+          "secondary": [
+            "deltoides anterior",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}

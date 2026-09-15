@@ -1,0 +1,55 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-DEAD-BUG",
+      "local_path": "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG-approved-272bc2b23fd2.webp",
+      "source_base64_parts": [
+        "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG.b64.00"
+      ],
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "passed",
+        "approved_at": "2026-09-14",
+        "note": "El propietario autorizó la continuación automática bajo el contrato visual cerrado. Asset revisado contra el catálogo real y validado visual y biomecánicamente antes de publicación."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-DEAD-BUG/movement-272bc2b23fd2.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "272bc2b23fd2f85ee572926f4d69e760de1f679a642c42c03f12bb3f7fdb85f8"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "core"
+          ],
+          "secondary": [
+            "oblicuos",
+            "glúteos"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}

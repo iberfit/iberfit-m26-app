@@ -1,0 +1,56 @@
+{
+  "schema": "iberfit.exercise.media.approved-batch.v1",
+  "target": "prod",
+  "items": [
+    {
+      "exercise_id": "IBF-PUENTE-DE-GLUTEOS",
+      "local_path": "scripts/exercise-media/approved/IBF-PUENTE-DE-GLUTEOS/IBF-PUENTE-DE-GLUTEOS-approved-fa9cd7979e05.webp",
+      "source_base64_parts": [
+        "scripts/exercise-media/approved/IBF-PUENTE-DE-GLUTEOS/IBF-PUENTE-DE-GLUTEOS.b64.00"
+      ],
+      "human_approved": true,
+      "publishable": true,
+      "approval": {
+        "method": "human_owner_approval",
+        "scopes": [
+          "visual",
+          "biomechanics"
+        ],
+        "automatic_qa": "passed",
+        "approved_at": "2026-09-14",
+        "note": "El propietario autorizó la continuación automática bajo el contrato visual cerrado. Asset revisado contra el catálogo real y validado visual y biomecánicamente antes de publicación."
+      },
+      "media": {
+        "schema": "iberfit.exercise.visual.v1",
+        "style": "iberfit-premium-movement-pair-v1",
+        "bucket": "iberfit-exercise-media",
+        "movement": {
+          "kind": "movement",
+          "path": "IBF-PUENTE-DE-GLUTEOS/movement-fa9cd7979e05.webp",
+          "mime": "image/webp",
+          "width": 640,
+          "height": 800,
+          "sha256": "fa9cd7979e0522c7e6badcae8e0cd93aa41f8058153f16682be24d212c05eafd"
+        },
+        "published": true,
+        "clientVisible": true,
+        "coachVisible": true,
+        "qa": {
+          "biomechanics": "approved",
+          "visual": "approved"
+        },
+        "muscleZones": {
+          "primary": [
+            "isquiotibiales",
+            "glúteos"
+          ],
+          "secondary": [
+            "erectores espinales",
+            "core"
+          ],
+          "display": "unisex-mannequin-simple-v1"
+        }
+      }
+    }
+  ]
+}
