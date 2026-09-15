@@ -8,7 +8,7 @@ const matrix=fs.readFileSync('playwright.admin-interaction.config.mjs','utf8');
 const shellEnhancer=fs.readFileSync('src/m26/rc39/shell-enhancer.js','utf8');
 
 test('shell protects native selects and form buttons from deferred replacement',()=>{
-  assert.match(shell,/SHELL_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\],form button'/u);
+  assert.match(shell,/SHELL_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\],details > summary,button'/u);
   assert.match(shell,/tag!=='select'&&focusedInteractiveControl\(\)===control/u);
   assert.match(shell,/interactionPointerTarget===control&&String\(control\?\.tagName\|\|''\)\.toLowerCase\(\)!=='select'/u);
   assert.match(shell,/!committedControl\.closest\?\.\('form'\)/u);
@@ -36,11 +36,32 @@ test('label and form pointerdown acquire interaction protection before native fo
   assert.match(shell,/if\(previous&&!interactionPointerTarget&&!formInteractionTarget\)queueMicrotask\(flushDeferredRender\);/u);
 });
 
-test('touch text entry is focused inside the user gesture and mobile navigation yields',()=>{
+test('touch text entry keeps native browser focus semantics through pointer release',()=>{
   assert.match(shell,/SHELL_TOUCH_TEXT_ENTRY_SELECTOR/u);
-  assert.match(shell,/function focusTouchTextEntry\(control,event\)/u);
-  assert.match(shell,/pointerType==='touch'\|\|root\?\.dataset\?\.m26Input==='touch'/u);
-  assert.match(shell,/if\(textEntry\)focusTouchTextEntry\(textEntry,event\)/u);
+  assert.doesNotMatch(shell,/function focusTouchTextEntry\(control,event\)/u);
+  assert.doesNotMatch(shell,/focusTouchTextEntry\(textEntry,event\)/u);
+  assert.match(shell,/function onFocusIn\(event\)[\s\S]*?markTextEntryActive\(touchTextEntry\(control\)\)/u);
+  assert.match(shell,/function onPointerDown\(event\)[\s\S]*?interactionPointerTarget=interactiveControl\(event\.target\);/u);
   assert.match(shell,/m26TextEntryActive/u);
   assert.match(shellEnhancer,/data-m26-text-entry-active="true"[\s\S]*?\.m26-mobile-nav[\s\S]*?pointer-events:\s*none/u);
+});
+
+
+test('open disclosures survive shell replacement without forcing unrelated controls',()=>{
+  assert.match(shell,/function disclosureBaseKey\(details\)/u);
+  assert.match(shell,/function captureDisclosureContinuity\(\)/u);
+  assert.match(shell,/function restoreDisclosureContinuity\(snapshot=\[\]\)/u);
+  assert.match(shell,/const disclosureSnapshot=captureDisclosureContinuity\(\);\s*root\.innerHTML = markup;\s*lastMarkup=markup;\s*restoreDisclosureContinuity\(disclosureSnapshot\);/u);
+});
+
+
+test('native disclosure summaries hold a short pointer lease until click default action completes',()=>{
+  assert.match(shell,/SHELL_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\],details > summary,button'/u);
+  assert.match(shell,/const timeoutMs=tag==='select'\?NATIVE_SELECT_INTERACTION_HOLD_MS:INTERACTION_RELEASE_GRACE_MS;/u);
+});
+
+
+test('all buttons hold only the short pointer lease so click cannot be swallowed by a queued render',()=>{
+  assert.match(shell,/SHELL_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\],details > summary,button'/u);
+  assert.match(shell,/SHELL_FOCUS_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\]'/u);
 });
