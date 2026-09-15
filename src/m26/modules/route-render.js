@@ -274,7 +274,7 @@ function renderCoachHoyRoute(vm) {
   }
 
   const primaryAction=primary.clientId
-    ?`<button type="button" class="m26-primary-action" data-m26-select-client="${escapeHtml(primary.clientId)}">${escapeHtml(primary.label)}</button>`
+    ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${escapeHtml(primary.clientId)}" data-m26-target-area="${escapeHtml(primary.area)}">${escapeHtml(primary.label)}</button>`
     :`<button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(primary.area)}">${escapeHtml(primary.label)}</button>`;
 
   const attentionCount=Number(cockpit?.attentionCount||0);
