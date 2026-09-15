@@ -64,9 +64,10 @@ test('tablet keeps Settings reachable for Coach and Admin while Client keeps it 
 });
 
 
-test('tablet Coach/Admin restaura grid aunque el shell base pase a block bajo 900px',()=>{
+test('tablet Coach/Admin restaura grid aunque el shell base pase a block bajo 900px',async()=>{
+  const rc39=await read(rc39CssUrl);
   assert.match(
-    rc39Css,
+    rc39,
     /@media \(min-width:720px\) and \(max-width:1179px\)[\s\S]*\.m26-shell\[data-m26-role="coach"\],\.m26-shell\[data-m26-role="admin"\]\{display:grid;grid-template-columns:5\.25rem minmax\(0,1fr\)\}/,
   );
 });
