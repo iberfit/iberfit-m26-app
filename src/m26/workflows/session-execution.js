@@ -298,6 +298,21 @@ export function addExecutionSet(execution,{actor=null}={}){
   event(execution,'SET_ADDED',{exerciseId:item.exerciseId,totalSets:item.sets},actor);
   return execution;
 }
+export function addExtraSetAndAdvance(execution,session,{actor=null}={}){
+  if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
+  requireCoachActor(actor);
+  const item=execution.queue?.[execution.index];if(!item)throw new Error('M26_EXECUTION_STEP_MISSING');
+  const step=currentStep(execution,session);if(!step)throw new Error('M26_EXECUTION_STEP_MISSING');
+  ensureDeviationStores(execution);
+  if(!executionResultForStep(execution,step)&&!skippedSetForStep(execution,step))throw new Error('M26_EXECUTION_SET_NOT_RECORDED');
+  if(execution.setIndex+1!==Number(item.sets||0))throw new Error('M26_EXECUTION_EXTRA_SET_LAST_SET_REQUIRED');
+  if(Number(item.sets||0)>=100)throw new Error('M26_EXECUTION_SET_LIMIT');
+  const previousTotalSets=Number(item.sets||0);
+  addExecutionSet(execution,{actor});
+  advanceExecution(execution,{actor});
+  event(execution,'EXTRA_SET_STARTED',{exerciseId:item.exerciseId,previousTotalSets,totalSets:Number(item.sets||0),setNumber:Number(execution.setIndex)+1},actor);
+  return execution;
+}
 export function skipExecutionSet(execution,session,{reason,actor=null}={}){
   if(execution.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
   const step=currentStep(execution,session);if(!step)throw new Error('M26_EXECUTION_STEP_MISSING');
