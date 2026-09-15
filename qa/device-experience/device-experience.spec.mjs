@@ -24,6 +24,8 @@ const TASKS=Object.freeze([
   {id:'coach-hoy',role:'coach',url:'/qa/rc13_visual_cases/coach_hoy_desktop.html',evidence:'synthetic-post-assurance-ui'},
   {id:'coach-clientes',role:'coach',url:'/qa/rc13_visual_cases/coach_clientes_desktop.html',evidence:'synthetic-post-assurance-ui'},
   {id:'coach-expediente',role:'coach',url:'/qa/rc13_visual_cases/coach_expediente_tablet.html',evidence:'synthetic-post-assurance-ui'},
+  {id:'coach-iri',role:'coach',url:'/qa/rc13_visual_cases/coach_iri_tablet.html',evidence:'synthetic-post-assurance-ui'},
+  {id:'coach-planificacion',role:'coach',url:'/qa/rc13_visual_cases/coach_planificacion_desktop.html',evidence:'synthetic-post-assurance-ui'},
   {id:'coach-programar',role:'coach',url:'/qa/rc13_visual_cases/builder_desktop.html',evidence:'synthetic-post-assurance-ui'},
   {id:'admin-users',role:'admin',url:'/qa/admin-interaction/fixture.html?route=users',evidence:'synthetic-authorized-ui'},
   {id:'admin-client-create',role:'admin',url:'/qa/admin-interaction/fixture.html?route=clients',evidence:'synthetic-authorized-ui'},
