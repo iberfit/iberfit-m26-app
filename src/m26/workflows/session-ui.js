@@ -993,7 +993,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <label data-session-field-priority="primary">Repeticiones<input type="number" min="0" max="10000" inputmode="numeric" enterkeyhint="next" data-set-field="reps"></label>
           <label data-session-field-priority="primary">Tiempo (s)<input type="number" min="0" max="86400" inputmode="numeric" enterkeyhint="next" data-set-field="seconds"></label>
           <label data-session-field-priority="primary">Carga<input type="text" maxlength="80" enterkeyhint="next" data-set-field="load"></label>
-          <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe" required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label>
+          <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe"${isCoach?' data-session-enter-complete':''} required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label>
           <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label>
         </div>
         ${coachQuickRpe}
