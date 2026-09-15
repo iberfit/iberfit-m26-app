@@ -4131,7 +4131,7 @@ m26-echart[data-density="compact"]{
 @media print{
   .m26-coach-client-workspace .m26-primary-action,
   .m26-coach-client-workspace .m26-text-action{
-    display:none!important;
+    display:none;
   }
   .m26-coach-client-workspace .m26-client360-progress-details:not([open]){
     display:block;
