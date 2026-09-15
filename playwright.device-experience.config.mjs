@@ -27,6 +27,10 @@ export default defineConfig({
   },
   projects:[
     {name:'device-desktop-chromium',use:{viewport:{width:1440,height:1000},hasTouch:false,isMobile:false}},
+    {name:'device-tablet-768-portrait-chromium',use:{viewport:{width:768,height:1024},hasTouch:true,isMobile:true,deviceScaleFactor:2}},
+    {name:'device-tablet-768-landscape-chromium',use:{viewport:{width:1024,height:768},hasTouch:true,isMobile:true,deviceScaleFactor:2}},
+    {name:'device-tablet-820-portrait-chromium',use:{viewport:{width:820,height:1180},hasTouch:true,isMobile:true,deviceScaleFactor:2}},
+    {name:'device-tablet-820-landscape-chromium',use:{viewport:{width:1180,height:820},hasTouch:true,isMobile:true,deviceScaleFactor:2}},
     {name:'device-tablet-portrait-chromium',use:{viewport:{width:1024,height:1366},hasTouch:true,isMobile:true,deviceScaleFactor:2}},
     {name:'device-tablet-landscape-chromium',use:{viewport:{width:1366,height:1024},hasTouch:true,isMobile:true,deviceScaleFactor:2}},
     {name:'device-mobile-chromium',use:{viewport:{width:390,height:844},hasTouch:true,isMobile:true,deviceScaleFactor:3}},
