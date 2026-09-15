@@ -295,6 +295,86 @@ function exerciseLoadDirectionFromCatalog(item){
   return explicit||'unknown';
 }
 
+function buildExercisePerformanceProjection(
+  state,
+  clientId,
+  role,
+  options={},
+  {limit=50,historyLimit=36}={},
+){
+  const ownerClientId=String(clientId||'').trim();
+  const normalizedRole=String(role||'').trim().toLowerCase();
+
+  if(!ownerClientId||!['client','coach','admin'].includes(normalizedRole)){
+    return Object.freeze([]);
+  }
+
+  const viewerClientId=
+    normalizedRole==='client'
+      ?String(state?.identity?.clientId||'').trim()
+      :null;
+
+  if(
+    normalizedRole==='client'&&
+    (!viewerClientId||viewerClientId!==ownerClientId)
+  ){
+    return Object.freeze([]);
+  }
+
+  const catalog=new Map(
+    (options.catalog||[])
+      .filter((item)=>item?.id)
+      .map((item)=>[
+        String(item.id),
+        item,
+      ]),
+  );
+
+  const language=getIberfitLanguage();
+
+  const projected=listExercisePerformanceMemories(
+    state,
+    ownerClientId,
+    {
+      limit,
+      historyLimit,
+    },
+  ).map((memory)=>{
+    const catalogItem=
+      catalog.get(memory.exerciseId)||
+      null;
+
+    const projection=
+      projectExercisePerformanceForRole(
+        memory,
+        {
+          role:normalizedRole,
+          viewerClientId,
+          loadDirection:
+            exerciseLoadDirectionFromCatalog(
+              catalogItem,
+            ),
+        },
+      );
+
+    return Object.freeze({
+      ...projection.facts,
+      exerciseName:
+        catalogItem
+          ?exerciseDisplayName(
+              catalogItem,
+              language,
+            )
+          :'Ejercicio registrado',
+      facts:projection.facts,
+      coachAssessment:
+        projection.coachAssessment,
+    });
+  });
+
+  return Object.freeze(projected);
+}
+
 function routeClientId(shellVm, state) {
   return shellVm.identity?.role === 'client'
     ? state.identity?.clientId
@@ -485,86 +565,23 @@ if (area === 'clientes') {
           ])
         : null;
 
-    const exerciseCatalog=new Map(
-      (options.catalog||[])
-        .filter((item)=>item?.id)
-        .map((item)=>[
-          String(item.id),
-          item,
-        ]),
-    );
-
-    const exerciseNames=new Map(
-      [...exerciseCatalog.entries()]
-        .map(([exerciseId,item])=>[
-          exerciseId,
-          exerciseDisplayName(item,getIberfitLanguage()),
-        ]),
-    );
-
     const exerciseOwnerId=
       String(state.selectedClientId||'').trim();
 
-    const exerciseViewerClientId=
-      role==='client'
-        ?String(state.identity?.clientId||'').trim()
-        :null;
-
-    const canProjectExercisePerformance=
-      ['coach','admin'].includes(role)||
-      (
-        role==='client'&&
-        exerciseViewerClientId&&
-        exerciseViewerClientId===exerciseOwnerId
-      );
-
     const exercisePerformance=
-      exerciseOwnerId&&canProjectExercisePerformance
-        ?listExercisePerformanceMemories(
-            state,
-            exerciseOwnerId,
-            {
-              limit:6,
-              historyLimit:20,
-            },
-          ).map(
-            (memory)=>{
-              const catalogItem=
-                exerciseCatalog.get(memory.exerciseId)||
-                null;
-
-              const projected=
-                projectExercisePerformanceForRole(
-                  memory,
-                  {
-                    role,
-                    viewerClientId:
-                      exerciseViewerClientId,
-                    loadDirection:
-                      exerciseLoadDirectionFromCatalog(
-                        catalogItem,
-                      ),
-                  },
-                );
-
-              return Object.freeze({
-                ...projected.facts,
-                exerciseName:
-                  exerciseNames.get(memory.exerciseId)||
-                  'Ejercicio registrado',
-                facts:projected.facts,
-                coachAssessment:
-                  projected.coachAssessment,
-              });
-            },
-          )
-        :[];
+      buildExercisePerformanceProjection(
+        state,
+        exerciseOwnerId,
+        role,
+        options,
+      );
 
     return Object.freeze({exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
       kind: 'expediente',
+      role,
       summary: compact,
       progress,
-      exercisePerformance: Object.freeze(exercisePerformance),
+      exercisePerformance,
       coachCockpit,
       alerts: Object.freeze(alerts),
       alertSignal: Object.freeze(adherenceSignal(alerts)),
@@ -573,6 +590,7 @@ if (area === 'clientes') {
 
   if (area === 'progreso') {
     const clientId = routeClientId(shellVm, state);
+    const role = String(shellVm.identity?.role || '');
     const longitudinal = clientId
       ? buildLongitudinalAggregation(state, clientId, { now })
       : null;
@@ -580,11 +598,19 @@ if (area === 'clientes') {
       ?? (clientId ? computeProgressSummary(state, clientId, { now, days: 28 }) : null);
     const planExecution = buildPlanExecutionSummary(state, clientId, { now, days: summary?.days||28 });
     const alerts = deriveAdherenceAlerts(state, clientId, { now, summary });
+    const exercisePerformance=
+      buildExercisePerformanceProjection(
+        state,
+        clientId,
+        role,
+        options,
+      );
     return Object.freeze({exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
       kind: 'progreso',
       clientId,
-      role: String(shellVm.identity?.role || ''),
+      role,
       summary,
+      exercisePerformance,
       planExecution,
       longitudinal,
       timeline: Object.freeze(buildProgressTimeline(state, clientId, { now })),

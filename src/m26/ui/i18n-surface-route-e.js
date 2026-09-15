@@ -97,4 +97,8 @@ export const ROUTE_SURFACE_ROWS_E=Object.freeze([
 ["Activo","Active","Actif","Ativo"],
 ["Completado","Completed","Terminé","Concluído"],
 ["Ver reto","View challenge","Voir le défi","Ver desafio"],
+["Se mantienen los datos disponibles sin completar ausencias","Available data are preserved without filling in missing values","Les données disponibles sont conservées sans compléter les valeurs manquantes","Os dados disponíveis são preservados sem preencher valores ausentes"],
+["Cobertura de carga","Load coverage","Couverture de charge","Cobertura de carga"],
+["Series con kg explícitos sobre el total registrado","Sets with explicit kg over all recorded sets","Séries avec kg explicites sur l’ensemble des séries enregistrées","Séries com kg explícitos sobre o total registado"],
+["Cambios respecto a la exposición anterior","Changes versus the previous exposure","Évolutions par rapport à l’exposition précédente","Alterações face à exposição anterior"],
 ]);

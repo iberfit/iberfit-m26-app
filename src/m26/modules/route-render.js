@@ -1792,9 +1792,301 @@ function exercisePointLoad(point){
     : 'Sin carga registrada';
 }
 
+
+function exerciseStudyFinite(value){
+  if(value===null||value===undefined||value==='')return null;
+  const number=Number(value);
+  return Number.isFinite(number)?number:null;
+}
+
+function exerciseStudyNumber(value,digits=1){
+  const number=exerciseStudyFinite(value);
+  if(number===null)return null;
+  const factor=10**digits;
+  return Math.round(number*factor)/factor;
+}
+
+function exerciseStudySigned(value,suffix=''){
+  const number=exerciseStudyNumber(value,1);
+  if(number===null)return 'Sin comparación';
+  return `${number>0?'+':''}${number}${suffix}`;
+}
+
+function exerciseStudyMetricCurrent(metric){
+  const value=exerciseStudyFinite(metric?.latest?.value);
+  if(value===null)return 'Sin dato comparable';
+  const unit=metric?.unit?` ${metric.unit}`:'';
+  return `${value}${unit}`;
+}
+
+function exerciseStudyMetricDelta(metric){
+  const value=exerciseStudyFinite(metric?.percentageDelta);
+  if(!metric?.comparable||value===null){
+    return 'Sin dos referencias comparables';
+  }
+  return `${value>0?'+':''}${exerciseStudyNumber(value,1)}% desde la primera referencia comparable`;
+}
+
+function exerciseStudyTone(assessment,metricKey){
+  if(
+    assessment?.colorEligible!==true||
+    assessment?.causalMetric!==metricKey
+  ){
+    return 'neutral';
+  }
+  if(assessment.status==='progress')return 'positive';
+  if(assessment.status==='regression')return 'negative';
+  return 'neutral';
+}
+
+function exerciseStudyChart(metricKey,metric,label,assessment,{compact=false}={}){
+  const points=Array.isArray(metric?.points)
+    ?metric.points
+        .map((point)=>({
+          date:String(point?.completedAt||'').slice(0,10),
+          value:exerciseStudyFinite(point?.value),
+        }))
+        .filter((point)=>/^\d{4}-\d{2}-\d{2}$/u.test(point.date)&&point.value!==null)
+    :[];
+
+  if(points.length<2)return '';
+
+  const payload=escapeHtml(JSON.stringify(points));
+  const unit=metric?.unit||'';
+  const tone=exerciseStudyTone(assessment,metricKey);
+  const delta=exerciseStudyMetricDelta(metric);
+
+  return `<section
+    class="m26-coach-exercise-study-chart"
+    data-m26-coach-exercise-chart="${escapeHtml(metricKey)}"
+    data-m26-coach-exercise-chart-tone="${escapeHtml(tone)}"
+  >
+    <div class="m26-coach-exercise-study-chart-heading">
+      <div>
+        <small>${escapeHtml(label)}</small>
+        <strong>${escapeHtml(exerciseStudyMetricCurrent(metric))}</strong>
+      </div>
+      <span>${escapeHtml(delta)}</span>
+    </div>
+    <m26-echart
+      class="m26-echart m26-coach-exercise-study-echart"
+      data-label="${escapeHtml(label)}"
+      data-unit="${escapeHtml(unit)}"
+      data-tone="${escapeHtml(tone)}"
+      data-density="${compact?'compact':'standard'}"
+      data-points="${payload}"
+      aria-label="${escapeHtml(`${label}. ${delta}.`)}"
+    ></m26-echart>
+  </section>`;
+}
+
+function exerciseStudyOutputMetric(metrics={}){
+  if(metrics.repsPerSet?.comparable){
+    return {
+      key:'repsPerSet',
+      label:'Repeticiones por serie',
+      metric:metrics.repsPerSet,
+    };
+  }
+  if(metrics.secondsPerSet?.comparable){
+    return {
+      key:'secondsPerSet',
+      label:'Segundos por serie',
+      metric:metrics.secondsPerSet,
+    };
+  }
+  return null;
+}
+
+function exerciseStudyConfidenceLabel(value){
+  return ({
+    high:'Alta',
+    medium:'Media',
+    low:'Limitada',
+  })[String(value||'').toLowerCase()]||'Limitada';
+}
+
+function renderCoachExerciseStudy(exercise,performance,{compact=false}={}){
+  if(!performance)return '';
+
+  const facts=performance?.facts||performance||{};
+  const trend=facts?.trend||{};
+  const metrics=trend?.metrics||{};
+  const assessment=performance?.coachAssessment||null;
+  const output=exerciseStudyOutputMetric(metrics);
+  const load=metrics.load||null;
+  const volume=metrics.volumeKg||null;
+  const rpe=metrics.averageRpe||null;
+  const rir=metrics.averageRir||null;
+  const cadence=exerciseStudyFinite(trend.averageGapDays);
+  const coverage=exerciseStudyFinite(exercise?.loadCoverage);
+  const recentEvidence=assessment?.evidence||{};
+
+  const loadRecent=exerciseStudyFinite(recentEvidence.loadDeltaPercent);
+  const outputRecent=exerciseStudyFinite(recentEvidence.outputDeltaPercent);
+  const rpeRecent=exerciseStudyFinite(recentEvidence.rpeDelta);
+  const rirRecent=exerciseStudyFinite(recentEvidence.rirDelta);
+
+  const recentSignals=[
+    loadRecent!==null
+      ?`Carga vs anterior ${exerciseStudySigned(loadRecent,'%')}`
+      :null,
+    outputRecent!==null
+      ?`Rendimiento vs anterior ${exerciseStudySigned(outputRecent,'%')}`
+      :null,
+    rpeRecent!==null
+      ?`RPE Δ ${exerciseStudySigned(rpeRecent)}`
+      :null,
+    rirRecent!==null
+      ?`RIR Δ ${exerciseStudySigned(rirRecent)}`
+      :null,
+  ].filter(Boolean);
+
+  const statusTone=
+    assessment?.status==='progress'&&assessment?.colorEligible
+      ?'success'
+      :assessment?.status==='regression'&&assessment?.colorEligible
+        ?'danger'
+        :'neutral';
+
+  const statusLabel=
+    assessment
+      ?`${assessment.label} ${assessment.symbol||''}`.trim()
+      :'Datos confirmados';
+
+  const kpis=[
+    {
+      label:'Carga',
+      value:exerciseStudyMetricCurrent(load),
+      detail:exerciseStudyMetricDelta(load),
+    },
+    output
+      ?{
+          label:'Rendimiento',
+          value:exerciseStudyMetricCurrent(output.metric),
+          detail:exerciseStudyMetricDelta(output.metric),
+        }
+      :{
+          label:'Rendimiento',
+          value:'Sin serie comparable',
+          detail:'Se mantienen los datos disponibles sin completar ausencias',
+        },
+    {
+      label:'Volumen',
+      value:exerciseStudyMetricCurrent(volume),
+      detail:exerciseStudyMetricDelta(volume),
+    },
+    {
+      label:'Cadencia',
+      value:cadence!==null?`${cadence} días`:'Sin cadencia comparable',
+      detail:`${Number(facts.exposureCount||0)} exposiciones confirmadas`,
+    },
+    {
+      label:'Cobertura de carga',
+      value:coverage!==null?`${Math.round(coverage*100)}%`:'Sin dato',
+      detail:'Series con kg explícitos sobre el total registrado',
+    },
+    {
+      label:'Esfuerzo actual',
+      value:exerciseStudyFinite(rpe?.latest?.value)!==null
+        ?`RPE ${rpe.latest.value}`
+        :exerciseStudyFinite(rir?.latest?.value)!==null
+          ?`RIR ${rir.latest.value}`
+          :'Sin esfuerzo comparable',
+      detail:exerciseStudyFinite(rpe?.absoluteDelta)!==null
+        ?`RPE desde inicio ${exerciseStudySigned(rpe.absoluteDelta)}`
+        :exerciseStudyFinite(rir?.absoluteDelta)!==null
+          ?`RIR desde inicio ${exerciseStudySigned(rir.absoluteDelta)}`
+          :'Sin dos referencias comparables',
+    },
+  ];
+
+  const charts=compact
+    ?''
+    :[
+        exerciseStudyChart('load',load,'Carga comparable',assessment),
+        output
+          ?exerciseStudyChart(output.key,output.metric,output.label,assessment)
+          :'',
+        exerciseStudyChart('volumeKg',volume,'Volumen confirmado',assessment),
+        exerciseStudyChart('averageRpe',rpe,'RPE medio',assessment),
+      ].filter(Boolean).join('');
+
+  return `<section
+    class="m26-coach-exercise-study"
+    data-m26-coach-exercise-study
+    data-m26-coach-exercise-study-status="${escapeHtml(assessment?.status||'indeterminate')}"
+  >
+    <div class="m26-coach-exercise-study-heading">
+      <div>
+        <p class="m26-eyebrow">Estudio longitudinal del ejercicio</p>
+        <h4>Qué está cambiando y con qué evidencia</h4>
+      </div>
+      ${badge(statusLabel,statusTone)}
+    </div>
+
+    <div class="m26-coach-exercise-study-kpis">
+      ${kpis.map((item)=>`<div class="m26-coach-exercise-study-kpi">
+        <span>${escapeHtml(item.label)}</span>
+        <strong>${escapeHtml(item.value)}</strong>
+        <small>${escapeHtml(item.detail)}</small>
+      </div>`).join('')}
+    </div>
+
+    ${recentSignals.length
+      ?`<div class="m26-coach-exercise-study-recent" aria-label="Cambios respecto a la exposición anterior">
+          <span>Última vs anterior</span>
+          <strong>${escapeHtml(recentSignals.join(' · '))}</strong>
+        </div>`
+      :''
+    }
+
+    ${charts
+      ?`<div class="m26-coach-exercise-study-charts">${charts}</div>`
+      :''
+    }
+
+    <div class="m26-coach-exercise-study-reading">
+      <div>
+        <span>Lectura Coach</span>
+        <strong>${escapeHtml(statusLabel)}</strong>
+      </div>
+      <p>${escapeHtml(assessment?.basis||'Todavía no existe evidencia comparable suficiente para una interpretación profesional.')}</p>
+      <small>Confianza ${escapeHtml(exerciseStudyConfidenceLabel(assessment?.confidence))} · dato → contexto → entrenador decide. No modifica automáticamente la planificación.</small>
+    </div>
+  </section>`;
+}
+
+function renderCoachExerciseStudySummary(exercises=[],performance=[]){
+  const ids=new Set(exercises.map((item)=>String(item?.exerciseId||'')));
+  const items=(Array.isArray(performance)?performance:[])
+    .filter((item)=>ids.has(String(item?.exerciseId||'')));
+
+  const comparable=items.filter((item)=>{
+    const metrics=(item?.facts||item)?.trend?.metrics||{};
+    return Object.values(metrics).some((metric)=>metric?.comparable===true);
+  }).length;
+
+  const progress=items.filter((item)=>item?.coachAssessment?.status==='progress'&&item?.coachAssessment?.colorEligible===true).length;
+  const regression=items.filter((item)=>item?.coachAssessment?.status==='regression'&&item?.coachAssessment?.colorEligible===true).length;
+  const stable=items.filter((item)=>item?.coachAssessment?.status==='stable').length;
+
+  return `<div class="m26-coach-exercise-study-summary" data-m26-coach-exercise-study-summary>
+    <div><span>Ejercicios con historial</span><strong>${escapeHtml(exercises.length)}</strong></div>
+    <div><span>Comparables</span><strong>${escapeHtml(comparable)}</strong></div>
+    <div><span>Evolución comparable</span><strong>${escapeHtml(progress)}</strong></div>
+    <div><span>Retroceso comparable</span><strong>${escapeHtml(regression)}</strong></div>
+    <div><span>Estables</span><strong>${escapeHtml(stable)}</strong></div>
+  </div>`;
+}
+
 function renderExerciseProgressSection(
   progress,
-  {compact=false}={}
+  {
+    compact=false,
+    role='client',
+    performance=[],
+  }={}
 ){
   if(!progress){
     return '';
@@ -1823,6 +2115,27 @@ function renderExerciseProgressSection(
     ? exercises.slice(0,6)
     : exercises;
 
+  const coachMode=['coach','admin'].includes(
+    String(role||'').toLowerCase()
+  );
+
+  const performanceMap=new Map(
+    (Array.isArray(performance)?performance:[])
+      .filter((item)=>item?.exerciseId)
+      .map((item)=>[
+        String(item.exerciseId),
+        item,
+      ])
+  );
+
+  const coachStudySummary=
+    coachMode&&!compact
+      ?renderCoachExerciseStudySummary(
+          exercises,
+          performance,
+        )
+      :'';
+
   const rows=visible.map((exercise,index)=>{
     const latest=exercise.latest||{};
     const history=Array.isArray(exercise.history)
@@ -1837,6 +2150,17 @@ function renderExerciseProgressSection(
       exercise,
       {compact}
     );
+
+    const coachStudy=
+      coachMode
+        ?renderCoachExerciseStudy(
+            exercise,
+            performanceMap.get(
+              String(exercise.exerciseId),
+            )||null,
+            {compact},
+          )
+        :'';
 
     const historyRows=visibleHistory.map((point)=>`
       <tr>
@@ -1904,6 +2228,8 @@ function renderExerciseProgressSection(
 
         ${progressChart}
 
+        ${coachStudy}
+
         <div class="m26-table-scroll">
           <table class="m26-exercise-progress-table">
             <thead>
@@ -1933,6 +2259,8 @@ function renderExerciseProgressSection(
       </div>
       ${badge(`${progress.totalExercises} ejercicio${progress.totalExercises===1?'':'s'}`,'neutral')}
     </div>
+
+    ${coachStudySummary}
 
     <div class="m26-exercise-progress-list">
       ${rows}
@@ -2440,7 +2768,11 @@ export function renderExpedienteRoute(vm) {
       ${renderExercisePerformanceOverview(vm.exercisePerformance)}
       <details class="m26-client360-progress-details">
         <summary>Ver evolución detallada</summary>
-        ${renderExerciseProgressSection(vm.exerciseProgress,{compact:true})}
+        ${renderExerciseProgressSection(vm.exerciseProgress,{
+          compact:true,
+          role:vm.role,
+          performance:vm.exercisePerformance,
+        })}
       </details>
     </div>
 
@@ -2674,7 +3006,11 @@ export function renderProgressRoute(vm){
     </section>
     ${wearablePanel}
     <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Alertas explicables</p><h2>Qué requiere atención</h2></div></div>${renderAlerts(vm.alerts)}</section>
-  ${renderExerciseProgressSection(vm.exerciseProgress,{compact:false})}</div>`;
+  ${renderExerciseProgressSection(vm.exerciseProgress,{
+      compact:false,
+      role:vm.role,
+      performance:vm.exercisePerformance,
+    })}</div>`;
 }
 
 function capabilityNotice(capability,label){
