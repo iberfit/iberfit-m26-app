@@ -3080,12 +3080,9 @@ export function renderProgressRoute(vm){
     role:vm.role,
     performance:vm.exercisePerformance,
   });
-  const deepContent=`
-    ${pendingProgressNotice}
-    ${sessionImpact}
+  const secondaryContent=`
     ${renderPlanExecutionPanel(vm.planExecution)}
     ${renderIriMilestonePanel(summary.evolution||summary.iri2)}
-    ${adherenceVisual}
     ${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
     <section class="m26-content-grid">
       <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Cronología</p><h2>Evolución registrada</h2></div>${badge(`${vm.timeline.length} eventos`,'neutral')}</div><div class="m26-timeline">${timeline}</div></div>
@@ -3094,10 +3091,11 @@ export function renderProgressRoute(vm){
     ${wearablePanel}
     <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Alertas explicables</p><h2>Qué requiere atención</h2></div></div>${renderAlerts(vm.alerts)}</section>
     ${exerciseProgress}`;
+  const primaryEvidence=`${pendingProgressNotice}${sessionImpact}${adherenceVisual}`;
+  const deepContent=`${primaryEvidence}${secondaryContent}`;
 
   if(vm.role==='client'){
     const stageMarkup=renderClientProgressStage(vm,stage);
-    const knownNow=`${sessionImpact}${adherenceVisual}`;
     const detailed=stage.stage==='mature'
       ?deepContent
       :`<details class="m26-client-progress-detail">
@@ -3105,12 +3103,12 @@ export function renderProgressRoute(vm){
             <span><strong>Ver detalle completo</strong><small>Historial, bienestar, IRI, dispositivos, alertas y ejercicios confirmados.</small></span>
             <span aria-hidden="true">＋</span>
           </summary>
-          <div class="m26-client-progress-detail-body">${deepContent}</div>
+          <div class="m26-client-progress-detail-body">${secondaryContent}</div>
         </details>`;
     return `<div class="m26-route m26-client-progress-route">
       <section class="m26-route-intro"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Tu evolución</h2><p>Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.</p></div>${badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
       ${stageMarkup}
-      ${stage.stage==='mature'?'':knownNow}
+      ${stage.stage==='mature'?'':primaryEvidence}
       ${detailed}
     </div>`;
   }
