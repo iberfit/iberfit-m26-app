@@ -18,6 +18,8 @@ const CURRENT_SOURCE_STYLES=Object.freeze([
 ]);
 
 
+const IMMERSIVE_SESSION_TASK_IDS=new Set(['client-session-live','client-feedback']);
+
 const TASKS=Object.freeze([
   {id:'client-hoy',role:'client',url:'/qa/rc13_visual_cases/client_hoy_mobile.html',evidence:'synthetic-current-source-ui'},
   {id:'client-progreso',role:'client',url:'/qa/rc13_visual_cases/client_progreso_tablet.html',evidence:'synthetic-current-source-ui'},
@@ -179,15 +181,19 @@ async function exerciseAdminTask(page,task){
 
 
 async function assertSettingsReachable(page,task,viewport){
-  if(task.role==='client'){
+  if(IMMERSIVE_SESSION_TASK_IDS.has(task.id)){
+    const exit=page.locator('[data-session-action="exit-session"]').first();
+    await expect(exit,task.id+' immersive session must expose a safe exit before account navigation').toBeVisible();
+    return;
+  }
+
+  if(task.role==='client'&&viewport.width<=900){
     const clientMore=page.locator('.m26-client-bottom-nav-more > summary').first();
-    if(await clientMore.count()){
-      await expect(clientMore,'Client Más must expose account destinations').toBeVisible();
-      await clientMore.click();
-      await expect(page.locator('.m26-client-bottom-nav-menu [data-m26-area="ajustes"]').first(),'Client Settings must be reachable from Más').toBeVisible();
-      await clientMore.click();
-      return;
-    }
+    await expect(clientMore,'Client Más must expose account destinations on compact layouts').toBeVisible();
+    await clientMore.click();
+    await expect(page.locator('.m26-client-bottom-nav-menu [data-m26-area="ajustes"]').first(),'Client Settings must be reachable from Más').toBeVisible();
+    await clientMore.click();
+    return;
   }
 
   if(viewport.width>=720){
@@ -240,13 +246,17 @@ test('Device Experience Gate validates representative tasks by role and device',
 
     if(viewport.width<=719){
       expect(metrics.sidebarVisible,task.id+' phone navigation must replace sidebar').toBe(false);
-      expect(metrics.mobileNavVisible||metrics.clientBottomNavVisible,task.id+' must expose phone navigation').toBe(true);
+      if(!IMMERSIVE_SESSION_TASK_IDS.has(task.id)){
+        expect(metrics.mobileNavVisible||metrics.clientBottomNavVisible,task.id+' must expose phone navigation').toBe(true);
+      }
     }else if(viewport.width<=1179&&['coach','admin'].includes(task.role)){
       expect(metrics.sidebarVisible,task.id+' tablet account rail must remain visible').toBe(true);
       expect(metrics.mobileNavVisible,task.id+' tablet must avoid duplicate shell navigation').toBe(false);
     }else if(viewport.width<=900){
       expect(metrics.sidebarVisible,task.id+' compact Client navigation must replace sidebar').toBe(false);
-      expect(metrics.clientBottomNavVisible||metrics.mobileNavVisible,task.id+' Client must expose compact navigation').toBe(true);
+      if(!IMMERSIVE_SESSION_TASK_IDS.has(task.id)){
+        expect(metrics.clientBottomNavVisible||metrics.mobileNavVisible,task.id+' Client must expose compact navigation').toBe(true);
+      }
     }else{
       expect(metrics.sidebarVisible,task.id+' desktop/tablet-landscape must expose sidebar').toBe(true);
     }
