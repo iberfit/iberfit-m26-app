@@ -564,7 +564,7 @@ test('operaciones pendientes se muestran como no confirmadas', () => {
 });
 
 
-test('Cliente 360 v2 ordena identidad, decisión y evolución sin perder profundidad', () => {
+test('Workspace Coach ordena ahora, sesiones, decisiones y evolución sin perder profundidad', () => {
   const state = ready('coach', { activeArea: 'expediente' });
   const vm = createRouteViewModel(
     createShellViewModel(state),
@@ -588,21 +588,30 @@ test('Cliente 360 v2 ordena identidad, decisión y evolución sin perder profund
     html,
     /m26-client360-header-action[\s\S]*?data-m26-area="progreso"[\s\S]*?>Revisar progreso<\/button>/
   );
-  assert.match(html, /m26-client360-now/);
-  assert.match(html, /Lo importante ahora/);
-  assert.match(html, /m26-client360-evolution/);
-  assert.match(html, /Rendimiento y evolución/);
+  assert.ok(vm.nextSessionPreparation);
+  assert.match(html, /data-coach-client-workspace/);
+  assert.match(html, /Cliente · mesa de decisión/);
+  assert.match(html, /Decidir en segundos/);
+  assert.match(html, /Señal → decisión → acción → resultado/);
   assert.match(html, /m26-client360-progress-details/);
   assert.match(html, /Ver evolución detallada/);
+  assert.match(html, /data-m26-area="sesion"/);
+  assert.match(html, /data-m26-area="progreso"/);
 
   const headerIndex = html.indexOf('Cliente 360º');
-  const nowIndex = html.indexOf('Lo importante ahora');
-  const evolutionIndex = html.indexOf('Rendimiento y evolución');
+  const nowIndex = html.indexOf('>Ahora<');
+  const lastIndex = html.indexOf('>Última sesión<');
+  const nextIndex = html.indexOf('>Próxima sesión<');
+  const decisionsIndex = html.indexOf('>Decisiones<');
+  const evolutionIndex = html.indexOf('Contexto para la siguiente decisión');
   const contextIndex = html.indexOf('Contexto reciente');
 
   assert.ok(headerIndex >= 0);
   assert.ok(nowIndex > headerIndex);
-  assert.ok(evolutionIndex > nowIndex);
+  assert.ok(lastIndex > nowIndex);
+  assert.ok(nextIndex > lastIndex);
+  assert.ok(decisionsIndex > nextIndex);
+  assert.ok(evolutionIndex > decisionsIndex);
   assert.ok(contextIndex > evolutionIndex);
 
   assert.match(html, /Sentadilla goblet/);
@@ -610,6 +619,7 @@ test('Cliente 360 v2 ordena identidad, decisión y evolución sin perder profund
   assert.match(html, /Dispositivos · últimos 7 días/);
   assert.match(html, /Correo electrónico/);
   assert.match(html, /Evaluación IRI/);
+  assert.doesNotMatch(html, /0%[^\n]*Tendencia de volumen/);
 });
 
 test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', () => {
@@ -622,5 +632,9 @@ test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', 
   const html = renderRouteView(vm);
 
   assert.equal(vm.coachCockpit, null);
+  assert.equal(vm.nextSessionPreparation, null);
+  assert.doesNotMatch(html, /data-coach-client-workspace/);
+  assert.match(html, /Lo importante ahora/);
+  assert.match(html, /Rendimiento y evolución/);
   assert.doesNotMatch(html, /Siguiente acción del Coach/);
 });
