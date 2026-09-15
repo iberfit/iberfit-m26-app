@@ -176,6 +176,8 @@ test('Admin mobile Más opens reliably and navigates through the real shell cont
   await expect(more).toHaveAttribute('open','');
   await expect(summary).toHaveAttribute('aria-expanded','true');
   await expect(menu).toBeVisible();
+  await expect(page.locator('#m26-main')).toHaveAttribute('inert','');
+  await expect(page.locator('.m26-topbar')).toHaveAttribute('inert','');
 
   const library=menu.locator('[data-m26-area="biblioteca"]');
   await expect(library).toBeVisible();
@@ -183,6 +185,8 @@ test('Admin mobile Más opens reliably and navigates through the real shell cont
 
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_MOBILE_SHELL_QA__?.activeArea())).toBe('biblioteca');
   await expect(page.locator('[data-qa-current-area="biblioteca"]')).toBeVisible();
+  await expect(page.locator('#m26-main')).not.toHaveAttribute('inert','');
+  await expect(page.locator('.m26-topbar')).not.toHaveAttribute('inert','');
 
   const rerenderedMore=page.locator('details.m26-mobile-more');
   const rerenderedSummary=rerenderedMore.locator(':scope > summary');
@@ -194,6 +198,8 @@ test('Admin mobile Más opens reliably and navigates through the real shell cont
   await rerenderedSummary.tap({position:{x:3,y:3}});
   await expect(rerenderedMore).not.toHaveAttribute('open','');
   await expect(rerenderedSummary).toHaveAttribute('aria-expanded','false');
+  await expect(page.locator('#m26-main')).not.toHaveAttribute('inert','');
+  await expect(page.locator('.m26-topbar')).not.toHaveAttribute('inert','');
 
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
