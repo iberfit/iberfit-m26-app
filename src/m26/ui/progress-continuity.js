@@ -479,6 +479,46 @@ function enhanceConstancy({root,viewModel,state,now}){
   return true;
 }
 
+const EXERCISE_FOCUS_STATE=new WeakMap();
+const EXERCISE_FOCUS_BOUND=new WeakSet();
+
+function exerciseFocusText(value){
+  return String(value||'')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/gu,'')
+    .toLocaleLowerCase('es');
+}
+
+function exerciseFocusTitle(card){
+  return String(
+    card?.querySelector?.(':scope > summary strong')
+      ?.textContent||''
+  ).trim();
+}
+
+function exerciseFocusSubtitle(card){
+  return String(
+    card?.querySelector?.(':scope > summary small')
+      ?.textContent||''
+  ).replace(/\s+/gu,' ').trim();
+}
+
+function exerciseFocusLimit(value){
+  if(String(value)==='all'){
+    return Number.POSITIVE_INFINITY;
+  }
+  const parsed=Number(value);
+  return [4,8,12].includes(parsed)
+    ?parsed
+    :8;
+}
+
+function exerciseFocusWindowCopy(value){
+  return String(value)==='all'
+    ?'Todo el historial visible. La lectura Coach mantiene la evidencia confirmada completa.'
+    :`Últimas ${exerciseFocusLimit(value)} exposiciones visibles. La lectura Coach mantiene la evidencia confirmada completa.`;
+}
+
 function enhanceFeedbackClosure({root,viewModel}){
   const panel=root.querySelector?.('[data-session-live-state="feedback"] [data-session-live-feedback]');
   if(!panel)return false;
