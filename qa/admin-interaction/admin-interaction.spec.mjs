@@ -156,3 +156,42 @@ test('Admin client-create wizard preserves entered values while selects and step
 
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
+
+
+test('Admin mobile Más opens reliably and navigates through the real shell controller',async({page,browserName},testInfo)=>{
+  test.skip(!testInfo.project.name.startsWith('admin-mobile-'),'Mobile disclosure regression only.');
+
+  const errors=capturePageErrors(page);
+  await page.goto('/qa/admin-interaction/mobile-shell.fixture.html',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_MOBILE_SHELL_QA__?.mounted===true)).toBe(true);
+
+  const more=page.locator('details.m26-mobile-more');
+  const summary=more.locator(':scope > summary');
+  const menu=more.locator('.m26-mobile-more-menu');
+
+  await expect(more).toBeVisible();
+  await summary.tap();
+  await expect(more).toHaveAttribute('open','');
+  await expect(summary).toHaveAttribute('aria-expanded','true');
+  await expect(menu).toBeVisible();
+
+  const library=menu.locator('[data-m26-area="biblioteca"]');
+  await expect(library).toBeVisible();
+  await library.tap();
+
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_MOBILE_SHELL_QA__?.activeArea())).toBe('biblioteca');
+  await expect(page.locator('[data-qa-current-area="biblioteca"]')).toBeVisible();
+
+  const rerenderedMore=page.locator('details.m26-mobile-more');
+  const rerenderedSummary=rerenderedMore.locator(':scope > summary');
+  await expect(rerenderedMore).not.toHaveAttribute('open','');
+  await rerenderedSummary.tap();
+  await expect(rerenderedMore).toHaveAttribute('open','');
+  await expect(rerenderedSummary).toHaveAttribute('aria-expanded','true');
+
+  await rerenderedSummary.tap({position:{x:3,y:3}});
+  await expect(rerenderedMore).not.toHaveAttribute('open','');
+  await expect(rerenderedSummary).toHaveAttribute('aria-expanded','false');
+
+  expect(errors,browserName+' emitted browser errors').toEqual([]);
+});
