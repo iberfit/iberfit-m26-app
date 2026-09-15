@@ -390,7 +390,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(!field)return false;
     const input=root.querySelector?.(`[data-set-field="${field}"]`);
     if(typeof input?.focus!=='function')return false;
-    input.focus({preventScroll:true});
+    input.focus();
     return true;
   }
   const baseRender=render;
