@@ -257,6 +257,7 @@ test('Today shows an actual challenge only when there is useful challenge contex
   const emptyHtml=renderHoyRoute({...base,challengePreview:null});
   assert.doesNotMatch(emptyHtml,/data-m26-community-entry/u);
   assert.doesNotMatch(emptyHtml,/data-m26-client-guide="challenge-entry"/u);
+  assert.match(emptyHtml,/data-m26-area="retos" data-m26-client-guide="challenge-discovery">Retos</u);
 
   const activeHtml=renderHoyRoute({
     ...base,
@@ -274,6 +275,7 @@ test('Today shows an actual challenge only when there is useful challenge contex
   });
   assert.match(activeHtml,/data-m26-community-entry/u);
   assert.match(activeHtml,/data-m26-client-guide="challenge-entry"/u);
+  assert.doesNotMatch(activeHtml,/data-m26-client-guide="challenge-discovery"/u);
   assert.match(activeHtml,/data-m26-client-guide-event-key="[a-f0-9]{8}"/u);
   assert.match(activeHtml,/Cumplir tu planificación/u);
   assert.match(activeHtml,/3 sesiones/u);
@@ -343,6 +345,18 @@ test('Plan and session moments on Today are driven by real availability',()=>{
   assert.match(withSession,/data-m26-client-guide="plan-entry"/u);
   assert.match(withSession,/data-m26-client-guide="session-entry"/u);
   assert.match(withSession,/data-m26-client-guide="session-entry" data-m26-client-guide-event-key="[a-f0-9]{8}"/u);
+});
+
+test('Challenge discovery prefers the quiet Today shortcut and keeps More as a fallback',()=>{
+  const guide=read('src/m26/onboarding/client-contextual-guide.js');
+  assert.match(guide,/client-feature-challenges-community[\s\S]*?selectors:Object\.freeze\(\['\[data-m26-client-guide="challenge-discovery"\]','\.m26-client-bottom-nav-more > summary'\]\)/u);
+  assert.match(guide,/Retos y comunidad están disponibles cuando quieras/u);
+  assert.match(guide,/puedes entrar desde Hoy o Más/u);
+
+  const i18n=read('src/m26/ui/i18n-surface-onboarding-client.js');
+  assert.match(i18n,/Challenges and community are available whenever you want/u);
+  assert.match(i18n,/Défis et communauté sont disponibles quand vous le souhaitez/u);
+  assert.match(i18n,/Desafios e comunidade estão disponíveis quando quiser/u);
 });
 
 test('Moment guidance prioritizes actionable facts and avoids duplicate route explanations',()=>{
