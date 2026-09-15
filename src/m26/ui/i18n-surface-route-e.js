@@ -108,4 +108,8 @@ export const ROUTE_SURFACE_ROWS_E=Object.freeze([
 ["Ejercicios con historial confirmado","Exercises with confirmed history","Exercices avec historique confirmé","Exercícios com histórico confirmado"],
 ["Historial confirmado","Confirmed history","Historique confirmé","Histórico confirmado"],
 ["No hay ejercicios que coincidan con la búsqueda.","No exercises match your search.","Aucun exercice ne correspond à la recherche.","Nenhum exercício corresponde à pesquisa."],
+["Ventana visual del historial del ejercicio","Visual window for exercise history","Fenêtre visuelle de l’historique de l’exercice","Janela visual do histórico do exercício"],
+["Ventana visual","Visual window","Fenêtre visuelle","Janela visual"],
+["Todo","All","Tout","Tudo"],
+["Ajusta la gráfica principal y la tabla visible; el estudio Coach conserva su lectura confirmada.","Adjusts the main chart and visible table; the Coach study keeps its confirmed interpretation.","Ajuste le graphique principal et le tableau visible ; l’étude Coach conserve son interprétation confirmée.","Ajusta o gráfico principal e a tabela visível; o estudo Coach mantém a sua leitura confirmada."],
 ]);
