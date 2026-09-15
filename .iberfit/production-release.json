@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f2776c1a9cca74f3ffd9a433259dda958999d28f",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promote certified Canary f2776c1a9cca: Coach one-tap repeat-and-complete for previous set, Admin mobile More fix already included, and QA real-write persistence/isolation hardening. Exact post-merge CI, device, visual, admin-interaction, write and remote read-only gates green."
+}
