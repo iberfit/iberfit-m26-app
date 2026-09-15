@@ -16,12 +16,30 @@ function queueFocus(callback){
   else callback();
 }
 
+function releaseMobileMoreBackground(details){
+  if(!details?.matches?.('details.m26-mobile-more'))return false;
+  const shell=details.closest?.('.m26-shell');
+  const workspace=shell?.querySelector?.(':scope > .m26-workspace');
+  if(!workspace)return false;
+  const targets=[
+    workspace.querySelector?.(':scope > .m26-topbar'),
+    workspace.querySelector?.(':scope > .m26-main'),
+  ].filter(Boolean);
+  for(const node of targets){
+    if(node.dataset?.m26MobileMoreInert!=='true')continue;
+    node.removeAttribute?.('inert');
+    delete node.dataset.m26MobileMoreInert;
+  }
+  return targets.length>0;
+}
+
 function closeDetailsDisclosure(details,{restoreFocus=true}={}){
   if(!details)return false;
   details.removeAttribute?.('open');
   if('open' in details)details.open=false;
   const summary=details.querySelector?.('summary');
   summary?.setAttribute?.('aria-expanded','false');
+  releaseMobileMoreBackground(details);
   if(restoreFocus){
     queueFocus(()=>summary?.focus?.({preventScroll:true}));
   }
