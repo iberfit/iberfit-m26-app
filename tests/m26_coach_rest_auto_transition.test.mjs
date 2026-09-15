@@ -1,0 +1,249 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+import {
+  advanceExpiredRest,
+  beginRest,
+  createExecution,
+  currentStep,
+  executionResultForStep,
+  recordSet,
+  startExecution,
+} from '../src/m26/workflows/session-execution.js';
+import {
+  createSessionController,
+  dispatchSessionAction,
+} from '../src/m26/workflows/session-controller.js';
+
+const exercise={id:'exercise-rest-1',name_es:'Sentadilla',pattern:'squat',cues:[]};
+const catalog={
+  get(id){return id===exercise.id?exercise:null;},
+  has(id){return id===exercise.id;},
+  search(){return [exercise];},
+};
+function makeSession({sets=2}={}){
+  return {
+    id:'session-rest-transition',
+    clientId:'client-rest-transition',
+    title:'Transición de descanso',
+    status:'published',
+    blocks:[{
+      id:'block-rest-1',
+      type:'exercise',
+      exerciseId:exercise.id,
+      sets,
+      reps:'10',
+      restSeconds:1,
+      targetRpe:7,
+      targetRir:3,
+    }],
+  };
+}
+function executionWithRecordedSet({sets=2,restMs=-1}={}){
+  const session=makeSession({sets});
+  const execution=createExecution({session,clientId:session.clientId,executionId:'execution-rest-transition'});
+  startExecution(execution,{actor:{role:'coach',userId:'coach-1'}});
+  recordSet(execution,session,{reps:10,load:'40 kg',rpe:7,rir:3,actor:{role:'coach',userId:'coach-1'}});
+  beginRest(execution,1,{actor:{role:'coach',userId:'coach-1'}});
+  execution.restUntil=new Date(Date.now()+restMs).toISOString();
+  return {session,execution};
+}
+function coach(){return {role:'coach',userId:'coach-1'};}
+function client(){return {role:'client',userId:'client-1',clientId:'client-rest-transition'};}
+
+test('expired rest advances exactly one step for Coach and keeps traceability',()=>{
+  const {session,execution}=executionWithRecordedSet();
+  advanceExpiredRest(execution,session,{actor:coach(),nowMs:Date.now()});
+  assert.equal(execution.index,0);
+  assert.equal(execution.setIndex,1);
+  assert.equal(execution.restUntil,null);
+  assert.equal(execution.events.at(-1)?.type,'REST_COMPLETED_AUTO_ADVANCE');
+  assert.equal(execution.events.at(-1)?.actor?.role,'coach');
+  assert.deepEqual(execution.events.at(-1)?.payload,{
+    index:0,
+    setIndex:0,
+    blockId:'block-rest-1',
+    exerciseId:exercise.id,
+    setNumber:1,
+    toIndex:0,
+    toSetIndex:1,
+  });
+});
+
+test('expired-rest auto advance rejects Client and pre-expiry calls without mutation',()=>{
+  const first=executionWithRecordedSet();
+  assert.throws(
+    ()=>advanceExpiredRest(first.execution,first.session,{actor:client(),nowMs:Date.now()}),
+    /M26_EXECUTION_COACH_ACTION_REQUIRED/,
+  );
+  assert.equal(first.execution.setIndex,0);
+
+  const second=executionWithRecordedSet({restMs:60000});
+  assert.throws(
+    ()=>advanceExpiredRest(second.execution,second.session,{actor:coach(),nowMs:Date.now()}),
+    /M26_EXECUTION_REST_NOT_EXPIRED/,
+  );
+  assert.equal(second.execution.setIndex,0);
+});
+
+test('final session set never auto-advances into feedback',()=>{
+  const {session,execution}=executionWithRecordedSet({sets:1});
+  assert.throws(
+    ()=>advanceExpiredRest(execution,session,{actor:coach(),nowMs:Date.now()}),
+    /M26_EXECUTION_REST_AUTO_ADVANCE_FINAL_STEP/,
+  );
+  assert.equal(execution.status,'active');
+  assert.equal(execution.index,0);
+});
+
+test('internal expired-rest dispatch uses the normal progress persistence command',async()=>{
+  const {session,execution}=executionWithRecordedSet();
+  const commands=[];
+  const commandBus={
+    async execute(command){
+      commands.push(structuredClone(command));
+      return {ok:true,kind:'applied',command,response:{remoteRevision:3}};
+    },
+  };
+  const result=dispatchSessionAction({
+    action:'rest-expired-auto',
+    execution,
+    session,
+    catalog,
+    actor:coach(),
+    commandBus,
+    payload:{nowMs:Date.now()},
+  });
+  assert.equal(result.kind,'command');
+  await result.value;
+  assert.equal(commands.length,1);
+  assert.equal(commands[0].type,'EJECUCION_GUARDAR_PROGRESO');
+  assert.equal(commands[0].payload.progressSnapshot.setIndex,1);
+  assert.equal(execution.revision,3);
+});
+
+test('manual next also persists the advanced step through the progress command bus',async()=>{
+  const {session,execution}=executionWithRecordedSet();
+  const commands=[];
+  const commandBus={
+    async execute(command){
+      commands.push(structuredClone(command));
+      return {ok:true,kind:'applied',command,response:{remoteRevision:4}};
+    },
+  };
+  const result=dispatchSessionAction({
+    action:'next',
+    execution,
+    session,
+    catalog,
+    actor:coach(),
+    commandBus,
+  });
+  assert.equal(result.kind,'command');
+  await result.value;
+  assert.equal(execution.setIndex,1);
+  assert.equal(commands[0]?.type,'EJECUCION_GUARDAR_PROGRESO');
+  assert.equal(commands[0]?.payload?.progressSnapshot?.setIndex,1);
+});
+
+class FakeTarget{
+  constructor(){this.listeners=new Map();this.visibilityState='visible';this.ownerDocument={activeElement:null};}
+  addEventListener(type,listener){const set=this.listeners.get(type)||new Set();set.add(listener);this.listeners.set(type,set);}
+  removeEventListener(type,listener){this.listeners.get(type)?.delete(listener);}
+}
+function fakeRoot({correctionOpen=false}={}){
+  const root=new FakeTarget();
+  const disclosure={open:correctionOpen,contains(){return false;}};
+  root.querySelectorAll=()=>[];
+  root.querySelector=(selector)=>selector==='[data-session-rest-correction]'?disclosure:null;
+  return root;
+}
+const telemetryStub={start:async()=>{},pause:async()=>{},resume:async()=>{},stop:async()=>{}};
+function sleep(ms){return new Promise((resolve)=>setTimeout(resolve,ms));}
+
+test('Coach controller advances after rest expiry while Client remains manual',async()=>{
+  const coachState=executionWithRecordedSet({restMs:35});
+  const coachRoot=fakeRoot();
+  const coachPersisted=[];
+  const coachContext={
+    execution:coachState.execution,
+    session:coachState.session,
+    catalog,
+    actor:coach(),
+    recoveryCoordinator:{
+      async persist(payload){coachPersisted.push(structuredClone(payload));},
+      async settle(){},
+    },
+  };
+  const coachController=createSessionController({
+    root:coachRoot,
+    getContext:()=>coachContext,
+    render:()=>{},
+    liveTelemetryController:telemetryStub,
+    lifecycleTarget:new FakeTarget(),
+    visibilityTarget:new FakeTarget(),
+  });
+  coachController.mount();
+  await sleep(110);
+  assert.equal(coachState.execution.setIndex,1);
+  assert.ok(coachPersisted.some((item)=>item.execution.setIndex===1));
+  coachController.destroy();
+
+  const clientState=executionWithRecordedSet({restMs:35});
+  const clientRoot=fakeRoot();
+  const clientContext={
+    execution:clientState.execution,
+    session:clientState.session,
+    catalog,
+    actor:client(),
+    recoveryCoordinator:{async persist(){},async settle(){}},
+  };
+  const clientController=createSessionController({
+    root:clientRoot,
+    getContext:()=>clientContext,
+    render:()=>{},
+    liveTelemetryController:telemetryStub,
+    lifecycleTarget:new FakeTarget(),
+    visibilityTarget:new FakeTarget(),
+  });
+  clientController.mount();
+  await sleep(110);
+  assert.equal(clientState.execution.setIndex,0);
+  clientController.destroy();
+});
+
+test('Coach auto-advance is suppressed while correcting the recorded set',async()=>{
+  const {session,execution}=executionWithRecordedSet({restMs:30});
+  const root=fakeRoot({correctionOpen:true});
+  const context={
+    execution,
+    session,
+    catalog,
+    actor:coach(),
+    recoveryCoordinator:{async persist(){},async settle(){}},
+  };
+  const controller=createSessionController({
+    root,
+    getContext:()=>context,
+    render:()=>{},
+    liveTelemetryController:telemetryStub,
+    lifecycleTarget:new FakeTarget(),
+    visibilityTarget:new FakeTarget(),
+  });
+  controller.mount();
+  await sleep(100);
+  assert.equal(execution.setIndex,0);
+  assert.ok(executionResultForStep(execution,currentStep(execution,session)));
+  controller.destroy();
+});
+
+test('controller source keeps manual controls and suppresses auto advance on hidden/correction states',()=>{
+  const source=fs.readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
+  assert.match(source,/action==='rest-minus'\|\|action==='rest-plus'/);
+  assert.match(source,/action==='next'/);
+  assert.match(source,/visibilityState==='hidden'/);
+  assert.match(source,/data-session-rest-correction/);
+  assert.match(source,/coachRestSuppressedSignature/);
+  assert.match(source,/rest-expired-auto/);
+});
