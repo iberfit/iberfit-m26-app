@@ -4,21 +4,28 @@
   "items": [
     {
       "exercise_id": "IBF-BIRD-DOG",
-      "local_path": "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG-approved-0183cccae55d.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG-approved-6359b0f9e27e.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.b64.00"
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.v3.b64.00",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.v3.b64.01",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.v3.b64.02",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.v3.b64.03a3",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.v3.b64.03b3",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.v3.b64.03c3",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.v3.b64.03d3",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.v3.b64.04a3",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.v3.b64.04b3",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.v3.b64.04c3",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.v3.b64.04d3"
       ],
       "human_approved": true,
       "publishable": true,
       "approval": {
         "method": "human_owner_approval",
-        "scopes": [
-          "visual",
-          "biomechanics"
-        ],
+        "scopes": ["visual","biomechanics"],
         "automatic_qa": "passed",
         "approved_at": "2026-09-14",
-        "note": "El propietario autorizó la continuación automática bajo el contrato visual cerrado. Asset revisado contra el catálogo real y validado visual y biomecánicamente antes de publicación."
+        "note": "Corrección visual aprobada por el propietario: conserva la biomecánica del lote 03, alinea el asset con la biblioteca IBERFIT ya publicada, elimina branding redundante fuera de la camiseta y prioriza el ejercicio. Solo isotipo oficial pequeño en camiseta; fondo degradado y maniquí discreto."
       },
       "media": {
         "schema": "iberfit.exercise.visual.v1",
@@ -26,28 +33,20 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-BIRD-DOG/movement-0183cccae55d.webp",
+          "path": "IBF-BIRD-DOG/movement-6359b0f9e27e.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "0183cccae55da15a7ce485f901d78e9fc237aafd26cc834e542c82eaf3523219"
+          "sha256": "6359b0f9e27e87d492768cc9241e1a1eccf0d6feb1ca4c83019e61850d2c07c6"
         },
         "published": true,
         "clientVisible": true,
         "coachVisible": true,
-        "qa": {
-          "biomechanics": "approved",
-          "visual": "approved"
-        },
+        "qa": {"biomechanics":"approved","visual":"approved"},
         "muscleZones": {
-          "primary": [
-            "core"
-          ],
-          "secondary": [
-            "oblicuos",
-            "glúteos"
-          ],
-          "display": "unisex-mannequin-simple-v1"
+          "primary":["core"],
+          "secondary":["oblicuos","glúteos"],
+          "display":"unisex-mannequin-simple-v1"
         }
       }
     }
