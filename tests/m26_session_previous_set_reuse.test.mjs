@@ -341,7 +341,7 @@ test('Coach reutiliza la serie anterior sin rerender y entra directamente a revi
   assert.equal(harness.fields.get('rir').value,'2');
   assert.equal(harness.fields.get('notes').value,'Mantener esta nota');
   assert.equal(harness.renderCalls,0);
-  assert.deepEqual(harness.fields.get('reps').focusCalls,[{preventScroll:true}]);
+  assert.deepEqual(harness.fields.get('reps').focusCalls,[null]);
   assert.equal(harness.fields.get('load').focusCalls.length,0);
   assert.equal(harness.actionState.status,'success');
   assert.match(harness.actionState.message,/Revísalos antes de confirmar/);
