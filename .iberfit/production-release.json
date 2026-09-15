@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "e4061dca91186fe72179679defab661c6caa2df1",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Certified multi-role Admin/Coach entry and safe role switching, restored tablet Settings rail with verified pointer/focus behavior, and canonical Admin access to the shared exercise library with global rename remaining Admin-only. Includes fail-closed Admin namespace audit exception only for Biblioteca. No Supabase schema, RLS, auth backend, permissions, or user-data model changes."
+}
