@@ -8,7 +8,7 @@ const matrix=fs.readFileSync('playwright.admin-interaction.config.mjs','utf8');
 const shellEnhancer=fs.readFileSync('src/m26/rc39/shell-enhancer.js','utf8');
 
 test('shell protects native selects and form buttons from deferred replacement',()=>{
-  assert.match(shell,/SHELL_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\],details > summary,form button'/u);
+  assert.match(shell,/SHELL_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\],details > summary,button'/u);
   assert.match(shell,/tag!=='select'&&focusedInteractiveControl\(\)===control/u);
   assert.match(shell,/interactionPointerTarget===control&&String\(control\?\.tagName\|\|''\)\.toLowerCase\(\)!=='select'/u);
   assert.match(shell,/!committedControl\.closest\?\.\('form'\)/u);
@@ -56,6 +56,12 @@ test('open disclosures survive shell replacement without forcing unrelated contr
 
 
 test('native disclosure summaries hold a short pointer lease until click default action completes',()=>{
-  assert.match(shell,/SHELL_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\],details > summary,form button'/u);
+  assert.match(shell,/SHELL_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\],details > summary,button'/u);
   assert.match(shell,/const timeoutMs=tag==='select'\?NATIVE_SELECT_INTERACTION_HOLD_MS:INTERACTION_RELEASE_GRACE_MS;/u);
+});
+
+
+test('all buttons hold only the short pointer lease so click cannot be swallowed by a queued render',()=>{
+  assert.match(shell,/SHELL_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\],details > summary,button'/u);
+  assert.match(shell,/SHELL_FOCUS_INTERACTIVE_SELECTOR='input,textarea,select,\[contenteditable="true"\]'/u);
 });
