@@ -249,9 +249,13 @@ test('RC64 authenticated visual evidence is real QA, read-only and fail-closed',
         ).toBeVisible({timeout:5_000});
         await progressNav.click();
         await expect(
-          page.locator('[data-m27-cliente-360]'),
-          'Client visual evidence must render the enhanced Cliente 360 Progreso route',
+          page.locator('[data-client-progress-stage]'),
+          'Client visual evidence must render the canonical progressive Progreso surface',
         ).toBeVisible({timeout:10_000});
+        await expect(
+          page.locator('[data-m27-cliente-360]'),
+          'Client must not receive the professional Cliente 360 enhancer on Progreso',
+        ).toHaveCount(0);
         await expect(
           page.locator('[data-m26-area="progreso"][aria-current="page"]:visible').first(),
         ).toBeVisible({timeout:5_000});
