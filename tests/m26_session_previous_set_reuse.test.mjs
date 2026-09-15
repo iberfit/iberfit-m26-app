@@ -13,7 +13,7 @@ import {
   startExecution,
 } from '../src/m26/workflows/session-execution.js';
 import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
-import {dispatchSessionAction} from '../src/m26/workflows/session-controller.js';
+import {createSessionController,dispatchSessionAction} from '../src/m26/workflows/session-controller.js';
 import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 import {M26_ACTION_REGISTRY,assertActionAllowed} from '../src/m26/ui/interactive-audit.js';
 
@@ -228,4 +228,139 @@ test('controller copies locally, preserves current notes, persists the active dr
   assert.match(branch,/Revísalos antes de confirmar/);
   assert.doesNotMatch(branch,/dispatchSessionAction/);
   assert.doesNotMatch(source,/case 'reuse-previous-set'/);
+});
+
+function reuseControllerHarness(role='coach'){
+  const listeners=[];
+  const {session,execution}=executionOnSecondSet();
+  let renderCalls=0;
+  let persistCalls=0;
+  const fields=new Map();
+  for(const [name,value] of [
+    ['reps',''],
+    ['seconds',''],
+    ['load',''],
+    ['rpe',''],
+    ['rir',''],
+    ['notes','Mantener esta nota'],
+  ]){
+    fields.set(name,{
+      value,
+      focusCalls:[],
+      getAttribute(attribute){
+        return attribute==='data-set-field'?name:null;
+      },
+      focus(options){
+        this.focusCalls.push(options||null);
+      },
+    });
+  }
+  const actionState={status:'idle',message:''};
+  const reuseButton={
+    disabled:false,
+    getAttribute(name){
+      return name==='data-session-action'?'reuse-previous-set':null;
+    },
+  };
+  const root={
+    ownerDocument:{activeElement:null},
+    addEventListener(type,fn,capture=false){
+      listeners.push({type,fn,capture:Boolean(capture)});
+    },
+    removeEventListener(){},
+    querySelector(selector){
+      const match=selector.match(/^\[data-set-field="([^"]+)"\]$/);
+      if(match)return fields.get(match[1])||null;
+      return null;
+    },
+    querySelectorAll(selector){
+      if(selector==='[data-set-field]')return [...fields.values()];
+      if(selector==='[data-session-action="set-rpe-quick"]')return [];
+      if(selector==='[data-session-live-state]')return [];
+      return [];
+    },
+  };
+  const recoveryCoordinator={
+    async persist(){persistCalls+=1;},
+    async settle(){},
+  };
+  const controller=createSessionController({
+    root,
+    getContext:()=>({
+      execution,
+      session,
+      catalog,
+      actor:{role,userId:`${role}-1`},
+      recoveryCoordinator,
+      actionState,
+    }),
+    render:()=>{renderCalls+=1;},
+    onError:(error)=>{throw error;},
+    autosaveDelayMs:50,
+    liveTelemetryController:{
+      start:async()=>{},
+      pause:async()=>{},
+      resume:async()=>{},
+      stop:async()=>{},
+    },
+    lifecycleTarget:{addEventListener(){},removeEventListener(){}},
+    visibilityTarget:{visibilityState:'visible',addEventListener(){},removeEventListener(){}},
+    clockTarget:{setInterval(){return 1;},clearInterval(){}},
+  });
+  controller.mount();
+  const click=listeners.find((item)=>item.type==='click'&&!item.capture)?.fn;
+  assert.equal(typeof click,'function');
+  const event={
+    target:{
+      closest(selector){
+        return selector==='[data-session-action]'?reuseButton:null;
+      },
+    },
+    preventDefault(){},
+  };
+  return {
+    controller,
+    execution,
+    fields,
+    actionState,
+    click,
+    event,
+    get renderCalls(){return renderCalls;},
+    get persistCalls(){return persistCalls;},
+  };
+}
+
+test('Coach reutiliza la serie anterior sin rerender y entra directamente a revisar el primer dato',async()=>{
+  const harness=reuseControllerHarness('coach');
+  await harness.click(harness.event);
+
+  assert.equal(harness.fields.get('reps').value,'10');
+  assert.equal(harness.fields.get('seconds').value,'');
+  assert.equal(harness.fields.get('load').value,'80 kg');
+  assert.equal(harness.fields.get('rpe').value,'8');
+  assert.equal(harness.fields.get('rir').value,'2');
+  assert.equal(harness.fields.get('notes').value,'Mantener esta nota');
+  assert.equal(harness.renderCalls,0);
+  assert.deepEqual(harness.fields.get('reps').focusCalls,[null]);
+  assert.equal(harness.fields.get('load').focusCalls.length,0);
+  assert.equal(harness.actionState.status,'success');
+  assert.match(harness.actionState.message,/Revísalos antes de confirmar/);
+  assert.equal(harness.execution.activeSetDraft?.values?.load,'80 kg');
+
+  await new Promise((resolve)=>setTimeout(resolve,80));
+  assert.ok(harness.persistCalls>=1);
+  harness.controller.destroy();
+});
+
+test('Cliente conserva el flujo compartido de reutilización con rerender existente',async()=>{
+  const harness=reuseControllerHarness('client');
+  await harness.click(harness.event);
+
+  assert.equal(harness.fields.get('reps').value,'10');
+  assert.equal(harness.fields.get('load').value,'80 kg');
+  assert.equal(harness.renderCalls,1);
+  assert.equal(harness.fields.get('reps').focusCalls.length,0);
+  assert.equal(harness.actionState.status,'success');
+
+  harness.controller.destroy();
 });

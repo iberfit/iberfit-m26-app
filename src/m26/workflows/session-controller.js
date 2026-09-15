@@ -384,6 +384,15 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       button.setAttribute?.('aria-pressed',active?'true':'false');
     }
   }
+  function focusCopiedSetField(values={}){
+    const field=['reps','seconds','load','rpe','rir']
+      .find((candidate)=>String(values?.[candidate]??'').trim());
+    if(!field)return false;
+    const input=root.querySelector?.(`[data-set-field="${field}"]`);
+    if(typeof input?.focus!=='function')return false;
+    input.focus();
+    return true;
+  }
   const baseRender=render;
   render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());};
   function renderSession(){render?.();}
@@ -522,6 +531,11 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   const saved=context?.execution&&context?.session?updateActiveSetDraft(context.execution,context.session,fieldValues(root)):null;
   if(saved)queueExecutionDraftPersist(context);
   if(context?.actionState){context.actionState.status='success';context.actionState.message='Datos de la serie anterior copiados. Revísalos antes de confirmar.';}
+  if(isCoachContext(context)){
+    syncQuickRpeControl();
+    focusCopiedSetField(values);
+    return;
+  }
   renderSession();
   return;
 }if(action==='set-rpe-quick'){
