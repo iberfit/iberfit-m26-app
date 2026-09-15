@@ -1091,6 +1091,11 @@ body {
   font-size:1.02rem;
 }
 
+.m26-session-live-v3 .m26-session-rest-focus-v3 .m26-session-extra-set-action{
+  flex:1.15 1 12rem;
+  min-height:3.2rem;
+}
+
 .m26-session-live-v3 .m26-session-live-workbench.is-rest .m26-session-live-context-v3{
   display:grid;
   grid-template-columns:minmax(0,1fr) minmax(0,1fr);
@@ -1233,6 +1238,11 @@ body {
   .m26-session-live-v3 .m26-session-rest-focus-v3 .m26-session-live-actions{
     display:grid;
     grid-template-columns:1fr 1fr;
+  }
+
+  .m26-session-live-v3 .m26-session-rest-focus-v3 .m26-session-extra-set-action{
+    grid-column:1 / -1;
+    min-height:3.8rem;
   }
 
   .m26-session-live-v3 .m26-session-rest-focus-v3 .m26-session-live-actions .m26-primary-action{
