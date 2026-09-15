@@ -78,6 +78,8 @@ export const SESSION_SURFACE_ROWS=Object.freeze([
 ['Repetir los datos de la serie anterior y completar esta serie','Repeat previous set data and complete this set','Répéter les données de la série précédente et terminer cette série','Repetir os dados da série anterior e concluir esta série'],
 ['Repetir y completar','Repeat and complete','Répéter et terminer','Repetir e concluir'],
 ['Acción rápida del Coach · no copia notas.','Coach quick action · notes are not copied.','Action rapide du Coach · les notes ne sont pas copiées.','Ação rápida do Coach · as notas não são copiadas.'],
+['+ 1 serie y seguir','+ 1 set and continue','+ 1 série et continuer','+ 1 série e continuar'],
+['Añadir una serie extra y continuar directamente con ella','Add one extra set and continue directly with it','Ajouter une série supplémentaire et continuer directement avec elle','Adicionar uma série extra e continuar diretamente com ela'],
 ['Este ejercicio ya tiene progreso registrado','This exercise already has recorded progress','Cet exercice a déjà une progression enregistrée','Este exercício já tem progresso registado'],
 ['La corrección queda registrada como un evento distinto; no borra silenciosamente el dato anterior.','The correction is recorded as a separate event; it does not silently erase the previous data.','La correction est enregistrée comme un événement distinct ; elle n’efface pas silencieusement la donnée précédente.','A correção fica registada como um evento separado; não apaga silenciosamente o dado anterior.'],
 ['Repeticiones','Reps','Répétitions','Repetições'],
