@@ -344,7 +344,7 @@ function focusProxyButton(document,live,selector,{primary=false}={}){
     document,
     'button',
     primary?'m27-session-focus-primary':'m27-session-focus-secondary',
-    target.textContent?.trim()||'Acción',
+    target.textContent?.trim()||target.getAttribute?.('aria-label')||'',
   );
   proxy.type='button';
   proxy.setAttribute('data-session-focus-proxy','true');
