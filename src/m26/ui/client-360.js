@@ -335,10 +335,11 @@ function timelineSection(document,rows=[]){
 }
 
 export function enhanceCliente360({root,viewModel,state,now=new Date()}={}){
+  const role=String(viewModel?.identity?.role||'');
   const active=
     viewModel?.mode==='authenticated'&&
     viewModel?.activeArea==='progreso'&&
-    ['client','coach'].includes(String(viewModel?.identity?.role||''));
+    role==='coach';
 
   root?.classList?.toggle?.('m26-cliente-360-activo',active);
   if(!active||!root?.querySelector||!state)return false;

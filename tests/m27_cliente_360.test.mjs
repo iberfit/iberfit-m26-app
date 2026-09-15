@@ -12,11 +12,11 @@ const read=(path)=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8')
 const routeRenderer=read('src/m26/modules/route-render.js');
 const bottomNavCss=read('src/m26/ui/client-bottom-nav.css');
 
-test('M27 presenta Cliente 360 sin cambiar la ruta técnica ni los permisos',()=>{
+test('Progreso conserva la ruta técnica y los permisos sin exponer lenguaje CRM al Cliente',()=>{
   const area=areaDefinition('progreso');
   assert.equal(area.key,'progreso');
-  assert.equal(area.label,'Cliente 360');
-  assert.equal(area.title,'Cliente 360 · Progreso y seguimiento');
+  assert.equal(area.label,'Progreso');
+  assert.equal(area.title,'Progreso y seguimiento');
   assert.deepEqual(area.roles,['coach','client']);
   assert.equal(canonicalArea('cliente360'),'progreso');
   assert.equal(canonicalArea('cliente-360'),'progreso');
@@ -29,16 +29,15 @@ test('M27 presenta Cliente 360 sin cambiar la ruta técnica ni los permisos',()=
   );
   assert.equal(
     client.primary.find((item)=>item.key==='progreso')?.label,
-    'Cliente 360',
+    'Progreso',
   );
 });
 
-test('Cliente 360 eleva visualmente el progreso real sin duplicar datos ni motores',()=>{
-  assert.match(bottomNavCss,/M27 · Cliente 360/u);
+test('Progreso eleva visualmente los datos reales sin duplicar motores',()=>{
+  assert.match(bottomNavCss,/Progreso Cliente · jerarquía visual canónica/u);
   assert.match(bottomNavCss,/\[data-client-bottom-nav-route="progreso"\]/u);
-  assert.match(bottomNavCss,/content:\s*"CLIENTE 360"/u);
-  assert.match(bottomNavCss,/content:\s*"Cliente 360"/u);
   assert.match(bottomNavCss,/font-variant-numeric:\s*tabular-nums/u);
+  assert.doesNotMatch(bottomNavCss,/content:\s*"(?:CLIENTE 360|Cliente 360)"/u);
 
   assert.match(routeRenderer,/Progreso y adherencia/u);
   assert.match(routeRenderer,/renderLongitudinalDataExperience/u);

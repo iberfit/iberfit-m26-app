@@ -331,8 +331,7 @@
   }
 }
 
-/* M27 · Cliente 360
- * Capa visual progresiva sobre la ruta de progreso existente.
+/* Progreso Cliente · jerarquía visual canónica.
  * No cambia datos, permisos, cálculos ni confirmaciones.
  */
 [data-client-bottom-nav-route="progreso"] > .m26-route {
@@ -348,16 +347,6 @@
   border-radius: 1.2rem;
   background: rgba(8, 35, 24, 0.88);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.14);
-}
-
-[data-client-bottom-nav-route="progreso"] > .m26-route > .m26-route-intro::before {
-  display: block;
-  margin-bottom: 0.35rem;
-  color: #d8b96f;
-  content: "CLIENTE 360";
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
 }
 
 [data-client-bottom-nav-route="progreso"] > .m26-route > .m26-route-intro h2 {
@@ -406,17 +395,6 @@
   max-height: none;
 }
 
-.m26-client-bottom-nav-item[data-m26-area="progreso"] .m26-client-bottom-nav-label {
-  font-size: 0;
-}
-
-.m26-client-bottom-nav-item[data-m26-area="progreso"] .m26-client-bottom-nav-label::after {
-  content: "Cliente 360";
-  font-size: 1rem;
-  font-weight: 620;
-  letter-spacing: -0.025em;
-}
-
 @media (max-width: 690px) {
   [data-client-bottom-nav-route="progreso"] > .m26-route {
     padding-bottom: calc(5.4rem + env(safe-area-inset-bottom));
@@ -430,9 +408,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .m26-client-bottom-nav-item[data-m26-area="progreso"] .m26-client-bottom-nav-label::after {
-    font-size: 0.66rem;
-  }
 }
 
 @media (max-width: 390px) {
@@ -440,7 +415,4 @@
     grid-template-columns: 1fr;
   }
 
-  .m26-client-bottom-nav-item[data-m26-area="progreso"] .m26-client-bottom-nav-label::after {
-    font-size: 0.6rem;
-  }
 }
