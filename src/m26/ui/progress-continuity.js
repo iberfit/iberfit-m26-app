@@ -519,6 +519,108 @@ function exerciseFocusWindowCopy(value){
     :`Últimas ${exerciseFocusLimit(value)} exposiciones visibles. La lectura Coach mantiene la evidencia confirmada completa.`;
 }
 
+function exerciseFocusSelect(state,key){
+  if(!state?.cards?.has(key)||!state.active){
+    return false;
+  }
+
+  const next=state.cards.get(key);
+  const current=
+    state.active.querySelector?.(
+      '.m26-exercise-progress-card'
+    );
+
+  if(current!==next){
+    current?.remove?.();
+  }
+
+  next.open=true;
+  next.setAttribute('open','');
+
+  if(next.parentNode!==state.active){
+    state.active.replaceChildren(next);
+  }
+
+  state.selectedKey=key;
+  state.selectedSignature=
+    exerciseFocusTitle(next)+
+    '\n'+
+    exerciseFocusSubtitle(next);
+
+  for(
+    const button of
+      state.workspace.querySelectorAll?.(
+        '[data-m27-exercise-select]'
+      )||[]
+  ){
+    button.setAttribute(
+      'aria-pressed',
+      String(
+        button.getAttribute(
+          'data-m27-exercise-select'
+        )
+      )===key
+        ?'true'
+        :'false',
+    );
+  }
+
+  return true;
+}
+
+function exerciseFocusFilter(state,query){
+  const needle=
+    exerciseFocusText(query);
+  let visible=0;
+
+  for(
+    const button of
+      state.workspace?.querySelectorAll?.(
+        '[data-m27-exercise-select]'
+      )||[]
+  ){
+    const show=
+      !needle||
+      exerciseFocusText(
+        button.textContent
+      ).includes(needle);
+
+    button.hidden=!show;
+    if(show)visible+=1;
+  }
+
+  const empty=
+    state.workspace?.querySelector?.(
+      '[data-m27-exercise-empty]'
+    );
+
+  if(empty){
+    empty.hidden=visible>0;
+  }
+
+  return visible;
+}
+
+function exerciseFocusStateForTarget(
+  root,
+  target,
+){
+  const state=
+    EXERCISE_FOCUS_STATE.get(root);
+
+  if(!state?.workspace?.isConnected){
+    return null;
+  }
+
+  return (
+    target?.closest?.(
+      '[data-m27-exercise-focus]'
+    )===state.workspace
+  )
+    ?state
+    :null;
+}
+
 function enhanceFeedbackClosure({root,viewModel}){
   const panel=root.querySelector?.('[data-session-live-state="feedback"] [data-session-live-feedback]');
   if(!panel)return false;
