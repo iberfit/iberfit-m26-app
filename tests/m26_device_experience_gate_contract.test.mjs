@@ -25,11 +25,11 @@ test('Device Experience policy defines task semantics instead of viewport-only r
 });
 
 test('Device gate cancels stale runs only within the same PR or ref',()=>{
-  assert.match(workflow,/group: iberfit-device-experience-\\\$\\\{\\\{ github\\.event\\.pull_request\\.number \\|\\| github\\.ref \\}\\\}/u);
-  assert.match(workflow,/cancel-in-progress: true/u);
-  assert.match(workflow,/group: iberfit-qa-shared-auth-readonly/u);
-  assert.match(workflow,/queue: max/u);
-  assert.match(workflow,/client-real-coach-webauthn-matrix[\\s\\S]*?group: iberfit-qa-shared-auth-readonly[\\s\\S]*?cancel-in-progress: false/u);
+  assert.ok(workflow.includes('group: iberfit-device-experience-${{ github.event.pull_request.number || github.ref }}'));
+  assert.ok(workflow.includes('cancel-in-progress: true'));
+  assert.ok(workflow.includes('group: iberfit-qa-shared-auth-readonly'));
+  assert.ok(workflow.includes('queue: max'));
+  assert.match(workflow,/client-real-coach-webauthn-matrix[\s\S]*?group: iberfit-qa-shared-auth-readonly[\s\S]*?cancel-in-progress: false/u);
 });
 
 test('Client authenticated matrix covers desktop tablet portrait landscape and mobile',()=>{
