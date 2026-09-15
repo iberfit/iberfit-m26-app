@@ -4,9 +4,9 @@
   "items": [
     {
       "exercise_id": "IBF-FLEXION-DE-BRAZOS",
-      "local_path": "scripts/exercise-media/approved/IBF-FLEXION-DE-BRAZOS/IBF-FLEXION-DE-BRAZOS-approved-72fe887a9a4a.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-FLEXION-DE-BRAZOS/IBF-FLEXION-DE-BRAZOS-approved-7a1eb670b632.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-FLEXION-DE-BRAZOS/IBF-FLEXION-DE-BRAZOS.b64.00"
+        "scripts/exercise-media/approved/IBF-FLEXION-DE-BRAZOS/IBF-FLEXION-DE-BRAZOS.final-v4.b64.00"
       ],
       "human_approved": true,
       "publishable": true,
@@ -18,7 +18,7 @@
         ],
         "automatic_qa": "passed",
         "approved_at": "2026-09-14",
-        "note": "El propietario autorizó la continuación automática bajo el contrato visual cerrado. Asset revisado contra el catálogo real y validado visual y biomecánicamente antes de publicación."
+        "note": "Versión visual final aprobada por el propietario: formato alineado con la biblioteca IBERFIT, ejercicio protagonista, fondo degradado/desenfocado, maniquí anatómico discreto y único isotipo oficial pequeño en la camiseta."
       },
       "media": {
         "schema": "iberfit.exercise.visual.v1",
@@ -26,11 +26,11 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-FLEXION-DE-BRAZOS/movement-72fe887a9a4a.webp",
+          "path": "IBF-FLEXION-DE-BRAZOS/movement-7a1eb670b632.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "72fe887a9a4a394b667bb6dda2aeef6a64a86c9b046cb2923192adb34b5de1b8"
+          "sha256": "7a1eb670b632862dc3b8f777a0606193662eb9589121e8ca149c6ca3e6878ee9"
         },
         "published": true,
         "clientVisible": true,
