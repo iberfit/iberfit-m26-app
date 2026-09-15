@@ -3440,3 +3440,97 @@ button[aria-selected="true"]::after {
   }
 }
 
+
+
+/* COACH CLIENT WORKSPACE V1 · local expediente navigation */
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+[data-m26-expediente]
+> .m26-expediente-tabs{
+  display:grid;
+  position:sticky;
+  top:.65rem;
+  z-index:25;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.2rem;
+  width:100%;
+  padding:.28rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-border) 88%,transparent);
+  border-radius:.9rem;
+  background:color-mix(in srgb,var(--iberfit-color-surface-base) 94%,transparent);
+  box-shadow:0 8px 22px rgba(0,0,0,.12);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+[data-m26-expediente]
+> .m26-expediente-tabs button{
+  min-width:0;
+  min-height:44px;
+  padding:.55rem .65rem;
+  border:1px solid transparent;
+  border-radius:.68rem;
+  color:var(--iberfit-color-text-secondary);
+  background:transparent;
+  box-shadow:none;
+  font-size:.78rem;
+  font-weight:700;
+  touch-action:manipulation;
+}
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+[data-m26-expediente]
+> .m26-expediente-tabs button[aria-selected="true"]{
+  color:var(--iberfit-color-text-primary);
+  border-color:color-mix(in srgb,var(--iberfit-color-accent-strong) 18%,transparent);
+  background:color-mix(in srgb,var(--iberfit-color-accent-strong) 8%,var(--iberfit-color-surface-raised));
+  box-shadow:inset 0 2px 0 color-mix(in srgb,var(--iberfit-color-accent-strong) 78%,transparent);
+}
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+[data-m26-expediente-view="resumen"]
+[data-m26-expediente-section]:not([data-m26-expediente-section="resumen"]),
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+[data-m26-expediente-view="contexto"]
+[data-m26-expediente-section]:not([data-m26-expediente-section="contexto"]),
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+[data-m26-expediente-view="perfil"]
+[data-m26-expediente-section]:not([data-m26-expediente-section="perfil"]),
+.m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+[data-m26-expediente-view="plan"]
+[data-m26-expediente-section]:not([data-m26-expediente-section="plan"]){
+  display:none!important;
+}
+@media(max-width:719px){
+  .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+  [data-m26-expediente]
+  > .m26-expediente-tabs{
+    top:4.25rem;
+    z-index:60;
+  }
+}
+@media(max-width:390px){
+  .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+  [data-m26-expediente]
+  > .m26-expediente-tabs button{
+    padding:.42rem .18rem;
+    font-size:.68rem;
+  }
+}
+@media(forced-colors:active){
+  .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+  [data-m26-expediente]
+  > .m26-expediente-tabs{
+    border-color:CanvasText;
+    background:Canvas;
+  }
+}
+@media print{
+  .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+  [data-m26-expediente]
+  > .m26-expediente-tabs{
+    display:none!important;
+  }
+  .m26-shell:is([data-m26-role="coach"],[data-m26-role="admin"])
+  [data-m26-expediente]
+  [data-m26-expediente-section]{
+    display:block!important;
+  }
+}
