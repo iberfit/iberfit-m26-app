@@ -96,6 +96,22 @@ export function previousSetDraftValues(execution){
     rir:previous.rir==null?'':String(previous.rir),
   };
 }
+export function repeatPreviousSet(execution,session,{restSeconds=null,actor=null}={}){
+  requireCoachActor(actor);
+  if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
+  const values=previousSetDraftValues(execution);
+  if(!values)throw new Error('M26_EXECUTION_PREVIOUS_SET_UNAVAILABLE');
+  const step=currentStep(execution,session);
+  if(!step)throw new Error('M26_EXECUTION_STEP_MISSING');
+  const rest=restSeconds==null?Number(step?.prescription?.restSeconds??60):Number(restSeconds);
+  if(!Number.isFinite(rest)||rest<0||rest>3600)throw new Error('M26_EXECUTION_REST_INVALID');
+  const sourceSetNumber=Number(execution.setIndex);
+  const targetSetNumber=Number(step.setNumber);
+  recordSet(execution,session,{...values,actor});
+  beginRest(execution,rest,{actor});
+  event(execution,'SET_REPEATED_FROM_PREVIOUS',{sourceSetNumber,targetSetNumber,restSeconds:rest},actor);
+  return execution;
+}
 function activeSetIdentity(execution,session){
   const step=currentStep(execution,session);if(!step)return null;
   return {executionId:execution.id,blockId:step.blockId||null,exerciseId:step.exerciseId,setNumber:step.setNumber};

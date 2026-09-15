@@ -866,7 +866,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
 const planned=step.prescription||{};
 const previousSet=previousSetDraftValues(execution);
 const previousSetReuse=previousSet
-  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior">Usar serie anterior</button></div></div>`
+  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds||60)}" aria-label="Repetir los datos de la serie anterior y completar esta serie">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Acción rápida del Coach · no copia notas.</small>':''}</div></div>`
   :'';
 const currentExerciseHistory=renderCurrentExerciseHistory(execution,step);
 const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
