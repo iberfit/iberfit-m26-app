@@ -117,6 +117,32 @@ test('Live Workout V3 mantiene herramientas estructurales del Coach',()=>{
   assert.match(html,/data-session-action="skip-exercise"/);
 });
 
+test('Coach puede completar la serie desde Enter en RPE sin exponer el atajo al Cliente',()=>{
+  const s=session();
+  const coachExecution=createExecution({session:s,clientId:s.clientId});
+  startExecution(coachExecution);
+  const coachHtml=renderGuidedExecution({execution:coachExecution,session:s,catalog,role:'coach'});
+  assert.match(coachHtml,/data-set-field="rpe" data-session-enter-complete/);
+
+  const clientExecution=createExecution({session:s,clientId:s.clientId});
+  startExecution(clientExecution);
+  const clientHtml=renderGuidedExecution({execution:clientExecution,session:s,catalog,role:'client'});
+  assert.doesNotMatch(clientHtml,/data-session-enter-complete/);
+});
+
+test('atajo Enter del Coach reutiliza el botón estándar y conserva guardas de teclado',()=>{
+  const source=fs.readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
+  assert.match(source,/root\.addEventListener\('keydown',keydown\)/);
+  assert.match(source,/root\.removeEventListener\('keydown',keydown\)/);
+  assert.match(source,/!isCoachContext\(context\)/);
+  assert.match(source,/event\?\.key!==\'Enter\'/);
+  assert.match(source,/event\?\.repeat/);
+  assert.match(source,/event\?\.isComposing/);
+  assert.match(source,/data-session-enter-complete/);
+  assert.match(source,/data-session-action="complete-set"/);
+  assert.match(source,/button\.click\?\.\(\)/);
+});
+
 test('Live Workout V3 hace del descanso la superficie dominante sin perder corrección ni contexto',()=>{
   const s=session();
   const x=createExecution({session:s,clientId:s.clientId});
