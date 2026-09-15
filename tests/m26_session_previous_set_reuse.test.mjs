@@ -14,6 +14,7 @@ import {
 } from '../src/m26/workflows/session-execution.js';
 import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
 import {dispatchSessionAction} from '../src/m26/workflows/session-controller.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 import {M26_ACTION_REGISTRY,assertActionAllowed} from '../src/m26/ui/interactive-audit.js';
 
 const exercise={
@@ -125,6 +126,20 @@ test('Session Live preserves RIR 0 in the reusable previous-set summary',()=>{
   const html=renderGuidedExecution({execution,session,catalog,mediaMap:null,role:'client'});
   assert.match(html,/data-session-previous-set/);
   assert.match(html,/RIR 0/);
+});
+
+test('Coach one-tap repeat copy is translated across supported surface languages',()=>{
+  const cases=[
+    ['Repetir y completar','Repeat and complete','Répéter et terminer','Repetir e concluir'],
+    ['Usar y revisar','Use and review','Utiliser et vérifier','Usar e rever'],
+    ['Acción rápida del Coach · no copia notas.','Coach quick action · notes are not copied.','Action rapide du Coach · les notes ne sont pas copiées.','Ação rápida do Coach · as notas não são copiadas.'],
+    ['Repetir los datos de la serie anterior y completar esta serie','Repeat previous set data and complete this set','Répéter les données de la série précédente et terminer cette série','Repetir os dados da série anterior e concluir esta série'],
+  ];
+  for(const [es,en,fr,pt] of cases){
+    assert.equal(iberfitSurfaceTranslate(es,{language:'en'}),en);
+    assert.equal(iberfitSurfaceTranslate(es,{language:'fr'}),fr);
+    assert.equal(iberfitSurfaceTranslate(es,{language:'pt'}),pt);
+  }
 });
 
 test('previous-set actions keep review reuse shared but one-tap completion Coach-only',()=>{
