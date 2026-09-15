@@ -39,6 +39,7 @@ const STYLES=`
 .m27-session-focus-primary:focus-visible,
 .m27-session-focus-secondary:focus-visible{outline:3px solid rgba(216,185,111,.42);outline-offset:3px}
 @media (min-width:761px) and (max-width:1180px){
+  .m27-session-focus-active.m27-session-focus-coach{padding-bottom:6rem}
   .m27-session-focus-dock.is-coach{position:fixed;z-index:78;right:max(1rem,env(safe-area-inset-right));bottom:max(1rem,env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;gap:1rem;max-width:min(46rem,calc(100vw - 2rem));padding:.72rem .78rem;border:1px solid rgba(216,185,111,.28);border-radius:1rem;background:color-mix(in srgb,var(--m26-surface,#f7f1e7) 93%,transparent);box-shadow:0 18px 48px rgba(9,25,19,.2);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 }
 @media (max-width:820px){.m27-session-readiness-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -54,6 +55,7 @@ const STYLES=`
   .m27-session-focus-secondary{flex:0 0 3.15rem;padding:.62rem .55rem}
   .m27-session-focus-meta>strong{font-size:.76rem}
 }
+@media (forced-colors:active){.m27-session-focus-dock,.m27-session-focus-primary,.m27-session-focus-secondary{border-color:ButtonText}.m27-session-focus-primary,.m27-session-focus-secondary{forced-color-adjust:auto}}
 @media (prefers-reduced-motion:reduce){.m27-session-focus-primary,.m27-session-focus-secondary{scroll-behavior:auto}}
 `;
 
@@ -328,7 +330,10 @@ function focusContext(live,state){
 }
 
 function removeFocusDock(root){
-  for(const live of root.querySelectorAll?.('[data-session-live-state]')||[])live.classList?.remove?.('m27-session-focus-active');
+  for(const live of root.querySelectorAll?.('[data-session-live-state]')||[]){
+    live.classList?.remove?.('m27-session-focus-active');
+    live.classList?.remove?.('m27-session-focus-coach');
+  }
   root.querySelector?.('[data-session-focus-dock]')?.remove?.();
 }
 
@@ -419,6 +424,7 @@ function refreshSessionFocus(root){
   const dock=buildFocusDock(root.ownerDocument,live,plan,state.role);
   if(!dock)return false;
   live.classList.add('m27-session-focus-active');
+  if(state.role==='coach')live.classList.add('m27-session-focus-coach');
   live.append(dock);
   wakeBadge(root,Boolean(state.wakeLock));
   return true;
