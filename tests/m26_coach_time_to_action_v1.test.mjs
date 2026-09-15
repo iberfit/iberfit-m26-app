@@ -254,3 +254,33 @@ test('tarjeta de cliente sin destino explícito conserva apertura de expediente 
   assert.match(html,new RegExp(`class="m26-coach-home-client"[\\s\\S]*?data-m26-select-client="${clientId}"`,'u'));
   assert.doesNotMatch(html,/class="m26-coach-home-client"[\s\S]*?data-m26-target-area=/u);
 });
+
+
+test('Preparar sesión desde una cita de Hoy abre Sesiones y no Agenda cuando el cliente es conocido',()=>{
+  const html=renderHoyRoute({
+    role:'coach',
+    appointments:[{
+      id:'appointment-today-1',
+      clientId,
+      title:'Sesión de fuerza',
+      dateLabel:'Hoy · 18:00',
+      modality:'Presencial',
+      status:'confirmed',
+    }],
+    proposals:[],
+    upcoming:[],
+    clients:[{
+      id:clientId,
+      name:'Ana Demo',
+      modality:'presencial',
+      nextAction:{label:'Revisar seguimiento',area:'expediente'},
+    }],
+    coachCockpit:{items:[],attentionCount:0,totalClients:1,riskFocus:null},
+    operations:{pending:0,conflicts:0,rejected:0},
+  });
+
+  assert.match(html,/class="m26-primary-action"[^>]*data-m26-coach-action="true"/u);
+  assert.match(html,/class="m26-primary-action"[^>]*data-m26-target-area="sesion"/u);
+  assert.match(html,/>Preparar sesión</u);
+  assert.doesNotMatch(html,/class="m26-primary-action"[^>]*data-m26-target-area="agenda"/u);
+});
