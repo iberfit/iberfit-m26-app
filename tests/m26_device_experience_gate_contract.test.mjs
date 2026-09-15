@@ -24,6 +24,14 @@ test('Device Experience policy defines task semantics instead of viewport-only r
   assert.match(policy,/No declarar Admin autenticado real GREEN/u);
 });
 
+test('Device gate cancels stale runs only within the same PR or ref',()=>{
+  assert.match(workflow,/group: iberfit-device-experience-\\\$\\\{\\\{ github\\.event\\.pull_request\\.number \\|\\| github\\.ref \\}\\\}/u);
+  assert.match(workflow,/cancel-in-progress: true/u);
+  assert.match(workflow,/group: iberfit-qa-shared-auth-readonly/u);
+  assert.match(workflow,/queue: max/u);
+  assert.match(workflow,/client-real-coach-webauthn-matrix[\\s\\S]*?group: iberfit-qa-shared-auth-readonly[\\s\\S]*?cancel-in-progress: false/u);
+});
+
 test('Client authenticated matrix covers desktop tablet portrait landscape and mobile',()=>{
   for(const token of [
     'authenticated-readonly-chromium',
