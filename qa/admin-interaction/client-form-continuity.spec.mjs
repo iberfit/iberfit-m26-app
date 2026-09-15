@@ -10,6 +10,16 @@ async function queueClientRefreshDuringNextTouchRelease(page){
   });
 }
 
+async function forceExternalRenderDuringNextPointerUp(page){
+  await page.evaluate(()=>{
+    const root=document.querySelector('#qa-root');
+    if(!root)throw new Error('QA_CLIENT_FORM_ROOT_MISSING');
+    root.addEventListener('pointerup',()=>{
+      globalThis.__IBERFIT_CLIENT_FORM_QA__?.forceExternalRender?.();
+    },{capture:true,once:true});
+  });
+}
+
 function browserErrors(page){
   const errors=[];
   page.on('pageerror',(error)=>errors.push(String(error?.message||error)));
@@ -88,6 +98,33 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
 
+
+
+test('mouse release cannot let a direct controller render destroy the focused client field',async({page,browserName})=>{
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/client-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__?.mounted===true)).toBe(true);
+
+  const form=page.locator('[data-admin-form="client-create"]');
+  await expect(form).toBeVisible();
+  await form.evaluate((node)=>{node.dataset.qaFormIdentity='mouse-release-direct-render';});
+
+  const name=form.locator('input[name="name"]');
+  await name.evaluate((node)=>node.blur());
+  await forceExternalRenderDuringNextPointerUp(page);
+  await name.click();
+  await page.waitForTimeout(320);
+
+  await expect(name).toBeFocused();
+  await expect(form).toHaveAttribute('data-qa-form-identity','mouse-release-direct-render');
+  await page.keyboard.type('Cliente ratón');
+  await expect(name).toHaveValue('Cliente ratón');
+
+  await page.waitForTimeout(950);
+  await expect(name).toBeFocused();
+  await expect(name).toHaveValue('Cliente ratón');
+  expect(errors,browserName+' emitted browser errors').toEqual([]);
+});
 
 test('touch tap gives text fields native focus before typing and releases the mobile nav',async({page,browserName},testInfo)=>{
   const touchProject=testInfo.project.name.includes('mobile')||testInfo.project.name.includes('tablet');
