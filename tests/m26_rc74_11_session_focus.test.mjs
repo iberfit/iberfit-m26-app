@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {sessionFocusPlan} from '../src/m26/ui/session-readiness.js';
+import {sessionFocusPlan,sessionFocusSecondarySelectors} from '../src/m26/ui/session-readiness.js';
 
 test('modo foco conserva la acción principal según el estado real de Live Workout',()=>{
   assert.equal(sessionFocusPlan({state:'ready'}).targetSelector,'[data-session-action="start"]');
@@ -13,14 +13,62 @@ test('modo foco conserva la acción principal según el estado real de Live Work
   assert.equal(sessionFocusPlan({state:'cancelled'}),null);
 });
 
-test('dock móvil actúa como proxy y no duplica la lógica de entrenamiento',async()=>{
+test('mando rápido del Coach solo expone proxies seguros ya existentes',()=>{
+  assert.deepEqual(
+    sessionFocusSecondarySelectors({
+      state:'active',
+      role:'coach',
+      hasRepeat:true,
+    }),
+    ['[data-session-action="repeat-previous-set"]']
+  );
+  assert.deepEqual(
+    sessionFocusSecondarySelectors({
+      state:'rest',
+      role:'coach',
+      hasRestMinus:true,
+      hasRestPlus:true,
+    }),
+    [
+      '[data-session-action="rest-minus"]',
+      '[data-session-action="rest-plus"]',
+    ]
+  );
+  assert.deepEqual(
+    sessionFocusSecondarySelectors({
+      state:'active',
+      role:'client',
+      hasRepeat:true,
+    }),
+    []
+  );
+  assert.deepEqual(
+    sessionFocusSecondarySelectors({
+      state:'rest',
+      role:'client',
+      hasRestMinus:true,
+      hasRestPlus:true,
+    }),
+    []
+  );
+});
+
+
+test('dock de sesión actúa como proxy y no duplica la lógica de entrenamiento',async()=>{
   const ui=await readFile(new URL('../src/m26/ui/session-readiness.js',import.meta.url),'utf8');
   assert.match(ui,/data-session-focus-proxy/);
   assert.match(ui,/target\.click\?\.\(\)/);
   assert.match(ui,/data-session-action="complete-set"/);
   assert.match(ui,/data-session-action="next"/);
+  assert.match(ui,/data-session-action="repeat-previous-set"/);
+  assert.match(ui,/data-session-action="rest-minus"/);
+  assert.match(ui,/data-session-action="rest-plus"/);
+  assert.match(ui,/data-session-focus-role/);
+  assert.match(ui,/state\.role=role/);
+  assert.match(ui,/@media \(min-width:761px\) and \(max-width:1180px\)/);
   assert.match(ui,/@media \(max-width:760px\)/);
   assert.match(ui,/safe-area-inset-bottom/);
+  assert.match(ui,/touch-action:manipulation/);
   assert.doesNotMatch(ui,/MutationObserver/);
   assert.doesNotMatch(ui,/innerHTML/);
   assert.doesNotMatch(ui,/service[_-]?role/i);
