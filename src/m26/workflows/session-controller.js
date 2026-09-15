@@ -4,7 +4,7 @@ import {
   adjustRest,beginRest,substituteExercise,addExecutionSet,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
   finishExecution,buildExecutionCommand,buildStartExecutionCommand,
   buildProgressExecutionCommand,buildPauseExecutionCommand,buildResumeExecutionCommand,buildCancelExecutionCommand,
-  markExecutionSync,previousSetDraftValues,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft
+  markExecutionSync,previousSetDraftValues,repeatPreviousSet,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft
 } from './session-execution.js';
 import { runAction } from '../ui/action-state.js';
 import { createLiveTelemetryController } from '../wearables/live-telemetry.js';
@@ -98,6 +98,10 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
     }
     case 'complete-set': {
       recordSet(execution,session,{...payload,actor});beginRest(execution,payload.restSeconds??60,{actor});
+      return progressMutation(execution,commandBus,online);
+    }
+    case 'repeat-previous-set': {
+      repeatPreviousSet(execution,session,{restSeconds:payload.restSeconds??60,actor});
       return progressMutation(execution,commandBus,online);
     }
     case 'correct-set': {
