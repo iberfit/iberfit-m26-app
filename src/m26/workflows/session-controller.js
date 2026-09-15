@@ -4,7 +4,7 @@ import {
   adjustRest,beginRest,substituteExercise,addExecutionSet,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
   finishExecution,buildExecutionCommand,buildStartExecutionCommand,
   buildProgressExecutionCommand,buildPauseExecutionCommand,buildResumeExecutionCommand,buildCancelExecutionCommand,
-  markExecutionSync,previousSetDraftValues,repeatPreviousSet,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft
+  markExecutionSync,previousSetDraftValues,repeatPreviousSet,addExtraSetAndAdvance,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft
 } from './session-execution.js';
 import { runAction } from '../ui/action-state.js';
 import { createLiveTelemetryController } from '../wearables/live-telemetry.js';
@@ -110,6 +110,10 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
     }
     case 'add-set': {
       addExecutionSet(execution,{actor});
+      return progressMutation(execution,commandBus,online);
+    }
+    case 'extra-set-now': {
+      addExtraSetAndAdvance(execution,session,{actor});
       return progressMutation(execution,commandBus,online);
     }
     case 'skip-set': {
