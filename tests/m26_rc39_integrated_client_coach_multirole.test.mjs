@@ -17,6 +17,7 @@ import {
 } from '../src/m26/rc39/calendar.js';
 import {
   normalizeAuthorizedRoles,
+  requiresRoleChoice,
   withActiveRole,
 } from '../src/m26/rc39/multi-role.js';
 import {
@@ -81,6 +82,22 @@ test('Carlos puede elegir Coach o Admin sin inventar roles',()=>{
   assert.deepEqual(normalizeAuthorizedRoles(identity),['coach','admin']);
   assert.equal(withActiveRole(identity,'admin').role,'admin');
   assert.throws(()=>withActiveRole(identity,'client'),/M26_ROLE_SWITCH_FORBIDDEN/);
+});
+
+test('cuenta multirol exige elección explícita al entrar y una cuenta de rol único no la ve',()=>{
+  const multi={id:'admin-coach',role:'admin',authorizedRoles:['admin','coach'],roleChoiceConfirmed:false};
+  assert.equal(requiresRoleChoice(multi),true);
+  assert.equal(requiresRoleChoice({...multi,roleChoiceConfirmed:true}),false);
+  assert.equal(requiresRoleChoice({id:'coach-only',role:'coach',authorizedRoles:['coach'],roleChoiceConfirmed:false}),false);
+  const application=read('src/m26/app/application.js');
+  const enhancer=read('src/m26/rc39/shell-enhancer.js');
+  assert.match(application,/const roleChoiceRequired=authorizedRoles\.filter\(\(role\)=>\['coach','admin'\]\.includes\(role\)\)\.length>1/u);
+  assert.match(application,/const roleChoiceConfirmed=!roleChoiceRequired\|\|Boolean\(requestedRole\)/u);
+  assert.match(application,/if\(roleChoiceConfirmed\)writePreferredApplicationRole/u);
+  assert.match(enhancer,/¿Cómo quieres entrar\?/u);
+  assert.match(enhancer,/inert aria-hidden="true"/u);
+  assert.match(enhancer,/roleButtons\(vm,\{choice:true\}\)/u);
+  assert.match(enhancer,/Administrador/u);
 });
 
 test('extensión backend falla cerrada y no rompe el login cuando aún no está instalada',async()=>{

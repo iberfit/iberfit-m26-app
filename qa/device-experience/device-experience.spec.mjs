@@ -13,6 +13,8 @@ const CURRENT_SOURCE_STYLES=Object.freeze([
   '/src/m26/design/signature-ux-v2.css',
   '/src/m26/design/dark-iberfit-v2.css',
   '/src/m26/design/iberfit-premium-v3.css',
+  '/src/m26/rc39/rc39.css',
+  '/src/m26/ui/client-bottom-nav.css',
 ]);
 
 
@@ -84,6 +86,7 @@ async function layoutMetrics(page){
     const main=document.querySelector('.m26-main,.m26-workspace');
     const sidebar=document.querySelector('.m26-sidebar');
     const mobileNav=document.querySelector('.m26-mobile-nav');
+    const clientBottomNav=document.querySelector('.m26-client-bottom-nav');
     const visible=(element)=>Boolean(element&&getComputedStyle(element).display!=='none'&&element.getBoundingClientRect().width>0);
     const mainBox=main?.getBoundingClientRect?.()||null;
     return {
@@ -94,6 +97,7 @@ async function layoutMetrics(page){
       shellVisible:visible(shell),
       sidebarVisible:visible(sidebar),
       mobileNavVisible:visible(mobileNav),
+      clientBottomNavVisible:visible(clientBottomNav),
       mainWidth:mainBox?.width||0,
     };
   });
@@ -173,6 +177,36 @@ async function exerciseAdminTask(page,task){
   await expect(form.locator('[data-client-step="2"]')).toBeVisible();
 }
 
+
+async function assertSettingsReachable(page,task,viewport){
+  if(task.role==='client'){
+    const clientMore=page.locator('.m26-client-bottom-nav-more > summary').first();
+    if(await clientMore.count()){
+      await expect(clientMore,'Client Más must expose account destinations').toBeVisible();
+      await clientMore.click();
+      await expect(page.locator('.m26-client-bottom-nav-menu [data-m26-area="ajustes"]').first(),'Client Settings must be reachable from Más').toBeVisible();
+      await clientMore.click();
+      return;
+    }
+  }
+
+  if(viewport.width>=720){
+    const trigger=page.locator('.m26-sidebar-footer .m26-settings-menu > summary').first();
+    await expect(trigger,task.id+' tablet/desktop must expose Settings in the account rail').toBeVisible();
+    await trigger.click();
+    await expect(page.locator('.m26-sidebar-footer .m26-settings-popover').first()).toBeVisible();
+    await expect(page.locator('.m26-sidebar-footer [data-m26-area="ajustes"], .m26-sidebar-footer [data-m26-area="admin-configuracion"]').first()).toBeVisible();
+    await trigger.click();
+    return;
+  }
+
+  const more=page.locator('.m26-mobile-more > summary').first();
+  await expect(more,task.id+' mobile must expose Más').toBeVisible();
+  await more.click();
+  await expect(page.locator('.m26-mobile-more-menu [data-m26-area="ajustes"], .m26-mobile-more-menu [data-m26-area="admin-configuracion"]').first()).toBeVisible();
+  await more.click();
+}
+
 test.beforeAll(async()=>{await mkdir(OUT,{recursive:true});});
 
 test('Device Experience Gate validates representative tasks by role and device',async({page},testInfo)=>{
@@ -204,13 +238,20 @@ test('Device Experience Gate validates representative tasks by role and device',
     expect(metrics.shellVisible).toBe(true);
     expect(metrics.mainWidth).toBeGreaterThan(viewport.width*0.55);
 
-    if(viewport.width<=900){
-      expect(metrics.sidebarVisible,task.id+' mobile navigation must replace sidebar').toBe(false);
-      expect(metrics.mobileNavVisible,task.id+' must expose mobile navigation').toBe(true);
+    if(viewport.width<=719){
+      expect(metrics.sidebarVisible,task.id+' phone navigation must replace sidebar').toBe(false);
+      expect(metrics.mobileNavVisible||metrics.clientBottomNavVisible,task.id+' must expose phone navigation').toBe(true);
+    }else if(viewport.width<=1179&&['coach','admin'].includes(task.role)){
+      expect(metrics.sidebarVisible,task.id+' tablet account rail must remain visible').toBe(true);
+      expect(metrics.mobileNavVisible,task.id+' tablet must avoid duplicate shell navigation').toBe(false);
+    }else if(viewport.width<=900){
+      expect(metrics.sidebarVisible,task.id+' compact Client navigation must replace sidebar').toBe(false);
+      expect(metrics.clientBottomNavVisible||metrics.mobileNavVisible,task.id+' Client must expose compact navigation').toBe(true);
     }else{
       expect(metrics.sidebarVisible,task.id+' desktop/tablet-landscape must expose sidebar').toBe(true);
     }
 
+    await assertSettingsReachable(page,task,viewport);
     await assertFocusPath(page);
 
     const actions=await visibleActionMetrics(page);

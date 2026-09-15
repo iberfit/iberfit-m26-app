@@ -44,7 +44,7 @@ export function withActiveRole(identity={},role,{choiceConfirmed=true}={}){
   });
 }
 export function roleApplicationLabel(role){
-  return ({coach:'App Coach',admin:'App Admin',client:'App Cliente'})[normalizeRc39Role(role)]||'IBERFIT';
+  return ({coach:'Coach',admin:'Administrador',client:'Cliente'})[normalizeRc39Role(role)]||'IBERFIT';
 }
 
 

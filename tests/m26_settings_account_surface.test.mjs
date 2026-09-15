@@ -6,6 +6,7 @@ const shellUrl=new URL('../src/m26/shell/shell-render.js',import.meta.url);
 const settingsSurfaceUrl=new URL('../src/m26/design/icons.css',import.meta.url);
 const routeUrl=new URL('../src/m26/modules/route-render.js',import.meta.url);
 const shellCssUrl=new URL('../src/m26/shell/shell.css',import.meta.url);
+const rc39CssUrl=new URL('../src/m26/rc39/rc39.css',import.meta.url);
 
 async function read(url){return readFile(url,'utf8');}
 
@@ -48,4 +49,16 @@ test('full settings surface is grouped, spacious and keeps safe account recovery
   assert.match(css,/\.m26-settings-layout\{/u);
   assert.match(css,/grid-template-columns:minmax\(10rem,13rem\) minmax\(0,1fr\)/u);
   assert.match(css,/@media\(max-width:900px\)[\s\S]*\.m26-settings-rail\{display:none\}/u);
+});
+
+
+test('tablet keeps Settings reachable for Coach and Admin while Client keeps it in Más',async()=>{
+  const [rc39,route]=await Promise.all([read(rc39CssUrl),read(routeUrl)]);
+  assert.match(rc39,/@media \(min-width:720px\) and \(max-width:1179px\)/u);
+  assert.match(rc39,/\.m26-shell\[data-m26-role="coach"\] \.m26-sidebar-footer[\s\S]*display:block/u);
+  assert.match(rc39,/\.m26-shell\[data-m26-role="admin"\] \.m26-sidebar-footer \.m26-settings-menu\{display:block!important/u);
+  assert.match(rc39,/\.m26-settings-trigger-label[\s\S]*font-size:\.59rem/u);
+  assert.match(rc39,/\.m26-settings-popover[\s\S]*left:6rem/u);
+  assert.match(route,/CLIENT_BOTTOM_NAV_MORE_KINDS = Object\.freeze\(\['informes','actividad','mensajes','retos','ajustes'\]\)/u);
+  assert.match(route,/data-m26-area="ajustes"><span>Ajustes<\/span><small>Preferencias y privacidad<\/small>/u);
 });
