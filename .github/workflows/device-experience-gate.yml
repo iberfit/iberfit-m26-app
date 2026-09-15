@@ -10,7 +10,6 @@ on:
       - 'playwright.authenticated.config.mjs'
       - 'playwright.client-guided-welcome.config.mjs'
       - 'playwright.device-experience.config.mjs'
-      - 'playwright.device-experience.config.mjs'
       - 'playwright.authenticated-visual.config.mjs'
       - 'playwright.admin-interaction.config.mjs'
       - 'playwright.daily-admin-visual.config.mjs'
@@ -39,8 +38,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: iberfit-device-experience-gate
-  cancel-in-progress: false
+  group: iberfit-device-experience-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   contract:
