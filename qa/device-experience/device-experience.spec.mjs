@@ -182,12 +182,22 @@ async function exerciseAdminTask(page,task){
 
 async function assertSettingsReachable(page,task,viewport){
   if(IMMERSIVE_SESSION_TASK_IDS.has(task.id)){
-    const recoveryAction=task.id==='client-feedback'
-      ?page.locator('[data-session-action="exit-session"]').first()
-      :page.locator('[data-session-action="pause"]').first();
+    if(task.id==='client-session-live'){
+      const recoveryDisclosure=page.locator('.m26-session-options > summary').filter({hasText:'Pausa o cancelación'}).first();
+      await expect(
+        recoveryDisclosure,
+        task.id+' immersive session must expose the pause/cancel recovery disclosure',
+      ).toBeVisible();
+      await recoveryDisclosure.click();
+      await expect(
+        page.locator('[data-session-action="pause"]').first(),
+        task.id+' immersive session must expose pause after opening recovery controls',
+      ).toBeVisible();
+      return;
+    }
     await expect(
-      recoveryAction,
-      task.id+' immersive session must expose a safe recovery action before account navigation',
+      page.locator('[data-session-action="exit-session"]').first(),
+      task.id+' feedback state must allow saving progress and leaving safely',
     ).toBeVisible();
     return;
   }
