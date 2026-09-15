@@ -683,6 +683,236 @@ function bindExerciseFocus(root){
   );
 }
 
+function buildExerciseFocusWorkspace(
+  root,
+  list,
+  previous={},
+){
+  const documentLike=root.ownerDocument;
+  const cards=[
+    ...(
+      list?.querySelectorAll?.(
+        ':scope > .m26-exercise-progress-card'
+      )||[]
+    ),
+  ];
+
+  if(!cards.length){
+    return null;
+  }
+
+  const state={
+    cards:new Map(),
+    selectedKey:'',
+    selectedSignature:
+      String(
+        previous.selectedSignature||
+        ''
+      ),
+    workspace:null,
+    active:null,
+  };
+
+  const items=cards.map(
+    (card,index)=>{
+      const key=
+        'exercise-'+index;
+      const title=
+        exerciseFocusTitle(card)||
+        'Ejercicio '+(index+1);
+      const subtitle=
+        exerciseFocusSubtitle(card);
+      const signature=
+        title+'\n'+subtitle;
+
+      state.cards.set(
+        key,
+        card,
+      );
+
+      return {
+        key,
+        title,
+        subtitle,
+        signature,
+        card,
+      };
+    },
+  );
+
+  const selected=
+    items.find(
+      (item)=>
+        item.signature===
+        state.selectedSignature
+    )||
+    items[0];
+
+  const workspace=
+    create(
+      documentLike,
+      'section',
+      'm27-exercise-focus',
+    );
+
+  workspace.setAttribute(
+    'data-m27-exercise-focus',
+    'true',
+  );
+  workspace.setAttribute(
+    'aria-label',
+    'Estudio por ejercicio',
+  );
+
+  const tools=
+    create(
+      documentLike,
+      'div',
+      'm27-exercise-focus-tools',
+    );
+
+  const searchLabel=
+    create(
+      documentLike,
+      'label',
+      'm27-exercise-focus-search',
+    );
+  const searchTitle=
+    create(
+      documentLike,
+      'span',
+      '',
+      'Buscar ejercicio',
+    );
+  const search=
+    create(
+      documentLike,
+      'input',
+    );
+
+  search.type='search';
+  search.autocomplete='off';
+  search.placeholder=
+    'Nombre del ejercicio';
+  search.setAttribute(
+    'data-m27-exercise-search',
+    'true',
+  );
+
+  searchLabel.append(
+    searchTitle,
+    search,
+  );
+  tools.append(searchLabel);
+
+  const grid=
+    create(
+      documentLike,
+      'div',
+      'm27-exercise-focus-grid',
+    );
+  const nav=
+    create(
+      documentLike,
+      'nav',
+      'm27-exercise-focus-list',
+    );
+
+  nav.setAttribute(
+    'aria-label',
+    'Ejercicios con historial confirmado',
+  );
+
+  for(const item of items){
+    const button=
+      create(
+        documentLike,
+        'button',
+        'm27-exercise-focus-option',
+      );
+
+    button.type='button';
+    button.setAttribute(
+      'data-m27-exercise-select',
+      item.key,
+    );
+    button.setAttribute(
+      'aria-pressed',
+      item.key===selected.key
+        ?'true'
+        :'false',
+    );
+
+    button.append(
+      create(
+        documentLike,
+        'strong',
+        '',
+        item.title,
+      ),
+      create(
+        documentLike,
+        'small',
+        '',
+        item.subtitle||
+        'Historial confirmado',
+      ),
+    );
+
+    nav.appendChild(button);
+  }
+
+  const empty=
+    create(
+      documentLike,
+      'p',
+      'm27-exercise-focus-empty',
+      'No hay ejercicios que coincidan con la búsqueda.',
+    );
+
+  empty.hidden=true;
+  empty.setAttribute(
+    'data-m27-exercise-empty',
+    'true',
+  );
+  nav.appendChild(empty);
+
+  const active=
+    create(
+      documentLike,
+      'div',
+      'm27-exercise-focus-active',
+    );
+
+  active.setAttribute(
+    'data-m27-exercise-active',
+    'true',
+  );
+
+  for(const item of items){
+    item.card.remove();
+  }
+
+  grid.append(
+    nav,
+    active,
+  );
+  workspace.append(
+    tools,
+    grid,
+  );
+  list.replaceWith(workspace);
+
+  state.workspace=workspace;
+  state.active=active;
+  exerciseFocusSelect(
+    state,
+    selected.key,
+  );
+
+  return state;
+}
+
 function enhanceFeedbackClosure({root,viewModel}){
   const panel=root.querySelector?.('[data-session-live-state="feedback"] [data-session-live-feedback]');
   if(!panel)return false;
