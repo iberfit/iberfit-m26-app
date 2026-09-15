@@ -1774,15 +1774,9 @@ export function projectExercisePerformanceForRole(
       ?assessExercisePerformance(memory,{loadDirection})
       :null;
 
-  const records=
-    normalizedRole==='coach'||normalizedRole==='admin'
-      ?memory?.records||null
-      :null;
-
   return Object.freeze({
     facts,
     coachAssessment,
-    records,
   });
 }
 
