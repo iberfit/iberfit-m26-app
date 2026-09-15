@@ -253,6 +253,24 @@ export function advanceExecution(execution,{actor=null}={}){
   if(!executionResultForStep(execution,step)&&!skippedSetForStep(execution,step))throw new Error('M26_EXECUTION_SET_NOT_RECORDED');
   return moveForward(execution,actor);
 }
+export function advanceExpiredRest(execution,session,{actor=null,nowMs=Date.now()}={}){
+  requireCoachActor(actor);
+  if(execution?.status!=='active')throw new Error('M26_EXECUTION_REST_AUTO_ADVANCE_INVALID');
+  const item=execution.queue?.[execution.index];if(!item)throw new Error('M26_EXECUTION_STEP_MISSING');
+  const step=currentStep(execution,session);if(!step)throw new Error('M26_EXECUTION_STEP_MISSING');
+  if(!executionResultForStep(execution,step))throw new Error('M26_EXECUTION_SET_NOT_RECORDED');
+  const deadline=new Date(execution.restUntil||'').getTime();
+  const clock=Number(nowMs);
+  if(!Number.isFinite(deadline)||!execution.restUntil)throw new Error('M26_EXECUTION_REST_NOT_ACTIVE');
+  if(!Number.isFinite(clock)||clock<deadline)throw new Error('M26_EXECUTION_REST_NOT_EXPIRED');
+  const hasNextSet=execution.setIndex+1<Number(item.sets||0);
+  const hasNextExercise=execution.index+1<Number(execution.queue?.length||0);
+  if(!hasNextSet&&!hasNextExercise)throw new Error('M26_EXECUTION_REST_AUTO_ADVANCE_FINAL_STEP');
+  const from={index:execution.index,setIndex:execution.setIndex,blockId:step.blockId||null,exerciseId:step.exerciseId,setNumber:step.setNumber};
+  moveForward(execution,actor);
+  event(execution,'REST_COMPLETED_AUTO_ADVANCE',{...from,toIndex:execution.index,toSetIndex:execution.setIndex},actor);
+  return execution;
+}
 export function retreatExecution(execution,{actor=null}={}){
   if(!['active','awaiting_feedback'].includes(execution.status))throw new Error('M26_EXECUTION_RETREAT_INVALID');
   if(execution.index===0&&execution.setIndex===0)return execution;
