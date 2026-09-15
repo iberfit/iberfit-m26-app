@@ -9,6 +9,7 @@ import {renderExerciseLibraryGroups,renderExerciseMediaCredit} from '../library/
 import {iriProtocolsForStep} from '../workflows/iri-protocol-catalog.js';
 import {renderLongitudinalDataExperience,renderDataTrustStrip,wearableSummaryTrust,wearableRecordTrust} from '../data-experience/index.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
+import {progressSummaryHasEvolutionEvidence} from '../engagement/progress-engine.js';
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
@@ -2636,12 +2637,7 @@ export function renderProgressRoute(vm){
     ?`<section class="m26-notice is-pending" role="status"><strong>Progreso protegido</strong><p>Sesiones fuera del cálculo por no estar confirmadas: ${escapeHtml(unconfirmedCount)}. Se incorporarán únicamente cuando queden confirmadas.</p></section>`
     :'';
   const hasCheckins=Number(summary.checkins||0)>0;
-  const hasProgressEvidence=
-    Number(summary.completedSessions||0)>0||
-    hasCheckins||
-    vm.timeline.length>0||
-    (summary.iriCurrent!==null&&summary.iriCurrent!==undefined)||
-    wearableHasData(summary.wearable||{});
+  const hasProgressEvidence=progressSummaryHasEvolutionEvidence(summary);
   const clientProgressGuideAttribute=vm.role==='client'&&hasProgressEvidence
     ?' data-m26-client-guide="progress-surface"'
     :'';
@@ -3583,10 +3579,14 @@ function clientBottomNavIcon(name){
   return icons[name]||icons.mas;
 }
 
-function clientBottomNavItem(item,currentKind,{adherenceReview=false}={}){
+function clientBottomNavItem(item,currentKind,{adherenceReview=false,progressReady=false}={}){
   const active=item.activeKinds.includes(currentKind);
-  const guideAttribute=item.area==='progreso'&&adherenceReview
-    ?' data-m26-client-guide="adherence-entry"'
+  const guideAttribute=item.area==='progreso'
+    ?adherenceReview
+      ?' data-m26-client-guide="adherence-entry"'
+      :progressReady
+        ?' data-m26-client-guide="progress-entry"'
+        :''
     :'';
   return `<button type="button" class="m26-client-bottom-nav-item${active?' is-active':''}" data-m26-area="${escapeHtml(item.area)}"${guideAttribute}${active?' aria-current="page"':''}><span class="m26-client-bottom-nav-icon">${clientBottomNavIcon(item.key)}</span><span class="m26-client-bottom-nav-label">${escapeHtml(item.label)}</span></button>`;
 }
@@ -3604,6 +3604,9 @@ function renderClientBottomNav(vm){
     adherenceReview:
       currentKind==='hoy'&&
       vm?.clientGuide?.adherenceReview===true,
+    progressReady:
+      currentKind==='hoy'&&
+      vm?.clientGuide?.progressReady===true,
   };
   return `<div class="m26-client-bottom-nav-layer"><nav class="m26-client-bottom-nav" aria-label="Navegación principal de la aplicación cliente">${CLIENT_BOTTOM_NAV_ITEMS.map((item)=>clientBottomNavItem(item,currentKind,guidance)).join('')}${clientBottomNavMore(currentKind)}</nav></div>`;
 }
