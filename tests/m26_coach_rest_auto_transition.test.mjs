@@ -15,6 +15,7 @@ import {
   createSessionController,
   dispatchSessionAction,
 } from '../src/m26/workflows/session-controller.js';
+import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
 
 const exercise={id:'exercise-rest-1',name_es:'Sentadilla',pattern:'squat',cues:[]};
 const catalog={
@@ -236,6 +237,13 @@ test('Coach auto-advance is suppressed while correcting the recorded set',async(
   assert.equal(execution.setIndex,0);
   assert.ok(executionResultForStep(execution,currentStep(execution,session)));
   controller.destroy();
+});
+
+test('rendered rest correction disclosure is wired to the Coach auto-advance guard',()=>{
+  const {session,execution}=executionWithRecordedSet({restMs:60000});
+  const html=renderGuidedExecution({execution,session,catalog,role:'coach'});
+  assert.match(html,/data-session-rest-correction/);
+  assert.match(html,/Corregir esta serie/);
 });
 
 test('controller source keeps manual controls and suppresses auto advance on hidden/correction states',()=>{
