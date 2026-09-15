@@ -621,6 +621,68 @@ function exerciseFocusStateForTarget(
     :null;
 }
 
+function bindExerciseFocus(root){
+  if(EXERCISE_FOCUS_BOUND.has(root)){
+    return;
+  }
+
+  EXERCISE_FOCUS_BOUND.add(root);
+
+  root.addEventListener(
+    'click',
+    (event)=>{
+      const state=
+        exerciseFocusStateForTarget(
+          root,
+          event.target,
+        );
+
+      if(!state)return;
+
+      const select=
+        event.target.closest?.(
+          '[data-m27-exercise-select]'
+        );
+
+      if(!select)return;
+
+      exerciseFocusSelect(
+        state,
+        String(
+          select.getAttribute(
+            'data-m27-exercise-select'
+          )||''
+        ),
+      );
+    },
+  );
+
+  root.addEventListener(
+    'input',
+    (event)=>{
+      const state=
+        exerciseFocusStateForTarget(
+          root,
+          event.target,
+        );
+
+      if(!state)return;
+
+      const search=
+        event.target.closest?.(
+          '[data-m27-exercise-search]'
+        );
+
+      if(search){
+        exerciseFocusFilter(
+          state,
+          search.value,
+        );
+      }
+    },
+  );
+}
+
 function enhanceFeedbackClosure({root,viewModel}){
   const panel=root.querySelector?.('[data-session-live-state="feedback"] [data-session-live-feedback]');
   if(!panel)return false;
