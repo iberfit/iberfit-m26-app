@@ -243,6 +243,7 @@ test('rendered rest correction disclosure is wired to the Coach auto-advance gua
   const {session,execution}=executionWithRecordedSet({restMs:60000});
   const html=renderGuidedExecution({execution,session,catalog,role:'coach'});
   assert.match(html,/data-session-rest-correction/);
+  assert.match(html,/data-session-rest-countdown-value/);
   assert.match(html,/Corregir esta serie/);
 });
 
