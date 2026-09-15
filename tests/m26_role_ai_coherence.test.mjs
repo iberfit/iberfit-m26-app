@@ -43,7 +43,7 @@ test(
 );
 
 test(
-  'bootstrap de producción prefiere Admin sin hardcodear correo',
+  'bootstrap multirol puede preparar Admin pero exige elección explícita sin hardcodear correo',
   ()=>{
     const app=fs.readFileSync(
       'src/m26/app/application.js',
@@ -57,7 +57,17 @@ test(
 
     assert.match(
       app,
-      /roleChoiceConfirmed:true/u
+      /const roleChoiceRequired=authorizedRoles\.filter\(\(role\)=>\['coach','admin'\]\.includes\(role\)\)\.length>1/u
+    );
+
+    assert.match(
+      app,
+      /const roleChoiceConfirmed=!roleChoiceRequired\|\|Boolean\(requestedRole\)/u
+    );
+
+    assert.match(
+      app,
+      /if\(roleChoiceConfirmed\)writePreferredApplicationRole/u
     );
 
     assert.match(
