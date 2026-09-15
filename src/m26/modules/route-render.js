@@ -1909,6 +1909,25 @@ function exerciseStudyConfidenceLabel(value){
   })[String(value||'').toLowerCase()]||'Limitada';
 }
 
+function exerciseStudyRecordItems(records={}){
+  const items=[
+    ['Carga máxima confirmada',records?.maxLoadKg,'kg'],
+    ['Mayor volumen confirmado',records?.maxExposureVolumeKg,'kg·rep'],
+    ['Mayor repetición en una serie',records?.maxReps,'rep'],
+    ['Mayor tiempo en una serie',records?.longestSetSeconds,'s'],
+  ];
+  return items.map(([label,record,fallbackUnit])=>{
+    const value=exerciseStudyFinite(record?.value);
+    if(value===null)return null;
+    const unit=String(record?.unit||fallbackUnit||'').trim();
+    return Object.freeze({
+      label,
+      value:String(value)+(unit?' '+unit:''),
+      meta:record?.completedAt?safeDateLabel(record.completedAt):'Registro confirmado',
+    });
+  }).filter(Boolean);
+}
+
 function renderCoachExerciseStudy(exercise,performance,{compact=false}={}){
   if(!performance)return '';
 
