@@ -4,9 +4,11 @@
   "items": [
     {
       "exercise_id": "IBF-DEAD-BUG",
-      "local_path": "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG-approved-272bc2b23fd2.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG-approved-dc0711953440.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG.b64.00"
+        "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG.final-v6.b64.00",
+        "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG.final-v6.b64.01",
+        "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG.final-v6.b64.02"
       ],
       "human_approved": true,
       "publishable": true,
@@ -18,7 +20,7 @@
         ],
         "automatic_qa": "passed",
         "approved_at": "2026-09-14",
-        "note": "El propietario autorizó la continuación automática bajo el contrato visual cerrado. Asset revisado contra el catálogo real y validado visual y biomecánicamente antes de publicación."
+        "note": "Versión visual final aprobada por el propietario: formato alineado con la biblioteca IBERFIT, ejercicio protagonista, fondo degradado/desenfocado, maniquí anatómico discreto y único isotipo oficial pequeño en la camiseta. Corrección específica aprobada: ambas manos/brazos están presentes y legibles en la fase final del Dead Bug, con extensión contralateral correcta."
       },
       "media": {
         "schema": "iberfit.exercise.visual.v1",
@@ -26,11 +28,11 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-DEAD-BUG/movement-272bc2b23fd2.webp",
+          "path": "IBF-DEAD-BUG/movement-dc0711953440.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "272bc2b23fd2f85ee572926f4d69e760de1f679a642c42c03f12bb3f7fdb85f8"
+          "sha256": "dc07119534408d47e65df8730aa6cbfd4a7afa5703d56a69c8d5538a47f443d5"
         },
         "published": true,
         "clientVisible": true,

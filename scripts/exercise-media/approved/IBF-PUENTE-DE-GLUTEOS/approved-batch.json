@@ -4,9 +4,11 @@
   "items": [
     {
       "exercise_id": "IBF-PUENTE-DE-GLUTEOS",
-      "local_path": "scripts/exercise-media/approved/IBF-PUENTE-DE-GLUTEOS/IBF-PUENTE-DE-GLUTEOS-approved-fa9cd7979e05.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-PUENTE-DE-GLUTEOS/IBF-PUENTE-DE-GLUTEOS-approved-cbf7a3ffbd1c.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-PUENTE-DE-GLUTEOS/IBF-PUENTE-DE-GLUTEOS.b64.00"
+        "scripts/exercise-media/approved/IBF-PUENTE-DE-GLUTEOS/IBF-PUENTE-DE-GLUTEOS.final-v6.b64.00",
+        "scripts/exercise-media/approved/IBF-PUENTE-DE-GLUTEOS/IBF-PUENTE-DE-GLUTEOS.final-v6.b64.01",
+        "scripts/exercise-media/approved/IBF-PUENTE-DE-GLUTEOS/IBF-PUENTE-DE-GLUTEOS.final-v6.b64.02"
       ],
       "human_approved": true,
       "publishable": true,
@@ -18,7 +20,7 @@
         ],
         "automatic_qa": "passed",
         "approved_at": "2026-09-14",
-        "note": "El propietario autorizó la continuación automática bajo el contrato visual cerrado. Asset revisado contra el catálogo real y validado visual y biomecánicamente antes de publicación."
+        "note": "Versión visual final aprobada por el propietario: formato alineado con la biblioteca IBERFIT, ejercicio protagonista, fondo degradado/desenfocado, maniquí anatómico discreto y único isotipo oficial pequeño en la camiseta."
       },
       "media": {
         "schema": "iberfit.exercise.visual.v1",
@@ -26,11 +28,11 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-PUENTE-DE-GLUTEOS/movement-fa9cd7979e05.webp",
+          "path": "IBF-PUENTE-DE-GLUTEOS/movement-cbf7a3ffbd1c.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "fa9cd7979e0522c7e6badcae8e0cd93aa41f8058153f16682be24d212c05eafd"
+          "sha256": "cbf7a3ffbd1cf162384b1cc5ded03beeb246a7a28246b47aaf148230c766c430"
         },
         "published": true,
         "clientVisible": true,

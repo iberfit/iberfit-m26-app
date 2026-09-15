@@ -4,9 +4,15 @@
   "items": [
     {
       "exercise_id": "IBF-BIRD-DOG",
-      "local_path": "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG-approved-0183cccae55d.webp",
+      "local_path": "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG-approved-4703af975e27.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.b64.00"
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.final-v4.b64.00",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.final-v4.b64.01",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.final-v4.b64.02",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.final-v4.b64.03",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.final-v4.b64.04",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.final-v4.b64.05",
+        "scripts/exercise-media/approved/IBF-BIRD-DOG/IBF-BIRD-DOG.final-v4.b64.06"
       ],
       "human_approved": true,
       "publishable": true,
@@ -18,7 +24,7 @@
         ],
         "automatic_qa": "passed",
         "approved_at": "2026-09-14",
-        "note": "El propietario autorizó la continuación automática bajo el contrato visual cerrado. Asset revisado contra el catálogo real y validado visual y biomecánicamente antes de publicación."
+        "note": "Versión visual final aprobada por el propietario: formato alineado con la biblioteca IBERFIT, ejercicio protagonista, fondo degradado/desenfocado, maniquí anatómico discreto y único isotipo oficial pequeño en la camiseta."
       },
       "media": {
         "schema": "iberfit.exercise.visual.v1",
@@ -26,11 +32,11 @@
         "bucket": "iberfit-exercise-media",
         "movement": {
           "kind": "movement",
-          "path": "IBF-BIRD-DOG/movement-0183cccae55d.webp",
+          "path": "IBF-BIRD-DOG/movement-4703af975e27.webp",
           "mime": "image/webp",
           "width": 640,
           "height": 800,
-          "sha256": "0183cccae55da15a7ce485f901d78e9fc237aafd26cc834e542c82eaf3523219"
+          "sha256": "4703af975e27a27d471b692bc7b2631b80e67a4a15815063365d1c4f5e3029cc"
         },
         "published": true,
         "clientVisible": true,
