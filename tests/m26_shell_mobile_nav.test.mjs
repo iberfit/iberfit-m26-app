@@ -26,7 +26,7 @@ function readyState(role,{selectedClientId=clientId,activeArea='hoy'}={}){
 }
 
 function mobileOverflow(html){
-  const match=String(html).match(/<div class="m26-mobile-more-menu">([\s\S]*?)<\/div><\/details>/u);
+  const match=String(html).match(/<div\b[^>]*class="m26-mobile-more-menu"[^>]*>([\s\S]*?)<\/div><\/details>/u);
   assert.ok(match,'debe renderizar el menú móvil Más');
   return match[1];
 }
@@ -34,7 +34,7 @@ function mobileOverflow(html){
 test('Más resalta la sección activa sin marcar el disclosure como página actual',()=>{
   const vm=createShellViewModel(readyState('client',{activeArea:'informes'}));
   const html=renderM26Shell(vm);
-  assert.match(html,/<details class="m26-mobile-more is-active" data-m26-more-active="true"><summary>/u);
+  assert.match(html,/<details class="m26-mobile-more is-active" data-m26-more-active="true"><summary\b[^>]*>/u);
   assert.doesNotMatch(html,/<details class="m26-mobile-more is-active"[^>]*><summary aria-current="page">/u);
   assert.match(mobileOverflow(html),/data-m26-area="informes" aria-current="page"/u);
 });
