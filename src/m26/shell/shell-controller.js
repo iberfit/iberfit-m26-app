@@ -263,12 +263,15 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const shell=details?.closest?.('.m26-shell');
     const workspace=shell?.querySelector?.(':scope > .m26-workspace');
     if(!workspace)return false;
+    const next=Boolean(open);
+    if(next)workspace.dataset.m26MobileMoreOpen='true';
+    else delete workspace.dataset.m26MobileMoreOpen;
     const targets=[
       workspace.querySelector?.(':scope > .m26-topbar'),
       workspace.querySelector?.(':scope > .m26-main'),
     ].filter(Boolean);
     for(const node of targets){
-      if(open){
+      if(next){
         if(!node.hasAttribute?.('inert'))node.dataset.m26MobileMoreInert='true';
         node.setAttribute?.('inert','');
       }else if(node.dataset?.m26MobileMoreInert==='true'){
