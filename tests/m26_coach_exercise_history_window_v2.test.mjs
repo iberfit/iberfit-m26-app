@@ -75,7 +75,7 @@ test('Shell activates exercise history windows after focused exercise workspace 
   );
   assert.match(
     source,
-    /enhanceProgressContinuity\(\{root,viewModel,state\}\);\s*enhanceExerciseHistoryWindow\(\{root,viewModel\}\);/u,
+    /enhanceProgressContinuity\(\{root,viewModel,state\}\);\s*enhanceSessionReadiness\(\{root,viewModel,state\}\);\s*enhanceExerciseHistoryWindow\(\{root,viewModel\}\);/u,
   );
 });
 
