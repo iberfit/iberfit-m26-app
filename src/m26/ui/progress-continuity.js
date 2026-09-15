@@ -45,6 +45,30 @@ const STYLES=`
 @media (max-width:980px){.m27-client-home-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.m27-constancia{padding:.78rem}.m27-constancia-head{display:grid;gap:.28rem}.m27-constancia-head p{text-align:left}.m27-constancia-grid,.m27-client-home-grid{grid-template-columns:1fr}.m27-constancia-window,.m27-client-home-card{min-height:0}.m27-client-home{padding:.68rem}.m27-client-home-head>div{display:grid;gap:.1rem}}
 @media (prefers-reduced-motion:reduce){.m27-constancia-window,.m27-session-continuity,.m27-client-home-card{scroll-behavior:auto}}
+.m27-exercise-focus{display:grid;gap:1rem;margin-top:1rem}
+.m27-exercise-focus-tools{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding:.8rem 0;border-top:1px solid rgba(169,133,52,.18);border-bottom:1px solid rgba(169,133,52,.18)}
+.m27-exercise-focus-search{display:grid;gap:.35rem;min-width:min(22rem,100%)}
+.m27-exercise-focus-search>span,.m27-exercise-focus-window>span{color:var(--m26-gold,#9a782d);font-size:.67rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.m27-exercise-focus-search input{width:100%;min-height:2.7rem;padding:.64rem .74rem;border:1px solid var(--m26-border,rgba(169,133,52,.22));border-radius:.68rem;background:var(--m26-surface,#fffdf8);color:var(--m26-text,#17231d);font:inherit}
+.m27-exercise-focus-window{display:grid;justify-items:end;gap:.3rem}
+.m27-exercise-focus-window>div{display:flex;gap:.3rem;flex-wrap:wrap;justify-content:flex-end}
+.m27-exercise-focus-window button{min-width:2.6rem;min-height:2.25rem;padding:.38rem .52rem;border:1px solid var(--m26-border,rgba(169,133,52,.22));border-radius:.52rem;background:transparent;color:var(--m26-text-muted,#6b675f);font:inherit;font-size:.71rem;font-weight:800;cursor:pointer}
+.m27-exercise-focus-window button[aria-pressed="true"]{border-color:var(--m26-gold,#9a782d);background:color-mix(in srgb,var(--m26-gold,#9a782d) 10%,transparent);color:var(--m26-text,#17231d)}
+.m27-exercise-focus-window small{max-width:30rem;text-align:right;color:var(--m26-text-muted,#6b675f);font-size:.65rem;line-height:1.4}
+.m27-exercise-focus-grid{display:grid;grid-template-columns:minmax(13.5rem,18rem) minmax(0,1fr);gap:1.1rem;align-items:start}
+.m27-exercise-focus-list{display:grid;align-content:start;max-height:min(72vh,46rem);overflow:auto;border-right:1px solid rgba(169,133,52,.18)}
+.m27-exercise-focus-option{display:grid;gap:.18rem;width:100%;padding:.7rem .76rem .7rem .66rem;border:0;border-left:3px solid transparent;border-bottom:1px solid rgba(169,133,52,.12);background:transparent;color:inherit;text-align:left;cursor:pointer}
+.m27-exercise-focus-option:hover,.m27-exercise-focus-option:focus-visible{background:color-mix(in srgb,var(--m26-gold,#9a782d) 6%,transparent)}
+.m27-exercise-focus-option[aria-pressed="true"]{border-left-color:var(--m26-gold,#9a782d);background:color-mix(in srgb,var(--m26-gold,#9a782d) 8%,transparent)}
+.m27-exercise-focus-option strong{color:var(--m26-text,#17231d);font-size:.82rem;line-height:1.25}
+.m27-exercise-focus-option small{color:var(--m26-text-muted,#6b675f);font-size:.64rem;line-height:1.38}
+.m27-exercise-focus-empty{margin:.7rem;color:var(--m26-text-muted,#6b675f);font-size:.71rem}
+.m27-exercise-focus-active{min-width:0}
+.m27-exercise-focus-active>.m26-exercise-progress-card{margin:0}
+@media (max-width:980px){.m27-exercise-focus-grid{grid-template-columns:minmax(11.5rem,14rem) minmax(0,1fr)}}
+@media (max-width:720px){.m27-exercise-focus-tools{display:grid}.m27-exercise-focus-window{justify-items:start}.m27-exercise-focus-window>div{justify-content:flex-start}.m27-exercise-focus-window small{text-align:left}.m27-exercise-focus-grid{grid-template-columns:1fr}.m27-exercise-focus-list{grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));max-height:13rem;border-right:0;border-bottom:1px solid rgba(169,133,52,.18)}.m27-exercise-focus-option{border-left:0;border-top:3px solid transparent}.m27-exercise-focus-option[aria-pressed="true"]{border-top-color:var(--m26-gold,#9a782d)}}
+@media (forced-colors:active){.m27-exercise-focus-option[aria-pressed="true"],.m27-exercise-focus-window button[aria-pressed="true"]{outline:2px solid CanvasText}}
+@media print{.m27-exercise-focus-tools,.m27-exercise-focus-list{display:none}.m27-exercise-focus-grid{display:block}}
 `;
 
 function create(document,tag,className,text){
