@@ -6,7 +6,9 @@
       "exercise_id": "IBF-DEAD-BUG",
       "local_path": "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG-approved-dc0711953440.webp",
       "source_base64_parts": [
-        "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG.final-v4.b64.00"
+        "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG.final-v6.b64.00",
+        "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG.final-v6.b64.01",
+        "scripts/exercise-media/approved/IBF-DEAD-BUG/IBF-DEAD-BUG.final-v6.b64.02"
       ],
       "human_approved": true,
       "publishable": true,
