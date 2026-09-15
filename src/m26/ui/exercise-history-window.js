@@ -185,12 +185,13 @@ function buildControls(documentLike,state){
   meta.className='m27-exercise-window-meta';
   meta.append(
     documentLike.createTextNode(
-      'Ajusta la gráfica principal y la tabla visible; el estudio Coach conserva su lectura confirmada. '
+      'El contador corresponde a la gráfica principal; la tabla conserva sus últimas referencias renderizadas y el estudio Coach su lectura confirmada. '
     ),
   );
   const count=documentLike.createElement('strong');
   count.className='m27-exercise-window-count';
   count.setAttribute('data-m27-exercise-window-count','true');
+  count.setAttribute('aria-label','Registros visibles en la gráfica');
   count.textContent='—';
   meta.appendChild(count);
 
