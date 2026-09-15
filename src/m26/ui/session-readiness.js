@@ -49,10 +49,13 @@ const STYLES=`
 }
 @media (max-width:560px){.m27-session-readiness-head{display:grid;gap:.3rem}.m27-session-readiness-head p{text-align:left}.m27-session-readiness-grid{grid-template-columns:1fr}}
 @media (max-width:430px){
-  .m27-session-focus-dock{align-items:stretch;flex-direction:column;gap:.48rem;padding:.62rem}
-  .m27-session-focus-actions{width:100%}
-  .m27-session-focus-primary{flex:1 1 auto;min-width:0;padding:.7rem .78rem}
-  .m27-session-focus-secondary{flex:0 0 3.15rem;padding:.62rem .55rem}
+  .m27-session-focus-dock:not(.is-coach){gap:.58rem;padding:.62rem}
+  .m27-session-focus-dock:not(.is-coach) .m27-session-focus-actions{max-width:48%}
+  .m27-session-focus-dock:not(.is-coach) .m27-session-focus-primary{min-width:7.6rem;max-width:100%;padding:.7rem .78rem}
+  .m27-session-focus-dock.is-coach{align-items:stretch;flex-direction:column;gap:.48rem;padding:.62rem}
+  .m27-session-focus-dock.is-coach .m27-session-focus-actions{width:100%}
+  .m27-session-focus-dock.is-coach .m27-session-focus-primary{flex:1 1 auto;min-width:0;padding:.7rem .78rem}
+  .m27-session-focus-dock.is-coach .m27-session-focus-secondary{flex:0 0 3.15rem;padding:.62rem .55rem}
   .m27-session-focus-meta>strong{font-size:.76rem}
 }
 @media (forced-colors:active){.m27-session-focus-dock,.m27-session-focus-primary,.m27-session-focus-secondary{border-color:ButtonText}.m27-session-focus-primary,.m27-session-focus-secondary{forced-color-adjust:auto}}
