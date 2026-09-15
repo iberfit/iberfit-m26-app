@@ -14,6 +14,13 @@ function previousSetSummary(values){
     values?.rir!=null&&Number.isFinite(Number(values.rir))?`RIR ${values.rir}`:null,
   ].filter(Boolean).join(' · ')||'Serie registrada';
 }
+function coachQuickRpeValues(value){
+  const raw=Number(value);
+  const target=Number.isFinite(raw)?Math.max(1,Math.min(10,Math.round(raw*2)/2)):7;
+  const candidates=[target-1,target,target+1,target-2,target+2]
+    .filter((item)=>item>=1&&item<=10);
+  return [...new Set(candidates)].slice(0,3).sort((a,b)=>a-b);
+}
 function currentSetResultSummary(result){
   return [
     result?.reps!=null?`${result.reps} rep${Number(result.reps)===1?'':'s'}`:null,
@@ -864,6 +871,9 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
 
   const ex=catalog.get(step.exerciseId)||step.exercise||{};
 const planned=step.prescription||{};
+const coachQuickRpe=isCoach
+  ?`<div class="m26-session-coach-rpe-quick" aria-label="RPE rápido"><span>RPE rápido</span>${coachQuickRpeValues(planned.targetRpe).map((value)=>`<button type="button" data-session-action="set-rpe-quick" data-rpe-value="${e(value)}" aria-label="RPE ${e(value)}" aria-pressed="false">${e(value)}</button>`).join('')}</div>`
+  :'';
 const previousSet=previousSetDraftValues(execution);
 const previousSetReuse=previousSet
   ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds||60)}" aria-label="Repetir los datos de la serie anterior y completar esta serie">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Acción rápida del Coach · no copia notas.</small>':''}</div></div>`
@@ -986,6 +996,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <label data-session-field-priority="primary">RPE<input type="number" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rpe" required placeholder="Objetivo ${e(planned.targetRpe||7)}"></label>
           <label data-session-field-priority="secondary">RIR <small>Opcional</small><input type="number" min="0" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" data-set-field="rir" placeholder="Objetivo ${e(planned.targetRir??3)}"></label>
         </div>
+        ${coachQuickRpe}
         <details>
           <summary>Añadir una nota a esta serie</summary>
           <label>Notas<textarea maxlength="1000" data-set-field="notes"></textarea></label>

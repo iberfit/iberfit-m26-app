@@ -80,7 +80,16 @@ test('session controller rehydrates set fields after telemetry-driven renders',(
   assert.match(source,/getActiveSetDraft/);
   assert.match(source,/updateActiveSetDraft/);
   assert.match(source,/onUpdate:\(\)=>render\?\.\(\)/);
-  assert.match(source,/render=\(\)=>\{baseRender\?\.\(\);hydrateActiveSetDraft\(getContext\(\)\);hydrateFinalFeedbackDraft\(getContext\(\)\);syncLiveAddExerciseControl\(getContext\(\)\);syncFinishControl\(getContext\(\)\);syncManualSyncControl\(getContext\(\)\);\}/);
+  const renderBlock=source.match(/render=\(\)=>\{([^}]*)\};/)?.[1]||'';
+  for(const call of [
+    'baseRender?.()',
+    'hydrateActiveSetDraft(getContext())',
+    'hydrateFinalFeedbackDraft(getContext())',
+    'syncLiveAddExerciseControl(getContext())',
+    'syncFinishControl(getContext())',
+    'syncManualSyncControl(getContext())',
+    'syncQuickRpeControl()',
+  ]) assert.ok(renderBlock.includes(call),call);
   assert.match(source,/querySelectorAll\?\.\('\[data-set-field\]'\)/);
   assert.match(source,/hydrateActiveSetDraft\(getContext\(\)\)/);
 });
