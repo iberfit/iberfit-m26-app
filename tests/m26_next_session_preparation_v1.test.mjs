@@ -93,8 +93,12 @@ test('next-session brief consolidates confirmed context without mutating state',
   assert.equal(prep.lastExecution.feedback.comment,'Sesión sólida.');
   assert.equal(prep.exerciseMemory[0].exerciseName,'Sentadilla');
   assert.equal(prep.exerciseMemory[0].lastLoad,'52.5 kg');
+  assert.equal(prep.decisions.total,1);
   assert.equal(prep.decisions.openCount,1);
+  assert.equal(prep.decisions.closedCount,0);
   assert.equal(prep.decisions.overdueCount,1);
+  assert.equal(prep.decisions.recentClosed.length,0);
+  assert.equal(prep.decisions.needsReview?.id,'22222222-2222-4222-8222-222222222222');
   assert.equal(prep.reviewRequired,true);
   assert.ok(prep.reviewReasons.some((item)=>item.kind==='decision-overdue'));
   assert.ok(prep.reviewReasons.some((item)=>item.kind==='wellbeing'));

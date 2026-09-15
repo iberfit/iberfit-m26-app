@@ -576,12 +576,35 @@ if (area === 'clientes') {
         options,
       );
 
+    const catalogNames=new Map(
+      (options.catalog||[])
+        .filter((item)=>item?.id)
+        .map((item)=>[
+          String(item.id),
+          exerciseDisplayName(item,getIberfitLanguage()),
+        ]),
+    );
+    const nextSessionPreparation=
+      exerciseOwnerId&&['admin','coach'].includes(role)
+        ?buildNextSessionPreparation(
+            state,
+            exerciseOwnerId,
+            {
+              now,
+              exerciseName:(exerciseId)=>
+                catalogNames.get(String(exerciseId))||
+                String(exerciseId||'Ejercicio'),
+            },
+          )
+        :null;
+
     return Object.freeze({exerciseProgress:buildExerciseLongitudinalProgress(state,routeClientId(shellVm,state),{limitPerExercise:36}),
       kind: 'expediente',
       role,
       summary: compact,
       progress,
       exercisePerformance,
+      nextSessionPreparation,
       coachCockpit,
       alerts: Object.freeze(alerts),
       alertSignal: Object.freeze(adherenceSignal(alerts)),

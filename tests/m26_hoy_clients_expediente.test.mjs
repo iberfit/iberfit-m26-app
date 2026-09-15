@@ -75,7 +75,58 @@ function ready(role = 'coach', overrides = {}) {
         { id: 'ap1', client_id: qa, session_id: 's1', title: 'Sesión presencial', start_at: '2026-07-18T18:00:00Z', status: 'confirmado', location: 'Las Condes', modality: 'presencial' },
         { id: 'ap2', client_id: other, title: 'Sesión online', start_at: '2026-07-18T20:00:00Z', status: 'confirmado' },
       ],
-      intelligenceRuns: [], domainEvents: [], coachAvailability: [], m26Entities: [],
+      intelligenceRuns: [], domainEvents: [], coachAvailability: [], m26Entities: [
+        {
+          entityType: 'action_outcome',
+          entityId: '22222222-2222-4222-8222-222222222222',
+          clientId: qa,
+          status: 'abierto',
+          revision: 1,
+          body: {
+            id: '22222222-2222-4222-8222-222222222222',
+            clientId: qa,
+            status: 'abierto',
+            revision: 1,
+            visibleToClient: false,
+            signalSource: 'session',
+            signalSummary: 'RPE alto en accesorios.',
+            decisionSummary: 'Mantener técnica y revisar densidad.',
+            interventionType: 'recovery',
+            interventionSummary: 'Aumentar descanso entre bloques.',
+            expectedOutcome: 'RPE estable en la siguiente exposición.',
+            reviewAt: '2026-07-17',
+            createdAt: '2026-07-16T12:00:00Z',
+            updatedAt: '2026-07-16T12:00:00Z',
+          },
+        },
+        {
+          entityType: 'action_outcome',
+          entityId: '33333333-3333-4333-8333-333333333333',
+          clientId: qa,
+          status: 'cerrado',
+          revision: 2,
+          body: {
+            id: '33333333-3333-4333-8333-333333333333',
+            clientId: qa,
+            status: 'cerrado',
+            revision: 2,
+            visibleToClient: false,
+            signalSource: 'progress',
+            signalSummary: 'Técnica estable en sentadilla.',
+            decisionSummary: 'Mantener variante una semana.',
+            interventionType: 'exercise_selection',
+            interventionSummary: 'Mantener sentadilla goblet.',
+            expectedOutcome: 'Conservar calidad técnica.',
+            reviewAt: '2026-07-16',
+            outcomeStatus: 'stable',
+            outcomeSummary: 'La técnica se mantuvo estable.',
+            outcomeEvidence: 'Registro posterior confirmado.',
+            reviewedAt: '2026-07-17',
+            createdAt: '2026-07-15T12:00:00Z',
+            updatedAt: '2026-07-17T20:00:00Z',
+          },
+        },
+      ],
     },
     ...overrides,
   });
@@ -421,9 +472,9 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   assert.match(html, /data-m26-expediente-section="contexto"/);
   assert.match(html, /data-m26-expediente-section="perfil"/);
   assert.match(html, /data-m26-expediente-section="plan"/);
-  assert.match(html, /Estado actual/);
-  assert.match(html, /Lo importante ahora/);
-  assert.match(html, /Última sesión confirmada/);
+  assert.match(html, /Decidir en segundos/);
+  assert.match(html, />Ahora</);
+  assert.match(html, />Última sesión</);
   assert.match(html, /RPE 8/);
 
   assert.equal(vm.exercisePerformance.length, 1);
@@ -448,7 +499,7 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   assert.match(html, /Adherencia 28 días/);
   assert.match(html, /Tendencia de volumen/);
   assert.match(html, /Sin comparación suficiente/);
-  assert.match(html, /datos confirmados y reglas explicables/);
+  assert.match(html, /Solo evidencia confirmada/);
   assert.equal(
     vm.progress.latestCheckinAt,
     '2026-07-17T08:00:00Z'
@@ -564,7 +615,7 @@ test('operaciones pendientes se muestran como no confirmadas', () => {
 });
 
 
-test('Cliente 360 v2 ordena identidad, decisión y evolución sin perder profundidad', () => {
+test('Workspace Coach ordena ahora, sesiones, decisiones y evolución sin perder profundidad', () => {
   const state = ready('coach', { activeArea: 'expediente' });
   const vm = createRouteViewModel(
     createShellViewModel(state),
@@ -588,21 +639,35 @@ test('Cliente 360 v2 ordena identidad, decisión y evolución sin perder profund
     html,
     /m26-client360-header-action[\s\S]*?data-m26-area="progreso"[\s\S]*?>Revisar progreso<\/button>/
   );
-  assert.match(html, /m26-client360-now/);
-  assert.match(html, /Lo importante ahora/);
-  assert.match(html, /m26-client360-evolution/);
-  assert.match(html, /Rendimiento y evolución/);
+  assert.ok(vm.nextSessionPreparation);
+  assert.match(html, /data-coach-client-workspace/);
+  assert.match(html, /Cliente · mesa de decisión/);
+  assert.match(html, /Decidir en segundos/);
+  assert.match(html, /Señal → decisión → acción → resultado/);
+  assert.match(html, /RPE alto en accesorios\./);
+  assert.match(html, /Mantener técnica y revisar densidad\./);
+  assert.match(html, /Aumentar descanso entre bloques\./);
+  assert.match(html, /La técnica se mantuvo estable\./);
+  assert.match(html, /Resultado posterior registrado; no atribuye causalidad\./);
   assert.match(html, /m26-client360-progress-details/);
   assert.match(html, /Ver evolución detallada/);
+  assert.match(html, /data-m26-area="sesion"/);
+  assert.match(html, /data-m26-area="progreso"/);
 
   const headerIndex = html.indexOf('Cliente 360º');
-  const nowIndex = html.indexOf('Lo importante ahora');
-  const evolutionIndex = html.indexOf('Rendimiento y evolución');
+  const nowIndex = html.indexOf('>Ahora<');
+  const lastIndex = html.indexOf('>Última sesión<');
+  const nextIndex = html.indexOf('>Próxima sesión<');
+  const decisionsIndex = html.indexOf('>Decisiones<');
+  const evolutionIndex = html.indexOf('Contexto para la siguiente decisión');
   const contextIndex = html.indexOf('Contexto reciente');
 
   assert.ok(headerIndex >= 0);
   assert.ok(nowIndex > headerIndex);
-  assert.ok(evolutionIndex > nowIndex);
+  assert.ok(lastIndex > nowIndex);
+  assert.ok(nextIndex > lastIndex);
+  assert.ok(decisionsIndex > nextIndex);
+  assert.ok(evolutionIndex > decisionsIndex);
   assert.ok(contextIndex > evolutionIndex);
 
   assert.match(html, /Sentadilla goblet/);
@@ -610,6 +675,7 @@ test('Cliente 360 v2 ordena identidad, decisión y evolución sin perder profund
   assert.match(html, /Dispositivos · últimos 7 días/);
   assert.match(html, /Correo electrónico/);
   assert.match(html, /Evaluación IRI/);
+  assert.doesNotMatch(html, /0%[^\n]*Tendencia de volumen/);
 });
 
 test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', () => {
@@ -622,5 +688,9 @@ test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', 
   const html = renderRouteView(vm);
 
   assert.equal(vm.coachCockpit, null);
+  assert.ok(vm.nextSessionPreparation == null);
+  assert.doesNotMatch(html, /data-coach-client-workspace/);
+  assert.match(html, /m26-client-home-v1/);
+  assert.match(html, /Tu entrenamiento/);
   assert.doesNotMatch(html, /Siguiente acción del Coach/);
 });

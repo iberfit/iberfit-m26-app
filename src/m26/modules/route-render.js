@@ -2659,6 +2659,269 @@ export function renderExpedienteRoute(vm) {
     );
   }
 
+  const isProfessionalWorkspace=
+    ['coach','admin'].includes(String(vm.role||''));
+
+  const prep=
+    isProfessionalWorkspace
+      ?vm.nextSessionPreparation||null
+      :null;
+
+  const prepFeedback=
+    prep?.lastExecution?.feedback||{};
+
+  const lastSessionRpe=
+    Number.isFinite(prepFeedback.sessionRpe)
+      ?prepFeedback.sessionRpe
+      :Number.isFinite(progress.lastExecutionRpe)
+        ?progress.lastExecutionRpe
+        :null;
+
+  const lastSessionFeedback=[
+    prepFeedback.comment||null,
+    prepFeedback.pain
+      ?'Dolor registrado en el feedback final'
+      :null,
+    prepFeedback.painNotes||null,
+  ].filter(Boolean).join(' · ')||'Sin feedback final confirmado.';
+
+  const reviewSignals=
+    (Array.isArray(prep?.reviewReasons)
+      ?prep.reviewReasons
+      :[]
+    ).slice(0,3);
+
+  const openDecisions=
+    (Array.isArray(prep?.decisions?.open)
+      ?prep.decisions.open
+      :[]
+    ).slice(0,2);
+
+  const latestClosedDecision=
+    Array.isArray(prep?.decisions?.recentClosed)
+      ?prep.decisions.recentClosed[0]||null
+      :null;
+
+  const outcomeLabel={
+    improved:'Mejoró',
+    stable:'Estable',
+    worse:'Empeoró',
+    mixed:'Mixto',
+    not_assessable:'No evaluable',
+  };
+
+  const nextSessionTitle=
+    prep?.session?.title||
+    'Sin sesión preparada';
+
+  const nextSessionDate=
+    prep?.appointment?.startAt
+      ?nextSessionPrepDate(prep.appointment.startAt)
+      :'Sin cita futura confirmada';
+
+  const nextSessionActionLabel=
+    prep?.session?.startable
+      ?'Abrir sesión preparada'
+      :prep?.session?.id
+        ?'Revisar sesión'
+        :'Preparar sesión';
+
+  const nextSessionBadge=
+    prep?.session?.startable
+      ?badge('Preparada para abrir','success')
+      :prep?.session?.id
+        ?badge('Revisar antes de entrenar','warning')
+        :badge('Sin sesión preparada','neutral');
+
+  const decisionRows=
+    openDecisions.length
+      ?openDecisions.map((item)=>`<article class="m26-coach-workspace-decision">
+          <div class="m26-coach-workspace-decision-head">
+            <span>Señal</span>
+            ${item.reviewAt?badge(`Revisar ${item.reviewAt}`,'neutral'):''}
+          </div>
+          <strong>${escapeHtml(item.signalSummary||'Señal registrada')}</strong>
+          <p><b>Decisión</b> · ${escapeHtml(item.decisionSummary||'Sin detalle')}</p>
+          <p><b>Acción</b> · ${escapeHtml(item.interventionSummary||'Sin detalle')}</p>
+          <small><b>Resultado esperado</b> · ${escapeHtml(item.expectedOutcome||'Sin detalle')}</small>
+        </article>`).join('')
+      :'<p class="m26-coach-workspace-empty">Sin decisiones abiertas.</p>';
+
+  const closedDecisionResult=
+    latestClosedDecision
+      ?`<article class="m26-coach-workspace-outcome">
+          <div>
+            <span>Último resultado registrado</span>
+            <strong>${escapeHtml(
+              outcomeLabel[latestClosedDecision.outcomeStatus]||
+              latestClosedDecision.outcomeStatus||
+              'No evaluable'
+            )}</strong>
+          </div>
+          <p>${escapeHtml(
+            latestClosedDecision.outcomeSummary||
+            'Sin resumen de resultado confirmado.'
+          )}</p>
+          <small>Resultado posterior registrado; no atribuye causalidad.</small>
+        </article>`
+      :'<p class="m26-coach-workspace-empty">Sin resultado cerrado todavía.</p>';
+
+  const clientSummarySurface=
+    `<section class="m26-panel m26-panel-soft m26-client360-now" aria-label="Estado actual del cliente" data-m26-expediente-section="resumen">
+      <div class="m26-panel-heading">
+        <div>
+          <p class="m26-eyebrow">Lo importante ahora</p>
+          <h2>Estado actual</h2>
+          <p><strong>${escapeHtml(pulseTitle)}</strong>. ${escapeHtml(pulseCopy)}</p>
+        </div>
+        ${badge(pulseLabel,focusTone)}
+      </div>
+
+      <div class="m26-stat-grid">
+        ${pulseStats}
+      </div>
+
+      <div class="m26-list-card-actions">
+        <button
+          type="button"
+          class="m26-primary-action"
+          data-m26-area="${escapeHtml(pulseActionArea)}"
+        >${escapeHtml(pulseActionLabel)}</button>
+
+        <small>${escapeHtml(pulseGuidance)} · Resumen construido con datos confirmados y reglas explicables.</small>
+      </div>
+    </section>
+
+    <div class="m26-client360-evolution" data-m26-expediente-section="resumen">
+      <div class="m26-client360-section-heading">
+        <div>
+          <p class="m26-eyebrow">Evolución</p>
+          <h2>Rendimiento y evolución</h2>
+          <p>Memoria longitudinal y tendencias confirmadas para decidir sin perder contexto.</p>
+        </div>
+      </div>
+      ${renderExercisePerformanceOverview(vm.exercisePerformance)}
+      <details class="m26-client360-progress-details">
+        <summary>Ver evolución detallada</summary>
+        ${renderExerciseProgressSection(vm.exerciseProgress,{
+          compact:true,
+          role:vm.role,
+          performance:vm.exercisePerformance,
+        })}
+      </details>
+    </div>
+
+    <div data-m26-expediente-section="resumen">${pendingProgressNotice}</div>`;
+
+  const coachWorkspaceSurface=
+    `<section class="m26-panel m26-coach-client-workspace" data-m26-expediente-section="resumen" data-coach-client-workspace>
+      <header class="m26-coach-workspace-header">
+        <div>
+          <p class="m26-eyebrow">Cliente · mesa de decisión</p>
+          <h2>Decidir en segundos</h2>
+          <p>Lo esencial para preparar la siguiente decisión sin recorrer todo el expediente.</p>
+        </div>
+        ${badge(pulseLabel,focusTone)}
+      </header>
+
+      <section class="m26-coach-workspace-now" aria-labelledby="m26-coach-workspace-now-title">
+        <div>
+          <p class="m26-eyebrow">Ahora</p>
+          <h3 id="m26-coach-workspace-now-title">${escapeHtml(pulseTitle)}</h3>
+          <p>${escapeHtml(pulseCopy)}</p>
+          <small>${escapeHtml(pulseGuidance)}</small>
+        </div>
+        <button
+          type="button"
+          class="m26-primary-action"
+          data-m26-area="${escapeHtml(pulseActionArea)}"
+        >${escapeHtml(pulseActionLabel)}</button>
+      </section>
+
+      ${reviewSignals.length
+        ?`<div class="m26-coach-workspace-signals" aria-label="Señales a revisar">
+            <span>Señales a revisar</span>
+            <ul>${reviewSignals.map((item)=>`<li>${escapeHtml(item.label)}</li>`).join('')}</ul>
+          </div>`
+        :''}
+
+      <div class="m26-coach-workspace-briefs">
+        <article class="m26-coach-workspace-brief">
+          <div class="m26-coach-workspace-brief-head">
+            <div>
+              <p class="m26-eyebrow">Última sesión</p>
+              <h3>${escapeHtml(lastSessionLabel)}</h3>
+            </div>
+            ${Number.isFinite(lastSessionRpe)
+              ?badge(`RPE ${lastSessionRpe}`,'neutral')
+              :badge('Sin RPE confirmado','neutral')}
+          </div>
+          <p>${escapeHtml(lastSessionFeedback)}</p>
+        </article>
+
+        <article class="m26-coach-workspace-brief">
+          <div class="m26-coach-workspace-brief-head">
+            <div>
+              <p class="m26-eyebrow">Próxima sesión</p>
+              <h3>${escapeHtml(nextSessionTitle)}</h3>
+              <small>${escapeHtml(nextSessionDate)}</small>
+            </div>
+            ${nextSessionBadge}
+          </div>
+          <button type="button" class="m26-text-action" data-m26-area="sesion">${escapeHtml(nextSessionActionLabel)}</button>
+        </article>
+      </div>
+
+      <section class="m26-coach-workspace-decisions" aria-labelledby="m26-coach-workspace-decisions-title">
+        <div class="m26-coach-workspace-section-head">
+          <div>
+            <p class="m26-eyebrow">Decisiones</p>
+            <h3 id="m26-coach-workspace-decisions-title">Señal → decisión → acción → resultado</h3>
+          </div>
+          <span>${escapeHtml(prep?.decisions?.openCount||0)} abiertas · ${escapeHtml(prep?.decisions?.overdueCount||0)} vencidas</span>
+        </div>
+        <div class="m26-coach-workspace-decision-grid">
+          <div>${decisionRows}</div>
+          <div>${closedDecisionResult}</div>
+        </div>
+      </section>
+
+      <section class="m26-client360-evolution m26-coach-workspace-evolution">
+        <div class="m26-client360-section-heading">
+          <div>
+            <p class="m26-eyebrow">Evolución</p>
+            <h3>Contexto para la siguiente decisión</h3>
+            <p>Solo evidencia confirmada; las ausencias siguen siendo ausencias y las asociaciones no se presentan como causas.</p>
+          </div>
+          <button type="button" class="m26-text-action" data-m26-area="progreso">Abrir progreso completo</button>
+        </div>
+
+        <div class="m26-coach-workspace-metrics">
+          <span><small>Adherencia 28 días</small><strong>${escapeHtml(formatPercent(progress.adherence))}</strong></span>
+          <span><small>Sesiones confirmadas</small><strong>${escapeHtml(progress.completedSessions||0)}</strong></span>
+          <span><small>Tendencia de volumen</small><strong>${escapeHtml(volumeTrend)}</strong></span>
+          <span><small>Ejercicios con historial confirmado</small><strong>${escapeHtml(vm.exerciseProgress?.totalExercises||0)}</strong></span>
+        </div>
+
+        <details class="m26-client360-progress-details">
+          <summary>Ver evolución detallada</summary>
+          ${renderExercisePerformanceOverview(vm.exercisePerformance)}
+          ${renderExerciseProgressSection(vm.exerciseProgress,{
+            compact:true,
+            role:vm.role,
+            performance:vm.exercisePerformance,
+          })}
+        </details>
+      </section>
+
+      ${pendingProgressNotice}
+    </section>`;
+
+  const summarySurface=
+    isProfessionalWorkspace
+      ?coachWorkspaceSurface
+      :clientSummarySurface;
+
   return `<div class="m26-route m26-client360-v2" data-m26-expediente data-m26-expediente-view="resumen">
     <section class="m26-profile-hero m26-profile-hero-premium">
       <div class="m26-profile-brand-lockup">
@@ -2732,51 +2995,7 @@ export function renderExpedienteRoute(vm) {
       >Plan</button>
     </nav>
     <div class="m26-expediente-detail">
-<section class="m26-panel m26-panel-soft m26-client360-now" aria-label="Estado actual del cliente" data-m26-expediente-section="resumen">
-      <div class="m26-panel-heading">
-        <div>
-          <p class="m26-eyebrow">Lo importante ahora</p>
-          <h2>Estado actual</h2>
-          <p><strong>${escapeHtml(pulseTitle)}</strong>. ${escapeHtml(pulseCopy)}</p>
-        </div>
-        ${badge(pulseLabel,focusTone)}
-      </div>
-
-      <div class="m26-stat-grid">
-        ${pulseStats}
-      </div>
-
-      <div class="m26-list-card-actions">
-        <button
-          type="button"
-          class="m26-primary-action"
-          data-m26-area="${escapeHtml(pulseActionArea)}"
-        >${escapeHtml(pulseActionLabel)}</button>
-
-        <small>${escapeHtml(pulseGuidance)} · Resumen construido con datos confirmados y reglas explicables.</small>
-      </div>
-    </section>
-
-    <div class="m26-client360-evolution" data-m26-expediente-section="resumen">
-      <div class="m26-client360-section-heading">
-        <div>
-          <p class="m26-eyebrow">Evolución</p>
-          <h2>Rendimiento y evolución</h2>
-          <p>Memoria longitudinal y tendencias confirmadas para decidir sin perder contexto.</p>
-        </div>
-      </div>
-      ${renderExercisePerformanceOverview(vm.exercisePerformance)}
-      <details class="m26-client360-progress-details">
-        <summary>Ver evolución detallada</summary>
-        ${renderExerciseProgressSection(vm.exerciseProgress,{
-          compact:true,
-          role:vm.role,
-          performance:vm.exercisePerformance,
-        })}
-      </details>
-    </div>
-
-    <div data-m26-expediente-section="resumen">${pendingProgressNotice}</div>
+${summarySurface}
 
     <div class="m26-client360-context" data-m26-expediente-section="contexto">${recentContext}${vm.coachCockpit?renderCoachFollowUpPlan(vm.alerts):''}</div>
 
