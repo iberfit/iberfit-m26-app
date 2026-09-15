@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "bb5cba0072e6bbfe6d72f583b057cf8fb2490bb8",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "P0 interaction continuity closure on current Canary, preserving native input/select focus through pointer release, disclosure/button gesture atomicity across queued shell refreshes, and open details across real rerenders. Includes approved exercise media batch 03 merged afterward; diff from certified hotfix is limited to approved media payload metadata and its test. No backend, Supabase, auth, RLS, permissions or user-data model changes."
+}
