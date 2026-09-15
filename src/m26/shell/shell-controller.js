@@ -8,6 +8,7 @@ import {updateIberfitExperiencePreference} from '../ui/preferences.js';
 import {enhanceNativeWorkspace,openNativeAdminIntake} from '../ui/native-workspace.js';
 import {enhanceCliente360} from '../ui/client-360.js';
 import {enhanceProgressContinuity} from '../ui/progress-continuity.js';
+import {enhanceExerciseHistoryWindow} from '../ui/exercise-history-window.js';
 import {enhanceSessionReadiness,enhanceSessionFocus,teardownSessionFocus} from '../ui/session-readiness.js';
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js';
@@ -450,6 +451,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     enhanceNativeWorkspace({root,viewModel});
     enhanceCliente360({root,viewModel,state});
     enhanceProgressContinuity({root,viewModel,state});
+    enhanceExerciseHistoryWindow({root,viewModel});
     enhanceSessionReadiness({root,viewModel,state});
     enhanceSessionFocus({root,viewModel});
     revalidatePendingSessionEntry(root,{state,now:new Date(),buildContext:buildAdaptiveSessionContext,buildDecision:buildSessionEntryDecision});
