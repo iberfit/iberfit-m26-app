@@ -959,7 +959,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           </div>
           <div class="m26-session-rest-countdown" aria-live="polite">
             <span>${restActive?'Descanso':'Listo'}</span>
-            <strong>${restActive?e(restSeconds)+' s':'Continuar'}</strong>
+            <strong${restActive?' data-session-rest-countdown-value':''}>${restActive?e(restSeconds)+' s':'Continuar'}</strong>
           </div>
         </div>
         <p class="m26-session-rest-guidance">Tu serie ya está guardada. Descansa o continúa cuando estés preparado.</p>
