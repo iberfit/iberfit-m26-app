@@ -30,6 +30,9 @@ test("approved IBERFIT batch 03 reconstructs exact final immutable WebP assets",
     assert.equal(batch.items[0].media.coachVisible,true);
     assert.equal(batch.items[0].media.qa.visual,"approved");
     assert.equal(batch.items[0].media.qa.biomechanics,"approved");
-    assert.ok(batch.items[0].source_base64_parts.every((part)=>part.includes(".final-v4.b64.")));
+    const parts=batch.items[0].source_base64_parts;
+    assert.ok(Array.isArray(parts)&&parts.length>0);
+    assert.ok(parts.every((part)=>part.startsWith(`scripts/exercise-media/approved/${id}/`)));
+    assert.ok(parts.every((part)=>/\.final-v\d+\.b64\.\d+$/.test(part)));
   }
 });
