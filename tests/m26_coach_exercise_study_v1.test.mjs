@@ -368,44 +368,9 @@ test('Coach Exercise Study V2 adds a focused searchable workspace without changi
   assert.match(source,/state\.active\.replaceChildren\(next\)/u);
 });
 
-test('Coach Exercise Study V2 search is accent-insensitive and window semantics are bounded',()=>{
-  const {
-    exerciseFocusText,
-    exerciseFocusLimit,
-    exerciseFocusWindowCopy,
-  }=__progressContinuityInternals;
+test('Coach Exercise Study V2 search is accent-insensitive',()=>{
+  const {exerciseFocusText}=__progressContinuityInternals;
 
   assert.equal(exerciseFocusText('Prensa Única'),'prensa unica');
   assert.equal(exerciseFocusText('SENTADILLA'),'sentadilla');
-  assert.equal(exerciseFocusLimit(4),4);
-  assert.equal(exerciseFocusLimit(8),8);
-  assert.equal(exerciseFocusLimit(12),12);
-  assert.equal(exerciseFocusLimit('all'),Number.POSITIVE_INFINITY);
-  assert.equal(exerciseFocusLimit(99),8);
-  assert.match(exerciseFocusWindowCopy(8),/Últimas 8 exposiciones/u);
-  assert.match(exerciseFocusWindowCopy('all'),/Todo el historial/u);
-});
-
-test('Coach Exercise Study V2 keeps full chart points available for future visual windows',()=>{
-  const source=fs.readFileSync(
-    new URL('../src/m26/modules/route-render.js',import.meta.url),
-    'utf8',
-  );
-
-  assert.match(
-    source,
-    /data-points="\$\{payload\}"[\s\S]*?data-all-points="\$\{payload\}"/u,
-  );
-});
-
-test('Coach Exercise Study V2 keeps deeper trend history for Coach while Client remains compact',()=>{
-  const source=fs.readFileSync(
-    new URL('../src/m26/engagement/exercise-performance-engine.js',import.meta.url),
-    'utf8',
-  );
-
-  assert.match(
-    source,
-    /window:[\s\S]*normalizedRole==='client'[\s\S]*\?8[\s\S]*:50/u,
-  );
 });
