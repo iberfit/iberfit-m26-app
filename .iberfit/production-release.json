@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "785b3138ba3dfa5fbe290c34eca0e5cceb2be1d7",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promote certified Coach workflow and analytics improvements: one-tap extra set and continue during live sessions, plus premium per-exercise longitudinal studies with confirmed load/output/volume/effort charts, meaningful percentages, cadence and evidence-aware Coach interpretation while keeping Client factual and role-safe."
+}
