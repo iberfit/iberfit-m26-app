@@ -472,9 +472,9 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   assert.match(html, /data-m26-expediente-section="contexto"/);
   assert.match(html, /data-m26-expediente-section="perfil"/);
   assert.match(html, /data-m26-expediente-section="plan"/);
-  assert.match(html, /Estado actual/);
-  assert.match(html, /Lo importante ahora/);
-  assert.match(html, /Última sesión confirmada/);
+  assert.match(html, /Decidir en segundos/);
+  assert.match(html, />Ahora</);
+  assert.match(html, />Última sesión</);
   assert.match(html, /RPE 8/);
 
   assert.equal(vm.exercisePerformance.length, 1);
@@ -499,7 +499,7 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   assert.match(html, /Adherencia 28 días/);
   assert.match(html, /Tendencia de volumen/);
   assert.match(html, /Sin comparación suficiente/);
-  assert.match(html, /datos confirmados y reglas explicables/);
+  assert.match(html, /Solo evidencia confirmada/);
   assert.equal(
     vm.progress.latestCheckinAt,
     '2026-07-17T08:00:00Z'
@@ -688,7 +688,7 @@ test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', 
   const html = renderRouteView(vm);
 
   assert.equal(vm.coachCockpit, null);
-  assert.equal(vm.nextSessionPreparation, null);
+  assert.ok(vm.nextSessionPreparation == null);
   assert.doesNotMatch(html, /data-coach-client-workspace/);
   assert.match(html, /Lo importante ahora/);
   assert.match(html, /Rendimiento y evolución/);
