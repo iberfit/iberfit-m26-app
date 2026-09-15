@@ -34,7 +34,7 @@ test('Progreso conserva la ruta técnica y los permisos sin exponer lenguaje CRM
 });
 
 test('Progreso eleva visualmente los datos reales sin duplicar motores',()=>{
-  assert.match(bottomNavCss,/M27 · Cliente 360/u);
+  assert.match(bottomNavCss,/Progreso Cliente · jerarquía visual canónica/u);
   assert.match(bottomNavCss,/\[data-client-bottom-nav-route="progreso"\]/u);
   assert.match(bottomNavCss,/content:\s*"CLIENTE 360"/u);
   assert.match(bottomNavCss,/content:\s*"Cliente 360"/u);
