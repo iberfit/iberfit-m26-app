@@ -194,7 +194,17 @@ test('Admin mobile Más opens reliably and navigates through the real shell cont
   await rerenderedSummary.tap();
   await expect(rerenderedMore).toHaveAttribute('open','');
   await expect(rerenderedSummary).toHaveAttribute('aria-expanded','true');
+  await expect(page.locator('#m26-main')).toHaveAttribute('inert','');
 
+  await page.keyboard.press('Escape');
+  await expect(rerenderedMore).not.toHaveAttribute('open','');
+  await expect(rerenderedSummary).toHaveAttribute('aria-expanded','false');
+  await expect(page.locator('#m26-main')).not.toHaveAttribute('inert','');
+  await expect(page.locator('.m26-topbar')).not.toHaveAttribute('inert','');
+
+  await rerenderedSummary.tap();
+  await expect(rerenderedMore).toHaveAttribute('open','');
+  await expect(page.locator('#m26-main')).toHaveAttribute('inert','');
   await rerenderedSummary.tap({position:{x:3,y:3}});
   await expect(rerenderedMore).not.toHaveAttribute('open','');
   await expect(rerenderedSummary).toHaveAttribute('aria-expanded','false');
