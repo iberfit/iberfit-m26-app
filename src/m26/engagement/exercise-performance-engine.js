@@ -1757,7 +1757,15 @@ export function projectExercisePerformanceForRole(
     exposureCount:Number(memory?.exposureCount||0),
     latest:exercisePerformanceSharedExposure(memory?.latest),
     previous:exercisePerformanceSharedExposure(memory?.previous),
-    trend:buildExercisePerformanceTrend(memory),
+    trend:buildExercisePerformanceTrend(
+      memory,
+      {
+        window:
+          normalizedRole==='client'
+            ?8
+            :50,
+      },
+    ),
     interpretation:'facts-only',
   });
 
