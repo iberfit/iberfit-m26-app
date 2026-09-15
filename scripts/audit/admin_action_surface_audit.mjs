@@ -105,7 +105,8 @@ function auditRoute(area){
 
   const shell=createShellViewModel(state);
   const vm=createRouteViewModel(shell,state,NOW,{catalog:[]});
-  if(vm?.admin!==true)throw new Error(`ADMIN_VM_NOT_ADMIN:${area}`);
+  const sharedAdminLibrary=area==='biblioteca'&&vm?.kind==='biblioteca'&&vm?.role==='admin';
+  if(!sharedAdminLibrary&&vm?.admin!==true)throw new Error(`ADMIN_VM_NOT_ADMIN:${area}`);
   if(['admin-unavailable','admin-forbidden','placeholder'].includes(String(vm?.kind||''))){
     throw new Error(`ADMIN_VM_NOT_OPERATIONAL:${area}:${vm?.kind||'unknown'}`);
   }

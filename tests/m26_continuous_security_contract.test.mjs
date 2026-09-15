@@ -63,3 +63,10 @@ test('continuous audit does not store the publishable key in report coverage',()
   assert.match(audit,/runtimePublishableKey/u);
   assert.match(audit,/anonymousHealthRpcStatuses/u);
 });
+
+test('continuous audit keeps Admin namespace fail-closed with only Biblioteca explicitly shared',()=>{
+  assert.match(audit,/const ADMIN_SHARED_AREAS=Object\.freeze\(\['biblioteca'\]\);/u);
+  assert.match(audit,/ADMIN_SHARED_AREA_POLICY_INVALID/u);
+  assert.match(audit,/!ADMIN_SHARED_AREAS\.includes\(definition\.key\)/u);
+  assert.match(audit,/ADMIN_NAMESPACE_LEAK/u);
+});
