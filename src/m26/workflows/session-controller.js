@@ -4,7 +4,8 @@ import {
   adjustRest,beginRest,substituteExercise,addExecutionSet,skipExecutionSet,skipExecutionExercise,addExecutionExercise,
   finishExecution,buildExecutionCommand,buildStartExecutionCommand,
   buildProgressExecutionCommand,buildPauseExecutionCommand,buildResumeExecutionCommand,buildCancelExecutionCommand,
-  markExecutionSync,previousSetDraftValues,repeatPreviousSet,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft
+  markExecutionSync,previousSetDraftValues,repeatPreviousSet,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft,
+  currentStep,executionResultForStep,advanceExpiredRest
 } from './session-execution.js';
 import { runAction } from '../ui/action-state.js';
 import { createLiveTelemetryController } from '../wearables/live-telemetry.js';
@@ -125,7 +126,14 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       return progressMutation(execution,commandBus,online,payload.operationId);
     }
     case 'previous': retreatExecution(execution,{actor}); return {kind:'execution',value:execution};
-    case 'next': advanceExecution(execution,{actor}); return {kind:'execution',value:execution};
+    case 'next': {
+      advanceExecution(execution,{actor});
+      return progressMutation(execution,commandBus,online);
+    }
+    case 'rest-expired-auto': {
+      advanceExpiredRest(execution,session,{actor,nowMs:payload.nowMs??Date.now()});
+      return progressMutation(execution,commandBus,online);
+    }
     case 'rest-minus': adjustRest(execution,-15,{actor}); return {kind:'execution',value:execution};
     case 'rest-plus': adjustRest(execution,15,{actor}); return {kind:'execution',value:execution};
     case 'substitute': {
@@ -190,6 +198,91 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   let liveAddPending=false,liveAddBlockedOperationId=null;
   let finishPending=false,finishBlockedOperationId=null;
   let manualSyncPending=false;
+  let coachRestTimer=null,coachRestTimerSignature=null,coachRestSuppressedSignature=null,coachRestAdvancePending=false;
+  function isCoachContext(context){
+    const role=String(context?.actor?.role||'').trim().toLowerCase();
+    return role==='coach'||role==='entrenador';
+  }
+  function coachRestSignature(context=getContext()){
+    const execution=context?.execution;
+    if(!execution?.id||!execution?.restUntil)return null;
+    return [execution.id,execution.index,execution.setIndex,execution.restUntil].join(':');
+  }
+  function cancelCoachRestAutoAdvance({suppress=false}={}){
+    const signature=coachRestTimerSignature||coachRestSignature(getContext());
+    if(suppress&&signature)coachRestSuppressedSignature=signature;
+    clearTimeout(coachRestTimer);
+    coachRestTimer=null;
+    coachRestTimerSignature=null;
+  }
+  function restCorrectionInProgress(){
+    const disclosure=root.querySelector?.('[data-session-rest-correction]');
+    if(!disclosure)return false;
+    const active=root.ownerDocument?.activeElement||null;
+    return Boolean(disclosure.open||(active&&disclosure.contains?.(active)));
+  }
+  function scheduleCoachRestAutoAdvance(context=getContext()){
+    const execution=context?.execution;
+    if(!isCoachContext(context)||execution?.status!=='active'||execution?.syncStatus!=='clean'){
+      cancelCoachRestAutoAdvance();
+      return;
+    }
+    const step=currentStep(execution,context?.session);
+    const item=execution.queue?.[execution.index];
+    const recorded=step?executionResultForStep(execution,step):null;
+    const hasNext=Boolean(item)&&(
+      execution.setIndex+1<Number(item.sets||0)||
+      execution.index+1<Number(execution.queue?.length||0)
+    );
+    if(!recorded||!hasNext||!execution.restUntil){
+      cancelCoachRestAutoAdvance();
+      return;
+    }
+    const deadline=new Date(execution.restUntil).getTime();
+    if(!Number.isFinite(deadline)){
+      cancelCoachRestAutoAdvance();
+      return;
+    }
+    const signature=coachRestSignature(context);
+    if(!signature||coachRestSuppressedSignature===signature)return;
+    if(coachRestTimer&&coachRestTimerSignature===signature)return;
+    cancelCoachRestAutoAdvance();
+    const delay=deadline-Date.now();
+    if(delay<=0)return;
+    coachRestTimerSignature=signature;
+    coachRestTimer=setTimeout(async()=>{
+      coachRestTimer=null;
+      coachRestTimerSignature=null;
+      const latest=getContext();
+      if(coachRestSignature(latest)!==signature||coachRestSuppressedSignature===signature)return;
+      if(
+        visibilityTarget?.visibilityState==='hidden'||
+        restCorrectionInProgress()||
+        latest?.execution?.syncStatus!=='clean'
+      ){
+        coachRestSuppressedSignature=signature;
+        return;
+      }
+      coachRestAdvancePending=true;
+      try{
+        const result=dispatchSessionAction({
+          ...latest,
+          action:'rest-expired-auto',
+          payload:{nowMs:Date.now()},
+        });
+        await result.value;
+        await persistContext(getContext());
+        renderSession();
+      }catch(error){
+        coachRestSuppressedSignature=signature;
+        onError(error);
+        await persistContext(getContext()).catch(()=>{});
+        renderSession();
+      }finally{
+        coachRestAdvancePending=false;
+      }
+    },Math.max(0,delay+25));
+  }
   function syncLiveAddExerciseControl(context=getContext()){
     const select=root.querySelector?.('[data-session-live-add-exercise]');
     const button=root.querySelector?.('[data-session-action="add-live-exercise"]');
@@ -242,7 +335,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     }
   }
   const baseRender=render;
-  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();};
+  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();scheduleCoachRestAutoAdvance(getContext());};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
@@ -280,7 +373,14 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   }
   function persistLifecycleContext(){const context=getContext();if(!context?.execution||!context?.recoveryCoordinator)return;void persistContext(context).catch(onError);}
   function pagehide(){persistLifecycleContext();}
-  function visibilitychange(){if(visibilityTarget?.visibilityState==='hidden')persistLifecycleContext();}
+  function visibilitychange(){
+    if(visibilityTarget?.visibilityState==='hidden'){
+      cancelCoachRestAutoAdvance({suppress:true});
+      persistLifecycleContext();
+      return;
+    }
+    scheduleCoachRestAutoAdvance(getContext());
+  }
   async function start(){
     const context=getContext();
     if(!context?.execution||!context?.session)throw new Error('M26_SESSION_EXECUTION_REQUIRED');
@@ -313,7 +413,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     catch{clearPendingSessionEntry(root);}
   }
   async function onShellRendered(){
-    hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();
+    hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();scheduleCoachRestAutoAdvance(getContext());
     const pending=consumePendingSessionEntry(root);
     if(!pending)return;
     const context=getContext();
@@ -325,7 +425,12 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(pending.decision?.directStartAllowed!==true||pending.decision?.level!=='normal')return;
     await start();
   }
-  async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='add-live-exercise'){
+  async function click(event){const button=event.target.closest?.('[data-session-action]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;event.preventDefault?.();const action=button.getAttribute('data-session-action');const context=getContext();if(action==='next'){
+    if(coachRestAdvancePending)return;
+    cancelCoachRestAutoAdvance({suppress:true});
+  }else if(action==='rest-minus'||action==='rest-plus'){
+    cancelCoachRestAutoAdvance();
+  }if(action==='add-live-exercise'){
     if(liveAddPending||liveAddBlockedOperationId){syncLiveAddExerciseControl(context);return;}
     const liveSelection=liveAddExerciseSelectionState(root.querySelector?.('[data-session-live-add-exercise]')?.value,context?.catalog);
     if(!liveSelection.enabled){syncLiveAddExerciseControl(context);return;}
@@ -430,5 +535,5 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     const feedbackField=event.target.closest?.('[data-session-feedback-rpe],[data-session-feedback-comment],[data-session-feedback-pain],[data-session-feedback-pain-notes]');if(feedbackField&&context.execution){try{const saved=updateFinalFeedbackDraft(context.execution,feedbackValues(root));if(saved)queueExecutionDraftPersist(context);}catch(error){onError(error);}}
     if(draftField||blockField)queueAutosave(context);}
   function change(event){if(event.target.closest?.('[data-session-live-add-exercise]'))syncLiveAddExerciseControl(getContext());}
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();scheduleCoachRestAutoAdvance(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
 }
