@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "bb558d3fb5149b7d9bee179fffea40437c5f7cba",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promote certified Coach rest-to-next transition: Coach-only expired-rest auto-advance with correction/visibility safety guards and persisted manual/automatic progress transitions."
+}
