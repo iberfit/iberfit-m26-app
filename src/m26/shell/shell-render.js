@@ -21,7 +21,7 @@ const ROLE_NAV_GROUPS=Object.freeze({
   admin:Object.freeze([
     Object.freeze({labelKey:'nav.admin.direction',keys:Object.freeze(['admin-inicio','admin-analitica'])}),
     Object.freeze({labelKey:'nav.admin.people',keys:Object.freeze(['admin-usuarios','admin-equipo','admin-clientes','admin-agenda'])}),
-    Object.freeze({labelKey:'nav.admin.operation',keys:Object.freeze(['admin-operaciones','admin-comunicacion','admin-automatizaciones'])}),
+    Object.freeze({labelKey:'nav.admin.operation',keys:Object.freeze(['admin-operaciones','admin-comunicacion','admin-automatizaciones','biblioteca'])}),
     Object.freeze({labelKey:'nav.admin.control',keys:Object.freeze(['admin-auditoria','admin-configuracion'])}),
   ]),
   coach:Object.freeze([

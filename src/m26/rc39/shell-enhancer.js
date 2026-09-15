@@ -350,11 +350,18 @@ const MOBILE_SHELL_POLISH=`
 }
 `;
 
-function roleButtons(vm){
+function roleButtons(vm,{choice=false}={}){
   const roles=vm.identity?.authorizedRoles||[];
-  return roles.filter((role)=>['coach','admin'].includes(role)).map((role)=>
-    `<button type="button" data-m26-switch-role="${escape(role)}"${role===vm.identity.role?' aria-current="true"':''}><strong>${escape(roleApplicationLabel(role))}</strong><span>${role==='coach'?'Clientes, agenda, planificación y sesiones.':'Usuarios, permisos, auditoría y configuración.'}</span></button>`
-  ).join('');
+  return roles.filter((role)=>['coach','admin'].includes(role)).map((role)=>{
+    const label=role==='admin'?'Administrador':'Coach';
+    const description=role==='coach'
+      ?'Clientes, planificación, sesiones y seguimiento.'
+      :'Control, equipo, operación y trazabilidad.';
+    const current=!choice&&role===vm.identity.role?' aria-current="true"':'';
+    const focus=choice&&role===vm.identity.role?' autofocus':'';
+    const className=choice?' class="m26-role-choice-option"':'';
+    return `<button type="button"${className} data-m26-switch-role="${escape(role)}"${current}${focus}><strong>${escape(label)}</strong><span>${escape(description)}</span>${choice?'<b aria-hidden="true">Entrar →</b>':''}</button>`;
+  }).join('');
 }
 
 function mobileOverflowItems(vm){
@@ -446,7 +453,8 @@ export function enhanceRc39ShellMarkup(markup,vm){
     );
   }
   if(vm.needsRoleChoice){
-    out+=`<section class="m26-role-choice" role="dialog" aria-modal="true" aria-labelledby="m26-role-choice-title"><div><p class="m26-eyebrow">IBERFIT</p><h2 id="m26-role-choice-title">¿Cómo quieres acceder?</h2><p>Tu cuenta tiene más de una aplicación autorizada.</p><div class="m26-role-choice-grid">${roleButtons(vm)}</div></div></section>`;
+    out=out.replace('<div class="m26-shell"','<div class="m26-shell" inert aria-hidden="true"');
+    out+=`<section class="m26-role-choice" role="dialog" aria-modal="true" aria-labelledby="m26-role-choice-title" aria-describedby="m26-role-choice-copy"><div class="m26-role-choice-panel"><div class="m26-role-choice-brand"><img src="/public/isotipo-iberfit.png" alt="" aria-hidden="true"><span>IBERFIT</span></div><p class="m26-eyebrow">Espacio de trabajo</p><h2 id="m26-role-choice-title">¿Cómo quieres entrar?</h2><p id="m26-role-choice-copy">Elige el contexto que necesitas ahora. Tu identidad y tus datos son los mismos; cambia únicamente el espacio de trabajo.</p><div class="m26-role-choice-grid">${roleButtons(vm,{choice:true})}</div><p class="m26-role-choice-footnote">Podrás cambiar entre Administrador y Coach después, sin cerrar sesión.</p></div></section>`;
   }
   return out;
 }
