@@ -2998,7 +2998,7 @@ export export function clientProgressPresentationStage(summary,{timelineLength=0
   }
   const missingSessions=Math.max(0,2-completed);
   const next=missingSessions>0
-    ? \`Completa \${missingSessions} sesión\${missingSessions===1?'':'es'} más para empezar a comparar tu entrenamiento.\`
+    ? `Completa ${missingSessions} sesión${missingSessions===1?'':'es'} más para empezar a comparar tu entrenamiento.`
     : checkins<3
       ? 'Tus primeras tendencias aparecerán cuando se consoliden más registros confirmados.'
       : 'Sigue registrando tu proceso para convertir datos aislados en una tendencia.';
@@ -3023,34 +3023,34 @@ function renderClientProgressStage(vm,stage){
   if(adherence!==null&&Number(summary.plannedSessions||0)>0){
     milestones.push(['Continuidad confirmada',adherence]);
   }
-  return \`<section class="m26-client-progress-stage is-\${escapeHtml(stage.stage)}" data-client-progress-stage="\${escapeHtml(stage.stage)}" aria-labelledby="m26-client-progress-stage-title">
+  return `<section class="m26-client-progress-stage is-${escapeHtml(stage.stage)}" data-client-progress-stage="${escapeHtml(stage.stage)}" aria-labelledby="m26-client-progress-stage-title">
     <div class="m26-client-progress-stage-copy">
       <p class="m26-eyebrow">Tu evolución</p>
-      <h2 id="m26-client-progress-stage-title">\${escapeHtml(stage.title)}</h2>
-      <p>\${escapeHtml(stage.copy)}</p>
+      <h2 id="m26-client-progress-stage-title">${escapeHtml(stage.title)}</h2>
+      <p>${escapeHtml(stage.copy)}</p>
     </div>
     <div class="m26-client-progress-milestones" aria-label="Historial confirmado">
-      \${milestones.map(([label,value])=>\`<div><span>\${escapeHtml(label)}</span><strong>\${escapeHtml(value)}</strong></div>\`).join('')}
+      ${milestones.map(([label,value])=>`<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}
     </div>
-    <p class="m26-client-progress-next"><span aria-hidden="true">→</span><span>\${escapeHtml(stage.next)}</span></p>
-  </section>\`;
+    <p class="m26-client-progress-next"><span aria-hidden="true">→</span><span>${escapeHtml(stage.next)}</span></p>
+  </section>`;
 }
 
 function renderProgressRoute(vm){
   const summary=vm.summary;
-  if(!summary)return \`<div class="m26-route">\${emptyState('Sin expediente disponible','No existe un cliente autorizado para calcular progreso.')}</div>\`;
+  if(!summary)return `<div class="m26-route">${emptyState('Sin expediente disponible','No existe un cliente autorizado para calcular progreso.')}</div>`;
   const timeline=vm.timeline.length?vm.timeline.map(timelineItem).join(''):emptyState('Sin eventos de progreso','Los datos ausentes se mantienen como ausentes y no se convierten en cero.');
-  const adherenceVisual=Number.isFinite(summary.adherence)?\`<section class="m26-panel m26-progress-overview" aria-label="Resumen visual de adherencia"><div class="m26-progress-heading"><span>Adherencia confirmada</span><strong>\${formatPercent(summary.adherence)}</strong></div><meter min="0" max="1" value="\${escapeHtml(Math.max(0,Math.min(1,summary.adherence)))}">\${formatPercent(summary.adherence)}</meter><small>\${escapeHtml(summary.completedSessions)} de \${escapeHtml(summary.plannedSessions)} sesiones confirmadas en la ventana seleccionada.</small></section>\`:'';
+  const adherenceVisual=Number.isFinite(summary.adherence)?`<section class="m26-panel m26-progress-overview" aria-label="Resumen visual de adherencia"><div class="m26-progress-heading"><span>Adherencia confirmada</span><strong>${formatPercent(summary.adherence)}</strong></div><meter min="0" max="1" value="${escapeHtml(Math.max(0,Math.min(1,summary.adherence)))}">${formatPercent(summary.adherence)}</meter><small>${escapeHtml(summary.completedSessions)} de ${escapeHtml(summary.plannedSessions)} sesiones confirmadas en la ventana seleccionada.</small></section>`:'';
   const wearable=summary.wearable||{metrics:{},providers:[],daysWithData:0,freshness:'sin_datos',quality:'limitada'};
   const unconfirmedCount=Number(summary.unconfirmedExecutions||0);
   const volumeTrend=Number.isFinite(summary.volumeDelta)
-    ?\`\${summary.volumeDelta>0?'+':''}\${summary.volumeDelta}%\`
+    ?`${summary.volumeDelta>0?'+':''}${summary.volumeDelta}%`
     :'Sin comparación suficiente';
   const sessionImpact=summary.lastExecutionAt
-    ?\`<section class="m26-panel m26-panel-soft"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Última sesión confirmada</p><h2>\${escapeHtml(safeDateLabel(summary.lastExecutionAt))}</h2></div>\${badge('Incluida en progreso','success')}</div><div class="m26-stat-grid">\${stat('RPE de la sesión',metricValue(summary.lastExecutionRpe),'Esfuerzo percibido confirmado')}\${stat('Tendencia de volumen',volumeTrend,Number.isFinite(summary.volumeDelta)?'Mitad reciente frente a la anterior del periodo':'Se necesitan al menos dos sesiones con carga registrada')}</div></section>\`
+    ?`<section class="m26-panel m26-panel-soft"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Última sesión confirmada</p><h2>${escapeHtml(safeDateLabel(summary.lastExecutionAt))}</h2></div>${badge('Incluida en progreso','success')}</div><div class="m26-stat-grid">${stat('RPE de la sesión',metricValue(summary.lastExecutionRpe),'Esfuerzo percibido confirmado')}${stat('Tendencia de volumen',volumeTrend,Number.isFinite(summary.volumeDelta)?'Mitad reciente frente a la anterior del periodo':'Se necesitan al menos dos sesiones con carga registrada')}</div></section>`
     :'';
   const pendingProgressNotice=unconfirmedCount>0
-    ?\`<section class="m26-notice is-pending" role="status"><strong>Progreso protegido</strong><p>Sesiones fuera del cálculo por no estar confirmadas: \${escapeHtml(unconfirmedCount)}. Se incorporarán únicamente cuando queden confirmadas.</p></section>\`
+    ?`<section class="m26-notice is-pending" role="status"><strong>Progreso protegido</strong><p>Sesiones fuera del cálculo por no estar confirmadas: ${escapeHtml(unconfirmedCount)}. Se incorporarán únicamente cuando queden confirmadas.</p></section>`
     :'';
   const hasCheckins=Number(summary.checkins||0)>0;
   const hasProgressEvidence=progressSummaryHasEvolutionEvidence(summary);
@@ -3069,7 +3069,7 @@ function renderProgressRoute(vm){
   const clientProgressInsightAttribute=meaningfulProgress
     ?' data-m26-client-guide-insight="progress-ready"'
     :'';
-  const wearablePanel=wearableHasData(wearable)?\`<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Actividad de dispositivo</p><h2>Tendencia objetiva complementaria</h2></div>\${badge(wearable.freshness==='reciente'?'Actualizada':'Revisar fecha','neutral')}</div><div class="m26-field-grid">\${wearableMetric('Pasos medios',wearable.metrics?.steps)}\${wearableMetric('Minutos activos',wearable.metrics?.activeMinutes,' min')}\${wearableMetric('Sueño de dispositivo',sleepHoursPerDay(wearable.metrics?.sleepMinutes))}\${wearableMetric('FC en reposo',wearable.metrics?.restingHeartRate,' lpm')}</div>\${renderDataTrustStrip(wearableSummaryTrust(wearable),{role:vm.role,compact:true})}<p class="m26-notice">Se presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.</p></section>\`:\`<details class="m26-panel m26-optional-section"><summary>Actividad de dispositivo · sin datos confirmados</summary><p>No hay información de dispositivos para este periodo. El progreso se calcula únicamente con sesiones, evaluaciones y registros confirmados.</p></details>\`;
+  const wearablePanel=wearableHasData(wearable)?`<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Actividad de dispositivo</p><h2>Tendencia objetiva complementaria</h2></div>${badge(wearable.freshness==='reciente'?'Actualizada':'Revisar fecha','neutral')}</div><div class="m26-field-grid">${wearableMetric('Pasos medios',wearable.metrics?.steps)}${wearableMetric('Minutos activos',wearable.metrics?.activeMinutes,' min')}${wearableMetric('Sueño de dispositivo',sleepHoursPerDay(wearable.metrics?.sleepMinutes))}${wearableMetric('FC en reposo',wearable.metrics?.restingHeartRate,' lpm')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearable),{role:vm.role,compact:true})}<p class="m26-notice">Se presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.</p></section>`:`<details class="m26-panel m26-optional-section"><summary>Actividad de dispositivo · sin datos confirmados</summary><p>No hay información de dispositivos para este periodo. El progreso se calcula únicamente con sesiones, evaluaciones y registros confirmados.</p></details>`;
   const exerciseCount=Number(vm.exerciseProgress?.totalExercises||vm.exerciseProgress?.exercises?.length||0);
   const stage=clientProgressPresentationStage(summary,{
     timelineLength:vm.timeline.length,
@@ -3080,51 +3080,51 @@ function renderProgressRoute(vm){
     role:vm.role,
     performance:vm.exercisePerformance,
   });
-  const deepContent=\`
-    \${pendingProgressNotice}
-    \${sessionImpact}
-    \${renderPlanExecutionPanel(vm.planExecution)}
-    \${renderIriMilestonePanel(summary.evolution||summary.iri2)}
-    \${adherenceVisual}
-    \${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
+  const deepContent=`
+    ${pendingProgressNotice}
+    ${sessionImpact}
+    ${renderPlanExecutionPanel(vm.planExecution)}
+    ${renderIriMilestonePanel(summary.evolution||summary.iri2)}
+    ${adherenceVisual}
+    ${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
     <section class="m26-content-grid">
-      <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Cronología</p><h2>Evolución registrada</h2></div>\${badge(\`\${vm.timeline.length} eventos\`,'neutral')}</div><div class="m26-timeline">\${timeline}</div></div>
-      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Recuperación</p><h2>Promedio de bienestar</h2><div class="m26-wellbeing-grid">\${wellbeingMeter('Energía',hasCheckins?summary.checkinAverage.energy:null,'0 muy baja · 10 muy alta')}\${wellbeingMeter('Sueño',hasCheckins?summary.checkinAverage.sleep:null,'0 muy malo · 10 excelente')}\${wellbeingMeter('Estrés',hasCheckins?summary.checkinAverage.stress:null,'0 ninguno · 10 máximo')}\${wellbeingMeter('Dolor',hasCheckins?summary.checkinAverage.pain:null,'0 ninguno · 10 máximo')}\${wellbeingMeter('Fatiga',hasCheckins?summary.checkinAverage.fatigue:null,'0 ninguna · 10 máxima')}\${wellbeingMeter('Motivación',hasCheckins?summary.checkinAverage.motivation:null,'0 ninguna · 10 máxima')}</div><p class="m26-notice">La aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.</p></aside>
+      <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Cronología</p><h2>Evolución registrada</h2></div>${badge(`${vm.timeline.length} eventos`,'neutral')}</div><div class="m26-timeline">${timeline}</div></div>
+      <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Recuperación</p><h2>Promedio de bienestar</h2><div class="m26-wellbeing-grid">${wellbeingMeter('Energía',hasCheckins?summary.checkinAverage.energy:null,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',hasCheckins?summary.checkinAverage.sleep:null,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',hasCheckins?summary.checkinAverage.stress:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',hasCheckins?summary.checkinAverage.pain:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Fatiga',hasCheckins?summary.checkinAverage.fatigue:null,'0 ninguna · 10 máxima')}${wellbeingMeter('Motivación',hasCheckins?summary.checkinAverage.motivation:null,'0 ninguna · 10 máxima')}</div><p class="m26-notice">La aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.</p></aside>
     </section>
-    \${wearablePanel}
-    <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Alertas explicables</p><h2>Qué requiere atención</h2></div></div>\${renderAlerts(vm.alerts)}</section>
-    \${exerciseProgress}\`;
+    ${wearablePanel}
+    <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Alertas explicables</p><h2>Qué requiere atención</h2></div></div>${renderAlerts(vm.alerts)}</section>
+    ${exerciseProgress}`;
 
   if(vm.role==='client'){
     const stageMarkup=renderClientProgressStage(vm,stage);
-    const knownNow=\`\${sessionImpact}\${adherenceVisual}\`;
+    const knownNow=`${sessionImpact}${adherenceVisual}`;
     const detailed=stage.stage==='mature'
       ?deepContent
-      :\`<details class="m26-client-progress-detail">
+      :`<details class="m26-client-progress-detail">
           <summary>
             <span><strong>Ver detalle completo</strong><small>Historial, bienestar, IRI, dispositivos, alertas y ejercicios confirmados.</small></span>
             <span aria-hidden="true">＋</span>
           </summary>
-          <div class="m26-client-progress-detail-body">\${deepContent}</div>
-        </details>\`;
-    return \`<div class="m26-route m26-client-progress-route">
-      <section class="m26-route-intro"\${clientProgressGuideAttribute}\${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Tu evolución</h2><p>Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.</p></div>\${badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
-      \${stageMarkup}
-      \${stage.stage==='mature'?'':knownNow}
-      \${detailed}
-    </div>\`;
+          <div class="m26-client-progress-detail-body">${deepContent}</div>
+        </details>`;
+    return `<div class="m26-route m26-client-progress-route">
+      <section class="m26-route-intro"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Tu evolución</h2><p>Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.</p></div>${badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
+      ${stageMarkup}
+      ${stage.stage==='mature'?'':knownNow}
+      ${detailed}
+    </div>`;
   }
 
-  return \`<div class="m26-route">
-    <section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de \${escapeHtml(summary.days)} días · calidad del dato \${escapeHtml(summary.dataQuality)}.</p></div>\${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
+  return `<div class="m26-route">
+    <section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
     <section class="m26-stat-grid">
-      \${stat('Adherencia',formatPercent(summary.adherence),\`\${summary.completedSessions} de \${summary.plannedSessions} sesiones\`)}
-      \${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
-      \${stat('Volumen medio',metricValue(summary.volume),'Carga × repeticiones cuando existe')}
-      \${stat('Hitos IRI',summary.iriCurrent===null?'Sin diagnóstico':'Datos disponibles',summary.iriDelta===null?'Diagnóstico inicial o sin reevaluación comparable':'Diagnóstico y reevaluaciones se comparan por dominios')}
+      ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
+      ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
+      ${stat('Volumen medio',metricValue(summary.volume),'Carga × repeticiones cuando existe')}
+      ${stat('Hitos IRI',summary.iriCurrent===null?'Sin diagnóstico':'Datos disponibles',summary.iriDelta===null?'Diagnóstico inicial o sin reevaluación comparable':'Diagnóstico y reevaluaciones se comparan por dominios')}
     </section>
-    \${deepContent}
-  </div>\`;
+    ${deepContent}
+  </div>`;
 }
 
 function capabilityNotice(capability,label){
