@@ -45,6 +45,6 @@ test('deep product audit cubre rutas, privacidad, fuente desplegable y LIVE sin 
 
 
 test('deep audit no confunde data-*-id con un id DOM real',()=>{
-  assert.match(deepAudit,/matchAll\(\/\(\?:\^\|\[\\\\s<\]\)id=/u);
-  assert.doesNotMatch(deepAudit,/matchAll\(\/\\\\bid=/u);
+  assert.match(deepAudit,/matchAll\(\/\(\?:\^\|\[\\s<\]\)id=/u);
+  assert.doesNotMatch(deepAudit,/matchAll\(\/\\bid=/u);
 });
