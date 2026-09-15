@@ -62,3 +62,11 @@ test('tablet keeps Settings reachable for Coach and Admin while Client keeps it 
   assert.match(route,/CLIENT_BOTTOM_NAV_MORE_KINDS = Object\.freeze\(\['informes','actividad','mensajes','retos','ajustes'\]\)/u);
   assert.match(route,/data-m26-area="ajustes"><span>Ajustes<\/span><small>Preferencias y privacidad<\/small>/u);
 });
+
+
+test('tablet Coach/Admin restaura grid aunque el shell base pase a block bajo 900px',()=>{
+  assert.match(
+    rc39Css,
+    /@media \(min-width:720px\) and \(max-width:1179px\)[\s\S]*\.m26-shell\[data-m26-role="coach"\],\.m26-shell\[data-m26-role="admin"\]\{display:grid;grid-template-columns:5\.25rem minmax\(0,1fr\)\}/,
+  );
+});
