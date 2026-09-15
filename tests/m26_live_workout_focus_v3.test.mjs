@@ -130,6 +130,48 @@ test('Coach puede completar la serie desde Enter en RPE sin exponer el atajo al 
   assert.doesNotMatch(clientHtml,/data-session-enter-complete/);
 });
 
+test('Coach agrupa el registro de serie sin perder campos ni alterar el Cliente',()=>{
+  const s=session();
+  const coachExecution=createExecution({session:s,clientId:s.clientId});
+  startExecution(coachExecution);
+  const coachHtml=renderGuidedExecution({execution:coachExecution,session:s,catalog,role:'coach'});
+
+  assert.match(coachHtml,/data-session-coach-set-fields/);
+  assert.match(coachHtml,/data-session-entry-group="work"/);
+  assert.match(coachHtml,/data-session-entry-group="load"/);
+  assert.match(coachHtml,/data-session-entry-group="effort"/);
+
+  for(const field of ['reps','seconds','load','rpe','rir']){
+    assert.equal(
+      (coachHtml.match(new RegExp(`data-set-field="${field}"`,'g'))||[]).length,
+      1,
+      field,
+    );
+  }
+  assert.match(coachHtml,/data-set-field="rpe" data-session-enter-complete/);
+  assert.doesNotMatch(coachHtml,/data-set-field="load"[^>]*value=/);
+
+  const work=coachHtml.indexOf('data-session-entry-group="work"');
+  const load=coachHtml.indexOf('data-session-entry-group="load"');
+  const effort=coachHtml.indexOf('data-session-entry-group="effort"');
+  const complete=coachHtml.indexOf('data-session-action="complete-set"');
+  assert.ok(work>=0&&load>work&&effort>load&&complete>effort);
+
+  const clientExecution=createExecution({session:s,clientId:s.clientId});
+  startExecution(clientExecution);
+  const clientHtml=renderGuidedExecution({execution:clientExecution,session:s,catalog,role:'client'});
+  assert.doesNotMatch(clientHtml,/data-session-coach-set-fields/);
+  assert.match(clientHtml,/m26-field-grid m26-session-set-fields/);
+  for(const field of ['reps','seconds','load','rpe','rir']){
+    assert.equal(
+      (clientHtml.match(new RegExp(`data-set-field="${field}"`,'g'))||[]).length,
+      1,
+      field,
+    );
+  }
+});
+
+
 test('atajo Enter del Coach reutiliza el botón estándar y conserva guardas de teclado',()=>{
   const source=fs.readFileSync(new URL('../src/m26/workflows/session-controller.js',import.meta.url),'utf8');
   assert.match(source,/root\.addEventListener\('keydown',keydown\)/);
@@ -235,10 +277,15 @@ test('Live Workout V3 añade geometría responsive sin ocultar capacidades',()=>
     '.m26-session-live-entry-v3',
     '.m26-session-rest-focus-v3',
     '.m26-session-live-secondary-context',
+    '.m26-session-coach-set-fields',
+    '.m26-session-coach-work-fields',
+    '.m26-session-coach-effort-fields',
   ]) assert.ok(added.includes(selector),selector);
 
+  assert.match(added,/grid-template-areas:[\s\S]*?"work load"[\s\S]*?"effort effort"/);
   assert.match(added,/@media \(max-width:900px\)/);
-  assert.match(added,/@media \(max-width:580px\)/);
+  assert.match(added,/@media \(max-width:580px\)[\s\S]*?grid-template-areas:[\s\S]*?"work"[\s\S]*?"load"[\s\S]*?"effort"/);
+  assert.match(added,/@media \(forced-colors:active\)/);
   assert.match(added,/@media \(prefers-reduced-motion:reduce\)/);
   assert.doesNotMatch(added,/display\s*:\s*none|visibility\s*:\s*hidden/iu);
   assert.doesNotMatch(added,/pointer-events\s*:\s*none/iu);
