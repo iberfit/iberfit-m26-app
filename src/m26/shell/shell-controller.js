@@ -452,8 +452,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     enhanceCliente360({root,viewModel,state});
     enhanceProgressContinuity({root,viewModel,state});
     enhanceSessionReadiness({root,viewModel,state});
-    enhanceExerciseHistoryWindow({root,viewModel});
     enhanceSessionFocus({root,viewModel});
+    enhanceExerciseHistoryWindow({root,viewModel});
     revalidatePendingSessionEntry(root,{state,now:new Date(),buildContext:buildAdaptiveSessionContext,buildDecision:buildSessionEntryDecision});
     clearClientSwitchBusy();
     root.dispatchEvent(new CustomEvent('m26:shell-rendered',{bubbles:false,detail:{role:viewModel.identity?.role||'',area:viewModel.activeArea||''}}));
