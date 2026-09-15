@@ -998,6 +998,74 @@ body {
   opacity:.82;
 }
 
+.m26-session-live-v3 .m26-session-coach-set-fields{
+  display:grid;
+  grid-template-columns:minmax(0,1.15fr) minmax(10.5rem,.7fr);
+  grid-template-areas:
+    "work load"
+    "effort effort";
+  gap:.62rem;
+  margin:.15rem 0 .2rem;
+}
+
+.m26-session-live-v3 .m26-session-coach-work-fields{
+  grid-area:work;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.5rem;
+  min-width:0;
+}
+
+.m26-session-live-v3 .m26-session-coach-load-field{
+  grid-area:load;
+  min-width:0;
+}
+
+.m26-session-live-v3 .m26-session-coach-effort-fields{
+  grid-area:effort;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:end;
+  gap:.55rem;
+  min-width:0;
+}
+
+.m26-session-live-v3 .m26-session-coach-effort-pair{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.5rem;
+  min-width:0;
+}
+
+.m26-session-live-v3 .m26-session-coach-set-fields [data-session-field-priority]{
+  min-width:0;
+  padding:.58rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 18%,transparent);
+  border-radius:.8rem;
+  background:rgba(255,255,255,.018);
+}
+
+.m26-session-live-v3 .m26-session-coach-set-fields [data-session-field-priority="secondary"]{
+  border-color:color-mix(in srgb,var(--iberfit-color-border,rgba(228,205,152,.16)) 78%,transparent);
+  opacity:.88;
+}
+
+.m26-session-live-v3 .m26-session-coach-set-fields [data-session-field-priority]:focus-within{
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 68%,transparent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 12%,transparent);
+}
+
+.m26-session-live-v3 .m26-session-coach-set-fields input{
+  min-height:3.2rem;
+  font-variant-numeric:tabular-nums;
+}
+
+.m26-session-live-v3 .m26-session-coach-effort-fields .m26-session-coach-rpe-quick{
+  justify-content:flex-end;
+  margin:0 0 .05rem;
+  max-width:13rem;
+}
+
 .m26-session-live-v3 .m26-session-repeat-actions{
   display:grid;
   grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);
@@ -1205,6 +1273,38 @@ body {
     padding:.52rem;
   }
 
+  .m26-session-live-v3 .m26-session-coach-set-fields{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:
+      "work"
+      "load"
+      "effort";
+    gap:.52rem;
+  }
+
+  .m26-session-live-v3 .m26-session-coach-work-fields,
+  .m26-session-live-v3 .m26-session-coach-effort-pair{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .m26-session-live-v3 .m26-session-coach-set-fields [data-session-field-priority]{
+    padding:.52rem;
+  }
+
+  .m26-session-live-v3 .m26-session-coach-effort-fields{
+    grid-template-columns:minmax(0,1fr);
+    align-items:stretch;
+  }
+
+  .m26-session-live-v3 .m26-session-coach-effort-fields .m26-session-coach-rpe-quick{
+    justify-content:flex-start;
+    max-width:none;
+  }
+
+  .m26-session-live-v3 .m26-session-coach-set-fields input{
+    min-height:3.45rem;
+  }
+
   .m26-session-live-v3 .m26-session-live-entry-v3{
     padding:.82rem;
   }
@@ -1252,6 +1352,12 @@ body {
 
   .m26-session-live-v3 .m26-session-live-secondary-context>summary{
     min-height:3.6rem;
+  }
+}
+
+@media (forced-colors:active){
+  .m26-session-live-v3 .m26-session-coach-set-fields [data-session-field-priority]{
+    border-color:ButtonText;
   }
 }
 
