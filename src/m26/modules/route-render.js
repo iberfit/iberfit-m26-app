@@ -589,6 +589,7 @@ function renderClientHoyRoute(vm) {
       <button type="button" data-m26-area="actividad">Bienestar</button>
       <button type="button" data-m26-area="mensajes">Mensajes</button>
       <button type="button" data-m26-area="informes">Informes</button>
+      ${challenge?'':`<button type="button" data-m26-area="retos" data-m26-client-guide="challenge-discovery">Retos</button>`}
     </nav>
 
     ${challengePreviewMarkup}
