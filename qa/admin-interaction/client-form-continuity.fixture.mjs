@@ -70,4 +70,5 @@ admin.mount();
 globalThis.__IBERFIT_CLIENT_FORM_QA__=Object.freeze({
   mounted:true,
   queueShellRefresh,
+  forceExternalRender:()=>shell.render(),
 });

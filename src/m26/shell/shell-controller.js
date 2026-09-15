@@ -436,6 +436,15 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     return true;
   }
 
+  function renderSafely(state=store.getState()){
+    if(shellInteractionActive()){
+      queuedState=state;
+      return false;
+    }
+    queuedState=null;
+    return renderNow(state);
+  }
+
   function scheduleRender(state=store.getState()){
     queuedState=state;
     if(shellInteractionActive())return;
@@ -768,5 +777,5 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     clearClientSwitchBusy();
   }
 
-  return Object.freeze({ mount, destroy, render:renderNow, scheduleRender });
+  return Object.freeze({ mount, destroy, render:renderSafely, scheduleRender });
 }
