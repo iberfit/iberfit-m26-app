@@ -2996,9 +2996,8 @@ export function clientProgressPresentationStage(summary,{timelineLength=0,exerci
       next:'Cada nueva sesión añade contexto y hace más útil la comparación.',
     });
   }
-  const missingSessions=Math.max(0,2-completed);
-  const next=missingSessions>0
-    ? `Completa ${missingSessions} sesión${missingSessions===1?'':'es'} más para empezar a comparar tu entrenamiento.`
+  const next=completed<2
+    ? 'Necesitamos al menos dos sesiones confirmadas para comparar tu entrenamiento.'
     : checkins<3
       ? 'Tus primeras tendencias aparecerán cuando se consoliden más registros confirmados.'
       : 'Sigue registrando tu proceso para convertir datos aislados en una tendencia.';
@@ -3106,7 +3105,7 @@ export function renderProgressRoute(vm){
           <div class="m26-client-progress-detail-body">${secondaryContent}</div>
         </details>`;
     return `<div class="m26-route m26-client-progress-route">
-      <section class="m26-route-intro"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Tu evolución</h2><p>Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.</p></div>${badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
+      <section class="m26-route-intro"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Progreso y adherencia</p><h2>Tu evolución</h2><p>Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.</p></div>${badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
       ${stageMarkup}
       ${stage.stage==='mature'?'':primaryEvidence}
       ${detailed}
