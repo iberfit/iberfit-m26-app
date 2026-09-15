@@ -13,6 +13,7 @@ import {
 } from '../src/m26/productivity/coach-productivity.js';
 import {resolveCoachActionNavigation} from '../src/m26/shell/shell-controller.js';
 import {createProductionState} from '../src/m26/production-state.js';
+import {renderHoyRoute} from '../src/m26/modules/route-render.js';
 
 const clientId='57339e70-7a99-48d6-820f-7d4a51f89d9d';
 
@@ -161,4 +162,38 @@ test('la medición permanece local y no crea una segunda telemetría ni toca bac
   assert.doesNotMatch(source,/supabase|commandBus|transport\.execute|fetch\(|sendBeacon|telemetryRemote/iu);
   assert.match(source,/taskMetrics/u);
   assert.match(source,/elapsedMs/u);
+});
+
+
+test('Coach Today ejecuta cliente + destino en un solo gesto usando el guard existente',()=>{
+  const html=renderHoyRoute({
+    role:'coach',
+    appointments:[],
+    proposals:[],
+    upcoming:[],
+    clients:[{
+      id:clientId,
+      name:'Ana Demo',
+      nextAction:{label:'Crear planificación',area:'planificacion',reason:'IRI confirmado'},
+    }],
+    coachCockpit:{
+      attentionCount:1,
+      riskFocus:null,
+      items:[{
+        kind:'process',
+        clientId,
+        clientName:'Ana Demo',
+        reason:'IRI confirmado',
+        actionCtaLabel:'Crear planificación',
+        nextAction:{label:'Crear planificación',area:'planificacion'},
+      }],
+    },
+    operations:{pending:0,conflicts:0,rejected:0},
+  });
+
+  assert.match(html,/data-m26-coach-action="true"/u);
+  assert.match(html,new RegExp(`data-m26-select-client="${clientId}"`,'u'));
+  assert.match(html,new RegExp(`data-m26-client-id="${clientId}"`,'u'));
+  assert.match(html,/data-m26-target-area="planificacion"/u);
+  assert.match(html,/>Crear planificación<\/button>/u);
 });
