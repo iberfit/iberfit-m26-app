@@ -754,6 +754,13 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
   }
 
   if(execution.status==='awaiting_feedback'){
+    const feedbackIntro=isCoach
+      ?'La ejecución ya está registrada. Completa el cierre con el feedback del cliente.'
+      :'Tu ejecución ya está registrada. Añade el feedback final para completar el seguimiento.';
+    const feedbackTitle=isCoach?'Registra el feedback del cliente':'Cuéntanos cómo te fue';
+    const rpeLabel=isCoach?'RPE del cliente':'RPE de la sesión';
+    const commentLabel=isCoach?'Observación de cierre':'Comentario';
+    const painLabel=isCoach?'El cliente reportó dolor o molestia':'Tuve dolor o molestia';
     return `<section class="m26-guided m26-session-live" data-session-live-state="feedback">
       ${state}
       ${sync}
@@ -764,7 +771,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <div>
             <p class="m26-eyebrow">Entrenamiento terminado</p>
             <h2>Último paso: cerrar la sesión</h2>
-            <p>Tu ejecución ya está registrada. Añade el feedback final para completar el seguimiento.</p>
+            <p>${e(feedbackIntro)}</p>
           </div>
           <span class="m26-session-live-status">Cierre</span>
         </div>
@@ -772,11 +779,11 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       </div>
       <div class="m26-panel" data-session-live-feedback>
         <p class="m26-eyebrow">Feedback final</p>
-        <h2>Cuéntanos cómo te fue</h2>
+        <h2>${e(feedbackTitle)}</h2>
         <div class="m26-field-grid">
-          <label>RPE de la sesión<input type="number" min="1" max="10" data-session-feedback-rpe required></label>
-          <label>Comentario<textarea data-session-feedback-comment maxlength="2000" required></textarea></label>
-          <label><input type="checkbox" data-session-feedback-pain> Tuve dolor o molestia</label>
+          <label>${e(rpeLabel)}<input type="number" min="1" max="10" data-session-feedback-rpe required></label>
+          <label>${e(commentLabel)}<textarea data-session-feedback-comment maxlength="2000" required></textarea></label>
+          <label><input type="checkbox" data-session-feedback-pain> ${e(painLabel)}</label>
           <label>Detalle de dolor <small>Obligatorio si marcas dolor o molestia</small><textarea data-session-feedback-pain-notes maxlength="1000"></textarea></label>
         </div>
         <p class="m26-notice">Puedes salir y terminar después. El feedback escrito se conserva en este dispositivo y la sesión no se marcará como completada hasta confirmar el cierre.</p>
@@ -838,12 +845,13 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     const feedbackSummary=Number.isFinite(sessionRpe)
       ?`<p><strong>RPE de sesión ${e(sessionRpe)}/10</strong> · ${feedback.pain?'Molestia registrada para seguimiento.':'Sin dolor o molestia registrada.'}</p>`
       :'';
-    const progressActionLabel=isCoach?'Abrir Cliente 360':'Ver mi progreso';
+    const progressActionLabel=isCoach?'Abrir expediente':'Ver mi progreso';
+    const progressActionArea=isCoach?'expediente':'progreso';
     const continuityCopy=isCoach
-      ?'El seguimiento del cliente ya puede continuar desde Cliente 360.'
+      ?'El seguimiento del cliente ya puede continuar desde su expediente.'
       :'Tu seguimiento ya puede continuar desde Progreso.';
     const completedActions=confirmed
-      ?`<div class="m26-session-live-actions"><button type="button" data-session-action="exit-session">Volver a sesiones</button><button type="button" class="m26-primary-action" data-m26-area="progreso">${e(progressActionLabel)}</button></div>`
+      ?`<div class="m26-session-live-actions"><button type="button" data-session-action="exit-session">Volver a sesiones</button><button type="button" class="m26-primary-action" data-m26-area="${e(progressActionArea)}">${e(progressActionLabel)}</button></div>`
       :`<button type="button" class="m26-primary-action" data-session-action="exit-session">Volver a sesiones</button>`;
 
     return `<section class="m26-guided m26-session-live" data-session-live-state="completed">
@@ -854,7 +862,9 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <div>
             <p class="m26-eyebrow">Entrenamiento guardado</p>
             <h2>Sesión completada</h2>
-            <p>${confirmed?'Los resultados y tu feedback quedaron confirmados.':'Los resultados están guardados en este dispositivo y pendientes de sincronización.'}</p>
+            <p>${confirmed
+              ?e(isCoach?'Los resultados y el feedback registrado quedaron confirmados.':'Los resultados y tu feedback quedaron confirmados.')
+              :'Los resultados están guardados en este dispositivo y pendientes de sincronización.'}</p>
           </div>
           <span class="m26-session-live-status">${confirmed?'Confirmada':'Pendiente'}</span>
         </div>
