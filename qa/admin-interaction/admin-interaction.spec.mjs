@@ -179,14 +179,25 @@ test('Admin mobile Más opens reliably and navigates through the real shell cont
   await expect(page.locator('#m26-main')).toHaveAttribute('inert','');
   await expect(page.locator('.m26-topbar')).toHaveAttribute('inert','');
   await expect(page.locator('.m26-shell')).toHaveAttribute('data-m26-mobile-more-open','true');
-  await expect(page.locator('.m26-shell')).toHaveCSS('pointer-events','none');
   await expect(page.locator('.m26-workspace')).toHaveAttribute('data-m26-mobile-more-open','true');
-  await expect(page.locator('.m26-workspace')).toHaveCSS('pointer-events','none');
-  await expect(page.locator('.m26-mobile-nav')).toHaveCSS('pointer-events','auto');
-  await expect(menu).toHaveCSS('pointer-events','auto');
+  await expect(page.locator('.m26-mobile-nav')).toHaveCSS('overflow-x','visible');
+  await expect(page.locator('.m26-mobile-nav')).toHaveCSS('overflow-y','visible');
 
   const library=menu.locator('[data-m26-area="biblioteca"]');
   await expect(library).toBeVisible();
+  const hitTarget=await library.evaluate((el)=>{
+    const rect=el.getBoundingClientRect();
+    const x=rect.left+rect.width/2;
+    const y=rect.top+rect.height/2;
+    const hit=document.elementFromPoint(x,y);
+    return {
+      matches:hit===el||Boolean(el.contains(hit)),
+      hitTag:String(hit?.tagName||''),
+      hitClass:String(hit?.className||''),
+      hitArea:String(hit?.getAttribute?.('data-m26-area')||''),
+    };
+  });
+  expect(hitTarget.matches,JSON.stringify(hitTarget)).toBe(true);
   await library.tap();
 
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ADMIN_MOBILE_SHELL_QA__?.activeArea())).toBe('biblioteca');
