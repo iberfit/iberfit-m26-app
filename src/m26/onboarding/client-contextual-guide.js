@@ -36,8 +36,8 @@ const SOURCE_COPY=Object.freeze({
   'client-context-messages.body':'Mensajes mantiene el contexto con tu Coach entre sesiones. Úsalo para dudas, seguimiento y cambios que necesiten conversación.',
   'client-context-challenges.title':'Tu reto ya forma parte del proceso',
   'client-context-challenges.body':'Los retos convierten constancia, hábitos y objetivos confirmados en progreso visible. La parte social es privada por defecto y nunca publica datos de salud automáticamente.',
-  'client-feature-challenges.title':'Retos y comunidad están dentro de Más',
-  'client-feature-challenges.body':'Cuando no haya un reto activo, puedes entrar desde Más para conocer este espacio. La participación social es opcional, privada por defecto y nunca publica datos de salud automáticamente.',
+  'client-feature-challenges.title':'Retos y comunidad están disponibles cuando quieras',
+  'client-feature-challenges.body':'Cuando no haya un reto activo, puedes entrar desde Hoy o Más para conocer este espacio. La participación social es opcional, privada por defecto y nunca publica datos de salud automáticamente.',
   'client-context-settings.title':'Tú decides cómo quieres vivir la app',
   'client-context-settings.body':'En Ajustes controlas idioma, avisos, privacidad y permisos de experiencia. También puedes volver a abrir esta explicación cuando la necesites.',
 });
@@ -101,7 +101,7 @@ const TIPS=Object.freeze([
     priority:20,
     area:'hoy',
     actionArea:'retos',
-    selectors:Object.freeze(['.m26-client-bottom-nav-more > summary']),
+    selectors:Object.freeze(['[data-m26-client-guide="challenge-discovery"]','.m26-client-bottom-nav-more > summary']),
     excludeSelectors:Object.freeze(['[data-m26-client-guide="challenge-entry"]']),
   }),
   Object.freeze({
