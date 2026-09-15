@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "fe8853b1c380598859c542ff50f22c98aec1f236",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promote certified session execution improvements: live timers stay visually current, rewind and rest adjustments persist through the standard progress pipeline, and Coach can complete the active set from the RPE field with Enter/Done while preserving existing validation, persistence, offline behavior and auditing."
+}
