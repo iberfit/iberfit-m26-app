@@ -52,9 +52,10 @@ test('Cliente 360 representa sesiones IRI y bienestar sin reinterpretar sus dato
   assert.match(runtime,/Todavía no hay suficientes hitos confirmados/u);
 });
 
-test('Cliente 360 conserva navegación existente y hace real la etiqueta inferior',()=>{
+test('Cliente 360 queda como capa profesional Coach y no sobrescribe la experiencia Cliente',()=>{
+  assert.match(runtime,/const role=String\(viewModel\?\.identity\?\.role\|\|''\)/u);
+  assert.match(runtime,/role==='coach'/u);
   assert.match(runtime,/data-m26-area/u);
-  assert.match(runtime,/bottomLabel\.textContent='Cliente 360'/u);
   assert.match(runtime,/data-client-bottom-nav-route="progreso"/u);
   for(const area of ['planificacion','sesion','actividad','iri','informes']){
     assert.match(runtime,new RegExp(`'${area}'`,'u'));
