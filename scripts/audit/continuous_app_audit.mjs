@@ -14,6 +14,7 @@ import { renderRouteView } from '../../src/m26/modules/route-render.js';
 
 const AUDIT_VERSION='1.2.0';
 const ROLES=Object.freeze(['client','coach','admin']);
+const ADMIN_SHARED_AREAS=Object.freeze(['biblioteca']);
 const CLIENT_ID='continuous-audit-client';
 const NOW=new Date();
 const APP_URL=String(process.env.M26_AUDIT_APP_URL||'https://app.iberfit.cl').replace(/\/+$/,'');
@@ -126,9 +127,23 @@ function auditAreaMetadata(){
     }
   }
 
+  const invalidSharedAdminAreas=ADMIN_SHARED_AREAS.filter((area)=>{
+    const definition=M26_AREAS[area];
+    return !definition||!definition.roles?.includes('admin')||!areaAllowedForRole(area,'admin');
+  });
+  if(invalidSharedAdminAreas.length){
+    addFinding(
+      'critical',
+      'ADMIN_SHARED_AREA_POLICY_INVALID',
+      `Las excepciones compartidas de Admin no respetan la política declarada: ${invalidSharedAdminAreas.join(', ')}.`,
+      {areas:invalidSharedAdminAreas},
+    );
+  }
+
   const genericAdminLeak=Object.values(M26_AREAS)
     .filter((definition)=>definition.roles?.includes('admin'))
     .filter((definition)=>!definition.key.startsWith('admin-'))
+    .filter((definition)=>!ADMIN_SHARED_AREAS.includes(definition.key))
     .map((definition)=>definition.key);
 
   if(genericAdminLeak.length){
@@ -141,7 +156,7 @@ function auditAreaMetadata(){
   }else{
     addStrength(
       'ADMIN_NAMESPACE_ISOLATED',
-      'Admin permanece aislado en el namespace admin-*; las superficies Cliente/Coach no amplían privilegios.',
+      `Admin permanece aislado en admin-* salvo las superficies compartidas explícitamente autorizadas: ${ADMIN_SHARED_AREAS.join(', ')}.`,
     );
   }
 }

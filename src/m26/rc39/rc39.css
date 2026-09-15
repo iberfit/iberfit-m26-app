@@ -66,7 +66,7 @@
 html,.m26-main{scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom))}
 .m26-client-route-shell :focus-visible{scroll-margin-bottom:calc(132px + env(safe-area-inset-bottom))}
 @media (min-width:720px) and (max-width:1179px){
-  .m26-shell[data-m26-role="coach"],.m26-shell[data-m26-role="admin"]{grid-template-columns:5.25rem minmax(0,1fr)}
+  .m26-shell[data-m26-role="coach"],.m26-shell[data-m26-role="admin"]{display:grid;grid-template-columns:5.25rem minmax(0,1fr)}
   .m26-shell[data-m26-role="coach"] .m26-sidebar,.m26-shell[data-m26-role="admin"] .m26-sidebar{display:block;padding:1rem .55rem}
   .m26-shell[data-m26-role="coach"] .m26-brand div,.m26-shell[data-m26-role="admin"] .m26-brand div,
   .m26-shell[data-m26-role="coach"] .m26-nav-group h2,.m26-shell[data-m26-role="admin"] .m26-nav-group h2,
