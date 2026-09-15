@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "4dc3de6a9158c7c8f36f9125b12599e829446034",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promote certified Coach rest correction guard fix so auto-advance cannot move while the recorded set correction disclosure is open."
+}
