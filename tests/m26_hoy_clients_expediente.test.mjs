@@ -690,7 +690,7 @@ test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', 
   assert.equal(vm.coachCockpit, null);
   assert.ok(vm.nextSessionPreparation == null);
   assert.doesNotMatch(html, /data-coach-client-workspace/);
-  assert.match(html, /Lo importante ahora/);
-  assert.match(html, /Rendimiento y evolución/);
+  assert.match(html, /m26-client-home-v1/);
+  assert.match(html, /Tu entrenamiento/);
   assert.doesNotMatch(html, /Siguiente acción del Coach/);
 });
