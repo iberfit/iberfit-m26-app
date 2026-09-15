@@ -68,6 +68,8 @@ test('dock de sesión actúa como proxy y no duplica la lógica de entrenamiento
   assert.match(ui,/target\.getAttribute\?\.\('title'\)/);
   assert.match(ui,/state\.role=role/);
   assert.match(ui,/m27-session-focus-coach/);
+  assert.match(ui,/m27-session-focus-dock:not\(\.is-coach\)/);
+  assert.match(ui,/m27-session-focus-dock\.is-coach/);
   assert.match(ui,/@media \(min-width:761px\) and \(max-width:1180px\)/);
   assert.match(ui,/@media \(max-width:760px\)/);
   assert.match(ui,/@media \(forced-colors:active\)/);
