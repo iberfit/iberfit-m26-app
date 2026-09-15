@@ -233,7 +233,7 @@ function renderCoachHoyRoute(vm) {
       eyebrow:'Próxima sesión',
       title:client?.name||todayAppointment.title||'Sesión de hoy',
       copy:[todayAppointment.dateLabel,todayAppointment.modality].filter(Boolean).join(' · '),
-      area:'agenda',
+      area:client?.id||todayAppointment.clientId?'sesion':'agenda',
       clientId:client?.id||todayAppointment.clientId||null,
       label:client?.id||todayAppointment.clientId?'Preparar sesión':'Abrir agenda',
     };
@@ -274,7 +274,7 @@ function renderCoachHoyRoute(vm) {
       eyebrow:'Próxima cita',
       title:client?.name||upcomingAppointment.title||'Próxima sesión',
       copy:[upcomingAppointment.dateLabel,upcomingAppointment.modality].filter(Boolean).join(' · '),
-      area:'agenda',
+      area:client?.id||upcomingAppointment.clientId?'sesion':'agenda',
       clientId:client?.id||upcomingAppointment.clientId||null,
       label:client?.id||upcomingAppointment.clientId?'Preparar sesión':'Abrir agenda',
     };
