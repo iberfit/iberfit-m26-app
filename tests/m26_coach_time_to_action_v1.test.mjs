@@ -205,3 +205,52 @@ test('Hoy Coach conserva navegación simple cuando no existe cliente concreto',(
   assert.match(html,/class="m26-primary-action"[^>]*data-m26-area="clientes"/u);
   assert.doesNotMatch(html,/class="m26-primary-action"[^>]*data-m26-coach-action="true"/u);
 });
+
+
+test('tarjeta de cliente en Hoy abre directamente su siguiente acción segura',()=>{
+  const html=renderHoyRoute({
+    role:'coach',
+    appointments:[],
+    proposals:[],
+    upcoming:[],
+    clients:[{
+      id:clientId,
+      name:'Ana Demo',
+      modality:'presencial',
+      nextAppointment:{dateLabel:'Mañana · 10:00'},
+      nextAction:{
+        label:'Iniciar diagnóstico IRI',
+        area:'iri',
+        reason:'La evaluación está pendiente.',
+      },
+    }],
+    coachCockpit:{items:[],attentionCount:0,totalClients:1,riskFocus:null},
+    operations:{pending:0,conflicts:0,rejected:0},
+  });
+
+  assert.match(html,/class="m26-coach-home-client"/u);
+  assert.match(html,/class="m26-coach-home-client"[\s\S]*?data-m26-coach-action="true"/u);
+  assert.match(html,new RegExp(`class="m26-coach-home-client"[\\s\\S]*?data-m26-client-id="${clientId}"`,'u'));
+  assert.match(html,/class="m26-coach-home-client"[\s\S]*?data-m26-target-area="iri"/u);
+  assert.match(html,/aria-label="Iniciar diagnóstico IRI · Ana Demo"/u);
+});
+
+test('tarjeta de cliente sin destino explícito conserva apertura de expediente sin inventar ruta',()=>{
+  const html=renderHoyRoute({
+    role:'coach',
+    appointments:[],
+    proposals:[],
+    upcoming:[],
+    clients:[{
+      id:clientId,
+      name:'Ana Demo',
+      modality:'presencial',
+      nextAction:{label:'Revisar seguimiento'},
+    }],
+    coachCockpit:{items:[],attentionCount:0,totalClients:1,riskFocus:null},
+    operations:{pending:0,conflicts:0,rejected:0},
+  });
+
+  assert.match(html,new RegExp(`class="m26-coach-home-client"[\\s\\S]*?data-m26-select-client="${clientId}"`,'u'));
+  assert.doesNotMatch(html,/class="m26-coach-home-client"[\s\S]*?data-m26-target-area=/u);
+});
