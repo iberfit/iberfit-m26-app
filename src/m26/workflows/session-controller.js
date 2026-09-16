@@ -5,7 +5,7 @@ import {
   finishExecution,buildExecutionCommand,buildStartExecutionCommand,
   buildProgressExecutionCommand,buildPauseExecutionCommand,buildResumeExecutionCommand,buildCancelExecutionCommand,
   markExecutionSync,previousSetDraftValues,repeatPreviousSet,addExtraSetAndAdvance,getActiveSetDraft,updateActiveSetDraft,getFinalFeedbackDraft,updateFinalFeedbackDraft,
-  currentStep,executionResultForStep,advanceExpiredRest
+  currentStep,executionResultForStep,hasNextExecutionStep,advanceExpiredRest
 } from './session-execution.js';
 import { runAction } from '../ui/action-state.js';
 import { createLiveTelemetryController } from '../wearables/live-telemetry.js';
@@ -99,7 +99,8 @@ export function dispatchSessionAction({action,draft,execution,session,catalog,pa
       return {kind:'command',value:executeAndApply(commandBus,command,(result)=>{startExecution(execution,{actor});execution.revision=executionRevision(result,1);},execution)};
     }
     case 'complete-set': {
-      recordSet(execution,session,{...payload,actor});beginRest(execution,payload.restSeconds??60,{actor});
+      recordSet(execution,session,{...payload,actor});
+      if(hasNextExecutionStep(execution))beginRest(execution,payload.restSeconds??60,{actor});
       return progressMutation(execution,commandBus,online);
     }
     case 'repeat-previous-set': {
@@ -278,12 +279,8 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       return;
     }
     const step=currentStep(execution,context?.session);
-    const item=execution.queue?.[execution.index];
     const recorded=step?executionResultForStep(execution,step):null;
-    const hasNext=Boolean(item)&&(
-      execution.setIndex+1<Number(item.sets||0)||
-      execution.index+1<Number(execution.queue?.length||0)
-    );
+    const hasNext=hasNextExecutionStep(execution);
     if(!recorded||!hasNext||!execution.restUntil){
       cancelCoachRestAutoAdvance();
       return;
