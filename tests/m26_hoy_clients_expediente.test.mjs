@@ -4,7 +4,10 @@ import fs from 'node:fs';
 import { createProductionState } from '../src/m26/production-state.js';
 import { createShellViewModel } from '../src/m26/shell/shell-view-model.js';
 import { createRouteViewModel } from '../src/m26/modules/route-view-model.js';
-import { renderRouteView } from '../src/m26/modules/route-render.js';
+import {
+  orderCoachExerciseEvolution,
+  renderRouteView,
+} from '../src/m26/modules/route-render.js';
 import { clientsOverview, clientHealthSummary, todayOverview, recordsForClient } from '../src/m26/modules/domain-selectors.js';
 
 const qa = '57339e70-7a99-48d6-820f-7d4a51f89d9d';
@@ -440,6 +443,60 @@ test('Clientes abre expediente mediante atributos de datos, no handlers inline',
   const html = renderRouteView(vm);
   assert.match(html, new RegExp(`data-m26-select-client="${qa}"`));
   assert.doesNotMatch(html, /onclick=/i);
+});
+
+test('Coach prioriza solo retrocesos comparables y conserva estable el resto del orden',()=>{
+  const exercises=[
+    {exerciseId:'stable-first',exerciseName:'Estable'},
+    {exerciseId:'regression',exerciseName:'Retroceso'},
+    {exerciseId:'unknown',exerciseName:'Sin conclusión'},
+    {exerciseId:'ambiguous-regression',exerciseName:'Retroceso sin color'},
+    {exerciseId:'progress',exerciseName:'Evolución'},
+  ];
+  const performance=[
+    {
+      exerciseId:'stable-first',
+      coachAssessment:{status:'stable',colorEligible:false},
+    },
+    {
+      exerciseId:'regression',
+      coachAssessment:{status:'regression',colorEligible:true},
+    },
+    {
+      exerciseId:'ambiguous-regression',
+      coachAssessment:{status:'regression',colorEligible:false},
+    },
+    {
+      exerciseId:'progress',
+      coachAssessment:{status:'progress',colorEligible:true},
+    },
+  ];
+
+  const ordered=orderCoachExerciseEvolution(exercises,performance);
+  assert.deepEqual(
+    ordered.map((item)=>item.exerciseId),
+    ['regression','stable-first','unknown','ambiguous-regression','progress'],
+  );
+  assert.deepEqual(
+    exercises.map((item)=>item.exerciseId),
+    ['stable-first','regression','unknown','ambiguous-regression','progress'],
+  );
+});
+
+test('orden profesional no fabrica prioridad cuando no existe retroceso comparable',()=>{
+  const exercises=[
+    {exerciseId:'a'},
+    {exerciseId:'b'},
+    {exerciseId:'c'},
+  ];
+  const performance=[
+    {exerciseId:'a',coachAssessment:{status:'progress',colorEligible:true}},
+    {exerciseId:'b',coachAssessment:{status:'stable',colorEligible:false}},
+  ];
+  assert.deepEqual(
+    orderCoachExerciseEvolution(exercises,performance).map((item)=>item.exerciseId),
+    ['a','b','c'],
+  );
 });
 
 test('Expediente presenta IRI por dominios, contacto y acciones contextuales', () => {
