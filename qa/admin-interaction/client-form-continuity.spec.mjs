@@ -10,6 +10,16 @@ async function queueClientRefreshDuringNextTouchRelease(page){
   });
 }
 
+async function forceExternalRenderDuringNextPointerDownCapture(page){
+  await page.evaluate(()=>{
+    const root=document.querySelector('#qa-root');
+    if(!root)throw new Error('QA_CLIENT_FORM_ROOT_MISSING');
+    root.addEventListener('pointerdown',()=>{
+      globalThis.__IBERFIT_CLIENT_FORM_QA__?.forceExternalRender?.();
+    },{capture:true,once:true});
+  });
+}
+
 async function forceExternalRenderDuringNextPointerUp(page){
   await page.evaluate(()=>{
     const root=document.querySelector('#qa-root');
@@ -99,6 +109,39 @@ test('Nuevo cliente keeps inputs selects steps and textarea stable across queued
 });
 
 
+
+test('Admin client wizard accepts one real click and keeps input/select alive across a capture-phase render race',async({page,browserName})=>{
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/client-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_CLIENT_FORM_QA__?.mounted===true)).toBe(true);
+
+  const form=page.locator('[data-admin-form="client-create"]');
+  const name=form.locator('input[name="name"]');
+  await name.evaluate((node)=>{node.dataset.qaStableIdentity='admin-real-mouse-name';});
+  await forceExternalRenderDuringNextPointerDownCapture(page);
+  await name.click();
+  await page.waitForTimeout(120);
+
+  await expect(name).toBeFocused();
+  await expect(name).toHaveAttribute('data-qa-stable-identity','admin-real-mouse-name');
+  await page.keyboard.type('Cliente admin un clic');
+  await expect(name).toHaveValue('Cliente admin un clic');
+
+  const sex=form.locator('select[name="sexForNorms"]');
+  await sex.evaluate((node)=>{node.dataset.qaStableIdentity='admin-real-mouse-sex';});
+  await forceExternalRenderDuringNextPointerDownCapture(page);
+  await sex.click();
+  await page.waitForTimeout(120);
+
+  await expect(sex).toBeFocused();
+  await expect(sex).toHaveAttribute('data-qa-stable-identity','admin-real-mouse-sex');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(sex).not.toHaveValue('');
+  await expect(name).toHaveValue('Cliente admin un clic');
+
+  expect(errors,browserName+' emitted browser errors').toEqual([]);
+});
 
 test('mouse release cannot let a direct controller render destroy the focused client field',async({page,browserName})=>{
   const errors=browserErrors(page);
