@@ -15,6 +15,13 @@ import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function feedbackValues(root){return {sessionRpe:root.querySelector?.('[data-session-feedback-rpe]')?.value??'',comment:root.querySelector?.('[data-session-feedback-comment]')?.value??'',pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked),painNotes:root.querySelector?.('[data-session-feedback-pain-notes]')?.value??''};}
+export function sessionFeedbackValidation(values={}){
+  const sessionRpe=Number(values?.sessionRpe);
+  if(!Number.isFinite(sessionRpe)||sessionRpe<1||sessionRpe>10)return Object.freeze({valid:false,field:'rpe',selector:'[data-session-feedback-rpe]',message:'Indica un RPE de sesión entre 1 y 10.'});
+  if(!String(values?.comment||'').trim())return Object.freeze({valid:false,field:'comment',selector:'[data-session-feedback-comment]',message:'Añade el feedback del cliente antes de cerrar la sesión.'});
+  if(Boolean(values?.pain)&&!String(values?.painNotes||'').trim())return Object.freeze({valid:false,field:'painNotes',selector:'[data-session-feedback-pain-notes]',message:'Describe brevemente el dolor o molestia antes de cerrar la sesión.'});
+  return Object.freeze({valid:true,field:null,selector:null,message:''});
+}
 function remoteRevision(result,fallback){return Number(result?.response?.remoteRevision??result?.response?.revision??result?.response?.executionRevision??fallback??0);}
 function executionRevision(result,fallback){return Number(result?.response?.executionRevision??result?.response?.remoteRevision??result?.response?.revision??fallback??0);}
 function requireAck(result){if(!result?.ok)throw Object.assign(new Error(`M26_COMMAND_${String(result?.kind||'REJECTED').toUpperCase()}`),{result,status:result?.kind==='conflict'?409:422});return result;}
@@ -492,7 +499,16 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(liveAddPending||liveAddBlockedOperationId){syncLiveAddExerciseControl(context);return;}
     const liveSelection=liveAddExerciseSelectionState(root.querySelector?.('[data-session-live-add-exercise]')?.value,context?.catalog);
     if(!liveSelection.enabled){syncLiveAddExerciseControl(context);return;}
-  }if(action==='finish'&&(finishPending||finishBlockedOperationId)){syncFinishControl(context);return;}if(action==='sync-now'){
+  }if(action==='finish'){
+    if(finishPending||finishBlockedOperationId){syncFinishControl(context);return;}
+    const validation=sessionFeedbackValidation(feedbackValues(root));
+    if(!validation.valid){
+      if(context?.actionState){context.actionState.status='error';context.actionState.message=validation.message;}
+      renderSession();
+      root.querySelector?.(validation.selector)?.focus?.();
+      return;
+    }
+  }if(action==='sync-now'){
   if(manualSyncPending){syncManualSyncControl(context);return;}
   const actionState=context?.actionState;
   const wasDisabled=button.disabled;
