@@ -21,8 +21,8 @@ test('Coach Hoy visual evidence keeps operational content ahead of optional shor
 
   const shell=page.locator('.m26-shell[data-m26-role="coach"]');
   const shortcuts=page.locator('[data-m26-workspace-shortcuts="coach"]');
-  const route=page.locator('.m26-hoy-route[data-today-role="coach"]');
-  const nextAction=page.locator('[data-today-next-action]');
+  const route=page.locator('.m26-hoy-route.m26-coach-home-v1');
+  const nextAction=page.locator('.m26-coach-home-command');
   const launch=page.locator('[data-coach-launch-self]');
 
   await expect(shell).toBeVisible();
@@ -38,9 +38,9 @@ test('Coach Hoy visual evidence keeps operational content ahead of optional shor
   const metrics=await page.evaluate(()=>{
     const box=(selector)=>document.querySelector(selector)?.getBoundingClientRect()||null;
     const shortcut=box('[data-m26-workspace-shortcuts="coach"]');
-    const route=box('.m26-hoy-route[data-today-role="coach"]');
+    const route=box('.m26-hoy-route.m26-coach-home-v1');
     const launch=box('[data-coach-launch-self]');
-    const next=box('[data-today-next-action]');
+    const next=box('.m26-coach-home-command');
     return {
       shortcutHeight:shortcut?.height??null,
       routeTop:route?.top??null,
