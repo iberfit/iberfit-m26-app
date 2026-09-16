@@ -949,6 +949,17 @@ body {
   padding:.55rem .85rem;
 }
 
+.m26-session-live-v3 .m26-session-live-quick-actions[data-session-coach-quick-controls]{
+  width:100%;
+  gap:.55rem;
+}
+
+.m26-session-live-v3 .m26-session-live-quick-pause{
+  margin-left:auto;
+  border-color:color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 46%,transparent);
+  background:color-mix(in srgb,var(--iberfit-color-surface-base,#0d2419) 92%,var(--iberfit-role-accent,#c8a65d) 8%);
+}
+
 .m26-session-live-v3 .m26-session-live-workbench{
   align-items:start;
   gap:var(--m26-live-v3-gap);
