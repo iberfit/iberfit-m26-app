@@ -147,6 +147,20 @@ test('Client Home keeps IRI visible only while the initial diagnosis is still pe
   assert.match(completed,/>Informes<\/button>/u);
 });
 
+test('Client Home treats legacy IRI status Completada as completed daily context',()=>{
+  const html=renderHoyRoute(vm({
+    clients:[{
+      id:'c1',
+      name:'Cynthia',
+      cycle:{name:'Fuerza Base'},
+      iri:{confirmed:false,status:'Completada',processLabel:'Completada'},
+      nextAction:{area:'actividad',label:'Registrar bienestar',reason:'Actualiza tu estado de hoy.'},
+    }],
+  }));
+  assert.doesNotMatch(html,/<span>Diagnóstico IRI<\/span>/u);
+  assert.match(html,/data-m26-area="informes">Informes<\/button>/u);
+});
+
 test('Client Home does not duplicate the primary runnable session in the agenda',()=>{
   const html=renderHoyRoute(vm({
     appointments:[{
