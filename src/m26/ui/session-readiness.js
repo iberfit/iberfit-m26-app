@@ -219,19 +219,9 @@ export function buildCoachSessionReadinessContext(state,clientId,{now=new Date()
   });
 }
 
-export function buildCoachLiveContextSignal(snapshot,coachContext){
-  const attention=snapshot?.attention||{};
+export function buildCoachLiveContextSignal(coachContext){
   const feedback=coachContext?.feedback||{};
   const decisions=coachContext?.decisions||{};
-
-  if(String(attention.level||'').toLowerCase()==='critical'){
-    return Object.freeze({
-      kind:'attention-critical',
-      level:'critical',
-      title:coachBriefText(attention.title,180)||'Atención prioritaria',
-      detail:coachBriefText(attention.detail,320)||'Revisa el contexto confirmado antes de continuar.',
-    });
-  }
 
   if(feedback.pain===true){
     return Object.freeze({
@@ -257,15 +247,6 @@ export function buildCoachLiveContextSignal(snapshot,coachContext){
       level:'warning',
       title:'Decisión para revisar hoy',
       detail:decisions.topSignal||'Existe una decisión profesional prevista para revisión hoy.',
-    });
-  }
-
-  if(['warning','critical'].includes(String(attention.level||'').toLowerCase())){
-    return Object.freeze({
-      kind:'attention',
-      level:String(attention.level||'warning').toLowerCase(),
-      title:coachBriefText(attention.title,180)||'Requiere revisión',
-      detail:coachBriefText(attention.detail,320)||'Revisa el contexto confirmado durante la sesión.',
     });
   }
 
@@ -415,9 +396,8 @@ export function enhanceSessionReadiness({root,viewModel,state,now=new Date()}={}
   if(role!=='coach'||!['active','rest'].includes(liveState))return false;
 
   live.querySelector?.('[data-m27-coach-live-context]')?.remove?.();
-  const snapshot=buildSessionReadinessSnapshot(state,clientId,{now});
   const coachContext=buildCoachSessionReadinessContext(state,clientId,{now});
-  const signal=buildCoachLiveContextSignal(snapshot,coachContext);
+  const signal=buildCoachLiveContextSignal(coachContext);
   if(!signal)return false;
 
   const flag=buildCoachLiveContextFlag(root.ownerDocument,signal);
