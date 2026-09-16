@@ -44,11 +44,6 @@ test('Coach create-client disclosure and text focus survive touch release plus a
   await page.goto('/qa/admin-interaction/coach-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__?.mounted===true)).toBe(true);
 
-  // Keep the topbar client option present before entering the protected form.
-  // Changing shell data while the form lease is active is intentionally deferred.
-  await page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__.setClientScenario('one'));
-  await expect(page.locator('[data-m26-client-select] option[value="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]')).toHaveCount(1);
-
   const details=page.locator('[data-client-onboarding]');
   const summary=details.locator('summary');
   await queueCoachRefreshDuringNextTouchRelease(page);
@@ -324,6 +319,11 @@ test('real mouse release keeps Coach text and native select controls stable when
   const touchProject=/mobile|tablet/iu.test(testInfo.project.name);
   await page.goto('/qa/admin-interaction/coach-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
   await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__?.mounted===true)).toBe(true);
+
+  // Keep the topbar client option present before entering the protected form.
+  // Changing shell data while the form lease is active is intentionally deferred.
+  await page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__.setClientScenario('one'));
+  await expect(page.locator('[data-m26-client-select] option[value="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]')).toHaveCount(1);
 
   const details=page.locator('[data-client-onboarding]');
   await details.locator('summary').click();
