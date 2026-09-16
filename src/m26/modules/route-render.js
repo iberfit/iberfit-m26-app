@@ -3340,12 +3340,9 @@ export function renderProgressRoute(vm){
 
   if(vm.role==='client'){
     const stageMarkup=renderClientProgressStage(vm,stage);
-    const detailSummary=stage.stage==='mature'
-      ?'Historial consolidado, bienestar, IRI, dispositivos, alertas y evolución por ejercicio.'
-      :'Historial, bienestar, IRI, dispositivos, alertas y ejercicios confirmados.';
     const detailed=`<details class="m26-client-progress-detail" data-client-progress-depth="${escapeHtml(stage.stage)}">
           <summary>
-            <span><strong>Ver detalle completo</strong><small>${escapeHtml(detailSummary)}</small></span>
+            <span><strong>Ver detalle completo</strong><small>Historial, bienestar, IRI, dispositivos, alertas y ejercicios confirmados.</small></span>
             <span aria-hidden="true">＋</span>
           </summary>
           <div class="m26-client-progress-detail-body">${secondaryContent}</div>
