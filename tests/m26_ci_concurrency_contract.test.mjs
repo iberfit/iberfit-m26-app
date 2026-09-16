@@ -18,6 +18,10 @@ test('heavy PR/ref workflows cancel superseded executions instead of consuming s
   assert.ok(remote.includes('group: iberfit-qa-authenticated-gates-${{ github.event_name }}-${{ github.ref }}'));
   assert.match(remote,/concurrency:\n  group: iberfit-qa-authenticated-gates-[^\n]+\n  cancel-in-progress: true/u);
 
+  assert.doesNotMatch(daily,/^  group: iberfit-daily-use-visual-evidence$/mu);
+  assert.doesNotMatch(admin,/^  group: iberfit-admin-interaction-matrix$/mu);
+  assert.doesNotMatch(remote,/^  group: iberfit-qa-authenticated-gates$/mu);
+
   assert.ok(device.includes('group: iberfit-device-experience-${{ github.event.pull_request.number || github.ref }}'));
   assert.match(device,/concurrency:\n  group: iberfit-device-experience-[^\n]+\n  cancel-in-progress: true/u);
 });
