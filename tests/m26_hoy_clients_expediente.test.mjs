@@ -678,6 +678,159 @@ test('Workspace Coach ordena ahora, sesiones, decisiones y evolución sin perder
   assert.doesNotMatch(html, /0%[^\n]*Tendencia de volumen/);
 });
 
+test('Workspace Coach prioriza señales comparables por ejercicio y omite ruido no concluyente', () => {
+  const state = ready('coach', { activeArea: 'expediente' });
+  const baseVm = createRouteViewModel(
+    createShellViewModel(state),
+    state,
+    now
+  );
+
+  const signal = ({
+    id,
+    name,
+    status,
+    confidence,
+    delta,
+    percent,
+    basis,
+    exposureCount,
+    colorEligible=true,
+  }) => ({
+    exerciseId: id,
+    exerciseName: name,
+    facts: {
+      exposureCount,
+      trend: {
+        metrics: {
+          repsPerSet: {
+            comparable: true,
+            absoluteDelta: delta,
+            percentageDelta: percent,
+            unit: 'rep',
+          },
+        },
+      },
+    },
+    coachAssessment: {
+      status,
+      confidence,
+      label: status === 'regression'
+        ? 'Retroceso'
+        : status === 'progress'
+          ? 'Evolución'
+          : status === 'stable'
+            ? 'Estable'
+            : 'Sin conclusión',
+      symbol: status === 'regression'
+        ? '↓'
+        : status === 'progress'
+          ? '↑'
+          : status === 'stable'
+            ? '='
+            : '·',
+      colorEligible,
+      causalMetric: colorEligible ? 'repsPerSet' : null,
+      basis,
+    },
+  });
+
+  const vm = {
+    ...baseVm,
+    exercisePerformance: [
+      signal({
+        id: 'signal-progress-a',
+        name: 'Sentadilla técnica',
+        status: 'progress',
+        confidence: 'high',
+        delta: 2,
+        percent: 20,
+        basis: 'Más repeticiones por serie con esfuerzo equivalente.',
+        exposureCount: 6,
+      }),
+      signal({
+        id: 'signal-regression-a',
+        name: 'Press inclinado',
+        status: 'regression',
+        confidence: 'high',
+        delta: -2,
+        percent: -20,
+        basis: 'Menos repeticiones por serie con mayor esfuerzo.',
+        exposureCount: 5,
+      }),
+      signal({
+        id: 'signal-regression-b',
+        name: 'Remo unilateral',
+        status: 'regression',
+        confidence: 'medium',
+        delta: -1,
+        percent: -10,
+        basis: 'Rendimiento equivalente con mayor esfuerzo percibido.',
+        exposureCount: 4,
+      }),
+      signal({
+        id: 'signal-progress-b',
+        name: 'Plancha lateral',
+        status: 'progress',
+        confidence: 'medium',
+        delta: 1,
+        percent: 8,
+        basis: 'Mismo rendimiento con menor esfuerzo.',
+        exposureCount: 3,
+      }),
+      signal({
+        id: 'signal-stable',
+        name: 'Peso muerto estable',
+        status: 'stable',
+        confidence: 'medium',
+        delta: 0,
+        percent: 0,
+        basis: 'Rendimiento estable.',
+        exposureCount: 8,
+        colorEligible: false,
+      }),
+      signal({
+        id: 'signal-indeterminate',
+        name: 'Dominada ambigua',
+        status: 'indeterminate',
+        confidence: 'low',
+        delta: 3,
+        percent: 15,
+        basis: 'La carga cambió y su dirección semántica no es comparable.',
+        exposureCount: 9,
+        colorEligible: false,
+      }),
+    ],
+  };
+
+  const html = renderRouteView(vm);
+  const start = html.indexOf('data-m26-coach-exercise-signals');
+  const end = html.indexOf('class="m26-coach-workspace-metrics"', start);
+
+  assert.ok(start >= 0);
+  assert.ok(end > start);
+
+  const block = html.slice(start, end);
+  assert.equal(
+    (block.match(/data-m26-coach-exercise-signal(?:\s|>)/g) || []).length,
+    3
+  );
+
+  const pressIndex = block.indexOf('Press inclinado');
+  const rowIndex = block.indexOf('Remo unilateral');
+  const squatIndex = block.indexOf('Sentadilla técnica');
+
+  assert.ok(pressIndex >= 0);
+  assert.ok(rowIndex > pressIndex);
+  assert.ok(squatIndex > rowIndex);
+  assert.doesNotMatch(block, /Plancha lateral/);
+  assert.doesNotMatch(block, /Peso muerto estable/);
+  assert.doesNotMatch(block, /Dominada ambigua/);
+  assert.match(block, /Menos repeticiones por serie con mayor esfuerzo/);
+  assert.match(block, /Cambio vs anterior: -2 rep · -20%/);
+  assert.match(block, /No atribuye causalidad/);
+});
+
 test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', () => {
   const state = ready('client', { activeArea: 'expediente' });
   const vm = createRouteViewModel(
@@ -690,6 +843,7 @@ test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', 
   assert.equal(vm.coachCockpit, null);
   assert.ok(vm.nextSessionPreparation == null);
   assert.doesNotMatch(html, /data-coach-client-workspace/);
+  assert.doesNotMatch(html, /data-m26-coach-exercise-signals/);
   assert.doesNotMatch(html, /Expediente del cliente/);
   assert.doesNotMatch(html, /Cliente 360º/);
   assert.match(html, /m26-client-home-v1/);
