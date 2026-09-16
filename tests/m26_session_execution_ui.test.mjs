@@ -64,6 +64,32 @@ test('cierre de sesión distingue feedback del Cliente y registro profesional de
   assert.match(clientHtml,/Revisar última serie/);
   assert.match(coachHtml,/Revisar última serie/);
 });
+test('cierre avisa cuando el feedback conservado requiere revisión por cambios materiales',()=>{
+  const s=session();
+  const x=createExecution({session:s,clientId:'c1'});
+  startExecution(x);
+  recordSet(x,s,{reps:10,rpe:7});
+  advanceExecution(x);
+  recordSet(x,s,{reps:9,rpe:8});
+  advanceExecution(x);
+  x.finalFeedbackDraft={
+    executionId:x.id,
+    values:{sessionRpe:'8',comment:'Feedback previo',pain:false,painNotes:''},
+    needsReview:true,
+    reviewReasons:['set_corrected_after_closeout'],
+    reviewRequiredAt:'2026-09-16T03:00:00.000Z',
+    updatedAt:'2026-09-16T03:00:00.000Z',
+  };
+
+  let html=renderGuidedExecution({execution:x,session:s,catalog,role:'coach'});
+  assert.match(html,/data-session-feedback-review-required/);
+  assert.match(html,/El entrenamiento cambió después de escribir este feedback/);
+
+  x.finalFeedbackDraft.needsReview=false;
+  html=renderGuidedExecution({execution:x,session:s,catalog,role:'coach'});
+  assert.doesNotMatch(html,/data-session-feedback-review-required/);
+});
+
 test('substitution only accepts catalog exercise and reason',()=>{const s=session();const x=createExecution({session:s,clientId:'c1'});const a=x.queue[0].exerciseId,b=catalog.list()[1].id;assert.throws(()=>substituteExercise(x,s,{fromExerciseId:a,toExerciseId:b,catalog,reason:''}),/REASON/);substituteExercise(x,s,{fromExerciseId:a,toExerciseId:b,catalog,reason:'molestia'});assert.equal(x.queue[0].exerciseId,b);});
 test('completed execution closes the loop into confirmed progress',()=>{
   const s=session();
