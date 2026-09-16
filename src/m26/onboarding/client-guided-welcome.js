@@ -399,8 +399,8 @@ const STYLE=`
       0 0 30px rgba(226,185,91,.24)!important;
   }
   .m26-client-guided-welcome-presence{
-    width:5.85rem;
-    height:7.35rem;
+    width:6rem;
+    height:7.6rem;
   }
 }
 @media(prefers-reduced-motion:reduce){
