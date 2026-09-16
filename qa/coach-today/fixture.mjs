@@ -1,6 +1,7 @@
 import {renderHoyRoute} from '../../src/m26/modules/route-render.js';
 import {renderM26Shell} from '../../src/m26/shell/shell-render.js';
 import {createShellViewModel} from '../../src/m26/shell/shell-view-model.js';
+import {resolveAdaptiveLayout} from '../../src/m26/shell/shell-controller.js';
 
 const root=document.querySelector('#qa-root');
 if(!root)throw new Error('QA_COACH_TODAY_ROOT_MISSING');
@@ -129,10 +130,23 @@ const routeVm=Object.freeze({
 
 root.innerHTML=renderM26Shell(shellVm,renderHoyRoute(routeVm));
 
+function syncAdaptiveLayout(){
+  const coarsePointer=Boolean(globalThis.matchMedia?.('(pointer: coarse)')?.matches);
+  const touchPoints=Number(globalThis.navigator?.maxTouchPoints||0);
+  const layout=resolveAdaptiveLayout({width:globalThis.innerWidth,coarsePointer,touchPoints});
+  root.dataset.m26Layout=layout;
+  root.dataset.m26Input=coarsePointer||touchPoints>0?'touch':'pointer';
+  return layout;
+}
+
+const adaptiveLayout=syncAdaptiveLayout();
+globalThis.addEventListener?.('resize',syncAdaptiveLayout,{passive:true});
+
 globalThis.__IBERFIT_COACH_TODAY_VISUAL__=Object.freeze({
   mounted:true,
   syntheticQa:true,
   currentSource:true,
   role:'coach',
   activeArea:'hoy',
+  adaptiveLayout,
 });
