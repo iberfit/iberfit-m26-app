@@ -126,6 +126,8 @@ test('Guided welcome is accessible, motion-safe, responsive and uses the vector 
   assert.match(source,/aria-modal="false"/u);
   assert.match(source,/min-height:44px/u);
   assert.match(source,/safe-area-inset-bottom/u);
+  assert.match(source,/bottom:calc\(5\.25rem \+ env\(safe-area-inset-bottom\)\)!important;/u);
+  assert.doesNotMatch(source,/bottom:calc\(1rem \+ env\(safe-area-inset-bottom\)\)!important;/u);
   assert.match(source,/prefers-reduced-motion:reduce/u);
   assert.match(source,/clientGenieVisualMarkup/u);
   assert.match(source,/data-m26-client-guide-state/u);
