@@ -70,8 +70,19 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Restore Playwright Chromium cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-chromium
+      - name: Install Chromium system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install Chromium browser on cache miss
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Verify Chromium browser cache
+        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium } from '@playwright/test'; if (!fs.existsSync(chromium.executablePath())) throw new Error('PLAYWRIGHT_CHROMIUM_NOT_READY');"
       - name: Generate current-source role/task fixtures
         run: node qa/rc13_generate_visual_cases.mjs
       - name: Validate task hierarchy, focus, touch and overflow by device
@@ -105,8 +116,19 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Restore Playwright Chromium cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-chromium
+      - name: Install Chromium system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install Chromium browser on cache miss
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Verify Chromium browser cache
+        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium } from '@playwright/test'; if (!fs.existsSync(chromium.executablePath())) throw new Error('PLAYWRIGHT_CHROMIUM_NOT_READY');"
       - name: Build authenticated QA surface
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
@@ -174,8 +196,19 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Restore Playwright Chromium cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-chromium
+      - name: Install Chromium system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install Chromium browser on cache miss
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Verify Chromium browser cache
+        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium } from '@playwright/test'; if (!fs.existsSync(chromium.executablePath())) throw new Error('PLAYWRIGHT_CHROMIUM_NOT_READY');"
       - name: Exercise Admin tasks by device
         run: |
           npx playwright test --config playwright.admin-interaction.config.mjs             --project=admin-desktop-chromium             --project=admin-tablet-chromium             --project=admin-tablet-landscape-chromium             --project=admin-mobile-chromium
@@ -205,8 +238,19 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Restore Playwright Chromium cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-chromium
+      - name: Install Chromium system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install Chromium browser on cache miss
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Verify Chromium browser cache
+        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium } from '@playwright/test'; if (!fs.existsSync(chromium.executablePath())) throw new Error('PLAYWRIGHT_CHROMIUM_NOT_READY');"
       - name: Certify installed PWA continuity
         run: npm run quality:p0:pwa-upgrade
       - name: Preserve PWA failures
