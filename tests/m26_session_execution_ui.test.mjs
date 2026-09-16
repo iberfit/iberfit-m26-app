@@ -10,6 +10,54 @@ function session(){const d=createSessionDraft({clientId:'c1'});addCatalogExercis
 test('builder renders real controls and catalog results',()=>{const d=session();const html=renderSessionBuilder({draft:d,catalog});assert.match(html,/data-session-action="publish"/);assert.match(html,/data-session-action="add-exercise"/);assert.doesNotMatch(html,/onclick=/);});
 test('execution supports start record advance and rewind',()=>{const s=session();const x=createExecution({session:s,clientId:'c1'});startExecution(x);recordSet(x,s,{reps:10,rpe:7});advanceExecution(x);assert.equal(x.setIndex,1);retreatExecution(x);assert.equal(x.setIndex,0);});
 test('execution requires feedback before command',()=>{const s=session();const x=createExecution({session:s,clientId:'c1'});startExecution(x);recordSet(x,s,{reps:10,rpe:7});advanceExecution(x);recordSet(x,s,{reps:9,rpe:8});advanceExecution(x);assert.equal(x.status,'awaiting_feedback');assert.throws(()=>buildExecutionCommand(x),/NOT_COMPLETED/);finishExecution(x,{sessionRpe:8,comment:'Sesión completada'});assert.equal(buildExecutionCommand(x).type,'EJECUCION_COMPLETAR');});
+test('cierre de sesión distingue feedback del Cliente y registro profesional del Coach sin cambiar campos',()=>{
+  const s=session();
+  const clientExecution=createExecution({session:s,clientId:'c1'});
+  startExecution(clientExecution);
+  recordSet(clientExecution,s,{reps:10,rpe:7});
+  advanceExecution(clientExecution);
+  recordSet(clientExecution,s,{reps:9,rpe:8});
+  advanceExecution(clientExecution);
+
+  const clientHtml=renderGuidedExecution({
+    execution:clientExecution,
+    session:s,
+    catalog,
+    role:'client',
+  });
+  const coachHtml=renderGuidedExecution({
+    execution:clientExecution,
+    session:s,
+    catalog,
+    role:'coach',
+  });
+
+  assert.match(clientHtml,/Cuéntanos cómo te fue/);
+  assert.match(clientHtml,/Tuve dolor o molestia/);
+  assert.match(clientHtml,/Tu ejecución ya está registrada/);
+  assert.doesNotMatch(clientHtml,/Registra el feedback del cliente/);
+
+  assert.match(coachHtml,/Registra el feedback del cliente/);
+  assert.match(coachHtml,/RPE del cliente/);
+  assert.match(coachHtml,/Observación de cierre/);
+  assert.match(coachHtml,/El cliente reportó dolor o molestia/);
+  assert.match(coachHtml,/La ejecución ya está registrada/);
+  assert.doesNotMatch(coachHtml,/Cuéntanos cómo te fue/);
+  assert.doesNotMatch(coachHtml,/Tuve dolor o molestia/);
+
+  for(const attribute of [
+    'data-session-feedback-rpe',
+    'data-session-feedback-comment',
+    'data-session-feedback-pain',
+    'data-session-feedback-pain-notes',
+    'data-session-action="finish"',
+  ]){
+    assert.match(clientHtml,new RegExp(attribute));
+    assert.match(coachHtml,new RegExp(attribute));
+  }
+  assert.match(coachHtml,/data-session-feedback-rpe required/);
+  assert.match(coachHtml,/data-session-feedback-comment maxlength="2000" required/);
+});
 test('substitution only accepts catalog exercise and reason',()=>{const s=session();const x=createExecution({session:s,clientId:'c1'});const a=x.queue[0].exerciseId,b=catalog.list()[1].id;assert.throws(()=>substituteExercise(x,s,{fromExerciseId:a,toExerciseId:b,catalog,reason:''}),/REASON/);substituteExercise(x,s,{fromExerciseId:a,toExerciseId:b,catalog,reason:'molestia'});assert.equal(x.queue[0].exerciseId,b);});
 test('completed execution closes the loop into confirmed progress',()=>{
   const s=session();
@@ -48,14 +96,19 @@ test('completed execution closes the loop into confirmed progress',()=>{
     role:'coach',
   });
 
-  assert.match(coachHtml,/data-m26-area="progreso"/);
-  assert.match(coachHtml,/>Abrir Cliente 360</);
+  assert.match(coachHtml,/data-m26-area="expediente"/);
+  assert.match(coachHtml,/>Abrir expediente</);
   assert.doesNotMatch(coachHtml,/>Ver mi progreso</);
   assert.match(
     coachHtml,
-    /El seguimiento del cliente ya puede continuar desde Cliente 360\./
+    /El seguimiento del cliente ya puede continuar desde su expediente\./
   );
-  assert.doesNotMatch(html,/>Abrir Cliente 360</);
+  assert.match(
+    coachHtml,
+    /Los resultados y el feedback registrado quedaron confirmados\./
+  );
+  assert.doesNotMatch(coachHtml,/Los resultados y tu feedback quedaron confirmados\./);
+  assert.doesNotMatch(html,/>Abrir expediente</);
 
   markExecutionSync(
     x,
