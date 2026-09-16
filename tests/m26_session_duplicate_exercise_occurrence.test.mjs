@@ -131,3 +131,23 @@ test('unambiguous exercise keeps the legacy result and skip storage contract',()
   assert.ok(Object.hasOwn(execution.skippedSets,exercise.id+':2'));
   assert.equal(Object.hasOwn(execution.skippedSets[exercise.id+':2'],'blockId'),false);
 });
+
+
+test('scoped skip recovery does not resolve the other occurrence',()=>{
+  const {session,execution}=makeExecution({sets:1});
+  skipExecutionSet(execution,session,{reason:'Ajuste puntual'});
+  assert.equal(currentStep(execution,session).blockId,'block-second');
+
+  retreatExecution(execution);
+  assert.equal(currentStep(execution,session).blockId,'block-first');
+  recordSet(execution,session,{reps:9,load:'62 kg',rpe:7,rir:3});
+
+  assert.equal(Object.keys(execution.skippedSets).length,0);
+  assert.ok(Object.hasOwn(execution.results,'block-first:'+exercise.id+':1'));
+  assert.equal(executionResultForStep(execution,currentStep(execution,session))?.load,'62 kg');
+
+  advanceExecution(execution);
+  assert.equal(currentStep(execution,session).blockId,'block-second');
+  assert.equal(executionResultForStep(execution,currentStep(execution,session)),null);
+  assert.throws(()=>advanceExecution(execution),/M26_EXECUTION_SET_NOT_RECORDED/);
+});
