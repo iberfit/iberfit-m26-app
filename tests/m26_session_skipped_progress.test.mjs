@@ -8,6 +8,7 @@ import {
   advanceExecution,
   createExecution,
   recordSet,
+  retreatExecution,
   skipExecutionExercise,
   skipExecutionSet,
   startExecution,
@@ -75,4 +76,51 @@ test('Session Live feedback reports fully skipped work transparently at 100 perc
   assert.match(html,/<strong>3 \/ 3<\/strong>/);
   assert.match(html,/<small>0 registradas · 3 omitidas<\/small>/);
   assert.match(html,/<span>Ejercicios registrados<\/span>\s*<strong>0 \/ 1<\/strong>/);
+});
+
+test('recording a previously skipped set replaces the omission without leaving contradictory state',()=>{
+  const {execution,session}=makeExecution();
+  skipExecutionSet(execution,session,{reason:'Molestia puntual'});
+  retreatExecution(execution);
+  recordSet(execution,session,{reps:8,load:'20 kg',rpe:7,rir:3});
+
+  assert.equal(Object.keys(execution.skippedSets).length,0);
+  assert.equal(Object.keys(execution.results).length,1);
+  const replacement=execution.events.find((item)=>item.type==='SET_SKIP_REPLACED_BY_COMPLETION');
+  assert.ok(replacement);
+  assert.equal(replacement.payload.setNumber,1);
+  assert.equal(replacement.payload.reason,'Molestia puntual');
+  assert.equal(replacement.payload.source,'set_skip');
+
+  const html=render(execution,session);
+  assert.match(html,/data-session-progress-label>1 de 3 series</);
+  assert.doesNotMatch(html,/omitida/);
+});
+
+test('recording one set from a skipped exercise splits the remaining skipped range precisely',()=>{
+  const {execution,session}=makeExecution();
+  skipExecutionExercise(execution,session,{reason:'Dolor al patrón'});
+  assert.equal(execution.status,'awaiting_feedback');
+
+  retreatExecution(execution);
+  retreatExecution(execution);
+  assert.equal(execution.setIndex,1);
+  recordSet(execution,session,{reps:6,load:'15 kg',rpe:6,rir:4});
+
+  assert.deepEqual(
+    Object.values(execution.skippedSets).map((item)=>item.setNumber).sort((a,b)=>a-b),
+    [1,3],
+  );
+  assert.deepEqual(
+    execution.skippedExercises.map((item)=>[item.fromSetNumber,item.toSetNumber]),
+    [[1,1],[3,3]],
+  );
+  const replacement=execution.events.find((item)=>item.type==='SET_SKIP_REPLACED_BY_COMPLETION');
+  assert.ok(replacement);
+  assert.equal(replacement.payload.source,'exercise_skip');
+  assert.equal(replacement.payload.reason,'Dolor al patrón');
+
+  const html=render(execution,session);
+  assert.match(html,/value="100" aria-label="Progreso 100%"/);
+  assert.match(html,/data-session-progress-label>3 de 3 series resueltas · 2 omitidas</);
 });
