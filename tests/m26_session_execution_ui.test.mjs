@@ -96,7 +96,9 @@ test('completed execution closes the loop into confirmed progress',()=>{
     role:'coach',
   });
 
-  assert.match(coachHtml,/data-m26-area="expediente"/);
+  assert.match(coachHtml,/data-m26-coach-action="true"/);
+  assert.match(coachHtml,/data-m26-client-id="c1"/);
+  assert.match(coachHtml,/data-m26-target-area="expediente"/);
   assert.match(coachHtml,/>Abrir expediente</);
   assert.doesNotMatch(coachHtml,/>Ver mi progreso</);
   assert.match(
@@ -109,6 +111,7 @@ test('completed execution closes the loop into confirmed progress',()=>{
   );
   assert.doesNotMatch(coachHtml,/Los resultados y tu feedback quedaron confirmados\./);
   assert.doesNotMatch(html,/>Abrir expediente</);
+  assert.doesNotMatch(html,/data-m26-coach-action="true"/);
 
   markExecutionSync(
     x,
