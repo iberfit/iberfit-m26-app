@@ -156,7 +156,9 @@ export function buildCoachSessionReadinessContext(state,clientId,{now=new Date()
     feedback:Object.freeze({
       hasExecution,
       completedAt:prep?.lastExecution?.completedAt||null,
-      sessionRpe:Number.isFinite(Number(feedback.sessionRpe))?Number(feedback.sessionRpe):null,
+      sessionRpe:feedback.sessionRpe!==null&&feedback.sessionRpe!==undefined&&feedback.sessionRpe!==''&&Number.isFinite(Number(feedback.sessionRpe))
+        ?Number(feedback.sessionRpe)
+        :null,
       comment:coachBriefText(feedback.comment,280)||null,
       pain:feedback.pain===true,
       painNotes:coachBriefText(feedback.painNotes,220)||null,
