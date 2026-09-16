@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "516232a59ba2245df2795c020b3c1f053055792b",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado: optimización segura de CI mediante caché de navegadores Playwright en Device Experience, Daily Visual, Admin Interaction Matrix y Remote Gates; npm ci determinista preservado, dependencias del sistema instaladas siempre, descarga de navegadores solo en cache miss, verificación fail-closed de ejecutables y cobertura Chromium/WebKit/Firefox intacta. Sin cambios funcionales de producto, auth, Supabase, RLS, datos, frontend desplegable ni backend."
+}
