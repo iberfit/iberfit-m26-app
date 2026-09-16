@@ -146,6 +146,7 @@ export function getFinalFeedbackDraft(execution){
 }
 export function updateFinalFeedbackDraft(execution,input={}){
   if(execution?.status!=='awaiting_feedback')return null;
+  const previous=execution?.finalFeedbackDraft?.executionId===execution.id?execution.finalFeedbackDraft:null;
   execution.finalFeedbackDraft={
     executionId:execution.id,
     values:{
@@ -154,11 +155,30 @@ export function updateFinalFeedbackDraft(execution,input={}){
       pain:Boolean(input.pain),
       painNotes:draftValue(input.painNotes,1000),
     },
+    ...(previous?.needsReview?{
+      needsReview:true,
+      reviewReasons:Array.isArray(previous.reviewReasons)?[...previous.reviewReasons]:[],
+      reviewRequiredAt:previous.reviewRequiredAt||now(),
+    }:{}),
     updatedAt:now(),
   };
   return clone(execution.finalFeedbackDraft);
 }
 export function clearFinalFeedbackDraft(execution){if(execution)delete execution.finalFeedbackDraft;return execution;}
+function markFinalFeedbackDraftNeedsReview(execution,reason){
+  const draft=execution?.finalFeedbackDraft;
+  if(!draft||draft.executionId!==execution.id)return null;
+  const reasons=new Set(Array.isArray(draft.reviewReasons)?draft.reviewReasons:[]);
+  const safeReason=String(reason||'').trim();
+  if(safeReason)reasons.add(safeReason);
+  execution.finalFeedbackDraft={
+    ...draft,
+    needsReview:true,
+    reviewReasons:[...reasons],
+    reviewRequiredAt:now(),
+  };
+  return execution.finalFeedbackDraft;
+}
 function ensureDeviationStores(execution){
   if(!execution.skippedSets||typeof execution.skippedSets!=='object')execution.skippedSets={};
   if(!Array.isArray(execution.skippedExercises))execution.skippedExercises=[];
@@ -273,6 +293,7 @@ export function recordSet(execution,session,input={}){
   if(executionResultForStep(execution,step))throw new Error('M26_EXECUTION_SET_ALREADY_RECORDED');
   const result=validatedSetResult(step,input);
   replaceSkippedStepWithCompletion(execution,step,input.actor);
+  markFinalFeedbackDraftNeedsReview(execution,'set_recorded_after_closeout');
   execution.results[key]=result;clearActiveSetDraft(execution);
   event(execution,'SET_COMPLETED',result,input.actor);
   return execution;
@@ -285,6 +306,7 @@ export function correctSet(execution,session,input={}){
   const key=storageKeyForStep(execution,step);
   const previous=previousEntry.value;
   const next=validatedSetResult(step,input,previous);
+  markFinalFeedbackDraftNeedsReview(execution,'set_corrected_after_closeout');
   if(previousEntry.key!==key)delete execution.results[previousEntry.key];
   execution.results[key]=next;
   event(execution,'SET_CORRECTED',{before:previous,after:next},input.actor);
@@ -360,6 +382,7 @@ export function substituteExercise(execution,session,{fromExerciseId,toExerciseI
     clearActiveSetDraft(execution);
   }
   item.exerciseId=toExerciseId;
+  markFinalFeedbackDraftNeedsReview(execution,'exercise_substituted_after_closeout');
   event(execution,'EXERCISE_SUBSTITUTED',{fromExerciseId,toExerciseId,reason:safeReason},actor);
   return execution;
 }
@@ -369,6 +392,7 @@ export function addExecutionSet(execution,{actor=null}={}){
   const item=execution.queue[execution.index];if(!item)throw new Error('M26_EXECUTION_STEP_MISSING');
   if(item.sets>=100)throw new Error('M26_EXECUTION_SET_LIMIT');
   item.sets+=1;
+  markFinalFeedbackDraftNeedsReview(execution,'set_added_after_closeout');
   event(execution,'SET_ADDED',{exerciseId:item.exerciseId,totalSets:item.sets},actor);
   return execution;
 }
@@ -397,6 +421,7 @@ export function skipExecutionSet(execution,session,{reason,actor=null}={}){
   ensureDeviationStores(execution);
   const entry={...(scoped?{blockId:step.blockId||null}:{}),exerciseId:step.exerciseId,setNumber:step.setNumber,reason:safeReason,at:now(),actor:actorSnapshot(actor)};
   execution.skippedSets[key]=entry;
+  markFinalFeedbackDraftNeedsReview(execution,'set_skipped_after_closeout');
   event(execution,'SET_SKIPPED',entry,actor);
   return moveForward(execution,actor);
 }
@@ -419,6 +444,7 @@ export function skipExecutionExercise(execution,session,{reason,actor=null}={}){
   }
   const deviation={...(scopedOccurrence?{blockId:item.blockId||null}:{}),exerciseId:item.exerciseId,fromSetNumber:firstIndex+1,toSetNumber:item.sets,reason:safeReason,at:now(),actor:actorSnapshot(actor)};
   execution.skippedExercises.push(deviation);
+  markFinalFeedbackDraftNeedsReview(execution,'exercise_skipped_after_closeout');
   event(execution,'EXERCISE_SKIPPED',deviation,actor);
   clearActiveSetDraft(execution);execution.restUntil=null;execution.index+=1;execution.setIndex=0;
   event(execution,'STEP_ADVANCED',{index:execution.index,setIndex:0},actor);
@@ -437,6 +463,7 @@ export function addExecutionExercise(execution,{exerciseId,catalog,sets,reps,res
   const item={blockId:`live:${uid()}`,exerciseId,sets:safeSets,prescription:{reps:String(reps||'').trim().slice(0,40)||null,restSeconds:safeRest,tempo:String(tempo||'').trim().slice(0,40)||null,targetRpe:safeRpe,targetRir:safeRir,alternativeId:null},liveAdded:true};
   const insertAt=position==='end'?execution.queue.length:Math.min(execution.queue.length,execution.index+1);
   execution.queue.splice(insertAt,0,item);
+  markFinalFeedbackDraftNeedsReview(execution,'exercise_added_after_closeout');
   event(execution,'EXERCISE_ADDED',{exerciseId,sets:safeSets,prescription:item.prescription,position:position==='end'?'end':'next',queueIndex:insertAt},actor);
   return execution;
 }
