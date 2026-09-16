@@ -26,6 +26,16 @@ test('browser matrix includes full-shell client form continuity regression',()=>
 });
 
 
+test('editable interaction lease is acquired in capture phase before downstream controllers can request renders',()=>{
+  assert.match(shell,/addEventListener\('pointerdown',onPointerDown,\{capture:true,passive:true\}\)/u);
+  assert.match(shell,/addEventListener\('pointerup',onPointerRelease,\{capture:true,passive:true\}\)/u);
+  assert.match(shell,/addEventListener\('pointercancel',onPointerCancel,\{capture:true,passive:true\}\)/u);
+  assert.match(shell,/addEventListener\('focusin',onFocusIn,true\)/u);
+  assert.match(shell,/addEventListener\('focusout',onFocusOut,true\)/u);
+  assert.match(shell,/removeEventListener\('pointerdown',onPointerDown,true\)/u);
+  assert.match(shell,/removeEventListener\('focusin',onFocusIn,true\)/u);
+});
+
 test('label and form pointerdown acquire interaction protection before native focus transfer',()=>{
   assert.match(shell,/function labelControl\(node\)/u);
   assert.match(shell,/label\.control\|\|null/u);
