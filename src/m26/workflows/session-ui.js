@@ -759,8 +759,11 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
       :'Tu ejecución ya está registrada. Añade el feedback final para completar el seguimiento.';
     const feedbackTitle=isCoach?'Registra el feedback del cliente':'Cuéntanos cómo te fue';
     const rpeLabel=isCoach?'RPE del cliente':'RPE de la sesión';
-    const commentLabel=isCoach?'Observación de cierre':'Comentario';
+    const commentLabel=isCoach?'Feedback / percepción del cliente':'Comentario';
     const painLabel=isCoach?'El cliente reportó dolor o molestia':'Tuve dolor o molestia';
+    const feedbackPrivacyNote=isCoach
+      ?'Este feedback forma parte del registro del cliente. Para observaciones internas utiliza Nota privada en el expediente.'
+      :'';
     return `<section class="m26-guided m26-session-live" data-session-live-state="feedback">
       ${state}
       ${sync}
@@ -786,6 +789,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <label><input type="checkbox" data-session-feedback-pain> ${e(painLabel)}</label>
           <label>Detalle de dolor <small>Obligatorio si marcas dolor o molestia</small><textarea data-session-feedback-pain-notes maxlength="1000"></textarea></label>
         </div>
+        ${feedbackPrivacyNote?`<p class="m26-notice" data-session-coach-feedback-privacy>${e(feedbackPrivacyNote)}</p>`:''}
         <p class="m26-notice">Puedes salir y terminar después. El feedback escrito se conserva en este dispositivo y la sesión no se marcará como completada hasta confirmar el cierre.</p>
         <div class="m26-session-live-actions">
           <button type="button" data-session-action="exit-session">Salir y terminar después</button>
