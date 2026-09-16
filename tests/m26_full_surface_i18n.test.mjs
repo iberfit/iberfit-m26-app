@@ -32,6 +32,7 @@ test('surface translator covers representative Admin Coach Client and access/ses
     ['Tu serie ya está guardada. Descansa o continúa cuando estés preparado.','Your set is saved. Rest or continue when you are ready.','Votre série est enregistrée. Reposez-vous ou continuez lorsque vous êtes prêt.','A sua série está guardada. Descanse ou continue quando estiver preparado.'],
     ['Tu serie ya está guardada. Continúa cuando estés preparado.','Your set is saved. Continue when you are ready.','Votre série est enregistrée. Continuez lorsque vous êtes prêt.','A sua série está guardada. Continue quando estiver preparado.'],
     ['Última serie guardada. Revísala o continúa al cierre.','Final set saved. Review it or continue to wrap-up.','Dernière série enregistrée. Vérifiez-la ou continuez vers la clôture.','Última série guardada. Reveja-a ou continue para o fecho.'],
+    ['Revisar última serie','Review last set','Revoir la dernière série','Rever última série'],
     ['Recuperación y bienestar','Recovery and wellbeing','Récupération et bien-être','Recuperação e bem-estar'],
   ];
   for(const [es,en,fr,pt] of cases){
