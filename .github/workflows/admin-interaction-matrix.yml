@@ -41,8 +41,19 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Install Chromium WebKit and Firefox
-        run: npx playwright install --with-deps chromium webkit firefox
+      - name: Restore Playwright browser cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-all
+      - name: Install browser system dependencies
+        run: npx playwright install-deps chromium webkit firefox
+      - name: Install Chromium WebKit and Firefox on cache miss
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium webkit firefox
+      - name: Verify Playwright browser cache
+        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium, firefox, webkit } from '@playwright/test'; for (const [name,browser] of Object.entries({chromium,firefox,webkit})) if (!fs.existsSync(browser.executablePath())) throw new Error('PLAYWRIGHT_'+name.toUpperCase()+'_NOT_READY');"
       - name: Exercise real Admin inputs selects focus and rerender
         run: npx playwright test --config playwright.admin-interaction.config.mjs
       - name: Preserve failures only
