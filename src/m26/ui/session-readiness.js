@@ -240,7 +240,10 @@ function buildCoachReadinessBrief(document,context){
       ].filter(Boolean).join(' · ')||'Cierre confirmado'
     :'Sin cierre confirmado';
   const feedbackDetail=feedback.hasExecution
-    ?feedback.comment||feedback.painNotes||'Sin comentario final confirmado.'
+    ?[
+        feedback.comment||null,
+        feedback.painNotes?`Molestia: ${feedback.painNotes}`:null,
+      ].filter(Boolean).join(' · ')||'Sin comentario final confirmado.'
     :'No hay una ejecución confirmada anterior para contextualizar esta sesión.';
   feedbackItem.append(
     create(document,'span','','Último cierre confirmado'),
