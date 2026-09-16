@@ -50,6 +50,7 @@ function applyRules(value,language,translatePart){
     const n=m[2];
     return pick(language,`Quality ${grade} · ${n} sample${n==='1'?'':'s'} excluded from metrics`,`Qualité ${grade} · ${n} échantillon${n==='1'?'':'s'} exclu${n==='1'?'':'s'} des métriques`,`Qualidade ${grade} · ${n} amostra${n==='1'?'':'s'} excluída${n==='1'?'':'s'} das métricas`);
   }
+  if((m=value.match(/^(Evolución|Retroceso|Estable|Sin conclusión) ([↑↓=·])$/u)))return `${translatePart(m[1])} ${m[2]}`;
   if((m=value.match(/^Cambio vs anterior: (.+)$/u)))return pick(language,`Change vs previous: ${m[1]}`,`Changement vs précédent : ${m[1]}`,`Alteração vs anterior: ${m[1]}`);
   if((m=value.match(/^vs\. exposición anterior (.+)$/u)))return pick(language,`vs. previous exposure ${m[1]}`,`vs exposition précédente ${m[1]}`,`vs. exposição anterior ${m[1]}`);
   if((m=value.match(/^Evolución confirmada de (.+) en (.+)$/u)))return pick(language,`Confirmed ${m[1]} trend for ${m[2]}`,`Évolution confirmée de ${m[1]} pour ${m[2]}`,`Evolução confirmada de ${m[1]} em ${m[2]}`);
