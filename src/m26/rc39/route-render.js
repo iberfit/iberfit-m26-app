@@ -139,14 +139,23 @@ function renderCoachLaunchSelf(vm){
   const actionMarkup=action&&action.area
     ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-m26-area="${escape(action.area)}">${escape(actionLabel)}</button></div>`
     : `<p>${escape(copy.noAction)}</p>`;
-  return `<section class="m26-panel m26-panel-soft" data-coach-launch-self="${escape(journey.stage||'pending')}" aria-labelledby="m26-coach-launch-title">
-    <div class="m26-panel-heading"><div><p class="m26-eyebrow">${escape(copy.eyebrow)}</p><h2 id="m26-coach-launch-title">${escape(copy.title)}</h2><p>${escape(copy.intro)}</p></div>${statusBadge(status,journey.ready?'success':'pending')}</div>
-    <div class="m26-stat-grid"><article class="m26-stat"><span>${escape(copy.progress(journey.completedCount,journey.total))}</span><strong>${escape(`${journey.percent}%`)}</strong><small>${escape(journey.source)}</small></article><article class="m26-stat"><span>${escape(copy.evidenceTitle)}</span><strong>${escape(journey.clientEvidenceCount)}</strong><small>${escape(copy.evidenceCopy)}</small></article></div>
-    <meter min="0" max="100" value="${escape(journey.percent)}" aria-label="${escape(copy.progress(journey.completedCount,journey.total))}">${escape(`${journey.percent}%`)}</meter>
-    <div class="m26-stack">${milestoneRows}</div>
-    ${!journey.profileVerified||!journey.accountStatusVerified?`<aside class="m26-notice is-warning" role="status"><strong>${escape(copy.adminTitle)}</strong><p>${escape(copy.adminCopy)}</p></aside>`:''}
-    <div><p class="m26-eyebrow">${escape(copy.nextTitle)}</p>${actionMarkup}</div>
-  </section>`;
+  const completedCount=Math.max(0,Number(journey.completedCount||0));
+  const launchExpanded=!journey.ready&&completedCount<=2;
+  const progressCopy=copy.progress(journey.completedCount,journey.total);
+  return `<details class="m26-panel m26-panel-soft m26-coach-launch-self" data-coach-launch-self="${escape(journey.stage||'pending')}" data-coach-launch-density="${launchExpanded?'guided':'compact'}"${launchExpanded?' open':''}>
+    <summary class="m26-coach-launch-summary" aria-labelledby="m26-coach-launch-title">
+      <div class="m26-coach-launch-summary-copy"><p class="m26-eyebrow">${escape(copy.eyebrow)}</p><h2 id="m26-coach-launch-title">${escape(copy.title)}</h2><p>${escape(progressCopy)}</p></div>
+      <div class="m26-coach-launch-summary-status"><strong>${escape(`${journey.percent}%`)}</strong>${statusBadge(status,journey.ready?'success':'pending')}<span class="m26-coach-launch-toggle" aria-hidden="true">＋</span></div>
+    </summary>
+    <div class="m26-coach-launch-body">
+      <p class="m26-coach-launch-intro">${escape(copy.intro)}</p>
+      <div class="m26-stat-grid"><article class="m26-stat"><span>${escape(progressCopy)}</span><strong>${escape(`${journey.percent}%`)}</strong><small>${escape(journey.source)}</small></article><article class="m26-stat"><span>${escape(copy.evidenceTitle)}</span><strong>${escape(journey.clientEvidenceCount)}</strong><small>${escape(copy.evidenceCopy)}</small></article></div>
+      <meter min="0" max="100" value="${escape(journey.percent)}" aria-label="${escape(progressCopy)}">${escape(`${journey.percent}%`)}</meter>
+      <div class="m26-stack">${milestoneRows}</div>
+      ${!journey.profileVerified||!journey.accountStatusVerified?`<aside class="m26-notice is-warning" role="status"><strong>${escape(copy.adminTitle)}</strong><p>${escape(copy.adminCopy)}</p></aside>`:''}
+      <div><p class="m26-eyebrow">${escape(copy.nextTitle)}</p>${actionMarkup}</div>
+    </div>
+  </details>`;
 }
 export function enhanceCoachLaunchSelfMarkup(markup,vm){
   const base=String(markup||'');
