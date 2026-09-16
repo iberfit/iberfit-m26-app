@@ -192,7 +192,7 @@ export function buildCoachSessionReadinessContext(state,clientId,{now=new Date()
     {now},
   );
   const open=Array.isArray(decisions.open)?decisions.open:[];
-  const top=open[0]||null;
+  const top=decisions.needsReview||open[0]||null;
 
   return Object.freeze({
     clientId:id,
