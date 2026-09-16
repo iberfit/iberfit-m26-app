@@ -25,13 +25,32 @@ permissions:
   contents: read
 
 concurrency:
-  group: iberfit-admin-interaction-matrix
-  cancel-in-progress: false
+  group: iberfit-admin-interaction-matrix-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   browser-matrix:
+    name: browser-matrix-${{ matrix.browser }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - browser: chromium
+            projects: >-
+              --project=admin-desktop-chromium
+              --project=admin-tablet-chromium
+              --project=admin-tablet-landscape-chromium
+              --project=admin-mobile-chromium
+          - browser: webkit
+            projects: >-
+              --project=admin-desktop-webkit
+              --project=admin-mobile-webkit
+          - browser: firefox
+            projects: >-
+              --project=admin-desktop-firefox
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,15 +60,25 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Install Chromium WebKit and Firefox
-        run: npx playwright install --with-deps chromium webkit firefox
+      - name: Restore Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ matrix.browser }}-
+      - name: Install ${{ matrix.browser }}
+        run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Exercise real Admin inputs selects focus and rerender
-        run: npx playwright test --config playwright.admin-interaction.config.mjs
+        run: >-
+          npx playwright test
+          --config playwright.admin-interaction.config.mjs
+          ${{ matrix.projects }}
       - name: Preserve failures only
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: admin-interaction-matrix-${{ github.run_id }}
+          name: admin-interaction-matrix-${{ matrix.browser }}-${{ github.run_id }}
           path: test-results/
           if-no-files-found: warn
           retention-days: 14
