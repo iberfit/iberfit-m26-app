@@ -2938,7 +2938,7 @@ export function renderExpedienteRoute(vm) {
       </div>
 
       <div class="m26-profile-hero-copy">
-        <p class="m26-eyebrow">Cliente 360º</p>
+        <p class="m26-eyebrow">Expediente del cliente</p>
         <h2>${escapeHtml(data.name)}</h2>
         <div class="m26-client360-header-facts" aria-label="Resumen del cliente">
           <span><small>Modalidad</small><strong>${escapeHtml(data.modality)}</strong></span>
