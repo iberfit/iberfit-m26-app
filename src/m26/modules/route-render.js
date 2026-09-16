@@ -340,6 +340,7 @@ function renderCoachHoyRoute(vm) {
         ${operationStatus?`<span class="m26-coach-home-sync"><strong>${escapeHtml(operationStatus)}</strong></span>`:''}
       </div>
     </section>
+    <!-- m26-coach-launch-self-slot -->
 
     <nav class="m26-coach-home-quick" aria-label="Acciones rápidas">
       <button type="button" data-m26-area="clientes"><span aria-hidden="true">＋</span><strong>Cliente</strong></button>

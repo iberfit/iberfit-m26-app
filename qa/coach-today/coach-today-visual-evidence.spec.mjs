@@ -26,6 +26,7 @@ test('Coach Hoy visual evidence keeps operational content ahead of optional shor
   const launch=page.locator('[data-coach-launch-self]');
   const launcher=page.locator('[data-coach-command-open]');
   const qaRoot=page.locator('#qa-root');
+  const coachWorkspaceHero=page.locator('[data-m26-workspace-role="coach"] .m26-workspace-hero');
 
   await expect(shell).toBeVisible();
   await expect(shortcuts).toBeVisible();
@@ -36,6 +37,7 @@ test('Coach Hoy visual evidence keeps operational content ahead of optional shor
   await expect(launch).toBeVisible();
   await expect(launch).toHaveAttribute('data-coach-launch-density','compact');
   await expect(launch).not.toHaveAttribute('open','');
+  await expect(coachWorkspaceHero).toHaveCount(0);
 
   const viewport=testInfo.project.use.viewport||{width:1440,height:1000};
   const expectedLayout=Number(viewport.width)<=640?'compact-touch':Number(viewport.width)<=1179?'medium-touch':'expanded-pointer';
@@ -51,6 +53,7 @@ test('Coach Hoy visual evidence keeps operational content ahead of optional shor
     const next=box('.m26-coach-home-command');
     return {
       shortcutHeight:shortcut?.height??null,
+      shortcutTop:shortcut?.top??null,
       routeTop:route?.top??null,
       launchTop:launch?.top??null,
       nextActionTop:next?.top??null,
@@ -63,6 +66,10 @@ test('Coach Hoy visual evidence keeps operational content ahead of optional shor
   expect(metrics.shortcutHeight).toBeLessThan(100);
   expect(metrics.routeTop).not.toBeNull();
   expect(metrics.nextActionTop).not.toBeNull();
+  expect(metrics.launchTop).not.toBeNull();
+  expect(metrics.shortcutTop).not.toBeNull();
+  expect(metrics.nextActionTop).toBeLessThan(metrics.launchTop);
+  expect(metrics.launchTop).toBeLessThan(metrics.shortcutTop);
 
   await shortcuts.locator('summary').click();
   await expect(shortcuts).toHaveAttribute('open','');
