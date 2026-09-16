@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {
+  buildCoachLiveContextSignal,
   buildCoachSessionReadinessContext,
   buildSessionReadinessSnapshot,
 } from '../src/m26/ui/session-readiness.js';
@@ -156,6 +157,41 @@ test('contexto profesional mantiene RPE ausente como ausente y nunca lo conviert
   assert.equal(context.feedback.comment,'Cierre sin RPE informado.');
 });
 
+test('contexto activo del Coach persiste dolor confirmado por encima de decisiones pendientes',()=>{
+  const state=baseState();
+  state.collections.sessionExecutions[0].feedback.pain=true;
+  state.collections.sessionExecutions[0].feedback.painNotes='Molestia leve de rodilla al terminar.';
+  const context=buildCoachSessionReadinessContext(state,clientId,{now});
+  const signal=buildCoachLiveContextSignal(context);
+  assert.equal(signal.kind,'confirmed-pain');
+  assert.equal(signal.level,'warning');
+  assert.equal(signal.title,'Dolor o molestia en el último cierre');
+  assert.match(signal.detail,/rodilla/);
+});
+
+test('contexto activo del Coach mantiene decisión vencida cuando no hay dolor confirmado',()=>{
+  const context=buildCoachSessionReadinessContext(baseState(),clientId,{now});
+  const signal=buildCoachLiveContextSignal(context);
+  assert.equal(signal.kind,'decision-overdue');
+  assert.equal(signal.title,'Decisión vencida');
+  assert.match(signal.detail,/RPE alto con recuperación limitada/);
+});
+
+test('contexto activo del Coach muestra revisión de hoy sin mantener decisiones futuras',()=>{
+  const state=baseState();
+  state.collections.sessionExecutions[0].feedback.pain=false;
+  state.collections.m26Entities[0].body.reviewAt='2026-09-04';
+  let context=buildCoachSessionReadinessContext(state,clientId,{now});
+  let signal=buildCoachLiveContextSignal(context);
+  assert.equal(signal.kind,'decision-due-today');
+  assert.equal(signal.title,'Decisión para revisar hoy');
+
+  state.collections.m26Entities[0].body.reviewAt='2026-09-20';
+  context=buildCoachSessionReadinessContext(state,clientId,{now});
+  signal=buildCoachLiveContextSignal(context);
+  assert.equal(signal,null);
+});
+
 test('brief profesional traduce estados estáticos y dinámicos sin mezclar idiomas',()=>{
   assert.equal(
     iberfitSurfaceTranslate('Último cierre confirmado',{language:'en'}),
@@ -173,6 +209,18 @@ test('brief profesional traduce estados estáticos y dinámicos sin mezclar idio
     iberfitSurfaceTranslate('Molestia: rodilla derecha',{language:'pt'}),
     'Desconforto: rodilla derecha',
   );
+  assert.equal(
+    iberfitSurfaceTranslate('Mantener presente',{language:'en'}),
+    'Keep in mind',
+  );
+  assert.equal(
+    iberfitSurfaceTranslate('Decisión vencida',{language:'fr'}),
+    'Décision en retard',
+  );
+  assert.equal(
+    iberfitSurfaceTranslate('Dolor o molestia en el último cierre',{language:'pt'}),
+    'Dor ou desconforto no último encerramento',
+  );
 });
 
 test('capa previa es idempotente, mobile-first y no introduce automatización clínica',async()=>{
@@ -186,6 +234,10 @@ test('capa previa es idempotente, mobile-first y no introduce automatización cl
   assert.match(ui,/Cualquier ajuste del plan sigue dependiendo de tu Entrenador/i);
   assert.match(ui,/data-m27-session-readiness/);
   assert.match(ui,/data-m27-coach-session-readiness/);
+  assert.match(ui,/data-m27-coach-live-context/);
+  assert.match(ui,/Mantener presente/);
+  assert.match(ui,/if\(role!=='coach'\|\|!\['active','rest'\]\.includes\(liveState\)\)return false/);
+  assert.match(ui,/buildCoachLiveContextSignal\(coachContext\)/);
   assert.match(ui,/Último cierre confirmado/);
   assert.match(ui,/Decisiones del Coach/);
   assert.doesNotMatch(ui,/Sin dolor registrado/);
@@ -194,7 +246,9 @@ test('capa previa es idempotente, mobile-first y no introduce automatización cl
   assert.match(ui,/confirmedSessionExecutionsForClient/);
   assert.match(ui,/summarizeActionOutcomes/);
   assert.doesNotMatch(ui,/buildNextSessionPreparation/);
-  assert.match(ui,/data-session-live-state=["']ready["']/);
+  assert.match(ui,/const liveState=String\(live\.getAttribute\?\.\('data-session-live-state'\)/);
+  assert.match(ui,/if\(liveState==='ready'\)/);
+  assert.match(ui,/\['active','rest'\]\.includes\(liveState\)/);
   assert.doesNotMatch(ui,/MutationObserver/);
   assert.doesNotMatch(ui,/service[_-]?role/i);
   assert.doesNotMatch(ui,/innerHTML/);
