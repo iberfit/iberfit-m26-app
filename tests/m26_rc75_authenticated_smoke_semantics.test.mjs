@@ -25,7 +25,11 @@ test('smoke autenticado cubre Chromium, WebKit y Firefox sin acoplar CPU throttl
   assert.match(config,/authenticated-readonly-webkit/u);
   assert.match(config,/authenticated-readonly-mobile-webkit/u);
   assert.match(config,/authenticated-readonly-firefox/u);
-  assert.match(workflow,/playwright install --with-deps chromium webkit firefox/u);
+  assert.match(workflow,/actions\/cache@v4/u);
+  assert.match(workflow,/playwright install-deps chromium webkit firefox/u);
+  assert.match(workflow,/cache-hit != 'true'/u);
+  assert.match(workflow,/playwright install chromium webkit firefox/u);
+  assert.doesNotMatch(workflow,/playwright install --with-deps/u);
   assert.match(spec,/browserName==='chromium'/u);
   assert.match(spec,/if\(chromiumEngine\)/u);
   assert.match(spec,/newCDPSession\(page\)/u);
