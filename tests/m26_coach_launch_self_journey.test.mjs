@@ -145,3 +145,62 @@ test('Coach shell carries launch evidence and injects it into canonical Today wi
   assert.match(markup,/Acciones rápidas/u);
   assert.match(markup,/Pendiente de verificación administrativa/u);
 });
+
+
+test('Coach launch journey stays expanded only while the Coach is genuinely starting',()=>{
+  const newState=state();
+  const newShell=augmentRc39ShellViewModel({
+    mode:'authenticated',
+    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT'},
+    activeArea:'hoy',
+  },newState);
+  const newRoute={
+    kind:'hoy',role:'coach',clients:[],appointments:[],proposals:[],upcoming:[],
+    operations:{pending:0,conflicts:0,rejected:0},coachCockpit:null,
+    rc39:{coachLaunchJourney:newShell.coachLaunchJourney},
+  };
+  const newMarkup=enhanceRc39ShellMarkup(renderHoyRoute(newRoute),newShell);
+  assert.match(newMarkup,/class="m26-panel m26-panel-soft m26-coach-launch-self"[^>]*data-coach-launch-density="guided"[^>]* open>/u);
+  assert.match(newMarkup,/data-coach-launch-milestone="profile"/u);
+
+  const operationalState=state({
+    collections:{
+      clients:[{id:'client-1',name:'Ana'}],
+      sessions:[{id:'session-1',clientId:'client-1',status:'publicado',publishedAt:'2026-09-04T10:00:00Z'}],
+      appointments:[],
+      sessionExecutions:[{id:'execution-1',clientId:'client-1',status:'completed',completedAt:'2026-09-05T10:00:00Z',syncStatus:'clean'}],
+      checkins:[],iriAssessments:[],wearableDailySummaries:[],
+    },
+  });
+  const operationalShell=augmentRc39ShellViewModel({
+    mode:'authenticated',
+    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT'},
+    activeArea:'hoy',
+  },operationalState);
+  const operationalRoute={
+    kind:'hoy',role:'coach',clients:operationalState.collections.clients,
+    appointments:[],proposals:[],upcoming:[],
+    operations:{pending:0,conflicts:0,rejected:0},coachCockpit:null,
+    rc39:{coachLaunchJourney:operationalShell.coachLaunchJourney},
+  };
+  const operationalMarkup=enhanceRc39ShellMarkup(renderHoyRoute(operationalRoute),operationalShell);
+  assert.match(operationalMarkup,/data-coach-launch-density="compact"/u);
+  assert.doesNotMatch(operationalMarkup,/data-coach-launch-density="compact"[^>]* open/u);
+  assert.match(operationalMarkup,/5 de 6 hitos verificados/u);
+  assert.match(operationalMarkup,/83%/u);
+  for(const id of ['invited','activated','profile','client','planning','session']){
+    assert.match(operationalMarkup,new RegExp('data-coach-launch-milestone="'+id+'"','u'));
+  }
+  assert.match(operationalMarkup,/Pendiente de verificación administrativa/u);
+});
+
+test('Coach launch disclosure styling preserves touch, reduced-motion and print access',()=>{
+  const css=readFileSync(new URL('../src/m26/rc39/rc39.css',import.meta.url),'utf8');
+  const block=css.slice(css.indexOf('/* COACH_LAUNCH_PROGRESSIVE_DISCLOSURE_V1_BEGIN */'));
+  assert.ok(block.length>0);
+  assert.match(block,/\.m26-coach-launch-summary/u);
+  assert.match(block,/min-height:64px/u);
+  assert.match(block,/@media\(max-width:719px\)/u);
+  assert.match(block,/@media\(prefers-reduced-motion:reduce\)/u);
+  assert.match(block,/@media print/u);
+});
