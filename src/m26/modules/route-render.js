@@ -3340,11 +3340,12 @@ export function renderProgressRoute(vm){
 
   if(vm.role==='client'){
     const stageMarkup=renderClientProgressStage(vm,stage);
-    const detailed=stage.stage==='mature'
-      ?deepContent
-      :`<details class="m26-client-progress-detail">
+    const detailSummary=stage.stage==='mature'
+      ?'Historial consolidado, bienestar, IRI, dispositivos, alertas y evolución por ejercicio.'
+      :'Historial, bienestar, IRI, dispositivos, alertas y ejercicios confirmados.';
+    const detailed=`<details class="m26-client-progress-detail" data-client-progress-depth="${escapeHtml(stage.stage)}">
           <summary>
-            <span><strong>Ver detalle completo</strong><small>Historial, bienestar, IRI, dispositivos, alertas y ejercicios confirmados.</small></span>
+            <span><strong>Ver detalle completo</strong><small>${escapeHtml(detailSummary)}</small></span>
             <span aria-hidden="true">＋</span>
           </summary>
           <div class="m26-client-progress-detail-body">${secondaryContent}</div>
@@ -3352,7 +3353,7 @@ export function renderProgressRoute(vm){
     return `<div class="m26-route m26-client-progress-route">
       <section class="m26-route-intro"${clientProgressGuideAttribute}${clientProgressInsightAttribute}><div><p class="m26-eyebrow">Progreso y adherencia</p><h2>Tu evolución</h2><p>Mostramos primero lo que ya tiene significado. El detalle permanece disponible sin convertir datos ausentes en ceros.</p></div>${badge(stage.stage==='starting'?'Construyendo historial':stage.stage==='comparable'?'Primeras tendencias':'Historial consolidado','neutral')}</section>
       ${stageMarkup}
-      ${stage.stage==='mature'?'':primaryEvidence}
+      ${primaryEvidence}
       ${detailed}
     </div>`;
   }
