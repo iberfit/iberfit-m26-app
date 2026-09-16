@@ -3,7 +3,7 @@ name: IBERFIT Final Production Frontend
 on:
   push:
     branches:
-      - prep/final-production-rc74-4
+      - canary/rc74-4
 
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = 'prep/final-production-rc74-4'
+          test "$GITHUB_REF_NAME" = 'canary/rc74-4'
           HEAD_SHA="$(git rev-parse HEAD)"
           test "$HEAD_SHA" = "$GITHUB_SHA"
           test -z "$(git status --porcelain --untracked-files=all)"
@@ -49,7 +49,7 @@ jobs:
           M26_PROJECT_REF: pjhmrhejsoofmouedavw
           M26_QA_ONLY: 'false'
           M26_SOURCE_SHA: ${{ github.sha }}
-          M26_SOURCE_BRANCH: prep/final-production-rc74-4
+          M26_SOURCE_BRANCH: canary/rc74-4
           M26_PROMOTION_HEAD: ${{ github.sha }}
           M26_BUILD_DIR: .tmp/rc64-current-surface
         run: node scripts/generate_final_production_runtime_config.mjs
@@ -66,7 +66,7 @@ jobs:
           grep -q '"qaOnly": false' "$R"
           grep -q '"enabled": true' "$R"
           grep -Fq "\"sourceSha\": \"$GITHUB_SHA\"" "$V"
-          grep -q '"sourceBranch": "prep/final-production-rc74-4"' "$V"
+          grep -q '"sourceBranch": "canary/rc74-4"' "$V"
           grep -q '"environment": "PRODUCTION"' "$V"
           grep -q 'https://pjhmrhejsoofmouedavw.supabase.co' "$H"
           ! grep -q 'gjztkdwfmunnzhtvxrsu' "$R" "$V" "$H"

@@ -3,7 +3,7 @@ name: IBERFIT Final Production Bundle
 on:
   push:
     branches:
-      - prep/final-production-rc74-4
+      - canary/rc74-4
 
 permissions:
   contents: read

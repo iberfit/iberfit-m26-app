@@ -6,6 +6,8 @@ const generator=fs.readFileSync('scripts/generate_final_production_runtime_confi
 const verifier=fs.readFileSync('scripts/verify_production_surface.mjs','utf8');
 const transport=fs.readFileSync('src/m26/supabase-transport.js','utf8');
 const workflow=fs.readFileSync('.github/workflows/production-promote.yml','utf8');
+const finalFrontendWorkflow=fs.readFileSync('.github/workflows/final-production-frontend.yml','utf8');
+const finalBundleWorkflow=fs.readFileSync('.github/workflows/final-production-bundle.yml','utf8');
 
 test('production frontend generator binds provenance to exact integration source and exact PROD ref',()=>{
   assert.match(generator,/APPROVED_SOURCE_BRANCH='canary\/rc74-4'/u);
@@ -63,4 +65,20 @@ test('canonical transport supports exact production runtime without weakening QA
   assert.match(transport,/EXACT_REMOTE_HOSTS\s*=\s*new Set\(\['app\.iberfit\.cl', 'coach\.iberfit\.cl', 'm26-canary\.iberfit\.cl'\]\)/u);
   assert.match(transport,/qaOnly===true[\s\S]*M26_QA_PROJECT_REF/u);
   assert.match(transport,/M26_PRODUCTION_PROJECT_REF/u);
+});
+
+
+test('final validation workflows are pinned to the same protected Canary source as the production generator',()=>{
+  const sourceBranch=(generator.match(/APPROVED_SOURCE_BRANCH='([^']+)'/u)||[])[1];
+  assert.equal(sourceBranch,'canary/rc74-4');
+  for(const [name,source] of [
+    ['frontend',finalFrontendWorkflow],
+    ['bundle',finalBundleWorkflow],
+  ]){
+    assert.match(source,/branches:\s*\n\s*- canary\/rc74-4/u,`${name} must run from Canary`);
+    assert.doesNotMatch(source,/prep\/final-production-rc74-4/u,`${name} must not depend on stale prep branch`);
+  }
+  assert.match(finalFrontendWorkflow,/test "\$GITHUB_REF_NAME" = 'canary\/rc74-4'/u);
+  assert.match(finalFrontendWorkflow,/M26_SOURCE_BRANCH: canary\/rc74-4/u);
+  assert.match(finalFrontendWorkflow,/"sourceBranch": "canary\/rc74-4"/u);
 });
