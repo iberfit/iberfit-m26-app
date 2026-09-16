@@ -2922,11 +2922,6 @@ export function renderExpedienteRoute(vm) {
       ?coachWorkspaceSurface
       :clientSummarySurface;
 
-  const expedienteEyebrow=
-    isProfessionalWorkspace
-      ?'Expediente del cliente'
-      :'Tu seguimiento';
-
   return `<div class="m26-route m26-client360-v2" data-m26-expediente data-m26-expediente-view="resumen">
     <section class="m26-profile-hero m26-profile-hero-premium">
       <div class="m26-profile-brand-lockup">
@@ -2943,7 +2938,7 @@ export function renderExpedienteRoute(vm) {
       </div>
 
       <div class="m26-profile-hero-copy">
-        <p class="m26-eyebrow">${escapeHtml(expedienteEyebrow)}</p>
+        <p class="m26-eyebrow">Expediente del cliente</p>
         <h2>${escapeHtml(data.name)}</h2>
         <div class="m26-client360-header-facts" aria-label="Resumen del cliente">
           <span><small>Modalidad</small><strong>${escapeHtml(data.modality)}</strong></span>
