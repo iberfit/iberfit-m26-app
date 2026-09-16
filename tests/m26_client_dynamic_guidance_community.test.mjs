@@ -352,16 +352,16 @@ test('Plan and session moments on Today are driven by real availability',()=>{
   assert.match(withSession,/data-m26-client-guide="session-entry" data-m26-client-guide-event-key="[a-f0-9]{8}"/u);
 });
 
-test('Challenge discovery prefers the quiet Today shortcut and keeps More as a fallback',()=>{
+test('Challenge discovery points to the quiet Today disclosure and keeps More as a fallback',()=>{
   const guide=read('src/m26/onboarding/client-contextual-guide.js');
-  assert.match(guide,/client-feature-challenges-community[\s\S]*?selectors:Object\.freeze\(\['\[data-m26-client-guide="challenge-discovery"\]','\.m26-client-bottom-nav-more > summary'\]\)/u);
+  assert.match(guide,/client-feature-challenges-community[\s\S]*?selectors:Object\.freeze\(\['\[data-m26-client-guide="secondary-actions"\]','\.m26-client-bottom-nav-more > summary'\]\)/u);
   assert.match(guide,/Retos y comunidad están disponibles cuando quieras/u);
-  assert.match(guide,/puedes entrar desde Hoy o Más/u);
+  assert.match(guide,/puedes entrar desde Más para ti en Hoy o desde Más/u);
 
   const i18n=read('src/m26/ui/i18n-surface-onboarding-client.js');
-  assert.match(i18n,/Challenges and community are available whenever you want/u);
-  assert.match(i18n,/Défis et communauté sont disponibles quand vous le souhaitez/u);
-  assert.match(i18n,/Desafios e comunidade estão disponíveis quando quiser/u);
+  assert.match(i18n,/More for you in Today or from More/u);
+  assert.match(i18n,/Plus pour vous dans Aujourd’hui ou depuis Plus/u);
+  assert.match(i18n,/Mais para si em Hoje ou através de Mais/u);
 });
 
 test('Moment guidance prioritizes actionable facts and avoids duplicate route explanations',()=>{
