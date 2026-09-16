@@ -69,7 +69,7 @@ const STYLES=`
   .m27-session-focus-dock.is-coach .m27-session-focus-secondary{flex:0 0 3.15rem;padding:.62rem .55rem}
   .m27-session-focus-meta>strong{font-size:.76rem}
 }
-@media (forced-colors:active){.m27-session-focus-dock,.m27-session-focus-primary,.m27-session-focus-secondary{border-color:ButtonText}.m27-session-focus-primary,.m27-session-focus-secondary{forced-color-adjust:auto}}
+@media (forced-colors:active){.m27-session-readiness-coach-brief,.m27-session-readiness-coach-item{border-color:CanvasText}.m27-session-focus-dock,.m27-session-focus-primary,.m27-session-focus-secondary{border-color:ButtonText}.m27-session-focus-primary,.m27-session-focus-secondary{forced-color-adjust:auto}}
 @media (prefers-reduced-motion:reduce){.m27-session-focus-primary,.m27-session-focus-secondary{scroll-behavior:auto}}
 `;
 
