@@ -76,6 +76,15 @@ async function expectJourneyState(page,{area,title,state}){
   ).toHaveAttribute('data-m26-client-guide-side',/^(left|right)$/u);
   await expect(page.locator('[data-m26-client-context-guide]'),'Contextual help must stay silent while the first-run journey owns the experience').toHaveCount(0);
   await expect(page.locator('[data-m26-guided-tour]'),'Legacy numbered tour must never compete with the Client Genie journey').toHaveCount(0);
+
+  if(Number(page.viewportSize()?.width||0)<=690){
+    const dialogBox=await welcome.boundingBox();
+    const nav=page.locator('.m26-client-bottom-nav:visible').first();
+    await expect(nav,'Mobile Client navigation must stay visible while the Genie explains the current area').toBeVisible();
+    const navBox=await nav.boundingBox();
+    const dialogBottom=(dialogBox?.y??Infinity)+(dialogBox?.height??0);
+    expect(dialogBottom,'Genie dialogue must finish above the fixed Client navigation').toBeLessThanOrEqual((navBox?.y??0)-4);
+  }
 }
 
 test('Client Genie owns first-run navigation, can pause/resume, returns to Today and hands back to contextual help',async({browser},testInfo)=>{
@@ -85,11 +94,15 @@ test('Client Genie owns first-run navigation, can pause/resume, returns to Today
   expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
   expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
 
+  const projectUse=testInfo.project.use||{};
   const context=await browser.newContext({
     baseURL:LOCAL_ORIGIN,
     locale:'es-ES',
     timezoneId:'America/Santiago',
     serviceWorkers:'block',
+    viewport:projectUse.viewport,
+    hasTouch:Boolean(projectUse.hasTouch),
+    isMobile:Boolean(projectUse.isMobile),
   });
   const blocked=[];
   await context.route('**/*',async(route)=>{

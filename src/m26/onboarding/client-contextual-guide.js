@@ -273,7 +273,7 @@ const STYLE=`
     left:.75rem!important;
     right:.75rem!important;
     top:auto!important;
-    bottom:calc(5.25rem + env(safe-area-inset-bottom))!important;
+    bottom:calc(6rem + env(safe-area-inset-bottom))!important;
     width:auto;
     max-height:min(48vh,26rem);
     overflow:auto;
