@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
+  advanceExecution,
   getFinalFeedbackDraft,
+  retreatExecution,
   updateFinalFeedbackDraft,
   finishExecution,
   buildExecutionCommand,
@@ -61,6 +63,44 @@ test('borrador de feedback sólo existe durante awaiting_feedback',()=>{
   execution.status='completed';
   execution.finalFeedbackDraft={executionId,values:{sessionRpe:'9'}};
   assert.equal(getFinalFeedbackDraft(execution),null);
+});
+
+test('feedback final sobrevive a revisar la última serie y reaparece al volver al cierre',()=>{
+  const execution=awaitingFeedback();
+  execution.queue=[{
+    blockId:'block-final',
+    exerciseId:'exercise-final',
+    sets:1,
+    prescription:{restSeconds:60,targetRpe:7,targetRir:3},
+  }];
+  execution.index=1;
+  execution.results['exercise-final:1']={
+    exerciseId:'exercise-final',
+    setNumber:1,
+    reps:10,
+    seconds:null,
+    load:'20 kg',
+    rpe:7,
+    rir:3,
+    notes:'',
+    completedAt:'2026-09-05T10:25:00.000Z',
+  };
+  const values={
+    sessionRpe:'8',
+    comment:'Feedback ya escrito',
+    pain:true,
+    painNotes:'Molestia leve controlada',
+  };
+  updateFinalFeedbackDraft(execution,values);
+
+  retreatExecution(execution);
+  assert.equal(execution.status,'active');
+  assert.equal(getFinalFeedbackDraft(execution),null);
+  assert.deepEqual(execution.finalFeedbackDraft?.values,values);
+
+  advanceExecution(execution);
+  assert.equal(execution.status,'awaiting_feedback');
+  assert.deepEqual(getFinalFeedbackDraft(execution)?.values,values);
 });
 
 test('borrador de feedback nunca sale en GUARDAR_PROGRESO',()=>{

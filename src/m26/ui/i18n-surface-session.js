@@ -60,6 +60,7 @@ export const SESSION_SURFACE_ROWS=Object.freeze([
 ['Cuéntanos cómo te fue','Tell us how it went','Dites-nous comment cela s’est passé','Conte-nos como correu'],
 ['RPE de la sesión','Session RPE','RPE de séance','RPE da sessão'],
 ['Puedes salir y terminar después. El feedback escrito se conserva en este dispositivo y la sesión no se marcará como completada hasta confirmar el cierre.','You can exit and finish later. Written feedback is kept on this device and the session will not be marked complete until closure is confirmed.','Vous pouvez quitter et terminer plus tard. Le feedback saisi est conservé sur cet appareil et la séance ne sera pas marquée comme terminée tant que sa clôture ne sera pas confirmée.','Pode sair e terminar mais tarde. O feedback escrito fica guardado neste dispositivo e a sessão não será marcada como concluída até o encerramento ser confirmado.'],
+['Revisar última serie','Review last set','Revoir la dernière série','Rever última série'],
 ['Salir y terminar después','Exit and finish later','Quitter et terminer plus tard','Sair e terminar mais tarde'],
 ['Sesión en pausa','Session paused','Séance en pause','Sessão em pausa'],
 ['Tu progreso está conservado. El tiempo activo permanece detenido hasta reanudar.','Your progress is preserved. Active time remains stopped until you resume.','Votre progression est conservée. Le temps actif reste arrêté jusqu’à la reprise.','O seu progresso está preservado. O tempo ativo permanece parado até retomar.'],

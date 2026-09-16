@@ -793,6 +793,9 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     const feedbackPrivacyNote=isCoach
       ?'Este feedback forma parte del registro del cliente. Para observaciones internas utiliza Notas privadas del entrenador.'
       :'';
+    const reviewLastSetAction=Array.isArray(execution?.queue)&&execution.queue.length
+      ?'<button type="button" data-session-action="previous">Revisar última serie</button>'
+      :'';
     return `<section class="m26-guided m26-session-live" data-session-live-state="feedback">
       ${state}
       ${sync}
@@ -821,6 +824,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
         ${feedbackPrivacyNote?`<p class="m26-notice" data-session-coach-feedback-privacy>${e(feedbackPrivacyNote)}</p>`:''}
         <p class="m26-notice">Puedes salir y terminar después. El feedback escrito se conserva en este dispositivo y la sesión no se marcará como completada hasta confirmar el cierre.</p>
         <div class="m26-session-live-actions">
+          ${reviewLastSetAction}
           <button type="button" data-session-action="exit-session">Salir y terminar después</button>
           <button type="button" class="m26-primary-action" data-session-action="finish">Finalizar y guardar</button>
         </div>
