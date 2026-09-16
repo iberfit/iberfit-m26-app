@@ -45,8 +45,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: iberfit-daily-use-visual-evidence
-  cancel-in-progress: false
+  group: iberfit-daily-use-visual-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   capture:
