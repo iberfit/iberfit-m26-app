@@ -373,10 +373,14 @@ const STYLE=`
     top:auto!important;
     bottom:calc(1rem + env(safe-area-inset-bottom))!important;
     width:auto;
-    max-height:min(44vh,23rem);
+    max-height:min(40vh,21rem);
     overflow:visible;
-    border-radius:1.35rem;
-    padding:1rem 1.05rem .95rem;
+    border-radius:1.3rem;
+    padding:.9rem .95rem .85rem;
+    box-shadow:
+      0 18px 48px rgba(0,0,0,.27),
+      0 0 0 1px rgba(255,255,255,.34) inset,
+      0 0 26px rgba(197,160,89,.1);
   }
   .m26-client-guided-welcome::before{
     left:auto!important;
@@ -385,11 +389,18 @@ const STYLE=`
     bottom:auto;
     transform:rotate(225deg) skew(7deg,7deg)!important;
   }
-  .m26-client-guided-welcome-copy{font-size:.9rem;line-height:1.48}
-  .m26-client-guided-welcome-actions{margin-top:.78rem}
+  .m26-client-guided-welcome h2{font-size:1.12rem;line-height:1.14}
+  .m26-client-guided-welcome-copy{margin-top:.58rem;font-size:.86rem;line-height:1.43}
+  .m26-client-guided-welcome-actions{margin-top:.62rem;gap:.5rem}
+  .m26-client-guided-welcome-target{
+    box-shadow:
+      0 0 0 9999px rgba(4,18,13,.52),
+      0 0 0 1px rgba(255,248,220,.23),
+      0 0 30px rgba(226,185,91,.24)!important;
+  }
   .m26-client-guided-welcome-presence{
-    width:6.45rem;
-    height:8.1rem;
+    width:6rem;
+    height:7.6rem;
   }
 }
 @media(prefers-reduced-motion:reduce){
