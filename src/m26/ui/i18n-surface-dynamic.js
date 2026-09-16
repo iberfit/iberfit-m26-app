@@ -32,6 +32,15 @@ function applyRules(value,language,translatePart){
   if((m=value.match(/^Tu acompañamiento, (.+)$/u)))return pick(language,`Your coaching, ${m[1]}`,`Votre accompagnement, ${m[1]}`,`O seu acompanhamento, ${m[1]}`);
   if((m=value.match(/^(.+): sin comparación$/u)))return pick(language,`${m[1]}: no comparison`,`${m[1]} : aucune comparaison`,`${m[1]}: sem comparação`);
   if((m=value.match(/^RPE ([\d.,]+) · esfuerzo percibido confirmado$/u)))return pick(language,`RPE ${m[1]} · confirmed perceived effort`,`RPE ${m[1]} · effort perçu confirmé`,`RPE ${m[1]} · esforço percebido confirmado`);
+  if((m=value.match(/^RPE ([\d.,]+) · Dolor o molestia registrado$/u)))return pick(language,`RPE ${m[1]} · pain or discomfort recorded`,`RPE ${m[1]} · douleur ou gêne enregistrée`,`RPE ${m[1]} · dor ou desconforto registado`);
+  if((m=value.match(/^Molestia: (.+)$/u)))return pick(language,`Discomfort: ${m[1]}`,`Gêne : ${m[1]}`,`Desconforto: ${m[1]}`);
+  if((m=value.match(/^(\d+) abierta(?:s)?(?: · (\d+) vencida(?:s)?)?$/u))){
+    const open=m[1];
+    const overdue=m[2]||null;
+    if(language==='fr')return overdue?`${open} ouverte${open==='1'?'':'s'} · ${overdue} en retard`:`${open} ouverte${open==='1'?'':'s'}`;
+    if(language==='pt')return overdue?`${open} aberta${open==='1'?'':'s'} · ${overdue} vencida${overdue==='1'?'':'s'}`:`${open} aberta${open==='1'?'':'s'}`;
+    return overdue?`${open} open · ${overdue} overdue`:`${open} open`;
+  }
   if((m=value.match(/^(\d+) completadas sobre (\d+) registradas en el periodo$/u)))return pick(language,`${m[1]} completed out of ${m[2]} recorded in the period`,`${m[1]} terminées sur ${m[2]} enregistrées sur la période`,`${m[1]} concluídas de ${m[2]} registadas no período`);
   if((m=value.match(/^([\d.,]+) h\/día$/u)))return pick(language,`${m[1]} h/day`,`${m[1]} h/jour`,`${m[1]} h/dia`);
   if((m=value.match(/^(\d+) conexi(?:ón|ones) registrada(?:s)?$/u)))return pick(language,`${m[1]} registered connection${m[1]==='1'?'':'s'}`,`${m[1]} connexion${m[1]==='1'?'':'s'} enregistrée${m[1]==='1'?'':'s'}`,`${m[1]} ${m[1]==='1'?'ligação registada':'ligações registadas'}`);
