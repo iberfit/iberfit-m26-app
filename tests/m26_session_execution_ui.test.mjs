@@ -39,7 +39,10 @@ test('cierre de sesión distingue feedback del Cliente y registro profesional de
 
   assert.match(coachHtml,/Registra el feedback del cliente/);
   assert.match(coachHtml,/RPE del cliente/);
-  assert.match(coachHtml,/Observación de cierre/);
+  assert.match(coachHtml,/Feedback \/ percepción del cliente/);
+  assert.match(coachHtml,/data-session-coach-feedback-privacy/);
+  assert.match(coachHtml,/Para observaciones internas utiliza Nota privada en el expediente/);
+  assert.doesNotMatch(clientHtml,/data-session-coach-feedback-privacy/);
   assert.match(coachHtml,/El cliente reportó dolor o molestia/);
   assert.match(coachHtml,/La ejecución ya está registrada/);
   assert.doesNotMatch(coachHtml,/Cuéntanos cómo te fue/);
