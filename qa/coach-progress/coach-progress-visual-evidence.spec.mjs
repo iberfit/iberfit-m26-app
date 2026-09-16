@@ -50,7 +50,17 @@ test('Coach Progreso visual evidence makes exercise decisions scannable without 
   await search.fill('');
   await expect(options).toHaveCount(4);
 
-  await expect.poll(async()=>page.locator('m26-echart[data-chart-state="ready"]').count()).toBeGreaterThan(0);
+  const charts=page.locator('m26-echart');
+  const chartCount=await charts.count();
+  expect(chartCount).toBeGreaterThan(0);
+  for(let index=0;index<chartCount;index+=1){
+    const chart=charts.nth(index);
+    await chart.scrollIntoViewIfNeeded();
+    await expect(
+      chart,
+      `Chart ${index+1} must complete lazy ECharts rendering when visible`,
+    ).toHaveAttribute('data-chart-state','ready',{timeout:10_000});
+  }
 
   const metrics=await page.evaluate(()=>{
     const list=document.querySelector('.m27-exercise-focus-list')?.getBoundingClientRect()||null;
