@@ -189,10 +189,12 @@ function activeSetDraftMatchesPosition(execution,draft,index,setIndex){
 }
 function moveForward(execution,actor=null){
   const item=execution.queue[execution.index];if(!item)throw new Error('M26_EXECUTION_STEP_MISSING');
-  const pendingDraft=execution.activeSetDraft;execution.restUntil=null;
+  const pendingDraft=execution.activeSetDraft;
+  const draftBelongsToSource=activeSetDraftMatchesPosition(execution,pendingDraft,execution.index,execution.setIndex);
+  execution.restUntil=null;
   if(execution.setIndex+1<item.sets)execution.setIndex+=1;
   else{execution.index+=1;execution.setIndex=0;}
-  if(!activeSetDraftMatchesPosition(execution,pendingDraft,execution.index,execution.setIndex))clearActiveSetDraft(execution);
+  if(draftBelongsToSource)clearActiveSetDraft(execution);
   event(execution,'STEP_ADVANCED',{index:execution.index,setIndex:execution.setIndex},actor);
   if(execution.index>=execution.queue.length){freezeExecutionClock(execution);execution.status='awaiting_feedback';}
   return execution;
