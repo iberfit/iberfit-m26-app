@@ -78,6 +78,7 @@ productivity.mount();
 globalThis.__IBERFIT_COACH_FORM_QA__=Object.freeze({
   mounted:true,
   queueShellRefresh,
+  forceExternalRender:()=>shell.render(),
   startRefreshBurst,
   setClientScenario,
 });

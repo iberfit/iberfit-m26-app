@@ -5,6 +5,7 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/admin/**'
+      - 'src/m26/shell/**'
       - 'src/m26/design/**'
       - 'qa/admin-interaction/**'
       - 'playwright.admin-interaction.config.mjs'
@@ -13,6 +14,7 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/admin/**'
+      - 'src/m26/shell/**'
       - 'src/m26/design/**'
       - 'qa/admin-interaction/**'
       - 'playwright.admin-interaction.config.mjs'

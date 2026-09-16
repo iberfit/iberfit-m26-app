@@ -5,9 +5,27 @@ async function queueCoachRefreshDuringNextTouchRelease(page){
     const root=document.querySelector('#qa-root');
     if(!root)throw new Error('QA_COACH_FORM_ROOT_MISSING');
     root.addEventListener('pointerup',()=>{
+      globalThis.__IBERFIT_COACH_FORM_QA__?.forceExternalRender?.();
+    },{capture:true,once:true});
+  });
+}
+
+async function forceExternalRenderDuringNextPointerDownCapture(page){
+  await page.evaluate(()=>{
+    const root=document.querySelector('#qa-root');
+    if(!root)throw new Error('QA_COACH_FORM_ROOT_MISSING');
+    root.addEventListener('pointerdown',()=>{
       globalThis.__IBERFIT_COACH_FORM_QA__?.queueShellRefresh?.();
     },{capture:true,once:true});
   });
+}
+
+async function mouseDownUpOn(page,locator){
+  const box=await locator.boundingBox();
+  expect(box,'Control must expose a stable pointer box').not.toBeNull();
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);
+  await page.mouse.down();
+  await page.mouse.up();
 }
 
 function browserErrors(page){
@@ -295,6 +313,78 @@ test('Coach create-client keeps all daily-use fields usable while shell state re
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
 
+
+test('real mouse release keeps Coach text and native select controls stable when a capture-phase refresh races pointerdown',async({page,browserName},testInfo)=>{
+  const errors=browserErrors(page);
+  const touchProject=/mobile|tablet/iu.test(testInfo.project.name);
+  await page.goto('/qa/admin-interaction/coach-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__?.mounted===true)).toBe(true);
+
+  // Keep the topbar client option present before entering the protected form.
+  // Changing shell data while the form lease is active is intentionally deferred.
+  await page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__.setClientScenario('one'));
+  await expect(page.locator('[data-m26-client-select] option[value="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]')).toHaveCount(1);
+
+  const details=page.locator('[data-client-onboarding]');
+  await details.locator('summary').click();
+  await expect(details).toHaveAttribute('open','');
+
+  const form=page.locator('[data-workflow-form="client-onboarding"]');
+  const name=form.locator('input[name="name"]');
+  await name.evaluate((node)=>{node.dataset.qaStableIdentity='real-mouse-name';});
+  await rememberStableNode(name,'real-mouse-name');
+  await forceExternalRenderDuringNextPointerDownCapture(page);
+  await mouseDownUpOn(page,name);
+  await page.waitForTimeout(120);
+
+  await expect(name,'Mouse release must leave the same text field focused').toBeFocused();
+  await expectStableNode(name,'real-mouse-name');
+  await expect(name).toHaveAttribute('data-qa-stable-identity','real-mouse-name');
+  await expect(details,'Opening a text field must not collapse the client-create disclosure').toHaveAttribute('open','');
+  await page.keyboard.type('Cliente un clic');
+  await expect(name).toHaveValue('Cliente un clic');
+
+  const sex=form.locator('select[name="sexForNorms"]');
+  await sex.evaluate((node)=>{node.dataset.qaStableIdentity='real-mouse-sex';});
+  await rememberStableNode(sex,'real-mouse-sex');
+  await forceExternalRenderDuringNextPointerDownCapture(page);
+  await mouseDownUpOn(page,sex);
+  await page.waitForTimeout(120);
+
+  await expectStableNode(sex,'real-mouse-sex');
+  await expect(sex).toHaveAttribute('data-qa-stable-identity','real-mouse-sex');
+  await expect(details).toHaveAttribute('open','');
+  if(touchProject){
+    await sex.selectOption('female');
+    await expect(sex).toHaveValue('female');
+  }else{
+    await expect(sex,'Desktop native select must retain focus after a complete mouse click').toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(sex).not.toHaveValue('');
+  }
+
+  const clientSelector=page.locator('[data-m26-client-select]');
+  await expect(clientSelector).toBeVisible();
+  await clientSelector.evaluate((node)=>{node.dataset.qaStableIdentity='topbar-client-select';});
+  await rememberStableNode(clientSelector,'topbar-client-select');
+  await forceExternalRenderDuringNextPointerDownCapture(page);
+  await mouseDownUpOn(page,clientSelector);
+  await page.waitForTimeout(120);
+
+  await expectStableNode(clientSelector,'topbar-client-select');
+  await expect(clientSelector).toHaveAttribute('data-qa-stable-identity','topbar-client-select');
+  if(touchProject){
+    await clientSelector.selectOption('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+  }else{
+    await expect(clientSelector,'Desktop topbar client dropdown must retain focus after a complete mouse click').toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+  }
+  await expect(page.locator('[data-m26-client-select]')).toHaveValue('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+
+  expect(errors,browserName+' emitted browser errors').toEqual([]);
+});
 
 test('Focused form buttons never retain the persistent shell interaction lease',async({page,browserName})=>{
   const errors=browserErrors(page);

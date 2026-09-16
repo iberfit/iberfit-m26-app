@@ -129,8 +129,8 @@ test('mobile native editable controls keep an interaction hold and preserve focu
   assert.match(source,/const NATIVE_SELECT_INTERACTION_HOLD_MS=30_000/u);
   assert.match(source,/function schedulePointerRelease\(control\)/u);
   assert.match(source,/tag==='select'\?NATIVE_SELECT_INTERACTION_HOLD_MS:INTERACTION_RELEASE_GRACE_MS/u);
-  assert.match(source,/root\.addEventListener\('pointercancel',onPointerCancel/u);
-  assert.match(source,/root\.addEventListener\('focusin',onFocusIn\)/u);
+  assert.match(source,/root\.addEventListener\('pointercancel',onPointerCancel,\{capture:true,passive:true\}\)/u);
+  assert.match(source,/root\.addEventListener\('focusin',onFocusIn,true\)/u);
   assert.match(source,/function rerenderPreservingControl\(control\)/u);
   assert.match(source,/function restoreControlContinuity\(snapshot,\{defer=false\}=\{\}\)/u);
   assert.match(source,/pendingI18nContinuitySnapshot=snapshot/u);
