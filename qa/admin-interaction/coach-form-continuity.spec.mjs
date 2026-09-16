@@ -10,6 +10,16 @@ async function queueCoachRefreshDuringNextTouchRelease(page){
   });
 }
 
+async function forceExternalRenderDuringNextPointerDownCapture(page){
+  await page.evaluate(()=>{
+    const root=document.querySelector('#qa-root');
+    if(!root)throw new Error('QA_COACH_FORM_ROOT_MISSING');
+    root.addEventListener('pointerdown',()=>{
+      globalThis.__IBERFIT_COACH_FORM_QA__?.queueShellRefresh?.();
+    },{capture:true,once:true});
+  });
+}
+
 function browserErrors(page){
   const errors=[];
   page.on('pageerror',(error)=>errors.push(String(error?.message||error)));
@@ -295,6 +305,55 @@ test('Coach create-client keeps all daily-use fields usable while shell state re
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
 
+
+test('real mouse release keeps Coach text and native select controls stable when a capture-phase refresh races pointerdown',async({page,browserName})=>{
+  const errors=browserErrors(page);
+  await page.goto('/qa/admin-interaction/coach-form-continuity.fixture.html',{waitUntil:'domcontentloaded'});
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__?.mounted===true)).toBe(true);
+
+  const details=page.locator('[data-client-onboarding]');
+  await details.locator('summary').click();
+  await expect(details).toHaveAttribute('open','');
+
+  const form=page.locator('[data-workflow-form="client-onboarding"]');
+  const name=form.locator('input[name="name"]');
+  await name.evaluate((node)=>{node.dataset.qaStableIdentity='real-mouse-name';});
+  await forceExternalRenderDuringNextPointerDownCapture(page);
+  await name.click();
+  await page.waitForTimeout(120);
+
+  await expect(name,'Mouse release must leave the same text field focused').toBeFocused();
+  await expect(name).toHaveAttribute('data-qa-stable-identity','real-mouse-name');
+  await expect(details,'Opening a text field must not collapse the client-create disclosure').toHaveAttribute('open','');
+  await page.keyboard.type('Cliente un clic');
+  await expect(name).toHaveValue('Cliente un clic');
+
+  const sex=form.locator('select[name="sexForNorms"]');
+  await sex.evaluate((node)=>{node.dataset.qaStableIdentity='real-mouse-sex';});
+  await forceExternalRenderDuringNextPointerDownCapture(page);
+  await sex.click();
+  await page.waitForTimeout(120);
+
+  await expect(sex,'Mouse release must leave the same native select focused').toBeFocused();
+  await expect(sex).toHaveAttribute('data-qa-stable-identity','real-mouse-sex');
+  await expect(details).toHaveAttribute('open','');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(sex).not.toHaveValue('');
+
+  await page.evaluate(()=>globalThis.__IBERFIT_COACH_FORM_QA__.setClientScenario('one'));
+  const clientSelector=page.locator('[data-m26-client-select]');
+  await expect(clientSelector).toBeVisible();
+  await clientSelector.evaluate((node)=>{node.dataset.qaStableIdentity='topbar-client-select';});
+  await forceExternalRenderDuringNextPointerDownCapture(page);
+  await clientSelector.click();
+  await page.waitForTimeout(120);
+
+  await expect(clientSelector,'Topbar client dropdown must survive click release before any selection is committed').toBeFocused();
+  await expect(clientSelector).toHaveAttribute('data-qa-stable-identity','topbar-client-select');
+
+  expect(errors,browserName+' emitted browser errors').toEqual([]);
+});
 
 test('Focused form buttons never retain the persistent shell interaction lease',async({page,browserName})=>{
   const errors=browserErrors(page);
