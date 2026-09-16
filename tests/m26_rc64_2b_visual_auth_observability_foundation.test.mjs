@@ -361,7 +361,7 @@ test('RC64.2B1 remote workflow keeps every appended quality action inside prefli
   assert.doesNotMatch(workflow,/^- name:/mu);
 
   for(const step of [
-    'Preparar Playwright RC64.2B',
+    'Preparar dependencias Playwright RC64.2B',
     'Generar candidatos visuales canónicos Linux RC64.2B',
     'Conservar candidatos visuales Linux',
     'Ejecutar smoke autenticado RC64.2B sobre fuente actual sin mutaciones',
@@ -375,6 +375,12 @@ test('RC64.2B1 remote workflow keeps every appended quality action inside prefli
 
   assert.match(workflow,/^permissions:\r?\n {2}contents: read$/mu);
   assert.match(workflow,/^ {4}steps:$/mu);
+  assert.match(workflow,/actions\/cache@v4/u);
+  assert.match(workflow,/hashFiles\('package-lock\.json'\)/u);
+  assert.match(workflow,/playwright install-deps chromium webkit firefox/u);
+  assert.match(workflow,/cache-hit != 'true'/u);
+  assert.match(workflow,/playwright install chromium webkit firefox/u);
+  assert.doesNotMatch(workflow,/playwright install --with-deps/u);
 });
 test('RC64.2B1 quality observability module is part of the generated PWA shell after tracking',()=>{
   const sw=read('public/m26/sw.js');
