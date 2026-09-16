@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "3625e2e32fd06696af0e19bcd630fc6a1d2a66d3",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado: Live Workout incorpora certificación browser E2E permanente sobre controller real en Chromium desktop/tablet/mobile y WebKit móvil, cubriendo Coach/Cliente, pausa-reanudación, descanso, corrección, serie extra, sustitución, omisión, feedback, recovery, overflow y targets táctiles. La nueva suite detectó y corrigió un objetivo rápido de 42.39 px, elevado a mínimo táctil >=44 px. PR validado 7/7 GREEN; post-merge 8/8 GREEN. Sin cambios de Supabase, RLS, auth, command bus ni modelo de datos."
+}
