@@ -3352,10 +3352,17 @@ export function renderProgressRoute(vm){
       <aside class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Recuperación</p><h2>Promedio de bienestar</h2><div class="m26-wellbeing-grid">${wellbeingMeter('Energía',hasCheckins?summary.checkinAverage.energy:null,'0 muy baja · 10 muy alta')}${wellbeingMeter('Sueño',hasCheckins?summary.checkinAverage.sleep:null,'0 muy malo · 10 excelente')}${wellbeingMeter('Estrés',hasCheckins?summary.checkinAverage.stress:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Dolor',hasCheckins?summary.checkinAverage.pain:null,'0 ninguno · 10 máximo')}${wellbeingMeter('Fatiga',hasCheckins?summary.checkinAverage.fatigue:null,'0 ninguna · 10 máxima')}${wellbeingMeter('Motivación',hasCheckins?summary.checkinAverage.motivation:null,'0 ninguna · 10 máxima')}</div><p class="m26-notice">La aplicación no diagnostica ni atribuye causas. El entrenador interpreta el contexto.</p></aside>
     </section>
     ${wearablePanel}
-    <section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Alertas explicables</p><h2>Qué requiere atención</h2></div></div>${renderAlerts(vm.alerts)}</section>
-    ${exerciseProgress}`;
+    <section id="m26-progress-attention" data-m26-progress-section="attention" class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Alertas explicables</p><h2>Qué requiere atención</h2></div></div>${renderAlerts(vm.alerts)}</section>
+    ${exerciseProgress?`<div id="m26-progress-exercises" data-m26-progress-section="exercises">${exerciseProgress}</div>`:''}`;
   const primaryEvidence=`${pendingProgressNotice}${sessionImpact}${adherenceVisual}`;
   const deepContent=`${primaryEvidence}${secondaryContent}`;
+  const professionalProgressNav=['coach','admin'].includes(String(vm.role||'').toLowerCase())
+    ?`<nav class="m27-progress-quicknav" data-m27-progress-quicknav aria-label="Navegar por progreso">
+        <a href="#m26-progress-summary">Resumen</a>
+        <a href="#m26-progress-attention">Atención</a>
+        ${exerciseProgress?'<a href="#m26-progress-exercises">Por ejercicio</a>':''}
+      </nav>`
+    :'';
 
   if(vm.role==='client'){
     const stageMarkup=renderClientProgressStage(vm,stage);
@@ -3376,7 +3383,8 @@ export function renderProgressRoute(vm){
 
   return `<div class="m26-route">
     <section class="m26-route-intro"><div><p class="m26-eyebrow">Seguimiento confirmado</p><h2>Progreso y adherencia</h2><p>Ventana de ${escapeHtml(summary.days)} días · calidad del dato ${escapeHtml(summary.dataQuality)}.</p></div>${badge(vm.signal.label,vm.signal.level==='critical'?'danger':vm.signal.level==='warning'?'warning':'neutral')}</section>
-    <section class="m26-stat-grid">
+    ${professionalProgressNav}
+    <section id="m26-progress-summary" data-m26-progress-section="summary" class="m26-stat-grid">
       ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
       ${stat('Volumen medio',metricValue(summary.volume),'Carga × repeticiones cuando existe')}

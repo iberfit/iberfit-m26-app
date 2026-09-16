@@ -161,6 +161,27 @@ test('Exercise Analytics V2 selects the most covered comparable metric per exerc
   assert.doesNotMatch(html,/sesiónes/u);
 });
 
+test('Coach Progreso exposes native quick navigation to summary attention and exercise study',()=>{
+  const html=renderProgressRoute({
+    role:'coach',
+    summary:summaryFixture(),
+    signal:{label:'Al día',level:'neutral'},
+    timeline:[],
+    longitudinal:null,
+    alerts:[],
+    planExecution:null,
+    exerciseProgress:progressFixture(),
+  });
+
+  assert.match(html,/data-m27-progress-quicknav/u);
+  assert.match(html,/href="#m26-progress-summary"/u);
+  assert.match(html,/href="#m26-progress-attention"/u);
+  assert.match(html,/href="#m26-progress-exercises"/u);
+  assert.match(html,/id="m26-progress-summary"/u);
+  assert.match(html,/id="m26-progress-attention"/u);
+  assert.match(html,/id="m26-progress-exercises"/u);
+});
+
 test('Exercise Analytics V2 never treats ambiguous load text as kg',()=>{
   const html=renderProgressRoute({
     role:'coach',

@@ -45,6 +45,46 @@ const STYLES=`
 @media (max-width:980px){.m27-client-home-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.m27-constancia{padding:.78rem}.m27-constancia-head{display:grid;gap:.28rem}.m27-constancia-head p{text-align:left}.m27-constancia-grid,.m27-client-home-grid{grid-template-columns:1fr}.m27-constancia-window,.m27-client-home-card{min-height:0}.m27-client-home{padding:.68rem}.m27-client-home-head>div{display:grid;gap:.1rem}}
 @media (prefers-reduced-motion:reduce){.m27-constancia-window,.m27-session-continuity,.m27-client-home-card{scroll-behavior:auto}}
+.m27-progress-quicknav{display:none}
+@media (max-width:720px){
+  .m27-progress-quicknav{
+    position:sticky;
+    top:7.1rem;
+    z-index:46;
+    display:flex;
+    gap:.42rem;
+    overflow-x:auto;
+    width:calc(100% + .3rem);
+    margin:.1rem -.15rem .15rem;
+    padding:.42rem .15rem;
+    scrollbar-width:none;
+    background:linear-gradient(180deg,rgba(7,21,15,.97),rgba(7,21,15,.92));
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+  }
+  .m27-progress-quicknav::-webkit-scrollbar{display:none}
+  .m27-progress-quicknav a{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    flex:0 0 auto;
+    min-height:2.75rem;
+    padding:.58rem .78rem;
+    border:1px solid rgba(216,185,111,.18);
+    border-radius:999px;
+    color:var(--m26-cream-100,#f7f1e4);
+    background:rgba(18,43,31,.96);
+    font-size:.72rem;
+    font-weight:780;
+    line-height:1;
+    text-decoration:none;
+    box-shadow:0 8px 22px rgba(0,0,0,.14);
+  }
+  .m27-progress-quicknav a:focus-visible{
+    outline:3px solid rgba(216,185,111,.48);
+    outline-offset:2px;
+  }
+}
 .m27-exercise-focus{display:grid;gap:1rem;margin-top:1rem}
 .m27-exercise-focus-tools{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding:.8rem 0;border-top:1px solid rgba(169,133,52,.18);border-bottom:1px solid rgba(169,133,52,.18)}
 .m27-exercise-focus-search{display:grid;gap:.35rem;min-width:min(22rem,100%)}
