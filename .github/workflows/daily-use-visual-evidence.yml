@@ -15,6 +15,10 @@ on:
       - 'playwright.daily-admin-visual.config.mjs'
       - 'qa/coach-today/**'
       - 'playwright.coach-today-visual.config.mjs'
+      - 'src/m26/modules/route-render.js'
+      - 'src/m26/ui/progress-continuity.js'
+      - 'qa/coach-progress/**'
+      - 'playwright.coach-progress-visual.config.mjs'
       - '.github/workflows/daily-use-visual-evidence.yml'
   push:
     branches: [canary/rc74-4]
@@ -30,6 +34,10 @@ on:
       - 'playwright.daily-admin-visual.config.mjs'
       - 'qa/coach-today/**'
       - 'playwright.coach-today-visual.config.mjs'
+      - 'src/m26/modules/route-render.js'
+      - 'src/m26/ui/progress-continuity.js'
+      - 'qa/coach-progress/**'
+      - 'playwright.coach-progress-visual.config.mjs'
       - '.github/workflows/daily-use-visual-evidence.yml'
   workflow_dispatch:
 
@@ -82,6 +90,8 @@ jobs:
         run: npx playwright test --config playwright.daily-admin-visual.config.mjs
       - name: Capture Coach Hoy current-source visual evidence
         run: npx playwright test --config playwright.coach-today-visual.config.mjs
+      - name: Capture Coach Progreso decision-scan visual evidence
+        run: npx playwright test --config playwright.coach-progress-visual.config.mjs
       - name: Upload current visual evidence
         uses: actions/upload-artifact@v4
         with:
