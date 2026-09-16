@@ -102,7 +102,9 @@ test('feedback final sobrevive a revisar la última serie y reaparece al volver 
 
   advanceExecution(execution);
   assert.equal(execution.status,'awaiting_feedback');
-  assert.deepEqual(getFinalFeedbackDraft(execution)?.values,values);
+  const recovered=getFinalFeedbackDraft(execution);
+  assert.deepEqual(recovered?.values,values);
+  assert.equal(recovered?.needsReview,undefined);
 });
 
 test('corregir trabajo tras escribir feedback conserva valores y exige revisión al volver al cierre',()=>{
@@ -177,6 +179,8 @@ test('añadir trabajo tras escribir feedback lo conserva pero lo marca para revi
 test('borrador de feedback nunca sale en GUARDAR_PROGRESO',()=>{
   const execution=awaitingFeedback();
   updateFinalFeedbackDraft(execution,{sessionRpe:'7',comment:'Bien',pain:false,painNotes:''});
+  execution.finalFeedbackDraft.needsReview=true;
+  execution.finalFeedbackDraft.reviewReasons=['set_corrected_after_closeout'];
   const command=buildProgressExecutionCommand(execution,7);
   assert.equal('finalFeedbackDraft' in command.payload.progressSnapshot,false);
   assert.ok(execution.finalFeedbackDraft);
