@@ -380,6 +380,18 @@ test('Coach Exercise Study V2 search is accent-insensitive',()=>{
   assert.equal(exerciseFocusText('SENTADILLA'),'sentadilla');
 });
 
+test('Coach Exercise Study search hidden state cannot be overridden by grid display',()=>{
+  const source=fs.readFileSync(
+    new URL('../src/m26/ui/progress-continuity.js',import.meta.url),
+    'utf8',
+  );
+
+  assert.match(
+    source,
+    /\.m27-exercise-focus-option\[hidden\]\{display:none\}/u,
+  );
+});
+
 test('Coach Exercise Study decision scan uses explicit non-automatic labels',()=>{
   const {exerciseFocusDecisionMeta}=__progressContinuityInternals;
 
