@@ -57,6 +57,7 @@ const STYLES=`
 .m27-exercise-focus-grid{display:grid;grid-template-columns:minmax(13.5rem,18rem) minmax(0,1fr);gap:1.1rem;align-items:start}
 .m27-exercise-focus-list{display:grid;align-content:start;max-height:min(72vh,46rem);overflow:auto;border-right:1px solid rgba(169,133,52,.18)}
 .m27-exercise-focus-option{display:grid;gap:.18rem;width:100%;padding:.7rem .76rem .7rem .66rem;border:0;border-left:3px solid transparent;border-bottom:1px solid rgba(169,133,52,.12);background:transparent;color:inherit;text-align:left;cursor:pointer}
+.m27-exercise-focus-option[hidden]{display:none}
 .m27-exercise-focus-option:hover,.m27-exercise-focus-option:focus-visible{background:color-mix(in srgb,var(--m26-gold,#9a782d) 6%,transparent)}
 .m27-exercise-focus-option[aria-pressed="true"]{border-left-color:var(--m26-gold,#9a782d);background:color-mix(in srgb,var(--m26-gold,#9a782d) 8%,transparent)}
 .m27-exercise-focus-option-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.45rem}
