@@ -162,6 +162,8 @@ export function enhanceCoachLaunchSelfMarkup(markup,vm){
   if(base.includes('data-coach-launch-self='))return base;
   const panel=renderCoachLaunchSelf(vm);
   if(!panel)return base;
+  const slot='<!-- m26-coach-launch-self-slot -->';
+  if(base.includes(slot))return base.replace(slot,panel);
   return base.replace(/<div class="m26-route m26-hoy-route(?: [^"]+)?">/u,(root)=>`${root}${panel}`);
 }
 function renderClientPlanning(vm){
