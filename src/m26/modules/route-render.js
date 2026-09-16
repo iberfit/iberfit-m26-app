@@ -1907,6 +1907,14 @@ function exerciseStudyConfidenceLabel(value){
   })[String(value||'').toLowerCase()]||'Limitada';
 }
 
+function exerciseCoachDecisionState(performance){
+  const assessment=performance?.coachAssessment||null;
+  if(assessment?.status==='regression'&&assessment?.colorEligible===true)return 'review';
+  if(assessment?.status==='progress'&&assessment?.colorEligible===true)return 'progress';
+  if(assessment?.status==='stable')return 'stable';
+  return 'insufficient';
+}
+
 function renderCoachExerciseStudy(exercise,performance,{compact=false}={}){
   if(!performance)return '';
 
@@ -2178,13 +2186,23 @@ function renderExerciseProgressSection(
       {compact}
     );
 
+    const performanceItem=
+      coachMode
+        ?performanceMap.get(
+            String(exercise.exerciseId),
+          )||null
+        :null;
+
+    const decisionState=
+      coachMode
+        ?exerciseCoachDecisionState(performanceItem)
+        :null;
+
     const coachStudy=
       coachMode
         ?renderCoachExerciseStudy(
             exercise,
-            performanceMap.get(
-              String(exercise.exerciseId),
-            )||null,
+            performanceItem,
             {compact},
           )
         :'';
@@ -2205,7 +2223,7 @@ function renderExerciseProgressSection(
       </tr>
     `).join('');
 
-    return `<details class="m26-exercise-progress-card"${index===0?' open':''}>
+    return `<details class="m26-exercise-progress-card"${coachMode?` data-m26-exercise-decision-state="${escapeHtml(decisionState)}"`:''}${index===0?' open':''}>
       <summary>
         <span>
           <strong>${escapeHtml(exercise.exerciseName)}</strong>

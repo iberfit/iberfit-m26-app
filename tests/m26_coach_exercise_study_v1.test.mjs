@@ -228,6 +228,7 @@ test('Coach Exercise Study exposes longitudinal percentages, cadence, coverage a
 
   assert.match(html,/data-m26-coach-exercise-study-summary/u);
   assert.match(html,/data-m26-coach-exercise-study/u);
+  assert.match(html,/data-m26-exercise-decision-state="progress"/u);
   assert.match(html,/Estudio longitudinal del ejercicio/u);
   assert.match(html,/25% desde la primera referencia comparable/u);
   assert.match(html,/56\.3% desde la primera referencia comparable/u);
@@ -306,6 +307,7 @@ test('Client keeps factual exercise evolution without Coach interpretation layer
   assert.match(html,/data-m26-exercise-analytics="v2"/u);
   assert.match(html,/m26-exercise-progress-table/u);
   assert.doesNotMatch(html,/data-m26-coach-exercise-study/u);
+  assert.doesNotMatch(html,/data-m26-exercise-decision-state/u);
   assert.doesNotMatch(html,/Lectura Coach/u);
   assert.doesNotMatch(html,/Confianza Alta/u);
 });
@@ -364,6 +366,9 @@ test('Coach Exercise Study V2 adds a focused searchable workspace without changi
   assert.match(source,/data-m27-exercise-focus/u);
   assert.match(source,/data-m27-exercise-search/u);
   assert.match(source,/data-m27-exercise-select/u);
+  assert.match(source,/data-m27-exercise-state/u);
+  assert.match(source,/m27-exercise-focus-summary/u);
+  assert.match(source,/m27-exercise-focus-state/u);
   assert.match(source,/item\.card\.remove\(\)/u);
   assert.match(source,/state\.active\.replaceChildren\(next\)/u);
 });
@@ -373,4 +378,37 @@ test('Coach Exercise Study V2 search is accent-insensitive',()=>{
 
   assert.equal(exerciseFocusText('Prensa Única'),'prensa unica');
   assert.equal(exerciseFocusText('SENTADILLA'),'sentadilla');
+});
+
+test('Coach Exercise Study search hidden state cannot be overridden by grid display',()=>{
+  const source=fs.readFileSync(
+    new URL('../src/m26/ui/progress-continuity.js',import.meta.url),
+    'utf8',
+  );
+
+  assert.match(
+    source,
+    /\.m27-exercise-focus-option\[hidden\]\{display:none\}/u,
+  );
+});
+
+test('Coach Exercise Study decision scan uses explicit non-automatic labels',()=>{
+  const {exerciseFocusDecisionMeta}=__progressContinuityInternals;
+
+  assert.deepEqual(
+    exerciseFocusDecisionMeta('review'),
+    {label:'Revisar',summary:'revisar'},
+  );
+  assert.deepEqual(
+    exerciseFocusDecisionMeta('progress'),
+    {label:'Evolución',summary:'evolución'},
+  );
+  assert.deepEqual(
+    exerciseFocusDecisionMeta('stable'),
+    {label:'Estable',summary:'estable'},
+  );
+  assert.deepEqual(
+    exerciseFocusDecisionMeta('unknown'),
+    {label:'Sin comparación',summary:'sin comparación'},
+  );
 });

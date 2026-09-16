@@ -50,18 +50,27 @@ const STYLES=`
 .m27-exercise-focus-search{display:grid;gap:.35rem;min-width:min(22rem,100%)}
 .m27-exercise-focus-search>span{color:var(--m26-gold,#9a782d);font-size:.67rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
 .m27-exercise-focus-search input{width:100%;min-height:2.7rem;padding:.64rem .74rem;border:1px solid var(--m26-border,rgba(169,133,52,.22));border-radius:.68rem;background:var(--m26-surface,#fffdf8);color:var(--m26-text,#17231d);font:inherit}
+.m27-exercise-focus-summary{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:.35rem;max-width:32rem}
+.m27-exercise-focus-summary>span{padding:.28rem .46rem;border:1px solid rgba(169,133,52,.16);border-radius:999px;color:var(--m26-text-muted,#6b675f);font-size:.61rem;font-weight:760;line-height:1.2;background:rgba(255,255,255,.025)}
+.m27-exercise-focus-summary>span[data-state="review"]{border-color:rgba(149,67,54,.3);color:#934f43;background:rgba(149,67,54,.055)}
+.m27-exercise-focus-summary>span[data-state="progress"]{border-color:rgba(48,109,77,.24);color:#306d4d;background:rgba(48,109,77,.05)}
 .m27-exercise-focus-grid{display:grid;grid-template-columns:minmax(13.5rem,18rem) minmax(0,1fr);gap:1.1rem;align-items:start}
 .m27-exercise-focus-list{display:grid;align-content:start;max-height:min(72vh,46rem);overflow:auto;border-right:1px solid rgba(169,133,52,.18)}
 .m27-exercise-focus-option{display:grid;gap:.18rem;width:100%;padding:.7rem .76rem .7rem .66rem;border:0;border-left:3px solid transparent;border-bottom:1px solid rgba(169,133,52,.12);background:transparent;color:inherit;text-align:left;cursor:pointer}
+.m27-exercise-focus-option[hidden]{display:none}
 .m27-exercise-focus-option:hover,.m27-exercise-focus-option:focus-visible{background:color-mix(in srgb,var(--m26-gold,#9a782d) 6%,transparent)}
 .m27-exercise-focus-option[aria-pressed="true"]{border-left-color:var(--m26-gold,#9a782d);background:color-mix(in srgb,var(--m26-gold,#9a782d) 8%,transparent)}
+.m27-exercise-focus-option-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.45rem}
 .m27-exercise-focus-option strong{color:var(--m26-text,#17231d);font-size:.82rem;line-height:1.25}
 .m27-exercise-focus-option small{color:var(--m26-text-muted,#6b675f);font-size:.64rem;line-height:1.38}
+.m27-exercise-focus-state{flex:0 0 auto;padding:.16rem .34rem;border:1px solid rgba(169,133,52,.18);border-radius:999px;color:var(--m26-text-muted,#6b675f);font-size:.55rem;font-weight:820;line-height:1.2;letter-spacing:.025em}
+.m27-exercise-focus-state.is-review{border-color:rgba(149,67,54,.32);color:#934f43;background:rgba(149,67,54,.055)}
+.m27-exercise-focus-state.is-progress{border-color:rgba(48,109,77,.26);color:#306d4d;background:rgba(48,109,77,.05)}
 .m27-exercise-focus-empty{margin:.7rem;color:var(--m26-text-muted,#6b675f);font-size:.71rem}
 .m27-exercise-focus-active{min-width:0}
 .m27-exercise-focus-active>.m26-exercise-progress-card{margin:0}
 @media (max-width:980px){.m27-exercise-focus-grid{grid-template-columns:minmax(11.5rem,14rem) minmax(0,1fr)}}
-@media (max-width:720px){.m27-exercise-focus-tools{display:grid}.m27-exercise-focus-grid{grid-template-columns:1fr}.m27-exercise-focus-list{grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));max-height:13rem;border-right:0;border-bottom:1px solid rgba(169,133,52,.18)}.m27-exercise-focus-option{border-left:0;border-top:3px solid transparent}.m27-exercise-focus-option[aria-pressed="true"]{border-top-color:var(--m26-gold,#9a782d)}}
+@media (max-width:720px){.m27-exercise-focus-tools{display:grid}.m27-exercise-focus-summary{justify-content:flex-start;max-width:none}.m27-exercise-focus-grid{grid-template-columns:1fr}.m27-exercise-focus-list{grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));max-height:13rem;border-right:0;border-bottom:1px solid rgba(169,133,52,.18)}.m27-exercise-focus-option{border-left:0;border-top:3px solid transparent}.m27-exercise-focus-option[aria-pressed="true"]{border-top-color:var(--m26-gold,#9a782d)}}
 @media (forced-colors:active){.m27-exercise-focus-option[aria-pressed="true"]{outline:2px solid CanvasText}}
 @media print{.m27-exercise-focus-tools,.m27-exercise-focus-list{display:none}.m27-exercise-focus-grid{display:block}}
 `;
@@ -498,6 +507,43 @@ function exerciseFocusSubtitle(card){
   ).replace(/\s+/gu,' ').trim();
 }
 
+function exerciseFocusDecisionState(card){
+  const raw=String(
+    card?.getAttribute?.(
+      'data-m26-exercise-decision-state'
+    )||''
+  ).trim().toLowerCase();
+
+  return ['review','progress','stable']
+    .includes(raw)
+      ?raw
+      :'insufficient';
+}
+
+function exerciseFocusDecisionMeta(state){
+  return ({
+    review:{
+      label:'Revisar',
+      summary:'revisar',
+    },
+    progress:{
+      label:'Evolución',
+      summary:'evolución',
+    },
+    stable:{
+      label:'Estable',
+      summary:'estable',
+    },
+    insufficient:{
+      label:'Sin comparación',
+      summary:'sin comparación',
+    },
+  })[state]||{
+    label:'Sin comparación',
+    summary:'sin comparación',
+  };
+}
+
 function exerciseFocusSelect(state,key){
   if(!state?.cards?.has(key)||!state.active){
     return false;
@@ -709,12 +755,19 @@ function buildExerciseFocusWorkspace(
         card,
       );
 
+      const decisionState=
+        exerciseFocusDecisionState(card);
+      const decision=
+        exerciseFocusDecisionMeta(decisionState);
+
       return {
         key,
         title,
         subtitle,
         signature,
         card,
+        decisionState,
+        decision,
       };
     },
   );
@@ -782,7 +835,48 @@ function buildExerciseFocusWorkspace(
     searchTitle,
     search,
   );
-  tools.append(searchLabel);
+
+  const decisionSummary=
+    create(
+      documentLike,
+      'div',
+      'm27-exercise-focus-summary',
+    );
+  decisionSummary.setAttribute(
+    'aria-label',
+    'Resumen de evolución por ejercicio',
+  );
+
+  const decisionStates=[
+    ['review','Revisar'],
+    ['progress','Evolución'],
+    ['stable','Estables'],
+    ['insufficient','Sin comparación'],
+  ];
+
+  for(const [state,label] of decisionStates){
+    const count=
+      items.filter(
+        (item)=>item.decisionState===state
+      ).length;
+    const summaryItem=
+      create(
+        documentLike,
+        'span',
+        '',
+        `${count} ${label.toLocaleLowerCase('es')}`,
+      );
+    summaryItem.setAttribute(
+      'data-state',
+      state,
+    );
+    decisionSummary.append(summaryItem);
+  }
+
+  tools.append(
+    searchLabel,
+    decisionSummary,
+  );
 
   const grid=
     create(
@@ -821,14 +915,34 @@ function buildExerciseFocusWorkspace(
         ?'true'
         :'false',
     );
+    button.setAttribute(
+      'data-m27-exercise-state',
+      item.decisionState,
+    );
 
-    button.append(
+    const optionHead=
+      create(
+        documentLike,
+        'span',
+        'm27-exercise-focus-option-head',
+      );
+    optionHead.append(
       create(
         documentLike,
         'strong',
         '',
         item.title,
       ),
+      create(
+        documentLike,
+        `span`,
+        `m27-exercise-focus-state is-${item.decisionState}`,
+        item.decision.label,
+      ),
+    );
+
+    button.append(
+      optionHead,
       create(
         documentLike,
         'small',
@@ -1036,4 +1150,5 @@ export const __progressContinuityInternals=Object.freeze({
   clientHomeContextItems,
   exerciseFocusText,
   exerciseFocusFilter,
+  exerciseFocusDecisionMeta,
 });
