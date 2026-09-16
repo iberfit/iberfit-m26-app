@@ -19,3 +19,13 @@ test('real client wizard remains the explicit path that creates the expediente a
   assert.match(adminRoute,/IBERFIT creará el expediente/u);
   assert.match(adminRoute,/data-admin-form="client-create"|form\('client-create'/u);
 });
+
+test('lead capture is collapsed canonically before runtime enhancement',()=>{
+  assert.match(adminRoute,/data-admin-lead-disclosure/u);
+  assert.match(adminRoute,/<details class="m26-admin-panel m26-admin-lead-capture m26-admin-lead-disclosure"/u);
+  assert.match(adminRoute,/<summary class="m26-admin-lead-summary"/u);
+  assert.match(adminRoute,/form\('lead-create'/u);
+  assert.doesNotMatch(adminRoute,/data-admin-lead-disclosure[^>]*\sopen(?:\s|>)/u);
+  assert.match(nativeWorkspace,/canonicalDisclosure=form\.closest\?\.\('\[data-admin-lead-disclosure\]'\)/u);
+  assert.match(nativeWorkspace,/if\(canonicalDisclosure\)\{[\s\S]*?return;/u);
+});

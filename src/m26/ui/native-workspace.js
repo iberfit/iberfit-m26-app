@@ -83,12 +83,17 @@ function enhanceAdminIntake(root,viewModel){
   if(!doc?.createElement)return;
   form.dataset.m26NativeIntake='true';
   form.classList.add('m26-admin-intake-form');
-  form.hidden=true;
   for(const control of form.querySelectorAll?.('input,select,textarea')||[]){
     if(!control.getAttribute?.('aria-label'))control.setAttribute?.('aria-label',textLabel(control));
   }
   const submit=form.querySelector?.('button[type="submit"]');
   if(submit)submit.textContent='Guardar lead';
+  const canonicalDisclosure=form.closest?.('[data-admin-lead-disclosure]');
+  if(canonicalDisclosure){
+    form.hidden=false;
+    return;
+  }
+  form.hidden=true;
   const heading=doc.createElement('div');
   heading.className='m26-admin-form-heading';
   const headingStrong=doc.createElement('strong');
@@ -127,6 +132,8 @@ export function openNativeAdminIntake(root){
   const form=root?.querySelector?.('[data-admin-form="lead-create"]');
   const button=root?.querySelector?.('[data-admin-intake-open]');
   if(!form)return false;
+  const canonicalDisclosure=form.closest?.('[data-admin-lead-disclosure]');
+  if(canonicalDisclosure)canonicalDisclosure.open=true;
   form.hidden=false;
   button?.setAttribute?.('aria-expanded','true');
   if(button)button.textContent='Lead en curso';
