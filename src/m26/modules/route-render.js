@@ -1601,6 +1601,80 @@ function renderExercisePerformanceOverview(items=[]){
     </div>
   </section>`;
 }
+
+function renderCoachExerciseDecisionSignals(items=[]){
+  const statusPriority={
+    regression:0,
+    progress:1,
+  };
+  const confidencePriority={
+    high:0,
+    medium:1,
+    low:2,
+  };
+
+  const signals=(Array.isArray(items)?items:[])
+    .map((item)=>({
+      item,
+      visual:exerciseMemoryVisual(item),
+    }))
+    .filter(({visual})=>
+      visual?.assessment?.colorEligible===true&&
+      visual?.hasCausalMetric===true&&
+      (
+        visual.status==='regression'||
+        visual.status==='progress'
+      )
+    )
+    .sort((left,right)=>
+      (statusPriority[left.visual.status]??9)-
+      (statusPriority[right.visual.status]??9)||
+      (confidencePriority[left.visual.assessment?.confidence]??9)-
+      (confidencePriority[right.visual.assessment?.confidence]??9)||
+      Number(right.visual.facts?.exposureCount||0)-
+      Number(left.visual.facts?.exposureCount||0)
+    )
+    .slice(0,3);
+
+  if(!signals.length)return '';
+
+  const rows=signals.map(({item,visual})=>{
+    const name=item?.exerciseName||'Ejercicio registrado';
+    const metricLabel=exerciseMemoryMetricLabel(visual.metricKey);
+    const delta=exerciseMemoryDeltaCopy(item);
+    const tone=visual.status==='regression'
+      ?'danger'
+      :'success';
+
+    return `<article
+      class="m26-coach-exercise-signal is-${escapeHtml(visual.status)}"
+      data-m26-coach-exercise-signal
+      data-m26-coach-exercise-signal-status="${escapeHtml(visual.status)}"
+    >
+      <div class="m26-coach-exercise-signal-name">
+        <strong>${escapeHtml(name)}</strong>
+        ${badge(visual.label,tone)}
+      </div>
+      <p>${escapeHtml(visual.basis)}</p>
+      <small>${escapeHtml(metricLabel)} · ${escapeHtml(delta)}</small>
+    </article>`;
+  }).join('');
+
+  return `<section
+    class="m26-coach-exercise-signals"
+    data-m26-coach-exercise-signals
+    aria-label="Señales comparables por ejercicio"
+  >
+    <div class="m26-coach-exercise-signals-heading">
+      <div>
+        <p class="m26-eyebrow">Señales comparables por ejercicio</p>
+        <h4>Ejercicios que merecen una mirada</h4>
+      </div>
+      <small>Solo cambios confirmados con una métrica comparable que sustenta la clasificación. No atribuye causalidad.</small>
+    </div>
+    <div class="m26-coach-exercise-signals-list">${rows}</div>
+  </section>`;
+}
 export /* RC70_2_EXERCISE_RENDER_BEGIN */
 function exerciseProgressMetric(value,fallback='Sin dato'){
   return value===null||value===undefined||value===''
@@ -2895,6 +2969,8 @@ export function renderExpedienteRoute(vm) {
           </div>
           <button type="button" class="m26-text-action" data-m26-area="progreso">Abrir progreso completo</button>
         </div>
+
+        ${renderCoachExerciseDecisionSignals(vm.exercisePerformance)}
 
         <div class="m26-coach-workspace-metrics">
           <span><small>Adherencia 28 días</small><strong>${escapeHtml(formatPercent(progress.adherence))}</strong></span>
