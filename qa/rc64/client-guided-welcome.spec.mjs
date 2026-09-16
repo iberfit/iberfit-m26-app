@@ -82,7 +82,8 @@ async function expectJourneyState(page,{area,title,state}){
     const nav=page.locator('.m26-client-bottom-nav:visible').first();
     await expect(nav,'Mobile Client navigation must stay visible while the Genie explains the current area').toBeVisible();
     const navBox=await nav.boundingBox();
-    expect(dialogBox?.bottom??Infinity,'Genie dialogue must finish above the fixed Client navigation').toBeLessThanOrEqual((navBox?.y??0)-4);
+    const dialogBottom=(dialogBox?.y??Infinity)+(dialogBox?.height??0);
+    expect(dialogBottom,'Genie dialogue must finish above the fixed Client navigation').toBeLessThanOrEqual((navBox?.y??0)-4);
   }
 }
 
