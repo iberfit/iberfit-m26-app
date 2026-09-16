@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "278b86885abe849d2505a91d9b3396f628a950e6",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado: Cliente · Hoy simplifica jerarquía con progressive disclosure, oculta el IRI confirmado del contexto diario, mantiene el IRI pendiente como punto de partida, elimina agenda vacía y duplicación de sesión principal, conserva accesos secundarios en Más para ti y ajusta Genio para descubribilidad contextual. PR #455 validado 6/6 GREEN y post-merge 8/8 GREEN. Incluye i18n ES/EN/FR/PT, accesibilidad, PWA, Lighthouse, Admin multibrowser, Cliente autenticado, Genio por dispositivo, touch/focus/overflow. Sin cambios de Supabase, RLS, auth, datos ni permisos."
+}
