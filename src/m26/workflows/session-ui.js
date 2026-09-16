@@ -850,8 +850,11 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     const continuityCopy=isCoach
       ?'El seguimiento del cliente ya puede continuar desde su expediente.'
       :'Tu seguimiento ya puede continuar desde Progreso.';
+    const completedProgressAction=isCoach
+      ?`<button type="button" class="m26-primary-action" data-m26-coach-action="true" data-m26-client-id="${e(execution.clientId||session.clientId||'')}" data-m26-target-area="expediente">${e(progressActionLabel)}</button>`
+      :`<button type="button" class="m26-primary-action" data-m26-area="${e(progressActionArea)}">${e(progressActionLabel)}</button>`;
     const completedActions=confirmed
-      ?`<div class="m26-session-live-actions"><button type="button" data-session-action="exit-session">Volver a sesiones</button><button type="button" class="m26-primary-action" data-m26-area="${e(progressActionArea)}">${e(progressActionLabel)}</button></div>`
+      ?`<div class="m26-session-live-actions"><button type="button" data-session-action="exit-session">Volver a sesiones</button>${completedProgressAction}</div>`
       :`<button type="button" class="m26-primary-action" data-session-action="exit-session">Volver a sesiones</button>`;
 
     return `<section class="m26-guided m26-session-live" data-session-live-state="completed">
