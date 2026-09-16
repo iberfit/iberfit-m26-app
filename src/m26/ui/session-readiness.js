@@ -2,6 +2,11 @@ import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {adherenceSignal,deriveAdherenceAlerts} from '../engagement/adherence-engine.js';
 import {buildAdherenceWindows} from '../engagement/progress-continuity.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
+import {
+  confirmedSessionExecutionsForClient,
+  sessionExecutionDate,
+} from '../domain/session-execution-truth.js';
+import {summarizeActionOutcomes} from '../intelligence/action-outcome.js';
 
 const STYLE_ID='m27-session-readiness-styles';
 const ACTIVE_WAKE_STATES=new Set(['active','rest']);
@@ -21,6 +26,12 @@ const STYLES=`
 .m27-session-readiness-card>small{color:var(--m26-text-muted,#6b675f);font-size:.65rem;line-height:1.4}
 .m27-session-readiness-card[data-level="critical"]{border-color:rgba(149,67,54,.3)}
 .m27-session-readiness-card[data-level="warning"]{border-color:rgba(169,133,52,.3)}
+.m27-session-readiness-coach-brief{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:.75rem;padding:.68rem .15rem .08rem;border-top:1px solid rgba(216,185,111,.18)}
+.m27-session-readiness-coach-item{display:grid;align-content:start;gap:.18rem;min-width:0;padding:.08rem .6rem}
+.m27-session-readiness-coach-item+ .m27-session-readiness-coach-item{border-left:1px solid rgba(216,185,111,.16)}
+.m27-session-readiness-coach-item>span{color:var(--m26-gold,#a98534);font-size:.58rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.m27-session-readiness-coach-item>strong{color:var(--m26-text,#17231d);font-size:.84rem;line-height:1.3}
+.m27-session-readiness-coach-item>small{color:var(--m26-text-muted,#6b675f);font-size:.65rem;line-height:1.45}
 .m27-session-focus-dock{display:none}
 .m27-session-focus-meta{min-width:0;display:grid;gap:.08rem}
 .m27-session-focus-meta>span{color:var(--m26-gold,#a98534);font-size:.58rem;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
@@ -47,7 +58,7 @@ const STYLES=`
   .m27-session-focus-active{padding-bottom:6.7rem}
   .m27-session-focus-dock{position:fixed;z-index:80;left:max(.72rem,env(safe-area-inset-left));right:max(.72rem,env(safe-area-inset-right));bottom:calc(max(.65rem,env(safe-area-inset-bottom)) + 4.55rem);display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.68rem .72rem;border:1px solid rgba(216,185,111,.28);border-radius:1rem;background:color-mix(in srgb,var(--m26-surface,#f7f1e7) 91%,transparent);box-shadow:0 18px 48px rgba(9,25,19,.2);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 }
-@media (max-width:560px){.m27-session-readiness-head{display:grid;gap:.3rem}.m27-session-readiness-head p{text-align:left}.m27-session-readiness-grid{grid-template-columns:1fr}}
+@media (max-width:560px){.m27-session-readiness-head{display:grid;gap:.3rem}.m27-session-readiness-head p{text-align:left}.m27-session-readiness-grid{grid-template-columns:1fr}.m27-session-readiness-coach-brief{grid-template-columns:1fr}.m27-session-readiness-coach-item+ .m27-session-readiness-coach-item{padding-top:.62rem;border-top:1px solid rgba(216,185,111,.14);border-left:0}}
 @media (max-width:430px){
   .m27-session-focus-dock:not(.is-coach){gap:.58rem;padding:.62rem}
   .m27-session-focus-dock:not(.is-coach) .m27-session-focus-actions{max-width:48%}
@@ -128,6 +139,80 @@ export function buildSessionReadinessSnapshot(state,clientId,{now=new Date()}={}
   });
 }
 
+function coachBriefText(value,max=240){
+  return String(value??'').trim().slice(0,max);
+}
+
+function coachReadinessRecord(record){
+  return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)
+    ?{...record,...record.body}
+    :record||{};
+}
+
+function coachReadinessFeedback(execution){
+  const item=coachReadinessRecord(execution);
+  const feedback=item?.feedback&&typeof item.feedback==='object'&&!Array.isArray(item.feedback)
+    ?item.feedback
+    :{};
+  const rawRpe=feedback.sessionRpe??feedback.session_rpe;
+  const sessionRpe=rawRpe!==null&&rawRpe!==undefined&&rawRpe!==''&&Number.isFinite(Number(rawRpe))
+    ?Number(rawRpe)
+    :null;
+  return Object.freeze({
+    sessionRpe,
+    comment:coachBriefText(feedback.comment??feedback.comments??feedback.note??feedback.notes,280)||null,
+    pain:feedback.pain===true||feedback.pain==='true',
+    painNotes:coachBriefText(feedback.painNotes??feedback.pain_notes,220)||null,
+  });
+}
+
+function latestConfirmedCoachExecution(state,clientId){
+  const rows=[...confirmedSessionExecutionsForClient(
+    state,
+    clientId,
+    {requireCompleted:true,requireDate:false},
+  )];
+  rows.sort((a,b)=>{
+    const aTime=new Date(sessionExecutionDate(a)||0).getTime();
+    const bTime=new Date(sessionExecutionDate(b)||0).getTime();
+    return (Number.isFinite(bTime)?bTime:0)-(Number.isFinite(aTime)?aTime:0);
+  });
+  return rows[0]||null;
+}
+
+export function buildCoachSessionReadinessContext(state,clientId,{now=new Date()}={}){
+  const id=String(clientId||'').trim();
+  if(!id)return null;
+
+  const execution=latestConfirmedCoachExecution(state,id);
+  const feedback=execution?coachReadinessFeedback(execution):null;
+  const decisions=summarizeActionOutcomes(
+    state?.collections?.m26Entities||[],
+    id,
+    {now},
+  );
+  const open=Array.isArray(decisions.open)?decisions.open:[];
+  const top=open[0]||null;
+
+  return Object.freeze({
+    clientId:id,
+    feedback:Object.freeze({
+      hasExecution:Boolean(execution),
+      completedAt:execution?sessionExecutionDate(execution)||null:null,
+      sessionRpe:feedback?.sessionRpe??null,
+      comment:feedback?.comment??null,
+      pain:feedback?.pain===true,
+      painNotes:feedback?.painNotes??null,
+    }),
+    decisions:Object.freeze({
+      openCount:Number(decisions.openCount||0),
+      overdueCount:Number(decisions.overdueCount||0),
+      dueTodayCount:Number(decisions.dueTodayCount||0),
+      topSignal:coachBriefText(top?.signalSummary,280)||null,
+    }),
+  });
+}
+
 function card(document,label,headline,detail,{level='clear'}={}){
   const item=create(document,'article','m27-session-readiness-card');
   item.setAttribute('data-level',level);
@@ -139,7 +224,48 @@ function card(document,label,headline,detail,{level='clear'}={}){
   return item;
 }
 
-function buildReadinessSection(document,snapshot,role){
+function buildCoachReadinessBrief(document,context){
+  if(!context)return null;
+  const feedback=context.feedback||{};
+  const decisions=context.decisions||{};
+  const brief=create(document,'div','m27-session-readiness-coach-brief');
+  brief.setAttribute('data-m27-coach-session-readiness','true');
+  brief.setAttribute('aria-label','Contexto profesional previo a la sesión');
+
+  const feedbackItem=create(document,'div','m27-session-readiness-coach-item');
+  const feedbackHeadline=feedback.hasExecution
+    ?[
+        Number.isFinite(feedback.sessionRpe)?`RPE ${feedback.sessionRpe}`:null,
+        feedback.pain?'Dolor o molestia registrado':null,
+      ].filter(Boolean).join(' · ')||'Cierre confirmado'
+    :'Sin cierre confirmado';
+  const feedbackDetail=feedback.hasExecution
+    ?[
+        feedback.comment||null,
+        feedback.painNotes?`Molestia: ${feedback.painNotes}`:null,
+      ].filter(Boolean).join(' · ')||'Sin comentario final confirmado.'
+    :'No hay una ejecución confirmada anterior para contextualizar esta sesión.';
+  feedbackItem.append(
+    create(document,'span','','Último cierre confirmado'),
+    create(document,'strong','',feedbackHeadline),
+    create(document,'small','',feedbackDetail),
+  );
+
+  const decisionItem=create(document,'div','m27-session-readiness-coach-item');
+  const decisionHeadline=decisions.openCount
+    ?`${decisions.openCount} abierta${decisions.openCount===1?'':'s'}${decisions.overdueCount?` · ${decisions.overdueCount} vencida${decisions.overdueCount===1?'':'s'}`:''}`
+    :'Sin decisiones abiertas';
+  decisionItem.append(
+    create(document,'span','','Decisiones del Coach'),
+    create(document,'strong','',decisionHeadline),
+    create(document,'small','',decisions.topSignal||'No hay seguimientos profesionales pendientes antes de iniciar.'),
+  );
+
+  brief.append(feedbackItem,decisionItem);
+  return brief;
+}
+
+function buildReadinessSection(document,snapshot,role,coachContext=null){
   const section=create(document,'section','m27-session-readiness');
   section.setAttribute('data-m27-session-readiness','true');
   section.setAttribute('aria-label','Contexto previo a la sesión');
@@ -171,6 +297,10 @@ function buildReadinessSection(document,snapshot,role){
   );
 
   section.append(head,grid);
+  if(role==='coach'){
+    const coachBrief=buildCoachReadinessBrief(document,coachContext);
+    if(coachBrief)section.append(coachBrief);
+  }
   return section;
 }
 
@@ -188,7 +318,10 @@ export function enhanceSessionReadiness({root,viewModel,state,now=new Date()}={}
   ready.querySelector?.('[data-m27-session-readiness]')?.remove?.();
   const snapshot=buildSessionReadinessSnapshot(state,clientId,{now});
   if(!snapshot)return false;
-  const section=buildReadinessSection(root.ownerDocument,snapshot,role);
+  const coachContext=role==='coach'
+    ?buildCoachSessionReadinessContext(state,clientId,{now})
+    :null;
+  const section=buildReadinessSection(root.ownerDocument,snapshot,role,coachContext);
   const hero=ready.querySelector?.('.m26-session-live-hero');
   if(hero?.nextSibling)ready.insertBefore(section,hero.nextSibling);
   else if(hero)ready.append(section);
