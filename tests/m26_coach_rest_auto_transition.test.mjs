@@ -123,6 +123,8 @@ test('final recorded set skips terminal countdown while preserving review and Co
   const html=renderGuidedExecution({execution,session,catalog,role:'coach'});
   assert.match(html,/data-session-rest-active="false"/);
   assert.match(html,/Última serie completada/);
+  assert.match(html,/Última serie guardada\. Revísala o continúa al cierre\./);
+  assert.doesNotMatch(html,/Descansa o continúa cuando estés preparado/);
   assert.match(html,/Corregir esta serie/);
   assert.match(html,/\+ 1 serie y seguir/);
   assert.match(html,/Continuar al cierre/);
@@ -151,10 +153,9 @@ test('non-terminal recorded set keeps the planned rest unchanged',()=>{
   assert.equal(execution.setIndex,0);
   assert.ok(new Date(execution.restUntil).getTime()>Date.now());
   assert.equal(execution.events.some((item)=>item.type==='REST_STARTED'),true);
-  assert.match(
-    renderGuidedExecution({execution,session,catalog,role:'coach'}),
-    /data-session-live-state="rest"/,
-  );
+  const html=renderGuidedExecution({execution,session,catalog,role:'coach'});
+  assert.match(html,/data-session-live-state="rest"/);
+  assert.match(html,/Tu serie ya está guardada\. Descansa o continúa cuando estés preparado\./);
 });
 
 test('Coach repeat on the terminal set preserves review without starting a fake rest',()=>{

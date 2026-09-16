@@ -1,4 +1,4 @@
-import { canSubstituteCurrentExercise,currentStep,executionResultForStep,previousSetDraftValues } from './session-execution.js';
+import { canSubstituteCurrentExercise,currentStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues } from './session-execution.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
@@ -980,6 +980,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   });
   const recorded=executionResultForStep(execution,step);
   const currentQueueItem=execution?.queue?.[execution.index]||null;
+  const hasNextPlannedStep=hasNextExecutionStep(execution);
   const coachExtraSetReady=Boolean(
     isCoach&&
     recorded&&
@@ -1014,6 +1015,11 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   const restTransitionContext=coachNextExerciseHandoff
     ?`<p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>${nextExercisePreview}${restCurrentMedia}`
     :`${restCurrentMedia}<p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>${nextExercisePreview}`;
+  const recordedGuidance=restActive
+    ?'Tu serie ya está guardada. Descansa o continúa cuando estés preparado.'
+    :hasNextPlannedStep
+      ?'Tu serie ya está guardada. Continúa cuando estés preparado.'
+      :'Última serie guardada. Revísala o continúa al cierre.';
   const resultSummary=recorded
     ?[
         recorded.reps!=null?`${recorded.reps} rep${Number(recorded.reps)===1?'':'s'}`:null,
@@ -1054,7 +1060,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
             <strong${restActive?' data-session-rest-countdown-value':''}>${restActive?e(restSeconds)+' s':'Continuar'}</strong>
           </div>
         </div>
-        <p class="m26-session-rest-guidance">Tu serie ya está guardada. Descansa o continúa cuando estés preparado.</p>
+        <p class="m26-session-rest-guidance">${e(recordedGuidance)}</p>
         ${restTransitionContext}
         <details class="m26-session-options" data-session-rest-correction>
           <summary>Corregir esta serie</summary>
