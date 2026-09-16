@@ -22,6 +22,8 @@ test('dynamic surface translator covers Coach progress session and wearable sent
   assert.equal(tx('3 exposiciones confirmadas · calidad suficiente','fr'),'3 expositions confirmées · qualité suficiente');
   assert.equal(tx('2 conexiones registradas','pt'),'2 ligações registadas');
   assert.equal(tx('Cambio vs anterior: -2 rep · -20%','en'),'Change vs previous: -2 rep · -20%');
+  assert.equal(tx('Retroceso ↓','en'),'Regression ↓');
+  assert.equal(tx('Evolución ↑','fr'),'Évolution ↑');
 });
 
 test('dynamic surface translator covers access errors and device continuity without changing identifiers',()=>{
@@ -43,6 +45,8 @@ test('public surface translator closes final Admin planning and live-session fam
   assert.equal(surface('Señales comparables por ejercicio','en'),'Comparable exercise signals');
   assert.equal(surface('Ejercicios que merecen una mirada','fr'),'Exercices à examiner');
   assert.equal(surface('Carga comparable','pt'),'Carga comparável');
+  assert.equal(surface('Retroceso','en'),'Regression');
+  assert.equal(surface('Sin conclusión','pt'),'Sem conclusão');
 });
 
 test('dynamic translator leaves unmatched user/domain content untouched',()=>{
