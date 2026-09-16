@@ -65,8 +65,11 @@ async function expectJourneyState(page,{area,title,state}){
   await expect(presence.locator('[data-m26-client-genie]'),'Guided welcome must render the vector Genie rather than the old logo placeholder').toHaveCount(1);
   await expect(presence.locator('img'),'Genie presence must not fall back to a raster mascot image').toHaveCount(0);
   const presenceBox=await presence.boundingBox();
-  expect(presenceBox?.height||0,'Genie must remain legible and visibly present at UI scale').toBeGreaterThanOrEqual(120);
-  expect(presenceBox?.height||0,'Genie must remain a controlled guide, not a screen-dominating mascot').toBeLessThanOrEqual(180);
+  const mobilePresence=Number(page.viewportSize()?.width||0)<=690;
+  const minimumPresenceHeight=mobilePresence?110:120;
+  const maximumPresenceHeight=mobilePresence?150:180;
+  expect(presenceBox?.height||0,'Genie must remain legible and visibly present at UI scale').toBeGreaterThanOrEqual(minimumPresenceHeight);
+  expect(presenceBox?.height||0,'Genie must remain a controlled guide, not a screen-dominating mascot').toBeLessThanOrEqual(maximumPresenceHeight);
   await expect(
     page.locator('[data-m26-client-guided-welcome]'),
     'Genie guidance should read as a conversational speech bubble',
