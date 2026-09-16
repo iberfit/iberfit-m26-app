@@ -1132,8 +1132,9 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
 
     ${touchFocus}
 
-    ${(Number(execution.index)>0||Number(execution.setIndex)>0)?`<div class="m26-session-live-quick-actions" aria-label="Acciones de navegación">
-      <button type="button" data-session-action="previous">Anterior</button>
+    ${((Number(execution.index)>0||Number(execution.setIndex)>0)||isCoach)?`<div class="m26-session-live-quick-actions"${isCoach?' data-session-coach-quick-controls':''} aria-label="${isCoach?'Controles rápidos de sesión':'Acciones de navegación'}">
+      ${(Number(execution.index)>0||Number(execution.setIndex)>0)?'<button type="button" data-session-action="previous">Anterior</button>':''}
+      ${isCoach?'<button type="button" class="m26-session-live-quick-pause" data-session-action="pause">Pausar sesión</button>':''}
     </div>`:''}
 
     <div class="m26-session-live-workbench is-${restActive?'rest':'active'}">
@@ -1199,8 +1200,8 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
             </div>`:''}
           </details>
               <details class="m26-session-options">
-                <summary>Pausa o cancelación</summary>
-                <button type="button" data-session-action="pause">Pausar sesión</button>
+                <summary>${isCoach?'Cancelar sesión':'Pausa o cancelación'}</summary>
+                ${isCoach?'':'<button type="button" data-session-action="pause">Pausar sesión</button>'}
                 <label>Motivo para cancelar<input maxlength="500" data-session-cancel-reason></label>
                 <button type="button" data-session-action="cancel">Cancelar sesión</button>
               </details>
