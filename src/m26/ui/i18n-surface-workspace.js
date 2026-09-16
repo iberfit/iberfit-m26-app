@@ -7,6 +7,7 @@ export const WORKSPACE_SURFACE_ROWS=Object.freeze([
 ['Cumplir tu planificación','Follow your planning','Suivre votre planification','Cumprir o seu planeamento'],
 ['Progreso según sesiones realmente planificadas y confirmadas.','Progress based on sessions actually planned and confirmed.','Progression selon les séances réellement planifiées et confirmées.','Progresso segundo sessões realmente planeadas e confirmadas.'],
 ['Aparecerá cuando exista una planificación confirmada.','It will appear when confirmed planning exists.','Cela apparaîtra lorsqu’une planification confirmée existera.','Aparecerá quando existir um planeamento confirmado.'],
+['sesión','session','séance','sessão'],
 ['sesiones','sessions','séances','sessões'],
 ['bienestar','wellbeing','bien-être','bem-estar'],
 ['Registrar cómo te sientes','Record how you feel','Enregistrer votre ressenti','Registar como se sente'],
