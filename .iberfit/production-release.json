@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "32a27105c5bed7399effc45213d752b0f55c9750",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado: lanzador de comandos Admin legible en móvil, etiqueta visual compacta Buscar y hint de teclado oculto en pantallas táctiles estrechas, conservando acción y semántica accesible; regresión visual contra truncado y overflow; sin cambios de auth, Supabase, RLS, datos ni backend."
+}
