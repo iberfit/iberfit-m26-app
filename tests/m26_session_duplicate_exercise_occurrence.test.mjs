@@ -8,6 +8,7 @@ import {
   executionResultForStep,
   previousSetDraftValues,
   recordSet,
+  retreatExecution,
   skipExecutionExercise,
   skipExecutionSet,
   startExecution,
