@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "6fc24795eeddbfda8c2694ee9ad8fa87f0c002ac",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado: Coach Hoy decision-first + evidencia visual actual + Genio móvil menos dominante + QA responsive alineado."
+}
