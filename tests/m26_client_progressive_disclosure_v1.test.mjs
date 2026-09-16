@@ -110,7 +110,7 @@ test('Client progress becomes comparable only with confirmed comparison evidence
   );
 });
 
-test('Client mature progress opens full evidence when history is sufficiently established',()=>{
+test('Client mature progress keeps full evidence available without forcing it open',()=>{
   const progressSummary=summary({
     completedSessions:6,
     plannedSessions:7,
@@ -136,8 +136,14 @@ test('Client mature progress opens full evidence when history is sufficiently es
 
   assert.match(html,/data-client-progress-stage="mature"/u);
   assert.match(html,/Tu evolución ya tiene contexto/u);
-  assert.doesNotMatch(html,/m26-client-progress-detail/u);
+  assert.match(html,/data-client-progress-depth="mature"/u);
+  assert.match(html,/Ver detalle completo/u);
+  assert.match(html,/Historial, bienestar, IRI, dispositivos, alertas y ejercicios confirmados/u);
   assert.match(html,/Evolución registrada/u);
+  assert.ok(
+    html.indexOf('m26-progress-overview')<html.indexOf('m26-client-progress-detail'),
+    'primary adherence evidence must stay ahead of deep detail',
+  );
 });
 
 test('Coach keeps the professional full-depth progress surface unchanged in hierarchy',()=>{
