@@ -32,6 +32,12 @@ const STYLES=`
 .m27-session-readiness-coach-item>span{color:var(--m26-gold,#a98534);font-size:.58rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
 .m27-session-readiness-coach-item>strong{color:var(--m26-text,#17231d);font-size:.84rem;line-height:1.3}
 .m27-session-readiness-coach-item>small{color:var(--m26-text-muted,#6b675f);font-size:.65rem;line-height:1.45}
+.m27-session-live-context-flag{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.65rem;margin:.62rem 0 .18rem;padding:.58rem .7rem;border:1px solid rgba(169,133,52,.24);border-left:3px solid var(--m26-gold,#a98534);border-radius:.72rem;background:rgba(216,185,111,.045)}
+.m27-session-live-context-flag[data-level="critical"]{border-left-color:#8f4339;background:rgba(143,67,57,.055)}
+.m27-session-live-context-flag>span{color:var(--m26-gold,#a98534);font-size:.57rem;font-weight:850;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.m27-session-live-context-copy{display:grid;gap:.08rem;min-width:0}
+.m27-session-live-context-copy>strong{color:var(--m26-text,#17231d);font-size:.78rem;line-height:1.25}
+.m27-session-live-context-copy>small{overflow:hidden;color:var(--m26-text-muted,#6b675f);font-size:.64rem;line-height:1.35;text-overflow:ellipsis;white-space:nowrap}
 .m27-session-focus-dock{display:none}
 .m27-session-focus-meta{min-width:0;display:grid;gap:.08rem}
 .m27-session-focus-meta>span{color:var(--m26-gold,#a98534);font-size:.58rem;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
@@ -58,7 +64,7 @@ const STYLES=`
   .m27-session-focus-active{padding-bottom:6.7rem}
   .m27-session-focus-dock{position:fixed;z-index:80;left:max(.72rem,env(safe-area-inset-left));right:max(.72rem,env(safe-area-inset-right));bottom:calc(max(.65rem,env(safe-area-inset-bottom)) + 4.55rem);display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.68rem .72rem;border:1px solid rgba(216,185,111,.28);border-radius:1rem;background:color-mix(in srgb,var(--m26-surface,#f7f1e7) 91%,transparent);box-shadow:0 18px 48px rgba(9,25,19,.2);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 }
-@media (max-width:560px){.m27-session-readiness-head{display:grid;gap:.3rem}.m27-session-readiness-head p{text-align:left}.m27-session-readiness-grid{grid-template-columns:1fr}.m27-session-readiness-coach-brief{grid-template-columns:1fr}.m27-session-readiness-coach-item+ .m27-session-readiness-coach-item{padding-top:.62rem;border-top:1px solid rgba(216,185,111,.14);border-left:0}}
+@media (max-width:560px){.m27-session-readiness-head{display:grid;gap:.3rem}.m27-session-readiness-head p{text-align:left}.m27-session-readiness-grid{grid-template-columns:1fr}.m27-session-readiness-coach-brief{grid-template-columns:1fr}.m27-session-readiness-coach-item+ .m27-session-readiness-coach-item{padding-top:.62rem;border-top:1px solid rgba(216,185,111,.14);border-left:0}.m27-session-live-context-flag{grid-template-columns:1fr;gap:.2rem}.m27-session-live-context-flag>span{white-space:normal}.m27-session-live-context-copy>small{white-space:normal}}
 @media (max-width:430px){
   .m27-session-focus-dock:not(.is-coach){gap:.58rem;padding:.62rem}
   .m27-session-focus-dock:not(.is-coach) .m27-session-focus-actions{max-width:48%}
@@ -213,6 +219,59 @@ export function buildCoachSessionReadinessContext(state,clientId,{now=new Date()
   });
 }
 
+export function buildCoachLiveContextSignal(snapshot,coachContext){
+  const attention=snapshot?.attention||{};
+  const feedback=coachContext?.feedback||{};
+  const decisions=coachContext?.decisions||{};
+
+  if(String(attention.level||'').toLowerCase()==='critical'){
+    return Object.freeze({
+      kind:'attention-critical',
+      level:'critical',
+      title:coachBriefText(attention.title,180)||'Atención prioritaria',
+      detail:coachBriefText(attention.detail,320)||'Revisa el contexto confirmado antes de continuar.',
+    });
+  }
+
+  if(feedback.pain===true){
+    return Object.freeze({
+      kind:'confirmed-pain',
+      level:'warning',
+      title:'Dolor o molestia en el último cierre',
+      detail:feedback.painNotes||feedback.comment||'Dato confirmado del último cierre; mantén este contexto presente durante la sesión.',
+    });
+  }
+
+  if(Number(decisions.overdueCount||0)>0){
+    return Object.freeze({
+      kind:'decision-overdue',
+      level:'warning',
+      title:'Decisión vencida',
+      detail:decisions.topSignal||'Existe una decisión profesional pendiente de revisión.',
+    });
+  }
+
+  if(Number(decisions.dueTodayCount||0)>0){
+    return Object.freeze({
+      kind:'decision-due-today',
+      level:'warning',
+      title:'Decisión para revisar hoy',
+      detail:decisions.topSignal||'Existe una decisión profesional prevista para revisión hoy.',
+    });
+  }
+
+  if(['warning','critical'].includes(String(attention.level||'').toLowerCase())){
+    return Object.freeze({
+      kind:'attention',
+      level:String(attention.level||'warning').toLowerCase(),
+      title:coachBriefText(attention.title,180)||'Requiere revisión',
+      detail:coachBriefText(attention.detail,320)||'Revisa el contexto confirmado durante la sesión.',
+    });
+  }
+
+  return null;
+}
+
 function card(document,label,headline,detail,{level='clear'}={}){
   const item=create(document,'article','m27-session-readiness-card');
   item.setAttribute('data-level',level);
@@ -265,6 +324,27 @@ function buildCoachReadinessBrief(document,context){
   return brief;
 }
 
+function buildCoachLiveContextFlag(document,signal){
+  if(!signal)return null;
+  const flag=create(document,'aside','m27-session-live-context-flag');
+  flag.setAttribute('data-m27-coach-live-context','true');
+  flag.setAttribute('data-level',signal.level||'warning');
+  flag.setAttribute('data-kind',signal.kind||'attention');
+  flag.setAttribute('aria-label','Contexto profesional activo');
+
+  const copy=create(document,'div','m27-session-live-context-copy');
+  copy.append(
+    create(document,'strong','',signal.title),
+    create(document,'small','',signal.detail),
+  );
+
+  flag.append(
+    create(document,'span','','Mantener presente'),
+    copy,
+  );
+  return flag;
+}
+
 function buildReadinessSection(document,snapshot,role,coachContext=null){
   const section=create(document,'section','m27-session-readiness');
   section.setAttribute('data-m27-session-readiness','true');
@@ -309,23 +389,42 @@ export function enhanceSessionReadiness({root,viewModel,state,now=new Date()}={}
   if(String(viewModel?.activeArea||'')!=='sesion')return false;
   const role=String(viewModel?.identity?.role||'').trim().toLowerCase();
   if(!['client','coach'].includes(role))return false;
-  const ready=root.querySelector?.('[data-session-live-state="ready"]');
-  if(!ready)return false;
+  const live=root.querySelector?.('[data-session-live-state]');
+  if(!live)return false;
+  const liveState=String(live.getAttribute?.('data-session-live-state')||'').trim().toLowerCase();
   const clientId=clientIdFor(viewModel,state);
   if(!clientId)return false;
 
   installStyles(root.ownerDocument);
-  ready.querySelector?.('[data-m27-session-readiness]')?.remove?.();
+
+  if(liveState==='ready'){
+    live.querySelector?.('[data-m27-session-readiness]')?.remove?.();
+    const snapshot=buildSessionReadinessSnapshot(state,clientId,{now});
+    if(!snapshot)return false;
+    const coachContext=role==='coach'
+      ?buildCoachSessionReadinessContext(state,clientId,{now})
+      :null;
+    const section=buildReadinessSection(root.ownerDocument,snapshot,role,coachContext);
+    const hero=live.querySelector?.('.m26-session-live-hero');
+    if(hero?.nextSibling)live.insertBefore(section,hero.nextSibling);
+    else if(hero)live.append(section);
+    else live.prepend(section);
+    return true;
+  }
+
+  if(role!=='coach'||!['active','rest'].includes(liveState))return false;
+
+  live.querySelector?.('[data-m27-coach-live-context]')?.remove?.();
   const snapshot=buildSessionReadinessSnapshot(state,clientId,{now});
-  if(!snapshot)return false;
-  const coachContext=role==='coach'
-    ?buildCoachSessionReadinessContext(state,clientId,{now})
-    :null;
-  const section=buildReadinessSection(root.ownerDocument,snapshot,role,coachContext);
-  const hero=ready.querySelector?.('.m26-session-live-hero');
-  if(hero?.nextSibling)ready.insertBefore(section,hero.nextSibling);
-  else if(hero)ready.append(section);
-  else ready.prepend(section);
+  const coachContext=buildCoachSessionReadinessContext(state,clientId,{now});
+  const signal=buildCoachLiveContextSignal(snapshot,coachContext);
+  if(!signal)return false;
+
+  const flag=buildCoachLiveContextFlag(root.ownerDocument,signal);
+  const hero=live.querySelector?.('.m26-session-live-hero');
+  if(hero?.nextSibling)live.insertBefore(flag,hero.nextSibling);
+  else if(hero)live.append(flag);
+  else live.prepend(flag);
   return true;
 }
 
