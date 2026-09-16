@@ -6,6 +6,7 @@ import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise} from '../src/m26/workflows/session-builder.js';
 import {advanceExecution,createExecution,startExecution,recordSet} from '../src/m26/workflows/session-execution.js';
 import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
+import {dispatchSessionAction} from '../src/m26/workflows/session-controller.js';
 
 const data=JSON.parse(
   fs.readFileSync(
@@ -125,6 +126,54 @@ test('Live Workout V3 mantiene herramientas estructurales del Coach',()=>{
   assert.match(html,/data-session-action="add-live-exercise"/);
   assert.match(html,/data-session-action="substitute"/);
   assert.match(html,/data-session-action="skip-exercise"/);
+});
+
+test('Coach pausa la sesión desde el mando rápido usando la acción real y sin duplicados',()=>{
+  const s=session();
+  const x=createExecution({session:s,clientId:s.clientId});
+  startExecution(x);
+
+  const html=renderGuidedExecution({
+    execution:x,
+    session:s,
+    catalog,
+    role:'coach',
+  });
+
+  const quick=html.indexOf('data-session-coach-quick-controls');
+  const pause=html.indexOf('data-session-action="pause"');
+  const workbench=html.indexOf('m26-session-live-workbench');
+  const secondary=html.indexOf('m26-session-live-secondary-context');
+
+  assert.ok(quick>=0);
+  assert.ok(pause>quick);
+  assert.ok(pause<workbench);
+  assert.ok(secondary>workbench);
+  assert.equal((html.match(/data-session-action="pause"/g)||[]).length,1);
+  assert.match(html,/aria-label="Controles rápidos de sesión"/);
+  assert.match(html,/m26-session-live-quick-pause/);
+
+  const result=dispatchSessionAction({
+    action:'pause',
+    execution:x,
+    session:s,
+    catalog,
+    actor:{role:'coach'},
+  });
+
+  assert.equal(result.kind,'execution');
+  assert.equal(x.status,'paused');
+  assert.equal(x.restUntil,null);
+
+  const pausedHtml=renderGuidedExecution({
+    execution:x,
+    session:s,
+    catalog,
+    role:'coach',
+  });
+  assert.match(pausedHtml,/data-session-live-state="paused"/);
+  assert.match(pausedHtml,/data-session-action="resume"/);
+  assert.match(pausedHtml,/Tu progreso está conservado/);
 });
 
 test('Coach puede completar la serie desde Enter en RPE sin exponer el atajo al Cliente',()=>{
