@@ -7,7 +7,12 @@ on:
       - 'src/m26/workflows/session-*.js'
       - 'src/m26/command-bus.js'
       - 'src/m26/ui/i18n-surface-session.js'
+      - 'src/m26/design/role-surfaces.css'
+      - 'src/m26/design/premium-ux.css'
+      - 'qa/live-workout/**'
+      - 'playwright.live-workout.config.mjs'
       - 'tests/m26_session*.test.mjs'
+      - 'tests/m26_live_workout*.test.mjs'
       - 'tests/m26_*draft_recovery.test.mjs'
       - 'scripts/run_node_tests_offline.mjs'
       - 'scripts/offline_network_guard.mjs'
@@ -45,6 +50,54 @@ jobs:
           name: session-offline-log-${{ github.run_id }}
           path: recovery/session-offline-regression.log
           if-no-files-found: error
+  browser-live-workout:
+    needs: offline
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install deterministic dependencies
+        run: npm ci
+      - name: Restore Live Workout Playwright cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles('package-lock.json') }}-live-workout-chromium-webkit
+      - name: Install browser system dependencies
+        run: npx playwright install-deps chromium webkit
+      - name: Install Chromium and WebKit on cache miss
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium webkit
+      - name: Verify Live Workout browsers
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import {chromium,webkit} from '@playwright/test';
+          import fs from 'node:fs';
+          for(const [name,browser] of [['chromium',chromium],['webkit',webkit]]){
+            const executable=browser.executablePath();
+            if(!executable||!fs.existsSync(executable))throw new Error('LIVE_WORKOUT_BROWSER_MISSING:'+name);
+            console.log(name+':'+executable);
+          }
+          NODE
+      - name: Run Live Workout browser E2E matrix
+        run: npx playwright test --config=playwright.live-workout.config.mjs
+      - name: Preserve Live Workout browser failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-workout-browser-failures-${{ github.run_id }}
+          path: test-results/**
+          if-no-files-found: warn
+          retention-days: 7
+
   qa-readonly:
     needs: offline
     runs-on: ubuntu-latest
