@@ -53,6 +53,7 @@ test('cierre de sesión distingue feedback del Cliente y registro profesional de
     'data-session-feedback-comment',
     'data-session-feedback-pain',
     'data-session-feedback-pain-notes',
+    'data-session-action="previous"',
     'data-session-action="finish"',
   ]){
     assert.match(clientHtml,new RegExp(attribute));
@@ -60,6 +61,8 @@ test('cierre de sesión distingue feedback del Cliente y registro profesional de
   }
   assert.match(coachHtml,/data-session-feedback-rpe required/);
   assert.match(coachHtml,/data-session-feedback-comment maxlength="2000" required/);
+  assert.match(clientHtml,/Revisar última serie/);
+  assert.match(coachHtml,/Revisar última serie/);
 });
 test('substitution only accepts catalog exercise and reason',()=>{const s=session();const x=createExecution({session:s,clientId:'c1'});const a=x.queue[0].exerciseId,b=catalog.list()[1].id;assert.throws(()=>substituteExercise(x,s,{fromExerciseId:a,toExerciseId:b,catalog,reason:''}),/REASON/);substituteExercise(x,s,{fromExerciseId:a,toExerciseId:b,catalog,reason:'molestia'});assert.equal(x.queue[0].exerciseId,b);});
 test('completed execution closes the loop into confirmed progress',()=>{
