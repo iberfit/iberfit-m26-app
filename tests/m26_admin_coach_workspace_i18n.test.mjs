@@ -80,7 +80,7 @@ test('Coach Today keeps secondary shortcuts without placing shell chrome ahead o
   assert.match(shell,/m26-workspace-shortcuts-toggle/u);
   assert.match(shell,/const hero=isAdmin[\s\S]*?workspace\.admin\.title[\s\S]*?:'';/u);
   assert.match(shell,/const coachToday=vm\.identity\?\.role==='coach'&&vm\.activeArea==='hoy'/u);
-  assert.match(shell,/const mainContent=coachToday\?\`\$\{routeContent\}\$\{workspace\}\`:\`\$\{workspace\}\$\{routeContent\}\`/u);
+  assert.ok(shell.includes("const mainContent=coachToday?`${routeContent}${workspace}`:`${workspace}${routeContent}`;"));
   assert.doesNotMatch(shell,/data-m26-workspace-shortcuts="admin"/u);
   for(const area of ['clientes','agenda','planificacion','mensajes']){
     assert.match(shell,new RegExp(`area:'${area}'`,'u'));
