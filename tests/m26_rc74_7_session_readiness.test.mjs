@@ -105,6 +105,26 @@ test('contexto profesional no inventa feedback ni decisiones cuando no existen',
   assert.equal(context.decisions.topSignal,null);
 });
 
+test('contexto profesional mantiene RPE ausente como ausente y nunca lo convierte en cero',()=>{
+  const state=baseState();
+  state.collections.sessionExecutions=[{
+    id:'e-no-rpe',
+    clientId,
+    appointmentId:'a1',
+    completedAt:'2026-09-03T11:00:00Z',
+    status:'completed',
+    syncStatus:'clean',
+    feedback:{pain:false,comment:'Cierre sin RPE informado.'},
+    results:[{exerciseId:'x',reps:10,loadKg:10}],
+  }];
+  state.collections.m26Entities=[];
+  state.pendingOperations=[];
+  const context=buildCoachSessionReadinessContext(state,clientId,{now});
+  assert.equal(context.feedback.hasExecution,true);
+  assert.equal(context.feedback.sessionRpe,null);
+  assert.equal(context.feedback.comment,'Cierre sin RPE informado.');
+});
+
 test('capa previa es idempotente, mobile-first y no introduce automatización clínica',async()=>{
   const [ui,shell]=await Promise.all([
     readFile(new URL('../src/m26/ui/session-readiness.js',import.meta.url),'utf8'),
