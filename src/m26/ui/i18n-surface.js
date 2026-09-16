@@ -451,6 +451,7 @@ const ROWS=Object.freeze([
   ['El cliente reportó dolor o molestia','The client reported pain or discomfort','Le client a signalé une douleur ou une gêne','O cliente relatou dor ou desconforto'],
   ['Los resultados y el feedback registrado quedaron confirmados.','The results and recorded feedback were confirmed.','Les résultats et le feedback enregistré ont été confirmés.','Os resultados e o feedback registado foram confirmados.'],
   ['El seguimiento del cliente ya puede continuar desde su expediente.','Client follow-up can now continue from their record.','Le suivi du client peut maintenant se poursuivre depuis son dossier.','O acompanhamento do cliente pode agora continuar a partir do respetivo processo.'],
+  ['Expediente del cliente','Client record','Dossier du client','Processo do cliente'],
   ['Continuar ahora','Continue now','Continuer maintenant','Continuar agora'],
   ['En entrenamiento','Training in progress','En cours d’entraînement','Em treino'],
   ['Cliente 360','Client 360','Client 360','Cliente 360'],
