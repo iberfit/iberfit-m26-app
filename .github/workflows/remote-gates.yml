@@ -72,12 +72,22 @@ jobs:
             recovery/RC74_4_REMOTE_*.json
           if-no-files-found: warn
           retention-days: 7
-      - name: Preparar Playwright RC64.2B
+      - name: Preparar dependencias Playwright RC64.2B
         run: |
           npm ci
           sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
-          npx playwright install --with-deps chromium webkit firefox
-
+          npx playwright install-deps chromium webkit firefox
+      - name: Restore Playwright browser cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-all
+      - name: Install Chromium WebKit and Firefox on cache miss
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium webkit firefox
+      - name: Verify Playwright browser cache
+        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium, firefox, webkit } from '@playwright/test'; for (const [name,browser] of Object.entries({chromium,firefox,webkit})) if (!fs.existsSync(browser.executablePath())) throw new Error('PLAYWRIGHT_'+name.toUpperCase()+'_NOT_READY');"
       - name: Validar Canary desplegado en navegador real
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirmation == 'READ_ONLY_REMOTE_GATE' && github.ref_name == 'canary/rc74-4' }}
         run: node scripts/prelaunch/check_live_canary_gate.mjs
