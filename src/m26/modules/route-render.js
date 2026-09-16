@@ -542,7 +542,8 @@ function renderClientHoyRoute(vm) {
   const appointmentMarkup=agendaItems.map((item)=>appointmentCard(item,{
     canStartSession:executableIds.has(String(item?.sessionId||'').trim()),
   })).join('');
-  const iriPending=Boolean(client?.iri&&!client.iri.confirmed);
+  const iriCompleted=Boolean(client?.iri?.confirmed||client?.iri?.status==='Completada');
+  const iriPending=Boolean(client?.iri&&!iriCompleted);
   const iriGlanceMarkup=iriPending
     ?`<button type="button" data-m26-area="informes">
         <span>Diagnóstico IRI</span>
