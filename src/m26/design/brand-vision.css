@@ -765,6 +765,26 @@
   .m26-shell .m26-workspace :is(.m26-primary-action,.m26-text-action,.m26-icon-button,button){
     min-height:48px;
   }
+  .m26-shell .m26-workspace .m26-topbar .m26-coach-command-launcher{
+    min-width:5.5rem;
+    max-width:7rem;
+    padding:.55rem .72rem;
+    justify-content:center;
+    overflow:visible;
+    white-space:nowrap;
+  }
+  .m26-shell .m26-workspace .m26-topbar .m26-coach-command-launcher > span{
+    font-size:0;
+  }
+  .m26-shell .m26-workspace .m26-topbar .m26-coach-command-launcher > span::after{
+    content:"Buscar";
+    font-size:.78rem;
+    font-weight:720;
+    letter-spacing:.01em;
+  }
+  .m26-shell .m26-workspace .m26-topbar .m26-coach-command-launcher kbd{
+    display:none;
+  }
 }
 
 /* Extremely narrow phones: no squeezed multi-column controls. */

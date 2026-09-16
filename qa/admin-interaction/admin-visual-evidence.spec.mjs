@@ -72,6 +72,26 @@ async function expectCanonicalAdminShell(page,{form=null}={}){
   const routeRatio=viewport.width>900?0.45:0.80;
   expect(routeBox.width).toBeGreaterThan(viewport.width*routeRatio);
 
+  if(viewport.width<=719){
+    const launcher=shell.locator('[data-coach-command-open]').first();
+    if(await launcher.isVisible().catch(()=>false)){
+      const launcherMetrics=await launcher.evaluate((node)=>{
+        const span=node.querySelector('span');
+        const kbd=node.querySelector('kbd');
+        const pseudo=span?getComputedStyle(span,'::after'):null;
+        return {
+          visualLabel:String(pseudo?.content||'').replace(/^["']|["']$/gu,''),
+          kbdDisplay:kbd?getComputedStyle(kbd).display:'',
+          scrollWidth:node.scrollWidth,
+          clientWidth:node.clientWidth,
+        };
+      });
+      expect(launcherMetrics.visualLabel).toBe('Buscar');
+      expect(launcherMetrics.kbdDisplay).toBe('none');
+      expect(launcherMetrics.scrollWidth).toBeLessThanOrEqual(launcherMetrics.clientWidth+1);
+    }
+  }
+
   if(form){
     const formBox=await form.boundingBox();
     expect(formBox).not.toBeNull();
