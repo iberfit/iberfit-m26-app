@@ -2,7 +2,11 @@ import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {adherenceSignal,deriveAdherenceAlerts} from '../engagement/adherence-engine.js';
 import {buildAdherenceWindows} from '../engagement/progress-continuity.js';
 import {formatIberfitDate} from '../domain/civil-date.js';
-import {buildNextSessionPreparation} from '../intelligence/next-session-prep.js';
+import {
+  confirmedSessionExecutionsForClient,
+  sessionExecutionDate,
+} from '../domain/session-execution-truth.js';
+import {summarizeActionOutcomes} from '../intelligence/action-outcome.js';
 
 const STYLE_ID='m27-session-readiness-styles';
 const ACTIVE_WAKE_STATES=new Set(['active','rest']);
@@ -139,29 +143,66 @@ function coachBriefText(value,max=240){
   return String(value??'').trim().slice(0,max);
 }
 
+function coachReadinessRecord(record){
+  return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)
+    ?{...record,...record.body}
+    :record||{};
+}
+
+function coachReadinessFeedback(execution){
+  const item=coachReadinessRecord(execution);
+  const feedback=item?.feedback&&typeof item.feedback==='object'&&!Array.isArray(item.feedback)
+    ?item.feedback
+    :{};
+  const rawRpe=feedback.sessionRpe??feedback.session_rpe;
+  const sessionRpe=rawRpe!==null&&rawRpe!==undefined&&rawRpe!==''&&Number.isFinite(Number(rawRpe))
+    ?Number(rawRpe)
+    :null;
+  return Object.freeze({
+    sessionRpe,
+    comment:coachBriefText(feedback.comment??feedback.comments??feedback.note??feedback.notes,280)||null,
+    pain:feedback.pain===true||feedback.pain==='true',
+    painNotes:coachBriefText(feedback.painNotes??feedback.pain_notes,220)||null,
+  });
+}
+
+function latestConfirmedCoachExecution(state,clientId){
+  const rows=[...confirmedSessionExecutionsForClient(
+    state,
+    clientId,
+    {requireCompleted:true,requireDate:false},
+  )];
+  rows.sort((a,b)=>{
+    const aTime=new Date(sessionExecutionDate(a)||0).getTime();
+    const bTime=new Date(sessionExecutionDate(b)||0).getTime();
+    return (Number.isFinite(bTime)?bTime:0)-(Number.isFinite(aTime)?aTime:0);
+  });
+  return rows[0]||null;
+}
+
 export function buildCoachSessionReadinessContext(state,clientId,{now=new Date()}={}){
   const id=String(clientId||'').trim();
   if(!id)return null;
-  const prep=buildNextSessionPreparation(state,id,{now});
-  if(!prep)return null;
 
-  const feedback=prep?.lastExecution?.feedback||{};
-  const decisions=prep?.decisions||{};
+  const execution=latestConfirmedCoachExecution(state,id);
+  const feedback=execution?coachReadinessFeedback(execution):null;
+  const decisions=summarizeActionOutcomes(
+    state?.collections?.m26Entities||[],
+    id,
+    {now},
+  );
   const open=Array.isArray(decisions.open)?decisions.open:[];
   const top=open[0]||null;
-  const hasExecution=Boolean(prep?.lastExecution);
 
   return Object.freeze({
     clientId:id,
     feedback:Object.freeze({
-      hasExecution,
-      completedAt:prep?.lastExecution?.completedAt||null,
-      sessionRpe:feedback.sessionRpe!==null&&feedback.sessionRpe!==undefined&&feedback.sessionRpe!==''&&Number.isFinite(Number(feedback.sessionRpe))
-        ?Number(feedback.sessionRpe)
-        :null,
-      comment:coachBriefText(feedback.comment,280)||null,
-      pain:feedback.pain===true,
-      painNotes:coachBriefText(feedback.painNotes,220)||null,
+      hasExecution:Boolean(execution),
+      completedAt:execution?sessionExecutionDate(execution)||null:null,
+      sessionRpe:feedback?.sessionRpe??null,
+      comment:feedback?.comment??null,
+      pain:feedback?.pain===true,
+      painNotes:feedback?.painNotes??null,
     }),
     decisions:Object.freeze({
       openCount:Number(decisions.openCount||0),
