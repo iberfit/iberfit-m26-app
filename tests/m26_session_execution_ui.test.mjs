@@ -250,7 +250,7 @@ test('Session Live no ofrece avance inválido antes de registrar la serie',()=>{
   assert.match(html,/data-session-live-state="active"/);
   assert.match(html,/data-session-live-entry/);
   assert.match(html,/data-session-progress-label/);
-  assert.match(html,/data-session-action="previous"/);
+  assert.doesNotMatch(html,/data-session-action="previous"/);
   assert.doesNotMatch(html,/data-session-action="next"/);
 });
 
