@@ -134,7 +134,7 @@ test('Guided welcome is accessible, motion-safe, responsive and uses the vector 
   assert.match(source,/background:\s*linear-gradient\(145deg,rgba\(255,251,236/u);
   assert.match(source,/max-height:min\(40vh,21rem\)/u);
   assert.match(source,/0 0 0 9999px rgba\(4,18,13,\.52\)/u);
-  assert.match(source,/width:5\.85rem;\s*height:7\.35rem/u);
+  assert.match(source,/width:6rem;\s*height:7\.6rem/u);
   assert.match(source,/m26-client-guided-welcome-copy\{margin-top:\.58rem;font-size:\.86rem;line-height:1\.43\}/u);
   assert.match(source,/m26-client-guide-target-breathe/u);
   assert.match(source,/\.m26-client-guided-welcome-presence \*,\s*\.m26-client-guided-welcome-target::after\{\s*transition:none!important;\s*animation:none!important;/u);
