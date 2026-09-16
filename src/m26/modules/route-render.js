@@ -1656,7 +1656,7 @@ function renderCoachExerciseDecisionSignals(items=[]){
         ${badge(visual.label,tone)}
       </div>
       <p>${escapeHtml(visual.basis)}</p>
-      <small>${escapeHtml(metricLabel)} · ${escapeHtml(delta)}</small>
+      <small><span>${escapeHtml(metricLabel)}</span><span aria-hidden="true"> · </span><span>${escapeHtml(delta)}</span></small>
     </article>`;
   }).join('');
 
