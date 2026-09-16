@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "94b9c97c3ac7f78dfdabdacb1494c098fc9e7772",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado: navegación rápida móvil de Progreso para Coach/Admin con accesos Resumen, Atención y Por ejercicio, anclas nativas, sticky solo en móvil y sin ocultar información; QA unitario/visual/device completo; sin cambios de auth, Supabase, RLS, datos, cálculos de progreso ni backend."
+}
