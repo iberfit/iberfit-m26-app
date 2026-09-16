@@ -132,7 +132,7 @@ test('completed execution closes the loop into confirmed progress',()=>{
   assert.doesNotMatch(html,/data-m26-area="progreso"/);
   assert.doesNotMatch(html,/>Ver mi progreso</);
 });
-test('guided execution renders navigation and no inline handlers',()=>{const s=session();const x=createExecution({session:s,clientId:'c1'});startExecution(x);const html=renderGuidedExecution({execution:x,session:s,catalog});assert.match(html,/complete-set/);assert.match(html,/data-session-action="previous"/);assert.doesNotMatch(html,/onclick=/);});
+test('guided execution hides unavailable previous action on the first step and keeps navigation once rewind is possible',()=>{const s=session();const x=createExecution({session:s,clientId:'c1'});startExecution(x);let html=renderGuidedExecution({execution:x,session:s,catalog});assert.match(html,/complete-set/);assert.doesNotMatch(html,/data-session-action="previous"/);assert.doesNotMatch(html,/m26-session-live-quick-actions/);recordSet(x,s,{reps:10,rpe:7});advanceExecution(x);html=renderGuidedExecution({execution:x,session:s,catalog});assert.match(html,/m26-session-live-quick-actions/);assert.match(html,/data-session-action="previous"/);assert.doesNotMatch(html,/onclick=/);});
 test('command catalog reports exact missing commands',()=>{const result=validateCommandCatalog(M26_REQUIRED_COMMANDS.slice(0,-1));assert.equal(result.ok,false);assert.deepEqual(result.missing,['INTELIGENCIA_APLICAR_A_BORRADOR']);});
 test('session remains valid after catalog selection',()=>assert.equal(validateSessionDraft(session(),catalog).ok,true));
 test('builder y sesión muestran la última referencia confirmada sin aplicar la carga automáticamente',()=>{
