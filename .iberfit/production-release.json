@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "5bf4c8cf07df1f8ab6bf969c7e0e1a3ef2a2240b",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado: Genio Cliente con reserva móvil segura sobre la navegación inferior, guía contextual alineada al mismo clearance y QA endurecido con viewports/touch/isMobile reales y aserción geométrica de no solapamiento; sin cambios de auth, Supabase, RLS ni datos."
+}
