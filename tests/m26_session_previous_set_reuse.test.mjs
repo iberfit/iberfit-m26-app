@@ -28,7 +28,7 @@ const catalog={
   search(){return [];},
 };
 
-function makeSession(){
+function makeSession({sets=2}={}){
   return {
     id:'session-1',
     clientId:'client-1',
@@ -39,7 +39,7 @@ function makeSession(){
       type:'exercise',
       id:'block-1',
       exerciseId:exercise.id,
-      sets:2,
+      sets,
       reps:'10',
       restSeconds:60,
       tempo:'3-1-1',
@@ -49,8 +49,8 @@ function makeSession(){
   };
 }
 
-function executionOnSecondSet(){
-  const session=makeSession();
+function executionOnSecondSet({sets=2}={}){
+  const session=makeSession({sets});
   const execution=createExecution({session,clientId:session.clientId,executionId:'execution-1'});
   startExecution(execution);
   recordSet(execution,session,{
@@ -158,8 +158,8 @@ test('previous-set actions keep review reuse shared but one-tap completion Coach
   assert.equal(assertActionAllowed('repeat-previous-set','admin'),false);
 });
 
-test('repeatPreviousSet is Coach-only, copies metrics without notes and starts planned rest',()=>{
-  const {session,execution}=executionOnSecondSet();
+test('repeatPreviousSet is Coach-only, copies metrics without notes and starts planned rest when work remains',()=>{
+  const {session,execution}=executionOnSecondSet({sets:3});
   const beforeEvents=execution.events.length;
   repeatPreviousSet(execution,session,{
     restSeconds:60,

@@ -96,6 +96,14 @@ export function previousSetDraftValues(execution){
     rir:previous.rir==null?'':String(previous.rir),
   };
 }
+export function hasNextExecutionStep(execution){
+  const item=execution?.queue?.[execution?.index];
+  if(!item)return false;
+  return (
+    Number(execution.setIndex)+1<Number(item.sets||0)||
+    Number(execution.index)+1<Number(execution.queue?.length||0)
+  );
+}
 export function repeatPreviousSet(execution,session,{restSeconds=null,actor=null}={}){
   requireCoachActor(actor);
   if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
@@ -108,7 +116,7 @@ export function repeatPreviousSet(execution,session,{restSeconds=null,actor=null
   const sourceSetNumber=Number(execution.setIndex);
   const targetSetNumber=Number(step.setNumber);
   recordSet(execution,session,{...values,actor});
-  beginRest(execution,rest,{actor});
+  if(hasNextExecutionStep(execution))beginRest(execution,rest,{actor});
   event(execution,'SET_REPEATED_FROM_PREVIOUS',{sourceSetNumber,targetSetNumber,restSeconds:rest},actor);
   return execution;
 }
@@ -263,9 +271,7 @@ export function advanceExpiredRest(execution,session,{actor=null,nowMs=Date.now(
   const clock=Number(nowMs);
   if(!Number.isFinite(deadline)||!execution.restUntil)throw new Error('M26_EXECUTION_REST_NOT_ACTIVE');
   if(!Number.isFinite(clock)||clock<deadline)throw new Error('M26_EXECUTION_REST_NOT_EXPIRED');
-  const hasNextSet=execution.setIndex+1<Number(item.sets||0);
-  const hasNextExercise=execution.index+1<Number(execution.queue?.length||0);
-  if(!hasNextSet&&!hasNextExercise)throw new Error('M26_EXECUTION_REST_AUTO_ADVANCE_FINAL_STEP');
+  if(!hasNextExecutionStep(execution))throw new Error('M26_EXECUTION_REST_AUTO_ADVANCE_FINAL_STEP');
   const from={index:execution.index,setIndex:execution.setIndex,blockId:step.blockId||null,exerciseId:step.exerciseId,setNumber:step.setNumber};
   moveForward(execution,actor);
   event(execution,'REST_COMPLETED_AUTO_ADVANCE',{...from,toIndex:execution.index,toSetIndex:execution.setIndex},actor);

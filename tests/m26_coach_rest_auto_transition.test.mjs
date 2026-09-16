@@ -99,6 +99,94 @@ test('final session set never auto-advances into feedback',()=>{
   assert.equal(execution.index,0);
 });
 
+test('final recorded set skips terminal countdown while preserving review and Coach extra-set choice',()=>{
+  const session=makeSession({sets:1});
+  const execution=createExecution({session,clientId:session.clientId,executionId:'execution-terminal-review'});
+  startExecution(execution,{actor:coach()});
+
+  const result=dispatchSessionAction({
+    action:'complete-set',
+    execution,
+    session,
+    catalog,
+    actor:coach(),
+    payload:{reps:10,load:'40 kg',rpe:7,rir:3,restSeconds:60},
+  });
+
+  assert.equal(result.kind,'execution');
+  assert.equal(execution.status,'active');
+  assert.equal(execution.index,0);
+  assert.equal(execution.setIndex,0);
+  assert.equal(execution.restUntil,null);
+  assert.equal(execution.events.some((item)=>item.type==='REST_STARTED'),false);
+
+  const html=renderGuidedExecution({execution,session,catalog,role:'coach'});
+  assert.match(html,/data-session-rest-active="false"/);
+  assert.match(html,/Última serie completada/);
+  assert.match(html,/Corregir esta serie/);
+  assert.match(html,/\+ 1 serie y seguir/);
+  assert.match(html,/Continuar al cierre/);
+
+  dispatchSessionAction({action:'next',execution,session,catalog,actor:coach()});
+  assert.equal(execution.status,'awaiting_feedback');
+  assert.equal(execution.restUntil,null);
+});
+
+test('non-terminal recorded set keeps the planned rest unchanged',()=>{
+  const session=makeSession({sets:2});
+  const execution=createExecution({session,clientId:session.clientId,executionId:'execution-rest-still-required'});
+  startExecution(execution,{actor:coach()});
+
+  dispatchSessionAction({
+    action:'complete-set',
+    execution,
+    session,
+    catalog,
+    actor:coach(),
+    payload:{reps:10,load:'40 kg',rpe:7,rir:3,restSeconds:60},
+  });
+
+  assert.equal(execution.status,'active');
+  assert.equal(execution.index,0);
+  assert.equal(execution.setIndex,0);
+  assert.ok(new Date(execution.restUntil).getTime()>Date.now());
+  assert.equal(execution.events.some((item)=>item.type==='REST_STARTED'),true);
+  assert.match(
+    renderGuidedExecution({execution,session,catalog,role:'coach'}),
+    /data-session-live-state="rest"/,
+  );
+});
+
+test('Coach repeat on the terminal set preserves review without starting a fake rest',()=>{
+  const session=makeSession({sets:2});
+  const execution=createExecution({session,clientId:session.clientId,executionId:'execution-terminal-repeat'});
+  startExecution(execution,{actor:coach()});
+  recordSet(execution,session,{reps:10,load:'40 kg',rpe:7,rir:3,actor:coach()});
+  advanceExecution(execution,{actor:coach()});
+
+  const result=dispatchSessionAction({
+    action:'repeat-previous-set',
+    execution,
+    session,
+    catalog,
+    actor:coach(),
+    payload:{restSeconds:60},
+  });
+
+  assert.equal(result.kind,'execution');
+  assert.equal(execution.status,'active');
+  assert.equal(execution.setIndex,1);
+  assert.equal(execution.restUntil,null);
+  assert.ok(executionResultForStep(execution,currentStep(execution,session)));
+  assert.equal(execution.events.some((item)=>item.type==='REST_STARTED'),false);
+  assert.equal(execution.events.some((item)=>item.type==='SET_REPEATED_FROM_PREVIOUS'),true);
+
+  const html=renderGuidedExecution({execution,session,catalog,role:'coach'});
+  assert.match(html,/data-session-rest-active="false"/);
+  assert.match(html,/\+ 1 serie y seguir/);
+  assert.match(html,/Continuar al cierre/);
+});
+
 test('internal expired-rest dispatch uses the normal progress persistence command',async()=>{
   const {session,execution}=executionWithRecordedSet();
   const commands=[];
