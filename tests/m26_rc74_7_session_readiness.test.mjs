@@ -246,7 +246,9 @@ test('capa previa es idempotente, mobile-first y no introduce automatización cl
   assert.match(ui,/confirmedSessionExecutionsForClient/);
   assert.match(ui,/summarizeActionOutcomes/);
   assert.doesNotMatch(ui,/buildNextSessionPreparation/);
-  assert.match(ui,/data-session-live-state=["']ready["']/);
+  assert.match(ui,/const liveState=String\(live\.getAttribute\?\.\('data-session-live-state'\)/);
+  assert.match(ui,/if\(liveState==='ready'\)/);
+  assert.match(ui,/\['active','rest'\]\.includes\(liveState\)/);
   assert.doesNotMatch(ui,/MutationObserver/);
   assert.doesNotMatch(ui,/service[_-]?role/i);
   assert.doesNotMatch(ui,/innerHTML/);
