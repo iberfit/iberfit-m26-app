@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "79a2a7f8df567ef8a12eb2d06e4b68614208bc19",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado: optimización de concurrencia CI para cancelar ejecuciones obsoletas en Daily Visual y Admin Interaction Matrix por PR/ref, manteniendo intacta la cola global no cancelable de seguridad de Remote Gates/Hosted Auth y los locks QA compartidos. Validación real de cancelación stale completada. Sin cambios funcionales de producto, frontend desplegable, backend, auth, Supabase, RLS o datos."
+}
