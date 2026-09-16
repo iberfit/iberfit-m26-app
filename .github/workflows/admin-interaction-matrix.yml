@@ -25,8 +25,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: iberfit-admin-interaction-matrix
-  cancel-in-progress: false
+  group: iberfit-admin-interaction-matrix-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   browser-matrix:
