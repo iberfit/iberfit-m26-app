@@ -28,8 +28,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: iberfit-qa-authenticated-gates-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: iberfit-qa-authenticated-gates
+  cancel-in-progress: false
 
 jobs:
   preflight:
