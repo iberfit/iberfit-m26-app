@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "71da69f02c3a5ccff555743f020b50fb3b959742",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado: Live Workout del Coach eleva Pausar sesión al mando rápido desde la primera serie usando la acción real existente, sin duplicar lógica; Cliente conserva pausa en ajustes. Se mantiene motor de ejecución, persistencia, offline queue, command bus, telemetría, cancelación, corrección, series extra, sustitución, omisión, descanso, feedback y recovery. PR validado 8/8 GREEN y post-merge 9/9 GREEN."
+}
