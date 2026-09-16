@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "77fcf083d980a9ae4b0ed2c2dd238deba8573e29",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promote fully certified Canary to production so interaction fixes and subsequent product improvements do not remain Canary-only. Includes P0 form/select/pointer/focus continuity fixes for one-click text entry and native dropdowns, Admin/Coach/Client UX improvements through PR #432, no Supabase SQL migrations between previous verified production 4e23b8ed1812301470334f17c075c910a8b1a27e and this source SHA. Production workflow must run full regression, Lighthouse, hosted-auth sync/security checks, preflight, exact-SHA deploy, browser interactivity and integral audit."
+}
