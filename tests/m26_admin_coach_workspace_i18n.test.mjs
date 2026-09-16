@@ -71,3 +71,27 @@ test('Workspace shell includes quick actions, language cards, region selector an
   assert.match(shell,/common\.clientRequired/u);
   assert.match(shell,/action\.client&&!vm\.selectedClient/u);
 });
+
+
+test('Coach Today keeps quick actions accessible without putting them ahead of operational priority',()=>{
+  assert.match(shell,/data-m26-workspace-shortcuts="coach"/u);
+  assert.match(shell,/class="m26-workspace-shortcuts"/u);
+  assert.match(shell,/workspace\.coach\.primary/u);
+  assert.match(shell,/m26-workspace-shortcuts-toggle/u);
+  assert.match(shell,/const shortcuts=isAdmin[\s\S]*?<div class="m26-workspace-section-title">[\s\S]*?:`<details class="m26-workspace-shortcuts"/u);
+  assert.doesNotMatch(shell,/data-m26-workspace-shortcuts="admin"/u);
+  for(const area of ['clientes','agenda','planificacion','mensajes']){
+    assert.match(shell,new RegExp(`area:'${area}'`,'u'));
+  }
+});
+
+test('Coach shortcut disclosure remains touch-safe, motion-safe and printable',()=>{
+  const start=shell.indexOf('.m26-workspace-shortcuts{');
+  const end=shell.indexOf('</style>',start);
+  assert.ok(start>=0&&end>start);
+  const block=shell.slice(start,end);
+  assert.match(block,/min-height:3\.4rem/u);
+  assert.match(block,/@media\(max-width:720px\)/u);
+  assert.match(block,/@media\(prefers-reduced-motion:reduce\)/u);
+  assert.match(block,/@media print/u);
+});
