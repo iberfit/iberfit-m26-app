@@ -7,6 +7,7 @@ import {
   startExecution,
   recordSet,
   advanceExecution,
+  retreatExecution,
   finishExecution,
   getActiveSetDraft,
   updateActiveSetDraft,
@@ -47,6 +48,35 @@ test('active-set draft is ignored when the recovered execution points to another
   updateActiveSetDraft(execution,session,values);
   execution.setIndex=1;
   assert.equal(getActiveSetDraft(execution,session),null);
+});
+
+test('active-set draft survives multi-step rewind review and is restored when returning forward',()=>{
+  const session3={...session,blocks:[{...session.blocks[0],sets:3}]};
+  const execution=createExecution({session:session3,clientId:'client-1',executionId:'execution-rewind'});
+  startExecution(execution);
+  recordSet(execution,session3,{reps:10,load:'40 kg',rpe:7,rir:3,notes:'Primera serie'});
+  advanceExecution(execution);
+  recordSet(execution,session3,{reps:9,load:'42.5 kg',rpe:8,rir:2,notes:'Segunda serie'});
+  advanceExecution(execution);
+  updateActiveSetDraft(execution,session3,values);
+
+  retreatExecution(execution);
+  retreatExecution(execution);
+  assert.equal(execution.setIndex,0);
+  assert.equal(getActiveSetDraft(execution,session3),null);
+  assert.equal(execution.activeSetDraft?.setNumber,3);
+
+  assert.equal(updateActiveSetDraft(execution,session3,{...values,reps:'7'}),null);
+  assert.equal(execution.activeSetDraft?.setNumber,3);
+
+  advanceExecution(execution);
+  assert.equal(execution.setIndex,1);
+  assert.equal(getActiveSetDraft(execution,session3),null);
+  assert.equal(execution.activeSetDraft?.setNumber,3);
+
+  advanceExecution(execution);
+  assert.equal(execution.setIndex,2);
+  assert.deepEqual(getActiveSetDraft(execution,session3)?.values,values);
 });
 
 test('active-set draft clears when a set is confirmed, execution advances, or session finishes',()=>{

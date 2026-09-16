@@ -134,7 +134,7 @@ export function getActiveSetDraft(execution,session){
 export function updateActiveSetDraft(execution,session,input={}){
   if(execution?.status!=='active')return null;
   const identity=activeSetIdentity(execution,session);if(!identity)return null;
-  if(executionResultForStep(execution,identity)){delete execution.activeSetDraft;return null;}
+  if(executionResultForStep(execution,identity)){if(sameActiveSet(execution?.activeSetDraft,identity))delete execution.activeSetDraft;return null;}
   execution.activeSetDraft={...identity,values:{reps:draftValue(input.reps,32),seconds:draftValue(input.seconds,32),load:draftValue(input.load,80),rpe:draftValue(input.rpe,32),rir:draftValue(input.rir,32),notes:draftValue(input.notes,1000)},updatedAt:now()};
   return clone(execution.activeSetDraft);
 }
@@ -182,11 +182,19 @@ function validatedSetResult(step,input={},previous=null){
     ...(provenance?{recordedBy:provenance}:{ }),
   };
 }
+function activeSetDraftMatchesPosition(execution,draft,index,setIndex){
+  const item=execution?.queue?.[index];
+  if(!draft||!item)return false;
+  return draft.executionId===execution.id&&draft.blockId===(item.blockId||null)&&draft.exerciseId===item.exerciseId&&Number(draft.setNumber)===Number(setIndex)+1;
+}
 function moveForward(execution,actor=null){
   const item=execution.queue[execution.index];if(!item)throw new Error('M26_EXECUTION_STEP_MISSING');
-  clearActiveSetDraft(execution);execution.restUntil=null;
+  const pendingDraft=execution.activeSetDraft;
+  const draftBelongsToSource=activeSetDraftMatchesPosition(execution,pendingDraft,execution.index,execution.setIndex);
+  execution.restUntil=null;
   if(execution.setIndex+1<item.sets)execution.setIndex+=1;
   else{execution.index+=1;execution.setIndex=0;}
+  if(draftBelongsToSource)clearActiveSetDraft(execution);
   event(execution,'STEP_ADVANCED',{index:execution.index,setIndex:execution.setIndex},actor);
   if(execution.index>=execution.queue.length){freezeExecutionClock(execution);execution.status='awaiting_feedback';}
   return execution;
@@ -280,7 +288,7 @@ export function advanceExpiredRest(execution,session,{actor=null,nowMs=Date.now(
 export function retreatExecution(execution,{actor=null}={}){
   if(!['active','awaiting_feedback'].includes(execution.status))throw new Error('M26_EXECUTION_RETREAT_INVALID');
   if(execution.index===0&&execution.setIndex===0)return execution;
-  clearActiveSetDraft(execution);execution.restUntil=null;
+  execution.restUntil=null;
   if(execution.setIndex>0)execution.setIndex-=1;
   else{execution.index-=1;execution.setIndex=Math.max(0,execution.queue[execution.index].sets-1);}
   if(execution.status==='awaiting_feedback'){execution.status='active';resumeExecutionClock(execution);}
