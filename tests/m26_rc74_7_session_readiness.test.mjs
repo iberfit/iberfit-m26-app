@@ -5,6 +5,7 @@ import {
   buildCoachSessionReadinessContext,
   buildSessionReadinessSnapshot,
 } from '../src/m26/ui/session-readiness.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const clientId='client-session-readiness';
 const now=new Date('2026-09-04T12:00:00Z');
@@ -123,6 +124,25 @@ test('contexto profesional mantiene RPE ausente como ausente y nunca lo conviert
   assert.equal(context.feedback.hasExecution,true);
   assert.equal(context.feedback.sessionRpe,null);
   assert.equal(context.feedback.comment,'Cierre sin RPE informado.');
+});
+
+test('brief profesional traduce estados estáticos y dinámicos sin mezclar idiomas',()=>{
+  assert.equal(
+    iberfitSurfaceTranslate('Último cierre confirmado',{language:'en'}),
+    'Latest confirmed closeout',
+  );
+  assert.equal(
+    iberfitSurfaceTranslate('2 abiertas · 1 vencida',{language:'en'}),
+    '2 open · 1 overdue',
+  );
+  assert.equal(
+    iberfitSurfaceTranslate('RPE 7 · Dolor o molestia registrado',{language:'fr'}),
+    'RPE 7 · douleur ou gêne enregistrée',
+  );
+  assert.equal(
+    iberfitSurfaceTranslate('Molestia: rodilla derecha',{language:'pt'}),
+    'Desconforto: rodilla derecha',
+  );
 });
 
 test('capa previa es idempotente, mobile-first y no introduce automatización clínica',async()=>{
