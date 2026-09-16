@@ -214,7 +214,10 @@ test('jornada real mantiene una sola identidad desde alta hasta progreso sin mez
     catalog,
     role:'coach',
   });
-  assert.match(coachClosure,/>Abrir Cliente 360</u);
+  assert.match(coachClosure,/>Abrir expediente</u);
+  assert.match(coachClosure,/data-m26-coach-action="true"/u);
+  assert.match(coachClosure,new RegExp(`data-m26-client-id="${CLIENT_ID}"`,'u'));
+  assert.match(coachClosure,/data-m26-target-area="expediente"/u);
   assert.doesNotMatch(coachClosure,/>Ver mi progreso</u);
 
   const now=new Date('2026-09-15T12:00:00Z');
