@@ -175,6 +175,9 @@ test('stable Client Home copy is translated',()=>{
     'Abrir mis sesiones',
     'Próxima cita',
     'Diagnóstico IRI',
+    'Completa tu punto de partida',
+    'Más para ti',
+    'Próximas sesiones',
     'Registrar cómo estoy',
   ])assert.ok(i18n.includes(phrase),phrase);
 });
