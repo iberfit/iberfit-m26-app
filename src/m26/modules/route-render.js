@@ -2080,6 +2080,28 @@ function renderCoachExerciseStudySummary(exercises=[],performance=[]){
   </div>`;
 }
 
+export function orderCoachExerciseEvolution(exercises=[],performance=[]){
+  const source=Array.isArray(exercises)?exercises:[];
+  const regressionIds=new Set(
+    (Array.isArray(performance)?performance:[])
+      .filter((item)=>
+        item?.coachAssessment?.status==='regression'&&
+        item?.coachAssessment?.colorEligible===true&&
+        item?.exerciseId
+      )
+      .map((item)=>String(item.exerciseId))
+  );
+
+  return source
+    .map((exercise,index)=>Object.freeze({
+      exercise,
+      index,
+      attention:regressionIds.has(String(exercise?.exerciseId||''))?0:1,
+    }))
+    .sort((a,b)=>a.attention-b.attention||a.index-b.index)
+    .map((item)=>item.exercise);
+}
+
 function renderExerciseProgressSection(
   progress,
   {
@@ -2111,13 +2133,17 @@ function renderExerciseProgressSection(
     </section>`;
   }
 
-  const visible=compact
-    ? exercises.slice(0,6)
-    : exercises;
-
   const coachMode=['coach','admin'].includes(
     String(role||'').toLowerCase()
   );
+
+  const orderedExercises=coachMode
+    ?orderCoachExerciseEvolution(exercises,performance)
+    :exercises;
+
+  const visible=compact
+    ?orderedExercises.slice(0,6)
+    :orderedExercises;
 
   const performanceMap=new Map(
     (Array.isArray(performance)?performance:[])
