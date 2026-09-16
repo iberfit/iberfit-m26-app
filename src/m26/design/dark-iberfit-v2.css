@@ -804,7 +804,7 @@
 
 .m26-shell[data-m26-role="client"] .m26-client-home-glance{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));
   gap:.65rem;
 }
 
@@ -850,16 +850,70 @@
   line-height:1.35;
 }
 
+.m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure{
+  min-width:0;
+  border-top:1px solid rgba(216,192,138,.10);
+  border-bottom:1px solid rgba(216,192,138,.07);
+  background:transparent;
+}
+
+.m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure > summary{
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  padding:.45rem .15rem;
+  list-style:none;
+  cursor:pointer;
+  color:var(--iberfit-color-text-secondary);
+  outline:none;
+}
+
+.m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure > summary::-webkit-details-marker{
+  display:none;
+}
+
+.m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure > summary::after{
+  content:'＋';
+  flex:0 0 auto;
+  color:var(--iberfit-color-accent-strong);
+  font-size:.88rem;
+}
+
+.m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure[open] > summary::after{
+  content:'−';
+}
+
+.m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure > summary:focus-visible{
+  border-radius:.65rem;
+  box-shadow:0 0 0 3px rgba(216,192,138,.16);
+}
+
+.m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure > summary span{
+  color:var(--iberfit-color-text-primary);
+  font-size:.82rem;
+  font-weight:730;
+}
+
+.m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure > summary small{
+  margin-left:auto;
+  color:var(--iberfit-color-text-secondary);
+  font-size:.72rem;
+  line-height:1.35;
+  text-align:right;
+}
+
 .m26-shell[data-m26-role="client"] .m26-client-home-secondary-actions{
   display:flex;
   align-items:center;
   gap:.25rem;
   flex-wrap:wrap;
-  padding:.15rem 0;
+  padding:.15rem 0 .55rem;
 }
 
 .m26-shell[data-m26-role="client"] .m26-client-home-secondary-actions button{
-  min-height:2.65rem;
+  min-height:44px;
   padding:.5rem .72rem;
   border:0;
   border-radius:.7rem;
@@ -1040,9 +1094,19 @@
   .m26-shell[data-m26-role="client"] .m26-client-home-glance button{
     min-height:4.8rem;
   }
+  .m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure > summary{
+    align-items:flex-start;
+    flex-wrap:wrap;
+    padding:.55rem .15rem;
+  }
+  .m26-shell[data-m26-role="client"] .m26-client-home-secondary-disclosure > summary small{
+    width:100%;
+    margin:0;
+    text-align:left;
+  }
   .m26-shell[data-m26-role="client"] .m26-client-home-secondary-actions{
     display:grid;
-    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-columns:repeat(2,minmax(0,1fr));
     gap:.2rem;
   }
   .m26-shell[data-m26-role="client"] .m26-client-home-secondary-actions button{
@@ -1073,7 +1137,7 @@
 
 @media(max-width:390px){
   .m26-shell[data-m26-role="client"] .m26-client-home-secondary-actions button{
-    font-size:.7rem;
+    font-size:.76rem;
   }
 }
 

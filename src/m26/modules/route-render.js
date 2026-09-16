@@ -536,14 +536,21 @@ function renderClientHoyRoute(vm) {
     };
   }
 
-  const appointmentMarkup=appointments.length
-    ?appointments.slice(0,2).map((item)=>appointmentCard(item,{
-        canStartSession:executableIds.has(String(item?.sessionId||'').trim()),
-      })).join('')
-    :`<div class="m26-client-home-clear">
-        <span aria-hidden="true">✓</span>
-        <div><strong>Sin sesión confirmada hoy</strong><small>Tu siguiente cita aparecerá aquí cuando quede confirmada.</small></div>
-      </div>`;
+  const agendaItems=appointments
+    .filter((item)=>!runnable||String(item?.id||'').trim()!==String(runnable?.id||'').trim())
+    .slice(0,2);
+  const appointmentMarkup=agendaItems.map((item)=>appointmentCard(item,{
+    canStartSession:executableIds.has(String(item?.sessionId||'').trim()),
+  })).join('');
+  const iriCompleted=Boolean(client?.iri?.confirmed||client?.iri?.status==='Completada');
+  const iriPending=Boolean(client?.iri&&!iriCompleted);
+  const iriGlanceMarkup=iriPending
+    ?`<button type="button" data-m26-area="informes">
+        <span>Diagnóstico IRI</span>
+        <strong>${escapeHtml(iriLabel)}</strong>
+        <small>Completa tu punto de partida</small>
+      </button>`
+    :'';
 
   const nextAction=client?.nextAction||null;
   const nextActionLabel=nextAction?.area==='planificacion'
@@ -587,34 +594,36 @@ function renderClientHoyRoute(vm) {
         <strong>${escapeHtml(planName||'En preparación')}</strong>
         <small>${planName?'Plan confirmado':'Tu Coach lo publicará cuando esté listo'}</small>
       </button>
-      <button type="button" data-m26-area="informes">
-        <span>Diagnóstico IRI</span>
-        <strong>${escapeHtml(iriLabel)}</strong>
-        <small>Tu punto de partida</small>
-      </button>
+      ${iriGlanceMarkup}
     </section>
 
-    <nav class="m26-client-home-secondary-actions" aria-label="Accesos secundarios">
-      <button type="button" data-m26-area="actividad">Bienestar</button>
-      <button type="button" data-m26-area="mensajes">Mensajes</button>
-      <button type="button" data-m26-area="informes">Informes</button>
-      ${challenge?'':`<button type="button" data-m26-area="retos" data-m26-client-guide="challenge-discovery">Retos</button>`}
-    </nav>
+    <details class="m26-client-home-secondary-disclosure">
+      <summary data-m26-client-guide="secondary-actions">
+        <span>Más para ti</span>
+        <small>Bienestar, mensajes, informes${challenge?'':' y retos'}</small>
+      </summary>
+      <nav class="m26-client-home-secondary-actions" aria-label="Accesos secundarios">
+        <button type="button" data-m26-area="actividad">Bienestar</button>
+        <button type="button" data-m26-area="mensajes">Mensajes</button>
+        <button type="button" data-m26-area="informes">Informes</button>
+        ${challenge?'':`<button type="button" data-m26-area="retos" data-m26-client-guide="challenge-discovery">Retos</button>`}
+      </nav>
+    </details>
 
     ${challengePreviewMarkup}
 
     ${nextActionMarkup}
 
-    <section class="m26-panel m26-client-home-agenda">
+    ${agendaItems.length?`<section class="m26-panel m26-client-home-agenda">
       <div class="m26-panel-heading">
         <div>
-          <p class="m26-eyebrow">Hoy</p>
-          <h2>Agenda</h2>
+          <p class="m26-eyebrow">Después</p>
+          <h2>Próximas sesiones</h2>
         </div>
-        ${appointments.length?badge(countLabel(appointments.length,'sesión','sesiones'),'success'):''}
+        ${badge(countLabel(agendaItems.length,'sesión','sesiones'),'success')}
       </div>
       <div class="m26-stack">${appointmentMarkup}</div>
-    </section>
+    </section>`:''}
   </div>`;
 }
 

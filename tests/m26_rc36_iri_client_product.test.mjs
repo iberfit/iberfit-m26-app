@@ -63,7 +63,7 @@ test('Inicio Cliente ofrece acciones propias y nunca le pide completar el IRI de
   for(const area of ['actividad','planificacion','sesion','informes','mensajes']){
     assert.match(html,new RegExp(`data-m26-area="${area}"`,'u'));
   }
-  assert.match(html,/Tu punto de partida/u);
+  assert.match(html,/Completa tu punto de partida/u);
   assert.doesNotMatch(html,/Iniciar diagnóstico IRI|Completa y confirma los datos antes de planificar/);
 });
 

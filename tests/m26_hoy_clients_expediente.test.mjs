@@ -232,10 +232,11 @@ test('Hoy Cliente inicia directamente una sesión autónoma confirmada vinculada
     html,
     /class="m26-today-action is-primary" data-workflow-action="start-published-session" data-entity-id="s1"[\s\S]*?<strong>Entrenar ahora<\/strong>/
   );
-  assert.match(
-    html,
-    /data-workflow-action="start-published-session" data-entity-id="s1">Iniciar entrenamiento<\/button>/
+  assert.equal(
+    (html.match(/data-workflow-action="start-published-session" data-entity-id="s1"/gu)||[]).length,
+    1,
   );
+  assert.doesNotMatch(html,/>Iniciar entrenamiento<\/button>/u);
 });
 
 test('Hoy Cliente no convierte una cita presencial dirigida por Coach en entrenamiento autónomo', () => {
