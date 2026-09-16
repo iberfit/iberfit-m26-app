@@ -6,6 +6,7 @@ import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise} from '../src/m26/workflows/session-builder.js';
 import {createExecution,startExecution,recordSet} from '../src/m26/workflows/session-execution.js';
 import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
+import {iberfitSurfaceTranslate} from '../src/m26/ui/i18n-surface.js';
 
 const data=JSON.parse(
   fs.readFileSync(
@@ -50,7 +51,7 @@ function targetText(prescription={}){
   ].filter(Boolean).join(' · ')||'Según indicación';
 }
 
-function renderRest({firstSets=1,withNextMedia=true}={}){
+function renderRest({firstSets=1,withNextMedia=true,role='client'}={}){
   const {draft,first,second}=makeSession({firstSets});
   const execution=createExecution({session:draft,clientId:'c1'});
   startExecution(execution);
@@ -64,7 +65,7 @@ function renderRest({firstSets=1,withNextMedia=true}={}){
     session:draft,
     catalog,
     mediaMap,
-    role:'client',
+    role,
   });
   return {html,first,second,execution};
 }
@@ -113,6 +114,65 @@ test('Session Live preserves next target preparation when next exercise media is
   assert.doesNotMatch(html,/data-session-next-exercise-media/);
   assert.match(html,/data-session-next-exercise-preparation/);
   assert.ok(html.includes(`<span>Próximo objetivo</span><strong>${targetText(execution.queue[1].prescription)}</strong>`));
+});
+
+
+test('Coach prioritizes the next exercise handoff while preserving the completed exercise reference',()=>{
+  const {html,first,second,execution}=renderRest({role:'coach'});
+  assert.match(html,/data-session-coach-next-exercise-handoff/);
+  assert.match(html,/data-session-rest-current-reference/);
+  assert.ok(html.includes(`<strong>${second.name_es}</strong>`));
+  assert.ok(html.includes(`<span>Series</span><strong>${Number(execution.queue[1].sets)}</strong>`));
+  assert.ok(html.includes(`<span>Próximo objetivo</span><strong>${targetText(execution.queue[1].prescription)}</strong>`));
+  assert.ok(html.includes(`<span>Descanso</span><strong>${execution.queue[1].prescription.restSeconds} s</strong>`));
+
+  const handoffStart=html.indexOf('data-session-coach-next-exercise-handoff');
+  const currentReferenceStart=html.indexOf('data-session-rest-current-reference');
+  assert.ok(handoffStart>=0&&currentReferenceStart>handoffStart);
+
+  const handoffSlice=html.slice(handoffStart,currentReferenceStart);
+  const currentReferenceSlice=html.slice(currentReferenceStart);
+  assert.ok(handoffSlice.includes(`data-exercise-media="${second.id}"`));
+  assert.ok(currentReferenceSlice.includes(`data-exercise-media="${first.id}"`));
+  assert.match(currentReferenceSlice,/Ejercicio completado · ver referencia/);
+});
+
+test('Coach keeps the same-exercise next-set preparation unchanged',()=>{
+  const {html,first,execution}=renderRest({firstSets:2,role:'coach'});
+  assert.match(html,/data-session-next-set-preparation/);
+  assert.doesNotMatch(html,/data-session-coach-next-exercise-handoff/);
+  assert.doesNotMatch(html,/data-session-rest-current-reference/);
+  assert.ok(html.includes(`Siguiente: <strong>${first.name_es}</strong>`));
+  assert.ok(html.includes(`<span>Próxima serie</span><strong>${targetText(execution.queue[0].prescription)}</strong>`));
+});
+
+test('Coach exercise handoff labels are translated on supported surfaces',()=>{
+  const cases=[
+    ['Cambio de ejercicio','Exercise change','Changement d’exercice','Mudança de exercício'],
+    ['Ejercicio completado · ver referencia','Completed exercise · view reference','Exercice terminé · voir la référence','Exercício concluído · ver referência'],
+    ['Indicaciones','Guidance','Consignes','Indicações'],
+    ['Alternativa prevista','Planned alternative','Alternative prévue','Alternativa prevista'],
+  ];
+  for(const [es,en,fr,pt] of cases){
+    assert.equal(iberfitSurfaceTranslate(es,{language:'en'}),en);
+    assert.equal(iberfitSurfaceTranslate(es,{language:'fr'}),fr);
+    assert.equal(iberfitSurfaceTranslate(es,{language:'pt'}),pt);
+  }
+});
+
+test('Coach exercise handoff CSS stays responsive, accessible and capability-safe',()=>{
+  const css=fs.readFileSync(new URL('../src/m26/design/premium-ux.css',import.meta.url),'utf8');
+  const start=css.indexOf('/* COACH_NEXT_EXERCISE_HANDOFF_V1_BEGIN */');
+  const end=css.indexOf('/* COACH_NEXT_EXERCISE_HANDOFF_V1_END */',start);
+  assert.ok(start>=0&&end>start);
+  const added=css.slice(start,end);
+  assert.match(added,/\.m26-session-next-exercise-handoff/);
+  assert.match(added,/\.m26-session-rest-current-reference/);
+  assert.match(added,/@media \(max-width:580px\)/);
+  assert.match(added,/@media \(forced-colors:active\)/);
+  assert.match(added,/touch-action:manipulation/);
+  assert.doesNotMatch(added,/display\s*:\s*none|visibility\s*:\s*hidden/iu);
+  assert.doesNotMatch(added,/pointer-events\s*:\s*none/iu);
 });
 
 test('Session Live does not preview next-step preparation outside active rest',()=>{

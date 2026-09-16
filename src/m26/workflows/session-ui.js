@@ -163,6 +163,7 @@ function nextSessionPreparation(execution,catalog,mediaMap,role){
   const next=withinCurrentExercise?item:execution.queue[execution.index+1];
   if(!next)return '';
   const sameExercise=next.exerciseId===item.exerciseId;
+  const isCoach=String(role||'').trim().toLowerCase()==='coach';
   const exercise=catalog.get(next.exerciseId)||{id:next.exerciseId,name_es:'Siguiente ejercicio'};
   const visual=sameExercise?'':renderExerciseMedia({
     manifest:mediaMap,
@@ -187,7 +188,35 @@ function nextSessionPreparation(execution,catalog,mediaMap,role){
     :'data-session-next-exercise-preparation';
   const label=sameExercise?'Próxima serie':'Próximo objetivo';
   const ariaLabel=sameExercise?'Preparación de la próxima serie':'Preparación del siguiente ejercicio';
-  return `<div class="m26-session-next-exercise-preparation" data-session-next-step-preparation ${preparationAttribute} aria-label="${ariaLabel}">${media}<div class="m26-field-grid"><div class="m26-field"><span>${label}</span><strong>${e(target)}</strong></div></div></div>`;
+
+  if(!isCoach||sameExercise){
+    return `<div class="m26-session-next-exercise-preparation" data-session-next-step-preparation ${preparationAttribute} aria-label="${ariaLabel}">${media}<div class="m26-field-grid"><div class="m26-field"><span>${label}</span><strong>${e(target)}</strong></div></div></div>`;
+  }
+
+  const alternative=planned.alternativeId?catalog.get(planned.alternativeId):null;
+  const alternativeName=alternative?exerciseDisplayName(alternative):'';
+  const prescriptionGuidance=String(planned.prescriptionNotes||'').trim();
+  const cueGuidance=Array.isArray(exercise.cues)
+    ?exercise.cues.map((item)=>String(item||'').trim()).filter(Boolean).slice(0,2).join(' · ')
+    :'';
+  const guidance=prescriptionGuidance||cueGuidance;
+
+  return `<div class="m26-session-next-exercise-preparation m26-session-next-exercise-handoff" data-session-next-step-preparation data-session-next-exercise-preparation data-session-coach-next-exercise-handoff aria-label="${ariaLabel}">
+    ${media}
+    <div class="m26-session-next-exercise-handoff-body">
+      <div class="m26-session-next-exercise-handoff-heading">
+        <span>Cambio de ejercicio</span>
+        <strong>${e(exerciseDisplayName(exercise)||'Siguiente ejercicio')}</strong>
+      </div>
+      <div class="m26-session-next-exercise-facts">
+        <div class="m26-field"><span>Series</span><strong>${e(Number(next.sets)||1)}</strong></div>
+        <div class="m26-field"><span>Próximo objetivo</span><strong>${e(target)}</strong></div>
+        <div class="m26-field"><span>Descanso</span><strong>${e(planned.restSeconds||60)} s</strong></div>
+        ${guidance?`<div class="m26-field m26-session-next-exercise-guidance"><span>Indicaciones</span><strong>${e(guidance)}</strong></div>`:''}
+        ${alternativeName?`<div class="m26-field"><span>Alternativa prevista</span><strong>${e(alternativeName)}</strong></div>`:''}
+      </div>
+    </div>
+  </div>`;
 }
 function exerciseMemorySetText(set){
   const parts=[];
@@ -951,6 +980,23 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   const nextExercisePreview=restActive
   ?nextSessionPreparation(execution,catalog,mediaMap,role)
   :'';
+  const transitionsToNextExercise=Boolean(
+    restActive&&
+    currentQueueItem&&
+    Number(execution.setIndex)+1>=Number(currentQueueItem.sets||0)&&
+    Number(execution.index)+1<Number(execution.queue?.length||0)
+  );
+  const coachNextExerciseHandoff=Boolean(isCoach&&transitionsToNextExercise);
+  const restCurrentMedia=restActive
+    ?(
+      coachNextExerciseHandoff
+        ?`<details class="m26-session-rest-current-reference" data-session-rest-current-reference><summary>Ejercicio completado · ver referencia</summary><div class="m26-session-rest-current-media" aria-label="Ejercicio actual">${visual}</div></details>`
+        :`<div class="m26-session-rest-current-media" aria-label="Ejercicio actual">${visual}</div>`
+    )
+    :'';
+  const restTransitionContext=coachNextExerciseHandoff
+    ?`<p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>${nextExercisePreview}${restCurrentMedia}`
+    :`${restCurrentMedia}<p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>${nextExercisePreview}`;
   const resultSummary=recorded
     ?[
         recorded.reps!=null?`${recorded.reps} rep${Number(recorded.reps)===1?'':'s'}`:null,
@@ -992,9 +1038,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           </div>
         </div>
         <p class="m26-session-rest-guidance">Tu serie ya está guardada. Descansa o continúa cuando estés preparado.</p>
-        ${restActive?`<div class="m26-session-rest-current-media" aria-label="Ejercicio actual">${visual}</div>`:''}
-        <p data-session-next-preview>Siguiente: <strong>${e(nextCopy.detail||nextCopy.label)}</strong></p>
-        ${nextExercisePreview}
+        ${restTransitionContext}
         <details class="m26-session-options" data-session-rest-correction>
           <summary>Corregir esta serie</summary>
           <p>La corrección queda registrada como un evento distinto; no borra silenciosamente el dato anterior.</p>

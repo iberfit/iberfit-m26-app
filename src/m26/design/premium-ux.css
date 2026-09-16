@@ -1368,6 +1368,138 @@ body {
     scroll-behavior:auto!important;
   }
 }
+/* COACH_NEXT_EXERCISE_HANDOFF_V1_BEGIN */
+.m26-session-live-v3 .m26-session-next-exercise-handoff{
+  display:grid;
+  grid-template-columns:minmax(7.5rem,9rem) minmax(0,1fr);
+  align-items:start;
+  gap:.82rem;
+  padding:.82rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-role-accent,#c8a65d) 26%,transparent);
+  border-radius:.88rem;
+  background:color-mix(in srgb,var(--iberfit-color-surface-base,#0d2419) 88%,var(--iberfit-role-accent,#c8a65d) 12%);
+}
+
+.m26-session-live-v3 .m26-session-next-exercise-handoff .m26-session-next-exercise-media{
+  width:100%;
+  min-width:0;
+  align-self:start;
+}
+
+.m26-session-live-v3 .m26-session-next-exercise-handoff-body{
+  min-width:0;
+  display:grid;
+  gap:.65rem;
+}
+
+.m26-session-live-v3 .m26-session-next-exercise-handoff-heading{
+  display:grid;
+  gap:.14rem;
+}
+
+.m26-session-live-v3 .m26-session-next-exercise-handoff-heading>span{
+  color:var(--iberfit-role-accent,#c8a65d);
+  font-size:.68rem;
+  font-weight:820;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+
+.m26-session-live-v3 .m26-session-next-exercise-handoff-heading>strong{
+  color:var(--iberfit-color-text-primary,#f7f1e4);
+  font-size:clamp(1.08rem,2.2vw,1.38rem);
+  line-height:1.15;
+  letter-spacing:-.02em;
+}
+
+.m26-session-live-v3 .m26-session-next-exercise-facts{
+  display:grid;
+  grid-template-columns:minmax(5.5rem,.42fr) minmax(0,1.58fr);
+  gap:.45rem;
+}
+
+.m26-session-live-v3 .m26-session-next-exercise-facts .m26-field{
+  min-width:0;
+  padding:.55rem .62rem;
+  border:1px solid color-mix(in srgb,var(--iberfit-color-border,rgba(228,205,152,.16)) 72%,transparent);
+  border-radius:.72rem;
+  background:rgba(0,0,0,.08);
+}
+
+.m26-session-live-v3 .m26-session-next-exercise-facts .m26-field>span{
+  display:block;
+  margin-bottom:.12rem;
+  color:var(--m26-muted,#aaa);
+  font-size:.68rem;
+  font-weight:760;
+}
+
+.m26-session-live-v3 .m26-session-next-exercise-facts .m26-field>strong{
+  overflow-wrap:anywhere;
+  color:var(--iberfit-color-text-primary,#f7f1e4);
+  font-size:.86rem;
+  line-height:1.35;
+}
+
+.m26-session-live-v3 .m26-session-next-exercise-facts .m26-session-next-exercise-guidance{
+  grid-column:1 / -1;
+}
+
+.m26-session-live-v3 .m26-session-rest-current-reference{
+  margin-top:.05rem;
+  padding-top:.2rem;
+  border-top:1px solid color-mix(in srgb,var(--iberfit-color-border,rgba(228,205,152,.16)) 64%,transparent);
+}
+
+.m26-session-live-v3 .m26-session-rest-current-reference>summary{
+  min-height:3rem;
+  display:flex;
+  align-items:center;
+  color:var(--m26-muted,#aaa);
+  font-size:.76rem;
+  font-weight:740;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+
+.m26-session-live-v3 .m26-session-rest-current-reference[open]>summary{
+  color:var(--iberfit-color-text-primary,#f7f1e4);
+}
+
+.m26-session-live-v3 .m26-session-rest-current-reference .m26-session-rest-current-media{
+  margin-top:.45rem;
+  max-width:18rem;
+}
+
+@media (max-width:580px){
+  .m26-session-live-v3 .m26-session-next-exercise-handoff{
+    grid-template-columns:minmax(5.8rem,6.8rem) minmax(0,1fr);
+    gap:.65rem;
+    padding:.7rem;
+  }
+
+  .m26-session-live-v3 .m26-session-next-exercise-facts{
+    grid-template-columns:minmax(0,1fr);
+  }
+
+  .m26-session-live-v3 .m26-session-next-exercise-facts .m26-session-next-exercise-guidance{
+    grid-column:auto;
+  }
+
+  .m26-session-live-v3 .m26-session-rest-current-reference>summary{
+    min-height:3.35rem;
+  }
+}
+
+@media (forced-colors:active){
+  .m26-session-live-v3 .m26-session-next-exercise-handoff,
+  .m26-session-live-v3 .m26-session-next-exercise-facts .m26-field,
+  .m26-session-live-v3 .m26-session-rest-current-reference{
+    border-color:ButtonText;
+  }
+}
+/* COACH_NEXT_EXERCISE_HANDOFF_V1_END */
+
 /* LIVE_WORKOUT_FOCUS_V3_END */
 
 
