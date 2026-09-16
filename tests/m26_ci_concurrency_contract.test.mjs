@@ -15,19 +15,18 @@ test('heavy PR/ref workflows cancel superseded executions instead of consuming s
   assert.ok(admin.includes('group: iberfit-admin-interaction-matrix-${{ github.event.pull_request.number || github.ref }}'));
   assert.match(admin,/concurrency:\n  group: iberfit-admin-interaction-matrix-[^\n]+\n  cancel-in-progress: true/u);
 
-  assert.ok(remote.includes('group: iberfit-qa-authenticated-gates-${{ github.event_name }}-${{ github.ref }}'));
-  assert.match(remote,/concurrency:\n  group: iberfit-qa-authenticated-gates-[^\n]+\n  cancel-in-progress: true/u);
+  assert.match(remote,/concurrency:\n  group: iberfit-qa-authenticated-gates\n  cancel-in-progress: false/u);
 
   assert.doesNotMatch(daily,/^  group: iberfit-daily-use-visual-evidence$/mu);
   assert.doesNotMatch(admin,/^  group: iberfit-admin-interaction-matrix$/mu);
-  assert.doesNotMatch(remote,/^  group: iberfit-qa-authenticated-gates$/mu);
 
   assert.ok(device.includes('group: iberfit-device-experience-${{ github.event.pull_request.number || github.ref }}'));
   assert.match(device,/concurrency:\n  group: iberfit-device-experience-[^\n]+\n  cancel-in-progress: true/u);
 });
 
-test('manual remote certification cannot cancel push certification merely by sharing the same ref',()=>{
-  assert.ok(remote.includes('${{ github.event_name }}-${{ github.ref }}'));
+test('remote auth gates retain the global non-cancelling queue shared with Hosted Auth hardening',()=>{
+  assert.match(remote,/group: iberfit-qa-authenticated-gates/u);
+  assert.match(remote,/cancel-in-progress: false/u);
 });
 
 test('shared authenticated QA remains globally serialized and non-cancellable inside the heavy workflows',()=>{
