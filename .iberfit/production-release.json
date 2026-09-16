@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "9529e26b65528b2d506bd68a09e4fd7976ce5dd5",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado: Coach Hoy con prioridad operativa primero, onboarding después, atajos secundarios preservados y evidencia visual QA corregida sin cambios de auth ni datos."
+}
