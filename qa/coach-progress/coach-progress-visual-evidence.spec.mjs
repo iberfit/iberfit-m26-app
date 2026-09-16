@@ -24,8 +24,27 @@ test('Coach Progreso visual evidence makes exercise decisions scannable without 
   const options=page.locator('[data-m27-exercise-select]');
   const active=page.locator('.m27-exercise-focus-active');
   const summary=page.locator('.m27-exercise-focus-summary');
+  const quickNav=page.locator('[data-m27-progress-quicknav]');
+  const viewport=page.viewportSize();
 
   await expect(shell).toBeVisible();
+  await expect(quickNav).toHaveCount(1);
+  await expect(quickNav.locator('a')).toHaveCount(3);
+  await expect(page.locator('#m26-progress-summary')).toHaveCount(1);
+  await expect(page.locator('#m26-progress-attention')).toHaveCount(1);
+  await expect(page.locator('#m26-progress-exercises')).toHaveCount(1);
+  if(viewport?.width<=720){
+    await expect(quickNav).toBeVisible();
+    const navBox=await quickNav.boundingBox();
+    expect(navBox).not.toBeNull();
+    expect(navBox.height).toBeLessThanOrEqual(64);
+    await quickNav.getByRole('link',{name:'Por ejercicio'}).click();
+    const targetTop=await page.locator('#m26-progress-exercises').evaluate((node)=>node.getBoundingClientRect().top);
+    expect(targetTop).toBeGreaterThanOrEqual(0);
+    expect(targetTop).toBeLessThan(320);
+  }else{
+    await expect(quickNav).toBeHidden();
+  }
   await expect(workspace).toBeVisible();
   await expect(options).toHaveCount(4);
   await expect(summary.locator('[data-state="review"]')).toContainText('1 revisar');
@@ -71,6 +90,7 @@ test('Coach Progreso visual evidence makes exercise decisions scannable without 
       listHeight:list?.height??null,
       activeCardWidth:activeCard?.width??null,
       stateLabels:[...document.querySelectorAll('.m27-exercise-focus-state')].map((node)=>node.textContent?.trim()||''),
+      quickNavLabels:[...document.querySelectorAll('[data-m27-progress-quicknav] a')].map((node)=>node.textContent?.trim()||''),
     };
   });
 
@@ -78,6 +98,7 @@ test('Coach Progreso visual evidence makes exercise decisions scannable without 
   expect(metrics.listHeight).not.toBeNull();
   expect(metrics.activeCardWidth).not.toBeNull();
   expect(metrics.stateLabels).toEqual(expect.arrayContaining(['Revisar','Evolución','Estable','Sin comparación']));
+  expect(metrics.quickNavLabels).toEqual(['Resumen','Atención','Por ejercicio']);
 
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.waitForTimeout(60);
