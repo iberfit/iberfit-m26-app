@@ -139,7 +139,8 @@ test('capa previa es idempotente, mobile-first y no introduce automatización cl
   assert.match(ui,/Último cierre confirmado/);
   assert.match(ui,/Decisiones del Coach/);
   assert.doesNotMatch(ui,/Sin dolor registrado/);
-  assert.match(ui,/role==='coach'/);
+  assert.match(ui,/const coachContext=role==='coach'[\s\S]*buildCoachSessionReadinessContext/);
+  assert.match(ui,/if\(role==='coach'\)[\s\S]*buildCoachReadinessBrief/);
   assert.match(ui,/buildNextSessionPreparation/);
   assert.match(ui,/data-session-live-state=["']ready["']/);
   assert.doesNotMatch(ui,/MutationObserver/);
