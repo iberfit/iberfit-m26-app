@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
+  addExecutionSet,
   advanceExecution,
+  correctSet,
   getFinalFeedbackDraft,
   retreatExecution,
   updateFinalFeedbackDraft,
@@ -101,6 +103,75 @@ test('feedback final sobrevive a revisar la última serie y reaparece al volver 
   advanceExecution(execution);
   assert.equal(execution.status,'awaiting_feedback');
   assert.deepEqual(getFinalFeedbackDraft(execution)?.values,values);
+});
+
+test('corregir trabajo tras escribir feedback conserva valores y exige revisión al volver al cierre',()=>{
+  const execution=awaitingFeedback();
+  execution.queue=[{
+    blockId:'block-final',
+    exerciseId:'exercise-final',
+    sets:1,
+    prescription:{restSeconds:60,targetRpe:7,targetRir:3},
+  }];
+  execution.index=1;
+  execution.results['exercise-final:1']={
+    exerciseId:'exercise-final',
+    setNumber:1,
+    reps:10,
+    seconds:null,
+    load:'20 kg',
+    rpe:7,
+    rir:3,
+    notes:'',
+    completedAt:'2026-09-05T10:25:00.000Z',
+  };
+  const values={sessionRpe:'8',comment:'Feedback previo',pain:false,painNotes:''};
+  updateFinalFeedbackDraft(execution,values);
+
+  retreatExecution(execution);
+  correctSet(execution,{blocks:[]},{reps:9,load:'22 kg',rpe:8,rir:2});
+  advanceExecution(execution);
+
+  const draft=getFinalFeedbackDraft(execution);
+  assert.deepEqual(draft?.values,values);
+  assert.equal(draft?.needsReview,true);
+  assert.deepEqual(draft?.reviewReasons,['set_corrected_after_closeout']);
+  assert.ok(draft?.reviewRequiredAt);
+});
+
+test('añadir trabajo tras escribir feedback lo conserva pero lo marca para revisión',()=>{
+  const execution=awaitingFeedback();
+  execution.queue=[{
+    blockId:'block-final',
+    exerciseId:'exercise-final',
+    sets:1,
+    prescription:{restSeconds:60,targetRpe:7,targetRir:3},
+  }];
+  execution.index=1;
+  execution.results['exercise-final:1']={
+    exerciseId:'exercise-final',
+    setNumber:1,
+    reps:10,
+    seconds:null,
+    load:'20 kg',
+    rpe:7,
+    rir:3,
+    notes:'',
+    completedAt:'2026-09-05T10:25:00.000Z',
+  };
+  const values={sessionRpe:'7',comment:'Feedback antes de ampliar',pain:false,painNotes:''};
+  updateFinalFeedbackDraft(execution,values);
+
+  retreatExecution(execution);
+  addExecutionSet(execution,{actor:{role:'coach',userId:'coach-1'}});
+
+  assert.deepEqual(execution.finalFeedbackDraft?.values,values);
+  assert.equal(execution.finalFeedbackDraft?.needsReview,true);
+  assert.deepEqual(execution.finalFeedbackDraft?.reviewReasons,['set_added_after_closeout']);
+
+  advanceExecution(execution);
+  assert.equal(execution.status,'active');
+  assert.equal(getFinalFeedbackDraft(execution),null);
 });
 
 test('borrador de feedback nunca sale en GUARDAR_PROGRESO',()=>{
