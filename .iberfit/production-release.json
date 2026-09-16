@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "65f8727839f14512f341d8a0b8afa7f24fc89143",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado: Coach Progreso con lectura rápida por ejercicio (Revisar, Evolución, Estable, Sin comparación), resumen de estados, búsqueda corregida y evidencia visual desktop/móvil; sin cambios de auth, Supabase, RLS ni datos."
+}
