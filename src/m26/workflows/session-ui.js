@@ -796,6 +796,10 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     const reviewLastSetAction=Array.isArray(execution?.queue)&&execution.queue.length
       ?'<button type="button" data-session-action="previous">Revisar última serie</button>'
       :'';
+    const feedbackNeedsReview=Boolean(execution?.finalFeedbackDraft?.needsReview);
+    const feedbackReviewNotice=feedbackNeedsReview
+      ?'<p class="m26-notice" data-session-feedback-review-required>El entrenamiento cambió después de escribir este feedback. Revísalo antes de finalizar para confirmar que sigue representando la sesión completa.</p>'
+      :'';
     return `<section class="m26-guided m26-session-live" data-session-live-state="feedback">
       ${state}
       ${sync}
@@ -822,6 +826,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
           <label>Detalle de dolor <small>Obligatorio si marcas dolor o molestia</small><textarea data-session-feedback-pain-notes maxlength="1000"></textarea></label>
         </div>
         ${feedbackPrivacyNote?`<p class="m26-notice" data-session-coach-feedback-privacy>${e(feedbackPrivacyNote)}</p>`:''}
+        ${feedbackReviewNotice}
         <p class="m26-notice">Puedes salir y terminar después. El feedback escrito se conserva en este dispositivo y la sesión no se marcará como completada hasta confirmar el cierre.</p>
         <div class="m26-session-live-actions">
           ${reviewLastSetAction}
