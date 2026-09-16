@@ -79,6 +79,11 @@ test('Coach Hoy visual evidence keeps operational content ahead of optional shor
   await shortcuts.locator('summary').click();
   await expect(shortcuts).not.toHaveAttribute('open','');
 
+  // Opening the bottom shortcut disclosure can leave the page scrolled near the end.
+  // Reset before the full-page capture so sticky chrome is represented at its real top position.
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.waitForTimeout(60);
+
   const file=`coach-hoy-${testInfo.project.name}.png`;
   await page.screenshot({
     path:`${OUT}/${file}`,
