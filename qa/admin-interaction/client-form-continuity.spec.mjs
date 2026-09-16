@@ -30,6 +30,15 @@ async function forceExternalRenderDuringNextPointerUp(page){
   });
 }
 
+async function mouseDownUpOn(page,locator){
+  const box=await locator.boundingBox();
+  expect(box,'Control must expose a stable pointer box').not.toBeNull();
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);
+  await page.mouse.down();
+  await expect(locator,'Control must acquire focus while the mouse is held').toBeFocused();
+  await page.mouse.up();
+}
+
 function browserErrors(page){
   const errors=[];
   page.on('pageerror',(error)=>errors.push(String(error?.message||error)));
@@ -119,7 +128,7 @@ test('Admin client wizard accepts one real click and keeps input/select alive ac
   const name=form.locator('input[name="name"]');
   await name.evaluate((node)=>{node.dataset.qaStableIdentity='admin-real-mouse-name';});
   await forceExternalRenderDuringNextPointerDownCapture(page);
-  await name.click();
+  await mouseDownUpOn(page,name);
   await page.waitForTimeout(120);
 
   await expect(name).toBeFocused();
@@ -130,7 +139,7 @@ test('Admin client wizard accepts one real click and keeps input/select alive ac
   const sex=form.locator('select[name="sexForNorms"]');
   await sex.evaluate((node)=>{node.dataset.qaStableIdentity='admin-real-mouse-sex';});
   await forceExternalRenderDuringNextPointerDownCapture(page);
-  await sex.click();
+  await mouseDownUpOn(page,sex);
   await page.waitForTimeout(120);
 
   await expect(sex).toBeFocused();
