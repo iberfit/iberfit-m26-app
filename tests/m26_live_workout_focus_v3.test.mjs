@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 import {createExerciseCatalog} from '../src/m26/exercises/catalog.js';
 import {createSessionDraft,addCatalogExercise} from '../src/m26/workflows/session-builder.js';
-import {createExecution,startExecution,recordSet} from '../src/m26/workflows/session-execution.js';
+import {advanceExecution,createExecution,startExecution,recordSet} from '../src/m26/workflows/session-execution.js';
 import {renderGuidedExecution} from '../src/m26/workflows/session-ui.js';
 
 const data=JSON.parse(
@@ -49,9 +49,9 @@ test('Live Workout V3 pone navegación serie y registro antes del contexto secun
 
   assert.match(html,/m26-session-live-v3/);
   assert.match(html,/data-session-live-v3/);
-  assert.match(html,/m26-session-live-quick-actions/);
-  assert.match(html,/aria-label="Acciones de navegación"/);
-  assert.match(html,/data-session-action="previous"/);
+  assert.doesNotMatch(html,/m26-session-live-quick-actions/);
+  assert.doesNotMatch(html,/aria-label="Acciones de navegación"/);
+  assert.doesNotMatch(html,/data-session-action="previous"/);
   assert.match(html,/m26-session-live-entry-v3/);
   assert.match(html,/Registra repeticiones o tiempo/);
   assert.match(html,/data-session-action="complete-set"/);
@@ -59,16 +59,26 @@ test('Live Workout V3 pone navegación serie y registro antes del contexto secun
   assert.match(html,/Historial, datos y ajustes/);
 
   const focus=html.indexOf('data-session-touch-focus');
-  const quick=html.indexOf('m26-session-live-quick-actions');
   const entry=html.indexOf('data-session-live-entry');
   const prescription=html.indexOf('data-session-live-prescription');
   const secondary=html.indexOf('m26-session-live-secondary-context');
 
   assert.ok(focus>=0);
-  assert.ok(quick>focus);
-  assert.ok(entry>quick);
+  assert.ok(entry>focus);
   assert.ok(prescription>entry);
   assert.ok(secondary>prescription);
+
+  recordSet(x,s,{reps:10,rpe:7});
+  advanceExecution(x);
+  const laterHtml=renderGuidedExecution({
+    execution:x,
+    session:s,
+    catalog,
+    role:'client',
+  });
+  assert.match(laterHtml,/m26-session-live-quick-actions/);
+  assert.match(laterHtml,/aria-label="Acciones de navegación"/);
+  assert.match(laterHtml,/data-session-action="previous"/);
 });
 
 test('Live Workout V3 mantiene ajustes críticos dentro del disclosure secundario',()=>{
