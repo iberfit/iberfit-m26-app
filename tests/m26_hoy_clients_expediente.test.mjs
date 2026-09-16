@@ -458,7 +458,7 @@ test('Expediente presenta IRI por dominios, contacto y acciones contextuales', (
   const html = renderRouteView(vm);
   assert.equal(vm.summary.iri.coverageCount, 0);
   assert.equal(vm.coachCockpit.totalClients, 1);
-  assert.match(html, /Cliente 360º/);
+  assert.match(html, /Expediente del cliente/);
   assert.match(html, /src="\/isotipo-iberfit\.png"/);
   assert.match(html, /m26-profile-hero-premium/);
   assert.match(html, /data-m26-expediente/);
@@ -654,7 +654,7 @@ test('Workspace Coach ordena ahora, sesiones, decisiones y evolución sin perder
   assert.match(html, /data-m26-area="sesion"/);
   assert.match(html, /data-m26-area="progreso"/);
 
-  const headerIndex = html.indexOf('Cliente 360º');
+  const headerIndex = html.indexOf('Expediente del cliente');
   const nowIndex = html.indexOf('>Ahora<');
   const lastIndex = html.indexOf('>Última sesión<');
   const nextIndex = html.indexOf('>Próxima sesión<');
@@ -690,6 +690,9 @@ test('Cliente 360 v2 no expone el criterio operativo del Coach al rol cliente', 
   assert.equal(vm.coachCockpit, null);
   assert.ok(vm.nextSessionPreparation == null);
   assert.doesNotMatch(html, /data-coach-client-workspace/);
+  assert.match(html, /Tu seguimiento/);
+  assert.doesNotMatch(html, /Expediente del cliente/);
+  assert.doesNotMatch(html, /Cliente 360º/);
   assert.match(html, /m26-client-home-v1/);
   assert.match(html, /Tu entrenamiento/);
   assert.doesNotMatch(html, /Siguiente acción del Coach/);
