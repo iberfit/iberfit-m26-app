@@ -762,7 +762,7 @@ export function renderGuidedExecution({execution,session,catalog,actionState,med
     const commentLabel=isCoach?'Feedback / percepción del cliente':'Comentario';
     const painLabel=isCoach?'El cliente reportó dolor o molestia':'Tuve dolor o molestia';
     const feedbackPrivacyNote=isCoach
-      ?'Este feedback forma parte del registro del cliente. Para observaciones internas utiliza Nota privada en el expediente.'
+      ?'Este feedback forma parte del registro del cliente. Para observaciones internas utiliza Notas privadas del entrenador.'
       :'';
     return `<section class="m26-guided m26-session-live" data-session-live-state="feedback">
       ${state}
