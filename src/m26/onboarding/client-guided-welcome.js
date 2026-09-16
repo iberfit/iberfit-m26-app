@@ -371,7 +371,7 @@ const STYLE=`
     left:.7rem!important;
     right:.7rem!important;
     top:auto!important;
-    bottom:calc(1rem + env(safe-area-inset-bottom))!important;
+    bottom:calc(5.25rem + env(safe-area-inset-bottom))!important;
     width:auto;
     max-height:min(40vh,21rem);
     overflow:visible;
