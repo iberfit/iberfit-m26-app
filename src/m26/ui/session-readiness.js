@@ -195,7 +195,7 @@ function buildCoachReadinessBrief(document,context){
   const feedbackHeadline=feedback.hasExecution
     ?[
         Number.isFinite(feedback.sessionRpe)?`RPE ${feedback.sessionRpe}`:null,
-        feedback.pain?'Dolor o molestia registrado':'Sin dolor registrado',
+        feedback.pain?'Dolor o molestia registrado':null,
       ].filter(Boolean).join(' · ')||'Cierre confirmado'
     :'Sin cierre confirmado';
   const feedbackDetail=feedback.hasExecution
