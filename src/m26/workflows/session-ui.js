@@ -1123,9 +1123,9 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
 
     ${touchFocus}
 
-    <div class="m26-session-live-quick-actions" aria-label="Acciones de navegación">
+    ${(Number(execution.index)>0||Number(execution.setIndex)>0)?`<div class="m26-session-live-quick-actions" aria-label="Acciones de navegación">
       <button type="button" data-session-action="previous">Anterior</button>
-    </div>
+    </div>`:''}
 
     <div class="m26-session-live-workbench is-${restActive?'rest':'active'}">
       <main class="m26-session-live-primary" aria-label="Registro de la serie actual">
