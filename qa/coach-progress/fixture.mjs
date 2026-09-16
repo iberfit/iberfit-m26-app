@@ -40,10 +40,16 @@ const state={
   },
 };
 
+const VISUAL_DATES=[
+  '2026-08-20T11:00:00.000Z',
+  '2026-08-27T11:00:00.000Z',
+  '2026-09-03T11:00:00.000Z',
+];
+
 function history(prefix,loads,reps,rpes){
   return loads.map((load,index)=>({
     executionId:`${prefix}-${index+1}`,
-    at:`2026-0${8+Math.floor(index/2)}-${String(20+index*7).padStart(2,'0')}T11:00:00.000Z`,
+    at:VISUAL_DATES[index]||VISUAL_DATES.at(-1),
     setCount:3,
     totalReps:reps[index]*3,
     bestReps:reps[index],
@@ -82,7 +88,7 @@ function exercise(id,name,rows){
 
 function metric(name,unit,values){
   const points=values.map((value,index)=>({
-    completedAt:`2026-0${8+Math.floor(index/2)}-${String(20+index*7).padStart(2,'0')}T11:00:00.000Z`,
+    completedAt:VISUAL_DATES[index]||VISUAL_DATES.at(-1),
     executionId:`${name}-${index+1}`,
     value,
   }));
