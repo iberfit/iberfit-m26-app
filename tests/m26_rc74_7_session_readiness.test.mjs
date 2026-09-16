@@ -92,6 +92,36 @@ test('contexto profesional previo usa cierre confirmado y decisiones privadas si
   assert.match(context.decisions.topSignal,/RPE alto con recuperación limitada/);
 });
 
+test('contexto profesional prioriza la decisión vencida aunque exista otra más reciente',()=>{
+  const state=baseState();
+  state.collections.m26Entities.push({
+    entityType:'action_outcome',
+    entityId:'decision-newer-not-due',
+    clientId,
+    status:'abierto',
+    revision:1,
+    body:{
+      id:'decision-newer-not-due',
+      clientId,
+      visibleToClient:false,
+      signalSummary:'Señal más reciente pero sin revisión vencida.',
+      signalSource:'progress',
+      decisionSummary:'Mantener observación.',
+      interventionType:'plan',
+      interventionSummary:'Sin cambios por ahora.',
+      expectedOutcome:'Acumular más evidencia.',
+      reviewAt:'2026-09-20',
+      createdAt:'2026-09-04T10:00:00Z',
+      updatedAt:'2026-09-04T10:00:00Z',
+    },
+  });
+  const context=buildCoachSessionReadinessContext(state,clientId,{now});
+  assert.equal(context.decisions.openCount,2);
+  assert.equal(context.decisions.overdueCount,1);
+  assert.match(context.decisions.topSignal,/RPE alto con recuperación limitada/);
+  assert.doesNotMatch(context.decisions.topSignal,/más reciente/);
+});
+
 test('contexto profesional no inventa feedback ni decisiones cuando no existen',()=>{
   const state=baseState();
   state.collections.sessionExecutions=[];
