@@ -7,6 +7,7 @@ import {
   startExecution,
   recordSet,
   advanceExecution,
+  retreatExecution,
   finishExecution,
   getActiveSetDraft,
   updateActiveSetDraft,
@@ -47,6 +48,25 @@ test('active-set draft is ignored when the recovered execution points to another
   updateActiveSetDraft(execution,session,values);
   execution.setIndex=1;
   assert.equal(getActiveSetDraft(execution,session),null);
+});
+
+test('active-set draft survives a rewind to a recorded set and is restored when returning forward',()=>{
+  const execution=activeExecution();
+  recordSet(execution,session,{reps:10,load:'40 kg',rpe:7,rir:3,notes:'Primera serie'});
+  advanceExecution(execution);
+  updateActiveSetDraft(execution,session,values);
+
+  retreatExecution(execution);
+  assert.equal(execution.setIndex,0);
+  assert.equal(getActiveSetDraft(execution,session),null);
+  assert.equal(execution.activeSetDraft?.setNumber,2);
+
+  assert.equal(updateActiveSetDraft(execution,session,{...values,reps:'7'}),null);
+  assert.equal(execution.activeSetDraft?.setNumber,2);
+
+  advanceExecution(execution);
+  assert.equal(execution.setIndex,1);
+  assert.deepEqual(getActiveSetDraft(execution,session)?.values,values);
 });
 
 test('active-set draft clears when a set is confirmed, execution advances, or session finishes',()=>{
