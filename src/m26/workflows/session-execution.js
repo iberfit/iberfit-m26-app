@@ -163,6 +163,47 @@ function ensureDeviationStores(execution){
   if(!execution.skippedSets||typeof execution.skippedSets!=='object')execution.skippedSets={};
   if(!Array.isArray(execution.skippedExercises))execution.skippedExercises=[];
 }
+function skippedExerciseDeviationCoversStep(execution,deviation,step,setNumber=step?.setNumber){
+  const target=Number(setNumber);
+  if(!deviation||deviation.exerciseId!==step?.exerciseId||!Number.isInteger(target)||target<1)return false;
+  const from=Number(deviation.fromSetNumber??deviation.setNumber);
+  const to=Number(deviation.toSetNumber??deviation.setNumber??from);
+  if(!Number.isInteger(from)||!Number.isInteger(to)||target<from||target>to)return false;
+  if(deviation.blockId)return deviation.blockId===(step.blockId||null);
+  if(step?.blockId&&requiresScopedEntry(execution,step,target))return canUseLegacyEntry(execution,step,target);
+  return true;
+}
+function reconcileSkippedExerciseDeviations(execution,step,setNumber=step?.setNumber){
+  const target=Number(setNumber);
+  const next=[];
+  for(const deviation of execution.skippedExercises||[]){
+    if(!skippedExerciseDeviationCoversStep(execution,deviation,step,target)){
+      next.push(deviation);
+      continue;
+    }
+    const from=Number(deviation.fromSetNumber??deviation.setNumber);
+    const to=Number(deviation.toSetNumber??deviation.setNumber??from);
+    if(from<target)next.push({...deviation,fromSetNumber:from,toSetNumber:target-1});
+    if(target<to)next.push({...deviation,fromSetNumber:target+1,toSetNumber:to});
+  }
+  execution.skippedExercises=next;
+}
+function replaceSkippedStepWithCompletion(execution,step,actor=null){
+  ensureDeviationStores(execution);
+  const previous=storedEntry(execution.skippedSets,execution,step);
+  if(!previous)return null;
+  delete execution.skippedSets[previous.key];
+  reconcileSkippedExerciseDeviations(execution,step);
+  event(execution,'SET_SKIP_REPLACED_BY_COMPLETION',{
+    blockId:step.blockId||null,
+    exerciseId:step.exerciseId,
+    setNumber:Number(step.setNumber),
+    reason:previous.value?.reason||null,
+    source:previous.value?.source||'set_skip',
+    skippedAt:previous.value?.at||null,
+  },actor);
+  return previous.value;
+}
 function validatedSetResult(step,input={},previous=null){
   const rawReps=input.reps??null,rawSeconds=input.seconds??null,load=input.load==null?null:String(input.load).trim().slice(0,80),rpe=Number(input.rpe),rir=input.rir==null||input.rir===''?null:Number(input.rir);
   if((rawReps==null||rawReps==='')&&(rawSeconds==null||rawSeconds===''))throw new Error('M26_EXECUTION_RESULT_REQUIRED');
@@ -231,6 +272,7 @@ export function recordSet(execution,session,input={}){
   const key=storageKeyForStep(execution,step);
   if(executionResultForStep(execution,step))throw new Error('M26_EXECUTION_SET_ALREADY_RECORDED');
   const result=validatedSetResult(step,input);
+  replaceSkippedStepWithCompletion(execution,step,input.actor);
   execution.results[key]=result;clearActiveSetDraft(execution);
   event(execution,'SET_COMPLETED',result,input.actor);
   return execution;
