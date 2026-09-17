@@ -4,6 +4,7 @@ const SESSION_KEY='iberfit:m26:session:v1';
 const DRAFT_KEY='iberfit:m26:draft:p0-browser-upgrade';
 const CURRENT_CACHE='iberfit-m26-p0-browser-n-shell';
 const PREVIOUS_CACHE='iberfit-m26-p0-browser-n1-shell';
+const SHELL_PATH='/src/m26/shell/shell-controller.js';
 
 async function state(request){
   const response=await request.get('/__p0/state');
@@ -63,6 +64,10 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
   await waitForController(page);
   expect(await activeWorkerUrl(page)).toContain('/m26/iberfit-sw.js');
 
+  const initialShell=await page.evaluate(async(shellPath)=>(await fetch(shellPath)).text(),SHELL_PATH);
+  expect(initialShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
+  expect(initialShell).not.toContain("__IBERFIT_P0_SHELL_RELEASE__='n';");
+
   const saved=await page.evaluate(async({sessionKey,draftKey})=>{
     const {createSessionVault}=await import('/src/m26/app/session-vault.js');
     const vault=createSessionVault();
@@ -99,7 +104,7 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
   await waitForController(page);
   await expect(page.locator('.m26-auth-page')).toHaveAttribute('data-auth-state','unavailable');
 
-  const afterUpgrade=await page.evaluate(async({sessionKey,draftKey,currentCache,previousCache})=>{
+  const afterUpgrade=await page.evaluate(async({sessionKey,draftKey,currentCache,previousCache,shellPath})=>{
     const {createSessionVault}=await import('/src/m26/app/session-vault.js');
     const vault=createSessionVault();
     const keys=await caches.keys();
@@ -107,7 +112,10 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
     const previous=await caches.open(previousCache);
     const currentApp=await (await current.match('/m26/app.js'))?.text();
     const previousApp=await (await previous.match('/m26/app.js'))?.text();
+    const currentShell=await (await current.match(shellPath))?.text();
+    const previousShell=await (await previous.match(shellPath))?.text();
     const controlledApp=await (await fetch('/m26/app.js',{cache:'no-store'})).text();
+    const controlledShell=await (await fetch(shellPath)).text();
     const currentRequests=(await current.keys()).map((request)=>new URL(request.url).pathname);
     return {
       navigationCount:Number(sessionStorage.getItem('p0:pwa-navigation-count')||0),
@@ -117,7 +125,10 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
       draft:localStorage.getItem(draftKey),
       currentApp:currentApp||'',
       previousApp:previousApp||'',
+      currentShell:currentShell||'',
+      previousShell:previousShell||'',
       controlledApp,
+      controlledShell,
       currentRequests,
       controller:navigator.serviceWorker.controller?.scriptURL||null,
     };
@@ -126,6 +137,7 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
     draftKey:DRAFT_KEY,
     currentCache:CURRENT_CACHE,
     previousCache:PREVIOUS_CACHE,
+    shellPath:SHELL_PATH,
   });
 
   expect(Date.now()-coldStart).toBeLessThan(20_000);
@@ -137,6 +149,12 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
   expect(afterUpgrade.currentApp).not.toContain("__IBERFIT_P0_BROWSER_RELEASE__='n1'");
   expect(afterUpgrade.previousApp).toContain("__IBERFIT_P0_BROWSER_RELEASE__='n1'");
   expect(afterUpgrade.controlledApp).toContain("__IBERFIT_P0_BROWSER_RELEASE__='n'");
+  expect(afterUpgrade.currentRequests).toContain(SHELL_PATH);
+  expect(afterUpgrade.currentShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n'");
+  expect(afterUpgrade.currentShell).not.toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
+  expect(afterUpgrade.previousShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
+  expect(afterUpgrade.controlledShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n'");
+  expect(afterUpgrade.controlledShell).not.toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
   expect(afterUpgrade.session?.user?.id).toBe('p0-browser-user');
   expect(afterUpgrade.rawSession).toContain('p0-browser-token');
   expect(afterUpgrade.draft).toContain('"revision":7');
