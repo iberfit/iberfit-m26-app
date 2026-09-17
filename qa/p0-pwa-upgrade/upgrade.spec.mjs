@@ -28,9 +28,11 @@ async function activeWorkerUrl(page){
 test.beforeEach(async({context,request})=>{
   await setRelease(request,'n1');
   await context.addInitScript(()=>{
-    const key='p0:pwa-navigation-count';
-    const current=Number(sessionStorage.getItem(key)||0);
-    sessionStorage.setItem(key,String(current+1));
+    try{
+      const key='p0:pwa-navigation-count';
+      const current=Number(globalThis.sessionStorage?.getItem?.(key)||0);
+      globalThis.sessionStorage?.setItem?.(key,String(current+1));
+    }catch{}
   });
 });
 
