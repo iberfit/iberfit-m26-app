@@ -233,7 +233,7 @@ test('Admin mobile Más opens reliably and navigates through the real shell cont
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
 
-test('Sidebar settings popover remains above workspace and receives pointer events',async({page,browserName},testInfo)=>{
+test('Sidebar settings popover remains above workspace scrollable and receives pointer events',async({page,browserName},testInfo)=>{
   test.skip(testInfo.project.name.includes('mobile'),'Sidebar settings regression applies to desktop and tablet sidebar layouts.');
 
   const errors=capturePageErrors(page);
@@ -246,8 +246,13 @@ test('Sidebar settings popover remains above workspace and receives pointer even
   if(testInfo.project.name.includes('tablet'))await summary.tap();else await summary.click();
   await expect(settingsMenu).toHaveAttribute('open','');
 
+  const popover=settingsMenu.locator('.m26-settings-popover').first();
+  await expect(popover).toBeVisible();
+  await expect(popover).toHaveCSS('overflow-y','auto');
+
   const target=settingsMenu.locator('[data-m26-area="admin-configuracion"]').first();
   await expect(target).toBeVisible();
+  await target.scrollIntoViewIfNeeded();
   const hit=await target.evaluate((el)=>{
     const rect=el.getBoundingClientRect();
     const node=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
@@ -256,10 +261,16 @@ test('Sidebar settings popover remains above workspace and receives pointer even
       hitTag:String(node?.tagName||''),
       hitClass:String(node?.className||''),
       hitArea:String(node?.getAttribute?.('data-m26-area')||''),
+      rect:{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height},
+      viewport:{width:innerWidth,height:innerHeight},
       sidebarZ:getComputedStyle(document.querySelector('.m26-sidebar')).zIndex,
       workspaceZ:getComputedStyle(document.querySelector('.m26-workspace')).zIndex,
     };
   });
+  expect(hit.rect.left).toBeGreaterThanOrEqual(0);
+  expect(hit.rect.right).toBeLessThanOrEqual(hit.viewport.width+1);
+  expect(hit.rect.top).toBeGreaterThanOrEqual(0);
+  expect(hit.rect.bottom).toBeLessThanOrEqual(hit.viewport.height+1);
   expect(hit.matches,JSON.stringify(hit)).toBe(true);
   if(testInfo.project.name.includes('tablet'))await target.tap();else await target.click();
 
