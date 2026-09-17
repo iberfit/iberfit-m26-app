@@ -94,6 +94,8 @@
   bottom:max(1rem,env(safe-area-inset-bottom));
   width:min(24rem,calc(100vw - 19rem));
   max-height:min(76dvh,40rem);
+  overflow-y:auto;
+  overscroll-behavior:contain;
   padding:1.15rem;
   border:1px solid rgba(214,182,109,.2);
   border-radius:1.15rem;
