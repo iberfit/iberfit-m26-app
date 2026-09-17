@@ -6,6 +6,8 @@ const read=(path)=>fs.readFileSync(path,'utf8');
 const workflow=read('.github/workflows/authenticated-client-interaction.yml');
 const config=read('playwright.authenticated-interaction.config.mjs');
 const spec=read('qa/rc64/authenticated-interaction.spec.mjs');
+const shellController=read('src/m26/shell/shell-controller.js');
+const icons=read('src/m26/design/icons.css');
 
 test('authenticated interaction gate stays QA-only and public-key-only',()=>{
   assert.ok(workflow.includes('environment: m26-canary-readonly'));
@@ -46,4 +48,12 @@ test('authenticated interaction runs on code and design families that can steal 
   for(const path of ['src/m26/app/**','src/m26/design/**','src/m26/modules/route-render.js','src/m26/shell/**','src/m26/ui/**']){
     assert.equal(workflow.split(path).length-1,2,`${path} must trigger on pull_request and push`);
   }
+});
+
+test('Client More cannot survive route navigation and settings geometry stays viewport-authoritative',()=>{
+  assert.ok(shellController.includes("details.m26-client-bottom-nav-more"),'Client More route dismissal missing');
+  assert.ok(shellController.includes("clientBottomMore.open=false"),'Client More must close before navigation');
+  assert.ok(shellController.includes("clientBottomMore.removeAttribute?.('open')"),'Client More open attribute must be cleared');
+  assert.ok(icons.includes('position:fixed!important'),'settings popover fixed geometry must override later visual skins');
+  assert.ok(icons.includes('box-sizing:border-box'),'settings popover max-height must include padding and border');
 });
