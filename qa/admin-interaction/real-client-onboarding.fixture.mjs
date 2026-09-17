@@ -29,6 +29,8 @@ const subscribers=new Set();
 let refreshRevision=0;
 let draftSaveCount=0;
 let draftLoadResolved=false;
+let releaseDraftLoad;
+const draftLoadGate=new Promise((resolve)=>{releaseDraftLoad=resolve;});
 const store={
   getState:()=>state,
   subscribe(listener){subscribers.add(listener);return ()=>subscribers.delete(listener);},
@@ -52,7 +54,7 @@ const catalog=Object.freeze({
 });
 const draftRepository=Object.freeze({
   async load(){
-    await new Promise((resolve)=>setTimeout(resolve,1_500));
+    await draftLoadGate;
     draftLoadResolved=true;
     return {value:{name:'BORRADOR ANTIGUO NO DEBE VOLVER',email:'borrador-antiguo@example.test'}};
   },
@@ -77,4 +79,5 @@ globalThis.__IBERFIT_REAL_CLIENT_ONBOARDING_QA__=Object.freeze({
   activeArea:()=>state.activeArea,
   draftSaveCount:()=>draftSaveCount,
   draftLoadResolved:()=>draftLoadResolved,
+  releaseDraftLoad:()=>releaseDraftLoad?.(),
 });
