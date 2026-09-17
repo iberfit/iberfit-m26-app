@@ -14,6 +14,7 @@ const RELEASES=Object.freeze({
   n:Object.freeze({version:'m26-p0-browser-n',previous:'m26-p0-browser-n1',marker:'n'}),
 });
 const OPTIONAL_FAILURE_PATH='/m26/iri-report.html';
+const RELEASE_PINNED_SHELL_PATH='/src/m26/shell/shell-controller.js';
 let release='n1';
 let optionalFail=false;
 let optionalFailures=0;
@@ -93,11 +94,13 @@ async function sendFile(response,request,resolved,pathname){
     'X-Content-Type-Options':'nosniff',
   };
   if(pathname==='/m26/iberfit-sw.js')headers['Service-Worker-Allowed']='/';
+  if(pathname===RELEASE_PINNED_SHELL_PATH)headers['Cache-Control']='no-cache, must-revalidate';
 
   const dynamic=pathname==='/m26/sw.js'||
     pathname==='/m26/iberfit-sw.js'||
     pathname==='/m26/app.js'||
-    pathname==='/m26/index.html';
+    pathname==='/m26/index.html'||
+    pathname===RELEASE_PINNED_SHELL_PATH;
 
   if(dynamic){
     let text=await fs.readFile(resolved.file,'utf8');
@@ -110,6 +113,8 @@ async function sendFile(response,request,resolved,pathname){
       text=`/* P0_BROWSER_RELEASE:${meta.marker} */\n${text}`;
     }else if(pathname==='/m26/app.js'){
       text=`globalThis.__IBERFIT_P0_BROWSER_RELEASE__='${meta.marker}';\n${text}`;
+    }else if(pathname===RELEASE_PINNED_SHELL_PATH){
+      text=`globalThis.__IBERFIT_P0_SHELL_RELEASE__='${meta.marker}';\n${text}`;
     }else{
       text=text.replace('<head>',`<head>\n  <meta name="iberfit-p0-browser-release" content="${meta.marker}">`);
     }
