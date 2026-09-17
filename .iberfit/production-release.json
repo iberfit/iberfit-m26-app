@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "1eabb642634ade1fec74b0d3b32d703e7d314eff",
+  "sourceBranch": "hotfix/p0-sw-runtime-revision-20260917",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "P0 LIVE SUPPORT desde la base productiva exacta 551c3deab5f2956f17fbf6ef516871d6645f7100. Corrige la identidad de release del Service Worker registrado para impedir que dispositivos instalados conserven /src/m26/** de una release anterior cuando runtime y servidor ya avanzaron. Liga iberfit-sw.js + sw.js + runtime al SHA exacto, añade verificación fail-closed y regresión N-1→N, y elimina el autorrepair destructivo por temporizador. Fast Lane GREEN, Continuous App Audit GREEN, M26 CI GREEN y Admin Interaction Matrix GREEN en desktop/tablet/mobile Chromium, WebKit y Firefox. Sin cambios de Live Workout, Admin funcional, shell de producto, Supabase, RLS, auth ni datos."
+}
