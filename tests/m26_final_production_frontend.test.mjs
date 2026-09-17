@@ -9,14 +9,18 @@ const workflow=fs.readFileSync('.github/workflows/production-promote.yml','utf8'
 const finalFrontendWorkflow=fs.readFileSync('.github/workflows/final-production-frontend.yml','utf8');
 const finalBundleWorkflow=fs.readFileSync('.github/workflows/final-production-bundle.yml','utf8');
 
-test('production frontend generator binds provenance to exact integration source and exact PROD ref',()=>{
-  assert.match(generator,/APPROVED_SOURCE_BRANCH='canary\/rc74-4'/u);
+test('production frontend generator binds provenance to protected Canary or explicit P0 live-support source and exact PROD ref',()=>{
+  assert.match(generator,/STANDARD_SOURCE_BRANCH='canary\/rc74-4'/u);
+  assert.match(generator,/LIVE_HOTFIX_BRANCH=\/\^hotfix\\\/p0-/u);
+  assert.match(generator,/releaseLane/u);
   assert.match(generator,/FINAL_PROD_RUNTIME_SOURCE_SHA_INVALID/u);
   assert.match(generator,/FINAL_PROD_RUNTIME_SOURCE_BRANCH_MISMATCH/u);
+  assert.match(generator,/FINAL_PROD_RUNTIME_HOTFIX_BRANCH_INVALID/u);
   assert.match(generator,/FINAL_PROD_RUNTIME_PROMOTION_HEAD_MISMATCH/u);
   assert.match(generator,/FINAL_PROD_RUNTIME_QA_ONLY_MUST_BE_FALSE/u);
   assert.match(generator,/FINAL_PROD_RUNTIME_PUBLISHABLE_KEY_REQUIRED/u);
   assert.match(generator,/FINAL_PROD_RUNTIME_SERVICE_ROLE_FORBIDDEN/u);
+  assert.match(generator,/serviceWorkerVersion/u);
   assert.match(generator,/version\.json/u);
   assert.doesNotMatch(generator,/APPROVED_SOURCE_SHA=/u);
 });
@@ -32,8 +36,8 @@ test('permanent production workflow generates runtime deterministically instead 
   assert.match(workflow,/PROD_SUPABASE_URL: 'https:\/\/pjhmrhejsoofmouedavw\.supabase\.co'/u);
   assert.doesNotMatch(workflow,/cp \/tmp\/runtime-config\.live\.js/u);
   assert.doesNotMatch(workflow,/PROD_RUNTIME_NOT_ENABLED/u);
-  assert.match(workflow,/grep -Fq '"enabled": true' "\$R"/u);
-  assert.match(workflow,/grep -Fq '"qaOnly": false' "\$R"/u);
+  assert.ok(workflow.includes("grep -Fq '\"enabled\": true' \"$R\""));
+  assert.ok(workflow.includes("grep -Fq '\"qaOnly\": false' \"$R\""));
 });
 
 test('permanent production workflow uses one retrying fail-closed surface contract after preview deploy',()=>{
@@ -41,8 +45,11 @@ test('permanent production workflow uses one retrying fail-closed surface contra
   assert.match(workflow,/M26_VERIFY_SOURCE_SHA="\$SOURCE_SHA"/u);
   assert.match(workflow,/M26_VERIFY_SOURCE_BRANCH="\$SOURCE_BRANCH"/u);
   assert.match(workflow,/M26_VERIFY_ATTEMPTS='30'/u);
-  assert.match(verifier,/iberfit\.production\.surface\.v1/u);
+  assert.match(verifier,/iberfit\.production\.surface\.v2/u);
   assert.match(verifier,/PROD_SURFACE_VERSION_SHA_MISMATCH/u);
+  assert.match(verifier,/PROD_SURFACE_RUNTIME_SHA_MISMATCH/u);
+  assert.match(verifier,/PROD_SURFACE_WORKER_VERSION_METADATA_MISMATCH/u);
+  assert.match(verifier,/validateServiceWorkerReleaseIdentity/u);
   assert.match(verifier,/PROD_SURFACE_RUNTIME_QA_LEAK/u);
   assert.match(verifier,/PROD_SURFACE_RUNTIME_PRIVILEGED_KEY_FORBIDDEN/u);
   assert.match(verifier,/PROD_SURFACE_VERIFY_RETRY/u);
@@ -67,10 +74,11 @@ test('canonical transport supports exact production runtime without weakening QA
   assert.match(transport,/M26_PRODUCTION_PROJECT_REF/u);
 });
 
-
-test('final validation workflows are pinned to the same protected Canary source as the production generator',()=>{
-  const sourceBranch=(generator.match(/APPROVED_SOURCE_BRANCH='([^']+)'/u)||[])[1];
+test('final validation workflows stay pinned to protected Canary while generator permits a separately classified P0 lane',()=>{
+  const sourceBranch=(generator.match(/STANDARD_SOURCE_BRANCH='([^']+)'/u)||[])[1];
   assert.equal(sourceBranch,'canary/rc74-4');
+  assert.match(generator,/releaseLane==='standard'&&sourceBranch!==STANDARD_SOURCE_BRANCH/u);
+  assert.match(generator,/releaseLane==='live-support'&&!LIVE_HOTFIX_BRANCH\.test\(sourceBranch\)/u);
   for(const [name,source] of [
     ['frontend',finalFrontendWorkflow],
     ['bundle',finalBundleWorkflow],

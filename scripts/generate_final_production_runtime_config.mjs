@@ -6,8 +6,13 @@ import {
   M26_QA_PROJECT_REF,
   M26_QA_SUPABASE_ORIGIN,
 } from '../src/m26/supabase-transport.js';
+import {
+  productionServiceWorkerVersion,
+  stampCanonicalWorkerWrapper,
+} from './service_worker_release_identity.mjs';
 
-const APPROVED_SOURCE_BRANCH='canary/rc74-4';
+const STANDARD_SOURCE_BRANCH='canary/rc74-4';
+const LIVE_HOTFIX_BRANCH=/^hotfix\/p0-[A-Za-z0-9._/-]{1,120}$/u;
 
 const required=['M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY','M26_SOURCE_SHA','M26_SOURCE_BRANCH'];
 const missing=required.filter((name)=>!String(process.env[name]||'').trim());
@@ -17,13 +22,18 @@ if(String(process.env.M26_QA_ONLY).toLowerCase()!=='false')throw new Error('FINA
 
 const sourceSha=String(process.env.M26_SOURCE_SHA||'').trim().toLowerCase();
 const sourceBranch=String(process.env.M26_SOURCE_BRANCH||'').trim();
+const inferredLane=LIVE_HOTFIX_BRANCH.test(sourceBranch)?'live-support':'standard';
+const releaseLane=String(process.env.M26_RELEASE_LANE||inferredLane).trim().toLowerCase();
 const promotionHead=String(process.env.M26_PROMOTION_HEAD||'').trim().toLowerCase();
 if(!/^[0-9a-f]{40}$/u.test(sourceSha))throw new Error('FINAL_PROD_RUNTIME_SOURCE_SHA_INVALID');
-if(sourceBranch!==APPROVED_SOURCE_BRANCH)throw new Error('FINAL_PROD_RUNTIME_SOURCE_BRANCH_MISMATCH');
+if(!['standard','live-support'].includes(releaseLane))throw new Error('FINAL_PROD_RUNTIME_RELEASE_LANE_INVALID');
+if(releaseLane==='standard'&&sourceBranch!==STANDARD_SOURCE_BRANCH)throw new Error('FINAL_PROD_RUNTIME_SOURCE_BRANCH_MISMATCH');
+if(releaseLane==='live-support'&&!LIVE_HOTFIX_BRANCH.test(sourceBranch))throw new Error('FINAL_PROD_RUNTIME_HOTFIX_BRANCH_INVALID');
 if(promotionHead&&promotionHead!==sourceSha)throw new Error('FINAL_PROD_RUNTIME_PROMOTION_HEAD_MISMATCH');
 const shortSha=sourceSha.slice(0,12);
 const VERSION=`26.0.0-production.${shortSha}`;
 const RELEASE=`IBERFIT_M26_PRODUCTION_${shortSha.toUpperCase()}`;
+const SERVICE_WORKER_VERSION=productionServiceWorkerVersion(sourceSha);
 
 const url=new URL(String(process.env.M26_SUPABASE_URL||''));
 if(url.origin!==M26_PRODUCTION_SUPABASE_ORIGIN||url.pathname!=='/'||url.search||url.hash||url.username||url.password){
@@ -47,10 +57,12 @@ const buildDir=path.resolve(process.env.M26_BUILD_DIR||path.join('.tmp','rc64-cu
 const m26Dir=path.join(buildDir,'m26');
 const target=path.join(m26Dir,'runtime-config.js');
 const versionTarget=path.join(m26Dir,'version.json');
+const serviceWorkerWrapperTarget=path.join(m26Dir,'iberfit-sw.js');
 const headersTargets=[path.join(buildDir,'_headers'),path.join(m26Dir,'_headers')];
 const headersTemplatePath=path.resolve('public','m26','_headers');
 if(!fs.existsSync(m26Dir))throw new Error(`FINAL_PROD_RUNTIME_BUILD_MISSING:${buildDir}`);
 if(!fs.existsSync(headersTemplatePath))throw new Error('FINAL_PROD_HEADERS_TEMPLATE_MISSING');
+if(!fs.existsSync(serviceWorkerWrapperTarget))throw new Error('FINAL_PROD_SERVICE_WORKER_WRAPPER_MISSING');
 
 let headers=fs.readFileSync(headersTemplatePath,'utf8').replace(/\r\n?/gu,'\n');
 const prodCount=headers.split(M26_PRODUCTION_SUPABASE_ORIGIN).length-1;
@@ -98,6 +110,8 @@ const provenance={
   version:VERSION,
   sourceSha,
   sourceBranch,
+  releaseLane,
+  serviceWorkerVersion:SERVICE_WORKER_VERSION,
   promotionHead:promotionHead||sourceSha,
   environment:'PRODUCTION',
   projectRef:M26_PRODUCTION_PROJECT_REF,
@@ -109,74 +123,30 @@ function iberfitReleaseGuard(runtime){
   if(!runtime||typeof runtime!=='object')return;
   const sw=globalThis.navigator?.serviceWorker;
   if(!sw?.register||!runtime.sourceSha)return;
-  const shortSha=String(runtime.sourceSha).slice(0,12);
-  const expectedCache=`iberfit-m26-prod-${shortSha}-shell`;
-  const repairKey=`m26:runtime-release-repair:${runtime.version||shortSha}`;
-  const activate=(worker)=>{
-    if(!worker?.postMessage)return false;
-    worker.postMessage({type:'SKIP_WAITING',release:runtime.version||shortSha});
-    return true;
-  };
-  const arm=(registration)=>{
-    if(registration.waiting)activate(registration.waiting);
-    const installing=registration.installing;
-    if(installing?.addEventListener){
-      installing.addEventListener('statechange',()=>{
-        if(installing.state==='installed')activate(registration.waiting||installing);
-      });
-    }
-    registration.addEventListener?.('updatefound',()=>{
-      const next=registration.installing;
-      if(!next?.addEventListener)return;
-      next.addEventListener('statechange',()=>{
-        if(next.state==='installed')activate(registration.waiting||next);
-      });
-    });
-  };
-  const cacheKeys=async()=>{
-    try{return globalThis.caches?.keys?await globalThis.caches.keys():[];}catch{return [];}
-  };
-  const repairStaleShell=async(registration)=>{
-    if(globalThis.navigator?.onLine===false)return false;
-    const keys=await cacheKeys();
-    if(keys.includes(expectedCache)){
-      try{globalThis.sessionStorage?.removeItem?.(repairKey);}catch{}
-      return false;
-    }
-    try{
-      if(globalThis.sessionStorage?.getItem?.(repairKey)==='1')return false;
-      globalThis.sessionStorage?.setItem?.(repairKey,'1');
-    }catch{}
-    try{await registration?.unregister?.();}catch{}
-    await Promise.all(
-      keys
-        .filter((key)=>String(key).startsWith('iberfit-m26-'))
-        .map((key)=>globalThis.caches.delete(key).catch(()=>false)),
-    );
-    globalThis.location?.reload?.();
-    return true;
-  };
   void (async()=>{
-    let registration;
     try{
-      registration=await sw.register('/m26/iberfit-sw.js',{scope:'/',updateViaCache:'none'});
-      arm(registration);
+      const registration=await sw.register('/m26/iberfit-sw.js',{scope:'/',updateViaCache:'none'});
       try{await registration.update?.();}catch{}
-      if(registration.waiting){activate(registration.waiting);return;}
-      if(registration.installing)return;
-      globalThis.setTimeout?.(()=>{void repairStaleShell(registration);},2500);
     }catch{}
   })();
 }
+
 const runtimeSource=`window.__IBERFIT_M26_RUNTIME__ = Object.freeze(${JSON.stringify(config,null,2)});\n`;
 const releaseGuard=`\n;(${iberfitReleaseGuard.toString()})(window.__IBERFIT_M26_RUNTIME__);\n`;
 fs.writeFileSync(target,runtimeSource+releaseGuard,'utf8');
 fs.writeFileSync(versionTarget,`${JSON.stringify(provenance,null,2)}\n`,'utf8');
+const wrapperSource=fs.readFileSync(serviceWorkerWrapperTarget,'utf8');
+fs.writeFileSync(
+  serviceWorkerWrapperTarget,
+  stampCanonicalWorkerWrapper(wrapperSource,{version:SERVICE_WORKER_VERSION}),
+  'utf8',
+);
 for(const headersTarget of headersTargets)fs.writeFileSync(headersTarget,headers,'utf8');
 
 for(const [name,content] of [
   ['runtime',fs.readFileSync(target,'utf8')],
   ['version',fs.readFileSync(versionTarget,'utf8')],
+  ['service-worker-wrapper',fs.readFileSync(serviceWorkerWrapperTarget,'utf8')],
   ['headers',headers],
 ]){
   if(content.includes(M26_QA_PROJECT_REF)||content.includes(M26_QA_SUPABASE_ORIGIN)||content.includes('m26-canary.iberfit.cl')){
@@ -191,11 +161,14 @@ console.log(JSON.stringify({
   version:VERSION,
   sourceSha,
   sourceBranch,
+  releaseLane,
+  serviceWorkerVersion:SERVICE_WORKER_VERSION,
   projectRef:M26_PRODUCTION_PROJECT_REF,
   qaOnly:false,
   production:true,
   target:path.relative(process.cwd(),target).replaceAll(path.sep,'/'),
   versionTarget:path.relative(process.cwd(),versionTarget).replaceAll(path.sep,'/'),
+  serviceWorkerWrapperTarget:path.relative(process.cwd(),serviceWorkerWrapperTarget).replaceAll(path.sep,'/'),
   headersTargets:headersTargets.map((p)=>path.relative(process.cwd(),p).replaceAll(path.sep,'/')),
   keyType:key.startsWith('sb_publishable_')?'publishable':'legacy_anon_or_publishable',
 },null,2));

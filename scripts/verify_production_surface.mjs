@@ -1,7 +1,11 @@
 import {pathToFileURL} from 'node:url';
 import {verifyProductionModuleGraph} from './verify_production_module_graph.mjs';
+import {
+  productionServiceWorkerVersion,
+  validateServiceWorkerReleaseIdentity,
+} from './service_worker_release_identity.mjs';
 
-export const PRODUCTION_SURFACE_CONTRACT='iberfit.production.surface.v1';
+export const PRODUCTION_SURFACE_CONTRACT='iberfit.production.surface.v2';
 
 const DEFAULT_ATTEMPTS=30;
 const DEFAULT_DELAY_MS=2_000;
@@ -100,6 +104,8 @@ export function validateProductionSurface({
   versionSource,
   runtimeSource,
   indexSource,
+  swSource,
+  wrapperSource,
   sourceSha,
   sourceBranch,
   prodProjectRef,
@@ -112,6 +118,7 @@ export function validateProductionSurface({
   const expectedProjectRef=required(prodProjectRef,'PROD_SURFACE_PROJECT_REF_MISSING');
   const expectedSupabaseUrl=required(prodSupabaseUrl,'PROD_SURFACE_SUPABASE_URL_MISSING');
   const forbiddenQaRef=required(qaProjectRef,'PROD_SURFACE_QA_REF_MISSING');
+  const expectedWorkerVersion=productionServiceWorkerVersion(expectedSha);
 
   const version=parseJson(String(versionSource),'PROD_SURFACE_VERSION_SCHEMA_INVALID');
   if(version.sourceSha!==expectedSha)fail('PROD_SURFACE_VERSION_SHA_MISMATCH');
@@ -120,6 +127,9 @@ export function validateProductionSurface({
     fail('PROD_SURFACE_VERSION_ENVIRONMENT_INVALID');
   }
   if(version.projectRef!==expectedProjectRef)fail('PROD_SURFACE_VERSION_PROJECT_REF_MISMATCH');
+  if(version.serviceWorkerVersion!==undefined&&version.serviceWorkerVersion!==expectedWorkerVersion){
+    fail('PROD_SURFACE_WORKER_VERSION_METADATA_MISMATCH');
+  }
 
   const runtimeText=String(runtimeSource);
   if(runtimeText.includes(forbiddenQaRef))fail('PROD_SURFACE_RUNTIME_QA_LEAK');
@@ -129,6 +139,7 @@ export function validateProductionSurface({
   if(runtime.qaOnly!==false)fail('PROD_SURFACE_RUNTIME_QA_ONLY_INVALID');
   if(runtime.projectRef!==expectedProjectRef)fail('PROD_SURFACE_RUNTIME_PROJECT_REF_MISMATCH');
   if(runtime.url!==expectedSupabaseUrl)fail('PROD_SURFACE_RUNTIME_URL_MISMATCH');
+  if(runtime.sourceSha!==expectedSha)fail('PROD_SURFACE_RUNTIME_SHA_MISMATCH');
   if(typeof runtime.publishableKey!=='string'||!runtime.publishableKey.startsWith('sb_publishable_')){
     fail('PROD_SURFACE_RUNTIME_PUBLISHABLE_KEY_INVALID');
   }
@@ -138,12 +149,23 @@ export function validateProductionSurface({
     if(!index.includes(marker))fail('PROD_SURFACE_INDEX_MARKER_MISSING');
   }
 
+  try{
+    validateServiceWorkerReleaseIdentity({
+      swSource:String(swSource||''),
+      wrapperSource:String(wrapperSource||''),
+      expectedVersion:expectedWorkerVersion,
+    });
+  }catch(error){
+    fail(`PROD_SURFACE_${error?.code||error?.message||'SERVICE_WORKER_IDENTITY_INVALID'}`);
+  }
+
   return {
     ok:true,
     contract:PRODUCTION_SURFACE_CONTRACT,
     sourceSha:expectedSha,
     sourceBranch:expectedBranch,
-    projectRef:expectedProjectRef
+    projectRef:expectedProjectRef,
+    serviceWorkerVersion:expectedWorkerVersion,
   };
 }
 
@@ -188,13 +210,15 @@ export async function verifyProductionSurface({
 
   for(let attempt=1;attempt<=totalAttempts;attempt+=1){
     try{
-      const [versionSource,runtimeSource,indexSource]=await Promise.all([
+      const [versionSource,runtimeSource,indexSource,swSource,wrapperSource]=await Promise.all([
         fetchText(fetchImpl,verificationUrl(origin,'/m26/version.json',sourceSha,attempt),requestTimeoutMs,'version'),
         fetchText(fetchImpl,verificationUrl(origin,'/m26/runtime-config.js',sourceSha,attempt),requestTimeoutMs,'runtime'),
-        fetchText(fetchImpl,verificationUrl(origin,'/m26/index.html',sourceSha,attempt),requestTimeoutMs,'index')
+        fetchText(fetchImpl,verificationUrl(origin,'/m26/index.html',sourceSha,attempt),requestTimeoutMs,'index'),
+        fetchText(fetchImpl,verificationUrl(origin,'/m26/sw.js',sourceSha,attempt),requestTimeoutMs,'service-worker-runtime'),
+        fetchText(fetchImpl,verificationUrl(origin,'/m26/iberfit-sw.js',sourceSha,attempt),requestTimeoutMs,'service-worker-wrapper'),
       ]);
       return {
-        ...validateProductionSurface({versionSource,runtimeSource,indexSource,sourceSha,sourceBranch,prodProjectRef,prodSupabaseUrl,qaProjectRef}),
+        ...validateProductionSurface({versionSource,runtimeSource,indexSource,swSource,wrapperSource,sourceSha,sourceBranch,prodProjectRef,prodSupabaseUrl,qaProjectRef}),
         baseUrl:origin,
         attempt
       };

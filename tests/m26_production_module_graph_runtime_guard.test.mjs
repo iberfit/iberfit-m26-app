@@ -7,6 +7,8 @@ const SOURCE_BRANCH='canary/rc74-4';
 const PROD_REF='pjhmrhejsoofmouedavw';
 const PROD_URL=`https://${PROD_REF}.supabase.co`;
 const QA_REF='gjztkdwfmunnzhtvxrsu';
+const WORKER_VERSION=`m26-prod-${SOURCE_SHA.slice(0,12)}`;
+const PREVIOUS_WORKER_VERSION='m26-prod-000000000000';
 
 test('deep production preflight accepts canonical runtime followed by installed-app release guard',async()=>{
   const versionId=`26.0.0-production.${SOURCE_SHA.slice(0,12)}`;
@@ -21,7 +23,7 @@ test('deep production preflight accepts canonical runtime followed by installed-
   };
   const runtimeSource=`window.__IBERFIT_M26_RUNTIME__ = Object.freeze(${JSON.stringify(runtime)});
 ;(function iberfitReleaseGuard(current){
-  const state={phase:'repair',nested:{safe:true}};
+  const state={phase:'refresh',nested:{safe:true}};
   if(current?.sourceSha&&state.nested.safe)globalThis.__IBERFIT_RELEASE_GUARD_TEST__=state;
 })(window.__IBERFIT_M26_RUNTIME__);
 `;
@@ -29,6 +31,7 @@ test('deep production preflight accepts canonical runtime followed by installed-
     version:versionId,
     sourceSha:SOURCE_SHA,
     sourceBranch:SOURCE_BRANCH,
+    serviceWorkerVersion:WORKER_VERSION,
     environment:'PRODUCTION',
     projectRef:PROD_REF,
     qaOnly:false,
@@ -43,8 +46,21 @@ createSessionVault().save(session);
 const application=()=>import('/src/m26/app/application.js');
 `;
   const application='continueAfterFirstFactor authAssuranceContext M26_MFA_IDENTITY_MISMATCH normalizeAuthorizedRoles';
-  const worker='function isReleasePinnedPath(){} async function releaseCacheFirst(){} async function releaseNavigationResponse(){} event.respondWith(releaseCacheFirst(request))';
-  const rootWorker="const pinnedShell=true; cache.match('/m26/index.html'); fetchWithDeadline();";
+  const worker=[
+    `const VERSION='${WORKER_VERSION}';`,
+    `const PREVIOUS_VERSION='${PREVIOUS_WORKER_VERSION}';`,
+    'function isReleasePinnedPath(){}',
+    'async function releaseCacheFirst(){}',
+    'async function releaseNavigationResponse(){}',
+    'event.respondWith(releaseCacheFirst(request))',
+  ].join('\n');
+  const rootWorker=[
+    `const IBERFIT_SERVICE_WORKER_RELEASE='${WORKER_VERSION}';`,
+    "importScripts('/m26/sw.js');",
+    'const pinnedShell=true;',
+    "cache.match('/m26/index.html');",
+    'fetchWithDeadline();',
+  ].join('\n');
   const jsPaths=new Set([
     '/m26/app.js',
     '/src/m26/app/application.js',

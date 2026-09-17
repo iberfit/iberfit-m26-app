@@ -9,6 +9,8 @@ const PROD_REF='pjhmrhejsoofmouedavw';
 const PROD_URL='https://'+PROD_REF+'.supabase.co';
 const QA_REF='gjztkdwfmunnzhtvxrsu';
 const VERSION='26.0.0-production.'+SHA.slice(0,12);
+const WORKER_VERSION='m26-prod-'+SHA.slice(0,12);
+const PREVIOUS_WORKER_VERSION='m26-prod-000000000000';
 
 const index=[
   '<form data-auth-form="login"></form>',
@@ -36,6 +38,8 @@ const application=[
 ].join('\n');
 
 const worker=[
+  `const VERSION='${WORKER_VERSION}';`,
+  `const PREVIOUS_VERSION='${PREVIOUS_WORKER_VERSION}';`,
   'function isReleasePinnedPath(pathname){}',
   'async function releaseCacheFirst(request){}',
   'async function releaseNavigationResponse(request){}',
@@ -43,6 +47,8 @@ const worker=[
 ].join('\n');
 
 const rootWorker=[
+  `const IBERFIT_SERVICE_WORKER_RELEASE='${WORKER_VERSION}';`,
+  "importScripts('/m26/sw.js');",
   'const pinnedShell=true;',
   "cache.match('/m26/index.html');",
   'fetchWithDeadline(request);',
@@ -56,6 +62,7 @@ function runtime(){
     url:PROD_URL,
     publishableKey:'sb_publishable_contract_test_123456789',
     qaOnly:false,
+    sourceSha:SHA,
   })+');';
 }
 
@@ -65,6 +72,7 @@ function version(){
     version:VERSION,
     sourceSha:SHA,
     sourceBranch:BRANCH,
+    serviceWorkerVersion:WORKER_VERSION,
     environment:'PRODUCTION',
     projectRef:PROD_REF,
     qaOnly:false,
