@@ -94,6 +94,7 @@ async function sendFile(response,request,resolved,pathname){
     'X-Content-Type-Options':'nosniff',
   };
   if(pathname==='/m26/iberfit-sw.js')headers['Service-Worker-Allowed']='/';
+  if(pathname===RELEASE_PINNED_SHELL_PATH)headers['Cache-Control']='no-cache, must-revalidate';
 
   const dynamic=pathname==='/m26/sw.js'||
     pathname==='/m26/iberfit-sw.js'||
