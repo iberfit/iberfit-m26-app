@@ -34,10 +34,11 @@ Canary funcional actual: `223a58a7de23888ea3c90256331f52161e68b208`
 
 ## P1 · gobernanza
 
-- [ ] Proteger `canary/rc74-4` con PR + required checks.
+- [x] Proteger `canary/rc74-4` con PR + required check: ruleset activo `Protect Canary` (`23254113`), sin bypass actors, bloqueo de deletion/non-fast-forward y status `validate` requerido.
 - [x] Actualizar STATE/BACKLOG al LIVE y Canary reales del 17/09.
 - [ ] Mantener STATE/BACKLOG/RELEASE alineados después de cada promoción o cambio de baseline.
-- [ ] Reducir PRs alternativos/superseded abiertos para evitar dos soluciones al mismo problema.
+- [x] Cerrar la solución PWA alternativa/superseded del PR #459 para mantener una sola arquitectura oficial.
+- [ ] Revisar si conviene ampliar required checks más allá de `validate` cuando nombres y duración de los gates estén estabilizados.
 
 ## P1 · experiencia por dispositivo / rol
 
@@ -97,4 +98,4 @@ Canary funcional actual: `223a58a7de23888ea3c90256331f52161e68b208`
 2. Confirmación puntual del fix de foco en un dispositivo históricamente afectado.
 3. Edge cases Auth restantes: invite, resend, expiry/replay y mala conexión.
 4. Preparar próxima sesión + seguimiento longitudinal + Action Outcome Tracking.
-5. Acelerar CI cross-browser manteniendo la cobertura íntegra y verificar/configurar protección de Canary.
+5. Acelerar CI cross-browser manteniendo la cobertura íntegra y evaluar required checks adicionales sin crear bloqueos redundantes.
