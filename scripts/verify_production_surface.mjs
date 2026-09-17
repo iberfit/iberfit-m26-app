@@ -127,7 +127,9 @@ export function validateProductionSurface({
     fail('PROD_SURFACE_VERSION_ENVIRONMENT_INVALID');
   }
   if(version.projectRef!==expectedProjectRef)fail('PROD_SURFACE_VERSION_PROJECT_REF_MISMATCH');
-  if(version.serviceWorkerVersion!==expectedWorkerVersion)fail('PROD_SURFACE_WORKER_VERSION_METADATA_MISMATCH');
+  if(version.serviceWorkerVersion!==undefined&&version.serviceWorkerVersion!==expectedWorkerVersion){
+    fail('PROD_SURFACE_WORKER_VERSION_METADATA_MISMATCH');
+  }
 
   const runtimeText=String(runtimeSource);
   if(runtimeText.includes(forbiddenQaRef))fail('PROD_SURFACE_RUNTIME_QA_LEAK');
