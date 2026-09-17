@@ -6,22 +6,10 @@ import vm from 'node:vm';
 const workerUrl=new URL('../public/m26/iberfit-sw.js',import.meta.url);
 const workerSource=readFileSync(workerUrl,'utf8');
 
-function requestKey(request){
-  return typeof request==='string'?request:request.url;
-}
-
-function createWorkerHarness({fetchImpl,globalFallback=null}={}){
+function createWorkerHarness({networkFirstImpl}={}){
   const listeners=new Map();
   const imported=[];
-  const cacheEntries=new Map();
-  const cache={
-    async match(request){
-      return cacheEntries.get(requestKey(request))||null;
-    },
-    async put(request,response){
-      cacheEntries.set(requestKey(request),response);
-    },
-  };
+  const networkFirstCalls=[];
   const self={
     location:{origin:'https://app.iberfit.cl'},
     addEventListener(type,handler){
@@ -34,17 +22,20 @@ function createWorkerHarness({fetchImpl,globalFallback=null}={}){
     URL,
     Request,
     Response,
-    caches:{
-      async open(){return cache;},
-      async match(){return globalFallback;},
+    caches:{open:async()=>({match:async()=>null})},
+    fetchWithDeadline:async()=>new Response('navigation',{status:200}),
+    NETWORK_TIMEOUT_MS:6000,
+    SHELL:'iberfit-test-shell',
+    networkFirst(request,options){
+      networkFirstCalls.push({request,options});
+      return (networkFirstImpl||(()=>new Response('fresh-runtime',{status:200})))(request,options);
     },
-    fetch:fetchImpl||globalThis.fetch,
     importScripts(path){imported.push(path);},
     self,
   };
 
   vm.runInNewContext(workerSource,context,{filename:'public/m26/iberfit-sw.js'});
-  return {listeners,imported,cacheEntries};
+  return {listeners,imported,networkFirstCalls};
 }
 
 async function dispatchFreshnessFetch(harness,url){
@@ -53,68 +44,55 @@ async function dispatchFreshnessFetch(harness,url){
   let stopped=false;
   let responsePromise=null;
   const request=new Request(url);
-  handler({
+  const event={
     request,
     stopImmediatePropagation(){stopped=true;},
     respondWith(value){responsePromise=Promise.resolve(value);},
-  });
-  return {request,stopped,responsePromise};
+  };
+  handler(event);
+  return {event,request,stopped,responsePromise};
 }
 
-test('canonical worker owns mutable runtime requests before importing the legacy worker',()=>{
+test('canonical worker registers source-runtime freshness before the legacy worker',()=>{
   const listenerIndex=workerSource.indexOf("self.addEventListener('fetch'");
   const importIndex=workerSource.indexOf("importScripts('/m26/sw.js')");
   assert.ok(listenerIndex>=0,'freshness fetch listener must exist');
   assert.ok(importIndex>listenerIndex,'freshness listener must be registered before the legacy worker');
 });
 
-test('mutable M26 runtime is network-first and stores the fresh response',async()=>{
-  let fetchOptions=null;
-  const harness=createWorkerHarness({
-    fetchImpl:async(_request,options)=>{
-      fetchOptions=options;
-      return new Response('fresh-runtime',{status:200,headers:{'content-type':'text/javascript'}});
-    },
-  });
+test('source runtime bypasses release cache-first and delegates to networkFirst',async()=>{
+  const harness=createWorkerHarness();
   const result=await dispatchFreshnessFetch(
     harness,
     'https://app.iberfit.cl/src/m26/shell/shell-controller.js',
   );
-  assert.equal(result.stopped,true,'legacy cache-first handler must not receive mutable runtime requests');
-  assert.ok(result.responsePromise,'mutable runtime request must be intercepted');
-  const response=await result.responsePromise;
-  assert.equal(await response.text(),'fresh-runtime');
-  assert.equal(fetchOptions?.cache,'reload');
-  assert.equal(fetchOptions?.credentials,'same-origin');
-  assert.equal(fetchOptions?.redirect,'error');
-  const stored=harness.cacheEntries.get(result.request.url);
-  assert.ok(stored,'fresh runtime must be cached for offline fallback');
-  assert.equal(await stored.text(),'fresh-runtime');
+  assert.equal(result.stopped,true,'legacy cache-first handler must not receive source runtime requests');
+  assert.ok(result.responsePromise,'source runtime request must be intercepted');
+  assert.equal(await (await result.responsePromise).text(),'fresh-runtime');
+  assert.equal(harness.networkFirstCalls.length,1);
+  assert.equal(harness.networkFirstCalls[0].request.url,result.request.url);
+  assert.equal(harness.networkFirstCalls[0].options.event,result.event);
   assert.deepEqual(harness.imported,['/m26/sw.js']);
 });
 
-test('mutable runtime falls back to cached code when the network is unavailable',async()=>{
-  const harness=createWorkerHarness({
-    fetchImpl:async()=>{throw new Error('offline');},
-    globalFallback:new Response('cached-runtime',{status:200}),
-  });
+test('non-source M26 assets stay on the established service-worker strategy',async()=>{
+  const harness=createWorkerHarness();
   const result=await dispatchFreshnessFetch(
     harness,
     'https://app.iberfit.cl/m26/app.js',
   );
-  assert.equal(result.stopped,true);
-  const response=await result.responsePromise;
-  assert.equal(await response.text(),'cached-runtime');
+  assert.equal(result.stopped,false);
+  assert.equal(result.responsePromise,null);
+  assert.equal(harness.networkFirstCalls.length,0);
 });
 
-test('static assets remain outside the mutable runtime freshness path',async()=>{
-  const harness=createWorkerHarness({
-    fetchImpl:async()=>new Response('unexpected',{status:200}),
-  });
+test('cross-origin source-like requests are not intercepted',async()=>{
+  const harness=createWorkerHarness();
   const result=await dispatchFreshnessFetch(
     harness,
-    'https://app.iberfit.cl/m26/icons/icon-192.png',
+    'https://example.test/src/m26/shell/shell-controller.js',
   );
   assert.equal(result.stopped,false);
   assert.equal(result.responsePromise,null);
+  assert.equal(harness.networkFirstCalls.length,0);
 });
