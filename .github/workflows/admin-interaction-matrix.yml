@@ -8,7 +8,13 @@ on:
       - 'src/m26/shell/**'
       - 'src/m26/design/**'
       - 'qa/admin-interaction/**'
+      - 'qa/p0-pwa-upgrade/**'
+      - 'scripts/generate_final_production_runtime_config.mjs'
+      - 'scripts/service_worker_release_identity.mjs'
+      - 'scripts/verify_production_surface.mjs'
+      - 'tests/m26_p0_service_worker_release_identity.test.mjs'
       - 'playwright.admin-interaction.config.mjs'
+      - 'playwright.p0-pwa-upgrade.config.mjs'
       - '.github/workflows/admin-interaction-matrix.yml'
   push:
     branches: [canary/rc74-4]
@@ -17,7 +23,13 @@ on:
       - 'src/m26/shell/**'
       - 'src/m26/design/**'
       - 'qa/admin-interaction/**'
+      - 'qa/p0-pwa-upgrade/**'
+      - 'scripts/generate_final_production_runtime_config.mjs'
+      - 'scripts/service_worker_release_identity.mjs'
+      - 'scripts/verify_production_surface.mjs'
+      - 'tests/m26_p0_service_worker_release_identity.test.mjs'
       - 'playwright.admin-interaction.config.mjs'
+      - 'playwright.p0-pwa-upgrade.config.mjs'
       - '.github/workflows/admin-interaction-matrix.yml'
   workflow_dispatch:
 
@@ -53,7 +65,7 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium webkit firefox
       - name: Verify Playwright browser cache
-        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium, firefox, webkit } from '@playwright/test'; for (const [name,browser] of Object.entries({chromium,firefox,webkit})) if (!fs.existsSync(browser.executablePath())) throw new Error('PLAYWRIGHT_'+name.toUpperCase()+'_NOT_READY');"
+        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium, firefox, webkit } from '@playwright/test'; for (const [name,browser] of Object.entries({chromium, firefox, webkit})) if (!fs.existsSync(browser.executablePath())) throw new Error('PLAYWRIGHT_'+name.toUpperCase()+'_NOT_READY');"
       - name: Exercise real Admin inputs selects focus and rerender
         run: npx playwright test --config playwright.admin-interaction.config.mjs
       - name: Preserve failures only
