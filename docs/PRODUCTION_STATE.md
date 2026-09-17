@@ -39,7 +39,8 @@ La entrega y los contratos automáticos están certificados. Sigue siendo útil 
 - HEAD actual: `223a58a7de23888ea3c90256331f52161e68b208`
 - Merge asociado: PR #461 · PWA shell upgrade contract.
 - P0 funcional demostrado por automatización: 0 en el lote actual.
-- Rama protegida: no confirmada como protegida; sigue siendo deuda P1 de gobernanza hasta verificar/configurar required checks.
+- Protección: ruleset activo `Protect Canary` (`23254113`) aplicado exactamente a `refs/heads/canary/rc74-4`.
+- El ruleset bloquea borrado y non-fast-forward, exige PR y requiere el status check `validate`; no existen bypass actors configurados.
 
 Evidencia exacta previa al merge de #461 sobre `3a9684f8c28754c04665c02ce7e5098457595983`:
 - IBERFIT M26 CI `35269132786`: SUCCESS.
@@ -85,12 +86,12 @@ El workflow operacional SMTP permanece aislado en `ops/prod-auth-readiness-4baf6
 Ninguno demostrado en los gates actuales. El incidente histórico de inputs/selects queda protegido tanto por lógica de interacción como por contrato de actualización PWA.
 
 ### P1
-1. Verificar/configurar protección de `canary/rc74-4` con PR + required checks.
-2. Completar validación autenticada real de Admin y Coach post-WebAuthn donde falte.
-3. Cerrar alta/edición/baja controlada y sesión Coach real sin freezes, incluida recuperación de error por dispositivo.
-4. Completar edge cases Auth restantes: invite, resend, expiry/replay y mala conexión.
-5. Continuar Action Outcome Tracking, progreso longitudinal y métricas de funnel/capacidad/revenue con utilidad real.
-6. Optimizar tiempo de CI cross-browser sin reducir cobertura ni convertir fallos en soft-pass.
+1. Completar validación autenticada real de Admin y Coach post-WebAuthn donde falte.
+2. Cerrar alta/edición/baja controlada y sesión Coach real sin freezes, incluida recuperación de error por dispositivo.
+3. Completar edge cases Auth restantes: invite, resend, expiry/replay y mala conexión.
+4. Continuar Action Outcome Tracking, progreso longitudinal y métricas de funnel/capacidad/revenue con utilidad real.
+5. Optimizar tiempo de CI cross-browser sin reducir cobertura ni convertir fallos en soft-pass.
+6. Revisar si el único required status `validate` debe ampliarse a gates adicionales una vez estabilizados sus nombres/duración, sin bloquear releases por checks redundantes.
 
 ## GO para una próxima promoción
 
