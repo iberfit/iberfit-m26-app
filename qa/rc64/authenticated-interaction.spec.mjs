@@ -205,6 +205,7 @@ test('authenticated Client keeps real inputs textarea selects and mobile More us
   await expect(notes).toHaveValue('Interacción QA sin enviar datos.');
 
   await openArea(page,'ajustes');
+  await expect(page.locator('details.m26-client-bottom-nav-more[open]'),'Client More must close before route navigation').toHaveCount(0);
   const settings=page.locator('.m26-settings-route');
   await expect(settings).toBeVisible({timeout:10_000});
 
