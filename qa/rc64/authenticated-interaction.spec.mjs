@@ -52,11 +52,21 @@ async function dismissGuidance(page){
     const close=page.locator('[data-m26-guided-tour-close]').first();
     if(await close.count())await close.click();
   }
+  const contextGuide=page.locator('[data-m26-client-context-guide]:visible').first();
+  if(await contextGuide.count()&&await contextGuide.isVisible().catch(()=>false)){
+    const ack=contextGuide.locator('[data-m26-client-context-guide-ack]').first();
+    const close=contextGuide.locator('[data-m26-client-context-guide-close]').first();
+    if(await ack.count())await ack.click();
+    else if(await close.count())await close.click();
+    await expect(contextGuide).toBeHidden({timeout:5_000}).catch(()=>{});
+  }
 }
 async function openArea(page,area){
+  await dismissGuidance(page);
   const visible=page.locator(`[data-m26-area="${area}"]:visible`).first();
   if(await visible.count()&&await visible.isVisible().catch(()=>false)){
     await visible.click();
+    await dismissGuidance(page);
     return;
   }
 
@@ -69,6 +79,7 @@ async function openArea(page,area){
       const settingsTarget=settingsMenu.locator('[data-m26-area="ajustes"]').first();
       await expect(settingsTarget,'Settings popover must expose full settings').toBeVisible();
       await settingsTarget.click();
+      await dismissGuidance(page);
       return;
     }
   }
@@ -79,6 +90,7 @@ async function openArea(page,area){
   const target=page.locator(`.m26-client-bottom-nav-menu [data-m26-area="${area}"]:visible`).first();
   await expect(target).toBeVisible();
   await target.click();
+  await dismissGuidance(page);
 }
 async function activate(page,locator,touch){
   await locator.scrollIntoViewIfNeeded();
