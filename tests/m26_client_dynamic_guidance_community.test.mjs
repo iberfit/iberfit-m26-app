@@ -371,6 +371,9 @@ test('Moment guidance prioritizes actionable facts and avoids duplicate route ex
   assert.match(guide,/\.\.\.\(Array\.isArray\(tip\.seenAlso\)\?tip\.seenAlso:\[\]\)/u);
   assert.match(guide,/tip\.excludeSelectors/u);
   assert.match(guide,/client-feature-challenges-community/u);
+  assert.match(guide,/client-context-messages[\s\S]*?selectors:Object\.freeze\(\['\[data-communication-role="client"\]'\]\)/u);
+  const vmSource=read('src/m26/modules/route-view-model.js');
+  assert.match(vmSource,/communicationAvailable:[\s\S]*?state\?\.communication\?\.available===true/u);
   const shell=renderRouteView({kind:'hoy',role:'client',clients:[],appointments:[],upcoming:[],rc39:{sessionProjections:[]},operations:{}});
   assert.match(shell,/m26-client-bottom-nav-more/u);
   assert.match(shell,/Retos y comunidad/u);
