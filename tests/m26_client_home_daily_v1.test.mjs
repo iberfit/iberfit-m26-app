@@ -100,6 +100,21 @@ test('Client Home exposes only useful daily context and progressively discloses 
   assert.doesNotMatch(html,/m26-client-home-agenda/u);
 });
 
+test('Client Home hides unavailable communication from secondary daily shortcuts',()=>{
+  const html=renderHoyRoute(vm({
+    clientGuide:{communicationAvailable:false},
+  }));
+  assert.match(html,/Bienestar, informes y retos/u);
+  assert.doesNotMatch(html,/data-m26-area="mensajes"/u);
+  assert.doesNotMatch(html,/>Mensajes<\/button>/u);
+
+  const available=renderHoyRoute(vm({
+    clientGuide:{communicationAvailable:true},
+  }));
+  assert.match(available,/Bienestar, mensajes, informes y retos/u);
+  assert.match(available,/data-m26-area="mensajes">Mensajes<\/button>/u);
+});
+
 test('Client Home never repeats the same next action below the primary action',()=>{
   const same=renderHoyRoute(vm());
   assert.doesNotMatch(same,/m26-client-home-context-action/u);
@@ -191,6 +206,8 @@ test('stable Client Home copy is translated',()=>{
     'Diagnóstico IRI',
     'Completa tu punto de partida',
     'Más para ti',
+    'Bienestar, informes',
+    'Bienestar, informes y retos',
     'Próximas sesiones',
     'Registrar cómo estoy',
   ])assert.ok(i18n.includes(phrase),phrase);
