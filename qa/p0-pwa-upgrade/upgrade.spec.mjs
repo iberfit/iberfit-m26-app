@@ -25,6 +25,18 @@ async function activeWorkerUrl(page){
     return registration.active?.scriptURL||null;
   });
 }
+async function warmActiveRelease(page){
+  await page.evaluate(async()=>{
+    const registration=await navigator.serviceWorker.ready;
+    registration.active?.postMessage({type:'WARM_RELEASE'});
+  });
+}
+async function cachedText(page,cacheName,path){
+  return page.evaluate(async({cacheName,path})=>{
+    const cache=await caches.open(cacheName);
+    return (await cache.match(path))?.text()||'';
+  },{cacheName,path});
+}
 
 test.beforeEach(async({context,request})=>{
   await setRelease(request,'n1');
@@ -64,6 +76,12 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
   await waitForController(page);
   expect(await activeWorkerUrl(page)).toContain('/m26/iberfit-sw.js');
 
+  // Model an actually installed/ready N-1 PWA: its full release is warmed before N exists.
+  await warmActiveRelease(page);
+  await expect.poll(()=>cachedText(page,PREVIOUS_CACHE,SHELL_PATH),{
+    timeout:15_000,
+    intervals:[100,250,500,1000],
+  }).toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
   const initialShell=await page.evaluate(async(shellPath)=>(await fetch(shellPath)).text(),SHELL_PATH);
   expect(initialShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
   expect(initialShell).not.toContain("__IBERFIT_P0_SHELL_RELEASE__='n';");
@@ -115,8 +133,6 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
     const previousShell=await (await previous.match(shellPath))?.text();
     const controlledApp=await (await fetch('/m26/app.js',{cache:'no-store'})).text();
     const controlledShell=await (await fetch(shellPath)).text();
-    const currentShell=await (await current.match(shellPath))?.text();
-    const currentRequests=(await current.keys()).map((request)=>new URL(request.url).pathname);
     return {
       navigationCount:Number(sessionStorage.getItem('p0:pwa-navigation-count')||0),
       keys,
@@ -125,11 +141,9 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
       draft:localStorage.getItem(draftKey),
       currentApp:currentApp||'',
       previousApp:previousApp||'',
-      currentShell:currentShell||'',
       previousShell:previousShell||'',
       controlledApp,
       controlledShell,
-      currentRequests,
       controller:navigator.serviceWorker.controller?.scriptURL||null,
     };
   },{
@@ -151,33 +165,35 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
   expect(afterUpgrade.controlledApp).toContain("__IBERFIT_P0_BROWSER_RELEASE__='n'");
   expect(afterUpgrade.controlledShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n'");
   expect(afterUpgrade.controlledShell).not.toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
-  expect(afterUpgrade.currentRequests).toContain(SHELL_PATH);
-  expect(afterUpgrade.currentShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n'");
-  expect(afterUpgrade.currentShell).not.toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
   expect(afterUpgrade.previousShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
   expect(afterUpgrade.session?.user?.id).toBe('p0-browser-user');
   expect(afterUpgrade.rawSession).toContain('p0-browser-token');
   expect(afterUpgrade.draft).toContain('"revision":7');
   expect(afterUpgrade.controller).toContain('/m26/iberfit-sw.js');
 
-  // This fixture keeps runtime disabled to avoid any backend/auth dependency.
-  // Exercise the exact production WARM_RELEASE message contract against the real N worker;
-  // the structural P0 test separately locks that the app emits this only after full readiness.
-  await page.evaluate(async()=>{
-    const registration=await navigator.serviceWorker.ready;
-    registration.active?.postMessage({type:'WARM_RELEASE'});
-  });
+  // Once N is ready, WARM_RELEASE must pin the complete N graph. Optional assets may fail
+  // without preventing the release-pinned shell from becoming available offline.
+  await warmActiveRelease(page);
   await expect.poll(async()=>Number((await state(request)).optionalFailures),{
     timeout:15_000,
     intervals:[100,250,500,1000],
   }).toBeGreaterThan(0);
+  await expect.poll(()=>cachedText(page,CURRENT_CACHE,SHELL_PATH),{
+    timeout:15_000,
+    intervals:[100,250,500,1000],
+  }).toContain("__IBERFIT_P0_SHELL_RELEASE__='n'");
 
-  const warmEvidence=await page.evaluate(async({currentCache})=>{
+  const warmEvidence=await page.evaluate(async({currentCache,shellPath})=>{
     const cache=await caches.open(currentCache);
-    return (await cache.keys()).map((request)=>new URL(request.url).pathname);
-  },{currentCache:CURRENT_CACHE});
-  expect(warmEvidence.length).toBeGreaterThan(9);
-  expect(warmEvidence).not.toContain('/m26/iri-report.html');
+    const requests=(await cache.keys()).map((request)=>new URL(request.url).pathname);
+    const shell=await (await cache.match(shellPath))?.text();
+    return {requests,shell:shell||''};
+  },{currentCache:CURRENT_CACHE,shellPath:SHELL_PATH});
+  expect(warmEvidence.requests.length).toBeGreaterThan(9);
+  expect(warmEvidence.requests).toContain(SHELL_PATH);
+  expect(warmEvidence.requests).not.toContain('/m26/iri-report.html');
+  expect(warmEvidence.shell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n'");
+  expect(warmEvidence.shell).not.toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
 
   const serverEvidence=await state(request);
   expect(serverEvidence.release).toBe('n');
