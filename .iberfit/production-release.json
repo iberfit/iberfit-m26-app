@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "551c3deab5f2956f17fbf6ef516871d6645f7100",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado tras PR #456 y PR #457. Incluye Cliente Hoy y bienvenida content-aware: oculta Mensajes cuando la comunicación no está disponible, ajusta Más para ti y guía contextual a superficies reales. Mantiene la simplificación premium de Hoy de PR #455 y la suite Live Workout existente. El bloqueo PWA post-merge quedó resuelto endureciendo únicamente la instrumentación de navegación frente a documentos transitorios sin sessionStorage, sin rebajar ninguna aserción del upgrade N-1 a N; post-merge del SHA 551c3dea: Final Production Bundle GREEN, Final Production Frontend GREEN, Continuous App Audit GREEN, M26 CI GREEN, Device Experience Gate GREEN y Remote Read-only Gates GREEN. Sin cambios de Supabase, RLS, auth, datos ni permisos."
+}
