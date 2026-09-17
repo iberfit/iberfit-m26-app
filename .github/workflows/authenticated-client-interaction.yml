@@ -42,7 +42,7 @@ jobs:
   authenticated-client-controls:
     runs-on: ubuntu-latest
     concurrency:
-      group: iberfit-qa-shared-auth-readonly
+      group: iberfit-authenticated-client-interaction-readonly
       cancel-in-progress: false
     environment: m26-canary-readonly
     timeout-minutes: 18
