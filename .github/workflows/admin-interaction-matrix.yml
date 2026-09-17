@@ -5,6 +5,8 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/admin/**'
+      - 'src/m26/app/**'
+      - 'src/m26/modules/route-render.js'
       - 'src/m26/shell/**'
       - 'src/m26/design/**'
       - 'qa/admin-interaction/**'
@@ -20,6 +22,8 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/admin/**'
+      - 'src/m26/app/**'
+      - 'src/m26/modules/route-render.js'
       - 'src/m26/shell/**'
       - 'src/m26/design/**'
       - 'qa/admin-interaction/**'
@@ -66,7 +70,7 @@ jobs:
         run: npx playwright install chromium webkit firefox
       - name: Verify Playwright browser cache
         run: node --input-type=module -e "import fs from 'node:fs'; import { chromium, firefox, webkit } from '@playwright/test'; for (const [name,browser] of Object.entries({chromium, firefox, webkit})) if (!fs.existsSync(browser.executablePath())) throw new Error('PLAYWRIGHT_'+name.toUpperCase()+'_NOT_READY');"
-      - name: Exercise real Admin inputs selects focus and rerender
+      - name: Exercise Client Coach Admin inputs selects focus and rerender
         run: npx playwright test --config playwright.admin-interaction.config.mjs
       - name: Preserve failures only
         if: failure()

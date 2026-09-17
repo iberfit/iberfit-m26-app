@@ -2,7 +2,7 @@ import {defineConfig} from '@playwright/test';
 
 export default defineConfig({
   testDir:'./qa/admin-interaction',
-  testMatch:['admin-interaction.spec.mjs','client-form-continuity.spec.mjs','coach-form-continuity.spec.mjs'],
+  testMatch:['admin-interaction.spec.mjs','client-form-continuity.spec.mjs','coach-form-continuity.spec.mjs','real-client-onboarding.spec.mjs'],
   fullyParallel:false,
   forbidOnly:true,
   retries:0,
