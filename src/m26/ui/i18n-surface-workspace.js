@@ -112,6 +112,8 @@ export const WORKSPACE_SURFACE_ROWS=Object.freeze([
 ['Más para ti','More for you','Plus pour vous','Mais para si'],
 ['Bienestar, mensajes, informes','Wellbeing, messages, reports','Bien-être, messages, rapports','Bem-estar, mensagens, relatórios'],
 ['Bienestar, mensajes, informes y retos','Wellbeing, messages, reports and challenges','Bien-être, messages, rapports et défis','Bem-estar, mensagens, relatórios e desafios'],
+['Bienestar, informes','Wellbeing, reports','Bien-être, rapports','Bem-estar, relatórios'],
+['Bienestar, informes y retos','Wellbeing, reports and challenges','Bien-être, rapports et défis','Bem-estar, relatórios e desafios'],
 ['Después','Next','Ensuite','A seguir'],
 ['Próximas sesiones','Upcoming sessions','Prochaines séances','Próximas sessões'],
 ['Bienestar','Wellbeing','Bien-être','Bem-estar'],
