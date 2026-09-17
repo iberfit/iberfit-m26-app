@@ -11,11 +11,14 @@ const SOURCE_BRANCH='canary/rc74-4';
 const PROD_REF='pjhmrhejsoofmouedavw';
 const PROD_URL=`https://${PROD_REF}.supabase.co`;
 const QA_REF='gjztkdwfmunnzhtvxrsu';
+const WORKER_VERSION=`m26-prod-${SOURCE_SHA.slice(0,12)}`;
+const PREVIOUS_WORKER_VERSION='m26-prod-000000000000';
 
 function fixtures(overrides={}){
   const version={
     sourceSha:SOURCE_SHA,
     sourceBranch:SOURCE_BRANCH,
+    serviceWorkerVersion:WORKER_VERSION,
     environment:'PRODUCTION',
     projectRef:PROD_REF,
     qaOnly:false,
@@ -28,12 +31,23 @@ function fixtures(overrides={}){
     url:PROD_URL,
     publishableKey:'sb_publishable_contract_test_123456789',
     qaOnly:false,
+    sourceSha:SOURCE_SHA,
     ...(overrides.runtime||{})
   };
+  const swSource=[
+    `const VERSION='${WORKER_VERSION}';`,
+    `const PREVIOUS_VERSION='${PREVIOUS_WORKER_VERSION}';`,
+  ].join('\n');
+  const wrapperSource=[
+    `const IBERFIT_SERVICE_WORKER_RELEASE='${WORKER_VERSION}';`,
+    "importScripts('/m26/sw.js');",
+  ].join('\n');
   return {
     versionSource:JSON.stringify(version),
     runtimeSource:`window.__IBERFIT_M26_RUNTIME__ = Object.freeze(${JSON.stringify(runtime)});`,
     indexSource:'<img src="/public/isotipo-iberfit.png"><link href="/src/m26/design/auth-native.css">',
+    swSource:overrides.swSource||swSource,
+    wrapperSource:overrides.wrapperSource||wrapperSource,
     sourceSha:SOURCE_SHA,
     sourceBranch:SOURCE_BRANCH,
     prodProjectRef:PROD_REF,
@@ -47,12 +61,17 @@ test('production surface contract validates exact provenance, PROD runtime and v
   assert.equal(result.ok,true);
   assert.equal(result.contract,PRODUCTION_SURFACE_CONTRACT);
   assert.equal(result.sourceSha,SOURCE_SHA);
+  assert.equal(result.serviceWorkerVersion,WORKER_VERSION);
 });
 
-test('production surface contract remains fail-closed for stale SHA, QA and privileged credentials',()=>{
+test('production surface contract remains fail-closed for stale SHA, QA, privileged credentials and stale worker identity',()=>{
   assert.throws(()=>validateProductionSurface(fixtures({version:{sourceSha:'0'.repeat(40)}})),/PROD_SURFACE_VERSION_SHA_MISMATCH/u);
   assert.throws(()=>validateProductionSurface(fixtures({runtime:{projectRef:QA_REF}})),/PROD_SURFACE_RUNTIME_QA_LEAK/u);
   assert.throws(()=>validateProductionSurface(fixtures({runtime:{publishableKey:['service','role'].join('_')}})),/PROD_SURFACE_RUNTIME_PRIVILEGED_KEY_FORBIDDEN/u);
+  assert.throws(
+    ()=>validateProductionSurface(fixtures({wrapperSource:"const IBERFIT_SERVICE_WORKER_RELEASE='m26-prod-ffffffffffff';\nimportScripts('/m26/sw.js');"})),
+    /PROD_SURFACE_SERVICE_WORKER_WRAPPER_VERSION_MISMATCH/u
+  );
 });
 
 test('production surface accepts the no-store release guard appended after the canonical runtime object',()=>{
@@ -61,7 +80,7 @@ test('production surface accepts the no-store release guard appended after the c
     ...valid,
     runtimeSource:`${valid.runtimeSource}
 ;(function iberfitReleaseGuard(runtime){
-  const state={phase:'repair',nested:{safe:true}};
+  const state={phase:'refresh',nested:{safe:true}};
   if(runtime?.sourceSha&&state.nested.safe)globalThis.__IBERFIT_RELEASE_GUARD_TEST__=state;
 })(window.__IBERFIT_M26_RUNTIME__);
 `
@@ -97,6 +116,8 @@ test('production preflight retries transient propagation and validates one coher
     }
     if(path==='/m26/runtime-config.js')return new Response(valid.runtimeSource,{status:200});
     if(path==='/m26/index.html')return new Response(valid.indexSource,{status:200});
+    if(path==='/m26/sw.js')return new Response(valid.swSource,{status:200});
+    if(path==='/m26/iberfit-sw.js')return new Response(valid.wrapperSource,{status:200});
     return new Response('',{status:404});
   };
   const retries=[];
