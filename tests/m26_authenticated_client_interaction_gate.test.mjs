@@ -39,8 +39,8 @@ test('authenticated interaction covers desktop tablet landscape and mobile touch
   assert.ok(spec.includes('m26-client-bottom-nav-more'),'mobile More coverage missing');
 });
 
-test('authenticated interaction runs on the code families that can steal focus or rerender the shell',()=>{
-  for(const path of ['src/m26/app/**','src/m26/modules/route-render.js','src/m26/shell/**','src/m26/ui/**']){
+test('authenticated interaction runs on code and design families that can steal focus block hits or rerender the shell',()=>{
+  for(const path of ['src/m26/app/**','src/m26/design/**','src/m26/modules/route-render.js','src/m26/shell/**','src/m26/ui/**']){
     assert.equal(workflow.split(path).length-1,2,`${path} must trigger on pull_request and push`);
   }
 });
