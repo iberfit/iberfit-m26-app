@@ -1,0 +1,94 @@
+name: IBERFIT Authenticated Client Interaction
+
+on:
+  pull_request:
+    branches: [canary/rc74-4]
+    paths:
+      - 'src/m26/app/**'
+      - 'src/m26/engagement/**'
+      - 'src/m26/modules/route-render.js'
+      - 'src/m26/shell/**'
+      - 'src/m26/ui/**'
+      - 'qa/rc64/authenticated-interaction.spec.mjs'
+      - 'qa/rc64/build-authenticated-surface.mjs'
+      - 'qa/rc64/real-shell-server.mjs'
+      - 'playwright.authenticated-interaction.config.mjs'
+      - '.github/workflows/authenticated-client-interaction.yml'
+  push:
+    branches: [canary/rc74-4]
+    paths:
+      - 'src/m26/app/**'
+      - 'src/m26/engagement/**'
+      - 'src/m26/modules/route-render.js'
+      - 'src/m26/shell/**'
+      - 'src/m26/ui/**'
+      - 'qa/rc64/authenticated-interaction.spec.mjs'
+      - 'qa/rc64/build-authenticated-surface.mjs'
+      - 'qa/rc64/real-shell-server.mjs'
+      - 'playwright.authenticated-interaction.config.mjs'
+      - '.github/workflows/authenticated-client-interaction.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-authenticated-client-interaction-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authenticated-client-controls:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      cancel-in-progress: false
+    environment: m26-canary-readonly
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Restore Playwright Chromium cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-chromium
+      - name: Install Chromium system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install Chromium browser on cache miss
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Verify Chromium browser cache
+        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium } from '@playwright/test'; if (!fs.existsSync(chromium.executablePath())) throw new Error('PLAYWRIGHT_CHROMIUM_NOT_READY');"
+      - name: Build authenticated current-source QA surface
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+        run: node qa/rc64/build-authenticated-surface.mjs
+      - name: Certify authenticated Client focus touch keyboard and native controls
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: npx playwright test --config playwright.authenticated-interaction.config.mjs
+      - name: Upload authenticated interaction evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-authenticated-client-interaction-${{ github.run_id }}
+          path: |
+            recovery/p0-authenticated-interaction/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 30
