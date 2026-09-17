@@ -38,6 +38,14 @@
 }
 
 /* IBERFIT · Settings / Account surface · sidebar account zone */
+.m26-shell>.m26-sidebar{
+  position:relative;
+  z-index:2;
+}
+.m26-shell>.m26-workspace{
+  position:relative;
+  z-index:1;
+}
 .m26-sidebar-footer .m26-settings-menu{width:100%}
 .m26-sidebar-footer .m26-settings-menu>summary{
   width:100%;
