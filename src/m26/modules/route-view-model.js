@@ -484,6 +484,9 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
         ?Object.freeze({
             adherenceReview:alerts.some((item)=>item?.id==='adherence-low'),
             progressReady:progressSummaryHasEvolutionEvidence(clientProgressSummary),
+            communicationAvailable:
+              state?.communication?.available===true||
+              state?.environment?.communication?.available===true,
           })
         :null;
 

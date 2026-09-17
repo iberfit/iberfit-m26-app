@@ -166,10 +166,7 @@ const TIPS=Object.freeze([
     kind:'orientation',
     priority:40,
     area:'mensajes',
-    selectors:Object.freeze([
-      '[data-client-bottom-nav-route="mensajes"] .m26-route-intro',
-      '[data-client-bottom-nav-route="mensajes"]',
-    ]),
+    selectors:Object.freeze(['[data-communication-role="client"]']),
   }),
   Object.freeze({
     id:'client-context-challenges',
