@@ -112,10 +112,10 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
     const previous=await caches.open(previousCache);
     const currentApp=await (await current.match('/m26/app.js'))?.text();
     const previousApp=await (await previous.match('/m26/app.js'))?.text();
-    const currentShell=await (await current.match(shellPath))?.text();
     const previousShell=await (await previous.match(shellPath))?.text();
     const controlledApp=await (await fetch('/m26/app.js',{cache:'no-store'})).text();
     const controlledShell=await (await fetch(shellPath)).text();
+    const currentShell=await (await current.match(shellPath))?.text();
     const currentRequests=(await current.keys()).map((request)=>new URL(request.url).pathname);
     return {
       navigationCount:Number(sessionStorage.getItem('p0:pwa-navigation-count')||0),
@@ -149,12 +149,12 @@ test('installed PWA upgrades N-1 to N without freezing, cross-release JS, reload
   expect(afterUpgrade.currentApp).not.toContain("__IBERFIT_P0_BROWSER_RELEASE__='n1'");
   expect(afterUpgrade.previousApp).toContain("__IBERFIT_P0_BROWSER_RELEASE__='n1'");
   expect(afterUpgrade.controlledApp).toContain("__IBERFIT_P0_BROWSER_RELEASE__='n'");
+  expect(afterUpgrade.controlledShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n'");
+  expect(afterUpgrade.controlledShell).not.toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
   expect(afterUpgrade.currentRequests).toContain(SHELL_PATH);
   expect(afterUpgrade.currentShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n'");
   expect(afterUpgrade.currentShell).not.toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
   expect(afterUpgrade.previousShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
-  expect(afterUpgrade.controlledShell).toContain("__IBERFIT_P0_SHELL_RELEASE__='n'");
-  expect(afterUpgrade.controlledShell).not.toContain("__IBERFIT_P0_SHELL_RELEASE__='n1'");
   expect(afterUpgrade.session?.user?.id).toBe('p0-browser-user');
   expect(afterUpgrade.rawSession).toContain('p0-browser-token');
   expect(afterUpgrade.draft).toContain('"revision":7');
