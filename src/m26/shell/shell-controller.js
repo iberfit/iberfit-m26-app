@@ -690,6 +690,12 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     if (areaButton) {
       const mobileMore=areaButton.closest?.('details.m26-mobile-more');
       if(mobileMore)setMobileMoreOpen(mobileMore,false);
+      const clientBottomMore=areaButton.closest?.('details.m26-client-bottom-nav-more');
+      if(clientBottomMore){
+        clientBottomMore.open=false;
+        clientBottomMore.removeAttribute?.('open');
+        clientBottomMore.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded','false');
+      }
       const nextArea = areaButton.getAttribute('data-m26-area');
       const current=store.getState();
       const decision = resolveM26Route(current, nextArea);

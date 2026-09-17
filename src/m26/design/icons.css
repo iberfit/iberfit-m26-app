@@ -118,11 +118,13 @@
 }
 .m26-sidebar-footer .m26-settings-menu>summary .m26-language-mini{display:none}
 .m26-shell>.m26-sidebar .m26-sidebar-footer .m26-settings-popover{
-  position:fixed;
-  left:18rem;
-  right:auto;
-  top:auto;
-  bottom:max(1rem,env(safe-area-inset-bottom));
+  /* Structural geometry is authoritative over later visual-skin styles. */
+  position:fixed!important;
+  left:18rem!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:max(1rem,env(safe-area-inset-bottom))!important;
+  box-sizing:border-box;
   width:min(24rem,calc(100vw - 19rem));
   max-height:min(76dvh,40rem);
   overflow-y:auto;
@@ -144,7 +146,7 @@
 .m26-sidebar-footer .m26-settings-popover>.m26-primary-action{width:100%;justify-content:center}
 @media(max-width:1180px){
   .m26-shell>.m26-sidebar .m26-sidebar-footer .m26-settings-popover{
-    left:16.9rem;
+    left:16.9rem!important;
     width:min(23rem,calc(100vw - 17.9rem));
   }
 }
