@@ -68,7 +68,14 @@ test('canonical client onboarding survives release, rerender races and keeps eve
   await page.keyboard.type('Cliente foco real QA');
   await expect(name).toHaveValue('Cliente foco real QA');
 
+  // Release the controller's delayed stale local draft only after the user has edited.
+  // The workflow controller must keep the user's live edit authoritative.
+  await page.evaluate(()=>globalThis.__IBERFIT_REAL_CLIENT_ONBOARDING_QA__?.releaseDraftLoad?.());
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_REAL_CLIENT_ONBOARDING_QA__?.draftLoadResolved?.()===true)).toBe(true);
+  await expect(name).toHaveValue('Cliente foco real QA');
+
   const email=form.locator('input[name="email"]');
+  await expect(email).toHaveValue('');
   await queueRenderOnNextRelease(page);
   await activate(page,email,touch);
   await page.waitForTimeout(180);
@@ -129,6 +136,7 @@ test('canonical client onboarding survives release, rerender races and keeps eve
   await iriFilter.selectOption('pending');
   await expect(iriFilter).toHaveValue('pending');
 
+  await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_REAL_CLIENT_ONBOARDING_QA__?.draftSaveCount?.()||0)).toBeGreaterThan(0);
   await expect(form).toHaveAttribute('data-qa-canonical-identity','client-onboarding');
   await expect(name).toHaveValue('Cliente foco real QA');
   await expect(email).toHaveValue('foco.real.qa@example.com');
