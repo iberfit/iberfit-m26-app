@@ -3,7 +3,7 @@ import { createM26Id } from '../platform/id.js';
 function clone(v){return structuredClone(v);}
 function now(){return new Date().toISOString();}
 function uid(){return createM26Id();}
-function remoteSnapshot(execution){const out=clone(execution);delete out.syncStatus;delete out.pendingOperationIds;delete out.lastSyncError;delete out.recoveredAt;delete out.liveTelemetry;delete out.activeSetDraft;delete out.finalFeedbackDraft;return out;}
+function remoteSnapshot(execution){const out=clone(execution);delete out.syncStatus;delete out.pendingOperationIds;delete out.lastSyncError;delete out.recoveredAt;delete out.liveTelemetry;delete out.activeSetDraft;delete out.finalFeedbackDraft;delete out.reviewingHistory;return out;}
 function findExercise(session, exerciseId){
   for(const block of session.blocks||[]){
     if(block.type==='exercise'&&block.exerciseId===exerciseId)return block;
@@ -52,6 +52,14 @@ function nextUnresolvedPosition(execution){
   const after=currentOffset>=0?positions.slice(currentOffset+1):positions;
   const before=currentOffset>0?positions.slice(0,currentOffset):[];
   return [...after,...before].find((position)=>!positionResolved(execution,position))||null;
+}
+function nextPlannedPosition(execution){
+  const positions=plannedExecutionPositions(execution);
+  if(!positions.length)return null;
+  const current={index:execution?.index,setIndex:execution?.setIndex};
+  const currentOffset=positions.findIndex((position)=>samePosition(position,current));
+  if(currentOffset<0)return null;
+  return positions[currentOffset+1]||null;
 }
 function previousPlannedPosition(execution){
   const positions=plannedExecutionPositions(execution);
@@ -294,17 +302,30 @@ function activeSetDraftMatchesPosition(execution,draft,index,setIndex){
   if(!draft||!item)return false;
   return draft.executionId===execution.id&&draft.blockId===(item.blockId||null)&&draft.exerciseId===item.exerciseId&&Number(draft.setNumber)===Number(setIndex)+1;
 }
-function moveForward(execution,actor=null){
+function moveForward(execution,actor=null,{reviewHistory=false}={}){
   const item=execution.queue[execution.index];if(!item)throw new Error('M26_EXECUTION_STEP_MISSING');
   const pendingDraft=execution.activeSetDraft;
   const draftBelongsToSource=activeSetDraftMatchesPosition(execution,pendingDraft,execution.index,execution.setIndex);
   execution.restUntil=null;
-  const next=nextUnresolvedPosition(execution);
+  let next=null;
+  if(reviewHistory&&execution.reviewingHistory){
+    const plannedNext=nextPlannedPosition(execution);
+    if(plannedNext){
+      next=plannedNext;
+      if(!positionResolved(execution,plannedNext))delete execution.reviewingHistory;
+    }else{
+      delete execution.reviewingHistory;
+      next=nextUnresolvedPosition(execution);
+    }
+  }else{
+    delete execution.reviewingHistory;
+    next=nextUnresolvedPosition(execution);
+  }
   if(next){execution.index=next.index;execution.setIndex=next.setIndex;}
   else{execution.index=execution.queue.length;execution.setIndex=0;}
   if(draftBelongsToSource)clearActiveSetDraft(execution);
   event(execution,'STEP_ADVANCED',{index:execution.index,setIndex:execution.setIndex},actor);
-  if(!next){freezeExecutionClock(execution);execution.status='awaiting_feedback';}
+  if(!next){delete execution.reviewingHistory;freezeExecutionClock(execution);execution.status='awaiting_feedback';}
   return execution;
 }
 export function markExecutionSync(execution,status,{operationId=null,errorCode=null}={}){
@@ -330,7 +351,7 @@ export function resumeExecution(execution,{actor=null}={}){
 export function cancelExecution(execution,reason,{actor=null}={}){
   if(!['ready','active','paused'].includes(execution.status))throw new Error('M26_EXECUTION_CANCEL_INVALID');
   const safeReason=requireReason(reason,'M26_EXECUTION_CANCEL_REASON_REQUIRED');
-  clearActiveSetDraft(execution);clearFinalFeedbackDraft(execution);freezeExecutionClock(execution);execution.status='cancelled';execution.cancelledAt=now();execution.cancellationReason=safeReason;execution.restUntil=null;
+  clearActiveSetDraft(execution);clearFinalFeedbackDraft(execution);delete execution.reviewingHistory;freezeExecutionClock(execution);execution.status='cancelled';execution.cancelledAt=now();execution.cancellationReason=safeReason;execution.restUntil=null;
   event(execution,'SESSION_CANCELLED',{reason:safeReason},actor);return execution;
 }
 export function recordSet(execution,session,input={}){
@@ -378,7 +399,7 @@ export function advanceExecution(execution,{actor=null}={}){
   const step={...item,setNumber:execution.setIndex+1,totalSets:item.sets};
   ensureDeviationStores(execution);
   if(!executionResultForStep(execution,step)&&!skippedSetForStep(execution,step))throw new Error('M26_EXECUTION_SET_NOT_RECORDED');
-  return moveForward(execution,actor);
+  return moveForward(execution,actor,{reviewHistory:true});
 }
 export function advanceExpiredRest(execution,session,{actor=null,nowMs=Date.now()}={}){
   requireCoachActor(actor);
@@ -401,6 +422,7 @@ export function retreatExecution(execution,{actor=null}={}){
   const previous=previousPlannedPosition(execution);
   if(!previous)return execution;
   execution.restUntil=null;
+  execution.reviewingHistory=true;
   execution.index=previous.index;execution.setIndex=previous.setIndex;
   if(execution.status==='awaiting_feedback'){execution.status='active';resumeExecutionClock(execution);}
   event(execution,'STEP_REWOUND',{index:execution.index,setIndex:execution.setIndex},actor);return execution;
@@ -455,6 +477,7 @@ export function addExtraSetAndAdvance(execution,session,{actor=null}={}){
   const previousTotalSets=Number(item.sets||0);
   addExecutionSet(execution,{actor});
   execution.restUntil=null;
+  delete execution.reviewingHistory;
   clearActiveSetDraft(execution);
   execution.setIndex=previousTotalSets;
   event(execution,'STEP_ADVANCED',{index:execution.index,setIndex:execution.setIndex},actor);
@@ -527,7 +550,7 @@ export function finishExecution(execution,feedback={}, {actor=null}={}){
   const sessionRpe=Number(feedback.sessionRpe||0);if(sessionRpe<1||sessionRpe>10)throw new Error('M26_EXECUTION_SESSION_RPE_REQUIRED');
   if(!String(feedback.comment||'').trim())throw new Error('M26_EXECUTION_FEEDBACK_REQUIRED');
   const pain=Boolean(feedback.pain),painNotes=String(feedback.painNotes||'').trim().slice(0,1000);if(pain&&!painNotes)throw new Error('M26_EXECUTION_PAIN_NOTES_REQUIRED');
-  clearActiveSetDraft(execution);clearFinalFeedbackDraft(execution);freezeExecutionClock(execution);execution.feedback={sessionRpe,comment:String(feedback.comment).trim().slice(0,2000),pain,painNotes};execution.status='completed';execution.completedAt=now();
+  clearActiveSetDraft(execution);clearFinalFeedbackDraft(execution);delete execution.reviewingHistory;freezeExecutionClock(execution);execution.feedback={sessionRpe,comment:String(feedback.comment).trim().slice(0,2000),pain,painNotes};execution.status='completed';execution.completedAt=now();
   event(execution,'SESSION_COMPLETED',execution.feedback,actor);return execution;
 }
 export function buildExecutionCommand(execution,baseRevision=0){if(execution.status!=='completed')throw new Error('M26_EXECUTION_NOT_COMPLETED');return {operationId:execution.id,type:'EJECUCION_COMPLETAR',entityType:'session_execution',entityId:execution.id,clientId:execution.clientId,baseRevision,payload:{patch:remoteSnapshot(execution)}};}
