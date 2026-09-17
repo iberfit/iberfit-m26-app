@@ -92,7 +92,7 @@ test('skipping one grouped exercise skips its remaining rounds without blocking 
   assert.deepEqual(Object.values(execution.skippedSets).map((entry)=>entry.setNumber),[1,2,3]);
 });
 
-test('previous follows the real grouped order across exercise boundaries',()=>{
+test('previous and forward review follow the real grouped order across exercise boundaries',()=>{
   const session=groupSession({rounds:2});
   const execution=createExecution({session,clientId:session.clientId,executionId:'exec-rewind-group'});
   startExecution(execution,{actor:coach()});
@@ -104,6 +104,10 @@ test('previous follows the real grouped order across exercise boundaries',()=>{
   assert.equal(identity(execution,session),'b:1');
   retreatExecution(execution,{actor:coach()});
   assert.equal(identity(execution,session),'a:1');
+  advanceExecution(execution,{actor:coach()});
+  assert.equal(identity(execution,session),'b:1');
+  advanceExecution(execution,{actor:coach()});
+  assert.equal(identity(execution,session),'a:2');
 });
 
 test('extra set fast path remains direct even inside a group',()=>{
