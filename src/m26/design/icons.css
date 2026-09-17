@@ -46,6 +46,37 @@
   position:relative;
   z-index:1;
 }
+
+@media(min-width:901px){
+  .m26-shell>.m26-sidebar{
+    position:sticky;
+    top:0;
+    height:100dvh;
+    max-height:100dvh;
+    overflow:visible;
+    display:flex;
+    flex-direction:column;
+  }
+  .m26-shell>.m26-sidebar>.m26-brand{
+    flex:0 0 auto;
+  }
+  .m26-shell>.m26-sidebar>.m26-sidebar-navigation{
+    min-height:0;
+    flex:1 1 auto;
+    overflow-y:auto;
+    overflow-x:hidden;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;
+    padding-right:.15rem;
+  }
+  .m26-shell>.m26-sidebar>.m26-sidebar-footer{
+    position:relative;
+    bottom:auto;
+    flex:0 0 auto;
+    margin-top:.5rem;
+  }
+}
+
 .m26-sidebar-footer .m26-settings-menu{width:100%}
 .m26-sidebar-footer .m26-settings-menu>summary{
   width:100%;
@@ -95,6 +126,7 @@
   width:min(24rem,calc(100vw - 19rem));
   max-height:min(76dvh,40rem);
   overflow-y:auto;
+  overflow-x:hidden;
   overscroll-behavior:contain;
   padding:1.15rem;
   border:1px solid rgba(214,182,109,.2);
