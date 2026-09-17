@@ -22,7 +22,8 @@ if(String(process.env.M26_QA_ONLY).toLowerCase()!=='false')throw new Error('FINA
 
 const sourceSha=String(process.env.M26_SOURCE_SHA||'').trim().toLowerCase();
 const sourceBranch=String(process.env.M26_SOURCE_BRANCH||'').trim();
-const releaseLane=String(process.env.M26_RELEASE_LANE||'standard').trim().toLowerCase();
+const inferredLane=LIVE_HOTFIX_BRANCH.test(sourceBranch)?'live-support':'standard';
+const releaseLane=String(process.env.M26_RELEASE_LANE||inferredLane).trim().toLowerCase();
 const promotionHead=String(process.env.M26_PROMOTION_HEAD||'').trim().toLowerCase();
 if(!/^[0-9a-f]{40}$/u.test(sourceSha))throw new Error('FINAL_PROD_RUNTIME_SOURCE_SHA_INVALID');
 if(!['standard','live-support'].includes(releaseLane))throw new Error('FINAL_PROD_RUNTIME_RELEASE_LANE_INVALID');
