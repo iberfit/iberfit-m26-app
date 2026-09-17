@@ -1,0 +1,207 @@
+import {mkdir,writeFile} from 'node:fs/promises';
+import {test,expect} from '@playwright/test';
+
+const LOCAL_ORIGIN='http://127.0.0.1:4197';
+const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
+const SUPABASE_ORIGIN=`https://${PROJECT_REF}.supabase.co`;
+const OUT_DIR='recovery/p0-authenticated-interaction';
+const REQUIRED=[
+  'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
+  'M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD',
+];
+const READ_ONLY_RPCS=new Set([
+  'iberfit_bootstrap_v26',
+  'iberfit_authorized_application_roles_v13',
+  'iberfit_appointment_change_requests_v13',
+  'iberfit_application_context_v14',
+  'iberfit_privileged_assurance_context_v65d',
+  'iberfit_communication_bootstrap_v14',
+  'm26_backend_bootstrap_v43',
+  'm26_wearable_bootstrap_v44',
+  'iberfit_exercise_catalog_public_v1',
+  'iberfit_exercise_media_manifest_v1',
+]);
+
+function safeSlug(value){return String(value||'unknown').toLowerCase().replace(/[^a-z0-9]+/gu,'-').replace(/^-+|-+$/gu,'').slice(0,80)||'unknown';}
+function requestLabel(request){
+  try{
+    const url=new URL(request.url());
+    const origin=url.origin===SUPABASE_ORIGIN?'qa-supabase':url.origin===LOCAL_ORIGIN?'local':'external';
+    return `${request.method().toUpperCase()} ${origin} ${url.pathname.slice(0,160)}`;
+  }catch{return 'INVALID_REQUEST';}
+}
+function allowedExternalRequest(request){
+  const url=new URL(request.url());
+  const method=request.method().toUpperCase();
+  if(url.origin!==SUPABASE_ORIGIN)return false;
+  if(method==='POST'&&url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')return true;
+  if(method==='GET'&&url.pathname==='/auth/v1/user')return true;
+  if(method==='GET'&&url.pathname==='/rest/v1/domain_command_registry_v26')return true;
+  const prefix='/rest/v1/rpc/';
+  return method==='POST'&&url.pathname.startsWith(prefix)&&READ_ONLY_RPCS.has(url.pathname.slice(prefix.length));
+}
+async function dismissGuidance(page){
+  const welcome=page.locator('[data-m26-client-guided-welcome]');
+  await welcome.waitFor({state:'visible',timeout:2_000}).catch(()=>{});
+  if(await welcome.isVisible().catch(()=>false)){
+    const pause=page.locator('[data-m26-client-guided-welcome-pause]').first();
+    if(await pause.count())await pause.click();
+  }
+  const tour=page.locator('[data-m26-guided-tour]');
+  if(await tour.count()){
+    const close=page.locator('[data-m26-guided-tour-close]').first();
+    if(await close.count())await close.click();
+  }
+}
+async function openArea(page,area){
+  const visible=page.locator(`[data-m26-area="${area}"]:visible`).first();
+  if(await visible.count()&&await visible.isVisible().catch(()=>false)){
+    await visible.click();
+    return;
+  }
+  const more=page.locator('.m26-client-bottom-nav-more > summary').first();
+  await expect(more,`More navigation must expose ${area}`).toBeVisible();
+  await more.click();
+  const target=page.locator(`.m26-client-bottom-nav-menu [data-m26-area="${area}"]`).first();
+  await expect(target).toBeVisible();
+  await target.click();
+}
+async function activate(page,locator,touch){
+  await locator.scrollIntoViewIfNeeded();
+  if(touch){await locator.tap();return;}
+  const box=await locator.boundingBox();
+  expect(box,'control must expose a pointer box').not.toBeNull();
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);
+  await page.mouse.down();
+  await page.mouse.up();
+}
+async function expectTouchTarget(locator,touch){
+  if(!touch)return;
+  const metrics=await locator.evaluate((node)=>({height:node.getBoundingClientRect().height,fontSize:parseFloat(getComputedStyle(node).fontSize)}));
+  expect(metrics.height).toBeGreaterThanOrEqual(44);
+  expect(metrics.fontSize).toBeGreaterThanOrEqual(16);
+}
+
+test('authenticated Client keeps real inputs textarea selects and mobile More usable after pointer release',async({page,context},testInfo)=>{
+  const missing=REQUIRED.filter((name)=>!process.env[name]);
+  expect(missing,'Missing authorized QA environment').toEqual([]);
+  expect(process.env.M26_PROJECT_REF).toBe(PROJECT_REF);
+  expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
+  expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
+  expect(String(process.env.M26_SUPABASE_PUBLISHABLE_KEY)).not.toMatch(/service[_-]?role/iu);
+  expect(String(process.env.M26_QA_CLIENT_A_EMAIL||'').toLowerCase()).toBe('qa.rc74.client-a@iberfit.cl');
+
+  const touch=/mobile|tablet/iu.test(testInfo.project.name);
+  const blocked=[];
+  const unexpectedFailures=[];
+  const consoleErrors=[];
+  const pageErrors=[];
+
+  await context.route('**/*',async(route)=>{
+    const request=route.request();
+    let url;
+    try{url=new URL(request.url());}catch{blocked.push('INVALID_URL');await route.abort('blockedbyclient');return;}
+    if(url.origin===LOCAL_ORIGIN||allowedExternalRequest(request)){await route.continue();return;}
+    blocked.push(requestLabel(request));
+    await route.abort('blockedbyclient');
+  });
+  page.on('requestfailed',(request)=>{const label=requestLabel(request);if(!blocked.includes(label))unexpectedFailures.push(label);});
+  page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
+  page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400)));
+
+  const navigation=await page.goto('/',{waitUntil:'networkidle',timeout:15_000});
+  expect(navigation?.ok()).toBeTruthy();
+  await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_A_EMAIL);
+  await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_A_PASSWORD);
+  await page.getByRole('button',{name:'Entrar',exact:true}).click();
+
+  const shell=page.locator('.m26-shell[data-m26-role="client"]');
+  await expect(shell).toHaveCount(1,{timeout:25_000});
+  await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+  await dismissGuidance(page);
+
+  await openArea(page,'actividad');
+  const checkin=page.locator('[data-engagement-form="checkin"]');
+  await expect(checkin).toBeVisible({timeout:10_000});
+
+  const energy=checkin.locator('input[name="energy"]');
+  await activate(page,energy,touch);
+  await page.waitForTimeout(250);
+  await expect(energy).toBeFocused();
+  await page.keyboard.type('7');
+  await expect(energy).toHaveValue('7');
+  await expectTouchTarget(energy,touch);
+
+  const sleep=checkin.locator('input[name="sleep"]');
+  await activate(page,sleep,touch);
+  await page.waitForTimeout(250);
+  await expect(sleep).toBeFocused();
+  await page.keyboard.type('8');
+  await expect(sleep).toHaveValue('8');
+  await expect(energy).toHaveValue('7');
+  await expectTouchTarget(sleep,touch);
+
+  const notes=checkin.locator('textarea[name="notes"]');
+  await activate(page,notes,touch);
+  await page.waitForTimeout(250);
+  await expect(notes).toBeFocused();
+  await page.keyboard.type('Interacción QA sin enviar datos.');
+  await expect(notes).toHaveValue('Interacción QA sin enviar datos.');
+  await expectTouchTarget(notes,touch);
+
+  await page.waitForTimeout(1_100);
+  await expect(notes,'Background hydration must not steal active text entry').toBeFocused();
+  await expect(energy).toHaveValue('7');
+  await expect(sleep).toHaveValue('8');
+  await expect(notes).toHaveValue('Interacción QA sin enviar datos.');
+
+  await openArea(page,'ajustes');
+  const settings=page.locator('.m26-settings-route');
+  await expect(settings).toBeVisible({timeout:10_000});
+
+  const language=settings.locator('[data-m26-ui-language]');
+  const locale=settings.locator('[data-m26-ui-locale]');
+  for(const [name,select] of [['language',language],['locale',locale]]){
+    await select.evaluate((node,key)=>{
+      globalThis.__IBERFIT_AUTH_INTERACTION_NODES__=globalThis.__IBERFIT_AUTH_INTERACTION_NODES__||Object.create(null);
+      globalThis.__IBERFIT_AUTH_INTERACTION_NODES__[key]=node;
+    },name);
+    const original=await select.inputValue();
+    await activate(page,select,touch);
+    await page.waitForTimeout(180);
+    const same=await select.evaluate((node,key)=>globalThis.__IBERFIT_AUTH_INTERACTION_NODES__?.[key]===node,name);
+    expect(same,`${name} select must not be replaced on pointer release`).toBe(true);
+    if(!touch)await expect(select).toBeFocused();
+    await select.selectOption(original);
+    await expect(select).toHaveValue(original);
+    await expectTouchTarget(select,touch);
+  }
+
+  const notification=settings.locator('[data-m26-preference^="notifications."]').first();
+  await expect(notification).toBeVisible();
+  const wasChecked=await notification.isChecked();
+  if(touch)await notification.tap();else await notification.click();
+  await expect(notification).toBeChecked({checked:!wasChecked});
+  if(touch)await notification.tap();else await notification.click();
+  await expect(notification).toBeChecked({checked:wasChecked});
+
+  await page.waitForTimeout(500);
+  expect(blocked,'Authenticated interaction attempted a mutation or foreign request').toEqual([]);
+  expect(unexpectedFailures).toEqual([]);
+  expect(consoleErrors).toEqual([]);
+  expect(pageErrors).toEqual([]);
+
+  await mkdir(OUT_DIR,{recursive:true});
+  const evidence={
+    schema:'iberfit.p0.authenticated-client-interaction.v1',
+    source:'current-source-qa-surface',
+    projectRef:PROJECT_REF,
+    project:safeSlug(testInfo.project.name),
+    role:'client',
+    authenticated:true,
+    serverMutationsPerformed:false,
+    serviceWorkersBlocked:true,
+    controls:['checkin.energy','checkin.sleep','checkin.notes','settings.language','settings.locale','settings.notification','client.mobile-more'],
+  };
+  await writeFile(`${OUT_DIR}/${safeSlug(testInfo.project.name)}.json`,`${JSON.stringify(evidence,null,2)}\n`,'utf8');
+});
