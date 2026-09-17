@@ -31,6 +31,7 @@ import {createRouteViewModel} from '../modules/route-view-model.js';
 import {renderRouteView} from '../modules/route-render.js';
 import {createWorkflowController} from './workflow-controller.js';
 import {createSessionVault,sessionExpiresSoon} from './session-vault.js';
+import {createSessionForegroundRefreshCoordinator} from './session-foreground-refresh.js';
 import {createHydrationCoordinator} from './hydration-coordinator.js';
 import {clearIberfitExperiencePreferences} from '../ui/preferences.js';
 import {inspectOwnerDeviceData,ownerDeviceClearPrompt,clearOwnerDeviceData} from '../privacy/device-data.js';
@@ -391,7 +392,7 @@ export async function createM26Application({root=document.querySelector('#app'),
   const communicationTransport=runtime.enabled?createCommunicationTransport({runtime}):null;
   const adminTransport=runtime.enabled?createAdminTransport({runtime}):null;
   let activeApplicationRole=null;
-  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
+  let transport=null,session=null,store=createCanonicalStore(),catalog=null,mediaMap=null,shell=null,productivity=null,motion=null,guidance=null,onboarding=null,mediaExperience=null,workflow=null,engagement=null,wearables=null,verification=null,sessionController=null,iriExternalReports=null,rc39=null,communication=null,communicationService=null,admin=null,adminService=null,operationRepository=null,draftRepository=null,sessionTemplateRepository=null,telemetryOutbox=null,telemetryRemoteSync=null,telemetrySyncStop=null,commandBus=null,recoveryStore=null,recoveryCoordinator=null,connectivityStop=null,sessionForegroundRefresh=null,sessionUi=null,authMode='login',recoverySession=null,loginBusy=false,refreshInFlight=null,deviceClearBusy=false,mfaState=null,sessionRetryAvailable=false,accountSecurityBusy=false,emailOtpSession=null;
   let progressiveControllerMountGeneration=0;
   let progressiveControllerMountPromise=null;
   let pendingIriExternalReportIntent=parseIriExternalReportIntent(locationLike);
@@ -1697,6 +1698,20 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     ? createM26Transport(runtime)
     : null;
 
+  sessionForegroundRefresh?.destroy?.();
+  const lifecycleDocument=root.ownerDocument||globalThis.document;
+  const lifecycleScope=lifecycleDocument?.defaultView||globalThis.window||globalThis;
+  sessionForegroundRefresh=createSessionForegroundRefreshCoordinator({
+    scope:lifecycleScope,
+    documentLike:lifecycleDocument,
+    getSession:()=>session,
+    refreshSession:()=>refreshSessionIfNeeded(),
+    isBusy:()=>loginBusy,
+    isPermanentFailure:sessionFailureRequiresFreshLogin,
+    onPermanentFailure:(error,reason)=>discardSessionAfterFailure(error,`foreground-${reason}`),
+    onTransientFailure:(error,reason)=>reportSoftDiagnostic(`auth-foreground-${reason}`,error),
+  });
+
   root.addEventListener('submit', onSubmit);
   root.addEventListener('click', onAuthClick);
 
@@ -1761,6 +1776,8 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
   loginBusy=false;
   const recoveryToken = recoverySession?.accessToken || null;
   recoverySession = null;
+  sessionForegroundRefresh?.destroy?.();
+  sessionForegroundRefresh=null;
   destroyControllers();
   store.reset();
   root.removeEventListener('submit', onSubmit);
