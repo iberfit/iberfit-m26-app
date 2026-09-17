@@ -1,4 +1,5 @@
 import {renderClientsRoute} from '../../src/m26/modules/route-render.js';
+import {createWorkflowController} from '../../src/m26/app/workflow-controller.js';
 import {createShellController} from '../../src/m26/shell/shell-controller.js';
 
 const root=document.querySelector('#qa-root');
@@ -14,7 +15,7 @@ const state={
   conflicts:[],
   rejectedOperations:[],
   metrics:{},
-  collections:{clients:[],appointments:[],sessions:[],clientAccess:[]},
+  collections:{clients:[],appointments:[],sessions:[],clientAccess:[],iriAssessments:[]},
 };
 
 const vm={
@@ -26,6 +27,7 @@ const vm={
 
 const subscribers=new Set();
 let refreshRevision=0;
+let draftSaveCount=0;
 const store={
   getState:()=>state,
   subscribe(listener){subscribers.add(listener);return ()=>subscribers.delete(listener);},
@@ -41,9 +43,35 @@ const shell=createShellController({
 });
 shell.mount();
 
+const catalog=Object.freeze({
+  list:()=>[],
+  get:()=>null,
+  has:()=>false,
+  count:0,
+});
+const draftRepository=Object.freeze({
+  async load(){
+    await new Promise((resolve)=>setTimeout(resolve,60));
+    return null;
+  },
+  async save(){draftSaveCount+=1;return {ok:true};},
+});
+const workflow=createWorkflowController({
+  root,
+  store,
+  catalog,
+  mediaMap:new Map(),
+  draftRepository,
+  commandBus:{execute:async()=>({ok:true})},
+  onRender:()=>shell.render(),
+  refreshState:async()=>state,
+});
+workflow.mount();
+
 globalThis.__IBERFIT_REAL_CLIENT_ONBOARDING_QA__=Object.freeze({
   mounted:true,
   queueShellRefresh,
   forceExternalRender:()=>shell.render(),
   activeArea:()=>state.activeArea,
+  draftSaveCount:()=>draftSaveCount,
 });
