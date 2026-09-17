@@ -36,8 +36,8 @@ test('permanent production workflow generates runtime deterministically instead 
   assert.match(workflow,/PROD_SUPABASE_URL: 'https:\/\/pjhmrhejsoofmouedavw\.supabase\.co'/u);
   assert.doesNotMatch(workflow,/cp \/tmp\/runtime-config\.live\.js/u);
   assert.doesNotMatch(workflow,/PROD_RUNTIME_NOT_ENABLED/u);
-  assert.match(workflow,/grep -Fq '\"enabled\": true' "\$R"/u);
-  assert.match(workflow,/grep -Fq '\"qaOnly\": false' "\$R"/u);
+  assert.ok(workflow.includes("grep -Fq '\"enabled\": true' \"$R\""));
+  assert.ok(workflow.includes("grep -Fq '\"qaOnly\": false' \"$R\""));
 });
 
 test('permanent production workflow uses one retrying fail-closed surface contract after preview deploy',()=>{
