@@ -5,6 +5,7 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/app/**'
+      - 'src/m26/design/**'
       - 'src/m26/engagement/**'
       - 'src/m26/modules/route-render.js'
       - 'src/m26/shell/**'
@@ -18,6 +19,7 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'src/m26/app/**'
+      - 'src/m26/design/**'
       - 'src/m26/engagement/**'
       - 'src/m26/modules/route-render.js'
       - 'src/m26/shell/**'
