@@ -398,6 +398,7 @@ function renderCoachHoyRoute(vm) {
 function renderClientHoyRoute(vm) {
   const client=vm.clients?.[0]||null;
   const name=client?.name||'IBERFIT';
+  const communicationAvailable=vm?.clientGuide?.communicationAvailable!==false;
   const appointments=Array.isArray(vm.appointments)?vm.appointments:[];
   const upcoming=Array.isArray(vm.upcoming)?vm.upcoming:[];
   const projections=Array.isArray(vm.rc39?.sessionProjections)
@@ -600,11 +601,11 @@ function renderClientHoyRoute(vm) {
     <details class="m26-client-home-secondary-disclosure">
       <summary data-m26-client-guide="secondary-actions">
         <span>Más para ti</span>
-        <small>Bienestar, mensajes, informes${challenge?'':' y retos'}</small>
+        <small>Bienestar${communicationAvailable?', mensajes':''}, informes${challenge?'':' y retos'}</small>
       </summary>
       <nav class="m26-client-home-secondary-actions" aria-label="Accesos secundarios">
         <button type="button" data-m26-area="actividad">Bienestar</button>
-        <button type="button" data-m26-area="mensajes">Mensajes</button>
+        ${communicationAvailable?'<button type="button" data-m26-area="mensajes">Mensajes</button>':''}
         <button type="button" data-m26-area="informes">Informes</button>
         ${challenge?'':`<button type="button" data-m26-area="retos" data-m26-client-guide="challenge-discovery">Retos</button>`}
       </nav>
