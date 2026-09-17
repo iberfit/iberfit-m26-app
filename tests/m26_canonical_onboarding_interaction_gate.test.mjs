@@ -31,7 +31,7 @@ test('fixture mounts the production renderer through the production shell contro
 });
 
 test('canonical regression locks release-to-type and native-select continuity on reported controls',()=>{
-  assert.match(spec,/data-workflow-form=\\"client-onboarding\\"/u);
+  assert.ok(spec.includes('data-workflow-form="client-onboarding"'),'canonical onboarding form selector missing');
   for(const field of ['name','email','birthDate','sexForNorms','preferredContactChannel','accessInstructions']){
     assert.ok(spec.includes(field),`missing canonical control ${field}`);
   }
@@ -39,6 +39,6 @@ test('canonical regression locks release-to-type and native-select continuity on
   assert.match(spec,/toBeFocused\(\)/u);
   assert.match(spec,/expectSameNode/u);
   assert.match(spec,/page\.keyboard\.type/u);
-  assert.match(spec,/data-client-search/u);
-  assert.match(spec,/data-client-filter=\\"iri\\"/u);
+  assert.ok(spec.includes('data-client-search'),'client search coverage missing');
+  assert.ok(spec.includes('data-client-filter="iri"'),'IRI filter coverage missing');
 });
