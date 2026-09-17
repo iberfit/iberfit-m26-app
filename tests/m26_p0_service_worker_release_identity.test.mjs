@@ -54,14 +54,12 @@ test('release validation fails closed when runtime advances but canonical worker
   );
 });
 
-test('release validation keeps N-1 lineage and rejects collapsed current/previous cache identity',()=>{
-  const {sw,wrapper}=sourceFixtures();
+test('release stamping rejects collapsed current/previous cache identity',()=>{
+  const {sw}=sourceFixtures();
   const version=productionServiceWorkerVersion(SHA_N);
-  const stampedWrapper=stampCanonicalWorkerWrapper(wrapper,{version});
-  const collapsed=stampServiceWorkerSource(sw,{version,previousVersion:version});
 
   assert.throws(
-    ()=>validateServiceWorkerReleaseIdentity({swSource:collapsed,wrapperSource:stampedWrapper,expectedVersion:version}),
+    ()=>stampServiceWorkerSource(sw,{version,previousVersion:version}),
     /SERVICE_WORKER_LINEAGE_COLLAPSED/,
   );
 });
