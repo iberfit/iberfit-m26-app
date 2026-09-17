@@ -1,15 +1,19 @@
 # IBERFIT · Backlog Vivo
 
-Checkpoint: 2026-09-14
-Producción source SHA: `b2e4a20c7f5b6a7696cdfa96b66e11956f9493a6`
-Promotion run válido: `34805512111 = SUCCESS`
-Canary funcional certificado: `39e160fb54d1e866823a8150ecd9270359129444`
+Checkpoint: 2026-09-17
+Producción source SHA: `1eabb642634ade1fec74b0d3b32d703e7d314eff`
+Promotion run válido: `35259458571 = SUCCESS`
+Release branch: `release/prod-1eabb642634a`
+Canary funcional actual: `223a58a7de23888ea3c90256331f52161e68b208`
 
 ## P0 · guardrails permanentes
 
 - [ ] Mantener P0=0 en auth, WebAuthn, roles, RLS, cross-tenant, integridad y disponibilidad.
 - [ ] Nunca hacer pruebas destructivas con usuarios/datos reales.
 - [ ] Ante P0 LIVE: hotfix mínimo desde identidad LIVE exacta.
+- [x] Service Worker canónico ligado al SHA exacto de release y verificado fail-closed.
+- [x] Regresión PWA instalada N-1 -> N para impedir `shell-controller.js` stale.
+- [x] Eliminar autorrepair temporizado destructivo de unregister/cache-delete/reload.
 
 ## P1 · release / Auth
 
@@ -26,21 +30,25 @@ Canary funcional certificado: `39e160fb54d1e866823a8150ecd9270359129444`
 - [x] Sincronizar y validar las 13 plantillas Hosted Auth.
 - [ ] E2E real completo: OTP y recovery verificados; quedan invite, resend, expiry, replay y mala conexión.
 - [x] Activar reauthentication de cambio de contraseña tras certificar SMTP, OTP, recovery y DMARC.
-- [x] Promover lote `b2e4a20c...` con Auth readiness GREEN y verificación LIVE.
+- [x] Promover hotfix LIVE SUPPORT PWA con identidad exacta y verificación post-deploy.
 
 ## P1 · gobernanza
 
 - [ ] Proteger `canary/rc74-4` con PR + required checks.
-- [ ] Mantener documentación STATE/BACKLOG/RELEASE alineada con SHA real.
+- [x] Actualizar STATE/BACKLOG al LIVE y Canary reales del 17/09.
+- [ ] Mantener STATE/BACKLOG/RELEASE alineados después de cada promoción o cambio de baseline.
+- [ ] Reducir PRs alternativos/superseded abiertos para evitar dos soluciones al mismo problema.
 
 ## P1 · experiencia por dispositivo / rol
 
-- [x] Cliente QA real desktop/tablet/móvil.
+- [x] Cliente QA real desktop/tablet/móvil en los gates autenticados disponibles.
 - [x] Coach fail-closed + Device Gate certificado en el lote actual.
 - [x] Admin sintético y PWA/update matrix certificados.
-- [x] Focus/input/select P0 corregido.
+- [x] Focus/input/select P0 corregido en lógica del shell.
+- [x] Entrega del arreglo de foco protegida frente a runtime PWA stale.
 - [x] Acciones Coach de un paso portadas sobre Canary certificado.
-- [ ] Admin autenticado QA real desktop/tablet/móvil.
+- [ ] Confirmación puntual en un dispositivo previamente afectado por el síntoma «solo funciona mientras mantengo pulsado».
+- [ ] Admin autenticado real desktop/tablet/móvil.
 - [ ] Coach post-WebAuthn representativo en las cuatro clases.
 - [ ] Modal, scroll largo, teclado virtual/focus, error recovery y sesión live por dispositivo.
 - [ ] Recertificar alta/edición/baja controlada de Cliente y Coach sin freezes.
@@ -53,6 +61,7 @@ Canary funcional certificado: `39e160fb54d1e866823a8150ecd9270359129444`
 - [ ] Sesión Coach ultrarrápida: ejercicios, variantes, series, repeticiones, carga, descanso, alternativas, biseries/triseries/circuitos/AMRAP/Tabata y feedback.
 - [ ] **Reactivación asistida** ante caída de adherencia.
 - [ ] **Hoy contextual** con una próxima acción útil para Cliente.
+- [ ] Consolidar evolución por ejercicio/Coach: ventanas coherentes, comparativas y lectura accionable, sin dashboards decorativos.
 
 ## P1 · seguridad / backend
 
@@ -80,11 +89,12 @@ Canary funcional certificado: `39e160fb54d1e866823a8150ecd9270359129444`
 - [ ] Auditoría manual de contraste, focus, teclado, lector y touch targets.
 - [ ] Medir arranque, auth bootstrap y navegación.
 - [ ] Mantener observabilidad sin exposición de datos.
+- [ ] Paralelizar/shardear la matriz Admin cross-browser sin eliminar proyectos ni garantías.
 
 ## Siguientes 5 acciones
 
-1. Protección de Canary.
-2. Admin/Coach authenticated device completion.
-3. Sesión Coach y CRUD diario sin freezes.
-4. Edge cases Auth restantes sin degradar el canal certificado.
-5. Outcome tracking + funnel/capacidad/revenue.
+1. Admin/Coach authenticated device completion + CRUD/sesión Coach real sin freezes.
+2. Confirmación puntual del fix de foco en un dispositivo históricamente afectado.
+3. Edge cases Auth restantes: invite, resend, expiry/replay y mala conexión.
+4. Preparar próxima sesión + seguimiento longitudinal + Action Outcome Tracking.
+5. Acelerar CI cross-browser manteniendo la cobertura íntegra y verificar/configurar protección de Canary.
