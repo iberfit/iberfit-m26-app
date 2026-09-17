@@ -59,10 +59,24 @@ async function openArea(page,area){
     await visible.click();
     return;
   }
-  const more=page.locator('.m26-client-bottom-nav-more > summary').first();
-  await expect(more,`More navigation must expose ${area}`).toBeVisible();
+
+  if(area==='ajustes'){
+    const settingsMenu=page.locator('.m26-settings-menu:visible').first();
+    if(await settingsMenu.count()&&await settingsMenu.isVisible().catch(()=>false)){
+      const summary=settingsMenu.locator(':scope > summary').first();
+      await expect(summary,'Desktop/tablet settings trigger must remain usable').toBeVisible();
+      await summary.click();
+      const settingsTarget=settingsMenu.locator('[data-m26-area="ajustes"]').first();
+      await expect(settingsTarget,'Settings popover must expose full settings').toBeVisible();
+      await settingsTarget.click();
+      return;
+    }
+  }
+
+  const more=page.locator('.m26-client-bottom-nav-more > summary:visible').first();
+  await expect(more,`Responsive navigation must expose ${area}`).toBeVisible();
   await more.click();
-  const target=page.locator(`.m26-client-bottom-nav-menu [data-m26-area="${area}"]`).first();
+  const target=page.locator(`.m26-client-bottom-nav-menu [data-m26-area="${area}"]:visible`).first();
   await expect(target).toBeVisible();
   await target.click();
 }
