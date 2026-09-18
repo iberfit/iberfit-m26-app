@@ -27,7 +27,7 @@ export function resolveActiveRole(authorizedRoles=[],preferred=null){
   return roles[0]||null;
 }
 export function canSwitchApplication(identity={}){
-  return normalizeAuthorizedRoles(identity).filter((role)=>['coach','admin'].includes(role)).length>1;
+  return normalizeAuthorizedRoles(identity).length>1;
 }
 export function requiresRoleChoice(identity={}){
   return canSwitchApplication(identity)&&identity.roleChoiceConfirmed!==true;
