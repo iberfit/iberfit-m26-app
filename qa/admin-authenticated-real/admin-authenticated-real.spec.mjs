@@ -200,9 +200,10 @@ async function certifyAdminSurface(page,cdp,device,evidence){
   const name=clientForm.locator('input[name="name"]');
   const email=clientForm.locator('input[name="email"]');
   await name.fill(`QA Admin ${device.name}`);
-  await email.fill(`qa-admin-${safeSlug(device.name)}@example.invalid`);
   await expect(name).toBeFocused();
   await expect(name).toHaveValue(`QA Admin ${device.name}`);
+  await email.fill(`qa-admin-${safeSlug(device.name)}@example.invalid`);
+  await expect(email).toBeFocused();
   await expect(email).toHaveValue(`qa-admin-${safeSlug(device.name)}@example.invalid`);
   const sex=clientForm.locator('select[name="sexForNorms"]');
   await sex.selectOption('female');
