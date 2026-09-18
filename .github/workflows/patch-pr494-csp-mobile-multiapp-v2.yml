@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = 'fix/p1-multiapp-runtime-application-access-20260918'
-          test "$(git rev-parse HEAD^)" = '2aefddc5a8979d92db0354e4cc633611dd81e737'
+          test "$(git rev-parse HEAD^)" = 'c4ec92e916896e624b96df81a2d87ac40b584fe9'
           python scripts/patch_pr494_csp_mobile_multiapp_v2.py
           python - <<'PY'
           from pathlib import Path
@@ -76,18 +76,14 @@ jobs:
       - name: RC74.4 validation
         run: npm run validate:rc74-4
 
-      - name: Commit validated product change and remove temporary machinery
+      - name: Commit validated product change
         shell: bash
         run: |
           set -euo pipefail
-          rm .github/workflows/patch-pr494-csp-mobile-multiapp-v2.yml
-          rm scripts/patch_pr494_csp_mobile_multiapp_v2.py
           git diff --check
           actual="$(git status --porcelain --untracked-files=all | sed 's/^...//' | sort)"
           expected="$(printf '%s\n' \
-            '.github/workflows/patch-pr494-csp-mobile-multiapp-v2.yml' \
             'public/m26/index.html' \
-            'scripts/patch_pr494_csp_mobile_multiapp_v2.py' \
             'src/m26/shell/shell.css' \
             'tests/m26_mobile_navigation_persistence.test.mjs' \
             'tests/m26_onboarding_app_choice_gate.test.mjs' \
@@ -97,10 +93,8 @@ jobs:
           test "$actual" = "$expected"
           git config user.name iberfit
           git config user.email iberfit.cl@gmail.com
-          git add -A -- \
-            .github/workflows/patch-pr494-csp-mobile-multiapp-v2.yml \
+          git add -- \
             public/m26/index.html \
-            scripts/patch_pr494_csp_mobile_multiapp_v2.py \
             src/m26/shell/shell.css \
             tests/m26_mobile_navigation_persistence.test.mjs \
             tests/m26_onboarding_app_choice_gate.test.mjs \
