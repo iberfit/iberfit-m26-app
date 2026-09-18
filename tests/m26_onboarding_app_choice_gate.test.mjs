@@ -11,7 +11,9 @@ const application=fs.readFileSync('src/m26/app/application.js','utf8');
 const enhancer=fs.readFileSync('src/m26/rc39/shell-enhancer.js','utf8');
 
 test('Genio waits until the authorized app choice is confirmed',()=>{
-  assert.match(application,/const roleChoiceConfirmed=identity\.roleChoiceConfirmed!==false/u);
+  assert.match(application,/const applicationAccess=state\.applicationAccess\|\|\{\};/u);
+  assert.match(application,/const roleChoiceConfirmed=applicationAccess\.roleChoiceConfirmed===true\|\|!canSwitchApplication\(applicationAccess\);/u);
+  assert.doesNotMatch(application,/const roleChoiceConfirmed=identity\.roleChoiceConfirmed!==false/u);
   assert.match(application,/role:roleChoiceConfirmed\?\(activeApplicationRole\|\|identity\.role\|\|''\):''/u);
   assert.match(enhancer,/m26-role-choice/u);
   assert.match(enhancer,/inert aria-hidden="true"/u);

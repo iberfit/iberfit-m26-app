@@ -121,7 +121,9 @@ test('shell usa un único scroll documental y conserva navegación móvil visibl
   assert.match(css,/\.m26-shell \{[\s\S]*height: auto;[\s\S]*overflow: visible;/);
   assert.match(css,/\.m26-sidebar \{[\s\S]*overflow: visible;/);
   assert.match(css,/\.m26-main \{ min-height: 0; overflow: visible;/);
-  assert.match(css,/\.m26-mobile-nav \{ display: grid; position: sticky; bottom: 0;/);
+  assert.match(css,/\.m26-mobile-nav \{ display: grid; position: fixed; left: 0; right: 0; bottom: 0; width: 100%; max-width: 100vw;/);
+  assert.match(css,/\.m26-workspace \{[^}]*padding-bottom: calc\(var\(--iberfit-ux-mobile-nav, 4\.35rem\) \+ env\(safe-area-inset-bottom\)\);/);
+  assert.doesNotMatch(css,/\.m26-mobile-nav \{[^}]*position: relative;/,'late mobile rules must not detach the navigation from the viewport');
   assert.doesNotMatch(css,/\.m26-shell \{[\s\S]{0,140}height: 100dvh;[\s\S]{0,80}overflow: hidden;/);
 });
 

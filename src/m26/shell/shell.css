@@ -109,12 +109,12 @@
 @media (max-width: 900px) {
   .m26-shell { display: block; }
   .m26-sidebar { display: none; }
-  .m26-workspace { min-height: 100dvh; display: flex; flex-direction: column; }
+  .m26-workspace { min-height: 100dvh; display: flex; flex-direction: column; padding-bottom: calc(var(--iberfit-ux-mobile-nav, 4.35rem) + env(safe-area-inset-bottom)); }
   .m26-main { flex: 1 0 auto; }
   .m26-topbar { align-items: flex-start; }
   .m26-topbar-actions { max-width: 55%; }
   .m26-operation-status { display: none; }
-  .m26-mobile-nav { display: grid; position: sticky; bottom: 0; z-index: 60; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; padding: .5rem max(.5rem, env(safe-area-inset-right)) max(.5rem, env(safe-area-inset-bottom)) max(.5rem, env(safe-area-inset-left)); border-top: 1px solid var(--m26-line); background: rgba(7, 21, 15, .96); }
+  .m26-mobile-nav { display: grid; position: fixed; left: 0; right: 0; bottom: 0; width: 100%; max-width: 100vw; box-sizing: border-box; z-index: 60; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; padding: .5rem max(.5rem, env(safe-area-inset-right)) max(.5rem, env(safe-area-inset-bottom)) max(.5rem, env(safe-area-inset-left)); border-top: 1px solid var(--m26-line); background: rgba(7, 21, 15, .96); }
   .m26-mobile-nav .m26-nav-item { min-height: 3.1rem; padding: .45rem .25rem; text-align: center; font-size: .7rem; }
 }
 
@@ -280,7 +280,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .m26-mobile-more-menu { position: absolute; right: 0; bottom: calc(100% + .65rem); width: min(20rem, calc(100vw - 1rem)); max-height: min(70dvh, 34rem); overflow-y: auto; display: grid; gap: .3rem; padding: .65rem; border: 1px solid var(--m26-line); border-radius: 1rem; background: rgba(7,21,15,.99); box-shadow: var(--m26-shadow); z-index: 30; }
 .m26-mobile-more-menu .m26-nav-item { min-height: 3rem; padding: .65rem .8rem; text-align: left; font-size: .78rem; }
 @media (max-width: 900px) {
-  .m26-mobile-nav { position: relative; z-index: 60; isolation: isolate; }
+  /* Viewport position is owned by the canonical mobile rule above. Never reset it after long route content. */
+  .m26-mobile-nav { z-index: 60; isolation: isolate; }
   .m26-mobile-more-menu { z-index: 70; }
 }
 @media (max-width: 900px) {
