@@ -4,7 +4,6 @@ import {
   CANARY_ORIGIN,
   QA_PROJECT_REF,
   SUPABASE_ORIGIN,
-  completeClientWebAuthnChoice,
   installCurrentSourceQaNetworkPolicy,
   qaRequestLabel,
 } from './secure-current-source-auth.mjs';
@@ -16,6 +15,7 @@ const required=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
   'M26_QA_COACH_EMAIL','M26_QA_COACH_PASSWORD',
   'M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD',
+  'M26_QA_CLIENT_B_EMAIL','M26_QA_CLIENT_B_PASSWORD',
 ];
 const READ_ONLY_RPCS=new Set([
   'iberfit_bootstrap_v26',
@@ -59,6 +59,8 @@ async function verifyClientWorkspace(page,{projectName,browserName}){
     page.locator('[data-m26-action="logout"]'),
     'Authenticated Client must retain a semantic logout action even when session controls live inside Settings',
   ).toHaveCount(1,{timeout:5_000});
+  await expect(page.locator('.m26-role-choice[role="dialog"]'),'Client-only identity must not receive app choice').toHaveCount(0);
+  await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]'),'Client-only identity must not receive privileged MFA').toHaveCount(0);
   await dismissGuidance(page);
 
   const visibleNavigationTarget=page.locator(
@@ -141,7 +143,21 @@ async function verifyClientWorkspace(page,{projectName,browserName}){
   expect(quality?.healthDataIncluded).toBe(false);
 }
 
-test('current multiapp WebAuthn contract authenticates QA Coach and Client without business mutations',async({browser,browserName},testInfo)=>{
+async function verifyPrivilegedFailClosed(page,account,assurance){
+  expect(assurance.privileged,`${account.name}: privileged assurance flag`).toBe(true);
+  expect(assurance.mfaRequired,`${account.name}: MFA required`).toBe(true);
+  expect(assurance.webauthnRequired,`${account.name}: WebAuthn required`).toBe(true);
+  expect(assurance.iberfitAssurance,`${account.name}: no verified assurance before device proof`).not.toBe('verified');
+  await expect(
+    page.locator(`.m26-shell[data-m26-role="${account.role}"]`),
+    `${account.name}: privileged shell must remain unavailable before WebAuthn`,
+  ).toHaveCount(0,{timeout:5_000});
+  await expect(page.locator('#m26-auth-title'),`${account.name}: auth gate must remain visible`).toBeVisible({timeout:5_000});
+  await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]'),`${account.name}: WebAuthn action`).toBeVisible({timeout:5_000});
+  await expect(page.locator('.m26-role-choice[role="dialog"]'),`${account.name}: app choice must not precede MFA`).toHaveCount(0);
+}
+
+test('current authenticated contract separates privileged fail-closed identities from Client-only interaction',async({browser,browserName},testInfo)=>{
   const missing=required.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
   expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
@@ -150,8 +166,9 @@ test('current multiapp WebAuthn contract authenticates QA Coach and Client witho
   expect(String(process.env.M26_SUPABASE_PUBLISHABLE_KEY)).not.toMatch(/service[_-]?role/iu);
 
   const accounts=[
-    {name:'coach',role:'coach',expectedEmail:'qa.rc74.coach@iberfit.cl',email:process.env.M26_QA_COACH_EMAIL,password:process.env.M26_QA_COACH_PASSWORD},
-    {name:'client_a',role:'client',expectedEmail:'qa.rc74.client-a@iberfit.cl',email:process.env.M26_QA_CLIENT_A_EMAIL,password:process.env.M26_QA_CLIENT_A_PASSWORD},
+    {name:'coach',role:'coach',kind:'privileged',expectedEmail:'qa.rc74.coach@iberfit.cl',email:process.env.M26_QA_COACH_EMAIL,password:process.env.M26_QA_COACH_PASSWORD},
+    {name:'client_a',role:'client',kind:'privileged',expectedEmail:'qa.rc74.client-a@iberfit.cl',email:process.env.M26_QA_CLIENT_A_EMAIL,password:process.env.M26_QA_CLIENT_A_PASSWORD},
+    {name:'client_b',role:'client',kind:'client-only',expectedEmail:'qa.rc74.client-b@iberfit.cl',email:process.env.M26_QA_CLIENT_B_EMAIL,password:process.env.M26_QA_CLIENT_B_PASSWORD},
   ];
   const evidenceRoles=[];
   const projectUse=testInfo.project.use||{};
@@ -177,11 +194,9 @@ test('current multiapp WebAuthn contract authenticates QA Coach and Client witho
     const optionalReadFailures=[];
     const consoleErrors=[];
     const pageErrors=[];
-    const qaRequests=[];
     await installCurrentSourceQaNetworkPolicy(context,{
       readOnlyRpcs:READ_ONLY_RPCS,
       onBlocked:(label)=>blocked.push(label),
-      onQaRequest:(label)=>qaRequests.push(label),
     });
     const page=await context.newPage();
     if(chromiumEngine){
@@ -201,7 +216,7 @@ test('current multiapp WebAuthn contract authenticates QA Coach and Client witho
     page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,500)));
 
     try{
-      console.log(`RC64_CURRENT_MULTIAPP_ACCOUNT_BEGIN:${account.name}`);
+      console.log(`RC64_CURRENT_AUTH_ACCOUNT_BEGIN:${account.name}`);
       const navigation=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});
       expect(navigation?.ok()).toBeTruthy();
       await page.getByRole('textbox',{name:'Correo',exact:true}).fill(account.email);
@@ -211,20 +226,13 @@ test('current multiapp WebAuthn contract authenticates QA Coach and Client witho
       },{timeout:AUTH_FLOW_TIMEOUT_MS});
       await page.getByRole('button',{name:'Entrar',exact:true}).click();
       const assurance=await readAssurance(await assurancePromise);
-      expect(assurance.mfaRequired).toBe(true);
-      expect(assurance.webauthnRequired).toBe(true);
-      expect(assurance.iberfitAssurance).not.toBe('verified');
 
-      const shell=page.locator(`.m26-shell[data-m26-role="${account.role}"]`);
-      const canCompleteWebAuthn=chromiumEngine&&account.role==='client';
-      if(!canCompleteWebAuthn){
-        await expect(shell,'Privileged shell must remain unavailable before WebAuthn').toHaveCount(0,{timeout:5_000});
-        await expect(page.locator('#m26-auth-title')).toBeVisible({timeout:5_000});
-        await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]')).toBeVisible({timeout:5_000});
+      if(account.kind==='privileged'){
+        await verifyPrivilegedFailClosed(page,account,assurance);
       }else{
-        const auth=await completeClientWebAuthnChoice(page,{role:'client'});
-        expect(auth.authorizedRoles).toEqual(['client','admin']);
-        expect(auth.selectedRole).toBe('client');
+        expect(assurance.privileged,'Client-only fixture must not be privileged').toBe(false);
+        expect(assurance.mfaRequired,'Client-only fixture must not require privileged MFA').toBe(false);
+        expect(assurance.webauthnRequired,'Client-only fixture must not require WebAuthn').toBe(false);
         await verifyClientWorkspace(page,{projectName,browserName});
       }
 
@@ -233,19 +241,19 @@ test('current multiapp WebAuthn contract authenticates QA Coach and Client witho
       expect(optionalReadFailures.length).toBeLessThanOrEqual(1);
       expect(consoleErrors).toEqual([]);
       expect(pageErrors).toEqual([]);
-      if(canCompleteWebAuthn)expect(qaRequests.some((label)=>label.includes('/functions/v1/iberfit-webauthn-v1'))).toBe(true);
 
       evidenceRoles.push({
+        account:account.name,
         role:account.role,
         authenticated:true,
-        privilegedGate:'webauthn-required',
+        privilegedGate:account.kind==='privileged'?'webauthn-required':'not-required',
         browserEngine:browserName,
         cpuThrottleRate,
         cpuThrottled:chromiumEngine,
         touchProfile,
-        mfaCompleted:canCompleteWebAuthn,
-        applicationChoice:canCompleteWebAuthn?'client':null,
-        interactionVerified:canCompleteWebAuthn,
+        mfaCompleted:false,
+        applicationChoice:null,
+        interactionVerified:account.kind==='client-only',
         assurance:{
           privileged:assurance.privileged===true,
           mfaRequired:assurance.mfaRequired===true,
@@ -256,23 +264,24 @@ test('current multiapp WebAuthn contract authenticates QA Coach and Client witho
         externalRequestFailures:0,
         optionalReadFailures:optionalReadFailures.length,
       });
-      console.log(`RC64_CURRENT_MULTIAPP_ACCOUNT_PASS:${account.name}`);
+      console.log(`RC64_CURRENT_AUTH_ACCOUNT_PASS:${account.name}`);
     }finally{
       await context.close().catch(()=>{});
     }
   }
 
   const evidence={
-    schema:'iberfit.rc64.2b.authenticated-current-contract.v4',
+    schema:'iberfit.rc64.2b.authenticated-current-contract.v5',
     source:'current-source-intercepted-at-canary-origin',
     projectRef:QA_PROJECT_REF,
-    mode:'authenticated-browser-multiapp',
+    mode:'authenticated-readonly-browser',
     mutationsPerformed:false,
     businessMutationsPerformed:false,
-    authMutationPerformed:chromiumEngine,
+    authMutationPerformed:false,
     identityPersisted:false,
     healthDataPersisted:false,
     credentialsPersisted:false,
+    privilegedWebAuthnBypassAttempted:false,
     roles:evidenceRoles,
   };
   await mkdir('recovery',{recursive:true});
