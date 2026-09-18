@@ -21,13 +21,16 @@ const APP_URL=String(process.env.M26_AUDIT_APP_URL||'https://app.iberfit.cl').re
 const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
 const PROD_SUPABASE_URL=`https://${PROD_PROJECT_REF}.supabase.co`;
 const ADMIN_CLIENT_INVITE_EDGE_URL=`${PROD_SUPABASE_URL}/functions/v1/iberfit-admin-client-invite-v1`;
+const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
+const QA_SUPABASE_URL=`https://${QA_PROJECT_REF}.supabase.co`;
+const QA_APP_URL='https://m26-canary.iberfit.cl';
+const QA_ADMIN_CLIENT_INVITE_EDGE_URL=`${QA_SUPABASE_URL}/functions/v1/iberfit-admin-client-invite-v1`;
 const AUTHENTICATED_HEALTH_RPCS=Object.freeze([
   'm26_backend_health_v43',
   'm26_backend_health_v431',
   'm26_wearable_health_v44',
 ]);
 const PUBLIC_BRAND_RPC='iberfit_exercise_catalog_public_v1';
-const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const OUTPUT_DIR=path.resolve(process.cwd(),'recovery','continuous-audit');
 const OUTPUT_JSON=path.join(OUTPUT_DIR,'latest.json');
 const OUTPUT_MD=path.join(OUTPUT_DIR,'latest.md');
@@ -501,62 +504,63 @@ async function auditReleaseCoherence(){
   );
 }
 
-async function auditClientOnboardingBackendReadiness(){
+async function auditClientInviteEdge({
+  url,
+  origin,
+  coveragePrefix,
+  codePrefix,
+  label,
+}={}){
   let lastError=null;
   for(let attempt=1;attempt<=2;attempt+=1){
     const controller=new AbortController();
     const timeout=setTimeout(()=>controller.abort(),15000);
     try{
-      const response=await fetch(ADMIN_CLIENT_INVITE_EDGE_URL,{
+      const response=await fetch(url,{
         method:'OPTIONS',
         redirect:'manual',
         cache:'no-store',
         headers:{
-          'origin':APP_URL,
+          'origin':origin,
           'access-control-request-method':'POST',
           'access-control-request-headers':'authorization, apikey, content-type',
-          'user-agent':'IBERFIT-M26-Continuous-Auditor/1.1',
+          'user-agent':'IBERFIT-M26-Continuous-Auditor/1.3',
         },
         signal:controller.signal,
       });
-      coverage.live.adminClientInviteEdgeStatus=response.status;
-      coverage.live.adminClientInviteEdgeAllowOrigin=response.headers.get('access-control-allow-origin')||null;
-      coverage.live.adminClientInviteEdgeAttempts=attempt;
+      coverage.live[`${coveragePrefix}Status`]=response.status;
+      coverage.live[`${coveragePrefix}AllowOrigin`]=response.headers.get('access-control-allow-origin')||null;
+      coverage.live[`${coveragePrefix}Attempts`]=attempt;
       if(response.status!==204){
         addFinding(
           'critical',
-          'LIVE_ADMIN_CLIENT_INVITE_EDGE_UNAVAILABLE',
-          `El onboarding Admin de clientes no respondió al preflight esperado (HTTP ${response.status}).`,
-          {url:ADMIN_CLIENT_INVITE_EDGE_URL,status:response.status},
+          `${codePrefix}_UNAVAILABLE`,
+          `${label} no respondió al preflight esperado (HTTP ${response.status}).`,
+          {url,status:response.status,origin},
         );
-        return;
+        return false;
       }
       const allowOrigin=response.headers.get('access-control-allow-origin');
-      if(allowOrigin!==APP_URL){
+      if(allowOrigin!==origin){
         addFinding(
           'critical',
-          'LIVE_ADMIN_CLIENT_INVITE_CORS_INVALID',
-          'La Edge Function de onboarding Admin no autoriza explícitamente el origen productivo.',
-          {url:ADMIN_CLIENT_INVITE_EDGE_URL,allowOrigin},
+          `${codePrefix}_CORS_INVALID`,
+          `${label} no autoriza explícitamente su origen esperado.`,
+          {url,origin,allowOrigin},
         );
-        return;
+        return false;
       }
       const methods=String(response.headers.get('access-control-allow-methods')||'').toUpperCase();
       if(!methods.split(/\s*,\s*/u).includes('POST')){
         addFinding(
           'critical',
-          'LIVE_ADMIN_CLIENT_INVITE_POST_NOT_ALLOWED',
-          'La Edge Function de onboarding Admin no declara POST en CORS.',
-          {url:ADMIN_CLIENT_INVITE_EDGE_URL,methods},
+          `${codePrefix}_POST_NOT_ALLOWED`,
+          `${label} no declara POST en CORS.`,
+          {url,origin,methods},
         );
-        return;
+        return false;
       }
-      addStrength(
-        'LIVE_ADMIN_CLIENT_ONBOARDING_EDGE_READY',
-        'La Edge Function productiva para crear e invitar clientes está disponible y autoriza app.iberfit.cl.',
-        {status:response.status,attempt},
-      );
-      return;
+      return true;
     }catch(error){
       lastError=error;
     }finally{
@@ -565,10 +569,48 @@ async function auditClientOnboardingBackendReadiness(){
   }
   addFinding(
     'critical',
-    'LIVE_ADMIN_CLIENT_INVITE_EDGE_READ_FAILED',
-    `No se pudo comprobar la Edge Function productiva de onboarding tras dos intentos: ${lastError?.message||String(lastError)}.`,
-    {url:ADMIN_CLIENT_INVITE_EDGE_URL},
+    `${codePrefix}_READ_FAILED`,
+    `No se pudo comprobar ${label} tras dos intentos: ${lastError?.message||String(lastError)}.`,
+    {url,origin},
   );
+  return false;
+}
+
+async function auditClientOnboardingBackendReadiness(){
+  const [productionReady,qaReady]=await Promise.all([
+    auditClientInviteEdge({
+      url:ADMIN_CLIENT_INVITE_EDGE_URL,
+      origin:APP_URL,
+      coveragePrefix:'adminClientInviteEdge',
+      codePrefix:'LIVE_ADMIN_CLIENT_INVITE_EDGE',
+      label:'La Edge Function productiva de onboarding Admin',
+    }),
+    auditClientInviteEdge({
+      url:QA_ADMIN_CLIENT_INVITE_EDGE_URL,
+      origin:QA_APP_URL,
+      coveragePrefix:'qaAdminClientInviteEdge',
+      codePrefix:'QA_ADMIN_CLIENT_INVITE_EDGE',
+      label:'La Edge Function QA de onboarding Admin',
+    }),
+  ]);
+  if(productionReady){
+    addStrength(
+      'LIVE_ADMIN_CLIENT_ONBOARDING_EDGE_READY',
+      'La Edge Function productiva para crear e invitar clientes está disponible y autoriza app.iberfit.cl.',
+    );
+  }
+  if(qaReady){
+    addStrength(
+      'QA_ADMIN_CLIENT_ONBOARDING_EDGE_READY',
+      'La Edge Function QA para crear e invitar clientes está disponible y autoriza únicamente m26-canary.iberfit.cl.',
+    );
+  }
+  if(productionReady&&qaReady){
+    addStrength(
+      'ADMIN_CLIENT_ONBOARDING_EDGE_ENVIRONMENTS_READY',
+      'QA y PROD mantienen endpoints de invitación disponibles con orígenes separados por entorno.',
+    );
+  }
 }
 
 async function auditLivePublicSurface(){

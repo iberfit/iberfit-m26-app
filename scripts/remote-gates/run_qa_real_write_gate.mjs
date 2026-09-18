@@ -142,6 +142,31 @@ async function selectCheckin(token,entityId,clientId){
 }
 
 try{
+const invalidInviteAuth=await requestResult(`${base}/functions/v1/iberfit-admin-client-invite-v1`,{
+  method:'POST',
+  headers:{
+    apikey:key,
+    authorization:'Bearer iberfit-invalid-qa-token',
+    'content-type':'application/json',
+    origin:CANARY_ORIGIN,
+  },
+  body:JSON.stringify({
+    command:{
+      type:'ADMIN_CLIENTE_CREAR',
+      operationId:randomUUID(),
+    },
+  }),
+});
+if(
+  invalidInviteAuth.status!==401||
+  String(invalidInviteAuth.body?.code||'')!=='V26_AUTH_REQUIRED'||
+  String(invalidInviteAuth.body?.version||'')!=='admin-client-invite-v26.3'
+){
+  throw new Error(
+    `QA_WRITE_INVITE_CUSTOM_AUTH_FAIL_CLOSED_MISMATCH:${invalidInviteAuth.status}:${String(invalidInviteAuth.body?.code||'unknown')}`,
+  );
+}
+
 const [coach,clientA,clientB]=await Promise.all([
   login(process.env.M26_QA_COACH_EMAIL,process.env.M26_QA_COACH_PASSWORD),
   login(process.env.M26_QA_CLIENT_A_EMAIL,process.env.M26_QA_CLIENT_A_PASSWORD),
@@ -350,6 +375,10 @@ const evidence={
     collisionExecuteReason:String(collisionExecute?.reason||''),
   },
   authorization:{
+    inviteInvalidBearerDenied:
+      invalidInviteAuth.status===401&&
+      String(invalidInviteAuth.body?.code||'')==='V26_AUTH_REQUIRED'&&
+      String(invalidInviteAuth.body?.version||'')==='admin-client-invite-v26.3',
     directInsertDenied:directInsert.status===403,
     directUpdateDenied:directPatch.status===403,
     directDeleteDenied:directDelete.status===403,
