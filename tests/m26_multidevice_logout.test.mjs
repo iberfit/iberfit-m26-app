@@ -7,6 +7,7 @@ import {
   M26_QA_PROJECT_REF,
   M26_QA_SUPABASE_ORIGIN,
 } from '../src/m26/supabase-transport.js';
+import {M26_ACTION_REGISTRY} from '../src/m26/ui/interactive-audit.js';
 
 function createTransportProbe(){
   const calls=[];
@@ -71,6 +72,13 @@ test('application normal and clear-device logout are local while all-device revo
 
   assert.ok(app.includes("addEventListener('m26:logout-all-sessions',onLogoutAllSessions)"));
   assert.ok(app.includes("removeEventListener('m26:logout-all-sessions',onLogoutAllSessions)"));
+});
+
+test('all-device revocation is registered as an account action for every authenticated role',()=>{
+  assert.deepEqual(
+    M26_ACTION_REGISTRY['logout-all-sessions'],
+    {roles:['admin','coach','client'],domain:'account'},
+  );
 });
 
 test('settings and shell expose global revocation only as a distinct explicit action',()=>{
