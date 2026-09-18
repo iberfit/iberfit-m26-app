@@ -1,5 +1,10 @@
 import {defineConfig} from '@playwright/test';
 
+const AUTHENTICATED_TIMEOUT_BUDGET=Object.freeze({timeout:90_000,stabilized:120_000});
+if(AUTHENTICATED_TIMEOUT_BUDGET.stabilized<AUTHENTICATED_TIMEOUT_BUDGET.timeout){
+  throw new Error('RC64_AUTHENTICATED_TIMEOUT_BELOW_BASELINE');
+}
+
 export default defineConfig({
   testDir:'./qa/rc64',
   testMatch:'authenticated-current-contract.spec.mjs',
@@ -8,7 +13,7 @@ export default defineConfig({
   retries:0,
   workers:1,
   reporter:'line',
-  timeout:120_000,
+  timeout:AUTHENTICATED_TIMEOUT_BUDGET.stabilized,
   expect:{timeout:20_000},
   use:{baseURL:'http://127.0.0.1:4196',serviceWorkers:'block',trace:'off',screenshot:'off',video:'off'},
   webServer:{command:'node qa/rc64/real-shell-server.mjs 4196 127.0.0.1',url:'http://127.0.0.1:4196/',reuseExistingServer:false,timeout:30_000},
