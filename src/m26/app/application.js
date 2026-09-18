@@ -897,6 +897,8 @@ export async function createM26Application({root=document.querySelector('#app'),
     qaStage('rc64-setup-hydrate-ready');
 
     shell=createShellController({root,store,renderRoute});
+    // The multiapp gateway is visible during progressive shell paint, so its handler must exist first.
+    root.addEventListener('m26:switch-role',onSwitchRole);
     qaStage('rc64-shell-mount-start');
     shell.mount({progressive:true});
     qaStage('rc64-shell-frame-ready');
@@ -953,7 +955,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     else if(mountedShellRole==='client')qaStage('rc64-shell-role-client');
     else if(mountedShellRole==='admin')qaStage('rc64-shell-role-admin');
     else qaStage('rc64-shell-role-missing');
-    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
+    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
     if(authAttemptId!==null&&completeAuthAttempt(authAttemptId))loginBusy=false;
     if(root?.dataset)root.dataset.m26Interactive='ready';
     qaStage('rc64-shell-interactive-ready');
