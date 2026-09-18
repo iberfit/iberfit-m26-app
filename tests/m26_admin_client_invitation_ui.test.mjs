@@ -43,3 +43,13 @@ test('ADMIN creation feedback distinguishes provider delivery result', () => {
   assert.match(controller, /invitación no pudo enviarse/);
   assert.match(controller, /Invitación en proceso/);
 });
+
+
+test('ADMIN can retry a failed invitation without exposing resend for healthy states', () => {
+  assert.match(render, /function clientInvitationRetry\(c\)/u);
+  assert.match(render, /delivery!==['"]error['"]/u);
+  assert.match(render, /client-invite-resend/u);
+  assert.match(render, /Reintentar invitación/u);
+  assert.match(controller, /ADMIN_CLIENTE_REENVIAR_INVITACION/u);
+  assert.match(controller, /invitationResendSuccess/u);
+});
