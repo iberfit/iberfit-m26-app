@@ -9,7 +9,7 @@ const entries=Object.freeze([
   ['public/m26','m26'],
   ['src/m26','src/m26'],
   ['baseline_m25_2/exercise-catalog-m25.json','baseline_m25_2/exercise-catalog-m25.json'],
-  ['public/isotipo-iberfit.png','public/isotipo-iberfit.png'],
+  ['public/isotipo-iberfit.png','isotipo-iberfit.png'],
   ['public/iberfit','public/iberfit'],
   ['public/vendor/repdb','public/vendor/repdb'],
 ]);

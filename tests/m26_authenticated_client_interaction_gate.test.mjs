@@ -7,6 +7,7 @@ const workflow=read('.github/workflows/authenticated-client-interaction.yml');
 const config=read('playwright.authenticated-interaction.config.mjs');
 const spec=read('qa/rc64/authenticated-interaction.spec.mjs');
 const networkPolicy=read('qa/rc64/secure-current-source-auth.mjs');
+const currentSurfaceBuilder=read('qa/rc64/build-current-surface.mjs');
 const shellController=read('src/m26/shell/shell-controller.js');
 const icons=read('src/m26/design/icons.css');
 
@@ -29,6 +30,17 @@ test('authenticated interaction network policy remains fail-closed for mutations
   assert.ok(spec.includes('Authenticated interaction attempted a business mutation or foreign request'));
   assert.ok(!spec.includes('data-engagement-action="submit-checkin"'),'test must not target submit action');
   assert.ok(!spec.includes('data-engagement-action="save-checkin-draft"'),'test must not target draft-save action');
+});
+
+test('authenticated current-source surface preserves public-root asset paths',()=>{
+  assert.ok(
+    currentSurfaceBuilder.includes("['public/isotipo-iberfit.png','isotipo-iberfit.png']"),
+    'root public asset must be copied to the synthetic hosting root'
+  );
+  assert.ok(
+    !currentSurfaceBuilder.includes("['public/isotipo-iberfit.png','public/isotipo-iberfit.png']"),
+    'synthetic surface must not add a public/ URL segment that production hosting does not expose'
+  );
 });
 
 test('authenticated interaction covers desktop tablet landscape and mobile touch',()=>{
