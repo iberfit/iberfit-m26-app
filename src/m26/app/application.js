@@ -229,9 +229,18 @@ function invalidRecoverySession(error){
   return error?.status===401||error?.status===403||/RECOVERY_(?:TOKEN|SESSION|USER|UPDATE|IDENTITY)|QA_ACCOUNT_REQUIRED|JWT|expired/i.test(code);
 }
 
+const TERMINAL_AUTH_SESSION_CODES=new Set([
+  'refresh_token_not_found',
+  'refresh_token_already_used',
+  'session_not_found',
+  'session_expired',
+]);
+
 export function sessionFailureRequiresFreshLogin(error){
   const code=String(error?.message||error||'');
+  const authCode=String(error?.body?.code||error?.body?.error_code||'').trim().toLowerCase();
   if(Number(error?.status||0)===401)return true;
+  if(TERMINAL_AUTH_SESSION_CODES.has(authCode))return true;
   return /M26_(?:SESSION_EXPIRED|AUTH_REQUIRED|REFRESH_IDENTITY_MISMATCH|MFA_IDENTITY_MISMATCH|AUTH_USER_INVALID_RESPONSE|QA_ACCOUNT_REQUIRED)/u.test(code);
 }
 
