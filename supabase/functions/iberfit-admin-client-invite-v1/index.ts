@@ -1,9 +1,23 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 
-const FUNCTION_VERSION='admin-client-invite-v26.2';
-const ALLOWED_ORIGINS=new Set([
-  'https://app.iberfit.cl',
-]);
+const FUNCTION_VERSION='admin-client-invite-v26.3';
+const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
+const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
+function deploymentProjectRef(value:string){
+  try{
+    const host=new URL(String(value||'')).hostname.toLowerCase();
+    const match=host.match(/^([a-z0-9]{20})\.supabase\.co$/u);
+    return match?.[1]||'';
+  }catch{return '';}
+}
+const DEPLOYMENT_PROJECT_REF=deploymentProjectRef(Deno.env.get('SUPABASE_URL')||'');
+const ALLOWED_ORIGINS=new Set(
+  DEPLOYMENT_PROJECT_REF===QA_PROJECT_REF
+    ?['https://m26-canary.iberfit.cl']
+    :DEPLOYMENT_PROJECT_REF===PROD_PROJECT_REF
+      ?['https://app.iberfit.cl']
+      :[],
+);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MAX_BODY=160_000;
 
@@ -80,6 +94,11 @@ Deno.serve(async(req:Request)=>{
     auth:{persistSession:false,autoRefreshToken:false},
     global:{headers:{Authorization:authorization,Origin:origin}},
   });
+  const {data:actorAuth,error:actorAuthError}=await userClient.auth.getUser();
+  const actorUserId=String(actorAuth?.user?.id||'').trim();
+  if(actorAuthError||!UUID.test(actorUserId)){
+    return reply(401,{ok:false,code:'V26_AUTH_REQUIRED',version:FUNCTION_VERSION},origin);
+  }
   const service=createClient(supabaseUrl,serviceRole,{auth:{persistSession:false,autoRefreshToken:false}});
   const publicAuth=createClient(supabaseUrl,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
   let createReceipt:Record<string,unknown>|null=null;
