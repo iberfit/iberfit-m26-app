@@ -375,11 +375,13 @@ const MOBILE_SHELL_POLISH=`
 
 function roleButtons(vm,{choice=false}={}){
   const roles=vm.identity?.authorizedRoles||[];
-  return roles.filter((role)=>['coach','admin'].includes(role)).map((role)=>{
-    const label=role==='admin'?'Administrador':'Coach';
-    const description=role==='coach'
-      ?'Clientes, planificación, sesiones y seguimiento.'
-      :'Control, equipo, operación y trazabilidad.';
+  const copy=Object.freeze({
+    admin:Object.freeze({label:'Administrador',description:'Control, equipo, operación y trazabilidad.'}),
+    coach:Object.freeze({label:'Coach',description:'Clientes, planificación, sesiones y seguimiento.'}),
+    client:Object.freeze({label:'Cliente',description:'Plan, sesiones, progreso y comunicación con tu Coach.'}),
+  });
+  return roles.filter((role)=>Boolean(copy[role])).map((role)=>{
+    const {label,description}=copy[role];
     const current=!choice&&role===vm.identity.role?' aria-current="true"':'';
     const focus=choice&&role===vm.identity.role?' autofocus':'';
     const className=choice?' class="m26-role-choice-option"':'';
@@ -477,7 +479,7 @@ export function enhanceRc39ShellMarkup(markup,vm){
   }
   if(vm.needsRoleChoice){
     out=out.replace('<div class="m26-shell"','<div class="m26-shell" inert aria-hidden="true"');
-    out+=`<section class="m26-role-choice" role="dialog" aria-modal="true" aria-labelledby="m26-role-choice-title" aria-describedby="m26-role-choice-copy"><div class="m26-role-choice-panel"><div class="m26-role-choice-brand"><img src="/public/isotipo-iberfit.png" alt="" aria-hidden="true"><span>IBERFIT</span></div><p class="m26-eyebrow">Espacio de trabajo</p><h2 id="m26-role-choice-title">¿Cómo quieres entrar?</h2><p id="m26-role-choice-copy">Elige el contexto que necesitas ahora. Tu identidad y tus datos son los mismos; cambia únicamente el espacio de trabajo.</p><div class="m26-role-choice-grid">${roleButtons(vm,{choice:true})}</div><p class="m26-role-choice-footnote">Podrás cambiar entre Administrador y Coach después, sin cerrar sesión.</p></div></section>`;
+    out+=`<section class="m26-role-choice" role="dialog" aria-modal="true" aria-labelledby="m26-role-choice-title" aria-describedby="m26-role-choice-copy"><div class="m26-role-choice-panel"><div class="m26-role-choice-brand"><img src="/public/isotipo-iberfit.png" alt="" aria-hidden="true"><span>IBERFIT</span></div><p class="m26-eyebrow">Espacio de trabajo</p><h2 id="m26-role-choice-title">¿Cómo quieres entrar?</h2><p id="m26-role-choice-copy">Elige el contexto que necesitas ahora. Tu identidad y tus datos son los mismos; cambia únicamente el espacio de trabajo.</p><div class="m26-role-choice-grid">${roleButtons(vm,{choice:true})}</div><p class="m26-role-choice-footnote">Podrás cambiar de aplicación después, sin cerrar sesión, siempre que tu cuenta tenga ese acceso autorizado.</p></div></section>`;
   }
   return out;
 }

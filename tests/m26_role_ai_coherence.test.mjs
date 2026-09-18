@@ -43,7 +43,7 @@ test(
 );
 
 test(
-  'bootstrap multirol puede preparar Admin pero exige elección explícita sin hardcodear correo',
+  'bootstrap multiapp conserva rol primario hasta que la persona elige una app autorizada',
   ()=>{
     const app=fs.readFileSync(
       'src/m26/app/application.js',
@@ -52,12 +52,12 @@ test(
 
     assert.match(
       app,
-      /authorizedRoles\.includes\('admin'\)\?'admin':primaryRole/u
+      /const preferredRole=requestedRole\|\|\(storedRole&&authorizedRoles\.includes\(storedRole\)\?storedRole:primaryRole\)/u
     );
 
     assert.match(
       app,
-      /const roleChoiceRequired=authorizedRoles\.filter\(\(role\)=>\['coach','admin'\]\.includes\(role\)\)\.length>1/u
+      /const roleChoiceRequired=authorizedRoles\.length>1/u
     );
 
     assert.match(
