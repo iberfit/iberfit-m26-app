@@ -41,42 +41,51 @@ jobs:
         run: |
           from pathlib import Path
           from textwrap import dedent
+          import re
 
-          path = Path('src/m26/app/application.js')
-          source = path.read_text(encoding='utf-8')
+          path=Path('src/m26/app/application.js')
+          source=path.read_text(encoding='utf-8')
 
-          old_switch = """  async function onSwitchRole(event){
-            const role=String(event?.detail?.role||'').trim().toLowerCase();
-            const identity=store.getState().identity||{};
-            const allowed=identity.authorizedRoles||[];
-            if(!canSwitchApplication(identity)||!allowed.includes(role)){
-          """
-          new_switch = """  async function onSwitchRole(event){
-            const role=String(event?.detail?.role||'').trim().toLowerCase();
-            const applicationAccess=store.getState().applicationAccess||{};
-            const allowed=Array.isArray(applicationAccess.authorizedRoles)?applicationAccess.authorizedRoles:[];
-            if(!canSwitchApplication(applicationAccess)||!allowed.includes(role)){
-          """
+          switch_pattern=re.compile(
+              r"(?m)^(?P<i>\s*)const identity=store\.getState\(\)\.identity\|\|\{\};\n"
+              r"(?P=i)const allowed=identity\.authorizedRoles\|\|\[\];\n"
+              r"(?P=i)if\(!canSwitchApplication\(identity\)\|\|!allowed\.includes\(role\)\)\{"
+          )
+          switch_matches=list(switch_pattern.finditer(source))
+          if len(switch_matches)!=1:
+              raise SystemExit(f'expected exactly one stale role-switch authorization block, found {len(switch_matches)}')
 
-          old_onboarding_lines = """        const identity=store.getState()?.identity||{};
-                  const roleChoiceConfirmed=identity.roleChoiceConfirmed!==false;
-          """.replace('          ', '')
-          new_onboarding_lines = """        const state=store.getState()||{};
-                  const identity=state.identity||{};
-                  const applicationAccess=state.applicationAccess||{};
-                  const roleChoiceConfirmed=applicationAccess.roleChoiceConfirmed===true||!canSwitchApplication(applicationAccess);
-          """.replace('          ', '')
+          def replace_switch(match):
+              i=match.group('i')
+              return (
+                  f"{i}const state=store.getState();\n"
+                  f"{i}const identity=state.identity||{{}};\n"
+                  f"{i}const applicationAccess=state.applicationAccess||{{}};\n"
+                  f"{i}const allowed=Array.isArray(applicationAccess.authorizedRoles)?applicationAccess.authorizedRoles:[];\n"
+                  f"{i}if(!canSwitchApplication(applicationAccess)||!allowed.includes(role)){{"
+              )
+          source=switch_pattern.sub(replace_switch,source,count=1)
 
-          if source.count(old_switch) != 1:
-              raise SystemExit(f'expected exactly one stale role-switch block, found {source.count(old_switch)}')
-          if source.count(old_onboarding_lines) != 1:
-              raise SystemExit(f'expected exactly one stale onboarding authorization pair, found {source.count(old_onboarding_lines)}')
+          onboarding_pattern=re.compile(
+              r"(?m)^(?P<i>\s*)const identity=store\.getState\(\)\?\.identity\|\|\{\};\n"
+              r"(?P=i)const roleChoiceConfirmed=identity\.roleChoiceConfirmed!==false;"
+          )
+          onboarding_matches=list(onboarding_pattern.finditer(source))
+          if len(onboarding_matches)!=1:
+              raise SystemExit(f'expected exactly one stale onboarding authorization block, found {len(onboarding_matches)}')
 
-          source = source.replace(old_switch, new_switch, 1)
-          source = source.replace(old_onboarding_lines, new_onboarding_lines, 1)
-          path.write_text(source, encoding='utf-8')
+          def replace_onboarding(match):
+              i=match.group('i')
+              return (
+                  f"{i}const state=store.getState()||{{}};\n"
+                  f"{i}const identity=state.identity||{{}};\n"
+                  f"{i}const applicationAccess=state.applicationAccess||{{}};\n"
+                  f"{i}const roleChoiceConfirmed=applicationAccess.roleChoiceConfirmed===true||!canSwitchApplication(applicationAccess);"
+              )
+          source=onboarding_pattern.sub(replace_onboarding,source,count=1)
+          path.write_text(source,encoding='utf-8')
 
-          test_path = Path('tests/m26_multiapp_runtime_application_access.test.mjs')
+          test_path=Path('tests/m26_multiapp_runtime_application_access.test.mjs')
           test_path.write_text(dedent("""\
             import test from 'node:test';
             import assert from 'node:assert/strict';
@@ -85,16 +94,15 @@ jobs:
             const applicationSource=await fs.readFile(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
 
             test('runtime role switch authorizes from applicationAccess, never Client identity metadata',()=>{
-              assert.match(applicationSource,/const applicationAccess=store\\.getState\\(\\)\\.applicationAccess\\|\\|\\{\\};/u);
-              assert.match(applicationSource,/canSwitchApplication\\(applicationAccess\\)\\|\\|!allowed\\.includes\\(role\\)/u);
-              assert.doesNotMatch(applicationSource,/const allowed=identity\\.authorizedRoles\\|\\|\\[\\];/u);
-              assert.doesNotMatch(applicationSource,/canSwitchApplication\\(identity\\)\\|\\|!allowed\\.includes\\(role\\)/u);
+              assert.match(applicationSource,/const applicationAccess=state\.applicationAccess\|\|\{\};/u);
+              assert.match(applicationSource,/canSwitchApplication\(applicationAccess\)\|\|!allowed\.includes\(role\)/u);
+              assert.doesNotMatch(applicationSource,/const allowed=identity\.authorizedRoles\|\|\[\];/u);
+              assert.doesNotMatch(applicationSource,/canSwitchApplication\(identity\)\|\|!allowed\.includes\(role\)/u);
             });
 
             test('progressive onboarding stays suppressed until a required multiapp choice is confirmed',()=>{
-              assert.match(applicationSource,/const applicationAccess=state\\.applicationAccess\\|\\|\\{\\};/u);
-              assert.match(applicationSource,/applicationAccess\\.roleChoiceConfirmed===true\\|\\|!canSwitchApplication\\(applicationAccess\\)/u);
-              assert.doesNotMatch(applicationSource,/roleChoiceConfirmed=identity\\.roleChoiceConfirmed!==false/u);
+              assert.match(applicationSource,/const roleChoiceConfirmed=applicationAccess\.roleChoiceConfirmed===true\|\|!canSwitchApplication\(applicationAccess\);/u);
+              assert.doesNotMatch(applicationSource,/roleChoiceConfirmed=identity\.roleChoiceConfirmed!==false/u);
             });
           """),encoding='utf-8')
 
