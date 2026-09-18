@@ -1,0 +1,128 @@
+name: IBERFIT QA Patch Multiapp Runtime
+
+on:
+  pull_request:
+    branches:
+      - qa/patch-multiapp-runtime-base-20260918
+    paths:
+      - '.github/qa-patch-multiapp-runtime.trigger'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: iberfit-qa-patch-multiapp-runtime
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'qa/patch-multiapp-runtime-base-20260918' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_BRANCH: fix/p1-multiapp-runtime-application-access-20260918
+      EXPECTED_BASE_SHA: e89198069c7e56c64db22b857e22cb50679040dc
+    steps:
+      - name: Checkout exact product fix branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Assert exact untouched base
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_BASE_SHA"
+
+      - name: Patch multiapp runtime consumers and add regression
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/m26/app/application.js')
+          source = path.read_text(encoding='utf-8')
+
+          old_switch = """  async function onSwitchRole(event){
+              const role=String(event?.detail?.role||'').trim().toLowerCase();
+              const identity=store.getState().identity||{};
+              const allowed=identity.authorizedRoles||[];
+              if(!canSwitchApplication(identity)||!allowed.includes(role)){
+          """.replace('          ', '')
+          new_switch = """  async function onSwitchRole(event){
+              const role=String(event?.detail?.role||'').trim().toLowerCase();
+              const applicationAccess=store.getState().applicationAccess||{};
+              const allowed=Array.isArray(applicationAccess.authorizedRoles)?applicationAccess.authorizedRoles:[];
+              if(!canSwitchApplication(applicationAccess)||!allowed.includes(role)){
+          """.replace('          ', '')
+
+          old_onboarding = """      identityProvider:()=>{
+                const identity=store.getState()?.identity||{};
+                const roleChoiceConfirmed=identity.roleChoiceConfirmed!==false;
+                return {
+                  userId:session?.user?.id||'',
+                  role:roleChoiceConfirmed?(activeApplicationRole||identity.role||''):'',
+                };
+              },
+          """.replace('          ', '')
+          new_onboarding = """      identityProvider:()=>{
+                const state=store.getState()||{};
+                const identity=state.identity||{};
+                const applicationAccess=state.applicationAccess||{};
+                const roleChoiceConfirmed=applicationAccess.roleChoiceConfirmed===true||!canSwitchApplication(applicationAccess);
+                return {
+                  userId:session?.user?.id||'',
+                  role:roleChoiceConfirmed?(activeApplicationRole||identity.role||''):'',
+                };
+              },
+          """.replace('          ', '')
+
+          if source.count(old_switch) != 1:
+              raise SystemExit(f'expected exactly one stale role-switch block, found {source.count(old_switch)}')
+          if source.count(old_onboarding) != 1:
+              raise SystemExit(f'expected exactly one stale onboarding block, found {source.count(old_onboarding)}')
+
+          source = source.replace(old_switch, new_switch, 1).replace(old_onboarding, new_onboarding, 1)
+          path.write_text(source, encoding='utf-8')
+
+          test_path = Path('tests/m26_multiapp_runtime_application_access.test.mjs')
+          test_path.write_text("""import test from 'node:test';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs/promises';
+
+          const applicationSource=await fs.readFile(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+
+          test('runtime role switch authorizes from applicationAccess, never Client identity metadata',()=>{
+            assert.match(applicationSource,/const applicationAccess=store\\.getState\\(\\)\\.applicationAccess\\|\\|\\{\\};/u);
+            assert.match(applicationSource,/canSwitchApplication\\(applicationAccess\\)\\|\\|!allowed\\.includes\\(role\\)/u);
+            assert.doesNotMatch(applicationSource,/const allowed=identity\\.authorizedRoles\\|\\|\\[\\];/u);
+            assert.doesNotMatch(applicationSource,/canSwitchApplication\\(identity\\)\\|\\|!allowed\\.includes\\(role\\)/u);
+          });
+
+          test('progressive onboarding stays suppressed until a required multiapp choice is confirmed',()=>{
+            assert.match(applicationSource,/const applicationAccess=state\\.applicationAccess\\|\\|\\{\\};/u);
+            assert.match(applicationSource,/applicationAccess\\.roleChoiceConfirmed===true\\|\\|!canSwitchApplication\\(applicationAccess\\)/u);
+            assert.doesNotMatch(applicationSource,/roleChoiceConfirmed=identity\\.roleChoiceConfirmed!==false/u);
+          });
+          """.replace('          ', ''), encoding='utf-8')
+
+      - name: Validate targeted regressions and patch hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          node --test \
+            tests/m26_multiapp_runtime_application_access.test.mjs \
+            tests/m26_client_multiapp_security_projection.test.mjs
+
+      - name: Commit exact product patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$(git status --porcelain)"
+          git config user.name 'IBERFIT QA Patch Bot'
+          git config user.email 'qa-patch-bot@users.noreply.github.com'
+          git add src/m26/app/application.js tests/m26_multiapp_runtime_application_access.test.mjs
+          git commit -m 'fix(auth): wire multiapp runtime to application access'
+          git push origin "HEAD:${TARGET_BRANCH}"
