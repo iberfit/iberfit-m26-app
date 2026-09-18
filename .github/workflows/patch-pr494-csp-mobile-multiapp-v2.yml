@@ -1,97 +1,37 @@
-name: IBERFIT PR494 CSP mobile multiapp patch v2
+name: IBERFIT PR494 CSP mobile patch v2
 
 on:
   push:
     branches:
       - fix/p1-multiapp-runtime-application-access-20260918
     paths:
-      - '.github/workflows/patch-pr494-csp-mobile-multiapp-v2.yml'
+      - .github/workflows/patch-pr494-csp-mobile-multiapp-v2.yml
 
 permissions:
   contents: write
 
-concurrency:
-  group: iberfit-pr494-csp-mobile-multiapp-v2
-  cancel-in-progress: false
-
 jobs:
   patch:
-    if: ${{ github.event.head_commit.message == 'ops: install pr494 csp mobile patch v2' }}
+    if: github.event.head_commit.message == 'ops: run pr494 csp mobile patch v2'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Checkout exact PR branch
+      - name: Checkout exact branch
         uses: actions/checkout@v4
         with:
           ref: fix/p1-multiapp-runtime-application-access-20260918
           fetch-depth: 0
 
-      - name: Guard exact parent and patch confirmed regressions
+      - name: Guard and apply exact patch
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = 'fix/p1-multiapp-runtime-application-access-20260918'
-          test "$(git rev-parse HEAD^)" = '9dbc245be050fa6b32a310e3a79ee2c18236eb5d'
-          python - <<'PY'
-          from pathlib import Path
+          test "$(git rev-parse HEAD^)" = '171ffa5784e117739d593041af71eb7338642fb5'
+          python scripts/patch_pr494_csp_mobile_multiapp_v2.py
+          git diff --check
 
-          def replace_once(path, old, new, contract):
-              source=path.read_text()
-              if source.count(old) != 1:
-                  raise SystemExit(f'{contract}: expected 1 anchor, found {source.count(old)}')
-              path.write_text(source.replace(old,new,1))
-
-          index_path=Path('public/m26/index.html')
-          inline='''  <style data-iberfit-mobile-nav-critical>\n  @media (max-width: 900px) {\n    .m26-shell > .m26-workspace {\n      padding-bottom: calc(var(--iberfit-ux-mobile-nav, 4.35rem) + env(safe-area-inset-bottom));\n    }\n    .m26-shell > .m26-workspace > .m26-mobile-nav {\n      /* This rail must win over legacy late mobile rules that once reset it to relative. */\n      position: fixed !important;\n      left: 0;\n      right: 0;\n      bottom: 0;\n      width: 100%;\n      max-width: 100vw;\n      z-index: 60;\n    }\n  }\n  </style>\n'''
-          replace_once(index_path,inline,'','INDEX_MOBILE_INLINE_STYLE_CONTRACT_MISMATCH')
-          index=index_path.read_text()
-          if index.count('<style') != 1 or 'data-iberfit-mobile-nav-critical' in index:
-              raise SystemExit('INDEX_CSP_SINGLE_INLINE_STYLE_NOT_RESTORED')
-
-          shell_path=Path('src/m26/shell/shell.css')
-          replace_once(
-              shell_path,
-              '  .m26-workspace { min-height: 100dvh; display: flex; flex-direction: column; }',
-              '  .m26-workspace { min-height: 100dvh; display: flex; flex-direction: column; padding-bottom: calc(var(--iberfit-ux-mobile-nav, 4.35rem) + env(safe-area-inset-bottom)); }',
-              'MOBILE_WORKSPACE_SAFE_AREA_CONTRACT_MISMATCH',
-          )
-          replace_once(
-              shell_path,
-              '  .m26-mobile-nav { display: grid; position: sticky; bottom: 0; z-index: 60; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; padding: .5rem max(.5rem, env(safe-area-inset-right)) max(.5rem, env(safe-area-inset-bottom)) max(.5rem, env(safe-area-inset-left)); border-top: 1px solid var(--m26-line); background: rgba(7, 21, 15, .96); }',
-              '  .m26-mobile-nav { display: grid; position: fixed; left: 0; right: 0; bottom: 0; width: 100%; max-width: 100vw; box-sizing: border-box; z-index: 60; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; padding: .5rem max(.5rem, env(safe-area-inset-right)) max(.5rem, env(safe-area-inset-bottom)) max(.5rem, env(safe-area-inset-left)); border-top: 1px solid var(--m26-line); background: rgba(7, 21, 15, .96); }',
-              'MOBILE_NAV_CANONICAL_RULE_CONTRACT_MISMATCH',
-          )
-          replace_once(
-              shell_path,
-              '''@media (max-width: 900px) {\n  .m26-mobile-nav { position: relative; z-index: 60; isolation: isolate; }\n  .m26-mobile-more-menu { z-index: 70; }\n}''',
-              '''@media (max-width: 900px) {\n  /* Viewport position is owned by the canonical mobile rule above. Never reset it after long route content. */\n  .m26-mobile-nav { z-index: 60; isolation: isolate; }\n  .m26-mobile-more-menu { z-index: 70; }\n}''',
-              'MOBILE_NAV_LATE_RELATIVE_OVERRIDE_CONTRACT_MISMATCH',
-          )
-          shell=shell_path.read_text()
-          if 'position: relative; z-index: 60; isolation: isolate;' in shell:
-              raise SystemExit('MOBILE_NAV_RELATIVE_OVERRIDE_STILL_PRESENT')
-
-          nav_test=Path('tests/m26_mobile_navigation_persistence.test.mjs')
-          nav_test.write_text('''import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport fs from 'node:fs';\n\nconst html=fs.readFileSync(new URL('../public/m26/index.html',import.meta.url),'utf8');\nconst shellCss=fs.readFileSync(new URL('../src/m26/shell/shell.css',import.meta.url),'utf8');\n\ntest('mobile authenticated navigation stays viewport anchored on long routes without weakening CSP',()=>{\n  assert.doesNotMatch(html,/data-iberfit-mobile-nav-critical/u);\n  assert.equal([...html.matchAll(/<style\\b/giu)].length,1,'authenticated navigation must not add inline CSS beyond the canonical preauth style');\n  assert.match(\n    shellCss,\n    /\\.m26-mobile-nav\\s*\\{[^}]*display:\\s*grid;[^}]*position:\\s*fixed;[^}]*left:\\s*0;[^}]*right:\\s*0;[^}]*bottom:\\s*0;[^}]*width:\\s*100%;[^}]*max-width:\\s*100vw;/su,\n  );\n  assert.match(\n    shellCss,\n    /\\.m26-workspace\\s*\\{[^}]*padding-bottom:\\s*calc\\(var\\(--iberfit-ux-mobile-nav,\\s*4\\.35rem\\)\\s*\\+\\s*env\\(safe-area-inset-bottom\\)\\);/su,\n  );\n  assert.doesNotMatch(\n    shellCss,\n    /\\.m26-mobile-nav\\s*\\{[^}]*position:\\s*relative/su,\n    'later mobile rules must never move the persistent rail back into document flow',\n  );\n});\n''')
-
-          onboarding=Path('tests/m26_onboarding_app_choice_gate.test.mjs')
-          replace_once(
-              onboarding,
-              "  assert.match(application,/const roleChoiceConfirmed=identity\\.roleChoiceConfirmed!==false/u);",
-              "  assert.match(application,/const applicationAccess=state\\.applicationAccess\\|\\|\\{\\};/u);\n  assert.match(application,/const roleChoiceConfirmed=applicationAccess\\.roleChoiceConfirmed===true\\|\\|!canSwitchApplication\\(applicationAccess\\);/u);\n  assert.doesNotMatch(application,/const roleChoiceConfirmed=identity\\.roleChoiceConfirmed!==false/u);",
-              'ONBOARDING_STALE_IDENTITY_CONTRACT_MISMATCH',
-          )
-
-          multirole=Path('tests/m26_rc39_integrated_client_coach_multirole.test.mjs')
-          replace_once(
-              multirole,
-              "  assert.match(application,/if\\(!canSwitchApplication\\(identity\\)\\|\\|!allowed\\.includes\\(role\\)\\)\\)\\{/u);" if False else "  assert.match(application,/if\\(!canSwitchApplication\\(identity\\)\\|\\|!allowed\\.includes\\(role\\)\\)\\{/u);",
-              "  assert.match(application,/const applicationAccess=store\\.getState\\(\\)\\.applicationAccess\\|\\|\\{\\};/u);\n  assert.match(application,/const allowed=Array\\.isArray\\(applicationAccess\\.authorizedRoles\\)\\?applicationAccess\\.authorizedRoles:\\[\\];/u);\n  assert.match(application,/if\\(!canSwitchApplication\\(applicationAccess\\)\\|\\|!allowed\\.includes\\(role\\)\\)\\{/u);\n  assert.doesNotMatch(application,/if\\(!canSwitchApplication\\(identity\\)\\|\\|!allowed\\.includes\\(role\\)\\)\\{/u);",
-              'MULTIAPP_STALE_IDENTITY_AUTH_CONTRACT_MISMATCH',
-          )
-          PY
-
-      - name: Run focused security, multiapp and mobile regressions
+      - name: Focused regressions
         run: |
           set -euo pipefail
           node --test \
@@ -102,34 +42,39 @@ jobs:
             tests/m26_rc64_2a_performance_real_shell_foundation.test.mjs \
             tests/m26_multiapp_runtime_application_access.test.mjs \
             tests/m26_multiapp_role_switch_initialization.test.mjs
-          git diff --check
 
-      - name: Run full offline regression suite
-        run: |
-          set -euo pipefail
-          npm run test:offline
+      - name: Full offline regression
+        run: npm run test:offline
 
-      - name: Run RC74.4 validation
-        run: |
-          set -euo pipefail
-          npm run validate:rc74-4
+      - name: RC74.4 validation
+        run: npm run validate:rc74-4
 
-      - name: Commit only validated product and regression changes
+      - name: Commit validated product change and remove temporary machinery
         shell: bash
         run: |
           set -euo pipefail
           rm .github/workflows/patch-pr494-csp-mobile-multiapp-v2.yml
+          rm scripts/patch_pr494_csp_mobile_multiapp_v2.py
           git diff --check
-          git config user.name 'iberfit'
-          git config user.email 'iberfit.cl@gmail.com'
-          git add \
+          actual="$(git status --porcelain --untracked-files=all | sed 's/^...//' | sort)"
+          expected="$(printf '%s\n' \
+            '.github/workflows/patch-pr494-csp-mobile-multiapp-v2.yml' \
+            'public/m26/index.html' \
+            'scripts/patch_pr494_csp_mobile_multiapp_v2.py' \
+            'src/m26/shell/shell.css' \
+            'tests/m26_mobile_navigation_persistence.test.mjs' \
+            'tests/m26_onboarding_app_choice_gate.test.mjs' \
+            'tests/m26_rc39_integrated_client_coach_multirole.test.mjs' | sort)"
+          test "$actual" = "$expected"
+          git config user.name iberfit
+          git config user.email iberfit.cl@gmail.com
+          git add -A -- \
+            .github/workflows/patch-pr494-csp-mobile-multiapp-v2.yml \
             public/m26/index.html \
+            scripts/patch_pr494_csp_mobile_multiapp_v2.py \
             src/m26/shell/shell.css \
             tests/m26_mobile_navigation_persistence.test.mjs \
             tests/m26_onboarding_app_choice_gate.test.mjs \
-            tests/m26_rc39_integrated_client_coach_multirole.test.mjs \
-            .github/workflows/patch-pr494-csp-mobile-multiapp-v2.yml
-          test -n "$(git status --porcelain)"
-          test -z "$(git status --porcelain | grep -vE '^(M |D |A |\?\?) (public/m26/index.html|src/m26/shell/shell.css|tests/m26_mobile_navigation_persistence.test.mjs|tests/m26_onboarding_app_choice_gate.test.mjs|tests/m26_rc39_integrated_client_coach_multirole.test.mjs|\.github/workflows/patch-pr494-csp-mobile-multiapp-v2.yml)$' || true)"
+            tests/m26_rc39_integrated_client_coach_multirole.test.mjs
           git commit -m 'fix(nav): restore CSP-safe mobile persistence'
           git push origin HEAD:fix/p1-multiapp-runtime-application-access-20260918
