@@ -33,14 +33,20 @@ test('authenticated interaction network policy remains fail-closed for mutations
 });
 
 test('authenticated current-source surface preserves public-root asset paths',()=>{
-  assert.ok(
-    currentSurfaceBuilder.includes("['public/isotipo-iberfit.png','isotipo-iberfit.png']"),
-    'root public asset must be copied to the synthetic hosting root'
-  );
-  assert.ok(
-    !currentSurfaceBuilder.includes("['public/isotipo-iberfit.png','public/isotipo-iberfit.png']"),
-    'synthetic surface must not add a public/ URL segment that production hosting does not expose'
-  );
+  for(const [source,target] of [
+    ['public/isotipo-iberfit.png','isotipo-iberfit.png'],
+    ['public/iberfit','iberfit'],
+    ['public/vendor/repdb','vendor/repdb'],
+  ]){
+    assert.ok(
+      currentSurfaceBuilder.includes(`['${source}','${target}']`),
+      `${source} must be copied to synthetic hosting root path ${target}`
+    );
+    assert.ok(
+      !currentSurfaceBuilder.includes(`['${source}','public/${target}']`),
+      `${source} must not gain a public/ URL segment absent from production hosting`
+    );
+  }
 });
 
 test('authenticated interaction covers desktop tablet landscape and mobile touch',()=>{
