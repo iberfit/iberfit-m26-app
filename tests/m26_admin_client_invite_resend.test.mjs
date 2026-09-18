@@ -34,6 +34,11 @@ test('resend command is client-scoped and cannot accidentally create another cli
   assert.match(resendElse,/clientId,/u);
 });
 
+test('provider failures preserve the original command type for audit traceability',()=>{
+  assert.match(edge,/commandType:normalized\.type,entityId:clientId/u);
+  assert.doesNotMatch(edge,/commandType:'ADMIN_CLIENTE_CREAR',entityId:clientId/u);
+});
+
 test('security failures stay 403 so Admin service can perform WebAuthn reauthentication',()=>{
   const catchStart=edge.indexOf('}catch(error){');
   assert.ok(catchStart>=0);
