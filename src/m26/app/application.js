@@ -631,11 +631,11 @@ export async function createM26Application({root=document.querySelector('#app'),
       const primaryRole=String(snapshot?.user?.role||'').trim().toLowerCase();
       const roleSource=applicationContext.roles.length?applicationContext.roles:extensions.authorizedRoles.length?extensions.authorizedRoles:[primaryRole].filter(Boolean);
       const authorizedRoles=normalizeAuthorizedRoles({authorizedRoles:roleSource});
-      const roleChoiceRequired=authorizedRoles.filter((role)=>['coach','admin'].includes(role)).length>1;
+      const roleChoiceRequired=authorizedRoles.length>1;
       const requestedRole=String(activeApplicationRole||'').trim().toLowerCase()||null;
       if(requestedRole&&!authorizedRoles.includes(requestedRole))throw new Error('M26_ROLE_SWITCH_FORBIDDEN');
       const storedRole=readPreferredApplicationRole(session?.user?.id);
-      const preferredRole=requestedRole||(storedRole&&authorizedRoles.includes(storedRole)?storedRole:(authorizedRoles.includes('admin')?'admin':primaryRole));
+      const preferredRole=requestedRole||(storedRole&&authorizedRoles.includes(storedRole)?storedRole:primaryRole);
       const activeRole=resolveActiveRole(authorizedRoles,preferredRole);
       if(!activeRole)throw new Error('M26_ROLE_CONTEXT_MISSING');
       const roleChoiceConfirmed=!roleChoiceRequired||Boolean(requestedRole);
