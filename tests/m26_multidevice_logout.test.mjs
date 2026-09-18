@@ -51,11 +51,8 @@ test('transport logout is local by default and global revocation requires an exp
 test('application normal and clear-device logout are local while all-device revocation is explicit',()=>{
   const app=fs.readFileSync('src/m26/app/application.js','utf8');
 
-  assert.match(
-    app,
-    /function finishLogout\\(\\{token,scope='local',message='',noticeKind='status'\\}=\\{\\}\\)/u,
-  );
-  assert.match(app,/function onLogout\\(\\)\\{const token=currentToken\\(\\);finishLogout\\(\\{token,scope:'local'\\}\\);\\}/u);
+  assert.ok(app.includes("function finishLogout({token,scope='local',message='',noticeKind='status'}={})"));
+  assert.ok(app.includes("function onLogout(){const token=currentToken();finishLogout({token,scope:'local'});}"));
 
   const clearStart=app.indexOf('async function onLogoutAndClearDevice(){');
   const clearEnd=app.indexOf('  function destroyControllers()',clearStart);
@@ -68,12 +65,12 @@ test('application normal and clear-device logout are local while all-device revo
   const globalEnd=app.indexOf('async function onLogoutAndClearDevice(){',globalStart);
   assert.ok(globalStart>=0&&globalEnd>globalStart);
   const globalBlock=app.slice(globalStart,globalEnd);
-  assert.match(globalBlock,/globalThis\\.confirm/u);
+  assert.ok(globalBlock.includes('globalThis.confirm'));
   assert.match(globalBlock,/scope:'global'/u);
-  assert.match(globalBlock,/if\\(!accepted\\)return false/u);
+  assert.ok(globalBlock.includes('if(!accepted)return false'));
 
-  assert.match(app,/addEventListener\\('m26:logout-all-sessions',onLogoutAllSessions\\)/u);
-  assert.match(app,/removeEventListener\\('m26:logout-all-sessions',onLogoutAllSessions\\)/u);
+  assert.ok(app.includes("addEventListener('m26:logout-all-sessions',onLogoutAllSessions)"));
+  assert.ok(app.includes("removeEventListener('m26:logout-all-sessions',onLogoutAllSessions)"));
 });
 
 test('settings and shell expose global revocation only as a distinct explicit action',()=>{
@@ -86,10 +83,8 @@ test('settings and shell expose global revocation only as a distinct explicit ac
   assert.match(route,/Revocar sesiones en todos los dispositivos/u);
   assert.match(route,/requiere confirmación explícita/u);
 
-  assert.match(
-    shell,
-    /if\\(action==='logout-all-sessions'\\)\\{\\s*root\\.dispatchEvent\\(new CustomEvent\\('m26:logout-all-sessions'/u,
-  );
+  assert.ok(shell.includes("if(action==='logout-all-sessions'){"));
+  assert.ok(shell.includes("new CustomEvent('m26:logout-all-sessions',{bubbles:true})"));
 
   const sidebarLogout=(sidebar.match(/data-m26-action="logout"/gu)||[]).length;
   assert.ok(sidebarLogout>=1);
