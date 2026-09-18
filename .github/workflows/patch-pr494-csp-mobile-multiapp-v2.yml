@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = 'fix/p1-multiapp-runtime-application-access-20260918'
-          test "$(git rev-parse HEAD^)" = 'c4ec92e916896e624b96df81a2d87ac40b584fe9'
+          test "$(git rev-parse HEAD^)" = '565fa2a8f52152e5d10bced8177e013252c49b66'
           python scripts/patch_pr494_csp_mobile_multiapp_v2.py
           python - <<'PY'
           from pathlib import Path
@@ -76,12 +76,34 @@ jobs:
       - name: RC74.4 validation
         run: npm run validate:rc74-4
 
-      - name: Commit validated product change
+      - name: Commit validated product change with diagnostics
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          diag="$GITHUB_WORKSPACE/pr494-final-step-diagnostics.txt"
+          : > "$diag"
+          exec > >(tee -a "$diag") 2>&1
+          fail() {
+            code="$1"
+            echo "FINAL_STEP_FAILURE_CODE=$code"
+            exit "$code"
+          }
+
+          echo '=== PR494 validated product commit diagnostics ==='
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "PARENT=$(git rev-parse HEAD^)"
+          echo "REF=$GITHUB_REF_NAME"
+          echo '--- git status before commit ---'
+          git status --porcelain=v1 --untracked-files=all
+          echo '--- git diff name/status ---'
+          git diff --name-status
+
           git diff --check
-          actual="$(git status --porcelain --untracked-files=all | sed 's/^...//' | sort)"
+          rc=$?
+          echo "DIFF_CHECK_RC=$rc"
+          test "$rc" -eq 0 || fail 40
+
+          actual="$(git status --porcelain=v1 --untracked-files=all | sed 's/^...//' | sort)"
           expected="$(printf '%s\n' \
             'public/m26/index.html' \
             'src/m26/shell/shell.css' \
@@ -90,7 +112,16 @@ jobs:
             'tests/m26_onboarding_tour_lifecycle_hardening.test.mjs' \
             'tests/m26_rc35_audit_closure.test.mjs' \
             'tests/m26_rc39_integrated_client_coach_multirole.test.mjs' | sort)"
-          test "$actual" = "$expected"
+          echo '--- actual allowlist ---'
+          printf '%s\n' "$actual"
+          echo '--- expected allowlist ---'
+          printf '%s\n' "$expected"
+          if [ "$actual" != "$expected" ]; then
+            echo 'ALLOWLIST_MISMATCH=1'
+            fail 41
+          fi
+          echo 'ALLOWLIST_MATCH=1'
+
           git config user.name iberfit
           git config user.email iberfit.cl@gmail.com
           git add -- \
@@ -101,5 +132,31 @@ jobs:
             tests/m26_onboarding_tour_lifecycle_hardening.test.mjs \
             tests/m26_rc35_audit_closure.test.mjs \
             tests/m26_rc39_integrated_client_coach_multirole.test.mjs
+
+          echo '--- staged files ---'
+          git diff --cached --name-status
+          git diff --cached --check
+          rc=$?
+          echo "STAGED_DIFF_CHECK_RC=$rc"
+          test "$rc" -eq 0 || fail 42
+
           git commit -m 'fix(nav): restore CSP-safe mobile persistence'
+          rc=$?
+          echo "COMMIT_RC=$rc"
+          test "$rc" -eq 0 || fail 43
+          echo "LOCAL_COMMIT=$(git rev-parse HEAD)"
+
           git push origin HEAD:fix/p1-multiapp-runtime-application-access-20260918
+          rc=$?
+          echo "PUSH_RC=$rc"
+          test "$rc" -eq 0 || fail 44
+          echo 'FINAL_STEP_SUCCESS=1'
+
+      - name: Upload final-step diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr494-final-step-diagnostics
+          path: pr494-final-step-diagnostics.txt
+          if-no-files-found: warn
+          retention-days: 2
