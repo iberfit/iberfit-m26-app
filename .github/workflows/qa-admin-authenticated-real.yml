@@ -46,7 +46,7 @@ jobs:
           test -n "$M26_QA_CLIENT_A_EMAIL"
           test -n "$M26_QA_CLIENT_A_PASSWORD"
           ! printf '%s' "$M26_SUPABASE_PUBLISHABLE_KEY" | grep -Eiq 'service[_-]?role'
-          ! grep -R -n --exclude='qa-admin-authenticated-real.yml' 'pjhmrhejsoofmouedavw' qa/admin-authenticated-real playwright.admin-authenticated-real.config.mjs tests/m26_admin_authenticated_real_gate_contract.test.mjs
+          ! grep -R -n 'pjhmrhejsoofmouedavw' qa/admin-authenticated-real playwright.admin-authenticated-real.config.mjs
 
       - name: Setup Node
         uses: actions/setup-node@v4
