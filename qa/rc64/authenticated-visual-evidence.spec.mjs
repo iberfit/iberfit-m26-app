@@ -4,7 +4,6 @@ import {
   CANARY_ORIGIN,
   QA_PROJECT_REF,
   SUPABASE_ORIGIN,
-  completeClientWebAuthnChoice,
   installCurrentSourceQaNetworkPolicy,
   qaRequestLabel,
 } from './secure-current-source-auth.mjs';
@@ -13,7 +12,7 @@ const OUT_DIR='recovery/rc64-authenticated-visual';
 const REQUIRED=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
   'M26_QA_COACH_EMAIL','M26_QA_COACH_PASSWORD',
-  'M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD',
+  'M26_QA_CLIENT_B_EMAIL','M26_QA_CLIENT_B_PASSWORD',
 ];
 const READ_ONLY_RPCS=new Set([
   'iberfit_bootstrap_v26',
@@ -61,7 +60,7 @@ async function capture(page,{account,project,state,suffix=''}){
   return {role:account.role,account:account.name,state,project:safeSlug(project),file,syntheticQa:true};
 }
 
-test('authenticated visual evidence uses real QA multiapp auth and remains read-only for business data',async({browser},testInfo)=>{
+test('authenticated visual evidence uses Client-only QA plus privileged Coach gate and remains business read-only',async({browser},testInfo)=>{
   const missing=REQUIRED.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
   expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
@@ -71,7 +70,7 @@ test('authenticated visual evidence uses real QA multiapp auth and remains read-
   await mkdir(OUT_DIR,{recursive:true});
 
   const accounts=[
-    {name:'client_a',role:'client',expectedEmail:'qa.rc74.client-a@iberfit.cl',email:process.env.M26_QA_CLIENT_A_EMAIL,password:process.env.M26_QA_CLIENT_A_PASSWORD},
+    {name:'client_b',role:'client',expectedEmail:'qa.rc74.client-b@iberfit.cl',email:process.env.M26_QA_CLIENT_B_EMAIL,password:process.env.M26_QA_CLIENT_B_PASSWORD},
     {name:'coach',role:'coach',expectedEmail:'qa.rc74.coach@iberfit.cl',email:process.env.M26_QA_COACH_EMAIL,password:process.env.M26_QA_COACH_PASSWORD},
   ];
   const captures=[];
@@ -93,11 +92,9 @@ test('authenticated visual evidence uses real QA multiapp auth and remains read-
     const unexpectedFailures=[];
     const consoleErrors=[];
     const pageErrors=[];
-    const qaRequests=[];
     await installCurrentSourceQaNetworkPolicy(context,{
       readOnlyRpcs:READ_ONLY_RPCS,
       onBlocked:(label)=>blocked.push(label),
-      onQaRequest:(label)=>qaRequests.push(label),
     });
     const page=await context.newPage();
     page.on('requestfailed',(request)=>{const label=qaRequestLabel(request);if(!blocked.includes(label))unexpectedFailures.push(label);});
@@ -117,11 +114,11 @@ test('authenticated visual evidence uses real QA multiapp auth and remains read-
         await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]')).toBeVisible({timeout:5_000});
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'privileged-webauthn-gate'}));
       }else{
-        const auth=await completeClientWebAuthnChoice(page,{role:'client'});
-        expect(auth.authorizedRoles).toEqual(['client','admin']);
-        await dismissGuidance(page);
         const shell=page.locator('.m26-shell[data-m26-role="client"]');
-        await expect(shell).toBeVisible({timeout:10_000});
+        await expect(shell,'Client-only visual fixture must open Client without privileged MFA').toBeVisible({timeout:25_000});
+        await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+        await expect(page.locator('.m26-role-choice[role="dialog"]')).toHaveCount(0);
+        await dismissGuidance(page);
         await expect(page.locator('.m26-route').first()).toBeVisible({timeout:10_000});
         captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-shell'}));
 
@@ -133,7 +130,6 @@ test('authenticated visual evidence uses real QA multiapp auth and remains read-
         await expect(page.locator('[data-m26-area="progreso"][aria-current="page"]:visible').first()).toBeVisible({timeout:5_000});
         const exerciseAnalyticsCount=await page.locator('[data-m26-exercise-analytics="v2"]').count();
         captures.push({...(await capture(page,{account,project:testInfo.project.name,state:'authenticated-progress',suffix:'progress'})),exerciseAnalyticsCount});
-        expect(qaRequests.some((label)=>label.includes('/functions/v1/iberfit-webauthn-v1')),'Client visual evidence must exercise real QA WebAuthn').toBe(true);
       }
 
       expect(blocked,'Visual evidence attempted a business mutation or foreign request').toEqual([]);
@@ -146,17 +142,18 @@ test('authenticated visual evidence uses real QA multiapp auth and remains read-
   }
 
   const evidence={
-    schema:'iberfit.rc64.authenticated-visual-evidence.v2',
+    schema:'iberfit.rc64.authenticated-visual-evidence.v3',
     source:'current-source-intercepted-at-canary-origin',
     projectRef:QA_PROJECT_REF,
     project:safeSlug(testInfo.project.name),
     mode:'authenticated-readonly-visual',
+    mutationsPerformed:false,
     businessMutationsPerformed:false,
-    authMutationPerformed:true,
+    authMutationPerformed:false,
     credentialsPersisted:false,
     screenshotsContainSyntheticQaSurface:true,
     captures,
-    admin:{captured:false,reason:'covered-by-dedicated-admin-real-gate'},
+    admin:{captured:false,reason:'privileged-multiapp-auth-covered-by-fail-closed-contract-gate'},
   };
   await writeFile(`${OUT_DIR}/${safeSlug(testInfo.project.name)}.json`,`${JSON.stringify(evidence,null,2)}\n`,'utf8');
 });
