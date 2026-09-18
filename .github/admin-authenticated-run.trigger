@@ -1,0 +1,3 @@
+candidate_sha=19f86c69a9a7906cb35eda7d9a3c0b226f241ff4
+qa_base_sha=89546c5ff5ba1811af85a4b7d7ab455417417e57
+purpose=real-admin-multiapp-certification-v4
