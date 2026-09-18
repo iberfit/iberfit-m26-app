@@ -38,6 +38,14 @@ function windowLimit(value){
   return [4,8,12].includes(parsed)?parsed:8;
 }
 
+function windowedPoints(points,value){
+  const source=Array.isArray(points)?points:[];
+  const limit=windowLimit(value);
+  return Number.isFinite(limit)
+    ?source.slice(-limit)
+    :source.slice();
+}
+
 function stateFor(root){
   let state=ROOT_STATE.get(root);
   if(state)return state;
@@ -55,22 +63,37 @@ function activeCard(root){
   )||null;
 }
 
-function primaryChart(card){
-  return card?.querySelector?.('.m26-exercise-progress-echart')||null;
+function chartElements(card){
+  return [...(
+    card?.querySelectorAll?.('.m26-echart[data-points]')||
+    []
+  )];
 }
 
 function seriesFor(state,card){
   const cached=state.seriesByCard.get(card);
   if(cached)return cached;
-  const chart=primaryChart(card);
-  const points=parsePoints(chart?.getAttribute?.('data-points'));
-  const ariaLabel=String(chart?.getAttribute?.('aria-label')||'').trim();
-  const series=Object.freeze({
-    points:Object.freeze(points),
-    ariaLabel,
+
+  const charts=chartElements(card);
+  const foundPrimaryIndex=charts.findIndex(
+    (chart)=>chart.classList?.contains('m26-exercise-progress-echart')
+  );
+  const bundle=Object.freeze({
+    primaryIndex:foundPrimaryIndex>=0?foundPrimaryIndex:0,
+    series:Object.freeze(
+      charts.map((chart)=>Object.freeze({
+        points:Object.freeze(
+          parsePoints(chart.getAttribute?.('data-points'))
+        ),
+        ariaLabel:String(
+          chart.getAttribute?.('aria-label')||''
+        ).trim(),
+      }))
+    ),
   });
-  state.seriesByCard.set(card,series);
-  return series;
+
+  state.seriesByCard.set(card,bundle);
+  return bundle;
 }
 
 function updateControls(root,state,visibleCount,totalCount){
@@ -96,25 +119,50 @@ function applyWindow(root,value){
   if(!card)return false;
 
   state.window=selected;
-  const series=seriesFor(state,card);
-  const chart=primaryChart(card);
+  const bundle=seriesFor(state,card);
+  const charts=chartElements(card);
   let visibleCount=0;
+  let totalCount=0;
 
-  if(chart&&series.points.length>=2){
-    const visible=Number.isFinite(limit)
-      ?series.points.slice(-limit)
-      :series.points;
-    visibleCount=visible.length;
+  charts.forEach((chart,index)=>{
+    const source=bundle.series[index];
+    if(!source)return;
+
+    const visible=windowedPoints(
+      source.points,
+      selected,
+    );
+
+    if(index===bundle.primaryIndex){
+      visibleCount=visible.length;
+      totalCount=source.points.length;
+    }
+
+    if(!source.points.length)return;
+
     const clone=chart.cloneNode(false);
-    clone.setAttribute('data-points',JSON.stringify(visible));
-    if(series.ariaLabel){
+    clone.setAttribute(
+      'data-points',
+      JSON.stringify(visible),
+    );
+    clone.setAttribute(
+      'data-m27-window-visible',
+      String(visible.length),
+    );
+    clone.setAttribute(
+      'data-m27-window-total',
+      String(source.points.length),
+    );
+
+    if(source.ariaLabel){
       clone.setAttribute(
         'aria-label',
-        String(visible.length)+'/'+String(series.points.length)+'. '+series.ariaLabel,
+        'Ventana '+String(visible.length)+' de '+String(source.points.length)+'. '+source.ariaLabel,
       );
     }
+
     chart.replaceWith(clone);
-  }
+  });
 
   const rows=[...(card.querySelectorAll?.('.m26-exercise-progress-table tbody tr')||[])];
   rows.forEach((row,index)=>{
@@ -125,7 +173,7 @@ function applyWindow(root,value){
     root,
     state,
     visibleCount||Math.min(rows.length,Number.isFinite(limit)?limit:rows.length),
-    series.points.length||rows.length,
+    totalCount||rows.length,
   );
   return true;
 }
@@ -164,6 +212,7 @@ function buildControls(documentLike,state){
   const box=documentLike.createElement('div');
   box.className='m27-exercise-window';
   box.setAttribute('data-m27-exercise-window-controls','true');
+  box.setAttribute('data-m27-exercise-window-scope','all-charts');
   box.setAttribute('aria-label','Ventana visual del historial del ejercicio');
 
   const title=documentLike.createElement('span');
@@ -185,13 +234,13 @@ function buildControls(documentLike,state){
   meta.className='m27-exercise-window-meta';
   meta.append(
     documentLike.createTextNode(
-      'El contador corresponde a la gráfica principal; la tabla conserva sus últimas referencias renderizadas y el estudio Coach su lectura confirmada. '
+      'La ventana recorta todas las gráficas y la tabla del ejercicio activo. La lectura Coach conserva su evaluación confirmada sobre el historial completo. '
     ),
   );
   const count=documentLike.createElement('strong');
   count.className='m27-exercise-window-count';
   count.setAttribute('data-m27-exercise-window-count','true');
-  count.setAttribute('aria-label','Registros visibles en la gráfica');
+  count.setAttribute('aria-label','Referencias visibles de la gráfica principal');
   count.textContent='—';
   meta.appendChild(count);
 
@@ -223,4 +272,5 @@ export function enhanceExerciseHistoryWindow({root,viewModel}={}){
 export const __exerciseHistoryWindowInternals=Object.freeze({
   parsePoints,
   windowLimit,
+  windowedPoints,
 });
