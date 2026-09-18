@@ -62,7 +62,8 @@ body{min-height:100dvh;overflow-x:hidden;color:var(--iberfit-v3-text);background
       padding-bottom: calc(var(--iberfit-ux-mobile-nav, 4.35rem) + env(safe-area-inset-bottom));
     }
     .m26-shell > .m26-workspace > .m26-mobile-nav {
-      position: fixed;
+      /* This rail must win over legacy late mobile rules that once reset it to relative. */
+      position: fixed !important;
       left: 0;
       right: 0;
       bottom: 0;
