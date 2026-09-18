@@ -1,4 +1,4 @@
-import {normalizeAuthorizedRoles,resolveActiveRole,readPreferredApplicationRole,writePreferredApplicationRole,clearPreferredApplicationRole} from '../rc39/multi-role.js';
+import {normalizeAuthorizedRoles,resolveActiveRole,canSwitchApplication,readPreferredApplicationRole,writePreferredApplicationRole,clearPreferredApplicationRole} from '../rc39/multi-role.js';
 import {createCommunicationTransport} from '../communication/transport.js';
 import {createCommunicationService} from '../communication/service.js';
 import {createCommunicationController} from '../communication/controller.js';
@@ -631,7 +631,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       const primaryRole=String(snapshot?.user?.role||'').trim().toLowerCase();
       const roleSource=applicationContext.roles.length?applicationContext.roles:extensions.authorizedRoles.length?extensions.authorizedRoles:[primaryRole].filter(Boolean);
       const authorizedRoles=normalizeAuthorizedRoles({authorizedRoles:roleSource});
-      const roleChoiceRequired=authorizedRoles.length>1;
+      const roleChoiceRequired=canSwitchApplication({role:primaryRole,authorizedRoles});
       const requestedRole=String(activeApplicationRole||'').trim().toLowerCase()||null;
       if(requestedRole&&!authorizedRoles.includes(requestedRole))throw new Error('M26_ROLE_SWITCH_FORBIDDEN');
       const storedRole=readPreferredApplicationRole(session?.user?.id);
@@ -1031,8 +1031,9 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   async function onSwitchRole(event){
     const role=String(event?.detail?.role||'').trim().toLowerCase();
-    const allowed=store.getState().identity?.authorizedRoles||[];
-    if(!allowed.includes(role)){
+    const identity=store.getState().identity||{};
+    const allowed=identity.authorizedRoles||[];
+    if(!canSwitchApplication(identity)||!['coach','admin'].includes(role)||!allowed.includes(role)){
       surfaceRoleSwitchError(new Error('M26_ROLE_SWITCH_FORBIDDEN'));
       return false;
     }
