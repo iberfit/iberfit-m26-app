@@ -1,6 +1,6 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 
-const FUNCTION_VERSION='admin-client-invite-v26.3';
+const FUNCTION_VERSION='admin-client-invite-v26.4';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
 function deploymentProjectRef(value:string){
@@ -53,10 +53,19 @@ function normalizeEmail(value:unknown){
 function normalizeCommand(value:unknown){
   if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('V26_INVITATION_COMMAND_INVALID');
   const command=value as Record<string,unknown>;
-  if(String(command.type||'').trim().toUpperCase()!=='ADMIN_CLIENTE_CREAR')throw new Error('V26_INVITATION_COMMAND_INVALID');
+  const type=String(command.type||'').trim().toUpperCase();
+  if(!['ADMIN_CLIENTE_CREAR','ADMIN_CLIENTE_REENVIAR_INVITACION'].includes(type))throw new Error('V26_INVITATION_COMMAND_INVALID');
   const operationId=String(command.operationId||'').trim();
   if(operationId.length<3||operationId.length>200||/[\u0000-\u001f\u007f]/u.test(operationId))throw new Error('V26_INVITATION_OPERATION_INVALID');
-  return {command,operationId};
+  let clientId='';
+  if(type==='ADMIN_CLIENTE_REENVIAR_INVITACION'){
+    const payload=command.payload&&typeof command.payload==='object'&&!Array.isArray(command.payload)
+      ?command.payload as Record<string,unknown>
+      :{};
+    clientId=String(payload.clientId||command.entityId||'').trim();
+    if(!UUID.test(clientId))throw new Error('V26_INVITATION_CLIENT_INVALID');
+  }
+  return {command,type,operationId,clientId};
 }
 async function findAuthUserByEmail(service:ReturnType<typeof createClient>,email:string){
   for(let page=1;page<=10;page+=1){
@@ -82,7 +91,7 @@ Deno.serve(async(req:Request)=>{
 
   let parsed:unknown;
   try{parsed=JSON.parse(raw);}catch{return reply(400,{ok:false,code:'V26_BODY_INVALID',version:FUNCTION_VERSION},origin);}
-  let normalized:{command:Record<string,unknown>;operationId:string};
+  let normalized:{command:Record<string,unknown>;type:string;operationId:string;clientId:string};
   try{normalized=normalizeCommand((parsed as Record<string,unknown>)?.command);}catch(error){return reply(400,{ok:false,code:codeOf(error,'V26_INVITATION_COMMAND_INVALID'),version:FUNCTION_VERSION},origin);}
 
   const supabaseUrl=String(Deno.env.get('SUPABASE_URL')||'').trim();
@@ -102,17 +111,29 @@ Deno.serve(async(req:Request)=>{
   const service=createClient(supabaseUrl,serviceRole,{auth:{persistSession:false,autoRefreshToken:false}});
   const publicAuth=createClient(supabaseUrl,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
   let createReceipt:Record<string,unknown>|null=null;
-  let clientId='';
+  let clientId=normalized.clientId||'';
   let email='';
   let createdAuthUserId='';
 
   try{
-    const {data:createData,error:createError}=await userClient.rpc('iberfit_admin_execute_v14',{p_command:normalized.command});
-    if(createError)throw createError;
-    const item=(Array.isArray(createData)?createData[0]:createData) as Record<string,unknown>|null;
-    clientId=String(item?.clientId||item?.entityId||'').trim();
-    if(!item||item.ok!==true||!UUID.test(clientId))throw new Error('V26_ADMIN_CLIENT_CREATE_INVALID_RESPONSE');
-    createReceipt=item;
+    if(normalized.type==='ADMIN_CLIENTE_CREAR'){
+      const {data:createData,error:createError}=await userClient.rpc('iberfit_admin_execute_v14',{p_command:normalized.command});
+      if(createError)throw createError;
+      const item=(Array.isArray(createData)?createData[0]:createData) as Record<string,unknown>|null;
+      clientId=String(item?.clientId||item?.entityId||'').trim();
+      if(!item||item.ok!==true||!UUID.test(clientId))throw new Error('V26_ADMIN_CLIENT_CREATE_INVALID_RESPONSE');
+      createReceipt=item;
+    }else{
+      createReceipt={
+        ok:true,
+        kind:'ack',
+        operationId:normalized.operationId,
+        commandType:normalized.type,
+        entityType:'client',
+        entityId:clientId,
+        clientId,
+      };
+    }
 
     const {data:prepareData,error:prepareError}=await userClient.rpc('iberfit_admin_client_invitation_prepare_v26',{p_client_id:clientId,p_operation_id:normalized.operationId});
     if(prepareError)throw prepareError;
@@ -157,6 +178,9 @@ Deno.serve(async(req:Request)=>{
     return reply(200,{...createReceipt,ok:true,version:FUNCTION_VERSION,invitation:{...finalized,email,deliveryMode}},origin);
   }catch(error){
     const errorCode=codeOf(error);
+    if(/ADMIN_REQUIRED|AUTH_REQUIRED|WEBAUTHN|ASSURANCE|FORBIDDEN/u.test(errorCode)){
+      return reply(403,{ok:false,code:errorCode,version:FUNCTION_VERSION},origin);
+    }
     if(createdAuthUserId&&UUID.test(createdAuthUserId)){
       try{await service.auth.admin.deleteUser(createdAuthUserId);}catch{}
     }
@@ -164,7 +188,6 @@ Deno.serve(async(req:Request)=>{
       try{await userClient.rpc('iberfit_admin_client_invitation_finalize_v26',{p_client_id:clientId,p_operation_id:normalized.operationId,p_delivery_status:'error',p_error_code:errorCode});}catch{}
       return reply(200,{...(createReceipt||{}),ok:true,kind:String(createReceipt?.kind||'ack'),operationId:normalized.operationId,commandType:'ADMIN_CLIENTE_CREAR',entityId:clientId,clientId,version:FUNCTION_VERSION,invitation:{deliveryStatus:'error',accessStatus:'invitacion_pendiente',errorCode,email:email||null}},origin);
     }
-    const status=/ADMIN_REQUIRED|AUTH_REQUIRED|WEBAUTHN|ASSURANCE|FORBIDDEN/u.test(errorCode)?403:400;
-    return reply(status,{ok:false,code:errorCode,version:FUNCTION_VERSION},origin);
+    return reply(400,{ok:false,code:errorCode,version:FUNCTION_VERSION},origin);
   }
 });
