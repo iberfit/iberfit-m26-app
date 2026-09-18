@@ -229,6 +229,37 @@ function invalidRecoverySession(error){
   return error?.status===401||error?.status===403||/RECOVERY_(?:TOKEN|SESSION|USER|UPDATE|IDENTITY)|QA_ACCOUNT_REQUIRED|JWT|expired/i.test(code);
 }
 
+export function emailOtpFailureMessage(error){
+  const code=String(error?.message||error||'');
+  const authCode=String(error?.body?.code||error?.body?.error_code||'').trim().toUpperCase();
+  const status=Number(error?.status||0);
+  if(status===429||/rate.?limit|too many/i.test(code))return 'Por seguridad, espera un momento antes de solicitar otro código.';
+  if(authCode==='M26_EMAIL_ASSURANCE_PASSWORD_RECENT_REQUIRED'||/PASSWORD_RECENT_REQUIRED/u.test(code)){
+    return 'Para usar el código por correo, vuelve a entrar con tu contraseña y solicita un código nuevo.';
+  }
+  if(authCode==='M26_EMAIL_ASSURANCE_OTP_ALREADY_USED'){
+    return 'Este código ya fue utilizado. Solicita uno nuevo.';
+  }
+  if(
+    authCode==='M26_EMAIL_ASSURANCE_OTP_REQUIRED'||
+    authCode==='M26_EMAIL_ASSURANCE_SESSION_INVALID'||
+    authCode==='M26_EMAIL_ASSURANCE_AUTH_INVALID'||
+    /token.*expired|otp.*expired|expired.*otp/i.test(code)
+  ){
+    return 'El código ha caducado. Solicita uno nuevo.';
+  }
+  if(status===400||/otp|token.*invalid/i.test(code))return 'El código no es válido o ha caducado. Solicita uno nuevo.';
+  if(status===0||/TIMEOUT|NETWORK|FETCH|Failed to fetch/i.test(code)){
+    return 'No fue posible conectar. Tu sesión sigue protegida; puedes reintentarlo o usar la seguridad del dispositivo.';
+  }
+  return 'No fue posible completar la verificación por correo. Puedes reintentarlo o usar la seguridad del dispositivo.';
+}
+
+export function emailOtpRequestFailureMode({resend=false,mfaState=null,fallbackMode='mfa-required'}={}){
+  if(resend===true&&String(mfaState?.email||'').includes('@'))return 'mfa-email-code';
+  return fallbackMode==='mfa-challenge'?'mfa-challenge':'mfa-required';
+}
+
 const TERMINAL_AUTH_SESSION_CODES=new Set([
   'refresh_token_not_found',
   'refresh_token_already_used',
@@ -1169,7 +1200,7 @@ function onAuthClick(event) {
   }
 
   if(action==='mfa-send-email-code'||action==='mfa-resend-email-code'){
-    void requestMfaEmailCode().catch((error)=>reportDiagnostic('mfa-email-code-request',error));
+    void requestMfaEmailCode({resend:action==='mfa-resend-email-code'}).catch((error)=>reportDiagnostic('mfa-email-code-request',error));
     return;
   }
 
@@ -1374,15 +1405,7 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
     return mfaState?.kind==='challenge'?'mfa-challenge':'mfa-required';
   }
 
-  function emailOtpFailureMessage(error){
-    const code=String(error?.message||error||'');
-    if(Number(error?.status||0)===429||/rate.?limit|too many/i.test(code))return 'Por seguridad, espera un momento antes de solicitar otro código.';
-    if(Number(error?.status||0)===403||/PASSWORD_RECENT_REQUIRED/u.test(code))return 'Para usar el código por correo, vuelve a entrar con tu contraseña y solicita un código nuevo.';
-    if(Number(error?.status||0)===400||/otp|token.*invalid|expired/i.test(code))return 'El código no es válido o ha caducado. Solicita uno nuevo.';
-    return 'No fue posible completar la verificación por correo. Puedes reintentarlo o usar la seguridad del dispositivo.';
-  }
-
-  async function requestMfaEmailCode(){
+  async function requestMfaEmailCode({resend=false}={}){
     if(mfaState?.emailOtpAvailable!==true)throw new Error('M26_EMAIL_OTP_CHANNEL_NOT_READY');
     if(loginBusy||!session?.token||!mfaState)return false;
     loginBusy=true;
@@ -1395,10 +1418,14 @@ async function updateRecoveredPassword(password, passwordConfirmation) {
       mfaState=Object.freeze({...mfaState,email:user.email});
       authMode='mfa-email-code';
       loginBusy=false;
-      authMessage('Código enviado. Revisa el correo asociado a tu cuenta.');
+      authMessage(resend?'Código reenviado. Revisa el correo asociado a tu cuenta.':'Código enviado. Revisa el correo asociado a tu cuenta.');
       return true;
     }catch(error){
-      authMode=mfaDeviceMode();
+      authMode=emailOtpRequestFailureMode({
+        resend,
+        mfaState,
+        fallbackMode:mfaDeviceMode(),
+      });
       loginBusy=false;
       authMessage(emailOtpFailureMessage(error),'error');
       throw error;
