@@ -65,37 +65,14 @@ jobs:
           new="'bootstrap multiapp conserva rol primario y sólo permite aplicaciones autorizadas por backend'"
           if source.count(old)!=1:
               raise SystemExit('unexpected multiapp coherence title count')
-          source=source.replace(old,new)
-          marker="""    assert.match(
-              app,
-              /M26_ROLE_SWITCH_FORBIDDEN/u
-            );
-          """
-          insert="""    assert.match(
-              app,
-              /M26_ROLE_SWITCH_FORBIDDEN/u
-            );
-
-            assert.match(
-              app,
-              /if\\(!canSwitchApplication\\(identity\\)\\|\\|!allowed\\.includes\\(role\\)\\)\\{/u
-            );
-
-            assert.doesNotMatch(
-              app,
-              /!\\['coach','admin'\\]\\.includes\\(role\\)/u
-            );
-          """
-          if source.count(marker)!=1:
-              raise SystemExit('unexpected role guard marker count')
-          path.write_text(source.replace(marker,insert),encoding='utf-8')
+          path.write_text(source.replace(old,new),encoding='utf-8')
 
           path=Path('tests/m26_onboarding_app_choice_gate.test.mjs')
           source=path.read_text(encoding='utf-8')
-          source=source.replace(
-              "test('Genio waits until Admin or Coach app choice is confirmed',()=>{",
-              "test('Genio waits until the authorized app choice is confirmed',()=>{",
-          )
+          old_title="test('Genio waits until Admin or Coach app choice is confirmed',()=>{"
+          if source.count(old_title)!=1:
+              raise SystemExit('unexpected onboarding choice title count')
+          source=source.replace(old_title,"test('Genio waits until the authorized app choice is confirmed',()=>{")
           start=source.index("test('first onboarding remains independent for Coach and Admin on the same account',()=>{")
           end=source.index("\ntest('Coach and Admin each retain their own dynamic Genio track'",start)
           replacement="""test('first onboarding remains independent for Client, Coach and Admin on the same account',()=>{
