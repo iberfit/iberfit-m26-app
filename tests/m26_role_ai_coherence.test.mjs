@@ -43,7 +43,7 @@ test(
 );
 
 test(
-  'bootstrap multiapp conserva rol primario hasta que la persona elige una app autorizada',
+  'bootstrap operativo conserva rol primario y exige elección sólo entre Admin y Coach',
   ()=>{
     const app=fs.readFileSync(
       'src/m26/app/application.js',
@@ -57,7 +57,7 @@ test(
 
     assert.match(
       app,
-      /const roleChoiceRequired=authorizedRoles\.length>1/u
+      /const roleChoiceRequired=canSwitchApplication\(\{role:primaryRole,authorizedRoles\}\)/u
     );
 
     assert.match(
