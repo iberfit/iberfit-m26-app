@@ -926,8 +926,10 @@ export async function createM26Application({root=document.querySelector('#app'),
     onboarding=createProgressiveOnboardingController({
       root,
       identityProvider:()=>{
-        const identity=store.getState()?.identity||{};
-        const roleChoiceConfirmed=identity.roleChoiceConfirmed!==false;
+        const state=store.getState()||{};
+        const identity=state.identity||{};
+        const applicationAccess=state.applicationAccess||{};
+        const roleChoiceConfirmed=applicationAccess.roleChoiceConfirmed===true||!canSwitchApplication(applicationAccess);
         return {
           userId:session?.user?.id||'',
           role:roleChoiceConfirmed?(activeApplicationRole||identity.role||''):'',
@@ -1035,9 +1037,11 @@ export async function createM26Application({root=document.querySelector('#app'),
   }
   async function onSwitchRole(event){
     const role=String(event?.detail?.role||'').trim().toLowerCase();
-    const identity=store.getState().identity||{};
-    const allowed=identity.authorizedRoles||[];
-    if(!canSwitchApplication(identity)||!allowed.includes(role)){
+    const state=store.getState();
+    const identity=state.identity||{};
+    const applicationAccess=state.applicationAccess||{};
+    const allowed=Array.isArray(applicationAccess.authorizedRoles)?applicationAccess.authorizedRoles:[];
+    if(!canSwitchApplication(applicationAccess)||!allowed.includes(role)){
       surfaceRoleSwitchError(new Error('M26_ROLE_SWITCH_FORBIDDEN'));
       return false;
     }
