@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "b5bd601892936ec0c3372adc6a111b69ab80c6dd",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción incremental posterior a f290c8a6. Añade #485 y #486: Carlos (iberfit.cl@gmail.com) elige primero entre Coach y Administrador; el onboarding no se autoabre detrás del selector; tras elegir app, Coach/Admin reciben el primer recorrido dinámico con el Genio IBERFIT vectorial oficial, estado independiente por rol y onboarding v2. Cliente permanece aislado. Fast Lane, Continuous Audit y CI GREEN. Sin cambios en Supabase, RLS, Auth, permisos ni backend."
+}
