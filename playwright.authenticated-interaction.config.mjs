@@ -2,13 +2,13 @@ import {defineConfig} from '@playwright/test';
 
 export default defineConfig({
   testDir:'./qa/rc64',
-  testMatch:'authenticated-interaction.spec.mjs',
+  testMatch:'authenticated-interaction-multiapp.spec.mjs',
   fullyParallel:false,
   forbidOnly:true,
   retries:0,
   workers:1,
   reporter:'line',
-  timeout:90_000,
+  timeout:120_000,
   expect:{timeout:20_000},
   use:{
     baseURL:'http://127.0.0.1:4197',
