@@ -1,11 +1,13 @@
 import {getIberfitLanguage} from '../ui/i18n.js';
+import {clientGenieVisualMarkup} from './client-genie-visual.js';
 
-export const GUIDED_ONBOARDING_VERSION=1;
+export const GUIDED_ONBOARDING_VERSION=2;
 export const GUIDED_ONBOARDING_SCHEMA_VERSION='iberfit.guided-onboarding.v1';
 
 const ROLES=new Set(['client','coach','admin']);
 const STATUS=new Set(['never','in-progress','completed','skipped']);
 const COPY_LANGUAGES=Object.freeze(['es','en','fr','pt']);
+const OPERATIONAL_GENIE_ROLES=new Set(['coach','admin']);
 
 const ROLE_TOURS=Object.freeze({
   client:Object.freeze({
@@ -55,6 +57,7 @@ const ROLE_TOURS=Object.freeze({
 const COPY=Object.freeze({
   es:Object.freeze({
     'chrome.eyebrow':'Guía IBERFIT',
+    'chrome.genieEyebrow':'Genio IBERFIT',
     'chrome.progress':'Paso {current} de {total}',
     'chrome.previous':'Anterior',
     'chrome.next':'Siguiente',
@@ -114,6 +117,7 @@ const COPY=Object.freeze({
   }),
   en:Object.freeze({
     'chrome.eyebrow':'IBERFIT guide',
+    'chrome.genieEyebrow':'IBERFIT Genie',
     'chrome.progress':'Step {current} of {total}',
     'chrome.previous':'Back',
     'chrome.next':'Next',
@@ -173,6 +177,7 @@ const COPY=Object.freeze({
   }),
   fr:Object.freeze({
     'chrome.eyebrow':'Guide IBERFIT',
+    'chrome.genieEyebrow':'Génie IBERFIT',
     'chrome.progress':'Étape {current} sur {total}',
     'chrome.previous':'Précédent',
     'chrome.next':'Suivant',
@@ -232,6 +237,7 @@ const COPY=Object.freeze({
   }),
   pt:Object.freeze({
     'chrome.eyebrow':'Guia IBERFIT',
+    'chrome.genieEyebrow':'Génio IBERFIT',
     'chrome.progress':'Passo {current} de {total}',
     'chrome.previous':'Anterior',
     'chrome.next':'Seguinte',
@@ -294,6 +300,18 @@ const COPY=Object.freeze({
 const STYLE_TEXT=`
 .m26-guided-tour-target{outline:3px solid var(--iberfit-color-accent);outline-offset:4px;border-radius:var(--iberfit-radius-md);scroll-margin:7rem 1rem}
 .m26-guided-tour{position:fixed;z-index:1600;right:max(1rem,env(safe-area-inset-right));bottom:max(1rem,env(safe-area-inset-bottom));display:grid;gap:var(--iberfit-space-4);width:min(27rem,calc(100vw - 2rem));max-height:min(78vh,42rem);overflow:auto;padding:var(--iberfit-space-5);border:1px solid var(--iberfit-color-border-strong);border-radius:var(--iberfit-radius-xl);color:var(--iberfit-color-text-primary);background:var(--iberfit-color-surface-overlay);box-shadow:var(--iberfit-shadow-floating)}
+.m26-guided-tour.is-genie-led{grid-template-columns:5.65rem minmax(0,1fr);column-gap:var(--iberfit-space-3);overflow:visible;background:linear-gradient(145deg,color-mix(in srgb,var(--iberfit-color-surface-overlay) 94%,#fff4cf 6%),var(--iberfit-color-surface-overlay));border-color:color-mix(in srgb,var(--iberfit-color-accent) 45%,var(--iberfit-color-border-strong));}
+.m26-guided-tour.is-genie-led .m26-guided-tour-head,.m26-guided-tour.is-genie-led .m26-guided-tour-copy,.m26-guided-tour.is-genie-led .m26-guided-tour-step-status{grid-column:2}
+.m26-guided-tour.is-genie-led .m26-guided-tour-actions{grid-column:1/-1}
+.m26-guided-tour-genie{grid-column:1;grid-row:1/span 3;align-self:start;width:5.65rem;height:7.1rem;display:grid;place-items:center;pointer-events:none;user-select:none;filter:drop-shadow(0 14px 22px rgba(0,0,0,.26));}
+.m26-guided-tour-genie .m26-client-genie{display:block;width:100%;height:100%;overflow:visible}
+.m26-guided-tour-genie .m26-genie__body{transform-origin:50% 58%;animation:m26-operational-genie-float 2.8s ease-in-out infinite}
+.m26-guided-tour-genie .m26-genie__tail{transform-box:fill-box;transform-origin:50% 12%;animation:m26-operational-genie-tail 3.2s ease-in-out infinite}
+.m26-guided-tour-genie .m26-genie__core{transform-box:fill-box;transform-origin:center;animation:m26-operational-genie-core 2.35s ease-in-out infinite}
+.m26-guided-tour-step-status{color:var(--iberfit-color-text-secondary);font-size:var(--iberfit-font-size-sm);font-weight:var(--iberfit-font-weight-semibold)}
+@keyframes m26-operational-genie-float{0%,100%{transform:translateY(2px)}50%{transform:translateY(-5px)}}
+@keyframes m26-operational-genie-tail{0%,100%{transform:rotate(-.4deg)}50%{transform:rotate(1.25deg)}}
+@keyframes m26-operational-genie-core{0%,100%{transform:scale(.96);opacity:.86}50%{transform:scale(1.055);opacity:1}}
 .m26-guided-tour-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--iberfit-space-3)}
 .m26-guided-tour-head h2{margin:.2rem 0 0;font-size:var(--iberfit-font-size-xl)}
 .m26-guided-tour-copy{display:grid;gap:var(--iberfit-space-2)}
@@ -303,8 +321,8 @@ const STYLE_TEXT=`
 .m26-guided-tour-close{min-width:var(--iberfit-size-touch-target);min-height:var(--iberfit-size-touch-target)}
 .m26-guided-tour-settings{display:grid;gap:var(--iberfit-space-3);margin-top:var(--iberfit-space-4)}.m26-guided-tour-settings h2,.m26-guided-tour-settings p{margin:0}.m26-guided-tour-settings p{color:var(--iberfit-color-text-secondary)}
 .m26-guided-tour button:focus-visible,.m26-guided-tour-settings button:focus-visible{outline:3px solid color-mix(in srgb,var(--iberfit-color-focus) 72%,transparent);outline-offset:3px}
-@media(max-width:719px){.m26-guided-tour{right:.75rem;bottom:max(.75rem,env(safe-area-inset-bottom));left:.75rem;width:auto;max-height:64vh;padding:var(--iberfit-space-4)}.m26-guided-tour-actions{align-items:stretch}.m26-guided-tour-actions .m26-primary-action{margin-left:0}.m26-guided-tour-actions>button{flex:1 1 auto}}
-@media(prefers-reduced-motion:reduce){.m26-guided-tour,.m26-guided-tour-target{scroll-behavior:auto!important;transition:none!important}}
+@media(max-width:719px){.m26-guided-tour{right:.75rem;bottom:max(.75rem,env(safe-area-inset-bottom));left:.75rem;width:auto;max-height:64vh;padding:var(--iberfit-space-4)}.m26-guided-tour.is-genie-led{grid-template-columns:4.35rem minmax(0,1fr);column-gap:.7rem}.m26-guided-tour-genie{width:4.35rem;height:5.55rem}.m26-guided-tour-actions{align-items:stretch}.m26-guided-tour-actions .m26-primary-action{margin-left:0}.m26-guided-tour-actions>button{flex:1 1 auto}}
+@media(prefers-reduced-motion:reduce){.m26-guided-tour,.m26-guided-tour-target{scroll-behavior:auto!important;transition:none!important}.m26-guided-tour-genie *{animation:none!important;transition:none!important}}
 @media(forced-colors:active){.m26-guided-tour-target{outline:3px solid Highlight}.m26-guided-tour{border-color:CanvasText}}
 @media print{.m26-guided-tour,.m26-guided-tour-settings{display:none!important}}
 `;
@@ -506,7 +524,16 @@ function stepCopy(step,language){
 export function renderGuidedOnboardingDialog({role,step,index,total,language=getIberfitLanguage()}={}){
   const copy=stepCopy(step,language);
   const last=index===total-1;
-  return `<section class="m26-guided-tour" data-m26-guided-tour role="dialog" aria-modal="false" aria-labelledby="m26-guided-tour-title" aria-describedby="m26-guided-tour-copy" tabindex="-1"><div class="m26-guided-tour-head"><div><p class="m26-eyebrow">${escapeHtml(guidedOnboardingCopy('chrome.eyebrow',{language}))}</p><h2 id="m26-guided-tour-title">${escapeHtml(roleTitle(role,language))}</h2></div><button type="button" class="m26-icon-button m26-guided-tour-close" data-m26-guided-tour-close aria-label="${escapeHtml(guidedOnboardingCopy('chrome.close',{language}))}">×</button></div><div class="m26-guided-tour-meter" role="status" aria-live="polite"><span>${escapeHtml(guidedOnboardingCopy('chrome.progress',{language,params:{current:index+1,total}}))}</span><progress max="${total}" value="${index+1}">${index+1}/${total}</progress></div><div class="m26-guided-tour-copy" id="m26-guided-tour-copy"><h3>${escapeHtml(copy.title)}</h3><p>${escapeHtml(copy.body)}</p></div><div class="m26-guided-tour-actions"><button type="button" class="m26-text-action" data-m26-guided-tour-skip>${escapeHtml(guidedOnboardingCopy('chrome.skip',{language}))}</button>${index>0?`<button type="button" class="m26-text-action" data-m26-guided-tour-previous>${escapeHtml(guidedOnboardingCopy('chrome.previous',{language}))}</button>`:''}<button type="button" class="m26-primary-action" data-m26-guided-tour-next>${escapeHtml(guidedOnboardingCopy(last?'chrome.finish':'chrome.next',{language}))}</button></div></section>`;
+  const normalizedRole=text(role,40).toLowerCase();
+  const genieLed=OPERATIONAL_GENIE_ROLES.has(normalizedRole);
+  const className=genieLed?'m26-guided-tour is-genie-led':'m26-guided-tour';
+  const eyebrow=guidedOnboardingCopy(genieLed?'chrome.genieEyebrow':'chrome.eyebrow',{language});
+  const genie=genieLed?`<div class="m26-guided-tour-genie" data-m26-guided-tour-genie data-m26-guided-tour-genie-role="${escapeHtml(normalizedRole)}" aria-hidden="true">${clientGenieVisualMarkup()}</div>`:'';
+  const progressCopy=escapeHtml(guidedOnboardingCopy('chrome.progress',{language,params:{current:index+1,total}}));
+  const progress=genieLed
+    ?`<div class="m26-guided-tour-step-status" role="status" aria-live="polite"><span class="m26-visually-hidden">${progressCopy}</span></div>`
+    :`<div class="m26-guided-tour-meter" role="status" aria-live="polite"><span>${progressCopy}</span><progress max="${total}" value="${index+1}">${index+1}/${total}</progress></div>`;
+  return `<section class="${className}" data-m26-guided-tour data-m26-guided-tour-role="${escapeHtml(normalizedRole)}" role="dialog" aria-modal="false" aria-labelledby="m26-guided-tour-title" aria-describedby="m26-guided-tour-copy" tabindex="-1">${genie}<div class="m26-guided-tour-head"><div><p class="m26-eyebrow">${escapeHtml(eyebrow)}</p><h2 id="m26-guided-tour-title">${escapeHtml(roleTitle(role,language))}</h2></div><button type="button" class="m26-icon-button m26-guided-tour-close" data-m26-guided-tour-close aria-label="${escapeHtml(guidedOnboardingCopy('chrome.close',{language}))}">×</button></div>${progress}<div class="m26-guided-tour-copy" id="m26-guided-tour-copy"><h3>${escapeHtml(copy.title)}</h3><p>${escapeHtml(copy.body)}</p></div><div class="m26-guided-tour-actions"><button type="button" class="m26-text-action" data-m26-guided-tour-skip>${escapeHtml(guidedOnboardingCopy('chrome.skip',{language}))}</button>${index>0?`<button type="button" class="m26-text-action" data-m26-guided-tour-previous>${escapeHtml(guidedOnboardingCopy('chrome.previous',{language}))}</button>`:''}<button type="button" class="m26-primary-action" data-m26-guided-tour-next>${escapeHtml(guidedOnboardingCopy(last?'chrome.finish':'chrome.next',{language}))}</button></div></section>`;
 }
 
 export function renderGuidedOnboardingSettings({language=getIberfitLanguage()}={}){
