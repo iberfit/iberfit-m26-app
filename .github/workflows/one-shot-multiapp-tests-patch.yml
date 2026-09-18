@@ -1,0 +1,157 @@
+name: IBERFIT one-shot multiapp regression tests patch
+
+on:
+  push:
+    branches:
+      - fix/p1-multiapp-any-authorized-app-20260918
+    paths:
+      - '.github/multiapp-tests.trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/p1-multiapp-any-authorized-app-20260918
+          fetch-depth: 1
+
+      - name: Protect all authorized app combinations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path=Path('tests/m26_rc39_integrated_client_coach_multirole.test.mjs')
+          source=path.read_text(encoding='utf-8')
+          start=source.index("test('Admin+Coach exige elección de app y Cliente permanece aislado',()=>{")
+          end=source.index("\ntest('extensión backend falla cerrada",start)
+          replacement="""test('cualquier combinación con más de una app autorizada exige elección explícita',()=>{
+            const adminCoach={id:'admin-coach',role:'admin',authorizedRoles:['admin','coach'],roleChoiceConfirmed:false};
+            const clientAdmin={id:'client-admin',role:'client',authorizedRoles:['client','admin'],roleChoiceConfirmed:false};
+            const clientCoach={id:'client-coach',role:'client',authorizedRoles:['client','coach'],roleChoiceConfirmed:false};
+            const allApps={id:'all-apps',role:'client',authorizedRoles:['client','coach','admin'],roleChoiceConfirmed:false};
+            for(const identity of [adminCoach,clientAdmin,clientCoach,allApps])assert.equal(requiresRoleChoice(identity),true);
+            assert.equal(requiresRoleChoice({...clientAdmin,roleChoiceConfirmed:true}),false);
+            assert.equal(requiresRoleChoice({id:'client-only',role:'client',authorizedRoles:['client'],roleChoiceConfirmed:false}),false);
+            assert.equal(requiresRoleChoice({id:'coach-only',role:'coach',authorizedRoles:['coach'],roleChoiceConfirmed:false}),false);
+            const application=read('src/m26/app/application.js');
+            const enhancer=read('src/m26/rc39/shell-enhancer.js');
+            assert.match(application,/const roleChoiceRequired=canSwitchApplication\\(\\{role:primaryRole,authorizedRoles\\}\\)/u);
+            assert.match(application,/if\\(!canSwitchApplication\\(identity\\)\\|\\|!allowed\\.includes\\(role\\)\\)\\{/u);
+            assert.doesNotMatch(application,/!\\['coach','admin'\\]\\.includes\\(role\\)/u);
+            assert.match(application,/const roleChoiceConfirmed=!roleChoiceRequired\\|\\|Boolean\\(requestedRole\\)/u);
+            assert.match(application,/if\\(roleChoiceConfirmed\\)writePreferredApplicationRole/u);
+            assert.match(enhancer,/¿Cómo quieres entrar\\?/u);
+            assert.match(enhancer,/inert aria-hidden=\"true\"/u);
+            assert.match(enhancer,/roleButtons\\(vm,\\{choice:true\\}\\)/u);
+            assert.match(enhancer,/Administrador/u);
+            assert.match(enhancer,/Coach/u);
+            assert.match(enhancer,/Cliente/u);
+            assert.doesNotMatch(enhancer,/\\['coach','admin'\\]\\.includes\\(role\\)/u);
+          });
+          """
+          path.write_text(source[:start]+replacement+source[end:],encoding='utf-8')
+
+          path=Path('tests/m26_role_ai_coherence.test.mjs')
+          source=path.read_text(encoding='utf-8')
+          old="'bootstrap operativo conserva rol primario y exige elección sólo entre Admin y Coach'"
+          new="'bootstrap multiapp conserva rol primario y sólo permite aplicaciones autorizadas por backend'"
+          if source.count(old)!=1:
+              raise SystemExit('unexpected multiapp coherence title count')
+          source=source.replace(old,new)
+          marker="""    assert.match(
+              app,
+              /M26_ROLE_SWITCH_FORBIDDEN/u
+            );
+          """
+          insert="""    assert.match(
+              app,
+              /M26_ROLE_SWITCH_FORBIDDEN/u
+            );
+
+            assert.match(
+              app,
+              /if\\(!canSwitchApplication\\(identity\\)\\|\\|!allowed\\.includes\\(role\\)\\)\\{/u
+            );
+
+            assert.doesNotMatch(
+              app,
+              /!\\['coach','admin'\\]\\.includes\\(role\\)/u
+            );
+          """
+          if source.count(marker)!=1:
+              raise SystemExit('unexpected role guard marker count')
+          path.write_text(source.replace(marker,insert),encoding='utf-8')
+
+          path=Path('tests/m26_onboarding_app_choice_gate.test.mjs')
+          source=path.read_text(encoding='utf-8')
+          source=source.replace(
+              "test('Genio waits until Admin or Coach app choice is confirmed',()=>{",
+              "test('Genio waits until the authorized app choice is confirmed',()=>{",
+          )
+          start=source.index("test('first onboarding remains independent for Coach and Admin on the same account',()=>{")
+          end=source.index("\ntest('Coach and Admin each retain their own dynamic Genio track'",start)
+          replacement="""test('first onboarding remains independent for Client, Coach and Admin on the same account',()=>{
+            const userId='same-multiapp-user';
+            const client=progressiveOnboardingScopeKey({userId,role:'client'});
+            const coach=progressiveOnboardingScopeKey({userId,role:'coach'});
+            const admin=progressiveOnboardingScopeKey({userId,role:'admin'});
+            assert.ok(client);
+            assert.ok(coach);
+            assert.ok(admin);
+            assert.equal(new Set([client,coach,admin]).size,3);
+            assert.match(client,/progressive-onboarding\\.v1:client:/u);
+            assert.match(coach,/progressive-onboarding\\.v1:coach:/u);
+            assert.match(admin,/progressive-onboarding\\.v1:admin:/u);
+          });
+          """
+          source=source[:start]+replacement+source[end:]
+          old="""test('Coach and Admin each retain their own dynamic Genio track',()=>{
+            const coach=progressiveOnboardingTrack('coach');
+            const admin=progressiveOnboardingTrack('admin');
+            assert.equal(coach.role,'coach');
+            assert.equal(admin.role,'admin');
+            assert.ok(coach.steps.length>=4);
+            assert.ok(admin.steps.length>=4);
+            assert.notDeepEqual(
+              coach.steps.map((step)=>step.area),
+              admin.steps.map((step)=>step.area),
+            );
+          });"""
+          new="""test('Client, Coach and Admin each retain their own dynamic Genio track',()=>{
+            const client=progressiveOnboardingTrack('client');
+            const coach=progressiveOnboardingTrack('coach');
+            const admin=progressiveOnboardingTrack('admin');
+            assert.equal(client.role,'client');
+            assert.equal(coach.role,'coach');
+            assert.equal(admin.role,'admin');
+            assert.ok(client.steps.length>=4);
+            assert.ok(coach.steps.length>=4);
+            assert.ok(admin.steps.length>=4);
+            assert.notDeepEqual(client.steps.map((step)=>step.area),coach.steps.map((step)=>step.area));
+            assert.notDeepEqual(coach.steps.map((step)=>step.area),admin.steps.map((step)=>step.area));
+          });"""
+          if source.count(old)!=1:
+              raise SystemExit('unexpected onboarding track block count')
+          path.write_text(source.replace(old,new),encoding='utf-8')
+          PY
+          git diff --check
+          node --test tests/m26_rc39_integrated_client_coach_multirole.test.mjs tests/m26_role_ai_coherence.test.mjs tests/m26_onboarding_app_choice_gate.test.mjs
+
+      - name: Commit regression suite and remove one-shot machinery
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'iberfit-qa-bot'
+          git config user.email 'iberfit-qa-bot@users.noreply.github.com'
+          git rm .github/workflows/one-shot-multiapp-tests-patch.yml .github/multiapp-tests.trigger
+          git add tests/m26_rc39_integrated_client_coach_multirole.test.mjs tests/m26_role_ai_coherence.test.mjs tests/m26_onboarding_app_choice_gate.test.mjs
+          git commit -m 'test(auth): lock multiapp choice to all authorized roles'
+          git push origin HEAD:fix/p1-multiapp-any-authorized-app-20260918
