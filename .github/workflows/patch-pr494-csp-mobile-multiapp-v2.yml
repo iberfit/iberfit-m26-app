@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   patch:
-    if: github.event.head_commit.message == 'ops: run pr494 csp mobile patch v2'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -27,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = 'fix/p1-multiapp-runtime-application-access-20260918'
-          test "$(git rev-parse HEAD^)" = '171ffa5784e117739d593041af71eb7338642fb5'
+          test "$(git rev-parse HEAD^)" = 'd1c80692bc651f3925a121e6c7ff2655c35d6328'
           python scripts/patch_pr494_csp_mobile_multiapp_v2.py
           git diff --check
 
