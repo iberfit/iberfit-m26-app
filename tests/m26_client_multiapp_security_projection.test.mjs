@@ -2,11 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {stateFromBootstrap} from '../src/m26/production-state.js';
+import {createShellViewModel} from '../src/m26/shell/shell-view-model.js';
 
 function snapshot(userOverrides={}){
   return {
     user:{
       id:'usr-client-multiapp',
+      name:'Cliente multiapp',
+      email:'client.multiapp@example.org',
       role:'client',
       clientId:'client-own',
       authorizedRoles:['client','admin'],
@@ -27,22 +30,40 @@ function snapshot(userOverrides={}){
   };
 }
 
-test('client projection preserves backend-authorized multiapp metadata',()=>{
+test('Client identity remains minimized while app authorization is stored separately',()=>{
   const state=stateFromBootstrap(snapshot());
-  assert.equal(state.identity.role,'client');
-  assert.equal(state.identity.clientId,'client-own');
-  assert.deepEqual(state.identity.authorizedRoles,['client','admin']);
-  assert.equal(state.identity.roleChoiceConfirmed,false);
+  assert.deepEqual(state.identity,{
+    id:'usr-client-multiapp',
+    role:'client',
+    clientId:'client-own',
+    name:'Cliente multiapp',
+    email:'client.multiapp@example.org',
+  });
+  assert.deepEqual(state.applicationAccess.authorizedRoles,['client','admin']);
+  assert.equal(state.applicationAccess.roleChoiceConfirmed,false);
 });
 
-test('client multiapp metadata does not weaken client data projection',()=>{
+test('Client multiapp access does not weaken Client data projection',()=>{
   const state=stateFromBootstrap(snapshot({authorizedRoles:['client','coach','admin']}));
-  assert.deepEqual(state.identity.authorizedRoles,['client','coach','admin']);
+  assert.deepEqual(state.applicationAccess.authorizedRoles,['client','coach','admin']);
+  assert.equal(Object.hasOwn(state.identity,'authorizedRoles'),false);
+  assert.equal(Object.hasOwn(state.identity,'roleChoiceConfirmed'),false);
   assert.deepEqual(state.collections.clients.map((item)=>item.id),['client-own']);
   assert.deepEqual(state.collections.privateNotes,[]);
 });
 
-test('role aliases are normalized and the active role is always retained',()=>{
+test('shell receives authorized apps without expanding persisted Client identity',()=>{
+  const state=stateFromBootstrap(snapshot());
+  const vm=createShellViewModel(state);
+  assert.deepEqual(vm.identity.authorizedRoles,['admin','client']);
+  assert.equal(vm.canSwitchApplication,true);
+  assert.equal(vm.needsRoleChoice,true);
+  assert.equal(Object.hasOwn(state.identity,'authorizedRoles'),false);
+});
+
+test('role aliases are normalized and the active role is retained only in application access',()=>{
   const state=stateFromBootstrap(snapshot({authorizedRoles:['administrador','cliente','admin']}));
-  assert.deepEqual(state.identity.authorizedRoles,['admin','client']);
+  assert.deepEqual(state.applicationAccess.authorizedRoles,['admin','client']);
+  assert.equal(state.identity.role,'client');
+  assert.equal(Object.hasOwn(state.identity,'authorizedRoles'),false);
 });
