@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = 'fix/p1-multiapp-runtime-application-access-20260918'
-          test "$(git rev-parse HEAD^)" = '565fa2a8f52152e5d10bced8177e013252c49b66'
+          test "$(git rev-parse HEAD^)" = '052629533254d74820e10b6c728d2f80f839e489'
           python scripts/patch_pr494_csp_mobile_multiapp_v2.py
           python - <<'PY'
           from pathlib import Path
@@ -80,7 +80,7 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          diag="$GITHUB_WORKSPACE/pr494-final-step-diagnostics.txt"
+          diag="/tmp/pr494-final-step-diagnostics.txt"
           : > "$diag"
           exec > >(tee -a "$diag") 2>&1
           fail() {
@@ -93,6 +93,13 @@ jobs:
           echo "HEAD=$(git rev-parse HEAD)"
           echo "PARENT=$(git rev-parse HEAD^)"
           echo "REF=$GITHUB_REF_NAME"
+
+          echo '--- remove validation-only evidence ---'
+          rm -f \
+            recovery/RC74_4_FINAL_PRODUCTION_PROMOTION.json \
+            recovery/RC74_4_FINAL_PRODUCTION_PROMOTION.txt \
+            recovery/RC74_4_PHASE_B_LOCAL_VALIDATION.json
+
           echo '--- git status before commit ---'
           git status --porcelain=v1 --untracked-files=all
           echo '--- git diff name/status ---'
@@ -103,7 +110,7 @@ jobs:
           echo "DIFF_CHECK_RC=$rc"
           test "$rc" -eq 0 || fail 40
 
-          actual="$(git status --porcelain=v1 --untracked-files=all | sed 's/^...//' | sort)"
+          actual="$(git diff --name-only | sort)"
           expected="$(printf '%s\n' \
             'public/m26/index.html' \
             'src/m26/shell/shell.css' \
@@ -112,15 +119,24 @@ jobs:
             'tests/m26_onboarding_tour_lifecycle_hardening.test.mjs' \
             'tests/m26_rc35_audit_closure.test.mjs' \
             'tests/m26_rc39_integrated_client_coach_multirole.test.mjs' | sort)"
-          echo '--- actual allowlist ---'
+          echo '--- actual tracked allowlist ---'
           printf '%s\n' "$actual"
-          echo '--- expected allowlist ---'
+          echo '--- expected tracked allowlist ---'
           printf '%s\n' "$expected"
           if [ "$actual" != "$expected" ]; then
             echo 'ALLOWLIST_MISMATCH=1'
             fail 41
           fi
           echo 'ALLOWLIST_MATCH=1'
+
+          untracked="$(git ls-files --others --exclude-standard | sort)"
+          echo '--- unexpected untracked files ---'
+          printf '%s\n' "$untracked"
+          if [ -n "$untracked" ]; then
+            echo 'UNTRACKED_MISMATCH=1'
+            fail 42
+          fi
+          echo 'UNTRACKED_CLEAN=1'
 
           git config user.name iberfit
           git config user.email iberfit.cl@gmail.com
@@ -138,18 +154,18 @@ jobs:
           git diff --cached --check
           rc=$?
           echo "STAGED_DIFF_CHECK_RC=$rc"
-          test "$rc" -eq 0 || fail 42
+          test "$rc" -eq 0 || fail 43
 
           git commit -m 'fix(nav): restore CSP-safe mobile persistence'
           rc=$?
           echo "COMMIT_RC=$rc"
-          test "$rc" -eq 0 || fail 43
+          test "$rc" -eq 0 || fail 44
           echo "LOCAL_COMMIT=$(git rev-parse HEAD)"
 
           git push origin HEAD:fix/p1-multiapp-runtime-application-access-20260918
           rc=$?
           echo "PUSH_RC=$rc"
-          test "$rc" -eq 0 || fail 44
+          test "$rc" -eq 0 || fail 45
           echo 'FINAL_STEP_SUCCESS=1'
 
       - name: Upload final-step diagnostics
@@ -157,6 +173,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pr494-final-step-diagnostics
-          path: pr494-final-step-diagnostics.txt
+          path: /tmp/pr494-final-step-diagnostics.txt
           if-no-files-found: warn
           retention-days: 2
