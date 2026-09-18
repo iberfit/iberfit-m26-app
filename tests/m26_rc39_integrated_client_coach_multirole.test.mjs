@@ -84,19 +84,20 @@ test('Carlos puede elegir Coach o Admin sin inventar roles',()=>{
   assert.throws(()=>withActiveRole(identity,'client'),/M26_ROLE_SWITCH_FORBIDDEN/);
 });
 
-test('cualquier cuenta multiapp exige elección explícita y una cuenta de una sola app entra directa',()=>{
+test('Admin+Coach exige elección de app y Cliente permanece aislado',()=>{
   const adminCoach={id:'admin-coach',role:'admin',authorizedRoles:['admin','coach'],roleChoiceConfirmed:false};
   const clientAdmin={id:'client-admin',role:'client',authorizedRoles:['client','admin'],roleChoiceConfirmed:false};
   const clientCoach={id:'client-coach',role:'client',authorizedRoles:['client','coach'],roleChoiceConfirmed:false};
-  const allApps={id:'all-apps',role:'client',authorizedRoles:['client','coach','admin'],roleChoiceConfirmed:false};
-  for(const identity of [adminCoach,clientAdmin,clientCoach,allApps])assert.equal(requiresRoleChoice(identity),true);
-  assert.equal(requiresRoleChoice({...clientAdmin,roleChoiceConfirmed:true}),false);
+  const mixed={id:'mixed',role:'client',authorizedRoles:['client','coach','admin'],roleChoiceConfirmed:false};
+  assert.equal(requiresRoleChoice(adminCoach),true);
+  assert.equal(requiresRoleChoice({...adminCoach,roleChoiceConfirmed:true}),false);
+  for(const identity of [clientAdmin,clientCoach,mixed])assert.equal(requiresRoleChoice(identity),false);
   assert.equal(requiresRoleChoice({id:'client-only',role:'client',authorizedRoles:['client'],roleChoiceConfirmed:false}),false);
   assert.equal(requiresRoleChoice({id:'coach-only',role:'coach',authorizedRoles:['coach'],roleChoiceConfirmed:false}),false);
   const application=read('src/m26/app/application.js');
   const enhancer=read('src/m26/rc39/shell-enhancer.js');
-  assert.match(application,/const roleChoiceRequired=authorizedRoles\.length>1/u);
-  assert.match(application,/const preferredRole=requestedRole\|\|\(storedRole&&authorizedRoles\.includes\(storedRole\)\?storedRole:primaryRole\)/u);
+  assert.match(application,/const roleChoiceRequired=canSwitchApplication\(\{role:primaryRole,authorizedRoles\}\)/u);
+  assert.match(application,/!canSwitchApplication\(identity\)\|\|!\['coach','admin'\]\.includes\(role\)\|\|!allowed\.includes\(role\)/u);
   assert.match(application,/const roleChoiceConfirmed=!roleChoiceRequired\|\|Boolean\(requestedRole\)/u);
   assert.match(application,/if\(roleChoiceConfirmed\)writePreferredApplicationRole/u);
   assert.match(enhancer,/¿Cómo quieres entrar\?/u);
@@ -104,8 +105,8 @@ test('cualquier cuenta multiapp exige elección explícita y una cuenta de una s
   assert.match(enhancer,/roleButtons\(vm,\{choice:true\}\)/u);
   assert.match(enhancer,/Administrador/u);
   assert.match(enhancer,/Coach/u);
-  assert.match(enhancer,/Cliente/u);
-  assert.match(enhancer,/cambiar de aplicación después/u);
+  assert.doesNotMatch(enhancer,/client:Object\.freeze\(\{label:'Cliente'/u);
+  assert.match(enhancer,/\['coach','admin'\]\.includes\(role\)/u);
 });
 
 test('extensión backend falla cerrada y no rompe el login cuando aún no está instalada',async()=>{
