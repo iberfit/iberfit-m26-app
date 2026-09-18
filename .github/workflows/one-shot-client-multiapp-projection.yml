@@ -1,0 +1,51 @@
+name: IBERFIT one-shot client multiapp projection patch
+
+on:
+  push:
+    branches:
+      - fix/p1-client-multiapp-projection-20260918
+    paths:
+      - '.github/client-multiapp-projection.trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p1-client-multiapp-projection-20260918
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preserve authoritative multiapp metadata through role projection
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('src/m26/security/role-projection.js')
+          source=path.read_text(encoding='utf-8')
+          old="const out={id,role};if(role!=='client'){const authorizedSource=[user?.authorizedRoles,user?.authorized_roles,user?.roles].find(Array.isArray)||[];const authorizedRoles=[...new Set([...authorizedSource,user?.role].map((item)=>ROLE_ALIASES[String(item||'').trim().toLowerCase()]||null).filter(Boolean))];out.authorizedRoles=authorizedRoles;out.roleChoiceConfirmed=user?.roleChoiceConfirmed===true||user?.role_choice_confirmed===true;}if(role==='client'){"
+          new="const out={id,role};const authorizedSource=[user?.authorizedRoles,user?.authorized_roles,user?.roles].find(Array.isArray)||[];const authorizedRoles=[...new Set([...authorizedSource,user?.role].map((item)=>ROLE_ALIASES[String(item||'').trim().toLowerCase()]||null).filter(Boolean))];out.authorizedRoles=authorizedRoles;out.roleChoiceConfirmed=user?.roleChoiceConfirmed===true||user?.role_choice_confirmed===true;if(role==='client'){"
+          count=source.count(old)
+          if count != 1:
+              raise SystemExit(f'expected one exact identity projection block, found {count}')
+          path.write_text(source.replace(old,new),encoding='utf-8')
+          PY
+          node --check src/m26/security/role-projection.js
+          git diff --check
+      - name: Commit product patch and remove one-shot machinery
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'iberfit-qa-bot'
+          git config user.email 'iberfit-qa-bot@users.noreply.github.com'
+          git rm .github/workflows/one-shot-client-multiapp-projection.yml .github/client-multiapp-projection.trigger
+          git add src/m26/security/role-projection.js
+          git commit -m 'fix(auth): preserve authorized apps in Client projection'
+          git push origin HEAD:fix/p1-client-multiapp-projection-20260918
