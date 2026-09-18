@@ -4172,10 +4172,11 @@ export function renderSettingsRoute(vm){
           </dl>
           <div class="m26-settings-account-actions">
             <button type="button" class="m26-primary-action" data-m26-action="account-password-recovery">Cambiar contraseña</button>
-            <button type="button" data-m26-action="logout">Cerrar sesión</button>
+            <button type="button" data-m26-action="logout">Cerrar sesión en este dispositivo</button>
             <button type="button" class="m26-danger-action" data-m26-action="logout-clear-device">Cerrar sesión y borrar datos de este dispositivo</button>
+            <button type="button" class="m26-danger-action" data-m26-action="logout-all-sessions">Revocar sesiones en todos los dispositivos</button>
           </div>
-          <p class="m26-data-footnote">El cambio de contraseña se inicia mediante un enlace seguro enviado al correo de acceso, sin cerrar esta sesión. Borrar este dispositivo elimina únicamente el estado local asociado a esta sesión.</p>
+          <p class="m26-data-footnote">El cambio de contraseña se inicia mediante un enlace seguro enviado al correo de acceso, sin cerrar esta sesión. Cerrar sesión o borrar este dispositivo afecta únicamente a este equipo. “Revocar sesiones en todos los dispositivos” invalida la renovación de acceso de las demás sesiones de esta cuenta y requiere confirmación explícita.</p>
         </section>
       </div>
     </div>
