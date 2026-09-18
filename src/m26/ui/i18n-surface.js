@@ -546,6 +546,8 @@ const ROWS=Object.freeze([
   ['El reenvío no pudo completarse. La invitación sigue pendiente para reintento.','The resend could not be completed. The invitation remains pending for retry.','Le renvoi n’a pas pu être effectué. L’invitation reste en attente d’une nouvelle tentative.','Não foi possível concluir o reenvio. O convite continua pendente para nova tentativa.'],
   ['Estado de invitación actualizado.','Invitation status updated.','Statut de l’invitation mis à jour.','Estado do convite atualizado.'],
   ['Reintentar invitación','Retry invitation','Réessayer l’invitation','Tentar novamente o convite'],
+  ['La ventana recorta todas las gráficas y la tabla del ejercicio activo. La lectura Coach conserva su evaluación confirmada sobre el historial completo.','The window filters every chart and the table for the active exercise. The Coach reading keeps its confirmed assessment based on the full history.','La fenêtre filtre tous les graphiques et le tableau de l’exercice actif. La lecture Coach conserve son évaluation confirmée sur l’historique complet.','A janela filtra todos os gráficos e a tabela do exercício ativo. A leitura do Coach mantém a avaliação confirmada com base no histórico completo.'],
+  ['Referencias visibles de la gráfica principal','Visible references in the main chart','Références visibles du graphique principal','Referências visíveis do gráfico principal'],
 ]);
 
 const LANG_INDEX=Object.freeze({en:1,fr:2,pt:3});
