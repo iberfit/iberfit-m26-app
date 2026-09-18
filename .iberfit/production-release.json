@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "f290c8a6c368a054c120efe03b1fff8d1a4fcd48",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del Canary certificado posterior a #471-#481. Incluye hardening de sesión/Auth, reintento seguro de invitaciones Admin, paridad QA de Edge de invitación v26.4 y elección explícita de aplicación para identidades multiapp autorizadas. Carlos (iberfit.cl@gmail.com) conserva Coach+Admin y debe elegir entre ambas apps. Fast Lane, Continuous Audit, CI, Authenticated Client, Admin Interaction Matrix, Device Experience y Daily Visual GREEN en #481. PROD se despliega sólo mediante el workflow fail-closed de promotion con rollback, preflight, verificación app.iberfit.cl y auditoría post-deploy."
+}
