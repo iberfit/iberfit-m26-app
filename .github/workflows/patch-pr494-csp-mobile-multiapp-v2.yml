@@ -26,8 +26,34 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = 'fix/p1-multiapp-runtime-application-access-20260918'
-          test "$(git rev-parse HEAD^)" = 'd1c80692bc651f3925a121e6c7ff2655c35d6328'
+          test "$(git rev-parse HEAD^)" = '2aefddc5a8979d92db0354e4cc633611dd81e737'
           python scripts/patch_pr494_csp_mobile_multiapp_v2.py
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str, contract: str) -> None:
+              source = path.read_text()
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f"{contract}: expected 1 anchor, found {count}")
+              path.write_text(source.replace(old, new, 1))
+
+          onboarding_tour = Path('tests/m26_onboarding_tour_lifecycle_hardening.test.mjs')
+          replace_once(
+              onboarding_tour,
+              "  assert.match(shell,/\\.m26-mobile-nav \\{ display: grid; position: sticky; bottom: 0;/u);",
+              "  assert.match(shell,/\\.m26-mobile-nav \\{ display: grid; position: fixed; left: 0; right: 0; bottom: 0; width: 100%; max-width: 100vw;/u);\n  assert.doesNotMatch(shell,/\\.m26-mobile-nav \\{[^}]*position: relative;/u,'mobile tour navigation must remain viewport anchored');",
+              'ONBOARDING_TOUR_STALE_STICKY_NAV_CONTRACT_MISMATCH',
+          )
+
+          rc35 = Path('tests/m26_rc35_audit_closure.test.mjs')
+          replace_once(
+              rc35,
+              "  assert.match(css,/\\.m26-mobile-nav \\{ display: grid; position: sticky; bottom: 0;/);",
+              "  assert.match(css,/\\.m26-mobile-nav \\{ display: grid; position: fixed; left: 0; right: 0; bottom: 0; width: 100%; max-width: 100vw;/);\n  assert.match(css,/\\.m26-workspace \\{[^}]*padding-bottom: calc\\(var\\(--iberfit-ux-mobile-nav, 4\\.35rem\\) \\+ env\\(safe-area-inset-bottom\\)\\);/);\n  assert.doesNotMatch(css,/\\.m26-mobile-nav \\{[^}]*position: relative;/,'late mobile rules must not detach the navigation from the viewport');",
+              'RC35_STALE_STICKY_NAV_CONTRACT_MISMATCH',
+          )
+          PY
           git diff --check
 
       - name: Focused regressions
@@ -35,6 +61,8 @@ jobs:
           set -euo pipefail
           node --test \
             tests/m26_mobile_navigation_persistence.test.mjs \
+            tests/m26_onboarding_tour_lifecycle_hardening.test.mjs \
+            tests/m26_rc35_audit_closure.test.mjs \
             tests/m26_onboarding_app_choice_gate.test.mjs \
             tests/m26_rc39_integrated_client_coach_multirole.test.mjs \
             tests/m26_rc16_hardening.test.mjs \
@@ -63,6 +91,8 @@ jobs:
             'src/m26/shell/shell.css' \
             'tests/m26_mobile_navigation_persistence.test.mjs' \
             'tests/m26_onboarding_app_choice_gate.test.mjs' \
+            'tests/m26_onboarding_tour_lifecycle_hardening.test.mjs' \
+            'tests/m26_rc35_audit_closure.test.mjs' \
             'tests/m26_rc39_integrated_client_coach_multirole.test.mjs' | sort)"
           test "$actual" = "$expected"
           git config user.name iberfit
@@ -74,6 +104,8 @@ jobs:
             src/m26/shell/shell.css \
             tests/m26_mobile_navigation_persistence.test.mjs \
             tests/m26_onboarding_app_choice_gate.test.mjs \
+            tests/m26_onboarding_tour_lifecycle_hardening.test.mjs \
+            tests/m26_rc35_audit_closure.test.mjs \
             tests/m26_rc39_integrated_client_coach_multirole.test.mjs
           git commit -m 'fix(nav): restore CSP-safe mobile persistence'
           git push origin HEAD:fix/p1-multiapp-runtime-application-access-20260918
