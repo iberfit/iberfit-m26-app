@@ -36,6 +36,7 @@ async function readAssurance(response){
   expect(payload&&typeof payload==='object').toBeTruthy();
   return payload;
 }
+
 async function dismissGuidance(page){
   const welcome=page.locator('[data-m26-client-guided-welcome]');
   await welcome.waitFor({state:'visible',timeout:3_000}).catch(()=>{});
@@ -49,10 +50,15 @@ async function dismissGuidance(page){
     if(await close.count())await close.click();
   }
 }
+
 async function verifyClientWorkspace(page,{projectName,browserName}){
   const shell=page.locator('.m26-shell[data-m26-role="client"]');
   await expect(shell).toBeVisible({timeout:10_000});
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+  await expect(
+    page.locator('[data-m26-action="logout"]'),
+    'Authenticated Client must retain a semantic logout action even when session controls live inside Settings',
+  ).toHaveCount(1,{timeout:5_000});
   await dismissGuidance(page);
 
   const visibleNavigationTarget=page.locator(
@@ -150,6 +156,9 @@ test('current multiapp WebAuthn contract authenticates QA Coach and Client witho
   const evidenceRoles=[];
   const projectUse=testInfo.project.use||{};
   const projectName=String(testInfo.project.name||'');
+  const chromiumEngine=browserName==='chromium';
+  const touchProfile=/tablet|mobile/iu.test(projectName);
+  const cpuThrottleRate=chromiumEngine?(touchProfile?6:3):1;
 
   for(const account of accounts){
     expect(String(account.email||'').toLowerCase()).toBe(account.expectedEmail);
@@ -175,6 +184,10 @@ test('current multiapp WebAuthn contract authenticates QA Coach and Client witho
       onQaRequest:(label)=>qaRequests.push(label),
     });
     const page=await context.newPage();
+    if(chromiumEngine){
+      const cdp=await context.newCDPSession(page);
+      await cdp.send('Emulation.setCPUThrottlingRate',{rate:cpuThrottleRate});
+    }
     page.on('requestfailed',(request)=>{
       const label=qaRequestLabel(request);
       if(blocked.includes(label))return;
@@ -203,7 +216,7 @@ test('current multiapp WebAuthn contract authenticates QA Coach and Client witho
       expect(assurance.iberfitAssurance).not.toBe('verified');
 
       const shell=page.locator(`.m26-shell[data-m26-role="${account.role}"]`);
-      const canCompleteWebAuthn=browserName==='chromium'&&account.role==='client';
+      const canCompleteWebAuthn=chromiumEngine&&account.role==='client';
       if(!canCompleteWebAuthn){
         await expect(shell,'Privileged shell must remain unavailable before WebAuthn').toHaveCount(0,{timeout:5_000});
         await expect(page.locator('#m26-auth-title')).toBeVisible({timeout:5_000});
@@ -227,6 +240,9 @@ test('current multiapp WebAuthn contract authenticates QA Coach and Client witho
         authenticated:true,
         privilegedGate:'webauthn-required',
         browserEngine:browserName,
+        cpuThrottleRate,
+        cpuThrottled:chromiumEngine,
+        touchProfile,
         mfaCompleted:canCompleteWebAuthn,
         applicationChoice:canCompleteWebAuthn?'client':null,
         interactionVerified:canCompleteWebAuthn,
@@ -251,8 +267,9 @@ test('current multiapp WebAuthn contract authenticates QA Coach and Client witho
     source:'current-source-intercepted-at-canary-origin',
     projectRef:QA_PROJECT_REF,
     mode:'authenticated-browser-multiapp',
+    mutationsPerformed:false,
     businessMutationsPerformed:false,
-    authMutationPerformed:browserName==='chromium',
+    authMutationPerformed:chromiumEngine,
     identityPersisted:false,
     healthDataPersisted:false,
     credentialsPersisted:false,
