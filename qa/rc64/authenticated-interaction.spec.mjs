@@ -4,7 +4,6 @@ import {
   CANARY_ORIGIN,
   QA_PROJECT_REF,
   SUPABASE_ORIGIN,
-  completeClientWebAuthnChoice,
   installCurrentSourceQaNetworkPolicy,
   qaRequestLabel,
 } from './secure-current-source-auth.mjs';
@@ -12,7 +11,7 @@ import {
 const OUT_DIR='recovery/p0-authenticated-interaction';
 const REQUIRED=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
-  'M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD',
+  'M26_QA_CLIENT_B_EMAIL','M26_QA_CLIENT_B_PASSWORD',
 ];
 const READ_ONLY_RPCS=new Set([
   'iberfit_bootstrap_v26',
@@ -117,25 +116,23 @@ async function expectTouchTarget(locator,touch){
   expect(metrics.fontSize).toBeGreaterThanOrEqual(16);
 }
 
-test('authenticated multiapp Client keeps inputs textarea selects and mobile More usable after pointer release',async({page,context},testInfo)=>{
+test('authenticated Client-only QA keeps inputs textarea selects and mobile More usable after pointer release',async({page,context},testInfo)=>{
   const missing=REQUIRED.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
   expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
   expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
   expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
   expect(String(process.env.M26_SUPABASE_PUBLISHABLE_KEY)).not.toMatch(/service[_-]?role/iu);
-  expect(String(process.env.M26_QA_CLIENT_A_EMAIL||'').toLowerCase()).toBe('qa.rc74.client-a@iberfit.cl');
+  expect(String(process.env.M26_QA_CLIENT_B_EMAIL||'').toLowerCase()).toBe('qa.rc74.client-b@iberfit.cl');
 
   const touch=/mobile|tablet/iu.test(testInfo.project.name);
   const blocked=[];
   const unexpectedFailures=[];
   const consoleErrors=[];
   const pageErrors=[];
-  const qaRequests=[];
   await installCurrentSourceQaNetworkPolicy(context,{
     readOnlyRpcs:READ_ONLY_RPCS,
     onBlocked:(label)=>blocked.push(label),
-    onQaRequest:(label)=>qaRequests.push(label),
   });
   page.on('requestfailed',(request)=>{const label=qaRequestLabel(request);if(!blocked.includes(label))unexpectedFailures.push(label);});
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
@@ -143,15 +140,15 @@ test('authenticated multiapp Client keeps inputs textarea selects and mobile Mor
 
   const navigation=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});
   expect(navigation?.ok()).toBeTruthy();
-  await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_A_EMAIL);
-  await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_A_PASSWORD);
+  await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_B_EMAIL);
+  await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_B_PASSWORD);
   await page.getByRole('button',{name:'Entrar',exact:true}).click();
-  const auth=await completeClientWebAuthnChoice(page,{role:'client'});
-  expect(auth.authorizedRoles).toEqual(['client','admin']);
-  expect(auth.selectedRole).toBe('client');
 
   const shell=page.locator('.m26-shell[data-m26-role="client"]');
-  await expect(shell).toBeVisible({timeout:10_000});
+  await expect(shell,'Client-only QA must open Client directly without privileged MFA').toBeVisible({timeout:25_000});
+  await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+  await expect(page.locator('.m26-role-choice[role="dialog"]'),'Client-only identity must not receive app choice').toHaveCount(0);
+  await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]'),'Client-only identity must not be forced through privileged WebAuthn').toHaveCount(0);
   await dismissGuidance(page);
 
   await openArea(page,'actividad');
@@ -220,20 +217,21 @@ test('authenticated multiapp Client keeps inputs textarea selects and mobile Mor
   expect(unexpectedFailures).toEqual([]);
   expect(consoleErrors).toEqual([]);
   expect(pageErrors).toEqual([]);
-  expect(qaRequests.some((label)=>label.includes('/functions/v1/iberfit-webauthn-v1')),'Real QA WebAuthn edge must be exercised').toBe(true);
 
   await mkdir(OUT_DIR,{recursive:true});
   const evidence={
-    schema:'iberfit.p0.authenticated-client-interaction.v2',
+    schema:'iberfit.p0.authenticated-client-interaction.v3',
     source:'current-source-intercepted-at-canary-origin',
     projectRef:QA_PROJECT_REF,
     project:safeSlug(testInfo.project.name),
+    account:'client_b',
     role:'client',
     authenticated:true,
-    mfaVerified:true,
-    applicationChoice:'client',
+    privilegedMfaRequired:false,
+    applicationChoiceRequired:false,
+    mutationsPerformed:false,
     businessMutationsPerformed:false,
-    authMutationPerformed:true,
+    authMutationPerformed:false,
     serviceWorkersBlocked:true,
     controls:['checkin.energy','checkin.sleep','checkin.notes','settings.language','settings.locale','settings.notification','client.mobile-more'],
   };
