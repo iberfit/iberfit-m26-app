@@ -1,0 +1,53 @@
+name: IBERFIT one-shot multiapp client switch patch
+
+on:
+  push:
+    branches:
+      - fix/p1-multiapp-any-authorized-app-20260918
+    paths:
+      - '.github/multiapp-client-switch.trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/p1-multiapp-any-authorized-app-20260918
+          fetch-depth: 1
+
+      - name: Apply exact fail-closed role-switch patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('src/m26/app/application.js')
+          source=path.read_text(encoding='utf-8')
+          old="if(!canSwitchApplication(identity)||!['coach','admin'].includes(role)||!allowed.includes(role)){"
+          new="if(!canSwitchApplication(identity)||!allowed.includes(role)){"
+          count=source.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one role-switch guard, found {count}')
+          path.write_text(source.replace(old,new),encoding='utf-8')
+          PY
+          node --check src/m26/app/application.js
+          grep -F "if(!canSwitchApplication(identity)||!allowed.includes(role)){" src/m26/app/application.js
+          ! grep -F "!['coach','admin'].includes(role)" src/m26/app/application.js
+          git diff --check
+
+      - name: Commit product patch and remove one-shot machinery
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'iberfit-qa-bot'
+          git config user.email 'iberfit-qa-bot@users.noreply.github.com'
+          git rm .github/workflows/one-shot-multiapp-client-switch-patch.yml .github/multiapp-client-switch.trigger
+          git add src/m26/app/application.js
+          git commit -m 'fix(auth): allow switching to every backend-authorized app'
+          git push origin HEAD:fix/p1-multiapp-any-authorized-app-20260918
