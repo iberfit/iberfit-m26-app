@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 10
     env:
       TARGET_BRANCH: fix/p1-multiapp-runtime-application-access-20260918
-      EXPECTED_BASE_SHA: e89198069c7e56c64db22b857e22cb50679040dc
+      EXPECTED_BASE_SHA: 4cdbc77f4173e406b4f434e52a5680d681da18b5
     steps:
       - name: Checkout exact product fix branch
         uses: actions/checkout@v4
@@ -30,13 +30,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Assert exact untouched base
+      - name: Assert exact product head
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_BASE_SHA"
 
-      - name: Patch multiapp runtime consumers and add regression
+      - name: Remove stale identity dependency and strengthen regression
         shell: python
         run: |
           from pathlib import Path
@@ -46,43 +46,24 @@ jobs:
           path=Path('src/m26/app/application.js')
           source=path.read_text(encoding='utf-8')
 
-          switch_pattern=re.compile(
-              r"(?m)^(?P<i>\s*)const identity=store\.getState\(\)\.identity\|\|\{\};\n"
-              r"(?P=i)const allowed=identity\.authorizedRoles\|\|\[\];\n"
-              r"(?P=i)if\(!canSwitchApplication\(identity\)\|\|!allowed\.includes\(role\)\)\{"
+          cleanup_pattern=re.compile(
+              r"(?m)^(?P<i>\s*)const state=store\.getState\(\);\n"
+              r"(?P=i)const identity=state\.identity\|\|\{\};\n"
+              r"(?P=i)const applicationAccess=state\.applicationAccess\|\|\{\};\n"
+              r"(?P=i)const allowed=Array\.isArray\(applicationAccess\.authorizedRoles\)\?applicationAccess\.authorizedRoles:\[\];"
           )
-          switch_matches=list(switch_pattern.finditer(source))
-          if len(switch_matches)!=1:
-              raise SystemExit(f'expected exactly one stale role-switch authorization block, found {len(switch_matches)}')
+          matches=list(cleanup_pattern.finditer(source))
+          if len(matches)!=1:
+              raise SystemExit(f'expected exactly one role-switch cleanup block, found {len(matches)}')
 
-          def replace_switch(match):
+          def replace_cleanup(match):
               i=match.group('i')
               return (
-                  f"{i}const state=store.getState();\n"
-                  f"{i}const identity=state.identity||{{}};\n"
-                  f"{i}const applicationAccess=state.applicationAccess||{{}};\n"
-                  f"{i}const allowed=Array.isArray(applicationAccess.authorizedRoles)?applicationAccess.authorizedRoles:[];\n"
-                  f"{i}if(!canSwitchApplication(applicationAccess)||!allowed.includes(role)){{"
+                  f"{i}const applicationAccess=store.getState().applicationAccess||{{}};\n"
+                  f"{i}const allowed=Array.isArray(applicationAccess.authorizedRoles)?applicationAccess.authorizedRoles:[];"
               )
-          source=switch_pattern.sub(replace_switch,source,count=1)
 
-          onboarding_pattern=re.compile(
-              r"(?m)^(?P<i>\s*)const identity=store\.getState\(\)\?\.identity\|\|\{\};\n"
-              r"(?P=i)const roleChoiceConfirmed=identity\.roleChoiceConfirmed!==false;"
-          )
-          onboarding_matches=list(onboarding_pattern.finditer(source))
-          if len(onboarding_matches)!=1:
-              raise SystemExit(f'expected exactly one stale onboarding authorization block, found {len(onboarding_matches)}')
-
-          def replace_onboarding(match):
-              i=match.group('i')
-              return (
-                  f"{i}const state=store.getState()||{{}};\n"
-                  f"{i}const identity=state.identity||{{}};\n"
-                  f"{i}const applicationAccess=state.applicationAccess||{{}};\n"
-                  f"{i}const roleChoiceConfirmed=applicationAccess.roleChoiceConfirmed===true||!canSwitchApplication(applicationAccess);"
-              )
-          source=onboarding_pattern.sub(replace_onboarding,source,count=1)
+          source=cleanup_pattern.sub(replace_cleanup,source,count=1)
           path.write_text(source,encoding='utf-8')
 
           test_path=Path('tests/m26_multiapp_runtime_application_access.test.mjs')
@@ -93,16 +74,27 @@ jobs:
 
             const applicationSource=await fs.readFile(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
 
-            test('runtime role switch authorizes from applicationAccess, never Client identity metadata',()=>{
-              assert.match(applicationSource,/const applicationAccess=state\.applicationAccess\|\|\{\};/u);
-              assert.match(applicationSource,/canSwitchApplication\(applicationAccess\)\|\|!allowed\.includes\(role\)/u);
-              assert.doesNotMatch(applicationSource,/const allowed=identity\.authorizedRoles\|\|\[\];/u);
-              assert.doesNotMatch(applicationSource,/canSwitchApplication\(identity\)\|\|!allowed\.includes\(role\)/u);
+            function between(source,start,end){
+              const from=source.indexOf(start);
+              assert.notEqual(from,-1,`missing start marker: ${start}`);
+              const to=source.indexOf(end,from+start.length);
+              assert.notEqual(to,-1,`missing end marker: ${end}`);
+              return source.slice(from,to);
+            }
+
+            test('runtime role switch authorizes only from applicationAccess',()=>{
+              const handler=between(applicationSource,'async function onSwitchRole(event){','function onInspectOperation');
+              assert.match(handler,/const applicationAccess=store\.getState\(\)\.applicationAccess\|\|\{\};/u);
+              assert.match(handler,/const allowed=Array\.isArray\(applicationAccess\.authorizedRoles\)\?applicationAccess\.authorizedRoles:\[\];/u);
+              assert.match(handler,/canSwitchApplication\(applicationAccess\)\|\|!allowed\.includes\(role\)/u);
+              assert.doesNotMatch(handler,/identity\.authorizedRoles|canSwitchApplication\(identity\)|const identity=/u);
             });
 
             test('progressive onboarding stays suppressed until a required multiapp choice is confirmed',()=>{
-              assert.match(applicationSource,/const roleChoiceConfirmed=applicationAccess\.roleChoiceConfirmed===true\|\|!canSwitchApplication\(applicationAccess\);/u);
-              assert.doesNotMatch(applicationSource,/roleChoiceConfirmed=identity\.roleChoiceConfirmed!==false/u);
+              const provider=between(applicationSource,'identityProvider:()=>{','mediaExperience=createExerciseVideoExperienceController');
+              assert.match(provider,/const applicationAccess=state\.applicationAccess\|\|\{\};/u);
+              assert.match(provider,/const roleChoiceConfirmed=applicationAccess\.roleChoiceConfirmed===true\|\|!canSwitchApplication\(applicationAccess\);/u);
+              assert.doesNotMatch(provider,/roleChoiceConfirmed=identity\.roleChoiceConfirmed!==false/u);
             });
           """),encoding='utf-8')
 
@@ -115,7 +107,7 @@ jobs:
             tests/m26_multiapp_runtime_application_access.test.mjs \
             tests/m26_client_multiapp_security_projection.test.mjs
 
-      - name: Commit exact product patch
+      - name: Commit exact product cleanup
         shell: bash
         run: |
           set -euo pipefail
@@ -123,5 +115,5 @@ jobs:
           git config user.name 'IBERFIT QA Patch Bot'
           git config user.email 'qa-patch-bot@users.noreply.github.com'
           git add src/m26/app/application.js tests/m26_multiapp_runtime_application_access.test.mjs
-          git commit -m 'fix(auth): wire multiapp runtime to application access'
+          git commit -m 'test(auth): tighten multiapp runtime access regression'
           git push origin "HEAD:${TARGET_BRANCH}"
