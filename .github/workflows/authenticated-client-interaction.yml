@@ -11,6 +11,7 @@ on:
       - 'src/m26/shell/**'
       - 'src/m26/ui/**'
       - 'qa/rc64/authenticated-interaction.spec.mjs'
+      - 'qa/rc64/secure-current-source-auth.mjs'
       - 'qa/rc64/build-authenticated-surface.mjs'
       - 'qa/rc64/real-shell-server.mjs'
       - 'playwright.authenticated-interaction.config.mjs'
@@ -25,6 +26,7 @@ on:
       - 'src/m26/shell/**'
       - 'src/m26/ui/**'
       - 'qa/rc64/authenticated-interaction.spec.mjs'
+      - 'qa/rc64/secure-current-source-auth.mjs'
       - 'qa/rc64/build-authenticated-surface.mjs'
       - 'qa/rc64/real-shell-server.mjs'
       - 'playwright.authenticated-interaction.config.mjs'
@@ -81,8 +83,8 @@ jobs:
           M26_QA_ONLY: 'true'
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
-          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
-          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
         run: npx playwright test --config playwright.authenticated-interaction.config.mjs
       - name: Upload authenticated interaction evidence
         if: always()
