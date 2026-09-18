@@ -86,11 +86,10 @@ function restrictCollectionsForIdentity(collections,user){const projected=projec
 
 function restrictRemoteRevisions(revisions,user){return projectRemoteRevisionsForRole(revisions,user);}
 
-function projectAuthorizedRoleMetadata(user,identity){
+function projectApplicationAccess(user,identity){
   const authorizedSource=[user?.authorizedRoles,user?.authorized_roles,user?.roles].find(Array.isArray)||[];
-  const authorizedRoles=[...new Set([...authorizedSource,user?.role].map(normalizeRole).filter(Boolean))];
+  const authorizedRoles=[...new Set([...authorizedSource,identity?.role].map(normalizeRole).filter(Boolean))];
   return Object.freeze({
-    ...identity,
     authorizedRoles:Object.freeze(authorizedRoles),
     roleChoiceConfirmed:user?.roleChoiceConfirmed===true||user?.role_choice_confirmed===true,
   });
@@ -102,6 +101,7 @@ export function createProductionState(overrides = {}) {
     schema: M26_UI_SCHEMA,
     hydration: { status: 'idle', error: null, confirmedAt: null, serverTime: null },
     identity: null,
+    applicationAccess: Object.freeze({authorizedRoles:Object.freeze([]),roleChoiceConfirmed:true}),
     environment: null,
     canary: { active: false, scope: null, version: null },
     admin:createAdminState(),
@@ -182,7 +182,8 @@ export function stateFromBootstrap(rawSnapshot, previous = createProductionState
     M26_COLLECTION_KEYS.map((key) => [key, normalizeCollection(snapshot.data, key)]),
   );
   qaStage('rc64-state-collections-ready');
-  const identity=projectAuthorizedRoleMetadata(snapshot.user,projectIdentityForRole(snapshot.user));
+  const identity=projectIdentityForRole(snapshot.user);
+  const applicationAccess=projectApplicationAccess(snapshot.user,identity);
   qaStage('rc64-state-identity-ready');
   const collections=identity.role==='client'?restrictCollectionsForIdentity(rawCollections,identity):rawCollections;
   qaStage('rc64-state-role-projection-ready');
@@ -208,6 +209,7 @@ export function stateFromBootstrap(rawSnapshot, previous = createProductionState
     activeArea:sameIdentity?(previous.activeArea||defaultArea):!hasPreviousIdentity?initialArea:defaultArea,
     coachMode: navigationContinuity?(previous.coachMode || 'gestionar'):'gestionar',
     identity,
+    applicationAccess,
     environment: projectEnvironmentForRole(snapshot.environment,identity),
     canary: projectCanaryForRole(snapshot.canary,identity),
     admin:projectAdminSnapshot(snapshot.admin,identity),
