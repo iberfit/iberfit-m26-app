@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 
+// Regression captured from the authenticated WebAuthn + multiapp Admin QA gate on 2026-09-18.
 const applicationSource=await fs.readFile(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
 
 function between(source,start,end){
