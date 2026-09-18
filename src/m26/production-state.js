@@ -86,6 +86,16 @@ function restrictCollectionsForIdentity(collections,user){const projected=projec
 
 function restrictRemoteRevisions(revisions,user){return projectRemoteRevisionsForRole(revisions,user);}
 
+function projectAuthorizedRoleMetadata(user,identity){
+  const authorizedSource=[user?.authorizedRoles,user?.authorized_roles,user?.roles].find(Array.isArray)||[];
+  const authorizedRoles=[...new Set([...authorizedSource,user?.role].map(normalizeRole).filter(Boolean))];
+  return Object.freeze({
+    ...identity,
+    authorizedRoles:Object.freeze(authorizedRoles),
+    roleChoiceConfirmed:user?.roleChoiceConfirmed===true||user?.role_choice_confirmed===true,
+  });
+}
+
 export function createProductionState(overrides = {}) {
   const collections = Object.fromEntries(M26_COLLECTION_KEYS.map((key) => [key, []]));
   return {
@@ -172,7 +182,7 @@ export function stateFromBootstrap(rawSnapshot, previous = createProductionState
     M26_COLLECTION_KEYS.map((key) => [key, normalizeCollection(snapshot.data, key)]),
   );
   qaStage('rc64-state-collections-ready');
-  const identity=projectIdentityForRole(snapshot.user);
+  const identity=projectAuthorizedRoleMetadata(snapshot.user,projectIdentityForRole(snapshot.user));
   qaStage('rc64-state-identity-ready');
   const collections=identity.role==='client'?restrictCollectionsForIdentity(rawCollections,identity):rawCollections;
   qaStage('rc64-state-role-projection-ready');
