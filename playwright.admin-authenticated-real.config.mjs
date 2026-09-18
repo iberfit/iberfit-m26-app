@@ -1,4 +1,4 @@
-import {defineConfig} from '@playwright/test';
+// QA_ADMIN_AUTHENTICATED_REAL_TRIGGER\nimport {defineConfig} from '@playwright/test';
 
 export default defineConfig({
   testDir:'./qa/admin-authenticated-real',
