@@ -1037,7 +1037,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     const role=String(event?.detail?.role||'').trim().toLowerCase();
     const identity=store.getState().identity||{};
     const allowed=identity.authorizedRoles||[];
-    if(!canSwitchApplication(identity)||!['coach','admin'].includes(role)||!allowed.includes(role)){
+    if(!canSwitchApplication(identity)||!allowed.includes(role)){
       surfaceRoleSwitchError(new Error('M26_ROLE_SWITCH_FORBIDDEN'));
       return false;
     }

@@ -43,7 +43,7 @@ test(
 );
 
 test(
-  'bootstrap operativo conserva rol primario y exige elección sólo entre Admin y Coach',
+  'bootstrap multiapp conserva rol primario y sólo permite aplicaciones autorizadas por backend',
   ()=>{
     const app=fs.readFileSync(
       'src/m26/app/application.js',

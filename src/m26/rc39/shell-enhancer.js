@@ -378,8 +378,9 @@ function roleButtons(vm,{choice=false}={}){
   const copy=Object.freeze({
     admin:Object.freeze({label:'Administrador',description:'Control, equipo, operación y trazabilidad.'}),
     coach:Object.freeze({label:'Coach',description:'Clientes, planificación, sesiones y seguimiento.'}),
+    client:Object.freeze({label:'Cliente',description:'Plan, sesiones, progreso y comunicación con tu Coach.'}),
   });
-  return roles.filter((role)=>['coach','admin'].includes(role)&&Boolean(copy[role])).map((role)=>{
+  return roles.filter((role)=>Boolean(copy[role])).map((role)=>{
     const {label,description}=copy[role];
     const current=!choice&&role===vm.identity.role?' aria-current="true"':'';
     const focus=choice&&role===vm.identity.role?' autofocus':'';
