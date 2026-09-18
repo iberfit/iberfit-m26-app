@@ -80,7 +80,7 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
 
   async function execute(token,command){
     const type=String(command?.type||'').trim().toUpperCase();
-    const result=type==='ADMIN_CLIENTE_CREAR'
+    const result=['ADMIN_CLIENTE_CREAR','ADMIN_CLIENTE_REENVIAR_INVITACION'].includes(type)
       ?await request(CLIENT_INVITE_FUNCTION,token,{command})
       :type==='ADMIN_USUARIO_ELIMINAR'
         ?await request(USER_DECOMMISSION_FUNCTION,token,{command})
