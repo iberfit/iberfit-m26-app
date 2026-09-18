@@ -4,13 +4,12 @@ import {
   CANARY_ORIGIN,
   QA_PROJECT_REF,
   SUPABASE_ORIGIN,
-  completeClientWebAuthnChoice,
   installCurrentSourceQaNetworkPolicy,
 } from './secure-current-source-auth.mjs';
 
 const REQUIRED=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
-  'M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD',
+  'M26_QA_CLIENT_B_EMAIL','M26_QA_CLIENT_B_PASSWORD',
 ];
 const READ_ONLY_RPCS=new Set([
   'iberfit_bootstrap_v26',
@@ -59,13 +58,13 @@ async function expectJourneyState(page,{area,title,state}){
   }
 }
 
-test('Client Genie starts only after multiapp choice, can pause and completes its first-run journey',async({browser},testInfo)=>{
+test('Client Genie guides a Client-only first run, can pause and completes its journey',async({browser},testInfo)=>{
   const missing=REQUIRED.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
   expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
   expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
   expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
-  expect(String(process.env.M26_QA_CLIENT_A_EMAIL||'').toLowerCase()).toBe('qa.rc74.client-a@iberfit.cl');
+  expect(String(process.env.M26_QA_CLIENT_B_EMAIL||'').toLowerCase()).toBe('qa.rc74.client-b@iberfit.cl');
 
   const projectUse=testInfo.project.use||{};
   const context=await browser.newContext({
@@ -78,11 +77,9 @@ test('Client Genie starts only after multiapp choice, can pause and completes it
     isMobile:Boolean(projectUse.isMobile),
   });
   const blocked=[];
-  const qaRequests=[];
   await installCurrentSourceQaNetworkPolicy(context,{
     readOnlyRpcs:READ_ONLY_RPCS,
     onBlocked:(label)=>blocked.push(label),
-    onQaRequest:(label)=>qaRequests.push(label),
   });
   const page=await context.newPage();
   const consoleErrors=[];
@@ -93,16 +90,15 @@ test('Client Genie starts only after multiapp choice, can pause and completes it
   try{
     const navigation=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});
     expect(navigation?.ok()).toBeTruthy();
-    await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_A_EMAIL);
-    await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_A_PASSWORD);
+    await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_B_EMAIL);
+    await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_B_PASSWORD);
     await page.getByRole('button',{name:'Entrar',exact:true}).click();
 
-    await expect(page.locator('[data-m26-client-guided-welcome]'),'Genie must not start before MFA and app choice').toHaveCount(0,{timeout:5_000});
-    const auth=await completeClientWebAuthnChoice(page,{role:'client'});
-    expect(auth.authorizedRoles).toEqual(['client','admin']);
-    expect(auth.selectedRole).toBe('client');
     const shell=page.locator('.m26-shell[data-m26-role="client"]');
-    await expect(shell).toBeVisible({timeout:10_000});
+    await expect(shell,'Client-only first run must enter Client without privileged MFA').toBeVisible({timeout:25_000});
+    await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+    await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]')).toHaveCount(0);
+    await expect(page.locator('.m26-role-choice[role="dialog"]')).toHaveCount(0);
 
     await expectJourneyState(page,{area:'hoy',title:'Hola. Antes de dejarte a tu aire…',state:'idle'});
     await page.locator('[data-m26-client-guided-welcome-pause]').first().click();
@@ -151,7 +147,6 @@ test('Client Genie starts only after multiapp choice, can pause and completes it
     expect(blocked,'Guided welcome attempted a business mutation or foreign request').toEqual([]);
     expect(consoleErrors).toEqual([]);
     expect(pageErrors).toEqual([]);
-    expect(qaRequests.some((label)=>label.includes('/functions/v1/iberfit-webauthn-v1')),'Guided welcome must follow real QA WebAuthn').toBe(true);
   }finally{
     await context.close().catch(()=>{});
   }
