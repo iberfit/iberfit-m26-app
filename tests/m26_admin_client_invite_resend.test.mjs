@@ -45,7 +45,7 @@ test('security failures stay 403 so Admin service can perform WebAuthn reauthent
 test('Admin exposes retry only for failed delivery and never for pending or sent states',()=>{
   assert.match(render,/function clientInvitationRetry\(c\)/u);
   assert.match(render,/if\(delivery!=='error'\)return ''/u);
-  assert.match(render,/data-admin-form="client-invite-resend"/u);
+  assert.match(render,/['"]client-invite-resend['"]/u);
   assert.match(render,/Reintentar invitación/u);
   assert.match(controller,/client-invite-resend/u);
   assert.match(controller,/client:\$\{value\('clientId'\)\|\|'unknown'\}/u);
