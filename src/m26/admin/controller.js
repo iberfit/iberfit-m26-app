@@ -11,7 +11,7 @@ function adminOperationLockKey(kind,data){
   if(kind==='user-status'||kind==='role-change'||kind==='user-delete')return `user:${value('userId')||'unknown'}`;
   if(kind==='assignment-end')return `assignment:${value('assignmentId')||'unknown'}`;
   if(kind==='lead-update')return `lead:${value('leadId')||'unknown'}`;
-  if(kind==='client-lifecycle'||kind==='client-delete'||kind==='client-profile-update')return `client:${value('clientId')||'unknown'}`;
+  if(kind==='client-lifecycle'||kind==='client-delete'||kind==='client-profile-update'||kind==='client-invite-resend')return `client:${value('clientId')||'unknown'}`;
   if(kind==='task-resolve')return `task:${value('taskId')||'unknown'}`;
   if(kind==='settings-save')return `organization:${value('organizationId')||'current'}`;
   if(kind==='template-save')return `template:${value('key',80)||'unknown'}`;
@@ -109,6 +109,7 @@ function closeClientEditDialog(root){
 }
 
 function invitationSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();if(delivery==='sent')return 'Cliente creado. Invitación enviada correctamente.';if(delivery==='error')return 'Cliente creado, pero la invitación no pudo enviarse. Queda pendiente para reintento.';if(delivery==='pending')return 'Cliente creado. Invitación en proceso.';return 'Cliente creado y acceso preparado.';}
+function invitationResendSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();const reason=String(invitation.reason||'').toLowerCase();if(delivery==='sent')return 'Invitación reenviada correctamente.';if(reason==='already_sent')return 'La invitación ya constaba como enviada; no se duplicó el correo.';if(delivery==='pending')return 'Reenvío solicitado. La invitación queda pendiente de confirmación.';if(delivery==='error')return 'El reenvío no pudo completarse. La invitación sigue pendiente para reintento.';return 'Estado de invitación actualizado.';}
 function createdClientId(result={}){
   const response=Array.isArray(result?.response)?result.response[0]:result?.response;
   const candidates=[
@@ -360,6 +361,15 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         if(clientId)pendingCreatedClientId=clientId;
         clientWizard.clear();
       }});
+    }
+    if(kind==='client-invite-resend'){
+      const clientId=text(data,'clientId',200);
+      return run({
+        type:'ADMIN_CLIENTE_REENVIAR_INVITACION',
+        entityId:clientId,
+        organizationId:org,
+        payload:{clientId},
+      },invitationResendSuccess);
     }
     if(kind==='client-lifecycle')return run({type:'ADMIN_CLIENTE_CAMBIAR_CICLO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),status:text(data,'status',40)}},'Ciclo actualizado.');
     if(kind==='client-delete'){

@@ -6,7 +6,7 @@ const edge=fs.readFileSync('supabase/functions/iberfit-admin-client-invite-v1/in
 const config=fs.readFileSync('supabase/config.toml','utf8').replace(/\r\n/g,'\n');
 
 test('client invite edge derives an exact origin from the deployed Supabase project',()=>{
-  assert.match(edge,/FUNCTION_VERSION='admin-client-invite-v26\.3'/u);
+  assert.match(edge,/FUNCTION_VERSION='admin-client-invite-v26\.4'/u);
   assert.match(edge,/QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu'/u);
   assert.match(edge,/PROD_PROJECT_REF='pjhmrhejsoofmouedavw'/u);
   assert.match(edge,/deploymentProjectRef\(Deno\.env\.get\('SUPABASE_URL'\)\|\|''\)/u);

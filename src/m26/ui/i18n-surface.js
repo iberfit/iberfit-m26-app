@@ -540,6 +540,12 @@ const ROWS=Object.freeze([
   ['La capacidad del equipo aparecerá aquí cuando exista información.','Team capacity will appear here when data is available.','La capacité de l’équipe apparaîtra ici lorsque des données seront disponibles.','A capacidade da equipa aparecerá aqui quando houver informação.'],
   ['Consulta el perfil operativo de cada Coach, su cartera, carga y entrenamientos desde una sola vista.','View each Coach’s operational profile, client portfolio, workload and training from one place.','Consultez le profil opérationnel de chaque Coach, son portefeuille, sa charge et ses entraînements depuis une seule vue.','Consulte o perfil operacional de cada Coach, a sua carteira, carga e treinos numa única vista.'],
   ['Una única vista para decidir qué necesita atención en clientes, equipo y operación.','One view to decide what needs attention across clients, team and operations.','Une seule vue pour décider ce qui nécessite une attention côté clients, équipe et opérations.','Uma única vista para decidir o que requer atenção em clientes, equipa e operação.'],
+  ['Invitación reenviada correctamente.','Invitation resent successfully.','Invitation renvoyée avec succès.','Convite reenviado com sucesso.'],
+  ['La invitación ya constaba como enviada; no se duplicó el correo.','The invitation was already recorded as sent; the email was not duplicated.','L’invitation était déjà enregistrée comme envoyée ; aucun e-mail en double n’a été envoyé.','O convite já constava como enviado; o e-mail não foi duplicado.'],
+  ['Reenvío solicitado. La invitación queda pendiente de confirmación.','Resend requested. The invitation is awaiting confirmation.','Renvoi demandé. L’invitation reste en attente de confirmation.','Reenvio solicitado. O convite fica pendente de confirmação.'],
+  ['El reenvío no pudo completarse. La invitación sigue pendiente para reintento.','The resend could not be completed. The invitation remains pending for retry.','Le renvoi n’a pas pu être effectué. L’invitation reste en attente d’une nouvelle tentative.','Não foi possível concluir o reenvio. O convite continua pendente para nova tentativa.'],
+  ['Estado de invitación actualizado.','Invitation status updated.','Statut de l’invitation mis à jour.','Estado do convite atualizado.'],
+  ['Reintentar invitación','Retry invitation','Réessayer l’invitation','Tentar novamente o convite'],
 ]);
 
 const LANG_INDEX=Object.freeze({en:1,fr:2,pt:3});

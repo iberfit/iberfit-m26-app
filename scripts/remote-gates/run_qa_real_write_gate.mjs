@@ -160,7 +160,7 @@ const invalidInviteAuth=await requestResult(`${base}/functions/v1/iberfit-admin-
 if(
   invalidInviteAuth.status!==401||
   String(invalidInviteAuth.body?.code||'')!=='V26_AUTH_REQUIRED'||
-  String(invalidInviteAuth.body?.version||'')!=='admin-client-invite-v26.3'
+  String(invalidInviteAuth.body?.version||'')!=='admin-client-invite-v26.4'
 ){
   throw new Error(
     `QA_WRITE_INVITE_CUSTOM_AUTH_FAIL_CLOSED_MISMATCH:${invalidInviteAuth.status}:${String(invalidInviteAuth.body?.code||'unknown')}`,
@@ -172,6 +172,22 @@ const [coach,clientA,clientB]=await Promise.all([
   login(process.env.M26_QA_CLIENT_A_EMAIL,process.env.M26_QA_CLIENT_A_PASSWORD),
   login(process.env.M26_QA_CLIENT_B_EMAIL,process.env.M26_QA_CLIENT_B_PASSWORD),
 ]);
+
+const coachInviteAttempt=await requestResult(`${base}/functions/v1/iberfit-admin-client-invite-v1`,{
+  method:'POST',
+  headers:headers(coach.token),
+  body:JSON.stringify({
+    command:{
+      type:'ADMIN_CLIENTE_REENVIAR_INVITACION',
+      operationId:randomUUID(),
+      entityId:randomUUID(),
+      payload:{clientId:randomUUID()},
+    },
+  }),
+});
+if(coachInviteAttempt.status!==403){
+  throw new Error(`QA_WRITE_INVITE_COACH_ROLE_BOUNDARY_MISMATCH:${coachInviteAttempt.status}`);
+}
 
 const [{clientId:clientAId},{clientId:clientBId}]=await Promise.all([
   bootstrapClient(clientA,'QA_WRITE_CLIENT_A'),
@@ -378,7 +394,8 @@ const evidence={
     inviteInvalidBearerDenied:
       invalidInviteAuth.status===401&&
       String(invalidInviteAuth.body?.code||'')==='V26_AUTH_REQUIRED'&&
-      String(invalidInviteAuth.body?.version||'')==='admin-client-invite-v26.3',
+      String(invalidInviteAuth.body?.version||'')==='admin-client-invite-v26.4',
+    inviteCoachRoleDenied:coachInviteAttempt.status===403,
     directInsertDenied:directInsert.status===403,
     directUpdateDenied:directPatch.status===403,
     directDeleteDenied:directDelete.status===403,

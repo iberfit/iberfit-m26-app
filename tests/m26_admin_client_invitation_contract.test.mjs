@@ -56,7 +56,7 @@ test('invitation Edge Function isolates canonical origins by deployed project', 
   assert.match(edge, /DEPLOYMENT_PROJECT_REF===PROD_PROJECT_REF[\s\S]{0,180}\['https:\/\/app\.iberfit\.cl'\]/u);
   assert.match(edge, /:[\s\n]*\[\],[\s\n]*\);/u);
   assert.doesNotMatch(edge, /coach\.iberfit\.cl/u);
-  assert.match(edge, /const FUNCTION_VERSION='admin-client-invite-v26\.3';/u);
+  assert.match(edge, /const FUNCTION_VERSION='admin-client-invite-v26\.4';/u);
 });
 
 
