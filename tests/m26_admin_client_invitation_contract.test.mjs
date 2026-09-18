@@ -37,25 +37,33 @@ test('new Auth identity is compensated if database binding fails', () => {
   assert.match(edge, /iberfit_admin_client_invitation_bind_v26/);
 });
 
-test('invitation flow remains fail-closed behind admin authorization and privileged assurance', () => {
+test('invitation flow remains fail-closed behind actor authentication, admin authorization and privileged assurance', () => {
   assert.match(migration, /iberfit_require_privileged_assurance_v65d\(\)/);
   assert.match(migration, /roles','\[\]'::jsonb\)\?'admin'/);
   assert.match(edge, /ALLOWED_ORIGINS/);
   assert.match(edge, /authorization\.startsWith\('Bearer '\)/);
+  assert.match(edge, /await userClient\.auth\.getUser\(\)/u);
+  const authValidation=edge.indexOf('await userClient.auth.getUser()');
+  const privilegedRpc=edge.indexOf("userClient.rpc('iberfit_admin_execute_v14'");
+  assert.ok(authValidation>=0&&privilegedRpc>authValidation);
 });
 
 
-test('production invitation Edge Function accepts only the canonical app origin', () => {
-  assert.match(edge, /const ALLOWED_ORIGINS=new Set\(\[\s*'https:\/\/app\.iberfit\.cl',?\s*\]\);/u);
-  assert.doesNotMatch(edge, /m26-canary\.iberfit\.cl/u);
+test('invitation Edge Function isolates canonical origins by deployed project', () => {
+  assert.match(edge, /const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu'/u);
+  assert.match(edge, /const PROD_PROJECT_REF='pjhmrhejsoofmouedavw'/u);
+  assert.match(edge, /DEPLOYMENT_PROJECT_REF===QA_PROJECT_REF[\s\S]{0,180}\['https:\/\/m26-canary\.iberfit\.cl'\]/u);
+  assert.match(edge, /DEPLOYMENT_PROJECT_REF===PROD_PROJECT_REF[\s\S]{0,180}\['https:\/\/app\.iberfit\.cl'\]/u);
+  assert.match(edge, /:[\s\n]*\[\],[\s\n]*\);/u);
   assert.doesNotMatch(edge, /coach\.iberfit\.cl/u);
-  assert.match(edge, /const FUNCTION_VERSION='admin-client-invite-v26\.2';/u);
+  assert.match(edge, /const FUNCTION_VERSION='admin-client-invite-v26\.3';/u);
 });
 
 
-test('OPTIONS 204 never carries a response body and preserves canonical CORS', () => {
+test('OPTIONS 204 never carries a response body and preserves environment-bound CORS', () => {
   assert.match(edge, /new Response\(status===204\?null:JSON\.stringify\(body\),\{status,headers:cors\(origin\)\}\)/u);
   assert.match(edge, /if\(req\.method==='OPTIONS'\)return reply\(ALLOWED_ORIGINS\.has\(origin\)\?204:403,\{\},origin\)/u);
   assert.match(edge, /'https:\/\/app\.iberfit\.cl'/u);
-  assert.doesNotMatch(edge, /m26-canary\.iberfit\.cl|coach\.iberfit\.cl/u);
+  assert.match(edge, /'https:\/\/m26-canary\.iberfit\.cl'/u);
+  assert.doesNotMatch(edge, /coach\.iberfit\.cl/u);
 });
