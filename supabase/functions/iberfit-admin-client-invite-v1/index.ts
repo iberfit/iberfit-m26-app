@@ -186,7 +186,7 @@ Deno.serve(async(req:Request)=>{
     }
     if(clientId&&UUID.test(clientId)){
       try{await userClient.rpc('iberfit_admin_client_invitation_finalize_v26',{p_client_id:clientId,p_operation_id:normalized.operationId,p_delivery_status:'error',p_error_code:errorCode});}catch{}
-      return reply(200,{...(createReceipt||{}),ok:true,kind:String(createReceipt?.kind||'ack'),operationId:normalized.operationId,commandType:'ADMIN_CLIENTE_CREAR',entityId:clientId,clientId,version:FUNCTION_VERSION,invitation:{deliveryStatus:'error',accessStatus:'invitacion_pendiente',errorCode,email:email||null}},origin);
+      return reply(200,{...(createReceipt||{}),ok:true,kind:String(createReceipt?.kind||'ack'),operationId:normalized.operationId,commandType:normalized.type,entityId:clientId,clientId,version:FUNCTION_VERSION,invitation:{deliveryStatus:'error',accessStatus:'invitacion_pendiente',errorCode,email:email||null}},origin);
     }
     return reply(400,{ok:false,code:errorCode,version:FUNCTION_VERSION},origin);
   }
