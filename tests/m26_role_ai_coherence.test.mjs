@@ -57,7 +57,7 @@ test(
 
     assert.match(
       app,
-      /const roleChoiceRequired=authorizedRoles\.length>1/u
+      /const roleChoiceRequired=authorizedRoles\.filter\(\(role\)=>\['coach','admin'\]\.includes\(role\)\)\.length>1/u
     );
 
     assert.match(
