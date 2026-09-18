@@ -1,5 +1,6 @@
 import {augmentAdminShellViewModel} from '../admin/view-model.js';
 import {augmentRc39ShellViewModel} from '../rc39/view-model.js';
+import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from '../rc39/multi-role.js';
 import { metricPresentation, selectedClient } from '../production-state.js';
 import { areaDefinition, navigationForRole } from './navigation.js';
 import { resolveM26Route } from './route-guard.js';
@@ -102,10 +103,28 @@ function createShellViewModelBase(state) {
   });
 }
 
+function projectApplicationAccessToShell(vm,state){
+  if(!vm||vm.mode!=='authenticated')return vm;
+  const access=state?.applicationAccess&&typeof state.applicationAccess==='object'
+    ?state.applicationAccess
+    :{};
+  const authorizedRoles=normalizeAuthorizedRoles({
+    ...access,
+    role:state?.identity?.role||vm?.identity?.role,
+  });
+  const identity=Object.freeze({...vm.identity,authorizedRoles});
+  const policy={...access,role:identity.role,authorizedRoles};
+  return Object.freeze({
+    ...vm,
+    identity,
+    canSwitchApplication:canSwitchApplication(policy),
+    needsRoleChoice:requiresRoleChoice(policy),
+  });
+}
+
 /* M26_RC39_SHELL_VIEW_MODEL_WRAPPER */
 export function createShellViewModel(state){
-  return augmentAdminShellViewModel(
-    augmentRc39ShellViewModel(createShellViewModelBase(state),state),
-    state
-  );
+  const rc39=augmentRc39ShellViewModel(createShellViewModelBase(state),state);
+  const admin=augmentAdminShellViewModel(rc39,state);
+  return projectApplicationAccessToShell(admin,state);
 }
