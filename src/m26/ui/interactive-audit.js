@@ -1,5 +1,6 @@
 export const M26_ACTION_REGISTRY=Object.freeze({
   'logout':{roles:['admin','coach','client'],domain:'shell'},
+  'logout-all-sessions':{roles:['admin','coach','client'],domain:'account'},
   'logout-clear-device':{roles:['admin','coach','client'],domain:'shell'},
   'account-password-recovery':{roles:['admin','coach','client'],domain:'account'},
   'add-exercise':{roles:['admin','coach'],domain:'session'},
