@@ -146,18 +146,28 @@ jobs:
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
           M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
           M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
         run: |
-          npx playwright test --config playwright.authenticated.config.mjs             --project=authenticated-readonly-chromium             --project=authenticated-readonly-tablet-chromium             --project=authenticated-readonly-tablet-landscape-chromium             --project=authenticated-readonly-mobile-chromium
+          npx playwright test --config playwright.authenticated.config.mjs \
+            --project=authenticated-readonly-chromium \
+            --project=authenticated-readonly-tablet-chromium \
+            --project=authenticated-readonly-tablet-landscape-chromium \
+            --project=authenticated-readonly-mobile-chromium
       - name: Exercise Client Genie guided welcome by device
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
           M26_QA_ONLY: 'true'
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
-          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
-          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
         run: |
-          npx playwright test --config playwright.client-guided-welcome.config.mjs             --project=client-genie-desktop-chromium             --project=client-genie-tablet-chromium             --project=client-genie-tablet-landscape-chromium             --project=client-genie-mobile-chromium
+          npx playwright test --config playwright.client-guided-welcome.config.mjs \
+            --project=client-genie-desktop-chromium \
+            --project=client-genie-tablet-chromium \
+            --project=client-genie-tablet-landscape-chromium \
+            --project=client-genie-mobile-chromium
       - name: Capture authenticated visual states by device
         env:
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
@@ -166,10 +176,14 @@ jobs:
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
-          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
-          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
         run: |
-          npx playwright test --config playwright.authenticated-visual.config.mjs             --project=authenticated-visual-desktop-chromium             --project=authenticated-visual-tablet-chromium             --project=authenticated-visual-tablet-landscape-chromium             --project=authenticated-visual-mobile-chromium
+          npx playwright test --config playwright.authenticated-visual.config.mjs \
+            --project=authenticated-visual-desktop-chromium \
+            --project=authenticated-visual-tablet-chromium \
+            --project=authenticated-visual-tablet-landscape-chromium \
+            --project=authenticated-visual-mobile-chromium
       - name: Preserve authenticated device evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -211,7 +225,11 @@ jobs:
         run: node --input-type=module -e "import fs from 'node:fs'; import { chromium } from '@playwright/test'; if (!fs.existsSync(chromium.executablePath())) throw new Error('PLAYWRIGHT_CHROMIUM_NOT_READY');"
       - name: Exercise Admin tasks by device
         run: |
-          npx playwright test --config playwright.admin-interaction.config.mjs             --project=admin-desktop-chromium             --project=admin-tablet-chromium             --project=admin-tablet-landscape-chromium             --project=admin-mobile-chromium
+          npx playwright test --config playwright.admin-interaction.config.mjs \
+            --project=admin-desktop-chromium \
+            --project=admin-tablet-chromium \
+            --project=admin-tablet-landscape-chromium \
+            --project=admin-mobile-chromium
       - name: Capture Admin visual task states
         run: npx playwright test --config playwright.daily-admin-visual.config.mjs
       - name: Preserve Admin evidence
