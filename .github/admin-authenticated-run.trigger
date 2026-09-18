@@ -1,6 +1,7 @@
 candidate_sha=9dbc245be050fa6b32a310e3a79ee2c18236eb5d
 qa_base_sha=b24dd8a100500819d4f729388d17ce5eca949312
 purpose=real-admin-current-product-certification-v6
-iteration=2
+iteration=3
 harness_fix=prefer-mobile-nav-in-touch-viewport
 diagnostic=computed-mobile-nav-geometry
+qa_state=synthetic-webauthn-reset
