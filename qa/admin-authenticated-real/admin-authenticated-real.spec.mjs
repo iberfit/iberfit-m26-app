@@ -134,6 +134,7 @@ async function addVirtualAuthenticator(page){
   return {cdp,authenticatorId};
 }
 async function setDevice(page,cdp,{name,width,height,mobile,touch}){
+  await page.setViewportSize({width,height});
   await cdp.send('Emulation.setDeviceMetricsOverride',{
     width,height,deviceScaleFactor:1,mobile:Boolean(mobile),
     screenWidth:width,screenHeight:height,
@@ -142,7 +143,10 @@ async function setDevice(page,cdp,{name,width,height,mobile,touch}){
     enabled:Boolean(touch),
     maxTouchPoints:touch?5:1,
   });
-  await page.setViewportSize({width,height});
+  const metrics=await page.evaluate(()=>({width:innerWidth,height:innerHeight,maxTouchPoints:navigator.maxTouchPoints}));
+  expect(metrics.width,`${name}: viewport width`).toBe(width);
+  expect(metrics.height,`${name}: viewport height`).toBe(height);
+  if(touch)expect(metrics.maxTouchPoints,`${name}: touch emulation`).toBeGreaterThan(0);
   return Object.freeze({name,width,height,mobile:Boolean(mobile),touch:Boolean(touch)});
 }
 async function clickNav(page,area,{touch=false}={}){
@@ -289,6 +293,8 @@ test('real QA Admin authenticates with virtual WebAuthn and remains usable acros
     locale:'es-ES',
     timezoneId:'America/Santiago',
     serviceWorkers:'block',
+    viewport:{width:1440,height:1000},
+    hasTouch:true,
   });
   await installNetworkPolicy(context,evidence);
   const page=await context.newPage();
