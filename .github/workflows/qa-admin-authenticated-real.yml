@@ -1,0 +1,100 @@
+name: IBERFIT QA Admin Authenticated Real
+
+on:
+  push:
+    branches:
+      - qa/admin-authenticated-certification-20260917
+    paths:
+      - 'qa/admin-authenticated-real/**'
+      - 'playwright.admin-authenticated-real.config.mjs'
+      - 'tests/m26_admin_authenticated_real_gate_contract.test.mjs'
+      - '.github/workflows/qa-admin-authenticated-real.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-qa-admin-authenticated-real
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    if: ${{ github.ref_name == 'qa/admin-authenticated-certification-20260917' }}
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 25
+    env:
+      M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+      M26_QA_ONLY: 'true'
+      M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+      M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+      M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+      M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+    steps:
+      - name: Checkout exact QA source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Assert isolated source and QA-only contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'qa/admin-authenticated-certification-20260917'
+          test "$M26_PROJECT_REF" = 'gjztkdwfmunnzhtvxrsu'
+          test "$M26_QA_ONLY" = 'true'
+          test "$M26_SUPABASE_URL" = 'https://gjztkdwfmunnzhtvxrsu.supabase.co'
+          test -n "$M26_SUPABASE_PUBLISHABLE_KEY"
+          test -n "$M26_QA_CLIENT_A_EMAIL"
+          test -n "$M26_QA_CLIENT_A_PASSWORD"
+          ! printf '%s' "$M26_SUPABASE_PUBLISHABLE_KEY" | grep -Eiq 'service[_-]?role'
+          ! grep -R -n --exclude='qa-admin-authenticated-real.yml' 'pjhmrhejsoofmouedavw' qa/admin-authenticated-real playwright.admin-authenticated-real.config.mjs tests/m26_admin_authenticated_real_gate_contract.test.mjs
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install deterministic dependencies
+        run: npm ci
+
+      - name: Run QA gate contract
+        run: node --test tests/m26_admin_authenticated_real_gate_contract.test.mjs
+
+      - name: Install Chromium system dependencies
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
+          npx playwright install-deps chromium
+
+      - name: Restore Chromium cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-chromium
+
+      - name: Install Chromium on cache miss
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+
+      - name: Verify Chromium browser
+        run: node --input-type=module -e "import fs from 'node:fs'; import {chromium} from '@playwright/test'; if(!fs.existsSync(chromium.executablePath())) throw new Error('PLAYWRIGHT_CHROMIUM_NOT_READY');"
+
+      - name: Build exact current authenticated QA surface
+        run: node qa/rc64/build-authenticated-surface.mjs
+
+      - name: Certify real Admin auth and device interactions
+        run: npx playwright test --config playwright.admin-authenticated-real.config.mjs
+
+      - name: Preserve minimised Admin real evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-admin-authenticated-real-${{ github.run_id }}
+          path: |
+            recovery/admin-authenticated-real/evidence.json
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
