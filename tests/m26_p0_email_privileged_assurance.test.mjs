@@ -113,18 +113,22 @@ test('IBERFIT OTP email is branded, personalized and uses the premium light syst
   assert.doesNotMatch(html,/\{\{ \.ConfirmationURL \}\}/u);
 });
 
-test('transient OTP logout is local while explicit account logout keeps global scope',async()=>{
+test('OTP and normal logout stay local while all-device revocation is explicit',async()=>{
   const calls=[];
   const transport=createM26Transport(runtime,{fetchImpl:async(url,options)=>{calls.push({url,options});return response(null,204);}});
-  const local=await transport.logout('otp-access-token',{scope:'local'});
-  const global=await transport.logout('primary-access-token');
-  assert.equal(local.scope,'local');
-  assert.equal(global.scope,'global');
+  const otpLocal=await transport.logout('otp-access-token',{scope:'local'});
+  const defaultLocal=await transport.logout('primary-access-token');
+  const explicitGlobal=await transport.logout('primary-access-token',{scope:'global'});
+  assert.equal(otpLocal.scope,'local');
+  assert.equal(defaultLocal.scope,'local');
+  assert.equal(explicitGlobal.scope,'global');
   assert.match(calls[0].url,/\/auth\/v1\/logout\?scope=local$/u);
-  assert.match(calls[1].url,/\/auth\/v1\/logout\?scope=global$/u);
+  assert.match(calls[1].url,/\/auth\/v1\/logout\?scope=local$/u);
+  assert.match(calls[2].url,/\/auth\/v1\/logout\?scope=global$/u);
   await assert.rejects(()=>transport.logout('token',{scope:'invalid'}),/M26_LOGOUT_SCOPE_INVALID/u);
   const app=fs.readFileSync('src/m26/app/application.js','utf8');
   assert.match(app,/logout\?\.\(otpToken,\{scope:'local'\}\)/u);
   assert.match(app,/logout\?\.\(recoveryToken,\{scope:'local'\}\)/u);
-  assert.match(app,/finishLogout[\s\S]{0,500}logout\?\.\(token\)/u);
+  assert.match(app,/function onLogout\(\)\{const token=currentToken\(\);finishLogout\(\{token,scope:'local'\}\);\}/u);
+  assert.match(app,/function onLogoutAllSessions\(\)[\s\S]{0,700}scope:'global'/u);
 });

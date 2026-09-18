@@ -682,9 +682,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return { token: body.access_token, refreshToken: body.refresh_token || refreshToken, expiresAt: body.expires_at || null, user: body.user };
   }
 
-  async function logout(token,{scope='global'}={}) {
+  async function logout(token,{scope='local'}={}) {
     if (!token) return { ok: true, skipped: true };
-    const normalizedScope=String(scope||'global').trim().toLowerCase();
+    const normalizedScope=String(scope||'local').trim().toLowerCase();
     if(!['global','local','others'].includes(normalizedScope))throw new Error('M26_LOGOUT_SCOPE_INVALID');
     await request(`/auth/v1/logout?scope=${encodeURIComponent(normalizedScope)}`, { method: 'POST', token });
     return { ok: true, scope:normalizedScope };

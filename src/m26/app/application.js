@@ -907,7 +907,7 @@ export async function createM26Application({root=document.querySelector('#app'),
     else if(mountedShellRole==='client')qaStage('rc64-shell-role-client');
     else if(mountedShellRole==='admin')qaStage('rc64-shell-role-admin');
     else qaStage('rc64-shell-role-missing');
-    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
+    root.addEventListener('m26:logout',onLogout);root.addEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.addEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.addEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.addEventListener('m26:switch-role',onSwitchRole);root.addEventListener('m26:open-session-builder',onOpenBuilderEvent);root.addEventListener('m26:start-session',onStartSessionEvent);root.addEventListener('m26:inspect-operation',onInspectOperation);
     if(authAttemptId!==null&&completeAuthAttempt(authAttemptId))loginBusy=false;
     if(root?.dataset)root.dataset.m26Interactive='ready';
     qaStage('rc64-shell-interactive-ready');
@@ -1013,8 +1013,22 @@ export async function createM26Application({root=document.querySelector('#app'),
     }
   }
   function onInspectOperation(event){const operation=event.detail?.operation;const message=operation?`Operación ${castilianStatusLabel(operation.status).toLowerCase()}. ${operation.errorCode?'Requiere revisión.':'Sin incidencias registradas.'}`:'Operación no encontrada';globalThis.dispatchEvent(new CustomEvent('m26:toast',{detail:{message}}));}
-  function finishLogout({token,message='',noticeKind='status'}={}){invalidateAuthAttempt();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token).catch(()=>{});}
-  function onLogout(){const token=currentToken();finishLogout({token});}
+  function finishLogout({token,scope='local',message='',noticeKind='status'}={}){invalidateAuthAttempt();loginBusy=false;vault.clear();session=null;activeApplicationRole=null;refreshInFlight=null;mfaState=null;sessionRetryAvailable=false;authMode='login';destroyControllers();store.reset();authMessage(message,noticeKind);void transport?.logout?.(token,{scope}).catch(()=>{});}
+  function onLogout(){const token=currentToken();finishLogout({token,scope:'local'});}
+  function onLogoutAllSessions(){
+    if(!session)return false;
+    const accepted=typeof globalThis.confirm==='function'
+      ?globalThis.confirm('Se revocará la renovación de sesión en todos los dispositivos donde hayas iniciado sesión con esta cuenta. ¿Quieres continuar?')
+      :false;
+    if(!accepted)return false;
+    const token=currentToken();
+    finishLogout({
+      token,
+      scope:'global',
+      message:'Se ha cerrado esta sesión y se ha solicitado revocar las demás sesiones de tu cuenta.',
+    });
+    return true;
+  }
   async function onLogoutAndClearDevice(){
     if(deviceClearBusy||!session)return false;
     const token=currentToken();
@@ -1049,6 +1063,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       });
       finishLogout({
         token,
+        scope:'local',
         message:cleared.ok
           ?'Sesión cerrada y datos locales de esta cuenta eliminados de este dispositivo.'
           :'Sesión cerrada. No se pudo confirmar el borrado completo de los datos locales. Antes de compartir este dispositivo, elimina los datos del sitio desde el navegador.',
@@ -1059,7 +1074,7 @@ export async function createM26Application({root=document.querySelector('#app'),
       deviceClearBusy=false;
     }
   }
-  function destroyControllers(){cancelProgressiveControllerMounts();if(root?.dataset)delete root.dataset.m26Interactive;telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
+  function destroyControllers(){cancelProgressiveControllerMounts();if(root?.dataset)delete root.dataset.m26Interactive;telemetrySyncStop?.();telemetrySyncStop=null;connectivityStop?.();connectivityStop=null;iriExternalReports?.destroy?.();sessionController?.destroy?.();admin?.destroy?.();communication?.destroy?.();rc39?.destroy?.();verification?.destroy?.();engagement?.destroy?.();wearables?.destroy?.();mediaExperience?.destroy?.();onboarding?.destroy?.();guidance?.destroy?.();motion?.destroy?.();productivity?.destroy?.();workflow?.destroy?.();shell?.destroy?.();iriExternalReports=null;admin=null;adminService=null;communication=null;communicationService=null;rc39=null;sessionController=verification=wearables=engagement=workflow=mediaExperience=onboarding=guidance=motion=productivity=shell=null;sessionUi=null;operationRepository=draftRepository=sessionTemplateRepository=commandBus=recoveryStore=recoveryCoordinator=null;telemetryRemoteSync=telemetryOutbox=null;root.removeEventListener('click',guardSessionNavigation,true);root.removeEventListener('m26:logout',onLogout);root.removeEventListener('m26:logout-all-sessions',onLogoutAllSessions);root.removeEventListener('m26:logout-and-clear-device',onLogoutAndClearDevice);root.removeEventListener('m26:account-password-recovery',onAccountPasswordRecoveryEvent);root.removeEventListener('m26:switch-role',onSwitchRole);root.removeEventListener('m26:open-session-builder',onOpenBuilderEvent);root.removeEventListener('m26:start-session',onStartSessionEvent);root.removeEventListener('m26:inspect-operation',onInspectOperation);}
 async function onAccountPasswordRecovery(){
   if(accountSecurityBusy||!session?.user?.email||!runtime.enabled)return false;
   accountSecurityBusy=true;

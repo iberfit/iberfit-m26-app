@@ -180,11 +180,17 @@ test('RC65-B UI separa logout normal de borrado destructivo también bajo i18n',
   assert.doesNotMatch(shell,/data-m26-action="logout-clear-device"/u);
   assert.match(route,/data-m26-action="logout-clear-device">Cerrar sesión y borrar datos de este dispositivo<\/button>/u);
   assert.match(controller,/m26:logout-and-clear-device/u);
+  assert.match(controller,/m26:logout-all-sessions/u);
   assert.match(app,/root\.addEventListener\('m26:logout-and-clear-device',onLogoutAndClearDevice\)/u);
-  assert.match(app,/function onLogout\(\)\{const token=currentToken\(\);finishLogout\(\{token\}\);\}/u);
+  assert.match(app,/root\.addEventListener\('m26:logout-all-sessions',onLogoutAllSessions\)/u);
+  assert.match(app,/function onLogout\(\)\{const token=currentToken\(\);finishLogout\(\{token,scope:'local'\}\);\}/u);
+  assert.match(route,/data-m26-action="logout-all-sessions">Revocar sesiones en todos los dispositivos<\/button>/u);
 
   const normal=app.match(/function onLogout\(\)\{[^\n]*\}/u)?.[0]||'';
-  assert.doesNotMatch(normal,/clearOwnerDeviceData|clearOwner/u);
+  assert.doesNotMatch(normal,/clearOwnerDeviceData|clearOwner|scope:'global'/u);
+  const global=app.slice(app.indexOf('function onLogoutAllSessions(){'),app.indexOf('async function onLogoutAndClearDevice(){'));
+  assert.match(global,/globalThis\.confirm/u);
+  assert.match(global,/scope:'global'/u);
 
   assert.match(wearable,/pendingCount:\(\)=>remoteSync\.pendingCount\(\)/u);
   assert.match(wearable,/clearOwner:\(\)=>remoteSync\.clearOwner\(\)/u);

@@ -724,6 +724,10 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       root.dispatchEvent(new CustomEvent('m26:logout',{bubbles:true}));
       return;
     }
+    if(action==='logout-all-sessions'){
+      root.dispatchEvent(new CustomEvent('m26:logout-all-sessions',{bubbles:true}));
+      return;
+    }
     if(action==='logout-clear-device'){
       root.dispatchEvent(new CustomEvent('m26:logout-and-clear-device',{bubbles:true}));
       return;
