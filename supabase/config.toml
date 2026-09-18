@@ -415,3 +415,9 @@ enabled = true
 
 [functions.iberfit-webauthn-v1]
 verify_jwt = true
+
+# Custom bearer validation is performed inside the function with auth.getUser(),
+# followed by the fail-closed privileged Admin RPC. This mirrors the certified
+# production deployment and avoids gateway drift between QA and PROD.
+[functions.iberfit-admin-client-invite-v1]
+verify_jwt = false
