@@ -3,7 +3,7 @@ name: IBERFIT QA Admin Authenticated Real
 on:
   pull_request:
     branches:
-      - qa/admin-authenticated-multiapp-base-20260918-v5
+      - qa/admin-authenticated-multiapp-base-20260918-v6
     paths:
       - '.github/admin-authenticated-run.trigger'
 
@@ -11,12 +11,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: iberfit-qa-admin-authenticated-real
+  group: iberfit-qa-admin-authenticated-real-v6
   cancel-in-progress: false
 
 jobs:
   certify:
-    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'qa/admin-authenticated-multiapp-base-20260918-v5' }}
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'qa/admin-authenticated-multiapp-base-20260918-v6' }}
     runs-on: ubuntu-latest
     environment: m26-canary-readonly
     timeout-minutes: 25
@@ -38,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_BASE_REF" = 'qa/admin-authenticated-multiapp-base-20260918-v5'
+          test "$GITHUB_BASE_REF" = 'qa/admin-authenticated-multiapp-base-20260918-v6'
           test "$M26_PROJECT_REF" = 'gjztkdwfmunnzhtvxrsu'
           test "$M26_QA_ONLY" = 'true'
           test "$M26_SUPABASE_URL" = 'https://gjztkdwfmunnzhtvxrsu.supabase.co'
@@ -81,6 +81,26 @@ jobs:
 
       - name: Build exact current authenticated QA surface
         run: node qa/rc64/build-authenticated-surface.mjs
+
+      - name: Normalize touch navigation target and capture mobile geometry
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('qa/admin-authenticated-real/admin-authenticated-real.spec.mjs')
+          s=p.read_text()
+          old='''async function clickNav(page,area,{touch=false}={}){\n  const direct=page.locator(`[data-m26-area="${area}"]:visible`).first();\n  if(await direct.count()&&await direct.isVisible().catch(()=>false)){\n    if(touch)await direct.tap(); else await direct.click();\n    return;\n  }\n  const more=page.locator('details.m26-mobile-more:visible').first();\n'''
+          new='''async function clickNav(page,area,{touch=false}={}){\n  const selector=`[data-m26-area="${area}"]:visible`;\n  const mobile=page.locator(`.m26-mobile-nav ${selector}`).first();\n  const direct=touch&&await mobile.count()&&await mobile.isVisible().catch(()=>false)\n    ? mobile\n    : page.locator(selector).first();\n  if(await direct.count()&&await direct.isVisible().catch(()=>false)){\n    const box=await direct.boundingBox();\n    const viewport=page.viewportSize();\n    const inViewport=Boolean(box&&viewport&&box.width>0&&box.height>0&&box.x<viewport.width&&box.y<viewport.height&&box.x+box.width>0&&box.y+box.height>0);\n    if(inViewport){\n      if(touch)await direct.tap(); else await direct.click();\n      return;\n    }\n  }\n  const more=page.locator('details.m26-mobile-more:visible').first();\n'''
+          if old not in s:
+              raise SystemExit('QA_NAV_HELPER_CONTRACT_NOT_FOUND')
+          s=s.replace(old,new,1)
+          old2='''  await page.waitForTimeout(180);\n  const shell=page.locator('.m26-shell[data-m26-role="admin"]');\n'''
+          new2='''  await page.waitForTimeout(180);\n  if(device.touch&&device.width<=500){\n    evidence.mobileNavDiagnostic=await page.evaluate(()=>{\n      const nav=document.querySelector('.m26-mobile-nav');\n      const pick=(node)=>{\n        if(!node)return null;\n        const style=getComputedStyle(node);\n        const rect=node.getBoundingClientRect();\n        return {tag:node.tagName,id:node.id||'',className:String(node.className||''),rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height,top:rect.top,right:rect.right,bottom:rect.bottom,left:rect.left},position:style.position,display:style.display,zIndex:style.zIndex,top:style.top,right:style.right,bottom:style.bottom,left:style.left,transform:style.transform,filter:style.filter,backdropFilter:style.backdropFilter,contain:style.contain,perspective:style.perspective,willChange:style.willChange,overflow:style.overflow};\n      };\n      const ancestors=[];\n      let node=nav;\n      while(node&&ancestors.length<8){ancestors.push(pick(node));node=node.parentElement;}\n      const summary=nav?.querySelector('details.m26-mobile-more > summary')||null;\n      const direct=nav?.querySelector('[data-m26-area="admin-usuarios"]')||null;\n      return {innerWidth,innerHeight,scrollX,scrollY,nav:pick(nav),summary:pick(summary),direct:pick(direct),ancestors};\n    });\n  }\n  const shell=page.locator('.m26-shell[data-m26-role="admin"]');\n'''
+          if old2 not in s:
+              raise SystemExit('QA_MOBILE_DIAGNOSTIC_INSERTION_POINT_NOT_FOUND')
+          p.write_text(s.replace(old2,new2,1))
+          PY
+          node --check qa/admin-authenticated-real/admin-authenticated-real.spec.mjs
 
       - name: Certify real Admin auth and device interactions
         run: npx playwright test --config playwright.admin-authenticated-real.config.mjs
