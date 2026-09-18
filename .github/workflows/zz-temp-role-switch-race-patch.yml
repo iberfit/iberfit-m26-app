@@ -1,0 +1,92 @@
+name: Temporary role-switch race patch
+
+on:
+  push:
+    branches:
+      - fix/p1-multiapp-runtime-application-access-20260918
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]' && contains(github.event.head_commit.message, 'chore(ci): apply role-switch race patch')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/p1-multiapp-runtime-application-access-20260918
+          fetch-depth: 1
+
+      - name: Apply fail-safe role switch initialization order
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          app = Path('src/m26/app/application.js')
+          source = app.read_text(encoding='utf-8')
+          listener = "root.addEventListener('m26:switch-role',onSwitchRole);"
+          mount_marker = "    shell=createShellController({root,store,renderRoute});\n    qaStage('rc64-shell-mount-start');"
+          replacement = "    shell=createShellController({root,store,renderRoute});\n    // The multiapp gateway is visible during progressive shell paint, so its handler must exist first.\n    root.addEventListener('m26:switch-role',onSwitchRole);\n    qaStage('rc64-shell-mount-start');"
+          if source.count(mount_marker) != 1:
+              raise SystemExit('ROLE_SWITCH_MOUNT_MARKER_MISMATCH')
+          source = source.replace(mount_marker, replacement, 1)
+          positions=[]
+          start=0
+          while True:
+              idx=source.find(listener,start)
+              if idx < 0: break
+              positions.append(idx)
+              start=idx+len(listener)
+          if len(positions) != 2:
+              raise SystemExit(f'ROLE_SWITCH_LISTENER_COUNT_AFTER_INSERT={len(positions)}')
+          second=positions[1]
+          source=source[:second]+source[second+len(listener):]
+          if source.count(listener) != 1:
+              raise SystemExit('ROLE_SWITCH_LISTENER_NOT_UNIQUE')
+          app.write_text(source,encoding='utf-8')
+
+          test = Path('tests/m26_multiapp_role_switch_initialization.test.mjs')
+          test.write_text("""import test from 'node:test';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs/promises';
+
+          const source=await fs.readFile(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+          const add=\"root.addEventListener('m26:switch-role',onSwitchRole);\";
+          const remove=\"root.removeEventListener('m26:switch-role',onSwitchRole);\";
+
+          test('visible multiapp choice is wired before progressive shell paint',()=>{
+            const setup=source.indexOf('async function setupAuthenticated(){');
+            const listener=source.indexOf(add,setup);
+            const mount=source.indexOf('shell.mount({progressive:true});',setup);
+            assert.ok(setup>=0,'authenticated setup exists');
+            assert.ok(listener>setup,'role-switch listener is installed during authenticated setup');
+            assert.ok(mount>listener,'listener is installed before the progressive shell exposes role choice');
+            assert.equal(source.split(add).length-1,1,'role-switch listener is installed exactly once');
+          });
+
+          test('role-switch listener retains teardown symmetry',()=>{
+            const listener=source.indexOf(add);
+            const teardown=source.indexOf(remove,listener);
+            assert.ok(listener>=0);
+            assert.ok(teardown>listener,'destroyControllers removes the early role-switch listener');
+          });
+          """,encoding='utf-8')
+          PY
+
+      - name: Run targeted regressions
+        run: node --test tests/m26_multiapp_runtime_application_access.test.mjs tests/m26_multiapp_role_switch_initialization.test.mjs
+
+      - name: Commit product fix and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/zz-temp-role-switch-race-patch.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/m26/app/application.js tests/m26_multiapp_role_switch_initialization.test.mjs .github/workflows/zz-temp-role-switch-race-patch.yml
+          git diff --cached --check
+          git commit -m 'fix(auth): make initial multiapp choice actionable'
+          git push origin HEAD:fix/p1-multiapp-runtime-application-access-20260918
