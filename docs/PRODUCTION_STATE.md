@@ -1,100 +1,109 @@
 # IBERFIT · Production State
 
-Última actualización documental: 2026-09-14
-Estado: checkpoint verificable alineado con Canary, producción y Auth.
+Última actualización documental: 2026-09-17
+Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
 ## Producción LIVE
 
 - Dominio: `https://app.iberfit.cl`
 - Estado: PRODUCCIÓN REAL.
-- Source SHA desplegado: `b2e4a20c7f5b6a7696cdfa96b66e11956f9493a6`
-- Source branch del lote: `canary/rc74-4`
-- Promotion workflow verificado: `34805512111 · IBERFIT Production Promotion = SUCCESS`
-- Release branch: `release/prod-b2e4a20c7f5b`
+- Source SHA LIVE verificado: `1eabb642634ade1fec74b0d3b32d703e7d314eff`
+- Release branch: `release/prod-1eabb642634a`
+- Promotion run: `35259458571 = SUCCESS`
 - Cloudflare Pages productivo: `iberfit-m26-production`
-- Supabase PROD ref: `pjhmrhejsoofmouedavw`
+- Supabase PROD: `pjhmrhejsoofmouedavw`
 
-Un intento inmediatamente anterior (`34805438220`) falló antes del despliegue porque el generador productivo exige `sourceBranch=canary/rc74-4`; Wrangler y el cutover quedaron omitidos. Se corrigió sin debilitar el guardrail y la promoción válida `34805512111` completó deploy, identidad, smoke Chromium, auditoría read-only y evidencia de rollback.
+El lote LIVE cerró el incidente P0 de focus/select y la entrega PWA stale-safe. No se considera que mejoras posteriores estén en producción mientras no exista una promoción nueva verificada de forma explícita.
 
-La promoción productiva válida certificó source/manifest exactos, regresión, build canónico, rollback, preflight, deploy con Wrangler, identidad productiva, smoke browser y auditoría read-only.
-
-## Canary certificado
+## Canary actual
 
 - Rama: `canary/rc74-4`
-- SHA funcional certificado: `39e160fb54d1e866823a8150ecd9270359129444`
-- Merge asociado: PR #351 · queue shared authenticated QA gates.
-- P0 funcional demostrado: 0 en el lote certificado.
-- Rama protegida: `false` al checkpoint; sigue siendo deuda P1 de gobernanza.
+- HEAD: `b23688196e49f6dc26d2762ef592e80ab1b8ed80`
+- Último merge: PR #477.
+- P0 funcional demostrado: 0 en las rondas certificadas actuales.
+- Branch protection: no disponible mediante el conector GitHub actual; deuda P1 aún abierta.
 
-Evidencia post-merge exacta sobre `39e160fb...`:
-- IBERFIT M26 CI: SUCCESS.
-- Continuous App Audit: SUCCESS.
-- Device Experience Gate: SUCCESS.
-- Daily Use Visual Evidence: SUCCESS.
-- Gates remotos de solo lectura: SUCCESS.
+### Hardening integrado después de LIVE
 
-La serialización compartida de QA autenticado usa una cola común con `queue: max` para evitar interferencias y cancelaciones entre Daily, Device y Remote manteniendo en paralelo las superficies que no comparten sesión.
+- PR #471: gate autenticado permanente + fixes finales de interacción/foco.
+- PR #472: refresh silencioso al volver de background/online, sin rerender.
+- PR #473: logout local por defecto; revocación global explícita.
+- PR #474: refresh tokens/sesiones revocados terminan login sin retry loops.
+- PR #475: email OTP resend, expiry/replay/rate-limit/red con UX recuperable.
+- PR #476: paridad arquitectónica QA/PROD de la Edge de invitaciones.
+- PR #477: reintento Admin de invitación fallida sin recrear cliente ni duplicar identidad.
 
-Los commits exclusivamente documentales posteriores pueden mover el HEAD de Canary sin invalidar el SHA funcional certificado; producción siempre se promueve desde un source SHA funcional explícito.
+Los heads finales de estos lotes pasaron Fast Lane, CI, Continuous Audit y los gates aplicables de Admin/Device/Authenticated Client/QA Real Write.
 
-## Auth / correo transaccional
+## Supabase QA
+
+- Proyecto: `gjztkdwfmunnzhtvxrsu`
+- Estado: `ACTIVE_HEALTHY`
+- `iberfit-webauthn-v1`: misma implementación canónica que PROD.
+- `iberfit-admin-client-invite-v1`: v26.4, `verify_jwt=false`, validación interna de bearer con `auth.getUser()`, origen QA limitado a `m26-canary.iberfit.cl`.
+- Source Edge QA = source Canary en el checkpoint.
+- QA Real Write certifica:
+  - token inválido bloqueado;
+  - Coach bloqueado para reenvío de invitaciones;
+  - direct insert/update/delete bloqueados;
+  - cross-client read/command bloqueados;
+  - privileged assurance requerido;
+  - idempotencia/persistencia controladas.
+
+PROD de la Edge de invitación no se ha modificado durante este bloque.
+
+## Auth / correo transaccional PROD
 
 PROD mantiene:
+
 - `site_url = https://app.iberfit.cl/`
 - signup público deshabilitado;
 - longitud mínima de contraseña >= 8;
-- anonymous deshabilitado;
-- autoconfirm deshabilitado;
-- secure email change habilitado.
+- anonymous y autoconfirm deshabilitados;
+- secure email change habilitado;
+- SMTP personalizado Resend desde `acceso@auth.iberfit.cl`;
+- SPF, DKIM y DMARC verificados;
+- 13 plantillas Hosted Auth IBERFIT sincronizadas;
+- OTP email de 6 dígitos y recovery real certificados;
+- secure password change habilitado.
 
-Estado Auth productivo:
-- SMTP personalizado Resend operativo desde `acceso@auth.iberfit.cl`;
-- SPF, DKIM y DMARC verificados; DMARC `p=quarantine` para `auth.iberfit.cl`;
-- 13 plantillas Hosted Auth IBERFIT sincronizadas y verificadas con rollback protegido;
-- OTP email de 6 dígitos, expiración 3600 s y límite global de correo Auth 30/h;
-- OTP real y recovery real entregados a Gmail IBERFIT;
-- secure password change habilitado;
-- secretos SMTP presentes en GitHub sin exposición de valores.
+La aplicación mantiene WebAuthn como opción preferente de assurance privilegiada y fallback por código de correo cuando corresponde.
 
-El workflow operacional SMTP permanece aislado en `ops/prod-auth-readiness-4baf6d52` y no debe fusionarse en Canary.
+## Seguridad / backend
 
-## Supabase / seguridad
-
-- PROD: `pjhmrhejsoofmouedavw` · `ACTIVE_HEALTHY`.
-- QA: `gjztkdwfmunnzhtvxrsu`.
-- WebAuthn privilegiado: mantener fail-closed.
-- Bundle SQL histórico `33656032685`: SUPERSEDED; no ejecutar.
-- Cualquier cambio DB futuro debe ser un delta nuevo desde el baseline productivo real.
-- Los avisos de Security Advisor sobre RLS sin políticas y SECURITY DEFINER deben revisarse por intención y rutas de autorización antes de modificar nada; no aplicar políticas o índices cosméticos a ciegas.
+- PROD y QA: `ACTIVE_HEALTHY`.
+- WebAuthn privilegiado: fail-closed.
+- Los dos SECURITY DEFINER anon revisados corresponden a lectura pública intencional de catálogo/media.
+- RPC Admin críticos revisados exigen privileged assurance, Admin, organización y scope.
+- Las alertas generales de RLS/SECURITY DEFINER/índices no se corrigen de forma masiva; deben resolverse por intención y consultas reales.
+- Leaked-password protection continúa condicionado al plan Supabase disponible.
 
 ## P0 / P1 actuales
 
 ### P0
-Ninguno demostrado en el Canary certificado.
+
+Ninguno demostrado en el Canary actual.
 
 ### P1
-1. Proteger `canary/rc74-4` con PR + required checks.
-2. Completar validación autenticada real de Admin y Coach post-WebAuthn donde falte.
-3. Cerrar flujos diarios de alta/edición/baja controlada y sesión Coach sin freezes.
-4. Completar edge cases Auth restantes: invite, resend, expiry/replay y mala conexión.
-5. Instrumentar señal -> decisión -> intervención -> outcome y funnel/capacidad/revenue con utilidad real.
+
+1. Admin autenticado QA real desktop/tablet/móvil.
+2. E2E positivo Admin de invitación/reenvío y alta/edición/baja controlada.
+3. Sesión Coach real por dispositivo sin freezes y recuperación de error.
+4. Completar auditoría SECURITY DEFINER/RLS/índices por intención.
+5. Proteger Canary con required checks cuando la configuración del repositorio esté disponible.
+6. Outcome tracking, preparar próxima sesión y seguimiento longitudinal.
 
 ## GO para una próxima promoción
 
 Sólo cuando:
+
 - source/candidato exactos;
-- Canary certificado;
+- Canary certificado sobre ese SHA;
 - SMTP/Auth readiness GREEN;
-- plantillas Hosted Auth sincronizadas y verificadas;
-- correo real E2E probado;
+- Edge/DB QA relevantes en paridad con el código que se quiere promover;
+- Admin/Coach autenticados reales suficientemente cubiertos;
 - rollback identificable;
 - smoke y auditoría post-deploy;
 - ninguna mutación accidental de PROD.
 
-## Siguiente acción exacta
-
-1. Proteger Canary con PR + required checks.
-2. Completar Admin/Coach autenticado por dispositivo.
-3. Validar alta/edición/baja controlada y sesión Coach real sin freezes.
-4. Completar edge cases Auth pendientes sin degradar el canal ya certificado.
-5. Continuar mejoras de producto, rendimiento, datos y negocio sobre el nuevo baseline LIVE.
+La promoción debe distinguir código preparado, PR, merge, Canary certificado, release y LIVE. Ningún merge a Canary implica producción por sí mismo.
