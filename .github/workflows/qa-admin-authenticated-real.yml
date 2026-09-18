@@ -1,14 +1,11 @@
 name: IBERFIT QA Admin Authenticated Real
 
 on:
-  push:
+  pull_request:
     branches:
-      - qa/admin-authenticated-certification-20260917
+      - qa/admin-authenticated-certification-base-20260917
     paths:
-      - 'qa/admin-authenticated-real/**'
-      - 'playwright.admin-authenticated-real.config.mjs'
-      - 'tests/m26_admin_authenticated_real_gate_contract.test.mjs'
-      - '.github/workflows/qa-admin-authenticated-real.yml'
+      - '.github/admin-authenticated-run.trigger'
 
 permissions:
   contents: read
@@ -19,7 +16,7 @@ concurrency:
 
 jobs:
   certify:
-    if: ${{ github.ref_name == 'qa/admin-authenticated-certification-20260917' }}
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'qa/admin-authenticated-certification-base-20260917' }}
     runs-on: ubuntu-latest
     environment: m26-canary-readonly
     timeout-minutes: 25
@@ -41,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = 'qa/admin-authenticated-certification-20260917'
+          test "$GITHUB_BASE_REF" = 'qa/admin-authenticated-certification-base-20260917'
           test "$M26_PROJECT_REF" = 'gjztkdwfmunnzhtvxrsu'
           test "$M26_QA_ONLY" = 'true'
           test "$M26_SUPABASE_URL" = 'https://gjztkdwfmunnzhtvxrsu.supabase.co'
