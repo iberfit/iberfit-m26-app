@@ -120,19 +120,19 @@ for(const session of sessions){
       throw new Error('RC65_C2_REMOTE_COACH_ASSURANCE_CONTRACT_FAILED');
     }
 
-    const blocked=await rpcResult('iberfit_bootstrap_v26',session.token,{});
-    const blockedMessage=String(blocked?.body?.message||'');
-    const blockedCode=String(blocked?.body?.code||'');
-    if(blocked?.status!==403||blockedMessage!=='IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED'){
-      throw new Error(`RC65_C2_REMOTE_COACH_FAIL_CLOSED_MISMATCH:status=${blocked?.status||0}:message=${blockedMessage.slice(0,80)}`);
+    const bootstrapResult=await rpcResult('iberfit_bootstrap_v26',session.token,{});
+    const bootstrapRole=normalizeRegistryRole(bootstrapResult?.body?.user?.role);
+    if(bootstrapResult?.status!==200||!bootstrapResult?.body||typeof bootstrapResult.body!=='object'||bootstrapRole!=='coach'){
+      throw new Error(`RC65_C2_REMOTE_COACH_PRIMARY_AUTH_READ_MISMATCH:status=${bootstrapResult?.status||0}:role=${bootstrapRole||'missing'}`);
     }
 
     roles.push({
       name:session.name,userFingerprint:fingerprint(session.userId),reportedRole,clientFingerprint:null,
-      canaryActive:null,environmentName:null,privacy:null,
-      privilegedGate:{ok:true,status:403,code:/^[A-Z0-9]{3,16}$/u.test(blockedCode)?blockedCode:'NONE',
-        message:'IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED',iberfitAssurance:'required',credentialEnrolled:true,webauthnRequired:true,emailOtpAvailable:true,
+      canaryActive:bootstrapResult.body?.canary?.active===true,
+      environmentName:bootstrapResult.body?.environment?.name||bootstrapResult.body?.environment||null,privacy:null,
+      privilegedGate:{ok:true,iberfitAssurance:'required',credentialEnrolled:true,webauthnRequired:true,emailOtpAvailable:true,
         origin:CANARY_ORIGIN,rpId:'m26-canary.iberfit.cl'},
+      primaryAuthRead:{ok:true,status:200,bootstrapRole},
     });
     continue;
   }
@@ -158,22 +158,24 @@ for(const session of sessions){
       throw new Error('RC74_4_CLIENT_A_MULTIAPP_ASSURANCE_CONTRACT_FAILED');
     }
 
-    const blocked=await rpcResult('iberfit_bootstrap_v26',session.token,{});
-    const blockedMessage=String(blocked?.body?.message||'');
-    const blockedCode=String(blocked?.body?.code||'');
-    if(blocked?.status!==403||blockedMessage!=='IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED'){
-      throw new Error(`RC74_4_CLIENT_A_MULTIAPP_FAIL_CLOSED_MISMATCH:status=${blocked?.status||0}:message=${blockedMessage.slice(0,80)}`);
+    const bootstrapResult=await rpcResult('iberfit_bootstrap_v26',session.token,{});
+    if(bootstrapResult?.status!==200||!bootstrapResult?.body||typeof bootstrapResult.body!=='object'){
+      throw new Error(`RC74_4_CLIENT_A_MULTIAPP_PRIMARY_AUTH_READ_MISMATCH:status=${bootstrapResult?.status||0}`);
     }
 
     const clientId=await rpc('iberfit_client_id',session.token,{});
     if(typeof clientId!=='string'||!clientId.trim())throw new Error('RC74_4_CLIENT_A_CLIENT_ID_MISSING');
+    const privacy=inspectClientBootstrap(bootstrapResult.body,clientId);
+    if(!privacy.ok)throw new Error(`RC74_4_CLIENT_A_BOOTSTRAP_LEAK:forbidden=${privacy.forbiddenKeys.length}:foreign=${privacy.foreignClientIds.length}`);
     qaClientIds.push(clientId);
     roles.push({
       name:session.name,userFingerprint:fingerprint(session.userId),reportedRole:'client',clientFingerprint:fingerprint(clientId),
-      applicationRoles,canaryActive:null,environmentName:null,privacy:null,
-      privilegedGate:{ok:true,status:403,code:/^[A-Z0-9]{3,32}$/u.test(blockedCode)?blockedCode:'NONE',
-        message:'IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED',privilegedRole:'admin',webauthnRequired:true,emailOtpAvailable:true,
+      applicationRoles,canaryActive:bootstrapResult.body?.canary?.active===true,
+      environmentName:bootstrapResult.body?.environment?.name||bootstrapResult.body?.environment||null,
+      privacy:{ok:privacy.ok,forbiddenKeys:privacy.forbiddenKeys,clientFingerprints:privacy.clientIds.map(fingerprint),foreignClientFingerprints:privacy.foreignClientIds.map(fingerprint)},
+      privilegedGate:{ok:true,privilegedRole:'admin',iberfitAssurance:'required',webauthnRequired:true,emailOtpAvailable:true,
         origin:CANARY_ORIGIN,rpId:'m26-canary.iberfit.cl'},
+      primaryAuthRead:{ok:true,status:200},
     });
     continue;
   }
