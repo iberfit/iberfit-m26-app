@@ -6,7 +6,7 @@ import {
   inspectWebPushState,
   requestWebPushPermission,
   serializePushSubscription,
-} from '../src/m26/communication/push-service.js';
+} from '../src/m26/platform/pwa.js';
 
 function validVapidPublicKey(){
   return Buffer.from(Uint8Array.from({length:65},(_,index)=>index===0?4:index)).toString('base64url');
@@ -100,7 +100,7 @@ test('service worker push preview is privacy-safe and navigation is same-origin 
 });
 
 test('VAPID public key validation rejects missing and malformed values',()=>{
-  assert.equal(__webPushInternals.normalizePublicKey(''),null);
-  assert.equal(__webPushInternals.normalizePublicKey('not-a-key'),null);
-  assert.equal(__webPushInternals.normalizePublicKey(validVapidPublicKey())?.length,65);
+  assert.equal(__webPushInternals.normalizeVapidPublicKey(''),null);
+  assert.equal(__webPushInternals.normalizeVapidPublicKey('not-a-key'),null);
+  assert.equal(__webPushInternals.normalizeVapidPublicKey(validVapidPublicKey())?.length,65);
 });
