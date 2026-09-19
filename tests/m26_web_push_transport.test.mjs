@@ -34,6 +34,16 @@ test('web push status uses the authenticated narrow RPC and normalizes response'
   assert.deepEqual(calls[0].body,{});
 });
 
+test('device status checks only the supplied browser endpoint and returns metadata',async()=>{
+  const {transport,calls}=harness([jsonResponse({ok:true,deviceActive:true,subscriptionCount:3})]);
+  const result=await transport.webPushDeviceStatus('jwt-user','https://push.example.test/device-a');
+  assert.deepEqual(result,{ok:true,deviceActive:true,subscriptionCount:3});
+  assert.match(calls[0].url,/\/rest\/v1\/rpc\/iberfit_web_push_device_status_v1$/);
+  assert.deepEqual(calls[0].body,{p_endpoint:'https://push.example.test/device-a'});
+  assert.equal(calls[0].options.headers.authorization,'Bearer jwt-user');
+  await assert.rejects(()=>transport.webPushDeviceStatus('jwt-user',''),/M26_PUSH_ENDPOINT_REQUIRED/);
+});
+
 test('web push upsert forwards only the subscription payload and requires confirmed activation',async()=>{
   const subscription={endpoint:'https://push.example.test/a',expirationTime:null,keys:{p256dh:'key',auth:'auth'}};
   const {transport,calls}=harness([jsonResponse({ok:true,active:true,updatedAt:null})]);
