@@ -6,6 +6,7 @@ on:
       - canary/rc74-4
     paths:
       - 'scripts/auth/sync-hosted-auth-security.mjs'
+      - 'scripts/remote-gates/**'
       - 'src/m26/app/application.js'
       - 'tests/m26_hosted_auth_security_hibp.test.mjs'
       - '.github/workflows/hosted-auth-security-hardening.yml'
