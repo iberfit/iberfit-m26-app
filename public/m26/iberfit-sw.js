@@ -14,7 +14,7 @@ function isIberfitRootNavigation(request,url){
 
 function safePushPath(value){
   const candidate=String(value||'').trim();
-  if(!candidate||!candidate.startsWith('/')||candidate.startsWith('//'))return IBERFIT_PUSH_DEFAULT_PATH;
+  if(!candidate||candidate.charAt(0)!=='/'||candidate.slice(0,2)==='//')return IBERFIT_PUSH_DEFAULT_PATH;
   try{
     const url=new URL(candidate,self.location.origin);
     if(url.origin!==self.location.origin)return IBERFIT_PUSH_DEFAULT_PATH;
