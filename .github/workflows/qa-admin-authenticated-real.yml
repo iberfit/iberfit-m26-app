@@ -82,6 +82,44 @@ jobs:
       - name: Build exact current authenticated QA surface
         run: node qa/rc64/build-authenticated-surface.mjs
 
+      - name: Normalize touch navigation target to the real viewport
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('qa/admin-authenticated-real/admin-authenticated-real.spec.mjs')
+          s=p.read_text()
+          old='''async function clickNav(page,area,{touch=false}={}){
+            const direct=page.locator(`[data-m26-area="${area}"]:visible`).first();
+            if(await direct.count()&&await direct.isVisible().catch(()=>false)){
+              if(touch)await direct.tap();else await direct.click();
+              return;
+            }
+            const more=page.locator('details.m26-mobile-more:visible').first();
+          '''
+          new='''async function clickNav(page,area,{touch=false}={}){
+            const selector=`[data-m26-area="${area}"]:visible`;
+            const mobile=page.locator(`.m26-mobile-nav ${selector}`).first();
+            const direct=touch&&await mobile.count()&&await mobile.isVisible().catch(()=>false)
+              ? mobile
+              : page.locator(selector).first();
+            if(await direct.count()&&await direct.isVisible().catch(()=>false)){
+              const box=await direct.boundingBox();
+              const viewport=page.viewportSize();
+              const inViewport=Boolean(box&&viewport&&box.width>0&&box.height>0&&box.x<viewport.width&&box.y<viewport.height&&box.x+box.width>0&&box.y+box.height>0);
+              if(inViewport){
+                if(touch)await direct.tap();else await direct.click();
+                return;
+              }
+            }
+            const more=page.locator('details.m26-mobile-more:visible').first();
+          '''
+          if old not in s:
+              raise SystemExit('QA_NAV_HELPER_CONTRACT_NOT_FOUND')
+          p.write_text(s.replace(old,new,1))
+          PY
+          node --check qa/admin-authenticated-real/admin-authenticated-real.spec.mjs
+
       - name: Certify real Admin auth and device interactions
         run: npx playwright test --config playwright.admin-authenticated-real.config.mjs
 
