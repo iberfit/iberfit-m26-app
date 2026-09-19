@@ -199,7 +199,7 @@ test('mouse release cannot let a direct controller render destroy the focused cl
   expect(errors,browserName+' emitted browser errors').toEqual([]);
 });
 
-test('touch tap gives text fields native focus before typing and releases the mobile nav',async({page,browserName},testInfo)=>{
+test('touch tap gives text fields native focus before typing and keeps the mobile nav reachable',async({page,browserName},testInfo)=>{
   const touchProject=testInfo.project.name.includes('mobile')||testInfo.project.name.includes('tablet');
   test.skip(!touchProject,'Touch-entry contract only applies to touch projects.');
 
@@ -241,8 +241,9 @@ test('touch tap gives text fields native focus before typing and releases the mo
   if(await nav.count()){
     const visibleBeforeFocus=await nav.evaluate((node)=>getComputedStyle(node).display!=='none');
     if(visibleBeforeFocus){
-      await expect(nav).toHaveCSS('pointer-events','none');
-      await expect(nav).toHaveCSS('opacity','0');
+      await expect(nav).toBeVisible();
+      await expect(nav).toHaveCSS('pointer-events','auto');
+      await expect(nav).toHaveCSS('opacity','1');
     }
   }
 
