@@ -82,9 +82,9 @@ function serializeSubscription(subscription){
   return Object.freeze({endpoint,expirationTime:raw.expirationTime??null,keys:Object.freeze({p256dh,auth})});
 }
 
-export function webPushCapability({navigatorLike=globalThis.navigator,NotificationLike=globalThis.Notification}={}){
+export function webPushCapability({navigatorLike=globalThis.navigator,NotificationLike=globalThis.Notification,PushManagerLike=globalThis.PushManager}={}){
   const serviceWorker=Boolean(navigatorLike&&'serviceWorker' in navigatorLike);
-  const pushManager=Boolean(globalThis.PushManager||navigatorLike?.serviceWorker?.ready?.then);
+  const pushManager=typeof PushManagerLike==='function'||Boolean(PushManagerLike&&typeof PushManagerLike==='object');
   const notifications=Boolean(NotificationLike&&typeof NotificationLike.requestPermission==='function');
   const permission=notifications?String(NotificationLike.permission||'default'):'unsupported';
   return Object.freeze({supported:serviceWorker&&pushManager&&notifications,serviceWorker,pushManager,notifications,permission});
@@ -95,6 +95,7 @@ export function createWebPushClient({
   fetchImpl=globalThis.fetch,
   navigatorLike=globalThis.navigator,
   NotificationLike=globalThis.Notification,
+  PushManagerLike=globalThis.PushManager,
 }={}){
   if(typeof fetchImpl!=='function')throw new Error('M26_PUSH_FETCH_REQUIRED');
   const base=runtimeBase(runtime);
@@ -142,7 +143,7 @@ export function createWebPushClient({
   }
 
   async function currentSubscription(){
-    const capability=webPushCapability({navigatorLike,NotificationLike});
+    const capability=webPushCapability({navigatorLike,NotificationLike,PushManagerLike});
     if(!capability.supported)return null;
     const registration=await getRegistration();
     return registration.pushManager?.getSubscription?.()||null;
@@ -150,7 +151,7 @@ export function createWebPushClient({
 
   async function enable(token,{application}={}){
     const app=applicationName(application);
-    const capability=webPushCapability({navigatorLike,NotificationLike});
+    const capability=webPushCapability({navigatorLike,NotificationLike,PushManagerLike});
     if(!capability.supported)return Object.freeze({ok:false,state:'unsupported'});
 
     let permission=String(NotificationLike.permission||'default');
