@@ -35,6 +35,16 @@ function preferencePayloadFromRoot(root){
   }
   return Object.keys(out).length?Object.freeze(out):null;
 }
+function mergePreferencePayload(left,right){
+  const merged={...(left||{}),...(right||{})};
+  return Object.keys(merged).length?Object.freeze(merged):null;
+}
+function clearSyncedPreferenceKeys(pending,synced){
+  if(!pending)return null;
+  const next={...pending};
+  for(const key of Object.keys(synced||{}))delete next[key];
+  return Object.keys(next).length?Object.freeze(next):null;
+}
 export function createCommunicationController({root,service,render=()=>{}}={}){
   let busy=false;
   let pushBusy=false;
@@ -42,7 +52,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   let lastPushSyncAt=0;
   let lastPushControl=null;
   let preferenceSyncInFlight=null;
-  let pendingPreferencePayload=null;
+  let queuedPreferencePayload=null;
+  let retryPreferencePayload=null;
   let lastPreferenceSignature='';
   let lastPreferenceSyncAt=0;
   const windowLike=root?.ownerDocument?.defaultView||globalThis.window||null;
@@ -103,24 +114,25 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     const signature=JSON.stringify(normalized);
     if(!force&&signature===lastPreferenceSignature&&Date.now()-lastPreferenceSyncAt<60_000)return true;
     if(preferenceSyncInFlight){
-      pendingPreferencePayload=Object.freeze({...pendingPreferencePayload,...normalized});
+      queuedPreferencePayload=mergePreferencePayload(queuedPreferencePayload,normalized);
       return preferenceSyncInFlight;
     }
     preferenceSyncInFlight=(async()=>{
       try{
         await service.notificationPreferences.update(normalized);
+        retryPreferencePayload=clearSyncedPreferenceKeys(retryPreferencePayload,normalized);
         lastPreferenceSignature=signature;
         lastPreferenceSyncAt=Date.now();
         return true;
       }catch(error){
-        pendingPreferencePayload=Object.freeze({...pendingPreferencePayload,...normalized});
+        retryPreferencePayload=mergePreferencePayload(retryPreferencePayload,normalized);
         if(announceFailure)toast(/ONLINE_REQUIRED/.test(String(error?.message||error))?'Preferencia guardada en este dispositivo. Se sincronizará al recuperar la conexión.':'Preferencia guardada en este dispositivo. IBERFIT volverá a intentar sincronizarla.');
         return false;
       }finally{
         preferenceSyncInFlight=null;
-        const pending=pendingPreferencePayload;
-        pendingPreferencePayload=null;
-        if(pending)queueMicrotask(()=>{void syncNotificationPreferences(pending,{force:true});});
+        const queued=queuedPreferencePayload;
+        queuedPreferencePayload=null;
+        if(queued)queueMicrotask(()=>{void syncNotificationPreferences(queued,{force:true});});
       }
     })();
     return preferenceSyncInFlight;
@@ -200,9 +212,9 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     });
   }
   function onOnline(){
-    const pending=pendingPreferencePayload;
-    pendingPreferencePayload=null;
-    if(pending)void syncNotificationPreferences(pending,{force:true});
+    const retry=retryPreferencePayload;
+    retryPreferencePayload=null;
+    if(retry)void syncNotificationPreferences(retry,{force:true});
     else syncVisibleNotificationPreferences({force:true});
     void syncPushControl({force:true});
   }
@@ -225,7 +237,8 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       root.removeEventListener('m26:shell-rendered',onShellRendered);
       windowLike?.removeEventListener?.('online',onOnline);
       lastPushControl=null;
-      pendingPreferencePayload=null;
+      queuedPreferencePayload=null;
+      retryPreferencePayload=null;
     },
   });
 }
@@ -233,4 +246,6 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
 export const __communicationControllerInternals=Object.freeze({
   preferencePayloadFromControl,
   preferencePayloadFromRoot,
+  mergePreferencePayload,
+  clearSyncedPreferenceKeys,
 });
