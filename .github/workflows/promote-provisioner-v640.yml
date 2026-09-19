@@ -1,0 +1,46 @@
+name: Promote canonical WEB provisioner to V6.40
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/promote-provisioner-v640.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: infra/web-iberfit-worker
+      - name: Actualizar provisioner canónico
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.github/workflows/provision-web-iberfit-pages.yml')
+          s=p.read_text(encoding='utf-8')
+          old=s
+          s=s.replace("WEB_SHA: '0120a67e8002ecf9f8cdae3295a194b9d1cf6241'","WEB_SHA: 'ae24ed71f732a267cdd9fe99f7fa51812b6847c7'")
+          s=s.replace("WEB_VERSION: '6.39'","WEB_VERSION: '6.40'")
+          s=s.replace("QA_RUN_ID: '35454883035'","QA_RUN_ID: '35455803528'")
+          s=s.replace('V6.39','V6.40').replace('v639','v640').replace('V639','V640')
+          if s==old: raise SystemExit('NO_CHANGES')
+          p.write_text(s,encoding='utf-8')
+          PY
+          grep -q "WEB_SHA: 'ae24ed71f732a267cdd9fe99f7fa51812b6847c7'" .github/workflows/provision-web-iberfit-pages.yml
+          grep -q "WEB_VERSION: '6.40'" .github/workflows/provision-web-iberfit-pages.yml
+          grep -q "QA_RUN_ID: '35455803528'" .github/workflows/provision-web-iberfit-pages.yml
+          grep -q 'QA WEB IBERFIT V6.40 final' .github/workflows/provision-web-iberfit-pages.yml
+          ! grep -q '6.39' .github/workflows/provision-web-iberfit-pages.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/provision-web-iberfit-pages.yml
+          git commit -m 'infra(web): point canonical provisioner to V6.40'
+          git push origin HEAD:infra/web-iberfit-worker
