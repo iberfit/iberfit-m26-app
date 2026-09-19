@@ -2,16 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const migration=fs.readFileSync(
-  new URL('../supabase/migrations/20260919183000_web_push_subscriptions_v1.sql',import.meta.url),
-  'utf8',
-);
+const migrations=[
+  '../supabase/migrations/20260919183000_web_push_subscriptions_v1.sql',
+  '../supabase/migrations/20260919184500_web_push_subscription_ownership_guard.sql',
+].map(path=>fs.readFileSync(new URL(path,import.meta.url),'utf8'));
+const migration=migrations.join('\n');
 
 function functionBody(name){
-  const marker=`create or replace function public.${name}`;
-  const start=migration.toLowerCase().indexOf(marker.toLowerCase());
+  const marker=`create or replace function public.${name}`.toLowerCase();
+  const source=migration.toLowerCase();
+  const start=source.lastIndexOf(marker);
   assert.notEqual(start,-1,`${name} missing`);
-  const next=migration.toLowerCase().indexOf('create or replace function public.',start+marker.length);
+  const next=source.indexOf('create or replace function public.',start+marker.length);
   return migration.slice(start,next===-1?migration.length:next);
 }
 
@@ -36,15 +38,22 @@ test('upsert is identity scoped and derives exactly one active organization memb
   assert.match(body,/organization_context_ambiguous/i);
 });
 
-test('subscription payload is validated before persistence and responses do not expose endpoint keys',()=>{
+test('subscription payload is validated and response exposes no push capability material',()=>{
   const body=functionBody('iberfit_web_push_upsert_v1');
   assert.match(body,/left\(v_endpoint, 8\) <> 'https:\/\/'/i);
   assert.match(body,/invalid_push_p256dh/i);
   assert.match(body,/invalid_push_auth/i);
   assert.match(body,/invalid_push_expiration/i);
   const returnBlock=body.slice(body.lastIndexOf('return jsonb_build_object'));
-  assert.doesNotMatch(returnBlock,/'endpoint'|'p256dh'|'auth_key'/i);
-  assert.match(returnBlock,/'subscriptionId'/i);
+  assert.doesNotMatch(returnBlock,/'endpoint'|'p256dh'|'auth_key'|'subscriptionId'/i);
+  assert.match(returnBlock,/'updatedAt'/i);
+});
+
+test('an endpoint cannot be reassigned across authenticated users',()=>{
+  const body=functionBody('iberfit_web_push_upsert_v1');
+  assert.match(body,/where public\.iberfit_web_push_subscriptions\.user_id = v_user_id/i);
+  assert.doesNotMatch(body,/user_id\s*=\s*excluded\.user_id/i);
+  assert.match(body,/push_endpoint_conflict/i);
 });
 
 test('status and revoke can only inspect or delete rows belonging to auth.uid()',()=>{
