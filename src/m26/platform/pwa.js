@@ -1,6 +1,8 @@
 const CANONICAL_SW_URL='/m26/iberfit-sw.js';
 const CANONICAL_SW_SCOPE='/';
 const INSTALL_STATE_EVENT='m26:pwa-install-state';
+const MAX_PUSH_ENDPOINT_LENGTH=4096;
+const MAX_PUSH_KEY_LENGTH=2048;
 
 export function canInstallPwa(){return Boolean(globalThis.navigator&&'serviceWorker' in globalThis.navigator);}
 function normalizeServiceWorkerRegistration(url,scope){
@@ -205,4 +207,94 @@ export function createConnectivitySync({coordinator,target=globalThis,navigatorL
   if(!coordinator?.synchronize)throw new Error('M26_SYNC_COORDINATOR_REQUIRED');let inFlight=null;
   const sync=()=>{if(inFlight)return inFlight;inFlight=(async()=>{try{const result=await coordinator.synchronize();await onResult(result);return result;}catch(error){await onError(error);return {online:navigatorLike?.onLine!==false,attempted:0,deferred:0,results:[],error:String(error?.message||error).slice(0,240)};}})().finally(()=>{inFlight=null;});return inFlight;};
   return Object.freeze({start({emitInitial=true}={}){const initial=Boolean(emitInitial);return observeConnectivity(target,{navigatorLike,onOnline:sync,emitInitial:initial,baselineCurrentState:!initial});},sync});
+}
+
+function hasPushFunction(value,key){
+  return Boolean(value&&typeof value[key]==='function');
+}
+
+function normalizePushBase64Url(value){
+  const raw=String(value||'').trim();
+  if(!raw||raw.length>MAX_PUSH_KEY_LENGTH)return null;
+  if(!/^[A-Za-z0-9_-]+={0,2}$/.test(raw))return null;
+  return raw.replace(/=+$/,'');
+}
+
+export function urlBase64ToUint8Array(value){
+  const normalized=normalizePushBase64Url(value);
+  if(!normalized)throw new Error('M26_PUSH_PUBLIC_KEY_INVALID');
+  const padded=`${normalized}${'='.repeat((4-normalized.length%4)%4)}`;
+  const base64=padded.replace(/-/g,'+').replace(/_/g,'/');
+  let binary='';
+  if(typeof globalThis.atob==='function')binary=globalThis.atob(base64);
+  else if(typeof Buffer!=='undefined')binary=Buffer.from(base64,'base64').toString('binary');
+  else throw new Error('M26_PUSH_BASE64_UNAVAILABLE');
+  return Uint8Array.from(binary,(character)=>character.charCodeAt(0));
+}
+
+export function webPushCapability({navigatorObject=globalThis.navigator,notificationApi=globalThis.Notification,pushManagerApi=globalThis.PushManager,secureContext=globalThis.isSecureContext}={}){
+  const serviceWorkerSupported=Boolean(navigatorObject?.serviceWorker);
+  const pushSupported=Boolean(pushManagerApi);
+  const notificationsSupported=Boolean(notificationApi);
+  const secure=secureContext===true;
+  const permission=notificationsSupported?String(notificationApi.permission||'default'):'unsupported';
+  return Object.freeze({supported:secure&&serviceWorkerSupported&&pushSupported&&notificationsSupported,secureContext:secure,serviceWorkerSupported,pushSupported,notificationsSupported,permission,denied:permission==='denied',granted:permission==='granted'});
+}
+
+function validatePushEndpoint(endpoint){
+  const raw=String(endpoint||'').trim();
+  if(!raw||raw.length>MAX_PUSH_ENDPOINT_LENGTH)throw new Error('M26_PUSH_ENDPOINT_INVALID');
+  let url;
+  try{url=new URL(raw);}catch{throw new Error('M26_PUSH_ENDPOINT_INVALID');}
+  if(url.protocol!=='https:')throw new Error('M26_PUSH_ENDPOINT_INSECURE');
+  return url.toString();
+}
+
+function keyFromPushSubscription(subscription,name){
+  const json=typeof subscription?.toJSON==='function'?subscription.toJSON():null;
+  const fromJson=normalizePushBase64Url(json?.keys?.[name]);
+  if(fromJson)return fromJson;
+  const buffer=subscription?.getKey?.(name);
+  if(!buffer)return null;
+  const bytes=new Uint8Array(buffer);
+  let binary='';
+  for(const byte of bytes)binary+=String.fromCharCode(byte);
+  if(typeof globalThis.btoa!=='function')throw new Error('M26_PUSH_BASE64_UNAVAILABLE');
+  return globalThis.btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+export function serializeIberfitPushSubscription(subscription){
+  if(!subscription)throw new Error('M26_PUSH_SUBSCRIPTION_REQUIRED');
+  const endpoint=validatePushEndpoint(subscription.endpoint);
+  const p256dh=keyFromPushSubscription(subscription,'p256dh');
+  const auth=keyFromPushSubscription(subscription,'auth');
+  if(!p256dh||!auth)throw new Error('M26_PUSH_KEYS_REQUIRED');
+  return Object.freeze({endpoint,expirationTime:Number.isFinite(subscription.expirationTime)?Number(subscription.expirationTime):null,keys:Object.freeze({p256dh,auth})});
+}
+
+export async function getIberfitPushSubscription(registration){
+  if(!registration?.pushManager||!hasPushFunction(registration.pushManager,'getSubscription'))return null;
+  return await registration.pushManager.getSubscription();
+}
+
+export async function subscribeIberfitWebPush({registration,applicationServerKey,notificationApi=globalThis.Notification}={}){
+  if(!registration?.pushManager||!hasPushFunction(registration.pushManager,'subscribe'))throw new Error('M26_PUSH_MANAGER_UNAVAILABLE');
+  if(!notificationApi||typeof notificationApi.requestPermission!=='function')throw new Error('M26_NOTIFICATIONS_UNAVAILABLE');
+  let permission=String(notificationApi.permission||'default');
+  if(permission==='denied')throw new Error('M26_PUSH_PERMISSION_DENIED');
+  if(permission!=='granted')permission=String(await notificationApi.requestPermission());
+  if(permission!=='granted')throw new Error('M26_PUSH_PERMISSION_NOT_GRANTED');
+  const key=urlBase64ToUint8Array(applicationServerKey);
+  const existing=await getIberfitPushSubscription(registration);
+  if(existing)return serializeIberfitPushSubscription(existing);
+  const subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+  return serializeIberfitPushSubscription(subscription);
+}
+
+export async function unsubscribeIberfitWebPush(registration){
+  const subscription=await getIberfitPushSubscription(registration);
+  if(!subscription)return Object.freeze({unsubscribed:true,hadSubscription:false});
+  const serialized=serializeIberfitPushSubscription(subscription);
+  const unsubscribed=await subscription.unsubscribe();
+  return Object.freeze({unsubscribed:unsubscribed===true,hadSubscription:true,endpoint:serialized.endpoint});
 }
