@@ -8,7 +8,7 @@ import {
   unsubscribeIberfitWebPush,
   urlBase64ToUint8Array,
   webPushCapability,
-} from '../src/m26/platform/web-push.js';
+} from '../src/m26/platform/pwa.js';
 
 test('web push capability fails closed outside a secure complete environment',()=>{
   assert.equal(webPushCapability({secureContext:false}).supported,false);
