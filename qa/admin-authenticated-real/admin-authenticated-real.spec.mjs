@@ -145,6 +145,12 @@ async function pointerState(locator){
 async function activate(locator,touch){if(touch)await locator.tap();else await locator.click();}
 async function clickNav(page,area,{touch=false}={}){
   const direct=page.locator(`[data-m26-area="${area}"]:visible`).first();
+  const compact=await page.evaluate(()=>innerWidth<=900);
+  if(!compact){
+    await expect(direct,`Admin direct navigation must expose ${area}`).toBeVisible();
+    await activate(direct,touch);
+    return;
+  }
   if(await direct.count()){
     const state=await pointerState(direct);
     if(state.inViewport&&state.receivesPointer){await activate(direct,touch);return;}
