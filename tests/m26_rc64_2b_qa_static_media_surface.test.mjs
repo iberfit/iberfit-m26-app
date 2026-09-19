@@ -7,10 +7,8 @@ const read=(file)=>fs.readFileSync(file,'utf8').replace(/\r\n/g,'\n');
 test('RC64.2B QA surface includes authenticated static exercise-media dependencies',()=>{
   const builder=read('qa/rc64/build-current-surface.mjs');
 
-  assert.match(builder,/\['public\/iberfit','iberfit'\]/u);
-  assert.match(builder,/\['public\/vendor\/repdb','vendor\/repdb'\]/u);
-  assert.doesNotMatch(builder,/\['public\/iberfit','public\/iberfit'\]/u);
-  assert.doesNotMatch(builder,/\['public\/vendor\/repdb','public\/vendor\/repdb'\]/u);
+  assert.match(builder,/\['public\/iberfit','public\/iberfit'\]/u);
+  assert.match(builder,/\['public\/vendor\/repdb','public\/vendor\/repdb'\]/u);
   assert.match(builder,/fs\.mkdirSync\(path\.join\(output,'public'\),\{recursive:true\}\)/u);
 
   for(const required of [

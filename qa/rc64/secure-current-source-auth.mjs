@@ -6,6 +6,7 @@ export const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 export const SUPABASE_ORIGIN=`https://${QA_PROJECT_REF}.supabase.co`;
 
 const BUILD_ROOT=path.resolve('.tmp/rc64-current-surface');
+const PUBLIC_BUILD_ROOT=path.join(BUILD_ROOT,'public');
 const MIME=Object.freeze({
   '.html':'text/html; charset=utf-8',
   '.js':'text/javascript; charset=utf-8',
@@ -44,31 +45,46 @@ function allowedQaRequest(request,readOnlyRpcs){
   return method==='POST'&&url.pathname.startsWith(prefix)&&readOnlyRpcs.has(url.pathname.slice(prefix.length));
 }
 
+function buildCandidate(base,relative){
+  const candidate=path.resolve(base,relative);
+  if(candidate===base||candidate.startsWith(base+path.sep))return candidate;
+  return null;
+}
+
+async function readCurrentSource(relative){
+  const rootCandidate=buildCandidate(BUILD_ROOT,relative);
+  if(!rootCandidate)return null;
+  try{return {body:await fs.readFile(rootCandidate),candidate:rootCandidate};}catch{}
+
+  const publicCandidate=buildCandidate(PUBLIC_BUILD_ROOT,relative);
+  if(!publicCandidate)return null;
+  try{return {body:await fs.readFile(publicCandidate),candidate:publicCandidate};}catch{return null;}
+}
+
 async function fulfillCurrentSource(route,url){
   let pathname=decodeURIComponent(url.pathname||'/');
   if(pathname==='/'||pathname==='')pathname='/index.html';
   const relative=pathname.replace(/^\/+/, '');
-  const candidate=path.resolve(BUILD_ROOT,relative);
-  if(candidate!==BUILD_ROOT&&!candidate.startsWith(BUILD_ROOT+path.sep)){
-    await route.fulfill({status:403,body:'Forbidden'});
-    return;
-  }
-  try{
-    const body=await fs.readFile(candidate);
+  const resolved=await readCurrentSource(relative);
+  if(resolved){
     await route.fulfill({
       status:200,
-      body,
+      body:resolved.body,
       headers:{
-        'content-type':mimeFor(candidate),
+        'content-type':mimeFor(resolved.candidate),
         'cache-control':'no-store',
         'x-content-type-options':'nosniff',
       },
     });
-  }catch{
-    const extension=path.extname(candidate);
-    if(!extension){
+    return;
+  }
+
+  const extension=path.extname(relative);
+  if(!extension){
+    const indexCandidate=buildCandidate(BUILD_ROOT,'index.html');
+    if(indexCandidate){
       try{
-        const body=await fs.readFile(path.join(BUILD_ROOT,'index.html'));
+        const body=await fs.readFile(indexCandidate);
         await route.fulfill({
           status:200,
           body,
@@ -81,8 +97,8 @@ async function fulfillCurrentSource(route,url){
         return;
       }catch{}
     }
-    await route.fulfill({status:404,body:'Not found'});
   }
+  await route.fulfill({status:404,body:'Not found'});
 }
 
 export async function installCurrentSourceQaNetworkPolicy(context,{readOnlyRpcs,onBlocked=()=>{},onQaRequest=()=>{}}){

@@ -9,9 +9,9 @@ const entries=Object.freeze([
   ['public/m26','m26'],
   ['src/m26','src/m26'],
   ['baseline_m25_2/exercise-catalog-m25.json','baseline_m25_2/exercise-catalog-m25.json'],
-  ['public/isotipo-iberfit.png','isotipo-iberfit.png'],
-  ['public/iberfit','iberfit'],
-  ['public/vendor/repdb','vendor/repdb'],
+  ['public/isotipo-iberfit.png','public/isotipo-iberfit.png'],
+  ['public/iberfit','public/iberfit'],
+  ['public/vendor/repdb','public/vendor/repdb'],
 ]);
 
 function copy(source,target){
@@ -24,8 +24,6 @@ function copy(source,target){
 
 fs.rmSync(output,{recursive:true,force:true});
 fs.mkdirSync(output,{recursive:true});
-// The hermetic static server validates a public fallback root at startup.
-// Keep it structural only: production public assets remain exposed from the hosting root above.
 fs.mkdirSync(path.join(output,'public'),{recursive:true});
 
 for(const [source,target] of entries)copy(source,target);

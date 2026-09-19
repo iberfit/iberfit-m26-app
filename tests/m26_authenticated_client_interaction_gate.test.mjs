@@ -32,21 +32,29 @@ test('authenticated interaction network policy remains fail-closed for mutations
   assert.ok(!spec.includes('data-engagement-action="save-checkin-draft"'),'test must not target draft-save action');
 });
 
-test('authenticated current-source surface preserves public-root asset paths',()=>{
-  for(const [source,target] of [
-    ['public/isotipo-iberfit.png','isotipo-iberfit.png'],
-    ['public/iberfit','iberfit'],
-    ['public/vendor/repdb','vendor/repdb'],
+test('authenticated current-source surface preserves canonical public assets with hosting-root fallback',()=>{
+  for(const source of [
+    'public/isotipo-iberfit.png',
+    'public/iberfit',
+    'public/vendor/repdb',
   ]){
     assert.ok(
-      currentSurfaceBuilder.includes(`['${source}','${target}']`),
-      `${source} must be copied to synthetic hosting root path ${target}`
-    );
-    assert.ok(
-      !currentSurfaceBuilder.includes(`['${source}','public/${target}']`),
-      `${source} must not gain a public/ URL segment absent from production hosting`
+      currentSurfaceBuilder.includes(`['${source}','${source}']`),
+      `${source} must remain in the canonical public tree`
     );
   }
+  assert.ok(
+    networkPolicy.includes("const PUBLIC_BUILD_ROOT=path.join(BUILD_ROOT,'public')"),
+    'current-source policy must expose the same public fallback root as the hermetic static server'
+  );
+  assert.ok(
+    networkPolicy.includes('const resolved=await readCurrentSource(relative)'),
+    'current-source policy must resolve root and public fallback paths through one shared lookup'
+  );
+  assert.ok(
+    networkPolicy.includes('const publicCandidate=buildCandidate(PUBLIC_BUILD_ROOT,relative)'),
+    'root-style public URLs must fall back to the canonical public tree'
+  );
 });
 
 test('authenticated interaction covers desktop tablet landscape and mobile touch',()=>{
