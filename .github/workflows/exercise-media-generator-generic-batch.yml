@@ -1,0 +1,171 @@
+name: IBERFIT Exercise Media Generic Batch Smoke
+
+on:
+  pull_request:
+    branches:
+      - canary/rc74-4
+    paths:
+      - '.github/workflows/exercise-media-generator-generic-batch.yml'
+      - 'scripts/exercise-media/generate-cloudflare.mjs'
+      - 'scripts/exercise-media/qa-cloudflare.mjs'
+      - 'scripts/exercise-media/worker-ai-proxy.mjs'
+      - 'scripts/exercise-media/wrangler.ai-smoke.toml'
+      - 'scripts/exercise-media/reference/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-exercise-media-generic-batch-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ATHLETE_REFERENCE: scripts/exercise-media/reference/athlete-approved-v1.jpg
+  ISOTYPE_REFERENCE: scripts/exercise-media/reference/iberfit-isotype-official-v1.png
+  WRANGLER_CONFIG: scripts/exercise-media/wrangler.ai-smoke.toml
+  PAGES_AI_PROJECT: iberfit-exercise-ai-generic-${{ github.run_id }}-${{ github.run_attempt }}
+  PAGES_AI_DIR: recovery/exercise-media-pages-proxy
+  EXERCISE_IDS: >-
+    IBF-DOMINADA-PRONADA
+    IBF-BUENOS-DIAS-CON-BARRA
+    IBF-AB-WHEEL-DESDE-RODILLAS
+    IBF-BIRD-DOG
+    IBF-DEAD-BUG
+
+jobs:
+  generate-generic-batch:
+    name: generate-generic-batch
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Preparar Node y referencias
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$ATHLETE_REFERENCE"
+          test -s "$ISOTYPE_REFERENCE"
+          python3 -m pip install --disable-pip-version-check --quiet 'Pillow==11.3.0'
+          mkdir -p recovery/exercise-media-reference-normalized recovery/exercise-media-generic
+          ATHLETE_SOURCE="$ATHLETE_REFERENCE" \
+          ATHLETE_NORMALIZED="recovery/exercise-media-reference-normalized/athlete.png" \
+          ISOTYPE_SOURCE="$ISOTYPE_REFERENCE" \
+          ISOTYPE_NORMALIZED="recovery/exercise-media-reference-normalized/isotype.png" \
+          python3 - <<'PY'
+          import os
+          from PIL import Image, ImageOps, ImageFile
+          ImageFile.LOAD_TRUNCATED_IMAGES=True
+          with Image.open(os.environ['ATHLETE_SOURCE']) as im:
+              ImageOps.contain(ImageOps.exif_transpose(im).convert('RGB'), (512,512)).save(os.environ['ATHLETE_NORMALIZED'],'PNG')
+          with Image.open(os.environ['ISOTYPE_SOURCE']) as im:
+              rgba=im.convert('RGBA')
+              bg=Image.new('RGBA',rgba.size,(0,0,0,255))
+              flat=Image.alpha_composite(bg,rgba).convert('RGB')
+              ImageOps.contain(flat,(512,512)).save(os.environ['ISOTYPE_NORMALIZED'],'PNG')
+          PY
+          echo "ATHLETE_INFERENCE_REFERENCE=recovery/exercise-media-reference-normalized/athlete.png" >> "$GITHUB_ENV"
+          echo "ISOTYPE_INFERENCE_REFERENCE=recovery/exercise-media-reference-normalized/isotype.png" >> "$GITHUB_ENV"
+
+      - name: Preparar Pages Function AI aislada
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          rm -rf "$PAGES_AI_DIR"
+          mkdir -p "$PAGES_AI_DIR"
+          cp scripts/exercise-media/worker-ai-proxy.mjs "$PAGES_AI_DIR/_worker.js"
+          cp "$WRANGLER_CONFIG" wrangler.toml
+          sed -i "s/^name = .*/name = \"$PAGES_AI_PROJECT\"/" wrangler.toml
+          printf '%s\n' 'IBERFIT exercise media generic AI smoke' > "$PAGES_AI_DIR/index.html"
+          smoke_token="$(openssl rand -hex 32)"
+          echo "::add-mask::$smoke_token"
+          npx --yes wrangler@4 pages project create "$PAGES_AI_PROJECT" --production-branch smoke --compatibility-date 2026-09-05
+          printf '%s' "$smoke_token" | npx --yes wrangler@4 pages secret put SMOKE_TOKEN --project-name "$PAGES_AI_PROJECT"
+          npx --yes wrangler@4 pages deploy "$PAGES_AI_DIR" --project-name "$PAGES_AI_PROJECT" --branch smoke --commit-dirty=true | tee recovery/generic-pages-deploy.log
+          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' recovery/generic-pages-deploy.log | tail -n 1)"
+          stable_url="https://${PAGES_AI_PROJECT}.pages.dev"
+          proxy_url=''
+          for attempt in $(seq 1 24); do
+            for candidate_url in "$stable_url" "$preview_url"; do
+              if curl --fail --silent --show-error --connect-timeout 5 --max-time 8 -X POST -H "Authorization: Bearer $smoke_token" "$candidate_url/health" > recovery/generic-health.json; then
+                if node -e "const x=require('./recovery/generic-health.json');if(x.ok!==true||x.ai!==true)process.exit(1)"; then
+                  proxy_url="$candidate_url"
+                  break 2
+                fi
+              fi
+            done
+            sleep 3
+          done
+          test -n "$proxy_url"
+          echo "IBERFIT_AI_PROXY_URL=$proxy_url" >> "$GITHUB_ENV"
+          echo "IBERFIT_AI_PROXY_TOKEN=$smoke_token" >> "$GITHUB_ENV"
+
+      - name: Generar y auditar lote genérico
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > recovery/generic-batch-summary.tsv
+          for id in $EXERCISE_IDS; do
+            echo "=== GENERATE $id ==="
+            generated=0
+            for attempt in 1 2; do
+              rm -f recovery/exercise-media-generic/"$id"-candidate.*
+              set +e
+              node scripts/exercise-media/generate-cloudflare.mjs \
+                --catalog baseline_m25_2/exercise-catalog-m25.json \
+                --exercise-id "$id" \
+                --athlete-ref "$ATHLETE_INFERENCE_REFERENCE" \
+                --logo-ref "$ISOTYPE_INFERENCE_REFERENCE" \
+                --out-dir recovery/exercise-media-generic 2>&1 | tee "recovery/${id}-generate-${attempt}.log"
+              rc=${PIPESTATUS[0]}
+              set -e
+              if [[ "$rc" -eq 0 ]]; then generated=1; break; fi
+              if grep -Eq '4006|daily free allocation|10,000 neurons' "recovery/${id}-generate-${attempt}.log"; then exit "$rc"; fi
+            done
+            test "$generated" = 1
+            image="$(find recovery/exercise-media-generic -maxdepth 1 -type f -name "${id}-candidate.*" ! -name '*.json' | head -n 1)"
+            test -s "$image"
+            set +e
+            node scripts/exercise-media/qa-cloudflare.mjs \
+              --catalog baseline_m25_2/exercise-catalog-m25.json \
+              --exercise-id "$id" \
+              --image "$image" \
+              --out "recovery/exercise-media-generic/${id}-qa.json" \
+              > "recovery/${id}-qa.log" 2>&1
+            qa_rc=$?
+            set -e
+            confidence="$(node -e "const x=require('./recovery/exercise-media-generic/${id}-qa.json');process.stdout.write(String(x?.review?.confidence??0))" 2>/dev/null || printf 0)"
+            printf '%s\t%s\t%s\n' "$id" "$qa_rc" "$confidence" >> recovery/generic-batch-summary.tsv
+          done
+          cat recovery/generic-batch-summary.tsv
+
+      - name: Conservar candidatos y evidencia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-exercise-media-generic-batch-${{ github.run_id }}
+          path: |
+            recovery/exercise-media-generic/**
+            recovery/*-generate-*.log
+            recovery/*-qa.log
+            recovery/generic-batch-summary.tsv
+            recovery/generic-pages-deploy.log
+            recovery/generic-health.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Retirar Pages Function AI aislada
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@4 pages project delete "$PAGES_AI_PROJECT" --yes

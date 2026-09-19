@@ -1,0 +1,541 @@
+name: IBERFIT Exercise Media Generator Smoke
+
+on:
+  pull_request:
+    branches:
+      - canary/rc74-4
+    paths:
+      - 'scripts/exercise-media/generate-cloudflare.mjs'
+      - 'scripts/exercise-media/generate-cloudflare-phased.mjs'
+      - 'scripts/exercise-media/qa-cloudflare.mjs'
+      - 'scripts/exercise-media/worker-ai-proxy.mjs'
+      - 'scripts/exercise-media/wrangler.ai-smoke.toml'
+      - 'scripts/exercise-media/reference/**'
+      - 'tests/m26_exercise_media_cloudflare_generator.test.mjs'
+      - 'tests/m26_exercise_media_cloudflare_phased.test.mjs'
+      - '.github/workflows/exercise-media-generator-smoke.yml'
+  workflow_dispatch:
+    inputs:
+      exercise_id:
+        description: Canonical exercise_id to generate
+        required: true
+        default: IBF-ABDUCCION-DE-CADERA-LATERAL
+        type: string
+      run_visual_qa:
+        description: Run Cloudflare vision QA after generation
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-exercise-media-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CLOUDFLARE_ACCOUNT_ID: 5b03d387427d367674b9d05b8bdf7c84
+  EXERCISE_ID: ${{ inputs.exercise_id || 'IBF-ABDUCCION-DE-CADERA-LATERAL' }}
+  ATHLETE_REFERENCE: scripts/exercise-media/reference/athlete-approved-v1.jpg
+  ISOTYPE_REFERENCE: scripts/exercise-media/reference/iberfit-isotype-official-v1.png
+  WRANGLER_CONFIG: scripts/exercise-media/wrangler.ai-smoke.toml
+  PAGES_AI_PROJECT: iberfit-exercise-ai-${{ github.run_id }}-${{ github.run_attempt }}
+  PAGES_AI_DIR: recovery/exercise-media-pages-proxy
+
+jobs:
+  generate-quarantined-candidate:
+    name: generate-quarantined-candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validar contrato del generador
+        shell: bash
+        run: |
+          node --test \
+            tests/m26_exercise_media_cloudflare_generator.test.mjs \
+            tests/m26_exercise_media_cloudflare_phased.test.mjs
+
+      - name: Validar ejercicio piloto y referencias canónicas
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$ATHLETE_REFERENCE"
+          test -s "$ISOTYPE_REFERENCE"
+          node - <<'NODE'
+          const fs=require('fs');
+          const catalog=JSON.parse(fs.readFileSync('baseline_m25_2/exercise-catalog-m25.json','utf8'));
+          const id=process.env.EXERCISE_ID;
+          if(!Array.isArray(catalog)||!catalog.some((x)=>x&&x.id===id))throw new Error(`IBERFIT_SMOKE_EXERCISE_NOT_FOUND:${id}`);
+          for(const file of [process.env.ATHLETE_REFERENCE,process.env.ISOTYPE_REFERENCE]){
+            const size=fs.statSync(file).size;
+            if(size<=0||size>2_000_000)throw new Error(`IBERFIT_REFERENCE_SIZE_INVALID:${file}:${size}`);
+          }
+          console.log(JSON.stringify({exerciseId:id,references:true}));
+          NODE
+
+      - name: Normalizar referencias canónicas para inferencia
+        shell: bash
+        run: |
+          set -euo pipefail
+          normalized_dir='recovery/exercise-media-reference-normalized'
+          normalized_athlete="$normalized_dir/athlete-approved-v1-srgb.png"
+          normalized_isotype="$normalized_dir/iberfit-isotype-official-v1-rgb.png"
+          mkdir -p "$normalized_dir"
+
+          python3 -m pip install --disable-pip-version-check --quiet 'Pillow==11.3.0'
+          ATHLETE_SOURCE="$ATHLETE_REFERENCE" \
+          ATHLETE_NORMALIZED="$normalized_athlete" \
+          ISOTYPE_SOURCE="$ISOTYPE_REFERENCE" \
+          ISOTYPE_NORMALIZED="$normalized_isotype" \
+          python3 - <<'PY'
+          import os
+          from PIL import Image, ImageOps, ImageFile
+
+          ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+          with Image.open(os.environ['ATHLETE_SOURCE']) as image:
+              image.load()
+              ImageOps.exif_transpose(image).convert('RGB').save(
+                  os.environ['ATHLETE_NORMALIZED'], format='PNG', optimize=False
+              )
+
+          with Image.open(os.environ['ISOTYPE_SOURCE']) as image:
+              image.load()
+              source_mode=image.mode
+              rgba=image.convert('RGBA')
+              background=Image.new('RGBA', rgba.size, (0,0,0,255))
+              flattened=Image.alpha_composite(background, rgba).convert('RGB')
+              flattened.save(os.environ['ISOTYPE_NORMALIZED'], format='PNG', optimize=False)
+              print(f'IBERFIT_ISOTYPE_NORMALIZED source_mode={source_mode} output_mode={flattened.mode} size={flattened.width}x{flattened.height}')
+          PY
+
+          test -s "$normalized_athlete"
+          test -s "$normalized_isotype"
+          file "$ATHLETE_REFERENCE" "$normalized_athlete" "$ISOTYPE_REFERENCE" "$normalized_isotype" | tee recovery/exercise-media-reference-filetypes.log
+
+          ATHLETE_INFERENCE_REFERENCE="$normalized_athlete" \
+          ISOTYPE_INFERENCE_REFERENCE="$normalized_isotype" \
+          node --input-type=module - <<'NODE'
+          import {readReference} from './scripts/exercise-media/generate-cloudflare.mjs';
+          const athlete=readReference(process.env.ATHLETE_INFERENCE_REFERENCE);
+          const logo=readReference(process.env.ISOTYPE_INFERENCE_REFERENCE);
+          if(athlete.mime!=='image/png'||logo.mime!=='image/png')throw new Error('IBERFIT_NORMALIZED_REFERENCES_MUST_BE_PNG');
+          if(athlete.width>512||athlete.height>512||logo.width>512||logo.height>512)throw new Error('IBERFIT_NORMALIZED_REFERENCE_DIMENSIONS_INVALID');
+          console.log(JSON.stringify({athlete:{mime:athlete.mime,width:athlete.width,height:athlete.height},logo:{mime:logo.mime,width:logo.width,height:logo.height},isotypeAlphaFlattened:true}));
+          NODE
+
+          echo "ATHLETE_INFERENCE_REFERENCE=$normalized_athlete" >> "$GITHUB_ENV"
+          echo "ISOTYPE_INFERENCE_REFERENCE=$normalized_isotype" >> "$GITHUB_ENV"
+          echo "IBERFIT_REFERENCE_CONVERTER=pillow-11.3.0" >> "$GITHUB_ENV"
+
+      - name: Crear mapa biomecánico de pose lateral
+        shell: bash
+        run: |
+          set -euo pipefail
+          pose_dir='recovery/exercise-media-pose-guides'
+          pose="$pose_dir/hip-abduction-end-pose-v3-32deg-ankle-only.png"
+          pose_metadata="$pose_dir/hip-abduction-end-pose-v3-32deg-ankle-only.json"
+          mkdir -p "$pose_dir"
+
+          python3 scripts/exercise-media/tools/create-hip-abduction-pose-guide-v3.py \
+            --out "$pose" \
+            --metadata-out "$pose_metadata"
+
+          test -s "$pose"
+          test -s "$pose_metadata"
+          END_POSE_REFERENCE="$pose" END_POSE_METADATA="$pose_metadata" node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import {readReference} from './scripts/exercise-media/generate-cloudflare.mjs';
+          const pose=readReference(process.env.END_POSE_REFERENCE);
+          const meta=JSON.parse(fs.readFileSync(process.env.END_POSE_METADATA,'utf8'));
+          if(pose.mime!=='image/png'||pose.width!==256||pose.height!==512)throw new Error('IBERFIT_POSE_GUIDE_INVALID');
+          if(meta.version!=='v3-32deg-ankle-only'||meta.target_abduction_degrees!==32)throw new Error('IBERFIT_POSE_GUIDE_CONTRACT_INVALID');
+          if(!(meta.actual_abduction_degrees>=31.5&&meta.actual_abduction_degrees<=33.5))throw new Error('IBERFIT_POSE_GUIDE_ANGLE_INVALID');
+          if(meta.moving_foot_geometry!=='omitted'||meta.moving_ankle_suspended!==true||meta.coronal_plane_only!==true)throw new Error('IBERFIT_POSE_GUIDE_FOOT_CONTRACT_INVALID');
+          console.log(JSON.stringify({poseGuide:true,version:meta.version,targetAngleDegrees:meta.target_abduction_degrees,actualAngleDegrees:meta.actual_abduction_degrees,movingFootGeometry:meta.moving_foot_geometry,width:pose.width,height:pose.height,mime:pose.mime}));
+          NODE
+          echo "END_POSE_REFERENCE=$pose" >> "$GITHUB_ENV"
+          echo "END_POSE_METADATA=$pose_metadata" >> "$GITHUB_ENV"
+
+      - name: Preparar Pages Function AI aislada
+        id: proxy
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+            echo 'CLOUDFLARE_API_TOKEN no está disponible en este workflow.' >&2
+            exit 1
+          fi
+
+          mkdir -p recovery
+          rm -rf "$PAGES_AI_DIR"
+          mkdir -p "$PAGES_AI_DIR"
+          cp scripts/exercise-media/worker-ai-proxy.mjs "$PAGES_AI_DIR/_worker.js"
+          cp "$WRANGLER_CONFIG" wrangler.toml
+          sed -i "s/^name = .*/name = \"$PAGES_AI_PROJECT\"/" wrangler.toml
+          printf '%s\n' 'IBERFIT exercise media AI smoke' > "$PAGES_AI_DIR/index.html"
+
+          smoke_token="$(openssl rand -hex 32)"
+          echo "::add-mask::$smoke_token"
+
+          npx --yes wrangler@4 pages project create "$PAGES_AI_PROJECT" \
+            --production-branch smoke \
+            --compatibility-date 2026-09-05 2>&1 | tee recovery/exercise-media-pages-create.log
+
+          : > recovery/exercise-media-pages-secret.log
+          secret_ready=0
+          for attempt in $(seq 1 12); do
+            echo "Pages secret propagation attempt $attempt/12" >> recovery/exercise-media-pages-secret.log
+            if printf '%s' "$smoke_token" | npx --yes wrangler@4 pages secret put SMOKE_TOKEN \
+              --project-name "$PAGES_AI_PROJECT" >> recovery/exercise-media-pages-secret.log 2>&1; then
+              secret_ready=1
+              break
+            fi
+            sleep 3
+          done
+          if [[ "$secret_ready" != '1' ]]; then
+            cat recovery/exercise-media-pages-secret.log >&2
+            echo 'El proyecto Pages no propagó a tiempo para configurar SMOKE_TOKEN.' >&2
+            exit 1
+          fi
+
+          : > recovery/exercise-media-pages-deploy.log
+          deploy_ready=0
+          for attempt in $(seq 1 12); do
+            echo "Pages deploy propagation attempt $attempt/12" >> recovery/exercise-media-pages-deploy.log
+            if npx --yes wrangler@4 pages deploy "$PAGES_AI_DIR" \
+              --project-name "$PAGES_AI_PROJECT" \
+              --branch smoke \
+              --commit-dirty=true >> recovery/exercise-media-pages-deploy.log 2>&1; then
+              deploy_ready=1
+              break
+            fi
+            sleep 3
+          done
+          cat recovery/exercise-media-pages-deploy.log
+          if [[ "$deploy_ready" != '1' ]]; then
+            echo 'El proyecto Pages no propagó a tiempo para desplegar el proxy AI.' >&2
+            exit 1
+          fi
+
+          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' recovery/exercise-media-pages-deploy.log | tail -n 1 || true)"
+          stable_url="https://${PAGES_AI_PROJECT}.pages.dev"
+          if [[ -z "$preview_url" ]]; then
+            echo 'No se pudo resolver la URL preview pages.dev del proxy AI aislado.' >&2
+            exit 1
+          fi
+
+          : > recovery/exercise-media-proxy-health-wait.log
+          proxy_url=''
+          health_tmp='recovery/exercise-media-proxy-health.tmp.json'
+          rm -f "$health_tmp" recovery/exercise-media-proxy-health.json
+          for attempt in $(seq 1 24); do
+            for candidate_url in "$stable_url" "$preview_url"; do
+              echo "TLS/health attempt $attempt/24 -> $candidate_url" >> recovery/exercise-media-proxy-health-wait.log
+              if curl --fail --silent --show-error --http1.1 \
+                --connect-timeout 5 --max-time 8 \
+                -X POST \
+                -H "Authorization: Bearer $smoke_token" \
+                "$candidate_url/health" > "$health_tmp" 2>> recovery/exercise-media-proxy-health-wait.log; then
+                if HEALTH_FILE="$health_tmp" node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync(process.env.HEALTH_FILE,'utf8'));if(x.ok!==true||x.ai!==true)process.exit(1)"; then
+                  mv "$health_tmp" recovery/exercise-media-proxy-health.json
+                  proxy_url="$candidate_url"
+                  break 2
+                fi
+                echo 'Respuesta health recibida pero contrato AI aún no listo.' >> recovery/exercise-media-proxy-health-wait.log
+              fi
+              rm -f "$health_tmp"
+            done
+            sleep 3
+          done
+
+          cat recovery/exercise-media-proxy-health-wait.log
+          if [[ -z "$proxy_url" ]]; then
+            echo 'Pages desplegó, pero TLS/health no quedó operativo dentro de la ventana segura.' >&2
+            exit 1
+          fi
+
+          node -e "const x=require('./recovery/exercise-media-proxy-health.json');if(x.ok!==true||x.ai!==true)process.exit(1)"
+          echo "IBERFIT_AI_PROXY_URL=$proxy_url" >> "$GITHUB_ENV"
+          echo "IBERFIT_AI_PROXY_TOKEN=$smoke_token" >> "$GITHUB_ENV"
+          echo "proxy_url=$proxy_url" >> "$GITHUB_OUTPUT"
+
+      - name: Generar fases biomecánicas por separado
+        id: generate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery
+          : > recovery/exercise-media-generate.log
+          generated=0
+
+          for attempt in $(seq 1 6); do
+            rm -rf recovery/exercise-media-phases recovery/exercise-media-smoke
+            attempt_log="recovery/exercise-media-generate-attempt-${attempt}.log"
+            set +e
+            node scripts/exercise-media/generate-cloudflare-phased.mjs \
+              --catalog baseline_m25_2/exercise-catalog-m25.json \
+              --exercise-id "$EXERCISE_ID" \
+              --athlete-ref "$ATHLETE_INFERENCE_REFERENCE" \
+              --end-pose-ref "$END_POSE_REFERENCE" \
+              --out-dir recovery/exercise-media-phases 2>&1 | tee "$attempt_log"
+            rc=${PIPESTATUS[0]}
+            set -e
+
+            printf '\n===== PHASED GENERATION ATTEMPT %s rc=%s =====\n' "$attempt" "$rc" >> recovery/exercise-media-generate.log
+            cat "$attempt_log" >> recovery/exercise-media-generate.log
+
+            if [[ "$rc" -eq 0 ]]; then
+              generated=1
+              break
+            fi
+            if grep -Eq '4006|daily free allocation|10,000 neurons' "$attempt_log"; then
+              echo 'Cloudflare Workers AI agotó la asignación diaria; el piloto permanece bloqueado fail-closed sin reintentos.' >&2
+              exit "$rc"
+            fi
+            if ! grep -Eq 'IBERFIT_PHASED_CLOUDFLARE_HTTP_(522|523|524|525|526)' "$attempt_log"; then
+              echo "Generación por fases falló con error no transitorio; no se reintenta (rc=$rc)." >&2
+              exit "$rc"
+            fi
+            echo "Ruta Pages transitoria en intento $attempt/6; reintentando sin relajar TLS." >&2
+            sleep 3
+          done
+
+          if [[ "$generated" != '1' ]]; then
+            echo 'La ruta Pages no se estabilizó para generación por fases dentro de la ventana acotada.' >&2
+            exit 1
+          fi
+
+          mkdir -p recovery/exercise-media-smoke
+          EXERCISE_ID="$EXERCISE_ID" \
+          ISOTYPE_SOURCE="$ISOTYPE_REFERENCE" \
+          ATHLETE_INFERENCE_REFERENCE="$ATHLETE_INFERENCE_REFERENCE" \
+          END_POSE_REFERENCE="$END_POSE_REFERENCE" \
+          END_POSE_METADATA="$END_POSE_METADATA" \
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from PIL import Image, ImageOps, ImageFile
+
+          ImageFile.LOAD_TRUNCATED_IMAGES=True
+          exercise_id=os.environ['EXERCISE_ID']
+          phase_dir=Path('recovery/exercise-media-phases')
+          out_dir=Path('recovery/exercise-media-smoke')
+          start_files=[p for p in phase_dir.glob(f'{exercise_id}-start.*') if p.suffix.lower() in {'.jpg','.jpeg','.png','.webp'}]
+          end_files=[p for p in phase_dir.glob(f'{exercise_id}-end.*') if p.suffix.lower() in {'.jpg','.jpeg','.png','.webp'}]
+          if len(start_files)!=1 or len(end_files)!=1:
+              raise RuntimeError(f'IBERFIT_PHASED_FILES_INVALID:start={start_files}:end={end_files}')
+
+          phases_path=phase_dir/f'{exercise_id}-phases.json'
+          phased=json.loads(phases_path.read_text(encoding='utf-8'))
+          phase_models={x['phase']:x['model'] for x in phased.get('phases',[])}
+          phase_requested_models={x['phase']:x['requested_model'] for x in phased.get('phases',[])}
+          if set(phase_models)!={'start','end'}:
+              raise RuntimeError(f'IBERFIT_PHASE_MODELS_INVALID:{phase_models}')
+
+          pose_contract=json.loads(Path(os.environ['END_POSE_METADATA']).read_text(encoding='utf-8'))
+          if pose_contract.get('version')!='v3-32deg-ankle-only':
+              raise RuntimeError('IBERFIT_POSE_CONTRACT_VERSION_INVALID')
+          actual_angle=float(pose_contract.get('actual_abduction_degrees',0))
+          if not 31.5 <= actual_angle <= 33.5:
+              raise RuntimeError(f'IBERFIT_POSE_CONTRACT_ANGLE_INVALID:{actual_angle}')
+          if pose_contract.get('moving_foot_geometry')!='omitted':
+              raise RuntimeError('IBERFIT_POSE_CONTRACT_MOVING_FOOT_INVALID')
+
+          def panel(path):
+              with Image.open(path) as image:
+                  image.load()
+                  rgb=ImageOps.exif_transpose(image).convert('RGB')
+                  return ImageOps.fit(rgb,(512,1280),method=Image.Resampling.LANCZOS,centering=(0.5,0.5))
+
+          start=panel(start_files[0])
+          end=panel(end_files[0])
+          canvas=Image.new('RGBA',(1024,1280),(8,10,9,255))
+          canvas.paste(start.convert('RGBA'),(0,0))
+          canvas.paste(end.convert('RGBA'),(512,0))
+
+          with Image.open(os.environ['ISOTYPE_SOURCE']) as image:
+              image.load()
+              logo=image.convert('RGBA')
+              bbox=logo.getchannel('A').getbbox()
+              if not bbox:
+                  raise RuntimeError('IBERFIT_ISOTYPE_ALPHA_EMPTY')
+              logo=logo.crop(bbox)
+              target_h=22
+              target_w=max(1,round(logo.width*target_h/logo.height))
+              logo=logo.resize((target_w,target_h),Image.Resampling.LANCZOS)
+              for panel_x in (0,512):
+                  canvas.alpha_composite(logo,(panel_x+300,310))
+              isotype_dimensions={'width':image.width,'height':image.height}
+
+          final=canvas.convert('RGB').resize((768,960),Image.Resampling.LANCZOS)
+          image_path=out_dir/f'{exercise_id}-candidate.jpg'
+          final.save(image_path,format='JPEG',quality=94,optimize=True,subsampling=0)
+
+          with Image.open(os.environ['ATHLETE_INFERENCE_REFERENCE']) as athlete:
+              athlete_dimensions={'width':athlete.width,'height':athlete.height}
+          with Image.open(os.environ['END_POSE_REFERENCE']) as pose:
+              pose_dimensions={'width':pose.width,'height':pose.height}
+
+          metadata={
+              'schema':'iberfit.exercise.generation-candidate.v5',
+              'exercise_id':exercise_id,
+              'model':'mixed_phased',
+              'models':phase_models,
+              'requested_models':phase_requested_models,
+              'transport':'workers_ai_binding',
+              'composition':'movement_pair_phased_pose_guided',
+              'width':768,
+              'height':960,
+              'mime':'image/jpeg',
+              'image':image_path.name,
+              'phase_sources':[start_files[0].name,end_files[0].name],
+              'references':{
+                  'athlete':True,
+                  'official_isotype':True,
+                  'exact_isotype_composited':True,
+                  'end_pose_guide':True,
+                  'end_pose_guide_version':pose_contract['version'],
+                  'target_abduction_degrees':pose_contract['target_abduction_degrees'],
+                  'actual_abduction_degrees':actual_angle,
+                  'moving_foot_geometry':pose_contract['moving_foot_geometry'],
+                  'coronal_plane_only':pose_contract['coronal_plane_only'],
+                  'athlete_dimensions':athlete_dimensions,
+                  'isotype_dimensions':isotype_dimensions,
+                  'end_pose_guide_dimensions':pose_dimensions,
+              },
+              'qa':{'biomechanics':'pending','visual':'pending'},
+              'publishable':False,
+          }
+          with open(out_dir/f'{exercise_id}-candidate.json','w',encoding='utf-8') as handle:
+              json.dump(metadata,handle,ensure_ascii=False,indent=2)
+              handle.write('\n')
+
+          print(json.dumps({
+              'ok':True,
+              'image':str(image_path),
+              'composition':metadata['composition'],
+              'models':metadata['models'],
+              'exactIsotype':True,
+              'poseGuided':True,
+              'poseGuideVersion':pose_contract['version'],
+              'targetAbductionDegrees':pose_contract['target_abduction_degrees'],
+              'actualAbductionDegrees':actual_angle,
+              'movingFootGeometry':pose_contract['moving_foot_geometry'],
+          }))
+          PY
+
+          image="recovery/exercise-media-smoke/${EXERCISE_ID}-candidate.jpg"
+          test -s "$image"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: QA visual y biomecánica automático
+        if: ${{ github.event_name == 'pull_request' || inputs.run_visual_qa }}
+        id: qa
+        shell: bash
+        run: |
+          set +e
+          node scripts/exercise-media/qa-cloudflare.mjs \
+            --catalog baseline_m25_2/exercise-catalog-m25.json \
+            --exercise-id "$EXERCISE_ID" \
+            --image "${{ steps.generate.outputs.image }}" \
+            --out recovery/exercise-media-smoke/qa-report.json | tee recovery/exercise-media-qa.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          if [[ "$rc" -eq 1 ]]; then
+            echo 'El revisor no pudo ejecutarse.' >&2
+            exit 1
+          fi
+          if [[ "$rc" -eq 2 ]]; then
+            echo 'Candidato bloqueado por QA; permanece en cuarentena y el gate final impedirá integración.'
+          fi
+
+      - name: Confirmar aislamiento y no publicación
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "recovery/exercise-media-smoke/${EXERCISE_ID}-candidate.json"
+          node - <<'NODE'
+          const fs=require('fs');
+          const id=process.env.EXERCISE_ID;
+          const x=JSON.parse(fs.readFileSync(`recovery/exercise-media-smoke/${id}-candidate.json`,'utf8'));
+          if(x.publishable!==false)throw new Error('SMOKE_CANDIDATE_MUST_NOT_BE_PUBLISHABLE');
+          if(x.qa?.biomechanics!=='pending'||x.qa?.visual!=='pending')throw new Error('GENERATION_MUST_NOT_SELF_APPROVE');
+          if(x.transport!=='workers_ai_binding')throw new Error('SMOKE_MUST_USE_WORKERS_AI_BINDING');
+          if(x.composition!=='movement_pair_phased_pose_guided')throw new Error('SMOKE_POSE_GUIDED_MOVEMENT_PAIR_REQUIRED');
+          if(x.models?.start!=='@cf/black-forest-labs/flux-2-klein-4b')throw new Error('SMOKE_START_MODEL_INVALID');
+          if(x.models?.end!=='@cf/black-forest-labs/flux-2-klein-9b')throw new Error('SMOKE_END_MODEL_INVALID');
+          if(x.references?.end_pose_guide_version!=='v3-32deg-ankle-only'||x.references?.target_abduction_degrees!==32)throw new Error('SMOKE_POSE_GUIDE_VERSION_INVALID');
+          if(!(x.references?.actual_abduction_degrees>=31.5&&x.references?.actual_abduction_degrees<=33.5))throw new Error('SMOKE_POSE_GUIDE_ANGLE_INVALID');
+          if(x.references?.moving_foot_geometry!=='omitted'||x.references?.coronal_plane_only!==true)throw new Error('SMOKE_POSE_GUIDE_FOOT_INVALID');
+          if(x.references?.athlete!==true||x.references?.official_isotype!==true||x.references?.exact_isotype_composited!==true||x.references?.end_pose_guide!==true)throw new Error('SMOKE_CANONICAL_REFERENCES_REQUIRED');
+          const a=x.references?.athlete_dimensions,i=x.references?.isotype_dimensions,p=x.references?.end_pose_guide_dimensions;
+          if(!a||a.width>512||a.height>512||!i||i.width>512||i.height>512||!p||p.width>512||p.height>512)throw new Error('SMOKE_REFERENCE_DIMENSIONS_INVALID');
+          console.log(JSON.stringify({safe:true,publishable:x.publishable,qa:x.qa,transport:x.transport,composition:x.composition,models:x.models,references:x.references,converter:process.env.IBERFIT_REFERENCE_CONVERTER}));
+          NODE
+
+      - name: Conservar candidato y evidencia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-exercise-media-smoke-${{ env.EXERCISE_ID }}-${{ github.run_id }}
+          path: |
+            recovery/exercise-media-smoke/**
+            recovery/exercise-media-phases/**
+            recovery/exercise-media-pose-guides/**
+            recovery/exercise-media-reference-normalized/**
+            recovery/exercise-media-reference-filetypes.log
+            recovery/exercise-media-generate.log
+            recovery/exercise-media-generate-attempt-*.log
+            recovery/exercise-media-qa.log
+            recovery/exercise-media-pages-create.log
+            recovery/exercise-media-pages-secret.log
+            recovery/exercise-media-pages-deploy.log
+            recovery/exercise-media-proxy-health-wait.log
+            recovery/exercise-media-proxy-health.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Retirar Pages Function AI aislada
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +e
+          npx --yes wrangler@4 pages project delete "$PAGES_AI_PROJECT" --yes
+          exit 0
+
+      - name: Gate de aprobación automática del piloto
+        if: ${{ github.event_name == 'pull_request' || inputs.run_visual_qa }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rc='${{ steps.qa.outputs.exit_code }}'
+          if [[ "$rc" != '0' ]]; then
+            echo "El piloto no superó QA automático (exit_code=$rc)." >&2
+            exit 1
+          fi
+          node - <<'NODE'
+          const fs=require('fs');
+          const qa=JSON.parse(fs.readFileSync('recovery/exercise-media-smoke/qa-report.json','utf8'));
+          if(qa?.decision?.pass!==true||qa?.decision?.publishable!==false)throw new Error('IBERFIT_SMOKE_QA_GATE_INVALID');
+          console.log(JSON.stringify({qaPass:true,confidence:qa.review?.confidence,stillQuarantined:true}));
+          NODE
