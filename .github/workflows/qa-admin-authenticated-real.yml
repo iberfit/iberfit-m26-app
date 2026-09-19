@@ -64,7 +64,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           old='05ade2e27fcad28feb0fe9b41bf185a37480b73a'
-          new='521806ada5ce8f5bc6de36a4d539e9d74ec4857a'
+          new='f558e192e92b9a517432391ccce3f646bf606e39'
           for raw in [
               'qa/admin-authenticated-real/admin-authenticated-real.spec.mjs',
               'tests/m26_admin_authenticated_real_gate_contract.test.mjs',
@@ -75,7 +75,7 @@ jobs:
                   raise SystemExit(f'QA_CANDIDATE_MARKER_NOT_FOUND:{raw}')
               path.write_text(text.replace(old,new))
           PY
-          grep -q "candidate:'521806ada5ce8f5bc6de36a4d539e9d74ec4857a'" qa/admin-authenticated-real/admin-authenticated-real.spec.mjs
+          grep -q "candidate:'f558e192e92b9a517432391ccce3f646bf606e39'" qa/admin-authenticated-real/admin-authenticated-real.spec.mjs
 
       - name: Run QA gate contract
         run: node --test tests/m26_admin_authenticated_real_gate_contract.test.mjs
