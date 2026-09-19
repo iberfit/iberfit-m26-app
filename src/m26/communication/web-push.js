@@ -45,13 +45,21 @@ export function createWebPushCoordinator({
     if(!value?.pushManager)throw new Error('M26_PUSH_REGISTRATION_REQUIRED');
     return value;
   }
+  async function currentEndpoint(){
+    try{
+      const sw=await getRegistration();
+      const current=await sw?.pushManager?.getSubscription?.();
+      return current?.endpoint?pushEndpoint(current.endpoint):null;
+    }catch{return null;}
+  }
   function requireOnline(){if(!isOnline())throw new Error('M26_PUSH_ONLINE_REQUIRED');}
 
   async function status(){
     const local=await inspect({vapidPublicKey});
+    const endpoint=local.subscribed===true?await currentEndpoint():null;
     let backend=Object.freeze({ok:false,active:false,subscriptionCount:0,updatedAt:null});
-    if(isOnline())backend=normalizedBackendState(await transport.webPushStatus(await token()));
-    const active=Boolean(local.active&&backend.active);
+    if(isOnline())backend=normalizedBackendState(await transport.webPushStatus(await token(),endpoint));
+    const active=Boolean(local.active&&endpoint&&backend.active);
     let reason=active?null:local.reason;
     if(local.active&&!backend.active)reason='server-registration-required';
     if(!local.active&&backend.active)reason=local.reason||'browser-subscription-required';
