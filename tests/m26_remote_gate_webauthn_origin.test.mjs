@@ -11,9 +11,11 @@ test('authenticated remote gate binds privileged requests to the Canary WebAuthn
   assert.match(source, /assurance\?\.rpId!=='m26-canary\.iberfit\.cl'/);
 });
 
-test('remote gate does not weaken privileged WebAuthn checks', () => {
+test('remote gate preserves privileged WebAuthn assurance while primary-auth reads remain available', () => {
   assert.match(source, /credentialEnrolled!==true/);
   assert.match(source, /webauthnRequired!==true/);
   assert.match(source, /iberfitAssurance!=='required'/);
-  assert.match(source, /IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED/);
+  assert.match(source, /primaryAuthRead:\{ok:true,status:200/);
+  assert.match(source, /privilegedGate:\{ok:true/);
+  assert.doesNotMatch(source, /\/functions\/v1\/iberfit-webauthn-v1/);
 });
