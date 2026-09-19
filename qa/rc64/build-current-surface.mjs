@@ -24,6 +24,9 @@ function copy(source,target){
 
 fs.rmSync(output,{recursive:true,force:true});
 fs.mkdirSync(output,{recursive:true});
+// The hermetic static server validates a public fallback root at startup.
+// Keep it structural only: production public assets remain exposed from the hosting root above.
+fs.mkdirSync(path.join(output,'public'),{recursive:true});
 
 for(const [source,target] of entries)copy(source,target);
 
@@ -44,4 +47,5 @@ console.log(JSON.stringify({
   runtimeEnabled:false,
   qaOnly:true,
   shellCssCanonicalParity:true,
+  structuralPublicFallback:true,
 },null,2));
