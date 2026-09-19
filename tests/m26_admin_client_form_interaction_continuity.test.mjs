@@ -53,7 +53,9 @@ test('touch text entry keeps native browser focus semantics through pointer rele
   assert.match(shell,/function onFocusIn\(event\)[\s\S]*?markTextEntryActive\(touchTextEntry\(control\)\)/u);
   assert.match(shell,/function onPointerDown\(event\)[\s\S]*?interactionPointerTarget=interactiveControl\(event\.target\);/u);
   assert.match(shell,/m26TextEntryActive/u);
-  assert.match(shellEnhancer,/data-m26-text-entry-active="true"[\s\S]*?\.m26-mobile-nav[\s\S]*?pointer-events:\s*none/u);
+  assert.match(shellEnhancer,/\.m26-main :is\(input,textarea,select,\[contenteditable="true"\]\) \{ scroll-margin-bottom: calc\(6\.5rem \+ env\(safe-area-inset-bottom\)\); \}/u);
+  assert.doesNotMatch(shellEnhancer,/\[data-m26-text-entry-active="true"\] \.m26-mobile-nav/u);
+  assert.doesNotMatch(shellEnhancer,/:focus\) \.m26-mobile-nav/u);
 });
 
 

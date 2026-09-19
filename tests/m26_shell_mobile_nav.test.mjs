@@ -137,12 +137,13 @@ test('disclosures del topbar cierran al pulsar fuera o Escape sin cerrar por cli
   assert.equal(focused,true);
 });
 
-test('formularios móviles no quedan tapados por la navegación inferior',()=>{
+test('formularios móviles conservan separación del teclado sin ocultar la navegación inferior',()=>{
   const vm=createShellViewModel(readyState('client'));
   const html=renderM26Shell(vm);
   assert.match(html,/scroll-margin-bottom: calc\(6\.5rem \+ env\(safe-area-inset-bottom\)\)/u);
-  assert.match(html,/\.m26-shell:has\(\.m26-main :is\(input,textarea,select,\[contenteditable="true"\]\):focus\) \.m26-mobile-nav/u);
-  assert.match(html,/transform: translateY\(calc\(100% \+ env\(safe-area-inset-bottom\)\)\); opacity: 0; pointer-events: none;/u);
+  assert.doesNotMatch(html,/\.m26-shell:has\(\.m26-main :is\(input,textarea,select,\[contenteditable="true"\]\):focus\) \.m26-mobile-nav/u);
+  assert.doesNotMatch(html,/\[data-m26-text-entry-active="true"\] \.m26-mobile-nav/u);
+  assert.doesNotMatch(html,/\.m26-mobile-nav \{[^}]*pointer-events: none;/su);
   assert.match(html,/@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.m26-mobile-nav \{ transition: none; \}/u);
 });
 
