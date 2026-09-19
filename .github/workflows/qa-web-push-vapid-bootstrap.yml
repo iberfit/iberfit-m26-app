@@ -88,7 +88,7 @@ jobs:
           vapid_json="$RUNNER_TEMP/iberfit-vapid.json"
           vapid_env="$RUNNER_TEMP/iberfit-vapid.env"
           npx --yes web-push@3.6.7 generate-vapid-keys --json > "$vapid_json"
-          node <<'NODE' "$vapid_json" "$vapid_env"
+          node - "$vapid_json" "$vapid_env" <<'NODE'
           const fs=require('fs');
           const [source,target]=process.argv.slice(2);
           const keys=JSON.parse(fs.readFileSync(source,'utf8'));
@@ -132,7 +132,7 @@ jobs:
             -H 'origin: https://m26-canary.iberfit.cl' \
             --data '{"action":"config"}' \
             "$M26_SUPABASE_URL/functions/v1/iberfit-web-push-sender-v1" > "$config_body"
-          node <<'NODE' "$config_body"
+          node - "$config_body" <<'NODE'
           const fs=require('fs');
           const x=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
           if(x.ok!==true||x.configured!==true||!/^[A-Za-z0-9_-]{40,256}$/.test(String(x.publicKey||''))){
