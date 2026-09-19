@@ -2,11 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const migrations=[
-  '../supabase/migrations/20260919183000_web_push_subscriptions_v1.sql',
-  '../supabase/migrations/20260919184500_web_push_subscription_ownership_guard.sql',
-].map(path=>fs.readFileSync(new URL(path,import.meta.url),'utf8'));
-const migration=migrations.join('\n');
+const migration=fs.readFileSync(
+  new URL('../supabase/migrations/20260919183000_web_push_subscriptions_v1.sql',import.meta.url),
+  'utf8'
+);
 
 function functionBody(name){
   const marker=`create or replace function public.${name}`.toLowerCase();
@@ -49,7 +48,7 @@ test('subscription payload is validated and response exposes no push capability 
   assert.match(returnBlock,/'updatedAt'/i);
 });
 
-test('an endpoint cannot be reassigned across authenticated users',()=>{
+test('endpoint ownership protection is atomic in the initial migration',()=>{
   const body=functionBody('iberfit_web_push_upsert_v1');
   assert.match(body,/where public\.iberfit_web_push_subscriptions\.user_id = v_user_id/i);
   assert.doesNotMatch(body,/user_id\s*=\s*excluded\.user_id/i);
@@ -65,13 +64,13 @@ test('status and revoke can only inspect or delete rows belonging to auth.uid()'
   assert.doesNotMatch(status,/select\s+.*endpoint/is);
 });
 
-test('RPC grants exclude anon/public and allow authenticated callers only through narrow functions',()=>{
+test('RPC grants exclude anon/public and only then allow authenticated callers through narrow functions',()=>{
   for(const signature of [
     'iberfit_web_push_status_v1\\(\\)',
     'iberfit_web_push_upsert_v1\\(jsonb\\)',
     'iberfit_web_push_revoke_v1\\(text\\)',
   ]){
-    assert.match(migration,new RegExp(`revoke all on function public\\.${signature} from public, anon;`,'i'));
+    assert.match(migration,new RegExp(`revoke all on function public\\.${signature} from public, anon, authenticated;`,'i'));
     assert.match(migration,new RegExp(`grant execute on function public\\.${signature} to authenticated;`,'i'));
   }
 });
