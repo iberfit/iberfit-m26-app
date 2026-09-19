@@ -7,7 +7,7 @@
 -- unambiguous public API surface for this operation.
 drop function if exists public.iberfit_web_push_status_v1();
 
-create function public.iberfit_web_push_status_v1(p_endpoint text default null)
+create or replace function public.iberfit_web_push_status_v1(p_endpoint text default null)
 returns jsonb
 language plpgsql
 security definer
