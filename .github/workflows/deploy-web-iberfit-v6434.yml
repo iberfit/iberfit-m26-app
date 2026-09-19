@@ -1,0 +1,286 @@
+name: Deploy WEB IBERFIT V6.43.4 certified
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/deploy-web-iberfit-v6434.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-pages-provision
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+  WEB_REPO: 'https://github.com/iberfit/iberfitweb.git'
+  WEB_SHA: '5dd5baeddbf5d6dab9d7f6523945482ddce35b9b'
+  WEB_VERSION: '6.43.4'
+  QA_SOURCE_SHA: '90b984c4f00ddc94fa992c5976d5a74649897fa2'
+  QA_RUN_ID: '35473728190'
+  QA_RUN_NAME: 'Release WEB IBERFIT V6.43.4 human-first v2'
+  EXPECTED_ROLLBACK_SHA: '9d47955038d16a09e1e5ad9fcd7697580da30036'
+  EXPECTED_ROLLBACK_DEPLOYMENT_ID: 'bb794717-aa4d-4557-8121-0214f8048495'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout infrastructure only
+        uses: actions/checkout@v4
+
+      - name: Prepare Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify exact V6.43.3 production baseline and capture rollback
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo CLOUDFLARE_API_TOKEN_MISSING; exit 41; }
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-before.json
+          node <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/project.json','utf8'));
+          if(!p.success||p.result?.name!==process.env.CF_PROJECT) throw new Error('PROJECT_LOOKUP');
+          if(p.result.production_branch!=='production') throw new Error('PRODUCTION_BRANCH:'+p.result.production_branch);
+          const domains=p.result.domains||[];
+          if(!domains.includes('iberfit.cl')) throw new Error('IBERFIT_DOMAIN_MISSING');
+          if(domains.includes('app.iberfit.cl')) throw new Error('APP_DOMAIN_COLLISION');
+          const d=JSON.parse(fs.readFileSync('/tmp/deployments-before.json','utf8'));
+          const current=(d.result||[]).filter(v=>v.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(!current?.id) throw new Error('NO_CURRENT_PRODUCTION');
+          if(current.id!==process.env.EXPECTED_ROLLBACK_DEPLOYMENT_ID) throw new Error('PRODUCTION_DRIFT_ID:'+current.id);
+          const sha=current.deployment_trigger?.metadata?.commit_hash||'';
+          if(sha!==process.env.EXPECTED_ROLLBACK_SHA) throw new Error('PRODUCTION_DRIFT_SHA:'+sha);
+          fs.appendFileSync(process.env.GITHUB_ENV,`ROLLBACK_DEPLOYMENT_ID=${current.id}\nPRODUCTION_TOUCHED=0\n`);
+          console.log(JSON.stringify({project:p.result.name,domains,currentDeploymentId:current.id,currentSha:sha},null,2));
+          NODE
+          test "$(curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/VERSION?preflight=6434' | tr -d '\r\n ')" = '6.43.3'
+          curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/online/?preflight=6434' -o /tmp/live-before-online.html
+          grep -q '/assets/polish.v6433.css' /tmp/live-before-online.html
+          grep -q '/assets/app-online-plan-v6433.webp' /tmp/live-before-online.html
+          grep -q 'Entrenamiento personal online, con dirección real estés donde estés.' /tmp/live-before-online.html
+          ! grep -q 'Entrenar a distancia no debería sentirse como entrenar solo.' /tmp/live-before-online.html
+
+      - name: Verify certified QA identity and exact candidate lineage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" -o /tmp/qa-v6434.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/qa-v6434.json','utf8'));
+          if(x.head_sha!==process.env.QA_SOURCE_SHA) throw new Error('QA_SOURCE_SHA:'+x.head_sha);
+          if(x.status!=='completed'||x.conclusion!=='success') throw new Error('QA:'+x.status+':'+x.conclusion);
+          if(x.name!==process.env.QA_RUN_NAME) throw new Error('QA_NAME:'+x.name);
+          console.log(JSON.stringify({run:x.id,name:x.name,sourceSha:x.head_sha,conclusion:x.conclusion},null,2));
+          NODE
+          git clone --filter=blob:none --no-checkout "${WEB_REPO}" /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=2 origin "${WEB_SHA}"
+          git -C /tmp/iberfitweb checkout --detach "${WEB_SHA}"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "$WEB_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD^)" = "$QA_SOURCE_SHA"
+          test "$(git -C /tmp/iberfitweb log -1 --format=%s)" = 'feat(web): humanise core journey in V6.43.4'
+
+      - name: Revalidate exact V6.43.4 candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=/tmp/iberfitweb/candidate/v628
+          test "$(tr -d '\r\n ' < "${base}/VERSION")" = "$WEB_VERSION"
+          test "$(find "$base" -name '*.html' -type f | wc -l | tr -d ' ')" = '33'
+          test "$(grep -R -l '/assets/polish.v6433.css' "$base" --include='*.html' | wc -l | tr -d ' ')" = '33'
+          test "$(grep -R -l '/assets/analytics.v643.js' "$base" --include='*.html' | wc -l | tr -d ' ')" = '33'
+          test "$(grep -R -l '/assets/menu.v642.js' "$base" --include='*.html' | wc -l | tr -d ' ')" = '33'
+          grep -q 'Si quieres sentirte mejor, ganar fuerza o volver a entrenar con constancia' "$base/index.html"
+          grep -q 'No vienes a demostrar nada. Venimos a entender qué necesitas.' "$base/diagnostico-iri/index.html"
+          grep -q 'Tu plan puede cambiar. El criterio no.' "$base/metodo/index.html"
+          grep -q 'Si te ayuda tener a alguien a tu lado, entrenamos contigo.' "$base/presencial/index.html"
+          grep -q 'No tienes que elegir entre acompañamiento y flexibilidad.' "$base/hibrido/index.html"
+          grep -q 'Entrenar a distancia no debería sentirse como entrenar solo.' "$base/online/index.html"
+          grep -q 'Detrás de IBERFIT hay método, pero también una forma muy humana de acompañarte.' "$base/sobre-iberfit/index.html"
+          grep -q 'Cuéntanos qué buscas. No hace falta que sepas qué modalidad necesitas.' "$base/contacto/index.html"
+          grep -q 'Training remotely should not feel like training alone.' "$base/en/online/index.html"
+          grep -q 'Tell us what you are looking for. You do not need to know which format you need.' "$base/en/contact/index.html"
+          grep -q '\$30.000' "$base/diagnostico-iri/index.html"
+          grep -q 'Comunas seleccionadas de Santiago' "$base/presencial/index.html"
+          test -s "$base/assets/app-online-plan-v6433.webp"
+          grep -q '/assets/app-online-plan-v6433.webp' "$base/online/index.html"
+          grep -q "script-src-attr 'none'" "$base/_headers"
+          ! grep -q "'unsafe-inline'" "$base/_headers"
+          ! grep -R -q '/assets/hardening.v630.js' "$base" --include='*.html'
+          ! grep -R -n -E 'Cliente QA|Cliente Prueba IBERFIT|Coach QA' "$base" --include='*.html'
+
+      - name: Deploy certified V6.43.4 preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_BRANCH="v6434-certified-${GITHUB_RUN_ID}"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 \
+            --project-name "$CF_PROJECT" --branch "$PREVIEW_BRANCH" --commit-hash "$WEB_SHA" \
+            --commit-message 'WEB IBERFIT V6.43.4 certified preview' | tee /tmp/wrangler-preview.log
+          PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-preview.log | tail -1)"
+          test -n "$PREVIEW_URL" || exit 42
+          echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
+
+      - name: Validate preview across full surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          cb="$GITHUB_RUN_ID"
+          test "$(curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?cb=$cb" | tr -d '\r\n ')" = "$WEB_VERSION"
+          for route in / /diagnostico-iri/ /metodo/ /presencial/ /hibrido/ /online/ /sobre-iberfit/ /contacto/ /en/ /en/iri-assessment/ /en/method/ /en/in-person/ /en/hybrid/ /en/online/ /en/about/ /en/contact/; do
+            curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}${route}?cb=$cb" -o /tmp/preview-page
+            grep -q '/assets/polish.v6433.css' /tmp/preview-page
+            grep -q '/assets/analytics.v643.js' /tmp/preview-page
+            grep -q '/assets/menu.v642.js' /tmp/preview-page
+            ! grep -q '/assets/hardening.v630.js' /tmp/preview-page
+          done
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/online/?cb=$cb" -o /tmp/preview-online
+          grep -q 'Entrenar a distancia no debería sentirse como entrenar solo.' /tmp/preview-online
+          grep -q '/assets/app-online-plan-v6433.webp' /tmp/preview-online
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/contacto/?cb=$cb" -o /tmp/preview-contact
+          grep -q 'No hace falta que sepas qué modalidad necesitas.' /tmp/preview-contact
+          curl -fsSI --retry 8 --retry-all-errors "${PREVIEW_URL}/online/?cb=$cb" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/preview-h-page
+          grep -q '^content-security-policy:' /tmp/preview-h-page
+          grep -q "script-src-attr 'none'" /tmp/preview-h-page
+          ! grep -q 'unsafe-inline' /tmp/preview-h-page
+          python3 - <<'PY'
+          from pathlib import Path
+          import os, subprocess
+          root=Path('/tmp/iberfitweb/candidate/v628')
+          base=os.environ['PREVIEW_URL'].rstrip('/')
+          htmls=sorted(root.rglob('*.html'))
+          if len(htmls)!=33: raise SystemExit('EXPECTED_33_HTML')
+          for p in htmls:
+              rel=p.relative_to(root).as_posix()
+              route='/' if rel=='index.html' else ('/404.html' if rel=='404.html' else '/'+rel.removesuffix('index.html'))
+              subprocess.run(['curl','-fsSL','--retry','4','--retry-all-errors','-o','/dev/null',base+route],check=True)
+          print('PREVIEW_ROUTES_OK',len(htmls))
+          PY
+
+      - name: Deploy production V6.43.4
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 \
+            --project-name "$CF_PROJECT" --branch production --commit-hash "$WEB_SHA" \
+            --commit-message 'WEB IBERFIT V6.43.4 certified production' | tee /tmp/wrangler-production.log
+          PRODUCTION_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-production.log | tail -1)"
+          test -n "$PRODUCTION_URL" || exit 43
+          echo "PRODUCTION_URL=$PRODUCTION_URL" >> "$GITHUB_ENV"
+          echo "PRODUCTION_TOUCHED=1" >> "$GITHUB_ENV"
+
+      - name: Verify live production and deployment identity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in $(seq 1 20); do
+            suffix="${GITHUB_RUN_ID}-${attempt}"
+            curl -sSLo /tmp/live-version "https://iberfit.cl/VERSION?cb=$suffix" || true
+            curl -sSLo /tmp/live-home "https://iberfit.cl/?cb=$suffix" || true
+            curl -sSLo /tmp/live-online "https://iberfit.cl/online/?cb=$suffix" || true
+            curl -sSLo /tmp/live-contact "https://iberfit.cl/contacto/?cb=$suffix" || true
+            version="$(tr -d '\r\n ' < /tmp/live-version 2>/dev/null || true)"
+            humanHome=0; humanOnline=0; humanContact=0; analytics=0; menu=0
+            grep -q 'Si quieres sentirte mejor, ganar fuerza o volver a entrenar con constancia' /tmp/live-home 2>/dev/null && humanHome=1 || true
+            grep -q 'Entrenar a distancia no debería sentirse como entrenar solo.' /tmp/live-online 2>/dev/null && humanOnline=1 || true
+            grep -q 'No hace falta que sepas qué modalidad necesitas.' /tmp/live-contact 2>/dev/null && humanContact=1 || true
+            grep -q '/assets/analytics.v643.js' /tmp/live-online 2>/dev/null && analytics=1 || true
+            grep -q '/assets/menu.v642.js' /tmp/live-online 2>/dev/null && menu=1 || true
+            if [ "$version" = "$WEB_VERSION" ] && [ "$humanHome" = 1 ] && [ "$humanOnline" = 1 ] && [ "$humanContact" = 1 ] && [ "$analytics" = 1 ] && [ "$menu" = 1 ]; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          root=Path('/tmp/iberfitweb/candidate/v628')
+          htmls=sorted(root.rglob('*.html'))
+          for p in htmls:
+              rel=p.relative_to(root).as_posix()
+              route='/' if rel=='index.html' else ('/404.html' if rel=='404.html' else '/'+rel.removesuffix('index.html'))
+              subprocess.run(['curl','-fsSL','--retry','4','--retry-all-errors','-o','/dev/null','https://iberfit.cl'+route],check=True)
+          print('LIVE_ROUTES_OK',len(htmls))
+          PY
+          curl -fsSI --retry 6 --retry-all-errors "https://iberfit.cl/online/?verify=${GITHUB_RUN_ID}" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/live-h-page
+          grep -q '^content-security-policy:' /tmp/live-h-page
+          grep -q "script-src-attr 'none'" /tmp/live-h-page
+          ! grep -q 'unsafe-inline' /tmp/live-h-page
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-after.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/deployments-after.json','utf8'));
+          const d=(x.result||[]).find(v=>v.environment==='production'&&v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA);
+          if(!d) throw Error('CERTIFIED_SHA_NOT_DEPLOYED');
+          const e={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaSourceSha:process.env.QA_SOURCE_SHA,qaRun:process.env.QA_RUN_ID,qaName:process.env.QA_RUN_NAME,project:process.env.CF_PROJECT,domain:'iberfit.cl',previewUrl:process.env.PREVIEW_URL,productionUrl:process.env.PRODUCTION_URL,deploymentId:d.id,rollbackDeploymentId:process.env.ROLLBACK_DEPLOYMENT_ID,verifiedAt:new Date().toISOString()};
+          fs.writeFileSync('/tmp/V6434_PRODUCTION_EVIDENCE.json',JSON.stringify(e,null,2)+'\n');
+          console.log(JSON.stringify(e,null,2));
+          NODE
+
+      - name: Automatic rollback to verified V6.43.3 if post-deploy verification fails
+        if: failure() && env.PRODUCTION_TOUCHED == '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments/${ROLLBACK_DEPLOYMENT_ID}/rollback" \
+            -d '{}' -o /tmp/rollback.json
+          node -e "const x=require('/tmp/rollback.json');if(!x.success)process.exit(1)"
+          ok=0
+          for attempt in $(seq 1 20); do
+            version="$(curl -fsSL --retry 4 --retry-all-errors "https://iberfit.cl/VERSION?rollback=${GITHUB_RUN_ID}-${attempt}" | tr -d '\r\n ' || true)"
+            curl -fsSL --retry 4 --retry-all-errors "https://iberfit.cl/online/?rollback=${GITHUB_RUN_ID}-${attempt}" -o /tmp/rollback-online || true
+            old=0; new=0
+            grep -q 'Entrenamiento personal online, con dirección real estés donde estés.' /tmp/rollback-online 2>/dev/null && old=1 || true
+            grep -q 'Entrenar a distancia no debería sentirse como entrenar solo.' /tmp/rollback-online 2>/dev/null && new=1 || true
+            if [ "$version" = '6.43.3' ] && [ "$old" = 1 ] && [ "$new" = 0 ]; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+
+      - name: Upload production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-v6434-production-evidence
+          path: |
+            /tmp/V6434_PRODUCTION_EVIDENCE.json
+            /tmp/project.json
+            /tmp/deployments-before.json
+            /tmp/deployments-after.json
+            /tmp/wrangler-preview.log
+            /tmp/wrangler-production.log
+            /tmp/preview-h-page
+            /tmp/live-h-page
+            /tmp/rollback.json
+          if-no-files-found: warn
+          retention-days: 30
