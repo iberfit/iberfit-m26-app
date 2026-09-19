@@ -2,7 +2,7 @@ import {defineConfig} from '@playwright/test';
 
 export default defineConfig({
   testDir:'./qa/admin-interaction',
-  testMatch:['mobile-hit-diagnostic.spec.mjs'],
+  testMatch:['mobile-hit-diagnostic.spec.mjs','mobile-hit-no-scroll-diagnostic.spec.mjs'],
   fullyParallel:false,
   forbidOnly:true,
   retries:0,
