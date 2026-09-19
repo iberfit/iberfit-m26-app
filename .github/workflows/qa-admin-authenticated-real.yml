@@ -80,6 +80,21 @@ jobs:
       - name: Run QA gate contract
         run: node --test tests/m26_admin_authenticated_real_gate_contract.test.mjs
 
+      - name: Instrument mobile nav computed-style diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('qa/admin-authenticated-real/admin-authenticated-real.spec.mjs')
+          text=path.read_text()
+          needle="""  const summaryState=await pointerState(summary);\n  expect(summaryState.inViewport,`Admin More trigger must be inside viewport for ${area}: ${JSON.stringify(summaryState)}`).toBe(true);"""
+          replacement="""  const summaryState=await pointerState(summary);\n  const navDiagnostic=await summary.evaluate((node)=>{\n    const nav=node.closest('.m26-mobile-nav');\n    const chain=[];\n    for(let current=nav;current;current=current.parentElement){\n      const style=getComputedStyle(current);\n      const rect=current.getBoundingClientRect();\n      chain.push({tag:current.tagName,id:current.id||null,className:String(current.className||''),position:style.position,top:style.top,right:style.right,bottom:style.bottom,left:style.left,transform:style.transform,filter:style.filter,perspective:style.perspective,contain:style.contain,willChange:style.willChange,overflow:style.overflow,overflowY:style.overflowY,rect:{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height}});\n    }\n    return {scrollX,scrollY,innerWidth,innerHeight,visualViewport:window.visualViewport?{width:visualViewport.width,height:visualViewport.height,offsetLeft:visualViewport.offsetLeft,offsetTop:visualViewport.offsetTop,pageLeft:visualViewport.pageLeft,pageTop:visualViewport.pageTop,scale:visualViewport.scale}:null,chain};\n  });\n  console.log('M26_MOBILE_NAV_COMPUTED_DIAGNOSTIC='+JSON.stringify(navDiagnostic));\n  expect(summaryState.inViewport,`Admin More trigger must be inside viewport for ${area}: ${JSON.stringify(summaryState)}`).toBe(true);"""
+          if needle not in text:
+              raise SystemExit('M26_MOBILE_NAV_DIAGNOSTIC_ANCHOR_NOT_FOUND')
+          path.write_text(text.replace(needle,replacement,1))
+          PY
+
       - name: Install Chromium system dependencies
         run: |
           sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
