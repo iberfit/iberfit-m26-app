@@ -66,8 +66,9 @@ export function createCommunicationTransport({runtime,fetchImpl=globalThis.fetch
       if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))throw new Error('M26_COMMUNICATION_MUTATION_NOT_CONFIRMED');
       return result;
     },
-    webPushStatus:async(token)=>{
-      const result=await rpc('iberfit_web_push_status_v1',token,{});
+    webPushStatus:async(token,endpoint=null)=>{
+      const normalizedEndpoint=endpoint==null?null:String(endpoint).trim();
+      const result=await rpc('iberfit_web_push_status_v1',token,{p_endpoint:normalizedEndpoint||null});
       if(result?.ok!==true)throw new Error('M26_PUSH_STATUS_NOT_CONFIRMED');
       return Object.freeze({
         ok:true,
