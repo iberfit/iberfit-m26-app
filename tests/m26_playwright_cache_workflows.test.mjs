@@ -32,14 +32,24 @@ test('Chromium-only visual and device gates remain fail-closed',()=>{
   }
 });
 
-test('Admin and remote gates preserve Chromium WebKit and Firefox',()=>{
-  for(const name of ['admin','remote']){
-    const workflow=workflows[name];
-    assert.match(workflow,/install-deps chromium webkit firefox/u,`${name}: cross-browser deps missing`);
-    assert.match(workflow,/install chromium webkit firefox/u,`${name}: cross-browser miss install missing`);
-    assert.match(workflow,/chromium, firefox, webkit/u,`${name}: browser readiness matrix missing`);
-    assert.match(workflow,/-all/u,`${name}: all-browser cache namespace missing`);
+test('Admin browser shards preserve Chromium WebKit and Firefox independently',()=>{
+  const workflow=workflows.admin;
+  for(const browser of ['chromium','webkit','firefox']){
+    assert.match(workflow,new RegExp(`browser: ${browser}`,'u'),`admin: ${browser} matrix entry missing`);
   }
+  assert.match(workflow,/playwright install-deps "\$\{\{ matrix\.browser \}\}"/u,'admin: per-browser system deps missing');
+  assert.match(workflow,/playwright install "\$\{\{ matrix\.browser \}\}"/u,'admin: per-browser cache-miss install missing');
+  assert.match(workflow,/PW_BROWSER: \$\{\{ matrix\.browser \}\}/u,'admin: per-browser readiness check missing');
+  assert.match(workflow,/hashFiles\('package-lock\.json'\).*matrix\.browser/u,'admin: per-browser cache namespace missing');
+  assert.match(workflow,/restore-keys:[\s\S]*?-all/u,'admin: warm restore from all-browser cache missing');
+});
+
+test('Remote gate preserves the full Chromium WebKit and Firefox bundle',()=>{
+  const workflow=workflows.remote;
+  assert.match(workflow,/install-deps chromium webkit firefox/u,'remote: cross-browser deps missing');
+  assert.match(workflow,/install chromium webkit firefox/u,'remote: cross-browser miss install missing');
+  assert.match(workflow,/chromium, firefox, webkit/u,'remote: browser readiness matrix missing');
+  assert.match(workflow,/-all/u,'remote: all-browser cache namespace missing');
 });
 
 test('Playwright cache optimization never caches node_modules',()=>{

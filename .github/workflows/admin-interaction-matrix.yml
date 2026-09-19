@@ -15,6 +15,8 @@ on:
       - 'scripts/service_worker_release_identity.mjs'
       - 'scripts/verify_production_surface.mjs'
       - 'tests/m26_p0_service_worker_release_identity.test.mjs'
+      - 'tests/m26_admin_browser_shards_contract.test.mjs'
+      - 'tests/m26_playwright_cache_workflows.test.mjs'
       - 'playwright.admin-interaction.config.mjs'
       - 'playwright.p0-pwa-upgrade.config.mjs'
       - '.github/workflows/admin-interaction-matrix.yml'
@@ -32,6 +34,8 @@ on:
       - 'scripts/service_worker_release_identity.mjs'
       - 'scripts/verify_production_surface.mjs'
       - 'tests/m26_p0_service_worker_release_identity.test.mjs'
+      - 'tests/m26_admin_browser_shards_contract.test.mjs'
+      - 'tests/m26_playwright_cache_workflows.test.mjs'
       - 'playwright.admin-interaction.config.mjs'
       - 'playwright.p0-pwa-upgrade.config.mjs'
       - '.github/workflows/admin-interaction-matrix.yml'
@@ -46,6 +50,23 @@ concurrency:
 
 jobs:
   browser-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            projects: >-
+              --project=admin-desktop-chromium
+              --project=admin-tablet-chromium
+              --project=admin-tablet-landscape-chromium
+              --project=admin-mobile-chromium
+          - browser: webkit
+            projects: >-
+              --project=admin-desktop-webkit
+              --project=admin-mobile-webkit
+          - browser: firefox
+            projects: >-
+              --project=admin-desktop-firefox
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -57,26 +78,30 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Restore Playwright browser cache
+      - name: Restore Playwright ${{ matrix.browser }} cache
         id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-all
-      - name: Install browser system dependencies
-        run: npx playwright install-deps chromium webkit firefox
-      - name: Install Chromium WebKit and Firefox on cache miss
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-${{ matrix.browser }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-all
+      - name: Install ${{ matrix.browser }} system dependencies
+        run: npx playwright install-deps "${{ matrix.browser }}"
+      - name: Install ${{ matrix.browser }} browser on cache miss
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium webkit firefox
-      - name: Verify Playwright browser cache
-        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium, firefox, webkit } from '@playwright/test'; for (const [name,browser] of Object.entries({chromium, firefox, webkit})) if (!fs.existsSync(browser.executablePath())) throw new Error('PLAYWRIGHT_'+name.toUpperCase()+'_NOT_READY');"
-      - name: Exercise Client Coach Admin inputs selects focus and rerender
-        run: npx playwright test --config playwright.admin-interaction.config.mjs
+        run: npx playwright install "${{ matrix.browser }}"
+      - name: Verify Playwright ${{ matrix.browser }} cache
+        env:
+          PW_BROWSER: ${{ matrix.browser }}
+        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium, firefox, webkit } from '@playwright/test'; const browser={chromium,firefox,webkit}[process.env.PW_BROWSER]; if(!browser||!fs.existsSync(browser.executablePath())) throw new Error('PLAYWRIGHT_'+String(process.env.PW_BROWSER||'UNKNOWN').toUpperCase()+'_NOT_READY');"
+      - name: Exercise Client Coach Admin inputs selects focus and rerender · ${{ matrix.browser }}
+        run: npx playwright test --config playwright.admin-interaction.config.mjs ${{ matrix.projects }}
       - name: Preserve failures only
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: admin-interaction-matrix-${{ github.run_id }}
+          name: admin-interaction-matrix-${{ matrix.browser }}-${{ github.run_id }}
           path: test-results/
           if-no-files-found: warn
           retention-days: 14
