@@ -1,7 +1,7 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 import webpush from 'npm:web-push@3.6.7';
 
-const FUNCTION_VERSION='web-push-sender-v1.0';
+const FUNCTION_VERSION='web-push-sender-v1.1';
 const MAX_BODY=8_000;
 const CLAIM_LIMIT=25;
 const SEND_CONCURRENCY=5;
@@ -21,6 +21,8 @@ type Claim={
   keys:{p256dh:string;auth:string};
   path:string;
 };
+
+type RequestBody={action:'config'}|{action:'dispatch';operationId:string};
 
 function cors(origin=''){
   const headers:Record<string,string>={
@@ -56,6 +58,15 @@ function normalizeOperationId(value:unknown){
   if(operationId.length<3||operationId.length>200||/[\u0000-\u001f\u007f]/u.test(operationId))throw new Error('M26_PUSH_DISPATCH_OPERATION_INVALID');
   return operationId;
 }
+function normalizeRequestBody(value:unknown):RequestBody{
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('M26_PUSH_REQUEST_INVALID');
+  const source=value as Record<string,unknown>;
+  const action=String(source.action||'').trim().toLowerCase();
+  if(action==='config')return {action:'config'};
+  if(action==='dispatch')return {action:'dispatch',operationId:normalizeOperationId(source.operationId)};
+  throw new Error('M26_PUSH_ACTION_INVALID');
+}
+function publicKeyValid(value:string){return value.length>=40&&value.length<=256&&/^[A-Za-z0-9_-]+$/u.test(value);}
 function normalizeClaim(value:unknown):Claim|null{
   if(!value||typeof value!=='object'||Array.isArray(value))return null;
   const claim=value as Record<string,unknown>;
@@ -90,13 +101,9 @@ Deno.serve(async(req:Request)=>{
 
   const raw=await req.text();
   if(raw.length<2||raw.length>MAX_BODY)return reply(400,{ok:false,code:'M26_BODY_INVALID',version:FUNCTION_VERSION},origin);
-  let operationId='';
-  try{
-    const parsed=JSON.parse(raw) as Record<string,unknown>;
-    operationId=normalizeOperationId(parsed?.operationId);
-  }catch(error){
-    return reply(400,{ok:false,code:safeCode(error,'M26_PUSH_DISPATCH_OPERATION_INVALID'),version:FUNCTION_VERSION},origin);
-  }
+  let requestBody:RequestBody;
+  try{requestBody=normalizeRequestBody(JSON.parse(raw));}
+  catch(error){return reply(400,{ok:false,code:safeCode(error,'M26_PUSH_REQUEST_INVALID'),version:FUNCTION_VERSION},origin);}
 
   const supabaseUrl=String(Deno.env.get('SUPABASE_URL')||'').trim();
   const anonKey=String(Deno.env.get('SUPABASE_ANON_KEY')||'').trim();
@@ -105,8 +112,12 @@ Deno.serve(async(req:Request)=>{
   const vapidPrivateKey=String(Deno.env.get('IBERFIT_WEB_PUSH_VAPID_PRIVATE_KEY')||'').trim();
   const vapidSubject=String(Deno.env.get('IBERFIT_WEB_PUSH_VAPID_SUBJECT')||'').trim();
   if(!supabaseUrl||!anonKey||!serviceRole)return reply(500,{ok:false,code:'M26_SERVER_CONFIG_MISSING',version:FUNCTION_VERSION},origin);
-  if(!vapidPublicKey||!vapidPrivateKey||!/^mailto:|^https:\/\//iu.test(vapidSubject)){
+  if(!publicKeyValid(vapidPublicKey)||!vapidPrivateKey||!/^(?:mailto:|https:\/\/)/iu.test(vapidSubject)){
     return reply(503,{ok:false,code:'M26_PUSH_SERVICE_NOT_CONFIGURED',version:FUNCTION_VERSION},origin);
+  }
+
+  if(requestBody.action==='config'){
+    return reply(200,{ok:true,configured:true,publicKey:vapidPublicKey,version:FUNCTION_VERSION},origin);
   }
 
   const userClient=createClient(supabaseUrl,anonKey,{
@@ -116,7 +127,7 @@ Deno.serve(async(req:Request)=>{
   const service=createClient(supabaseUrl,serviceRole,{auth:{persistSession:false,autoRefreshToken:false}});
 
   try{
-    const {data:authorizationResult,error:authorizationError}=await userClient.rpc('iberfit_web_push_dispatch_authorize_v1',{p_operation_id:operationId});
+    const {data:authorizationResult,error:authorizationError}=await userClient.rpc('iberfit_web_push_dispatch_authorize_v1',{p_operation_id:requestBody.operationId});
     if(authorizationError)throw authorizationError;
     const dispatch=Array.isArray(authorizationResult)?authorizationResult[0]:authorizationResult;
     if(dispatch?.ok!==true)throw new Error('M26_PUSH_DISPATCH_NOT_AUTHORIZED');
@@ -182,8 +193,7 @@ Deno.serve(async(req:Request)=>{
     },origin);
   }catch(error){
     const code=safeCode(error);
-    const status=/AUTH|FORBIDDEN|NOT_AUTHORIZED/u.test(code)?403:
-      /CONFIG/u.test(code)?503:400;
+    const status=/AUTH|FORBIDDEN|NOT_AUTHORIZED/u.test(code)?403:/CONFIG/u.test(code)?503:400;
     return reply(status,{ok:false,code,version:FUNCTION_VERSION},origin);
   }
 });
