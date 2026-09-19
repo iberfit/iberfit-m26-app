@@ -123,20 +123,48 @@ async function setDevice(page,cdp,{name,width,height,mobile,touch}){
   expect(metrics.height,`${name}: viewport height`).toBe(height);
   if(touch)expect(metrics.maxTouchPoints,`${name}: touch emulation`).toBeGreaterThan(0);
 }
+async function pointerState(locator){
+  if(!await locator.count())return {exists:false,inViewport:false,receivesPointer:false};
+  return locator.evaluate((el)=>{
+    const rect=el.getBoundingClientRect();
+    const x=rect.left+rect.width/2;
+    const y=rect.top+rect.height/2;
+    const inViewport=rect.width>0&&rect.height>0&&x>=0&&x<=innerWidth&&y>=0&&y<=innerHeight;
+    const hit=inViewport?document.elementFromPoint(x,y):null;
+    return {
+      exists:true,
+      inViewport,
+      receivesPointer:Boolean(hit&&(hit===el||el.contains(hit))),
+      rect:{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height},
+      viewport:{width:innerWidth,height:innerHeight},
+      hitTag:hit?.tagName||null,
+      hitArea:hit?.closest?.('[data-m26-area]')?.getAttribute?.('data-m26-area')||null,
+    };
+  }).catch(()=>({exists:true,inViewport:false,receivesPointer:false,error:'POINTER_STATE_FAILED'}));
+}
+async function activate(locator,touch){if(touch)await locator.tap();else await locator.click();}
 async function clickNav(page,area,{touch=false}={}){
   const direct=page.locator(`[data-m26-area="${area}"]:visible`).first();
-  if(await direct.count()&&await direct.isVisible().catch(()=>false)){
-    if(touch)await direct.tap();else await direct.click();
-    return;
+  if(await direct.count()){
+    const state=await pointerState(direct);
+    if(state.inViewport&&state.receivesPointer){await activate(direct,touch);return;}
   }
   const more=page.locator('details.m26-mobile-more:visible').first();
-  await expect(more,`Admin responsive navigation must expose ${area}`).toBeVisible();
+  await expect(more,`Admin responsive navigation must expose ${area}`).toBeVisible({timeout:5_000});
   const summary=more.locator(':scope > summary').first();
-  if(touch)await summary.tap();else await summary.click();
+  await expect(summary,`Admin More trigger must expose ${area}`).toBeVisible();
+  const summaryState=await pointerState(summary);
+  expect(summaryState.inViewport,`Admin More trigger must be inside viewport for ${area}: ${JSON.stringify(summaryState)}`).toBe(true);
+  expect(summaryState.receivesPointer,`Admin More trigger must receive pointer for ${area}: ${JSON.stringify(summaryState)}`).toBe(true);
+  if(!await more.evaluate((node)=>node.open))await activate(summary,touch);
   await expect(more).toHaveAttribute('open','');
   const target=more.locator(`[data-m26-area="${area}"]:visible`).first();
-  await expect(target).toBeVisible();
-  if(touch)await target.tap();else await target.click();
+  await expect(target,`Admin More menu must contain ${area}`).toBeVisible();
+  await target.scrollIntoViewIfNeeded();
+  const targetState=await pointerState(target);
+  expect(targetState.inViewport,`Admin More target must be inside viewport for ${area}: ${JSON.stringify(targetState)}`).toBe(true);
+  expect(targetState.receivesPointer,`Admin More target must receive pointer for ${area}: ${JSON.stringify(targetState)}`).toBe(true);
+  await activate(target,touch);
 }
 async function expectViewportHealthy(page,label){
   const metrics=await page.evaluate(()=>({innerWidth,bodyScrollWidth:document.body.scrollWidth,docScrollWidth:document.documentElement.scrollWidth}));
@@ -199,7 +227,10 @@ async function certifyAdminSurface(page,cdp,device,evidence){
     await expect(more,'mobile More must be visible').toBeVisible();
     const summary=more.locator(':scope > summary').first();
     await expectTouchTarget(summary,true,'mobile More');
-    await summary.tap();
+    const summaryState=await pointerState(summary);
+    expect(summaryState.inViewport,`mobile More must remain inside viewport: ${JSON.stringify(summaryState)}`).toBe(true);
+    expect(summaryState.receivesPointer,`mobile More must receive pointer: ${JSON.stringify(summaryState)}`).toBe(true);
+    if(!await more.evaluate((node)=>node.open))await summary.tap();
     await expect(more).toHaveAttribute('open','');
     await expect(summary).toHaveAttribute('aria-expanded','true');
     await page.keyboard.press('Escape');
