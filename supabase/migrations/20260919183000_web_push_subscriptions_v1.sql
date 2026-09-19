@@ -131,18 +131,21 @@ begin
   )
   on conflict (endpoint) do update
     set organization_id = excluded.organization_id,
-        user_id = excluded.user_id,
         p256dh = excluded.p256dh,
         auth_key = excluded.auth_key,
         expiration_time = excluded.expiration_time,
         status = 'active',
         updated_at = now()
+    where public.iberfit_web_push_subscriptions.user_id = v_user_id
   returning id, updated_at into v_subscription_id, v_updated_at;
+
+  if v_subscription_id is null then
+    raise exception 'push_endpoint_conflict' using errcode = '42501';
+  end if;
 
   return jsonb_build_object(
     'ok', true,
     'active', true,
-    'subscriptionId', v_subscription_id,
     'updatedAt', v_updated_at
   );
 end
@@ -182,9 +185,9 @@ begin
 end
 $function$;
 
-revoke all on function public.iberfit_web_push_status_v1() from public, anon;
-revoke all on function public.iberfit_web_push_upsert_v1(jsonb) from public, anon;
-revoke all on function public.iberfit_web_push_revoke_v1(text) from public, anon;
+revoke all on function public.iberfit_web_push_status_v1() from public, anon, authenticated;
+revoke all on function public.iberfit_web_push_upsert_v1(jsonb) from public, anon, authenticated;
+revoke all on function public.iberfit_web_push_revoke_v1(text) from public, anon, authenticated;
 grant execute on function public.iberfit_web_push_status_v1() to authenticated;
 grant execute on function public.iberfit_web_push_upsert_v1(jsonb) to authenticated;
 grant execute on function public.iberfit_web_push_revoke_v1(text) to authenticated;
