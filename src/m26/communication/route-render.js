@@ -23,6 +23,19 @@ function notificationGroup(center,priority,label){
   if(!items.length)return '';
   return `<section class="m26-notification-group" aria-label="${e(label)}"><div class="m26-notification-group-head"><h4>${e(label)}</h4><span>${e(items.length)}</span></div>${items.map(notificationCard).join('')}</section>`;
 }
+function webPushDeviceControl(){
+  return `<section class="m26-web-push-control" data-web-push-control data-state="loading" aria-labelledby="m26-web-push-title">
+    <div class="m26-web-push-copy">
+      <strong id="m26-web-push-title">Avisos en este dispositivo</strong>
+      <p data-web-push-status aria-live="polite">Comprobando el estado de este dispositivo…</p>
+      <small data-web-push-detail>IBERFIT nunca muestra datos sensibles del entrenamiento en la pantalla bloqueada.</small>
+    </div>
+    <div class="m26-web-push-actions">
+      <button type="button" class="m26-text-action" data-web-push-action="activate" disabled>Gestionar avisos</button>
+      <button type="button" class="m26-text-action" data-m26-area="ajustes">Elegir tipos de aviso</button>
+    </div>
+  </section>`;
+}
 function notificationCenter(vm){
   const center=buildNotificationCenter({role:vm.role,notifications:vm.notifications,coachCockpit:vm.coachCockpit});
   const unread=center.counts.unread;
@@ -30,6 +43,6 @@ function notificationCenter(vm){
   const content=center.items.length
     ?`${notificationGroup(center,'action-required','Requiere acción')}${notificationGroup(center,'important','Importante')}${notificationGroup(center,'informational','Informativo')}`
     :`<div class="m26-notification-empty"><strong>${e(center.emptyTitle)}</strong><p>${e(center.emptyBody)}</p></div>`;
-  return `<aside class="m26-communication-panel m26-notification-center" aria-labelledby="m26-notification-center-title"><div class="m26-notification-center-head"><div><p class="m26-notification-eyebrow">Centro de notificaciones</p><h3 id="m26-notification-center-title">Qué necesita tu atención</h3></div><span class="m26-notification-unread" aria-label="${e(summary)}">${e(summary)}</span></div><p class="m26-notification-privacy">Vista previa protegida: el detalle se consulta dentro de la acción correspondiente.</p>${content}</aside>`;
+  return `<aside class="m26-communication-panel m26-notification-center" aria-labelledby="m26-notification-center-title"><div class="m26-notification-center-head"><div><p class="m26-notification-eyebrow">Centro de notificaciones</p><h3 id="m26-notification-center-title">Qué necesita tu atención</h3></div><span class="m26-notification-unread" aria-label="${e(summary)}">${e(summary)}</span></div><p class="m26-notification-privacy">Vista previa protegida: el detalle se consulta dentro de la acción correspondiente.</p>${webPushDeviceControl()}${content}</aside>`;
 }
 export function renderCommunicationRoute(vm){if(!vm?.communication)return null;if(vm.kind==='communication-unavailable')return `<div class="m26-communication-route"><section class="m26-communication-hero"><h2>Mensajes no disponibles</h2><p>El backend de comunicación no está instalado o no respondió.</p></section></div>`;const open=vm.canOpenThread?`<form data-communication-form="thread-open" class="m26-communication-panel m30-thread-open"><h3>Abrir conversación</h3><select name="clientId" required><option value="">Cliente</option>${vm.clients.map((c)=>`<option value="${e(c.id)}">${e(c.name||c.id)}</option>`).join('')}</select><input name="subject" value="Seguimiento IBERFIT"><button type="submit" class="m26-primary-action">Abrir</button></form>`:'';return `<div class="m26-communication-route" data-communication-role="${e(vm.role||'unknown')}"><section class="m26-communication-hero"><h2>Mensajes</h2><p>Comunicación privada Cliente–Coach dentro de IBERFIT.</p></section>${open}<section class="m26-communication-grid m30-communication-grid">${notificationCenter(vm)}<article class="m26-communication-panel m30-conversation-panel"><h3>Conversaciones</h3>${vm.threads.length?vm.threads.map((t)=>thread(vm,t)).join(''):'<p>Sin conversaciones.</p>'}</article></section></div>`;}
