@@ -150,17 +150,18 @@ async function pointerState(locator){
 }
 async function activate(locator,touch){if(touch)await locator.tap();else await locator.click();}
 async function clickNav(page,area,{touch=false}={}){
-  const direct=page.locator(`[data-m26-area="${area}"]:visible`).first();
   const compact=await page.evaluate(()=>innerWidth<=900);
   if(!compact){
-    await expect(direct,`Admin direct navigation must expose ${area}`).toBeVisible();
+    const direct=page.locator(`.m26-sidebar [data-m26-area="${area}"]:visible`).first();
+    await expect(direct,`Admin sidebar navigation must expose ${area}`).toBeVisible();
     await activate(direct,touch);
     return;
   }
+  const direct=page.locator(`.m26-mobile-nav > [data-m26-area="${area}"]:visible`).first();
   if(await direct.count()){
     const state=await pointerState(direct);
-    expect(state.inViewport,`Admin direct navigation must be inside viewport for ${area}: ${JSON.stringify(state)}`).toBe(true);
-    expect(state.receivesPointer,`Admin direct navigation must receive pointer for ${area}: ${JSON.stringify(state)}`).toBe(true);
+    expect(state.inViewport,`Admin direct mobile navigation must be inside viewport for ${area}: ${JSON.stringify(state)}`).toBe(true);
+    expect(state.receivesPointer,`Admin direct mobile navigation must receive pointer for ${area}: ${JSON.stringify(state)}`).toBe(true);
     await activate(direct,touch);
     return;
   }
