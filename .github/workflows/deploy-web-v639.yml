@@ -1,0 +1,160 @@
+name: Deploy WEB IBERFIT V6.39
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/deploy-web-v639.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-v639-deploy
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+  WEB_REPO: 'https://github.com/iberfit/iberfitweb.git'
+  WEB_SHA: '0120a67e8002ecf9f8cdae3295a194b9d1cf6241'
+  WEB_VERSION: '6.39'
+  QA_RUN_ID: '35454883035'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verificar proyecto y rollback
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo CLOUDFLARE_API_TOKEN_MISSING; exit 41; }
+          curl --fail --silent --show-error -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project.json
+          curl --fail --silent --show-error -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-before.json
+          node <<'NODE'
+          const fs=require('fs');const p=JSON.parse(fs.readFileSync('/tmp/project.json','utf8'));if(!p.success||p.result?.name!==process.env.CF_PROJECT)throw new Error('PROJECT');const d=p.result.domains||[];if(!d.includes('iberfit.cl')||d.includes('app.iberfit.cl'))throw new Error('DOMAIN_COLLISION');const x=JSON.parse(fs.readFileSync('/tmp/deployments-before.json','utf8'));const cur=(x.result||[]).filter(v=>v.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];if(!cur?.id)throw new Error('NO_ROLLBACK');fs.appendFileSync(process.env.GITHUB_ENV,'ROLLBACK_DEPLOYMENT_ID='+cur.id+'\n');console.log(JSON.stringify({project:p.result.name,domains:d,rollbackDeploymentId:cur.id},null,2));
+          NODE
+
+      - name: Verificar QA exacta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" -o /tmp/qa.json
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/qa.json','utf8'));if(x.head_sha!==process.env.WEB_SHA)throw new Error('QA_SHA:'+x.head_sha);if(x.status!=='completed'||x.conclusion!=='success')throw new Error('QA:'+x.status+':'+x.conclusion);if(x.name!=='QA WEB IBERFIT V6.39 final')throw new Error('QA_NAME:'+x.name);console.log(JSON.stringify({run:x.id,name:x.name,sha:x.head_sha,conclusion:x.conclusion},null,2));
+          NODE
+
+      - name: Descargar candidata certificada
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout "$WEB_REPO" /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=1 origin "$WEB_SHA"
+          git -C /tmp/iberfitweb checkout --detach "$WEB_SHA"
+          base=/tmp/iberfitweb/candidate/v628
+          test "$(tr -d '\r\n ' < "$base/VERSION")" = "$WEB_VERSION"
+          test "$(find "$base" -name '*.html' -type f | wc -l | tr -d ' ')" = '33'
+          test "$(grep -R -l 'aeo.v639.css' "$base" --include='*.html' | wc -l | tr -d ' ')" = '33'
+          grep -q 'data-aeo-answer' "$base/index.html"
+          grep -q '"@type":"Organization"' "$base/index.html"
+          grep -q '^User-agent: OAI-SearchBot$' "$base/robots.txt"
+          grep -q '^User-agent: ChatGPT-User$' "$base/robots.txt"
+          ! grep -R -n '"LocalBusiness"' "$base" --include='*.html'
+          ! grep -R -ni --exclude='CHANGELOG.md' --exclude-dir='.git' 'Carlos' "$base"
+
+      - name: Deploy preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_BRANCH="v639-review-${GITHUB_RUN_ID}"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "$CF_PROJECT" --branch "$PREVIEW_BRANCH" --commit-hash "$WEB_SHA" --commit-message 'WEB IBERFIT V6.39 certified preview' | tee /tmp/preview.log
+          PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/preview.log | tail -1)"
+          test -n "$PREVIEW_URL"
+          echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
+
+      - name: Smoke preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "$PREVIEW_URL/VERSION?cb=$GITHUB_RUN_ID" -o /tmp/version
+          test "$(tr -d '\r\n ' < /tmp/version)" = "$WEB_VERSION"
+          for p in '' diagnostico-iri metodo online sobre-iberfit entrenador-personal-las-condes; do curl --fail --silent --show-error --location --retry 8 --retry-all-errors "$PREVIEW_URL/${p:+$p/}?cb=$GITHUB_RUN_ID" -o "/tmp/${p:-home}.html"; done
+          grep -q 'data-aeo-answer' /tmp/home.html
+          grep -q '¿El IRI es lo mismo que el seguimiento?' /tmp/diagnostico-iri.html
+          grep -q 'Cómo funciona el Método IBERFIT' /tmp/metodo.html
+          grep -q 'Entrenamiento online: qué significa en IBERFIT' /tmp/online.html
+          grep -q 'formación universitaria en España' /tmp/sobre-iberfit.html
+          grep -q '¿IBERFIT ofrece entrenamiento personal en Las Condes?' /tmp/entrenador-personal-las-condes.html
+
+      - name: Deploy producción
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "$CF_PROJECT" --branch production --commit-hash "$WEB_SHA" --commit-message 'WEB IBERFIT V6.39 production' | tee /tmp/production.log
+          PRODUCTION_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/production.log | tail -1)"
+          test -n "$PRODUCTION_URL"
+          echo "PRODUCTION_URL=$PRODUCTION_URL" >> "$GITHUB_ENV"
+
+      - name: Verificar producción y dominio real
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 8 --retry-all-errors "$PRODUCTION_URL/VERSION?cb=$GITHUB_RUN_ID" -o /tmp/pages-version
+          test "$(tr -d '\r\n ' < /tmp/pages-version)" = "$WEB_VERSION"
+          ok=0
+          for attempt in $(seq 1 20); do
+            suffix="$GITHUB_RUN_ID-$attempt"
+            curl -sSLo /tmp/live-version "https://iberfit.cl/VERSION?cb=$suffix" || true
+            curl -sSLo /tmp/live-home "https://iberfit.cl/?cb=$suffix" || true
+            curl -sSLo /tmp/live-iri "https://iberfit.cl/diagnostico-iri/?cb=$suffix" || true
+            curl -sSLo /tmp/live-local "https://iberfit.cl/entrenador-personal-las-condes/?cb=$suffix" || true
+            curl -sSLo /tmp/live-robots "https://iberfit.cl/robots.txt?cb=$suffix" || true
+            version="$(tr -d '\r\n ' < /tmp/live-version 2>/dev/null || true)"; home=0; iri=0; local=0; robots=0
+            grep -q 'IBERFIT, explicado de forma directa.' /tmp/live-home 2>/dev/null && grep -q '"@type":"Organization"' /tmp/live-home 2>/dev/null && home=1 || true
+            grep -q '¿El IRI es lo mismo que el seguimiento?' /tmp/live-iri 2>/dev/null && iri=1 || true
+            grep -q '¿IBERFIT ofrece entrenamiento personal en Las Condes?' /tmp/live-local 2>/dev/null && local=1 || true
+            grep -q '^User-agent: OAI-SearchBot$' /tmp/live-robots 2>/dev/null && grep -q '^User-agent: ChatGPT-User$' /tmp/live-robots 2>/dev/null && robots=1 || true
+            echo "Propagation $attempt: version=${version:-missing} home=$home iri=$iri local=$local robots=$robots"
+            if [ "$version" = "$WEB_VERSION" ] && [ "$home" = 1 ] && [ "$iri" = 1 ] && [ "$local" = 1 ] && [ "$robots" = 1 ]; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1 || { echo IBERFIT_CL_V639_NOT_CONSISTENT; exit 44; }
+          curl --fail --silent --show-error -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-after.json
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/deployments-after.json','utf8'));const d=(x.result||[]).find(v=>v.environment==='production'&&v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA);if(!d)throw new Error('DEPLOYMENT_NOT_FOUND');const e={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaRun:process.env.QA_RUN_ID,project:process.env.CF_PROJECT,domain:'iberfit.cl',previewUrl:process.env.PREVIEW_URL,productionUrl:process.env.PRODUCTION_URL,deploymentId:d.id,rollbackDeploymentId:process.env.ROLLBACK_DEPLOYMENT_ID,verifiedAt:new Date().toISOString()};fs.writeFileSync('/tmp/V639_PRODUCTION_EVIDENCE.json',JSON.stringify(e,null,2)+'\n');console.log(JSON.stringify(e,null,2));
+          NODE
+
+      - name: Guardar evidencia producción
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-iberfit-v639-production-${{ github.run_id }}
+          path: |
+            /tmp/project.json
+            /tmp/deployments-before.json
+            /tmp/qa.json
+            /tmp/preview.log
+            /tmp/production.log
+            /tmp/deployments-after.json
+            /tmp/V639_PRODUCTION_EVIDENCE.json
+          retention-days: 30
