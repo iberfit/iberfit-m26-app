@@ -59,11 +59,9 @@ export function serializePushSubscription(subscription){
   const p256dh=serializedPushKey(subscription,'p256dh');
   const auth=serializedPushKey(subscription,'auth');
   if(!p256dh||!auth)throw new Error('M26_PUSH_KEYS_INVALID');
-  return Object.freeze({
-    endpoint,
-    expirationTime:Number.isFinite(Number(subscription.expirationTime))?Number(subscription.expirationTime):null,
-    keys:Object.freeze({p256dh,auth}),
-  });
+  const rawExpiration=subscription.expirationTime;
+  const expirationTime=rawExpiration==null?null:(Number.isFinite(Number(rawExpiration))?Number(rawExpiration):null);
+  return Object.freeze({endpoint,expirationTime,keys:Object.freeze({p256dh,auth})});
 }
 export async function inspectWebPushState({target=globalThis,navigatorLike=globalThis.navigator,vapidPublicKey=''}={}){
   const secure=pushSecureContext(target);
