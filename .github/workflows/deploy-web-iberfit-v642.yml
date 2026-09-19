@@ -1,0 +1,208 @@
+name: Deploy WEB IBERFIT V6.42 certified
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/deploy-web-iberfit-v642.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-pages-provision
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+  WEB_REPO: 'https://github.com/iberfit/iberfitweb.git'
+  WEB_SHA: '05159cd7deeb0409dc570de8b4240a1d8fce2493'
+  WEB_VERSION: '6.42'
+  QA_RUN_ID: '35458738983'
+  QA_RUN_NAME: 'QA WEB IBERFIT V6.42 final v2'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout infrastructure
+        uses: actions/checkout@v4
+
+      - name: Prepare Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify Pages project and capture rollback
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo CLOUDFLARE_API_TOKEN_MISSING; exit 41; }
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-before.json
+          node <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/project.json','utf8'));
+          if(!p.success||p.result?.name!==process.env.CF_PROJECT) throw new Error('PROJECT_LOOKUP');
+          if(p.result.production_branch!=='production') throw new Error('PRODUCTION_BRANCH:'+p.result.production_branch);
+          const domains=p.result.domains||[];
+          if(!domains.includes('iberfit.cl')) throw new Error('IBERFIT_DOMAIN_MISSING');
+          if(domains.includes('app.iberfit.cl')) throw new Error('APP_DOMAIN_COLLISION');
+          const d=JSON.parse(fs.readFileSync('/tmp/deployments-before.json','utf8'));
+          const current=(d.result||[]).filter(v=>v.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(!current?.id) throw new Error('NO_ROLLBACK');
+          fs.appendFileSync(process.env.GITHUB_ENV,'ROLLBACK_DEPLOYMENT_ID='+current.id+'\n');
+          console.log(JSON.stringify({project:p.result.name,domains,rollbackDeploymentId:current.id},null,2));
+          NODE
+
+      - name: Verify certified QA identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" -o /tmp/qa-v642.json
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/qa-v642.json','utf8'));
+          if(x.head_sha!==process.env.WEB_SHA) throw new Error('QA_SHA:'+x.head_sha);
+          if(x.status!=='completed'||x.conclusion!=='success') throw new Error('QA:'+x.status+':'+x.conclusion);
+          if(x.name!==process.env.QA_RUN_NAME) throw new Error('QA_NAME:'+x.name);
+          console.log(JSON.stringify({run:x.id,name:x.name,sha:x.head_sha,conclusion:x.conclusion},null,2));
+          NODE
+
+      - name: Checkout exact certified web candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout "${WEB_REPO}" /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=1 origin "${WEB_SHA}"
+          git -C /tmp/iberfitweb checkout --detach "${WEB_SHA}"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "${WEB_SHA}"
+          base=/tmp/iberfitweb/candidate/v628
+          test "$(tr -d '\r\n ' < "${base}/VERSION")" = "${WEB_VERSION}"
+          test "$(find "${base}" -name '*.html' -type f | wc -l | tr -d ' ')" = '33'
+          grep -q 'data-aeo-answer' "${base}/index.html"
+          grep -q '"@type":"Organization"' "${base}/index.html"
+          test "$(grep -R -l '/assets/menu.v642.js' "${base}" --include='*.html' | wc -l | tr -d ' ')" = '33'
+          ! grep -R -q '/assets/hardening.v630.js' "${base}" --include='*.html'
+          grep -q '^/assets/menu.v642.js$' "${base}/_headers"
+          grep -q "script-src 'self' 'sha256-OvlTbjy6MX3tOPtkkyczJxexU0UitjLSDdZtn3+IzfQ='" "${base}/_headers"
+          grep -q "script-src-attr 'none'" "${base}/_headers"
+          ! grep -q "'unsafe-inline'" "${base}/_headers"
+          ! grep -R -n '"LocalBusiness"' "${base}" --include='*.html'
+
+      - name: Deploy certified preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_BRANCH="v642-certified-${GITHUB_RUN_ID}"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "${CF_PROJECT}" --branch "${PREVIEW_BRANCH}" --commit-hash "${WEB_SHA}" --commit-message 'WEB IBERFIT V6.42 certified preview' | tee /tmp/wrangler-preview.log
+          PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-preview.log | tail -1)"
+          test -n "${PREVIEW_URL}" || { echo PREVIEW_URL_NOT_FOUND; exit 42; }
+          echo "PREVIEW_URL=${PREVIEW_URL}" >> "${GITHUB_ENV}"
+
+      - name: Validate preview gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cb="$GITHUB_RUN_ID"
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?cb=$cb" -o /tmp/preview-version
+          test "$(tr -d '\r\n ' < /tmp/preview-version)" = "${WEB_VERSION}"
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/?cb=$cb" -o /tmp/preview-home
+          grep -q 'data-aeo-answer' /tmp/preview-home
+          grep -q '/assets/menu.v642.js' /tmp/preview-home
+          ! grep -q '/assets/hardening.v630.js' /tmp/preview-home
+          curl -fsSI --retry 8 --retry-all-errors "${PREVIEW_URL}/?cb=$cb" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/preview-h-home
+          grep -q '^content-security-policy:' /tmp/preview-h-home
+          grep -q 'sha256-ovltbjy6mx3toptkkyczjxexu0uitjlsddztn3+izfq=' /tmp/preview-h-home
+          grep -q "script-src-attr 'none'" /tmp/preview-h-home
+          ! grep -q 'unsafe-inline' /tmp/preview-h-home
+          grep -q '^x-frame-options: deny' /tmp/preview-h-home
+          grep -q '^x-content-type-options: nosniff' /tmp/preview-h-home
+          for asset in app.v632.js menu.v642.js; do
+            curl -fsSI --retry 8 --retry-all-errors "${PREVIEW_URL}/assets/${asset}?cb=$cb" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > "/tmp/preview-h-${asset}"
+            grep -q '^cache-control:.*max-age=31536000' "/tmp/preview-h-${asset}"
+            grep -q '^cache-control:.*immutable' "/tmp/preview-h-${asset}"
+          done
+
+      - name: Deploy production V6.42
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "${CF_PROJECT}" --branch production --commit-hash "${WEB_SHA}" --commit-message 'WEB IBERFIT V6.42 certified production' | tee /tmp/wrangler-production.log
+          PRODUCTION_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-production.log | tail -1)"
+          test -n "${PRODUCTION_URL}" || { echo PRODUCTION_URL_NOT_FOUND; exit 43; }
+          echo "PRODUCTION_URL=${PRODUCTION_URL}" >> "${GITHUB_ENV}"
+
+      - name: Verify live domain and deployment identity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in $(seq 1 20); do
+            suffix="${GITHUB_RUN_ID}-${attempt}"
+            curl -sSLo /tmp/live-version "https://iberfit.cl/VERSION?cb=${suffix}" || true
+            curl -sSLo /tmp/live-home "https://iberfit.cl/?cb=${suffix}" || true
+            version="$(tr -d '\r\n ' < /tmp/live-version 2>/dev/null || true)"; menu=0; clean=0
+            grep -q '/assets/menu.v642.js' /tmp/live-home 2>/dev/null && menu=1 || true
+            ! grep -q '/assets/hardening.v630.js' /tmp/live-home 2>/dev/null && clean=1 || true
+            echo "Propagation ${attempt}: version=${version:-missing} menu642=$menu hardeningRemoved=$clean"
+            if [ "$version" = "$WEB_VERSION" ] && [ "$menu" = 1 ] && [ "$clean" = 1 ]; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1 || { echo IBERFIT_CL_V642_NOT_CONSISTENT; exit 44; }
+          cb="$GITHUB_RUN_ID-live"
+          curl -fsSI --retry 8 --retry-all-errors "https://iberfit.cl/?cb=$cb" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/live-h-home
+          grep -q '^content-security-policy:' /tmp/live-h-home
+          grep -q 'sha256-ovltbjy6mx3toptkkyczjxexu0uitjlsddztn3+izfq=' /tmp/live-h-home
+          grep -q "script-src-attr 'none'" /tmp/live-h-home
+          ! grep -q 'unsafe-inline' /tmp/live-h-home
+          for asset in app.v632.js menu.v642.js; do
+            curl -fsSI --retry 8 --retry-all-errors "https://iberfit.cl/assets/${asset}?cb=$cb" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > "/tmp/live-h-${asset}"
+            grep -q '^cache-control:.*max-age=31536000' "/tmp/live-h-${asset}"
+            grep -q '^cache-control:.*immutable' "/tmp/live-h-${asset}"
+          done
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-after.json
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/deployments-after.json','utf8'));
+          const d=(x.result||[]).find(v=>v.environment==='production'&&v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA);
+          if(!d) throw new Error('CERTIFIED_SHA_NOT_DEPLOYED');
+          const e={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaRun:process.env.QA_RUN_ID,qaName:process.env.QA_RUN_NAME,project:process.env.CF_PROJECT,domain:'iberfit.cl',previewUrl:process.env.PREVIEW_URL,productionUrl:process.env.PRODUCTION_URL,deploymentId:d.id,rollbackDeploymentId:process.env.ROLLBACK_DEPLOYMENT_ID,verifiedAt:new Date().toISOString()};
+          fs.writeFileSync('/tmp/V642_PRODUCTION_EVIDENCE.json',JSON.stringify(e,null,2)+'\n');console.log(JSON.stringify(e,null,2));
+          NODE
+
+      - name: Save production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-iberfit-v642-production-${{ github.run_id }}
+          path: |
+            /tmp/project.json
+            /tmp/deployments-before.json
+            /tmp/qa-v642.json
+            /tmp/wrangler-preview.log
+            /tmp/wrangler-production.log
+            /tmp/deployments-after.json
+            /tmp/V642_PRODUCTION_EVIDENCE.json
+            /tmp/preview-h-home
+            /tmp/preview-h-app.v632.js
+            /tmp/preview-h-menu.v642.js
+            /tmp/live-h-home
+            /tmp/live-h-app.v632.js
+            /tmp/live-h-menu.v642.js
+          if-no-files-found: warn
+          retention-days: 30
