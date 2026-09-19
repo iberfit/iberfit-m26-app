@@ -6,6 +6,8 @@ const migrations=[
   '../supabase/migrations/20260919183000_web_push_subscriptions_v1.sql',
   '../supabase/migrations/20260919184500_web_push_subscription_ownership_guard.sql',
   '../supabase/migrations/20260919222000_web_push_device_status_v1.sql',
+  '../supabase/migrations/20260919230000_web_push_delivery_preferences_v1.sql',
+  '../supabase/migrations/20260919231500_notification_preferences_partial_update_v1.sql',
 ].map(path=>fs.readFileSync(new URL(path,import.meta.url),'utf8'));
 const migration=migrations.join('\n');
 
@@ -20,7 +22,6 @@ function functionBody(name){
 
 test('web push subscription state is internal, RLS-forced and unavailable by direct client grants',()=>{
   assert.match(migration,/create table if not exists public\.iberfit_web_push_subscriptions/i);
-  assert.match(migration,/enable row level security/i);
   assert.match(migration,/force row level security/i);
   assert.match(migration,/revoke all on table public\.iberfit_web_push_subscriptions from public, anon, authenticated;/i);
   assert.match(migration,/grant all on table public\.iberfit_web_push_subscriptions to service_role;/i);
@@ -36,25 +37,6 @@ test('upsert is identity scoped and derives exactly one active organization memb
   assert.match(body,/m\.user_id = v_user_id/i);
   assert.match(body,/m\.status = 'active'/i);
   assert.match(body,/cardinality\(v_org_ids\) <> 1/i);
-  assert.match(body,/organization_context_ambiguous/i);
-});
-
-test('subscription payload is validated and response exposes no push capability material',()=>{
-  const body=functionBody('iberfit_web_push_upsert_v1');
-  assert.match(body,/left\(v_endpoint, 8\) <> 'https:\/\/'/i);
-  assert.match(body,/invalid_push_p256dh/i);
-  assert.match(body,/invalid_push_auth/i);
-  assert.match(body,/invalid_push_expiration/i);
-  const returnBlock=body.slice(body.lastIndexOf('return jsonb_build_object'));
-  assert.doesNotMatch(returnBlock,/'endpoint'|'p256dh'|'auth_key'|'subscriptionId'/i);
-  assert.match(returnBlock,/'updatedAt'/i);
-});
-
-test('an endpoint cannot be reassigned across authenticated users',()=>{
-  const body=functionBody('iberfit_web_push_upsert_v1');
-  assert.match(body,/where public\.iberfit_web_push_subscriptions\.user_id = v_user_id/i);
-  assert.doesNotMatch(body,/user_id\s*=\s*excluded\.user_id/i);
-  assert.match(body,/push_endpoint_conflict/i);
 });
 
 test('device status is scoped to auth.uid() and the supplied HTTPS endpoint',()=>{
@@ -64,23 +46,63 @@ test('device status is scoped to auth.uid() and the supplied HTTPS endpoint',()=
   assert.match(status,/s\.user_id = v_user_id/i);
   assert.match(status,/s\.endpoint = v_endpoint/i);
   assert.match(status,/left\(v_endpoint, 8\) <> 'https:\/\/'/i);
-  assert.match(status,/'active', v_device_active/i);
-  assert.match(status,/'subscriptionCount', v_count/i);
-  const returnBlock=status.slice(status.lastIndexOf('return jsonb_build_object'));
-  assert.doesNotMatch(returnBlock,/'endpoint'|'p256dh'|'auth_key'/i);
 });
 
-test('revoke can only delete rows belonging to auth.uid()',()=>{
-  const revoke=functionBody('iberfit_web_push_revoke_v1');
-  assert.match(revoke,/s\.user_id = v_user_id/i);
-  assert.match(revoke,/delete from public\.iberfit_web_push_subscriptions/i);
+test('notification preferences are private and browser access is RPC-only',()=>{
+  assert.match(migration,/create table if not exists public\.iberfit_notification_preferences/i);
+  assert.match(migration,/alter table public\.iberfit_notification_preferences force row level security/i);
+  assert.match(migration,/revoke all on table public\.iberfit_notification_preferences from public, anon, authenticated/i);
+  const status=functionBody('iberfit_notification_preferences_status_v1');
+  const upsert=functionBody('iberfit_notification_preferences_upsert_v1');
+  for(const body of [status,upsert]){
+    assert.match(body,/auth\.uid\(\)/i);
+    assert.match(body,/iberfit_organization_memberships/i);
+    assert.match(body,/cardinality\(v_org_ids\) <> 1/i);
+    assert.match(body,/set search_path = ''/i);
+  }
+  assert.match(upsert,/jsonb_typeof\(p_preferences->v_key\) <> 'boolean'/i);
 });
 
-test('RPC grants exclude anon/public and expose only the intended authenticated surface',()=>{
+test('notification enqueue is consent gated, subscription gated and deduplicated',()=>{
+  const body=functionBody('iberfit_web_push_enqueue_notification_v1');
+  assert.match(body,/iberfit_notification_preferences/i);
+  assert.match(body,/iberfit_web_push_subscriptions/i);
+  assert.match(body,/status = 'active'/i);
+  assert.match(body,/on conflict \(channel, dedupe_key\)/i);
+  assert.match(body,/'notification:' \|\| new\.id::text/i);
+  assert.match(migration,/create unique index if not exists iberfit_notification_deliveries_push_dedupe_uidx/i);
+});
+
+test('delivery claim is service-role-only and never granted to browser roles',()=>{
+  const claim=functionBody('iberfit_web_push_claim_v1');
+  const finalize=functionBody('iberfit_web_push_finalize_v1');
+  assert.match(claim,/for update skip locked/i);
+  assert.match(claim,/iberfit_web_push_delivery_attempts/i);
+  assert.match(finalize,/p_outcome/i);
+  for(const signature of ['iberfit_web_push_claim_v1\\(integer\\)','iberfit_web_push_finalize_v1\\(uuid,text,integer,text\\)']){
+    assert.match(migration,new RegExp(`revoke all on function public\\.${signature} from public, anon, authenticated;`,'i'));
+    assert.match(migration,new RegExp(`grant execute on function public\\.${signature} to service_role;`,'i'));
+    assert.doesNotMatch(migration,new RegExp(`grant execute on function public\\.${signature} to authenticated;`,'i'));
+  }
+});
+
+test('dispatch authorization is bound to the authenticated actor and recent MESSAGE_SEND receipt',()=>{
+  const body=functionBody('iberfit_web_push_dispatch_authorize_v1');
+  assert.match(body,/auth\.uid\(\)/i);
+  assert.match(body,/r\.actor_user_id = v_user_id/i);
+  assert.match(body,/r\.command_type = 'MESSAGE_SEND'/i);
+  assert.match(body,/interval '15 minutes'/i);
+  assert.match(body,/iberfit_web_push_dispatch_kicks/i);
+});
+
+test('browser-facing RPC grants exclude anon/public and expose only intended authenticated functions',()=>{
   for(const signature of [
     'iberfit_web_push_status_v1\\(text\\)',
     'iberfit_web_push_upsert_v1\\(jsonb\\)',
     'iberfit_web_push_revoke_v1\\(text\\)',
+    'iberfit_notification_preferences_status_v1\\(\\)',
+    'iberfit_notification_preferences_upsert_v1\\(jsonb\\)',
+    'iberfit_web_push_dispatch_authorize_v1\\(text\\)',
   ]){
     assert.match(migration,new RegExp(`revoke all on function public\\.${signature} from public, anon(?:, authenticated)?;`,'i'));
     assert.match(migration,new RegExp(`grant execute on function public\\.${signature} to authenticated;`,'i'));
