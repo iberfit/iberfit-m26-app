@@ -114,14 +114,20 @@ async function addVirtualAuthenticator(page){
   }});
   return {cdp,authenticatorId};
 }
-async function setDevice(page,cdp,{name,width,height,mobile,touch}){
-  await page.setViewportSize({width,height});
-  await cdp.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:Boolean(mobile),screenWidth:width,screenHeight:height});
-  await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:Boolean(touch),maxTouchPoints:touch?5:1});
-  const metrics=await page.evaluate(()=>({width:innerWidth,height:innerHeight,maxTouchPoints:navigator.maxTouchPoints}));
+function attachPageDiagnostics(page,consoleErrors,pageErrors,label){
+  page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(`${label}: ${String(message.text()||'').slice(0,500)}`);});
+  page.on('pageerror',(error)=>pageErrors.push(`${label}: ${String(error?.message||error||'PAGE_ERROR').slice(0,500)}`));
+}
+async function expectDeviceContext(page,{name,width,height,touch}){
+  const metrics=await page.evaluate(()=>({
+    width:innerWidth,height:innerHeight,maxTouchPoints:navigator.maxTouchPoints,
+    visualWidth:visualViewport?.width??null,visualHeight:visualViewport?.height??null,
+  }));
   expect(metrics.width,`${name}: viewport width`).toBe(width);
   expect(metrics.height,`${name}: viewport height`).toBe(height);
-  if(touch)expect(metrics.maxTouchPoints,`${name}: touch emulation`).toBeGreaterThan(0);
+  if(touch)expect(metrics.maxTouchPoints,`${name}: touch context`).toBeGreaterThan(0);
+  else expect(metrics.maxTouchPoints,`${name}: pointer context`).toBe(0);
+  return metrics;
 }
 async function pointerState(locator){
   if(!await locator.count())return {exists:false,inViewport:false,receivesPointer:false};
@@ -153,7 +159,10 @@ async function clickNav(page,area,{touch=false}={}){
   }
   if(await direct.count()){
     const state=await pointerState(direct);
-    if(state.inViewport&&state.receivesPointer){await activate(direct,touch);return;}
+    expect(state.inViewport,`Admin direct navigation must be inside viewport for ${area}: ${JSON.stringify(state)}`).toBe(true);
+    expect(state.receivesPointer,`Admin direct navigation must receive pointer for ${area}: ${JSON.stringify(state)}`).toBe(true);
+    await activate(direct,touch);
+    return;
   }
   const more=page.locator('details.m26-mobile-more:visible').first();
   await expect(more,`Admin responsive navigation must expose ${area}`).toBeVisible({timeout:5_000});
@@ -182,12 +191,57 @@ async function expectTouchTarget(locator,touch,label){
   expect(rect.height,`${label}: touch height`).toBeGreaterThanOrEqual(44);
   expect(rect.width,`${label}: touch width`).toBeGreaterThanOrEqual(44);
 }
-async function certifyAdminSurface(page,cdp,device,evidence){
-  await setDevice(page,cdp,device);
-  await page.waitForTimeout(180);
+async function mobileNavGeometry(page){
+  const nav=page.locator('.m26-mobile-nav:visible').first();
+  await expect(nav,'mobile bottom navigation must be visible').toBeVisible();
+  return nav.evaluate((el)=>{
+    const rect=el.getBoundingClientRect();
+    const style=getComputedStyle(el);
+    const centerX=rect.left+rect.width/2;
+    const centerY=rect.top+rect.height/2;
+    const hit=document.elementFromPoint(centerX,Math.min(innerHeight-1,centerY));
+    return {
+      position:style.position,bottom:style.bottom,zIndex:style.zIndex,
+      rect:{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height},
+      viewport:{width:innerWidth,height:innerHeight,scrollY,visualHeight:visualViewport?.height??null,visualOffsetTop:visualViewport?.offsetTop??null},
+      receivesPointer:Boolean(hit&&(hit===el||el.contains(hit))),
+    };
+  });
+}
+async function ensureAdminFromStoredSession(page,device){
+  const response=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});
+  expect(response?.status(),`${device.name}: current source`).toBe(200);
+  const choice=page.locator('.m26-role-choice[role="dialog"][aria-modal="true"]');
+  const adminShell=page.locator('.m26-shell[data-m26-role="admin"]');
+  await page.waitForFunction(()=>Boolean(
+    document.querySelector('.m26-role-choice[role="dialog"][aria-modal="true"]')||
+    document.querySelector('.m26-shell[data-m26-role="admin"]')
+  ),null,{timeout:30_000});
+  if(await choice.isVisible().catch(()=>false)){
+    await expect(choice.locator('[data-m26-switch-role="client"]')).toBeVisible();
+    const admin=choice.locator('[data-m26-switch-role="admin"]');
+    await expect(admin).toBeVisible();
+    await expect(choice.locator('[data-m26-switch-role="coach"]'),'Unauthorized Coach app must not be offered on restored session').toHaveCount(0);
+    await activate(admin,device.touch);
+  }
+  await expect(adminShell,`${device.name}: restored authenticated Admin app`).toBeVisible({timeout:30_000});
+  await expect(choice).toHaveCount(0,{timeout:10_000});
+  await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+}
+async function certifyAdminSurface(page,device,evidence){
+  const contextMetrics=await expectDeviceContext(page,device);
   await expect(page.locator('.m26-shell[data-m26-role="admin"]'),`${device.name}: Admin shell`).toBeVisible({timeout:12_000});
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
   await expectViewportHealthy(page,device.name);
+
+  let navGeometry=null;
+  if(device.mobile&&device.width<=500){
+    navGeometry=await mobileNavGeometry(page);
+    expect(navGeometry.position,`mobile bottom navigation must stay fixed: ${JSON.stringify(navGeometry)}`).toBe('fixed');
+    expect(navGeometry.rect.bottom,'mobile bottom navigation must end inside viewport').toBeLessThanOrEqual(device.height+1);
+    expect(navGeometry.rect.top,'mobile bottom navigation must start inside viewport').toBeGreaterThanOrEqual(-1);
+    expect(navGeometry.receivesPointer,'mobile bottom navigation must receive pointer').toBe(true);
+  }
 
   await clickNav(page,'admin-clientes',{touch:device.touch});
   const form=page.locator('[data-admin-form="client-create"]');
@@ -261,7 +315,7 @@ async function certifyAdminSurface(page,cdp,device,evidence){
   await page.waitForTimeout(80);
   await page.evaluate(()=>window.scrollTo(0,0));
   await expectViewportHealthy(page,`${device.name}-after-scroll`);
-  evidence.devices.push({name:device.name,width:device.width,height:device.height,touch:device.touch,passed:true});
+  evidence.devices.push({name:device.name,width:device.width,height:device.height,touch:device.touch,mobile:device.mobile,contextMetrics,navGeometry,passed:true});
 }
 
 test('real QA Admin authenticates with virtual WebAuthn and remains usable across desktop tablet and mobile',async({browser})=>{
@@ -273,16 +327,18 @@ test('real QA Admin authenticates with virtual WebAuthn and remains usable acros
   expect(String(process.env.M26_QA_CLIENT_A_EMAIL||'').toLowerCase()).toBe('qa.rc74.client-a@iberfit.cl');
   expect(String(process.env.M26_SUPABASE_PUBLISHABLE_KEY)).not.toMatch(/service[_-]?role/iu);
 
-  const evidence={schema:'iberfit.qa-admin-authenticated-real.v2',candidate:'05ade2e27fcad28feb0fe9b41bf185a37480b73a',projectRef:QA_PROJECT_REF,source:'current-source-intercepted-at-canary-origin',canaryOrigin:CANARY_ORIGIN,authenticated:true,role:'admin',businessMutationsPerformed:false,authMutationPerformed:true,serviceRoleUsed:false,blocked:[],qaRequests:[],authMutations:[],sameOrigin:[],devices:[],appChoice:null,guidedTourClosedBeforeSettings:false};
-  const context=await browser.newContext({ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:true});
-  await installNetworkPolicy(context,evidence);
-  const page=await context.newPage();
+  const evidence={schema:'iberfit.qa-admin-authenticated-real.v3',candidate:'05ade2e27fcad28feb0fe9b41bf185a37480b73a',projectRef:QA_PROJECT_REF,source:'current-source-intercepted-at-canary-origin',canaryOrigin:CANARY_ORIGIN,authenticated:true,role:'admin',businessMutationsPerformed:false,authMutationPerformed:true,serviceRoleUsed:false,blocked:[],qaRequests:[],authMutations:[],sameOrigin:[],devices:[],appChoice:null,guidedTourClosedBeforeSettings:false,freshDeviceContexts:true};
   const consoleErrors=[];const pageErrors=[];
-  page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,500));});
-  page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,500)));
-  const {cdp,authenticatorId}=await addVirtualAuthenticator(page);
+  let authenticatedState=null;
+  let authContext=null;
+  let cdp=null;
+  let authenticatorId=null;
   try{
-    await setDevice(page,cdp,{name:'desktop',width:1440,height:1000,mobile:false,touch:false});
+    authContext=await browser.newContext({ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false});
+    await installNetworkPolicy(authContext,evidence);
+    const page=await authContext.newPage();
+    attachPageDiagnostics(page,consoleErrors,pageErrors,'auth');
+    ({cdp,authenticatorId}=await addVirtualAuthenticator(page));
     const response=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});
     expect(response?.status()).toBe(200);
     await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_A_EMAIL);
@@ -302,27 +358,47 @@ test('real QA Admin authenticates with virtual WebAuthn and remains usable acros
     const chooseAdmin=choice.locator('[data-m26-switch-role="admin"]');
     await expect(chooseAdmin).toBeVisible();
     await expect(choice.locator('[data-m26-switch-role="coach"]'),'Unauthorized Coach app must not be offered').toHaveCount(0);
+    authenticatedState=await authContext.storageState();
     evidence.appChoice={shown:true,authorized:['client','admin'],selected:'admin'};
     await chooseAdmin.click();
     await expect(page.locator('.m26-shell[data-m26-role="admin"]'),'Admin app opens only after explicit choice').toBeVisible({timeout:30_000});
     await expect(choice).toHaveCount(0,{timeout:10_000});
     await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+  }finally{
+    if(cdp&&authenticatorId)await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
+    if(cdp)await cdp.send('WebAuthn.disable').catch(()=>{});
+    if(authContext)await authContext.close().catch(()=>{});
+  }
 
+  try{
+    expect(authenticatedState,'Authenticated storage state must be captured before device certification').toBeTruthy();
     for(const device of [
       {name:'desktop',width:1440,height:1000,mobile:false,touch:false},
       {name:'tablet',width:1024,height:1366,mobile:true,touch:true},
       {name:'mobile',width:390,height:844,mobile:true,touch:true},
-    ])await certifyAdminSurface(page,cdp,device,evidence);
+    ]){
+      const deviceContext=await browser.newContext({
+        ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',
+        viewport:{width:device.width,height:device.height},hasTouch:device.touch,isMobile:device.mobile,
+        storageState:authenticatedState,
+      });
+      try{
+        await installNetworkPolicy(deviceContext,evidence);
+        const page=await deviceContext.newPage();
+        attachPageDiagnostics(page,consoleErrors,pageErrors,device.name);
+        await ensureAdminFromStoredSession(page,device);
+        await certifyAdminSurface(page,device,evidence);
+      }finally{
+        await deviceContext.close().catch(()=>{});
+      }
+    }
 
     expect(evidence.blocked,'No foreign or business-mutation request may escape the QA gate').toEqual([]);
     expect(evidence.authMutations.length,'WebAuthn must be exercised against the real QA Edge').toBeGreaterThanOrEqual(2);
     expect(consoleErrors,'Admin real QA console errors').toEqual([]);
     expect(pageErrors,'Admin real QA page errors').toEqual([]);
   }finally{
-    await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
-    await cdp.send('WebAuthn.disable').catch(()=>{});
-    await context.close().catch(()=>{});
     await fs.mkdir(OUT_DIR,{recursive:true});
-    await fs.writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify({...evidence,qaRequests:[...new Set(evidence.qaRequests)].slice(0,120),sameOriginRequestCount:evidence.sameOrigin.length,consoleErrors,pageErrors},null,2)+'\n','utf8');
+    await fs.writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify({...evidence,qaRequests:[...new Set(evidence.qaRequests)].slice(0,160),sameOriginRequestCount:evidence.sameOrigin.length,consoleErrors,pageErrors},null,2)+'\n','utf8');
   }
 });
