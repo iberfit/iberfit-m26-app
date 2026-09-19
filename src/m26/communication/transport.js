@@ -76,6 +76,17 @@ export function createCommunicationTransport({runtime,fetchImpl=globalThis.fetch
         updatedAt:result?.updatedAt||null,
       });
     },
+    webPushDeviceStatus:async(token,endpoint)=>{
+      const value=String(endpoint||'').trim();
+      if(!value)throw new Error('M26_PUSH_ENDPOINT_REQUIRED');
+      const result=await rpc('iberfit_web_push_device_status_v1',token,{p_endpoint:value});
+      if(result?.ok!==true)throw new Error('M26_PUSH_DEVICE_STATUS_NOT_CONFIRMED');
+      return Object.freeze({
+        ok:true,
+        deviceActive:result?.deviceActive===true,
+        subscriptionCount:Number.isInteger(result?.subscriptionCount)?Math.max(0,result.subscriptionCount):0,
+      });
+    },
     webPushUpsert:async(token,subscription)=>{
       if(!subscription||typeof subscription!=='object')throw new Error('M26_PUSH_SUBSCRIPTION_REQUIRED');
       const result=await rpc('iberfit_web_push_upsert_v1',token,{p_subscription:subscription});
