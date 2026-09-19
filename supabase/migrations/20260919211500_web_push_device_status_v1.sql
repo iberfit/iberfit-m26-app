@@ -26,8 +26,10 @@ begin
     where s.user_id = v_user_id
       and s.endpoint = v_endpoint
       and s.status = 'active'
-  ), count(*)::integer
-  into v_device_active, v_count
+  ) into v_device_active;
+
+  select count(*)::integer
+    into v_count
   from public.iberfit_web_push_subscriptions s
   where s.user_id = v_user_id
     and s.status = 'active';
