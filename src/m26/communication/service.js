@@ -4,7 +4,17 @@ function canonical(value){if(Array.isArray(value))return value.map(canonical);if
 function fingerprint(command){return JSON.stringify(canonical({type:command.type,entityId:command.entityId,baseRevision:command.baseRevision,payload:command.payload}));}
 export function createCommunicationService({transport,getToken,getState,getRole,isOnline=()=>true,refreshState=async()=>{},webPushPublicKey=globalThis.__IBERFIT_M26_RUNTIME__?.webPushPublicKey||'',getPushRegistration}={}){
   const inFlight=new Map();
-  const webPush=createWebPushCoordinator({transport,getToken,getRegistration:getPushRegistration,vapidPublicKey:webPushPublicKey,isOnline});
+  const webPush=createWebPushCoordinator({
+    transport,
+    getToken,
+    getRegistration:getPushRegistration,
+    vapidPublicKey:webPushPublicKey,
+    getVapidPublicKey:async()=>{
+      const config=await transport.webPushPublicConfig(await getToken());
+      return config.publicKey;
+    },
+    isOnline,
+  });
   const notificationPreferences=Object.freeze({
     async status(){
       if(!isOnline())throw new Error('M26_NOTIFICATION_PREFERENCES_ONLINE_REQUIRED');
