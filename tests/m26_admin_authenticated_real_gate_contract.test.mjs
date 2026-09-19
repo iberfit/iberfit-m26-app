@@ -67,6 +67,9 @@ test('real Admin QA gate requires explicit authorized app choice before entering
 
 test('real Admin QA gate verifies mobile More settings hit targets scroll and overflow',()=>{
   assert.match(spec,/details\.m26-mobile-more:visible/u);
+  assert.match(spec,/document\.elementFromPoint/u);
+  assert.match(spec,/Admin More trigger must be inside viewport/u);
+  assert.match(spec,/Admin More target must receive pointer/u);
   assert.match(spec,/aria-expanded','true'/u);
   assert.match(spec,/settings target receives pointer/u);
   assert.match(spec,/no horizontal overflow/u);
