@@ -3,7 +3,7 @@ name: IBERFIT QA Admin Authenticated Real
 on:
   pull_request:
     branches:
-      - qa/admin-authenticated-multiapp-base-20260918-v8
+      - qa/admin-authenticated-multiapp-base-20260919-v9
     paths:
       - '.github/admin-authenticated-run.trigger'
 
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   certify:
-    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'qa/admin-authenticated-multiapp-base-20260918-v8' }}
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'qa/admin-authenticated-multiapp-base-20260919-v9' }}
     runs-on: ubuntu-latest
     environment: m26-canary-readonly
     timeout-minutes: 25
@@ -38,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_BASE_REF" = 'qa/admin-authenticated-multiapp-base-20260918-v8'
+          test "$GITHUB_BASE_REF" = 'qa/admin-authenticated-multiapp-base-20260919-v9'
           test "$M26_PROJECT_REF" = 'gjztkdwfmunnzhtvxrsu'
           test "$M26_QA_ONLY" = 'true'
           test "$M26_SUPABASE_URL" = 'https://gjztkdwfmunnzhtvxrsu.supabase.co'
@@ -56,6 +56,26 @@ jobs:
 
       - name: Install deterministic dependencies
         run: npm ci
+
+      - name: Pin exact candidate metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          old='05ade2e27fcad28feb0fe9b41bf185a37480b73a'
+          new='521806ada5ce8f5bc6de36a4d539e9d74ec4857a'
+          for raw in [
+              'qa/admin-authenticated-real/admin-authenticated-real.spec.mjs',
+              'tests/m26_admin_authenticated_real_gate_contract.test.mjs',
+          ]:
+              path=Path(raw)
+              text=path.read_text()
+              if old not in text:
+                  raise SystemExit(f'QA_CANDIDATE_MARKER_NOT_FOUND:{raw}')
+              path.write_text(text.replace(old,new))
+          PY
+          grep -q "candidate:'521806ada5ce8f5bc6de36a4d539e9d74ec4857a'" qa/admin-authenticated-real/admin-authenticated-real.spec.mjs
 
       - name: Run QA gate contract
         run: node --test tests/m26_admin_authenticated_real_gate_contract.test.mjs
