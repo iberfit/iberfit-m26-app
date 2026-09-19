@@ -1,6 +1,7 @@
 -- IBERFIT Web Push device-aware status v1
 -- `active` means the supplied browser endpoint belongs to auth.uid() and is active.
 -- `subscriptionCount` remains the total active subscription count for that user.
+-- Contract: another registered device never marks the current browser as active.
 
 -- Replace the zero-argument RPC instead of overloading it, so PostgREST has one
 -- unambiguous public API surface for this operation.
