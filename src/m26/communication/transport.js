@@ -66,5 +66,30 @@ export function createCommunicationTransport({runtime,fetchImpl=globalThis.fetch
       if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))throw new Error('M26_COMMUNICATION_MUTATION_NOT_CONFIRMED');
       return result;
     },
+    webPushStatus:async(token)=>{
+      const result=await rpc('iberfit_web_push_status_v1',token,{});
+      if(result?.ok!==true)throw new Error('M26_PUSH_STATUS_NOT_CONFIRMED');
+      return Object.freeze({
+        ok:true,
+        active:result?.active===true,
+        subscriptionCount:Number.isInteger(result?.subscriptionCount)?Math.max(0,result.subscriptionCount):0,
+        updatedAt:result?.updatedAt||null,
+      });
+    },
+    webPushUpsert:async(token,subscription)=>{
+      if(!subscription||typeof subscription!=='object')throw new Error('M26_PUSH_SUBSCRIPTION_REQUIRED');
+      const result=await rpc('iberfit_web_push_upsert_v1',token,{p_subscription:subscription});
+      if(result?.ok!==true||result?.active!==true)throw new Error('M26_PUSH_UPSERT_NOT_CONFIRMED');
+      return Object.freeze({ok:true,active:true,updatedAt:result?.updatedAt||null});
+    },
+    webPushRevoke:async(token,endpoint=null)=>{
+      const result=await rpc('iberfit_web_push_revoke_v1',token,{p_endpoint:endpoint??null});
+      if(result?.ok!==true)throw new Error('M26_PUSH_REVOKE_NOT_CONFIRMED');
+      return Object.freeze({
+        ok:true,
+        active:result?.active===true,
+        deletedCount:Number.isInteger(result?.deletedCount)?Math.max(0,result.deletedCount):0,
+      });
+    },
   });
 }
