@@ -75,11 +75,14 @@ test('real Admin QA gate requires explicit authorized app choice before entering
 test('real Admin QA gate verifies fixed mobile navigation More hit targets scroll and overflow',()=>{
   assert.match(spec,/details\.m26-mobile-more:visible/u);
   assert.match(spec,/innerWidth<=900/u);
-  assert.match(spec,/Admin direct navigation must expose/u);
-  assert.match(spec,/Admin direct navigation must be inside viewport/u);
+  assert.match(spec,/Admin sidebar navigation must expose/u);
+  assert.match(spec,/Admin direct mobile navigation must be inside viewport/u);
+  assert.match(spec,/Admin direct mobile navigation must receive pointer/u);
   assert.match(spec,/document\.elementFromPoint/u);
   assert.match(spec,/mobile bottom navigation must stay fixed/u);
   assert.match(spec,/mobile bottom navigation must end inside viewport/u);
+  assert.match(spec,/mobile bottom navigation must start inside viewport/u);
+  assert.match(spec,/mobile bottom navigation must receive pointer/u);
   assert.match(spec,/Admin More trigger must be inside viewport/u);
   assert.match(spec,/Admin More target must receive pointer/u);
   assert.match(spec,/aria-expanded','true'/u);
