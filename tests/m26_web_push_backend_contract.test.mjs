@@ -76,7 +76,7 @@ test('notification enqueue is consent gated, subscription gated and deduplicated
 test('delivery claim is service-role-only and never granted to browser roles',()=>{
   const claim=functionBody('iberfit_web_push_claim_v1');
   const finalize=functionBody('iberfit_web_push_finalize_v1');
-  assert.match(claim,/for update skip locked/i);
+  assert.match(claim,/for update(?: of a)? skip locked/i);
   assert.match(claim,/iberfit_web_push_delivery_attempts/i);
   assert.match(finalize,/p_outcome/i);
   for(const signature of ['iberfit_web_push_claim_v1\\(integer\\)','iberfit_web_push_finalize_v1\\(uuid,text,integer,text\\)']){
