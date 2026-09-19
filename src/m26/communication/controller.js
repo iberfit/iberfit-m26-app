@@ -6,7 +6,7 @@ function pushErrorMessage(error){
   if(/ONLINE_REQUIRED/.test(code))return 'Necesitas conexión para cambiar los avisos de este dispositivo.';
   if(/PERMISSION_DENIED/.test(code))return 'El navegador tiene los avisos bloqueados. Puedes cambiarlos desde los permisos del sitio.';
   if(/PERMISSION_NOT_GRANTED/.test(code))return 'No se activaron los avisos. Puedes intentarlo de nuevo cuando quieras.';
-  if(/VAPID_PUBLIC_KEY/.test(code))return 'Los avisos push aún no están activados en este entorno.';
+  if(/VAPID_PUBLIC_KEY|SERVICE_NOT_CONFIGURED/.test(code))return 'Los avisos push aún no están activados en este entorno.';
   if(/UNSUPPORTED|REGISTRATION_REQUIRED/.test(code))return 'Este dispositivo no permite activar avisos web en este momento.';
   return 'No fue posible actualizar los avisos de este dispositivo.';
 }
@@ -52,6 +52,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
   let lastPushSyncAt=0;
   let lastPushControl=null;
   let preferenceSyncInFlight=null;
+  let preferenceHydrationInFlight=null;
   let queuedPreferencePayload=null;
   let retryPreferencePayload=null;
   let lastPreferenceSignature='';
@@ -143,6 +144,28 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     void syncNotificationPreferences(payload,{force});
     return true;
   }
+  async function hydrateNotificationPreferences({force=false}={}){
+    if(!service?.notificationPreferences?.status)return false;
+    if(preferenceHydrationInFlight&&!force)return preferenceHydrationInFlight;
+    preferenceHydrationInFlight=(async()=>{
+      try{
+        const remote=await service.notificationPreferences.status();
+        if(remote?.updatedAt){
+          service.notificationPreferences.applyRemote?.(remote.preferences);
+          lastPreferenceSignature=JSON.stringify(remote.preferences||{});
+          lastPreferenceSyncAt=Date.now();
+          render();
+          return true;
+        }
+        return syncVisibleNotificationPreferences({force:true});
+      }catch{
+        return false;
+      }finally{
+        preferenceHydrationInFlight=null;
+      }
+    })();
+    return preferenceHydrationInFlight;
+  }
   async function onPushAction(event,button){
     event.preventDefault();
     if(pushBusy)return false;
@@ -205,17 +228,12 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     if(!payload)return;
     void syncNotificationPreferences(payload,{force:true,announceFailure:true});
   }
-  function onShellRendered(){
-    queueMicrotask(()=>{
-      syncVisibleNotificationPreferences();
-      void syncPushControl();
-    });
-  }
+  function onShellRendered(){queueMicrotask(()=>{void syncPushControl();});}
   function onOnline(){
     const retry=retryPreferencePayload;
     retryPreferencePayload=null;
     if(retry)void syncNotificationPreferences(retry,{force:true});
-    else syncVisibleNotificationPreferences({force:true});
+    else void hydrateNotificationPreferences({force:true});
     void syncPushControl({force:true});
   }
   return Object.freeze({
@@ -226,7 +244,7 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
       root.addEventListener('m26:shell-rendered',onShellRendered);
       windowLike?.addEventListener?.('online',onOnline,{passive:true});
       queueMicrotask(()=>{
-        syncVisibleNotificationPreferences({force:true});
+        void hydrateNotificationPreferences({force:true});
         void syncPushControl({force:true});
       });
     },
