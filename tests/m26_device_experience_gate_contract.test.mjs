@@ -21,7 +21,8 @@ test('Device Experience policy defines task semantics instead of viewport-only r
   assert.match(policy,/Tablet = entrenar y operar/u);
   assert.match(policy,/Móvil = actuar y completar/u);
   assert.match(policy,/No declarar post-WebAuthn GREEN/u);
-  assert.match(policy,/No declarar Admin autenticado real GREEN/u);
+  assert.match(policy,/Admin autenticado real quedó certificado puntualmente/u);
+  assert.match(policy,/No declarar cobertura recurrente Admin autenticada GREEN/u);
 });
 
 test('Device gate cancels stale runs only within the same PR or ref',()=>{
@@ -94,7 +95,9 @@ test('Phase A gate is explicit about real and synthetic coverage',()=>{
   assert.match(workflow,/device-experience-gate-phase-a/u);
   assert.match(workflow,/DEVICE_WORKFLOW_MATRIX_V1=GREEN/u);
   assert.match(workflow,/KNOWN_GAP_COACH_POST_WEBAUTHN=YELLOW/u);
-  assert.match(workflow,/KNOWN_GAP_ADMIN_AUTHENTICATED=YELLOW/u);
+  assert.match(workflow,/ADMIN_AUTHENTICATED_POINT_IN_TIME=GREEN/u);
+  assert.match(workflow,/KNOWN_GAP_ADMIN_AUTHENTICATED_RECURRING=YELLOW/u);
+  assert.doesNotMatch(workflow,/KNOWN_GAP_ADMIN_AUTHENTICATED=YELLOW/u);
 });
 
 
