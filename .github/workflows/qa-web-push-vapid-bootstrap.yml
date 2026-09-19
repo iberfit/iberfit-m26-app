@@ -1,0 +1,143 @@
+name: IBERFIT QA Web Push VAPID Bootstrap
+
+on:
+  push:
+    branches:
+      - feat/web-push-vapid-bootstrap-20260919-final
+    paths:
+      - '.github/workflows/qa-web-push-vapid-bootstrap.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-qa-web-push-vapid-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap-vapid-qa:
+    name: bootstrap-vapid-qa
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 10
+    env:
+      PROJECT_REF: gjztkdwfmunnzhtvxrsu
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+      M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+      M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+      M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+      IBERFIT_VAPID_SUBJECT: mailto:iberfit.cl@gmail.com
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify pinned Supabase CLI
+        run: npx --yes supabase@2.117.0 --version
+
+      - name: Check current QA Web Push configuration
+        id: current
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          login_body="$RUNNER_TEMP/iberfit-login.json"
+          auth_body="$RUNNER_TEMP/iberfit-auth.json"
+          config_body="$RUNNER_TEMP/iberfit-push-config.json"
+          node <<'NODE' > "$login_body"
+          process.stdout.write(JSON.stringify({
+            email: process.env.M26_QA_COACH_EMAIL,
+            password: process.env.M26_QA_COACH_PASSWORD,
+          }));
+          NODE
+          curl --fail-with-body --silent --show-error \
+            -H "apikey: $M26_SUPABASE_PUBLISHABLE_KEY" \
+            -H 'content-type: application/json' \
+            --data-binary "@$login_body" \
+            "$M26_SUPABASE_URL/auth/v1/token?grant_type=password" > "$auth_body"
+          access_token="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(!x.access_token)process.exit(2);process.stdout.write(x.access_token)" "$auth_body")"
+          echo "::add-mask::$access_token"
+          status="$(curl --silent --show-error -o "$config_body" -w '%{http_code}' \
+            -H "apikey: $M26_SUPABASE_PUBLISHABLE_KEY" \
+            -H "authorization: Bearer $access_token" \
+            -H 'content-type: application/json' \
+            -H 'origin: https://m26-canary.iberfit.cl' \
+            --data '{"action":"config"}' \
+            "$M26_SUPABASE_URL/functions/v1/iberfit-web-push-sender-v1")"
+          configured=false
+          if [ "$status" = '200' ]; then
+            configured="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(x.ok===true&&x.configured===true&&typeof x.publicKey==='string'&&/^[A-Za-z0-9_-]{40,256}$/.test(x.publicKey)?'true':'false')" "$config_body")"
+          fi
+          echo "configured=$configured" >> "$GITHUB_OUTPUT"
+          rm -f "$login_body" "$auth_body" "$config_body"
+
+      - name: Generate and install VAPID secrets in QA
+        if: steps.current.outputs.configured != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          vapid_json="$RUNNER_TEMP/iberfit-vapid.json"
+          vapid_env="$RUNNER_TEMP/iberfit-vapid.env"
+          npx --yes web-push@3.6.7 generate-vapid-keys --json > "$vapid_json"
+          node <<'NODE' "$vapid_json" "$vapid_env"
+          const fs=require('fs');
+          const [source,target]=process.argv.slice(2);
+          const keys=JSON.parse(fs.readFileSync(source,'utf8'));
+          if(!/^[A-Za-z0-9_-]{40,256}$/.test(String(keys.publicKey||'')))throw new Error('IBERFIT_VAPID_PUBLIC_INVALID');
+          if(!/^[A-Za-z0-9_-]{20,256}$/.test(String(keys.privateKey||'')))throw new Error('IBERFIT_VAPID_PRIVATE_INVALID');
+          fs.writeFileSync(target,[
+            `IBERFIT_WEB_PUSH_VAPID_PUBLIC_KEY=${keys.publicKey}`,
+            `IBERFIT_WEB_PUSH_VAPID_PRIVATE_KEY=${keys.privateKey}`,
+            `IBERFIT_WEB_PUSH_VAPID_SUBJECT=${process.env.IBERFIT_VAPID_SUBJECT}`,
+            '',
+          ].join('\n'),{mode:0o600});
+          NODE
+          npx --yes supabase@2.117.0 secrets set --env-file "$vapid_env" --project-ref "$PROJECT_REF"
+          rm -f "$vapid_json" "$vapid_env"
+
+      - name: Verify authenticated public VAPID config without exposing keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          login_body="$RUNNER_TEMP/iberfit-login.json"
+          auth_body="$RUNNER_TEMP/iberfit-auth.json"
+          config_body="$RUNNER_TEMP/iberfit-push-config.json"
+          node <<'NODE' > "$login_body"
+          process.stdout.write(JSON.stringify({
+            email: process.env.M26_QA_COACH_EMAIL,
+            password: process.env.M26_QA_COACH_PASSWORD,
+          }));
+          NODE
+          curl --fail-with-body --silent --show-error \
+            -H "apikey: $M26_SUPABASE_PUBLISHABLE_KEY" \
+            -H 'content-type: application/json' \
+            --data-binary "@$login_body" \
+            "$M26_SUPABASE_URL/auth/v1/token?grant_type=password" > "$auth_body"
+          access_token="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(!x.access_token)process.exit(2);process.stdout.write(x.access_token)" "$auth_body")"
+          echo "::add-mask::$access_token"
+          curl --fail-with-body --silent --show-error \
+            -H "apikey: $M26_SUPABASE_PUBLISHABLE_KEY" \
+            -H "authorization: Bearer $access_token" \
+            -H 'content-type: application/json' \
+            -H 'origin: https://m26-canary.iberfit.cl' \
+            --data '{"action":"config"}' \
+            "$M26_SUPABASE_URL/functions/v1/iberfit-web-push-sender-v1" > "$config_body"
+          node <<'NODE' "$config_body"
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(x.ok!==true||x.configured!==true||!/^[A-Za-z0-9_-]{40,256}$/.test(String(x.publicKey||''))){
+            throw new Error('IBERFIT_QA_WEB_PUSH_CONFIG_NOT_READY');
+          }
+          console.log(JSON.stringify({ok:true,configured:true,version:x.version||null}));
+          NODE
+          rm -f "$login_body" "$auth_body" "$config_body"
