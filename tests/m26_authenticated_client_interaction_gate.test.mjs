@@ -6,6 +6,8 @@ const read=(path)=>fs.readFileSync(path,'utf8');
 const workflow=read('.github/workflows/authenticated-client-interaction.yml');
 const config=read('playwright.authenticated-interaction.config.mjs');
 const spec=read('qa/rc64/authenticated-interaction.spec.mjs');
+const networkPolicy=read('qa/rc64/secure-current-source-auth.mjs');
+const currentSurfaceBuilder=read('qa/rc64/build-current-surface.mjs');
 const shellController=read('src/m26/shell/shell-controller.js');
 const icons=read('src/m26/design/icons.css');
 
@@ -18,12 +20,41 @@ test('authenticated interaction gate stays QA-only and public-key-only',()=>{
 });
 
 test('authenticated interaction network policy remains fail-closed for mutations',()=>{
-  assert.ok(spec.includes("context.route('**/*'"),'all browser requests must be intercepted');
+  assert.ok(spec.includes('installCurrentSourceQaNetworkPolicy(context'),'spec must install the shared current-source QA policy');
+  assert.ok(networkPolicy.includes("context.route('**/*'"),'shared policy must intercept all browser requests');
   assert.ok(spec.includes('READ_ONLY_RPCS'),'read-only RPC allow-list missing');
-  assert.ok(spec.includes("route.abort('blockedbyclient')"),'unexpected network requests must be blocked');
-  assert.ok(spec.includes('Authenticated interaction attempted a mutation or foreign request'));
+  assert.ok(networkPolicy.includes("route.abort('blockedbyclient')"),'unexpected network requests must be blocked');
+  assert.ok(networkPolicy.includes('url.origin!==SUPABASE_ORIGIN'),'foreign origins must fail closed');
+  assert.ok(networkPolicy.includes("method==='POST'&&url.pathname.startsWith(prefix)&&readOnlyRpcs.has"),'RPC access must require the explicit read-only allow-list');
+  assert.ok(!networkPolicy.includes('WEBAUTHN_PATH'),'shared read-only policy must not authorize privileged WebAuthn mutations');
+  assert.ok(spec.includes('Authenticated interaction attempted a business mutation or foreign request'));
   assert.ok(!spec.includes('data-engagement-action="submit-checkin"'),'test must not target submit action');
   assert.ok(!spec.includes('data-engagement-action="save-checkin-draft"'),'test must not target draft-save action');
+});
+
+test('authenticated current-source surface preserves canonical public assets with hosting-root fallback',()=>{
+  for(const source of [
+    'public/isotipo-iberfit.png',
+    'public/iberfit',
+    'public/vendor/repdb',
+  ]){
+    assert.ok(
+      currentSurfaceBuilder.includes(`['${source}','${source}']`),
+      `${source} must remain in the canonical public tree`
+    );
+  }
+  assert.ok(
+    networkPolicy.includes("const PUBLIC_BUILD_ROOT=path.join(BUILD_ROOT,'public')"),
+    'current-source policy must expose the same public fallback root as the hermetic static server'
+  );
+  assert.ok(
+    networkPolicy.includes('const resolved=await readCurrentSource(relative)'),
+    'current-source policy must resolve root and public fallback paths through one shared lookup'
+  );
+  assert.ok(
+    networkPolicy.includes('const publicCandidate=buildCandidate(PUBLIC_BUILD_ROOT,relative)'),
+    'root-style public URLs must fall back to the canonical public tree'
+  );
 });
 
 test('authenticated interaction covers desktop tablet landscape and mobile touch',()=>{

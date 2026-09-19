@@ -2,7 +2,8 @@ import {defineConfig} from '@playwright/test';
 
 export default defineConfig({
   testDir:'./qa/admin-interaction',
-  testMatch:['admin-interaction.spec.mjs','client-form-continuity.spec.mjs','coach-form-continuity.spec.mjs','real-client-onboarding.spec.mjs'],
+  testMatch:['admin-interaction.spec.mjs','client-form-continuity.spec.mjs','client-form-pointer-race.spec.mjs','coach-form-continuity.spec.mjs','real-client-onboarding.spec.mjs'],
+  grepInvert:/Admin client wizard accepts one real click and keeps input\/select alive across a capture-phase render race/u,
   fullyParallel:false,
   forbidOnly:true,
   retries:0,

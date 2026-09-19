@@ -9,6 +9,7 @@ test('RC64.2B QA surface includes authenticated static exercise-media dependenci
 
   assert.match(builder,/\['public\/iberfit','public\/iberfit'\]/u);
   assert.match(builder,/\['public\/vendor\/repdb','public\/vendor\/repdb'\]/u);
+  assert.match(builder,/fs\.mkdirSync\(path\.join\(output,'public'\),\{recursive:true\}\)/u);
 
   for(const required of [
     'public/iberfit/exercises/iberfit-exercise-media-v1.json',

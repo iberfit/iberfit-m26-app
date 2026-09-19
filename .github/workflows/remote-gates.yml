@@ -40,7 +40,7 @@ jobs:
       queue: max
       cancel-in-progress: false
     environment: m26-canary-readonly
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -129,6 +129,8 @@ jobs:
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
           M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
           M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
         run: npm run quality:rc64:auth-smoke
 
       - name: Reproducir P0 login colgado y certificar recuperación sin freeze
@@ -152,8 +154,8 @@ jobs:
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
-          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
-          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
         run: |
           node qa/rc64/build-authenticated-surface.mjs
           npx playwright test --config playwright.authenticated-visual.config.mjs

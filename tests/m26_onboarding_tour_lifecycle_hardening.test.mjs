@@ -154,7 +154,8 @@ test('layout adaptation is root-scoped and does not introduce global scroll or i
 test('mobile tour clears the bottom navigation while desktop compacts chrome without hiding it',()=>{
   const shell=read('src/m26/shell/shell.css');
   const css=__progressiveOnboardingInternals.PROGRESSIVE_ONBOARDING_COMPACT_STYLE_TEXT;
-  assert.match(shell,/\.m26-mobile-nav \{ display: grid; position: sticky; bottom: 0;/u);
+  assert.match(shell,/\.m26-mobile-nav \{ display: grid; position: fixed; left: 0; right: 0; bottom: 0; width: 100%; max-width: 100vw;/u);
+  assert.doesNotMatch(shell,/\.m26-mobile-nav \{[^}]*position: relative;/u,'mobile tour navigation must remain viewport anchored');
   assert.match(css,/\.m26-guided-tour\{\n\s*bottom:calc\(4\.75rem \+ env\(safe-area-inset-bottom\)\)/u);
   assert.match(css,/@media \(min-width:901px\)[\s\S]*\.m26-sidebar/u);
   assert.doesNotMatch(css,/\.m26-mobile-nav[\s\S]{0,120}display\s*:\s*none/iu);

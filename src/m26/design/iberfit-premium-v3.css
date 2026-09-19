@@ -191,7 +191,7 @@
   background:url('/public/isotipo-iberfit.png') center/contain no-repeat;
   filter:grayscale(1) brightness(2.4);
 }
-.m26-shell .m26-workspace>*{position:relative;z-index:1}
+.m26-shell .m26-workspace>*:not(.m26-mobile-nav){position:relative;z-index:1}
 .m26-shell .m26-main{color:var(--iberfit-v3-text)!important;background:transparent!important}
 .m26-shell .m26-topbar{
   color:var(--iberfit-v3-text)!important;
@@ -764,4 +764,3 @@
   }
 }
 /* ADMIN_USER_DIRECTORY_QUIET_V1_END */
-

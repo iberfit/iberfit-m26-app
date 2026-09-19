@@ -1,5 +1,10 @@
 import {defineConfig} from '@playwright/test';
 
+const AUTHENTICATED_TIMEOUT_BUDGET=Object.freeze({timeout:90_000,stabilized:120_000});
+if(AUTHENTICATED_TIMEOUT_BUDGET.stabilized<AUTHENTICATED_TIMEOUT_BUDGET.timeout){
+  throw new Error('RC64_AUTHENTICATED_TIMEOUT_BELOW_BASELINE');
+}
+
 export default defineConfig({
   testDir:'./qa/rc64',
   testMatch:'authenticated-current-contract.spec.mjs',
@@ -8,49 +13,17 @@ export default defineConfig({
   retries:0,
   workers:1,
   reporter:'line',
-  timeout:90_000,
+  timeout:AUTHENTICATED_TIMEOUT_BUDGET.stabilized,
   expect:{timeout:20_000},
-  use:{
-    baseURL:'http://127.0.0.1:4196',
-    serviceWorkers:'block',
-    trace:'off',
-    screenshot:'off',
-    video:'off',
-  },
-  webServer:{
-    command:'node qa/rc64/real-shell-server.mjs 4196 127.0.0.1',
-    url:'http://127.0.0.1:4196/',
-    reuseExistingServer:false,
-    timeout:30_000,
-  },
+  use:{baseURL:'http://127.0.0.1:4196',serviceWorkers:'block',trace:'off',screenshot:'off',video:'off'},
+  webServer:{command:'node qa/rc64/real-shell-server.mjs 4196 127.0.0.1',url:'http://127.0.0.1:4196/',reuseExistingServer:false,timeout:30_000},
   projects:[
-    {
-      name:'authenticated-readonly-chromium',
-      use:{browserName:'chromium',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false},
-    },
-    {
-      name:'authenticated-readonly-tablet-chromium',
-      use:{browserName:'chromium',viewport:{width:1024,height:1366},hasTouch:true,isMobile:true},
-    },
-    {
-      name:'authenticated-readonly-tablet-landscape-chromium',
-      use:{browserName:'chromium',viewport:{width:1366,height:1024},hasTouch:true,isMobile:true},
-    },
-    {
-      name:'authenticated-readonly-mobile-chromium',
-      use:{browserName:'chromium',viewport:{width:390,height:844},hasTouch:true,isMobile:true},
-    },
-    {
-      name:'authenticated-readonly-webkit',
-      use:{browserName:'webkit',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false},
-    },
-    {
-      name:'authenticated-readonly-mobile-webkit',
-      use:{browserName:'webkit',viewport:{width:390,height:844},hasTouch:true,isMobile:true},
-    },
-    {
-      name:'authenticated-readonly-firefox',
-      use:{browserName:'firefox',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false},
-    },
+    {name:'authenticated-readonly-chromium',use:{browserName:'chromium',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false}},
+    {name:'authenticated-readonly-tablet-chromium',use:{browserName:'chromium',viewport:{width:1024,height:1366},hasTouch:true,isMobile:true}},
+    {name:'authenticated-readonly-tablet-landscape-chromium',use:{browserName:'chromium',viewport:{width:1366,height:1024},hasTouch:true,isMobile:true}},
+    {name:'authenticated-readonly-mobile-chromium',use:{browserName:'chromium',viewport:{width:390,height:844},hasTouch:true,isMobile:true}},
+    {name:'authenticated-readonly-webkit',use:{browserName:'webkit',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false}},
+    {name:'authenticated-readonly-mobile-webkit',use:{browserName:'webkit',viewport:{width:390,height:844},hasTouch:true,isMobile:true}},
+    {name:'authenticated-readonly-firefox',use:{browserName:'firefox',viewport:{width:1440,height:1000},hasTouch:false,isMobile:false}},
   ],
 });

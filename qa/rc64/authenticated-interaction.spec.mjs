@@ -1,13 +1,17 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
+import {
+  CANARY_ORIGIN,
+  QA_PROJECT_REF,
+  SUPABASE_ORIGIN,
+  installCurrentSourceQaNetworkPolicy,
+  qaRequestLabel,
+} from './secure-current-source-auth.mjs';
 
-const LOCAL_ORIGIN='http://127.0.0.1:4197';
-const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
-const SUPABASE_ORIGIN=`https://${PROJECT_REF}.supabase.co`;
 const OUT_DIR='recovery/p0-authenticated-interaction';
 const REQUIRED=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
-  'M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD',
+  'M26_QA_CLIENT_B_EMAIL','M26_QA_CLIENT_B_PASSWORD',
 ];
 const READ_ONLY_RPCS=new Set([
   'iberfit_bootstrap_v26',
@@ -23,23 +27,6 @@ const READ_ONLY_RPCS=new Set([
 ]);
 
 function safeSlug(value){return String(value||'unknown').toLowerCase().replace(/[^a-z0-9]+/gu,'-').replace(/^-+|-+$/gu,'').slice(0,80)||'unknown';}
-function requestLabel(request){
-  try{
-    const url=new URL(request.url());
-    const origin=url.origin===SUPABASE_ORIGIN?'qa-supabase':url.origin===LOCAL_ORIGIN?'local':'external';
-    return `${request.method().toUpperCase()} ${origin} ${url.pathname.slice(0,160)}`;
-  }catch{return 'INVALID_REQUEST';}
-}
-function allowedExternalRequest(request){
-  const url=new URL(request.url());
-  const method=request.method().toUpperCase();
-  if(url.origin!==SUPABASE_ORIGIN)return false;
-  if(method==='POST'&&url.pathname==='/auth/v1/token'&&url.searchParams.get('grant_type')==='password')return true;
-  if(method==='GET'&&url.pathname==='/auth/v1/user')return true;
-  if(method==='GET'&&url.pathname==='/rest/v1/domain_command_registry_v26')return true;
-  const prefix='/rest/v1/rpc/';
-  return method==='POST'&&url.pathname.startsWith(prefix)&&READ_ONLY_RPCS.has(url.pathname.slice(prefix.length));
-}
 async function dismissGuidance(page){
   const welcome=page.locator('[data-m26-client-guided-welcome]');
   await welcome.waitFor({state:'visible',timeout:2_000}).catch(()=>{});
@@ -61,6 +48,25 @@ async function dismissGuidance(page){
     await expect(contextGuide).toBeHidden({timeout:5_000}).catch(()=>{});
   }
 }
+async function expectViewportHittable(locator,label){
+  await locator.scrollIntoViewIfNeeded();
+  const hit=await locator.evaluate((el)=>{
+    const rect=el.getBoundingClientRect();
+    const x=rect.left+rect.width/2;
+    const y=rect.top+rect.height/2;
+    const node=document.elementFromPoint(x,y);
+    return {
+      rect:{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height},
+      viewport:{width:innerWidth,height:innerHeight},
+      matches:node===el||Boolean(el.contains(node)),
+    };
+  });
+  expect(hit.rect.left,`${label} left`).toBeGreaterThanOrEqual(0);
+  expect(hit.rect.right,`${label} right`).toBeLessThanOrEqual(hit.viewport.width+1);
+  expect(hit.rect.top,`${label} top`).toBeGreaterThanOrEqual(0);
+  expect(hit.rect.bottom,`${label} bottom`).toBeLessThanOrEqual(hit.viewport.height+1);
+  expect(hit.matches,`${label} must receive pointer hit`).toBe(true);
+}
 async function openArea(page,area){
   await dismissGuidance(page);
   const visible=page.locator(`[data-m26-area="${area}"]:visible`).first();
@@ -69,28 +75,28 @@ async function openArea(page,area){
     await dismissGuidance(page);
     return;
   }
-
   if(area==='ajustes'){
     const settingsMenu=page.locator('.m26-settings-menu:visible').first();
     if(await settingsMenu.count()&&await settingsMenu.isVisible().catch(()=>false)){
       const summary=settingsMenu.locator(':scope > summary').first();
-      await expect(summary,'Desktop/tablet settings trigger must remain usable').toBeVisible();
+      await expect(summary).toBeVisible();
       await expectViewportHittable(summary,'Settings trigger');
       await summary.click();
-      const settingsTarget=settingsMenu.locator('[data-m26-area="ajustes"]').first();
-      await expect(settingsTarget,'Settings popover must expose full settings').toBeVisible();
-      await expectViewportHittable(settingsTarget,'Settings popover target');
-      await settingsTarget.click();
+      const target=settingsMenu.locator('[data-m26-area="ajustes"]').first();
+      await expect(target).toBeVisible();
+      await expectViewportHittable(target,'Settings target');
+      await target.click();
       await dismissGuidance(page);
       return;
     }
   }
-
   const more=page.locator('.m26-client-bottom-nav-more > summary:visible').first();
   await expect(more,`Responsive navigation must expose ${area}`).toBeVisible();
+  await expectViewportHittable(more,'Client More');
   await more.click();
   const target=page.locator(`.m26-client-bottom-nav-menu [data-m26-area="${area}"]:visible`).first();
   await expect(target).toBeVisible();
+  await expectViewportHittable(target,`${area} target`);
   await target.click();
   await dismissGuidance(page);
 }
@@ -109,70 +115,45 @@ async function expectTouchTarget(locator,touch){
   expect(metrics.height).toBeGreaterThanOrEqual(44);
   expect(metrics.fontSize).toBeGreaterThanOrEqual(16);
 }
-async function expectViewportHittable(locator,label){
-  await locator.scrollIntoViewIfNeeded();
-  const hit=await locator.evaluate((el)=>{
-    const rect=el.getBoundingClientRect();
-    const x=rect.left+rect.width/2;
-    const y=rect.top+rect.height/2;
-    const node=document.elementFromPoint(x,y);
-    return {
-      rect:{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height},
-      viewport:{width:innerWidth,height:innerHeight},
-      matches:node===el||Boolean(el.contains(node)),
-      hitTag:String(node?.tagName||''),
-      hitClass:String(node?.className||''),
-    };
-  });
-  expect(hit.rect.left,`${label} left`).toBeGreaterThanOrEqual(0);
-  expect(hit.rect.right,`${label} right`).toBeLessThanOrEqual(hit.viewport.width+1);
-  expect(hit.rect.top,`${label} top`).toBeGreaterThanOrEqual(0);
-  expect(hit.rect.bottom,`${label} bottom`).toBeLessThanOrEqual(hit.viewport.height+1);
-  expect(hit.matches,`${label} must receive pointer hit: ${JSON.stringify(hit)}`).toBe(true);
-}
 
-test('authenticated Client keeps real inputs textarea selects and mobile More usable after pointer release',async({page,context},testInfo)=>{
+test('authenticated Client-only QA keeps inputs textarea selects and mobile More usable after pointer release',async({page,context},testInfo)=>{
   const missing=REQUIRED.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
-  expect(process.env.M26_PROJECT_REF).toBe(PROJECT_REF);
+  expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
   expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
   expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
   expect(String(process.env.M26_SUPABASE_PUBLISHABLE_KEY)).not.toMatch(/service[_-]?role/iu);
-  expect(String(process.env.M26_QA_CLIENT_A_EMAIL||'').toLowerCase()).toBe('qa.rc74.client-a@iberfit.cl');
+  expect(String(process.env.M26_QA_CLIENT_B_EMAIL||'').toLowerCase()).toBe('qa.rc74.client-b@iberfit.cl');
 
   const touch=/mobile|tablet/iu.test(testInfo.project.name);
   const blocked=[];
   const unexpectedFailures=[];
   const consoleErrors=[];
   const pageErrors=[];
-
-  await context.route('**/*',async(route)=>{
-    const request=route.request();
-    let url;
-    try{url=new URL(request.url());}catch{blocked.push('INVALID_URL');await route.abort('blockedbyclient');return;}
-    if(url.origin===LOCAL_ORIGIN||allowedExternalRequest(request)){await route.continue();return;}
-    blocked.push(requestLabel(request));
-    await route.abort('blockedbyclient');
+  await installCurrentSourceQaNetworkPolicy(context,{
+    readOnlyRpcs:READ_ONLY_RPCS,
+    onBlocked:(label)=>blocked.push(label),
   });
-  page.on('requestfailed',(request)=>{const label=requestLabel(request);if(!blocked.includes(label))unexpectedFailures.push(label);});
+  page.on('requestfailed',(request)=>{const label=qaRequestLabel(request);if(!blocked.includes(label))unexpectedFailures.push(label);});
   page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
   page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400)));
 
-  const navigation=await page.goto('/',{waitUntil:'networkidle',timeout:15_000});
+  const navigation=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});
   expect(navigation?.ok()).toBeTruthy();
-  await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_A_EMAIL);
-  await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_A_PASSWORD);
+  await page.getByRole('textbox',{name:'Correo',exact:true}).fill(process.env.M26_QA_CLIENT_B_EMAIL);
+  await page.locator('#m26-login-password').fill(process.env.M26_QA_CLIENT_B_PASSWORD);
   await page.getByRole('button',{name:'Entrar',exact:true}).click();
 
   const shell=page.locator('.m26-shell[data-m26-role="client"]');
-  await expect(shell).toHaveCount(1,{timeout:25_000});
+  await expect(shell,'Client-only QA must open Client directly without privileged MFA').toBeVisible({timeout:25_000});
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+  await expect(page.locator('.m26-role-choice[role="dialog"]'),'Client-only identity must not receive app choice').toHaveCount(0);
+  await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]'),'Client-only identity must not be forced through privileged WebAuthn').toHaveCount(0);
   await dismissGuidance(page);
 
   await openArea(page,'actividad');
   const checkin=page.locator('[data-engagement-form="checkin"]');
   await expect(checkin).toBeVisible({timeout:10_000});
-
   const energy=checkin.locator('input[name="energy"]');
   await activate(page,energy,touch);
   await page.waitForTimeout(250);
@@ -180,7 +161,6 @@ test('authenticated Client keeps real inputs textarea selects and mobile More us
   await page.keyboard.type('7');
   await expect(energy).toHaveValue('7');
   await expectTouchTarget(energy,touch);
-
   const sleep=checkin.locator('input[name="sleep"]');
   await activate(page,sleep,touch);
   await page.waitForTimeout(250);
@@ -189,7 +169,6 @@ test('authenticated Client keeps real inputs textarea selects and mobile More us
   await expect(sleep).toHaveValue('8');
   await expect(energy).toHaveValue('7');
   await expectTouchTarget(sleep,touch);
-
   const notes=checkin.locator('textarea[name="notes"]');
   await activate(page,notes,touch);
   await page.waitForTimeout(250);
@@ -197,7 +176,6 @@ test('authenticated Client keeps real inputs textarea selects and mobile More us
   await page.keyboard.type('Interacción QA sin enviar datos.');
   await expect(notes).toHaveValue('Interacción QA sin enviar datos.');
   await expectTouchTarget(notes,touch);
-
   await page.waitForTimeout(1_100);
   await expect(notes,'Background hydration must not steal active text entry').toBeFocused();
   await expect(energy).toHaveValue('7');
@@ -205,10 +183,9 @@ test('authenticated Client keeps real inputs textarea selects and mobile More us
   await expect(notes).toHaveValue('Interacción QA sin enviar datos.');
 
   await openArea(page,'ajustes');
-  await expect(page.locator('details.m26-client-bottom-nav-more[open]'),'Client More must close before route navigation').toHaveCount(0);
+  await expect(page.locator('details.m26-client-bottom-nav-more[open]')).toHaveCount(0);
   const settings=page.locator('.m26-settings-route');
   await expect(settings).toBeVisible({timeout:10_000});
-
   const language=settings.locator('[data-m26-ui-language]');
   const locale=settings.locator('[data-m26-ui-locale]');
   for(const [name,select] of [['language',language],['locale',locale]]){
@@ -236,20 +213,25 @@ test('authenticated Client keeps real inputs textarea selects and mobile More us
   await expect(notification).toBeChecked({checked:wasChecked});
 
   await page.waitForTimeout(500);
-  expect(blocked,'Authenticated interaction attempted a mutation or foreign request').toEqual([]);
+  expect(blocked,'Authenticated interaction attempted a business mutation or foreign request').toEqual([]);
   expect(unexpectedFailures).toEqual([]);
   expect(consoleErrors).toEqual([]);
   expect(pageErrors).toEqual([]);
 
   await mkdir(OUT_DIR,{recursive:true});
   const evidence={
-    schema:'iberfit.p0.authenticated-client-interaction.v1',
-    source:'current-source-qa-surface',
-    projectRef:PROJECT_REF,
+    schema:'iberfit.p0.authenticated-client-interaction.v3',
+    source:'current-source-intercepted-at-canary-origin',
+    projectRef:QA_PROJECT_REF,
     project:safeSlug(testInfo.project.name),
+    account:'client_b',
     role:'client',
     authenticated:true,
-    serverMutationsPerformed:false,
+    privilegedMfaRequired:false,
+    applicationChoiceRequired:false,
+    mutationsPerformed:false,
+    businessMutationsPerformed:false,
+    authMutationPerformed:false,
     serviceWorkersBlocked:true,
     controls:['checkin.energy','checkin.sleep','checkin.notes','settings.language','settings.locale','settings.notification','client.mobile-more'],
   };

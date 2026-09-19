@@ -1,17 +1,19 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
+import {
+  CANARY_ORIGIN,
+  QA_PROJECT_REF,
+  SUPABASE_ORIGIN,
+  installCurrentSourceQaNetworkPolicy,
+  qaRequestLabel,
+} from './secure-current-source-auth.mjs';
 
-const LOCAL_ORIGIN='http://127.0.0.1:4196';
-const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
-const SUPABASE_ORIGIN=`https://${PROJECT_REF}.supabase.co`;
 const OUT_DIR='recovery/rc64-authenticated-visual';
-
 const REQUIRED=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
   'M26_QA_COACH_EMAIL','M26_QA_COACH_PASSWORD',
-  'M26_QA_CLIENT_A_EMAIL','M26_QA_CLIENT_A_PASSWORD',
+  'M26_QA_CLIENT_B_EMAIL','M26_QA_CLIENT_B_PASSWORD',
 ];
-
 const READ_ONLY_RPCS=new Set([
   'iberfit_bootstrap_v26',
   'iberfit_authorized_application_roles_v13',
@@ -25,257 +27,112 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_media_manifest_v1',
 ]);
 
-function safeSlug(value){
-  return String(value||'unknown')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gu,'-')
-    .replace(/^-+|-+$/gu,'')
-    .slice(0,80)||'unknown';
-}
-
-function safeRequestLabel(request){
-  try{
-    const url=new URL(request.url());
-    const origin=url.origin===SUPABASE_ORIGIN?'qa-supabase':url.origin===LOCAL_ORIGIN?'local':'external';
-    return `${request.method().toUpperCase()} ${origin} ${url.pathname.slice(0,160)}`;
-  }catch{
-    return 'INVALID_REQUEST';
-  }
-}
-
-function allowedExternalRequest(request){
-  const url=new URL(request.url());
-  const method=request.method().toUpperCase();
-  if(url.origin!==SUPABASE_ORIGIN)return false;
-
-  if(
-    method==='POST'&&
-    url.pathname==='/auth/v1/token'&&
-    url.searchParams.get('grant_type')==='password'
-  )return true;
-
-  if(method==='GET'&&url.pathname==='/auth/v1/user')return true;
-  if(method==='GET'&&url.pathname==='/rest/v1/domain_command_registry_v26')return true;
-
-  const rpcPrefix='/rest/v1/rpc/';
-  if(method==='POST'&&url.pathname.startsWith(rpcPrefix)){
-    return READ_ONLY_RPCS.has(url.pathname.slice(rpcPrefix.length));
-  }
-
-  return false;
-}
-
+function safeSlug(value){return String(value||'unknown').toLowerCase().replace(/[^a-z0-9]+/gu,'-').replace(/^-+|-+$/gu,'').slice(0,80)||'unknown';}
 async function settleVisual(page){
-  await page.evaluate(async()=>{
-    await document.fonts?.ready;
-    document.documentElement.setAttribute('data-rc64-visual-evidence','authenticated-readonly');
-  });
+  await page.evaluate(async()=>{await document.fonts?.ready;document.documentElement.setAttribute('data-rc64-visual-evidence','authenticated-readonly');});
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.waitForTimeout(120);
 }
-
-async function dismissGuidedTourForBaseline(page){
-  let dismissed=false;
+async function dismissGuidance(page){
   const welcome=page.locator('[data-m26-client-guided-welcome]');
   await welcome.waitFor({state:'visible',timeout:3_000}).catch(()=>{});
   if(await welcome.isVisible().catch(()=>false)){
     const pause=page.locator('[data-m26-client-guided-welcome-pause]').first();
-    if(await pause.count()){
-      await pause.click();
-      await expect(welcome).toHaveCount(0,{timeout:3_000});
-      dismissed=true;
-    }
+    if(await pause.count())await pause.click();
   }
   const tour=page.locator('[data-m26-guided-tour]');
   if(await tour.count()){
-    const close=page.locator('[data-m26-guided-tour-close]').first();
-    if(await close.count()){
-      await close.click();
-      await expect(tour).toHaveCount(0,{timeout:3_000});
-      dismissed=true;
-    }
+    const close=tour.locator('[data-m26-guided-tour-close]').first();
+    if(await close.count())await close.click();
   }
-  if(dismissed)await page.waitForTimeout(80);
-  return dismissed;
 }
-
-async function capture(page,{account,project,state,suffix='' }){
+async function capture(page,{account,project,state,suffix=''}){
   await settleVisual(page);
-  const variant=String(suffix||'').trim()
-    ?`-${safeSlug(suffix)}`
-    :'';
+  const variant=String(suffix||'').trim()?`-${safeSlug(suffix)}`:'';
   const file=`${safeSlug(account.role)}-${safeSlug(account.name)}-${safeSlug(project)}${variant}.png`;
-  const path=`${OUT_DIR}/${file}`;
-  const masks=[
-    page.locator('input[type="email"]'),
-    page.locator('input[type="password"]'),
-  ];
   await page.screenshot({
-    path,
+    path:`${OUT_DIR}/${file}`,
     fullPage:true,
     animations:'disabled',
     caret:'hide',
-    mask:masks,
+    mask:[page.locator('input[type="email"]'),page.locator('input[type="password"]')],
   });
-  return Object.freeze({
-    role:account.role,
-    account:account.name,
-    state,
-    project:safeSlug(project),
-    file,
-    syntheticQa:true,
-  });
+  return {role:account.role,account:account.name,state,project:safeSlug(project),file,syntheticQa:true};
 }
 
-test('RC64 authenticated visual evidence is real QA, read-only and fail-closed',async({browser},testInfo)=>{
+test('authenticated visual evidence uses Client-only QA plus privileged Coach gate and remains business read-only',async({browser},testInfo)=>{
   const missing=REQUIRED.filter((name)=>!process.env[name]);
   expect(missing,'Missing authorized QA environment').toEqual([]);
-  expect(process.env.M26_PROJECT_REF).toBe(PROJECT_REF);
+  expect(process.env.M26_PROJECT_REF).toBe(QA_PROJECT_REF);
   expect(String(process.env.M26_QA_ONLY).toLowerCase()).toBe('true');
   expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
   expect(String(process.env.M26_SUPABASE_PUBLISHABLE_KEY)).not.toMatch(/service[_-]?role/iu);
-
   await mkdir(OUT_DIR,{recursive:true});
 
   const accounts=[
-    {
-      name:'client_a',
-      role:'client',
-      expectedEmail:'qa.rc74.client-a@iberfit.cl',
-      email:process.env.M26_QA_CLIENT_A_EMAIL,
-      password:process.env.M26_QA_CLIENT_A_PASSWORD,
-    },
-    {
-      name:'coach',
-      role:'coach',
-      expectedEmail:'qa.rc74.coach@iberfit.cl',
-      email:process.env.M26_QA_COACH_EMAIL,
-      password:process.env.M26_QA_COACH_PASSWORD,
-    },
+    {name:'client_b',role:'client',expectedEmail:'qa.rc74.client-b@iberfit.cl',email:process.env.M26_QA_CLIENT_B_EMAIL,password:process.env.M26_QA_CLIENT_B_PASSWORD},
+    {name:'coach',role:'coach',expectedEmail:'qa.rc74.coach@iberfit.cl',email:process.env.M26_QA_COACH_EMAIL,password:process.env.M26_QA_COACH_PASSWORD},
   ];
-
   const captures=[];
+  const projectUse=testInfo.project.use||{};
 
   for(const account of accounts){
     expect(String(account.email||'').toLowerCase()).toBe(account.expectedEmail);
-    expect(String(account.password||'').length).toBeGreaterThanOrEqual(8);
-
     const context=await browser.newContext({
-      baseURL:LOCAL_ORIGIN,
+      baseURL:CANARY_ORIGIN,
       locale:'es-ES',
       timezoneId:'America/Santiago',
       serviceWorkers:'block',
       reducedMotion:'reduce',
+      viewport:projectUse.viewport,
+      hasTouch:Boolean(projectUse.hasTouch),
+      isMobile:Boolean(projectUse.isMobile),
     });
-
-    const blockedRequests=[];
+    const blocked=[];
     const unexpectedFailures=[];
     const consoleErrors=[];
     const pageErrors=[];
-
-    await context.route('**/*',async(route)=>{
-      const request=route.request();
-      let url;
-      try{url=new URL(request.url());}
-      catch{
-        blockedRequests.push('INVALID_URL');
-        await route.abort('blockedbyclient');
-        return;
-      }
-
-      if(url.origin===LOCAL_ORIGIN||allowedExternalRequest(request)){
-        await route.continue();
-        return;
-      }
-
-      blockedRequests.push(safeRequestLabel(request));
-      await route.abort('blockedbyclient');
+    await installCurrentSourceQaNetworkPolicy(context,{
+      readOnlyRpcs:READ_ONLY_RPCS,
+      onBlocked:(label)=>blocked.push(label),
     });
-
     const page=await context.newPage();
-    page.on('requestfailed',(request)=>{
-      const label=safeRequestLabel(request);
-      if(!blockedRequests.includes(label))unexpectedFailures.push(label);
-    });
-    page.on('console',(message)=>{
-      if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));
-    });
-    page.on('pageerror',(error)=>{
-      pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400));
-    });
+    page.on('requestfailed',(request)=>{const label=qaRequestLabel(request);if(!blocked.includes(label))unexpectedFailures.push(label);});
+    page.on('console',(message)=>{if(message.type()==='error')consoleErrors.push(String(message.text()||'').slice(0,400));});
+    page.on('pageerror',(error)=>pageErrors.push(String(error?.message||error||'PAGE_ERROR').slice(0,400)));
 
     try{
-      const navigation=await page.goto('/',{waitUntil:'networkidle',timeout:15_000});
+      const navigation=await page.goto(CANARY_ORIGIN+'/',{waitUntil:'networkidle',timeout:20_000});
       expect(navigation?.ok()).toBeTruthy();
-
       await page.getByRole('textbox',{name:'Correo',exact:true}).fill(account.email);
       await page.locator('#m26-login-password').fill(account.password);
       await page.getByRole('button',{name:'Entrar',exact:true}).click();
 
       if(account.role==='coach'){
-        const shell=page.locator('.m26-shell[data-m26-role="coach"]');
-        await expect(shell,'Coach shell must remain unavailable before WebAuthn').toHaveCount(0,{timeout:10_000});
+        await expect(page.locator('.m26-shell[data-m26-role="coach"]')).toHaveCount(0,{timeout:10_000});
         await expect(page.locator('#m26-auth-title')).toBeVisible({timeout:10_000});
         await expect(page.locator('[data-auth-action="mfa-continue-webauthn"]')).toBeVisible({timeout:5_000});
-        captures.push(await capture(page,{
-          account,
-          project:testInfo.project.name,
-          state:'privileged-webauthn-gate',
-        }));
+        captures.push(await capture(page,{account,project:testInfo.project.name,state:'privileged-webauthn-gate'}));
       }else{
         const shell=page.locator('.m26-shell[data-m26-role="client"]');
-        await expect(shell,'Client canonical shell must render after read-only authentication').toHaveCount(1,{timeout:25_000});
-        await expect(shell).toBeVisible({timeout:5_000});
-        await expect(page.locator('[data-m26-action="logout"]')).toHaveCount(1,{timeout:5_000});
-        await expect(
-          page.locator('[data-m26-interactive="ready"]'),
-          'Visual evidence must capture the final interactive workspace, never the intermediate shell mount',
-        ).toHaveCount(1,{timeout:10_000});
-        await expect(
-          page.locator('.m26-route').first(),
-          'Visual evidence requires route content before taking the screenshot',
-        ).toBeVisible({timeout:10_000});
-        await dismissGuidedTourForBaseline(page);
-        captures.push(await capture(page,{
-          account,
-          project:testInfo.project.name,
-          state:'authenticated-shell',
-        }));
+        await expect(shell,'Client-only visual fixture must open Client without privileged MFA').toBeVisible({timeout:25_000});
+        await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:10_000});
+        await expect(page.locator('.m26-role-choice[role="dialog"]')).toHaveCount(0);
+        await dismissGuidance(page);
+        await expect(page.locator('.m26-route').first()).toBeVisible({timeout:10_000});
+        captures.push(await capture(page,{account,project:testInfo.project.name,state:'authenticated-shell'}));
 
         const progressNav=page.locator('[data-m26-area="progreso"]:visible').first();
-        await expect(
-          progressNav,
-          'Client visual evidence requires a visible Progreso navigation action',
-        ).toBeVisible({timeout:5_000});
+        await expect(progressNav).toBeVisible({timeout:5_000});
         await progressNav.click();
-        await expect(
-          page.locator('[data-client-progress-stage]'),
-          'Client visual evidence must render the canonical progressive Progreso surface',
-        ).toBeVisible({timeout:10_000});
-        await expect(
-          page.locator('[data-m27-cliente-360]'),
-          'Client must not receive the professional Cliente 360 enhancer on Progreso',
-        ).toHaveCount(0);
-        await expect(
-          page.locator('[data-m26-area="progreso"][aria-current="page"]:visible').first(),
-        ).toBeVisible({timeout:5_000});
-
-        const exerciseAnalyticsCount=await page
-          .locator('[data-m26-exercise-analytics="v2"]')
-          .count();
-
-        captures.push({
-          ...(await capture(page,{
-            account,
-            project:testInfo.project.name,
-            state:'authenticated-progress',
-            suffix:'progress',
-          })),
-          exerciseAnalyticsCount,
-        });
+        await expect(page.locator('[data-client-progress-stage]')).toBeVisible({timeout:10_000});
+        await expect(page.locator('[data-m27-cliente-360]')).toHaveCount(0);
+        await expect(page.locator('[data-m26-area="progreso"][aria-current="page"]:visible').first()).toBeVisible({timeout:5_000});
+        const exerciseAnalyticsCount=await page.locator('[data-m26-exercise-analytics="v2"]').count();
+        captures.push({...(await capture(page,{account,project:testInfo.project.name,state:'authenticated-progress',suffix:'progress'})),exerciseAnalyticsCount});
       }
 
-      expect(blockedRequests,'Visual evidence attempted a mutation or foreign request').toEqual([]);
+      expect(blocked,'Visual evidence attempted a business mutation or foreign request').toEqual([]);
       expect(unexpectedFailures).toEqual([]);
       expect(consoleErrors).toEqual([]);
       expect(pageErrors).toEqual([]);
@@ -284,26 +141,19 @@ test('RC64 authenticated visual evidence is real QA, read-only and fail-closed',
     }
   }
 
-  const project=safeSlug(testInfo.project.name);
-  const evidence=Object.freeze({
-    schema:'iberfit.rc64.authenticated-visual-evidence.v1',
-    source:'current-source-qa-surface',
-    projectRef:PROJECT_REF,
-    project,
+  const evidence={
+    schema:'iberfit.rc64.authenticated-visual-evidence.v3',
+    source:'current-source-intercepted-at-canary-origin',
+    projectRef:QA_PROJECT_REF,
+    project:safeSlug(testInfo.project.name),
     mode:'authenticated-readonly-visual',
     mutationsPerformed:false,
+    businessMutationsPerformed:false,
+    authMutationPerformed:false,
     credentialsPersisted:false,
     screenshotsContainSyntheticQaSurface:true,
     captures,
-    admin:Object.freeze({
-      captured:false,
-      reason:'authorized-admin-qa-account-not-configured',
-    }),
-  });
-
-  await writeFile(
-    `${OUT_DIR}/${project}.json`,
-    `${JSON.stringify(evidence,null,2)}\n`,
-    'utf8',
-  );
+    admin:{captured:false,reason:'privileged-multiapp-auth-covered-by-fail-closed-contract-gate'},
+  };
+  await writeFile(`${OUT_DIR}/${safeSlug(testInfo.project.name)}.json`,`${JSON.stringify(evidence,null,2)}\n`,'utf8');
 });

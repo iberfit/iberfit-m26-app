@@ -3,21 +3,25 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const spec=fs.readFileSync('qa/rc64/authenticated-visual-evidence.spec.mjs','utf8');
+const networkPolicy=fs.readFileSync('qa/rc64/secure-current-source-auth.mjs','utf8');
 const config=fs.readFileSync('playwright.authenticated-visual.config.mjs','utf8');
 const workflow=fs.readFileSync('.github/workflows/remote-gates.yml','utf8');
 
 test('authenticated visual evidence captures only authorized read-only QA states',()=>{
-  assert.match(spec,/allowedExternalRequest\(request\)/u);
+  assert.match(spec,/installCurrentSourceQaNetworkPolicy\(context,/u);
+  assert.match(networkPolicy,/context\.route\('\*\*\/\*'/u);
+  assert.match(networkPolicy,/route\.abort\('blockedbyclient'\)/u);
+  assert.match(networkPolicy,/url\.origin!==SUPABASE_ORIGIN/u);
+  assert.doesNotMatch(networkPolicy,/WEBAUTHN_PATH/u);
   assert.match(spec,/READ_ONLY_RPCS/u);
-  assert.match(spec,/blockedRequests,'Visual evidence attempted a mutation or foreign request'/u);
+  assert.match(spec,/blocked,'Visual evidence attempted a business mutation or foreign request'/u);
   assert.match(spec,/mutationsPerformed:false/u);
   assert.match(spec,/credentialsPersisted:false/u);
   assert.match(spec,/screenshotsContainSyntheticQaSurface:true/u);
-  assert.match(spec,/authorized-admin-qa-account-not-configured/u);
+  assert.match(spec,/privileged-multiapp-auth-covered-by-fail-closed-contract-gate/u);
   assert.match(spec,/captured:false/u);
   assert.match(spec,/input\[type="password"\]/u);
   assert.match(spec,/data-m26-interactive="ready"/u);
-  assert.match(spec,/Visual evidence must capture the final interactive workspace/u);
   assert.match(spec,/page\.locator\('\.m26-route'\)\.first\(\)/u);
   assert.match(spec,/data-m26-area="progreso"/u);
   assert.match(spec,/data-m27-cliente-360/u);

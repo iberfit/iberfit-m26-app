@@ -96,7 +96,10 @@ test('cualquier combinación con más de una app autorizada exige elección expl
   const application=read('src/m26/app/application.js');
   const enhancer=read('src/m26/rc39/shell-enhancer.js');
   assert.match(application,/const roleChoiceRequired=canSwitchApplication\(\{role:primaryRole,authorizedRoles\}\)/u);
-  assert.match(application,/if\(!canSwitchApplication\(identity\)\|\|!allowed\.includes\(role\)\)\{/u);
+  assert.match(application,/const applicationAccess=store\.getState\(\)\.applicationAccess\|\|\{\};/u);
+  assert.match(application,/const allowed=Array\.isArray\(applicationAccess\.authorizedRoles\)\?applicationAccess\.authorizedRoles:\[\];/u);
+  assert.match(application,/if\(!canSwitchApplication\(applicationAccess\)\|\|!allowed\.includes\(role\)\)\{/u);
+  assert.doesNotMatch(application,/if\(!canSwitchApplication\(identity\)\|\|!allowed\.includes\(role\)\)\{/u);
   assert.doesNotMatch(application,/!\['coach','admin'\]\.includes\(role\)/u);
   assert.match(application,/const roleChoiceConfirmed=!roleChoiceRequired\|\|Boolean\(requestedRole\)/u);
   assert.match(application,/if\(roleChoiceConfirmed\)writePreferredApplicationRole/u);

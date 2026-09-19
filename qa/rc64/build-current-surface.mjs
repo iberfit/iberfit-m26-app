@@ -24,6 +24,7 @@ function copy(source,target){
 
 fs.rmSync(output,{recursive:true,force:true});
 fs.mkdirSync(output,{recursive:true});
+fs.mkdirSync(path.join(output,'public'),{recursive:true});
 
 for(const [source,target] of entries)copy(source,target);
 
@@ -44,4 +45,5 @@ console.log(JSON.stringify({
   runtimeEnabled:false,
   qaOnly:true,
   shellCssCanonicalParity:true,
+  structuralPublicFallback:true,
 },null,2));
