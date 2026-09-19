@@ -77,6 +77,22 @@ jobs:
           PY
           grep -q "candidate:'1e89d4777b5adfeed768a96d81ce45e0a907c3e6'" qa/admin-authenticated-real/admin-authenticated-real.spec.mjs
 
+      - name: Normalize responsive Admin navigation hit-testing
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('qa/admin-authenticated-real/admin-authenticated-real.spec.mjs')
+          text=path.read_text()
+          old="  if(await direct.count()&&await direct.isVisible().catch(()=>false)){\n"
+          new="""  const directActionable=await direct.count()&&await direct.isVisible().catch(()=>false)&&await direct.evaluate((node)=>{\n    const r=node.getBoundingClientRect();\n    const x=r.left+r.width/2;\n    const y=r.top+r.height/2;\n    if(r.width<=0||r.height<=0||x<0||x>innerWidth||y<0||y>innerHeight)return false;\n    const top=document.elementFromPoint(x,y);\n    return top===node||Boolean(node.contains?.(top));\n  }).catch(()=>false);\n  if(directActionable){\n"""
+          if old not in text:
+              raise SystemExit('QA_RESPONSIVE_NAV_MARKER_NOT_FOUND')
+          path.write_text(text.replace(old,new,1))
+          PY
+          grep -q 'const directActionable=' qa/admin-authenticated-real/admin-authenticated-real.spec.mjs
+
       - name: Run QA gate contract
         run: node --test tests/m26_admin_authenticated_real_gate_contract.test.mjs
 
