@@ -29,6 +29,12 @@ function projectNotificationPreferences(value,{partial=false}={}){
   return Object.freeze(out);
 }
 
+function publicVapidKey(value){
+  const key=String(value||'').trim();
+  if(key.length<40||key.length>256||!/^[A-Za-z0-9_-]+$/u.test(key))throw new Error('M26_PUSH_VAPID_PUBLIC_KEY_INVALID');
+  return key;
+}
+
 export function createCommunicationTransport({runtime,fetchImpl=globalThis.fetch}={}){
   const url=new URL(String(runtime?.url||''));
   if(url.protocol!=='https:'&&!['localhost','127.0.0.1'].includes(url.hostname))throw new Error('M26_COMMUNICATION_HTTPS_REQUIRED');
@@ -61,7 +67,7 @@ export function createCommunicationTransport({runtime,fetchImpl=globalThis.fetch
           ?await response.json().catch(()=>({}))
           :await response.text().catch(()=>'');
       if(!response.ok){
-        const error=new Error(body?.message||body?.error||`M26_HTTP_${response.status}`);
+        const error=new Error(body?.message||body?.error||body?.code||`M26_HTTP_${response.status}`);
         error.status=response.status;
         throw error;
       }
@@ -112,6 +118,11 @@ export function createCommunicationTransport({runtime,fetchImpl=globalThis.fetch
         updatedAt:result?.updatedAt||null,
       });
     },
+    webPushPublicConfig:async(token)=>{
+      const result=await edge('iberfit-web-push-sender-v1',token,{action:'config'});
+      if(result?.ok!==true||result?.configured!==true)throw new Error('M26_PUSH_SERVICE_NOT_CONFIGURED');
+      return Object.freeze({ok:true,configured:true,publicKey:publicVapidKey(result?.publicKey),version:result?.version||null});
+    },
     webPushStatus:async(token,endpoint=null)=>{
       const normalizedEndpoint=endpoint==null?null:String(endpoint).trim();
       const result=await rpc('iberfit_web_push_status_v1',token,{p_endpoint:normalizedEndpoint||null});
@@ -141,7 +152,7 @@ export function createCommunicationTransport({runtime,fetchImpl=globalThis.fetch
     webPushDispatchKick:async(token,operationId)=>{
       const normalizedOperationId=String(operationId||'').trim();
       if(!normalizedOperationId)throw new Error('M26_PUSH_DISPATCH_OPERATION_REQUIRED');
-      const result=await edge('iberfit-web-push-sender-v1',token,{operationId:normalizedOperationId});
+      const result=await edge('iberfit-web-push-sender-v1',token,{action:'dispatch',operationId:normalizedOperationId});
       if(result?.ok!==true)throw new Error('M26_PUSH_DISPATCH_NOT_CONFIRMED');
       return Object.freeze({
         ok:true,
@@ -156,4 +167,5 @@ export function createCommunicationTransport({runtime,fetchImpl=globalThis.fetch
 export const __communicationTransportInternals=Object.freeze({
   NOTIFICATION_PREFERENCE_KEYS,
   projectNotificationPreferences,
+  publicVapidKey,
 });
