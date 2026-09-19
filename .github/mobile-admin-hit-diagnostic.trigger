@@ -1,0 +1,2 @@
+mobile-admin-hit-diagnostic-v1
+candidate=a741f617ef2cdec2f5eb63cb46175900174428b9
