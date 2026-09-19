@@ -5,12 +5,12 @@ import {createWebPushCoordinator,__webPushCoordinatorInternals} from '../src/m26
 const baseState=Object.freeze({supported:true,secure:true,configured:true,permission:'granted',subscribed:false,active:false,reason:'not-subscribed'});
 const serialized=Object.freeze({endpoint:'https://push.example.test/device-a',expirationTime:null,keys:Object.freeze({p256dh:'p256dh',auth:'auth'})});
 
-function harness({state=baseState,online=true,subscribeCreated=true,upsertError=null,permissionResult={ok:true,permission:'granted',reason:null},existingSubscription=null}={}){
+function harness({state=baseState,online=true,subscribeCreated=true,upsertError=null,permissionResult={ok:true,permission:'granted',reason:null},existingSubscription=null,statusResponse={ok:true,active:false,subscriptionCount:0,updatedAt:null}}={}){
   const calls=[];
   const subscription=existingSubscription||{endpoint:serialized.endpoint,getKey:(name)=>new Uint8Array(name==='p256dh'?[1,2,3]:[4,5,6]).buffer};
   const registration={pushManager:{getSubscription:async()=>existingSubscription}};
   const transport={
-    webPushStatus:async(token)=>{calls.push(['status',token]);return {ok:true,active:false,subscriptionCount:0,updatedAt:null};},
+    webPushStatus:async(token,endpoint)=>{calls.push(['status',token,endpoint??null]);return statusResponse;},
     webPushUpsert:async(token,payload)=>{calls.push(['upsert',token,payload]);if(upsertError)throw upsertError;return {ok:true,active:true,subscriptionCount:1,updatedAt:'2026-09-19T19:00:00Z'};},
     webPushRevoke:async(token,endpoint)=>{calls.push(['revoke',token,endpoint??null]);return {ok:true,active:false,deletedCount:endpoint?1:2};},
   };
@@ -36,10 +36,27 @@ test('status is passive and never requests browser permission',async()=>{
   assert.equal(result.reason,'not-subscribed');
   assert.equal(calls.some(([kind])=>kind==='permission'),false);
   assert.equal(calls.filter(([kind])=>kind==='status').length,1);
+  assert.equal(calls.find(([kind])=>kind==='status')[2],null);
+});
+
+test('status asks backend about this exact browser endpoint so another device cannot create a false positive',async()=>{
+  const existing={endpoint:serialized.endpoint};
+  const {coordinator,calls}=harness({
+    state:{...baseState,subscribed:true,active:true,reason:null},
+    existingSubscription:existing,
+    statusResponse:{ok:true,active:false,subscriptionCount:2,updatedAt:'2026-09-19T19:00:00Z'},
+  });
+  const result=await coordinator.status();
+  assert.equal(result.active,false);
+  assert.equal(result.backendActive,false);
+  assert.equal(result.subscriptionCount,2);
+  assert.equal(result.reason,'server-registration-required');
+  assert.equal(calls.find(([kind])=>kind==='status')[2],serialized.endpoint);
 });
 
 test('offline status never contacts backend and does not claim a local subscription is fully active',async()=>{
-  const {coordinator,calls}=harness({online:false,state:{...baseState,subscribed:true,active:true,reason:null}});
+  const existing={endpoint:serialized.endpoint};
+  const {coordinator,calls}=harness({online:false,state:{...baseState,subscribed:true,active:true,reason:null},existingSubscription:existing});
   const result=await coordinator.status();
   assert.equal(result.active,false);
   assert.equal(result.reason,'server-status-unavailable');
