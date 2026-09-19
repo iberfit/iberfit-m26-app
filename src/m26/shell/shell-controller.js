@@ -504,14 +504,6 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
     if(pointerForm)formInteractionTarget=pointerForm;
     interactionPointerTarget=interactiveControl(event.target);
-    const compactMouseTextEntry=
-      String(event.pointerType||'').toLowerCase()==='mouse'&&
-      String(root.dataset?.m26Layout||'')==='compact-touch'
-        ?touchTextEntry(interactionPointerTarget||event.target)
-        :null;
-    if(compactMouseTextEntry&&root.ownerDocument?.activeElement!==compactMouseTextEntry){
-      compactMouseTextEntry.focus?.({preventScroll:true});
-    }
     if(previous&&!interactionPointerTarget&&!formInteractionTarget)queueMicrotask(flushDeferredRender);
   }
   function onPointerRelease(){
@@ -775,7 +767,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     if(preferenceControl){
       const state=store.getState();
       const scope=String(state?.identity?.id||'').trim();
-      const path=String(preferenceControl.getAttribute?.('data-m26-preference')||'').trim();
+      const path=String(preferenceControl.getAttribute('data-m26-preference')||'').trim();
       const value=preferenceControl.type==='checkbox'?Boolean(preferenceControl.checked):String(preferenceControl.value||'').trim();
       try{
         updateIberfitExperiencePreference(scope,path,value);
