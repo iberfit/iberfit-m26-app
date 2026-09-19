@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const shellCss = readFileSync(new URL('../src/m26/shell/shell.css', import.meta.url), 'utf8');
 const premiumCss = readFileSync(new URL('../src/m26/design/iberfit-premium-v3.css', import.meta.url), 'utf8');
+const shellEnhancer = readFileSync(new URL('../src/m26/rc39/shell-enhancer.js', import.meta.url), 'utf8');
 
 test('mobile navigation remains viewport-fixed after premium visual overrides', () => {
   const mobileMedia = shellCss.match(/@media\s*\(max-width:\s*900px\)\s*\{([\s\S]*?)\n\}/);
@@ -26,5 +27,28 @@ test('mobile navigation remains viewport-fixed after premium visual overrides', 
     premiumCss,
     /\.m26-shell\s+\.m26-workspace>\*\s*\{\s*position:\s*relative;/,
     'premium visual layers must never reset every workspace child, including mobile nav, to position:relative',
+  );
+});
+
+test('mobile text entry keeps fixed navigation visible and interactive', () => {
+  assert.match(
+    shellEnhancer,
+    /\.m26-main\s+:is\(input,textarea,select,\[contenteditable="true"\]\)\s*\{\s*scroll-margin-bottom:\s*calc\(6\.5rem\s*\+\s*env\(safe-area-inset-bottom\)\);\s*\}/,
+    'mobile text entry must retain safe-area-aware scroll clearance above the navigation',
+  );
+  assert.doesNotMatch(
+    shellEnhancer,
+    /:focus\)\s*\.m26-mobile-nav\s*,/,
+    'focused form controls must not hide the mobile navigation',
+  );
+  assert.doesNotMatch(
+    shellEnhancer,
+    /\[data-m26-text-entry-active="true"\]\s+\.m26-mobile-nav\s*\{/,
+    'text-entry state must not disable or move the mobile navigation',
+  );
+  assert.doesNotMatch(
+    shellEnhancer,
+    /\.m26-mobile-nav\s*\{[^}]*pointer-events:\s*none\s*;/s,
+    'mobile navigation must remain pointer-interactive while editing',
   );
 });
