@@ -1,0 +1,220 @@
+name: Deploy WEB IBERFIT V6.40
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/deploy-web-v640.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-v640-deploy
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+  WEB_REPO: 'https://github.com/iberfit/iberfitweb.git'
+  WEB_SHA: 'ae24ed71f732a267cdd9fe99f7fa51812b6847c7'
+  WEB_VERSION: '6.40'
+  QA_RUN_ID: '35455803528'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verificar proyecto y rollback real
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo CLOUDFLARE_API_TOKEN_MISSING; exit 41; }
+          curl --fail --silent --show-error -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project.json
+          curl --fail --silent --show-error -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-before.json
+          node <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/project.json','utf8'));
+          if(!p.success||p.result?.name!==process.env.CF_PROJECT) throw new Error('PROJECT_LOOKUP');
+          const domains=p.result.domains||[];
+          if(!domains.includes('iberfit.cl')) throw new Error('IBERFIT_DOMAIN_MISSING');
+          if(domains.includes('app.iberfit.cl')) throw new Error('APP_DOMAIN_COLLISION');
+          const x=JSON.parse(fs.readFileSync('/tmp/deployments-before.json','utf8'));
+          const cur=(x.result||[]).filter(v=>v.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(!cur?.id) throw new Error('NO_ROLLBACK');
+          fs.appendFileSync(process.env.GITHUB_ENV,'ROLLBACK_DEPLOYMENT_ID='+cur.id+'\n');
+          console.log(JSON.stringify({project:p.result.name,domains,rollbackDeploymentId:cur.id},null,2));
+          NODE
+
+      - name: Verificar QA exacta V6.40
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" -o /tmp/qa.json
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/qa.json','utf8'));
+          if(x.head_sha!==process.env.WEB_SHA) throw new Error('QA_SHA:'+x.head_sha);
+          if(x.status!=='completed'||x.conclusion!=='success') throw new Error('QA:'+x.status+':'+x.conclusion);
+          if(x.name!=='QA WEB IBERFIT V6.40 final') throw new Error('QA_NAME:'+x.name);
+          console.log(JSON.stringify({run:x.id,name:x.name,sha:x.head_sha,conclusion:x.conclusion},null,2));
+          NODE
+
+      - name: Descargar candidata certificada exacta
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout "$WEB_REPO" /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=1 origin "$WEB_SHA"
+          git -C /tmp/iberfitweb checkout --detach "$WEB_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "$WEB_SHA"
+          base=/tmp/iberfitweb/candidate/v628
+          test "$(tr -d '\r\n ' < "$base/VERSION")" = "$WEB_VERSION"
+          test "$(find "$base" -name '*.html' -type f | wc -l | tr -d ' ')" = '33'
+          grep -q 'data-aeo-answer' "$base/index.html"
+          grep -q '"@type":"Organization"' "$base/index.html"
+          grep -q '^User-agent: OAI-SearchBot$' "$base/robots.txt"
+          grep -q '  ! Cache-Control' "$base/_headers"
+          grep -q '/assets/aeo.v639.css' "$base/_headers"
+          grep -q 'Cache-Control: public, max-age=31536000, immutable' "$base/_headers"
+
+      - name: Deploy preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_BRANCH="v640-review-${GITHUB_RUN_ID}"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "$CF_PROJECT" --branch "$PREVIEW_BRANCH" --commit-hash "$WEB_SHA" --commit-message 'WEB IBERFIT V6.40 certified preview' | tee /tmp/preview.log
+          PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/preview.log | tail -1)"
+          test -n "$PREVIEW_URL"
+          echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
+
+      - name: Validar preview y headers HTTP reales
+        shell: bash
+        run: |
+          set -euo pipefail
+          cb="$GITHUB_RUN_ID"
+          curl -fsSL --retry 8 --retry-all-errors "$PREVIEW_URL/VERSION?cb=$cb" -o /tmp/version
+          test "$(tr -d '\r\n ' < /tmp/version)" = "$WEB_VERSION"
+          curl -fsSL --retry 8 --retry-all-errors "$PREVIEW_URL/?cb=$cb" -o /tmp/home
+          grep -q 'IBERFIT, explicado de forma directa.' /tmp/home
+          grep -q '"@type":"Organization"' /tmp/home
+          header(){ curl -fsSI --retry 8 --retry-all-errors "$1?cb=$cb" | tr -d '\r' | tr '[:upper:]' '[:lower:]'; }
+          header "$PREVIEW_URL/" > /tmp/h-home
+          header "$PREVIEW_URL/assets/aeo.v639.css" > /tmp/h-css
+          header "$PREVIEW_URL/assets/app.v632.js" > /tmp/h-js
+          header "$PREVIEW_URL/assets/analytics-config.js" > /tmp/h-config
+          header "$PREVIEW_URL/assets/photo-park-training-1448.webp" > /tmp/h-webp
+          header "$PREVIEW_URL/assets/flag-es.svg" > /tmp/h-svg
+          grep -q '^cache-control:.*max-age=0' /tmp/h-home
+          ! grep -q '^cache-control:.*immutable' /tmp/h-home
+          for f in /tmp/h-css /tmp/h-js; do
+            grep -q '^cache-control:.*public' "$f"
+            grep -q '^cache-control:.*max-age=31536000' "$f"
+            grep -q '^cache-control:.*immutable' "$f"
+            ! grep -q '^cache-control:.*no-cache' "$f"
+            ! grep -q '^cache-control:.*must-revalidate' "$f"
+          done
+          grep -q '^cache-control:.*no-store' /tmp/h-config
+          ! grep -q '^cache-control:.*immutable' /tmp/h-config
+          ! grep -q '^cache-control:.*no-cache' /tmp/h-config
+          for f in /tmp/h-webp /tmp/h-svg; do
+            grep -q '^cache-control:.*max-age=2592000' "$f"
+            ! grep -q '^cache-control:.*no-cache' "$f"
+          done
+          grep -q '^x-frame-options: deny' /tmp/h-home
+          grep -q '^x-content-type-options: nosniff' /tmp/h-home
+          grep -q '^strict-transport-security:' /tmp/h-home
+          grep -q '^content-security-policy:' /tmp/h-home
+          echo '--- HOME'; cat /tmp/h-home
+          echo '--- CSS'; cat /tmp/h-css
+          echo '--- JS'; cat /tmp/h-js
+          echo '--- CONFIG'; cat /tmp/h-config
+          echo '--- WEBP'; cat /tmp/h-webp
+          echo '--- SVG'; cat /tmp/h-svg
+
+      - name: Deploy producción
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "$CF_PROJECT" --branch production --commit-hash "$WEB_SHA" --commit-message 'WEB IBERFIT V6.40 production' | tee /tmp/production.log
+          PRODUCTION_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/production.log | tail -1)"
+          test -n "$PRODUCTION_URL"
+          echo "PRODUCTION_URL=$PRODUCTION_URL" >> "$GITHUB_ENV"
+
+      - name: Verificar producción, caché y dominio real
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 8 --retry-all-errors "$PRODUCTION_URL/VERSION?cb=$GITHUB_RUN_ID" -o /tmp/pages-version
+          test "$(tr -d '\r\n ' < /tmp/pages-version)" = "$WEB_VERSION"
+          ok=0
+          for attempt in $(seq 1 20); do
+            suffix="$GITHUB_RUN_ID-$attempt"
+            curl -sSLo /tmp/live-version "https://iberfit.cl/VERSION?cb=$suffix" || true
+            curl -sSLo /tmp/live-home "https://iberfit.cl/?cb=$suffix" || true
+            livever="$(tr -d '\r\n ' < /tmp/live-version 2>/dev/null || true)"
+            home=0
+            grep -q 'IBERFIT, explicado de forma directa.' /tmp/live-home 2>/dev/null && grep -q '"@type":"Organization"' /tmp/live-home 2>/dev/null && home=1 || true
+            if [ "$livever" = "$WEB_VERSION" ] && [ "$home" = 1 ]; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1 || { echo IBERFIT_CL_V640_NOT_CONSISTENT; exit 44; }
+          cb="$GITHUB_RUN_ID-live"
+          liveheader(){ curl -fsSI --retry 8 --retry-all-errors "$1?cb=$cb" | tr -d '\r' | tr '[:upper:]' '[:lower:]'; }
+          liveheader 'https://iberfit.cl/' > /tmp/live-h-home
+          liveheader 'https://iberfit.cl/assets/aeo.v639.css' > /tmp/live-h-css
+          liveheader 'https://iberfit.cl/assets/app.v632.js' > /tmp/live-h-js
+          liveheader 'https://iberfit.cl/assets/analytics-config.js' > /tmp/live-h-config
+          liveheader 'https://iberfit.cl/assets/photo-park-training-1448.webp' > /tmp/live-h-webp
+          grep -q '^cache-control:.*max-age=0' /tmp/live-h-home
+          for f in /tmp/live-h-css /tmp/live-h-js; do grep -q '^cache-control:.*max-age=31536000' "$f"; grep -q '^cache-control:.*immutable' "$f"; ! grep -q '^cache-control:.*no-cache' "$f"; done
+          grep -q '^cache-control:.*no-store' /tmp/live-h-config
+          ! grep -q '^cache-control:.*no-cache' /tmp/live-h-config
+          grep -q '^cache-control:.*max-age=2592000' /tmp/live-h-webp
+          ! grep -q '^cache-control:.*no-cache' /tmp/live-h-webp
+          grep -q '^content-security-policy:' /tmp/live-h-home
+          curl --fail --silent --show-error -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-after.json
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/deployments-after.json','utf8'));
+          const d=(x.result||[]).find(v=>v.environment==='production'&&v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA);
+          if(!d) throw new Error('DEPLOYMENT_NOT_FOUND');
+          const e={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaRun:process.env.QA_RUN_ID,project:process.env.CF_PROJECT,domain:'iberfit.cl',previewUrl:process.env.PREVIEW_URL,productionUrl:process.env.PRODUCTION_URL,deploymentId:d.id,rollbackDeploymentId:process.env.ROLLBACK_DEPLOYMENT_ID,verifiedAt:new Date().toISOString()};
+          fs.writeFileSync('/tmp/V640_PRODUCTION_EVIDENCE.json',JSON.stringify(e,null,2)+'\n');console.log(JSON.stringify(e,null,2));
+          NODE
+
+      - name: Guardar evidencia producción
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-iberfit-v640-production-${{ github.run_id }}
+          path: |
+            /tmp/project.json
+            /tmp/deployments-before.json
+            /tmp/qa.json
+            /tmp/preview.log
+            /tmp/production.log
+            /tmp/deployments-after.json
+            /tmp/V640_PRODUCTION_EVIDENCE.json
+            /tmp/h-*
+            /tmp/live-h-*
+          if-no-files-found: warn
+          retention-days: 30
