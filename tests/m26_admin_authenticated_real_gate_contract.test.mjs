@@ -36,11 +36,18 @@ test('real Admin QA current-source resolver mirrors root then public fallback sa
   assert.match(spec,/not\.toMatch\(\/service\[_-\]\?role\/iu\)/u);
 });
 
-test('real Admin QA gate requires native WebAuthn and covers three device classes',()=>{
+test('real Admin QA gate requires native WebAuthn and covers three fresh device contexts',()=>{
   assert.match(spec,/WebAuthn\.addVirtualAuthenticator/u);
   assert.match(spec,/transport:'internal'/u);
   assert.match(spec,/hasUserVerification:true/u);
   assert.match(spec,/isUserVerified:true/u);
+  assert.match(spec,/authenticatedState=await authContext\.storageState\(\)/u);
+  assert.match(spec,/storageState:authenticatedState/u);
+  assert.match(spec,/isMobile:device\.mobile/u);
+  assert.match(spec,/hasTouch:device\.touch/u);
+  assert.match(spec,/freshDeviceContexts:true/u);
+  assert.doesNotMatch(spec,/Emulation\.setDeviceMetricsOverride/u);
+  assert.doesNotMatch(spec,/Emulation\.setTouchEmulationEnabled/u);
   assert.match(spec,/\{name:'desktop',width:1440,height:1000/u);
   assert.match(spec,/\{name:'tablet',width:1024,height:1366/u);
   assert.match(spec,/\{name:'mobile',width:390,height:844/u);
@@ -65,11 +72,14 @@ test('real Admin QA gate requires explicit authorized app choice before entering
   assert.match(spec,/evidence\.appChoice=\{shown:true,authorized:\['client','admin'\],selected:'admin'\}/u);
 });
 
-test('real Admin QA gate verifies mobile More settings hit targets scroll and overflow',()=>{
+test('real Admin QA gate verifies fixed mobile navigation More hit targets scroll and overflow',()=>{
   assert.match(spec,/details\.m26-mobile-more:visible/u);
   assert.match(spec,/innerWidth<=900/u);
   assert.match(spec,/Admin direct navigation must expose/u);
+  assert.match(spec,/Admin direct navigation must be inside viewport/u);
   assert.match(spec,/document\.elementFromPoint/u);
+  assert.match(spec,/mobile bottom navigation must stay fixed/u);
+  assert.match(spec,/mobile bottom navigation must end inside viewport/u);
   assert.match(spec,/Admin More trigger must be inside viewport/u);
   assert.match(spec,/Admin More target must receive pointer/u);
   assert.match(spec,/aria-expanded','true'/u);
