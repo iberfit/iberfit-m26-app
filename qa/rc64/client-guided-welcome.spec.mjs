@@ -18,6 +18,7 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_application_context_v14',
   'iberfit_privileged_assurance_context_v65d',
   'iberfit_communication_bootstrap_v14',
+  'iberfit_web_push_status_v1',
   'm26_backend_bootstrap_v43',
   'm26_wearable_bootstrap_v44',
   'iberfit_exercise_catalog_public_v1',

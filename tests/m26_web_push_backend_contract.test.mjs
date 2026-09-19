@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const migrations=[
   '../supabase/migrations/20260919183000_web_push_subscriptions_v1.sql',
   '../supabase/migrations/20260919184500_web_push_subscription_ownership_guard.sql',
+  '../supabase/migrations/20260919222000_web_push_device_status_v1.sql',
 ].map(path=>fs.readFileSync(new URL(path,import.meta.url),'utf8'));
 const migration=migrations.join('\n');
 
@@ -56,22 +57,32 @@ test('an endpoint cannot be reassigned across authenticated users',()=>{
   assert.match(body,/push_endpoint_conflict/i);
 });
 
-test('status and revoke can only inspect or delete rows belonging to auth.uid()',()=>{
+test('device status is scoped to auth.uid() and the supplied HTTPS endpoint',()=>{
   const status=functionBody('iberfit_web_push_status_v1');
-  const revoke=functionBody('iberfit_web_push_revoke_v1');
+  assert.match(status,/p_endpoint text default null/i);
+  assert.match(status,/auth\.uid\(\)/i);
   assert.match(status,/s\.user_id = v_user_id/i);
-  assert.match(revoke,/s\.user_id = v_user_id/i);
-  assert.match(revoke,/delete from public\.iberfit_web_push_subscriptions/i);
-  assert.doesNotMatch(status,/select\s+.*endpoint/is);
+  assert.match(status,/s\.endpoint = v_endpoint/i);
+  assert.match(status,/left\(v_endpoint, 8\) <> 'https:\/\/'/i);
+  assert.match(status,/'active', v_device_active/i);
+  assert.match(status,/'subscriptionCount', v_count/i);
+  const returnBlock=status.slice(status.lastIndexOf('return jsonb_build_object'));
+  assert.doesNotMatch(returnBlock,/'endpoint'|'p256dh'|'auth_key'/i);
 });
 
-test('RPC grants exclude anon/public and allow authenticated callers only through narrow functions',()=>{
+test('revoke can only delete rows belonging to auth.uid()',()=>{
+  const revoke=functionBody('iberfit_web_push_revoke_v1');
+  assert.match(revoke,/s\.user_id = v_user_id/i);
+  assert.match(revoke,/delete from public\.iberfit_web_push_subscriptions/i);
+});
+
+test('RPC grants exclude anon/public and expose only the intended authenticated surface',()=>{
   for(const signature of [
-    'iberfit_web_push_status_v1\\(\\)',
+    'iberfit_web_push_status_v1\\(text\\)',
     'iberfit_web_push_upsert_v1\\(jsonb\\)',
     'iberfit_web_push_revoke_v1\\(text\\)',
   ]){
-    assert.match(migration,new RegExp(`revoke all on function public\\.${signature} from public, anon;`,'i'));
+    assert.match(migration,new RegExp(`revoke all on function public\\.${signature} from public, anon(?:, authenticated)?;`,'i'));
     assert.match(migration,new RegExp(`grant execute on function public\\.${signature} to authenticated;`,'i'));
   }
 });

@@ -1,5 +1,30 @@
 import {createCommunicationCommand} from './command-catalog.js';
+import {createWebPushCoordinator} from './web-push.js';
 function canonical(value){if(Array.isArray(value))return value.map(canonical);if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map((k)=>[k,canonical(value[k])]));return value;}
 function fingerprint(command){return JSON.stringify(canonical({type:command.type,entityId:command.entityId,baseRevision:command.baseRevision,payload:command.payload}));}
-export function createCommunicationService({transport,getToken,getState,getRole,isOnline=()=>true,refreshState=async()=>{}}={}){const inFlight=new Map();return Object.freeze({execute(input){if(!isOnline())return Promise.reject(new Error('M26_COMMUNICATION_ONLINE_REQUIRED'));const role=String(getRole()||'').toLowerCase();const command=createCommunicationCommand(input,getState(),role);const signature=fingerprint(command);const current=inFlight.get(command.operationId);if(current){if(current.signature!==signature)return Promise.reject(new Error('M26_COMMUNICATION_OPERATION_ID_COLLISION'));return current.promise;}const promise=(async()=>{const response=await transport.execute(await getToken(),command,{application:role});await refreshState({reason:'communication-ack',response});return Object.freeze({ok:true,command,response});})().finally(()=>inFlight.delete(command.operationId));inFlight.set(command.operationId,{signature,promise});return promise;}});}
+export function createCommunicationService({transport,getToken,getState,getRole,isOnline=()=>true,refreshState=async()=>{},webPushPublicKey=globalThis.__IBERFIT_M26_RUNTIME__?.webPushPublicKey||'',getPushRegistration}={}){
+  const inFlight=new Map();
+  const webPush=createWebPushCoordinator({transport,getToken,getRegistration:getPushRegistration,vapidPublicKey:webPushPublicKey,isOnline});
+  return Object.freeze({
+    execute(input){
+      if(!isOnline())return Promise.reject(new Error('M26_COMMUNICATION_ONLINE_REQUIRED'));
+      const role=String(getRole()||'').toLowerCase();
+      const command=createCommunicationCommand(input,getState(),role);
+      const signature=fingerprint(command);
+      const current=inFlight.get(command.operationId);
+      if(current){
+        if(current.signature!==signature)return Promise.reject(new Error('M26_COMMUNICATION_OPERATION_ID_COLLISION'));
+        return current.promise;
+      }
+      const promise=(async()=>{
+        const response=await transport.execute(await getToken(),command,{application:role});
+        await refreshState({reason:'communication-ack',response});
+        return Object.freeze({ok:true,command,response});
+      })().finally(()=>inFlight.delete(command.operationId));
+      inFlight.set(command.operationId,{signature,promise});
+      return promise;
+    },
+    webPush,
+  });
+}
 export const __communicationServiceInternals=Object.freeze({canonical,fingerprint});

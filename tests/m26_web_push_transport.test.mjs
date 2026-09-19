@@ -25,13 +25,18 @@ function harness(responses=[]){
   return {transport,calls};
 }
 
-test('web push status uses the authenticated narrow RPC and normalizes response',async()=>{
+test('web push status scopes activation to the current browser endpoint',async()=>{
+  const endpoint='https://push.example.test/device-a';
   const {transport,calls}=harness([jsonResponse({ok:true,active:true,subscriptionCount:2,updatedAt:'2026-09-19T18:00:00Z'})]);
-  const result=await transport.webPushStatus('jwt-user');
+  const result=await transport.webPushStatus('jwt-user',endpoint);
   assert.deepEqual(result,{ok:true,active:true,subscriptionCount:2,updatedAt:'2026-09-19T18:00:00Z'});
   assert.match(calls[0].url,/\/rest\/v1\/rpc\/iberfit_web_push_status_v1$/);
   assert.equal(calls[0].options.headers.authorization,'Bearer jwt-user');
-  assert.deepEqual(calls[0].body,{});
+  assert.deepEqual(calls[0].body,{p_endpoint:endpoint});
+
+  const none=harness([jsonResponse({ok:true,active:false,subscriptionCount:2,updatedAt:null})]);
+  await none.transport.webPushStatus('jwt-user');
+  assert.deepEqual(none.calls[0].body,{p_endpoint:null});
 });
 
 test('web push upsert forwards only the subscription payload and requires confirmed activation',async()=>{
