@@ -86,29 +86,9 @@ jobs:
             -H 'Content-Type: application/json' \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" \
             -o CLOUDFLARE_CANARY_PROJECT_BEFORE.json
-          curl --fail --silent --show-error \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H 'Content-Type: application/json' \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" \
-            -o CLOUDFLARE_CANARY_DEPLOYMENTS_BEFORE.json
-          node <<'NODE'
-          const fs=require('fs');
-          const live=JSON.parse(fs.readFileSync('/tmp/canary-version-before.json','utf8'));
-          const project=JSON.parse(fs.readFileSync('CLOUDFLARE_CANARY_PROJECT_BEFORE.json','utf8'));
-          const deployments=JSON.parse(fs.readFileSync('CLOUDFLARE_CANARY_DEPLOYMENTS_BEFORE.json','utf8'));
-          const sha=String(live.sourceSha||'').trim().toLowerCase();
-          if(!/^[0-9a-f]{40}$/.test(sha))throw new Error('CANARY_PREVIOUS_LIVE_SHA_INVALID');
-          if(live.qaOnly!==true||live.environment!=='QA'||live.projectRef!==process.env.QA_SUPABASE_REF)throw new Error('CANARY_PREVIOUS_LIVE_IDENTITY_INVALID');
-          if(!project.success||!project.result)throw new Error('CANARY_CF_PROJECT_LOOKUP_FAILED');
-          if(project.result.name!==process.env.CF_PROJECT)throw new Error(`CANARY_WRONG_CF_PROJECT:${project.result.name}`);
-          if(project.result.production_branch!==process.env.CANARY_BRANCH)throw new Error(`CANARY_CF_BRANCH_MISMATCH:${project.result.production_branch}`);
-          if(!Array.isArray(project.result.domains)||!project.result.domains.includes(process.env.CANARY_DOMAIN))throw new Error('CANARY_DOMAIN_NOT_BOUND');
-          if(!deployments.success||!Array.isArray(deployments.result))throw new Error('CANARY_CF_DEPLOYMENT_LIST_FAILED');
-          const previous=deployments.result.find(d=>d.environment==='production'&&d.deployment_trigger?.metadata?.commit_hash===sha);
-          if(!previous)throw new Error('CANARY_PREVIOUS_DEPLOYMENT_NOT_FOUND');
-          fs.appendFileSync(process.env.GITHUB_ENV,`PREVIOUS_LIVE_SHA=${sha}\nPREVIOUS_DEPLOYMENT_ID=${previous.id}\n`);
-          NODE
-
+          node scripts/ops/select_canary_previous_deployment.mjs \
+            /tmp/canary-version-before.json \
+            CLOUDFLARE_CANARY_PROJECT_BEFORE.json
       - name: Build canonical fail-closed surface
         run: node qa/rc64/build-current-surface.mjs
 
@@ -275,7 +255,6 @@ jobs:
             CANARY_DEPLOYMENT_EVIDENCE.json
             CANARY_ROLLBACK_EVIDENCE.json
             CLOUDFLARE_CANARY_PROJECT_BEFORE.json
-            CLOUDFLARE_CANARY_DEPLOYMENTS_BEFORE.json
             CLOUDFLARE_CANARY_DEPLOYMENTS_AFTER.json
             recovery/RC29_REMOTE_*.json
             recovery/RC74_4_REMOTE_*.json

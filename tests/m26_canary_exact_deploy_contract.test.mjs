@@ -16,6 +16,7 @@ import {
   classifyCanaryLiveSha,
   isRestoredCanaryIdentity,
 } from '../scripts/ops/rollback_canary_on_failure.mjs';
+import {selectCanaryPreviousDeployment} from '../scripts/ops/select_canary_previous_deployment.mjs';
 
 const repo=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const workflow=fs.readFileSync(path.join(repo,'.github','workflows','canary-exact-deploy.yml'),'utf8');
@@ -36,6 +37,41 @@ function fixture(){
   fs.writeFileSync(liveSw,"const VERSION='m26-canary-old';\nconst PREVIOUS_VERSION='m26-canary-older';\n");
   return {temp,build,runtime,liveSw};
 }
+
+function rollbackProjectFixture({canonicalSha=previousSha,canonicalSkipped=false,canonicalStatus='success'}={}){
+  return {
+    success:true,
+    result:{
+      name:'iberfit-m26-canary',
+      production_branch:CANARY_BRANCH,
+      domains:['m26-canary.iberfit.cl'],
+      latest_deployment:{
+        id:'latest-skipped',
+        environment:'production',
+        is_skipped:true,
+        skip_reason:'production_deployments_disabled',
+        deployment_trigger:{metadata:{branch:CANARY_BRANCH,commit_hash:sourceSha}},
+      },
+      canonical_deployment:{
+        id:'canonical-live',
+        environment:'production',
+        is_skipped:canonicalSkipped,
+        latest_stage:{status:canonicalStatus},
+        production_branch:CANARY_BRANCH,
+        deployment_trigger:{metadata:{branch:CANARY_BRANCH,commit_hash:canonicalSha}},
+      },
+    },
+  };
+}
+
+const rollbackLive={sourceSha:previousSha,environment:'QA',projectRef:QA_REF,qaOnly:true,production:false};
+const rollbackSelectorArgs={
+  live:rollbackLive,
+  expectedProject:'iberfit-m26-canary',
+  expectedBranch:CANARY_BRANCH,
+  expectedDomain:'m26-canary.iberfit.cl',
+  expectedQaRef:QA_REF,
+};
 
 test('Canary deploy surface generates exact release identity even when source tree has no version.json',()=>{
   const f=fixture();
@@ -88,6 +124,26 @@ test('Canary deploy surface refuses PROD runtime leakage',()=>{
   }
 });
 
+test('Canary rollback selector uses canonical LIVE even when latest deployment is newer and skipped',()=>{
+  const selected=selectCanaryPreviousDeployment({...rollbackSelectorArgs,project:rollbackProjectFixture()});
+  assert.deepEqual(selected,{previousLiveSha:previousSha,previousDeploymentId:'canonical-live'});
+});
+
+test('Canary rollback selector fails closed when canonical deployment is skipped or does not match LIVE SHA',()=>{
+  assert.throws(
+    ()=>selectCanaryPreviousDeployment({...rollbackSelectorArgs,project:rollbackProjectFixture({canonicalSkipped:true})}),
+    /CANARY_CF_CANONICAL_DEPLOYMENT_SKIPPED/u,
+  );
+  assert.throws(
+    ()=>selectCanaryPreviousDeployment({...rollbackSelectorArgs,project:rollbackProjectFixture({canonicalSha:'3'.repeat(40)})}),
+    /CANARY_CF_CANONICAL_SHA_MISMATCH/u,
+  );
+  assert.throws(
+    ()=>selectCanaryPreviousDeployment({...rollbackSelectorArgs,project:rollbackProjectFixture({canonicalStatus:'failure'})}),
+    /CANARY_CF_CANONICAL_STATUS_INVALID/u,
+  );
+});
+
 test('Canary rollback only accepts candidate or exact previous SHA',()=>{
   assert.equal(classifyCanaryLiveSha(sourceSha,sourceSha,previousSha),'rollback-required');
   assert.equal(classifyCanaryLiveSha(previousSha,sourceSha,previousSha),'already-restored');
@@ -112,6 +168,13 @@ test('Canary workflow binds the same protected QA environment and runtime contra
   assert.match(runtimeStep,/M26_PROJECT_REF: \$\{\{ env\.QA_SUPABASE_REF \}\}/u);
   assert.match(runtimeStep,/M26_QA_ONLY: 'true'/u);
   assert.doesNotMatch(runtimeStep,/M26_QA_SUPABASE_(?:URL|PUBLISHABLE_KEY)/u);
+});
+
+test('Canary workflow captures rollback metadata from canonical deployment rather than first-page history',()=>{
+  const capture=workflow.match(/- name: Capture current Canary rollback metadata[\s\S]*?\n\s+- name: Build canonical fail-closed surface/u)?.[0]||'';
+  assert.match(capture,/select_canary_previous_deployment\.mjs/u);
+  assert.doesNotMatch(capture,/pages\/projects\/\$\{CF_PROJECT\}\/deployments/u);
+  assert.doesNotMatch(capture,/deployments\.result\.find/u);
 });
 
 test('Canary workflow deploys exact SHA only after QA sealing and read-only auth gate, then live-certifies with rollback',()=>{
