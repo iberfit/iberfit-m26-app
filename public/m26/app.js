@@ -628,11 +628,7 @@ const SESSION_VALUE_STYLES=`
 `;
 
 function installSessionValueStyles(document){
-  if(!document?.head||document.getElementById(SESSION_VALUE_STYLE_ID))return;
-  const style=document.createElement('style');
-  style.id=SESSION_VALUE_STYLE_ID;
-  style.textContent=SESSION_VALUE_STYLES;
-  document.head.append(style);
+  return Boolean(document?.head);
 }
 
 function sessionRecordBody(record){

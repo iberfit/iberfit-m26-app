@@ -96,9 +96,7 @@ function premiumMetadataFromActiveEditor(draft,scope=globalThis){
   return {reportType:type,coachComment:reportFormValue(form,'coachComment'),evidence:candidate.evidence,reportModelVersion:PREMIUM_REPORT_MODEL_VERSION,evidenceSignature,sourceAssessmentId:candidate.assessmentId,sourceAssessmentRevision:candidate.assessmentRevision};
 }
 function ensurePremiumReportStyles(document){
-  if(!document?.head||document.getElementById?.(PREMIUM_REPORT_UI_STYLE_ID))return;
-  const style=document.createElement('style');style.id=PREMIUM_REPORT_UI_STYLE_ID;
-  style.textContent='.m26-premium-report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.7rem;margin:.75rem 0 1rem}.m26-premium-report-card{display:grid;gap:.48rem;padding:.85rem;border:1px solid var(--m26-border,rgba(33,49,40,.14));border-radius:.9rem;background:var(--m26-surface,#fff)}.m26-premium-report-card h3{margin:0;font-size:.95rem}.m26-premium-report-card p{margin:0;color:var(--m26-text-muted,#6b675f);font-size:.75rem;line-height:1.45}.m26-premium-report-state{font-size:.65rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--m26-gold,#8f7028)}.m26-premium-report-card[data-ready="true"] .m26-premium-report-state{color:var(--m26-success,#356f50)}.m26-premium-report-evidence{display:grid;gap:.2rem;margin:0;padding-left:1rem;color:var(--m26-text-muted,#6b675f);font-size:.7rem}.m26-premium-coach-comment{display:grid;gap:.35rem;margin-top:.6rem}.m26-premium-coach-comment textarea{min-height:5.5rem;resize:vertical}';document.head.append(style);
+  return Boolean(document?.head);
 }
 function createTextElement(document,tag,text,className=''){const node=document.createElement(tag);if(className)node.className=className;node.textContent=String(text||'');return node;}
 function ensureHiddenField(form,document,name){if(form?.elements?.namedItem?.(name))return;const hidden=document.createElement('input');hidden.type='hidden';hidden.name=name;hidden.value='';form.append(hidden);}

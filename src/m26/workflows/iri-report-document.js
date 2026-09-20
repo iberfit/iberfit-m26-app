@@ -405,9 +405,8 @@ export function buildIriReportHtml({draft,variant='client',clientName='Cliente I
   if(variant==='coach'&&pages.length<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
   const title=`Informe IRI IBERFIT · ${variant==='client'?'Cliente':'Coach / Admin'} · ${context.clientName}`;
   const externalStylesheet=clean(stylesheetHref,2048);
-  const stylesheet=externalStylesheet
-    ?`<link rel="stylesheet" href="${escapeHtml(externalStylesheet)}" data-iri-report-stylesheet>`
-    :`<style>${REPORT_STYLESHEET}</style>`;
+  const stylesheetHrefSafe=externalStylesheet||'/m26/iri-report.css?v=m26-rc45-6-launch-hardening-v1';
+  const stylesheet=`<link rel="stylesheet" href="${escapeHtml(stylesheetHrefSafe)}" data-iri-report-stylesheet>`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title>${stylesheet}</head><body>${pages.join('')}</body></html>`;
 }
 

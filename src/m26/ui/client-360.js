@@ -92,11 +92,7 @@ const CLIENTE_360_CSS=`
 `;
 
 function installStyles(document){
-  if(!document?.head||document.getElementById(STYLE_ID))return;
-  const style=document.createElement('style');
-  style.id=STYLE_ID;
-  style.textContent=CLIENTE_360_CSS;
-  document.head.appendChild(style);
+  return true;
 }
 
 function createElement(document,tag,className,text){

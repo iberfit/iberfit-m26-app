@@ -396,13 +396,7 @@ function tipAvailableInState(tip,node,state,{force=false}={}){
   return !state.seenTipIds.includes(tip.id)&&!state.dismissedTipIds.includes(tip.id);
 }
 function ensureStyle(doc){
-  let node=doc?.querySelector?.('[data-m26-client-context-guide-style]');
-  if(node||!doc?.createElement)return node;
-  node=doc.createElement('style');
-  node.setAttribute('data-m26-client-context-guide-style','');
-  node.textContent=STYLE;
-  doc.head?.append?.(node);
-  return node;
+  return doc?.querySelector?.('[data-iberfit-runtime-static]')||null;
 }
 function presenceHtml(){
   return '<div class="m26-client-guide-presence" data-m26-client-guide-presence aria-hidden="true"><img src="/public/isotipo-iberfit.png" alt="" draggable="false"></div>';
@@ -426,42 +420,15 @@ function clientGuideSuppressed(root){
 function positionPresence(node,targetNode,scope,{arriving=false}={}){
   if(!node||!targetNode)return false;
   try{
-    const rect=targetNode.getBoundingClientRect?.();
-    const width=Number(scope?.innerWidth||0);
-    const height=Number(scope?.innerHeight||0);
-    if(!rect||!width||!height)return false;
-    const mobile=width<=690;
-    const size=mobile?43:48;
-    const margin=mobile?10:14;
-    const gap=mobile?8:10;
-    const bottomReserve=mobile?104:margin;
-    const outside=Number(rect.bottom||0)<margin||Number(rect.top||0)>height-bottomReserve||Number(rect.right||0)<0||Number(rect.left||0)>width;
+    const rect=targetNode.getBoundingClientRect?.();const width=Number(scope?.innerWidth||0);const height=Number(scope?.innerHeight||0);if(!rect||!width||!height)return false;
+    const mobile=width<=690;const margin=mobile?10:14;const bottomReserve=mobile?104:margin;const outside=Number(rect.bottom||0)<margin||Number(rect.top||0)>height-bottomReserve||Number(rect.right||0)<0||Number(rect.left||0)>width;
     if(outside){hidePresence(node);return false;}
-    let left=Number(rect.right||0)+gap;
-    if(left+size>width-margin)left=Number(rect.left||0)-size-gap;
-    if(left<margin)left=Math.min(width-size-margin,Math.max(margin,Number(rect.left||margin)+gap));
-    let top=Number(rect.top||0)+Math.min(24,Math.max(0,(Number(rect.height||size)-size)/2));
-    top=Math.max(margin,Math.min(height-size-bottomReserve,top));
-    const first=!node.hasAttribute?.('data-m26-client-guide-positioned');
-    if(first)node.style.transition='none';
-    node.style.left=`${Math.round(left)}px`;
-    node.style.top=`${Math.round(top)}px`;
-    node.setAttribute?.('data-m26-client-guide-positioned','true');
-    node.classList?.add?.('is-visible');
-    if(!arriving)node.classList?.remove?.('is-arriving');
-    if(arriving&&!reduced(scope)){
-      node.classList?.remove?.('is-arriving');
-      void node.offsetWidth;
-      node.classList?.add?.('is-arriving');
-    }
-    if(first){
-      const restore=()=>node.style?.removeProperty?.('transition');
-      if(typeof scope?.requestAnimationFrame==='function')scope.requestAnimationFrame(restore);
-      else queueMicrotask(restore);
-    }
+    node.setAttribute?.('data-m26-guide-placement',Number(rect.top||0)>height/2?'top':'bottom');node.setAttribute?.('data-m26-client-guide-positioned','true');node.classList?.add?.('is-visible');
+    if(!arriving)node.classList?.remove?.('is-arriving');if(arriving&&!reduced(scope)){node.classList?.remove?.('is-arriving');void node.offsetWidth;node.classList?.add?.('is-arriving');}
     return true;
   }catch{return false;}
 }
+
 function dialogHtml(tip){
   const copyId=tip.copyId||tip.id;
   const action=tip.actionArea
@@ -483,31 +450,10 @@ function isVisibleInViewport(node,scope){
 }
 function positionDialog(dialog,node,scope){
   if(!dialog||!node)return;
-  const width=Number(scope?.innerWidth||0);
-  if(!width||width<=690){
-    dialog.style?.removeProperty?.('top');
-    dialog.style?.removeProperty?.('left');
-    dialog.style?.removeProperty?.('right');
-    dialog.style?.removeProperty?.('bottom');
-    return;
-  }
-  try{
-    const rect=node.getBoundingClientRect?.();
-    const box=dialog.getBoundingClientRect?.();
-    const margin=16;
-    const gap=12;
-    const dialogWidth=Number(box?.width||400);
-    const dialogHeight=Number(box?.height||220);
-    const viewportHeight=Number(scope?.innerHeight||800);
-    let left=Math.min(width-dialogWidth-margin,Math.max(margin,Number(rect?.right||margin)-dialogWidth));
-    let top=Number(rect?.bottom||margin)+gap;
-    if(top+dialogHeight>viewportHeight-margin)top=Math.max(margin,Number(rect?.top||margin)-dialogHeight-gap);
-    dialog.style.left=`${Math.round(left)}px`;
-    dialog.style.top=`${Math.round(top)}px`;
-    dialog.style.right='auto';
-    dialog.style.bottom='auto';
-  }catch{}
+  try{const height=Number(scope?.innerHeight||0);const rect=node.getBoundingClientRect?.();dialog.setAttribute?.('data-m26-guide-placement',height&&Number(rect?.top||0)>height/2?'top':'bottom');}
+  catch{dialog.setAttribute?.('data-m26-guide-placement','bottom');}
 }
+
 
 export function createClientContextualGuideController({
   root,

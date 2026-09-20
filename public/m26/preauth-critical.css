@@ -1,3 +1,4 @@
+/* IBERFIT M26 · critical pre-auth styles; externalized for strict CSP. */
 :root{color-scheme:dark;--iberfit-v3-canvas:#0B1310;--iberfit-v3-surface:#13221C;--iberfit-v3-raised:#1A2E26;--iberfit-v3-text:#F5F5F0;--iberfit-v3-muted:#9AA8A1;--iberfit-v3-gold:#C5A059}
 html,body{margin:0;min-width:0;min-height:100%;background:var(--iberfit-v3-canvas)}
 body{min-height:100dvh;overflow-x:hidden;color:var(--iberfit-v3-text);background:var(--iberfit-v3-canvas);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}

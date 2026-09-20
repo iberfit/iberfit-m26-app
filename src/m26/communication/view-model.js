@@ -134,22 +134,7 @@ export function applyCommercialCoachCockpit(vm,state,now=new Date()){
   });
 }
 function ensurePortfolioStyles(documentLike){
-  if(!documentLike?.createElement||documentLike.getElementById?.(PORTFOLIO_STYLE_ID))return;
-  const style=documentLike.createElement('style');
-  style.id=PORTFOLIO_STYLE_ID;
-  style.textContent=`
-.m26-commercial-portfolio{display:grid;gap:.8rem;padding:1rem 1.05rem;border:1px solid rgba(216,185,111,.14);border-radius:1rem;background:linear-gradient(135deg,rgba(216,185,111,.055),rgba(8,31,21,.72))}
-.m26-commercial-portfolio-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.m26-commercial-portfolio-head h3{margin:.18rem 0 .2rem}.m26-commercial-portfolio-head p{margin:0;color:#aaa499;font-size:.78rem;line-height:1.45}
-.m26-commercial-portfolio-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}.m26-commercial-portfolio-grid div{display:grid;gap:.18rem;padding:.68rem .72rem;border:1px solid rgba(216,185,111,.1);border-radius:.75rem;background:rgba(255,255,255,.018)}.m26-commercial-portfolio-grid span{color:#aaa499;font-size:.68rem}.m26-commercial-portfolio-grid strong{font-size:1rem}
-.m26-commercial-renewal{display:grid;gap:.14rem;margin-top:.18rem;padding:.42rem .5rem;border:1px solid rgba(216,185,111,.11);border-radius:.58rem;background:rgba(255,255,255,.018);text-align:left}.m26-commercial-renewal strong{font-size:.72rem}.m26-commercial-renewal small{font-size:.64rem;line-height:1.35}.m26-commercial-renewal.is-overdue{border-color:rgba(216,185,111,.3);background:rgba(216,185,111,.075)}.m26-commercial-renewal.is-upcoming{border-color:rgba(216,185,111,.2)}.m26-commercial-renewal.is-insufficient{opacity:.74}
-.m26-client-grid[data-renewal-filter="overdue"] .m26-client-card:not([data-client-renewal="overdue"]),
-.m26-client-grid[data-renewal-filter="upcoming"] .m26-client-card:not([data-client-renewal="upcoming"]),
-.m26-client-grid[data-renewal-filter="current"] .m26-client-card:not([data-client-renewal="current"]),
-.m26-client-grid[data-renewal-filter="completed"] .m26-client-card:not([data-client-renewal="completed"]),
-.m26-client-grid[data-renewal-filter="insufficient"] .m26-client-card:not([data-client-renewal="insufficient"]){display:none!important}
-@media(max-width:760px){.m26-commercial-portfolio-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.m26-commercial-portfolio-head{display:grid}}
-`;
-  documentLike.head?.append?.(style);
+  return documentLike?.querySelector?.('[data-iberfit-runtime-static]')||null;
 }
 function renewalDetail(row){
   const date=row?.renewal?.dateLabel;

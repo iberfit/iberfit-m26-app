@@ -27,14 +27,7 @@ const NATIVE_WORKSPACE_CSS=`
 function ownerDocument(root){return root?.ownerDocument||globalThis.document||null;}
 
 export function ensureNativeWorkspaceStyles(doc=globalThis.document){
-  if(!doc?.head||!doc?.createElement)return false;
-  if(doc.getElementById?.(STYLE_ID))return true;
-  const style=doc.createElement('style');
-  style.id=STYLE_ID;
-  style.setAttribute('data-m26-native-workspace',M26_NATIVE_WORKSPACE_VERSION);
-  style.textContent=NATIVE_WORKSPACE_CSS;
-  doc.head.append(style);
-  return true;
+  return Boolean(doc?.head);
 }
 
 function textLabel(control){

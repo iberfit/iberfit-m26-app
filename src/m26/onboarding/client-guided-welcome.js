@@ -513,13 +513,7 @@ function dialogHtml(step){
   return `<aside class="m26-client-guided-welcome" data-m26-client-guided-welcome data-m26-client-guide-side="right" role="dialog" aria-modal="false" aria-labelledby="m26-client-guided-welcome-title" aria-describedby="m26-client-guided-welcome-copy"><div class="m26-client-guided-welcome-head"><div><p class="m26-eyebrow">${esc(tr('eyebrow','Tu guía IBERFIT'))}</p><h2 id="m26-client-guided-welcome-title">${esc(tr(`${copyId}.title`,copyId))}</h2></div><button type="button" class="m26-icon-button" data-m26-client-guided-welcome-pause aria-label="${esc(tr('close','Cerrar por ahora'))}">×</button></div><p class="m26-client-guided-welcome-copy" id="m26-client-guided-welcome-copy">${esc(tr(`${copyId}.body`,''))}</p><div class="m26-client-guided-welcome-actions">${pauseAction}<button type="button" class="m26-primary-action" data-m26-client-guided-welcome-next>${esc(tr(`${copyId}.cta`,'Seguir'))}</button></div></aside>`;
 }
 function ensureStyle(doc){
-  let node=doc?.querySelector?.('[data-m26-client-guided-welcome-style]');
-  if(node||!doc?.createElement)return node;
-  node=doc.createElement('style');
-  node.setAttribute('data-m26-client-guided-welcome-style','');
-  node.textContent=STYLE;
-  doc.head?.append?.(node);
-  return node;
+  return doc?.querySelector?.('[data-iberfit-runtime-static]')||null;
 }
 function ensurePresence(doc){
   let node=doc?.querySelector?.('[data-m26-client-guided-welcome-presence]');
@@ -529,55 +523,11 @@ function ensurePresence(doc){
 }
 function position(node,target,scope,{arriving=false,dialog=null}={}){
   if(!node||!target)return false;
-  try{
-    const rect=target.getBoundingClientRect?.();
-    const width=Number(scope?.innerWidth||0);
-    const height=Number(scope?.innerHeight||0);
-    if(!rect||!width||!height)return false;
-    const mobile=width<=690;
-    const margin=mobile?10:14;
-    const bottomReserve=mobile?96:margin;
-    const presenceRect=node.getBoundingClientRect?.();
-    const nodeWidth=Math.max(1,Number(presenceRect?.width||(mobile?103:137)));
-    const nodeHeight=Math.max(1,Number(presenceRect?.height||(mobile?130:171)));
-    const outside=Number(rect.bottom||0)<margin||Number(rect.top||0)>height-bottomReserve||Number(rect.right||0)<0||Number(rect.left||0)>width;
-    if(outside){node.classList?.remove?.('is-visible','is-arriving');return false;}
-
-    let side='right';
-    let left=margin;
-    let top=margin;
-    if(mobile){
-      left=Math.min(width-nodeWidth-margin,Math.max(margin,width-nodeWidth-18));
-      const dialogRect=dialog?.getBoundingClientRect?.();
-      top=Math.max(margin,Number(dialogRect?.top||height*.56)-nodeHeight+10);
-    }else{
-      const dialogRect=dialog?.getBoundingClientRect?.();
-      const dLeft=Number(dialogRect?.left||rect.left);
-      const dRight=Number(dialogRect?.right||rect.right);
-      const dTop=Number(dialogRect?.top||rect.top);
-      const dBottom=Number(dialogRect?.bottom||rect.bottom);
-      const roomRight=width-dRight-margin;
-      const roomLeft=dLeft-margin;
-      side=roomRight>=nodeWidth+12||roomRight>=roomLeft?'right':'left';
-      left=side==='right'
-        ?Math.min(width-nodeWidth-margin,dRight+10)
-        :Math.max(margin,dLeft-nodeWidth-10);
-      top=Math.min(height-nodeHeight-bottomReserve,Math.max(margin,dBottom-nodeHeight*.72));
-    }
-
-    node.setAttribute?.('data-m26-client-guide-side',side);
-    dialog?.setAttribute?.('data-m26-client-guide-side',side);
-    node.style.left=`${Math.round(left)}px`;
-    node.style.top=`${Math.round(top)}px`;
-    node.classList?.add?.('is-visible');
-    if(arriving&&!reduced(scope)){
-      node.classList?.remove?.('is-arriving');
-      void node.offsetWidth;
-      node.classList?.add?.('is-arriving');
-    }else node.classList?.remove?.('is-arriving');
-    return true;
+  try{const rect=target.getBoundingClientRect?.();const width=Number(scope?.innerWidth||0);const height=Number(scope?.innerHeight||0);if(!rect||!width||!height)return false;const mobile=width<=690;const margin=mobile?10:14;const bottomReserve=mobile?96:margin;const outside=Number(rect.bottom||0)<margin||Number(rect.top||0)>height-bottomReserve||Number(rect.right||0)<0||Number(rect.left||0)>width;if(outside){node.classList?.remove?.('is-visible','is-arriving');return false;}
+    const side=Number(rect.left||0)<width/2?'right':'left';const placement=Number(rect.top||0)>height/2?'top':'bottom';node.setAttribute?.('data-m26-client-guide-side',side);node.setAttribute?.('data-m26-guide-placement',placement);dialog?.setAttribute?.('data-m26-client-guide-side',side);dialog?.setAttribute?.('data-m26-guide-placement',placement);node.classList?.add?.('is-visible');if(arriving&&!reduced(scope)){node.classList?.remove?.('is-arriving');void node.offsetWidth;node.classList?.add?.('is-arriving');}else node.classList?.remove?.('is-arriving');return true;
   }catch{return false;}
 }
+
 
 export function createClientGuidedWelcomeController({
   root,
@@ -687,39 +637,10 @@ export function createClientGuidedWelcomeController({
   }
   function schedulePosition(){
     if(positionFrame!==null||!activeTarget)return;
-    const run=()=>{
-      positionFrame=null;
-      if(dialog&&activeTarget){
-        if(Number(scope?.innerWidth||0)<=690){
-          dialog.style?.removeProperty?.('top');
-          dialog.style?.removeProperty?.('left');
-          dialog.style?.removeProperty?.('right');
-          dialog.style?.removeProperty?.('bottom');
-        }else{
-          try{
-            const rect=activeTarget.getBoundingClientRect?.();
-            const box=dialog.getBoundingClientRect?.();
-            const margin=16,gap=14;
-            const boxWidth=Number(box?.width||432),boxHeight=Number(box?.height||240);
-            const viewportWidth=Number(scope?.innerWidth||1200),viewportHeight=Number(scope?.innerHeight||800);
-            let left=Math.min(viewportWidth-boxWidth-margin,Math.max(margin,Number(rect?.left||margin)));
-            let top=Number(rect?.bottom||margin)+gap;
-            if(top+boxHeight>viewportHeight-margin)top=Math.max(margin,Number(rect?.top||margin)-boxHeight-gap);
-            if(left+boxWidth+128>viewportWidth-margin&&Number(rect?.right||0)-boxWidth-128>margin){
-              left=Math.max(margin,Number(rect.right)-boxWidth);
-            }
-            dialog.style.left=`${Math.round(left)}px`;
-            dialog.style.top=`${Math.round(top)}px`;
-            dialog.style.right='auto';
-            dialog.style.bottom='auto';
-          }catch{}
-        }
-      }
-      if(presence&&activeTarget)position(presence,activeTarget,scope,{dialog});
-    };
-    if(typeof scope?.requestAnimationFrame==='function')positionFrame=scope.requestAnimationFrame(run);
-    else queueMicrotask(run);
+    const run=()=>{positionFrame=null;if(dialog&&activeTarget){try{const rect=activeTarget.getBoundingClientRect?.();const height=Number(scope?.innerHeight||0);dialog.setAttribute?.('data-m26-guide-placement',height&&Number(rect?.top||0)>height/2?'top':'bottom');}catch{}}if(presence&&activeTarget)position(presence,activeTarget,scope,{dialog});};
+    if(typeof scope?.requestAnimationFrame==='function')positionFrame=scope.requestAnimationFrame(run);else queueMicrotask(run);
   }
+
   function show(step,{focus=true}={}){
     const target=targetFor(root,step);
     if(!step||!target)return false;
