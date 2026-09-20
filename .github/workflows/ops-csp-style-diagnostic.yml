@@ -1,0 +1,36 @@
+name: IBERFIT CSP Runtime Style Diagnostic (temporary)
+
+on:
+  push:
+    branches:
+      - ops/canary-live-observe-20260920
+    paths:
+      - '.github/workflows/ops-csp-style-diagnostic.yml'
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_SHA: 'da0e5535a16c73b35c430f9869833b1f6b8af42f'
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Enumerate runtime style injection and style attributes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          echo '=== dynamic style elements ==='
+          grep -RInE "createElement\(['\"]style['\"]\)|\.style\.textContent|style\.textContent" src/m26 public/m26 --include='*.js' --include='*.mjs' || true
+          echo '=== setAttribute style ==='
+          grep -RInE "setAttribute\(['\"]style['\"]|\.style\.[A-Za-z_-]+[[:space:]]*=" src/m26 public/m26 --include='*.js' --include='*.mjs' || true
+          echo '=== target functions ==='
+          grep -nE "ensure.*Style|createElement\(['\"]style['\"]\)" src/m26/workflows/report-workflow.js public/m26/app.js || true
