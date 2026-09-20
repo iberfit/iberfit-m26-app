@@ -1,0 +1,76 @@
+name: IBERFIT M26 RC74.4 Certification
+
+on:
+  push:
+    branches:
+      - "cert/rc74-4/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m26-rc74-4-cert-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    name: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias y Chromium hermético
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Contrato de gobernanza de nombres de ejercicios
+        run: node --test tests/m26_exercise_name_governance.test.mjs
+
+      - name: Certificar upgrade PWA N-1 a N sin bloqueos
+        run: npm run quality:p0:pwa-upgrade
+
+      - name: Certificar P0 auth no-freeze en Chromium hermético
+        run: npm run quality:p0:auth-no-freeze
+
+      - name: Certificar budgets Lighthouse RC74.4
+        run: npm run quality:rc64:performance
+
+      - name: Validar RC74.4 Phase B y regresión Node completa
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: sb_publishable_local_validation_rc74_4
+          M26_RUNTIME_VALIDATION_ONLY: 'true'
+          CF_PAGES_BRANCH: canary/rc74-4
+        run: npm run validate:rc74-4
+
+      - name: Conservar evidencia RC74.4
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc74-4-certificacion-${{ github.run_id }}
+          path: |
+            recovery/RC74_4_*.json
+            recovery/RC74_4_*.md
+            recovery/RC74_4_*.txt
+            .lighthouseci/rc64-2a/summary.json
+          if-no-files-found: warn
+          retention-days: 14
