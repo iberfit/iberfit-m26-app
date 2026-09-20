@@ -121,12 +121,13 @@ for(const role of ROLES){
     await expect(dialog).toHaveCount(0,{timeout:5_000});
     await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ROLE_GENIE_QA__?.openChanges?.().includes(false)===true)).toBe(true);
 
-    const paused=await page.evaluate(()=>({
+    const replayed=await page.evaluate(()=>({
       state:globalThis.__IBERFIT_ROLE_GENIE_QA__?.state?.(),
       openChanges:globalThis.__IBERFIT_ROLE_GENIE_QA__?.openChanges?.(),
     }));
-    expect(paused.state?.status).toBe('in-progress');
-    expect(paused.openChanges).toContain(true);
-    expect(paused.openChanges).toContain(false);
+    expect(replayed.state?.status).toBe('completed');
+    expect(replayed.state?.onboardingCompletedVersion).toBe(2);
+    expect(replayed.openChanges).toContain(true);
+    expect(replayed.openChanges).toContain(false);
   });
 }
