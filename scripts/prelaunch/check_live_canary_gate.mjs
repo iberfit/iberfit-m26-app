@@ -128,7 +128,7 @@ async function inspectViewport(browser,{name,width,height}){
     invariant(await kicker.isVisible(),'PRELAUNCH_LIVE_KICKER_MISSING');
     invariant((await kicker.innerText()).replace(/\s+/gu,' ').trim()==='Entrenamiento personal con criterio','PRELAUNCH_LIVE_KICKER_COPY_MISMATCH');
 
-    const heading=page.locator('.m26-auth-intro h1');
+    const heading=page.locator('.m26-auth-intro h2');
     invariant(await heading.isVisible(),'PRELAUNCH_LIVE_HEADING_MISSING');
     invariant((await heading.innerText()).replace(/\s+/gu,' ').trim()==='Todo tu proceso de entrenamiento, en un solo lugar.','PRELAUNCH_LIVE_HEADING_COPY_MISMATCH');
 
