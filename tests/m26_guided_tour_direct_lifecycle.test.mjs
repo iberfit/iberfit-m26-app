@@ -26,6 +26,7 @@ function createHarness(){
   const activeArea={getAttribute(name){return name==='data-m26-area'?'hoy':null;}};
   const focusable={focus(){}};
   const state={dialog:null,style:null};
+  const staticStyle={dataset:{iberfitRuntimeStatic:true}};
   const documentLike={
     activeElement:{isConnected:true,focus(){}},
     head:{append(node){state.style=node;}},
@@ -54,6 +55,7 @@ function createHarness(){
     },
     querySelector(selector){
       if(selector==='[data-m26-guided-tour]')return state.dialog;
+      if(selector==='[data-iberfit-runtime-static]')return staticStyle;
       if(selector==='[data-m26-guided-tour-style]')return state.style;
       return null;
     },
@@ -127,7 +129,7 @@ test('guided-tour remains a single canonical module while preserving the full pu
   assert.equal(existsSync(new URL('../src/m26/onboarding/guided-tour-core.js',import.meta.url)),false,'guided tour must remain single-module to avoid duplicated UI/i18n surfaces');
 });
 
-test('direct controller can open before mount and destroy without leaving dialog target or style residue',()=>{
+test('direct controller can open before mount and destroy without leaving dialog target or inline style residue',()=>{
   const harness=createHarness();
   const changes=[];
   const controller=publicApi.createGuidedTourController({
@@ -140,7 +142,7 @@ test('direct controller can open before mount and destroy without leaving dialog
   assert.equal(controller.isOpen(),true);
   assert.deepEqual(changes,[true]);
   assert.ok(harness.state.dialog);
-  assert.ok(harness.state.style);
+  assert.equal(harness.state.style,null,'guided tour must use the preloaded static runtime stylesheet');
   assert.equal(harness.target.classList.contains('m26-guided-tour-target'),true);
   assert.equal(harness.target.getAttribute('data-m26-guided-tour-target-active'),'true');
 

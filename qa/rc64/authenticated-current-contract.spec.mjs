@@ -167,7 +167,7 @@ test('current authenticated contract separates privileged fail-closed identities
 
   const accounts=[
     {name:'coach',role:'coach',kind:'privileged',expectedEmail:'qa.rc74.coach@iberfit.cl',email:process.env.M26_QA_COACH_EMAIL,password:process.env.M26_QA_COACH_PASSWORD},
-    {name:'client_a',role:'client',kind:'privileged',expectedEmail:'qa.rc74.client-a@iberfit.cl',email:process.env.M26_QA_CLIENT_A_EMAIL,password:process.env.M26_QA_CLIENT_A_PASSWORD},
+    {name:'client_a',role:'client',kind:'client-only',expectedEmail:'qa.rc74.client-a@iberfit.cl',email:process.env.M26_QA_CLIENT_A_EMAIL,password:process.env.M26_QA_CLIENT_A_PASSWORD},
     {name:'client_b',role:'client',kind:'client-only',expectedEmail:'qa.rc74.client-b@iberfit.cl',email:process.env.M26_QA_CLIENT_B_EMAIL,password:process.env.M26_QA_CLIENT_B_PASSWORD},
   ];
   const evidenceRoles=[];

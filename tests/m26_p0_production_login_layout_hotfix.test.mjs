@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import crypto from 'node:crypto';
 
 const migrationPath='supabase/migrations/20260902033214_p0_restore_primary_auth_read_bootstrap_v1.sql';
 
@@ -61,8 +60,8 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   assert.match(css,/\.m26-auth-card \[hidden\]\{display:none!important\}/u);
 
   const html=fs.readFileSync('public/m26/index.html','utf8');
-  const inline=html.match(/<style data-iberfit-preauth-critical>([\s\S]*?)<\/style>/u)?.[1];
-  assert.equal(inline,css);
+  assert.equal([...html.matchAll(/<style\b/giu)].length,0);
+  assert.match(html,/<link\b[^>]*rel="stylesheet"[^>]*href="\/m26\/preauth-critical\.css"[^>]*data-iberfit-preauth-critical[^>]*>/u);
   assert.match(html,/class="m26-auth-logo" src="\/public\/isotipo-iberfit\.png"/u);
   assert.match(html,/<p class="m26-eyebrow">IBERFIT<\/p>/u);
   assert.match(html,/class="m26-auth-stage"/u);
@@ -81,7 +80,9 @@ test('login surface is premium, responsive, branded and safe on short viewports'
   assert.match(html,/\/src\/m26\/design\/iberfit-premium-v3\.css/u);
   assert.match(html,/<meta name="theme-color" content="#0B1310">/u);
 
-  const hash=crypto.createHash('sha256').update(inline,'utf8').digest('base64');
   const headers=fs.readFileSync('public/m26/_headers','utf8');
-  assert.ok(headers.includes(`style-src 'self' 'sha256-${hash}';`));
+  const csp=headers.split(/\r?\n/u).find((line)=>line.includes('Content-Security-Policy:'))||'';
+  const styleSource=csp.match(/style-src\s+([^;]+);/u)?.[1]||'';
+  assert.match(styleSource,/(?:^|\s)'self'(?:\s|$)/u);
+  assert.doesNotMatch(styleSource,/'unsafe-inline'/u);
 });

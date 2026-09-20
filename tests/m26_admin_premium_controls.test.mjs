@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const css=readFileSync(new URL('../src/m26/admin/admin.css',import.meta.url),'utf8');
-const renderer=readFileSync(new URL('../src/m26/admin/route-render.js',import.meta.url),'utf8');
+const runtimeCss=readFileSync(new URL('../src/m26/design/runtime-static.css',import.meta.url),'utf8');
 
 test('Admin abandona el control gris genérico y usa jerarquía premium IBERFIT',()=>{
   assert.match(css,/ADMIN_PREMIUM_CONTROL_HIERARCHY_BEGIN/u);
@@ -24,7 +24,7 @@ test('Las decisiones prioritarias tienen CTA de marca y estados táctiles claros
 });
 
 test('La mejora visual no neutraliza la zona destructiva',()=>{
-  assert.match(renderer,/m26-admin-danger-body button\[type=submit\]\{background:#9f2d2d!important;border-color:#9f2d2d!important;color:#fff!important\}/u);
+  assert.match(runtimeCss,/\.m26-admin-danger-body button\[type=submit\]\{background:#9f2d2d!important;border-color:#9f2d2d!important;color:#fff!important\}/u);
   assert.match(css,/\.m26-admin-danger-body button\[type="submit"\]/u);
   assert.doesNotMatch(css,/\.m26-admin-danger-body button\[type="submit"\][^{]*\{[^}]*background:\s*linear-gradient/su);
 });

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 import {
   IRI_PROTOCOL_CATALOG,
@@ -14,6 +15,8 @@ import {
 } from '../src/m26/workflows/iri-first-session.js';
 import {renderIriRoute} from '../src/m26/modules/route-render.js';
 import {buildIriReportHtml} from '../src/m26/workflows/iri-report-document.js';
+
+const reportCss=fs.readFileSync(new URL('../public/m26/iri-report.css',import.meta.url),'utf8');
 
 function validRaw(overrides={}){
   return {
@@ -148,9 +151,11 @@ test('formulario IRI no duplica nombres de campos al integrar protocolos',()=>{
 
 test('CSS de impresión elimina rellenos externos y mantiene una página A4 por sección',()=>{
   const html=buildIriReportHtml({draft:validDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
-  assert.match(html,/@media print\{[\s\S]*html,body\{margin:0!important;padding:0!important/);
-  assert.match(html,/width:210mm;height:297mm;margin:0!important/);
-  assert.match(html,/last-child\{break-after:auto;page-break-after:auto\}/);
+  assert.match(html,/rel="stylesheet"[^>]+data-iri-report-stylesheet/u);
+  assert.doesNotMatch(html,/<style\b/iu);
+  assert.match(reportCss,/@media print\{[\s\S]*html,body\{margin:0!important;padding:0!important/u);
+  assert.match(reportCss,/width:210mm;height:297mm;margin:0!important/u);
+  assert.match(reportCss,/last-child\{break-after:auto;page-break-after:auto\}/u);
 });
 
 test('informe Coach incorpora trazabilidad completa y criterio de comparabilidad',()=>{

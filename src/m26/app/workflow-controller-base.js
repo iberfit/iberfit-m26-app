@@ -384,7 +384,7 @@ export function createWorkflowController({
     const bounded=Math.max(0,Math.min(IRI_FIRST_SESSION_STEPS.length-1,Number(index)||0));form.dataset.iriStepIndex=String(bounded);
     const sections=[...(form.querySelectorAll?.('[data-iri-step]')||[])];sections.forEach((section,itemIndex)=>{const active=itemIndex===bounded;section.hidden=!active;section.classList?.toggle?.('is-active',active);});
     const buttons=[...(form.querySelectorAll?.('[data-iri-step-jump]')||[])];buttons.forEach((button,itemIndex)=>{button.classList?.toggle?.('is-active',itemIndex===bounded);button.setAttribute?.('aria-current',itemIndex===bounded?'step':'false');});
-    const progress=form.querySelector?.('[data-iri-progress]');if(progress)progress.style.width=`${Math.round(((bounded+1)/IRI_FIRST_SESSION_STEPS.length)*1000)/10}%`;
+    const progress=form.querySelector?.('[data-iri-progress]');if(progress)progress.setAttribute?.('data-progress-step',String(bounded+1));
     const previous=form.querySelector?.('[data-workflow-action="iri-prev"]');if(previous){const disabled=bounded===0;previous.disabled=disabled;previous.setAttribute?.('aria-disabled',disabled?'true':'false');}
     const next=form.querySelector?.('[data-workflow-action="iri-next"]');if(next)next.hidden=bounded===IRI_FIRST_SESSION_STEPS.length-1;
     const complete=form.querySelector?.('[data-workflow-action="complete-iri"]');if(complete)complete.hidden=bounded!==IRI_FIRST_SESSION_STEPS.length-1;

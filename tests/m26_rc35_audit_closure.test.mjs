@@ -57,10 +57,20 @@ test('wizard IRI incluye protocolos, límites, audio y bloquea informes antes de
   assert.doesNotMatch(html,/Performance|80\/100|Puntuación 80/);
 });
 
-test('informe IRI es autocontenido y no depende de CSS externo en URL blob',()=>{
+test('informe IRI usa CSS externo same-origin y mantiene el ajuste A4 fail-closed',()=>{
   const html=buildIriReportHtml({draft:validReportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',logoUrl:'/public/isotipo-iberfit.png'});
-  assert.match(html,/<style>\s*@page\{size:A4/);assert.doesNotMatch(html,/<link[^>]+iri-report\.css/);
-  assert.match(html,/class="pdf-page/);assert.match(html,/overflow:hidden/);
+  const css=read('public/m26/iri-report.css');
+  const source=read('src/m26/workflows/iri-report-document.js');
+  assert.match(html,/<link rel="stylesheet" href="\/m26\/iri-report\.css\?v=[^"]+" data-iri-report-stylesheet>/u);
+  assert.doesNotMatch(html,/<style\b/iu);
+  assert.doesNotMatch(html,/\sstyle=/iu);
+  assert.match(html,/class="pdf-page/u);
+  assert.match(css,/@page\{size:A4/u);
+  assert.match(css,/overflow:hidden/u);
+  assert.match(source,/function reportStylesheetUrl/u);
+  assert.match(source,/if\(url\.origin!==origin\)throw new Error\('M26_IRI_REPORT_STYLESHEET_ORIGIN_INVALID'\)/u);
+  assert.match(source,/stylesheet\.addEventListener\?\.\('error'/u);
+  assert.match(source,/reportLayoutReady/u);
 });
 
 test('persistencia crítica verifica IRI, ciclo, sesión y nota antes de anunciar éxito',()=>{

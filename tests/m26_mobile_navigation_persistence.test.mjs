@@ -7,7 +7,8 @@ const shellCss=fs.readFileSync(new URL('../src/m26/shell/shell.css',import.meta.
 
 test('mobile authenticated navigation stays viewport anchored on long routes without weakening CSP',()=>{
   assert.doesNotMatch(html,/data-iberfit-mobile-nav-critical/u);
-  assert.equal([...html.matchAll(/<style\b/giu)].length,1,'authenticated navigation must not add inline CSS beyond the canonical preauth style');
+  assert.equal([...html.matchAll(/<style\b/giu)].length,0,'authenticated navigation must not add inline CSS');
+  assert.match(html,/<link\b[^>]*href="\/m26\/preauth-critical\.css"[^>]*data-iberfit-preauth-critical[^>]*>/u);
   assert.match(
     shellCss,
     /\.m26-mobile-nav\s*\{[^}]*display:\s*grid;[^}]*position:\s*fixed;[^}]*left:\s*0;[^}]*right:\s*0;[^}]*bottom:\s*0;[^}]*width:\s*100%;[^}]*max-width:\s*100vw;/su,

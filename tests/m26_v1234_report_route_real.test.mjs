@@ -41,10 +41,11 @@ test('la hoja externa contiene exactamente los estilos del informe y los control
 
 test('el HTML generado no depende de atributos style bloqueables por CSP',()=>{
   const html=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
+  const css=read('public/m26/iri-report.css');
   assert.equal((html.match(/class="pdf-page/g)||[]).length,7);
   assert.doesNotMatch(html,/\sstyle="/u);
   assert.match(html,/w-pct-\d+/);
-  assert.match(html,/col-w-\d+/);
+  assert.match(css,/\.col-w-\d+\{width:/u);
   assert.match(html,/class="report-page-content"/);
   assert.match(html,/report-page-2/);
   const external=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',stylesheetHref:'https://m26-canary.iberfit.cl/m26/iri-report.css?v=m26-rc45-6-launch-hardening-v1'});

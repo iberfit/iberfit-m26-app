@@ -64,5 +64,6 @@ jobs:
           path: |
             fast-lane.log
             recovery/fast-lane/summary.json
+            recovery/fast-lane/csp-inventory.json
           if-no-files-found: warn
           retention-days: 14

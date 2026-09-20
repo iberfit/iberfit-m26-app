@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const shellUrl=new URL('../src/m26/shell/shell-render.js',import.meta.url);
 const settingsSurfaceUrl=new URL('../src/m26/design/icons.css',import.meta.url);
+const runtimeCssUrl=new URL('../src/m26/design/runtime-static.css',import.meta.url);
 const routeUrl=new URL('../src/m26/modules/route-render.js',import.meta.url);
 const shellCssUrl=new URL('../src/m26/shell/shell.css',import.meta.url);
 const rc39CssUrl=new URL('../src/m26/rc39/rc39.css',import.meta.url);
@@ -26,9 +27,9 @@ test('desktop navigation removes the duplicate settings destination semantically
 });
 
 test('compact layouts use navigation More for Settings while preserving one semantic shell logout',async()=>{
-  const [shell,css]=await Promise.all([read(shellUrl),read(settingsSurfaceUrl)]);
+  const [shell,css,runtimeCss]=await Promise.all([read(shellUrl),read(settingsSurfaceUrl),read(runtimeCssUrl)]);
   assert.match(shell,/mobileAccountSlot='<div class="m26-mobile-more-account"><\/div>'/u);
-  assert.match(shell,/@media\(max-width:900px\)\{\.m26-sidebar\{display:none\}/u);
+  assert.match(runtimeCss,/@media\(max-width:900px\)\{\.m26-sidebar\{display:none\}\.m26-sidebar-footer\{display:none\}/u);
   assert.equal((shell.match(/data-m26-action="logout"/gu)||[]).length,1);
   assert.match(css,/@media\(max-width:900px\)[\s\S]*\.m26-sidebar-footer \.m26-settings-menu\{display:none\}/u);
 });

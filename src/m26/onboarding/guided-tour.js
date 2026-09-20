@@ -485,14 +485,7 @@ function prefersReducedMotion(scope=globalThis){
 }
 
 function ensureStyle(documentLike){
-  if(!documentLike?.createElement)return null;
-  let style=documentLike.querySelector?.('[data-m26-guided-tour-style]');
-  if(style)return style;
-  style=documentLike.createElement('style');
-  style.setAttribute('data-m26-guided-tour-style','');
-  style.textContent=STYLE_TEXT;
-  documentLike.head?.append?.(style);
-  return style;
+  return documentLike?.querySelector?.('[data-iberfit-runtime-static]')||null;
 }
 
 function removeTarget(target){
