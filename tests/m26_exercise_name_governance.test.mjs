@@ -165,6 +165,45 @@ test('editor de nombre sólo aparece a Admin',()=>{
   );
 });
 
+test('submit directo conserva guard Admin antes de invocar rename remoto',()=>{
+  const workflow=fs.readFileSync(
+    new URL(
+      '../src/m26/app/workflow-controller.js',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+
+  const start=workflow.indexOf('async function renameLibraryExercise(form){');
+  assert.notEqual(start,-1);
+
+  const next=workflow.indexOf('\n  async function ',start+1);
+  const section=workflow.slice(
+    start,
+    next>start?next:workflow.length,
+  );
+
+  assert.match(
+    section,
+    /const \{role\}=context\(\);\s*if\(role!==['"]admin['"]\)throw new Error\(['"]M26_EXERCISE_RENAME_ADMIN_REQUIRED['"]\);/,
+  );
+
+  const guardIndex=section.indexOf("if(role!=='admin')");
+  const remoteIndex=section.indexOf('await renameExercise(');
+
+  assert.ok(guardIndex>=0);
+  assert.ok(remoteIndex>guardIndex);
+  assert.equal(
+    (section.match(/await renameExercise\(/g)||[]).length,
+    1,
+  );
+
+  assert.match(
+    workflow,
+    /const renameForm=event\.target\.closest\?\.\(['"]\[data-exercise-rename-form\]['"]\);if\(renameForm\)\{event\.preventDefault\?\.\(\);await renameLibraryExercise\(renameForm\);return;\}/,
+  );
+});
+
 test('builder resuelve nombre actual por exerciseId y no por copia histórica',()=>{
   const oldCatalog=createExerciseCatalog([
     record({
