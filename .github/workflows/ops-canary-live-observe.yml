@@ -139,6 +139,21 @@ jobs:
           sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
           npx playwright install --with-deps chromium
 
+      - name: Align live gate with current auth semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const file='scripts/prelaunch/check_live_canary_gate.mjs';
+          let source=fs.readFileSync(file,'utf8');
+          const stale=`    const heading=page.getByRole('heading',{name:'Entrenamiento personal con criterio'});\n    invariant(await heading.isVisible(),'PRELAUNCH_LIVE_HEADING_MISSING');\n\n    const login=page.locator('form[data-auth-form="login"]');\n    invariant(await login.isVisible(),'PRELAUNCH_LIVE_LOGIN_FORM_MISSING');\n\n    const enter=page.getByRole('button',{name:'Entrar'});\n    invariant(await enter.isVisible(),'PRELAUNCH_LIVE_ENTER_MISSING');\n    invariant(await enter.isEnabled(),'PRELAUNCH_LIVE_ENTER_DISABLED');`;
+          const current=`    const brand=page.locator('.m26-auth-intro-kicker').first();\n    invariant((await brand.textContent())?.trim()==='Entrenamiento personal con criterio','PRELAUNCH_LIVE_BRAND_COPY_MISSING');\n\n    const authTitle=page.locator('#m26-auth-title');\n    invariant(await authTitle.isVisible(),'PRELAUNCH_LIVE_AUTH_TITLE_MISSING');\n    invariant((await authTitle.textContent())?.trim()==='Tu espacio IBERFIT','PRELAUNCH_LIVE_AUTH_NOT_READY');\n\n    const login=page.locator('form[data-auth-form="login"]');\n    invariant(await login.isVisible(),'PRELAUNCH_LIVE_LOGIN_FORM_MISSING');\n\n    const email=login.locator('input[name="email"]');\n    invariant(await email.isVisible(),'PRELAUNCH_LIVE_EMAIL_MISSING');\n    invariant(await email.isEnabled(),'PRELAUNCH_LIVE_EMAIL_DISABLED');\n\n    const password=login.locator('input[name="password"]');\n    invariant(await password.isVisible(),'PRELAUNCH_LIVE_PASSWORD_MISSING');\n    invariant(await password.isEnabled(),'PRELAUNCH_LIVE_PASSWORD_DISABLED');\n\n    const enter=page.getByRole('button',{name:'Entrar'});\n    invariant(await enter.isVisible(),'PRELAUNCH_LIVE_ENTER_MISSING');\n    invariant(await enter.isEnabled(),'PRELAUNCH_LIVE_ENTER_DISABLED');`;
+          if(!source.includes(stale))throw new Error('CANARY_LIVE_GATE_STALE_ASSERTION_NOT_FOUND');
+          source=source.replace(stale,current);
+          fs.writeFileSync(file,source,'utf8');
+          NODE
+
       - name: Certify exact live Canary desktop and mobile
         env:
           M26_EXPECTED_CANARY_SHA: ${{ env.EXPECTED_SHA }}
