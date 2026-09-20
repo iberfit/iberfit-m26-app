@@ -105,7 +105,7 @@ jobs:
           M26_CANARY_BUILD_DIR: .tmp/rc64-current-surface
           M26_CANARY_SOURCE_SHA: ${{ env.SOURCE_SHA }}
           M26_CANARY_SOURCE_BRANCH: ${{ env.CANARY_BRANCH }}
-          M26_CANARY_GENERATED_RUNTIME: public/m26/runtime-config.js
+          M26_CANARY_GENERATED_RUNTIME: .tmp/rc64-current-surface/m26/runtime-config.js
           M26_CANARY_LIVE_SW_PATH: /tmp/m26-canary-live-sw.js
           M26_CANARY_PREVIOUS_LIVE_SHA: ${{ env.PREVIOUS_LIVE_SHA }}
         run: node scripts/ops/prepare_canary_deploy_surface.mjs
@@ -128,8 +128,8 @@ jobs:
           grep -Fq '"environment": "QA"' "$ROOT/version.json"
           grep -Fq '"qaOnly": true' "$ROOT/version.json"
           grep -Fq "\"projectRef\": \"$QA_SUPABASE_REF\"" "$ROOT/version.json"
-          grep -Fq 'enabled: true' "$ROOT/m26/runtime-config.js"
-          grep -Fq 'qaOnly: true' "$ROOT/m26/runtime-config.js"
+          grep -Eq '"enabled"[[:space:]]*:[[:space:]]*true' "$ROOT/m26/runtime-config.js"
+          grep -Eq '"qaOnly"[[:space:]]*:[[:space:]]*true' "$ROOT/m26/runtime-config.js"
           grep -Fq "$QA_SUPABASE_URL" "$ROOT/m26/runtime-config.js"
           grep -Fq "$QA_SUPABASE_URL" "$ROOT/_headers"
           grep -Fq "const VERSION='m26-canary-$SHORT_SHA';" "$ROOT/m26/sw.js"
@@ -186,7 +186,7 @@ jobs:
               if(vRes.ok&&rRes.ok){
                 const version=await vRes.json();
                 const runtime=await rRes.text();
-                const ok=version.sourceSha===expected&&version.sourceBranch==='canary/rc74-4'&&version.environment==='QA'&&version.projectRef===qaRef&&version.qaOnly===true&&version.production!==true&&runtime.includes(qaRef)&&!runtime.includes(prodRef)&&/enabled:\s*true/u.test(runtime)&&/qaOnly:\s*true/u.test(runtime);
+                const ok=version.sourceSha===expected&&version.sourceBranch==='canary/rc74-4'&&version.environment==='QA'&&version.projectRef===qaRef&&version.qaOnly===true&&version.production!==true&&runtime.includes(qaRef)&&!runtime.includes(prodRef)&&/"enabled":\s*true/u.test(runtime)&&/"qaOnly":\s*true/u.test(runtime);
                 if(ok){console.log(JSON.stringify({ok:true,attempt:i,sourceSha:version.sourceSha,projectRef:version.projectRef}));process.exit(0);}
                 last=JSON.stringify({status:vRes.status,runtimeStatus:rRes.status,version});
               }else last=`HTTP:${vRes.status}:${rRes.status}`;
