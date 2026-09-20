@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  EXPECTED_CANARY_SHA: '96e8086e25a8db2252bd779ba4e8c330da26cab3'
+  EXPECTED_CANARY_SHA: '8967205bbfb30cf5c96a2a6da2123220ba43ff72'
   CANARY_BRANCH: 'canary/rc74-4'
   CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
   CF_PROJECT: 'iberfit-m26-canary'
