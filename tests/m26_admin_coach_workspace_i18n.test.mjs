@@ -10,6 +10,7 @@ import {
 } from '../src/m26/ui/i18n.js';
 
 const shell=fs.readFileSync('src/m26/shell/shell-render.js','utf8');
+const runtimeCss=fs.readFileSync('src/m26/design/runtime-static.css','utf8');
 const navigation=fs.readFileSync('src/m26/shell/navigation.js','utf8');
 const adminNavigation=fs.readFileSync('src/m26/admin/navigation.js','utf8');
 
@@ -88,12 +89,8 @@ test('Coach Today keeps secondary shortcuts without placing shell chrome ahead o
 });
 
 test('Coach shortcut disclosure remains touch-safe, motion-safe and printable',()=>{
-  const start=shell.indexOf('.m26-workspace-shortcuts{');
-  const end=shell.indexOf('</style>',start);
-  assert.ok(start>=0&&end>start);
-  const block=shell.slice(start,end);
-  assert.match(block,/min-height:3\.4rem/u);
-  assert.match(block,/@media\(max-width:720px\)/u);
-  assert.match(block,/@media\(prefers-reduced-motion:reduce\)/u);
-  assert.match(block,/@media print/u);
+  assert.match(runtimeCss,/\.m26-workspace-shortcuts>summary\{[^}]*min-height:3\.4rem/u);
+  assert.match(runtimeCss,/@media\(max-width:720px\)\{[^}]*\.m26-workspace-actions[\s\S]*?\.m26-workspace-shortcuts>summary/u);
+  assert.match(runtimeCss,/@media\(prefers-reduced-motion:reduce\)\{\.m26-workspace-shortcuts-toggle\{transition:none\}\}/u);
+  assert.match(runtimeCss,/@media print\{\.m26-workspace-shortcuts>summary\{display:none!important\}/u);
 });
