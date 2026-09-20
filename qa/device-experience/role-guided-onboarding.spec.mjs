@@ -1,7 +1,7 @@
 import {mkdir} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
 
-const OUT_DIR='recovery/role-genie-onboarding';
+const OUT_DIR='recovery/device-experience/role-genie-onboarding';
 const ROLES=['coach','admin'];
 
 function slug(value){
