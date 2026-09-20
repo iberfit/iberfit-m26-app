@@ -28,7 +28,6 @@ function fixture(){
   const build=path.join(temp,'surface');
   fs.mkdirSync(path.join(build,'m26'),{recursive:true});
   fs.writeFileSync(path.join(build,'index.html'),'<html lang="es-ES"></html>');
-  fs.writeFileSync(path.join(build,'m26','version.json'),JSON.stringify({release:'SOURCE',version:'source',sourceSha:'TO_BE_STAMPED_AT_DEPLOY',sourceBranch:CANARY_BRANCH,qaOnly:true,environment:'QA',projectRef:QA_REF},null,2));
   fs.writeFileSync(path.join(build,'m26','_headers'),`/*\n  Content-Security-Policy: connect-src 'self' ${PROD_URL}; img-src 'self' ${PROD_URL}\n`);
   fs.writeFileSync(path.join(build,'m26','sw.js'),"const VERSION='m26-rc63-2';\nconst PREVIOUS_VERSION='m26-rc63-1';\nconst X='/src/m26/design/auth-native.css';\n");
   const runtime=path.join(temp,'runtime-config.js');
@@ -38,18 +37,24 @@ function fixture(){
   return {temp,build,runtime,liveSw};
 }
 
-test('Canary deploy surface is sealed to exact QA identity without PROD leakage',()=>{
+test('Canary deploy surface generates exact release identity even when source tree has no version.json',()=>{
   const f=fixture();
   try{
+    assert.equal(fs.existsSync(path.join(f.build,'version.json')),false);
+    assert.equal(fs.existsSync(path.join(f.build,'m26','version.json')),false);
     const evidence=sealCanarySurface({buildDir:f.build,sourceSha,sourceBranch:CANARY_BRANCH,generatedRuntimePath:f.runtime,liveSwPath:f.liveSw,previousLiveSha:previousSha});
     assert.equal(evidence.sourceSha,sourceSha);
     assert.equal(evidence.projectRef,QA_REF);
     assert.equal(evidence.qaOnly,true);
     assert.equal(evidence.production,false);
+    assert.equal(evidence.releaseIdentityGenerated,true);
     const rootVersion=fs.readFileSync(path.join(f.build,'version.json'),'utf8');
     const m26Version=fs.readFileSync(path.join(f.build,'m26','version.json'),'utf8');
     assert.equal(rootVersion,m26Version);
     const version=JSON.parse(rootVersion);
+    assert.equal(version.schema,'iberfit.release-identity.v1');
+    assert.equal(version.release,'IBERFIT_M26_CANARY_111111111111');
+    assert.equal(version.version,'26.0.0-canary.111111111111');
     assert.equal(version.sourceSha,sourceSha);
     assert.equal(version.sourceBranch,CANARY_BRANCH);
     assert.equal(version.previousLiveSha,previousSha);
