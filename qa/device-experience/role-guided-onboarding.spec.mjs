@@ -119,6 +119,7 @@ for(const role of ROLES){
     await expect(dialog).toHaveAttribute('data-m26-guided-tour-role',role);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0,{timeout:5_000});
+    await expect.poll(()=>page.evaluate(()=>globalThis.__IBERFIT_ROLE_GENIE_QA__?.openChanges?.().includes(false)===true)).toBe(true);
 
     const paused=await page.evaluate(()=>({
       state:globalThis.__IBERFIT_ROLE_GENIE_QA__?.state?.(),
