@@ -33,11 +33,13 @@ jobs:
           set -euo pipefail
           test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 41; }
 
-          curl --fail --silent --show-error \
+          curl --silent --show-error \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H 'Content-Type: application/json' \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects?per_page=100" \
-            -o /tmp/projects.json
+            -w '%{http_code}' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
+            -o /tmp/projects.json > /tmp/projects.status
+          test "$(cat /tmp/projects.status)" = '200' || { cat /tmp/projects.json; exit 42; }
 
           node <<'NODE'
           const fs=require('fs');
@@ -67,18 +69,20 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_ENV,`CF_CANARY_PROJECT=${p.name}\n`);
           NODE
 
-          curl --fail --silent --show-error \
+          curl --silent --show-error \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H 'Content-Type: application/json' \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_CANARY_PROJECT}/deployments?per_page=100" \
-            -o /tmp/deployments.json
+            -w '%{http_code}' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_CANARY_PROJECT}/deployments" \
+            -o /tmp/deployments.json > /tmp/deployments.status
+          test "$(cat /tmp/deployments.status)" = '200' || { cat /tmp/deployments.json; exit 43; }
 
           node <<'NODE'
           const fs=require('fs');
           const project=JSON.parse(fs.readFileSync('/tmp/project-sanitized.json','utf8'));
           const payload=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
           if(!payload.success||!Array.isArray(payload.result))throw new Error('CF_CANARY_DEPLOYMENT_LIST_FAILED');
-          const deployments=payload.result.slice(0,100).map((d)=>({
+          const deployments=payload.result.slice(0,50).map((d)=>({
             id:d.id||null,
             environment:d.environment||null,
             url:d.url||null,
