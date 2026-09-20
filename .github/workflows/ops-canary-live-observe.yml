@@ -1,4 +1,4 @@
-name: IBERFIT Canary Live Observe (temporary)
+name: IBERFIT Canary Exact Deploy + Certify (temporary)
 
 on:
   push:
@@ -15,97 +15,172 @@ env:
   CF_PROJECT: 'iberfit-m26-canary'
   CANARY_DOMAIN: 'm26-canary.iberfit.cl'
   EXPECTED_SHA: 'da0e5535a16c73b35c430f9869833b1f6b8af42f'
+  QA_REF: 'gjztkdwfmunnzhtvxrsu'
+  QA_URL: 'https://gjztkdwfmunnzhtvxrsu.supabase.co'
+  PROD_REF: 'pjhmrhejsoofmouedavw'
+  WRANGLER_VERSION: '4.120.0'
 
 jobs:
-  observe:
+  deploy-certify:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 20
+    environment: m26-canary-readonly
     steps:
-      - name: Read Cloudflare Pages state and live version
+      - name: Checkout exact certified source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Build exact QA-only Canary artifact
+        env:
+          M26_SUPABASE_URL: ${{ env.QA_URL }}
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_PROJECT_REF: ${{ env.QA_REF }}
+          M26_QA_ONLY: 'true'
+          M26_BUILD_DIR: '.tmp/rc64-current-surface'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -n "${M26_SUPABASE_PUBLISHABLE_KEY:-}" || { echo 'QA_PUBLISHABLE_KEY_MISSING'; exit 42; }
+          node qa/rc64/build-current-surface.mjs
+          node scripts/generate_rc74_4_runtime_config.mjs
+          node <<'NODE'
+          const fs=require('fs');
+          const path=require('path');
+          const root='.tmp/rc64-current-surface';
+          const v={
+            release:'IBERFIT_M26_CANARY_RC74_4_PHASE_A',
+            version:'26.0.0-canary.74.4-phase-a',
+            sourceSha:process.env.EXPECTED_SHA,
+            sourceBranch:'canary/rc74-4',
+            environment:'QA',
+            projectRef:process.env.QA_REF,
+            qaOnly:true,
+            production:false,
+          };
+          const text=JSON.stringify(v,null,2)+'\n';
+          fs.writeFileSync(path.join(root,'version.json'),text,'utf8');
+          fs.writeFileSync(path.join(root,'m26','version.json'),text,'utf8');
+          NODE
+
+      - name: Fail-closed artifact verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          R=.tmp/rc64-current-surface/m26/runtime-config.js
+          V=.tmp/rc64-current-surface/version.json
+          VM=.tmp/rc64-current-surface/m26/version.json
+          H=.tmp/rc64-current-surface/_headers
+          test -s "$R" && test -s "$V" && test -s "$VM" && test -s "$H"
+          grep -Fq "$EXPECTED_SHA" "$V"
+          grep -Fq '"sourceBranch": "canary/rc74-4"' "$V"
+          grep -Fq '"qaOnly": true' "$V"
+          grep -Fq '"production": false' "$V"
+          grep -Fq "$QA_REF" "$V"
+          grep -Fq "$QA_REF" "$R"
+          grep -Fq "$QA_URL" "$R"
+          grep -Fq '"qaOnly": true' "$R"
+          grep -Fq '"enabled": true' "$R"
+          grep -Fq "$QA_URL" "$H"
+          ! grep -R -Fq "$PROD_REF" "$R" "$V" "$VM" "$H"
+          ! grep -R -Eqi 'service[_-]?role' "$R" "$V" "$VM" "$H"
+          cmp "$V" "$VM"
+          find .tmp/rc64-current-surface -type f -print0 | sort -z | xargs -0 sha256sum > CANARY_EXACT_ARTIFACT.sha256
+
+      - name: Direct-upload exact SHA to Canary only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 43; }
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy .tmp/rc64-current-surface \
+            --project-name "$CF_PROJECT" \
+            --branch 'canary/rc74-4' \
+            --commit-hash "$EXPECTED_SHA" \
+            --commit-message "IBERFIT Canary exact ${EXPECTED_SHA:0:12}" \
+            --commit-dirty=true | tee WRANGLER_CANARY_EXACT.log
+
+      - name: Verify live identity moved to exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=false
+          for i in $(seq 1 24); do
+            curl --fail --silent --show-error --location \
+              -H 'Cache-Control: no-cache' \
+              "https://${CANARY_DOMAIN}/version.json?exact=${GITHUB_RUN_ID}-${i}" -o /tmp/live-version.json || true
+            if node -e "const v=require('/tmp/live-version.json');process.exit(v.sourceSha===process.env.EXPECTED_SHA&&v.sourceBranch==='canary/rc74-4'&&v.qaOnly===true&&v.projectRef===process.env.QA_REF?0:1)" 2>/dev/null; then
+              ok=true
+              break
+            fi
+            sleep 5
+          done
+          "$ok" || { echo 'CANARY_EXACT_SHA_NOT_LIVE'; cat /tmp/live-version.json || true; exit 44; }
+          cat /tmp/live-version.json
+
+      - name: Install Chromium for live certification
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
+          npx playwright install --with-deps chromium
+
+      - name: Certify exact live Canary desktop and mobile
+        env:
+          M26_EXPECTED_CANARY_SHA: ${{ env.EXPECTED_SHA }}
+        run: node scripts/prelaunch/check_live_canary_gate.mjs
+
+      - name: Read Cloudflare canonical deployment after certification
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 41; }
-          auth=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json')
-          curl --fail --silent --show-error "${auth[@]}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project.json
-          curl --fail --silent --show-error "${auth[@]}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments?per_page=25" -o /tmp/deployments.json
-          curl --fail --silent --show-error --location --retry 3 --retry-all-errors -H 'Cache-Control: no-cache' "https://${CANARY_DOMAIN}/version.json?observe=${GITHUB_RUN_ID}" -o /tmp/version.json
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" \
+            -o CLOUDFLARE_CANARY_AFTER.json
           node <<'NODE'
           const fs=require('fs');
-          const deployments=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
-          if(!deployments.success||!Array.isArray(deployments.result))throw new Error('CF_DEPLOYMENTS_LOOKUP_FAILED');
-          const newest=deployments.result.find((d)=>d.environment==='production');
-          if(!newest?.id)throw new Error('CF_NEWEST_PRODUCTION_DEPLOYMENT_MISSING');
-          fs.writeFileSync('/tmp/newest-production-id',newest.id);
-          NODE
-          newest_id="$(cat /tmp/newest-production-id)"
-          curl --fail --silent --show-error "${auth[@]}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments/${newest_id}" -o /tmp/newest-deployment.json
-
-          node <<'NODE'
-          const fs=require('fs');
-          const project=JSON.parse(fs.readFileSync('/tmp/project.json','utf8'));
-          const deployments=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
-          const newestDetail=JSON.parse(fs.readFileSync('/tmp/newest-deployment.json','utf8'));
-          const version=JSON.parse(fs.readFileSync('/tmp/version.json','utf8'));
-          const fail=(code)=>{throw new Error(code)};
-          if(!project.success||!project.result)fail('CF_PROJECT_LOOKUP_FAILED');
-          if(!deployments.success||!Array.isArray(deployments.result))fail('CF_DEPLOYMENTS_LOOKUP_FAILED');
-          if(!newestDetail.success||!newestDetail.result)fail('CF_DEPLOYMENT_DETAIL_LOOKUP_FAILED');
-          const p=project.result;
-          const domains=Array.isArray(p.domains)?p.domains:[];
-          const sanitizeDeployment=(d)=>d?({id:d.id||null,environment:d.environment||null,createdOn:d.created_on||null,modifiedOn:d.modified_on||null,url:d.url||null,aliases:Array.isArray(d.aliases)?d.aliases:[],latestStage:d.latest_stage?{name:d.latest_stage.name||null,startedOn:d.latest_stage.started_on||null,endedOn:d.latest_stage.ended_on||null,status:d.latest_stage.status||null}:null,stages:Array.isArray(d.stages)?d.stages.map((s)=>({name:s.name||null,startedOn:s.started_on||null,endedOn:s.ended_on||null,status:s.status||null})):[],deploymentTriggerType:d.deployment_trigger?.type||null,commitHash:d.deployment_trigger?.metadata?.commit_hash||null,branch:d.deployment_trigger?.metadata?.branch||null}):null;
-          const source=p.source?{
-            type:p.source.type||null,
-            repoName:p.source.config?.repo_name||null,
-            owner:p.source.config?.owner||null,
-            productionBranch:p.source.config?.production_branch||p.production_branch||null,
-            deploymentsEnabled:p.source.config?.deployments_enabled??null,
-            productionDeploymentsEnabled:p.source.config?.production_deployments_enabled??null,
-            previewDeploymentSetting:p.source.config?.preview_deployment_setting||null,
-            previewBranchIncludes:Array.isArray(p.source.config?.preview_branch_includes)?p.source.config.preview_branch_includes:[],
-            previewBranchExcludes:Array.isArray(p.source.config?.preview_branch_excludes)?p.source.config.preview_branch_excludes:[],
-          }:null;
-          const build={
-            buildCommand:p.build_config?.build_command||null,
-            destinationDir:p.build_config?.destination_dir||null,
-            rootDir:p.build_config?.root_dir||null,
-            webAnalyticsTokenPresent:Boolean(p.build_config?.web_analytics_token),
-            webAnalyticsTagPresent:Boolean(p.build_config?.web_analytics_tag),
-          };
-          const sanitizeDeploymentConfig=(x)=>x?({
-            compatibilityDate:x.compatibility_date||null,
-            compatibilityFlags:Array.isArray(x.compatibility_flags)?x.compatibility_flags:[],
-            envVarNames:Object.keys(x.env_vars||{}).sort(),
-            durableObjectBindings:(x.durable_object_namespaces||[]).map((v)=>v?.name||null).filter(Boolean),
-            kvBindings:(x.kv_namespaces||[]).map((v)=>v?.binding||null).filter(Boolean),
-            r2Bindings:(x.r2_buckets||[]).map((v)=>v?.binding||null).filter(Boolean),
-          }):null;
-          const deploymentConfigs={
-            production:sanitizeDeploymentConfig(p.deployment_configs?.production),
-            preview:sanitizeDeploymentConfig(p.deployment_configs?.preview),
-          };
-          const rows=deployments.result.map(sanitizeDeployment);
-          const canonical=sanitizeDeployment(p.canonical_deployment);
-          const latest=sanitizeDeployment(p.latest_deployment);
-          const detail=sanitizeDeployment(newestDetail.result);
-          const live={sourceSha:String(version.sourceSha||version.commit||version.sha||'').trim().toLowerCase(),sourceBranch:String(version.sourceBranch||version.branch||'').trim(),qaOnly:version.qaOnly===true,projectRef:String(version.projectRef||'').trim(),version:String(version.version||'').trim()};
-          const evidence={schema:'iberfit.ops.canary-live-observe.v3',generatedAt:new Date().toISOString(),expectedSha:process.env.EXPECTED_SHA,cloudflare:{project:p.name,productionBranch:p.production_branch||null,domains,source,build,deploymentConfigs,canonicalDeployment:canonical,latestDeployment:latest,newestProductionDeploymentDetail:detail,newestProductionDeployments:rows.filter((d)=>d.environment==='production').slice(0,5)},live,mutationPerformed:false,productionTouched:false};
-          fs.writeFileSync('CANARY_LIVE_OBSERVE.json',JSON.stringify(evidence,null,2)+'\n');
-          console.log(JSON.stringify(evidence,null,2));
-          if(!domains.includes(process.env.CANARY_DOMAIN))fail(`CF_CANARY_DOMAIN_NOT_BOUND:${domains.join(',')}`);
-          if(!/^[0-9a-f]{40}$/.test(live.sourceSha))fail('CANARY_LIVE_VERSION_SHA_INVALID');
-          if(live.sourceSha!==process.env.EXPECTED_SHA)fail(`CANARY_LIVE_SHA_MISMATCH:${live.sourceSha}:${process.env.EXPECTED_SHA}`);
-          if(live.sourceBranch!=='canary/rc74-4')fail(`CANARY_LIVE_BRANCH_MISMATCH:${live.sourceBranch}`);
-          if(live.qaOnly!==true)fail('CANARY_LIVE_NOT_QA');
+          const x=JSON.parse(fs.readFileSync('CLOUDFLARE_CANARY_AFTER.json','utf8'));
+          if(!x.success||!x.result)throw new Error('CF_PROJECT_LOOKUP_FAILED');
+          const d=x.result.canonical_deployment;
+          const sha=d?.deployment_trigger?.metadata?.commit_hash||'';
+          const aliases=Array.isArray(d?.aliases)?d.aliases:[];
+          const stage=d?.latest_stage?.status||'';
+          const out={project:x.result.name,canonicalDeploymentId:d?.id||null,canonicalCommitHash:sha,stage,aliases,productionBranch:x.result.production_branch||null};
+          fs.writeFileSync('CANARY_CLOUDFLARE_CANONICAL.json',JSON.stringify(out,null,2)+'\n');
+          console.log(JSON.stringify(out,null,2));
+          if(sha!==process.env.EXPECTED_SHA)throw new Error(`CF_CANONICAL_SHA_MISMATCH:${sha}`);
+          if(stage!=='success')throw new Error(`CF_CANONICAL_STAGE_NOT_SUCCESS:${stage}`);
+          if(!aliases.includes(`https://${process.env.CANARY_DOMAIN}`))throw new Error('CF_CANARY_ALIAS_MISSING');
           NODE
 
-      - name: Preserve read-only evidence
+      - name: Preserve deployment certification evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: canary-live-observe-${{ github.run_id }}
-          path: CANARY_LIVE_OBSERVE.json
+          name: canary-exact-certification-${{ github.run_id }}
+          path: |
+            CANARY_EXACT_ARTIFACT.sha256
+            WRANGLER_CANARY_EXACT.log
+            CLOUDFLARE_CANARY_AFTER.json
+            CANARY_CLOUDFLARE_CANONICAL.json
+            recovery/prelaunch-live/**
           if-no-files-found: warn
-          retention-days: 2
+          retention-days: 7
