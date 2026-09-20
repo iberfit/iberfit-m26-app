@@ -1,0 +1,122 @@
+name: IBERFIT Canary Live Certification Read Only
+
+on:
+  push:
+    branches:
+      - 'ops/canary-cloudflare-discovery-20260920'
+    paths:
+      - '.github/workflows/ops-canary-live-certification.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-canary-live-certification-readonly
+  cancel-in-progress: false
+
+env:
+  EXPECTED_CANARY_SHA: '96e8086e25a8db2252bd779ba4e8c330da26cab3'
+  CANARY_BRANCH: 'canary/rc74-4'
+  QA_REF: 'gjztkdwfmunnzhtvxrsu'
+  QA_URL: 'https://gjztkdwfmunnzhtvxrsu.supabase.co'
+
+jobs:
+  certify:
+    name: certify-exact-live-canary-readonly
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact Canary source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_CANARY_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Guard exact Canary HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANARY_SHA" || { echo 'CHECKOUT_SHA_MISMATCH'; exit 41; }
+          REMOTE_SHA="$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/${CANARY_BRANCH} | awk '{print $1}')"
+          test "$REMOTE_SHA" = "$EXPECTED_CANARY_SHA" || { echo "CANARY_HEAD_MOVED:$REMOTE_SHA"; exit 42; }
+
+      - name: Run authenticated remote gate without mutations
+        env:
+          M26_PROJECT_REF: ${{ env.QA_REF }}
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: ${{ env.QA_URL }}
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node scripts/remote-gates/run_authenticated_readonly_gate.mjs
+
+      - name: Prepare Chromium for live browser certification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
+          npx playwright install --with-deps chromium
+
+      - name: Certify deployed Canary desktop and mobile read-only
+        env:
+          M26_EXPECTED_CANARY_SHA: ${{ env.EXPECTED_CANARY_SHA }}
+        run: node scripts/prelaunch/check_live_canary_gate.mjs
+
+      - name: Verify certification evidence contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const p='recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_GATE.json';
+          if(!fs.existsSync(p))throw new Error('LIVE_GATE_EVIDENCE_MISSING');
+          const x=JSON.parse(fs.readFileSync(p,'utf8'));
+          if(x.ok!==true)throw new Error('LIVE_GATE_NOT_OK');
+          if(x.expectedSha!==process.env.EXPECTED_CANARY_SHA)throw new Error('LIVE_GATE_EXPECTED_SHA_MISMATCH');
+          if(x.version?.sourceSha!==process.env.EXPECTED_CANARY_SHA)throw new Error('LIVE_GATE_SOURCE_SHA_MISMATCH');
+          if(x.version?.sourceBranch!==process.env.CANARY_BRANCH)throw new Error('LIVE_GATE_BRANCH_MISMATCH');
+          if(x.version?.projectRef!==process.env.QA_REF||x.version?.qaOnly!==true)throw new Error('LIVE_GATE_ENVIRONMENT_MISMATCH');
+          if(x.mutationsPerformed!==false||x.productionTouched!==false)throw new Error('LIVE_GATE_SAFETY_CONTRACT_MISMATCH');
+          if(!Array.isArray(x.viewports)||x.viewports.length!==2)throw new Error('LIVE_GATE_VIEWPORTS_MISSING');
+          for(const v of x.viewports){
+            if(v.layout?.scrollWidth>v.layout?.clientWidth+1)throw new Error(`LIVE_GATE_OVERFLOW:${v.name}`);
+            if(v.blockedMutationRequests!==0||v.forbiddenSupabaseOrigins!==0||v.consoleErrors!==0||v.pageErrors!==0||v.requestFailures!==0||v.badResponses!==0)throw new Error(`LIVE_GATE_DIAGNOSTIC_FAILURE:${v.name}`);
+          }
+          console.log(JSON.stringify({
+            ok:true,
+            sourceSha:x.version.sourceSha,
+            sourceBranch:x.version.sourceBranch,
+            projectRef:x.version.projectRef,
+            qaOnly:x.version.qaOnly,
+            viewports:x.viewports.map(v=>({name:v.name,width:v.width,height:v.height,consoleErrors:v.consoleErrors,pageErrors:v.pageErrors,requestFailures:v.requestFailures,badResponses:v.badResponses})),
+            mutationsPerformed:x.mutationsPerformed,
+            productionTouched:x.productionTouched,
+          },null,2));
+          NODE
+
+      - name: Preserve read-only certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-live-certification-readonly
+          path: |
+            recovery/RC74_4_REMOTE_*.json
+            recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_GATE.json
+            recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_*_DIAGNOSTIC.json
+            recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_DESKTOP.png
+            recovery/prelaunch-live/PRELAUNCH_LIVE_CANARY_MOBILE.png
+          if-no-files-found: warn
+          retention-days: 7
