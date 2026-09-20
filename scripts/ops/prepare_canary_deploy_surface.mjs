@@ -61,8 +61,8 @@ export function sealCanarySurface({
   if(!fs.existsSync(m26Root))throw new Error('CANARY_SURFACE_M26_DIR_MISSING');
 
   const runtime=readText(runtimePath);
-  if(!/enabled:\s*true/u.test(runtime))throw new Error('CANARY_SURFACE_RUNTIME_DISABLED');
-  if(!/qaOnly:\s*true/u.test(runtime))throw new Error('CANARY_SURFACE_RUNTIME_NOT_QA');
+  if(!/"enabled":\s*true/u.test(runtime))throw new Error('CANARY_SURFACE_RUNTIME_DISABLED');
+  if(!/"qaOnly":\s*true/u.test(runtime))throw new Error('CANARY_SURFACE_RUNTIME_NOT_QA');
   if(!runtime.includes(QA_REF)||!runtime.includes(QA_URL))throw new Error('CANARY_SURFACE_RUNTIME_QA_IDENTITY_MISSING');
   if(!/sb_publishable_[A-Za-z0-9_-]+/u.test(runtime))throw new Error('CANARY_SURFACE_RUNTIME_PUBLIC_KEY_MISSING');
   if(runtime.includes(PROD_REF)||runtime.includes(PROD_URL))throw new Error('CANARY_SURFACE_RUNTIME_PROD_LEAK');
@@ -134,7 +134,7 @@ function cli(){
     buildDir:process.env.M26_CANARY_BUILD_DIR||'.tmp/rc64-current-surface',
     sourceSha:process.env.M26_CANARY_SOURCE_SHA,
     sourceBranch:process.env.M26_CANARY_SOURCE_BRANCH||CANARY_BRANCH,
-    generatedRuntimePath:process.env.M26_CANARY_GENERATED_RUNTIME||'public/m26/runtime-config.js',
+    generatedRuntimePath:process.env.M26_CANARY_GENERATED_RUNTIME||'.tmp/rc64-current-surface/m26/runtime-config.js',
     liveSwPath:process.env.M26_CANARY_LIVE_SW_PATH||'/tmp/m26-canary-live-sw.js',
     previousLiveSha:process.env.M26_CANARY_PREVIOUS_LIVE_SHA||'',
   });
