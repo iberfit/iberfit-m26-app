@@ -105,7 +105,7 @@ jobs:
           M26_CANARY_BUILD_DIR: .tmp/rc64-current-surface
           M26_CANARY_SOURCE_SHA: ${{ env.SOURCE_SHA }}
           M26_CANARY_SOURCE_BRANCH: ${{ env.CANARY_BRANCH }}
-          M26_CANARY_GENERATED_RUNTIME: public/m26/runtime-config.js
+          M26_CANARY_GENERATED_RUNTIME: .tmp/rc64-current-surface/m26/runtime-config.js
           M26_CANARY_LIVE_SW_PATH: /tmp/m26-canary-live-sw.js
           M26_CANARY_PREVIOUS_LIVE_SHA: ${{ env.PREVIOUS_LIVE_SHA }}
         run: node scripts/ops/prepare_canary_deploy_surface.mjs
