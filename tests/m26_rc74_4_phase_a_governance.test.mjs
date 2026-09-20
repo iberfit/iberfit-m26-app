@@ -24,6 +24,25 @@ test('CI routes canary rc74-4 exclusively to the RC74.4 Phase B validator',()=>{
   assert.doesNotMatch(ci,/name: Validar RC74\.4 Phase B[\s\S]*?(?:wrangler|pages deploy|deploy)/iu);
 });
 
+test('RC74.4 certification branches run current gates without deployment authority',()=>{
+  const cert=read('.github/workflows/rc74-4-certification.yml');
+  assert.match(cert,/branches:[\s\S]*"cert\/rc74-4\/\*\*"/u);
+  assert.match(cert,/workflow_dispatch:/u);
+  assert.match(cert,/persist-credentials: false/u);
+  assert.match(cert,/node --test tests\/m26_exercise_name_governance\.test\.mjs/u);
+  for(const command of [
+    'npm run quality:p0:pwa-upgrade',
+    'npm run quality:p0:auth-no-freeze',
+    'npm run quality:rc64:performance',
+    'npm run validate:rc74-4',
+  ]) assert.ok(cert.includes(command),command);
+  assert.ok(cert.includes(QA_REF));
+  assert.match(cert,/M26_QA_ONLY: 'true'/u);
+  assert.match(cert,/M26_RUNTIME_VALIDATION_ONLY: 'true'/u);
+  assert.doesNotMatch(cert,new RegExp(PROD_REF));
+  assert.doesNotMatch(cert,/(?:wrangler|pages deploy|CF_API_TOKEN|CLOUDFLARE_API_TOKEN)/iu);
+});
+
 test('RC74.4 runtime generator is QA-only and cannot target production',()=>{
   const generator=read('scripts/generate_rc74_4_runtime_config.mjs');
   assert.match(generator,new RegExp(QA_REF));
