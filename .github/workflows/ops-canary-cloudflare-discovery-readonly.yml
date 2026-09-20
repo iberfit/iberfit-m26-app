@@ -16,6 +16,7 @@ concurrency:
 
 env:
   CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_CANARY_PROJECT: 'iberfit-m26-canary'
   CANARY_DOMAIN: 'm26-canary.iberfit.cl'
 
 jobs:
@@ -37,37 +38,9 @@ jobs:
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H 'Content-Type: application/json' \
             -w '%{http_code}' \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" \
-            -o /tmp/projects.json > /tmp/projects.status
-          test "$(cat /tmp/projects.status)" = '200' || { cat /tmp/projects.json; exit 42; }
-
-          node <<'NODE'
-          const fs=require('fs');
-          const payload=JSON.parse(fs.readFileSync('/tmp/projects.json','utf8'));
-          if(!payload.success||!Array.isArray(payload.result))throw new Error('CF_PAGES_PROJECT_LIST_FAILED');
-          const domain=process.env.CANARY_DOMAIN;
-          const matches=payload.result.filter((p)=>Array.isArray(p.domains)&&p.domains.includes(domain));
-          if(matches.length!==1)throw new Error(`CF_CANARY_DOMAIN_MATCH_COUNT:${matches.length}`);
-          const p=matches[0];
-          if(!p.name)throw new Error('CF_CANARY_PROJECT_NAME_MISSING');
-          const project={
-            name:p.name,
-            productionBranch:p.production_branch||null,
-            domains:Array.isArray(p.domains)?p.domains:[],
-            subdomain:p.subdomain||null,
-            createdOn:p.created_on||null,
-            latestDeployment:p.latest_deployment?{
-              id:p.latest_deployment.id||null,
-              environment:p.latest_deployment.environment||null,
-              url:p.latest_deployment.url||null,
-              createdOn:p.latest_deployment.created_on||null,
-              branch:p.latest_deployment.deployment_trigger?.metadata?.branch||null,
-              commitHash:p.latest_deployment.deployment_trigger?.metadata?.commit_hash||null,
-            }:null,
-          };
-          fs.writeFileSync('/tmp/project-sanitized.json',JSON.stringify(project,null,2)+'\n');
-          fs.appendFileSync(process.env.GITHUB_ENV,`CF_CANARY_PROJECT=${p.name}\n`);
-          NODE
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_CANARY_PROJECT}" \
+            -o /tmp/project.json > /tmp/project.status
+          test "$(cat /tmp/project.status)" = '200' || { cat /tmp/project.json; exit 42; }
 
           curl --silent --show-error \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
@@ -79,10 +52,31 @@ jobs:
 
           node <<'NODE'
           const fs=require('fs');
-          const project=JSON.parse(fs.readFileSync('/tmp/project-sanitized.json','utf8'));
-          const payload=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
-          if(!payload.success||!Array.isArray(payload.result))throw new Error('CF_CANARY_DEPLOYMENT_LIST_FAILED');
-          const deployments=payload.result.slice(0,50).map((d)=>({
+          const projectPayload=JSON.parse(fs.readFileSync('/tmp/project.json','utf8'));
+          const deploymentsPayload=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          if(!projectPayload.success||!projectPayload.result)throw new Error('CF_CANARY_PROJECT_LOOKUP_FAILED');
+          if(!deploymentsPayload.success||!Array.isArray(deploymentsPayload.result))throw new Error('CF_CANARY_DEPLOYMENT_LIST_FAILED');
+          const p=projectPayload.result;
+          if(p.name!==process.env.CF_CANARY_PROJECT)throw new Error(`CF_CANARY_PROJECT_MISMATCH:${p.name}`);
+          const domains=Array.isArray(p.domains)?p.domains:[];
+          if(!domains.includes(process.env.CANARY_DOMAIN))throw new Error(`CF_CANARY_DOMAIN_NOT_BOUND:${domains.join(',')}`);
+          const project={
+            name:p.name,
+            productionBranch:p.production_branch||null,
+            domains,
+            subdomain:p.subdomain||null,
+            createdOn:p.created_on||null,
+            latestDeployment:p.latest_deployment?{
+              id:p.latest_deployment.id||null,
+              environment:p.latest_deployment.environment||null,
+              url:p.latest_deployment.url||null,
+              createdOn:p.latest_deployment.created_on||null,
+              branch:p.latest_deployment.deployment_trigger?.metadata?.branch||null,
+              commitHash:p.latest_deployment.deployment_trigger?.metadata?.commit_hash||null,
+              commitMessage:p.latest_deployment.deployment_trigger?.metadata?.commit_message||null,
+            }:null,
+          };
+          const deployments=deploymentsPayload.result.slice(0,50).map((d)=>({
             id:d.id||null,
             environment:d.environment||null,
             url:d.url||null,
