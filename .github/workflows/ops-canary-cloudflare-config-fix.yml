@@ -1,0 +1,178 @@
+name: IBERFIT Canary Cloudflare Config Fix
+
+on:
+  push:
+    branches:
+      - 'ops/canary-cloudflare-discovery-20260920'
+    paths:
+      - '.github/workflows/ops-canary-cloudflare-config-fix.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-canary-cloudflare-config-fix
+  cancel-in-progress: false
+
+env:
+  EXPECTED_CANARY_SHA: '96e8086e25a8db2252bd779ba4e8c330da26cab3'
+  CANARY_BRANCH: 'canary/rc74-4'
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'iberfit-m26-canary'
+  CANARY_DOMAIN: 'm26-canary.iberfit.cl'
+  QA_REF: 'gjztkdwfmunnzhtvxrsu'
+  QA_URL: 'https://gjztkdwfmunnzhtvxrsu.supabase.co'
+
+jobs:
+  patch-config:
+    name: patch-canary-pages-config-fail-closed
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Patch Canary project config with rollback guard
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          QA_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 41; }
+          test -n "${QA_PUBLISHABLE_KEY:-}" || { echo 'M26_SUPABASE_PUBLISHABLE_KEY_MISSING'; exit 42; }
+
+          ACTUAL_SHA="$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/${CANARY_BRANCH} | awk '{print $1}')"
+          test "$ACTUAL_SHA" = "$EXPECTED_CANARY_SHA" || { echo "CANARY_HEAD_MOVED:$ACTUAL_SHA"; exit 43; }
+
+          API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PROJECT}"
+          AUTH="Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"
+
+          curl --fail --silent --show-error -H "$AUTH" -H 'Content-Type: application/json' "$API" -o /tmp/before.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const before=JSON.parse(fs.readFileSync('/tmp/before.json','utf8'));
+          if(!before.success||!before.result)throw new Error('CF_CANARY_PROJECT_LOOKUP_FAILED');
+          const p=before.result;
+          if(p.name!==process.env.CF_PROJECT)throw new Error(`CF_PROJECT_MISMATCH:${p.name}`);
+          if(p.production_branch!==process.env.CANARY_BRANCH)throw new Error(`CF_BRANCH_MISMATCH:${p.production_branch}`);
+          if(!Array.isArray(p.domains)||!p.domains.includes(process.env.CANARY_DOMAIN))throw new Error('CF_CANARY_DOMAIN_NOT_BOUND');
+          if(p.source?.config?.production_deployments_enabled!==false)throw new Error('CF_CANARY_AUTODEPLOY_POLICY_CHANGED');
+          if(p.source?.config?.preview_deployment_setting!=='none')throw new Error('CF_CANARY_PREVIEW_POLICY_CHANGED');
+          if(!String(p.build_config?.build_command||'').includes('build:rc35:canary'))throw new Error('CF_STALE_BUILD_COMMAND_NOT_EXPECTED');
+          if(p.build_config?.destination_dir!=='dist/m26-prepublicacion-infraestructura-candidate')throw new Error(`CF_STALE_DESTINATION_NOT_EXPECTED:${p.build_config?.destination_dir}`);
+
+          const requiredMalformed=['M26_QA_ONLY ','M26_SUPABASE_URL ','M26_SUPABASE_PUBLISHABLE_KEY '];
+          for(const scope of ['production','preview']){
+            const vars=p.deployment_configs?.[scope]?.env_vars||{};
+            for(const key of requiredMalformed)if(!(key in vars))throw new Error(`CF_EXPECTED_MALFORMED_ENV_MISSING:${scope}:${key}`);
+          }
+
+          const makeEnv=(scope)=>{
+            const old={...(p.deployment_configs?.[scope]?.env_vars||{})};
+            old['M26_QA_ONLY ']=null;
+            old['M26_SUPABASE_URL ']=null;
+            old['M26_SUPABASE_PUBLISHABLE_KEY ']=null;
+            old.M26_QA_ONLY={type:'plain_text',value:'true'};
+            old.M26_PROJECT_REF={type:'plain_text',value:process.env.QA_REF};
+            old.M26_SUPABASE_URL={type:'plain_text',value:process.env.QA_URL};
+            old.M26_SUPABASE_PUBLISHABLE_KEY={type:'secret_text',value:process.env.QA_PUBLISHABLE_KEY};
+            return old;
+          };
+          const patch={
+            build_config:{
+              build_command:'node scripts/build_rc74_4_canary.mjs',
+              destination_dir:'.tmp/rc64-current-surface',
+              root_dir:p.build_config?.root_dir||'',
+            },
+            deployment_configs:{
+              production:{env_vars:makeEnv('production')},
+              preview:{env_vars:makeEnv('preview')},
+            },
+          };
+          fs.writeFileSync('/tmp/patch.json',JSON.stringify(patch));
+
+          const rollbackEnv=(scope)=>{
+            const old={...(p.deployment_configs?.[scope]?.env_vars||{})};
+            for(const key of ['M26_QA_ONLY','M26_PROJECT_REF','M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY']){
+              if(!(key in old))old[key]=null;
+            }
+            return old;
+          };
+          const rollback={
+            build_config:{
+              build_command:p.build_config?.build_command??'',
+              destination_dir:p.build_config?.destination_dir??'',
+              root_dir:p.build_config?.root_dir??'',
+            },
+            deployment_configs:{
+              production:{env_vars:rollbackEnv('production')},
+              preview:{env_vars:rollbackEnv('preview')},
+            },
+          };
+          fs.writeFileSync('/tmp/rollback.json',JSON.stringify(rollback));
+          NODE
+
+          HTTP="$(curl --silent --show-error -o /tmp/patch-response.json -w '%{http_code}' \
+            -X PATCH -H "$AUTH" -H 'Content-Type: application/json' --data-binary @/tmp/patch.json "$API")"
+          test "$HTTP" = '200' || { echo "CF_PATCH_HTTP_$HTTP"; exit 44; }
+
+          curl --fail --silent --show-error -H "$AUTH" -H 'Content-Type: application/json' "$API" -o /tmp/after.json
+
+          if ! node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/after.json','utf8'));
+          if(!x.success||!x.result)throw new Error('CF_CANARY_PROJECT_AFTER_FAILED');
+          const p=x.result;
+          if(p.name!==process.env.CF_PROJECT)throw new Error('CF_PROJECT_CHANGED');
+          if(p.production_branch!==process.env.CANARY_BRANCH)throw new Error('CF_PRODUCTION_BRANCH_CHANGED');
+          if(!Array.isArray(p.domains)||!p.domains.includes(process.env.CANARY_DOMAIN))throw new Error('CF_DOMAIN_CHANGED');
+          if(p.source?.config?.production_deployments_enabled!==false)throw new Error('CF_AUTODEPLOY_POLICY_CHANGED');
+          if(p.source?.config?.preview_deployment_setting!=='none')throw new Error('CF_PREVIEW_POLICY_CHANGED');
+          if(p.build_config?.build_command!=='node scripts/build_rc74_4_canary.mjs')throw new Error(`CF_BUILD_COMMAND_WRONG:${p.build_config?.build_command}`);
+          if(p.build_config?.destination_dir!=='.tmp/rc64-current-surface')throw new Error(`CF_DESTINATION_WRONG:${p.build_config?.destination_dir}`);
+          for(const scope of ['production','preview']){
+            const vars=p.deployment_configs?.[scope]?.env_vars||{};
+            for(const bad of ['M26_QA_ONLY ','M26_SUPABASE_URL ','M26_SUPABASE_PUBLISHABLE_KEY '])if(bad in vars)throw new Error(`CF_MALFORMED_ENV_REMAINS:${scope}:${bad}`);
+            if(vars.M26_QA_ONLY?.type!=='plain_text'||vars.M26_QA_ONLY?.value!=='true')throw new Error(`CF_QA_ONLY_WRONG:${scope}`);
+            if(vars.M26_PROJECT_REF?.type!=='plain_text'||vars.M26_PROJECT_REF?.value!==process.env.QA_REF)throw new Error(`CF_PROJECT_REF_WRONG:${scope}`);
+            if(vars.M26_SUPABASE_URL?.type!=='plain_text'||vars.M26_SUPABASE_URL?.value!==process.env.QA_URL)throw new Error(`CF_QA_URL_WRONG:${scope}`);
+            if(vars.M26_SUPABASE_PUBLISHABLE_KEY?.type!=='secret_text')throw new Error(`CF_KEY_TYPE_WRONG:${scope}`);
+            if(!vars.NODE_VERSION)throw new Error(`CF_NODE_VERSION_LOST:${scope}`);
+          }
+          const evidence={
+            schema:'iberfit.ops.canary-cloudflare-config-fix.v1',
+            generatedAt:new Date().toISOString(),
+            project:p.name,
+            domain:process.env.CANARY_DOMAIN,
+            canarySha:process.env.EXPECTED_CANARY_SHA,
+            productionBranch:p.production_branch,
+            buildCommand:p.build_config.build_command,
+            destinationDir:p.build_config.destination_dir,
+            productionDeploymentsEnabled:p.source.config.production_deployments_enabled,
+            previewDeploymentSetting:p.source.config.preview_deployment_setting,
+            productionEnvKeys:Object.keys(p.deployment_configs.production.env_vars||{}).sort(),
+            previewEnvKeys:Object.keys(p.deployment_configs.preview.env_vars||{}).sort(),
+            qaProjectRef:process.env.QA_REF,
+            qaOnly:true,
+            canaryProjectModified:true,
+            iberfitProductionTouched:false,
+            rollbackRequired:false,
+          };
+          fs.writeFileSync('CANARY_CLOUDFLARE_CONFIG_FIX_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
+          console.log(JSON.stringify(evidence,null,2));
+          NODE
+          then
+            echo 'POST_PATCH_VERIFICATION_FAILED_ROLLING_BACK'
+            curl --fail --silent --show-error -X PATCH -H "$AUTH" -H 'Content-Type: application/json' --data-binary @/tmp/rollback.json "$API" -o /tmp/rollback-response.json
+            echo 'CANARY_CONFIG_ROLLED_BACK'
+            exit 45
+          fi
+
+      - name: Preserve sanitized config evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-cloudflare-config-fix-evidence
+          path: CANARY_CLOUDFLARE_CONFIG_FIX_EVIDENCE.json
+          if-no-files-found: warn
+          retention-days: 7
