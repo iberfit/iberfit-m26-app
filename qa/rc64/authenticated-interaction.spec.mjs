@@ -26,6 +26,7 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_media_manifest_v1',
 ]);
 const BLOCKED_NOTIFICATION_PREFERENCE_UPSERT='POST qa-supabase /rest/v1/rpc/iberfit_notification_preferences_upsert_v1';
+const BLOCKED_RESOURCE_CONSOLE_ERROR='Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector';
 
 function safeSlug(value){return String(value||'unknown').toLowerCase().replace(/[^a-z0-9]+/gu,'-').replace(/^-+|-+$/gu,'').slice(0,80)||'unknown';}
 async function dismissGuidance(page){
@@ -216,10 +217,13 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   await page.waitForTimeout(500);
   const blockedPreferenceSyncAttempts=blocked.filter((label)=>label===BLOCKED_NOTIFICATION_PREFERENCE_UPSERT);
   const unexpectedBlocked=blocked.filter((label)=>label!==BLOCKED_NOTIFICATION_PREFERENCE_UPSERT);
+  const blockedPreferenceSyncConsoleErrors=consoleErrors.filter((message)=>message===BLOCKED_RESOURCE_CONSOLE_ERROR);
+  const unexpectedConsoleErrors=consoleErrors.filter((message)=>message!==BLOCKED_RESOURCE_CONSOLE_ERROR);
   expect(blockedPreferenceSyncAttempts,'Preference toggles must try to persist, while this read-only QA gate blocks the writes').toHaveLength(2);
-  expect(unexpectedBlocked,'Authenticated interaction attempted an unexpected business mutation or foreign request').toEqual([]);
+  expect(blockedPreferenceSyncConsoleErrors,'Chromium must report only the two intentionally blocked preference writes').toHaveLength(blockedPreferenceSyncAttempts.length);
+  expect(unexpectedBlocked,'Authenticated interaction attempted a business mutation or foreign request').toEqual([]);
   expect(unexpectedFailures).toEqual([]);
-  expect(consoleErrors).toEqual([]);
+  expect(unexpectedConsoleErrors).toEqual([]);
   expect(pageErrors).toEqual([]);
 
   await mkdir(OUT_DIR,{recursive:true});
@@ -236,6 +240,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     mutationsPerformed:false,
     businessMutationsPerformed:false,
     blockedPreferenceSyncAttempts:blockedPreferenceSyncAttempts.length,
+    blockedPreferenceSyncConsoleErrors:blockedPreferenceSyncConsoleErrors.length,
     authMutationPerformed:false,
     serviceWorkersBlocked:true,
     controls:['checkin.energy','checkin.sleep','checkin.notes','settings.language','settings.locale','settings.notification','client.mobile-more'],
