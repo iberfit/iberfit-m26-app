@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readdir, readFile} from 'node:fs/promises';
+import {mkdir, readdir, readFile, writeFile} from 'node:fs/promises';
 import {extname, join, relative, sep} from 'node:path';
 
 const ROOT = process.cwd();
 const SCAN_ROOTS = ['src/m26', 'public/m26'];
 const ALLOWED_EXTENSIONS = new Set(['.js', '.mjs', '.html']);
 const EXCLUDED_PATH_SEGMENTS = new Set(['vendor']);
+const DIAGNOSTIC_PATH = join(ROOT, 'recovery', 'fast-lane', 'csp-inventory.json');
 
 const RULES = [
   ['style-element', /<style(?:\s|>)/i],
@@ -58,9 +59,22 @@ test('first-party runtime remains compatible with strict style-src CSP', async (
   for (const root of SCAN_ROOTS) await collectFiles(join(ROOT, root), files);
 
   const hits = [];
+  const contentByFile = new Map();
   for (const file of files) {
     const content = await readFile(file, 'utf8');
-    hits.push(...lineMatches(content, relative(ROOT, file)));
+    const relativePath = relative(ROOT, file);
+    const fileHits = lineMatches(content, relativePath);
+    if (fileHits.length) contentByFile.set(relativePath, content);
+    hits.push(...fileHits);
+  }
+
+  if (hits.length) {
+    await mkdir(join(ROOT, 'recovery', 'fast-lane'), {recursive: true});
+    await writeFile(
+      DIAGNOSTIC_PATH,
+      JSON.stringify({hits, files: Object.fromEntries(contentByFile)}, null, 2),
+      'utf8'
+    );
   }
 
   assert.deepEqual(
