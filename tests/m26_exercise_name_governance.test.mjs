@@ -193,6 +193,10 @@ test('submit directo conserva guard Admin antes de invocar rename remoto',()=>{
 
   assert.ok(guardIndex>=0);
   assert.ok(remoteIndex>guardIndex);
+  assert.equal(
+    (section.match(/await renameExercise\(/g)||[]).length,
+    1,
+  );
 
   assert.match(
     workflow,
