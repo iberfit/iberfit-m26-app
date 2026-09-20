@@ -12,14 +12,14 @@ const [gate,shell]=await Promise.all([
 
 test('live Canary gate follows the canonical auth hierarchy without weakening fail-closed safety',()=>{
   assert.match(shell,/<p class="m26-auth-intro-kicker">Entrenamiento personal con criterio<\/p>/u);
-  assert.match(shell,/<h1>Todo tu proceso de entrenamiento,<br><dfn>en un solo lugar\.<\/dfn><\/h1>/u);
+  assert.match(shell,/<h2>Todo tu proceso de entrenamiento, en un solo lugar\.<\/h2>/u);
 
   assert.match(gate,/\.m26-auth-intro-kicker/u);
   assert.match(gate,/PRELAUNCH_LIVE_KICKER_MISSING/u);
   assert.match(gate,/PRELAUNCH_LIVE_KICKER_COPY_MISMATCH/u);
   assert.match(gate,/Entrenamiento personal con criterio/u);
 
-  assert.match(gate,/\.m26-auth-intro h1/u);
+  assert.match(gate,/\.m26-auth-intro h2/u);
   assert.match(gate,/PRELAUNCH_LIVE_HEADING_MISSING/u);
   assert.match(gate,/PRELAUNCH_LIVE_HEADING_COPY_MISMATCH/u);
   assert.match(gate,/Todo tu proceso de entrenamiento, en un solo lugar\./u);
