@@ -1,0 +1,60 @@
+name: IBERFIT M26 RC74 Verification Lane
+
+on:
+  push:
+    branches:
+      - 'verify/rc74-4-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m26-rc74-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Descargar repositorio exacto
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias y Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Certificar upgrade PWA N-1 a N sin bloqueos
+        run: npm run quality:p0:pwa-upgrade
+
+      - name: Certificar P0 auth no-freeze en Chromium hermético
+        run: npm run quality:p0:auth-no-freeze
+
+      - name: Certificar budgets Lighthouse RC74.4
+        run: npm run quality:rc64:performance
+
+      - name: Validar RC74.4 Phase B
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: sb_publishable_local_validation_rc74_4
+          M26_RUNTIME_VALIDATION_ONLY: 'true'
+          CF_PAGES_BRANCH: canary/rc74-4
+        run: npm run validate:rc74-4
