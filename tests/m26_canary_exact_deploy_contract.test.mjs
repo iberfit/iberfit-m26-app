@@ -195,8 +195,8 @@ test('Canary seal consumes and validates the JSON runtime generated inside the c
   assert.match(sealStep,/M26_CANARY_GENERATED_RUNTIME: \.tmp\/rc64-current-surface\/m26\/runtime-config\.js/u);
   assert.doesNotMatch(sealStep,/M26_CANARY_GENERATED_RUNTIME: public\/m26\/runtime-config\.js/u);
   assert.match(surfaceSealer,/generatedRuntimePath:process\.env\.M26_CANARY_GENERATED_RUNTIME\|\|'\.tmp\/rc64-current-surface\/m26\/runtime-config\.js'/u);
-  assert.match(surfaceSealer,/\/?"enabled"\?:\\s\*true/u);
-  assert.match(surfaceSealer,/\/?"qaOnly"\?:\\s\*true/u);
+  assert.ok(surfaceSealer.includes('if(!/"enabled":\\s*true/u.test(runtime))'));
+  assert.ok(surfaceSealer.includes('if(!/"qaOnly":\\s*true/u.test(runtime))'));
 });
 
 test('Canary workflow captures rollback metadata from canonical deployment rather than first-page history',()=>{
