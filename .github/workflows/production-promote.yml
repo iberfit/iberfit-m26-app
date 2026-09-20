@@ -303,12 +303,14 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${CF_PRODUCTION_BRANCH:-}" || { echo 'CF_PRODUCTION_BRANCH_MISSING'; exit 43; }
+          echo 'PRODUCTION_DEPLOY_ATTEMPTED=true' >> "$GITHUB_ENV"
           npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy .tmp/rc64-current-surface \
             --project-name "$CF_PROJECT" \
             --branch "$CF_PRODUCTION_BRANCH" \
             --commit-hash "$SOURCE_SHA" \
             --commit-message "IBERFIT M26 production $SHORT_SHA" \
             --commit-dirty=true | tee WRANGLER_PRODUCTION.log
+          echo 'PRODUCTION_DEPLOY_COMPLETED=true' >> "$GITHUB_ENV"
 
       - name: Verify app.iberfit.cl exact identity and runtime read-only
         shell: bash
@@ -387,6 +389,14 @@ jobs:
           console.log(JSON.stringify(evidence,null,2));
           NODE
 
+      - name: Roll back production automatically if post-deploy certification fails
+        if: ${{ failure() && env.PRODUCTION_DEPLOY_ATTEMPTED == 'true' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          PRODUCTION_ROLLBACK_EVIDENCE_PATH: PRODUCTION_ROLLBACK_EVIDENCE.json
+        run: node scripts/ops/rollback_production_on_failure.mjs
+
       - name: Upload production promotion evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -396,6 +406,7 @@ jobs:
             .iberfit/production-release.json
             PRODUCTION_PROMOTION.sha256
             PRODUCTION_DEPLOYMENT_EVIDENCE.json
+            PRODUCTION_ROLLBACK_EVIDENCE.json
             CLOUDFLARE_PROJECT_BEFORE.json
             CLOUDFLARE_DEPLOYMENTS_BEFORE.json
             CLOUDFLARE_PROJECT_AFTER.json
