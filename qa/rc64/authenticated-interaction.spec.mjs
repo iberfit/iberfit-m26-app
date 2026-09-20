@@ -25,6 +25,7 @@ const READ_ONLY_RPCS=new Set([
   'iberfit_exercise_catalog_public_v1',
   'iberfit_exercise_media_manifest_v1',
 ]);
+const BLOCKED_NOTIFICATION_PREFERENCE_UPSERT='POST qa-supabase /rest/v1/rpc/iberfit_notification_preferences_upsert_v1';
 
 function safeSlug(value){return String(value||'unknown').toLowerCase().replace(/[^a-z0-9]+/gu,'-').replace(/^-+|-+$/gu,'').slice(0,80)||'unknown';}
 async function dismissGuidance(page){
@@ -213,7 +214,10 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
   await expect(notification).toBeChecked({checked:wasChecked});
 
   await page.waitForTimeout(500);
-  expect(blocked,'Authenticated interaction attempted a business mutation or foreign request').toEqual([]);
+  const blockedPreferenceSyncAttempts=blocked.filter((label)=>label===BLOCKED_NOTIFICATION_PREFERENCE_UPSERT);
+  const unexpectedBlocked=blocked.filter((label)=>label!==BLOCKED_NOTIFICATION_PREFERENCE_UPSERT);
+  expect(blockedPreferenceSyncAttempts,'Preference toggles must try to persist, while this read-only QA gate blocks the writes').toHaveLength(2);
+  expect(unexpectedBlocked,'Authenticated interaction attempted an unexpected business mutation or foreign request').toEqual([]);
   expect(unexpectedFailures).toEqual([]);
   expect(consoleErrors).toEqual([]);
   expect(pageErrors).toEqual([]);
@@ -231,6 +235,7 @@ test('authenticated Client-only QA keeps inputs textarea selects and mobile More
     applicationChoiceRequired:false,
     mutationsPerformed:false,
     businessMutationsPerformed:false,
+    blockedPreferenceSyncAttempts:blockedPreferenceSyncAttempts.length,
     authMutationPerformed:false,
     serviceWorkersBlocked:true,
     controls:['checkin.energy','checkin.sleep','checkin.notes','settings.language','settings.locale','settings.notification','client.mobile-more'],
