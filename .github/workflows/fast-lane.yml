@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: m26-fast-lane-${{ github.ref }}
@@ -29,12 +29,32 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Preparar Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Aplicar reparación CSP atómica
+        if: github.event_name == 'pull_request' && github.head_ref == 'fix/csp-strict-first-party-20260919' && github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        run: node scripts/csp_staticize_styles.mjs
+
+      - name: Publicar reparación CSP atómica
+        if: github.event_name == 'pull_request' && github.head_ref == 'fix/csp-strict-first-party-20260919' && github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'CSP repair already applied.'
+            exit 0
+          fi
+          git config user.name 'iberfit-csp-bot'
+          git config user.email 'iberfit.cl@gmail.com'
+          git add public/m26 src/m26
+          git commit -m 'fix(csp): staticize first-party styles'
+          git push origin "HEAD:${{ github.head_ref }}"
 
       - name: Resolver base exacta
         id: base
