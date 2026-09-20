@@ -1,0 +1,281 @@
+name: IBERFIT Canary Exact Deploy
+
+on:
+  push:
+    branches:
+      - canary/rc74-4
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Escribe DEPLOY_CANARY_EXACT'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-m26-canary-exact-deploy
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'iberfit-m26-canary'
+  CANARY_DOMAIN: 'm26-canary.iberfit.cl'
+  CANARY_BRANCH: 'canary/rc74-4'
+  QA_SUPABASE_REF: 'gjztkdwfmunnzhtvxrsu'
+  QA_SUPABASE_URL: 'https://gjztkdwfmunnzhtvxrsu.supabase.co'
+  PROD_SUPABASE_REF: 'pjhmrhejsoofmouedavw'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  deploy-canary:
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY_CANARY_EXACT') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact Canary source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Validate exact source and target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "$CANARY_BRANCH"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git status --porcelain)" = ''
+          test "$CF_PROJECT" = 'iberfit-m26-canary'
+          test "$CANARY_DOMAIN" = 'm26-canary.iberfit.cl'
+          test "$QA_SUPABASE_REF" = 'gjztkdwfmunnzhtvxrsu'
+          test "$PROD_SUPABASE_REF" != "$QA_SUPABASE_REF"
+          echo "SOURCE_SHA=$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "SHORT_SHA=${GITHUB_SHA:0:12}" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Full regression before Canary deploy
+        run: npm test
+
+      - name: Capture current Canary rollback metadata
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 41; }
+          curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
+            -H 'Cache-Control: no-cache' \
+            "https://${CANARY_DOMAIN}/version.json?before=${GITHUB_RUN_ID}" -o /tmp/canary-version-before.json
+          curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
+            -H 'Cache-Control: no-cache' \
+            "https://${CANARY_DOMAIN}/m26/sw.js?before=${GITHUB_RUN_ID}" -o /tmp/m26-canary-live-sw.js
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" \
+            -o CLOUDFLARE_CANARY_PROJECT_BEFORE.json
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" \
+            -o CLOUDFLARE_CANARY_DEPLOYMENTS_BEFORE.json
+          node <<'NODE'
+          const fs=require('fs');
+          const live=JSON.parse(fs.readFileSync('/tmp/canary-version-before.json','utf8'));
+          const project=JSON.parse(fs.readFileSync('CLOUDFLARE_CANARY_PROJECT_BEFORE.json','utf8'));
+          const deployments=JSON.parse(fs.readFileSync('CLOUDFLARE_CANARY_DEPLOYMENTS_BEFORE.json','utf8'));
+          const sha=String(live.sourceSha||'').trim().toLowerCase();
+          if(!/^[0-9a-f]{40}$/.test(sha))throw new Error('CANARY_PREVIOUS_LIVE_SHA_INVALID');
+          if(live.qaOnly!==true||live.environment!=='QA'||live.projectRef!==process.env.QA_SUPABASE_REF)throw new Error('CANARY_PREVIOUS_LIVE_IDENTITY_INVALID');
+          if(!project.success||!project.result)throw new Error('CANARY_CF_PROJECT_LOOKUP_FAILED');
+          if(project.result.name!==process.env.CF_PROJECT)throw new Error(`CANARY_WRONG_CF_PROJECT:${project.result.name}`);
+          if(project.result.production_branch!==process.env.CANARY_BRANCH)throw new Error(`CANARY_CF_BRANCH_MISMATCH:${project.result.production_branch}`);
+          if(!Array.isArray(project.result.domains)||!project.result.domains.includes(process.env.CANARY_DOMAIN))throw new Error('CANARY_DOMAIN_NOT_BOUND');
+          if(!deployments.success||!Array.isArray(deployments.result))throw new Error('CANARY_CF_DEPLOYMENT_LIST_FAILED');
+          const previous=deployments.result.find(d=>d.environment==='production'&&d.deployment_trigger?.metadata?.commit_hash===sha);
+          if(!previous)throw new Error('CANARY_PREVIOUS_DEPLOYMENT_NOT_FOUND');
+          fs.appendFileSync(process.env.GITHUB_ENV,`PREVIOUS_LIVE_SHA=${sha}\nPREVIOUS_DEPLOYMENT_ID=${previous.id}\n`);
+          NODE
+
+      - name: Build canonical fail-closed surface
+        run: node qa/rc64/build-current-surface.mjs
+
+      - name: Generate QA-only runtime
+        env:
+          M26_QA_SUPABASE_URL: ${{ env.QA_SUPABASE_URL }}
+          M26_QA_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+        run: node scripts/generate_rc74_4_runtime_config.mjs
+
+      - name: Seal exact Canary surface
+        env:
+          M26_CANARY_BUILD_DIR: .tmp/rc64-current-surface
+          M26_CANARY_SOURCE_SHA: ${{ env.SOURCE_SHA }}
+          M26_CANARY_SOURCE_BRANCH: ${{ env.CANARY_BRANCH }}
+          M26_CANARY_GENERATED_RUNTIME: public/m26/runtime-config.js
+          M26_CANARY_LIVE_SW_PATH: /tmp/m26-canary-live-sw.js
+          M26_CANARY_PREVIOUS_LIVE_SHA: ${{ env.PREVIOUS_LIVE_SHA }}
+        run: node scripts/ops/prepare_canary_deploy_surface.mjs
+
+      - name: Verify deployable Canary surface fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT=.tmp/rc64-current-surface
+          test -s "$ROOT/index.html"
+          test -s "$ROOT/version.json"
+          test -s "$ROOT/_headers"
+          test -s "$ROOT/m26/runtime-config.js"
+          test -s "$ROOT/m26/version.json"
+          test -s "$ROOT/m26/sw.js"
+          test -s "$ROOT/CANARY_DEPLOY_SURFACE.json"
+          grep -Fq "$SOURCE_SHA" "$ROOT/version.json"
+          grep -Fq "$SOURCE_SHA" "$ROOT/m26/version.json"
+          grep -Fq '"sourceBranch": "canary/rc74-4"' "$ROOT/version.json"
+          grep -Fq '"environment": "QA"' "$ROOT/version.json"
+          grep -Fq '"qaOnly": true' "$ROOT/version.json"
+          grep -Fq "\"projectRef\": \"$QA_SUPABASE_REF\"" "$ROOT/version.json"
+          grep -Fq 'enabled: true' "$ROOT/m26/runtime-config.js"
+          grep -Fq 'qaOnly: true' "$ROOT/m26/runtime-config.js"
+          grep -Fq "$QA_SUPABASE_URL" "$ROOT/m26/runtime-config.js"
+          grep -Fq "$QA_SUPABASE_URL" "$ROOT/_headers"
+          grep -Fq "const VERSION='m26-canary-$SHORT_SHA';" "$ROOT/m26/sw.js"
+          ! grep -R -Fq "$PROD_SUPABASE_REF" "$ROOT/version.json" "$ROOT/m26/version.json" "$ROOT/m26/runtime-config.js" "$ROOT/_headers"
+          ! grep -R -Eqi 'service[_-]?role' "$ROOT/version.json" "$ROOT/m26/version.json" "$ROOT/m26/runtime-config.js" "$ROOT/_headers"
+          cmp "$ROOT/version.json" "$ROOT/m26/version.json"
+
+      - name: Run authenticated QA read-only gate before deploy
+        env:
+          M26_PROJECT_REF: ${{ env.QA_SUPABASE_REF }}
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: ${{ env.QA_SUPABASE_URL }}
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node scripts/remote-gates/run_authenticated_readonly_gate.mjs
+
+      - name: Mark Canary deployment attempt
+        run: echo 'CANARY_DEPLOY_ATTEMPTED=1' >> "$GITHUB_ENV"
+
+      - name: Deploy exact certified surface to Canary with Wrangler
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy .tmp/rc64-current-surface \
+            --project-name "$CF_PROJECT" \
+            --branch "$CANARY_BRANCH" \
+            --commit-hash "$SOURCE_SHA" \
+            --commit-message "IBERFIT Canary $SHORT_SHA" \
+            --commit-dirty=true | tee WRANGLER_CANARY.log
+
+      - name: Wait for exact live Canary identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const expected=process.env.SOURCE_SHA;
+          const qaRef=process.env.QA_SUPABASE_REF;
+          const prodRef=process.env.PROD_SUPABASE_REF;
+          const base=`https://${process.env.CANARY_DOMAIN}`;
+          let last='';
+          for(let i=1;i<=30;i++){
+            try{
+              const vRes=await fetch(`${base}/version.json?verify=${Date.now()}-${i}`,{cache:'no-store',headers:{'cache-control':'no-cache','pragma':'no-cache'}});
+              const rRes=await fetch(`${base}/m26/runtime-config.js?verify=${Date.now()}-${i}`,{cache:'no-store',headers:{'cache-control':'no-cache','pragma':'no-cache'}});
+              if(vRes.ok&&rRes.ok){
+                const version=await vRes.json();
+                const runtime=await rRes.text();
+                const ok=version.sourceSha===expected&&version.sourceBranch==='canary/rc74-4'&&version.environment==='QA'&&version.projectRef===qaRef&&version.qaOnly===true&&version.production!==true&&runtime.includes(qaRef)&&!runtime.includes(prodRef)&&/enabled:\s*true/u.test(runtime)&&/qaOnly:\s*true/u.test(runtime);
+                if(ok){console.log(JSON.stringify({ok:true,attempt:i,sourceSha:version.sourceSha,projectRef:version.projectRef}));process.exit(0);}
+                last=JSON.stringify({status:vRes.status,runtimeStatus:rRes.status,version});
+              }else last=`HTTP:${vRes.status}:${rRes.status}`;
+            }catch(error){last=String(error?.message||error);}
+            if(i<30)await new Promise(r=>setTimeout(r,4000));
+          }
+          throw new Error(`CANARY_LIVE_IDENTITY_NOT_READY:${last}`);
+          NODE
+
+      - name: Prepare Chromium for live gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
+          npx playwright install --with-deps chromium
+
+      - name: Certify deployed Canary desktop and mobile read-only
+        env:
+          M26_EXPECTED_CANARY_SHA: ${{ env.SOURCE_SHA }}
+        run: node scripts/prelaunch/check_live_canary_gate.mjs
+
+      - name: Record exact Canary deployment evidence
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" \
+            -o CLOUDFLARE_CANARY_DEPLOYMENTS_AFTER.json
+          node <<'NODE'
+          const fs=require('fs');
+          const deployments=JSON.parse(fs.readFileSync('CLOUDFLARE_CANARY_DEPLOYMENTS_AFTER.json','utf8'));
+          if(!deployments.success||!Array.isArray(deployments.result))throw new Error('CANARY_DEPLOYMENT_LIST_AFTER_FAILED');
+          const exact=deployments.result.find(d=>d.environment==='production'&&d.deployment_trigger?.metadata?.commit_hash===process.env.SOURCE_SHA);
+          if(!exact)throw new Error('CANARY_EXACT_DEPLOYMENT_NOT_FOUND');
+          if(exact.id===process.env.PREVIOUS_DEPLOYMENT_ID)throw new Error('CANARY_DEPLOYMENT_DID_NOT_ADVANCE');
+          const evidence={schema:'iberfit.canary.deployment.v1',sourceSha:process.env.SOURCE_SHA,sourceBranch:process.env.CANARY_BRANCH,project:process.env.CF_PROJECT,domain:process.env.CANARY_DOMAIN,projectRef:process.env.QA_SUPABASE_REF,exactDeploymentId:exact.id,exactDeploymentUrl:exact.url,previousDeploymentId:process.env.PREVIOUS_DEPLOYMENT_ID,previousLiveSha:process.env.PREVIOUS_LIVE_SHA,qaOnly:true,productionTouched:false,ok:true};
+          fs.writeFileSync('CANARY_DEPLOYMENT_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
+          console.log(JSON.stringify(evidence,null,2));
+          NODE
+
+      - name: Roll back Canary automatically on post-attempt failure
+        if: ${{ failure() && env.CANARY_DEPLOY_ATTEMPTED == '1' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+          SOURCE_SHA: ${{ env.SOURCE_SHA }}
+          PREVIOUS_LIVE_SHA: ${{ env.PREVIOUS_LIVE_SHA }}
+          PREVIOUS_DEPLOYMENT_ID: ${{ env.PREVIOUS_DEPLOYMENT_ID }}
+          QA_SUPABASE_REF: ${{ env.QA_SUPABASE_REF }}
+          CANARY_ROLLBACK_EVIDENCE_PATH: CANARY_ROLLBACK_EVIDENCE.json
+        run: node scripts/ops/rollback_canary_on_failure.mjs
+
+      - name: Upload Canary deploy and certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-canary-exact-deploy-${{ github.run_id }}
+          path: |
+            .tmp/rc64-current-surface/CANARY_DEPLOY_SURFACE.json
+            WRANGLER_CANARY.log
+            CANARY_DEPLOYMENT_EVIDENCE.json
+            CANARY_ROLLBACK_EVIDENCE.json
+            CLOUDFLARE_CANARY_PROJECT_BEFORE.json
+            CLOUDFLARE_CANARY_DEPLOYMENTS_BEFORE.json
+            CLOUDFLARE_CANARY_DEPLOYMENTS_AFTER.json
+            recovery/RC29_REMOTE_*.json
+            recovery/RC74_4_REMOTE_*.json
+            recovery/prelaunch-live/
+          if-no-files-found: warn
+          retention-days: 14
