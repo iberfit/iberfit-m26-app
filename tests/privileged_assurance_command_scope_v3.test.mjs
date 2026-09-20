@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-const migrationPath = 'supabase/migrations/20260920020000_privileged_assurance_command_scope_v3.sql';
+const migrationPath = 'supabase/migrations/20260920015340_privileged_assurance_command_scope_v3.sql';
 
 function functionBody(sql, functionName) {
   const marker = `create or replace function public.${functionName}(p_command jsonb)`;
