@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {createHash} from 'node:crypto';
 
 const read=(path)=>fs.readFileSync(path,'utf8').replace(/\r\n/g,'\n');
 const pkg=JSON.parse(read('package.json'));
@@ -44,25 +43,19 @@ test('RC64.2A QA surface is distinct from historical RC15 and RC29 release build
   assert.doesNotMatch(`${budget}\n${server}`,/m26-launch-candidate|m26-prepublicacion-infraestructura-candidate/u);
 });
 
-test('RC64.2A disabled runtime uses one CSP-hash critical style and does not fetch full-app styles before elevation',()=>{
+test('RC64.2A disabled runtime uses external critical CSS and does not fetch full-app styles before elevation',()=>{
   const index=read('public/m26/index.html');
   const entry=read('public/m26/app.js');
   const critical=read('public/m26/preauth-critical.css').replace(/\n+$/u,'');
   const headers=read('public/m26/_headers');
 
-  assert.doesNotMatch(index,/href="\/m26\/preauth-critical\.css"/u);
-  const inline=[...index.matchAll(/<style data-iberfit-preauth-critical>([\s\S]*?)<\/style>/gu)];
-  assert.equal(inline.length,1);
-  assert.equal([...index.matchAll(/<style\b/giu)].length,1);
-  assert.equal(inline[0][1],critical);
+  assert.match(index,/<link\b[^>]*rel="stylesheet"[^>]*href="\/m26\/preauth-critical\.css"[^>]*data-iberfit-preauth-critical[^>]*>/u);
+  assert.equal([...index.matchAll(/<style\b/giu)].length,0);
 
-  const expectedHash=`'sha256-${createHash('sha256').update(Buffer.from(inline[0][1],'utf8')).digest('base64')}'`;
   const cspLine=headers.split('\n').find((line)=>line.includes('Content-Security-Policy:'))||'';
   const styleSource=cspLine.match(/style-src\s+([^;]+);/u)?.[1]||'';
   const tokens=styleSource.trim().split(/\s+/u).filter(Boolean);
   assert.ok(tokens.includes("'self'"));
-  assert.ok(tokens.includes(expectedHash));
-  assert.equal(tokens.filter((token)=>/^'sha256-[^']+'$/u.test(token)).length,1);
   assert.ok(!tokens.includes("'unsafe-inline'"));
   assert.doesNotMatch(index,/rel="preload" href="\/m26\/fonts\/inter-latin-wght-normal\.woff2"/u);
 
@@ -291,13 +284,13 @@ test('RC64.2A keeps generated QA surface and Lighthouse machine output ignored',
   assert.match(ignore,/^\.tmp\/$/mu);
   assert.match(ignore,/^\.lighthouseci\/$/mu);
 });
-test('RC64.2A PWA app-shell retains canonical critical CSS after inline boot optimization',()=>{
+test('RC64.2A PWA app-shell retains canonical critical CSS after strict CSP externalization',()=>{
   const generator=read('scripts/generate_rc58_app_shell.mjs');
   const index=read('public/m26/index.html');
   const sw=read('public/m26/sw.js');
 
-  assert.equal(index.includes('href="/m26/preauth-critical.css"'),false);
-  assert.equal(index.includes('<style data-iberfit-preauth-critical>'),true);
+  assert.equal(index.includes('href="/m26/preauth-critical.css"'),true);
+  assert.equal(index.includes('<style data-iberfit-preauth-critical>'),false);
   assert.equal(generator.includes('function linkedStylesFromIndex()'),true);
   assert.equal(generator.includes('for(const repoPath of trackedFiles())'),true);
   assert.equal(generator.includes('repoPaths.add(repoPath)'),true);
