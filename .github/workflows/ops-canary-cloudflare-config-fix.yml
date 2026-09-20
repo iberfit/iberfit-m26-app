@@ -27,6 +27,7 @@ jobs:
   patch-config:
     name: patch-canary-pages-config-fail-closed
     runs-on: ubuntu-latest
+    environment: m26-canary-readonly
     timeout-minutes: 8
     steps:
       - name: Patch Canary project config with rollback guard
