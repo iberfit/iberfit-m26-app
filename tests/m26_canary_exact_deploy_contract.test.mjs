@@ -170,6 +170,14 @@ test('Canary workflow binds the same protected QA environment and runtime contra
   assert.doesNotMatch(runtimeStep,/M26_QA_SUPABASE_(?:URL|PUBLISHABLE_KEY)/u);
 });
 
+test('Canary seal consumes the QA runtime generated inside the canonical build surface',()=>{
+  assert.match(runtimeGenerator,/const target=path\.join\(buildDir,'m26','runtime-config\.js'\);/u);
+  const sealStep=workflow.match(/- name: Seal exact Canary surface[\s\S]*?run: node scripts\/ops\/prepare_canary_deploy_surface\.mjs/u)?.[0]||'';
+  assert.match(sealStep,/M26_CANARY_BUILD_DIR: \.tmp\/rc64-current-surface/u);
+  assert.match(sealStep,/M26_CANARY_GENERATED_RUNTIME: \.tmp\/rc64-current-surface\/m26\/runtime-config\.js/u);
+  assert.doesNotMatch(sealStep,/M26_CANARY_GENERATED_RUNTIME: public\/m26\/runtime-config\.js/u);
+});
+
 test('Canary workflow captures rollback metadata from canonical deployment rather than first-page history',()=>{
   const capture=workflow.match(/- name: Capture current Canary rollback metadata[\s\S]*?\n\s+- name: Build canonical fail-closed surface/u)?.[0]||'';
   assert.match(capture,/select_canary_previous_deployment\.mjs/u);
