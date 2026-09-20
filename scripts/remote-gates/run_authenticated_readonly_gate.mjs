@@ -137,47 +137,21 @@ for(const session of sessions){
     continue;
   }
 
-  if(session.name==='client_a'){
-    const applicationContext=await rpc('iberfit_application_context_v14',session.token,{});
-    const applicationRoles=normalizedApplicationRoles(applicationContext?.roles);
-    if(
-      applicationContext?.ok!==true||
-      !applicationRoles.includes('client')||!applicationRoles.includes('admin')||applicationRoles.includes('coach')
-    ){
-      throw new Error(`RC74_4_CLIENT_A_MULTIAPP_CONTEXT_MISMATCH:${applicationRoles.join(',')}`);
-    }
+  const applicationContext=await rpc('iberfit_application_context_v14',session.token,{});
+  const applicationRoles=normalizedApplicationRoles(applicationContext?.roles);
+  if(
+    applicationContext?.ok!==true||
+    !applicationRoles.includes('client')||applicationRoles.includes('admin')||applicationRoles.includes('coach')
+  ){
+    throw new Error(`RC74_4_CLIENT_ROLE_CONTEXT_MISMATCH:${session.name}:${applicationRoles.join(',')}`);
+  }
 
-    const assurance=await rpc('iberfit_privileged_assurance_context_v65d',session.token,{});
-    const privilegedRole=normalizeRegistryRole(assurance?.privilegedRole);
-    if(
-      assurance?.ok!==true||assurance?.privileged!==true||assurance?.mfaRequired!==true||
-      assurance?.webauthnRequired!==true||assurance?.emailOtpAvailable!==true||
-      assurance?.iberfitAssurance!=='required'||assurance?.supabaseAal!=='aal1'||
-      assurance?.origin!==CANARY_ORIGIN||assurance?.rpId!=='m26-canary.iberfit.cl'||privilegedRole!=='admin'
-    ){
-      throw new Error('RC74_4_CLIENT_A_MULTIAPP_ASSURANCE_CONTRACT_FAILED');
-    }
-
-    const bootstrapResult=await rpcResult('iberfit_bootstrap_v26',session.token,{});
-    if(bootstrapResult?.status!==200||!bootstrapResult?.body||typeof bootstrapResult.body!=='object'){
-      throw new Error(`RC74_4_CLIENT_A_MULTIAPP_PRIMARY_AUTH_READ_MISMATCH:status=${bootstrapResult?.status||0}`);
-    }
-
-    const clientId=await rpc('iberfit_client_id',session.token,{});
-    if(typeof clientId!=='string'||!clientId.trim())throw new Error('RC74_4_CLIENT_A_CLIENT_ID_MISSING');
-    const privacy=inspectClientBootstrap(bootstrapResult.body,clientId);
-    if(!privacy.ok)throw new Error(`RC74_4_CLIENT_A_BOOTSTRAP_LEAK:forbidden=${privacy.forbiddenKeys.length}:foreign=${privacy.foreignClientIds.length}`);
-    qaClientIds.push(clientId);
-    roles.push({
-      name:session.name,userFingerprint:fingerprint(session.userId),reportedRole:'client',clientFingerprint:fingerprint(clientId),
-      applicationRoles,canaryActive:bootstrapResult.body?.canary?.active===true,
-      environmentName:bootstrapResult.body?.environment?.name||bootstrapResult.body?.environment||null,
-      privacy:{ok:privacy.ok,forbiddenKeys:privacy.forbiddenKeys,clientFingerprints:privacy.clientIds.map(fingerprint),foreignClientFingerprints:privacy.foreignClientIds.map(fingerprint)},
-      privilegedGate:{ok:true,privilegedRole:'admin',iberfitAssurance:'required',webauthnRequired:true,emailOtpAvailable:true,
-        origin:CANARY_ORIGIN,rpId:'m26-canary.iberfit.cl'},
-      primaryAuthRead:{ok:true,status:200},
-    });
-    continue;
+  const assurance=await rpc('iberfit_privileged_assurance_context_v65d',session.token,{});
+  if(
+    assurance?.ok!==true||assurance?.privileged!==false||
+    assurance?.mfaRequired!==false||assurance?.webauthnRequired!==false
+  ){
+    throw new Error(`RC74_4_CLIENT_ASSURANCE_CONTRACT_FAILED:${session.name}`);
   }
 
   const bootstrap=await rpc('iberfit_bootstrap_v26',session.token,{});
@@ -194,8 +168,9 @@ for(const session of sessions){
   if(expectedRole==='cliente')qaClientIds.push(clientId);
   roles.push({
     name:session.name,userFingerprint:fingerprint(session.userId),reportedRole,clientFingerprint:fingerprint(clientId),
-    canaryActive:bootstrap?.canary?.active===true,environmentName:bootstrap?.environment?.name||bootstrap?.environment||null,
+    applicationRoles,canaryActive:bootstrap?.canary?.active===true,environmentName:bootstrap?.environment?.name||bootstrap?.environment||null,
     privacy:privacy?{ok:privacy.ok,forbiddenKeys:privacy.forbiddenKeys,clientFingerprints:privacy.clientIds.map(fingerprint),foreignClientFingerprints:privacy.foreignClientIds.map(fingerprint)}:null,
+    privilegedGate:{ok:true,required:false,privileged:false,mfaRequired:false,webauthnRequired:false},
     appointmentChangeRead:{ok:true,requestCount:appointmentChanges.requests.length},
   });
 }
