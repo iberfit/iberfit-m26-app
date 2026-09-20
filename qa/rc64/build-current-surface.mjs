@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const root=process.cwd();
-const output=path.join(root,'.tmp','rc64-current-surface');
+const output=path.resolve(process.env.M26_BUILD_DIR||path.join(root,'.tmp','rc64-current-surface'));
 
 const entries=Object.freeze([
   ['public/m26/index.html','index.html'],
@@ -38,7 +38,7 @@ if(canonicalCss!==builtCss)throw new Error('RC64_2A_QA_SHELL_CSS_NOT_CANONICAL')
 
 console.log(JSON.stringify({
   schema:'iberfit.rc64.2a.current-source-qa-surface.v1',
-  output:'.tmp/rc64-current-surface',
+  output:path.relative(root,output).replaceAll(path.sep,'/'),
   source:'canonical-working-tree',
   releaseCandidate:false,
   historicalReleaseBudgetsApplied:false,
