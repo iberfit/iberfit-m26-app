@@ -21,8 +21,13 @@ import {selectCanaryPreviousDeployment} from '../scripts/ops/select_canary_previ
 const repo=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const workflow=fs.readFileSync(path.join(repo,'.github','workflows','canary-exact-deploy.yml'),'utf8');
 const runtimeGenerator=fs.readFileSync(path.join(repo,'scripts','generate_rc74_4_runtime_config.mjs'),'utf8');
+const surfaceSealer=fs.readFileSync(path.join(repo,'scripts','ops','prepare_canary_deploy_surface.mjs'),'utf8');
 const sourceSha='1'.repeat(40);
 const previousSha='2'.repeat(40);
+
+function runtimeText(config){
+  return `window.__IBERFIT_M26_RUNTIME__ = Object.freeze(${JSON.stringify(config,null,2)});\n`;
+}
 
 function fixture(){
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'iberfit-canary-deploy-'));
@@ -32,7 +37,13 @@ function fixture(){
   fs.writeFileSync(path.join(build,'m26','_headers'),`/*\n  Content-Security-Policy: connect-src 'self' ${PROD_URL}; img-src 'self' ${PROD_URL}\n`);
   fs.writeFileSync(path.join(build,'m26','sw.js'),"const VERSION='m26-rc63-2';\nconst PREVIOUS_VERSION='m26-rc63-1';\nconst X='/src/m26/design/auth-native.css';\n");
   const runtime=path.join(temp,'runtime-config.js');
-  fs.writeFileSync(runtime,`globalThis.__IBERFIT_M26_RUNTIME__={enabled: true,qaOnly: true,projectRef: '${QA_REF}',url: '${QA_URL}',publishableKey: 'sb_publishable_test_key'};\n`);
+  fs.writeFileSync(runtime,runtimeText({
+    enabled:true,
+    qaOnly:true,
+    projectRef:QA_REF,
+    url:QA_URL,
+    publishableKey:'sb_publishable_test_key',
+  }));
   const liveSw=path.join(temp,'live-sw.js');
   fs.writeFileSync(liveSw,"const VERSION='m26-canary-old';\nconst PREVIOUS_VERSION='m26-canary-older';\n");
   return {temp,build,runtime,liveSw};
@@ -102,8 +113,8 @@ test('Canary deploy surface generates exact release identity even when source tr
     assert.match(headers,new RegExp(QA_REF));
     assert.doesNotMatch(headers,new RegExp(PROD_REF));
     const runtime=fs.readFileSync(path.join(f.build,'m26','runtime-config.js'),'utf8');
-    assert.match(runtime,/enabled:\s*true/u);
-    assert.match(runtime,/qaOnly:\s*true/u);
+    assert.match(runtime,/"enabled":\s*true/u);
+    assert.match(runtime,/"qaOnly":\s*true/u);
     assert.match(runtime,new RegExp(QA_REF));
     assert.doesNotMatch(runtime,new RegExp(PROD_REF));
     const sw=fs.readFileSync(path.join(f.build,'m26','sw.js'),'utf8');
@@ -117,7 +128,13 @@ test('Canary deploy surface generates exact release identity even when source tr
 test('Canary deploy surface refuses PROD runtime leakage',()=>{
   const f=fixture();
   try{
-    fs.writeFileSync(f.runtime,`globalThis.__IBERFIT_M26_RUNTIME__={enabled: true,qaOnly: true,projectRef: '${PROD_REF}',url: '${PROD_URL}',publishableKey: 'sb_publishable_test_key'};\n`);
+    fs.writeFileSync(f.runtime,runtimeText({
+      enabled:true,
+      qaOnly:true,
+      projectRef:PROD_REF,
+      url:PROD_URL,
+      publishableKey:'sb_publishable_test_key',
+    }));
     assert.throws(()=>sealCanarySurface({buildDir:f.build,sourceSha,sourceBranch:CANARY_BRANCH,generatedRuntimePath:f.runtime,liveSwPath:f.liveSw,previousLiveSha:previousSha}),/CANARY_SURFACE_RUNTIME_QA_IDENTITY_MISSING|CANARY_SURFACE_RUNTIME_PROD_LEAK/u);
   }finally{
     fs.rmSync(f.temp,{recursive:true,force:true});
@@ -170,12 +187,16 @@ test('Canary workflow binds the same protected QA environment and runtime contra
   assert.doesNotMatch(runtimeStep,/M26_QA_SUPABASE_(?:URL|PUBLISHABLE_KEY)/u);
 });
 
-test('Canary seal consumes the QA runtime generated inside the canonical build surface',()=>{
+test('Canary seal consumes and validates the JSON runtime generated inside the canonical build surface',()=>{
   assert.match(runtimeGenerator,/const target=path\.join\(buildDir,'m26','runtime-config\.js'\);/u);
+  assert.match(runtimeGenerator,/JSON\.stringify\(config,null,2\)/u);
   const sealStep=workflow.match(/- name: Seal exact Canary surface[\s\S]*?run: node scripts\/ops\/prepare_canary_deploy_surface\.mjs/u)?.[0]||'';
   assert.match(sealStep,/M26_CANARY_BUILD_DIR: \.tmp\/rc64-current-surface/u);
   assert.match(sealStep,/M26_CANARY_GENERATED_RUNTIME: \.tmp\/rc64-current-surface\/m26\/runtime-config\.js/u);
   assert.doesNotMatch(sealStep,/M26_CANARY_GENERATED_RUNTIME: public\/m26\/runtime-config\.js/u);
+  assert.match(surfaceSealer,/generatedRuntimePath:process\.env\.M26_CANARY_GENERATED_RUNTIME\|\|'\.tmp\/rc64-current-surface\/m26\/runtime-config\.js'/u);
+  assert.match(surfaceSealer,/\/?"enabled"\?:\\s\*true/u);
+  assert.match(surfaceSealer,/\/?"qaOnly"\?:\\s\*true/u);
 });
 
 test('Canary workflow captures rollback metadata from canonical deployment rather than first-page history',()=>{
