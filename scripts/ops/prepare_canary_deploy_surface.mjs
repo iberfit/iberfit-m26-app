@@ -69,11 +69,9 @@ export function sealCanarySurface({
   if(/service[_-]?role/iu.test(runtime))throw new Error('CANARY_SURFACE_RUNTIME_SERVICE_ROLE_LEAK');
   writeText(path.join(m26Root,'runtime-config.js'),runtime);
 
-  const sourceVersionPath=path.join(m26Root,'version.json');
-  const sourceVersion=JSON.parse(readText(sourceVersionPath));
   const shortSha=sha.slice(0,12);
-  const version={
-    ...sourceVersion,
+  const version=Object.freeze({
+    schema:'iberfit.release-identity.v1',
     release:`IBERFIT_M26_CANARY_${shortSha.toUpperCase()}`,
     version:`26.0.0-canary.${shortSha}`,
     sourceSha:sha,
@@ -83,9 +81,9 @@ export function sealCanarySurface({
     projectRef:QA_REF,
     qaOnly:true,
     production:false,
-  };
+  });
   const versionText=`${JSON.stringify(version,null,2)}\n`;
-  writeText(sourceVersionPath,versionText);
+  writeText(path.join(m26Root,'version.json'),versionText);
   writeText(path.join(root,'version.json'),versionText);
 
   const sourceHeadersPath=path.join(m26Root,'_headers');
@@ -120,6 +118,7 @@ export function sealCanarySurface({
     qaOnly:true,
     production:false,
     runtimeEnabled:true,
+    releaseIdentityGenerated:true,
     rootVersionMirrored:true,
     headersQaOnly:true,
     sourceSwVersion:currentSourceVersion,
