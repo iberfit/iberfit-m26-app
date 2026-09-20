@@ -64,6 +64,7 @@ test('RC64.2A disabled runtime uses external critical CSS and does not fetch ful
     '/src/m26/design/typography.css',
     '/src/m26/design/icons.css',
     '/src/m26/shell/shell.css',
+    '/src/m26/design/runtime-static.css',
     '/src/m26/workflows/iri-external-report.css',
     '/src/m26/ui/client-bottom-nav.css',
     '/src/m26/rc39/rc39.css',
