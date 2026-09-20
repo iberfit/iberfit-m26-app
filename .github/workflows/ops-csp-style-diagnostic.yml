@@ -25,38 +25,43 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Enumerate exact runtime style sources
+      - name: Capture exact runtime style sources and context
         shell: bash
         run: |
           set -euo pipefail
           git cat-file -e "${EXPECTED_SHA}^{commit}" 2>/dev/null || git fetch origin "$EXPECTED_SHA"
           rm -rf /tmp/iberfit-csp-exact
           git worktree add --detach /tmp/iberfit-csp-exact "$EXPECTED_SHA"
-          OUT="$GITHUB_WORKSPACE/CSP_RUNTIME_STYLE_DIAGNOSTIC.txt"
+          cd /tmp/iberfit-csp-exact
+          OUT="$GITHUB_WORKSPACE/CSP_RUNTIME_STYLE_CONTEXT.txt"
           : > "$OUT"
           {
             echo "EXPECTED_SHA=$EXPECTED_SHA"
-            echo '=== dynamic style elements ==='
-            grep -RInE "createElement\(['\"]style['\"]\)|\.style\.textContent|style\.textContent" /tmp/iberfit-csp-exact/src/m26 /tmp/iberfit-csp-exact/public/m26 --include='*.js' --include='*.mjs' || true
-            echo '=== setAttribute style and property writes ==='
-            grep -RInE "setAttribute\(['\"]style['\"]|\.style\.[A-Za-z_-]+[[:space:]]*=" /tmp/iberfit-csp-exact/src/m26 /tmp/iberfit-csp-exact/public/m26 --include='*.js' --include='*.mjs' || true
-            echo '=== inline style HTML attributes ==='
-            grep -RInE "style=[\"']" /tmp/iberfit-csp-exact/src/m26 /tmp/iberfit-csp-exact/public/m26 --include='*.html' --include='*.js' --include='*.mjs' || true
-            echo '=== target style helper functions ==='
-            grep -RInE "ensure[A-Za-z0-9_]*Style|createElement\(['\"]style['\"]\)" /tmp/iberfit-csp-exact/src/m26 /tmp/iberfit-csp-exact/public/m26 --include='*.js' --include='*.mjs' || true
-          } | sed 's#/tmp/iberfit-csp-exact/##g' | tee "$OUT"
+            echo "ACTUAL_SHA=$(git rev-parse HEAD)"
+            echo '=== tracked matching paths ==='
+            git ls-files | grep -E '(^|/)(app\.js|report-workflow\.js|route-render\.js|readiness-ui\.js|client-list-shell\.js|client-profile-body\.js|route-component\.js|clients-client-shell\.js)$' || true
+            echo '=== dynamic style element context ==='
+            git grep -n -C 25 -E "createElement\(['\"]style['\"]\)|\.style\.textContent|style\.textContent" -- 'src/m26/**/*.js' 'src/m26/*.js' 'public/m26/**/*.js' 'public/m26/*.js' || true
+            echo '=== style property/write context ==='
+            git grep -n -C 12 -E "setAttribute\(['\"]style['\"]|\.style\.[A-Za-z_-]+[[:space:]]*=" -- 'src/m26/**/*.js' 'src/m26/*.js' 'public/m26/**/*.js' 'public/m26/*.js' || true
+            echo '=== inline style attribute context ==='
+            git grep -n -C 12 -E "style=[\"']" -- 'src/m26/**/*.js' 'src/m26/*.js' 'src/m26/**/*.html' 'public/m26/**/*.js' 'public/m26/*.js' 'public/m26/**/*.html' || true
+            echo '=== stylesheet references ==='
+            git grep -n -E "rel=[\"']stylesheet|\.css[\"']" -- '*.html' 'src/**/*.js' 'public/**/*.js' || true
+          } > "$OUT"
+          cd "$GITHUB_WORKSPACE"
           git worktree remove /tmp/iberfit-csp-exact --force
 
-      - name: Commit diagnostic evidence to ops branch
+      - name: Commit context evidence to ops branch
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'iberfit'
           git config user.email 'iberfit.cl@gmail.com'
-          git add CSP_RUNTIME_STYLE_DIAGNOSTIC.txt
+          git add CSP_RUNTIME_STYLE_CONTEXT.txt
           if git diff --cached --quiet; then
-            echo 'DIAGNOSTIC_UNCHANGED'
+            echo 'CONTEXT_UNCHANGED'
             exit 0
           fi
-          git commit -m 'chore(ops): persist CSP runtime style diagnostic'
+          git commit -m 'chore(ops): persist CSP runtime style context'
           git push origin HEAD:ops/canary-live-observe-20260920
