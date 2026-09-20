@@ -125,12 +125,12 @@ async function inspectViewport(browser,{name,width,height}){
     invariant(lang==='es-ES','PRELAUNCH_LIVE_LANG_INVALID');
 
     const kicker=page.locator('.m26-auth-intro-kicker');
-    invariant(await kicker.isVisible(),'PRELAUNCH_LIVE_KICKER_MISSING');
-    invariant((await kicker.innerText()).replace(/\s+/gu,' ').trim()==='Entrenamiento personal con criterio','PRELAUNCH_LIVE_KICKER_COPY_MISMATCH');
+    invariant(await kicker.count()===1,'PRELAUNCH_LIVE_KICKER_MISSING');
+    invariant(String(await kicker.textContent()||'').replace(/\s+/gu,' ').trim()==='Entrenamiento personal con criterio','PRELAUNCH_LIVE_KICKER_COPY_MISMATCH');
 
     const heading=page.locator('.m26-auth-intro h2');
-    invariant(await heading.isVisible(),'PRELAUNCH_LIVE_HEADING_MISSING');
-    invariant((await heading.innerText()).replace(/\s+/gu,' ').trim()==='Todo tu proceso de entrenamiento, en un solo lugar.','PRELAUNCH_LIVE_HEADING_COPY_MISMATCH');
+    invariant(await heading.count()===1,'PRELAUNCH_LIVE_HEADING_MISSING');
+    invariant(String(await heading.textContent()||'').replace(/\s+/gu,' ').trim()==='Todo tu proceso de entrenamiento, en un solo lugar.','PRELAUNCH_LIVE_HEADING_COPY_MISMATCH');
 
     const login=page.locator('form[data-auth-form="login"]');
     invariant(await login.isVisible(),'PRELAUNCH_LIVE_LOGIN_FORM_MISSING');
