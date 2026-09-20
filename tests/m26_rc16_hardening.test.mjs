@@ -75,14 +75,13 @@ test('PWA raíz canónica conserva hardening y excluye runtime, API y rutas ajen
   assert.match(canonicalSw,/IBERFIT_ROOT_NAVIGATION_PATHS=new Set\(\['\/'\]\)/u);assert.doesNotMatch(canonicalSw,/startsWith\('\/'\)/u);
 });
 
-test('HTML entregado limita CSS inline al crítico canónico y mantiene scripts y atributos inline prohibidos',()=>{
+test('HTML entregado externaliza CSS crítico y mantiene scripts y atributos inline prohibidos',()=>{
   const index=text('public/m26/index.html').replace(/\r\n?/gu,'\n');
   const offline=text('public/m26/offline.html').replace(/\r\n?/gu,'\n');
   const critical=text('public/m26/preauth-critical.css').replace(/\r\n?/gu,'\n').replace(/\n+$/u,'');
-  const inline=[...index.matchAll(/<style data-iberfit-preauth-critical>([\s\S]*?)<\/style>/gu)];
-  assert.equal(inline.length,1);
-  assert.equal([...index.matchAll(/<style\b/giu)].length,1);
-  assert.equal(inline[0][1],critical);
+  assert.match(critical,/\.m26-auth-page/u);
+  assert.match(index,/<link\b[^>]*href="\/m26\/preauth-critical\.css"[^>]*data-iberfit-preauth-critical[^>]*>/u);
+  assert.equal([...index.matchAll(/<style\b/giu)].length,0);
   assert.doesNotMatch(offline,/<style\b/iu);
   for(const html of [index,offline]){
     assert.doesNotMatch(html,/<script(?![^>]*\bsrc=)[^>]*>/iu);
