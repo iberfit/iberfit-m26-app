@@ -1,0 +1,112 @@
+name: IBERFIT Canary Live Observe (temporary)
+
+on:
+  push:
+    branches:
+      - ops/canary-live-observe-20260920
+    paths:
+      - '.github/workflows/ops-canary-live-observe.yml'
+
+permissions:
+  contents: read
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'iberfit-m26-canary'
+  CANARY_DOMAIN: 'm26-canary.iberfit.cl'
+  EXPECTED_SHA: 'da0e5535a16c73b35c430f9869833b1f6b8af42f'
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Read Cloudflare Pages state and live version
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 41; }
+
+          auth=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json')
+          curl --fail --silent --show-error "${auth[@]}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" \
+            -o /tmp/project.json
+          curl --fail --silent --show-error "${auth[@]}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments?per_page=25" \
+            -o /tmp/deployments.json
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            -H 'Cache-Control: no-cache' \
+            "https://${CANARY_DOMAIN}/version.json?observe=${GITHUB_RUN_ID}" \
+            -o /tmp/version.json
+
+          node <<'NODE'
+          const fs=require('fs');
+          const project=JSON.parse(fs.readFileSync('/tmp/project.json','utf8'));
+          const deployments=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const version=JSON.parse(fs.readFileSync('/tmp/version.json','utf8'));
+          const fail=(code)=>{throw new Error(code)};
+          if(!project.success||!project.result)fail('CF_PROJECT_LOOKUP_FAILED');
+          if(!deployments.success||!Array.isArray(deployments.result))fail('CF_DEPLOYMENTS_LOOKUP_FAILED');
+          const p=project.result;
+          if(p.name!==process.env.CF_PROJECT)fail(`CF_PROJECT_MISMATCH:${p.name||'missing'}`);
+          const domains=Array.isArray(p.domains)?p.domains:[];
+          if(!domains.includes(process.env.CANARY_DOMAIN))fail(`CF_CANARY_DOMAIN_NOT_BOUND:${domains.join(',')}`);
+          const rows=deployments.result.map((d)=>({
+            id:d.id,
+            environment:d.environment,
+            createdOn:d.created_on||null,
+            latestStage:d.latest_stage?.status||null,
+            deploymentTriggerType:d.deployment_trigger?.type||null,
+            commitHash:d.deployment_trigger?.metadata?.commit_hash||null,
+            branch:d.deployment_trigger?.metadata?.branch||null,
+            url:d.url||null,
+          }));
+          const productionRows=rows.filter((d)=>d.environment==='production');
+          const live={
+            sourceSha:String(version.sourceSha||version.commit||version.sha||'').trim().toLowerCase(),
+            sourceBranch:String(version.sourceBranch||version.branch||'').trim(),
+            qaOnly:version.qaOnly===true,
+            projectRef:String(version.projectRef||'').trim(),
+            version:String(version.version||'').trim(),
+          };
+          const evidence={
+            schema:'iberfit.ops.canary-live-observe.v1',
+            generatedAt:new Date().toISOString(),
+            expectedSha:process.env.EXPECTED_SHA,
+            cloudflare:{
+              project:p.name,
+              productionBranch:p.production_branch||null,
+              domains,
+              newestDeployments:rows.slice(0,10),
+              newestProductionDeployments:productionRows.slice(0,5),
+            },
+            live,
+            mutationPerformed:false,
+            productionTouched:false,
+          };
+          fs.writeFileSync('CANARY_LIVE_OBSERVE.json',JSON.stringify(evidence,null,2)+'\n');
+          console.log(JSON.stringify({
+            expectedSha:evidence.expectedSha,
+            project:evidence.cloudflare.project,
+            productionBranch:evidence.cloudflare.productionBranch,
+            live,
+            newestProductionDeployments:evidence.cloudflare.newestProductionDeployments,
+            mutationPerformed:false,
+            productionTouched:false,
+          },null,2));
+          if(!/^[0-9a-f]{40}$/.test(live.sourceSha))fail('CANARY_LIVE_VERSION_SHA_INVALID');
+          if(live.sourceSha!==process.env.EXPECTED_SHA)fail(`CANARY_LIVE_SHA_MISMATCH:${live.sourceSha}:${process.env.EXPECTED_SHA}`);
+          if(live.sourceBranch!=='canary/rc74-4')fail(`CANARY_LIVE_BRANCH_MISMATCH:${live.sourceBranch}`);
+          if(live.qaOnly!==true)fail('CANARY_LIVE_NOT_QA');
+          NODE
+
+      - name: Preserve read-only evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-live-observe-${{ github.run_id }}
+          path: CANARY_LIVE_OBSERVE.json
+          if-no-files-found: warn
+          retention-days: 2
