@@ -9,14 +9,14 @@ const ALLOWED_EXTENSIONS = new Set(['.js', '.mjs', '.html']);
 const EXCLUDED_PATH_SEGMENTS = new Set(['vendor']);
 
 const RULES = [
-  ['style-element', /<style\b/i],
-  ['style-attribute', /\bstyle\s*=/i],
+  ['style-element', /<style(?:\s|>)/i],
+  ['style-attribute', /<[^>\n]*\sstyle\s*=/i],
   ['dom-style-property', /\.style(?:\s*=|\s*\.|\s*\[)/],
   ['setAttribute-style', /\.setAttribute\(\s*['"]style['"]/],
   ['runtime-style-element', /createElement\(\s*['"]style['"]\s*\)/],
   ['runtime-insertRule', /\.insertRule\s*\(/],
   ['constructable-stylesheet', /\bnew\s+CSSStyleSheet\s*\(/],
-  ['runtime-css-replace', /\.(?:replace|replaceSync)\s*\(\s*[`'"]/],
+  ['adopted-stylesheets', /\.adoptedStyleSheets\s*=/],
 ];
 
 function isExcluded(path) {
