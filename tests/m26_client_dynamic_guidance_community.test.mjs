@@ -16,6 +16,7 @@ import {renderChallengesRoute,renderHoyRoute,renderRouteView} from '../src/m26/m
 import {progressSummaryHasEvolutionEvidence} from '../src/m26/engagement/progress-engine.js';
 
 const read=(path)=>fs.readFileSync(path,'utf8').replace(/\r\n/g,'\n');
+const runtimeCss=read('src/m26/design/runtime-static.css');
 
 test('Client guide is contextual, can expose more than one useful hint on Today, and includes challenges/community',()=>{
   assert.equal(CLIENT_CONTEXTUAL_GUIDE_SCHEMA_VERSION,'iberfit.client-contextual-guide.v1');
@@ -171,9 +172,9 @@ test('Client contextual guide has no numbered tour/checklist, does not observe t
   assert.match(guide,/data-m26-client-context-guide-ack/u);
   assert.match(guide,/data-m26-client-context-guide-later/u);
   assert.match(guide,/aria-modal="false"/u);
-  assert.match(guide,/min-height:44px/u);
-  assert.match(guide,/safe-area-inset-bottom/u);
-  assert.match(guide,/prefers-reduced-motion/u);
+  assert.match(runtimeCss,/\.m26-client-context-guide-actions button[^}]*min-height:44px/u);
+  assert.match(runtimeCss,/safe-area-inset-bottom/u);
+  assert.match(runtimeCss,/prefers-reduced-motion/u);
   assert.match(guide,/isVisibleInViewport/u);
   assert.match(guide,/positionDialog/u);
   assert.match(guide,/doc\?\.addEventListener\?\.\('click',click\)/u);
@@ -186,12 +187,12 @@ test('Guía IBERFIT uses the official living brand mark without becoming an inte
   assert.match(guide,/data-m26-client-guide-presence/u);
   assert.match(guide,/src="\/public\/isotipo-iberfit\.png"/u);
   assert.match(guide,/aria-hidden="true"/u);
-  assert.match(guide,/pointer-events:none/u);
-  assert.match(guide,/m26-client-guide-arrive/u);
-  assert.match(guide,/left 280ms/u);
-  assert.match(guide,/top 280ms/u);
-  assert.match(guide,/prefers-reduced-motion/u);
-  assert.doesNotMatch(guide,/animation:[^;]*infinite/iu);
+  assert.match(runtimeCss,/\.m26-client-guide-presence\{[\s\S]*?pointer-events:none/u);
+  assert.match(runtimeCss,/m26-client-guide-arrive/u);
+  assert.match(runtimeCss,/transition:left 280ms/u);
+  assert.match(runtimeCss,/,top 280ms/u);
+  assert.match(runtimeCss,/prefers-reduced-motion/u);
+  assert.doesNotMatch(runtimeCss,/\.m26-client-guide-presence[^}]*animation:[^;]*infinite/iu);
   assert.doesNotMatch(guide,/MutationObserver|setInterval/u);
   assert.match(guide,/resolvedTarget&&resolvedTarget!==activeTarget/u);
   assert.match(guide,/openCurrent\(\)\{\s*if\(clientGuideSuppressed\(root\)\)return false;/u);
@@ -201,16 +202,15 @@ test('Guía IBERFIT uses the official living brand mark without becoming an inte
   assert.equal(clientGuideSuppressed({querySelector(){return null;}}),false);
 
   const classes=new Set();
-  const attrs=new Set();
+  const attrs=new Map();
   const presence={
-    style:{removeProperty(name){delete this[name];}},
     classList:{
       add(...names){for(const name of names)classes.add(name);},
       remove(...names){for(const name of names)classes.delete(name);},
       contains(name){return classes.has(name);},
     },
     hasAttribute(name){return attrs.has(name);},
-    setAttribute(name){attrs.add(name);},
+    setAttribute(name,value=''){attrs.set(name,String(value));},
     offsetWidth:48,
   };
   const target={getBoundingClientRect(){return {left:100,right:300,top:80,bottom:160,width:200,height:80};}};
@@ -221,11 +221,10 @@ test('Guía IBERFIT uses the official living brand mark without becoming an inte
     matchMedia(){return {matches:false};},
   };
   assert.equal(positionPresence(presence,target,scope,{arriving:true}),true);
-  assert.equal(presence.style.left,'310px');
-  assert.equal(presence.style.top,'96px');
+  assert.equal(attrs.get('data-m26-guide-placement'),'bottom');
+  assert.equal(attrs.get('data-m26-client-guide-positioned'),'true');
   assert.ok(classes.has('is-visible'));
   assert.ok(classes.has('is-arriving'));
-  assert.ok(attrs.has('data-m26-client-guide-positioned'));
 
   const offscreen={getBoundingClientRect(){return {left:100,right:300,top:900,bottom:980,width:200,height:80};}};
   assert.equal(positionPresence(presence,offscreen,scope),false);
