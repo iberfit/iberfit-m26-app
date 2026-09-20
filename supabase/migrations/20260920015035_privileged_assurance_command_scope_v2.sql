@@ -1,0 +1,9 @@
+-- IBERFIT M26
+-- Recovery marker for QA migration history.
+-- QA briefly received a registry-driven privileged-assurance wrapper under this
+-- migration version. That implementation mapped conflict_sensitive to WebAuthn
+-- assurance, which is broader than the product security contract because some
+-- legitimate client commands are conflict-sensitive.
+--
+-- Keep this version as an intentional no-op so repository migration history
+-- remains aligned with QA. The safe final state is applied immediately by v3.
