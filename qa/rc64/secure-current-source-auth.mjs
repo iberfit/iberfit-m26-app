@@ -41,6 +41,7 @@ function allowedQaRequest(request,readOnlyRpcs){
   if(method==='POST'&&url.pathname==='/auth/v1/logout')return true;
   if(method==='GET'&&url.pathname==='/auth/v1/user')return true;
   if(method==='GET'&&url.pathname==='/rest/v1/domain_command_registry_v26')return true;
+  if(method==='POST'&&url.pathname==='/rest/v1/rpc/iberfit_notification_preferences_status_v1')return true;
   const prefix='/rest/v1/rpc/';
   return method==='POST'&&url.pathname.startsWith(prefix)&&readOnlyRpcs.has(url.pathname.slice(prefix.length));
 }
