@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: m26-fast-lane-${{ github.ref }}
@@ -29,32 +29,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Preparar Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Regenerar APP_SHELL por CSP
-        if: github.event_name == 'pull_request' && github.head_ref == 'fix/csp-strict-first-party-20260919' && github.event.pull_request.head.repo.full_name == github.repository
-        shell: bash
-        run: node scripts/generate_rc58_app_shell.mjs
-
-      - name: Publicar APP_SHELL regenerado
-        if: github.event_name == 'pull_request' && github.head_ref == 'fix/csp-strict-first-party-20260919' && github.event.pull_request.head.repo.full_name == github.repository
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- public/m26/sw.js; then
-            echo 'APP_SHELL already current.'
-            exit 0
-          fi
-          git config user.name 'iberfit-csp-bot'
-          git config user.email 'iberfit.cl@gmail.com'
-          git add public/m26/sw.js
-          git commit -m 'fix(pwa): include CSP static stylesheet in app shell'
-          git push origin "HEAD:${{ github.head_ref }}"
 
       - name: Resolver base exacta
         id: base
