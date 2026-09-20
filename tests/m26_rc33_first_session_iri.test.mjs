@@ -17,6 +17,8 @@ import {buildIriReportHtml} from '../src/m26/workflows/iri-report-document.js';
 import {renderClientsRoute,renderIriRoute} from '../src/m26/modules/route-render.js';
 import {createM26Transport} from '../src/m26/supabase-transport.js';
 
+const reportCss=readFileSync(new URL('../public/m26/iri-report.css',import.meta.url),'utf8');
+
 function validRaw(overrides={}){
   return {
     assessmentDate:'2026-07-27',birthDate:'1992-04-11',sexForNorms:'female',email:'cliente@example.com',phone:'+56 9 1111 2222',modality:'hibrido',trainingAddress:'Av. IBERFIT 123',weeklyFrequency:'3',sessionDurationMinutes:'60',primaryObjective:'Mejorar fuerza general y capacidad física.',
@@ -80,7 +82,8 @@ test('informes Cliente y Coach usan A4, isotipo, marca de agua y páginas cerrad
   const client=buildIriReportHtml({draft,variant:'client',clientName:'María González',coachName:'Carlos Ríos',logoUrl:'/public/isotipo-iberfit.png'});
   const coach=buildIriReportHtml({draft,variant:'coach',clientName:'María González',coachName:'Carlos Ríos',clientId:'CLIENT-RC33',logoUrl:'/public/isotipo-iberfit.png'});
   assert.equal((client.match(/class="pdf-page/g)||[]).length,7);assert.ok((coach.match(/class="pdf-page/g)||[]).length>=13);
-  for(const html of [client,coach]){assert.match(html,/@page\{size:A4/);assert.match(html,/class="[^"]*watermark[^"]*"/);assert.match(html,/isotipo-iberfit\.png/);assert.match(html,/overflow:hidden/);assert.doesNotMatch(html,/IRI global[^<]*68|68\/100/i);}
+  assert.match(reportCss,/@page\{size:A4/u);assert.match(reportCss,/overflow:hidden/u);assert.match(reportCss,/width:210mm;height:297mm/u);
+  for(const html of [client,coach]){assert.match(html,/rel="stylesheet"[^>]+data-iri-report-stylesheet/u);assert.doesNotMatch(html,/<style\b/iu);assert.match(html,/class="[^"]*watermark[^"]*"/);assert.match(html,/isotipo-iberfit\.png/);assert.doesNotMatch(html,/IRI global[^<]*68|68\/100/i);}
   assert.match(client,/INFORME DE EVALUACIÓN (?:INICIAL|IRI)/);assert.match(client,/Completitud del proceso/);assert.doesNotMatch(client,/cliente@example\.com|\+56 9 1111 2222/);assert.match(coach,/Coach \/ Admin|USO INTERNO/);assert.match(coach,/Anexo íntegro de datos/);assert.match(coach,/cliente@example\.com/);assert.match(coach,/trainingHistory/);
 });
 
