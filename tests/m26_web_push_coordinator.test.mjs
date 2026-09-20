@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createWebPushCoordinator,__webPushCoordinatorInternals} from '../src/m26/communication/web-push.js';
 
+const TEST_VAPID_PUBLIC_KEY='BGsX0fLhLEJH-Lzm5WOkQPJ3A32BLeszoPShOUXYmMKWT-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU';
 const baseState=Object.freeze({supported:true,secure:true,configured:true,permission:'granted',subscribed:false,active:false,reason:'not-subscribed'});
 const serialized=Object.freeze({endpoint:'https://push.example.test/device-a',expirationTime:null,keys:Object.freeze({p256dh:'p256dh',auth:'auth'})});
 
@@ -18,7 +19,7 @@ function harness({state=baseState,online=true,subscribeCreated=true,upsertError=
     transport,
     getToken:async()=>{calls.push(['token']);return 'jwt-user';},
     getRegistration:async()=>registration,
-    vapidPublicKey:'public-key-present-for-injected-tests',
+    vapidPublicKey:TEST_VAPID_PUBLIC_KEY,
     isOnline:()=>online,
     inspect:async()=>state,
     requestPermission:async()=>{calls.push(['permission']);return permissionResult;},

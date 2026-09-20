@@ -20,12 +20,19 @@ function pushEndpoint(value){
   if(endpoint.length<12||endpoint.length>4096||!/^https:\/\//iu.test(endpoint))throw new Error('M26_PUSH_ENDPOINT_INVALID');
   return endpoint;
 }
+function publicVapidKey(value){
+  const key=String(value||'').trim();
+  if(!key)return '';
+  if(key.length<40||key.length>256||!/^[A-Za-z0-9_-]+$/u.test(key))throw new Error('M26_PUSH_VAPID_PUBLIC_KEY_INVALID');
+  return key;
+}
 
 export function createWebPushCoordinator({
   transport,
   getToken,
   getRegistration=async()=>globalThis.navigator?.serviceWorker?.getRegistration?.('/'),
   vapidPublicKey='',
+  getVapidPublicKey=null,
   isOnline=()=>globalThis.navigator?.onLine!==false,
   inspect=inspectWebPushState,
   requestPermission=requestWebPushPermission,
@@ -34,6 +41,8 @@ export function createWebPushCoordinator({
 }={}){
   requireDependency(transport,'M26_PUSH_TRANSPORT_REQUIRED');
   requireDependency(getToken,'M26_PUSH_TOKEN_PROVIDER_REQUIRED');
+  let cachedVapidPublicKey=publicVapidKey(vapidPublicKey);
+  let vapidKeyInFlight=null;
 
   async function token(){
     const value=String(await getToken()||'').trim();
@@ -53,9 +62,34 @@ export function createWebPushCoordinator({
     }catch{return null;}
   }
   function requireOnline(){if(!isOnline())throw new Error('M26_PUSH_ONLINE_REQUIRED');}
+  async function resolveVapidPublicKey({force=false,failClosed=false}={}){
+    if(cachedVapidPublicKey&&!force)return cachedVapidPublicKey;
+    if(typeof getVapidPublicKey!=='function'){
+      if(failClosed&&!cachedVapidPublicKey)throw new Error('M26_PUSH_VAPID_PUBLIC_KEY_INVALID');
+      return cachedVapidPublicKey;
+    }
+    if(!isOnline()){
+      if(failClosed)throw new Error('M26_PUSH_ONLINE_REQUIRED');
+      return cachedVapidPublicKey;
+    }
+    if(vapidKeyInFlight)return vapidKeyInFlight;
+    vapidKeyInFlight=(async()=>{
+      try{
+        const remote=publicVapidKey(await getVapidPublicKey());
+        if(!remote)throw new Error('M26_PUSH_VAPID_PUBLIC_KEY_INVALID');
+        cachedVapidPublicKey=remote;
+        return remote;
+      }catch(error){
+        if(failClosed)throw error;
+        return cachedVapidPublicKey;
+      }finally{vapidKeyInFlight=null;}
+    })();
+    return vapidKeyInFlight;
+  }
 
   async function status(){
-    const local=await inspect({vapidPublicKey});
+    const resolvedKey=await resolveVapidPublicKey();
+    const local=await inspect({vapidPublicKey:resolvedKey});
     const endpoint=local.subscribed===true?await currentEndpoint():null;
     let backend=Object.freeze({ok:false,active:false,subscriptionCount:0,updatedAt:null});
     if(isOnline())backend=normalizedBackendState(await transport.webPushStatus(await token(),endpoint));
@@ -80,7 +114,8 @@ export function createWebPushCoordinator({
 
   async function enable(){
     requireOnline();
-    const before=await inspect({vapidPublicKey});
+    const resolvedKey=await resolveVapidPublicKey({force:!cachedVapidPublicKey,failClosed:true});
+    const before=await inspect({vapidPublicKey:resolvedKey});
     if(!before.supported)throw new Error('M26_PUSH_UNSUPPORTED');
     if(!before.configured)throw new Error('M26_PUSH_VAPID_PUBLIC_KEY_INVALID');
     if(before.permission==='denied')throw new Error('M26_PUSH_PERMISSION_DENIED');
@@ -89,7 +124,7 @@ export function createWebPushCoordinator({
       if(!permission?.ok)throw new Error(permission?.reason==='permission-denied'?'M26_PUSH_PERMISSION_DENIED':'M26_PUSH_PERMISSION_NOT_GRANTED');
     }
     const sw=await registration();
-    const local=await subscribe({registration:sw,vapidPublicKey});
+    const local=await subscribe({registration:sw,vapidPublicKey:resolvedKey});
     try{
       const backend=normalizedBackendState(await transport.webPushUpsert(await token(),local.serialized));
       if(!backend.active)throw new Error('M26_PUSH_UPSERT_NOT_CONFIRMED');
@@ -127,4 +162,4 @@ export function createWebPushCoordinator({
   return Object.freeze({status,enable,disableCurrent,disableAll});
 }
 
-export const __webPushCoordinatorInternals=Object.freeze({pushEndpoint,normalizedBackendState});
+export const __webPushCoordinatorInternals=Object.freeze({pushEndpoint,normalizedBackendState,publicVapidKey});
