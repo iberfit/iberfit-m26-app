@@ -8,6 +8,8 @@ const authenticated=read('playwright.authenticated.config.mjs');
 const genie=read('playwright.client-guided-welcome.config.mjs');
 const deviceConfig=read('playwright.device-experience.config.mjs');
 const deviceSpec=read('qa/device-experience/device-experience.spec.mjs');
+const roleGenieSpec=read('qa/device-experience/role-guided-onboarding.spec.mjs');
+const roleGenieFixture=read('qa/rc64/role-guided-onboarding.fixture.mjs');
 const visualCasesGenerator=read('qa/rc13_generate_visual_cases.mjs');
 const visual=read('playwright.authenticated-visual.config.mjs');
 const admin=read('playwright.admin-interaction.config.mjs');
@@ -60,6 +62,21 @@ test('Client Genie journey is a permanent four-device authenticated gate',()=>{
   ])assert.ok(genie.includes(token),`missing Genie matrix token: ${token}`);
   assert.match(workflow,/Exercise Client Genie guided welcome by device/u);
   assert.match(workflow,/playwright\.client-guided-welcome\.config\.mjs/u);
+});
+
+test('Coach and Admin Genie journey reuses the permanent device matrix and current-source controller',()=>{
+  assert.ok(deviceConfig.includes('role-guided-onboarding.spec.mjs'));
+  assert.match(roleGenieSpec,/const ROLES=\['coach','admin'\]/u);
+  assert.match(roleGenieSpec,/data-m26-guided-tour-genie/u);
+  assert.match(roleGenieSpec,/data-m26-client-genie/u);
+  assert.match(roleGenieSpec,/onboardingCompletedVersion/u);
+  assert.match(roleGenieSpec,/data-progressive-onboarding-launcher/u);
+  assert.match(roleGenieSpec,/reducedMotion:'reduce'|emulateMedia\(\{reducedMotion:'reduce'\}\)/u);
+  assert.match(roleGenieSpec,/recovery\/device-experience\/role-genie-onboarding/u);
+  assert.match(roleGenieFixture,/createGuidedTourController/u);
+  assert.match(roleGenieFixture,/guidedOnboardingScopeKey/u);
+  assert.match(roleGenieFixture,/guidedOnboardingTrack/u);
+  assert.doesNotMatch(roleGenieFixture,/fetch\(|supabase|service_role|commandBus/iu);
 });
 
 test('Authenticated visual matrix mirrors all four primary device classes',()=>{
