@@ -19,6 +19,7 @@ import {
 
 const repo=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const workflow=fs.readFileSync(path.join(repo,'.github','workflows','canary-exact-deploy.yml'),'utf8');
+const runtimeGenerator=fs.readFileSync(path.join(repo,'scripts','generate_rc74_4_runtime_config.mjs'),'utf8');
 const sourceSha='1'.repeat(40);
 const previousSha='2'.repeat(40);
 
@@ -93,6 +94,19 @@ test('Canary restored identity is QA-only and never production',()=>{
   assert.equal(isRestoredCanaryIdentity({sourceSha:previousSha,environment:'PRODUCTION',projectRef:QA_REF,qaOnly:true,production:false},{previousSha}),false);
   assert.equal(isRestoredCanaryIdentity({sourceSha:previousSha,environment:'QA',projectRef:PROD_REF,qaOnly:true,production:false},{previousSha}),false);
   assert.equal(isRestoredCanaryIdentity({sourceSha:previousSha,environment:'QA',projectRef:QA_REF,qaOnly:true,production:true},{previousSha}),false);
+});
+
+test('Canary workflow binds the same protected QA environment and runtime contract used by RC74.4 generator',()=>{
+  assert.match(workflow,/deploy-canary:[\s\S]*?runs-on: ubuntu-latest\n\s+environment: m26-canary-readonly/u);
+  for(const envName of ['M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY']){
+    assert.match(runtimeGenerator,new RegExp(`['\"]${envName}['\"]`,'u'));
+  }
+  const runtimeStep=workflow.match(/- name: Generate QA-only runtime[\s\S]*?run: node scripts\/generate_rc74_4_runtime_config\.mjs/u)?.[0]||'';
+  assert.match(runtimeStep,/M26_SUPABASE_URL: \$\{\{ env\.QA_SUPABASE_URL \}\}/u);
+  assert.match(runtimeStep,/M26_SUPABASE_PUBLISHABLE_KEY: \$\{\{ secrets\.M26_SUPABASE_PUBLISHABLE_KEY \}\}/u);
+  assert.match(runtimeStep,/M26_PROJECT_REF: \$\{\{ env\.QA_SUPABASE_REF \}\}/u);
+  assert.match(runtimeStep,/M26_QA_ONLY: 'true'/u);
+  assert.doesNotMatch(runtimeStep,/M26_QA_SUPABASE_(?:URL|PUBLISHABLE_KEY)/u);
 });
 
 test('Canary workflow deploys exact SHA only after QA sealing and read-only auth gate, then live-certifies with rollback',()=>{

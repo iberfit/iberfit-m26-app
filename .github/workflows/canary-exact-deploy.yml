@@ -32,6 +32,7 @@ jobs:
   deploy-canary:
     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY_CANARY_EXACT') }}
     runs-on: ubuntu-latest
+    environment: m26-canary-readonly
     timeout-minutes: 45
     steps:
       - name: Checkout exact Canary source
@@ -113,8 +114,10 @@ jobs:
 
       - name: Generate QA-only runtime
         env:
-          M26_QA_SUPABASE_URL: ${{ env.QA_SUPABASE_URL }}
-          M26_QA_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_SUPABASE_URL: ${{ env.QA_SUPABASE_URL }}
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_PROJECT_REF: ${{ env.QA_SUPABASE_REF }}
+          M26_QA_ONLY: 'true'
         run: node scripts/generate_rc74_4_runtime_config.mjs
 
       - name: Seal exact Canary surface
