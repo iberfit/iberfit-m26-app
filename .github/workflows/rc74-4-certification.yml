@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   certify:
-    name: certify-rc74-4
+    name: validate
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
