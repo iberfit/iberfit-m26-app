@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Discover exact Pages build and live identity without mutations
+      - name: Discover exact Pages build, env key types and live identity without mutations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
@@ -34,13 +34,13 @@ jobs:
           set -euo pipefail
           test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 41; }
 
-          curl --silent --show-error \
+          curl --fail --silent --show-error \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H 'Content-Type: application/json' \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_CANARY_PROJECT}" \
             -o /tmp/project.json
 
-          curl --silent --show-error \
+          curl --fail --silent --show-error \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H 'Content-Type: application/json' \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_CANARY_PROJECT}/deployments" \
@@ -72,7 +72,7 @@ jobs:
             const status=Number(fs.readFileSync(statusPath,'utf8').trim()||0);
             const raw=fs.readFileSync(bodyPath,'utf8').trim();
             let json=null;
-            try{ json=JSON.parse(raw); }catch{}
+            try{json=JSON.parse(raw);}catch{}
             return {
               status,
               json:json?{
@@ -88,6 +88,12 @@ jobs:
               rawPreview:json?null:raw.slice(0,240),
             };
           };
+          const cleanEnv=(config)=>Object.fromEntries(
+            Object.entries(config?.env_vars||{}).sort(([a],[b])=>a.localeCompare(b)).map(([key,value])=>[
+              key,
+              {type:String(value?.type||'unknown'),configured:value?.value!=null||value?.type==='secret_text'}
+            ])
+          );
           const deployments=deploymentsPayload.result.slice(0,50).map((d)=>({
             id:d.id||null,
             environment:d.environment||null,
@@ -99,7 +105,7 @@ jobs:
           }));
           const productionDeployments=deployments.filter((d)=>d.environment==='production');
           const evidence={
-            schema:'iberfit.ops.canary-cloudflare-live-identity.v2',
+            schema:'iberfit.ops.canary-cloudflare-live-identity.v3',
             generatedAt:new Date().toISOString(),
             domain:process.env.CANARY_DOMAIN,
             project:{
@@ -115,6 +121,8 @@ jobs:
               sourceType:p.source?.type??null,
               sourceRepo:p.source?.config?.repo_name??null,
               sourceProductionBranch:p.source?.config?.production_branch??null,
+              productionEnv:cleanEnv(p.deployment_configs?.production),
+              previewEnv:cleanEnv(p.deployment_configs?.preview),
             },
             currentProductionDeployment:productionDeployments[0]||null,
             rootVersion:cleanVersion('/tmp/root-version.status','/tmp/root-version.body'),
