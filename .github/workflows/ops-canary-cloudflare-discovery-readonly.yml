@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Discover exact Pages project and deployments without mutations
+      - name: Discover exact Pages build and live identity without mutations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
@@ -37,18 +37,26 @@ jobs:
           curl --silent --show-error \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H 'Content-Type: application/json' \
-            -w '%{http_code}' \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_CANARY_PROJECT}" \
-            -o /tmp/project.json > /tmp/project.status
-          test "$(cat /tmp/project.status)" = '200' || { cat /tmp/project.json; exit 42; }
+            -o /tmp/project.json
 
           curl --silent --show-error \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H 'Content-Type: application/json' \
-            -w '%{http_code}' \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CF_CANARY_PROJECT}/deployments" \
-            -o /tmp/deployments.json > /tmp/deployments.status
-          test "$(cat /tmp/deployments.status)" = '200' || { cat /tmp/deployments.json; exit 43; }
+            -o /tmp/deployments.json
+
+          curl --silent --show-error --location --max-time 20 \
+            -H 'Cache-Control: no-cache' \
+            -w '%{http_code}' \
+            "https://${CANARY_DOMAIN}/version.json?diag=${GITHUB_SHA}" \
+            -o /tmp/root-version.body > /tmp/root-version.status
+
+          curl --silent --show-error --location --max-time 20 \
+            -H 'Cache-Control: no-cache' \
+            -w '%{http_code}' \
+            "https://${CANARY_DOMAIN}/m26/version.json?diag=${GITHUB_SHA}" \
+            -o /tmp/m26-version.body > /tmp/m26-version.status
 
           node <<'NODE'
           const fs=require('fs');
@@ -57,24 +65,28 @@ jobs:
           if(!projectPayload.success||!projectPayload.result)throw new Error('CF_CANARY_PROJECT_LOOKUP_FAILED');
           if(!deploymentsPayload.success||!Array.isArray(deploymentsPayload.result))throw new Error('CF_CANARY_DEPLOYMENT_LIST_FAILED');
           const p=projectPayload.result;
-          if(p.name!==process.env.CF_CANARY_PROJECT)throw new Error(`CF_CANARY_PROJECT_MISMATCH:${p.name}`);
           const domains=Array.isArray(p.domains)?p.domains:[];
+          if(p.name!==process.env.CF_CANARY_PROJECT)throw new Error(`CF_CANARY_PROJECT_MISMATCH:${p.name}`);
           if(!domains.includes(process.env.CANARY_DOMAIN))throw new Error(`CF_CANARY_DOMAIN_NOT_BOUND:${domains.join(',')}`);
-          const project={
-            name:p.name,
-            productionBranch:p.production_branch||null,
-            domains,
-            subdomain:p.subdomain||null,
-            createdOn:p.created_on||null,
-            latestDeployment:p.latest_deployment?{
-              id:p.latest_deployment.id||null,
-              environment:p.latest_deployment.environment||null,
-              url:p.latest_deployment.url||null,
-              createdOn:p.latest_deployment.created_on||null,
-              branch:p.latest_deployment.deployment_trigger?.metadata?.branch||null,
-              commitHash:p.latest_deployment.deployment_trigger?.metadata?.commit_hash||null,
-              commitMessage:p.latest_deployment.deployment_trigger?.metadata?.commit_message||null,
-            }:null,
+          const cleanVersion=(statusPath,bodyPath)=>{
+            const status=Number(fs.readFileSync(statusPath,'utf8').trim()||0);
+            const raw=fs.readFileSync(bodyPath,'utf8').trim();
+            let json=null;
+            try{ json=JSON.parse(raw); }catch{}
+            return {
+              status,
+              json:json?{
+                release:json.release??null,
+                version:json.version??null,
+                sourceSha:json.sourceSha??json.commit??json.sha??null,
+                sourceBranch:json.sourceBranch??json.branch??null,
+                projectRef:json.projectRef??null,
+                qaOnly:json.qaOnly??null,
+                environment:json.environment??null,
+                production:json.production??null,
+              }:null,
+              rawPreview:json?null:raw.slice(0,240),
+            };
           };
           const deployments=deploymentsPayload.result.slice(0,50).map((d)=>({
             id:d.id||null,
@@ -84,15 +96,29 @@ jobs:
             branch:d.deployment_trigger?.metadata?.branch||null,
             commitHash:d.deployment_trigger?.metadata?.commit_hash||null,
             commitMessage:d.deployment_trigger?.metadata?.commit_message||null,
-            latestStageName:Array.isArray(d.stages)&&d.stages.length?d.stages[d.stages.length-1]?.name||null:null,
-            latestStageStatus:Array.isArray(d.stages)&&d.stages.length?d.stages[d.stages.length-1]?.status||null:null,
           }));
+          const productionDeployments=deployments.filter((d)=>d.environment==='production');
           const evidence={
-            schema:'iberfit.ops.canary-cloudflare-discovery.v1',
+            schema:'iberfit.ops.canary-cloudflare-live-identity.v2',
             generatedAt:new Date().toISOString(),
             domain:process.env.CANARY_DOMAIN,
-            project,
-            deployments,
+            project:{
+              name:p.name,
+              productionBranch:p.production_branch||null,
+              domains,
+              subdomain:p.subdomain||null,
+              buildConfig:{
+                buildCommand:p.build_config?.build_command??null,
+                destinationDir:p.build_config?.destination_dir??null,
+                rootDir:p.build_config?.root_dir??null,
+              },
+              sourceType:p.source?.type??null,
+              sourceRepo:p.source?.config?.repo_name??null,
+              sourceProductionBranch:p.source?.config?.production_branch??null,
+            },
+            currentProductionDeployment:productionDeployments[0]||null,
+            rootVersion:cleanVersion('/tmp/root-version.status','/tmp/root-version.body'),
+            m26Version:cleanVersion('/tmp/m26-version.status','/tmp/m26-version.body'),
             mutationsPerformed:false,
             productionTouched:false,
           };
