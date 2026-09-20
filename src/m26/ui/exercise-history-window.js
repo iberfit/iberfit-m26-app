@@ -16,11 +16,7 @@ const STYLES=`
 `;
 
 function installStyles(documentLike){
-  if(!documentLike?.head||documentLike.getElementById?.(STYLE_ID))return;
-  const style=documentLike.createElement('style');
-  style.id=STYLE_ID;
-  style.textContent=STYLES;
-  documentLike.head.appendChild(style);
+  return true;
 }
 
 function parsePoints(value){

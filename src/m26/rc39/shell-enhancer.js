@@ -460,9 +460,6 @@ export function enhanceRc39ShellMarkup(markup,vm){
   out=enhanceMobileNavigationMarkup(out,vm);
   out=enhanceCoachCommandMarkup(out);
   out=markActiveNavigationGroup(out);
-  if(out.includes('<style data-m26-workspace-v2>')){
-    out=out.replace('</style>',`${MOBILE_SHELL_POLISH}</style>`);
-  }
   const switcher=vm.canSwitchApplication?`<details class="m26-role-switcher"><summary>${escape(roleApplicationLabel(vm.identity.role))}</summary><div class="m26-role-switcher-menu" role="menu" aria-label="Cambiar aplicación">${roleButtons(vm)}</div></details>`:'';
   if(switcher){
     out=out.replace(

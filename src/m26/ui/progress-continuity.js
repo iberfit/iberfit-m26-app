@@ -123,11 +123,7 @@ function create(document,tag,className,text){
 }
 
 function installStyles(document){
-  if(!document?.head||document.getElementById(STYLE_ID))return;
-  const style=document.createElement('style');
-  style.id=STYLE_ID;
-  style.textContent=STYLES;
-  document.head.appendChild(style);
+  return true;
 }
 
 function clientIdFor(viewModel,state){
