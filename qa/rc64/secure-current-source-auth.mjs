@@ -32,6 +32,14 @@ export function qaRequestLabel(request){
   }catch{return 'INVALID_REQUEST';}
 }
 
+function isReadOnlyPushConfigRequest(request,url,method){
+  if(method!=='POST'||url.pathname!=='/functions/v1/iberfit-web-push-sender-v1')return false;
+  try{
+    const body=request.postDataJSON();
+    return body&&typeof body==='object'&&!Array.isArray(body)&&body.action==='config'&&Object.keys(body).length===1;
+  }catch{return false;}
+}
+
 function allowedQaRequest(request,readOnlyRpcs){
   let url;
   try{url=new URL(request.url());}catch{return false;}
@@ -42,6 +50,7 @@ function allowedQaRequest(request,readOnlyRpcs){
   if(method==='GET'&&url.pathname==='/auth/v1/user')return true;
   if(method==='GET'&&url.pathname==='/rest/v1/domain_command_registry_v26')return true;
   if(method==='POST'&&url.pathname==='/rest/v1/rpc/iberfit_notification_preferences_status_v1')return true;
+  if(isReadOnlyPushConfigRequest(request,url,method))return true;
   const prefix='/rest/v1/rpc/';
   return method==='POST'&&url.pathname.startsWith(prefix)&&readOnlyRpcs.has(url.pathname.slice(prefix.length));
 }
