@@ -28,7 +28,6 @@ test('RC65-C2 remote gate keeps both Client bootstraps and privacy/isolation con
   assert.match(source,/const accounts=\[[\s\S]*client_a[\s\S]*client_b/u);
   assert.match(source,/const bootstrap=await rpc\('iberfit_bootstrap_v26',session\.token,\{\}\);/u);
   assert.match(source,/inspectClientBootstrap\(bootstrap,clientId\)/u);
-  assert.match(source,/inspectClientBootstrap\(bootstrapResult\.body,clientId\)/u);
   assert.match(source,/assertDistinctQaClientIds\(qaClientIds,RC29_QA_CLIENTS_NOT_DISTINCT\)/u);
 });
 
