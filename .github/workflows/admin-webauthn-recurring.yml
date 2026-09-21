@@ -1,0 +1,162 @@
+name: IBERFIT Admin WebAuthn Recurring
+
+on:
+  pull_request:
+    branches: [canary/rc74-4]
+    paths:
+      - 'qa/admin-webauthn-recurring/**'
+      - 'playwright.admin-webauthn-recurring.config.mjs'
+      - 'supabase/functions/iberfit-qa-webauthn-cert-broker/**'
+      - 'tests/m26_admin_webauthn_recurring_contract.test.mjs'
+      - '.github/workflows/admin-webauthn-recurring.yml'
+  push:
+    branches: [canary/rc74-4]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('iberfit-admin-webauthn-contract-pr-{0}', github.event.pull_request.number) || format('iberfit-admin-webauthn-run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  contract:
+    name: admin-webauthn-recurring-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/m26_admin_webauthn_recurring_contract.test.mjs tests/m26_coach_webauthn_recurring_contract.test.mjs
+
+  live-admin-webauthn:
+    name: admin-webauthn-real-qa
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: m26-canary-readonly
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Restore Playwright Chromium cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}-chromium
+      - name: Install Chromium system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install Chromium browser on cache miss
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Verify Chromium browser cache
+        run: node --input-type=module -e "import fs from 'node:fs'; import { chromium } from '@playwright/test'; if (!fs.existsSync(chromium.executablePath())) throw new Error('PLAYWRIGHT_CHROMIUM_NOT_READY');"
+      - name: Build authenticated QA surface
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+        run: node qa/rc64/build-authenticated-surface.mjs
+      - name: Prepare ephemeral Admin QA WebAuthn fixture
+        shell: bash
+        env:
+          OIDC_AUDIENCE: iberfit-webauthn-qa-cert
+          BROKER_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co/functions/v1/iberfit-qa-webauthn-cert-broker
+        run: |
+          set -euo pipefail
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          sep='?'; [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
+          token="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
+          test "${#token}" -gt 100
+          echo "::add-mask::$token"
+          payload="$(jq -nc --arg sourceSha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" '{action:"prepare",target:"admin",sourceSha:$sourceSha,runId:$runId}')"
+          curl --fail --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" | tee recovery-admin-prepare.json
+          jq -e '.ok == true and .action == "prepare" and .target == "qa.rc74.client-a@iberfit.cl" and .state.activeCredentials == 0 and .state.activeChallenges == 0 and .state.activeAssurance == 0 and .state.activeEmailAssurance == 0 and .state.adminRoleActive == true' recovery-admin-prepare.json >/dev/null
+      - name: Certify Admin WebAuthn registration authentication and app choice
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+        run: npx playwright test --config playwright.admin-webauthn-recurring.config.mjs
+      - name: Cleanup ephemeral Admin QA WebAuthn fixture
+        if: always()
+        shell: bash
+        env:
+          OIDC_AUDIENCE: iberfit-webauthn-qa-cert
+          BROKER_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co/functions/v1/iberfit-qa-webauthn-cert-broker
+        run: |
+          set -euo pipefail
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          sep='?'; [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
+          token="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
+          test "${#token}" -gt 100
+          echo "::add-mask::$token"
+          payload="$(jq -nc --arg sourceSha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" '{action:"reset",target:"admin",sourceSha:$sourceSha,runId:$runId}')"
+          curl --fail --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" | tee recovery-admin-reset-after.json
+          jq -e '.ok == true and .action == "reset" and .target == "qa.rc74.client-a@iberfit.cl" and .state.activeCredentials == 0 and .state.activeChallenges == 0 and .state.activeAssurance == 0 and .state.activeEmailAssurance == 0 and .state.adminRoleActive == false' recovery-admin-reset-after.json >/dev/null
+      - name: Preserve Admin WebAuthn evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-webauthn-recurring-${{ github.run_id }}
+          path: |
+            recovery/admin-webauthn-recurring/
+            recovery-admin-prepare.json
+            recovery-admin-reset-after.json
+            test-results/
+          if-no-files-found: warn
+          retention-days: 30
+
+  gate:
+    name: admin-webauthn-recurring-gate
+    if: always()
+    needs: [contract,live-admin-webauthn]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require contract and trusted live evidence
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          CONTRACT: ${{ needs.contract.result }}
+          LIVE: ${{ needs.live-admin-webauthn.result }}
+        run: |
+          set -euo pipefail
+          test "$CONTRACT" = success
+          if [[ "$EVENT" = pull_request ]]; then
+            test "$LIVE" = skipped
+            echo 'ADMIN_AUTHENTICATED_RECURRING=CONTRACT_GREEN_LIVE_TRUSTED_CANARY_ONLY'
+          else
+            test "$LIVE" = success
+            echo 'ADMIN_AUTHENTICATED_POINT_IN_TIME=GREEN'
+            echo 'KNOWN_GAP_ADMIN_AUTHENTICATED_RECURRING=GREEN'
+            echo 'ADMIN_WEBAUTHN_REGISTRATION=GREEN'
+            echo 'ADMIN_WEBAUTHN_AUTHENTICATION=GREEN'
+            echo 'ADMIN_MULTIAPP_CHOICE=GREEN'
+            echo 'ADMIN_FIXTURE_CLEANUP=GREEN'
+          fi
