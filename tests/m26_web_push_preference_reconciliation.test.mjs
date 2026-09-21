@@ -64,7 +64,7 @@ test('existing remote preferences are authoritative on a newly opened device',as
   controller.destroy();
 });
 
-test('local preferences migrate once only when the server has no preference row yet',async()=>{
+test('server defaults are authoritative and hydration remains read-only when no preference row exists',async()=>{
   const controls=[
     control('sessionReminders',true),
     control('scheduleChanges',false),
@@ -74,12 +74,21 @@ test('local preferences migrate once only when the server has no preference row 
     control('milestones',false),
   ];
   const root=rootWithControls(controls);
+  const remote=Object.freeze({
+    sessionReminders:true,
+    scheduleChanges:true,
+    planPublished:true,
+    coachMessages:true,
+    challenges:true,
+    milestones:true,
+  });
   const updates=[];
+  let applied=null;
   const service={
     notificationPreferences:{
-      async status(){return {ok:true,preferences:{},updatedAt:null};},
+      async status(){return {ok:true,preferences:remote,updatedAt:null};},
       async update(value){updates.push(value);return {ok:true,preferences:value,updatedAt:'2026-09-19T23:00:00Z'};},
-      applyRemote(){throw new Error('remote defaults must not be applied without a server row');},
+      applyRemote(value){applied=value;return true;},
     },
     webPush:{async status(){return {active:false};}},
   };
@@ -87,15 +96,8 @@ test('local preferences migrate once only when the server has no preference row 
   controller.mount();
   await tick();
   await tick();
-  assert.equal(updates.length,1);
-  assert.deepEqual(updates[0],{
-    sessionReminders:true,
-    scheduleChanges:false,
-    planPublished:true,
-    coachMessages:true,
-    challenges:false,
-    milestones:false,
-  });
+  assert.deepEqual(applied,remote);
+  assert.equal(updates.length,0,'hydration must not create a preference row without explicit user action');
   controller.destroy();
 });
 
