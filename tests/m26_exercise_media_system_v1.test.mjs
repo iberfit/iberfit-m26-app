@@ -34,14 +34,19 @@ test('branding is restricted to the official shirt isotipo and AI-generated bran
   assert.match(style,/only IBERFIT branding permitted inside the visual is the exact official isotipo, small on the shirt/i);
 });
 
-test('anatomy inset is compact, text-free and subordinate to biomechanics',()=>{
-  assert.equal(visual.anatomy_inset.preferred,true);
+test('anatomy inset is required by default, compact, text-free and subordinate to biomechanics',()=>{
+  assert.equal(visual.anatomy_inset.required_by_default,true);
+  assert.equal(visual.anatomy_inset.exception_requires_qa_justification,true);
   assert.equal(visual.anatomy_inset.text_labels,false);
   assert.equal(visual.anatomy_inset.zone,'upper');
   assert.equal(visual.anatomy_inset.preferred_corner,'upper-right');
   assert.equal(visual.anatomy_inset.width_percent_min,16);
   assert.equal(visual.anatomy_inset.width_percent_max,22);
+  assert.equal(visual.anatomy_inset.primary_muscle_color,'iberfit-technical-green');
+  assert.equal(visual.anatomy_inset.secondary_muscle_color,'iberfit-restrained-gold');
+  assert.equal(visual.anatomy_inset.remaining_anatomy,'neutral-cream-grey-low-contrast');
   assert.equal(visual.anatomy_inset.must_not_obscure_biomechanics,true);
+  assert.match(spec,/required by default for every new system-v1 exercise visual/i);
 });
 
 test('one canonical system must support library, live sessions, detail and fullscreen contexts',()=>{
