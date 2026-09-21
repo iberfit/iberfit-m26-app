@@ -7,6 +7,7 @@ import { inspectClientBootstrap } from './readonly-gate-bootstrap-privacy.mjs';
 
 const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
+const EXPECTED_COACH_CERT_EMAIL='qa.rc74.coach@iberfit.cl';
 const required=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
   'M26_QA_COACH_EMAIL','M26_QA_COACH_PASSWORD',
@@ -17,6 +18,7 @@ const missing=required.filter((name)=>!process.env[name]);
 if(missing.length)throw new Error(`RC74_4_REMOTE_ENV_MISSING:${missing.join(',')}`);
 if(process.env.M26_PROJECT_REF!==PROJECT_REF)throw new Error('RC74_4_REMOTE_PROJECT_REF_MISMATCH');
 if(String(process.env.M26_QA_ONLY).toLowerCase()!=='true')throw new Error('RC74_4_REMOTE_QA_ONLY_REQUIRED');
+if(String(process.env.M26_QA_COACH_EMAIL||'').trim().toLowerCase()!==EXPECTED_COACH_CERT_EMAIL)throw new Error('RC74_4_REMOTE_COACH_CERT_IDENTITY_MISMATCH');
 const base=process.env.M26_SUPABASE_URL.replace(/\/$/,'');
 if(new URL(base).hostname!==`${PROJECT_REF}.supabase.co`)throw new Error('RC74_4_REMOTE_PROJECT_MISMATCH');
 const key=process.env.M26_SUPABASE_PUBLISHABLE_KEY;
@@ -112,7 +114,7 @@ for(const session of sessions){
     const reportedRole=normalizeRegistryRole(assurance?.privilegedRole);
     if(
       assurance?.ok!==true||assurance?.privileged!==true||assurance?.mfaRequired!==true||
-      assurance?.webauthnRequired!==true||assurance?.credentialEnrolled!==true||
+      assurance?.webauthnRequired!==true||assurance?.credentialEnrolled!==false||
       assurance?.emailOtpAvailable!==true||
       assurance?.iberfitAssurance!=='required'||assurance?.supabaseAal!=='aal1'||
       assurance?.origin!==CANARY_ORIGIN||assurance?.rpId!=='m26-canary.iberfit.cl'||reportedRole!=='coach'
@@ -130,7 +132,7 @@ for(const session of sessions){
       name:session.name,userFingerprint:fingerprint(session.userId),reportedRole,clientFingerprint:null,
       canaryActive:bootstrapResult.body?.canary?.active===true,
       environmentName:bootstrapResult.body?.environment?.name||bootstrapResult.body?.environment||null,privacy:null,
-      privilegedGate:{ok:true,iberfitAssurance:'required',credentialEnrolled:true,webauthnRequired:true,emailOtpAvailable:true,
+      privilegedGate:{ok:true,iberfitAssurance:'required',credentialEnrolled:false,webauthnRequired:true,emailOtpAvailable:true,
         origin:CANARY_ORIGIN,rpId:'m26-canary.iberfit.cl'},
       primaryAuthRead:{ok:true,status:200,bootstrapRole},
     });
