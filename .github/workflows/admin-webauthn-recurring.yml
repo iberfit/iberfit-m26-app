@@ -92,7 +92,7 @@ jobs:
           test "${#token}" -gt 100
           echo "::add-mask::$token"
           payload="$(jq -nc --arg sourceSha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" '{action:"prepare",target:"admin",sourceSha:$sourceSha,runId:$runId}')"
-          curl --fail --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" | tee recovery-admin-prepare.json
+          curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" | tee recovery-admin-prepare.json
           jq -e '.ok == true and .action == "prepare" and .target == "qa.rc74.client-a@iberfit.cl" and .state.activeCredentials == 0 and .state.activeChallenges == 0 and .state.activeAssurance == 0 and .state.activeEmailAssurance == 0 and .state.adminRoleActive == true' recovery-admin-prepare.json >/dev/null
       - name: Certify Admin WebAuthn registration authentication and app choice
         env:
@@ -118,7 +118,7 @@ jobs:
           test "${#token}" -gt 100
           echo "::add-mask::$token"
           payload="$(jq -nc --arg sourceSha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" '{action:"reset",target:"admin",sourceSha:$sourceSha,runId:$runId}')"
-          curl --fail --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" | tee recovery-admin-reset-after.json
+          curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" | tee recovery-admin-reset-after.json
           jq -e '.ok == true and .action == "reset" and .target == "qa.rc74.client-a@iberfit.cl" and .state.activeCredentials == 0 and .state.activeChallenges == 0 and .state.activeAssurance == 0 and .state.activeEmailAssurance == 0 and .state.adminRoleActive == false' recovery-admin-reset-after.json >/dev/null
       - name: Preserve Admin WebAuthn evidence
         if: always()
