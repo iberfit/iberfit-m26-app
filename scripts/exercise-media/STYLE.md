@@ -32,10 +32,10 @@ This file is normative. Detailed composition and delivery rules live in `EXERCIS
 
 ## Anatomy inset
 
-- A compact anatomical inset is strongly preferred when it adds useful information and does not obscure biomechanics.
+- A compact anatomical inset is **required by default for every new system-v1 exercise visual**. An exception must be explicit and justified by QA when an inset would reduce rather than improve instructional clarity.
 - Place it in the **upper visual zone**, normally the upper-right corner, using one consistent geometry across the library.
 - Keep the inset visually secondary: target roughly **16–22% of image width**, never large enough to compete with the athlete.
-- Highlight primary working musculature clearly; secondary musculature may be shown with lower emphasis when useful.
+- Highlight primary working musculature with the IBERFIT deep/technical green. Secondary musculature, when useful, uses restrained gold. Remaining anatomy stays neutral cream/grey with low contrast.
 - The inset contains **no labels or text**. Muscle names live in the UI/card metadata.
 - Do not cover the athlete, moving load, contact points or the motion path.
 
