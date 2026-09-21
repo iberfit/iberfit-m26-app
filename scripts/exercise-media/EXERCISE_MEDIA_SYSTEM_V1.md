@@ -77,7 +77,9 @@ When two phases are needed, start and end must share athlete, outfit, camera, eq
 
 A compact anatomy inset is required by default for every new system-v1 exercise visual. The only exception is a QA-documented case where the inset would reduce instructional clarity.
 
-Place it in the upper visual zone, normally upper-right, at approximately 16–22% of image width. It must never cover the athlete, load, support surface or trajectory.
+Place it in the upper-left visual zone, normally at approximately 12–16% of image width. It must remain clearly secondary to the exercise and must never cover the athlete, load, support surface or trajectory.
+
+The anatomy should read as a clean analytical anatomical plate rather than a bodybuilding illustration: restrained relief, subtle muscle definition, anatomically legible forms and no hyper-defined musculature. Use one or two neutral anatomical views only when they improve understanding; avoid decorative arcs, badges, marks or other ornamental elements inside the anatomy inset.
 
 Primary muscles use the IBERFIT technical/deep green as the strongest anatomical emphasis. Secondary muscles, when useful, use restrained gold. Remaining anatomy stays neutral cream/grey at low contrast. No text labels are rendered into the inset.
 
@@ -97,7 +99,7 @@ Primary muscles use the IBERFIT technical/deep green as the strongest anatomical
 - Preserve the previously approved male athlete/mannequin identity and uniform language.
 - Black technical sportswear.
 - Exact official IBERFIT isotipo, small on the shirt.
-- No wordmark, duplicated isotipo, wall branding, equipment branding or generated approximation.
+- No wordmark, duplicated isotipo, wall branding, equipment branding, shoe branding or generated approximation.
 - AI is never trusted to draw IBERFIT branding; official branding is applied deterministically from repository assets.
 
 ## Camera and biomechanics
@@ -116,7 +118,7 @@ Every candidate must pass all of the following before publication:
 4. complete visibility of relevant joints/load/supports;
 5. approved athlete/outfit identity;
 6. official isotipo integrity and restraint;
-7. anatomy inset present and consistent unless a QA-documented exception applies;
+7. anatomy inset present, upper-left, analytical and consistently scaled unless a QA-documented exception applies;
 8. background and color-system compliance;
 9. absence of baked names, labels, instructions or UI text;
 10. compact-size readability;
