@@ -16,6 +16,17 @@ The same canonical visual language must serve:
 
 Do not create separate visual identities for those surfaces. The application chooses size and surrounding UI; the asset stays visually canonical.
 
+## Canonical identity reference
+
+System v1 is anchored to the already approved IBERFIT male reference, not to a new interpretation:
+
+- master ID: `IBERFIT_MALE_MASTER_V1`;
+- identity reference: `public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.jpg`;
+- approved branded reference: `public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1-isotipo.jpg`;
+- official shirt mark: `public/isotipo-iberfit.png`.
+
+Their SHA-256 values are pinned in `contract.json` and checked against the approved master metadata. Any intentional replacement of athlete identity or official isotipo requires a new versioned visual-system decision; silent drift is not allowed.
+
 ## Separation of responsibilities
 
 ### The asset owns
@@ -49,6 +60,8 @@ No semantic UI information is baked into pixels.
 - Downsampling must be deterministic and high quality.
 - Never upscale a 640×800 published derivative to manufacture the master.
 - Preserve a minimum 6% non-essential edge safe area so compact presentation or future viewer framing never clips biomechanically important content.
+
+The approved historical identity reference is 768×960 and is used as the locked identity/style reference; new exercise generation masters must meet the higher 1280×1600 minimum.
 
 ## Composition grid
 
