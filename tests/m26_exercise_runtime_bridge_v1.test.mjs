@@ -39,3 +39,17 @@ test('catálogo remoto puede añadir ejercicios sin perder el núcleo estático'
   assert.equal(merged.has('IBF-A'),true);
   assert.equal(merged.get('IBF-B').media.deliveryOrigin,runtime.url);
 });
+
+test('catálogo remoto conserva loadDirection explícito para la memoria de rendimiento',()=>{
+  const base=createExerciseCatalog([{id:'IBF-A',name_es:'A',pattern:'empuje',equipment:'barra',difficulty:'media',intent:'fuerza'}]);
+  const merged=mergeExerciseCatalogRecords(base,[{
+    id:'IBF-A',
+    name_es:'A',
+    pattern:'empuje',
+    equipment:'barra',
+    difficulty:'media',
+    intent:'fuerza',
+    loadDirection:'higher-is-better'
+  }],{mediaOrigin:runtime.url});
+  assert.equal(merged.get('IBF-A').loadDirection,'higher-is-better');
+});
