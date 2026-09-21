@@ -2,6 +2,7 @@ import {createGuidedTourController} from './guided-tour.js';
 import {createClientContextualGuideController} from './client-contextual-guide.js';
 import {createClientGuidedWelcomeController} from './client-guided-welcome.js';
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
+import {coachLaunchReadiness} from './coach-launch-readiness.js';
 
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
 export const PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE='data-m26-guided-tour-open';
@@ -412,24 +413,49 @@ export function recordProgressiveOnboardingArea(state,role,area){
   },role);
 }
 
-export function renderProgressiveOnboardingPanel({role,state}={}){
+export function renderProgressiveOnboardingPanel({role,state,readiness=null}={}){
   const track=progressiveOnboardingTrack(role);
   const current=normalizeProgressiveOnboardingState(state||{},role);
   if(!track||!current)return '';
   const progress=progressiveOnboardingProgress({role,visited:current.visited});
+  const launchReadiness=role==='coach'&&readiness?.applicable===true
+    ?readiness
+    :null;
   const steps=track.steps.map((step)=>{
     const done=current.visited.includes(step.id);
     return `<li class="m26-progressive-onboarding-step${done?' is-complete':''}"><span class="m26-progressive-onboarding-check" aria-hidden="true">${done?'✓':'•'}</span><div><strong>${escapeHtml(step.label)}</strong><p>${escapeHtml(step.detail)}</p></div>${done?'<span class="m26-chip">Visto</span>':`<button type="button" class="m26-text-action" data-m26-area="${escapeHtml(step.area)}">Abrir</button>`}</li>`;
   }).join('');
-  const next=progress.nextStep
-    ?`<button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(progress.nextStep.area)}">Continuar: ${escapeHtml(progress.nextStep.label)}</button>`
-    :'<span class="m26-chip is-success">Recorrido completado</span>';
-  return `<section class="iberfit-card m26-progressive-onboarding" data-progressive-onboarding-panel aria-labelledby="m26-progressive-onboarding-title"><div class="m26-progressive-onboarding-heading"><div><p class="m26-eyebrow">Guía progresiva</p><h2 id="m26-progressive-onboarding-title">${escapeHtml(track.title)}</h2><p>${escapeHtml(track.summary)}</p></div><button type="button" class="m26-icon-button" data-progressive-onboarding-dismiss aria-label="Ocultar guía progresiva">Ocultar</button></div><div class="m26-progressive-onboarding-meter" role="status" aria-live="polite"><span>${progress.completedCount} de ${progress.total} áreas vistas</span><progress max="${progress.total}" value="${progress.completedCount}">${progress.percent}%</progress></div><ol>${steps}</ol><div class="m26-inline-actions">${next}${progress.completed?'<button type="button" class="m26-text-action" data-progressive-onboarding-reset>Reiniciar guía</button>':''}</div><p class="m26-progressive-onboarding-note">Esta guía solo registra localmente qué áreas has visitado. No almacena datos de salud ni ejecuta acciones por ti.</p></section>`;
+
+  let next='';
+  if(progress.nextStep){
+    next=`<button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(progress.nextStep.area)}">Continuar: ${escapeHtml(progress.nextStep.label)}</button>`;
+  }else if(role==='coach'){
+    if(launchReadiness?.ready===true){
+      next='<span class="m26-chip is-success">Coach listo para trabajar</span>';
+    }else if(launchReadiness?.nextRequirement==='client'){
+      next='<button type="button" class="m26-primary-action" data-m26-area="clientes">Completar primer cliente</button>';
+    }else if(launchReadiness?.nextRequirement==='planning'){
+      next='<button type="button" class="m26-primary-action" data-m26-area="clientes">Preparar primera planificación</button>';
+    }else{
+      next='<span class="m26-chip">Puesta en marcha pendiente</span>';
+    }
+  }else{
+    next='<span class="m26-chip is-success">Recorrido completado</span>';
+  }
+
+  const note=role==='coach'&&progress.completed
+    ?launchReadiness?.ready===true
+      ?'Recorrido completado y puesta en marcha validada con datos operativos del Coach.'
+      :'Recorrido de interfaz completado; puesta en marcha pendiente. IBERFIT no marca al Coach como listo hasta validar cliente y planificación.'
+    :'Esta guía solo registra localmente qué áreas has visitado. No almacena datos de salud ni ejecuta acciones por ti.';
+
+  return `<section class="iberfit-card m26-progressive-onboarding" data-progressive-onboarding-panel aria-labelledby="m26-progressive-onboarding-title"><div class="m26-progressive-onboarding-heading"><div><p class="m26-eyebrow">Guía progresiva</p><h2 id="m26-progressive-onboarding-title">${escapeHtml(track.title)}</h2><p>${escapeHtml(track.summary)}</p></div><button type="button" class="m26-icon-button" data-progressive-onboarding-dismiss aria-label="Ocultar guía progresiva">Ocultar</button></div><div class="m26-progressive-onboarding-meter" role="status" aria-live="polite"><span>${progress.completedCount} de ${progress.total} áreas vistas</span><progress max="${progress.total}" value="${progress.completedCount}">${progress.percent}%</progress></div><ol>${steps}</ol><div class="m26-inline-actions">${next}${progress.completed?'<button type="button" class="m26-text-action" data-progressive-onboarding-reset>Reiniciar guía</button>':''}</div><p class="m26-progressive-onboarding-note">${escapeHtml(note)}</p></section>`;
 }
 
 export function createProgressiveOnboardingController({
   root,
   identityProvider=()=>({}),
+  stateProvider=()=>null,
   storage,
   scope=globalThis,
   onOpenChange,
@@ -548,7 +574,7 @@ export function createProgressiveOnboardingController({
     renderedPanelKey=null;
   }
 
-  function ensureLauncher(context,state){
+  function ensureLauncher(context,state,readiness=null){
     if(context.role==='client'){
       root.querySelector?.('[data-progressive-onboarding-launcher]')?.remove?.();
       for(const launcher of root.querySelectorAll?.('[data-m26-client-context-guide-open]')||[]){
@@ -572,21 +598,43 @@ export function createProgressiveOnboardingController({
     launcher.removeAttribute?.('data-m26-client-context-guide-open');
     launcher.setAttribute?.('data-progressive-onboarding-open','');
     setAttributeIfChanged(launcher,'data-m26-area',context.track.home);
-    setTextIfChanged(launcher,state.completed?'Guía completada':'Guía');
-    setAttributeIfChanged(launcher,'aria-label',state.completed?'Abrir guía progresiva completada':'Abrir guía progresiva');
+
+    let label=state.completed?'Guía completada':'Guía';
+    let ariaLabel=state.completed
+      ?'Abrir guía progresiva completada'
+      :'Abrir guía progresiva';
+
+    if(context.role==='coach'&&state.completed){
+      if(readiness?.ready===true){
+        label='Coach listo';
+        ariaLabel='Abrir estado de puesta en marcha completada';
+      }else{
+        label='Puesta en marcha';
+        ariaLabel='Abrir puesta en marcha de Coach';
+      }
+    }
+
+    setTextIfChanged(launcher,label);
+    setAttributeIfChanged(launcher,'aria-label',ariaLabel);
   }
 
-  function panelRenderKey(context,state){
+  function panelRenderKey(context,state,readiness=null){
     return JSON.stringify([
       PROGRESSIVE_ONBOARDING_SCHEMA_VERSION,
       context.role,
       Boolean(state.hidden),
       Boolean(state.completed),
+      readiness?.applicable===true,
+      readiness?.ready===true,
+      readiness?.tourCompleted===true,
+      readiness?.clientReady===true,
+      readiness?.planningReady===true,
+      readiness?.nextRequirement||'',
       ...(state.visited||[]),
     ]);
   }
 
-  function ensurePanel(context,state,area){
+  function ensurePanel(context,state,area,readiness=null){
     const existing=root.querySelector?.('[data-progressive-onboarding-panel]');
     if(context.role==='client'||area!==context.track.home||state.hidden){
       existing?.remove?.();
@@ -596,8 +644,12 @@ export function createProgressiveOnboardingController({
     }
     const main=root.querySelector?.('#m26-main');
     if(!main)return;
-    const key=panelRenderKey(context,state);
-    const markup=renderProgressiveOnboardingPanel({role:context.role,state});
+    const key=panelRenderKey(context,state,readiness);
+    const markup=renderProgressiveOnboardingPanel({
+      role:context.role,
+      state,
+      readiness,
+    });
     if(existing){
       if(existing===renderedPanel&&renderedPanelKey===key)return;
       existing.outerHTML=markup;
@@ -633,8 +685,27 @@ export function createProgressiveOnboardingController({
         state=nextState;
       }
     }
-    ensureLauncher(context,state);
-    ensurePanel(context,state,area);
+
+    const progress=progressiveOnboardingProgress({
+      role:context.role,
+      visited:state.visited,
+    });
+
+    let canonicalState=null;
+    try{
+      canonicalState=stateProvider?.()||null;
+    }catch{
+      canonicalState=null;
+    }
+
+    const readiness=coachLaunchReadiness({
+      role:context.role,
+      progress,
+      collections:canonicalState?.collections||null,
+    });
+
+    ensureLauncher(context,state,readiness);
+    ensurePanel(context,state,area,readiness);
     guidedTour.refresh?.();
     scheduleTourOpenStateSync();
     clientGuidedWelcome.refresh?.();
