@@ -150,14 +150,11 @@ export function createCommunicationController({root,service,render=()=>{}}={}){
     preferenceHydrationInFlight=(async()=>{
       try{
         const remote=await service.notificationPreferences.status();
-        if(remote?.updatedAt){
-          service.notificationPreferences.applyRemote?.(remote.preferences);
-          lastPreferenceSignature=JSON.stringify(remote.preferences||{});
-          lastPreferenceSyncAt=Date.now();
-          render();
-          return true;
-        }
-        return syncVisibleNotificationPreferences({force:true});
+        service.notificationPreferences.applyRemote?.(remote?.preferences||{});
+        lastPreferenceSignature=JSON.stringify(remote?.preferences||{});
+        lastPreferenceSyncAt=Date.now();
+        render();
+        return true;
       }catch{
         return false;
       }finally{
