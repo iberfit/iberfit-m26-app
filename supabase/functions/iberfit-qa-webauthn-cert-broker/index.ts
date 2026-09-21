@@ -138,19 +138,21 @@ Deno.serve(async(req:Request)=>{
     await validateTarget(db,body.target);
 
     let mutation;
+    let state;
     if(body.target.name==="admin"){
       await setAdminRole(db,body.target.userId,false);
       mutation=await clearAuthState(db,body.target.userId);
-      if(body.action==="prepare")await setAdminRole(db,body.target.userId,true);
+      state=await finalState(db,body.target);
+      requireCleanState(state);
+      if(state.adminRoleActive!==false)fail("IBERFIT_QA_CERT_ADMIN_ROLE_FINAL_STATE_INVALID",502);
+      if(body.action==="prepare"){
+        await setAdminRole(db,body.target.userId,true);
+        state={...state,adminRoleActive:true};
+      }
     }else{
       mutation=await clearAuthState(db,body.target.userId);
-    }
-
-    const state=await finalState(db,body.target);
-    requireCleanState(state);
-    if(body.target.name==="admin"){
-      const expected=body.action==="prepare";
-      if(state.adminRoleActive!==expected)fail("IBERFIT_QA_CERT_ADMIN_ROLE_FINAL_STATE_INVALID",502);
+      state=await finalState(db,body.target);
+      requireCleanState(state);
     }
     return json(200,{ok:true,action:body.action,target:body.target.email,...mutation,state,runId:String(claims.run_id||"")});
   }catch(error:any){
