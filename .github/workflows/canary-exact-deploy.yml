@@ -29,7 +29,68 @@ env:
   WRANGLER_VERSION: '4.120.0'
 
 jobs:
+  qa-auth-readonly-preflight:
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY_CANARY_EXACT') }}
+    runs-on: ubuntu-latest
+    environment: m26-canary-readonly
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      cancel-in-progress: false
+    steps:
+      - name: Checkout exact Canary source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Validate exact QA auth source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "$CANARY_BRANCH"
+          test "$QA_SUPABASE_REF" = 'gjztkdwfmunnzhtvxrsu'
+          test "$PROD_SUPABASE_REF" != "$QA_SUPABASE_REF"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git status --porcelain)" = ''
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run authenticated QA read-only gate before deploy
+        env:
+          M26_PROJECT_REF: ${{ env.QA_SUPABASE_REF }}
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: ${{ env.QA_SUPABASE_URL }}
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
+          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
+          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
+          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
+        run: node scripts/remote-gates/run_authenticated_readonly_gate.mjs
+
+      - name: Preserve QA auth preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-canary-exact-qa-auth-${{ github.run_id }}
+          path: |
+            recovery/RC29_REMOTE_*.json
+            recovery/RC74_4_REMOTE_*.json
+          if-no-files-found: warn
+          retention-days: 14
+
   deploy-canary:
+    needs: qa-auth-readonly-preflight
     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY_CANARY_EXACT') }}
     runs-on: ubuntu-latest
     environment: m26-canary-readonly
@@ -89,6 +150,7 @@ jobs:
           node scripts/ops/select_canary_previous_deployment.mjs \
             /tmp/canary-version-before.json \
             CLOUDFLARE_CANARY_PROJECT_BEFORE.json
+
       - name: Build canonical fail-closed surface
         run: node qa/rc64/build-current-surface.mjs
 
@@ -136,20 +198,6 @@ jobs:
           ! grep -R -Fq "$PROD_SUPABASE_REF" "$ROOT/version.json" "$ROOT/m26/version.json" "$ROOT/m26/runtime-config.js" "$ROOT/_headers"
           ! grep -R -Eqi 'service[_-]?role' "$ROOT/version.json" "$ROOT/m26/version.json" "$ROOT/m26/runtime-config.js" "$ROOT/_headers"
           cmp "$ROOT/version.json" "$ROOT/m26/version.json"
-
-      - name: Run authenticated QA read-only gate before deploy
-        env:
-          M26_PROJECT_REF: ${{ env.QA_SUPABASE_REF }}
-          M26_QA_ONLY: 'true'
-          M26_SUPABASE_URL: ${{ env.QA_SUPABASE_URL }}
-          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
-          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
-          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
-          M26_QA_CLIENT_A_EMAIL: ${{ secrets.M26_QA_CLIENT_A_EMAIL }}
-          M26_QA_CLIENT_A_PASSWORD: ${{ secrets.M26_QA_CLIENT_A_PASSWORD }}
-          M26_QA_CLIENT_B_EMAIL: ${{ secrets.M26_QA_CLIENT_B_EMAIL }}
-          M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
-        run: node scripts/remote-gates/run_authenticated_readonly_gate.mjs
 
       - name: Mark Canary deployment attempt
         run: echo 'CANARY_DEPLOY_ATTEMPTED=1' >> "$GITHUB_ENV"
@@ -256,8 +304,6 @@ jobs:
             CANARY_ROLLBACK_EVIDENCE.json
             CLOUDFLARE_CANARY_PROJECT_BEFORE.json
             CLOUDFLARE_CANARY_DEPLOYMENTS_AFTER.json
-            recovery/RC29_REMOTE_*.json
-            recovery/RC74_4_REMOTE_*.json
             recovery/prelaunch-live/
           if-no-files-found: warn
           retention-days: 14

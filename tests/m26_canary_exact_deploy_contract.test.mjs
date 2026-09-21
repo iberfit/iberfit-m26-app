@@ -206,7 +206,7 @@ test('Canary workflow captures rollback metadata from canonical deployment rathe
   assert.doesNotMatch(capture,/deployments\.result\.find/u);
 });
 
-test('Canary workflow deploys exact SHA only after QA sealing and read-only auth gate, then live-certifies with rollback',()=>{
+test('Canary workflow requires shared-lock QA auth preflight before exact SHA deploy, then live-certifies with rollback',()=>{
   assert.match(workflow,/CF_PROJECT: 'iberfit-m26-canary'/u);
   assert.match(workflow,/CANARY_DOMAIN: 'm26-canary\.iberfit\.cl'/u);
   assert.match(workflow,/--project-name "\$CF_PROJECT"/u);
@@ -217,12 +217,23 @@ test('Canary workflow deploys exact SHA only after QA sealing and read-only auth
   assert.match(workflow,/check_live_canary_gate\.mjs/u);
   assert.match(workflow,/rollback_canary_on_failure\.mjs/u);
   assert.match(workflow,/failure\(\) && env\.CANARY_DEPLOY_ATTEMPTED == '1'/u);
-  const build=workflow.indexOf('Build canonical fail-closed surface');
-  const qaRuntime=workflow.indexOf('Generate QA-only runtime');
-  const seal=workflow.indexOf('Seal exact Canary surface');
-  const auth=workflow.indexOf('Run authenticated QA read-only gate before deploy');
-  const deploy=workflow.indexOf('Deploy exact certified surface to Canary with Wrangler');
-  const live=workflow.indexOf('Certify deployed Canary desktop and mobile read-only');
-  assert.ok(build>=0&&build<qaRuntime&&qaRuntime<seal&&seal<auth&&auth<deploy&&deploy<live);
+
+  const authJob=workflow.indexOf('  qa-auth-readonly-preflight:');
+  const deployJob=workflow.indexOf('  deploy-canary:');
+  assert.ok(authJob>=0&&deployJob>authJob,'authenticated QA preflight must be a dedicated job before deploy');
+
+  const preflight=workflow.slice(authJob,deployJob);
+  const deployWorkflow=workflow.slice(deployJob);
+  assert.match(preflight,/Run authenticated QA read-only gate before deploy/u);
+  assert.match(preflight,/group: iberfit-qa-shared-auth-readonly/u);
+  assert.match(deployWorkflow,/deploy-canary:\s*\n\s+needs: qa-auth-readonly-preflight/u);
+  assert.doesNotMatch(deployWorkflow,/run_authenticated_readonly_gate\.mjs/u);
+
+  const build=deployWorkflow.indexOf('Build canonical fail-closed surface');
+  const qaRuntime=deployWorkflow.indexOf('Generate QA-only runtime');
+  const seal=deployWorkflow.indexOf('Seal exact Canary surface');
+  const deploy=deployWorkflow.indexOf('Deploy exact certified surface to Canary with Wrangler');
+  const live=deployWorkflow.indexOf('Certify deployed Canary desktop and mobile read-only');
+  assert.ok(build>=0&&build<qaRuntime&&qaRuntime<seal&&seal<deploy&&deploy<live);
   assert.doesNotMatch(workflow,/--project-name\s+["']?iberfit-m26-production/u);
 });
