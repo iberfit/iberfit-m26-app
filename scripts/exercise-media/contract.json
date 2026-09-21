@@ -12,6 +12,47 @@
     "style": "iberfit-premium-movement-pair-v1",
     "bucket": "iberfit-exercise-media",
     "required_asset": "movement",
+    "visual_system": {
+      "version": "iberfit.exercise.media.system.v1",
+      "aspect_ratio": "4:5",
+      "generation_master": {
+        "min_width": 1280,
+        "min_height": 1600,
+        "allow_upscale_from_delivery": false
+      },
+      "delivery": {
+        "width": 640,
+        "height": 800,
+        "format": "webp"
+      },
+      "safe_area_percent": 6,
+      "embedded_text": false,
+      "exercise_name_in_pixels": false,
+      "technical_copy_in_pixels": false,
+      "phase_labels_in_pixels": false,
+      "branding": {
+        "official_isotipo_only": true,
+        "shirt_only": true,
+        "wordmark": false,
+        "generated_branding": false
+      },
+      "anatomy_inset": {
+        "preferred": true,
+        "text_labels": false,
+        "zone": "upper",
+        "preferred_corner": "upper-right",
+        "width_percent_min": 16,
+        "width_percent_max": 22,
+        "must_not_obscure_biomechanics": true
+      },
+      "contexts": [
+        "library-card",
+        "client-live-session",
+        "coach-live-session",
+        "exercise-detail",
+        "fullscreen-viewer"
+      ]
+    },
     "publication_requirements": {
       "qa.biomechanics": "approved",
       "qa.visual": "approved",
