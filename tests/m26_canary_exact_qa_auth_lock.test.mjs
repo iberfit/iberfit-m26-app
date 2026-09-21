@@ -6,16 +6,16 @@ const workflowUrl=new URL('../.github/workflows/canary-exact-deploy.yml',import.
 
 const readWorkflow=()=>readFile(workflowUrl,'utf8');
 
-test('Canary Exact keeps deploy serialization while isolating QA auth preflight on the shared fixture lock',async()=>{
+test('Canary Exact keeps deploy serialization while isolating QA auth preflight on the queued shared fixture lock',async()=>{
   const workflow=await readWorkflow();
 
   assert.match(workflow,/concurrency:\s*\n\s*group: iberfit-m26-canary-exact-deploy\s*\n\s*cancel-in-progress: false/u);
-  assert.match(workflow,/qa-auth-readonly-preflight:[\s\S]*?concurrency:\s*\n\s*group: iberfit-qa-shared-auth-readonly\s*\n\s*cancel-in-progress: false/u);
+  assert.match(workflow,/qa-auth-readonly-preflight:[\s\S]*?concurrency:\s*\n\s*group: iberfit-qa-shared-auth-readonly\s*\n\s*queue: max\s*\n\s*cancel-in-progress: false/u);
   assert.match(workflow,/qa-auth-readonly-preflight:[\s\S]*?node scripts\/remote-gates\/run_authenticated_readonly_gate\.mjs/u);
   assert.match(workflow,/deploy-canary:[\s\S]*?needs: qa-auth-readonly-preflight/u);
 
   const calls=workflow.match(/node scripts\/remote-gates\/run_authenticated_readonly_gate\.mjs/gu)??[];
-  assert.equal(calls.length,1,'authenticated QA gate must run exactly once under the shared fixture lock');
+  assert.equal(calls.length,1,'authenticated QA gate must run exactly once under the queued shared fixture lock');
 
   const deploy=workflow.slice(workflow.indexOf('  deploy-canary:'));
   assert.doesNotMatch(deploy,/M26_QA_COACH_PASSWORD/u);
