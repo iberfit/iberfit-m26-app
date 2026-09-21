@@ -1,7 +1,7 @@
 # IBERFIT · Device Experience Policy
 
 Estado: Phase A GREEN · Phase B foundation activa
-Fecha: 2026-09-19
+Fecha: 2026-09-20
 
 ## Principio
 
@@ -40,7 +40,16 @@ Phase A certifica:
 - gate visible y sin bypass;
 - misma matriz de dispositivos.
 
-**No declarar post-WebAuthn GREEN** hasta disponer de un mecanismo QA seguro y reproducible que complete la ceremonia y deje el workspace Coach operativo sin relajar el contrato de seguridad.
+**Coach post-WebAuthn recurrente = GREEN.** Desde el 20/09/2026, el workflow `IBERFIT Coach WebAuthn Recurring` ejecuta en cada push a `canary/rc74-4` una certificación aislada y autocontenida sobre fuente actual y QA real. El ciclo:
+- obtiene autorización mediante GitHub OIDC limitada al repositorio, rama, workflow, SHA y run actuales;
+- resetea únicamente el estado WebAuthn/assurance de la fixture `qa.rc74.coach@iberfit.cl`, que debe permanecer sin clientes asignados;
+- completa registro WebAuthn real mediante virtual platform authenticator;
+- verifica que el workspace Coach sólo queda accesible después del assurance;
+- cierra sesión y realiza un segundo login para completar `authentication-options` + `authentication-verify` con la misma credencial;
+- valida el shell Coach en desktop, tablet portrait, tablet landscape y móvil;
+- ejecuta cleanup obligatorio y deja 0 credenciales WebAuthn activas, 0 challenges y 0 assurances activas.
+
+La primera evidencia recurrente GREEN quedó registrada en el run `35547888935` sobre Canary `b079361169a22e9f019a5df02feabf0118f89f35`. El job live, el contrato y el gate final terminaron en `success`; la comprobación independiente posterior confirmó estado residual cero en QA. No se usa bypass de MFA ni `service_role` en GitHub Actions.
 
 ### Admin
 Phase A certifica de forma recurrente mediante fixture sintético canónico:
@@ -81,9 +90,9 @@ Nunca convertir YELLOW en GREEN por wording, screenshot o ausencia de fallos.
 ## Fases
 
 ### Phase A
-Unifica en un gate recurrente:
+Unifica en gates recurrentes:
 - Cliente QA real;
-- Coach hasta WebAuthn fail-closed;
+- Coach fail-closed antes de WebAuthn y certificación post-WebAuthn real recurrente en gate dedicado;
 - Admin sintético con tareas reales;
 - PWA upgrade;
 - cuatro perfiles principales donde aplica.
@@ -106,16 +115,15 @@ Valida explícitamente:
 - interacción del wizard/gestión Admin;
 - capturas y métricas por tarea/dispositivo.
 
-La UI Coach de esta capa se etiqueta `synthetic-post-assurance-ui`: valida el workspace que debe existir después del assurance, pero **no** suplanta WebAuthn ni convierte esa evidencia en auth GREEN.
+La UI Coach de esta capa se etiqueta `synthetic-post-assurance-ui`: valida el workspace que debe existir después del assurance, pero **no** suplanta WebAuthn ni constituye por sí sola la evidencia auth GREEN. La evidencia recurrente post-WebAuthn real procede exclusivamente de `IBERFIT Coach WebAuthn Recurring`.
 
 Admin se etiqueta `synthetic-authorized-ui`: valida tareas y responsive. La autenticación Admin real tiene certificación puntual independiente, pero esta fixture **no** se presenta como evidencia de autenticación recurrente.
 
 #### Pendiente para cerrar Phase B
-1. Coach post-WebAuthn real y reproducible en desktop/tablet portrait/tablet landscape/mobile, sin bypass.
-2. Admin autenticado QA real recurrente y autocontenido en desktop/tablet/móvil, con limpieza segura del estado WebAuthn sintético entre ejecuciones.
-3. teclado virtual/orientación/modales/scroll largo.
-4. error recovery task-level con estados de red y reanudación.
-5. ampliar PWA a tablet landscape si la tarea instalada lo requiere.
+1. Admin autenticado QA real recurrente y autocontenido en desktop/tablet/móvil, con limpieza segura del estado WebAuthn sintético entre ejecuciones.
+2. teclado virtual/orientación/modales/scroll largo.
+3. error recovery task-level con estados de red y reanudación.
+4. ampliar PWA a tablet landscape si la tarea instalada lo requiere.
 
 ## Regla de producto
 
