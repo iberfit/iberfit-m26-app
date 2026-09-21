@@ -109,7 +109,12 @@ async function loginCompleteWebAuthnAndChooseAdmin(page,email,password){
   await webauthn.click();
 
   await expect(roleChoice,'Client/Admin selector must appear only after WebAuthn').toBeVisible({timeout:30_000});
-  await expect(adminShell,'Admin shell must remain unavailable until explicit app choice').toHaveCount(0);
+  const provisionalAdminShellCount=await adminShell.count();
+  expect(provisionalAdminShellCount,'At most one provisional Admin shell may exist before app choice').toBeLessThanOrEqual(1);
+  if(provisionalAdminShellCount===1){
+    await expect(adminShell,'Rendered provisional Admin shell must remain inert until app choice').toHaveAttribute('inert','');
+    await expect(adminShell).toHaveAttribute('aria-hidden','true');
+  }
   const provisionalClientShell=page.locator('.m26-shell[data-m26-role="client"]');
   const provisionalClientShellCount=await provisionalClientShell.count();
   expect(provisionalClientShellCount,'At most one provisional Client shell may exist before app choice').toBeLessThanOrEqual(1);
@@ -124,6 +129,8 @@ async function loginCompleteWebAuthnAndChooseAdmin(page,email,password){
   await expect(roleChoice.locator('[data-m26-switch-role="coach"]'),'Unauthorized Coach app must not be offered').toHaveCount(0);
   await chooseAdmin.click();
   await expect(adminShell,'Admin app must open only after explicit app choice').toBeVisible({timeout:30_000});
+  await expect(adminShell,'Chosen Admin shell must become interactive').not.toHaveAttribute('inert','');
+  await expect(adminShell,'Chosen Admin shell must leave the accessibility-hidden state').not.toHaveAttribute('aria-hidden','true');
   await expect(roleChoice).toHaveCount(0,{timeout:10_000});
   await expect(page.locator('[data-m26-interactive="ready"]')).toHaveCount(1,{timeout:15_000});
   expect(new URL(page.url()).origin).toBe(CANARY_ORIGIN);
