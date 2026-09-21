@@ -38,6 +38,7 @@ jobs:
       contents: read
     concurrency:
       group: iberfit-qa-shared-auth-readonly
+      queue: max
       cancel-in-progress: false
     steps:
       - name: Checkout exact Canary source
