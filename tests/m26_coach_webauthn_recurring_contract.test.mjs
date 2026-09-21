@@ -29,9 +29,10 @@ test('trusted Canary workflow owns OIDC reset, real ceremony and cleanup',async(
   const workflow=await read('.github/workflows/coach-webauthn-recurring.yml');
   assert.match(workflow,/push:\s*\n\s+branches: \[canary\/rc74-4\]/u);
   assert.match(workflow,/workflow_dispatch:/u);
-  assert.ok(workflow.includes("group: ${{ github.event_name == 'pull_request' && format('iberfit-coach-webauthn-contract-pr-{0}', github.event.pull_request.number) || 'iberfit-qa-shared-auth-readonly' }}"));
+  assert.ok(workflow.includes("group: ${{ github.event_name == 'pull_request' && format('iberfit-coach-webauthn-contract-pr-{0}', github.event.pull_request.number) || format('iberfit-coach-webauthn-run-{0}', github.run_id) }}"));
   assert.ok(workflow.includes("cancel-in-progress: ${{ github.event_name == 'pull_request' }}"));
-  assert.doesNotMatch(workflow,/\n\s*group: iberfit-qa-shared-auth-readonly\s*\n/u);
+  assert.match(workflow,/live-coach-webauthn:[\s\S]*?concurrency:\s*\n\s*group: iberfit-qa-shared-auth-readonly\s*\n\s*queue: max\s*\n\s*cancel-in-progress: false/u);
+  assert.doesNotMatch(workflow,/concurrency:\s*\n\s*group: \$\{\{[^\n]*iberfit-qa-shared-auth-readonly/u);
   assert.match(workflow,/live-coach-webauthn:[\s\S]*if: github\.event_name != 'pull_request'/u);
   assert.match(workflow,/permissions:[\s\S]*id-token: write/u);
   assert.match(workflow,/OIDC_AUDIENCE: iberfit-webauthn-qa-cert/u);
