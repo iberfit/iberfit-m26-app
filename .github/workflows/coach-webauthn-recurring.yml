@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('iberfit-coach-webauthn-contract-pr-{0}', github.event.pull_request.number) || 'iberfit-qa-shared-auth-readonly' }}
+  group: ${{ github.event_name == 'pull_request' && format('iberfit-coach-webauthn-contract-pr-{0}', github.event.pull_request.number) || format('iberfit-coach-webauthn-run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -43,6 +43,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: m26-canary-readonly
+    concurrency:
+      group: iberfit-qa-shared-auth-readonly
+      queue: max
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
