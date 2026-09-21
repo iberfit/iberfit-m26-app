@@ -7,6 +7,13 @@ const DYNAMIC_PAGE_SIZE=200;
 const DYNAMIC_MAX_ROWS=5_000;
 function norm(value=''){return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
 function stringList(value){return Object.freeze((Array.isArray(value)?value:[]).map((item)=>String(item||'').trim()).filter(Boolean));}
+function mergeAliasLists(baseAliases=[],remoteAliases=[]){
+ const aliases=[],seen=new Set();
+ for(const raw of [...(Array.isArray(baseAliases)?baseAliases:[]),...(Array.isArray(remoteAliases)?remoteAliases:[])]){
+  const value=String(raw||'').trim(),key=norm(value);if(!value||!key||seen.has(key))continue;seen.add(key);aliases.push(value);
+ }
+ return aliases;
+}
 function nameTranslations(value){
   const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
   const output={};
@@ -38,10 +45,12 @@ export function mergeExerciseCatalogRecords(baseCatalog,remoteRows=[],{mediaOrig
  for(const item of base){const id=String(item?.id||'').trim();if(id)merged.set(id,item);}
  for(const item of remoteRows){
   const id=String(item?.id||'').trim();if(!id)continue;
+  const previous=merged.get(id);
+  const aliases=mergeAliasLists(previous?.aliases,item?.aliases);
   const media=item?.media&&typeof item.media==='object'&&!Array.isArray(item.media)
     ?Object.freeze({...item.media,...(origin?{deliveryOrigin:origin}:{})})
     :{};
-  merged.set(id,{...item,media});
+  merged.set(id,{...item,aliases,media});
  }
  return createExerciseCatalog([...merged.values()]);
 }
