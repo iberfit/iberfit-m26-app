@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {__webauthnInternals} from '../src/m26/app/webauthn.js';
+import {runWebAuthnCeremony,__webauthnInternals} from '../src/m26/app/webauthn.js';
 
 const {
   DEFAULT_WEBAUTHN_TIMEOUT_MS,
@@ -47,4 +47,40 @@ test('a WebAuthn ceremony that never settles is aborted and released instead of 
 
   assert.equal(abortCalled,true);
   assert.ok(Date.now()-startedAt<2_500,'hung WebAuthn must be released promptly after its timeout');
+});
+
+test('a native WebAuthn AbortError stays diagnosable and enters the recoverable NOT_ALLOWED family',async()=>{
+  const nativeAbort=new Error('native ceremony interrupted');
+  nativeAbort.name='AbortError';
+  const navigatorLike={credentials:{
+    create:async()=>null,
+    get:async()=>{throw nativeAbort;},
+  }};
+
+  await assert.rejects(
+    ()=>runWebAuthnCeremony(
+      {
+        type:'request',
+        credentialOptions:{publicKey:{
+          challenge:'AQID',
+          rpId:'app.iberfit.cl',
+          allowCredentials:[],
+          userVerification:'required',
+        }},
+      },
+      {
+        navigatorLike,
+        PublicKeyCredentialImpl:function PublicKeyCredential(){},
+        timeoutMs:1_000,
+      },
+    ),
+    (error)=>{
+      assert.equal(error?.message,'M26_WEBAUTHN_NOT_ALLOWED_ABORTED');
+      assert.match(
+        String(error?.message||''),
+        /M26_WEBAUTHN_(?:TIMEOUT|NOT_ALLOWED|CREDENTIAL_MISSING|INVALID_STATE)/u,
+      );
+      return true;
+    },
+  );
 });
