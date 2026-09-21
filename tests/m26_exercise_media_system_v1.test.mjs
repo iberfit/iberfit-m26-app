@@ -47,21 +47,27 @@ test('branding is restricted to the official shirt isotipo and AI-generated bran
   assert.equal(visual.branding.wordmark,false);
   assert.equal(visual.branding.generated_branding,false);
   assert.match(style,/only IBERFIT branding permitted inside the visual is the exact official isotipo, small on the shirt/i);
+  assert.match(style,/No wordmark, wall logo, equipment logo, shoe logo/i);
 });
 
-test('anatomy inset is required by default, compact, text-free and subordinate to biomechanics',()=>{
+test('anatomy inset is required, upper-left, small, analytical and subordinate to biomechanics',()=>{
   assert.equal(visual.anatomy_inset.required_by_default,true);
   assert.equal(visual.anatomy_inset.exception_requires_qa_justification,true);
   assert.equal(visual.anatomy_inset.text_labels,false);
   assert.equal(visual.anatomy_inset.zone,'upper');
-  assert.equal(visual.anatomy_inset.preferred_corner,'upper-right');
-  assert.equal(visual.anatomy_inset.width_percent_min,16);
-  assert.equal(visual.anatomy_inset.width_percent_max,22);
+  assert.equal(visual.anatomy_inset.preferred_corner,'upper-left');
+  assert.equal(visual.anatomy_inset.width_percent_min,12);
+  assert.equal(visual.anatomy_inset.width_percent_max,16);
+  assert.equal(visual.anatomy_inset.rendering_style,'analytical-anatomical-plate');
+  assert.equal(visual.anatomy_inset.muscle_definition,'subtle-clear-not-hyperdefined');
+  assert.equal(visual.anatomy_inset.decorative_elements,false);
   assert.equal(visual.anatomy_inset.primary_muscle_color,'iberfit-technical-green');
   assert.equal(visual.anatomy_inset.secondary_muscle_color,'iberfit-restrained-gold');
   assert.equal(visual.anatomy_inset.remaining_anatomy,'neutral-cream-grey-low-contrast');
   assert.equal(visual.anatomy_inset.must_not_obscure_biomechanics,true);
-  assert.match(spec,/required by default for every new system-v1 exercise visual/i);
+  assert.match(spec,/upper-left visual zone/i);
+  assert.match(spec,/clean analytical anatomical plate/i);
+  assert.match(style,/no hyper-defined musculature/i);
 });
 
 test('one canonical system must support library, live sessions, detail and fullscreen contexts',()=>{

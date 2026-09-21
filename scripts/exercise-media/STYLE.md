@@ -19,7 +19,7 @@ This file is normative. Detailed composition and delivery rules live in `EXERCIS
 - Outfit is sober black technical sportswear.
 - The **only IBERFIT branding permitted inside the visual is the exact official isotipo, small on the shirt**.
 - Use the official repository isotipo asset. Never redraw, regenerate, approximate or let an image model invent it.
-- No wordmark, wall logo, equipment logo, shorts logo, repeated isotipo, invented marks or AI-generated branding.
+- No wordmark, wall logo, equipment logo, shoe logo, shorts logo, repeated isotipo, invented marks or AI-generated branding.
 
 ## Composition
 
@@ -33,8 +33,10 @@ This file is normative. Detailed composition and delivery rules live in `EXERCIS
 ## Anatomy inset
 
 - A compact anatomical inset is **required by default for every new system-v1 exercise visual**. An exception must be explicit and justified by QA when an inset would reduce rather than improve instructional clarity.
-- Place it in the **upper visual zone**, normally the upper-right corner, using one consistent geometry across the library.
-- Keep the inset visually secondary: target roughly **16–22% of image width**, never large enough to compete with the athlete.
+- Place it in the **upper-left visual zone** using one consistent geometry across the library.
+- Keep the inset visually secondary: target roughly **12–16% of image width**, never large enough to compete with the athlete.
+- Render it as a clean **analytical anatomical plate**, not a bodybuilding figure: subtle muscle definition, restrained surface relief, anatomically clear forms and no hyper-defined musculature.
+- Use one or two neutral anatomical views only when that materially clarifies the target musculature. Do not add decorative arcs, badges, logos or ornament inside the inset.
 - Highlight primary working musculature with the IBERFIT deep/technical green. Secondary musculature, when useful, uses restrained gold. Remaining anatomy stays neutral cream/grey with low contrast.
 - The inset contains **no labels or text**. Muscle names live in the UI/card metadata.
 - Do not cover the athlete, moving load, contact points or the motion path.
@@ -54,7 +56,7 @@ The UI may choose a smaller derivative for performance, but the visual system re
 ## QA and publication
 
 - Biomechanics must be instructionally correct and unambiguous.
-- Visual QA checks identity consistency, crop, anatomy scale, background restraint, branding restraint, artifacts and readability at compact size.
+- Visual QA checks identity consistency, crop, anatomy scale/style, background restraint, branding restraint, artifacts and readability at compact size.
 - Generated candidates remain quarantined until biomechanics and visual QA are both approved.
 - Before `human_approved=true`, compare the candidate against currently approved IBERFIT library assets for athlete identity, crop, lighting, background prominence, isotipo placement and anatomy scale.
 - Publication is exact-ID based, idempotent and fail closed.
