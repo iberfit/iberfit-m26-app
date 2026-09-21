@@ -12,7 +12,7 @@ test('Admin WebAuthn broker keeps the multiapp fixture ephemeral and QA-only',as
   assert.match(source,/const ADMIN_EXPECTED_WORKFLOW_REF="iberfit\/iberfit-m26-app\/\.github\/workflows\/admin-webauthn-recurring\.yml@refs\/heads\/canary\/rc74-4"/u);
   assert.match(source,/profileRole:"client"/u);
   assert.match(source,/roleMap\.get\("client"\)!==true\|\|!roleMap\.has\("admin"\)/u);
-  assert.match(source,/setAdminRole\(db,body\.target\.userId,false\);[\s\S]*?clearAuthState\(db,body\.target\.userId\);[\s\S]*?body\.action==="prepare"[\s\S]*?setAdminRole\(db,body\.target\.userId,true\)/u);
+  assert.match(source,/setAdminRole\(db,body\.target\.userId,false\);[\s\S]*?clearAuthState\(db,body\.target\.userId\);[\s\S]*?state=await finalState\(db,body\.target\);[\s\S]*?requireCleanState\(state\);[\s\S]*?state\.adminRoleActive!==false[\s\S]*?body\.action==="prepare"[\s\S]*?setAdminRole\(db,body\.target\.userId,true\)/u);
   assert.match(source,/\.eq\("user_id",userId\)\.eq\("role","admin"\)/u);
   assert.match(source,/activeCredentials/u);
   assert.match(source,/activeChallenges/u);
