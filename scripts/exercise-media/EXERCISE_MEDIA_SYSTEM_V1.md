@@ -25,7 +25,7 @@ Do not create separate visual identities for those surfaces. The application cho
 - athlete/mannequin identity;
 - equipment and support geometry;
 - premium environment;
-- optional anatomical inset;
+- required-by-default anatomical inset;
 - exact official shirt isotipo.
 
 ### The application UI owns
@@ -62,9 +62,11 @@ When two phases are needed, start and end must share athlete, outfit, camera, eq
 
 ### Anatomy zone
 
-A compact anatomy inset may occupy the upper visual zone, normally upper-right, at approximately 16–22% of image width. It must never cover the athlete, load, support surface or trajectory.
+A compact anatomy inset is required by default for every new system-v1 exercise visual. The only exception is a QA-documented case where the inset would reduce instructional clarity.
 
-Primary muscles receive the strongest emphasis. Secondary muscles may receive restrained secondary emphasis. No text labels are rendered into the inset.
+Place it in the upper visual zone, normally upper-right, at approximately 16–22% of image width. It must never cover the athlete, load, support surface or trajectory.
+
+Primary muscles use the IBERFIT technical/deep green as the strongest anatomical emphasis. Secondary muscles, when useful, use restrained gold. Remaining anatomy stays neutral cream/grey at low contrast. No text labels are rendered into the inset.
 
 ## IBERFIT visual language
 
@@ -101,7 +103,7 @@ Every candidate must pass all of the following before publication:
 4. complete visibility of relevant joints/load/supports;
 5. approved athlete/outfit identity;
 6. official isotipo integrity and restraint;
-7. anatomy inset consistency when present;
+7. anatomy inset present and consistent unless a QA-documented exception applies;
 8. background and color-system compliance;
 9. absence of baked names, labels, instructions or UI text;
 10. compact-size readability;
@@ -112,7 +114,7 @@ A failure in any mandatory gate blocks publication.
 
 ## Pilot before scale
 
-The first system-v1 pilot should deliberately cover different movement families, for example:
+The first system-v1 pilot should deliberately cover different movement families:
 
 - Dominada pronada — vertical pull;
 - Buenos días con barra — hip hinge;
