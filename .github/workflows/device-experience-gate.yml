@@ -14,9 +14,13 @@ on:
       - 'playwright.admin-interaction.config.mjs'
       - 'playwright.daily-admin-visual.config.mjs'
       - 'playwright.p0-pwa-upgrade.config.mjs'
+      - 'playwright.coach-webauthn-recurring.config.mjs'
+      - 'supabase/functions/iberfit-qa-webauthn-cert-broker/**'
       - 'docs/DEVICE_EXPERIENCE_POLICY.md'
       - 'tests/m26_device_experience_gate_contract.test.mjs'
+      - 'tests/m26_coach_webauthn_recurring_contract.test.mjs'
       - '.github/workflows/device-experience-gate.yml'
+      - '.github/workflows/coach-webauthn-recurring.yml'
   push:
     branches: [canary/rc74-4]
     paths:
@@ -29,9 +33,13 @@ on:
       - 'playwright.admin-interaction.config.mjs'
       - 'playwright.daily-admin-visual.config.mjs'
       - 'playwright.p0-pwa-upgrade.config.mjs'
+      - 'playwright.coach-webauthn-recurring.config.mjs'
+      - 'supabase/functions/iberfit-qa-webauthn-cert-broker/**'
       - 'docs/DEVICE_EXPERIENCE_POLICY.md'
       - 'tests/m26_device_experience_gate_contract.test.mjs'
+      - 'tests/m26_coach_webauthn_recurring_contract.test.mjs'
       - '.github/workflows/device-experience-gate.yml'
+      - '.github/workflows/coach-webauthn-recurring.yml'
   workflow_dispatch:
 
 permissions:
@@ -304,6 +312,7 @@ jobs:
           test "$PWA" = success
           echo 'DEVICE_EXPERIENCE_GATE_PHASE_A=GREEN'
           echo 'DEVICE_WORKFLOW_MATRIX_V1=GREEN'
-          echo 'KNOWN_GAP_COACH_POST_WEBAUTHN=YELLOW'
+          echo 'KNOWN_GAP_COACH_POST_WEBAUTHN=GREEN'
+          echo 'COACH_POST_WEBAUTHN_RECURRING_GATE=GREEN'
           echo 'ADMIN_AUTHENTICATED_POINT_IN_TIME=GREEN'
           echo 'KNOWN_GAP_ADMIN_AUTHENTICATED_RECURRING=YELLOW'
