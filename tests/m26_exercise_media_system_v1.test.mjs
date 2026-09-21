@@ -5,6 +5,7 @@ import test from 'node:test';
 const contract=JSON.parse(await readFile(new URL('../scripts/exercise-media/contract.json',import.meta.url),'utf8'));
 const style=await readFile(new URL('../scripts/exercise-media/STYLE.md',import.meta.url),'utf8');
 const spec=await readFile(new URL('../scripts/exercise-media/EXERCISE_MEDIA_SYSTEM_V1.md',import.meta.url),'utf8');
+const approvedMasterMetadata=JSON.parse(await readFile(new URL('../public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.metadata.json',import.meta.url),'utf8'));
 
 const visual=contract.media_contract.visual_system;
 
@@ -14,6 +15,20 @@ test('exercise media system v1 locks a high-resolution 4:5 master and current de
   assert.deepEqual(visual.generation_master,{min_width:1280,min_height:1600,allow_upscale_from_delivery:false});
   assert.deepEqual(visual.delivery,{width:640,height:800,format:'webp'});
   assert.equal(visual.safe_area_percent,6);
+});
+
+test('system v1 is pinned to the already approved athlete and official isotipo',()=>{
+  const reference=visual.approved_identity_reference;
+  assert.equal(reference.master_id,approvedMasterMetadata.masterId);
+  assert.equal(reference.master_path,approvedMasterMetadata.output.path);
+  assert.equal(reference.master_sha256,approvedMasterMetadata.output.sha256);
+  assert.equal(reference.branded_reference_path,approvedMasterMetadata.brandedOutput.path);
+  assert.equal(reference.branded_reference_sha256,approvedMasterMetadata.brandedOutput.sha256);
+  assert.equal(reference.official_isotipo_path,approvedMasterMetadata.isotipoComposition.officialAsset);
+  assert.equal(reference.official_isotipo_sha256,approvedMasterMetadata.isotipoComposition.officialAssetSha256);
+  assert.equal(approvedMasterMetadata.approval.approvedByUser,true);
+  assert.equal(approvedMasterMetadata.approval.selectedAsMaster,true);
+  assert.match(spec,/silent drift is not allowed/i);
 });
 
 test('exercise pixels remain visual-only and semantic content belongs to UI',()=>{
