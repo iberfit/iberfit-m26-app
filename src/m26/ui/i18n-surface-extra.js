@@ -11,6 +11,20 @@ import {WORKSPACE_SURFACE_ROWS} from './i18n-surface-workspace.js';
 import {FINAL_RESIDUAL_SURFACE_ROWS} from './i18n-surface-final-residual.js';
 import {P0_CLIENT_AUTH_SURFACE_ROWS} from './i18n-surface-p0-client-auth.js';
 
+const COACH_LAUNCH_SURFACE_ROWS=Object.freeze([
+  ['Coach listo para trabajar','Coach ready to work','Coach prêt à travailler','Coach pronto para trabalhar'],
+  ['Completar primer cliente','Complete first client','Finaliser le premier client','Concluir primeiro cliente'],
+  ['Preparar primera planificación','Prepare first plan','Préparer la première planification','Preparar primeiro planeamento'],
+  ['Puesta en marcha pendiente','Launch readiness pending','Mise en route en attente','Configuração inicial pendente'],
+  ['Recorrido completado','Tour completed','Parcours terminé','Percurso concluído'],
+  ['Recorrido completado y puesta en marcha validada con datos operativos del Coach.','Tour completed and launch readiness validated with the Coach’s operational data.','Parcours terminé et mise en route validée avec les données opérationnelles du Coach.','Percurso concluído e configuração inicial validada com os dados operacionais do Coach.'],
+  ['Recorrido de interfaz completado; puesta en marcha pendiente. IBERFIT no marca al Coach como listo hasta validar cliente y planificación.','Interface tour completed; launch readiness is still pending. IBERFIT does not mark the Coach as ready until the client and planning milestones are validated.','Parcours de l’interface terminé ; la mise en route reste en attente. IBERFIT ne considère pas le Coach comme prêt tant que le client et la planification ne sont pas validés.','Percurso da interface concluído; a configuração inicial continua pendente. A IBERFIT não considera o Coach pronto até validar o cliente e o planeamento.'],
+  ['Coach listo','Coach ready','Coach prêt','Coach pronto'],
+  ['Abrir estado de puesta en marcha completada','Open completed launch readiness status','Ouvrir l’état de mise en route terminée','Abrir estado de configuração inicial concluída'],
+  ['Puesta en marcha','Launch readiness','Mise en route','Configuração inicial'],
+  ['Abrir puesta en marcha de Coach','Open Coach launch readiness','Ouvrir la mise en route du Coach','Abrir configuração inicial do Coach'],
+]);
+
 export const IBERFIT_EXTRA_SURFACE_ROWS=Object.freeze([
   ...ROUTE_SURFACE_ROWS_A,
   ...ROUTE_SURFACE_ROWS_B,
@@ -19,6 +33,7 @@ export const IBERFIT_EXTRA_SURFACE_ROWS=Object.freeze([
   ...ROUTE_SURFACE_ROWS_E,
   ...SESSION_SURFACE_ROWS,
   ...ONBOARDING_CLIENT_SURFACE_ROWS,
+  ...COACH_LAUNCH_SURFACE_ROWS,
   ...ADMIN_SURFACE_ROWS,
   ...WEARABLE_SURFACE_ROWS,
   ...WORKSPACE_SURFACE_ROWS,
