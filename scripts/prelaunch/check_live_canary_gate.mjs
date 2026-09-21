@@ -139,7 +139,25 @@ async function inspectViewport(browser,{name,width,height}){
     invariant(await enter.isVisible(),'PRELAUNCH_LIVE_ENTER_MISSING');
     invariant(await enter.isEnabled(),'PRELAUNCH_LIVE_ENTER_DISABLED');
 
-    invariant(await page.locator('.m26-notice.is-warning').count()===0,'PRELAUNCH_LIVE_WARNING_VISIBLE');
+    const warningLocator=page.locator('.m26-notice.is-warning');
+    const warningDiagnostics=[];
+    for(let index=0,count=await warningLocator.count();index<count;index+=1){
+      const notice=warningLocator.nth(index);
+      const detail=await notice.evaluate((element)=>({
+        tagName:String(element.tagName||'').toLowerCase(),
+        className:String(element.className||'').slice(0,300),
+        text:String(element.textContent||'').replace(/\s+/gu,' ').trim().slice(0,500),
+        hidden:element.hidden===true,
+        ariaHidden:element.getAttribute('aria-hidden'),
+      }));
+      warningDiagnostics.push(Object.freeze({...detail,visible:await notice.isVisible()}));
+    }
+    const visibleWarnings=warningDiagnostics.filter((warning)=>warning.visible===true);
+    if(visibleWarnings.length){
+      console.error(`PRELAUNCH_LIVE_WARNING_DIAGNOSTICS=${JSON.stringify({name,warnings:warningDiagnostics})}`);
+    }else if(warningDiagnostics.length){
+      console.log(`PRELAUNCH_LIVE_HIDDEN_WARNING_DIAGNOSTICS=${JSON.stringify({name,warnings:warningDiagnostics})}`);
+    }
 
     const runtime=await page.evaluate(()=>{
       const raw=globalThis.__IBERFIT_M26_RUNTIME__||{};
@@ -175,6 +193,7 @@ async function inspectViewport(browser,{name,width,height}){
       pageUrl:String(page.url()).slice(0,300),
       runtime,
       layout,
+      warningNotices:warningDiagnostics,
       blockedMutations,
       forbiddenOrigins,
       consoleErrors,
@@ -190,6 +209,7 @@ async function inspectViewport(browser,{name,width,height}){
       console.error(`PRELAUNCH_LIVE_DIAGNOSTICS=${JSON.stringify(diagnostic)}`);
     }
 
+    invariant(visibleWarnings.length===0,'PRELAUNCH_LIVE_WARNING_VISIBLE');
     invariant(layout.scrollWidth<=layout.clientWidth+1,'PRELAUNCH_LIVE_HORIZONTAL_OVERFLOW');
     invariant(blockedMutations.length===0,'PRELAUNCH_LIVE_UNEXPECTED_MUTATION_REQUEST');
     invariant(forbiddenOrigins.length===0,'PRELAUNCH_LIVE_FORBIDDEN_SUPABASE_ORIGIN');
@@ -200,6 +220,8 @@ async function inspectViewport(browser,{name,width,height}){
       name,width,height,
       runtime,
       layout,
+      warningNotices:warningDiagnostics.length,
+      visibleWarningNotices:visibleWarnings.length,
       blockedMutationRequests:blockedMutations.length,
       forbiddenSupabaseOrigins:forbiddenOrigins.length,
       consoleErrors:consoleErrors.length,
