@@ -93,7 +93,7 @@ jobs:
           test "${#token}" -gt 100
           echo "::add-mask::$token"
           payload="$(jq -nc --arg sourceSha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" '{action:"reset",sourceSha:$sourceSha,runId:$runId}')"
-          curl --fail --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" | tee recovery-coach-reset-before.json
+          curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" | tee recovery-coach-reset-before.json
           jq -e '.ok == true and .action == "reset" and .target == "qa.rc74.coach@iberfit.cl"' recovery-coach-reset-before.json >/dev/null
       - name: Certify Coach WebAuthn registration and authentication
         env:
@@ -117,7 +117,7 @@ jobs:
           test "${#token}" -gt 100
           echo "::add-mask::$token"
           payload="$(jq -nc --arg sourceSha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" '{action:"reset",sourceSha:$sourceSha,runId:$runId}')"
-          curl --fail --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" | tee recovery-coach-reset-after.json
+          curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" | tee recovery-coach-reset-after.json
           jq -e '.ok == true and .action == "reset" and .target == "qa.rc74.coach@iberfit.cl"' recovery-coach-reset-after.json >/dev/null
       - name: Preserve Coach WebAuthn evidence
         if: always()
