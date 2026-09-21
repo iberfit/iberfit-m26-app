@@ -30,6 +30,14 @@ function sampleState(){
   };
 }
 
+function strengthPillar(state,{loadDirection='unknown'}={}){
+  const hub=buildProgressHub(state,'c1',{
+    now:NOW,
+    loadDirectionForExercise:()=>loadDirection,
+  });
+  return hub.pillars.find((pillar)=>pillar.id==='strength');
+}
+
 test('Progress Hub aggregates existing evidence without a global score',()=>{
   const hub=buildProgressHub(sampleState(),'c1',{now:NOW});
   assert.equal(hub.clientId,'c1');
@@ -49,12 +57,32 @@ test('Progress Hub aggregates existing evidence without a global score',()=>{
   assert.match(hub.note,/Diagnóstico IRI se conserva aparte/u);
 });
 
-test('Progress Hub strength uses repeated confirmed exercise evidence',()=>{
-  const hub=buildProgressHub(sampleState(),'c1',{now:NOW});
-  const strength=hub.pillars.find((pillar)=>pillar.id==='strength');
+test('Progress Hub strength counts a load increase only when higher load is explicitly better',()=>{
+  const strength=strengthPillar(sampleState(),{loadDirection:'higher-is-better'});
   assert.equal(strength.value,1);
-  assert.match(strength.evidence,/1 con al menos una señal ascendente/u);
+  assert.equal(strength.status,'strong');
+  assert.match(strength.evidence,/1 con evolución favorable confirmada/u);
   assert.equal(strength.source,'sessionExecutions');
+});
+
+test('Progress Hub strength counts a load decrease when lower load is explicitly better',()=>{
+  const state=sampleState();
+  state.collections.sessionExecutions[0].results.x.loadKg=50;
+  state.collections.sessionExecutions[1].results.x.loadKg=45;
+  state.collections.sessionExecutions[2].results.x.loadKg=40;
+  const strength=strengthPillar(state,{loadDirection:'lower-is-better'});
+  assert.equal(strength.value,1);
+  assert.equal(strength.status,'strong');
+  assert.match(strength.evidence,/1 con evolución favorable confirmada/u);
+});
+
+test('Progress Hub keeps an unknown load change descriptive but does not call it improvement',()=>{
+  const strength=strengthPillar(sampleState(),{loadDirection:null});
+  assert.equal(strength.value,null);
+  assert.equal(strength.status,'insufficient');
+  assert.match(strength.evidence,/semántica comparable/u);
+  assert.match(strength.context,/1 tendencia descriptiva/u);
+  assert.doesNotMatch(strength.evidence,/evolución favorable/u);
 });
 
 test('Progress Hub preserves missing device data as insufficient instead of zero',()=>{
@@ -68,7 +96,7 @@ test('Progress Hub preserves missing device data as insufficient instead of zero
 test('Progress Hub stays isolated by clientId',()=>{
   const state=sampleState();
   state.collections.sessionExecutions.push({id:'other',clientId:'c2',sessionId:'s1',status:'completed',syncStatus:'clean',completedAt:'2026-09-05T11:00:00Z',results:{x:{exerciseId:'squat',reps:20,loadKg:200}}});
-  const hub=buildProgressHub(state,'c1',{now:NOW});
+  const hub=buildProgressHub(state,'c1',{now:NOW,loadDirectionForExercise:()=> 'higher-is-better'});
   const strength=hub.pillars.find((pillar)=>pillar.id==='strength');
   assert.equal(strength.value,1);
   assert.doesNotMatch(strength.context,/4 ejecuciones/u);
