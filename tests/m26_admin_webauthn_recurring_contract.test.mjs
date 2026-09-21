@@ -58,6 +58,9 @@ test('browser contract proves real registration assertion app choice and Admin s
   assert.match(spec,/authentication-options/u);
   assert.match(spec,/authentication-verify/u);
   assert.match(spec,/App selector must not precede WebAuthn/u);
+  assert.match(spec,/No Client shell may be active before explicit app choice/u);
+  assert.match(spec,/No Admin shell may be active before explicit app choice/u);
+  assert.doesNotMatch(spec,/Primary Client shell must remain inert until app choice/u);
   assert.match(spec,/data-m26-switch-role="client"/u);
   assert.match(spec,/data-m26-switch-role="admin"/u);
   assert.match(spec,/data-m26-switch-role="coach"/u);
