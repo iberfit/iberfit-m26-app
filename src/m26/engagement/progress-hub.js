@@ -1,6 +1,7 @@
 import {buildAdherenceWindows} from './progress-continuity.js';
 import {computeProgressSummary} from './progress-engine.js';
 import {
+  assessExercisePerformance,
   buildExercisePerformanceTrend,
   listExercisePerformanceMemories,
 } from './exercise-performance-engine.js';
@@ -18,41 +19,54 @@ function status(value,{positive=0.8,watch=0.6}={}){
   if(number>=watch)return 'building';
   return 'review';
 }
-function trendEvidence(memories=[]){
+function exerciseLoadDirection(memory,loadDirectionForExercise){
+  if(typeof loadDirectionForExercise!=='function')return 'unknown';
+  try{
+    const value=loadDirectionForExercise(memory?.exerciseId||null,memory);
+    return value==='higher-is-better'||value==='lower-is-better'?value:'unknown';
+  }catch{
+    return 'unknown';
+  }
+}
+function trendEvidence(memories=[],{loadDirectionForExercise=null}={}){
   const rows=memories
     .filter((memory)=>Number(memory?.exposureCount||0)>=2)
     .map((memory)=>({
       memory,
       trend:buildExercisePerformanceTrend(memory,{window:12}),
+      assessment:assessExercisePerformance(memory,{
+        loadDirection:exerciseLoadDirection(memory,loadDirectionForExercise),
+      }),
     }));
-  const comparable=rows.filter(({trend})=>[
+  const descriptiveComparable=rows.filter(({trend})=>[
     trend?.metrics?.load,
     trend?.metrics?.repsPerSet,
     trend?.metrics?.secondsPerSet,
     trend?.metrics?.volumeKg,
   ].some((metric)=>metric?.comparable===true));
-  const improving=comparable.filter(({trend})=>[
-    trend?.metrics?.load?.direction,
-    trend?.metrics?.repsPerSet?.direction,
-    trend?.metrics?.secondsPerSet?.direction,
-    trend?.metrics?.volumeKg?.direction,
-  ].includes('up'));
+  const comparable=descriptiveComparable.filter(
+    ({assessment})=>assessment?.status&&assessment.status!=='indeterminate',
+  );
+  const improving=comparable.filter(
+    ({assessment})=>assessment?.status==='progress',
+  );
   return Object.freeze({
     comparable:comparable.length,
+    descriptiveComparable:descriptiveComparable.length,
     improving:improving.length,
     ratio:comparable.length?improving.length/comparable.length:null,
     confirmedExposures:memories.reduce((total,memory)=>total+Number(memory?.exposureCount||0),0),
   });
 }
 
-export function buildProgressHub(state,clientId,{now=new Date()}={}){
+export function buildProgressHub(state,clientId,{now=new Date(),loadDirectionForExercise=null}={}){
   if(!clientId)return null;
   const summary28=computeProgressSummary(state,clientId,{now,days:28});
   if(!summary28)return null;
   const windows=buildAdherenceWindows(state,clientId,{now,windows:[7,28,90],summaries:{28:summary28}});
   const byDays=new Map(windows.map((window)=>[window.days,window]));
   const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12});
-  const strength=trendEvidence(memories);
+  const strength=trendEvidence(memories,{loadDirectionForExercise});
   const adherence28=byDays.get(28)?.adherence??summary28.adherence;
   const adherence90=byDays.get(90)?.adherence??null;
   const wearableDays=finite(summary28?.wearable?.daysWithData);
@@ -77,8 +91,8 @@ export function buildProgressHub(state,clientId,{now=new Date()}={}){
       status:strength.comparable?status(strength.ratio,{positive:0.6,watch:0.3}):'insufficient',
       value:strength.comparable||null,
       unit:'ejercicios comparables',
-      evidence:strength.comparable?`${strength.improving} con al menos una señal ascendente confirmada`:'Se necesitan exposiciones repetidas del mismo ejercicio',
-      context:`${memories.length} ejercicios con historial · ${strength.confirmedExposures} exposiciones confirmadas`,
+      evidence:strength.comparable?`${strength.improving} con evolución favorable confirmada`:'Se necesitan exposiciones repetidas y semántica comparable del ejercicio',
+      context:`${memories.length} ejercicios con historial · ${strength.confirmedExposures} exposiciones confirmadas · ${strength.descriptiveComparable} tendencia${strength.descriptiveComparable===1?'':'s'} descriptiva${strength.descriptiveComparable===1?'':'s'}`,
       source:'sessionExecutions',
       quality:strength.comparable>=3?'alta':strength.comparable>=1?'media':'limitada',
     }),
