@@ -186,7 +186,9 @@ function ceremonyError(error){
   if(/^M26_WEBAUTHN_[A-Z0-9_:-]+$/u.test(raw))return error;
   const name=String(error?.name||'');
   const map={
-    AbortError:'M26_WEBAUTHN_ABORTED',
+    // Keep native interruptions in the existing NOT_ALLOWED recovery family while
+    // preserving the ABORTED suffix for diagnostics and regression evidence.
+    AbortError:'M26_WEBAUTHN_NOT_ALLOWED_ABORTED',
     InvalidStateError:'M26_WEBAUTHN_INVALID_STATE',
     NotAllowedError:'M26_WEBAUTHN_NOT_ALLOWED',
     SecurityError:'M26_WEBAUTHN_SECURITY_ERROR',
