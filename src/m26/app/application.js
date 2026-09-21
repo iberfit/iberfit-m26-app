@@ -937,6 +937,7 @@ export async function createM26Application({root=document.querySelector('#app'),
           role:roleChoiceConfirmed?(activeApplicationRole||identity.role||''):'',
         };
       },
+      stateProvider:()=>store.getState(),
     });
     mediaExperience=createExerciseVideoExperienceController({root});
     workflow=createWorkflowController({root,store,commandBus,catalog,mediaMap,draftRepository,createCustomExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.createCustomExercise(currentToken(),payload);},renameExercise:async(payload)=>{await refreshSessionIfNeeded();return transport.renameExercise(currentToken(),payload);},refreshCatalog:()=>fetchCatalog({force:true}),getRegistry:()=>runtimeRegistry.registry,onRender:render,getIriExternalReport:(assessmentId)=>iriExternalReports.clientReportForPdf(assessmentId),createClientDraft:async(payload)=>{await refreshSessionIfNeeded();const token=currentToken();await ensurePrivilegedActionAssurance({transport,token,userId:session?.user?.id,friendlyName:'IBERFIT · confirmar creación de cliente'});await transport.clientOnboardingPreflight(token);const result=await transport.createClientDraft(token,payload);const verified=await waitForCreatedClient({result,payload,fetchSnapshot:()=>transport.bootstrap(token)});await hydrate({reason:'client-created'});return verified;}});

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {coachLaunchReadiness} from '../src/m26/onboarding/coach-launch-readiness.js';
-import {progressiveOnboardingProgress} from '../src/m26/onboarding/progressive-onboarding.js';
+import {progressiveOnboardingProgress,renderProgressiveOnboardingPanel} from '../src/m26/onboarding/progressive-onboarding.js';
 import {filterSnapshotForAssignmentScope} from '../src/m26/shared/integration-context.js';
 
 function completeTour(role='coach'){
@@ -154,4 +154,102 @@ test('completion del tour conserva su significado histórico de navegación',()=
   const progress=completeTour();
   assert.equal(progress.completed,true);
   assert.equal(progress.completedCount,progress.total);
+});
+
+test('UI Coach no confunde tour completado con readiness operativo',()=>{
+  const state={
+    visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification'],
+  };
+  const progress=progressiveOnboardingProgress({
+    role:'coach',
+    visited:state.visited,
+  });
+  const readiness=coachLaunchReadiness({
+    role:'coach',
+    progress,
+    collections:collections(),
+  });
+  const html=renderProgressiveOnboardingPanel({
+    role:'coach',
+    state,
+    readiness,
+  });
+
+  assert.match(html,/Completar primer cliente/);
+  assert.match(html,/puesta en marcha pendiente/i);
+  assert.doesNotMatch(html,/Coach listo para trabajar/);
+});
+
+test('UI Coach pide primera planificación cuando ya existe cliente operativo',()=>{
+  const state={
+    visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification'],
+  };
+  const progress=progressiveOnboardingProgress({
+    role:'coach',
+    visited:state.visited,
+  });
+  const readiness=coachLaunchReadiness({
+    role:'coach',
+    progress,
+    collections:collections({
+      clients:[client()],
+      clientProfiles:[completeProfile()],
+    }),
+  });
+  const html=renderProgressiveOnboardingPanel({
+    role:'coach',
+    state,
+    readiness,
+  });
+
+  assert.match(html,/Preparar primera planificación/);
+  assert.doesNotMatch(html,/Coach listo para trabajar/);
+});
+
+test('UI Coach declara listo solo con tour, cliente y planificación validados',()=>{
+  const state={
+    visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification'],
+  };
+  const progress=progressiveOnboardingProgress({
+    role:'coach',
+    visited:state.visited,
+  });
+  const readiness=coachLaunchReadiness({
+    role:'coach',
+    progress,
+    collections:collections({
+      clients:[client()],
+      clientProfiles:[completeProfile()],
+      trainingCycles:[validCycle()],
+    }),
+  });
+  const html=renderProgressiveOnboardingPanel({
+    role:'coach',
+    state,
+    readiness,
+  });
+
+  assert.match(html,/Coach listo para trabajar/);
+  assert.doesNotMatch(html,/puesta en marcha pendiente/i);
+});
+
+test('UI Cliente conserva la semántica histórica Recorrido completado',()=>{
+  const state={
+    visited:[
+      'client-today',
+      'client-plan',
+      'client-session',
+      'client-progress',
+      'client-activity',
+    ],
+  };
+
+  const html=renderProgressiveOnboardingPanel({
+    role:'client',
+    state,
+  });
+
+  assert.match(html,/Recorrido completado/);
+  assert.doesNotMatch(html,/Coach listo para trabajar/);
+  assert.doesNotMatch(html,/Puesta en marcha pendiente/);
 });
