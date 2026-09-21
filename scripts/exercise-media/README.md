@@ -10,6 +10,12 @@ Every Storage path remains under the exact canonical ID namespace, for example `
 
 ## Canonical visual contract
 
+The normative visual system is documented in:
+
+- `STYLE.md` — concise mandatory rules;
+- `EXERCISE_MEDIA_SYSTEM_V1.md` — complete product/design specification;
+- `contract.json` — machine-readable invariants protected by CI.
+
 Every `media` payload must satisfy the runtime contract implemented in `src/m26/exercises/catalog.js`:
 
 - schema: `iberfit.exercise.visual.v1`
@@ -20,6 +26,8 @@ Every `media` payload must satisfy the runtime contract implemented in `src/m26/
 - visual QA must be `approved`
 - `published` must be `true`
 - at least one of client or coach visibility must be enabled
+
+New system-v1 generation uses a 1280×1600 (or larger 4:5) master and derives the current 640×800 WebP delivery asset. The pixels remain visual-only: exercise names, muscles, technique, metrics, controls and accessibility copy belong to the application UI.
 
 ## Automatic link to the library already shown in the app
 

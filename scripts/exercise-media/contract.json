@@ -12,6 +12,60 @@
     "style": "iberfit-premium-movement-pair-v1",
     "bucket": "iberfit-exercise-media",
     "required_asset": "movement",
+    "visual_system": {
+      "version": "iberfit.exercise.media.system.v1",
+      "aspect_ratio": "4:5",
+      "approved_identity_reference": {
+        "master_id": "IBERFIT_MALE_MASTER_V1",
+        "master_path": "public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.jpg",
+        "master_sha256": "b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb",
+        "branded_reference_path": "public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1-isotipo.jpg",
+        "branded_reference_sha256": "0616bf2d9a6430bee72a720604f646dd0880f82c8a1b6cb3c73be21cb7f2028c",
+        "official_isotipo_path": "public/isotipo-iberfit.png",
+        "official_isotipo_sha256": "d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa"
+      },
+      "generation_master": {
+        "min_width": 1280,
+        "min_height": 1600,
+        "allow_upscale_from_delivery": false
+      },
+      "delivery": {
+        "width": 640,
+        "height": 800,
+        "format": "webp"
+      },
+      "safe_area_percent": 6,
+      "embedded_text": false,
+      "exercise_name_in_pixels": false,
+      "technical_copy_in_pixels": false,
+      "phase_labels_in_pixels": false,
+      "branding": {
+        "official_isotipo_only": true,
+        "shirt_only": true,
+        "wordmark": false,
+        "generated_branding": false
+      },
+      "anatomy_inset": {
+        "required_by_default": true,
+        "exception_requires_qa_justification": true,
+        "text_labels": false,
+        "zone": "upper",
+        "preferred_corner": "upper-right",
+        "width_percent_min": 16,
+        "width_percent_max": 22,
+        "primary_muscle_color": "iberfit-technical-green",
+        "secondary_muscle_color": "iberfit-restrained-gold",
+        "remaining_anatomy": "neutral-cream-grey-low-contrast",
+        "must_not_obscure_biomechanics": true
+      },
+      "contexts": [
+        "library-card",
+        "client-live-session",
+        "coach-live-session",
+        "exercise-detail",
+        "fullscreen-viewer"
+      ]
+    },
     "publication_requirements": {
       "qa.biomechanics": "approved",
       "qa.visual": "approved",
