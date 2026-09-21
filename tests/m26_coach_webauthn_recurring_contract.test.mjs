@@ -49,7 +49,7 @@ test('browser contract proves both registration and assertion on current source'
   assert.match(spec,/authentication-options/u);
   assert.match(spec,/authentication-verify/u);
   assert.match(spec,/data-m26-action="logout"/u);
-  assert.match(spec,/m26-shell\[data-m26-role=\\"coach\\"\]/u);
+  assert.ok(spec.includes('.m26-shell[data-m26-role="coach"]'));
   assert.match(spec,/businessMutationsPerformed:false/u);
   assert.match(spec,/serviceRoleUsed:false/u);
   assert.match(spec,/tablet-portrait/u);
