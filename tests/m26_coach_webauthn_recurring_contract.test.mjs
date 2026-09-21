@@ -59,3 +59,13 @@ test('browser contract proves both registration and assertion on current source'
   assert.match(config,/browserName:'chromium'/u);
   assert.match(config,/trace:'retain-on-failure'/u);
 });
+
+test('authenticated readonly gate expects the disposable Coach fixture after cleanup',async()=>{
+  const gate=await read('scripts/remote-gates/run_authenticated_readonly_gate.mjs');
+  assert.match(gate,/const EXPECTED_COACH_CERT_EMAIL='qa\.rc74\.coach@iberfit\.cl'/u);
+  assert.match(gate,/RC74_4_REMOTE_COACH_CERT_IDENTITY_MISMATCH/u);
+  assert.match(gate,/assurance\?\.webauthnRequired!==true\|\|assurance\?\.credentialEnrolled!==false/u);
+  assert.match(gate,/privilegedGate:\{ok:true,iberfitAssurance:'required',credentialEnrolled:false,webauthnRequired:true/u);
+  assert.match(gate,/RC74_4_SERVICE_ROLE_FORBIDDEN/u);
+  assert.doesNotMatch(gate,/credentialEnrolled!==true/u);
+});
