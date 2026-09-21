@@ -37,12 +37,16 @@
         "generated_branding": false
       },
       "anatomy_inset": {
-        "preferred": true,
+        "required_by_default": true,
+        "exception_requires_qa_justification": true,
         "text_labels": false,
         "zone": "upper",
         "preferred_corner": "upper-right",
         "width_percent_min": 16,
         "width_percent_max": 22,
+        "primary_muscle_color": "iberfit-technical-green",
+        "secondary_muscle_color": "iberfit-restrained-gold",
+        "remaining_anatomy": "neutral-cream-grey-low-contrast",
         "must_not_obscure_biomechanics": true
       },
       "contexts": [
