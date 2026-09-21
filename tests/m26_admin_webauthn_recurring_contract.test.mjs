@@ -58,6 +58,12 @@ test('browser contract proves real registration assertion app choice and Admin s
   assert.match(spec,/authentication-options/u);
   assert.match(spec,/authentication-verify/u);
   assert.match(spec,/App selector must not precede WebAuthn/u);
+  assert.match(spec,/At most one provisional Admin shell may exist before app choice/u);
+  assert.match(spec,/Rendered provisional Admin shell must remain inert until app choice/u);
+  assert.match(spec,/toHaveAttribute\('inert',''\)/u);
+  assert.match(spec,/toHaveAttribute\('aria-hidden','true'\)/u);
+  assert.match(spec,/Chosen Admin shell must become interactive/u);
+  assert.match(spec,/Chosen Admin shell must leave the accessibility-hidden state/u);
   assert.match(spec,/data-m26-switch-role="client"/u);
   assert.match(spec,/data-m26-switch-role="admin"/u);
   assert.match(spec,/data-m26-switch-role="coach"/u);
