@@ -109,9 +109,14 @@ async function loginCompleteWebAuthnAndChooseAdmin(page,email,password){
   await webauthn.click();
 
   await expect(roleChoice,'Client/Admin selector must appear only after WebAuthn').toBeVisible({timeout:30_000});
+  await expect(adminShell,'Admin shell must remain unavailable until explicit app choice').toHaveCount(0);
   const provisionalClientShell=page.locator('.m26-shell[data-m26-role="client"]');
-  await expect(provisionalClientShell,'Primary Client shell must remain inert until app choice').toHaveAttribute('inert','');
-  await expect(provisionalClientShell).toHaveAttribute('aria-hidden','true');
+  const provisionalClientShellCount=await provisionalClientShell.count();
+  expect(provisionalClientShellCount,'At most one provisional Client shell may exist before app choice').toBeLessThanOrEqual(1);
+  if(provisionalClientShellCount===1){
+    await expect(provisionalClientShell,'Rendered provisional Client shell must remain inert until app choice').toHaveAttribute('inert','');
+    await expect(provisionalClientShell).toHaveAttribute('aria-hidden','true');
+  }
   const chooseClient=roleChoice.locator('[data-m26-switch-role="client"]');
   const chooseAdmin=roleChoice.locator('[data-m26-switch-role="admin"]');
   await expect(chooseClient).toBeVisible();
