@@ -40,6 +40,30 @@ test('catálogo remoto puede añadir ejercicios sin perder el núcleo estático'
   assert.equal(merged.get('IBF-B').media.deliveryOrigin,runtime.url);
 });
 
+test('catálogo remoto conserva aliases canónicos y añade aliases remotos sin duplicados',()=>{
+  const base=createExerciseCatalog([{
+    id:'IBF-A',
+    name_es:'A',
+    pattern:'empuje',
+    equipment:'sin equipo',
+    difficulty:'inicial',
+    intent:'fuerza',
+    aliases:['clamshell','abducción de cadera']
+  }]);
+  const merged=mergeExerciseCatalogRecords(base,[{
+    id:'IBF-A',
+    name_es:'A remoto',
+    pattern:'empuje',
+    equipment:'sin equipo',
+    difficulty:'inicial',
+    intent:'fuerza',
+    aliases:['CLAMSHELL','concha']
+  }],{mediaOrigin:runtime.url});
+  assert.deepEqual(merged.get('IBF-A').aliases,['clamshell','abducción de cadera','concha']);
+  assert.equal(merged.get('IBF-A').name_es,'A remoto');
+  assert.deepEqual(merged.search('clamshell').map((exercise)=>exercise.id),['IBF-A']);
+});
+
 test('catálogo remoto conserva loadDirection explícito para la memoria de rendimiento',()=>{
   const base=createExerciseCatalog([{id:'IBF-A',name_es:'A',pattern:'empuje',equipment:'barra',difficulty:'media',intent:'fuerza'}]);
   const merged=mergeExerciseCatalogRecords(base,[{
