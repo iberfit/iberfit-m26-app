@@ -18,8 +18,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: iberfit-qa-shared-auth-readonly
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('iberfit-coach-webauthn-contract-pr-{0}', github.event.pull_request.number) || 'iberfit-qa-shared-auth-readonly' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   contract:

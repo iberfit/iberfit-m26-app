@@ -29,7 +29,9 @@ test('trusted Canary workflow owns OIDC reset, real ceremony and cleanup',async(
   const workflow=await read('.github/workflows/coach-webauthn-recurring.yml');
   assert.match(workflow,/push:\s*\n\s+branches: \[canary\/rc74-4\]/u);
   assert.match(workflow,/workflow_dispatch:/u);
-  assert.match(workflow,/group: iberfit-qa-shared-auth-readonly/u);
+  assert.ok(workflow.includes("group: ${{ github.event_name == 'pull_request' && format('iberfit-coach-webauthn-contract-pr-{0}', github.event.pull_request.number) || 'iberfit-qa-shared-auth-readonly' }}"));
+  assert.ok(workflow.includes("cancel-in-progress: ${{ github.event_name == 'pull_request' }}"));
+  assert.doesNotMatch(workflow,/\n\s*group: iberfit-qa-shared-auth-readonly\s*\n/u);
   assert.match(workflow,/live-coach-webauthn:[\s\S]*if: github\.event_name != 'pull_request'/u);
   assert.match(workflow,/permissions:[\s\S]*id-token: write/u);
   assert.match(workflow,/OIDC_AUDIENCE: iberfit-webauthn-qa-cert/u);
@@ -58,4 +60,14 @@ test('browser contract proves both registration and assertion on current source'
   assert.match(config,/workers:1/u);
   assert.match(config,/browserName:'chromium'/u);
   assert.match(config,/trace:'retain-on-failure'/u);
+});
+
+test('authenticated readonly gate expects the disposable Coach fixture after cleanup',async()=>{
+  const gate=await read('scripts/remote-gates/run_authenticated_readonly_gate.mjs');
+  assert.match(gate,/const EXPECTED_COACH_CERT_EMAIL='qa\.rc74\.coach@iberfit\.cl'/u);
+  assert.match(gate,/RC74_4_REMOTE_COACH_CERT_IDENTITY_MISMATCH/u);
+  assert.match(gate,/assurance\?\.webauthnRequired!==true\|\|assurance\?\.credentialEnrolled!==false/u);
+  assert.match(gate,/privilegedGate:\{ok:true,iberfitAssurance:'required',credentialEnrolled:false,webauthnRequired:true/u);
+  assert.match(gate,/RC74_4_SERVICE_ROLE_FORBIDDEN/u);
+  assert.doesNotMatch(gate,/credentialEnrolled!==true/u);
 });
