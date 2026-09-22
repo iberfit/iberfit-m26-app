@@ -74,6 +74,7 @@ test('viewer implementation is lazy, singleton, native-dialog based and restores
 
 test('viewer stylesheet stays out of global elevation, loads on demand and remains offline-cached',()=>{
   assert.doesNotMatch(indexHtml,/exercise-media-viewer\.css/);
+  assert.doesNotMatch(indexHtml,/data-iberfit-exercise-media-viewer-style/);
   assert.match(uiSource,/const VIEWER_STYLE_HREF='\/src\/m26\/library\/exercise-media-viewer\.css'/);
   assert.match(uiSource,/function ensureExerciseMediaViewerStyle\(/);
   assert.match(uiSource,/documentLike\.createElement\('link'\)/);
