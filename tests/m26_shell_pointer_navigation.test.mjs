@@ -86,3 +86,26 @@ test('same canonical route repairs stale rendered markup instead of returning si
   assert.ok(focus>reconcile,'focus restoration must follow reconciliation scheduling');
   assert.ok(end>focus,'same-route branch may return only after reconciliation is scheduled');
 });
+
+test('touch pointerup inside mobile Más activates the route before the native click can be lost',()=>{
+  const start=source.indexOf('function onPointerRelease(event){');
+  const end=source.indexOf('function onPointerCancel()',start);
+
+  assert.ok(start>=0,'pointer release handler must receive the PointerEvent');
+  assert.ok(end>start,'pointer release handler must remain locally bounded');
+
+  const block=source.slice(start,end);
+
+  assert.match(block,/details\.m26-mobile-more/u,'fast path must be limited to mobile Más');
+  assert.match(block,/control===areaButton/u,'touch must end on the same route control that received pointerdown');
+  assert.match(block,/\['touch','pen'\]\.includes\(pointerType\)/u,'mouse and keyboard navigation must remain on the normal click path');
+  assert.match(block,/event\.isPrimary!==false/u,'secondary multi-touch pointers must not commit routes');
+
+  const release=block.indexOf('releasePointerInteraction({deferRender:false});');
+  const click=block.indexOf('areaButton.click?.();');
+  const fallback=block.indexOf('schedulePointerRelease(control);');
+
+  assert.ok(release>=0,'touch route activation must retire the transient pointer lock first');
+  assert.ok(click>release,'the proven DOM click path must run after pointer lock release');
+  assert.ok(fallback>click,'normal pointer release must remain the fallback');
+});
