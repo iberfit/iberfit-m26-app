@@ -50,7 +50,48 @@ function fold(value){
 }
 
 const VIEWER_TAG='m26-exercise-media-viewer';
-const viewerState={dialog:null,opener:null};
+const VIEWER_STYLE_HREF='/src/m26/library/exercise-media-viewer.css';
+const VIEWER_STYLE_TIMEOUT_MS=1200;
+const viewerState={dialog:null,opener:null,stylePromise:null};
+
+function ensureExerciseMediaViewerStyle(documentLike=globalThis.document){
+  if(!documentLike?.head)return Promise.resolve(false);
+  let existing=documentLike.querySelector?.('link[data-iberfit-exercise-media-viewer-style]')||null;
+  if(existing?.sheet)return Promise.resolve(true);
+  if(existing&&['error','timeout'].includes(existing.dataset?.state||'')){
+    existing.remove?.();
+    existing=null;
+  }
+  if(viewerState.stylePromise)return viewerState.stylePromise;
+
+  const link=existing||documentLike.createElement('link');
+  if(!existing){
+    link.rel='stylesheet';
+    link.href=VIEWER_STYLE_HREF;
+    link.dataset.iberfitExerciseMediaViewerStyle='';
+    link.dataset.state='loading';
+  }
+
+  viewerState.stylePromise=new Promise((resolve)=>{
+    let settled=false;
+    let timer=null;
+    const settle=(state,ready)=>{
+      if(settled)return;
+      settled=true;
+      if(timer!==null)globalThis.clearTimeout?.(timer);
+      link.dataset.state=state;
+      viewerState.stylePromise=null;
+      resolve(ready);
+    };
+    link.addEventListener?.('load',()=>settle('ready',true),{once:true});
+    link.addEventListener?.('error',()=>settle('error',false),{once:true});
+    timer=globalThis.setTimeout?.(()=>settle('timeout',false),VIEWER_STYLE_TIMEOUT_MS)??null;
+    if(!existing)documentLike.head.append(link);
+    else if(link.sheet)settle('ready',true);
+  });
+
+  return viewerState.stylePromise;
+}
 
 function closeExerciseMediaViewer(){
   const dialog=viewerState.dialog;
@@ -153,8 +194,13 @@ function ensureExerciseMediaViewer(documentLike=globalThis.document){
   return dialog;
 }
 
-function openExerciseMediaViewer(trigger){
+async function openExerciseMediaViewer(trigger){
   const documentLike=trigger?.ownerDocument||globalThis.document;
+  trigger?.setAttribute?.('aria-busy','true');
+  await ensureExerciseMediaViewerStyle(documentLike);
+  trigger?.removeAttribute?.('aria-busy');
+  if(!trigger?.isConnected)return false;
+
   const dialog=ensureExerciseMediaViewer(documentLike);
   if(!dialog)return false;
   const sourceImages=[...trigger.querySelectorAll?.('.m26-exercise-media-image')||[]];
@@ -191,7 +237,7 @@ if(globalThis.customElements&&globalThis.HTMLElement&&!globalThis.customElements
         const trigger=event.target?.closest?.('[data-exercise-media-open]');
         if(!trigger||!this.contains(trigger))return;
         event.preventDefault?.();
-        openExerciseMediaViewer(trigger);
+        void openExerciseMediaViewer(trigger);
       };
       this.addEventListener('click',this.__iberfitViewerClick);
     }
