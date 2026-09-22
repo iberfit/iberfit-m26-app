@@ -105,3 +105,10 @@ test('proxy infrastructure is ready before claim so Cloudflare outages cannot co
   assert.match(proxyBlock,/pages secret put/,'proxy secret setup must remain present');
   assert.match(proxyBlock,/pages deploy/,'proxy deployment must remain present');
 });
+
+test('claim prioritizes explicit anatomy while preserving stricter inferred-anatomy gates',()=>{
+  assert.match(broker,/function hasGenericAnatomy\(exercise:any\)/);
+  assert.match(broker,/Number\(hasGenericAnatomy\(a\)\)-Number\(hasGenericAnatomy\(b\)\)/,'explicit anatomy must sort before generic anatomy');
+  assert.match(broker,/const inferredAnatomy=hasGenericAnatomy\(exercise\)/,'the same classifier must drive the higher-confidence publication gate');
+  assert.match(broker,/INFERRED_ANATOMY_MIN_CONFIDENCE=0\.985/,'inferred anatomy threshold must remain unchanged');
+});
