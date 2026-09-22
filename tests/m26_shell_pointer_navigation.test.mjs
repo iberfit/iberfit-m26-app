@@ -12,17 +12,23 @@ function areaNavigationBlock(){
   return source.slice(start,end);
 }
 
-test('route navigation retires transient pointer and stale form locks before committing state',()=>{
+test('route navigation retires editable focus and transient interaction locks before committing state',()=>{
   const block=areaNavigationBlock();
+  const focusCapture=block.indexOf('const focusedRouteControl=focusedInteractiveControl();');
+  const focusBlur=block.indexOf('focusedRouteControl?.blur?.();');
   const pointerRelease=block.indexOf('releasePointerInteraction({deferRender:false});');
   const formRelease=block.indexOf('releaseFormInteraction({deferRender:false});');
   const transition=block.indexOf('runRouteViewTransition(');
   const navigate=block.indexOf('store.navigate(decision.area);');
 
-  assert.ok(pointerRelease>=0,'route navigation must release pointer interaction');
+  assert.ok(focusCapture>=0,'route navigation must inspect actual editable focus');
+  assert.ok(focusBlur>focusCapture,'route navigation must blur editable focus before changing route');
+  assert.ok(pointerRelease>focusBlur,'route navigation must release pointer interaction after focus retirement');
   assert.ok(formRelease>pointerRelease,'route navigation must retire stale form interaction after pointer release');
-  assert.ok(transition>formRelease,'both interaction locks must be retired before route transition');
+  assert.ok(transition>formRelease,'all interaction locks must be retired before route transition');
   assert.ok(navigate>transition,'navigation must remain inside the route transition');
+  assert.match(block,/interactionFocusTarget=null;/u,'route navigation must clear focus bookkeeping');
+  assert.match(block,/markTextEntryActive\(null\);/u,'route navigation must clear touch text-entry state');
 });
 
 test('shell render lock follows actual editable focus instead of a stale focus reference',()=>{
