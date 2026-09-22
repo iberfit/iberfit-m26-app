@@ -23,7 +23,7 @@ System v1 is anchored to the already approved IBERFIT male reference, not to a n
 - master ID: `IBERFIT_MALE_MASTER_V1`;
 - identity reference: `public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.jpg`;
 - approved branded reference: `public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1-isotipo.jpg`;
-- official shirt mark: `public/isotipo-iberfit.png`.
+- official isotipo: `public/isotipo-iberfit.png`.
 
 Their SHA-256 values are pinned in `contract.json` and checked against the approved master metadata. Any intentional replacement of athlete identity or official isotipo requires a new versioned visual-system decision; silent drift is not allowed.
 
@@ -37,7 +37,8 @@ Their SHA-256 values are pinned in `contract.json` and checked against the appro
 - equipment and support geometry;
 - premium environment;
 - required-by-default anatomical inset;
-- exact official shirt isotipo.
+- exact official shirt isotipo;
+- one restrained official isotipo wall watermark when the gym background provides a suitable surface.
 
 ### The application UI owns
 
@@ -99,8 +100,12 @@ Primary muscles use the IBERFIT technical/deep green as the strongest anatomical
 - Preserve the previously approved male athlete/mannequin identity and uniform language.
 - Black technical sportswear.
 - Exact official IBERFIT isotipo, small on the shirt.
-- No wordmark, duplicated isotipo, wall branding, equipment branding, shoe branding or generated approximation.
-- AI is never trusted to draw IBERFIT branding; official branding is applied deterministically from repository assets.
+- A single subtle wall watermark may be used in the premium gym background and is the preferred environmental brand treatment when a clean wall/background plane exists.
+- Shirt mark and wall watermark must both use the exact repository asset `public/isotipo-iberfit.png`; they are composited deterministically after generation and never drawn or approximated by AI.
+- The wall watermark stays visually subordinate: upper/right background zone, normally 18–26% of image width and approximately 6–12% opacity, never crossing the athlete, anatomy inset, equipment trajectory or other biomechanically important content.
+- No standalone top/corner logo, no IBERFIT wordmark inside the asset, no repeated wall marks and no generated decorative brand mark.
+- No equipment branding, dumbbell branding, shoe branding, shorts branding or invented symbols.
+- If the source image contains an AI-generated or approximate IBERFIT mark anywhere, the candidate fails QA and must be cleaned/recomposed before approval.
 
 ## Camera and biomechanics
 
@@ -117,13 +122,14 @@ Every candidate must pass all of the following before publication:
 3. phase consistency;
 4. complete visibility of relevant joints/load/supports;
 5. approved athlete/outfit identity;
-6. official isotipo integrity and restraint;
-7. anatomy inset present, upper-left, analytical and consistently scaled unless a QA-documented exception applies;
-8. background and color-system compliance;
-9. absence of baked names, labels, instructions or UI text;
-10. compact-size readability;
-11. visual comparison with approved IBERFIT references;
-12. human approval plus existing automated QA.
+6. exact official isotipo integrity on permitted placements only;
+7. absence of standalone top/corner branding, wordmark, equipment/shoe branding or invented marks;
+8. anatomy inset present, upper-left, analytical and consistently scaled unless a QA-documented exception applies;
+9. background and color-system compliance;
+10. absence of baked names, labels, instructions or UI text;
+11. compact-size readability;
+12. visual comparison with approved IBERFIT references;
+13. human approval plus existing automated QA.
 
 A failure in any mandatory gate blocks publication.
 
