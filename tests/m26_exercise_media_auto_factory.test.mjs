@@ -112,3 +112,15 @@ test('claim prioritizes explicit anatomy while preserving stricter inferred-anat
   assert.match(broker,/const inferredAnatomy=hasGenericAnatomy\(exercise\)/,'the same classifier must drive the higher-confidence publication gate');
   assert.match(broker,/INFERRED_ANATOMY_MIN_CONFIDENCE=0\.985/,'inferred anatomy threshold must remain unchanged');
 });
+
+test('planner and QA use explicit evidence-based confidence calibration without weakening thresholds',()=>{
+  assert.match(planner,/Confidence calibration is mandatory and evidence-based/);
+  assert.match(planner,/Do not default to 0\.95/);
+  assert.match(planner,/0\.99-1\.00 only when the exact exercise, equipment, START\/FINAL relationship and required anatomy are all unambiguous/);
+  assert.match(planner,/inferred\?0\.985:0\.96/,'planner thresholds must remain unchanged');
+  assert.match(qa,/Confidence calibration is mandatory and evidence-based/);
+  assert.match(qa,/Do not default to 0\.95/);
+  assert.match(qa,/0\.99-1\.00 only when every required/);
+  assert.match(qa,/inferred\?0\.985:0\.97/,'QA thresholds must remain unchanged');
+  assert.match(qa,/keys\.every\(k=>checks\[k\]===true\)/,'all boolean QA checks must still pass');
+});
