@@ -7,9 +7,10 @@ const v3=fs.readFileSync('src/m26/design/iberfit-premium-v3.css','utf8');
 const device=fs.readFileSync('qa/device-experience/device-experience.spec.mjs','utf8');
 const matrix=fs.readFileSync('playwright.admin-interaction.config.mjs','utf8');
 
-test('shell holds an explicit focused-control lease so background state cannot replace active forms',()=>{
+test('shell protects the actually focused control without letting a historical focus lease block rendering',()=>{
   assert.match(shell,/let interactionFocusTarget=null;/u);
-  assert.match(shell,/interactionPointerTarget\|\|interactionFocusTarget\|\|focusedInteractiveControl\(\)/u);
+  assert.match(shell,/interactionPointerTarget\|\|focusedInteractiveControl\(\)/u);
+  assert.doesNotMatch(shell,/interactionPointerTarget\|\|interactionFocusTarget\|\|focusedInteractiveControl\(\)/u);
   assert.match(shell,/interactionFocusTarget=control\.matches\?\.\(SHELL_FOCUS_INTERACTIVE_SELECTOR\)\?control:null;/u);
   assert.match(shell,/const active=focusedInteractiveControl\(\);\s*interactionFocusTarget=active;/u);
   assert.match(shell,/if\(!force&&shellInteractionActive\(\)\)/u);

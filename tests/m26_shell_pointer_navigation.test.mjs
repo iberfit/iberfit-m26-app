@@ -25,8 +25,16 @@ test('route navigation retires transient pointer and stale form locks before com
   assert.ok(navigate>transition,'navigation must remain inside the route transition');
 });
 
+test('shell render lock follows actual editable focus instead of a stale focus reference',()=>{
+  const match=source.match(/function shellInteractionActive\(\)\{([^}]*)\}/u);
+  assert.ok(match,'shellInteractionActive must exist');
+  const body=match[1];
+  assert.doesNotMatch(body,/interactionFocusTarget/u,'historical focus references must not keep the shell locked');
+  assert.match(body,/focusedInteractiveControl\(\)/u,'actual focused editable controls must still protect continuity');
+});
+
 test('form and native-select interaction protection remains unchanged',()=>{
   assert.match(source,/const INTERACTION_RELEASE_GRACE_MS=900;/u);
   assert.match(source,/const NATIVE_SELECT_INTERACTION_HOLD_MS=30_000;/u);
-  assert.match(source,/function shellInteractionActive\(\)\{return Boolean\(interactionPointerTarget\|\|interactionFocusTarget\|\|focusedInteractiveControl\(\)\|\|\(formInteractionTarget&&root\.contains\?\.\(formInteractionTarget\)\)\);\}/u);
+  assert.match(source,/function shellInteractionActive\(\)\{return Boolean\(interactionPointerTarget\|\|focusedInteractiveControl\(\)\|\|\(formInteractionTarget&&root\.contains\?\.\(formInteractionTarget\)\)\);\}/u);
 });
