@@ -506,8 +506,25 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     interactionPointerTarget=interactiveControl(event.target);
     if(previous&&!interactionPointerTarget&&!formInteractionTarget)queueMicrotask(flushDeferredRender);
   }
-  function onPointerRelease(){
-    schedulePointerRelease(interactionPointerTarget);
+  function onPointerRelease(event){
+    const control=interactionPointerTarget;
+    const areaButton=event.target?.closest?.('[data-m26-area]');
+    const mobileMore=areaButton?.closest?.('details.m26-mobile-more');
+    const pointerType=String(event.pointerType||'').toLowerCase();
+
+    if(
+      event.isPrimary!==false&&
+      mobileMore&&
+      areaButton&&
+      control===areaButton&&
+      ['touch','pen'].includes(pointerType)
+    ){
+      releasePointerInteraction({deferRender:false});
+      areaButton.click?.();
+      return;
+    }
+
+    schedulePointerRelease(control);
   }
   function onPointerCancel(){
     releasePointerInteraction();
