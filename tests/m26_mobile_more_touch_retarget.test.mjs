@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import {createMobileMoreTouchRetargetBridge} from '../src/m26/shell/mobile-more-touch-retarget.js';
+import {createMobileMoreTouchRetargetBridge} from '../src/m26/shell/navigation.js';
 
 function createFixture(){
   const details={
@@ -178,11 +178,12 @@ test('synthetic controller clicks are never intercepted by the retarget bridge',
   bridge.destroy();
 });
 
-test('production shell loads the touch retarget bridge before the main app bootstrap',()=>{
-  const html=fs.readFileSync(new URL('../public/m26/index.html',import.meta.url),'utf8');
-  const bridge=html.indexOf('/src/m26/shell/mobile-more-touch-retarget.js');
-  const app=html.indexOf('/m26/app.js');
+test('canonical shell module graph loads navigation before the controller can handle routes',()=>{
+  const routeGuard=fs.readFileSync(new URL('../src/m26/shell/route-guard.js',import.meta.url),'utf8');
+  const controller=fs.readFileSync(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8');
+  const navigation=fs.readFileSync(new URL('../src/m26/shell/navigation.js',import.meta.url),'utf8');
 
-  assert.ok(bridge>=0,'mobile Más touch retarget bridge must be loaded');
-  assert.ok(app>bridge,'touch retarget bridge must install before the main application bootstrap');
+  assert.match(routeGuard,/from '\.\/navigation\.js'/u,'route guard must load the canonical navigation module');
+  assert.match(controller,/from '\.\/route-guard\.js'/u,'shell controller must load route guard before mounting');
+  assert.match(navigation,/installMobileMoreTouchRetargetBridge\(\);/u,'navigation module must install the bridge as a guarded side effect');
 });
