@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {fetchWithTransientRetry} from './auto-factory-fetch.mjs';
 
 const MODEL='@cf/black-forest-labs/flux-2-klein-4b';
 const RAW_WIDTH=1024;
@@ -29,7 +30,7 @@ async function main(){
     'Do not show both phases. Do not split the frame. Do not add anatomy diagrams, arrows, labels or any branding.'
   ].join('\n');
   const bytes=fs.readFileSync(athleteRef);const form=new FormData();form.append('model',MODEL);form.append('prompt',prompt);form.append('width',String(RAW_WIDTH));form.append('height',String(RAW_HEIGHT));form.append('guidance','5');form.append('seed',String(seedFor(exercise.id,phase)));form.append('input_image_0',new Blob([bytes],{type:'image/png'}),'iberfit-approved-athlete.png');
-  const response=await fetch(proxy,{method:'POST',headers:{authorization:`Bearer ${token}`},body:form,redirect:'error'});if(!response.ok)throw new Error(`GENERATE_HTTP_${response.status}:${(await response.text()).slice(0,1000)}`);const payload=await response.json();if(payload?.ok!==true)throw new Error(`GENERATE_PROXY_FAILED:${JSON.stringify(payload).slice(0,1200)}`);
+  const response=await fetchWithTransientRetry(proxy,{method:'POST',headers:{authorization:`Bearer ${token}`},body:form,redirect:'error'},{label:`GENERATE_${phase.toUpperCase()}`});if(!response.ok)throw new Error(`GENERATE_HTTP_${response.status}:${(await response.text()).slice(0,1000)}`);const payload=await response.json();if(payload?.ok!==true)throw new Error(`GENERATE_PROXY_FAILED:${JSON.stringify(payload).slice(0,1200)}`);
   const image=extractImage(payload),mime=detectMime(image);fs.mkdirSync(outDir,{recursive:true});const file=path.join(outDir,`${exercise.id}-${phase}${ext(mime)}`);fs.writeFileSync(file,image);const metadata={schema:'iberfit.exercise.media.auto.phase.v1',exercise_id:exercise.id,phase,model:payload.model||MODEL,fallback:Boolean(payload.fallback),width:RAW_WIDTH,height:RAW_HEIGHT,mime,seed:seedFor(exercise.id,phase),prompt_sha256:crypto.createHash('sha256').update(prompt).digest('hex'),publishable:false};fs.writeFileSync(`${file}.json`,`${JSON.stringify(metadata,null,2)}\n`);console.log(JSON.stringify({ok:true,file,...metadata}));
 }
 main().catch(e=>{console.error(e instanceof Error?e.message:String(e));process.exit(1);});
