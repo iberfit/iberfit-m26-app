@@ -92,3 +92,16 @@ test('one workflow run claims only one exercise and failures are quarantined',()
   assert.match(broker,/MAX_ATTEMPTS=3/);
   assert.match(broker,/status:blocked\?"blocked":"failed"/);
 });
+
+test('proxy infrastructure is ready before claim so Cloudflare outages cannot consume exercise attempts',()=>{
+  const proxyStart=workflow.indexOf('- name: Create isolated Workers AI proxy');
+  const claimStart=workflow.indexOf('- name: Claim next missing System v1 exercise');
+  assert.ok(proxyStart>=0,'proxy step must exist');
+  assert.ok(claimStart>proxyStart,'proxy must be provisioned before an exercise is claimed');
+  const proxyBlock=workflow.slice(proxyStart,claimStart);
+  assert.match(proxyBlock,/for cf_attempt in 1 2 3 4; do/,'Cloudflare operations must have bounded retries');
+  assert.match(proxyBlock,/api\.cloudflare\.com\/client\/v4\/accounts/,'ambiguous project-create failures must verify project existence');
+  assert.match(proxyBlock,/IBERFIT_AI_PROXY_CREATED=true/,'created proxy must be registered for cleanup before later operations');
+  assert.match(proxyBlock,/pages secret put/,'proxy secret setup must remain present');
+  assert.match(proxyBlock,/pages deploy/,'proxy deployment must remain present');
+});
