@@ -41,9 +41,40 @@
       "phase_labels_in_pixels": false,
       "branding": {
         "official_isotipo_only": true,
-        "shirt_only": true,
+        "generated_branding": false,
         "wordmark": false,
-        "generated_branding": false
+        "standalone_top_or_corner_branding": false,
+        "allowed_placements": [
+          "shirt-left-chest",
+          "single-wall-watermark"
+        ],
+        "shirt": {
+          "required": true,
+          "source": "approved_identity_reference.official_isotipo_path",
+          "generated": false,
+          "size": "small"
+        },
+        "wall_watermark": {
+          "allowed": true,
+          "preferred_when_clean_background_plane_exists": true,
+          "source": "approved_identity_reference.official_isotipo_path",
+          "generated": false,
+          "max_count": 1,
+          "preferred_zone": "upper-right-background",
+          "width_percent_min": 18,
+          "width_percent_max": 26,
+          "opacity_percent_min": 6,
+          "opacity_percent_max": 12,
+          "must_not_obscure_biomechanics": true
+        },
+        "forbidden_placements": [
+          "top-corner-standalone",
+          "equipment",
+          "dumbbells",
+          "shoes",
+          "shorts",
+          "anatomy-inset"
+        ]
       },
       "anatomy_inset": {
         "required_by_default": true,

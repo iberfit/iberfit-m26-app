@@ -17,13 +17,16 @@ This file is normative. Detailed composition and delivery rules live in `EXERCIS
 
 - Use the same approved male athlete/mannequin language across the library unless a later versioned visual system explicitly replaces it.
 - Outfit is sober black technical sportswear.
-- The **only IBERFIT branding permitted inside the visual is the exact official isotipo, small on the shirt**.
-- Use the official repository isotipo asset. Never redraw, regenerate, approximate or let an image model invent it.
-- No wordmark, wall logo, equipment logo, shoe logo, shorts logo, repeated isotipo, invented marks or AI-generated branding.
+- The official repository isotipo asset is the only permitted IBERFIT symbol source. Never redraw, regenerate, approximate or let an image model invent it.
+- Permitted placements are limited to: **small shirt isotipo** and **one subtle wall watermark** integrated into the gym background.
+- The wall watermark uses the same exact official isotipo, normally in the upper/right background plane, approximately 18–26% of image width and 6–12% opacity. It must remain visually secondary and must not intersect the athlete, anatomy inset, load path or other biomechanically important content.
+- Do not place a standalone top/corner isotipo or IBERFIT wordmark inside the asset.
+- No equipment logo, dumbbell logo, shoe logo, shorts logo, repeated wall mark, invented symbol or AI-generated branding.
+- Branding is composited deterministically from `public/isotipo-iberfit.png` after image generation. Any approximate/generated mark is a QA failure.
 
 ## Composition
 
-- The exercise is always the protagonist. Background, anatomy and decoration are subordinate.
+- The exercise is always the protagonist. Background, anatomy and branding are subordinate.
 - Premium dark-gym background: dark green / near-black foundation, warm cream-neutral highlights and restrained gold accents only where they improve hierarchy.
 - No neon, generic SaaS glow, excessive gradients, visual noise or decorative lighting that competes with the movement.
 - Frame tightly enough to understand the movement at card size while keeping all relevant anatomy, equipment and support points visible.
@@ -56,9 +59,9 @@ The UI may choose a smaller derivative for performance, but the visual system re
 ## QA and publication
 
 - Biomechanics must be instructionally correct and unambiguous.
-- Visual QA checks identity consistency, crop, anatomy scale/style, background restraint, branding restraint, artifacts and readability at compact size.
+- Visual QA checks identity consistency, crop, anatomy scale/style, background restraint, official isotipo integrity and placement, artifacts and readability at compact size.
 - Generated candidates remain quarantined until biomechanics and visual QA are both approved.
-- Before `human_approved=true`, compare the candidate against currently approved IBERFIT library assets for athlete identity, crop, lighting, background prominence, isotipo placement and anatomy scale.
+- Before `human_approved=true`, compare the candidate against currently approved IBERFIT library assets for athlete identity, crop, lighting, background prominence, shirt isotipo placement, wall watermark integration and anatomy scale.
 - Publication is exact-ID based, idempotent and fail closed.
 - A beautiful image that is biomechanically ambiguous is rejected.
 - A biomechanically correct image that breaks the IBERFIT visual system is also rejected.

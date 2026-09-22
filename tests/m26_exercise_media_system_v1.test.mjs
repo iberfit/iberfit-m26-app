@@ -41,13 +41,42 @@ test('exercise pixels remain visual-only and semantic content belongs to UI',()=
   assert.match(spec,/No semantic UI information is baked into pixels\./);
 });
 
-test('branding is restricted to the official shirt isotipo and AI-generated branding is forbidden',()=>{
-  assert.equal(visual.branding.official_isotipo_only,true);
-  assert.equal(visual.branding.shirt_only,true);
-  assert.equal(visual.branding.wordmark,false);
-  assert.equal(visual.branding.generated_branding,false);
-  assert.match(style,/only IBERFIT branding permitted inside the visual is the exact official isotipo, small on the shirt/i);
-  assert.match(style,/No wordmark, wall logo, equipment logo, shoe logo/i);
+test('branding uses only the exact official isotipo in approved placements',()=>{
+  const branding=visual.branding;
+  assert.equal(branding.official_isotipo_only,true);
+  assert.equal(branding.generated_branding,false);
+  assert.equal(branding.wordmark,false);
+  assert.equal(branding.standalone_top_or_corner_branding,false);
+  assert.deepEqual(branding.allowed_placements,['shirt-left-chest','single-wall-watermark']);
+  assert.deepEqual(branding.shirt,{
+    required:true,
+    source:'approved_identity_reference.official_isotipo_path',
+    generated:false,
+    size:'small',
+  });
+  assert.equal(branding.wall_watermark.allowed,true);
+  assert.equal(branding.wall_watermark.preferred_when_clean_background_plane_exists,true);
+  assert.equal(branding.wall_watermark.source,'approved_identity_reference.official_isotipo_path');
+  assert.equal(branding.wall_watermark.generated,false);
+  assert.equal(branding.wall_watermark.max_count,1);
+  assert.equal(branding.wall_watermark.preferred_zone,'upper-right-background');
+  assert.equal(branding.wall_watermark.width_percent_min,18);
+  assert.equal(branding.wall_watermark.width_percent_max,26);
+  assert.equal(branding.wall_watermark.opacity_percent_min,6);
+  assert.equal(branding.wall_watermark.opacity_percent_max,12);
+  assert.equal(branding.wall_watermark.must_not_obscure_biomechanics,true);
+  assert.deepEqual(branding.forbidden_placements,[
+    'top-corner-standalone',
+    'equipment',
+    'dumbbells',
+    'shoes',
+    'shorts',
+    'anatomy-inset',
+  ]);
+  assert.match(style,/Permitted placements are limited to: \*\*small shirt isotipo\*\* and \*\*one subtle wall watermark\*\*/i);
+  assert.match(style,/Do not place a standalone top\/corner isotipo or IBERFIT wordmark inside the asset/i);
+  assert.match(style,/Any approximate\/generated mark is a QA failure/i);
+  assert.match(spec,/both use the exact repository asset `public\/isotipo-iberfit\.png`/i);
 });
 
 test('anatomy inset is required, upper-left, small, analytical and subordinate to biomechanics',()=>{
