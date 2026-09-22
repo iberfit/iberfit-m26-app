@@ -1,22 +1,6 @@
 name: IBERFIT Exercise Media System v1 Pilot
 
 on:
-  pull_request:
-    branches:
-      - canary/rc74-4
-    paths:
-      - '.github/workflows/exercise-media-system-v1-pilot.yml'
-      - 'scripts/exercise-media/generate-system-v1-phase.mjs'
-      - 'scripts/exercise-media/create-system-v1-pose-guides.py'
-      - 'scripts/exercise-media/compose-system-v1.py'
-      - 'scripts/exercise-media/qa-system-v1.mjs'
-      - 'scripts/exercise-media/worker-ai-system-v1.mjs'
-      - 'scripts/exercise-media/wrangler.ai-system-v1.toml'
-      - 'scripts/exercise-media/contract.json'
-      - 'scripts/exercise-media/EXERCISE_MEDIA_SYSTEM_V1.md'
-      - 'tests/m26_exercise_media_system_v1_pilot.test.mjs'
-      - 'public/iberfit/master/IBERFIT_MALE_MASTER_V1/**'
-      - 'public/isotipo-iberfit.png'
   workflow_dispatch:
 
 permissions:
