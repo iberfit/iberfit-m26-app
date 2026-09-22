@@ -120,7 +120,7 @@ async function loginCompleteWebAuthnAndChooseAdmin(page,email,password){
   expect(provisionalClientShellCount,'At most one provisional Client shell may exist before app choice').toBeLessThanOrEqual(1);
   if(provisionalClientShellCount===1){
     await expect(provisionalClientShell,'Rendered provisional Client shell must remain inert until app choice').toHaveAttribute('inert','');
-    await expect(provisionalClientShell).toHaveAttribute('aria-hidden','true');
+    await expect(provisionalClientShell,'Rendered provisional Client shell must leave the accessibility-hidden state').not.toHaveAttribute('aria-hidden','true');
   }
   const chooseClient=roleChoice.locator('[data-m26-switch-role="client"]');
   const chooseAdmin=roleChoice.locator('[data-m26-switch-role="admin"]');
@@ -166,7 +166,64 @@ async function verifyMobileMoreNavigation(page){
     return hit===element||Boolean(element.contains(hit));
   });
   expect(hitTarget,'Biblioteca must receive touch pointer events').toBe(true);
+
+  const routeStateBeforeTap=await page.evaluate(()=>{
+    const app=globalThis.__IBERFIT_M26_APP__;
+    const state=app?.getState?.()||{};
+    const root=document.querySelector('#app');
+    globalThis.__IBERFIT_ADMIN_ROUTE_DIAG__={events:[]};
+    root?.addEventListener?.('m26:shell-rendered',(event)=>{
+      const current=app?.getState?.()||{};
+      globalThis.__IBERFIT_ADMIN_ROUTE_DIAG__.events.push({
+        eventArea:String(event?.detail?.area||''),
+        activeArea:String(current.activeArea||''),
+        role:String(current.identity?.role||''),
+        title:String(document.querySelector('#m26-page-title')?.textContent||'').trim(),
+        renderedAreas:[...document.querySelectorAll('[data-m26-area][aria-current="page"]')]
+          .map((node)=>String(node.getAttribute('data-m26-area')||'')),
+      });
+    });
+    return {
+      activeArea:String(state.activeArea||''),
+      role:String(state.identity?.role||''),
+      hydration:String(state.hydration?.status||''),
+      title:String(document.querySelector('#m26-page-title')?.textContent||'').trim(),
+      renderedAreas:[...document.querySelectorAll('[data-m26-area][aria-current="page"]')]
+        .map((node)=>String(node.getAttribute('data-m26-area')||'')),
+      maxTouchPoints:Number(navigator.maxTouchPoints||0),
+    };
+  });
+
   await library.tap();
+  await page.evaluate(()=>new Promise((resolve)=>queueMicrotask(resolve)));
+
+  const routeStateAfterTap=await page.evaluate(()=>{
+    const state=globalThis.__IBERFIT_M26_APP__?.getState?.()||{};
+    return {
+      activeArea:String(state.activeArea||''),
+      role:String(state.identity?.role||''),
+      hydration:String(state.hydration?.status||''),
+      title:String(document.querySelector('#m26-page-title')?.textContent||'').trim(),
+      renderedAreas:[...document.querySelectorAll('[data-m26-area][aria-current="page"]')]
+        .map((node)=>String(node.getAttribute('data-m26-area')||'')),
+      moreOpen:Boolean(document.querySelector('details.m26-mobile-more')?.open),
+      events:[...(globalThis.__IBERFIT_ADMIN_ROUTE_DIAG__?.events||[])],
+    };
+  });
+
+  console.log(`IBERFIT_ADMIN_MOBILE_ROUTE_DIAG=${JSON.stringify({
+    before:routeStateBeforeTap,
+    after:routeStateAfterTap,
+  })}`);
+
+  expect(
+    routeStateAfterTap.activeArea,
+    `Canonical route must commit Biblioteca. Diagnostic: ${JSON.stringify({
+      before:routeStateBeforeTap,
+      after:routeStateAfterTap,
+    })}`,
+  ).toBe('biblioteca');
+
   const activeMore=page.locator('details.m26-mobile-more[data-m26-more-active="true"]').first();
   await expect(page.locator('#m26-page-title'),'Mobile Más navigation must render Biblioteca').toHaveText('Biblioteca',{timeout:10_000});
   await expect(activeMore,'Más must represent the active hidden destination').toBeVisible({timeout:10_000});
