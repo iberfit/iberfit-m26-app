@@ -1,0 +1,257 @@
+name: Deploy WEB IBERFIT V6.43.10 certified
+
+on:
+  push:
+    branches:
+      - infra/web-iberfit-worker
+    paths:
+      - '.github/workflows/deploy-web-iberfit-v64310.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-pages-provision
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+  WEB_REPO: 'https://github.com/iberfit/iberfitweb.git'
+  WEB_SHA: 'd821d2d2a11c0a76e45c640f9fca74e5eea5ed5c'
+  WEB_VERSION: '6.43.10'
+  QA_SOURCE_SHA: '2529bc215f12e7b2e365ea8baf4232464b105e9d'
+  QA_RUN_ID: '35741091163'
+  QA_RUN_NAME: 'Release WEB IBERFIT V6.43.10 origin story'
+  EXPECTED_CURRENT_SHA: 'b9de95e96ce2ab7cd8e999a6c1889c6921571086'
+  EXPECTED_CURRENT_VERSION: '6.43.8'
+  EXPECTED_CURRENT_DEPLOYMENT_ID: 'ab13aa92-745f-4fa0-a4e9-7aace21a7675'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout infrastructure only
+        uses: actions/checkout@v4
+
+      - name: Prepare Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify exact V6.43.8 production baseline and capture rollback
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || exit 41
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-before.json
+          node <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/project.json','utf8'));
+          if(!p.success||p.result?.name!==process.env.CF_PROJECT) throw Error('PROJECT_LOOKUP');
+          if(p.result.production_branch!=='production') throw Error('PRODUCTION_BRANCH:'+p.result.production_branch);
+          const domains=p.result.domains||[];
+          if(!domains.includes('iberfit.cl')) throw Error('IBERFIT_DOMAIN_MISSING');
+          if(domains.includes('app.iberfit.cl')) throw Error('APP_DOMAIN_COLLISION');
+          const d=JSON.parse(fs.readFileSync('/tmp/deployments-before.json','utf8'));
+          const current=(d.result||[]).filter(v=>v.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(!current?.id) throw Error('NO_CURRENT_PRODUCTION');
+          if(current.id!==process.env.EXPECTED_CURRENT_DEPLOYMENT_ID) throw Error('PRODUCTION_DRIFT_ID:'+current.id);
+          const sha=current.deployment_trigger?.metadata?.commit_hash||'';
+          if(sha!==process.env.EXPECTED_CURRENT_SHA) throw Error('PRODUCTION_DRIFT_SHA:'+sha);
+          fs.appendFileSync(process.env.GITHUB_ENV,`ROLLBACK_DEPLOYMENT_ID=${current.id}\nPRODUCTION_TOUCHED=0\n`);
+          console.log(JSON.stringify({domains,currentDeploymentId:current.id,currentSha:sha},null,2));
+          NODE
+          test "$(curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/VERSION?preflight=64310' | tr -d '\r\n ')" = "$EXPECTED_CURRENT_VERSION"
+          curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/sobre-iberfit/?preflight=64310' -o /tmp/live-before-about.html
+          ! grep -q '/assets/story.v64310.css' /tmp/live-before-about.html
+          grep -q '/assets/mobile.v6435.css' /tmp/live-before-about.html
+
+      - name: Verify certified QA and candidate lineage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" -o /tmp/qa-v64310.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/qa-v64310.json','utf8'));
+          if(x.head_sha!==process.env.QA_SOURCE_SHA) throw Error('QA_SOURCE_SHA:'+x.head_sha);
+          if(x.status!=='completed'||x.conclusion!=='success') throw Error('QA:'+x.status+':'+x.conclusion);
+          if(x.name!==process.env.QA_RUN_NAME) throw Error('QA_NAME:'+x.name);
+          NODE
+          git clone --filter=blob:none --no-checkout "$WEB_REPO" /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=2 origin "$WEB_SHA"
+          git -C /tmp/iberfitweb checkout --detach "$WEB_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "$WEB_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD^)" = "$QA_SOURCE_SHA"
+          test "$(git -C /tmp/iberfitweb log -1 --format=%s)" = 'feat(web): make IBERFIT origin story evocative and institutional'
+
+      - name: Revalidate exact V6.43.10 candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=/tmp/iberfitweb/candidate/v628
+          test "$(tr -d '\r\n ' < "$base/VERSION")" = "$WEB_VERSION"
+          test "$(find "$base" -name '*.html' -type f | wc -l | tr -d ' ')" = '33'
+          test -s "$base/assets/story.v64310.css"
+          test "$(grep -R -l '/assets/story.v64310.css' "$base" --include='*.html' | wc -l | tr -d ' ')" = '2'
+          grep -q '/assets/story.v64310.css' "$base/sobre-iberfit/index.html"
+          grep -q '/assets/story.v64310.css' "$base/en/about/index.html"
+          grep -q 'Antes de ser un método, IBERFIT fue una inquietud' "$base/sobre-iberfit/index.html"
+          grep -q 'El método solo merece la pena si ayuda a una persona real' "$base/sobre-iberfit/index.html"
+          grep -q 'Before it became a method, IBERFIT began with a question' "$base/en/about/index.html"
+          ! grep -qi 'un entrenador español' "$base/sobre-iberfit/index.html"
+          grep -q '/assets/mobile.v6435.css' "$base/sobre-iberfit/index.html"
+          grep -q '/assets/analytics.v643.js' "$base/sobre-iberfit/index.html"
+          grep -q '/assets/menu.v642.js' "$base/sobre-iberfit/index.html"
+          grep -q '/assets/inperson.v6438.css' "$base/presencial/index.html"
+          grep -q "script-src-attr 'none'" "$base/_headers"
+          ! grep -q "'unsafe-inline'" "$base/_headers"
+          ! grep -R -q '/assets/hardening.v630.js' "$base" --include='*.html'
+
+      - name: Deploy certified V6.43.10 preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIEW_BRANCH="v64310-certified-${GITHUB_RUN_ID}"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "$CF_PROJECT" --branch "$PREVIEW_BRANCH" --commit-hash "$WEB_SHA" --commit-message 'WEB IBERFIT V6.43.10 certified preview' | tee /tmp/wrangler-preview.log
+          PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-preview.log | tail -1)"
+          test -n "$PREVIEW_URL" || exit 42
+          echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
+
+      - name: Validate preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          cb="$GITHUB_RUN_ID"
+          test "$(curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?cb=$cb" | tr -d '\r\n ')" = "$WEB_VERSION"
+          for route in / /diagnostico-iri/ /metodo/ /presencial/ /hibrido/ /online/ /sobre-iberfit/ /contacto/ /en/ /en/iri-assessment/ /en/method/ /en/in-person/ /en/hybrid/ /en/online/ /en/about/ /en/contact/; do
+            curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}${route}?cb=$cb" -o /tmp/preview-page
+            grep -q '/assets/analytics.v643.js' /tmp/preview-page
+            grep -q '/assets/menu.v642.js' /tmp/preview-page
+            ! grep -q '/assets/hardening.v630.js' /tmp/preview-page
+          done
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/sobre-iberfit/?cb=$cb" -o /tmp/preview-about
+          grep -q '/assets/story.v64310.css' /tmp/preview-about
+          grep -q 'Antes de ser un método, IBERFIT fue una inquietud' /tmp/preview-about
+          grep -q 'El método solo merece la pena si ayuda a una persona real' /tmp/preview-about
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/en/about/?cb=$cb" -o /tmp/preview-about-en
+          grep -q '/assets/story.v64310.css' /tmp/preview-about-en
+          curl -fsSI --retry 8 --retry-all-errors "${PREVIEW_URL}/sobre-iberfit/?cb=$cb" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/preview-h-page
+          grep -q '^content-security-policy:' /tmp/preview-h-page
+          grep -q "script-src-attr 'none'" /tmp/preview-h-page
+          ! grep -q 'unsafe-inline' /tmp/preview-h-page
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,subprocess
+          root=Path('/tmp/iberfitweb/candidate/v628');base=os.environ['PREVIEW_URL'].rstrip('/');htmls=sorted(root.rglob('*.html'));assert len(htmls)==33
+          for p in htmls:
+              rel=p.relative_to(root).as_posix();route='/' if rel=='index.html' else ('/404.html' if rel=='404.html' else '/'+rel.removesuffix('index.html'))
+              subprocess.run(['curl','-fsSL','--retry','4','--retry-all-errors','-o','/dev/null',base+route],check=True)
+          print('PREVIEW_ROUTES_OK',len(htmls))
+          PY
+
+      - name: Deploy production V6.43.10
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "$CF_PROJECT" --branch production --commit-hash "$WEB_SHA" --commit-message 'WEB IBERFIT V6.43.10 certified production' | tee /tmp/wrangler-production.log
+          PRODUCTION_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-production.log | tail -1)"
+          test -n "$PRODUCTION_URL" || exit 43
+          echo "PRODUCTION_URL=$PRODUCTION_URL" >> "$GITHUB_ENV"
+          echo "PRODUCTION_TOUCHED=1" >> "$GITHUB_ENV"
+
+      - name: Verify live production and deployment identity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in $(seq 1 20); do
+            suffix="${GITHUB_RUN_ID}-${attempt}"
+            version="$(curl -fsSL --retry 4 --retry-all-errors "https://iberfit.cl/VERSION?cb=$suffix" | tr -d '\r\n ' || true)"
+            curl -fsSL --retry 4 --retry-all-errors "https://iberfit.cl/sobre-iberfit/?cb=$suffix" -o /tmp/live-about || true
+            story=0; phrase=0; analytics=0; menu=0
+            grep -q '/assets/story.v64310.css' /tmp/live-about 2>/dev/null && story=1 || true
+            grep -q 'Antes de ser un método, IBERFIT fue una inquietud' /tmp/live-about 2>/dev/null && phrase=1 || true
+            grep -q '/assets/analytics.v643.js' /tmp/live-about 2>/dev/null && analytics=1 || true
+            grep -q '/assets/menu.v642.js' /tmp/live-about 2>/dev/null && menu=1 || true
+            if [ "$version" = "$WEB_VERSION" ] && [ "$story" = 1 ] && [ "$phrase" = 1 ] && [ "$analytics" = 1 ] && [ "$menu" = 1 ]; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          root=Path('/tmp/iberfitweb/candidate/v628');htmls=sorted(root.rglob('*.html'))
+          for p in htmls:
+              rel=p.relative_to(root).as_posix();route='/' if rel=='index.html' else ('/404.html' if rel=='404.html' else '/'+rel.removesuffix('index.html'))
+              subprocess.run(['curl','-fsSL','--retry','4','--retry-all-errors','-o','/dev/null','https://iberfit.cl'+route],check=True)
+          print('LIVE_ROUTES_OK',len(htmls))
+          PY
+          curl -fsSI --retry 6 --retry-all-errors "https://iberfit.cl/sobre-iberfit/?verify=${GITHUB_RUN_ID}" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/live-h-page
+          grep -q '^content-security-policy:' /tmp/live-h-page
+          grep -q "script-src-attr 'none'" /tmp/live-h-page
+          ! grep -q 'unsafe-inline' /tmp/live-h-page
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-after.json
+          node <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/deployments-after.json','utf8'));
+          const d=(x.result||[]).filter(v=>v.environment==='production'&&v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA).sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(!d) throw Error('CERTIFIED_SHA_NOT_DEPLOYED');
+          const e={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaSourceSha:process.env.QA_SOURCE_SHA,qaRun:process.env.QA_RUN_ID,qaName:process.env.QA_RUN_NAME,project:process.env.CF_PROJECT,domain:'iberfit.cl',previewUrl:process.env.PREVIEW_URL,productionUrl:process.env.PRODUCTION_URL,deploymentId:d.id,rollbackDeploymentId:process.env.ROLLBACK_DEPLOYMENT_ID,verifiedAt:new Date().toISOString()};
+          fs.writeFileSync('/tmp/V64310_PRODUCTION_EVIDENCE.json',JSON.stringify(e,null,2)+'\n');
+          console.log(JSON.stringify(e,null,2));
+          NODE
+
+      - name: Automatic rollback to verified V6.43.8 if post-deploy verification fails
+        if: failure() && env.PRODUCTION_TOUCHED == '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments/${ROLLBACK_DEPLOYMENT_ID}/rollback" -d '{}' -o /tmp/rollback.json
+          node -e "const x=require('/tmp/rollback.json');if(!x.success)process.exit(1)"
+          ok=0
+          for attempt in $(seq 1 20); do
+            version="$(curl -fsSL --retry 4 --retry-all-errors "https://iberfit.cl/VERSION?rollback=${GITHUB_RUN_ID}-${attempt}" | tr -d '\r\n ' || true)"
+            curl -fsSL --retry 4 --retry-all-errors "https://iberfit.cl/sobre-iberfit/?rollback=${GITHUB_RUN_ID}-${attempt}" -o /tmp/rollback-about || true
+            old=0; new=0
+            grep -q '/assets/mobile.v6435.css' /tmp/rollback-about 2>/dev/null && old=1 || true
+            grep -q '/assets/story.v64310.css' /tmp/rollback-about 2>/dev/null && new=1 || true
+            if [ "$version" = '6.43.8' ] && [ "$old" = 1 ] && [ "$new" = 0 ]; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+
+      - name: Upload production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-v64310-production-evidence
+          path: |
+            /tmp/V64310_PRODUCTION_EVIDENCE.json
+            /tmp/project.json
+            /tmp/deployments-before.json
+            /tmp/deployments-after.json
+            /tmp/wrangler-preview.log
+            /tmp/wrangler-production.log
+            /tmp/preview-h-page
+            /tmp/live-h-page
+            /tmp/rollback.json
+          if-no-files-found: warn
+          retention-days: 30
