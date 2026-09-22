@@ -67,6 +67,7 @@ test('official identity and branding hashes remain deterministic',()=>{
   assert.match(broker,new RegExp(ISOTIPO));
   assert.match(broker,new RegExp(MASTER));
   assert.match(composer,new RegExp(ISOTIPO));
+  assert.match(composer,new RegExp(MASTER));
   assert.match(composer,/generated_branding':False/);
 });
 
