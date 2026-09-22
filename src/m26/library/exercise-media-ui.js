@@ -49,6 +49,161 @@ function fold(value){
     .trim();
 }
 
+const VIEWER_TAG='m26-exercise-media-viewer';
+const viewerState={dialog:null,opener:null};
+
+function closeExerciseMediaViewer(){
+  const dialog=viewerState.dialog;
+  if(!dialog)return;
+  if(typeof dialog.close==='function'&&dialog.open)dialog.close();
+  else dialog.removeAttribute?.('open');
+}
+
+function viewerFrame(documentLike,sourceImage,label){
+  const frame=documentLike.createElement('figure');
+  frame.className='m26-exercise-media-viewer-frame';
+  frame.dataset.state='loading';
+
+  const image=documentLike.createElement('img');
+  image.className='m26-exercise-media-viewer-image';
+  image.src=sourceImage.currentSrc||sourceImage.getAttribute?.('src')||'';
+  image.alt=sourceImage.alt||'';
+  image.decoding='async';
+  image.loading='eager';
+
+  const fallback=documentLike.createElement('p');
+  fallback.className='m26-exercise-media-viewer-error';
+  fallback.hidden=true;
+  fallback.textContent='No fue posible cargar esta referencia visual.';
+
+  image.addEventListener?.('load',()=>{frame.dataset.state='ready';});
+  image.addEventListener?.('error',()=>{
+    frame.dataset.state='error';
+    image.hidden=true;
+    fallback.hidden=false;
+  });
+
+  frame.append(image,fallback);
+  if(label){
+    const caption=documentLike.createElement('figcaption');
+    caption.textContent=label;
+    frame.append(caption);
+  }
+  return frame;
+}
+
+function ensureExerciseMediaViewer(documentLike=globalThis.document){
+  if(!documentLike?.body)return null;
+  if(viewerState.dialog?.isConnected)return viewerState.dialog;
+
+  const dialog=documentLike.createElement('dialog');
+  dialog.className='iberfit-dialog m26-exercise-media-viewer-dialog';
+  dialog.setAttribute('aria-labelledby','m26-exercise-media-viewer-title');
+  dialog.setAttribute('aria-describedby','m26-exercise-media-viewer-description');
+
+  const shell=documentLike.createElement('div');
+  shell.className='m26-exercise-media-viewer-shell';
+
+  const header=documentLike.createElement('header');
+  header.className='m26-exercise-media-viewer-head';
+
+  const copy=documentLike.createElement('div');
+  const eyebrow=documentLike.createElement('p');
+  eyebrow.className='m26-eyebrow';
+  eyebrow.textContent='Referencia visual';
+  const title=documentLike.createElement('h2');
+  title.id='m26-exercise-media-viewer-title';
+  title.dataset.exerciseMediaViewerTitle='';
+  const description=documentLike.createElement('p');
+  description.id='m26-exercise-media-viewer-description';
+  description.className='m26-exercise-media-viewer-description';
+  description.textContent='Vista ampliada de la ejecución. El protocolo y los datos permanecen en la tarjeta del ejercicio.';
+  copy.append(eyebrow,title,description);
+
+  const close=documentLike.createElement('button');
+  close.type='button';
+  close.className='m26-icon-button m26-exercise-media-viewer-close';
+  close.setAttribute('aria-label','Cerrar referencia visual');
+  close.dataset.exerciseMediaViewerClose='';
+  close.textContent='×';
+  header.append(copy,close);
+
+  const body=documentLike.createElement('div');
+  body.className='iberfit-dialog-body m26-exercise-media-viewer-body';
+  body.dataset.exerciseMediaViewerBody='';
+
+  shell.append(header,body);
+  dialog.append(shell);
+  documentLike.body.append(dialog);
+
+  close.addEventListener('click',()=>closeExerciseMediaViewer());
+  dialog.addEventListener('click',(event)=>{
+    if(event.target===dialog)closeExerciseMediaViewer();
+  });
+  dialog.addEventListener('keydown',(event)=>{
+    if(event.key==='Escape'&&typeof dialog.close!=='function')closeExerciseMediaViewer();
+  });
+  dialog.addEventListener('close',()=>{
+    const opener=viewerState.opener;
+    viewerState.opener=null;
+    if(opener?.isConnected)opener.focus?.({preventScroll:true});
+  });
+
+  viewerState.dialog=dialog;
+  return dialog;
+}
+
+function openExerciseMediaViewer(trigger){
+  const documentLike=trigger?.ownerDocument||globalThis.document;
+  const dialog=ensureExerciseMediaViewer(documentLike);
+  if(!dialog)return false;
+  const sourceImages=[...trigger.querySelectorAll?.('.m26-exercise-media-image')||[]];
+  if(!sourceImages.length)return false;
+
+  const title=dialog.querySelector('[data-exercise-media-viewer-title]');
+  const body=dialog.querySelector('[data-exercise-media-viewer-body]');
+  if(!title||!body)return false;
+  title.textContent=trigger.getAttribute('data-exercise-media-name')||'Ejercicio IBERFIT';
+  body.replaceChildren();
+  body.dataset.frameCount=String(sourceImages.length);
+
+  for(const sourceImage of sourceImages){
+    const label=sourceImage.closest?.('.m26-exercise-media-frame')?.querySelector?.('small')?.textContent?.trim()||'';
+    body.append(viewerFrame(documentLike,sourceImage,label));
+  }
+
+  viewerState.opener=trigger;
+  if(typeof dialog.showModal==='function'){
+    if(!dialog.open)dialog.showModal();
+  }else{
+    dialog.setAttribute('open','');
+  }
+  dialog.querySelector?.('[data-exercise-media-viewer-close]')?.focus?.({preventScroll:true});
+  return true;
+}
+
+if(globalThis.customElements&&globalThis.HTMLElement&&!globalThis.customElements.get(VIEWER_TAG)){
+  class ExerciseMediaViewerElement extends globalThis.HTMLElement{
+    connectedCallback(){
+      if(this.__iberfitViewerBound)return;
+      this.__iberfitViewerBound=true;
+      this.__iberfitViewerClick=(event)=>{
+        const trigger=event.target?.closest?.('[data-exercise-media-open]');
+        if(!trigger||!this.contains(trigger))return;
+        event.preventDefault?.();
+        openExerciseMediaViewer(trigger);
+      };
+      this.addEventListener('click',this.__iberfitViewerClick);
+    }
+    disconnectedCallback(){
+      if(this.__iberfitViewerClick)this.removeEventListener('click',this.__iberfitViewerClick);
+      this.__iberfitViewerBound=false;
+      if(viewerState.opener&&this.contains(viewerState.opener))closeExerciseMediaViewer();
+    }
+  }
+  globalThis.customElements.define(VIEWER_TAG,ExerciseMediaViewerElement);
+}
+
 export function exerciseMuscleGroupLabel(exercise={},manifest=null){
   const name=fold(exercise.name_es||exercise.name||'');
   const explicit=name.includes('abduccion')||name.includes('abductor')?'abductores':name.includes('aduccion')||name.includes('aductor')?'aductores':null;
@@ -74,6 +229,7 @@ export function renderExerciseMedia({
   showQuality=false,
   fallback=true,
   priority=!compact,
+  enableViewer=false,
 }={}){
   const media=resolveExerciseMedia(manifest,exerciseId,{role});
   const experience=resolveExerciseMediaExperience(manifest,exerciseId,{role});
@@ -96,13 +252,17 @@ export function renderExerciseMedia({
         :'loading="lazy"';
 
     const frames=media.images.map((src,index)=>`<span class="m26-exercise-media-frame"><img class="m26-exercise-media-image" src="${e(src)}" alt="${e(`${name} · ${labels[index]||'referencia visual'}`)}" ${imageLoading} decoding="async"><small>${e(labels[index]||'Referencia')}</small></span>`).join('');
+    const frameGroup=`<div class="m26-exercise-media-frames">${frames}</div>`;
+    const interactiveFrames=enableViewer
+      ?`<${VIEWER_TAG}><button type="button" class="m26-exercise-media-open" data-exercise-media-open data-exercise-media-name="${e(name)}" aria-label="Ver ${e(name)} en grande">${frameGroup}<span class="m26-exercise-media-open-label" aria-hidden="true">Ver en grande</span></button></${VIEWER_TAG}>`
+      :frameGroup;
 
     const quality=showQuality&&media.quality.startsWith('C')
       ?'<p class="m26-exercise-media-quality" role="status">Referencia visual pendiente de validación individual por el entrenador.</p>'
       :'';
 
     const credit=showCredit?renderExerciseMediaCredit({compact,attribution:media.attribution}):'';
-    visual=`<figure class="m26-exercise-media${compact?' is-compact':''}" data-exercise-media="${e(exerciseId)}" data-exercise-media-source="${e(media.provider||'')}"><div class="m26-exercise-media-frames">${frames}</div>${quality}${credit}</figure>`;
+    visual=`<figure class="m26-exercise-media${compact?' is-compact':''}" data-exercise-media="${e(exerciseId)}" data-exercise-media-source="${e(media.provider||'')}">${interactiveFrames}${quality}${credit}</figure>`;
   }
 
   if(!experience)return visual;
@@ -130,6 +290,7 @@ export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
     compact:true,
     showQuality:role!=='client',
     fallback:true,
+    enableViewer:true,
   });
 
   const instructions=(item.instructions_es||item.cues||[]).slice(0,6);
