@@ -167,8 +167,12 @@ async function verifyMobileMoreNavigation(page){
   });
   expect(hitTarget,'Biblioteca must receive touch pointer events').toBe(true);
   await library.tap();
-  await expect(page.locator('[data-m26-area="biblioteca"][aria-current="page"]:visible').first(),'Mobile Más navigation must reach Biblioteca').toBeVisible({timeout:10_000});
-  await expect(more,'Más must close after navigation').not.toHaveAttribute('open','');
+  const activeMore=page.locator('details.m26-mobile-more[data-m26-more-active="true"]').first();
+  await expect(page.locator('#m26-page-title'),'Mobile Más navigation must render Biblioteca').toHaveText('Biblioteca',{timeout:10_000});
+  await expect(activeMore,'Más must represent the active hidden destination').toBeVisible({timeout:10_000});
+  await expect(activeMore,'Más must close after navigation').not.toHaveAttribute('open','');
+  await expect(activeMore.locator('[data-m26-area="biblioteca"][aria-current="page"]'),'Closed Más must retain Biblioteca as the canonical active item').toHaveCount(1);
+  await expect(activeMore.locator(':scope > summary')).toHaveAttribute('aria-expanded','false');
   await expect(page.locator('#m26-main')).not.toHaveAttribute('inert','');
   return 'biblioteca';
 }
