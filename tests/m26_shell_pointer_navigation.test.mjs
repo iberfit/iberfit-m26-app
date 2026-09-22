@@ -12,16 +12,17 @@ function areaNavigationBlock(){
   return source.slice(start,end);
 }
 
-test('route navigation releases only the transient pointer lock before committing state',()=>{
+test('route navigation retires transient pointer and stale form locks before committing state',()=>{
   const block=areaNavigationBlock();
-  const release=block.indexOf('releasePointerInteraction({deferRender:false});');
+  const pointerRelease=block.indexOf('releasePointerInteraction({deferRender:false});');
+  const formRelease=block.indexOf('releaseFormInteraction({deferRender:false});');
   const transition=block.indexOf('runRouteViewTransition(');
   const navigate=block.indexOf('store.navigate(decision.area);');
 
-  assert.ok(release>=0,'route navigation must release pointer interaction');
-  assert.ok(transition>release,'pointer release must happen before route transition');
+  assert.ok(pointerRelease>=0,'route navigation must release pointer interaction');
+  assert.ok(formRelease>pointerRelease,'route navigation must retire stale form interaction after pointer release');
+  assert.ok(transition>formRelease,'both interaction locks must be retired before route transition');
   assert.ok(navigate>transition,'navigation must remain inside the route transition');
-  assert.doesNotMatch(block,/releaseFormInteraction/u,'route clicks must not weaken form continuity');
 });
 
 test('form and native-select interaction protection remains unchanged',()=>{

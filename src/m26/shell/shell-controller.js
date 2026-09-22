@@ -704,6 +704,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
         return;
       }
       releasePointerInteraction({deferRender:false});
+      releaseFormInteraction({deferRender:false});
       const documentLike=root.ownerDocument||globalThis.document;
       runRouteViewTransition(
         ()=>{
