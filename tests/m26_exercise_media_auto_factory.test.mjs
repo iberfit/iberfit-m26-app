@@ -6,6 +6,8 @@ const workflow=await readFile(new URL('../.github/workflows/exercise-media-auto-
 const remoteGates=await readFile(new URL('../.github/workflows/remote-gates.yml',import.meta.url),'utf8');
 const broker=await readFile(new URL('../supabase/functions/iberfit-exercise-media-auto-factory-v1/index.ts',import.meta.url),'utf8');
 const planner=await readFile(new URL('../scripts/exercise-media/auto-factory-plan.mjs',import.meta.url),'utf8');
+const generator=await readFile(new URL('../scripts/exercise-media/auto-factory-generate.mjs',import.meta.url),'utf8');
+const locator=await readFile(new URL('../scripts/exercise-media/auto-factory-locate.mjs',import.meta.url),'utf8');
 const composer=await readFile(new URL('../scripts/exercise-media/compose-system-v1-auto.py',import.meta.url),'utf8');
 const qa=await readFile(new URL('../scripts/exercise-media/auto-factory-qa.mjs',import.meta.url),'utf8');
 const item=await readFile(new URL('../scripts/exercise-media/auto-factory-build-item.mjs',import.meta.url),'utf8');
@@ -123,4 +125,23 @@ test('planner and QA use explicit evidence-based confidence calibration without 
   assert.match(qa,/0\.99-1\.00 only when every required/);
   assert.match(qa,/inferred\?0\.985:0\.97/,'QA thresholds must remain unchanged');
   assert.match(qa,/keys\.every\(k=>checks\[k\]===true\)/,'all boolean QA checks must still pass');
+});
+
+test('FINAL generation preserves START continuity and raw phases are fail-closed before branding',()=>{
+  assert.match(generator,/FINAL_CONTINUITY_REFERENCE_MISSING/,'FINAL must require the generated START image');
+  assert.match(generator,/input_image_1/,'START must be sent as an explicit continuity reference for FINAL');
+  assert.match(generator,/Preserve the same gym scene, camera language, athlete scale, clothing, equipment, cable\/machine geometry, attachment points and grip\/support setup/);
+  assert.match(generator,/equipment_continuity/);
+  assert.match(generator,/grip_support_continuity/);
+  assert.match(generator,/no_portrait_or_rest_pose/);
+  assert.match(generator,/RAW_PHASE_QA_FAILED/,'raw START/FINAL pair must fail closed before branding');
+  assert.match(generator,/inferred\?0\.985:0\.97/,'raw phase QA must preserve strict confidence thresholds');
+  assert.match(generator,/Do not default to 0\.95/,'raw phase QA confidence must be calibrated');
+});
+
+test('shirt-anchor locator is calibrated without lowering its safety threshold',()=>{
+  assert.match(locator,/Confidence calibration is mandatory and evidence-based/);
+  assert.match(locator,/Do not default to 0\.90 or 0\.95/);
+  assert.match(locator,/confidence<0\.97/,'shirt anchor threshold must remain 0.97');
+  assert.match(locator,/enable_thinking:false/,'locator should return direct structured output instead of spending budget on hidden reasoning');
 });
