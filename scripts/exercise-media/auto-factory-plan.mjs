@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fetchWithTransientRetry} from './auto-factory-fetch.mjs';
+import {extractStructuredResponse} from './auto-factory-structured-response.mjs';
 
 const ALLOWED=new Set(['core','glúteos','aductores','cuádriceps','isquiotibiales','bíceps','dorsal ancho','romboides','tríceps','oblicuos','erectores espinales','deltoides anterior','deltoides posterior','deltoides','serrato','pectoral']);
 const GENERIC=new Set(['movilidad','global','músculo objetivo']);
@@ -9,8 +10,6 @@ const CAMERAS=new Set(['front','three-quarter-front','side','three-quarter-rear'
 function arg(name){const i=process.argv.indexOf(name);return i>=0?process.argv[i+1]:null;}
 function exact(v,n){const s=String(v||'').trim();if(!s)throw new Error(`${n}_REQUIRED`);return s;}
 function norm(v){return String(v||'').trim().toLocaleLowerCase('es');}
-function parseJsonText(value){const cleaned=String(value).replace(/<think>[\s\S]*?<\/think>/giu,' ').replace(/^```(?:json)?\s*/iu,'').replace(/\s*```$/u,'').trim();try{return JSON.parse(cleaned);}catch{}const a=cleaned.indexOf('{'),b=cleaned.lastIndexOf('}');if(a>=0&&b>a)return JSON.parse(cleaned.slice(a,b+1));throw new Error('PLAN_JSON_INVALID');}
-function extractText(payload){const x=payload?.result??payload;for(const v of [x?.response,x?.answer,x?.content,x?.result?.response,x?.result?.answer,x?.result?.content])if(typeof v==='string'&&v.trim())return v.trim();if(Array.isArray(x?.choices))for(const c of x.choices){const v=c?.message?.content??c?.text;if(typeof v==='string'&&v.trim())return v.trim();}throw new Error('PLAN_TEXT_MISSING');}
 function canonicalList(values){const out=[];for(const v of Array.isArray(values)?values:[]){const n=norm(v);if(!ALLOWED.has(n))throw new Error(`PLAN_ANATOMY_TERM_NOT_ALLOWED:${n}`);if(!out.includes(n))out.push(n);}return out;}
 async function main(){
   const claimPath=exact(arg('--claim'),'CLAIM');const outPath=exact(arg('--out'),'OUT');
@@ -32,7 +31,7 @@ async function main(){
   const body={messages:[{role:'system',content:'Output exactly one JSON object. Be conservative; uncertainty must lower confidence.'},{role:'user',content:rubric}],temperature:0,stream:false,max_completion_tokens:1600,reasoning_effort:'medium',response_format:{type:'json_object'}};
   const response=await fetchWithTransientRetry(proxy,{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify(body),redirect:'error'},{label:'PLAN'});if(!response.ok)throw new Error(`PLAN_HTTP_${response.status}:${(await response.text()).slice(0,900)}`);
   const payload=await response.json();if(payload?.ok!==true)throw new Error(`PLAN_PROXY_FAILED:${JSON.stringify(payload).slice(0,1200)}`);
-  const plan=parseJsonText(extractText(payload));
+  const plan=extractStructuredResponse(payload,{missingError:'PLAN_RESPONSE_MISSING',invalidError:'PLAN_JSON_INVALID'});
   if(typeof plan.start!=='string'||plan.start.trim().length<40||plan.start.length>700)throw new Error('PLAN_START_INVALID');
   if(typeof plan.final!=='string'||plan.final.trim().length<40||plan.final.length>700||plan.final.trim()===plan.start.trim())throw new Error('PLAN_FINAL_INVALID');
   if(!CAMERAS.has(plan.camera))throw new Error('PLAN_CAMERA_INVALID');
