@@ -28,7 +28,7 @@ async function main(){
     'anatomy_secondary may contain only useful secondary targets. wall_watermark should be true only when an upper-right background plane can safely remain visually empty.',
     'Return only JSON: {"start":"...","final":"...","camera":"front|three-quarter-front|side|three-quarter-rear|rear","anatomy_primary":[string],"anatomy_secondary":[string],"wall_watermark":boolean,"planner_confidence":number,"notes":[string]}. Confidence 0..1.'
   ].join('\n');
-  const body={messages:[{role:'system',content:'Output exactly one JSON object. Be conservative; uncertainty must lower confidence.'},{role:'user',content:rubric}],temperature:0,stream:false,max_completion_tokens:1600,reasoning_effort:'medium',response_format:{type:'json_object'}};
+  const body={messages:[{role:'system',content:'Output exactly one JSON object. Be conservative; uncertainty must lower confidence.'},{role:'user',content:rubric}],temperature:0,stream:false,max_completion_tokens:3200,chat_template_kwargs:{enable_thinking:false,preserve_thinking:false},response_format:{type:'json_object'}};
   const response=await fetchWithTransientRetry(proxy,{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify(body),redirect:'error'},{label:'PLAN'});if(!response.ok)throw new Error(`PLAN_HTTP_${response.status}:${(await response.text()).slice(0,900)}`);
   const payload=await response.json();if(payload?.ok!==true)throw new Error(`PLAN_PROXY_FAILED:${JSON.stringify(payload).slice(0,1200)}`);
   const plan=extractStructuredResponse(payload,{missingError:'PLAN_RESPONSE_MISSING',invalidError:'PLAN_JSON_INVALID'});
