@@ -1,0 +1,52 @@
+name: Temporary route focus release patch
+
+on:
+  push:
+    branches:
+      - fix/admin-mobile-route-blur-focused-control
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/admin-mobile-route-blur-focused-control
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply exact route focus-release correction
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/m26/shell/shell-controller.js')
+          s=p.read_text()
+          old="""      releasePointerInteraction({deferRender:false});
+      releaseFormInteraction({deferRender:false});
+      const documentLike=root.ownerDocument||globalThis.document;"""
+          new="""      const focusedRouteControl=focusedInteractiveControl();
+      focusedRouteControl?.blur?.();
+      interactionFocusTarget=null;
+      markTextEntryActive(null);
+      releasePointerInteraction({deferRender:false});
+      releaseFormInteraction({deferRender:false});
+      const documentLike=root.ownerDocument||globalThis.document;"""
+          count=s.count(old)
+          assert count==1, f'expected exactly one route anchor, got {count}'
+          p.write_text(s.replace(old,new))
+          PY
+      - name: Run focused regression
+        run: node --test tests/m26_shell_pointer_navigation.test.mjs tests/m26_p0_form_control_stability_v1.test.mjs
+      - name: Remove temporary workflow and commit patch
+        run: |
+          rm .github/workflows/tmp-apply-route-focus-release.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/m26/shell/shell-controller.js tests/m26_shell_pointer_navigation.test.mjs .github/workflows/tmp-apply-route-focus-release.yml
+          git commit -m "fix(shell): release editable focus before route navigation"
+          git push origin HEAD:fix/admin-mobile-route-blur-focused-control
