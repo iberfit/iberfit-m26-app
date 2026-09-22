@@ -50,6 +50,7 @@ async function authenticate(req:Request){
 function requireWorkflow(claims:any,expected:string,error:string){if(String(claims?.workflow_ref||"")!==expected)fail(error,403);}
 function isSystemV1(media:any){return media&&typeof media==="object"&&(media.visualSystem===SYSTEM_V1||media.visual_system===SYSTEM_V1);}
 function isGenericMuscle(value:string){return ["movilidad","global","músculo objetivo"].includes(String(value||"").trim().toLowerCase());}
+function hasGenericAnatomy(exercise:any){return Array.isArray(exercise?.primary_muscles)&&exercise.primary_muscles.some((m:string)=>isGenericMuscle(m));}
 function latestByExercise(rows:any[]){const map=new Map<string,any>();for(const row of rows||[]){if(!map.has(String(row.exercise_id||"")))map.set(String(row.exercise_id||""),row);}return map;}
 async function claim(db:any,claims:any){
   const staleBefore=new Date(Date.now()-STALE_ACTIVE_MS).toISOString();
@@ -71,7 +72,7 @@ async function claim(db:any,claims:any){
       return !Number.isFinite(updated)||now-updated>=RETRY_AFTER_MS;
     }
     return true;
-  }).sort((a:any,b:any)=>Number(a.media_status==="aprobado")-Number(b.media_status==="aprobado")||String(a.id).localeCompare(String(b.id)));
+  }).sort((a:any,b:any)=>Number(hasGenericAnatomy(a))-Number(hasGenericAnatomy(b))||Number(a.media_status==="aprobado")-Number(b.media_status==="aprobado")||String(a.id).localeCompare(String(b.id)));
   if(!candidates.length){
     const remaining=(catalogRes.data||[]).filter((x:any)=>!isSystemV1(x.media)).length;
     const blocked=[...(latest.values())].filter((x:any)=>x.status==="blocked").length;
@@ -79,7 +80,7 @@ async function claim(db:any,claims:any){
   }
   for(const exercise of candidates.slice(0,12)){
     const previous=latest.get(exercise.id);
-    const inferredAnatomy=Array.isArray(exercise.primary_muscles)&&exercise.primary_muscles.some((m:string)=>isGenericMuscle(m));
+    const inferredAnatomy=hasGenericAnatomy(exercise);
     const visualSpec={schema:"iberfit.exercise.media.auto-job.v1",visualSystem:SYSTEM_V1,inferredAnatomy,run_id:String(claims.run_id||""),workflow_sha:String(claims.sha||"")};
     let job:any=null;
     if(previous?.status==="failed"){
