@@ -1,0 +1,6 @@
+name = "iberfit-exercise-media-system-v1-pilot"
+pages_build_output_dir = "recovery/exercise-media-system-v1-proxy"
+compatibility_date = "2026-09-21"
+
+[ai]
+binding = "AI"

@@ -1,0 +1,178 @@
+name: IBERFIT Exercise Media System v1 Pilot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-exercise-media-system-v1-pilot-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  MASTER: public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.jpg
+  OFFICIAL_ISOTIPO: public/isotipo-iberfit.png
+  WRANGLER_CONFIG: scripts/exercise-media/wrangler.ai-system-v1.toml
+  PAGES_AI_PROJECT: iberfit-exercise-v1-${{ github.run_id }}-${{ github.run_attempt }}
+  PAGES_AI_DIR: recovery/exercise-media-system-v1-proxy
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  TARGETS: >-
+    IBF-DOMINADA-PRONADA
+    IBF-BUENOS-DIAS-CON-BARRA
+    IBF-APERTURAS-CON-MANCUERNAS
+
+jobs:
+  generate-system-v1-pilot:
+    name: generate-system-v1-pilot
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verificar contrato visual, master e isotipo oficiales
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/m26_exercise_media_system_v1.test.mjs tests/m26_exercise_media_system_v1_pilot.test.mjs
+          test -s "$MASTER"
+          test -s "$OFFICIAL_ISOTIPO"
+          expected_master="$(node -p "require('./scripts/exercise-media/contract.json').media_contract.visual_system.approved_identity_reference.master_sha256")"
+          expected_isotipo="$(node -p "require('./scripts/exercise-media/contract.json').media_contract.visual_system.approved_identity_reference.official_isotipo_sha256")"
+          test "$(sha256sum "$MASTER" | awk '{print $1}')" = "$expected_master"
+          test "$(sha256sum "$OFFICIAL_ISOTIPO" | awk '{print $1}')" = "$expected_isotipo"
+          echo 'IBERFIT_EXERCISE_MEDIA_SYSTEM_V1_CONTRACT=PASS'
+
+      - name: Preparar Python, identidad y pose guides
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --quiet 'Pillow==11.3.0'
+          mkdir -p recovery/exercise-media-system-v1 recovery/exercise-media-reference-normalized recovery/exercise-media-system-v1-pose-guides
+          MASTER="$MASTER" python3 - <<'PY'
+          import os
+          from PIL import Image, ImageOps
+          src=os.environ['MASTER']
+          out='recovery/exercise-media-reference-normalized/athlete.png'
+          with Image.open(src) as image:
+              image=ImageOps.exif_transpose(image).convert('RGB')
+              image.thumbnail((512,640),Image.Resampling.LANCZOS)
+              image.save(out,'PNG',optimize=True)
+          PY
+          python3 scripts/exercise-media/create-system-v1-pose-guides.py --out-dir recovery/exercise-media-system-v1-pose-guides
+          echo 'ATHLETE_REFERENCE=recovery/exercise-media-reference-normalized/athlete.png' >> "$GITHUB_ENV"
+          echo 'POSE_GUIDE_DIR=recovery/exercise-media-system-v1-pose-guides' >> "$GITHUB_ENV"
+
+      - name: Preparar Pages Function AI aislada
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          rm -rf "$PAGES_AI_DIR"
+          mkdir -p "$PAGES_AI_DIR"
+          cp scripts/exercise-media/worker-ai-system-v1.mjs "$PAGES_AI_DIR/_worker.js"
+          cp "$WRANGLER_CONFIG" wrangler.toml
+          sed -i "s/^name = .*/name = \"$PAGES_AI_PROJECT\"/" wrangler.toml
+          printf '%s\n' 'IBERFIT exercise media system v1 isolated AI proxy' > "$PAGES_AI_DIR/index.html"
+          smoke_token="$(openssl rand -hex 32)"
+          echo "::add-mask::$smoke_token"
+          npx --yes wrangler@4 pages project create "$PAGES_AI_PROJECT" --production-branch smoke --compatibility-date 2026-09-21
+          printf '%s' "$smoke_token" | npx --yes wrangler@4 pages secret put SMOKE_TOKEN --project-name "$PAGES_AI_PROJECT"
+          npx --yes wrangler@4 pages deploy "$PAGES_AI_DIR" --project-name "$PAGES_AI_PROJECT" --branch smoke --commit-dirty=true | tee recovery/system-v1-pages-deploy.log
+          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' recovery/system-v1-pages-deploy.log | tail -n 1)"
+          stable_url="https://${PAGES_AI_PROJECT}.pages.dev"
+          proxy_url=''
+          for attempt in $(seq 1 24); do
+            for candidate_url in "$stable_url" "$preview_url"; do
+              if curl --fail --silent --show-error --connect-timeout 5 --max-time 8 -X POST -H "Authorization: Bearer $smoke_token" "$candidate_url/health" > recovery/system-v1-health.json; then
+                if node -e "const x=require('./recovery/system-v1-health.json');if(x.ok!==true||x.ai!==true)process.exit(1)"; then
+                  proxy_url="$candidate_url"
+                  break 2
+                fi
+              fi
+            done
+            sleep 3
+          done
+          test -n "$proxy_url"
+          echo "IBERFIT_AI_PROXY_URL=$proxy_url" >> "$GITHUB_ENV"
+          echo "IBERFIT_AI_PROXY_TOKEN=$smoke_token" >> "$GITHUB_ENV"
+
+      - name: Generar, componer y auditar las tres geometrías piloto
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > recovery/system-v1-pilot-summary.tsv
+          failures=0
+          for id in $TARGETS; do
+            echo "=== $id ==="
+            pose_start="$POSE_GUIDE_DIR/${id}-start.png"
+            pose_final="$POSE_GUIDE_DIR/${id}-final.png"
+            test -s "$pose_start" && test -s "$pose_final"
+
+            set +e
+            node scripts/exercise-media/generate-system-v1-phase.mjs --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --phase start --athlete-ref "$ATHLETE_REFERENCE" --pose-ref "$pose_start" --out-dir recovery/exercise-media-system-v1 2>&1 | tee "recovery/${id}-generate-start.log"
+            start_rc=${PIPESTATUS[0]}
+            node scripts/exercise-media/generate-system-v1-phase.mjs --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --phase final --athlete-ref "$ATHLETE_REFERENCE" --pose-ref "$pose_final" --out-dir recovery/exercise-media-system-v1 2>&1 | tee "recovery/${id}-generate-final.log"
+            final_rc=${PIPESTATUS[0]}
+            set -e
+            if [[ "$start_rc" -ne 0 || "$final_rc" -ne 0 ]]; then
+              printf '%s\tgeneration_failed\t0\n' "$id" >> recovery/system-v1-pilot-summary.tsv
+              failures=$((failures+1))
+              continue
+            fi
+
+            start="$(find recovery/exercise-media-system-v1 -maxdepth 1 -type f -name "${id}-start.*" ! -name '*.json' | head -n 1)"
+            final="$(find recovery/exercise-media-system-v1 -maxdepth 1 -type f -name "${id}-final.*" ! -name '*.json' | head -n 1)"
+            test -s "$start" && test -s "$final"
+            master="recovery/exercise-media-system-v1/${id}-master.webp"
+            delivery="recovery/exercise-media-system-v1/${id}-delivery.webp"
+            meta="recovery/exercise-media-system-v1/${id}-candidate.json"
+            qa="recovery/exercise-media-system-v1/${id}-qa.json"
+            python3 scripts/exercise-media/compose-system-v1.py --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --start "$start" --final "$final" --official-isotipo "$OFFICIAL_ISOTIPO" --master-out "$master" --delivery-out "$delivery" --meta-out "$meta"
+            node -e "const x=require('./$meta');if(x.master.width!==1280||x.master.height!==1600||x.delivery.width!==640||x.delivery.height!==800||x.publishable!==false||x.human_approval_required!==true)process.exit(1)"
+            set +e
+            node scripts/exercise-media/qa-system-v1.mjs --catalog baseline_m25_2/exercise-catalog-m25.json --exercise-id "$id" --image "$delivery" --meta "$meta" --out "$qa" 2>&1 | tee "recovery/${id}-qa.log"
+            qa_rc=${PIPESTATUS[0]}
+            set -e
+            confidence="$(node -e "const x=require('./$qa');process.stdout.write(String(x.review&&x.review.confidence||0))" 2>/dev/null || printf 0)"
+            if [[ "$qa_rc" -eq 0 ]]; then
+              printf '%s\tqa_pass\t%s\n' "$id" "$confidence" >> recovery/system-v1-pilot-summary.tsv
+            else
+              printf '%s\tqa_failed\t%s\n' "$id" "$confidence" >> recovery/system-v1-pilot-summary.tsv
+              failures=$((failures+1))
+            fi
+          done
+          cat recovery/system-v1-pilot-summary.tsv
+          test "$failures" -eq 0
+
+      - name: Conservar candidatos System v1 y evidencia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-exercise-media-system-v1-pilot-${{ github.run_id }}
+          path: |
+            recovery/exercise-media-system-v1/**
+            recovery/exercise-media-system-v1-pose-guides/**
+            recovery/*-generate-*.log
+            recovery/*-qa.log
+            recovery/system-v1-pilot-summary.tsv
+            recovery/system-v1-pages-deploy.log
+            recovery/system-v1-health.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Retirar Pages Function AI aislada
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 pages project delete "$PAGES_AI_PROJECT" --yes
