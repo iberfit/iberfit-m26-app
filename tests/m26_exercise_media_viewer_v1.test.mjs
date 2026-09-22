@@ -5,6 +5,7 @@ import {renderLibraryExerciseCard} from '../src/m26/library/exercise-media-ui.js
 
 const viewerCss=await readFile(new URL('../src/m26/library/exercise-media-viewer.css',import.meta.url),'utf8');
 const indexHtml=await readFile(new URL('../public/m26/index.html',import.meta.url),'utf8');
+const swSource=await readFile(new URL('../public/m26/sw.js',import.meta.url),'utf8');
 const uiSource=await readFile(new URL('../src/m26/library/exercise-media-ui.js',import.meta.url),'utf8');
 
 const exercise={
@@ -61,7 +62,7 @@ test('two-phase exercises keep both phase references available to the same viewe
 });
 
 test('viewer implementation is lazy, singleton, native-dialog based and restores focus',()=>{
-  assert.match(uiSource,/const viewerState=\{dialog:null,opener:null\}/);
+  assert.match(uiSource,/const viewerState=\{dialog:null,opener:null,stylePromise:null\}/);
   assert.match(uiSource,/documentLike\.createElement\('dialog'\)/);
   assert.match(uiSource,/typeof dialog\.showModal==='function'/);
   assert.match(uiSource,/dialog\.addEventListener\('close'/);
@@ -71,8 +72,15 @@ test('viewer implementation is lazy, singleton, native-dialog based and restores
   assert.match(uiSource,/No fue posible cargar esta referencia visual\./);
 });
 
-test('viewer stylesheet is part of the fail-closed full-style surface and preserves the whole visual',()=>{
-  assert.match(indexHtml,/data-href="\/src\/m26\/library\/exercise-media-viewer\.css" data-iberfit-full-style/);
+test('viewer stylesheet stays out of global elevation, loads on demand and remains offline-cached',()=>{
+  assert.doesNotMatch(indexHtml,/exercise-media-viewer\.css/);
+  assert.match(uiSource,/const VIEWER_STYLE_HREF='\/src\/m26\/library\/exercise-media-viewer\.css'/);
+  assert.match(uiSource,/function ensureExerciseMediaViewerStyle\(/);
+  assert.match(uiSource,/documentLike\.createElement\('link'\)/);
+  assert.match(uiSource,/data-iberfit-exercise-media-viewer-style/);
+  assert.match(uiSource,/await ensureExerciseMediaViewerStyle\(documentLike\)/);
+  assert.match(uiSource,/VIEWER_STYLE_TIMEOUT_MS=1200/);
+  assert.match(swSource,/\/src\/m26\/library\/exercise-media-viewer\.css/);
   assert.match(viewerCss,/object-fit:contain/);
   assert.match(viewerCss,/aspect-ratio:4\/5/);
   assert.match(viewerCss,/min-width:44px/);
