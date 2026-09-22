@@ -38,3 +38,51 @@ test('form and native-select interaction protection remains unchanged',()=>{
   assert.match(source,/const NATIVE_SELECT_INTERACTION_HOLD_MS=30_000;/u);
   assert.match(source,/function shellInteractionActive\(\)\{return Boolean\(interactionPointerTarget\|\|focusedInteractiveControl\(\)\|\|\(formInteractionTarget&&root\.contains\?\.\(formInteractionTarget\)\)\);\}/u);
 });
+
+
+test('explicit route commits reconcile canonical state with the rendered route',()=>{
+  const block=areaNavigationBlock();
+  const navigate=block.indexOf('store.navigate(decision.area);');
+  const reconcileAfterNavigate=block.indexOf('reconcileRouteRender(decision.area);',navigate);
+
+  assert.ok(navigate>=0,'explicit route navigation must still commit canonical state');
+  assert.ok(
+    reconcileAfterNavigate>navigate,
+    'explicit route navigation must verify that the committed route actually rendered'
+  );
+
+  const helperStart=source.indexOf('function reconcileRouteRender(area){');
+  const helperEnd=source.indexOf('function focusMain()',helperStart);
+
+  assert.ok(helperStart>=0,'route reconciliation helper must exist');
+  assert.ok(helperEnd>helperStart,'route reconciliation helper must remain locally bounded');
+
+  const helper=source.slice(helperStart,helperEnd);
+
+  assert.match(
+    helper,
+    /String\(state\.activeArea\|\|''\)!==expected\|\|renderedArea\(\)===expected/u,
+    'reconciliation must no-op when canonical state moved on or DOM already matches'
+  );
+
+  const clearQueued=helper.indexOf('queuedState=null;');
+  const invalidateMarkup=helper.indexOf("lastMarkup='';");
+  const forceRender=helper.indexOf('renderNow(state,{force:true});');
+
+  assert.ok(clearQueued>=0,'stale deferred route state must be retired before reconciliation');
+  assert.ok(invalidateMarkup>clearQueued,'markup identity must be invalidated only after a proven mismatch');
+  assert.ok(forceRender>invalidateMarkup,'a proven state/DOM mismatch must force one reconciliation render');
+});
+
+test('same canonical route repairs stale rendered markup instead of returning silently',()=>{
+  const block=areaNavigationBlock();
+  const sameRoute=block.indexOf("if(String(current.activeArea||'')===String(decision.area||'')){");
+  const reconcile=block.indexOf('reconcileRouteRender(decision.area);',sameRoute);
+  const focus=block.indexOf('focusMain();',sameRoute);
+  const end=block.indexOf('return;',sameRoute);
+
+  assert.ok(sameRoute>=0,'same-route guard must remain present');
+  assert.ok(reconcile>sameRoute,'same-route selection must reconcile stale rendered state');
+  assert.ok(focus>reconcile,'focus restoration must follow reconciliation scheduling');
+  assert.ok(end>focus,'same-route branch may return only after reconciliation is scheduled');
+});

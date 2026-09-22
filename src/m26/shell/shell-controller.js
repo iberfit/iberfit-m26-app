@@ -560,6 +560,21 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     releaseFormInteraction({deferRender:false});
   }
 
+  function renderedArea(){
+    return String(root.querySelector?.('[data-m26-area][aria-current="page"]')?.getAttribute?.('data-m26-area')||'');
+  }
+
+  function reconcileRouteRender(area){
+    const expected=String(area||'');
+    queueMicrotask(()=>{
+      const state=store.getState();
+      if(String(state.activeArea||'')!==expected||renderedArea()===expected)return;
+      queuedState=null;
+      lastMarkup='';
+      renderNow(state,{force:true});
+    });
+  }
+
   function focusMain(){queueMicrotask(()=>root.querySelector?.('#m26-main')?.focus?.({preventScroll:false}));}
 
   function markClientSwitchBusy(source){
@@ -700,6 +715,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       const current=store.getState();
       const decision = resolveM26Route(current, nextArea);
       if(String(current.activeArea||'')===String(decision.area||'')){
+        reconcileRouteRender(decision.area);
         focusMain();
         return;
       }
@@ -709,6 +725,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
       runRouteViewTransition(
         ()=>{
           store.navigate(decision.area);
+          reconcileRouteRender(decision.area);
           focusMain();
         },
         {documentLike,windowLike:documentLike?.defaultView||globalThis.window},
