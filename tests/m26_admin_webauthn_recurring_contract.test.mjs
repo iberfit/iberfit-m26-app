@@ -49,7 +49,7 @@ test('trusted Canary workflow owns prepare ceremony cleanup and shared fixture l
   assert.doesNotMatch(workflow,/SUPABASE_SERVICE_ROLE_KEY/u);
 });
 
-test('browser contract proves real registration assertion app choice and Admin shell',async()=>{
+test('browser contract proves real registration assertion app choice and Admin shell on every device class',async()=>{
   const spec=await read('qa/admin-webauthn-recurring/admin-webauthn-recurring.spec.mjs');
   const config=await read('playwright.admin-webauthn-recurring.config.mjs');
   assert.match(spec,/WebAuthn\.addVirtualAuthenticator/u);
@@ -74,6 +74,15 @@ test('browser contract proves real registration assertion app choice and Admin s
   assert.match(spec,/tablet-portrait/u);
   assert.match(spec,/tablet-landscape/u);
   assert.match(spec,/mobile/u);
+  assert.match(spec,/verifyMobileMoreNavigation/u);
+  assert.match(spec,/details\.m26-mobile-more/u);
+  assert.match(spec,/m26-mobile-more-menu/u);
+  assert.match(spec,/data-m26-area="biblioteca"/u);
+  assert.match(spec,/Biblioteca must receive touch pointer events/u);
+  assert.match(spec,/candidate\.tap\(\)/u);
+  assert.match(spec,/certifyDevice/u);
+  assert.match(spec,/page\.screenshot/u);
+  assert.match(spec,/iberfit\.qa-admin-webauthn-recurring\.v2/u);
   assert.match(config,/workers:1/u);
   assert.match(config,/browserName:'chromium'/u);
   assert.match(config,/trace:'retain-on-failure'/u);
