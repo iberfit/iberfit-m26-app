@@ -703,6 +703,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
         focusMain();
         return;
       }
+      releasePointerInteraction({deferRender:false});
       const documentLike=root.ownerDocument||globalThis.document;
       runRouteViewTransition(
         ()=>{
