@@ -1,0 +1,82 @@
+name: TEMP Admin stale form-lock patch
+
+on:
+  push:
+    branches:
+      - fix/admin-mobile-route-stale-form-lock
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/admin-mobile-route-stale-form-lock
+          fetch-depth: 0
+
+      - name: Apply exact minimal patch and regression
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          controller = Path('src/m26/shell/shell-controller.js')
+          source = controller.read_text()
+          old = """      releasePointerInteraction({deferRender:false});
+      const documentLike=root.ownerDocument||globalThis.document;
+"""
+          new = """      releasePointerInteraction({deferRender:false});
+      releaseFormInteraction({deferRender:false});
+      const documentLike=root.ownerDocument||globalThis.document;
+"""
+          assert source.count(old) == 1, f'controller anchor count={source.count(old)}'
+          controller.write_text(source.replace(old, new, 1))
+
+          test_file = Path('tests/m26_shell_pointer_navigation.test.mjs')
+          test_source = test_file.read_text()
+          old_test = """test('route navigation releases only the transient pointer lock before committing state',()=>{
+  const block=areaNavigationBlock();
+  const release=block.indexOf('releasePointerInteraction({deferRender:false});');
+  const transition=block.indexOf('runRouteViewTransition(');
+  const navigate=block.indexOf('store.navigate(decision.area);');
+
+  assert.ok(release>=0,'route navigation must release pointer interaction');
+  assert.ok(transition>release,'pointer release must happen before route transition');
+  assert.ok(navigate>transition,'navigation must remain inside the route transition');
+  assert.doesNotMatch(block,/releaseFormInteraction/u,'route clicks must not weaken form continuity');
+});
+"""
+          new_test = """test('route navigation retires transient pointer and stale form locks before committing state',()=>{
+  const block=areaNavigationBlock();
+  const pointerRelease=block.indexOf('releasePointerInteraction({deferRender:false});');
+  const formRelease=block.indexOf('releaseFormInteraction({deferRender:false});');
+  const transition=block.indexOf('runRouteViewTransition(');
+  const navigate=block.indexOf('store.navigate(decision.area);');
+
+  assert.ok(pointerRelease>=0,'route navigation must release pointer interaction');
+  assert.ok(formRelease>pointerRelease,'route navigation must retire stale form interaction after pointer release');
+  assert.ok(transition>formRelease,'both interaction locks must be retired before route transition');
+  assert.ok(navigate>transition,'navigation must remain inside the route transition');
+});
+"""
+          assert test_source.count(old_test) == 1, f'test anchor count={test_source.count(old_test)}'
+          test_file.write_text(test_source.replace(old_test, new_test, 1))
+          PY
+
+      - name: Run targeted regression
+        run: node --test tests/m26_shell_pointer_navigation.test.mjs
+
+      - name: Commit exact patch and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/m26/shell/shell-controller.js tests/m26_shell_pointer_navigation.test.mjs
+          git rm .github/workflows/tmp-admin-stale-form-lock-patch.yml
+          git commit -m 'fix(shell): retire stale form lock on route navigation'
+          git push origin HEAD:fix/admin-mobile-route-stale-form-lock
