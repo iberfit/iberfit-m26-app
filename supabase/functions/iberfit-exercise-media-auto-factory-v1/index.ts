@@ -10,7 +10,8 @@ const AUDIENCE="iberfit-exercise-media-auto-factory";
 const EXPECTED_REPOSITORY="iberfit/iberfit-m26-app";
 const EXPECTED_REPOSITORY_ID="1306074388";
 const EXPECTED_REF="refs/heads/canary/rc74-4";
-const EXPECTED_WORKFLOW_REF="iberfit/iberfit-m26-app/.github/workflows/exercise-media-auto-factory.yml@refs/heads/canary/rc74-4";
+const EXPECTED_PROCESS_WORKFLOW_REF="iberfit/iberfit-m26-app/.github/workflows/exercise-media-auto-factory.yml@refs/heads/canary/rc74-4";
+const EXPECTED_PROBE_WORKFLOW_REF="iberfit/iberfit-m26-app/.github/workflows/exercise-media-auto-factory-probe.yml@refs/heads/canary/rc74-4";
 const OFFICIAL_ISOTIPO_SHA256="d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa";
 const APPROVED_MASTER_SHA256="b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb";
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
@@ -40,11 +41,13 @@ async function authenticate(req:Request){
   const {payload}=await jwtVerify(auth.slice(7).trim(),JWKS,{issuer:"https://token.actions.githubusercontent.com",audience:AUDIENCE});
   if(payload.repository!==EXPECTED_REPOSITORY||String(payload.repository_id||"")!==EXPECTED_REPOSITORY_ID)fail("IBERFIT_AUTO_FACTORY_REPOSITORY_FORBIDDEN",403);
   if(payload.ref!==EXPECTED_REF)fail("IBERFIT_AUTO_FACTORY_REF_FORBIDDEN",403);
-  if(payload.workflow_ref!==EXPECTED_WORKFLOW_REF)fail("IBERFIT_AUTO_FACTORY_WORKFLOW_FORBIDDEN",403);
+  const workflowRef=String(payload.workflow_ref||"");
+  if(![EXPECTED_PROCESS_WORKFLOW_REF,EXPECTED_PROBE_WORKFLOW_REF].includes(workflowRef))fail("IBERFIT_AUTO_FACTORY_WORKFLOW_FORBIDDEN",403);
   if(!["workflow_dispatch","workflow_call"].includes(String(payload.event_name||"")))fail("IBERFIT_AUTO_FACTORY_EVENT_FORBIDDEN",403);
   if(payload.runner_environment&&payload.runner_environment!=="github-hosted")fail("IBERFIT_AUTO_FACTORY_RUNNER_FORBIDDEN",403);
   return payload;
 }
+function requireWorkflow(claims:any,expected:string,error:string){if(String(claims?.workflow_ref||"")!==expected)fail(error,403);}
 function isSystemV1(media:any){return media&&typeof media==="object"&&(media.visualSystem===SYSTEM_V1||media.visual_system===SYSTEM_V1);}
 function isGenericMuscle(value:string){return ["movilidad","global","músculo objetivo"].includes(String(value||"").trim().toLowerCase());}
 function latestByExercise(rows:any[]){const map=new Map<string,any>();for(const row of rows||[]){if(!map.has(String(row.exercise_id||"")))map.set(String(row.exercise_id||""),row);}return map;}
@@ -150,8 +153,16 @@ Deno.serve(async(req:Request)=>{
   if(req.method!=="POST")return json({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   try{
     const claims=await authenticate(req);const db=serviceClient();const contentType=req.headers.get("content-type")||"";
-    if(contentType.startsWith("multipart/form-data")){const form=await req.formData();if(String(form.get("action")||"")!=="publish")fail("IBERFIT_AUTO_FACTORY_MULTIPART_ACTION_INVALID");return await publish(db,form,claims);}
+    if(contentType.startsWith("multipart/form-data")){
+      requireWorkflow(claims,EXPECTED_PROCESS_WORKFLOW_REF,"IBERFIT_AUTO_FACTORY_PROCESS_WORKFLOW_FORBIDDEN");
+      const form=await req.formData();if(String(form.get("action")||"")!=="publish")fail("IBERFIT_AUTO_FACTORY_MULTIPART_ACTION_INVALID");return await publish(db,form,claims);
+    }
     const body=await req.json();const action=String(body?.action||"");
+    if(action==="probe"){
+      requireWorkflow(claims,EXPECTED_PROBE_WORKFLOW_REF,"IBERFIT_AUTO_FACTORY_PROBE_WORKFLOW_FORBIDDEN");
+      return json({ok:true,probe:true,schema:"iberfit.exercise.media.auto-factory.probe.v1",project_ref:PROD_REF,repository:String(claims.repository||""),ref:String(claims.ref||""),workflow_ref:String(claims.workflow_ref||""),run_id:String(claims.run_id||""),sha:String(claims.sha||"")});
+    }
+    requireWorkflow(claims,EXPECTED_PROCESS_WORKFLOW_REF,"IBERFIT_AUTO_FACTORY_PROCESS_WORKFLOW_FORBIDDEN");
     if(action==="claim")return await claim(db,claims);
     if(action==="fail")return await markFailed(db,body);
     fail("IBERFIT_AUTO_FACTORY_ACTION_INVALID");
