@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import test from 'node:test';
 
 const workflow=await readFile(new URL('../.github/workflows/exercise-media-auto-factory.yml',import.meta.url),'utf8');
+const probeWorkflow=await readFile(new URL('../.github/workflows/exercise-media-auto-factory-probe.yml',import.meta.url),'utf8');
 const broker=await readFile(new URL('../supabase/functions/iberfit-exercise-media-auto-factory-v1/index.ts',import.meta.url),'utf8');
 const planner=await readFile(new URL('../scripts/exercise-media/auto-factory-plan.mjs',import.meta.url),'utf8');
 const composer=await readFile(new URL('../scripts/exercise-media/compose-system-v1-auto.py',import.meta.url),'utf8');
@@ -19,13 +20,29 @@ test('auto factory is manual on Canary and scheduler is intentionally external',
   assert.doesNotMatch(workflow,/SUPABASE_SERVICE_ROLE_KEY/);
 });
 
-test('broker is pinned to exact repository, Canary ref and workflow OIDC identity',()=>{
+test('broker is pinned to exact repository, Canary ref and action-scoped workflow identities',()=>{
   assert.match(broker,/EXPECTED_REPOSITORY="iberfit\/iberfit-m26-app"/);
   assert.match(broker,/EXPECTED_REPOSITORY_ID="1306074388"/);
   assert.match(broker,/EXPECTED_REF="refs\/heads\/canary\/rc74-4"/);
-  assert.match(broker,/exercise-media-auto-factory\.yml@refs\/heads\/canary\/rc74-4/);
+  assert.match(broker,/EXPECTED_PROCESS_WORKFLOW_REF="iberfit\/iberfit-m26-app\/\.github\/workflows\/exercise-media-auto-factory\.yml@refs\/heads\/canary\/rc74-4"/);
+  assert.match(broker,/EXPECTED_PROBE_WORKFLOW_REF="iberfit\/iberfit-m26-app\/\.github\/workflows\/exercise-media-auto-factory-probe\.yml@refs\/heads\/canary\/rc74-4"/);
   assert.match(broker,/AUDIENCE="iberfit-exercise-media-auto-factory"/);
+  assert.match(broker,/IBERFIT_AUTO_FACTORY_PROCESS_WORKFLOW_FORBIDDEN/);
+  assert.match(broker,/IBERFIT_AUTO_FACTORY_PROBE_WORKFLOW_FORBIDDEN/);
   assert.doesNotMatch(broker,/"schedule"/);
+});
+
+test('OIDC probe workflow is live-read-only and cannot claim fail or publish',()=>{
+  assert.match(probeWorkflow,/on:\s*\n\s*workflow_dispatch:/);
+  assert.match(probeWorkflow,/id-token:\s*write/);
+  assert.match(probeWorkflow,/github\.ref == 'refs\/heads\/canary\/rc74-4'/);
+  assert.match(probeWorkflow,/\{"action":"probe"\}/);
+  assert.doesNotMatch(probeWorkflow,/\{"action":"claim"\}/);
+  assert.doesNotMatch(probeWorkflow,/action=publish/);
+  assert.doesNotMatch(probeWorkflow,/\{action:"fail"/);
+  assert.doesNotMatch(probeWorkflow,/CLOUDFLARE_API_TOKEN|SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(broker,/if\(action==="probe"\)[\s\S]*EXPECTED_PROBE_WORKFLOW_REF/);
+  assert.match(broker,/requireWorkflow\(claims,EXPECTED_PROCESS_WORKFLOW_REF,"IBERFIT_AUTO_FACTORY_PROCESS_WORKFLOW_FORBIDDEN"\)/);
 });
 
 test('automatic publication is stricter for inferred anatomy and never impersonates human approval',()=>{
