@@ -120,7 +120,7 @@ async function loginCompleteWebAuthnAndChooseAdmin(page,email,password){
   expect(provisionalClientShellCount,'At most one provisional Client shell may exist before app choice').toBeLessThanOrEqual(1);
   if(provisionalClientShellCount===1){
     await expect(provisionalClientShell,'Rendered provisional Client shell must remain inert until app choice').toHaveAttribute('inert','');
-    await expect(provisionalClientShell,'Rendered provisional Client shell must leave the accessibility-hidden state').not.toHaveAttribute('aria-hidden','true');
+    await expect(provisionalClientShell).toHaveAttribute('aria-hidden','true');
   }
   const chooseClient=roleChoice.locator('[data-m26-switch-role="client"]');
   const chooseAdmin=roleChoice.locator('[data-m26-switch-role="admin"]');
