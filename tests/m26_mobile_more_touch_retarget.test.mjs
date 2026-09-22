@@ -113,6 +113,27 @@ test('direct trusted click on the same mobile Más route remains untouched',()=>
   bridge.destroy();
 });
 
+test('residual trusted click is suppressed after canonical pointerup navigation unmounts the route button',()=>{
+  const {summary,button,details}=createFixture();
+  const replacement=createFixture();
+  const documentLike=createDocument();
+  const {bridge}=createBridge(documentLike);
+  documentLike.hit=button;
+
+  documentLike.emit('pointerdown',pointerEvent({target:summary}));
+  documentLike.emit('pointerup',pointerEvent({target:summary}));
+
+  button.isConnected=false;
+  details.contains=()=>false;
+  const residual=clickEvent(replacement.summary,{trusted:true});
+  documentLike.emit('click',residual);
+
+  assert.equal(residual.calls.prevented,1,'residual native click must not reopen the replacement Más disclosure');
+  assert.equal(residual.calls.stopped,1,'residual native click must be consumed before shell summary handling');
+  assert.equal(button.clicks,0,'detached route controls must never be replayed');
+  bridge.destroy();
+});
+
 test('mouse, mismatched pointer release and cancelled gestures never synthesize navigation',()=>{
   const first=createFixture();
   const second=createFixture();
