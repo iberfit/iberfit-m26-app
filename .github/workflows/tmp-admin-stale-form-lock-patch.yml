@@ -24,48 +24,26 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
           controller = Path('src/m26/shell/shell-controller.js')
           source = controller.read_text()
-          old = """      releasePointerInteraction({deferRender:false});
-      const documentLike=root.ownerDocument||globalThis.document;
-"""
-          new = """      releasePointerInteraction({deferRender:false});
-      releaseFormInteraction({deferRender:false});
-      const documentLike=root.ownerDocument||globalThis.document;
-"""
+          old = '      releasePointerInteraction({deferRender:false});\n      const documentLike=root.ownerDocument||globalThis.document;\n'
+          new = '      releasePointerInteraction({deferRender:false});\n      releaseFormInteraction({deferRender:false});\n      const documentLike=root.ownerDocument||globalThis.document;\n'
           assert source.count(old) == 1, f'controller anchor count={source.count(old)}'
           controller.write_text(source.replace(old, new, 1))
 
           test_file = Path('tests/m26_shell_pointer_navigation.test.mjs')
           test_source = test_file.read_text()
-          old_test = """test('route navigation releases only the transient pointer lock before committing state',()=>{
-  const block=areaNavigationBlock();
-  const release=block.indexOf('releasePointerInteraction({deferRender:false});');
-  const transition=block.indexOf('runRouteViewTransition(');
-  const navigate=block.indexOf('store.navigate(decision.area);');
-
-  assert.ok(release>=0,'route navigation must release pointer interaction');
-  assert.ok(transition>release,'pointer release must happen before route transition');
-  assert.ok(navigate>transition,'navigation must remain inside the route transition');
-  assert.doesNotMatch(block,/releaseFormInteraction/u,'route clicks must not weaken form continuity');
-});
-"""
-          new_test = """test('route navigation retires transient pointer and stale form locks before committing state',()=>{
-  const block=areaNavigationBlock();
-  const pointerRelease=block.indexOf('releasePointerInteraction({deferRender:false});');
-  const formRelease=block.indexOf('releaseFormInteraction({deferRender:false});');
-  const transition=block.indexOf('runRouteViewTransition(');
-  const navigate=block.indexOf('store.navigate(decision.area);');
-
-  assert.ok(pointerRelease>=0,'route navigation must release pointer interaction');
-  assert.ok(formRelease>pointerRelease,'route navigation must retire stale form interaction after pointer release');
-  assert.ok(transition>formRelease,'both interaction locks must be retired before route transition');
-  assert.ok(navigate>transition,'navigation must remain inside the route transition');
-});
-"""
-          assert test_source.count(old_test) == 1, f'test anchor count={test_source.count(old_test)}'
-          test_file.write_text(test_source.replace(old_test, new_test, 1))
+          replacements = [
+              ("test('route navigation releases only the transient pointer lock before committing state',()=>{", "test('route navigation retires transient pointer and stale form locks before committing state',()=>{"),
+              ("  const release=block.indexOf('releasePointerInteraction({deferRender:false});');", "  const pointerRelease=block.indexOf('releasePointerInteraction({deferRender:false});');\n  const formRelease=block.indexOf('releaseFormInteraction({deferRender:false});');"),
+              ("  assert.ok(release>=0,'route navigation must release pointer interaction');", "  assert.ok(pointerRelease>=0,'route navigation must release pointer interaction');"),
+              ("  assert.ok(transition>release,'pointer release must happen before route transition');", "  assert.ok(formRelease>pointerRelease,'route navigation must retire stale form interaction after pointer release');\n  assert.ok(transition>formRelease,'both interaction locks must be retired before route transition');"),
+              ("  assert.doesNotMatch(block,/releaseFormInteraction/u,'route clicks must not weaken form continuity');\n", ""),
+          ]
+          for old_test, new_test in replacements:
+              assert test_source.count(old_test) == 1, f'test anchor count={test_source.count(old_test)} for {old_test!r}'
+              test_source = test_source.replace(old_test, new_test, 1)
+          test_file.write_text(test_source)
           PY
 
       - name: Run targeted regression
