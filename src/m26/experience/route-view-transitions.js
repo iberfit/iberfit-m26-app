@@ -1,3 +1,11 @@
+function routeTransitionQa(stage,detail={}){
+  try{
+    const events=globalThis.__IBERFIT_ADMIN_ROUTE_DIAG__?.events;
+    if(!Array.isArray(events))return;
+    events.push(Object.freeze({type:'route-transition',stage:String(stage||''),...detail}));
+  }catch{}
+}
+
 export function routeViewTransitionsEnabled({documentLike=globalThis.document,windowLike=documentLike?.defaultView||globalThis.window}={}){
   if(typeof documentLike?.startViewTransition!=='function')return false;
   try{
@@ -31,15 +39,26 @@ function boundViewTransition(transition,{windowLike=globalThis.window,maxDuratio
 
 export function runRouteViewTransition(update,{documentLike=globalThis.document,windowLike=documentLike?.defaultView||globalThis.window,maxDurationMs=450}={}){
   if(typeof update!=='function')throw new TypeError('M26_ROUTE_VIEW_TRANSITION_UPDATE_REQUIRED');
-  if(!routeViewTransitionsEnabled({documentLike,windowLike})){
+  const enabled=routeViewTransitionsEnabled({documentLike,windowLike});
+  routeTransitionQa('entry',{
+    enabled,
+    touchPoints:Number(windowLike?.navigator?.maxTouchPoints||0),
+    coarsePointer:windowLike?.matchMedia?.('(pointer: coarse)')?.matches===true,
+  });
+  if(!enabled){
+    routeTransitionQa('sync-before');
     update();
+    routeTransitionQa('sync-after');
     return null;
   }
 
   let invoked=false;
   const wrappedUpdate=()=>{
     invoked=true;
-    return update();
+    routeTransitionQa('async-before');
+    const result=update();
+    routeTransitionQa('async-after');
+    return result;
   };
 
   try{
@@ -48,7 +67,12 @@ export function runRouteViewTransition(update,{documentLike=globalThis.document,
       {windowLike,maxDurationMs},
     );
   }catch{
-    if(!invoked)update();
+    routeTransitionQa('transition-error',{invoked});
+    if(!invoked){
+      routeTransitionQa('fallback-before');
+      update();
+      routeTransitionQa('fallback-after');
+    }
     return null;
   }
 }
