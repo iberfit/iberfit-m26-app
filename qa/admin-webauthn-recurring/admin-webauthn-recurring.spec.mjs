@@ -142,14 +142,49 @@ async function verifySafeAdminNavigation(page){
   await expect(candidate,'Admin shell must expose a safe navigation target').toBeVisible({timeout:10_000});
   const area=await candidate.getAttribute('data-m26-area');
   expect(area).toBeTruthy();
-  await candidate.click();
+  const touch=await page.evaluate(()=>navigator.maxTouchPoints>0);
+  if(touch)await candidate.tap();else await candidate.click();
   await expect(page.locator(`[data-m26-area="${area}"][aria-current="page"]:visible`).first(),'Read-only Admin navigation must complete').toBeVisible({timeout:10_000});
   return area;
+}
+async function verifyMobileMoreNavigation(page){
+  const more=page.locator('details.m26-mobile-more').first();
+  const summary=more.locator(':scope > summary').first();
+  const menu=more.locator('.m26-mobile-more-menu').first();
+  await expect(more,'Authenticated Admin mobile shell must expose Más').toBeVisible({timeout:10_000});
+  await expect(summary).toHaveAttribute('aria-expanded','false');
+  await summary.tap();
+  await expect(more).toHaveAttribute('open','');
+  await expect(summary).toHaveAttribute('aria-expanded','true');
+  await expect(menu).toBeVisible();
+  await expect(page.locator('#m26-main')).toHaveAttribute('inert','');
+  const library=menu.locator('[data-m26-area="biblioteca"]').first();
+  await expect(library,'Más must expose Biblioteca for Admin').toBeVisible();
+  const hitTarget=await library.evaluate((element)=>{
+    const rect=element.getBoundingClientRect();
+    const hit=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+    return hit===element||Boolean(element.contains(hit));
+  });
+  expect(hitTarget,'Biblioteca must receive touch pointer events').toBe(true);
+  await library.tap();
+  await expect(page.locator('[data-m26-area="biblioteca"][aria-current="page"]:visible').first(),'Mobile Más navigation must reach Biblioteca').toBeVisible({timeout:10_000});
+  await expect(more,'Más must close after navigation').not.toHaveAttribute('open','');
+  await expect(page.locator('#m26-main')).not.toHaveAttribute('inert','');
+  return 'biblioteca';
 }
 async function verifyViewport(page,label){
   const metrics=await page.evaluate(()=>({innerWidth,body:document.body.scrollWidth,doc:document.documentElement.scrollWidth}));
   expect(Math.max(metrics.body,metrics.doc),`${label}: no horizontal overflow`).toBeLessThanOrEqual(metrics.innerWidth+2);
   await expect(page.locator('.m26-shell[data-m26-role="admin"]'),`${label}: Admin shell remains visible`).toBeVisible({timeout:10_000});
+}
+async function certifyDevice(page,cdp,device){
+  await setDevice(page,cdp,device);
+  await page.waitForTimeout(120);
+  await verifyViewport(page,device.name);
+  const navigationArea=device.name==='mobile'?await verifyMobileMoreNavigation(page):await verifySafeAdminNavigation(page);
+  const screenshot=path.join(OUT_DIR,`admin-${device.name}.png`);
+  await page.screenshot({path:screenshot,fullPage:true,animations:'disabled',caret:'hide'});
+  return Object.freeze({...device,passed:true,navigationArea,screenshot:path.relative(process.cwd(),screenshot).replaceAll(path.sep,'/')});
 }
 
 test('Admin completes real WebAuthn registration and authentication before explicit app choice on current source',async({browser})=>{
@@ -158,8 +193,9 @@ test('Admin completes real WebAuthn registration and authentication before expli
   expect(new URL(process.env.M26_SUPABASE_URL).origin).toBe(SUPABASE_ORIGIN);
   expect(String(process.env.M26_QA_CLIENT_A_EMAIL||'').toLowerCase()).toBe('qa.rc74.client-a@iberfit.cl');
   expect(String(process.env.M26_SUPABASE_PUBLISHABLE_KEY)).not.toMatch(/service[_-]?role/iu);
+  await mkdir(OUT_DIR,{recursive:true});
 
-  const evidence={schema:'iberfit.qa-admin-webauthn-recurring.v1',projectRef:QA_PROJECT_REF,source:'current-source-intercepted-at-canary-origin',canaryOrigin:CANARY_ORIGIN,authenticated:true,fixture:'qa.rc74.client-a@iberfit.cl',authorizedRoles:['client','admin'],selectedRole:'admin',businessMutationsPerformed:false,serviceRoleUsed:false,registrationVerified:false,authenticationVerified:false,mfaCompleted:false,applicationChoiceVerified:false,blocked:[],qaRequests:[],webauthnActions:[],devices:[],safeNavigationArea:null};
+  const evidence={schema:'iberfit.qa-admin-webauthn-recurring.v2',projectRef:QA_PROJECT_REF,source:'current-source-intercepted-at-canary-origin',canaryOrigin:CANARY_ORIGIN,authenticated:true,fixture:'qa.rc74.client-a@iberfit.cl',authorizedRoles:['client','admin'],selectedRole:'admin',businessMutationsPerformed:false,serviceRoleUsed:false,registrationVerified:false,authenticationVerified:false,mfaCompleted:false,applicationChoiceVerified:false,blocked:[],qaRequests:[],webauthnActions:[],devices:[],safeNavigationArea:null};
   const context=await browser.newContext({ignoreHTTPSErrors:false,locale:'es-ES',timezoneId:'America/Santiago',serviceWorkers:'block',viewport:{width:1440,height:1000},hasTouch:true});
   await installPolicy(context,evidence);
   const page=await context.newPage();const consoleErrors=[];const pageErrors=[];
@@ -197,14 +233,14 @@ test('Admin completes real WebAuthn registration and authentication before expli
       {name:'tablet-landscape',width:1366,height:1024,mobile:true,touch:true},
       {name:'mobile',width:390,height:844,mobile:true,touch:true},
     ]){
-      await setDevice(page,cdp,device);await page.waitForTimeout(120);await verifyViewport(page,device.name);evidence.devices.push({...device,passed:true});
+      evidence.devices.push(await certifyDevice(page,cdp,device));
     }
 
     expect(evidence.blocked,'No business mutation or foreign request may be attempted').toEqual([]);
     expect(consoleErrors,'Authenticated Admin console must remain clean').toEqual([]);
     expect(pageErrors,'Authenticated Admin page must remain clean').toEqual([]);
     expect(evidence.qaRequests.some((label)=>label.includes('/rest/v1/rpc/iberfit_admin_bootstrap_v14')),'Real Admin bootstrap must be observed').toBe(true);
-    await mkdir(OUT_DIR,{recursive:true});await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
+    await writeFile(path.join(OUT_DIR,'evidence.json'),JSON.stringify(evidence,null,2)+'\n','utf8');
   }finally{
     await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId}).catch(()=>{});
     await cdp.send('WebAuthn.disable').catch(()=>{});
