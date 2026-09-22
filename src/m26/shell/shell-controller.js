@@ -185,7 +185,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const active=root.ownerDocument?.activeElement;
     return active&&root.contains?.(active)&&active.matches?.(SHELL_FOCUS_INTERACTIVE_SELECTOR)?active:null;
   }
-  function shellInteractionActive(){return Boolean(interactionPointerTarget||interactionFocusTarget||focusedInteractiveControl()||(formInteractionTarget&&root.contains?.(formInteractionTarget)));}
+  function shellInteractionActive(){return Boolean(interactionPointerTarget||focusedInteractiveControl()||(formInteractionTarget&&root.contains?.(formInteractionTarget)));}
   function touchTextEntry(node){
     const direct=node?.closest?.(SHELL_TOUCH_TEXT_ENTRY_SELECTOR)||null;
     if(direct)return direct;
