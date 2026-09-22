@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import {fetchWithTransientRetry} from './auto-factory-fetch.mjs';
 
 const ALLOWED=new Set(['core','glúteos','aductores','cuádriceps','isquiotibiales','bíceps','dorsal ancho','romboides','tríceps','oblicuos','erectores espinales','deltoides anterior','deltoides posterior','deltoides','serrato','pectoral']);
 const GENERIC=new Set(['movilidad','global','músculo objetivo']);
@@ -29,7 +30,7 @@ async function main(){
     'Return only JSON: {"start":"...","final":"...","camera":"front|three-quarter-front|side|three-quarter-rear|rear","anatomy_primary":[string],"anatomy_secondary":[string],"wall_watermark":boolean,"planner_confidence":number,"notes":[string]}. Confidence 0..1.'
   ].join('\n');
   const body={messages:[{role:'system',content:'Output exactly one JSON object. Be conservative; uncertainty must lower confidence.'},{role:'user',content:rubric}],temperature:0,stream:false,max_completion_tokens:1600,reasoning_effort:'medium',response_format:{type:'json_object'}};
-  const response=await fetch(proxy,{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify(body),redirect:'error'});if(!response.ok)throw new Error(`PLAN_HTTP_${response.status}:${(await response.text()).slice(0,900)}`);
+  const response=await fetchWithTransientRetry(proxy,{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify(body),redirect:'error'},{label:'PLAN'});if(!response.ok)throw new Error(`PLAN_HTTP_${response.status}:${(await response.text()).slice(0,900)}`);
   const payload=await response.json();if(payload?.ok!==true)throw new Error(`PLAN_PROXY_FAILED:${JSON.stringify(payload).slice(0,1200)}`);
   const plan=parseJsonText(extractText(payload));
   if(typeof plan.start!=='string'||plan.start.trim().length<40||plan.start.length>700)throw new Error('PLAN_START_INVALID');
