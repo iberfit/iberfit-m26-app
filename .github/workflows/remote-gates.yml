@@ -168,3 +168,79 @@ jobs:
           path: recovery/rc64-authenticated-visual/**
           if-no-files-found: error
           retention-days: 7
+
+  exercise-media-broker-probe:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirmation == 'EXERCISE_MEDIA_BROKER_PROBE' && github.ref == 'refs/heads/canary/rc74-4' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AUTO_FACTORY_URL: https://pjhmrhejsoofmouedavw.supabase.co/functions/v1/iberfit-exercise-media-auto-factory-v1
+      OIDC_AUDIENCE: iberfit-exercise-media-auto-factory
+      EXPECTED_PROJECT_REF: pjhmrhejsoofmouedavw
+      EXPECTED_REPOSITORY: iberfit/iberfit-m26-app
+      EXPECTED_REF: refs/heads/canary/rc74-4
+      EXPECTED_WORKFLOW_REF: iberfit/iberfit-m26-app/.github/workflows/remote-gates.yml@refs/heads/canary/rc74-4
+    steps:
+      - name: Checkout certified Canary source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify probe contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "$EXPECTED_REF"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node --test tests/m26_exercise_media_auto_factory.test.mjs
+          mkdir -p recovery/auto-factory-probe
+
+      - name: Obtain GitHub OIDC token for broker probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          sep='?'; [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
+          token="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
+          test "${#token}" -gt 100
+          echo "::add-mask::$token"
+          echo "IBERFIT_AUTO_FACTORY_OIDC=$token" >> "$GITHUB_ENV"
+
+      - name: Probe live media broker without mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \
+            -H 'Content-Type: application/json' \
+            "$AUTO_FACTORY_URL" \
+            -d '{"action":"probe"}' > recovery/auto-factory-probe/probe.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('recovery/auto-factory-probe/probe.json','utf8'));
+          const expected={
+            schema:'iberfit.exercise.media.auto-factory.probe.v1',
+            project_ref:process.env.EXPECTED_PROJECT_REF,
+            repository:process.env.EXPECTED_REPOSITORY,
+            ref:process.env.EXPECTED_REF,
+            workflow_ref:process.env.EXPECTED_WORKFLOW_REF,
+          };
+          if(x.ok!==true||x.probe!==true)throw new Error('AUTO_FACTORY_PROBE_NOT_OK');
+          for(const [key,value] of Object.entries(expected))if(x[key]!==value)throw new Error(`AUTO_FACTORY_PROBE_${key.toUpperCase()}_MISMATCH`);
+          if(!x.run_id||!x.sha)throw new Error('AUTO_FACTORY_PROBE_IDENTITY_INCOMPLETE');
+          console.log(JSON.stringify({ok:true,probe:true,project_ref:x.project_ref,repository:x.repository,ref:x.ref,workflow_ref:x.workflow_ref,run_id:x.run_id,sha:x.sha}));
+          NODE
+
+      - name: Preserve broker probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-exercise-media-auto-factory-probe-${{ github.run_id }}
+          path: recovery/auto-factory-probe/
+          if-no-files-found: warn
+          retention-days: 30
