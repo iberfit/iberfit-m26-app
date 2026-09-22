@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import path from 'node:path';
 
 const ALLOWED=new Set(['core','glúteos','aductores','cuádriceps','isquiotibiales','bíceps','dorsal ancho','romboides','tríceps','oblicuos','erectores espinales','deltoides anterior','deltoides posterior','deltoides','serrato','pectoral']);
 const GENERIC=new Set(['movilidad','global','músculo objetivo']);
@@ -39,7 +40,7 @@ async function main(){
   if(!inferred){for(const muscle of primary){if(GENERIC.has(muscle))continue;if(!anatomyPrimary.includes(muscle))throw new Error(`PLAN_CANONICAL_PRIMARY_MISSING:${muscle}`);}}
   const confidence=Number(plan.planner_confidence);const min=inferred?0.985:0.96;if(!Number.isFinite(confidence)||confidence<min)throw new Error(`PLAN_CONFIDENCE_LOW:${confidence}`);
   const output={schema:'iberfit.exercise.media.auto.plan.v1',exercise_id:exercise.id,start:plan.start.trim(),final:plan.final.trim(),camera:plan.camera,anatomy_primary:anatomyPrimary,anatomy_secondary:anatomySecondary,wall_watermark:plan.wall_watermark===true,anatomy_inferred:inferred,planner_confidence:confidence,notes:Array.isArray(plan.notes)?plan.notes.map(String).slice(0,8):[]};
-  fs.mkdirSync(new URL('.',`file://${process.cwd()}/${outPath}`).pathname,{recursive:true});
+  fs.mkdirSync(path.dirname(outPath),{recursive:true});
   fs.writeFileSync(outPath,`${JSON.stringify(output,null,2)}\n`);console.log(JSON.stringify(output));
 }
 main().catch(e=>{console.error(e instanceof Error?e.message:String(e));process.exit(1);});
