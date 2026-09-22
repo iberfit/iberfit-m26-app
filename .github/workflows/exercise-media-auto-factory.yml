@@ -61,6 +61,76 @@ jobs:
           echo "::add-mask::$token"
           echo "IBERFIT_AUTO_FACTORY_OIDC=$token" >> "$GITHUB_ENV"
 
+      - name: Create isolated Workers AI proxy
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          rm -rf "$PAGES_AI_DIR"; mkdir -p "$PAGES_AI_DIR"
+          cp scripts/exercise-media/worker-ai-system-v1.mjs "$PAGES_AI_DIR/_worker.js"
+          cp "$WRANGLER_CONFIG" wrangler.toml
+          sed -i "s/^name = .*/name = \"$PAGES_AI_PROJECT\"/" wrangler.toml
+          printf '%s\n' 'IBERFIT exercise media auto factory isolated AI proxy' > "$PAGES_AI_DIR/index.html"
+          smoke_token="$(openssl rand -hex 32)"; echo "::add-mask::$smoke_token"
+
+          project_ready=false
+          for cf_attempt in 1 2 3 4; do
+            if npx --yes wrangler@4 pages project create "$PAGES_AI_PROJECT" --production-branch smoke --compatibility-date 2026-09-21; then
+              project_ready=true
+              break
+            fi
+            if curl --fail --silent --show-error --connect-timeout 5 --max-time 15 \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${PAGES_AI_PROJECT}" \
+              | jq -e --arg name "$PAGES_AI_PROJECT" '.success == true and .result.name == $name' >/dev/null; then
+              project_ready=true
+              break
+            fi
+            sleep $((cf_attempt*3))
+          done
+          [[ "$project_ready" == 'true' ]]
+          echo 'IBERFIT_AI_PROXY_CREATED=true' >> "$GITHUB_ENV"
+
+          secret_ready=false
+          for cf_attempt in 1 2 3 4; do
+            if printf '%s' "$smoke_token" | npx --yes wrangler@4 pages secret put SMOKE_TOKEN --project-name "$PAGES_AI_PROJECT"; then
+              secret_ready=true
+              break
+            fi
+            sleep $((cf_attempt*3))
+          done
+          [[ "$secret_ready" == 'true' ]]
+
+          deploy_ready=false
+          : > recovery/auto-factory/pages-deploy.log
+          for cf_attempt in 1 2 3 4; do
+            if npx --yes wrangler@4 pages deploy "$PAGES_AI_DIR" --project-name "$PAGES_AI_PROJECT" --branch smoke --commit-dirty=true | tee recovery/auto-factory/pages-deploy.log; then
+              deploy_ready=true
+              break
+            fi
+            sleep $((cf_attempt*3))
+          done
+          [[ "$deploy_ready" == 'true' ]]
+
+          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' recovery/auto-factory/pages-deploy.log | tail -n 1)"
+          stable_url="https://${PAGES_AI_PROJECT}.pages.dev"
+          proxy_url=''
+          for attempt in $(seq 1 24); do
+            for candidate in "$stable_url" "$preview_url"; do
+              [[ -z "$candidate" ]] && continue
+              if curl --fail --silent --show-error --connect-timeout 5 --max-time 8 -X POST -H "Authorization: Bearer $smoke_token" "$candidate/health" > recovery/auto-factory/ai-health.json; then
+                if node -e "const x=require('./recovery/auto-factory/ai-health.json');if(x.ok!==true||x.ai!==true)process.exit(1)"; then proxy_url="$candidate";break 2;fi
+              fi
+            done
+            sleep 3
+          done
+          test -n "$proxy_url"
+          echo "IBERFIT_AI_PROXY_URL=$proxy_url" >> "$GITHUB_ENV"
+          echo "IBERFIT_AI_PROXY_TOKEN=$smoke_token" >> "$GITHUB_ENV"
+
       - name: Claim next missing System v1 exercise
         shell: bash
         run: |
@@ -95,39 +165,6 @@ jobs:
               image.save(out,'PNG',optimize=True)
           PY
           echo 'ATHLETE_REFERENCE=recovery/auto-factory/reference/athlete.png' >> "$GITHUB_ENV"
-
-      - name: Create isolated Workers AI proxy
-        if: env.IBERFIT_FACTORY_DONE != 'true'
-        shell: bash
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
-        run: |
-          set -euo pipefail
-          test -n "${CLOUDFLARE_API_TOKEN:-}"
-          rm -rf "$PAGES_AI_DIR"; mkdir -p "$PAGES_AI_DIR"
-          cp scripts/exercise-media/worker-ai-system-v1.mjs "$PAGES_AI_DIR/_worker.js"
-          cp "$WRANGLER_CONFIG" wrangler.toml
-          sed -i "s/^name = .*/name = \"$PAGES_AI_PROJECT\"/" wrangler.toml
-          printf '%s\n' 'IBERFIT exercise media auto factory isolated AI proxy' > "$PAGES_AI_DIR/index.html"
-          smoke_token="$(openssl rand -hex 32)"; echo "::add-mask::$smoke_token"
-          npx --yes wrangler@4 pages project create "$PAGES_AI_PROJECT" --production-branch smoke --compatibility-date 2026-09-21
-          printf '%s' "$smoke_token" | npx --yes wrangler@4 pages secret put SMOKE_TOKEN --project-name "$PAGES_AI_PROJECT"
-          npx --yes wrangler@4 pages deploy "$PAGES_AI_DIR" --project-name "$PAGES_AI_PROJECT" --branch smoke --commit-dirty=true | tee recovery/auto-factory/pages-deploy.log
-          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' recovery/auto-factory/pages-deploy.log | tail -n 1)";stable_url="https://${PAGES_AI_PROJECT}.pages.dev";proxy_url=''
-          for attempt in $(seq 1 24); do
-            for candidate in "$stable_url" "$preview_url"; do
-              [[ -z "$candidate" ]] && continue
-              if curl --fail --silent --show-error --connect-timeout 5 --max-time 8 -X POST -H "Authorization: Bearer $smoke_token" "$candidate/health" > recovery/auto-factory/ai-health.json; then
-                if node -e "const x=require('./recovery/auto-factory/ai-health.json');if(x.ok!==true||x.ai!==true)process.exit(1)"; then proxy_url="$candidate";break 2;fi
-              fi
-            done
-            sleep 3
-          done
-          test -n "$proxy_url"
-          echo "IBERFIT_AI_PROXY_URL=$proxy_url" >> "$GITHUB_ENV"
-          echo "IBERFIT_AI_PROXY_TOKEN=$smoke_token" >> "$GITHUB_ENV"
-          echo 'IBERFIT_AI_PROXY_CREATED=true' >> "$GITHUB_ENV"
 
       - name: Plan exact movement and anatomy
         if: env.IBERFIT_FACTORY_DONE != 'true'
