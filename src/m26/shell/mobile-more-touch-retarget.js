@@ -122,17 +122,18 @@ export function createMobileMoreTouchRetargetBridge({
     const targetDetails=event?.target?.closest?.(MOBILE_MORE_SELECTOR)||null;
     const button=current.button;
     const details=current.details;
-    const validPhysicalGesture=
-      targetDetails===details&&
+    const buttonStillMounted=
       button?.isConnected!==false&&
       details?.contains?.(button)!==false;
+    const retargetedWithinOriginal=targetDetails===details&&buttonStillMounted;
+    const residualAfterCanonicalCommit=Boolean(targetDetails)&&!buttonStillMounted;
 
     clearGesture();
-    if(!validPhysicalGesture)return;
+    if(!retargetedWithinOriginal&&!residualAfterCanonicalCommit)return;
 
     event.preventDefault?.();
     event.stopImmediatePropagation?.();
-    button.click?.();
+    if(retargetedWithinOriginal)button.click?.();
   }
 
   function install(){
