@@ -703,6 +703,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
         focusMain();
         return;
       }
+      releasePointerInteraction({deferRender:false});
       const documentLike=root.ownerDocument||globalThis.document;
       runRouteViewTransition(
         ()=>{
@@ -767,7 +768,7 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     if(preferenceControl){
       const state=store.getState();
       const scope=String(state?.identity?.id||'').trim();
-      const path=String(preferenceControl.getAttribute('data-m26-preference')||'').trim();
+      const path=String(preferenceControl.getAttribute?.('data-m26-preference')||'').trim();
       const value=preferenceControl.type==='checkbox'?Boolean(preferenceControl.checked):String(preferenceControl.value||'').trim();
       try{
         updateIberfitExperiencePreference(scope,path,value);
