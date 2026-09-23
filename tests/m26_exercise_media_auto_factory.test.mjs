@@ -145,3 +145,17 @@ test('shirt-anchor locator is calibrated without lowering its safety threshold',
   assert.match(locator,/confidence<0\.97/,'shirt anchor threshold must remain 0.97');
   assert.match(locator,/enable_thinking:false/,'locator should return direct structured output instead of spending budget on hidden reasoning');
 });
+
+test('claim is idempotent per workflow run and lost responses are retried without duplicate claims',()=>{
+  assert.match(broker,/const runId=String\(claims\?\.run_id\|\|""\)/);
+  assert.match(broker,/const workflowSha=String\(claims\?\.sha\|\|""\)/);
+  assert.match(broker,/\["generating","qa"\]\.includes/);
+  assert.match(broker,/visual_spec\?\.run_id/);
+  assert.match(broker,/visual_spec\?\.workflow_sha/);
+  assert.match(broker,/recovered:true/);
+  assert.match(broker,/IBERFIT_AUTO_FACTORY_RECOVERY_EXERCISE_MISSING/);
+  assert.match(workflow,/for claim_attempt in 1 2 3; do/);
+  assert.match(workflow,/claim\.tmp/,'a failed transfer must never append a partial body to the next retry');
+  assert.match(workflow,/--connect-timeout 10 --max-time 45/);
+  assert.match(workflow,/recovered:x\.recovered===true/,'recovery must be observable in workflow logs');
+});

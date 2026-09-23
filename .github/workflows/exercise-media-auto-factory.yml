@@ -135,19 +135,31 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error \
-            -X POST \
-            -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \
-            -H 'Content-Type: application/json' \
-            "$AUTO_FACTORY_URL" \
-            -d '{"action":"claim"}' > recovery/auto-factory/claim.json
+          claim_ok=false
+          for claim_attempt in 1 2 3; do
+            rm -f recovery/auto-factory/claim.tmp recovery/auto-factory/claim.json
+            if curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 45 \
+              -X POST \
+              -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \
+              -H 'Content-Type: application/json' \
+              "$AUTO_FACTORY_URL" \
+              -d '{"action":"claim"}' \
+              -o recovery/auto-factory/claim.tmp; then
+              mv recovery/auto-factory/claim.tmp recovery/auto-factory/claim.json
+              claim_ok=true
+              break
+            fi
+            rm -f recovery/auto-factory/claim.tmp
+            sleep $((claim_attempt*2))
+          done
+          [[ "$claim_ok" == 'true' ]]
           node - <<'NODE'
           const fs=require('fs');const x=JSON.parse(fs.readFileSync('recovery/auto-factory/claim.json','utf8'));
           if(x.ok!==true)throw new Error('AUTO_FACTORY_CLAIM_INVALID');
           const env=process.env.GITHUB_ENV;
           if(!x.claim){fs.appendFileSync(env,'IBERFIT_FACTORY_DONE=true\n');console.log(JSON.stringify({done:x.done,remaining:x.remaining,blocked:x.blocked,system_v1:x.system_v1}));process.exit(0);}
           fs.appendFileSync(env,`IBERFIT_FACTORY_DONE=false\nIBERFIT_JOB_ID=${x.claim.job.id}\nIBERFIT_EXERCISE_ID=${x.claim.exercise.id}\nIBERFIT_ANATOMY_INFERRED=${x.claim.inferred_anatomy===true}\n`);
-          console.log(JSON.stringify({exercise_id:x.claim.exercise.id,attempts:x.claim.job.attempts,inferred_anatomy:x.claim.inferred_anatomy}));
+          console.log(JSON.stringify({exercise_id:x.claim.exercise.id,attempts:x.claim.job.attempts,inferred_anatomy:x.claim.inferred_anatomy,recovered:x.recovered===true}));
           NODE
 
       - name: Prepare approved identity reference
