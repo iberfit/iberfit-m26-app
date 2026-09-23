@@ -57,6 +57,7 @@ export function areaAllowedForRole(area,role){const definition=areaDefinition(ar
 
 const MOBILE_MORE_SELECTOR='details.m26-mobile-more';
 const ADMIN_SHELL_SELECTOR='.m26-shell[data-m26-role="admin"]';
+const GUIDED_TOUR_SELECTOR='[data-m26-guided-tour]';
 const MOBILE_MORE_ROUTE_SELECTOR='[data-m26-area]';
 const MOBILE_MORE_POINTER_TYPES=new Set(['touch','pen']);
 const MOBILE_MORE_RETARGET_WINDOW_MS=700;
@@ -208,6 +209,7 @@ export function createMobileMoreTouchRetargetBridge({
 
     const targetDetails=event?.target?.closest?.(MOBILE_MORE_SELECTOR)||null;
     const targetAdminShell=event?.target?.closest?.(ADMIN_SHELL_SELECTOR)||null;
+    const targetGuidedTour=event?.target?.closest?.(GUIDED_TOUR_SELECTOR)||null;
     const button=current.button;
     const details=current.details;
     const buttonStillMounted=
@@ -215,13 +217,16 @@ export function createMobileMoreTouchRetargetBridge({
       details?.contains?.(button)!==false;
     const retargetedWithinOriginal=targetDetails===details&&Boolean(targetAdminShell)&&buttonStillMounted;
     const residualAfterCanonicalCommit=Boolean(targetDetails)&&Boolean(targetAdminShell)&&!buttonStillMounted;
+    // Chromium may touch-adjust the compatibility click to the nearby guided
+    // tour even though pointer/touch hit-testing stayed on the same Admin route.
+    const touchAdjustedToGuidedTour=Boolean(targetGuidedTour)&&buttonStillMounted;
 
     clearGestures();
-    if(!retargetedWithinOriginal&&!residualAfterCanonicalCommit)return;
+    if(!retargetedWithinOriginal&&!residualAfterCanonicalCommit&&!touchAdjustedToGuidedTour)return;
 
     event.preventDefault?.();
     event.stopImmediatePropagation?.();
-    if(retargetedWithinOriginal)button.click?.();
+    if(retargetedWithinOriginal||touchAdjustedToGuidedTour)button.click?.();
   }
 
   function install(){
