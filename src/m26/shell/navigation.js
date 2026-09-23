@@ -56,6 +56,7 @@ export function roleHome(value){const role=assertKnownRole(value);return role===
 export function areaAllowedForRole(area,role){const definition=areaDefinition(area);const normalized=assertKnownRole(role);if(normalized==='admin')return Boolean((definition?.key?.startsWith('admin-')||definition?.key==='biblioteca')&&definition?.roles?.includes('admin'));return Boolean(definition?.roles?.includes(normalized));}
 
 const MOBILE_MORE_SELECTOR='details.m26-mobile-more';
+const ADMIN_SHELL_SELECTOR='.m26-shell[data-m26-role="admin"]';
 const MOBILE_MORE_ROUTE_SELECTOR='[data-m26-area]';
 const MOBILE_MORE_POINTER_TYPES=new Set(['touch','pen']);
 const MOBILE_MORE_RETARGET_WINDOW_MS=700;
@@ -69,7 +70,8 @@ function mobileMoreRouteControl(node){
   const areaButton=node?.closest?.(MOBILE_MORE_ROUTE_SELECTOR)||null;
   if(!areaButton)return null;
   const details=areaButton.closest?.(MOBILE_MORE_SELECTOR)||null;
-  return details?areaButton:null;
+  const adminShell=areaButton.closest?.(ADMIN_SHELL_SELECTOR)||null;
+  return details&&adminShell?areaButton:null;
 }
 
 export function resolvePhysicalMobileMoreRoute(documentLike,event){
@@ -172,13 +174,14 @@ export function createMobileMoreTouchRetargetBridge({
     }
 
     const targetDetails=event?.target?.closest?.(MOBILE_MORE_SELECTOR)||null;
+    const targetAdminShell=event?.target?.closest?.(ADMIN_SHELL_SELECTOR)||null;
     const button=current.button;
     const details=current.details;
     const buttonStillMounted=
       button?.isConnected!==false&&
       details?.contains?.(button)!==false;
-    const retargetedWithinOriginal=targetDetails===details&&buttonStillMounted;
-    const residualAfterCanonicalCommit=Boolean(targetDetails)&&!buttonStillMounted;
+    const retargetedWithinOriginal=targetDetails===details&&Boolean(targetAdminShell)&&buttonStillMounted;
+    const residualAfterCanonicalCommit=Boolean(targetDetails)&&Boolean(targetAdminShell)&&!buttonStillMounted;
 
     clearGesture();
     if(!retargetedWithinOriginal&&!residualAfterCanonicalCommit)return;
