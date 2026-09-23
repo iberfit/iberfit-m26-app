@@ -61,6 +61,7 @@ const MOBILE_MORE_ROUTE_SELECTOR='[data-m26-area]';
 const MOBILE_MORE_POINTER_TYPES=new Set(['touch','pen']);
 const MOBILE_MORE_RETARGET_WINDOW_MS=700;
 const MOBILE_MORE_BRIDGE_KEY='__IBERFIT_M26_MOBILE_MORE_TOUCH_RETARGET_V1__';
+const MOBILE_MORE_DIAG_TYPES=Object.freeze(['touchstart','touchend','touchcancel']);
 
 function normalizeMobileMorePointerType(event){
   return String(event?.pointerType||'').trim().toLowerCase();
@@ -95,6 +96,58 @@ export function createMobileMoreTouchRetargetBridge({
   let expiryTimer=null;
   let installed=false;
 
+  function diagnosticNode(node){
+    if(!node)return null;
+    return {
+      tag:String(node.tagName||'').toLowerCase(),
+      area:String(node.getAttribute?.('data-m26-area')||''),
+      summary:Boolean(node.matches?.('summary')),
+      classes:String(node.className||'').slice(0,160),
+    };
+  }
+
+  function diagnosticPoint(event){
+    const touch=event?.changedTouches?.[0]||event?.touches?.[0]||null;
+    const eventX=Number(event?.clientX);
+    const eventY=Number(event?.clientY);
+    const touchX=Number(touch?.clientX);
+    const touchY=Number(touch?.clientY);
+    const x=Number.isFinite(eventX)?eventX:touchX;
+    const y=Number.isFinite(eventY)?eventY:touchY;
+    if(!Number.isFinite(x)||!Number.isFinite(y))return null;
+    const stack=[...(documentLike.elementsFromPoint?.(x,y)||[])].slice(0,6).map(diagnosticNode);
+    return {x,y,stack};
+  }
+
+  function recordDiagnostic(event,phase){
+    const diag=globalThis.__IBERFIT_ADMIN_ROUTE_DIAG__;
+    if(!Array.isArray(diag?.events))return;
+    const target=event?.target||null;
+    const point=diagnosticPoint(event);
+    const targetInAdmin=Boolean(target?.closest?.(ADMIN_SHELL_SELECTOR));
+    const targetInMore=Boolean(target?.closest?.(MOBILE_MORE_SELECTOR));
+    const physicalAdminRoute=Boolean(point?.stack?.some((item)=>item?.area));
+    if(!targetInAdmin&&!targetInMore&&!physicalAdminRoute)return;
+    diag.events.push({
+      type:'dom-event',
+      eventType:String(event?.type||''),
+      phase:String(phase||''),
+      eventPhase:Number(event?.eventPhase||0),
+      isTrusted:event?.isTrusted===true,
+      defaultPrevented:Boolean(event?.defaultPrevented),
+      pointerType:String(event?.pointerType||''),
+      pointerId:Number.isFinite(Number(event?.pointerId))?Number(event.pointerId):null,
+      isPrimary:event?.isPrimary===undefined?null:Boolean(event.isPrimary),
+      touches:Number(event?.touches?.length||0),
+      changedTouches:Number(event?.changedTouches?.length||0),
+      target:diagnosticNode(target),
+      point,
+    });
+  }
+
+  function onDiagnosticCapture(event){recordDiagnostic(event,'capture');}
+  function onDiagnosticBubble(event){recordDiagnostic(event,'bubble');}
+
   function clearExpiry(){
     if(expiryTimer===null)return;
     clearTimeoutFn?.(expiryTimer);
@@ -116,6 +169,7 @@ export function createMobileMoreTouchRetargetBridge({
   }
 
   function onPointerDown(event){
+    recordDiagnostic(event,'bridge-capture');
     clearGesture();
     if(event?.isPrimary===false)return;
     if(!MOBILE_MORE_POINTER_TYPES.has(normalizeMobileMorePointerType(event)))return;
@@ -129,6 +183,7 @@ export function createMobileMoreTouchRetargetBridge({
   }
 
   function onPointerUp(event){
+    recordDiagnostic(event,'bridge-capture');
     if(!gesture)return;
     if(event?.isPrimary===false){
       clearGesture();
@@ -154,11 +209,13 @@ export function createMobileMoreTouchRetargetBridge({
   }
 
   function onPointerCancel(event){
+    recordDiagnostic(event,'bridge-capture');
     if(!gesture)return;
     if(event?.pointerId===undefined||event.pointerId===gesture.pointerId)clearGesture();
   }
 
   function onClick(event){
+    recordDiagnostic(event,'bridge-capture');
     const current=gesture;
     if(!current?.armed)return;
 
@@ -194,10 +251,18 @@ export function createMobileMoreTouchRetargetBridge({
   function install(){
     if(installed)return false;
     installed=true;
+    for(const type of MOBILE_MORE_DIAG_TYPES){
+      documentLike.addEventListener(type,onDiagnosticCapture,{capture:true,passive:true});
+      documentLike.addEventListener(type,onDiagnosticBubble,{passive:true});
+    }
     documentLike.addEventListener('pointerdown',onPointerDown,{capture:true,passive:true});
     documentLike.addEventListener('pointerup',onPointerUp,{capture:true,passive:true});
     documentLike.addEventListener('pointercancel',onPointerCancel,{capture:true,passive:true});
     documentLike.addEventListener('click',onClick,{capture:true});
+    documentLike.addEventListener('pointerdown',onDiagnosticBubble,{passive:true});
+    documentLike.addEventListener('pointerup',onDiagnosticBubble,{passive:true});
+    documentLike.addEventListener('pointercancel',onDiagnosticBubble,{passive:true});
+    documentLike.addEventListener('click',onDiagnosticBubble);
     return true;
   }
 
@@ -205,10 +270,18 @@ export function createMobileMoreTouchRetargetBridge({
     if(!installed)return false;
     installed=false;
     clearGesture();
+    for(const type of MOBILE_MORE_DIAG_TYPES){
+      documentLike.removeEventListener(type,onDiagnosticCapture,true);
+      documentLike.removeEventListener(type,onDiagnosticBubble,false);
+    }
     documentLike.removeEventListener('pointerdown',onPointerDown,true);
     documentLike.removeEventListener('pointerup',onPointerUp,true);
     documentLike.removeEventListener('pointercancel',onPointerCancel,true);
     documentLike.removeEventListener('click',onClick,true);
+    documentLike.removeEventListener('pointerdown',onDiagnosticBubble,false);
+    documentLike.removeEventListener('pointerup',onDiagnosticBubble,false);
+    documentLike.removeEventListener('pointercancel',onDiagnosticBubble,false);
+    documentLike.removeEventListener('click',onDiagnosticBubble,false);
     return true;
   }
 
