@@ -16,7 +16,7 @@ env:
   CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
   CF_PROJECT: 'web-iberfit'
   WEB_REPO: 'https://github.com/iberfit/iberfitweb.git'
-  WEB_SHA: '047695c2d0f888aaaf790cfd2096f93412089ab7'
+  WEB_SHA: '047695c82dab0a0250af469991fbde358f778fc4'
   WEB_VERSION: '6.43.14'
   QA_SOURCE_SHA: '399b8177372c7563f4bef71c6cff2fd78b35d6da'
   QA_RUN_ID: '35908454360'
