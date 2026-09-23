@@ -1,7 +1,34 @@
 const normalize=value=>String(value||'').trim().toLowerCase();
 
+function descriptorFor(exercise){return `${normalize(exercise?.id)} ${normalize(exercise?.name_es)} ${normalize(exercise?.pattern)} ${normalize(exercise?.equipment)}`;}
+
+export function hasHardMovementPlanGuard(exercise){
+  return /(?:ibf-bear-crawl|\bbear\s+crawl\b)/u.test(descriptorFor(exercise));
+}
+
+function phaseHasBearSupport(text){
+  const n=normalize(text);
+  const hands=/(?:manos?.{0,80}(?:suelo|piso)|(?:suelo|piso).{0,80}manos?)/u.test(n);
+  const feet=/(?:pies?|puntas?|antepi[eé]s).{0,100}(?:apoy|contact|suelo|piso)/u.test(n);
+  const knees=/(?:rodillas?).{0,120}(?:suspend|elevad|sin contacto|no (?:tocan|apoyan)|fuera del (?:suelo|piso))/u.test(n);
+  const hips=/(?:(?:cadera|pelvis).{0,100}(?:altura|nivel).{0,50}hombros?|hombros?.{0,50}(?:altura|nivel).{0,50}(?:cadera|pelvis))/u.test(n);
+  const trunk=/(?:tronco|espalda|columna).{0,100}(?:horizontal|neutr|rect|larga|alinead)/u.test(n);
+  const feetFlat=/\bpies?\s+planos?\b/u.test(n);
+  return hands&&feet&&knees&&hips&&trunk&&!feetFlat;
+}
+
+export function movementPlanIssue(exercise,plan){
+  if(!hasHardMovementPlanGuard(exercise))return null;
+  if(!phaseHasBearSupport(plan?.start))return'PLAN_MOVEMENT_IDENTITY_INVALID:start:bear-crawl-support';
+  if(!phaseHasBearSupport(plan?.final))return'PLAN_MOVEMENT_IDENTITY_INVALID:final:bear-crawl-support';
+  const final=normalize(plan?.final);
+  const advancesLimb=/(?:mano|pie|pierna).{0,100}(?:avanz|adelant|desplaz)|(?:avanz|adelant|desplaz).{0,100}(?:mano|pie|pierna)/u.test(final);
+  if(!advancesLimb)return'PLAN_MOVEMENT_PHASE_RELATION_INVALID:bear-crawl-step';
+  return null;
+}
+
 export function movementVisualGuard(exercise){
-  const descriptor=`${normalize(exercise?.id)} ${normalize(exercise?.name_es)} ${normalize(exercise?.pattern)} ${normalize(exercise?.equipment)}`;
+  const descriptor=descriptorFor(exercise);
 
   if(/(?:ibf-bear-crawl|\bbear\s+crawl\b)/u.test(descriptor)){
     return [
