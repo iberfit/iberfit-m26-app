@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fetchWithTransientRetry} from './auto-factory-fetch.mjs';
 import {extractStructuredResponse} from './auto-factory-structured-response.mjs';
+import {movementVisualGuard} from './auto-factory-movement-guard.mjs';
 
 const MODEL='@cf/black-forest-labs/flux-2-klein-4b';
 const RAW_WIDTH=1024;
@@ -36,8 +37,8 @@ function archiveRejectedFinal(file,outDir,exerciseId,attempt){
   const rejectedDir=path.join(outDir,'rejected');fs.mkdirSync(rejectedDir,{recursive:true});const extension=path.extname(file);const archived=path.join(rejectedDir,`${exerciseId}-final-attempt-${attempt}${extension}`);fs.copyFileSync(file,archived);const meta=`${file}.json`;if(fs.existsSync(meta))fs.copyFileSync(meta,`${archived}.json`);fs.rmSync(file,{force:true});fs.rmSync(meta,{force:true});
 }
 async function validateRawPair({claim,plan,startFile,finalFile,outDir,proxy,token,reviewAttempt=0}){
-  const exercise=claim.claim.exercise;const inferred=Boolean(plan.anatomy_inferred);const minConfidence=inferred?0.985:0.97;
-  const keys=['start_matches_plan','final_matches_plan','same_identity','same_scene_and_camera','equipment_continuity','grip_support_continuity','critical_body_visible','no_portrait_or_rest_pose'];
+  const exercise=claim.claim.exercise;const inferred=Boolean(plan.anatomy_inferred);const minConfidence=inferred?0.985:0.97;const movementGuard=movementVisualGuard(exercise);
+  const keys=['start_matches_plan','final_matches_plan','movement_identity_lock','same_identity','same_scene_and_camera','equipment_continuity','grip_support_continuity','critical_body_visible','no_portrait_or_rest_pose'];
   const rubric=[
     'You are the fail-closed raw phase reviewer for IBERFIT Exercise Media System v1. Judge the two generated photographs before any branding or composition.',
     'Image 1 is START. Image 2 is FINAL. They must depict the exact same exercise, athlete, scene, camera language and equipment setup while changing only the movement phase required by the plan.',
@@ -45,6 +46,8 @@ async function validateRawPair({claim,plan,startFile,finalFile,outDir,proxy,toke
     `Planned START=${plan.start}`,
     `Planned FINAL=${plan.final}`,
     `Canonical cues=${(exercise.cues||[]).join(' | ')}. Precautions=${(exercise.precautions||[]).join(' | ')}.`,
+    movementGuard,
+    'Set movement_identity_lock=false whenever the defining body orientation, support/contact pattern or START-to-FINAL relationship violates the movement lock, even if identity, scene and equipment are otherwise correct.',
     'Reject if either image becomes a portrait/rest pose, loses or invents equipment, drops required handles/supports, changes cable routing or machine geometry, hides critical joints, changes athlete identity, or no longer matches the exact planned phase.',
     'For cable or resistance exercises, visible grip/contact and physically plausible connection to the resistance source must persist in every phase where the plan requires it.',
     'Confidence calibration is mandatory and evidence-based. Use 0.99-1.00 only when every required relationship is clearly visible and unambiguous; 0.97-0.98 for valid phases with only minor non-critical visual uncertainty; <=0.96 when any phase, grip, equipment connection, identity, joint relationship or scene continuity requires guessing. Do not default to 0.95.',
@@ -62,6 +65,7 @@ async function main(){
   const continuityRef=phase==='final'?findStartReference(outDir,exercise.id):null;if(phase==='final'&&!continuityRef)throw new Error('FINAL_CONTINUITY_REFERENCE_MISSING');
   const athleteModelRef=prepareModelReference(athleteRef,outDir,'athlete-model');
   const continuityModelRef=continuityRef?prepareModelReference(continuityRef,outDir,`${exercise.id}-start-model`):null;
+  const movementGuard=movementVisualGuard(exercise);
   const generateOnce=async(repairAttempt=0,repairIssues=[])=>{
     const repairInstruction=phase==='final'&&repairAttempt>0?`REPAIR PASS ${repairAttempt}: strict raw QA rejected the previous FINAL. Correct every listed defect while preserving the approved START scene, identity, camera and valid equipment geometry. Previous QA issues: ${repairIssues.join(' | ')}. This is a repair, not a stylistic variation. Make the required FINAL movement phase unmistakably different from START while keeping every required grip and support connected.`:'';
     const prompt=[
@@ -73,6 +77,7 @@ async function main(){
       'Environment: premium dark green and charcoal gym, realistic commercial photography, warm cream highlights and restrained gold architectural details. No neon, no generic AI glow, no poster design, no infographic and no text.',
       `Camera language: ${plan.camera}. Keep the entire athlete, relevant hands, feet, joints, support points and all equipment visible. Leave useful background breathing room, especially toward the upper corners, without compromising biomechanics.`,
       `Exercise: ${exercise.name_es}. Pattern: ${exercise.pattern}. Intent: ${exercise.intent}. Equipment: ${exercise.equipment}.`,
+      movementGuard,
       equipmentVisualGuard(exercise),
       `Required ${phase.toUpperCase()} phase: ${phaseText}`,
       `Technique cues: ${(exercise.cues||[]).join(' | ')}. Precautions: ${(exercise.precautions||[]).join(' | ')}.`,
