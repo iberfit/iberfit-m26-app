@@ -4,14 +4,18 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {AUTO_FACTORY_PROVIDER_DAILY_QUOTA,detectProviderCapacityReason,fetchWithTransientRetry} from '../scripts/exercise-media/auto-factory-fetch.mjs';
+import {qaRetryable,runQa} from '../scripts/exercise-media/worker-ai-system-v1.mjs';
 
 const workflow=await readFile(new URL('../.github/workflows/exercise-media-auto-factory.yml',import.meta.url),'utf8');
 const broker=await readFile(new URL('../supabase/functions/iberfit-exercise-media-auto-factory-v1/index.ts',import.meta.url),'utf8');
+const worker=await readFile(new URL('../scripts/exercise-media/worker-ai-system-v1.mjs',import.meta.url),'utf8');
 
 test('provider daily quota is classified exactly and not confused with generic transient failures',()=>{
   assert.equal(detectProviderCapacityReason('{"detail":"4006: you have used up your daily free allocation of 10,000 neurons"}'),AUTO_FACTORY_PROVIDER_DAILY_QUOTA);
   assert.equal(detectProviderCapacityReason('{"detail":"temporary 502 upstream"}'),null);
   assert.equal(detectProviderCapacityReason('{"detail":"429 rate limited"}'),null);
+  assert.equal(qaRetryable(new Error('error code: 522')),true);
+  assert.equal(qaRetryable(new Error('4006: daily free allocation of 10,000 neurons used up')),false);
 });
 
 test('daily quota exhaustion fails immediately and persists an auditable deferral marker',async()=>{
@@ -26,6 +30,13 @@ test('daily quota exhaustion fails immediately and persists an auditable deferra
   }finally{globalThis.fetch=originalFetch;await rm(dir,{recursive:true,force:true});}
 });
 
+test('Workers AI proxy retries bounded transient 522 responses but stops immediately at quota 4006',async()=>{
+  const sequence=[new Error('error code: 522'),new Error('upstream 522'),new Error('4006: used up your daily free allocation of 10,000 neurons')];let calls=0;
+  const env={AI:{run:async()=>{const value=sequence[calls++];if(value instanceof Error)throw value;return value;}}};
+  await assert.rejects(runQa(env,{messages:[]},{delaysMs:[0,0,0,0]}),/4006/u);
+  assert.equal(calls,3,'quota exhaustion must stop retries as soon as it is revealed');
+});
+
 test('workflow checks queue and provider capacity before claim, while mid-run quota uses defer instead of fail',()=>{
   const queue=workflow.indexOf('- name: Inspect queue before provisioning AI proxy');
   const proxy=workflow.indexOf('- name: Create isolated Workers AI proxy');
@@ -36,6 +47,8 @@ test('workflow checks queue and provider capacity before claim, while mid-run qu
   assert.match(workflow,/IBERFIT_FACTORY_DEFER_FILE/u);
   assert.match(workflow,/action:"defer"/u);
   assert.match(workflow,/AI_PROVIDER_DAILY_QUOTA_EXHAUSTED/u);
+  assert.match(worker,/QA_RETRY_DELAYS_MS=Object\.freeze\(\[750,1500,3000,6000\]\)/u);
+  assert.match(worker,/const result=await runQa\(env,body\)/u);
 });
 
 test('broker exposes process-workflow-only peek and quota defer without weakening attempt caps',()=>{
