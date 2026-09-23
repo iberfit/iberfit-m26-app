@@ -24,6 +24,7 @@ const INFERRED_ANATOMY_MIN_CONFIDENCE=0.985;
 const RETRY_AFTER_MS=6*60*60*1000;
 const STALE_ACTIVE_MS=2*60*60*1000;
 const MAX_ATTEMPTS=3;
+const DEFER_REASONS=new Set(["AI_PROVIDER_DAILY_QUOTA_EXHAUSTED"]);
 const JWKS=createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
 
 function json(body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"}});}
@@ -52,24 +53,49 @@ function isSystemV1(media:any){return media&&typeof media==="object"&&(media.vis
 function isGenericMuscle(value:string){return ["movilidad","global","músculo objetivo"].includes(String(value||"").trim().toLowerCase());}
 function hasGenericAnatomy(exercise:any){return Array.isArray(exercise?.primary_muscles)&&exercise.primary_muscles.some((m:string)=>isGenericMuscle(m));}
 function latestByExercise(rows:any[]){const map=new Map<string,any>();for(const row of rows||[]){if(!map.has(String(row.exercise_id||"")))map.set(String(row.exercise_id||""),row);}return map;}
+function jobEligible(job:any,now:number){
+  if(!job)return true;
+  const status=String(job.status||"");
+  if(["ready","blocked"].includes(status))return false;
+  if(["generating","qa"].includes(status)){
+    const updated=Date.parse(String(job.updated_at||""));
+    return Number.isFinite(updated)&&now-updated>=STALE_ACTIVE_MS;
+  }
+  if(status==="failed"){
+    if(Number(job.attempts||0)>=MAX_ATTEMPTS)return false;
+    const updated=Date.parse(String(job.updated_at||""));
+    return !Number.isFinite(updated)||now-updated>=RETRY_AFTER_MS;
+  }
+  return true;
+}
+async function loadQueue(db:any){
+  const catalogRes=await db.from("exercise_catalog").select("id,name_es,pattern,intent,equipment,difficulty,primary_muscles,secondary_muscles,cues,instructions_es,precautions,tags,media_status,media,review_status,active").eq("active",true).neq("review_status","retirado").order("id",{ascending:true}).limit(1000);
+  if(catalogRes.error)fail(`IBERFIT_AUTO_FACTORY_CATALOG_READ_FAILED:${catalogRes.error.message}`,502);
+  const jobsRes=await db.from("exercise_media_jobs").select("id,exercise_id,status,attempts,last_error,updated_at,visual_spec").order("updated_at",{ascending:false}).limit(5000);
+  if(jobsRes.error)fail(`IBERFIT_AUTO_FACTORY_JOBS_READ_FAILED:${jobsRes.error.message}`,502);
+  return {catalog:catalogRes.data||[],jobs:jobsRes.data||[],latest:latestByExercise(jobsRes.data||[])};
+}
+async function peek(db:any){
+  const {catalog,latest}=await loadQueue(db);const now=Date.now();
+  const remaining=catalog.filter((exercise:any)=>!isSystemV1(exercise.media));
+  const eligible=remaining.filter((exercise:any)=>jobEligible(latest.get(exercise.id),now));
+  const blocked=[...latest.values()].filter((job:any)=>job.status==="blocked").length;
+  return json({ok:true,schema:"iberfit.exercise.media.auto-factory.peek.v1",eligible:eligible.length>0,eligible_count:eligible.length,remaining:remaining.length,blocked,system_v1:catalog.length-remaining.length,done:remaining.length===0});
+}
 async function claim(db:any,claims:any){
   const runId=String(claims?.run_id||"");const workflowSha=String(claims?.sha||"");
   if(!runId||!workflowSha)fail("IBERFIT_AUTO_FACTORY_RUN_ID_REQUIRED",400);
   const staleBefore=new Date(Date.now()-STALE_ACTIVE_MS).toISOString();
   await db.from("exercise_media_jobs").update({status:"failed",last_error:"AUTO_FACTORY_STALE_RECOVERY",completed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).in("status",["generating","qa"]).lt("updated_at",staleBefore);
-  const catalogRes=await db.from("exercise_catalog").select("id,name_es,pattern,intent,equipment,difficulty,primary_muscles,secondary_muscles,cues,instructions_es,precautions,tags,media_status,media,review_status,active").eq("active",true).neq("review_status","retirado").order("id",{ascending:true}).limit(1000);
-  if(catalogRes.error)fail(`IBERFIT_AUTO_FACTORY_CATALOG_READ_FAILED:${catalogRes.error.message}`,502);
-  const jobsRes=await db.from("exercise_media_jobs").select("id,exercise_id,status,attempts,last_error,updated_at,visual_spec").order("updated_at",{ascending:false}).limit(5000);
-  if(jobsRes.error)fail(`IBERFIT_AUTO_FACTORY_JOBS_READ_FAILED:${jobsRes.error.message}`,502);
-  const prior=(jobsRes.data||[]).find((job:any)=>["generating","qa"].includes(String(job?.status||""))&&String(job?.visual_spec?.run_id||"")===runId&&String(job?.visual_spec?.workflow_sha||"")===workflowSha&&job?.visual_spec?.visualSystem===SYSTEM_V1);
+  const {catalog,jobs,latest}=await loadQueue(db);
+  const prior=jobs.find((job:any)=>["generating","qa"].includes(String(job?.status||""))&&String(job?.visual_spec?.run_id||"")===runId&&String(job?.visual_spec?.workflow_sha||"")===workflowSha&&job?.visual_spec?.visualSystem===SYSTEM_V1);
   if(prior){
-    const exercise=(catalogRes.data||[]).find((item:any)=>String(item?.id||"")===String(prior.exercise_id||""));
+    const exercise=catalog.find((item:any)=>String(item?.id||"")===String(prior.exercise_id||""));
     if(!exercise)fail("IBERFIT_AUTO_FACTORY_RECOVERY_EXERCISE_MISSING",409);
     return json({ok:true,done:false,recovered:true,claim:{job:prior,exercise,inferred_anatomy:prior?.visual_spec?.inferredAnatomy===true}});
   }
-  const latest=latestByExercise(jobsRes.data||[]);
   const now=Date.now();
-  const candidates=(catalogRes.data||[]).filter((exercise:any)=>{
+  const candidates=catalog.filter((exercise:any)=>{
     if(isSystemV1(exercise.media))return false;
     const job=latest.get(exercise.id);
     if(!job)return true;
@@ -82,9 +108,9 @@ async function claim(db:any,claims:any){
     return true;
   }).sort((a:any,b:any)=>Number(hasGenericAnatomy(a))-Number(hasGenericAnatomy(b))||Number(a.media_status==="aprobado")-Number(b.media_status==="aprobado")||String(a.id).localeCompare(String(b.id)));
   if(!candidates.length){
-    const remaining=(catalogRes.data||[]).filter((x:any)=>!isSystemV1(x.media)).length;
-    const blocked=[...(latest.values())].filter((x:any)=>x.status==="blocked").length;
-    return json({ok:true,done:remaining===0,claim:null,remaining,blocked,system_v1:(catalogRes.data||[]).length-remaining});
+    const remaining=catalog.filter((x:any)=>!isSystemV1(x.media)).length;
+    const blocked=[...latest.values()].filter((x:any)=>x.status==="blocked").length;
+    return json({ok:true,done:remaining===0,claim:null,remaining,blocked,system_v1:catalog.length-remaining});
   }
   for(const exercise of candidates.slice(0,12)){
     const previous=latest.get(exercise.id);
@@ -111,6 +137,18 @@ async function markFailed(db:any,body:any){
   const update=await db.from("exercise_media_jobs").update({status:blocked?"blocked":"failed",last_error:safeError(body?.error),completed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",jobId).eq("exercise_id",exerciseId);
   if(update.error)fail(`IBERFIT_AUTO_FACTORY_FAIL_UPDATE_FAILED:${update.error.message}`,502);
   return json({ok:true,job_id:jobId,exercise_id:exerciseId,status:blocked?"blocked":"failed",attempts:read.data.attempts});
+}
+async function markDeferred(db:any,body:any){
+  const jobId=String(body?.job_id||"");const exerciseId=String(body?.exercise_id||"");const reason=safeError(body?.reason);
+  if(!UUID.test(jobId)||!SAFE_ID.test(exerciseId))fail("IBERFIT_AUTO_FACTORY_DEFER_ID_INVALID");
+  if(!DEFER_REASONS.has(reason))fail("IBERFIT_AUTO_FACTORY_DEFER_REASON_INVALID");
+  const read=await db.from("exercise_media_jobs").select("id,exercise_id,status,attempts").eq("id",jobId).eq("exercise_id",exerciseId).maybeSingle();
+  if(read.error||!read.data)fail("IBERFIT_AUTO_FACTORY_JOB_NOT_FOUND",404);
+  if(!["generating","qa"].includes(String(read.data.status||"")))fail("IBERFIT_AUTO_FACTORY_DEFER_STATE_INVALID",409);
+  const attempts=Math.max(0,Number(read.data.attempts||0)-1);
+  const update=await db.from("exercise_media_jobs").update({status:"failed",attempts,last_error:`AUTO_FACTORY_DEFERRED:${reason}`,completed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",jobId).eq("exercise_id",exerciseId).in("status",["generating","qa"]);
+  if(update.error)fail(`IBERFIT_AUTO_FACTORY_DEFER_UPDATE_FAILED:${update.error.message}`,502);
+  return json({ok:true,deferred:true,job_id:jobId,exercise_id:exerciseId,status:"failed",attempts,reason});
 }
 function webpDimensions(bytes:Uint8Array){
   const b=bytes;
@@ -141,21 +179,21 @@ async function publish(db:any,form:FormData,claims:any){
   if(metadata?.master?.width!==1280||metadata?.master?.height!==1600||metadata?.delivery?.width!==640||metadata?.delivery?.height!==800||metadata?.publishable!==false)fail("IBERFIT_AUTO_FACTORY_METADATA_DIMENSIONS_INVALID");
   const media=item?.media;const movement=media?.movement;
   if(media?.schema!=="iberfit.exercise.visual.v1"||media?.style!==STYLE||media?.visualSystem!==SYSTEM_V1||media?.bucket!==BUCKET||media?.published!==true||media?.qa?.biomechanics!=="approved"||media?.qa?.visual!=="approved"||media?.clientVisible!==true||media?.coachVisible!==true)fail("IBERFIT_AUTO_FACTORY_MEDIA_INVALID");
-  const path=String(movement?.path||"");const parts=path.split("/");const sha=String(movement?.sha256||"").toLowerCase();
-  if(parts.length!==2||parts[0]!==id||!SAFE_FILE.test(parts[1])||path.includes("..")||!SHA256.test(sha)||!parts[1].includes(sha.slice(0,12)))fail("IBERFIT_AUTO_FACTORY_STORAGE_PATH_INVALID");
+  const storagePath=String(movement?.path||"");const parts=storagePath.split("/");const sha=String(movement?.sha256||"").toLowerCase();
+  if(parts.length!==2||parts[0]!==id||!SAFE_FILE.test(parts[1])||storagePath.includes("..")||!SHA256.test(sha)||!parts[1].includes(sha.slice(0,12)))fail("IBERFIT_AUTO_FACTORY_STORAGE_PATH_INVALID");
   if(file.type!=="image/webp"||file.size<100||file.size>MAX_BYTES)fail("IBERFIT_AUTO_FACTORY_FILE_INVALID");
   const bytes=new Uint8Array(await file.arrayBuffer());const actualSha=await digestHex(bytes);if(actualSha!==sha)fail("IBERFIT_AUTO_FACTORY_FILE_SHA_MISMATCH");
   const dims=webpDimensions(bytes);if(dims.width!==640||dims.height!==800||Number(movement?.width)!==640||Number(movement?.height)!==800)fail("IBERFIT_AUTO_FACTORY_FILE_DIMENSIONS_INVALID");
   await db.from("exercise_media_jobs").update({status:"qa",updated_at:new Date().toISOString()}).eq("id",jobId).eq("exercise_id",id);
-  const [folder,filename]=path.split("/");const list=await db.storage.from(BUCKET).list(folder,{limit:100,search:filename,sortBy:{column:"name",order:"asc"}});if(list.error)fail(`IBERFIT_AUTO_FACTORY_STORAGE_LIST_FAILED:${list.error.message}`,502);
+  const [folder,filename]=storagePath.split("/");const list=await db.storage.from(BUCKET).list(folder,{limit:100,search:filename,sortBy:{column:"name",order:"asc"}});if(list.error)fail(`IBERFIT_AUTO_FACTORY_STORAGE_LIST_FAILED:${list.error.message}`,502);
   const exists=(list.data||[]).some((x:any)=>x.name===filename);let uploaded=false;
-  if(exists){const current=await db.storage.from(BUCKET).download(path);if(current.error||!current.data)fail("IBERFIT_AUTO_FACTORY_EXISTING_READ_FAILED",502);const existingSha=await digestHex(new Uint8Array(await current.data.arrayBuffer()));if(existingSha!==sha)fail("IBERFIT_AUTO_FACTORY_EXISTING_CONFLICT",409);}else{const up=await db.storage.from(BUCKET).upload(path,bytes,{cacheControl:"31536000",contentType:"image/webp",upsert:false});if(up.error)fail(`IBERFIT_AUTO_FACTORY_UPLOAD_FAILED:${up.error.message}`,502);uploaded=true;}
-  const verify=await db.storage.from(BUCKET).download(path);if(verify.error||!verify.data){if(uploaded)await db.storage.from(BUCKET).remove([path]);fail("IBERFIT_AUTO_FACTORY_UPLOAD_VERIFY_FAILED",502);}const storedSha=await digestHex(new Uint8Array(await verify.data.arrayBuffer()));if(storedSha!==sha){if(uploaded)await db.storage.from(BUCKET).remove([path]);fail("IBERFIT_AUTO_FACTORY_STORED_SHA_MISMATCH",502);}
+  if(exists){const current=await db.storage.from(BUCKET).download(storagePath);if(current.error||!current.data)fail("IBERFIT_AUTO_FACTORY_EXISTING_READ_FAILED",502);const existingSha=await digestHex(new Uint8Array(await current.data.arrayBuffer()));if(existingSha!==sha)fail("IBERFIT_AUTO_FACTORY_EXISTING_CONFLICT",409);}else{const up=await db.storage.from(BUCKET).upload(storagePath,bytes,{cacheControl:"31536000",contentType:"image/webp",upsert:false});if(up.error)fail(`IBERFIT_AUTO_FACTORY_UPLOAD_FAILED:${up.error.message}`,502);uploaded=true;}
+  const verify=await db.storage.from(BUCKET).download(storagePath);if(verify.error||!verify.data){if(uploaded)await db.storage.from(BUCKET).remove([storagePath]);fail("IBERFIT_AUTO_FACTORY_UPLOAD_VERIFY_FAILED",502);}const storedSha=await digestHex(new Uint8Array(await verify.data.arrayBuffer()));if(storedSha!==sha){if(uploaded)await db.storage.from(BUCKET).remove([storagePath]);fail("IBERFIT_AUTO_FACTORY_STORED_SHA_MISMATCH",502);}
   const finalized=await db.rpc("iberfit_finalize_exercise_media_system_v1",{p_exercise_id:id,p_manifest:media});
-  if(finalized.error||finalized.data?.ok!==true||finalized.data?.mediaStatus!=="aprobado"){if(uploaded)await db.storage.from(BUCKET).remove([path]);fail(`IBERFIT_AUTO_FACTORY_FINALIZE_FAILED:${finalized.error?.message||"invalid_response"}`,502);}
+  if(finalized.error||finalized.data?.ok!==true||finalized.data?.mediaStatus!=="aprobado"){if(uploaded)await db.storage.from(BUCKET).remove([storagePath]);fail(`IBERFIT_AUTO_FACTORY_FINALIZE_FAILED:${finalized.error?.message||"invalid_response"}`,502);}
   const update=await db.from("exercise_media_jobs").update({status:"ready",output_manifest:media,last_error:null,completed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",jobId).eq("exercise_id",id);if(update.error)fail(`IBERFIT_AUTO_FACTORY_JOB_COMPLETE_FAILED:${update.error.message}`,502);
-  const publicUrl=db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-  return json({ok:true,published:true,exercise_id:id,job_id:jobId,path,sha256:sha,public_url:publicUrl,confidence:{biomechanics:Number(qaBiomechanics.confidence),visual:Number(qaVisual.confidence)},inferred_anatomy:inferred,run_id:String(claims.run_id||"")});
+  const publicUrl=db.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+  return json({ok:true,published:true,exercise_id:id,job_id:jobId,path:storagePath,sha256:sha,public_url:publicUrl,confidence:{biomechanics:Number(qaBiomechanics.confidence),visual:Number(qaVisual.confidence)},inferred_anatomy:inferred,run_id:String(claims.run_id||"")});
 }
 
 Deno.serve(async(req:Request)=>{
@@ -172,7 +210,9 @@ Deno.serve(async(req:Request)=>{
       return json({ok:true,probe:true,schema:"iberfit.exercise.media.auto-factory.probe.v1",project_ref:PROD_REF,repository:String(claims.repository||""),ref:String(claims.ref||""),workflow_ref:String(claims.workflow_ref||""),run_id:String(claims.run_id||""),sha:String(claims.sha||"")});
     }
     requireWorkflow(claims,EXPECTED_PROCESS_WORKFLOW_REF,"IBERFIT_AUTO_FACTORY_PROCESS_WORKFLOW_FORBIDDEN");
+    if(action==="peek")return await peek(db);
     if(action==="claim")return await claim(db,claims);
+    if(action==="defer")return await markDeferred(db,body);
     if(action==="fail")return await markFailed(db,body);
     fail("IBERFIT_AUTO_FACTORY_ACTION_INVALID");
   }catch(error:any){const message=safeError(error?.message||error);const status=Number(error?.status)||(/JWT|signature|issuer|audience/i.test(message)?401:400);return json({ok:false,error:message},status);}

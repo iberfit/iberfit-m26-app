@@ -19,6 +19,7 @@ env:
   WRANGLER_CONFIG: scripts/exercise-media/wrangler.ai-system-v1.toml
   PAGES_AI_PROJECT: iberfit-exercise-auto-${{ github.run_id }}-${{ github.run_attempt }}
   PAGES_AI_DIR: recovery/exercise-media-auto-proxy
+  IBERFIT_FACTORY_DEFER_FILE: recovery/auto-factory/provider-capacity.json
   CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
 
 jobs:
@@ -43,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test tests/m26_exercise_media_system_v1.test.mjs tests/m26_exercise_media_system_v1_pilot.test.mjs tests/m26_exercise_media_auto_factory.test.mjs
+          node --test tests/m26_exercise_media_system_v1.test.mjs tests/m26_exercise_media_system_v1_pilot.test.mjs tests/m26_exercise_media_auto_factory.test.mjs tests/m26_exercise_media_auto_factory_retry.test.mjs tests/m26_exercise_media_provider_capacity.test.mjs
           test "$(sha256sum "$MASTER" | awk '{print $1}')" = 'b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb'
           test "$(sha256sum "$OFFICIAL_ISOTIPO" | awk '{print $1}')" = 'd4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa'
           python3 -m pip install --disable-pip-version-check --quiet 'Pillow==11.3.0'
@@ -61,7 +62,26 @@ jobs:
           echo "::add-mask::$token"
           echo "IBERFIT_AUTO_FACTORY_OIDC=$token" >> "$GITHUB_ENV"
 
+      - name: Inspect queue before provisioning AI proxy
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 45 \
+            -X POST \
+            -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \
+            -H 'Content-Type: application/json' \
+            "$AUTO_FACTORY_URL" \
+            -d '{"action":"peek"}' \
+            > recovery/auto-factory/peek.json
+          node - <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('recovery/auto-factory/peek.json','utf8'));
+          if(x.ok!==true||typeof x.eligible!=='boolean')throw new Error('AUTO_FACTORY_PEEK_INVALID');
+          fs.appendFileSync(process.env.GITHUB_ENV,`IBERFIT_FACTORY_DONE=${x.eligible?'false':'true'}\n`);
+          console.log(JSON.stringify({eligible:x.eligible,eligible_count:x.eligible_count,remaining:x.remaining,blocked:x.blocked,system_v1:x.system_v1,done:x.done}));
+          NODE
+
       - name: Create isolated Workers AI proxy
+        if: env.IBERFIT_FACTORY_DONE != 'true'
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -131,7 +151,38 @@ jobs:
           echo "IBERFIT_AI_PROXY_URL=$proxy_url" >> "$GITHUB_ENV"
           echo "IBERFIT_AI_PROXY_TOKEN=$smoke_token" >> "$GITHUB_ENV"
 
+      - name: Verify Workers AI capacity before claim
+        if: env.IBERFIT_FACTORY_DONE != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "$IBERFIT_FACTORY_DEFER_FILE" recovery/auto-factory/provider-preflight.json
+          payload='{"messages":[{"role":"user","content":"Return exactly one JSON object with ok=true."}],"temperature":0,"stream":false,"max_completion_tokens":16,"chat_template_kwargs":{"enable_thinking":false,"preserve_thinking":false},"response_format":{"type":"json_object"}}'
+          http_code="$(curl --silent --show-error --connect-timeout 10 --max-time 45 \
+            -X POST \
+            -H "Authorization: Bearer ${IBERFIT_AI_PROXY_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "$IBERFIT_AI_PROXY_URL/qa" \
+            -d "$payload" \
+            -o recovery/auto-factory/provider-preflight.json \
+            -w '%{http_code}')"
+          if [[ "$http_code" =~ ^2 ]]; then
+            node -e "const x=require('./recovery/auto-factory/provider-preflight.json');if(x.ok!==true)process.exit(1)"
+            exit 0
+          fi
+          detail="$(cat recovery/auto-factory/provider-preflight.json 2>/dev/null || true)"
+          if printf '%s' "$detail" | grep -Eqi '4006|used up your daily free allocation|10,?000 neurons'; then
+            jq -n --arg reason 'AI_PROVIDER_DAILY_QUOTA_EXHAUSTED' --arg detail "$detail" '{schema:"iberfit.exercise.media.provider-deferral.v1",reason:$reason,detail:$detail}' > "$IBERFIT_FACTORY_DEFER_FILE"
+            echo 'IBERFIT_FACTORY_DONE=true' >> "$GITHUB_ENV"
+            echo 'IBERFIT_FACTORY_DEFERRED=true' >> "$GITHUB_ENV"
+            echo 'Workers AI daily allocation exhausted; no exercise was claimed and no attempt was consumed.'
+            exit 0
+          fi
+          printf '%s\n' "$detail" >&2
+          exit 1
+
       - name: Claim next missing System v1 exercise
+        if: env.IBERFIT_FACTORY_DONE != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -279,12 +330,25 @@ jobs:
         run: |
           set +e
           err="workflow_failed_run_${GITHUB_RUN_ID}_attempt_${GITHUB_RUN_ATTEMPT}"
+          action='fail'
+          reason=''
+          if [[ -s "$IBERFIT_FACTORY_DEFER_FILE" ]]; then
+            reason="$(jq -r '.reason // empty' "$IBERFIT_FACTORY_DEFER_FILE" 2>/dev/null)"
+            if [[ "$reason" == 'AI_PROVIDER_DAILY_QUOTA_EXHAUSTED' ]]; then
+              action='defer'
+            fi
+          fi
+          if [[ "$action" == 'defer' ]]; then
+            payload="$(jq -nc --arg job "$IBERFIT_JOB_ID" --arg id "$IBERFIT_EXERCISE_ID" --arg reason "$reason" '{action:"defer",job_id:$job,exercise_id:$id,reason:$reason}')"
+          else
+            payload="$(jq -nc --arg job "$IBERFIT_JOB_ID" --arg id "$IBERFIT_EXERCISE_ID" --arg err "$err" '{action:"fail",job_id:$job,exercise_id:$id,error:$err}')"
+          fi
           curl --fail-with-body --silent --show-error \
             -X POST \
             -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \
             -H 'Content-Type: application/json' \
             "$AUTO_FACTORY_URL" \
-            --data-binary "$(jq -nc --arg job "$IBERFIT_JOB_ID" --arg id "$IBERFIT_EXERCISE_ID" --arg err "$err" '{action:"fail",job_id:$job,exercise_id:$id,error:$err}')" \
+            --data-binary "$payload" \
             > recovery/auto-factory/fail.json
           exit 0
 
