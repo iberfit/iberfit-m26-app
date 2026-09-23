@@ -4,17 +4,28 @@ import fs from 'node:fs';
 
 import {createMobileMoreTouchRetargetBridge} from '../src/m26/shell/navigation.js';
 
-function createFixture(){
+const ADMIN_SHELL_SELECTOR='.m26-shell[data-m26-role="admin"]';
+
+function createFixture({role='admin'}={}){
+  const shell={role};
   const details={
     open:true,
-    parent:null,
+    parent:shell,
     contains(node){return node===button||node===summary;},
     hasAttribute(name){return name==='open'&&this.open;},
-    closest(selector){return selector==='details.m26-mobile-more'?this:null;},
+    closest(selector){
+      if(selector==='details.m26-mobile-more')return this;
+      if(selector===ADMIN_SHELL_SELECTOR)return role==='admin'?shell:null;
+      return null;
+    },
   };
   const summary={
     parent:details,
-    closest(selector){return selector==='details.m26-mobile-more'?details:null;},
+    closest(selector){
+      if(selector==='details.m26-mobile-more')return details;
+      if(selector===ADMIN_SHELL_SELECTOR)return role==='admin'?shell:null;
+      return null;
+    },
   };
   const button={
     parent:details,
@@ -23,11 +34,12 @@ function createFixture(){
     closest(selector){
       if(selector==='[data-m26-area]')return this;
       if(selector==='details.m26-mobile-more')return details;
+      if(selector===ADMIN_SHELL_SELECTOR)return role==='admin'?shell:null;
       return null;
     },
     click(){this.clicks+=1;},
   };
-  return {details,summary,button};
+  return {shell,details,summary,button};
 }
 
 function createDocument(){
@@ -77,7 +89,7 @@ function createBridge(documentLike){
   return {bridge,expire(){expiry?.();}};
 }
 
-test('adjusted trusted touch click inside mobile Más is rerouted to the physical route button',()=>{
+test('adjusted trusted touch click inside Admin mobile Más is rerouted to the physical route button',()=>{
   const {summary,button}=createFixture();
   const documentLike=createDocument();
   const {bridge}=createBridge(documentLike);
@@ -95,7 +107,7 @@ test('adjusted trusted touch click inside mobile Más is rerouted to the physica
   bridge.destroy();
 });
 
-test('direct trusted click on the same mobile Más route remains untouched',()=>{
+test('direct trusted click on the same Admin mobile Más route remains untouched',()=>{
   const {button}=createFixture();
   const documentLike=createDocument();
   const {bridge}=createBridge(documentLike);
@@ -113,7 +125,7 @@ test('direct trusted click on the same mobile Más route remains untouched',()=>
   bridge.destroy();
 });
 
-test('residual trusted click is suppressed after canonical pointerup navigation unmounts the route button',()=>{
+test('residual trusted click is suppressed after canonical Admin pointerup navigation unmounts the route button',()=>{
   const {summary,button,details}=createFixture();
   const replacement=createFixture();
   const documentLike=createDocument();
@@ -131,6 +143,23 @@ test('residual trusted click is suppressed after canonical pointerup navigation 
   assert.equal(residual.calls.prevented,1,'residual native click must not reopen the replacement Más disclosure');
   assert.equal(residual.calls.stopped,1,'residual native click must be consumed before shell summary handling');
   assert.equal(button.clicks,0,'detached route controls must never be replayed');
+  bridge.destroy();
+});
+
+test('Coach mobile Más remains completely outside the Admin touch bridge',()=>{
+  const {summary,button}=createFixture({role:'coach'});
+  const documentLike=createDocument();
+  const {bridge}=createBridge(documentLike);
+  documentLike.hit=button;
+
+  documentLike.emit('pointerdown',pointerEvent({target:summary}));
+  documentLike.emit('pointerup',pointerEvent({target:summary}));
+  const trusted=clickEvent(summary,{trusted:true});
+  documentLike.emit('click',trusted);
+
+  assert.equal(trusted.calls.prevented,0,'Coach trusted clicks must remain untouched');
+  assert.equal(trusted.calls.stopped,0,'Coach event propagation must remain untouched');
+  assert.equal(button.clicks,0,'Admin bridge must never synthesize Coach navigation');
   bridge.destroy();
 });
 
@@ -161,7 +190,7 @@ test('mouse, mismatched pointer release and cancelled gestures never synthesize 
   bridge.destroy();
 });
 
-test('synthetic controller clicks are never intercepted by the retarget bridge',()=>{
+test('synthetic controller clicks are never intercepted by the Admin retarget bridge',()=>{
   const {summary,button}=createFixture();
   const documentLike=createDocument();
   const {bridge}=createBridge(documentLike);
@@ -186,4 +215,5 @@ test('canonical shell module graph loads navigation before the controller can ha
   assert.match(routeGuard,/from '\.\/navigation\.js'/u,'route guard must load the canonical navigation module');
   assert.match(controller,/from '\.\/route-guard\.js'/u,'shell controller must load route guard before mounting');
   assert.match(navigation,/installMobileMoreTouchRetargetBridge\(\);/u,'navigation module must install the bridge as a guarded side effect');
+  assert.match(navigation,/\.m26-shell\[data-m26-role="admin"\]/u,'retarget bridge must stay scoped to Admin');
 });
