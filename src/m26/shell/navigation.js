@@ -82,6 +82,10 @@ export function resolvePhysicalMobileMoreRoute(documentLike,event){
   return mobileMoreRouteControl(hit);
 }
 
+function mobileMoreTouchList(value){
+  try{return [...(value||[])];}catch{return [];}
+}
+
 export function createMobileMoreTouchRetargetBridge({
   documentLike=globalThis.document,
   setTimeoutFn=globalThis.setTimeout?.bind?.(globalThis),
@@ -91,7 +95,8 @@ export function createMobileMoreTouchRetargetBridge({
     throw new Error('M26_MOBILE_MORE_TOUCH_DOCUMENT_REQUIRED');
   }
 
-  let gesture=null;
+  let pointerGesture=null;
+  let touchGesture=null;
   let expiryTimer=null;
   let installed=false;
 
@@ -101,9 +106,10 @@ export function createMobileMoreTouchRetargetBridge({
     expiryTimer=null;
   }
 
-  function clearGesture(){
+  function clearGestures(){
     clearExpiry();
-    gesture=null;
+    pointerGesture=null;
+    touchGesture=null;
   }
 
   function armExpiry(){
@@ -111,65 +117,92 @@ export function createMobileMoreTouchRetargetBridge({
     if(typeof setTimeoutFn!=='function')return;
     expiryTimer=setTimeoutFn(()=>{
       expiryTimer=null;
-      gesture=null;
+      pointerGesture=null;
+      touchGesture=null;
     },MOBILE_MORE_RETARGET_WINDOW_MS);
   }
 
+  function createGesture(button,idKey,idValue){
+    const details=button?.closest?.(MOBILE_MORE_SELECTOR)||null;
+    if(!details||!(details.open||details.hasAttribute?.('open')))return null;
+    return {button,details,[idKey]:idValue,armed:false};
+  }
+
+  function armGesture(gesture,point){
+    if(!gesture)return false;
+    const button=resolvePhysicalMobileMoreRoute(documentLike,point);
+    if(button!==gesture.button)return false;
+    gesture.armed=true;
+    armExpiry();
+    return true;
+  }
+
   function onPointerDown(event){
-    clearGesture();
+    pointerGesture=null;
     if(event?.isPrimary===false)return;
     if(!MOBILE_MORE_POINTER_TYPES.has(normalizeMobileMorePointerType(event)))return;
-
     const button=resolvePhysicalMobileMoreRoute(documentLike,event);
     if(!button)return;
-    const details=button.closest?.(MOBILE_MORE_SELECTOR)||null;
-    if(!details||!(details.open||details.hasAttribute?.('open')))return;
-
-    gesture={pointerId:event?.pointerId,button,details,armed:false};
+    pointerGesture=createGesture(button,'pointerId',event?.pointerId);
   }
 
   function onPointerUp(event){
-    if(!gesture)return;
-    if(event?.isPrimary===false){
-      clearGesture();
+    const current=pointerGesture;
+    if(!current)return;
+    if(event?.isPrimary===false||event?.pointerId!==current.pointerId||!MOBILE_MORE_POINTER_TYPES.has(normalizeMobileMorePointerType(event))){
+      pointerGesture=null;
       return;
     }
-    if(event?.pointerId!==gesture.pointerId){
-      clearGesture();
-      return;
-    }
-    if(!MOBILE_MORE_POINTER_TYPES.has(normalizeMobileMorePointerType(event))){
-      clearGesture();
-      return;
-    }
-
-    const button=resolvePhysicalMobileMoreRoute(documentLike,event);
-    if(button!==gesture.button){
-      clearGesture();
-      return;
-    }
-
-    gesture.armed=true;
-    armExpiry();
+    if(!armGesture(current,event))pointerGesture=null;
   }
 
   function onPointerCancel(event){
-    if(!gesture)return;
-    if(event?.pointerId===undefined||event.pointerId===gesture.pointerId)clearGesture();
+    const current=pointerGesture;
+    if(!current)return;
+    if(event?.pointerId===undefined||event.pointerId===current.pointerId)pointerGesture=null;
+  }
+
+  function onTouchStart(event){
+    touchGesture=null;
+    const changed=mobileMoreTouchList(event?.changedTouches);
+    const active=mobileMoreTouchList(event?.touches);
+    if(changed.length!==1||active.length>1)return;
+    const point=changed[0];
+    const button=resolvePhysicalMobileMoreRoute(documentLike,point);
+    if(!button)return;
+    touchGesture=createGesture(button,'touchId',point?.identifier);
+  }
+
+  function onTouchEnd(event){
+    const current=touchGesture;
+    if(!current)return;
+    const point=mobileMoreTouchList(event?.changedTouches).find((item)=>item?.identifier===current.touchId)||null;
+    if(!point){
+      touchGesture=null;
+      return;
+    }
+    if(!armGesture(current,point))touchGesture=null;
+  }
+
+  function onTouchCancel(event){
+    const current=touchGesture;
+    if(!current)return;
+    const changed=mobileMoreTouchList(event?.changedTouches);
+    if(!changed.length||changed.some((item)=>item?.identifier===current.touchId))touchGesture=null;
   }
 
   function onClick(event){
-    const current=gesture;
-    if(!current?.armed)return;
+    const current=touchGesture?.armed?touchGesture:pointerGesture?.armed?pointerGesture:null;
+    if(!current)return;
 
-    // The shell controller's synthetic .click() is the canonical route path.
-    // Leave it untouched and keep the gesture armed for any later trusted
-    // browser click that may have been adjusted to the <summary> element.
+    // Synthetic controller clicks are the canonical route path and must never
+    // be intercepted. Keep the armed physical gesture for the later trusted
+    // compatibility click that a browser may retarget to the <summary>.
     if(event?.isTrusted!==true)return;
 
     const directRoute=mobileMoreRouteControl(event?.target);
     if(directRoute===current.button){
-      clearGesture();
+      clearGestures();
       return;
     }
 
@@ -183,7 +216,7 @@ export function createMobileMoreTouchRetargetBridge({
     const retargetedWithinOriginal=targetDetails===details&&Boolean(targetAdminShell)&&buttonStillMounted;
     const residualAfterCanonicalCommit=Boolean(targetDetails)&&Boolean(targetAdminShell)&&!buttonStillMounted;
 
-    clearGesture();
+    clearGestures();
     if(!retargetedWithinOriginal&&!residualAfterCanonicalCommit)return;
 
     event.preventDefault?.();
@@ -197,6 +230,9 @@ export function createMobileMoreTouchRetargetBridge({
     documentLike.addEventListener('pointerdown',onPointerDown,{capture:true,passive:true});
     documentLike.addEventListener('pointerup',onPointerUp,{capture:true,passive:true});
     documentLike.addEventListener('pointercancel',onPointerCancel,{capture:true,passive:true});
+    documentLike.addEventListener('touchstart',onTouchStart,{capture:true,passive:true});
+    documentLike.addEventListener('touchend',onTouchEnd,{capture:true,passive:true});
+    documentLike.addEventListener('touchcancel',onTouchCancel,{capture:true,passive:true});
     documentLike.addEventListener('click',onClick,{capture:true});
     return true;
   }
@@ -204,10 +240,13 @@ export function createMobileMoreTouchRetargetBridge({
   function destroy(){
     if(!installed)return false;
     installed=false;
-    clearGesture();
+    clearGestures();
     documentLike.removeEventListener('pointerdown',onPointerDown,true);
     documentLike.removeEventListener('pointerup',onPointerUp,true);
     documentLike.removeEventListener('pointercancel',onPointerCancel,true);
+    documentLike.removeEventListener('touchstart',onTouchStart,true);
+    documentLike.removeEventListener('touchend',onTouchEnd,true);
+    documentLike.removeEventListener('touchcancel',onTouchCancel,true);
     documentLike.removeEventListener('click',onClick,true);
     return true;
   }
