@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 import {fetchWithTransientRetry} from './auto-factory-fetch.mjs';
 import {extractStructuredResponse} from './auto-factory-structured-response.mjs';
 
@@ -9,6 +10,7 @@ const MODEL='@cf/black-forest-labs/flux-2-klein-4b';
 const RAW_WIDTH=1024;
 const RAW_HEIGHT=1600;
 const FINAL_REPAIR_ATTEMPTS=1;
+const MAX_MODEL_REFERENCE_DIMENSION=511;
 function arg(name){const i=process.argv.indexOf(name);return i>=0?process.argv[i+1]:null;}
 function exact(v,n){const s=String(v||'').trim();if(!s)throw new Error(`${n}_REQUIRED`);return s;}
 function seedFor(id,phase){const digest=crypto.createHash('sha256').update(`${id}:${phase}:iberfit-auto-factory-v1`).digest();return digest.readUInt32BE(0)&0x7fffffff;}
@@ -17,6 +19,13 @@ function ext(mime){return mime==='image/png'?'.png':mime==='image/webp'?'.webp':
 function extractImage(payload){for(const v of [payload?.result?.image,payload?.image,payload?.result?.result?.image,payload?.result?.result,payload?.result]){if(typeof v==='string'&&v.length>128){const b=Buffer.from(v,'base64');if(b.length>128)return b;}}throw new Error('IMAGE_MISSING');}
 function findStartReference(outDir,id){for(const name of fs.readdirSync(outDir)){if(name.startsWith(`${id}-start.`)&&!name.endsWith('.json'))return path.join(outDir,name);}return null;}
 function dataUri(file){const bytes=fs.readFileSync(file);return`data:${detectMime(bytes)};base64,${bytes.toString('base64')}`;}
+function sha256File(file){return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');}
+function prepareModelReference(source,outDir,label){
+  const referenceDir=path.join(outDir,'reference');fs.mkdirSync(referenceDir,{recursive:true});const target=path.join(referenceDir,`${label}.png`);
+  const result=spawnSync('python3',['scripts/exercise-media/prepare-model-reference.py','--input',source,'--output',target,'--max-size',String(MAX_MODEL_REFERENCE_DIMENSION)],{encoding:'utf8'});
+  if(result.status!==0||!fs.existsSync(target)){const detail=String(result.stderr||result.stdout||'').trim().slice(0,500);throw new Error(`MODEL_REFERENCE_PREP_FAILED:${label}:${detail||result.status}`);}
+  const bytes=fs.readFileSync(target);if(bytes.length<32||detectMime(bytes)!=='image/png')throw new Error(`MODEL_REFERENCE_OUTPUT_INVALID:${label}`);return target;
+}
 function equipmentVisualGuard(exercise){
   const descriptor=`${exercise?.name_es||''} ${exercise?.equipment||''}`.toLowerCase();
   if(/rueda abdominal|ab wheel|ab roller/u.test(descriptor))return 'Equipment geometry lock: use exactly ONE standard compact ab roller: one small wheel about 25-35 cm in diameter with one straight axle through the center and short handles protruding equally from both sides. Both hands stay on the side handles. It is not a wheelchair, not a cable reel, not a barbell plate, not two large wheels and not any oversized circular apparatus.';
@@ -51,6 +60,8 @@ async function main(){
   if(!['start','final'].includes(phase))throw new Error('PHASE_INVALID');const exercise=claim?.claim?.exercise;if(!exercise?.id||plan?.exercise_id!==exercise.id)throw new Error('CLAIM_PLAN_ID_MISMATCH');
   const proxy=exact(process.env.IBERFIT_AI_PROXY_URL,'IBERFIT_AI_PROXY_URL').replace(/\/+$/,'')+'/generate';const token=exact(process.env.IBERFIT_AI_PROXY_TOKEN,'IBERFIT_AI_PROXY_TOKEN');const phaseText=String(plan?.[phase]||'').trim();if(phaseText.length<40)throw new Error('PHASE_PLAN_INVALID');fs.mkdirSync(outDir,{recursive:true});
   const continuityRef=phase==='final'?findStartReference(outDir,exercise.id):null;if(phase==='final'&&!continuityRef)throw new Error('FINAL_CONTINUITY_REFERENCE_MISSING');
+  const athleteModelRef=prepareModelReference(athleteRef,outDir,'athlete-model');
+  const continuityModelRef=continuityRef?prepareModelReference(continuityRef,outDir,`${exercise.id}-start-model`):null;
   const generateOnce=async(repairAttempt=0,repairIssues=[])=>{
     const repairInstruction=phase==='final'&&repairAttempt>0?`REPAIR PASS ${repairAttempt}: strict raw QA rejected the previous FINAL. Correct every listed defect while preserving the approved START scene, identity, camera and valid equipment geometry. Previous QA issues: ${repairIssues.join(' | ')}. This is a repair, not a stylistic variation. Make the required FINAL movement phase unmistakably different from START while keeping every required grip and support connected.`:'';
     const prompt=[
@@ -69,9 +80,9 @@ async function main(){
       'Biomechanics must be anatomically possible, controlled and safe. No duplicated limbs, extra fingers, malformed equipment, impossible joint angles, hidden grip/support or background people.',
       'Do not show both phases. Do not split the frame. Do not add anatomy diagrams, arrows, labels or any branding.'
     ].filter(Boolean).join('\n');
-    const seed=repairAttempt>0?seedFor(exercise.id,`${phase}-repair-${repairAttempt}`):seedFor(exercise.id,phase);const bytes=fs.readFileSync(athleteRef);const form=new FormData();form.append('model',MODEL);form.append('prompt',prompt);form.append('width',String(RAW_WIDTH));form.append('height',String(RAW_HEIGHT));form.append('guidance','5');form.append('seed',String(seed));form.append('input_image_0',new Blob([bytes],{type:'image/png'}),'iberfit-approved-athlete.png');if(continuityRef){const continuityBytes=fs.readFileSync(continuityRef);form.append('input_image_1',new Blob([continuityBytes],{type:detectMime(continuityBytes)}),'iberfit-start-continuity-reference');}
+    const seed=repairAttempt>0?seedFor(exercise.id,`${phase}-repair-${repairAttempt}`):seedFor(exercise.id,phase);const athleteBytes=fs.readFileSync(athleteModelRef);const form=new FormData();form.append('model',MODEL);form.append('prompt',prompt);form.append('width',String(RAW_WIDTH));form.append('height',String(RAW_HEIGHT));form.append('guidance','5');form.append('seed',String(seed));form.append('input_image_0',new Blob([athleteBytes],{type:'image/png'}),'iberfit-approved-athlete-model-reference.png');if(continuityModelRef){const continuityBytes=fs.readFileSync(continuityModelRef);form.append('input_image_1',new Blob([continuityBytes],{type:'image/png'}),'iberfit-start-continuity-model-reference.png');}
     const response=await fetchWithTransientRetry(proxy,{method:'POST',headers:{authorization:`Bearer ${token}`},body:form,redirect:'error'},{label:`GENERATE_${phase.toUpperCase()}${repairAttempt?`_REPAIR_${repairAttempt}`:''}`});if(!response.ok)throw new Error(`GENERATE_HTTP_${response.status}:${(await response.text()).slice(0,1000)}`);const payload=await response.json();if(payload?.ok!==true)throw new Error(`GENERATE_PROXY_FAILED:${JSON.stringify(payload).slice(0,1200)}`);
-    const image=extractImage(payload),mime=detectMime(image);const file=path.join(outDir,`${exercise.id}-${phase}${ext(mime)}`);fs.writeFileSync(file,image);const metadata={schema:'iberfit.exercise.media.auto.phase.v1',exercise_id:exercise.id,phase,model:payload.model||MODEL,fallback:Boolean(payload.fallback),width:RAW_WIDTH,height:RAW_HEIGHT,mime,seed,prompt_sha256:crypto.createHash('sha256').update(prompt).digest('hex'),continuity_reference_sha256:continuityRef?crypto.createHash('sha256').update(fs.readFileSync(continuityRef)).digest('hex'):null,repair_attempt:repairAttempt,publishable:false};fs.writeFileSync(`${file}.json`,`${JSON.stringify(metadata,null,2)}\n`);console.log(JSON.stringify({ok:true,file,...metadata}));return{file,metadata};
+    const image=extractImage(payload),mime=detectMime(image);const file=path.join(outDir,`${exercise.id}-${phase}${ext(mime)}`);fs.writeFileSync(file,image);const metadata={schema:'iberfit.exercise.media.auto.phase.v1',exercise_id:exercise.id,phase,model:payload.model||MODEL,fallback:Boolean(payload.fallback),width:RAW_WIDTH,height:RAW_HEIGHT,mime,seed,prompt_sha256:crypto.createHash('sha256').update(prompt).digest('hex'),identity_source_sha256:sha256File(athleteRef),identity_model_reference_sha256:sha256File(athleteModelRef),continuity_reference_sha256:continuityRef?sha256File(continuityRef):null,continuity_source_sha256:continuityRef?sha256File(continuityRef):null,continuity_model_reference_sha256:continuityModelRef?sha256File(continuityModelRef):null,reference_max_dimension:MAX_MODEL_REFERENCE_DIMENSION,repair_attempt:repairAttempt,publishable:false};fs.writeFileSync(`${file}.json`,`${JSON.stringify(metadata,null,2)}\n`);console.log(JSON.stringify({ok:true,file,...metadata}));return{file,metadata};
   };
   if(phase==='start'){await generateOnce(0,[]);return;}
   let generated=null;let review=null;let repairIssues=[];
