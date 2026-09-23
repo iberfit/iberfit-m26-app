@@ -14,10 +14,12 @@ test('cable plans require persistent handle grip and taut resistance in both pha
 
 test('cable planner rejects folded-arm ambiguity and allows one bounded repair only',()=>{
   assert.match(planner,/MAX_CABLE_PLAN_REPAIR_ATTEMPTS=1/);
+  assert.match(planner,/MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS=1/);
   assert.match(planner,/PLAN_CABLE_ARM_FOLD_AMBIGUOUS/);
   assert.match(planner,/hands may cross the body midline, but forearms must never fold across the torso/i);
-  assert.match(planner,/const maxRepair=cable\?MAX_CABLE_PLAN_REPAIR_ATTEMPTS:0/);
+  assert.match(planner,/const maxRepair=Math\.max\(cable\?MAX_CABLE_PLAN_REPAIR_ATTEMPTS:0,hardMovement\?MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS:0\)/);
   assert.match(planner,/repairAttempt<=maxRepair/);
-  assert.match(planner,/repairAttempt>=MAX_CABLE_PLAN_REPAIR_ATTEMPTS/);
+  assert.match(planner,/repairAttempt>=maxRepair/);
   assert.doesNotMatch(planner,/MAX_CABLE_PLAN_REPAIR_ATTEMPTS=[2-9]/);
+  assert.doesNotMatch(planner,/MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS=[2-9]/);
 });
