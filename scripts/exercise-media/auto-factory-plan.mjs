@@ -3,11 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fetchWithTransientRetry} from './auto-factory-fetch.mjs';
 import {extractStructuredResponse} from './auto-factory-structured-response.mjs';
+import {movementPlanIssue,movementVisualGuard} from './auto-factory-movement-guard.mjs';
 
 const ALLOWED=new Set(['core','glúteos','aductores','cuádriceps','isquiotibiales','bíceps','dorsal ancho','romboides','tríceps','oblicuos','erectores espinales','deltoides anterior','deltoides posterior','deltoides','serrato','pectoral']);
 const GENERIC=new Set(['movilidad','global','músculo objetivo']);
 const CAMERAS=new Set(['front','three-quarter-front','side','three-quarter-rear','rear']);
-const MAX_CABLE_PLAN_REPAIR_ATTEMPTS=1;
+const MAX_PLAN_REPAIR_ATTEMPTS=1;
 function arg(name){const i=process.argv.indexOf(name);return i>=0?process.argv[i+1]:null;}
 function exact(v,n){const s=String(v||'').trim();if(!s)throw new Error(`${n}_REQUIRED`);return s;}
 function norm(v){return String(v||'').trim().toLocaleLowerCase('es');}
@@ -29,7 +30,7 @@ async function main(){
   const claimPath=exact(arg('--claim'),'CLAIM');const outPath=exact(arg('--out'),'OUT');
   const claim=JSON.parse(fs.readFileSync(claimPath,'utf8'));const exercise=claim?.claim?.exercise;if(!exercise?.id)throw new Error('CLAIM_EXERCISE_MISSING');
   const proxy=exact(process.env.IBERFIT_AI_PROXY_URL,'IBERFIT_AI_PROXY_URL').replace(/\/+$/,'')+'/qa';const token=exact(process.env.IBERFIT_AI_PROXY_TOKEN,'IBERFIT_AI_PROXY_TOKEN');
-  const primary=(exercise.primary_muscles||[]).map(norm);const secondary=(exercise.secondary_muscles||[]).map(norm);const inferred=primary.some(x=>GENERIC.has(x));const cable=usesCableEquipment(exercise);
+  const primary=(exercise.primary_muscles||[]).map(norm);const secondary=(exercise.secondary_muscles||[]).map(norm);const inferred=primary.some(x=>GENERIC.has(x));const cable=usesCableEquipment(exercise);const movementGuard=movementVisualGuard(exercise);
   const requestPlan=async(repairAttempt=0,repairReason='')=>{
     const rubric=[
       'You are the movement-visual planner for IBERFIT Exercise Media System v1. Produce a precise image-generation plan from the canonical exercise record. Do not invent a different exercise.',
@@ -37,8 +38,9 @@ async function main(){
       `Primary muscles=${primary.join(', ')}; secondary muscles=${secondary.join(', ')}.`,
       `Cues=${(exercise.cues||[]).join(' | ')}. Instructions=${(exercise.instructions_es||[]).join(' | ')}. Precautions=${(exercise.precautions||[]).join(' | ')}.`,
       'Describe one unambiguous START phase and one unambiguous FINAL phase for the exact exercise. Include support points, grip, joint relationships and equipment placement. Keep each phase under 700 characters.',
+      movementGuard,
       cable?'Cable/pulley continuity is non-negotiable: both hands must remain visibly gripping one cable handle each in START and FINAL, and the cables remain visibly connected and under tension. Hands may cross the body midline, but forearms must never fold across the torso and the athlete must never release the handles. Describe this explicitly in both phases.':'',
-      repairAttempt>0?`REPAIR PASS ${repairAttempt}: the previous cable plan was rejected for ${repairReason}. Rewrite START and FINAL so grip/support continuity is explicit, physically possible and visually unambiguous. Do not change the exercise.`:'',
+      repairAttempt>0?`REPAIR PASS ${repairAttempt}: the previous movement plan was rejected for ${repairReason}. Rewrite START and FINAL so every defining support/contact relationship is explicit, physically possible and internally consistent. Remove the contradiction rather than paraphrasing it. Do not change the exercise.`:'',
       'Choose one camera from: front, three-quarter-front, side, three-quarter-rear, rear. Instructional clarity outranks cinematic appearance.',
       `For anatomy, use ONLY terms from this closed list: ${[...ALLOWED].join(', ')}.`,
       inferred?'The catalog primary target is generic. Infer the smallest anatomically defensible primary target list from the exercise name, pattern, cues and instructions. If not defensible, return anatomy_primary as an empty array.':'The catalog primary targets are specific. anatomy_primary must include every specific canonical primary target exactly; do not replace them with broader or different muscles.',
@@ -53,22 +55,21 @@ async function main(){
     const parsed=extractStructuredResponse(payload,{missingError:'PLAN_RESPONSE_MISSING',invalidError:'PLAN_JSON_INVALID'});assertBasicPlanShape(parsed);return parsed;
   };
   let plan=null;let repairReason='';
-  const maxRepair=cable?MAX_CABLE_PLAN_REPAIR_ATTEMPTS:0;
-  for(let repairAttempt=0;repairAttempt<=maxRepair;repairAttempt+=1){
+  for(let repairAttempt=0;repairAttempt<=MAX_PLAN_REPAIR_ATTEMPTS;repairAttempt+=1){
     plan=await requestPlan(repairAttempt,repairReason);
-    if(!cable)break;
-    const issue=cablePlanIssue(plan);
+    const issue=(cable?cablePlanIssue(plan):null)||movementPlanIssue(exercise,plan);
     if(!issue)break;
     repairReason=issue;
-    if(repairAttempt>=MAX_CABLE_PLAN_REPAIR_ATTEMPTS)throw new Error(issue);
+    if(repairAttempt>=MAX_PLAN_REPAIR_ATTEMPTS)throw new Error(issue);
   }
   assertBasicPlanShape(plan);
+  const finalMovementIssue=movementPlanIssue(exercise,plan);if(finalMovementIssue)throw new Error(finalMovementIssue);
+  if(cable){const finalCableIssue=cablePlanIssue(plan);if(finalCableIssue)throw new Error(finalCableIssue);}
   const anatomyPrimary=canonicalList(plan.anatomy_primary),anatomySecondary=canonicalList(plan.anatomy_secondary);
   if(anatomyPrimary.length<1)throw new Error('PLAN_ANATOMY_PRIMARY_EMPTY');
   if(!inferred){for(const muscle of primary){if(GENERIC.has(muscle))continue;if(!anatomyPrimary.includes(muscle))throw new Error(`PLAN_CANONICAL_PRIMARY_MISSING:${muscle}`);}}
   const confidence=Number(plan.planner_confidence);const min=inferred?0.985:0.96;if(!Number.isFinite(confidence)||confidence<min)throw new Error(`PLAN_CONFIDENCE_LOW:${confidence}`);
   const output={schema:'iberfit.exercise.media.auto.plan.v1',exercise_id:exercise.id,start:plan.start.trim(),final:plan.final.trim(),camera:plan.camera,anatomy_primary:anatomyPrimary,anatomy_secondary:anatomySecondary,wall_watermark:plan.wall_watermark===true,anatomy_inferred:inferred,planner_confidence:confidence,notes:Array.isArray(plan.notes)?plan.notes.map(String).slice(0,8):[]};
-  fs.mkdirSync(path.dirname(outPath),{recursive:true});
-  fs.writeFileSync(outPath,`${JSON.stringify(output,null,2)}\n`);console.log(JSON.stringify(output));
+  fs.mkdirSync(path.dirname(outPath),{recursive:true});fs.writeFileSync(outPath,`${JSON.stringify(output,null,2)}\n`);console.log(JSON.stringify(output));
 }
 main().catch(e=>{console.error(e instanceof Error?e.message:String(e));process.exit(1);});
