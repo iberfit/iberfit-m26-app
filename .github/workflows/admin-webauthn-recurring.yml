@@ -34,6 +34,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: node qa/admin-webauthn-recurring/inject-mobile-event-diagnostics.mjs --check
       - run: node --test tests/m26_admin_webauthn_recurring_contract.test.mjs tests/m26_coach_webauthn_recurring_contract.test.mjs
 
   live-admin-webauthn:
@@ -78,6 +79,8 @@ jobs:
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
           M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
         run: node qa/rc64/build-authenticated-surface.mjs
+      - name: Inject temporary Admin mobile event diagnostics
+        run: node qa/admin-webauthn-recurring/inject-mobile-event-diagnostics.mjs
       - name: Prepare ephemeral Admin QA WebAuthn fixture
         shell: bash
         env:
