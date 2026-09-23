@@ -26,7 +26,7 @@ function bearPhaseIssue(text,phase){
   const n=normalize(text);
   const handsFloor=/(?:manos?[^.]{0,100}(?:suelo|piso|apoy|contact)|(?:suelo|piso|apoy|contact)[^.]{0,100}manos?)/u.test(n);
   const feetSupport=/(?:(?:pies|puntas|antepi[eé]s)[^.]{0,100}(?:suelo|piso|apoy|contact)|(?:suelo|piso|apoy|contact)[^.]{0,100}(?:pies|puntas|antepi[eé]s))/u.test(n);
-  const feetDenied=/(?:(?:sin|no)\s+(?:contact\w*|apoy\w*)[^.]{0,120}(?:pies|puntas|antepi[eé]s)|(?:pies|puntas|antepi[eé]s)[^.]{0,120}(?:sin|no)\s+(?:contact\w*|apoy\w*))/u.test(n);
+  const feetDenied=/(?:sin\s+contact\w*|no\s+apoy\w*)[^.]{0,160}(?:pies|puntas|antepi[eé]s)/u.test(n)||/(?:pies|puntas|antepi[eé]s)[^.]{0,160}(?:sin\s+contact\w*|no\s+apoy\w*)/u.test(n);
   const kneesHover=/(?:(?:rodillas?)[^.]{0,100}(?:suspend|elevad|sin contacto|no apoy)|(?:suspend|elevad|sin contacto|no apoy\w*)[^.]{0,100}(?:rodillas?))/u.test(n);
   const hipsShoulders=/(?:(?:cadera|pelvis)[^.]{0,120}hombros?|hombros?[^.]{0,120}(?:cadera|pelvis))/u.test(n);
   const trunk=/(?:horizontal|línea recta|linea recta|columna[^.]{0,80}(?:neutra|rígida|rigida)|tronco[^.]{0,80}(?:horizontal|neutro|rígido|rigido))/u.test(n);
