@@ -53,12 +53,20 @@ function isGenericMuscle(value:string){return ["movilidad","global","músculo ob
 function hasGenericAnatomy(exercise:any){return Array.isArray(exercise?.primary_muscles)&&exercise.primary_muscles.some((m:string)=>isGenericMuscle(m));}
 function latestByExercise(rows:any[]){const map=new Map<string,any>();for(const row of rows||[]){if(!map.has(String(row.exercise_id||"")))map.set(String(row.exercise_id||""),row);}return map;}
 async function claim(db:any,claims:any){
+  const runId=String(claims?.run_id||"");const workflowSha=String(claims?.sha||"");
+  if(!runId||!workflowSha)fail("IBERFIT_AUTO_FACTORY_RUN_ID_REQUIRED",400);
   const staleBefore=new Date(Date.now()-STALE_ACTIVE_MS).toISOString();
   await db.from("exercise_media_jobs").update({status:"failed",last_error:"AUTO_FACTORY_STALE_RECOVERY",completed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).in("status",["generating","qa"]).lt("updated_at",staleBefore);
   const catalogRes=await db.from("exercise_catalog").select("id,name_es,pattern,intent,equipment,difficulty,primary_muscles,secondary_muscles,cues,instructions_es,precautions,tags,media_status,media,review_status,active").eq("active",true).neq("review_status","retirado").order("id",{ascending:true}).limit(1000);
   if(catalogRes.error)fail(`IBERFIT_AUTO_FACTORY_CATALOG_READ_FAILED:${catalogRes.error.message}`,502);
-  const jobsRes=await db.from("exercise_media_jobs").select("id,exercise_id,status,attempts,last_error,updated_at").order("updated_at",{ascending:false}).limit(5000);
+  const jobsRes=await db.from("exercise_media_jobs").select("id,exercise_id,status,attempts,last_error,updated_at,visual_spec").order("updated_at",{ascending:false}).limit(5000);
   if(jobsRes.error)fail(`IBERFIT_AUTO_FACTORY_JOBS_READ_FAILED:${jobsRes.error.message}`,502);
+  const prior=(jobsRes.data||[]).find((job:any)=>["generating","qa"].includes(String(job?.status||""))&&String(job?.visual_spec?.run_id||"")===runId&&String(job?.visual_spec?.workflow_sha||"")===workflowSha&&job?.visual_spec?.visualSystem===SYSTEM_V1);
+  if(prior){
+    const exercise=(catalogRes.data||[]).find((item:any)=>String(item?.id||"")===String(prior.exercise_id||""));
+    if(!exercise)fail("IBERFIT_AUTO_FACTORY_RECOVERY_EXERCISE_MISSING",409);
+    return json({ok:true,done:false,recovered:true,claim:{job:prior,exercise,inferred_anatomy:prior?.visual_spec?.inferredAnatomy===true}});
+  }
   const latest=latestByExercise(jobsRes.data||[]);
   const now=Date.now();
   const candidates=(catalogRes.data||[]).filter((exercise:any)=>{
@@ -81,7 +89,7 @@ async function claim(db:any,claims:any){
   for(const exercise of candidates.slice(0,12)){
     const previous=latest.get(exercise.id);
     const inferredAnatomy=hasGenericAnatomy(exercise);
-    const visualSpec={schema:"iberfit.exercise.media.auto-job.v1",visualSystem:SYSTEM_V1,inferredAnatomy,run_id:String(claims.run_id||""),workflow_sha:String(claims.sha||"")};
+    const visualSpec={schema:"iberfit.exercise.media.auto-job.v1",visualSystem:SYSTEM_V1,inferredAnatomy,run_id:runId,workflow_sha:workflowSha};
     let job:any=null;
     if(previous?.status==="failed"){
       const update=await db.from("exercise_media_jobs").update({status:"generating",attempts:Number(previous.attempts||0)+1,visual_spec:visualSpec,last_error:null,locked_at:new Date().toISOString(),completed_at:null,updated_at:new Date().toISOString()}).eq("id",previous.id).eq("status","failed").select("id,exercise_id,status,attempts,visual_spec").maybeSingle();
@@ -90,7 +98,7 @@ async function claim(db:any,claims:any){
       const insert=await db.from("exercise_media_jobs").insert({exercise_id:exercise.id,status:"generating",attempts:1,visual_spec:visualSpec,locked_at:new Date().toISOString()}).select("id,exercise_id,status,attempts,visual_spec").maybeSingle();
       if(!insert.error&&insert.data)job=insert.data;
     }
-    if(job)return json({ok:true,done:false,claim:{job,exercise,inferred_anatomy:inferredAnatomy}});
+    if(job)return json({ok:true,done:false,recovered:false,claim:{job,exercise,inferred_anatomy:inferredAnatomy}});
   }
   fail("IBERFIT_AUTO_FACTORY_CLAIM_RACE",409);
 }
