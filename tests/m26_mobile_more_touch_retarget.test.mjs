@@ -67,6 +67,14 @@ function pointerEvent({pointerId=1,pointerType='touch',isPrimary=true,target,cli
   return {pointerId,pointerType,isPrimary,target,clientX,clientY};
 }
 
+function touchPoint({identifier=1,clientX=24,clientY=24}={}){
+  return {identifier,clientX,clientY};
+}
+
+function touchEvent({point=touchPoint(),active=1}={}){
+  return {changedTouches:[point],touches:Array.from({length:active},()=>point)};
+}
+
 function clickEvent(target,{trusted=true}={}){
   const calls={prevented:0,stopped:0};
   return {
@@ -89,7 +97,7 @@ function createBridge(documentLike){
   return {bridge,expire(){expiry?.();}};
 }
 
-test('adjusted trusted touch click inside Admin mobile Más is rerouted to the physical route button',()=>{
+test('adjusted trusted pointer click inside Admin mobile Más is rerouted to the physical route button',()=>{
   const {summary,button}=createFixture();
   const documentLike=createDocument();
   const {bridge}=createBridge(documentLike);
@@ -104,6 +112,44 @@ test('adjusted trusted touch click inside Admin mobile Más is rerouted to the p
   assert.equal(adjusted.calls.prevented,1,'retargeted native click must be cancelled');
   assert.equal(adjusted.calls.stopped,1,'retargeted native click must not reach the summary handler');
   assert.equal(button.clicks,1,'canonical route button click must be replayed exactly once');
+  bridge.destroy();
+});
+
+test('touch-only Admin tap fallback reroutes a trusted summary click to the physical route button',()=>{
+  const {summary,button}=createFixture();
+  const documentLike=createDocument();
+  const {bridge}=createBridge(documentLike);
+  documentLike.hit=button;
+  const point=touchPoint({identifier:11});
+
+  documentLike.emit('touchstart',touchEvent({point,active:1}));
+  documentLike.emit('touchend',touchEvent({point,active:0}));
+  const adjusted=clickEvent(summary,{trusted:true});
+  documentLike.emit('click',adjusted);
+
+  assert.equal(adjusted.calls.prevented,1,'touch-only retargeted native click must be cancelled');
+  assert.equal(adjusted.calls.stopped,1,'touch-only retargeted native click must not reach the summary handler');
+  assert.equal(button.clicks,1,'touch-only canonical route button click must be replayed exactly once');
+  bridge.destroy();
+});
+
+test('coexisting pointer and touch streams replay adjusted Admin navigation only once',()=>{
+  const {summary,button}=createFixture();
+  const documentLike=createDocument();
+  const {bridge}=createBridge(documentLike);
+  documentLike.hit=button;
+  const point=touchPoint({identifier:22});
+
+  documentLike.emit('pointerdown',pointerEvent({target:summary,pointerId:22}));
+  documentLike.emit('touchstart',touchEvent({point,active:1}));
+  documentLike.emit('pointerup',pointerEvent({target:summary,pointerId:22}));
+  documentLike.emit('touchend',touchEvent({point,active:0}));
+  const adjusted=clickEvent(summary,{trusted:true});
+  documentLike.emit('click',adjusted);
+
+  assert.equal(adjusted.calls.prevented,1);
+  assert.equal(adjusted.calls.stopped,1);
+  assert.equal(button.clicks,1,'mixed pointer/touch delivery must never duplicate route replay');
   bridge.destroy();
 });
 
@@ -125,7 +171,7 @@ test('direct trusted click on the same Admin mobile Más route remains untouched
   bridge.destroy();
 });
 
-test('residual trusted click is suppressed after canonical Admin pointerup navigation unmounts the route button',()=>{
+test('residual trusted click is suppressed after canonical Admin navigation unmounts the route button',()=>{
   const {summary,button,details}=createFixture();
   const replacement=createFixture();
   const documentLike=createDocument();
@@ -151,9 +197,12 @@ test('Coach mobile Más remains completely outside the Admin touch bridge',()=>{
   const documentLike=createDocument();
   const {bridge}=createBridge(documentLike);
   documentLike.hit=button;
+  const point=touchPoint({identifier:33});
 
   documentLike.emit('pointerdown',pointerEvent({target:summary}));
   documentLike.emit('pointerup',pointerEvent({target:summary}));
+  documentLike.emit('touchstart',touchEvent({point,active:1}));
+  documentLike.emit('touchend',touchEvent({point,active:0}));
   const trusted=clickEvent(summary,{trusted:true});
   documentLike.emit('click',trusted);
 
@@ -163,7 +212,7 @@ test('Coach mobile Más remains completely outside the Admin touch bridge',()=>{
   bridge.destroy();
 });
 
-test('mouse, mismatched pointer release and cancelled gestures never synthesize navigation',()=>{
+test('mouse, mismatched pointer release and cancelled pointer gestures never synthesize navigation',()=>{
   const first=createFixture();
   const second=createFixture();
   const documentLike=createDocument();
@@ -185,8 +234,28 @@ test('mouse, mismatched pointer release and cancelled gestures never synthesize 
   documentLike.emit('pointerdown',pointerEvent({target:first.summary,pointerId:8}));
   documentLike.emit('pointercancel',{pointerId:8});
   documentLike.emit('click',clickEvent(first.summary,{trusted:true}));
-  assert.equal(first.button.clicks,0,'cancelled gestures must fail closed');
+  assert.equal(first.button.clicks,0,'cancelled pointer gestures must fail closed');
 
+  bridge.destroy();
+});
+
+test('multitouch and cancelled touch gestures fail closed',()=>{
+  const {summary,button}=createFixture();
+  const documentLike=createDocument();
+  const {bridge}=createBridge(documentLike);
+  documentLike.hit=button;
+  const point=touchPoint({identifier:44});
+  const second=touchPoint({identifier:45,clientX:40,clientY:40});
+
+  documentLike.emit('touchstart',{changedTouches:[point],touches:[point,second]});
+  documentLike.emit('touchend',touchEvent({point,active:0}));
+  documentLike.emit('click',clickEvent(summary,{trusted:true}));
+  assert.equal(button.clicks,0,'multitouch must never arm navigation replay');
+
+  documentLike.emit('touchstart',touchEvent({point,active:1}));
+  documentLike.emit('touchcancel',{changedTouches:[point],touches:[]});
+  documentLike.emit('click',clickEvent(summary,{trusted:true}));
+  assert.equal(button.clicks,0,'cancelled touch gestures must fail closed');
   bridge.destroy();
 });
 
@@ -207,6 +276,25 @@ test('synthetic controller clicks are never intercepted by the Admin retarget br
   bridge.destroy();
 });
 
+test('expired physical gestures cannot retarget a later trusted click',()=>{
+  const {summary,button}=createFixture();
+  const documentLike=createDocument();
+  const {bridge,expire}=createBridge(documentLike);
+  documentLike.hit=button;
+  const point=touchPoint({identifier:55});
+
+  documentLike.emit('touchstart',touchEvent({point,active:1}));
+  documentLike.emit('touchend',touchEvent({point,active:0}));
+  expire();
+  const late=clickEvent(summary,{trusted:true});
+  documentLike.emit('click',late);
+
+  assert.equal(late.calls.prevented,0);
+  assert.equal(late.calls.stopped,0);
+  assert.equal(button.clicks,0,'expired gestures must never replay navigation');
+  bridge.destroy();
+});
+
 test('canonical shell module graph loads navigation before the controller can handle routes',()=>{
   const routeGuard=fs.readFileSync(new URL('../src/m26/shell/route-guard.js',import.meta.url),'utf8');
   const controller=fs.readFileSync(new URL('../src/m26/shell/shell-controller.js',import.meta.url),'utf8');
@@ -216,4 +304,6 @@ test('canonical shell module graph loads navigation before the controller can ha
   assert.match(controller,/from '\.\/route-guard\.js'/u,'shell controller must load route guard before mounting');
   assert.match(navigation,/installMobileMoreTouchRetargetBridge\(\);/u,'navigation module must install the bridge as a guarded side effect');
   assert.match(navigation,/\.m26-shell\[data-m26-role="admin"\]/u,'retarget bridge must stay scoped to Admin');
+  assert.match(navigation,/addEventListener\('touchstart'/u,'touch-only browsers must arm the Admin retarget bridge');
+  assert.match(navigation,/addEventListener\('touchend'/u,'touch-only browsers must commit the physical gesture before click compatibility events');
 });
