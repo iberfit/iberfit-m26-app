@@ -10,6 +10,7 @@ import {movementVisualGuard} from './auto-factory-movement-guard.mjs';
 const MODEL='@cf/black-forest-labs/flux-2-klein-4b';
 const RAW_WIDTH=1024;
 const RAW_HEIGHT=1600;
+const START_REPAIR_ATTEMPTS=1;
 const FINAL_REPAIR_ATTEMPTS=1;
 const MAX_MODEL_REFERENCE_DIMENSION=511;
 function arg(name){const i=process.argv.indexOf(name);return i>=0?process.argv[i+1]:null;}
@@ -32,9 +33,28 @@ function equipmentVisualGuard(exercise){
   if(/rueda abdominal|ab wheel|ab roller/u.test(descriptor))return 'Equipment geometry lock: use exactly ONE standard compact ab roller: one small wheel about 25-35 cm in diameter with one straight axle through the center and short handles protruding equally from both sides. Both hands stay on the side handles. It is not a wheelchair, not a cable reel, not a barbell plate, not two large wheels and not any oversized circular apparatus.';
   return `Equipment geometry lock: use the ordinary commercial form of "${exercise?.equipment||'the named equipment'}" at realistic human scale. Do not enlarge, duplicate, merge or redesign the equipment; required handles and support points must remain physically plausible.`;
 }
-function archiveRejectedFinal(file,outDir,exerciseId,attempt){
+function archiveRejectedPhase(file,outDir,exerciseId,phase,attempt){
   if(!file||!fs.existsSync(file))return;
-  const rejectedDir=path.join(outDir,'rejected');fs.mkdirSync(rejectedDir,{recursive:true});const extension=path.extname(file);const archived=path.join(rejectedDir,`${exerciseId}-final-attempt-${attempt}${extension}`);fs.copyFileSync(file,archived);const meta=`${file}.json`;if(fs.existsSync(meta))fs.copyFileSync(meta,`${archived}.json`);fs.rmSync(file,{force:true});fs.rmSync(meta,{force:true});
+  const rejectedDir=path.join(outDir,'rejected');fs.mkdirSync(rejectedDir,{recursive:true});const extension=path.extname(file);const archived=path.join(rejectedDir,`${exerciseId}-${phase}-attempt-${attempt}${extension}`);fs.copyFileSync(file,archived);const meta=`${file}.json`;if(fs.existsSync(meta))fs.copyFileSync(meta,`${archived}.json`);fs.rmSync(file,{force:true});fs.rmSync(meta,{force:true});
+}
+async function validateStartPhase({claim,plan,startFile,outDir,proxy,token,reviewAttempt=0}){
+  const exercise=claim.claim.exercise;const inferred=Boolean(plan.anatomy_inferred);const minConfidence=inferred?0.985:0.97;const movementGuard=movementVisualGuard(exercise);
+  const keys=['start_matches_plan','movement_identity_lock','equipment_match','grip_support_setup','critical_body_visible','no_portrait_or_rest_pose'];
+  const rubric=[
+    'You are the fail-closed START-phase reviewer for IBERFIT Exercise Media System v1. Judge the generated START photograph before it may become the continuity reference for FINAL.',
+    `Exercise=${exercise.name_es}; equipment=${exercise.equipment}; pattern=${exercise.pattern}.`,
+    `Planned START=${plan.start}`,
+    `Canonical cues=${(exercise.cues||[]).join(' | ')}. Precautions=${(exercise.precautions||[]).join(' | ')}.`,
+    movementGuard,
+    'Set movement_identity_lock=false whenever the defining body orientation, support/contact pattern or required START setup violates the movement lock. A visually related squat, crouch, lunge, portrait or rest pose must never pass.',
+    'Verify every required floor contact, grip, handle, cable, machine support and critical joint needed by START. Reject hidden or invented supports and physically impossible setup.',
+    'Confidence calibration is mandatory and evidence-based. Use 0.99-1.00 only when every required START relationship is clearly visible and unambiguous; 0.97-0.98 for a valid START with only minor non-critical visual uncertainty; <=0.96 when any support, grip, body orientation, equipment relationship or defining joint position requires guessing.',
+    `Return ONLY JSON: {${keys.map(k=>`"${k}":boolean`).join(',')},"confidence":number,"issues":[string]}.`
+  ].join('\n');
+  const body={messages:[{role:'system',content:'Output exactly one JSON object. Be adversarial and fail ambiguity.'},{role:'user',content:[{type:'image_url',image_url:{url:dataUri(startFile)}},{type:'text',text:rubric}]}],temperature:0,stream:false,max_completion_tokens:1800,chat_template_kwargs:{enable_thinking:false,preserve_thinking:false},response_format:{type:'json_object'}};
+  const response=await fetchWithTransientRetry(proxy.replace(/\/generate$/,'/qa'),{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify(body),redirect:'error'},{label:'START_PHASE_QA'});if(!response.ok)throw new Error(`START_PHASE_QA_HTTP_${response.status}:${(await response.text()).slice(0,900)}`);
+  const payload=await response.json();if(payload?.ok!==true)throw new Error(`START_PHASE_QA_PROXY_FAILED:${JSON.stringify(payload).slice(0,1200)}`);const review=extractStructuredResponse(payload,{missingError:'START_PHASE_QA_RESPONSE_MISSING',invalidError:'START_PHASE_QA_JSON_INVALID'});
+  const checks={};for(const key of keys)checks[key]=review[key]===true;const confidence=Number(review.confidence);const pass=keys.every(k=>checks[k]===true)&&Number.isFinite(confidence)&&confidence>=minConfidence;const output={schema:'iberfit.exercise.media.auto.start-phase-qa.v1',exercise_id:exercise.id,pass,confidence:Number.isFinite(confidence)?confidence:0,min_confidence:minConfidence,checks,issues:Array.isArray(review.issues)?review.issues.map(String).slice(0,12):[],anatomy_inferred:inferred,review_attempt:reviewAttempt,reviewed_at:new Date().toISOString()};const serialized=`${JSON.stringify(output,null,2)}\n`;fs.writeFileSync(path.join(outDir,'start-phase-qa.json'),serialized);fs.writeFileSync(path.join(outDir,`start-phase-qa-attempt-${reviewAttempt}.json`),serialized);return output;
 }
 async function validateRawPair({claim,plan,startFile,finalFile,outDir,proxy,token,reviewAttempt=0}){
   const exercise=claim.claim.exercise;const inferred=Boolean(plan.anatomy_inferred);const minConfidence=inferred?0.985:0.97;const movementGuard=movementVisualGuard(exercise);
@@ -67,11 +87,13 @@ async function main(){
   const continuityModelRef=continuityRef?prepareModelReference(continuityRef,outDir,`${exercise.id}-start-model`):null;
   const movementGuard=movementVisualGuard(exercise);
   const generateOnce=async(repairAttempt=0,repairIssues=[])=>{
-    const repairInstruction=phase==='final'&&repairAttempt>0?`REPAIR PASS ${repairAttempt}: strict raw QA rejected the previous FINAL. Correct every listed defect while preserving the approved START scene, identity, camera and valid equipment geometry. Previous QA issues: ${repairIssues.join(' | ')}. This is a repair, not a stylistic variation. Make the required FINAL movement phase unmistakably different from START while keeping every required grip and support connected.`:'';
+    const repairInstruction=repairAttempt>0?(phase==='start'
+      ?`REPAIR PASS ${repairAttempt}: strict START QA rejected the previous START. Regenerate the canonical START from the plan and correct every listed defect. Previous QA issues: ${repairIssues.join(' | ')}. Preserve athlete identity, clothing and premium visual language, but DO NOT preserve the rejected pose or invalid support/contact geometry.`
+      :`REPAIR PASS ${repairAttempt}: strict raw QA rejected the previous FINAL. Correct every listed defect while preserving the approved START scene, identity, camera and valid equipment geometry. Previous QA issues: ${repairIssues.join(' | ')}. This is a repair, not a stylistic variation. Make the required FINAL movement phase unmistakably different from START while keeping every required grip and support connected.`):'';
     const prompt=[
       'Create ONE realistic premium exercise-library photograph for IBERFIT. Exactly one adult male athlete and one continuous scene. Vertical 1024x1600.',
       'Input image 0 is the approved IBERFIT male identity reference ONLY. Preserve the same face, hair, beard, age, complexion and natural athletic build. Do not copy its pose.',
-      phase==='final'?'Input image 1 is the already generated START phase continuity reference. Preserve the same gym scene, camera language, athlete scale, clothing, equipment, cable/machine geometry, attachment points and grip/support setup. Change the body position and equipment displacement as much as the required FINAL phase demands. The FINAL must clearly show the completed movement, not a near-START pose.':'Generate the START phase as the canonical continuity scene for the later FINAL phase.',
+      phase==='final'?'Input image 1 is the independently QA-approved START phase continuity reference. Preserve the same gym scene, camera language, athlete scale, clothing, equipment, cable/machine geometry, attachment points and grip/support setup. Change the body position and equipment displacement as much as the required FINAL phase demands. The FINAL must clearly show the completed movement, not a near-START pose.':'Generate the START phase as the canonical continuity scene. This START will be rejected before FINAL generation unless its defining movement support/contact pattern is visibly correct.',
       repairInstruction,
       'The athlete wears a completely plain black short-sleeve technical shirt, plain black shorts and plain black training shoes. NO logo, NO letters, NO symbol, NO brand, NO watermark anywhere. Branding is composited later from the exact official repository asset.',
       'Environment: premium dark green and charcoal gym, realistic commercial photography, warm cream highlights and restrained gold architectural details. No neon, no generic AI glow, no poster design, no infographic and no text.',
@@ -89,10 +111,17 @@ async function main(){
     const response=await fetchWithTransientRetry(proxy,{method:'POST',headers:{authorization:`Bearer ${token}`},body:form,redirect:'error'},{label:`GENERATE_${phase.toUpperCase()}${repairAttempt?`_REPAIR_${repairAttempt}`:''}`});if(!response.ok)throw new Error(`GENERATE_HTTP_${response.status}:${(await response.text()).slice(0,1000)}`);const payload=await response.json();if(payload?.ok!==true)throw new Error(`GENERATE_PROXY_FAILED:${JSON.stringify(payload).slice(0,1200)}`);
     const image=extractImage(payload),mime=detectMime(image);const file=path.join(outDir,`${exercise.id}-${phase}${ext(mime)}`);fs.writeFileSync(file,image);const metadata={schema:'iberfit.exercise.media.auto.phase.v1',exercise_id:exercise.id,phase,model:payload.model||MODEL,fallback:Boolean(payload.fallback),width:RAW_WIDTH,height:RAW_HEIGHT,mime,seed,prompt_sha256:crypto.createHash('sha256').update(prompt).digest('hex'),identity_source_sha256:sha256File(athleteRef),identity_model_reference_sha256:sha256File(athleteModelRef),continuity_reference_sha256:continuityRef?sha256File(continuityRef):null,continuity_source_sha256:continuityRef?sha256File(continuityRef):null,continuity_model_reference_sha256:continuityModelRef?sha256File(continuityModelRef):null,reference_max_dimension:MAX_MODEL_REFERENCE_DIMENSION,repair_attempt:repairAttempt,publishable:false};fs.writeFileSync(`${file}.json`,`${JSON.stringify(metadata,null,2)}\n`);console.log(JSON.stringify({ok:true,file,...metadata}));return{file,metadata};
   };
-  if(phase==='start'){await generateOnce(0,[]);return;}
+  if(phase==='start'){
+    let generated=null;let review=null;let repairIssues=[];
+    for(let attempt=0;attempt<=START_REPAIR_ATTEMPTS;attempt+=1){
+      if(attempt>0&&generated)archiveRejectedPhase(generated.file,outDir,exercise.id,'start',attempt-1);
+      generated=await generateOnce(attempt,repairIssues);review=await validateStartPhase({claim,plan,startFile:generated.file,outDir,proxy,token,reviewAttempt:attempt});if(review.pass)return;repairIssues=review.issues;
+    }
+    const failed=review?Object.entries(review.checks).filter(([,ok])=>ok!==true).map(([key])=>key).join(',')||'confidence':'unknown';throw new Error(`START_PHASE_QA_FAILED:${review?.confidence??0}:${failed}`);
+  }
   let generated=null;let review=null;let repairIssues=[];
   for(let attempt=0;attempt<=FINAL_REPAIR_ATTEMPTS;attempt+=1){
-    if(attempt>0&&generated)archiveRejectedFinal(generated.file,outDir,exercise.id,attempt-1);
+    if(attempt>0&&generated)archiveRejectedPhase(generated.file,outDir,exercise.id,'final',attempt-1);
     generated=await generateOnce(attempt,repairIssues);review=await validateRawPair({claim,plan,startFile:continuityRef,finalFile:generated.file,outDir,proxy,token,reviewAttempt:attempt});if(review.pass)return;repairIssues=review.issues;
   }
   const failed=review?Object.entries(review.checks).filter(([,ok])=>ok!==true).map(([key])=>key).join(',')||'confidence':'unknown';throw new Error(`RAW_PHASE_QA_FAILED:${review?.confidence??0}:${failed}`);
