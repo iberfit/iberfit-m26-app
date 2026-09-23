@@ -9,10 +9,10 @@ test('Flux multi-reference inputs are normalized below 512x512 before generation
   assert.match(generator,/MAX_MODEL_REFERENCE_DIMENSION=511/);
   assert.match(generator,/prepareModelReference\(/);
   assert.match(generator,/prepare-model-reference\.py/);
-  assert.match(generator,/athleteModelRef/);
-  assert.match(generator,/continuityModelRef/);
-  assert.match(generator,/input_image_0.*athleteModelRef/s);
-  assert.match(generator,/input_image_1.*continuityModelRef/s);
+  assert.match(generator,/const athleteBytes=fs\.readFileSync\(athleteModelRef\)/);
+  assert.match(generator,/input_image_0',new Blob\(\[athleteBytes\]/);
+  assert.match(generator,/const continuityBytes=fs\.readFileSync\(continuityModelRef\)/);
+  assert.match(generator,/input_image_1',new Blob\(\[continuityBytes\]/);
   assert.match(helper,/MAX_DIMENSION = 511/);
   assert.match(helper,/args\.max_size >= 512/);
   assert.match(helper,/width >= 512 or height >= 512/);
