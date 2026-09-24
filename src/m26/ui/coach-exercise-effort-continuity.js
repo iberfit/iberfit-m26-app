@@ -56,6 +56,30 @@ function chartPoints(metric){
     .filter((point)=>/^\d{4}-\d{2}-\d{2}$/u.test(point.date)&&point.value!==null);
 }
 
+function longitudinalCoachSummary(assessment){
+  const evidence=assessment?.evidence||{};
+  const confirmation=String(evidence.longitudinalConfirmation||'').trim().toLowerCase();
+  const points=Math.trunc(Number(evidence.longitudinalPointsUsed||0));
+  if(!['confirmed','conflicted'].includes(confirmation)||points<3)return null;
+
+  const direction=String(evidence.longitudinalDirection||'').trim().toLowerCase();
+  const directionLabel=({
+    up:'al alza',
+    down:'a la baja',
+    flat:'estable',
+  })[direction]||null;
+  if(!directionLabel)return null;
+
+  return Object.freeze({
+    state:confirmation,
+    points,
+    label:`Tendencia reciente · ${points} exposiciones`,
+    detail:confirmation==='confirmed'
+      ?`La tendencia ${directionLabel} confirma la señal de la última exposición.`
+      :`La tendencia ${directionLabel} no confirma todavía la señal de la última exposición; conviene otra referencia comparable antes de concluir una tendencia sostenida.`,
+  });
+}
+
 function orderedExercisePerformance(routeVm){
   const exercises=Array.isArray(routeVm?.exerciseProgress?.exercises)
     ?routeVm.exerciseProgress.exercises
@@ -112,6 +136,60 @@ function effortKpi(study,selection){
       ?`${prefix} desde inicio ${signed(delta)}`
       :'Sin dos referencias comparables';
   }
+  return true;
+}
+
+function enhanceLongitudinalContext(study,assessment,documentLike){
+  const existing=study?.querySelector?.('[data-m26-coach-exercise-longitudinal]');
+  const summary=longitudinalCoachSummary(assessment);
+  if(!summary){
+    if(existing){
+      existing.remove?.();
+      return true;
+    }
+    return false;
+  }
+
+  if(existing){
+    existing.setAttribute('data-state',summary.state);
+    const label=existing.querySelector?.('span');
+    const detail=existing.querySelector?.('strong');
+    if(label)label.textContent=summary.label;
+    if(detail)detail.textContent=summary.detail;
+    return true;
+  }
+
+  const block=documentLike.createElement('div');
+  block.className='m26-coach-exercise-study-recent';
+  block.setAttribute('data-m26-coach-exercise-longitudinal','true');
+  block.setAttribute('data-state',summary.state);
+  block.setAttribute('aria-label','Tendencia longitudinal reciente');
+  const label=documentLike.createElement('span');
+  label.textContent=summary.label;
+  const detail=documentLike.createElement('strong');
+  detail.textContent=summary.detail;
+  block.append(label,detail);
+
+  const recent=[...(study.querySelectorAll?.('.m26-coach-exercise-study-recent')||[])]
+    .filter((node)=>node!==block&&!node.hasAttribute?.('data-m26-coach-exercise-longitudinal'))
+    .at(-1)||null;
+  if(recent?.nextSibling){
+    recent.parentNode?.insertBefore?.(block,recent.nextSibling);
+    return true;
+  }
+  if(recent){
+    recent.parentNode?.append?.(block);
+    return true;
+  }
+
+  const anchor=study.querySelector?.(
+    '.m26-coach-exercise-study-charts, .m26-coach-exercise-study-reading'
+  );
+  if(anchor?.parentNode){
+    anchor.parentNode.insertBefore(block,anchor);
+    return true;
+  }
+  study.append?.(block);
   return true;
 }
 
@@ -180,6 +258,7 @@ function enhanceExerciseCard(card,performance,documentLike){
   );
   const selectedKey=String(selection?.key||'averageRpe');
   let changed=effortKpi(study,selection);
+  changed=enhanceLongitudinalContext(study,assessment,documentLike)||changed;
 
   if(selectedKey==='averageRpe'){
     if(existing?.getAttribute?.('data-m26-coach-exercise-chart')==='averageRir'){
@@ -242,4 +321,5 @@ export const __coachExerciseEffortContinuityInternals=Object.freeze({
   orderedExercisePerformance,
   chartPoints,
   metricTone,
+  longitudinalCoachSummary,
 });
