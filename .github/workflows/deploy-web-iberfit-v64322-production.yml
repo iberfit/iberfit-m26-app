@@ -1,0 +1,172 @@
+name: Promote WEB IBERFIT V6.43.22 UX first impression
+on:
+  push:
+    branches: [infra/web-iberfit-worker]
+    paths: ['.github/workflows/deploy-web-iberfit-v64322-production.yml']
+permissions:
+  contents: read
+concurrency:
+  group: web-iberfit-pages-provision
+  cancel-in-progress: false
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+  WEB_SHA: '269072dee546fdbf310fb3f645f221067414dcc4'
+  WEB_VERSION: '6.43.22'
+  QA_SOURCE_SHA: 'c27fbe5ac7dae8d3a5182978eafb94e237284ec4'
+  QA_RUN_ID: '36031373642'
+  PREVIEW_RUN_ID: '36032090548'
+  PREVIEW_DEPLOYMENT_ID: '75054b9e-539a-4929-ace9-ce87563e2c0f'
+  PREVIEW_URL: 'https://v64322-ux-36032090548.web-iberfit.pages.dev'
+  EXPECTED_CURRENT_SHA: '86f62e1f813e10720769a1a9c46887b6d79097b9'
+  EXPECTED_CURRENT_VERSION: '6.43.21'
+  EXPECTED_CURRENT_DEPLOYMENT_ID: 'b5cf74a8-a304-4b0e-8d7d-494ae6f1141a'
+  ROLLBACK_SHA: '86f62e1f813e10720769a1a9c46887b6d79097b9'
+  ROLLBACK_VERSION: '6.43.21'
+  WRANGLER_VERSION: '4.120.0'
+jobs:
+  promote:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Verify exact production baseline, QA and preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'PRODUCTION_TOUCHED=0' >> "$GITHUB_ENV"
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || exit 41
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project-before.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-before.json
+          node <<'NODE'
+          const p=require('/tmp/project-before.json'),x=require('/tmp/deployments-before.json');
+          if(!p.success||p.result?.production_branch!=='production'||!(p.result.domains||[]).includes('iberfit.cl')||(p.result.domains||[]).includes('app.iberfit.cl'))throw Error('PROJECT_OR_DOMAIN_MISMATCH');
+          const d=(x.result||[]).filter(v=>v.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(d?.id!==process.env.EXPECTED_CURRENT_DEPLOYMENT_ID)throw Error('PRODUCTION_DRIFT_ID:'+d?.id);
+          if((d?.deployment_trigger?.metadata?.commit_hash||'')!==process.env.EXPECTED_CURRENT_SHA)throw Error('PRODUCTION_DRIFT_SHA');
+          NODE
+          test "$(curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/VERSION?preflight=64322-prod' | tr -d '\r\n ')" = "$EXPECTED_CURRENT_VERSION"
+          curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" -o /tmp/qa.json
+          curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfit-m26-app/actions/runs/${PREVIEW_RUN_ID}" -o /tmp/preview-run.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments/${PREVIEW_DEPLOYMENT_ID}" -o /tmp/preview-deployment.json
+          node <<'NODE'
+          const q=require('/tmp/qa.json'),r=require('/tmp/preview-run.json'),p=require('/tmp/preview-deployment.json');
+          if(q.head_sha!==process.env.QA_SOURCE_SHA||q.status!=='completed'||q.conclusion!=='success'||q.name!=='Release WEB IBERFIT V6.43.22 UX first impression')throw Error('QA_MISMATCH');
+          if(r.id!==Number(process.env.PREVIEW_RUN_ID)||r.status!=='completed'||r.conclusion!=='success'||r.name!=='Preview WEB IBERFIT V6.43.22 UX first impression')throw Error('PREVIEW_RUN_MISMATCH');
+          if(!p.success||p.result?.id!==process.env.PREVIEW_DEPLOYMENT_ID||p.result?.environment!=='preview'||(p.result?.deployment_trigger?.metadata?.commit_hash||'')!==process.env.WEB_SHA)throw Error('PREVIEW_DEPLOYMENT_MISMATCH');
+          NODE
+          test "$(curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?promote=$GITHUB_RUN_ID" | tr -d '\r\n ')" = "$WEB_VERSION"
+          git clone --filter=blob:none --no-checkout https://github.com/iberfit/iberfitweb.git /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=2 origin "$WEB_SHA"
+          git -C /tmp/iberfitweb checkout --detach "$WEB_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "$WEB_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD^)" = "$QA_SOURCE_SHA"
+          test "$(tr -d '\r\n ' < /tmp/iberfitweb/candidate/v628/VERSION)" = "$WEB_VERSION"
+      - name: Deploy exact certified candidate to production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "$CF_PROJECT" --branch production --commit-hash "$WEB_SHA" --commit-message 'WEB IBERFIT V6.43.22 UX first impression production' | tee /tmp/wrangler-production.log
+          PRODUCTION_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-production.log | tail -1)"
+          test -n "$PRODUCTION_URL"
+          echo "PRODUCTION_URL=$PRODUCTION_URL" >> "$GITHUB_ENV"
+          echo 'PRODUCTION_TOUCHED=1' >> "$GITHUB_ENV"
+      - name: Verify live production content, routes and CSP
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for a in $(seq 1 30); do
+            cb="${GITHUB_RUN_ID}-${a}"
+            v="$(curl -fsSL --retry 3 --retry-all-errors "https://iberfit.cl/VERSION?cb=$cb" | tr -d '\r\n ' || true)"
+            curl -fsSL --retry 3 --retry-all-errors "https://iberfit.cl/assets/ux.v64322.css?cb=$cb" -o /tmp/live-ux.css || true
+            if [ "$v" = "$WEB_VERSION" ] && grep -q 'grid-auto-columns:minmax(94%,1fr)' /tmp/live-ux.css 2>/dev/null; then ok=1; break; fi
+            sleep 3
+          done
+          test "$ok" = 1
+          curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/?live=$GITHUB_RUN_ID" -o /tmp/home.html
+          grep -q 'intent-router intent-router--compact' /tmp/home.html
+          test "$(grep -o 'class=\"intent-route\"' /tmp/home.html | wc -l | tr -d ' ')" = '2'
+          curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/online/?live=$GITHUB_RUN_ID" -o /tmp/online.html
+          grep -q 'Si necesitas mucha corrección técnica en directo' /tmp/online.html
+          curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/en/online/?live=$GITHUB_RUN_ID" -o /tmp/online-en.html
+          grep -q 'If you need frequent live technical correction' /tmp/online-en.html
+          curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/assets/experience.v64322.js?live=$GITHUB_RUN_ID" -o /tmp/experience.js
+          ! grep -q 'Según sector y horario.' /tmp/experience.js
+          ! grep -q 'Subject to area and schedule.' /tmp/experience.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          r=Path('/tmp/iberfitweb/candidate/v628');htmls=sorted(r.rglob('*.html'));assert len(htmls)==33
+          for p in htmls:
+              rel=p.relative_to(r).as_posix();route='/' if rel=='index.html' else ('/404.html' if rel=='404.html' else '/'+rel.removesuffix('index.html'))
+              subprocess.run(['curl','-fsSL','--retry','5','--retry-all-errors','-o','/dev/null','https://iberfit.cl'+route],check=True)
+          print('LIVE_ROUTES_OK',len(htmls))
+          PY
+          curl -fsSI --retry 8 --retry-all-errors "https://iberfit.cl/online/?live=$GITHUB_RUN_ID" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/live-headers
+          grep -q '^content-security-policy:' /tmp/live-headers
+          grep -q "script-src-attr 'none'" /tmp/live-headers
+          ! grep -q 'unsafe-inline' /tmp/live-headers
+      - name: Browser regression and V6.43.22 QA on live production
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/iberfitweb
+          npm install --no-save --package-lock=false playwright@1.56.1 >/dev/null 2>&1
+          npx playwright install chromium >/dev/null
+          BASE_URL='https://iberfit.cl' QA_OUT=/tmp/v64321-production-regression node .github/scripts/qa_v64321_browser.mjs
+          BASE_URL='https://iberfit.cl' QA_OUT=/tmp/v64322-production-screens node .github/scripts/qa_v64322_browser.mjs
+      - name: Record exact production deployment identity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project-after.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-after.json
+          node <<'NODE'
+          const fs=require('fs'),p=require('/tmp/project-after.json'),x=require('/tmp/deployments-after.json');const d=(x.result||[]).filter(v=>v.environment==='production'&&v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA).sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];if(!d)throw Error('FINAL_PRODUCTION_NOT_FOUND');if(!(p.result?.latest_deployment?.aliases||[]).includes('https://iberfit.cl'))throw Error('ALIAS_MISSING');const e={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaRun:process.env.QA_RUN_ID,previewRun:process.env.PREVIEW_RUN_ID,previewDeploymentId:process.env.PREVIEW_DEPLOYMENT_ID,previewUrl:process.env.PREVIEW_URL,productionUrl:process.env.PRODUCTION_URL,productionDeploymentId:d.id,rollbackVersion:process.env.ROLLBACK_VERSION,rollbackSha:process.env.ROLLBACK_SHA,rollbackDeploymentId:process.env.EXPECTED_CURRENT_DEPLOYMENT_ID,verifiedAt:new Date().toISOString()};fs.writeFileSync('/tmp/V64322_PRODUCTION_EVIDENCE.json',JSON.stringify(e,null,2));console.log(JSON.stringify(e,null,2));
+          NODE
+      - name: Roll back to verified V6.43.21 if post-deploy verification fails
+        if: ${{ failure() && env.PRODUCTION_TOUCHED == '1' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/rollback-web
+          git clone --filter=blob:none --no-checkout https://github.com/iberfit/iberfitweb.git /tmp/rollback-web
+          git -C /tmp/rollback-web fetch --depth=1 origin "$ROLLBACK_SHA"
+          git -C /tmp/rollback-web checkout --detach "$ROLLBACK_SHA"
+          test "$(tr -d '\r\n ' < /tmp/rollback-web/candidate/v628/VERSION)" = "$ROLLBACK_VERSION"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/rollback-web/candidate/v628 --project-name "$CF_PROJECT" --branch production --commit-hash "$ROLLBACK_SHA" --commit-message 'AUTO ROLLBACK WEB IBERFIT to V6.43.21'
+          for a in $(seq 1 30); do v="$(curl -fsSL --retry 3 --retry-all-errors "https://iberfit.cl/VERSION?rollback=$a" | tr -d '\r\n ' || true)"; [ "$v" = "$ROLLBACK_VERSION" ] && exit 0; sleep 3; done
+          exit 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-v64322-production-evidence
+          path: |
+            /tmp/V64322_PRODUCTION_EVIDENCE.json
+            /tmp/project-before.json
+            /tmp/project-after.json
+            /tmp/deployments-before.json
+            /tmp/deployments-after.json
+            /tmp/qa.json
+            /tmp/preview-run.json
+            /tmp/preview-deployment.json
+            /tmp/wrangler-production.log
+            /tmp/live-headers
+            /tmp/v64321-production-regression/metrics.json
+            /tmp/v64322-production-screens
+          if-no-files-found: warn
+          retention-days: 30
