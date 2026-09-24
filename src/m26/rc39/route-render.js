@@ -139,8 +139,8 @@ function renderCoachLaunchSelf(vm){
   const actionMarkup=action&&action.area
     ? `<div class="m26-list-card-actions"><button type="button" class="m26-primary-action" data-m26-area="${escape(action.area)}">${escape(actionLabel)}</button></div>`
     : `<p>${escape(copy.noAction)}</p>`;
-  const completedCount=Math.max(0,Number(journey.completedCount||0));
-  const launchExpanded=!journey.ready&&completedCount<=2;
+  const operationalStarted=(journey.milestones||[]).some((item)=>['client','planning','session'].includes(item?.id)&&item?.complete===true);
+  const launchExpanded=!journey.ready&&!operationalStarted;
   const progressCopy=copy.progress(journey.completedCount,journey.total);
   return `<details class="m26-panel m26-panel-soft m26-coach-launch-self" data-coach-launch-self="${escape(journey.stage||'pending')}" data-coach-launch-density="${launchExpanded?'guided':'compact'}"${launchExpanded?' open':''}>
     <summary class="m26-coach-launch-summary" aria-labelledby="m26-coach-launch-title">

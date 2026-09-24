@@ -1,255 +1,61 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-
 import {coachLaunchReadiness} from '../src/m26/onboarding/coach-launch-readiness.js';
+import {deriveCoachLaunchJourney} from '../src/m26/onboarding/coach-launch-journey.js';
 import {progressiveOnboardingProgress,renderProgressiveOnboardingPanel} from '../src/m26/onboarding/progressive-onboarding.js';
-import {filterSnapshotForAssignmentScope} from '../src/m26/shared/integration-context.js';
 
-function completeTour(role='coach'){
-  const visited=role==='coach'
-    ?['coach-today','coach-clients','coach-agenda','coach-library','coach-verification']
-    :[];
-  return progressiveOnboardingProgress({role,visited});
-}
+const completeTour=()=>progressiveOnboardingProgress({role:'coach',visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification']});
+const incompleteTour=()=>progressiveOnboardingProgress({role:'coach',visited:[]});
+const user={id:'coach-1',userId:'coach-1',status:'active',lastAccessAt:'2026-09-24T10:00:00Z'};
+const coach={id:'coach-1',userId:'coach-1',name:'Coach',email:'coach@iberfit.cl',status:'active'};
+const assignments=[{coachUserId:'coach-1',clientId:'client-1',status:'active'}];
+const planning=[{id:'session-1',clientId:'client-1',status:'publicado'}];
+const execution=[{id:'exec-1',client_id:'client-1',started_by:'coach-1',execution_status:'cerrada_confirmada'}];
+const readyJourney=()=>deriveCoachLaunchJourney({user,coach,assignments,planningSessions:planning,sessionExecutions:execution});
 
-function client(id='c1',overrides={}){
-  return {id,name:`Cliente ${id}`,...overrides};
-}
-
-function completeProfile(clientId='c1',overrides={}){
-  return {
-    id:`profile-${clientId}`,
-    clientId,
-    initialAssessmentMode:'deferred',
-    birthDate:'1990-01-10',
-    email:`${clientId}@example.test`,
-    phone:'+56911111111',
-    modality:'online',
-    ...overrides,
-  };
-}
-
-function validCycle(clientId='c1',overrides={}){
-  return {
-    id:`cycle-${clientId}`,
-    clientId,
-    name:'Primer ciclo',
-    startDate:'2026-09-21',
-    endDate:'2026-10-19',
-    goal:'Crear una base de trabajo segura',
-    ...overrides,
-  };
-}
-
-function collections({clients=[],clientProfiles=[],trainingCycles=[]}={}){
-  return {clients,clientProfiles,trainingCycles};
-}
-
-test('tour Coach completado sin cliente operativo no declara readiness',()=>{
-  const result=coachLaunchReadiness({
-    role:'coach',
-    progress:completeTour(),
-    collections:collections(),
-  });
-  assert.equal(result.tourCompleted,true);
-  assert.equal(result.clientReady,false);
-  assert.equal(result.ready,false);
-  assert.equal(result.nextRequirement,'client');
-});
-
-test('cliente operativo sin hito de Planificación no declara readiness',()=>{
-  const result=coachLaunchReadiness({
-    role:'coach',
-    progress:completeTour(),
-    collections:collections({
-      clients:[client()],
-      clientProfiles:[completeProfile()],
-    }),
-  });
-  assert.equal(result.clientReady,true);
-  assert.equal(result.planningReady,false);
-  assert.equal(result.ready,false);
-  assert.equal(result.nextRequirement,'planning');
-});
-
-test('tour + cliente operativo + ciclo validable persistido declara readiness',()=>{
-  const result=coachLaunchReadiness({
-    role:'coach',
-    progress:completeTour(),
-    collections:collections({
-      clients:[client()],
-      clientProfiles:[completeProfile()],
-      trainingCycles:[validCycle()],
-    }),
-  });
+test('tour is guidance only and cannot block an operationally ready Coach',()=>{
+  const result=coachLaunchReadiness({role:'coach',progress:incompleteTour(),journey:readyJourney()});
+  assert.equal(result.tourCompleted,false);
   assert.equal(result.ready,true);
   assert.equal(result.nextRequirement,null);
 });
 
-test('datos de otro Coach no cuentan tras el scope canónico por asignación',()=>{
-  const raw={
-    data:{
-      clients:[client('mine'),client('other')],
-      clientProfiles:[completeProfile('mine'),completeProfile('other')],
-      trainingCycles:[validCycle('other')],
-    },
-  };
-  const scoped=filterSnapshotForAssignmentScope(raw,{
-    available:true,
-    membershipStatus:'active',
-    assignmentScopeEnforced:true,
-    assignedClientIds:['mine'],
-    revision:2,
-  },'coach');
-  const result=coachLaunchReadiness({
-    role:'coach',
-    progress:completeTour(),
-    collections:scoped.data,
-  });
-  assert.deepEqual(scoped.data.clients.map((item)=>item.id),['mine']);
-  assert.equal(scoped.data.trainingCycles.length,0);
-  assert.equal(result.clientReady,true);
-  assert.equal(result.planningReady,false);
+test('tour completion cannot manufacture operational readiness',()=>{
+  const journey=deriveCoachLaunchJourney({user,coach,assignments,planningSessions:planning,sessionExecutions:[]});
+  const result=coachLaunchReadiness({role:'coach',progress:completeTour(),journey});
+  assert.equal(result.tourCompleted,true);
   assert.equal(result.ready,false);
+  assert.equal(result.sessionReady,false);
+  assert.equal(result.nextRequirement,'session');
 });
 
-test('expediente incompleto o draft visible no cuenta como cliente operativo',()=>{
-  const result=coachLaunchReadiness({
-    role:'coach',
-    progress:completeTour(),
-    collections:collections({
-      clients:[client()],
-      clientProfiles:[completeProfile('c1',{phone:null})],
-      trainingCycles:[validCycle()],
-    }),
-  });
-  assert.equal(result.clientReady,false);
-  assert.equal(result.planningReady,false);
-  assert.equal(result.ready,false);
-});
-
-test('colecciones ausentes o indeterminadas fallan cerradas',()=>{
-  const result=coachLaunchReadiness({role:'coach',progress:completeTour(),collections:null});
+test('missing canonical journey fails closed',()=>{
+  const result=coachLaunchReadiness({role:'coach',progress:completeTour(),journey:null});
   assert.equal(result.ready,false);
   assert.equal(result.nextRequirement,'data');
 });
 
-test('Cliente y Admin no adquieren semántica de readiness Coach',()=>{
+test('Client and Admin do not acquire Coach readiness semantics',()=>{
   for(const role of ['client','admin']){
-    const result=coachLaunchReadiness({
-      role,
-      progress:{completed:true},
-      collections:collections({
-        clients:[client()],
-        clientProfiles:[completeProfile()],
-        trainingCycles:[validCycle()],
-      }),
-    });
+    const result=coachLaunchReadiness({role,progress:{completed:true},journey:readyJourney()});
     assert.equal(result.applicable,false);
     assert.equal(result.ready,null);
   }
 });
 
-test('completion del tour conserva su significado histórico de navegación',()=>{
-  const progress=completeTour();
-  assert.equal(progress.completed,true);
-  assert.equal(progress.completedCount,progress.total);
-});
-
-test('UI Coach no confunde tour completado con readiness operativo',()=>{
-  const state={
-    visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification'],
-  };
-  const progress=progressiveOnboardingProgress({
-    role:'coach',
-    visited:state.visited,
-  });
-  const readiness=coachLaunchReadiness({
-    role:'coach',
-    progress,
-    collections:collections(),
-  });
-  const html=renderProgressiveOnboardingPanel({
-    role:'coach',
-    state,
-    readiness,
-  });
-
-  assert.match(html,/Completar primer cliente/);
-  assert.match(html,/puesta en marcha pendiente/i);
-  assert.doesNotMatch(html,/Coach listo para trabajar/);
-});
-
-test('UI Coach pide primera planificación cuando ya existe cliente operativo',()=>{
-  const state={
-    visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification'],
-  };
-  const progress=progressiveOnboardingProgress({
-    role:'coach',
-    visited:state.visited,
-  });
-  const readiness=coachLaunchReadiness({
-    role:'coach',
-    progress,
-    collections:collections({
-      clients:[client()],
-      clientProfiles:[completeProfile()],
-    }),
-  });
-  const html=renderProgressiveOnboardingPanel({
-    role:'coach',
-    state,
-    readiness,
-  });
-
-  assert.match(html,/Preparar primera planificación/);
-  assert.doesNotMatch(html,/Coach listo para trabajar/);
-});
-
-test('UI Coach declara listo solo con tour, cliente y planificación validados',()=>{
-  const state={
-    visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification'],
-  };
-  const progress=progressiveOnboardingProgress({
-    role:'coach',
-    visited:state.visited,
-  });
-  const readiness=coachLaunchReadiness({
-    role:'coach',
-    progress,
-    collections:collections({
-      clients:[client()],
-      clientProfiles:[completeProfile()],
-      trainingCycles:[validCycle()],
-    }),
-  });
-  const html=renderProgressiveOnboardingPanel({
-    role:'coach',
-    state,
-    readiness,
-  });
-
+test('Coach onboarding UI reflects canonical readiness after the tour without redefining it',()=>{
+  const state={visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification']};
+  const readiness=coachLaunchReadiness({role:'coach',progress:completeTour(),journey:readyJourney()});
+  const html=renderProgressiveOnboardingPanel({role:'coach',state,readiness});
   assert.match(html,/Coach listo para trabajar/);
   assert.doesNotMatch(html,/puesta en marcha pendiente/i);
 });
 
-test('UI Cliente conserva la semántica histórica Recorrido completado',()=>{
-  const state={
-    visited:[
-      'client-today',
-      'client-plan',
-      'client-session',
-      'client-progress',
-      'client-activity',
-    ],
-  };
-
-  const html=renderProgressiveOnboardingPanel({
-    role:'client',
-    state,
-  });
-
-  assert.match(html,/Recorrido completado/);
+test('Coach onboarding UI stays pending when canonical first session is missing',()=>{
+  const state={visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification']};
+  const journey=deriveCoachLaunchJourney({user,coach,assignments,planningSessions:planning,sessionExecutions:[]});
+  const readiness=coachLaunchReadiness({role:'coach',progress:completeTour(),journey});
+  const html=renderProgressiveOnboardingPanel({role:'coach',state,readiness});
+  assert.match(html,/puesta en marcha pendiente/i);
   assert.doesNotMatch(html,/Coach listo para trabajar/);
-  assert.doesNotMatch(html,/Puesta en marcha pendiente/);
 });

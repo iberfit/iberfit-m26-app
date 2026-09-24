@@ -1,7 +1,9 @@
 const COMPLETE_STATUSES=new Set([
   'completed',
   'completado',
+  'completada',
   'complete',
+  'cerrada_confirmada',
 ]);
 
 function arr(value){
@@ -51,6 +53,10 @@ export function sessionExecutionDate(record){
     item,
     'completedAt',
     'completed_at',
+    'remoteConfirmedAt',
+    'remote_confirmed_at',
+    'localClosedAt',
+    'local_closed_at',
     'endedAt',
     'ended_at',
     'executedAt',
@@ -132,6 +138,8 @@ export function sessionExecutionIsCompleted(
     item,
     'status',
     'estado',
+    'executionStatus',
+    'execution_status',
   )||'')
     .trim()
     .toLowerCase();
