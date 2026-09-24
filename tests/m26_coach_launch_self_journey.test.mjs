@@ -13,7 +13,7 @@ import {enhanceRc39ShellMarkup} from '../src/m26/rc39/shell-enhancer.js';
 
 function state(overrides={}){
   return {
-    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT'},
+    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT',email:'coach@iberfit.cl',status:'active',lastAccessAt:'2026-09-06T11:55:00.000Z'},
     hydration:{serverTime:'2026-09-06T12:00:00.000Z'},
     collections:{
       clients:[],sessions:[],appointments:[],sessionExecutions:[],
@@ -25,7 +25,7 @@ function state(overrides={}){
   };
 }
 
-test('Coach self-launch is role scoped and treats the current authenticated session as activation evidence',()=>{
+test('Coach self-launch is role scoped and uses persisted last sign-in as activation evidence',()=>{
   assert.equal(deriveCoachSelfLaunchJourney({
     state:state({identity:{id:'client-1',role:'client'}}),
     identity:{id:'client-1',role:'client'},
@@ -34,16 +34,15 @@ test('Coach self-launch is role scoped and treats the current authenticated sess
 
   const journey=deriveCoachSelfLaunchJourney({
     state:state(),
-    identity:{id:'coach-1',role:'coach'},
-    now:new Date('2026-09-06T12:00:00Z'),
+    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT',email:'coach@iberfit.cl',status:'active',lastAccessAt:'2026-09-06T11:55:00.000Z'},
   });
   assert.equal(journey.ready,false);
   assert.equal(journey.source,'authenticated-coach-bootstrap');
   assert.equal(journey.milestones.find((item)=>item.id==='invited').complete,true);
   assert.equal(journey.milestones.find((item)=>item.id==='activated').complete,true);
-  assert.equal(journey.milestones.find((item)=>item.id==='profile').complete,false);
-  assert.equal(journey.profileVerified,false);
-  assert.equal(journey.accountStatusVerified,false);
+  assert.equal(journey.milestones.find((item)=>item.id==='profile').complete,true);
+  assert.equal(journey.profileVerified,true);
+  assert.equal(journey.accountStatusVerified,true);
   assert.equal(journey.nextCoachAction.area,'clientes');
 });
 
@@ -53,7 +52,7 @@ test('Coach self-launch recognises authorised client, published planning and onl
       clients:[{id:'client-1',name:'Ana'}],
       sessions:[{id:'session-1',clientId:'client-1',status:'publicado',publishedAt:'2026-09-04T10:00:00Z'}],
       appointments:[],
-      sessionExecutions:[{id:'execution-1',clientId:'client-1',status:'completed',completedAt:'2026-09-05T10:00:00Z',syncStatus:'clean'}],
+      sessionExecutions:[{id:'execution-1',clientId:'client-1',started_by:'coach-1',execution_status:'cerrada_confirmada',remote_confirmed_at:'2026-09-05T10:00:00Z',syncStatus:'clean'}],
       checkins:[],iriAssessments:[],wearableDailySummaries:[],
     },
   });
@@ -66,10 +65,10 @@ test('Coach self-launch recognises authorised client, published planning and onl
   assert.equal(milestones.get('client'),true);
   assert.equal(milestones.get('planning'),true);
   assert.equal(milestones.get('session'),true);
-  assert.equal(milestones.get('profile'),false);
-  assert.equal(journey.completedCount,5);
-  assert.equal(journey.percent,83);
-  assert.equal(journey.ready,false);
+  assert.equal(milestones.get('profile'),true);
+  assert.equal(journey.completedCount,6);
+  assert.equal(journey.percent,100);
+  assert.equal(journey.ready,true);
   assert.equal(journey.nextCoachAction,null);
   assert.equal(journey.completedSessionEvidence,true);
 
@@ -125,7 +124,7 @@ test('Coach shell carries launch evidence and injects it into canonical Today wi
   const sourceState=state();
   const shellVm=augmentRc39ShellViewModel({
     mode:'authenticated',
-    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT'},
+    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT',email:'coach@iberfit.cl',status:'active',lastAccessAt:'2026-09-06T11:55:00.000Z'},
     activeArea:'hoy',
   },sourceState);
   assert.ok(shellVm.coachLaunchJourney);
@@ -160,7 +159,7 @@ test('Coach launch journey stays expanded only while the Coach is genuinely star
   const newState=state();
   const newShell=augmentRc39ShellViewModel({
     mode:'authenticated',
-    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT'},
+    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT',email:'coach@iberfit.cl',status:'active',lastAccessAt:'2026-09-06T11:55:00.000Z'},
     activeArea:'hoy',
   },newState);
   const newRoute={
@@ -177,13 +176,13 @@ test('Coach launch journey stays expanded only while the Coach is genuinely star
       clients:[{id:'client-1',name:'Ana'}],
       sessions:[{id:'session-1',clientId:'client-1',status:'publicado',publishedAt:'2026-09-04T10:00:00Z'}],
       appointments:[],
-      sessionExecutions:[{id:'execution-1',clientId:'client-1',status:'completed',completedAt:'2026-09-05T10:00:00Z',syncStatus:'clean'}],
+      sessionExecutions:[{id:'execution-1',clientId:'client-1',started_by:'coach-1',execution_status:'cerrada_confirmada',remote_confirmed_at:'2026-09-05T10:00:00Z',syncStatus:'clean'}],
       checkins:[],iriAssessments:[],wearableDailySummaries:[],
     },
   });
   const operationalShell=augmentRc39ShellViewModel({
     mode:'authenticated',
-    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT'},
+    identity:{id:'coach-1',role:'coach',name:'Coach IBERFIT',email:'coach@iberfit.cl',status:'active',lastAccessAt:'2026-09-06T11:55:00.000Z'},
     activeArea:'hoy',
   },operationalState);
   const operationalRoute={
@@ -195,12 +194,12 @@ test('Coach launch journey stays expanded only while the Coach is genuinely star
   const operationalMarkup=enhanceRc39ShellMarkup(renderHoyRoute(operationalRoute),operationalShell);
   assert.match(operationalMarkup,/data-coach-launch-density="compact"/u);
   assert.doesNotMatch(operationalMarkup,/data-coach-launch-density="compact"[^>]* open/u);
-  assert.match(operationalMarkup,/5 de 6 hitos verificados/u);
-  assert.match(operationalMarkup,/83%/u);
+  assert.match(operationalMarkup,/6 de 6 hitos verificados/u);
+  assert.match(operationalMarkup,/100%/u);
   for(const id of ['invited','activated','profile','client','planning','session']){
     assert.match(operationalMarkup,new RegExp('data-coach-launch-milestone="'+id+'"','u'));
   }
-  assert.match(operationalMarkup,/Pendiente de verificación administrativa/u);
+  assert.match(operationalMarkup,/Coach listo/u);
 });
 
 test('Coach launch disclosure styling preserves touch, reduced-motion and print access',()=>{

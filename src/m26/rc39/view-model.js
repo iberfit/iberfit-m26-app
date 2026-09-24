@@ -5,8 +5,8 @@ import {
   appointmentForSession,
 } from './session-policy.js';
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from './multi-role.js';
-import {deriveCoachLaunchJourney,isCoachLaunchPlanningPublished} from '../onboarding/coach-launch-journey.js';
-import {confirmedSessionExecutionsForClient} from '../domain/session-execution-truth.js';
+import {deriveCoachSelfLaunchJourney} from '../onboarding/coach-launch-journey.js';
+export {deriveCoachSelfLaunchJourney};
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {buildRetentionHealth} from '../engagement/retention-health.js';
 import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
@@ -63,48 +63,6 @@ export function coachLaunchSelfCopy(language='es'){
   return COACH_LAUNCH_SELF_COPY[key]||COACH_LAUNCH_SELF_COPY.es;
 }
 export function coachLaunchSelfLanguages(){return Object.freeze(Object.keys(COACH_LAUNCH_SELF_COPY));}
-function confirmedCompletedSessions(state,clients,coachId){
-  const completed=[];
-  for(const client of clients){
-    const id=recordClientId(client);
-    if(!id)continue;
-    for(const execution of confirmedSessionExecutionsForClient(state,id)){
-      const startedBy=String(execution?.startedBy??execution?.started_by??'').trim();
-      if(startedBy===coachId)completed.push(execution);
-    }
-  }
-  return completed;
-}
-function nextCoachAction(milestones){
-  const byId=new Map(milestones.map((item)=>[item.id,item]));
-  if(!byId.get('client')?.complete)return Object.freeze({area:'clientes',labelKey:'clients'});
-  if(!byId.get('planning')?.complete)return Object.freeze({area:'planificacion',labelKey:'planning'});
-  if(!byId.get('session')?.complete)return Object.freeze({area:'agenda',labelKey:'session'});
-  return null;
-}
-export function deriveCoachSelfLaunchJourney({state,identity=null,now=new Date()}={}){
-  const sourceIdentity=identity||state?.identity||{};
-  const role=String(sourceIdentity?.role||'').trim().toLowerCase();
-  if(role!=='coach')return null;
-  const coachId=String(sourceIdentity?.id||'').trim();
-  if(!coachId)return null;
-  const clients=list(state?.collections?.clients);
-  const sessions=list(state?.collections?.sessions);
-  const parsedNow=now instanceof Date&&!Number.isNaN(now.getTime())?now:new Date(now);
-  const effectiveNow=Number.isNaN(parsedNow.getTime())?new Date():parsedNow;
-  const authenticatedAt=state?.hydration?.serverTime||effectiveNow.toISOString();
-  const accountStatus=String(sourceIdentity?.status||'').trim();
-  const email=String(sourceIdentity?.email||'').trim();
-  const name=String(sourceIdentity?.name||sourceIdentity?.displayName||'').trim();
-  const user=Object.freeze({id:coachId,userId:coachId,primaryRole:'coach',roles:Object.freeze(['coach']),status:accountStatus,lastAccessAt:authenticatedAt});
-  const coach=Object.freeze({id:coachId,userId:coachId,name,email,status:accountStatus});
-  const assignments=Object.freeze(clients.map((client)=>Object.freeze({coachUserId:coachId,clientId:recordClientId(client),status:'active'})).filter((item)=>item.clientId));
-  const planningEvidence=sessions.filter(isCoachLaunchPlanningPublished);
-  const completedExecutions=confirmedCompletedSessions(state,clients,coachId);
-  const base=deriveCoachLaunchJourney({user,coach,assignments,planningSessions:planningEvidence,sessionExecutions:completedExecutions});
-  const profileVerified=base.milestones.find((item)=>item.id==='profile')?.complete===true;
-  return Object.freeze({...base,source:'authenticated-coach-bootstrap',coachId,profileVerified,accountStatusVerified:base.accountActive===true,clientEvidenceCount:assignments.length,publishedPlanningEvidenceCount:planningEvidence.length,completedSessionEvidence:completedExecutions.length>0,nextCoachAction:nextCoachAction(base.milestones)});
-}
 const compactAppointment=(record,now)=>Object.freeze({
   raw:clone(record),
   id:appointmentId(record),

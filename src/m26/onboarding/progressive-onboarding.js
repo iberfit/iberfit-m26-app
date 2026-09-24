@@ -3,7 +3,7 @@ import {createClientContextualGuideController} from './client-contextual-guide.j
 import {createClientGuidedWelcomeController} from './client-guided-welcome.js';
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {coachLaunchReadiness} from './coach-launch-readiness.js';
-import {deriveCoachSelfLaunchJourney} from '../rc39/view-model.js';
+import {deriveCoachSelfLaunchJourney} from './coach-launch-journey.js';
 
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
 export const PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE='data-m26-guided-tour-open';
