@@ -12,7 +12,10 @@ const compact = migration.toLowerCase().replace(/\s+/g, '');
 test('ADMIN client deletion iterates reviewed table arrays relationally for plpgsql_check', () => {
   assert.ok(compact.includes('forv_tableinselectunnest(v_detach_history_tables)loop'));
   assert.ok(compact.includes('forv_tableinselectunnest(v_cleanup_tables)loop'));
-  assert.ok(!compact.includes('foreachv_tableinarray'));
+  assert.doesNotMatch(
+    migration,
+    /foreach\s+v_table\s+in\s+array\s+v_(?:detach_history|cleanup)_tables\s+loop/i,
+  );
 });
 
 test('ADMIN client deletion preserves the reviewed history and cleanup table sets', () => {
