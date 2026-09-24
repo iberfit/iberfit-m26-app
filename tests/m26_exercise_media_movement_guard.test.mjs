@@ -5,6 +5,7 @@ import {movementVisualGuard} from '../scripts/exercise-media/auto-factory-moveme
 
 const generator=await readFile(new URL('../scripts/exercise-media/auto-factory-generate.mjs',import.meta.url),'utf8');
 const qa=await readFile(new URL('../scripts/exercise-media/auto-factory-qa.mjs',import.meta.url),'utf8');
+const movementGuardImport=/import\s*\{[^}]*\bmovementVisualGuard\b[^}]*\}\s*from '\.\/auto-factory-movement-guard\.mjs'/s;
 
 test('bear crawl movement guard encodes the defining quadrupedal support contract',()=>{
   const guard=movementVisualGuard({id:'IBF-BEAR-CRAWL',name_es:'Bear crawl',pattern:'locomoción',equipment:'sin equipo'});
@@ -24,11 +25,11 @@ test('generic movement guard remains fail-closed on support and contact identity
 });
 
 test('generation and both biomechanics gates consume the same movement identity contract',()=>{
-  assert.match(generator,/import \{movementVisualGuard\}/);
+  assert.match(generator,movementGuardImport);
   assert.match(generator,/const movementGuard=movementVisualGuard\(exercise\)/);
   assert.match(generator,/movement_identity_lock/);
   assert.match(generator,/Set movement_identity_lock=false/);
-  assert.match(qa,/import \{movementVisualGuard\}/);
+  assert.match(qa,movementGuardImport);
   assert.match(qa,/const movementGuard=movementVisualGuard\(exercise\)/);
   assert.match(qa,/movement_identity_lock/);
   assert.match(qa,/Set movement_identity_lock=false/);
