@@ -1,0 +1,642 @@
+name: Coach Launch WIP Patch
+
+on:
+  push:
+    branches:
+      - fix/coach-launch-single-source-truth
+    paths:
+      - .github/workflows/coach-launch-wip-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply deterministic Coach Launch patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p=Path(path)
+              text=p.read_text(encoding='utf-8')
+              count=text.count(old)
+              if count!=1:
+                  raise SystemExit(f'{path}: expected exactly one match, found {count}: {old[:120]!r}')
+              p.write_text(text.replace(old,new,1),encoding='utf-8')
+
+          def replace_block(path, start, end, new):
+              p=Path(path)
+              text=p.read_text(encoding='utf-8')
+              i=text.find(start)
+              j=text.find(end,i+len(start))
+              if i<0 or j<0:
+                  raise SystemExit(f'{path}: deterministic block markers not found')
+              p.write_text(text[:i]+new+text[j:],encoding='utf-8')
+
+          # 1) Domain truth understands both normalized frontend records and the real DB schema.
+          replace_once(
+              'src/m26/domain/session-execution-truth.js',
+              "const COMPLETE_STATUSES=new Set([\n  'completed',\n  'completado',\n  'complete',\n]);",
+              "const COMPLETE_STATUSES=new Set([\n  'completed',\n  'completado',\n  'completada',\n  'complete',\n  'cerrada_confirmada',\n]);",
+          )
+          replace_once(
+              'src/m26/domain/session-execution-truth.js',
+              "    'completedAt',\n    'completed_at',\n    'endedAt',",
+              "    'completedAt',\n    'completed_at',\n    'remoteConfirmedAt',\n    'remote_confirmed_at',\n    'localClosedAt',\n    'local_closed_at',\n    'endedAt',",
+          )
+          replace_once(
+              'src/m26/domain/session-execution-truth.js',
+              "    'status',\n    'estado',\n  )||'')",
+              "    'status',\n    'estado',\n    'executionStatus',\n    'execution_status',\n  )||'')",
+          )
+
+          # 2) Client projection preserves the non-sensitive execution fields required by the same truth layer.
+          replace_once(
+              'src/m26/security/role-projection.js',
+              "sessionExecutions:[['sessionId',['sessionId','session_id']],['appointmentId',['appointmentId','appointment_id']],['title',['title','sessionTitle','session_title']],['startedAt',['startedAt','started_at']],['completedAt',['completedAt','completed_at']],['updatedAt',['updatedAt','updated_at']],['currentBlockIndex',['currentBlockIndex','current_block_index']],['currentSetIndex',['currentSetIndex','current_set_index']],['feedback',['feedback']],['results',['results','resultados']]],",
+              "sessionExecutions:[['sessionId',['sessionId','session_id']],['appointmentId',['appointmentId','appointment_id']],['title',['title','sessionTitle','session_title']],['startedAt',['startedAt','started_at']],['completedAt',['completedAt','completed_at','remoteConfirmedAt','remote_confirmed_at','localClosedAt','local_closed_at']],['executionStatus',['executionStatus','execution_status']],['remoteConfirmedAt',['remoteConfirmedAt','remote_confirmed_at']],['localClosedAt',['localClosedAt','local_closed_at']],['updatedAt',['updatedAt','updated_at']],['currentBlockIndex',['currentBlockIndex','current_block_index']],['currentSetIndex',['currentSetIndex','current_set_index']],['feedback',['feedback']],['results',['results','resultados']]],",
+          )
+          replace_once(
+              'src/m26/security/role-projection.js',
+              "for(const key of ['name','displayName','firstName','lastName','email'])",
+              "for(const key of ['name','displayName','firstName','lastName','email','status'])",
+          )
+
+          # 3) One shared operational Journey for Admin and Coach.
+          Path('src/m26/onboarding/coach-launch-journey.js').write_text(r'''import {sessionExecutionIsCompleted} from '../domain/session-execution-truth.js';
+
+function recordId(value){return String(value??'').trim();}
+function normalizeStatus(value){return String(value??'').trim().toLowerCase();}
+function isBlockedStatus(value){return /suspend|block|inactive|inactivo|disabled|revoked/u.test(normalizeStatus(value));}
+function isActiveStatus(value){return /active|activo|enabled|operational|operativo/u.test(normalizeStatus(value));}
+function bodyOf(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};}
+function field(record,...keys){const body=bodyOf(record);for(const key of keys){const value=record?.[key]??body?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
+
+export function isCoachLaunchPlanningPublished(record={}){
+  const status=normalizeStatus(field(record,'status','estado'));
+  return ['publicado','publicada','published'].includes(status)||Boolean(field(record,'publishedAt','published_at'));
+}
+
+export function deriveCoachLaunchJourney({
+  coach=null,
+  user=null,
+  assignments=[],
+  planningSessions=[],
+  sessions=[],
+  sessionExecutions=[],
+}={}){
+  const accountStatus=String(user?.status||coach?.status||'').trim();
+  const blocked=isBlockedStatus(user?.status)||isBlockedStatus(coach?.status);
+  const accountActive=isActiveStatus(accountStatus);
+  const invited=Boolean(recordId(user?.userId||user?.id||coach?.userId||coach?.id));
+  const activated=Boolean(user?.lastAccessAt);
+  const profileReady=Boolean(
+    coach&&
+    recordId(coach?.userId||coach?.id)&&
+    String(coach?.name||'').trim()&&
+    String(coach?.email||'').trim()&&
+    !isBlockedStatus(coach?.status)
+  );
+  const activeAssignments=(assignments||[]).filter((assignment)=>['active','activo'].includes(normalizeStatus(assignment?.status||'active')));
+  const firstClientAssigned=activeAssignments.length>0;
+  const explicitPlanning=(planningSessions||[]).length?planningSessions:sessions;
+  const planningPrepared=(explicitPlanning||[]).some((session)=>
+    isCoachLaunchPlanningPublished(session)&&Boolean(recordId(session?.sessionId||session?.session_id||session?.id))
+  );
+  const firstSessionCompleted=(sessionExecutions||[]).some(sessionExecutionIsCompleted);
+  const milestones=Object.freeze([
+    Object.freeze({id:'invited',label:'Invitación',complete:invited,evidence:invited?'Identidad Coach visible':'Sin identidad Coach'}),
+    Object.freeze({id:'activated',label:'Activación',complete:activated,evidence:activated?'Primer acceso registrado':'Sin primer acceso registrado'}),
+    Object.freeze({id:'profile',label:'Perfil operativo',complete:profileReady,evidence:profileReady?'Perfil Coach completo':'Perfil operativo incompleto o no visible'}),
+    Object.freeze({id:'client',label:'Primer cliente',complete:firstClientAssigned,evidence:firstClientAssigned?'Asignación activa visible':'Sin cliente activo asignado'}),
+    Object.freeze({id:'planning',label:'Primera planificación',complete:planningPrepared,evidence:planningPrepared?'Sesión publicada vinculada visible':'Sin evidencia explícita de planificación publicada'}),
+    Object.freeze({id:'session',label:'Primera sesión',complete:firstSessionCompleted,evidence:firstSessionCompleted?'Ejecución completada confirmada':'Sin ejecución completada confirmada'}),
+  ]);
+  const completedCount=milestones.filter((item)=>item.complete).length;
+  const ready=!blocked&&accountActive&&milestones.every((item)=>item.complete);
+  let stage='invited';
+  let displayStatus='Invitado · primer acceso pendiente';
+  let nextAction=Object.freeze({area:'admin-usuarios',label:'Revisar activación'});
+  if(blocked){
+    stage='blocked';
+    displayStatus='Bloqueado';
+    nextAction=Object.freeze({area:'admin-usuarios',label:'Revisar acceso'});
+  }else if(!activated){
+    stage='invited';
+  }else if(!profileReady){
+    stage='profile';
+    displayStatus='Activo · perfil pendiente';
+    nextAction=Object.freeze({area:'admin-equipo',label:'Revisar perfil'});
+  }else if(!firstClientAssigned){
+    stage='assignment';
+    displayStatus='Activo · primer cliente pendiente';
+    nextAction=Object.freeze({area:'admin-equipo',label:'Asignar primer cliente'});
+  }else if(!planningPrepared){
+    stage='planning';
+    displayStatus='Activo · planificación por verificar';
+    nextAction=Object.freeze({area:'admin-equipo',label:'Verificar primera planificación'});
+  }else if(!firstSessionCompleted){
+    stage='session';
+    displayStatus='Activo · primera sesión pendiente';
+    nextAction=Object.freeze({area:'admin-agenda',label:'Revisar primera sesión'});
+  }else if(ready){
+    stage='ready';
+    displayStatus='Activo · Coach listo';
+    nextAction=null;
+  }else{
+    stage='account';
+    displayStatus=`${accountStatus||'Estado'} · activación operativa por verificar`;
+    nextAction=Object.freeze({area:'admin-usuarios',label:'Revisar estado de acceso'});
+  }
+  return Object.freeze({
+    stage,
+    ready,
+    blocked,
+    accountActive,
+    accountStatus,
+    completedCount,
+    total:milestones.length,
+    percent:Math.round((completedCount/milestones.length)*100),
+    milestones,
+    nextAction,
+    displayStatus,
+  });
+}
+
+export const __coachLaunchJourneyInternals=Object.freeze({recordId,normalizeStatus,isBlockedStatus,isActiveStatus,bodyOf,field});
+''',encoding='utf-8')
+
+          # 4) Admin consumes the shared engine and real execution records.
+          replace_once(
+              'src/m26/admin/view-model.js',
+              "import {readIberfitExperiencePreferences} from '../ui/preferences.js';",
+              "import {readIberfitExperiencePreferences} from '../ui/preferences.js';\nimport {deriveCoachLaunchJourney,isCoachLaunchPlanningPublished} from '../onboarding/coach-launch-journey.js';\nimport {sessionExecutionIsCompleted} from '../domain/session-execution-truth.js';\nexport {deriveCoachLaunchJourney} from '../onboarding/coach-launch-journey.js';",
+          )
+          replace_block(
+              'src/m26/admin/view-model.js',
+              'export function deriveCoachLaunchJourney(',
+              'export function buildCoach360Rows',
+              '',
+          )
+          replace_once(
+              'src/m26/admin/view-model.js',
+              "export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[],appointments=[],now=new Date()}={}){",
+              "export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[],appointments=[],planningSessions=[],sessionExecutions=[],now=new Date()}={}){",
+          )
+          replace_once(
+              'src/m26/admin/view-model.js',
+              "    const clientIds=[...new Set(ownAssignments.map((assignment)=>recordId(assignment?.clientId)).filter(Boolean))];",
+              "    const clientIds=[...new Set(ownAssignments.map((assignment)=>recordId(assignment?.clientId)).filter(Boolean))];\n    const clientIdSet=new Set(clientIds);\n    const coachPlanningSessions=(planningSessions||[]).filter((session)=>clientIdSet.has(recordId(session?.clientId??session?.client_id))&&isCoachLaunchPlanningPublished(session));\n    const coachExecutions=(sessionExecutions||[]).filter((execution)=>recordId(execution?.startedBy??execution?.started_by)===coachId);",
+          )
+          replace_once(
+              'src/m26/admin/view-model.js',
+              "    const launchJourney=deriveCoachLaunchJourney({coach,user,assignments:ownAssignments,sessions});",
+              "    const launchJourney=deriveCoachLaunchJourney({coach,user,assignments:ownAssignments,planningSessions:coachPlanningSessions,sessionExecutions:coachExecutions});",
+          )
+          replace_once(
+              'src/m26/admin/view-model.js',
+              "      completedCount:sessions.filter((session)=>/complet|realiz|done/i.test(session.status)).length,",
+              "      completedCount:coachExecutions.filter(sessionExecutionIsCompleted).length,",
+          )
+          replace_once(
+              'src/m26/admin/view-model.js',
+              "const coachProfiles360=buildCoach360Rows({coaches,users,clients,assignments:rawAssignments,appointments:clone(state.collections?.appointments||[]),now:rawNow});",
+              "const coachProfiles360=buildCoach360Rows({coaches,users,clients,assignments:rawAssignments,appointments:clone(state.collections?.appointments||[]),planningSessions:clone(state.collections?.sessions||[]),sessionExecutions:clone(state.collections?.sessionExecutions||[]),now:rawNow});",
+          )
+
+          # 5) Coach self-view uses the same Journey and actual confirmed executions, with no synthetic completion record.
+          replace_once(
+              'src/m26/rc39/view-model.js',
+              "import {deriveCoachLaunchJourney} from '../admin/view-model.js';",
+              "import {deriveCoachLaunchJourney,isCoachLaunchPlanningPublished} from '../onboarding/coach-launch-journey.js';\nimport {confirmedSessionExecutionsForClient} from '../domain/session-execution-truth.js';",
+          )
+          replace_block(
+              'src/m26/rc39/view-model.js',
+              'function hasConfirmedCompletedSession(',
+              'function nextCoachAction',
+              "function confirmedCompletedSessions(state,clients,coachId){\n  const completed=[];\n  for(const client of clients){\n    const id=recordClientId(client);\n    if(!id)continue;\n    for(const execution of confirmedSessionExecutionsForClient(state,id)){\n      const startedBy=String(execution?.startedBy??execution?.started_by??'').trim();\n      if(startedBy===coachId)completed.push(execution);\n    }\n  }\n  return completed;\n}\n",
+          )
+          replace_block(
+              'src/m26/rc39/view-model.js',
+              'export function deriveCoachSelfLaunchJourney(',
+              'const compactAppointment=',
+              r'''export function deriveCoachSelfLaunchJourney({state,identity=null,now=new Date()}={}){
+  const sourceIdentity=identity||state?.identity||{};
+  const role=String(sourceIdentity?.role||'').trim().toLowerCase();
+  if(role!=='coach')return null;
+  const coachId=String(sourceIdentity?.id||'').trim();
+  if(!coachId)return null;
+  const clients=list(state?.collections?.clients);
+  const sessions=list(state?.collections?.sessions);
+  const parsedNow=now instanceof Date&&!Number.isNaN(now.getTime())?now:new Date(now);
+  const effectiveNow=Number.isNaN(parsedNow.getTime())?new Date():parsedNow;
+  const authenticatedAt=state?.hydration?.serverTime||effectiveNow.toISOString();
+  const accountStatus=String(sourceIdentity?.status||'').trim();
+  const email=String(sourceIdentity?.email||'').trim();
+  const name=String(sourceIdentity?.name||sourceIdentity?.displayName||'').trim();
+  const user=Object.freeze({id:coachId,userId:coachId,primaryRole:'coach',roles:Object.freeze(['coach']),status:accountStatus,lastAccessAt:authenticatedAt});
+  const coach=Object.freeze({id:coachId,userId:coachId,name,email,status:accountStatus});
+  const assignments=Object.freeze(clients.map((client)=>Object.freeze({coachUserId:coachId,clientId:recordClientId(client),status:'active'})).filter((item)=>item.clientId));
+  const planningEvidence=sessions.filter(isCoachLaunchPlanningPublished);
+  const completedExecutions=confirmedCompletedSessions(state,clients,coachId);
+  const base=deriveCoachLaunchJourney({user,coach,assignments,planningSessions:planningEvidence,sessionExecutions:completedExecutions});
+  const profileVerified=base.milestones.find((item)=>item.id==='profile')?.complete===true;
+  return Object.freeze({...base,source:'authenticated-coach-bootstrap',coachId,profileVerified,accountStatusVerified:base.accountActive===true,clientEvidenceCount:assignments.length,publishedPlanningEvidenceCount:planningEvidence.length,completedSessionEvidence:completedExecutions.length>0,nextCoachAction:nextCoachAction(base.milestones)});
+}
+''',
+          )
+          replace_once(
+              'src/m26/rc39/view-model.js',
+              "adminTitle:'Verificación administrativa pendiente',adminCopy:'Tu perfil profesional y el estado operativo de la cuenta no forman parte del bootstrap Coach actual. IBERFIT los mantiene pendientes en lugar de asumirlos.'",
+              "adminTitle:'Verificación operativa pendiente',adminCopy:'IBERFIT solo valida perfil y cuenta cuando el bootstrap autenticado aporta tu email y una membresía activa. Si falta alguna evidencia, la mantiene pendiente.'",
+          )
+          replace_once(
+              'src/m26/rc39/view-model.js',
+              "adminTitle:'Administrative verification pending',adminCopy:'Your professional profile and operational account status are not exposed by the current Coach bootstrap. IBERFIT keeps them pending instead of assuming them.'",
+              "adminTitle:'Operational verification pending',adminCopy:'IBERFIT only validates profile and account when the authenticated bootstrap provides your email and an active membership. Missing evidence stays pending.'",
+          )
+          replace_once(
+              'src/m26/rc39/view-model.js',
+              "adminTitle:'Vérification administrative en attente',adminCopy:'Votre profil professionnel et l’état opérationnel du compte ne sont pas exposés par le bootstrap Coach actuel. IBERFIT les laisse en attente au lieu de les supposer.'",
+              "adminTitle:'Vérification opérationnelle en attente',adminCopy:'IBERFIT valide le profil et le compte uniquement lorsque le bootstrap authentifié fournit votre e-mail et une adhésion active. Toute preuve manquante reste en attente.'",
+          )
+          replace_once(
+              'src/m26/rc39/view-model.js',
+              "adminTitle:'Verificação administrativa pendente',adminCopy:'O seu perfil profissional e o estado operacional da conta não são expostos pelo bootstrap Coach atual. O IBERFIT mantém-nos pendentes em vez de os assumir.'",
+              "adminTitle:'Verificação operacional pendente',adminCopy:'O IBERFIT só valida perfil e conta quando o bootstrap autenticado fornece o seu email e uma associação ativa. Evidência em falta permanece pendente.'",
+          )
+
+          # 6) The onboarding readiness adapter mirrors the canonical Journey; tour state stays guidance only.
+          Path('src/m26/onboarding/coach-launch-readiness.js').write_text(r'''function clean(value,max=240){
+  return String(value??'').trim().slice(0,max);
+}
+
+function milestone(journey,id){
+  return Array.isArray(journey?.milestones)
+    ?journey.milestones.find((item)=>item?.id===id)||null
+    :null;
+}
+
+function nextRequirement(journey){
+  if(!journey)return 'data';
+  if(journey.blocked===true)return 'account';
+  for(const id of ['invited','activated','profile','client','planning','session']){
+    if(milestone(journey,id)?.complete!==true)return id;
+  }
+  if(journey.accountActive!==true)return 'account';
+  return null;
+}
+
+export function coachLaunchReadiness({role,progress,journey}={}){
+  const normalizedRole=clean(role,40).toLowerCase();
+  const tourCompleted=progress?.completed===true;
+  if(normalizedRole!=='coach'){
+    return Object.freeze({applicable:false,ready:null,tourCompleted,profileReady:null,clientReady:null,planningReady:null,sessionReady:null,accountReady:null,nextRequirement:null});
+  }
+  if(!journey||!Array.isArray(journey.milestones)){
+    return Object.freeze({applicable:true,ready:false,tourCompleted,profileReady:false,clientReady:false,planningReady:false,sessionReady:false,accountReady:false,nextRequirement:'data'});
+  }
+  return Object.freeze({
+    applicable:true,
+    ready:journey.ready===true,
+    tourCompleted,
+    profileReady:milestone(journey,'profile')?.complete===true,
+    clientReady:milestone(journey,'client')?.complete===true,
+    planningReady:milestone(journey,'planning')?.complete===true,
+    sessionReady:milestone(journey,'session')?.complete===true,
+    accountReady:journey.accountActive===true&&!journey.blocked,
+    nextRequirement:nextRequirement(journey),
+    completedCount:Number(journey.completedCount||0),
+    total:Number(journey.total||0),
+    stage:journey.stage||null,
+  });
+}
+
+export const __coachLaunchReadinessInternals=Object.freeze({milestone,nextRequirement});
+''',encoding='utf-8')
+
+          # 7) Progressive guide receives canonical Coach Journey; visited tour steps do not define readiness.
+          replace_once(
+              'src/m26/onboarding/progressive-onboarding.js',
+              "import {coachLaunchReadiness} from './coach-launch-readiness.js';",
+              "import {coachLaunchReadiness} from './coach-launch-readiness.js';\nimport {deriveCoachSelfLaunchJourney} from '../rc39/view-model.js';",
+          )
+          replace_once(
+              'src/m26/onboarding/progressive-onboarding.js',
+              "      readiness?.planningReady===true,\n      readiness?.nextRequirement||'',",
+              "      readiness?.planningReady===true,\n      readiness?.sessionReady===true,\n      readiness?.profileReady===true,\n      readiness?.accountReady===true,\n      readiness?.nextRequirement||'',",
+          )
+          replace_once(
+              'src/m26/onboarding/progressive-onboarding.js',
+              "    const readiness=coachLaunchReadiness({\n      role:context.role,\n      progress,\n      collections:canonicalState?.collections||null,\n    });",
+              "    const launchJourney=context.role==='coach'\n      ?deriveCoachSelfLaunchJourney({state:canonicalState,identity:canonicalState?.identity})\n      :null;\n    const readiness=coachLaunchReadiness({\n      role:context.role,\n      progress,\n      journey:launchJourney,\n    });",
+          )
+          replace_once(
+              'src/m26/onboarding/progressive-onboarding.js',
+              "'Recorrido de interfaz completado; puesta en marcha pendiente. IBERFIT no marca al Coach como listo hasta validar cliente y planificación.'",
+              "'Recorrido de interfaz completado; puesta en marcha pendiente. IBERFIT no marca al Coach como listo hasta validar los seis hitos operativos.'",
+          )
+
+          # 8) Bootstrap exposes only the authenticated user's own email + membership status.
+          Path('supabase/migrations/20260924134500_coach_launch_identity_bootstrap_v1.sql').write_text(r'''begin;
+
+create or replace function public.iberfit_bootstrap_v26()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path to ''
+as $function$
+declare
+  v_payload jsonb;
+  v_email text;
+  v_membership_status text;
+begin
+  v_payload:=public.iberfit_bootstrap_v26_pre_v65e();
+
+  select u.email
+  into v_email
+  from auth.users u
+  where u.id=auth.uid();
+
+  select m.status
+  into v_membership_status
+  from public.iberfit_organization_memberships m
+  where m.organization_id='00000000-0000-4000-8000-000000000140'::uuid
+    and m.user_id=auth.uid();
+
+  v_payload:=jsonb_set(v_payload,'{user,email}',to_jsonb(coalesce(v_email,'')),true);
+  v_payload:=jsonb_set(v_payload,'{user,status}',to_jsonb(coalesce(v_membership_status,'')),true);
+  return v_payload;
+end
+$function$;
+
+alter function public.iberfit_bootstrap_v26() owner to postgres;
+revoke all on function public.iberfit_bootstrap_v26() from public;
+revoke all on function public.iberfit_bootstrap_v26() from anon;
+grant execute on function public.iberfit_bootstrap_v26() to authenticated;
+grant execute on function public.iberfit_bootstrap_v26() to service_role;
+
+comment on function public.iberfit_bootstrap_v26() is
+'IBERFIT authenticated bootstrap; exposes only the current user own email and canonical membership status for Coach operational readiness.';
+
+commit;
+''',encoding='utf-8')
+
+          # 9) Regression tests: shared journey, raw execution truth, tour independence, self parity, migration contract.
+          Path('tests/m26_coach_launch_journey.test.mjs').write_text(r'''import test from 'node:test';
+import assert from 'node:assert/strict';
+import {deriveCoachLaunchJourney,buildCoach360Rows} from '../src/m26/admin/view-model.js';
+
+const user={id:'coach-1',userId:'coach-1',name:'Carlos',email:'coach@iberfit.cl',status:'active',primaryRole:'coach',roles:['coach'],lastAccessAt:'2026-09-06T10:00:00Z'};
+const coach={id:'profile-1',userId:'coach-1',name:'Carlos',email:'coach@iberfit.cl',status:'active'};
+const assignments=[{id:'a1',coachUserId:'coach-1',clientId:'client-1',status:'active'}];
+const planning=[{id:'published-session-1',clientId:'client-1',status:'publicado',publishedAt:'2026-09-05T09:00:00Z'}];
+const completed=[{id:'exec-1',client_id:'client-1',session_id:'published-session-1',started_by:'coach-1',execution_status:'cerrada_confirmada',remote_confirmed_at:'2026-09-05T11:00:00Z'}];
+
+test('Coach Launch Journey stays fail-closed until all six operational milestones have explicit evidence',()=>{
+  const withoutPlanning=deriveCoachLaunchJourney({coach,user,assignments,sessionExecutions:completed});
+  assert.equal(withoutPlanning.ready,false);
+  assert.equal(withoutPlanning.stage,'planning');
+  assert.equal(withoutPlanning.milestones.find((item)=>item.id==='session').complete,true);
+  assert.equal(withoutPlanning.milestones.find((item)=>item.id==='planning').complete,false);
+
+  const ready=deriveCoachLaunchJourney({coach,user,assignments,planningSessions:planning,sessionExecutions:completed});
+  assert.equal(ready.ready,true);
+  assert.equal(ready.accountActive,true);
+  assert.equal(ready.stage,'ready');
+  assert.equal(ready.percent,100);
+  assert.equal(ready.nextAction,null);
+});
+
+test('rejected or active execution never completes the first-session milestone',()=>{
+  for(const execution_status of ['cierre_rechazado','activa','pausada']){
+    const result=deriveCoachLaunchJourney({coach,user,assignments,planningSessions:planning,sessionExecutions:[{...completed[0],execution_status}]});
+    assert.equal(result.milestones.find((item)=>item.id==='session').complete,false,execution_status);
+    assert.equal(result.ready,false);
+    assert.equal(result.stage,'session');
+  }
+});
+
+test('Coach Launch Journey exposes invited and blocked coaches without inventing activation',()=>{
+  const invited=deriveCoachLaunchJourney({user:{id:'coach-invited',userId:'coach-invited',name:'Ana',email:'ana@iberfit.cl',status:'active',primaryRole:'coach',roles:['coach']}});
+  assert.equal(invited.ready,false);
+  assert.equal(invited.stage,'invited');
+  assert.equal(invited.milestones.find((item)=>item.id==='activated').complete,false);
+
+  const blocked=deriveCoachLaunchJourney({
+    user:{id:'coach-blocked',userId:'coach-blocked',status:'suspended',primaryRole:'coach',roles:['coach'],lastAccessAt:'2026-09-01T08:00:00Z'},
+    coach:{id:'profile-b',userId:'coach-blocked',name:'Bloqueado',email:'blocked@iberfit.cl',status:'active'},
+  });
+  assert.equal(blocked.blocked,true);
+  assert.equal(blocked.accountActive,false);
+  assert.equal(blocked.ready,false);
+  assert.equal(blocked.stage,'blocked');
+});
+
+test('Coach 360 derives planning and completion from real shared records',()=>{
+  const rows=buildCoach360Rows({
+    coaches:[{id:'profile-1',userId:'coach-1',name:'Carlos Coach',email:'coach@iberfit.cl',status:'active'}],
+    users:[user,{id:'coach-2',userId:'coach-2',name:'Coach Invitada',email:'invite@iberfit.cl',status:'active',primaryRole:'coach',roles:['coach']}],
+    clients:[{id:'client-1',name:'Ana',status:'active'}],
+    assignments,
+    appointments:[{id:'apt-1',sessionId:'published-session-1',coachUserId:'coach-1',clientId:'client-1',startAt:'2026-09-05T10:00:00Z',status:'completada'}],
+    planningSessions:planning,
+    sessionExecutions:completed,
+    now:'2026-09-06T12:00:00Z',
+  });
+  const ready=rows.find((row)=>row.coachId==='coach-1');
+  const invited=rows.find((row)=>row.coachId==='coach-2');
+  assert.equal(ready.launchJourney.ready,true);
+  assert.equal(ready.completedCount,1);
+  assert.equal(invited.launchJourney.ready,false);
+  assert.equal(rows.length,2);
+});
+''',encoding='utf-8')
+
+          Path('tests/m26_coach_launch_readiness.test.mjs').write_text(r'''import test from 'node:test';
+import assert from 'node:assert/strict';
+import {coachLaunchReadiness} from '../src/m26/onboarding/coach-launch-readiness.js';
+import {deriveCoachLaunchJourney} from '../src/m26/onboarding/coach-launch-journey.js';
+import {progressiveOnboardingProgress,renderProgressiveOnboardingPanel} from '../src/m26/onboarding/progressive-onboarding.js';
+
+const completeTour=()=>progressiveOnboardingProgress({role:'coach',visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification']});
+const incompleteTour=()=>progressiveOnboardingProgress({role:'coach',visited:[]});
+const user={id:'coach-1',userId:'coach-1',status:'active',lastAccessAt:'2026-09-24T10:00:00Z'};
+const coach={id:'coach-1',userId:'coach-1',name:'Coach',email:'coach@iberfit.cl',status:'active'};
+const assignments=[{coachUserId:'coach-1',clientId:'client-1',status:'active'}];
+const planning=[{id:'session-1',clientId:'client-1',status:'publicado'}];
+const execution=[{id:'exec-1',client_id:'client-1',started_by:'coach-1',execution_status:'cerrada_confirmada'}];
+const readyJourney=()=>deriveCoachLaunchJourney({user,coach,assignments,planningSessions:planning,sessionExecutions:execution});
+
+test('tour is guidance only and cannot block an operationally ready Coach',()=>{
+  const result=coachLaunchReadiness({role:'coach',progress:incompleteTour(),journey:readyJourney()});
+  assert.equal(result.tourCompleted,false);
+  assert.equal(result.ready,true);
+  assert.equal(result.nextRequirement,null);
+});
+
+test('tour completion cannot manufacture operational readiness',()=>{
+  const journey=deriveCoachLaunchJourney({user,coach,assignments,planningSessions:planning,sessionExecutions:[]});
+  const result=coachLaunchReadiness({role:'coach',progress:completeTour(),journey});
+  assert.equal(result.tourCompleted,true);
+  assert.equal(result.ready,false);
+  assert.equal(result.sessionReady,false);
+  assert.equal(result.nextRequirement,'session');
+});
+
+test('missing canonical journey fails closed',()=>{
+  const result=coachLaunchReadiness({role:'coach',progress:completeTour(),journey:null});
+  assert.equal(result.ready,false);
+  assert.equal(result.nextRequirement,'data');
+});
+
+test('Client and Admin do not acquire Coach readiness semantics',()=>{
+  for(const role of ['client','admin']){
+    const result=coachLaunchReadiness({role,progress:{completed:true},journey:readyJourney()});
+    assert.equal(result.applicable,false);
+    assert.equal(result.ready,null);
+  }
+});
+
+test('Coach onboarding UI reflects canonical readiness after the tour without redefining it',()=>{
+  const state={visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification']};
+  const readiness=coachLaunchReadiness({role:'coach',progress:completeTour(),journey:readyJourney()});
+  const html=renderProgressiveOnboardingPanel({role:'coach',state,readiness});
+  assert.match(html,/Coach listo para trabajar/);
+  assert.doesNotMatch(html,/puesta en marcha pendiente/i);
+});
+
+test('Coach onboarding UI stays pending when canonical first session is missing',()=>{
+  const state={visited:['coach-today','coach-clients','coach-agenda','coach-library','coach-verification']};
+  const journey=deriveCoachLaunchJourney({user,coach,assignments,planningSessions:planning,sessionExecutions:[]});
+  const readiness=coachLaunchReadiness({role:'coach',progress:completeTour(),journey});
+  const html=renderProgressiveOnboardingPanel({role:'coach',state,readiness});
+  assert.match(html,/puesta en marcha pendiente/i);
+  assert.doesNotMatch(html,/Coach listo para trabajar/);
+});
+''',encoding='utf-8')
+
+          Path('tests/m26_coach_launch_domain_truth.test.mjs').write_text(r'''import test from 'node:test';
+import assert from 'node:assert/strict';
+import {sessionExecutionIsCompleted,sessionExecutionDate} from '../src/m26/domain/session-execution-truth.js';
+import {projectCollectionsForRole,projectIdentityForRole} from '../src/m26/security/role-projection.js';
+
+test('session completion truth accepts real DB shape and rejects non-completed execution states',()=>{
+  const raw={id:'e1',client_id:'c1',execution_status:'cerrada_confirmada',remote_confirmed_at:'2026-09-24T12:00:00Z'};
+  assert.equal(sessionExecutionIsCompleted(raw),true);
+  assert.equal(sessionExecutionDate(raw),'2026-09-24T12:00:00Z');
+  assert.equal(sessionExecutionIsCompleted({...raw,execution_status:'cierre_rechazado'}),false);
+  assert.equal(sessionExecutionIsCompleted({...raw,execution_status:'activa'}),false);
+  assert.equal(sessionExecutionIsCompleted({status:'completada'}),true);
+});
+
+test('client projection preserves only safe execution truth fields needed by progress logic',()=>{
+  const user={id:'u1',role:'client',clientId:'c1'};
+  const projected=projectCollectionsForRole({sessionExecutions:[{id:'e1',client_id:'c1',execution_status:'cerrada_confirmada',remote_confirmed_at:'2026-09-24T12:00:00Z',summary:{secret:'not projected'}}]},user,['sessionExecutions']);
+  assert.equal(projected.sessionExecutions.length,1);
+  assert.equal(projected.sessionExecutions[0].executionStatus,'cerrada_confirmada');
+  assert.equal(projected.sessionExecutions[0].completedAt,'2026-09-24T12:00:00Z');
+  assert.equal('summary' in projected.sessionExecutions[0],false);
+});
+
+test('Coach identity projection retains own email and membership status evidence',()=>{
+  const identity=projectIdentityForRole({id:'coach-1',role:'coach',name:'Coach',email:'coach@iberfit.cl',status:'active'});
+  assert.equal(identity.email,'coach@iberfit.cl');
+  assert.equal(identity.status,'active');
+});
+''',encoding='utf-8')
+
+          Path('tests/m26_coach_launch_self_journey.test.mjs').write_text(r'''import test from 'node:test';
+import assert from 'node:assert/strict';
+import {deriveCoachSelfLaunchJourney,coachLaunchSelfLanguages} from '../src/m26/rc39/view-model.js';
+
+function state(identity,executionStartedBy='coach-1'){
+  return {
+    identity,
+    hydration:{serverTime:'2026-09-24T13:00:00Z'},
+    collections:{
+      clients:[{id:'client-1',name:'Cliente'}],
+      sessions:[{id:'session-1',clientId:'client-1',status:'publicado',publishedAt:'2026-09-23T12:00:00Z'}],
+      sessionExecutions:[{id:'exec-1',clientId:'client-1',sessionId:'session-1',started_by:executionStartedBy,execution_status:'cerrada_confirmada',remote_confirmed_at:'2026-09-24T12:00:00Z'}],
+    },
+    pendingOperations:[],conflicts:[],rejectedOperations:[],
+  };
+}
+
+const identity={id:'coach-1',role:'coach',name:'Carlos',email:'coach@iberfit.cl',status:'active'};
+
+test('Coach self journey reaches the same six-milestone ready state from authenticated evidence',()=>{
+  const journey=deriveCoachSelfLaunchJourney({state:state(identity)});
+  assert.equal(journey.ready,true);
+  assert.equal(journey.completedCount,6);
+  assert.equal(journey.profileVerified,true);
+  assert.equal(journey.accountStatusVerified,true);
+  assert.equal(journey.completedSessionEvidence,true);
+});
+
+test('Coach self journey fails closed when profile/account evidence is missing',()=>{
+  const journey=deriveCoachSelfLaunchJourney({state:state({...identity,email:'',status:''})});
+  assert.equal(journey.ready,false);
+  assert.equal(journey.profileVerified,false);
+  assert.equal(journey.accountStatusVerified,false);
+});
+
+test('execution started by another Coach cannot satisfy first-session readiness',()=>{
+  const journey=deriveCoachSelfLaunchJourney({state:state(identity,'coach-2')});
+  assert.equal(journey.ready,false);
+  assert.equal(journey.milestones.find((item)=>item.id==='session').complete,false);
+});
+
+test('Coach Launch self copy retains ES EN FR PT parity',()=>{
+  assert.deepEqual(coachLaunchSelfLanguages(),['es','en','fr','pt']);
+});
+''',encoding='utf-8')
+
+          Path('tests/m26_coach_launch_bootstrap_contract.test.mjs').write_text(r'''import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const path='supabase/migrations/20260924134500_coach_launch_identity_bootstrap_v1.sql';
+const sql=fs.readFileSync(path,'utf8');
+
+test('Coach bootstrap migration enriches only current authenticated identity and preserves fail-closed membership evidence',()=>{
+  assert.match(sql,/where u\.id=auth\.uid\(\)/i);
+  assert.match(sql,/m\.user_id=auth\.uid\(\)/i);
+  assert.match(sql,/00000000-0000-4000-8000-000000000140/i);
+  assert.match(sql,/\{user,email\}/i);
+  assert.match(sql,/\{user,status\}/i);
+  assert.match(sql,/security definer/i);
+  assert.match(sql,/set search_path to ''/i);
+  assert.match(sql,/revoke all on function public\.iberfit_bootstrap_v26\(\) from public/i);
+  assert.match(sql,/grant execute on function public\.iberfit_bootstrap_v26\(\) to authenticated/i);
+  assert.doesNotMatch(sql,/grant execute[^;]*\bto anon\b/i);
+});
+''',encoding='utf-8')
+
+      - name: Verify patch whitespace
+        run: git diff --check
+
+      - name: Commit deterministic patch
+        run: |
+          git config user.name "iberfit-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add src tests supabase/migrations
+          git commit -m "fix(coach): unify launch readiness truth"
+          git push origin HEAD:fix/coach-launch-single-source-truth
+
+      - name: Run targeted Coach Launch regression tests
+        run: >-
+          node --test
+          tests/m26_coach_launch_domain_truth.test.mjs
+          tests/m26_coach_launch_journey.test.mjs
+          tests/m26_coach_launch_readiness.test.mjs
+          tests/m26_coach_launch_self_journey.test.mjs
+          tests/m26_coach_launch_bootstrap_contract.test.mjs
