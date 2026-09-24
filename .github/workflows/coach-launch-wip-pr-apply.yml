@@ -19,15 +19,16 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Apply deterministic wiring once
+      - name: Apply deterministic phase-two wiring
         shell: bash
         run: |
           set -euo pipefail
-          if grep -Fq "../admin/view-model.js" src/m26/rc39/view-model.js; then
+          if grep -Fq "deriveCoachLaunchJourney,isCoachLaunchPlanningPublished" src/m26/rc39/view-model.js; then
             python scripts/ci/apply_coach_launch_single_source_patch.py
           else
-            echo "Coach Launch wiring already applied; skipping patch helper."
+            echo "Coach Launch phase-two wiring already applied; skipping patch helper."
           fi
+          node scripts/generate_rc58_app_shell.mjs
           git diff --check
 
       - name: Commit wiring when changed
@@ -35,18 +36,20 @@ jobs:
         run: |
           set -euo pipefail
           git add \
+            public/m26/sw.js \
             src/m26/security/role-projection.js \
             src/m26/admin/view-model.js \
             src/m26/rc39/view-model.js \
-            src/m26/onboarding/progressive-onboarding.js
+            src/m26/onboarding/progressive-onboarding.js \
+            tests/m26_coach_launch_self_journey.test.mjs
           if git diff --cached --quiet; then
             echo "No wiring changes to commit."
-            exit 0
+          else
+            git config user.name "iberfit-ci"
+            git config user.email "actions@users.noreply.github.com"
+            git commit -m "fix(coach): finish shared launch journey wiring"
+            git push origin HEAD:${{ github.head_ref }}
           fi
-          git config user.name "iberfit-ci"
-          git config user.email "actions@users.noreply.github.com"
-          git commit -m "fix(coach): wire shared launch journey"
-          git push origin HEAD:${{ github.head_ref }}
 
       - name: Run targeted Coach Launch tests
         run: >-
