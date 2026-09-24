@@ -7,7 +7,6 @@ import {deriveAdaptiveExperience} from '../experience/adaptive-experience.js';
 import {deriveAdminCommandCenter} from './command-center.js';
 import {readIberfitExperiencePreferences} from '../ui/preferences.js';
 import {deriveCoachLaunchJourney,isCoachLaunchPlanningPublished} from '../onboarding/coach-launch-journey.js';
-import {sessionExecutionIsCompleted} from '../domain/session-execution-truth.js';
 export {deriveCoachLaunchJourney} from '../onboarding/coach-launch-journey.js';
 const clone=(v)=>v==null?v:structuredClone(v);
 function clientRows(state){
@@ -294,7 +293,7 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
       upcomingSessions,
       recentSessions,
       upcomingCount:upcomingSessions.length,
-      completedCount:coachExecutions.filter(sessionExecutionIsCompleted).length,
+      completedCount:sessions.filter((session)=>/complet|realiz|done/i.test(session.status)).length,
       nextSession:upcomingSessions[0]||null,
       assignmentCount:ownAssignments.length,
     });
