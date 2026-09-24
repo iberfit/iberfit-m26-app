@@ -15,6 +15,10 @@ test('la copia Coach mantiene dato → contexto → decisión sin prescribir aju
     },
   });
 
+  assert.match(summary?.detail||'',/a la baja/u);
   assert.match(summary?.detail||'',/otra referencia comparable/u);
-  assert.doesNotMatch(summary?.detail||'',/sube|baja|aumenta|reduce|cambia el plan|ajusta la carga/iu);
+  assert.doesNotMatch(
+    summary?.detail||'',
+    /aumenta la carga|reduce la carga|cambia el plan|ajusta la carga|modifica la planificación/iu,
+  );
 });
