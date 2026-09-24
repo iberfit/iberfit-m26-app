@@ -7,6 +7,7 @@ import {civilDateInTimeZone,formatIberfitDate} from '../domain/civil-date.js';
 import {buildWearableViewModel} from '../wearables/view-model.js';
 import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js';
+import {enhanceCoachExerciseEffortContinuity} from './coach-exercise-effort-continuity.js';
 
 const STYLE_ID='m27-progress-continuity-styles';
 
@@ -1177,10 +1178,11 @@ export function enhanceProgressContinuity({root,viewModel,state,now=new Date()}=
   installStyles(root.ownerDocument);
   const home=enhanceClientHome({root,viewModel,state,now});
   const constancy=enhanceConstancy({root,viewModel,state,now});
+  const exerciseEffort=enhanceCoachExerciseEffortContinuity({root,viewModel,state,now});
   const exerciseFocus=enhanceCoachExerciseFocus({root,viewModel});
   const feedback=enhanceFeedbackClosure({root,viewModel});
   const completed=enhanceCompletedClosure({root});
-  return Boolean(home||constancy||exerciseFocus||feedback||completed);
+  return Boolean(home||constancy||exerciseEffort||exerciseFocus||feedback||completed);
 }
 export const __progressContinuityInternals=Object.freeze({
   clientHomeContextItems,
