@@ -28,11 +28,12 @@ $precheck$;
 alter default privileges for role postgres in schema public
   revoke all on tables from anon, authenticated, service_role;
 
--- Self-certify the resulting default ACL. If any default table privilege remains for
--- an API/service role, abort instead of silently leaving a partially hardened state.
+-- Self-certify both the catalog state and the behavior of a freshly created public table.
+-- The probe table exists only inside this migration transaction and is dropped immediately.
 do $postcheck$
 declare
   v_remaining integer;
+  v_probe_exposed boolean;
 begin
   select count(*)::integer
     into v_remaining
@@ -51,5 +52,29 @@ begin
   if v_remaining <> 0 then
     raise exception 'IBERFIT_PUBLIC_TABLE_DEFAULT_ACL_NOT_FAIL_CLOSED:%', v_remaining;
   end if;
+
+  execute 'create table public.iberfit_default_acl_probe_v1 (id integer)';
+
+  select
+    has_table_privilege('anon', 'public.iberfit_default_acl_probe_v1', 'SELECT')
+    or has_table_privilege('anon', 'public.iberfit_default_acl_probe_v1', 'INSERT')
+    or has_table_privilege('authenticated', 'public.iberfit_default_acl_probe_v1', 'SELECT')
+    or has_table_privilege('authenticated', 'public.iberfit_default_acl_probe_v1', 'INSERT')
+    or has_table_privilege('service_role', 'public.iberfit_default_acl_probe_v1', 'SELECT')
+    or has_table_privilege('service_role', 'public.iberfit_default_acl_probe_v1', 'INSERT')
+    into v_probe_exposed;
+
+  if v_probe_exposed then
+    raise exception 'IBERFIT_PUBLIC_TABLE_DEFAULT_ACL_PROBE_EXPOSED';
+  end if;
+
+  if (select pg_get_userbyid(c.relowner)
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname = 'iberfit_default_acl_probe_v1') <> 'postgres' then
+    raise exception 'IBERFIT_PUBLIC_TABLE_DEFAULT_ACL_PROBE_OWNER_UNEXPECTED';
+  end if;
+
+  execute 'drop table public.iberfit_default_acl_probe_v1';
 end
 $postcheck$;
