@@ -1,0 +1,59 @@
+name: Coach Launch WIP PR Apply
+
+on:
+  pull_request:
+    branches:
+      - canary/rc74-4
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'fix/coach-launch-single-source-truth'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Apply deterministic wiring once
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Fq "../admin/view-model.js" src/m26/rc39/view-model.js; then
+            python scripts/ci/apply_coach_launch_single_source_patch.py
+          else
+            echo "Coach Launch wiring already applied; skipping patch helper."
+          fi
+          git diff --check
+
+      - name: Commit wiring when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            src/m26/security/role-projection.js \
+            src/m26/admin/view-model.js \
+            src/m26/rc39/view-model.js \
+            src/m26/onboarding/progressive-onboarding.js
+          if git diff --cached --quiet; then
+            echo "No wiring changes to commit."
+            exit 0
+          fi
+          git config user.name "iberfit-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "fix(coach): wire shared launch journey"
+          git push origin HEAD:${{ github.head_ref }}
+
+      - name: Run targeted Coach Launch tests
+        run: >-
+          node --test
+          tests/m26_coach_launch_domain_truth.test.mjs
+          tests/m26_coach_launch_journey.test.mjs
+          tests/m26_coach_launch_readiness.test.mjs
+          tests/m26_coach_launch_self_journey.test.mjs
+          tests/m26_coach_launch_identity_parity.test.mjs
+          tests/m26_coach_launch_bootstrap_contract.test.mjs
