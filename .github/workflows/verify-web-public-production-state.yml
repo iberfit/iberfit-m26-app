@@ -1,0 +1,82 @@
+name: Verify WEB IBERFIT production state
+
+on:
+  push:
+    branches: [infra/web-iberfit-worker]
+    paths:
+      - '.iberfit/web-public-production.json'
+      - '.github/workflows/verify-web-public-production-state.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-web-public-production-state
+  cancel-in-progress: true
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify manifest against Cloudflare and live public web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo CLOUDFLARE_API_TOKEN_MISSING; exit 41; }
+          node <<'NODE'
+          const fs=require('fs');
+          const m=JSON.parse(fs.readFileSync('.iberfit/web-public-production.json','utf8'));
+          const fail=x=>{throw new Error(x)};
+          if(m.schema!=='iberfit.web.public-production.v1')fail('MANIFEST_SCHEMA');
+          if(m.repository!=='iberfit/iberfitweb')fail('MANIFEST_REPOSITORY');
+          if(m.domain!=='https://iberfit.cl')fail('MANIFEST_DOMAIN');
+          if(!/^\d+\.\d+\.\d+$/.test(m.version||''))fail('MANIFEST_VERSION');
+          if(!/^[0-9a-f]{40}$/.test(m.sha||''))fail('MANIFEST_SHA');
+          if(!/^[0-9a-f-]{36}$/.test(m.deploymentId||''))fail('MANIFEST_DEPLOYMENT');
+          if(!m.safeRollback||!/^\d+\.\d+\.\d+$/.test(m.safeRollback.version||'')||!/^[0-9a-f]{40}$/.test(m.safeRollback.sha||'')||!/^[0-9a-f-]{36}$/.test(m.safeRollback.deploymentId||''))fail('MANIFEST_ROLLBACK');
+          for(const k of ['qaRunId','previewRunId','productionRunId'])if(!Number.isInteger(m[k])||m[k]<=0)fail('MANIFEST_RUN_'+k);
+          NODE
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          const m=JSON.parse(fs.readFileSync('.iberfit/web-public-production.json','utf8'));
+          const p=JSON.parse(fs.readFileSync('/tmp/project.json','utf8'));
+          if(!p.success||p.result?.name!=='web-iberfit'||p.result.production_branch!=='production')throw Error('CLOUDFLARE_PROJECT_MISMATCH');
+          const domains=p.result.domains||[];
+          if(!domains.includes('iberfit.cl')||domains.includes('app.iberfit.cl'))throw Error('CLOUDFLARE_DOMAIN_MISMATCH');
+          const x=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const current=(x.result||[]).filter(d=>d.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(current?.id!==m.deploymentId)throw Error('DRIFT_DEPLOYMENT:'+current?.id);
+          if((current.deployment_trigger?.metadata?.commit_hash||'')!==m.sha)throw Error('DRIFT_SHA:'+(current.deployment_trigger?.metadata?.commit_hash||''));
+          const rollback=(x.result||[]).find(d=>d.id===m.safeRollback.deploymentId);
+          if(!rollback||(rollback.deployment_trigger?.metadata?.commit_hash||'')!==m.safeRollback.sha)throw Error('ROLLBACK_DRIFT');
+          NODE
+          VERSION="$(node -p "require('./.iberfit/web-public-production.json').version")"
+          SHA="$(node -p "require('./.iberfit/web-public-production.json').sha")"
+          test "$(curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/VERSION?state=$GITHUB_RUN_ID" | tr -d '\r\n ')" = "$VERSION"
+          curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/assets/contrast.v64321.css?state=$GITHUB_RUN_ID" -o /tmp/contrast.css
+          grep -q -- '--gold-text-strong:#806216' /tmp/contrast.css
+          grep -q -- '--text-secondary:#44564c' /tmp/contrast.css
+          curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-vitacura/?state=$GITHUB_RUN_ID" -o /tmp/vitacura.html
+          grep -q 'href="/hibrido/">Conocer entrenamiento híbrido</a>' /tmp/vitacura.html
+          ! grep -q 'href="/online/">Conocer entrenamiento online</a>' /tmp/vitacura.html
+          curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-las-condes/?state=$GITHUB_RUN_ID" -o /tmp/las-condes.html
+          ! grep -q 'Primero vemos si podemos hacerlo bien, no solo si podemos ir' /tmp/las-condes.html
+          curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/branches/checkpoint/v64321-contrast-system-final-production-2026-09-24" -o /tmp/checkpoint.json
+          node <<'NODE'
+          const fs=require('fs');
+          const m=JSON.parse(fs.readFileSync('.iberfit/web-public-production.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/checkpoint.json','utf8'));
+          if(b.commit?.sha!==m.sha)throw Error('CHECKPOINT_DRIFT:'+b.commit?.sha);
+          console.log('WEB_PUBLIC_PRODUCTION_STATE_OK',m.version,m.sha,m.deploymentId);
+          NODE
