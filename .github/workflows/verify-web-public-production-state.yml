@@ -62,7 +62,6 @@ jobs:
           if(!rollback||(rollback.deployment_trigger?.metadata?.commit_hash||'')!==m.safeRollback.sha)throw Error('ROLLBACK_DRIFT');
           NODE
           VERSION="$(node -p "require('./.iberfit/web-public-production.json').version")"
-          SHA="$(node -p "require('./.iberfit/web-public-production.json').sha")"
           test "$(curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/VERSION?state=$GITHUB_RUN_ID" | tr -d '\r\n ')" = "$VERSION"
           curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/assets/contrast.v64321.css?state=$GITHUB_RUN_ID" -o /tmp/contrast.css
           grep -q -- '--gold-text-strong:#806216' /tmp/contrast.css
@@ -72,7 +71,22 @@ jobs:
           ! grep -q 'href="/online/">Conocer entrenamiento online</a>' /tmp/vitacura.html
           curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-las-condes/?state=$GITHUB_RUN_ID" -o /tmp/las-condes.html
           ! grep -q 'Primero vemos si podemos hacerlo bien, no solo si podemos ir' /tmp/las-condes.html
-          curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/branches/checkpoint/v64321-contrast-system-final-production-2026-09-24" -o /tmp/checkpoint.json
+          if [ "$VERSION" = '6.43.22' ]; then
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/assets/ux.v64322.css?state=$GITHUB_RUN_ID" -o /tmp/ux.css
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/assets/experience.v64322.js?state=$GITHUB_RUN_ID" -o /tmp/experience.js
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" -o /tmp/home.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/online/?state=$GITHUB_RUN_ID" -o /tmp/online.html
+            grep -q 'grid-auto-columns:minmax(94%,1fr)' /tmp/ux.css
+            grep -q 'intent-router intent-router--compact' /tmp/home.html
+            test "$(grep -o 'class=\"intent-route\"' /tmp/home.html | wc -l | tr -d ' ')" = '2'
+            grep -q 'Si necesitas mucha corrección técnica en directo' /tmp/online.html
+            ! grep -q 'Según sector y horario.' /tmp/experience.js
+            ! grep -q 'Subject to area and schedule.' /tmp/experience.js
+            CHECKPOINT='checkpoint/v64322-ux-first-impression-production-2026-09-24'
+          else
+            CHECKPOINT='checkpoint/v64321-contrast-system-final-production-2026-09-24'
+          fi
+          curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/branches/${CHECKPOINT}" -o /tmp/checkpoint.json
           node <<'NODE'
           const fs=require('fs');
           const m=JSON.parse(fs.readFileSync('.iberfit/web-public-production.json','utf8'));
