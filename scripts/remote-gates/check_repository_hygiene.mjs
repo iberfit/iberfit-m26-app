@@ -1,5 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import {scanMigrationSecurityPolicy} from '../ci/check_migration_security_policy.mjs';
 
 const root=process.cwd();
 const forbiddenNames=[/^\.env($|\.)(?!example$)/,/\.pem$/i,/\.p12$/i,/service.?role/i,/client.?export/i];
@@ -23,5 +24,6 @@ async function walk(dir){
   }
 }
 await walk(root);
+findings.push(...await scanMigrationSecurityPolicy(root));
 if(findings.length){console.error(JSON.stringify({ok:false,findings},null,2));process.exit(1);}
 console.log(JSON.stringify({ok:true,findings:[]},null,2));
