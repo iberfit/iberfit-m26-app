@@ -7,6 +7,8 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const outputPath=path.join(root,'backend','production','generated','FINAL_PRODUCTION_PROMOTION.sql');
 const bootstrapScopeSource='20260901010500_final_launch_p0_bootstrap_production_scope.sql';
 const bootstrapScopePath=path.join(root,'supabase','migrations',bootstrapScopeSource);
+const coachLaunchIdentitySource='20260924134500_coach_launch_identity_bootstrap_v1.sql';
+const coachLaunchIdentityPath=path.join(root,'supabase','migrations',coachLaunchIdentitySource);
 
 const legacyCleanup=`do $legacy_helper_cleanup$
 begin
@@ -53,19 +55,36 @@ const bootstrapPostcheck=`  select pg_get_functiondef('public.iberfit_bootstrap_
   end if;
 
   select pg_get_functiondef('public.iberfit_bootstrap_v26()'::regprocedure) into v_source;
-  if position('iberfit_require_privileged_assurance_v65d' in lower(v_source))=0
-     or position('iberfit_bootstrap_v26_pre_v65e' in lower(v_source))=0 then
-    raise exception 'FINAL_PROD_POSTCHECK_BOOTSTRAP_ASSURANCE';
+  if position('iberfit_bootstrap_v26_pre_v65e' in lower(v_source))=0
+     or position('auth.users' in lower(v_source))=0
+     or position('last_sign_in_at' in lower(v_source))=0
+     or position('iberfit_organization_memberships' in lower(v_source))=0
+     or position('m.user_id=auth.uid()' in replace(lower(v_source),' ',''))=0 then
+    raise exception 'FINAL_PROD_POSTCHECK_BOOTSTRAP_SELF_IDENTITY';
+  end if;
+  if has_function_privilege('anon','public.iberfit_bootstrap_v26()','EXECUTE') then
+    raise exception 'FINAL_PROD_POSTCHECK_BOOTSTRAP_ANON_EXECUTE';
+  end if;
+  if not has_function_privilege('authenticated','public.iberfit_bootstrap_v26()','EXECUTE') then
+    raise exception 'FINAL_PROD_POSTCHECK_BOOTSTRAP_AUTH_EXECUTE';
   end if;`;
 
-function insertBootstrapScopeHotfix(sql){
-  if(!fs.existsSync(bootstrapScopePath))throw new Error(`FINAL_PROD_SOURCE_MISSING:${bootstrapScopeSource}`);
-  const source=fs.readFileSync(bootstrapScopePath,'utf8').replace(/\r\n/gu,'\n').trim();
+function insertMigrationBeforePostcheck(sql,sourceName,sourcePath,label){
+  if(!fs.existsSync(sourcePath))throw new Error(`FINAL_PROD_SOURCE_MISSING:${sourceName}`);
+  const source=fs.readFileSync(sourcePath,'utf8').replace(/\r\n/gu,'\n').trim();
   const marker='\n-- ============================================================================\n-- 99 · FINAL PRODUCTION POSTCHECK';
   const index=sql.indexOf(marker);
   if(index<0)throw new Error('FINAL_PROD_POSTCHECK_MARKER_NOT_FOUND');
-  const section=`\n-- ============================================================================\n-- POST-LAUNCH P0 · ${bootstrapScopeSource}\n-- ============================================================================\n${source}\n`;
+  const section=`\n-- ============================================================================\n-- ${label} · ${sourceName}\n-- ============================================================================\n${source}\n`;
   return `${sql.slice(0,index)}${section}${sql.slice(index)}`;
+}
+
+function insertBootstrapScopeHotfix(sql){
+  return insertMigrationBeforePostcheck(sql,bootstrapScopeSource,bootstrapScopePath,'POST-LAUNCH P0');
+}
+
+function insertCoachLaunchIdentityBootstrap(sql){
+  return insertMigrationBeforePostcheck(sql,coachLaunchIdentitySource,coachLaunchIdentityPath,'COACH LAUNCH IDENTITY');
 }
 
 function hardenBootstrapPostcheck(sql){
@@ -80,14 +99,18 @@ export function buildFinalProductionPromotionProdCompat(){
   if(!sql.includes(oldPostcheck))throw new Error('FINAL_PROD_LEGACY_POSTCHECK_CONTRACT_NOT_FOUND');
   sql=sql.replace(oldCleanup,legacyCleanup).replace(oldPostcheck,safePostcheck);
   sql=insertBootstrapScopeHotfix(sql);
+  sql=insertCoachLaunchIdentityBootstrap(sql);
   sql=hardenBootstrapPostcheck(sql);
   if(/create\s+(?:or\s+replace\s+)?function\s+public\.iberfit_auth_assurance_context_v65c\s*\(/iu.test(sql)){
     throw new Error('FINAL_PROD_OBSOLETE_V65C_RECREATED');
   }
   if(!sql.includes(bootstrapScopeSource)
+     || !sql.includes(coachLaunchIdentitySource)
      || !sql.includes('FINAL_PROD_POSTCHECK_BOOTSTRAP_SCOPE_RC29')
-     || !sql.includes('FINAL_PROD_POSTCHECK_BOOTSTRAP_ASSURANCE')){
-    throw new Error('FINAL_PROD_BOOTSTRAP_SCOPE_HOTFIX_MISSING');
+     || !sql.includes('FINAL_PROD_POSTCHECK_BOOTSTRAP_SELF_IDENTITY')
+     || !sql.includes("select u.email,u.last_sign_in_at")
+     || !sql.includes('from public.iberfit_organization_memberships m')){
+    throw new Error('FINAL_PROD_BOOTSTRAP_PROMOTION_CONTRACT_MISSING');
   }
   return sql;
 }
