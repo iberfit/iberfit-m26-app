@@ -1,4 +1,7 @@
-import {sessionExecutionIsCompleted} from '../domain/session-execution-truth.js';
+import {
+  confirmedSessionExecutionsForClient,
+  sessionExecutionIsCompleted,
+} from '../domain/session-execution-truth.js';
 
 function recordId(value){return String(value??'').trim();}
 function normalizeStatus(value){return String(value??'').trim().toLowerCase();}
@@ -6,6 +9,8 @@ function isBlockedStatus(value){return /suspend|block|inactive|inactivo|disabled
 function isActiveStatus(value){return /active|activo|enabled|operational|operativo/u.test(normalizeStatus(value));}
 function bodyOf(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};}
 function field(record,...keys){const body=bodyOf(record);for(const key of keys){const value=record?.[key]??body?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
+function list(value){return Array.isArray(value)?value:[];}
+function recordClientId(record){return recordId(field(record,'clientId','client_id')||recordId(record));}
 
 export function isCoachLaunchPlanningPublished(record={}){
   const status=normalizeStatus(field(record,'status','estado'));
@@ -98,4 +103,82 @@ export function deriveCoachLaunchJourney({
   });
 }
 
-export const __coachLaunchJourneyInternals=Object.freeze({recordId,normalizeStatus,isBlockedStatus,isActiveStatus,bodyOf,field});
+function confirmedCompletedSessions(state,clients,coachId){
+  const completed=[];
+  for(const client of clients){
+    const clientId=recordClientId(client);
+    if(!clientId)continue;
+    for(const execution of confirmedSessionExecutionsForClient(state,clientId)){
+      const startedBy=recordId(execution?.startedBy??execution?.started_by);
+      if(startedBy===coachId)completed.push(execution);
+    }
+  }
+  return completed;
+}
+
+function nextCoachAction(milestones){
+  const byId=new Map(milestones.map((item)=>[item.id,item]));
+  if(!byId.get('client')?.complete)return Object.freeze({area:'clientes',labelKey:'clients'});
+  if(!byId.get('planning')?.complete)return Object.freeze({area:'planificacion',labelKey:'planning'});
+  if(!byId.get('session')?.complete)return Object.freeze({area:'agenda',labelKey:'session'});
+  return null;
+}
+
+export function deriveCoachSelfLaunchJourney({state,identity=null}={}){
+  const sourceIdentity=identity||state?.identity||{};
+  const role=normalizeStatus(sourceIdentity?.role);
+  if(role!=='coach')return null;
+  const coachId=recordId(sourceIdentity?.id);
+  if(!coachId)return null;
+
+  const clients=list(state?.collections?.clients);
+  const clientIds=new Set(clients.map(recordClientId).filter(Boolean));
+  const sessions=list(state?.collections?.sessions);
+  const accountStatus=String(sourceIdentity?.status||'').trim();
+  const email=String(sourceIdentity?.email||'').trim();
+  const name=String(sourceIdentity?.name||sourceIdentity?.displayName||'').trim();
+  const lastAccessAt=sourceIdentity?.lastAccessAt??sourceIdentity?.last_access_at??null;
+  const user=Object.freeze({
+    id:coachId,
+    userId:coachId,
+    primaryRole:'coach',
+    roles:Object.freeze(['coach']),
+    status:accountStatus,
+    lastAccessAt,
+  });
+  const coach=Object.freeze({id:coachId,userId:coachId,name,email,status:accountStatus});
+  const assignments=Object.freeze(clients.map((client)=>Object.freeze({coachUserId:coachId,clientId:recordClientId(client),status:'active'})).filter((item)=>item.clientId));
+  const planningEvidence=sessions.filter((session)=>clientIds.has(recordClientId(session))&&isCoachLaunchPlanningPublished(session));
+  const completedExecutions=confirmedCompletedSessions(state,clients,coachId);
+  const base=deriveCoachLaunchJourney({
+    user,
+    coach,
+    assignments,
+    planningSessions:planningEvidence,
+    sessionExecutions:completedExecutions,
+  });
+  const profileVerified=base.milestones.find((item)=>item.id==='profile')?.complete===true;
+  return Object.freeze({
+    ...base,
+    source:'authenticated-coach-bootstrap',
+    coachId,
+    profileVerified,
+    accountStatusVerified:base.accountActive===true,
+    clientEvidenceCount:assignments.length,
+    publishedPlanningEvidenceCount:planningEvidence.length,
+    completedSessionEvidence:completedExecutions.length>0,
+    nextCoachAction:nextCoachAction(base.milestones),
+  });
+}
+
+export const __coachLaunchJourneyInternals=Object.freeze({
+  recordId,
+  normalizeStatus,
+  isBlockedStatus,
+  isActiveStatus,
+  bodyOf,
+  field,
+  recordClientId,
+  confirmedCompletedSessions,
+  nextCoachAction,
+});
