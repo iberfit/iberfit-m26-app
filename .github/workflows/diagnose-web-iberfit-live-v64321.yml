@@ -1,0 +1,41 @@
+name: Diagnose WEB IBERFIT live baseline
+
+on:
+  push:
+    branches: [infra/web-iberfit-worker]
+    paths: ['.github/workflows/diagnose-web-iberfit-live-v64321.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect live domain and immutable deployments
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+          CF_PROJECT: 'web-iberfit'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project.json
+          node <<'NODE'
+          const p=require('/tmp/project.json').result;
+          console.log('LATEST_ID='+p.latest_deployment.id);
+          console.log('LATEST_SHA='+(p.latest_deployment.deployment_trigger?.metadata?.commit_hash||''));
+          console.log('LATEST_URL='+p.latest_deployment.url);
+          console.log('ALIASES='+(p.latest_deployment.aliases||[]).join(','));
+          NODE
+          for base in https://iberfit.cl https://1f49ce73.web-iberfit.pages.dev https://43884d1e.web-iberfit.pages.dev; do
+            echo "BASE=$base"
+            echo "VERSION=$(curl -fsSL --retry 6 --retry-all-errors "$base/VERSION?diag=$GITHUB_RUN_ID" | tr -d '\r\n ')"
+            curl -fsSL --retry 6 --retry-all-errors "$base/assets/contrast.v64321.css?diag=$GITHUB_RUN_ID" -o /tmp/c.css || true
+            if grep -q -- '--gold-text-strong:#806216' /tmp/c.css 2>/dev/null; then echo GOLD=806216; elif grep -q -- '--gold-text-strong:#755916' /tmp/c.css 2>/dev/null; then echo GOLD=755916; else echo GOLD=NA; fi
+            curl -fsSL --retry 6 --retry-all-errors "$base/entrenador-personal-vitacura/?diag=$GITHUB_RUN_ID" -o /tmp/v.html
+            if grep -q 'href="/hibrido/">Conocer entrenamiento híbrido</a>' /tmp/v.html; then echo VITACURA_SCOPE=HYBRID; elif grep -q 'href="/online/">Conocer entrenamiento online</a>' /tmp/v.html; then echo VITACURA_SCOPE=ONLINE; else echo VITACURA_SCOPE=OTHER; fi
+            curl -fsSL --retry 6 --retry-all-errors "$base/entrenador-personal-las-condes/?diag=$GITHUB_RUN_ID" -o /tmp/l.html
+            if grep -q 'Primero vemos si podemos hacerlo bien, no solo si podemos ir' /tmp/l.html; then echo LAS_CONDES_OLD=YES; else echo LAS_CONDES_OLD=NO; fi
+          done
