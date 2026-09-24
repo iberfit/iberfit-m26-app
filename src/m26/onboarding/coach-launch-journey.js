@@ -10,7 +10,7 @@ function isActiveStatus(value){return /active|activo|enabled|operational|operati
 function bodyOf(record){return record?.body&&typeof record.body==='object'&&!Array.isArray(record.body)?record.body:{};}
 function field(record,...keys){const body=bodyOf(record);for(const key of keys){const value=record?.[key]??body?.[key];if(value!==undefined&&value!==null&&value!=='')return value;}return null;}
 function list(value){return Array.isArray(value)?value:[];}
-function recordClientId(record){return recordId(field(record,'clientId','client_id')||recordId(record));}
+function recordClientId(record){return recordId(field(record,'clientId','client_id','id','entityId','entity_id'));}
 
 export function isCoachLaunchPlanningPublished(record={}){
   const status=normalizeStatus(field(record,'status','estado'));

@@ -28,7 +28,7 @@ function coachState({identity,startedBy='coach-1',executionStatus='cerrada_confi
   };
 }
 
-const identity={id:'coach-1',role:'coach',name:'Carlos',email:'coach@iberfit.cl',status:'active'};
+const identity={id:'coach-1',role:'coach',name:'Carlos',email:'coach@iberfit.cl',status:'active',lastAccessAt:'2026-09-24T12:30:00Z'};
 
 test('authenticated Coach self journey can reach the same six-milestone ready state as Admin',()=>{
   const journey=deriveCoachSelfLaunchJourney({state:coachState({identity})});
