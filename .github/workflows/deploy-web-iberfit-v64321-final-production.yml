@@ -1,0 +1,232 @@
+name: Promote WEB IBERFIT V6.43.21 final certified
+
+on:
+  push:
+    branches: [infra/web-iberfit-worker]
+    paths: ['.github/workflows/deploy-web-iberfit-v64321-final-production.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-pages-provision
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+  WEB_REPO: 'https://github.com/iberfit/iberfitweb.git'
+  WEB_SHA: '86f62e1f813e10720769a1a9c46887b6d79097b9'
+  WEB_VERSION: '6.43.21'
+  QA_SOURCE_SHA: '1fa1eca0f7e0a3f0413ec5a1acd9591aa8afc594'
+  QA_RUN_ID: '36023863563'
+  QA_RUN_NAME: 'Release WEB IBERFIT V6.43.21 contrast system v4'
+  PREVIEW_RUN_ID: '36026629278'
+  PREVIEW_RUN_NAME: 'Preview WEB IBERFIT V6.43.21 final certified'
+  PREVIEW_DEPLOYMENT_ID: '5f43a9c1-e3e3-48a7-b387-a5e88acf5bb4'
+  PREVIEW_URL: 'https://v64321-final-36026629278.web-iberfit.pages.dev'
+  EXPECTED_CURRENT_SHA: '869ae776852f37000c4f528161b44b75b4fb6913'
+  EXPECTED_CURRENT_DEPLOYMENT_ID: '1f49ce73-d7f9-43d8-b1ab-d40941ae0302'
+  SAFE_ROLLBACK_SHA: 'a9af3b52d67332f323f5e648613e609661f31639'
+  SAFE_ROLLBACK_VERSION: '6.43.20'
+  SAFE_ROLLBACK_DEPLOYMENT_ID: '43884d1e-1b2d-48ea-95bc-1e7d75f06b75'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  promote:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+
+      - name: Verify current production and safe rollback identity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo CLOUDFLARE_API_TOKEN_MISSING; exit 41; }
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project-before.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-before.json
+          node <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/project-before.json','utf8'));
+          if(!p.success||p.result?.name!==process.env.CF_PROJECT||p.result.production_branch!=='production')throw Error('PROJECT_MISMATCH');
+          const domains=p.result.domains||[];
+          if(!domains.includes('iberfit.cl')||domains.includes('app.iberfit.cl'))throw Error('DOMAIN_MISMATCH');
+          const x=JSON.parse(fs.readFileSync('/tmp/deployments-before.json','utf8'));
+          const production=(x.result||[]).filter(d=>d.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(production?.id!==process.env.EXPECTED_CURRENT_DEPLOYMENT_ID)throw Error('PRODUCTION_DRIFT_ID:'+production?.id);
+          if((production.deployment_trigger?.metadata?.commit_hash||'')!==process.env.EXPECTED_CURRENT_SHA)throw Error('PRODUCTION_DRIFT_SHA:'+(production.deployment_trigger?.metadata?.commit_hash||''));
+          const rollback=(x.result||[]).find(d=>d.id===process.env.SAFE_ROLLBACK_DEPLOYMENT_ID);
+          if(!rollback)throw Error('ROLLBACK_DEPLOYMENT_MISSING');
+          if((rollback.deployment_trigger?.metadata?.commit_hash||'')!==process.env.SAFE_ROLLBACK_SHA)throw Error('ROLLBACK_SHA_MISMATCH');
+          fs.appendFileSync(process.env.GITHUB_ENV,'PRODUCTION_TOUCHED=0\n');
+          NODE
+          test "$(curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/VERSION?preflight=64321-final-production' | tr -d '\r\n ')" = '6.43.21'
+          curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/entrenador-personal-vitacura/?preflight=64321-final-production' -o /tmp/current-vitacura.html
+          grep -q 'href="/online/">Conocer entrenamiento online</a>' /tmp/current-vitacura.html
+
+      - name: Verify certified candidate and exact successful preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" -o /tmp/qa.json
+          curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfit-m26-app/actions/runs/${PREVIEW_RUN_ID}" -o /tmp/preview-run.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments/${PREVIEW_DEPLOYMENT_ID}" -o /tmp/preview-deployment.json
+          node <<'NODE'
+          const qa=require('/tmp/qa.json');
+          if(qa.head_sha!==process.env.QA_SOURCE_SHA||qa.status!=='completed'||qa.conclusion!=='success'||qa.name!==process.env.QA_RUN_NAME)throw Error('QA_MISMATCH');
+          const pr=require('/tmp/preview-run.json');
+          if(pr.id!==Number(process.env.PREVIEW_RUN_ID)||pr.status!=='completed'||pr.conclusion!=='success'||pr.name!==process.env.PREVIEW_RUN_NAME)throw Error('PREVIEW_RUN_MISMATCH');
+          const pd=require('/tmp/preview-deployment.json');
+          if(!pd.success||pd.result?.id!==process.env.PREVIEW_DEPLOYMENT_ID)throw Error('PREVIEW_DEPLOYMENT_MISMATCH');
+          if(pd.result?.environment!=='preview')throw Error('PREVIEW_ENVIRONMENT_MISMATCH');
+          if((pd.result?.deployment_trigger?.metadata?.commit_hash||'')!==process.env.WEB_SHA)throw Error('PREVIEW_SHA_MISMATCH');
+          NODE
+          test "$(curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?promote=$GITHUB_RUN_ID" | tr -d '\r\n ')" = "$WEB_VERSION"
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/assets/contrast.v64321.css?promote=$GITHUB_RUN_ID" -o /tmp/preview-contrast.css
+          grep -q -- '--gold-text-strong:#806216' /tmp/preview-contrast.css
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/entrenador-personal-vitacura/?promote=$GITHUB_RUN_ID" -o /tmp/preview-vitacura.html
+          grep -q 'href="/hibrido/">Conocer entrenamiento híbrido</a>' /tmp/preview-vitacura.html
+          git clone --filter=blob:none --no-checkout "$WEB_REPO" /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=2 origin "$WEB_SHA"
+          git -C /tmp/iberfitweb checkout --detach "$WEB_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "$WEB_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD^)" = "$QA_SOURCE_SHA"
+          test "$(git -C /tmp/iberfitweb log -1 --format=%s)" = 'fix(web): certify V6.43.21 contrast and hybrid semantics'
+          b=/tmp/iberfitweb/candidate/v628
+          test "$(tr -d '\r\n ' < "$b/VERSION")" = "$WEB_VERSION"
+          test "$(find "$b" -type f -name '*.html' | wc -l | tr -d ' ')" = '33'
+
+      - name: Deploy exact certified candidate to production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "$CF_PROJECT" --branch production --commit-hash "$WEB_SHA" --commit-message 'WEB IBERFIT V6.43.21 final certified production' | tee /tmp/wrangler-production.log
+          PRODUCTION_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-production.log | tail -1)"
+          test -n "$PRODUCTION_URL"
+          echo "PRODUCTION_URL=$PRODUCTION_URL" >> "$GITHUB_ENV"
+          echo 'PRODUCTION_TOUCHED=1' >> "$GITHUB_ENV"
+
+      - name: Verify final live content all routes CSP and semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for a in $(seq 1 30); do
+            cb="${GITHUB_RUN_ID}-${a}"
+            version="$(curl -fsSL --retry 3 --retry-all-errors "https://iberfit.cl/VERSION?cb=$cb" | tr -d '\r\n ' || true)"
+            curl -fsSL --retry 3 --retry-all-errors "https://iberfit.cl/assets/contrast.v64321.css?cb=$cb" -o /tmp/live-contrast.css || true
+            curl -fsSL --retry 3 --retry-all-errors "https://iberfit.cl/entrenador-personal-vitacura/?cb=$cb" -o /tmp/live-vitacura.html || true
+            if [ "$version" = "$WEB_VERSION" ] \
+              && grep -q -- '--gold-text-strong:#806216' /tmp/live-contrast.css 2>/dev/null \
+              && grep -q 'href="/hibrido/">Conocer entrenamiento híbrido</a>' /tmp/live-vitacura.html 2>/dev/null; then ok=1; break; fi
+            sleep 3
+          done
+          test "$ok" = 1
+          grep -q -- '--text-secondary:#44564c' /tmp/live-contrast.css
+          grep -q 'background:rgba(255,253,248,.92)' /tmp/live-contrast.css
+          curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/?live=$GITHUB_RUN_ID" -o /tmp/live-home.html
+          ! grep -q 'Según cobertura presencial' /tmp/live-home.html
+          grep -q 'En estas comunas + seguimiento a distancia' /tmp/live-home.html
+          curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/entrenador-personal-las-condes/?live=$GITHUB_RUN_ID" -o /tmp/live-las-condes.html
+          ! grep -q 'Primero vemos si podemos hacerlo bien, no solo si podemos ir' /tmp/live-las-condes.html
+          grep -q 'Organizamos contigo una forma de entrenar que encaje en tu semana.' /tmp/live-las-condes.html
+          curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/entrenador-personal-penalolen/?live=$GITHUB_RUN_ID" -o /tmp/live-penalolen.html
+          grep -q 'Entrenamos contigo en Peñalolén.' /tmp/live-penalolen.html
+          curl -fsSL --retry 8 --retry-all-errors "https://iberfit.cl/en/personal-trainer-vitacura/?live=$GITHUB_RUN_ID" -o /tmp/live-vitacura-en.html
+          grep -q 'href="/en/hybrid/">Explore hybrid training</a>' /tmp/live-vitacura-en.html
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          r=Path('/tmp/iberfitweb/candidate/v628')
+          htmls=sorted(r.rglob('*.html'));assert len(htmls)==33
+          for p in htmls:
+              rel=p.relative_to(r).as_posix()
+              route='/' if rel=='index.html' else ('/404.html' if rel=='404.html' else '/'+rel.removesuffix('index.html'))
+              subprocess.run(['curl','-fsSL','--retry','5','--retry-all-errors','-o','/dev/null','https://iberfit.cl'+route],check=True)
+          print('LIVE_ROUTES_OK',len(htmls))
+          PY
+          curl -fsSI --retry 8 --retry-all-errors "https://iberfit.cl/entrenador-personal-vitacura/?live=$GITHUB_RUN_ID" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/live-headers
+          grep -q '^content-security-policy:' /tmp/live-headers
+          grep -q "script-src-attr 'none'" /tmp/live-headers
+          ! grep -q 'unsafe-inline' /tmp/live-headers
+
+      - name: Browser QA on real production 390 768 1440
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/iberfitweb
+          npm install --no-save --package-lock=false playwright@1.56.1 >/dev/null 2>&1
+          npx playwright install chromium >/dev/null
+          BASE_URL='https://iberfit.cl' QA_OUT='/tmp/v64321-production-screens' node .github/scripts/qa_v64321_browser.mjs
+
+      - name: Verify production deployment identity and write evidence
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project-after.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-after.json
+          node <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/project-after.json','utf8'));
+          const aliases=p.result?.latest_deployment?.aliases||[];
+          const x=JSON.parse(fs.readFileSync('/tmp/deployments-after.json','utf8'));
+          const d=(x.result||[]).filter(v=>v.environment==='production'&&v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA).sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(!d)throw Error('FINAL_PRODUCTION_DEPLOYMENT_NOT_FOUND');
+          if(!aliases.includes('https://iberfit.cl'))throw Error('IBERFIT_ALIAS_MISSING');
+          const evidence={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaSourceSha:process.env.QA_SOURCE_SHA,qaRun:process.env.QA_RUN_ID,previewRun:process.env.PREVIEW_RUN_ID,previewDeploymentId:process.env.PREVIEW_DEPLOYMENT_ID,previewUrl:process.env.PREVIEW_URL,productionUrl:process.env.PRODUCTION_URL,productionDeploymentId:d.id,safeRollbackSha:process.env.SAFE_ROLLBACK_SHA,safeRollbackVersion:process.env.SAFE_ROLLBACK_VERSION,safeRollbackDeploymentId:process.env.SAFE_ROLLBACK_DEPLOYMENT_ID,verifiedAt:new Date().toISOString()};
+          fs.writeFileSync('/tmp/V64321_FINAL_PRODUCTION_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
+          console.log(JSON.stringify(evidence,null,2));
+          NODE
+
+      - name: Automatic rollback to verified V6.43.20 if any post-deploy verification fails
+        if: failure() && env.PRODUCTION_TOUCHED == '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ROLLING_BACK_TO=${SAFE_ROLLBACK_DEPLOYMENT_ID}"
+          curl -fsS -X POST -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments/${SAFE_ROLLBACK_DEPLOYMENT_ID}/rollback" -d '{}' -o /tmp/rollback.json
+          node -e "const x=require('/tmp/rollback.json');if(!x.success)throw Error('ROLLBACK_FAILED:'+JSON.stringify(x.errors||[]))"
+          ok=0
+          for a in $(seq 1 30); do
+            v="$(curl -fsSL --retry 3 --retry-all-errors "https://iberfit.cl/VERSION?rollback=${GITHUB_RUN_ID}-${a}" | tr -d '\r\n ' || true)"
+            if [ "$v" = "$SAFE_ROLLBACK_VERSION" ]; then ok=1; break; fi
+            sleep 3
+          done
+          test "$ok" = 1
+
+      - name: Upload final production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-v64321-final-production-evidence
+          path: |
+            /tmp/V64321_FINAL_PRODUCTION_EVIDENCE.json
+            /tmp/project-before.json
+            /tmp/project-after.json
+            /tmp/deployments-before.json
+            /tmp/deployments-after.json
+            /tmp/qa.json
+            /tmp/preview-run.json
+            /tmp/preview-deployment.json
+            /tmp/wrangler-production.log
+            /tmp/live-headers
+            /tmp/live-contrast.css
+            /tmp/v64321-production-screens
+            /tmp/rollback.json
+          if-no-files-found: warn
+          retention-days: 30
