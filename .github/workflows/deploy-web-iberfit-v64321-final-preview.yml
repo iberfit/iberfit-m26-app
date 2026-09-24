@@ -21,9 +21,11 @@ env:
   QA_SOURCE_SHA: '1fa1eca0f7e0a3f0413ec5a1acd9591aa8afc594'
   QA_RUN_ID: '36023863563'
   QA_RUN_NAME: 'Release WEB IBERFIT V6.43.21 contrast system v4'
-  EXPECTED_CURRENT_SHA: 'a9af3b52d67332f323f5e648613e609661f31639'
-  EXPECTED_CURRENT_VERSION: '6.43.20'
-  EXPECTED_CURRENT_DEPLOYMENT_ID: '43884d1e-1b2d-48ea-95bc-1e7d75f06b75'
+  EXPECTED_CURRENT_SHA: '869ae776852f37000c4f528161b44b75b4fb6913'
+  EXPECTED_CURRENT_VERSION: '6.43.21'
+  EXPECTED_CURRENT_DEPLOYMENT_ID: '1f49ce73-d7f9-43d8-b1ab-d40941ae0302'
+  SAFE_ROLLBACK_SHA: 'a9af3b52d67332f323f5e648613e609661f31639'
+  SAFE_ROLLBACK_DEPLOYMENT_ID: '43884d1e-1b2d-48ea-95bc-1e7d75f06b75'
   WRANGLER_VERSION: '4.120.0'
 
 jobs:
@@ -35,7 +37,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
 
-      - name: Verify exact V6.43.20 production baseline
+      - name: Verify exact current production identity without mutating it
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         shell: bash
@@ -54,6 +56,8 @@ jobs:
           const current=(x.result||[]).filter(d=>d.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
           if(current?.id!==process.env.EXPECTED_CURRENT_DEPLOYMENT_ID)throw Error('PRODUCTION_DRIFT_ID:'+current?.id);
           if((current.deployment_trigger?.metadata?.commit_hash||'')!==process.env.EXPECTED_CURRENT_SHA)throw Error('PRODUCTION_DRIFT_SHA:'+(current.deployment_trigger?.metadata?.commit_hash||''));
+          const safe=(x.result||[]).find(d=>d.id===process.env.SAFE_ROLLBACK_DEPLOYMENT_ID);
+          if(!safe||(safe.deployment_trigger?.metadata?.commit_hash||'')!==process.env.SAFE_ROLLBACK_SHA)throw Error('SAFE_ROLLBACK_MISSING');
           NODE
           test "$(curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/VERSION?preflight=64321-final-preview' | tr -d '\r\n ')" = "$EXPECTED_CURRENT_VERSION"
 
@@ -162,7 +166,7 @@ jobs:
           const x=JSON.parse(fs.readFileSync('/tmp/deployments-after-preview.json','utf8'));
           const d=(x.result||[]).filter(v=>v.environment==='preview'&&v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA).sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
           if(!d)throw Error('PREVIEW_DEPLOYMENT_NOT_FOUND');
-          const evidence={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaSourceSha:process.env.QA_SOURCE_SHA,qaRun:process.env.QA_RUN_ID,previewUrl:process.env.PREVIEW_URL,previewDeploymentId:d.id,productionBaselineSha:process.env.EXPECTED_CURRENT_SHA,productionBaselineDeploymentId:process.env.EXPECTED_CURRENT_DEPLOYMENT_ID,verifiedAt:new Date().toISOString()};
+          const evidence={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaSourceSha:process.env.QA_SOURCE_SHA,qaRun:process.env.QA_RUN_ID,previewUrl:process.env.PREVIEW_URL,previewDeploymentId:d.id,productionBaselineSha:process.env.EXPECTED_CURRENT_SHA,productionBaselineDeploymentId:process.env.EXPECTED_CURRENT_DEPLOYMENT_ID,safeRollbackSha:process.env.SAFE_ROLLBACK_SHA,safeRollbackDeploymentId:process.env.SAFE_ROLLBACK_DEPLOYMENT_ID,verifiedAt:new Date().toISOString()};
           fs.writeFileSync('/tmp/V64321_FINAL_PREVIEW_EVIDENCE.json',JSON.stringify(evidence,null,2)+'\n');
           console.log(JSON.stringify(evidence,null,2));
           NODE
