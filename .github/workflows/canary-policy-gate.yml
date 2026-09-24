@@ -1,0 +1,50 @@
+name: IBERFIT Canary Policy Gate
+
+on:
+  pull_request:
+    branches: [canary/rc74-4]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: iberfit-canary-policy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  canary-policy-gate:
+    name: canary-policy-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Descargar HEAD exacto de la PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Resolver base exacta de Canary
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        run: git fetch --no-tags origin "${{ github.base_ref }}"
+
+      - name: Verificar política de integración Canary
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          POLICY_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          POLICY_POLL_MS: '15000'
+          POLICY_TIMEOUT_MS: '3000000'
+        run: node scripts/ci/canary_policy_gate.mjs
+
+      - name: Workflow dispatch informativo
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: echo 'CANARY_POLICY_GATE_DISPATCH=NO_PR_CONTEXT'
