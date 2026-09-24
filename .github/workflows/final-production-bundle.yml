@@ -43,9 +43,11 @@ jobs:
           grep -q 'https://app\.iberfit\.cl' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           grep -q 'https://coach\.iberfit\.cl' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           grep -q "to_regprocedure('public.iberfit_auth_assurance_context_v65c()') is not null" backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
-          grep -q '20260924134500_coach_launch_identity_bootstrap_v1.sql' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+          grep -q '20260924185200_coach_launch_identity_bootstrap_v2.sql' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+          grep -q 'perform public.iberfit_require_privileged_assurance_v65d();' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           grep -q 'select u.email,u.last_sign_in_at' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           grep -q 'from public.iberfit_organization_memberships m' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
+          grep -q 'FINAL_PROD_POSTCHECK_BOOTSTRAP_ASSURANCE' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           grep -q 'FINAL_PROD_POSTCHECK_BOOTSTRAP_SELF_IDENTITY' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           grep -q 'FINAL_PROD_POSTCHECK_BOOTSTRAP_ANON_EXECUTE' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
           grep -q 'FINAL_PROD_POSTCHECK_BOOTSTRAP_AUTH_EXECUTE' backend/production/generated/FINAL_PRODUCTION_PROMOTION.sql
