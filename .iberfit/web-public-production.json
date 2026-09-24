@@ -1,0 +1,18 @@
+{
+  "schema": "iberfit.web.public-production.v1",
+  "repository": "iberfit/iberfitweb",
+  "domain": "https://iberfit.cl",
+  "version": "6.43.21",
+  "sha": "86f62e1f813e10720769a1a9c46887b6d79097b9",
+  "deploymentId": "b5cf74a8-a304-4b0e-8d7d-494ae6f1141a",
+  "productionUrl": "https://b5cf74a8.web-iberfit.pages.dev",
+  "qaRunId": 36023863563,
+  "previewRunId": 36026629278,
+  "productionRunId": 36027494421,
+  "safeRollback": {
+    "version": "6.43.20",
+    "sha": "a9af3b52d67332f323f5e648613e609661f31639",
+    "deploymentId": "43884d1e-1b2d-48ea-95bc-1e7d75f06b75"
+  },
+  "verifiedAt": "2026-09-24T16:29:42.820Z"
+}
