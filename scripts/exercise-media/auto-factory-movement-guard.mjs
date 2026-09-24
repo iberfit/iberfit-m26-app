@@ -27,6 +27,34 @@ export function movementPlanIssue(exercise,plan){
   return null;
 }
 
+const SUPPORT_SHAPE='{"palms_on_floor":0|1|2,"forefeet_on_floor":0|1|2,"knees_weight_bearing":boolean,"hip_height_relation":"below_shoulders|near_shoulders|above_shoulders|unclear","torso_relation":"approximately_parallel|upright|unclear","lunge_or_squat":boolean}';
+
+export function supportObservationInstruction(exercise){
+  if(!hasHardMovementPlanGuard(exercise))return'';
+  return `For Bear Crawl, report support_observation exactly as ${SUPPORT_SHAPE}. Count only clearly visible or defensible contacts; use unclear rather than guessing. A squat, crouch, lunge or kneeling pose is not a crawl.`;
+}
+
+export function supportPairObservationInstruction(exercise){
+  if(!hasHardMovementPlanGuard(exercise))return'';
+  return `For Bear Crawl, report support_observation exactly as {"start":${SUPPORT_SHAPE},"final":${SUPPORT_SHAPE}}. Evaluate START and FINAL independently. Count only clearly visible or defensible contacts; use unclear rather than guessing. A squat, crouch, lunge or kneeling pose is not a crawl.`;
+}
+
+export function supportObservationPass(exercise,observation){
+  if(!hasHardMovementPlanGuard(exercise))return true;
+  return Number(observation?.palms_on_floor)===2
+    &&Number(observation?.forefeet_on_floor)===2
+    &&observation?.knees_weight_bearing===false
+    &&observation?.hip_height_relation==='near_shoulders'
+    &&observation?.torso_relation==='approximately_parallel'
+    &&observation?.lunge_or_squat===false;
+}
+
+export function supportPairObservationPass(exercise,observation){
+  if(!hasHardMovementPlanGuard(exercise))return true;
+  return supportObservationPass(exercise,observation?.start)
+    &&supportObservationPass(exercise,observation?.final);
+}
+
 export function movementVisualGuard(exercise){
   const descriptor=descriptorFor(exercise);
 
