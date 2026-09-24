@@ -6,6 +6,9 @@ import {buildAdaptiveSessionContext} from '../intelligence/adaptive-context.js';
 import {deriveAdaptiveExperience} from '../experience/adaptive-experience.js';
 import {deriveAdminCommandCenter} from './command-center.js';
 import {readIberfitExperiencePreferences} from '../ui/preferences.js';
+import {deriveCoachLaunchJourney,isCoachLaunchPlanningPublished} from '../onboarding/coach-launch-journey.js';
+import {sessionExecutionIsCompleted} from '../domain/session-execution-truth.js';
+export {deriveCoachLaunchJourney} from '../onboarding/coach-launch-journey.js';
 const clone=(v)=>v==null?v:structuredClone(v);
 function clientRows(state){
   const life=new Map(adminCollection(state,'clientLifecycle').map((x)=>[String(x.clientId),x]));
@@ -230,80 +233,16 @@ function coachSubjects(coaches=[],users=[]){
   const ids=[...new Set([...profiles.keys(),...coachUsers.keys()])];
   return ids.map((coachId)=>Object.freeze({coachId,coach:profiles.get(coachId)||null,user:coachUsers.get(coachId)||null}));
 }
-export function deriveCoachLaunchJourney({coach=null,user=null,assignments=[],sessions=[]}={}){
-  const accountStatus=String(user?.status||coach?.status||'').trim();
-  const blocked=isBlockedStatus(user?.status)||isBlockedStatus(coach?.status);
-  const invited=Boolean(recordId(user?.userId||user?.id||coach?.userId||coach?.id));
-  const activated=Boolean(user?.lastAccessAt);
-  const profileReady=Boolean(coach&&recordId(coach?.userId||coach?.id)&&String(coach?.name||'').trim()&&String(coach?.email||'').trim()&&!isBlockedStatus(coach?.status));
-  const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
-  const firstClientAssigned=activeAssignments.length>0;
-  const planningPrepared=(sessions||[]).some((session)=>Boolean(recordId(session?.sessionId)));
-  const firstSessionCompleted=(sessions||[]).some((session)=>/complet|realiz|done/u.test(String(session?.status||'').toLowerCase()));
-  const milestones=Object.freeze([
-    Object.freeze({id:'invited',label:'Invitación',complete:invited,evidence:invited?'Identidad Coach visible':'Sin identidad Coach'}),
-    Object.freeze({id:'activated',label:'Activación',complete:activated,evidence:activated?'Primer acceso registrado':'Sin primer acceso registrado'}),
-    Object.freeze({id:'profile',label:'Perfil operativo',complete:profileReady,evidence:profileReady?'Perfil Coach completo':'Perfil operativo incompleto o no visible'}),
-    Object.freeze({id:'client',label:'Primer cliente',complete:firstClientAssigned,evidence:firstClientAssigned?'Asignación activa visible':'Sin cliente activo asignado'}),
-    Object.freeze({id:'planning',label:'Primera planificación',complete:planningPrepared,evidence:planningPrepared?'Sesión publicada vinculada visible':'Sin evidencia explícita de planificación publicada'}),
-    Object.freeze({id:'session',label:'Primera sesión',complete:firstSessionCompleted,evidence:firstSessionCompleted?'Sesión completada visible':'Sin sesión completada visible'}),
-  ]);
-  const completedCount=milestones.filter((item)=>item.complete).length;
-  const ready=!blocked&&isActiveStatus(accountStatus)&&milestones.every((item)=>item.complete);
-  let stage='invited';
-  let displayStatus='Invitado · primer acceso pendiente';
-  let nextAction=Object.freeze({area:'admin-usuarios',label:'Revisar activación'});
-  if(blocked){
-    stage='blocked';
-    displayStatus='Bloqueado';
-    nextAction=Object.freeze({area:'admin-usuarios',label:'Revisar acceso'});
-  }else if(!activated){
-    stage='invited';
-  }else if(!profileReady){
-    stage='profile';
-    displayStatus='Activo · perfil pendiente';
-    nextAction=Object.freeze({area:'admin-equipo',label:'Revisar perfil'});
-  }else if(!firstClientAssigned){
-    stage='assignment';
-    displayStatus='Activo · primer cliente pendiente';
-    nextAction=Object.freeze({area:'admin-equipo',label:'Asignar primer cliente'});
-  }else if(!planningPrepared){
-    stage='planning';
-    displayStatus='Activo · planificación por verificar';
-    nextAction=Object.freeze({area:'admin-equipo',label:'Verificar primera planificación'});
-  }else if(!firstSessionCompleted){
-    stage='session';
-    displayStatus='Activo · primera sesión pendiente';
-    nextAction=Object.freeze({area:'admin-agenda',label:'Revisar primera sesión'});
-  }else if(ready){
-    stage='ready';
-    displayStatus='Activo · Coach listo';
-    nextAction=null;
-  }else{
-    stage='account';
-    displayStatus=`${accountStatus||'Estado'} · activación operativa por verificar`;
-    nextAction=Object.freeze({area:'admin-usuarios',label:'Revisar estado de acceso'});
-  }
-  return Object.freeze({
-    stage,
-    ready,
-    blocked,
-    accountStatus,
-    completedCount,
-    total:milestones.length,
-    percent:Math.round((completedCount/milestones.length)*100),
-    milestones,
-    nextAction,
-    displayStatus,
-  });
-}
-export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[],appointments=[],now=new Date()}={}){
+export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[],appointments=[],planningSessions=[],sessionExecutions=[],now=new Date()}={}){
   const safeNow=dateTime(now)||new Date();
   const clientById=new Map((clients||[]).map((client)=>[recordId(client?.id),client]));
   const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
   return Object.freeze(coachSubjects(coaches,users).map(({coachId,coach,user})=>{
     const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId);
     const clientIds=[...new Set(ownAssignments.map((assignment)=>recordId(assignment?.clientId)).filter(Boolean))];
+    const clientIdSet=new Set(clientIds);
+    const coachPlanningSessions=(planningSessions||[]).filter((session)=>clientIdSet.has(recordId(session?.clientId??session?.client_id))&&isCoachLaunchPlanningPublished(session));
+    const coachExecutions=(sessionExecutions||[]).filter((execution)=>recordId(execution?.startedBy??execution?.started_by)===coachId);
     const coachClients=Object.freeze(clientIds.map((id)=>clientById.get(id)).filter(Boolean).map((client)=>Object.freeze({
       id:recordId(client.id),
       name:String(client.name||'Cliente'),
@@ -338,7 +277,7 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
     const capacityHours=Number.isFinite(Number(coach?.capacityHours))?Number(coach.capacityHours):null;
     const assignedHours=Number.isFinite(Number(coach?.assignedHours))?Number(coach.assignedHours):null;
     const loadPercent=capacityHours&&assignedHours!=null?Math.max(0,Math.round((assignedHours/capacityHours)*100)):null;
-    const launchJourney=deriveCoachLaunchJourney({coach,user,assignments:ownAssignments,sessions});
+    const launchJourney=deriveCoachLaunchJourney({coach,user,assignments:ownAssignments,planningSessions:coachPlanningSessions,sessionExecutions:coachExecutions});
     return Object.freeze({
       id:recordId(coach?.id||user?.id||coachId),
       coachId,
@@ -355,7 +294,7 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
       upcomingSessions,
       recentSessions,
       upcomingCount:upcomingSessions.length,
-      completedCount:sessions.filter((session)=>/complet|realiz|done/i.test(session.status)).length,
+      completedCount:coachExecutions.filter(sessionExecutionIsCompleted).length,
       nextSession:upcomingSessions[0]||null,
       assignmentCount:ownAssignments.length,
     });
@@ -412,7 +351,7 @@ export function createAdminRouteViewModel(base,shellVm,state){const role=String(
       clientName:String(clientById.get(String(assignment.clientId||''))?.name||'Cliente'),
     })));
     const rawNow=state?.admin?.serverTime||state?.hydration?.serverTime||new Date();
-    const coachProfiles360=buildCoach360Rows({coaches,users,clients,assignments:rawAssignments,appointments:clone(state.collections?.appointments||[]),now:rawNow});
+    const coachProfiles360=buildCoach360Rows({coaches,users,clients,assignments:rawAssignments,appointments:clone(state.collections?.appointments||[]),planningSessions:clone(state.collections?.sessions||[]),sessionExecutions:clone(state.collections?.sessionExecutions||[]),now:rawNow});
     return Object.freeze({...common,kind:'admin-equipo',coaches,coachProfiles360,assignments,clients,canManage:adminCan(state.admin,ADMIN_CAPABILITIES.ASSIGNMENT_MANAGE)});
   }
   if(area==='admin-clientes')return Object.freeze({...common,kind:'admin-clientes',leads:Object.freeze(clone(adminCollection(state,'leads'))),clients:clientRows(state),coaches:Object.freeze(clone(adminCollection(state,'coachProfiles'))),canManage:adminCan(state.admin,ADMIN_CAPABILITIES.CLIENT_LIFECYCLE_MANAGE)});

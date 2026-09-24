@@ -3,6 +3,7 @@ import {createClientContextualGuideController} from './client-contextual-guide.j
 import {createClientGuidedWelcomeController} from './client-guided-welcome.js';
 import {initialAssessmentPostCreateArea} from '../domain/initial-assessment.js';
 import {coachLaunchReadiness} from './coach-launch-readiness.js';
+import {deriveCoachSelfLaunchJourney} from '../rc39/view-model.js';
 
 export const PROGRESSIVE_ONBOARDING_SCHEMA_VERSION='iberfit.progressive-onboarding.v1';
 export const PROGRESSIVE_ONBOARDING_TOUR_OPEN_ATTRIBUTE='data-m26-guided-tour-open';
@@ -446,7 +447,7 @@ export function renderProgressiveOnboardingPanel({role,state,readiness=null}={})
   const note=role==='coach'&&progress.completed
     ?launchReadiness?.ready===true
       ?'Recorrido completado y puesta en marcha validada con datos operativos del Coach.'
-      :'Recorrido de interfaz completado; puesta en marcha pendiente. IBERFIT no marca al Coach como listo hasta validar cliente y planificación.'
+      :'Recorrido de interfaz completado; puesta en marcha pendiente. IBERFIT no marca al Coach como listo hasta validar los seis hitos operativos.'
     :'Esta guía solo registra localmente qué áreas has visitado. No almacena datos de salud ni ejecuta acciones por ti.';
 
   return `<section class="iberfit-card m26-progressive-onboarding" data-progressive-onboarding-panel aria-labelledby="m26-progressive-onboarding-title"><div class="m26-progressive-onboarding-heading"><div><p class="m26-eyebrow">Guía progresiva</p><h2 id="m26-progressive-onboarding-title">${escapeHtml(track.title)}</h2><p>${escapeHtml(track.summary)}</p></div><button type="button" class="m26-icon-button" data-progressive-onboarding-dismiss aria-label="Ocultar guía progresiva">Ocultar</button></div><div class="m26-progressive-onboarding-meter" role="status" aria-live="polite"><span>${progress.completedCount} de ${progress.total} áreas vistas</span><progress max="${progress.total}" value="${progress.completedCount}">${progress.percent}%</progress></div><ol>${steps}</ol><div class="m26-inline-actions">${next}${progress.completed?'<button type="button" class="m26-text-action" data-progressive-onboarding-reset>Reiniciar guía</button>':''}</div><p class="m26-progressive-onboarding-note">${escapeHtml(note)}</p></section>`;
@@ -629,6 +630,9 @@ export function createProgressiveOnboardingController({
       readiness?.tourCompleted===true,
       readiness?.clientReady===true,
       readiness?.planningReady===true,
+      readiness?.sessionReady===true,
+      readiness?.profileReady===true,
+      readiness?.accountReady===true,
       readiness?.nextRequirement||'',
       ...(state.visited||[]),
     ]);
@@ -698,10 +702,13 @@ export function createProgressiveOnboardingController({
       canonicalState=null;
     }
 
+    const launchJourney=context.role==='coach'
+      ?deriveCoachSelfLaunchJourney({state:canonicalState,identity:canonicalState?.identity})
+      :null;
     const readiness=coachLaunchReadiness({
       role:context.role,
       progress,
-      collections:canonicalState?.collections||null,
+      journey:launchJourney,
     });
 
     ensureLauncher(context,state,readiness);

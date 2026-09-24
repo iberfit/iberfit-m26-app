@@ -5,7 +5,8 @@ import {
   appointmentForSession,
 } from './session-policy.js';
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from './multi-role.js';
-import {deriveCoachLaunchJourney} from '../admin/view-model.js';
+import {deriveCoachLaunchJourney,isCoachLaunchPlanningPublished} from '../onboarding/coach-launch-journey.js';
+import {confirmedSessionExecutionsForClient} from '../domain/session-execution-truth.js';
 import {computeProgressSummary} from '../engagement/progress-engine.js';
 import {buildRetentionHealth} from '../engagement/retention-health.js';
 import {buildIberfitDecisionBrief} from '../intelligence/decision-brief.js';
@@ -37,22 +38,22 @@ const isPublishedSession=(record)=>{
 };
 const COACH_LAUNCH_SELF_COPY=Object.freeze({
   es:Object.freeze({
-    eyebrow:'Puesta en marcha',title:'Tu recorrido como Coach',intro:'Solo marcamos como completado lo que puede demostrarse con datos de tu sesión y de tu cartera autorizada.',progress:(done,total)=>`${done} de ${total} hitos verificados`,ready:'Coach listo',pending:'Verificación incompleta',adminTitle:'Verificación administrativa pendiente',adminCopy:'Tu perfil profesional y el estado operativo de la cuenta no forman parte del bootstrap Coach actual. IBERFIT los mantiene pendientes en lugar de asumirlos.',evidenceTitle:'Evidencia utilizada',evidenceCopy:'Acceso autenticado, clientes dentro de tu alcance, planificación publicada y ejecuciones confirmadas. No se amplían permisos.',nextTitle:'Siguiente paso operativo',noAction:'No necesitas completar otra acción operativa desde esta tarjeta. La verificación restante depende de Administración.',
+    eyebrow:'Puesta en marcha',title:'Tu recorrido como Coach',intro:'Solo marcamos como completado lo que puede demostrarse con datos de tu sesión y de tu cartera autorizada.',progress:(done,total)=>`${done} de ${total} hitos verificados`,ready:'Coach listo',pending:'Verificación incompleta',adminTitle:'Verificación operativa pendiente',adminCopy:'IBERFIT solo valida perfil y cuenta cuando el bootstrap autenticado aporta tu email y una membresía activa. Si falta alguna evidencia, la mantiene pendiente.',evidenceTitle:'Evidencia utilizada',evidenceCopy:'Acceso autenticado, clientes dentro de tu alcance, planificación publicada y ejecuciones confirmadas. No se amplían permisos.',nextTitle:'Siguiente paso operativo',noAction:'No necesitas completar otra acción operativa desde esta tarjeta. La verificación restante depende de Administración.',
     milestones:Object.freeze({invited:{label:'Identidad Coach',done:'Identidad autenticada visible',pending:'Identidad no disponible'},activated:{label:'Primer acceso',done:'Sesión autenticada confirmada',pending:'Acceso no confirmado'},profile:{label:'Perfil operativo',done:'Perfil verificado',pending:'Pendiente de verificación administrativa'},client:{label:'Primer cliente',done:'Cliente asignado dentro de tu alcance',pending:'Sin cliente asignado visible'},planning:{label:'Primera planificación',done:'Sesión publicada visible',pending:'Sin planificación publicada visible'},session:{label:'Primera sesión',done:'Ejecución completada y confirmada',pending:'Sin sesión completada confirmada'}}),
     actions:Object.freeze({clients:'Revisar cartera',planning:'Preparar primera planificación',session:'Revisar primera sesión'}),
   }),
   en:Object.freeze({
-    eyebrow:'Getting started',title:'Your Coach journey',intro:'A milestone is only marked complete when it can be demonstrated from your authenticated session and authorised portfolio data.',progress:(done,total)=>`${done} of ${total} milestones verified`,ready:'Coach ready',pending:'Verification incomplete',adminTitle:'Administrative verification pending',adminCopy:'Your professional profile and operational account status are not exposed by the current Coach bootstrap. IBERFIT keeps them pending instead of assuming them.',evidenceTitle:'Evidence used',evidenceCopy:'Authenticated access, clients in your authorised scope, published planning and confirmed executions. Permissions are not expanded.',nextTitle:'Next operational step',noAction:'There is no further operational action to complete from this card. The remaining verification depends on Administration.',
+    eyebrow:'Getting started',title:'Your Coach journey',intro:'A milestone is only marked complete when it can be demonstrated from your authenticated session and authorised portfolio data.',progress:(done,total)=>`${done} of ${total} milestones verified`,ready:'Coach ready',pending:'Verification incomplete',adminTitle:'Operational verification pending',adminCopy:'IBERFIT only validates profile and account when the authenticated bootstrap provides your email and an active membership. Missing evidence stays pending.',evidenceTitle:'Evidence used',evidenceCopy:'Authenticated access, clients in your authorised scope, published planning and confirmed executions. Permissions are not expanded.',nextTitle:'Next operational step',noAction:'There is no further operational action to complete from this card. The remaining verification depends on Administration.',
     milestones:Object.freeze({invited:{label:'Coach identity',done:'Authenticated identity visible',pending:'Identity unavailable'},activated:{label:'First access',done:'Authenticated session confirmed',pending:'Access not confirmed'},profile:{label:'Operational profile',done:'Profile verified',pending:'Pending administrative verification'},client:{label:'First client',done:'Assigned client visible in your scope',pending:'No assigned client visible'},planning:{label:'First plan',done:'Published session visible',pending:'No published planning visible'},session:{label:'First session',done:'Completed confirmed execution',pending:'No confirmed completed session'}}),
     actions:Object.freeze({clients:'Review portfolio',planning:'Prepare first plan',session:'Review first session'}),
   }),
   fr:Object.freeze({
-    eyebrow:'Mise en route',title:'Votre parcours Coach',intro:'Une étape est validée uniquement lorsqu’elle peut être démontrée par votre session authentifiée et les données de votre portefeuille autorisé.',progress:(done,total)=>`${done} étapes vérifiées sur ${total}`,ready:'Coach prêt',pending:'Vérification incomplète',adminTitle:'Vérification administrative en attente',adminCopy:'Votre profil professionnel et l’état opérationnel du compte ne sont pas exposés par le bootstrap Coach actuel. IBERFIT les laisse en attente au lieu de les supposer.',evidenceTitle:'Preuves utilisées',evidenceCopy:'Accès authentifié, clients de votre périmètre autorisé, planification publiée et exécutions confirmées. Aucun droit supplémentaire n’est accordé.',nextTitle:'Prochaine étape opérationnelle',noAction:'Aucune autre action opérationnelle n’est requise depuis cette carte. La vérification restante dépend de l’Administration.',
+    eyebrow:'Mise en route',title:'Votre parcours Coach',intro:'Une étape est validée uniquement lorsqu’elle peut être démontrée par votre session authentifiée et les données de votre portefeuille autorisé.',progress:(done,total)=>`${done} étapes vérifiées sur ${total}`,ready:'Coach prêt',pending:'Vérification incomplète',adminTitle:'Vérification opérationnelle en attente',adminCopy:'IBERFIT valide le profil et le compte uniquement lorsque le bootstrap authentifié fournit votre e-mail et une adhésion active. Toute preuve manquante reste en attente.',evidenceTitle:'Preuves utilisées',evidenceCopy:'Accès authentifié, clients de votre périmètre autorisé, planification publiée et exécutions confirmées. Aucun droit supplémentaire n’est accordé.',nextTitle:'Prochaine étape opérationnelle',noAction:'Aucune autre action opérationnelle n’est requise depuis cette carte. La vérification restante dépend de l’Administration.',
     milestones:Object.freeze({invited:{label:'Identité Coach',done:'Identité authentifiée visible',pending:'Identité indisponible'},activated:{label:'Premier accès',done:'Session authentifiée confirmée',pending:'Accès non confirmé'},profile:{label:'Profil opérationnel',done:'Profil vérifié',pending:'Vérification administrative en attente'},client:{label:'Premier client',done:'Client affecté visible dans votre périmètre',pending:'Aucun client affecté visible'},planning:{label:'Première planification',done:'Séance publiée visible',pending:'Aucune planification publiée visible'},session:{label:'Première séance',done:'Exécution terminée et confirmée',pending:'Aucune séance terminée confirmée'}}),
     actions:Object.freeze({clients:'Voir le portefeuille',planning:'Préparer la première planification',session:'Voir la première séance'}),
   }),
   pt:Object.freeze({
-    eyebrow:'Configuração inicial',title:'O seu percurso como Coach',intro:'Uma etapa só é marcada como concluída quando pode ser demonstrada pela sua sessão autenticada e pelos dados da carteira autorizada.',progress:(done,total)=>`${done} de ${total} etapas verificadas`,ready:'Coach pronto',pending:'Verificação incompleta',adminTitle:'Verificação administrativa pendente',adminCopy:'O seu perfil profissional e o estado operacional da conta não são expostos pelo bootstrap Coach atual. O IBERFIT mantém-nos pendentes em vez de os assumir.',evidenceTitle:'Evidência utilizada',evidenceCopy:'Acesso autenticado, clientes no seu âmbito autorizado, planeamento publicado e execuções confirmadas. As permissões não são ampliadas.',nextTitle:'Próximo passo operativo',noAction:'Não existe outra ação operacional a concluir a partir deste cartão. A verificação restante depende da Administração.',
+    eyebrow:'Configuração inicial',title:'O seu percurso como Coach',intro:'Uma etapa só é marcada como concluída quando pode ser demonstrada pela sua sessão autenticada e pelos dados da carteira autorizada.',progress:(done,total)=>`${done} de ${total} etapas verificadas`,ready:'Coach pronto',pending:'Verificação incompleta',adminTitle:'Verificação operacional pendente',adminCopy:'O IBERFIT só valida perfil e conta quando o bootstrap autenticado fornece o seu email e uma associação ativa. Evidência em falta permanece pendente.',evidenceTitle:'Evidência utilizada',evidenceCopy:'Acesso autenticado, clientes no seu âmbito autorizado, planeamento publicado e execuções confirmadas. As permissões não são ampliadas.',nextTitle:'Próximo passo operativo',noAction:'Não existe outra ação operacional a concluir a partir deste cartão. A verificação restante depende da Administração.',
     milestones:Object.freeze({invited:{label:'Identidade Coach',done:'Identidade autenticada visível',pending:'Identidade indisponível'},activated:{label:'Primeiro acesso',done:'Sessão autenticada confirmada',pending:'Acesso não confirmado'},profile:{label:'Perfil operacional',done:'Perfil verificado',pending:'Verificação administrativa pendente'},client:{label:'Primeiro cliente',done:'Cliente atribuído visível no seu âmbito',pending:'Nenhum cliente atribuído visível'},planning:{label:'Primeiro planeamento',done:'Sessão publicada visível',pending:'Nenhum planeamento publicado visível'},session:{label:'Primeira sessão',done:'Execução concluída e confirmada',pending:'Nenhuma sessão concluída confirmada'}}),
     actions:Object.freeze({clients:'Rever carteira',planning:'Preparar primeiro planeamento',session:'Rever primeira sessão'}),
   }),
@@ -62,14 +63,17 @@ export function coachLaunchSelfCopy(language='es'){
   return COACH_LAUNCH_SELF_COPY[key]||COACH_LAUNCH_SELF_COPY.es;
 }
 export function coachLaunchSelfLanguages(){return Object.freeze(Object.keys(COACH_LAUNCH_SELF_COPY));}
-function hasConfirmedCompletedSession(state,clients,now){
+function confirmedCompletedSessions(state,clients,coachId){
+  const completed=[];
   for(const client of clients){
     const id=recordClientId(client);
     if(!id)continue;
-    const summary=computeProgressSummary(state,id,{now});
-    if(Number(summary?.completedSessions||0)>0)return true;
+    for(const execution of confirmedSessionExecutionsForClient(state,id)){
+      const startedBy=String(execution?.startedBy??execution?.started_by??'').trim();
+      if(startedBy===coachId)completed.push(execution);
+    }
   }
-  return false;
+  return completed;
 }
 function nextCoachAction(milestones){
   const byId=new Map(milestones.map((item)=>[item.id,item]));
@@ -79,22 +83,27 @@ function nextCoachAction(milestones){
   return null;
 }
 export function deriveCoachSelfLaunchJourney({state,identity=null,now=new Date()}={}){
-  const role=String(identity?.role||state?.identity?.role||'').trim().toLowerCase();
+  const sourceIdentity=identity||state?.identity||{};
+  const role=String(sourceIdentity?.role||'').trim().toLowerCase();
   if(role!=='coach')return null;
-  const coachId=String(identity?.id||state?.identity?.id||'').trim();
+  const coachId=String(sourceIdentity?.id||'').trim();
   if(!coachId)return null;
   const clients=list(state?.collections?.clients);
   const sessions=list(state?.collections?.sessions);
   const parsedNow=now instanceof Date&&!Number.isNaN(now.getTime())?now:new Date(now);
   const effectiveNow=Number.isNaN(parsedNow.getTime())?new Date():parsedNow;
   const authenticatedAt=state?.hydration?.serverTime||effectiveNow.toISOString();
-  const user=Object.freeze({id:coachId,userId:coachId,primaryRole:'coach',roles:Object.freeze(['coach']),status:'',lastAccessAt:authenticatedAt});
+  const accountStatus=String(sourceIdentity?.status||'').trim();
+  const email=String(sourceIdentity?.email||'').trim();
+  const name=String(sourceIdentity?.name||sourceIdentity?.displayName||'').trim();
+  const user=Object.freeze({id:coachId,userId:coachId,primaryRole:'coach',roles:Object.freeze(['coach']),status:accountStatus,lastAccessAt:authenticatedAt});
+  const coach=Object.freeze({id:coachId,userId:coachId,name,email,status:accountStatus});
   const assignments=Object.freeze(clients.map((client)=>Object.freeze({coachUserId:coachId,clientId:recordClientId(client),status:'active'})).filter((item)=>item.clientId));
-  const planningEvidence=sessions.filter(isPublishedSession).map((session)=>Object.freeze({sessionId:recordId(session),status:''})).filter((item)=>item.sessionId);
-  const completed=hasConfirmedCompletedSession(state,clients,effectiveNow);
-  const evidenceSessions=Object.freeze([...planningEvidence,...(completed?[Object.freeze({status:'completed'})]:[])]);
-  const base=deriveCoachLaunchJourney({user,coach:null,assignments,sessions:evidenceSessions});
-  return Object.freeze({...base,source:'authenticated-coach-bootstrap',coachId,profileVerified:false,accountStatusVerified:false,clientEvidenceCount:assignments.length,publishedPlanningEvidenceCount:planningEvidence.length,completedSessionEvidence:completed,nextCoachAction:nextCoachAction(base.milestones)});
+  const planningEvidence=sessions.filter(isCoachLaunchPlanningPublished);
+  const completedExecutions=confirmedCompletedSessions(state,clients,coachId);
+  const base=deriveCoachLaunchJourney({user,coach,assignments,planningSessions:planningEvidence,sessionExecutions:completedExecutions});
+  const profileVerified=base.milestones.find((item)=>item.id==='profile')?.complete===true;
+  return Object.freeze({...base,source:'authenticated-coach-bootstrap',coachId,profileVerified,accountStatusVerified:base.accountActive===true,clientEvidenceCount:assignments.length,publishedPlanningEvidenceCount:planningEvidence.length,completedSessionEvidence:completedExecutions.length>0,nextCoachAction:nextCoachAction(base.milestones)});
 }
 const compactAppointment=(record,now)=>Object.freeze({
   raw:clone(record),
