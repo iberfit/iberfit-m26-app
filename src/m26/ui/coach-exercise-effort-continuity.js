@@ -67,7 +67,8 @@ function longitudinalCoachSummary(assessment){
     up:'al alza',
     down:'a la baja',
     flat:'estable',
-  })[direction]||'sin dirección concluyente';
+  })[direction]||null;
+  if(!directionLabel)return null;
 
   return Object.freeze({
     state:confirmation,
