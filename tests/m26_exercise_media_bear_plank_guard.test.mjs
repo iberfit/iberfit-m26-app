@@ -35,7 +35,7 @@ test('Bear Plank Shoulder Tap is not mistaken for the base Bear Plank and gets a
 test('Shoulder Tap planner rejects wrist/palm substitution and accepts a real contralateral shoulder tap',()=>{
   const exercise={id:'IBF-BEAR-PLANK-SHOULDER-TAP',name_es:'Bear plank shoulder tap',pattern:'anti-rotación',equipment:'sin equipo'};
   const start='Ambas manos apoyadas en el suelo bajo hombros, puntas de ambos pies apoyadas, rodillas flexionadas a 90 grados y suspendidas pocos centímetros bajo las caderas, tronco neutro.';
-  const wrong={start,final:'Mismo apoyo de manos y puntas de pies, rodillas flexionadas y suspendidas bajo la cadera; el brazo derecho cruza y toca la palma izquierda manteniendo el tronco neutro.'};
+  const wrong={start,final:'La palma izquierda permanece apoyada en el suelo y las puntas de ambos pies permanecen apoyadas en el suelo; rodillas flexionadas a 90 grados y suspendidas bajo la cadera. La mano derecha se despega, cruza y toca la palma izquierda manteniendo pelvis y tronco neutros.'};
   assert.equal(movementPlanIssue(exercise,wrong),'PLAN_MOVEMENT_PHASE_RELATION_INVALID:bear-plank-shoulder-tap-target');
   const valid={start,final:'La palma izquierda permanece apoyada en el suelo y ambas puntas de pies siguen apoyadas; rodillas flexionadas y suspendidas bajo la cadera. La mano derecha se despega, cruza y toca el hombro izquierdo manteniendo pelvis y tronco neutros.'};
   assert.equal(movementPlanIssue(exercise,valid),null);
