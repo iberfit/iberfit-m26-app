@@ -1,0 +1,10 @@
+/* IBERFIT M26 · Operational Genie onboarding on short mobile viewports.
+   The dialog owns vertical scrolling here; body scrolling remains untouched. */
+@media (max-width:719px) and (max-height:700px){
+  .m26-guided-tour.is-genie-led{
+    overflow-x:hidden;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+}
