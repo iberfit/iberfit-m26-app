@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {deriveAdherenceTrajectory} from '../src/m26/data-experience/adherence-trajectory.js';
+import {deriveAdherenceTrajectory} from '../src/m26/data-experience/index.js';
 
 test('adherence trajectory keeps incomplete windows as insufficient evidence',()=>{
   const result=deriveAdherenceTrajectory({d7:0.8,d28:0.8,d90:null});
@@ -38,11 +38,10 @@ test('adherence trajectory treats sub-threshold variation as stable',()=>{
   assert.equal(result.level,'neutral');
 });
 
-test('longitudinal entrypoint exposes the coach trajectory without changing the client path',()=>{
+test('longitudinal entrypoint exposes the professional trajectory without changing the client path',()=>{
   const index=fs.readFileSync('src/m26/data-experience/index.js','utf8');
-  const wrapper=fs.readFileSync('src/m26/data-experience/longitudinal-adherence-ui.js','utf8');
-  assert.match(index,/longitudinal-adherence-ui\.js/u);
-  assert.match(wrapper,/deriveAdherenceTrajectory\(aggregate\?\.adherence\)/u);
-  assert.match(wrapper,/if\(!base\|\|!professionalRole\(role\)\)return base/u);
-  assert.match(wrapper,/No modifica el plan automáticamente/u);
+  assert.match(index,/deriveAdherenceTrajectory\(aggregate\?\.adherence\)/u);
+  assert.match(index,/if\(!base\|\|!professionalRole\(role\)\)return base/u);
+  assert.match(index,/No modifica el plan automáticamente/u);
+  assert.match(index,/\['coach','admin'\]/u);
 });
