@@ -64,7 +64,7 @@ function canonicalCode(sql){
   return maskNonCode(sql).toLowerCase().replaceAll('"','').replace(/\s+/gu,' ').trim();
 }
 
-function tableRefParts(raw){
+function objectRefParts(raw){
   return String(raw||'').split('.').map(normalizeIdentifier).filter(Boolean);
 }
 
@@ -73,22 +73,35 @@ export function findCreatedTables(sql){
   const create=/\bcreate\s+(?:unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?((?:"[^"]+"|[A-Za-z_][\w$]*)(?:\s*\.\s*(?:"[^"]+"|[A-Za-z_][\w$]*))?)/giu;
   const tables=[];
   for(const match of code.matchAll(create)){
-    const parts=tableRefParts(match[1].replace(/\s+/gu,''));
+    const parts=objectRefParts(match[1].replace(/\s+/gu,''));
     if(parts.length===1){tables.push({schema:null,table:parts[0],raw:match[1],index:match.index});continue;}
     if(parts.length===2){tables.push({schema:parts[0],table:parts[1],raw:match[1],index:match.index});}
   }
   return tables;
 }
 
-function commentValue(sql,label,table){
-  const target=escapeRegExp(`public.${table}`);
+export function findCreatedSequences(sql){
+  const code=maskNonCode(sql);
+  const create=/\bcreate\s+sequence\s+(?:if\s+not\s+exists\s+)?((?:"[^"]+"|[A-Za-z_][\w$]*)(?:\s*\.\s*(?:"[^"]+"|[A-Za-z_][\w$]*))?)/giu;
+  const sequences=[];
+  for(const match of code.matchAll(create)){
+    const parts=objectRefParts(match[1].replace(/\s+/gu,''));
+    if(parts.length===1){sequences.push({schema:null,sequence:parts[0],raw:match[1],index:match.index});continue;}
+    if(parts.length===2){sequences.push({schema:parts[0],sequence:parts[1],raw:match[1],index:match.index});}
+  }
+  return sequences;
+}
+
+function commentValue(sql,label,objectName){
+  const target=escapeRegExp(`public.${objectName}`);
   const re=new RegExp(`^\\s*--\\s*${escapeRegExp(label)}\\s*:\\s*${target}\\s*(?:::|=)\\s*(.+?)\\s*$`,'imu');
   return sql.match(re)?.[1]?.trim()||null;
 }
 
-function aclStatements(canonical,table){
-  const target=escapeRegExp(`public.${table}`);
-  const re=new RegExp(`\\b(grant|revoke)\\s+([^;]+?)\\s+on\\s+(?:table\\s+)?${target}\\s+(to|from)\\s+([^;]+);`,'giu');
+function aclStatements(canonical,objectType,objectName){
+  const target=escapeRegExp(`public.${objectName}`);
+  const type=objectType==='sequence'?'sequence':'table';
+  const re=new RegExp(`\\b(grant|revoke)\\s+([^;]+?)\\s+on\\s+(?:${type}\\s+)?${target}\\s+(to|from)\\s+([^;]+);`,'giu');
   return [...canonical.matchAll(re)].map((match)=>({
     kind:match[1].toLowerCase(),
     privileges:match[2].trim(),
@@ -115,13 +128,14 @@ function hasRls(canonical,table,mode){
   return new RegExp(`\\balter\\s+table\\s+(?:only\\s+)?${target}\\s+${mode}\\s+row\\s+level\\s+security\\b`,'iu').test(canonical);
 }
 
-function finding(file,table,code,message){
-  return {type:'migration-public-table-security',path:file,table,code,message};
+function finding(file,object,code,message){
+  return {type:'migration-public-object-security',path:file,object,code,message};
 }
 
 export function analyzeMigration(sql,{file='migration.sql'}={}){
   const canonical=canonicalCode(sql);
   const created=findCreatedTables(sql);
+  const sequences=findCreatedSequences(sql);
   const findings=[];
   for(const createdTable of created){
     if(createdTable.schema===null){
@@ -137,7 +151,7 @@ export function analyzeMigration(sql,{file='migration.sql'}={}){
     const rlsException=commentValue(sql,'IBERFIT-RLS-EXCEPTION',table);
     const rlsEnabled=hasRls(canonical,table,'enable');
     const rlsDisabled=hasRls(canonical,table,'disable');
-    const statements=aclStatements(canonical,table);
+    const statements=aclStatements(canonical,'table',table);
     const anonDeclared=hasRoleDeclaration(statements,'anon');
     const authenticatedDeclared=hasRoleDeclaration(statements,'authenticated');
     const serviceGranted=hasGrantToRole(statements,'service_role');
@@ -191,6 +205,33 @@ export function analyzeMigration(sql,{file='migration.sql'}={}){
       }
     }
   }
+
+  for(const createdSequence of sequences){
+    if(createdSequence.schema===null){
+      findings.push(finding(file,createdSequence.sequence,'UNQUALIFIED_CREATE_SEQUENCE','New sequences must use an explicit schema; public sequences must be written as public.<sequence>.'));
+      continue;
+    }
+    if(createdSequence.schema!=='public')continue;
+
+    const sequence=createdSequence.sequence;
+    const sequenceRef=`public.${sequence}`;
+    const accessIntent=commentValue(sql,'IBERFIT-SEQUENCE-ACCESS',sequence);
+    const statements=aclStatements(canonical,'sequence',sequence);
+
+    if(!accessIntent||accessIntent.length<12){
+      findings.push(finding(file,sequenceRef,'SEQUENCE_ACCESS_INTENT_REQUIRED',`Add "-- IBERFIT-SEQUENCE-ACCESS: ${sequenceRef} :: <security/access intent>" with a meaningful rationale.`));
+    }
+    if(!hasRoleDeclaration(statements,'anon')){
+      findings.push(finding(file,sequenceRef,'SEQUENCE_ANON_ACCESS_UNDECLARED',`Declare anon access explicitly for ${sequenceRef} with GRANT or REVOKE.`));
+    }
+    if(!hasRoleDeclaration(statements,'authenticated')){
+      findings.push(finding(file,sequenceRef,'SEQUENCE_AUTHENTICATED_ACCESS_UNDECLARED',`Declare authenticated access explicitly for ${sequenceRef} with GRANT or REVOKE.`));
+    }
+    if(!hasGrantToRole(statements,'service_role')){
+      findings.push(finding(file,sequenceRef,'SEQUENCE_SERVICE_ROLE_ACCESS_UNDECLARED',`Grant the required privileges on ${sequenceRef} explicitly to service_role.`));
+    }
+  }
+
   return findings;
 }
 
