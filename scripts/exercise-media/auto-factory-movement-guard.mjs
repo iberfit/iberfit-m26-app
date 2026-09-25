@@ -43,7 +43,7 @@ function shoulderTapTargetIssue(text){
   const n=normalize(text);
   const contact='(?:toca|toque|contact|tap|touch)';
   const wrongTarget='(?:muñeca|muneca|palma|mano|antebrazo)';
-  if(new RegExp(`${contact}.{0,60}${wrongTarget}|${wrongTarget}.{0,60}${contact}`,'u').test(n))return'PLAN_MOVEMENT_PHASE_RELATION_INVALID:bear-plank-shoulder-tap-target';
+  if(new RegExp(`${contact}.{0,60}${wrongTarget}`,'u').test(n))return'PLAN_MOVEMENT_PHASE_RELATION_INVALID:bear-plank-shoulder-tap-target';
   const shoulder=new RegExp(`${contact}.{0,80}(?:hombro|deltoide)|(?:hombro|deltoide).{0,80}${contact}`,'u').test(n);
   const liftedHand=/(?:mano|brazo).{0,100}(?:despeg|eleva|levanta|separa|cruza|toca|toque|tap|touch)|(?:despeg|eleva|levanta|separa|cruza|toca|toque|tap|touch).{0,100}(?:mano|brazo)/u.test(n);
   if(!shoulder||!liftedHand)return'PLAN_MOVEMENT_PHASE_RELATION_INVALID:bear-plank-shoulder-tap';
