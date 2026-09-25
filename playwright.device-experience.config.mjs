@@ -33,6 +33,8 @@ export default defineConfig({
     {name:'device-tablet-820-landscape-chromium',use:{viewport:{width:1180,height:820},hasTouch:true,isMobile:true,deviceScaleFactor:2}},
     {name:'device-tablet-portrait-chromium',use:{viewport:{width:1024,height:1366},hasTouch:true,isMobile:true,deviceScaleFactor:2}},
     {name:'device-tablet-landscape-chromium',use:{viewport:{width:1366,height:1024},hasTouch:true,isMobile:true,deviceScaleFactor:2}},
+    {name:'device-mobile-320-chromium',use:{viewport:{width:320,height:568},hasTouch:true,isMobile:true,deviceScaleFactor:2}},
+    {name:'device-mobile-360-chromium',use:{viewport:{width:360,height:800},hasTouch:true,isMobile:true,deviceScaleFactor:3}},
     {name:'device-mobile-chromium',use:{viewport:{width:390,height:844},hasTouch:true,isMobile:true,deviceScaleFactor:3}},
   ],
 });
