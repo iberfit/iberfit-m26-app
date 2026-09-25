@@ -50,6 +50,34 @@ test('client adherence panel keeps unknown comparison explicit',()=>{
   assert.doesNotMatch(html,/\+0 pp/u);
 });
 
+test('client adherence panel does not fabricate percentages without session evidence',()=>{
+  const html=__longitudinalUiInternals.adherencePanel(
+    {
+      adherence:{
+        d7:1,
+        d28:1,
+        d90:1,
+        baseline28:1,
+        change28VsPrevious28:null,
+      },
+      progress:{
+        d28:{
+          summary:{
+            completedSessions:0,
+            plannedSessions:0,
+          },
+        },
+      },
+    },
+    'client'
+  );
+
+  assert.match(html,/Aún no hay sesiones confirmadas suficientes/u);
+  assert.match(html,/sin fabricar porcentajes/u);
+  assert.doesNotMatch(html,/100 %/u);
+  assert.doesNotMatch(html,/7 días<\/span>/u);
+});
+
 test('professional adherence panel retains 7/28/90 baseline comparison',()=>{
   const html=__longitudinalUiInternals.adherencePanel(aggregate,'coach');
 
