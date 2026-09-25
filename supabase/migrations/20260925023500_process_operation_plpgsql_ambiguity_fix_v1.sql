@@ -169,8 +169,8 @@ begin
     raise exception 'PROCESS_OPERATION_POSTCHECK_AMBIGUOUS_VARIABLES';
   end if;
 
-  if position('se.entity_type = v_entity_type' in regexp_replace(lower(v_definition),'\s+',' ','g'))=0 or
-     position('se.entity_id = v_entity_id' in regexp_replace(lower(v_definition),'\s+',' ','g'))=0 then
+  if position('se.entity_type=v_entity_type' in regexp_replace(lower(v_definition),'\s+','','g'))=0 or
+     position('se.entity_id=v_entity_id' in regexp_replace(lower(v_definition),'\s+','','g'))=0 then
     raise exception 'PROCESS_OPERATION_POSTCHECK_ENTITY_ALIAS_MISSING';
   end if;
 
