@@ -133,8 +133,7 @@ export function deriveAdherenceAlerts(state,clientId,{now=new Date(),summary:pro
   if(postSession)alerts.push(postSession);
   const trajectory=buildAdherenceTrajectory(state,clientId,{now,summaries:{d28:summary}});
   if(['recent_decline','sustained_decline','low_sustained'].includes(trajectory?.state)){
-    const id=trajectory.state==='recent_decline'?'adherence-recent-decline':trajectory.state==='sustained_decline'?'adherence-sustained-decline':'adherence-low';
-    alerts.push(makeSignal(id,'warning',trajectory.title,trajectory.detail,trajectory.nextAction,'sessions',{trajectory}));
+    alerts.push(makeSignal('adherence-low','warning',trajectory.title,trajectory.detail,trajectory.nextAction,'sessions',{trajectory}));
   }else if(trajectory?.state==='recovering'){
     alerts.push(makeSignal('adherence-recovering','info',trajectory.title,trajectory.detail,trajectory.nextAction,'sessions',{trajectory}));
   }
@@ -203,8 +202,6 @@ function followUpActionFor(alert){
 
   if(
     id==='adherence-low'||
-    id==='adherence-recent-decline'||
-    id==='adherence-sustained-decline'||
     id==='no-completions'
   ){
     return Object.freeze({
