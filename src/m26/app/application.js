@@ -1256,6 +1256,9 @@ function onAuthClick(event) {
   }
 
   if (action === 'forgot-password') {
+    invalidateAuthAttempt();
+    loginBusy = false;
+    sessionRetryAvailable = false;
     authMode = 'request-recovery';
     authMessage();
     return;
