@@ -25,3 +25,17 @@ test('production bootstrap is neutral and never advertises a review-only lockout
   assert.match(html,/Preparando acceso seguro…/u);
   assert.match(html,/Acceso protegido por autenticación y permisos de cuenta./u);
 });
+
+
+test('recovery entry resets stale auth transition state',()=>{
+  const source=fs.readFileSync('src/m26/app/application.js','utf8');
+  const start=source.indexOf("if (action === 'forgot-password')");
+  const end=source.indexOf("if (action === 'back-to-login')",start);
+  const block=source.slice(start,end);
+  assert.ok(start>=0&&end>start);
+  assert.match(block,/invalidateAuthAttempt\(\)/u);
+  assert.match(block,/loginBusy = false/u);
+  assert.match(block,/sessionRetryAvailable = false/u);
+  assert.match(block,/authMode = 'request-recovery'/u);
+  assert.match(block,/authMessage\(\)/u);
+});
