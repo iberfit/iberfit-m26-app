@@ -2,6 +2,7 @@ import './echarts-element.js';
 import {longitudinalMetricTrust,renderDataTrustStrip} from './data-trust.js';
 import {renderGuidanceTrigger} from '../guidance/contextual-guidance.js';
 import {finiteOptionalNumber} from '../domain/optional-number.js';
+import {deriveAdherenceTrajectoryFromSummaries} from '../engagement/adherence-engine.js';
 
 const CLIENT_METRICS=Object.freeze([
   'steps',
@@ -261,12 +262,18 @@ function metricCard(aggregate,key,role){
 
 function adherencePanel(aggregate,role){
   const adherence=aggregate?.adherence||{};
+  const trajectory=deriveAdherenceTrajectoryFromSummaries({
+    d7:aggregate?.progress?.d7,
+    d28:aggregate?.progress?.d28,
+    d90:aggregate?.progress?.d90,
+  });
+  const snapshot=`<div class="m26-data-snapshot" aria-label="Trayectoria de adherencia de 7, 28 y 90 días"><span><small>7 días</small><strong>${escapeHtml(percent(adherence.d7))}</strong></span><span><small>28 días</small><strong>${escapeHtml(percent(adherence.d28))}</strong></span><span><small>90 días</small><strong>${escapeHtml(percent(adherence.d90))}</strong></span></div>`;
   if(role==='client'){
-    return `<section class="m26-panel m26-data-adherence"><p class="m26-eyebrow">Constancia</p><h3>Adherencia de 28 días</h3><strong>${escapeHtml(percent(adherence.d28))}</strong><p>Se muestra como contexto de continuidad, no como una valoración clínica.</p></section>`;
+    return `<section class="m26-panel m26-data-adherence" data-adherence-trajectory="${escapeHtml(trajectory.status)}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Constancia</p><h3>${escapeHtml(trajectory.label)}</h3></div><span class="m26-chip">7 · 28 · 90</span></div>${snapshot}<p>${escapeHtml(trajectory.clientMessage)}</p><p class="m26-data-next-step"><small>Estas ventanas se solapan y sirven para entender continuidad, no para juzgar ni compensar sesiones.</small></p></section>`;
   }
 
   const change=finite(adherence.change28VsPrevious28);
-  return `<section class="m26-panel m26-data-adherence"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Adherencia</p><h3>Comparativa temporal</h3></div></div><div class="m26-data-kpis m26-data-kpis-pro"><div><span>7 días</span><strong>${escapeHtml(percent(adherence.d7))}</strong></div><div><span>28 días</span><strong>${escapeHtml(percent(adherence.d28))}</strong></div><div><span>90 días</span><strong>${escapeHtml(percent(adherence.d90))}</strong></div></div><p>Baseline 28 días previos: ${escapeHtml(percent(adherence.baseline28))}${change===null?'':` · cambio ${escapeHtml(`${change>0?'+':''}${numberText(change*100,1)} pp`)}`}.</p></section>`;
+  return `<section class="m26-panel m26-data-adherence" data-adherence-trajectory="${escapeHtml(trajectory.status)}"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Adherencia</p><h3>${escapeHtml(trajectory.label)}</h3></div><span class="m26-chip">evidencia ${escapeHtml(trajectory.evidence)}</span></div>${snapshot}<p>Baseline 28 días previos: ${escapeHtml(percent(adherence.baseline28))}${change===null?'':` · cambio ${escapeHtml(`${change>0?'+':''}${numberText(change*100,1)} pp`)}`}.</p><p><strong>Siguiente decisión:</strong> ${escapeHtml(trajectory.coachAction)}</p><p class="m26-data-next-step"><small>7/28/90 son ventanas solapadas: señalan cambios temporales, no explican su causa ni modifican el plan automáticamente.</small></p></section>`;
 }
 
 function trustPanel(aggregate,role){
@@ -307,4 +314,5 @@ export const __longitudinalUiInternals=Object.freeze({
   rangeText,
   dataDaysText,
   chartReferenceAttributes,
+  adherencePanel,
 });
