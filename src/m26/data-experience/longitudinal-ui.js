@@ -262,9 +262,18 @@ function metricCard(aggregate,key,role){
 function adherencePanel(aggregate,role){
   const adherence=aggregate?.adherence||{};
   const summary28=aggregate?.progress?.d28?.summary||{};
+  const completedSessions=Number(summary28.completedSessions??0);
+  const plannedSessions=Number(summary28.plannedSessions??0);
+  const hasSessionEvidence=(
+    (Number.isFinite(completedSessions)&&completedSessions>0)
+    ||(Number.isFinite(plannedSessions)&&plannedSessions>0)
+  );
   const change=finite(adherence.change28VsPrevious28);
 
   if(role==='client'){
+    if(!hasSessionEvidence){
+      return `<section class="m26-panel m26-data-adherence"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Constancia</p><h3>Tu adherencia</h3></div></div><p class="m26-empty-copy">Aún no hay sesiones confirmadas suficientes para mostrar una trayectoria de adherencia.</p><p class="m26-data-next-step"><small>Cuando haya sesiones planificadas o completadas, IBERFIT mostrará la evolución de 7, 28 y 90 días sin fabricar porcentajes.</small></p></section>`;
+    }
     const comparison=change===null
       ?'Aún no hay un periodo previo comparable.'
       :`Cambio frente a los 28 días previos: ${change>0?'+':''}${numberText(change*100,1)} pp.`;
