@@ -261,11 +261,16 @@ function metricCard(aggregate,key,role){
 
 function adherencePanel(aggregate,role){
   const adherence=aggregate?.adherence||{};
+  const summary28=aggregate?.progress?.d28?.summary||{};
+  const change=finite(adherence.change28VsPrevious28);
+
   if(role==='client'){
-    return `<section class="m26-panel m26-data-adherence"><p class="m26-eyebrow">Constancia</p><h3>Adherencia de 28 días</h3><strong>${escapeHtml(percent(adherence.d28))}</strong><p>Se muestra como contexto de continuidad, no como una valoración clínica.</p></section>`;
+    const comparison=change===null
+      ?'Aún no hay un periodo previo comparable.'
+      :`Cambio frente a los 28 días previos: ${change>0?'+':''}${numberText(change*100,1)} pp.`;
+    return `<section class="m26-panel m26-data-adherence"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Constancia</p><h3>Tu trayectoria de adherencia</h3></div><span class="m26-chip">7 · 28 · 90 días</span></div><div class="m26-data-kpis"><div><span>7 días</span><strong>${escapeHtml(percent(adherence.d7))}</strong><small>Momento actual</small></div><div><span>28 días</span><strong>${escapeHtml(percent(adherence.d28))}</strong><small>Continuidad reciente</small></div><div><span>90 días</span><strong>${escapeHtml(percent(adherence.d90))}</strong><small>Tendencia sostenida</small></div></div><div class="m26-data-snapshot" aria-label="Sesiones registradas en los últimos 28 días"><span><small>Completadas</small><strong>${escapeHtml(String(summary28.completedSessions??0))}</strong></span><span><small>Planificadas</small><strong>${escapeHtml(String(summary28.plannedSessions??0))}</strong></span></div><p>${escapeHtml(comparison)}</p><p class="m26-data-next-step"><small>La adherencia describe continuidad sobre sesiones confirmadas. Puedes consultar cada ventana por separado; no sustituye la valoración de tu entrenador.</small></p></section>`;
   }
 
-  const change=finite(adherence.change28VsPrevious28);
   return `<section class="m26-panel m26-data-adherence"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Adherencia</p><h3>Comparativa temporal</h3></div></div><div class="m26-data-kpis m26-data-kpis-pro"><div><span>7 días</span><strong>${escapeHtml(percent(adherence.d7))}</strong></div><div><span>28 días</span><strong>${escapeHtml(percent(adherence.d28))}</strong></div><div><span>90 días</span><strong>${escapeHtml(percent(adherence.d90))}</strong></div></div><p>Baseline 28 días previos: ${escapeHtml(percent(adherence.baseline28))}${change===null?'':` · cambio ${escapeHtml(`${change>0?'+':''}${numberText(change*100,1)} pp`)}`}.</p></section>`;
 }
 
@@ -307,4 +312,5 @@ export const __longitudinalUiInternals=Object.freeze({
   rangeText,
   dataDaysText,
   chartReferenceAttributes,
+  adherencePanel,
 });
