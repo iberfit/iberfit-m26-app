@@ -19,10 +19,6 @@ export function hasHardMovementPlanGuard(exercise){
   return isBearCrawl(exercise)||isBearPlankShoulderTap(exercise);
 }
 
-export function hasHardSupportObservationGuard(exercise){
-  return isBearCrawl(exercise);
-}
-
 function phaseHasBearSupport(text){
   const n=normalize(text);
   const hands=/(?:manos?.{0,80}(?:suelo|piso)|(?:suelo|piso).{0,80}manos?)/u.test(n);
@@ -71,20 +67,10 @@ export function movementPlanIssue(exercise,plan){
 }
 
 const SUPPORT_SHAPE='{"palms_on_floor":0|1|2,"forefeet_on_floor":0|1|2,"knees_weight_bearing":boolean,"hip_height_relation":"below_shoulders|near_shoulders|above_shoulders|unclear","torso_relation":"approximately_parallel|upright|unclear","lunge_or_squat":boolean}';
+const SHOULDER_TAP_FINAL_SHAPE='{"palms_on_floor":0|1|2,"forefeet_on_floor":0|1|2,"knees_weight_bearing":boolean,"free_hand_target":"opposite_shoulder|other|unclear","hip_height_relation":"below_shoulders|near_shoulders|above_shoulders|unclear","torso_relation":"approximately_parallel|upright|unclear","lunge_or_squat":boolean}';
 
-export function supportObservationInstruction(exercise){
-  if(!hasHardSupportObservationGuard(exercise))return'';
-  return `For Bear Crawl, report support_observation exactly as ${SUPPORT_SHAPE}. Count only clearly visible or defensible contacts; use unclear rather than guessing. A squat, crouch, lunge or kneeling pose is not a crawl.`;
-}
-
-export function supportPairObservationInstruction(exercise){
-  if(!hasHardSupportObservationGuard(exercise))return'';
-  return `For Bear Crawl, report support_observation exactly as {"start":${SUPPORT_SHAPE},"final":${SUPPORT_SHAPE}}. Evaluate START and FINAL independently. Count only clearly visible or defensible contacts; use unclear rather than guessing. A squat, crouch, lunge or kneeling pose is not a crawl.`;
-}
-
-export function supportObservationPass(exercise,observation){
-  if(!hasHardSupportObservationGuard(exercise))return true;
-  return Number(observation?.palms_on_floor)===2
+function compactHoverSupportPass(observation,{palms}){
+  return Number(observation?.palms_on_floor)===palms
     &&Number(observation?.forefeet_on_floor)===2
     &&observation?.knees_weight_bearing===false
     &&observation?.hip_height_relation==='near_shoulders'
@@ -92,10 +78,31 @@ export function supportObservationPass(exercise,observation){
     &&observation?.lunge_or_squat===false;
 }
 
+export function supportObservationInstruction(exercise){
+  if(isBearCrawl(exercise))return `For Bear Crawl, report support_observation exactly as ${SUPPORT_SHAPE}. Count only clearly visible or defensible contacts; use unclear rather than guessing. A squat, crouch, lunge or kneeling pose is not a crawl.`;
+  if(isBearPlankShoulderTap(exercise))return `For Bear Plank Shoulder Tap START, report support_observation exactly as ${SUPPORT_SHAPE}. START requires exactly two palms and two forefeet/toes on the floor, both knees hovering (not weight-bearing), hips near shoulder height and a near-horizontal trunk.`;
+  return'';
+}
+
+export function supportPairObservationInstruction(exercise){
+  if(isBearCrawl(exercise))return `For Bear Crawl, report support_observation exactly as {"start":${SUPPORT_SHAPE},"final":${SUPPORT_SHAPE}}. Evaluate START and FINAL independently. Count only clearly visible or defensible contacts; use unclear rather than guessing. A squat, crouch, lunge or kneeling pose is not a crawl.`;
+  if(isBearPlankShoulderTap(exercise))return `For Bear Plank Shoulder Tap, report support_observation exactly as {"start":${SUPPORT_SHAPE},"final":${SHOULDER_TAP_FINAL_SHAPE}}. START requires two supporting palms. FINAL requires exactly one supporting palm while the free hand visibly contacts the opposite shoulder/upper deltoid. Both phases require two forefeet/toes on the floor and both knees hovering.`;
+  return'';
+}
+
+export function supportObservationPass(exercise,observation){
+  if(isBearCrawl(exercise))return compactHoverSupportPass(observation,{palms:2});
+  if(isBearPlankShoulderTap(exercise))return compactHoverSupportPass(observation,{palms:2});
+  return true;
+}
+
 export function supportPairObservationPass(exercise,observation){
-  if(!hasHardSupportObservationGuard(exercise))return true;
-  return supportObservationPass(exercise,observation?.start)
+  if(isBearCrawl(exercise))return supportObservationPass(exercise,observation?.start)
     &&supportObservationPass(exercise,observation?.final);
+  if(isBearPlankShoulderTap(exercise))return compactHoverSupportPass(observation?.start,{palms:2})
+    &&compactHoverSupportPass(observation?.final,{palms:1})
+    &&observation?.final?.free_hand_target==='opposite_shoulder';
+  return true;
 }
 
 export function movementVisualGuard(exercise){
