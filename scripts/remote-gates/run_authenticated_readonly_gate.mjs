@@ -8,6 +8,8 @@ import { inspectClientBootstrap } from './readonly-gate-bootstrap-privacy.mjs';
 const PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const CANARY_ORIGIN='https://m26-canary.iberfit.cl';
 const EXPECTED_COACH_CERT_EMAIL='qa.rc74.coach@iberfit.cl';
+const COACH_BOOTSTRAP_ASSURANCE_SQLSTATE='42501';
+const COACH_BOOTSTRAP_ASSURANCE_MESSAGE='IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED';
 const required=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
   'M26_QA_COACH_EMAIL','M26_QA_COACH_PASSWORD',
@@ -122,19 +124,31 @@ for(const session of sessions){
       throw new Error('RC65_C2_REMOTE_COACH_ASSURANCE_CONTRACT_FAILED');
     }
 
+    // A privileged AAL1 coach must not be allowed through the primary bootstrap.
+    // The bootstrap becomes readable only after IBERFIT privileged assurance is established.
     const bootstrapResult=await rpcResult('iberfit_bootstrap_v26',session.token,{});
-    const bootstrapRole=normalizeRegistryRole(bootstrapResult?.body?.user?.role);
-    if(bootstrapResult?.status!==200||!bootstrapResult?.body||typeof bootstrapResult.body!=='object'||bootstrapRole!=='coach'){
-      throw new Error(`RC65_C2_REMOTE_COACH_PRIMARY_AUTH_READ_MISMATCH:status=${bootstrapResult?.status||0}:role=${bootstrapRole||'missing'}`);
+    const bootstrapCode=String(bootstrapResult?.body?.code||'');
+    const bootstrapMessage=String(bootstrapResult?.body?.message||'');
+    if(
+      bootstrapResult?.status!==403||
+      !bootstrapResult?.body||typeof bootstrapResult.body!=='object'||
+      bootstrapCode!==COACH_BOOTSTRAP_ASSURANCE_SQLSTATE||
+      bootstrapMessage!==COACH_BOOTSTRAP_ASSURANCE_MESSAGE
+    ){
+      throw new Error(
+        `RC65_C2_REMOTE_COACH_PRIMARY_AUTH_FAIL_CLOSED_MISMATCH:`+
+        `status=${bootstrapResult?.status||0}:code=${bootstrapCode||'missing'}:message=${bootstrapMessage||'missing'}`,
+      );
     }
 
     roles.push({
       name:session.name,userFingerprint:fingerprint(session.userId),reportedRole,clientFingerprint:null,
-      canaryActive:bootstrapResult.body?.canary?.active===true,
-      environmentName:bootstrapResult.body?.environment?.name||bootstrapResult.body?.environment||null,privacy:null,
+      canaryActive:null,environmentName:environment.environment,privacy:null,
       privilegedGate:{ok:true,iberfitAssurance:'required',credentialEnrolled:false,webauthnRequired:true,emailOtpAvailable:true,
         origin:CANARY_ORIGIN,rpId:'m26-canary.iberfit.cl'},
-      primaryAuthRead:{ok:true,status:200,bootstrapRole},
+      primaryAuthRead:{
+        ok:true,status:403,expectedBlocked:true,code:bootstrapCode,message:bootstrapMessage,
+      },
     });
     continue;
   }
