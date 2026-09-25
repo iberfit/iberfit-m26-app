@@ -1,9 +1,11 @@
 const normalize=value=>String(value||'').trim().toLowerCase();
 
 function descriptorFor(exercise){return `${normalize(exercise?.id)} ${normalize(exercise?.name_es)} ${normalize(exercise?.pattern)} ${normalize(exercise?.equipment)}`;}
+function isBearCrawl(exercise){return /(?:ibf-bear-crawl|\bbear\s+crawl\b)/u.test(descriptorFor(exercise));}
+function isBearPlank(exercise){return /(?:ibf-bear-plank|\bbear\s+plank\b|\bplancha\s+bear\b|\bplancha\s+del\s+oso\b)/u.test(descriptorFor(exercise));}
 
 export function hasHardMovementPlanGuard(exercise){
-  return /(?:ibf-bear-crawl|\bbear\s+crawl\b)/u.test(descriptorFor(exercise));
+  return isBearCrawl(exercise);
 }
 
 function phaseHasBearSupport(text){
@@ -56,9 +58,7 @@ export function supportPairObservationPass(exercise,observation){
 }
 
 export function movementVisualGuard(exercise){
-  const descriptor=descriptorFor(exercise);
-
-  if(/(?:ibf-bear-crawl|\bbear\s+crawl\b)/u.test(descriptor)){
+  if(isBearCrawl(exercise)){
     return [
       'BEAR CRAWL HARD MOVEMENT LOCK:',
       'The athlete must be unmistakably in quadrupedal locomotion, not a squat, crouch, lunge, sprinter start or resting pose.',
@@ -66,6 +66,17 @@ export function movementVisualGuard(exercise){
       'The hips must stay approximately level with the shoulders and clearly elevated away from the heels; the trunk must remain long and near-horizontal with a neutral spine, never upright or deeply folded.',
       'START and FINAL must show a real crawl-step relationship: at least one hand/foot position advances while the quadrupedal support strategy, hovering knees, pelvis height and trunk alignment remain consistent.',
       'If the hips collapse into a deep squat/crouch, the torso becomes substantially upright, the knees bear weight on the floor, or the image reads as anything other than a bear crawl, the movement identity check MUST fail.'
+    ].join(' ');
+  }
+
+  if(isBearPlank(exercise)){
+    return [
+      'BEAR PLANK HARD PHASE LOCK:',
+      'Do not default to a conventional straight-leg high plank, long-lever plank, lunge, crouch or bear crawl. The requested phase must override the iconic pose suggested by the exercise name.',
+      'For START, show a true four-point tabletop/quadruped setup: both palms flat on the floor under the shoulders and both knees visibly weight-bearing on the floor directly under the hips, with hips over knees, knees flexed about 90 degrees and a neutral near-horizontal trunk. The legs must NOT extend backward into a plank.',
+      'For FINAL, keep both palms under the shoulders and both forefeet/toes on the floor while both knees hover only a few centimetres above the floor. The knees remain clearly flexed and positioned under or close to the hips; the hips stay approximately level with the shoulders and the trunk remains neutral and near-horizontal.',
+      'START and FINAL are the same compact quadruped geometry except that the knees transition from weight-bearing on the floor to hovering. Never solve the FINAL by straightening the knees and sending the feet far backward.',
+      'If START lacks two visible knee contacts, or if either phase reads as a conventional high plank with long straight legs, movement identity MUST fail.'
     ].join(' ');
   }
 
