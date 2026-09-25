@@ -1,6 +1,7 @@
 const MATERIAL_DELTA=0.10;
 
 function finiteRate(value){
+  if(value===null||value===undefined||value==='')return null;
   const number=Number(value);
   return Number.isFinite(number)&&number>=0&&number<=1?number:null;
 }
