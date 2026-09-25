@@ -128,7 +128,11 @@ function hasRls(canonical,table,mode){
   return new RegExp(`\\balter\\s+table\\s+(?:only\\s+)?${target}\\s+${mode}\\s+row\\s+level\\s+security\\b`,'iu').test(canonical);
 }
 
-function finding(file,object,code,message){
+function finding(file,table,code,message){
+  return {type:'migration-public-table-security',path:file,table,code,message};
+}
+
+function sequenceFinding(file,object,code,message){
   return {type:'migration-public-object-security',path:file,object,code,message};
 }
 
@@ -208,7 +212,7 @@ export function analyzeMigration(sql,{file='migration.sql'}={}){
 
   for(const createdSequence of sequences){
     if(createdSequence.schema===null){
-      findings.push(finding(file,createdSequence.sequence,'UNQUALIFIED_CREATE_SEQUENCE','New sequences must use an explicit schema; public sequences must be written as public.<sequence>.'));
+      findings.push(sequenceFinding(file,createdSequence.sequence,'UNQUALIFIED_CREATE_SEQUENCE','New sequences must use an explicit schema; public sequences must be written as public.<sequence>.'));
       continue;
     }
     if(createdSequence.schema!=='public')continue;
@@ -219,16 +223,16 @@ export function analyzeMigration(sql,{file='migration.sql'}={}){
     const statements=aclStatements(canonical,'sequence',sequence);
 
     if(!accessIntent||accessIntent.length<12){
-      findings.push(finding(file,sequenceRef,'SEQUENCE_ACCESS_INTENT_REQUIRED',`Add "-- IBERFIT-SEQUENCE-ACCESS: ${sequenceRef} :: <security/access intent>" with a meaningful rationale.`));
+      findings.push(sequenceFinding(file,sequenceRef,'SEQUENCE_ACCESS_INTENT_REQUIRED',`Add "-- IBERFIT-SEQUENCE-ACCESS: ${sequenceRef} :: <security/access intent>" with a meaningful rationale.`));
     }
     if(!hasRoleDeclaration(statements,'anon')){
-      findings.push(finding(file,sequenceRef,'SEQUENCE_ANON_ACCESS_UNDECLARED',`Declare anon access explicitly for ${sequenceRef} with GRANT or REVOKE.`));
+      findings.push(sequenceFinding(file,sequenceRef,'SEQUENCE_ANON_ACCESS_UNDECLARED',`Declare anon access explicitly for ${sequenceRef} with GRANT or REVOKE.`));
     }
     if(!hasRoleDeclaration(statements,'authenticated')){
-      findings.push(finding(file,sequenceRef,'SEQUENCE_AUTHENTICATED_ACCESS_UNDECLARED',`Declare authenticated access explicitly for ${sequenceRef} with GRANT or REVOKE.`));
+      findings.push(sequenceFinding(file,sequenceRef,'SEQUENCE_AUTHENTICATED_ACCESS_UNDECLARED',`Declare authenticated access explicitly for ${sequenceRef} with GRANT or REVOKE.`));
     }
     if(!hasGrantToRole(statements,'service_role')){
-      findings.push(finding(file,sequenceRef,'SEQUENCE_SERVICE_ROLE_ACCESS_UNDECLARED',`Grant the required privileges on ${sequenceRef} explicitly to service_role.`));
+      findings.push(sequenceFinding(file,sequenceRef,'SEQUENCE_SERVICE_ROLE_ACCESS_UNDECLARED',`Grant the required privileges on ${sequenceRef} explicitly to service_role.`));
     }
   }
 
