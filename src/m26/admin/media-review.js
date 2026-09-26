@@ -6,7 +6,7 @@ const STYLE_MARKER='data-m26-media-review-style';
 const esc=(value)=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
 const pct=(value)=>Number.isFinite(Number(value))?`${Math.round(Number(value)*100)} %`:'—';
 const date=(value)=>{const d=value?new Date(value):null;return d&&!Number.isNaN(d.getTime())?new Intl.DateTimeFormat('es-CL',{dateStyle:'medium',timeStyle:'short'}).format(d):'—';};
-const stateLabel=(value)=>({awaiting_human_approval:'Pendiente de revisión',publishing:'Publicando',publish_failed:'Error de publicación'}[String(value||'')]||String(value||'Pendiente'));
+const stateLabel=(value)=>({awaiting_human_approval:'Pendiente de revisión',publish_requested:'Publicación en cola',publishing:'Publicando',publish_failed:'Error de publicación'}[String(value||'')]||String(value||'Pendiente'));
 
 export function adminMediaReviewEnabled(state){return state?.identity?.role==='admin'&&state?.admin?.available===true&&state?.admin?.organization?.settings?.[FLAG]===true;}
 export function filterAdminMediaReviewNavigation(navigation,state){
@@ -32,9 +32,9 @@ function emptyMarkup(){return `<div class="m26-admin-panel m26-media-review-empt
 function errorMarkup(message){return `<div class="m26-admin-panel m26-media-review-error" role="alert"><p class="m26-eyebrow">No se pudo actualizar</p><h3>Media Review sigue protegida</h3><p>${esc(message||'No fue posible cargar la bandeja.')}</p><button type="button" data-media-review-retry>Reintentar</button></div>`;}
 function image(label,url,exercise){return `<figure class="m26-media-review-phase"><figcaption>${esc(label)}</figcaption>${url?`<img src="${esc(url)}" alt="${esc(`${exercise} · ${label}`)}" loading="lazy" decoding="async">`:`<div class="m26-media-review-image-missing" role="img" aria-label="${esc(`${label} no disponible`)}">Evidencia no disponible</div>`}</figure>`;}
 function actionForm(candidate,action,label,{primary=false,reason=false}={}){
-  const busy=['publishing'].includes(candidate.reviewState);
+  const busy=['publish_requested','publishing'].includes(candidate.reviewState);
   return `<form class="m26-media-review-action" data-media-review-action="${esc(action)}" data-media-job-id="${esc(candidate.jobId)}">
-    ${reason?`<label><span>Motivo</span><textarea name="reason" minlength="3" maxlength="500" required placeholder="Decisión breve y trazable"></textarea></label>`:''}
+    ${reason?`<label><span>Motivo</span><textarea name="reason" minlength="3" maxlength="500" required placeholder="Decisión breve y trazable"${busy?' disabled aria-disabled="true"':''}></textarea></label>`:''}
     <button type="submit"${primary?' class="m26-primary-action"':''}${busy?' disabled aria-disabled="true"':''}>${esc(label)}</button>
   </form>`;
 }
@@ -42,6 +42,7 @@ function candidateMarkup(candidate){
   const exercise=String(candidate.exerciseName||candidate.exerciseId||'Ejercicio');
   const state=String(candidate.reviewState||'awaiting_human_approval');
   const retryPublish=state==='publish_failed';
+  const queuedPublish=state==='publish_requested'||state==='publishing';
   const muscles=Array.isArray(candidate.primaryMuscles)?candidate.primaryMuscles.filter(Boolean).join(', '):'';
   return `<article class="m26-admin-panel m26-media-review-candidate" data-media-review-job="${esc(candidate.jobId)}">
     <header class="m26-media-review-heading">
@@ -61,7 +62,7 @@ function candidateMarkup(candidate){
     ${candidate.error?`<div class="m26-admin-notice m26-media-review-notice" role="status"><strong>Último estado</strong><p>${esc(candidate.error)}</p></div>`:''}
     <details class="m26-media-review-trace"><summary>Trazabilidad</summary><dl><div><dt>Job</dt><dd><code>${esc(candidate.jobId)}</code></dd></div><div><dt>Run</dt><dd>${esc(candidate.provenance?.runId||'—')}</dd></div><div><dt>Artifact</dt><dd>${esc(candidate.provenance?.artifactName||'—')}</dd></div><div><dt>Actualizado</dt><dd>${esc(date(candidate.timestamps?.updatedAt))}</dd></div></dl></details>
     <div class="m26-media-review-actions">
-      ${actionForm(candidate,'approve',retryPublish?'Reintentar publicación':'Aprobar y publicar',{primary:true})}
+      ${actionForm(candidate,'approve',queuedPublish?'Publicación en cola':retryPublish?'Reintentar publicación':'Aprobar y publicar',{primary:true})}
       <details><summary>Rechazar</summary>${actionForm(candidate,'reject','Confirmar rechazo',{reason:true})}</details>
       <details><summary>Regenerar</summary>${actionForm(candidate,'regenerate','Solicitar regeneración',{reason:true})}</details>
     </div>
@@ -103,8 +104,8 @@ export function createAdminMediaReviewController({root,store,service,onToast=()=
   async function submit(form){
     const input=actionInput(form);if(!input)return;
     const {action,jobId,reason,type}=input;
-    if(locks.has(jobId)){onToast('Ese candidato ya tiene una decisión en curso.');return;}locks.add(jobId);setPending(form,true,action==='approve'?'Publicando…':action==='reject'?'Rechazando…':'Encolando…');
-    try{await service.execute({type,entityId:jobId,reason:reason||null,payload:{jobId}});onToast(action==='approve'?'Publicación confirmada.':action==='reject'?'Candidato rechazado con trazabilidad.':'Regeneración encolada en Media Factory.');await load({force:true});}
+    if(locks.has(jobId)){onToast('Ese candidato ya tiene una decisión en curso.');return;}locks.add(jobId);setPending(form,true,action==='approve'?'Encolando publicación…':action==='reject'?'Rechazando…':'Encolando…');
+    try{await service.execute({type,entityId:jobId,reason:reason||null,payload:{jobId}});onToast(action==='approve'?'Aprobación registrada. Publicación encolada en el canal OIDC autorizado.':action==='reject'?'Candidato rechazado con trazabilidad.':'Regeneración encolada en Media Factory.');await load({force:true});}
     catch(error){const message=friendly(error);onToast(message);if(/409|CONFLICT|NOT_ELIGIBLE|STATE/u.test(String(error?.message||error||'')))await load({force:true});else setPending(form,false);}
     finally{locks.delete(jobId);}
   }
@@ -145,8 +146,8 @@ export function createAdminMediaReviewDomBridge({globalLike=globalThis,documentL
   async function submit(form){
     const input=actionInput(form);if(!input||!service?.execute)return;
     const {action,jobId,reason,type}=input;if(locks.has(jobId)){notify('Ese candidato ya tiene una decisión en curso.');return;}
-    locks.add(jobId);setPending(form,true,action==='approve'?'Publicando…':action==='reject'?'Rechazando…':'Encolando…');
-    try{await service.execute({type,entityId:jobId,reason:reason||null,payload:{jobId}});notify(action==='approve'?'Publicación confirmada.':action==='reject'?'Candidato rechazado con trazabilidad.':'Regeneración encolada en Media Factory.');await load({force:true});}
+    locks.add(jobId);setPending(form,true,action==='approve'?'Encolando publicación…':action==='reject'?'Rechazando…':'Encolando…');
+    try{await service.execute({type,entityId:jobId,reason:reason||null,payload:{jobId}});notify(action==='approve'?'Aprobación registrada. Publicación encolada en el canal OIDC autorizado.':action==='reject'?'Candidato rechazado con trazabilidad.':'Regeneración encolada en Media Factory.');await load({force:true});}
     catch(error){notify(friendly(error));if(/409|CONFLICT|NOT_ELIGIBLE|STATE/u.test(String(error?.message||error||'')))await load({force:true});else setPending(form,false);}
     finally{locks.delete(jobId);}
   }
