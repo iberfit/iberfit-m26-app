@@ -13,6 +13,8 @@ set public=false,
     file_size_limit=excluded.file_size_limit,
     allowed_mime_types=excluded.allowed_mime_types;
 
+-- IBERFIT-TABLE-ACCESS: public.exercise_media_review_events :: service-role-only audit ledger for human media-review decisions and publication lineage; never exposed to browser roles.
+-- IBERFIT-POLICY: public.exercise_media_review_events = service-role-only
 create table if not exists public.exercise_media_review_events (
   id uuid primary key default gen_random_uuid(),
   job_id uuid not null references public.exercise_media_jobs(id) on delete restrict,
@@ -36,6 +38,7 @@ create index if not exists exercise_media_review_events_exercise_idx
 
 alter table public.exercise_media_review_events enable row level security;
 revoke all on table public.exercise_media_review_events from public,anon,authenticated;
+grant select,insert,update on table public.exercise_media_review_events to service_role;
 
 create or replace function public.iberfit_admin_media_review_claim_v1(
   p_job_id uuid,
