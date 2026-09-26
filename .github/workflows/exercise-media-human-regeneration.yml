@@ -1,0 +1,71 @@
+name: IBERFIT Exercise Media Human Regeneration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+
+permissions:
+  contents: read
+  actions: write
+  id-token: write
+
+concurrency:
+  group: iberfit-exercise-media-human-regeneration
+  cancel-in-progress: false
+
+env:
+  AUTO_FACTORY_URL: https://pjhmrhejsoofmouedavw.supabase.co/functions/v1/iberfit-exercise-media-auto-factory-v1
+  OIDC_AUDIENCE: iberfit-exercise-media-auto-factory
+
+jobs:
+  dispatch-regeneration:
+    name: dispatch-regeneration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Obtain GitHub OIDC token
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          sep='?'; [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
+          token="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
+          test "${#token}" -gt 100
+          echo "::add-mask::$token"
+          echo "IBERFIT_REGEN_OIDC=$token" >> "$GITHUB_ENV"
+
+      - name: Check human regeneration queue
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 45 \
+            -X POST \
+            -H "Authorization: Bearer ${IBERFIT_REGEN_OIDC}" \
+            -H 'Content-Type: application/json' \
+            "$AUTO_FACTORY_URL" \
+            -d '{"action":"peek","mode":"human_regeneration"}' \
+            > "$RUNNER_TEMP/regen-peek.json"
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/regen-peek.json','utf8'));
+          if(x.ok!==true||x.mode!=='human_regeneration'||typeof x.eligible!=='boolean')throw new Error('HUMAN_REGEN_PEEK_INVALID');
+          fs.appendFileSync(process.env.GITHUB_ENV,`IBERFIT_REGEN_ELIGIBLE=${x.eligible?'true':'false'}\n`);
+          console.log(JSON.stringify({eligible:x.eligible,eligible_count:x.eligible_count,awaiting_review:x.awaiting_review}));
+          NODE
+
+      - name: Dispatch canonical Auto Factory
+        if: env.IBERFIT_REGEN_ELIGIBLE == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/exercise-media-auto-factory.yml/dispatches" \
+            -d '{"ref":"canary/rc74-4"}'
