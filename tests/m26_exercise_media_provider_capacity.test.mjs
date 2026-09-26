@@ -53,7 +53,7 @@ test('workflow checks queue and provider capacity before claim, while mid-run qu
 
 test('broker exposes process-workflow-only peek and quota defer without weakening attempt caps',()=>{
   assert.ok(broker.includes('DEFER_REASONS=new Set(["AI_PROVIDER_DAILY_QUOTA_EXHAUSTED"])'));
-  assert.ok(broker.includes('if(action==="peek")return await peek(db)'));
+  assert.ok(broker.includes('if(action==="peek")return await peek(db,mode)'));
   assert.ok(broker.includes('if(action==="defer")return await markDeferred(db,body)'));
   assert.ok(broker.includes('Math.max(0,Number(read.data.attempts||0)-1)'));
   assert.ok(broker.includes('IBERFIT_AUTO_FACTORY_DEFER_STATE_INVALID'));

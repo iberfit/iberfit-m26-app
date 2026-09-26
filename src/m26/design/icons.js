@@ -69,6 +69,7 @@ const AREA_ICONS=Object.freeze({
   'admin-clientes':'users',
   'admin-agenda':'calendar-days',
   'admin-operaciones':'activity',
+  'admin-media-review':'library',
   'admin-comunicacion':'message-circle',
   'admin-automatizaciones':'sparkles',
   'admin-analitica':'chart',

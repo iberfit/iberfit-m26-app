@@ -27,6 +27,29 @@ const COACH_LAUNCH_SURFACE_ROWS=Object.freeze([
   ['Abrir puesta en marcha de Coach','Open Coach launch readiness','Ouvrir la mise en route du Coach','Abrir configuração inicial do Coach'],
 ]);
 
+const ADMIN_MEDIA_REVIEW_SURFACE_ROWS=Object.freeze([
+  ['Pendiente de revisión','Pending review','En attente de révision','Pendente de revisão'],
+  ['Publicación en cola','Publication queued','Publication en file d’attente','Publicação na fila'],
+  ['Publicando','Publishing','Publication en cours','A publicar'],
+  ['Error de publicación','Publication error','Erreur de publication','Erro de publicação'],
+  ['Pendiente','Pending','En attente','Pendente'],
+  ['Compara START y FINAL antes de autorizar cualquier publicación. Superar QA automático nunca publica por sí solo.','Compare START and FINAL before authorising any publication. Passing automatic QA never publishes by itself.','Comparez START et FINAL avant d’autoriser toute publication. Réussir le QA automatique ne déclenche jamais une publication à lui seul.','Compare START e FINAL antes de autorizar qualquer publicação. Passar no QA automático nunca publica por si só.'],
+  ['Bandeja al día','Review queue up to date','File de révision à jour','Fila de revisão em dia'],
+  ['Los candidatos aparecerán aquí únicamente después de superar el QA automático y antes de cualquier publicación.','Candidates will appear here only after passing automatic QA and before any publication.','Les candidats apparaîtront ici uniquement après avoir réussi le QA automatique et avant toute publication.','Os candidatos aparecerão aqui apenas depois de passarem no QA automático e antes de qualquer publicação.'],
+  ['Decisión breve y trazable','Brief, traceable decision','Décision brève et traçable','Decisão breve e rastreável'],
+  ['1 candidato pendiente.','1 candidate pending.','1 candidat en attente.','1 candidato pendente.'],
+  ['La bandeja está desactivada por configuración.','The review queue is disabled by configuration.','La file de révision est désactivée par la configuration.','A fila de revisão está desativada pela configuração.'],
+  ['Este candidato ya cambió de estado en otra sesión. La bandeja se actualizará.','This candidate already changed state in another session. The review queue will refresh.','Ce candidat a déjà changé d’état dans une autre session. La file de révision va s’actualiser.','Este candidato já mudou de estado noutra sessão. A fila de revisão será atualizada.'],
+  ['Fallo de red. No se ha perdido ninguna decisión; puedes reintentar.','Network failure. No decision was lost; you can retry.','Erreur réseau. Aucune décision n’a été perdue ; vous pouvez réessayer.','Falha de rede. Nenhuma decisão foi perdida; pode tentar novamente.'],
+  ['No fue posible completar la operación. El candidato no se ha publicado.','The operation could not be completed. The candidate was not published.','Impossible de terminer l’opération. Le candidat n’a pas été publié.','Não foi possível concluir a operação. O candidato não foi publicado.'],
+  ['Ese candidato ya tiene una decisión en curso.','That candidate already has a decision in progress.','Ce candidat a déjà une décision en cours.','Esse candidato já tem uma decisão em curso.'],
+  ['Encolando publicación…','Queueing publication…','Mise en file de la publication…','A colocar publicação na fila…'],
+  ['Aprobación registrada. Publicación encolada en el canal OIDC autorizado.','Approval recorded. Publication queued through the authorised OIDC channel.','Approbation enregistrée. Publication mise en file via le canal OIDC autorisé.','Aprovação registada. Publicação colocada na fila através do canal OIDC autorizado.'],
+  ['Regeneración encolada en Media Factory.','Regeneration queued in Media Factory.','Régénération mise en file dans Media Factory.','Regeneração colocada na fila no Media Factory.'],
+  ['Preparando conexión segura…','Preparing secure connection…','Préparation de la connexion sécurisée…','A preparar ligação segura…'],
+  ['Revisión de Media Factory','Media Factory review','Révision de Media Factory','Revisão do Media Factory'],
+]);
+
 export const IBERFIT_EXTRA_SURFACE_ROWS=Object.freeze([
   ...ROUTE_SURFACE_ROWS_A,
   ...ROUTE_SURFACE_ROWS_B,
@@ -36,6 +59,7 @@ export const IBERFIT_EXTRA_SURFACE_ROWS=Object.freeze([
   ...SESSION_SURFACE_ROWS,
   ...ONBOARDING_CLIENT_SURFACE_ROWS,
   ...COACH_LAUNCH_SURFACE_ROWS,
+  ...ADMIN_MEDIA_REVIEW_SURFACE_ROWS,
   ...ADMIN_SURFACE_ROWS,
   ...WEARABLE_SURFACE_ROWS,
   ...WORKSPACE_SURFACE_ROWS,
