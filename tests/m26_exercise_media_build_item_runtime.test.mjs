@@ -12,7 +12,7 @@ const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 
 function writeJson(file,value){fs.writeFileSync(file,`${JSON.stringify(value,null,2)}\n`);}
 
-test('automatic approval builder parses and produces an immutable publish item from approved QA',()=>{
+test('QA-approved builder produces an immutable fail-closed review candidate',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'iberfit-build-item-'));
   try{
     const id='IBF-BEAR-CRAWL';
@@ -39,9 +39,12 @@ test('automatic approval builder parses and produces an immutable publish item f
     const item=JSON.parse(fs.readFileSync(files.out,'utf8'));
     assert.equal(item.exercise_id,id);
     assert.equal(item.human_approved,false);
-    assert.equal(item.publishable,true);
+    assert.equal(item.publishable,false);
     assert.equal(item.approval.method,'automatic_dual_gate_v1');
     assert.equal(item.approval.automatic_qa,'passed');
+    assert.equal(item.media.published,false);
+    assert.equal(item.media.clientVisible,false);
+    assert.equal(item.media.coachVisible,false);
     assert.equal(item.proof.delivery_sha256,digest);
     assert.equal(item.proof.qa_biomechanics_sha256,sha(fs.readFileSync(files.biomech)));
     assert.equal(item.proof.qa_visual_sha256,sha(fs.readFileSync(files.visual)));
