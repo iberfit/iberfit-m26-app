@@ -9,6 +9,7 @@ import {
   filterAdminMediaReviewNavigation,
   initialAreaFromPath,
   renderAdminMediaReviewRoute,
+  __mediaReviewInternals,
 } from '../src/m26/admin/media-review.js';
 import {M26_ADMIN_COMMAND_TYPES} from '../src/m26/admin/command-catalog.js';
 
@@ -46,13 +47,20 @@ test('flag off removes navigation while the canonical path only resolves for an 
   assert.equal(shellRouteRequest(state({enabled:true,activeArea:'admin-operaciones'}),{pathname:'/admin/media-review'}),'admin-operaciones');
 });
 
-test('Admin shell renders Media Review natively and centers START/FINAL human actions',()=>{
+test('Admin shell renders Media Review natively and candidate cards expose explicit human actions',()=>{
   const route=renderAdminMediaReviewRoute();
   assert.match(route,/Media Review/u);
   assert.match(route,/START/u);
   assert.match(route,/FINAL/u);
-  assert.match(route,/Aprobar/u);
   assert.doesNotMatch(route,/publicaci[oó]n autom[aá]tica/iu);
+  const candidate=__mediaReviewInternals.candidateMarkup({
+    jobId:'11111111-1111-4111-8111-111111111111',exerciseId:'sentadilla-al-aire',exerciseName:'Sentadilla al aire',
+    reviewState:'awaiting_human_approval',attempts:1,sha256:'a'.repeat(64),confidence:{biomechanics:.99,visual:.99},provenance:{},timestamps:{},
+    startUrl:'https://example.invalid/start.webp',finalUrl:'https://example.invalid/final.webp',primaryMuscles:['cuádriceps'],
+  });
+  assert.match(candidate,/Aprobar y publicar/u);
+  assert.match(candidate,/Rechazar/u);
+  assert.match(candidate,/Regenerar/u);
   assert.ok(M26_ADMIN_COMMAND_TYPES.includes('ADMIN_MEDIA_REVIEW_APROBAR_PUBLICAR'));
   assert.ok(M26_ADMIN_COMMAND_TYPES.includes('ADMIN_MEDIA_REVIEW_RECHAZAR'));
   assert.ok(M26_ADMIN_COMMAND_TYPES.includes('ADMIN_MEDIA_REVIEW_REGENERAR'));
@@ -71,7 +79,7 @@ test('backend contract keeps review evidence private, audited and service-role o
   assert.match(migration,/unique\(action,operation_id\)/u);
   assert.match(migration,/enable row level security/u);
   assert.match(migration,/grant execute[\s\S]+service_role/u);
-  assert.match(migration,/status='queued'/u);
+  assert.match(migration,/insert into public\.exercise_media_jobs[\s\S]*v_job\.exercise_id,'queued',0/u);
   assert.match(migration,/parent_job_id/u);
   assert.match(edge,/roles\.includes\("admin"\)/u);
   assert.match(edge,/admin_media_review_enabled!==true/u);
@@ -102,15 +110,25 @@ test('factory stages review pixels privately and regeneration reuses the existin
   assert.match(factory,/IBERFIT_AUTO_FACTORY_REGEN_WORKFLOW_FORBIDDEN/u);
 });
 
-test('publication remains human gated while allowing only the internal Admin review broker path',async()=>{
-  const publisher=await read('supabase/functions/iberfit-exercise-media-publisher/index.ts');
+test('publication remains human gated and the Admin broker cannot bypass the canonical publisher checks',async()=>{
+  const [publisher,adminEdge]=await Promise.all([
+    read('supabase/functions/iberfit-exercise-media-publisher/index.ts'),
+    read('supabase/functions/iberfit-admin-media-review-v1/index.ts'),
+  ]);
   assert.match(publisher,/human_approved !== true|human_approved!==true/u);
   assert.match(publisher,/human_owner_approval/u);
-  assert.match(publisher,/visual/u);
-  assert.match(publisher,/biomechanics/u);
-  assert.match(publisher,/admin-media-review-v1/u);
+  assert.match(publisher,/scopes\.includes\("visual"\)/u);
+  assert.match(publisher,/scopes\.includes\("biomechanics"\)/u);
+  assert.match(publisher,/INTERNAL_ADMIN_REVIEW_SOURCE = "admin-media-review-v1"/u);
+  assert.match(publisher,/secureEqual\(token, serviceRole\)/u);
+  assert.match(publisher,/x-iberfit-operation-id/u);
+  assert.match(publisher,/EXPECTED_WORKFLOW_REF/u);
+  assert.match(publisher,/jwtVerify/u);
   assert.match(publisher,/SUPABASE_SERVICE_ROLE_KEY/u);
   assert.match(publisher,/IBERFIT_PUBLISHER_/u);
+  assert.match(adminEdge,/x-iberfit-internal-publisher":"admin-media-review-v1"/u);
+  assert.match(adminEdge,/Authorization:`Bearer \$\{env\("SUPABASE_SERVICE_ROLE_KEY"\)\}`/u);
+  assert.match(adminEdge,/PUBLISHER_PATH="\/functions\/v1\/iberfit-exercise-media-publisher"/u);
 });
 
 test('Media Review styling stays responsive, touch-safe and independent from global Admin CSS',async()=>{
