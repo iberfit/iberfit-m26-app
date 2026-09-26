@@ -5,10 +5,11 @@ export const ADMIN_AREAS=Object.freeze({
   'admin-clientes':{key:'admin-clientes',label:'CRM y clientes',title:'CRM y ciclo de vida',scope:'admin-global',roles:['admin']},
   'admin-agenda':{key:'admin-agenda',label:'Agenda global',title:'Agenda y capacidad',scope:'admin-global',roles:['admin']},
   'admin-operaciones':{key:'admin-operaciones',label:'Operaciones',title:'Centro operativo',scope:'admin-global',roles:['admin']},
+  'admin-media-review':{key:'admin-media-review',label:'Media Review',title:'Revisión de Media Factory',scope:'admin-global',roles:['admin']},
   'admin-comunicacion':{key:'admin-comunicacion',label:'Comunicación',title:'Comunicación y plantillas',scope:'admin-global',roles:['admin']},
   'admin-automatizaciones':{key:'admin-automatizaciones',label:'Automatizaciones',title:'Reglas automáticas',scope:'admin-global',roles:['admin']},
   'admin-analitica':{key:'admin-analitica',label:'Analítica',title:'Analítica del servicio',scope:'admin-global',roles:['admin']},
   'admin-auditoria':{key:'admin-auditoria',label:'Auditoría',title:'Auditoría y trazabilidad',scope:'admin-global',roles:['admin']},
   'admin-configuracion':{key:'admin-configuracion',label:'Configuración',title:'Configuración de IBERFIT',scope:'admin-global',roles:['admin']},
 });
-export const ADMIN_NAVIGATION=Object.freeze({primary:['admin-inicio','admin-usuarios','admin-equipo','admin-clientes','admin-agenda'],context:['admin-operaciones','admin-comunicacion','admin-automatizaciones','biblioteca','admin-analitica'],tools:['admin-auditoria','admin-configuracion'],mobile:['admin-inicio','admin-usuarios','admin-agenda','admin-operaciones','admin-equipo']});
+export const ADMIN_NAVIGATION=Object.freeze({primary:['admin-inicio','admin-usuarios','admin-equipo','admin-clientes','admin-agenda'],context:['admin-operaciones','admin-media-review','admin-comunicacion','admin-automatizaciones','biblioteca','admin-analitica'],tools:['admin-auditoria','admin-configuracion'],mobile:['admin-inicio','admin-usuarios','admin-agenda','admin-operaciones','admin-equipo']});

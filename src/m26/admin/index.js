@@ -8,3 +8,4 @@ export * from './view-model.js';
 export * from './route-render.js';
 export * from './controller.js';
 export * from './shell-enhancer.js';
+export * from './media-review.js';
