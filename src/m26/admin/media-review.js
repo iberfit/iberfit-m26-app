@@ -1,5 +1,8 @@
 const AREA='admin-media-review';
 const FLAG='admin_media_review_enabled';
+const SERVICE_EVENT='m26:admin-service-ready';
+const BRIDGE_KEY='__IBERFIT_M26_ADMIN_MEDIA_REVIEW_BRIDGE_V1__';
+const STYLE_MARKER='data-m26-media-review-style';
 const esc=(value)=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
 const pct=(value)=>Number.isFinite(Number(value))?`${Math.round(Number(value)*100)} %`:'—';
 const date=(value)=>{const d=value?new Date(value):null;return d&&!Number.isNaN(d.getTime())?new Intl.DateTimeFormat('es-CL',{dateStyle:'medium',timeStyle:'short'}).format(d):'—';};
@@ -39,6 +42,7 @@ function candidateMarkup(candidate){
   const exercise=String(candidate.exerciseName||candidate.exerciseId||'Ejercicio');
   const state=String(candidate.reviewState||'awaiting_human_approval');
   const retryPublish=state==='publish_failed';
+  const muscles=Array.isArray(candidate.primaryMuscles)?candidate.primaryMuscles.filter(Boolean).join(', '):'';
   return `<article class="m26-admin-panel m26-media-review-candidate" data-media-review-job="${esc(candidate.jobId)}">
     <header class="m26-media-review-heading">
       <div><p class="m26-eyebrow">${esc(candidate.exerciseId)}</p><h3>${esc(exercise)}</h3><p>${esc([candidate.pattern,candidate.equipment,candidate.difficulty].filter(Boolean).join(' · '))}</p></div>
@@ -52,6 +56,7 @@ function candidateMarkup(candidate){
       <div><dt>QA completado</dt><dd>${esc(date(candidate.timestamps?.qaCompletedAt))}</dd></div>
       <div><dt>SHA</dt><dd><code>${esc(String(candidate.sha256||'').slice(0,16))}…</code></dd></div>
       <div><dt>Workflow</dt><dd><code>${esc(String(candidate.provenance?.workflowSha||'').slice(0,12)||'—')}</code></dd></div>
+      ${muscles?`<div><dt>Objetivo principal</dt><dd>${esc(muscles)}</dd></div>`:''}
     </dl>
     ${candidate.error?`<div class="m26-admin-notice m26-media-review-notice" role="status"><strong>Último estado</strong><p>${esc(candidate.error)}</p></div>`:''}
     <details class="m26-media-review-trace"><summary>Trazabilidad</summary><dl><div><dt>Job</dt><dd><code>${esc(candidate.jobId)}</code></dd></div><div><dt>Run</dt><dd>${esc(candidate.provenance?.runId||'—')}</dd></div><div><dt>Artifact</dt><dd>${esc(candidate.provenance?.artifactName||'—')}</dd></div><div><dt>Actualizado</dt><dd>${esc(date(candidate.timestamps?.updatedAt))}</dd></div></dl></details>
@@ -73,6 +78,17 @@ function renderInto(root,{status='loading',candidates=[],error=null}={}){
   return true;
 }
 function friendly(error){const code=String(error?.message||error||'');if(/DISABLED|404/u.test(code))return 'La bandeja está desactivada por configuración.';if(/409|CONFLICT|NOT_ELIGIBLE|STATE/u.test(code))return 'Este candidato ya cambió de estado en otra sesión. La bandeja se actualizará.';if(/TIMEOUT|NETWORK|FETCH|Failed to fetch/i.test(code))return 'Fallo de red. No se ha perdido ninguna decisión; puedes reintentar.';return 'No fue posible completar la operación. El candidato no se ha publicado.';}
+function notify(message){try{globalThis.dispatchEvent?.(new CustomEvent('m26:toast',{detail:{message}}));}catch{}}
+function setPending(form,pending,label=''){
+  const button=form?.querySelector?.('button[type="submit"]');if(!button)return;
+  if(pending){if(!button.dataset.label)button.dataset.label=button.textContent||'';button.textContent=label||button.textContent;button.disabled=true;form.setAttribute('aria-busy','true');}
+  else{button.textContent=button.dataset.label||button.textContent;delete button.dataset.label;button.disabled=false;form.removeAttribute('aria-busy');}
+}
+function actionInput(form){
+  const action=String(form?.dataset?.mediaReviewAction||''),jobId=String(form?.dataset?.mediaJobId||''),reason=String(new FormData(form).get('reason')||'').trim();
+  if(!['approve','reject','regenerate'].includes(action)||!jobId)return null;
+  return {action,jobId,reason,type:{approve:'ADMIN_MEDIA_REVIEW_APROBAR_PUBLICAR',reject:'ADMIN_MEDIA_REVIEW_RECHAZAR',regenerate:'ADMIN_MEDIA_REVIEW_REGENERAR'}[action]};
+}
 
 export function createAdminMediaReviewController({root,store,service,onToast=()=>{}}={}){
   if(!root?.addEventListener||!store?.getState||!store?.subscribe||!service?.listMediaReview||!service?.execute)throw new Error('M26_MEDIA_REVIEW_CONTROLLER_CONTEXT_REQUIRED');
@@ -84,13 +100,12 @@ export function createAdminMediaReviewController({root,store,service,onToast=()=
     catch(error){if(turn===generation&&active())renderInto(root,{status:'error',error:friendly(error)});return false;}
     finally{if(turn===generation)loading=false;}
   }
-  function setPending(form,pending,label){const button=form?.querySelector?.('button[type="submit"]');if(!button)return;if(pending){button.dataset.label=button.textContent||'';button.textContent=label;button.disabled=true;form.setAttribute('aria-busy','true');}else{button.textContent=button.dataset.label||button.textContent;delete button.dataset.label;button.disabled=false;form.removeAttribute('aria-busy');}}
   async function submit(form){
-    const action=String(form?.dataset?.mediaReviewAction||''),jobId=String(form?.dataset?.mediaJobId||''),reason=String(new FormData(form).get('reason')||'').trim();if(!['approve','reject','regenerate'].includes(action)||!jobId)return;
+    const input=actionInput(form);if(!input)return;
+    const {action,jobId,reason,type}=input;
     if(locks.has(jobId)){onToast('Ese candidato ya tiene una decisión en curso.');return;}locks.add(jobId);setPending(form,true,action==='approve'?'Publicando…':action==='reject'?'Rechazando…':'Encolando…');
-    const type={approve:'ADMIN_MEDIA_REVIEW_APROBAR_PUBLICAR',reject:'ADMIN_MEDIA_REVIEW_RECHAZAR',regenerate:'ADMIN_MEDIA_REVIEW_REGENERAR'}[action];
     try{await service.execute({type,entityId:jobId,reason:reason||null,payload:{jobId}});onToast(action==='approve'?'Publicación confirmada.':action==='reject'?'Candidato rechazado con trazabilidad.':'Regeneración encolada en Media Factory.');await load({force:true});}
-    catch(error){const message=friendly(error);onToast(message);if(/409|CONFLICT|NOT_ELIGIBLE|STATE/u.test(String(error?.message||error||'')))await load({force:true});else{setPending(form,false,'');}}
+    catch(error){const message=friendly(error);onToast(message);if(/409|CONFLICT|NOT_ELIGIBLE|STATE/u.test(String(error?.message||error||'')))await load({force:true});else setPending(form,false);}
     finally{locks.delete(jobId);}
   }
   function onSubmit(event){const form=event.target?.closest?.('[data-media-review-action]');if(!form)return;event.preventDefault();void submit(form);}
@@ -99,4 +114,74 @@ export function createAdminMediaReviewController({root,store,service,onToast=()=
   return Object.freeze({mount(){root.addEventListener('submit',onSubmit);root.addEventListener('click',onClick);unsubscribe=store.subscribe(sync);sync();},sync,destroy(){generation++;unsubscribe?.();unsubscribe=null;root.removeEventListener('submit',onSubmit);root.removeEventListener('click',onClick);}});
 }
 
-export const __mediaReviewInternals=Object.freeze({candidateMarkup,renderInto,friendly});
+function ensureMediaReviewStyle(documentLike){
+  if(!documentLike?.head||documentLike.head.querySelector?.(`link[${STYLE_MARKER}]`))return false;
+  const link=documentLike.createElement?.('link');if(!link)return false;
+  link.rel='stylesheet';link.href=new URL('./media-review.css',import.meta.url).href;link.setAttribute(STYLE_MARKER,'true');documentLike.head.append(link);return true;
+}
+function rootPath(locationLike){return `${locationLike?.pathname||'/'}${locationLike?.search||''}${locationLike?.hash||''}`;}
+export function createAdminMediaReviewDomBridge({globalLike=globalThis,documentLike=globalLike?.document}={}){
+  if(!documentLike?.addEventListener||!documentLike?.querySelector)return null;
+  let service=null,observer=null,loading=false,generation=0,routeVisible=false,previousArea='admin-inicio';const locks=new Set();
+  const route=()=>documentLike.querySelector('[data-admin-media-review-route]');
+  const mediaPath=()=>initialAreaFromPath(globalLike?.location?.pathname)===AREA;
+  function mediaNav(){return documentLike.querySelector(`[data-m26-area="${AREA}"]`);}
+  function replaceRootPath(){try{if(mediaPath())globalLike.history?.replaceState?.({m26MediaReview:false},'',areaPath('admin-inicio'));}catch{}}
+  function syncHistory(){
+    const visible=Boolean(route());
+    if(visible&&!routeVisible&&!mediaPath()){
+      try{globalLike.history?.pushState?.({m26MediaReview:true,previousArea},'',areaPath(AREA));}catch{}
+    }else if(!visible&&routeVisible&&mediaPath())replaceRootPath();
+    if(!visible&&mediaPath()&&!mediaNav())replaceRootPath();
+    routeVisible=visible;
+  }
+  async function load({force=false}={}){
+    const host=route();if(!host||!service?.listMediaReview)return false;if(loading&&!force)return false;
+    loading=true;const turn=++generation;renderInto(documentLike,{status:'loading'});
+    try{const response=await service.listMediaReview();if(turn!==generation||!route())return false;renderInto(documentLike,{status:'ready',candidates:Array.isArray(response?.candidates)?response.candidates:[]});return true;}
+    catch(error){if(turn===generation&&route())renderInto(documentLike,{status:'error',error:friendly(error)});return false;}
+    finally{if(turn===generation)loading=false;}
+  }
+  async function submit(form){
+    const input=actionInput(form);if(!input||!service?.execute)return;
+    const {action,jobId,reason,type}=input;if(locks.has(jobId)){notify('Ese candidato ya tiene una decisión en curso.');return;}
+    locks.add(jobId);setPending(form,true,action==='approve'?'Publicando…':action==='reject'?'Rechazando…':'Encolando…');
+    try{await service.execute({type,entityId:jobId,reason:reason||null,payload:{jobId}});notify(action==='approve'?'Publicación confirmada.':action==='reject'?'Candidato rechazado con trazabilidad.':'Regeneración encolada en Media Factory.');await load({force:true});}
+    catch(error){notify(friendly(error));if(/409|CONFLICT|NOT_ELIGIBLE|STATE/u.test(String(error?.message||error||'')))await load({force:true});else setPending(form,false);}
+    finally{locks.delete(jobId);}
+  }
+  function sync(){
+    ensureMediaReviewStyle(documentLike);syncHistory();const host=route();if(!host){generation++;return false;}
+    if(!service?.listMediaReview){const live=host.querySelector?.('[data-media-review-live]');if(live)live.textContent='Preparando conexión segura…';return false;}
+    const settled=host.querySelector?.('[data-media-review-job],.m26-media-review-empty,.m26-media-review-error,.m26-media-review-loading');if(!settled&&!loading)void load({force:true});return true;
+  }
+  function onService(event){const candidate=event?.detail?.service;if(!candidate?.listMediaReview||!candidate?.execute)return;service=candidate;sync();}
+  function onSubmit(event){const form=event.target?.closest?.('[data-media-review-action]');if(!form)return;event.preventDefault();void submit(form);}
+  function onClick(event){
+    const areaButton=event.target?.closest?.('[data-m26-area]');
+    if(areaButton){const target=String(areaButton.getAttribute?.('data-m26-area')||'');if(target===AREA){const current=documentLike.querySelector?.('[data-m26-area][aria-current="page"]')?.getAttribute?.('data-m26-area');if(current&&current!==AREA)previousArea=current;}else if(mediaPath())replaceRootPath();}
+    if(event.target?.closest?.('[data-media-review-retry]')){event.preventDefault();void load({force:true});}
+  }
+  function onPopState(){
+    queueMicrotask(()=>{
+      if(mediaPath()){const button=mediaNav();if(button&&!route())button.click?.();return;}
+      if(route()){const button=documentLike.querySelector?.(`[data-m26-area="${previousArea}"]`)||documentLike.querySelector?.('[data-m26-area="admin-inicio"]');button?.click?.();}
+    });
+  }
+  function mount(){
+    ensureMediaReviewStyle(documentLike);globalLike.addEventListener?.(SERVICE_EVENT,onService);globalLike.addEventListener?.('popstate',onPopState);documentLike.addEventListener('submit',onSubmit);documentLike.addEventListener('click',onClick,true);
+    const Observer=globalLike.MutationObserver;if(typeof Observer==='function'){observer=new Observer(()=>queueMicrotask(sync));observer.observe(documentLike.documentElement||documentLike.body,{childList:true,subtree:true});}
+    sync();return true;
+  }
+  function destroy(){generation++;observer?.disconnect?.();observer=null;globalLike.removeEventListener?.(SERVICE_EVENT,onService);globalLike.removeEventListener?.('popstate',onPopState);documentLike.removeEventListener('submit',onSubmit);documentLike.removeEventListener('click',onClick,true);}
+  return Object.freeze({mount,destroy,sync,load});
+}
+export function installAdminMediaReviewDomBridge({globalLike=globalThis,documentLike=globalLike?.document}={}){
+  if(!documentLike?.addEventListener)return null;
+  const existing=globalLike?.[BRIDGE_KEY];if(existing?.destroy)return existing;
+  const bridge=createAdminMediaReviewDomBridge({globalLike,documentLike});bridge?.mount?.();try{globalLike[BRIDGE_KEY]=bridge;}catch{}return bridge;
+}
+
+installAdminMediaReviewDomBridge();
+
+export const __mediaReviewInternals=Object.freeze({candidateMarkup,renderInto,friendly,actionInput,setPending,ensureMediaReviewStyle,rootPath,SERVICE_EVENT,BRIDGE_KEY});
