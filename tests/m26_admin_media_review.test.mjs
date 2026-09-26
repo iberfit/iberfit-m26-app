@@ -69,7 +69,7 @@ test('Admin shell renders Media Review natively and candidate cards expose expli
   assert.doesNotMatch(shell,/Permiso insuficiente/u);
 });
 
-test('backend contract keeps review evidence private, audited and service-role only',async()=>{
+test('backend contract keeps review evidence private, audited, idempotent and service-role only',async()=>{
   const [migration,edge]=await Promise.all([
     read('supabase/migrations/20260926193000_admin_media_review_v1.sql'),
     read('supabase/functions/iberfit-admin-media-review-v1/index.ts'),
@@ -81,11 +81,16 @@ test('backend contract keeps review evidence private, audited and service-role o
   assert.match(migration,/grant execute[\s\S]+service_role/u);
   assert.match(migration,/insert into public\.exercise_media_jobs[\s\S]*v_job\.exercise_id,'queued',0/u);
   assert.match(migration,/parent_job_id/u);
+  assert.match(migration,/iberfit_admin_media_review_publish_claim_v1/u);
+  assert.match(migration,/'state','publish_requested'/u);
+  assert.match(migration,/for update skip locked/u);
+  assert.doesNotMatch(migration,/p_actor\s*<>\s*auth\.uid\(\)/u);
   assert.match(edge,/roles\.includes\("admin"\)/u);
   assert.match(edge,/admin_media_review_enabled!==true/u);
   assert.match(edge,/createSignedUrl/u);
   assert.match(edge,/iberfit_admin_media_review_claim_v1/u);
-  assert.match(edge,/iberfit_admin_media_review_publish_result_v1/u);
+  assert.doesNotMatch(edge,/iberfit_admin_media_review_publish_result_v1/u);
+  assert.doesNotMatch(edge,/PUBLISHER_PATH/u);
 });
 
 test('factory stages review pixels privately and regeneration reuses the existing factory',async()=>{
@@ -110,25 +115,26 @@ test('factory stages review pixels privately and regeneration reuses the existin
   assert.match(factory,/IBERFIT_AUTO_FACTORY_REGEN_WORKFLOW_FORBIDDEN/u);
 });
 
-test('publication remains human gated and the Admin broker cannot bypass the canonical publisher checks',async()=>{
-  const [publisher,adminEdge]=await Promise.all([
+test('publication stays human gated and only the canonical GitHub OIDC workflow can reach the final publisher',async()=>{
+  const [publisher,adminEdge,migration]=await Promise.all([
     read('supabase/functions/iberfit-exercise-media-publisher/index.ts'),
     read('supabase/functions/iberfit-admin-media-review-v1/index.ts'),
+    read('supabase/migrations/20260926193000_admin_media_review_v1.sql'),
   ]);
   assert.match(publisher,/human_approved !== true|human_approved!==true/u);
   assert.match(publisher,/human_owner_approval/u);
   assert.match(publisher,/scopes\.includes\("visual"\)/u);
   assert.match(publisher,/scopes\.includes\("biomechanics"\)/u);
-  assert.match(publisher,/INTERNAL_ADMIN_REVIEW_SOURCE = "admin-media-review-v1"/u);
-  assert.match(publisher,/secureEqual\(token, serviceRole\)/u);
-  assert.match(publisher,/x-iberfit-operation-id/u);
-  assert.match(publisher,/EXPECTED_WORKFLOW_REF/u);
+  assert.match(publisher,/AUDIENCE = "iberfit-exercise-media-prod"/u);
+  assert.match(publisher,/exercise-media-publish-approved\.yml@refs\/heads\/canary\/rc74-4/u);
   assert.match(publisher,/jwtVerify/u);
-  assert.match(publisher,/SUPABASE_SERVICE_ROLE_KEY/u);
-  assert.match(publisher,/IBERFIT_PUBLISHER_/u);
-  assert.match(adminEdge,/x-iberfit-internal-publisher":"admin-media-review-v1"/u);
-  assert.match(adminEdge,/Authorization:`Bearer \$\{env\("SUPABASE_SERVICE_ROLE_KEY"\)\}`/u);
-  assert.match(adminEdge,/PUBLISHER_PATH="\/functions\/v1\/iberfit-exercise-media-publisher"/u);
+  assert.match(publisher,/IBERFIT_PUBLISHER_OIDC_REQUIRED/u);
+  assert.doesNotMatch(publisher,/x-iberfit-internal-publisher/u);
+  assert.doesNotMatch(adminEdge,/\/functions\/v1\/iberfit-exercise-media-publisher/u);
+  assert.doesNotMatch(adminEdge,/x-iberfit-internal-publisher/u);
+  assert.match(adminEdge,/publicationQueued:true/u);
+  assert.match(migration,/'state','publish_requested'/u);
+  assert.match(migration,/iberfit_admin_media_review_publish_claim_v1/u);
 });
 
 test('Media Review styling stays responsive, touch-safe and independent from global Admin CSS',async()=>{
