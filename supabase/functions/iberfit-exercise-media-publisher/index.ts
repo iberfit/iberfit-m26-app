@@ -10,11 +10,9 @@ const EXPECTED_REPOSITORY_ID = "1306074388";
 const EXPECTED_REF = "refs/heads/canary/rc74-4";
 const EXPECTED_WORKFLOW_REF =
   "iberfit/iberfit-m26-app/.github/workflows/exercise-media-publish-approved.yml@refs/heads/canary/rc74-4";
-const INTERNAL_ADMIN_BROKER="admin-media-review-v1";
 const MAX_BYTES = 5_000_000;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
 const SAFE_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}\.(?:webp|png|jpe?g)$/iu;
-const SAFE_OPERATION=/^[A-Za-z0-9][A-Za-z0-9._:-]{2,199}$/u;
 const SHA256 = /^[0-9a-f]{64}$/u;
 const JWKS = createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
 
@@ -38,14 +36,6 @@ function bearer(req: Request) {
 }
 async function authenticate(req: Request) {
   const token = bearer(req);
-  const serviceRole=String(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"").trim();
-  const internalBroker=String(req.headers.get("x-iberfit-internal-publisher")||"").trim();
-  const operationId=String(req.headers.get("x-iberfit-operation-id")||"").trim();
-  if(serviceRole&&token===serviceRole){
-    if(internalBroker!==INTERNAL_ADMIN_BROKER||!SAFE_OPERATION.test(operationId))fail("IBERFIT_PUBLISHER_INTERNAL_BROKER_FORBIDDEN",403);
-    return {run_id:`admin-media-review:${operationId}`,source:INTERNAL_ADMIN_BROKER,event_name:"internal_admin_review"};
-  }
-  if(internalBroker)fail("IBERFIT_PUBLISHER_INTERNAL_BROKER_FORBIDDEN",403);
   const { payload } = await jwtVerify(token, JWKS, {
     issuer: "https://token.actions.githubusercontent.com",
     audience: AUDIENCE,
@@ -128,7 +118,7 @@ Deno.serve(async (req: Request) => {
 
     const db = createClient(supabaseUrl, serviceRole, {
       auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { "x-client-info": "iberfit-exercise-media-publisher/2" } },
+      global: { headers: { "x-client-info": "iberfit-exercise-media-publisher/1" } },
     });
 
     const [folder, filename] = parsed.path.split("/");
@@ -178,8 +168,7 @@ Deno.serve(async (req: Request) => {
       public_url: publicUrl,
       already_existed: alreadyExists,
       finalization: finalized.data,
-      run_id: String((claims as any).run_id || ""),
-      source:String((claims as any).source||"github-oidc"),
+      run_id: String(claims.run_id || ""),
     });
   } catch (error: any) {
     const status = Number(error?.status) || (
