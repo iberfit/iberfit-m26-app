@@ -4,6 +4,9 @@ import { assertClientSelectionAllowed, assertKnownRole, visibleClientIds } from 
 function result(area, allowed, reason, contextClientId = null) {
   return Object.freeze({ area, allowed, reason, contextClientId });
 }
+function mediaReviewEnabled(state,role){
+  return role==='admin'&&state?.admin?.available===true&&state?.admin?.organization?.settings?.admin_media_review_enabled===true;
+}
 
 export function resolveM26Route(state, requestedArea = state?.activeArea) {
   if (!state?.identity || state?.hydration?.status !== 'ready') {
@@ -16,6 +19,9 @@ export function resolveM26Route(state, requestedArea = state?.activeArea) {
 
   if (!definition || !areaAllowedForRole(requested, role)) {
     return result(roleHome(role), false, 'M26_ROUTE_FORBIDDEN');
+  }
+  if(requested==='admin-media-review'&&!mediaReviewEnabled(state,role)){
+    return result(roleHome(role),false,'M26_ADMIN_MEDIA_REVIEW_DISABLED');
   }
 
   const visible = visibleClientIds(state);
