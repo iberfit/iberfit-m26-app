@@ -21,7 +21,8 @@ test('auto factory is manual on Canary and scheduler is intentionally external',
   assert.doesNotMatch(workflow,/\bschedule\s*:/);
   assert.match(workflow,/concurrency:[\s\S]*iberfit-exercise-media-auto-factory/);
   assert.doesNotMatch(workflow,/SUPABASE_SERVICE_ROLE_KEY/);
-  assert.match(regenWorkflow,/\bschedule\s*:/);
+  assert.match(regenWorkflow,/on:\s*\n\s*workflow_dispatch:/);
+  assert.doesNotMatch(regenWorkflow,/\bschedule\s*:/);
   assert.match(regenWorkflow,/exercise-media-auto-factory\.yml\/dispatches/);
 });
 
