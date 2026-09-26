@@ -15,6 +15,9 @@ import { renderRouteView } from '../../src/m26/modules/route-render.js';
 const AUDIT_VERSION='1.2.0';
 const ROLES=Object.freeze(['client','coach','admin']);
 const ADMIN_SHARED_AREAS=Object.freeze(['biblioteca']);
+const AUDIT_ADMIN_FEATURE_FLAGS=Object.freeze({
+  'admin-media-review':Object.freeze({admin_media_review_enabled:true}),
+});
 const CLIENT_ID='continuous-audit-client';
 const NOW=new Date();
 const APP_URL=String(process.env.M26_AUDIT_APP_URL||'https://app.iberfit.cl').replace(/\/+$/,'');
@@ -68,6 +71,26 @@ function clientBottomNavAreas(){
   );
 }
 
+function adminStateForAudit(base,role,area){
+  const featureFlags=role==='admin'?AUDIT_ADMIN_FEATURE_FLAGS[area]:null;
+  if(!featureFlags)return base.admin;
+  return {
+    ...base.admin,
+    available:true,
+    reason:null,
+    organization:{
+      id:'continuous-audit-organization',
+      name:'IBERFIT',
+      slug:'iberfit',
+      status:'active',
+      timezone:'America/Santiago',
+      locale:'es-CL',
+      settings:{...featureFlags},
+      revision:0,
+    },
+  };
+}
+
 function stateFor(role,area){
   const base=createProductionState();
   const identity=role==='client'
@@ -84,6 +107,7 @@ function stateFor(role,area){
     identity,
     environment:'AUDIT_READ_ONLY',
     canary:{active:false,scope:null,version:'continuous-audit'},
+    admin:adminStateForAudit(base,role,area),
     selectedClientId:CLIENT_ID,
     activeArea:area,
     collections:{
