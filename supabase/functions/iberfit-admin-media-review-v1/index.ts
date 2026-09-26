@@ -1,10 +1,9 @@
 import "jsr:@supabase/functions-js@2/edge-runtime.d.ts";
 import {createClient} from "npm:@supabase/supabase-js@2.112.4";
 
-const VERSION="admin-media-review-v1.0";
+const VERSION="admin-media-review-v1.1";
 const PROD_REF="pjhmrhejsoofmouedavw";
 const STAGING_BUCKET="iberfit-exercise-media-review";
-const PUBLISHER_PATH="/functions/v1/iberfit-exercise-media-publisher";
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const SHA256=/^[0-9a-f]{64}$/u;
@@ -38,7 +37,6 @@ function safe(value:unknown,max=800){return String(value??"").replace(/[\u0000-\
 function env(name:string){const value=String(Deno.env.get(name)||"").trim();if(!value)fail(`IBERFIT_MEDIA_REVIEW_${name}_MISSING`,500);return value;}
 function service(){const url=env("SUPABASE_URL"),key=env("SUPABASE_SERVICE_ROLE_KEY");if(!url.includes(PROD_REF))fail("IBERFIT_MEDIA_REVIEW_PROD_ENV_INVALID",500);return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{"x-client-info":"iberfit-admin-media-review/1"}}});}
 function userClient(authorization:string,origin:string){return createClient(env("SUPABASE_URL"),env("SUPABASE_ANON_KEY"),{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:authorization,Origin:origin,"x-client-info":"iberfit-admin-media-review-user/1"}}});}
-async function digest(bytes:Uint8Array){const hash=await crypto.subtle.digest("SHA-256",bytes);return [...new Uint8Array(hash)].map((x)=>x.toString(16).padStart(2,"0")).join("");}
 
 async function authorize(authorization:string,origin:string,db:any){
   const client=userClient(authorization,origin);
@@ -81,8 +79,8 @@ async function listCandidates(db:any){
       primaryMuscles:exercise.primary_muscles||[],secondaryMuscles:exercise.secondary_muscles||[],
       status:job.status,reviewState:String(review.state||"awaiting_human_approval"),attempts:Number(job.attempts||0),sha256:sha,
       confidence:{biomechanics:Number(review.biomechanics_confidence||0),visual:Number(review.visual_confidence||0)},
-      provenance:{runId:review.run_id||null,workflowSha:review.workflow_sha||null,artifactName:review.artifact_name||null},
-      timestamps:{createdAt:job.created_at||null,updatedAt:job.updated_at||null,qaCompletedAt:job.completed_at||null},
+      provenance:{runId:review.run_id||null,workflowSha:review.workflow_sha||null,artifactName:review.artifact_name||null,publishWorkflowRunId:review.publish_workflow_run_id||null,publishWorkflowSha:review.publish_workflow_sha||null},
+      timestamps:{createdAt:job.created_at||null,updatedAt:job.updated_at||null,qaCompletedAt:job.completed_at||null,approvedAt:review.approved_at||null,publishClaimedAt:review.publish_claimed_at||null,publishFailedAt:review.publish_failed_at||null},
       error:job.last_error||review.publish_error||null,
       startUrl:await signed(db,staging.start_path),finalUrl:await signed(db,staging.final_path),deliveryUrl:await signed(db,staging.delivery_path),
       staging:{startSha256:staging.start_sha256||null,finalSha256:staging.final_sha256||null,deliverySha256:staging.delivery_sha256||sha},
@@ -98,28 +96,6 @@ function normalizeCommand(value:any){
   if(["reject","regenerate"].includes(action)&&reason.length<3)fail("IBERFIT_MEDIA_REVIEW_REASON_REQUIRED");
   return {type,action,operationId,jobId,reason};
 }
-function approvedItem(job:any){
-  const item=structuredClone(job.output_manifest||{}),media=item?.media;
-  if(!media||typeof media!=="object"||Array.isArray(media))fail("IBERFIT_MEDIA_REVIEW_MANIFEST_INVALID",409);
-  item.human_approved=true;item.publishable=true;
-  item.approval={...(item.approval||{}),method:"human_owner_approval",scopes:["visual","biomechanics"],automatic_qa:"passed"};
-  media.published=true;media.clientVisible=true;media.coachVisible=true;
-  return item;
-}
-async function publish(db:any,job:any,operationId:string){
-  const review=reviewOf(job),staging=stagingOf(job),path=safe(staging.delivery_path,500),sha=String(review.sha256||job?.output_manifest?.proof?.delivery_sha256||"").toLowerCase();
-  if(!path||!SHA256.test(sha))fail("IBERFIT_MEDIA_REVIEW_STAGING_INVALID",409);
-  const dl=await db.storage.from(STAGING_BUCKET).download(path);if(dl.error||!dl.data)fail("IBERFIT_MEDIA_REVIEW_STAGING_READ_FAILED",502);
-  const bytes=new Uint8Array(await dl.data.arrayBuffer());if(await digest(bytes)!==sha)fail("IBERFIT_MEDIA_REVIEW_STAGING_SHA_MISMATCH",409);
-  const item=approvedItem(job),mime=String(item?.media?.movement?.mime||"image/webp");
-  const form=new FormData();form.set("item",JSON.stringify(item));form.set("file",new File([bytes],"delivery.webp",{type:mime}));
-  const url=new URL(env("SUPABASE_URL"));
-  const response=await fetch(`${url.origin}${PUBLISHER_PATH}`,{method:"POST",headers:{Authorization:`Bearer ${env("SUPABASE_SERVICE_ROLE_KEY")}`,"x-iberfit-internal-publisher":"admin-media-review-v1","x-iberfit-operation-id":operationId},body:form});
-  const payload=await response.json().catch(()=>({}));
-  if(!response.ok||payload?.ok!==true)throw Object.assign(new Error(safe(payload?.error||`PUBLISHER_${response.status}`)),{status:response.status||502});
-  return payload;
-}
-async function readJob(db:any,jobId:string){const res=await db.from("exercise_media_jobs").select("id,exercise_id,status,visual_spec,output_manifest,last_error").eq("id",jobId).maybeSingle();if(res.error||!res.data)fail("IBERFIT_MEDIA_REVIEW_JOB_NOT_FOUND",404);return res.data;}
 
 Deno.serve(async(req:Request)=>{
   const origin=String(req.headers.get("origin")||"").trim().toLowerCase();
@@ -138,23 +114,8 @@ Deno.serve(async(req:Request)=>{
     if(claim.error)throw claim.error;
     const receipt=Array.isArray(claim.data)?claim.data[0]:claim.data;
     if(receipt?.ok!==true)fail("IBERFIT_MEDIA_REVIEW_CLAIM_NOT_CONFIRMED",409);
-    if(command.action!=="approve")return reply(200,{...receipt,ok:true,version:VERSION},origin);
-    if(String(receipt?.kind||"")==="duplicate"){
-      const current=await readJob(db,command.jobId);
-      if(current.status==="ready")return reply(200,{...receipt,ok:true,kind:"duplicate",status:"ready",version:VERSION},origin);
-    }
-    const job=await readJob(db,command.jobId);
-    try{
-      const published=await publish(db,job,command.operationId);
-      const finalized=await db.rpc("iberfit_admin_media_review_publish_result_v1",{p_job_id:command.jobId,p_operation_id:command.operationId,p_actor:identity.actor,p_success:true,p_error:null,p_detail:{publisher:published}});
-      if(finalized.error)throw finalized.error;
-      const result=Array.isArray(finalized.data)?finalized.data[0]:finalized.data;
-      return reply(200,{...result,ok:true,kind:String(result?.kind||"ack"),publication:published,version:VERSION},origin);
-    }catch(error:any){
-      const message=safe(error?.message||error);
-      await db.rpc("iberfit_admin_media_review_publish_result_v1",{p_job_id:command.jobId,p_operation_id:command.operationId,p_actor:identity.actor,p_success:false,p_error:message,p_detail:{error:message}}).catch?.(()=>{});
-      fail(message||"IBERFIT_MEDIA_REVIEW_PUBLISH_FAILED",502);
-    }
+    if(command.action==="approve")return reply(200,{...receipt,ok:true,publicationQueued:true,version:VERSION},origin);
+    return reply(200,{...receipt,ok:true,version:VERSION},origin);
   }catch(error:any){
     const code=safe(error?.message||error||"IBERFIT_MEDIA_REVIEW_FAILED",160).toUpperCase();
     const status=Number(error?.status)||(/ADMIN_REQUIRED|AUTH_REQUIRED|CONTEXT_FORBIDDEN|ACTOR_INVALID/u.test(code)?403:/DISABLED/u.test(code)?404:/CONFLICT|NOT_ELIGIBLE|STATE/u.test(code)?409:/NOT_FOUND/u.test(code)?404:400);
