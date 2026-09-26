@@ -83,11 +83,12 @@ function birdDogBandFinalPass(text){
   const armReach=/(?:brazo|mano).{0,100}(?:extiend|extendid|alcanza|hacia\s+delante|hacia\s+adelante)|(?:extiend|extendid|alcanza).{0,100}(?:brazo|mano)/u.test(n);
   const legReach=/(?:pierna|pie).{0,120}(?:extiend|extendid|hacia\s+atr[aá]s)|(?:extiend|extendid).{0,120}(?:pierna|pie)/u.test(n);
   const opposite=/(?:contralateral|opuest)/u.test(n)||birdDogBandHasContralateralConnection(n);
-  const supportPalm=/(?:otra|contraria|opuesta|restante).{0,50}(?:mano|palma).{0,100}(?:suelo|piso|apoy)|(?:mano|palma).{0,100}(?:suelo|piso|apoy)/u.test(n);
-  const supportKnee=/(?:otra|contraria|opuesta|restante).{0,50}rodilla.{0,100}(?:suelo|piso|apoy)|rodilla.{0,100}(?:suelo|piso|apoy)/u.test(n);
+  const supportConflict=/(?:ambas|dos).{0,50}(?:manos?|palmas?).{0,100}(?:levantad|despegad|sin\s+apoyo|fuera\s+del\s+(?:suelo|piso))|(?:no\s+se\s+describe|sin).{0,60}rodilla.{0,80}(?:apoy|suelo|piso)/u.test(n);
+  const supportPalm=/(?:otra|contraria|opuesta|restante).{0,50}(?:mano|palma).{0,100}(?:permanece|contin[uú]a|se\s+mantiene|apoyad).{0,80}(?:suelo|piso)|(?:mano|palma)\s+(?:izquierd[ao]|derech[ao]).{0,100}(?:permanece|contin[uú]a|se\s+mantiene|apoyad).{0,80}(?:suelo|piso)/u.test(n);
+  const supportKnee=/(?:otra|contraria|opuesta|restante).{0,50}rodilla.{0,100}(?:permanece|contin[uú]a|se\s+mantiene|apoyad).{0,80}(?:suelo|piso)|rodilla\s+(?:izquierd[ao]|derech[ao]).{0,100}(?:permanece|contin[uú]a|se\s+mantiene|apoyad).{0,80}(?:suelo|piso)/u.test(n);
   const tension=/(?:banda|el[aá]stic).{0,140}(?:tens|resistencia)|(?:tens|resistencia).{0,140}(?:banda|el[aá]stic)/u.test(n);
   const pelvis=/(?:pelvis|caderas?).{0,100}(?:nivel|estable|sin\s+rotaci[oó]n|cuadrad)/u.test(n);
-  return armReach&&legReach&&opposite&&supportPalm&&supportKnee&&tension&&pelvis&&birdDogBandHasContralateralConnection(n)&&!birdDogBandHasExternalAnchor(n);
+  return armReach&&legReach&&opposite&&!supportConflict&&supportPalm&&supportKnee&&tension&&pelvis&&birdDogBandHasContralateralConnection(n)&&!birdDogBandHasExternalAnchor(n);
 }
 
 export function movementPlanIssue(exercise,plan){
