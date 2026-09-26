@@ -61,6 +61,9 @@ test('Admin shell renders Media Review natively and candidate cards expose expli
   assert.match(candidate,/Aprobar y publicar/u);
   assert.match(candidate,/Rechazar/u);
   assert.match(candidate,/Regenerar/u);
+  const queued=__mediaReviewInternals.candidateMarkup({...candidate,reviewState:'publish_requested'});
+  assert.match(queued,/Publicación en cola/u);
+  assert.match(queued,/disabled aria-disabled="true"/u);
   assert.ok(M26_ADMIN_COMMAND_TYPES.includes('ADMIN_MEDIA_REVIEW_APROBAR_PUBLICAR'));
   assert.ok(M26_ADMIN_COMMAND_TYPES.includes('ADMIN_MEDIA_REVIEW_RECHAZAR'));
   assert.ok(M26_ADMIN_COMMAND_TYPES.includes('ADMIN_MEDIA_REVIEW_REGENERAR'));
@@ -116,10 +119,12 @@ test('factory stages review pixels privately and regeneration reuses the existin
 });
 
 test('publication stays human gated and only the canonical GitHub OIDC workflow can reach the final publisher',async()=>{
-  const [publisher,adminEdge,migration]=await Promise.all([
+  const [publisher,adminEdge,migration,broker,workflow]=await Promise.all([
     read('supabase/functions/iberfit-exercise-media-publisher/index.ts'),
     read('supabase/functions/iberfit-admin-media-review-v1/index.ts'),
     read('supabase/migrations/20260926193000_admin_media_review_v1.sql'),
+    read('supabase/functions/iberfit-exercise-media-review-publish-broker-v1/index.ts'),
+    read('.github/workflows/exercise-media-publish-approved.yml'),
   ]);
   assert.match(publisher,/human_approved !== true|human_approved!==true/u);
   assert.match(publisher,/human_owner_approval/u);
@@ -135,6 +140,15 @@ test('publication stays human gated and only the canonical GitHub OIDC workflow 
   assert.match(adminEdge,/publicationQueued:true/u);
   assert.match(migration,/'state','publish_requested'/u);
   assert.match(migration,/iberfit_admin_media_review_publish_claim_v1/u);
+  assert.match(broker,/AUDIENCE="iberfit-exercise-media-prod"/u);
+  assert.match(broker,/exercise-media-publish-approved\.yml@refs\/heads\/canary\/rc74-4/u);
+  assert.match(broker,/jwtVerify/u);
+  assert.match(broker,/iberfit_admin_media_review_publish_claim_v1/u);
+  assert.match(broker,/Authorization:`Bearer \$\{token\}`/u);
+  assert.match(broker,/iberfit_admin_media_review_publish_result_v1/u);
+  assert.match(workflow,/review_queue/u);
+  assert.match(workflow,/iberfit-exercise-media-review-publish-broker-v1/u);
+  assert.match(workflow,/PUBLISH_APPROVED_MEDIA_PROD/u);
 });
 
 test('Media Review styling stays responsive, touch-safe and independent from global Admin CSS',async()=>{
