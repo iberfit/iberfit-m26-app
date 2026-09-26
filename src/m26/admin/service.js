@@ -93,6 +93,12 @@ export function createAdminCommandService({
     });
   }
   return Object.freeze({
+    async listMediaReview(){
+      if(!isOnline())throw new Error('M26_ADMIN_ONLINE_REQUIRED');
+      if(!transport?.listMediaReview)throw new Error('M26_ADMIN_MEDIA_REVIEW_TRANSPORT_REQUIRED');
+      const token=await getToken();
+      return transport.listMediaReview(token);
+    },
     execute(input){
       if(!isOnline())return Promise.reject(new Error('M26_ADMIN_ONLINE_REQUIRED'));
       const command=createAdminCommand(input,getAdminState());
