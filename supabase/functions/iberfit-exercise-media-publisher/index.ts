@@ -10,7 +10,6 @@ const EXPECTED_REPOSITORY_ID = "1306074388";
 const EXPECTED_REF = "refs/heads/canary/rc74-4";
 const EXPECTED_WORKFLOW_REF =
   "iberfit/iberfit-m26-app/.github/workflows/exercise-media-publish-approved.yml@refs/heads/canary/rc74-4";
-const INTERNAL_ADMIN_REVIEW_SOURCE = "admin-media-review-v1";
 const MAX_BYTES = 5_000_000;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
 const SAFE_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}\.(?:webp|png|jpe?g)$/iu;
@@ -32,31 +31,11 @@ function fail(message: string, status = 400): never {
 }
 function bearer(req: Request) {
   const value = req.headers.get("authorization") || "";
-  if (!value.startsWith("Bearer ")) fail("IBERFIT_PUBLISHER_AUTH_REQUIRED", 401);
+  if (!value.startsWith("Bearer ")) fail("IBERFIT_PUBLISHER_OIDC_REQUIRED", 401);
   return value.slice(7).trim();
 }
-async function secureEqual(left: string, right: string) {
-  if (!left || !right) return false;
-  const encoder = new TextEncoder();
-  const [a, b] = await Promise.all([
-    crypto.subtle.digest("SHA-256", encoder.encode(left)),
-    crypto.subtle.digest("SHA-256", encoder.encode(right)),
-  ]);
-  const av = new Uint8Array(a), bv = new Uint8Array(b);
-  let diff = av.length ^ bv.length;
-  for (let i = 0; i < Math.max(av.length, bv.length); i += 1) diff |= (av[i % av.length] || 0) ^ (bv[i % bv.length] || 0);
-  return diff === 0;
-}
-async function authenticate(req: Request, serviceRole: string) {
+async function authenticate(req: Request) {
   const token = bearer(req);
-  const internalSource = String(req.headers.get("x-iberfit-internal-publisher") || "").trim();
-  if (internalSource) {
-    if (internalSource !== INTERNAL_ADMIN_REVIEW_SOURCE) fail("IBERFIT_PUBLISHER_INTERNAL_SOURCE_FORBIDDEN", 403);
-    if (!(await secureEqual(token, serviceRole))) fail("IBERFIT_PUBLISHER_INTERNAL_AUTH_FORBIDDEN", 403);
-    const operationId = String(req.headers.get("x-iberfit-operation-id") || "").trim();
-    if (operationId.length < 3 || operationId.length > 200) fail("IBERFIT_PUBLISHER_INTERNAL_OPERATION_INVALID", 400);
-    return Object.freeze({ source: INTERNAL_ADMIN_REVIEW_SOURCE, run_id: "", operation_id: operationId });
-  }
   const { payload } = await jwtVerify(token, JWKS, {
     issuer: "https://token.actions.githubusercontent.com",
     audience: AUDIENCE,
@@ -72,7 +51,7 @@ async function authenticate(req: Request, serviceRole: string) {
   if (payload.runner_environment && payload.runner_environment !== "github-hosted") {
     fail("IBERFIT_PUBLISHER_RUNNER_FORBIDDEN", 403);
   }
-  return Object.freeze({ source: "github-oidc", run_id: String(payload.run_id || ""), operation_id: "" });
+  return payload;
 }
 function parseItem(raw: string) {
   let item: any;
@@ -120,10 +99,10 @@ async function digestHex(bytes: Uint8Array) {
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
   try {
+    const claims = await authenticate(req);
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     if (!supabaseUrl.includes(PROD_REF) || serviceRole.length < 20) fail("IBERFIT_PUBLISHER_PROD_ENV_INVALID", 500);
-    const auth = await authenticate(req, serviceRole);
 
     const form = await req.formData();
     const itemRaw = String(form.get("item") || "");
@@ -139,7 +118,7 @@ Deno.serve(async (req: Request) => {
 
     const db = createClient(supabaseUrl, serviceRole, {
       auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { "x-client-info": "iberfit-exercise-media-publisher/2" } },
+      global: { headers: { "x-client-info": "iberfit-exercise-media-publisher/1" } },
     });
 
     const [folder, filename] = parsed.path.split("/");
@@ -189,9 +168,7 @@ Deno.serve(async (req: Request) => {
       public_url: publicUrl,
       already_existed: alreadyExists,
       finalization: finalized.data,
-      auth_source: auth.source,
-      run_id: auth.run_id,
-      operation_id: auth.operation_id,
+      run_id: String(claims.run_id || ""),
     });
   } catch (error: any) {
     const status = Number(error?.status) || (
