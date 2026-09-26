@@ -2,6 +2,7 @@ import {runWebAuthnCeremony} from '../app/webauthn.js';
 import {createAdminCommand} from './command-catalog.js';
 
 const PRIVILEGED_REAUTH_COMMANDS=new Set(['ADMIN_CLIENTE_CREAR','ADMIN_CLIENTE_REENVIAR_INVITACION','ADMIN_CLIENTE_ACTUALIZAR_FICHA','ADMIN_CLIENTE_ELIMINAR','ADMIN_USUARIO_ELIMINAR']);
+const ADMIN_SERVICE_EVENT='m26:admin-service-ready';
 
 function canonical(value){
   if(Array.isArray(value))return value.map(canonical);
@@ -61,6 +62,16 @@ async function reauthenticatePrivileged(transport,token,runCeremony=runWebAuthnC
   return true;
 }
 
+function announceAdminService(service){
+  try{
+    const EventCtor=globalThis.CustomEvent;
+    if(typeof globalThis.dispatchEvent==='function'&&typeof EventCtor==='function'){
+      queueMicrotask(()=>globalThis.dispatchEvent(new EventCtor(ADMIN_SERVICE_EVENT,{detail:{service}})));
+    }
+  }catch{}
+  return service;
+}
+
 export function createAdminCommandService({
   transport,
   getToken,
@@ -92,7 +103,7 @@ export function createAdminCommandService({
       whenRefreshed:refreshPromise,
     });
   }
-  return Object.freeze({
+  const service=Object.freeze({
     async listMediaReview(){
       if(!isOnline())throw new Error('M26_ADMIN_ONLINE_REQUIRED');
       if(!transport?.listMediaReview)throw new Error('M26_ADMIN_MEDIA_REVIEW_TRANSPORT_REQUIRED');
@@ -125,6 +136,7 @@ export function createAdminCommandService({
       return promise;
     },
   });
+  return announceAdminService(service);
 }
 
 export const __adminServiceInternals=Object.freeze({
@@ -132,4 +144,6 @@ export const __adminServiceInternals=Object.freeze({
   fingerprint,
   privilegedAssuranceRequired,
   reauthenticatePrivileged,
+  announceAdminService,
+  ADMIN_SERVICE_EVENT,
 });
