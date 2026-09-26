@@ -12,6 +12,9 @@ import {renderRouteView} from '../../src/m26/modules/route-render.js';
 
 const VERSION='2.2.0';
 const ROLES=Object.freeze(['client','coach','admin']);
+const AUDIT_ADMIN_FEATURE_FLAGS=Object.freeze({
+  'admin-media-review':Object.freeze({admin_media_review_enabled:true}),
+});
 const CLIENT_ID='audit-client-own';
 const OTHER_CLIENT_ID='audit-client-other';
 const NOW=new Date();
@@ -31,6 +34,26 @@ const uniq=(values)=>[...new Set(values)];
 const critical=(code,message,context={})=>add('critical',code,message,context);
 const warning=(code,message,context={})=>add('warning',code,message,context);
 
+function adminStateForAudit(base,role,area){
+  const featureFlags=role==='admin'?AUDIT_ADMIN_FEATURE_FLAGS[area]:null;
+  if(!featureFlags)return base.admin;
+  return {
+    ...base.admin,
+    available:true,
+    reason:null,
+    organization:{
+      id:'deep-audit-organization',
+      name:'IBERFIT',
+      slug:'iberfit',
+      status:'active',
+      timezone:'America/Santiago',
+      locale:'es-CL',
+      settings:{...featureFlags},
+      revision:0,
+    },
+  };
+}
+
 function stateFor(role,area){
   const base=createProductionState();
   const identity=role==='client'
@@ -39,6 +62,7 @@ function stateFor(role,area){
   return createProductionState({
     hydration:{status:'ready',error:null,confirmedAt:NOW.toISOString(),serverTime:NOW.toISOString()},
     identity,environment:'AUDIT_READ_ONLY',canary:{active:false,scope:null,version:'deep-audit'},
+    admin:adminStateForAudit(base,role,area),
     selectedClientId:CLIENT_ID,activeArea:area,
     collections:{...base.collections,clients:[{id:CLIENT_ID,name:'Cliente auditoría',modalidad:'Híbrido',status:'activo'}]},
   });
