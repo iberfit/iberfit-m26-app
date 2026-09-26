@@ -53,15 +53,16 @@ test('Admin shell renders Media Review natively and candidate cards expose expli
   assert.match(route,/START/u);
   assert.match(route,/FINAL/u);
   assert.doesNotMatch(route,/publicaci[oó]n autom[aá]tica/iu);
-  const candidate=__mediaReviewInternals.candidateMarkup({
+  const candidateData={
     jobId:'11111111-1111-4111-8111-111111111111',exerciseId:'sentadilla-al-aire',exerciseName:'Sentadilla al aire',
     reviewState:'awaiting_human_approval',attempts:1,sha256:'a'.repeat(64),confidence:{biomechanics:.99,visual:.99},provenance:{},timestamps:{},
     startUrl:'https://example.invalid/start.webp',finalUrl:'https://example.invalid/final.webp',primaryMuscles:['cuádriceps'],
-  });
+  };
+  const candidate=__mediaReviewInternals.candidateMarkup(candidateData);
   assert.match(candidate,/Aprobar y publicar/u);
   assert.match(candidate,/Rechazar/u);
   assert.match(candidate,/Regenerar/u);
-  const queued=__mediaReviewInternals.candidateMarkup({...candidate,reviewState:'publish_requested'});
+  const queued=__mediaReviewInternals.candidateMarkup({...candidateData,reviewState:'publish_requested'});
   assert.match(queued,/Publicación en cola/u);
   assert.match(queued,/disabled aria-disabled="true"/u);
   assert.ok(M26_ADMIN_COMMAND_TYPES.includes('ADMIN_MEDIA_REVIEW_APROBAR_PUBLICAR'));
