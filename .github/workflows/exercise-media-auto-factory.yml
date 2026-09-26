@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test tests/m26_exercise_media_system_v1.test.mjs tests/m26_exercise_media_system_v1_pilot.test.mjs tests/m26_exercise_media_auto_factory.test.mjs tests/m26_exercise_media_auto_factory_retry.test.mjs tests/m26_exercise_media_provider_capacity.test.mjs
+          node --test tests/m26_exercise_media_system_v1.test.mjs tests/m26_exercise_media_system_v1_pilot.test.mjs tests/m26_exercise_media_auto_factory.test.mjs tests/m26_exercise_media_auto_factory_retry.test.mjs tests/m26_exercise_media_provider_capacity.test.mjs tests/m26_exercise_media_human_gate_fail_closed.test.mjs
           test "$(sha256sum "$MASTER" | awk '{print $1}')" = 'b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb'
           test "$(sha256sum "$OFFICIAL_ISOTIPO" | awk '{print $1}')" = 'd4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa'
           python3 -m pip install --disable-pip-version-check --quiet 'Pillow==11.3.0'
@@ -77,7 +77,7 @@ jobs:
           const fs=require('fs');const x=JSON.parse(fs.readFileSync('recovery/auto-factory/peek.json','utf8'));
           if(x.ok!==true||typeof x.eligible!=='boolean')throw new Error('AUTO_FACTORY_PEEK_INVALID');
           fs.appendFileSync(process.env.GITHUB_ENV,`IBERFIT_FACTORY_DONE=${x.eligible?'false':'true'}\n`);
-          console.log(JSON.stringify({eligible:x.eligible,eligible_count:x.eligible_count,remaining:x.remaining,blocked:x.blocked,system_v1:x.system_v1,done:x.done}));
+          console.log(JSON.stringify({eligible:x.eligible,eligible_count:x.eligible_count,remaining:x.remaining,blocked:x.blocked,awaiting_review:x.awaiting_review,system_v1:x.system_v1,done:x.done}));
           NODE
 
       - name: Create isolated Workers AI proxy
@@ -208,7 +208,7 @@ jobs:
           const fs=require('fs');const x=JSON.parse(fs.readFileSync('recovery/auto-factory/claim.json','utf8'));
           if(x.ok!==true)throw new Error('AUTO_FACTORY_CLAIM_INVALID');
           const env=process.env.GITHUB_ENV;
-          if(!x.claim){fs.appendFileSync(env,'IBERFIT_FACTORY_DONE=true\n');console.log(JSON.stringify({done:x.done,remaining:x.remaining,blocked:x.blocked,system_v1:x.system_v1}));process.exit(0);}
+          if(!x.claim){fs.appendFileSync(env,'IBERFIT_FACTORY_DONE=true\n');console.log(JSON.stringify({done:x.done,remaining:x.remaining,blocked:x.blocked,awaiting_review:x.awaiting_review,system_v1:x.system_v1,review_ready:x.review_ready===true}));process.exit(0);}
           fs.appendFileSync(env,`IBERFIT_FACTORY_DONE=false\nIBERFIT_JOB_ID=${x.claim.job.id}\nIBERFIT_EXERCISE_ID=${x.claim.exercise.id}\nIBERFIT_ANATOMY_INFERRED=${x.claim.inferred_anatomy===true}\n`);
           console.log(JSON.stringify({exercise_id:x.claim.exercise.id,attempts:x.claim.job.attempts,inferred_anatomy:x.claim.inferred_anatomy,recovered:x.recovered===true}));
           NODE
@@ -280,10 +280,11 @@ jobs:
           node scripts/exercise-media/auto-factory-qa.mjs --mode biomechanics --claim recovery/auto-factory/claim.json --plan recovery/auto-factory/plan.json --meta recovery/auto-factory/metadata.json --image recovery/auto-factory/delivery.webp --out recovery/auto-factory/qa-biomechanics.json
           node scripts/exercise-media/auto-factory-qa.mjs --mode visual --claim recovery/auto-factory/claim.json --plan recovery/auto-factory/plan.json --meta recovery/auto-factory/metadata.json --image recovery/auto-factory/delivery.webp --out recovery/auto-factory/qa-visual.json
 
-      - name: Build immutable automatic approval item
+      - name: Build immutable QA-approved review candidate
         if: env.IBERFIT_FACTORY_DONE != 'true'
         shell: bash
         run: |
+          set -euo pipefail
           node scripts/exercise-media/auto-factory-build-item.mjs \
             --claim recovery/auto-factory/claim.json \
             --plan recovery/auto-factory/plan.json \
@@ -292,40 +293,55 @@ jobs:
             --qa-visual recovery/auto-factory/qa-visual.json \
             --file recovery/auto-factory/delivery.webp \
             --out recovery/auto-factory/item.json
+          jq -n \
+            --arg schema 'iberfit.exercise.media.review-evidence.v1' \
+            --arg exercise_id "$IBERFIT_EXERCISE_ID" \
+            --arg job_id "$IBERFIT_JOB_ID" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg workflow_sha "$GITHUB_SHA" \
+            --arg artifact_name "iberfit-exercise-media-auto-factory-${GITHUB_RUN_ID}" \
+            '{schema:$schema,exercise_id:$exercise_id,job_id:$job_id,run_id:$run_id,run_attempt:$run_attempt,workflow_sha:$workflow_sha,artifact_name:$artifact_name,state:"awaiting_human_approval",human_approved:false}' \
+            > recovery/auto-factory/review-evidence.json
 
-      - name: Publish approved candidate to canonical library
+      - name: Preserve review candidate evidence
+        if: env.IBERFIT_FACTORY_DONE != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-exercise-media-auto-factory-${{ github.run_id }}
+          path: recovery/auto-factory/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Register candidate awaiting human approval
         if: env.IBERFIT_FACTORY_DONE != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error \
+          payload="$(jq -nc \
+            --arg job "$IBERFIT_JOB_ID" \
+            --arg artifact "iberfit-exercise-media-auto-factory-${GITHUB_RUN_ID}" \
+            --slurpfile item recovery/auto-factory/item.json \
+            --slurpfile metadata recovery/auto-factory/metadata.json \
+            --slurpfile bio recovery/auto-factory/qa-biomechanics.json \
+            --slurpfile visual recovery/auto-factory/qa-visual.json \
+            '{action:"review",job_id:$job,artifact_name:$artifact,item:$item[0],metadata:$metadata[0],qa_biomechanics:$bio[0],qa_visual:$visual[0]}')"
+          curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 45 \
             -X POST \
             -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \
+            -H 'Content-Type: application/json' \
             "$AUTO_FACTORY_URL" \
-            -F 'action=publish' \
-            -F "job_id=${IBERFIT_JOB_ID}" \
-            -F 'item=<recovery/auto-factory/item.json' \
-            -F 'metadata=<recovery/auto-factory/metadata.json' \
-            -F 'qa_biomechanics=<recovery/auto-factory/qa-biomechanics.json' \
-            -F 'qa_visual=<recovery/auto-factory/qa-visual.json' \
-            -F 'file=@recovery/auto-factory/delivery.webp;type=image/webp' \
-            > recovery/auto-factory/publish.json
+            --data-binary "$payload" \
+            > recovery/auto-factory/review.json
           node - <<'NODE'
-          const fs=require('fs');const x=JSON.parse(fs.readFileSync('recovery/auto-factory/publish.json','utf8'));if(x.ok!==true||x.published!==true||x.exercise_id!==process.env.IBERFIT_EXERCISE_ID)throw new Error('AUTO_FACTORY_PUBLISH_INVALID');fs.appendFileSync(process.env.GITHUB_ENV,'IBERFIT_PUBLISHED=true\n');console.log(JSON.stringify({published:x.exercise_id,path:x.path,confidence:x.confidence,inferred_anatomy:x.inferred_anatomy}));
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('recovery/auto-factory/review.json','utf8'));
+          if(x.ok!==true||x.review_ready!==true||x.status!=='qa'||x.exercise_id!==process.env.IBERFIT_EXERCISE_ID)throw new Error('AUTO_FACTORY_REVIEW_REGISTER_INVALID');
+          fs.appendFileSync(process.env.GITHUB_ENV,'IBERFIT_REVIEW_READY=true\n');
+          console.log(JSON.stringify({review_ready:x.exercise_id,status:x.status,artifact_name:x.artifact_name,sha256:x.sha256,inferred_anatomy:x.inferred_anatomy}));
           NODE
 
-      - name: Verify public object identity
-        if: env.IBERFIT_PUBLISHED == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          url="$(jq -r '.public_url' recovery/auto-factory/publish.json)"
-          expected="$(jq -r '.sha256' recovery/auto-factory/publish.json)"
-          curl --fail --silent --show-error --location --max-time 20 "$url" -o recovery/auto-factory/public.webp
-          test "$(sha256sum recovery/auto-factory/public.webp | awk '{print $1}')" = "$expected"
-
       - name: Quarantine failed claimed exercise
-        if: always() && env.IBERFIT_FACTORY_DONE != 'true' && env.IBERFIT_JOB_ID != '' && env.IBERFIT_PUBLISHED != 'true'
+        if: always() && env.IBERFIT_FACTORY_DONE != 'true' && env.IBERFIT_JOB_ID != '' && env.IBERFIT_REVIEW_READY != 'true'
         shell: bash
         run: |
           set +e
@@ -352,13 +368,15 @@ jobs:
             > recovery/auto-factory/fail.json
           exit 0
 
-      - name: Preserve factory evidence
-        if: always()
+      - name: Preserve terminal failure evidence
+        if: always() && env.IBERFIT_JOB_ID != '' && env.IBERFIT_REVIEW_READY != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: iberfit-exercise-media-auto-factory-${{ github.run_id }}
-          path: recovery/auto-factory/
-          if-no-files-found: warn
+          name: iberfit-exercise-media-auto-factory-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            recovery/auto-factory/fail.json
+            recovery/auto-factory/provider-capacity.json
+          if-no-files-found: ignore
           retention-days: 30
 
       - name: Retire isolated Workers AI proxy
