@@ -1,4 +1,5 @@
 import {augmentAdminShellViewModel} from '../admin/view-model.js';
+import {filterAdminMediaReviewNavigation,initialAreaFromPath} from '../admin/media-review.js';
 import {augmentRc39ShellViewModel} from '../rc39/view-model.js';
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from '../rc39/multi-role.js';
 import { metricPresentation, selectedClient } from '../production-state.js';
@@ -45,8 +46,16 @@ function clientOptions(state, role) {
   return clients.map(compactClient);
 }
 
+export function shellRouteRequest(state,locationLike=globalThis.location){
+  const active=String(state?.activeArea||'').trim();
+  const pathArea=initialAreaFromPath(locationLike?.pathname);
+  const role=String(state?.identity?.role||'').trim().toLowerCase();
+  if(role==='admin'&&pathArea&&['','admin-inicio','hoy','acceso'].includes(active))return pathArea;
+  return active||undefined;
+}
+
 function createShellViewModelBase(state) {
-  const route = resolveM26Route(state);
+  const route = resolveM26Route(state,shellRouteRequest(state));
   if (route.area === 'acceso') {
     return Object.freeze({
       mode: 'access',
@@ -58,7 +67,10 @@ function createShellViewModelBase(state) {
   }
 
   const role = assertKnownRole(state.identity.role);
-  const navigation = navigationForRole(role);
+  const baseNavigation = navigationForRole(role);
+  const navigation = role==='admin'
+    ?filterAdminMediaReviewNavigation(baseNavigation,state)
+    :baseNavigation;
   const selected = role === 'client'
     ? (state.collections?.clients || []).find((client) => client.id === state.identity.clientId) || null
     : selectedClient(state);

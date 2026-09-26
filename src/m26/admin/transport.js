@@ -3,8 +3,10 @@ import {createM26Transport} from '../supabase-transport.js';
 const RPC=Object.freeze({context:'iberfit_application_context_v14',bootstrap:'iberfit_admin_bootstrap_v14',execute:'iberfit_admin_execute_v14'});
 const CLIENT_INVITE_FUNCTION='/functions/v1/iberfit-admin-client-invite-v1';
 const USER_DECOMMISSION_FUNCTION='/functions/v1/iberfit-admin-user-decommission-v1';
+const MEDIA_REVIEW_FUNCTION='/functions/v1/iberfit-admin-media-review-v1';
 const MISSING=/PGRST202|not find the function|M26_HTTP_404/i;
 const DEFAULT_TIMEOUT_MS=12_000;
+const MEDIA_REVIEW_TIMEOUT_MS=30_000;
 const PRIVILEGED_WEBAUTHN_FACTOR_ID='65000000-0000-4000-8000-000000000002';
 
 function requestTimeout(runtime){
@@ -22,10 +24,10 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
     return authTransport;
   };
 
-  async function request(path,token,body){
+  async function request(path,token,body,{timeout=timeoutMs}={}){
     if(!token)throw new Error('M26_AUTH_REQUIRED');
     const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),timeoutMs);
+    const timer=setTimeout(()=>controller.abort(),Math.max(1_000,Math.min(Number(timeout)||timeoutMs,30_000)));
     try{
       const response=await fetchImpl(`${url.origin}${path}`,{
         method:'POST',
@@ -78,13 +80,21 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
     }
   }
 
+  async function listMediaReview(token){
+    const result=await request(MEDIA_REVIEW_FUNCTION,token,{action:'list'},{timeout:MEDIA_REVIEW_TIMEOUT_MS});
+    if(result?.ok!==true||!Array.isArray(result?.candidates))throw new Error('M26_ADMIN_MEDIA_REVIEW_LIST_INVALID');
+    return Object.freeze({...result,candidates:Object.freeze(result.candidates.map((item)=>Object.freeze({...item})))});
+  }
+
   async function execute(token,command){
     const type=String(command?.type||'').trim().toUpperCase();
     const result=['ADMIN_CLIENTE_CREAR','ADMIN_CLIENTE_REENVIAR_INVITACION'].includes(type)
       ?await request(CLIENT_INVITE_FUNCTION,token,{command})
       :type==='ADMIN_USUARIO_ELIMINAR'
         ?await request(USER_DECOMMISSION_FUNCTION,token,{command})
-        :await rpc(RPC.execute,token,{p_command:command});
+        :type.startsWith('ADMIN_MEDIA_REVIEW_')
+          ?await request(MEDIA_REVIEW_FUNCTION,token,{command},{timeout:MEDIA_REVIEW_TIMEOUT_MS})
+          :await rpc(RPC.execute,token,{p_command:command});
     if(result?.ok!==true||!['ack','duplicate'].includes(String(result?.kind||'').toLowerCase()))throw new Error('M26_ADMIN_MUTATION_NOT_CONFIRMED');
     return Object.freeze({...result});
   }
@@ -97,6 +107,7 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
     authUser:(token)=>privilegedAuth().authUser(token),
     challengeWebAuthn:(token,factorId)=>privilegedAuth().challengeWebAuthn(token,factorId),
     verifyWebAuthn:(token,payload)=>privilegedAuth().verifyWebAuthn(token,payload),
+    listMediaReview,
     execute,
   });
 }

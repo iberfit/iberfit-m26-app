@@ -12,13 +12,21 @@ on:
       - 'scripts/exercise-media/approved/**/*.jpeg'
   workflow_dispatch:
     inputs:
-      source_sha:
-        description: Exact 40-char commit SHA containing the approved batch and assets
+      mode:
+        description: Publication source
         required: true
+        default: batch
+        type: choice
+        options:
+          - batch
+          - review_queue
+      source_sha:
+        description: Exact 40-char commit SHA containing the approved batch and assets (batch mode)
+        required: false
         type: string
       manifest_path:
-        description: Approved batch manifest path inside source_sha
-        required: true
+        description: Approved batch manifest path inside source_sha (batch mode)
+        required: false
         default: scripts/exercise-media/approved/IBF-ABDUCCION-DE-CADERA-LATERAL/approved-batch.json
         type: string
       confirmation:
@@ -41,10 +49,12 @@ env:
   SOURCE_SHA: ${{ github.event_name == 'push' && github.sha || inputs.source_sha }}
   MANIFEST_PATH_INPUT: ${{ inputs.manifest_path || '' }}
   CONFIRMATION: ${{ github.event_name == 'push' && 'PUBLISH_APPROVED_MEDIA_PROD' || inputs.confirmation }}
+  PUBLISH_MODE: ${{ github.event_name == 'push' && 'batch' || inputs.mode }}
 
 jobs:
   publish-approved:
     name: publish-approved-prod
+    if: github.event_name == 'push' || inputs.mode != 'review_queue'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -53,6 +63,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$CONFIRMATION" = 'PUBLISH_APPROVED_MEDIA_PROD'
+          test "$PUBLISH_MODE" = 'batch'
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           if [[ "$GITHUB_EVENT_NAME" = 'push' ]]; then
             test "$GITHUB_REF" = 'refs/heads/canary/rc74-4'
@@ -205,5 +216,92 @@ jobs:
             recovery/approved-manifests.txt
             recovery/exercise-media-publish-prod-*.json
             recovery/exercise-media-runtime-manifest.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  publish-review-queue:
+    name: publish-human-review-queue-prod
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'review_queue'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validate queue publication intent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = 'PUBLISH_APPROVED_MEDIA_PROD'
+          test "$PUBLISH_MODE" = 'review_queue'
+          test "$GITHUB_REF" = 'refs/heads/canary/rc74-4'
+
+      - name: Checkout trusted publication contract
+        uses: actions/checkout@v4
+        with:
+          ref: canary/rc74-4
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify human review publication contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/m26_admin_media_review.test.mjs tests/m26_exercise_media_publisher_broker.test.mjs
+
+      - name: Obtain GitHub OIDC token
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          sep='?'
+          [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
+          token="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
+          test "${#token}" -gt 100
+          echo "::add-mask::$token"
+          echo "IBERFIT_GITHUB_OIDC_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Drain human review queue through OIDC broker
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/review-queue
+          broker="${PROD_ORIGIN}/functions/v1/iberfit-exercise-media-review-publish-broker-v1"
+          published=0
+          for i in $(seq 1 20); do
+            response="recovery/review-queue/response-${i}.json"
+            curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 120 \
+              -X POST \
+              -H "Authorization: Bearer ${IBERFIT_GITHUB_OIDC_TOKEN}" \
+              -H 'Content-Type: application/json' \
+              "$broker" \
+              -d '{}' > "$response"
+            ok="$(jq -r '.ok // false' "$response")"
+            done_flag="$(jq -r '.done // false' "$response")"
+            test "$ok" = 'true'
+            if [[ "$done_flag" = 'true' ]]; then
+              break
+            fi
+            test "$(jq -r '.published // false' "$response")" = 'true'
+            published=$((published+1))
+          done
+          if [[ "$published" -ge 20 ]]; then
+            echo 'IBERFIT_REVIEW_QUEUE_DRAIN_LIMIT_REACHED' >&2
+            exit 1
+          fi
+          jq -n --argjson published "$published" '{ok:true,published:$published}' > recovery/review-queue/summary.json
+          cat recovery/review-queue/summary.json
+
+      - name: Preserve human review publication evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-exercise-media-review-publish-${{ github.run_id }}
+          path: recovery/review-queue/
           if-no-files-found: warn
           retention-days: 30

@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test tests/m26_exercise_media_system_v1.test.mjs tests/m26_exercise_media_system_v1_pilot.test.mjs tests/m26_exercise_media_auto_factory.test.mjs tests/m26_exercise_media_auto_factory_retry.test.mjs tests/m26_exercise_media_provider_capacity.test.mjs tests/m26_exercise_media_human_gate_fail_closed.test.mjs
+          node --test tests/m26_exercise_media_system_v1.test.mjs tests/m26_exercise_media_system_v1_pilot.test.mjs tests/m26_exercise_media_auto_factory.test.mjs tests/m26_exercise_media_auto_factory_retry.test.mjs tests/m26_exercise_media_provider_capacity.test.mjs tests/m26_exercise_media_human_gate_fail_closed.test.mjs tests/m26_admin_media_review.test.mjs
           test "$(sha256sum "$MASTER" | awk '{print $1}')" = 'b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb'
           test "$(sha256sum "$OFFICIAL_ISOTIPO" | awk '{print $1}')" = 'd4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa'
           python3 -m pip install --disable-pip-version-check --quiet 'Pillow==11.3.0'
@@ -304,6 +304,31 @@ jobs:
             '{schema:$schema,exercise_id:$exercise_id,job_id:$job_id,run_id:$run_id,run_attempt:$run_attempt,workflow_sha:$workflow_sha,artifact_name:$artifact_name,state:"awaiting_human_approval",human_approved:false}' \
             > recovery/auto-factory/review-evidence.json
 
+      - name: Stage review pixels privately
+        if: env.IBERFIT_FACTORY_DONE != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 90 \
+            -X POST \
+            -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \
+            "$AUTO_FACTORY_URL" \
+            -F action=stage_review \
+            -F job_id="$IBERFIT_JOB_ID" \
+            -F exercise_id="$IBERFIT_EXERCISE_ID" \
+            -F start=@"$IBERFIT_START_IMAGE" \
+            -F final=@"$IBERFIT_FINAL_IMAGE" \
+            -F delivery=@recovery/auto-factory/delivery.webp \
+            > recovery/auto-factory/staging.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const staged=JSON.parse(fs.readFileSync('recovery/auto-factory/staging.json','utf8'));
+          const item=JSON.parse(fs.readFileSync('recovery/auto-factory/item.json','utf8'));
+          if(staged.ok!==true||staged.staged!==true||staged.job_id!==process.env.IBERFIT_JOB_ID||staged.exercise_id!==process.env.IBERFIT_EXERCISE_ID)throw new Error('AUTO_FACTORY_STAGE_INVALID');
+          if(staged.staging?.delivery_sha256!==item.proof?.delivery_sha256)throw new Error('AUTO_FACTORY_STAGE_DELIVERY_SHA_MISMATCH');
+          for(const key of ['start_path','start_sha256','final_path','final_sha256','delivery_path','delivery_sha256'])if(!staged.staging?.[key])throw new Error(`AUTO_FACTORY_STAGE_FIELD_MISSING:${key}`);
+          NODE
+
       - name: Preserve review candidate evidence
         if: env.IBERFIT_FACTORY_DONE != 'true'
         uses: actions/upload-artifact@v4
@@ -325,7 +350,8 @@ jobs:
             --slurpfile metadata recovery/auto-factory/metadata.json \
             --slurpfile bio recovery/auto-factory/qa-biomechanics.json \
             --slurpfile visual recovery/auto-factory/qa-visual.json \
-            '{action:"review",job_id:$job,artifact_name:$artifact,item:$item[0],metadata:$metadata[0],qa_biomechanics:$bio[0],qa_visual:$visual[0]}')"
+            --slurpfile staging recovery/auto-factory/staging.json \
+            '{action:"review",job_id:$job,artifact_name:$artifact,item:$item[0],metadata:$metadata[0],qa_biomechanics:$bio[0],qa_visual:$visual[0],staging:$staging[0].staging}')"
           curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 45 \
             -X POST \
             -H "Authorization: Bearer ${IBERFIT_AUTO_FACTORY_OIDC}" \

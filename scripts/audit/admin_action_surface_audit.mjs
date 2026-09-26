@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import {M26_AREAS,areaAllowedForRole} from '../../src/m26/shell/navigation.js';
 import {projectAdminSnapshot} from '../../src/m26/admin/admin-state.js';
+import {adminMediaReviewEnabled} from '../../src/m26/admin/media-review.js';
 import {auditInteractiveMarkup} from '../../src/m26/ui/interactive-audit.js';
 import {createProductionState} from '../../src/m26/production-state.js';
 import {resolveM26Route} from '../../src/m26/shell/route-guard.js';
@@ -157,7 +158,9 @@ function markdown(report){
 }
 
 async function main(){
-  const allowed=Object.keys(M26_AREAS).filter((area)=>areaAllowedForRole(area,ROLE));
+  const allowed=Object.keys(M26_AREAS)
+    .filter((area)=>areaAllowedForRole(area,ROLE))
+    .filter((area)=>area!==AREA_MEDIA_REVIEW||adminMediaReviewEnabled(stateFor(area)));
   const routes=[];
   const failures=[];
   for(const area of allowed){
@@ -207,4 +210,5 @@ async function main(){
   }
 }
 
+const AREA_MEDIA_REVIEW='admin-media-review';
 await main();

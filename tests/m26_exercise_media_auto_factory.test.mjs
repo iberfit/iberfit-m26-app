@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import test from 'node:test';
 
 const workflow=await readFile(new URL('../.github/workflows/exercise-media-auto-factory.yml',import.meta.url),'utf8');
+const regenWorkflow=await readFile(new URL('../.github/workflows/exercise-media-human-regeneration.yml',import.meta.url),'utf8');
 const remoteGates=await readFile(new URL('../.github/workflows/remote-gates.yml',import.meta.url),'utf8');
 const broker=await readFile(new URL('../supabase/functions/iberfit-exercise-media-auto-factory-v1/index.ts',import.meta.url),'utf8');
 const planner=await readFile(new URL('../scripts/exercise-media/auto-factory-plan.mjs',import.meta.url),'utf8');
@@ -20,6 +21,9 @@ test('auto factory is manual on Canary and scheduler is intentionally external',
   assert.doesNotMatch(workflow,/\bschedule\s*:/);
   assert.match(workflow,/concurrency:[\s\S]*iberfit-exercise-media-auto-factory/);
   assert.doesNotMatch(workflow,/SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(regenWorkflow,/on:\s*\n\s*workflow_dispatch:/);
+  assert.doesNotMatch(regenWorkflow,/\bschedule\s*:/);
+  assert.match(regenWorkflow,/exercise-media-auto-factory\.yml\/dispatches/);
 });
 
 test('broker is pinned to exact repository, Canary ref and action-scoped workflow identities',()=>{
@@ -28,10 +32,13 @@ test('broker is pinned to exact repository, Canary ref and action-scoped workflo
   assert.match(broker,/EXPECTED_REF="refs\/heads\/canary\/rc74-4"/);
   assert.match(broker,/EXPECTED_PROCESS_WORKFLOW_REF="iberfit\/iberfit-m26-app\/\.github\/workflows\/exercise-media-auto-factory\.yml@refs\/heads\/canary\/rc74-4"/);
   assert.match(broker,/EXPECTED_PROBE_WORKFLOW_REF="iberfit\/iberfit-m26-app\/\.github\/workflows\/remote-gates\.yml@refs\/heads\/canary\/rc74-4"/);
+  assert.match(broker,/EXPECTED_REGEN_WORKFLOW_REF="iberfit\/iberfit-m26-app\/\.github\/workflows\/exercise-media-human-regeneration\.yml@refs\/heads\/canary\/rc74-4"/);
   assert.match(broker,/AUDIENCE="iberfit-exercise-media-auto-factory"/);
   assert.match(broker,/IBERFIT_AUTO_FACTORY_PROCESS_WORKFLOW_FORBIDDEN/);
   assert.match(broker,/IBERFIT_AUTO_FACTORY_PROBE_WORKFLOW_FORBIDDEN/);
-  assert.doesNotMatch(broker,/"schedule"/);
+  assert.match(broker,/workflowRef===EXPECTED_REGEN_WORKFLOW_REF[\s\S]*\["workflow_dispatch","schedule"\]/);
+  assert.match(broker,/action!=="peek"\|\|mode!=="human_regeneration"/);
+  assert.match(broker,/IBERFIT_AUTO_FACTORY_REGEN_WORKFLOW_FORBIDDEN/);
 });
 
 test('registered remote gate isolates OIDC probe permissions and cannot claim fail or publish',()=>{
@@ -56,8 +63,11 @@ test('automated QA stages a non-public candidate for human review instead of pub
   assert.match(item,/human_approved:false,publishable:false/);
   assert.match(item,/method:'automatic_dual_gate_v1'/);
   assert.match(item,/published:false,clientVisible:false,coachVisible:false/);
+  assert.match(workflow,/Stage review pixels privately/);
   assert.match(workflow,/Preserve review candidate evidence/);
   assert.match(workflow,/Register candidate awaiting human approval/);
+  assert.match(workflow,/-F action=stage_review/);
+  assert.match(workflow,/staging:\$staging\[0\]\.staging/);
   assert.match(workflow,/action:"review"/);
   assert.doesNotMatch(workflow,/action=publish/);
   assert.match(broker,/IBERFIT_AUTO_FACTORY_DIRECT_PUBLISH_DISABLED/);
@@ -108,13 +118,16 @@ test('one workflow run claims only one exercise and failures are quarantined unl
   assert.match(broker,/status:blocked\?"blocked":"failed"/);
 });
 
-test('review evidence is durable before the database switches to awaiting-human-review state',()=>{
+test('private staging and artifact evidence are durable before the database switches to human review',()=>{
+  const stage=workflow.indexOf('- name: Stage review pixels privately');
   const upload=workflow.indexOf('- name: Preserve review candidate evidence');
   const register=workflow.indexOf('- name: Register candidate awaiting human approval');
-  assert.ok(upload>=0,'review artifact upload must exist');
-  assert.ok(register>upload,'artifact must be durable before review registration');
+  assert.ok(stage>=0,'private staging step must exist');
+  assert.ok(upload>stage,'artifact evidence must follow verified private staging');
+  assert.ok(register>upload,'both durable evidence channels must exist before review registration');
   assert.match(workflow,/name: iberfit-exercise-media-auto-factory-\$\{\{ github\.run_id \}\}/);
   assert.match(broker,/artifactName!==expectedArtifact/);
+  assert.match(broker,/validateStaging/);
   assert.match(broker,/status:"qa"/);
   assert.match(broker,/output_manifest:item/);
 });
