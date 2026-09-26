@@ -50,15 +50,22 @@ test('registered remote gate isolates OIDC probe permissions and cannot claim fa
   assert.match(broker,/requireWorkflow\(claims,EXPECTED_PROCESS_WORKFLOW_REF,"IBERFIT_AUTO_FACTORY_PROCESS_WORKFLOW_FORBIDDEN"\)/);
 });
 
-test('automatic publication is stricter for inferred anatomy and never impersonates human approval',()=>{
+test('automated QA stages a non-public candidate for human review instead of publishing',()=>{
   assert.match(broker,/BASE_MIN_CONFIDENCE=0\.97/);
   assert.match(broker,/INFERRED_ANATOMY_MIN_CONFIDENCE=0\.985/);
-  assert.match(item,/human_approved:false/);
+  assert.match(item,/human_approved:false,publishable:false/);
   assert.match(item,/method:'automatic_dual_gate_v1'/);
-  assert.match(broker,/item\?\.human_approved!==false/);
+  assert.match(item,/published:false,clientVisible:false,coachVisible:false/);
+  assert.match(workflow,/Preserve review candidate evidence/);
+  assert.match(workflow,/Register candidate awaiting human approval/);
+  assert.match(workflow,/action:"review"/);
+  assert.doesNotMatch(workflow,/action=publish/);
+  assert.match(broker,/IBERFIT_AUTO_FACTORY_DIRECT_PUBLISH_DISABLED/);
+  assert.match(broker,/item\?\.human_approved!==false\|\|item\?\.publishable!==false/);
   assert.match(broker,/automatic_dual_gate_v1/);
   assert.match(broker,/qaBiomechanics,"biomechanics"/);
   assert.match(broker,/qaVisual,"visual"/);
+  assert.match(broker,/state:"awaiting_human_approval"/);
 });
 
 test('official identity and branding hashes remain deterministic',()=>{
@@ -77,22 +84,39 @@ test('planner uses a closed anatomy vocabulary and generic targets require highe
   assert.match(planner,/inferred\?0\.985:0\.96/);
 });
 
-test('dual QA and final media remain fail closed and System v1 tagged',()=>{
+test('dual QA remains fail closed and review candidates stay System v1 tagged but unpublished',()=>{
   assert.match(qa,/mode==='biomechanics'/);
   assert.match(qa,/mode==='visual'/);
   assert.match(qa,/inferred\?0\.985:0\.97/);
   assert.match(item,/visualSystem:SYSTEM_V1/);
   assert.match(item,/qa:\{biomechanics:'approved',visual:'approved'\}/);
+  assert.match(item,/published:false,clientVisible:false,coachVisible:false/);
   assert.match(broker,/media\?\.visualSystem!==SYSTEM_V1/);
-  assert.match(broker,/IBERFIT_AUTO_FACTORY_FILE_SHA_MISMATCH/);
-  assert.match(broker,/IBERFIT_AUTO_FACTORY_FILE_DIMENSIONS_INVALID/);
+  assert.match(broker,/IBERFIT_AUTO_FACTORY_REVIEW_SHA_MISMATCH/);
+  assert.match(broker,/IBERFIT_AUTO_FACTORY_REVIEW_MEDIA_DIMENSIONS_INVALID/);
+  assert.doesNotMatch(broker,/iberfit_finalize_exercise_media_system_v1/);
+  assert.doesNotMatch(broker,/storage\.from\(BUCKET\)\.upload/);
 });
 
-test('one workflow run claims only one exercise and failures are quarantined',()=>{
+test('one workflow run claims only one exercise and failures are quarantined unless review is registered',()=>{
   assert.equal((workflow.match(/\"action\":\"claim\"/g)||[]).length,1);
+  assert.match(workflow,/Preserve review candidate evidence/);
+  assert.match(workflow,/Register candidate awaiting human approval/);
   assert.match(workflow,/Quarantine failed claimed exercise/);
+  assert.match(workflow,/IBERFIT_REVIEW_READY != 'true'/);
   assert.match(broker,/MAX_ATTEMPTS=3/);
   assert.match(broker,/status:blocked\?"blocked":"failed"/);
+});
+
+test('review evidence is durable before the database switches to awaiting-human-review state',()=>{
+  const upload=workflow.indexOf('- name: Preserve review candidate evidence');
+  const register=workflow.indexOf('- name: Register candidate awaiting human approval');
+  assert.ok(upload>=0,'review artifact upload must exist');
+  assert.ok(register>upload,'artifact must be durable before review registration');
+  assert.match(workflow,/name: iberfit-exercise-media-auto-factory-\$\{\{ github\.run_id \}\}/);
+  assert.match(broker,/artifactName!==expectedArtifact/);
+  assert.match(broker,/status:"qa"/);
+  assert.match(broker,/output_manifest:item/);
 });
 
 test('proxy infrastructure is ready before claim so Cloudflare outages cannot consume exercise attempts',()=>{
@@ -111,7 +135,7 @@ test('proxy infrastructure is ready before claim so Cloudflare outages cannot co
 test('claim prioritizes explicit anatomy while preserving stricter inferred-anatomy gates',()=>{
   assert.match(broker,/function hasGenericAnatomy\(exercise:any\)/);
   assert.match(broker,/Number\(hasGenericAnatomy\(a\)\)-Number\(hasGenericAnatomy\(b\)\)/,'explicit anatomy must sort before generic anatomy');
-  assert.match(broker,/const inferredAnatomy=hasGenericAnatomy\(exercise\)/,'the same classifier must drive the higher-confidence publication gate');
+  assert.match(broker,/const inferredAnatomy=hasGenericAnatomy\(exercise\)/,'the same classifier must drive the higher-confidence review gate');
   assert.match(broker,/INFERRED_ANATOMY_MIN_CONFIDENCE=0\.985/,'inferred anatomy threshold must remain unchanged');
 });
 
@@ -146,10 +170,12 @@ test('shirt-anchor locator is calibrated without lowering its safety threshold',
   assert.match(locator,/enable_thinking:false/,'locator should return direct structured output instead of spending budget on hidden reasoning');
 });
 
-test('claim is idempotent per workflow run and lost responses are retried without duplicate claims',()=>{
+test('claim is idempotent per workflow run and review-ready runs cannot be reclaimed',()=>{
   assert.match(broker,/const runId=String\(claims\?\.run_id\|\|""\)/);
   assert.match(broker,/const workflowSha=String\(claims\?\.sha\|\|""\)/);
-  assert.match(broker,/\["generating","qa"\]\.includes/);
+  assert.match(broker,/String\(job\?\.status\|\|""\)==="qa"/);
+  assert.match(broker,/review_ready:true/);
+  assert.match(broker,/String\(job\?\.status\|\|""\)==="generating"/);
   assert.match(broker,/visual_spec\?\.run_id/);
   assert.match(broker,/visual_spec\?\.workflow_sha/);
   assert.match(broker,/recovered:true/);
