@@ -1,8 +1,9 @@
 import "jsr:@supabase/functions-js@2/edge-runtime.d.ts";
 import {createClient} from "npm:@supabase/supabase-js@2.112.4";
 
-const VERSION="admin-media-review-v1.1";
+const VERSION="admin-media-review-v1.2";
 const PROD_REF="pjhmrhejsoofmouedavw";
+const QA_REF="gjztkdwfmunnzhtvxrsu";
 const STAGING_BUCKET="iberfit-exercise-media-review";
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -12,12 +13,20 @@ const OPS=new Map([
   ["ADMIN_MEDIA_REVIEW_RECHAZAR","reject"],
   ["ADMIN_MEDIA_REVIEW_REGENERAR","regenerate"],
 ]);
-const ORIGINS=new Set([
-  "https://m26-canary.iberfit.cl",
-  "https://app.iberfit.cl",
-  "https://coach.iberfit.cl",
+const ENV_ORIGINS=new Map<string,ReadonlySet<string>>([
+  [PROD_REF,new Set(["https://app.iberfit.cl","https://coach.iberfit.cl"])],
+  [QA_REF,new Set(["https://m26-canary.iberfit.cl"])],
 ]);
 
+function projectRefFromUrl(value:string){
+  try{
+    const host=new URL(value).hostname.toLowerCase();
+    const match=host.match(/^([a-z0-9]+)\.supabase\.co$/u);
+    return match?.[1]||"";
+  }catch{return "";}
+}
+function runtimeRef(){return projectRefFromUrl(String(Deno.env.get("SUPABASE_URL")||"").trim());}
+function originAllowed(origin:string){const ref=runtimeRef();return ENV_ORIGINS.get(ref)?.has(origin)===true;}
 function cors(origin=""){
   const h:Record<string,string>={
     "access-control-allow-headers":"authorization, apikey, content-type, x-client-info",
@@ -28,14 +37,19 @@ function cors(origin=""){
     "vary":"Origin",
     "x-content-type-options":"nosniff",
   };
-  if(ORIGINS.has(origin))h["access-control-allow-origin"]=origin;
+  if(originAllowed(origin))h["access-control-allow-origin"]=origin;
   return h;
 }
 function reply(status:number,body:unknown,origin=""){return new Response(JSON.stringify(body),{status,headers:cors(origin)});}
 function fail(code:string,status=400):never{throw Object.assign(new Error(code),{status});}
 function safe(value:unknown,max=800){return String(value??"").replace(/[\u0000-\u001f\u007f]/gu," ").trim().slice(0,max);}
 function env(name:string){const value=String(Deno.env.get(name)||"").trim();if(!value)fail(`IBERFIT_MEDIA_REVIEW_${name}_MISSING`,500);return value;}
-function service(){const url=env("SUPABASE_URL"),key=env("SUPABASE_SERVICE_ROLE_KEY");if(!url.includes(PROD_REF))fail("IBERFIT_MEDIA_REVIEW_PROD_ENV_INVALID",500);return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{"x-client-info":"iberfit-admin-media-review/1"}}});}
+function service(origin:string){
+  const url=env("SUPABASE_URL"),key=env("SUPABASE_SERVICE_ROLE_KEY"),ref=projectRefFromUrl(url);
+  if(!ENV_ORIGINS.has(ref))fail("IBERFIT_MEDIA_REVIEW_ENV_INVALID",500);
+  if(ENV_ORIGINS.get(ref)?.has(origin)!==true)fail("IBERFIT_MEDIA_REVIEW_ENV_ORIGIN_MISMATCH",403);
+  return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{"x-client-info":"iberfit-admin-media-review/1"}}});
+}
 function userClient(authorization:string,origin:string){return createClient(env("SUPABASE_URL"),env("SUPABASE_ANON_KEY"),{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:authorization,Origin:origin,"x-client-info":"iberfit-admin-media-review-user/1"}}});}
 
 async function authorize(authorization:string,origin:string,db:any){
@@ -99,13 +113,13 @@ function normalizeCommand(value:any){
 
 Deno.serve(async(req:Request)=>{
   const origin=String(req.headers.get("origin")||"").trim().toLowerCase();
-  if(req.method==="OPTIONS")return reply(ORIGINS.has(origin)?204:403,{},origin);
+  if(req.method==="OPTIONS")return reply(originAllowed(origin)?204:403,{},origin);
   if(req.method!=="POST")return reply(405,{ok:false,code:"M26_METHOD_NOT_ALLOWED",version:VERSION},origin);
-  if(!ORIGINS.has(origin))return reply(403,{ok:false,code:"M26_ORIGIN_FORBIDDEN",version:VERSION},origin);
+  if(!originAllowed(origin))return reply(403,{ok:false,code:"M26_ORIGIN_FORBIDDEN",version:VERSION},origin);
   const authorization=String(req.headers.get("authorization")||"").trim();
   if(!authorization.startsWith("Bearer "))return reply(401,{ok:false,code:"M26_AUTH_REQUIRED",version:VERSION},origin);
   try{
-    const db=service(),identity=await authorize(authorization,origin,db);
+    const db=service(origin),identity=await authorize(authorization,origin,db);
     const raw=await req.text();if(raw.length>100_000)fail("IBERFIT_MEDIA_REVIEW_BODY_TOO_LARGE");
     const body=raw?JSON.parse(raw):{};
     if(String(body?.action||"")==="list")return reply(200,{ok:true,version:VERSION,candidates:await listCandidates(db)},origin);

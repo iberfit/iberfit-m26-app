@@ -97,6 +97,17 @@ test('backend contract keeps review evidence private, audited, idempotent and se
   assert.doesNotMatch(edge,/PUBLISHER_PATH/u);
 });
 
+test('Admin Media Review Edge binds Canary to QA and live Admin origins to PROD',async()=>{
+  const edge=await read('supabase/functions/iberfit-admin-media-review-v1/index.ts');
+  assert.match(edge,/const PROD_REF="pjhmrhejsoofmouedavw"/u);
+  assert.match(edge,/const QA_REF="gjztkdwfmunnzhtvxrsu"/u);
+  assert.match(edge,/\[PROD_REF,new Set\(\["https:\/\/app\.iberfit\.cl","https:\/\/coach\.iberfit\.cl"\]\)\]/u);
+  assert.match(edge,/\[QA_REF,new Set\(\["https:\/\/m26-canary\.iberfit\.cl"\]\)\]/u);
+  assert.match(edge,/ENV_ORIGINS\.get\(ref\)\?\.has\(origin\)!==true/u);
+  assert.match(edge,/IBERFIT_MEDIA_REVIEW_ENV_ORIGIN_MISMATCH/u);
+  assert.doesNotMatch(edge,/PROD_ENV_INVALID/u);
+});
+
 test('factory stages review pixels privately and regeneration reuses the existing factory',async()=>{
   const [factory,workflow,regen]=await Promise.all([
     read('supabase/functions/iberfit-exercise-media-auto-factory-v1/index.ts'),
