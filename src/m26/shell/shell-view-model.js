@@ -1,4 +1,5 @@
 import {augmentAdminShellViewModel} from '../admin/view-model.js';
+import {filterAdminMediaReviewNavigation} from '../admin/media-review.js';
 import {augmentRc39ShellViewModel} from '../rc39/view-model.js';
 import {normalizeAuthorizedRoles,canSwitchApplication,requiresRoleChoice} from '../rc39/multi-role.js';
 import { metricPresentation, selectedClient } from '../production-state.js';
@@ -58,7 +59,10 @@ function createShellViewModelBase(state) {
   }
 
   const role = assertKnownRole(state.identity.role);
-  const navigation = navigationForRole(role);
+  const baseNavigation = navigationForRole(role);
+  const navigation = role==='admin'
+    ?filterAdminMediaReviewNavigation(baseNavigation,state)
+    :baseNavigation;
   const selected = role === 'client'
     ? (state.collections?.clients || []).find((client) => client.id === state.identity.clientId) || null
     : selectedClient(state);
