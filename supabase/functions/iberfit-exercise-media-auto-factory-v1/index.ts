@@ -13,6 +13,7 @@ const EXPECTED_REPOSITORY_ID="1306074388";
 const EXPECTED_REF="refs/heads/canary/rc74-4";
 const EXPECTED_PROCESS_WORKFLOW_REF="iberfit/iberfit-m26-app/.github/workflows/exercise-media-auto-factory.yml@refs/heads/canary/rc74-4";
 const EXPECTED_PROBE_WORKFLOW_REF="iberfit/iberfit-m26-app/.github/workflows/remote-gates.yml@refs/heads/canary/rc74-4";
+const EXPECTED_REGEN_WORKFLOW_REF="iberfit/iberfit-m26-app/.github/workflows/exercise-media-human-regeneration.yml@refs/heads/canary/rc74-4";
 const OFFICIAL_ISOTIPO_SHA256="d4707b688db39e11fee7d027bf9d3f2514225dfc806797ae3f9379d710ef07aa";
 const APPROVED_MASTER_SHA256="b74f8de6b50e484fa11b5d6c928b681d4b63451ad5909d81630123603e44e0bb";
 const SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/u;
@@ -46,8 +47,11 @@ async function authenticate(req:Request){
   if(payload.repository!==EXPECTED_REPOSITORY||String(payload.repository_id||"")!==EXPECTED_REPOSITORY_ID)fail("IBERFIT_AUTO_FACTORY_REPOSITORY_FORBIDDEN",403);
   if(payload.ref!==EXPECTED_REF)fail("IBERFIT_AUTO_FACTORY_REF_FORBIDDEN",403);
   const workflowRef=String(payload.workflow_ref||"");
-  if(![EXPECTED_PROCESS_WORKFLOW_REF,EXPECTED_PROBE_WORKFLOW_REF].includes(workflowRef))fail("IBERFIT_AUTO_FACTORY_WORKFLOW_FORBIDDEN",403);
-  if(!["workflow_dispatch","workflow_call","schedule"].includes(String(payload.event_name||"")))fail("IBERFIT_AUTO_FACTORY_EVENT_FORBIDDEN",403);
+  if(![EXPECTED_PROCESS_WORKFLOW_REF,EXPECTED_PROBE_WORKFLOW_REF,EXPECTED_REGEN_WORKFLOW_REF].includes(workflowRef))fail("IBERFIT_AUTO_FACTORY_WORKFLOW_FORBIDDEN",403);
+  const eventName=String(payload.event_name||"");
+  if(workflowRef===EXPECTED_REGEN_WORKFLOW_REF){
+    if(!["workflow_dispatch","schedule"].includes(eventName))fail("IBERFIT_AUTO_FACTORY_REGEN_EVENT_FORBIDDEN",403);
+  }else if(!["workflow_dispatch","workflow_call"].includes(eventName))fail("IBERFIT_AUTO_FACTORY_EVENT_FORBIDDEN",403);
   if(payload.runner_environment&&payload.runner_environment!=="github-hosted")fail("IBERFIT_AUTO_FACTORY_RUNNER_FORBIDDEN",403);
   return payload;
 }
@@ -280,6 +284,10 @@ Deno.serve(async(req:Request)=>{
     if(action==="probe"){
       requireWorkflow(claims,EXPECTED_PROBE_WORKFLOW_REF,"IBERFIT_AUTO_FACTORY_PROBE_WORKFLOW_FORBIDDEN");
       return json({ok:true,probe:true,schema:"iberfit.exercise.media.auto-factory.probe.v3",project_ref:PROD_REF,repository:String(claims.repository||""),ref:String(claims.ref||""),workflow_ref:String(claims.workflow_ref||""),run_id:String(claims.run_id||""),sha:String(claims.sha||"")});
+    }
+    if(String(claims?.workflow_ref||"")===EXPECTED_REGEN_WORKFLOW_REF){
+      if(action!=="peek"||mode!=="human_regeneration")fail("IBERFIT_AUTO_FACTORY_REGEN_WORKFLOW_FORBIDDEN",403);
+      return await peek(db,mode);
     }
     requireWorkflow(claims,EXPECTED_PROCESS_WORKFLOW_REF,"IBERFIT_AUTO_FACTORY_PROCESS_WORKFLOW_FORBIDDEN");
     if(action==="peek")return await peek(db,mode);
