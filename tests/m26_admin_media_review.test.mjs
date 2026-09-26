@@ -73,9 +73,10 @@ test('backend contract keeps review evidence private, audited and service-role o
 });
 
 test('factory stages review pixels privately and regeneration reuses the existing factory',async()=>{
-  const [factory,workflow]=await Promise.all([
+  const [factory,workflow,dispatcher]=await Promise.all([
     read('supabase/functions/iberfit-exercise-media-auto-factory-v1/index.ts'),
     read('.github/workflows/exercise-media-auto-factory.yml'),
+    read('.github/workflows/exercise-media-human-regeneration.yml'),
   ]);
   assert.match(factory,/BASE_MIN_CONFIDENCE=0\.97/u);
   assert.match(factory,/INFERRED_ANATOMY_MIN_CONFIDENCE=0\.985/u);
@@ -83,7 +84,8 @@ test('factory stages review pixels privately and regeneration reuses the existin
   assert.match(factory,/iberfit-exercise-media-review/u);
   assert.match(factory,/status===?"queued"|status==="queued"/u);
   assert.match(workflow,/stage_review/u);
-  assert.match(workflow,/human_regeneration/u);
+  assert.match(dispatcher,/human_regeneration/u);
+  assert.match(dispatcher,/exercise-media-auto-factory\.yml\/dispatches/u);
   assert.doesNotMatch(workflow,/action=publish/u);
 });
 
