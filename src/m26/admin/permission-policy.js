@@ -9,7 +9,7 @@ export const ADMIN_CAPABILITIES=Object.freeze({
 });
 export const ADMIN_ROUTE_CAPABILITIES=Object.freeze({
   'admin-inicio':'organization.read','admin-usuarios':'user.read_summary','admin-equipo':'assignment.read','admin-clientes':'client.lifecycle.read',
-  'admin-agenda':'appointment.manage_global','admin-operaciones':'operation.read_global','admin-comunicacion':'message.read',
+  'admin-agenda':'appointment.manage_global','admin-operaciones':'operation.read_global','admin-media-review':'operation.read_global','admin-comunicacion':'message.read',
   'admin-automatizaciones':'automation.read','admin-analitica':'analytics.read','admin-auditoria':'audit.read','admin-configuracion':'organization.read',
 });
 export function adminCan(state,capability){return state?.available===true&&hasCapability(state.permissions,capability);}
