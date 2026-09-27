@@ -6,8 +6,18 @@ const contract=JSON.parse(await readFile(new URL('../scripts/exercise-media/cont
 const style=await readFile(new URL('../scripts/exercise-media/STYLE.md',import.meta.url),'utf8');
 const spec=await readFile(new URL('../scripts/exercise-media/EXERCISE_MEDIA_SYSTEM_V1.md',import.meta.url),'utf8');
 const approvedMasterMetadata=JSON.parse(await readFile(new URL('../public/iberfit/master/IBERFIT_MALE_MASTER_V1/front-master-v1.metadata.json',import.meta.url),'utf8'));
+const generator=await readFile(new URL('../scripts/exercise-media/auto-factory-generate.mjs',import.meta.url),'utf8');
+const composer=await readFile(new URL('../scripts/exercise-media/compose-system-v1-auto.py',import.meta.url),'utf8');
 
 const visual=contract.media_contract.visual_system;
+
+function functionRegion(source,startMarker,endMarker){
+  const start=source.indexOf(startMarker);
+  assert.ok(start>=0,`${startMarker} must exist`);
+  const end=endMarker?source.indexOf(endMarker,start):source.length;
+  assert.ok(end>start,`${startMarker} region must be bounded`);
+  return source.slice(start,end);
+}
 
 test('exercise media system v1 locks a high-resolution 4:5 master and current delivery derivative',()=>{
   assert.equal(visual.version,'iberfit.exercise.media.system.v1');
@@ -79,6 +89,19 @@ test('branding uses only the exact official isotipo in approved placements',()=>
   assert.match(spec,/both use the exact repository asset `public\/isotipo-iberfit\.png`/i);
 });
 
+test('raw generated phases stay brand-free until deterministic official branding is composited',()=>{
+  const startQa=functionRegion(generator,'async function validateStartPhase','async function validateRawPair');
+  const pairQa=functionRegion(generator,'async function validateRawPair','async function main');
+  for(const region of [startQa,pairQa]){
+    assert.match(region,/no_unapproved_branding/,'raw QA must require an explicit brand-purity boolean');
+    assert.match(region,/brand-free before composition/,'raw QA must reject branding before deterministic composition');
+    assert.match(region,/shirt, shorts, shoes, equipment or background/,'brand purity must cover every generated surface');
+    assert.match(region,/official IBERFIT isotipo is added only after this gate/i,'raw QA must distinguish generated branding from approved deterministic branding');
+  }
+  assert.match(generator,/START_REPAIR_ATTEMPTS=1/,'START repair bound must remain unchanged');
+  assert.match(generator,/FINAL_REPAIR_ATTEMPTS=1/,'FINAL repair bound must remain unchanged');
+});
+
 test('anatomy inset is required, upper-left, small, analytical and subordinate to biomechanics',()=>{
   assert.equal(visual.anatomy_inset.required_by_default,true);
   assert.equal(visual.anatomy_inset.exception_requires_qa_justification,true);
@@ -97,6 +120,16 @@ test('anatomy inset is required, upper-left, small, analytical and subordinate t
   assert.match(spec,/upper-left visual zone/i);
   assert.match(spec,/clean analytical anatomical plate/i);
   assert.match(style,/no hyper-defined musculature/i);
+});
+
+test('anatomy renderer keeps primary targets perceptually dominant at delivery scale',()=>{
+  const alpha=composer.match(/PRIMARY=\(\d+,\d+,\d+,(\d+)\);SECONDARY=\(\d+,\d+,\d+,(\d+)\)/);
+  assert.ok(alpha,'primary and secondary anatomy colors must expose deterministic alpha values');
+  const primaryAlpha=Number(alpha[1]);
+  const secondaryAlpha=Number(alpha[2]);
+  assert.ok(primaryAlpha>=245,'primary targets must stay visually strong');
+  assert.ok(secondaryAlpha<=primaryAlpha*0.45,'secondary targets must remain clearly subordinate at delivery scale');
+  assert.match(composer,/for m in secondary:[\s\S]{0,220}mark\(d,s,SECONDARY\)[\s\S]{0,220}for m in primary:[\s\S]{0,220}mark\(d,s,PRIMARY\)/,'primary overlays must be rendered after secondary overlays so overlap resolves in favor of primary targets');
 });
 
 test('one canonical system must support library, live sessions, detail and fullscreen contexts',()=>{
