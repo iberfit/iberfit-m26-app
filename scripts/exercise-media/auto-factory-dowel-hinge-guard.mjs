@@ -23,7 +23,7 @@ function hasThreePosteriorContacts(text){
 
 function hasForbiddenLoadPlacement(text){
   const n=normalize(text);
-  return /(?:palo|bast[oó]n|dowel).{0,100}(?:delante|frontal|muslos?|deltoides|sobre los hombros|carga)|(?:delante|frontal|muslos?|deltoides|sobre los hombros|carga).{0,100}(?:palo|bast[oó]n|dowel)/u.test(n);
+  return /(?:palo|bast[oó]n|dowel).{0,100}(?:delante|frontal|muslos?|deltoides|sobre los hombros)|(?:delante|frontal|muslos?|deltoides|sobre los hombros).{0,100}(?:palo|bast[oó]n|dowel)/u.test(n);
 }
 
 function hasHipHingeFinal(text){
