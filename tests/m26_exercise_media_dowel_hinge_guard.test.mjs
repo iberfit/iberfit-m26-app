@@ -30,7 +30,7 @@ test('invalid front-loaded dowel plan from the failed live run is rejected befor
 
 test('canonical three-point dowel feedback plan passes and keeps a real hip hinge',()=>{
   const plan={
-    start:'De pie con rodillas suaves y columna neutra. Un palo recorre la espalda por detrás y mantiene contacto con la parte posterior de la cabeza, la espalda torácica entre los omóplatos y el sacro; ambos contactos se conservan antes de iniciar el movimiento.',
+    start:'De pie con rodillas suaves y columna neutra. El palo, que no se usa como carga, recorre la espalda por detrás y mantiene contacto con la parte posterior de la cabeza, la espalda torácica entre los omóplatos y el sacro antes de iniciar el movimiento.',
     final:'La cadera viaja claramente atrás mientras el tronco se inclina hacia delante desde la cadera y la columna permanece neutra. El palo sigue por detrás de la espalda manteniendo contacto con cabeza, región torácica entre los omóplatos y sacro; las rodillas solo permanecen suavemente flexionadas.',
   };
   assert.equal(hipHingeDowelPlanIssue(plan),null);
@@ -46,6 +46,6 @@ test('planner wires the dowel hard guard into initial planning repair and final 
   assert.match(planner,/dowelHinge\?dowelGuard:''/u);
   assert.match(planner,/hardMovement\|\|dowelHinge\?MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS:0/u);
   assert.match(planner,/if\(dowelHinge\)\{const issue=hipHingeDowelPlanIssue\(plan\);if\(issue\)issues\.push\(issue\);\}/u);
-  assert.match(planner,/finalDowelIssue=dowelHinge\?hipHingeDowelPlanIssue\(exercise,plan\):null/u);
-  assert.doesNotMatch(planner,/0\.97\s*[-=>]/u);
+  assert.match(planner,/finalDowelIssue=dowelHinge\?hipHingeDowelPlanIssue\(plan\):null/u);
+  assert.match(planner,/const min=inferred\?0\.985:0\.96/u);
 });
