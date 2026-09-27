@@ -3,6 +3,7 @@ import { createCommand } from '../command-bus.js';
 import { M26_EXTENDED_COMMAND_REGISTRY } from '../command-catalog.js';
 import { validateCheckinDraft, validateHabitDefinitionDraft, validateHabitLogDraft } from './activity-drafts.js';
 import {validateActionDecisionDraft,validateActionOutcomeDraft} from '../intelligence/action-outcome.js';
+import {createChallengeDefinition} from './challenge-metrics.js';
 
 function id(){return createM26Id();}
 function text(value,max){return String(value||'').trim().slice(0,max);}
@@ -10,6 +11,31 @@ function requireClient(clientId){if(!clientId)throw new Error('M26_CLIENT_CONTEX
 function build(input,{registry=M26_EXTENDED_COMMAND_REGISTRY,role=null}={}){return createCommand(input,{registry,role});}
 function optionalBoundedText(value,max,code){if(value===null||value===undefined)return null;const normalized=String(value).trim();if(normalized.length>max)throw new Error(code);return normalized||null;}
 function renewalDate(value){if(value===null||value===undefined||String(value).trim()==='')return null;const normalized=String(value).trim();const match=normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/u);if(!match)throw new Error('M26_RENEWAL_DATE_INVALID');const y=Number(match[1]),m=Number(match[2]),d=Number(match[3]);const date=new Date(Date.UTC(y,m-1,d));if(date.getUTCFullYear()!==y||date.getUTCMonth()!==m-1||date.getUTCDate()!==d)throw new Error('M26_RENEWAL_DATE_INVALID');return normalized;}
+
+function canonicalChallengePatch(challenge={}){
+  const definition=createChallengeDefinition({...challenge,mode:'individual'});
+  if(!['consistency','sessions','habits'].includes(definition.type))throw new Error('M26_CHALLENGE_TYPE_NOT_ENABLED_V1');
+  const title=text(challenge.title||definition.label,120);
+  if(title.length<3)throw new Error('M26_CHALLENGE_TITLE_REQUIRED');
+  const detail=optionalBoundedText(challenge.detail,360,'M26_CHALLENGE_DETAIL_INVALID');
+  return Object.freeze({
+    title,
+    detail,
+    type:definition.type,
+    metricKey:definition.metricKey,
+    unit:definition.unit,
+    days:definition.days,
+    mode:'individual',
+    target:definition.target,
+    habitId:definition.habitId,
+    requiresDeviceOptIn:false,
+    visibleToClient:true,
+    socialSharing:false,
+    rawHealthDataAllowed:false,
+    automaticPrescriptionChanges:false,
+    clinicalClassification:false,
+  });
+}
 
 export function buildCheckinRegisterCommand({clientId,checkin,entityId=id(),baseRevision=0}={},options={}){
   const validation=validateCheckinDraft(checkin);if(!validation.ok)throw new Error(`M26_CHECKIN_INVALID:${validation.errors.join(',')}`);
@@ -56,7 +82,6 @@ export function buildCommercialRenewalCommand({clientId,renewal={},entityId=id()
   return build({operationId,type:'RENOVACION_REGISTRAR',entityType:'renewal',entityId,clientId:requireClient(clientId),baseRevision:revision,payload:{patch}},options);
 }
 
-
 export function buildActionTrackingCommand({clientId,tracking={},entityId=id(),baseRevision=0,operationId}={},options={}){
   const validation=validateActionDecisionDraft(tracking);
   if(!validation.ok)throw new Error(`M26_ACTION_TRACKING_INVALID:${validation.errors.join(',')}`);
@@ -87,5 +112,52 @@ export function buildActionOutcomeCommand({clientId,trackingId,outcome={},baseRe
     clientId:requireClient(clientId),
     baseRevision:revision,
     payload:{patch:validation.value},
+  },options);
+}
+
+export function buildChallengeCreateCommand({clientId,challenge={},entityId=id(),baseRevision=0,operationId}={},options={}){
+  const revision=Number(baseRevision);
+  if(revision!==0)throw new Error('M26_CHALLENGE_CREATE_REVISION_INVALID');
+  return build({
+    operationId,
+    type:'RETO_CREAR',
+    entityType:'challenge',
+    entityId,
+    clientId:requireClient(clientId),
+    baseRevision:0,
+    payload:{patch:canonicalChallengePatch(challenge)},
+  },options);
+}
+
+export function buildChallengeUpdateCommand({clientId,challengeId,challenge={},baseRevision,operationId}={},options={}){
+  if(!challengeId)throw new Error('M26_CHALLENGE_ID_REQUIRED');
+  const revision=Number(baseRevision);
+  if(!Number.isInteger(revision)||revision<1)throw new Error('M26_CHALLENGE_REVISION_REQUIRED');
+  return build({
+    operationId,
+    type:'RETO_ACTUALIZAR',
+    entityType:'challenge',
+    entityId:challengeId,
+    clientId:requireClient(clientId),
+    baseRevision:revision,
+    payload:{patch:canonicalChallengePatch(challenge)},
+  },options);
+}
+
+export function buildChallengeArchiveCommand({clientId,challengeId,reason,baseRevision,operationId}={},options={}){
+  if(!challengeId)throw new Error('M26_CHALLENGE_ID_REQUIRED');
+  const revision=Number(baseRevision);
+  if(!Number.isInteger(revision)||revision<1)throw new Error('M26_CHALLENGE_REVISION_REQUIRED');
+  const normalizedReason=text(reason,500);
+  if(!normalizedReason)throw new Error('M26_CHALLENGE_ARCHIVE_REASON_REQUIRED');
+  return build({
+    operationId,
+    type:'RETO_ARCHIVAR',
+    entityType:'challenge',
+    entityId:challengeId,
+    clientId:requireClient(clientId),
+    baseRevision:revision,
+    reason:normalizedReason,
+    payload:{patch:{}},
   },options);
 }
