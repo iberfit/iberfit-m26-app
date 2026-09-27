@@ -57,7 +57,9 @@ test('planner wires Body Saw into the same single bounded repair loop',async()=>
   assert.match(planner,/bodySaw\?bodySawGuard:''/);
   assert.match(planner,/if\(bodySaw\)\{const issue=bodySawPlanIssue\(plan\);if\(issue\)issues\.push\(issue\);\}/);
   assert.match(planner,/const finalBodySawIssue=bodySaw\?bodySawPlanIssue\(plan\):null/);
-  assert.match(planner,/hardMovement\|\|dowelHinge\|\|bodySaw\?MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS:0/);
+  const repairGate=planner.match(/const maxRepair=Math\.max\(cable\?MAX_CABLE_PLAN_REPAIR_ATTEMPTS:0,([^?]+)\?MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS:0\)/u);
+  assert.ok(repairGate,'movement repair gate must remain wired into maxRepair');
+  assert.ok(repairGate[1].split('||').includes('bodySaw'),'bodySaw must participate in the bounded movement repair gate');
   assert.match(planner,/MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS=1/);
   assert.doesNotMatch(planner,/MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS=[2-9]/);
 });
