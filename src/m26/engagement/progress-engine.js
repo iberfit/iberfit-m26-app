@@ -180,6 +180,14 @@ function sessionPlanShape(record={}){
   return Object.freeze({plannedSets,plannedExercises});
 }
 
+function executionPlanSnapshot(record={}){
+  const execution=unwrap(record)||{};
+  const snapshot=first(execution,'planSnapshot','plan_snapshot');
+  return snapshot&&typeof snapshot==='object'&&!Array.isArray(snapshot)
+    ?snapshot
+    :null;
+}
+
 function skippedSetCount(record={}){
   const execution=unwrap(record)||{};
   const skipped=execution.skippedSets??execution.skipped_sets;
@@ -227,8 +235,14 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
   for(const execution of completed){
     const sessionId=String(first(execution,'sessionId','session_id')||'').trim();
     const session=sessionId?sessions.get(sessionId):null;
-    if(!session){unmatchedExecutions+=1;continue;}
-    const shape=sessionPlanShape(session);
+    const planSnapshot=executionPlanSnapshot(execution);
+    if(planSnapshot){
+      const snapshotSessionId=String(first(planSnapshot,'sessionId','session_id')||'').trim();
+      if(snapshotSessionId&&snapshotSessionId!==sessionId){unmatchedExecutions+=1;continue;}
+    }
+    const planSource=planSnapshot||session;
+    if(!planSource){unmatchedExecutions+=1;continue;}
+    const shape=sessionPlanShape(planSource);
     if(!shape.plannedSets){unmatchedExecutions+=1;continue;}
 
     const recordedSets=setRows(execution).length;
@@ -244,7 +258,7 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
     rows.push(Object.freeze({
       executionId:String(first(execution,'id','executionId','execution_id')||''),
       sessionId,
-      sessionTitle:String(first(session,'title','name','nombre')||first(execution,'title','sessionTitle','session_title')||'Sesión IBERFIT').trim().slice(0,120),
+      sessionTitle:String(first(planSnapshot,'title','name','nombre')||first(session,'title','name','nombre')||first(execution,'title','sessionTitle','session_title')||'Sesión IBERFIT').trim().slice(0,120),
       completedAt:dateOf(execution)||null,
       plannedExercises:shape.plannedExercises,
       plannedSets:shape.plannedSets,
