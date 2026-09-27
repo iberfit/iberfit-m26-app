@@ -616,6 +616,104 @@ function epExerciseMeta(session,exerciseId){
   return null;
 }
 
+function epExecutionPlanSnapshotForSession(source,original,sessionId){
+  const expectedSessionId=String(sessionId||'').trim();
+  if(!expectedSessionId)return null;
+
+  for(const candidate of [source,original]){
+    const item=unwrap(candidate)||{};
+    const snapshot=epFirst(item,'planSnapshot','plan_snapshot');
+
+    if(
+      !snapshot||
+      typeof snapshot!=='object'||
+      Array.isArray(snapshot)
+    ){
+      continue;
+    }
+
+    const snapshotSessionId=String(
+      epFirst(snapshot,'sessionId','session_id')||''
+    ).trim();
+
+    if(snapshotSessionId===expectedSessionId){
+      return snapshot;
+    }
+  }
+
+  return null;
+}
+
+function epExerciseMetaForRow(plan,exerciseId,row){
+  if(!plan||!exerciseId)return null;
+
+  const blockId=String(
+    epFirst(row,'blockId','block_id')||''
+  ).trim();
+
+  if(!blockId){
+    return epExerciseMeta(plan,exerciseId);
+  }
+
+  const block=(
+    Array.isArray(plan.blocks)?plan.blocks:[]
+  ).find(
+    (candidate)=>String(
+      epFirst(candidate,'id','blockId','block_id')||''
+    )===blockId
+  );
+
+  return block
+    ?epExerciseMeta({blocks:[block]},exerciseId)
+    :null;
+}
+
+function epExerciseWasLiveOverride(source,original,exerciseId){
+  const expected=String(exerciseId||'');
+  if(!expected)return false;
+
+  for(const candidate of [source,original]){
+    const item=unwrap(candidate)||{};
+
+    for(const entry of Array.isArray(item.events)?item.events:[]){
+      const type=String(entry?.type||'').trim().toUpperCase();
+      const payload=
+        entry?.payload&&
+        typeof entry.payload==='object'&&
+        !Array.isArray(entry.payload)
+          ?entry.payload
+          :entry;
+
+      if(
+        type==='EXERCISE_SUBSTITUTED'&&
+        String(
+          epFirst(
+            payload,
+            'toExerciseId','to_exercise_id',
+            'exerciseId','exercise_id'
+          )||''
+        )===expected
+      ){
+        return true;
+      }
+
+      if(
+        type==='EXERCISE_ADDED'&&
+        String(
+          epFirst(
+            payload,
+            'exerciseId','exercise_id'
+          )||''
+        )===expected
+      ){
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 function epResultRows(source){
   const candidates=[
     source?.results,
@@ -821,6 +919,12 @@ export function buildExerciseLongitudinalProgress(
       ? sessions.get(String(sessionId))
       : null;
 
+    const planSnapshot=epExecutionPlanSnapshotForSession(
+      source,
+      original,
+      sessionId
+    );
+
     const grouped=new Map();
 
     for(const row of rows){
@@ -834,7 +938,16 @@ export function buildExerciseLongitudinalProgress(
       if(!exerciseId)continue;
 
       const id=String(exerciseId);
-      const meta=epExerciseMeta(session,id)||{
+
+      const snapshotMeta=epExerciseWasLiveOverride(
+        source,
+        original,
+        id
+      )
+        ?null
+        :epExerciseMetaForRow(planSnapshot,id,row);
+
+      const meta=snapshotMeta||epExerciseMeta(session,id)||{
         id,
         name:String(epFirst(
           row,
