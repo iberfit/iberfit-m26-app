@@ -44,7 +44,9 @@ test('planner wires the dowel hard guard into initial planning repair and final 
   const planner=await readFile(new URL('../scripts/exercise-media/auto-factory-plan.mjs',import.meta.url),'utf8');
   assert.match(planner,/isHipHingeDowelExercise/u);
   assert.match(planner,/dowelHinge\?dowelGuard:''/u);
-  assert.match(planner,/hardMovement\|\|dowelHinge\?MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS:0/u);
+  const repairGate=planner.match(/const maxRepair=Math\.max\(cable\?MAX_CABLE_PLAN_REPAIR_ATTEMPTS:0,([^?]+)\?MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS:0\)/u);
+  assert.ok(repairGate,'movement repair gate must remain wired into maxRepair');
+  assert.ok(repairGate[1].split('||').includes('dowelHinge'),'dowelHinge must participate in the bounded movement repair gate');
   assert.match(planner,/if\(dowelHinge\)\{const issue=hipHingeDowelPlanIssue\(plan\);if\(issue\)issues\.push\(issue\);\}/u);
   assert.match(planner,/finalDowelIssue=dowelHinge\?hipHingeDowelPlanIssue\(plan\):null/u);
   assert.match(planner,/const min=inferred\?0\.985:0\.96/u);
