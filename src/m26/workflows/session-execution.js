@@ -72,6 +72,19 @@ function previousPlannedPosition(execution){
   }
   return currentOffset>0?positions[currentOffset-1]:null;
 }
+function createPlanSnapshot(session,queue){
+  const rawRevision=Number(session?.revision??session?.version??0);
+  const sessionRevision=Number.isInteger(rawRevision)&&rawRevision>=0?rawRevision:0;
+  return {
+    schemaVersion:1,
+    sessionId:String(session.id),
+    sessionRevision,
+    title:String(session.title||session.name||'').trim().slice(0,120)||null,
+    blocks:clone(session.blocks||[]),
+    queue:clone(queue),
+  };
+}
+
 export function createExecution({session,clientId,executionId=uid()}={}){
   if(!session?.id||!clientId)throw new Error('M26_EXECUTION_SESSION_CLIENT_REQUIRED');
   const queue=[];
@@ -80,7 +93,7 @@ export function createExecution({session,clientId,executionId=uid()}={}){
     else {const sets=Number(block.rounds||1),exerciseIds=block.exerciseIds||[];if(!Number.isInteger(sets)||sets<1||sets>100||!exerciseIds.length)throw new Error('M26_EXECUTION_GROUP_INVALID');for(const [groupOrder,exerciseId] of exerciseIds.entries()){if(!exerciseId)throw new Error('M26_EXECUTION_GROUP_INVALID');const planned=block.prescriptions?.[exerciseId]||{},restSeconds=Number(planned.restSeconds||60),targetRpe=Number(planned.targetRpe||7),targetRir=Number(planned.targetRir??3);if(!Number.isFinite(restSeconds)||restSeconds<1||restSeconds>3600||!Number.isFinite(targetRpe)||targetRpe<1||targetRpe>10||!Number.isFinite(targetRir)||targetRir<0||targetRir>10)throw new Error('M26_EXECUTION_GROUP_INVALID');queue.push({blockId:block.id,exerciseId,sets,groupType:block.type,groupOrder,groupSize:exerciseIds.length,prescription:{reps:String(planned.reps||'').trim().slice(0,40)||null,plannedLoad:String(planned.plannedLoad||'').trim().slice(0,80)||null,restSeconds,tempo:String(planned.tempo||'').trim().slice(0,40)||null,targetRpe,targetRir,prescriptionNotes:String(planned.prescriptionNotes||'').trim().slice(0,1000)||null,progression:String(planned.progression||'').trim().slice(0,500)||null,alternativeId:planned.alternativeId||null}});}}
   }
   if(!queue.length)throw new Error('M26_EXECUTION_EMPTY_SESSION');
-  return {id:executionId,sessionId:session.id,clientId,status:'ready',syncStatus:'clean',pendingOperationIds:[],lastSyncError:null,revision:0,queue,index:0,setIndex:0,startedAt:null,activeSince:null,accumulatedActiveMs:0,completedAt:null,restUntil:null,events:[],results:{},feedback:null};
+  return {id:executionId,sessionId:session.id,clientId,status:'ready',syncStatus:'clean',pendingOperationIds:[],lastSyncError:null,revision:0,planSnapshot:createPlanSnapshot(session,queue),queue,index:0,setIndex:0,startedAt:null,activeSince:null,accumulatedActiveMs:0,completedAt:null,restUntil:null,events:[],results:{},feedback:null};
 }
 export function currentStep(execution,session){
   const item=execution.queue[execution.index]; if(!item)return null;
