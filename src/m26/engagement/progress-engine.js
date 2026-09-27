@@ -1032,7 +1032,7 @@ export function buildExerciseLongitudinalProgress(
 
     exercises.push(Object.freeze({
       exerciseId:item.id,
-      exerciseName:item.name,
+      exerciseName:latest.exerciseName||item.name,
       sessions:allPoints.length,
       totalSets,
       firstAt:allPoints[0].at,
