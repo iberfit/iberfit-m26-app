@@ -13,6 +13,8 @@ function optionalBoundedText(value,max,code){if(value===null||value===undefined)
 function renewalDate(value){if(value===null||value===undefined||String(value).trim()==='')return null;const normalized=String(value).trim();const match=normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/u);if(!match)throw new Error('M26_RENEWAL_DATE_INVALID');const y=Number(match[1]),m=Number(match[2]),d=Number(match[3]);const date=new Date(Date.UTC(y,m-1,d));if(date.getUTCFullYear()!==y||date.getUTCMonth()!==m-1||date.getUTCDate()!==d)throw new Error('M26_RENEWAL_DATE_INVALID');return normalized;}
 
 function canonicalChallengePatch(challenge={}){
+  const requestedMode=String(challenge?.mode||'individual').trim().toLowerCase();
+  if(requestedMode!=='individual')throw new Error('M26_CHALLENGE_GROUP_REQUIRES_OPT_IN_DOMAIN');
   const definition=createChallengeDefinition({...challenge,mode:'individual'});
   if(!['consistency','sessions','habits'].includes(definition.type))throw new Error('M26_CHALLENGE_TYPE_NOT_ENABLED_V1');
   const title=text(challenge.title||definition.label,120);
