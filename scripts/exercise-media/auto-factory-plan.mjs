@@ -5,6 +5,7 @@ import {fetchWithTransientRetry} from './auto-factory-fetch.mjs';
 import {extractStructuredResponse} from './auto-factory-structured-response.mjs';
 import {hasHardMovementPlanGuard,movementPlanIssue,movementVisualGuard} from './auto-factory-movement-guard.mjs';
 import {hipHingeDowelPlanIssue,hipHingeDowelVisualGuard,isHipHingeDowelExercise} from './auto-factory-dowel-hinge-guard.mjs';
+import {bodySawPlanIssue,bodySawVisualGuard,isBodySawExercise} from './auto-factory-body-saw-guard.mjs';
 
 const ALLOWED=new Set(['core','glúteos','aductores','cuádriceps','isquiotibiales','bíceps','dorsal ancho','romboides','tríceps','oblicuos','erectores espinales','deltoides anterior','deltoides posterior','deltoides','serrato','pectoral']);
 const GENERIC=new Set(['movilidad','global','músculo objetivo']);
@@ -32,7 +33,7 @@ async function main(){
   const claimPath=exact(arg('--claim'),'CLAIM');const outPath=exact(arg('--out'),'OUT');
   const claim=JSON.parse(fs.readFileSync(claimPath,'utf8'));const exercise=claim?.claim?.exercise;if(!exercise?.id)throw new Error('CLAIM_EXERCISE_MISSING');
   const proxy=exact(process.env.IBERFIT_AI_PROXY_URL,'IBERFIT_AI_PROXY_URL').replace(/\/+$/,'')+'/qa';const token=exact(process.env.IBERFIT_AI_PROXY_TOKEN,'IBERFIT_AI_PROXY_TOKEN');
-  const primary=(exercise.primary_muscles||[]).map(norm);const secondary=(exercise.secondary_muscles||[]).map(norm);const inferred=primary.some(x=>GENERIC.has(x));const cable=usesCableEquipment(exercise);const hardMovement=hasHardMovementPlanGuard(exercise);const dowelHinge=isHipHingeDowelExercise(exercise);const movementGuard=movementVisualGuard(exercise);const dowelGuard=hipHingeDowelVisualGuard(exercise);
+  const primary=(exercise.primary_muscles||[]).map(norm);const secondary=(exercise.secondary_muscles||[]).map(norm);const inferred=primary.some(x=>GENERIC.has(x));const cable=usesCableEquipment(exercise);const hardMovement=hasHardMovementPlanGuard(exercise);const dowelHinge=isHipHingeDowelExercise(exercise);const bodySaw=isBodySawExercise(exercise);const movementGuard=movementVisualGuard(exercise);const dowelGuard=hipHingeDowelVisualGuard(exercise);const bodySawGuard=bodySawVisualGuard(exercise);
   const requestPlan=async(repairAttempt=0,repairReason='')=>{
     const rubric=[
       'You are the movement-visual planner for IBERFIT Exercise Media System v1. Produce a precise image-generation plan from the canonical exercise record. Do not invent a different exercise.',
@@ -42,6 +43,7 @@ async function main(){
       'Describe one unambiguous START phase and one unambiguous FINAL phase for the exact exercise. Include support points, grip, joint relationships and equipment placement. Keep each phase under 700 characters.',
       hardMovement?movementGuard:'',
       dowelHinge?dowelGuard:'',
+      bodySaw?bodySawGuard:'',
       cable?'Cable/pulley continuity is non-negotiable: both hands must remain visibly gripping one cable handle each in START and FINAL, and the cables remain visibly connected and under tension. Hands may cross the body midline, but forearms must never fold across the torso and the athlete must never release the handles. Describe this explicitly in both phases.':'',
       repairAttempt>0?`REPAIR PASS ${repairAttempt}: the previous plan was rejected for ${repairReason}. Rewrite START and FINAL so every required support, floor contact, grip, phase relationship and movement-specific hard lock is explicit, physically possible and visually unambiguous. Preserve the exact exercise and all cable continuity rules when applicable.`:'',
       'Choose one camera from: front, three-quarter-front, side, three-quarter-rear, rear. Instructional clarity outranks cinematic appearance.',
@@ -58,13 +60,14 @@ async function main(){
     const parsed=extractStructuredResponse(payload,{missingError:'PLAN_RESPONSE_MISSING',invalidError:'PLAN_JSON_INVALID'});assertBasicPlanShape(parsed);return parsed;
   };
   let plan=null;let repairReason='';
-  const maxRepair=Math.max(cable?MAX_CABLE_PLAN_REPAIR_ATTEMPTS:0,hardMovement||dowelHinge?MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS:0);
+  const maxRepair=Math.max(cable?MAX_CABLE_PLAN_REPAIR_ATTEMPTS:0,hardMovement||dowelHinge||bodySaw?MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS:0);
   for(let repairAttempt=0;repairAttempt<=maxRepair;repairAttempt+=1){
     plan=await requestPlan(repairAttempt,repairReason);
     const issues=[];
     if(cable){const issue=cablePlanIssue(plan);if(issue)issues.push(issue);}
     if(hardMovement){const issue=movementPlanIssue(exercise,plan);if(issue)issues.push(issue);}
     if(dowelHinge){const issue=hipHingeDowelPlanIssue(plan);if(issue)issues.push(issue);}
+    if(bodySaw){const issue=bodySawPlanIssue(plan);if(issue)issues.push(issue);}
     if(issues.length===0)break;
     repairReason=issues.join('|');
     if(repairAttempt>=maxRepair)throw new Error(issues[0]);
@@ -72,6 +75,7 @@ async function main(){
   assertBasicPlanShape(plan);
   const finalMovementIssue=hardMovement?movementPlanIssue(exercise,plan):null;if(finalMovementIssue)throw new Error(finalMovementIssue);
   const finalDowelIssue=dowelHinge?hipHingeDowelPlanIssue(plan):null;if(finalDowelIssue)throw new Error(finalDowelIssue);
+  const finalBodySawIssue=bodySaw?bodySawPlanIssue(plan):null;if(finalBodySawIssue)throw new Error(finalBodySawIssue);
   const finalCableIssue=cable?cablePlanIssue(plan):null;if(finalCableIssue)throw new Error(finalCableIssue);
   const anatomyPrimary=canonicalList(plan.anatomy_primary),anatomySecondary=canonicalList(plan.anatomy_secondary);
   if(anatomyPrimary.length<1)throw new Error('PLAN_ANATOMY_PRIMARY_EMPTY');
