@@ -17,7 +17,7 @@ test('cable planner rejects folded-arm ambiguity and allows one bounded repair o
   assert.match(planner,/MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS=1/);
   assert.match(planner,/PLAN_CABLE_ARM_FOLD_AMBIGUOUS/);
   assert.match(planner,/hands may cross the body midline, but forearms must never fold across the torso/i);
-  assert.match(planner,/const maxRepair=Math\.max\(cable\?MAX_CABLE_PLAN_REPAIR_ATTEMPTS:0,hardMovement\|\|dowelHinge\?MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS:0\)/);
+  assert.match(planner,/const maxRepair=Math\.max\(cable\?MAX_CABLE_PLAN_REPAIR_ATTEMPTS:0,hardMovement\|\|dowelHinge\|\|bodySaw\?MAX_MOVEMENT_PLAN_REPAIR_ATTEMPTS:0\)/);
   assert.match(planner,/repairAttempt<=maxRepair/);
   assert.match(planner,/repairAttempt>=maxRepair/);
   assert.doesNotMatch(planner,/MAX_CABLE_PLAN_REPAIR_ATTEMPTS=[2-9]/);
