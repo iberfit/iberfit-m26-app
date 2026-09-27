@@ -11,6 +11,27 @@ function findExercise(session, exerciseId){
   }
   return null;
 }
+function planSnapshotForExecution(execution){
+  const snapshot=execution?.planSnapshot||execution?.plan_snapshot||null;
+  if(!snapshot)return null;
+  const executionSessionId=String(execution?.sessionId??execution?.session_id??'').trim();
+  const snapshotSessionId=String(snapshot?.sessionId??snapshot?.session_id??'').trim();
+  if(!executionSessionId||!snapshotSessionId||executionSessionId!==snapshotSessionId)return null;
+  return snapshot;
+}
+function findExecutionExercise(execution,session,item){
+  const snapshot=planSnapshotForExecution(execution);
+  if(snapshot){
+    const blocks=snapshot.blocks||[];
+    const block=item?.blockId?blocks.find((candidate)=>candidate?.id===item.blockId):null;
+    if(block?.type==='exercise'&&block.exerciseId===item?.exerciseId)return block;
+    if(Array.isArray(block?.exercises)){
+      const nested=block.exercises.find((candidate)=>candidate?.exerciseId===item?.exerciseId);
+      if(nested)return nested;
+    }
+  }
+  return findExercise(session,item?.exerciseId);
+}
 function isGroupedQueueItem(item){return Boolean(item?.groupType&&item?.blockId);}
 function sameExecutionGroup(a,b){return isGroupedQueueItem(a)&&isGroupedQueueItem(b)&&a.blockId===b.blockId&&a.groupType===b.groupType;}
 function plannedExecutionPositions(execution){
@@ -97,7 +118,7 @@ export function createExecution({session,clientId,executionId=uid()}={}){
 }
 export function currentStep(execution,session){
   const item=execution.queue[execution.index]; if(!item)return null;
-  const exercise=findExercise(session,item.exerciseId);
+  const exercise=findExecutionExercise(execution,session,item);
   return {...item,setNumber:execution.setIndex+1,totalSets:item.sets,roundNumber:isGroupedQueueItem(item)?execution.setIndex+1:null,totalRounds:isGroupedQueueItem(item)?item.sets:null,exercise,prescription:clone(item.prescription||{})};
 }
 function actorSnapshot(actor){
