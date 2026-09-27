@@ -234,3 +234,61 @@ test('live substitutions never inherit stale metadata from a matching historical
     'Peso muerto registrado live'
   );
 });
+
+test('exercise progress uses the latest confirmed historical label regardless of execution input order',()=>{
+  const older=completedExecution({
+    id:'execution-progress-older',
+    completedAt:'2026-09-20T11:00:00.000Z',
+    planSnapshot:{
+      schemaVersion:1,
+      sessionId:SESSION,
+      title:'Plan histórico antiguo',
+      blocks:[{
+        id:'block-squat',
+        type:'exercise',
+        exerciseId:'squat',
+        exerciseName:'Sentadilla clásica',
+        sets:3,
+      }],
+    },
+  });
+
+  const newer=completedExecution({
+    id:'execution-progress-newer',
+    completedAt:'2026-09-26T11:00:00.000Z',
+    planSnapshot:{
+      schemaVersion:1,
+      sessionId:SESSION,
+      title:'Plan histórico nuevo',
+      blocks:[{
+        id:'block-squat',
+        type:'exercise',
+        exerciseId:'squat',
+        exerciseName:'Sentadilla trasera actual',
+        sets:3,
+      }],
+    },
+  });
+
+  const state=stateFor({execution:older});
+  state.collections.sessionExecutions=[older,newer];
+
+  const progress=buildExerciseLongitudinalProgress(
+    state,
+    CLIENT
+  );
+
+  assert.equal(progress.totalExercises,1);
+  assert.equal(
+    progress.exercises[0].exerciseName,
+    'Sentadilla trasera actual'
+  );
+  assert.equal(
+    progress.exercises[0].latest.exerciseName,
+    'Sentadilla trasera actual'
+  );
+  assert.deepEqual(
+    progress.exercises[0].history.map((point)=>point.exerciseName),
+    ['Sentadilla clásica','Sentadilla trasera actual']
+  );
+});
