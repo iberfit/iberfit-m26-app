@@ -9,6 +9,8 @@ on:
       - 'src/m26/command-bus.js'
       - 'src/m26/supabase-transport.js'
       - 'src/m26/workflows/**'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/iberfit-admin-client-invite-v1/**'
   push:
     branches: [canary/rc74-4]
     paths:
@@ -17,6 +19,8 @@ on:
       - 'src/m26/command-bus.js'
       - 'src/m26/supabase-transport.js'
       - 'src/m26/workflows/**'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/iberfit-admin-client-invite-v1/**'
   workflow_dispatch:
 
 permissions:
