@@ -171,9 +171,11 @@ test('live substitutions never inherit stale metadata from a matching historical
     },
     events:[{
       type:'EXERCISE_SUBSTITUTED',
-      fromExerciseId:'squat',
-      toExerciseId:'deadlift',
-      reason:'Ajuste en sesión',
+      payload:{
+        fromExerciseId:'squat',
+        toExerciseId:'deadlift',
+        reason:'Ajuste en sesión',
+      },
     }],
     planSnapshot:{
       schemaVersion:1,

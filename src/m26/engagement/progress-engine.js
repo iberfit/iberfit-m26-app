@@ -677,12 +677,18 @@ function epExerciseWasLiveOverride(source,original,exerciseId){
 
     for(const entry of Array.isArray(item.events)?item.events:[]){
       const type=String(entry?.type||'').trim().toUpperCase();
+      const payload=
+        entry?.payload&&
+        typeof entry.payload==='object'&&
+        !Array.isArray(entry.payload)
+          ?entry.payload
+          :entry;
 
       if(
         type==='EXERCISE_SUBSTITUTED'&&
         String(
           epFirst(
-            entry,
+            payload,
             'toExerciseId','to_exercise_id',
             'exerciseId','exercise_id'
           )||''
@@ -694,7 +700,10 @@ function epExerciseWasLiveOverride(source,original,exerciseId){
       if(
         type==='EXERCISE_ADDED'&&
         String(
-          epFirst(entry,'exerciseId','exercise_id')||''
+          epFirst(
+            payload,
+            'exerciseId','exercise_id'
+          )||''
         )===expected
       ){
         return true;
@@ -910,6 +919,12 @@ export function buildExerciseLongitudinalProgress(
       ? sessions.get(String(sessionId))
       : null;
 
+    const planSnapshot=epExecutionPlanSnapshotForSession(
+      source,
+      original,
+      sessionId
+    );
+
     const grouped=new Map();
 
     for(const row of rows){
@@ -923,7 +938,16 @@ export function buildExerciseLongitudinalProgress(
       if(!exerciseId)continue;
 
       const id=String(exerciseId);
-      const meta=epExerciseMeta(session,id)||{
+
+      const snapshotMeta=epExerciseWasLiveOverride(
+        source,
+        original,
+        id
+      )
+        ?null
+        :epExerciseMetaForRow(planSnapshot,id,row);
+
+      const meta=snapshotMeta||epExerciseMeta(session,id)||{
         id,
         name:String(epFirst(
           row,
