@@ -23,7 +23,9 @@ function hasThreePosteriorContacts(text){
 
 function hasForbiddenLoadPlacement(text){
   const n=normalize(text);
-  return /(?:palo|bast[oó]n|dowel).{0,100}(?:delante|frontal|muslos?|deltoides|sobre los hombros)|(?:delante|frontal|muslos?|deltoides|sobre los hombros).{0,100}(?:palo|bast[oó]n|dowel)/u.test(n);
+  const tool='(?:palo|bast[oó]n|dowel)';
+  const badPlacement='(?:delante del (?:cuerpo|torso|abdomen)|frente al (?:cuerpo|torso|abdomen)|a la altura de (?:los )?muslos?|sobre (?:los )?(?:hombros|deltoides)|apoyad[oa]?.{0,35}(?:hombros|deltoides|muslos?))';
+  return new RegExp(`${tool}.{0,100}${badPlacement}|${badPlacement}.{0,100}${tool}`,'u').test(n);
 }
 
 function hasHipHingeFinal(text){
