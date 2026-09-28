@@ -1,0 +1,148 @@
+name: WIP Proof Progress Canonical Patch
+
+on:
+  push:
+    branches:
+      - fix/proof-progress-canonical-execution-truth
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'fix(progress): use canonical completed execution truth'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/proof-progress-canonical-execution-truth
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply deterministic patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/m26/engagement/progress-engine.js')
+          text = path.read_text(encoding='utf-8')
+
+          old_plan = """  const blocked=unconfirmedCompletionIds(state);\n  const completed=forClient(state,'sessionExecutions',clientId)\n    .map(unwrap)\n    .filter((item)=>executionIsConfirmed(item,blocked))\n    .filter((item)=>['completed','complete','completado'].includes(statusOf(item)))\n    .filter((item)=>within(dateOf(item),window.start,window.end))\n    .sort(byDateDesc);"""
+          new_plan = """  const completed=confirmedSessionExecutionsForClient(\n    state,\n    clientId,\n    {requireCompleted:true,requireDate:false},\n  )\n    .map(unwrap)\n    .filter((item)=>within(dateOf(item),window.start,window.end))\n    .sort(byDateDesc);"""
+          if text.count(old_plan) != 1:
+              raise SystemExit(f'plan execution target count={text.count(old_plan)}')
+          text = text.replace(old_plan, new_plan, 1)
+
+          old_summary = """  const executionRows=forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));\n  const blockedExecutionIds=unconfirmedCompletionIds(state);\n  const executions=executionRows.filter((item)=>executionIsConfirmed(item,blockedExecutionIds));\n  const completedExecutions=executions.filter((item)=>['completado','completed','complete'].includes(statusOf(item)));"""
+          new_summary = """  const executionRows=forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));\n  const blockedExecutionIds=unconfirmedCompletionIds(state);\n  const executions=executionRows.filter((item)=>executionIsConfirmed(item,blockedExecutionIds));\n  const completedExecutions=confirmedSessionExecutionsForClient(\n    state,\n    clientId,\n    {requireCompleted:true,requireDate:false},\n  )\n    .map(unwrap)\n    .filter((item)=>within(dateOf(item),start,end));"""
+          if text.count(old_summary) != 1:
+              raise SystemExit(f'progress summary target count={text.count(old_summary)}')
+          text = text.replace(old_summary, new_summary, 1)
+
+          old_query = """    {\n      requireCompleted:false,\n      requireDate:false,\n    }\n  );"""
+          new_query = """    {\n      requireCompleted:true,\n      requireDate:false,\n    }\n  );"""
+          if text.count(old_query) != 1:
+              raise SystemExit(f'longitudinal query target count={text.count(old_query)}')
+          text = text.replace(old_query, new_query, 1)
+
+          old_filter = """  for(const original of executions){\n    const source=epExecutionSource(original);\n    const status=epStatus(source)||epStatus(original);\n\n    if(![\n      'completed','complete','completado'\n    ].includes(status)){\n      continue;\n    }\n\n    const rows=epResultRows(source);"""
+          new_filter = """  for(const original of executions){\n    const source=epExecutionSource(original);\n    const rows=epResultRows(source);"""
+          if text.count(old_filter) != 1:
+              raise SystemExit(f'longitudinal status target count={text.count(old_filter)}')
+          text = text.replace(old_filter, new_filter, 1)
+
+          path.write_text(text, encoding='utf-8')
+
+          test = Path('tests/m26_proof_progress_canonical_completed_statuses.test.mjs')
+          test.write_text("""import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import {
+  buildExerciseLongitudinalProgress,
+  buildPlanExecutionSummary,
+  computeProgressSummary,
+} from '../src/m26/engagement/progress-engine.js';
+
+const CLIENT='c-proof-progress-canonical';
+const NOW=new Date('2026-09-28T12:00:00.000Z');
+
+function execution(id,status,completedAt,loadKg){
+  return {
+    id,
+    clientId:CLIENT,
+    sessionId:'session-proof',
+    status,
+    syncStatus:'clean',
+    completedAt,
+    results:{
+      ['squat:1']:{exerciseId:'squat',setNumber:1,reps:8,loadKg,rpe:7},
+    },
+    planSnapshot:{
+      schemaVersion:1,
+      sessionId:'session-proof',
+      title:'Sesión Proof',
+      blocks:[{id:'block-squat',type:'exercise',exerciseId:'squat',sets:1,reps:'8'}],
+    },
+  };
+}
+
+function fixture(){
+  return {
+    collections:{
+      appointments:[],
+      sessions:[],
+      sessionExecutions:[
+        execution('e-completada','completada','2026-09-20T10:00:00.000Z',40),
+        execution('e-cerrada','cerrada_confirmada','2026-09-27T10:00:00.000Z',45),
+        execution('e-pending','cerrada_confirmada','2026-09-28T10:00:00.000Z',100),
+      ],
+      iriAssessments:[],
+      checkins:[],
+      wearableDailySummaries:[],
+    },
+    pendingOperations:[{
+      operationId:'op-pending',
+      type:'EJECUCION_COMPLETAR',
+      entityType:'session_execution',
+      entityId:'e-pending',
+      clientId:CLIENT,
+      status:'pending',
+    }],
+    conflicts:[],
+    rejectedOperations:[],
+  };
+}
+
+test('Proof of Progress uses every canonical completed status and still excludes pending truth',()=>{
+  const state=fixture();
+  const summary=computeProgressSummary(state,CLIENT,{now:NOW,days:28});
+  assert.equal(summary.completedSessions,2);
+  assert.equal(summary.unconfirmedExecutions,1);
+  assert.equal(summary.lastExecutionAt,'2026-09-27T10:00:00.000Z');
+
+  const plan=buildPlanExecutionSummary(state,CLIENT,{now:NOW,days:28});
+  assert.equal(plan.comparedSessions,2);
+  assert.equal(plan.latest.executionId,'e-cerrada');
+
+  const progress=buildExerciseLongitudinalProgress(state,CLIENT);
+  assert.equal(progress.totalExecutions,2);
+  assert.equal(progress.exercises.length,1);
+  assert.equal(progress.exercises[0].sessions,2);
+  assert.equal(progress.exercises[0].latest.executionId,'e-cerrada');
+  assert.equal(progress.exercises[0].bestLoadKg,45);
+});
+""", encoding='utf-8')
+
+      - name: Run targeted proof tests
+        run: |
+          node --check src/m26/engagement/progress-engine.js
+          node --test tests/m26_proof_progress_canonical_completed_statuses.test.mjs tests/m26_canonical_execution_truth_v1.test.mjs tests/m26_exercise_progress_snapshot_truth.test.mjs tests/m26_rc74_17_proof_of_progress.test.mjs
+      - name: Commit patch
+        run: |
+          git config user.name "iberfit-ci"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/m26/engagement/progress-engine.js tests/m26_proof_progress_canonical_completed_statuses.test.mjs
+          git diff --cached --check
+          git commit -m "fix(progress): use canonical completed execution truth"
+          git push origin HEAD:fix/proof-progress-canonical-execution-truth
