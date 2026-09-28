@@ -9,6 +9,9 @@ const STATUS_META=Object.freeze({
   insufficient:Object.freeze({label:'Datos insuficientes',kind:'neutral'}),
 });
 
+const CLIENT_DECISION_PORTAL_TAG='m26-progress-decision-portal';
+const CLIENT_DECISION_MOUNTED='progressDecisionMounted';
+
 function escapeHtml(value){
   return String(value??'')
     .replaceAll('&','&amp;')
@@ -35,12 +38,18 @@ function pillarValue(pillar){
   return `${pillar.value}${pillar.unit?` ${pillar.unit}`:''}`;
 }
 
+function clientHasMeaningfulEvidence(hub){
+  const pillars=Array.isArray(hub?.pillars)?hub.pillars:[];
+  return pillars.some((pillar)=>pillar?.status&&pillar.status!=='insufficient')
+    ||hub?.diagnosticBaseline?.available===true;
+}
+
 function prioritizedPillars(hub,role){
   const pillars=Array.isArray(hub?.pillars)?hub.pillars:[];
   if(role==='client'){
-    const withEvidence=pillars.filter((pillar)=>pillar?.status!=='insufficient');
-    const withoutEvidence=pillars.filter((pillar)=>pillar?.status==='insufficient');
-    return [...withEvidence,...withoutEvidence].slice(0,3);
+    return pillars
+      .filter((pillar)=>pillar?.status!=='insufficient')
+      .slice(0,3);
   }
 
   const rank=Object.freeze({review:0,building:1,strong:2,insufficient:3});
@@ -88,8 +97,11 @@ export function renderProgressDecisionLayer(hub,{role='client'}={}){
   const title=professional?'Evidencia de progreso':'¿Estoy progresando?';
 
   if(!hub){
+    if(!professional)return '';
     return `<section class="m26-card" data-progress-decision-layer="true" aria-label="${escapeHtml(title)}"><div class="m26-card-header"><p class="m26-eyebrow">Progreso con criterio</p><h2>${escapeHtml(title)}</h2><p>IBERFIT todavía no tiene evidencia confirmada suficiente para resumir la evolución. El detalle longitudinal permanece disponible mientras se construye historial comparable.</p></div></section>`;
   }
+
+  if(!professional&&!clientHasMeaningfulEvidence(hub))return '';
 
   const pillars=prioritizedPillars(hub,normalizedRole);
   const intro=professional
@@ -102,14 +114,55 @@ export function renderProgressDecisionLayer(hub,{role='client'}={}){
   return `<section class="m26-card" data-progress-decision-layer="true" aria-label="${escapeHtml(title)}"><div class="m26-card-header"><p class="m26-eyebrow">Progreso con criterio</p><h2>${escapeHtml(title)}</h2><p>${escapeHtml(intro)}</p></div>${cards}${professional?reviewPriority(hub):''}${renderDiagnosticBaseline(hub)}</section>`;
 }
 
+export function mountClientProgressDecisionLayer(node){
+  if(!node||node?.dataset?.[CLIENT_DECISION_MOUNTED]==='true')return false;
+  const details=node.closest?.('details.m26-client-progress-detail');
+  const children=Array.from(node.childNodes||[]);
+  if(!details||typeof details.before!=='function'||!children.length)return false;
+  if(node.dataset)node.dataset[CLIENT_DECISION_MOUNTED]='true';
+  details.before(...children);
+  node.remove?.();
+  return true;
+}
+
+function registerClientDecisionPortal(){
+  const registry=globalThis.customElements;
+  const ElementBase=globalThis.HTMLElement;
+  if(
+    !registry||
+    typeof registry.define!=='function'||
+    typeof ElementBase!=='function'||
+    registry.get?.(CLIENT_DECISION_PORTAL_TAG)
+  )return;
+
+  registry.define(
+    CLIENT_DECISION_PORTAL_TAG,
+    class extends ElementBase{
+      connectedCallback(){
+        queueMicrotask(()=>mountClientProgressDecisionLayer(this));
+      }
+    },
+  );
+}
+
+registerClientDecisionPortal();
+
 export function renderLongitudinalDataExperience(
   aggregate,
   options={}
 ){
   const base=renderLongitudinalDataExperienceBase(aggregate,options);
+  const normalizedRole=roleKey(options?.role);
   const decision=renderProgressDecisionLayer(
     aggregate?.progressHub,
-    {role:options?.role}
+    {role:normalizedRole}
   );
+
+  if(normalizedRole==='client'){
+    return decision
+      ?`<${CLIENT_DECISION_PORTAL_TAG} data-progress-decision-portal="true">${decision}</${CLIENT_DECISION_PORTAL_TAG}>${base}`
+      :base;
+  }
+
   return `${decision}${base}`;
 }
