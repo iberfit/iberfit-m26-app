@@ -229,20 +229,23 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
     let context;
     try{context=getActiveContext?.()||null;}catch(error){try{onReconcileError(error);}catch{}return false;}
     if(!context?.execution||!context?.session)return false;
+    const durableCompletionPending=arrSyncIds(context.execution.pendingOperationIds).includes(cleanId(context.execution.id))&&typeof commandBus?.settleExecutionCompletion==='function';
     const nextExecution=clone(context.execution);
     const reconciliation=reconcileExecutionSyncResult(nextExecution,syncResult);
     if(!reconciliation.changed)return false;
     try{
       if(SETTLED.has(nextExecution.status)&&nextExecution.syncStatus==='clean'){
-        await store.save({
-          execution:nextExecution,
-          session:context.session,
-          appointmentId:context.appointmentId||null,
-          sessionRevision:finiteInteger(context.sessionRevision??context.session?.revision??0,{min:0})??0,
-          dirty:false,
-        });
+        if(durableCompletionPending){
+          await store.save({
+            execution:nextExecution,
+            session:context.session,
+            appointmentId:context.appointmentId||null,
+            sessionRevision:finiteInteger(context.sessionRevision??context.session?.revision??0,{min:0})??0,
+            dirty:false,
+          });
+        }
         Object.assign(context.execution,nextExecution);
-        if(commandBus?.settleExecutionCompletion)await commandBus.settleExecutionCompletion(nextExecution.id);
+        if(durableCompletionPending)await commandBus.settleExecutionCompletion(nextExecution.id);
         await store.remove(nextExecution.id);
         return true;
       }
