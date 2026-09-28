@@ -117,9 +117,11 @@ export function renderProgressDecisionLayer(hub,{role='client'}={}){
 export function mountClientProgressDecisionLayer(node){
   if(!node||node?.dataset?.[CLIENT_DECISION_MOUNTED]==='true')return false;
   const details=node.closest?.('details.m26-client-progress-detail');
-  if(!details||typeof details.before!=='function')return false;
+  const children=Array.from(node.childNodes||[]);
+  if(!details||typeof details.before!=='function'||!children.length)return false;
   if(node.dataset)node.dataset[CLIENT_DECISION_MOUNTED]='true';
-  details.before(node);
+  details.before(...children);
+  node.remove?.();
   return true;
 }
 
@@ -137,7 +139,7 @@ function registerClientDecisionPortal(){
     CLIENT_DECISION_PORTAL_TAG,
     class extends ElementBase{
       connectedCallback(){
-        mountClientProgressDecisionLayer(this);
+        queueMicrotask(()=>mountClientProgressDecisionLayer(this));
       }
     },
   );
