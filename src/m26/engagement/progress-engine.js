@@ -774,6 +774,31 @@ function epTrend(current,previous,{unit='',percent=false}={}){
   });
 }
 
+function epLatestValidTrend(
+  points,
+  selectValue,
+  options={}
+){
+  let current=null;
+  let previous=null;
+
+  for(let index=points.length-1;index>=0;index-=1){
+    const value=selectValue(points[index]);
+
+    if(!Number.isFinite(value))continue;
+
+    if(!Number.isFinite(current)){
+      current=value;
+      continue;
+    }
+
+    previous=value;
+    break;
+  }
+
+  return epTrend(current,previous,options);
+}
+
 function epPoint(execution,rows,meta){
   const reps=rows
     .map((row)=>epNumber(epFirst(
@@ -994,10 +1019,6 @@ export function buildExerciseLongitudinalProgress(
     if(!allPoints.length)continue;
 
     const latest=allPoints.at(-1);
-    const previous=allPoints.length>=2
-      ? allPoints.at(-2)
-      : null;
-
     const knownLoadPoints=allPoints.filter(
       (point)=>Number.isFinite(point.maxLoadKg)
     );
@@ -1044,29 +1065,29 @@ export function buildExerciseLongitudinalProgress(
         ? epRound(totalKnownLoadSets/totalSets,2)
         : null,
       dataQuality:quality,
-      loadTrend:epTrend(
-        latest.maxLoadKg,
-        previous?.maxLoadKg,
+      loadTrend:epLatestValidTrend(
+        allPoints,
+        (point)=>point.maxLoadKg,
         {unit:' kg'}
       ),
-      repsTrend:epTrend(
-        latest.bestReps,
-        previous?.bestReps,
+      repsTrend:epLatestValidTrend(
+        allPoints,
+        (point)=>point.bestReps,
         {unit:' reps'}
       ),
-      volumeTrend:epTrend(
-        latest.volumeKgReps,
-        previous?.volumeKgReps,
+      volumeTrend:epLatestValidTrend(
+        allPoints,
+        (point)=>point.volumeKgReps,
         {percent:true}
       ),
-      rpeTrend:epTrend(
-        latest.averageRpe,
-        previous?.averageRpe,
+      rpeTrend:epLatestValidTrend(
+        allPoints,
+        (point)=>point.averageRpe,
         {unit:' RPE'}
       ),
-      rirTrend:epTrend(
-        latest.averageRir,
-        previous?.averageRir,
+      rirTrend:epLatestValidTrend(
+        allPoints,
+        (point)=>point.averageRir,
         {unit:' RIR'}
       ),
       history:Object.freeze(
