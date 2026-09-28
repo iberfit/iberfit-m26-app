@@ -222,11 +222,12 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
     if(id)sessions.set(id,session);
   }
 
-  const blocked=unconfirmedCompletionIds(state);
-  const completed=forClient(state,'sessionExecutions',clientId)
+  const completed=confirmedSessionExecutionsForClient(
+    state,
+    clientId,
+    {requireCompleted:true,requireDate:true},
+  )
     .map(unwrap)
-    .filter((item)=>executionIsConfirmed(item,blocked))
-    .filter((item)=>['completed','complete','completado'].includes(statusOf(item)))
     .filter((item)=>within(dateOf(item),window.start,window.end))
     .sort(byDateDesc);
 
@@ -328,7 +329,13 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const executionRows=forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
   const blockedExecutionIds=unconfirmedCompletionIds(state);
   const executions=executionRows.filter((item)=>executionIsConfirmed(item,blockedExecutionIds));
-  const completedExecutions=executions.filter((item)=>['completado','completed','complete'].includes(statusOf(item)));
+  const completedExecutions=confirmedSessionExecutionsForClient(
+    state,
+    clientId,
+    {requireCompleted:true,requireDate:true},
+  )
+    .map(unwrap)
+    .filter((item)=>within(dateOf(item),start,end));
   const completedIds=new Set(completedExecutions.map((item)=>first(item,'appointmentId','appointment_id')).filter(Boolean));
   const confirmedCompleted=Math.max(completedAppointments.length,completedIds.size,completedExecutions.length);
   const plannedCount=planned.length||completedExecutions.length;
@@ -907,8 +914,8 @@ export function buildExerciseLongitudinalProgress(
     state,
     clientId,
     {
-      requireCompleted:false,
-      requireDate:false,
+      requireCompleted:true,
+      requireDate:true,
     }
   );
 
@@ -918,14 +925,6 @@ export function buildExerciseLongitudinalProgress(
 
   for(const original of executions){
     const source=epExecutionSource(original);
-    const status=epStatus(source)||epStatus(original);
-
-    if(![
-      'completed','complete','completado'
-    ].includes(status)){
-      continue;
-    }
-
     const rows=epResultRows(source);
 
     if(!rows.length)continue;
