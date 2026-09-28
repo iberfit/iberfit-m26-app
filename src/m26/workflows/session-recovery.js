@@ -179,30 +179,36 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
       if(!recovered)return snapshot;
       const operation=recovered.operation,patch=recovered.patch;
       const operationStatus=String(operation?.status||'').toLowerCase();
-      if(!['pending','conflict','rejected'].includes(operationStatus))return snapshot;
+      if(!['pending','conflict','rejected','ack'].includes(operationStatus))return snapshot;
       if(
         patch?.id!==snapshot.execution.id||
         patch?.sessionId!==snapshot.execution.sessionId||
         patch?.clientId!==snapshot.execution.clientId||
         patch?.status!=='completed'
       )return snapshot;
+      const syncStatus=operationStatus==='ack'?'clean':operationStatus;
       const nextExecution={
         ...clone(patch),
-        syncStatus:operationStatus,
+        syncStatus,
         pendingOperationIds:operationStatus==='pending'?[operation.operationId]:[],
-        lastSyncError:operationStatus==='pending'?(operation.errorCode||null):(operation.errorCode||operationStatus.toUpperCase()),
+        lastSyncError:['conflict','rejected'].includes(operationStatus)?(operation.errorCode||operationStatus.toUpperCase()):(operationStatus==='pending'?(operation.errorCode||null):null),
         recoveredAt:safeIso(),
       };
-      const candidate={...clone(snapshot),execution:nextExecution,dirty:true,savedAt:safeIso()};
+      const candidate={...clone(snapshot),execution:nextExecution,dirty:syncStatus!=='clean',savedAt:safeIso()};
       const validation=validateExecutionSnapshot(candidate);
       if(!validation.ok)throw new Error(`M26_RECOVERY_DURABLE_COMPLETION_INVALID:${validation.errors.join(',')}`);
-      return await store.save({
+      const saved=await store.save({
         execution:nextExecution,
         session:snapshot.session,
         appointmentId:snapshot.appointmentId||null,
         sessionRevision:finiteInteger(snapshot.sessionRevision??snapshot.session?.revision??0,{min:0})??0,
-        dirty:true,
+        dirty:syncStatus!=='clean',
       });
+      if(operationStatus==='ack'&&commandBus?.settleExecutionCompletion){
+        const settled=await commandBus.settleExecutionCompletion(operation.operationId);
+        if(settled)await store.remove(nextExecution.id);
+      }
+      return saved;
     }catch(error){
       try{onReconcileError(error);}catch{}
       return snapshot;
@@ -210,7 +216,13 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
   }
   async function recoveredList(options={}){
     const snapshots=await store.list(options),out=[];
-    for(const snapshot of snapshots)out.push(await overlayDurableCompletion(snapshot));
+    const includeSettled=options?.includeSettled===true;
+    for(const snapshot of snapshots){
+      const recovered=await overlayDurableCompletion(snapshot);
+      if(!recovered)continue;
+      if(!includeSettled&&SETTLED.has(recovered.execution?.status)&&recovered.execution?.syncStatus==='clean')continue;
+      out.push(recovered);
+    }
     return out.sort((a,b)=>(parseDate(b?.savedAt)||0)-(parseDate(a?.savedAt)||0));
   }
   async function reconcileActiveContext(syncResult){
@@ -222,16 +234,25 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
     if(!reconciliation.changed)return false;
     try{
       if(SETTLED.has(nextExecution.status)&&nextExecution.syncStatus==='clean'){
-        await store.remove(nextExecution.id);
-      }else{
         await store.save({
           execution:nextExecution,
           session:context.session,
           appointmentId:context.appointmentId||null,
           sessionRevision:finiteInteger(context.sessionRevision??context.session?.revision??0,{min:0})??0,
-          dirty:nextExecution.syncStatus!=='clean',
+          dirty:false,
         });
+        Object.assign(context.execution,nextExecution);
+        if(commandBus?.settleExecutionCompletion)await commandBus.settleExecutionCompletion(nextExecution.id);
+        await store.remove(nextExecution.id);
+        return true;
       }
+      await store.save({
+        execution:nextExecution,
+        session:context.session,
+        appointmentId:context.appointmentId||null,
+        sessionRevision:finiteInteger(context.sessionRevision??context.session?.revision??0,{min:0})??0,
+        dirty:nextExecution.syncStatus!=='clean',
+      });
       Object.assign(context.execution,nextExecution);
       return true;
     }catch(error){
@@ -245,7 +266,13 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
     async list(options={}){return recoveredList(options);},
     async latest(options={}){return (await recoveredList(options))[0]||null;},
     async purgeExpired(){return store.purgeExpired?.()||0;},
-    async settle(execution){if(SETTLED.has(execution?.status)&&execution?.syncStatus==='clean')await store.remove(execution.id);},
+    async settle(execution){
+      if(!SETTLED.has(execution?.status)||execution?.syncStatus!=='clean')return;
+      try{
+        if(commandBus?.settleExecutionCompletion)await commandBus.settleExecutionCompletion(execution.id);
+        await store.remove(execution.id);
+      }catch(error){try{onReconcileError(error);}catch{}}
+    },
     async synchronize(){
       if(!isOnline())return {online:false,attempted:0,results:[]};
       if(!commandBus?.flushPending)return {online:true,attempted:0,results:[]};
