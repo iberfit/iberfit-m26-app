@@ -6,11 +6,15 @@ const baseURL=String(process.env.M26_PROD_APP_URL||'https://app.iberfit.cl').rep
 export default defineConfig({
   testDir:'./qa/production-entry',
   testMatch:'production-entry.spec.mjs',
+  outputDir:'./recovery/production-entry/test-results',
   fullyParallel:false,
   forbidOnly:CI,
   retries:0,
   workers:1,
-  reporter:'line',
+  reporter:[
+    ['line'],
+    ['json',{outputFile:'recovery/production-entry/playwright-report.json'}],
+  ],
   timeout:50_000,
   expect:{timeout:8_000},
   use:{
