@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   patch:
-    if: github.event.head_commit.message != 'fix(progress): use canonical completed execution truth'
+    if: github.event.head_commit.message != 'canonical-progress-patched'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -144,5 +144,5 @@ test('Proof of Progress uses every canonical completed status and still excludes
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/m26/engagement/progress-engine.js tests/m26_proof_progress_canonical_completed_statuses.test.mjs
           git diff --cached --check
-          git commit -m "fix(progress): use canonical completed execution truth"
+          git commit -m "canonical-progress-patched"
           git push origin HEAD:fix/proof-progress-canonical-execution-truth
