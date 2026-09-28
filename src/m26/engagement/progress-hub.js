@@ -59,11 +59,19 @@ function trendEvidence(memories=[],{loadDirectionForExercise=null}={}){
   });
 }
 
-export function buildProgressHub(state,clientId,{now=new Date(),loadDirectionForExercise=null}={}){
+export function buildProgressHub(
+  state,
+  clientId,
+  {now=new Date(),loadDirectionForExercise=null,summaries={}}={}
+){
   if(!clientId)return null;
-  const summary28=computeProgressSummary(state,clientId,{now,days:28});
+  const summary28=summaries?.[28]??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary28)return null;
-  const windows=buildAdherenceWindows(state,clientId,{now,windows:[7,28,90],summaries:{28:summary28}});
+  const windows=buildAdherenceWindows(state,clientId,{
+    now,
+    windows:[7,28,90],
+    summaries:{...summaries,28:summary28},
+  });
   const byDays=new Map(windows.map((window)=>[window.days,window]));
   const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12});
   const strength=trendEvidence(memories,{loadDirectionForExercise});
