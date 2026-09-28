@@ -8,6 +8,13 @@ import {
 
 function finite(value){if(value===null||value===undefined||value==='')return null;const number=Number(value);return Number.isFinite(number)?number:null;}
 function percent(value){const number=finite(value);return number===null?null:Math.round(number*100);}
+function reusableSummary(summary,clientId,days){
+  return summary
+    &&summary.clientId===clientId
+    &&Number(summary.days)===Number(days)
+      ?summary
+      :null;
+}
 function labelForQuality(value){
   const quality=String(value||'').toLowerCase();
   return ({alta:'Alta',media:'Media',limitada:'Limitada',reciente:'Reciente'})[quality]||'Sin evidencia suficiente';
@@ -59,11 +66,20 @@ function trendEvidence(memories=[],{loadDirectionForExercise=null}={}){
   });
 }
 
-export function buildProgressHub(state,clientId,{now=new Date(),loadDirectionForExercise=null}={}){
+export function buildProgressHub(
+  state,
+  clientId,
+  {now=new Date(),loadDirectionForExercise=null,summaries={}}={}
+){
   if(!clientId)return null;
-  const summary28=computeProgressSummary(state,clientId,{now,days:28});
+  const summary28=reusableSummary(summaries?.[28],clientId,28)
+    ??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary28)return null;
-  const windows=buildAdherenceWindows(state,clientId,{now,windows:[7,28,90],summaries:{28:summary28}});
+  const windows=buildAdherenceWindows(state,clientId,{
+    now,
+    windows:[7,28,90],
+    summaries:{...summaries,28:summary28},
+  });
   const byDays=new Map(windows.map((window)=>[window.days,window]));
   const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12});
   const strength=trendEvidence(memories,{loadDirectionForExercise});
