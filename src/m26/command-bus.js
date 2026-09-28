@@ -236,6 +236,24 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     return (await repository.list()).map(sanitizeOperation);
   }
 
+  async function recoverExecutionCompletion(executionId) {
+    const id=String(executionId||'').trim();
+    if(!SAFE_ID_PATTERN.test(id))throw new Error('M26_EXECUTION_ID_INVALID');
+    const record=(await repository.list()).find((item)=>item?.operationId===id)||null;
+    if(!record)return null;
+    const patch=record?.payload?.patch;
+    const completedAt=patch?.completedAt?new Date(patch.completedAt).getTime():NaN;
+    if(
+      record?.type!=='EJECUCION_COMPLETAR'||
+      record?.entityType!=='session_execution'||
+      record?.entityId!==id||
+      !patch||typeof patch!=='object'||Array.isArray(patch)||
+      patch?.id!==id||patch?.clientId!==record?.clientId||patch?.status!=='completed'||
+      !Number.isFinite(completedAt)
+    )return null;
+    return deepFreeze({operation:sanitizeOperation(record),patch:structuredClone(patch)});
+  }
+
   async function retry(operationId) {
     const records = await repository.list();
     let record = records.find((item) => item.operationId === operationId);
@@ -278,7 +296,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     return flushInFlight;
   }
 
-  return Object.freeze({ preflight, execute, enqueue, pending, retry, flushPending });
+  return Object.freeze({ preflight, execute, enqueue, pending, recoverExecutionCompletion, retry, flushPending });
 }
 
 export function createMemoryOperationRepository() {
