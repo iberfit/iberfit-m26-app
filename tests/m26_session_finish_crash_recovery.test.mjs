@@ -44,6 +44,12 @@ function awaitingFeedbackExecution(){
   return execution;
 }
 
+function completedFrom(execution,{sessionRpe=8,comment='Sesión completada sin dolor'}={}){
+  const completed=structuredClone(execution);
+  finishExecution(completed,{sessionRpe,comment,pain:false});
+  return completed;
+}
+
 function busHarness({transportExecute=async()=>({kind:'duplicate',remoteRevision:9})}={}){
   const repository=createMemoryOperationRepository();
   const bus=createCommandBus({
@@ -61,8 +67,7 @@ test('recovery restores the exact durable completed snapshot after a crash befor
   const store=createMemoryExecutionRecoveryStore({ownerId});
   await store.save({execution:stale,session,sessionRevision:session.revision,appointmentId:'appointment-1'});
 
-  const completed=structuredClone(stale);
-  finishExecution(completed,{sessionRpe:8,comment:'Sesión completada sin dolor',pain:false});
+  const completed=completedFrom(stale);
   const completionEvent=completed.events.find((event)=>event.type==='SESSION_COMPLETED');
   const command=buildExecutionCommand(completed,stale.revision);
   const {bus}=busHarness();
@@ -113,6 +118,34 @@ test('recovery restores the exact durable completed snapshot after a crash befor
     completionEvent,
   );
   assert.equal(await store.load(executionId),null);
+  assert.equal(await bus.recoverExecutionCompletion(executionId),null);
+});
+
+test('remote ACK remains durable until stale recovery is repaired, then cannot reopen Finalizar',async()=>{
+  const stale=awaitingFeedbackExecution();
+  const store=createMemoryExecutionRecoveryStore({ownerId});
+  await store.save({execution:stale,session,sessionRevision:session.revision,appointmentId:'appointment-ack'});
+
+  const completed=completedFrom(stale,{sessionRpe:9,comment:'Cierre confirmado en remoto'});
+  const completionEvent=completed.events.find((event)=>event.type==='SESSION_COMPLETED');
+  const {bus}=busHarness({transportExecute:async()=>({kind:'ack',remoteRevision:10})});
+  const result=await bus.execute(buildExecutionCommand(completed,stale.revision));
+  assert.equal(result.kind,'ack');
+  assert.equal((await bus.pending()).length,0);
+
+  const durableAck=await bus.recoverExecutionCompletion(executionId);
+  assert.equal(durableAck.operation.status,'ack');
+  assert.equal(durableAck.patch.completedAt,completed.completedAt);
+  assert.deepEqual(durableAck.patch.feedback,completed.feedback);
+
+  const coordinator=createExecutionRecoveryCoordinator({store,commandBus:bus,isOnline:()=>true});
+  const latest=await coordinator.latest({clientId});
+  assert.equal(latest,null);
+  assert.equal(await store.load(executionId),null);
+  assert.equal(await bus.recoverExecutionCompletion(executionId),null);
+
+  const exactEvent=durableAck.patch.events.find((event)=>event.type==='SESSION_COMPLETED');
+  assert.deepEqual(exactEvent,completionEvent);
 });
 
 test('durable completion lookup never exposes a non-completion operation payload',async()=>{
@@ -128,8 +161,7 @@ test('a durable completion conflict restores completed state but never reopens F
   const store=createMemoryExecutionRecoveryStore({ownerId});
   await store.save({execution:stale,session,sessionRevision:session.revision,appointmentId:'appointment-1'});
 
-  const completed=structuredClone(stale);
-  finishExecution(completed,{sessionRpe:9,comment:'Cierre que requiere reconciliación',pain:false});
+  const completed=completedFrom(stale,{sessionRpe:9,comment:'Cierre que requiere reconciliación'});
   const {bus}=busHarness({transportExecute:async()=>({kind:'conflict',reason:'REVISION_CONFLICT'})});
   await bus.enqueue(buildExecutionCommand(completed,stale.revision));
   const flush=await bus.flushPending();
