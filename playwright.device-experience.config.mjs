@@ -2,7 +2,11 @@ import {defineConfig} from '@playwright/test';
 
 export default defineConfig({
   testDir:'./qa/device-experience',
-  testMatch:['device-experience.spec.mjs','role-guided-onboarding.spec.mjs'],
+  testMatch:[
+    'device-experience.spec.mjs',
+    'role-guided-onboarding.spec.mjs',
+    'progress-decision-runtime.spec.mjs',
+  ],
   fullyParallel:false,
   forbidOnly:true,
   retries:0,
