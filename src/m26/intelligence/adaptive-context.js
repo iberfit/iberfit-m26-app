@@ -1,3 +1,4 @@
+import { confirmedSessionExecutionsForClient,sessionExecutionDate } from '../domain/session-execution-truth.js';
 import { computeProgressSummary,deriveAdherenceAlerts } from '../engagement/index.js';
 
 function arr(value){return Array.isArray(value)?value:[];}
@@ -25,10 +26,12 @@ function load(value){
 }
 function metric(row,...keys){return numeric(first(row,...keys));}
 function latestExecutions(state,clientId,limit=8){
-  return arr(state?.collections?.sessionExecutions)
-    .filter((item)=>clientIdOf(item)===clientId)
+  return confirmedSessionExecutionsForClient(state,clientId,{
+    requireCompleted:true,
+    requireDate:true,
+  })
     .map(unwrap)
-    .sort((a,b)=>(safeDate(dateOf(b))?.getTime()||0)-(safeDate(dateOf(a))?.getTime()||0))
+    .sort((a,b)=>(safeDate(sessionExecutionDate(b))?.getTime()||0)-(safeDate(sessionExecutionDate(a))?.getTime()||0))
     .slice(0,limit);
 }
 function exposureFor(execution,id,exerciseRows){
@@ -36,7 +39,7 @@ function exposureFor(execution,id,exerciseRows){
   const rpes=exerciseRows.map((row)=>metric(row,'rpe','RPE')).filter((value)=>value!==null);
   const rirs=exerciseRows.map((row)=>metric(row,'rir','RIR')).filter((value)=>value!==null);
   const reps=exerciseRows.map((row)=>metric(row,'reps','repetitions')).filter((value)=>value!==null);
-  const completedAt=dateOf(execution);
+  const completedAt=sessionExecutionDate(execution);
   return Object.freeze({
     exerciseId:id,
     loadKg:loads.length?Math.max(...loads):null,
