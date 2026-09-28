@@ -71,7 +71,27 @@ jobs:
           ! grep -q 'href="/online/">Conocer entrenamiento online</a>' /tmp/vitacura.html
           curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-las-condes/?state=$GITHUB_RUN_ID" -o /tmp/las-condes.html
           ! grep -q 'Primero vemos si podemos hacerlo bien, no solo si podemos ir' /tmp/las-condes.html
-          if [ "$VERSION" = '6.43.22' ]; then
+
+          if [ "$VERSION" = '6.43.23' ]; then
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" -o /tmp/home-es.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/?state=$GITHUB_RUN_ID" -o /tmp/home-en.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/hibrido/?state=$GITHUB_RUN_ID" -o /tmp/hibrido.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/presencial/?state=$GITHUB_RUN_ID" -o /tmp/presencial.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-la-reina/?state=$GITHUB_RUN_ID" -o /tmp/reina.html
+            grep -q 'Online · Desde cualquier lugar' /tmp/home-es.html
+            grep -q 'Online · From anywhere' /tmp/home-en.html
+            ! grep -qi '64 Overall' /tmp/home-en.html
+            ! grep -qi 'overall index' /tmp/home-en.html
+            grep -q 'report-preview-v2' /tmp/home-es.html
+            grep -q 'report-preview-v2' /tmp/home-en.html
+            ! grep -q 'photo-story-section' /tmp/hibrido.html
+            grep -q 'app-hybrid-feedback.webp' /tmp/hibrido.html
+            ! grep -q 'class="week-flow"' /tmp/presencial.html
+            ! grep -q 'class="local-service-strip"' /tmp/reina.html
+            grep -q '¿IBERFIT ofrece entrenamiento personal en La Reina?' /tmp/reina.html
+            grep -q '¿Puedo combinar presencial y online en La Reina?' /tmp/reina.html
+            CHECKPOINT='checkpoint/v64323-editorial-parity-production-2026-09-28'
+          elif [ "$VERSION" = '6.43.22' ]; then
             curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/assets/ux.v64322.css?state=$GITHUB_RUN_ID" -o /tmp/ux.css
             curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/assets/experience.v64322.js?state=$GITHUB_RUN_ID" -o /tmp/experience.js
             curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" -o /tmp/home.html
