@@ -105,24 +105,30 @@ test('client decision layer stays absent when there is no meaningful evidence ye
   assert.equal(renderProgressDecisionLayer(null,{role:'client'}),'');
 });
 
-test('client progress portal moves the decision layer before collapsed detail exactly once',()=>{
+test('client progress portal unwraps decision content before collapsed detail exactly once',()=>{
+  const decisionSection={nodeName:'SECTION'};
   const beforeCalls=[];
+  let removeCount=0;
   const details={
-    before(node){beforeCalls.push(node);},
+    before(...nodes){beforeCalls.push(nodes);},
   };
   const node={
     dataset:{},
+    childNodes:[decisionSection],
     closest(selector){
       assert.equal(selector,'details.m26-client-progress-detail');
       return details;
     },
+    remove(){removeCount+=1;},
   };
 
   assert.equal(mountClientProgressDecisionLayer(node),true);
   assert.equal(node.dataset.progressDecisionMounted,'true');
-  assert.deepEqual(beforeCalls,[node]);
+  assert.deepEqual(beforeCalls,[[decisionSection]]);
+  assert.equal(removeCount,1);
   assert.equal(mountClientProgressDecisionLayer(node),false);
-  assert.deepEqual(beforeCalls,[node]);
+  assert.deepEqual(beforeCalls,[[decisionSection]]);
+  assert.equal(removeCount,1);
 });
 
 test('longitudinal wrapper uses a client portal but keeps professional rendering inline',()=>{
