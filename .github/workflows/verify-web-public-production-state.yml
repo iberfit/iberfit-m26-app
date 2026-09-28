@@ -72,7 +72,40 @@ jobs:
           curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-las-condes/?state=$GITHUB_RUN_ID" -o /tmp/las-condes.html
           ! grep -q 'Primero vemos si podemos hacerlo bien, no solo si podemos ir' /tmp/las-condes.html
 
-          if [ "$VERSION" = '6.43.23' ]; then
+          if [ "$VERSION" = '6.43.24' ]; then
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" -o /tmp/home-es.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/?state=$GITHUB_RUN_ID" -o /tmp/home-en.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/hibrido/?state=$GITHUB_RUN_ID" -o /tmp/hibrido.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/presencial/?state=$GITHUB_RUN_ID" -o /tmp/presencial.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-la-reina/?state=$GITHUB_RUN_ID" -o /tmp/reina.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-penalolen/?state=$GITHUB_RUN_ID" -o /tmp/penalolen.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenamiento-personal-providencia/?state=$GITHUB_RUN_ID" -o /tmp/providencia.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-lo-barnechea/?state=$GITHUB_RUN_ID" -o /tmp/lobarnechea.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/personal-trainer-penalolen/?state=$GITHUB_RUN_ID" -o /tmp/penalolen-en.html
+            grep -q 'Online · Desde cualquier lugar' /tmp/home-es.html
+            grep -q 'Online · From anywhere' /tmp/home-en.html
+            ! grep -qi '64 Overall' /tmp/home-en.html
+            ! grep -qi 'overall index' /tmp/home-en.html
+            grep -q 'report-preview-v2' /tmp/home-es.html
+            grep -q 'report-preview-v2' /tmp/home-en.html
+            ! grep -q 'photo-story-section' /tmp/hibrido.html
+            grep -q 'app-hybrid-feedback.webp' /tmp/hibrido.html
+            ! grep -q 'class="week-flow"' /tmp/presencial.html
+            ! grep -q 'class="local-service-strip"' /tmp/reina.html
+            grep -q '¿IBERFIT ofrece entrenamiento personal en La Reina?' /tmp/reina.html
+            grep -q '¿Puedo combinar presencial y online en La Reina?' /tmp/reina.html
+            grep -qi 'precordillera' /tmp/penalolen.html
+            grep -qi 'vida de barrio' /tmp/penalolen.html
+            ! grep -qi 'tu sector cambia la logística' /tmp/penalolen.html
+            grep -qi 'ciclovías' /tmp/providencia.html
+            grep -qi 'movimiento diario' /tmp/providencia.html
+            ! grep -qi 'otro traslado' /tmp/providencia.html
+            grep -qi 'Si la montaña, la bicicleta, el trekking o el movimiento exterior ya están en tu vida' /tmp/lobarnechea.html
+            ! grep -qi 'coste logístico' /tmp/lobarnechea.html
+            grep -qi 'foothills' /tmp/penalolen-en.html
+            grep -qi 'neighbourhood life' /tmp/penalolen-en.html
+            CHECKPOINT='checkpoint/v64324-local-opportunity-production-2026-09-28'
+          elif [ "$VERSION" = '6.43.23' ]; then
             curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" -o /tmp/home-es.html
             curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/?state=$GITHUB_RUN_ID" -o /tmp/home-en.html
             curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/hibrido/?state=$GITHUB_RUN_ID" -o /tmp/hibrido.html
