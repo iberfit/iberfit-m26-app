@@ -1,6 +1,7 @@
 import {resolveExerciseMedia,resolveExerciseMediaExperience,resolveExerciseMediaMetadata,REPDB_MEDIA_ATTRIBUTION} from './exercise-media.js';
 import {renderNativeExerciseVideo,renderExerciseTechnicalGuidance} from './exercise-video-player.js';
 import {exerciseDisplayName,exerciseSearchNames} from '../exercises/names.js';
+import {renderLibraryFacetController} from './library-facet-controller.js';
 
 function e(value){
   return String(value??'')
@@ -344,13 +345,20 @@ export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
   const primary=(item.primary_muscles||[]).join(' · ')||exerciseMuscleGroupLabel(item,manifest);
   const secondary=(item.secondary_muscles||[]).join(' · ');
   const units=(item.units||[]).join(' · ');
-  const facts=[
-    item.difficulty?`<span><strong>Dificultad</strong>${e(item.difficulty)}</span>`:'',
-    item.pattern?`<span><strong>Patrón</strong>${e(item.pattern)}</span>`:'',
-    item.equipment?`<span><strong>Material</strong>${e(item.equipment)}</span>`:'',
-    units?`<span><strong>Registro</strong>${e(units)}</span>`:'',
-  ].filter(Boolean).join('');
-  const detail=`<details class="m26-library-details"><summary><span>Protocolo y detalles</span><span class="m26-library-details-action" aria-hidden="true"></span></summary><div class="m26-library-details-panel"><div class="m26-library-facts">${facts}</div><p><strong>Músculos principales:</strong> ${e(primary)}</p>${secondary?`<p><strong>Músculos secundarios:</strong> ${e(secondary)}</p>`:''}${instructions.length?`<h4>Ejecución</h4><ol>${instructions.map((line)=>`<li>${e(line)}</li>`).join('')}</ol>`:'<p class="m26-notice is-warning">Este ejercicio necesita un protocolo de ejecución más detallado antes de utilizarse con clientes.</p>'}${precautions.length?`<p><strong>Precauciones:</strong> ${e(precautions.join(' · '))}</p>`:'<p><strong>Precauciones:</strong> Detener ante dolor, mareo o pérdida de control técnico.</p>'}</div></details>`;
+  const facts=(role==='client'
+    ?[
+      item.equipment?`<span><strong>Material</strong>${e(item.equipment)}</span>`:'',
+      units?`<span><strong>Registro</strong>${e(units)}</span>`:'',
+    ]
+    :[
+      item.difficulty?`<span><strong>Dificultad</strong>${e(item.difficulty)}</span>`:'',
+      item.pattern?`<span><strong>Patrón</strong>${e(item.pattern)}</span>`:'',
+      item.equipment?`<span><strong>Material</strong>${e(item.equipment)}</span>`:'',
+      item.intent?`<span><strong>Objetivo</strong>${e(item.intent)}</span>`:'',
+      units?`<span><strong>Registro</strong>${e(units)}</span>`:'',
+    ]).filter(Boolean).join('');
+  const detailLabel=role==='client'?'Cómo hacerlo':'Protocolo y detalles';
+  const detail=`<details class="m26-library-details"><summary><span>${detailLabel}</span><span class="m26-library-details-action" aria-hidden="true"></span></summary><div class="m26-library-details-panel"><div class="m26-library-facts">${facts}</div><p><strong>Músculos principales:</strong> ${e(primary)}</p>${role!=='client'&&secondary?`<p><strong>Músculos secundarios:</strong> ${e(secondary)}</p>`:''}${instructions.length?`<h4>Ejecución</h4><ol>${instructions.map((line)=>`<li>${e(line)}</li>`).join('')}</ol>`:'<p class="m26-notice is-warning">Este ejercicio necesita un protocolo de ejecución más detallado antes de utilizarse con clientes.</p>'}${precautions.length?`<p><strong>Precauciones:</strong> ${e(precautions.join(' · '))}</p>`:'<p><strong>Precauciones:</strong> Detener ante dolor, mareo o pérdida de control técnico.</p>'}</div></details>`;
 
   const adminRename=role==='admin'
     ?`<details class="m26-library-details m26-library-admin-edit">
@@ -371,7 +379,11 @@ export function renderLibraryExerciseCard(item,manifest,{role='coach'}={}){
       </details>`
     :'';
 
-  return `<article class="m26-library-card" data-library-text="${e(searchText)}" data-exercise-id="${e(item.id)}">${media}<div class="m26-library-copy"><h3>${e(exerciseDisplayName(item))}</h3><p>${e(item.pattern||'Patrón por definir')} · ${e(item.equipment||'Sin material')}</p><small>${e(primary)}</small>${detail}${adminRename}</div></article>`;
+  const subtitle=role==='client'
+    ?e(item.equipment||'Sin material')
+    :`${e(item.pattern||'Patrón por definir')} · ${e(item.equipment||'Sin material')}`;
+
+  return `<article class="m26-library-card" data-library-text="${e(searchText)}" data-library-difficulty="${e(item.difficulty||'')}" data-library-intent="${e(item.intent||'')}" data-exercise-id="${e(item.id)}">${media}<div class="m26-library-copy"><h3>${e(exerciseDisplayName(item))}</h3><p>${subtitle}</p><small>${e(primary)}</small>${detail}${adminRename}</div></article>`;
 }
 
 export function renderExerciseLibraryGroups(items=[],manifest,{role='coach'}={}){
@@ -382,8 +394,10 @@ export function renderExerciseLibraryGroups(items=[],manifest,{role='coach'}={})
     groups.get(label).push(item);
   }
 
-  return [...groups.entries()]
+  const controller=renderLibraryFacetController(items,{role});
+  const content=[...groups.entries()]
     .sort(([a],[b])=>a.localeCompare(b,'es',{sensitivity:'base'}))
     .map(([label,records])=>`<section class="m26-library-group" data-muscle-group="${e(label)}"><div class="m26-library-group-heading"><h3>${e(label)}</h3><span>${records.length} ${records.length===1?'ejercicio':'ejercicios'}</span></div><div class="m26-library-grid">${records.map((item)=>renderLibraryExerciseCard(item,manifest,{role})).join('')}</div></section>`)
     .join('');
+  return `${controller}${content||'<p class="m26-empty-copy">No hay coincidencias.</p>'}`;
 }
