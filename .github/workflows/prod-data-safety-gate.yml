@@ -1,0 +1,84 @@
+name: IBERFIT Production Data Safety Gate
+
+on:
+  pull_request:
+    branches:
+      - 'canary/rc74-4'
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/data-safety/check_migration_safety.mjs'
+      - 'tests/m26_prod_data_safety_gate.test.mjs'
+      - '.github/workflows/prod-data-safety-gate.yml'
+  push:
+    branches:
+      - 'canary/rc74-4'
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/data-safety/check_migration_safety.mjs'
+      - 'tests/m26_prod_data_safety_gate.test.mjs'
+      - '.github/workflows/prod-data-safety-gate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iberfit-production-data-safety-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  production-data-safety:
+    name: production-data-safety-fail-closed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Resolve exact migration diff
+        id: diff
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE_SHA="$PR_BASE_SHA"
+            HEAD_SHA="$PR_HEAD_SHA"
+          else
+            BASE_SHA="$PUSH_BEFORE_SHA"
+            HEAD_SHA="$CURRENT_SHA"
+          fi
+
+          if ! [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]] || [[ "$BASE_SHA" =~ ^0+$ ]]; then
+            BASE_SHA="$(git rev-parse HEAD^)"
+          fi
+          if ! [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'DATA_SAFETY_HEAD_SHA_INVALID'
+            exit 31
+          fi
+
+          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Enforce append-only non-destructive migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/data-safety/check_migration_safety.mjs \
+            '${{ steps.diff.outputs.base_sha }}' \
+            '${{ steps.diff.outputs.head_sha }}'
+
+      - name: Test data safety policy
+        run: node --test tests/m26_prod_data_safety_gate.test.mjs
