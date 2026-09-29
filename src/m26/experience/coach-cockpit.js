@@ -1,4 +1,9 @@
 import {iberfitCompareText,iberfitDomainTranslate} from '../ui/i18n-domain.js';
+import {
+  deriveAdherenceAlerts as deriveBaseAdherenceAlerts,
+} from '../engagement/adherence-engine.js';
+import {computeProgressSummary} from '../engagement/progress-engine.js';
+import {buildProgressHub} from '../engagement/progress-hub.js';
 
 const KIND_RANK=Object.freeze({
   critical:0,
@@ -15,6 +20,14 @@ const ACTION_TYPES=Object.freeze([
   'load-change',
   'manual-attention',
 ]);
+
+const OPERATIONAL_PRIORITIES=Object.freeze({
+  critical:Object.freeze({id:'review-now',label:'Revisar ahora'}),
+  warning:Object.freeze({id:'review',label:'Revisar'}),
+  process:Object.freeze({id:'review',label:'Revisar'}),
+  info:Object.freeze({id:'observe',label:'Observar'}),
+  clear:Object.freeze({id:'observe',label:'Observar'}),
+});
 
 function arr(value){
   return Array.isArray(value)?value:[];
@@ -84,6 +97,55 @@ function actionCenterMetadata({key,stage,source,area}={}){
   });
 }
 
+function operationalPriority(kind){
+  return OPERATIONAL_PRIORITIES[kind]||OPERATIONAL_PRIORITIES.info;
+}
+
+function decisionEvidence(alert,detail){
+  const explicit=arr(alert?.decision?.evidence)
+    .map((item)=>txt(item))
+    .filter(Boolean);
+  return Object.freeze(explicit.length?explicit:[txt(detail)].filter(Boolean));
+}
+
+function decisionRecommendedActions(alert,nextAction){
+  const explicit=arr(alert?.decision?.recommendedActions)
+    .map((item)=>{
+      if(!item||typeof item!=='object')return null;
+      const area=txt(item.area);
+      const label=txt(item.label);
+      if(!area||!label)return null;
+      return Object.freeze({
+        key:txt(item.key),
+        label,
+        area,
+        reason:txt(item.reason),
+      });
+    })
+    .filter(Boolean);
+  return Object.freeze(
+    explicit.length
+      ?explicit
+      :nextAction?.area&&nextAction?.label
+        ?[nextAction]
+        :[]
+  );
+}
+
+function radarAction(alert){
+  const action=arr(alert?.decision?.recommendedActions)[0];
+  if(!action||typeof action!=='object')return null;
+  const area=txt(action.area);
+  const label=txt(action.label);
+  if(!area||!label)return null;
+  return Object.freeze({
+    key:txt(action.key),
+    label,
+    area,
+    reason:txt(action.reason),
+  });
+}
+
 function itemFromEntry(entry={}){
   const client=entry.client||{};
   const alerts=arr(entry.alerts).map((alert)=>({
@@ -117,6 +179,7 @@ function itemFromEntry(entry={}){
   let detail=tr('coach.detail.clear');
   let guidance=tr('coach.guidance.clear');
   let source='experience-core';
+  let selectedAlert=null;
 
   if(adaptiveRisk){
     kind=adaptiveKind;
@@ -125,6 +188,7 @@ function itemFromEntry(entry={}){
     guidance=tr('coach.nextStep',{params:{action:txt(adaptiveRisk.action?.label,tr('coach.action.record'))}});
     source='adaptive-experience';
   }else if(risk){
+    selectedAlert=risk;
     kind=risk.severity;
     reason=txt(risk.title,tr('coach.reason.review'));
     detail=txt(
@@ -146,6 +210,7 @@ function itemFromEntry(entry={}){
     guidance=tr('coach.nextStep',{params:{action:txt(client.nextAction?.label,tr('coach.action.record'))}});
     source='experience-core';
   }else if(info){
+    selectedAlert=info;
     kind='info';
     reason=txt(info.title,tr('coach.signal.info'));
     detail=txt(
@@ -159,17 +224,30 @@ function itemFromEntry(entry={}){
     source=txt(info.source,'followup');
   }
 
+  const decisionAction=radarAction(selectedAlert);
   const nextAction=Object.freeze({
-    key:txt(client.nextAction?.key),
+    key:txt(
+      decisionAction?.key,
+      client.nextAction?.key
+    ),
     label:txt(
-      client.nextAction?.label,
-      tr('coach.action.followup')
+      decisionAction?.label,
+      txt(
+        client.nextAction?.label,
+        tr('coach.action.followup')
+      )
     ),
     area:txt(
-      client.nextAction?.area,
-      'expediente'
+      decisionAction?.area,
+      txt(
+        client.nextAction?.area,
+        'expediente'
+      )
     ),
-    reason:txt(client.nextAction?.reason),
+    reason:txt(
+      decisionAction?.reason,
+      client.nextAction?.reason
+    ),
   });
   const semanticKey=txt(adaptiveRisk?.action?.key,nextAction.key);
   const actionCenter=actionCenterMetadata({
@@ -178,6 +256,22 @@ function itemFromEntry(entry={}){
     source,
     area:txt(adaptiveRisk?.action?.area,nextAction.area),
   });
+  const priority=operationalPriority(kind);
+  const decisionType=txt(
+    selectedAlert?.decision?.type,
+    selectedAlert?.id||(
+      adaptiveRisk
+        ?'adaptive-review'
+        :processPending
+          ?`journey-${stage}`
+          :'followup'
+    )
+  );
+  const evidence=decisionEvidence(selectedAlert,detail);
+  const recommendedActions=decisionRecommendedActions(
+    selectedAlert,
+    nextAction
+  );
 
   return Object.freeze({
     clientId:txt(client.id),
@@ -201,8 +295,158 @@ function itemFromEntry(entry={}){
     actionType:actionCenter.actionType,
     actionTypeLabel:actionCenter.actionTypeLabel,
     attentionWhy:actionCenter.attentionWhy,
-    actionCtaLabel:actionCenter.actionCtaLabel,
+    actionCtaLabel:decisionAction?.label||actionCenter.actionCtaLabel,
+    decisionType,
+    evidence,
+    period:selectedAlert?.decision?.period||null,
+    recommendedActions,
+    generatedAt:selectedAlert?.decision?.generatedAt||null,
+    operationalPriority:priority,
+    requiresHumanDecision:true,
+    automaticPrescription:false,
   });
+}
+
+function radarProgressAlert(pillar,generatedAt){
+  if(!pillar||pillar.status!=='review')return null;
+  const id=txt(pillar.id);
+  if(!['strength','volume'].includes(id))return null;
+
+  const evidence=[
+    txt(pillar.evidence),
+    txt(pillar.context),
+  ].filter(Boolean);
+  const isStrength=id==='strength';
+  const title=isStrength
+    ?'Tendencia de fuerza por revisar'
+    :'Volumen reciente por revisar';
+  const action=isStrength
+    ?'Revisar la evolución por ejercicio antes de decidir una progresión, regresión o mantenimiento.'
+    :'Revisar el contexto de las últimas sesiones antes de interpretar el descenso o modificar la planificación.';
+  const recommended=Object.freeze({
+    key:isStrength?'review_strength_evolution':'review_volume_evolution',
+    label:'Revisar evolución',
+    area:'progreso',
+    reason:txt(pillar.evidence),
+  });
+
+  return Object.freeze({
+    id:`progress-${id}-review`,
+    severity:'warning',
+    title,
+    detail:evidence.join(' · '),
+    action,
+    source:`progress-hub:${id}`,
+    decision:Object.freeze({
+      type:isStrength?'possible-stagnation':'plan-execution-review',
+      evidence:Object.freeze(evidence),
+      period:'28d',
+      recommendedActions:Object.freeze([recommended]),
+      generatedAt:generatedAt||null,
+      source:`progress-hub:${id}`,
+      requiresHumanDecision:true,
+      automaticPrescription:false,
+    }),
+  });
+}
+
+function progressRadarSignals(progressHub,existingAlerts=[]){
+  if(!progressHub||!Array.isArray(progressHub.pillars))return Object.freeze([]);
+  if(progressHub?.diagnosticBaseline?.contributesToEvolution!==false){
+    return Object.freeze([]);
+  }
+  const actionable=new Set(arr(progressHub.actionable).map((id)=>txt(id)));
+  const existingIds=new Set(arr(existingAlerts).map((alert)=>txt(alert?.id)));
+  const result=progressHub.pillars
+    .filter((pillar)=>actionable.has(txt(pillar?.id)))
+    .map((pillar)=>radarProgressAlert(pillar,progressHub.generatedAt))
+    .filter(Boolean)
+    .filter((alert)=>!existingIds.has(alert.id));
+  return Object.freeze(result);
+}
+
+function reusableProgressSummary(summary,clientId,days){
+  return summary
+    &&txt(summary.clientId)===txt(clientId)
+    &&Number(summary.days)===Number(days)
+      ?summary
+      :null;
+}
+
+function progressSummariesForRadar(state,clientId,now){
+  return Object.freeze({
+    d7:computeProgressSummary(state,clientId,{now,days:7}),
+    d28:computeProgressSummary(state,clientId,{now,days:28}),
+    d90:computeProgressSummary(state,clientId,{now,days:90}),
+  });
+}
+
+function coachHomeRadarScope(state,options={}){
+  const role=txt(state?.identity?.role).toLowerCase();
+  if(role!=='coach')return false;
+  return !(
+    options?.summary||
+    options?.summaries||
+    options?.trajectory
+  );
+}
+
+export function deriveCoachHomeDecisionAlerts(
+  state,
+  clientId,
+  options={}
+){
+  if(!coachHomeRadarScope(state,options)){
+    return deriveBaseAdherenceAlerts(state,clientId,options);
+  }
+
+  const now=options?.now||new Date();
+  const summaries=progressSummariesForRadar(
+    state,
+    clientId,
+    now
+  );
+  const d28=reusableProgressSummary(
+    summaries.d28,
+    clientId,
+    28
+  );
+  const base=deriveBaseAdherenceAlerts(
+    state,
+    clientId,
+    {
+      ...options,
+      summary:d28,
+      summaries,
+    }
+  );
+
+  if(base.some((alert)=>['critical','warning'].includes(severity(alert?.severity)))){
+    return base;
+  }
+
+  const hub=buildProgressHub(
+    state,
+    clientId,
+    {
+      now,
+      summaries:{
+        7:summaries.d7,
+        28:summaries.d28,
+        90:summaries.d90,
+      },
+    }
+  );
+  const progress=progressRadarSignals(hub,base);
+  if(!progress.length)return base;
+
+  const priority={critical:0,warning:1,info:2};
+  return [...base,...progress]
+    .sort(
+      (a,b)=>
+        (priority[severity(a?.severity)]??9)-
+        (priority[severity(b?.severity)]??9)
+    );
 }
 
 function commercialItemFromCrm(crm={}){
@@ -360,5 +604,10 @@ export const __coachCockpitInternals=Object.freeze({
   signalLabel,
   actionTypeFor,
   actionCenterMetadata,
+  operationalPriority,
+  radarProgressAlert,
+  progressRadarSignals,
+  coachHomeRadarScope,
   ACTION_TYPES,
+  OPERATIONAL_PRIORITIES,
 });

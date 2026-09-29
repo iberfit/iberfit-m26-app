@@ -7,6 +7,7 @@ export * from './progress-continuity.js';
 export * from './exercise-performance-engine.js';
 export * from './challenge-metrics.js';
 export * from './adherence-engine.js';
+export {deriveCoachHomeDecisionAlerts as deriveAdherenceAlerts} from '../experience/coach-cockpit.js';
 export * from './conflict-center.js';
 export * from './activity-capabilities.js';
 export * from './activity-drafts.js';
