@@ -4,10 +4,29 @@ function clone(v){return structuredClone(v);}
 function now(){return new Date().toISOString();}
 function uid(){return createM26Id();}
 function remoteSnapshot(execution){const out=clone(execution);delete out.syncStatus;delete out.pendingOperationIds;delete out.lastSyncError;delete out.recoveredAt;delete out.liveTelemetry;delete out.activeSetDraft;delete out.finalFeedbackDraft;delete out.reviewingHistory;return out;}
-function findExercise(session, exerciseId){
-  for(const block of session.blocks||[]){
+function groupedExerciseFromBlock(block,exerciseId){
+  if(!block||!exerciseId)return null;
+  if(Array.isArray(block.exercises)){
+    const nested=block.exercises.find((candidate)=>candidate?.exerciseId===exerciseId);
+    if(nested)return nested;
+  }
+  const exerciseIds=Array.isArray(block.exerciseIds)?block.exerciseIds:[];
+  const groupOrder=exerciseIds.indexOf(exerciseId);
+  if(groupOrder<0)return null;
+  const planned=block?.prescriptions?.[exerciseId];
+  return {
+    ...(planned&&typeof planned==='object'?clone(planned):{}),
+    exerciseId,
+    blockId:block.id||null,
+    groupType:block.type||null,
+    groupOrder,
+  };
+}
+function findExercise(session,exerciseId){
+  for(const block of session?.blocks||[]){
     if(block.type==='exercise'&&block.exerciseId===exerciseId)return block;
-    if(Array.isArray(block.exercises)){const x=block.exercises.find(e=>e.exerciseId===exerciseId);if(x)return x;}
+    const grouped=groupedExerciseFromBlock(block,exerciseId);
+    if(grouped)return grouped;
   }
   return null;
 }
@@ -25,10 +44,8 @@ function findExecutionExercise(execution,session,item){
     const blocks=snapshot.blocks||[];
     const block=item?.blockId?blocks.find((candidate)=>candidate?.id===item.blockId):null;
     if(block?.type==='exercise'&&block.exerciseId===item?.exerciseId)return block;
-    if(Array.isArray(block?.exercises)){
-      const nested=block.exercises.find((candidate)=>candidate?.exerciseId===item?.exerciseId);
-      if(nested)return nested;
-    }
+    const grouped=groupedExerciseFromBlock(block,item?.exerciseId);
+    if(grouped)return grouped;
   }
   return findExercise(session,item?.exerciseId);
 }
@@ -116,10 +133,34 @@ export function createExecution({session,clientId,executionId=uid()}={}){
   if(!queue.length)throw new Error('M26_EXECUTION_EMPTY_SESSION');
   return {id:executionId,sessionId:session.id,clientId,status:'ready',syncStatus:'clean',pendingOperationIds:[],lastSyncError:null,revision:0,planSnapshot:createPlanSnapshot(session,queue),queue,index:0,setIndex:0,startedAt:null,activeSince:null,accumulatedActiveMs:0,completedAt:null,restUntil:null,events:[],results:{},feedback:null};
 }
-export function currentStep(execution,session){
-  const item=execution.queue[execution.index]; if(!item)return null;
+function executionStepAtPosition(execution,session,position){
+  const item=execution?.queue?.[position?.index];
+  if(!item)return null;
+  const setIndex=Number(position?.setIndex);
+  const totalSets=Number(item.sets||0);
+  if(!Number.isInteger(setIndex)||setIndex<0||setIndex>=totalSets)return null;
   const exercise=findExecutionExercise(execution,session,item);
-  return {...item,setNumber:execution.setIndex+1,totalSets:item.sets,roundNumber:isGroupedQueueItem(item)?execution.setIndex+1:null,totalRounds:isGroupedQueueItem(item)?item.sets:null,exercise,prescription:clone(item.prescription||{})};
+  return {
+    ...item,
+    setIndex,
+    setNumber:setIndex+1,
+    totalSets,
+    roundNumber:isGroupedQueueItem(item)?setIndex+1:null,
+    totalRounds:isGroupedQueueItem(item)?totalSets:null,
+    exercise,
+    prescription:clone(item.prescription||{}),
+  };
+}
+export function currentStep(execution,session){
+  return executionStepAtPosition(
+    execution,
+    session,
+    {index:execution?.index,setIndex:execution?.setIndex},
+  );
+}
+export function nextExecutionStep(execution,session){
+  const position=nextUnresolvedPosition(execution);
+  return position?executionStepAtPosition(execution,session,position):null;
 }
 function actorSnapshot(actor){
   const role=String(actor?.role||'').trim().toLowerCase()||null;

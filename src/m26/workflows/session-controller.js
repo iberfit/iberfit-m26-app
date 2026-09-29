@@ -273,6 +273,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     return Boolean(disclosure.open||(active&&disclosure.contains?.(active)));
   }
   function scheduleCoachRestAutoAdvance(context=getContext()){
+    if(coachRestAdvancePending)return;
     const execution=context?.execution;
     if(!isCoachContext(context)||execution?.status!=='active'||execution?.syncStatus!=='clean'){
       cancelCoachRestAutoAdvance();
@@ -294,8 +295,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(!signature||coachRestSuppressedSignature===signature)return;
     if(coachRestTimer&&coachRestTimerSignature===signature)return;
     cancelCoachRestAutoAdvance();
-    const delay=deadline-Date.now();
-    if(delay<=0)return;
+    const delay=Math.max(0,deadline-Date.now());
     coachRestTimerSignature=signature;
     coachRestTimer=setTimeout(async()=>{
       coachRestTimer=null;
@@ -436,6 +436,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       persistLifecycleContext();
       return;
     }
+    coachRestSuppressedSignature=null;
     scheduleCoachRestAutoAdvance(getContext());
     ensureSessionClockTicker(getContext());
   }

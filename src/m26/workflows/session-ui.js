@@ -1,4 +1,4 @@
-import { canSubstituteCurrentExercise,currentStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues } from './session-execution.js';
+import { canSubstituteCurrentExercise,currentStep,nextExecutionStep,executionResultForStep,hasNextExecutionStep,previousSetDraftValues } from './session-execution.js';
 import { executionElapsedMs,formatDuration,restRemainingSeconds } from './session-timer.js';
 import {renderExerciseMedia,renderExerciseMediaCredit} from '../library/exercise-media-ui.js';
 import {exerciseDisplayName} from '../exercises/names.js';
@@ -145,24 +145,29 @@ function draftMetrics(draft={}){
 }
 function plural(value,singular,pluralForm){return `${value} ${value===1?singular:pluralForm}`;}
 function nextExecutionCopy(execution,catalog){
-  const item=execution?.queue?.[execution.index];
+  const item=currentStep(execution);
   if(!item)return {label:'Finalizar ejercicio',detail:''};
-  if(execution.setIndex+1<item.sets){
-    const ex=catalog.get(item.exerciseId);
-    return {label:`Continuar · serie ${execution.setIndex+2}`,detail:exerciseDisplayName(ex||{})||'Mismo ejercicio'};
-  }
-  const next=execution.queue[execution.index+1];
+  const next=nextExecutionStep(execution);
   if(!next)return {label:'Continuar al cierre',detail:'Última serie completada'};
+  const sameExercise=next.blockId===item.blockId&&next.exerciseId===item.exerciseId;
   const ex=catalog.get(next.exerciseId);
-  return {label:'Continuar al siguiente',detail:exerciseDisplayName(ex||{})||'Siguiente ejercicio'};
+  if(sameExercise){
+    return {
+      label:`Continuar · serie ${next.setNumber}`,
+      detail:exerciseDisplayName(ex||{})||'Mismo ejercicio',
+    };
+  }
+  return {
+    label:'Continuar al siguiente',
+    detail:exerciseDisplayName(ex||{})||'Siguiente ejercicio',
+  };
 }
 function nextSessionPreparation(execution,catalog,mediaMap,role){
-  const item=execution?.queue?.[execution.index];
+  const item=currentStep(execution);
   if(!item)return '';
-  const withinCurrentExercise=execution.setIndex+1<Number(item.sets||0);
-  const next=withinCurrentExercise?item:execution.queue[execution.index+1];
+  const next=nextExecutionStep(execution);
   if(!next)return '';
-  const sameExercise=next.exerciseId===item.exerciseId;
+  const sameExercise=next.blockId===item.blockId&&next.exerciseId===item.exerciseId;
   const isCoach=String(role||'').trim().toLowerCase()==='coach';
   const exercise=catalog.get(next.exerciseId)||{id:next.exerciseId,name_es:'Siguiente ejercicio'};
   const visual=sameExercise?'':renderExerciseMedia({
