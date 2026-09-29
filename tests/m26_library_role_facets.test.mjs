@@ -6,9 +6,10 @@ import {
   libraryCardMatchesFacets,
   libraryFacetValues,
   normalizeLibraryFacet,
+  renderExerciseLibraryGroups,
+  renderLibraryExerciseCard,
   renderLibraryFacetController,
-} from '../src/m26/library/library-facet-controller.js';
-import {renderExerciseLibraryGroups,renderLibraryExerciseCard} from '../src/m26/library/exercise-media-ui.js';
+} from '../src/m26/library/exercise-media-ui.js';
 
 const exercises=[
   {
