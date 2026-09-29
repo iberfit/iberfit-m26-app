@@ -1,13 +1,16 @@
 name: IBERFIT Production Data Safety Gate
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - 'canary/rc74-4'
     paths:
       - 'supabase/migrations/**'
       - 'scripts/data-safety/check_migration_safety.mjs'
+      - 'scripts/data-safety/check_prod_backup_readiness.mjs'
       - 'tests/m26_prod_data_safety_gate.test.mjs'
+      - 'tests/m26_prod_backup_readiness.test.mjs'
       - '.github/workflows/prod-data-safety-gate.yml'
   push:
     branches:
@@ -15,7 +18,9 @@ on:
     paths:
       - 'supabase/migrations/**'
       - 'scripts/data-safety/check_migration_safety.mjs'
+      - 'scripts/data-safety/check_prod_backup_readiness.mjs'
       - 'tests/m26_prod_data_safety_gate.test.mjs'
+      - 'tests/m26_prod_backup_readiness.test.mjs'
       - '.github/workflows/prod-data-safety-gate.yml'
 
 permissions:
@@ -25,11 +30,14 @@ concurrency:
   group: iberfit-production-data-safety-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  PROD_SUPABASE_REF: 'pjhmrhejsoofmouedavw'
+
 jobs:
   production-data-safety:
     name: production-data-safety-fail-closed
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
@@ -56,9 +64,12 @@ jobs:
           if [ "$EVENT_NAME" = "pull_request" ]; then
             BASE_SHA="$PR_BASE_SHA"
             HEAD_SHA="$PR_HEAD_SHA"
-          else
+          elif [ "$EVENT_NAME" = "push" ]; then
             BASE_SHA="$PUSH_BEFORE_SHA"
             HEAD_SHA="$CURRENT_SHA"
+          else
+            BASE_SHA="$(git rev-parse HEAD^)"
+            HEAD_SHA="$(git rev-parse HEAD)"
           fi
 
           if ! [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]] || [[ "$BASE_SHA" =~ ^0+$ ]]; then
@@ -80,5 +91,36 @@ jobs:
             '${{ steps.diff.outputs.base_sha }}' \
             '${{ steps.diff.outputs.head_sha }}'
 
-      - name: Test data safety policy
-        run: node --test tests/m26_prod_data_safety_gate.test.mjs
+      - name: Test data safety and recovery policy
+        run: |
+          node --test \
+            tests/m26_prod_data_safety_gate.test.mjs \
+            tests/m26_prod_backup_readiness.test.mjs
+
+      - name: Verify recoverable Supabase production backup
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo 'SUPABASE_ACCESS_TOKEN_MISSING'; exit 41; }
+          mkdir -p recovery
+          curl --fail --silent --show-error --location \
+            --retry 3 --retry-all-errors \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/projects/${PROD_SUPABASE_REF}/database/backups" \
+            -o recovery/prod-backup-readiness.json
+          node scripts/data-safety/check_prod_backup_readiness.mjs \
+            recovery/prod-backup-readiness.json \
+            recovery/prod-backup-readiness-summary.json
+
+      - name: Preserve production recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iberfit-prod-backup-readiness-${{ github.run_id }}
+          path: |
+            recovery/prod-backup-readiness.json
+            recovery/prod-backup-readiness-summary.json
+          if-no-files-found: warn
+          retention-days: 30
