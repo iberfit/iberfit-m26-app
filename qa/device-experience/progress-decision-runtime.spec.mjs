@@ -1,5 +1,6 @@
 import {mkdir} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
+import {captureEvidenceScreenshot} from './reliable-screenshot.mjs';
 
 const OUT='recovery/device-experience';
 
@@ -68,7 +69,7 @@ test('Client Progress decision evidence mounts above collapsed longitudinal deta
     'Client summary must not expose insufficient-data filler cards',
   ).not.toContainText('Datos insuficientes');
 
-  await page.screenshot({
+  await captureEvidenceScreenshot(page,{
     path:`${OUT}/${safeSlug(testInfo.project.name)}-client-progress-decision-runtime.png`,
     fullPage:true,
     animations:'disabled',
