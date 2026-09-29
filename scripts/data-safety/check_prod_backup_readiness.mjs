@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const DEFAULT_MAX_DAILY_BACKUP_AGE_HOURS = 36;
@@ -90,17 +91,32 @@ export function evaluateBackupReadiness(
   };
 }
 
+function writeSummary(summaryPath, summary) {
+  if (!summaryPath) return;
+  fs.mkdirSync(path.dirname(summaryPath), { recursive: true });
+  fs.writeFileSync(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+}
+
 export function verifyBackupReadinessFile({ inputPath, summaryPath } = {}) {
   if (!inputPath) throw new Error('BACKUP_INPUT_PATH_REQUIRED');
   const payload = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
-  const summary = evaluateBackupReadiness(payload);
 
-  if (summaryPath) {
-    fs.mkdirSync(new URL('.', pathToFileURL(summaryPath)), { recursive: true });
-    fs.writeFileSync(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+  try {
+    const summary = evaluateBackupReadiness(payload);
+    writeSummary(summaryPath, summary);
+    return summary;
+  } catch (error) {
+    writeSummary(summaryPath, {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+      pitrEnabled: payload?.pitr_enabled === true,
+      walgEnabled: payload?.walg_enabled === true,
+      completedBackupCount: Array.isArray(payload?.backups)
+        ? payload.backups.filter((backup) => backup?.status === 'COMPLETED').length
+        : 0,
+    });
+    throw error;
   }
-
-  return summary;
 }
 
 const invokedDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
