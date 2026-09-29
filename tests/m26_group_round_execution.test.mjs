@@ -110,14 +110,17 @@ test('previous and forward review follow the real grouped order across exercise 
   assert.equal(identity(execution,session),'a:2');
 });
 
-test('extra set fast path remains direct even inside a group',()=>{
+test('extra set fast path is rejected inside a group to preserve round order',()=>{
   const session=groupSession({rounds:1});
   const execution=createExecution({session,clientId:session.clientId,executionId:'exec-extra-group'});
   startExecution(execution,{actor:coach()});
   recordSet(execution,session,{reps:10,rpe:7,rir:3,actor:coach()});
-  addExtraSetAndAdvance(execution,session,{actor:coach()});
-  assert.equal(identity(execution,session),'a:2');
-  assert.equal(execution.queue[0].sets,2);
+  assert.throws(
+    ()=>addExtraSetAndAdvance(execution,session,{actor:coach()}),
+    /M26_EXECUTION_EXTRA_SET_GROUP_ORDER_REQUIRED/,
+  );
+  assert.equal(identity(execution,session),'a:1');
+  assert.equal(execution.queue[0].sets,1);
 });
 
 test('live exercise inserted as next during a group waits until the group boundary',()=>{
