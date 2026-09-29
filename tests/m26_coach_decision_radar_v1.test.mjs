@@ -21,14 +21,21 @@ function coachState(){
         {id:'a3',clientId:'c1',status:'completed',scheduledAt:'2026-09-18T10:00:00Z'},
         {id:'a4',clientId:'c1',status:'completed',scheduledAt:'2026-09-25T10:00:00Z'},
       ],
-      sessions:[
-        {id:'s1',clientId:'c1',blocks:[{exerciseId:'squat',exerciseName:'Sentadilla'}]},
-      ],
+      sessions:[{
+        id:'s1',
+        clientId:'c1',
+        blocks:[
+          {exerciseId:'exercise-1',exerciseName:'Ejercicio 1'},
+          {exerciseId:'exercise-2',exerciseName:'Ejercicio 2'},
+          {exerciseId:'exercise-3',exerciseName:'Ejercicio 3'},
+          {exerciseId:'exercise-4',exerciseName:'Ejercicio 4'},
+        ],
+      }],
       sessionExecutions:[
-        {id:'e1',clientId:'c1',sessionId:'s1',appointmentId:'a1',status:'completed',syncStatus:'clean',completedAt:'2026-09-04T11:00:00Z',results:{x:{exerciseId:'squat',reps:8,loadKg:100,rpe:7}}},
-        {id:'e2',clientId:'c1',sessionId:'s1',appointmentId:'a2',status:'completed',syncStatus:'clean',completedAt:'2026-09-11T11:00:00Z',results:{x:{exerciseId:'squat',reps:8,loadKg:100,rpe:7}}},
-        {id:'e3',clientId:'c1',sessionId:'s1',appointmentId:'a3',status:'completed',syncStatus:'clean',completedAt:'2026-09-18T11:00:00Z',results:{x:{exerciseId:'squat',reps:8,loadKg:50,rpe:7}}},
-        {id:'e4',clientId:'c1',sessionId:'s1',appointmentId:'a4',status:'completed',syncStatus:'clean',completedAt:'2026-09-25T11:00:00Z',results:{x:{exerciseId:'squat',reps:8,loadKg:50,rpe:7}}},
+        {id:'e1',clientId:'c1',sessionId:'s1',appointmentId:'a1',status:'completed',syncStatus:'clean',completedAt:'2026-09-04T11:00:00Z',results:{x:{exerciseId:'exercise-1',reps:8,loadKg:100,rpe:7}}},
+        {id:'e2',clientId:'c1',sessionId:'s1',appointmentId:'a2',status:'completed',syncStatus:'clean',completedAt:'2026-09-11T11:00:00Z',results:{x:{exerciseId:'exercise-2',reps:8,loadKg:100,rpe:7}}},
+        {id:'e3',clientId:'c1',sessionId:'s1',appointmentId:'a3',status:'completed',syncStatus:'clean',completedAt:'2026-09-18T11:00:00Z',results:{x:{exerciseId:'exercise-3',reps:8,loadKg:50,rpe:7}}},
+        {id:'e4',clientId:'c1',sessionId:'s1',appointmentId:'a4',status:'completed',syncStatus:'clean',completedAt:'2026-09-25T11:00:00Z',results:{x:{exerciseId:'exercise-4',reps:8,loadKg:50,rpe:7}}},
       ],
       iriAssessments:[],
       checkins:[],
