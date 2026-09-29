@@ -216,7 +216,7 @@ function nextSessionPreparation(execution,catalog,mediaMap,role){
       <div class="m26-session-next-exercise-facts">
         <div class="m26-field"><span>Series</span><strong>${e(Number(next.sets)||1)}</strong></div>
         <div class="m26-field"><span>Próximo objetivo</span><strong>${e(target)}</strong></div>
-        <div class="m26-field"><span>Descanso</span><strong>${e(planned.restSeconds||60)} s</strong></div>
+        <div class="m26-field"><span>Descanso</span><strong>${e(planned.restSeconds??60)} s</strong></div>
         ${guidance?`<div class="m26-field m26-session-next-exercise-guidance"><span>Indicaciones</span><strong>${e(guidance)}</strong></div>`:''}
         ${alternativeName?`<div class="m26-field"><span>Alternativa prevista</span><strong>${e(alternativeName)}</strong></div>`:''}
       </div>
@@ -415,7 +415,7 @@ function exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor){
       ${blockField({blockId:block.id,field:'sets',label:'Series',value:block.sets,type:'number',min:1,max:100})}
       ${blockField({blockId:block.id,field:'reps',label:'Repeticiones/tiempo objetivo',value:block.reps,maxLength:80})}
       ${blockField({blockId:block.id,field:'plannedLoad',label:'Carga planificada',value:block.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
-      ${blockField({blockId:block.id,field:'restSeconds',label:'Descanso (s)',value:block.restSeconds,type:'number',min:1,max:3600})}
+      ${blockField({blockId:block.id,field:'restSeconds',label:'Descanso (s)',value:block.restSeconds,type:'number',min:0,max:3600})}
     </div>
     <details class="m26-builder-prescription-details">
       <summary>Prescripción y alternativas</summary>
@@ -441,7 +441,7 @@ function groupExerciseEditor(group,exerciseId,catalog,mediaMap,role,exerciseMemo
     <div class="m26-field-grid m26-builder-core-prescription">
       ${blockField({blockId:group.id,exerciseId,field:'reps',label:'Repeticiones/tiempo',value:p.reps||'8–12',maxLength:80})}
       ${blockField({blockId:group.id,exerciseId,field:'plannedLoad',label:'Carga planificada',value:p.plannedLoad||'',maxLength:80,placeholder:'Ej. 22,5 kg o peso corporal'})}
-      ${blockField({blockId:group.id,exerciseId,field:'restSeconds',label:'Descanso (s)',value:p.restSeconds||60,type:'number',min:1,max:3600})}
+      ${blockField({blockId:group.id,exerciseId,field:'restSeconds',label:'Descanso (s)',value:p.restSeconds??60,type:'number',min:0,max:3600})}
     </div>
     <details class="m26-builder-prescription-details">
       <summary>Prescripción y alternativas</summary>
@@ -750,7 +750,7 @@ function sessionSetFocus({step,planned,previousSet,exerciseMemory,restActive=fal
     </div>
     <div>
       <span>Descanso previsto</span>
-      <strong>${e(planned?.restSeconds||60)} s</strong>
+      <strong>${e(planned?.restSeconds??60)} s</strong>
     </div>
   </section>`;
 }
@@ -958,7 +958,7 @@ const setEntryFields=isCoach
     </div>`;
 const previousSet=previousSetDraftValues(execution);
 const previousSetReuse=previousSet
-  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds||60)}" aria-label="Repetir los datos de la serie anterior y completar esta serie">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Acción rápida del Coach · no copia notas.</small>':''}</div></div>`
+  ?`<div class="m26-field-grid" data-session-previous-set><div class="m26-field"><span>Serie anterior</span><strong>${e(previousSetSummary(previousSet))}</strong><div class="m26-session-repeat-actions"><button type="button" data-session-action="reuse-previous-set" aria-label="Usar los datos de la serie anterior y revisarlos antes de confirmar">Usar y revisar</button>${isCoach?`<button type="button" class="m26-session-fast-action" data-session-action="repeat-previous-set" data-rest-seconds="${e(planned.restSeconds??60)}" aria-label="Repetir los datos de la serie anterior y completar esta serie">Repetir y completar</button>`:''}</div>${isCoach?'<small class="m26-session-repeat-note">Acción rápida del Coach · no copia notas.</small>':''}</div></div>`
   :'';
 const currentExerciseHistory=renderCurrentExerciseHistory(execution,step);
 const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
@@ -1109,7 +1109,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
           <summary>Añadir una nota a esta serie</summary>
           <label>Notas<textarea maxlength="1000" data-set-field="notes"></textarea></label>
         </details>
-        <button type="button" class="m26-primary-action" data-session-action="complete-set" data-rest-seconds="${e(planned.restSeconds||60)}">Completar serie</button>
+        <button type="button" class="m26-primary-action" data-session-action="complete-set" data-rest-seconds="${e(planned.restSeconds??60)}">Completar serie</button>
         <details class="m26-session-options">
           <summary>No realizar esta serie</summary>
           <label>Motivo<input maxlength="500" data-session-skip-set-reason placeholder="Ej. molestia, fatiga o ajuste técnico"></label>
@@ -1163,7 +1163,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
             ${planned.plannedLoad?`<div class="m26-field"><span>Carga planificada</span><strong>${e(planned.plannedLoad)}</strong><small>No se autocompleta</small></div>`:''}
             <div class="m26-field">
               <span>Descanso</span>
-              <strong>${e(planned.restSeconds||60)} s</strong>
+              <strong>${e(planned.restSeconds??60)} s</strong>
             </div>
             <div class="m26-field">
               <span>Ritmo de ejecución</span>
@@ -1200,7 +1200,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
               <div class="m26-field-grid">
                 <label>Series<input type="number" min="1" max="100" value="1" data-session-live-add-sets></label>
                 <label>Repeticiones/tiempo<input maxlength="40" value="10" data-session-live-add-reps></label>
-                <label>Descanso (s)<input type="number" min="1" max="3600" value="60" data-session-live-add-rest></label>
+                <label>Descanso (s)<input type="number" min="0" max="3600" value="60" data-session-live-add-rest></label>
                 <label>Ritmo<input maxlength="40" value="controlado" data-session-live-add-tempo></label>
                 <label>RPE objetivo<input type="number" min="1" max="10" step="0.5" value="7" data-session-live-add-rpe></label>
                 <label>RIR objetivo<input type="number" min="0" max="10" step="0.5" value="3" data-session-live-add-rir></label>
