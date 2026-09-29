@@ -80,8 +80,18 @@ jobs:
             exit 31
           fi
 
+          MIGRATION_DIFF="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- 'supabase/migrations/**')"
+          HAS_MIGRATION_CHANGES=false
+          if [ -n "$MIGRATION_DIFF" ]; then
+            HAS_MIGRATION_CHANGES=true
+          fi
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            HAS_MIGRATION_CHANGES=true
+          fi
+
           echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
           echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "has_migration_changes=$HAS_MIGRATION_CHANGES" >> "$GITHUB_OUTPUT"
 
       - name: Enforce append-only non-destructive migrations
         shell: bash
@@ -97,7 +107,8 @@ jobs:
             tests/m26_prod_data_safety_gate.test.mjs \
             tests/m26_prod_backup_readiness.test.mjs
 
-      - name: Verify recoverable Supabase production backup
+      - name: Verify recoverable Supabase production backup before schema change
+        if: ${{ steps.diff.outputs.has_migration_changes == 'true' }}
         shell: bash
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -114,8 +125,12 @@ jobs:
             recovery/prod-backup-readiness.json \
             recovery/prod-backup-readiness-summary.json
 
+      - name: Record backup gate applicability
+        if: ${{ steps.diff.outputs.has_migration_changes != 'true' }}
+        run: echo 'IBERFIT_PROD_BACKUP_GATE_NOT_REQUIRED no schema migration in this candidate'
+
       - name: Preserve production recovery evidence
-        if: always()
+        if: ${{ always() && steps.diff.outputs.has_migration_changes == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: iberfit-prod-backup-readiness-${{ github.run_id }}
