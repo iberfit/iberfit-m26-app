@@ -97,7 +97,7 @@ test('Library V2.5 keeps canonical search, all filters, status and grid',()=>{
   assert.ok(html.includes('data-library-grid'));
   assert.ok(html.includes('data-library-status'));
   assert.ok(html.includes('role="status"'));
-  assert.ok(html.includes('Biblioteca no cargada'));
+  assert.ok(html.includes('No hay coincidencias'));
 });
 
 test('Library V2.5 preserves admin global rename capability in exercise cards',()=>{
