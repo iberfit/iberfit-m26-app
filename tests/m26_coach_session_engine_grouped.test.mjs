@@ -9,6 +9,9 @@ import {
   nextExecutionStep,
   recordSet,
   advanceExecution,
+  retreatExecution,
+  addExecutionSet,
+  addExtraSetAndAdvance,
 } from '../src/m26/workflows/session-execution.js';
 
 const coach={role:'coach',userId:'coach-regression'};
@@ -114,6 +117,120 @@ test('biserie executes A1 -> B1 -> A2 -> B2',()=>{
   walkOrder('biserie',['A','B'],2);
 });
 
+test('history review peek follows the same planned step as advanceExecution',()=>{
+  const session=groupedSession('biserie',['A','B'],2);
+  const execution=createExecution({
+    session,
+    clientId:'client-history',
+    executionId:'execution-history-review',
+  });
+  startExecution(execution,{actor:coach});
+
+  recordSet(execution,session,{reps:8,load:'40',rpe:7,rir:3,actor:coach});
+  advanceExecution(execution,{actor:coach}); // B1
+
+  recordSet(execution,session,{reps:8,load:'40',rpe:7,rir:3,actor:coach});
+  advanceExecution(execution,{actor:coach}); // A2
+
+  recordSet(execution,session,{reps:8,load:'40',rpe:7,rir:3,actor:coach});
+  advanceExecution(execution,{actor:coach}); // B2 unresolved
+
+  retreatExecution(execution,{actor:coach}); // A2
+  retreatExecution(execution,{actor:coach}); // B1
+
+  assert.equal(execution.reviewingHistory,true);
+
+  const peek=nextExecutionStep(execution,session);
+
+  assert.deepEqual(
+    [peek.exerciseId,peek.setNumber],
+    ['A',2],
+    'historical peek must follow planned A2, not jump to unresolved B2',
+  );
+
+  advanceExecution(execution,{actor:coach});
+
+  const advanced=currentStep(execution,session);
+  assert.deepEqual(
+    [advanced.exerciseId,advanced.setNumber],
+    ['A',2],
+    'advanceExecution and UI peek must agree while reviewing history',
+  );
+});
+
+test('grouped extra set preserves interleaving and rejects unsafe immediate jump',()=>{
+  const session=groupedSession('biserie',['A','B'],2);
+  const execution=createExecution({
+    session,
+    clientId:'client-extra',
+    executionId:'execution-group-extra',
+  });
+  startExecution(execution,{actor:coach});
+
+  recordSet(execution,session,{reps:8,load:'40',rpe:7,rir:3,actor:coach});
+  advanceExecution(execution,{actor:coach}); // B1
+
+  recordSet(execution,session,{reps:8,load:'40',rpe:7,rir:3,actor:coach});
+  advanceExecution(execution,{actor:coach}); // A2
+
+  recordSet(execution,session,{reps:8,load:'40',rpe:7,rir:3,actor:coach});
+
+  addExecutionSet(execution,{actor:coach});
+
+  const next=nextExecutionStep(execution,session);
+  assert.deepEqual(
+    [next.exerciseId,next.setNumber],
+    ['B',2],
+    'adding A3 must still complete B2 before the extra A set',
+  );
+
+  assert.throws(
+    ()=>addExtraSetAndAdvance(execution,session,{actor:coach}),
+    /M26_EXECUTION_EXTRA_SET_GROUP_ORDER_REQUIRED/,
+  );
+
+  advanceExecution(execution,{actor:coach}); // B2
+  recordSet(execution,session,{reps:8,load:'40',rpe:7,rir:3,actor:coach});
+  advanceExecution(execution,{actor:coach}); // A3
+
+  const extra=currentStep(execution,session);
+  assert.deepEqual([extra.exerciseId,extra.setNumber],['A',3]);
+});
+
+test('immediate extra-set fast path remains available for individual exercises',()=>{
+  const session={
+    id:'single-session',
+    revision:1,
+    title:'Single',
+    blocks:[{
+      id:'single-block',
+      type:'exercise',
+      exerciseId:'A',
+      sets:1,
+      reps:'8',
+      plannedLoad:'40',
+      restSeconds:30,
+      tempo:'2-0-2',
+      targetRpe:7,
+      targetRir:3,
+    }],
+  };
+
+  const execution=createExecution({
+    session,
+    clientId:'client-single',
+    executionId:'execution-single-extra',
+  });
+
+  startExecution(execution,{actor:coach});
+  recordSet(execution,session,{reps:8,load:'40',rpe:7,rir:3,actor:coach});
+
+  addExtraSetAndAdvance(execution,session,{actor:coach});
+
+  const step=currentStep(execution,session);
+  assert.deepEqual([step.exerciseId,step.setNumber,step.totalSets],['A',2,2]);
+});
+
 test('triserie interleaves every exercise by round',()=>{
   walkOrder('triserie',['A','B','C'],2);
 });
@@ -176,6 +293,18 @@ test('session UI consumes canonical nextExecutionStep instead of raw queue arith
   assert.doesNotMatch(
     source,
     /const withinCurrentExercise=execution\.setIndex\+1/,
+  );
+  assert.match(
+    source,
+    /const nextStep=nextExecutionStep\(execution,session\)/,
+  );
+  assert.match(
+    source,
+    /!currentQueueItem\?\.groupType/,
+  );
+  assert.doesNotMatch(
+    source,
+    /Number\(execution\.setIndex\)\+1>=Number\(currentQueueItem\.sets/,
   );
 });
 

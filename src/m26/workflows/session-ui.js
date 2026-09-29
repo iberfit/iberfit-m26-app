@@ -998,6 +998,7 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
   const coachExtraSetReady=Boolean(
     isCoach&&
     recorded&&
+    !currentQueueItem?.groupType&&
     Number(execution.setIndex)+1===Number(currentQueueItem?.sets||0)&&
     Number(currentQueueItem?.sets||0)<100
   );
@@ -1008,15 +1009,18 @@ const exerciseMemory=exerciseMemoryFor?.(step.exerciseId)||null;
     :(substitutionUnavailable?'No hay alternativas compatibles disponibles':'');
   const restSeconds=restRemainingSeconds(execution);
   const restActive=Boolean(recorded&&restSeconds>0);
+  const nextStep=nextExecutionStep(execution,session);
   const nextCopy=nextExecutionCopy(execution,catalog);
   const nextExercisePreview=restActive
   ?nextSessionPreparation(execution,catalog,mediaMap,role)
   :'';
   const transitionsToNextExercise=Boolean(
     restActive&&
-    currentQueueItem&&
-    Number(execution.setIndex)+1>=Number(currentQueueItem.sets||0)&&
-    Number(execution.index)+1<Number(execution.queue?.length||0)
+    nextStep&&
+    (
+      nextStep.blockId!==step.blockId||
+      nextStep.exerciseId!==step.exerciseId
+    )
   );
   const coachNextExerciseHandoff=Boolean(isCoach&&transitionsToNextExercise);
   const restCurrentMedia=restActive

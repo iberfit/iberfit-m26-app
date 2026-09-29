@@ -99,6 +99,12 @@ function nextPlannedPosition(execution){
   if(currentOffset<0)return null;
   return positions[currentOffset+1]||null;
 }
+function nextExecutionPosition(execution,{reviewHistory=false}={}){
+  if(reviewHistory&&execution?.reviewingHistory){
+    return nextPlannedPosition(execution)||nextUnresolvedPosition(execution);
+  }
+  return nextUnresolvedPosition(execution);
+}
 function previousPlannedPosition(execution){
   const positions=plannedExecutionPositions(execution);
   if(!positions.length)return null;
@@ -159,7 +165,10 @@ export function currentStep(execution,session){
   );
 }
 export function nextExecutionStep(execution,session){
-  const position=nextUnresolvedPosition(execution);
+  const position=nextExecutionPosition(
+    execution,
+    {reviewHistory:true},
+  );
   return position?executionStepAtPosition(execution,session,position):null;
 }
 function actorSnapshot(actor){
@@ -382,19 +391,15 @@ function moveForward(execution,actor=null,{reviewHistory=false}={}){
   const pendingDraft=execution.activeSetDraft;
   const draftBelongsToSource=activeSetDraftMatchesPosition(execution,pendingDraft,execution.index,execution.setIndex);
   execution.restUntil=null;
-  let next=null;
-  if(reviewHistory&&execution.reviewingHistory){
-    const plannedNext=nextPlannedPosition(execution);
-    if(plannedNext){
-      next=plannedNext;
-      if(!positionResolved(execution,plannedNext))delete execution.reviewingHistory;
-    }else{
+  const reviewingHistory=Boolean(reviewHistory&&execution.reviewingHistory);
+  const plannedNext=reviewingHistory?nextPlannedPosition(execution):null;
+  const next=nextExecutionPosition(execution,{reviewHistory});
+  if(reviewingHistory){
+    if(!plannedNext||!positionResolved(execution,plannedNext)){
       delete execution.reviewingHistory;
-      next=nextUnresolvedPosition(execution);
     }
   }else{
     delete execution.reviewingHistory;
-    next=nextUnresolvedPosition(execution);
   }
   if(next){execution.index=next.index;execution.setIndex=next.setIndex;}
   else{execution.index=execution.queue.length;execution.setIndex=0;}
@@ -544,6 +549,7 @@ export function addExtraSetAndAdvance(execution,session,{actor=null}={}){
   if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
   requireCoachActor(actor);
   const item=execution.queue?.[execution.index];if(!item)throw new Error('M26_EXECUTION_STEP_MISSING');
+  if(isGroupedQueueItem(item))throw new Error('M26_EXECUTION_EXTRA_SET_GROUP_ORDER_REQUIRED');
   const step=currentStep(execution,session);if(!step)throw new Error('M26_EXECUTION_STEP_MISSING');
   ensureDeviationStores(execution);
   if(!executionResultForStep(execution,step)&&!skippedSetForStep(execution,step))throw new Error('M26_EXECUTION_SET_NOT_RECORDED');
