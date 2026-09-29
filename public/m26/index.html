@@ -91,37 +91,7 @@
   </div>
   <noscript>IBERFIT necesita JavaScript para funcionar.</noscript>
   <script src="/m26/runtime-config.js"></script>
-  <script>
-    (()=>{
-      const sw=globalThis.navigator?.serviceWorker;
-      if(!sw?.controller||typeof sw.getRegistration!=='function')return;
-      void sw.getRegistration('/').then((registration)=>{
-        if(!registration)return;
-        const activateWaiting=()=>{
-          if(!registration.waiting||!sw.controller)return false;
-          registration.waiting.postMessage?.({type:'SKIP_WAITING'});
-          return true;
-        };
-        const armInstalling=()=>{
-          const installing=registration.installing;
-          if(!installing)return;
-          if(installing.state==='installed'){
-            activateWaiting();
-            return;
-          }
-          const onStateChange=()=>{
-            if(installing.state!=='installed')return;
-            installing.removeEventListener?.('statechange',onStateChange);
-            activateWaiting();
-          };
-          installing.addEventListener?.('statechange',onStateChange);
-        };
-        registration.addEventListener?.('updatefound',armInstalling);
-        armInstalling();
-        activateWaiting();
-      }).catch(()=>{});
-    })();
-  </script>
+  <script src="/m26/pwa-preflight.js"></script>
   <script type="module" src="/src/m26/experience/session-haptics.js"></script>
   <script type="module" src="/m26/app.js"></script>
 </body>
