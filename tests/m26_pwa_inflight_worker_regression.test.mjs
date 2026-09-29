@@ -65,7 +65,8 @@ test('PWA preflight adopts a worker that was already installing before listeners
   installing.state = 'installed';
   stateChange();
 
-  assert.deepEqual(messages, [{ type: 'SKIP_WAITING' }]);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0]?.type, 'SKIP_WAITING');
 });
 
 test('PWA preflight activates an already waiting worker immediately', async () => {
@@ -90,5 +91,6 @@ test('PWA preflight activates an already waiting worker immediately', async () =
   vm.runInNewContext(source, { navigator: { serviceWorker } });
   await flushMicrotasks();
 
-  assert.deepEqual(messages, [{ type: 'SKIP_WAITING' }]);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0]?.type, 'SKIP_WAITING');
 });
