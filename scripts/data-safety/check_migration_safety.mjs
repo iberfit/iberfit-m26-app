@@ -15,10 +15,16 @@ function removeCommentsAndSingleQuotedStrings(sql) {
     .replace(/'(?:''|[^'])*'/g, "''");
 }
 
-function removeDollarQuotedBodies(sql) {
-  return sql
-    .replace(/\$([A-Za-z_][A-Za-z0-9_]*)\$[\s\S]*?\$\1\$/g, ' ')
-    .replace(/\$\$[\s\S]*?\$\$/g, ' ');
+function removeRoutineBodies(sql) {
+  // Explicit function/procedure bodies may contain user-driven DELETE logic. Keep
+  // their DDL headers visible, but hide only the body from migration-time DML checks.
+  // Anonymous DO blocks are intentionally NOT hidden: they execute during migration
+  // and are rejected below because they can conceal arbitrary dynamic/destructive SQL.
+  const routineRe = /\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\b[\s\S]*?(\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$)[\s\S]*?\1/gi;
+  return sql.replace(routineRe, (match, delimiter) => {
+    const bodyStart = match.indexOf(delimiter);
+    return bodyStart >= 0 ? `${match.slice(0, bodyStart)}${delimiter}${delimiter}` : match;
+  });
 }
 
 function normalize(sql) {
@@ -27,25 +33,40 @@ function normalize(sql) {
 
 export function findDestructiveSql(sql) {
   const withoutCommentsOrStrings = removeCommentsAndSingleQuotedStrings(sql);
+  const routineMaskedSurface = normalize(removeRoutineBodies(withoutCommentsOrStrings));
   const ddlSurface = normalize(withoutCommentsOrStrings);
-  const topLevelSurface = normalize(removeDollarQuotedBodies(withoutCommentsOrStrings));
   const findings = [];
 
   const rules = [
     ['DROP_TABLE', /\bDROP\s+TABLE\b/],
     ['DROP_SCHEMA', /\bDROP\s+SCHEMA\b/],
     ['TRUNCATE', /\bTRUNCATE(?:\s+TABLE)?\b/],
-    ['DROP_COLUMN', /\bALTER\s+TABLE\b[\s\S]{0,800}?\bDROP\s+COLUMN\b/],
+    ['DROP_COLUMN', /\bALTER\s+TABLE\b[^;]*\bDROP\s+COLUMN\b/],
+    ['ALTER_COLUMN_TYPE', /\bALTER\s+TABLE\b[^;]*\bALTER\s+COLUMN\b[^;]*\b(?:TYPE|SET\s+DATA\s+TYPE)\b/],
     ['DROP_DATABASE', /\bDROP\s+DATABASE\b/],
+    ['DROP_TYPE', /\bDROP\s+TYPE\b/],
+    ['DROP_OWNED', /\bDROP\s+OWNED\b/],
+    ['DROP_EXTENSION', /\bDROP\s+EXTENSION\b/],
   ];
 
   for (const [code, pattern] of rules) {
     if (pattern.test(ddlSurface)) findings.push(code);
   }
 
-  // Migration-time row deletion is prohibited. Function/procedure bodies are excluded
-  // because domain commands can legitimately implement explicit user-driven deletion.
-  if (/\bDELETE\s+FROM\b/.test(topLevelSurface)) findings.push('DELETE_FROM');
+  // Migration-time row deletion is prohibited. Only explicit routine bodies are
+  // excluded because they execute later under application authorization, not now.
+  if (/\bDELETE\s+FROM\b/.test(routineMaskedSurface)) findings.push('DELETE_FROM');
+
+  // Anonymous procedural blocks and CALL can execute arbitrary side effects and can
+  // hide destructive SQL behind dynamic EXECUTE strings. Fail closed and require a
+  // separately reviewed/backfilled path instead of allowing them in schema migration.
+  if (/\bDO\s+(?:LANGUAGE\s+[A-Z_][A-Z0-9_]*\s+)?(?:\$[A-Z_][A-Z0-9_]*\$|\$\$)/.test(routineMaskedSurface)) {
+    findings.push('ANONYMOUS_DO_BLOCK');
+  }
+  if (/\bCALL\s+[A-Z_][A-Z0-9_.]*\s*\(/.test(routineMaskedSurface)) findings.push('CALL_STATEMENT');
+
+  // PostgreSQL 17 MERGE may delete matched rows.
+  if (/\bMERGE\b[^;]*\bTHEN\s+DELETE\b/.test(routineMaskedSurface)) findings.push('MERGE_DELETE');
 
   return [...new Set(findings)];
 }
