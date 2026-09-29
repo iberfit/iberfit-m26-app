@@ -8,6 +8,8 @@ function searchableParts(item={}){
   const name=names[0]||'';
   const pattern=normalize(item.pattern);
   const equipment=normalize(item.equipment);
+  const difficulty=normalize(item.difficulty);
+  const intent=normalize(item.intent);
   const tags=normalize((item.tags||[]).join(' '));
   const aliases=normalize((item.aliases||[]).join(' '));
   return {
@@ -15,12 +17,16 @@ function searchableParts(item={}){
     names,
     pattern,
     equipment,
+    difficulty,
+    intent,
     tags,
     aliases,
     text:[
       ...names,
       pattern,
       equipment,
+      difficulty,
+      intent,
       tags,
       aliases,
     ].filter(Boolean).join(' '),
@@ -34,7 +40,8 @@ function rank(parts,phrase,tokens,index){
   else if(parts.names.some((name)=>name.includes(phrase)))score=760;
   else if(parts.names.some((name)=>containsAll(name,tokens)))score=700;
   else if(parts.pattern===phrase)score=620;
-  else if(containsAll(`${parts.pattern} ${parts.equipment}`,tokens))score=540;
+  else if(parts.intent===phrase||parts.difficulty===phrase)score=600;
+  else if(containsAll(`${parts.pattern} ${parts.equipment} ${parts.intent} ${parts.difficulty}`,tokens))score=540;
   else if(containsAll(parts.aliases,tokens))score=300;
   else if(containsAll(parts.tags,tokens))score=220;
   else if(containsAll(parts.text,tokens))score=100;
