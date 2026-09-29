@@ -127,16 +127,22 @@ export function buildIberfitDecisionBrief({
     );
   }
 
-  const wearableDays=number(
-    safeSummary?.wearable?.daysWithData
-  );
+  const wearable=safeSummary?.wearable||{};
+  const wearableDecision=wearable?.decision||{};
+  const wearableDays=number(wearableDecision.currentEvidenceDays);
+  const wearableAvailableDays=number(wearable.daysWithData);
+  const wearableEligible=wearableDecision.eligible===true&&wearableDays>0;
 
-  if(wearableDays>0){
+  if(wearableEligible){
     signals.push(
-      `Hay ${wearableDays} día${wearableDays===1?'':'s'} con datos de dispositivo como contexto complementario.`
+      `Hay ${wearableDays} día${wearableDays===1?'':'s'} con datos actuales de dispositivo como contexto complementario.`
     );
 
     evidenceCount+=1;
+  }else if(wearableAvailableDays>0){
+    limitations.push(
+      `Hay ${wearableAvailableDays} día${wearableAvailableDays===1?'':'s'} con datos de dispositivo, pero su frescura (${String(wearable.freshness||'no confirmada')}) no permite tratarlos como evidencia actual.`
+    );
   }else{
     limitations.push(
       'Sin datos de dispositivo confirmados; no se infieren valores.'
