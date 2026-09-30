@@ -130,6 +130,14 @@ test('migration reuses canonical domain infrastructure and creates no parallel c
   assert.doesNotMatch(migration,/create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?[^;]*challenge/iu);
 });
 
+test('challenge migration stays fail-closed and production-data-safety compatible',()=>{
+  assert.match(migration,/iberfit_assert_challenge_canonical_v1/u);
+  assert.match(migration,/M26_CHALLENGE_BASE_ENTITY_CHAIN_UNEXPECTED/u);
+  assert.match(migration,/M26_CHALLENGE_TRIGGER_ALREADY_EXISTS/u);
+  assert.doesNotMatch(migration,/\bdo\s+(?:language\s+\w+\s+)?\$/iu);
+  assert.doesNotMatch(migration,/\bdrop\s+trigger\b/iu);
+});
+
 test('database contract blocks social/group and sensitive health data fail-closed',()=>{
   assert.match(migration,/M26_CHALLENGE_GROUP_REQUIRES_OPT_IN_DOMAIN/u);
   assert.match(migration,/socialSharing' is distinct from 'false'/u);
