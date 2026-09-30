@@ -260,7 +260,7 @@ async function main(){
     attempts:process.env.M26_VERIFY_ATTEMPTS,
     delayMs:process.env.M26_VERIFY_DELAY_MS,
     timeoutMs:process.env.M26_VERIFY_TIMEOUT_MS,
-    stablePasses:process.env.M26_VERIFY_STABLE_PASSES,
+    stablePasses:process.env.M26_VERIFY_STABLE_PASSES||2,
     onRetry:({attempt,totalAttempts,code})=>console.warn(`PROD_SURFACE_VERIFY_RETRY:${attempt}/${totalAttempts}:${code}`)
   });
   const deep=await verifyProductionModuleGraph({
