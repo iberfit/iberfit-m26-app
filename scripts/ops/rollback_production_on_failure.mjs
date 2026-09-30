@@ -1,10 +1,16 @@
 import {writeFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
+import {
+  classifyControlPlaneRollback,
+  extractCanonicalDeployment,
+  isControlPlaneRestored,
+  normalizeRollbackSha,
+} from './rollback_control_plane.mjs';
 
 const SHA_RE=/^[0-9a-f]{40}$/u;
 
 function normalizeSha(value){
-  return String(value||'').trim().toLowerCase();
+  return normalizeRollbackSha(value);
 }
 
 function requireEnv(name){
@@ -51,6 +57,21 @@ async function readLiveVersion(appDomain,tag){
   });
 }
 
+async function readCloudflareProject({accountId,project,token}){
+  return fetchJson(`https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${project}`,{
+    method:'GET',
+    headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},
+  });
+}
+
+async function currentCanonicalDeployment(config){
+  const payload=await readCloudflareProject(config);
+  return extractCanonicalDeployment(payload,{
+    expectedProject:config.project,
+    errorPrefix:'PRODUCTION_ROLLBACK',
+  });
+}
+
 async function main(){
   const sourceSha=requireEnv('SOURCE_SHA').toLowerCase();
   const previousSha=requireEnv('PREVIOUS_LIVE_SHA').toLowerCase();
@@ -63,47 +84,77 @@ async function main(){
   const attempts=Math.max(1,Number.parseInt(process.env.PRODUCTION_ROLLBACK_ATTEMPTS||'30',10)||30);
   const delayMs=Math.max(250,Number.parseInt(process.env.PRODUCTION_ROLLBACK_DELAY_MS||'4000',10)||4000);
   const evidencePath=String(process.env.PRODUCTION_ROLLBACK_EVIDENCE_PATH||'PRODUCTION_ROLLBACK_EVIDENCE.json').trim();
+  const controlPlaneConfig={accountId,project,token};
 
-  const before=await readLiveVersion(appDomain,'before');
-  const action=classifyLiveSha(before?.sourceSha,sourceSha,previousSha);
+  const initialDeployment=await currentCanonicalDeployment(controlPlaneConfig);
+  const action=classifyControlPlaneRollback({
+    currentDeployment:initialDeployment,
+    sourceSha,
+    previousDeploymentId,
+    previousSha,
+    errorPrefix:'PRODUCTION_ROLLBACK',
+  });
   let rollbackApiInvoked=false;
 
   if(action==='rollback-required'){
     const api=`https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${project}/deployments/${previousDeploymentId}/rollback`;
     const result=await fetchJson(api,{
       method:'POST',
-      headers:{
-        authorization:`Bearer ${token}`,
-        'content-type':'application/json',
-      },
+      headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},
       body:'{}',
     });
     if(result?.success!==true)throw new Error('PRODUCTION_ROLLBACK_API_REJECTED');
     rollbackApiInvoked=true;
   }
 
-  let restored=null;
+  let restoredDeployment=null;
+  let controlPlaneLast='';
   for(let i=1;i<=attempts;i+=1){
-    const current=await readLiveVersion(appDomain,`verify-${i}`);
-    if(isRestoredIdentity(current,{previousSha,prodRef})){
-      restored=current;
-      break;
+    try{
+      const current=await currentCanonicalDeployment(controlPlaneConfig);
+      if(isControlPlaneRestored(current,{previousDeploymentId,previousSha})){
+        restoredDeployment=current;
+        break;
+      }
+      controlPlaneLast=`${current.id}:${current.sourceSha}`;
+    }catch(error){
+      controlPlaneLast=String(error?.message||error);
     }
     if(i<attempts)await new Promise((resolve)=>setTimeout(resolve,delayMs));
   }
-  if(!restored)throw new Error('PRODUCTION_ROLLBACK_IDENTITY_NOT_RESTORED');
+  if(!restoredDeployment)throw new Error(`PRODUCTION_ROLLBACK_CONTROL_PLANE_NOT_RESTORED:${controlPlaneLast}`);
+
+  let restored=null;
+  let liveLast='';
+  for(let i=1;i<=attempts;i+=1){
+    try{
+      const current=await readLiveVersion(appDomain,`verify-${i}`);
+      if(isRestoredIdentity(current,{previousSha,prodRef})){
+        restored=current;
+        break;
+      }
+      liveLast=JSON.stringify(current);
+    }catch(error){
+      liveLast=String(error?.message||error);
+    }
+    if(i<attempts)await new Promise((resolve)=>setTimeout(resolve,delayMs));
+  }
+  if(!restored)throw new Error(`PRODUCTION_ROLLBACK_IDENTITY_NOT_RESTORED:${liveLast}`);
 
   const evidence=Object.freeze({
-    schema:'iberfit.production.rollback.v1',
+    schema:'iberfit.production.rollback.v2',
     generatedAt:new Date().toISOString(),
     domain:appDomain,
     project,
     sourceSha,
     previousLiveSha:previousSha,
     previousDeploymentId,
-    initialLiveSha:normalizeSha(before?.sourceSha),
+    initialControlPlaneDeploymentId:initialDeployment.id,
+    initialControlPlaneSha:initialDeployment.sourceSha,
     action,
     rollbackApiInvoked,
+    restoredControlPlaneDeploymentId:restoredDeployment.id,
+    restoredControlPlaneSha:restoredDeployment.sourceSha,
     restoredSourceSha:normalizeSha(restored.sourceSha),
     restoredProjectRef:String(restored.projectRef||''),
     restoredEnvironment:String(restored.environment||''),

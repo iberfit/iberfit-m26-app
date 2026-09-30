@@ -352,7 +352,7 @@ test('RC64.2B V5.3 wearable default initial sync contract remains client-only wi
   );
 });
 
-test('RC64.2B V5.3 application keeps zero-initial-IO wiring and all reconnect state machines are present',()=>{
+test('RC64.2B V5.3 application keeps silent peripheral starts and explicit post-login recovery reconciliation wiring',()=>{
   const app=read('src/m26/app/application.js');
   const pwa=read('src/m26/platform/pwa.js');
   const telemetry=read('src/m26/telemetry/remote-sync.js');
@@ -371,7 +371,7 @@ test('RC64.2B V5.3 application keeps zero-initial-IO wiring and all reconnect st
   );
   assert.match(
     setup,
-    /connectivityStop=sync\.start\(\{emitInitial:false\}\)/u,
+    /connectivityStop=sync\.start\(\{emitInitial:false,reconcileInitial:true\}\)/u,
   );
   assert.match(
     setup,

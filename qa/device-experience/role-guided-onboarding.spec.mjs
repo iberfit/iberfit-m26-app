@@ -1,5 +1,6 @@
 import {mkdir} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
+import {captureEvidenceScreenshot} from './reliable-screenshot.mjs';
 
 const OUT_DIR='recovery/device-experience/role-genie-onboarding';
 const ROLES=['coach','admin'];
@@ -75,7 +76,7 @@ for(const role of ROLES){
     const genieAnimations=await dialog.locator('[data-m26-guided-tour-genie] *').evaluateAll((nodes)=>[...new Set(nodes.map((node)=>getComputedStyle(node).animationName))]);
     expect(genieAnimations.every((name)=>name==='none')).toBe(true);
 
-    await page.screenshot({
+    await captureEvidenceScreenshot(page,{
       path:`${OUT_DIR}/${role}-${slug(testInfo.project.name)}-first.png`,
       fullPage:true,
       animations:'disabled',
@@ -90,7 +91,7 @@ for(const role of ROLES){
       await expectViewportSafe(page,dialog);
 
       if(index===fixture.trackLength-1){
-        await page.screenshot({
+        await captureEvidenceScreenshot(page,{
           path:`${OUT_DIR}/${role}-${slug(testInfo.project.name)}-final.png`,
           fullPage:true,
           animations:'disabled',

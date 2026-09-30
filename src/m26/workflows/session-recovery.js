@@ -173,7 +173,7 @@ export function createMemoryExecutionRecoveryStore(options={}){return createExec
 export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()=>globalThis.navigator?.onLine!==false,getActiveContext=()=>null,onReconcileError=()=>{}}={}){
   if(!store?.save||!store?.load||!store?.list||!store?.remove)throw new Error('M26_RECOVERY_STORE_REQUIRED');
   async function overlayDurableCompletion(snapshot){
-    if(!snapshot?.execution||SETTLED.has(snapshot.execution.status)||!commandBus?.recoverExecutionCompletion)return snapshot;
+    if(!snapshot?.execution||snapshot.execution.status==='cancelled'||!commandBus?.recoverExecutionCompletion)return snapshot;
     try{
       const recovered=await commandBus.recoverExecutionCompletion(snapshot.execution.id);
       if(!recovered)return snapshot;
@@ -214,9 +214,15 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
       return snapshot;
     }
   }
+  function applyRecoveredCompletion(context,snapshot){
+    if(!context?.execution||!snapshot?.execution)return false;
+    if(snapshot.execution.id!==context.execution.id||snapshot.execution.status!=='completed'||context.execution.status==='cancelled')return false;
+    Object.assign(context.execution,clone(snapshot.execution));
+    return true;
+  }
   async function recoveredList(options={}){
-    const snapshots=await store.list(options),out=[];
     const includeSettled=options?.includeSettled===true;
+    const snapshots=await store.list({...options,includeSettled:true}),out=[];
     for(const snapshot of snapshots){
       const recovered=await overlayDurableCompletion(snapshot);
       if(!recovered)continue;
@@ -229,7 +235,28 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
     let context;
     try{context=getActiveContext?.()||null;}catch(error){try{onReconcileError(error);}catch{}return false;}
     if(!context?.execution||!context?.session)return false;
-    const durableCompletionPending=arrSyncIds(context.execution.pendingOperationIds).includes(cleanId(context.execution.id))&&typeof commandBus?.settleExecutionCompletion==='function';
+    const completionOperationId=cleanId(context.execution.id);
+    const durableCompletionPending=arrSyncIds(context.execution.pendingOperationIds).includes(completionOperationId)&&typeof commandBus?.recoverExecutionCompletion==='function';
+    if(durableCompletionPending){
+      try{
+        const checkpoint=await store.save({
+          execution:context.execution,
+          session:context.session,
+          appointmentId:context.appointmentId||null,
+          sessionRevision:finiteInteger(context.sessionRevision??context.session?.revision??0,{min:0})??0,
+          dirty:true,
+        });
+        const recovered=await overlayDurableCompletion(checkpoint);
+        if(applyRecoveredCompletion(context,recovered)){
+          const completionResult=(Array.isArray(syncResult?.results)?syncResult.results:[]).find((item)=>syncOperationId(item)===completionOperationId);
+          const confirmedRevision=syncRevision(completionResult);
+          if(confirmedRevision!==null)context.execution.revision=Math.max(finiteInteger(context.execution.revision,{min:0})??0,confirmedRevision);
+          return true;
+        }
+      }catch(error){
+        try{onReconcileError(error);}catch{}
+      }
+    }
     const nextExecution=clone(context.execution);
     const reconciliation=reconcileExecutionSyncResult(nextExecution,syncResult);
     if(!reconciliation.changed)return false;
@@ -245,7 +272,7 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
           });
         }
         Object.assign(context.execution,nextExecution);
-        if(durableCompletionPending)await commandBus.settleExecutionCompletion(nextExecution.id);
+        if(durableCompletionPending&&typeof commandBus?.settleExecutionCompletion==='function')await commandBus.settleExecutionCompletion(nextExecution.id);
         await store.remove(nextExecution.id);
         return true;
       }
@@ -264,7 +291,12 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
     }
   }
   return Object.freeze({
-    async persist(context){return store.save({...context,dirty:context?.execution?.syncStatus!=='clean'});},
+    async persist(context){
+      const saved=await store.save({...context,dirty:context?.execution?.syncStatus!=='clean'});
+      const recovered=await overlayDurableCompletion(saved);
+      applyRecoveredCompletion(context,recovered);
+      return recovered;
+    },
     async recover(executionId){return overlayDurableCompletion(await store.load(executionId));},
     async list(options={}){return recoveredList(options);},
     async latest(options={}){return (await recoveredList(options))[0]||null;},

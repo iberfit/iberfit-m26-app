@@ -344,6 +344,7 @@ async function prepareInstalledPwaUpdate(){
     });
   };
   registration.addEventListener?.('updatefound',armInstalling);
+  armInstalling();
   activateWaitingWorkerAtColdStart(registration);
   void registration.update?.().catch(()=>{});
   return registration;

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 const read=(path)=>fs.readFileSync(path,'utf8').replace(/\r\n/g,'\n');
 
-test('RC64.2B login boundary performs no initial verification recovery wearable telemetry or connectivity IO',()=>{
+test('RC64.2B login boundary keeps peripheral startup silent and performs explicit recovery reconciliation',()=>{
   const app=read('src/m26/app/application.js');
   const start=app.indexOf('async function setupAuthenticated()');
   const end=app.indexOf('\n  function guardSessionNavigation',start);
@@ -24,7 +24,7 @@ test('RC64.2B login boundary performs no initial verification recovery wearable 
   assert.doesNotMatch(setup,/rc64-post-login-recovery-ready/u);
 
   assert.match(setup,/wearables\.mount\(\{syncInitial:false\}\)/u);
-  assert.match(setup,/connectivityStop=sync\.start\(\{emitInitial:false\}\)/u);
+  assert.match(setup,/connectivityStop=sync\.start\(\{emitInitial:false,reconcileInitial:true\}\)/u);
   assert.match(setup,/telemetrySyncStop=telemetryRemoteSync\.start\(\{flushInitial:false\}\)/u);
 
   const refreshMatches=setup.match(/refreshVerificationState/g)||[];
