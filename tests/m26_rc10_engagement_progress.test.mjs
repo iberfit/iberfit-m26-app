@@ -144,10 +144,16 @@ test('rutas progreso y actividad renderizan datos reales y bloquean falsa confir
 });
 
 test('extensiones no contaminan el contrato canónico de 44 comandos',()=>{
-  assert.equal(M26_COMMAND_TYPES.length,44);assert.equal(M26_ENGAGEMENT_EXTENSION_REGISTRY.length,11);
+  assert.equal(M26_COMMAND_TYPES.length,44);assert.equal(M26_ENGAGEMENT_EXTENSION_REGISTRY.length,14);
+  assert.deepEqual(M26_ENGAGEMENT_EXTENSION_REGISTRY.map((item)=>item.type).sort(),[
+    'CHECKIN_REGISTRAR','CHECKIN_ANULAR','HABITO_DEFINIR','HABITO_REGISTRAR','HABITO_ARCHIVAR',
+    'NOTA_PRIVADA_CREAR','NOTA_PRIVADA_ACTUALIZAR','NOTA_PRIVADA_ARCHIVAR','RENOVACION_REGISTRAR',
+    'ACCION_SEGUIMIENTO_REGISTRAR','ACCION_RESULTADO_REGISTRAR',
+    'RETO_CREAR','RETO_ACTUALIZAR','RETO_ARCHIVAR',
+  ].sort());
   const canonical=new Set(M26_COMMAND_TYPES);assert.ok(M26_ENGAGEMENT_EXTENSION_REGISTRY.every((item)=>!canonical.has(item.type)));
-  const caps=engagementCapabilities(M26_COMMAND_TYPES);assert.equal(caps.checkins.ready,false);assert.deepEqual(caps.checkins.missing,['CHECKIN_REGISTRAR']);assert.equal(caps.commercialRenewals.ready,false);assert.equal(caps.actionOutcomeTracking.ready,false);
-  const future=engagementCapabilities([...M26_COMMAND_TYPES,...M26_ENGAGEMENT_EXTENSION_REGISTRY.map((x)=>x.type)]);assert.equal(future.checkins.ready,true);assert.equal(future.habits.ready,true);assert.equal(future.privateNotes.ready,true);assert.equal(future.commercialRenewals.ready,true);assert.equal(future.actionOutcomeTracking.ready,true);
+  const caps=engagementCapabilities(M26_COMMAND_TYPES);assert.equal(caps.checkins.ready,false);assert.deepEqual(caps.checkins.missing,['CHECKIN_REGISTRAR']);assert.equal(caps.commercialRenewals.ready,false);assert.equal(caps.actionOutcomeTracking.ready,false);assert.equal(caps.challenges.ready,false);
+  const future=engagementCapabilities([...M26_COMMAND_TYPES,...M26_ENGAGEMENT_EXTENSION_REGISTRY.map((x)=>x.type)]);assert.equal(future.checkins.ready,true);assert.equal(future.habits.ready,true);assert.equal(future.privateNotes.ready,true);assert.equal(future.commercialRenewals.ready,true);assert.equal(future.actionOutcomeTracking.ready,true);assert.equal(future.challenges.ready,true);
 });
 
 test('borradores de check-in se validan y aíslan por propietario',async()=>{
