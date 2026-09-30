@@ -174,6 +174,8 @@ async function fetchText(fetchImpl,url,timeoutMs,path){
   try{
     response=await fetchImpl(url,{
       headers:{'cache-control':'no-cache','pragma':'no-cache'},
+      cache:'no-store',
+      redirect:'follow',
       signal:AbortSignal.timeout(timeoutMs)
     });
   }catch{fail(`PROD_SURFACE_FETCH_FAILED:${path}`);}
@@ -197,6 +199,7 @@ export async function verifyProductionSurface({
   attempts=DEFAULT_ATTEMPTS,
   delayMs=DEFAULT_DELAY_MS,
   timeoutMs=DEFAULT_TIMEOUT_MS,
+  stablePasses=1,
   fetchImpl=globalThis.fetch,
   sleepImpl=(ms)=>new Promise(resolve=>setTimeout(resolve,ms)),
   onRetry=()=>{}
@@ -205,8 +208,12 @@ export async function verifyProductionSurface({
   const totalAttempts=positiveInteger(attempts,DEFAULT_ATTEMPTS,'PROD_SURFACE_ATTEMPTS_INVALID');
   const waitMs=positiveInteger(delayMs,DEFAULT_DELAY_MS,'PROD_SURFACE_DELAY_INVALID');
   const requestTimeoutMs=positiveInteger(timeoutMs,DEFAULT_TIMEOUT_MS,'PROD_SURFACE_TIMEOUT_INVALID');
+  const requiredStablePasses=positiveInteger(stablePasses,1,'PROD_SURFACE_STABLE_PASSES_INVALID');
+  if(requiredStablePasses>totalAttempts)fail('PROD_SURFACE_STABLE_PASSES_EXCEED_ATTEMPTS');
   if(typeof fetchImpl!=='function')fail('PROD_SURFACE_FETCH_UNAVAILABLE');
   let lastError;
+  let lastValidResult=null;
+  let consecutiveValidPasses=0;
 
   for(let attempt=1;attempt<=totalAttempts;attempt+=1){
     try{
@@ -217,20 +224,28 @@ export async function verifyProductionSurface({
         fetchText(fetchImpl,verificationUrl(origin,'/m26/sw.js',sourceSha,attempt),requestTimeoutMs,'service-worker-runtime'),
         fetchText(fetchImpl,verificationUrl(origin,'/m26/iberfit-sw.js',sourceSha,attempt),requestTimeoutMs,'service-worker-wrapper'),
       ]);
-      return {
+      lastValidResult={
         ...validateProductionSurface({versionSource,runtimeSource,indexSource,swSource,wrapperSource,sourceSha,sourceBranch,prodProjectRef,prodSupabaseUrl,qaProjectRef}),
         baseUrl:origin,
         attempt
       };
+      consecutiveValidPasses+=1;
+      if(consecutiveValidPasses>=requiredStablePasses)return lastValidResult;
+      if(attempt<totalAttempts){
+        onRetry({attempt,totalAttempts,code:'PROD_SURFACE_STABILITY_CONFIRMATION_PENDING'});
+        await sleepImpl(waitMs);
+      }
     }catch(error){
       lastError=error;
+      lastValidResult=null;
+      consecutiveValidPasses=0;
       if(attempt===totalAttempts)break;
       onRetry({attempt,totalAttempts,code:error?.code||error?.message||'PROD_SURFACE_UNKNOWN_FAILURE'});
       await sleepImpl(waitMs);
     }
   }
 
-  const code=lastError?.code||lastError?.message||'PROD_SURFACE_UNKNOWN_FAILURE';
+  const code=lastValidResult?'PROD_SURFACE_STABILITY_NOT_CONFIRMED':(lastError?.code||lastError?.message||'PROD_SURFACE_UNKNOWN_FAILURE');
   fail(`PROD_SURFACE_VERIFY_FAILED:${code}`);
 }
 
@@ -245,6 +260,7 @@ async function main(){
     attempts:process.env.M26_VERIFY_ATTEMPTS,
     delayMs:process.env.M26_VERIFY_DELAY_MS,
     timeoutMs:process.env.M26_VERIFY_TIMEOUT_MS,
+    stablePasses:process.env.M26_VERIFY_STABLE_PASSES,
     onRetry:({attempt,totalAttempts,code})=>console.warn(`PROD_SURFACE_VERIFY_RETRY:${attempt}/${totalAttempts}:${code}`)
   });
   const deep=await verifyProductionModuleGraph({
