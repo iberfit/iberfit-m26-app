@@ -9,8 +9,11 @@ on:
       - 'supabase/migrations/**'
       - 'scripts/data-safety/check_migration_safety.mjs'
       - 'scripts/data-safety/check_prod_backup_readiness.mjs'
+      - 'scripts/data-safety/check_prod_schema_recovery_snapshot.mjs'
+      - 'scripts/data-safety/prod_schema_recovery_snapshot.sql'
       - 'tests/m26_prod_data_safety_gate.test.mjs'
       - 'tests/m26_prod_backup_readiness.test.mjs'
+      - 'tests/m26_prod_schema_recovery_snapshot.test.mjs'
       - '.github/workflows/prod-data-safety-gate.yml'
   push:
     branches:
@@ -19,8 +22,11 @@ on:
       - 'supabase/migrations/**'
       - 'scripts/data-safety/check_migration_safety.mjs'
       - 'scripts/data-safety/check_prod_backup_readiness.mjs'
+      - 'scripts/data-safety/check_prod_schema_recovery_snapshot.mjs'
+      - 'scripts/data-safety/prod_schema_recovery_snapshot.sql'
       - 'tests/m26_prod_data_safety_gate.test.mjs'
       - 'tests/m26_prod_backup_readiness.test.mjs'
+      - 'tests/m26_prod_schema_recovery_snapshot.test.mjs'
       - '.github/workflows/prod-data-safety-gate.yml'
 
 permissions:
@@ -37,7 +43,7 @@ jobs:
   production-data-safety:
     name: production-data-safety-fail-closed
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 10
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
@@ -50,7 +56,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Resolve exact migration diff
+      - name: Resolve exact migration and recovery-policy diff
         id: diff
         shell: bash
         env:
@@ -81,17 +87,30 @@ jobs:
           fi
 
           MIGRATION_DIFF="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- 'supabase/migrations/**')"
+          RECOVERY_POLICY_DIFF="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- \
+            '.github/workflows/prod-data-safety-gate.yml' \
+            'scripts/data-safety/check_migration_safety.mjs' \
+            'scripts/data-safety/check_prod_backup_readiness.mjs' \
+            'scripts/data-safety/check_prod_schema_recovery_snapshot.mjs' \
+            'scripts/data-safety/prod_schema_recovery_snapshot.sql' \
+            'tests/m26_prod_data_safety_gate.test.mjs' \
+            'tests/m26_prod_backup_readiness.test.mjs' \
+            'tests/m26_prod_schema_recovery_snapshot.test.mjs')"
+
           HAS_MIGRATION_CHANGES=false
           if [ -n "$MIGRATION_DIFF" ]; then
             HAS_MIGRATION_CHANGES=true
           fi
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            HAS_MIGRATION_CHANGES=true
+
+          REQUIRES_RECOVERY_CHECK="$HAS_MIGRATION_CHANGES"
+          if [ -n "$RECOVERY_POLICY_DIFF" ] || [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            REQUIRES_RECOVERY_CHECK=true
           fi
 
           echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
           echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
           echo "has_migration_changes=$HAS_MIGRATION_CHANGES" >> "$GITHUB_OUTPUT"
+          echo "requires_recovery_check=$REQUIRES_RECOVERY_CHECK" >> "$GITHUB_OUTPUT"
 
       - name: Enforce append-only non-destructive migrations
         shell: bash
@@ -105,10 +124,11 @@ jobs:
         run: |
           node --test \
             tests/m26_prod_data_safety_gate.test.mjs \
-            tests/m26_prod_backup_readiness.test.mjs
+            tests/m26_prod_backup_readiness.test.mjs \
+            tests/m26_prod_schema_recovery_snapshot.test.mjs
 
-      - name: Verify recoverable Supabase production backup before schema change
-        if: ${{ steps.diff.outputs.has_migration_changes == 'true' }}
+      - name: Verify recoverable Supabase production state before schema change
+        if: ${{ steps.diff.outputs.requires_recovery_check == 'true' }}
         shell: bash
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -116,26 +136,113 @@ jobs:
           set -euo pipefail
           test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo 'SUPABASE_ACCESS_TOKEN_MISSING'; exit 41; }
           mkdir -p recovery
+
           curl --fail --silent --show-error --location \
             --retry 3 --retry-all-errors \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
             "https://api.supabase.com/v1/projects/${PROD_SUPABASE_REF}/database/backups" \
             -o recovery/prod-backup-readiness.json
+
+          set +e
           node scripts/data-safety/check_prod_backup_readiness.mjs \
             recovery/prod-backup-readiness.json \
             recovery/prod-backup-readiness-summary.json
+          BACKUP_STATUS=$?
+          set -e
 
-      - name: Record backup gate applicability
-        if: ${{ steps.diff.outputs.has_migration_changes != 'true' }}
-        run: echo 'IBERFIT_PROD_BACKUP_GATE_NOT_REQUIRED no schema migration in this candidate'
+          if [ "$BACKUP_STATUS" -eq 0 ]; then
+            node <<'NODE'
+          const fs=require('fs');
+          const summary=JSON.parse(fs.readFileSync('recovery/prod-backup-readiness-summary.json','utf8'));
+          if(summary.ok!==true)throw new Error('PROD_MANAGED_BACKUP_SUMMARY_NOT_OK');
+          fs.writeFileSync('recovery/prod-recovery-readiness-summary.json',JSON.stringify({
+            ...summary,
+            projectRef:process.env.PROD_SUPABASE_REF,
+            recoveryAuthority:'SUPABASE_MANAGED_BACKUP'
+          },null,2)+'\n');
+          NODE
+            echo 'IBERFIT_PROD_RECOVERY_READY managed backup/PITR'
+            exit 0
+          fi
+
+          BACKUP_ERROR="$(node -p "require('./recovery/prod-backup-readiness-summary.json').error || ''")"
+          if [ "$BACKUP_ERROR" != 'PROD_BACKUP_COMPLETED_BACKUP_MISSING' ]; then
+            echo "PROD_RECOVERY_MANAGED_BACKUP_FAILED:${BACKUP_ERROR}"
+            exit "$BACKUP_STATUS"
+          fi
+
+          curl --fail --silent --show-error --location \
+            --retry 3 --retry-all-errors \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/projects/${PROD_SUPABASE_REF}" \
+            -o /tmp/prod-project.json
+
+          PROJECT_ID="$(node -p "require('/tmp/prod-project.json').id || require('/tmp/prod-project.json').ref || ''")"
+          PROJECT_STATUS="$(node -p "require('/tmp/prod-project.json').status || ''")"
+          ORG_ID="$(node -p "require('/tmp/prod-project.json').organization_id || ''")"
+          [ "$PROJECT_ID" = "$PROD_SUPABASE_REF" ] || { echo "PROD_RECOVERY_PROJECT_MISMATCH:${PROJECT_ID:-missing}"; exit 42; }
+          [ "$PROJECT_STATUS" = 'ACTIVE_HEALTHY' ] || { echo "PROD_RECOVERY_PROJECT_NOT_HEALTHY:${PROJECT_STATUS:-unknown}"; exit 43; }
+          test -n "$ORG_ID" || { echo 'PROD_RECOVERY_ORGANIZATION_ID_MISSING'; exit 44; }
+
+          curl --fail --silent --show-error --location \
+            --retry 3 --retry-all-errors \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/organizations/${ORG_ID}" \
+            -o /tmp/prod-organization.json
+          PLAN="$(node -p "require('/tmp/prod-organization.json').plan || ''")"
+          if [ "$PLAN" != 'free' ]; then
+            echo "PROD_RECOVERY_MANAGED_BACKUP_REQUIRED_FOR_PLAN:${PLAN:-unknown}"
+            exit 45
+          fi
+
+          node <<'NODE'
+          const fs=require('fs');
+          const query=fs.readFileSync('scripts/data-safety/prod_schema_recovery_snapshot.sql','utf8');
+          if(!query.trim())throw new Error('PROD_SCHEMA_SNAPSHOT_QUERY_EMPTY');
+          fs.writeFileSync('/tmp/prod-schema-recovery-query.json',JSON.stringify({query}));
+          NODE
+
+          curl --fail --silent --show-error --location \
+            --retry 3 --retry-all-errors \
+            -X POST \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/prod-schema-recovery-query.json \
+            "https://api.supabase.com/v1/projects/${PROD_SUPABASE_REF}/database/query/read-only" \
+            -o recovery/prod-schema-recovery-snapshot.json
+
+          node scripts/data-safety/check_prod_schema_recovery_snapshot.mjs \
+            recovery/prod-schema-recovery-snapshot.json \
+            recovery/prod-schema-recovery-summary.json \
+            "$PROD_SUPABASE_REF"
+
+          node <<'NODE'
+          const fs=require('fs');
+          const summary=JSON.parse(fs.readFileSync('recovery/prod-schema-recovery-summary.json','utf8'));
+          if(summary.ok!==true||summary.mode!=='LOGICAL_SCHEMA_SNAPSHOT')throw new Error('PROD_SCHEMA_RECOVERY_SUMMARY_NOT_OK');
+          fs.writeFileSync('recovery/prod-recovery-readiness-summary.json',JSON.stringify({
+            ...summary,
+            plan:'free',
+            managedBackupError:'PROD_BACKUP_COMPLETED_BACKUP_MISSING',
+            recoveryAuthority:'IBERFIT_LOGICAL_SCHEMA_SNAPSHOT'
+          },null,2)+'\n');
+          NODE
+          echo 'IBERFIT_PROD_RECOVERY_READY Free-plan logical schema snapshot'
+
+      - name: Record recovery gate applicability
+        if: ${{ steps.diff.outputs.requires_recovery_check != 'true' }}
+        run: echo 'IBERFIT_PROD_RECOVERY_GATE_NOT_REQUIRED no schema migration or recovery-policy change in this candidate'
 
       - name: Preserve production recovery evidence
-        if: ${{ always() && steps.diff.outputs.has_migration_changes == 'true' }}
+        if: ${{ always() && steps.diff.outputs.requires_recovery_check == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: iberfit-prod-backup-readiness-${{ github.run_id }}
+          name: iberfit-prod-recovery-readiness-${{ github.run_id }}
           path: |
             recovery/prod-backup-readiness.json
             recovery/prod-backup-readiness-summary.json
+            recovery/prod-schema-recovery-snapshot.json
+            recovery/prod-schema-recovery-summary.json
+            recovery/prod-recovery-readiness-summary.json
           if-no-files-found: warn
           retention-days: 30
