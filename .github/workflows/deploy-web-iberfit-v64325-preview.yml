@@ -1,0 +1,167 @@
+name: Preview WEB IBERFIT V6.43.25 person-first local
+
+on:
+  push:
+    branches: [infra/web-iberfit-worker]
+    paths: ['.github/workflows/deploy-web-iberfit-v64325-preview.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-iberfit-pages-provision
+  cancel-in-progress: false
+
+env:
+  CF_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
+  CF_PROJECT: 'web-iberfit'
+  WEB_SHA: '69c41ce35ca0eba65f4c1b8653f15717bca7037a'
+  WEB_VERSION: '6.43.25'
+  QA_SOURCE_SHA: '8a0045dcf41e935a604c19d04a9930e022c1c906'
+  QA_RUN_ID: '36741294715'
+  QA_RUN_NAME: 'Release WEB IBERFIT V6.43.25 person-first local'
+  EXPECTED_CURRENT_SHA: '668c2678dd63a048878abb623699381d70c0763e'
+  EXPECTED_CURRENT_VERSION: '6.43.24'
+  EXPECTED_CURRENT_DEPLOYMENT_ID: 'f6042e18-3a1b-4f52-9934-ec884db040c8'
+  WRANGLER_VERSION: '4.120.0'
+
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+
+      - name: Verify exact live baseline and certified product
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || exit 41
+          test "$(curl -fsSL --retry 6 --retry-all-errors 'https://iberfit.cl/VERSION?preflight=64325-preview' | tr -d '\r\n ')" = "$EXPECTED_CURRENT_VERSION"
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-before.json
+          node <<'NODE'
+          const x=require('/tmp/deployments-before.json');
+          const d=(x.result||[]).filter(v=>v.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(d?.id!==process.env.EXPECTED_CURRENT_DEPLOYMENT_ID)throw Error('PRODUCTION_DRIFT_ID:'+d?.id);
+          if((d?.deployment_trigger?.metadata?.commit_hash||'')!==process.env.EXPECTED_CURRENT_SHA)throw Error('PRODUCTION_DRIFT_SHA');
+          NODE
+          curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/actions/runs/${QA_RUN_ID}" -o /tmp/qa.json
+          node <<'NODE'
+          const q=require('/tmp/qa.json');
+          if(q.head_sha!==process.env.QA_SOURCE_SHA||q.status!=='completed'||q.conclusion!=='success'||q.name!==process.env.QA_RUN_NAME)throw Error('QA_MISMATCH');
+          NODE
+          git clone --filter=blob:none --no-checkout https://github.com/iberfit/iberfitweb.git /tmp/iberfitweb
+          git -C /tmp/iberfitweb fetch --depth=2 origin "$WEB_SHA"
+          git -C /tmp/iberfitweb fetch --depth=1 origin "$EXPECTED_CURRENT_SHA"
+          git -C /tmp/iberfitweb checkout --detach "$WEB_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD)" = "$WEB_SHA"
+          test "$(git -C /tmp/iberfitweb rev-parse HEAD^)" = "$QA_SOURCE_SHA"
+          test "$(git -C /tmp/iberfitweb log -1 --format=%s)" = 'feat(web): certify V6.43.25 person-first local experience'
+          test "$(tr -d '\r\n ' < /tmp/iberfitweb/candidate/v628/VERSION)" = "$WEB_VERSION"
+          test "$(find /tmp/iberfitweb/candidate/v628 -type f -name '*.html' | wc -l | tr -d ' ')" = '33'
+          cd /tmp/iberfitweb
+          python3 .github/scripts/qa_v64325_person_first_local.py
+          node .github/scripts/qa_bilingual_architecture.cjs
+
+      - name: Deploy immutable Pages preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="v64325-person-${GITHUB_RUN_ID}"
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy /tmp/iberfitweb/candidate/v628 --project-name "$CF_PROJECT" --branch "$branch" --commit-hash "$WEB_SHA" --commit-message 'WEB IBERFIT V6.43.25 person-first local preview' | tee /tmp/wrangler-preview.log
+          PREVIEW_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.pages\.dev' /tmp/wrangler-preview.log | tail -1)"
+          test -n "$PREVIEW_URL"
+          echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
+
+      - name: Verify real preview routes CSP and person-first contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/VERSION?cb=$GITHUB_RUN_ID" | tr -d '\r\n ')" = "$WEB_VERSION"
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/entrenador-personal-la-reina/?cb=$GITHUB_RUN_ID" -o /tmp/reina.html
+          grep -q 'La comuna define la cobertura; tu contexto define el plan' /tmp/reina.html
+          grep -q 'Tu forma de entrenar no se deduce de la comuna' /tmp/reina.html
+          ! grep -qi 'vida cotidiana de barrio' /tmp/reina.html
+          ! grep -qi 'precordillera' /tmp/reina.html
+          ! grep -q 'class="local-service-strip"' /tmp/reina.html
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/personal-trainer-nunoa/?cb=$GITHUB_RUN_ID" -o /tmp/nunoa.html
+          grep -q 'Tu contexto concreto vale más que cualquier idea sobre la comuna' /tmp/nunoa.html
+          grep -q 'No inferimos tus hábitos, tus actividades ni tus lugares preferidos por vivir en Ñuñoa' /tmp/nunoa.html
+          ! grep -qi 'vida de barrio' /tmp/nunoa.html
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/entrenador-personal-penalolen/?cb=$GITHUB_RUN_ID" -o /tmp/penalolen.html
+          grep -q 'Estar en Peñalolén define la cobertura; tus datos definen el plan' /tmp/penalolen.html
+          grep -q 'no lo suponemos por vivir en Peñalolén' /tmp/penalolen.html
+          ! grep -qi 'vida de barrio' /tmp/penalolen.html
+          ! grep -qi 'precordillera' /tmp/penalolen.html
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/en/personal-trainer-la-reina/?cb=$GITHUB_RUN_ID" -o /tmp/reina-en.html
+          grep -q 'The commune defines coverage; your context defines the plan' /tmp/reina-en.html
+          ! grep -qi 'everyday neighbourhood life' /tmp/reina-en.html
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/en/personal-trainer-nunoa/?cb=$GITHUB_RUN_ID" -o /tmp/nunoa-en.html
+          grep -q 'Your actual context matters more than any idea about the commune' /tmp/nunoa-en.html
+          ! grep -qi 'neighbourhood life' /tmp/nunoa-en.html
+          curl -fsSL --retry 8 --retry-all-errors "${PREVIEW_URL}/en/personal-trainer-penalolen/?cb=$GITHUB_RUN_ID" -o /tmp/penalolen-en.html
+          grep -q 'Being in Peñalolén defines coverage; your information defines the plan' /tmp/penalolen-en.html
+          ! grep -qi 'foothills' /tmp/penalolen-en.html
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,subprocess
+          r=Path('/tmp/iberfitweb/candidate/v628');base=os.environ['PREVIEW_URL'].rstrip('/');htmls=sorted(r.rglob('*.html'));assert len(htmls)==33
+          for p in htmls:
+              rel=p.relative_to(r).as_posix();route='/' if rel=='index.html' else ('/404.html' if rel=='404.html' else '/'+rel.removesuffix('index.html'))
+              subprocess.run(['curl','-fsSL','--retry','4','--retry-all-errors','-o','/dev/null',base+route],check=True)
+          print('PREVIEW_ROUTES_OK',len(htmls))
+          PY
+          curl -fsSI --retry 8 --retry-all-errors "${PREVIEW_URL}/?cb=$GITHUB_RUN_ID" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/preview-headers
+          grep -q '^content-security-policy:' /tmp/preview-headers
+          grep -q "script-src-attr 'none'" /tmp/preview-headers
+          ! grep -q 'unsafe-inline' /tmp/preview-headers
+
+      - name: Browser regression and V6.43.25 QA on real preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/iberfitweb
+          npm install --no-save --package-lock=false playwright@1.56.1 >/dev/null 2>&1
+          npx playwright install chromium >/dev/null
+          BASE_URL="$PREVIEW_URL" QA_OUT=/tmp/v64321-preview node .github/scripts/qa_v64321_browser.mjs
+          BASE_URL="$PREVIEW_URL" QA_OUT=/tmp/v64322-preview node .github/scripts/qa_v64322_browser.mjs
+          BASE_URL="$PREVIEW_URL" QA_OUT=/tmp/v64323-preview node .github/scripts/qa_v64323_browser.mjs
+          BASE_URL="$PREVIEW_URL" QA_OUT=/tmp/v64325-preview node .github/scripts/qa_v64325_browser.mjs
+
+      - name: Record preview deployment identity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments-after.json
+          node <<'NODE'
+          const fs=require('fs'),x=require('/tmp/deployments-after.json');
+          const d=(x.result||[]).filter(v=>v.environment==='preview'&&v.deployment_trigger?.metadata?.commit_hash===process.env.WEB_SHA).sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
+          if(!d)throw Error('PREVIEW_NOT_FOUND');
+          const e={version:process.env.WEB_VERSION,sha:process.env.WEB_SHA,qaRun:Number(process.env.QA_RUN_ID),previewUrl:process.env.PREVIEW_URL,previewDeploymentId:d.id,verifiedAt:new Date().toISOString()};
+          fs.writeFileSync('/tmp/V64325_PREVIEW_EVIDENCE.json',JSON.stringify(e,null,2));console.log(JSON.stringify(e,null,2));
+          NODE
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-v64325-preview-evidence
+          path: |
+            /tmp/V64325_PREVIEW_EVIDENCE.json
+            /tmp/wrangler-preview.log
+            /tmp/preview-headers
+            /tmp/v64321-preview/metrics.json
+            /tmp/v64322-preview/metrics.json
+            /tmp/v64323-preview/metrics.json
+            /tmp/v64325-preview
+          if-no-files-found: warn
+          retention-days: 30
