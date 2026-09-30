@@ -2,17 +2,17 @@
   "schema": "iberfit.web.public-production.v1",
   "repository": "iberfit/iberfitweb",
   "domain": "https://iberfit.cl",
-  "version": "6.43.24",
-  "sha": "668c2678dd63a048878abb623699381d70c0763e",
-  "deploymentId": "f6042e18-3a1b-4f52-9934-ec884db040c8",
-  "productionUrl": "https://f6042e18.web-iberfit.pages.dev",
-  "qaRunId": 36445543169,
-  "previewRunId": 36446348714,
-  "productionRunId": 36447027152,
+  "version": "6.43.25",
+  "sha": "69c41ce35ca0eba65f4c1b8653f15717bca7037a",
+  "deploymentId": "3d6e6e92-928f-494e-8615-6f314122350c",
+  "productionUrl": "https://3d6e6e92.web-iberfit.pages.dev",
+  "qaRunId": 36741294715,
+  "previewRunId": 36741800059,
+  "productionRunId": 36743405248,
   "safeRollback": {
-    "version": "6.43.23",
-    "sha": "6951e86be698a5fcf041f64679f8dbd2fd5199d2",
-    "deploymentId": "81f7ddd3-af3a-4f0d-abb2-a38898df09ef"
+    "version": "6.43.24",
+    "sha": "668c2678dd63a048878abb623699381d70c0763e",
+    "deploymentId": "f6042e18-3a1b-4f52-9934-ec884db040c8"
   },
-  "verifiedAt": "2026-09-28T15:57:24.795Z"
+  "verifiedAt": "2026-09-30T16:23:31.441Z"
 }
