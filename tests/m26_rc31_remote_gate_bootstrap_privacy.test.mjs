@@ -88,6 +88,39 @@ test('la detección de valor significativo distingue ausencia de exposición',()
   assert.equal(hasMeaningfulBootstrapValue(['x']),true);
 });
 
+function challengeBootstrap(body,entityType='challenge'){
+  return {user:{clientId:'CLIENT-A'},data:{m26Entities:[{entityType,clientId:'CLIENT-A',body}]}};
+}
+
+test('prohibición canónica de salud raw en Retos no representa exposición',()=>{
+  const result=inspectClientBootstrap(challengeBootstrap({clientId:'CLIENT-A',rawHealthDataAllowed:false}),'CLIENT-A');
+  assert.equal(result.ok,true);
+  assert.deepEqual(result.forbiddenKeys,[]);
+});
+
+test('la excepción de Retos sólo permite el booleano false en su ruta canónica',()=>{
+  for(const value of [true,'false',0,{allowed:false}]){
+    const result=inspectClientBootstrap(challengeBootstrap({rawHealthDataAllowed:value}),'CLIENT-A');
+    assert.equal(result.ok,false,JSON.stringify(value));
+    assert.deepEqual(result.forbiddenKeys,['data.m26Entities.0.body.rawHealthDataAllowed']);
+  }
+  for(const bootstrap of [
+    challengeBootstrap({rawHealthDataAllowed:false},'habit'),
+    challengeBootstrap({nested:{rawHealthDataAllowed:false}}),
+    {data:{rawHealthDataAllowed:false}},
+    {data:{m26Entities:{record:{entityType:'challenge',body:{rawHealthDataAllowed:false}}}}},
+  ])assert.equal(inspectClientBootstrap(bootstrap,'CLIENT-A').ok,false);
+});
+
+test('la prohibición de salud no oculta secretos, raw ni clientes extranjeros',()=>{
+  const result=inspectClientBootstrap(challengeBootstrap({
+    rawHealthDataAllowed:false,raw:{heartRate:100},password:false,clientId:'CLIENT-B',
+  }),'CLIENT-A');
+  assert.equal(result.ok,false);
+  assert.deepEqual(result.forbiddenKeys,['data.m26Entities.0.body.password','data.m26Entities.0.body.raw']);
+  assert.deepEqual(result.foreignClientIds,['CLIENT-B']);
+});
+
 test('el gate usa el helper comprobable y conserva el contrato de solo lectura',async()=>{
   const gate=await readFile(
     'scripts/remote-gates/run_authenticated_readonly_gate.mjs',

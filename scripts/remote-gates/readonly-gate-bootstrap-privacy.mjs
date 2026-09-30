@@ -1,16 +1,23 @@
 const FORBIDDEN_CLIENT_BOOTSTRAP_KEY=/(private.?notes?|coach.?notes?|coach.?availability|intelligence.?runs?|audit|service.?role|password|secret|oauth.?token|access.?token|refresh.?token|raw)/i;
 
-function walk(value,visit,path=[]){
+function walk(value,visit,path=[],parent=null){
   if(Array.isArray(value)){
-    value.forEach((item,index)=>walk(item,visit,[...path,index]));
+    value.forEach((item,index)=>walk(item,visit,[...path,index],value));
     return;
   }
   if(value&&typeof value==='object'){
     for(const [key,item] of Object.entries(value)){
-      visit(key,item,[...path,key]);
-      walk(item,visit,[...path,key]);
+      visit(key,item,[...path,key],value,parent);
+      walk(item,visit,[...path,key],value);
     }
   }
+}
+
+function isCanonicalChallengeHealthProhibition(key,value,path,body,entity){
+  return key==='rawHealthDataAllowed'&&value===false
+    &&path.length===5&&path[0]==='data'&&path[1]==='m26Entities'
+    &&Number.isInteger(path[2])&&path[3]==='body'
+    &&entity?.entityType==='challenge'&&entity.body===body;
 }
 
 export function hasMeaningfulBootstrapValue(value){
@@ -25,10 +32,11 @@ export function inspectClientBootstrap(bootstrap,expectedClientId){
   const forbiddenKeys=[];
   const clientIds=new Set();
 
-  walk(bootstrap,(key,value,path)=>{
+  walk(bootstrap,(key,value,path,body,entity)=>{
     if(
       FORBIDDEN_CLIENT_BOOTSTRAP_KEY.test(String(key))
       &&hasMeaningfulBootstrapValue(value)
+      &&!isCanonicalChallengeHealthProhibition(key,value,path,body,entity)
     ){
       forbiddenKeys.push(path.join('.'));
     }
