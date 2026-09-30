@@ -54,7 +54,7 @@ test('post-login connectivity sync reconciles once while already online without 
     onResult:async()=>{resultCalls+=1;},
   });
 
-  const stop=sync.start({emitInitial:false});
+  const stop=sync.start({emitInitial:false,reconcileInitial:true});
   await flush();
 
   assert.equal(synchronizeCalls,1);
@@ -87,7 +87,7 @@ test('offline login defers reconciliation until the first real online transition
     },
   });
 
-  const stop=sync.start({emitInitial:false});
+  const stop=sync.start({emitInitial:false,reconcileInitial:true});
   await flush();
   assert.equal(synchronizeCalls,0);
 
@@ -121,7 +121,7 @@ test('concurrent reconciliation requests share the same in-flight operation',asy
     },
   });
 
-  const stop=sync.start({emitInitial:false});
+  const stop=sync.start({emitInitial:false,reconcileInitial:true});
   const first=sync.sync();
   const second=sync.sync();
 
