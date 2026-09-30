@@ -9,6 +9,7 @@ import {
 import {
   computeProgressSummary,
 } from '../engagement/progress-engine.js';
+import {buildProgressHub} from '../engagement/progress-hub.js';
 import {finiteOptionalNumber} from '../domain/optional-number.js';
 
 export const LONGITUDINAL_AGGREGATION_SCHEMA_VERSION=
@@ -470,6 +471,18 @@ export function buildLongitudinalAggregation(
     clientId,
     end
   );
+  const progressHub=buildProgressHub(
+    state,
+    clientId,
+    {
+      now:end,
+      summaries:{
+        7:progress.d7,
+        28:progress.d28,
+        90:progress.d90,
+      },
+    }
+  );
   const baselineProgress=computeProgressSummary(
     state,
     clientId,
@@ -536,6 +549,7 @@ export function buildLongitudinalAggregation(
     }),
     adherence,
     progress,
+    progressHub,
     temporalComparisons,
     dataTrust:deepFreeze({
       wearableSourceCollection:'wearableDailySummaries',

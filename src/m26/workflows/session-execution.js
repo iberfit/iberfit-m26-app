@@ -4,12 +4,50 @@ function clone(v){return structuredClone(v);}
 function now(){return new Date().toISOString();}
 function uid(){return createM26Id();}
 function remoteSnapshot(execution){const out=clone(execution);delete out.syncStatus;delete out.pendingOperationIds;delete out.lastSyncError;delete out.recoveredAt;delete out.liveTelemetry;delete out.activeSetDraft;delete out.finalFeedbackDraft;delete out.reviewingHistory;return out;}
-function findExercise(session, exerciseId){
-  for(const block of session.blocks||[]){
+function groupedExerciseFromBlock(block,exerciseId){
+  if(!block||!exerciseId)return null;
+  if(Array.isArray(block.exercises)){
+    const nested=block.exercises.find((candidate)=>candidate?.exerciseId===exerciseId);
+    if(nested)return nested;
+  }
+  const exerciseIds=Array.isArray(block.exerciseIds)?block.exerciseIds:[];
+  const groupOrder=exerciseIds.indexOf(exerciseId);
+  if(groupOrder<0)return null;
+  const planned=block?.prescriptions?.[exerciseId];
+  return {
+    ...(planned&&typeof planned==='object'?clone(planned):{}),
+    exerciseId,
+    blockId:block.id||null,
+    groupType:block.type||null,
+    groupOrder,
+  };
+}
+function findExercise(session,exerciseId){
+  for(const block of session?.blocks||[]){
     if(block.type==='exercise'&&block.exerciseId===exerciseId)return block;
-    if(Array.isArray(block.exercises)){const x=block.exercises.find(e=>e.exerciseId===exerciseId);if(x)return x;}
+    const grouped=groupedExerciseFromBlock(block,exerciseId);
+    if(grouped)return grouped;
   }
   return null;
+}
+function planSnapshotForExecution(execution){
+  const snapshot=execution?.planSnapshot||execution?.plan_snapshot||null;
+  if(!snapshot)return null;
+  const executionSessionId=String(execution?.sessionId??execution?.session_id??'').trim();
+  const snapshotSessionId=String(snapshot?.sessionId??snapshot?.session_id??'').trim();
+  if(!executionSessionId||!snapshotSessionId||executionSessionId!==snapshotSessionId)return null;
+  return snapshot;
+}
+function findExecutionExercise(execution,session,item){
+  const snapshot=planSnapshotForExecution(execution);
+  if(snapshot){
+    const blocks=snapshot.blocks||[];
+    const block=item?.blockId?blocks.find((candidate)=>candidate?.id===item.blockId):null;
+    if(block?.type==='exercise'&&block.exerciseId===item?.exerciseId)return block;
+    const grouped=groupedExerciseFromBlock(block,item?.exerciseId);
+    if(grouped)return grouped;
+  }
+  return findExercise(session,item?.exerciseId);
 }
 function isGroupedQueueItem(item){return Boolean(item?.groupType&&item?.blockId);}
 function sameExecutionGroup(a,b){return isGroupedQueueItem(a)&&isGroupedQueueItem(b)&&a.blockId===b.blockId&&a.groupType===b.groupType;}
@@ -61,6 +99,12 @@ function nextPlannedPosition(execution){
   if(currentOffset<0)return null;
   return positions[currentOffset+1]||null;
 }
+function nextExecutionPosition(execution,{reviewHistory=false}={}){
+  if(reviewHistory&&execution?.reviewingHistory){
+    return nextPlannedPosition(execution)||nextUnresolvedPosition(execution);
+  }
+  return nextUnresolvedPosition(execution);
+}
 function previousPlannedPosition(execution){
   const positions=plannedExecutionPositions(execution);
   if(!positions.length)return null;
@@ -72,20 +116,60 @@ function previousPlannedPosition(execution){
   }
   return currentOffset>0?positions[currentOffset-1]:null;
 }
+function createPlanSnapshot(session,queue){
+  const rawRevision=Number(session?.revision??session?.version??0);
+  const sessionRevision=Number.isInteger(rawRevision)&&rawRevision>=0?rawRevision:0;
+  return {
+    schemaVersion:1,
+    sessionId:String(session.id),
+    sessionRevision,
+    title:String(session.title||session.name||'').trim().slice(0,120)||null,
+    blocks:clone(session.blocks||[]),
+    queue:clone(queue),
+  };
+}
+
 export function createExecution({session,clientId,executionId=uid()}={}){
   if(!session?.id||!clientId)throw new Error('M26_EXECUTION_SESSION_CLIENT_REQUIRED');
   const queue=[];
   for(const block of session.blocks||[]){
-    if(block.type==='exercise'){const sets=Number(block.sets||1),restSeconds=Number(block.restSeconds||60),targetRpe=Number(block.targetRpe||7),targetRir=Number(block.targetRir??3);if(!block.exerciseId||!Number.isInteger(sets)||sets<1||sets>100||!Number.isFinite(restSeconds)||restSeconds<1||restSeconds>3600||!Number.isFinite(targetRpe)||targetRpe<1||targetRpe>10||!Number.isFinite(targetRir)||targetRir<0||targetRir>10)throw new Error('M26_EXECUTION_BLOCK_INVALID');queue.push({blockId:block.id,exerciseId:block.exerciseId,sets,prescription:{reps:String(block.reps||'').trim().slice(0,40)||null,plannedLoad:String(block.plannedLoad||'').trim().slice(0,80)||null,restSeconds,tempo:String(block.tempo||'').trim().slice(0,40)||null,targetRpe,targetRir,prescriptionNotes:String(block.prescriptionNotes||'').trim().slice(0,1000)||null,progression:String(block.progression||'').trim().slice(0,500)||null,alternativeId:block.alternativeId||null}});}
-    else {const sets=Number(block.rounds||1),exerciseIds=block.exerciseIds||[];if(!Number.isInteger(sets)||sets<1||sets>100||!exerciseIds.length)throw new Error('M26_EXECUTION_GROUP_INVALID');for(const [groupOrder,exerciseId] of exerciseIds.entries()){if(!exerciseId)throw new Error('M26_EXECUTION_GROUP_INVALID');const planned=block.prescriptions?.[exerciseId]||{},restSeconds=Number(planned.restSeconds||60),targetRpe=Number(planned.targetRpe||7),targetRir=Number(planned.targetRir??3);if(!Number.isFinite(restSeconds)||restSeconds<1||restSeconds>3600||!Number.isFinite(targetRpe)||targetRpe<1||targetRpe>10||!Number.isFinite(targetRir)||targetRir<0||targetRir>10)throw new Error('M26_EXECUTION_GROUP_INVALID');queue.push({blockId:block.id,exerciseId,sets,groupType:block.type,groupOrder,groupSize:exerciseIds.length,prescription:{reps:String(planned.reps||'').trim().slice(0,40)||null,plannedLoad:String(planned.plannedLoad||'').trim().slice(0,80)||null,restSeconds,tempo:String(planned.tempo||'').trim().slice(0,40)||null,targetRpe,targetRir,prescriptionNotes:String(planned.prescriptionNotes||'').trim().slice(0,1000)||null,progression:String(planned.progression||'').trim().slice(0,500)||null,alternativeId:planned.alternativeId||null}});}}
+    if(block.type==='exercise'){const sets=Number(block.sets||1),restSeconds=Number(block.restSeconds??60),targetRpe=Number(block.targetRpe||7),targetRir=Number(block.targetRir??3);if(!block.exerciseId||!Number.isInteger(sets)||sets<1||sets>100||!Number.isFinite(restSeconds)||restSeconds<0||restSeconds>3600||!Number.isFinite(targetRpe)||targetRpe<1||targetRpe>10||!Number.isFinite(targetRir)||targetRir<0||targetRir>10)throw new Error('M26_EXECUTION_BLOCK_INVALID');queue.push({blockId:block.id,exerciseId:block.exerciseId,sets,prescription:{reps:String(block.reps||'').trim().slice(0,40)||null,plannedLoad:String(block.plannedLoad||'').trim().slice(0,80)||null,restSeconds,tempo:String(block.tempo||'').trim().slice(0,40)||null,targetRpe,targetRir,prescriptionNotes:String(block.prescriptionNotes||'').trim().slice(0,1000)||null,progression:String(block.progression||'').trim().slice(0,500)||null,alternativeId:block.alternativeId||null}});}
+    else {const sets=Number(block.rounds||1),exerciseIds=block.exerciseIds||[];if(!Number.isInteger(sets)||sets<1||sets>100||!exerciseIds.length)throw new Error('M26_EXECUTION_GROUP_INVALID');for(const [groupOrder,exerciseId] of exerciseIds.entries()){if(!exerciseId)throw new Error('M26_EXECUTION_GROUP_INVALID');const planned=block.prescriptions?.[exerciseId]||{},restSeconds=Number(planned.restSeconds??60),targetRpe=Number(planned.targetRpe||7),targetRir=Number(planned.targetRir??3);if(!Number.isFinite(restSeconds)||restSeconds<0||restSeconds>3600||!Number.isFinite(targetRpe)||targetRpe<1||targetRpe>10||!Number.isFinite(targetRir)||targetRir<0||targetRir>10)throw new Error('M26_EXECUTION_GROUP_INVALID');queue.push({blockId:block.id,exerciseId,sets,groupType:block.type,groupOrder,groupSize:exerciseIds.length,prescription:{reps:String(planned.reps||'').trim().slice(0,40)||null,plannedLoad:String(planned.plannedLoad||'').trim().slice(0,80)||null,restSeconds,tempo:String(planned.tempo||'').trim().slice(0,40)||null,targetRpe,targetRir,prescriptionNotes:String(planned.prescriptionNotes||'').trim().slice(0,1000)||null,progression:String(planned.progression||'').trim().slice(0,500)||null,alternativeId:planned.alternativeId||null}});}}
   }
   if(!queue.length)throw new Error('M26_EXECUTION_EMPTY_SESSION');
-  return {id:executionId,sessionId:session.id,clientId,status:'ready',syncStatus:'clean',pendingOperationIds:[],lastSyncError:null,revision:0,queue,index:0,setIndex:0,startedAt:null,activeSince:null,accumulatedActiveMs:0,completedAt:null,restUntil:null,events:[],results:{},feedback:null};
+  return {id:executionId,sessionId:session.id,clientId,status:'ready',syncStatus:'clean',pendingOperationIds:[],lastSyncError:null,revision:0,planSnapshot:createPlanSnapshot(session,queue),queue,index:0,setIndex:0,startedAt:null,activeSince:null,accumulatedActiveMs:0,completedAt:null,restUntil:null,events:[],results:{},feedback:null};
+}
+function executionStepAtPosition(execution,session,position){
+  const item=execution?.queue?.[position?.index];
+  if(!item)return null;
+  const setIndex=Number(position?.setIndex);
+  const totalSets=Number(item.sets||0);
+  if(!Number.isInteger(setIndex)||setIndex<0||setIndex>=totalSets)return null;
+  const exercise=findExecutionExercise(execution,session,item);
+  return {
+    ...item,
+    setIndex,
+    setNumber:setIndex+1,
+    totalSets,
+    roundNumber:isGroupedQueueItem(item)?setIndex+1:null,
+    totalRounds:isGroupedQueueItem(item)?totalSets:null,
+    exercise,
+    prescription:clone(item.prescription||{}),
+  };
 }
 export function currentStep(execution,session){
-  const item=execution.queue[execution.index]; if(!item)return null;
-  const exercise=findExercise(session,item.exerciseId);
-  return {...item,setNumber:execution.setIndex+1,totalSets:item.sets,roundNumber:isGroupedQueueItem(item)?execution.setIndex+1:null,totalRounds:isGroupedQueueItem(item)?item.sets:null,exercise,prescription:clone(item.prescription||{})};
+  return executionStepAtPosition(
+    execution,
+    session,
+    {index:execution?.index,setIndex:execution?.setIndex},
+  );
+}
+export function nextExecutionStep(execution,session){
+  const position=nextExecutionPosition(
+    execution,
+    {reviewHistory:true},
+  );
+  return position?executionStepAtPosition(execution,session,position):null;
 }
 function actorSnapshot(actor){
   const role=String(actor?.role||'').trim().toLowerCase()||null;
@@ -307,19 +391,15 @@ function moveForward(execution,actor=null,{reviewHistory=false}={}){
   const pendingDraft=execution.activeSetDraft;
   const draftBelongsToSource=activeSetDraftMatchesPosition(execution,pendingDraft,execution.index,execution.setIndex);
   execution.restUntil=null;
-  let next=null;
-  if(reviewHistory&&execution.reviewingHistory){
-    const plannedNext=nextPlannedPosition(execution);
-    if(plannedNext){
-      next=plannedNext;
-      if(!positionResolved(execution,plannedNext))delete execution.reviewingHistory;
-    }else{
+  const reviewingHistory=Boolean(reviewHistory&&execution.reviewingHistory);
+  const plannedNext=reviewingHistory?nextPlannedPosition(execution):null;
+  const next=nextExecutionPosition(execution,{reviewHistory});
+  if(reviewingHistory){
+    if(!plannedNext||!positionResolved(execution,plannedNext)){
       delete execution.reviewingHistory;
-      next=nextUnresolvedPosition(execution);
     }
   }else{
     delete execution.reviewingHistory;
-    next=nextUnresolvedPosition(execution);
   }
   if(next){execution.index=next.index;execution.setIndex=next.setIndex;}
   else{execution.index=execution.queue.length;execution.setIndex=0;}
@@ -469,6 +549,7 @@ export function addExtraSetAndAdvance(execution,session,{actor=null}={}){
   if(execution?.status!=='active')throw new Error('M26_EXECUTION_NOT_ACTIVE');
   requireCoachActor(actor);
   const item=execution.queue?.[execution.index];if(!item)throw new Error('M26_EXECUTION_STEP_MISSING');
+  if(isGroupedQueueItem(item))throw new Error('M26_EXECUTION_EXTRA_SET_GROUP_ORDER_REQUIRED');
   const step=currentStep(execution,session);if(!step)throw new Error('M26_EXECUTION_STEP_MISSING');
   ensureDeviationStores(execution);
   if(!executionResultForStep(execution,step)&&!skippedSetForStep(execution,step))throw new Error('M26_EXECUTION_SET_NOT_RECORDED');
@@ -528,7 +609,7 @@ export function addExecutionExercise(execution,{exerciseId,catalog,sets,reps,res
   if(!catalog?.has(exerciseId))throw new Error('M26_EXECUTION_ADD_EXERCISE_NOT_IN_CATALOG');
   const safeSets=Number(sets),safeRest=Number(restSeconds),safeRpe=Number(targetRpe),safeRir=Number(targetRir);
   if(!Number.isInteger(safeSets)||safeSets<1||safeSets>100)throw new Error('M26_EXECUTION_ADD_EXERCISE_SETS_INVALID');
-  if(!Number.isFinite(safeRest)||safeRest<1||safeRest>3600)throw new Error('M26_EXECUTION_ADD_EXERCISE_REST_INVALID');
+  if(!Number.isFinite(safeRest)||safeRest<0||safeRest>3600)throw new Error('M26_EXECUTION_ADD_EXERCISE_REST_INVALID');
   if(!Number.isFinite(safeRpe)||safeRpe<1||safeRpe>10)throw new Error('M26_EXECUTION_ADD_EXERCISE_RPE_INVALID');
   if(!Number.isFinite(safeRir)||safeRir<0||safeRir>10)throw new Error('M26_EXECUTION_ADD_EXERCISE_RIR_INVALID');
   const item={blockId:`live:${uid()}`,exerciseId,sets:safeSets,prescription:{reps:String(reps||'').trim().slice(0,40)||null,restSeconds:safeRest,tempo:String(tempo||'').trim().slice(0,40)||null,targetRpe:safeRpe,targetRir:safeRir,alternativeId:null},liveAdded:true};

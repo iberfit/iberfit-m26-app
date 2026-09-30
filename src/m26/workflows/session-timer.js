@@ -26,7 +26,8 @@ export function restRemainingSeconds(execution,at=Date.now()){
 export function recoverExecutionTimers(execution,at=Date.now()){
   if(!execution||typeof execution!=='object')throw new Error('M26_EXECUTION_REQUIRED');
   const current=finiteAt(at);execution.accumulatedActiveMs=accumulated(execution.accumulatedActiveMs);
-  const rest=asMs(execution.restUntil);if(rest===null||rest<=current)execution.restUntil=null;else execution.restUntil=iso(rest);
+  const rest=asMs(execution.restUntil);
+  execution.restUntil=execution.status==='active'&&rest!==null?iso(rest):null;
   if(execution.status==='active'){
     if(asMs(execution.activeSince)===null)execution.activeSince=iso(current);
     else execution.activeSince=iso(asMs(execution.activeSince));

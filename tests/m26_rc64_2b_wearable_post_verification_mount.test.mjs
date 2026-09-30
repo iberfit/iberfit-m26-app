@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 const read=(path)=>fs.readFileSync(path,'utf8').replace(/\r\n/g,'\n');
 
-test('RC64.2B authenticated shell arms local services without initial persistence IO and preserves future reconnect refresh',()=>{
+test('RC64.2B authenticated shell arms silent peripherals and one explicit initial recovery reconciliation',()=>{
   const app=read('src/m26/app/application.js');
   const wearable=read('src/m26/wearables/controller.js');
   const pwa=read('src/m26/platform/pwa.js');
@@ -32,7 +32,7 @@ test('RC64.2B authenticated shell arms local services without initial persistenc
   assert.doesNotMatch(setup,/rc64-post-login-recovery-ready/u);
 
   assert.match(setup,/wearables\.mount\(\{syncInitial:false\}\)/u);
-  assert.match(setup,/connectivityStop=sync\.start\(\{emitInitial:false\}\)/u);
+  assert.match(setup,/connectivityStop=sync\.start\(\{emitInitial:false,reconcileInitial:true\}\)/u);
   assert.match(setup,/telemetrySyncStop=telemetryRemoteSync\.start\(\{flushInitial:false\}\)/u);
 
   const refreshMatches=setup.match(/refreshVerificationState/g)||[];
@@ -44,7 +44,7 @@ test('RC64.2B authenticated shell arms local services without initial persistenc
 
   assert.match(wearable,/mount\(\{syncInitial=true\}=\{\}\)/u);
   assert.match(wearable,/if\(syncInitial\)\{/u);
-  assert.match(pwa,/start\(\{emitInitial=true\}=\{\}\)/u);
+  assert.match(pwa,/start\(\{emitInitial=true,reconcileInitial=false\}=\{\}\)/u);
   assert.match(telemetry,/start\(\{target=globalThis,flushInitial=true\}=\{\}\)/u);
 
   assert.match(conflict,/action==='refresh'/u);

@@ -8,9 +8,16 @@ import {
 
 function finite(value){if(value===null||value===undefined||value==='')return null;const number=Number(value);return Number.isFinite(number)?number:null;}
 function percent(value){const number=finite(value);return number===null?null:Math.round(number*100);}
+function reusableSummary(summary,clientId,days){
+  return summary
+    &&summary.clientId===clientId
+    &&Number(summary.days)===Number(days)
+      ?summary
+      :null;
+}
 function labelForQuality(value){
   const quality=String(value||'').toLowerCase();
-  return ({alta:'Alta',media:'Media',limitada:'Limitada',reciente:'Reciente'})[quality]||'Sin evidencia suficiente';
+  return ({alta:'Alta',media:'Media',limitada:'Limitada',reciente:'Reciente',atrasada:'Atrasada',obsoleta:'Obsoleta',sin_datos:'Sin datos'})[quality]||'Sin evidencia suficiente';
 }
 function status(value,{positive=0.8,watch=0.6}={}){
   const number=finite(value);
@@ -59,19 +66,41 @@ function trendEvidence(memories=[],{loadDirectionForExercise=null}={}){
   });
 }
 
-export function buildProgressHub(state,clientId,{now=new Date(),loadDirectionForExercise=null}={}){
+export function buildProgressHub(
+  state,
+  clientId,
+  {now=new Date(),loadDirectionForExercise=null,summaries={}}={}
+){
   if(!clientId)return null;
-  const summary28=computeProgressSummary(state,clientId,{now,days:28});
+  const summary28=reusableSummary(summaries?.[28],clientId,28)
+    ??computeProgressSummary(state,clientId,{now,days:28});
   if(!summary28)return null;
-  const windows=buildAdherenceWindows(state,clientId,{now,windows:[7,28,90],summaries:{28:summary28}});
+  const windows=buildAdherenceWindows(state,clientId,{
+    now,
+    windows:[7,28,90],
+    summaries:{...summaries,28:summary28},
+  });
   const byDays=new Map(windows.map((window)=>[window.days,window]));
   const memories=listExercisePerformanceMemories(state,clientId,{limit:50,historyLimit:12});
   const strength=trendEvidence(memories,{loadDirectionForExercise});
   const adherence28=byDays.get(28)?.adherence??summary28.adherence;
   const adherence90=byDays.get(90)?.adherence??null;
-  const wearableDays=finite(summary28?.wearable?.daysWithData);
+  const wearableDecision=summary28?.wearable?.decision||{};
+  const wearableDays=finite(wearableDecision.currentEvidenceDays)??0;
+  const wearableHistoricalDays=finite(wearableDecision.historicalContextDays)??0;
+  const wearableAvailableDays=finite(summary28?.wearable?.daysWithData)??0;
+  const wearableEligible=wearableDecision.eligible===true&&wearableDays>0;
   const checkins=finite(summary28.checkins)??0;
   const iriCoverage=finite(summary28.iriCurrent);
+
+  const wearableEvidence=wearableEligible
+    ?`${wearableDays} día${wearableDays===1?'':'s'} con datos actuales de dispositivo`
+    :wearableAvailableDays
+      ?`${wearableAvailableDays} día${wearableAvailableDays===1?'':'s'} con datos disponibles, pero sin evidencia suficientemente reciente`
+      :'Sin datos recientes de dispositivo';
+  const wearableContext=wearableAvailableDays
+    ?`Frescura · ${labelForQuality(summary28?.wearable?.freshness)} · Calidad actual · ${labelForQuality(wearableDecision.quality)}${wearableHistoricalDays?` · ${wearableHistoricalDays} día${wearableHistoricalDays===1?'':'s'} solo como contexto histórico`:''}`
+    :`Frescura · ${labelForQuality(summary28?.wearable?.freshness)}`;
 
   const pillars=Object.freeze([
     Object.freeze({
@@ -121,13 +150,13 @@ export function buildProgressHub(state,clientId,{now=new Date(),loadDirectionFor
     Object.freeze({
       id:'activity',
       label:'Actividad',
-      status:wearableDays>=5?'strong':wearableDays>=1?'building':'insufficient',
-      value:wearableDays||null,
-      unit:'días con datos',
-      evidence:wearableDays?`${wearableDays} día${wearableDays===1?'':'s'} con datos recientes de dispositivo`:'Sin datos recientes de dispositivo',
-      context:`Calidad · ${labelForQuality(summary28?.wearable?.freshness)}`,
+      status:wearableEligible?(wearableDays>=2?'strong':'building'):'insufficient',
+      value:wearableEligible?wearableDays:null,
+      unit:'días con evidencia actual',
+      evidence:wearableEvidence,
+      context:wearableContext,
       source:'wearableDailySummaries',
-      quality:wearableDays>=5?'alta':wearableDays?'media':'limitada',
+      quality:wearableEligible?wearableDecision.quality||'limitada':'limitada',
     }),
   ]);
 

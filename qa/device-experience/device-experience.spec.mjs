@@ -1,5 +1,6 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
+import {captureEvidenceScreenshot} from './reliable-screenshot.mjs';
 
 const OUT='recovery/device-experience';
 
@@ -298,7 +299,7 @@ test('Device Experience Gate validates representative tasks by role and device',
     }
 
     const screenshot=OUT+'/'+safeSlug(project)+'-'+task.id+'.png';
-    await page.screenshot({path:screenshot,fullPage:true,animations:'disabled',caret:'hide'});
+    await captureEvidenceScreenshot(page,{path:screenshot,fullPage:true,animations:'disabled',caret:'hide'});
 
     evidence.push({
       task:task.id,

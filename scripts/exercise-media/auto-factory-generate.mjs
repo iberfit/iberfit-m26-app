@@ -51,7 +51,7 @@ async function qaRequest({proxy,token,content,label,maxCompletionTokens}){
 }
 async function validateStartPhase({claim,plan,startFile,outDir,proxy,token,reviewAttempt=0}){
   const exercise=claim.claim.exercise;const inferred=Boolean(plan.anatomy_inferred);const minConfidence=inferred?0.985:0.97;const movementGuard=movementVisualGuard(exercise);const hardSupport=hasHardMovementPlanGuard(exercise);const supportInstruction=supportObservationInstruction(exercise);
-  const keys=['start_matches_plan','movement_identity_lock','equipment_match','grip_support_setup','critical_body_visible','no_portrait_or_rest_pose'];if(hardSupport)keys.splice(4,0,'support_topology');
+  const keys=['start_matches_plan','movement_identity_lock','equipment_match','grip_support_setup','critical_body_visible','no_unapproved_branding','no_portrait_or_rest_pose'];if(hardSupport)keys.splice(4,0,'support_topology');
   const rubric=[
     'You are the fail-closed START-phase reviewer for IBERFIT Exercise Media System v1. Judge the generated START photograph before it may become the continuity reference for FINAL.',
     `Exercise=${exercise.name_es}; equipment=${exercise.equipment}; pattern=${exercise.pattern}.`,
@@ -60,6 +60,7 @@ async function validateStartPhase({claim,plan,startFile,outDir,proxy,token,revie
     movementGuard,
     'Set movement_identity_lock=false whenever the defining body orientation, support/contact pattern or required START setup violates the movement lock. A visually related squat, crouch, lunge, portrait or rest pose must never pass.',
     'Verify every required floor contact, grip, handle, cable, machine support and critical joint needed by START. Reject hidden or invented supports and physically impossible setup.',
+    'Raw generated pixels must be completely brand-free before composition. Set no_unapproved_branding=false for any visible logo, wordmark, brand name, letters, manufacturer mark or recognizable brand-like symbol on shirt, shorts, shoes, equipment or background. The official IBERFIT isotipo is added only after this gate.',
     supportInstruction,
     'Confidence calibration is mandatory and evidence-based. Use 0.99-1.00 only when every required START relationship is clearly visible and unambiguous; 0.97-0.98 for a valid START with only minor non-critical visual uncertainty; <=0.96 when any support, grip, body orientation, equipment relationship or defining joint position requires guessing.',
     `Return ONLY JSON: {${keys.map(k=>`"${k}":boolean`).join(',')},"confidence":number,"issues":[string]${hardSupport?',"support_observation":object':''}}.`
@@ -69,7 +70,7 @@ async function validateStartPhase({claim,plan,startFile,outDir,proxy,token,revie
 }
 async function validateRawPair({claim,plan,startFile,finalFile,outDir,proxy,token,reviewAttempt=0}){
   const exercise=claim.claim.exercise;const inferred=Boolean(plan.anatomy_inferred);const minConfidence=inferred?0.985:0.97;const movementGuard=movementVisualGuard(exercise);const hardSupport=hasHardMovementPlanGuard(exercise);const supportInstruction=supportPairObservationInstruction(exercise);
-  const keys=['start_matches_plan','final_matches_plan','movement_identity_lock','same_identity','same_scene_and_camera','equipment_continuity','grip_support_continuity','critical_body_visible','no_portrait_or_rest_pose'];if(hardSupport)keys.splice(7,0,'support_topology');
+  const keys=['start_matches_plan','final_matches_plan','movement_identity_lock','same_identity','same_scene_and_camera','equipment_continuity','grip_support_continuity','critical_body_visible','no_unapproved_branding','no_portrait_or_rest_pose'];if(hardSupport)keys.splice(7,0,'support_topology');
   const rubric=[
     'You are the fail-closed raw phase reviewer for IBERFIT Exercise Media System v1. Judge the two generated photographs before any branding or composition.',
     'Image 1 is START. Image 2 is FINAL. They must depict the exact same exercise, athlete, scene, camera language and equipment setup while changing only the movement phase required by the plan.',
@@ -80,6 +81,7 @@ async function validateRawPair({claim,plan,startFile,finalFile,outDir,proxy,toke
     movementGuard,
     'Set movement_identity_lock=false whenever the defining body orientation, support/contact pattern or START-to-FINAL relationship violates the movement lock, even if identity, scene and equipment are otherwise correct.',
     'Reject if either image becomes a portrait/rest pose, loses or invents equipment, drops required handles/supports, changes cable routing or machine geometry, hides critical joints, changes athlete identity, or no longer matches the exact planned phase.',
+    'Both raw images must remain completely brand-free before composition. Set no_unapproved_branding=false for any visible logo, wordmark, brand name, letters, manufacturer mark or recognizable brand-like symbol on shirt, shorts, shoes, equipment or background in either phase. The official IBERFIT isotipo is added only after this gate.',
     'For cable or resistance exercises, visible grip/contact and physically plausible connection to the resistance source must persist in every phase where the plan requires it.',
     supportInstruction,
     'Confidence calibration is mandatory and evidence-based. Use 0.99-1.00 only when every required relationship is clearly visible and unambiguous; 0.97-0.98 for valid phases with only minor non-critical visual uncertainty; <=0.96 when any phase, grip, equipment connection, identity, joint relationship or scene continuity requires guessing. Do not default to 0.95.',

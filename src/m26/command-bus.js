@@ -44,6 +44,19 @@ function blockingPredecessor(record,records){
   const lineage=executionLineage(record);if(!lineage)return null;
   return [...records].filter((candidate)=>candidate?.operationId!==record?.operationId&&executionLineage(candidate)===lineage&&compareQueueOrder(candidate,record)<0).sort(compareQueueOrder)[0]||null;
 }
+function isExecutionCompletionCommand(command){return command?.type==='EJECUCION_COMPLETAR'&&command?.entityType==='session_execution'&&Boolean(command?.entityId);}
+function durableCompletionPatch(record,executionId){
+  const id=String(executionId||'').trim(),patch=record?.payload?.patch;
+  const completedAt=patch?.completedAt?new Date(patch.completedAt).getTime():NaN;
+  if(
+    !SAFE_ID_PATTERN.test(id)||!isExecutionCompletionCommand(record)||
+    record?.operationId!==id||record?.entityId!==id||
+    !patch||typeof patch!=='object'||Array.isArray(patch)||
+    patch?.id!==id||patch?.clientId!==record?.clientId||patch?.status!=='completed'||
+    !Number.isFinite(completedAt)
+  )return null;
+  return patch;
+}
 
 export function createCommand(input = {}, { registry=M26_COMMAND_REGISTRY, role=null } = {}) {
   if(input?.payload!==undefined&&(!input.payload||typeof input.payload!=='object'||Array.isArray(input.payload)))throw new Error('M26_COMMAND_PAYLOAD_INVALID');
@@ -196,10 +209,15 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
       const response = await transport.execute(token, command);
       const kind = String(response?.kind || response?.status || '').toLowerCase();
       if (kind === 'ack' || kind === 'duplicate') {
-        await repository.remove(command.operationId);
+        let acknowledged=null;
+        if(isExecutionCompletionCommand(command)){
+          acknowledged=await persist(command,'ack',{createdAt:queued.createdAt,response,retryable:false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder});
+        }else{
+          await repository.remove(command.operationId);
+        }
         if(queuedOffline===true)await rebaseNextQueuedLineage({...queued,...command},response);
         if (typeof rehydrate === 'function') await rehydrate({ reason: kind, response });
-        return { ok: true, kind, command: sanitizeOperation({ ...queued, status: 'ack' }), response };
+        return { ok: true, kind, command: sanitizeOperation({ ...(acknowledged||queued), status: 'ack' }), response };
       }
       if (kind === 'conflict') {
         const conflict = await persist(command, 'conflict', { createdAt:queued.createdAt, response, errorCode: response?.reason || 'REVISION_CONFLICT', retryable: false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder });
@@ -208,7 +226,17 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
       const rejected = await persist(command, 'rejected', { createdAt:queued.createdAt, response, errorCode: response?.reason || 'REJECTED', retryable: false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder });
       return { ok: false, kind: 'rejected', command: sanitizeOperation(rejected), response };
     } catch (error) {
-      const retryable = ![400, 401, 403, 409, 422].includes(Number(error?.status));
+      if(Number(error?.status)===401){
+        const record=await persist(command,'pending',{
+          createdAt:queued.createdAt,
+          errorCode:'M26_AUTH_REQUIRED',
+          retryable:true,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder,
+        });
+        error.operation=sanitizeOperation(record);
+        error.authRequired=true;
+        throw error;
+      }
+      const retryable = ![400, 403, 409, 422].includes(Number(error?.status));
       const nextAttempts=previousAttempts+1;
       const nextRetryAt=retryable?new Date(nowMs()+retryDelayMs(nextAttempts)).toISOString():null;
       const record = await persist(command, retryable ? 'pending' : 'rejected', {
@@ -233,7 +261,25 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
   }
 
   async function pending() {
-    return (await repository.list()).map(sanitizeOperation);
+    return (await repository.list()).filter((record)=>record?.status!=='ack').map(sanitizeOperation);
+  }
+
+  async function recoverExecutionCompletion(executionId) {
+    const id=String(executionId||'').trim();
+    if(!SAFE_ID_PATTERN.test(id))throw new Error('M26_EXECUTION_ID_INVALID');
+    const record=(await repository.list()).find((item)=>item?.operationId===id)||null;
+    const patch=record?durableCompletionPatch(record,id):null;
+    if(!patch)return null;
+    return deepFreeze({operation:sanitizeOperation(record),patch:structuredClone(patch)});
+  }
+
+  async function settleExecutionCompletion(executionId) {
+    const id=String(executionId||'').trim();
+    if(!SAFE_ID_PATTERN.test(id))throw new Error('M26_EXECUTION_ID_INVALID');
+    const record=(await repository.list()).find((item)=>item?.operationId===id)||null;
+    if(!record||record?.status!=='ack'||!durableCompletionPatch(record,id))return false;
+    await repository.remove(id);
+    return true;
   }
 
   async function retry(operationId) {
@@ -278,7 +324,7 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
     return flushInFlight;
   }
 
-  return Object.freeze({ preflight, execute, enqueue, pending, retry, flushPending });
+  return Object.freeze({ preflight, execute, enqueue, pending, recoverExecutionCompletion, settleExecutionCompletion, retry, flushPending });
 }
 
 export function createMemoryOperationRepository() {

@@ -180,6 +180,14 @@ function sessionPlanShape(record={}){
   return Object.freeze({plannedSets,plannedExercises});
 }
 
+function executionPlanSnapshot(record={}){
+  const execution=unwrap(record)||{};
+  const snapshot=first(execution,'planSnapshot','plan_snapshot');
+  return snapshot&&typeof snapshot==='object'&&!Array.isArray(snapshot)
+    ?snapshot
+    :null;
+}
+
 function skippedSetCount(record={}){
   const execution=unwrap(record)||{};
   const skipped=execution.skippedSets??execution.skipped_sets;
@@ -214,11 +222,12 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
     if(id)sessions.set(id,session);
   }
 
-  const blocked=unconfirmedCompletionIds(state);
-  const completed=forClient(state,'sessionExecutions',clientId)
+  const completed=confirmedSessionExecutionsForClient(
+    state,
+    clientId,
+    {requireCompleted:true,requireDate:true},
+  )
     .map(unwrap)
-    .filter((item)=>executionIsConfirmed(item,blocked))
-    .filter((item)=>['completed','complete','completado'].includes(statusOf(item)))
     .filter((item)=>within(dateOf(item),window.start,window.end))
     .sort(byDateDesc);
 
@@ -227,8 +236,14 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
   for(const execution of completed){
     const sessionId=String(first(execution,'sessionId','session_id')||'').trim();
     const session=sessionId?sessions.get(sessionId):null;
-    if(!session){unmatchedExecutions+=1;continue;}
-    const shape=sessionPlanShape(session);
+    const planSnapshot=executionPlanSnapshot(execution);
+    if(planSnapshot){
+      const snapshotSessionId=String(first(planSnapshot,'sessionId','session_id')||'').trim();
+      if(snapshotSessionId&&snapshotSessionId!==sessionId){unmatchedExecutions+=1;continue;}
+    }
+    const planSource=planSnapshot||session;
+    if(!planSource){unmatchedExecutions+=1;continue;}
+    const shape=sessionPlanShape(planSource);
     if(!shape.plannedSets){unmatchedExecutions+=1;continue;}
 
     const recordedSets=setRows(execution).length;
@@ -244,7 +259,7 @@ export function buildPlanExecutionSummary(state,clientId,{now=new Date(),days=28
     rows.push(Object.freeze({
       executionId:String(first(execution,'id','executionId','execution_id')||''),
       sessionId,
-      sessionTitle:String(first(session,'title','name','nombre')||first(execution,'title','sessionTitle','session_title')||'Sesión IBERFIT').trim().slice(0,120),
+      sessionTitle:String(first(planSnapshot,'title','name','nombre')||first(session,'title','name','nombre')||first(execution,'title','sessionTitle','session_title')||'Sesión IBERFIT').trim().slice(0,120),
       completedAt:dateOf(execution)||null,
       plannedExercises:shape.plannedExercises,
       plannedSets:shape.plannedSets,
@@ -314,7 +329,13 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const executionRows=forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end));
   const blockedExecutionIds=unconfirmedCompletionIds(state);
   const executions=executionRows.filter((item)=>executionIsConfirmed(item,blockedExecutionIds));
-  const completedExecutions=executions.filter((item)=>['completado','completed','complete'].includes(statusOf(item)));
+  const completedExecutions=confirmedSessionExecutionsForClient(
+    state,
+    clientId,
+    {requireCompleted:true,requireDate:true},
+  )
+    .map(unwrap)
+    .filter((item)=>within(dateOf(item),start,end));
   const completedIds=new Set(completedExecutions.map((item)=>first(item,'appointmentId','appointment_id')).filter(Boolean));
   const confirmedCompleted=Math.max(completedAppointments.length,completedIds.size,completedExecutions.length);
   const plannedCount=planned.length||completedExecutions.length;
@@ -602,6 +623,104 @@ function epExerciseMeta(session,exerciseId){
   return null;
 }
 
+function epExecutionPlanSnapshotForSession(source,original,sessionId){
+  const expectedSessionId=String(sessionId||'').trim();
+  if(!expectedSessionId)return null;
+
+  for(const candidate of [source,original]){
+    const item=unwrap(candidate)||{};
+    const snapshot=epFirst(item,'planSnapshot','plan_snapshot');
+
+    if(
+      !snapshot||
+      typeof snapshot!=='object'||
+      Array.isArray(snapshot)
+    ){
+      continue;
+    }
+
+    const snapshotSessionId=String(
+      epFirst(snapshot,'sessionId','session_id')||''
+    ).trim();
+
+    if(snapshotSessionId===expectedSessionId){
+      return snapshot;
+    }
+  }
+
+  return null;
+}
+
+function epExerciseMetaForRow(plan,exerciseId,row){
+  if(!plan||!exerciseId)return null;
+
+  const blockId=String(
+    epFirst(row,'blockId','block_id')||''
+  ).trim();
+
+  if(!blockId){
+    return epExerciseMeta(plan,exerciseId);
+  }
+
+  const block=(
+    Array.isArray(plan.blocks)?plan.blocks:[]
+  ).find(
+    (candidate)=>String(
+      epFirst(candidate,'id','blockId','block_id')||''
+    )===blockId
+  );
+
+  return block
+    ?epExerciseMeta({blocks:[block]},exerciseId)
+    :null;
+}
+
+function epExerciseWasLiveOverride(source,original,exerciseId){
+  const expected=String(exerciseId||'');
+  if(!expected)return false;
+
+  for(const candidate of [source,original]){
+    const item=unwrap(candidate)||{};
+
+    for(const entry of Array.isArray(item.events)?item.events:[]){
+      const type=String(entry?.type||'').trim().toUpperCase();
+      const payload=
+        entry?.payload&&
+        typeof entry.payload==='object'&&
+        !Array.isArray(entry.payload)
+          ?entry.payload
+          :entry;
+
+      if(
+        type==='EXERCISE_SUBSTITUTED'&&
+        String(
+          epFirst(
+            payload,
+            'toExerciseId','to_exercise_id',
+            'exerciseId','exercise_id'
+          )||''
+        )===expected
+      ){
+        return true;
+      }
+
+      if(
+        type==='EXERCISE_ADDED'&&
+        String(
+          epFirst(
+            payload,
+            'exerciseId','exercise_id'
+          )||''
+        )===expected
+      ){
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 function epResultRows(source){
   const candidates=[
     source?.results,
@@ -660,6 +779,31 @@ function epTrend(current,previous,{unit='',percent=false}={}){
     delta,
     label,
   });
+}
+
+function epLatestValidTrend(
+  points,
+  selectValue,
+  options={}
+){
+  let current=null;
+  let previous=null;
+
+  for(let index=points.length-1;index>=0;index-=1){
+    const value=selectValue(points[index]);
+
+    if(!Number.isFinite(value))continue;
+
+    if(!Number.isFinite(current)){
+      current=value;
+      continue;
+    }
+
+    previous=value;
+    break;
+  }
+
+  return epTrend(current,previous,options);
 }
 
 function epPoint(execution,rows,meta){
@@ -770,8 +914,8 @@ export function buildExerciseLongitudinalProgress(
     state,
     clientId,
     {
-      requireCompleted:false,
-      requireDate:false,
+      requireCompleted:true,
+      requireDate:true,
     }
   );
 
@@ -781,14 +925,6 @@ export function buildExerciseLongitudinalProgress(
 
   for(const original of executions){
     const source=epExecutionSource(original);
-    const status=epStatus(source)||epStatus(original);
-
-    if(![
-      'completed','complete','completado'
-    ].includes(status)){
-      continue;
-    }
-
     const rows=epResultRows(source);
 
     if(!rows.length)continue;
@@ -807,6 +943,12 @@ export function buildExerciseLongitudinalProgress(
       ? sessions.get(String(sessionId))
       : null;
 
+    const planSnapshot=epExecutionPlanSnapshotForSession(
+      source,
+      original,
+      sessionId
+    );
+
     const grouped=new Map();
 
     for(const row of rows){
@@ -820,7 +962,16 @@ export function buildExerciseLongitudinalProgress(
       if(!exerciseId)continue;
 
       const id=String(exerciseId);
-      const meta=epExerciseMeta(session,id)||{
+
+      const snapshotMeta=epExerciseWasLiveOverride(
+        source,
+        original,
+        id
+      )
+        ?null
+        :epExerciseMetaForRow(planSnapshot,id,row);
+
+      const meta=snapshotMeta||epExerciseMeta(session,id)||{
         id,
         name:String(epFirst(
           row,
@@ -867,10 +1018,6 @@ export function buildExerciseLongitudinalProgress(
     if(!allPoints.length)continue;
 
     const latest=allPoints.at(-1);
-    const previous=allPoints.length>=2
-      ? allPoints.at(-2)
-      : null;
-
     const knownLoadPoints=allPoints.filter(
       (point)=>Number.isFinite(point.maxLoadKg)
     );
@@ -905,7 +1052,7 @@ export function buildExerciseLongitudinalProgress(
 
     exercises.push(Object.freeze({
       exerciseId:item.id,
-      exerciseName:item.name,
+      exerciseName:latest.exerciseName||item.name,
       sessions:allPoints.length,
       totalSets,
       firstAt:allPoints[0].at,
@@ -917,29 +1064,29 @@ export function buildExerciseLongitudinalProgress(
         ? epRound(totalKnownLoadSets/totalSets,2)
         : null,
       dataQuality:quality,
-      loadTrend:epTrend(
-        latest.maxLoadKg,
-        previous?.maxLoadKg,
+      loadTrend:epLatestValidTrend(
+        allPoints,
+        (point)=>point.maxLoadKg,
         {unit:' kg'}
       ),
-      repsTrend:epTrend(
-        latest.bestReps,
-        previous?.bestReps,
+      repsTrend:epLatestValidTrend(
+        allPoints,
+        (point)=>point.bestReps,
         {unit:' reps'}
       ),
-      volumeTrend:epTrend(
-        latest.volumeKgReps,
-        previous?.volumeKgReps,
+      volumeTrend:epLatestValidTrend(
+        allPoints,
+        (point)=>point.volumeKgReps,
         {percent:true}
       ),
-      rpeTrend:epTrend(
-        latest.averageRpe,
-        previous?.averageRpe,
+      rpeTrend:epLatestValidTrend(
+        allPoints,
+        (point)=>point.averageRpe,
         {unit:' RPE'}
       ),
-      rirTrend:epTrend(
-        latest.averageRir,
-        previous?.averageRir,
+      rirTrend:epLatestValidTrend(
+        allPoints,
+        (point)=>point.averageRir,
         {unit:' RIR'}
       ),
       history:Object.freeze(
