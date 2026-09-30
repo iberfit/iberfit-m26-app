@@ -11,14 +11,15 @@ export function sessionSyncNeedsRecoveryReview(execution,{role=''}={}){
 }
 
 export function enhanceSessionSyncRecoveryBanner(root,execution,{role=''}={}){
-  if(!sessionSyncNeedsRecoveryReview(execution,{role}))return false;
   const status=String(execution?.syncStatus||'').trim().toLowerCase();
+  if(!REVIEWABLE_SYNC_STATES.has(status))return false;
   const banner=root?.querySelector?.(`.m26-sync-banner.is-${status}`)||null;
   if(!banner)return false;
   if(banner.getAttribute?.('role')==='alert'){
     banner.setAttribute?.('aria-live','assertive');
     banner.setAttribute?.('aria-atomic','true');
   }
+  if(!sessionSyncNeedsRecoveryReview(execution,{role}))return true;
   if(banner.querySelector?.('[data-session-recovery-review]'))return true;
   const documentLike=banner.ownerDocument||root?.ownerDocument||null;
   const button=documentLike?.createElement?.('button')||null;
@@ -28,7 +29,7 @@ export function enhanceSessionSyncRecoveryBanner(root,execution,{role=''}={}){
   button.setAttribute('data-session-action','exit-session');
   button.setAttribute('data-session-exit-target','verificacion');
   button.setAttribute('data-session-recovery-review','true');
-  button.textContent='Revisar sincronización';
+  button.textContent='Requiere revisión de sincronización';
   banner.append?.(button);
   return true;
 }
