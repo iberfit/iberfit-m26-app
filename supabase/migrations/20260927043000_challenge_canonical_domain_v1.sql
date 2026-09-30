@@ -254,10 +254,10 @@ begin
   exception when invalid_text_representation or numeric_value_out_of_range then
     raise exception 'M26_CHALLENGE_NUMERIC_CONTRACT_INVALID' using errcode='23514';
   end;
-  if v_days not in (7,28,90) then
+  if v_days is null or v_days not in (7,28,90) then
     raise exception 'M26_CHALLENGE_WINDOW_UNSUPPORTED' using errcode='23514';
   end if;
-  if v_target<=0 or v_target>100000000 then
+  if v_target is null or v_target<=0 or v_target>100000000 then
     raise exception 'M26_CHALLENGE_TARGET_INVALID' using errcode='23514';
   end if;
 

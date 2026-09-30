@@ -165,3 +165,10 @@ test('database registry and transitions describe exactly create update archive l
   assert.match(migration,/M26_CHALLENGE_TRANSITIONS_POSTCHECK_FAILED/u);
   assert.match(migration,/M26_CHALLENGE_TRIGGER_POSTCHECK_FAILED/u);
 });
+
+// SQL NULL comparisons are unknown, so IF range checks alone accept missing
+// required fields. Keep explicit null rejection at the persistence boundary.
+test('database rejects absent or null challenge window and target',()=>{
+  assert.match(migration,/if v_days is null or v_days not in \(7,28,90\) then\s+raise exception 'M26_CHALLENGE_WINDOW_UNSUPPORTED'/u);
+  assert.match(migration,/if v_target is null or v_target<=0 or v_target>100000000 then\s+raise exception 'M26_CHALLENGE_TARGET_INVALID'/u);
+});
