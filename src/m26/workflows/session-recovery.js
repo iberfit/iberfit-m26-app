@@ -262,15 +262,17 @@ export function createExecutionRecoveryCoordinator({store,commandBus,isOnline=()
     if(!reconciliation.changed)return false;
     try{
       if(SETTLED.has(nextExecution.status)&&nextExecution.syncStatus==='clean'){
-        await store.save({
-          execution:nextExecution,
-          session:context.session,
-          appointmentId:context.appointmentId||null,
-          sessionRevision:finiteInteger(context.sessionRevision??context.session?.revision??0,{min:0})??0,
-          dirty:false,
-        });
+        if(durableCompletionPending){
+          await store.save({
+            execution:nextExecution,
+            session:context.session,
+            appointmentId:context.appointmentId||null,
+            sessionRevision:finiteInteger(context.sessionRevision??context.session?.revision??0,{min:0})??0,
+            dirty:false,
+          });
+        }
         Object.assign(context.execution,nextExecution);
-        if(typeof commandBus?.settleExecutionCompletion==='function')await commandBus.settleExecutionCompletion(nextExecution.id);
+        if(durableCompletionPending&&typeof commandBus?.settleExecutionCompletion==='function')await commandBus.settleExecutionCompletion(nextExecution.id);
         await store.remove(nextExecution.id);
         return true;
       }
