@@ -82,7 +82,7 @@ async function main(){
   const appDomain=requireEnv('APP_DOMAIN');
   const prodRef=requireEnv('PROD_SUPABASE_REF');
   const token=requireEnv('CLOUDFLARE_API_TOKEN');
-  const attempts=Math.max(1,Number.parseInt(process.env.PRODUCTION_ROLLBACK_ATTEMPTS||'30',10)||30);
+  const attempts=Math.max(1,Number.parseInt(process.env.PRODUCTION_ROLLBACK_ATTEMPTS||'90',10)||30);
   const delayMs=Math.max(250,Number.parseInt(process.env.PRODUCTION_ROLLBACK_DELAY_MS||'4000',10)||4000);
   const evidencePath=String(process.env.PRODUCTION_ROLLBACK_EVIDENCE_PATH||'PRODUCTION_ROLLBACK_EVIDENCE.json').trim();
 
