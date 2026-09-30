@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+import {createExecution} from '../src/m26/workflows/session-execution.js';
 import {
   createExecutionRecoveryCoordinator,
+  createMemoryExecutionRecoveryStore,
   reconcileExecutionSyncResult,
 } from '../src/m26/workflows/session-recovery.js';
 
@@ -61,6 +63,46 @@ function coordinatorHarness({executionValue=execution(),syncResult,onSave,onRemo
     onReconcileError:onError,
   });
   return {context,coordinator,result,saves,removals};
+}
+
+function durableCompletionFixture(){
+  const session={
+    id:'session-1',
+    clientId:'client-1',
+    revision:7,
+    blocks:[{
+      id:'block-1',
+      type:'exercise',
+      exerciseId:'exercise-1',
+      sets:1,
+      reps:'8',
+      restSeconds:60,
+      targetRpe:7,
+      targetRir:3,
+    }],
+  };
+  const value=createExecution({session,clientId:'client-1',executionId:'execution-1'});
+  Object.assign(value,{
+    status:'awaiting_feedback',
+    syncStatus:'pending',
+    pendingOperationIds:['execution-1'],
+    lastSyncError:'M26_AUTH_REQUIRED',
+    revision:3,
+    index:value.queue.length,
+    setIndex:0,
+    startedAt:'2026-09-30T10:00:00.000Z',
+    activeSince:null,
+    accumulatedActiveMs:120000,
+    restUntil:null,
+  });
+  const patch=structuredClone(value);
+  delete patch.syncStatus;
+  delete patch.pendingOperationIds;
+  delete patch.lastSyncError;
+  patch.status='completed';
+  patch.completedAt='2026-09-30T10:08:00.000Z';
+  patch.feedback={sessionRpe:8,comment:'Sesión completada',pain:false,painNotes:''};
+  return {session,value,patch};
 }
 
 test('one ACK clears only its operation and keeps execution pending while more work remains',()=>{
@@ -186,6 +228,103 @@ test('clean settled execution is removed from recovery after acknowledged queued
   assert.equal(value.syncStatus,'clean');
   assert.deepEqual(value.pendingOperationIds,[]);
   assert.equal(value.revision,8);
+});
+
+test('persist promotes a durable pending completion so the live UI cannot reopen feedback after transport uncertainty',async()=>{
+  const {session,value,patch}=durableCompletionFixture();
+  const store=createMemoryExecutionRecoveryStore({
+    ownerId:'coach-a',
+    now:()=>new Date('2026-09-30T10:10:00.000Z'),
+  });
+  const coordinator=createExecutionRecoveryCoordinator({
+    store,
+    commandBus:{
+      async recoverExecutionCompletion(id){
+        assert.equal(id,'execution-1');
+        return {
+          operation:{operationId:id,status:'pending',errorCode:'M26_AUTH_REQUIRED'},
+          patch,
+        };
+      },
+    },
+    getActiveContext:()=>({execution:value,session,sessionRevision:7}),
+  });
+
+  const saved=await coordinator.persist({execution:value,session,sessionRevision:7});
+
+  assert.equal(value.status,'completed');
+  assert.equal(value.syncStatus,'pending');
+  assert.deepEqual(value.pendingOperationIds,['execution-1']);
+  assert.equal(value.feedback.comment,'Sesión completada');
+  assert.equal(saved.execution.status,'completed');
+  assert.equal(saved.execution.syncStatus,'pending');
+});
+
+test('late completion ACK promotes the durable completed snapshot into the active execution and settles it exactly once',async()=>{
+  const {session,value,patch}=durableCompletionFixture();
+  const store=createMemoryExecutionRecoveryStore({
+    ownerId:'coach-a',
+    now:()=>new Date('2026-09-30T10:10:00.000Z'),
+  });
+  const settled=[];
+  const syncResult={
+    online:true,
+    attempted:1,
+    remaining:0,
+    deferred:0,
+    results:[{
+      ok:true,
+      kind:'ack',
+      command:{operationId:'execution-1'},
+      response:{executionRevision:9},
+    }],
+  };
+  const context={execution:value,session,sessionRevision:7};
+  const coordinator=createExecutionRecoveryCoordinator({
+    store,
+    commandBus:{
+      flushPending:async()=>syncResult,
+      recoverExecutionCompletion:async(id)=>({operation:{operationId:id,status:'ack',errorCode:null},patch}),
+      settleExecutionCompletion:async(id)=>{settled.push(id);return true;},
+    },
+    isOnline:()=>true,
+    getActiveContext:()=>context,
+  });
+
+  const returned=await coordinator.synchronize();
+
+  assert.strictEqual(returned,syncResult);
+  assert.equal(value.status,'completed');
+  assert.equal(value.syncStatus,'clean');
+  assert.deepEqual(value.pendingOperationIds,[]);
+  assert.equal(value.revision,9);
+  assert.equal(value.feedback.sessionRpe,8);
+  assert.deepEqual(settled,['execution-1']);
+  assert.deepEqual(await store.list({includeSettled:true}),[]);
+});
+
+test('recovery list repairs a crash window with a clean completed snapshot plus an uncollected durable ACK',async()=>{
+  const {session,value,patch}=durableCompletionFixture();
+  Object.assign(value,patch,{syncStatus:'clean',pendingOperationIds:[],lastSyncError:null});
+  const store=createMemoryExecutionRecoveryStore({
+    ownerId:'coach-a',
+    now:()=>new Date('2026-09-30T10:10:00.000Z'),
+  });
+  await store.save({execution:value,session,sessionRevision:7,dirty:false});
+  const settled=[];
+  const coordinator=createExecutionRecoveryCoordinator({
+    store,
+    commandBus:{
+      recoverExecutionCompletion:async(id)=>({operation:{operationId:id,status:'ack',errorCode:null},patch}),
+      settleExecutionCompletion:async(id)=>{settled.push(id);return true;},
+    },
+  });
+
+  const visible=await coordinator.list();
+
+  assert.deepEqual(visible,[]);
+  assert.deepEqual(settled,['execution-1']);
+  assert.deepEqual(await store.list({includeSettled:true}),[]);
 });
 
 test('offline synchronize preserves prior coordinator contract and performs no reconciliation',async()=>{
