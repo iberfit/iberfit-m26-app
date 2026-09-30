@@ -421,14 +421,24 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     await autosaveChain;
     if(force&&context?.draft&&context?.autosaveDraft&&!pendingSaved)await context.autosaveDraft();
   }
-  async function persistContext(context){
+  async function persistContext(context,{recoveryCheckpoint=null}={}){
     if(context?.draft)await flushAutosave(context,{force:true});
     await flushExecutionDraft(context);
     if(!context?.execution||!context?.recoveryCoordinator)return;
+    if(recoveryCheckpoint)await recoveryCheckpoint;
     await context.recoveryCoordinator.persist({execution:context.execution,session:context.session,appointmentId:context.appointmentId,sessionRevision:context.sessionRevision});
     await context.recoveryCoordinator.settle(context.execution);
   }
-  function persistLifecycleContext(){const context=getContext();if(!context?.execution||!context?.recoveryCoordinator)return;void persistContext(context).catch(onError);}
+  function persistLifecycleContext(context=getContext()){
+    if(!context?.execution||!context?.recoveryCoordinator)return;
+    let recoveryCheckpoint=Promise.resolve();
+    try{
+      recoveryCheckpoint=Promise.resolve(persistExecutionDraft(context)).catch((error)=>{onError(error);});
+    }catch(error){
+      onError(error);
+    }
+    void persistContext(context,{recoveryCheckpoint}).catch(onError);
+  }
   function pagehide(){persistLifecycleContext();}
   function visibilitychange(){
     if(visibilityTarget?.visibilityState==='hidden'){
@@ -622,5 +632,5 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     button.click?.();
   }
   function change(event){if(event.target.closest?.('[data-session-live-add-exercise]'))syncLiveAddExerciseControl(getContext());}
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
 }
