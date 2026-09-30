@@ -33,6 +33,14 @@ export function isRestoredIdentity(version,{previousSha,prodRef}){
     && version?.production===true;
 }
 
+export function isRestoredReleaseIdentity({version,swSource,wrapperSource},{previousSha,prodRef}){
+  if(!isRestoredIdentity(version,{previousSha,prodRef}))return false;
+  const expectedVersion=`m26-prod-${normalizeSha(previousSha).slice(0,12)}`;
+  const swVersion=(String(swSource||'').match(/^const VERSION='([^']+)';$/mu)||[])[1];
+  const wrapperVersion=(String(wrapperSource||'').match(/^const IBERFIT_SERVICE_WORKER_RELEASE='([^']+)';$/mu)||[])[1];
+  return swVersion===expectedVersion&&wrapperVersion===expectedVersion;
+}
+
 async function fetchJson(url,options={}){
   const response=await fetch(url,options);
   const text=await response.text();
@@ -42,13 +50,27 @@ async function fetchJson(url,options={}){
   return body;
 }
 
-async function readLiveVersion(appDomain,tag){
-  return fetchJson(`https://${appDomain}/m26/version.json?rollback=${encodeURIComponent(tag)}-${Date.now()}`,{
+async function readLiveText(appDomain,path,tag){
+  const response=await fetch(`https://${appDomain}${path}?rollback=${encodeURIComponent(tag)}-${Date.now()}`,{
     method:'GET',
     cache:'no-store',
     redirect:'follow',
     headers:{'cache-control':'no-cache','pragma':'no-cache'},
   });
+  const text=await response.text();
+  if(!response.ok)throw new Error(`PRODUCTION_ROLLBACK_HTTP_${response.status}:${path}`);
+  return text;
+}
+
+async function readLiveRelease(appDomain,tag){
+  const [versionSource,swSource,wrapperSource]=await Promise.all([
+    readLiveText(appDomain,'/m26/version.json',tag),
+    readLiveText(appDomain,'/m26/sw.js',tag),
+    readLiveText(appDomain,'/m26/iberfit-sw.js',tag),
+  ]);
+  let version=null;
+  try{version=JSON.parse(versionSource);}catch{}
+  return {version,swSource,wrapperSource};
 }
 
 async function main(){
@@ -64,7 +86,8 @@ async function main(){
   const delayMs=Math.max(250,Number.parseInt(process.env.PRODUCTION_ROLLBACK_DELAY_MS||'4000',10)||4000);
   const evidencePath=String(process.env.PRODUCTION_ROLLBACK_EVIDENCE_PATH||'PRODUCTION_ROLLBACK_EVIDENCE.json').trim();
 
-  const before=await readLiveVersion(appDomain,'before');
+  const beforeRelease=await readLiveRelease(appDomain,'before');
+  const before=beforeRelease.version;
   const action=classifyLiveSha(before?.sourceSha,sourceSha,previousSha);
   let rollbackApiInvoked=false;
 
@@ -83,15 +106,39 @@ async function main(){
   }
 
   let restored=null;
+  let lastObserved=null;
   for(let i=1;i<=attempts;i+=1){
-    const current=await readLiveVersion(appDomain,`verify-${i}`);
-    if(isRestoredIdentity(current,{previousSha,prodRef})){
-      restored=current;
+    const current=await readLiveRelease(appDomain,`verify-${i}`);
+    lastObserved=current;
+    if(isRestoredReleaseIdentity(current,{previousSha,prodRef})){
+      restored=current.version;
       break;
     }
     if(i<attempts)await new Promise((resolve)=>setTimeout(resolve,delayMs));
   }
-  if(!restored)throw new Error('PRODUCTION_ROLLBACK_IDENTITY_NOT_RESTORED');
+  if(!restored){
+    const failureEvidence={
+      schema:'iberfit.production.rollback.v1',
+      generatedAt:new Date().toISOString(),
+      domain:appDomain,
+      project,
+      sourceSha,
+      previousLiveSha:previousSha,
+      previousDeploymentId,
+      initialLiveSha:normalizeSha(before?.sourceSha),
+      action,
+      rollbackApiInvoked,
+      restoredSourceSha:normalizeSha(lastObserved?.version?.sourceSha),
+      restoredProjectRef:String(lastObserved?.version?.projectRef||''),
+      restoredEnvironment:String(lastObserved?.version?.environment||''),
+      qaOnly:lastObserved?.version?.qaOnly,
+      production:lastObserved?.version?.production,
+      ok:false,
+      error:'PRODUCTION_ROLLBACK_RELEASE_IDENTITY_NOT_RESTORED',
+    };
+    await writeFile(evidencePath,`${JSON.stringify(failureEvidence,null,2)}\n`,'utf8');
+    throw new Error('PRODUCTION_ROLLBACK_RELEASE_IDENTITY_NOT_RESTORED');
+  }
 
   const evidence=Object.freeze({
     schema:'iberfit.production.rollback.v1',
