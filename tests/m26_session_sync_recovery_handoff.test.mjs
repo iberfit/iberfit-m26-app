@@ -57,10 +57,18 @@ test('conflict banner gains one accessible safe handoff without retrying or disc
   assert.equal(button.getAttribute('data-session-action'),'exit-session');
   assert.equal(button.getAttribute('data-session-exit-target'),'verificacion');
   assert.equal(button.getAttribute('data-session-recovery-review'),'true');
-  assert.equal(button.textContent,'Revisar sincronización');
+  assert.equal(button.textContent,'Requiere revisión de sincronización');
   assert.equal(sessionExitTarget(button),'verificacion');
   assert.equal(enhanceSessionSyncRecoveryBanner(root,{syncStatus:'conflict'},{role:'coach'}),true);
   assert.equal(banner.children.length,1);
+});
+
+test('client conflict remains non-operable but receives assertive accessible status semantics',()=>{
+  const {root,banner}=recoveryBannerHarness('conflict');
+  assert.equal(enhanceSessionSyncRecoveryBanner(root,{syncStatus:'conflict'},{role:'client'}),true);
+  assert.equal(banner.getAttribute('aria-live'),'assertive');
+  assert.equal(banner.getAttribute('aria-atomic'),'true');
+  assert.equal(banner.children.length,0);
 });
 
 test('recovery review opens the existing verification route and fails closed when unavailable',()=>{
