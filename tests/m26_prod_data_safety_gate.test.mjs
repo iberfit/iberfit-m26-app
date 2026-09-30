@@ -47,6 +47,31 @@ test('data safety gate blocks top-level mutation of existing rows', () => {
   );
 });
 
+test('data safety gate blocks schema renames and destructive constraint/index changes', () => {
+  assert.deepEqual(
+    findDestructiveSql('alter table public.clients rename to clients_legacy;'),
+    ['ALTER_TABLE_RENAME'],
+  );
+  assert.deepEqual(
+    findDestructiveSql('alter table public.clients set schema private;'),
+    ['ALTER_TABLE_SET_SCHEMA'],
+  );
+  assert.deepEqual(
+    findDestructiveSql('alter table public.clients rename column email to legacy_email;'),
+    ['RENAME_COLUMN'],
+  );
+  assert.deepEqual(
+    findDestructiveSql('alter table public.clients drop constraint clients_email_key;'),
+    ['DROP_CONSTRAINT'],
+  );
+  assert.deepEqual(
+    findDestructiveSql('alter table public.clients rename constraint clients_email_key to clients_email_legacy_key;'),
+    ['RENAME_CONSTRAINT'],
+  );
+  assert.deepEqual(findDestructiveSql('drop index public.clients_email_idx;'), ['DROP_INDEX']);
+  assert.deepEqual(findDestructiveSql('drop sequence public.legacy_seq;'), ['DROP_SEQUENCE']);
+});
+
 test('data safety gate blocks MERGE updates and deletes', () => {
   assert.deepEqual(
     findDestructiveSql('merge into public.clients c using public.stage s on c.id=s.id when matched then update set status=s.status;'),
