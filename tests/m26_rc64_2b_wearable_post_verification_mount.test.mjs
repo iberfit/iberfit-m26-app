@@ -44,7 +44,7 @@ test('RC64.2B authenticated shell arms silent peripherals and one explicit initi
 
   assert.match(wearable,/mount\(\{syncInitial=true\}=\{\}\)/u);
   assert.match(wearable,/if\(syncInitial\)\{/u);
-  assert.match(pwa,/start\(\{emitInitial=true\}=\{\}\)/u);
+  assert.match(pwa,/start\(\{emitInitial=true,reconcileInitial=false\}=\{\}\)/u);
   assert.match(telemetry,/start\(\{target=globalThis,flushInitial=true\}=\{\}\)/u);
 
   assert.match(conflict,/action==='refresh'/u);
