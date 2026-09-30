@@ -11,7 +11,7 @@ function optionalText(input,fallback='',max=500){
 function normalizePrescription(input={},fallback={}){return {
   reps:text(input.reps,fallback.reps||'8–12',40),
   plannedLoad:optionalText(input.plannedLoad,fallback.plannedLoad||'',80),
-  restSeconds:positiveInt(input.restSeconds,fallback.restSeconds||60,{min:1,max:3600}),
+  restSeconds:positiveInt(input.restSeconds,fallback.restSeconds??60,{min:0,max:3600}),
   tempo:text(input.tempo,fallback.tempo||'controlado',40),
   targetRpe:boundedNumber(input.targetRpe,fallback.targetRpe||7,{min:1,max:10}),
   targetRir:boundedNumber(input.targetRir,fallback.targetRir??3,{min:0,max:10}),
@@ -54,7 +54,7 @@ export function updateSessionBlock(draft,{blockId,field,value,exerciseId=null,ca
   else if(field==='plannedLoad')block.plannedLoad=optionalText(value,block.plannedLoad||'',80);
   else if(field==='prescriptionNotes')block.prescriptionNotes=optionalText(value,block.prescriptionNotes||'',1000);
   else if(field==='progression')block.progression=optionalText(value,block.progression||'',500);
-  else if(field==='restSeconds')block.restSeconds=positiveInt(value,block.restSeconds||60,{min:1,max:3600});
+  else if(field==='restSeconds')block.restSeconds=positiveInt(value,block.restSeconds??60,{min:0,max:3600});
   else if(field==='targetRpe')block.targetRpe=boundedNumber(value,block.targetRpe||7,{min:1,max:10});
   else if(field==='targetRir')block.targetRir=boundedNumber(value,block.targetRir??3,{min:0,max:10});
   else if(field==='alternativeId'){if(value&&!catalog?.has(value))throw new Error('M26_SESSION_ALTERNATIVE_NOT_IN_CATALOG');block.alternativeId=value||null;}
@@ -76,7 +76,7 @@ export function validateSessionDraft(draft,catalog){
   if(b.type==='exercise'){
    const sets=Number(b.sets),rest=Number(b.restSeconds),rpe=Number(b.targetRpe),rir=Number(b.targetRir);
    if(!catalog.has(b.exerciseId))errors.push(`exercise:${b.exerciseId}`);
-   if(!Number.isInteger(sets)||sets<1||sets>100||!String(b.reps||'').trim()||String(b.reps).length>40||String(b.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<1||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(b.tempo||'').length>40||String(b.prescriptionNotes||'').length>1000||String(b.progression||'').length>500)errors.push(`prescription:${b.exerciseId}`);
+   if(!Number.isInteger(sets)||sets<1||sets>100||!String(b.reps||'').trim()||String(b.reps).length>40||String(b.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(b.tempo||'').length>40||String(b.prescriptionNotes||'').length>1000||String(b.progression||'').length>500)errors.push(`prescription:${b.exerciseId}`);
    if(b.alternativeId&&(!catalog.has(b.alternativeId)||b.alternativeId===b.exerciseId))errors.push(`alternative:${b.exerciseId}`);
   }else{
    if(!GROUP_TYPES.has(b.type)){errors.push(`groupType:${b.id}`);continue;}
@@ -87,7 +87,7 @@ export function validateSessionDraft(draft,catalog){
    for(const id of ids){
     if(!catalog.has(id))errors.push(`exercise:${id}`);
     const p=b.prescriptions?.[id],rest=Number(p?.restSeconds),rpe=Number(p?.targetRpe),rir=Number(p?.targetRir);
-    if(!p||!String(p.reps||'').trim()||String(p.reps).length>40||String(p.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<1||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(p.tempo||'').length>40||String(p.prescriptionNotes||'').length>1000||String(p.progression||'').length>500)errors.push(`prescription:${id}`);
+    if(!p||!String(p.reps||'').trim()||String(p.reps).length>40||String(p.plannedLoad||'').length>80||!Number.isFinite(rest)||rest<0||rest>3600||!Number.isFinite(rpe)||rpe<1||rpe>10||!Number.isFinite(rir)||rir<0||rir>10||String(p.tempo||'').length>40||String(p.prescriptionNotes||'').length>1000||String(p.progression||'').length>500)errors.push(`prescription:${id}`);
     if(p?.alternativeId&&(!catalog.has(p.alternativeId)||p.alternativeId===id))errors.push(`alternative:${id}`);
    }
   }

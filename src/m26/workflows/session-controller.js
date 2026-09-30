@@ -12,6 +12,7 @@ import { createLiveTelemetryController } from '../wearables/live-telemetry.js';
 import {setPendingSessionEntry,consumePendingSessionEntry,clearPendingSessionEntry} from '../intelligence/session-entry-intent.js';
 import {createM26Id} from '../platform/id.js';
 import {executionElapsedMs,formatDuration,restRemainingSeconds} from './session-timer.js';
+import {enhanceSessionSyncRecoveryBanner,openSessionRecoveryReview,sessionExitTarget} from './session-sync-recovery-ui.js';
 
 function fieldValues(root){const out={};for(const node of root.querySelectorAll?.('[data-set-field]')||[])out[node.getAttribute('data-set-field')]=node.value;return out;}
 function feedbackValues(root){return {sessionRpe:root.querySelector?.('[data-session-feedback-rpe]')?.value??'',comment:root.querySelector?.('[data-session-feedback-comment]')?.value??'',pain:Boolean(root.querySelector?.('[data-session-feedback-pain]')?.checked),painNotes:root.querySelector?.('[data-session-feedback-pain-notes]')?.value??''};}
@@ -215,6 +216,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   let liveAddPending=false,liveAddBlockedOperationId=null;
   let finishPending=false,finishBlockedOperationId=null;
   let manualSyncPending=false;
+  let sessionActionPending=false;
   let sessionClockTimer=null;
   let coachRestTimer=null,coachRestTimerSignature=null,coachRestSuppressedSignature=null,coachRestAdvancePending=false;
   function stopSessionClockTicker(){
@@ -254,6 +256,9 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     const role=String(context?.actor?.role||'').trim().toLowerCase();
     return role==='coach'||role==='entrenador';
   }
+  function syncRecoveryReviewControl(context=getContext()){
+    return enhanceSessionSyncRecoveryBanner(root,context?.execution,{role:context?.actor?.role});
+  }
   function coachRestSignature(context=getContext()){
     const execution=context?.execution;
     if(!execution?.id||!execution?.restUntil)return null;
@@ -273,6 +278,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     return Boolean(disclosure.open||(active&&disclosure.contains?.(active)));
   }
   function scheduleCoachRestAutoAdvance(context=getContext()){
+    if(coachRestAdvancePending)return;
     const execution=context?.execution;
     if(!isCoachContext(context)||execution?.status!=='active'||execution?.syncStatus!=='clean'){
       cancelCoachRestAutoAdvance();
@@ -294,8 +300,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     if(!signature||coachRestSuppressedSignature===signature)return;
     if(coachRestTimer&&coachRestTimerSignature===signature)return;
     cancelCoachRestAutoAdvance();
-    const delay=deadline-Date.now();
-    if(delay<=0)return;
+    const delay=Math.max(0,deadline-Date.now());
     coachRestTimerSignature=signature;
     coachRestTimer=setTimeout(async()=>{
       coachRestTimer=null;
@@ -391,7 +396,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     return true;
   }
   const baseRender=render;
-  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());};
+  render=()=>{baseRender?.();hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncManualSyncControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());};
   function renderSession(){render?.();}
   const telemetry=liveTelemetryController||createLiveTelemetryController({scope:globalThis,onUpdate:()=>render?.(),onDiagnostic:()=>{},telemetryOutbox,onOutboxStaged:()=>telemetryRemoteSync?.notifyStaged?.()});
   function queueAutosave(context){
@@ -420,14 +425,24 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     await autosaveChain;
     if(force&&context?.draft&&context?.autosaveDraft&&!pendingSaved)await context.autosaveDraft();
   }
-  async function persistContext(context){
+  async function persistContext(context,{recoveryCheckpoint=null}={}){
     if(context?.draft)await flushAutosave(context,{force:true});
     await flushExecutionDraft(context);
     if(!context?.execution||!context?.recoveryCoordinator)return;
+    if(recoveryCheckpoint)await recoveryCheckpoint;
     await context.recoveryCoordinator.persist({execution:context.execution,session:context.session,appointmentId:context.appointmentId,sessionRevision:context.sessionRevision});
     await context.recoveryCoordinator.settle(context.execution);
   }
-  function persistLifecycleContext(){const context=getContext();if(!context?.execution||!context?.recoveryCoordinator)return;void persistContext(context).catch(onError);}
+  function persistLifecycleContext(context=getContext()){
+    if(!context?.execution||!context?.recoveryCoordinator)return;
+    let recoveryCheckpoint=Promise.resolve();
+    try{
+      recoveryCheckpoint=Promise.resolve(persistExecutionDraft(context)).catch((error)=>{onError(error);});
+    }catch(error){
+      onError(error);
+    }
+    void persistContext(context,{recoveryCheckpoint}).catch(onError);
+  }
   function pagehide(){persistLifecycleContext();}
   function visibilitychange(){
     if(visibilityTarget?.visibilityState==='hidden'){
@@ -436,6 +451,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
       persistLifecycleContext();
       return;
     }
+    coachRestSuppressedSignature=null;
     scheduleCoachRestAutoAdvance(getContext());
     ensureSessionClockTicker(getContext());
   }
@@ -471,7 +487,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     catch{clearPendingSessionEntry(root);}
   }
   async function onShellRendered(){
-    hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());
+    hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());
     const pending=consumePendingSessionEntry(root);
     if(!pending)return;
     const context=getContext();
@@ -544,7 +560,9 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
   if(saved)queueExecutionDraftPersist(context);
   syncQuickRpeControl();
   return;
-}if(action==='exit-session'){const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await settleWithin(persistContext(context),safeFinishTimeout);context.onExit?.();}catch(error){onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}
+}if(action==='exit-session'){const target=sessionExitTarget(button);const wasDisabled=button.disabled;button.disabled=true;button.setAttribute('aria-busy','true');try{await settleWithin(persistContext(context),safeFinishTimeout);await context.onExit?.();if(target==='verificacion')queueMicrotask(()=>openSessionRecoveryReview(root));}catch(error){onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');}return;}
+    if(sessionActionPending)return;
+    sessionActionPending=true;
     const liveAddOperationId=action==='add-live-exercise'?createM26Id():null;
     const finishOperationId=action==='finish'?String(context?.execution?.id||''):null;
     let liveAddDispatched=false,liveAddTimedOut=false;
@@ -588,7 +606,7 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     let runTask=invokeTask;
     if(action==='add-live-exercise')runTask=()=>settleWithin(invokeTask(),safeLiveAddTimeout,()=>{liveAddTimedOut=true;if(liveAddDispatched){liveAddBlockedOperationId=liveAddOperationId;markExecutionSync(context.execution,'pending',{operationId:liveAddOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
     else if(action==='finish')runTask=()=>settleWithin(invokeTask(),safeFinishTimeout,()=>{finishTimedOut=true;if(finishDispatched&&finishOperationId){finishBlockedOperationId=finishOperationId;markExecutionSync(context.execution,'pending',{operationId:finishOperationId,errorCode:'M26_SESSION_ACTION_TIMEOUT'});}});
-    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok)onError(outcome.error);if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else if(timedOut)void persistContext(getContext()).catch(onError);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}renderSession();}catch(error){const timedOut=error?.code==='M26_SESSION_ACTION_TIMEOUT'||error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut)void persistContext(context).catch(onError);else await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
+    try{const outcome=actionState?await runAction(actionState,runTask):{ok:true,value:await runTask()};if(!outcome.ok)onError(outcome.error);if(outcome.ok){if(action==='start')void telemetry.start(context.execution);else if(action==='pause')void telemetry.pause(context.execution);else if(action==='resume')void telemetry.resume(context.execution);else if(action==='cancel'||action==='finish')void telemetry.stop(context.execution,{reason:action});}const timedOut=outcome.error?.code==='M26_SESSION_ACTION_TIMEOUT'||outcome.error?.message==='M26_SESSION_ACTION_TIMEOUT';if(outcome.ok&&action==='publish')await context.onPublished?.(outcome.value);else if(timedOut)void persistContext(getContext()).catch(onError);else await persistContext(getContext());if(outcome.ok&&action==='save-draft'&&actionState){actionState.status='success';actionState.message='Borrador guardado de forma segura.';}renderSession();}catch(error){const timedOut=error?.code==='M26_SESSION_ACTION_TIMEOUT'||error?.message==='M26_SESSION_ACTION_TIMEOUT';if(timedOut)void persistContext(context).catch(onError);else await persistContext(context).catch(()=>{});onError(error);renderSession();}finally{sessionActionPending=false;button.disabled=wasDisabled;button.removeAttribute('aria-busy');if(action==='add-live-exercise'){liveAddPending=false;syncLiveAddExerciseControl(getContext());}if(action==='finish'){finishPending=false;syncFinishControl(getContext());}}}
   function input(event){const context=getContext();const search=event.target.closest?.('[data-session-search]');if(search){context.setQuery?.(search.value);renderSession();}
     const liveAddSelect=event.target.closest?.('[data-session-live-add-exercise]');if(liveAddSelect)syncLiveAddExerciseControl(context);
     const draftField=event.target.closest?.('[data-session-draft-field]');if(draftField&&context.draft){try{dispatchSessionAction({...context,action:'update-draft',payload:{field:draftField.getAttribute('data-session-draft-field'),value:draftField.value}});}catch(error){onError(error);}}
@@ -618,5 +636,5 @@ export function createSessionController({root,getContext,render,onError=()=>{},a
     button.click?.();
   }
   function change(event){if(event.target.closest?.('[data-session-live-add-exercise]'))syncLiveAddExerciseControl(getContext());}
-  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});void persistContext(context).catch(onError);},flushAutosave,start});
+  return Object.freeze({mount(){if(mounted)return;root.addEventListener('click',captureSessionEntryIntent,true);root.addEventListener('click',click);root.addEventListener('input',input);root.addEventListener('change',change);root.addEventListener('keydown',keydown);root.addEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.addEventListener?.('pagehide',pagehide);visibilityTarget?.addEventListener?.('visibilitychange',visibilitychange);mounted=true;hydrateActiveSetDraft(getContext());hydrateFinalFeedbackDraft(getContext());syncLiveAddExerciseControl(getContext());syncFinishControl(getContext());syncQuickRpeControl();syncRecoveryReviewControl(getContext());scheduleCoachRestAutoAdvance(getContext());ensureSessionClockTicker(getContext());},destroy(){if(!mounted)return;root.removeEventListener('click',captureSessionEntryIntent,true);root.removeEventListener('click',click);root.removeEventListener('input',input);root.removeEventListener('change',change);root.removeEventListener('keydown',keydown);root.removeEventListener('m26:shell-rendered',onShellRendered);lifecycleTarget?.removeEventListener?.('pagehide',pagehide);visibilityTarget?.removeEventListener?.('visibilitychange',visibilitychange);clearPendingSessionEntry(root);mounted=false;stopSessionClockTicker();cancelCoachRestAutoAdvance();clearTimeout(autosaveTimer);clearTimeout(executionDraftTimer);const context=getContext();void telemetry.stop(context?.execution,{reason:'controller-destroy'});persistLifecycleContext(context);},flushAutosave,start});
 }

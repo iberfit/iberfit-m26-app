@@ -1012,7 +1012,7 @@ export async function createM26Application({root=document.querySelector('#app'),
           render();
         },
       });
-      connectivityStop=sync.start({emitInitial:false});
+      connectivityStop=sync.start({emitInitial:false,reconcileInitial:true});
       telemetrySyncStop=telemetryRemoteSync.start({flushInitial:false});
       void registerM26ServiceWorker().catch(()=>{});
       qaStage('rc64-post-login-local-services-armed');

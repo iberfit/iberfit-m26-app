@@ -226,7 +226,17 @@ export function createCommandBus({ transport, repository, getToken, rehydrate, r
       const rejected = await persist(command, 'rejected', { createdAt:queued.createdAt, response, errorCode: response?.reason || 'REJECTED', retryable: false,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder });
       return { ok: false, kind: 'rejected', command: sanitizeOperation(rejected), response };
     } catch (error) {
-      const retryable = ![400, 401, 403, 409, 422].includes(Number(error?.status));
+      if(Number(error?.status)===401){
+        const record=await persist(command,'pending',{
+          createdAt:queued.createdAt,
+          errorCode:'M26_AUTH_REQUIRED',
+          retryable:true,attempts:previousAttempts,nextRetryAt:null,queuedOffline:queuedOffline===true,queueOrder:queued.queueOrder,
+        });
+        error.operation=sanitizeOperation(record);
+        error.authRequired=true;
+        throw error;
+      }
+      const retryable = ![400, 403, 409, 422].includes(Number(error?.status));
       const nextAttempts=previousAttempts+1;
       const nextRetryAt=retryable?new Date(nowMs()+retryDelayMs(nextAttempts)).toISOString():null;
       const record = await persist(command, retryable ? 'pending' : 'rejected', {
