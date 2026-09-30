@@ -165,14 +165,14 @@ test('manual sync is coordination only and does not become a domain dispatch act
   assert.match(controller,/manualSyncPending/u);
 });
 
-test('pending sync banner remains responsive and touch-friendly without disabling pointer interaction',()=>{
+test('pending and recovery controls inherit the global 44px touch target contract',()=>{
   const css=fs.readFileSync('src/m26/shell/shell.css','utf8');
   const start=css.indexOf('.m26-sync-banner{');
   assert.ok(start>=0);
   const block=css.slice(start,start+1400);
   assert.match(block,/\.m26-sync-banner\.is-pending\{display:flex/u);
-  assert.match(block,/min-height:2\.75rem/u);
   assert.doesNotMatch(block,/pointer-events\s*:\s*none|display\s*:\s*none|visibility\s*:\s*hidden/iu);
+  assert.match(css,/\.m26-shell button\{min-height:44px;touch-action:manipulation\}/u);
 });
 
 test('manual sync addition preserves the explicit silent post-login recovery reconciliation contract',()=>{
