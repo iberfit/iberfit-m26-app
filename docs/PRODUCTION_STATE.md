@@ -1,29 +1,52 @@
 # IBERFIT · Production State
 
-Última actualización documental: 2026-09-17
+Última actualización documental: 2026-09-30
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
 ## Producción LIVE
 
 - Dominio: `https://app.iberfit.cl`
 - Estado: PRODUCCIÓN REAL.
-- Source SHA LIVE verificado: `1eabb642634ade1fec74b0d3b32d703e7d314eff`
-- Release branch: `release/prod-1eabb642634a`
-- Promotion run: `35259458571 = SUCCESS`
+- Source SHA LIVE verificado: `be39ea321cd5b476066381f64e88c5ecdf78a5a7`
+- Release branch: `release/prod-be39ea321cd5`
+- Promotion run: [`36791716608 = SUCCESS`](https://github.com/iberfit/iberfit-m26-app/actions/runs/36791716608)
 - Cloudflare Pages productivo: `iberfit-m26-production`
 - Supabase PROD: `pjhmrhejsoofmouedavw`
 
-El lote LIVE cerró el incidente P0 de focus/select y la entrega PWA stale-safe. No se considera que mejoras posteriores estén en producción mientras no exista una promoción nueva verificada de forma explícita.
+La promoción de Retos personales canónicos (PR #631 y corrección del gate de privacidad #658) terminó a las 23:36 UTC. LIVE verificó identidad SHA, runtime PROD sin QA, entrada interactiva Chromium (3 pruebas) y auditoría integral de sólo lectura.
 
-## Canary actual
+- Deployment exacto: `6c2e3a06-b386-431b-80f7-60e37a8307cf`.
+- Rollback frontend anterior: `d6752de2-8bac-4d27-8c8c-ce3809d6bf60`, SHA `b62eb0468dc972b4555c4ae2b29c564ebabb01f7`.
+- Evidencia de promoción: [artifact 11131709849](https://github.com/iberfit/iberfit-m26-app/actions/runs/36791716608/artifacts/11131709849).
+- Navegador LIVE independiente: carga finalizada, formulario de acceso visible y botón Entrar disponible. No se inició una sesión autenticada PROD en esta ronda.
+
+### Retos: migración y alcance certificado
+
+- SQL canónico: `20260927043000_challenge_canonical_domain_v1.sql`, incluyendo rechazo explícito de días/objetivo nulos.
+- QA ledger: `20260930231510`; PROD ledger: `20260930233306`, ambos `challenge_canonical_domain_v1`.
+- PROD conserva 101 tablas públicas, 0 hábitos y 0 retos; sólo se añadió el contrato de dominio, sin fixtures ni cambios de datos personales.
+- Registro: RETO_CREAR / RETO_ACTUALIZAR / RETO_ARCHIVAR, sólo Admin/Coach; 3 transiciones y trigger activo; factory sin EXECUTE anon/authenticated.
+- Hashes PROD de registro/transiciones excluyendo challenge, iguales antes y después: `b5c7363c3e777bff7bc2a70ae4e0622c` / `27bcc4de2d3bd0a554467336bbdd094b`.
+- Recuperación previa: [Data Safety 36790257428, attempt 2](https://github.com/iberfit/iberfit-m26-app/actions/runs/36790257428), 26/26 pruebas, snapshot lógico del esquema del 30/09 23:30 UTC, SHA256 `e8504714674ea894515153a13263c4497c970995ed68f03e0e8f76771f141026`, 838897 bytes, artifact 11131463200. Es recuperación de esquema, no backup de filas.
+- QA comprobó creación, persistencia, actualización, archivo e idempotencia Coach/Admin; lectura/bootstrap Cliente; aislamiento entre clientes y rechazo de escrituras directas, grupo/comunidad, valores nulos y datos de salud. Fixtures archivados con auditoría retenida.
+- Las pruebas RPC de ciclo de vida usaron rol de base de datos authenticated y claims QA; no equivalen a login HTTP. Los gates HTTP/browser autenticados QA pasaron por separado.
+- La excepción de privacidad sólo admite `rawHealthDataAllowed: false` booleano en body de entidad canónica challenge; los demás datos prohibidos siguen bloqueados.
+
+No considerar releases posteriores en PROD sin otra promoción y verificación LIVE explícitas.
+
+## Canary certificado para esta promoción
 
 - Rama: `canary/rc74-4`
-- HEAD: `b23688196e49f6dc26d2762ef592e80ab1b8ed80`
-- Último merge: PR #477.
+- Source certificado: `be39ea321cd5b476066381f64e88c5ecdf78a5a7`
+- Merges de este lote: PR #631 y #658.
+- [Canary Exact Deploy 36791028304](https://github.com/iberfit/iberfit-m26-app/actions/runs/36791028304): SUCCESS, deployment `17fb6d68-7ee8-4aaf-9674-66ea513ae931`, identidad exacta y smoke LIVE desktop/móvil.
+- [Gate remoto 36791028388](https://github.com/iberfit/iberfit-m26-app/actions/runs/36791028388): SUCCESS, auth read-only, 7 pruebas de smoke, recuperación sin freeze y 4 pruebas visuales autenticadas.
+- CI, Continuous Audit, Hosted Auth Security QA y Admin/Coach WebAuthn: SUCCESS sobre el mismo SHA. Device Experience pasó sobre `09733a94e973eb61e8f3b655422e7f2fc95b8418`; #658 sólo cambió helper del gate y sus tests, sin delta src/public/qa/supabase.
+- El HEAD de trabajo puede avanzar por documentación; no confundirlo con el source LIVE certificado.
 - P0 funcional demostrado: 0 en las rondas certificadas actuales.
 - Branch protection: no disponible mediante el conector GitHub actual; deuda P1 aún abierta.
 
-### Hardening integrado después de LIVE
+### Contexto histórico del baseline documentado el 17/09
 
 - PR #471: gate autenticado permanente + fixes finales de interacción/foco.
 - PR #472: refresh silencioso al volver de background/online, sin rerender.
@@ -78,7 +101,7 @@ La aplicación mantiene WebAuthn como opción preferente de assurance privilegia
 - Las alertas generales de RLS/SECURITY DEFINER/índices no se corrigen de forma masiva; deben resolverse por intención y consultas reales.
 - Leaked-password protection continúa condicionado al plan Supabase disponible.
 
-## P0 / P1 actuales
+## Pendientes históricos del 17/09 (requieren revalidación)
 
 ### P0
 
@@ -93,7 +116,7 @@ Ninguno demostrado en el Canary actual.
 5. Proteger Canary con required checks cuando la configuración del repositorio esté disponible.
 6. Outcome tracking, preparar próxima sesión y seguimiento longitudinal.
 
-## GO para una próxima promoción
+## Contrato para una próxima promoción
 
 Sólo cuando:
 
