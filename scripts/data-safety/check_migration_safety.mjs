@@ -16,7 +16,7 @@ function removeCommentsAndSingleQuotedStrings(sql) {
 }
 
 function removeRoutineBodies(sql) {
-  // Explicit function/procedure bodies may contain user-driven DELETE logic. Keep
+  // Explicit function/procedure bodies may contain user-driven mutation logic. Keep
   // their DDL headers visible, but hide only the body from migration-time DML checks.
   // Anonymous DO blocks are intentionally NOT hidden: they execute during migration
   // and are rejected below because they can conceal arbitrary dynamic/destructive SQL.
@@ -47,15 +47,29 @@ export function findDestructiveSql(sql) {
     ['DROP_TYPE', /\bDROP\s+TYPE\b/],
     ['DROP_OWNED', /\bDROP\s+OWNED\b/],
     ['DROP_EXTENSION', /\bDROP\s+EXTENSION\b/],
+    ['DROP_FUNCTION', /\bDROP\s+FUNCTION\b/],
+    ['DROP_PROCEDURE', /\bDROP\s+PROCEDURE\b/],
+    ['DROP_VIEW', /\bDROP\s+VIEW\b/],
+    ['DROP_MATERIALIZED_VIEW', /\bDROP\s+MATERIALIZED\s+VIEW\b/],
+    ['DROP_TRIGGER', /\bDROP\s+TRIGGER\b/],
+    ['DROP_POLICY', /\bDROP\s+POLICY\b/],
+    ['DROP_INDEX', /\bDROP\s+INDEX\b/],
+    ['DROP_SEQUENCE', /\bDROP\s+SEQUENCE\b/],
   ];
 
   for (const [code, pattern] of rules) {
     if (pattern.test(ddlSurface)) findings.push(code);
   }
 
-  // Migration-time row deletion is prohibited. Only explicit routine bodies are
-  // excluded because they execute later under application authorization, not now.
+  // Migration-time row mutation of existing data is prohibited. INSERT remains
+  // permitted only as additive data; conflict handlers must not rewrite rows.
   if (/\bDELETE\s+FROM\b/.test(routineMaskedSurface)) findings.push('DELETE_FROM');
+  if (/\bUPDATE\s+(?:ONLY\s+)?[A-Z_][A-Z0-9_.$"]*(?:\s+(?:AS\s+)?[A-Z_][A-Z0-9_$"]*)?\s+SET\b/.test(routineMaskedSurface)) {
+    findings.push('UPDATE_EXISTING_ROWS');
+  }
+  if (/\bON\s+CONFLICT\b[^;]*\bDO\s+UPDATE\b/.test(routineMaskedSurface)) {
+    findings.push('ON_CONFLICT_DO_UPDATE');
+  }
 
   // Anonymous procedural blocks and CALL can execute arbitrary side effects and can
   // hide destructive SQL behind dynamic EXECUTE strings. Fail closed and require a
@@ -65,8 +79,9 @@ export function findDestructiveSql(sql) {
   }
   if (/\bCALL\s+[A-Z_][A-Z0-9_.]*\s*\(/.test(routineMaskedSurface)) findings.push('CALL_STATEMENT');
 
-  // PostgreSQL 17 MERGE may delete matched rows.
+  // PostgreSQL 17 MERGE can mutate or delete matched rows.
   if (/\bMERGE\b[^;]*\bTHEN\s+DELETE\b/.test(routineMaskedSurface)) findings.push('MERGE_DELETE');
+  if (/\bMERGE\b[^;]*\bTHEN\s+UPDATE\b/.test(routineMaskedSurface)) findings.push('MERGE_UPDATE');
 
   return [...new Set(findings)];
 }
