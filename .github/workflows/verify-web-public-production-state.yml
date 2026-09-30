@@ -72,7 +72,45 @@ jobs:
           curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-las-condes/?state=$GITHUB_RUN_ID" -o /tmp/las-condes.html
           ! grep -q 'Primero vemos si podemos hacerlo bien, no solo si podemos ir' /tmp/las-condes.html
 
-          if [ "$VERSION" = '6.43.24' ]; then
+          if [ "$VERSION" = '6.43.25' ]; then
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" -o /tmp/home-es.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/?state=$GITHUB_RUN_ID" -o /tmp/home-en.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/hibrido/?state=$GITHUB_RUN_ID" -o /tmp/hibrido.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/presencial/?state=$GITHUB_RUN_ID" -o /tmp/presencial.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-la-reina/?state=$GITHUB_RUN_ID" -o /tmp/reina.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/personal-trainer-nunoa/?state=$GITHUB_RUN_ID" -o /tmp/nunoa.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-penalolen/?state=$GITHUB_RUN_ID" -o /tmp/penalolen.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/personal-trainer-la-reina/?state=$GITHUB_RUN_ID" -o /tmp/reina-en.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/personal-trainer-nunoa/?state=$GITHUB_RUN_ID" -o /tmp/nunoa-en.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/personal-trainer-penalolen/?state=$GITHUB_RUN_ID" -o /tmp/penalolen-en.html
+            grep -q 'Online · Desde cualquier lugar' /tmp/home-es.html
+            grep -q 'Online · From anywhere' /tmp/home-en.html
+            ! grep -qi '64 Overall' /tmp/home-en.html
+            ! grep -qi 'overall index' /tmp/home-en.html
+            grep -q 'report-preview-v2' /tmp/home-es.html
+            grep -q 'report-preview-v2' /tmp/home-en.html
+            ! grep -q 'photo-story-section' /tmp/hibrido.html
+            grep -q 'app-hybrid-feedback.webp' /tmp/hibrido.html
+            ! grep -q 'class="week-flow"' /tmp/presencial.html
+            ! grep -q 'class="local-service-strip"' /tmp/reina.html
+            grep -q 'La comuna define la cobertura; tu contexto define el plan.' /tmp/reina.html
+            grep -q 'Tu forma de entrenar no se deduce de la comuna.' /tmp/reina.html
+            ! grep -qi 'vida cotidiana de barrio' /tmp/reina.html
+            ! grep -qi 'precordillera' /tmp/reina.html
+            grep -q 'Tu contexto concreto vale más que cualquier idea sobre la comuna.' /tmp/nunoa.html
+            grep -q 'No inferimos tus hábitos, tus actividades ni tus lugares preferidos por vivir en Ñuñoa.' /tmp/nunoa.html
+            ! grep -qi 'vida de barrio' /tmp/nunoa.html
+            grep -q 'Estar en Peñalolén define la cobertura; tus datos definen el plan.' /tmp/penalolen.html
+            grep -q 'no lo suponemos por vivir en Peñalolén' /tmp/penalolen.html
+            ! grep -qi 'vida de barrio' /tmp/penalolen.html
+            ! grep -qi 'precordillera' /tmp/penalolen.html
+            grep -q 'The commune defines coverage; your context defines the plan.' /tmp/reina-en.html
+            grep -q 'Your actual context matters more than any idea about the commune.' /tmp/nunoa-en.html
+            grep -q 'Being in Peñalolén defines coverage; your information defines the plan.' /tmp/penalolen-en.html
+            ! grep -qi 'neighbourhood life' /tmp/penalolen-en.html
+            ! grep -qi 'foothills' /tmp/penalolen-en.html
+            CHECKPOINT='checkpoint/v64325-person-first-local-production-2026-09-30'
+          elif [ "$VERSION" = '6.43.24' ]; then
             curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" -o /tmp/home-es.html
             curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/?state=$GITHUB_RUN_ID" -o /tmp/home-en.html
             curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/hibrido/?state=$GITHUB_RUN_ID" -o /tmp/hibrido.html
