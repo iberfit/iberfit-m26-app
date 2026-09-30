@@ -175,11 +175,11 @@ test('pending sync banner remains responsive and touch-friendly without disablin
   assert.doesNotMatch(block,/pointer-events\s*:\s*none|display\s*:\s*none|visibility\s*:\s*hidden/iu);
 });
 
-test('manual sync addition does not reintroduce automatic connectivity IO at login',()=>{
+test('manual sync addition preserves the explicit silent post-login recovery reconciliation contract',()=>{
   const source=fs.readFileSync('src/m26/app/application.js','utf8');
   const start=source.indexOf('async function setupAuthenticated()');
   const end=source.indexOf('function guardSessionNavigation',start);
   const setup=source.slice(start,end);
-  assert.match(setup,/connectivityStop=sync\.start\(\{emitInitial:false\}\)/u);
+  assert.match(setup,/connectivityStop=sync\.start\(\{emitInitial:false,reconcileInitial:true\}\)/u);
   assert.doesNotMatch(setup,/await sync\.sync\(\)/u);
 });

@@ -204,7 +204,7 @@ test('offline synchronize preserves prior coordinator contract and performs no r
   assert.deepEqual(value,before);
 });
 
-test('application keeps zero-IO login boundary and wires reconciliation only into future connectivity',()=>{
+test('application performs explicit silent post-login recovery reconciliation and preserves future connectivity wiring',()=>{
   const source=fs.readFileSync('src/m26/app/application.js','utf8');
   const start=source.indexOf('async function setupAuthenticated()');
   const end=source.indexOf('function guardSessionNavigation',start);
@@ -213,7 +213,7 @@ test('application keeps zero-IO login boundary and wires reconciliation only int
 
   assert.ok(setup.includes('getActiveContext:()=>sessionUi'));
   assert.ok(setup.includes("onReconcileError:(error)=>reportDiagnostic('session-recovery-reconcile',error)"));
-  assert.ok(setup.includes('connectivityStop=sync.start({emitInitial:false});'));
+  assert.ok(setup.includes('connectivityStop=sync.start({emitInitial:false,reconcileInitial:true});'));
   assert.doesNotMatch(setup,/await sync\.sync\(\)/u);
   assert.doesNotMatch(setup,/commandBus\?\.pending/u);
   assert.match(
