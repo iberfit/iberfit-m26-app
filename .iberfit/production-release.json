@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "be39ea321cd5b476066381f64e88c5ecdf78a5a7",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "PR #631 canonical personal challenges plus #658 strict bootstrap privacy. Exact Canary deploy 36791028304 and remote authenticated gate 36791028388 certified; QA lifecycle and isolation certified; fresh recovery gate 36790257428 attempt 2; PROD migration challenge_canonical_domain_v1 20260930233306 verified."
+}
