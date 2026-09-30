@@ -115,3 +115,66 @@ test('pagehide flushes mandatory final-feedback draft without waiting for the de
   assert.equal(snapshot.execution.finalFeedbackDraft.values.pain,true);
   assert.equal(snapshot.execution.finalFeedbackDraft.values.painNotes,'Molestia leve en rodilla derecha');
 });
+
+test('pagehide starts recovery before a forced draft autosave can block lifecycle persistence',()=>{
+  const root=rootWith();
+  const lifecycleTarget=new FakeTarget();
+  const visibilityTarget=new FakeTarget();
+  const {execution,persisted,recoveryCoordinator}=activeContext();
+  execution.activeSetDraft={
+    executionId:execution.id,
+    exerciseId:'exercise-1',
+    setNumber:1,
+    values:{reps:'12',load:'50 kg',rpe:'8',rir:'2',notes:'Último dato antes de salir'},
+    updatedAt:'2026-09-29T23:45:00.000Z',
+  };
+  const context={
+    execution,
+    session,
+    recoveryCoordinator,
+    appointmentId:'appointment-blocked-pagehide',
+    sessionRevision:8,
+    draft:{id:'pending-draft'},
+    autosaveDraft:()=>new Promise(()=>{}),
+  };
+  const controller=createSessionController({root,getContext:()=>context,render:()=>{},autosaveDelayMs:2000,liveTelemetryController:telemetryStub(),lifecycleTarget,visibilityTarget});
+  controller.mount();
+
+  lifecycleTarget.emit('pagehide');
+
+  assert.equal(persisted.length,1,'el checkpoint recovery debe comenzar de forma síncrona antes del primer await');
+  assert.equal(persisted[0].execution.activeSetDraft.values.reps,'12');
+  assert.equal(persisted[0].execution.activeSetDraft.values.notes,'Último dato antes de salir');
+});
+
+test('destroy protects final feedback before a forced draft autosave can block cleanup',()=>{
+  const root=rootWith();
+  const lifecycleTarget=new FakeTarget();
+  const visibilityTarget=new FakeTarget();
+  const {execution,persisted,recoveryCoordinator}=activeContext();
+  execution.status='awaiting_feedback';
+  execution.finalFeedbackDraft={
+    executionId:execution.id,
+    values:{sessionRpe:'8',comment:'Último feedback antes de cerrar',pain:false,painNotes:''},
+    needsReview:false,
+    reviewReasons:[],
+    updatedAt:'2026-09-29T23:46:00.000Z',
+  };
+  const context={
+    execution,
+    session,
+    recoveryCoordinator,
+    appointmentId:'appointment-blocked-destroy',
+    sessionRevision:9,
+    draft:{id:'pending-draft'},
+    autosaveDraft:()=>new Promise(()=>{}),
+  };
+  const controller=createSessionController({root,getContext:()=>context,render:()=>{},autosaveDelayMs:2000,liveTelemetryController:telemetryStub(),lifecycleTarget,visibilityTarget});
+  controller.mount();
+
+  controller.destroy();
+
+  assert.equal(persisted.length,1,'destroy debe iniciar recovery antes de esperar persistencias pendientes');
+  assert.equal(persisted[0].execution.finalFeedbackDraft.values.sessionRpe,'8');
+  assert.equal(persisted[0].execution.finalFeedbackDraft.values.comment,'Último feedback antes de cerrar');
+});
