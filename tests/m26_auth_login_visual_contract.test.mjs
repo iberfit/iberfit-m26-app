@@ -12,16 +12,21 @@ test('login hardening stays inside the existing strict-CSP preauth shell asset',
   assert.doesNotMatch(indexHtml, /auth-login-hardening\.css/);
   assert.match(serviceWorker, /"\/m26\/preauth-critical\.css"/);
   assert.doesNotMatch(serviceWorker, /auth-login-hardening\.css/);
-  assert.match(criticalCss, /LOGIN VISUAL HARDENING V1/);
+  assert.match(criticalCss, /LOGIN VISUAL HARDENING V2/);
 });
 
 test('login keeps browser autofill inside the IBERFIT dark premium field treatment', () => {
+  assert.match(criticalCss, /\.m26-auth-card input\{[^}]*color-scheme:dark/);
   assert.match(criticalCss, /\.m26-auth-card input:-webkit-autofill/);
   assert.match(criticalCss, /\.m26-auth-card input:autofill/);
   assert.match(criticalCss, /-webkit-text-fill-color:var\(--iberfit-v3-text\)!important/);
-  assert.match(criticalCss, /inset 0 0 0 1000px #0E1A15/i);
+  assert.match(criticalCss, /color-scheme:dark!important/);
+  assert.match(criticalCss, /-webkit-box-shadow:inset 0 0 0 1000px #0E1A15!important/i);
+  assert.match(criticalCss, /box-shadow:inset 0 0 0 1000px #0E1A15!important/i);
+  assert.match(criticalCss, /transition:background-color 9999s ease-out 0s!important/);
   assert.match(criticalCss, /caret-color:var\(--iberfit-v3-gold\)!important/);
-  assert.match(criticalCss, /input:-webkit-autofill:focus[^}]*0 0 0 3px rgba\(197,160,89,\.16\)!important/);
+  assert.match(criticalCss, /input:-webkit-autofill:focus[^}]*-webkit-box-shadow:inset 0 0 0 1000px #0E1A15,0 0 0 3px rgba\(197,160,89,\.16\)!important/);
+  assert.match(criticalCss, /input:-webkit-autofill:focus[^}]*box-shadow:inset 0 0 0 1000px #0E1A15,0 0 0 3px rgba\(197,160,89,\.16\)!important/);
 });
 
 test('password visibility control remains a >=44px touch target without changing auth semantics', () => {
