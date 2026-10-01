@@ -16,17 +16,42 @@ const engine = readFileSync(enginePath, 'utf8');
 test('completion validator migration mirrors canonical scoped result-key semantics', () => {
   assert.match(
     migration,
-    /create or replace function public\.iberfit_validate_execution_completion_v26\(p_execution jsonb\)/i,
+    /create or replace function public\.iberfit_validate_execution_completion_v26\(p_body jsonb\)/i,
   );
   assert.match(migration, /v_scope\s+text/i);
   assert.match(migration, /with ordinality as q\(candidate_item, candidate_idx\)/i);
   assert.match(migration, /v_compatible_count\s*>\s*1/i);
   assert.match(migration, /v_occurrence_index\s*=\s*v_first_compatible_index/i);
   assert.match(migration, /v_scope\s*\|\|\s*':'\s*\|\|\s*v_legacy_key/i);
-  assert.match(migration, /v_results\s*\?\s*v_scoped_key/i);
-  assert.match(migration, /v_skipped_sets\s*\?\s*v_scoped_key/i);
-  assert.match(migration, /v_results\s*\?\s*v_legacy_key/i);
-  assert.match(migration, /v_skipped_sets\s*\?\s*v_legacy_key/i);
+  assert.match(migration, /p_body->'results'\)\s*\?\s*v_scoped_key/i);
+  assert.match(migration, /p_body->'skippedSets'.*v_scoped_key/is);
+  assert.match(migration, /p_body->'results'\)\s*\?\s*v_legacy_key/i);
+  assert.match(migration, /p_body->'skippedSets'.*v_legacy_key/is);
+});
+
+test('completion migration preserves the deployed v26 validation and response contract', () => {
+  assert.match(migration, /jsonb_typeof\(p_body\) is distinct from 'object'/i);
+  assert.match(migration, /jsonb_array_length\(p_body->'queue'\)\s*=\s*0/i);
+  assert.match(migration, /M26_EXECUTION_COMPLETION_SNAPSHOT_INVALID/);
+  assert.match(migration, /M26_EXECUTION_FEEDBACK_REQUIRED/);
+  assert.match(migration, /M26_EXECUTION_SESSION_RPE_REQUIRED/);
+  assert.match(migration, /M26_EXECUTION_PAIN_FLAG_REQUIRED/);
+  assert.match(migration, /M26_EXECUTION_PAIN_NOTES_REQUIRED/);
+  assert.match(migration, /M26_EXECUTION_NOT_READY_TO_COMPLETE/);
+
+  assert.match(
+    migration,
+    /'ok',true,\s*'feedback',jsonb_build_object\(/i,
+    'successful validation must continue returning normalized feedback',
+  );
+  assert.match(migration, /'comment',left\(btrim\(v_feedback->>'comment'\),2000\)/i);
+  assert.match(
+    migration,
+    /'painNotes',left\(btrim\(coalesce\(v_feedback->>'painNotes',''\)\),1000\)/i,
+  );
+  assert.doesNotMatch(migration, /M26_EXECUTION_COMPLETION_ALLOWED/);
+  assert.doesNotMatch(migration, /M26_EXECUTION_FEEDBACK_INVALID/);
+  assert.doesNotMatch(migration, /M26_EXECUTION_COMPLETION_EVENT_MISSING/);
 });
 
 test('completion migration remains additive and does not bypass production data-safety policy', () => {
@@ -43,13 +68,13 @@ test('backend contract encodes per-set collision, bounded legacy fallback and sk
   );
   assert.match(
     migration,
-    /v_scope\s*<>\s*''\s*\n\s*and\s*\(\(v_results\s*\?\s*v_scoped_key\)\s*or\s*\(v_skipped_sets\s*\?\s*v_scoped_key\)\)/i,
+    /v_scope\s*<>\s*''[\s\S]*?p_body->'results'\)\s*\?\s*v_scoped_key[\s\S]*?p_body->'skippedSets'[\s\S]*?v_scoped_key/i,
   );
   assert.match(
     migration,
-    /v_can_use_legacy_key\s*\n\s*and\s*\(\(v_results\s*\?\s*v_legacy_key\)\s*or\s*\(v_skipped_sets\s*\?\s*v_legacy_key\)\)/i,
+    /v_can_use_legacy_key[\s\S]*?p_body->'results'\)\s*\?\s*v_legacy_key[\s\S]*?p_body->'skippedSets'[\s\S]*?v_legacy_key/i,
   );
-  assert.match(migration, /'missingResultKey',\s*v_expected_key/i);
+  assert.match(migration, /'missingResultKey',v_expected_key/i);
 });
 
 test('backend contract remains tied to the same collision rule used by the live JS engine', () => {
