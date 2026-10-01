@@ -1,0 +1,110 @@
+name: IBERFIT Branch Email Release Atomicity Patch
+
+on:
+  push:
+    branches:
+      - 'fix/email-release-atomicity'
+    paths:
+      - '.github/workflows/branch-email-release-atomicity-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Patch production promotion atomically
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const p='.github/workflows/production-promote.yml';
+          let s=fs.readFileSync(p,'utf8');
+          const replaceOnce=(from,to,label)=>{
+            const first=s.indexOf(from);
+            if(first<0)throw new Error(`PATCH_TARGET_MISSING:${label}`);
+            if(s.indexOf(from,first+1)>=0)throw new Error(`PATCH_TARGET_NOT_UNIQUE:${label}`);
+            s=s.replace(from,to);
+          };
+          replaceOnce(
+`      - name: Sync and verify IBERFIT Hosted Auth emails before cutover
+        if: \${{ steps.email-otp.outputs.enabled == 'true' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: \${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: \${{ env.PROD_SUPABASE_REF }}
+          IBERFIT_AUTH_EMAIL_CONFIRMATION: 'SYNC_IBERFIT_AUTH_EMAILS_PROD'
+        run: node scripts/auth/sync-hosted-auth-emails.mjs --sync
+`,
+`      - name: Capture IBERFIT Hosted Auth email rollback snapshot
+        if: \${{ steps.email-otp.outputs.enabled == 'true' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: \${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: \${{ env.PROD_SUPABASE_REF }}
+          IBERFIT_AUTH_EMAIL_STATE_PATH: /tmp/iberfit-hosted-auth-email-before.json
+        run: node scripts/auth/sync-hosted-auth-emails.mjs --capture
+
+      - name: Sync and verify IBERFIT Hosted Auth emails before cutover
+        if: \${{ steps.email-otp.outputs.enabled == 'true' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: \${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: \${{ env.PROD_SUPABASE_REF }}
+          IBERFIT_AUTH_EMAIL_CONFIRMATION: 'SYNC_IBERFIT_AUTH_EMAILS_PROD'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'HOSTED_AUTH_EMAIL_MUTATION_ATTEMPTED=true' >> "$GITHUB_ENV"
+          node scripts/auth/sync-hosted-auth-emails.mjs --sync
+`,
+            'email-sync',
+          );
+          replaceOnce(
+`      - name: Upload production promotion evidence
+`,
+`      - name: Roll back Hosted Auth emails automatically if promotion fails
+        if: \${{ failure() && steps.email-otp.outputs.enabled == 'true' && env.HOSTED_AUTH_EMAIL_MUTATION_ATTEMPTED == 'true' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: \${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: \${{ env.PROD_SUPABASE_REF }}
+          IBERFIT_AUTH_EMAIL_ROLLBACK_CONFIRMATION: 'RESTORE_IBERFIT_AUTH_EMAILS_PROD'
+          IBERFIT_AUTH_EMAIL_STATE_PATH: /tmp/iberfit-hosted-auth-email-before.json
+          IBERFIT_AUTH_EMAIL_ROLLBACK_EVIDENCE_PATH: recovery/hosted-auth-emails/prod-rollback.json
+        run: node scripts/auth/sync-hosted-auth-emails.mjs --restore
+
+      - name: Upload production promotion evidence
+`,
+            'rollback-step',
+          );
+          replaceOnce(
+`            recovery/hosted-auth-security/
+            recovery/production-entry/
+`,
+`            recovery/hosted-auth-security/
+            recovery/hosted-auth-emails/
+            recovery/production-entry/
+`,
+            'rollback-evidence',
+          );
+          fs.writeFileSync(p,s,'utf8');
+          NODE
+          node --test tests/m26_rc74_13_hosted_auth_email_sync.test.mjs
+          node scripts/auth/sync-hosted-auth-emails.mjs
+          git diff --check
+      - name: Commit exact branch patch and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'iberfit-ci'
+          git config user.email 'iberfit.cl@gmail.com'
+          git rm .github/workflows/branch-email-release-atomicity-patch.yml
+          git add .github/workflows/production-promote.yml
+          git diff --cached --check
+          git commit -m 'fix(email): make production release rollback atomic'
+          git push origin HEAD:fix/email-release-atomicity
