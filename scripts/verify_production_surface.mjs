@@ -1,5 +1,6 @@
 import {pathToFileURL} from 'node:url';
 import {verifyProductionModuleGraph} from './verify_production_module_graph.mjs';
+import {verifyUntilStable} from './stable_verification.mjs';
 import {
   productionServiceWorkerVersion,
   validateServiceWorkerReleaseIdentity,
@@ -10,6 +11,7 @@ export const PRODUCTION_SURFACE_CONTRACT='iberfit.production.surface.v2';
 const DEFAULT_ATTEMPTS=30;
 const DEFAULT_DELAY_MS=2_000;
 const DEFAULT_TIMEOUT_MS=10_000;
+const DEFAULT_CLI_STABLE_PASSES=3;
 const privilegedRolePattern=new RegExp(['service','[_-]?','role'].join(''),'iu');
 
 function fail(code){
@@ -195,43 +197,68 @@ export async function verifyProductionSurface({
   prodSupabaseUrl,
   qaProjectRef,
   attempts=DEFAULT_ATTEMPTS,
+  stablePasses=1,
   delayMs=DEFAULT_DELAY_MS,
   timeoutMs=DEFAULT_TIMEOUT_MS,
   fetchImpl=globalThis.fetch,
   sleepImpl=(ms)=>new Promise(resolve=>setTimeout(resolve,ms)),
-  onRetry=()=>{}
+  onRetry=()=>{},
+  onPass=()=>{}
 }){
   const origin=exactBaseUrl(baseUrl);
   const totalAttempts=positiveInteger(attempts,DEFAULT_ATTEMPTS,'PROD_SURFACE_ATTEMPTS_INVALID');
+  const requiredStablePasses=positiveInteger(stablePasses,1,'PROD_SURFACE_STABLE_PASSES_INVALID');
   const waitMs=positiveInteger(delayMs,DEFAULT_DELAY_MS,'PROD_SURFACE_DELAY_INVALID');
   const requestTimeoutMs=positiveInteger(timeoutMs,DEFAULT_TIMEOUT_MS,'PROD_SURFACE_TIMEOUT_INVALID');
+  if(requiredStablePasses>totalAttempts)fail('PROD_SURFACE_STABLE_PASSES_EXCEED_ATTEMPTS');
   if(typeof fetchImpl!=='function')fail('PROD_SURFACE_FETCH_UNAVAILABLE');
-  let lastError;
 
-  for(let attempt=1;attempt<=totalAttempts;attempt+=1){
-    try{
-      const [versionSource,runtimeSource,indexSource,swSource,wrapperSource]=await Promise.all([
-        fetchText(fetchImpl,verificationUrl(origin,'/m26/version.json',sourceSha,attempt),requestTimeoutMs,'version'),
-        fetchText(fetchImpl,verificationUrl(origin,'/m26/runtime-config.js',sourceSha,attempt),requestTimeoutMs,'runtime'),
-        fetchText(fetchImpl,verificationUrl(origin,'/m26/index.html',sourceSha,attempt),requestTimeoutMs,'index'),
-        fetchText(fetchImpl,verificationUrl(origin,'/m26/sw.js',sourceSha,attempt),requestTimeoutMs,'service-worker-runtime'),
-        fetchText(fetchImpl,verificationUrl(origin,'/m26/iberfit-sw.js',sourceSha,attempt),requestTimeoutMs,'service-worker-wrapper'),
-      ]);
-      return {
-        ...validateProductionSurface({versionSource,runtimeSource,indexSource,swSource,wrapperSource,sourceSha,sourceBranch,prodProjectRef,prodSupabaseUrl,qaProjectRef}),
-        baseUrl:origin,
-        attempt
-      };
-    }catch(error){
-      lastError=error;
-      if(attempt===totalAttempts)break;
-      onRetry({attempt,totalAttempts,code:error?.code||error?.message||'PROD_SURFACE_UNKNOWN_FAILURE'});
-      await sleepImpl(waitMs);
-    }
+  try{
+    const stable=await verifyUntilStable({
+      attempts:totalAttempts,
+      stablePasses:requiredStablePasses,
+      delayMs:waitMs,
+      sleepImpl,
+      onFailure:({attempt,totalAttempts:attemptLimit,code})=>onRetry({
+        attempt,
+        totalAttempts:attemptLimit,
+        code,
+      }),
+      onPass,
+      verifyAttempt:async(attempt)=>{
+        const [versionSource,runtimeSource,indexSource,swSource,wrapperSource]=await Promise.all([
+          fetchText(fetchImpl,verificationUrl(origin,'/m26/version.json',sourceSha,attempt),requestTimeoutMs,'version'),
+          fetchText(fetchImpl,verificationUrl(origin,'/m26/runtime-config.js',sourceSha,attempt),requestTimeoutMs,'runtime'),
+          fetchText(fetchImpl,verificationUrl(origin,'/m26/index.html',sourceSha,attempt),requestTimeoutMs,'index'),
+          fetchText(fetchImpl,verificationUrl(origin,'/m26/sw.js',sourceSha,attempt),requestTimeoutMs,'service-worker-runtime'),
+          fetchText(fetchImpl,verificationUrl(origin,'/m26/iberfit-sw.js',sourceSha,attempt),requestTimeoutMs,'service-worker-wrapper'),
+        ]);
+        return validateProductionSurface({
+          versionSource,
+          runtimeSource,
+          indexSource,
+          swSource,
+          wrapperSource,
+          sourceSha,
+          sourceBranch,
+          prodProjectRef,
+          prodSupabaseUrl,
+          qaProjectRef,
+        });
+      },
+    });
+
+    return {
+      ...stable.result,
+      baseUrl:origin,
+      attempt:stable.attempt,
+      stablePasses:stable.consecutivePasses,
+      requiredStablePasses:stable.requiredStablePasses,
+    };
+  }catch(error){
+    const code=error?.code||error?.message||'PROD_SURFACE_UNKNOWN_FAILURE';
+    fail(`PROD_SURFACE_VERIFY_FAILED:${code}`);
   }
-
-  const code=lastError?.code||lastError?.message||'PROD_SURFACE_UNKNOWN_FAILURE';
-  fail(`PROD_SURFACE_VERIFY_FAILED:${code}`);
 }
 
 async function main(){
@@ -243,9 +270,13 @@ async function main(){
     prodSupabaseUrl:process.env.M26_VERIFY_PROD_SUPABASE_URL,
     qaProjectRef:process.env.M26_VERIFY_QA_PROJECT_REF,
     attempts:process.env.M26_VERIFY_ATTEMPTS,
+    stablePasses:process.env.M26_VERIFY_STABLE_PASSES||DEFAULT_CLI_STABLE_PASSES,
     delayMs:process.env.M26_VERIFY_DELAY_MS,
     timeoutMs:process.env.M26_VERIFY_TIMEOUT_MS,
-    onRetry:({attempt,totalAttempts,code})=>console.warn(`PROD_SURFACE_VERIFY_RETRY:${attempt}/${totalAttempts}:${code}`)
+    onRetry:({attempt,totalAttempts,code})=>console.warn(`PROD_SURFACE_VERIFY_RETRY:${attempt}/${totalAttempts}:${code}`),
+    onPass:({attempt,totalAttempts,consecutivePasses,requiredStablePasses})=>console.log(
+      `PROD_SURFACE_VERIFY_STABLE:${attempt}/${totalAttempts}:${consecutivePasses}/${requiredStablePasses}`,
+    ),
   });
   const deep=await verifyProductionModuleGraph({
     baseUrl:process.env.M26_VERIFY_BASE_URL,
