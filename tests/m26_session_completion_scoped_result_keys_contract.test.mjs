@@ -21,7 +21,7 @@ test('completion validator migration mirrors canonical scoped result-key semanti
   assert.match(migration, /v_scope\s+text/i);
   assert.match(migration, /with ordinality as q\(candidate_item, candidate_idx\)/i);
   assert.match(migration, /v_compatible_count\s*>\s*1/i);
-  assert.match(migration, /v_item_index\s*=\s*v_first_compatible_index/i);
+  assert.match(migration, /v_occurrence_index\s*=\s*v_first_compatible_index/i);
   assert.match(migration, /v_scope\s*\|\|\s*':'\s*\|\|\s*v_legacy_key/i);
   assert.match(migration, /v_results\s*\?\s*v_scoped_key/i);
   assert.match(migration, /v_skipped_sets\s*\?\s*v_scoped_key/i);
@@ -46,15 +46,15 @@ test('backend contract remains tied to the same collision rule used by the live 
   );
   assert.match(
     engine,
-    /entryIndex\s*===\s*firstCompatibleIndex/,
+    /occurrenceIndex\s*>?=\s*0\s*&&\s*occurrenceIndex\s*===\s*firstCompatibleIndex/,
     'engine must continue limiting legacy fallback to the first compatible occurrence',
   );
   assert.match(
     engine,
-    /return scopedResultKey\(step\)/,
-    'engine must continue writing scoped keys for colliding block occurrences',
+    /resultKey\(step\.exerciseId,setNumber,requiresScopedEntry\(execution,step,setNumber\)\?step\.blockId\|\|null:null\)/,
+    'engine must continue writing scoped keys only when an exercise/set collision requires them',
   );
 
   assert.match(migration, /v_compatible_count\s*>\s*1/);
-  assert.match(migration, /v_item_index\s*=\s*v_first_compatible_index/);
+  assert.match(migration, /v_occurrence_index\s*=\s*v_first_compatible_index/);
 });
