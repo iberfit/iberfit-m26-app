@@ -32,6 +32,7 @@ declare
   v_comment text := '';
   v_item jsonb;
   v_item_index integer := 0;
+  v_occurrence_index integer := 0;
   v_exercise_id text := '';
   v_scope text := '';
   v_sets integer := 0;
@@ -109,6 +110,20 @@ begin
       return jsonb_build_object('ok', false, 'reason', 'M26_EXECUTION_SNAPSHOT_INVALID');
     end if;
 
+    -- Match canUseLegacyEntry(): for scoped queue items the JS engine resolves
+    -- an occurrence by the first queue position sharing blockId + exerciseId.
+    -- Canonical plans have a unique block/exercise occurrence; retaining this
+    -- identity rule also preserves recovery semantics for historical snapshots.
+    if v_scope <> '' then
+      select coalesce(min(candidate_idx), 0)::integer
+        into v_occurrence_index
+      from jsonb_array_elements(v_queue) with ordinality as q(candidate_item, candidate_idx)
+      where btrim(coalesce(candidate_item->>'blockId', '')) = v_scope
+        and btrim(coalesce(candidate_item->>'exerciseId', '')) = v_exercise_id;
+    else
+      v_occurrence_index := v_item_index;
+    end if;
+
     for v_set_number in 1..v_sets loop
       v_legacy_key := v_exercise_id || ':' || v_set_number::text;
       v_scoped_key := case
@@ -116,33 +131,33 @@ begin
         else v_legacy_key
       end;
 
-      -- Match queueOccurrencesForStep(): only queue entries whose set count
-      -- reaches this exact set can collide with the current exercise/set.
-      -- Canonical queue snapshots store sets as small positive integers. The
-      -- CASE keeps malformed peer entries from throwing before their own
-      -- snapshot validation is reached.
+      -- Match requiresScopedEntry(): only queue entries whose set count reaches
+      -- this exact set can collide with the current exercise/set. The guarded
+      -- parse prevents malformed peers from throwing before their own snapshot
+      -- validation is reached.
       select count(*)::integer, coalesce(min(candidate_idx), 0)::integer
         into v_compatible_count, v_first_compatible_index
       from jsonb_array_elements(v_queue) with ordinality as q(candidate_item, candidate_idx)
       where btrim(coalesce(candidate_item->>'exerciseId', '')) = v_exercise_id
         and case
-          when coalesce(candidate_item->>'sets', '') ~ '^[0-9]{1,3}$'
-            then (candidate_item->>'sets')::integer >= v_set_number
-                 and (candidate_item->>'sets')::integer between 1 and 100
+          when coalesce(candidate_item->>'sets', '') ~ '^[0-9]+$'
+               and length(candidate_item->>'sets') <= 10
+            then (candidate_item->>'sets')::bigint >= v_set_number
+                 and (candidate_item->>'sets')::bigint between 1 and 100
           else false
         end;
 
       v_requires_scoped_key := v_scope <> '' and v_compatible_count > 1;
       v_can_use_legacy_key := not v_requires_scoped_key
-        or v_item_index = v_first_compatible_index;
+        or v_occurrence_index = v_first_compatible_index;
       v_expected_key := case
         when v_requires_scoped_key then v_scoped_key
         else v_legacy_key
       end;
 
-      -- Mirror executionResultLookup(): a scoped value wins whenever present,
-      -- including recovered/imported unique entries; legacy fallback is then
-      -- limited to the compatibility rule above.
+      -- Mirror storedEntry(): a scoped value wins whenever present, including
+      -- recovered/imported unique entries; legacy fallback is then limited to
+      -- the compatibility rule above.
       v_resolved := false;
       if v_scope <> ''
          and ((v_results ? v_scoped_key) or (v_skipped_sets ? v_scoped_key)) then
@@ -241,7 +256,7 @@ begin
 
   -- Scope is decided per set, not merely per exercise. Set 1 collides and is
   -- scoped in both blocks; set 2 exists only in the first block and remains a
-  -- legacy key, matching resultStorageKey().
+  -- legacy key, matching storageKeyForStep().
   v_check := public.iberfit_validate_execution_completion_v26(jsonb_build_object(
     'events', v_feedback,
     'queue', jsonb_build_array(
