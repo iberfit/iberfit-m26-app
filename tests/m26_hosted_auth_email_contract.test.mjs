@@ -9,8 +9,7 @@ import {fileURLToPath} from 'node:url';
 const repoRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const templatesDir=path.join(repoRoot,'supabase','templates');
 const manifestPath=path.join(templatesDir,'iberfit-hosted-auth-email-manifest.json');
-const distRelative=`.tmp-email-contract-${process.pid}`;
-const distDir=path.join(repoRoot,distRelative);
+const distDir=path.join(repoRoot,'.tmp',`email-contract-${process.pid}`);
 
 const requiredVariables=Object.freeze({
   invite:['{{ .ConfirmationURL }}','{{ .SiteURL }}','{{ .InviterName }}'],
@@ -84,9 +83,9 @@ test('Hosted Auth email templates preserve variables, safe structure and deploye
   assert.equal((invite.match(/width=["']50%["']/g)||[]).length,4,'invite: methodology must use a robust 2x2 grid');
   assert.equal((invite.match(/width=["']25%["']/g)||[]).length,0,'invite: fragile 4-column methodology layout must not return');
 
-  const build=spawnSync(process.execPath,[path.join(repoRoot,'qa','rc64','build-current-surface.mjs'),distRelative],{
+  const build=spawnSync(process.execPath,[path.join(repoRoot,'qa','rc64','build-current-surface.mjs')],{
     cwd:repoRoot,
-    env:{...process.env,GITHUB_SHA:'email-contract'},
+    env:{...process.env,M26_BUILD_DIR:distDir},
     encoding:'utf8',
   });
   try{
@@ -98,6 +97,5 @@ test('Hosted Auth email templates preserve variables, safe structure and deploye
     }
   }finally{
     await rm(distDir,{recursive:true,force:true});
-    await rm(`${distDir}.tmp-${process.pid}`,{recursive:true,force:true});
   }
 });
