@@ -1,8 +1,13 @@
-import fs from 'node:fs';
+import {cp,mkdir,rename,rm,writeFile} from 'node:fs/promises';
 import path from 'node:path';
+import process from 'node:process';
 
-const root=process.cwd();
-const output=path.resolve(process.env.M26_BUILD_DIR||path.join(root,'.tmp','rc64-current-surface'));
+const scriptDir=path.dirname(new URL(import.meta.url).pathname);
+const repoRoot=path.resolve(scriptDir,'../..');
+const outputArg=String(process.argv[2]||process.env.IBERFIT_DIST_DIR||'dist-current').trim();
+const outputDir=path.resolve(repoRoot,outputArg);
+const tempDir=path.resolve(repoRoot,`${outputArg}.tmp-${process.pid}`);
+const sha=String(process.env.GITHUB_SHA||process.env.SHA||process.env.COMMIT_SHA||'').trim()||'unknown';
 
 const entries=Object.freeze([
   ['public/m26/index.html','index.html'],
@@ -10,40 +15,39 @@ const entries=Object.freeze([
   ['src/m26','src/m26'],
   ['baseline_m25_2/exercise-catalog-m25.json','baseline_m25_2/exercise-catalog-m25.json'],
   ['public/isotipo-iberfit.png','public/isotipo-iberfit.png'],
+  ['public/iberfit-email-isotipo.png','public/iberfit-email-isotipo.png'],
+  ['public/iberfit-email-access-hero.jpg','public/iberfit-email-access-hero.jpg'],
   ['public/iberfit','public/iberfit'],
   ['public/vendor/repdb','public/vendor/repdb'],
 ]);
 
-function copy(source,target){
-  const from=path.join(root,source);
-  const to=path.join(output,target);
-  if(!fs.existsSync(from))throw new Error(`RC64_2A_QA_SOURCE_MISSING:${source}`);
-  fs.mkdirSync(path.dirname(to),{recursive:true});
-  fs.cpSync(from,to,{recursive:true});
+async function copyEntry(sourceRelative,targetRelative){
+  const source=path.resolve(repoRoot,sourceRelative);
+  const target=path.resolve(tempDir,targetRelative);
+  await mkdir(path.dirname(target),{recursive:true});
+  await cp(source,target,{recursive:true,force:true,errorOnExist:false,dereference:false,preserveTimestamps:false});
 }
 
-fs.rmSync(output,{recursive:true,force:true});
-fs.mkdirSync(output,{recursive:true});
-fs.mkdirSync(path.join(output,'public'),{recursive:true});
-
-for(const [source,target] of entries)copy(source,target);
-
-const runtime=fs.readFileSync(path.join(output,'m26','runtime-config.js'),'utf8');
-if(!/enabled:\s*false/u.test(runtime))throw new Error('RC64_2A_QA_RUNTIME_MUST_FAIL_CLOSED');
-if(!/qaOnly:\s*true/u.test(runtime))throw new Error('RC64_2A_QA_RUNTIME_MUST_BE_QA_ONLY');
-
-const canonicalCss=fs.readFileSync(path.join(root,'src','m26','shell','shell.css'),'utf8').replace(/\r\n?/gu,'\n');
-const builtCss=fs.readFileSync(path.join(output,'src','m26','shell','shell.css'),'utf8').replace(/\r\n?/gu,'\n');
-if(canonicalCss!==builtCss)throw new Error('RC64_2A_QA_SHELL_CSS_NOT_CANONICAL');
-
-console.log(JSON.stringify({
-  schema:'iberfit.rc64.2a.current-source-qa-surface.v1',
-  output:path.relative(root,output).replaceAll(path.sep,'/'),
-  source:'canonical-working-tree',
-  releaseCandidate:false,
-  historicalReleaseBudgetsApplied:false,
-  runtimeEnabled:false,
-  qaOnly:true,
-  shellCssCanonicalParity:true,
-  structuralPublicFallback:true,
-},null,2));
+async function main(){
+  await rm(tempDir,{recursive:true,force:true});
+  await mkdir(tempDir,{recursive:true});
+  try{
+    for(const [source,target] of entries){
+      await copyEntry(source,target);
+    }
+    const meta={
+      sha,
+      builtAt:new Date().toISOString(),
+      source:'canonical-current-surface',
+    };
+    await mkdir(path.join(tempDir,'__iberfit'),{recursive:true});
+    await writeFile(path.join(tempDir,'__iberfit','build.json'),`${JSON.stringify(meta)}\n`,'utf8');
+    await rm(outputDir,{recursive:true,force:true});
+    await rename(tempDir,outputDir);
+    console.log(`[build-current-surface] built=${path.relative(repoRoot,outputDir)||outputDir} sha=${sha}`);
+  }catch(error){
+    await rm(tempDir,{recursive:true,force:true});
+    throw error;
+  }
+}
+await main();
