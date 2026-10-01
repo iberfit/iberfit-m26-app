@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const migrationPath = resolve(
   here,
-  '../supabase/migrations/20261001003000_execution_completion_scoped_result_keys_v1.sql',
+  '../supabase/migrations/20261001005911_execution_completion_scoped_result_keys_v1.sql',
 );
 const enginePath = resolve(here, '../src/m26/workflows/session-execution.js');
 const migration = readFileSync(migrationPath, 'utf8');
