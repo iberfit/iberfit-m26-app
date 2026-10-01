@@ -6,9 +6,12 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const DEFAULT_MANIFEST=path.join(ROOT,'supabase/templates/iberfit-hosted-auth-email-manifest.json');
+const DEFAULT_ROLLBACK_STATE=path.join(ROOT,'recovery/hosted-auth-emails/prod-before.json');
 const API_ORIGIN='https://api.supabase.com';
 const PROD_REF='pjhmrhejsoofmouedavw';
 const EXACT_CONFIRMATION='SYNC_IBERFIT_AUTH_EMAILS_PROD';
+const EXACT_ROLLBACK_CONFIRMATION='RESTORE_IBERFIT_AUTH_EMAILS_PROD';
+const ROLLBACK_SCHEMA='iberfit.auth-email-hosted.rollback.v1';
 const PROD_SITE_URL='https://app.iberfit.cl/';
 const LEGACY_ISOTYPE_URL='https://app.iberfit.cl/isotipo-iberfit.png';
 const PUBLIC_ISOTYPE_URL='https://app.iberfit.cl/public/isotipo-iberfit.png';
@@ -18,6 +21,7 @@ const PUBLIC_HERO_URL='https://app.iberfit.cl/public/iberfit-email-access-hero.j
 
 const sha256=(value)=>crypto.createHash('sha256').update(value).digest('hex');
 const nonEmpty=(value)=>typeof value==='string'&&value.trim().length>0;
+const hasOwn=(value,key)=>Object.prototype.hasOwnProperty.call(value,key);
 const fail=(code)=>{throw new Error(code);};
 
 function replaceQuotedAssetRef(html,from,to){
@@ -114,6 +118,57 @@ export function assertCustomSmtp(config={}){
   return true;
 }
 
+export function buildHostedAuthRollbackSnapshot({config={},built,projectRef=PROD_REF,capturedAt=new Date().toISOString()}={}){
+  if(projectRef!==PROD_REF)fail('IBERFIT_AUTH_EMAIL_PROD_REF_REQUIRED');
+  if(!built?.patch||typeof built.patch!=='object')fail('IBERFIT_AUTH_EMAIL_ROLLBACK_BUILD_REQUIRED');
+  const targetKeys=Object.keys(built.patch).sort();
+  if(targetKeys.length===0)fail('IBERFIT_AUTH_EMAIL_ROLLBACK_KEYS_REQUIRED');
+  const values={};
+  for(const key of targetKeys){
+    if(!/^mailer_(?:subjects|templates|notifications)_/.test(key)||key.startsWith('smtp_'))fail(`IBERFIT_AUTH_EMAIL_ROLLBACK_KEY_FORBIDDEN:${key}`);
+    if(!hasOwn(config,key)||config[key]===undefined)fail(`IBERFIT_AUTH_EMAIL_ROLLBACK_KEY_MISSING:${key}`);
+    values[key]=config[key];
+  }
+  return Object.freeze({
+    schema:ROLLBACK_SCHEMA,
+    projectRef,
+    capturedAt,
+    values:Object.freeze(values),
+  });
+}
+
+export function validateHostedAuthRollbackSnapshot(snapshot,built,{projectRef=PROD_REF}={}){
+  if(snapshot?.schema!==ROLLBACK_SCHEMA)fail('IBERFIT_AUTH_EMAIL_ROLLBACK_SCHEMA_INVALID');
+  if(snapshot?.projectRef!==projectRef||projectRef!==PROD_REF)fail('IBERFIT_AUTH_EMAIL_ROLLBACK_PROJECT_REF_INVALID');
+  if(!snapshot.values||typeof snapshot.values!=='object'||Array.isArray(snapshot.values))fail('IBERFIT_AUTH_EMAIL_ROLLBACK_VALUES_INVALID');
+  const expected=Object.keys(built?.patch||{}).sort();
+  const actual=Object.keys(snapshot.values).sort();
+  if(expected.length===0||actual.length!==expected.length||actual.some((key,index)=>key!==expected[index]))fail('IBERFIT_AUTH_EMAIL_ROLLBACK_KEYSET_INVALID');
+  for(const key of actual){
+    if(!/^mailer_(?:subjects|templates|notifications)_/.test(key)||key.startsWith('smtp_'))fail(`IBERFIT_AUTH_EMAIL_ROLLBACK_KEY_FORBIDDEN:${key}`);
+    if(snapshot.values[key]===undefined)fail(`IBERFIT_AUTH_EMAIL_ROLLBACK_VALUE_MISSING:${key}`);
+  }
+  return true;
+}
+
+async function writeJson(pathname,value){
+  await fs.mkdir(path.dirname(pathname),{recursive:true});
+  await fs.writeFile(pathname,JSON.stringify(value,null,2)+'\n','utf8');
+}
+
+export async function captureHostedAuthEmailSnapshot({token,projectRef=PROD_REF,statePath=DEFAULT_ROLLBACK_STATE,root=ROOT,manifestPath=DEFAULT_MANIFEST}={}){
+  if(projectRef!==PROD_REF)fail('IBERFIT_AUTH_EMAIL_PROD_REF_REQUIRED');
+  if(!nonEmpty(token))fail('IBERFIT_AUTH_EMAIL_MANAGEMENT_TOKEN_REQUIRED');
+  if(!nonEmpty(statePath))fail('IBERFIT_AUTH_EMAIL_ROLLBACK_STATE_PATH_REQUIRED');
+  const built=await buildHostedAuthPatch({root,manifestPath});
+  const before=await managementRequest({token,projectRef});
+  assertProductionAuthBaseline(before);
+  assertCustomSmtp(before);
+  const snapshot=buildHostedAuthRollbackSnapshot({config:before,built,projectRef});
+  await writeJson(path.resolve(statePath),snapshot);
+  return Object.freeze({ok:true,projectRef,keyCount:Object.keys(snapshot.values).length,statePath:path.resolve(statePath)});
+}
+
 export async function syncHostedAuthEmails({token,projectRef=PROD_REF,confirmation,root=ROOT,manifestPath=DEFAULT_MANIFEST}={}){
   if(projectRef!==PROD_REF)fail('IBERFIT_AUTH_EMAIL_PROD_REF_REQUIRED');
   if(confirmation!==EXACT_CONFIRMATION)fail('IBERFIT_AUTH_EMAIL_EXPLICIT_CONFIRMATION_REQUIRED');
@@ -128,8 +183,51 @@ export async function syncHostedAuthEmails({token,projectRef=PROD_REF,confirmati
   return Object.freeze({ok:true,projectRef,templateCount:built.manifest.templates.length,hashes:built.hashes});
 }
 
+export async function restoreHostedAuthEmails({token,projectRef=PROD_REF,confirmation,statePath=DEFAULT_ROLLBACK_STATE,root=ROOT,manifestPath=DEFAULT_MANIFEST,evidencePath}={}){
+  if(projectRef!==PROD_REF)fail('IBERFIT_AUTH_EMAIL_PROD_REF_REQUIRED');
+  if(confirmation!==EXACT_ROLLBACK_CONFIRMATION)fail('IBERFIT_AUTH_EMAIL_ROLLBACK_CONFIRMATION_REQUIRED');
+  if(!nonEmpty(token))fail('IBERFIT_AUTH_EMAIL_MANAGEMENT_TOKEN_REQUIRED');
+  if(!nonEmpty(statePath))fail('IBERFIT_AUTH_EMAIL_ROLLBACK_STATE_PATH_REQUIRED');
+  const built=await buildHostedAuthPatch({root,manifestPath});
+  const snapshot=JSON.parse(await fs.readFile(path.resolve(statePath),'utf8'));
+  validateHostedAuthRollbackSnapshot(snapshot,built,{projectRef});
+  const current=await managementRequest({token,projectRef});
+  assertProductionAuthBaseline(current);
+  assertCustomSmtp(current);
+  await managementRequest({token,projectRef,method:'PATCH',body:snapshot.values});
+  const after=await managementRequest({token,projectRef});
+  for(const [key,value] of Object.entries(snapshot.values))if(after[key]!==value)fail(`IBERFIT_AUTH_EMAIL_ROLLBACK_VERIFY_FAILED:${key}`);
+  const evidence={ok:true,projectRef,restoredKeyCount:Object.keys(snapshot.values).length,snapshotCapturedAt:snapshot.capturedAt||null};
+  if(nonEmpty(evidencePath))await writeJson(path.resolve(evidencePath),evidence);
+  return Object.freeze(evidence);
+}
+
 async function main(){
-  const mode=process.argv.includes('--sync')?'sync':'check';
+  const requested=[
+    process.argv.includes('--sync')&&'sync',
+    process.argv.includes('--capture')&&'capture',
+    process.argv.includes('--restore')&&'restore',
+  ].filter(Boolean);
+  if(requested.length>1)fail('IBERFIT_AUTH_EMAIL_MODE_CONFLICT');
+  const mode=requested[0]||'check';
+  const projectRef=process.env.SUPABASE_PROJECT_REF||PROD_REF;
+  const statePath=process.env.IBERFIT_AUTH_EMAIL_STATE_PATH||DEFAULT_ROLLBACK_STATE;
+  if(mode==='capture'){
+    const result=await captureHostedAuthEmailSnapshot({token:process.env.SUPABASE_ACCESS_TOKEN,projectRef,statePath});
+    console.log(JSON.stringify({...result,mode},null,2));
+    return;
+  }
+  if(mode==='restore'){
+    const result=await restoreHostedAuthEmails({
+      token:process.env.SUPABASE_ACCESS_TOKEN,
+      projectRef,
+      confirmation:process.env.IBERFIT_AUTH_EMAIL_ROLLBACK_CONFIRMATION,
+      statePath,
+      evidencePath:process.env.IBERFIT_AUTH_EMAIL_ROLLBACK_EVIDENCE_PATH,
+    });
+    console.log(JSON.stringify({...result,mode},null,2));
+    return;
+  }
   const built=await buildHostedAuthPatch();
   if(mode==='check'){
     console.log(JSON.stringify({ok:true,mode,projectRef:built.manifest.projectRef,templateCount:built.manifest.templates.length,hashes:built.hashes},null,2));
@@ -137,7 +235,7 @@ async function main(){
   }
   const result=await syncHostedAuthEmails({
     token:process.env.SUPABASE_ACCESS_TOKEN,
-    projectRef:process.env.SUPABASE_PROJECT_REF||PROD_REF,
+    projectRef,
     confirmation:process.env.IBERFIT_AUTH_EMAIL_CONFIRMATION,
   });
   console.log(JSON.stringify({...result,mode},null,2));
@@ -150,7 +248,10 @@ export const __hostedAuthEmailInternals=Object.freeze({
   PROD_REF,
   PROD_SITE_URL,
   EXACT_CONFIRMATION,
+  EXACT_ROLLBACK_CONFIRMATION,
+  ROLLBACK_SCHEMA,
   DEFAULT_MANIFEST,
+  DEFAULT_ROLLBACK_STATE,
   LEGACY_ISOTYPE_URL,
   PUBLIC_ISOTYPE_URL,
   PUBLIC_EMAIL_ISOTYPE_URL,
