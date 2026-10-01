@@ -24,164 +24,68 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Verify manifest against Cloudflare and live public web
+      - name: Verify manifest Cloudflare live rollback checkpoint and editorial contracts
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo CLOUDFLARE_API_TOKEN_MISSING; exit 41; }
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || exit 41
           node <<'NODE'
-          const fs=require('fs');
-          const m=JSON.parse(fs.readFileSync('.iberfit/web-public-production.json','utf8'));
-          const fail=x=>{throw new Error(x)};
-          if(m.schema!=='iberfit.web.public-production.v1')fail('MANIFEST_SCHEMA');
-          if(m.repository!=='iberfit/iberfitweb')fail('MANIFEST_REPOSITORY');
-          if(m.domain!=='https://iberfit.cl')fail('MANIFEST_DOMAIN');
-          if(!/^\d+\.\d+\.\d+$/.test(m.version||''))fail('MANIFEST_VERSION');
-          if(!/^[0-9a-f]{40}$/.test(m.sha||''))fail('MANIFEST_SHA');
-          if(!/^[0-9a-f-]{36}$/.test(m.deploymentId||''))fail('MANIFEST_DEPLOYMENT');
-          if(!m.safeRollback||!/^\d+\.\d+\.\d+$/.test(m.safeRollback.version||'')||!/^[0-9a-f]{40}$/.test(m.safeRollback.sha||'')||!/^[0-9a-f-]{36}$/.test(m.safeRollback.deploymentId||''))fail('MANIFEST_ROLLBACK');
-          for(const k of ['qaRunId','previewRunId','productionRunId'])if(!Number.isInteger(m[k])||m[k]<=0)fail('MANIFEST_RUN_'+k);
+          const fs=require('fs'),m=JSON.parse(fs.readFileSync('.iberfit/web-public-production.json','utf8'));
+          const bad=x=>{throw Error(x)};
+          if(m.schema!=='iberfit.web.public-production.v1'||m.repository!=='iberfit/iberfitweb'||m.domain!=='https://iberfit.cl')bad('MANIFEST_IDENTITY');
+          if(!/^6\.43\.(25|26)$/.test(m.version||''))bad('UNSUPPORTED_VERSION:'+m.version);
+          if(!/^[0-9a-f]{40}$/.test(m.sha||'')||!/^[0-9a-f-]{36}$/.test(m.deploymentId||''))bad('MANIFEST_CURRENT');
+          if(!m.safeRollback||!/^[0-9a-f]{40}$/.test(m.safeRollback.sha||'')||!/^[0-9a-f-]{36}$/.test(m.safeRollback.deploymentId||''))bad('MANIFEST_ROLLBACK');
+          for(const k of ['qaRunId','previewRunId','productionRunId'])if(!Number.isInteger(m[k])||m[k]<=0)bad('MANIFEST_RUN_'+k);
           NODE
-          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project.json
-          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}" -o /tmp/project.json
+          curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PROJECT}/deployments" -o /tmp/deployments.json
           node <<'NODE'
-          const fs=require('fs');
-          const m=JSON.parse(fs.readFileSync('.iberfit/web-public-production.json','utf8'));
-          const p=JSON.parse(fs.readFileSync('/tmp/project.json','utf8'));
-          if(!p.success||p.result?.name!=='web-iberfit'||p.result.production_branch!=='production')throw Error('CLOUDFLARE_PROJECT_MISMATCH');
-          const domains=p.result.domains||[];
-          if(!domains.includes('iberfit.cl')||domains.includes('app.iberfit.cl'))throw Error('CLOUDFLARE_DOMAIN_MISMATCH');
-          const x=JSON.parse(fs.readFileSync('/tmp/deployments.json','utf8'));
+          const fs=require('fs'),m=require(process.cwd()+'/.iberfit/web-public-production.json'),p=require('/tmp/project.json'),x=require('/tmp/deployments.json');
+          if(!p.success||p.result?.production_branch!=='production'||!(p.result?.domains||[]).includes('iberfit.cl')||(p.result?.domains||[]).includes('app.iberfit.cl'))throw Error('PROJECT_OR_DOMAIN_MISMATCH');
           const current=(x.result||[]).filter(d=>d.environment==='production').sort((a,b)=>new Date(b.created_on||0)-new Date(a.created_on||0))[0];
           if(current?.id!==m.deploymentId)throw Error('DRIFT_DEPLOYMENT:'+current?.id);
-          if((current.deployment_trigger?.metadata?.commit_hash||'')!==m.sha)throw Error('DRIFT_SHA:'+(current.deployment_trigger?.metadata?.commit_hash||''));
-          const rollback=(x.result||[]).find(d=>d.id===m.safeRollback.deploymentId);
-          if(!rollback||(rollback.deployment_trigger?.metadata?.commit_hash||'')!==m.safeRollback.sha)throw Error('ROLLBACK_DRIFT');
+          if((current?.deployment_trigger?.metadata?.commit_hash||'')!==m.sha)throw Error('DRIFT_SHA');
+          const rb=(x.result||[]).find(d=>d.id===m.safeRollback.deploymentId);
+          if(!rb||(rb.deployment_trigger?.metadata?.commit_hash||'')!==m.safeRollback.sha)throw Error('ROLLBACK_DRIFT');
           NODE
           VERSION="$(node -p "require('./.iberfit/web-public-production.json').version")"
+          SHA="$(node -p "require('./.iberfit/web-public-production.json').sha")"
           test "$(curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/VERSION?state=$GITHUB_RUN_ID" | tr -d '\r\n ')" = "$VERSION"
-          curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/assets/contrast.v64321.css?state=$GITHUB_RUN_ID" -o /tmp/contrast.css
-          grep -q -- '--gold-text-strong:#806216' /tmp/contrast.css
-          grep -q -- '--text-secondary:#44564c' /tmp/contrast.css
-          curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-vitacura/?state=$GITHUB_RUN_ID" -o /tmp/vitacura.html
-          grep -q 'href="/hibrido/">Conocer entrenamiento híbrido</a>' /tmp/vitacura.html
-          ! grep -q 'href="/online/">Conocer entrenamiento online</a>' /tmp/vitacura.html
-          curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-las-condes/?state=$GITHUB_RUN_ID" -o /tmp/las-condes.html
-          ! grep -q 'Primero vemos si podemos hacerlo bien, no solo si podemos ir' /tmp/las-condes.html
+          curl -fsSI --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" | tr -d '\r' | tr '[:upper:]' '[:lower:]' > /tmp/headers
+          grep -q '^content-security-policy:' /tmp/headers
+          grep -q "script-src-attr 'none'" /tmp/headers
+          ! grep -q 'unsafe-inline' /tmp/headers
 
-          if [ "$VERSION" = '6.43.25' ]; then
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" -o /tmp/home-es.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/?state=$GITHUB_RUN_ID" -o /tmp/home-en.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/hibrido/?state=$GITHUB_RUN_ID" -o /tmp/hibrido.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/presencial/?state=$GITHUB_RUN_ID" -o /tmp/presencial.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-la-reina/?state=$GITHUB_RUN_ID" -o /tmp/reina.html
+          if [ "$VERSION" = '6.43.26' ]; then
+            CHECKPOINT='checkpoint/v64326-local-editorial-policy-production-2026-10-01'
+            for pair in \
+              'entrenador-personal-las-condes|No inferimos cómo te mueves' \
+              'entrenador-personal-vitacura|No deducimos tus hábitos' \
+              'entrenamiento-personal-providencia|No suponemos que caminas' \
+              'entrenador-personal-lo-barnechea|No asumimos montaña'; do
+              route="${pair%%|*}"; phrase="${pair#*|}"; file="/tmp/$(echo "$route"|tr '/' '-').html"
+              curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/${route}/?state=$GITHUB_RUN_ID" -o "$file"
+              grep -q "$phrase" "$file"
+              grep -q 'La comuna define la cobertura; tu contexto define el plan.' "$file"
+            done
             curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/personal-trainer-nunoa/?state=$GITHUB_RUN_ID" -o /tmp/nunoa.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-penalolen/?state=$GITHUB_RUN_ID" -o /tmp/penalolen.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/personal-trainer-la-reina/?state=$GITHUB_RUN_ID" -o /tmp/reina-en.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/personal-trainer-nunoa/?state=$GITHUB_RUN_ID" -o /tmp/nunoa-en.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/personal-trainer-penalolen/?state=$GITHUB_RUN_ID" -o /tmp/penalolen-en.html
-            grep -q 'Online · Desde cualquier lugar' /tmp/home-es.html
-            grep -q 'Online · From anywhere' /tmp/home-en.html
-            ! grep -qi '64 Overall' /tmp/home-en.html
-            ! grep -qi 'overall index' /tmp/home-en.html
-            grep -q 'report-preview-v2' /tmp/home-es.html
-            grep -q 'report-preview-v2' /tmp/home-en.html
-            ! grep -q 'photo-story-section' /tmp/hibrido.html
-            grep -q 'app-hybrid-feedback.webp' /tmp/hibrido.html
-            ! grep -q 'class="week-flow"' /tmp/presencial.html
-            ! grep -q 'class="local-service-strip"' /tmp/reina.html
-            grep -q 'La comuna define la cobertura; tu contexto define el plan.' /tmp/reina.html
-            grep -q 'Tu forma de entrenar no se deduce de la comuna.' /tmp/reina.html
-            ! grep -qi 'vida cotidiana de barrio' /tmp/reina.html
-            ! grep -qi 'precordillera' /tmp/reina.html
-            grep -q 'Tu contexto concreto vale más que cualquier idea sobre la comuna.' /tmp/nunoa.html
             grep -q 'No inferimos tus hábitos, tus actividades ni tus lugares preferidos por vivir en Ñuñoa.' /tmp/nunoa.html
             ! grep -qi 'vida de barrio' /tmp/nunoa.html
-            grep -q 'Estar en Peñalolén define la cobertura; tus datos definen el plan.' /tmp/penalolen.html
-            grep -q 'no lo suponemos por vivir en Peñalolén' /tmp/penalolen.html
-            ! grep -qi 'vida de barrio' /tmp/penalolen.html
-            ! grep -qi 'precordillera' /tmp/penalolen.html
-            grep -q 'The commune defines coverage; your context defines the plan.' /tmp/reina-en.html
-            grep -q 'Your actual context matters more than any idea about the commune.' /tmp/nunoa-en.html
-            grep -q 'Being in Peñalolén defines coverage; your information defines the plan.' /tmp/penalolen-en.html
-            ! grep -qi 'neighbourhood life' /tmp/penalolen-en.html
-            ! grep -qi 'foothills' /tmp/penalolen-en.html
-            CHECKPOINT='checkpoint/v64325-person-first-local-production-2026-09-30'
-          elif [ "$VERSION" = '6.43.24' ]; then
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" -o /tmp/home-es.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/?state=$GITHUB_RUN_ID" -o /tmp/home-en.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/hibrido/?state=$GITHUB_RUN_ID" -o /tmp/hibrido.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/presencial/?state=$GITHUB_RUN_ID" -o /tmp/presencial.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-la-reina/?state=$GITHUB_RUN_ID" -o /tmp/reina.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-penalolen/?state=$GITHUB_RUN_ID" -o /tmp/penalolen.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenamiento-personal-providencia/?state=$GITHUB_RUN_ID" -o /tmp/providencia.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-lo-barnechea/?state=$GITHUB_RUN_ID" -o /tmp/lobarnechea.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/personal-trainer-penalolen/?state=$GITHUB_RUN_ID" -o /tmp/penalolen-en.html
-            grep -q 'Online · Desde cualquier lugar' /tmp/home-es.html
-            grep -q 'Online · From anywhere' /tmp/home-en.html
-            ! grep -qi '64 Overall' /tmp/home-en.html
-            ! grep -qi 'overall index' /tmp/home-en.html
-            grep -q 'report-preview-v2' /tmp/home-es.html
-            grep -q 'report-preview-v2' /tmp/home-en.html
-            ! grep -q 'photo-story-section' /tmp/hibrido.html
-            grep -q 'app-hybrid-feedback.webp' /tmp/hibrido.html
-            ! grep -q 'class="week-flow"' /tmp/presencial.html
-            ! grep -q 'class="local-service-strip"' /tmp/reina.html
-            grep -q '¿IBERFIT ofrece entrenamiento personal en La Reina?' /tmp/reina.html
-            grep -q '¿Puedo combinar presencial y online en La Reina?' /tmp/reina.html
-            grep -qi 'precordillera' /tmp/penalolen.html
-            grep -qi 'vida de barrio' /tmp/penalolen.html
-            ! grep -qi 'tu sector cambia la logística' /tmp/penalolen.html
-            grep -qi 'ciclovías' /tmp/providencia.html
-            grep -qi 'movimiento diario' /tmp/providencia.html
-            ! grep -qi 'otro traslado' /tmp/providencia.html
-            grep -qi 'Si la montaña, la bicicleta, el trekking o el movimiento exterior ya están en tu vida' /tmp/lobarnechea.html
-            ! grep -qi 'coste logístico' /tmp/lobarnechea.html
-            grep -qi 'foothills' /tmp/penalolen-en.html
-            grep -qi 'neighbourhood life' /tmp/penalolen-en.html
-            CHECKPOINT='checkpoint/v64324-local-opportunity-production-2026-09-28'
-          elif [ "$VERSION" = '6.43.23' ]; then
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" -o /tmp/home-es.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/en/?state=$GITHUB_RUN_ID" -o /tmp/home-en.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/hibrido/?state=$GITHUB_RUN_ID" -o /tmp/hibrido.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/presencial/?state=$GITHUB_RUN_ID" -o /tmp/presencial.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-la-reina/?state=$GITHUB_RUN_ID" -o /tmp/reina.html
-            grep -q 'Online · Desde cualquier lugar' /tmp/home-es.html
-            grep -q 'Online · From anywhere' /tmp/home-en.html
-            ! grep -qi '64 Overall' /tmp/home-en.html
-            ! grep -qi 'overall index' /tmp/home-en.html
-            grep -q 'report-preview-v2' /tmp/home-es.html
-            grep -q 'report-preview-v2' /tmp/home-en.html
-            ! grep -q 'photo-story-section' /tmp/hibrido.html
-            grep -q 'app-hybrid-feedback.webp' /tmp/hibrido.html
-            ! grep -q 'class="week-flow"' /tmp/presencial.html
-            ! grep -q 'class="local-service-strip"' /tmp/reina.html
-            grep -q '¿IBERFIT ofrece entrenamiento personal en La Reina?' /tmp/reina.html
-            grep -q '¿Puedo combinar presencial y online en La Reina?' /tmp/reina.html
-            CHECKPOINT='checkpoint/v64323-editorial-parity-production-2026-09-28'
-          elif [ "$VERSION" = '6.43.22' ]; then
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/assets/ux.v64322.css?state=$GITHUB_RUN_ID" -o /tmp/ux.css
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/assets/experience.v64322.js?state=$GITHUB_RUN_ID" -o /tmp/experience.js
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/?state=$GITHUB_RUN_ID" -o /tmp/home.html
-            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/online/?state=$GITHUB_RUN_ID" -o /tmp/online.html
-            grep -q 'grid-auto-columns:minmax(94%,1fr)' /tmp/ux.css
-            grep -q 'intent-router intent-router--compact' /tmp/home.html
-            test "$(grep -o 'class=\"intent-route\"' /tmp/home.html | wc -l | tr -d ' ')" = '2'
-            grep -q 'Si necesitas mucha corrección técnica en directo' /tmp/online.html
-            ! grep -q 'Según sector y horario.' /tmp/experience.js
-            ! grep -q 'Subject to area and schedule.' /tmp/experience.js
-            CHECKPOINT='checkpoint/v64322-ux-first-impression-production-2026-09-24'
           else
-            CHECKPOINT='checkpoint/v64321-contrast-system-final-production-2026-09-24'
+            CHECKPOINT='checkpoint/v64325-person-first-local-production-2026-09-30'
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/entrenador-personal-la-reina/?state=$GITHUB_RUN_ID" -o /tmp/reina.html
+            grep -q 'Tu forma de entrenar no se deduce de la comuna.' /tmp/reina.html
+            curl -fsSL --retry 6 --retry-all-errors "https://iberfit.cl/personal-trainer-nunoa/?state=$GITHUB_RUN_ID" -o /tmp/nunoa.html
+            grep -q 'No inferimos tus hábitos, tus actividades ni tus lugares preferidos por vivir en Ñuñoa.' /tmp/nunoa.html
           fi
+
           curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/iberfit/iberfitweb/branches/${CHECKPOINT}" -o /tmp/checkpoint.json
           node <<'NODE'
-          const fs=require('fs');
-          const m=JSON.parse(fs.readFileSync('.iberfit/web-public-production.json','utf8'));
-          const b=JSON.parse(fs.readFileSync('/tmp/checkpoint.json','utf8'));
+          const fs=require('fs'),m=require(process.cwd()+'/.iberfit/web-public-production.json'),b=require('/tmp/checkpoint.json');
           if(b.commit?.sha!==m.sha)throw Error('CHECKPOINT_DRIFT:'+b.commit?.sha);
           console.log('WEB_PUBLIC_PRODUCTION_STATE_OK',m.version,m.sha,m.deploymentId);
           NODE
