@@ -30,7 +30,7 @@ test('password visibility control remains a >=44px touch target without changing
     /\.m26-password-toggle\{[^}]*min-width:2\.75rem!important;min-height:2\.75rem!important/,
   );
   assert.match(criticalCss, /\.m26-password-field input\{padding-right:6rem!important\}/);
-  assert.match(accessUi, /setAttribute\('aria-pressed',\s*String\(nextVisible\)\)/);
+  assert.match(accessUi, /setAttribute\?\.\('aria-pressed',\s*reveal\?'true':'false'\)/);
   assert.match(accessUi, /autocomplete="current-password"/);
   assert.match(indexHtml, /autocomplete="current-password"/);
   assert.match(indexHtml, /data-password-toggle[^>]*aria-pressed="false"/);
