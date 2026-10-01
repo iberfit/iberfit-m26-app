@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {renderAdminRoute} from '../src/m26/admin/route-render.js';
 import {M26_ADMIN_COMMAND_TYPES} from '../src/m26/admin/command-catalog.js';
+import {buildHostedAuthPatch,__hostedAuthEmailInternals} from '../scripts/auth/sync-hosted-auth-emails.mjs';
 
 const migration=fs.readFileSync('supabase/migrations/20260904164000_admin_client_delete_v26.sql','utf8');
 const alignment=fs.readFileSync('supabase/migrations/20260904183000_admin_client_delete_v26_model_alignment.sql','utf8');
@@ -81,28 +82,45 @@ test('el reintento de eliminación llega al receipt antes de exigir que el clien
   assert.match(alignment,/if v_existing is not null then\s*return v_existing \|\| jsonb_build_object\('kind','duplicate'\)/u);
 });
 
-test('la familia de correos usa la marca real y no expone tokens ni Supabase al cliente',()=>{
+test('la familia de correos usa la marca real y no expone tokens ni Supabase al cliente',async()=>{
+  const {manifest,patch}=await buildHostedAuthPatch();
   for(const path of templatePaths){
     assert.ok(fs.existsSync(path),`${path} debe existir`);
     const html=fs.readFileSync(path,'utf8');
-    assert.match(html,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
     assert.match(html,/IBERFIT/u);
     assert.doesNotMatch(html,/supabase\.co/iu);
     assert.doesNotMatch(html,/TokenHash/u);
     assert.doesNotMatch(html,/service[_ -]?role/iu);
+    const entry=manifest.templates.find((item)=>item.file===path);
+    assert.ok(entry,`${path} debe permanecer gestionado por el manifiesto Hosted Auth`);
+    const published=String(patch[entry.contentKey]||'');
+    assert.ok(published,`${path} debe producir HTML sincronizado`);
+    if(/<img\b/iu.test(published))assert.ok(published.includes(__hostedAuthEmailInternals.PUBLIC_EMAIL_ISOTYPE_URL));
+    assert.doesNotMatch(published,/https:\/\/app\.iberfit\.cl\/(?:public\/)?isotipo-iberfit\.png/u);
+    assert.doesNotMatch(published,/supabase\.co|TokenHash|service[_ -]?role/iu);
   }
 });
 
-test('activación y recuperación priorizan un CTA real y accesible',()=>{
+test('activación y recuperación priorizan un CTA real y accesible',async()=>{
   const invite=fs.readFileSync('supabase/templates/iberfit-invite.html','utf8');
   const recovery=fs.readFileSync('supabase/templates/iberfit-recovery.html','utf8');
   assert.match(invite,/Tu espacio IBERFIT/u);
   assert.match(invite,/href="\{\{ \.ConfirmationURL \}\}"/u);
   assert.match(invite,/Activar mi acceso/u);
-  assert.match(invite,/https:\/\/app\.iberfit\.cl\/public\/iberfit-email-access-hero\.jpg/u);
+  assert.match(invite,/src="\/public\/iberfit-email-access-hero\.jpg"/u);
   assert.doesNotMatch(recovery,/iberfit-email-access-hero\.jpg/u);
   assert.match(recovery,/href="\{\{ \.ConfirmationURL \}\}"/u);
   assert.match(recovery,/Recuperar mi acceso/u);
   assert.doesNotMatch(invite,/\{\{ \.Token \}\}/u);
   assert.doesNotMatch(recovery,/\{\{ \.Token \}\}/u);
+
+  const {manifest,patch}=await buildHostedAuthPatch();
+  const inviteEntry=manifest.templates.find((item)=>item.id==='invite');
+  const recoveryEntry=manifest.templates.find((item)=>item.id==='recovery');
+  assert.ok(inviteEntry&&recoveryEntry);
+  const publishedInvite=String(patch[inviteEntry.contentKey]||'');
+  const publishedRecovery=String(patch[recoveryEntry.contentKey]||'');
+  assert.ok(publishedInvite.includes(__hostedAuthEmailInternals.PUBLIC_HERO_URL));
+  assert.ok(publishedInvite.includes(__hostedAuthEmailInternals.PUBLIC_EMAIL_ISOTYPE_URL));
+  assert.doesNotMatch(publishedRecovery,/iberfit-email-access-hero\.jpg/u);
 });

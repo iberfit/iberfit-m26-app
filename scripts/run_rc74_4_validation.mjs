@@ -18,19 +18,51 @@ const evidence={
   steps:[],
 };
 
+function failureLogName(name){
+  const safe=String(name||'step').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  return `RC74_4_${safe}_FAILURE.txt`;
+}
+
+function persistFailureOutput(name,result,spawnError){
+  const stdout=String(result.stdout||'');
+  const stderr=String(result.stderr||'');
+  const combined=[stdout,stderr].filter(Boolean).join(stderr&&stdout?'\n--- STDERR ---\n':'');
+  const file=failureLogName(name);
+  const target=path.join(recovery,file);
+  const header=[
+    `IBERFIT RC74.4 validation failure: ${name}`,
+    `status: ${result.status??'null'}`,
+    `signal: ${result.signal??'none'}`,
+    `spawnError: ${spawnError?.message||'none'}`,
+    '',
+  ].join('\n');
+  const maxArtifactChars=500_000;
+  const body=combined.length>maxArtifactChars
+    ? `[output truncated to last ${maxArtifactChars} characters]\n${combined.slice(-maxArtifactChars)}`
+    : combined;
+  fs.writeFileSync(target,`${header}${body}\n`,'utf8');
+  return file;
+}
+
 function run(name,command,args=[],extraEnv={}){
   const result=spawnSync(command,args,{
     cwd:root,
     encoding:'utf8',
-    stdio:'inherit',
+    stdio:['ignore','pipe','pipe'],
     env:{...process.env,...extraEnv},
     shell:false,
+    maxBuffer:20*1024*1024,
   });
+  if(result.stdout)process.stdout.write(result.stdout);
+  if(result.stderr)process.stderr.write(result.stderr);
   const spawnError=result.error?{
     code:result.error.code||null,
     message:String(result.error.message||result.error).slice(0,300),
   }:null;
-  evidence.steps.push({name,ok:result.status===0&&!spawnError,status:result.status,spawnError});
+  const ok=result.status===0&&!spawnError;
+  const step={name,ok,status:result.status,spawnError};
+  if(!ok)step.failureLog=persistFailureOutput(name,result,spawnError);
+  evidence.steps.push(step);
   if(spawnError)throw new Error(`RC74_4_PROCESS_START_FAILED:${name}:${spawnError.code||'UNKNOWN'}`);
   if(result.status!==0)throw new Error(`RC74_4_VALIDATION_FAILED:${name}`);
 }

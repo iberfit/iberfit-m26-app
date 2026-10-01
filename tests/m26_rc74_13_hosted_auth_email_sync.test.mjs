@@ -58,9 +58,9 @@ test('OTP y recuperación usan el sistema visual claro premium y evitan arte rot
 test('el sincronizador normaliza cualquier ruta antigua de activos antes de publicar',async()=>{
   const legacy='<img src="https://app.iberfit.cl/isotipo-iberfit.png"><img src="https://app.iberfit.cl/iberfit-email-access-hero.jpg">';
   const normalized=normalizeHostedAuthAssets(legacy);
-  assert.match(normalized,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
-  assert.match(normalized,/https:\/\/app\.iberfit\.cl\/public\/iberfit-email-access-hero\.jpg/u);
-  assert.doesNotMatch(normalized,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
+  assert.ok(normalized.includes(__hostedAuthEmailInternals.PUBLIC_EMAIL_ISOTYPE_URL));
+  assert.ok(normalized.includes(__hostedAuthEmailInternals.PUBLIC_HERO_URL));
+  assert.doesNotMatch(normalized,/https:\/\/app\.iberfit\.cl\/(?:public\/)?isotipo-iberfit\.png/u);
   assert.doesNotMatch(normalized,/https:\/\/app\.iberfit\.cl\/iberfit-email-access-hero\.jpg/u);
 
   const {patch}=await buildHostedAuthPatch();
@@ -69,7 +69,13 @@ test('el sincronizador normaliza cualquier ruta antigua de activos antes de publ
     .map(([,value])=>String(value));
   assert.equal(htmlValues.length,13);
   for(const html of htmlValues){
-    assert.doesNotMatch(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
+    if(/<img\b/iu.test(html)){
+      assert.ok(
+        html.includes(__hostedAuthEmailInternals.PUBLIC_EMAIL_ISOTYPE_URL)
+        || html.includes(__hostedAuthEmailInternals.PUBLIC_HERO_URL),
+      );
+    }
+    assert.doesNotMatch(html,/https:\/\/app\.iberfit\.cl\/(?:public\/)?isotipo-iberfit\.png/u);
     assert.doesNotMatch(html,/https:\/\/app\.iberfit\.cl\/iberfit-email-access-hero\.jpg/u);
   }
 });
@@ -113,7 +119,7 @@ test('la publicación remota queda limitada al proyecto PROD y exige confirmaci�
   assert.equal(__hostedAuthEmailInternals.PROD_REF,'pjhmrhejsoofmouedavw');
   assert.equal(__hostedAuthEmailInternals.PROD_SITE_URL,'https://app.iberfit.cl/');
   assert.equal(__hostedAuthEmailInternals.EXACT_CONFIRMATION,'SYNC_IBERFIT_AUTH_EMAILS_PROD');
-  assert.equal(__hostedAuthEmailInternals.PUBLIC_ISOTYPE_URL,'https://app.iberfit.cl/public/isotipo-iberfit.png');
+  assert.equal(__hostedAuthEmailInternals.PUBLIC_EMAIL_ISOTYPE_URL,'https://app.iberfit.cl/public/iberfit-email-isotipo.png');
   assert.match(source,/IBERFIT_AUTH_EMAIL_PROD_REF_REQUIRED/u);
   assert.match(source,/IBERFIT_AUTH_EMAIL_EXPLICIT_CONFIRMATION_REQUIRED/u);
   assert.match(source,/IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED/u);
