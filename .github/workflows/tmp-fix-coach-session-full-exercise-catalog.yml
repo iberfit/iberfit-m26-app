@@ -1,0 +1,131 @@
+name: TEMP Coach full exercise catalog fix
+
+on:
+  push:
+    branches:
+      - fix/coach-session-full-exercise-catalog
+    paths:
+      - '.github/workflows/tmp-fix-coach-session-full-exercise-catalog.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/coach-session-full-exercise-catalog
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Apply exact session builder patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('src/m26/workflows/session-ui.js')
+          source = path.read_text(encoding='utf-8')
+
+          old = "  const results=catalog.search(query,filters).slice(0,24);\n"
+          new = "  const matchingExercises=catalog.search(query,filters);\n  const results=matchingExercises.slice(0,24);\n  const remainingResults=matchingExercises.slice(24);\n"
+          if source.count(old) != 1:
+              raise SystemExit(f'EXPECTED_RESULTS_SLICE_ONCE:{source.count(old)}')
+          source = source.replace(old, new, 1)
+
+          old = "  const cards=results.map((item)=>`<button type=\"button\" class=\"m26-exercise-result\" data-session-action=\"add-exercise\" data-exercise-id=\"${e(item.id)}\">${renderExerciseMedia({manifest:mediaMap,exercise:item,role,compact:true,fallback:true})}<span class=\"m26-exercise-result-copy\"><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small><em>${e((item.primary_muscles||[]).join(' · ')||'Musculatura no especificada')}</em></span><span class=\"m26-exercise-result-add\" aria-hidden=\"true\">＋</span></button>`).join('')||'<p class=\"m26-empty-copy\">No hay coincidencias.</p>';\n"
+          new = old + "  const remainingCards=remainingResults.map((item)=>`<button type=\"button\" class=\"m26-list-card\" data-session-action=\"add-exercise\" data-exercise-id=\"${e(item.id)}\"><span><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small></span><span aria-hidden=\"true\">＋</span></button>`).join('');\n  const remainingResultsMarkup=remainingResults.length?`<details class=\"m26-exercise-results-more\"><summary>Ver ${e(remainingResults.length)} ejercicios más</summary><div class=\"m26-exercise-results\">${remainingCards}</div></details>`:'';\n"
+          if source.count(old) != 1:
+              raise SystemExit(f'EXPECTED_CARDS_BLOCK_ONCE:{source.count(old)}')
+          source = source.replace(old, new, 1)
+
+          old = "        <div class=\"m26-builder-column-heading\"><div><p class=\"m26-eyebrow\">Añadir</p><h3>Biblioteca</h3></div><span>${e(results.length)} resultados</span></div>\n        <label>Buscar ejercicio<input type=\"search\" value=\"${e(query)}\" data-session-search autocomplete=\"off\" placeholder=\"Nombre, patrón o material\"></label>\n        <div class=\"m26-exercise-results\">${cards}</div>\n"
+          new = "        <div class=\"m26-builder-column-heading\"><div><p class=\"m26-eyebrow\">Añadir</p><h3>Biblioteca</h3></div><span>${e(matchingExercises.length)} resultados</span></div>\n        <label>Buscar ejercicio<input type=\"search\" value=\"${e(query)}\" data-session-search autocomplete=\"off\" placeholder=\"Nombre, patrón o material\"></label>\n        <div class=\"m26-exercise-results\">${cards}</div>\n        ${remainingResultsMarkup}\n"
+          if source.count(old) != 1:
+              raise SystemExit(f'EXPECTED_LIBRARY_MARKUP_ONCE:{source.count(old)}')
+          source = source.replace(old, new, 1)
+
+          path.write_text(source, encoding='utf-8')
+          PY
+
+      - name: Add regression test
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > tests/m26_coach_session_exercise_catalog_visibility.test.mjs <<'TEST'
+          import test from 'node:test';
+          import assert from 'node:assert/strict';
+          import {renderSessionBuilder} from '../src/m26/workflows/session-ui.js';
+
+          function exercise(index){
+            return {
+              id:`exercise-${index}`,
+              name_es:`Ejercicio ${index}`,
+              pattern:'fuerza',
+              equipment:'mancuernas',
+              primary_muscles:['piernas'],
+            };
+          }
+
+          function catalogWith(count){
+            const items=Array.from({length:count},(_,index)=>exercise(index+1));
+            const byId=new Map(items.map((item)=>[item.id,item]));
+            return {
+              search:()=>items,
+              get:(id)=>byId.get(String(id))||null,
+            };
+          }
+
+          function draft(){
+            return {
+              title:'Sesión catálogo completo',
+              durationMinutes:60,
+              blocks:[],
+              previewAccepted:false,
+            };
+          }
+
+          test('coach session builder keeps every matching exercise selectable without rendering every result as a heavy visual card',()=>{
+            const html=renderSessionBuilder({draft:draft(),catalog:catalogWith(30),role:'coach'});
+
+            assert.match(html,/>30 resultados</);
+            assert.match(html,/Ver 6 ejercicios más/);
+            assert.match(html,/data-exercise-id="exercise-30"/);
+            assert.equal((html.match(/class="m26-exercise-result"/g)||[]).length,24);
+            assert.equal((html.match(/data-session-action="add-exercise"/g)||[]).length,30);
+          });
+
+          test('coach session builder does not add overflow disclosure when all matches fit in the visual result window',()=>{
+            const html=renderSessionBuilder({draft:draft(),catalog:catalogWith(10),role:'coach'});
+
+            assert.match(html,/>10 resultados</);
+            assert.doesNotMatch(html,/m26-exercise-results-more/);
+            assert.equal((html.match(/data-session-action="add-exercise"/g)||[]).length,10);
+          });
+          TEST
+
+      - name: Validate focused regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check src/m26/workflows/session-ui.js
+          node --test tests/m26_coach_session_exercise_catalog_visibility.test.mjs
+          git diff --check
+
+      - name: Commit exact product fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'iberfit'
+          git config user.email 'iberfit.cl@gmail.com'
+          git add src/m26/workflows/session-ui.js tests/m26_coach_session_exercise_catalog_visibility.test.mjs
+          test "$(git diff --cached --name-only | wc -l)" -eq 2
+          git commit -m 'fix(coach): expose full session exercise catalog'
+          git push origin HEAD:fix/coach-session-full-exercise-catalog
