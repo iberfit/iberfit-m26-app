@@ -12,6 +12,7 @@ const EXACT_CONFIRMATION='SYNC_IBERFIT_AUTH_EMAILS_PROD';
 const PROD_SITE_URL='https://app.iberfit.cl/';
 const LEGACY_ISOTYPE_URL='https://app.iberfit.cl/isotipo-iberfit.png';
 const PUBLIC_ISOTYPE_URL='https://app.iberfit.cl/public/isotipo-iberfit.png';
+const PUBLIC_EMAIL_ISOTYPE_URL='https://app.iberfit.cl/public/iberfit-email-isotipo.png';
 const LEGACY_HERO_URL='https://app.iberfit.cl/iberfit-email-access-hero.jpg';
 const PUBLIC_HERO_URL='https://app.iberfit.cl/public/iberfit-email-access-hero.jpg';
 
@@ -19,10 +20,21 @@ const sha256=(value)=>crypto.createHash('sha256').update(value).digest('hex');
 const nonEmpty=(value)=>typeof value==='string'&&value.trim().length>0;
 const fail=(code)=>{throw new Error(code);};
 
-export function normalizeHostedAuthAssets(html=''){
+function replaceQuotedAssetRef(html,from,to){
   return String(html)
-    .replaceAll(LEGACY_ISOTYPE_URL,PUBLIC_ISOTYPE_URL)
+    .replaceAll(`"${from}"`,`"${to}"`)
+    .replaceAll(`'${from}'`,`'${to}'`);
+}
+
+export function normalizeHostedAuthAssets(html=''){
+  let normalized=String(html)
+    .replaceAll(LEGACY_ISOTYPE_URL,PUBLIC_EMAIL_ISOTYPE_URL)
+    .replaceAll(PUBLIC_ISOTYPE_URL,PUBLIC_EMAIL_ISOTYPE_URL)
     .replaceAll(LEGACY_HERO_URL,PUBLIC_HERO_URL);
+  normalized=replaceQuotedAssetRef(normalized,'/public/isotipo-iberfit.png',PUBLIC_EMAIL_ISOTYPE_URL);
+  normalized=replaceQuotedAssetRef(normalized,'/public/iberfit-email-isotipo.png',PUBLIC_EMAIL_ISOTYPE_URL);
+  normalized=replaceQuotedAssetRef(normalized,'/public/iberfit-email-access-hero.jpg',PUBLIC_HERO_URL);
+  return normalized;
 }
 
 export async function buildHostedAuthPatch({root=ROOT,manifestPath=DEFAULT_MANIFEST}={}){
@@ -44,8 +56,13 @@ export async function buildHostedAuthPatch({root=ROOT,manifestPath=DEFAULT_MANIF
     const sourceHtml=await fs.readFile(absolute,'utf8');
     const html=normalizeHostedAuthAssets(sourceHtml);
     if(!html.includes('IBERFIT'))fail(`IBERFIT_AUTH_EMAIL_BRANDING_INVALID:${item.id}`);
-    if(/<img\b/iu.test(html)&&!html.includes(PUBLIC_ISOTYPE_URL)&&!html.includes(PUBLIC_HERO_URL))fail(`IBERFIT_AUTH_EMAIL_ASSET_URL_INVALID:${item.id}`);
-    if(html.includes(LEGACY_ISOTYPE_URL)||html.includes(LEGACY_HERO_URL))fail(`IBERFIT_AUTH_EMAIL_LEGACY_ASSET_URL:${item.id}`);
+    if(/<img\b/iu.test(html)&&!html.includes(PUBLIC_EMAIL_ISOTYPE_URL)&&!html.includes(PUBLIC_HERO_URL))fail(`IBERFIT_AUTH_EMAIL_ASSET_URL_INVALID:${item.id}`);
+    if(
+      html.includes(LEGACY_ISOTYPE_URL)
+      || html.includes(PUBLIC_ISOTYPE_URL)
+      || html.includes(LEGACY_HERO_URL)
+      || /\b(?:src|href)=["']\/public\//iu.test(html)
+    )fail(`IBERFIT_AUTH_EMAIL_LEGACY_ASSET_URL:${item.id}`);
     if(/supabase\.co|TokenHash|service[_ -]?role|sb_secret_|service_role/iu.test(html))fail(`IBERFIT_AUTH_EMAIL_SECRET_LEAK_CONTRACT:${item.id}`);
     for(const required of item.requires||[])if(!html.includes(required))fail(`IBERFIT_AUTH_EMAIL_REQUIRED_VARIABLE_MISSING:${item.id}`);
     patch[item.subjectKey]=item.subject;
@@ -136,6 +153,7 @@ export const __hostedAuthEmailInternals=Object.freeze({
   DEFAULT_MANIFEST,
   LEGACY_ISOTYPE_URL,
   PUBLIC_ISOTYPE_URL,
+  PUBLIC_EMAIL_ISOTYPE_URL,
   LEGACY_HERO_URL,
   PUBLIC_HERO_URL,
   sha256,
