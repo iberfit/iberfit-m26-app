@@ -4,6 +4,8 @@ import fs from 'node:fs';
 
 import {
   buildHostedAuthPatch,
+  buildHostedAuthRollbackSnapshot,
+  validateHostedAuthRollbackSnapshot,
   assertCustomSmtp,
   assertProductionAuthBaseline,
   normalizeHostedAuthAssets,
@@ -113,17 +115,56 @@ test('el sincronizador exige baseline Auth PROD y SMTP propio antes de permitir 
   assert.throws(()=>assertCustomSmtp({...smtp,smtp_port:70000}),/IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED/u);
 });
 
-test('la publicación remota queda limitada al proyecto PROD y exige confirmación exacta',()=>{
+test('el snapshot de rollback conserva exactamente el keyset Hosted Auth y rechaza deriva',async()=>{
+  const built=await buildHostedAuthPatch();
+  const config=Object.fromEntries(Object.keys(built.patch).map((key,index)=>[
+    key,
+    key.includes('notifications_') ? index%2===0 : `previous-${index}`,
+  ]));
+  const snapshot=buildHostedAuthRollbackSnapshot({
+    config,
+    built,
+    capturedAt:'2026-10-01T00:00:00.000Z',
+  });
+  assert.equal(snapshot.schema,__hostedAuthEmailInternals.ROLLBACK_SCHEMA);
+  assert.equal(snapshot.projectRef,__hostedAuthEmailInternals.PROD_REF);
+  assert.equal(snapshot.capturedAt,'2026-10-01T00:00:00.000Z');
+  assert.deepEqual(Object.keys(snapshot.values).sort(),Object.keys(built.patch).sort());
+  assert.equal(validateHostedAuthRollbackSnapshot(snapshot,built),true);
+
+  const missing={...snapshot.values};
+  delete missing[Object.keys(missing)[0]];
+  assert.throws(
+    ()=>validateHostedAuthRollbackSnapshot({...snapshot,values:missing},built),
+    /IBERFIT_AUTH_EMAIL_ROLLBACK_KEYSET_INVALID/u,
+  );
+  assert.throws(
+    ()=>validateHostedAuthRollbackSnapshot({...snapshot,values:{...snapshot.values,smtp_pass:'forbidden'}},built),
+    /IBERFIT_AUTH_EMAIL_ROLLBACK_KEYSET_INVALID|IBERFIT_AUTH_EMAIL_ROLLBACK_KEY_FORBIDDEN/u,
+  );
+  const incomplete={...config};
+  delete incomplete[Object.keys(built.patch)[0]];
+  assert.throws(
+    ()=>buildHostedAuthRollbackSnapshot({config:incomplete,built}),
+    /IBERFIT_AUTH_EMAIL_ROLLBACK_KEY_MISSING/u,
+  );
+});
+
+test('la publicación remota queda limitada al proyecto PROD y exige confirmaciones exactas',()=>{
   const source=read('scripts/auth/sync-hosted-auth-emails.mjs');
   const workflow=read('.github/workflows/hosted-auth-email-sync.yml');
   assert.equal(__hostedAuthEmailInternals.PROD_REF,'pjhmrhejsoofmouedavw');
   assert.equal(__hostedAuthEmailInternals.PROD_SITE_URL,'https://app.iberfit.cl/');
   assert.equal(__hostedAuthEmailInternals.EXACT_CONFIRMATION,'SYNC_IBERFIT_AUTH_EMAILS_PROD');
+  assert.equal(__hostedAuthEmailInternals.EXACT_ROLLBACK_CONFIRMATION,'RESTORE_IBERFIT_AUTH_EMAILS_PROD');
   assert.equal(__hostedAuthEmailInternals.PUBLIC_EMAIL_ISOTYPE_URL,'https://app.iberfit.cl/public/iberfit-email-isotipo.png');
   assert.match(source,/IBERFIT_AUTH_EMAIL_PROD_REF_REQUIRED/u);
   assert.match(source,/IBERFIT_AUTH_EMAIL_EXPLICIT_CONFIRMATION_REQUIRED/u);
+  assert.match(source,/IBERFIT_AUTH_EMAIL_ROLLBACK_CONFIRMATION_REQUIRED/u);
   assert.match(source,/IBERFIT_AUTH_EMAIL_CUSTOM_SMTP_REQUIRED/u);
   assert.match(source,/REMOTE_VERIFY_FAILED/u);
+  assert.match(source,/--capture/u);
+  assert.match(source,/--restore/u);
   assert.doesNotMatch(source,/smtp_pass\s*:/u);
   assert.match(workflow,/workflow_dispatch:/u);
   assert.match(workflow,/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/u);
@@ -131,17 +172,39 @@ test('la publicación remota queda limitada al proyecto PROD y exige confirmaci�
   assert.doesNotMatch(workflow,/push:/u);
 });
 
-test('la promoción PROD sincroniza y verifica emails antes del cutover de Cloudflare',()=>{
+test('la promoción PROD captura y sincroniza Hosted Auth antes del cutover de Cloudflare',()=>{
   const workflow=read('.github/workflows/production-promote.yml');
   const manifestGate=workflow.indexOf('Validate release manifest and exact source');
+  const emailCapture=workflow.indexOf('Capture IBERFIT Hosted Auth email rollback snapshot');
   const emailSync=workflow.indexOf('Sync and verify IBERFIT Hosted Auth emails before cutover');
   const deploy=workflow.indexOf('Deploy exact certified surface to production with Wrangler');
-  assert.ok(manifestGate>=0&&emailSync>manifestGate&&deploy>emailSync);
-  const block=workflow.slice(emailSync,deploy);
+  assert.ok(manifestGate>=0&&emailCapture>manifestGate&&emailSync>emailCapture&&deploy>emailSync);
+  const block=workflow.slice(emailCapture,deploy);
   assert.match(block,/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/u);
   assert.match(block,/SUPABASE_PROJECT_REF: \$\{\{ env\.PROD_SUPABASE_REF \}\}/u);
+  assert.match(block,/IBERFIT_AUTH_EMAIL_STATE_PATH: \/tmp\/iberfit-hosted-auth-email-before\.json/u);
+  assert.match(block,/node scripts\/auth\/sync-hosted-auth-emails\.mjs --capture/u);
   assert.match(block,/IBERFIT_AUTH_EMAIL_CONFIRMATION: 'SYNC_IBERFIT_AUTH_EMAILS_PROD'/u);
+  assert.match(block,/HOSTED_AUTH_EMAIL_MUTATION_ATTEMPTED=true/u);
   assert.match(block,/node scripts\/auth\/sync-hosted-auth-emails\.mjs --sync/u);
+});
+
+test('la promoción PROD revierte Hosted Auth si falla después de comenzar la mutación',()=>{
+  const workflow=read('.github/workflows/production-promote.yml');
+  const cloudflareRollback=workflow.indexOf('Roll back production automatically if post-deploy certification fails');
+  const hostedAuthRollback=workflow.indexOf('Roll back Hosted Auth emails automatically if promotion fails');
+  const upload=workflow.indexOf('Upload production promotion evidence');
+  assert.ok(cloudflareRollback>=0&&hostedAuthRollback>cloudflareRollback&&upload>hostedAuthRollback);
+  const block=workflow.slice(hostedAuthRollback,upload);
+  assert.match(block,/failure\(\)/u);
+  assert.match(block,/steps\.email-otp\.outputs\.enabled == 'true'/u);
+  assert.match(block,/env\.HOSTED_AUTH_EMAIL_MUTATION_ATTEMPTED == 'true'/u);
+  assert.match(block,/IBERFIT_AUTH_EMAIL_ROLLBACK_CONFIRMATION: 'RESTORE_IBERFIT_AUTH_EMAILS_PROD'/u);
+  assert.match(block,/IBERFIT_AUTH_EMAIL_STATE_PATH: \/tmp\/iberfit-hosted-auth-email-before\.json/u);
+  assert.match(block,/IBERFIT_AUTH_EMAIL_ROLLBACK_EVIDENCE_PATH: recovery\/hosted-auth-emails\/prod-rollback\.json/u);
+  assert.match(block,/node scripts\/auth\/sync-hosted-auth-emails\.mjs --restore/u);
+  const uploadBlock=workflow.slice(upload);
+  assert.match(uploadBlock,/recovery\/hosted-auth-emails\//u);
 });
 
 test('la promoción activa OTP solo con sincronización y verificación SMTP fail-closed',()=>{
