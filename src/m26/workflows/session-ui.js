@@ -513,10 +513,14 @@ function previewMarkup(draft,catalog,mediaMap,role){
   </section>`;
 }
 export function renderSessionBuilder({draft,catalog,query='',filters={},templates=[],actionState,mediaMap,role='coach',exerciseMemoryFor=null}={}){
-  const results=catalog.search(query,filters).slice(0,24);
+  const matchingExercises=catalog.search(query,filters);
+  const results=matchingExercises.slice(0,24);
+  const remainingResults=matchingExercises.slice(24);
   const blocks=(draft.blocks||[]).map((block,index)=>block.type==='exercise'?exerciseEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor):groupEditor(block,catalog,index,mediaMap,role,exerciseMemoryFor)).join('')||'<p class="m26-empty-copy">Añade ejercicios desde la biblioteca.</p>';
   const metrics=draftMetrics(draft);
   const cards=results.map((item)=>`<button type="button" class="m26-exercise-result" data-session-action="add-exercise" data-exercise-id="${e(item.id)}">${renderExerciseMedia({manifest:mediaMap,exercise:item,role,compact:true,fallback:true})}<span class="m26-exercise-result-copy"><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small><em>${e((item.primary_muscles||[]).join(' · ')||'Musculatura no especificada')}</em></span><span class="m26-exercise-result-add" aria-hidden="true">＋</span></button>`).join('')||'<p class="m26-empty-copy">No hay coincidencias.</p>';
+  const remainingCards=remainingResults.map((item)=>`<button type="button" class="m26-list-card" data-session-action="add-exercise" data-exercise-id="${e(item.id)}"><span><strong>${e(exerciseDisplayName(item))}</strong><small>${e(item.pattern)} · ${e(item.equipment)}</small></span><span aria-hidden="true">＋</span></button>`).join('');
+  const remainingResultsMarkup=remainingResults.length?`<details class="m26-exercise-results-more"><summary>Ver ${e(remainingResults.length)} ejercicios más</summary><div class="m26-exercise-results">${remainingCards}</div></details>`:'';
   const primary=draft.previewAccepted?'':`<button type="button" class="m26-primary-action" data-session-action="preview">Revisar sesión</button><button type="button" data-session-action="publish" disabled aria-disabled="true" title="Revisa la sesión antes de publicarla">Publicar sesión</button>`;
   const templateOptions=(templates||[]).map((item)=>`<option value="${e(item.id)}">${e(item.name)} · v${e(item.version)} · ${e(item.blockCount)} bloques</option>`).join('');
   const templateControls=['coach','admin'].includes(String(role||''))?`<details class="m26-panel m26-panel-soft m26-builder-template-drawer" data-session-template-tools>
@@ -562,9 +566,10 @@ export function renderSessionBuilder({draft,catalog,query='',filters={},template
     ${templateControls}
     ${draft.previewAccepted?previewMarkup(draft,catalog,mediaMap,role):`<div class="m26-builder-grid m26-builder-workbench-grid">
       <aside class="m26-panel m26-builder-library" aria-label="Biblioteca de ejercicios">
-        <div class="m26-builder-column-heading"><div><p class="m26-eyebrow">Añadir</p><h3>Biblioteca</h3></div><span>${e(results.length)} resultados</span></div>
+        <div class="m26-builder-column-heading"><div><p class="m26-eyebrow">Añadir</p><h3>Biblioteca</h3></div><span>${e(matchingExercises.length)} resultados</span></div>
         <label>Buscar ejercicio<input type="search" value="${e(query)}" data-session-search autocomplete="off" placeholder="Nombre, patrón o material"></label>
         <div class="m26-exercise-results">${cards}</div>
+        ${remainingResultsMarkup}
         ${mediaMap?renderExerciseMediaCredit({compact:true}):''}
       </aside>
       <main class="m26-panel m26-builder-program" aria-label="Estructura de la sesión">
