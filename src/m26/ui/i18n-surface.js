@@ -534,6 +534,7 @@ const ROWS=Object.freeze([
   ['Últimos 90 días','Last 90 days','90 derniers jours','Últimos 90 dias'],
   ['Recuperación y bienestar','Recovery and wellbeing','Récupération et bien-être','Recuperação e bem-estar'],
   ['Actividad de dispositivos','Device activity','Activité des appareils','Atividade de dispositivos'],
+  ['No hay información de dispositivos para este periodo. El progreso se calcula únicamente con sesiones y registros de seguimiento confirmados.','There is no device information for this period. Progress is calculated only from confirmed sessions and follow-up records.','Aucune information d’appareil n’est disponible pour cette période. La progression est calculée uniquement à partir des séances et des suivis confirmés.','Não há informação de dispositivos para este período. O progresso é calculado apenas a partir de sessões e registos de acompanhamento confirmados.'],
   ['No se inventan datos ausentes','Missing data is never invented','Les données absentes ne sont jamais inventées','Os dados em falta nunca são inventados'],
   ['Construyendo tu línea base','Building your baseline','Construction de votre référence','A construir a sua linha de base'],
   ['Ritmo de entrenamiento','Training rhythm','Rythme d’entraînement','Ritmo de treino'],
