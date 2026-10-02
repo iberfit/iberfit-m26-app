@@ -164,7 +164,7 @@ create table if not exists public.iri_photogrammetry_captures_v1 (
   protocol_version text not null default 'iri-photo-2026.10-v1',
   captured_at timestamptz not null,
   uploaded_by uuid references auth.users(id) on delete set null,
-  status text not null default 'active' check (status in ('active','revoked')),
+  status text not null default 'pending_upload' check (status in ('pending_upload','active','revoked')),
   revoked_at timestamptz,
   created_at timestamptz not null default clock_timestamp(),
   constraint iri_photo_name_v1 check (
@@ -172,7 +172,7 @@ create table if not exists public.iri_photogrammetry_captures_v1 (
     and original_file_name !~ '[[:cntrl:]]'
   ),
   constraint iri_photo_revoked_v1 check (
-    (status='active' and revoked_at is null) or
+    (status in ('pending_upload','active') and revoked_at is null) or
     (status='revoked' and revoked_at is not null)
   )
 );
@@ -300,6 +300,15 @@ with check (
   and public.iberfit_iri_consent_active_v1(
     public.iberfit_photo_path_uuid_part_v1(name,2),'photography'
   )
+  and exists(
+    select 1 from public.iri_photogrammetry_captures_v1 c
+    where c.id=public.iberfit_photo_path_uuid_part_v1(name,4)
+      and c.client_id=public.iberfit_photo_path_uuid_part_v1(name,1)
+      and c.assessment_id=public.iberfit_photo_path_uuid_part_v1(name,2)
+      and c.view=public.iberfit_photo_path_view_v1(name)
+      and c.object_path=storage.objects.name
+      and c.status='pending_upload'
+  )
 );
 
 create policy iri_photo_object_read_v1
@@ -322,7 +331,7 @@ using (
 -- Deliberately no UPDATE or DELETE policy on the bucket:
 -- original captures are immutable. Privacy deletion is a privileged retention operation.
 
-create or replace function public.iberfit_register_iri_photo_v1(
+create or replace function public.iberfit_prepare_iri_photo_v1(
   p_capture_id uuid,
   p_client_id uuid,
   p_assessment_id uuid,
@@ -353,7 +362,8 @@ begin
   if not public.iberfit_can_manage_iri_private_v1(p_client_id) then
     raise exception 'IRI_V4_COACH_OR_ADMIN_REQUIRED' using errcode='42501';
   end if;
-  if p_view not in ('front','back','left','right')
+  if p_capture_id is null
+     or p_view not in ('front','back','left','right')
      or p_mime_type not in ('image/jpeg','image/png')
      or p_size_bytes is null or p_size_bytes<1 or p_size_bytes>15000000
      or lower(coalesce(p_sha256,'')) !~ '^[0-9a-f]{64}$'
@@ -386,12 +396,6 @@ begin
   if p_object_path is distinct from v_expected then
     raise exception 'IRI_V4_PHOTO_PATH_INVALID' using errcode='22023';
   end if;
-  if not exists(
-    select 1 from storage.objects o
-    where o.bucket_id='iberfit-iri-photogrammetry' and o.name=v_expected
-  ) then
-    raise exception 'IRI_V4_PHOTO_OBJECT_NOT_FOUND' using errcode='P0001';
-  end if;
 
   select * into v_existing
   from public.iri_photogrammetry_captures_v1 c
@@ -401,27 +405,102 @@ begin
        and v_existing.assessment_id=p_assessment_id
        and v_existing.view=p_view
        and v_existing.object_path=v_expected
-       and v_existing.sha256=lower(p_sha256) then
+       and v_existing.sha256=lower(p_sha256)
+       and v_existing.size_bytes=p_size_bytes
+       and v_existing.mime_type=p_mime_type
+       and v_existing.width_px=p_width_px
+       and v_existing.height_px=p_height_px
+       and v_existing.status in ('pending_upload','active') then
       return jsonb_build_object(
-        'ok',true,'kind','duplicate','id',v_existing.id,'objectPath',v_existing.object_path
+        'ok',true,'kind','duplicate','id',v_existing.id,'status',v_existing.status,
+        'objectPath',v_existing.object_path,'sha256',v_existing.sha256
       );
     end if;
     raise exception 'IRI_V4_PHOTO_ID_COLLISION' using errcode='23505';
   end if;
 
+  if exists(
+    select 1 from storage.objects o
+    where o.bucket_id='iberfit-iri-photogrammetry' and o.name=v_expected
+  ) then
+    raise exception 'IRI_V4_PHOTO_OBJECT_UNEXPECTED' using errcode='23505';
+  end if;
+
   insert into public.iri_photogrammetry_captures_v1(
     id,client_id,assessment_id,consent_id,view,object_path,original_file_name,
-    mime_type,size_bytes,sha256,width_px,height_px,source,captured_at,uploaded_by
+    mime_type,size_bytes,sha256,width_px,height_px,source,captured_at,uploaded_by,status
   ) values(
     p_capture_id,p_client_id,p_assessment_id,v_consent.id,p_view,v_expected,
     btrim(p_file_name),p_mime_type,p_size_bytes,lower(p_sha256),
-    p_width_px,p_height_px,p_source,p_captured_at,v_actor
+    p_width_px,p_height_px,p_source,p_captured_at,v_actor,'pending_upload'
   );
 
   return jsonb_build_object(
-    'ok',true,'kind','ack','id',p_capture_id,'clientId',p_client_id,
-    'assessmentId',p_assessment_id,'view',p_view,'objectPath',v_expected,
-    'sha256',lower(p_sha256),'capturedAt',p_captured_at
+    'ok',true,'kind','prepared','id',p_capture_id,'clientId',p_client_id,
+    'assessmentId',p_assessment_id,'view',p_view,'status','pending_upload',
+    'objectPath',v_expected,'sha256',lower(p_sha256),'capturedAt',p_captured_at
+  );
+end
+$$;
+
+create or replace function public.iberfit_finalize_iri_photo_v1(
+  p_capture_id uuid,
+  p_client_id uuid,
+  p_assessment_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare
+  v_actor uuid:=auth.uid();
+  v_row public.iri_photogrammetry_captures_v1%rowtype;
+begin
+  if v_actor is null then raise exception 'IRI_V4_AUTH_REQUIRED' using errcode='28000'; end if;
+  if not public.iberfit_can_manage_iri_private_v1(p_client_id) then
+    raise exception 'IRI_V4_COACH_OR_ADMIN_REQUIRED' using errcode='42501';
+  end if;
+
+  select * into v_row
+  from public.iri_photogrammetry_captures_v1 c
+  where c.id=p_capture_id
+    and c.client_id=p_client_id
+    and c.assessment_id=p_assessment_id
+  for update;
+
+  if v_row.id is null then
+    raise exception 'IRI_V4_PHOTO_PREPARE_REQUIRED' using errcode='P0001';
+  end if;
+  if v_row.status='active' then
+    return jsonb_build_object(
+      'ok',true,'kind','duplicate','id',v_row.id,'status',v_row.status,
+      'objectPath',v_row.object_path,'sha256',v_row.sha256
+    );
+  end if;
+  if v_row.status<>'pending_upload' then
+    raise exception 'IRI_V4_PHOTO_FINALIZE_STATE_INVALID' using errcode='22023';
+  end if;
+  if not public.iberfit_iri_consent_active_v1(p_assessment_id,'photography') then
+    raise exception 'IRI_V4_PHOTOGRAPHY_CONSENT_REQUIRED' using errcode='42501';
+  end if;
+  if not exists(
+    select 1 from storage.objects o
+    where o.bucket_id='iberfit-iri-photogrammetry'
+      and o.name=v_row.object_path
+  ) then
+    raise exception 'IRI_V4_PHOTO_OBJECT_NOT_FOUND' using errcode='P0001';
+  end if;
+
+  update public.iri_photogrammetry_captures_v1
+  set status='active'
+  where id=v_row.id
+  returning * into v_row;
+
+  return jsonb_build_object(
+    'ok',true,'kind','ack','id',v_row.id,'clientId',v_row.client_id,
+    'assessmentId',v_row.assessment_id,'view',v_row.view,'status',v_row.status,
+    'objectPath',v_row.object_path,'sha256',v_row.sha256,'capturedAt',v_row.captured_at
   );
 end
 $$;
@@ -540,13 +619,15 @@ $$;
 revoke all on function public.iberfit_can_manage_iri_private_v1(uuid) from public;
 revoke all on function public.iberfit_iri_consent_active_v1(uuid,text) from public;
 revoke all on function public.iberfit_record_iri_consent_v1(uuid,uuid,text,text,text,text) from public;
-revoke all on function public.iberfit_register_iri_photo_v1(uuid,uuid,uuid,text,text,text,bigint,text,integer,integer,text,timestamptz,text) from public;
+revoke all on function public.iberfit_prepare_iri_photo_v1(uuid,uuid,uuid,text,text,text,bigint,text,integer,integer,text,timestamptz,text) from public;
+revoke all on function public.iberfit_finalize_iri_photo_v1(uuid,uuid,uuid) from public;
 revoke all on function public.iberfit_save_iri_photogrammetry_analysis_v1(uuid,uuid,bigint,uuid,uuid,uuid,uuid,jsonb,jsonb,boolean) from public;
 
 grant execute on function public.iberfit_can_manage_iri_private_v1(uuid) to authenticated,service_role;
 grant execute on function public.iberfit_iri_consent_active_v1(uuid,text) to authenticated,service_role;
 grant execute on function public.iberfit_record_iri_consent_v1(uuid,uuid,text,text,text,text) to authenticated,service_role;
-grant execute on function public.iberfit_register_iri_photo_v1(uuid,uuid,uuid,text,text,text,bigint,text,integer,integer,text,timestamptz,text) to authenticated,service_role;
+grant execute on function public.iberfit_prepare_iri_photo_v1(uuid,uuid,uuid,text,text,text,bigint,text,integer,integer,text,timestamptz,text) to authenticated,service_role;
+grant execute on function public.iberfit_finalize_iri_photo_v1(uuid,uuid,uuid) to authenticated,service_role;
 grant execute on function public.iberfit_save_iri_photogrammetry_analysis_v1(uuid,uuid,bigint,uuid,uuid,uuid,uuid,jsonb,jsonb,boolean) to authenticated,service_role;
 
 -- Path helpers are needed by Storage RLS but disclose no data.
