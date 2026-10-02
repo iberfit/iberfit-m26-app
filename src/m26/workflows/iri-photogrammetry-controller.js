@@ -155,6 +155,14 @@ export function createIriPhotogrammetryController({
       .filter((item)=>item.view===view&&item.status==='pending_upload')
       .sort((a,b)=>String(b.capturedAt||b.createdAt||'').localeCompare(String(a.capturedAt||a.createdAt||'')))[0]||null;
   }
+  function dimensionsForLatest(latest=remote?.latestCaptures||{}){
+    return Object.fromEntries(ALL_VIEWS.flatMap((view)=>{
+      const capture=latest?.[view];
+      return capture&&Number(capture.widthPx)>0&&Number(capture.heightPx)>0
+        ?[[view,{widthPx:Number(capture.widthPx),heightPx:Number(capture.heightPx)}]]
+        :[];
+    }));
+  }
   function captureCard(view){
     const capture=remote?.latestCaptures?.[view]||null;
     const pending=pendingForView(view);
@@ -164,8 +172,7 @@ export function createIriPhotogrammetryController({
     return `<article class="m26-photo-view" data-iri-photo-view="${view}">
       <div class="m26-photo-view-head"><div><p class="m26-eyebrow">${escapeHtml(VIEW_LABELS[view])}</p><h4>${capture?'Original protegido':'Captura pendiente'}</h4></div><span class="m26-photo-state">${escapeHtml(capture?captureQualityCopy(capture):pending?'Subida incompleta':'Sin foto')}</span></div>
       <div class="m26-photo-stage" data-iri-photo-stage="${view}" tabindex="${url?'0':'-1'}" aria-label="${escapeHtml(VIEW_LABELS[view])}. ${url?'Activa un punto y pulsa sobre la imagen para marcarlo.':'Sin fotografía activa.'}">
-        ${url?`<img src="${escapeHtml(url)}" alt="Vista ${escapeHtml(VIEW_LABELS[view].toLowerCase())} para análisis privado" referrerpolicy="no-referrer" draggable="false">`:'<div class="m26-photo-placeholder"><span>Sin vista activa</span><small>El original no se publica en el informe.</small></div>'}
-        <svg class="m26-photo-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="${url?'false':'true'}">${Object.entries(points).map(([key,point])=>pointMarkup(view,key,point)).join('')}</svg>
+        ${url?`<div class="m26-photo-canvas" data-iri-photo-canvas="${view}"><img src="${escapeHtml(url)}" alt="Vista ${escapeHtml(VIEW_LABELS[view].toLowerCase())} para análisis privado" referrerpolicy="no-referrer" draggable="false"><svg class="m26-photo-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="false">${Object.entries(points).map(([key,point])=>pointMarkup(view,key,point)).join('')}</svg></div>`:'<div class="m26-photo-placeholder"><span>Sin vista activa</span><small>El original no se publica en el informe.</small></div>'}
       </div>
       <div class="m26-photo-view-actions">
         <label class="m26-photo-file ${photoAllowed?'':'is-disabled'}">Tomar o elegir foto
@@ -187,7 +194,7 @@ export function createIriPhotogrammetryController({
     const physical=granted(remote.physicalConsent,'physical_assessment',IRI_PHYSICAL_CONSENT_VERSION);
     const photo=photoConsentActive();
     const quality=currentQuality();
-    const measurements=calculatePhotogrammetryMeasurements(landmarks);
+    const measurements=calculatePhotogrammetryMeasurements(landmarks,{dimensionsByView:dimensionsForLatest()});
     const allCaptured=ALL_VIEWS.every((view)=>Boolean(remote.latestCaptures?.[view]));
     const allMarked=validateManualLandmarks(landmarks,ALL_VIEWS).ok;
     const canValidate=photo&&allCaptured&&allMarked&&!busy;
@@ -342,22 +349,23 @@ export function createIriPhotogrammetryController({
   function handleStageClick(event){
     if(!activeMarker)return false;
     const stage=event.target.closest?.('[data-iri-photo-stage]');if(!stage||stage.dataset.iriPhotoStage!==activeMarker.view)return false;
-    const point=stagePoint(stage,event);if(!point)return false;
+    const canvas=stage.querySelector?.('[data-iri-photo-canvas]');if(!canvas)return false;
+    const point=stagePoint(canvas,event);if(!point)return false;
     setPoint(activeMarker.view,activeMarker.key,point.x,point.y);activeMarker=null;render();status('Referencia visual actualizada. Guarda o valida el análisis cuando esté completo.','success');return true;
   }
   function pointKey(event){
     const button=event.target.closest?.('[data-iri-photo-point]');if(!button)return false;
     const [view,key]=String(button.dataset.iriPhotoPoint||'').split(':');const point=landmarks?.[view]?.[key];if(!point)return false;
-    const delta=event.shiftKey?.01:.003;let dx=0,dy=0;
+    const delta=event.shiftKey ? 0.01 : 0.003;let dx=0,dy=0;
     if(event.key==='ArrowLeft')dx=-delta;else if(event.key==='ArrowRight')dx=delta;else if(event.key==='ArrowUp')dy=-delta;else if(event.key==='ArrowDown')dy=delta;else return false;
     event.preventDefault();setPoint(view,key,point.x+dx,point.y+dy);render();return true;
   }
   function startPointDrag(event){
     const button=event.target.closest?.('[data-iri-photo-point]');if(!button)return false;
     const [view,key]=String(button.dataset.iriPhotoPoint||'').split(':');
-    const stage=button.closest?.('[data-iri-photo-stage]');if(!stage)return false;
+    const canvas=button.closest?.('[data-iri-photo-canvas]');if(!canvas)return false;
     event.preventDefault();button.setPointerCapture?.(event.pointerId);
-    const move=(moveEvent)=>{const point=stagePoint(stage,moveEvent);if(point){setPoint(view,key,point.x,point.y);button.dataset.x=String(point.x);button.dataset.y=String(point.y);button.setAttribute?.('transform',`translate(${Math.max(0,Math.min(1,point.x))*1000} ${Math.max(0,Math.min(1,point.y))*1000})`);}}
+    const move=(moveEvent)=>{const point=stagePoint(canvas,moveEvent);if(point){setPoint(view,key,point.x,point.y);button.dataset.x=String(point.x);button.dataset.y=String(point.y);button.setAttribute?.('transform',`translate(${Math.max(0,Math.min(1,point.x))*1000} ${Math.max(0,Math.min(1,point.y))*1000})`);}}
     const end=()=>{button.removeEventListener('pointermove',move);button.removeEventListener('pointerup',end);button.removeEventListener('pointercancel',end);render();};
     button.addEventListener('pointermove',move);button.addEventListener('pointerup',end);button.addEventListener('pointercancel',end);
     return true;
@@ -370,7 +378,7 @@ export function createIriPhotogrammetryController({
     const check=validateManualLandmarks(landmarks,validate?ALL_VIEWS:available);
     if(validate&&(!ALL_VIEWS.every((view)=>latest[view])||!check.ok))throw new Error('M26_IRI_PHOTO_ANALYSIS_INCOMPLETE');
     const normalized=normalizeManualLandmarks(landmarks);
-    const measurements=calculatePhotogrammetryMeasurements(normalized);
+    const measurements=calculatePhotogrammetryMeasurements(normalized,{dimensionsByView:dimensionsForLatest(latest)});
     const token=await getToken();
     await service.saveAnalysis(token,{
       clientId:ctx.clientId,assessmentId:ctx.assessmentId,baseRevision:Number(remote?.analysis?.revision||0),
