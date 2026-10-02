@@ -96,6 +96,7 @@ test('IRI v4 migration makes initial diagnosis unique and photogrammetry private
   assert.doesNotMatch(sql,/create policy iri_photo_object_(?:update|delete)/u);
   assert.match(sql,/original captures are immutable/u);
   assert.match(sql,/for select to authenticated[\s\S]+iberfit_can_manage_iri_private_v1/u);
+  assert.match(sql,/iberfit_iri_consent_active_v1[\s\S]+iberfit_can_manage_iri_private_v1\(c\.client_id\)/u);
   assert.match(sql,/status in \('pending_upload','active','revoked'\)/u);
   assert.match(sql,/iberfit_prepare_iri_photo_v1/u);
   assert.match(sql,/iberfit_finalize_iri_photo_v1/u);
