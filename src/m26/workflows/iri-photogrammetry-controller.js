@@ -96,7 +96,9 @@ function qualityLabel(quality){
 }
 function pointMarkup(view,key,point){
   const label=LANDMARK_LABELS[key]||key;
-  return `<button type="button" class="m26-photo-point" data-iri-photo-point="${escapeHtml(view)}:${escapeHtml(key)}" data-x="${Number(point.x)}" data-y="${Number(point.y)}" aria-label="${escapeHtml(label)}. Mueve con flechas o arrastra."><span></span></button>`;
+  const x=Math.max(0,Math.min(1,Number(point.x)||0))*1000;
+  const y=Math.max(0,Math.min(1,Number(point.y)||0))*1000;
+  return `<g class="m26-photo-point" data-iri-photo-point="${escapeHtml(view)}:${escapeHtml(key)}" data-x="${Number(point.x)}" data-y="${Number(point.y)}" transform="translate(${x} ${y})" tabindex="0" role="button" aria-label="${escapeHtml(label)}. Mueve con flechas o arrastra."><circle class="m26-photo-point-hit" r="60"></circle><circle class="m26-photo-point-core" r="16"></circle></g>`;
 }
 function markerButtons(view,landmarks={}){
   return IRI_PHOTO_LANDMARKS[view].map((key)=>{
@@ -163,7 +165,7 @@ export function createIriPhotogrammetryController({
       <div class="m26-photo-view-head"><div><p class="m26-eyebrow">${escapeHtml(VIEW_LABELS[view])}</p><h4>${capture?'Original protegido':'Captura pendiente'}</h4></div><span class="m26-photo-state">${escapeHtml(capture?captureQualityCopy(capture):pending?'Subida incompleta':'Sin foto')}</span></div>
       <div class="m26-photo-stage" data-iri-photo-stage="${view}" tabindex="${url?'0':'-1'}" aria-label="${escapeHtml(VIEW_LABELS[view])}. ${url?'Activa un punto y pulsa sobre la imagen para marcarlo.':'Sin fotografía activa.'}">
         ${url?`<img src="${escapeHtml(url)}" alt="Vista ${escapeHtml(VIEW_LABELS[view].toLowerCase())} para análisis privado" referrerpolicy="no-referrer" draggable="false">`:'<div class="m26-photo-placeholder"><span>Sin vista activa</span><small>El original no se publica en el informe.</small></div>'}
-        <div class="m26-photo-overlay" aria-hidden="${url?'false':'true'}">${Object.entries(points).map(([key,point])=>pointMarkup(view,key,point)).join('')}</div>
+        <svg class="m26-photo-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="${url?'false':'true'}">${Object.entries(points).map(([key,point])=>pointMarkup(view,key,point)).join('')}</svg>
       </div>
       <div class="m26-photo-view-actions">
         <label class="m26-photo-file ${photoAllowed?'':'is-disabled'}">Tomar o elegir foto
@@ -224,9 +226,9 @@ export function createIriPhotogrammetryController({
   }
   function positionPoints(){
     for(const point of root.querySelectorAll?.('[data-iri-photo-point]')||[]){
-      const x=Math.max(0,Math.min(1,Number(point.dataset.x)||0));
-      const y=Math.max(0,Math.min(1,Number(point.dataset.y)||0));
-      point.style.left=`${x*100}%`;point.style.top=`${y*100}%`;
+      const x=Math.max(0,Math.min(1,Number(point.dataset.x)||0))*1000;
+      const y=Math.max(0,Math.min(1,Number(point.dataset.y)||0))*1000;
+      point.setAttribute?.('transform',`translate(${x} ${y})`);
     }
   }
   function scheduleLoad(){
@@ -355,7 +357,7 @@ export function createIriPhotogrammetryController({
     const [view,key]=String(button.dataset.iriPhotoPoint||'').split(':');
     const stage=button.closest?.('[data-iri-photo-stage]');if(!stage)return false;
     event.preventDefault();button.setPointerCapture?.(event.pointerId);
-    const move=(moveEvent)=>{const point=stagePoint(stage,moveEvent);if(point){setPoint(view,key,point.x,point.y);button.dataset.x=String(point.x);button.dataset.y=String(point.y);button.style.left=`${Math.max(0,Math.min(1,point.x))*100}%`;button.style.top=`${Math.max(0,Math.min(1,point.y))*100}%`;}}
+    const move=(moveEvent)=>{const point=stagePoint(stage,moveEvent);if(point){setPoint(view,key,point.x,point.y);button.dataset.x=String(point.x);button.dataset.y=String(point.y);button.setAttribute?.('transform',`translate(${Math.max(0,Math.min(1,point.x))*1000} ${Math.max(0,Math.min(1,point.y))*1000})`);}}
     const end=()=>{button.removeEventListener('pointermove',move);button.removeEventListener('pointerup',end);button.removeEventListener('pointercancel',end);render();};
     button.addEventListener('pointermove',move);button.addEventListener('pointerup',end);button.addEventListener('pointercancel',end);
     return true;
