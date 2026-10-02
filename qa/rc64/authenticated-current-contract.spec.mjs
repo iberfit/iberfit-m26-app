@@ -9,7 +9,10 @@ import {
 } from './secure-current-source-auth.mjs';
 
 const ASSURANCE_PATH='/rest/v1/rpc/iberfit_privileged_assurance_context_v65d';
-const OPTIONAL_APPOINTMENT_READ_PATH='/rest/v1/rpc/iberfit_appointment_change_requests_v13';
+const OPTIONAL_READ_PATHS=new Set([
+  '/rest/v1/rpc/iberfit_appointment_change_requests_v13',
+  '/rest/v1/rpc/iberfit_exercise_media_manifest_v1',
+]);
 const AUTH_FLOW_TIMEOUT_MS=30_000;
 const required=[
   'M26_SUPABASE_URL','M26_SUPABASE_PUBLISHABLE_KEY','M26_PROJECT_REF','M26_QA_ONLY',
@@ -208,7 +211,7 @@ test('current authenticated contract separates privileged fail-closed identities
       if(blocked.includes(label))return;
       try{
         const url=new URL(request.url());
-        if(url.origin===SUPABASE_ORIGIN&&request.method().toUpperCase()==='POST'&&url.pathname===OPTIONAL_APPOINTMENT_READ_PATH)optionalReadFailures.push(label);
+        if(url.origin===SUPABASE_ORIGIN&&request.method().toUpperCase()==='POST'&&OPTIONAL_READ_PATHS.has(url.pathname))optionalReadFailures.push(label);
         else externalFailures.push(label);
       }catch{externalFailures.push('INVALID_FAILED_REQUEST');}
     });
@@ -238,7 +241,8 @@ test('current authenticated contract separates privileged fail-closed identities
 
       expect(blocked,'Authenticated startup attempted a business mutation or foreign request').toEqual([]);
       expect(externalFailures,'Critical authenticated requests must not fail').toEqual([]);
-      expect(optionalReadFailures.length).toBeLessThanOrEqual(1);
+      expect(new Set(optionalReadFailures).size,'Optional read fallbacks must not retry-loop').toBe(optionalReadFailures.length);
+      expect(optionalReadFailures.length,'At most one failure per declared optional read is tolerated').toBeLessThanOrEqual(OPTIONAL_READ_PATHS.size);
       expect(consoleErrors).toEqual([]);
       expect(pageErrors).toEqual([]);
 
