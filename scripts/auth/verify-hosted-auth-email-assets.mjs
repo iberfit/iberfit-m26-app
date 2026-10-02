@@ -110,6 +110,14 @@ function assertNoRedirect(response,label){
   }
 }
 
+function optionalPositiveContentLength(headers,code){
+  const raw=headers.get('content-length');
+  if(raw===null||String(raw).trim()==='')return null;
+  const value=Number(raw);
+  if(!Number.isFinite(value)||value<=0)fail(code);
+  return value;
+}
+
 export async function verifyEmailAsset(reference,{baseUrl=DEFAULT_BASE_URL,fetchImpl=fetch,maxBytes=DEFAULT_MAX_BYTES}={}){
   const target=targetFor(reference,baseUrl);
   const commonHeaders={
@@ -124,8 +132,7 @@ export async function verifyEmailAsset(reference,{baseUrl=DEFAULT_BASE_URL,fetch
     assertNoRedirect(head,'IBERFIT_AUTH_EMAIL_ASSET_HEAD');
     const headMime=String(head.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
     if(!headMime.startsWith('image/'))fail('IBERFIT_AUTH_EMAIL_ASSET_HEAD_MIME_NOT_IMAGE');
-    const headLength=Number(head.headers.get('content-length'));
-    if(Number.isFinite(headLength)&&headLength<=0)fail('IBERFIT_AUTH_EMAIL_ASSET_HEAD_LENGTH_INVALID');
+    optionalPositiveContentLength(head.headers,'IBERFIT_AUTH_EMAIL_ASSET_HEAD_LENGTH_INVALID');
   }
 
   const response=await fetchImpl(target,{method:'GET',redirect:'manual',headers:commonHeaders});
@@ -134,8 +141,7 @@ export async function verifyEmailAsset(reference,{baseUrl=DEFAULT_BASE_URL,fetch
   if(!contentType.toLowerCase().startsWith('image/'))fail('IBERFIT_AUTH_EMAIL_ASSET_GET_MIME_NOT_IMAGE');
   const body=new Uint8Array(await response.arrayBuffer());
   const info=inspectImagePayload(body,{url:target,contentType,maxBytes});
-  const declaredLength=Number(response.headers.get('content-length'));
-  if(Number.isFinite(declaredLength)&&declaredLength<=0)fail('IBERFIT_AUTH_EMAIL_ASSET_GET_LENGTH_INVALID');
+  const declaredLength=optionalPositiveContentLength(response.headers,'IBERFIT_AUTH_EMAIL_ASSET_GET_LENGTH_INVALID');
 
   return Object.freeze({
     reference,

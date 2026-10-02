@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 import {buildHostedAuthPatch,__hostedAuthEmailInternals} from '../scripts/auth/sync-hosted-auth-emails.mjs';
-import {inspectImagePayload} from '../scripts/auth/verify-hosted-auth-email-assets.mjs';
+import {inspectImagePayload,verifyEmailAsset} from '../scripts/auth/verify-hosted-auth-email-assets.mjs';
 
 const repoRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const templatesDir=path.join(repoRoot,'supabase','templates');
@@ -39,6 +39,42 @@ async function assertEmailImage(file,label){
   assert.ok(info.bytes<=500_000,`${label}: email image payload must remain proxy-friendly`);
   return info;
 }
+
+test('Hosted Auth remote asset verifier accepts omitted Content-Length only when GET bytes are valid',async()=>{
+  const hero=new Uint8Array(await readFile(path.join(repoRoot,'public','iberfit-email-access-hero.jpg')));
+  const methods=[];
+  const fetchImpl=async(_url,options={})=>{
+    methods.push(options.method);
+    if(options.method==='HEAD'){
+      return new Response(null,{status:200,headers:{'content-type':'image/jpeg'}});
+    }
+    return new Response(hero,{status:200,headers:{'content-type':'image/jpeg'}});
+  };
+
+  const result=await verifyEmailAsset(
+    'https://app.iberfit.cl/public/iberfit-email-access-hero.jpg',
+    {baseUrl:'https://preview.example.test',fetchImpl},
+  );
+
+  assert.deepEqual(methods,['HEAD','GET']);
+  assert.equal(result.declaredLength,null,'omitted Content-Length must remain unknown, never coerce to zero');
+  assert.equal(result.bytes,hero.length,'GET body bytes remain the source of truth');
+  assert.equal(result.format,'jpeg','GET payload must still pass binary JPEG validation');
+});
+
+test('Hosted Auth remote asset verifier rejects an explicit zero Content-Length',async()=>{
+  const fetchImpl=async()=>new Response(null,{
+    status:200,
+    headers:{'content-type':'image/jpeg','content-length':'0'},
+  });
+  await assert.rejects(
+    ()=>verifyEmailAsset(
+      'https://app.iberfit.cl/public/iberfit-email-access-hero.jpg',
+      {baseUrl:'https://preview.example.test',fetchImpl},
+    ),
+    /IBERFIT_AUTH_EMAIL_ASSET_HEAD_LENGTH_INVALID/,
+  );
+});
 
 test('Hosted Auth email templates preserve variables, safe structure, canonical sync and deployed public assets',async()=>{
   const manifest=JSON.parse(await readFile(manifestPath,'utf8'));
