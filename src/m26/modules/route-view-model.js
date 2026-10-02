@@ -242,15 +242,33 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={})
     client
   );
 
-  const experience = deriveClientExperience({
+  const lifecycleStatus=String(summary?.lifecycle?.status||'').trim().toLowerCase();
+  const iriOnly=lifecycleStatus==='iri_only';
+  const derivedExperience = deriveClientExperience({
     ...summary,
     profile,
   });
+  const experience = iriOnly
+    ?Object.freeze({
+        ...derivedExperience,
+        stage:'iri_only',
+        stageLabel:'Solo IRI · evaluación realizada',
+        priority:99,
+        attention:Object.freeze([]),
+      })
+    :derivedExperience;
 
-  const structuralNextAction = experienceNextAction(
-    experience,
-    { role }
-  );
+  const structuralNextAction = iriOnly
+    ?Object.freeze({
+        key:'view_iri_report',
+        label:'Abrir IRI e informe',
+        area:'iri',
+        reason:'Servicio IRI realizado; no existe entrenamiento activo.',
+      })
+    :experienceNextAction(
+        experience,
+        { role }
+      );
   const adaptiveContext=state&&client.id
     ?buildAdaptiveSessionContext(state,client.id,{now})
     :null;
@@ -269,6 +287,8 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={})
       profile.modalityLabel ||
       clientModalityLabel(text(client, 'modality', 'modalidad')),
     status: statusLabel(client),
+    lifecycleStatus,
+    lifecycleLabel: iriOnly?'Solo IRI':lifecycleStatus==='active'?'Cliente activo':lifecycleStatus||'Sin estado comercial',
     access: summary.access
       ? statusLabel(summary.access, 'Acceso registrado')
       : 'Acceso no informado',
@@ -474,7 +494,7 @@ function createRouteViewModelBase(shellVm, state, now = new Date(), options = {}
         overview.role,
         {state,now}
       )
-    );
+    ).filter((client)=>overview.role!=='coach'||client.lifecycleStatus!=='iri_only');
     qaStage('rc64-hoy-clients-ready');
 
     qaStage('rc64-hoy-cockpit-start');
