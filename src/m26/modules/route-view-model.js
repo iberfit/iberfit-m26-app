@@ -721,12 +721,15 @@ if (area === 'clientes') {
 
   if (area === 'iri') {
     const clientId = routeClientId(shellVm, state);
-    const assessments = recordsForClient(state, 'iriAssessments', clientId).sort(
-      (a, b) => String(domainDate(b) || '').localeCompare(String(domainDate(a) || ''))
-    );
-    const current = assessments.find(
+    const iriRecords = recordsForClient(state, 'iriAssessments', clientId)
+      .filter((record)=>{
+        const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
+        return !type||type==='inicial';
+      })
+      .sort((a, b) => String(domainDate(b) || '').localeCompare(String(domainDate(a) || ''));
+    const current = iriRecords.find(
       (record) => text(record, 'id') === state.selectedIriAssessmentId
-    ) || assessments[0] || null;
+    ) || iriRecords[0] || null;
     const rawProfile = recordsForClient(state, 'clientProfiles', clientId)[0] || null;
     const client = (state?.collections?.clients || []).find(
       (item) => item.id === clientId
@@ -735,10 +738,10 @@ if (area === 'clientes') {
       mergeProfileFallback(rawProfile || {}, profileFromIri(current)),
       client || {}
     );
-    const confirmedDecisionDrafts=assessments
-      .filter((record)=>compactIri(record)?.confirmed)
-      .map((record)=>confirmedFirstSessionDraft(record,clientId));
-    const decisionLog=buildIri2DecisionLog({assessments:confirmedDecisionDrafts});
+    const confirmedDraft=current&&compactIri(current)?.confirmed
+      ?confirmedFirstSessionDraft(current,clientId)
+      :null;
+    const decisionLog=buildIri2DecisionLog({assessments:confirmedDraft?[confirmedDraft]:[]});
 
     return Object.freeze({
       kind: 'iri',
@@ -746,7 +749,8 @@ if (area === 'clientes') {
       role: shellVm.identity?.role,
       current: clone(current),
       currentSummary: compactIri(current),
-      history: Object.freeze(assessments.map(compactActivity)),
+      baselineRecord: current?compactActivity(current):null,
+      history: Object.freeze([]),
       decisionLog,
       profile,
       sourceProfile: clone(rawProfile),
@@ -767,13 +771,16 @@ if (area === 'clientes') {
     const rawProfile=recordsForClient(state,'clientProfiles',clientId)[0]||null;
     const client=(state?.collections?.clients||[]).find((item)=>item.id===clientId);
     const profile=normalizeClientProfile(rawProfile||{},client||{});
-    const assessments=recordsForClient(state,'iriAssessments',clientId).sort(
-      (a,b)=>String(domainDate(b)||'').localeCompare(String(domainDate(a)||''))
-    );
-    const confirmedDecisionDrafts=assessments
-      .filter((record)=>compactIri(record)?.confirmed)
-      .map((record)=>confirmedFirstSessionDraft(record,clientId));
-    const decisionLog=buildIri2DecisionLog({assessments:confirmedDecisionDrafts});
+    const baselineIri=recordsForClient(state,'iriAssessments',clientId)
+      .filter((record)=>{
+        const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
+        return !type||type==='inicial';
+      })
+      .sort((a,b)=>String(domainDate(b)||'').localeCompare(String(domainDate(a)||'')))[0]||null;
+    const baselineDraft=baselineIri&&compactIri(baselineIri)?.confirmed
+      ?confirmedFirstSessionDraft(baselineIri,clientId)
+      :null;
+    const decisionLog=buildIri2DecisionLog({assessments:baselineDraft?[baselineDraft]:[]});
     const iriPlanningSeed=canEdit?buildIriPlanningSeed({decisionLog,profile}):null;
     return Object.freeze({
       kind: 'planificacion',
