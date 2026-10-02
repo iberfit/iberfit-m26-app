@@ -35,6 +35,7 @@ import {
 } from '../domain/civil-date.js';
 import { deriveAgeYears } from '../workflows/iri-profile.js';
 import {confirmedFirstSessionDraft} from '../workflows/iri-first-session.js';
+import {scoreIriPerformance} from '../norms/iri-scoring.js';
 import {buildIri2DecisionLog,buildIriPlanningSeed} from '../workflows/iri-2-longitudinal.js';
 import {getIberfitLanguage,iberfitLanguageOptions,iberfitLocaleOptions,iberfitPlannedLanguages} from '../ui/i18n.js';
 import {exerciseDisplayName} from '../exercises/names.js';
@@ -100,6 +101,8 @@ function objectiveMeasurement(value) {
 
 function compactIri(record) {
   if (!record) return null;
+  const body = record?.body && typeof record.body === 'object' ? record.body : record || {};
+  const liveScoring = scoreIriPerformance(body);
 
   const stepFinalHr = text(record, 'stepFinalHr', 'step_final_hr');
   const stepOneMinuteHr = text(
@@ -113,6 +116,7 @@ function compactIri(record) {
     'bodyComposition',
     'body_composition'
   );
+  const mobility = text(record,'mobility') || {};
   const strengthPatterns = text(
     record,
     'strengthPatterns',
@@ -179,11 +183,23 @@ function compactIri(record) {
         ? 'Evaluación en preparación'
         : 'Evaluación no iniciada',
     coverageCount,
-    coverageLabel: `${coverageCount} de 3 dominios de resultado registrados`,
-    domains,
-    normContextReady: normScoring?.context?.ok === true,
-    sexForNorms,
-    ageYears: Number.isFinite(ageYears) ? ageYears : null,
+    coverageLabel: liveScoring.global?.available
+      ? `${liveScoring.global.coverage.scoredDomains} de 3 dominios puntuables · confianza ${liveScoring.global.confidence==='high'?'alta':'moderada'}`
+      : 'Cobertura insuficiente para nota global',
+    domains:Object.freeze({
+      mobility: objectiveMeasurement(mobility),
+      strength: domains.strength,
+      cardio: domains.cardiovascular,
+      bodyComposition: domains.bodyComposition,
+    }),
+    normContextReady: liveScoring.context?.ok === true,
+    sexForNorms: liveScoring.context?.sexForNorms || sexForNorms,
+    ageYears: Number.isFinite(Number(liveScoring.context?.ageYears)) ? Number(liveScoring.context.ageYears) : Number.isFinite(ageYears) ? ageYears : null,
+    score100: liveScoring.global?.available ? liveScoring.global.score100 : null,
+    score10: liveScoring.global?.available ? liveScoring.global.score10 : null,
+    scoreConfidence: liveScoring.global?.confidence || 'insufficient',
+    scoreLabel: liveScoring.global?.label || 'Perfil IRI por dominios',
+    domainScores: liveScoring.domainScores,
   });
 }
 
@@ -197,6 +213,7 @@ function compactIriDiagnosis(record) {
     dateLabel: iri.dateLabel,
     classification:
       text(record, 'classification', 'clasificacion', 'resultClassification') ||
+      iri.scoreLabel ||
       'Perfil IRI por dominios',
     processLabel: iri.processLabel,
     coverageLabel: iri.coverageLabel,
