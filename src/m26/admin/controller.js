@@ -284,7 +284,8 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
 
     if(kind==='client-create'){
       if(!clientWizard.validateForSubmit(form))return false;
-      const weeklyFrequency=text(data,'weeklyFrequency',20);
+      const relationshipType=text(data,'relationshipType',30)||'training';
+      const weeklyFrequency=relationshipType==='iri_only'?'':text(data,'weeklyFrequency',20);
       const frequency=text(data,'frequency',100)||(weeklyFrequency?`${weeklyFrequency} sesiones por semana`:'');
       const profile={
         initialAssessmentMode:text(data,'initialAssessmentMode',30)||'iri',
@@ -322,6 +323,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         organizationId:org,
         payload:{
           name:text(data,'name',200),
+          relationshipType,
           email:text(data,'email',254),
           phone:text(data,'phone',80),
           birthDate:profile.birthDate,
@@ -356,7 +358,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           emergencyContactPhone:profile.emergencyContactPhone,
           profile,
         },
-      },invitationSuccess,{onSuccess:(result)=>{
+      },relationshipType==='iri_only'?(()=> 'Persona Solo IRI creada. El expediente y el diagnóstico quedan disponibles sin contar como cliente activo.'):invitationSuccess,{onSuccess:(result)=>{
         const clientId=createdClientId(result);
         if(clientId)pendingCreatedClientId=clientId;
         clientWizard.clear();
