@@ -1,10 +1,8 @@
--- IBERFIT IRI v4 · physical-consent enforcement checkpoint
--- No-op by design.
---
--- The canonical trigger is created additively in:
---   20261002031500_iri_initial_photogrammetry_v1.sql
---
--- This later checkpoint intentionally performs no DDL. It exists only to preserve
--- release sequencing after an intermediate QA-only cutover experiment was retired.
--- Production must never need DROP/DO/recreate logic to enforce the physical-consent
--- guard: a clean application of the canonical migration already installs it.
+-- IBERFIT IRI v4 · contract-phase physical-consent enforcement
+-- Apply only after the new IRI frontend is live and certified.
+-- The operational cutover compatibility step removes the trigger before frontend promotion.
+-- This canonical migration re-enables the fail-closed guard additively, without DROP or anonymous DO blocks.
+
+create trigger iri_require_physical_consent_v1
+before update of status on public.iri_assessments
+for each row execute function public.iberfit_require_physical_consent_before_iri_confirm_v1();

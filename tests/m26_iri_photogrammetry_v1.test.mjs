@@ -161,16 +161,16 @@ test('IRI photogrammetry hardening removes direct anon EXECUTE granted by projec
   assert.match(triggerHardening,/revoke all on function public\.iberfit_require_physical_consent_before_iri_confirm_v1\(\) from authenticated/u);
 });
 
-test('physical consent DB enforcement is canonical, additive and keeps operational cutover data-preserving',()=>{
+test('physical consent DB enforcement uses expand-contract without destructive canonical migrations',()=>{
   const canonical=fs.readFileSync(new URL('../supabase/migrations/20261002031500_iri_initial_photogrammetry_v1.sql',import.meta.url),'utf8');
   const compat=fs.readFileSync(new URL('../backend/IRI_PHOTOGRAMMETRY_V1_CUTOVER_COMPAT.sql',import.meta.url),'utf8');
-  const checkpoint=fs.readFileSync(new URL('../supabase/migrations/20261002113000_iri_physical_consent_enforcement.sql',import.meta.url),'utf8');
+  const enforce=fs.readFileSync(new URL('../supabase/migrations/20261002113000_iri_physical_consent_enforcement.sql',import.meta.url),'utf8');
   const rollback=fs.readFileSync(new URL('../backend/IRI_PHOTOGRAMMETRY_V1_ROLLBACK.sql',import.meta.url),'utf8');
   assert.match(canonical,/create trigger iri_require_physical_consent_v1[\s\S]+iberfit_require_physical_consent_before_iri_confirm_v1/u);
   assert.match(compat,/drop trigger if exists iri_require_physical_consent_v1 on public\.iri_assessments/u);
   assert.doesNotMatch(compat,/drop table|delete from|truncate/iu);
-  assert.match(checkpoint,/No-op by design/u);
-  assert.doesNotMatch(checkpoint,/\b(?:do|drop|alter|create|delete|truncate|update|insert)\b\s+/iu);
+  assert.match(enforce,/create trigger iri_require_physical_consent_v1[\s\S]+iberfit_require_physical_consent_before_iri_confirm_v1/u);
+  assert.doesNotMatch(enforce,/\bdo\s+\$|drop trigger|drop table|delete from|truncate/iu);
   assert.match(rollback,/drop trigger if exists iri_require_physical_consent_v1 on public\.iri_assessments/u);
   assert.doesNotMatch(rollback,/drop table|delete from|truncate|storage\.objects/iu);
 });
