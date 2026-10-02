@@ -68,6 +68,13 @@ export function landmarksForLatestCaptures(analysis,latest={}){
   }
   return out;
 }
+export function iriPhotoMutationRequiresReload(records,hostNode){
+  if(!hostNode)return true;
+  return Array.from(records||[]).some((record)=>{
+    const target=record?.target;
+    return Boolean(target)&&target!==hostNode&&!hostNode.contains?.(target);
+  });
+}
 function uuidV4(cryptoLike=globalThis.crypto){
   if(typeof cryptoLike?.randomUUID==='function')return cryptoLike.randomUUID();
   const bytes=new Uint8Array(16);
@@ -419,7 +426,9 @@ export function createIriPhotogrammetryController({
     root.addEventListener('pointerdown',onPointerDown);
     root.addEventListener('keydown',onKeyDown);
     if(typeof MutationObserver==='function'){
-      observer=new MutationObserver(()=>scheduleLoad());
+      observer=new MutationObserver((records)=>{
+        if(iriPhotoMutationRequiresReload(records,host()))scheduleLoad();
+      });
       observer.observe(root,{childList:true,subtree:true});
     }
     scheduleLoad();mounted=true;

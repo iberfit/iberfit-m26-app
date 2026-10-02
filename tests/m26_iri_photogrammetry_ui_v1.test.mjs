@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 import {
   iriPhotoAnalysisMatchesCapture,
+  iriPhotoMutationRequiresReload,
   landmarksForLatestCaptures,
 } from '../src/m26/workflows/iri-photogrammetry-controller.js';
 
@@ -25,6 +26,17 @@ test('landmarks validated for an old original are discarded when a view is repla
   assert.equal(iriPhotoAnalysisMatchesCapture(analysis,replacement,'front'),false);
   assert.deepEqual(landmarksForLatestCaptures(analysis,{front:replacement}),{});
   assert.ok(landmarksForLatestCaptures(analysis,{front:oldCapture}).front.shoulderLeft);
+});
+
+test('photogrammetry observer ignores self-renders and reloads for route/context mutations',()=>{
+  const child={kind:'workspace-child'};
+  const outside={kind:'route-shell'};
+  const host={contains:(node)=>node===child};
+
+  assert.equal(iriPhotoMutationRequiresReload([{target:host}],host),false);
+  assert.equal(iriPhotoMutationRequiresReload([{target:child}],host),false);
+  assert.equal(iriPhotoMutationRequiresReload([{target:outside}],host),true);
+  assert.equal(iriPhotoMutationRequiresReload([{target:outside}],null),true);
 });
 
 test('IRI route exposes optional four-view workspace and explicit physical consent',()=>{
