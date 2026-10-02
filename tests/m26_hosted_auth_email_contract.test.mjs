@@ -6,6 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 import {buildHostedAuthPatch,__hostedAuthEmailInternals} from '../scripts/auth/sync-hosted-auth-emails.mjs';
+import {inspectImagePayload} from '../scripts/auth/verify-hosted-auth-email-assets.mjs';
 
 const repoRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const templatesDir=path.join(repoRoot,'supabase','templates');
@@ -27,6 +28,16 @@ function referencesFrom(html){
 
 async function assertExists(file,label){
   await assert.doesNotReject(()=>access(file),label);
+}
+
+async function assertEmailImage(file,label){
+  const bytes=new Uint8Array(await readFile(file));
+  const extension=path.extname(file).toLowerCase();
+  const contentType=extension==='.png'?'image/png':extension==='.jpg'||extension==='.jpeg'?'image/jpeg':'application/octet-stream';
+  const info=inspectImagePayload(bytes,{url:`https://app.iberfit.cl/${path.basename(file)}`,contentType});
+  assert.ok(info.bytes>0,`${label}: image payload must not be empty`);
+  assert.ok(info.bytes<=500_000,`${label}: email image payload must remain proxy-friendly`);
+  return info;
 }
 
 test('Hosted Auth email templates preserve variables, safe structure, canonical sync and deployed public assets',async()=>{
@@ -58,7 +69,9 @@ test('Hosted Auth email templates preserve variables, safe structure, canonical 
       const local=localPublicPath(reference);
       if(!local) continue;
       publicAssets.add(local);
-      await assertExists(path.join(repoRoot,local),`${type}: referenced source asset does not exist: ${local}`);
+      const sourceAsset=path.join(repoRoot,local);
+      await assertExists(sourceAsset,`${type}: referenced source asset does not exist: ${local}`);
+      await assertEmailImage(sourceAsset,`${type}: referenced source asset is not a valid email-safe image: ${local}`);
     }
   }
 
@@ -97,7 +110,15 @@ test('Hosted Auth email templates preserve variables, safe structure, canonical 
     assert.ok(publicAssets.has('public/iberfit-email-isotipo.png'),'contract must observe the dedicated email isotipo');
     assert.ok(publicAssets.has('public/iberfit-email-access-hero.jpg'),'contract must observe the access hero');
     for(const asset of publicAssets){
-      await assertExists(path.join(distDir,asset),`referenced public asset is missing from canonical build: ${asset}`);
+      const builtAsset=path.join(distDir,asset);
+      await assertExists(builtAsset,`referenced public asset is missing from canonical build: ${asset}`);
+      const info=await assertEmailImage(builtAsset,`built email asset is invalid: ${asset}`);
+      if(asset.endsWith('iberfit-email-access-hero.jpg')){
+        assert.equal(info.format,'jpeg','hero must remain a real JPEG');
+        assert.equal(info.progressive,false,'hero must remain baseline JPEG for broad mail-client compatibility');
+        assert.ok(info.width>=620&&info.width<=1600,'hero width must remain suitable for email rendering');
+        assert.ok(info.height>=180&&info.height<=900,'hero height must remain suitable for email rendering');
+      }
     }
   }finally{
     await rm(distDir,{recursive:true,force:true});
