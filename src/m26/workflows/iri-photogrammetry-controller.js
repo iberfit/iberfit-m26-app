@@ -13,6 +13,7 @@ import {
   IRI_PHOTO_LANDMARKS,
   IRI_PHOTO_VIEWS,
   calculatePhotogrammetryMeasurements,
+  interpretPhotogrammetryMeasurements,
   normalizeManualLandmarks,
   photogrammetryDataQuality,
   validateManualLandmarks,
@@ -113,6 +114,17 @@ function markerButtons(view,landmarks={}){
     return `<button type="button" class="m26-photo-landmark-chip${exists?' is-set':''}" data-iri-photo-mark="${escapeHtml(view)}:${escapeHtml(key)}" aria-pressed="false">${escapeHtml(LANDMARK_LABELS[key]||key)}${exists?' · marcada':''}</button>`;
   }).join('');
 }
+function interpretationRows(interpretation={}){
+  if(!interpretation?.available)return '<p class="m26-photo-notice">La interpretación se habilita al validar las cuatro vistas y todos los puntos manuales.</p>';
+  const signals=Array.isArray(interpretation.reproducibleSignals)?interpretation.reproducibleSignals:[];
+  const differences=(Array.isArray(interpretation.observations)?interpretation.observations:[]).filter((item)=>item?.kind==='bilateral_difference');
+  const signalHtml=signals.length
+    ?signals.map((item)=>`<article class="m26-photo-finding"><span>Revisar</span><strong>${escapeHtml(item.label)}</strong><p>${escapeHtml(item.direction)} · frontal ${Number(item.frontDeg).toFixed(1)}° · posterior ${Number(item.backDeg).toFixed(1)}°</p><small>${escapeHtml(item.message)}</small></article>`).join('')
+    :'<article class="m26-photo-finding"><span>Sin señal reproducida</span><strong>No hay una inclinación del mismo sentido en frontal y posterior.</strong><p>Esto no equivale a “postura perfecta”; sólo describe la consistencia de estas capturas.</p></article>';
+  const differenceHtml=differences.map((item)=>`<article class="m26-photo-finding"><span>Diferencia entre lados</span><strong>${escapeHtml(item.label)}</strong><p>${Number(item.differenceDeg).toFixed(1)}° · diferencia relativa ${item.asymmetryPercent===null?'—':Number(item.asymmetryPercent).toFixed(1)+'%'}</p></article>`).join('');
+  return `<div class="m26-photo-findings">${signalHtml}${differenceHtml}</div><p class="m26-photo-notice">Lectura geométrica orientativa. No clasifica una postura como sana/enferma ni sustituye evaluación clínica.</p>`;
+}
+
 function metricRows(measurements={}){
   const rows=Array.isArray(measurements?.metrics)?measurements.metrics:[];
   if(!rows.length)return '<p class="m26-photo-empty">Aún no hay medidas geométricas.</p>';
@@ -202,6 +214,7 @@ export function createIriPhotogrammetryController({
     const photo=photoConsentActive();
     const quality=currentQuality();
     const measurements=calculatePhotogrammetryMeasurements(landmarks,{dimensionsByView:dimensionsForLatest()});
+    const interpretation=interpretPhotogrammetryMeasurements(measurements,{quality});
     const allCaptured=ALL_VIEWS.every((view)=>Boolean(remote.latestCaptures?.[view]));
     const allMarked=validateManualLandmarks(landmarks,ALL_VIEWS).ok;
     const canValidate=photo&&allCaptured&&allMarked&&!busy;
@@ -226,6 +239,7 @@ export function createIriPhotogrammetryController({
       <section class="m26-photo-analysis">
         <div class="m26-photo-analysis-head"><div><p class="m26-eyebrow">Análisis derivado</p><h4>Medidas geométricas orientativas</h4><p>Los ángulos se calculan exclusivamente desde los puntos que el Coach coloca y valida.</p></div><span>Revisión ${Number(remote.analysis?.revision||0)}</span></div>
         ${metricRows(measurements)}
+        <div class="m26-photo-interpretation"><p class="m26-eyebrow">Observaciones automáticas</p>${interpretationRows(interpretation)}</div>
         <div class="m26-photo-analysis-actions">
           <button type="button" data-iri-photo-analysis="draft" ${photo&&!busy?'':'disabled'}>Guardar borrador</button>
           <button type="button" class="m26-primary-action" data-iri-photo-analysis="validate" ${canValidate?'':'disabled'}>Validar análisis de 4 vistas</button>
@@ -385,7 +399,10 @@ export function createIriPhotogrammetryController({
     const check=validateManualLandmarks(landmarks,validate?ALL_VIEWS:available);
     if(validate&&(!ALL_VIEWS.every((view)=>latest[view])||!check.ok))throw new Error('M26_IRI_PHOTO_ANALYSIS_INCOMPLETE');
     const normalized=normalizeManualLandmarks(landmarks);
-    const measurements=calculatePhotogrammetryMeasurements(normalized,{dimensionsByView:dimensionsForLatest(latest)});
+    const baseMeasurements=calculatePhotogrammetryMeasurements(normalized,{dimensionsByView:dimensionsForLatest(latest)});
+    const quality=photogrammetryDataQuality({captures:Object.values(latest).filter(Boolean),landmarks:normalized,validated:Boolean(validate)});
+    const interpretation=interpretPhotogrammetryMeasurements(baseMeasurements,{quality});
+    const measurements={...baseMeasurements,interpretation};
     const token=await getToken();
     await service.saveAnalysis(token,{
       clientId:ctx.clientId,assessmentId:ctx.assessmentId,baseRevision:Number(remote?.analysis?.revision||0),
