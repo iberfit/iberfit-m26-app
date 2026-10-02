@@ -93,7 +93,7 @@ function labelFor(form,name,fallback='Sin completar'){
 function updateReview(form){
   const map={
     identity:['name','email','phone'],
-    service:['modality','weeklyFrequency','sessionDurationMinutes','coachUserId'],
+    service:['relationshipType','modality','weeklyFrequency','sessionDurationMinutes','coachUserId'],
     objective:['objective','level'],
     logistics:['zone','address','preferredSchedule'],
     safety:['restrictions','pain','emergencyContactName'],
@@ -105,6 +105,28 @@ function updateReview(form){
     node.textContent=values.length?values.join(' · '):'Sin completar';
   }
 }
+function syncRelationshipType(form){
+  if(!form)return 'training';
+  const relationship=String(form.elements?.namedItem?.('relationshipType')?.value||'training').trim()||'training';
+  const iriOnly=relationship==='iri_only';
+  for(const name of ['weeklyFrequency','sessionDurationMinutes']){
+    const control=form.elements?.namedItem?.(name);
+    if(!control)continue;
+    control.required=!iriOnly;
+    control.disabled=iriOnly;
+    control.setAttribute?.('aria-disabled',iriOnly?'true':'false');
+    const label=control.closest?.('[data-training-only-field],label');
+    if(label)label.hidden=iriOnly;
+  }
+  const outcome=form.querySelector?.('[data-client-create-outcome] p');
+  if(outcome)outcome.textContent=iriOnly
+    ?'IBERFIT creará una persona “Solo IRI”: conservará expediente, Coach responsable, diagnóstico, documentos y trazabilidad, pero no contará como cliente activo ni exigirá frecuencia de entrenamiento.'
+    :'IBERFIT creará el expediente de entrenamiento, vinculará al Coach responsable y conservará el proceso de alta hasta la activación.';
+  const submit=form.querySelector?.('[data-client-create-submit]');
+  if(submit)submit.textContent=iriOnly?'Crear persona Solo IRI':'Crear expediente';
+  return relationship;
+}
+
 function setStep(form,step,{focus=false}={}){
   const next=clampStep(step);
   form.dataset.clientCurrentStep=String(next);
@@ -196,6 +218,7 @@ export function createClientCreateWizard({
     }else{
       setStep(form,DEFAULT_STEP);
     }
+    syncRelationshipType(form);
     updateReview(form);
     return true;
   }
@@ -293,6 +316,7 @@ export function createClientCreateWizard({
     const form=currentForm(event.target);
     if(!form)return;
     initialize(form);
+    syncRelationshipType(form);
     updateReview(form);
     if(event.type==='change')save(form);
     else scheduleSave(form);
@@ -330,5 +354,5 @@ export function createClientCreateWizard({
 
 export const __clientCreateWizardInternals=Object.freeze({
   DRAFT_SCHEMA,DRAFT_PREFIX,LEGACY_DRAFT_PREFIX,DRAFT_MAX_AGE_MS,INPUT_SAVE_DELAY_MS,MAX_STEP,
-  clampStep,keyFor,legacyKeyFor,collect,assign,setStep,readDraft,writeDraft,
+  clampStep,keyFor,legacyKeyFor,collect,assign,setStep,readDraft,writeDraft,syncRelationshipType,
 });
