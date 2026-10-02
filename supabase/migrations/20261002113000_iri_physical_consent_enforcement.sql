@@ -1,21 +1,10 @@
--- IBERFIT IRI v4 · additive contract-phase activation
--- Creates the physical-consent trigger only when the operational cutover intentionally left it absent.
--- This canonical migration never drops data or schema objects.
-
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_trigger
-    where tgrelid='public.iri_assessments'::regclass
-      and tgname='iri_require_physical_consent_v1'
-      and not tgisinternal
-  ) then
-    execute $sql$
-      create trigger iri_require_physical_consent_v1
-      before update of status on public.iri_assessments
-      for each row execute function public.iberfit_require_physical_consent_before_iri_confirm_v1()
-    $sql$;
-  end if;
-end
-$$;
+-- IBERFIT IRI v4 · physical-consent enforcement checkpoint
+-- No-op by design.
+--
+-- The canonical trigger is created additively in:
+--   20261002031500_iri_initial_photogrammetry_v1.sql
+--
+-- This later checkpoint intentionally performs no DDL. It exists only to preserve
+-- release sequencing after an intermediate QA-only cutover experiment was retired.
+-- Production must never need DROP/DO/recreate logic to enforce the physical-consent
+-- guard: a clean application of the canonical migration already installs it.
