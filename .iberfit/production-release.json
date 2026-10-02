@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "841e0fb65bbe2667d134d040f3ac9bdd48fef281",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "IRI v2 scoring, private photogrammetry and persistent bioimpedance evidence"
+}
