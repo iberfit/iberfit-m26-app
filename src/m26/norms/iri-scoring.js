@@ -72,7 +72,7 @@ function cardioDomain(draft,context){
   const repetitions=cardio.repetitions??draft.oneMinuteSitToStandRepetitions;
   const valid=(cardio.valid??draft.cardioValid)===true;
   if(protocol!=='1msts-standard'){
-    return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:null,score10:null,scored:false,tests:Object.freeze([]),aggregation:'protocol_specific',warnings:Object.freeze(protocol?['IRI_SCORE_CARDIO_PROTOCOL_NOT_NORMED']:['IRI_SCORE_CARDIO_MISSING']),note:protocol==='ymca-3min-standard'?'YMCA se conserva como resultado descriptivo; no utiliza baremos 1MSTS.':'No hay un 1MSTS estándar válido para puntuar.'});
+    return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:null,score10:null,scored:false,tests:Object.freeze([]),aggregation:'protocol_specific',warnings:Object.freeze(protocol?['IRI_SCORE_CARDIO_PROTOCOL_NOT_NORMED']:['IRI_SCORE_CARDIO_MISSING']),note:protocol==='ymca-3min-standard'?'YMCA se conserva como resultado descriptivo; no utiliza baremos 1MSTS.':protocol==='treadmill-3min-submax'?'Cinta 3 min se conserva como baseline individual de recuperación FC; no utiliza baremos clínicos ni 1MSTS.':'No hay un 1MSTS estándar válido para puntuar.'});
   }
   const test=scoredTest({key:'one_minute_sit_to_stand',domain:'cardio',testId:'one_minute_sit_to_stand',value:repetitions,context,protocolId:'1msts_standard_60s',valid:valid&&Number(cardio.durationSeconds??60)===60});
   return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:test.scored?test.score:null,score10:test.scored?test.grade10:null,scored:test.scored,tests:Object.freeze([test]),aggregation:'1msts_reference',warnings:Object.freeze(test.warnings||[])});
