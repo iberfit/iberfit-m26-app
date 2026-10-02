@@ -327,6 +327,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           birthDate:profile.birthDate,
           sexForNorms:profile.sexForNorms,
           initialAssessmentMode:profile.initialAssessmentMode,
+          initialLifecycleStatus:text(data,'serviceIntent',40)==='iri_only'?'iri_only':'onboarding',
           coachUserId:text(data,'coachUserId',200),
           modality:profile.modality,
           weeklyFrequency:profile.weeklyFrequency,
@@ -391,6 +392,17 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     void onSubmit(event).catch((error)=>toast(/ADMIN_CONFIGURATION_JSON_INVALID/.test(String(error?.message||error))?'La configuración JSON no es válida.':'No fue posible procesar la operación administrativa.'));
   }
   function onDirectoryFilter(event){
+    const personFilter=event.target?.closest?.('[data-admin-person-filter]');
+    if(personFilter){
+      const selected=String(personFilter.value||'all');let visible=0;
+      for(const row of root.querySelectorAll?.('[data-admin-person-status]')||[]){
+        row.hidden=selected!=='all'&&row.getAttribute('data-admin-person-status')!==selected;
+        if(!row.hidden)visible+=1;
+      }
+      const feedback=root.querySelector?.('[data-admin-person-filter-status]');
+      if(feedback)feedback.textContent=visible?`${visible} personas visibles`:'No hay personas con este estado.';
+      return;
+    }
     if(!event.target?.closest?.('[data-admin-user-search],[data-admin-user-filter]'))return;
     applyUserDirectoryFilters(root);
   }

@@ -1,5 +1,79 @@
 import {test,expect} from '@playwright/test';
 
+test('Solo IRI filters and conversion preserve the person through the real Admin controller',async({page})=>{
+  const errors=capturePageErrors(page);
+  await page.goto('/qa/admin-interaction/fixture.html?route=clients&lifecycle=1');
+  const filter=page.locator('[data-admin-person-filter]');
+  const iri=page.locator('[data-admin-client-id="iri-person"]');
+  const active=page.locator('[data-admin-client-id="active-person"]');
+  await filter.selectOption('iri_only');
+  await expect(iri).toBeVisible();await expect(active).toBeHidden();
+  const cycle=iri.locator('[data-admin-form="client-lifecycle"]');
+  await expect(cycle.locator('[name="status"]')).toHaveValue('iri_only');
+  await cycle.locator('[name="status"]').selectOption('active');
+  await cycle.locator('[name="reason"]').fill('Comienza entrenamiento');
+  await cycle.locator('button[type="submit"]').click();
+  await expect(iri).toHaveAttribute('data-admin-person-status','active');
+  await expect(page.locator('[data-admin-client-id]')).toHaveCount(2);
+  expect((await page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__.commands()))[0].payload).toEqual({clientId:'iri-person',status:'active'});
+  expect(errors).toEqual([]);
+});
+
+test('Solo IRI wizard submits without a weekly training frequency',async({page})=>{
+  await page.goto('/qa/admin-interaction/fixture.html?route=clients');
+  const form=page.locator('[data-admin-form="client-create"]');
+  await form.locator('[name="name"]').fill('Persona IRI QA');
+  await form.locator('[name="email"]').fill('qa-persona@example.invalid');
+  await form.locator('[name="phone"]').fill('+56 9 5555 0202');
+  await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
+  await form.locator('[name="serviceIntent"]').selectOption('iri_only');
+  await form.locator('[name="modality"]').selectOption('Presencial');
+  await expect(form.locator('[name="weeklyFrequency"]')).not.toHaveAttribute('required');
+  await expect(form.locator('[name="initialAssessmentMode"]')).toHaveValue('iri');
+  await form.locator('[data-client-step="2"] [data-client-wizard-next]').click();
+  await form.locator('[name="objective"]').fill('Conocer mi punto de partida');
+  await form.locator('[data-client-step="3"] [data-client-wizard-next]').click();
+  await form.locator('[data-client-step="4"] [data-client-wizard-next]').click();
+  await form.locator('[data-client-create-submit]').click();
+  const commands=await page.evaluate(()=>globalThis.__IBERFIT_ADMIN_INTERACTION_QA__.commands());
+  expect(commands).toHaveLength(1);
+  expect(commands[0].payload.initialLifecycleStatus).toBe('iri_only');
+  expect(commands[0].payload.frequency).toBe('');
+});
+
+test('field presets and results retain exact protocols without invented norms',async({page})=>{
+  const errors=capturePageErrors(page);
+  await page.goto('/qa/admin-interaction/iri-field.fixture.html');
+  const form=page.locator('[data-workflow-form="iri"]');
+  await expect(form.locator('[name="weeklyFrequency"]')).toHaveValue('');
+  await expect(form.locator('[name="weeklyFrequency"]')).not.toHaveAttribute('required');
+  await form.getByText('Preparación rápida de terreno',{exact:true}).click();
+  for(const preset of ['floor','knees','trx','treadmill'])await form.locator(`[data-iri-setup-preset="${preset}"]`).click();
+  expect(errors,'the field fixture and controller must initialize without runtime errors').toEqual([]);
+  await expect(form.locator('[data-iri-preset-status]')).toContainText('Preparación aplicada');
+  // Populate hidden wizard steps through DOM to inspect the real controller's
+  // normalization without manufacturing completed-step or approval state.
+  await form.evaluate((node)=>{
+    const values={pushUps:'12',pushDurationSeconds:'60',pushValid:'on',trxRowRepetitions:'14',trxHeelDistanceCm:'110',trxValid:'on',squat60Repetitions:'32',squat60DepthCriterion:'Paralelo visual',squat60Stance:'Base cómoda',squat60Valid:'on',treadmillSpeedKmh:'7',treadmillLocomotionMode:'jog',cardioHrMethod:'chest-strap',cardioRecoveryMode:'standing-passive',stepFinalHr:'150',stepOneMinuteHr:'120',twoMinuteHr:'105',cardioValid:'on'};
+    for(const [name,value] of Object.entries(values)){
+      const control=node.elements.namedItem(name);
+      if(control.type==='checkbox')control.checked=true;else control.value=value;
+      control.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+  });
+  const draft=await page.evaluate(()=>globalThis.__IBERFIT_IRI_FIELD_QA__.draft());
+  expect(draft.cardio.deltaOneMinute).toBe(30);expect(draft.cardio.deltaTwoMinute).toBe(45);
+  for(const id of ['push-test','trx-row','bodyweight-squat-60s','treadmill-three-minute-field']){
+    const record=draft.protocolRecords.find((r)=>r.testId===id);
+    expect(record.valid,id).toBe(true);expect(record.normEligible,id).toBe(false);
+  }
+  expect(draft.strength.trxRow.handleHeightCm).toBe(100);
+  expect(draft.strength.trxRow.durationSeconds).toBe(60);
+  expect(draft.protocolRecords.find((r)=>r.testId==='push-test').protocolMode).toBe('adapted_comparable');
+  await expect(form.locator('[data-iri-norm="pushUps"]')).toContainText('Sin nota automática');
+  expect(errors).toEqual([]);
+});
+
 function capturePageErrors(page){
   const errors=[];
   page.on('pageerror',(error)=>errors.push(String(error?.message||error)));

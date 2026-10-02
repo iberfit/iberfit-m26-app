@@ -41,7 +41,7 @@ function clientRows(state){
     const now=!Number.isNaN(parsedNow.getTime())?parsedNow:new Date();
     const adaptiveContext=buildAdaptiveSessionContext(state,id,{now});
     const adaptiveExperience=deriveAdaptiveExperience({experience,baseAction:structuralNextAction,adaptiveContext,role:'admin'});
-    const nextAction=adaptiveExperience.action;
+    const nextAction=String(life.get(id)?.status||'')==='iri_only'?{key:'review_iri',label:'Revisar IRI e informe',area:'iri',reason:'Persona evaluada · Solo IRI'}:adaptiveExperience.action;
     const rawProfile=profiles.get(id)||null;
     const profile=rawProfile?.profile&&typeof rawProfile.profile==='object'&&!Array.isArray(rawProfile.profile)?clone(rawProfile.profile):{};
     const access=clone(accessByClient.get(id)||null);
@@ -60,6 +60,8 @@ function clientRows(state){
       profile:Object.freeze(profile),
       access,
       lifecycle:clone(life.get(id)||null),
+      lifecycleStatus:String(life.get(id)?.status||x.status||''),
+      serviceKind:String(life.get(id)?.status||x.status||'')==='iri_only'?'iri_only':'training',
       assignments:activeAssignments,
       coachNames,
       primaryCoachName:coachNames[0]||null,
@@ -236,8 +238,12 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
   const safeNow=dateTime(now)||new Date();
   const clientById=new Map((clients||[]).map((client)=>[recordId(client?.id),client]));
   const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
+  const trainingAssignment=(assignment)=>{
+    const client=clientById.get(recordId(assignment?.clientId));
+    return normalizeStatus(client?.lifecycle?.status||client?.status)!=='iri_only';
+  };
   return Object.freeze(coachSubjects(coaches,users).map(({coachId,coach,user})=>{
-    const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId);
+    const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId&&trainingAssignment(assignment));
     const clientIds=[...new Set(ownAssignments.map((assignment)=>recordId(assignment?.clientId)).filter(Boolean))];
     const clientIdSet=new Set(clientIds);
     const coachPlanningSessions=(planningSessions||[]).filter((session)=>clientIdSet.has(recordId(session?.clientId??session?.client_id))&&isCoachLaunchPlanningPublished(session));

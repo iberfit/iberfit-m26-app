@@ -65,6 +65,7 @@ test('client create payload captures richer profile data needed by IRI 2.0 witho
     'birthDate',
     'sexForNorms',
     'initialAssessmentMode',
+    'initialLifecycleStatus',
     'weeklyFrequency',
     'sessionDurationMinutes',
     'preferredSchedule',
@@ -75,6 +76,15 @@ test('client create payload captures richer profile data needed by IRI 2.0 witho
   assert.match(controller,/frequency,/u);
   assert.match(controller,/primaryObjective/u);
   assert.match(controller,/trainingAddress/u);
+});
+
+test('alta distingue entrenamiento de Solo IRI sin exigir frecuencia de entrenamiento',()=>{
+  assert.match(render,/name="serviceIntent"/);
+  assert.match(render,/Solo IRI · evaluación e informe/);
+  assert.match(wizardSource,/updateServiceIntent/);
+  assert.match(wizardSource,/field\.required=!iriOnly/);
+  assert.match(wizardSource,/assessment\.value='iri'/);
+  assert.match(controller,/initialLifecycleStatus:text\(data,'serviceIntent',40\)==='iri_only'\?'iri_only':'onboarding'/);
 });
 
 test('wizard stays premium/responsive and ships inside the installed PWA release shell',()=>{

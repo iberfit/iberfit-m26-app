@@ -93,7 +93,7 @@ function labelFor(form,name,fallback='Sin completar'){
 function updateReview(form){
   const map={
     identity:['name','email','phone'],
-    service:['modality','weeklyFrequency','sessionDurationMinutes','coachUserId'],
+    service:['serviceIntent','modality','weeklyFrequency','sessionDurationMinutes','coachUserId'],
     objective:['objective','level'],
     logistics:['zone','address','preferredSchedule'],
     safety:['restrictions','pain','emergencyContactName'],
@@ -105,6 +105,31 @@ function updateReview(form){
     node.textContent=values.length?values.join(' · '):'Sin completar';
   }
 }
+function updateServiceIntent(form){
+  const intent=String(form?.elements?.namedItem?.('serviceIntent')?.value||'training');
+  const iriOnly=intent==='iri_only';
+  for(const name of ['weeklyFrequency','sessionDurationMinutes']){
+    const field=form?.elements?.namedItem?.(name);
+    if(!field)continue;
+    field.required=!iriOnly;
+    if(iriOnly)field.removeAttribute?.('required');else field.setAttribute?.('required','');
+    field.setAttribute?.('aria-required',iriOnly?'false':'true');
+  }
+  const assessment=form?.elements?.namedItem?.('initialAssessmentMode');
+  if(assessment){
+    const deferred=[...(assessment.options||[])].find((option)=>option.value==='deferred');
+    if(iriOnly){assessment.value='iri';if(deferred)deferred.disabled=true;}
+    else if(deferred)deferred.disabled=false;
+  }
+  const outcome=form?.querySelector?.('[data-client-create-outcome] p');
+  if(outcome)outcome.textContent=iriOnly
+    ?'Se creará una persona con expediente IRI, sin entrenamiento activo. Podrá conservar Coach responsable, informe, fotos privadas y acceso si corresponde.'
+    :'Se creará el expediente de entrenamiento, se vinculará al Coach responsable y se preparará el acceso seguro.';
+  const submit=form?.querySelector?.('[data-client-create-submit]');
+  if(submit)submit.textContent=iriOnly?'Crear persona Solo IRI':'Crear cliente y preparar acceso';
+  return iriOnly;
+}
+
 function setStep(form,step,{focus=false}={}){
   const next=clampStep(step);
   form.dataset.clientCurrentStep=String(next);
@@ -192,8 +217,10 @@ export function createClientCreateWizard({
       assign(form,draft.fields);
       const status=form.querySelector?.('[data-client-draft-status]');
       if(status)status.textContent='Borrador recuperado';
+      updateServiceIntent(form);
       setStep(form,draft.step||DEFAULT_STEP);
     }else{
+      updateServiceIntent(form);
       setStep(form,DEFAULT_STEP);
     }
     updateReview(form);
@@ -263,6 +290,7 @@ export function createClientCreateWizard({
     if(discard){
       clear();
       form.reset?.();
+      updateServiceIntent(form);
       setStep(form,DEFAULT_STEP,{focus:true});
       const status=form.querySelector?.('[data-client-draft-status]');
       if(status)status.textContent='Borrador descartado';
@@ -293,6 +321,7 @@ export function createClientCreateWizard({
     const form=currentForm(event.target);
     if(!form)return;
     initialize(form);
+    updateServiceIntent(form);
     updateReview(form);
     if(event.type==='change')save(form);
     else scheduleSave(form);
@@ -330,5 +359,5 @@ export function createClientCreateWizard({
 
 export const __clientCreateWizardInternals=Object.freeze({
   DRAFT_SCHEMA,DRAFT_PREFIX,LEGACY_DRAFT_PREFIX,DRAFT_MAX_AGE_MS,INPUT_SAVE_DELAY_MS,MAX_STEP,
-  clampStep,keyFor,legacyKeyFor,collect,assign,setStep,readDraft,writeDraft,
+  clampStep,keyFor,legacyKeyFor,collect,assign,setStep,readDraft,writeDraft,updateServiceIntent,
 });

@@ -6,6 +6,17 @@ import {
   experienceNextAction,
 } from '../src/m26/experience/client-experience.js';
 
+test('Solo IRI completes the assessment process without training or appointment obligations',()=>{
+  const experience=deriveClientExperience({client:{lifecycleStatus:'iri_only'},profile:{phone:'ok'},iri:{status:'confirmed'},cycle:null,nextAppointment:null});
+  assert.equal(experience.stage,'iri_only');
+  assert.equal(experience.process.percentage,100);
+  assert.equal(experience.attention.includes('planning'),false);
+  assert.equal(experience.attention.includes('appointment'),false);
+  const next=experienceNextAction(experience,{role:'coach'});
+  assert.equal(next.key,'review_iri');
+  assert.equal(next.area,'iri');
+});
+
 test('Experience Core detecta alta incompleta',()=>{
   const experience=deriveClientExperience({
     profile:null,

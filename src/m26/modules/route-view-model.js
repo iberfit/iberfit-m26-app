@@ -260,15 +260,16 @@ function compactSummary(summary, role = 'coach', {state=null,now=new Date()}={})
     adaptiveContext,
     role,
   });
-  const nextAction=adaptiveExperience.action;
+  const nextAction=experience.serviceKind==='iri_only'?structuralNextAction:adaptiveExperience.action;
 
   return {
     id: client.id,
+    lifecycleStatus: client.lifecycleStatus||client.lifecycle_status||'',
     name: text(client, 'name', 'nombre') || 'Cliente sin nombre',
     modality:
       profile.modalityLabel ||
       clientModalityLabel(text(client, 'modality', 'modalidad')),
-    status: statusLabel(client),
+    status: client.lifecycleStatus==='iri_only'?'Solo IRI':statusLabel(client),
     access: summary.access
       ? statusLabel(summary.access, 'Acceso registrado')
       : 'Acceso no informado',
@@ -762,6 +763,7 @@ if (area === 'clientes') {
 
     return Object.freeze({
       kind: 'iri',
+      serviceKind:String(client?.lifecycleStatus||client?.lifecycle_status||'')==='iri_only'?'iri_only':'training',
       clientId,
       role: shellVm.identity?.role,
       current: clone(current),

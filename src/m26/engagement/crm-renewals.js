@@ -176,6 +176,7 @@ export function buildCrmRenewalSummary(state,clientId,{now=new Date(),upcomingDa
     clientId:id,
     generatedAt:clock.toISOString(),
     client:{
+      lifecycleStatus:clean(value(client,'lifecycleStatus','lifecycle_status'),80)||null,
       status:clientStatus,
       statusLabel:clientStatus?statusLabel(clientStatus):'Evidencia insuficiente',
       rawStatus:clientStatusRaw===null?null:clean(clientStatusRaw,80),

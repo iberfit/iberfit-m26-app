@@ -8,6 +8,20 @@ import {applyCommercialCoachCockpit} from '../src/m26/communication/view-model.j
 
 const NOW=new Date('2026-09-06T18:00:00Z');
 
+test('Solo IRI is excluded from training attention even when old renewal evidence exists',()=>{
+  const entries=[{client:{id:'iri',lifecycleStatus:'iri_only',experience:{stage:'iri_only'}},alerts:[{severity:'warning',title:'Missing training'}]}];
+  const cockpit=deriveCoachCockpit(entries);
+  assert.equal(cockpit.totalClients,0);
+  assert.equal(cockpit.attentionCount,0);
+  const projected=applyCommercialCoachCockpit({kind:'hoy',clients:[{id:'iri'}],coachCockpit:cockpit},{collections:{
+    clients:[{id:'iri',lifecycleStatus:'iri_only'}],
+    clientProfiles:[],trainingCycles:[],domainEvents:[],
+    m26Entities:[{id:'old',clientId:'iri',entityType:'commercial',renewalDate:'2026-09-01'}],
+  }},NOW);
+  assert.equal(projected.coachCockpit.attentionCount,0);
+  assert.equal(projected.coachCockpit.totalClients,0);
+});
+
 function baseCockpit({alerts=[]}={}){
   return deriveCoachCockpit([
     {

@@ -43,7 +43,12 @@ function coreDomainCoverage(draft = {}) {
       Number(draft.cardio?.durationSeconds)===180&&
       finite(draft.cardio?.stepHeightCm)&&
       finite(draft.cardio?.cadenceBpm)&&
-      finite(cardioFinalHr)&&finite(cardioRecoveryHr))
+      finite(cardioFinalHr)&&finite(cardioRecoveryHr)) ||
+    (cardioProtocol==='treadmill-3min-field'&&
+      Number(draft.cardio?.durationSeconds)===180&&
+      finite(draft.cardio?.speedKmh)&&finite(draft.cardio?.inclinePercent)&&
+      finite(cardioFinalHr)&&finite(cardioRecoveryHr)&&
+      Boolean(draft.cardio?.locomotionMode&&draft.cardio?.hrMethod&&draft.cardio?.recoveryMode))
   );
   const cardioMeasured=!cardioSkipped&&(legacyCardioContract||modernCardioMeasured);
   const states = Object.freeze({
@@ -86,6 +91,8 @@ export function validateIriDraft(draft = {}) {
   if (!coverage.complete) errors.push('coreDomains');
 
   if (!coverage.skipped.cardio) {
+    const cardioFinalHr=draft.cardio?.finalHr??draft.stepFinalHr;
+    const cardioRecoveryHr=draft.cardio?.oneMinuteHr??draft.stepOneMinuteHr;
     const modernCardio=Boolean(draft.cardio&&typeof draft.cardio==='object'&&!Array.isArray(draft.cardio));
     const legacyCardioContract=!modernCardio&&finite(draft.stepFinalHr)&&finite(draft.stepOneMinuteHr);
     if (legacyCardioContract) {
@@ -108,6 +115,13 @@ export function validateIriDraft(draft = {}) {
       if (Number(draft.cardio?.durationSeconds)!==180) errors.push('cardioDuration');
       if (!finite(draft.cardio?.stepHeightCm)) errors.push('cardioStepHeight');
       if (!finite(draft.cardio?.cadenceBpm)) errors.push('cardioCadence');
+      if (!finite(cardioFinalHr)||!finite(cardioRecoveryHr)) errors.push('cardioHeartRate');
+      else if (computeDeltaFc(cardioFinalHr,cardioRecoveryHr)<0) errors.push('deltaFc');
+      if (draft.cardio?.valid!==true) errors.push('cardioValid');
+    } else if (draft.cardio?.protocol === 'treadmill-3min-field') {
+      if (Number(draft.cardio?.durationSeconds)!==180) errors.push('cardioDuration');
+      if (!finite(draft.cardio?.speedKmh)||!finite(draft.cardio?.inclinePercent)) errors.push('cardioTreadmillLoad');
+      if (!draft.cardio?.locomotionMode||!draft.cardio?.hrMethod||!draft.cardio?.recoveryMode) errors.push('cardioTreadmillContext');
       if (!finite(cardioFinalHr)||!finite(cardioRecoveryHr)) errors.push('cardioHeartRate');
       else if (computeDeltaFc(cardioFinalHr,cardioRecoveryHr)<0) errors.push('deltaFc');
       if (draft.cardio?.valid!==true) errors.push('cardioValid');

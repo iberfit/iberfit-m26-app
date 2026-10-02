@@ -20,11 +20,11 @@ function contextFrom(draft={}){
     ageYears:finite(draft.ageYears)??dateAgeYears(draft.birthDate??profile.birthDate,draft.assessmentDate),
   };
 }
-function protocolRecordValid(draft={},testId,side=null){
+function protocolRecordNormEligible(draft={},testId,side=null){
   const records=Array.isArray(draft.protocolRecords)?draft.protocolRecords:Array.isArray(draft.protocol_records)?draft.protocol_records:[];
   const matched=records.filter((record)=>String(record?.testId??record?.test_id??'')===testId&&(side===null||String(record?.side??'')===side));
   if(!matched.length)return null;
-  return matched.every((record)=>record?.valid===true);
+  return matched.every((record)=>record?.valid===true&&record?.normEligible!==false);
 }
 function sourceSnapshot(sourceId){
   const source=EVIDENCE_SOURCES[sourceId];
@@ -41,8 +41,8 @@ function mobilityDomain(draft,context){
   const rightValue=ankle.rightBest??draft.weightBearingLungeRight;
   const legacyAverage=draft.weightBearingLunge;
   const legacyBilateral=leftValue===undefined&&rightValue===undefined;
-  const leftValidity=protocolRecordValid(draft,'weight-bearing-lunge',legacyBilateral?null:'left');
-  const rightValidity=legacyBilateral?null:protocolRecordValid(draft,'weight-bearing-lunge','right');
+  const leftValidity=protocolRecordNormEligible(draft,'weight-bearing-lunge',legacyBilateral?null:'left');
+  const rightValidity=legacyBilateral?null:protocolRecordNormEligible(draft,'weight-bearing-lunge','right');
   const left=scoredTest({key:'ankle_left',domain:'mobility',testId:'weight_bearing_lunge',value:leftValue??legacyAverage,context,protocolId:'wblt_distance_cm',valid:leftValidity!==false,side:legacyBilateral?'bilateral':'left'});
   const right=legacyBilateral
     ?null
@@ -62,7 +62,8 @@ function mobilityDomain(draft,context){
 function strengthDomain(draft,context){
   const chair=draft.strength?.chairStand??draft.strengthAssessment?.chairStand??draft.strengthPatterns?.chairStand??{};
   const value=chair.repetitions??draft.chairStand30s;
-  const valid=chair.valid===undefined?true:chair.valid===true;
+  const recordEligible=protocolRecordNormEligible(draft,'chair-stand-30s');
+  const valid=(chair.valid===undefined?true:chair.valid===true)&&recordEligible!==false;
   const test=scoredTest({key:'chair_stand_30s',domain:'strength',testId:'chair_stand_30s',value,context,protocolId:'chair_stand_30s_standard',valid});
   return Object.freeze({domain:'strength',label:'Fuerza funcional',score100:test.scored?test.score:null,score10:test.scored?test.grade10:null,scored:test.scored,tests:Object.freeze([test]),aggregation:'chair_stand_reference',warnings:Object.freeze(test.warnings||[])});
 }
@@ -70,9 +71,10 @@ function cardioDomain(draft,context){
   const cardio=draft.cardio||{};
   const protocol=String(cardio.protocol??draft.cardioProtocol??'');
   const repetitions=cardio.repetitions??draft.oneMinuteSitToStandRepetitions;
-  const valid=(cardio.valid??draft.cardioValid)===true;
+  const recordEligible=protocolRecordNormEligible(draft,'one-minute-sit-to-stand');
+  const valid=(cardio.valid??draft.cardioValid)===true&&recordEligible!==false;
   if(protocol!=='1msts-standard'){
-    return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:null,score10:null,scored:false,tests:Object.freeze([]),aggregation:'protocol_specific',warnings:Object.freeze(protocol?['IRI_SCORE_CARDIO_PROTOCOL_NOT_NORMED']:['IRI_SCORE_CARDIO_MISSING']),note:protocol==='ymca-3min-standard'?'YMCA se conserva como resultado descriptivo; no utiliza baremos 1MSTS.':'No hay un 1MSTS estándar válido para puntuar.'});
+    return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:null,score10:null,scored:false,tests:Object.freeze([]),aggregation:'protocol_specific',warnings:Object.freeze(protocol?['IRI_SCORE_CARDIO_PROTOCOL_NOT_NORMED']:['IRI_SCORE_CARDIO_MISSING']),note:protocol==='ymca-3min-standard'?'YMCA se conserva como resultado descriptivo; no utiliza baremos 1MSTS.':protocol==='treadmill-3min-field'?'La cinta de 3 minutos se conserva como baseline individual con HRR1/HRR2; no usa baremos de otros protocolos.':'No hay un 1MSTS estándar válido para puntuar.'});
   }
   const test=scoredTest({key:'one_minute_sit_to_stand',domain:'cardio',testId:'one_minute_sit_to_stand',value:repetitions,context,protocolId:'1msts_standard_60s',valid:valid&&Number(cardio.durationSeconds??60)===60});
   return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:test.scored?test.score:null,score10:test.scored?test.grade10:null,scored:test.scored,tests:Object.freeze([test]),aggregation:'1msts_reference',warnings:Object.freeze(test.warnings||[])});
@@ -113,7 +115,7 @@ export function scoreIriPerformance(draft={}){
   const pushVariant=draft.strength?.push?.variant??draft.strengthAssessment?.push?.variant;
   const pushValid=draft.strength?.push?.valid??draft.strengthAssessment?.push?.valid;
   const pushValue=draft.strength?.push?.repetitions??draft.strengthAssessment?.push?.repetitions??draft.pushUps;
-  if(pushValue!==undefined&&pushValue!==null&&pushValue!==''&&(pushVariant===undefined||pushVariant==='standard')&&(pushValid===undefined||pushValid===true))legacyResults.push(scoreNormedTest({testId:'push_up_standard',value:pushValue,context,protocolId:'standard_max_valid_reps'}));
+  if(pushValue!==undefined&&pushValue!==null&&pushValue!==''&&(pushVariant===undefined||pushVariant==='standard')&&(pushValid===undefined||pushValid===true)&&protocolRecordNormEligible(draft,'push-test')!==false)legacyResults.push(scoreNormedTest({testId:'push_up_standard',value:pushValue,context,protocolId:'standard_max_valid_reps'}));
   const chair=domains.find((item)=>item.domain==='strength')?.tests?.[0];if(chair?.available)legacyResults.push({...chair});
   return Object.freeze({
     schema:'iberfit-iri-scoring-v2',
@@ -135,4 +137,4 @@ export function scoreIriPerformance(draft={}){
 }
 
 export const scoreIriFirstSession=scoreIriPerformance;
-export const __iriScoringInternals=Object.freeze({finite,dateAgeYears,contextFrom,protocolRecordValid,mobilityDomain,strengthDomain,cardioDomain,globalScore});
+export const __iriScoringInternals=Object.freeze({finite,dateAgeYears,contextFrom,protocolRecordNormEligible,mobilityDomain,strengthDomain,cardioDomain,globalScore});

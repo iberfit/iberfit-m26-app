@@ -69,3 +69,13 @@ IBERFIT prioriza soluciones gratuitas suficientes. No introducir servicios de pa
 
 ### P-D02 · Visibilidad del repositorio
 Resolver explícitamente; no cambiar automáticamente.
+
+## D-021 · Solo IRI pertenece al lifecycle de la misma persona
+
+`iri_only` es un estado comercial canónico; no un booleano paralelo ni otro dominio de identidad. La asignación de Coach y el acceso autorizado al IRI/fotos se conservan. Activar entrenamiento añade un evento lifecycle para el mismo client ID sin recrear el baseline inicial. Métricas/alertas/capacidad de entrenamiento excluyen `iri_only`. Ingresos necesitan evidencia comercial explícita.
+
+## D-022 · Fidelidad de protocolo en terreno
+
+Validez de ejecución, elegibilidad normativa y comparabilidad longitudinal son independientes. Una adaptación válida puede ser baseline individual sin nota. Colchoneta no se rotula como banco; sentadilla libre 60 s no hereda silla 30 s/1MSTS; empuje cronometrado no usa max reps sin tiempo; TRX documenta altura, pies/ángulo, rodillas y tiempo. Presets rellenan sólo preparación y requieren ajustar al material real. HRR1/2 de cinta submáxima 3 min son descriptivas: no se trasladan puntos de corte clínicos de esfuerzo máximo ni recuperación diferente.
+
+Fuentes primarias revisadas: Cole et al., NEJM 1999, DOI 10.1056/NEJM199910283411804 (esfuerzo limitado por síntomas/recuperación definida); bent-knee push-up en mujeres universitarias, DOI 10.1207/s15327841mpee0804_2 (propiedades en población/protocolo específicos); estudio de escala de flexión estándar en mujeres 18–24, PMID 35992503; TRX cargas/posición, DOI 10.1371/journal.pone.0291608. No justifican un baremo universal para la sesión de terreno solicitada. Mantener baseline para rodillas/TRX/plancha/sentadilla libre/cinta hasta disponer de referencia aplicable, protocolo exacto y decisión profesional.

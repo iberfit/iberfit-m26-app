@@ -31,8 +31,17 @@ function normalize(sql) {
   return sql.replace(/\s+/g, ' ').trim().toUpperCase();
 }
 
+function maskCanonicalLifecycleExpansion(sql) {
+  // One atomic statement widens the known status set without changing rows,
+  // names, types, grants or foreign keys. Every other constraint drop fails closed.
+  const statuses="'lead'::text,'onboarding'::text,'iri_only'::text,'active'::text,'paused'::text,'inactive'::text,'reactivation'::text";
+  const statement=/alter\s+table\s+public\.iberfit_client_lifecycle_events\s+drop\s+constraint\s+if\s+exists\s+iberfit_client_lifecycle_events_status_check\s*,\s*add\s+constraint\s+iberfit_client_lifecycle_events_status_check\s+check\s*\(\s*status\s*=\s*any\s*\(\s*array\s*\[([^\]]+)\]\s*\)\s*\)\s*;/gi;
+  return sql.replace(statement,(match,values)=>values.replace(/\s+/g,'').toLowerCase()===statuses?'':match);
+}
+
 export function findDestructiveSql(sql) {
-  const withoutCommentsOrStrings = removeCommentsAndSingleQuotedStrings(sql);
+  const uncommented=sql.replace(/\/\*[\s\S]*?\*\//g,' ').replace(/--[^\r\n]*/g,' ');
+  const withoutCommentsOrStrings = removeCommentsAndSingleQuotedStrings(maskCanonicalLifecycleExpansion(uncommented));
   const routineMaskedSurface = normalize(removeRoutineBodies(withoutCommentsOrStrings));
   const ddlSurface = normalize(withoutCommentsOrStrings);
   const findings = [];

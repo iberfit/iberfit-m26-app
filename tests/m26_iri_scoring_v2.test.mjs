@@ -72,6 +72,25 @@ test('1MSTS usa referencia chilena y YMCA nunca hereda ese baremo',()=>{
   assert.match(ymca.domainScores.cardio.note,/YMCA/);
 });
 
+test('baseline de campo válido queda fuera de la nota normativa sin marcarse como inválido',()=>{
+  const scoring=scoreIriPerformance({
+    assessmentDate:'2026-10-02',personProfile:{birthDate:'1996-04-05',sexForNorms:'female'},
+    mobility:{ankle:{leftBest:8,rightBest:8}},
+    protocolRecords:[
+      {testId:'weight-bearing-lunge',side:'left',valid:true,normEligible:true},
+      {testId:'weight-bearing-lunge',side:'right',valid:true,normEligible:true},
+      {testId:'chair-stand-30s',side:'not-applicable',valid:true,normEligible:false},
+      {testId:'one-minute-sit-to-stand',side:'not-applicable',valid:true,normEligible:false},
+    ],
+    strength:{chairStand:{repetitions:20,valid:true}},
+    cardio:{protocol:'1msts-standard',durationSeconds:60,repetitions:38,valid:true},
+  });
+  assert.equal(scoring.domainScores.mobility.scored,true);
+  assert.equal(scoring.domainScores.strength.scored,false);
+  assert.equal(scoring.domainScores.cardio.scored,false);
+  assert.equal(scoring.global.available,false);
+});
+
 test('nota global exige dos dominios, declara cobertura y composición no la altera',()=>{
   const scoring=scoreIriPerformance({
     assessmentDate:'2026-10-02',personProfile:{birthDate:'1996-04-05',sexForNorms:'female'},

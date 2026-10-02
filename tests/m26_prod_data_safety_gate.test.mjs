@@ -163,3 +163,21 @@ test('new destructive migrations are rejected', () => {
 test('repository migrations after the protected baseline remain additive', () => {
   assert.deepEqual(scanFutureMigrations(), []);
 });
+
+const lifecycleExpansion=`alter table public.iberfit_client_lifecycle_events
+  drop constraint if exists iberfit_client_lifecycle_events_status_check,
+  add constraint iberfit_client_lifecycle_events_status_check
+  check (status = any (array['lead'::text,'onboarding'::text,'iri_only'::text,
+  'active'::text,'paused'::text,'inactive'::text,'reactivation'::text]));`;
+
+test('only the atomic canonical lifecycle widening is data safe',()=>{
+  assert.deepEqual(findDestructiveSql(lifecycleExpansion),[]);
+  for(const unsafe of [
+    lifecycleExpansion.replace("'active'::text,",''),
+    lifecycleExpansion.replace('public.iberfit_client_lifecycle_events','public.clients'),
+    lifecycleExpansion.replaceAll('iberfit_client_lifecycle_events_status_check','another_constraint'),
+    lifecycleExpansion.replace(',\n  add constraint','; alter table public.iberfit_client_lifecycle_events add constraint'),
+    lifecycleExpansion.replace('check (status','check (other_column'),
+  ])assert.ok(findDestructiveSql(unsafe).includes('DROP_CONSTRAINT'),unsafe);
+  assert.ok(findDestructiveSql(lifecycleExpansion+' drop table public.clients;').includes('DROP_TABLE'));
+});

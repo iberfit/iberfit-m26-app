@@ -561,6 +561,7 @@ function summarizeCockpit(items,totalClients,riskFocus=null){
 
 export function deriveCoachCockpit(entries=[]){
   const all=arr(entries)
+    .filter((entry)=>String(entry?.client?.lifecycleStatus||entry?.client?.experience?.serviceKind||'')!=='iri_only')
     .map(itemFromEntry)
     .filter((item)=>item.clientId);
 
@@ -578,6 +579,7 @@ export function augmentCoachCockpitWithCrm(cockpit,crmSummaries=[]){
   const existing=arr(base.items)
     .filter((item)=>item?.source!=='crm-renewals');
   const commercial=arr(crmSummaries)
+    .filter((summary)=>String(summary?.client?.lifecycleStatus||'')!=='iri_only')
     .map(commercialItemFromCrm)
     .filter(Boolean);
   const items=[...existing,...commercial]

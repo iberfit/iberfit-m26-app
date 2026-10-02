@@ -1,31 +1,26 @@
 # IBERFIT · Backlog Vivo
 
-Checkpoint: 2026-09-17
-Producción LIVE verificada: `1eabb642634ade1fec74b0d3b32d703e7d314eff`
-Promotion run LIVE: `35259458571 = SUCCESS`
-Canary actual: `b23688196e49f6dc26d2762ef592e80ab1b8ed80`
-Último merge funcional: PR #477 · reintento seguro de invitaciones Admin.
+Checkpoint: 2026-10-02. Fuente de estado LIVE/Canary: `docs/PRODUCTION_STATE.md`.
 
-## WIP ACTIVO · 2026-10-02
+## WIP ACTIVO · Personas + IRI real en terreno + Solo IRI
 
-PR #672 — IRI inicial + fotogrametría privada v1.
-- [x] Baseline IRI inicial único y contrato de privacidad/fotogrametría base en rama.
-- [x] Consentimientos auditables y Storage privado con originales inmutables.
-- [x] Motor geométrico puro + landmarks manuales + geometría aspect-ratio aware.
-- [x] UI captura 4 vistas + editor manual con keyboard/touch/mobile.
-- [x] 1MSTS como protocolo separado de YMCA; Step IBERFIT sólo compatibilidad histórica.
-- [x] Desacoplar evolución/reevaluación de `iri_assessments`.
-- [x] Reporte IRI baseline-only; fotos fuera por defecto.
-- [x] QA DB/RLS/RPC/Storage: Cliente denegado, Coach asignado permitido, bucket privado y ACL del trigger endurecida.
-- [x] PROD preflight read-only: 1 IRI inicial en revisión, sin duplicados y sin objetos/migraciones #672 todavía aplicados.
-- [ ] CI completo GREEN sobre el HEAD final exacto.
-- [ ] Merge + deploy/certificación Canary.
-- [ ] PROD foundation backward-compatible + verificación frontend previo.
-- [ ] Promoción frontend + verificación LIVE.
-- [ ] Contract post-deploy `20261002113000_iri_physical_consent_enforcement.sql` + recertificación LIVE.
+PR #678, base `841e0fb65bbe2667d134d040f3ac9bdd48fef281`. Drafts #676/#677 son intentos solapados; resolver con evidencia, sin abrir otro WIP.
 
-Canary base comprobado al iniciar el WIP: `2bc5f7b01c4fac656a4c78e6235beaf0067cca0a`.
-No abrir otro WIP de producto hasta cerrar o bloquear realmente #672.
+- [x] Lifecycle canónico `iri_only`, alta sin frecuencia, Coach y acceso conservados.
+- [x] Personas/filtro/conversión; excluir de cartera/capacidad/alertas de entrenamiento.
+- [x] Protocolos reales + presets + validez separada de normas/comparabilidad + informe independiente.
+- [x] QA transaccional sin residuos: creación/idempotencia/conversión/un único IRI/métricas/guards/ACL.
+- [x] Suite oficial offline: 3.098 PASS, 1 SKIP, 0 FAIL.
+- [x] 12 specs nuevas PASS locales Chromium 141 (desktop/tablet vertical/horizontal/móvil).
+- [x] Corregir validación final del comando cinta de 3 min y variables FC de YMCA/adaptado; regresiones generan el comando real.
+- [ ] QA: consentimiento → IRI_COMPLETAR terreno por RPC → persistencia → conversión sin alterar el baseline, todo en ROLLBACK.
+- [ ] Todos los gates y Matrix CI del HEAD final; no reutilizar el CI de commits anteriores.
+- [ ] Integración + deploy exacto/certificación Canary.
+- [ ] Preflight y migración canónica PROD; promoción frontend reversible.
+- [ ] LIVE de principio a fin con Solo IRI y fidelidad de protocolo.
+- [ ] Métricas comerciales separadas de IRI realizados, conversiones e ingresos: ingresos requieren evidencia comercial canónica; no inferirlos por lifecycle ni por completar la evaluación.
+
+No cerrar el WIP hasta LIVE real. #672 y #674/#675 pertenecen al IRI v2 anterior, ya publicado; la investigación siguiente se conserva como contexto histórico.
 
 ### Evidencia PubMed revisada durante #672 · pendiente de decisión de producto
 

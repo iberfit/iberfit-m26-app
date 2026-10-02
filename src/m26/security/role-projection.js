@@ -70,7 +70,7 @@ function projectPublication(key,record){
 function projectGeneric(key,record){
   const out=base(record,key);
   const mappings={
-    clients:[['name',['name','nombre']],['modality',['modality','modalidad']],['avatarUrl',['avatarUrl','avatar_url']]],
+    clients:[['lifecycleStatus',['lifecycleStatus','lifecycle_status']],['name',['name','nombre']],['modality',['modality','modalidad']],['avatarUrl',['avatarUrl','avatar_url']]],
     clientProfiles:[
       ['birthDate',['birthDate','birth_date','fechaNacimiento','fecha_nacimiento']],
       ['sexForNorms',['sexForNorms','sex_for_norms','sexoBaremos','sexo_baremos']],

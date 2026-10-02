@@ -106,6 +106,7 @@ function action(key,label,area,reason){
 }
 
 export function deriveClientExperience(summary={}){
+  const iriOnly=String(summary.client?.lifecycleStatus||summary.client?.lifecycle_status||'')==='iri_only';
   const profileReady=hasProfileEvidence(summary);
   const iri=iriReadiness(summary?.iri);
   const iriDeferred=isIriDeferred(summary);
@@ -119,7 +120,9 @@ export function deriveClientExperience(summary={}){
 
   let stage;
 
-  if(!profileReady){
+  if(iriOnly){
+    stage={key:'iri_only',label:'Solo IRI',priority:0};
+  }else if(!profileReady){
     stage=CLIENT_EXPERIENCE_STAGES.onboarding;
   }else if(iriBlocking){
     stage=CLIENT_EXPERIENCE_STAGES.evaluation;
@@ -137,10 +140,10 @@ export function deriveClientExperience(summary={}){
   if(iriDeferred&&!iri.confirmed)attention.push('iri_deferred');
   else if(!iri.exists)attention.push('iri_missing');
   else if(!iri.confirmed)attention.push('iri_incomplete');
-  if(!cycleReady)attention.push('planning');
-  if(!nextAppointmentReady)attention.push('appointment');
+  if(!iriOnly&&!cycleReady)attention.push('planning');
+  if(!iriOnly&&!nextAppointmentReady)attention.push('appointment');
 
-  const processSteps=[
+  const processSteps=iriOnly?[profileReady,iri.confirmed]:[
     profileReady,
     iri.confirmed||iriDeferred,
     cycleReady,
@@ -151,6 +154,7 @@ export function deriveClientExperience(summary={}){
     processSteps.filter(Boolean).length;
 
   return Object.freeze({
+    serviceKind:iriOnly?'iri_only':'training',
     stage:stage.key,
     stageLabel:stage.label,
     priority:stage.priority,
@@ -185,6 +189,8 @@ export function experienceNextAction(
 
   const normalizedRole=
     String(role||'coach').trim().toLowerCase();
+
+  if(current.serviceKind==='iri_only')return action('review_iri',current.readiness.iriConfirmed?'Ver informe IRI':'Completar evaluación IRI','iri','Evaluación e informe independientes del entrenamiento.');
 
   if(normalizedRole==='client'){
     if(current.readiness.nextAppointment){
