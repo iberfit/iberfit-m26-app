@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "44f95a7905df63d5b7b69f798080e20790340abe",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Promoción del candidato GREEN #678: Personas, Solo IRI lifecycle y protocolos IRI de terreno"
+}
