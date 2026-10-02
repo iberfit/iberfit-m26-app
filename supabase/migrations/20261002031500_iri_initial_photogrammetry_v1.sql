@@ -20,6 +20,8 @@ create unique index if not exists iri_one_initial_per_client_v1
 
 revoke delete on public.iri_assessments from authenticated, anon;
 
+-- IBERFIT-TABLE-ACCESS: public.iri_consents_v1 :: Coach/Admin may read consent history through client-scoped RLS; all writes use audited guarded RPCs.
+-- IBERFIT-POLICY: public.iri_consents_v1 = rls-client
 create table if not exists public.iri_consents_v1 (
   id uuid primary key default gen_random_uuid(),
   client_id uuid not null references public.clients(id) on delete cascade,
@@ -146,6 +148,8 @@ create trigger iri_require_physical_consent_v1
 before update of status on public.iri_assessments
 for each row execute function public.iberfit_require_physical_consent_before_iri_confirm_v1();
 
+-- IBERFIT-TABLE-ACCESS: public.iri_photogrammetry_captures_v1 :: Coach/Admin may read capture metadata through client-scoped RLS; lifecycle writes use guarded RPCs and private Storage policies.
+-- IBERFIT-POLICY: public.iri_photogrammetry_captures_v1 = rls-client
 create table if not exists public.iri_photogrammetry_captures_v1 (
   id uuid primary key,
   client_id uuid not null references public.clients(id) on delete cascade,
@@ -192,6 +196,8 @@ revoke all on public.iri_photogrammetry_captures_v1 from public,anon,authenticat
 grant select on public.iri_photogrammetry_captures_v1 to authenticated;
 grant all on public.iri_photogrammetry_captures_v1 to service_role;
 
+-- IBERFIT-TABLE-ACCESS: public.iri_photogrammetry_analyses_v1 :: Coach/Admin may read derived analysis through client-scoped RLS; revisions and validation write only through guarded RPCs.
+-- IBERFIT-POLICY: public.iri_photogrammetry_analyses_v1 = rls-client
 create table if not exists public.iri_photogrammetry_analyses_v1 (
   id uuid primary key default gen_random_uuid(),
   client_id uuid not null references public.clients(id) on delete cascade,
