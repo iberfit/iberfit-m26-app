@@ -108,9 +108,16 @@ test('Coach photogrammetry workspace stays usable by keyboard, touch and compact
 
   await page.locator('[data-iri-photo-mark="front:pelvisLeft"]').click();
   const canvas=page.locator('[data-iri-photo-canvas="front"]');
+  await canvas.scrollIntoViewIfNeeded();
   const box=await canvas.boundingBox();
   expect(box).not.toBeNull();
   const target={x:box.x+box.width*.42,y:box.y+box.height*.62};
+  const viewport=page.viewportSize();
+  expect(viewport).not.toBeNull();
+  expect(target.x).toBeGreaterThanOrEqual(0);
+  expect(target.x).toBeLessThanOrEqual(viewport.width);
+  expect(target.y).toBeGreaterThanOrEqual(0);
+  expect(target.y).toBeLessThanOrEqual(viewport.height);
   if(testInfo.project.use.hasTouch)await page.touchscreen.tap(target.x,target.y);
   else await page.mouse.click(target.x,target.y);
   const moved=page.locator('[data-iri-photo-point="front:pelvisLeft"]').first();
