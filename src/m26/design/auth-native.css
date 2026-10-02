@@ -467,16 +467,26 @@
   position: absolute;
   right: .42rem;
   top: 50%;
-  width: auto;
-  min-height: 2.35rem;
-  padding: .36rem .64rem;
-  transform: translateY(-50%);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.9rem;
+  min-width: 4.9rem;
+  max-width: 4.9rem;
+  min-height: 2.75rem;
+  padding: .36rem .5rem;
+  transform: translateY(-50%) !important;
+  box-sizing: border-box;
+  white-space: nowrap;
+  line-height: 1;
   border: 0;
   border-radius: .68rem;
   color: #e0c47f;
   background: rgba(217, 187, 119, .08);
   font-size: .74rem;
   font-weight: 720;
+  touch-action: manipulation;
 }
 
 .m26-auth-options {
@@ -517,6 +527,10 @@
 
 .m26-auth-card button:not(:disabled):active {
   transform: translateY(1px);
+}
+
+.m26-auth-card .m26-password-toggle:not(:disabled):active {
+  transform: translateY(-50%) !important;
 }
 
 .m26-auth-card .m26-primary-action {
