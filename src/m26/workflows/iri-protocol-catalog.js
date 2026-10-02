@@ -381,9 +381,11 @@ function generatedConfiguration(protocolId,raw,parts){
   if(protocolId==='push-test')return [strength.push?.variant,strength.push?.supportHeightCm!==null?`apoyo ${strength.push.supportHeightCm} cm`:''].filter(Boolean).join(' · ');
   if(protocolId==='trx-row')return [strength.trxRow?.handleHeightCm!==null?`asas ${strength.trxRow.handleHeightCm} cm`:'',strength.trxRow?.heelDistanceCm!==null?`talones ${strength.trxRow.heelDistanceCm} cm`:'',strength.trxRow?.position].filter(Boolean).join(' · ');
   if(protocolId==='core-plank')return [raw.coreProtocolVariant||'',strength.core?.quality&&`calidad: ${strength.core.quality}`].filter(Boolean).join(' · ');
+  if(protocolId==='bodyweight-squat-60s')return ['60 s',strength.squat60?.depthCriterion&&`profundidad: ${strength.squat60.depthCriterion}`,strength.squat60?.stance&&`base: ${strength.squat60.stance}`].filter(Boolean).join(' · ');
   if(protocolId==='posterior-chain-endurance')return [strength.posteriorChain?.protocol,strength.posteriorChain?.equipmentCompatible?'equipo compatible':'equipo no confirmado'].filter(Boolean).join(' · ');
   if(protocolId==='one-minute-sit-to-stand')return [`silla ${cardio.chairHeightCm??'—'} cm`,`duración ${cardio.durationSeconds??'—'} s`,`repeticiones ${cardio.repetitions??'—'}`].join(' · ');
   if(protocolId==='ymca-three-minute-step'||protocolId==='legacy-iberfit-three-minute-step-adapted')return [`escalón ${cardio.stepHeightCm??'—'} cm`,`cadencia ${cardio.cadenceBpm??'—'} bpm`,`duración ${cardio.durationSeconds??'—'} s`].join(' · ');
+  if(protocolId==='treadmill-three-minute-field')return [`cinta ${cardio.speedKmh??'—'} km/h`,`${cardio.inclinePercent??'—'}% inclinación`,cardio.locomotionMode&&`modo ${cardio.locomotionMode}`,cardio.hrMethod&&`FC ${cardio.hrMethod}`,cardio.recoveryMode&&`recuperación ${cardio.recoveryMode}`].filter(Boolean).join(' · ');
   return '';
 }
 
