@@ -57,6 +57,7 @@ function clientRows(state){
       revision:Number(x.revision||0)||0,
       status:String(x.status||''),
       modality:String(x.modality||x.modalidad||profile.modality||''),
+      relationshipType:String(profile.relationshipType||'training'),
       profile:Object.freeze(profile),
       access,
       lifecycle:clone(life.get(id)||null),
@@ -70,8 +71,9 @@ function clientRows(state){
   }));
 }
 function lifecycleStatus(client={}){return normalizeStatus(client?.lifecycle?.status||client?.status||'');}
-function isActiveTrainingClient(client={}){return lifecycleStatus(client)==='active';}
-function isIriOnlyPerson(client={}){return lifecycleStatus(client)==='iri_only';}
+function relationshipType(client={}){return normalizeStatus(client?.relationshipType||client?.profile?.relationshipType||'training')||'training';}
+function isIriOnlyPerson(client={}){return relationshipType(client)==='iri_only';}
+function isActiveTrainingClient(client={}){return !isIriOnlyPerson(client)&&lifecycleStatus(client)==='active';}
 function recordId(value){return String(value??'').trim();}
 function appointmentCoachId(item={}){return recordId(item.coachUserId??item.coach_user_id??item.coachId??item.coach_id??item.trainerUserId??item.trainer_user_id);}
 function appointmentClientId(item={}){return recordId(item.clientId??item.client_id);}
