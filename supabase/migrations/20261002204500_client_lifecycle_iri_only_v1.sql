@@ -196,9 +196,24 @@ declare
   v_base jsonb;
   v_org uuid;
   v_access jsonb;
+  v_coaches jsonb;
 begin
   v_base:=public.iberfit_admin_bootstrap_v14_pre_v65e();
   v_org:=nullif(v_base#>>'{organization,id}','')::uuid;
+
+  -- Recount only already projected Coaches and this organization's assignments.
+  -- An active private IRI assignment is authorization, not training clientele.
+  select coalesce(jsonb_agg(c||jsonb_build_object('clientCount',(
+    select count(distinct a.client_id)
+    from public.iberfit_coach_client_assignments a
+    where a.organization_id=v_org and a.coach_user_id=(c->>'userId')::uuid
+      and a.status='active'
+      and coalesce((select e.status from public.iberfit_client_lifecycle_events e
+        where e.organization_id=v_org and e.client_id=a.client_id
+        order by e.effective_at desc,e.created_at desc,e.id desc limit 1),'onboarding')<>'iri_only'
+  ))),'[]'::jsonb) into v_coaches
+  from jsonb_array_elements(coalesce(v_base#>'{data,coachProfiles}','[]'::jsonb)) c;
+  v_base:=jsonb_set(v_base,'{data,coachProfiles}',v_coaches,true);
 
   select coalesce(
     jsonb_agg(

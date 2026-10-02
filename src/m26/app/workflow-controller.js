@@ -497,7 +497,10 @@ export function createWorkflowController({
     let normalized=draft;try{normalized=normalized||iriDraft(form);}catch{}
     const completion=normalized?firstSessionCompletion(normalized):{percent:0,steps:[]};
     for(const node of form.querySelectorAll?.('[data-iri-computed="completion"]')||[])node.textContent=`${completion.percent}%`;
-    const birthDate=raw.birthDate||normalized?.personProfile?.birthDate;const ageYears=deriveAgeYears(birthDate,raw.assessmentDate||normalized?.assessmentDate||new Date().toISOString().slice(0,10));const normContext={sexForNorms:raw.sexForNorms||normalized?.personProfile?.sexForNorms,ageYears};
+    const birthDate=raw.birthDate||normalized?.personProfile?.birthDate;
+    let ageYears=null;
+    try{ageYears=deriveAgeYears(birthDate,raw.assessmentDate||normalized?.assessmentDate||new Date().toISOString().slice(0,10));}catch{}
+    const normContext={sexForNorms:raw.sexForNorms||normalized?.personProfile?.sexForNorms,ageYears};
     const scoring=normalized?scoreIriPerformance({...normalized,ageYears}):null;
     const mobilityTests=scoring?.domainScores?.mobility?.tests||[];
     const normResults={

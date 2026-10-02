@@ -24,6 +24,7 @@ test('Solo IRI wizard submits without a weekly training frequency',async({page})
   const form=page.locator('[data-admin-form="client-create"]');
   await form.locator('[name="name"]').fill('Persona IRI QA');
   await form.locator('[name="email"]').fill('qa-persona@example.invalid');
+  await form.locator('[name="phone"]').fill('+56 9 5555 0202');
   await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
   await form.locator('[name="serviceIntent"]').selectOption('iri_only');
   await form.locator('[name="modality"]').selectOption('Presencial');
@@ -44,8 +45,11 @@ test('field presets and results retain exact protocols without invented norms',a
   const errors=capturePageErrors(page);
   await page.goto('/qa/admin-interaction/iri-field.fixture.html');
   const form=page.locator('[data-workflow-form="iri"]');
+  await expect(form.locator('[name="weeklyFrequency"]')).toHaveValue('');
+  await expect(form.locator('[name="weeklyFrequency"]')).not.toHaveAttribute('required');
   await form.getByText('Preparación rápida de terreno',{exact:true}).click();
   for(const preset of ['floor','knees','trx','treadmill'])await form.locator(`[data-iri-setup-preset="${preset}"]`).click();
+  expect(errors,'the field fixture and controller must initialize without runtime errors').toEqual([]);
   await expect(form.locator('[data-iri-preset-status]')).toContainText('Preparación aplicada');
   // Populate hidden wizard steps through DOM to inspect the real controller's
   // normalization without manufacturing completed-step or approval state.

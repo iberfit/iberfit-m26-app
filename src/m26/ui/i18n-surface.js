@@ -5,6 +5,13 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  ['Preparación rápida de terreno','Quick field setup','Préparation rapide sur le terrain','Preparação rápida em campo'],
+  ['Aplica sólo la configuración de la prueba. Ajusta alturas, apoyos, tiempo y carga al material real.','Apply only the test setup. Adjust heights, supports, time and load to the actual equipment.','Appliquez uniquement la configuration du test. Ajustez hauteurs, appuis, durée et charge au matériel réel.','Aplica apenas a configuração do teste. Ajusta alturas, apoios, tempo e carga ao material real.'],
+  ['Sin banco · colchoneta','No bench · mat','Sans banc · tapis','Sem banco · tapete'],
+  ['Empuje con rodillas','Knee push-ups','Pompes sur les genoux','Flexões com joelhos'],
+  ['TRX · 100 cm · 60 s','TRX · 100 cm · 60 s','TRX · 100 cm · 60 s','TRX · 100 cm · 60 s'],
+  ['Cinta · 3 min','Treadmill · 3 min','Tapis roulant · 3 min','Passadeira · 3 min'],
+  ['Preparación aplicada. Ajusta la configuración al material real antes de medir.','Setup applied. Adjust the configuration to the actual equipment before measuring.','Préparation appliquée. Ajustez la configuration au matériel réel avant la mesure.','Preparação aplicada. Ajusta a configuração ao material real antes de medir.'],
   ['Revisar IRI e informe','Review IRI and report','Revoir IRI et rapport','Rever IRI e relatório'],
   ['Filtrar estado','Filter status','Filtrer le statut','Filtrar estado'],
   ['Todas las personas','All people','Toutes les personnes','Todas as pessoas'],

@@ -213,3 +213,7 @@
     width: 100%;
   }
 }
+
+.m26-iri-setup{margin-block:1rem;padding:1rem;border:1px solid rgba(227,200,120,.28);border-radius:1rem;}
+.m26-iri-setup>summary{min-height:44px;display:flex;align-items:center;font-weight:600;cursor:pointer;}
+.m26-iri-setup .m26-timer-actions{flex-wrap:wrap;}

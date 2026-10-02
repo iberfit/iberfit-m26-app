@@ -11,7 +11,8 @@ PR #678, base `841e0fb65bbe2667d134d040f3ac9bdd48fef281`. Drafts #676/#677 son i
 - [x] Protocolos reales + presets + validez separada de normas/comparabilidad + informe independiente.
 - [x] QA transaccional sin residuos: creación/idempotencia/conversión/un único IRI/métricas/guards/ACL.
 - [x] Suite oficial offline: 3.098 PASS, 1 SKIP, 0 FAIL.
-- [ ] Specs de navegador nuevas y todos los gates del HEAD final.
+- [x] 12 specs nuevas PASS locales Chromium 141 (desktop/tablet vertical/horizontal/móvil).
+- [ ] Todos los gates y Matrix CI del HEAD final; no reutilizar el CI de fbedf29c.
 - [ ] Integración + deploy exacto/certificación Canary.
 - [ ] Preflight y migración canónica PROD; promoción frontend reversible.
 - [ ] LIVE de principio a fin con Solo IRI y fidelidad de protocolo.

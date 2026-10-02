@@ -14,6 +14,7 @@ declare
   snapshot jsonb;
   iri_before jsonb;
   denied boolean;
+  coach_before integer;
 begin
   select m.user_id,m.organization_id into actor,org
   from public.iberfit_organization_memberships m
@@ -38,12 +39,14 @@ begin
     'name','QA Solo IRI transaction','email',operation||'@example.invalid',
     'initialLifecycleStatus','iri_only','initialAssessmentMode','iri',
     'coachUserId',coach,'modality','Presencial','objective','Evaluación independiente'));
+  select (e->>'clientCount')::integer into coach_before from jsonb_array_elements(public.iberfit_admin_bootstrap_v14()#>'{data,coachProfiles}') e where e->>'userId'=coach::text;
   result:=public.iberfit_admin_execute_v14(command);
   client:=result->>'clientId';
   if client is null or result->>'initialLifecycleStatus'<>'iri_only' then raise exception 'QA_IRI_ONLY_CREATE_FAILED'; end if;
   if (public.iberfit_admin_execute_v14(command)->>'kind')<>'duplicate' then raise exception 'QA_IRI_ONLY_REPLAY_FAILED'; end if;
   if not exists(select 1 from public.iberfit_client_lifecycle_events where client_id=client and status='iri_only') then raise exception 'QA_IRI_ONLY_LIFECYCLE_FAILED'; end if;
   snapshot:=public.iberfit_admin_bootstrap_v14();
+  if coach is not null and (select (e->>'clientCount')::integer from jsonb_array_elements(snapshot#>'{data,coachProfiles}') e where e->>'userId'=coach::text) is distinct from coach_before then raise exception 'QA_IRI_ONLY_COACH_COUNT_POLLUTED'; end if;
   if not exists(select 1 from jsonb_array_elements(snapshot#>'{data,clientLifecycle}') e where e->>'client_id'=client and e->>'status'='iri_only') then raise exception 'QA_IRI_ONLY_ADMIN_PROJECTION_FAILED'; end if;
   if coach is not null and not exists(select 1 from public.iberfit_coach_client_assignments where client_id=client and coach_user_id=coach and status='active') then raise exception 'QA_IRI_ONLY_ASSIGNMENT_LOST'; end if;
   if not exists(select 1 from jsonb_array_elements(public.iberfit_bootstrap_v26()#>'{data,clients}') e where e->>'id'=client and e->>'lifecycleStatus'='iri_only') then raise exception 'QA_SCOPED_LIFECYCLE_PROJECTION_FAILED'; end if;

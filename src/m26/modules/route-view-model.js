@@ -763,6 +763,7 @@ if (area === 'clientes') {
 
     return Object.freeze({
       kind: 'iri',
+      serviceKind:String(client?.lifecycleStatus||client?.lifecycle_status||'')==='iri_only'?'iri_only':'training',
       clientId,
       role: shellVm.identity?.role,
       current: clone(current),
