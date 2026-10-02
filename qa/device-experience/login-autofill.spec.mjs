@@ -117,3 +117,76 @@ test('focused and hydrated login/product fields never flash to a light surface',
     expect(paint.webkitBoxShadow).toMatch(/rgb\(14, (?:26|27), (?:21|22)\)/);
   }
 });
+
+
+test('password visibility toggle stays contained while pressed and after label change',async({page})=>{
+  await page.route('**/*.js',(route)=>route.abort());
+  await page.goto('/m26/index.html',{waitUntil:'domcontentloaded'});
+
+  await page.evaluate(async()=>{
+    const form=document.querySelector('[data-auth-form="login"]');
+    form?.removeAttribute('hidden');
+    form?.removeAttribute('aria-hidden');
+    const links=[...document.querySelectorAll('link[data-iberfit-full-style]')];
+    await Promise.all(links.map((link)=>new Promise((resolve)=>{
+      const href=link.getAttribute('data-href');
+      if(!href){resolve();return;}
+      const done=()=>resolve();
+      link.addEventListener('load',done,{once:true});
+      link.addEventListener('error',done,{once:true});
+      link.setAttribute('href',href);
+      link.media='all';
+      if(link.sheet)queueMicrotask(done);
+    })));
+  });
+
+  const field=page.locator('.m26-password-field');
+  const toggle=page.locator('[data-password-toggle]');
+  await expect(toggle).toBeVisible();
+
+  const geometry=async()=>page.evaluate(()=>{
+    const wrapper=document.querySelector('.m26-password-field')?.getBoundingClientRect();
+    const button=document.querySelector('[data-password-toggle]')?.getBoundingClientRect();
+    if(!wrapper||!button)return null;
+    return {
+      wrapper:{left:wrapper.left,right:wrapper.right,top:wrapper.top,bottom:wrapper.bottom,height:wrapper.height},
+      button:{left:button.left,right:button.right,top:button.top,bottom:button.bottom,height:button.height,width:button.width},
+      centerDelta:Math.abs((button.top+button.height/2)-(wrapper.top+wrapper.height/2)),
+    };
+  });
+
+  const before=await geometry();
+  expect(before).not.toBeNull();
+  expect(before.button.left).toBeGreaterThanOrEqual(before.wrapper.left);
+  expect(before.button.right).toBeLessThanOrEqual(before.wrapper.right);
+  expect(before.button.top).toBeGreaterThanOrEqual(before.wrapper.top);
+  expect(before.button.bottom).toBeLessThanOrEqual(before.wrapper.bottom);
+  expect(before.centerDelta).toBeLessThanOrEqual(1);
+  expect(before.button.width).toBeGreaterThanOrEqual(70);
+
+  const box=await toggle.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);
+  await page.mouse.down();
+
+  const pressed=await geometry();
+  expect(pressed.button.left).toBeGreaterThanOrEqual(pressed.wrapper.left);
+  expect(pressed.button.right).toBeLessThanOrEqual(pressed.wrapper.right);
+  expect(pressed.button.top).toBeGreaterThanOrEqual(pressed.wrapper.top);
+  expect(pressed.button.bottom).toBeLessThanOrEqual(pressed.wrapper.bottom);
+  expect(pressed.centerDelta).toBeLessThanOrEqual(1);
+
+  await page.mouse.up();
+
+  await page.evaluate(()=>{
+    const button=document.querySelector('[data-password-toggle]');
+    if(button)button.textContent='Ocultar';
+  });
+  const after=await geometry();
+  expect(after.button.left).toBeGreaterThanOrEqual(after.wrapper.left);
+  expect(after.button.right).toBeLessThanOrEqual(after.wrapper.right);
+  expect(after.button.top).toBeGreaterThanOrEqual(after.wrapper.top);
+  expect(after.button.bottom).toBeLessThanOrEqual(after.wrapper.bottom);
+  expect(after.centerDelta).toBeLessThanOrEqual(1);
+  expect(Math.abs(after.button.width-before.button.width)).toBeLessThanOrEqual(1);
+});
