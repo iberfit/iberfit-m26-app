@@ -157,7 +157,8 @@ test('IRI photogrammetry hardening removes direct anon EXECUTE granted by projec
     assert.match(sql,new RegExp(`revoke all on function public\\.${signature} from anon`,'u'));
   }
   assert.doesNotMatch(sql,/grant execute[\s\S]+to anon/iu);
-  assert.match(sql,/revoke all on function public\.iberfit_require_physical_consent_before_iri_confirm_v1\(\) from authenticated/u);
+  const triggerHardening=fs.readFileSync(new URL('../supabase/migrations/20261002110500_iri_physical_consent_trigger_internal_only.sql',import.meta.url),'utf8');
+  assert.match(triggerHardening,/revoke all on function public\.iberfit_require_physical_consent_before_iri_confirm_v1\(\) from authenticated/u);
 });
 
 test('photogrammetry source contains no automated diagnosis or automatic landmark inference',()=>{
