@@ -7,6 +7,17 @@ function result(area, allowed, reason, contextClientId = null) {
 function mediaReviewEnabled(state,role){
   return role==='admin'&&state?.admin?.available===true&&state?.admin?.organization?.settings?.admin_media_review_enabled===true;
 }
+const IRI_ONLY_TRAINING_AREAS=new Set(['planificacion','sesion','progreso','actividad','retos','inteligencia']);
+function lifecycleStatusForClient(state,clientId){
+  const id=String(clientId||'').trim();
+  if(!id)return '';
+  const client=(state?.collections?.clients||[]).find((item)=>String(item?.id||'').trim()===id)||null;
+  return String(client?.lifecycleStatus||client?.lifecycle_status||client?.status||'').trim().toLowerCase();
+}
+function iriOnlyContextClientId(state,role){
+  if(role==='client')return String(state?.identity?.clientId||'').trim()||null;
+  return String(state?.selectedClientId||'').trim()||null;
+}
 
 export function resolveM26Route(state, requestedArea = state?.activeArea) {
   if (!state?.identity || state?.hydration?.status !== 'ready') {
@@ -27,6 +38,19 @@ export function resolveM26Route(state, requestedArea = state?.activeArea) {
   const visible = visibleClientIds(state);
   const selectedClientId = state.selectedClientId || null;
   const ownClientId = state.identity.clientId || null;
+  const serviceClientId=iriOnlyContextClientId(state,role);
+  if(
+    serviceClientId&&
+    lifecycleStatusForClient(state,serviceClientId)==='iri_only'&&
+    IRI_ONLY_TRAINING_AREAS.has(requested)
+  ){
+    return result(
+      role==='client'?'informes':'iri',
+      false,
+      'M26_IRI_ONLY_TRAINING_ROUTE_FORBIDDEN',
+      serviceClientId
+    );
+  }
 
   if (role === 'client') {
     if (!ownClientId || !visible.has(ownClientId)) {
