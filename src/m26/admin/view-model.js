@@ -69,6 +69,9 @@ function clientRows(state){
     });
   }));
 }
+function lifecycleStatus(client={}){return normalizeStatus(client?.lifecycle?.status||client?.status||'');}
+function isActiveTrainingClient(client={}){return lifecycleStatus(client)==='active';}
+function isIriOnlyPerson(client={}){return lifecycleStatus(client)==='iri_only';}
 function recordId(value){return String(value??'').trim();}
 function appointmentCoachId(item={}){return recordId(item.coachUserId??item.coach_user_id??item.coachId??item.coach_id??item.trainerUserId??item.trainer_user_id);}
 function appointmentClientId(item={}){return recordId(item.clientId??item.client_id);}
@@ -155,6 +158,7 @@ export function buildAdminUser360({
     const coach=coachById.get(userId)||null;
     const clientAssignments=clientId?activeAssignments.filter((assignment)=>recordId(assignment?.clientId)===clientId):[];
     const coachAssignments=roles.includes('coach')?activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===userId):[];
+    const activeTrainingAssignments=coachAssignments.filter((assignment)=>isActiveTrainingClient(clientById.get(recordId(assignment?.clientId))||{}));
     const assignedCoachNames=clientAssignments.map((assignment)=>{
       const item=coachById.get(recordId(assignment?.coachUserId));
       return String(item?.name||item?.email||'').trim();
@@ -198,7 +202,7 @@ export function buildAdminUser360({
         name:String(coach?.name||user?.name||'Coach'),
         email:String(coach?.email||authEmail),
         status:String(coach?.status||user?.status||''),
-        activeClientCount:coachAssignments.length,
+        activeClientCount:activeTrainingAssignments.length,
       }):null,
       integrityIssues:Object.freeze(rowIssues),
     });
@@ -238,7 +242,9 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
   const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
   return Object.freeze(coachSubjects(coaches,users).map(({coachId,coach,user})=>{
     const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId);
-    const clientIds=[...new Set(ownAssignments.map((assignment)=>recordId(assignment?.clientId)).filter(Boolean))];
+    const activeTrainingAssignments=ownAssignments.filter((assignment)=>isActiveTrainingClient(clientById.get(recordId(assignment?.clientId))||{}));
+    const iriOnlyAssignments=ownAssignments.filter((assignment)=>isIriOnlyPerson(clientById.get(recordId(assignment?.clientId))||{}));
+    const clientIds=[...new Set(activeTrainingAssignments.map((assignment)=>recordId(assignment?.clientId)).filter(Boolean))];
     const clientIdSet=new Set(clientIds);
     const coachPlanningSessions=(planningSessions||[]).filter((session)=>clientIdSet.has(recordId(session?.clientId??session?.client_id))&&isCoachLaunchPlanningPublished(session));
     const coachExecutions=(sessionExecutions||[]).filter((execution)=>recordId(execution?.startedBy??execution?.started_by)===coachId);
@@ -296,6 +302,7 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
       completedCount:sessions.filter((session)=>/complet|realiz|done/i.test(session.status)).length,
       nextSession:upcomingSessions[0]||null,
       assignmentCount:ownAssignments.length,
+      iriOnlyCount:iriOnlyAssignments.length,
     });
   }).sort((a,b)=>a.name.localeCompare(b.name,'es',{sensitivity:'base'})));
 }
