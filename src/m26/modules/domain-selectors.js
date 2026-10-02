@@ -132,6 +132,10 @@ export function accessForClient(state, clientId = state?.selectedClientId) {
   return latestForClient(state, 'clientAccess', clientId);
 }
 
+export function latestLifecycleForClient(state, clientId = state?.selectedClientId) {
+  return latestForClient(state, 'clientLifecycle', clientId);
+}
+
 export function latestIriForClient(state, clientId = state?.selectedClientId) {
   return latestForClient(state, 'iriAssessments', clientId);
 }
@@ -289,6 +293,7 @@ export function clientHealthSummary(state, clientId = state?.selectedClientId, n
 
   const profile = profileForClient(state, clientId);
   const access = accessForClient(state, clientId);
+  const lifecycle = latestLifecycleForClient(state, clientId);
   const iri = latestIriForClient(state, clientId);
   const report = latestReportForClient(state, clientId);
   const cycle = activeCycleForClient(state, clientId);
@@ -305,6 +310,7 @@ export function clientHealthSummary(state, clientId = state?.selectedClientId, n
     client: clone(client),
     profile,
     access,
+    lifecycle,
     iri,
     report,
     cycle,
