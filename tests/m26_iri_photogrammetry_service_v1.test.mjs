@@ -102,6 +102,43 @@ test('latest consent and captures are deterministic and never select pending upl
   assert.equal(latest.front.id,'new');
 });
 
+test('immutable upload treats an existing original as recoverable instead of overwriting it',async()=>{
+  const objectPath=iriPhotoObjectPath(CLIENT,ASSESSMENT,'front',CAPTURE,'image/jpeg');
+  const calls=[];
+  const fetchImpl=async(url,options={})=>{
+    calls.push({url,options});
+    if(new URL(url).pathname.startsWith(`/storage/v1/object/${IRI_PHOTO_BUCKET}/`)){
+      return jsonResponse({message:'The resource already exists'},{status:409});
+    }
+    throw new Error(`UNEXPECTED_REQUEST:${new URL(url).pathname}`);
+  };
+  const service=createIriPhotogrammetryService({runtime:runtime(),fetchImpl});
+  const file={name:'front.jpg',type:'image/jpeg',size:4,arrayBuffer:async()=>new ArrayBuffer(4)};
+  const result=await service.uploadOriginal('jwt-test',{objectPath,file});
+  assert.deepEqual(result,{ok:true,kind:'already-present',objectPath});
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].options.headers['x-upsert'],'false');
+});
+
+test('signed original URLs remain short-lived and same-origin',async()=>{
+  const objectPath=iriPhotoObjectPath(CLIENT,ASSESSMENT,'front',CAPTURE,'image/jpeg');
+  const calls=[];
+  const fetchImpl=async(url,options={})=>{
+    calls.push({url,options});
+    return jsonResponse({signedURL:`/storage/v1/object/sign/${IRI_PHOTO_BUCKET}/${objectPath}?token=qa`});
+  };
+  const service=createIriPhotogrammetryService({runtime:runtime(),fetchImpl});
+  const signed=await service.signedUrl('jwt-test',{objectPath,expiresIn:9999});
+  assert.equal(new URL(signed).origin,'https://gjztkdwfmunnzhtvxrsu.supabase.co');
+  assert.equal(JSON.parse(calls[0].options.body).expiresIn,600);
+
+  const hostile=createIriPhotogrammetryService({
+    runtime:runtime(),
+    fetchImpl:async()=>jsonResponse({signedURL:'https://example.invalid/private-photo.jpg'}),
+  });
+  await assert.rejects(()=>hostile.signedUrl('jwt-test',{objectPath}),/SIGN_ORIGIN_INVALID/);
+});
+
 test('service enforces prepare -> immutable upload -> finalize and private state reads',async()=>{
   const calls=[];
   const objectPath=iriPhotoObjectPath(CLIENT,ASSESSMENT,'front',CAPTURE,'image/jpeg');
