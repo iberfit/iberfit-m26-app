@@ -50,6 +50,29 @@ test('manual photogrammetry geometry is deterministic and factual',()=>{
   assert.equal(result.summaries.lateralTrunkAsymmetryPercent,0);
 });
 
+test('geometry corrects normalized coordinates with the real image aspect ratio',()=>{
+  assert.equal(segmentTiltDegrees({x:0,y:0},{x:.5,y:.5}),45);
+  assert.equal(
+    segmentTiltDegrees({x:0,y:0},{x:.5,y:.5},{widthPx:1000,heightPx:2000}),
+    63.4
+  );
+  assert.equal(
+    segmentFromVerticalDegrees({x:.5,y:.1},{x:.5,y:.9},{widthPx:1200,heightPx:1800}),
+    0
+  );
+  const result=calculatePhotogrammetryMeasurements(landmarks,{
+    dimensionsByView:{
+      front:{widthPx:1200,heightPx:1800},
+      back:{widthPx:1200,heightPx:1800},
+      left:{widthPx:1200,heightPx:1800},
+      right:{widthPx:1200,heightPx:1800},
+    },
+  });
+  assert.equal(result.geometryBasis.front.aspectCorrected,true);
+  assert.equal(result.geometryBasis.front.widthPx,1200);
+  assert.equal(result.geometryBasis.front.heightPx,1800);
+});
+
 test('manual landmarks are editable coordinates and validation fails closed on missing points',()=>{
   const complete=validateManualLandmarks(landmarks,['front','left']);
   assert.equal(complete.ok,true);
