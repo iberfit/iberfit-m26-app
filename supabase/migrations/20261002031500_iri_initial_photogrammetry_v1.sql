@@ -116,8 +116,7 @@ security definer
 set search_path=''
 as $$
 begin
-  if old.status='borrador'
-     and new.status in ('revisión','aprobado','publicado')
+  if new.status in ('revisión','aprobado','publicado')
      and not public.iberfit_iri_consent_active_v1(new.id,'physical_assessment') then
     raise exception 'IRI_V4_PHYSICAL_CONSENT_REQUIRED' using errcode='42501';
   end if;
