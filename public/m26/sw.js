@@ -1,6 +1,6 @@
-const VERSION='m26-rc63-3';
-const PREVIOUS_VERSION='m26-rc63-2';
-// Historical compatibility markers retained for regression evidence: m26-rc63-3, m26-rc63-2, m26-rc63-1, m26-rc62-3, m26-rc62-2, m26-rc62-1, m26-rc61-2, m26-rc61-1, m26-rc60-2b, m26-rc60-2a, m26-rc60-1, m26-rc59-6, m26-rc59-5, m26-rc59-4, m26-rc59-3, m26-rc59-2, m26-rc59-1, m26-rc59-0c3, m26-rc59-0c1, m26-rc59-0c-design, m26-rc59-0b, m26-rc59-0a, m26-rc58-6, m26-rc58-5c-b, m26-rc28, m26-rc27, m26-rc23, m26-rc19, m26-rc17.
+const VERSION='m26-rc63-2';
+const PREVIOUS_VERSION='m26-rc63-1';
+// Historical compatibility markers retained for regression evidence: m26-rc63-2, m26-rc63-1, m26-rc62-3, m26-rc62-2, m26-rc62-1, m26-rc61-2, m26-rc61-1, m26-rc60-2b, m26-rc60-2a, m26-rc60-1, m26-rc59-6, m26-rc59-5, m26-rc59-4, m26-rc59-3, m26-rc59-2, m26-rc59-1, m26-rc59-0c3, m26-rc59-0c1, m26-rc59-0c-design, m26-rc59-0b, m26-rc59-0a, m26-rc58-6, m26-rc58-5c-b, m26-rc28, m26-rc27, m26-rc23, m26-rc19, m26-rc17.
 const SHELL=`iberfit-${VERSION}-shell`;
 const PREVIOUS_SHELL=`iberfit-${PREVIOUS_VERSION}-shell`;
 const OFFLINE='/m26/offline.html';
