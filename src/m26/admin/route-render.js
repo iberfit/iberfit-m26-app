@@ -417,8 +417,8 @@ function clientEditDialog(vm={}){
           <label>Horario preferido de contacto<input name="preferredContactTime" maxlength="120"></label>
           <label>Relación con IBERFIT<select name="relationshipType" required><option value="training">Entrenamiento personal</option><option value="iri_only">Solo Diagnóstico IRI</option></select></label>
           <label>Modalidad<select name="modality" required><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Online">Online</option></select></label>
-          <label>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" required inputmode="numeric"></label>
-          <label>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" required inputmode="numeric"></label>
+          <label data-training-only-field>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" inputmode="numeric"></label>
+          <label data-training-only-field>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" inputmode="numeric"></label>
           <label>Diagnóstico inicial<select name="initialAssessmentMode" required><option value="iri">Realizar Diagnóstico IRI</option><option value="deferred">Posponer IRI</option></select></label>
           <label>Comuna / zona<input name="zone" maxlength="120" autocomplete="address-level2"></label>
           <label>Dirección de entrenamiento<input name="address" maxlength="300" autocomplete="street-address"></label>
