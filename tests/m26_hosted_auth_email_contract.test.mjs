@@ -83,6 +83,21 @@ test('Hosted Auth email templates preserve variables, safe structure, canonical 
   assert.equal(manifest.templates.length,13,'Hosted Auth must keep all 13 managed email templates');
 
   const publicAssets=new Set();
+  const expectedLayouts={
+    confirmation:'action',
+    invite:'editorial',
+    magic_link:'code',
+    recovery:'action',
+    reauthentication:'code',
+    email_change:'action',
+    password_changed:'notice',
+    email_changed:'notice',
+    phone_changed:'notice',
+    mfa_factor_enrolled:'notice',
+    mfa_factor_unenrolled:'notice',
+    identity_linked:'notice',
+    identity_unlinked:'notice',
+  };
   for(const entry of manifest.templates){
     const type=String(entry.id||'unknown');
     const filename=String(entry.file||'').trim();
@@ -91,8 +106,15 @@ test('Hosted Auth email templates preserve variables, safe structure, canonical 
 
     assert.match(html,/<!doctype html>/i,`${type}: missing HTML doctype`);
     assert.match(html,/<html\b[^>]*lang=["']es["']/i,`${type}: missing Spanish language declaration`);
-    assert.match(html,/<table\b[^>]*role=["']presentation["']/i,`${type}: missing email-safe presentation table`);
-    assert.doesNotMatch(html,/\b(?:src|href)=["']\s*(?:javascript|data|vbscript):/i,`${type}: unsafe URL scheme`);
+    assert.match(html,/<table\b[^>]*role=["']presentation["']/i,type+': missing email-safe presentation table');
+    assert.match(html,/data-iberfit-email=["']v2["']/i,type+': must use the canonical IBERFIT email system v2');
+    assert.match(html,new RegExp('data-iberfit-layout=["\\\']'+expectedLayouts[type]+'["\\\']','i'),type+': wrong email density/layout');
+    assert.match(html,/font-family:Georgia,'Times New Roman',serif/i,type+': editorial heading fallback stack missing');
+    assert.match(html,/font-family:Arial,Helvetica,sans-serif/i,type+': UI/body fallback stack missing');
+    assert.ok(html.includes('#0B1310'),type+': canonical forest token missing');
+    assert.ok(html.includes('#C5A059'),type+': canonical gold token missing');
+    assert.ok(html.includes('#FFFDF8'),type+': canonical paper token missing');
+    assert.doesNotMatch(html,/\b(?:src|href)=["']\s*(?:javascript|data|vbscript):/i,type+': unsafe URL scheme');
     assert.doesNotMatch(html,/\bon(?:error|load|click|mouseover)\s*=/i,`${type}: inline event handler is not allowed`);
 
     for(const variable of entry.requires||[]){
@@ -115,10 +137,17 @@ test('Hosted Auth email templates preserve variables, safe structure, canonical 
   assert.ok(inviteEntry,'invite: manifest entry missing');
   const invite=await readFile(path.join(repoRoot,inviteEntry.file),'utf8');
   assert.ok(invite.includes('/public/iberfit-email-isotipo.png'),'invite: dedicated email isotipo must be used');
-  assert.ok(invite.includes('/public/iberfit-email-access-hero.jpg'),'invite: access hero must be used');
-  assert.match(invite,/bgcolor=["']#c8a24a["'][^>]*>[\s\S]*?<a\b[^>]*color:#0d3328/i,'invite: primary CTA must be gold with dark-green text');
+  assert.ok(invite.includes('/public/iberfit-email-access-hero.jpg'),'invite: approved access hero must be used');
+  assert.match(invite,/bgcolor=["']#C5A059["'][^>]*>[\s\S]*?<a\b[^>]*color:#15271E/i,'invite: primary CTA must use canonical gold with dark-green ink');
+  assert.match(invite,/alt=["']Material de entrenamiento IBERFIT["']/i,'invite: hero alt text must describe the approved brand material');
   assert.equal((invite.match(/width=["']50%["']/g)||[]).length,4,'invite: methodology must use a robust 2x2 grid');
   assert.equal((invite.match(/width=["']25%["']/g)||[]).length,0,'invite: fragile 4-column methodology layout must not return');
+
+  for(const entry of manifest.templates.filter((item)=>item.id!=='invite')){
+    const html=await readFile(path.join(repoRoot,entry.file),'utf8');
+    assert.ok(html.includes('/public/iberfit-email-isotipo.png'),entry.id+': official IBERFIT isotipo must remain in the header');
+    assert.ok(!html.includes('/public/iberfit-email-access-hero.jpg'),entry.id+': hero must stay exclusive to editorial invitation email');
+  }
 
   const built=await buildHostedAuthPatch({root:repoRoot,manifestPath});
   const syncedInvite=built.patch[inviteEntry.contentKey];
@@ -152,8 +181,10 @@ test('Hosted Auth email templates preserve variables, safe structure, canonical 
       if(asset.endsWith('iberfit-email-access-hero.jpg')){
         assert.equal(info.format,'jpeg','hero must remain a real JPEG');
         assert.equal(info.progressive,false,'hero must remain baseline JPEG for broad mail-client compatibility');
-        assert.ok(info.width>=620&&info.width<=1600,'hero width must remain suitable for email rendering');
-        assert.ok(info.height>=180&&info.height<=900,'hero height must remain suitable for email rendering');
+        assert.ok(info.width>=620&&info.width<=1240,'hero width must remain email-efficient and sharp');
+        assert.ok(info.height>=140&&info.height<=220,'hero must remain a subtle low-profile banner');
+        const ratio=info.width/info.height;
+        assert.ok(ratio>=3.2&&ratio<=4.2,'hero aspect ratio must remain a refined horizontal email banner');
       }
     }
   }finally{
