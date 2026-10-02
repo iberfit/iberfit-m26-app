@@ -12,19 +12,21 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
   const normalizedClients=arr(clients).map((client)=>{
     const experience=client?.experience||{};
     const lifecycleStatus=text(client?.lifecycle?.status||client?.status).toLowerCase();
-    const stage=lifecycleStatus==='iri_only'?'iri_only':text(experience.stage,'active');
+    const serviceKind=text(client?.lifecycle?.serviceKind||client?.lifecycle?.service_kind||client?.serviceKind,'training').toLowerCase();
+    const stage=serviceKind==='iri_only'?'iri_only':text(experience.stage,'active');
     const assignments=arr(client?.assignments);
     const assigned=assignments.length>0;
     const nextAction=client?.nextAction||{};
     const adaptive=client?.adaptiveExperience||{};
     const adaptiveKind=['critical','warning'].includes(text(adaptive.kind).toLowerCase())?text(adaptive.kind).toLowerCase():null;
-    const kind=lifecycleStatus==='iri_only'?'clear':!assigned?'critical':adaptiveKind||stageKind(stage);
+    const kind=serviceKind==='iri_only'?'clear':!assigned?'critical':adaptiveKind||stageKind(stage);
     return Object.freeze({
       clientId:text(client?.id),
       clientName:text(client?.name,'Cliente'),
       stage,
       lifecycleStatus,
-      stageLabel:lifecycleStatus==='iri_only'?'Solo IRI':text(experience.stageLabel,stageLabel(stage)),
+      serviceKind,
+      stageLabel:serviceKind==='iri_only'?'Solo IRI':text(experience.stageLabel,stageLabel(stage)),
       experiencePriority:Number.isFinite(Number(experience.priority))?Number(experience.priority):5,
       assigned,
       coachNames:Object.freeze(arr(client?.coachNames).map((x)=>text(x)).filter(Boolean)),
@@ -71,17 +73,17 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
     .sort((a,b)=>taskPriority(a)-taskPriority(b));
 
   const countStage=(stage)=>normalizedClients.filter((client)=>client.stage===stage).length;
-  const trainingClients=normalizedClients.filter((client)=>client.lifecycleStatus!=='iri_only');
+  const trainingClients=normalizedClients.filter((client)=>client.serviceKind!=='iri_only');
   const summary=Object.freeze({
     totalPeople:normalizedClients.length,
     totalClients:trainingClients.length,
-    iriOnlyPeople:normalizedClients.filter((client)=>client.lifecycleStatus==='iri_only').length,
+    iriOnlyPeople:normalizedClients.filter((client)=>client.serviceKind==='iri_only').length,
     unassignedClients:trainingClients.filter((client)=>!client.assigned).length,
     onboardingPending:countStage('onboarding'),
     iriPending:countStage('evaluation'),
     planningPending:countStage('planning'),
     schedulingPending:countStage('scheduling'),
-    activeClients:normalizedClients.filter((client)=>client.lifecycleStatus==='active').length,
+    activeClients:normalizedClients.filter((client)=>client.lifecycleStatus==='active'&&client.serviceKind!=='iri_only').length,
     openTasks:openTasks.length,
     criticalTasks:criticalTasks.length,
     coachesNearCapacity:coachLoad.filter((coach)=>coach.status==='near'||coach.status==='full').length,
