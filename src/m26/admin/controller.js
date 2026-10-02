@@ -59,7 +59,7 @@ function applyUserDirectoryFilters(root,state=null){
 
 const CLIENT_EDIT_FIELDS=Object.freeze([
   'name','phone','birthDate','sexForNorms','preferredContactChannel','preferredContactTime',
-  'modality','weeklyFrequency','sessionDurationMinutes','initialAssessmentMode','zone','address',
+  'relationshipType','modality','weeklyFrequency','sessionDurationMinutes','initialAssessmentMode','zone','address',
   'preferredSchedule','locationType','accessInstructions','objective','secondaryObjectives','level',
   'history','currentTraining','restrictions','pain','equipment','preferences',
   'emergencyContactName','emergencyContactRelation','emergencyContactPhone',
@@ -71,6 +71,20 @@ function clientEditRecords(root){
     const parsed=JSON.parse(String(node.textContent||'[]'));
     return Array.isArray(parsed)?parsed:[];
   }catch{return [];}
+}
+function syncClientEditRelationship(form){
+  if(!form)return 'training';
+  const relationship=String(form.elements?.namedItem?.('relationshipType')?.value||'training').trim()||'training';
+  const iriOnly=relationship==='iri_only';
+  for(const name of ['weeklyFrequency','sessionDurationMinutes']){
+    const control=form.elements?.namedItem?.(name);
+    if(!control)continue;
+    control.required=!iriOnly;
+    control.disabled=iriOnly;
+    const label=control.closest?.('[data-training-only-field],label');
+    if(label)label.hidden=iriOnly;
+  }
+  return relationship;
 }
 function populateClientEditForm(root,record){
   const dialog=root?.querySelector?.('[data-admin-client-edit-dialog]');
@@ -85,6 +99,7 @@ function populateClientEditForm(root,record){
     if(!control)continue;
     control.value=String(record[key]??'');
   }
+  syncClientEditRelationship(form);
   const email=dialog.querySelector?.('[data-admin-client-edit-email]');
   if(email)email.textContent=String(record.email||'Sin correo de acceso');
   return {dialog,form};
@@ -399,6 +414,11 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     if(!event.target?.closest?.('[data-admin-user-search],[data-admin-user-filter]'))return;
     applyUserDirectoryFilters(root);
   }
+  function onClientEditRelationshipChange(event){
+    const field=event.target?.closest?.('[data-admin-form="client-profile-update"] [name="relationshipType"]');
+    if(!field)return;
+    syncClientEditRelationship(field.form);
+  }
   function onClientEditClick(event){
     const open=event.target?.closest?.('[data-admin-client-edit-open]');
     if(open){
@@ -425,6 +445,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       root.addEventListener('submit',onSubmitEvent);
       root.addEventListener('input',onDirectoryFilter);
       root.addEventListener('change',onDirectoryFilter);
+      root.addEventListener('change',onClientEditRelationshipChange);
       root.addEventListener('click',onClientEditClick);
       root.addEventListener('cancel',onClientEditCancel,true);
       clientWizard.mount();
@@ -435,6 +456,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       root.removeEventListener('submit',onSubmitEvent);
       root.removeEventListener('input',onDirectoryFilter);
       root.removeEventListener('change',onDirectoryFilter);
+      root.removeEventListener('change',onClientEditRelationshipChange);
       root.removeEventListener('click',onClientEditClick);
       root.removeEventListener('cancel',onClientEditCancel,true);
     },
