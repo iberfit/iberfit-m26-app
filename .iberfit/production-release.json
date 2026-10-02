@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "4a0d8261d7606ffa49ee3ec21cb726a919a9a9e6",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "Fix global focus/autofill field paint and password Mostrar/Ocultar geometry; PR #681"
+}
