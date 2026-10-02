@@ -37,9 +37,12 @@ for each row execute function public.iberfit_require_physical_consent_before_iri
 ```
 
 Canonical production cutover:
-1. additive schema/RPC migrations;
-2. operational data-preserving cutover in `backend/IRI_PHOTOGRAMMETRY_V1_CUTOVER_COMPAT.sql`;
-3. frontend promotion and live certification;
-4. additive trigger activation in `20261002113000_iri_physical_consent_enforcement.sql`.
+1. apply the backward-compatible photogrammetry foundation migrations (new tables/RPCs/private Storage only; no restrictive change to `iri_assessments`);
+2. verify the current production frontend still behaves normally;
+3. promote the new frontend and certify LIVE;
+4. apply `20261002113000_iri_physical_consent_enforcement.sql` as the post-deploy contract phase (baseline-only constraints, unique initial IRI and physical-consent trigger);
+5. re-certify IRI confirmation and role/privacy boundaries.
+
+`backend/IRI_PHOTOGRAMMETRY_V1_CUTOVER_COMPAT.sql` is retained only for emergency rollback/intermediate-environment compatibility. It is not part of the canonical forward PROD path.
 
 No experiment was applied to PROD.
