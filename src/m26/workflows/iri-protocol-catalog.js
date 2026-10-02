@@ -389,7 +389,7 @@ function generatedConfiguration(protocolId,raw,parts){
 
 function protocolNormEligible(protocolId,{valid,variant,adaptationReason,result}={}){
   if(valid!==true||String(adaptationReason||'').trim())return false;
-  if(protocolId==='weight-bearing-lunge')return variant==='standard-barefoot';
+  if(protocolId==='weight-bearing-lunge')return ['standard-barefoot','standard-footwear'].includes(variant);
   if(protocolId==='chair-stand-30s')return variant==='standard-arms-crossed'&&Number(result?.chairHeightCm)>=43&&Number(result?.chairHeightCm)<=46;
   if(protocolId==='one-minute-sit-to-stand')return Number(result?.chairHeightCm)>=43&&Number(result?.chairHeightCm)<=46&&Number(result?.durationSeconds)===60;
   if(protocolId==='push-test')return variant==='standard';
