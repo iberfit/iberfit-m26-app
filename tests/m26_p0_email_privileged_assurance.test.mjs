@@ -95,7 +95,7 @@ test('database assurance keeps WebAuthn, preserves migration history and hardens
   assert.match(v2,/Each Supabase email OTP session may establish privileged assurance exactly once/u);
 });
 
-test('IBERFIT OTP email is branded, personalized and uses the premium light system',()=>{
+test('IBERFIT OTP email is branded, personalized and uses the premium V2 system',()=>{
   const html=fs.readFileSync('supabase/templates/iberfit-magic-link.html','utf8');
   const manifest=JSON.parse(fs.readFileSync('supabase/templates/iberfit-hosted-auth-email-manifest.json','utf8'));
   const entry=manifest.templates.find((item)=>item.id==='magic_link');
@@ -104,11 +104,14 @@ test('IBERFIT OTP email is branded, personalized and uses the premium light syst
   assert.deepEqual(entry.requires,['{{ .Token }}','{{ .Email }}']);
   assert.match(html,/\{\{ \.Token \}\}/u);
   assert.match(html,/\{\{ \.Email \}\}/u);
-  assert.match(html,/#f3f0e8/iu);
-  assert.match(html,/#0d3328/iu);
-  assert.match(html,/#c8a24a/iu);
-  assert.match(html,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
-  assert.match(html,/mailto:\{\{ \.Email \}\}/u);
+  assert.match(html,/data-iberfit-email="v2"/u);
+  assert.match(html,/data-iberfit-layout="code"/u);
+  assert.match(html,/#F3EEE3/u);
+  assert.match(html,/#0B1310/u);
+  assert.match(html,/#C5A059/u);
+  assert.match(html,/src="\/public\/iberfit-email-isotipo\.png"/u);
+  assert.doesNotMatch(html,/isotipo-iberfit\.png/u);
+  assert.doesNotMatch(html,/mailto:/u);
   assert.doesNotMatch(html,/iberfit-email-access-hero\.jpg/u);
   assert.doesNotMatch(html,/\{\{ \.ConfirmationURL \}\}/u);
 });
