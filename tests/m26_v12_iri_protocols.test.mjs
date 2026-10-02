@@ -37,12 +37,14 @@ function validDraft(overrides={}){
 
 test('catálogo IRI V12 cubre todas las pruebas con protocolo técnico completo y versionado',()=>{
   const protocols=Object.values(IRI_PROTOCOL_CATALOG);
-  assert.equal(protocols.length,14);
+  assert.equal(protocols.length,16);
   assert.equal(iriProtocolsForStep('movilidad').length,5);
-  assert.equal(iriProtocolsForStep('fuerza').length,5);
-  assert.equal(iriProtocolsForStep('cardio').length,3);
+  assert.equal(iriProtocolsForStep('fuerza').length,6);
+  assert.equal(iriProtocolsForStep('cardio').length,4);
   assert.ok(IRI_PROTOCOL_CATALOG['one-minute-sit-to-stand']);
   assert.ok(IRI_PROTOCOL_CATALOG['ymca-three-minute-step']);
+  assert.ok(IRI_PROTOCOL_CATALOG['bodyweight-squat-60s']);
+  assert.ok(IRI_PROTOCOL_CATALOG['treadmill-three-minute-field']);
   assert.ok(IRI_PROTOCOL_CATALOG['legacy-iberfit-three-minute-step-adapted']);
   for(const protocol of protocols){
     assert.match(protocol.id,/^[a-z0-9-]+$/);
@@ -92,6 +94,8 @@ test('pantalla Coach integra tarjetas, demostración, validez y registro sin aba
   assert.match(html,/Trazabilidad del registro/);
   assert.match(html,/data-iri-protocol="one-minute-sit-to-stand"/);
   assert.match(html,/data-iri-protocol="ymca-three-minute-step"/);
+  assert.match(html,/data-iri-protocol="bodyweight-squat-60s"/);
+  assert.match(html,/data-iri-protocol="treadmill-three-minute-field"/);
   assert.doesNotMatch(html,/data-iri-protocol="legacy-iberfit-three-minute-step-adapted"/);
   assert.match(html,new RegExp(IRI_PROTOCOL_CATALOG_VERSION.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 });
@@ -185,6 +189,51 @@ test('1MSTS es independiente: 60 s y repeticiones obligatorios, FC opcional',()=
   assert.match(html,/34 repeticiones en 60 s/);
   assert.match(html,/Frecuencia cardiaca no registrada/);
   assert.doesNotMatch(html,/YMCA · 3 minutos/);
+});
+
+test('modo terreno registra sentadilla 60 s y cinta 3 min sin apropiarse de baremos ajenos',()=>{
+  const draft=validDraft({
+    chairStand30s:'',chairStandValid:'',
+    squat60Repetitions:'32',squat60DepthCriterion:'Paralelo visual',squat60Stance:'Base cómoda',squat60Valid:'on',
+    cardioProtocol:'treadmill-3min-field',cardioDurationSeconds:'180',
+    treadmillSpeedKmh:'7.2',treadmillInclinePercent:'0',treadmillLocomotionMode:'jog',cardioHrMethod:'chest-strap',cardioRecoveryMode:'standing-passive',
+    stepHeightCm:'',cadenceBpm:'',stepFinalHr:'158',stepOneMinuteHr:'126',twoMinuteHr:'108',
+    cardioConfiguration:'Cinta 7,2 km/h · 0% · recuperación pasiva de pie',
+  });
+  const check=validateFirstSessionDraft(draft);
+  assert.equal(check.ok,true,check.errors.join(','));
+  assert.equal(draft.strength.squat60.repetitions,32);
+  assert.equal(draft.cardio.protocol,'treadmill-3min-field');
+  assert.equal(draft.cardio.deltaOneMinute,32);
+  assert.equal(draft.cardio.deltaTwoMinute,50);
+  const squat=draft.protocolRecords.find((item)=>item.testId==='bodyweight-squat-60s');
+  const treadmill=draft.protocolRecords.find((item)=>item.testId==='treadmill-three-minute-field');
+  assert.equal(squat.valid,true);
+  assert.equal(squat.normEligible,false);
+  assert.equal(squat.measurementClass,'standard_baseline');
+  assert.equal(treadmill.valid,true);
+  assert.equal(treadmill.normEligible,false);
+  assert.equal(treadmill.trackingComparable,true);
+  const html=buildIriReportHtml({draft,variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
+  assert.match(html,/Cinta · 3 minutos/);
+  assert.match(html,/HRR1/);
+  assert.match(html,/HRR2/);
+  assert.match(html,/Sentadilla libre 60 s/);
+});
+
+test('adaptación de campo puede ser válida y comparable sin convertirse en baremo',()=>{
+  const draft=validDraft({
+    ankleProtocolVariant:'supported-adaptation',
+    ankleAdaptationReason:'Apoyo estable por equilibrio',
+    ankleConfiguration:'Pared norte · apoyo de mano · misma cinta',
+  });
+  const left=draft.protocolRecords.find((item)=>item.testId==='weight-bearing-lunge'&&item.side==='left');
+  assert.equal(left.valid,true);
+  assert.equal(left.normEligible,false);
+  assert.equal(left.trackingComparable,true);
+  assert.equal(left.measurementClass,'adapted_baseline');
+  assert.ok(IRI_PROTOCOL_CATALOG['back-saver'].variants.some((item)=>item.id==='floor-mat-adapted'));
+  assert.ok(IRI_PROTOCOL_CATALOG['modified-thomas'].variants.some((item)=>item.id==='floor-mat-observation'));
 });
 
 test('YMCA estándar exige su configuración y no comparte contrato con 1MSTS',()=>{
