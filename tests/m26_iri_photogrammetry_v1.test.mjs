@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 
 import {
   IRI_PHOTO_LANDMARK_SCHEMA,
