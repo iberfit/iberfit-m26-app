@@ -8,12 +8,17 @@ Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 - WIP=1: PR #672 — `feat(iri): initial diagnosis and private photogrammetry v1`.
 - Rama: `feat/iri-photogrammetry-v1`.
 - Base/Canary actual comprobado: `2bc5f7b01c4fac656a4c78e6235beaf0067cca0a`.
-- HEAD del WIP comprobado antes de esta actualización documental: `8d1accc444c19cdb088446c352d3f0f2d0cdf379`.
+- HEAD funcional comprobado antes de esta actualización documental: `4de7466372b87699b795b99cf7fdab4a9f6e77fd`.
 - PR: OPEN + DRAFT + mergeable.
-- Estado: implementación en rama; NO certificado en Canary; NO promovido a PROD; NO verificado LIVE.
-- Alcance ya presente en el WIP: baseline IRI inicial único, ledger de consentimientos, storage privado de fotogrametría, originales inmutables para authenticated, trazabilidad por vista/SHA-256, análisis manual 4-point y motor geométrico puro.
-- Pendiente del mismo WIP: UI/captura 4 vistas + editor manual, 1MSTS, desacoplar evolución/reevaluación de `iri_assessments`, reporte baseline-only con fotos excluidas por defecto, QA/CI/Canary/PROD/LIVE.
-- La migración del WIP consta como validada mediante dry-run transaccional en QA con rollback en la descripción actual del PR; no equivale a despliegue Canary/PROD.
+- IMPLEMENTADO: baseline IRI inicial único; seguimiento/evolución desacoplado de `iri_assessments`; 1MSTS separado de YMCA; informe baseline-only; fotos excluidas por defecto; consentimiento físico persistido; consentimiento fotográfico independiente; workspace privado de 4 vistas; originales inmutables con SHA-256; flujo recuperable `prepare → upload → finalize`; landmarks manuales editables/validados; geometría aspect-ratio aware; UI keyboard/touch/mobile; acceso de aplicación sólo Coach/Admin.
+- TESTEADO/QA: foundation/RLS/RPC/Storage certificados en QA; bucket privado presente; Cliente privado denegado y Coach asignado permitido en gate autenticado; función trigger no ejecutable directamente por `anon` ni `authenticated`; cobertura explícita añadida para contexto Admin. El CI exhaustivo del HEAD documental final sigue pendiente.
+- CI anterior sobre `c8a6919a15faa3805ce15e64670730c849202dba`: Fast Lane, M26 CI, Production Data Safety, QA Real Write, Continuous Audit, Authenticated Client, Admin Interaction Matrix y Daily Visual GREEN. Device Experience sufrió un shutdown externo del runner sin fallo de aserción; Canary Policy falló únicamente como consecuencia de ese Device gate. Se lanzó un reintento dirigido antes del commit de cobertura Admin; no reutilizarlo como evidencia del HEAD final.
+- QA DB contiene historia de experimentos de cutover; el forward path de PROD sigue siendo `foundation backward-compatible → frontend LIVE → post-deploy contract`.
+- PROD preflight read-only 02/10: #672 aún no está aplicado (sin tablas nuevas ni bucket); existe 1 IRI `inicial`, estado `revisión`, 1 cliente y 0 clientes duplicados. Esto justifica que el guard físico proteja `revisión/aprobado/publicado` cuando se active el contract phase.
+- CANARY: NO integrado ni certificado para #672.
+- PROD: NO mutado por #672.
+- LIVE VERIFICADO: NO para #672.
+- Siguiente acción exacta: completar CI del HEAD final; sólo con todos los gates verdes pasar PR a ready, integrar en Canary y ejecutar el cutover canónico con verificación real en cada fase.
 
 Regla: cualquier avance de este WIP debe actualizar este bloque sólo con hechos comprobados y distinguir implementación, test, Canary, PROD y LIVE.
 
