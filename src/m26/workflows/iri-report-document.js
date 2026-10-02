@@ -441,9 +441,9 @@ const REPORT_DYNAMIC_CSS=[
   ...Array.from({length:101},(_,index)=>`.w-pct-${index}{width:${index}%}`),
 ].join('');
 const REPORT_STYLESHEET=`${REPORT_CSS}${PREMIUM_RC36_CSS}${REPORT_DYNAMIC_CSS}`;
-export function buildIriReportHtml({draft,variant='client',clientName='Cliente IBERFIT',coachName='Coach IBERFIT',clientId='',logoUrl='/public/isotipo-iberfit.png',stylesheetHref='',externalReport=null,appOrigin=undefined,longitudinalHistory=[]}={}){
+export function buildIriReportHtml({draft,variant='client',clientName='Cliente IBERFIT',coachName='Coach IBERFIT',clientId='',logoUrl='/public/isotipo-iberfit.png',stylesheetHref='',externalReport=null,appOrigin=undefined}={}){
   if(!draft||!['client','coach'].includes(variant))throw new Error('M26_IRI_REPORT_DOCUMENT_INVALID');
-  const context={clientName:clean(clientName,160)||'Cliente IBERFIT',coachName:clean(coachName,160)||'Coach IBERFIT',clientId:clean(clientId,200),logoUrl,externalReport,appOrigin,longitudinalHistory:Array.isArray(longitudinalHistory)?longitudinalHistory:[]};
+  const context={clientName:clean(clientName,160)||'Cliente IBERFIT',coachName:clean(coachName,160)||'Coach IBERFIT',clientId:clean(clientId,200),logoUrl,externalReport,appOrigin};
   const pages=variant==='client'?clientPages(draft,context):coachPages(draft,context);
   if(variant==='client'&&pages.length!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
   if(variant==='coach'&&pages.length<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
@@ -610,9 +610,9 @@ export function prepareIriReportPrintTarget(openWindow=globalThis.open){
   try{popup.opener=null;}catch{}
   return popup;
 }
-export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,externalReport=null,longitudinalHistory=[],printTarget=null,openWindow=globalThis.open,locationLike=globalThis.location}={}){
+export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,externalReport=null,printTarget=null,openWindow=globalThis.open,locationLike=globalThis.location}={}){
   const stylesheetHref=reportStylesheetUrl(locationLike);
-  const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl,stylesheetHref,externalReport,appOrigin:locationLike?.origin,longitudinalHistory});
+  const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl,stylesheetHref,externalReport,appOrigin:locationLike?.origin});
   const pageCount=(html.match(/class="pdf-page(?:\s|")/gu)||[]).length;
   if(variant==='client'&&pageCount!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
   if(variant==='coach'&&pageCount<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
