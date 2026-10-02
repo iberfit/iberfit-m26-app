@@ -7,6 +7,7 @@ export const M26_COLLECTION_KEYS = Object.freeze([
   'clients',
   'clientProfiles',
   'clientAccess',
+  'clientLifecycle',
   'iriAssessments',
   'reports',
   'trainingCycles',
@@ -152,6 +153,7 @@ function normalizeCollection(data, key) {
   const aliases = {
     clientProfiles: ['clientProfiles', 'client_profiles'],
     clientAccess: ['clientAccess', 'client_access'],
+    clientLifecycle: ['clientLifecycle', 'client_lifecycle'],
     iriAssessments: ['iriAssessments', 'iri_assessments'],
     trainingCycles: ['trainingCycles', 'training_cycles', 'cycles'],
     sessionExecutions: ['sessionExecutions', 'session_executions'],
