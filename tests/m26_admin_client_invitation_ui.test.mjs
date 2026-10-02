@@ -9,7 +9,8 @@ const state = await readFile(new URL('../src/m26/admin/admin-state.js', import.m
 test('ADMIN clients surface exposes a guided create-and-invite flow', () => {
   assert.match(render, /form\('client-create'/);
   assert.match(render, /data-client-create-wizard/u);
-  assert.match(render, /Crear cliente y enviar invitación/u);
+  assert.match(render, /Crear persona y preparar acceso/u);
+  assert.match(render, /Solo IRI · evaluación e informe/u);
   assert.match(render, /data-client-step="1"/u);
   assert.match(render, /data-client-step="5"/u);
   assert.match(render, /data-client-wizard-prev/u);
@@ -29,6 +30,7 @@ test('ADMIN clients surface exposes a guided create-and-invite flow', () => {
 
 test('ADMIN client access state remains visible after bootstrap refresh', () => {
   assert.match(state, /'clientAccess'/);
+  assert.match(state, /'clientServices'/);
   assert.match(state, /lastInvitationAttemptAt/);
   assert.match(state, /invitationDeliveryStatus/);
   assert.match(state, /access:accessByClient/);
