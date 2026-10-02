@@ -56,16 +56,17 @@ language sql
 stable
 security definer
 set search_path=''
-as $$
+as $
   select coalesce((
     select c.status='granted'
+      and public.iberfit_can_manage_iri_private_v1(c.client_id)
     from public.iri_consents_v1 c
     where c.assessment_id=p_assessment_id
       and c.consent_type=p_consent_type
     order by c.recorded_at desc,c.id desc
     limit 1
   ),false);
-$$;
+$;
 
 create policy iri_consents_read_manage_v1
 on public.iri_consents_v1
