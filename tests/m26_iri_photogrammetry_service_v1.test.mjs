@@ -85,6 +85,10 @@ test('photogrammetry context is Coach/Admin only and resolves the initial baseli
     resolveIriPhotogrammetryContext({...base,identity:{role:'coach'}}),
     {role:'coach',clientId:CLIENT,assessmentId:ASSESSMENT,canManage:true}
   );
+  assert.deepEqual(
+    resolveIriPhotogrammetryContext({...base,identity:{role:'admin'}}),
+    {role:'admin',clientId:CLIENT,assessmentId:ASSESSMENT,canManage:true}
+  );
   assert.equal(resolveIriPhotogrammetryContext({...base,identity:{role:'client',clientId:CLIENT}}).canManage,false);
 });
 
