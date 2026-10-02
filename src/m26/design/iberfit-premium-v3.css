@@ -764,3 +764,68 @@
   }
 }
 /* ADMIN_USER_DIRECTORY_QUIET_V1_END */
+
+
+/* FORM_CONTROL_NATIVE_PAINT_HARDENING_V1 */
+/*
+ * Final cascade guard for browser autofill/password-manager paint.
+ * Applies to product text controls only; checkbox/radio semantics stay native.
+ */
+.m26-shell .m26-workspace :is(
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea
+):-webkit-autofill,
+.m26-shell .m26-workspace :is(
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea
+):-webkit-autofill:hover,
+.m26-shell .m26-workspace :is(
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea
+):-webkit-autofill:active {
+  color-scheme: dark !important;
+  color: var(--iberfit-v3-text) !important;
+  -webkit-text-fill-color: var(--iberfit-v3-text) !important;
+  caret-color: var(--iberfit-v3-gold) !important;
+  background-color: #0E1B16 !important;
+  -webkit-box-shadow: inset 0 0 0 1000px #0E1B16 !important;
+  box-shadow: inset 0 0 0 1000px #0E1B16 !important;
+  transition: background-color 9999s ease-out 0s !important;
+}
+
+.m26-shell .m26-workspace :is(
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea
+):-webkit-autofill:focus,
+.m26-shell .m26-workspace :is(
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea
+):-webkit-autofill:focus-visible {
+  color-scheme: dark !important;
+  -webkit-text-fill-color: var(--iberfit-v3-text) !important;
+  caret-color: var(--iberfit-v3-gold) !important;
+  border-color: rgba(197,160,89,.55) !important;
+  background-color: #0E1B16 !important;
+  -webkit-box-shadow: inset 0 0 0 1000px #0E1B16, 0 0 0 3px rgba(197,160,89,.16) !important;
+  box-shadow: inset 0 0 0 1000px #0E1B16, 0 0 0 3px rgba(197,160,89,.16) !important;
+  transition: background-color 9999s ease-out 0s !important;
+}
+
+.m26-shell .m26-workspace :is(
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea
+):autofill {
+  color-scheme: dark !important;
+  color: var(--iberfit-v3-text) !important;
+  -webkit-text-fill-color: var(--iberfit-v3-text) !important;
+  caret-color: var(--iberfit-v3-gold) !important;
+  background-color: #0E1B16 !important;
+  -webkit-box-shadow: inset 0 0 0 1000px #0E1B16 !important;
+  box-shadow: inset 0 0 0 1000px #0E1B16 !important;
+}
