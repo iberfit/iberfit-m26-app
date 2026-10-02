@@ -105,6 +105,29 @@ function updateReview(form){
     node.textContent=values.length?values.join(' · '):'Sin completar';
   }
 }
+function syncEngagementMode(form){
+  const mode=String(form?.elements?.namedItem?.('engagementType')?.value||'training');
+  const solo=mode==='iri_only';
+  const trainingNames=['weeklyFrequency','sessionDurationMinutes','preferredSchedule'];
+  for(const name of trainingNames){
+    const control=form?.elements?.namedItem?.(name);
+    if(!control)continue;
+    control.disabled=solo;
+    if(name!=='preferredSchedule')control.required=!solo;
+  }
+  const assessment=form?.elements?.namedItem?.('initialAssessmentMode');
+  if(assessment&&solo){assessment.value='iri';assessment.disabled=true;}
+  else if(assessment)assessment.disabled=false;
+  for(const node of form?.querySelectorAll?.('[data-training-only]')||[])node.hidden=solo;
+  const review=form?.querySelector?.('[data-engagement-review-copy]');
+  if(review)review.textContent=solo
+    ?'IBERFIT creará una persona “Solo IRI”, conservará evaluación e informe y no enviará acceso a la app ni contará como cliente de entrenamiento activo.'
+    :'IBERFIT creará el expediente de entrenamiento, vinculará al Coach responsable y preparará la invitación segura de acceso.';
+  const submit=form?.querySelector?.('[data-client-create-submit]');
+  if(submit)submit.textContent=solo?'Crear persona Solo IRI':'Crear cliente y enviar invitación';
+  return mode;
+}
+
 function setStep(form,step,{focus=false}={}){
   const next=clampStep(step);
   form.dataset.clientCurrentStep=String(next);
@@ -196,6 +219,7 @@ export function createClientCreateWizard({
     }else{
       setStep(form,DEFAULT_STEP);
     }
+    syncEngagementMode(form);
     updateReview(form);
     return true;
   }
@@ -247,6 +271,7 @@ export function createClientCreateWizard({
     return null;
   }
   function validateForSubmit(form){
+    syncEngagementMode(form);
     return !revealFirstInvalid(form);
   }
   function onClick(event){
@@ -293,6 +318,7 @@ export function createClientCreateWizard({
     const form=currentForm(event.target);
     if(!form)return;
     initialize(form);
+    if(event.target?.name==='engagementType')syncEngagementMode(form);
     updateReview(form);
     if(event.type==='change')save(form);
     else scheduleSave(form);
@@ -330,5 +356,5 @@ export function createClientCreateWizard({
 
 export const __clientCreateWizardInternals=Object.freeze({
   DRAFT_SCHEMA,DRAFT_PREFIX,LEGACY_DRAFT_PREFIX,DRAFT_MAX_AGE_MS,INPUT_SAVE_DELAY_MS,MAX_STEP,
-  clampStep,keyFor,legacyKeyFor,collect,assign,setStep,readDraft,writeDraft,
+  clampStep,keyFor,legacyKeyFor,collect,assign,setStep,syncEngagementMode,readDraft,writeDraft,
 });

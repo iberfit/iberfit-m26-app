@@ -88,7 +88,8 @@ export function createAdminTransport({runtime,fetchImpl=globalThis.fetch}={}){
 
   async function execute(token,command){
     const type=String(command?.type||'').trim().toUpperCase();
-    const result=['ADMIN_CLIENTE_CREAR','ADMIN_CLIENTE_REENVIAR_INVITACION'].includes(type)
+    const isIriOnlyCreate=type==='ADMIN_CLIENTE_CREAR'&&String(command?.payload?.engagementType||'').toLowerCase()==='iri_only';
+    const result=(type==='ADMIN_CLIENTE_CREAR'&&!isIriOnlyCreate)||type==='ADMIN_CLIENTE_REENVIAR_INVITACION'
       ?await request(CLIENT_INVITE_FUNCTION,token,{command})
       :type==='ADMIN_USUARIO_ELIMINAR'
         ?await request(USER_DECOMMISSION_FUNCTION,token,{command})
