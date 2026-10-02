@@ -62,6 +62,7 @@ function cardioProtocolLabel(cardio={}){
   if(protocol==='1msts-standard')return '1MSTS · 60 segundos';
   if(protocol==='ymca-3min-standard')return 'YMCA Step Test · 3 minutos';
   if(protocol==='iberfit-3min-adapted')return 'Step 3 min adaptado · histórico';
+  if(protocol.startsWith('field-3min-'))return protocol==='field-3min-treadmill-run'?'Cardio de campo · cinta · trote/carrera suave':protocol==='field-3min-treadmill-walk'?'Cardio de campo · cinta · caminata':protocol==='field-3min-bike'?'Cardio de campo · bicicleta':protocol==='field-3min-elliptical'?'Cardio de campo · elíptica':'Cardio de campo · 3 minutos';
   return 'Protocolo no identificado';
 }
 function cardioProtocolReady(cardio={}){
@@ -82,6 +83,7 @@ function cardioProtocolReady(cardio={}){
       finiteValue(cardio?.stepHeightCm)&&finiteValue(cardio?.cadenceBpm)&&
       finiteValue(cardio?.finalHr)&&finiteValue(cardio?.oneMinuteHr);
   }
+  if(protocol.startsWith('field-3min-'))return Number(cardio?.durationSeconds)===180&&finiteValue(cardio?.finalHr)&&finiteValue(cardio?.oneMinuteHr);
   return false;
 }
 function cardioResultDetail(cardio={}){
@@ -94,6 +96,11 @@ function cardioResultDetail(cardio={}){
     const delta=finiteValue(cardio?.deltaOneMinute)?` · recuperación 1 min ${number(cardio.deltaOneMinute)} lpm`:'';
     return `FC final ${number(cardio?.finalHr)} lpm${delta}`;
   }
+  if(protocol.startsWith('field-3min-')){
+    const d1=finiteValue(cardio?.deltaOneMinute)?` · Δ1 ${number(cardio.deltaOneMinute)} lpm`:'';
+    const d2=finiteValue(cardio?.deltaTwoMinute)?` · Δ2 ${number(cardio.deltaTwoMinute)} lpm`:'';
+    return `FC final ${number(cardio?.finalHr)} lpm${d1}${d2}`;
+  }
   return 'Sin resultado interpretable';
 }
 function cardioProtocolNote(cardio={}){
@@ -101,6 +108,7 @@ function cardioProtocolNote(cardio={}){
   if(protocol==='1msts-standard')return 'Las repeticiones son el resultado principal; la FC es complementaria y opcional.';
   if(protocol==='ymca-3min-standard')return 'Comparar sólo con YMCA realizado a 30,5 cm, 96 bpm y 180 s.';
   if(protocol==='iberfit-3min-adapted')return 'Registro histórico: no equivale a YMCA y no utiliza sus baremos.';
+  if(protocol.startsWith('field-3min-'))return 'Baseline individual de campo. Comparar sólo con la misma modalidad, carga y recuperación; no aplicar baremos YMCA ni cortes clínicos de otros protocolos.';
   return 'No comparar con otros protocolos.';
 }
 function evidenceStatus(labelText,status,detail,note=''){
@@ -111,7 +119,8 @@ function domainEvidenceGrid(draft){
   const body=draft.bodyComposition||{},mobility=draft.mobility||{},strength=draft.strength||{},cardio=draft.cardio||{};
   const bodyCount=[body.weightKg,body.bodyFatPercent,body.leanMassKg,body.muscleMassKg,body.bodyWaterPercent,body.waistCm,body.visceralFatLevel].filter((value)=>value!==null&&value!==undefined&&value!=='').length;
   const mobilityCount=[mobility.ankle?.leftBest,mobility.ankle?.rightBest,mobility.posteriorChain?.leftBest,mobility.posteriorChain?.rightBest,mobility.hipRotation?.result,mobility.assistedSquat?.depth].filter((value)=>value!==null&&value!==undefined&&value!=='').length;
-  const validStrength=[strength.chairStand?.valid,strength.push?.valid,strength.trxRow?.valid].filter((value)=>value===true).length;
+  const lowerBodyValid=Boolean(strength.chairStand?.valid||strength.squat60?.valid);
+  const validStrength=[lowerBodyValid,strength.push?.valid,strength.trxRow?.valid,strength.core?.valid].filter((value)=>value===true).length;
   const cardioReady=cardioProtocolReady(cardio);
   const bodyState=body.skipped?'No evaluado':bodyCount?'Registrado':'Pendiente';
   const mobilityState=mobility.skipped?'No evaluado':mobilityCount?'Registrado':'Pendiente';
@@ -121,7 +130,8 @@ function domainEvidenceGrid(draft){
 }
 function coverageScore(draft){return firstSessionCompletion(draft).percent;}
 function clientTestExplanation({title,observed,importance,result,decision}){return `<section class="client-test-explanation"><h3>${escapeHtml(title)}</h3><div><p><span>Qué observamos</span><strong>${escapeHtml(label(observed))}</strong></p><p><span>Por qué importa</span><strong>${escapeHtml(label(importance))}</strong></p><p><span>Resultado</span><strong>${escapeHtml(label(result))}</strong></p><p><span>Decisión</span><strong>${escapeHtml(label(decision))}</strong></p></div></section>`;}
-function protocolTraceRows(records=[]){return (Array.isArray(records)?records:[]).map((record)=>[record.testName,record.side==='left'?'Izquierda':record.side==='right'?'Derecha':record.side==='bilateral'?'Bilateral':'—',record.variant,record.configuration,record.protocolVersion,record.valid===true?'Válida':record.valid===false?'No válida':'Sin confirmar',[record.adaptationReason,record.stopReason].filter(Boolean).join(' · ')||'—']);}
+function protocolUsage(record={}){const kind=String(record.evidenceClass||'');const base=kind==='standard_protocol'?'Estándar':kind==='repeatable_baseline'?'Baseline repetible':kind==='descriptive_only'?'Descriptivo':kind==='invalid'?'No válido':kind==='not_performed'?'No realizado':record.valid===true?'Válido':'Sin confirmar';return record.normEligible===true?`${base} · baremo compatible`:`${base} · sin baremo`;}
+function protocolTraceRows(records=[]){return (Array.isArray(records)?records:[]).map((record)=>[record.testName,record.side==='left'?'Izquierda':record.side==='right'?'Derecha':record.side==='bilateral'?'Bilateral':'—',record.variant,record.configuration,record.protocolVersion,protocolUsage(record),[record.adaptationReason,record.stopReason].filter(Boolean).join(' · ')||'—']);}
 
 function strengthRows(draft){const s=draft.strength||{};return [
   ['Silla 30 s',s.chairStand?.repetitions,' rep',40,'Protocolo estandarizado'],
