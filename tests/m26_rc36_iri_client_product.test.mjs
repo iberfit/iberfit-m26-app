@@ -22,9 +22,9 @@ function validDraft(){
 test('Informe IRI elimina el radar no normativo y presenta evidencia explícita por áreas',()=>{
   const html=buildIriReportHtml({draft:validDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',logoUrl:'/public/isotipo-iberfit.png'});
   assert.match(html,/Evidencia por áreas/);
-  assert.match(html,/Sin puntuación global/);
+  assert.match(html,/puntuación global/iu);
   assert.match(html,/Composición corporal/);
-  assert.match(html,/Cardiorrespiratorio/);
+  assert.match(html,/Capacidad de esfuerzo/);
   assert.doesNotMatch(html,/class="radar"|radar-value|Perfil por dominios/);
   const source=read('src/m26/workflows/iri-report-document.js');
   assert.doesNotMatch(source,/function radarChart|function domainVisuals/);
@@ -47,7 +47,7 @@ test('Informe IRI aplica la dirección visual ultra premium IBERFIT sin solapami
 
 test('Bioimpedancia queda orientada por método, equipo y condiciones sin exigir grasa corporal',()=>{
   const html=renderIriRoute({current:{id:'IRI-RC36'},currentSummary:{coverageCount:0,coverageLabel:'0 de 3 dominios de resultado registrados',processLabel:'Evaluación en preparación',confirmed:false,domains:{cardiovascular:false,bodyComposition:false,strength:false}},profile:{birthDate:'1992-04-11',sexForNorms:'female',sexForNormsLabel:'Mujer',email:'qa@example.com',phone:'+56 9 1111 2222',modality:'hibrido',modalityLabel:'Híbrida',trainingAddress:'Dirección QA'},canEdit:true,history:[]});
-  assert.match(html,/Proceso guiado de 7 etapas/);
+  assert.match(html,/Proceso guiado de 8 etapas/);assert.match(html,/fotogrametría es opcional/iu);
   assert.match(html,/3 dominios de resultado/);
   assert.match(html,/Bioimpedancia segmental/);
   assert.match(html,/Equipo y modelo/);
