@@ -3,6 +3,7 @@
 -- Keep browser access authenticated-only even when PUBLIC has already been revoked.
 
 revoke all on function public.iberfit_require_physical_consent_before_iri_confirm_v1() from anon;
+revoke all on function public.iberfit_require_physical_consent_before_iri_confirm_v1() from authenticated;
 revoke all on function public.iberfit_can_manage_iri_private_v1(uuid) from anon;
 revoke all on function public.iberfit_iri_consent_active_v1(uuid,text) from anon;
 revoke all on function public.iberfit_record_iri_consent_v1(uuid,uuid,text,text,text,text) from anon;
