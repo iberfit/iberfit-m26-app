@@ -1,6 +1,6 @@
 import { EVIDENCE_REGISTRY, NORM_SEX, REFERENCE_PERCENTILES } from './evidence-registry.js';
 
-function finiteNumber(value){const n=Number(value);return Number.isFinite(n)?n:null;}
+function finiteNumber(value){if(value===null||value===undefined||value==='')return null;const n=Number(value);return Number.isFinite(n)?n:null;}
 function normalizeSex(value){const v=String(value||'').trim().toLowerCase();return v===NORM_SEX.FEMALE||v===NORM_SEX.MALE?v:NORM_SEX.UNSPECIFIED;}
 function ageBand(age,{wblt=false}={}){
   if(age>=18&&age<=29)return '18-29';

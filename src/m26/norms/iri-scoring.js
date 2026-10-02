@@ -5,7 +5,7 @@ export const IRI_SCORING_VERSION='iri-scoring-2026.10-v2';
 export const IRI_SCORING_DOMAINS=Object.freeze(['mobility','strength','cardio']);
 export const WBLT_ASYMMETRY_MDC_CM=1.9;
 
-function finite(value){const n=Number(value);return Number.isFinite(n)?n:null;}
+function finite(value){if(value===null||value===undefined||value==='')return null;const n=Number(value);return Number.isFinite(n)?n:null;}
 function dateAgeYears(birthDate,assessmentDate){
   const birth=String(birthDate||'').match(/^(\d{4})-(\d{2})-(\d{2})/u),assessment=String(assessmentDate||'').match(/^(\d{4})-(\d{2})-(\d{2})/u);
   if(!birth||!assessment)return null;
@@ -77,6 +77,25 @@ function globalScore(domains){
   return Object.freeze({available:true,score100,score10:Number((score100/10).toFixed(1)),label:`Puntuación funcional IRI · ${scored.length}/3 dominios puntuables`,coverage,confidence,aggregation:'equal_weight_available_domains'});
 }
 
+function actionableInsights(domains){
+  const strengths=[];const priorities=[];
+  const mobility=domains.find((item)=>item.domain==='mobility');
+  const strength=domains.find((item)=>item.domain==='strength');
+  const cardio=domains.find((item)=>item.domain==='cardio');
+  if(mobility?.scored&&mobility.score100>=100)strengths.push('Movilidad de tobillo dentro o por encima del rango central de referencia en el lado limitante.');
+  if(mobility?.scored&&mobility.score100<75)priorities.push('Priorizar movilidad de tobillo del lado limitante y repetir WBLT con el mismo protocolo.');
+  if(mobility?.signal?.exceedsTypicalMdc)priorities.push('Confirmar y seguir la diferencia bilateral de tobillo; supera el MDC intraevaluador típico de 1,9 cm.');
+  if(strength?.scored&&strength.score100>=75)strengths.push('Fuerza funcional de tren inferior situada en P75 o superior para la referencia compatible.');
+  if(strength?.scored&&strength.score100<25)priorities.push('Priorizar fuerza funcional de tren inferior y controlar la respuesta con silla 30 s comparable.');
+  if(cardio?.scored&&cardio.score100>=75)strengths.push('Capacidad funcional 1MSTS situada en P75 o superior para la referencia compatible.');
+  if(cardio?.scored&&cardio.score100<25)priorities.push('Priorizar capacidad funcional y repetir 1MSTS con la misma configuración.');
+  return Object.freeze({
+    strengths:Object.freeze(strengths.slice(0,3)),
+    priorities:Object.freeze(priorities.slice(0,3)),
+    note:'Sugerencias automáticas para revisión del Coach; no sustituyen la interpretación profesional ni se aplican como prescripción automática.',
+  });
+}
+
 export function scoreIriPerformance(draft={}){
   const context=contextFrom(draft);const ctx=validateNormContext(context);
   const mobility=mobilityDomain(draft,context),strength=strengthDomain(draft,context),cardio=cardioDomain(draft,context);
@@ -102,6 +121,7 @@ export function scoreIriPerformance(draft={}){
     composition:Object.freeze({scored:false,label:'Composición corporal descriptiva',reason:'La bioimpedancia depende del método y las condiciones; no participa en la nota funcional global.'}),
     reviewRequired:!ctx.ok||domains.some((item)=>(item.warnings||[]).length>0),
     evidenceSources:Object.freeze(['mcbride-2026-wblt','powden-2015-wblt-reliability','barros-poblete-2025-chile','otto-yanez-2025-chile-1msts'].map(sourceSnapshot)),
+    insights:actionableInsights(domains),
   });
 }
 
