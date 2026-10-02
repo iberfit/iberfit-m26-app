@@ -1,5 +1,4 @@
 import {firstSessionCompletion} from './iri-first-session.js';
-import {buildIri2LongitudinalProfile,iri2ComparisonSummary} from './iri-2-longitudinal.js';
 import {iriExternalReportAppUrl} from './iri-external-report-controller.js';
 
 const PALETTE=Object.freeze({
