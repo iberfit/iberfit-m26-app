@@ -51,15 +51,16 @@ test('informe Cliente documenta cardio no evaluado sin inventar FC, delta, barem
   assert.equal((html.match(/class="pdf-page/g)||[]).length,7);
   assert.match(html,/NO EVALUADO/);
   assert.match(html,/No se realizó por falta de tiempo en la sesión/);
-  assert.match(html,/No se calculan frecuencia cardiaca final, recuperación, ΔFC, baremo ni clasificación cardiorrespiratoria/);
-  assert.doesNotMatch(html,/FC final 0 lpm|recuperación 0 lpm/);
+  assert.match(html,/No se inventa ningún resultado ni se sustituye la prueba por una estimación/);
+  assert.doesNotMatch(html,/FC final 0 lpm|recuperación 0 lpm|ΔFC 0 lpm/);
 });
 
 test('informe Coach conserva trazabilidad explícita de la ausencia cardiorrespiratoria',()=>{
   const draft=normalizeFirstSessionDraft(raw(),{id:'11111111-1111-4111-8111-111111111111'},'CLIENT-QA');
   const html=buildIriReportHtml({draft,variant:'coach',clientName:'Adriana QA',coachName:'Coach QA',clientId:'CLIENT-QA',logoUrl:'/public/isotipo-iberfit.png'});
-  assert.match(html,/Sin medición cardiorrespiratoria/);
-  assert.match(html,/FC final<\/span><strong>No calculada/);
+  assert.match(html,/Sin medición de capacidad de esfuerzo/);
+  assert.match(html,/Estado<\/span><strong>No evaluado/);
   assert.match(html,/Baremo<\/span><strong>No aplicado/);
   assert.match(html,/Clasificación<\/span><strong>No emitida/);
+  assert.doesNotMatch(html,/FC final 0 lpm|ΔFC 0 lpm/);
 });
