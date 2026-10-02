@@ -11,6 +11,25 @@ test('WBLT usa sexo y edad, puntúa cada lado y conserva la categoría de la fue
   assert.equal(female.evidence.sourceId,'mcbride-2026-wblt');
 });
 
+test('WBLT inválido en el registro técnico queda fuera de la puntuación',()=>{
+  const scoring=scoreIriPerformance({
+    assessmentDate:'2026-10-02',personProfile:{birthDate:'1996-04-05',sexForNorms:'female'},
+    mobility:{ankle:{leftBest:4,rightBest:10}},
+    protocolRecords:[
+      {testId:'weight-bearing-lunge',side:'left',valid:false},
+      {testId:'weight-bearing-lunge',side:'right',valid:true},
+    ],
+    strength:{chairStand:{repetitions:20,valid:true}},
+  });
+  const mobility=scoring.domainScores.mobility;
+  const left=mobility.tests.find((item)=>item.side==='left');
+  const right=mobility.tests.find((item)=>item.side==='right');
+  assert.equal(left.scored,false);
+  assert.match(left.warnings.join(' '),/PROTOCOL_INVALID/);
+  assert.equal(right.scored,true);
+  assert.equal(mobility.score100,right.score);
+});
+
 test('movilidad usa el lado limitante y no diluye una restricción promediando tobillos',()=>{
   const scoring=scoreIriPerformance({
     assessmentDate:'2026-10-02',personProfile:{birthDate:'1996-04-05',sexForNorms:'female'},

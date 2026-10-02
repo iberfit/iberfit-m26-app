@@ -132,6 +132,9 @@ const ROWS=Object.freeze([
   ["Inclinación pélvica reproducida","Reproduced pelvic tilt","Inclinaison pelvienne reproduite","Inclinação pélvica reproduzida"],
   ["Interpretación geométrica de una captura estática; no establece postura ideal, lesión ni diagnóstico.","Geometric interpretation of a static capture; it does not establish ideal posture, injury, or diagnosis.","Interprétation géométrique d’une capture statique ; elle n’établit ni posture idéale, ni lésion, ni diagnostic.","Interpretação geométrica de uma captura estática; não estabelece postura ideal, lesão nem diagnóstico."],
   ["Las diferencias deben revisarse con síntomas, técnica, movilidad, fuerza y repetibilidad de la captura.","Differences should be reviewed together with symptoms, technique, mobility, strength, and capture repeatability.","Les différences doivent être examinées avec les symptômes, la technique, la mobilité, la force et la reproductibilité de la capture.","As diferenças devem ser revistas com sintomas, técnica, mobilidade, força e repetibilidade da captura."],
+  ["Fortalezas sugeridas","Suggested strengths","Points forts suggérés","Pontos fortes sugeridos"],
+  ["Prioridades sugeridas","Suggested priorities","Priorités suggérées","Prioridades sugeridas"],
+  ["Sugerencias para revisar: el Coach decide si son relevantes y cómo trasladarlas al plan.","Suggestions to review: the Coach decides whether they are relevant and how to incorporate them into the plan.","Suggestions à examiner : le Coach décide si elles sont pertinentes et comment les intégrer au plan.","Sugestões a rever: o Coach decide se são relevantes e como as integrar no plano."],
 
   ["cliente","client","client","cliente"],
   ["Resolución baja: intenta que el lado corto tenga al menos 720 px.","Low resolution: try to keep the short side at least 720 px.","Résolution faible : essayez d’avoir au moins 720 px sur le petit côté.","Resolução baixa: tente que o lado curto tenha pelo menos 720 px."],

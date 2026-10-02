@@ -20,6 +20,12 @@ function contextFrom(draft={}){
     ageYears:finite(draft.ageYears)??dateAgeYears(draft.birthDate??profile.birthDate,draft.assessmentDate),
   };
 }
+function protocolRecordValid(draft={},testId,side=null){
+  const records=Array.isArray(draft.protocolRecords)?draft.protocolRecords:Array.isArray(draft.protocol_records)?draft.protocol_records:[];
+  const matched=records.filter((record)=>String(record?.testId??record?.test_id??'')===testId&&(side===null||String(record?.side??'')===side));
+  if(!matched.length)return null;
+  return matched.every((record)=>record?.valid===true);
+}
 function sourceSnapshot(sourceId){
   const source=EVIDENCE_SOURCES[sourceId];
   return source?Object.freeze({sourceId,...source}):Object.freeze({sourceId});
@@ -34,10 +40,13 @@ function mobilityDomain(draft,context){
   const leftValue=ankle.leftBest??draft.weightBearingLungeLeft;
   const rightValue=ankle.rightBest??draft.weightBearingLungeRight;
   const legacyAverage=draft.weightBearingLunge;
-  const left=scoredTest({key:'ankle_left',domain:'mobility',testId:'weight_bearing_lunge',value:leftValue??legacyAverage,context,protocolId:'wblt_distance_cm',valid:true,side:leftValue===undefined&&rightValue===undefined?'bilateral':'left'});
-  const right=(rightValue===undefined&&leftValue===undefined)
+  const legacyBilateral=leftValue===undefined&&rightValue===undefined;
+  const leftValidity=protocolRecordValid(draft,'weight-bearing-lunge',legacyBilateral?null:'left');
+  const rightValidity=legacyBilateral?null:protocolRecordValid(draft,'weight-bearing-lunge','right');
+  const left=scoredTest({key:'ankle_left',domain:'mobility',testId:'weight_bearing_lunge',value:leftValue??legacyAverage,context,protocolId:'wblt_distance_cm',valid:leftValidity!==false,side:legacyBilateral?'bilateral':'left'});
+  const right=legacyBilateral
     ?null
-    :scoredTest({key:'ankle_right',domain:'mobility',testId:'weight_bearing_lunge',value:rightValue,context,protocolId:'wblt_distance_cm',valid:true,side:'right'});
+    :scoredTest({key:'ankle_right',domain:'mobility',testId:'weight_bearing_lunge',value:rightValue,context,protocolId:'wblt_distance_cm',valid:rightValidity!==false,side:'right'});
   const sides=[left,right].filter(Boolean),scored=sides.filter((item)=>item.scored);
   const score=scored.length?Math.min(...scored.map((item)=>Number(item.score))):null;
   const leftRaw=finite(leftValue),rightRaw=finite(rightValue);
@@ -126,4 +135,4 @@ export function scoreIriPerformance(draft={}){
 }
 
 export const scoreIriFirstSession=scoreIriPerformance;
-export const __iriScoringInternals=Object.freeze({finite,dateAgeYears,contextFrom,mobilityDomain,strengthDomain,cardioDomain,globalScore});
+export const __iriScoringInternals=Object.freeze({finite,dateAgeYears,contextFrom,protocolRecordValid,mobilityDomain,strengthDomain,cardioDomain,globalScore});
