@@ -41,8 +41,20 @@ export function percentAsymmetry(left,right){
   return Number((Math.abs(a-b)/denominator*100).toFixed(1));
 }
 function radiansToDegrees(value){return value*180/Math.PI;}
-export function angleDegrees(a,vertex,b){
-  const p1=normalizePhotoPoint(a),v=normalizePhotoPoint(vertex),p2=normalizePhotoPoint(b);
+function dimensionScale(dimensions={}){
+  const width=finite(dimensions?.widthPx??dimensions?.width);
+  const height=finite(dimensions?.heightPx??dimensions?.height);
+  if(width===null||height===null||width<=0||height<=0)return Object.freeze({width:1,height:1,known:false});
+  return Object.freeze({width,height,known:true});
+}
+function geometryPoint(point,dimensions={}){
+  const normalized=normalizePhotoPoint(point);
+  if(!normalized)return null;
+  const scale=dimensionScale(dimensions);
+  return Object.freeze({x:normalized.x*scale.width,y:normalized.y*scale.height});
+}
+export function angleDegrees(a,vertex,b,dimensions={}){
+  const p1=geometryPoint(a,dimensions),v=geometryPoint(vertex,dimensions),p2=geometryPoint(b,dimensions);
   if(!p1||!v||!p2)return null;
   const ax=p1.x-v.x,ay=p1.y-v.y,bx=p2.x-v.x,by=p2.y-v.y;
   const ma=Math.hypot(ax,ay),mb=Math.hypot(bx,by);
@@ -50,8 +62,8 @@ export function angleDegrees(a,vertex,b){
   const cosine=Math.max(-1,Math.min(1,(ax*bx+ay*by)/(ma*mb)));
   return Number(radiansToDegrees(Math.acos(cosine)).toFixed(1));
 }
-export function segmentTiltDegrees(a,b){
-  const p1=normalizePhotoPoint(a),p2=normalizePhotoPoint(b);
+export function segmentTiltDegrees(a,b,dimensions={}){
+  const p1=geometryPoint(a,dimensions),p2=geometryPoint(b,dimensions);
   if(!p1||!p2)return null;
   if(p1.x===p2.x&&p1.y===p2.y)return null;
   let angle=radiansToDegrees(Math.atan2(p2.y-p1.y,p2.x-p1.x));
@@ -59,8 +71,8 @@ export function segmentTiltDegrees(a,b){
   while(angle<-90)angle+=180;
   return Number(angle.toFixed(1));
 }
-export function segmentFromVerticalDegrees(a,b){
-  const tilt=segmentTiltDegrees(a,b);
+export function segmentFromVerticalDegrees(a,b,dimensions={}){
+  const tilt=segmentTiltDegrees(a,b,dimensions);
   if(tilt===null)return null;
   const magnitude=Math.abs(90-Math.abs(tilt));
   return Number(magnitude.toFixed(1));
@@ -102,23 +114,25 @@ export function validateManualLandmarks(raw={},availableViews=IRI_PHOTO_VIEWS){
 function metric(id,label,value,view){
   return value===null?null:Object.freeze({id,label,value,unit:'deg',view,kind:'geometry'});
 }
-export function calculatePhotogrammetryMeasurements(raw={}){
+export function calculatePhotogrammetryMeasurements(raw={}, {dimensionsByView={}}={}){
   const landmarks=normalizeManualLandmarks(raw);
   const metrics=[];
   for(const view of ['front','back']){
     const points=landmarks[view];
     if(!points)continue;
-    const shoulder=segmentTiltDegrees(points.shoulderLeft,points.shoulderRight);
-    const pelvis=segmentTiltDegrees(points.pelvisLeft,points.pelvisRight);
+    const dimensions=dimensionsByView?.[view]||{};
+    const shoulder=segmentTiltDegrees(points.shoulderLeft,points.shoulderRight,dimensions);
+    const pelvis=segmentTiltDegrees(points.pelvisLeft,points.pelvisRight,dimensions);
     metrics.push(metric(`${view}.shoulderTilt`,'Inclinación de hombros',shoulder,view));
     metrics.push(metric(`${view}.pelvisTilt`,'Inclinación pélvica',pelvis,view));
   }
   for(const view of ['left','right']){
     const points=landmarks[view];
     if(!points)continue;
-    const head=segmentFromVerticalDegrees(points.ear,points.shoulder);
-    const trunk=segmentFromVerticalDegrees(points.shoulder,points.hip);
-    const bodyAxis=segmentFromVerticalDegrees(points.shoulder,points.ankle);
+    const dimensions=dimensionsByView?.[view]||{};
+    const head=segmentFromVerticalDegrees(points.ear,points.shoulder,dimensions);
+    const trunk=segmentFromVerticalDegrees(points.shoulder,points.hip,dimensions);
+    const bodyAxis=segmentFromVerticalDegrees(points.shoulder,points.ankle,dimensions);
     metrics.push(metric(`${view}.headOffset`,'Ángulo cabeza-hombro respecto a vertical',head,view));
     metrics.push(metric(`${view}.trunkInclination`,'Inclinación de tronco respecto a vertical',trunk,view));
     metrics.push(metric(`${view}.bodyAxis`,'Eje corporal respecto a vertical',bodyAxis,view));
@@ -146,6 +160,7 @@ export function calculatePhotogrammetryMeasurements(raw={}){
     }),
     interpretation:null,
     medicalDiagnosis:null,
+    geometryBasis:Object.freeze(Object.fromEntries(IRI_PHOTO_VIEWS.filter((view)=>landmarks[view]).map((view)=>{const scale=dimensionScale(dimensionsByView?.[view]||{});return [view,Object.freeze({widthPx:scale.known?scale.width:null,heightPx:scale.known?scale.height:null,aspectCorrected:scale.known})];}))),
   });
 }
 export function photogrammetryDataQuality({captures=[],landmarks={},validated=false}={}){
@@ -170,4 +185,4 @@ export function photogrammetryDataQuality({captures=[],landmarks={},validated=fa
   });
 }
 
-export const __iriPhotogrammetryInternals=Object.freeze({finite,clamp01,radiansToDegrees,metric});
+export const __iriPhotogrammetryInternals=Object.freeze({finite,clamp01,radiansToDegrees,metric,dimensionScale,geometryPoint});
