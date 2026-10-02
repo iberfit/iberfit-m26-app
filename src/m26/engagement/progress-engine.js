@@ -1,7 +1,7 @@
 import {summarizeWearableData} from '../wearables/normalization.js';
 import {parseDateValue} from '../domain/civil-date.js';
 import {confirmedFirstSessionDraft,validateFirstSessionDraft} from '../workflows/iri-first-session.js';
-import {buildEvolutionProfile,evolutionComparisonSummary,EVOLUTION_FOLLOWUP_KIND,IRI_INITIAL_DIAGNOSTIC_KIND} from '../workflows/iri-2-longitudinal.js';
+import {IRI_INITIAL_DIAGNOSTIC_KIND} from '../workflows/iri-2-longitudinal.js';
 import {
   confirmedSessionExecutionsForClient,
   unconfirmedSessionExecutionIds as unconfirmedCompletionIds,
@@ -101,50 +101,50 @@ function iriRecordClientId(record={}){
   const item=iriRecordBody(record);
   return String(first(record,'clientId','client_id','clienteId','cliente_id')||first(item,'clientId','client_id','clienteId','cliente_id')||'').trim();
 }
-function iri2ProgressSummary(state,clientId){
+function iriRecordType(record={}){
+  const item=iriRecordBody(record);
+  return String(first(record,'assessmentType','assessment_type')||first(item,'assessmentType','assessment_type')||'').trim().toLowerCase();
+}
+function iriBaselineRecord(state,clientId,{confirmedOnly=false}={}){
   const expectedClient=String(clientId||'').trim();
-  const drafts=[];
-  for(const record of collection(state,'iriAssessments')){
-    if(iriRecordClientId(record)!==expectedClient)continue;
-    if(!iriConfirmedRecord(record))continue;
-    try{
-      const draft=confirmedFirstSessionDraft(record,clientId);
-      if(!validateFirstSessionDraft(draft).ok)continue;
-      drafts.push(draft);
-    }catch{}
-  }
-  drafts.sort((a,b)=>String(a.assessmentDate||'').localeCompare(String(b.assessmentDate||''))||String(a.assessmentId||'').localeCompare(String(b.assessmentId||'')));
-  const current=drafts.at(-1)||null;
-  if(!current)return null;
-  const history=drafts.slice(0,-1);
-  const profile=buildEvolutionProfile({current,history});
-  const summary=evolutionComparisonSummary(profile);
+  const candidates=collection(state,'iriAssessments').filter((record)=>{
+    if(iriRecordClientId(record)!==expectedClient)return false;
+    const type=iriRecordType(record);
+    if(type&&type!=='inicial')return false;
+    return !confirmedOnly||iriConfirmedRecord(record);
+  });
+  const explicit=candidates.filter((record)=>iriRecordType(record)==='inicial');
+  const pool=explicit.length?explicit:candidates;
+  return [...pool].sort((a,b)=>{
+    const at=safeDate(dateOf(unwrap(a)))?.getTime()||0;
+    const bt=safeDate(dateOf(unwrap(b)))?.getTime()||0;
+    return at-bt;
+  })[0]||null;
+}
+function iriBaselineProgressSummary(state,clientId){
+  const record=iriBaselineRecord(state,clientId,{confirmedOnly:true});
+  if(!record)return null;
+  let baseline=null;
+  try{
+    baseline=confirmedFirstSessionDraft(record,clientId);
+    if(!validateFirstSessionDraft(baseline).ok)return null;
+  }catch{return null;}
   return Object.freeze({
-    kind:summary.phase||profile?.semantics?.phase||(history.length?EVOLUTION_FOLLOWUP_KIND:IRI_INITIAL_DIAGNOSTIC_KIND),
+    kind:IRI_INITIAL_DIAGNOSTIC_KIND,
     initialDiagnosticKind:IRI_INITIAL_DIAGNOSTIC_KIND,
-    followupKind:EVOLUTION_FOLLOWUP_KIND,
-    confirmedCount:drafts.length,
-    currentAssessmentId:current.assessmentId||null,
-    currentAssessmentDate:current.assessmentDate||null,
-    previousAssessmentId:profile.comparison.previousAssessmentId||null,
-    previousAssessmentDate:profile.comparison.previousAssessmentDate||null,
-    available:Boolean(profile.comparison.available),
-    comparableCount:Number(profile.comparison.comparableCount||0),
-    totalCompared:Number(profile.comparison.totalCompared||0),
-    label:summary.label,
-    detail:summary.detail,
-    headline:Object.freeze(
-      (profile.comparison.headline||[]).slice(0,4).map((item)=>Object.freeze({
-        id:item.id,
-        label:item.label,
-        unit:item.unit||'',
-        previous:item.previous,
-        current:item.current,
-        delta:item.delta,
-        relative:item.relative,
-        trend:item.trend,
-      }))
-    ),
+    confirmedCount:1,
+    baselineAssessmentId:baseline.assessmentId||null,
+    baselineAssessmentDate:baseline.assessmentDate||null,
+    currentAssessmentId:baseline.assessmentId||null,
+    currentAssessmentDate:baseline.assessmentDate||null,
+    previousAssessmentId:null,
+    previousAssessmentDate:null,
+    available:false,
+    comparableCount:0,
+    totalCompared:0,
+    label:'Diagnóstico IRI inicial',
+    detail:'Punto de partida confirmado. Las reevaluaciones y el seguimiento longitudinal se mantienen fuera del Diagnóstico IRI.',
+    headline:Object.freeze([]),
   });
 }
 
@@ -353,11 +353,13 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
   const checkins=forClient(state,'checkins',clientId).map(unwrap).filter((item)=>within(dateOf(item),start,end)).sort(byDateDesc);
   const wearable=summarizeWearableData(forClient(state,'wearableDailySummaries',clientId),{now:end,days:Math.min(7,window.days)});
   const checkinSeries=checkins.map(checkinValues);
-  const iri=forClient(state,'iriAssessments',clientId).map(unwrap).sort(byDateDesc);
+  const iriBaselineRecordValue=iriBaselineRecord(state,clientId);
+  const iri=iriBaselineRecordValue?[unwrap(iriBaselineRecordValue)]:[];
   const iriCoverage=iri.map(iriDomainCoverage);
-  const iriDelta=iriCoverage.length>=2&&iriCoverage[0]>0&&iriCoverage[1]>0?iriCoverage[0]-iriCoverage[1]:null;
-  const evolution=iri2ProgressSummary(state,clientId);
-  const iri2=evolution;
+  const iriDelta=null;
+  const iriBaseline=iriBaselineProgressSummary(state,clientId);
+  const evolution=iriBaseline;
+  const iri2=iriBaseline;
   const sortedExecutions=[...completedExecutions].sort(byDateDesc);
   const lastExecution=sortedExecutions[0]||null;
   const lastExecutionRpe=lastExecution?rpeValues(lastExecution):[];
@@ -368,7 +370,8 @@ export function computeProgressSummary(state,clientId,{now=new Date(),days=28}={
     clientId,startAt:start.toISOString(),endAt:end.toISOString(),days:window.days,
     plannedSessions:plannedCount,completedSessions:confirmedCompleted,adherence:round(adherence,3),
     averageRpe:round(average(rpes),1),volume:round(average(volumes),1),volumeDelta:round(volumeDelta,1),
-    iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:iri.length>1?iriCoverage[1]:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
+    iriCurrent:iri.length?iriCoverage[0]:null,iriPrevious:null,iriDelta:round(iriDelta,1),iriAssessmentCount:iri.length,
+    iriBaseline,
     evolution,
     iri2,
     checkins:checkins.length,latestCheckin:latestCheckin?clone(checkinValues(latestCheckin)):null,
@@ -390,11 +393,9 @@ export function progressSummaryHasEvolutionEvidence(summary){
   const wearableHasData=
     Number(wearable.daysWithData||0)>0||
     Object.values(metrics).some((value)=>value!==null&&value!==undefined&&value!=='');
-  const iriFollowUp=Number(summary.iriAssessmentCount||0)>=2;
   return (
     Number(summary.completedSessions||0)>0||
     Number(summary.checkins||0)>0||
-    iriFollowUp||
     wearableHasData
   );
 }
@@ -406,7 +407,14 @@ export function buildProgressTimeline(state,clientId,{now=new Date(),days=90,lim
   const rows=[];
   const blockedExecutionIds=unconfirmedCompletionIds(state);
   for(const item of forClient(state,'sessionExecutions',clientId).map(unwrap).filter((item)=>executionIsConfirmed(item,blockedExecutionIds)))if(within(dateOf(item),start,end))rows.push({kind:'execution',date:dateOf(item),title:first(item,'title','sessionTitle','session_title')||'Sesión ejecutada',status:statusOf(item),detail:rpeValues(item).length?`RPE medio ${round(average(rpeValues(item)),1)}`:'Ejecución registrada'});
-  for(const item of forClient(state,'iriAssessments',clientId).map(unwrap))if(within(dateOf(item),start,end)){const coverage=iriDomainCoverage(item);rows.push({kind:'iri',date:dateOf(item),title:'Evaluación IRI',status:statusOf(item),detail:coverage?`${coverage} de 3 dominios registrados`:'Evaluación registrada · formato histórico sin dominios comparables'});}
+  const iriBaseline=iriBaselineRecord(state,clientId);
+  if(iriBaseline){
+    const item=unwrap(iriBaseline);
+    if(within(dateOf(item),start,end)){
+      const coverage=iriDomainCoverage(item);
+      rows.push({kind:'iri',date:dateOf(item),title:'Diagnóstico IRI inicial',status:statusOf(item),detail:coverage?`${coverage} de 3 dominios registrados · punto de partida`:'Diagnóstico inicial registrado · sin comparación longitudinal dentro del IRI'});
+    }
+  }
   for(const item of forClient(state,'checkins',clientId).map(unwrap))if(within(dateOf(item),start,end)){
     const values=checkinValues(item);
     const optional=[];

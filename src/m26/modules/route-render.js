@@ -3136,30 +3136,11 @@ function renderCoachFollowUpPlan(alerts=[]){
 function formatPercent(value){ return Number.isFinite(value) ? `${Math.round(value * 100)}%` : 'Sin dato'; }
 function metricValue(value, suffix=''){ return value === null || value === undefined ? 'Sin dato' : `${value}${suffix}`; }
 
-function iriMilestoneDeltaText(item={}){
-  const value=Number(item.delta);
-  if(!Number.isFinite(value))return 'Sin cambio comparable';
-  const rounded=Number(value.toFixed(Math.abs(value)<10?1:0));
-  const prefix=rounded>0?'+':'';
-  return `${prefix}${rounded}${item.unit?` ${item.unit}`:''}`;
-}
-function renderIriMilestonePanel(evolution){
-  if(!evolution)return '';
-  const metrics=Array.isArray(evolution.headline)?evolution.headline:[];
-  const metricCards=metrics.length
-    ?`<div class="m26-stat-grid">${metrics.map((item)=>stat(item.label,iriMilestoneDeltaText(item),'vs. reevaluación IRI anterior · cambio descriptivo')).join('')}</div>`
-    :'';
-  const comparisonBadge=evolution.comparableCount>0
-    ?badge(`${evolution.comparableCount} indicadores comparables`,'success')
-    :badge(evolution.label||'Diagnóstico IRI inicial','neutral');
-  const previous=evolution.previousAssessmentDate
-    ?`Comparación con la reevaluación IRI del ${safeDateLabel(evolution.previousAssessmentDate)}.`
-    :'Diagnóstico IRI inicial confirmado: este es el punto de partida.';
-  const title=evolution.comparableCount>0?'Hitos IRI comparables':'Diagnóstico IRI · punto de partida';
-  return `<section class="m26-panel m26-panel-soft" data-iri-milestones data-evolution-progress data-iri2-progress>
-    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Diagnóstico y reevaluación IRI</p><h2>${escapeHtml(title)}</h2><p>${escapeHtml(evolution.detail||previous)}</p></div>${comparisonBadge}</div>
-    ${metricCards}
-    <p class="m26-notice"><strong>Sin puntuación global.</strong> El Diagnóstico IRI establece la línea base; una reevaluación comparable aporta un hito del proceso, pero el seguimiento cotidiano se presenta por separado.</p>
+function renderIriBaselinePanel(baseline){
+  if(!baseline)return '';
+  return `<section class="m26-panel m26-panel-soft" data-iri-baseline>
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Punto de partida</p><h2>Diagnóstico IRI inicial</h2><p>${escapeHtml(baseline.detail||'Diagnóstico IRI inicial confirmado: este es el punto de partida.')}</p></div>${badge('Baseline confirmado','neutral')}</div>
+    <p class="m26-notice"><strong>Sin puntuación global.</strong> El IRI se registra una sola vez como diagnóstico inicial. Las reevaluaciones y el seguimiento longitudinal se construyen fuera del IRI con sus propios registros y protocolos compatibles.</p>
   </section>`;
 }
 
@@ -3237,13 +3218,11 @@ export function clientProgressPresentationStage(summary,{timelineLength=0,exerci
   }
   const completed=Math.max(0,Number(summary.completedSessions||0));
   const checkins=Math.max(0,Number(summary.checkins||0));
-  const iri=Math.max(0,Number(summary.iriAssessmentCount||0));
   const wearableDays=Math.max(0,Number(summary.wearable?.daysWithData||0));
   const quality=String(summary.dataQuality||'limitada').toLowerCase();
   const channels=[
     completed>=2,
     checkins>=3,
-    iri>=2,
     wearableDays>=3,
   ].filter(Boolean).length;
   const mature=
@@ -3291,7 +3270,7 @@ function renderClientProgressStage(vm,stage){
   const milestones=[
     ['Sesiones confirmadas',Number(summary.completedSessions||0)],
     ['Registros de bienestar',Number(summary.checkins||0)],
-    ['Evaluaciones IRI',Number(summary.iriAssessmentCount||0)],
+    ['Diagnóstico IRI',Number(summary.iriAssessmentCount||0)>0?'Registrado':'Pendiente'],
   ];
   if(adherence!==null&&Number(summary.plannedSessions||0)>0){
     milestones.push(['Continuidad confirmada',adherence]);
@@ -3336,13 +3315,12 @@ export function renderProgressRoute(vm){
     (
       Number(summary.completedSessions||0)>=2||
       Number(summary.checkins||0)>=3||
-      Number(summary.iriAssessmentCount||0)>=2||
       Number(summary.wearable?.daysWithData||0)>=3
     );
   const clientProgressInsightAttribute=meaningfulProgress
     ?' data-m26-client-guide-insight="progress-ready"'
     :'';
-  const wearablePanel=wearableHasData(wearable)?`<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Actividad de dispositivo</p><h2>Tendencia objetiva complementaria</h2></div>${badge(wearable.freshness==='reciente'?'Actualizada':'Revisar fecha','neutral')}</div><div class="m26-field-grid">${wearableMetric('Pasos medios',wearable.metrics?.steps)}${wearableMetric('Minutos activos',wearable.metrics?.activeMinutes,' min')}${wearableMetric('Sueño de dispositivo',sleepHoursPerDay(wearable.metrics?.sleepMinutes))}${wearableMetric('FC en reposo',wearable.metrics?.restingHeartRate,' lpm')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearable),{role:vm.role,compact:true})}<p class="m26-notice">Se presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.</p></section>`:`<details class="m26-panel m26-optional-section"><summary>Actividad de dispositivo · sin datos confirmados</summary><p>No hay información de dispositivos para este periodo. El progreso se calcula únicamente con sesiones, evaluaciones y registros confirmados.</p></details>`;
+  const wearablePanel=wearableHasData(wearable)?`<section class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Actividad de dispositivo</p><h2>Tendencia objetiva complementaria</h2></div>${badge(wearable.freshness==='reciente'?'Actualizada':'Revisar fecha','neutral')}</div><div class="m26-field-grid">${wearableMetric('Pasos medios',wearable.metrics?.steps)}${wearableMetric('Minutos activos',wearable.metrics?.activeMinutes,' min')}${wearableMetric('Sueño de dispositivo',sleepHoursPerDay(wearable.metrics?.sleepMinutes))}${wearableMetric('FC en reposo',wearable.metrics?.restingHeartRate,' lpm')}</div>${renderDataTrustStrip(wearableSummaryTrust(wearable),{role:vm.role,compact:true})}<p class="m26-notice">Se presenta junto al registro de bienestar, no en sustitución de cómo se siente la persona ni como criterio clínico.</p></section>`:`<details class="m26-panel m26-optional-section"><summary>Actividad de dispositivo · sin datos confirmados</summary><p>No hay información de dispositivos para este periodo. El progreso se calcula únicamente con sesiones y registros de seguimiento confirmados.</p></details>`;
   const exerciseCount=Number(vm.exerciseProgress?.totalExercises||vm.exerciseProgress?.exercises?.length||0);
   const stage=clientProgressPresentationStage(summary,{
     timelineLength:vm.timeline.length,
@@ -3355,7 +3333,7 @@ export function renderProgressRoute(vm){
   });
   const secondaryContent=`
     ${renderPlanExecutionPanel(vm.planExecution)}
-    ${renderIriMilestonePanel(summary.evolution||summary.iri2)}
+    ${renderIriBaselinePanel(summary.iriBaseline)}
     ${renderLongitudinalDataExperience(vm.longitudinal,{role:vm.role})}
     <section class="m26-content-grid">
       <div class="m26-panel"><div class="m26-panel-heading"><div><p class="m26-eyebrow">Cronología</p><h2>Evolución registrada</h2></div>${badge(`${vm.timeline.length} eventos`,'neutral')}</div><div class="m26-timeline">${timeline}</div></div>
@@ -3378,7 +3356,7 @@ export function renderProgressRoute(vm){
     const stageMarkup=renderClientProgressStage(vm,stage);
     const detailed=`<details class="m26-client-progress-detail" data-client-progress-depth="${escapeHtml(stage.stage)}">
           <summary>
-            <span><strong>Ver detalle completo</strong><small>Historial, bienestar, IRI, dispositivos, alertas y ejercicios confirmados.</small></span>
+            <span><strong>Ver detalle completo</strong><small>Historial, bienestar, baseline IRI, dispositivos, alertas y ejercicios confirmados.</small></span>
             <span aria-hidden="true">＋</span>
           </summary>
           <div class="m26-client-progress-detail-body">${secondaryContent}</div>
@@ -3398,7 +3376,7 @@ export function renderProgressRoute(vm){
       ${stat('Adherencia',formatPercent(summary.adherence),`${summary.completedSessions} de ${summary.plannedSessions} sesiones`)}
       ${stat('RPE medio',metricValue(summary.averageRpe),'Solo ejecuciones confirmadas')}
       ${stat('Volumen medio',metricValue(summary.volume),'Carga × repeticiones cuando existe')}
-      ${stat('Hitos IRI',summary.iriCurrent===null?'Sin diagnóstico':'Datos disponibles',summary.iriDelta===null?'Diagnóstico inicial o sin reevaluación comparable':'Diagnóstico y reevaluaciones se comparan por dominios')}
+      ${stat('Diagnóstico IRI',summary.iriCurrent===null?'Sin diagnóstico':'Baseline disponible','Punto de partida inicial · el seguimiento longitudinal se presenta por separado')}
     </section>
     ${deepContent}
   </div>`;
