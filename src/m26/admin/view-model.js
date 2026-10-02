@@ -41,7 +41,7 @@ function clientRows(state){
     const now=!Number.isNaN(parsedNow.getTime())?parsedNow:new Date();
     const adaptiveContext=buildAdaptiveSessionContext(state,id,{now});
     const adaptiveExperience=deriveAdaptiveExperience({experience,baseAction:structuralNextAction,adaptiveContext,role:'admin'});
-    const nextAction=String(life.get(id)?.status||'')==='iri_only'?{key:'review_iri',label:'Revisar IRI e informe',area:'iri',reason:'Persona evaluada · Solo IRI'}:adaptiveExperience.action;
+    const nextAction=String(life.get(id)?.status||'')==='iri_only'?structuralNextAction:adaptiveExperience.action;
     const rawProfile=profiles.get(id)||null;
     const profile=rawProfile?.profile&&typeof rawProfile.profile==='object'&&!Array.isArray(rawProfile.profile)?clone(rawProfile.profile):{};
     const access=clone(accessByClient.get(id)||null);
