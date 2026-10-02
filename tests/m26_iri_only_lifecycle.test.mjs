@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {deriveAdminCommandCenter} from '../src/m26/admin/command-center.js';
 import {buildCoach360Rows} from '../src/m26/admin/view-model.js';
+import {todayOverview} from '../src/m26/modules/domain-selectors.js';
 
 test('Solo IRI is visible as a person but excluded from active coach portfolio and operational pressure',()=>{
   const clients=[
@@ -30,11 +31,30 @@ test('Solo IRI is visible as a person but excluded from active coach portfolio a
   assert.deepEqual(rows[0].clients.map((item)=>item.id),['active-1']);
 });
 
+test('Solo IRI remains explicitly accessible but stays out of Coach daily portfolio',()=>{
+  const state={
+    identity:{role:'coach'},
+    collections:{
+      clients:[{id:'active-1',name:'Activa'},{id:'iri-1',name:'Solo IRI'}],
+      clientProfiles:[
+        {id:'p1',clientId:'active-1',version:1,revision:1,profile:{relationshipType:'training'}},
+        {id:'p2',clientId:'iri-1',version:1,revision:1,profile:{relationshipType:'iri_only'}},
+      ],
+      appointments:[],sessionExecutions:[],sessions:[],iriAssessments:[],reports:[],trainingCycles:[],
+    },
+    pendingOperations:[],conflicts:[],rejectedOperations:[],
+  };
+  const overview=todayOverview(state,new Date('2026-10-02T12:00:00-03:00'));
+  assert.deepEqual(overview.summaries.map((item)=>item.client.id),['active-1']);
+  assert.equal(state.collections.clients.some((item)=>item.id==='iri-1'),true);
+});
+
 test('Admin supports creating and classifying a Solo IRI person',()=>{
   const route=fs.readFileSync('src/m26/admin/route-render.js','utf8');
   const controller=fs.readFileSync('src/m26/admin/controller.js','utf8');
   const wizard=fs.readFileSync('src/m26/admin/client-create-wizard.js','utf8');
   const migration=fs.readFileSync('supabase/migrations/20261002213000_client_lifecycle_iri_only_v1.sql','utf8');
+  const edge=fs.readFileSync('supabase/functions/iberfit-admin-client-invite-v1/index.ts','utf8');
   assert.match(route,/Relación con IBERFIT/);
   assert.match(route,/value="iri_only">Solo Diagnóstico IRI/);
   assert.match(route,/value="iri_only">Solo Diagnóstico IRI/);
@@ -42,4 +62,7 @@ test('Admin supports creating and classifying a Solo IRI person',()=>{
   assert.match(wizard,/syncRelationshipType/);
   assert.match(migration,/v_relationship not in \('training','iri_only'\)/);
   assert.match(migration,/custodia y gestión del Diagnóstico IRI/);
+  assert.match(migration,/status='sin_acceso'/);
+  assert.match(edge,/relationshipType==='iri_only'/);
+  assert.match(edge,/reason:'iri_only_no_access'/);
 });
