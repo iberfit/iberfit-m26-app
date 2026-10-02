@@ -52,7 +52,15 @@ test('hydrated auth and product fields preserve the dark surface under native fo
 test('password visibility control remains a >=44px touch target without changing auth semantics', () => {
   assert.match(
     criticalCss,
-    /\.m26-password-toggle\{[^}]*min-width:2\.75rem!important;min-height:2\.75rem!important/,
+    /\.m26-password-toggle\{[^}]*width:4\.9rem!important;min-width:4\.9rem!important;max-width:4\.9rem!important;[^}]*min-height:2\.75rem!important/,
+  );
+  assert.match(
+    criticalCss,
+    /\.m26-auth-card \.m26-password-toggle:not\(:disabled\):active\{transform:translateY\(-50%\)!important\}/,
+  );
+  assert.match(
+    authNativeCss,
+    /\.m26-auth-card \.m26-password-toggle:not\(:disabled\):active\s*\{\s*transform: translateY\(-50%\) !important;/u,
   );
   assert.match(criticalCss, /\.m26-password-field input\{padding-right:6rem!important\}/);
   assert.match(accessUi, /setAttribute\?\.\('aria-pressed',\s*reveal\?'true':'false'\)/);
