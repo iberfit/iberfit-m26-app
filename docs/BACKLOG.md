@@ -2,25 +2,26 @@
 
 Checkpoint: 2026-10-02. Fuente de estado LIVE/Canary: `docs/PRODUCTION_STATE.md`.
 
-## WIP ACTIVO · Personas + IRI real en terreno + Solo IRI
+## WIP CERRADO · Personas + IRI real en terreno + Solo IRI
 
-PR #678, base `841e0fb65bbe2667d134d040f3ac9bdd48fef281`. Drafts #676/#677 son intentos solapados; resolver con evidencia, sin abrir otro WIP.
+PR #678 cerrado sobre source funcional `44f95a7905df63d5b7b69f798080e20790340abe`.
 
-- [x] Lifecycle canónico `iri_only`, alta sin frecuencia, Coach y acceso conservados.
-- [x] Personas/filtro/conversión; excluir de cartera/capacidad/alertas de entrenamiento.
-- [x] Protocolos reales + presets + validez separada de normas/comparabilidad + informe independiente.
-- [x] QA transaccional sin residuos: creación/idempotencia/conversión/un único IRI/métricas/guards/ACL.
-- [x] Suite oficial offline: 3.098 PASS, 1 SKIP, 0 FAIL.
-- [x] 12 specs nuevas PASS locales Chromium 141 (desktop/tablet vertical/horizontal/móvil).
-- [x] Corregir validación final del comando cinta de 3 min y variables FC de YMCA/adaptado; regresiones generan el comando real.
-- [ ] QA: consentimiento → IRI_COMPLETAR terreno por RPC → persistencia → conversión sin alterar el baseline, todo en ROLLBACK.
-- [ ] Todos los gates y Matrix CI del HEAD final; no reutilizar el CI de commits anteriores.
-- [ ] Integración + deploy exacto/certificación Canary.
-- [ ] Preflight y migración canónica PROD; promoción frontend reversible.
-- [ ] LIVE de principio a fin con Solo IRI y fidelidad de protocolo.
-- [ ] Métricas comerciales separadas de IRI realizados, conversiones e ingresos: ingresos requieren evidencia comercial canónica; no inferirlos por lifecycle ni por completar la evaluación.
+- [x] Lifecycle canónico `iri_only`, alta sin frecuencia de entrenamiento, Coach y acceso conservados.
+- [x] Personas/filtro/conversión; Solo IRI excluido de cartera, capacidad, renovaciones y alertas de entrenamiento.
+- [x] Protocolos reales de terreno + presets + validez separada de normas/comparabilidad + informe baseline independiente.
+- [x] QA transaccional sin residuos: alta/replay, consentimiento físico, `IRI_COMPLETAR` por RPC público, persistencia typed/domain, conversión conservando la misma persona y el mismo IRI inicial.
+- [x] Suite oficial offline: 3.098 PASS, 1 SKIP, 0 FAIL en el checkpoint funcional; regresiones adicionales y workflows posteriores verdes.
+- [x] 12 specs nuevas locales Chromium 141 y matrices posteriores desktop/tablet/móvil.
+- [x] Validación final del comando cinta 3 min y variables FC YMCA/adaptado corregidas.
+- [x] Head PR final: 10/10 workflows SUCCESS.
+- [x] Merge SHA: 14/14 workflows de integración SUCCESS.
+- [x] Canary Exact Deploy `37071775508`: SUCCESS.
+- [x] Migración PROD `client_lifecycle_iri_only_v1` aplicada y postcheck de constraint/default/ACL correcto; 0 fixtures `iri_only` residuales.
+- [x] Promoción PROD `37073343426`: SUCCESS; deployment exacto `116ab848-6b64-4edc-b57c-7e853965a85d`.
+- [x] LIVE: source `44f95a7905df63d5b7b69f798080e20790340abe`, runtime PROD, Auth assets, Chromium interactivo y auditoría read-only certificados.
+- [ ] Métricas comerciales separadas de IRI realizados, conversiones e ingresos: mantener como trabajo posterior; no inferir ingreso por lifecycle ni por completar evaluación.
 
-No cerrar el WIP hasta LIVE real. #672 y #674/#675 pertenecen al IRI v2 anterior, ya publicado; la investigación siguiente se conserva como contexto histórico.
+Criterio de cierre: el write path completo se certificó con datos sintéticos y ROLLBACK en QA; PROD se validó sin crear datos de salud ficticios. IRI inicial permanece separado de seguimiento/evolución.
 
 ### Evidencia PubMed revisada durante #672 · pendiente de decisión de producto
 
@@ -89,7 +90,8 @@ Estado: **evidencia recopilada, sin incorporación de nuevos tests al producto**
 - [x] Cliente QA real desktop/tablet/móvil.
 - [x] Coach autenticado + WebAuthn representativo en Device Gate.
 - [x] Admin sintético y PWA/update matrix certificados.
-- [x] Focus/input/select P0 corregido.
+- [x] Focus/input/select P0 corregido en flujos previamente certificados.
+- [ ] Corregir regresión visual global de inputs en focus/autofill/password: fondo blanco y texto/caret ilegible en login; resolver en la primitiva compartida y recertificar formularios críticos por dispositivo.
 - [x] Acciones Coach de un paso portadas sobre Canary certificado.
 - [ ] Admin autenticado QA real desktop/tablet/móvil.
 - [ ] Modal, scroll largo, teclado virtual/focus, error recovery y sesión live por dispositivo con Admin real.
@@ -136,8 +138,10 @@ Estado: **evidencia recopilada, sin incorporación de nuevos tests al producto**
 
 ## Siguientes 5 acciones
 
-1. Admin QA real autenticado desktop/tablet/móvil + E2E positivo de invitación/reenvío.
-2. Alta/edición/baja controlada de Cliente/Coach y sesión Coach real sin freezes.
-3. Cerrar seguridad/backend restante por intención y EXPLAIN, sin cambios masivos.
-4. Outcome tracking + preparar próxima sesión + seguimiento longitudinal.
-5. Recertificar lote completo y promover Canary a PROD sólo con rollback, Auth readiness, smoke y auditoría post-deploy.
+1. Revisión funcional completa del IRI cerrado: opciones, protocolos, estados, persistencia, roles, informes, conversión y límites; validar producto antes de abrir otro gran WIP.
+2. Corregir sistémicamente la regresión visual de inputs focus/autofill/password y certificar login + formularios críticos en desktop/tablet/móvil.
+3. Admin QA real autenticado desktop/tablet/móvil + E2E positivo de invitación/reenvío y alta/edición/baja controlada sin freezes.
+4. Motor Coach: preparar próxima sesión + ejecución ultrarrápida + Action Outcome Tracking + seguimiento longitudinal separado del IRI inicial.
+5. Cerrar seguridad/backend restante por intención y EXPLAIN, y después continuar negocio/retención/cliente contextual.
+
+No abrir el siguiente gran WIP de producto hasta completar la revisión funcional del IRI y el fix visual inmediato solicitado.

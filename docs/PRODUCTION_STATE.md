@@ -3,35 +3,36 @@
 Última actualización documental: 2026-10-02
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
-## WIP activo de evolución · 2026-10-02
+## WIP cerrado · Personas + IRI real en terreno + Solo IRI · 2026-10-02
 
-- WIP=1: PR #678 · Personas + IRI real en terreno + Solo IRI.
-- Rama: `feat/iri-field-service-lifecycle-v1`; base Canary comprobada `841e0fb65bbe2667d134d040f3ac9bdd48fef281`.
-- Checkpoints remotos: `407aee869e84c91775a06bccb23980c5972cda82` previo; `fbedf29c1d19a9fcb123bf015fb6f260337fe1b9` lifecycle/protocolos; `1c01c187be29a134e7110776699d8401444a03ec` corrige APP_SHELL, fixtures, preview y métricas Coach. Este commit añade la corrección de validación final de cinta y un checkpoint de continuidad; verificar su HEAD exacto en GitHub, no reutilizar gates anteriores.
-- IMPLEMENTADO: `iri_only` en lifecycle canónico; alta Admin sin frecuencia de entrenamiento obligatoria; filtro Personas; conversión de la misma persona a activa; asignación Coach conservada. Bootstrap proyecta sólo el status de clientes ya autorizados; no añade una colección global. Cartera activa y alertas de entrenamiento excluyen Solo IRI, incluidas renovaciones antiguas. El backend recalcula clientCount por Coach dentro de la organización y excluye asignaciones iri_only. El formulario IRI Solo IRI tampoco exige ni inventa frecuencia/duración de entrenamiento.
-- IMPLEMENTADO: variantes en colchoneta, empuje con rodillas y duración, TRX con geometría y duración, sentadilla libre 60 s separada de silla/1MSTS, cinta submáxima 3 min con FC final/+1/+2, HRR descriptiva, carga, método y recuperación. Presets sólo de preparación; no inventan resultados ni validez. Cambios medidos de configuración invalidan comparabilidad aunque no se edite el texto libre. Informe baseline independiente.
-- QA DB: migración canónica aplicada sólo a `gjztkdwfmunnzhtvxrsu`; `qa/iri-only-lifecycle-transaction.sql` certificó alta/replay, Coach, proyección scoped, un único IRI inicial intacto tras conversión, métrica activa +1 sólo al activar, rechazo de correo real y origen ajeno QA, y ACL privada. Fixtures/roles/assurance se revierten con ROLLBACK. Es certificación de rol DB, no login HTTP.
-- QA mantiene la tabla experimental de servicio de drafts anteriores sin uso; no se crea ni se usa en PROD. La fuente de verdad comercial es lifecycle, no un booleano ni una segunda tabla.
-- TESTS: suite oficial sin red 3.099 tests, 3.098 PASS, 1 SKIP, 0 FAIL antes del cierre documental; regresiones específicas de protocolos, métricas y gate aditivo. Repetir sólo si hay cambios funcionales posteriores.
-- Navegador local: 12/12 nuevas pruebas PASS en Chromium 141 headless (desktop, tablet vertical/horizontal y móvil): filtros/conversión, wizard sin frecuencia, presets/resultados/HRR sin norma inventada. La descarga inicial Chromium 151 falló; se obtuvo Chromium 141 oficial. Se corrigió el preview con fecha vacía y un estilo de detalle que heredaba el overlay de protocolos. Falta Matrix CI del HEAD final en Chromium/WebKit/Firefox.
-- BLOQUEO ENCONTRADO Y CORREGIDO antes de integrar: `buildIriCommand` aún rechazaba `treadmill-3min-field` aunque la primera validación lo aceptaba; también faltaban variables FC en validación YMCA/adaptado. Regresiones ahora generan el comando real, verifican cardio en cobertura y rechazan contexto incompleto. 17/17 tests de protocolos pasan. Falta certificar completado real por RPC con consentimiento, revisión de ficha y persistencia en QA; el SQL de lifecycle actual todavía no cubre ese completado.
-- SESIÓN LIVE observada 2026-10-02: usuario confirma `iberfit.cl@gmail.com`; navegador muestra Coach «Carlos» autenticado con un expediente real. Esto confirma sesión, no la nueva funcionalidad de #678. No modificar datos de salud reales ni inventar resultados para certificar.
-- PAUSA solicitada por el usuario para continuar en hilo normal: no integrar ni desplegar durante este cierre. Código y estado conservados en #678; continuar desde su HEAD final.
-- CANARY: pendiente de integración y certificación para #678.
-- PROD: sin mutaciones por #678. LIVE del WIP: NO verificado.
-- Siguiente acción en el nuevo hilo: comprobar el HEAD de #678, certificar comando IRI terreno completo en QA sin residuos y exigir todos los gates del HEAD exacto; corregir cualquier fallo; ready/merge → Canary exact deploy + autenticación/QA → preflight y migración PROD backward-compatible → promoción canónica → verificación LIVE end-to-end.
+- PR #678 integrado en `canary/rc74-4`; source funcional: `44f95a7905df63d5b7b69f798080e20790340abe`.
+- Lifecycle canónico `iri_only`: alta de Persona para IRI sin inventar frecuencia de entrenamiento, asignación Coach preservada y conversión posterior de la misma persona a cliente activo.
+- Personas/Coach/Admin separan IRI privado de cartera de entrenamiento: Solo IRI no infla clientCount, renovaciones, capacidad ni métricas de clientes activos.
+- Protocolos de terreno certificados: tobillo weight-bearing lunge; movilidad posterior adaptable a colchoneta; empuje con rodillas y duración; TRX con altura/geometría/duración; sentadilla libre 60 s independiente; cinta submáxima 3 min con velocidad, inclinación, modo, FC final/+1/+2, RPE, método y recuperación. Presets preparan, nunca inventan resultados ni validez.
+- QA transaccional adicional PASS con ROLLBACK: alta Solo IRI → consentimiento físico público → `IRI_COMPLETAR` por `iberfit_execute_command_v26` con revisiones canónicas → persistencia en `domain_entities_v26` e `iri_assessments` → conversión a `active` conservando la misma persona y el mismo IRI inicial completado.
+- Head previo al merge `1b203971cff430c9124f7d62115ac88218398122`: 10/10 workflows PR SUCCESS. Merge SHA `44f95a7905df63d5b7b69f798080e20790340abe`: 14/14 workflows de integración SUCCESS.
+- Canary Exact Deploy run `37071775508`: SUCCESS; identidad exacta, regresión, QA auth preflight y certificación desktop/móvil read-only verdes.
+- PROD: migración `client_lifecycle_iri_only_v1` aplicada y registrada; constraint admite `iri_only`, `effective_at` usa `clock_timestamp()`, helper interno conserva EXECUTE sólo para `service_role`, wrappers públicos permanecen limitados a `authenticated/service_role`.
+- Postcheck PROD: 0 filas `iri_only` sintéticas/residuales. No se usaron datos de salud reales para certificar el flujo.
+- Promotion run `37073343426`: SUCCESS. Release branch `release/prod-44f95a7905df`, manifest commit `ea71ab30300eb6addf37dcf6af5228b9de91fa6e`.
+- LIVE: `app.iberfit.cl` certificado por el workflow productivo con source `44f95a7905df63d5b7b69f798080e20790340abe`, runtime PROD, assets Auth, entrada Chromium interactiva y auditoría integral read-only.
+- Deployment PROD exacto: `116ab848-6b64-4edc-b57c-7e853965a85d` (`https://116ab848.iberfit-m26-production.pages.dev`). Rollback reservado: deployment `16048aa0-d9ca-427b-9fbb-c41e9319e103`, source anterior `841e0fb65bbe2667d134d040f3ac9bdd48fef281`.
+- La escritura funcional completa se certificó en QA con fixtures sintéticos y ROLLBACK; en PROD se verificó esquema/runtime/superficie sin crear personas ni resultados clínicos ficticios.
+
+WIP #678: **CERRADO**. IRI inicial sigue siendo baseline/bienvenida; seguimiento y evolución permanecen como dominio posterior separado.
 
 Regla: distinguir implementación, test, Canary, PROD y LIVE; no cerrar con sólo CI o pantalla de acceso.
 
 ## Producción LIVE
 
 - Dominio: `https://app.iberfit.cl`; PRODUCCIÓN REAL.
-- Source SHA LIVE verificado independientemente en `/m26/version.json`: `841e0fb65bbe2667d134d040f3ac9bdd48fef281`.
-- Runtime: PRODUCTION, proyecto `pjhmrhejsoofmouedavw`, QA desactivado.
-- Release branch: `release/prod-841e0fb65bbe`; manifest commit `9541bbe4c4373700c9912da1722d766fbe0ceb7b`.
-- Promotion run: [37027187997 = SUCCESS](https://github.com/iberfit/iberfit-m26-app/actions/runs/37027187997).
-- PRs #674/#675: IRI v2 cerrado y publicado según checkpoint; identidad de release comprobada en esta ronda. No confundir esto con certificación LIVE del nuevo WIP #678.
-- Rollback de frontend de #678: este source exacto de IRI v2. No deshacer datos lifecycle ni consentimientos para un rollback de frontend.
+- Source SHA LIVE certificado: `44f95a7905df63d5b7b69f798080e20790340abe`.
+- Runtime: PRODUCTION, Supabase PROD `pjhmrhejsoofmouedavw`, QA desactivado.
+- Release branch: `release/prod-44f95a7905df`; manifest commit `ea71ab30300eb6addf37dcf6af5228b9de91fa6e`.
+- Promotion run: `37073343426 = SUCCESS`.
+- Deployment productivo exacto: `116ab848-6b64-4edc-b57c-7e853965a85d`.
+- Rollback productivo reservado: deployment `16048aa0-d9ca-427b-9fbb-c41e9319e103`, source `841e0fb65bbe2667d134d040f3ac9bdd48fef281`.
+- IRI/Personas/Solo IRI de #678 está publicado. El write path de salud se certificó en QA sintético con rollback; PROD se validó sin introducir fixtures ni resultados reales/ficticios.
 
 La siguiente evidencia de Retos es histórica del release `be39ea321cd5b476066381f64e88c5ecdf78a5a7`, no el source LIVE actual.
 
@@ -51,7 +52,12 @@ No considerar releases posteriores en PROD sin otra promoción y verificación L
 
 ## Canary actual
 
-Rama `canary/rc74-4`, HEAD comprobado `841e0fb65bbe2667d134d040f3ac9bdd48fef281`; #678 todavía no integrado.
+- Rama: `canary/rc74-4`.
+- Source funcional certificado: `44f95a7905df63d5b7b69f798080e20790340abe`.
+- PR #678 integrado.
+- Canary Exact Deploy `37071775508`: SUCCESS con identidad exacta, QA-only runtime, regresión y browser desktop/móvil read-only.
+- Los 14 workflows observados del merge SHA terminaron SUCCESS, incluidos CI, Data Safety, QA Real Write, Continuous Audit, Admin Matrix, Authenticated Client, Daily Visual, Admin/Coach WebAuthn, Device Experience, Remote Gates y deploy Canary.
+- Un commit exclusivamente documental posterior puede mover HEAD sin cambiar el runtime funcional; no confundir documentación con source PROD certificado.
 
 ## Canary certificado histórico · Retos
 
