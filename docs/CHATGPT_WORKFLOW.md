@@ -193,17 +193,28 @@ Reglas permanentes:
 
 ## 9. Memoria del proyecto
 
-Las decisiones duraderas deben vivir en el repo.
+La realidad del proyecto y las implementaciones materiales deben vivir en el repo, no sólo en el chat.
 
-Actualizar:
-- `docs/PRODUCTION_STATE.md`: estado operativo;
-- `docs/BACKLOG.md`: trabajo pendiente/prioridad;
+Persistencia obligatoria:
+- cada cambio material debe existir como commit/PR trazable;
+- `docs/PRODUCTION_STATE.md`: estado operativo comprobado, WIP activo, SHA y nivel real de verificación;
+- `docs/BACKLOG.md`: trabajo pendiente, prioridad y siguiente acción;
 - `docs/DECISIONS.md`: decisiones duraderas;
 - `docs/PRODUCT.md`: contrato de producto;
 - `DESIGN.md`: contrato visual;
+- PR/workflow/artefactos: evidencia de tests, CI, Canary, PROD y LIVE;
 - runbooks/gates sólo cuando cambie el proceso real.
 
-No crear un documento nuevo si uno canónico existente puede absorber la decisión sin perder claridad.
+Al terminar una sesión larga o quedar bloqueado, dejar persistido:
+1. HEAD exacto;
+2. qué está implementado;
+3. qué está testeado;
+4. qué ha llegado a Canary;
+5. qué ha llegado a PROD;
+6. qué está verificado LIVE;
+7. siguiente acción exacta.
+
+No crear un documento nuevo si uno canónico existente puede absorber la decisión sin perder claridad. No dejar una decisión o implementación relevante únicamente en memoria conversacional.
 
 ## 10. Investigación externa
 
