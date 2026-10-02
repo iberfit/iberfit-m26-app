@@ -171,8 +171,9 @@ function itemFromEntry(entry={}){
     experience.stageLabel,
     tr('coach.stage.active')
   );
+  const nonTraining=stage==='iri_only';
 
-  const processPending=stage!=='active';
+  const processPending=stage!=='active'&&!nonTraining;
 
   let kind='clear';
   let reason=tr('coach.reason.clear');
@@ -181,13 +182,13 @@ function itemFromEntry(entry={}){
   let source='experience-core';
   let selectedAlert=null;
 
-  if(adaptiveRisk){
+  if(!nonTraining&&adaptiveRisk){
     kind=adaptiveKind;
     reason=txt(adaptiveRisk.label,tr('coach.reason.review'));
     detail=txt(adaptiveRisk.reason,tr('coach.detail.adaptive'));
     guidance=tr('coach.nextStep',{params:{action:txt(adaptiveRisk.action?.label,tr('coach.action.record'))}});
     source='adaptive-experience';
-  }else if(risk){
+  }else if(!nonTraining&&risk){
     selectedAlert=risk;
     kind=risk.severity;
     reason=txt(risk.title,tr('coach.reason.review'));
@@ -209,7 +210,7 @@ function itemFromEntry(entry={}){
     );
     guidance=tr('coach.nextStep',{params:{action:txt(client.nextAction?.label,tr('coach.action.record'))}});
     source='experience-core';
-  }else if(info){
+  }else if(!nonTraining&&info){
     selectedAlert=info;
     kind='info';
     reason=txt(info.title,tr('coach.signal.info'));
