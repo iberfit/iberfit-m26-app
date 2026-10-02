@@ -74,6 +74,16 @@ test('evaluación QA histórica con estado confirmado habilita el Diagnóstico I
   assert.match(renderReportsRoute(vm),/data-iri-diagnosis/);
 });
 
+test('informe IRI presenta nota global y por dominios con cobertura explícita',()=>{
+  const html=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
+  assert.match(html,/Puntuación funcional IRI/);
+  assert.match(html,/Movilidad/);
+  assert.match(html,/Fuerza funcional/);
+  assert.match(html,/Capacidad funcional/);
+  assert.match(html,/dominios puntuables|Cobertura insuficiente/);
+  assert.match(html,/composición.*fotogrametría.*no alteran esta nota/is);
+});
+
 test('App Cliente presenta Diagnóstico IRI como unidad documental con PDF y bioimpedancia integrados',()=>{
   const html=renderReportsRoute({role:'client',reports:[],latestIri:{id:ASSESSMENT_ID},iriDiagnosis:{assessmentId:ASSESSMENT_ID,dateLabel:'30 de julio de 2026',classification:'Perfil IRI por dominios',processLabel:'7 de 7 etapas completadas',revision:2}});
   assert.match(html,/data-iri-diagnosis/);
@@ -84,13 +94,13 @@ test('App Cliente presenta Diagnóstico IRI como unidad documental con PDF y bio
   assert.match(html,/data-m26-area="iri"/);
   assert.match(html,/generate-client-iri-report/);
   assert.match(html,/data-iri-external-report-host/);
-  assert.doesNotMatch(html,/bodyCompositionAttachment|Subir informe|Reemplazar informe|objectPath/);
+  assert.doesNotMatch(html,/bodyCompositionAttachment|Subir y guardar informe|Reemplazar y guardar|objectPath/);
 });
 
 test('estado vacío Cliente usa el texto editorial exacto y no expone controles de gestión',()=>{
   const html=__iriExternalReportInternals.cardMarkup({role:'client',clientId:CLIENT_ID,assessmentId:ASSESSMENT_ID,canManage:false},{report:null,loading:false,busy:false,pending:null,message:'',tone:'info'});
   assert.match(html,/Aún no hay un informe de bioimpedancia adjunto a este diagnóstico\./);
-  assert.doesNotMatch(html,/selector|Subir informe|Reemplazar informe|Reintentar registro|objectPath|Storage|UUID/i);
+  assert.doesNotMatch(html,/selector|Subir y guardar informe|Reemplazar y guardar|Reintentar registro|objectPath|Storage|UUID/i);
 });
 
 test('informe visible muestra solo metadatos permitidos y conserva versión 2',()=>{
@@ -112,10 +122,22 @@ test('informe no visible se oculta por completo al Cliente',()=>{
 test('Coach y Admin conservan subida, reemplazo, reintento y visibilidad RC37',()=>{
   for(const role of ['coach','admin']){
     const html=__iriExternalReportInternals.cardMarkup({role,clientId:CLIENT_ID,assessmentId:ASSESSMENT_ID,canManage:true},{report,pending:{},loading:false,busy:false,message:'',tone:'info'});
-    assert.match(html,/Reemplazar informe/);
+    assert.match(html,/Reemplazar y guardar/);
     assert.match(html,/Reintentar registro/);
     assert.match(html,/Visible para cliente/);
   }
+});
+
+test('PDF interno no afirma persistencia por metadatos locales o históricos',()=>{
+  const draft=reportDraft();
+  draft.bodyComposition.attachmentName='seleccion-local.jpg';
+  draft.bodyComposition.attachmentType='image/jpeg';
+  draft.bodyComposition.attachmentSize=12345;
+  const without=buildIriReportHtml({draft,variant:'coach',clientName:'Cliente QA',coachName:'Coach QA',externalReport:null});
+  assert.match(without,/Metadato histórico sin archivo persistido/);
+  assert.doesNotMatch(without,/Guardado y vinculado · versión/);
+  const withReport=buildIriReportHtml({draft,variant:'coach',clientName:'Cliente QA',coachName:'Coach QA',externalReport:report});
+  assert.match(withReport,/Guardado y vinculado · versión 2/);
 });
 
 test('PDF Cliente contiene hipervínculo estable solo para informe visible de la misma evaluación',()=>{
