@@ -654,6 +654,33 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     }
   }
 
+  function openClientArea(source){
+    const current=store.getState();
+    try{
+      const requestedClientId=source?.getAttribute?.('data-m26-client-id')||source?.getAttribute?.('data-m26-select-client');
+      const clientId=guardClientSelection(current,requestedClientId);
+      const targetArea=String(source?.getAttribute?.('data-m26-open-client-area')||'expediente').trim()||'expediente';
+      const candidate={...current,selectedClientId:clientId};
+      const decision=resolveM26Route(candidate,targetArea);
+      if(!decision.allowed)throw new Error(decision.reason||'M26_ROUTE_FORBIDDEN');
+      const sameClient=String(current.selectedClientId||'')===String(clientId);
+      const sameArea=String(current.activeArea||'')===String(decision.area);
+      if(sameClient&&sameArea){
+        clearClientSwitchBusy();
+        return false;
+      }
+      markClientSwitchBusy(source);
+      if(!sameClient)store.selectClient(clientId);
+      if(!sameArea)store.navigate(decision.area);
+      focusMain();
+      return true;
+    }catch(error){
+      clearClientSwitchBusy();
+      root.dispatchEvent(new CustomEvent('m26:access-denied',{bubbles:true,detail:{code:error.message}}));
+      return false;
+    }
+  }
+
   function setMobileMoreOpen(details,open){
     if(!details?.matches?.('details.m26-mobile-more'))return false;
     const next=Boolean(open);
@@ -701,6 +728,14 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     const roleButton=event.target.closest?.('[data-m26-switch-role]');
     if(roleButton){
       root.dispatchEvent(new CustomEvent('m26:switch-role',{bubbles:true,detail:{role:roleButton.getAttribute('data-m26-switch-role')}}));
+      return;
+    }
+
+    const contextualClientButton=event.target.closest?.('[data-m26-open-client-area]');
+    if(contextualClientButton){
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      openClientArea(contextualClientButton);
       return;
     }
 
