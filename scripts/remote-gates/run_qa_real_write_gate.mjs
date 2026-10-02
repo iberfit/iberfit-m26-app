@@ -200,6 +200,52 @@ if(environment?.environment!=='QA'||environment?.realDataAllowed!==false||enviro
   throw new Error('QA_WRITE_ENVIRONMENT_GUARD_FAILED');
 }
 
+const privateScopeAnon=await requestResult(`${base}/rest/v1/rpc/iberfit_can_manage_iri_private_v1`,{
+  method:'POST',
+  headers:{apikey:key,'content-type':'application/json',origin:CANARY_ORIGIN},
+  body:JSON.stringify({p_client_id:clientAId}),
+});
+if(![401,403].includes(privateScopeAnon.status)){
+  throw new Error(`QA_WRITE_IRI_PRIVATE_ANON_NOT_DENIED:${privateScopeAnon.status}`);
+}
+
+const clientPrivateScope=await rpc('iberfit_can_manage_iri_private_v1',clientA.token,{p_client_id:clientAId});
+if(clientPrivateScope!==false){
+  throw new Error('QA_WRITE_IRI_PRIVATE_CLIENT_SCOPE_LEAK');
+}
+
+const coachPrivateScope=await rpc('iberfit_can_manage_iri_private_v1',coach.token,{p_client_id:clientAId});
+if(coachPrivateScope!==true){
+  throw new Error('QA_WRITE_IRI_PRIVATE_ASSIGNED_COACH_DENIED');
+}
+
+const missingAssessmentId=randomUUID();
+const clientConsentAttempt=await rpcResult('iberfit_record_iri_consent_v1',clientA.token,{
+  p_client_id:clientAId,
+  p_assessment_id:missingAssessmentId,
+  p_consent_type:'photography',
+  p_status:'granted',
+  p_document_version:'iri-photo-consent-v1',
+  p_note:'QA role boundary verification',
+});
+const clientConsentMessage=String(clientConsentAttempt?.body?.message||'');
+if(clientConsentAttempt.status!==403||clientConsentMessage!=='IRI_V4_COACH_OR_ADMIN_REQUIRED'){
+  throw new Error(`QA_WRITE_IRI_CONSENT_CLIENT_BOUNDARY_MISMATCH:${clientConsentAttempt.status}:${clientConsentMessage.slice(0,80)}`);
+}
+
+const coachConsentAttempt=await rpcResult('iberfit_record_iri_consent_v1',coach.token,{
+  p_client_id:clientAId,
+  p_assessment_id:missingAssessmentId,
+  p_consent_type:'photography',
+  p_status:'granted',
+  p_document_version:'iri-photo-consent-v1',
+  p_note:'QA assigned Coach scope verification',
+});
+const coachConsentMessage=String(coachConsentAttempt?.body?.message||'');
+if(coachConsentAttempt.status!==400||coachConsentMessage!=='IRI_V4_INITIAL_ASSESSMENT_REQUIRED'){
+  throw new Error(`QA_WRITE_IRI_CONSENT_COACH_SCOPE_MISMATCH:${coachConsentAttempt.status}:${coachConsentMessage.slice(0,80)}`);
+}
+
 const entityId=randomUUID();
 const operationId=randomUUID();
 const recordedAt=new Date().toISOString();
@@ -403,6 +449,11 @@ const evidence={
     crossClientCommandDenied:crossClientPreflight.status===403,
     clientAnnulDenied:String(clientAnnulPreflight?.reason||'')==='ROLE_NOT_ALLOWED',
     coachMutationRequiresPrivilegedAssurance:coachPreflight.status===403&&coachBlockedMessage==='IBERFIT_PRIVILEGED_WEBAUTHN_REQUIRED',
+    iriPrivateAnonDenied:[401,403].includes(privateScopeAnon.status),
+    iriPrivateClientDenied:clientPrivateScope===false,
+    iriPrivateAssignedCoachAllowed:coachPrivateScope===true,
+    iriConsentClientRoleDenied:clientConsentAttempt.status===403&&clientConsentMessage==='IRI_V4_COACH_OR_ADMIN_REQUIRED',
+    iriConsentAssignedCoachReachedAssessmentGuard:coachConsentAttempt.status===400&&coachConsentMessage==='IRI_V4_INITIAL_ASSESSMENT_REQUIRED',
   },
   finalState:{
     status:String(row.status),
