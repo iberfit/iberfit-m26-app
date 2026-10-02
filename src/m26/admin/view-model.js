@@ -60,6 +60,8 @@ function clientRows(state){
       profile:Object.freeze(profile),
       access,
       lifecycle:clone(life.get(id)||null),
+      lifecycleStatus:String(life.get(id)?.status||x.status||''),
+      serviceKind:String(life.get(id)?.status||x.status||'')==='iri_only'?'iri_only':'training',
       assignments:activeAssignments,
       coachNames,
       primaryCoachName:coachNames[0]||null,
@@ -236,8 +238,12 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
   const safeNow=dateTime(now)||new Date();
   const clientById=new Map((clients||[]).map((client)=>[recordId(client?.id),client]));
   const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
+  const trainingAssignment=(assignment)=>{
+    const client=clientById.get(recordId(assignment?.clientId));
+    return normalizeStatus(client?.lifecycle?.status||client?.status)!=='iri_only';
+  };
   return Object.freeze(coachSubjects(coaches,users).map(({coachId,coach,user})=>{
-    const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId);
+    const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId&&trainingAssignment(assignment));
     const clientIds=[...new Set(ownAssignments.map((assignment)=>recordId(assignment?.clientId)).filter(Boolean))];
     const clientIdSet=new Set(clientIds);
     const coachPlanningSessions=(planningSessions||[]).filter((session)=>clientIdSet.has(recordId(session?.clientId??session?.client_id))&&isCoachLaunchPlanningPublished(session));
