@@ -61,6 +61,7 @@ function cardioProtocolLabel(cardio={}){
   const protocol=String(cardio?.protocol||'');
   if(protocol==='1msts-standard')return '1MSTS · 60 segundos';
   if(protocol==='ymca-3min-standard')return 'YMCA Step Test · 3 minutos';
+  if(protocol==='treadmill-3min-field')return 'Cinta · 3 minutos · baseline individual';
   if(protocol==='iberfit-3min-adapted')return 'Step 3 min adaptado · histórico';
   return 'Protocolo no identificado';
 }
@@ -82,6 +83,9 @@ function cardioProtocolReady(cardio={}){
       finiteValue(cardio?.stepHeightCm)&&finiteValue(cardio?.cadenceBpm)&&
       finiteValue(cardio?.finalHr)&&finiteValue(cardio?.oneMinuteHr);
   }
+  if(protocol==='treadmill-3min-field'){
+    return Number(cardio?.durationSeconds)===180&&finiteValue(cardio?.finalHr)&&finiteValue(cardio?.oneMinuteHr)&&finiteValue(cardio?.twoMinuteHr)&&Boolean(cardio?.treadmillMode);
+  }
   return false;
 }
 function cardioResultDetail(cardio={}){
@@ -94,12 +98,18 @@ function cardioResultDetail(cardio={}){
     const delta=finiteValue(cardio?.deltaOneMinute)?` · recuperación 1 min ${number(cardio.deltaOneMinute)} lpm`:'';
     return `FC final ${number(cardio?.finalHr)} lpm${delta}`;
   }
+  if(protocol==='treadmill-3min-field'){
+    const one=finiteValue(cardio?.deltaOneMinute)?` · Δ1 min ${number(cardio.deltaOneMinute)} lpm`:'';
+    const two=finiteValue(cardio?.deltaTwoMinute)?` · Δ2 min ${number(cardio.deltaTwoMinute)} lpm`:'';
+    return `FC final ${number(cardio?.finalHr)} lpm${one}${two}`;
+  }
   return 'Sin resultado interpretable';
 }
 function cardioProtocolNote(cardio={}){
   const protocol=String(cardio?.protocol||'');
   if(protocol==='1msts-standard')return 'Las repeticiones son el resultado principal; la FC es complementaria y opcional.';
   if(protocol==='ymca-3min-standard')return 'Comparar sólo con YMCA realizado a 30,5 cm, 96 bpm y 180 s.';
+  if(protocol==='treadmill-3min-field')return 'Baseline individual de campo: comparar sólo con una configuración equivalente. No equivale a YMCA, no estima VO₂ y no utiliza baremo automático.';
   if(protocol==='iberfit-3min-adapted')return 'Registro histórico: no equivale a YMCA y no utiliza sus baremos.';
   return 'No comparar con otros protocolos.';
 }
@@ -111,7 +121,7 @@ function domainEvidenceGrid(draft){
   const body=draft.bodyComposition||{},mobility=draft.mobility||{},strength=draft.strength||{},cardio=draft.cardio||{};
   const bodyCount=[body.weightKg,body.bodyFatPercent,body.leanMassKg,body.muscleMassKg,body.bodyWaterPercent,body.waistCm,body.visceralFatLevel].filter((value)=>value!==null&&value!==undefined&&value!=='').length;
   const mobilityCount=[mobility.ankle?.leftBest,mobility.ankle?.rightBest,mobility.posteriorChain?.leftBest,mobility.posteriorChain?.rightBest,mobility.hipRotation?.result,mobility.assistedSquat?.depth].filter((value)=>value!==null&&value!==undefined&&value!=='').length;
-  const validStrength=[strength.chairStand?.valid,strength.push?.valid,strength.trxRow?.valid].filter((value)=>value===true).length;
+  const validStrength=[strength.chairStand?.valid,strength.squat60s?.valid,strength.push?.valid,strength.trxRow?.valid].filter((value)=>value===true).length;
   const cardioReady=cardioProtocolReady(cardio);
   const bodyState=body.skipped?'No evaluado':bodyCount?'Registrado':'Pendiente';
   const mobilityState=mobility.skipped?'No evaluado':mobilityCount?'Registrado':'Pendiente';
@@ -125,6 +135,7 @@ function protocolTraceRows(records=[]){return (Array.isArray(records)?records:[]
 
 function strengthRows(draft){const s=draft.strength||{};return [
   ['Silla 30 s',s.chairStand?.repetitions,' rep',40,'Protocolo estandarizado'],
+  ['Sentadilla libre 1 min',s.squat60s?.repetitions,' rep',60,'Baseline individual · sin baremo automático'],
   [`Empuje · ${label(s.push?.variant,'variante')}`,s.push?.repetitions,' rep',35,s.push?.supportHeightCm?`Apoyo ${number(s.push.supportHeightCm)} cm`:''],
   ['Remo TRX',s.trxRow?.repetitions,' rep',35,s.trxRow?.handleHeightCm?`Asas ${number(s.trxRow.handleHeightCm)} cm`:'Referencia individual'],
   ['Plancha frontal',s.core?.frontPlankSeconds,' s',180,'Calidad técnica registrada'],
