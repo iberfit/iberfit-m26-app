@@ -6,6 +6,7 @@ export default defineConfig({
     'device-experience.spec.mjs',
     'role-guided-onboarding.spec.mjs',
     'progress-decision-runtime.spec.mjs',
+    'iri-photogrammetry-workspace.spec.mjs',
     'login-autofill.spec.mjs',
   ],
   fullyParallel:false,
