@@ -132,6 +132,17 @@ export function accessForClient(state, clientId = state?.selectedClientId) {
   return latestForClient(state, 'clientAccess', clientId);
 }
 
+export function relationshipForClient(state, clientId = state?.selectedClientId) {
+  const record=profileForClient(state,clientId);
+  const profile=record?.profile&&typeof record.profile==='object'&&!Array.isArray(record.profile)?record.profile:{};
+  const relationship=String(profile.relationshipType||'training').trim().toLowerCase();
+  return relationship==='iri_only'?'iri_only':'training';
+}
+
+export function isIriOnlyClient(state, clientId = state?.selectedClientId) {
+  return relationshipForClient(state,clientId)==='iri_only';
+}
+
 export function latestIriForClient(state, clientId = state?.selectedClientId) {
   return latestForClient(state, 'iriAssessments', clientId);
 }
@@ -371,7 +382,7 @@ export function todayOverview(state, now = new Date()) {
   const summaries =
     role === 'client'
       ? [clientHealthSummary(state, clientId, now)].filter(Boolean)
-      : clientsOverview(state, now);
+      : clientsOverview(state, now).filter((summary)=>!isIriOnlyClient(state,summary?.client?.id));
   const pending = state?.pendingOperations?.length || 0;
   const conflicts = state?.conflicts?.length || 0;
   const rejected = state?.rejectedOperations?.length || 0;
