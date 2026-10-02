@@ -1,7 +1,7 @@
 import { EVIDENCE_SOURCES } from './evidence-registry.js';
 import { scoreNormedTest, validateNormContext } from './norms-engine.js';
 
-export const IRI_SCORING_VERSION='iri-scoring-2026.10-v2';
+export const IRI_SCORING_VERSION='iri-scoring-2026.10-v3';
 export const IRI_SCORING_DOMAINS=Object.freeze(['mobility','strength','cardio']);
 export const WBLT_ASYMMETRY_MDC_CM=1.9;
 
@@ -59,12 +59,40 @@ function mobilityDomain(draft,context){
     aggregation:'limiting_side',warnings:Object.freeze(scored.flatMap((item)=>item.warnings||[])),
   });
 }
+function evidenceWeight(test){
+  const confidence=String(test?.evidence?.confidence||'');
+  if(confidence==='high_regional'||confidence==='high')return 1;
+  if(confidence==='moderate')return .8;
+  if(confidence==='moderate_limited_population')return .65;
+  if(confidence.includes('legacy'))return .55;
+  return .5;
+}
 function strengthDomain(draft,context){
-  const chair=draft.strength?.chairStand??draft.strengthAssessment?.chairStand??draft.strengthPatterns?.chairStand??{};
-  const value=chair.repetitions??draft.chairStand30s;
-  const valid=chair.valid===undefined?true:chair.valid===true;
-  const test=scoredTest({key:'chair_stand_30s',domain:'strength',testId:'chair_stand_30s',value,context,protocolId:'chair_stand_30s_standard',valid});
-  return Object.freeze({domain:'strength',label:'Fuerza funcional',score100:test.scored?test.score:null,score10:test.scored?test.grade10:null,scored:test.scored,tests:Object.freeze([test]),aggregation:'chair_stand_reference',warnings:Object.freeze(test.warnings||[])});
+  const strength=draft.strength||draft.strengthAssessment||draft.strengthPatterns||{};
+  const chair=strength.chairStand||{};
+  const chairTest=scoredTest({key:'chair_stand_30s',domain:'strength',testId:'chair_stand_30s',value:chair.repetitions??draft.chairStand30s,context,protocolId:'chair_stand_30s_standard',valid:chair.valid===undefined?true:chair.valid===true});
+  const push=strength.push||{};
+  const pushVariant=String(push.variant??draft.pushVariant??'');
+  const pushValue=push.repetitions??draft.pushUps;
+  const pushValid=push.valid===undefined?protocolRecordValid(draft,'push-test')!==false:push.valid===true;
+  const pushTest=pushVariant==='knees'
+    ?scoredTest({key:'modified_push_up',domain:'strength',testId:'modified_push_up_female',value:pushValue,context,protocolId:'modified_knee_max_valid_reps',valid:pushValid})
+    :pushVariant==='standard'
+      ?scoredTest({key:'standard_push_up',domain:'strength',testId:'push_up_standard',value:pushValue,context,protocolId:'standard_max_valid_reps',valid:pushValid})
+      :Object.freeze({key:'push_baseline',domain:'strength',testId:'push_baseline',available:pushValue!==null&&pushValue!==undefined&&pushValue!=='',valid:pushValid,scored:false,score:null,grade10:null,category:null,percentileLabel:null,warnings:pushValue!==null&&pushValue!==undefined&&pushValue!==''?['IRI_SCORE_PUSH_VARIANT_BASELINE_ONLY']:[]});
+  const core=strength.core||{};
+  const coreVariant=String(core.variant??draft.coreProtocolVariant??'front-only');
+  const coreValidity=core.valid===undefined?protocolRecordValid(draft,'core-plank'):core.valid===true;
+  const plankCompatible=['front-only','front-and-side-standard'].includes(coreVariant);
+  const plankTest=scoredTest({key:'forearm_plank',domain:'strength',testId:'forearm_plank',value:core.frontPlankSeconds??draft.frontPlankSeconds,context,protocolId:'forearm_plank_to_technical_failure',valid:plankCompatible&&(coreValidity!==false)});
+  const tests=Object.freeze([chairTest,pushTest,plankTest]);
+  const scored=tests.filter((item)=>item.scored);
+  if(!scored.length)return Object.freeze({domain:'strength',label:'Fuerza y resistencia muscular',score100:null,score10:null,scored:false,tests,aggregation:'evidence_weighted_available_tests',evidenceLevel:'baseline_only',warnings:Object.freeze(tests.flatMap((item)=>item.warnings||[]))});
+  const weights=scored.map(evidenceWeight);
+  const score100=Number((scored.reduce((sum,item,index)=>sum+Number(item.score)*weights[index],0)/weights.reduce((a,b)=>a+b,0)).toFixed(1));
+  const highCount=scored.filter((item)=>['high','high_regional'].includes(String(item.evidence?.confidence||''))).length;
+  const evidenceLevel=highCount===scored.length?'external_high':scored.some((item)=>String(item.evidence?.confidence||'').includes('legacy'))?'mixed_limited':'external_moderate';
+  return Object.freeze({domain:'strength',label:'Fuerza y resistencia muscular',score100,score10:Number((score100/10).toFixed(1)),scored:true,tests,aggregation:'evidence_weighted_available_tests',evidenceLevel,warnings:Object.freeze(tests.flatMap((item)=>item.warnings||[]))});
 }
 function cardioDomain(draft,context){
   const cardio=draft.cardio||{};
@@ -129,7 +157,7 @@ export function scoreIriPerformance(draft={}){
     coverage:global.coverage,
     composition:Object.freeze({scored:false,label:'Composición corporal descriptiva',reason:'La bioimpedancia depende del método y las condiciones; no participa en la nota funcional global.'}),
     reviewRequired:!ctx.ok||domains.some((item)=>(item.warnings||[]).length>0),
-    evidenceSources:Object.freeze(['mcbride-2026-wblt','powden-2015-wblt-reliability','barros-poblete-2025-chile','otto-yanez-2025-chile-1msts'].map(sourceSnapshot)),
+    evidenceSources:Object.freeze(['mcbride-2026-wblt','powden-2015-wblt-reliability','barros-poblete-2025-chile','otto-yanez-2025-chile-1msts','essa-acsm-2006-modified-pushup','strand-2014-plank-college'].map(sourceSnapshot)),
     insights:actionableInsights(domains),
   });
 }
