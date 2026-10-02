@@ -6,8 +6,8 @@ import {buildCoach360Rows} from '../src/m26/admin/view-model.js';
 
 test('Solo IRI is visible as a person but excluded from active coach portfolio and operational pressure',()=>{
   const clients=[
-    {id:'active-1',name:'Activa',lifecycle:{status:'active'},assignments:[{status:'active'}],experience:{stage:'active'}},
-    {id:'iri-1',name:'IRI',lifecycle:{status:'iri_only'},assignments:[{status:'active'}],experience:{stage:'planning'}},
+    {id:'active-1',name:'Activa',relationshipType:'training',lifecycle:{status:'active'},assignments:[{status:'active'}],experience:{stage:'active'}},
+    {id:'iri-1',name:'IRI',relationshipType:'iri_only',lifecycle:{status:'inactive'},assignments:[{status:'active'}],experience:{stage:'planning'}},
   ];
   const center=deriveAdminCommandCenter({clients,coaches:[],tasks:[]});
   assert.equal(center.summary.totalPeople,2);
@@ -37,9 +37,9 @@ test('Admin supports creating and classifying a Solo IRI person',()=>{
   const migration=fs.readFileSync('supabase/migrations/20261002213000_client_lifecycle_iri_only_v1.sql','utf8');
   assert.match(route,/Relación con IBERFIT/);
   assert.match(route,/value="iri_only">Solo Diagnóstico IRI/);
-  assert.match(route,/option value="iri_only">Solo IRI/);
+  assert.match(route,/value="iri_only">Solo Diagnóstico IRI/);
   assert.match(controller,/relationshipType/);
   assert.match(wizard,/syncRelationshipType/);
-  assert.match(migration,/'iri_only'::text/);
+  assert.match(migration,/v_relationship not in \('training','iri_only'\)/);
   assert.match(migration,/custodia y gestión del Diagnóstico IRI/);
 });
