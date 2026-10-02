@@ -72,7 +72,10 @@ function stepControls(form,step){
   return panel?[...(panel.querySelectorAll?.('input,select,textarea')||[])]:[];
 }
 function firstInvalid(form,step){
-  return stepControls(form,step).find((control)=>!control.disabled&&typeof control.checkValidity==='function'&&!control.checkValidity())||null;
+  return stepControls(form,step).find((control)=>{
+    if(control.disabled||control.closest?.('[hidden]'))return false;
+    return typeof control.checkValidity==='function'&&!control.checkValidity();
+  })||null;
 }
 function labelFor(form,name,fallback='Sin completar'){
   const control=form?.elements?.namedItem?.(name);
@@ -91,42 +94,101 @@ function labelFor(form,name,fallback='Sin completar'){
   return value||fallback;
 }
 function updateReview(form){
-  const map={
+  const iriOnly=String(form?.elements?.namedItem?.('serviceIntent')?.value||'training')==='iri_only';
+  const accessMode=String(form?.elements?.namedItem?.('accessMode')?.value||'');
+  const maps={
     identity:['name','email','phone'],
-    service:['serviceIntent','modality','weeklyFrequency','sessionDurationMinutes','coachUserId'],
     objective:['objective','level'],
-    logistics:['zone','address','preferredSchedule'],
     safety:['restrictions','pain','emergencyContactName'],
   };
   for(const node of form?.querySelectorAll?.('[data-client-review]')||[]){
     const key=String(node.getAttribute('data-client-review')||'');
-    const names=map[key]||[key];
-    const values=names.map((name)=>labelFor(form,name,'')).filter(Boolean);
+    let values=[];
+    if(key==='service'){
+      const names=iriOnly
+        ?['serviceIntent','modality','coachUserId']
+        :['serviceIntent','modality','weeklyFrequency','sessionDurationMinutes','coachUserId'];
+      values=names.map((name)=>labelFor(form,name,'')).filter(Boolean);
+      values.push(accessMode==='internal'?'Expediente interno · sin invitación':'Acceso IBERFIT · invitación');
+    }else{
+      const names=maps[key]||[key];
+      values=names.map((name)=>labelFor(form,name,'')).filter(Boolean);
+    }
     node.textContent=values.length?values.join(' · '):'Sin completar';
   }
+}
+function setCopy(node,text){
+  if(node)node.textContent=text;
 }
 function updateServiceIntent(form){
   const intent=String(form?.elements?.namedItem?.('serviceIntent')?.value||'training');
   const iriOnly=intent==='iri_only';
-  for(const name of ['weeklyFrequency','sessionDurationMinutes']){
-    const field=form?.elements?.namedItem?.(name);
-    if(!field)continue;
-    field.required=!iriOnly;
-    if(iriOnly)field.removeAttribute?.('required');else field.setAttribute?.('required','');
-    field.setAttribute?.('aria-required',iriOnly?'false':'true');
+  form.dataset.clientServiceIntent=intent;
+
+  for(const wrapper of form?.querySelectorAll?.('[data-client-training-only]')||[]){
+    wrapper.hidden=iriOnly;
+    wrapper.setAttribute?.('aria-hidden',iriOnly?'true':'false');
+    for(const field of wrapper.querySelectorAll?.('input,select,textarea')||[]){
+      field.disabled=iriOnly;
+      field.required=!iriOnly;
+      if(iriOnly)field.removeAttribute?.('required');else field.setAttribute?.('required','');
+      field.setAttribute?.('aria-required',iriOnly?'false':'true');
+    }
   }
+
+  for(const field of form?.querySelectorAll?.('[data-client-iri-required]')||[]){
+    field.required=iriOnly;
+    if(iriOnly)field.setAttribute?.('required','');else field.removeAttribute?.('required');
+    field.setAttribute?.('aria-required',iriOnly?'true':'false');
+  }
+  for(const copy of form?.querySelectorAll?.('[data-client-iri-required-copy]')||[])copy.hidden=!iriOnly;
+
   const assessment=form?.elements?.namedItem?.('initialAssessmentMode');
   if(assessment){
     const deferred=[...(assessment.options||[])].find((option)=>option.value==='deferred');
-    if(iriOnly){assessment.value='iri';if(deferred)deferred.disabled=true;}
-    else if(deferred)deferred.disabled=false;
+    if(iriOnly)assessment.value='iri';
+    if(deferred){
+      deferred.disabled=iriOnly;
+      deferred.hidden=iriOnly;
+    }
   }
+
+  const accessMode=form?.elements?.namedItem?.('accessMode');
+  const accessExplicit=form?.elements?.namedItem?.('accessModeExplicit');
+  if(accessMode&&String(accessExplicit?.value||'')!=='1'){
+    accessMode.value=iriOnly?'internal':'app';
+  }
+  const internal=String(accessMode?.value||'')==='internal';
+
+  const notice=form?.querySelector?.('[data-client-service-mode-notice]');
+  if(notice)notice.hidden=!iriOnly;
+  setCopy(form?.querySelector?.('[data-client-create-heading]'),iriOnly?'Crear persona Solo IRI':'Crear cliente');
+  setCopy(form?.querySelector?.('[data-client-create-intro]'),iriOnly
+    ?'Crea únicamente el expediente de evaluación. No se abrirán planificación, sesiones recurrentes ni seguimiento de entrenamiento.'
+    :'Completa el expediente por etapas. Puedes volver atrás y el borrador se conserva temporalmente durante esta sesión de IBERFIT.');
+  setCopy(form?.querySelector?.('[data-client-address-label]'),iriOnly?'Dirección / lugar de evaluación':'Dirección de entrenamiento');
+  setCopy(form?.querySelector?.('[data-client-schedule-label]'),iriOnly?'Disponibilidad puntual para la evaluación':'Disponibilidad recurrente / horario');
+  setCopy(form?.querySelector?.('[data-client-objective-label]'),iriOnly?'Motivo principal de la evaluación':'Objetivo principal');
+  setCopy(form?.querySelector?.('[data-client-equipment-label]'),iriOnly?'Material disponible para el IRI':'Material disponible');
+  setCopy(form?.querySelector?.('[data-client-preferences-label]'),iriOnly?'Observaciones o preferencias para la evaluación':'Preferencias / observaciones');
+  setCopy(form?.querySelector?.('[data-client-access-copy]'),internal
+    ?'Se guardará el expediente sin crear usuario ni enviar correo de acceso. Podrás habilitarlo después.'
+    :'Se enviará una invitación segura para consultar IBERFIT.');
+
   const outcome=form?.querySelector?.('[data-client-create-outcome] p');
   if(outcome)outcome.textContent=iriOnly
-    ?'Se creará una persona con expediente IRI, sin entrenamiento activo. Podrá conservar Coach responsable, informe, fotos privadas y acceso si corresponde.'
-    :'Se creará el expediente de entrenamiento, se vinculará al Coach responsable y se preparará el acceso seguro.';
+    ?internal
+      ?'Se creará una persona con expediente IRI, sin entrenamiento activo y sin enviar invitación. El Coach responsable, si lo asignas, podrá completar el IRI y gestionar sus documentos privados.'
+      :'Se creará una persona con expediente IRI, sin entrenamiento activo, y se enviará acceso IBERFIT para consultar su evaluación e informe.'
+    :internal
+      ?'Se creará el expediente de entrenamiento sin enviar invitación. El acceso podrá habilitarse posteriormente.'
+      :'Se creará el expediente de entrenamiento y se enviará el acceso IBERFIT mediante autenticación alojada.';
+
   const submit=form?.querySelector?.('[data-client-create-submit]');
-  if(submit)submit.textContent=iriOnly?'Crear persona Solo IRI':'Crear cliente y preparar acceso';
+  if(submit)submit.textContent=iriOnly
+    ?'Crear persona Solo IRI'
+    :internal?'Crear cliente sin invitar':'Crear cliente y enviar acceso';
+  updateReview(form);
   return iriOnly;
 }
 
@@ -321,6 +383,10 @@ export function createClientCreateWizard({
     const form=currentForm(event.target);
     if(!form)return;
     initialize(form);
+    if(event.target?.name==='accessMode'){
+      const explicit=form.elements?.namedItem?.('accessModeExplicit');
+      if(explicit)explicit.value='1';
+    }
     updateServiceIntent(form);
     updateReview(form);
     if(event.type==='change')save(form);
