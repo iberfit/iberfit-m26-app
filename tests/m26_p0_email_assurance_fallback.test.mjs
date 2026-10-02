@@ -67,7 +67,7 @@ test('P0 email assurance storage is inaccessible to browser roles and one OTP se
   assert.match(v2,/Each Supabase email OTP session may establish privileged assurance exactly once/u);
 });
 
-test('P0 branded access email uses the official six-digit token and premium light IBERFIT system',()=>{
+test('P0 branded access email uses the official six-digit token and premium IBERFIT V2 system',()=>{
   const html=read('supabase/templates/iberfit-magic-link.html');
   const manifest=JSON.parse(read('supabase/templates/iberfit-hosted-auth-email-manifest.json'));
   const magic=manifest.templates.find((item)=>item.id==='magic_link');
@@ -75,15 +75,17 @@ test('P0 branded access email uses the official six-digit token and premium ligh
   assert.match(html,/\{\{ \.Token \}\}/u);
   assert.match(html,/\{\{ \.Email \}\}/u);
   assert.doesNotMatch(html,/ConfirmationURL/u);
-  assert.match(html,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
-  assert.doesNotMatch(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
+  assert.match(html,/data-iberfit-email="v2"/u);
+  assert.match(html,/data-iberfit-layout="code"/u);
+  assert.match(html,/src="\/public\/iberfit-email-isotipo\.png"/u);
+  assert.doesNotMatch(html,/isotipo-iberfit\.png/u);
   assert.doesNotMatch(html,/iberfit-email-access-hero\.jpg/u);
   assert.match(html,/IBERFIT nunca te pedirá este código por teléfono, WhatsApp ni mensaje directo/u);
   assert.equal(magic.subject,'Tu código de acceso IBERFIT');
-  assert.match(html,/#f3f0e8/iu);
-  assert.match(html,/#0d3328/iu);
-  assert.match(html,/#c8a24a/iu);
-  assert.match(html,/font-size:38px/iu);
+  assert.match(html,/#F3EEE3/u);
+  assert.match(html,/#0B1310/u);
+  assert.match(html,/#C5A059/u);
+  assert.match(html,/font-size:32px/iu);
   assert.deepEqual(magic.requires,['{{ .Token }}','{{ .Email }}']);
   assert.deepEqual(confirmation.requires,['{{ .ConfirmationURL }}']);
 });
