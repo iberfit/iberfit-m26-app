@@ -7,6 +7,7 @@ import {
   IRI_PHOTO_PROTOCOL_VERSION,
   angleDegrees,
   calculatePhotogrammetryMeasurements,
+  interpretPhotogrammetryMeasurements,
   median,
   percentAsymmetry,
   photogrammetryDataQuality,
@@ -71,6 +72,30 @@ test('geometry corrects normalized coordinates with the real image aspect ratio'
   assert.equal(result.geometryBasis.front.aspectCorrected,true);
   assert.equal(result.geometryBasis.front.widthPx,1200);
   assert.equal(result.geometryBasis.front.heightPx,1800);
+});
+
+test('photogrammetry interpretation fails closed until four-view validation',()=>{
+  const measurements=calculatePhotogrammetryMeasurements(landmarks);
+  const blocked=interpretPhotogrammetryMeasurements(measurements,{quality:{level:'parcial',validated:false}});
+  assert.equal(blocked.available,false);
+  assert.equal(blocked.medicalDiagnosis,null);
+  assert.equal(blocked.observations.length,0);
+});
+
+test('validated photogrammetry reports geometry and reproducible signals without diagnosis',()=>{
+  const repeated={
+    ...landmarks,
+    front:{...landmarks.front,shoulderLeft:{x:.3,y:.3},shoulderRight:{x:.7,y:.34},pelvisLeft:{x:.36,y:.58},pelvisRight:{x:.64,y:.61}},
+    back:{...landmarks.back,shoulderLeft:{x:.3,y:.3},shoulderRight:{x:.7,y:.34},pelvisLeft:{x:.36,y:.58},pelvisRight:{x:.64,y:.61}},
+  };
+  const dimensions=Object.fromEntries(['front','back','left','right'].map((view)=>[view,{widthPx:1200,heightPx:1800}]));
+  const measurements=calculatePhotogrammetryMeasurements(repeated,{dimensionsByView:dimensions});
+  const interpretation=interpretPhotogrammetryMeasurements(measurements,{quality:{level:'completa',validated:true}});
+  assert.equal(interpretation.available,true);
+  assert.equal(interpretation.medicalDiagnosis,null);
+  assert.ok(interpretation.observations.length>=4);
+  assert.ok(interpretation.reproducibleSignals.some((item)=>item.id==='shoulderTiltConsistent'));
+  assert.match(interpretation.limitations.join(' '),/no establece postura ideal, lesión ni diagnóstico/i);
 });
 
 test('manual landmarks are editable coordinates and validation fails closed on missing points',()=>{

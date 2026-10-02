@@ -174,7 +174,7 @@ test('cliente puede consultar pero no gestionar el documento', () => {
     role: 'client', latestIri: { id: ASSESSMENT_ID }, canManage: false, reports: [],
   });
   assert.match(html, /data-iri-external-report-host/);
-  assert.doesNotMatch(html, /bodyCompositionAttachment|Subir informe|Reemplazar informe/);
+  assert.doesNotMatch(html, /bodyCompositionAttachment|Subir y guardar informe|Reemplazar y guardar/);
 });
 
 test('Admin conserva permiso de subida y reemplazo sobre el cliente seleccionado', () => {
@@ -311,6 +311,20 @@ test('la lectura privada reserva la pestaña antes de esperar la URL firmada', (
     controller.indexOf('const viewTarget = prepareIriExternalReportViewTarget();') <
       controller.indexOf('const url = await api.signedUrl')
   );
+});
+
+test('seleccionar un archivo no se confunde con persistencia y el controlador exige read-back',()=>{
+  const route=renderIriRoute({current:{},currentSummary:null,profile:{},sourceProfile:{},history:[],canEdit:true});
+  const controller=read('src/m26/app/workflow-controller.js');
+  const external=read('src/m26/workflows/iri-external-report-controller.js');
+  assert.match(route,/Seleccionar el archivo no lo guarda/);
+  assert.match(route,/Subir y guardar informe/);
+  assert.match(external,/seleccionado localmente; aún no está guardado/);
+  assert.match(external,/await api\.getReport/);
+  assert.match(external,/M26_IRI_EXTERNAL_REPORT_READBACK_MISMATCH/);
+  assert.match(controller,/M26_IRI_EXTERNAL_REPORT_NOT_PERSISTED/);
+  const iriRaw=controller.slice(controller.indexOf('function iriRaw'),controller.indexOf('function iriDraft'));
+  assert.doesNotMatch(iriRaw,/bodyCompositionAttachmentName=String\(file\.name/);
 });
 
 test('release RC37 dispone de metadata, build, gate y enrutado CI propios', () => {

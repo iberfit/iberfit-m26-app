@@ -633,7 +633,7 @@ function cardMarkup(context, entry) {
       ? `<div class="m26-external-report-summary"><div><span>Archivo actual</span><strong>${escapeHtml(report.fileName || 'Informe de bioimpedancia')}</strong><small>${escapeHtml(formatBytes(report.sizeBytes))} · ${escapeHtml(formatMimeType(report.mimeType))} · versión ${escapeHtml(report.version)} · ${escapeHtml(formatDate(report.updatedAt || report.uploadedAt))}</small></div><span class="m26-external-report-visibility">${report.visibleToClient ? 'Visible para cliente' : 'Solo uso interno'}</span></div>`
       : `<div class="m26-external-report-summary"><div><span>Documento complementario</span><strong>${escapeHtml(report.fileName || 'Informe de bioimpedancia')}</strong><small>${escapeHtml(formatMimeType(report.mimeType))} · subido el ${escapeHtml(formatDate(report.uploadedAt || report.updatedAt))} · versión ${escapeHtml(report.version)}</small></div></div>`
     : `<div class="m26-external-report-empty"><strong>${entry.loading ? 'Comprobando documento…' : 'Informe de bioimpedancia'}</strong><p>${canManage ? 'Selecciona el archivo en el campo anterior y súbelo desde aquí.' : 'Aún no hay un informe de bioimpedancia adjunto a este diagnóstico.'}</p></div>`;
-  const uploadLabel = report ? 'Reemplazar informe' : 'Subir informe';
+  const uploadLabel = report ? 'Reemplazar y guardar' : 'Subir y guardar informe';
   const manageActions = canManage
     ? `<button type="button" class="m26-primary-action" data-iri-external-report-action="upload"${isBusy || !context.assessmentId ? ' disabled aria-disabled="true"' : ''}>${escapeHtml(uploadLabel)}</button>${entry.pending ? '<button type="button" data-iri-external-report-action="retry-register">Reintentar registro</button>' : ''}`
     : '';
@@ -751,6 +751,19 @@ export function createIriExternalReportController({
     return route?.querySelector?.('[name="bodyCompositionAttachment"]') || null;
   }
 
+  function syncPersistedMetadata(route, report) {
+    if (!route) return;
+    const values = {
+      Name: report?.fileName || '',
+      Type: report?.mimeType || '',
+      Size: report?.sizeBytes ?? '',
+    };
+    for (const [suffix, value] of Object.entries(values)) {
+      const field = route.querySelector?.(`[name="bodyCompositionAttachment${suffix}"]`);
+      if (field) field.value = value;
+    }
+  }
+
   function syncSelectedFile(route, context) {
     const card = currentCard();
     if (!card || !context.canManage) return;
@@ -767,7 +780,7 @@ export function createIriExternalReportController({
       const details = validateIriExternalReportFile(file);
       if (button) button.disabled = Boolean(entryFor(context.assessmentId).busy);
       if (label) {
-        label.textContent = `${details.fileName} · ${formatBytes(details.sizeBytes)} · listo para subir.`;
+        label.textContent = `${details.fileName} · ${formatBytes(details.sizeBytes)} · seleccionado localmente; aún no está guardado.`;
       }
     } catch (error) {
       if (button) button.disabled = true;
@@ -898,6 +911,7 @@ export function createIriExternalReportController({
         assessmentId: context.assessmentId,
       }));
       entry.loaded = true;
+      syncPersistedMetadata(iriRoute(root, context), entry.report);
     } catch (error) {
       entry.error = error;
       entry.message = friendlyIriExternalReportError(error);
@@ -918,15 +932,36 @@ export function createIriExternalReportController({
     entry.tone = 'pending';
     repaint(context);
     try {
-      entry.report = await api.registerReport(await token(), entry.pending);
+      const payload = {
+        clientId: entry.pending.clientId,
+        assessmentId: entry.pending.assessmentId,
+        fileName: entry.pending.fileName,
+        mimeType: entry.pending.mimeType,
+        sizeBytes: entry.pending.sizeBytes,
+        objectPath: entry.pending.objectPath,
+      };
+      if (!entry.pending.registered) {
+        const registered = await api.registerReport(await token(), payload);
+        entry.pending = {...entry.pending, registered};
+      }
+      const confirmed = reportForContext(context, await api.getReport(await token(), {
+        assessmentId: context.assessmentId,
+      }));
+      if (!confirmed || confirmed.objectPath !== entry.pending.objectPath || confirmed.fileName !== entry.pending.fileName) {
+        throw new Error('M26_IRI_EXTERNAL_REPORT_READBACK_MISMATCH');
+      }
+      entry.report = confirmed;
       entry.pending = null;
       entry.loaded = true;
-      entry.message = `Informe registrado correctamente · versión ${entry.report.version}.`;
+      syncPersistedMetadata(iriRoute(root, context), entry.report);
+      entry.message = `Informe guardado y vinculado · versión ${entry.report.version}.`;
       entry.tone = 'success';
       const input = selectedInput();
       if (input) input.value = '';
     } catch (error) {
-      entry.message = friendlyIriExternalReportError(error);
+      entry.message = entry.pending?.registered
+        ? 'El registro fue enviado, pero falta verificar su lectura persistente. Pulsa «Reintentar registro».'
+        : friendlyIriExternalReportError(error);
       entry.tone = 'error';
       throw error;
     } finally {
@@ -969,7 +1004,7 @@ export function createIriExternalReportController({
     } catch (error) {
       entry.busy = false;
       if (entry.pending) {
-        entry.message = 'El archivo llegó a Storage, pero falta confirmar su registro. Pulsa «Reintentar registro».';
+        entry.message = 'El archivo llegó a Storage, pero falta confirmar y verificar su registro. Pulsa «Reintentar registro».';
       } else {
         entry.message = friendlyIriExternalReportError(error);
       }

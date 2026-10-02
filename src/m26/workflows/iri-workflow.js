@@ -6,7 +6,7 @@ const REQUIRED = [
   'assessmentDate',
   'sexForNorms',
 ];
-const NORM_ENGINE_VERSION = 'm26-rc5.1';
+const NORM_ENGINE_VERSION = 'iri-norms-2026.10-v2';
 
 function finite(value) {
   return value !== null && value !== '' && Number.isFinite(Number(value));
@@ -172,6 +172,10 @@ export function buildIriCommand(draft, revision = 0) {
         evidenceCoverage: coverage,
         normContextSnapshot,
         normScoring: scoring,
+        iriScoringSnapshot: scoring,
+        score: scoring.global?.available ? scoring.global.score100 : null,
+        classification: scoring.global?.available ? scoring.global.label : 'Cobertura insuficiente para nota global',
+        dataQuality: scoring.global?.confidence || 'insufficient',
         normEngineVersion: NORM_ENGINE_VERSION,
       },
     },

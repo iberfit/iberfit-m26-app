@@ -122,7 +122,7 @@ test('premium client report remains exactly 7 pages and baseline-only even if hi
   assert.match(html,/seguimiento longitudinal se mantiene fuera del Diagnóstico IRI/u);
   assert.doesNotMatch(html,/Evolución y seguimiento|Evolución IRI 2\.0/u);
   assert.doesNotMatch(html,/Cambios comparables desde la evaluación anterior|Silla 30 s \+4 rep/u);
-  assert.match(html,/puntuación global/iu);
+  assert.match(html,/Puntuación funcional IRI/iu);
 });
 
 test('el primer IRI es Diagnóstico inicial y establece el punto de partida, no una evolución',()=>{

@@ -163,6 +163,72 @@ export function calculatePhotogrammetryMeasurements(raw={}, {dimensionsByView={}
     geometryBasis:Object.freeze(Object.fromEntries(IRI_PHOTO_VIEWS.filter((view)=>landmarks[view]).map((view)=>{const scale=dimensionScale(dimensionsByView?.[view]||{});return [view,Object.freeze({widthPx:scale.known?scale.width:null,heightPx:scale.known?scale.height:null,aspectCorrected:scale.known})];}))),
   });
 }
+export function interpretPhotogrammetryMeasurements(measurements={}, {quality={}}={}){
+  const rows=Array.isArray(measurements?.metrics)?measurements.metrics:[];
+  const byId=Object.fromEntries(rows.map((item)=>[item?.id,item]).filter(([id])=>id));
+  if(quality?.level!=='completa'||quality?.validated!==true){
+    return Object.freeze({
+      schema:'iri-photogrammetry-interpretation-v1',
+      available:false,
+      reviewRequired:false,
+      observations:Object.freeze([]),
+      reproducibleSignals:Object.freeze([]),
+      limitations:Object.freeze(['Se requieren cuatro vistas, todos los landmarks y validación del Coach antes de interpretar.']),
+      medicalDiagnosis:null,
+    });
+  }
+  const observations=[];
+  const signedObservation=(id,label)=>{
+    const value=finite(byId[id]?.value);if(value===null)return;
+    const magnitude=Number(Math.abs(value).toFixed(1));
+    const direction=value>0?'derecha más baja':value<0?'izquierda más baja':'sin inclinación medible';
+    observations.push(Object.freeze({id,label,valueDeg:value,magnitudeDeg:magnitude,direction,kind:'signed_tilt'}));
+  };
+  signedObservation('front.shoulderTilt','Hombros · vista frontal');
+  signedObservation('back.shoulderTilt','Hombros · vista posterior');
+  signedObservation('front.pelvisTilt','Pelvis · vista frontal');
+  signedObservation('back.pelvisTilt','Pelvis · vista posterior');
+  const pairedObservation=(leftId,rightId,id,label)=>{
+    const left=finite(byId[leftId]?.value),right=finite(byId[rightId]?.value);
+    if(left===null||right===null)return;
+    observations.push(Object.freeze({
+      id,label,leftDeg:left,rightDeg:right,
+      differenceDeg:Number(Math.abs(left-right).toFixed(1)),
+      asymmetryPercent:percentAsymmetry(left,right),
+      kind:'bilateral_difference',
+    }));
+  };
+  pairedObservation('left.headOffset','right.headOffset','headOffsetDifference','Cabeza-hombro · diferencia lateral');
+  pairedObservation('left.trunkInclination','right.trunkInclination','trunkInclinationDifference','Tronco · diferencia lateral');
+  pairedObservation('left.bodyAxis','right.bodyAxis','bodyAxisDifference','Eje corporal · diferencia lateral');
+  const reproducibleSignals=[];
+  const reproducible=(frontId,backId,id,label)=>{
+    const front=finite(byId[frontId]?.value),back=finite(byId[backId]?.value);
+    if(front===null||back===null||front===0||back===0||Math.sign(front)!==Math.sign(back))return;
+    reproducibleSignals.push(Object.freeze({
+      id,label,
+      direction:front>0?'derecha más baja':'izquierda más baja',
+      frontDeg:Number(Math.abs(front).toFixed(1)),
+      backDeg:Number(Math.abs(back).toFixed(1)),
+      message:'La dirección de la inclinación se reproduce en las vistas frontal y posterior; revisar su relevancia junto con movimiento, síntomas y técnica.',
+    }));
+  };
+  reproducible('front.shoulderTilt','back.shoulderTilt','shoulderTiltConsistent','Inclinación de hombros reproducida');
+  reproducible('front.pelvisTilt','back.pelvisTilt','pelvisTiltConsistent','Inclinación pélvica reproducida');
+  return Object.freeze({
+    schema:'iri-photogrammetry-interpretation-v1',
+    available:true,
+    reviewRequired:reproducibleSignals.length>0,
+    observations:Object.freeze(observations),
+    reproducibleSignals:Object.freeze(reproducibleSignals),
+    limitations:Object.freeze([
+      'Interpretación geométrica de una captura estática; no establece postura ideal, lesión ni diagnóstico.',
+      'Las diferencias deben revisarse con síntomas, técnica, movilidad, fuerza y repetibilidad de la captura.',
+    ]),
+    medicalDiagnosis:null,
+  });
+}
+
 export function photogrammetryDataQuality({captures=[],landmarks={},validated=false}={}){
   const views=new Set(
     (Array.isArray(captures)?captures:[])
