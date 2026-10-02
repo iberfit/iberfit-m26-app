@@ -14,7 +14,7 @@ test('real client onboarding exposes an optional responsible Coach and defaults 
   assert.match(render,/selfCoach\|\|\(eligibleCoaches\.length===1\?eligibleCoaches\[0\]:null\)/u);
   assert.match(render,/Asignar después/u);
   assert.match(controller,/coachUserId:text\(data,'coachUserId',200\)/u);
-  assert.match(wizard,/service:\['modality','weeklyFrequency','sessionDurationMinutes','coachUserId'\]/u);
+  assert.match(wizard,/service:\['relationshipType','modality','weeklyFrequency','sessionDurationMinutes','coachUserId'\]/u);
 });
 
 test('responsible Coach assignment is validated before client creation and written atomically',()=>{
