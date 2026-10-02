@@ -147,6 +147,16 @@ test('IRI photogrammetry hardening removes direct anon EXECUTE granted by projec
   assert.match(triggerHardening,/revoke all on function public\.iberfit_require_physical_consent_before_iri_confirm_v1\(\) from authenticated/u);
 });
 
+test('physical consent guard also protects legacy IRI rows already in revisión',()=>{
+  const foundation=fs.readFileSync(new URL('../supabase/migrations/20261002031500_iri_initial_photogrammetry_v1.sql',import.meta.url),'utf8');
+  const repair=fs.readFileSync(new URL('../supabase/migrations/20261002112000_iri_physical_consent_protected_status_guard_v1.sql',import.meta.url),'utf8');
+  for(const sql of [foundation,repair]){
+    assert.match(sql,/new\.status in \('revisión','aprobado','publicado'\)[\s\S]+IRI_V4_PHYSICAL_CONSENT_REQUIRED/u);
+    assert.doesNotMatch(sql,/old\.status='borrador'/u);
+  }
+  assert.match(repair,/revoke all on function public\.iberfit_require_physical_consent_before_iri_confirm_v1\(\) from public,anon,authenticated/u);
+});
+
 test('physical consent DB enforcement contracts only after the new frontend is live',()=>{
   const foundation=fs.readFileSync(new URL('../supabase/migrations/20261002031500_iri_initial_photogrammetry_v1.sql',import.meta.url),'utf8');
   const enforce=fs.readFileSync(new URL('../supabase/migrations/20261002113000_iri_physical_consent_enforcement.sql',import.meta.url),'utf8');
