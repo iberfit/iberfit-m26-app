@@ -238,7 +238,8 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
   const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
   return Object.freeze(coachSubjects(coaches,users).map(({coachId,coach,user})=>{
     const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId);
-    const clientIds=[...new Set(ownAssignments.map((assignment)=>recordId(assignment?.clientId)).filter(Boolean))];
+    const assignedClientIds=[...new Set(ownAssignments.map((assignment)=>recordId(assignment?.clientId)).filter(Boolean))];
+    const clientIds=assignedClientIds.filter((id)=>normalizeStatus(clientById.get(id)?.lifecycle?.status||clientById.get(id)?.status)==='active');
     const clientIdSet=new Set(clientIds);
     const coachPlanningSessions=(planningSessions||[]).filter((session)=>clientIdSet.has(recordId(session?.clientId??session?.client_id))&&isCoachLaunchPlanningPublished(session));
     const coachExecutions=(sessionExecutions||[]).filter((execution)=>recordId(execution?.startedBy??execution?.started_by)===coachId);
