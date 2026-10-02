@@ -133,6 +133,7 @@ test('planning view model derives the handoff only from the confirmed initial IR
   assert.match(source,/type==='inicial'/u);
   assert.match(source,/baselineIri&&compactIri\(baselineIri\)\?\.confirmed/u);
   assert.match(source,/confirmedFirstSessionDraft\(baselineIri,clientId\)/u);
+  assert.match(source,/String\(domainDate\(a\)\|\|''\)\.localeCompare\(String\(domainDate\(b\)\|\|''\)\)/u);
   assert.match(source,/buildIriPlanningSeed\(\{decisionLog,profile\}\)/u);
   assert.match(source,/iriPlanningSeed=canEdit\?/u);
 });
