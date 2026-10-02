@@ -42,7 +42,7 @@ async function assertEmailImage(file,label){
 }
 
 test('Hosted Auth remote asset verifier accepts omitted Content-Length only when GET bytes are valid',async()=>{
-  const hero=new Uint8Array(await readFile(path.join(repoRoot,'public','iberfit-email-access-hero.jpg')));
+  const hero=new Uint8Array(await readFile(path.join(repoRoot,'public','iberfit','email','access-hero-v3-c3a8345b.jpg')));
   const methods=[];
   const fetchImpl=async(_url,options={})=>{
     methods.push(options.method);
@@ -182,7 +182,7 @@ test('Hosted Auth email templates preserve variables, safe structure, canonical 
       const builtAsset=path.join(distDir,asset);
       await assertExists(builtAsset,`referenced public asset is missing from canonical build: ${asset}`);
       const info=await assertEmailImage(builtAsset,`built email asset is invalid: ${asset}`);
-      if(asset.endsWith('iberfit-email-access-hero.jpg')){
+      if(asset==='public/iberfit/email/access-hero-v3-c3a8345b.jpg'){
         assert.equal(info.format,'jpeg','hero must remain a real JPEG');
         const approvedBytes=await readFile(builtAsset);
         assert.equal(crypto.createHash('sha256').update(approvedBytes).digest('hex'),__hostedAuthEmailInternals.APPROVED_HERO_SHA256,'hero bytes must stay pinned to the approved artwork');
