@@ -24,7 +24,27 @@ function coreDomainCoverage(draft = {}) {
   const cardioSkipped = draft.cardio?.skipped === true;
   const bodyMeasured = !bodySkipped && hasObjectiveMeasurement(draft.bodyComposition);
   const strengthMeasured = !strengthSkipped && hasObjectiveMeasurement(draft.strengthPatterns);
-  const cardioMeasured = !cardioSkipped && ((draft.cardio?.protocol === '1msts-standard' && draft.cardio?.valid === true && Number(draft.cardio?.durationSeconds) === 60 && finite(draft.cardio?.repetitions)) || (draft.cardio?.protocol !== '1msts-standard' && finite(draft.stepFinalHr) && finite(draft.stepOneMinuteHr)));
+  const cardioProtocol=String(draft.cardio?.protocol||'');
+  const cardioFinalHr=draft.cardio?.finalHr??draft.stepFinalHr;
+  const cardioRecoveryHr=draft.cardio?.oneMinuteHr??draft.stepOneMinuteHr;
+  const cardioMeasured = !cardioSkipped && draft.cardio?.valid === true && (
+    (cardioProtocol === '1msts-standard' &&
+      Number(draft.cardio?.durationSeconds) === 60 &&
+      finite(draft.cardio?.repetitions)) ||
+    (cardioProtocol === 'ymca-3min-standard' &&
+      Number(draft.cardio?.durationSeconds) === 180 &&
+      finite(draft.cardio?.stepHeightCm) &&
+      Math.abs(Number(draft.cardio.stepHeightCm)-30.5)<=0.05 &&
+      Number(draft.cardio?.cadenceBpm)===96 &&
+      finite(cardioFinalHr) &&
+      finite(cardioRecoveryHr)) ||
+    (cardioProtocol === 'iberfit-3min-adapted' &&
+      Number(draft.cardio?.durationSeconds) === 180 &&
+      finite(draft.cardio?.stepHeightCm) &&
+      finite(draft.cardio?.cadenceBpm) &&
+      finite(cardioFinalHr) &&
+      finite(cardioRecoveryHr))
+  );
   const states = Object.freeze({
     bodyComposition: bodyMeasured,
     strength: strengthMeasured,
@@ -72,10 +92,22 @@ export function validateIriDraft(draft = {}) {
       const hasFinal=finite(draft.stepFinalHr),hasRecovery=finite(draft.stepOneMinuteHr);
       if (hasFinal !== hasRecovery) errors.push('cardioHeartRatePair');
       if (hasFinal && hasRecovery && computeDeltaFc(draft.stepFinalHr,draft.stepOneMinuteHr)<0) errors.push('deltaFc');
-    } else if (!finite(draft.stepFinalHr) || !finite(draft.stepOneMinuteHr)) {
-      errors.push('cardioHeartRate');
-    } else if (computeDeltaFc(draft.stepFinalHr, draft.stepOneMinuteHr) < 0) {
-      errors.push('deltaFc');
+    } else if (draft.cardio?.protocol === 'ymca-3min-standard') {
+      if (Number(draft.cardio?.durationSeconds)!==180) errors.push('cardioDuration');
+      if (!finite(draft.cardio?.stepHeightCm)||Math.abs(Number(draft.cardio.stepHeightCm)-30.5)>.05) errors.push('cardioStepHeight');
+      if (Number(draft.cardio?.cadenceBpm)!==96) errors.push('cardioCadence');
+      if (!finite(cardioFinalHr)||!finite(cardioRecoveryHr)) errors.push('cardioHeartRate');
+      else if (computeDeltaFc(cardioFinalHr,cardioRecoveryHr)<0) errors.push('deltaFc');
+      if (draft.cardio?.valid!==true) errors.push('cardioValid');
+    } else if (draft.cardio?.protocol === 'iberfit-3min-adapted') {
+      if (Number(draft.cardio?.durationSeconds)!==180) errors.push('cardioDuration');
+      if (!finite(draft.cardio?.stepHeightCm)) errors.push('cardioStepHeight');
+      if (!finite(draft.cardio?.cadenceBpm)) errors.push('cardioCadence');
+      if (!finite(cardioFinalHr)||!finite(cardioRecoveryHr)) errors.push('cardioHeartRate');
+      else if (computeDeltaFc(cardioFinalHr,cardioRecoveryHr)<0) errors.push('deltaFc');
+      if (draft.cardio?.valid!==true) errors.push('cardioValid');
+    } else {
+      errors.push('cardioProtocol');
     }
   }
   if (!coverage.skipped.strength && !hasObjectiveMeasurement(draft.strengthPatterns)) {
