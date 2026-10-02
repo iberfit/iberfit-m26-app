@@ -399,10 +399,7 @@ export function createIriPhotogrammetryController({
     const check=validateManualLandmarks(landmarks,validate?ALL_VIEWS:available);
     if(validate&&(!ALL_VIEWS.every((view)=>latest[view])||!check.ok))throw new Error('M26_IRI_PHOTO_ANALYSIS_INCOMPLETE');
     const normalized=normalizeManualLandmarks(landmarks);
-    const baseMeasurements=calculatePhotogrammetryMeasurements(normalized,{dimensionsByView:dimensionsForLatest(latest)});
-    const quality=photogrammetryDataQuality({captures:Object.values(latest).filter(Boolean),landmarks:normalized,validated:Boolean(validate)});
-    const interpretation=interpretPhotogrammetryMeasurements(baseMeasurements,{quality});
-    const measurements={...baseMeasurements,interpretation};
+    const measurements=calculatePhotogrammetryMeasurements(normalized,{dimensionsByView:dimensionsForLatest(latest)});
     const token=await getToken();
     await service.saveAnalysis(token,{
       clientId:ctx.clientId,assessmentId:ctx.assessmentId,baseRevision:Number(remote?.analysis?.revision||0),
