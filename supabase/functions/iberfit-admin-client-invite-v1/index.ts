@@ -1,6 +1,6 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 
-const FUNCTION_VERSION='admin-client-invite-v26.4';
+const FUNCTION_VERSION='admin-client-invite-v26.5';
 const QA_PROJECT_REF='gjztkdwfmunnzhtvxrsu';
 const PROD_PROJECT_REF='pjhmrhejsoofmouedavw';
 function deploymentProjectRef(value:string){
@@ -108,8 +108,6 @@ Deno.serve(async(req:Request)=>{
   if(actorAuthError||!UUID.test(actorUserId)){
     return reply(401,{ok:false,code:'V26_AUTH_REQUIRED',version:FUNCTION_VERSION},origin);
   }
-  const service=createClient(supabaseUrl,serviceRole,{auth:{persistSession:false,autoRefreshToken:false}});
-  const publicAuth=createClient(supabaseUrl,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
   let createReceipt:Record<string,unknown>|null=null;
   let clientId=normalized.clientId||'';
   let email='';
@@ -123,6 +121,32 @@ Deno.serve(async(req:Request)=>{
       clientId=String(item?.clientId||item?.entityId||'').trim();
       if(!item||item.ok!==true||!UUID.test(clientId))throw new Error('V26_ADMIN_CLIENT_CREATE_INVALID_RESPONSE');
       createReceipt=item;
+
+      const payload=normalized.command.payload&&typeof normalized.command.payload==='object'&&!Array.isArray(normalized.command.payload)
+        ?normalized.command.payload as Record<string,unknown>
+        :{};
+      const lifecycle=String(item.initialLifecycleStatus||payload.initialLifecycleStatus||'onboarding').trim().toLowerCase();
+      const accessMode=String(item.accessMode||payload.accessMode||(lifecycle==='iri_only'?'internal':'app')).trim().toLowerCase();
+      if(accessMode==='internal'){
+        const receiptInvitation=item.invitation&&typeof item.invitation==='object'&&!Array.isArray(item.invitation)
+          ?item.invitation as Record<string,unknown>
+          :{};
+        email=normalizeEmail(item.email||payload.email);
+        return reply(200,{
+          ...createReceipt,
+          ok:true,
+          version:FUNCTION_VERSION,
+          accessMode:'internal',
+          invitation:{
+            ...receiptInvitation,
+            deliveryStatus:null,
+            accessStatus:'sin_acceso',
+            reason:'internal_record',
+            email,
+          },
+        },origin);
+      }
+      if(accessMode!=='app')throw new Error('V26_ADMIN_CLIENT_CREATE_ACCESS_MODE_INVALID');
     }else{
       createReceipt={
         ok:true,
@@ -144,6 +168,8 @@ Deno.serve(async(req:Request)=>{
       return reply(200,{...createReceipt,ok:true,version:FUNCTION_VERSION,invitation:{deliveryStatus:prepared.deliveryStatus||null,accessStatus:prepared.accessStatus||null,reason:prepared.reason||'not_required',email}},origin);
     }
 
+    const service=createClient(supabaseUrl,serviceRole,{auth:{persistSession:false,autoRefreshToken:false}});
+    const publicAuth=createClient(supabaseUrl,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
     const redirectTo=`${origin}/`;
     const existing=await findAuthUserByEmail(service,email);
     let authUserId='';
