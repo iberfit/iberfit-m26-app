@@ -107,6 +107,7 @@ function compactIri(record) {
     'stepOneMinuteHr',
     'step_one_minute_hr'
   );
+  const cardio = text(record,'cardio') || {};
   const bodyComposition = text(
     record,
     'bodyComposition',
@@ -120,12 +121,24 @@ function compactIri(record) {
   const normScoring = text(record, 'normScoring', 'norm_scoring');
   const domains = Object.freeze({
     cardiovascular:
-      stepFinalHr != null &&
-      stepFinalHr !== '' &&
-      stepOneMinuteHr != null &&
-      stepOneMinuteHr !== '' &&
-      Number.isFinite(Number(stepFinalHr)) &&
-      Number.isFinite(Number(stepOneMinuteHr)),
+      (cardio?.protocol === '1msts-standard' &&
+        cardio?.valid === true &&
+        Number(cardio?.durationSeconds) === 60 &&
+        Number.isFinite(Number(cardio?.repetitions))) ||
+      (['ymca-3min-standard','iberfit-3min-adapted'].includes(String(cardio?.protocol||'')) &&
+        cardio?.valid === true &&
+        Number(cardio?.durationSeconds) === 180 &&
+        Number.isFinite(Number(cardio?.stepHeightCm)) &&
+        Number.isFinite(Number(cardio?.cadenceBpm)) &&
+        Number.isFinite(Number(cardio?.finalHr ?? stepFinalHr)) &&
+        Number.isFinite(Number(cardio?.oneMinuteHr ?? stepOneMinuteHr))) ||
+      (!cardio?.protocol &&
+        stepFinalHr != null &&
+        stepFinalHr !== '' &&
+        stepOneMinuteHr != null &&
+        stepOneMinuteHr !== '' &&
+        Number.isFinite(Number(stepFinalHr)) &&
+        Number.isFinite(Number(stepOneMinuteHr))),
     bodyComposition: objectiveMeasurement(bodyComposition),
     strength: objectiveMeasurement(strengthPatterns),
   });
