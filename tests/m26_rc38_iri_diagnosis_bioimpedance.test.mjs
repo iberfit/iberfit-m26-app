@@ -129,10 +129,8 @@ test('Coach y Admin conservan subida, reemplazo, reintento y visibilidad RC37',(
 });
 
 test('PDF interno no afirma persistencia por metadatos locales o históricos',()=>{
-  const draft=reportDraft();
-  draft.bodyComposition.attachmentName='seleccion-local.jpg';
-  draft.bodyComposition.attachmentType='image/jpeg';
-  draft.bodyComposition.attachmentSize=12345;
+  const base=reportDraft();
+  const draft={...base,bodyComposition:{...base.bodyComposition,attachmentName:'seleccion-local.jpg',attachmentType:'image/jpeg',attachmentSize:12345}};
   const without=buildIriReportHtml({draft,variant:'coach',clientName:'Cliente QA',coachName:'Coach QA',externalReport:null});
   assert.match(without,/Metadato histórico sin archivo persistido/);
   assert.doesNotMatch(without,/Guardado y vinculado · versión/);
