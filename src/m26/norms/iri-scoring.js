@@ -1,7 +1,7 @@
 import { EVIDENCE_SOURCES } from './evidence-registry.js';
 import { scoreNormedTest, validateNormContext } from './norms-engine.js';
 
-export const IRI_SCORING_VERSION='iri-scoring-2026.10-v2';
+export const IRI_SCORING_VERSION='iri-scoring-2026.10-v3';
 export const IRI_SCORING_DOMAINS=Object.freeze(['mobility','strength','cardio']);
 export const WBLT_ASYMMETRY_MDC_CM=1.9;
 
@@ -35,6 +35,28 @@ function scoredTest({key,domain,testId,value,context,protocolId,valid=true,side=
   const result=scoreNormedTest({testId,value,context,protocolId});
   return Object.freeze({key,domain,side,available:true,valid:true,...result});
 }
+const TECHNIQUE_LABELS=Object.freeze({
+  1:'Muy mejorable',
+  2:'Mejorable',
+  3:'Adecuada',
+  4:'Buena',
+  5:'Muy buena',
+});
+function techniqueTest({key,label,value,valid=true,performance=null,unit=''}) {
+  const quality=finite(value);
+  if(valid!==true||quality===null||quality<1||quality>5)return Object.freeze({
+    key,label,scoreType:'criterial',available:quality!==null,valid:Boolean(valid),scored:false,score:null,grade10:null,
+    category:null,performance,unit,warnings:valid===true?['IRI_TECHNIQUE_QUALITY_MISSING']:['IRI_SCORE_PROTOCOL_INVALID']
+  });
+  const score=quality*20;
+  return Object.freeze({
+    key,label,scoreType:'criterial',available:true,valid:true,scored:true,score,grade10:Number((score/10).toFixed(1)),
+    category:Object.freeze({key:`technique_${quality}`,label:TECHNIQUE_LABELS[quality]}),
+    percentileLabel:null,performance,unit,warnings:Object.freeze([]),
+    evidence:Object.freeze({sourceId:'iberfit-technique-rubric-v1',confidence:'coach_observed',scale:'1-5 technical quality'}),
+  });
+}
+
 function mobilityDomain(draft,context){
   const ankle=draft.mobility?.ankle||{};
   const leftValue=ankle.leftBest??draft.weightBearingLungeLeft;
@@ -54,17 +76,52 @@ function mobilityDomain(draft,context){
   const exceedsMdc=asymmetryCm!==null&&asymmetryCm>WBLT_ASYMMETRY_MDC_CM;
   return Object.freeze({
     domain:'mobility',label:'Movilidad',score100:score,score10:score===null?null:Number((score/10).toFixed(1)),
-    scored:score!==null,tests:Object.freeze(sides),
+    scored:score!==null,scoreType:score===null?null:'normative',confidence:score===null?'insufficient':'normative',tests:Object.freeze(sides.map((item)=>({...item,scoreType:'normative'}))),
     signal:Object.freeze({kind:'wblt_asymmetry',differenceCm:asymmetryCm,thresholdCm:WBLT_ASYMMETRY_MDC_CM,exceedsTypicalMdc:exceedsMdc,source:sourceSnapshot('powden-2015-wblt-reliability'),message:asymmetryCm===null?'Sin comparación bilateral':exceedsMdc?'La diferencia entre lados supera el MDC intraevaluador típico de 1,9 cm; confirmar técnica y seguirla en reevaluación.':'La diferencia entre lados no supera el MDC intraevaluador típico de 1,9 cm.'}),
     aggregation:'limiting_side',warnings:Object.freeze(scored.flatMap((item)=>item.warnings||[])),
   });
 }
 function strengthDomain(draft,context){
-  const chair=draft.strength?.chairStand??draft.strengthAssessment?.chairStand??draft.strengthPatterns?.chairStand??{};
+  const strength=draft.strength??draft.strengthAssessment??draft.strengthPatterns??{};
+  const chair=strength.chairStand??{};
   const value=chair.repetitions??draft.chairStand30s;
   const valid=chair.valid===undefined?true:chair.valid===true;
-  const test=scoredTest({key:'chair_stand_30s',domain:'strength',testId:'chair_stand_30s',value,context,protocolId:'chair_stand_30s_standard',valid});
-  return Object.freeze({domain:'strength',label:'Fuerza funcional',score100:test.scored?test.score:null,score10:test.scored?test.grade10:null,scored:test.scored,tests:Object.freeze([test]),aggregation:'chair_stand_reference',warnings:Object.freeze(test.warnings||[])});
+  const normed=scoredTest({key:'chair_stand_30s',domain:'strength',testId:'chair_stand_30s',value,context,protocolId:'chair_stand_30s_standard',valid});
+  if(normed.scored){
+    return Object.freeze({
+      domain:'strength',label:'Fuerza funcional',score100:normed.score,score10:normed.grade10,scored:true,
+      scoreType:'normative',confidence:'normative',tests:Object.freeze([{...normed,scoreType:'normative'}]),
+      aggregation:'chair_stand_reference',warnings:Object.freeze(normed.warnings||[]),
+      note:'Nota normativa basada en Chair Stand de 30 s compatible con edad, sexo y protocolo.'
+    });
+  }
+  const air=strength.airSquat60s??{};
+  const push=strength.push??{};
+  const trx=strength.trxRow??{};
+  const core=strength.core??{};
+  const technical=[
+    techniqueTest({key:'air_squat_60s',label:'Sentadilla libre 60 s',value:air.techniqueQuality,valid:air.valid===true,performance:air.repetitions,unit:'rep'}),
+    techniqueTest({key:'push',label:push.variant==='knees'?'Flexiones con rodillas':'Empuje',value:push.techniqueQuality,valid:push.valid===true,performance:push.repetitions,unit:'rep'}),
+    techniqueTest({key:'trx_row',label:'Remo TRX',value:trx.techniqueQuality,valid:trx.valid===true,performance:trx.repetitions,unit:'rep'}),
+    techniqueTest({key:'front_plank',label:'Plancha frontal',value:core.techniqueQuality,valid:core.valid===true||core.frontPlankSeconds!==null,performance:core.frontPlankSeconds,unit:'s'}),
+  ];
+  const scored=technical.filter((item)=>item.scored);
+  if(scored.length<2){
+    return Object.freeze({
+      domain:'strength',label:'Fuerza funcional',score100:null,score10:null,scored:false,scoreType:'criterial',confidence:'insufficient',
+      tests:Object.freeze([normed,...technical]),aggregation:'technical_rubric_mean',
+      warnings:Object.freeze(['IRI_STRENGTH_TECHNIQUE_COVERAGE_INSUFFICIENT']),
+      note:'Registra calidad técnica en al menos dos pruebas válidas para obtener nota técnica IBERFIT.'
+    });
+  }
+  const score100=Number((scored.reduce((sum,item)=>sum+item.score,0)/scored.length).toFixed(1));
+  return Object.freeze({
+    domain:'strength',label:'Fuerza funcional',score100,score10:Number((score100/10).toFixed(1)),scored:true,
+    scoreType:'criterial',confidence:scored.length>=3?'structured':'limited',
+    tests:Object.freeze([normed,...technical]),aggregation:'technical_rubric_mean',
+    warnings:Object.freeze(scored.length>=3?[]:['IRI_STRENGTH_TECHNIQUE_LIMITED_COVERAGE']),
+    note:`Nota técnica IBERFIT basada en calidad de ejecución estructurada (${scored.length}/4 pruebas); no es un percentil poblacional.`
+  });
 }
 function cardioDomain(draft,context){
   const cardio=draft.cardio||{};
@@ -72,18 +129,28 @@ function cardioDomain(draft,context){
   const repetitions=cardio.repetitions??draft.oneMinuteSitToStandRepetitions;
   const valid=(cardio.valid??draft.cardioValid)===true;
   if(protocol!=='1msts-standard'){
-    return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:null,score10:null,scored:false,tests:Object.freeze([]),aggregation:'protocol_specific',warnings:Object.freeze(protocol?['IRI_SCORE_CARDIO_PROTOCOL_NOT_NORMED']:['IRI_SCORE_CARDIO_MISSING']),note:protocol==='ymca-3min-standard'?'YMCA se conserva como resultado descriptivo; no utiliza baremos 1MSTS.':'No hay un 1MSTS estándar válido para puntuar.'});
+    return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:null,score10:null,scored:false,tests:Object.freeze([]),aggregation:'protocol_specific',warnings:Object.freeze(protocol?['IRI_SCORE_CARDIO_PROTOCOL_NOT_NORMED']:['IRI_SCORE_CARDIO_MISSING']),note:protocol==='ymca-3min-standard'?'YMCA se conserva como resultado descriptivo; no utiliza baremos 1MSTS.':protocol==='treadmill-3min-submax'?'Cinta 3 min se conserva como baseline individual de recuperación FC; no utiliza baremos clínicos ni 1MSTS.':'No hay un 1MSTS estándar válido para puntuar.'});
   }
   const test=scoredTest({key:'one_minute_sit_to_stand',domain:'cardio',testId:'one_minute_sit_to_stand',value:repetitions,context,protocolId:'1msts_standard_60s',valid:valid&&Number(cardio.durationSeconds??60)===60});
-  return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:test.scored?test.score:null,score10:test.scored?test.grade10:null,scored:test.scored,tests:Object.freeze([test]),aggregation:'1msts_reference',warnings:Object.freeze(test.warnings||[])});
+  return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:test.scored?test.score:null,score10:test.scored?test.grade10:null,scored:test.scored,scoreType:test.scored?'normative':null,confidence:test.scored?'normative':'insufficient',tests:Object.freeze([{...test,scoreType:'normative'}]),aggregation:'1msts_reference',warnings:Object.freeze(test.warnings||[]),note:test.scored?'Nota normativa 1MSTS compatible con edad, sexo y protocolo.':'1MSTS sin cobertura suficiente para puntuar.'});
 }
 function globalScore(domains){
   const scored=domains.filter((domain)=>domain.scored&&Number.isFinite(Number(domain.score100)));
-  const coverage={eligibleDomains:IRI_SCORING_DOMAINS.length,scoredDomains:scored.length,percent:Math.round(scored.length/IRI_SCORING_DOMAINS.length*100)};
-  if(scored.length<2)return Object.freeze({available:false,score100:null,score10:null,label:'Cobertura insuficiente para nota global',coverage,confidence:'insufficient',aggregation:'equal_weight_available_domains'});
+  const normativeDomains=scored.filter((domain)=>domain.scoreType==='normative').length;
+  const criterialDomains=scored.filter((domain)=>domain.scoreType==='criterial').length;
+  const coverage={eligibleDomains:IRI_SCORING_DOMAINS.length,scoredDomains:scored.length,percent:Math.round(scored.length/IRI_SCORING_DOMAINS.length*100),normativeDomains,criterialDomains};
+  if(scored.length<2)return Object.freeze({available:false,score100:null,score10:null,label:'Cobertura insuficiente para nota global',coverage,confidence:'insufficient',aggregation:'equal_weight_available_domains',basis:'partial'});
   const score100=Number((scored.reduce((sum,item)=>sum+Number(item.score100),0)/scored.length).toFixed(1));
-  const confidence=scored.length===3&&domains.every((item)=>(item.warnings||[]).length===0)?'high':'moderate';
-  return Object.freeze({available:true,score100,score10:Number((score100/10).toFixed(1)),label:`Puntuación funcional IRI · ${scored.length}/3 dominios puntuables`,coverage,confidence,aggregation:'equal_weight_available_domains'});
+  const confidence=scored.length===3&&criterialDomains===0&&domains.every((item)=>(item.warnings||[]).length===0)?'high':criterialDomains===0?'moderate':'contextual';
+  return Object.freeze({
+    available:true,score100,score10:Number((score100/10).toFixed(1)),
+    label:`Nota IRI · ${scored.length}/3 dominios puntuados`,coverage,confidence,
+    aggregation:'equal_weight_available_domains',
+    basis:criterialDomains>0?'mixed_normative_criterial':'normative',
+    explanation:criterialDomains>0
+      ?'Combina dominios normativos y notas técnicas IBERFIT. La nota técnica describe calidad de ejecución y no equivale a un percentil.'
+      :'Todos los dominios puntuados utilizan referencias normativas compatibles.'
+  });
 }
 
 function actionableInsights(domains){
@@ -127,9 +194,9 @@ export function scoreIriPerformance(draft={}){
     domainAggregation:'equal_weight_available_domains',
     results:Object.freeze(legacyResults),
     coverage:global.coverage,
-    composition:Object.freeze({scored:false,label:'Composición corporal descriptiva',reason:'La bioimpedancia depende del método y las condiciones; no participa en la nota funcional global.'}),
+    composition:Object.freeze({scored:false,label:'Composición corporal descriptiva',reason:'La bioimpedancia depende del método y las condiciones; no participa en la nota IRI global.'}),
     reviewRequired:!ctx.ok||domains.some((item)=>(item.warnings||[]).length>0),
-    evidenceSources:Object.freeze(['mcbride-2026-wblt','powden-2015-wblt-reliability','barros-poblete-2025-chile','otto-yanez-2025-chile-1msts'].map(sourceSnapshot)),
+    evidenceSources:Object.freeze([...['mcbride-2026-wblt','powden-2015-wblt-reliability','barros-poblete-2025-chile','otto-yanez-2025-chile-1msts'].map(sourceSnapshot),Object.freeze({sourceId:'iberfit-technique-rubric-v1',year:2026,title:'IBERFIT structured technique quality rubric',type:'criterial',scale:'1-5'})]),
     insights:actionableInsights(domains),
   });
 }

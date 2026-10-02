@@ -37,13 +37,15 @@ function validDraft(overrides={}){
 
 test('catálogo IRI V12 cubre todas las pruebas con protocolo técnico completo y versionado',()=>{
   const protocols=Object.values(IRI_PROTOCOL_CATALOG);
-  assert.equal(protocols.length,14);
+  assert.equal(protocols.length,16);
   assert.equal(iriProtocolsForStep('movilidad').length,5);
-  assert.equal(iriProtocolsForStep('fuerza').length,5);
-  assert.equal(iriProtocolsForStep('cardio').length,3);
+  assert.equal(iriProtocolsForStep('fuerza').length,6);
+  assert.equal(iriProtocolsForStep('cardio').length,4);
   assert.ok(IRI_PROTOCOL_CATALOG['one-minute-sit-to-stand']);
   assert.ok(IRI_PROTOCOL_CATALOG['ymca-three-minute-step']);
   assert.ok(IRI_PROTOCOL_CATALOG['legacy-iberfit-three-minute-step-adapted']);
+  assert.ok(IRI_PROTOCOL_CATALOG['air-squat-60s']);
+  assert.ok(IRI_PROTOCOL_CATALOG['treadmill-3min-submax']);
   for(const protocol of protocols){
     assert.match(protocol.id,/^[a-z0-9-]+$/);
     assert.equal(protocol.version,IRI_PROTOCOL_CATALOG_VERSION);
