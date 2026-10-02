@@ -371,7 +371,14 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         payload:{clientId},
       },invitationResendSuccess);
     }
-    if(kind==='client-lifecycle')return run({type:'ADMIN_CLIENTE_CAMBIAR_CICLO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),status:text(data,'status',40)}},'Ciclo actualizado.');
+    if(kind==='client-lifecycle'){
+      const requestedStatus=text(data,'status',40);
+      const humanReason=text(data,'reason',430);
+      const iriOnly=requestedStatus==='iri_only';
+      const statusValue=iriOnly?'inactive':requestedStatus;
+      const reasonValue=iriOnly?`service:iri_only · ${humanReason}`:humanReason;
+      return run({type:'ADMIN_CLIENTE_CAMBIAR_CICLO',entityId:text(data,'clientId',200),organizationId:org,reason:reasonValue,payload:{clientId:text(data,'clientId',200),status:statusValue}},iriOnly?'Persona clasificada como Solo IRI.':'Ciclo actualizado.');
+    }
     if(kind==='client-delete'){
       const clientId=text(data,'clientId',200);
       const confirmValue=text(data,'confirmValue',254);
