@@ -160,7 +160,7 @@ export function buildAdminUser360({
     const coach=coachById.get(userId)||null;
     const clientAssignments=clientId?activeAssignments.filter((assignment)=>recordId(assignment?.clientId)===clientId):[];
     const coachAssignments=roles.includes('coach')?activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===userId):[];
-    const activeTrainingAssignments=coachAssignments.filter((assignment)=>isActiveTrainingClient(clientById.get(recordId(assignment?.clientId))||{}));
+    const activeTrainingAssignments=coachAssignments.filter((assignment)=>{const client=clientById.get(recordId(assignment?.clientId));return !client||isActiveTrainingClient(client);});
     const assignedCoachNames=clientAssignments.map((assignment)=>{
       const item=coachById.get(recordId(assignment?.coachUserId));
       return String(item?.name||item?.email||'').trim();
