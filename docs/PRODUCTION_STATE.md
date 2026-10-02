@@ -1,7 +1,21 @@
 # IBERFIT · Production State
 
-Última actualización documental: 2026-09-30
+Última actualización documental: 2026-10-02
 Estado: fuente de verdad operativa para LIVE, Canary y Auth.
+
+## WIP activo de evolución · 2026-10-02
+
+- WIP=1: PR #672 — `feat(iri): initial diagnosis and private photogrammetry v1`.
+- Rama: `feat/iri-photogrammetry-v1`.
+- Base/Canary actual comprobado: `2bc5f7b01c4fac656a4c78e6235beaf0067cca0a`.
+- HEAD del WIP comprobado antes de esta actualización documental: `8d1accc444c19cdb088446c352d3f0f2d0cdf379`.
+- PR: OPEN + DRAFT + mergeable.
+- Estado: implementación en rama; NO certificado en Canary; NO promovido a PROD; NO verificado LIVE.
+- Alcance ya presente en el WIP: baseline IRI inicial único, ledger de consentimientos, storage privado de fotogrametría, originales inmutables para authenticated, trazabilidad por vista/SHA-256, análisis manual 4-point y motor geométrico puro.
+- Pendiente del mismo WIP: UI/captura 4 vistas + editor manual, 1MSTS, desacoplar evolución/reevaluación de `iri_assessments`, reporte baseline-only con fotos excluidas por defecto, QA/CI/Canary/PROD/LIVE.
+- La migración del WIP consta como validada mediante dry-run transaccional en QA con rollback en la descripción actual del PR; no equivale a despliegue Canary/PROD.
+
+Regla: cualquier avance de este WIP debe actualizar este bloque sólo con hechos comprobados y distinguir implementación, test, Canary, PROD y LIVE.
 
 ## Producción LIVE
 
