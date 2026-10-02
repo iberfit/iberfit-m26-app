@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -192,6 +193,16 @@ test('physical consent DB enforcement contracts only after the new frontend is l
   assert.match(enforce,/revoke delete on public\.iri_assessments from authenticated, anon/u);
   assert.match(enforce,/create trigger iri_require_physical_consent_v1[\s\S]+iberfit_require_physical_consent_before_iri_confirm_v1/u);
   assert.doesNotMatch(enforce,/\bdo\s+\$|drop trigger|drop table|delete from|truncate|update\s+public\.iri_assessments/iu);
+});
+
+test('photogrammetry persistence keeps interpretation out of the database payload',()=>{
+  const controller=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-controller.js',import.meta.url),'utf8');
+  const saveStart=controller.indexOf('async function saveAnalysis(validate)');
+  const saveEnd=controller.indexOf('async function',saveStart+24);
+  const saveBlock=controller.slice(saveStart,saveEnd>saveStart?saveEnd:undefined);
+  assert.match(saveBlock,/const measurements=calculatePhotogrammetryMeasurements/);
+  assert.doesNotMatch(saveBlock,/measurements=\{\.\.\.baseMeasurements,interpretation\}/);
+  assert.doesNotMatch(saveBlock,/interpretPhotogrammetryMeasurements\(baseMeasurements/);
 });
 
 test('photogrammetry source contains no automated diagnosis or automatic landmark inference',()=>{
