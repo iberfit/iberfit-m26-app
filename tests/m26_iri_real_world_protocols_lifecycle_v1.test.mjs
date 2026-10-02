@@ -88,7 +88,7 @@ test('treadmill 3 min baseline requires reproducible external load and HR +60/+1
 test('mixed IRI note is transparent: normative mobility + criterial strength + treadmill baseline',()=>{
   const draft=realWorldDraft();
   const scoring=scoreIriPerformance(draft);
-  assert.equal(scoring.domainScores.mobility.scoreType,undefined);
+  assert.equal(scoring.domainScores.mobility.scoreType,'normative');
   assert.equal(scoring.domainScores.mobility.scored,true);
   assert.equal(scoring.domainScores.strength.scoreType,'criterial');
   assert.equal(scoring.domainScores.strength.score10,7.5);
