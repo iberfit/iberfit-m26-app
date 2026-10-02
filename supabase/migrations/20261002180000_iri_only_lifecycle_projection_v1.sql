@@ -16,7 +16,7 @@ begin
   if to_regprocedure('public.iberfit_bootstrap_v26_pre_v65e()') is null then
     raise exception 'IBERFIT_BOOTSTRAP_V26_BASE_REQUIRED';
   end if;
-  if to_regprocedure('public.iberfit_can_access_client_v26(text)') is null then
+  if to_regprocedure('public.iberfit_can_access_client_v26(uuid)') is null then
     raise exception 'IBERFIT_CLIENT_SCOPE_HELPER_REQUIRED';
   end if;
 end
@@ -96,7 +96,8 @@ begin
       l.created_at,
       l.revision
     from public.iberfit_client_lifecycle_events l
-    where public.iberfit_can_access_client_v26(l.client_id)
+    join public.clients c on c.id::text=l.client_id
+    where public.iberfit_can_access_client_v26(c.id)
     order by l.client_id,l.effective_at desc,l.created_at desc,l.id desc
   ) e;
 
