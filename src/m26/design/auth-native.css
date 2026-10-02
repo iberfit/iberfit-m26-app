@@ -403,6 +403,57 @@
   box-shadow: 0 0 0 3px rgba(210, 174, 91, .12);
 }
 
+/* AUTH_FIELD_PAINT_HARDENING_V1
+ * Chromium/Safari autofill and password managers must never switch the premium
+ * login surface to a light field or hide text/caret after the full CSS loads.
+ */
+.m26-auth-card input:not([type='checkbox']):not([type='radio']):hover,
+.m26-auth-card input:not([type='checkbox']):not([type='radio']):focus,
+.m26-auth-card input:not([type='checkbox']):not([type='radio']):focus-visible {
+  color: #fbf7ee !important;
+  -webkit-text-fill-color: #fbf7ee !important;
+  caret-color: #d9bb77 !important;
+  border-color: rgba(222, 187, 105, .72) !important;
+  background: #0E1A15 !important;
+  background-clip: padding-box !important;
+}
+
+.m26-auth-card input:not([type='checkbox']):not([type='radio']):-webkit-autofill,
+.m26-auth-card input:not([type='checkbox']):not([type='radio']):-webkit-autofill:hover,
+.m26-auth-card input:not([type='checkbox']):not([type='radio']):-webkit-autofill:active {
+  color-scheme: dark !important;
+  color: #fbf7ee !important;
+  -webkit-text-fill-color: #fbf7ee !important;
+  caret-color: #d9bb77 !important;
+  border-color: rgba(226, 197, 128, .34) !important;
+  background-color: #0E1A15 !important;
+  -webkit-box-shadow: inset 0 0 0 1000px #0E1A15 !important;
+  box-shadow: inset 0 0 0 1000px #0E1A15 !important;
+  transition: background-color 9999s ease-out 0s !important;
+}
+
+.m26-auth-card input:not([type='checkbox']):not([type='radio']):-webkit-autofill:focus,
+.m26-auth-card input:not([type='checkbox']):not([type='radio']):-webkit-autofill:focus-visible {
+  color-scheme: dark !important;
+  -webkit-text-fill-color: #fbf7ee !important;
+  caret-color: #d9bb77 !important;
+  border-color: rgba(222, 187, 105, .72) !important;
+  background-color: #0E1A15 !important;
+  -webkit-box-shadow: inset 0 0 0 1000px #0E1A15, 0 0 0 3px rgba(210, 174, 91, .12) !important;
+  box-shadow: inset 0 0 0 1000px #0E1A15, 0 0 0 3px rgba(210, 174, 91, .12) !important;
+  transition: background-color 9999s ease-out 0s !important;
+}
+
+.m26-auth-card input:not([type='checkbox']):not([type='radio']):autofill {
+  color-scheme: dark !important;
+  color: #fbf7ee !important;
+  -webkit-text-fill-color: #fbf7ee !important;
+  caret-color: #d9bb77 !important;
+  background-color: #0E1A15 !important;
+  -webkit-box-shadow: inset 0 0 0 1000px #0E1A15 !important;
+  box-shadow: inset 0 0 0 1000px #0E1A15 !important;
+}
+
 .m26-password-field {
   position: relative;
   display: block;
@@ -416,16 +467,26 @@
   position: absolute;
   right: .42rem;
   top: 50%;
-  width: auto;
-  min-height: 2.35rem;
-  padding: .36rem .64rem;
-  transform: translateY(-50%);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.9rem;
+  min-width: 4.9rem;
+  max-width: 4.9rem;
+  min-height: 2.75rem;
+  padding: .36rem .5rem;
+  transform: translateY(-50%) !important;
+  box-sizing: border-box;
+  white-space: nowrap;
+  line-height: 1;
   border: 0;
   border-radius: .68rem;
   color: #e0c47f;
   background: rgba(217, 187, 119, .08);
   font-size: .74rem;
   font-weight: 720;
+  touch-action: manipulation;
 }
 
 .m26-auth-options {
@@ -466,6 +527,10 @@
 
 .m26-auth-card button:not(:disabled):active {
   transform: translateY(1px);
+}
+
+.m26-auth-card .m26-password-toggle:not(:disabled):active {
+  transform: translateY(-50%) !important;
 }
 
 .m26-auth-card .m26-primary-action {
