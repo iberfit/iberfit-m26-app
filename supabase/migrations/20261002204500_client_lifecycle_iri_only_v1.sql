@@ -3,6 +3,8 @@
 -- lifecycle and Coach assignment. This preserves private IRI authorization without
 -- counting IRI-only people as active training clients.
 
+-- IBERFIT-TABLE-ACCESS: public.iberfit_client_service_events :: service-role-only append-only service history; no direct anon/authenticated access; Admin reads and writes only through privileged SECURITY DEFINER workflows.
+-- IBERFIT-POLICY: public.iberfit_client_service_events = service-role-only
 create table if not exists public.iberfit_client_service_events (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.iberfit_organizations(id) on delete cascade,
