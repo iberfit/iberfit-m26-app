@@ -92,6 +92,14 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
     screeningAccepted:bool(raw.screeningAccepted??body?.interview?.screeningAccepted),
     screeningNotes:text(sourceValue(raw,body,'screeningNotes'),1000),
   };
+  const fieldContext={
+    location:text(raw.assessmentLocation??body?.fieldContext?.location,180),
+    surface:text(raw.assessmentSurface??body?.fieldContext?.surface,180),
+    equipmentAvailable:list(raw.assessmentEquipmentAvailable??body?.fieldContext?.equipmentAvailable),
+    equipmentMissing:list(raw.assessmentEquipmentMissing??body?.fieldContext?.equipmentMissing),
+    substitutions:text(raw.assessmentSubstitutions??body?.fieldContext?.substitutions,1000),
+    notes:text(raw.assessmentFieldNotes??body?.fieldContext?.notes,1000),
+  };
   const bodyComposition={
     skipped:bool(raw.bodyCompositionSkipped),
     skipReason:requiredReason(bool(raw.bodyCompositionSkipped),raw.bodyCompositionSkipReason),
@@ -119,14 +127,21 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
     modifiedThomas:{left:text(raw.thomasLeft,80),right:text(raw.thomasRight,80),pelvicControl:text(raw.thomasPelvicControl,160),pain:text(raw.thomasPain,300)},
     hipRotation:{result:text(raw.hipRotationResult,120),pain:text(raw.hipRotationPain,300),compensation:text(raw.hipRotationCompensation,500)},
     assistedSquat:{depth:text(raw.squatDepth,100),heels:text(raw.squatHeels,100),knees:text(raw.squatKnees,100),trunk:text(raw.squatTrunk,100),lateralShift:text(raw.squatShift,100),assistanceResponse:text(raw.squatAssistanceResponse,160),pain:text(raw.squatPain,300)},
+    setup:{
+      surface:text(raw.mobilitySurface??body?.mobility?.setup?.surface,160),
+      benchAvailability:text(raw.mobilityBenchAvailability??body?.mobility?.setup?.benchAvailability,40),
+      supportUsed:text(raw.mobilitySupportUsed??body?.mobility?.setup?.supportUsed,220),
+      substitutionNotes:text(raw.mobilitySubstitutionNotes??body?.mobility?.setup?.substitutionNotes,800),
+    },
     notes:text(raw.mobilityNotes,1200),
   };
   const strength={
     skipped:bool(raw.strengthSkipped),skipReason:requiredReason(bool(raw.strengthSkipped),raw.strengthSkipReason),
     chairStand:{repetitions:num(sourceValue(raw,body,'chairStand30s','chair_stand_30s'),{min:0,max:100}),chairHeightCm:num(raw.chairHeightCm,{min:30,max:70}),valid:bool(raw.chairStandValid),notes:text(raw.chairStandNotes,500)},
-    push:{variant:text(raw.pushVariant,40),repetitions:num(sourceValue(raw,body,'pushUps','push_ups'),{min:0,max:200}),supportHeightCm:num(raw.pushSupportHeightCm,{min:0,max:180}),valid:bool(raw.pushValid),notes:text(raw.pushNotes,500)},
-    trxRow:{repetitions:num(raw.trxRowRepetitions,{min:0,max:200}),handleHeightCm:num(raw.trxHandleHeightCm,{min:0,max:250}),heelDistanceCm:num(raw.trxHeelDistanceCm,{min:0,max:300}),position:text(raw.trxPosition,100),valid:bool(raw.trxValid),notes:text(raw.trxNotes,500)},
-    core:{frontPlankSeconds:num(raw.frontPlankSeconds,{min:0,max:1800}),sidePlankLeftSeconds:num(raw.sidePlankLeftSeconds,{min:0,max:1800}),sidePlankRightSeconds:num(raw.sidePlankRightSeconds,{min:0,max:1800}),quality:text(raw.coreQuality,120),pain:text(raw.corePain,300)},
+    squat60s:{repetitions:num(raw.squat60sRepetitions,{min:0,max:150}),durationSeconds:num(raw.squat60sDurationSeconds??(raw.squat60sRepetitions!==undefined?60:null),{min:30,max:120}),valid:bool(raw.squat60sValid),depthCriterion:text(raw.squat60sDepthCriterion,120),notes:text(raw.squat60sNotes,600)},
+    push:{variant:text(raw.pushVariant,40),repetitions:num(sourceValue(raw,body,'pushUps','push_ups'),{min:0,max:200}),supportHeightCm:num(raw.pushSupportHeightCm,{min:0,max:180}),testMode:text(raw.pushTestMode,60),durationSeconds:num(raw.pushDurationSeconds,{min:1,max:600}),stopCriterion:text(raw.pushStopCriterion,180),valid:bool(raw.pushValid),notes:text(raw.pushNotes,500)},
+    trxRow:{repetitions:num(raw.trxRowRepetitions,{min:0,max:200}),handleHeightCm:num(raw.trxHandleHeightCm,{min:0,max:250}),heelDistanceCm:num(raw.trxHeelDistanceCm,{min:0,max:300}),position:text(raw.trxPosition,100),testMode:text(raw.trxTestMode,60),durationSeconds:num(raw.trxDurationSeconds,{min:1,max:600}),stopCriterion:text(raw.trxStopCriterion,180),valid:bool(raw.trxValid),notes:text(raw.trxNotes,500)},
+    core:{variant:text(raw.coreProtocolVariant,80),frontPlankSeconds:num(raw.frontPlankSeconds,{min:0,max:1800}),sidePlankLeftSeconds:num(raw.sidePlankLeftSeconds,{min:0,max:1800}),sidePlankRightSeconds:num(raw.sidePlankRightSeconds,{min:0,max:1800}),quality:text(raw.coreQuality,120),pain:text(raw.corePain,300)},
     posteriorChain:{protocol:text(raw.posteriorChainProtocol,80),seconds:num(raw.posteriorChainSeconds,{min:0,max:1800}),equipmentCompatible:bool(raw.posteriorEquipmentCompatible),notPerformedReason:text(raw.posteriorNotPerformedReason,500),pain:text(raw.posteriorChainPain,300)},
     notes:text(raw.strengthNotes,1200),
   };
@@ -141,7 +156,7 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
       legacyStepHeight!==null?(legacyStepHeight<=22?'iberfit-3min-adapted':'ymca-3min-standard'):
       (finalHr!==null||oneMinuteHr!==null?'ymca-3min-standard':''));
   const cardioDurationDefault=inferredCardioProtocol==='1msts-standard'?60:
-    (['ymca-3min-standard','iberfit-3min-adapted'].includes(inferredCardioProtocol)?180:null);
+    (['ymca-3min-standard','iberfit-3min-adapted','treadmill-3min-field'].includes(inferredCardioProtocol)?180:null);
   const cardio={
     skipped:bool(raw.cardioSkipped),skipReason:requiredReason(bool(raw.cardioSkipped),raw.cardioSkipReason),
     protocol:inferredCardioProtocol,
@@ -152,9 +167,12 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
     durationSeconds:num(raw.cardioDurationSeconds??body?.cardio?.durationSeconds??cardioDurationDefault,{min:30,max:180}),
     restingHr:num(raw.restingHr,{min:30,max:220}),finalHr,oneMinuteHr,
     twoMinuteHr:num(raw.twoMinuteHr,{min:30,max:220}),rpe:num(raw.cardioRpe,{min:0,max:10}),
+    treadmillMode:text(raw.treadmillMode,60),treadmillSpeedKmh:num(raw.treadmillSpeedKmh,{min:0,max:30}),treadmillInclinePercent:num(raw.treadmillInclinePercent,{min:-10,max:30}),treadmillEffortDescription:text(raw.treadmillEffortDescription,300),
+    configuration:text(raw.cardioConfiguration??body?.cardio?.configuration,1000),adaptationReason:text(raw.cardioAdaptationReason??body?.cardio?.adaptationReason,800),
     valid:bool(raw.cardioValid),symptoms:text(raw.cardioSymptoms,600),stopReason:text(raw.cardioStopReason,600),notes:text(raw.cardioNotes,1000),
   };
   cardio.deltaOneMinute=finalHr!==null&&oneMinuteHr!==null?finalHr-oneMinuteHr:null;
+  cardio.deltaTwoMinute=finalHr!==null&&cardio.twoMinuteHr!==null?finalHr-cardio.twoMinuteHr:null;
   const existingDiagnosis=body.diagnosis&&typeof body.diagnosis==='object'&&!Array.isArray(body.diagnosis)?body.diagnosis:{};
   const diagnosisPriorities=list(raw.diagnosisPriorities??(Array.isArray(existingDiagnosis.priorities)?existingDiagnosis.priorities.join('\n'):''),6);
   const diagnosisReevaluationDate=text(raw.reevaluationDate??existingDiagnosis.reevaluationDate,10);
@@ -166,14 +184,24 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
     reevaluationDate:diagnosisReevaluationDate,reviewAccepted:bool(raw.reviewAccepted),
   };
   const protocolRecords=buildIriProtocolRecords({raw,existingRecords:body.protocolRecords||body.protocol_records||[],assessmentDate,bodyComposition,mobility,strength,cardio});
-  return Object.freeze({schema:SCHEMA,clientId:text(clientId||body.clientId||body.client_id,200),assessmentId:text(current?.id||body.id,200),assessmentDate,canonicalClientRevision:num(raw.canonicalClientRevision??body.canonicalClientRevision,{min:0,max:Number.MAX_SAFE_INTEGER}),canonicalProfileRevision:num(raw.canonicalProfileRevision??body.canonicalProfileRevision,{min:0,max:Number.MAX_SAFE_INTEGER}),personProfile:Object.freeze(personProfile),interview:Object.freeze(interview),bodyComposition:Object.freeze(bodyComposition),mobility:Object.freeze(mobility),strength:Object.freeze(strength),cardio:Object.freeze(cardio),diagnosis:Object.freeze(diagnosis),protocolRecords,updatedAt:new Date().toISOString()});
+  return Object.freeze({schema:SCHEMA,clientId:text(clientId||body.clientId||body.client_id,200),assessmentId:text(current?.id||body.id,200),assessmentDate,canonicalClientRevision:num(raw.canonicalClientRevision??body.canonicalClientRevision,{min:0,max:Number.MAX_SAFE_INTEGER}),canonicalProfileRevision:num(raw.canonicalProfileRevision??body.canonicalProfileRevision,{min:0,max:Number.MAX_SAFE_INTEGER}),personProfile:Object.freeze(personProfile),interview:Object.freeze(interview),fieldContext:Object.freeze(fieldContext),bodyComposition:Object.freeze(bodyComposition),mobility:Object.freeze(mobility),strength:Object.freeze(strength),cardio:Object.freeze(cardio),diagnosis:Object.freeze(diagnosis),protocolRecords,updatedAt:new Date().toISOString()});
 }
 
 function hasBodyMeasurement(value){return [value.weightKg,value.bodyFatPercent,value.leanMassKg,value.muscleMassKg,value.waistCm].some((item)=>item!==null);}
 export function coreDomainCoverage(draft={}){
   const bodyMeasured=!draft.bodyComposition?.skipped&&hasBodyMeasurement(draft.bodyComposition||{});
-  const strengthMeasured=!draft.strength?.skipped;
-  const cardioMeasured=!draft.cardio?.skipped&&draft.cardio?.valid===true&&((draft.cardio?.protocol==='1msts-standard'&&draft.cardio?.durationSeconds===60&&draft.cardio?.repetitions!==null)||(['ymca-3min-standard','iberfit-3min-adapted'].includes(draft.cardio?.protocol)&&draft.cardio?.durationSeconds===180&&draft.cardio?.stepHeightCm!==null&&draft.cardio?.cadenceBpm!==null&&draft.cardio?.finalHr!==null&&draft.cardio?.oneMinuteHr!==null));
+  const strengthMeasured=!draft.strength?.skipped&&[
+    draft.strength?.chairStand?.valid,
+    draft.strength?.squat60s?.valid,
+    draft.strength?.push?.valid,
+    draft.strength?.trxRow?.valid,
+    draft.strength?.core?.frontPlankSeconds!==null&&draft.strength?.core?.frontPlankSeconds!==undefined,
+  ].some(Boolean);
+  const cardioMeasured=!draft.cardio?.skipped&&draft.cardio?.valid===true&&(
+    (draft.cardio?.protocol==='1msts-standard'&&draft.cardio?.durationSeconds===60&&draft.cardio?.repetitions!==null)||
+    (['ymca-3min-standard','iberfit-3min-adapted'].includes(draft.cardio?.protocol)&&draft.cardio?.durationSeconds===180&&draft.cardio?.stepHeightCm!==null&&draft.cardio?.cadenceBpm!==null&&draft.cardio?.finalHr!==null&&draft.cardio?.oneMinuteHr!==null)||
+    (draft.cardio?.protocol==='treadmill-3min-field'&&draft.cardio?.durationSeconds===180&&draft.cardio?.finalHr!==null&&draft.cardio?.oneMinuteHr!==null&&draft.cardio?.twoMinuteHr!==null)
+  );
   const states=Object.freeze({bodyComposition:bodyMeasured,strength:strengthMeasured,cardio:cardioMeasured});
   const measured=Object.values(states).filter(Boolean).length;
   return Object.freeze({states,measured,required:2,complete:measured>=2});
@@ -184,9 +212,9 @@ function stepErrors(draft,step){const errors=[];const profile=draft.personProfil
   }
   if(step==='entrevista'){if(!draft.interview.screeningAccepted)errors.push('screeningAccepted');if(!draft.interview.trainingExperience)errors.push('trainingExperience');if(!draft.interview.availability)errors.push('availability');}
   if(step==='composicion'){if(draft.bodyComposition.skipped){if(!draft.bodyComposition.skipReason)errors.push('bodyCompositionSkipReason');}else if(!hasBodyMeasurement(draft.bodyComposition))errors.push('bodyCompositionMeasurement');}
-  if(step==='movilidad'){if(draft.mobility.skipped){if(!draft.mobility.skipReason)errors.push('mobilitySkipReason');}else{if(draft.mobility.ankle.leftBest===null||draft.mobility.ankle.rightBest===null)errors.push('ankleTrials');if(draft.mobility.posteriorChain.leftBest===null||draft.mobility.posteriorChain.rightBest===null)errors.push('posteriorTrials');if(!draft.mobility.hipRotation.result)errors.push('hipRotationResult');if(!draft.mobility.assistedSquat.depth)errors.push('squatDepth');}}
-  if(step==='fuerza'){if(draft.strength.skipped){if(!draft.strength.skipReason)errors.push('strengthSkipReason');}else{if(draft.strength.chairStand.repetitions===null||!draft.strength.chairStand.valid)errors.push('chairStand30s');if(!draft.strength.push.variant||draft.strength.push.repetitions===null||!draft.strength.push.valid)errors.push('pushTest');if(draft.strength.trxRow.repetitions===null||!draft.strength.trxRow.valid)errors.push('trxRow');if(draft.strength.core.frontPlankSeconds===null)errors.push('frontPlank');}}
-  if(step==='cardio'){if(draft.cardio.skipped){if(!draft.cardio.skipReason)errors.push('cardioSkipReason');}else{if(!['1msts-standard','ymca-3min-standard','iberfit-3min-adapted'].includes(draft.cardio.protocol))errors.push('cardioProtocol');if(!draft.cardio.valid)errors.push('cardioValid');if(draft.cardio.protocol==='1msts-standard'){if(draft.cardio.repetitions===null)errors.push('cardioRepetitions');if(draft.cardio.durationSeconds!==60)errors.push('cardioDuration');if((draft.cardio.finalHr===null)!==(draft.cardio.oneMinuteHr===null))errors.push('cardioHeartRatePair');if(draft.cardio.deltaOneMinute!==null&&draft.cardio.deltaOneMinute<0)errors.push('cardioHeartRate');}else if(['ymca-3min-standard','iberfit-3min-adapted'].includes(draft.cardio.protocol)){if(draft.cardio.stepHeightCm===null)errors.push('cardioStepHeight');if(draft.cardio.cadenceBpm===null)errors.push('cardioCadence');if(draft.cardio.durationSeconds!==180)errors.push('cardioDuration');if(draft.cardio.finalHr===null||draft.cardio.oneMinuteHr===null||draft.cardio.deltaOneMinute<0)errors.push('cardioHeartRate');if(draft.cardio.protocol==='ymca-3min-standard'&&(Math.abs(draft.cardio.stepHeightCm-30.5)>.05||draft.cardio.cadenceBpm!==96))errors.push('cardioYmcaStandard');}}}
+  if(step==='movilidad'){if(draft.mobility.skipped){if(!draft.mobility.skipReason)errors.push('mobilitySkipReason');}else{if(draft.mobility.ankle.leftBest===null||draft.mobility.ankle.rightBest===null)errors.push('ankleTrials');if(!draft.mobility.assistedSquat.depth)errors.push('squatDepth');}}
+  if(step==='fuerza'){if(draft.strength.skipped){if(!draft.strength.skipReason)errors.push('strengthSkipReason');}else{const lowerBodyValid=(draft.strength.chairStand.repetitions!==null&&draft.strength.chairStand.valid)||(draft.strength.squat60s.repetitions!==null&&draft.strength.squat60s.durationSeconds===60&&draft.strength.squat60s.valid);if(!lowerBodyValid)errors.push('lowerBodyStrength');if(!draft.strength.push.variant||draft.strength.push.repetitions===null||!draft.strength.push.valid)errors.push('pushTest');if(draft.strength.trxRow.repetitions===null||!draft.strength.trxRow.valid)errors.push('trxRow');if(draft.strength.core.frontPlankSeconds===null)errors.push('frontPlank');}}
+  if(step==='cardio'){if(draft.cardio.skipped){if(!draft.cardio.skipReason)errors.push('cardioSkipReason');}else{if(!['1msts-standard','ymca-3min-standard','iberfit-3min-adapted','treadmill-3min-field'].includes(draft.cardio.protocol))errors.push('cardioProtocol');if(!draft.cardio.valid)errors.push('cardioValid');if(draft.cardio.protocol==='1msts-standard'){if(draft.cardio.repetitions===null)errors.push('cardioRepetitions');if(draft.cardio.durationSeconds!==60)errors.push('cardioDuration');if((draft.cardio.finalHr===null)!==(draft.cardio.oneMinuteHr===null))errors.push('cardioHeartRatePair');if(draft.cardio.deltaOneMinute!==null&&draft.cardio.deltaOneMinute<0)errors.push('cardioHeartRate');}else if(['ymca-3min-standard','iberfit-3min-adapted'].includes(draft.cardio.protocol)){if(draft.cardio.stepHeightCm===null)errors.push('cardioStepHeight');if(draft.cardio.cadenceBpm===null)errors.push('cardioCadence');if(draft.cardio.durationSeconds!==180)errors.push('cardioDuration');if(draft.cardio.finalHr===null||draft.cardio.oneMinuteHr===null||draft.cardio.deltaOneMinute<0)errors.push('cardioHeartRate');if(draft.cardio.protocol==='ymca-3min-standard'&&(Math.abs(draft.cardio.stepHeightCm-30.5)>.05||draft.cardio.cadenceBpm!==96))errors.push('cardioYmcaStandard');}else if(draft.cardio.protocol==='treadmill-3min-field'){if(draft.cardio.durationSeconds!==180)errors.push('cardioDuration');if(!draft.cardio.treadmillMode)errors.push('cardioTreadmillMode');if(draft.cardio.treadmillMode==='fixed-speed'&&draft.cardio.treadmillSpeedKmh===null)errors.push('cardioTreadmillSpeed');if(draft.cardio.finalHr===null||draft.cardio.oneMinuteHr===null||draft.cardio.twoMinuteHr===null||draft.cardio.deltaOneMinute<0||draft.cardio.deltaTwoMinute<0)errors.push('cardioHeartRate');}}}
   if(step==='revision'){if(draft.diagnosis.strengths.length<1)errors.push('diagnosisStrengths');if(draft.diagnosis.priorities.length<1)errors.push('diagnosisPriorities');if(draft.diagnosis.coachInterpretation.length<20)errors.push('coachInterpretation');if(draft.diagnosis.initialPlan.length<20)errors.push('initialPlan');if(!draft.diagnosis.reviewAccepted)errors.push('reviewAccepted');if(!coreDomainCoverage(draft).complete)errors.push('coreDomains');}
   return errors;
 }
@@ -200,6 +228,7 @@ export function confirmedFirstSessionDraft(record={},clientId=''){
   const bodyComposition=confirmedObject(body.bodyComposition||body.body_composition);
   const mobility=confirmedObject(body.mobility);
   const strength=confirmedObject(body.strengthAssessment||body.strength_assessment||body.strengthPatterns||body.strength_patterns||body.strength);
+  const fieldContext=confirmedObject(body.fieldContext||body.field_context);
   const cardio=confirmedObject(body.cardio);
   const diagnosis=confirmedObject(body.diagnosis);
   const protocolRecords=confirmedArray(body.protocolRecords||body.protocol_records).map((record)=>Object.freeze({...record,result:{...confirmedObject(record?.result)}}));
@@ -210,6 +239,7 @@ export function confirmedFirstSessionDraft(record={},clientId=''){
     assessmentDate:text(body.assessmentDate||body.assessment_date,10),
     personProfile:Object.freeze({...personProfile}),
     interview:Object.freeze({...interview}),
+    fieldContext:Object.freeze({...fieldContext}),
     bodyComposition:Object.freeze({...bodyComposition}),
     mobility:Object.freeze({...mobility}),
     strength:Object.freeze({...strength}),
@@ -241,19 +271,19 @@ export function buildIriCommandDraftFromFirstSession(draft,current={}){
     ...(weightBearingLunge!==null?{weightBearingLunge}:{}),
     bodyComposition:{...draft.bodyComposition},
     strengthPatterns:{skipped:draft.strength.skipped,skipReason:draft.strength.skipReason,chairStand:draft.strength.chairStand,push:draft.strength.push,trxRow:draft.strength.trxRow,core:draft.strength.core,posteriorChain:draft.strength.posteriorChain},
-    personProfile:{...draft.personProfile},interview:{...draft.interview},mobility:{...draft.mobility},strengthAssessment:{...draft.strength},cardio:{...draft.cardio},diagnosis:{...draft.diagnosis},coreDomainCoverage:coverage,
+    personProfile:{...draft.personProfile},interview:{...draft.interview},fieldContext:{...(draft.fieldContext||{})},mobility:{...draft.mobility},strengthAssessment:{...draft.strength},cardio:{...draft.cardio},diagnosis:{...draft.diagnosis},coreDomainCoverage:coverage,
     protocolRecords:(draft.protocolRecords||[]).map((record)=>({...record,result:{...(record.result||{})}})),
     firstSessionSchema:SCHEMA,firstSessionCompletedAt:new Date().toISOString(),
   };
 }
 
 export function flattenFirstSessionDraft(draft={}){
-  const p=draft.personProfile||{},i=draft.interview||{},b=draft.bodyComposition||{},m=draft.mobility||{},s=draft.strength||{},c=draft.cardio||{},d=draft.diagnosis||{};
-  const out={assessmentDate:draft.assessmentDate||'',...p,secondaryObjectives:(p.secondaryObjectives||[]).join(', '),equipment:(p.equipment||[]).join(', '),...i,
+  const p=draft.personProfile||{},i=draft.interview||{},f=draft.fieldContext||{},b=draft.bodyComposition||{},m=draft.mobility||{},s=draft.strength||{},c=draft.cardio||{},d=draft.diagnosis||{};
+  const out={assessmentDate:draft.assessmentDate||'',...p,secondaryObjectives:(p.secondaryObjectives||[]).join(', '),equipment:(p.equipment||[]).join(', '),...i,assessmentLocation:f.location||'',assessmentSurface:f.surface||'',assessmentEquipmentAvailable:(f.equipmentAvailable||[]).join(', '),assessmentEquipmentMissing:(f.equipmentMissing||[]).join(', '),assessmentSubstitutions:f.substitutions||'',assessmentFieldNotes:f.notes||'',
     bodyCompositionSkipped:b.skipped,bodyCompositionSkipReason:b.skipReason||'',weightKg:b.weightKg??'',heightCm:b.heightCm??'',bodyFatPercent:b.bodyFatPercent??'',leanMassKg:b.leanMassKg??'',muscleMassKg:b.muscleMassKg??'',bodyWaterPercent:b.bodyWaterPercent??'',waistCm:b.waistCm??'',visceralFatLevel:b.visceralFatLevel??'',bodyCompositionMethod:b.method||'',bodyCompositionDevice:b.device||'',measurementConditions:b.measurementConditions||'',bodyCompositionAttachmentName:b.attachmentName||'',bodyCompositionAttachmentType:b.attachmentType||'',bodyCompositionAttachmentSize:b.attachmentSize??'',bodyCompositionNotes:b.notes||'',
-    mobilitySkipped:m.skipped,mobilitySkipReason:m.skipReason||'',anklePain:m.ankle?.pain||'',ankleCompensation:m.ankle?.compensation||'',posteriorPain:m.posteriorChain?.pain||'',thomasLeft:m.modifiedThomas?.left||'',thomasRight:m.modifiedThomas?.right||'',thomasPelvicControl:m.modifiedThomas?.pelvicControl||'',thomasPain:m.modifiedThomas?.pain||'',hipRotationResult:m.hipRotation?.result||'',hipRotationPain:m.hipRotation?.pain||'',hipRotationCompensation:m.hipRotation?.compensation||'',squatDepth:m.assistedSquat?.depth||'',squatHeels:m.assistedSquat?.heels||'',squatKnees:m.assistedSquat?.knees||'',squatTrunk:m.assistedSquat?.trunk||'',squatShift:m.assistedSquat?.lateralShift||'',squatAssistanceResponse:m.assistedSquat?.assistanceResponse||'',squatPain:m.assistedSquat?.pain||'',mobilityNotes:m.notes||'',
-    strengthSkipped:s.skipped,strengthSkipReason:s.skipReason||'',chairStand30s:s.chairStand?.repetitions??'',chairHeightCm:s.chairStand?.chairHeightCm??'',chairStandValid:s.chairStand?.valid,pushVariant:s.push?.variant||'',pushUps:s.push?.repetitions??'',pushSupportHeightCm:s.push?.supportHeightCm??'',pushValid:s.push?.valid,trxRowRepetitions:s.trxRow?.repetitions??'',trxHandleHeightCm:s.trxRow?.handleHeightCm??'',trxHeelDistanceCm:s.trxRow?.heelDistanceCm??'',trxPosition:s.trxRow?.position||'',trxValid:s.trxRow?.valid,frontPlankSeconds:s.core?.frontPlankSeconds??'',sidePlankLeftSeconds:s.core?.sidePlankLeftSeconds??'',sidePlankRightSeconds:s.core?.sidePlankRightSeconds??'',coreQuality:s.core?.quality||'',corePain:s.core?.pain||'',posteriorChainProtocol:s.posteriorChain?.protocol||'',posteriorChainSeconds:s.posteriorChain?.seconds??'',posteriorEquipmentCompatible:s.posteriorChain?.equipmentCompatible,posteriorNotPerformedReason:s.posteriorChain?.notPerformedReason||'',posteriorChainPain:s.posteriorChain?.pain||'',strengthNotes:s.notes||'',
-    cardioSkipped:c.skipped,cardioSkipReason:c.skipReason||'',cardioProtocol:c.protocol||'',cardioChairHeightCm:c.chairHeightCm??'',oneMinuteSitToStandRepetitions:c.repetitions??'',stepHeightCm:c.stepHeightCm??'',cadenceBpm:c.cadenceBpm??'',cardioDurationSeconds:c.durationSeconds??'',restingHr:c.restingHr??'',stepFinalHr:c.finalHr??'',stepOneMinuteHr:c.oneMinuteHr??'',twoMinuteHr:c.twoMinuteHr??'',cardioRpe:c.rpe??'',cardioValid:c.valid,cardioSymptoms:c.symptoms||'',cardioStopReason:c.stopReason||'',cardioNotes:c.notes||'',
+    mobilitySkipped:m.skipped,mobilitySkipReason:m.skipReason||'',anklePain:m.ankle?.pain||'',ankleCompensation:m.ankle?.compensation||'',posteriorPain:m.posteriorChain?.pain||'',thomasLeft:m.modifiedThomas?.left||'',thomasRight:m.modifiedThomas?.right||'',thomasPelvicControl:m.modifiedThomas?.pelvicControl||'',thomasPain:m.modifiedThomas?.pain||'',hipRotationResult:m.hipRotation?.result||'',hipRotationPain:m.hipRotation?.pain||'',hipRotationCompensation:m.hipRotation?.compensation||'',squatDepth:m.assistedSquat?.depth||'',squatHeels:m.assistedSquat?.heels||'',squatKnees:m.assistedSquat?.knees||'',squatTrunk:m.assistedSquat?.trunk||'',squatShift:m.assistedSquat?.lateralShift||'',squatAssistanceResponse:m.assistedSquat?.assistanceResponse||'',squatPain:m.assistedSquat?.pain||'',mobilitySurface:m.setup?.surface||'',mobilityBenchAvailability:m.setup?.benchAvailability||'',mobilitySupportUsed:m.setup?.supportUsed||'',mobilitySubstitutionNotes:m.setup?.substitutionNotes||'',mobilityNotes:m.notes||'',
+    strengthSkipped:s.skipped,strengthSkipReason:s.skipReason||'',chairStand30s:s.chairStand?.repetitions??'',chairHeightCm:s.chairStand?.chairHeightCm??'',chairStandValid:s.chairStand?.valid,squat60sRepetitions:s.squat60s?.repetitions??'',squat60sDurationSeconds:s.squat60s?.durationSeconds??'',squat60sDepthCriterion:s.squat60s?.depthCriterion||'',squat60sValid:s.squat60s?.valid,squat60sNotes:s.squat60s?.notes||'',pushVariant:s.push?.variant||'',pushUps:s.push?.repetitions??'',pushSupportHeightCm:s.push?.supportHeightCm??'',pushTestMode:s.push?.testMode||'',pushDurationSeconds:s.push?.durationSeconds??'',pushStopCriterion:s.push?.stopCriterion||'',pushValid:s.push?.valid,trxRowRepetitions:s.trxRow?.repetitions??'',trxHandleHeightCm:s.trxRow?.handleHeightCm??'',trxHeelDistanceCm:s.trxRow?.heelDistanceCm??'',trxPosition:s.trxRow?.position||'',trxTestMode:s.trxRow?.testMode||'',trxDurationSeconds:s.trxRow?.durationSeconds??'',trxStopCriterion:s.trxRow?.stopCriterion||'',trxValid:s.trxRow?.valid,coreProtocolVariant:s.core?.variant||'',frontPlankSeconds:s.core?.frontPlankSeconds??'',sidePlankLeftSeconds:s.core?.sidePlankLeftSeconds??'',sidePlankRightSeconds:s.core?.sidePlankRightSeconds??'',coreQuality:s.core?.quality||'',corePain:s.core?.pain||'',posteriorChainProtocol:s.posteriorChain?.protocol||'',posteriorChainSeconds:s.posteriorChain?.seconds??'',posteriorEquipmentCompatible:s.posteriorChain?.equipmentCompatible,posteriorNotPerformedReason:s.posteriorChain?.notPerformedReason||'',posteriorChainPain:s.posteriorChain?.pain||'',strengthNotes:s.notes||'',
+    cardioSkipped:c.skipped,cardioSkipReason:c.skipReason||'',cardioProtocol:c.protocol||'',cardioChairHeightCm:c.chairHeightCm??'',oneMinuteSitToStandRepetitions:c.repetitions??'',stepHeightCm:c.stepHeightCm??'',cadenceBpm:c.cadenceBpm??'',cardioDurationSeconds:c.durationSeconds??'',restingHr:c.restingHr??'',stepFinalHr:c.finalHr??'',stepOneMinuteHr:c.oneMinuteHr??'',twoMinuteHr:c.twoMinuteHr??'',cardioRpe:c.rpe??'',treadmillMode:c.treadmillMode||'',treadmillSpeedKmh:c.treadmillSpeedKmh??'',treadmillInclinePercent:c.treadmillInclinePercent??'',treadmillEffortDescription:c.treadmillEffortDescription||'',cardioConfiguration:c.configuration||'',cardioAdaptationReason:c.adaptationReason||'',cardioValid:c.valid,cardioSymptoms:c.symptoms||'',cardioStopReason:c.stopReason||'',cardioNotes:c.notes||'',
     diagnosisStrengths:(d.strengths||[]).join('\n'),diagnosisPriorities:(d.priorities||[]).join('\n'),coachInterpretation:d.coachInterpretation||'',trainingImplications:d.trainingImplications||'',initialPlan:d.initialPlan||'',recommendedFrequency:d.recommendedFrequency||'',reevaluationDate:d.reevaluationDate||'',reviewAccepted:d.reviewAccepted};
   (Array.isArray(d.priorityRecords)?d.priorityRecords:[]).slice(0,4).forEach((priority,index)=>{
     const slot=index+1;const item=priority&&typeof priority==='object'?priority:{};
