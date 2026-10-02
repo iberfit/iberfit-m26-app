@@ -11,30 +11,37 @@ function stageLabel(stage){if(stage==='onboarding')return 'Alta incompleta';if(s
 export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
   const normalizedClients=arr(clients).map((client)=>{
     const experience=client?.experience||{};
-    const stage=text(experience.stage,'active');
+    const lifecycleStatus=text(client?.lifecycle?.status).toLowerCase();
+    const iriOnly=lifecycleStatus==='iri_only';
+    const stage=iriOnly?'iri_only':text(experience.stage,'active');
     const assignments=arr(client?.assignments);
     const assigned=assignments.length>0;
     const nextAction=client?.nextAction||{};
     const adaptive=client?.adaptiveExperience||{};
     const adaptiveKind=['critical','warning'].includes(text(adaptive.kind).toLowerCase())?text(adaptive.kind).toLowerCase():null;
-    const kind=!assigned?'critical':adaptiveKind||stageKind(stage);
+    const kind=iriOnly?'clear':!assigned?'critical':adaptiveKind||stageKind(stage);
     return Object.freeze({
       clientId:text(client?.id),
       clientName:text(client?.name,'Cliente'),
       stage,
-      stageLabel:text(experience.stageLabel,stageLabel(stage)),
+      lifecycleStatus,
+      iriOnly,
+      stageLabel:iriOnly?'Solo IRI · evaluación realizada':text(experience.stageLabel,stageLabel(stage)),
       experiencePriority:Number.isFinite(Number(experience.priority))?Number(experience.priority):5,
       assigned,
       coachNames:Object.freeze(arr(client?.coachNames).map((x)=>text(x)).filter(Boolean)),
       kind,
       adaptiveReview:adaptive.coachReviewRequired===true,
-      action:Object.freeze(!assigned
-        ?{area:'admin-equipo',label:'Asignar coach',reason:'El cliente no tiene un Coach activo asignado.'}
-        :{area:text(nextAction.area,'admin-clientes'),label:text(nextAction.label,'Revisar cliente'),reason:text(nextAction.reason,stageLabel(stage))}),
+      action:Object.freeze(iriOnly
+        ?{area:'admin-clientes',label:'Abrir expediente IRI',reason:'Servicio IRI realizado; no pertenece a la cartera activa de entrenamiento.'}
+        :!assigned
+          ?{area:'admin-equipo',label:'Asignar coach',reason:'El cliente no tiene un Coach activo asignado.'}
+          :{area:text(nextAction.area,'admin-clientes'),label:text(nextAction.label,'Revisar cliente'),reason:text(nextAction.reason,stageLabel(stage))}),
     });
   }).filter((client)=>client.clientId);
 
-  const priorities=normalizedClients
+  const trainingClients=normalizedClients.filter((client)=>!client.iriOnly);
+  const priorities=trainingClients
     .filter((client)=>client.kind!=='clear')
     .sort((a,b)=>{
       if(KIND_RANK[a.kind]!==KIND_RANK[b.kind])return KIND_RANK[a.kind]-KIND_RANK[b.kind];
@@ -42,6 +49,13 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
       return a.clientName.localeCompare(b.clientName,'es',{sensitivity:'base'});
     });
 
+  const activeCountByCoach=new Map();
+  for(const client of trainingClients){
+    for(const assignment of arr(client?.assignments)){
+      const coachId=text(assignment?.coachUserId||assignment?.coach_user_id);
+      if(coachId)activeCountByCoach.set(coachId,(activeCountByCoach.get(coachId)||0)+1);
+    }
+  }
   const coachLoad=arr(coaches).map((coach)=>{
     const capacity=number(coach?.capacityHours);
     const assignedHours=number(coach?.assignedHours)??0;
@@ -50,7 +64,7 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
     return Object.freeze({
       coachUserId:text(coach?.userId||coach?.id),
       coachName:text(coach?.name||coach?.email,'Coach'),
-      clientCount:number(coach?.clientCount)??0,
+      clientCount:activeCountByCoach.get(text(coach?.userId||coach?.id))??0,
       capacityHours:capacity,
       assignedHours,
       loadRatio:ratio,
@@ -68,15 +82,17 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
     .filter((task)=>['critical','high'].includes(text(task.priority).toLowerCase()))
     .sort((a,b)=>taskPriority(a)-taskPriority(b));
 
-  const countStage=(stage)=>normalizedClients.filter((client)=>client.stage===stage).length;
+  const countStage=(stage)=>trainingClients.filter((client)=>client.stage===stage).length;
   const summary=Object.freeze({
-    totalClients:normalizedClients.length,
-    unassignedClients:normalizedClients.filter((client)=>!client.assigned).length,
+    totalClients:trainingClients.length,
+    iriOnlyPeople:normalizedClients.filter((client)=>client.iriOnly).length,
+    totalPeople:normalizedClients.length,
+    unassignedClients:trainingClients.filter((client)=>!client.assigned).length,
     onboardingPending:countStage('onboarding'),
     iriPending:countStage('evaluation'),
     planningPending:countStage('planning'),
     schedulingPending:countStage('scheduling'),
-    activeClients:countStage('active'),
+    activeClients:trainingClients.filter((client)=>client.lifecycleStatus==='active'||(!client.lifecycleStatus&&client.stage==='active')).length,
     openTasks:openTasks.length,
     criticalTasks:criticalTasks.length,
     coachesNearCapacity:coachLoad.filter((coach)=>coach.status==='near'||coach.status==='full').length,
