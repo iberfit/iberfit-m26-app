@@ -9,7 +9,9 @@ function stageKind(stage){if(stage==='onboarding'||stage==='evaluation')return '
 function stageLabel(stage){if(stage==='onboarding')return 'Alta incompleta';if(stage==='evaluation')return 'IRI pendiente';if(stage==='planning')return 'Planificación pendiente';if(stage==='scheduling')return 'Próxima cita pendiente';return 'Seguimiento activo';}
 
 export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
-  const normalizedClients=arr(clients).map((client)=>{
+  const sourceClients=arr(clients);
+  const iriOnlyPeople=sourceClients.filter((client)=>text(client?.lifecycle?.status||client?.lifecycleStatus||client?.status).toLowerCase()==='iri_only');
+  const normalizedClients=sourceClients.filter((client)=>text(client?.lifecycle?.status||client?.lifecycleStatus||client?.status).toLowerCase()!=='iri_only').map((client)=>{
     const experience=client?.experience||{};
     const stage=text(experience.stage,'active');
     const assignments=arr(client?.assignments);
@@ -71,6 +73,7 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
   const countStage=(stage)=>normalizedClients.filter((client)=>client.stage===stage).length;
   const summary=Object.freeze({
     totalClients:normalizedClients.length,
+    iriOnlyPeople:iriOnlyPeople.length,
     unassignedClients:normalizedClients.filter((client)=>!client.assigned).length,
     onboardingPending:countStage('onboarding'),
     iriPending:countStage('evaluation'),
