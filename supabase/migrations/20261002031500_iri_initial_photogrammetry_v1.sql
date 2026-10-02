@@ -506,6 +506,75 @@ begin
 end
 $$;
 
+create or replace function public.iberfit_photo_point_valid_v1(p_point jsonb)
+returns boolean
+language plpgsql
+immutable
+set search_path=''
+as $$
+declare
+  v_x numeric;
+  v_y numeric;
+begin
+  if jsonb_typeof(p_point)<>'object'
+     or jsonb_typeof(p_point->'x')<>'number'
+     or jsonb_typeof(p_point->'y')<>'number' then
+    return false;
+  end if;
+  v_x:=(p_point->>'x')::numeric;
+  v_y:=(p_point->>'y')::numeric;
+  return v_x between 0 and 1 and v_y between 0 and 1;
+exception when others then
+  return false;
+end
+$$;
+
+create or replace function public.iberfit_photo_landmarks_complete_v1(p_landmarks jsonb)
+returns boolean
+language sql
+immutable
+set search_path=''
+as $$
+  select jsonb_typeof(p_landmarks)='object'
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{front,shoulderLeft}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{front,shoulderRight}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{front,pelvisLeft}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{front,pelvisRight}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{back,shoulderLeft}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{back,shoulderRight}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{back,pelvisLeft}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{back,pelvisRight}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{left,ear}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{left,shoulder}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{left,hip}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{left,ankle}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{right,ear}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{right,shoulder}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{right,hip}')
+    and public.iberfit_photo_point_valid_v1(p_landmarks#>'{right,ankle}');
+$$;
+
+create or replace function public.iberfit_photo_measurements_valid_v1(p_measurements jsonb)
+returns boolean
+language sql
+immutable
+set search_path=''
+as $$
+  select jsonb_typeof(p_measurements)='object'
+    and p_measurements->>'schema'='iri-photogrammetry-measurements-v1'
+    and jsonb_typeof(p_measurements->'metrics')='array'
+    and jsonb_typeof(p_measurements->'summaries')='object'
+    and jsonb_typeof(p_measurements->'geometryBasis')='object'
+    and (
+      not (p_measurements ? 'medicalDiagnosis')
+      or p_measurements->'medicalDiagnosis'='null'::jsonb
+    )
+    and (
+      not (p_measurements ? 'interpretation')
+      or p_measurements->'interpretation'='null'::jsonb
+    );
+$$;
+
 create or replace function public.iberfit_save_iri_photogrammetry_analysis_v1(
   p_client_id uuid,
   p_assessment_id uuid,
@@ -534,10 +603,19 @@ begin
   end if;
   if p_base_revision is null or p_base_revision<0
      or jsonb_typeof(coalesce(p_validated_landmarks,'{}'::jsonb))<>'object'
-     or jsonb_typeof(coalesce(p_measurements,'{}'::jsonb))<>'object'
+     or not public.iberfit_photo_measurements_valid_v1(coalesce(p_measurements,'{}'::jsonb))
      or not public.m26_json_safe_v43(coalesce(p_validated_landmarks,'{}'::jsonb))
      or not public.m26_json_safe_v43(coalesce(p_measurements,'{}'::jsonb)) then
     raise exception 'IRI_V4_PHOTOGRAMMETRY_ANALYSIS_INVALID' using errcode='22023';
+  end if;
+  if p_validate and (
+       p_front_capture_id is null
+       or p_back_capture_id is null
+       or p_left_capture_id is null
+       or p_right_capture_id is null
+       or not public.iberfit_photo_landmarks_complete_v1(coalesce(p_validated_landmarks,'{}'::jsonb))
+     ) then
+    raise exception 'IRI_V4_PHOTOGRAMMETRY_VALIDATION_INCOMPLETE' using errcode='22023';
   end if;
   if not public.iberfit_iri_consent_active_v1(p_assessment_id,'photography') then
     raise exception 'IRI_V4_PHOTOGRAPHY_CONSENT_REQUIRED' using errcode='42501';
@@ -616,6 +694,13 @@ begin
   );
 end
 $$;
+
+revoke all on function public.iberfit_photo_point_valid_v1(jsonb) from public;
+revoke all on function public.iberfit_photo_landmarks_complete_v1(jsonb) from public;
+revoke all on function public.iberfit_photo_measurements_valid_v1(jsonb) from public;
+grant execute on function public.iberfit_photo_point_valid_v1(jsonb) to authenticated,service_role;
+grant execute on function public.iberfit_photo_landmarks_complete_v1(jsonb) to authenticated,service_role;
+grant execute on function public.iberfit_photo_measurements_valid_v1(jsonb) to authenticated,service_role;
 
 revoke all on function public.iberfit_can_manage_iri_private_v1(uuid) from public;
 revoke all on function public.iberfit_iri_consent_active_v1(uuid,text) from public;
