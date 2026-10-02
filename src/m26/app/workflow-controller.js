@@ -31,6 +31,7 @@ import {
   prepareIriReportPrintTarget,
 } from '../workflows/iri-report-document.js';
 import {scoreNormedTest} from '../norms/norms-engine.js';
+import {scoreIriPerformance} from '../norms/iri-scoring.js';
 import {deriveAgeYears} from '../workflows/iri-profile.js';
 import {protocolComparabilityWarnings} from '../workflows/iri-protocol-catalog.js';
 import {rankCoachClientDocuments} from '../productivity/coach-productivity.js';
@@ -469,10 +470,7 @@ export function createWorkflowController({
     const raw=values(form);const file=form.querySelector?.('[name="bodyCompositionAttachment"]')?.files?.[0]||null;
     if(file){
       if(file.size>50_000_000)throw new Error('M26_IRI_ATTACHMENT_TOO_LARGE');
-      raw.bodyCompositionAttachmentName=String(file.name||'').slice(0,240);
-      raw.bodyCompositionAttachmentType=String(file.type||'application/octet-stream').slice(0,120);
-      raw.bodyCompositionAttachmentSize=String(file.size||0);
-      for(const key of ['Name','Type','Size']){const hidden=form.elements?.namedItem?.(`bodyCompositionAttachment${key}`);if(hidden)hidden.value=raw[`bodyCompositionAttachment${key}`]||'';}
+      if(!['application/pdf','image/jpeg','image/png'].includes(String(file.type||'')))throw new Error('M26_IRI_ATTACHMENT_TYPE_INVALID');
     }
     return raw;
   }
@@ -495,8 +493,28 @@ export function createWorkflowController({
     const completion=normalized?firstSessionCompletion(normalized):{percent:0,steps:[]};
     for(const node of form.querySelectorAll?.('[data-iri-computed="completion"]')||[])node.textContent=`${completion.percent}%`;
     const birthDate=raw.birthDate||normalized?.personProfile?.birthDate;const ageYears=deriveAgeYears(birthDate,raw.assessmentDate||normalized?.assessmentDate||new Date().toISOString().slice(0,10));const normContext={sexForNorms:raw.sexForNorms||normalized?.personProfile?.sexForNorms,ageYears};
-    const normSpecs=[['chairStand30s','chair_stand_30s','chair_stand_30s_standard'],['pushUps','push_up_standard','standard_max_valid_reps']];
-    for(const [field,testId,protocolId] of normSpecs){const node=form.querySelector?.(`[data-iri-norm="${field}"]`);if(!node)continue;const result=scoreNormedTest({testId,value:raw[field],context:normContext,protocolId});node.textContent=result.scored?`${result.category.label} · referencia ${result.evidence?.sourceId||'validada'}`:raw[field]!==''?'Sin clasificación automática: revisa protocolo, edad y sexo para baremos.':'Introduce un resultado válido para interpretar.';node.dataset.status=result.scored?'success':'neutral';}
+    const scoring=normalized?scoreIriPerformance({...normalized,ageYears}):null;
+    const mobilityTests=scoring?.domainScores?.mobility?.tests||[];
+    const normResults={
+      ankleLeft:mobilityTests.find((item)=>item.side==='left'||item.side==='bilateral')||null,
+      ankleRight:mobilityTests.find((item)=>item.side==='right')||null,
+      chairStand30s:scoring?.domainScores?.strength?.tests?.[0]||null,
+      oneMinuteSitToStandRepetitions:scoring?.domainScores?.cardio?.tests?.[0]||null,
+      pushUps:scoreNormedTest({testId:'push_up_standard',value:raw.pushUps,context:normContext,protocolId:'standard_max_valid_reps'}),
+    };
+    for(const [field,result] of Object.entries(normResults)){
+      const node=form.querySelector?.(`[data-iri-norm="${field}"]`);if(!node)continue;
+      const hasValue=field==='ankleLeft'?mobilityTests.some((item)=>item.side==='left'||item.side==='bilateral'):field==='ankleRight'?mobilityTests.some((item)=>item.side==='right'):raw[field]!==''&&raw[field]!==undefined;
+      node.textContent=result?.scored?`${result.grade10?.toFixed?.(1)??Number(result.score||0)/10}/10 · ${result.category?.label||'Referencia disponible'}${result.percentileLabel?` · ${result.percentileLabel}`:''}`:hasValue?'Sin nota automática: revisa protocolo, validez, edad y sexo para baremos.':'Introduce un resultado válido para interpretar.';
+      node.dataset.status=result?.scored?'success':'neutral';
+    }
+    const scoreHost=form.querySelector?.('[data-iri-score-summary]');
+    if(scoreHost&&scoring){
+      const sexLabel=scoring.context?.sexForNorms==='female'?'Mujer':scoring.context?.sexForNorms==='male'?'Hombre':'Pendiente';
+      const global=scoring.global||{};const domains=scoring.domainScores||{};
+      const domain=(key)=>domains[key]?.score10===null||domains[key]?.score10===undefined?'—':`${Number(domains[key].score10).toFixed(1)}/10`;
+      scoreHost.innerHTML=`<div class="m26-panel-heading"><div><p class="m26-eyebrow">Puntuación funcional IRI</p><h4>${global.available?`${Number(global.score10).toFixed(1)}/10`:'Pendiente de cobertura'}</h4><p>Baremo: ${sexLabel} · ${Number.isFinite(Number(scoring.context?.ageYears))?Math.round(Number(scoring.context.ageYears))+' años':'edad pendiente'} · motor ${scoring.engineVersion}</p></div><span class="m26-badge ${global.confidence==='high'?'is-success':'is-neutral'}">${global.coverage?.scoredDomains||0}/3 dominios</span></div><div class="m26-review-summary"><div><span>Movilidad</span><strong>${domain('mobility')}</strong></div><div><span>Fuerza funcional</span><strong>${domain('strength')}</strong></div><div><span>Capacidad funcional</span><strong>${domain('cardio')}</strong></div><div><span>Confianza</span><strong>${global.confidence==='high'?'Alta':global.confidence==='moderate'?'Moderada':'Insuficiente'}</strong></div></div><p class="m26-notice">La nota resume posición funcional frente a referencias compatibles. No es un diagnóstico clínico; la composición corporal y la fotogrametría no alteran esta nota.</p>`;
+    }
     const comparability=form.querySelector?.('[data-iri-comparability]');
     if(comparability&&normalized){const previous=recordBody(currentIriRecord(form))?.protocolRecords||[];const warnings=protocolComparabilityWarnings(previous,normalized.protocolRecords||[]);comparability.textContent=warnings.length?warnings.join(' '):'Protocolos y configuraciones comparables con el registro anterior o sin antecedente disponible.';comparability.dataset.status=warnings.length?'warning':'success';}
     const stepButtons=[...(form.querySelectorAll?.('[data-iri-step-jump]')||[])];
@@ -623,6 +641,22 @@ export function createWorkflowController({
     const key=errors[0];const name=IRI_ERROR_FIELD_TARGET[key]||key;const field=form?.elements?.namedItem?.(name)||form?.querySelector?.(`[name="${name}"]`);if(!field)return false;
     field.setAttribute?.('aria-invalid','true');field.scrollIntoView?.({behavior:'smooth',block:'center'});queueMicrotask(()=>field.focus?.({preventScroll:true}));return true;
   }
+  function assertNormContextAccepted(form){
+    const control=form?.elements?.namedItem?.('normContextAccepted');
+    if(control?.checked)return true;
+    const error=new Error('M26_IRI_NORM_CONTEXT_CONFIRMATION_REQUIRED');
+    error.userMessage='Antes de confirmar, verifica la fecha de nacimiento y el sexo utilizado para los baremos.';
+    try{control?.focus?.();}catch{}
+    throw error;
+  }
+  function assertNoUnpersistedIriAttachment(form){
+    const file=form?.querySelector?.('[name="bodyCompositionAttachment"]')?.files?.[0]||null;
+    if(!file)return true;
+    const error=new Error('M26_IRI_EXTERNAL_REPORT_NOT_PERSISTED');
+    error.userMessage='El informe de bioimpedancia está seleccionado, pero todavía no está guardado. Pulsa «Subir y guardar informe» o elimina la selección antes de confirmar.';
+    try{form?.querySelector?.('[data-iri-external-report-action="upload"]')?.focus?.();}catch{}
+    throw error;
+  }
   function assertPhysicalAssessmentConsent(form){
     const control=form?.elements?.namedItem?.('physicalAssessmentConsent');
     if(control?.checked)return true;
@@ -681,7 +715,7 @@ export function createWorkflowController({
   async function completeIri(){
     requireCoach();const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)throw new Error('M26_IRI_FORM_REQUIRED');const current=currentIriRecord(form);const draft=iriDraft(form);const check=validateFirstSessionDraft(draft);
     if(!check.ok){const first=IRI_FIRST_SESSION_STEPS.find((step)=>check.byStep[step]?.length)||'revision';const pending=Object.entries(check.byStep).flatMap(([step,items])=>items.map((item)=>({step,item,label:IRI_FIELD_LABELS[item]||item})));setIriStep(form,IRI_FIRST_SESSION_STEPS.indexOf(first));showStepValidation(form,first,check.byStep[first]);focusIriValidationError(form,check.byStep[first]);const error=new Error(`M26_IRI_FIRST_SESSION_INVALID:${check.errors.join(',')}`);error.userMessage=`No puedes confirmar todavía: faltan ${pending.length} ${pending.length===1?'elemento':'elementos'}. ${pending.map(({label})=>label).join(', ')}.`;throw error;}
-    assertPhysicalAssessmentConsent(form);assertIriRawRanges(form);const commandDraft=buildIriCommandDraftFromFirstSession(draft,current);await draftRepository?.save?.(draft.clientId,IRI_DRAFT_SCOPE,draft);
+    assertPhysicalAssessmentConsent(form);assertNormContextAccepted(form);assertNoUnpersistedIriAttachment(form);assertIriRawRanges(form);const commandDraft=buildIriCommandDraftFromFirstSession(draft,current);await draftRepository?.save?.(draft.clientId,IRI_DRAFT_SCOPE,draft);
     if(typeof ensureIriPhysicalConsent!=='function')throw new Error('M26_IRI_PHYSICAL_CONSENT_SERVICE_UNAVAILABLE');
     status(root,'iri','Registrando consentimiento y confirmando la evaluación…','pending');
     await withTimeout(Promise.resolve(ensureIriPhysicalConsent({clientId:draft.clientId,assessmentId:current.id,accepted:true,note:'Consentimiento para evaluación física IRI registrado al confirmar el baseline inicial.'})),15_000,'M26_IRI_PHYSICAL_CONSENT_TIMEOUT');
