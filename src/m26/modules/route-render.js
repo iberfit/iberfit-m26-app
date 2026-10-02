@@ -3546,7 +3546,7 @@ function iriDecisionPriorities(entry={}){
     :'<p>Sin prioridades registradas.</p>';
 }
 function iriDecisionLogPanel(log={}){
-  const entries=Array.isArray(log.entries)?[...log.entries].reverse().slice(0,4):[];
+  const entries=Array.isArray(log.entries)?log.entries.slice(-1):[];
   const content=entries.length
     ?`<div class="m26-stack">${entries.map((entry)=>{
         const priorities=iriDecisionPriorities(entry);
@@ -3564,9 +3564,9 @@ function iriDecisionLogPanel(log={}){
           ${badge(entry.label||'Decisión IRI',entry.changes?.changed?'pending':'neutral')}
         </article>`;
       }).join('')}</div>`
-    :emptyState('Sin decisiones confirmadas','El historial aparecerá cuando se confirme una evaluación IRI con prioridades y plan.');
+    :emptyState('Sin decisiones confirmadas','Revisión del Coach obligatoria');
   return `<section class="m26-panel m26-panel-soft m26-iri-decision-log" data-iri-decision-log>
-    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Historial de decisiones</p><h2>Qué se decidió y por qué</h2><p>Solo evaluaciones IRI confirmadas. La app muestra cambios documentados y no los interpreta automáticamente como mejor o peor.</p></div>${badge(`${Number(log.count||0)} decisión${Number(log.count||0)===1?'':'es'}`,'neutral')}</div>
+    <div class="m26-panel-heading"><div><p class="m26-eyebrow">Decisión inicial</p><h2>Qué se decidió y por qué</h2><p>Contexto IRI confirmado</p></div>${badge(`${Number(log.count||0)} decisión${Number(log.count||0)===1?'':'es'}`,'neutral')}</div>
     ${content}
   </section>`;
 }
