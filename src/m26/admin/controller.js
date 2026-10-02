@@ -327,7 +327,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           birthDate:profile.birthDate,
           sexForNorms:profile.sexForNorms,
           initialAssessmentMode:profile.initialAssessmentMode,
-          initialLifecycleStatus:text(data,'serviceIntent',40)==='iri_only'?'iri_only':'onboarding',
+          initialServiceKind:text(data,'serviceIntent',40)==='iri_only'?'iri_only':'training',
           coachUserId:text(data,'coachUserId',200),
           modality:profile.modality,
           weeklyFrequency:profile.weeklyFrequency,
@@ -372,6 +372,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         payload:{clientId},
       },invitationResendSuccess);
     }
+    if(kind==='client-service')return run({type:'ADMIN_CLIENTE_CAMBIAR_SERVICIO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),serviceKind:text(data,'serviceKind',40)}},'Servicio actualizado.');
     if(kind==='client-lifecycle')return run({type:'ADMIN_CLIENTE_CAMBIAR_CICLO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),status:text(data,'status',40)}},'Ciclo actualizado.');
     if(kind==='client-delete'){
       const clientId=text(data,'clientId',200);
