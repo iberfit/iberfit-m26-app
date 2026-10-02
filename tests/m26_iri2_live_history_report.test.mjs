@@ -26,7 +26,8 @@ test('longitudinal comparison remains a separate follow-up capability rather tha
   const longitudinal=read('src/m26/workflows/iri-2-longitudinal.js');
   assert.match(longitudinal,/buildEvolutionProfile/u);
   assert.match(longitudinal,/EVOLUTION_FOLLOWUP_KIND/u);
-  assert.match(longitudinal,/protocolComparabilityWarnings/u);
+  assert.match(longitudinal,/function protocolKey/u);
+  assert.match(longitudinal,/function comparable/u);
   const report=read('src/m26/workflows/iri-report-document.js');
   assert.doesNotMatch(report,/buildEvolutionProfile|buildIri2LongitudinalProfile|iri2ComparisonSummary/u);
 });
