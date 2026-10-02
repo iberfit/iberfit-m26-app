@@ -138,6 +138,25 @@ test('IRI v4 migration makes initial diagnosis unique and photogrammetry private
   assert.doesNotMatch(sql,/iberfit_register_iri_photo_v1/u);
 });
 
+test('IRI photogrammetry hardening removes direct anon EXECUTE granted by project defaults',()=>{
+  const sql=fs.readFileSync(new URL('../supabase/migrations/20261002104500_iri_photogrammetry_anon_execute_hardening.sql',import.meta.url),'utf8');
+  for(const signature of [
+    'iberfit_require_physical_consent_before_iri_confirm_v1\\(\\)',
+    'iberfit_can_manage_iri_private_v1\\(uuid\\)',
+    'iberfit_iri_consent_active_v1\\(uuid,text\\)',
+    'iberfit_record_iri_consent_v1\\(uuid,uuid,text,text,text,text\\)',
+    'iberfit_prepare_iri_photo_v1\\(uuid,uuid,uuid,text,text,text,bigint,text,integer,integer,text,timestamptz,text\\)',
+    'iberfit_finalize_iri_photo_v1\\(uuid,uuid,uuid\\)',
+    'iberfit_save_iri_photogrammetry_analysis_v1\\(uuid,uuid,bigint,uuid,uuid,uuid,uuid,jsonb,jsonb,boolean\\)',
+    'iberfit_photo_path_uuid_part_v1\\(text,integer\\)',
+    'iberfit_photo_path_view_v1\\(text\\)',
+    'iberfit_photo_path_is_canonical_v1\\(text\\)',
+  ]){
+    assert.match(sql,new RegExp(`revoke all on function public\\.${signature} from anon`,'u'));
+  }
+  assert.doesNotMatch(sql,/grant execute[\s\S]+to anon/iu);
+});
+
 test('photogrammetry source contains no automated diagnosis or automatic landmark inference',()=>{
   const source=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry.js',import.meta.url),'utf8');
   assert.doesNotMatch(source,/tensorflow|mediapipe|pose detector|diagnose|diagnóstico automático/iu);
