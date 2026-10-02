@@ -40,7 +40,9 @@ Tipografía:
 
 ## Hero de bienvenida
 
-- Único asset permitido actualmente: `/public/iberfit-email-access-hero.jpg`.
+- Asset aprobado actual: `/public/iberfit/email/access-hero-v3-c3a8345b.jpg`.
+- SHA-256 aprobado: `c3a8345b4b91cb4e1c52bd5504803a66230555ee22929a2e6182028303515f50`.
+- Los assets visuales de email son inmutables: si cambia el contenido, debe cambiar el filename/fingerprint. No reutilizar URLs ya enviadas.
 - Debe ser una pieza visual IBERFIT aprobada, no stock/genérico fitness.
 - Sin texto rasterizado.
 - El isotipo oficial de cabecera se carga desde `/public/iberfit-email-isotipo.png`.

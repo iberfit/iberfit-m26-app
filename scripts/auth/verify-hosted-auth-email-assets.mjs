@@ -1,7 +1,8 @@
+import crypto from 'node:crypto';
 import process from 'node:process';
 import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
-import {buildHostedAuthPatch} from './sync-hosted-auth-emails.mjs';
+import {buildHostedAuthPatch,__hostedAuthEmailInternals} from './sync-hosted-auth-emails.mjs';
 
 const DEFAULT_BASE_URL='https://app.iberfit.cl';
 const DEFAULT_MAX_BYTES=500_000;
@@ -140,6 +141,7 @@ export async function verifyEmailAsset(reference,{baseUrl=DEFAULT_BASE_URL,fetch
   const contentType=String(response.headers.get('content-type')||'');
   if(!contentType.toLowerCase().startsWith('image/'))fail('IBERFIT_AUTH_EMAIL_ASSET_GET_MIME_NOT_IMAGE');
   const body=new Uint8Array(await response.arrayBuffer());
+  const sha256=crypto.createHash('sha256').update(body).digest('hex');
   const info=inspectImagePayload(body,{url:target,contentType,maxBytes});
   const declaredLength=optionalPositiveContentLength(response.headers,'IBERFIT_AUTH_EMAIL_ASSET_GET_LENGTH_INVALID');
 
@@ -155,6 +157,7 @@ export async function verifyEmailAsset(reference,{baseUrl=DEFAULT_BASE_URL,fetch
     cfCacheStatus:response.headers.get('cf-cache-status')||null,
     etag:response.headers.get('etag')||null,
     lastModified:response.headers.get('last-modified')||null,
+    sha256,
     ...info,
   });
 }
@@ -166,7 +169,11 @@ export async function verifyHostedAuthEmailAssets({baseUrl=process.env.IBERFIT_A
   const results=[];
   for(const reference of references){
     if(!/^https:\/\//iu.test(reference))fail('IBERFIT_AUTH_EMAIL_ASSET_ABSOLUTE_HTTPS_REQUIRED');
-    results.push(await verifyEmailAsset(reference,{baseUrl,fetchImpl}));
+    const result=await verifyEmailAsset(reference,{baseUrl,fetchImpl});
+    if(reference===__hostedAuthEmailInternals.PUBLIC_HERO_URL&&result.sha256!==__hostedAuthEmailInternals.APPROVED_HERO_SHA256){
+      fail('IBERFIT_AUTH_EMAIL_HERO_SHA256_MISMATCH');
+    }
+    results.push(result);
   }
   return Object.freeze({ok:true,baseUrl,assetCount:results.length,assets:Object.freeze(results)});
 }

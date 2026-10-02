@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import {access,readFile,rm} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import path from 'node:path';
@@ -41,7 +42,7 @@ async function assertEmailImage(file,label){
 }
 
 test('Hosted Auth remote asset verifier accepts omitted Content-Length only when GET bytes are valid',async()=>{
-  const hero=new Uint8Array(await readFile(path.join(repoRoot,'public','iberfit-email-access-hero.jpg')));
+  const hero=new Uint8Array(await readFile(path.join(repoRoot,'public','iberfit','email','access-hero-v3-c3a8345b.jpg')));
   const methods=[];
   const fetchImpl=async(_url,options={})=>{
     methods.push(options.method);
@@ -52,7 +53,7 @@ test('Hosted Auth remote asset verifier accepts omitted Content-Length only when
   };
 
   const result=await verifyEmailAsset(
-    'https://app.iberfit.cl/public/iberfit-email-access-hero.jpg',
+    'https://app.iberfit.cl/public/iberfit/email/access-hero-v3-c3a8345b.jpg',
     {baseUrl:'https://preview.example.test',fetchImpl},
   );
 
@@ -60,6 +61,7 @@ test('Hosted Auth remote asset verifier accepts omitted Content-Length only when
   assert.equal(result.declaredLength,null,'omitted Content-Length must remain unknown, never coerce to zero');
   assert.equal(result.bytes,hero.length,'GET body bytes remain the source of truth');
   assert.equal(result.format,'jpeg','GET payload must still pass binary JPEG validation');
+  assert.equal(result.sha256,__hostedAuthEmailInternals.APPROVED_HERO_SHA256,'GET payload must expose the approved hero checksum');
 });
 
 test('Hosted Auth remote asset verifier rejects an explicit zero Content-Length',async()=>{
@@ -69,7 +71,7 @@ test('Hosted Auth remote asset verifier rejects an explicit zero Content-Length'
   });
   await assert.rejects(
     ()=>verifyEmailAsset(
-      'https://app.iberfit.cl/public/iberfit-email-access-hero.jpg',
+      'https://app.iberfit.cl/public/iberfit/email/access-hero-v3-c3a8345b.jpg',
       {baseUrl:'https://preview.example.test',fetchImpl},
     ),
     /IBERFIT_AUTH_EMAIL_ASSET_HEAD_LENGTH_INVALID/,
@@ -137,7 +139,8 @@ test('Hosted Auth email templates preserve variables, safe structure, canonical 
   assert.ok(inviteEntry,'invite: manifest entry missing');
   const invite=await readFile(path.join(repoRoot,inviteEntry.file),'utf8');
   assert.ok(invite.includes('/public/iberfit-email-isotipo.png'),'invite: dedicated email isotipo must be used');
-  assert.ok(invite.includes('/public/iberfit-email-access-hero.jpg'),'invite: approved access hero must be used');
+  assert.ok(invite.includes('/public/iberfit/email/access-hero-v3-c3a8345b.jpg'),'invite: approved immutable access hero must be used');
+  assert.ok(!invite.includes('/public/iberfit-email-access-hero.jpg'),'invite: mutable legacy hero URL must never return');
   assert.match(invite,/bgcolor=["']#C5A059["'][^>]*>[\s\S]*?<a\b[^>]*color:#15271E/i,'invite: primary CTA must use canonical gold with dark-green ink');
   assert.match(invite,/alt=["']Material de entrenamiento IBERFIT["']/i,'invite: hero alt text must describe the approved brand material');
   assert.equal((invite.match(/width=["']50%["']/g)||[]).length,4,'invite: methodology must use a robust 2x2 grid');
@@ -146,7 +149,8 @@ test('Hosted Auth email templates preserve variables, safe structure, canonical 
   for(const entry of manifest.templates.filter((item)=>item.id!=='invite')){
     const html=await readFile(path.join(repoRoot,entry.file),'utf8');
     assert.ok(html.includes('/public/iberfit-email-isotipo.png'),entry.id+': official IBERFIT isotipo must remain in the header');
-    assert.ok(!html.includes('/public/iberfit-email-access-hero.jpg'),entry.id+': hero must stay exclusive to editorial invitation email');
+    assert.ok(!html.includes('/public/iberfit/email/access-hero-v3-c3a8345b.jpg'),entry.id+': hero must stay exclusive to editorial invitation email');
+    assert.ok(!html.includes('/public/iberfit-email-access-hero.jpg'),entry.id+': mutable legacy hero must stay absent');
   }
 
   const built=await buildHostedAuthPatch({root:repoRoot,manifestPath});
@@ -173,13 +177,15 @@ test('Hosted Auth email templates preserve variables, safe structure, canonical 
   try{
     assert.equal(build.status,0,`canonical surface build failed:\n${build.stdout}\n${build.stderr}`);
     assert.ok(publicAssets.has('public/iberfit-email-isotipo.png'),'contract must observe the dedicated email isotipo');
-    assert.ok(publicAssets.has('public/iberfit-email-access-hero.jpg'),'contract must observe the access hero');
+    assert.ok(publicAssets.has('public/iberfit/email/access-hero-v3-c3a8345b.jpg'),'contract must observe the immutable access hero');
     for(const asset of publicAssets){
       const builtAsset=path.join(distDir,asset);
       await assertExists(builtAsset,`referenced public asset is missing from canonical build: ${asset}`);
       const info=await assertEmailImage(builtAsset,`built email asset is invalid: ${asset}`);
-      if(asset.endsWith('iberfit-email-access-hero.jpg')){
+      if(asset==='public/iberfit/email/access-hero-v3-c3a8345b.jpg'){
         assert.equal(info.format,'jpeg','hero must remain a real JPEG');
+        const approvedBytes=await readFile(builtAsset);
+        assert.equal(crypto.createHash('sha256').update(approvedBytes).digest('hex'),__hostedAuthEmailInternals.APPROVED_HERO_SHA256,'hero bytes must stay pinned to the approved artwork');
         assert.equal(info.progressive,false,'hero must remain baseline JPEG for broad mail-client compatibility');
         assert.ok(info.width>=620&&info.width<=1240,'hero width must remain email-efficient and sharp');
         assert.ok(info.height>=140&&info.height<=220,'hero must remain a subtle low-profile banner');
