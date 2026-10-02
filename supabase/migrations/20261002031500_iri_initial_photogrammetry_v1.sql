@@ -1,24 +1,8 @@
 -- IBERFIT IRI v4 · initial diagnostic + private photogrammetry foundation
 -- Additive security-first migration. No production data is rewritten.
 
-do $$
-begin
-  if exists(select 1 from public.iri_assessments where assessment_type <> 'inicial') then
-    raise exception 'IRI_V4_REASSESSMENT_ROWS_MUST_BE_MIGRATED_FIRST';
-  end if;
-  if exists(
-    select client_id from public.iri_assessments
-    group by client_id having count(*) > 1
-  ) then
-    raise exception 'IRI_V4_MULTIPLE_INITIAL_ROWS_MUST_BE_RECONCILED_FIRST';
-  end if;
-end
-$$;
-
 alter table public.iri_assessments
-  drop constraint if exists iri_assessments_type_check;
-alter table public.iri_assessments
-  add constraint iri_assessments_type_check
+  add constraint iri_assessments_initial_only_v4
   check (assessment_type = 'inicial');
 
 alter table public.iri_assessments
@@ -26,9 +10,7 @@ alter table public.iri_assessments
   alter column protocol_version set default '4.0.0';
 
 alter table public.iri_assessments
-  drop constraint if exists iri_assessments_step_check;
-alter table public.iri_assessments
-  add constraint iri_assessments_step_check
+  add constraint iri_assessments_step_v4
   check (current_step = any(array[
     'contexto','composicion','fotografia','movilidad','fuerza','capacidad','interpretacion','planAccion'
   ]::text[]));
@@ -36,7 +18,6 @@ alter table public.iri_assessments
 create unique index if not exists iri_one_initial_per_client_v1
   on public.iri_assessments(client_id);
 
-drop policy if exists iri_delete_coach on public.iri_assessments;
 revoke delete on public.iri_assessments from authenticated, anon;
 
 create table if not exists public.iri_consents_v1 (
@@ -160,7 +141,6 @@ begin
 end
 $$;
 
-drop trigger if exists iri_require_physical_consent_v1 on public.iri_assessments;
 create trigger iri_require_physical_consent_v1
 before update of status on public.iri_assessments
 for each row execute function public.iberfit_require_physical_consent_before_iri_confirm_v1();
@@ -259,10 +239,7 @@ values(
   'iberfit-iri-photogrammetry','iberfit-iri-photogrammetry',false,15000000,
   array['image/jpeg','image/png']::text[]
 )
-on conflict(id) do update set
-  public=false,
-  file_size_limit=excluded.file_size_limit,
-  allowed_mime_types=excluded.allowed_mime_types;
+on conflict(id) do nothing;
 
 create or replace function public.iberfit_photo_path_uuid_part_v1(p_path text,p_part integer)
 returns uuid
@@ -307,7 +284,6 @@ as $$
     and split_part(coalesce(p_path,''),'/',6)='';
 $$;
 
-drop policy if exists iri_photo_object_insert_v1 on storage.objects;
 create policy iri_photo_object_insert_v1
 on storage.objects
 for insert to authenticated
@@ -326,7 +302,6 @@ with check (
   )
 );
 
-drop policy if exists iri_photo_object_read_v1 on storage.objects;
 create policy iri_photo_object_read_v1
 on storage.objects
 for select to authenticated

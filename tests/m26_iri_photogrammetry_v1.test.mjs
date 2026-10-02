@@ -79,6 +79,12 @@ test('IRI v4 migration makes initial diagnosis unique and photogrammetry private
   assert.match(sql,/assessment_type = 'inicial'/u);
   assert.match(sql,/create unique index if not exists iri_one_initial_per_client_v1/u);
   assert.match(sql,/revoke delete on public\.iri_assessments from authenticated, anon/u);
+  assert.match(sql,/iri_assessments_initial_only_v4/u);
+  assert.match(sql,/iri_assessments_step_v4/u);
+  assert.doesNotMatch(sql,/\\bALTER\\s+TABLE\\b[^;]*\\bDROP\\s+CONSTRAINT\\b/iu);
+  assert.doesNotMatch(sql,/\\bDROP\\s+(?:TRIGGER|POLICY)\\b/iu);
+  assert.doesNotMatch(sql,/\\bON\\s+CONFLICT\\b[^;]*\\bDO\\s+UPDATE\\b/iu);
+  assert.doesNotMatch(sql,/\\bDO\\s+(?:LANGUAGE\\s+\\w+\\s+)?(?:\\$\\w*\\$|\\$\\$)/iu);
   assert.match(sql,/physical_assessment/u);
   assert.match(sql,/photography/u);
   assert.match(sql,/IRI_V4_PHYSICAL_CONSENT_REQUIRED/u);
