@@ -125,6 +125,12 @@ test('IRI v4 migration makes initial diagnosis unique and photogrammetry private
   assert.match(sql,/iberfit_finalize_iri_photo_v1/u);
   assert.match(sql,/c\.status='pending_upload'/u);
   assert.match(sql,/v_row\.status='active'/u);
+  assert.match(sql,/iberfit_photo_landmarks_complete_v1/u);
+  assert.match(sql,/iberfit_photo_measurements_valid_v1/u);
+  assert.match(sql,/IRI_V4_PHOTOGRAMMETRY_VALIDATION_INCOMPLETE/u);
+  assert.match(sql,/p_front_capture_id is null[\s\S]+p_right_capture_id is null/u);
+  assert.match(sql,/medicalDiagnosis/u);
+  assert.match(sql,/interpretation/u);
   assert.doesNotMatch(sql,/iberfit_register_iri_photo_v1/u);
 });
 
