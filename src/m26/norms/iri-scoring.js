@@ -76,7 +76,7 @@ function mobilityDomain(draft,context){
   const exceedsMdc=asymmetryCm!==null&&asymmetryCm>WBLT_ASYMMETRY_MDC_CM;
   return Object.freeze({
     domain:'mobility',label:'Movilidad',score100:score,score10:score===null?null:Number((score/10).toFixed(1)),
-    scored:score!==null,tests:Object.freeze(sides),
+    scored:score!==null,scoreType:score===null?null:'normative',confidence:score===null?'insufficient':'normative',tests:Object.freeze(sides.map((item)=>({...item,scoreType:'normative'}))),
     signal:Object.freeze({kind:'wblt_asymmetry',differenceCm:asymmetryCm,thresholdCm:WBLT_ASYMMETRY_MDC_CM,exceedsTypicalMdc:exceedsMdc,source:sourceSnapshot('powden-2015-wblt-reliability'),message:asymmetryCm===null?'Sin comparación bilateral':exceedsMdc?'La diferencia entre lados supera el MDC intraevaluador típico de 1,9 cm; confirmar técnica y seguirla en reevaluación.':'La diferencia entre lados no supera el MDC intraevaluador típico de 1,9 cm.'}),
     aggregation:'limiting_side',warnings:Object.freeze(scored.flatMap((item)=>item.warnings||[])),
   });
@@ -132,7 +132,7 @@ function cardioDomain(draft,context){
     return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:null,score10:null,scored:false,tests:Object.freeze([]),aggregation:'protocol_specific',warnings:Object.freeze(protocol?['IRI_SCORE_CARDIO_PROTOCOL_NOT_NORMED']:['IRI_SCORE_CARDIO_MISSING']),note:protocol==='ymca-3min-standard'?'YMCA se conserva como resultado descriptivo; no utiliza baremos 1MSTS.':protocol==='treadmill-3min-submax'?'Cinta 3 min se conserva como baseline individual de recuperación FC; no utiliza baremos clínicos ni 1MSTS.':'No hay un 1MSTS estándar válido para puntuar.'});
   }
   const test=scoredTest({key:'one_minute_sit_to_stand',domain:'cardio',testId:'one_minute_sit_to_stand',value:repetitions,context,protocolId:'1msts_standard_60s',valid:valid&&Number(cardio.durationSeconds??60)===60});
-  return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:test.scored?test.score:null,score10:test.scored?test.grade10:null,scored:test.scored,tests:Object.freeze([test]),aggregation:'1msts_reference',warnings:Object.freeze(test.warnings||[])});
+  return Object.freeze({domain:'cardio',label:'Capacidad funcional',score100:test.scored?test.score:null,score10:test.scored?test.grade10:null,scored:test.scored,scoreType:test.scored?'normative':null,confidence:test.scored?'normative':'insufficient',tests:Object.freeze([{...test,scoreType:'normative'}]),aggregation:'1msts_reference',warnings:Object.freeze(test.warnings||[]),note:test.scored?'Nota normativa 1MSTS compatible con edad, sexo y protocolo.':'1MSTS sin cobertura suficiente para puntuar.'});
 }
 function globalScore(domains){
   const scored=domains.filter((domain)=>domain.scored&&Number.isFinite(Number(domain.score100)));
