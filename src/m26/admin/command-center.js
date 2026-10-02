@@ -13,24 +13,26 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
     const experience=client?.experience||{};
     const stage=text(experience.stage,'active');
     const lifecycleStatus=text(client?.lifecycle?.status||client?.status).toLowerCase();
+    const relationshipType=text(client?.relationshipType||client?.profile?.relationshipType,'training').toLowerCase();
     const assignments=arr(client?.assignments);
     const assigned=assignments.length>0;
     const nextAction=client?.nextAction||{};
     const adaptive=client?.adaptiveExperience||{};
     const adaptiveKind=['critical','warning'].includes(text(adaptive.kind).toLowerCase())?text(adaptive.kind).toLowerCase():null;
-    const kind=lifecycleStatus==='iri_only'?'clear':!assigned?'critical':adaptiveKind||stageKind(stage);
+    const kind=relationshipType==='iri_only'?'clear':!assigned?'critical':adaptiveKind||stageKind(stage);
     return Object.freeze({
       clientId:text(client?.id),
       clientName:text(client?.name,'Cliente'),
       stage,
       lifecycleStatus,
-      stageLabel:lifecycleStatus==='iri_only'?'Solo IRI':text(experience.stageLabel,stageLabel(stage)),
+      relationshipType,
+      stageLabel:relationshipType==='iri_only'?'Solo IRI':text(experience.stageLabel,stageLabel(stage)),
       experiencePriority:Number.isFinite(Number(experience.priority))?Number(experience.priority):5,
       assigned,
       coachNames:Object.freeze(arr(client?.coachNames).map((x)=>text(x)).filter(Boolean)),
       kind,
       adaptiveReview:adaptive.coachReviewRequired===true,
-      action:Object.freeze(lifecycleStatus==='iri_only'
+      action:Object.freeze(relationshipType==='iri_only'
         ?{area:'admin-clientes',label:'Abrir expediente IRI',reason:'Persona evaluada con servicio Solo IRI; no requiere planificación de entrenamiento.'}
         :!assigned
           ?{area:'admin-equipo',label:'Asignar coach',reason:'El cliente no tiene un Coach activo asignado.'}
@@ -38,7 +40,7 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
     });
   }).filter((client)=>client.clientId);
 
-  const trainingClients=normalizedClients.filter((client)=>client.lifecycleStatus!=='iri_only');
+  const trainingClients=normalizedClients.filter((client)=>client.relationshipType!=='iri_only');
   const priorities=trainingClients
     .filter((client)=>client.kind!=='clear')
     .sort((a,b)=>{
@@ -77,7 +79,7 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
   const summary=Object.freeze({
     totalPeople:normalizedClients.length,
     totalClients:trainingClients.length,
-    iriOnlyPeople:normalizedClients.filter((client)=>client.lifecycleStatus==='iri_only').length,
+    iriOnlyPeople:normalizedClients.filter((client)=>client.relationshipType==='iri_only').length,
     unassignedClients:trainingClients.filter((client)=>!client.assigned).length,
     onboardingPending:countStage('onboarding'),
     iriPending:countStage('evaluation'),
