@@ -10,6 +10,7 @@ import {
 } from '../src/m26/workflows/iri-protocol-catalog.js';
 import {
   normalizeFirstSessionDraft,
+  validateFirstSessionDraft,
   buildIriCommandDraftFromFirstSession,
   flattenFirstSessionDraft,
 } from '../src/m26/workflows/iri-first-session.js';
@@ -36,9 +37,13 @@ function validDraft(overrides={}){
 
 test('catálogo IRI V12 cubre todas las pruebas con protocolo técnico completo y versionado',()=>{
   const protocols=Object.values(IRI_PROTOCOL_CATALOG);
-  assert.equal(protocols.length,12);
+  assert.equal(protocols.length,14);
   assert.equal(iriProtocolsForStep('movilidad').length,5);
   assert.equal(iriProtocolsForStep('fuerza').length,5);
+  assert.equal(iriProtocolsForStep('cardio').length,3);
+  assert.ok(IRI_PROTOCOL_CATALOG['one-minute-sit-to-stand']);
+  assert.ok(IRI_PROTOCOL_CATALOG['ymca-three-minute-step']);
+  assert.ok(IRI_PROTOCOL_CATALOG['legacy-iberfit-three-minute-step-adapted']);
   for(const protocol of protocols){
     assert.match(protocol.id,/^[a-z0-9-]+$/);
     assert.equal(protocol.version,IRI_PROTOCOL_CATALOG_VERSION);
@@ -85,6 +90,9 @@ test('pantalla Coach integra tarjetas, demostración, validez y registro sin aba
   assert.match(html,/Secuencia técnica animada/);
   assert.match(html,/aria-label="Pie próximo a la pared/);
   assert.match(html,/Trazabilidad del registro/);
+  assert.match(html,/data-iri-protocol="one-minute-sit-to-stand"/);
+  assert.match(html,/data-iri-protocol="ymca-three-minute-step"/);
+  assert.doesNotMatch(html,/data-iri-protocol="legacy-iberfit-three-minute-step-adapted"/);
   assert.match(html,new RegExp(IRI_PROTOCOL_CATALOG_VERSION.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 });
 
@@ -111,6 +119,8 @@ test('cada resultado guarda prueba, variante, configuración, lado, fecha, versi
   const command=buildIriCommandDraftFromFirstSession(draft,{id:'IRI-V12',body:{}});
   assert.equal(command.protocolRecords.length,draft.protocolRecords.length);
   assert.notEqual(command.protocolRecords,draft.protocolRecords);
+  assert.ok(draft.protocolRecords.some((item)=>item.testId==='ymca-three-minute-step'));
+  assert.equal(draft.protocolRecords.some((item)=>item.testId==='one-minute-sit-to-stand'),false);
 });
 
 test('reevaluación advierte cuando cambian versión, variante o configuración',()=>{
@@ -138,8 +148,55 @@ test('informe Cliente explica qué se observó, por qué importa, resultado y de
   assert.match(html,/Resultado/);
   assert.match(html,/Decisión/);
   assert.match(html,/Rodilla a pared/);
-  assert.match(html,/Step test de 3 minutos/);
+  assert.match(html,/YMCA Step Test · 3 minutos/);
   assert.doesNotMatch(html,/Trazabilidad de protocolos/);
+});
+
+test('1MSTS es independiente: 60 s y repeticiones obligatorios, FC opcional',()=>{
+  const draft=validDraft({
+    cardioProtocol:'1msts-standard',
+    cardioChairHeightCm:'45',
+    oneMinuteSitToStandRepetitions:'34',
+    cardioDurationSeconds:'60',
+    stepHeightCm:'',cadenceBpm:'',stepFinalHr:'',stepOneMinuteHr:'',
+    cardioConfiguration:'Silla 45 cm · brazos cruzados · 60 s',
+  });
+  const check=validateFirstSessionDraft(draft);
+  assert.equal(check.ok,true,check.errors.join(','));
+  assert.equal(draft.cardio.protocol,'1msts-standard');
+  assert.equal(draft.cardio.repetitions,34);
+  assert.equal(draft.cardio.finalHr,null);
+  assert.equal(draft.cardio.oneMinuteHr,null);
+  assert.ok(draft.protocolRecords.some((item)=>item.testId==='one-minute-sit-to-stand'));
+  assert.equal(draft.protocolRecords.some((item)=>item.testId==='ymca-three-minute-step'),false);
+  const html=buildIriReportHtml({draft,variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
+  assert.match(html,/1MSTS · 60 segundos/);
+  assert.match(html,/34 repeticiones en 60 s/);
+  assert.match(html,/Frecuencia cardiaca no registrada/);
+  assert.doesNotMatch(html,/YMCA · 3 minutos/);
+});
+
+test('YMCA estándar exige su configuración y no comparte contrato con 1MSTS',()=>{
+  const draft=validDraft();
+  const check=validateFirstSessionDraft(draft);
+  assert.equal(check.ok,true,check.errors.join(','));
+  assert.equal(draft.cardio.protocol,'ymca-3min-standard');
+  assert.equal(draft.cardio.stepHeightCm,30.5);
+  assert.equal(draft.cardio.cadenceBpm,96);
+  assert.equal(draft.cardio.durationSeconds,180);
+  assert.ok(draft.protocolRecords.some((item)=>item.testId==='ymca-three-minute-step'));
+  assert.equal(draft.protocolRecords.some((item)=>item.testId==='one-minute-sit-to-stand'),false);
+});
+
+test('informe IRI permanece baseline-only aunque reciba historia longitudinal',()=>{
+  const draft=validDraft();
+  const html=buildIriReportHtml({
+    draft,variant:'client',clientName:'Cliente QA',coachName:'Coach QA',
+    longitudinalHistory:[validDraft({assessmentDate:'2026-06-30'})],
+  });
+  assert.match(html,/Baseline inicial/);
+  assert.match(html,/seguimiento longitudinal se mantiene fuera del Diagnóstico IRI/);
+  assert.doesNotMatch(html,/Cambios comparables desde la evaluación anterior/);
 });
 
 test('formulario IRI no duplica nombres de campos al integrar protocolos',()=>{
