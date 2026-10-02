@@ -1,4 +1,4 @@
-export const IRI_PROTOCOL_CATALOG_VERSION='iri-protocols-2026.10-v2';
+export const IRI_PROTOCOL_CATALOG_VERSION='iri-protocols-2026.10-v3';
 
 const freezeList=(items=[])=>Object.freeze(items.map((item)=>String(item)));
 const freezeProtocol=(protocol)=>Object.freeze({
@@ -65,7 +65,7 @@ const PROTOCOLS=[
     summary:'Alcance anterior unilateral medido en centímetros con tres intentos por lado.',
     evaluates:'Alcance funcional de la cadena posterior y diferencia entre lados en una configuración estandarizada.',
     doesNotDiagnose:'No determina qué tejido limita el movimiento ni diagnostica una lesión.',
-    variants:[{id:'box-standard',label:'Estándar con cajón'},{id:'bench-ruler',label:'Banco y regla milimetrada'},{id:'adapted-supported',label:'Adaptada con apoyo'}],defaultVariant:'box-standard',
+    variants:[{id:'box-standard',label:'Estándar con cajón'},{id:'bench-ruler',label:'Banco y regla milimetrada'},{id:'floor-mat-adapted',label:'Suelo/colchoneta · baseline adaptado'},{id:'adapted-supported',label:'Adaptada con apoyo'}],defaultVariant:'box-standard',
     material:['Cajón o banco estable.','Regla o escala fija en centímetros.','Superficie antideslizante.'],
     startPosition:['Una pierna extendida y la contraria flexionada según el protocolo.','Pelvis orientada al frente.','Manos superpuestas y brazos extendidos.'],
     steps:['Alinear la planta del pie con la referencia.','Avanzar lentamente ambas manos sin rebotes.','Mantener la posición final el tiempo suficiente para leer la medida.','Realizar tres intentos por lado con descanso breve.'],
@@ -83,7 +83,7 @@ const PROTOCOLS=[
     summary:'Observación estandarizada de la posición de cadera y muslo con pelvis controlada.',
     evaluates:'Respuesta de la cadera y el muslo al mantener una pierna flexionada con control pélvico.',
     doesNotDiagnose:'No diagnostica acortamientos musculares ni patología de cadera.',
-    variants:[{id:'table-edge-standard',label:'Estándar en borde de camilla'},{id:'bench-supported',label:'Adaptada en banco estable'}],defaultVariant:'table-edge-standard',
+    variants:[{id:'table-edge-standard',label:'Estándar en borde de camilla'},{id:'bench-supported',label:'Adaptada en banco estable'},{id:'floor-mat-observation',label:'Suelo/colchoneta · observación adaptada (no Thomas estándar)'}],defaultVariant:'table-edge-standard',
     material:['Camilla o banco estable de altura documentada.','Espacio para controlar la pierna libre.'],
     startPosition:['Persona en decúbito supino cerca del borde.','Una rodilla llevada al pecho sin perder control lumbar.','Pierna evaluada libre y relajada.'],
     steps:['Estabilizar la pelvis.','Mantener una rodilla hacia el pecho.','Observar la posición del muslo y la rodilla de la pierna evaluada.','Repetir en el lado contrario con la misma configuración.'],
@@ -205,6 +205,24 @@ const PROTOCOLS=[
     form:{variant:'coreProtocolVariant',configuration:'coreConfiguration',valid:'coreValid',adaptation:'coreAdaptationReason',stop:'coreStopReason',target:'frontPlankSeconds'},sides:['bilateral'],
   },
   {
+    id:'bodyweight-squat-60s',step:'fuerza',name:'Sentadilla libre · 60 segundos',area:'Fuerza-resistencia de tren inferior',version:IRI_PROTOCOL_CATALOG_VERSION,
+    summary:'Máximo número de sentadillas técnicamente válidas en 60 segundos con profundidad y base definidas.',
+    evaluates:'Fuerza-resistencia y tolerancia al patrón de sentadilla bajo una configuración reproducible.',
+    doesNotDiagnose:'No equivale al Chair Stand/1MSTS y no utiliza sus baremos. Tampoco mide fuerza máxima.',
+    variants:[{id:'bodyweight-60s-standard',label:'Peso corporal · 60 s · criterio de profundidad documentado'},{id:'bodyweight-60s-adapted',label:'Adaptada · 60 s · baseline individual'}],defaultVariant:'bodyweight-60s-standard',
+    material:['Cronómetro.','Superficie firme y segura.','Referencia de profundidad cuando se disponga.'],
+    startPosition:['Base de pies documentada.','Peso corporal, sin carga externa.','Criterio de profundidad explicado antes de comenzar.'],
+    steps:['Iniciar el cronómetro durante 60 segundos.','Contar sólo repeticiones que alcancen el criterio de profundidad y extensión acordados.','Mantener la misma base y técnica durante toda la prueba.','Detener al perder el criterio técnico o por seguridad.'],
+    observe:['Profundidad.','Extensión final.','Talones, rodillas y tronco.','Ritmo, fatiga, dolor y compensaciones.'],
+    valid:['Duración exacta de 60 segundos.','Criterio de profundidad definido y mantenido.','Repeticiones completas contabilizadas.','Sin carga o asistencia no documentada.'],
+    invalid:['Duración distinta.','Profundidad variable sin criterio.','Repeticiones parciales contabilizadas.','Cambio de base o apoyo no registrado.'],
+    stop:['Dolor.','Mareo.','Pérdida de equilibrio.','Deterioro técnico repetido.','Solicitud de la persona.'],
+    record:['Repeticiones válidas.','Criterio de profundidad.','Base y calzado/superficie.','RPE, dolor, validez y motivo de finalización.'],
+    interpretation:['Usar como baseline individual y para seguimiento con la misma configuración.','No convertir a percentiles del Chair Stand ni del 1MSTS.','No extrapolar escalas de otros squat tests a este protocolo.'],
+    visual:{kind:'squat',start:'Base y profundidad definidas',finish:'60 s · repeticiones válidas',validCue:'Profundidad y extensión consistentes',invalidCue:'Profundidad variable o técnica deteriorada'},
+    form:{variant:'squat60ProtocolVariant',configuration:'squat60Configuration',valid:'squat60Valid',adaptation:'squat60AdaptationReason',stop:'squat60StopReason',target:'squat60Repetitions'},sides:['not-applicable'],
+  },
+  {
     id:'posterior-chain-endurance',step:'fuerza',name:'Resistencia de cadena posterior',area:'Cadena posterior',version:IRI_PROTOCOL_CATALOG_VERSION,
     summary:'Tiempo de mantenimiento bajo una variante y equipamiento compatibles.',
     evaluates:'Resistencia isométrica de la cadena posterior en una configuración documentada.',
@@ -259,6 +277,24 @@ const PROTOCOLS=[
     form:{variant:'cardioProtocol',configuration:'cardioConfiguration',valid:'cardioValid',adaptation:'cardioAdaptationReason',stop:'cardioStopReason',target:'cardioProtocol'},sides:['not-applicable'],
   },
   {
+    id:'treadmill-three-minute-field',step:'cardio',name:'Cinta · 3 minutos · perfil de recuperación',area:'Respuesta al esfuerzo de campo',version:IRI_PROTOCOL_CATALOG_VERSION,
+    summary:'Tres minutos a velocidad e inclinación documentadas, seguidos de FC inmediata, al minuto y a los dos minutos.',
+    evaluates:'Respuesta y recuperación de frecuencia cardiaca ante una carga submáxima reproducible de campo.',
+    doesNotDiagnose:'No es una prueba clínica de esfuerzo, no estima VO2máx y no usa umbrales pronósticos de otros protocolos.',
+    variants:[{id:'treadmill-3min-self-selected',label:'Ritmo cómodo individual documentado'},{id:'treadmill-3min-prescribed',label:'Velocidad/inclinación prescritas y documentadas'}],defaultVariant:'treadmill-3min-self-selected',
+    material:['Cinta de correr segura.','Cronómetro.','Método de frecuencia cardiaca identificado.'],
+    startPosition:['Velocidad e inclinación registradas antes del inicio.','Calzado y modo de locomoción documentados.','Método de recuperación acordado antes de finalizar.'],
+    steps:['Mantener tres minutos la carga definida sin cambios no documentados.','Registrar FC al terminar.','Registrar FC a 60 s y 120 s manteniendo la recuperación definida.','Registrar RPE y síntomas.'],
+    observe:['Tolerancia al ritmo.','Cambios de velocidad/inclinación.','Síntomas.','Fiabilidad de la medición de FC.','Postura o marcha durante la recuperación.'],
+    valid:['Duración exacta de 180 s.','Velocidad e inclinación registradas.','FC final y de recuperación medidas con el mismo método.','Recuperación documentada.'],
+    invalid:['Cambio de carga no registrado.','FC no fiable.','Duración distinta sin motivo.','Método/postura de recuperación desconocidos.'],
+    stop:['Dolor torácico.','Mareo.','Disnea desproporcionada.','Inestabilidad.','Solicitud de la persona.','Cualquier motivo de seguridad.'],
+    record:['Velocidad (km/h).','Inclinación (%).','Caminar/trotar/correr.','FC final, +1 min y +2 min.','Método de FC.','Recuperación activa/pasiva y postura.','RPE, síntomas y validez.'],
+    interpretation:['Comparar principalmente contra la propia persona usando la misma carga y recuperación.','HRR1 y HRR2 se muestran como diferencias absolutas de FC.','No aplicar puntos de corte pronósticos de pruebas máximas o con recuperación distinta.'],
+    visual:{kind:'treadmill',start:'Carga documentada',finish:'180 s + recuperación 1–2 min',validCue:'Carga y recuperación reproducibles',invalidCue:'Carga o recuperación no documentadas'},
+    form:{variant:'cardioProtocol',configuration:'cardioConfiguration',valid:'cardioValid',adaptation:'cardioAdaptationReason',stop:'cardioStopReason',target:'cardioProtocol'},sides:['not-applicable'],
+  },
+  {
     id:'legacy-iberfit-three-minute-step-adapted',step:'cardio',name:'Step 3 min adaptado IBERFIT · histórico',area:'Seguimiento funcional histórico',version:IRI_PROTOCOL_CATALOG_VERSION,
     summary:'Compatibilidad de lectura para registros históricos del step adaptado. No se ofrece como protocolo nuevo.',
     evaluates:'Sólo continuidad de registros históricos realizados bajo una configuración documentada.',
@@ -295,6 +331,7 @@ function protocolApplies(protocolId,parts){
   const selected=String(parts.cardio?.protocol||'');
   if(protocolId==='one-minute-sit-to-stand')return selected==='1msts-standard';
   if(protocolId==='ymca-three-minute-step')return selected==='ymca-3min-standard';
+  if(protocolId==='treadmill-three-minute-field')return selected==='treadmill-3min-field';
   if(protocolId==='legacy-iberfit-three-minute-step-adapted')return selected==='iberfit-3min-adapted';
   return true;
 }
@@ -304,11 +341,12 @@ function inferredProtocolValidity(protocolId,result,parts){
   if(protocolId==='modified-thomas')return Boolean(result.observation);
   if(protocolId==='hip-rotation-observation')return Boolean(result.result);
   if(protocolId==='assisted-squat')return Boolean(result.depth);
-  if(protocolId==='chair-stand-30s'||protocolId==='push-test'||protocolId==='trx-row')return result.valid===true;
+  if(protocolId==='chair-stand-30s'||protocolId==='push-test'||protocolId==='trx-row'||protocolId==='bodyweight-squat-60s')return result.valid===true;
   if(protocolId==='core-plank')return result.frontPlankSeconds!==null;
   if(protocolId==='posterior-chain-endurance')return result.equipmentCompatible===true&&result.seconds!==null&&String(result.protocol||'')!=='not-performed';
   if(protocolId==='one-minute-sit-to-stand')return result.valid===true&&result.repetitions!==null&&result.durationSeconds===60;
   if(protocolId==='ymca-three-minute-step')return result.valid===true&&result.stepHeightCm!==null&&Math.abs(result.stepHeightCm-30.5)<=0.05&&result.cadenceBpm===96&&result.durationSeconds===180&&result.finalHr!==null&&result.oneMinuteHr!==null;
+  if(protocolId==='treadmill-three-minute-field')return result.valid===true&&result.durationSeconds===180&&result.speedKmh!==null&&result.inclinePercent!==null&&result.finalHr!==null&&result.oneMinuteHr!==null&&Boolean(result.recoveryMode);
   if(protocolId==='legacy-iberfit-three-minute-step-adapted')return result.valid===true&&result.stepHeightCm!==null&&result.cadenceBpm!==null&&result.durationSeconds===180&&result.finalHr!==null&&result.oneMinuteHr!==null;
   return resultExists(result);
 }
@@ -325,8 +363,9 @@ function protocolResult(protocolId,side,parts){
   if(protocolId==='push-test')return {...(strength.push||{})};
   if(protocolId==='trx-row')return {...(strength.trxRow||{})};
   if(protocolId==='core-plank')return {...(strength.core||{})};
+  if(protocolId==='bodyweight-squat-60s')return {...(strength.squat60||{})};
   if(protocolId==='posterior-chain-endurance')return {...(strength.posteriorChain||{})};
-  if(protocolId==='one-minute-sit-to-stand'||protocolId==='ymca-three-minute-step'||protocolId==='legacy-iberfit-three-minute-step-adapted')return {...cardio};
+  if(protocolId==='one-minute-sit-to-stand'||protocolId==='ymca-three-minute-step'||protocolId==='treadmill-three-minute-field'||protocolId==='legacy-iberfit-three-minute-step-adapted')return {...cardio};
   return {};
 }
 
@@ -348,6 +387,21 @@ function generatedConfiguration(protocolId,raw,parts){
   return '';
 }
 
+function protocolNormEligible(protocolId,{valid,variant,adaptationReason,result}={}){
+  if(valid!==true||String(adaptationReason||'').trim())return false;
+  if(protocolId==='weight-bearing-lunge')return variant==='standard-barefoot';
+  if(protocolId==='chair-stand-30s')return variant==='standard-arms-crossed'&&Number(result?.chairHeightCm)>=43&&Number(result?.chairHeightCm)<=46;
+  if(protocolId==='one-minute-sit-to-stand')return Number(result?.chairHeightCm)>=43&&Number(result?.chairHeightCm)<=46&&Number(result?.durationSeconds)===60;
+  if(protocolId==='push-test')return variant==='standard';
+  return false;
+}
+function protocolMeasurementClass(protocol,{valid,variant,adaptationReason,normEligible,configuration}={}){
+  if(valid!==true)return 'invalid';
+  if(normEligible)return 'standard_normed';
+  const adapted=Boolean(String(adaptationReason||'').trim())||Boolean(variant&&variant!==protocol.defaultVariant);
+  return adapted?'adapted_baseline':String(configuration||'').trim()?'standard_baseline':'baseline_unconfigured';
+}
+
 export function buildIriProtocolRecords({raw={},existingRecords=[],assessmentDate='',bodyComposition={},mobility={},strength={},cardio={}}={}){
   const existing=recordMap(existingRecords);const parts={bodyComposition,mobility,strength,cardio};const records=[];
   for(const protocol of PROTOCOLS){
@@ -359,6 +413,9 @@ export function buildIriProtocolRecords({raw={},existingRecords=[],assessmentDat
       const explicit=explicitBool(raw,protocol.form.valid);
       const variant=text(firstDefined(raw[protocol.form.variant],previous.variant,protocol.defaultVariant),120);
       const configuration=text(firstDefined(raw[protocol.form.configuration],previous.configuration,generatedConfiguration(protocol.id,raw,parts)),800);
+      const valid=explicit===null?(previous.valid!==undefined?Boolean(previous.valid):inferredValid):explicit;
+      const adaptationReason=text(firstDefined(raw[protocol.form.adaptation],previous.adaptationReason),600);
+      const normEligible=protocolNormEligible(protocol.id,{valid,variant,adaptationReason,result});
       records.push(Object.freeze({
         testId:protocol.id,
         testName:protocol.name,
@@ -368,8 +425,12 @@ export function buildIriProtocolRecords({raw={},existingRecords=[],assessmentDat
         side,
         date:text(assessmentDate,10),
         protocolVersion:protocol.version,
-        valid:explicit===null?(previous.valid!==undefined?Boolean(previous.valid):inferredValid):explicit,
-        adaptationReason:text(firstDefined(raw[protocol.form.adaptation],previous.adaptationReason),600),
+        valid,
+        executionValid:valid,
+        normEligible,
+        trackingComparable:Boolean(valid&&configuration),
+        measurementClass:protocolMeasurementClass(protocol,{valid,variant,adaptationReason,normEligible,configuration}),
+        adaptationReason,
         stopReason:text(firstDefined(raw[protocol.form.stop],previous.stopReason),600),
         result:Object.freeze({...result}),
       }));
