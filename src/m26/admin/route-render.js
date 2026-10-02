@@ -16,6 +16,7 @@ function adminStatusLabel(value){
     ended:'Finalizado',
     paused:'En pausa',
     onboarding:'Incorporación',
+    iri_only:'Solo IRI',
     reactivation:'Reactivación',
     new:'Nuevo',
     contacted:'Contactado',
@@ -109,7 +110,7 @@ function renderHome(vm){
       <div class="m26-admin-priority-list">${priorities}</div>
     </section>
     <section class="m26-admin-stats m30-admin-kpis" aria-label="Indicadores de operación">
-      ${stat('Clientes',s.totalClients??vm.summary.activeClients??0)}
+      ${stat('Personas',s.totalPeople??s.totalClients??0)}${stat('Clientes activos',s.activeClients??vm.summary.activeClients??0)}${stat('Solo IRI',s.iriOnlyPeople??0)}
       ${stat('Sin Coach',s.unassignedClients??0)}
       ${stat('IRI pendientes',s.iriPending??0)}
       ${stat('Planificaciones',s.planningPending??0)}
@@ -297,9 +298,10 @@ function clientCreateWizardForm(vm={}){
     <fieldset class="m26-client-create-step" data-client-step="2" hidden>
       <legend tabindex="-1" data-client-step-title>2 · Servicio y logística</legend>
       <div class="m26-client-create-grid">
-        <label>Modalidad<select name="modality" required><option value="">Selecciona</option><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Online">Online</option></select></label>
-        <label>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" required inputmode="numeric" placeholder="2"></label>
-        <label>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" required inputmode="numeric" placeholder="60"></label>
+        <label>Relación con IBERFIT<select name="relationshipType" required><option value="training">Entrenamiento personal</option><option value="iri_only">Solo Diagnóstico IRI</option></select><small>“Solo IRI” conserva expediente, informe y trazabilidad sin contar como cliente activo de entrenamiento.</small></label>
+        <label>Modalidad de atención<select name="modality" required><option value="">Selecciona</option><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Online">Online</option></select></label>
+        <label data-training-only-field>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" inputmode="numeric" placeholder="2"></label>
+        <label data-training-only-field>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" inputmode="numeric" placeholder="60"></label>
         <label>Diagnóstico inicial<select name="initialAssessmentMode" required><option value="iri">Realizar Diagnóstico IRI</option><option value="deferred">Posponer IRI</option></select></label>
         <label>Coach responsable<select name="coachUserId">${coachOptions}</select></label>
         <label>Comuna / zona<input name="zone" maxlength="120" autocomplete="address-level2" placeholder="Las Condes"></label>
@@ -346,7 +348,7 @@ function clientCreateWizardForm(vm={}){
         <button type="button" data-client-wizard-jump="3"><span>Objetivo</span><strong data-client-review="objective">Sin completar</strong><small>Editar objetivos</small></button>
         <button type="button" data-client-wizard-jump="4"><span>Contexto</span><strong data-client-review="safety">Sin completar</strong><small>Editar contexto</small></button>
       </div>
-      <div class="m26-admin-notice"><strong>Qué ocurrirá al confirmar</strong><p>IBERFIT creará el expediente, vinculará al Coach responsable si has seleccionado uno, conservará estos datos en el perfil del cliente y preparará su invitación segura de acceso.</p></div>
+      <div class="m26-admin-notice" data-client-create-outcome><strong>Qué ocurrirá al confirmar</strong><p>IBERFIT creará el expediente, vinculará al Coach responsable si has seleccionado uno y conservará el historial correspondiente.</p></div>
       <div class="m26-client-create-actions"><button type="button" data-client-wizard-prev>Volver</button><button type="button" data-client-wizard-discard>Descartar borrador</button></div>
     </fieldset>
   `;
@@ -367,6 +369,7 @@ function clientEditPayload(client={}){
     sexForNorms:String(p.sexForNorms||''),
     preferredContactChannel:String(p.preferredContactChannel||''),
     preferredContactTime:String(p.preferredContactTime||''),
+    relationshipType:String(p.relationshipType||'training'),
     modality:String(client.modality||p.modality||''),
     weeklyFrequency:p.weeklyFrequency==null?'':String(p.weeklyFrequency),
     sessionDurationMinutes:p.sessionDurationMinutes==null?'':String(p.sessionDurationMinutes),
@@ -412,9 +415,10 @@ function clientEditDialog(vm={}){
           <label>Sexo para baremos IRI<select name="sexForNorms"><option value="">Completar después</option><option value="female">Mujer</option><option value="male">Hombre</option></select></label>
           <label>Canal preferido<select name="preferredContactChannel"><option value="">Sin preferencia</option><option value="whatsapp">WhatsApp</option><option value="email">Correo</option><option value="phone">Teléfono</option></select></label>
           <label>Horario preferido de contacto<input name="preferredContactTime" maxlength="120"></label>
+          <label>Relación con IBERFIT<select name="relationshipType" required><option value="training">Entrenamiento personal</option><option value="iri_only">Solo Diagnóstico IRI</option></select></label>
           <label>Modalidad<select name="modality" required><option value="Presencial">Presencial</option><option value="Híbrido">Híbrido</option><option value="Online">Online</option></select></label>
-          <label>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" required inputmode="numeric"></label>
-          <label>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" required inputmode="numeric"></label>
+          <label data-training-only-field>Frecuencia semanal<input type="number" name="weeklyFrequency" min="1" max="14" step="1" inputmode="numeric"></label>
+          <label data-training-only-field>Duración por sesión<input type="number" name="sessionDurationMinutes" min="20" max="240" step="5" inputmode="numeric"></label>
           <label>Diagnóstico inicial<select name="initialAssessmentMode" required><option value="iri">Realizar Diagnóstico IRI</option><option value="deferred">Posponer IRI</option></select></label>
           <label>Comuna / zona<input name="zone" maxlength="120" autocomplete="address-level2"></label>
           <label>Dirección de entrenamiento<input name="address" maxlength="300" autocomplete="street-address"></label>
@@ -446,8 +450,8 @@ function renderClients(vm){
   const create=vm.canManage?clientCreateWizardForm(vm):'';
   const lead=vm.canManage?`<details class="m26-admin-panel m26-admin-lead-capture m26-admin-lead-disclosure" data-admin-lead-disclosure><summary class="m26-admin-lead-summary"><div><p class="m26-eyebrow">Prospección</p><h3>Registrar lead</h3><p>Guarda un contacto inicial para seguimiento comercial. Todavía no crea un expediente de cliente ni envía acceso a la app.</p></div><span class="m26-admin-lead-summary-meta">${badge('Contacto inicial')}<span class="m26-admin-lead-toggle" aria-hidden="true">＋</span></span></summary><div class="m26-admin-lead-disclosure-body">${form('lead-create',`<input name="name" maxlength="200" required placeholder="Nombre"><input type="email" name="email" maxlength="254" placeholder="Correo"><input name="phone" maxlength="80" placeholder="Teléfono"><input name="source" maxlength="120" placeholder="Origen"><textarea name="objective" maxlength="1000" placeholder="Objetivo o necesidad principal"></textarea>`,'Registrar lead')}</div></details>`:'';
   const leadTable=rows(['Lead','Origen','Estado','Gestión'],vm.leads.map((l)=>`<tr><td><strong>${e(l.name)}</strong><small>${e(l.email||l.phone||'')}</small></td><td>${e(l.source||'')}</td><td>${badge(l.status)}</td><td>${vm.canManage?form('lead-update',`<input type="hidden" name="leadId" value="${e(l.id)}"><input type="hidden" name="baseRevision" value="${e(l.revision||0)}"><select name="status"><option value="new">Nuevo</option><option value="contacted">Contactado</option><option value="qualified">Cualificado</option><option value="evaluation">Evaluación</option><option value="won">Ganado</option><option value="lost">Perdido</option></select><input type="datetime-local" name="nextActionAt"><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar'):'—'}</td></tr>`));
-  const clients=rows(['Cliente','Ciclo','Acceso','Coach','Gestión'],vm.clients.map((c)=>`<tr data-admin-client-id="${e(c.id)}"><td><strong>${e(c.name)}</strong><small>${e(c.email||c.id)}</small></td><td>${badge(c.lifecycle?.status||c.status)}</td><td>${badge(clientAccessLabel(c))}</td><td>${e(c.coachNames?.join(', ')||'Sin coach')}</td><td>${vm.canManage?`<div class="m26-admin-client-row-actions"><button type="button" data-admin-client-edit-open="${e(c.id)}">Editar ficha</button>${clientInvitationRetry(c)}${form('client-lifecycle',`<input type="hidden" name="clientId" value="${e(c.id)}"><select name="status"><option value="onboarding">Onboarding</option><option value="active">Activo</option><option value="paused">Pausa</option><option value="inactive">Baja</option><option value="reactivation">Reactivación</option></select><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar')}${clientDelete(c)}</div>`:'—'}</td></tr>`));
-  return `<div class="m26-admin-route">${intro('Servicio','Personas y clientes','Acompaña el recorrido desde el primer contacto hasta la reactivación.')}${vm.canManage?`<section class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Alta segura</p><h3>Nuevo cliente</h3><p>IBERFIT crea el expediente y envía el acceso mediante autenticación alojada. El estado queda trazado hasta la activación.</p></div></div>${create}</section>`:''}${lead}<section class="m26-admin-panel"><h3>Leads</h3>${vm.leads.length?leadTable:empty('Sin leads','Los contactos aparecerán aquí.')}</section><section class="m26-admin-panel"><h3>Clientes</h3>${vm.clients.length?clients:empty('Sin clientes','No hay expedientes visibles.')}</section>${vm.canManage&&vm.clients.length?clientEditDialog(vm):''}</div>`;
+  const clients=rows(['Cliente','Ciclo','Acceso','Coach','Gestión'],vm.clients.map((c)=>`<tr data-admin-client-id="${e(c.id)}"><td><strong>${e(c.name)}</strong><small>${e(c.email||c.id)}</small></td><td>${badge(c.relationshipType==='iri_only'?'Solo IRI':adminStatusLabel(c.lifecycle?.status||c.status))}</td><td>${badge(clientAccessLabel(c))}</td><td>${e(c.coachNames?.join(', ')||'Sin coach')}</td><td>${vm.canManage?`<div class="m26-admin-client-row-actions"><button type="button" data-admin-client-edit-open="${e(c.id)}">Editar ficha</button>${clientInvitationRetry(c)}${form('client-lifecycle',`<input type="hidden" name="clientId" value="${e(c.id)}"><select name="status"><option value="onboarding">Onboarding</option><option value="active">Activo</option><option value="paused">Pausa</option><option value="inactive">Inactivo / sin entrenamiento</option><option value="reactivation">Reactivación</option></select><input name="reason" minlength="3" required placeholder="Motivo">`,'Actualizar')}${clientDelete(c)}</div>`:'—'}</td></tr>`));
+  return `<div class="m26-admin-route">${intro('Servicio','Personas y clientes','Distingue personas evaluadas con IRI de clientes activos de entrenamiento, sin perder historial ni trazabilidad.')}${vm.canManage?`<section class="m26-admin-panel"><div class="m26-admin-section-heading"><div><p class="m26-eyebrow">Alta segura</p><h3>Nuevo cliente</h3><p>IBERFIT crea el expediente y envía el acceso mediante autenticación alojada. El estado queda trazado hasta la activación.</p></div></div>${create}</section>`:''}${lead}<section class="m26-admin-panel"><h3>Leads</h3>${vm.leads.length?leadTable:empty('Sin leads','Los contactos aparecerán aquí.')}</section><section class="m26-admin-panel"><h3>Personas con expediente</h3>${vm.clients.length?clients:empty('Sin clientes','No hay expedientes visibles.')}</section>${vm.canManage&&vm.clients.length?clientEditDialog(vm):''}</div>`;
 }
 function renderSimple(vm){if(vm.kind==='admin-agenda')return `<div class="m26-admin-route">${intro('Capacidad','Agenda global','Supervisa todas las citas y modalidades.')}<section class="m26-admin-panel">${vm.appointments.length?rows(['Fecha','Cliente','Estado'],vm.appointments.map((x)=>`<tr><td>${e(x.startAt||x.start_at||x.date||'')}</td><td>${e(x.clientId||x.client_id||'')}</td><td>${badge(x.status)}</td></tr>`)):empty('Agenda vacía','No hay citas visibles.')}</section></div>`;
   if(vm.kind==='admin-operaciones'){const create=vm.canManage?form('task-create',`<select name="priority"><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option></select><input name="taskType" value="manual_review"><input name="title" required placeholder="Título"><textarea name="detail" placeholder="Detalle"></textarea>`,'Crear tarea'):'';return `<div class="m26-admin-route">${intro('Control','Centro operativo','Centraliza incidencias y excepciones.')}${create}<section class="m26-admin-panel">${vm.tasks.length?vm.tasks.map((x)=>`<div class="m26-admin-list-item"><div><strong>${e(x.title||x.type)}</strong><p>${e(x.detail||'')}</p></div>${badge(x.status)}${vm.canManage&&!['resolved','cancelled'].includes(x.status)?form('task-resolve',`<input type="hidden" name="taskId" value="${e(x.id)}"><input type="hidden" name="baseRevision" value="${e(x.revision||0)}"><input name="reason" minlength="3" required placeholder="Resolución">`,'Resolver'):''}</div>`).join(''):empty('Sin tareas','No hay incidencias abiertas.')}</section></div>`;}

@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 const controller = await readFile(new URL('../src/m26/admin/controller.js', import.meta.url), 'utf8');
 const render = await readFile(new URL('../src/m26/admin/route-render.js', import.meta.url), 'utf8');
 const state = await readFile(new URL('../src/m26/admin/admin-state.js', import.meta.url), 'utf8');
+const wizard = await readFile(new URL('../src/m26/admin/client-create-wizard.js', import.meta.url), 'utf8');
 
 test('ADMIN clients surface exposes a guided create-and-invite flow', () => {
   assert.match(render, /form\('client-create'/);
@@ -17,8 +18,11 @@ test('ADMIN clients surface exposes a guided create-and-invite flow', () => {
   assert.match(render, /name="email"[^>]*required/u);
   assert.match(render, /name="phone"[^>]*required/u);
   assert.match(render, /name="modality"[^>]*required/u);
-  assert.match(render, /name="weeklyFrequency"[^>]*required/u);
-  assert.match(render, /name="sessionDurationMinutes"[^>]*required/u);
+  assert.match(render, /name="weeklyFrequency"/u);
+  assert.match(render, /name="sessionDurationMinutes"/u);
+  assert.match(render, /name="relationshipType"[^>]*required/u);
+  assert.match(wizard, /control\.required=!iriOnly/u);
+  assert.match(wizard, /control\.disabled=iriOnly/u);
   assert.match(render, /name="objective"[^>]*required/u);
   assert.match(controller, /kind==='client-create'/);
   assert.match(controller, /type:'ADMIN_CLIENTE_CREAR'/);

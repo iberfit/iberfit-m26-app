@@ -123,6 +123,16 @@ Deno.serve(async(req:Request)=>{
       clientId=String(item?.clientId||item?.entityId||'').trim();
       if(!item||item.ok!==true||!UUID.test(clientId))throw new Error('V26_ADMIN_CLIENT_CREATE_INVALID_RESPONSE');
       createReceipt=item;
+      const payload=normalized.command.payload&&typeof normalized.command.payload==='object'&&!Array.isArray(normalized.command.payload)
+        ?normalized.command.payload as Record<string,unknown>
+        :{};
+      const nestedProfile=payload.profile&&typeof payload.profile==='object'&&!Array.isArray(payload.profile)
+        ?payload.profile as Record<string,unknown>
+        :{};
+      const relationshipType=String(payload.relationshipType||nestedProfile.relationshipType||'training').trim().toLowerCase();
+      if(relationshipType==='iri_only'){
+        return reply(200,{...createReceipt,ok:true,version:FUNCTION_VERSION,invitation:{deliveryStatus:null,accessStatus:'sin_acceso',reason:'iri_only_no_access'}},origin);
+      }
     }else{
       createReceipt={
         ok:true,

@@ -59,7 +59,7 @@ function applyUserDirectoryFilters(root,state=null){
 
 const CLIENT_EDIT_FIELDS=Object.freeze([
   'name','phone','birthDate','sexForNorms','preferredContactChannel','preferredContactTime',
-  'modality','weeklyFrequency','sessionDurationMinutes','initialAssessmentMode','zone','address',
+  'relationshipType','modality','weeklyFrequency','sessionDurationMinutes','initialAssessmentMode','zone','address',
   'preferredSchedule','locationType','accessInstructions','objective','secondaryObjectives','level',
   'history','currentTraining','restrictions','pain','equipment','preferences',
   'emergencyContactName','emergencyContactRelation','emergencyContactPhone',
@@ -71,6 +71,20 @@ function clientEditRecords(root){
     const parsed=JSON.parse(String(node.textContent||'[]'));
     return Array.isArray(parsed)?parsed:[];
   }catch{return [];}
+}
+function syncClientEditRelationship(form){
+  if(!form)return 'training';
+  const relationship=String(form.elements?.namedItem?.('relationshipType')?.value||'training').trim()||'training';
+  const iriOnly=relationship==='iri_only';
+  for(const name of ['weeklyFrequency','sessionDurationMinutes']){
+    const control=form.elements?.namedItem?.(name);
+    if(!control)continue;
+    control.required=!iriOnly;
+    control.disabled=iriOnly;
+    const label=control.closest?.('[data-training-only-field],label');
+    if(label)label.hidden=iriOnly;
+  }
+  return relationship;
 }
 function populateClientEditForm(root,record){
   const dialog=root?.querySelector?.('[data-admin-client-edit-dialog]');
@@ -85,6 +99,7 @@ function populateClientEditForm(root,record){
     if(!control)continue;
     control.value=String(record[key]??'');
   }
+  syncClientEditRelationship(form);
   const email=dialog.querySelector?.('[data-admin-client-edit-email]');
   if(email)email.textContent=String(record.email||'Sin correo de acceso');
   return {dialog,form};
@@ -243,7 +258,8 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     if(kind==='lead-create')return run({type:'ADMIN_LEAD_CREAR',entityId:org,organizationId:org,payload:{name:text(data,'name',200),email:text(data,'email',254),phone:text(data,'phone',80),source:text(data,'source',120),objective:text(data,'objective',1000)}},'Lead registrado.');
     if(kind==='lead-update')return run({type:'ADMIN_LEAD_ACTUALIZAR',entityId:text(data,'leadId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{leadId:text(data,'leadId',200),status:text(data,'status',40),nextActionAt:text(data,'nextActionAt',80)}},'Lead actualizado.');
     if(kind==='client-profile-update'){
-      const weeklyFrequency=text(data,'weeklyFrequency',20);
+      const relationshipType=text(data,'relationshipType',30)||'training';
+      const weeklyFrequency=relationshipType==='iri_only'?'':text(data,'weeklyFrequency',20);
       return run({
         type:'ADMIN_CLIENTE_ACTUALIZAR_FICHA',
         entityId:text(data,'clientId',200),
@@ -251,6 +267,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         baseRevision:rev(data),
         payload:{
           clientId:text(data,'clientId',200),
+          relationshipType,
           name:text(data,'name',200),
           phone:text(data,'phone',80),
           birthDate:text(data,'birthDate',20),
@@ -284,9 +301,11 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
 
     if(kind==='client-create'){
       if(!clientWizard.validateForSubmit(form))return false;
-      const weeklyFrequency=text(data,'weeklyFrequency',20);
+      const relationshipType=text(data,'relationshipType',30)||'training';
+      const weeklyFrequency=relationshipType==='iri_only'?'':text(data,'weeklyFrequency',20);
       const frequency=text(data,'frequency',100)||(weeklyFrequency?`${weeklyFrequency} sesiones por semana`:'');
       const profile={
+        relationshipType,
         initialAssessmentMode:text(data,'initialAssessmentMode',30)||'iri',
         birthDate:text(data,'birthDate',20),
         sexForNorms:text(data,'sexForNorms',20),
@@ -322,6 +341,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         organizationId:org,
         payload:{
           name:text(data,'name',200),
+          relationshipType,
           email:text(data,'email',254),
           phone:text(data,'phone',80),
           birthDate:profile.birthDate,
@@ -356,7 +376,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           emergencyContactPhone:profile.emergencyContactPhone,
           profile,
         },
-      },invitationSuccess,{onSuccess:(result)=>{
+      },relationshipType==='iri_only'?(()=> 'Persona Solo IRI creada. El expediente y el diagnóstico quedan disponibles sin contar como cliente activo.'):invitationSuccess,{onSuccess:(result)=>{
         const clientId=createdClientId(result);
         if(clientId)pendingCreatedClientId=clientId;
         clientWizard.clear();
@@ -394,6 +414,11 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     if(!event.target?.closest?.('[data-admin-user-search],[data-admin-user-filter]'))return;
     applyUserDirectoryFilters(root);
   }
+  function onClientEditRelationshipChange(event){
+    const field=event.target?.closest?.('[data-admin-form="client-profile-update"] [name="relationshipType"]');
+    if(!field)return;
+    syncClientEditRelationship(field.form);
+  }
   function onClientEditClick(event){
     const open=event.target?.closest?.('[data-admin-client-edit-open]');
     if(open){
@@ -420,6 +445,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       root.addEventListener('submit',onSubmitEvent);
       root.addEventListener('input',onDirectoryFilter);
       root.addEventListener('change',onDirectoryFilter);
+      root.addEventListener('change',onClientEditRelationshipChange);
       root.addEventListener('click',onClientEditClick);
       root.addEventListener('cancel',onClientEditCancel,true);
       clientWizard.mount();
@@ -430,6 +456,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       root.removeEventListener('submit',onSubmitEvent);
       root.removeEventListener('input',onDirectoryFilter);
       root.removeEventListener('change',onDirectoryFilter);
+      root.removeEventListener('change',onClientEditRelationshipChange);
       root.removeEventListener('click',onClientEditClick);
       root.removeEventListener('cancel',onClientEditCancel,true);
     },
