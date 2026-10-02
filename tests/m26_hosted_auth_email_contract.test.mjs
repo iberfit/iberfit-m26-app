@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 import {buildHostedAuthPatch,__hostedAuthEmailInternals} from '../scripts/auth/sync-hosted-auth-emails.mjs';
-import {inspectImagePayload} from '../scripts/auth/verify-hosted-auth-email-assets.mjs';
+import {inspectImagePayload,verifyEmailAsset} from '../scripts/auth/verify-hosted-auth-email-assets.mjs';
 
 const repoRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const templatesDir=path.join(repoRoot,'supabase','templates');
@@ -122,5 +122,34 @@ test('Hosted Auth email templates preserve variables, safe structure, canonical 
     }
   }finally{
     await rm(distDir,{recursive:true,force:true});
+  }
+});
+
+
+test('Hosted Auth remote asset gate treats Content-Length as optional metadata and validates real GET bytes',async()=>{
+  const heroPath=path.join(repoRoot,'public','iberfit-email-access-hero.jpg');
+  const heroBytes=new Uint8Array(await readFile(heroPath));
+
+  for(const headLength of [null,'0']){
+    const fetchImpl=async(_url,{method}={})=>{
+      const headers={'Content-Type':'image/jpeg'};
+      if(headLength!==null)headers['Content-Length']=headLength;
+      if(method==='HEAD')return new Response(null,{status:200,headers});
+      return new Response(heroBytes,{status:200,headers:{'Content-Type':'image/jpeg'}});
+    };
+
+    const result=await verifyEmailAsset(
+      'https://app.iberfit.cl/public/iberfit-email-access-hero.jpg',
+      {baseUrl:'https://preview.example.test',fetchImpl},
+    );
+
+    assert.equal(result.getStatus,200);
+    assert.equal(result.format,'jpeg');
+    assert.equal(result.progressive,false);
+    assert.equal(result.width,620);
+    assert.equal(result.height,260);
+    assert.equal(result.declaredLength,null);
+    assert.equal(result.target,'https://preview.example.test/public/iberfit-email-access-hero.jpg');
+    assert.equal(result.bytes,heroBytes.length);
   }
 });
