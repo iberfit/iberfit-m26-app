@@ -23,6 +23,32 @@ PR #672 — IRI inicial + fotogrametría privada v1.
 Canary base comprobado al iniciar el WIP: `2bc5f7b01c4fac656a4c78e6235beaf0067cca0a`.
 No abrir otro WIP de producto hasta cerrar o bloquear realmente #672.
 
+### Evidencia PubMed revisada durante #672 · pendiente de decisión de producto
+
+No convertir estos candidatos en requisitos ni baremos sin decisión explícita y protocolo/versionado exactos.
+
+- **Capacidad de esfuerzo**
+  - 1MSTS: revisión sistemática de propiedades clinimétricas, PMID `30489442`; referencias chilenas 18–80 años, PMID `39879255`.
+  - YMCA 3-Min Step: mantener como protocolo distinto cuando se ejecute exactamente; revisión de tests de campo en adultos PMID `34442050`; estudio de validez en adultos jóvenes PMID `32328445`.
+  - 6-Minute Walk Test: candidato opcional cuando exista espacio; validez de campo en adultos PMID `29851229` / `40148739`; referencias chilenas 20–80 años PMID `21249280`.
+  - Chester Step Test: candidato de seguimiento aeróbico; revisión de step tests PMID `26670455`, pero la estimación de VO2 requiere cautela y práctica/familiarización.
+- **Movilidad**
+  - Weight-Bearing Lunge: mantener; revisión sistemática de fiabilidad/MDC PMID `25704110`.
+  - Back-Saver / sit-and-reach: revisar sustitución; la revisión de validez en adultos PMID `34442050` no lo respalda como medida válida conjunta de isquios + región lumbar.
+  - Active Knee Extension o Straight-Leg Raise: candidatos para isquios; excelente fiabilidad en adultos con déficit de flexibilidad, PMID `25364856`.
+  - Thomas modificado: mantener sólo con control pélvico estandarizado; sin ese control presenta mala validez, PMID `27602291`.
+  - Rotación de cadera: considerar medición cuantitativa estandarizada en lugar de observación cualitativa; la posición no debe intercambiarse entre seguimientos (PMID `29364046`).
+- **Fuerza / función**
+  - 30-s Chair Stand: mantener; referencias chilenas 18–80 años PMID `40526861`.
+  - Handgrip: candidato opcional si se dispone de dinamómetro; revisión de propiedades de medida PMID `31730754`.
+  - Biering–Sørensen: mantener opcional con equipo compatible; meta-análisis de fiabilidad PMID `32365490`.
+  - Prone bridge/plancha: útil como resistencia del tronco, no como diagnóstico de «estabilidad»; PMID `29861239` / `28544083`.
+- **Balance / control neuromuscular**
+  - SEBT/Y-Balance: candidato opcional si aporta una decisión real; revisión de fiabilidad PMID `31598406` y meta-análisis PMID `34631241`.
+  - No usar FMS como predictor individual de lesión: revisión/meta-análisis PMID `26502447`.
+
+Estado: **evidencia recopilada, sin incorporación de nuevos tests al producto**. Primero decidir qué dominios justifican el tiempo de evaluación y qué resultado cambia realmente una decisión del Coach.
+
 ## P0 · guardrails permanentes
 
 - [ ] Mantener P0=0 en auth, WebAuthn, roles, RLS, cross-tenant, integridad y disponibilidad.
