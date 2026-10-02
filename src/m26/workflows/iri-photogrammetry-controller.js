@@ -246,7 +246,11 @@ export function createIriPhotogrammetryController({
     const node=host();if(!node)return null;
     const ctx=context();const key=`${ctx.role}:${ctx.clientId||''}:${ctx.assessmentId||''}`;
     if(!ctx.canManage||!ctx.assessmentId){contextKey=key;remote=null;signedUrls={};landmarks={};render();return null;}
-    if(!force&&remote&&contextKey===key){render();return remote;}
+    if(!force&&remote&&contextKey===key){
+      const node=host();
+      if(node&&!node.querySelector?.('[data-iri-photo-loaded="true"]'))render();
+      return remote;
+    }
     contextKey=key;remote=null;signedUrls={};landmarks={};render();
     const token=await getToken();
     const next=await service.state(token,{assessmentId:ctx.assessmentId});
