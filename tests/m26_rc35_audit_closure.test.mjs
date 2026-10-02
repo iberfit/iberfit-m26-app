@@ -49,7 +49,7 @@ test('wizard IRI incluye protocolos, límites, audio y bloquea informes antes de
   const html=renderIriRoute({current:{id:'IRI-RC35'},currentSummary:null,profile:{birthDate:'1992-04-11',sexForNorms:'female',sexForNormsLabel:'Mujer'},canEdit:true,history:[]});
   assert.match(html,/Rodilla a pared · ver protocolo/);assert.match(html,/Silla 30 segundos · ver protocolo/);
   assert.match(html,/name="bodyFatPercent"/);assert.doesNotMatch(html,/name="bodyFatPercent"[^>]*required/);assert.match(html,/name="bodyCompositionMethod"/);assert.match(html,/name="measurementConditions"/);
-  assert.match(html,/Temporizador con avisos sonoros/);assert.match(html,/data-iri-timer-action="start"/);
+  assert.match(html,/data-iri-cardio-timer-copy/);assert.match(html,/1MSTS · 60 s · capacidad funcional/);assert.match(html,/YMCA Step Test · 3 min · fitness cardiorrespiratorio/);assert.match(html,/data-iri-timer-action="start"/);
   assert.match(html,/generate-client-iri-report" disabled aria-disabled="true"/);
   assert.match(html,/El IRI puede confirmarse cuando existan al menos dos dominios objetivos completos/);
   assert.match(html,/Objetivo principal <span class="m26-required"/);assert.match(html,/name="primaryObjective"[^>]*required/);
