@@ -486,8 +486,11 @@ export function createWorkflowController({
     syncIriConditionalFields(form);
     const raw=iriRaw(form);const weight=Number(raw.weightKg),height=Number(raw.heightCm);const bmi=Number.isFinite(weight)&&Number.isFinite(height)&&height>0?weight/((height/100)**2):null;
     const bmiField=form.elements?.namedItem?.('bmiPreview');if(bmiField)bmiField.value=bmi?bmi.toFixed(1):'';
-    const finalHr=Number(raw.stepFinalHr),oneHr=Number(raw.stepOneMinuteHr);const delta=Number.isFinite(finalHr)&&Number.isFinite(oneHr)?finalHr-oneHr:null;
+    const finalHr=Number(raw.stepFinalHr),oneHr=Number(raw.stepOneMinuteHr),twoHr=Number(raw.twoMinuteHr);
+    const delta=Number.isFinite(finalHr)&&Number.isFinite(oneHr)?finalHr-oneHr:null;
+    const deltaTwo=Number.isFinite(finalHr)&&Number.isFinite(twoHr)?finalHr-twoHr:null;
     const deltaField=form.elements?.namedItem?.('deltaFcPreview');if(deltaField)deltaField.value=delta===null?'':String(delta);
+    const deltaTwoField=form.elements?.namedItem?.('deltaFc2Preview');if(deltaTwoField)deltaTwoField.value=deltaTwo===null?'':String(deltaTwo);
     for(const node of form.querySelectorAll?.('[data-iri-computed="delta"]')||[])node.textContent=delta===null?'—':`${delta} lpm`;
     let normalized=draft;try{normalized=normalized||iriDraft(form);}catch{}
     const completion=normalized?firstSessionCompletion(normalized):{percent:0,steps:[]};
