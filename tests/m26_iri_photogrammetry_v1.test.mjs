@@ -1,0 +1,100 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+import {
+  IRI_PHOTO_LANDMARK_SCHEMA,
+  IRI_PHOTO_PROTOCOL_VERSION,
+  angleDegrees,
+  calculatePhotogrammetryMeasurements,
+  median,
+  percentAsymmetry,
+  photogrammetryDataQuality,
+  segmentFromVerticalDegrees,
+  segmentTiltDegrees,
+  validateManualLandmarks,
+} from '../src/m26/workflows/iri-photogrammetry.js';
+
+const landmarks={
+  front:{
+    shoulderLeft:{x:.25,y:.25},shoulderRight:{x:.75,y:.30},
+    pelvisLeft:{x:.35,y:.55},pelvisRight:{x:.65,y:.55},
+  },
+  back:{
+    shoulderLeft:{x:.25,y:.30},shoulderRight:{x:.75,y:.25},
+    pelvisLeft:{x:.35,y:.56},pelvisRight:{x:.65,y:.56},
+  },
+  left:{
+    ear:{x:.48,y:.12},shoulder:{x:.50,y:.25},hip:{x:.50,y:.58},ankle:{x:.50,y:.90},
+  },
+  right:{
+    ear:{x:.52,y:.12},shoulder:{x:.50,y:.25},hip:{x:.50,y:.58},ankle:{x:.50,y:.90},
+  },
+};
+
+test('manual photogrammetry geometry is deterministic and factual',()=>{
+  assert.equal(IRI_PHOTO_PROTOCOL_VERSION,'iri-photogrammetry-2026.10-v1');
+  assert.equal(IRI_PHOTO_LANDMARK_SCHEMA,'manual-4-point-v1');
+  assert.equal(segmentTiltDegrees({x:0,y:0},{x:1,y:0}),0);
+  assert.equal(segmentFromVerticalDegrees({x:.5,y:.2},{x:.5,y:.8}),0);
+  assert.equal(angleDegrees({x:0,y:.5},{x:.5,y:.5},{x:.5,y:0}),90);
+  assert.equal(median([5,1,3]),3);
+  assert.equal(median([1,3]),2);
+  assert.equal(percentAsymmetry(10,12),18.2);
+
+  const result=calculatePhotogrammetryMeasurements(landmarks);
+  assert.equal(result.interpretation,null);
+  assert.equal(result.medicalDiagnosis,null);
+  assert.ok(result.metrics.some((item)=>item.id==='front.shoulderTilt'));
+  assert.ok(result.metrics.some((item)=>item.id==='left.trunkInclination'));
+  assert.equal(result.summaries.lateralTrunkAsymmetryPercent,0);
+});
+
+test('manual landmarks are editable coordinates and validation fails closed on missing points',()=>{
+  const complete=validateManualLandmarks(landmarks,['front','left']);
+  assert.equal(complete.ok,true);
+  assert.deepEqual(complete.completeViews,['front','left']);
+
+  const incomplete=structuredClone(landmarks);
+  delete incomplete.front.pelvisRight;
+  const result=validateManualLandmarks(incomplete,['front']);
+  assert.equal(result.ok,false);
+  assert.deepEqual(result.missing,['front.pelvisRight']);
+});
+
+test('photogrammetry quality distinguishes no photos, captures without analysis, partial and validated four-view analysis',()=>{
+  assert.deepEqual(
+    photogrammetryDataQuality(),
+    {level:'sin_datos',capturedViews:0,analyzedViews:0,validated:false}
+  );
+  const captures=['front','back','left','right'].map((view)=>({view,status:'active'}));
+  assert.equal(photogrammetryDataQuality({captures}).level,'capturas_sin_analisis');
+  assert.equal(photogrammetryDataQuality({captures,landmarks:{front:landmarks.front}}).level,'parcial');
+  const quality=photogrammetryDataQuality({captures,landmarks,validated:true});
+  assert.deepEqual(quality,{level:'completa',capturedViews:4,analyzedViews:4,validated:true});
+});
+
+test('IRI v4 migration makes initial diagnosis unique and photogrammetry private/immutable by contract',()=>{
+  const sql=fs.readFileSync(new URL('../supabase/migrations/20261002031500_iri_initial_photogrammetry_v1.sql',import.meta.url),'utf8');
+  assert.match(sql,/assessment_type = 'inicial'/u);
+  assert.match(sql,/create unique index if not exists iri_one_initial_per_client_v1/u);
+  assert.match(sql,/revoke delete on public\.iri_assessments from authenticated, anon/u);
+  assert.match(sql,/physical_assessment/u);
+  assert.match(sql,/photography/u);
+  assert.match(sql,/IRI_V4_PHYSICAL_CONSENT_REQUIRED/u);
+  assert.match(sql,/public\.iri_photogrammetry_captures_v1/u);
+  assert.match(sql,/public\.iri_photogrammetry_analyses_v1/u);
+  assert.match(sql,/iberfit-iri-photogrammetry/u);
+  assert.match(sql,/public=false/u);
+  assert.match(sql,/allowed_mime_types/u);
+  assert.doesNotMatch(sql,/create policy iri_photo_object_(?:update|delete)/u);
+  assert.match(sql,/original captures are immutable/u);
+  assert.match(sql,/for select to authenticated[\s\S]+iberfit_can_manage_iri_private_v1/u);
+});
+
+test('photogrammetry source contains no automated diagnosis or automatic landmark inference',()=>{
+  const source=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry.js',import.meta.url),'utf8');
+  assert.doesNotMatch(source,/tensorflow|mediapipe|pose detector|diagnose|diagnóstico automático/iu);
+  assert.match(source,/manual-4-point-v1/u);
+  assert.match(source,/medicalDiagnosis:null/u);
+});
