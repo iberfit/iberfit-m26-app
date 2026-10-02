@@ -139,6 +139,17 @@ test('reevaluación advierte cuando cambian versión, variante o configuración'
   configurationChanged.find((item)=>item.testId==='chair-stand-30s').configuration='Silla 48 cm';
   const configWarnings=protocolComparabilityWarnings(previous,configurationChanged);
   assert.ok(configWarnings.some((item)=>/configuración diferente/.test(item)));
+
+  const oneMinute=validDraft({
+    cardioProtocol:'1msts-standard',
+    cardioChairHeightCm:'45',
+    oneMinuteSitToStandRepetitions:'34',
+    cardioDurationSeconds:'60',
+    stepHeightCm:'',cadenceBpm:'',stepFinalHr:'',stepOneMinuteHr:'',
+  }).protocolRecords;
+  const cardioWarnings=protocolComparabilityWarnings(previous,oneMinute);
+  assert.ok(cardioWarnings.some((item)=>/protocolos distintos/.test(item)));
+  assert.ok(cardioWarnings.some((item)=>/no son directamente comparables/.test(item)));
 });
 
 test('informe Cliente explica qué se observó, por qué importa, resultado y decisión',()=>{
