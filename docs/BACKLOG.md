@@ -10,15 +10,19 @@ Canary actual: `b23688196e49f6dc26d2762ef592e80ab1b8ed80`
 
 PR #672 — IRI inicial + fotogrametría privada v1.
 - [x] Baseline IRI inicial único y contrato de privacidad/fotogrametría base en rama.
-- [x] Consentimientos auditables y storage privado base.
-- [x] Motor geométrico puro + tests iniciales.
-- [ ] UI captura 4 vistas + editor manual.
-- [ ] 1MSTS como protocolo separado.
-- [ ] Desacoplar evolución/reevaluación de `iri_assessments`.
-- [ ] Reporte IRI baseline-only; fotos fuera por defecto.
-- [ ] QA + CI del SHA final.
-- [ ] Canary live.
-- [ ] PROD + verificación live.
+- [x] Consentimientos auditables y Storage privado con originales inmutables.
+- [x] Motor geométrico puro + landmarks manuales + geometría aspect-ratio aware.
+- [x] UI captura 4 vistas + editor manual con keyboard/touch/mobile.
+- [x] 1MSTS como protocolo separado de YMCA; Step IBERFIT sólo compatibilidad histórica.
+- [x] Desacoplar evolución/reevaluación de `iri_assessments`.
+- [x] Reporte IRI baseline-only; fotos fuera por defecto.
+- [x] QA DB/RLS/RPC/Storage: Cliente denegado, Coach asignado permitido, bucket privado y ACL del trigger endurecida.
+- [x] PROD preflight read-only: 1 IRI inicial en revisión, sin duplicados y sin objetos/migraciones #672 todavía aplicados.
+- [ ] CI completo GREEN sobre el HEAD final exacto.
+- [ ] Merge + deploy/certificación Canary.
+- [ ] PROD foundation backward-compatible + verificación frontend previo.
+- [ ] Promoción frontend + verificación LIVE.
+- [ ] Contract post-deploy `20261002113000_iri_physical_consent_enforcement.sql` + recertificación LIVE.
 
 Canary base comprobado al iniciar el WIP: `2bc5f7b01c4fac656a4c78e6235beaf0067cca0a`.
 No abrir otro WIP de producto hasta cerrar o bloquear realmente #672.
