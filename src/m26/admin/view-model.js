@@ -11,6 +11,7 @@ export {deriveCoachLaunchJourney} from '../onboarding/coach-launch-journey.js';
 const clone=(v)=>v==null?v:structuredClone(v);
 function clientRows(state){
   const life=new Map(adminCollection(state,'clientLifecycle').map((x)=>[String(x.clientId),x]));
+  const services=new Map(adminCollection(state,'clientServices').map((x)=>[String(x.clientId),x]));
   const assignments=new Map();
   for(const x of adminCollection(state,'coachClientAssignments')){
     if(x.status!=='active')continue;
@@ -60,8 +61,9 @@ function clientRows(state){
       profile:Object.freeze(profile),
       access,
       lifecycle:clone(life.get(id)||null),
+      service:clone(services.get(id)||null),
       lifecycleStatus:String(life.get(id)?.status||x.status||''),
-      serviceKind:String(life.get(id)?.status||x.status||'')==='iri_only'?'iri_only':'training',
+      serviceKind:String(services.get(id)?.serviceKind||'training'),
       assignments:activeAssignments,
       coachNames,
       primaryCoachName:coachNames[0]||null,
@@ -240,7 +242,7 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
   const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
   const trainingAssignment=(assignment)=>{
     const client=clientById.get(recordId(assignment?.clientId));
-    return normalizeStatus(client?.lifecycle?.status||client?.status)!=='iri_only';
+    return normalizeStatus(client?.serviceKind||client?.service?.serviceKind||'training')!=='iri_only';
   };
   return Object.freeze(coachSubjects(coaches,users).map(({coachId,coach,user})=>{
     const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId&&trainingAssignment(assignment));
