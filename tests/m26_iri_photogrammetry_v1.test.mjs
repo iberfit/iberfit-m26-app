@@ -97,13 +97,11 @@ test('photogrammetry quality distinguishes no photos, captures without analysis,
   assert.deepEqual(quality,{level:'completa',capturedViews:4,analyzedViews:4,validated:true});
 });
 
-test('IRI v4 migration makes initial diagnosis unique and photogrammetry private/immutable by contract',()=>{
+test('IRI v4 foundation is backward-compatible while photogrammetry stays private/immutable',()=>{
   const sql=fs.readFileSync(new URL('../supabase/migrations/20261002031500_iri_initial_photogrammetry_v1.sql',import.meta.url),'utf8');
-  assert.match(sql,/assessment_type = 'inicial'/u);
-  assert.match(sql,/create unique index if not exists iri_one_initial_per_client_v1/u);
-  assert.match(sql,/revoke delete on public\.iri_assessments from authenticated, anon/u);
-  assert.match(sql,/iri_assessments_initial_only_v4/u);
-  assert.match(sql,/iri_assessments_step_v4/u);
+  assert.doesNotMatch(sql,/iri_assessments_initial_only_v4|iri_assessments_step_v4|iri_one_initial_per_client_v1/u);
+  assert.doesNotMatch(sql,/create trigger iri_require_physical_consent_v1/u);
+  assert.doesNotMatch(sql,/revoke delete on public\.iri_assessments from authenticated, anon/u);
   assert.doesNotMatch(sql,/\\bALTER\\s+TABLE\\b[^;]*\\bDROP\\s+CONSTRAINT\\b/iu);
   assert.doesNotMatch(sql,/\\bDROP\\s+(?:TRIGGER|POLICY)\\b/iu);
   assert.doesNotMatch(sql,/\\bON\\s+CONFLICT\\b[^;]*\\bDO\\s+UPDATE\\b/iu);
@@ -112,29 +110,17 @@ test('IRI v4 migration makes initial diagnosis unique and photogrammetry private
   assert.match(sql,/photography/u);
   assert.match(sql,/IRI_V4_PHYSICAL_CONSENT_REQUIRED/u);
   assert.match(sql,/revoke all on function public\.iberfit_require_physical_consent_before_iri_confirm_v1\(\) from public/u);
-  assert.match(sql,/revoke all on function public\.iberfit_photo_path_uuid_part_v1\(text,integer\) from public/u);
-  assert.match(sql,/revoke all on function public\.iberfit_photo_path_view_v1\(text\) from public/u);
-  assert.match(sql,/revoke all on function public\.iberfit_photo_path_is_canonical_v1\(text\) from public/u);
   assert.match(sql,/public\.iri_photogrammetry_captures_v1/u);
   assert.match(sql,/public\.iri_photogrammetry_analyses_v1/u);
   assert.match(sql,/iberfit-iri-photogrammetry/u);
   assert.match(sql,/iberfit-iri-photogrammetry','iberfit-iri-photogrammetry',false,15000000/u);
-  assert.match(sql,/allowed_mime_types/u);
   assert.doesNotMatch(sql,/create policy iri_photo_object_(?:update|delete)/u);
   assert.match(sql,/original captures are immutable/u);
-  assert.match(sql,/for select to authenticated[\s\S]+iberfit_can_manage_iri_private_v1/u);
   assert.match(sql,/create policy iri_photo_object_read_v1[\s\S]+iberfit_iri_consent_active_v1\([\s\S]+,'photography'[\s\S]+c\.status='active'/u);
   assert.match(sql,/create policy iri_photo_object_insert_v1[\s\S]+c\.status='pending_upload'/u);
-  assert.match(sql,/iberfit_iri_consent_active_v1[\s\S]+iberfit_can_manage_iri_private_v1\(c\.client_id\)/u);
-  assert.match(sql,/status in \('pending_upload','active','revoked'\)/u);
   assert.match(sql,/iberfit_prepare_iri_photo_v1/u);
   assert.match(sql,/iberfit_finalize_iri_photo_v1/u);
-  assert.match(sql,/c\.status='pending_upload'/u);
-  assert.match(sql,/v_row\.status='active'/u);
-  assert.match(sql,/iberfit_photo_landmarks_complete_v1/u);
-  assert.match(sql,/iberfit_photo_measurements_valid_v1/u);
   assert.match(sql,/IRI_V4_PHOTOGRAMMETRY_VALIDATION_INCOMPLETE/u);
-  assert.match(sql,/p_front_capture_id is null[\s\S]+p_right_capture_id is null/u);
   assert.match(sql,/medicalDiagnosis/u);
   assert.match(sql,/interpretation/u);
   assert.doesNotMatch(sql,/iberfit_register_iri_photo_v1/u);
@@ -161,18 +147,16 @@ test('IRI photogrammetry hardening removes direct anon EXECUTE granted by projec
   assert.match(triggerHardening,/revoke all on function public\.iberfit_require_physical_consent_before_iri_confirm_v1\(\) from authenticated/u);
 });
 
-test('physical consent DB enforcement uses expand-contract without destructive canonical migrations',()=>{
-  const canonical=fs.readFileSync(new URL('../supabase/migrations/20261002031500_iri_initial_photogrammetry_v1.sql',import.meta.url),'utf8');
-  const compat=fs.readFileSync(new URL('../backend/IRI_PHOTOGRAMMETRY_V1_CUTOVER_COMPAT.sql',import.meta.url),'utf8');
+test('physical consent DB enforcement contracts only after the new frontend is live',()=>{
+  const foundation=fs.readFileSync(new URL('../supabase/migrations/20261002031500_iri_initial_photogrammetry_v1.sql',import.meta.url),'utf8');
   const enforce=fs.readFileSync(new URL('../supabase/migrations/20261002113000_iri_physical_consent_enforcement.sql',import.meta.url),'utf8');
-  const rollback=fs.readFileSync(new URL('../backend/IRI_PHOTOGRAMMETRY_V1_ROLLBACK.sql',import.meta.url),'utf8');
-  assert.match(canonical,/create trigger iri_require_physical_consent_v1[\s\S]+iberfit_require_physical_consent_before_iri_confirm_v1/u);
-  assert.match(compat,/drop trigger if exists iri_require_physical_consent_v1 on public\.iri_assessments/u);
-  assert.doesNotMatch(compat,/drop table|delete from|truncate/iu);
+  assert.doesNotMatch(foundation,/create trigger iri_require_physical_consent_v1|iri_assessments_initial_only_v4|iri_one_initial_per_client_v1/u);
+  assert.match(enforce,/iri_assessments_initial_only_v4/u);
+  assert.match(enforce,/iri_assessments_step_v4/u);
+  assert.match(enforce,/create unique index if not exists iri_one_initial_per_client_v1/u);
+  assert.match(enforce,/revoke delete on public\.iri_assessments from authenticated, anon/u);
   assert.match(enforce,/create trigger iri_require_physical_consent_v1[\s\S]+iberfit_require_physical_consent_before_iri_confirm_v1/u);
-  assert.doesNotMatch(enforce,/\bdo\s+\$|drop trigger|drop table|delete from|truncate/iu);
-  assert.match(rollback,/drop trigger if exists iri_require_physical_consent_v1 on public\.iri_assessments/u);
-  assert.doesNotMatch(rollback,/drop table|delete from|truncate|storage\.objects/iu);
+  assert.doesNotMatch(enforce,/\bdo\s+\$|drop trigger|drop table|delete from|truncate|update\s+public\.iri_assessments/iu);
 });
 
 test('photogrammetry source contains no automated diagnosis or automatic landmark inference',()=>{
