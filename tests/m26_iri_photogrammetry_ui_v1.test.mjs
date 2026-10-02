@@ -59,10 +59,15 @@ test('photo originals stay outside baseline report contract by default',()=>{
   assert.match(controller,/No se incluyen en el informe por defecto/u);
 });
 
-test('photogrammetry workspace has mobile, keyboard and touch affordances',()=>{
+test('photogrammetry workspace has mobile, keyboard, touch and strict-CSP affordances',()=>{
   const css=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry.css',import.meta.url),'utf8');
+  const controller=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-controller.js',import.meta.url),'utf8');
   assert.match(css,/touch-action:none/u);
   assert.match(css,/:focus-visible/u);
   assert.match(css,/@media\(max-width:640px\)/u);
-  assert.match(css,/width:2\.5rem;height:2\.5rem/u);
+  assert.match(css,/\.m26-photo-point-hit/u);
+  assert.match(controller,/class="m26-photo-point"/u);
+  assert.match(controller,/transform="translate\(/u);
+  assert.match(controller,/setAttribute\?\.\('transform'/u);
+  assert.doesNotMatch(controller,/\.style\.(?:left|top)/u);
 });
