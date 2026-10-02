@@ -35,6 +35,29 @@ function operationalStatus(state) {
   const kind = conflicts > 0 ? 'conflict' : rejected > 0 ? 'attention' : pending > 0 ? 'pending' : 'clear';
   return Object.freeze({ pending, conflicts, rejected, kind });
 }
+function lifecycleStatus(client){
+  return String(client?.lifecycleStatus||client?.lifecycle_status||client?.status||'').trim().toLowerCase();
+}
+function filterNavigation(nav,allowed){
+  const keep=(items)=>Object.freeze((items||[]).filter((item)=>allowed.has(item.key)));
+  return Object.freeze({
+    role:nav.role,
+    primary:keep(nav.primary),
+    context:keep(nav.context),
+    tools:keep(nav.tools),
+    mobile:keep(nav.mobile),
+  });
+}
+function serviceAwareNavigation(baseNavigation,{role,selected}={}){
+  if(lifecycleStatus(selected)!=='iri_only')return baseNavigation;
+  if(role==='client'){
+    return filterNavigation(baseNavigation,new Set(['hoy','informes','mensajes','ajustes']));
+  }
+  if(role==='coach'){
+    return filterNavigation(baseNavigation,new Set(['hoy','clientes','agenda','biblioteca','expediente','iri','informes','notas','mensajes','ajustes','verificacion']));
+  }
+  return baseNavigation;
+}
 
 function clientOptions(state, role) {
   const clients = state.collections?.clients || [];
@@ -68,12 +91,13 @@ function createShellViewModelBase(state) {
 
   const role = assertKnownRole(state.identity.role);
   const baseNavigation = navigationForRole(role);
-  const navigation = role==='admin'
-    ?filterAdminMediaReviewNavigation(baseNavigation,state)
-    :baseNavigation;
   const selected = role === 'client'
     ? (state.collections?.clients || []).find((client) => client.id === state.identity.clientId) || null
     : selectedClient(state);
+  const roleNavigation = role==='admin'
+    ?filterAdminMediaReviewNavigation(baseNavigation,state)
+    :baseNavigation;
+  const navigation=serviceAwareNavigation(roleNavigation,{role,selected});
   const definition = areaDefinition(route.area);
   const metrics = state.metrics || {};
   const language=getIberfitLanguage();
