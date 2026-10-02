@@ -107,6 +107,7 @@ function compactIri(record) {
     'stepOneMinuteHr',
     'step_one_minute_hr'
   );
+  const cardio = text(record,'cardio') || {};
   const bodyComposition = text(
     record,
     'bodyComposition',
@@ -120,12 +121,24 @@ function compactIri(record) {
   const normScoring = text(record, 'normScoring', 'norm_scoring');
   const domains = Object.freeze({
     cardiovascular:
-      stepFinalHr != null &&
-      stepFinalHr !== '' &&
-      stepOneMinuteHr != null &&
-      stepOneMinuteHr !== '' &&
-      Number.isFinite(Number(stepFinalHr)) &&
-      Number.isFinite(Number(stepOneMinuteHr)),
+      (cardio?.protocol === '1msts-standard' &&
+        cardio?.valid === true &&
+        Number(cardio?.durationSeconds) === 60 &&
+        Number.isFinite(Number(cardio?.repetitions))) ||
+      (['ymca-3min-standard','iberfit-3min-adapted'].includes(String(cardio?.protocol||'')) &&
+        cardio?.valid === true &&
+        Number(cardio?.durationSeconds) === 180 &&
+        Number.isFinite(Number(cardio?.stepHeightCm)) &&
+        Number.isFinite(Number(cardio?.cadenceBpm)) &&
+        Number.isFinite(Number(cardio?.finalHr ?? stepFinalHr)) &&
+        Number.isFinite(Number(cardio?.oneMinuteHr ?? stepOneMinuteHr))) ||
+      (!cardio?.protocol &&
+        stepFinalHr != null &&
+        stepFinalHr !== '' &&
+        stepOneMinuteHr != null &&
+        stepOneMinuteHr !== '' &&
+        Number.isFinite(Number(stepFinalHr)) &&
+        Number.isFinite(Number(stepOneMinuteHr))),
     bodyComposition: objectiveMeasurement(bodyComposition),
     strength: objectiveMeasurement(strengthPatterns),
   });
@@ -708,12 +721,15 @@ if (area === 'clientes') {
 
   if (area === 'iri') {
     const clientId = routeClientId(shellVm, state);
-    const assessments = recordsForClient(state, 'iriAssessments', clientId).sort(
-      (a, b) => String(domainDate(b) || '').localeCompare(String(domainDate(a) || ''))
-    );
-    const current = assessments.find(
+    const iriRecords = recordsForClient(state, 'iriAssessments', clientId)
+      .filter((record)=>{
+        const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
+        return !type||type==='inicial';
+      })
+      .sort((a, b) => String(domainDate(a) || '').localeCompare(String(domainDate(b) || '')));
+    const current = iriRecords.find(
       (record) => text(record, 'id') === state.selectedIriAssessmentId
-    ) || assessments[0] || null;
+    ) || iriRecords[0] || null;
     const rawProfile = recordsForClient(state, 'clientProfiles', clientId)[0] || null;
     const client = (state?.collections?.clients || []).find(
       (item) => item.id === clientId
@@ -722,10 +738,10 @@ if (area === 'clientes') {
       mergeProfileFallback(rawProfile || {}, profileFromIri(current)),
       client || {}
     );
-    const confirmedDecisionDrafts=assessments
-      .filter((record)=>compactIri(record)?.confirmed)
-      .map((record)=>confirmedFirstSessionDraft(record,clientId));
-    const decisionLog=buildIri2DecisionLog({assessments:confirmedDecisionDrafts});
+    const confirmedDraft=current&&compactIri(current)?.confirmed
+      ?confirmedFirstSessionDraft(current,clientId)
+      :null;
+    const decisionLog=buildIri2DecisionLog({assessments:confirmedDraft?[confirmedDraft]:[]});
 
     return Object.freeze({
       kind: 'iri',
@@ -733,7 +749,8 @@ if (area === 'clientes') {
       role: shellVm.identity?.role,
       current: clone(current),
       currentSummary: compactIri(current),
-      history: Object.freeze(assessments.map(compactActivity)),
+      baselineRecord: current?compactActivity(current):null,
+      history: Object.freeze([]),
       decisionLog,
       profile,
       sourceProfile: clone(rawProfile),
@@ -754,13 +771,16 @@ if (area === 'clientes') {
     const rawProfile=recordsForClient(state,'clientProfiles',clientId)[0]||null;
     const client=(state?.collections?.clients||[]).find((item)=>item.id===clientId);
     const profile=normalizeClientProfile(rawProfile||{},client||{});
-    const assessments=recordsForClient(state,'iriAssessments',clientId).sort(
-      (a,b)=>String(domainDate(b)||'').localeCompare(String(domainDate(a)||''))
-    );
-    const confirmedDecisionDrafts=assessments
-      .filter((record)=>compactIri(record)?.confirmed)
-      .map((record)=>confirmedFirstSessionDraft(record,clientId));
-    const decisionLog=buildIri2DecisionLog({assessments:confirmedDecisionDrafts});
+    const baselineIri=recordsForClient(state,'iriAssessments',clientId)
+      .filter((record)=>{
+        const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
+        return !type||type==='inicial';
+      })
+      .sort((a,b)=>String(domainDate(a)||'').localeCompare(String(domainDate(b)||'')))[0]||null;
+    const baselineDraft=baselineIri&&compactIri(baselineIri)?.confirmed
+      ?confirmedFirstSessionDraft(baselineIri,clientId)
+      :null;
+    const decisionLog=buildIri2DecisionLog({assessments:baselineDraft?[baselineDraft]:[]});
     const iriPlanningSeed=canEdit?buildIriPlanningSeed({decisionLog,profile}):null;
     return Object.freeze({
       kind: 'planificacion',
@@ -832,9 +852,14 @@ if (area === 'clientes') {
     const clientId = routeClientId(shellVm, state);
     const reports = recordsForClient(state, 'reports', clientId);
     const role = String(shellVm.identity?.role || '');
-    const iriAssessments = recordsForClient(state, 'iriAssessments', clientId).sort((a, b) =>
-      String(domainDate(b) || '').localeCompare(String(domainDate(a) || ''))
-    );
+    const iriAssessments = recordsForClient(state, 'iriAssessments', clientId)
+      .filter((record)=>{
+        const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
+        return !type||type==='inicial';
+      })
+      .sort((a, b) =>
+        String(domainDate(a) || '').localeCompare(String(domainDate(b) || ''))
+      );
     const iri = iriAssessments.find(
       (record) => text(record, 'id') === state.selectedIriAssessmentId && compactIri(record)?.confirmed
     ) || iriAssessments.find((record)=>compactIri(record)?.confirmed) || null;

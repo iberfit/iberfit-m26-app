@@ -1,4 +1,4 @@
-export const IRI_PROTOCOL_CATALOG_VERSION='iri-protocols-2026.07-v1';
+export const IRI_PROTOCOL_CATALOG_VERSION='iri-protocols-2026.10-v2';
 
 const freezeList=(items=[])=>Object.freeze(items.map((item)=>String(item)));
 const freezeProtocol=(protocol)=>Object.freeze({
@@ -223,21 +223,57 @@ const PROTOCOLS=[
     form:{variant:'posteriorChainProtocol',configuration:'posteriorChainConfiguration',valid:'posteriorChainValid',adaptation:'posteriorChainAdaptationReason',stop:'posteriorChainStopReason',target:'posteriorChainProtocol'},sides:['not-applicable'],
   },
   {
-    id:'three-minute-step',step:'cardio',name:'Step test de 3 minutos',area:'Capacidad cardiorrespiratoria',version:IRI_PROTOCOL_CATALOG_VERSION,
-    summary:'Respuesta de frecuencia cardiaca a tres minutos de escalón con altura y cadencia documentadas.',
-    evaluates:'Respuesta aguda al esfuerzo y recuperación de la frecuencia cardiaca bajo un protocolo reproducible.',
-    doesNotDiagnose:'No diagnostica enfermedad cardiovascular ni sustituye una prueba clínica de esfuerzo.',
-    variants:[{id:'ymca-3min-standard',label:'YMCA estándar · 30,5 cm · 96 bpm'},{id:'iberfit-3min-adapted',label:'IBERFIT adaptado · 20 cm · referencia individual'}],defaultVariant:'ymca-3min-standard',
-    material:['Escalón estable de altura medida.','Metrónomo o señal de cadencia.','Cronómetro.','Medición de frecuencia cardiaca.'],
-    startPosition:['Persona frente al escalón con espacio libre.','Cadencia demostrada antes de comenzar.','Frecuencia cardiaca en reposo registrada cuando corresponda.'],
-    steps:['Confirmar altura, cadencia y duración.','Iniciar el patrón de subida y bajada acordado.','Mantener la cadencia durante un máximo de 180 segundos.','Registrar FC final y al minuto; opcionalmente a los dos minutos.'],
-    observe:['Cadencia.','Estabilidad y coordinación.','Síntomas.','Fatiga y RPE.','Capacidad para continuar con seguridad.'],
-    valid:['Altura y cadencia corresponden a la variante.','Duración no supera 180 segundos.','FC final y al minuto registradas.','Sin interrupciones que invaliden la prueba.'],
-    invalid:['Altura o cadencia distintas sin adaptación registrada.','FC tomada fuera del momento definido.','Duración incorrecta.','Pérdida prolongada de la cadencia.'],
-    stop:['Dolor.','Mareo.','Disnea desproporcionada.','Pérdida de equilibrio.','Solicitud de la persona.','Imposibilidad de mantener la cadencia.'],
-    record:['Variante, altura, cadencia y duración.','FC en reposo, final, al minuto y a los dos minutos.','RPE y síntomas.','Validez, adaptación y motivo de finalización.'],
-    interpretation:['Calcular ΔFC al minuto.','Usar baremo YMCA solo con protocolo estándar compatible.','La variante de 20 cm es referencia individual y no se mezcla con YMCA.'],
-    visual:{kind:'step-test',start:'Cadencia y escalón confirmados',finish:'Tres minutos y recuperación',validCue:'Altura, cadencia y tiempos exactos',invalidCue:'Configuración distinta o FC fuera de tiempo'},
+    id:'one-minute-sit-to-stand',step:'cardio',name:'1MSTS · Sit-to-Stand de 1 minuto',area:'Capacidad funcional',version:IRI_PROTOCOL_CATALOG_VERSION,
+    summary:'Número de ciclos completos de sentarse y levantarse durante 60 segundos en una silla documentada.',
+    evaluates:'Capacidad funcional submáxima y respuesta individual al esfuerzo mediante un protocolo reproducible.',
+    doesNotDiagnose:'No diagnostica enfermedad cardiovascular o respiratoria ni sustituye una prueba clínica de esfuerzo.',
+    variants:[{id:'1msts-standard',label:'1MSTS estándar · 60 s · referencia individual'}],defaultVariant:'1msts-standard',
+    material:['Silla estable y sin ruedas con altura registrada.','Cronómetro.','Medición de frecuencia cardiaca opcional cuando sea útil y fiable.'],
+    startPosition:['Sentado, pies apoyados y posición reproducible.','Brazos cruzados o configuración documentada sin ayuda de las manos.','Silla apoyada de forma segura contra una pared cuando corresponda.'],
+    steps:['Confirmar altura de silla y criterio técnico.','Iniciar el cronómetro durante exactamente 60 segundos.','Contar únicamente ciclos completos de ponerse de pie y volver a sentarse.','Registrar repeticiones, RPE, síntomas y, si se midió, FC final y al minuto.'],
+    observe:['Control al ponerse de pie y sentarse.','Uso involuntario de brazos o apoyos.','Equilibrio, síntomas y tolerancia.','Pérdida del criterio técnico.'],
+    valid:['Duración exacta de 60 segundos.','Altura de silla y configuración registradas.','Repeticiones completas contabilizadas.','Sin ayuda externa que invalide el protocolo.'],
+    invalid:['Duración distinta de 60 segundos.','Uso de manos no documentado.','Cambio de silla o configuración sin registrarlo.','Repeticiones parciales contabilizadas como completas.'],
+    stop:['Dolor.','Mareo.','Disnea desproporcionada.','Pérdida de equilibrio.','Solicitud de la persona.','Cualquier motivo de seguridad.'],
+    record:['Repeticiones completas en 60 s.','Altura de silla y configuración.','RPE y síntomas.','FC en reposo/final/recuperación solo si se recogió de forma fiable.','Validez y motivo de finalización.'],
+    interpretation:['Usar como referencia individual reproducible.','Comparar solo con el mismo protocolo y una configuración equivalente.','No aplicar baremos automáticos no validados ni convertir el resultado en una puntuación global.'],
+    visual:{kind:'chair-stand',start:'Sentado · pies estables',finish:'De pie · ciclo completo',validCue:'60 s exactos y ciclos completos',invalidCue:'Apoyo no documentado o repetición parcial'},
+    form:{variant:'cardioProtocol',configuration:'cardioConfiguration',valid:'cardioValid',adaptation:'cardioAdaptationReason',stop:'cardioStopReason',target:'cardioProtocol'},sides:['not-applicable'],
+  },
+  {
+    id:'ymca-three-minute-step',step:'cardio',name:'YMCA Step Test · 3 minutos',area:'Fitness cardiorrespiratorio',version:IRI_PROTOCOL_CATALOG_VERSION,
+    summary:'Step test submáximo estandarizado de 3 minutos con escalón de 30,5 cm y cadencia de 96 pulsos/min.',
+    evaluates:'Respuesta cardiorrespiratoria submáxima bajo el protocolo YMCA estandarizado.',
+    doesNotDiagnose:'No es una prueba clínica diagnóstica ni sustituye una prueba de esfuerzo máxima.',
+    variants:[{id:'ymca-3min-standard',label:'YMCA estándar · 30,5 cm · 96 bpm · 180 s'}],defaultVariant:'ymca-3min-standard',
+    material:['Escalón estable de 30,5 cm.','Metrónomo a 96 pulsos/min.','Cronómetro.','Medición fiable de frecuencia cardiaca.'],
+    startPosition:['De pie frente al escalón y con espacio seguro.','Confirmar escalón de 30,5 cm y cadencia de 96 pulsos/min.'],
+    steps:['Mantener la secuencia subir, subir, bajar, bajar al ritmo de 96 pulsos/min.','Completar exactamente 180 segundos salvo criterio de detención.','Registrar FC final y FC de recuperación al minuto según el protocolo usado.'],
+    observe:['Cadencia sostenida.','Técnica segura al subir y bajar.','Síntomas y tolerancia.','Motivos de interrupción.'],
+    valid:['Escalón de 30,5 cm.','Cadencia de 96 pulsos/min.','Duración de 180 segundos.','Frecuencia cardiaca registrada de forma fiable.'],
+    invalid:['Altura de escalón distinta.','Cadencia distinta o no mantenida.','Duración distinta de 180 segundos sin causa documentada.','FC no fiable.'],
+    stop:['Dolor.','Mareo.','Disnea desproporcionada.','Inestabilidad.','Solicitud de la persona.','Cualquier motivo de seguridad.'],
+    record:['Altura de escalón.','Cadencia.','Duración.','FC final y al minuto.','RPE, síntomas, validez y motivo de finalización.'],
+    interpretation:['No mezclar con 1MSTS.','No aplicar ecuaciones o baremos YMCA si el protocolo no fue exactamente estandarizado.','Para seguimiento, repetir la misma configuración.'],
+    visual:{kind:'step-test',start:'Frente al escalón',finish:'180 s a cadencia estandarizada',validCue:'30,5 cm · 96 bpm · 180 s',invalidCue:'Altura, cadencia o duración diferentes'},
+    form:{variant:'cardioProtocol',configuration:'cardioConfiguration',valid:'cardioValid',adaptation:'cardioAdaptationReason',stop:'cardioStopReason',target:'cardioProtocol'},sides:['not-applicable'],
+  },
+  {
+    id:'legacy-iberfit-three-minute-step-adapted',step:'cardio',name:'Step 3 min adaptado IBERFIT · histórico',area:'Seguimiento funcional histórico',version:IRI_PROTOCOL_CATALOG_VERSION,
+    summary:'Compatibilidad de lectura para registros históricos del step adaptado. No se ofrece como protocolo nuevo.',
+    evaluates:'Sólo continuidad de registros históricos realizados bajo una configuración documentada.',
+    doesNotDiagnose:'No equivale al YMCA y no dispone de baremos YMCA válidos.',
+    variants:[{id:'iberfit-3min-adapted',label:'Adaptado IBERFIT · histórico'}],defaultVariant:'iberfit-3min-adapted',
+    material:['Configuración histórica registrada.'],
+    startPosition:['Reproducir únicamente si existe una medición histórica que justifique continuidad.'],
+    steps:['Mantener exactamente la configuración histórica documentada.'],
+    observe:['Técnica, síntomas y tolerancia.'],
+    valid:['Configuración histórica completa y reproducible.'],
+    invalid:['Configuración desconocida o distinta.'],
+    stop:['Dolor.','Mareo.','Disnea desproporcionada.','Solicitud de la persona.'],
+    record:['Altura, cadencia, duración, FC, RPE y síntomas cuando existan.'],
+    interpretation:['No usar para nuevas altas.','No mezclar con YMCA ni 1MSTS.','No usar baremos YMCA.'],
+    visual:{kind:'step-test',start:'Configuración histórica',finish:'Configuración histórica',validCue:'Sólo continuidad',invalidCue:'No usar como protocolo nuevo'},
     form:{variant:'cardioProtocol',configuration:'cardioConfiguration',valid:'cardioValid',adaptation:'cardioAdaptationReason',stop:'cardioStopReason',target:'cardioProtocol'},sides:['not-applicable'],
   },
 ].map(freezeProtocol);
@@ -255,6 +291,13 @@ function recordMap(records=[]){return new Map((Array.isArray(records)?records:[]
 function explicitBool(raw,key){return Object.prototype.hasOwnProperty.call(raw||{},key)?bool(raw[key]):null;}
 function number(value){const parsed=Number(value);return Number.isFinite(parsed)?parsed:null;}
 function resultExists(value){if(Array.isArray(value))return value.some(resultExists);if(value&&typeof value==='object')return Object.values(value).some(resultExists);return value!==null&&value!==undefined&&value!==''&&value!==false;}
+function protocolApplies(protocolId,parts){
+  const selected=String(parts.cardio?.protocol||'');
+  if(protocolId==='one-minute-sit-to-stand')return selected==='1msts-standard';
+  if(protocolId==='ymca-three-minute-step')return selected==='ymca-3min-standard';
+  if(protocolId==='legacy-iberfit-three-minute-step-adapted')return selected==='iberfit-3min-adapted';
+  return true;
+}
 function inferredProtocolValidity(protocolId,result,parts){
   if(protocolId==='body-composition')return !parts.bodyComposition?.skipped&&[result.weightKg,result.bodyFatPercent,result.leanMassKg,result.muscleMassKg,result.waistCm].some((value)=>value!==null);
   if(protocolId==='weight-bearing-lunge'||protocolId==='back-saver')return Array.isArray(result.trials)&&result.trials.length>0;
@@ -264,7 +307,9 @@ function inferredProtocolValidity(protocolId,result,parts){
   if(protocolId==='chair-stand-30s'||protocolId==='push-test'||protocolId==='trx-row')return result.valid===true;
   if(protocolId==='core-plank')return result.frontPlankSeconds!==null;
   if(protocolId==='posterior-chain-endurance')return result.equipmentCompatible===true&&result.seconds!==null&&String(result.protocol||'')!=='not-performed';
-  if(protocolId==='three-minute-step')return result.valid===true&&result.finalHr!==null&&result.oneMinuteHr!==null&&result.durationSeconds!==null;
+  if(protocolId==='one-minute-sit-to-stand')return result.valid===true&&result.repetitions!==null&&result.durationSeconds===60;
+  if(protocolId==='ymca-three-minute-step')return result.valid===true&&result.stepHeightCm!==null&&Math.abs(result.stepHeightCm-30.5)<=0.05&&result.cadenceBpm===96&&result.durationSeconds===180&&result.finalHr!==null&&result.oneMinuteHr!==null;
+  if(protocolId==='legacy-iberfit-three-minute-step-adapted')return result.valid===true&&result.stepHeightCm!==null&&result.cadenceBpm!==null&&result.durationSeconds===180&&result.finalHr!==null&&result.oneMinuteHr!==null;
   return resultExists(result);
 }
 
@@ -281,7 +326,7 @@ function protocolResult(protocolId,side,parts){
   if(protocolId==='trx-row')return {...(strength.trxRow||{})};
   if(protocolId==='core-plank')return {...(strength.core||{})};
   if(protocolId==='posterior-chain-endurance')return {...(strength.posteriorChain||{})};
-  if(protocolId==='three-minute-step')return {...cardio};
+  if(protocolId==='one-minute-sit-to-stand'||protocolId==='ymca-three-minute-step'||protocolId==='legacy-iberfit-three-minute-step-adapted')return {...cardio};
   return {};
 }
 
@@ -298,13 +343,15 @@ function generatedConfiguration(protocolId,raw,parts){
   if(protocolId==='trx-row')return [strength.trxRow?.handleHeightCm!==null?`asas ${strength.trxRow.handleHeightCm} cm`:'',strength.trxRow?.heelDistanceCm!==null?`talones ${strength.trxRow.heelDistanceCm} cm`:'',strength.trxRow?.position].filter(Boolean).join(' · ');
   if(protocolId==='core-plank')return [raw.coreProtocolVariant||'',strength.core?.quality&&`calidad: ${strength.core.quality}`].filter(Boolean).join(' · ');
   if(protocolId==='posterior-chain-endurance')return [strength.posteriorChain?.protocol,strength.posteriorChain?.equipmentCompatible?'equipo compatible':'equipo no confirmado'].filter(Boolean).join(' · ');
-  if(protocolId==='three-minute-step')return [`escalón ${cardio.stepHeightCm??'—'} cm`,`cadencia ${cardio.cadenceBpm??'—'} bpm`,`duración ${cardio.durationSeconds??'—'} s`].join(' · ');
+  if(protocolId==='one-minute-sit-to-stand')return [`silla ${cardio.chairHeightCm??'—'} cm`,`duración ${cardio.durationSeconds??'—'} s`,`repeticiones ${cardio.repetitions??'—'}`].join(' · ');
+  if(protocolId==='ymca-three-minute-step'||protocolId==='legacy-iberfit-three-minute-step-adapted')return [`escalón ${cardio.stepHeightCm??'—'} cm`,`cadencia ${cardio.cadenceBpm??'—'} bpm`,`duración ${cardio.durationSeconds??'—'} s`].join(' · ');
   return '';
 }
 
 export function buildIriProtocolRecords({raw={},existingRecords=[],assessmentDate='',bodyComposition={},mobility={},strength={},cardio={}}={}){
   const existing=recordMap(existingRecords);const parts={bodyComposition,mobility,strength,cardio};const records=[];
   for(const protocol of PROTOCOLS){
+    if(!protocolApplies(protocol.id,parts))continue;
     for(const side of protocol.sides){
       const previous=existing.get(`${protocol.id}:${side}`)||{};
       const result=protocolResult(protocol.id,side,parts);
@@ -345,9 +392,17 @@ export function flattenIriProtocolRecords(records=[]){
 }
 
 function comparableValue(value){return text(value,800).toLocaleLowerCase('es-ES');}
+const CARDIO_PROTOCOL_TEST_IDS=new Set(['one-minute-sit-to-stand','ymca-three-minute-step','legacy-iberfit-three-minute-step-adapted']);
 export function protocolComparabilityWarnings(previousRecords=[],currentRecords=[]){
-  const previous=recordMap(previousRecords);const warnings=[];
-  for(const current of Array.isArray(currentRecords)?currentRecords:[]){
+  const previousRows=Array.isArray(previousRecords)?previousRecords:[];
+  const currentRows=Array.isArray(currentRecords)?currentRecords:[];
+  const previous=recordMap(previousRows);const warnings=[];
+  const priorCardio=previousRows.find((record)=>CARDIO_PROTOCOL_TEST_IDS.has(record?.testId)&&resultExists(record?.result));
+  const currentCardio=currentRows.find((record)=>CARDIO_PROTOCOL_TEST_IDS.has(record?.testId)&&resultExists(record?.result));
+  if(priorCardio&&currentCardio&&priorCardio.testId!==currentCardio.testId){
+    warnings.push(`Capacidad de esfuerzo: “${priorCardio.testName}” y “${currentCardio.testName}” son protocolos distintos; sus resultados no son directamente comparables.`);
+  }
+  for(const current of currentRows){
     const prior=previous.get(recordKey(current));if(!prior||!resultExists(prior.result)||!resultExists(current.result))continue;
     const side=current.side&&current.side!=='not-applicable'?` · ${current.side==='left'?'izquierda':current.side==='right'?'derecha':current.side}`:'';
     if(prior.protocolVersion&&current.protocolVersion&&prior.protocolVersion!==current.protocolVersion){warnings.push(`“${current.testName}${side}” cambió de versión (${prior.protocolVersion} → ${current.protocolVersion}); los resultados no son directamente comparables.`);continue;}
@@ -357,4 +412,4 @@ export function protocolComparabilityWarnings(previousRecords=[],currentRecords=
   return Object.freeze([...new Set(warnings)]);
 }
 
-export const __iriProtocolInternals=Object.freeze({PROTOCOLS,recordKey,resultExists,inferredProtocolValidity,generatedConfiguration});
+export const __iriProtocolInternals=Object.freeze({PROTOCOLS,recordKey,resultExists,protocolApplies,inferredProtocolValidity,generatedConfiguration});

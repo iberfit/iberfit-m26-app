@@ -136,20 +136,17 @@ test('superficie de Evolución separa Planificación vs ejecución de los hitos 
   assert.doesNotMatch(html,/Evolución IRI 2\.0/u);
 });
 
-test('hitos IRI permanecen separados de la evolución cotidiana y conservan el no-score',()=>{
+test('el IRI permanece como baseline separado de la evolución cotidiana y conserva el no-score',()=>{
   const planExecution=buildPlanExecutionSummary(sampleState(),'c1',{now:NOW,days:28});
   const summary={
     clientId:'c1',days:28,dataQuality:'media',
     plannedSessions:2,completedSessions:2,adherence:1,
     averageRpe:7,volume:null,volumeDelta:null,
-    iriCurrent:3,iriPrevious:3,iriDelta:0,iriAssessmentCount:2,
-    evolution:{
-      comparableCount:1,
-      label:'1 indicador comparable',
-      detail:'Seguimiento comparado con la evaluación anterior, sin puntuación global.',
-      previousAssessmentDate:'2026-06-12',
-      headline:[{id:'chairStandReps',label:'Silla 30 s',delta:4,unit:'rep'}],
+    iriCurrent:3,iriPrevious:null,iriDelta:null,iriAssessmentCount:1,
+    iriBaseline:{
+      detail:'Punto de partida confirmado. Las reevaluaciones y el seguimiento longitudinal se mantienen fuera del Diagnóstico IRI.',
     },
+    evolution:null,
     iri2:null,
     checkins:0,checkinAverage:{energy:null,sleep:null,stress:null,pain:null,fatigue:null,motivation:null},
     lastExecutionAt:null,lastExecutionRpe:null,latestCheckinAt:null,
@@ -160,10 +157,9 @@ test('hitos IRI permanecen separados de la evolución cotidiana y conservan el n
     role:'coach',summary,planExecution,timeline:[],alerts:[],
     signal:{label:'Seguimiento',level:'neutral'},longitudinal:null,exerciseProgress:[],
   });
-  assert.match(html,/data-iri-milestones/u);
-  assert.match(html,/Hitos IRI comparables/u);
-  assert.match(html,/Diagnóstico y reevaluación IRI/u);
+  assert.match(html,/data-iri-baseline/u);
+  assert.match(html,/Diagnóstico IRI inicial/u);
   assert.match(html,/Sin puntuación global/u);
-  assert.match(html,/seguimiento cotidiano se presenta por separado/u);
-  assert.doesNotMatch(html,/Evolución IRI 2\.0/u);
+  assert.match(html,/seguimiento longitudinal se construyen fuera del IRI/u);
+  assert.doesNotMatch(html,/data-iri-milestones|Hitos IRI comparables|Diagnóstico y reevaluación IRI|Evolución IRI 2\.0/u);
 });

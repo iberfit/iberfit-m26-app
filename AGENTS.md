@@ -104,6 +104,20 @@ Las rutas críticas deben certificarse por tarea y dispositivo, no sólo por vie
 11. Actualizar STATE/BACKLOG/DECISIONS únicamente si cambió su verdad.
 12. Continuar con la siguiente tarea prioritaria segura.
 
+## Persistencia de realidad e implementaciones
+
+Nada material puede quedar sólo en el chat.
+
+Después de cada implementación material:
+- el código/configuración/migración debe quedar en un commit/PR trazable;
+- el estado real del WIP debe quedar en `docs/PRODUCTION_STATE.md` y/o `docs/BACKLOG.md` cuando cambie su verdad;
+- las decisiones duraderas deben actualizar `docs/DECISIONS.md`, `docs/PRODUCT.md` o `DESIGN.md` según corresponda;
+- la evidencia de tests, CI, Canary, PROD y LIVE debe quedar ligada a SHA/run/PR exactos;
+- si el trabajo se detiene sin cerrar, registrar HEAD exacto, qué está implementado, qué está sólo testeado y la siguiente acción verificable;
+- no crear documentos paralelos que compitan con los contratos canónicos.
+
+Git y los documentos canónicos son la memoria operativa; el chat es sólo interfaz de trabajo.
+
 ## Stop conditions
 
 Abortar antes de mutar si:

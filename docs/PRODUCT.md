@@ -58,10 +58,17 @@ Debe permitir:
 
 El Diagnóstico IRI inicial y el seguimiento/evolución son conceptos distintos.
 
-- IRI = punto de partida, bienvenida y baseline.
+- IRI = punto de partida, bienvenida y baseline inicial.
 - Seguimiento = cambio longitudinal durante el proceso.
+- El baseline IRI no debe reutilizarse como contenedor genérico de reevaluaciones.
+- La fotogrametría es una capa complementaria, privada y longitudinal; no un diagnóstico clínico automático.
+- Original fotográfico y análisis derivado deben permanecer separados.
+- Los landmarks automáticos, cuando existan, son propuestas; el Coach valida/corrige antes de convertirlos en dato interpretado.
+- La calidad del dato y el protocolo deben ser visibles.
+- Las fotos no se incluyen por defecto en reportes compartibles.
+- Protocolos de capacidad funcional distintos no comparten baremos automáticamente; 1MSTS y YMCA 3-min deben tratarse como protocolos diferentes.
 
-No mezclar ambos en copy, navegación, métricas ni interpretación.
+No mezclar IRI y seguimiento en copy, navegación, métricas ni interpretación. Separar siempre dato, interpretación y decisión.
 
 ## Entrenamiento
 

@@ -106,19 +106,20 @@ test('Progress Hub returns null without a client',()=>{
   assert.equal(buildProgressHub(sampleState(),null,{now:NOW}),null);
 });
 
-test('Progress Hub conserva reevaluaciones IRI como hitos separados y no como pilares de evolución',()=>{
+test('Progress Hub mantiene un único baseline IRI y no convierte reevaluaciones legacy en evolución',()=>{
   const state=sampleState();
   state.collections.iriAssessments.unshift({
-    id:'iri2',clientId:'c1',assessmentDate:'2026-09-05T10:00:00Z',
+    id:'iri2',clientId:'c1',assessmentDate:'2026-09-05T10:00:00Z',assessmentType:'reevaluacion',
     stepFinalHr:148,stepOneMinuteHr:112,bodyComposition:{weightKg:69.5},strengthPatterns:{squat:2},
   });
   const hub=buildProgressHub(state,'c1',{now:NOW});
   assert.equal(hub.totalPillars,5);
   assert.equal(hub.pillars.some((pillar)=>pillar.source==='iriAssessments'),false);
   assert.equal(hub.diagnosticBaseline.available,true);
-  assert.equal(hub.diagnosticBaseline.reassessmentAvailable,true);
-  assert.equal(hub.diagnosticBaseline.assessments,2);
-  assert.match(hub.diagnosticBaseline.context,/Reevaluación disponible/u);
+  assert.equal(hub.diagnosticBaseline.reassessmentAvailable,false);
+  assert.equal(hub.diagnosticBaseline.assessments,1);
+  assert.match(hub.diagnosticBaseline.evidence,/Diagnóstico IRI inicial confirmado/u);
+  assert.match(hub.diagnosticBaseline.context,/evolución se registran fuera del Diagnóstico IRI/u);
 });
 
 test('Progress Hub sin IRI mantiene Evolución disponible sin fabricar un diagnóstico',()=>{

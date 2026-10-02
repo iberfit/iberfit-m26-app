@@ -50,6 +50,18 @@ desktop = analizar/construir; tablet = entrenar/operar; móvil = actuar/completa
 ## D-016 · Outcome loop como moat
 Priorizar `señal -> decisión Coach -> intervención -> outcome -> aprendizaje` antes de features genéricas.
 
+## D-017 · Persistencia operativa obligatoria
+Ninguna implementación material o decisión duradera puede quedar sólo en el chat. Código, estado, decisiones y evidencia deben persistir en Git/PR y contratos canónicos. Un WIP interrumpido debe dejar HEAD exacto, nivel de verificación y siguiente acción.
+
+## D-018 · IRI baseline y evolución separados
+El IRI es baseline inicial. Seguimiento y reevaluación longitudinal no deben modelarse como nuevas instancias equivalentes del IRI inicial.
+
+## D-019 · Fotogrametría como evidencia privada no diagnóstica
+Originales y derivados se separan; originales se protegen de mutación indebida; landmarks requieren validación del Coach; las fotos se excluyen de reportes por defecto y la fotogrametría no emite diagnóstico automático.
+
+## D-020 · Disciplina de coste
+IBERFIT prioriza soluciones gratuitas suficientes. No introducir servicios de pago, upgrades o pruebas de pago sin decisión empresarial explícita.
+
 ## Decisiones pendientes
 
 ### P-D01 · Protección de Canary

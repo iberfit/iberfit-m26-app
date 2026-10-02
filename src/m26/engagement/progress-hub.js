@@ -166,16 +166,14 @@ export function buildProgressHub(
     role:'initial-diagnostic',
     contributesToEvolution:false,
     available:Number(summary28.iriAssessmentCount||0)>0,
-    reassessmentAvailable:Number(summary28.iriAssessmentCount||0)>1,
+    reassessmentAvailable:false,
     coverage:iriCoverage,
     unit:'de 3 dominios',
-    assessments:Number(summary28.iriAssessmentCount||0),
+    assessments:summary28.iriAssessmentCount?1:0,
     evidence:summary28.iriAssessmentCount
-      ?`${summary28.iriAssessmentCount} hito${summary28.iriAssessmentCount===1?'':'s'} IRI confirmado${summary28.iriAssessmentCount===1?'':'s'}`
+      ?'Diagnóstico IRI inicial confirmado'
       :'Sin diagnóstico IRI confirmado',
-    context:Number.isFinite(summary28.iriDelta)
-      ?`Reevaluación disponible · diferencia de cobertura ${summary28.iriDelta>0?'+':''}${summary28.iriDelta}`
-      :'El IRI establece el punto de partida; la evolución cotidiana se sigue por separado.',
+    context:'El IRI establece el punto de partida; las reevaluaciones y la evolución se registran fuera del Diagnóstico IRI.',
     source:'iriAssessments',
     quality:iriCoverage===3?'alta':iriCoverage?'media':'limitada',
   });

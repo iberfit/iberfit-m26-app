@@ -24,7 +24,28 @@ function coreDomainCoverage(draft = {}) {
   const cardioSkipped = draft.cardio?.skipped === true;
   const bodyMeasured = !bodySkipped && hasObjectiveMeasurement(draft.bodyComposition);
   const strengthMeasured = !strengthSkipped && hasObjectiveMeasurement(draft.strengthPatterns);
-  const cardioMeasured = !cardioSkipped && finite(draft.stepFinalHr) && finite(draft.stepOneMinuteHr);
+  const modernCardio=Boolean(draft.cardio&&typeof draft.cardio==='object'&&!Array.isArray(draft.cardio));
+  const legacyCardioContract=!modernCardio&&finite(draft.stepFinalHr)&&finite(draft.stepOneMinuteHr);
+  const cardioProtocol=String(draft.cardio?.protocol||'');
+  const cardioFinalHr=draft.cardio?.finalHr??draft.stepFinalHr;
+  const cardioRecoveryHr=draft.cardio?.oneMinuteHr??draft.stepOneMinuteHr;
+  const modernCardioMeasured=draft.cardio?.valid===true&&(
+    (cardioProtocol==='1msts-standard'&&
+      Number(draft.cardio?.durationSeconds)===60&&
+      finite(draft.cardio?.repetitions)) ||
+    (cardioProtocol==='ymca-3min-standard'&&
+      Number(draft.cardio?.durationSeconds)===180&&
+      finite(draft.cardio?.stepHeightCm)&&
+      Math.abs(Number(draft.cardio.stepHeightCm)-30.5)<=0.05&&
+      Number(draft.cardio?.cadenceBpm)===96&&
+      finite(cardioFinalHr)&&finite(cardioRecoveryHr)) ||
+    (cardioProtocol==='iberfit-3min-adapted'&&
+      Number(draft.cardio?.durationSeconds)===180&&
+      finite(draft.cardio?.stepHeightCm)&&
+      finite(draft.cardio?.cadenceBpm)&&
+      finite(cardioFinalHr)&&finite(cardioRecoveryHr))
+  );
+  const cardioMeasured=!cardioSkipped&&(legacyCardioContract||modernCardioMeasured);
   const states = Object.freeze({
     bodyComposition: bodyMeasured,
     strength: strengthMeasured,
@@ -65,10 +86,33 @@ export function validateIriDraft(draft = {}) {
   if (!coverage.complete) errors.push('coreDomains');
 
   if (!coverage.skipped.cardio) {
-    if (!finite(draft.stepFinalHr) || !finite(draft.stepOneMinuteHr)) {
-      errors.push('cardioHeartRate');
-    } else if (computeDeltaFc(draft.stepFinalHr, draft.stepOneMinuteHr) < 0) {
-      errors.push('deltaFc');
+    const modernCardio=Boolean(draft.cardio&&typeof draft.cardio==='object'&&!Array.isArray(draft.cardio));
+    const legacyCardioContract=!modernCardio&&finite(draft.stepFinalHr)&&finite(draft.stepOneMinuteHr);
+    if (legacyCardioContract) {
+      if (computeDeltaFc(draft.stepFinalHr,draft.stepOneMinuteHr)<0) errors.push('deltaFc');
+    } else if (draft.cardio?.protocol === '1msts-standard') {
+      if (!finite(draft.cardio?.repetitions)) errors.push('cardioRepetitions');
+      if (Number(draft.cardio?.durationSeconds) !== 60) errors.push('cardioDuration');
+      if (draft.cardio?.valid !== true) errors.push('cardioValid');
+      const hasFinal=finite(draft.stepFinalHr),hasRecovery=finite(draft.stepOneMinuteHr);
+      if (hasFinal !== hasRecovery) errors.push('cardioHeartRatePair');
+      if (hasFinal && hasRecovery && computeDeltaFc(draft.stepFinalHr,draft.stepOneMinuteHr)<0) errors.push('deltaFc');
+    } else if (draft.cardio?.protocol === 'ymca-3min-standard') {
+      if (Number(draft.cardio?.durationSeconds)!==180) errors.push('cardioDuration');
+      if (!finite(draft.cardio?.stepHeightCm)||Math.abs(Number(draft.cardio.stepHeightCm)-30.5)>.05) errors.push('cardioStepHeight');
+      if (Number(draft.cardio?.cadenceBpm)!==96) errors.push('cardioCadence');
+      if (!finite(cardioFinalHr)||!finite(cardioRecoveryHr)) errors.push('cardioHeartRate');
+      else if (computeDeltaFc(cardioFinalHr,cardioRecoveryHr)<0) errors.push('deltaFc');
+      if (draft.cardio?.valid!==true) errors.push('cardioValid');
+    } else if (draft.cardio?.protocol === 'iberfit-3min-adapted') {
+      if (Number(draft.cardio?.durationSeconds)!==180) errors.push('cardioDuration');
+      if (!finite(draft.cardio?.stepHeightCm)) errors.push('cardioStepHeight');
+      if (!finite(draft.cardio?.cadenceBpm)) errors.push('cardioCadence');
+      if (!finite(cardioFinalHr)||!finite(cardioRecoveryHr)) errors.push('cardioHeartRate');
+      else if (computeDeltaFc(cardioFinalHr,cardioRecoveryHr)<0) errors.push('deltaFc');
+      if (draft.cardio?.valid!==true) errors.push('cardioValid');
+    } else {
+      errors.push('cardioProtocol');
     }
   }
   if (!coverage.skipped.strength && !hasObjectiveMeasurement(draft.strengthPatterns)) {
@@ -124,7 +168,7 @@ export function buildIriCommand(draft, revision = 0) {
     payload: {
       patch: {
         ...structuredClone(normalized),
-        deltaFc: coverage.skipped.cardio ? null : computeDeltaFc(draft.stepFinalHr, draft.stepOneMinuteHr),
+        deltaFc: coverage.skipped.cardio || !finite(draft.stepFinalHr) || !finite(draft.stepOneMinuteHr) ? null : computeDeltaFc(draft.stepFinalHr, draft.stepOneMinuteHr),
         evidenceCoverage: coverage,
         normContextSnapshot,
         normScoring: scoring,

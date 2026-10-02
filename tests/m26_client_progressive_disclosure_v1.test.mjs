@@ -20,6 +20,7 @@ function summary(overrides={}){
     iriCurrent:null,
     iriDelta:null,
     iriAssessmentCount:0,
+    iriBaseline:null,
     evolution:null,
     iri2:null,
     checkins:0,
@@ -98,7 +99,7 @@ test('Client progress becomes comparable only with confirmed comparison evidence
       summary({iriAssessmentCount:2,dataQuality:'media'}),
       {timelineLength:2},
     ).stage,
-    'comparable',
+    'starting',
   );
 
   assert.equal(
@@ -138,7 +139,7 @@ test('Client mature progress keeps full evidence available without forcing it op
   assert.match(html,/Tu evolución ya tiene contexto/u);
   assert.match(html,/data-client-progress-depth="mature"/u);
   assert.match(html,/Ver detalle completo/u);
-  assert.match(html,/Historial, bienestar, IRI, dispositivos, alertas y ejercicios confirmados/u);
+  assert.match(html,/Historial, bienestar, baseline IRI, dispositivos, alertas y ejercicios confirmados/u);
   assert.match(html,/Evolución registrada/u);
   assert.ok(
     html.indexOf('m26-progress-overview')<html.indexOf('m26-client-progress-detail'),
@@ -157,7 +158,7 @@ test('Coach keeps the professional full-depth progress surface unchanged in hier
   assert.match(html,/Progreso y adherencia/u);
   assert.match(html,/RPE medio/u);
   assert.match(html,/Volumen medio/u);
-  assert.match(html,/Hitos IRI/u);
+  assert.match(html,/Diagnóstico IRI/u);
   assert.doesNotMatch(html,/data-client-progress-stage/u);
   assert.doesNotMatch(html,/Ver detalle completo/u);
 });

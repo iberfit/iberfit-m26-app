@@ -150,10 +150,13 @@ No afirmar que está en Producción sin evidencia LIVE.
 ## 10. Cierre documental
 
 Actualizar sólo lo que realmente cambió:
-- `docs/PRODUCTION_STATE.md` para estado operativo;
-- `docs/BACKLOG.md` para prioridad/pendientes;
+- `docs/PRODUCTION_STATE.md` para estado operativo y nivel real de verificación;
+- `docs/BACKLOG.md` para prioridad/pendientes y siguiente acción;
 - `docs/DECISIONS.md` para decisiones duraderas;
+- `docs/PRODUCT.md` / `DESIGN.md` si cambió un contrato canónico;
 - evidencia/run/deployment cuando corresponda.
+
+Toda implementación material debe quedar trazable por commit/PR. Si no llega a cierre, la sesión debe dejar HEAD exacto y distinguir explícitamente IMPLEMENTADO / TESTEADO / CANARY / PROD / LIVE.
 
 Evitar documentación duplicada que pueda divergir.
 

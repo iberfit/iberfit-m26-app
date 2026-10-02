@@ -1,6 +1,7 @@
 import {buildIriProtocolRecords,flattenIriProtocolRecords} from './iri-protocol-catalog.js';
 const SCHEMA='iberfit-iri-first-session-v1';
-export const IRI_FIRST_SESSION_STEPS=Object.freeze(['perfil','entrevista','composicion','movilidad','fuerza','cardio','revision']);
+export const IRI_FIRST_SESSION_STEPS=Object.freeze(['perfil','entrevista','composicion','movilidad','fuerza','cardio','fotografia','revision']);
+const IRI_REQUIRED_SESSION_STEPS=Object.freeze(IRI_FIRST_SESSION_STEPS.filter((step)=>step!=='fotografia'));
 const IRI_PRIORITY_DOMAINS=Object.freeze(['general','composition','mobility','strength','cardio','recovery','adherence','other']);
 const IRI_PRIORITY_STATUSES=Object.freeze(['active','maintain','completed','paused']);
 
@@ -131,12 +132,24 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
   };
   const finalHr=num(sourceValue(raw,body,'stepFinalHr','step_final_hr'),{min:30,max:240});
   const oneMinuteHr=num(sourceValue(raw,body,'stepOneMinuteHr','step_one_minute_hr'),{min:30,max:240});
+  const cardioRepetitions=num(sourceValue(raw,body,'oneMinuteSitToStandRepetitions','one_minute_sit_to_stand_repetitions'),{min:0,max:120});
+  const legacyStepHeight=num(sourceValue(raw,body,'stepHeightCm','step_height_cm'),{min:10,max:50});
+  const legacyCadence=num(sourceValue(raw,body,'cadenceBpm','cadence_bpm'),{min:40,max:160});
+  const explicitCardioProtocol=text(raw.cardioProtocol||body?.cardio?.protocol,80);
+  const inferredCardioProtocol=explicitCardioProtocol||
+    (cardioRepetitions!==null?'1msts-standard':
+      legacyStepHeight!==null?(legacyStepHeight<=22?'iberfit-3min-adapted':'ymca-3min-standard'):
+      (finalHr!==null||oneMinuteHr!==null?'ymca-3min-standard':''));
+  const cardioDurationDefault=inferredCardioProtocol==='1msts-standard'?60:
+    (['ymca-3min-standard','iberfit-3min-adapted'].includes(inferredCardioProtocol)?180:null);
   const cardio={
     skipped:bool(raw.cardioSkipped),skipReason:requiredReason(bool(raw.cardioSkipped),raw.cardioSkipReason),
-    protocol:text(raw.cardioProtocol||body?.cardio?.protocol||'ymca-3min-standard',80),
-    stepHeightCm:num(raw.stepHeightCm??body?.cardio?.stepHeightCm,{min:10,max:50}),
-    cadenceBpm:num(raw.cadenceBpm??body?.cardio?.cadenceBpm,{min:40,max:160}),
-    durationSeconds:num(raw.cardioDurationSeconds??body?.cardio?.durationSeconds,{min:30,max:300}),
+    protocol:inferredCardioProtocol,
+    chairHeightCm:num(raw.cardioChairHeightCm??body?.cardio?.chairHeightCm,{min:30,max:70}),
+    repetitions:cardioRepetitions,
+    stepHeightCm:legacyStepHeight,
+    cadenceBpm:legacyCadence,
+    durationSeconds:num(raw.cardioDurationSeconds??body?.cardio?.durationSeconds??cardioDurationDefault,{min:30,max:180}),
     restingHr:num(raw.restingHr,{min:30,max:220}),finalHr,oneMinuteHr,
     twoMinuteHr:num(raw.twoMinuteHr,{min:30,max:220}),rpe:num(raw.cardioRpe,{min:0,max:10}),
     valid:bool(raw.cardioValid),symptoms:text(raw.cardioSymptoms,600),stopReason:text(raw.cardioStopReason,600),notes:text(raw.cardioNotes,1000),
@@ -160,7 +173,7 @@ function hasBodyMeasurement(value){return [value.weightKg,value.bodyFatPercent,v
 export function coreDomainCoverage(draft={}){
   const bodyMeasured=!draft.bodyComposition?.skipped&&hasBodyMeasurement(draft.bodyComposition||{});
   const strengthMeasured=!draft.strength?.skipped;
-  const cardioMeasured=!draft.cardio?.skipped;
+  const cardioMeasured=!draft.cardio?.skipped&&draft.cardio?.valid===true&&((draft.cardio?.protocol==='1msts-standard'&&draft.cardio?.durationSeconds===60&&draft.cardio?.repetitions!==null)||(['ymca-3min-standard','iberfit-3min-adapted'].includes(draft.cardio?.protocol)&&draft.cardio?.durationSeconds===180&&draft.cardio?.stepHeightCm!==null&&draft.cardio?.cadenceBpm!==null&&draft.cardio?.finalHr!==null&&draft.cardio?.oneMinuteHr!==null));
   const states=Object.freeze({bodyComposition:bodyMeasured,strength:strengthMeasured,cardio:cardioMeasured});
   const measured=Object.values(states).filter(Boolean).length;
   return Object.freeze({states,measured,required:2,complete:measured>=2});
@@ -173,7 +186,7 @@ function stepErrors(draft,step){const errors=[];const profile=draft.personProfil
   if(step==='composicion'){if(draft.bodyComposition.skipped){if(!draft.bodyComposition.skipReason)errors.push('bodyCompositionSkipReason');}else if(!hasBodyMeasurement(draft.bodyComposition))errors.push('bodyCompositionMeasurement');}
   if(step==='movilidad'){if(draft.mobility.skipped){if(!draft.mobility.skipReason)errors.push('mobilitySkipReason');}else{if(draft.mobility.ankle.leftBest===null||draft.mobility.ankle.rightBest===null)errors.push('ankleTrials');if(draft.mobility.posteriorChain.leftBest===null||draft.mobility.posteriorChain.rightBest===null)errors.push('posteriorTrials');if(!draft.mobility.hipRotation.result)errors.push('hipRotationResult');if(!draft.mobility.assistedSquat.depth)errors.push('squatDepth');}}
   if(step==='fuerza'){if(draft.strength.skipped){if(!draft.strength.skipReason)errors.push('strengthSkipReason');}else{if(draft.strength.chairStand.repetitions===null||!draft.strength.chairStand.valid)errors.push('chairStand30s');if(!draft.strength.push.variant||draft.strength.push.repetitions===null||!draft.strength.push.valid)errors.push('pushTest');if(draft.strength.trxRow.repetitions===null||!draft.strength.trxRow.valid)errors.push('trxRow');if(draft.strength.core.frontPlankSeconds===null)errors.push('frontPlank');}}
-  if(step==='cardio'){if(draft.cardio.skipped){if(!draft.cardio.skipReason)errors.push('cardioSkipReason');}else{if(!draft.cardio.valid)errors.push('cardioValid');if(draft.cardio.finalHr===null||draft.cardio.oneMinuteHr===null||draft.cardio.deltaOneMinute<0)errors.push('cardioHeartRate');if(draft.cardio.durationSeconds===null||draft.cardio.durationSeconds>180)errors.push('cardioDuration');}}
+  if(step==='cardio'){if(draft.cardio.skipped){if(!draft.cardio.skipReason)errors.push('cardioSkipReason');}else{if(!['1msts-standard','ymca-3min-standard','iberfit-3min-adapted'].includes(draft.cardio.protocol))errors.push('cardioProtocol');if(!draft.cardio.valid)errors.push('cardioValid');if(draft.cardio.protocol==='1msts-standard'){if(draft.cardio.repetitions===null)errors.push('cardioRepetitions');if(draft.cardio.durationSeconds!==60)errors.push('cardioDuration');if((draft.cardio.finalHr===null)!==(draft.cardio.oneMinuteHr===null))errors.push('cardioHeartRatePair');if(draft.cardio.deltaOneMinute!==null&&draft.cardio.deltaOneMinute<0)errors.push('cardioHeartRate');}else if(['ymca-3min-standard','iberfit-3min-adapted'].includes(draft.cardio.protocol)){if(draft.cardio.stepHeightCm===null)errors.push('cardioStepHeight');if(draft.cardio.cadenceBpm===null)errors.push('cardioCadence');if(draft.cardio.durationSeconds!==180)errors.push('cardioDuration');if(draft.cardio.finalHr===null||draft.cardio.oneMinuteHr===null||draft.cardio.deltaOneMinute<0)errors.push('cardioHeartRate');if(draft.cardio.protocol==='ymca-3min-standard'&&(Math.abs(draft.cardio.stepHeightCm-30.5)>.05||draft.cardio.cadenceBpm!==96))errors.push('cardioYmcaStandard');}}}
   if(step==='revision'){if(draft.diagnosis.strengths.length<1)errors.push('diagnosisStrengths');if(draft.diagnosis.priorities.length<1)errors.push('diagnosisPriorities');if(draft.diagnosis.coachInterpretation.length<20)errors.push('coachInterpretation');if(draft.diagnosis.initialPlan.length<20)errors.push('initialPlan');if(!draft.diagnosis.reviewAccepted)errors.push('reviewAccepted');if(!coreDomainCoverage(draft).complete)errors.push('coreDomains');}
   return errors;
 }
@@ -209,7 +222,7 @@ export function confirmedFirstSessionDraft(record={},clientId=''){
 }
 
 export function validateFirstSessionDraft(draft){const byStep=Object.fromEntries(IRI_FIRST_SESSION_STEPS.map((step)=>[step,stepErrors(draft,step)]));const errors=Object.values(byStep).flat();return Object.freeze({ok:errors.length===0,errors:Object.freeze([...new Set(errors)]),byStep:Object.freeze(byStep),completion:Object.freeze(firstSessionCompletion(draft))});}
-export function firstSessionCompletion(draft){const steps=IRI_FIRST_SESSION_STEPS.map((step)=>({step,complete:stepErrors(draft,step).length===0}));const complete=steps.filter((item)=>item.complete).length;return {complete,total:steps.length,percent:Math.round((complete/steps.length)*100),steps};}
+export function firstSessionCompletion(draft){const steps=IRI_REQUIRED_SESSION_STEPS.map((step)=>({step,complete:stepErrors(draft,step).length===0}));const complete=steps.filter((item)=>item.complete).length;return {complete,total:steps.length,percent:Math.round((complete/steps.length)*100),steps};}
 
 export function buildIriCommandDraftFromFirstSession(draft,current={}){
   const check=validateFirstSessionDraft(draft);if(!check.ok)throw new Error(`M26_IRI_FIRST_SESSION_INVALID:${check.errors.join(',')}`);
@@ -222,7 +235,7 @@ export function buildIriCommandDraftFromFirstSession(draft,current={}){
     canonicalClientRevision:draft.canonicalClientRevision,
     canonicalProfileRevision:draft.canonicalProfileRevision,
     birthDate:draft.personProfile.birthDate,sexForNorms:draft.personProfile.sexForNorms,
-    stepFinalHr:draft.cardio.skipped?null:draft.cardio.finalHr,stepOneMinuteHr:draft.cardio.skipped?null:draft.cardio.oneMinuteHr,
+    stepFinalHr:draft.cardio.skipped?null:draft.cardio.finalHr,stepOneMinuteHr:draft.cardio.skipped?null:draft.cardio.oneMinuteHr,oneMinuteSitToStandRepetitions:draft.cardio.skipped?null:draft.cardio.repetitions,
     ...(standardPush?{pushUps:draft.strength.push.repetitions}:{}),
     chairStand30s:draft.strength.skipped?null:draft.strength.chairStand.repetitions,
     ...(weightBearingLunge!==null?{weightBearingLunge}:{}),
@@ -240,7 +253,7 @@ export function flattenFirstSessionDraft(draft={}){
     bodyCompositionSkipped:b.skipped,bodyCompositionSkipReason:b.skipReason||'',weightKg:b.weightKg??'',heightCm:b.heightCm??'',bodyFatPercent:b.bodyFatPercent??'',leanMassKg:b.leanMassKg??'',muscleMassKg:b.muscleMassKg??'',bodyWaterPercent:b.bodyWaterPercent??'',waistCm:b.waistCm??'',visceralFatLevel:b.visceralFatLevel??'',bodyCompositionMethod:b.method||'',bodyCompositionDevice:b.device||'',measurementConditions:b.measurementConditions||'',bodyCompositionAttachmentName:b.attachmentName||'',bodyCompositionAttachmentType:b.attachmentType||'',bodyCompositionAttachmentSize:b.attachmentSize??'',bodyCompositionNotes:b.notes||'',
     mobilitySkipped:m.skipped,mobilitySkipReason:m.skipReason||'',anklePain:m.ankle?.pain||'',ankleCompensation:m.ankle?.compensation||'',posteriorPain:m.posteriorChain?.pain||'',thomasLeft:m.modifiedThomas?.left||'',thomasRight:m.modifiedThomas?.right||'',thomasPelvicControl:m.modifiedThomas?.pelvicControl||'',thomasPain:m.modifiedThomas?.pain||'',hipRotationResult:m.hipRotation?.result||'',hipRotationPain:m.hipRotation?.pain||'',hipRotationCompensation:m.hipRotation?.compensation||'',squatDepth:m.assistedSquat?.depth||'',squatHeels:m.assistedSquat?.heels||'',squatKnees:m.assistedSquat?.knees||'',squatTrunk:m.assistedSquat?.trunk||'',squatShift:m.assistedSquat?.lateralShift||'',squatAssistanceResponse:m.assistedSquat?.assistanceResponse||'',squatPain:m.assistedSquat?.pain||'',mobilityNotes:m.notes||'',
     strengthSkipped:s.skipped,strengthSkipReason:s.skipReason||'',chairStand30s:s.chairStand?.repetitions??'',chairHeightCm:s.chairStand?.chairHeightCm??'',chairStandValid:s.chairStand?.valid,pushVariant:s.push?.variant||'',pushUps:s.push?.repetitions??'',pushSupportHeightCm:s.push?.supportHeightCm??'',pushValid:s.push?.valid,trxRowRepetitions:s.trxRow?.repetitions??'',trxHandleHeightCm:s.trxRow?.handleHeightCm??'',trxHeelDistanceCm:s.trxRow?.heelDistanceCm??'',trxPosition:s.trxRow?.position||'',trxValid:s.trxRow?.valid,frontPlankSeconds:s.core?.frontPlankSeconds??'',sidePlankLeftSeconds:s.core?.sidePlankLeftSeconds??'',sidePlankRightSeconds:s.core?.sidePlankRightSeconds??'',coreQuality:s.core?.quality||'',corePain:s.core?.pain||'',posteriorChainProtocol:s.posteriorChain?.protocol||'',posteriorChainSeconds:s.posteriorChain?.seconds??'',posteriorEquipmentCompatible:s.posteriorChain?.equipmentCompatible,posteriorNotPerformedReason:s.posteriorChain?.notPerformedReason||'',posteriorChainPain:s.posteriorChain?.pain||'',strengthNotes:s.notes||'',
-    cardioSkipped:c.skipped,cardioSkipReason:c.skipReason||'',cardioProtocol:c.protocol||'',stepHeightCm:c.stepHeightCm??'',cadenceBpm:c.cadenceBpm??'',cardioDurationSeconds:c.durationSeconds??'',restingHr:c.restingHr??'',stepFinalHr:c.finalHr??'',stepOneMinuteHr:c.oneMinuteHr??'',twoMinuteHr:c.twoMinuteHr??'',cardioRpe:c.rpe??'',cardioValid:c.valid,cardioSymptoms:c.symptoms||'',cardioStopReason:c.stopReason||'',cardioNotes:c.notes||'',
+    cardioSkipped:c.skipped,cardioSkipReason:c.skipReason||'',cardioProtocol:c.protocol||'',cardioChairHeightCm:c.chairHeightCm??'',oneMinuteSitToStandRepetitions:c.repetitions??'',stepHeightCm:c.stepHeightCm??'',cadenceBpm:c.cadenceBpm??'',cardioDurationSeconds:c.durationSeconds??'',restingHr:c.restingHr??'',stepFinalHr:c.finalHr??'',stepOneMinuteHr:c.oneMinuteHr??'',twoMinuteHr:c.twoMinuteHr??'',cardioRpe:c.rpe??'',cardioValid:c.valid,cardioSymptoms:c.symptoms||'',cardioStopReason:c.stopReason||'',cardioNotes:c.notes||'',
     diagnosisStrengths:(d.strengths||[]).join('\n'),diagnosisPriorities:(d.priorities||[]).join('\n'),coachInterpretation:d.coachInterpretation||'',trainingImplications:d.trainingImplications||'',initialPlan:d.initialPlan||'',recommendedFrequency:d.recommendedFrequency||'',reevaluationDate:d.reevaluationDate||'',reviewAccepted:d.reviewAccepted};
   (Array.isArray(d.priorityRecords)?d.priorityRecords:[]).slice(0,4).forEach((priority,index)=>{
     const slot=index+1;const item=priority&&typeof priority==='object'?priority:{};

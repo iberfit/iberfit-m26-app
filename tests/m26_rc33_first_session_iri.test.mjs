@@ -40,7 +40,7 @@ test('alta de cliente normaliza contrato y mantiene acceso desactivado',()=>{
 
 test('primera sesión completa produce draft trazable para IRI existente',()=>{
   const draft=normalizeFirstSessionDraft(validRaw(),{id:'IRI-RC33',clientId:'CLIENT-RC33'},'CLIENT-RC33');
-  const check=validateFirstSessionDraft(draft);assert.equal(check.ok,true,check.errors.join(','));assert.equal(firstSessionCompletion(draft).percent,100);assert.equal(draft.cardio.deltaOneMinute,29);assert.equal(draft.mobility.ankle.leftBest,8.4);
+  const check=validateFirstSessionDraft(draft);assert.equal(check.ok,true,check.errors.join(','));assert.equal(firstSessionCompletion(draft).percent,100);assert.equal(firstSessionCompletion(draft).total,7);assert.equal(draft.cardio.deltaOneMinute,29);assert.equal(draft.mobility.ankle.leftBest,8.4);
   const commandDraft=buildIriCommandDraftFromFirstSession(draft,{id:'IRI-RC33',clientId:'CLIENT-RC33',revision:2});
   assert.equal(commandDraft.pushUps,12);assert.equal(commandDraft.chairStand30s,18);assert.equal(commandDraft.firstSessionSchema,'iberfit-iri-first-session-v1');assert.equal(commandDraft.cardio.protocol,'ymca-3min-standard');
 });
@@ -91,7 +91,7 @@ test('rutas RC33 contienen alta y wizard completo sin handlers inline',()=>{
   const clients=renderClientsRoute({clients:[],selectedClientId:null,canCreate:true});
   assert.match(clients,/data-workflow-form="client-onboarding"/);assert.match(clients,/create-client-draft/);assert.doesNotMatch(clients,/on(?:click|submit)=/i);
   const iri=renderIriRoute({current:{id:'IRI-RC33'},currentSummary:null,profile:{birthDate:'1992-04-11',sexForNorms:'female',sexForNormsLabel:'Mujer',email:'cliente@example.com',phone:'+56 9',modality:'hibrido',modalityLabel:'Híbrido',trainingAddress:'Av. IBERFIT 123'},canEdit:true,history:[]});
-  assert.equal((iri.match(/data-iri-step="/g)||[]).length,7);assert.match(iri,/generate-client-iri-report/);assert.match(iri,/generate-coach-iri-report/);assert.match(iri,/data-iri-timer-action="start"/);assert.doesNotMatch(iri,/on(?:click|submit)=/i);
+  assert.equal((iri.match(/data-iri-step="/g)||[]).length,8);assert.match(iri,/data-iri-step="fotografia"/);assert.match(iri,/generate-client-iri-report/);assert.match(iri,/generate-coach-iri-report/);assert.match(iri,/data-iri-timer-action="start"/);assert.doesNotMatch(iri,/on(?:click|submit)=/i);
 });
 
 test('transporte canary exige preflight V12 y alta visible sin ampliar RPC canónicos',async()=>{

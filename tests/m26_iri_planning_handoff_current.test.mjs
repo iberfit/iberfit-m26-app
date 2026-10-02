@@ -127,10 +127,13 @@ test('Client planning never exposes internal IRI decision context',()=>{
   assert.doesNotMatch(html,/data-workflow-form="planning"/u);
 });
 
-test('planning view model derives the handoff only from confirmed IRI assessments',()=>{
+test('planning view model derives the handoff only from the confirmed initial IRI baseline',()=>{
   const source=fs.readFileSync(new URL('../src/m26/modules/route-view-model.js',import.meta.url),'utf8');
-  assert.match(source,/filter\(\(record\)=>compactIri\(record\)\?\.confirmed\)/u);
-  assert.match(source,/confirmedFirstSessionDraft\(record,clientId\)/u);
+  assert.match(source,/const baselineIri=recordsForClient\(state,'iriAssessments',clientId\)/u);
+  assert.match(source,/type==='inicial'/u);
+  assert.match(source,/baselineIri&&compactIri\(baselineIri\)\?\.confirmed/u);
+  assert.match(source,/confirmedFirstSessionDraft\(baselineIri,clientId\)/u);
+  assert.match(source,/String\(domainDate\(a\)\|\|''\)\.localeCompare\(String\(domainDate\(b\)\|\|''\)\)/u);
   assert.match(source,/buildIriPlanningSeed\(\{decisionLog,profile\}\)/u);
   assert.match(source,/iriPlanningSeed=canEdit\?/u);
 });

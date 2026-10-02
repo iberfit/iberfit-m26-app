@@ -384,7 +384,7 @@ test('Meaningful progress and low-adherence guidance only appear from confirmed 
   assert.match(source,/summary\.dataQuality!=='limitada'/u);
   assert.match(source,/Number\(summary\.completedSessions\|\|0\)>=2/u);
   assert.match(source,/Number\(summary\.checkins\|\|0\)>=3/u);
-  assert.match(source,/Number\(summary\.iriAssessmentCount\|\|0\)>=2/u);
+  assert.doesNotMatch(source,/Number\(summary\.iriAssessmentCount\|\|0\)>=2/u);
   assert.match(source,/data-m26-client-guide-insight="progress-ready"/u);
 
   const guideBlock=vmSource.slice(
@@ -487,7 +487,7 @@ test('Progreso se descubre solo con evolución posterior al IRI inicial',()=>{
 
   assert.equal(progressSummaryHasEvolutionEvidence({...baselineOnly,completedSessions:1}),true);
   assert.equal(progressSummaryHasEvolutionEvidence({...baselineOnly,checkins:1}),true);
-  assert.equal(progressSummaryHasEvolutionEvidence({...baselineOnly,iriAssessmentCount:2}),true);
+  assert.equal(progressSummaryHasEvolutionEvidence({...baselineOnly,iriAssessmentCount:2}),false);
   assert.equal(progressSummaryHasEvolutionEvidence({
     ...baselineOnly,
     wearable:{daysWithData:1,metrics:{steps:7400},providers:['garmin_connect']},

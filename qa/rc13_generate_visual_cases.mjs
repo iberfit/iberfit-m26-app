@@ -41,20 +41,7 @@ function stateFor(role,activeArea,scenario='normal'){
       clientProfiles:[{id:'profile-1',clientId,objective:'Fuerza, salud y autonomía',status:'activo'}],clientAccess:[{id:'access-1',clientId,status:'activo'}],
       iriAssessments:[
         {
-          id:'iri-2',clientId,assessmentDate:'2026-07-18',firstSessionCompletedAt:'2026-07-18T10:45:00Z',status:'confirmado',
-          birthDate:'1990-02-03',sexForNorms:'female',stepFinalHr:148,stepOneMinuteHr:116,
-          bodyComposition:{weightKg:67.8,bodyFatPercent:23.2,method:'bioimpedancia',device:'IBERFIT'},
-          strengthPatterns:{
-            chairStand:{repetitions:17,valid:true},
-            push:{variant:'standard',repetitions:12,valid:true},
-            trxRow:{repetitions:14,valid:true},
-            core:{frontPlankSeconds:55},
-          },
-          personProfile:{birthDate:'1990-02-03',sexForNorms:'female',email:'cliente.qa@iberfit.cl',phone:'+56 9 5555 0101',modality:'hibrido',trainingAddress:'Las Condes',primaryObjective:'Fuerza, salud y autonomía',weeklyFrequency:3,sessionDurationMinutes:60},
-          diagnosis:{strengths:['Buena adherencia','Control técnico estable'],priorities:['Fuerza tren inferior','Capacidad cardiorrespiratoria'],coachInterpretation:'Perfil apto para progresar con control técnico y seguimiento individualizado.',trainingImplications:'Mantener progresión gradual y revisar tolerancia de carga.',initialPlan:'Ciclo base de ocho semanas con tres sesiones por semana.',recommendedFrequency:'3 sesiones por semana',reevaluationDate:'2026-09-18',reviewAccepted:true},
-        },
-        {
-          id:'iri-1',clientId,assessmentDate:'2026-06-01',firstSessionCompletedAt:'2026-06-01T10:45:00Z',status:'confirmado',
+          id:'iri-1',clientId,assessmentType:'inicial',assessmentDate:'2026-06-01',firstSessionCompletedAt:'2026-06-01T10:45:00Z',status:'confirmado',
           birthDate:'1990-02-03',sexForNorms:'female',stepFinalHr:154,stepOneMinuteHr:120,
           bodyComposition:{weightKg:68.4,bodyFatPercent:24.1,method:'bioimpedancia',device:'IBERFIT'},
           strengthPatterns:{
