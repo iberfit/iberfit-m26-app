@@ -60,6 +60,16 @@ begin
   -- A Solo IRI person has no active training lifecycle. Keep the standard lifecycle
   -- vocabulary and append an inactive event instead of mutating historical constraints.
   if v_relationship='iri_only' then
+    update public.client_access_v26
+    set status='sin_acceso',
+        invitation_delivery_status=null,
+        invitation_error_code=null,
+        last_invitation_operation_id=null,
+        updated_at=now(),
+        revision=revision+1
+    where client_id=v_client::uuid
+      and status<>'activo';
+
     select e.status into v_latest_status
     from public.iberfit_client_lifecycle_events e
     where e.organization_id=v_org and e.client_id=v_client
@@ -80,7 +90,13 @@ begin
   -- The Coach relationship remains active for IRI authorization and document custody.
   -- It is not used as a proxy for active training client metrics.
   if v_coach is null then
-    return v_result||jsonb_build_object('relationshipType',v_relationship);
+    return v_result||jsonb_build_object(
+      'relationshipType',v_relationship,
+      'invitation',case when v_relationship='iri_only'
+        then jsonb_build_object('accessStatus','sin_acceso','deliveryStatus',null,'reason','iri_only_no_access')
+        else coalesce(v_result->'invitation','{}'::jsonb)
+      end
+    );
   end if;
 
   select a.id into v_assignment
@@ -119,6 +135,10 @@ begin
 
   return v_result||jsonb_build_object(
     'relationshipType',v_relationship,
+    'invitation',case when v_relationship='iri_only'
+      then jsonb_build_object('accessStatus','sin_acceso','deliveryStatus',null,'reason','iri_only_no_access')
+      else coalesce(v_result->'invitation','{}'::jsonb)
+    end,
     'coachAssignment',
     jsonb_build_object(
       'id',v_assignment,
