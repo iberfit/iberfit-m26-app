@@ -40,10 +40,10 @@ import {classifyCoachListMeasurement,decideCoachVirtualization,markCoachListMeas
 const IRI_DRAFT_SCOPE='iri-first-session';
 const PUBLISHED_SESSION_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
 const IRI_FIELD_LABELS=Object.freeze({
-  assessmentDate:'fecha de evaluación',birthDate:'fecha de nacimiento',sexForNorms:'sexo para baremos',email:'correo electrónico',phone:'teléfono',modality:'modalidad',trainingAddress:'dirección de entrenamiento',primaryObjective:'objetivo principal',screeningAccepted:'cribado y seguridad',trainingExperience:'experiencia',availability:'disponibilidad',bodyCompositionSkipReason:'motivo de no realización',bodyCompositionMeasurement:'al menos una medición corporal',mobilitySkipReason:'motivo de no realización',ankleTrials:'mediciones de tobillo',posteriorTrials:'mediciones de cadena posterior',hipRotationResult:'rotación de cadera',squatDepth:'sentadilla asistida',strengthSkipReason:'motivo de no realización',chairStand30s:'silla 30 segundos',pushTest:'prueba de empuje',trxRow:'remo TRX',frontPlank:'plancha frontal',cardioSkipReason:'motivo de no realización',cardioProtocol:'protocolo de capacidad',cardioValid:'validez del test',cardioRepetitions:'repeticiones completas del 1MSTS',cardioHeartRate:'frecuencia cardiaca final y al minuto',cardioHeartRatePair:'frecuencia cardiaca final y al minuto deben registrarse juntas',cardioStepHeight:'altura del escalón',cardioCadence:'cadencia del step test',cardioYmcaStandard:'configuración YMCA estándar',cardioDuration:'duración del test',diagnosisStrengths:'fortalezas',diagnosisPriorities:'prioridades',coachInterpretation:'interpretación del Coach',initialPlan:'plan inicial',reviewAccepted:'revisión profesional',coreDomains:'al menos dos dominios objetivos completos',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración habitual',
+  assessmentDate:'fecha de evaluación',birthDate:'fecha de nacimiento',sexForNorms:'sexo para baremos',email:'correo electrónico',phone:'teléfono',modality:'modalidad',trainingAddress:'dirección de entrenamiento',primaryObjective:'objetivo principal',screeningAccepted:'cribado y seguridad',trainingExperience:'experiencia',availability:'disponibilidad',bodyCompositionSkipReason:'motivo de no realización',bodyCompositionMeasurement:'al menos una medición corporal',mobilitySkipReason:'motivo de no realización',ankleTrials:'mediciones de tobillo',posteriorTrials:'mediciones de cadena posterior',hipRotationResult:'rotación de cadera',squatDepth:'sentadilla asistida',strengthSkipReason:'motivo de no realización',lowerBodyStrength:'silla 30 segundos o sentadilla libre de 1 minuto',chairStand30s:'silla 30 segundos',pushTest:'prueba de empuje',trxRow:'remo TRX',frontPlank:'plancha frontal',cardioSkipReason:'motivo de no realización',cardioProtocol:'protocolo de capacidad',cardioValid:'validez del test',cardioRepetitions:'repeticiones completas del 1MSTS',cardioHeartRate:'frecuencia cardiaca final y al minuto',cardioHeartRatePair:'frecuencia cardiaca final y al minuto deben registrarse juntas',cardioStepHeight:'altura del escalón',cardioCadence:'cadencia del step test',cardioYmcaStandard:'configuración YMCA estándar',cardioTreadmillMode:'modo de cinta',cardioTreadmillSpeed:'velocidad de cinta',cardioDuration:'duración del test',diagnosisStrengths:'fortalezas',diagnosisPriorities:'prioridades',coachInterpretation:'interpretación del Coach',initialPlan:'plan inicial',reviewAccepted:'revisión profesional',coreDomains:'al menos dos dominios objetivos completos',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración habitual',
 });
 const IRI_ERROR_FIELD_TARGET=Object.freeze({
-  bodyCompositionMeasurement:'weightKg',ankleTrials:'ankleLeft1',posteriorTrials:'posteriorLeft1',hipRotationResult:'hipRotationResult',squatDepth:'squatDepth',chairStand30s:'chairStand30s',pushTest:'pushVariant',trxRow:'trxRowRepetitions',frontPlank:'frontPlankSeconds',cardioProtocol:'cardioProtocol',cardioValid:'cardioValid',cardioRepetitions:'oneMinuteSitToStandRepetitions',cardioHeartRate:'stepFinalHr',cardioHeartRatePair:'stepFinalHr',cardioStepHeight:'stepHeightCm',cardioCadence:'cadenceBpm',cardioYmcaStandard:'cardioProtocol',cardioDuration:'cardioDurationSeconds',diagnosisStrengths:'diagnosisStrengths',diagnosisPriorities:'diagnosisPriorities',coachInterpretation:'coachInterpretation',initialPlan:'initialPlan',reviewAccepted:'reviewAccepted',bodyCompositionSkipReason:'bodyCompositionSkipReason',mobilitySkipReason:'mobilitySkipReason',strengthSkipReason:'strengthSkipReason',cardioSkipReason:'cardioSkipReason',
+  bodyCompositionMeasurement:'weightKg',ankleTrials:'ankleLeft1',posteriorTrials:'posteriorLeft1',hipRotationResult:'hipRotationResult',squatDepth:'squatDepth',lowerBodyStrength:'squat60sRepetitions',chairStand30s:'chairStand30s',pushTest:'pushVariant',trxRow:'trxRowRepetitions',frontPlank:'frontPlankSeconds',cardioProtocol:'cardioProtocol',cardioValid:'cardioValid',cardioRepetitions:'oneMinuteSitToStandRepetitions',cardioHeartRate:'stepFinalHr',cardioHeartRatePair:'stepFinalHr',cardioStepHeight:'stepHeightCm',cardioCadence:'cadenceBpm',cardioYmcaStandard:'cardioProtocol',cardioTreadmillMode:'treadmillMode',cardioTreadmillSpeed:'treadmillSpeedKmh',cardioDuration:'cardioDurationSeconds',diagnosisStrengths:'diagnosisStrengths',diagnosisPriorities:'diagnosisPriorities',coachInterpretation:'coachInterpretation',initialPlan:'initialPlan',reviewAccepted:'reviewAccepted',bodyCompositionSkipReason:'bodyCompositionSkipReason',mobilitySkipReason:'mobilitySkipReason',strengthSkipReason:'strengthSkipReason',cardioSkipReason:'cardioSkipReason',
 });
 const ONBOARDING_FIELD_LABELS=Object.freeze({
   name:'nombre completo',email:'correo electrónico',phone:'teléfono',birthDate:'fecha de nacimiento',sexForNorms:'sexo para baremos',modality:'modalidad',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración habitual',primaryObjective:'objetivo principal',
@@ -486,9 +486,10 @@ export function createWorkflowController({
     syncIriConditionalFields(form);
     const raw=iriRaw(form);const weight=Number(raw.weightKg),height=Number(raw.heightCm);const bmi=Number.isFinite(weight)&&Number.isFinite(height)&&height>0?weight/((height/100)**2):null;
     const bmiField=form.elements?.namedItem?.('bmiPreview');if(bmiField)bmiField.value=bmi?bmi.toFixed(1):'';
-    const finalHr=Number(raw.stepFinalHr),oneHr=Number(raw.stepOneMinuteHr);const delta=Number.isFinite(finalHr)&&Number.isFinite(oneHr)?finalHr-oneHr:null;
+    const finalHr=Number(raw.stepFinalHr),oneHr=Number(raw.stepOneMinuteHr),twoHr=Number(raw.twoMinuteHr);const delta=Number.isFinite(finalHr)&&Number.isFinite(oneHr)?finalHr-oneHr:null;const deltaTwo=Number.isFinite(finalHr)&&Number.isFinite(twoHr)?finalHr-twoHr:null;
     const deltaField=form.elements?.namedItem?.('deltaFcPreview');if(deltaField)deltaField.value=delta===null?'':String(delta);
-    for(const node of form.querySelectorAll?.('[data-iri-computed="delta"]')||[])node.textContent=delta===null?'—':`${delta} lpm`;
+    const deltaTwoField=form.elements?.namedItem?.('deltaFcTwoPreview');if(deltaTwoField)deltaTwoField.value=deltaTwo===null?'':String(deltaTwo);
+    for(const node of form.querySelectorAll?.('[data-iri-computed="delta"]')||[])node.textContent=delta===null?'—':`${delta} lpm · 2 min ${deltaTwo===null?'—':deltaTwo+' lpm'}`;
     let normalized=draft;try{normalized=normalized||iriDraft(form);}catch{}
     const completion=normalized?firstSessionCompletion(normalized):{percent:0,steps:[]};
     for(const node of form.querySelectorAll?.('[data-iri-computed="completion"]')||[])node.textContent=`${completion.percent}%`;
@@ -541,7 +542,8 @@ export function createWorkflowController({
     const is1msts=protocol==='1msts-standard';
     const isYmca=protocol==='ymca-3min-standard';
     const isLegacy=protocol==='iberfit-3min-adapted';
-    const hasProtocol=is1msts||isYmca||isLegacy;
+    const isTreadmill=protocol==='treadmill-3min-field';
+    const hasProtocol=is1msts||isYmca||isLegacy||isTreadmill;
 
     const previous=String(form.dataset?.iriCardioProtocol||'');
     if(previous&&previous!==protocol&&iriTimer?.form===form)stopIriTimer();
@@ -549,7 +551,7 @@ export function createWorkflowController({
 
     for(const panel of form.querySelectorAll?.('[data-iri-cardio-panel]')||[]){
       const panelKind=String(panel.getAttribute?.('data-iri-cardio-panel')||'');
-      const visible=panelKind==='1msts-standard'?is1msts:panelKind==='step'?isYmca||isLegacy:panelKind===protocol;
+      const visible=panelKind==='1msts-standard'?is1msts:panelKind==='step'?isYmca||isLegacy:panelKind==='treadmill'?isTreadmill:panelKind===protocol;
       panel.hidden=!visible;
     }
 
@@ -560,17 +562,27 @@ export function createWorkflowController({
     const duration=form.elements?.namedItem?.('cardioDurationSeconds');
     const finalHr=form.elements?.namedItem?.('stepFinalHr');
     const recoveryHr=form.elements?.namedItem?.('stepOneMinuteHr');
+    const recoveryTwoHr=form.elements?.namedItem?.('twoMinuteHr');
+    const treadmillMode=form.elements?.namedItem?.('treadmillMode');
+    const treadmillSpeed=form.elements?.namedItem?.('treadmillSpeedKmh');
+    const treadmillIncline=form.elements?.namedItem?.('treadmillInclinePercent');
+    const treadmillEffort=form.elements?.namedItem?.('treadmillEffortDescription');
 
     setIriConditionalControl(chair,{enabled:!skipped&&is1msts,required:is1msts});
     setIriConditionalControl(repetitions,{enabled:!skipped&&is1msts,required:is1msts});
     setIriConditionalControl(stepHeight,{enabled:!skipped&&(isYmca||isLegacy),required:isYmca||isLegacy,readonly:isYmca});
     setIriConditionalControl(cadence,{enabled:!skipped&&(isYmca||isLegacy),required:isYmca||isLegacy,readonly:isYmca});
     setIriConditionalControl(duration,{enabled:!skipped&&hasProtocol,required:hasProtocol,readonly:true});
-    setIriConditionalControl(finalHr,{enabled:!skipped&&hasProtocol,required:isYmca||isLegacy});
-    setIriConditionalControl(recoveryHr,{enabled:!skipped&&hasProtocol,required:isYmca||isLegacy});
+    setIriConditionalControl(finalHr,{enabled:!skipped&&hasProtocol,required:isYmca||isLegacy||isTreadmill});
+    setIriConditionalControl(recoveryHr,{enabled:!skipped&&hasProtocol,required:isYmca||isLegacy||isTreadmill});
+    setIriConditionalControl(recoveryTwoHr,{enabled:!skipped&&hasProtocol,required:isTreadmill});
+    setIriConditionalControl(treadmillMode,{enabled:!skipped&&isTreadmill,required:isTreadmill});
+    setIriConditionalControl(treadmillSpeed,{enabled:!skipped&&isTreadmill,required:isTreadmill&&String(treadmillMode?.value||'')==='fixed-speed'});
+    setIriConditionalControl(treadmillIncline,{enabled:!skipped&&isTreadmill});
+    setIriConditionalControl(treadmillEffort,{enabled:!skipped&&isTreadmill});
 
     if(!skipped&&is1msts&&duration)duration.value='60';
-    if(!skipped&&(isYmca||isLegacy)&&duration)duration.value='180';
+    if(!skipped&&(isYmca||isLegacy||isTreadmill)&&duration)duration.value='180';
     if(!skipped&&isYmca){
       if(stepHeight)stepHeight.value='30.5';
       if(cadence)cadence.value='96';
@@ -579,9 +591,9 @@ export function createWorkflowController({
     const title=form.querySelector?.('[data-iri-cardio-title]');
     const subtitle=form.querySelector?.('[data-iri-cardio-subtitle]');
     const timerCopy=form.querySelector?.('[data-iri-cardio-timer-copy]');
-    if(title)title.textContent=is1msts?'1MSTS · 60 segundos':isYmca?'YMCA Step Test · 3 minutos':isLegacy?'Step adaptado histórico':'Selecciona una prueba';
-    if(subtitle)subtitle.textContent=is1msts?'Capacidad funcional · repeticiones completas':isYmca?'Fitness cardiorrespiratorio · 30,5 cm · 96 bpm':isLegacy?'Sólo continuidad histórica; sin baremos YMCA':'IBERFIT mostrará únicamente los campos del protocolo elegido.';
-    if(timerCopy)timerCopy.textContent=is1msts?'Cuenta atrás de 60 segundos.':isYmca||isLegacy?'Cuenta atrás de 180 segundos.':'El temporizador se configura al elegir la prueba.';
+    if(title)title.textContent=is1msts?'1MSTS · 60 segundos':isYmca?'YMCA Step Test · 3 minutos':isTreadmill?'Cinta · 3 minutos · baseline individual':isLegacy?'Step adaptado histórico':'Selecciona una prueba';
+    if(subtitle)subtitle.textContent=is1msts?'Capacidad funcional · repeticiones completas':isYmca?'Fitness cardiorrespiratorio · 30,5 cm · 96 bpm':isTreadmill?'Respuesta individual al esfuerzo · sin baremo automático':isLegacy?'Sólo continuidad histórica; sin baremos YMCA':'IBERFIT mostrará únicamente los campos del protocolo elegido.';
+    if(timerCopy)timerCopy.textContent=is1msts?'Cuenta atrás de 60 segundos.':isYmca||isLegacy||isTreadmill?'Cuenta atrás de 180 segundos.':'El temporizador se configura al elegir la prueba.';
 
     const timerDisabled=skipped||!hasProtocol;
     for(const button of form.querySelectorAll?.('[data-iri-timer-action]')||[]){
@@ -589,15 +601,15 @@ export function createWorkflowController({
       button.setAttribute?.('aria-disabled',timerDisabled?'true':'false');
     }
     if(timerDisabled&&iriTimer?.form===form)stopIriTimer();
-    if(!iriTimer||iriTimer.form!==form)paintIriTimer(form,is1msts?60:(isYmca||isLegacy)?180:0);
-    return Object.freeze({protocol,is1msts,isYmca,isLegacy,hasProtocol});
+    if(!iriTimer||iriTimer.form!==form)paintIriTimer(form,is1msts?60:(isYmca||isLegacy||isTreadmill)?180:0);
+    return Object.freeze({protocol,is1msts,isYmca,isLegacy,isTreadmill,hasProtocol});
   }
   function syncIriConditionalFields(form){
     if(!form)return;
     const bodySkipped=syncIriSkippedGroup(form,{toggleName:'bodyCompositionSkipped',fieldNames:['weightKg','heightCm','bodyFatPercent','leanMassKg','muscleMassKg','bodyWaterPercent','waistCm','visceralFatLevel','bodyCompositionMethod','bodyCompositionDevice','measurementConditions','bodyCompositionAttachment','bodyCompositionNotes','bodyCompositionProtocolConfiguration','bodyCompositionValid','bodyCompositionAdaptationReason','bodyCompositionProtocolStopReason'],reasonName:'bodyCompositionSkipReason'});
-    const mobilitySkipped=syncIriSkippedGroup(form,{toggleName:'mobilitySkipped',fieldNames:['ankleLeft1','ankleLeft2','ankleLeft3','ankleRight1','ankleRight2','ankleRight3','posteriorLeft1','posteriorLeft2','posteriorLeft3','posteriorRight1','posteriorRight2','posteriorRight3','anklePain','ankleCompensation','posteriorPain','thomasLeft','thomasRight','thomasPelvicControl','thomasPain','hipRotationResult','hipRotationPain','hipRotationCompensation','squatDepth','squatHeels','squatKnees','squatTrunk','squatShift','squatAssistanceResponse','squatPain','mobilityNotes','ankleProtocolVariant','ankleConfiguration','ankleValid','ankleAdaptationReason','ankleStopReason','posteriorProtocolVariant','posteriorConfiguration','posteriorValid','posteriorAdaptationReason','posteriorStopReason','thomasProtocolVariant','thomasConfiguration','thomasValid','thomasAdaptationReason','thomasStopReason','hipRotationProtocolVariant','hipRotationConfiguration','hipRotationValid','hipRotationAdaptationReason','hipRotationStopReason','squatProtocolVariant','squatConfiguration','squatValid','squatAdaptationReason','squatStopReason'],reasonName:'mobilitySkipReason'});
-    const strengthSkipped=syncIriSkippedGroup(form,{toggleName:'strengthSkipped',fieldNames:['chairStand30s','chairHeightCm','chairStandValid','chairStandNotes','pushVariant','pushUps','pushSupportHeightCm','pushValid','pushNotes','trxRowRepetitions','trxHandleHeightCm','trxHeelDistanceCm','trxPosition','trxValid','trxNotes','frontPlankSeconds','sidePlankLeftSeconds','sidePlankRightSeconds','coreQuality','corePain','posteriorChainProtocol','posteriorChainSeconds','posteriorEquipmentCompatible','posteriorNotPerformedReason','posteriorChainPain','strengthNotes','chairStandProtocolVariant','chairStandConfiguration','chairStandAdaptationReason','chairStandStopReason','pushConfiguration','pushAdaptationReason','pushStopReason','trxProtocolVariant','trxConfiguration','trxAdaptationReason','trxStopReason','coreProtocolVariant','coreConfiguration','coreValid','coreAdaptationReason','coreStopReason','posteriorChainConfiguration','posteriorChainValid','posteriorChainAdaptationReason','posteriorChainStopReason'],reasonName:'strengthSkipReason'});
-    const cardioSkipped=syncIriSkippedGroup(form,{toggleName:'cardioSkipped',fieldNames:['cardioProtocol','cardioChairHeightCm','oneMinuteSitToStandRepetitions','stepHeightCm','cadenceBpm','cardioDurationSeconds','restingHr','stepFinalHr','stepOneMinuteHr','twoMinuteHr','cardioRpe','cardioValid','cardioSymptoms','cardioStopReason','cardioNotes','cardioConfiguration','cardioAdaptationReason'],reasonName:'cardioSkipReason'});
+    const mobilitySkipped=syncIriSkippedGroup(form,{toggleName:'mobilitySkipped',fieldNames:['ankleLeft1','ankleLeft2','ankleLeft3','ankleRight1','ankleRight2','ankleRight3','posteriorLeft1','posteriorLeft2','posteriorLeft3','posteriorRight1','posteriorRight2','posteriorRight3','anklePain','ankleCompensation','posteriorPain','thomasLeft','thomasRight','thomasPelvicControl','thomasPain','hipRotationResult','hipRotationPain','hipRotationCompensation','squatDepth','squatHeels','squatKnees','squatTrunk','squatShift','squatAssistanceResponse','squatPain','mobilitySurface','mobilityBenchAvailability','mobilitySupportUsed','mobilitySubstitutionNotes','mobilityNotes','ankleProtocolVariant','ankleConfiguration','ankleValid','ankleAdaptationReason','ankleStopReason','posteriorProtocolVariant','posteriorConfiguration','posteriorValid','posteriorAdaptationReason','posteriorStopReason','thomasProtocolVariant','thomasConfiguration','thomasValid','thomasAdaptationReason','thomasStopReason','hipRotationProtocolVariant','hipRotationConfiguration','hipRotationValid','hipRotationAdaptationReason','hipRotationStopReason','squatProtocolVariant','squatConfiguration','squatValid','squatAdaptationReason','squatStopReason'],reasonName:'mobilitySkipReason'});
+    const strengthSkipped=syncIriSkippedGroup(form,{toggleName:'strengthSkipped',fieldNames:['chairStand30s','chairHeightCm','chairStandValid','chairStandNotes','squat60sRepetitions','squat60sDurationSeconds','squat60sDepthCriterion','squat60sValid','squat60sNotes','pushVariant','pushUps','pushSupportHeightCm','pushTestMode','pushDurationSeconds','pushStopCriterion','pushValid','pushNotes','trxRowRepetitions','trxHandleHeightCm','trxHeelDistanceCm','trxPosition','trxTestMode','trxDurationSeconds','trxStopCriterion','trxValid','trxNotes','frontPlankSeconds','sidePlankLeftSeconds','sidePlankRightSeconds','coreQuality','corePain','posteriorChainProtocol','posteriorChainSeconds','posteriorEquipmentCompatible','posteriorNotPerformedReason','posteriorChainPain','strengthNotes','chairStandProtocolVariant','chairStandConfiguration','chairStandAdaptationReason','chairStandStopReason','pushConfiguration','pushAdaptationReason','pushStopReason','trxProtocolVariant','trxConfiguration','trxAdaptationReason','trxStopReason','coreProtocolVariant','coreConfiguration','coreValid','coreAdaptationReason','coreStopReason','posteriorChainConfiguration','posteriorChainValid','posteriorChainAdaptationReason','posteriorChainStopReason'],reasonName:'strengthSkipReason'});
+    const cardioSkipped=syncIriSkippedGroup(form,{toggleName:'cardioSkipped',fieldNames:['cardioProtocol','cardioChairHeightCm','oneMinuteSitToStandRepetitions','stepHeightCm','cadenceBpm','cardioDurationSeconds','restingHr','stepFinalHr','stepOneMinuteHr','twoMinuteHr','cardioRpe','treadmillMode','treadmillSpeedKmh','treadmillInclinePercent','treadmillEffortDescription','cardioValid','cardioSymptoms','cardioStopReason','cardioNotes','cardioConfiguration','cardioAdaptationReason'],reasonName:'cardioSkipReason'});
     syncIriCardioProtocol(form,{skipped:cardioSkipped});
     const modality=String(form.elements?.namedItem?.('modality')?.value||'');
     const address=form.elements?.namedItem?.('trainingAddress');
@@ -617,11 +629,11 @@ export function createWorkflowController({
   }
   function controlIriTimer(form,action){
     if(!form)return;
-    if(action==='reset'){stopIriTimer();const protocol=String(form.elements?.namedItem?.('cardioProtocol')?.value||'');const duration=protocol==='1msts-standard'?60:['ymca-3min-standard','iberfit-3min-adapted'].includes(protocol)?180:0;paintIriTimer(form,duration);status(root,'iri','Temporizador reiniciado.','info');return;}
+    if(action==='reset'){stopIriTimer();const protocol=String(form.elements?.namedItem?.('cardioProtocol')?.value||'');const duration=protocol==='1msts-standard'?60:['ymca-3min-standard','iberfit-3min-adapted','treadmill-3min-field'].includes(protocol)?180:0;paintIriTimer(form,duration);status(root,'iri','Temporizador reiniciado.','info');return;}
     if(action==='pause'){if(iriTimer?.form===form&&iriTimer.interval){clearInterval(iriTimer.interval);iriTimer.interval=null;status(root,'iri','Temporizador en pausa.','pending');}return;}
     if(action!=='start')return;
     if(iriTimer?.form===form&&iriTimer.interval)return;
-    const protocol=String(form.elements?.namedItem?.('cardioProtocol')?.value||'');const expectedDuration=protocol==='1msts-standard'?60:['ymca-3min-standard','iberfit-3min-adapted'].includes(protocol)?180:0;if(!expectedDuration){status(root,'iri','Selecciona primero un protocolo de capacidad.','error');return;}const initial=iriTimer?.form===form?iriTimer.remaining:expectedDuration;
+    const protocol=String(form.elements?.namedItem?.('cardioProtocol')?.value||'');const expectedDuration=protocol==='1msts-standard'?60:['ymca-3min-standard','iberfit-3min-adapted','treadmill-3min-field'].includes(protocol)?180:0;if(!expectedDuration){status(root,'iri','Selecciona primero un protocolo de capacidad.','error');return;}const initial=iriTimer?.form===form?iriTimer.remaining:expectedDuration;
     stopIriTimer();iriTimer={form,remaining:initial,interval:null,protocol};paintIriTimer(form,initial);const audioReady=signalIriTimer(520,140);status(root,'iri',audioReady?'Prueba en curso. Sonido de inicio activado; habrá avisos a 3, 2, 1 y final.':'Prueba en curso. Este navegador no permitió el sonido; mantén visible el temporizador.','pending');
     iriTimer.interval=setInterval(()=>{if(!form.isConnected){stopIriTimer();return;}iriTimer.remaining=Math.max(0,iriTimer.remaining-1);paintIriTimer(form,iriTimer.remaining);if([3,2,1].includes(iriTimer.remaining))signalIriTimer(660,110);if(iriTimer.remaining===0){const completedProtocol=iriTimer.protocol;signalIriTimer(1040,520);stopIriTimer();status(root,'iri',completedProtocol==='1msts-standard'?'60 segundos completados. Registra las repeticiones completas, RPE y síntomas; la FC es opcional.':'180 segundos completados. Registra FC final, recuperación, RPE y síntomas.','success');}},1000);
   }
