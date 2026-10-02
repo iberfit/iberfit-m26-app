@@ -726,7 +726,7 @@ if (area === 'clientes') {
         const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
         return !type||type==='inicial';
       })
-      .sort((a, b) => String(domainDate(b) || '').localeCompare(String(domainDate(a) || '')));
+      .sort((a, b) => String(domainDate(a) || '').localeCompare(String(domainDate(b) || '')));
     const current = iriRecords.find(
       (record) => text(record, 'id') === state.selectedIriAssessmentId
     ) || iriRecords[0] || null;
@@ -776,7 +776,7 @@ if (area === 'clientes') {
         const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
         return !type||type==='inicial';
       })
-      .sort((a,b)=>String(domainDate(b)||'').localeCompare(String(domainDate(a)||'')))[0]||null;
+      .sort((a,b)=>String(domainDate(a)||'').localeCompare(String(domainDate(b)||'')))[0]||null;
     const baselineDraft=baselineIri&&compactIri(baselineIri)?.confirmed
       ?confirmedFirstSessionDraft(baselineIri,clientId)
       :null;
