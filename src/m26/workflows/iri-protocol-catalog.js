@@ -1,4 +1,4 @@
-export const IRI_PROTOCOL_CATALOG_VERSION='iri-protocols-2026.07-v1';
+export const IRI_PROTOCOL_CATALOG_VERSION='iri-protocols-2026.10-v2';
 
 const freezeList=(items=[])=>Object.freeze(items.map((item)=>String(item)));
 const freezeProtocol=(protocol)=>Object.freeze({
@@ -223,21 +223,21 @@ const PROTOCOLS=[
     form:{variant:'posteriorChainProtocol',configuration:'posteriorChainConfiguration',valid:'posteriorChainValid',adaptation:'posteriorChainAdaptationReason',stop:'posteriorChainStopReason',target:'posteriorChainProtocol'},sides:['not-applicable'],
   },
   {
-    id:'three-minute-step',step:'cardio',name:'Step test de 3 minutos',area:'Capacidad cardiorrespiratoria',version:IRI_PROTOCOL_CATALOG_VERSION,
-    summary:'Respuesta de frecuencia cardiaca a tres minutos de escalón con altura y cadencia documentadas.',
-    evaluates:'Respuesta aguda al esfuerzo y recuperación de la frecuencia cardiaca bajo un protocolo reproducible.',
-    doesNotDiagnose:'No diagnostica enfermedad cardiovascular ni sustituye una prueba clínica de esfuerzo.',
-    variants:[{id:'ymca-3min-standard',label:'YMCA estándar · 30,5 cm · 96 bpm'},{id:'iberfit-3min-adapted',label:'IBERFIT adaptado · 20 cm · referencia individual'}],defaultVariant:'ymca-3min-standard',
-    material:['Escalón estable de altura medida.','Metrónomo o señal de cadencia.','Cronómetro.','Medición de frecuencia cardiaca.'],
-    startPosition:['Persona frente al escalón con espacio libre.','Cadencia demostrada antes de comenzar.','Frecuencia cardiaca en reposo registrada cuando corresponda.'],
-    steps:['Confirmar altura, cadencia y duración.','Iniciar el patrón de subida y bajada acordado.','Mantener la cadencia durante un máximo de 180 segundos.','Registrar FC final y al minuto; opcionalmente a los dos minutos.'],
-    observe:['Cadencia.','Estabilidad y coordinación.','Síntomas.','Fatiga y RPE.','Capacidad para continuar con seguridad.'],
-    valid:['Altura y cadencia corresponden a la variante.','Duración no supera 180 segundos.','FC final y al minuto registradas.','Sin interrupciones que invaliden la prueba.'],
-    invalid:['Altura o cadencia distintas sin adaptación registrada.','FC tomada fuera del momento definido.','Duración incorrecta.','Pérdida prolongada de la cadencia.'],
-    stop:['Dolor.','Mareo.','Disnea desproporcionada.','Pérdida de equilibrio.','Solicitud de la persona.','Imposibilidad de mantener la cadencia.'],
-    record:['Variante, altura, cadencia y duración.','FC en reposo, final, al minuto y a los dos minutos.','RPE y síntomas.','Validez, adaptación y motivo de finalización.'],
-    interpretation:['Calcular ΔFC al minuto.','Usar baremo YMCA solo con protocolo estándar compatible.','La variante de 20 cm es referencia individual y no se mezcla con YMCA.'],
-    visual:{kind:'step-test',start:'Cadencia y escalón confirmados',finish:'Tres minutos y recuperación',validCue:'Altura, cadencia y tiempos exactos',invalidCue:'Configuración distinta o FC fuera de tiempo'},
+    id:'one-minute-sit-to-stand',step:'cardio',name:'1MSTS · Sit-to-Stand de 1 minuto',area:'Capacidad funcional',version:IRI_PROTOCOL_CATALOG_VERSION,
+    summary:'Número de ciclos completos de sentarse y levantarse durante 60 segundos en una silla documentada.',
+    evaluates:'Capacidad funcional submáxima y respuesta individual al esfuerzo mediante un protocolo reproducible.',
+    doesNotDiagnose:'No diagnostica enfermedad cardiovascular o respiratoria ni sustituye una prueba clínica de esfuerzo.',
+    variants:[{id:'1msts-standard',label:'1MSTS estándar · 60 s · referencia individual'}],defaultVariant:'1msts-standard',
+    material:['Silla estable y sin ruedas con altura registrada.','Cronómetro.','Medición de frecuencia cardiaca opcional cuando sea útil y fiable.'],
+    startPosition:['Sentado, pies apoyados y posición reproducible.','Brazos cruzados o configuración documentada sin ayuda de las manos.','Silla apoyada de forma segura contra una pared cuando corresponda.'],
+    steps:['Confirmar altura de silla y criterio técnico.','Iniciar el cronómetro durante exactamente 60 segundos.','Contar únicamente ciclos completos de ponerse de pie y volver a sentarse.','Registrar repeticiones, RPE, síntomas y, si se midió, FC final y al minuto.'],
+    observe:['Control al ponerse de pie y sentarse.','Uso involuntario de brazos o apoyos.','Equilibrio, síntomas y tolerancia.','Pérdida del criterio técnico.'],
+    valid:['Duración exacta de 60 segundos.','Altura de silla y configuración registradas.','Repeticiones completas contabilizadas.','Sin ayuda externa que invalide el protocolo.'],
+    invalid:['Duración distinta de 60 segundos.','Uso de manos no documentado.','Cambio de silla o configuración sin registrarlo.','Repeticiones parciales contabilizadas como completas.'],
+    stop:['Dolor.','Mareo.','Disnea desproporcionada.','Pérdida de equilibrio.','Solicitud de la persona.','Cualquier motivo de seguridad.'],
+    record:['Repeticiones completas en 60 s.','Altura de silla y configuración.','RPE y síntomas.','FC en reposo/final/recuperación solo si se recogió de forma fiable.','Validez y motivo de finalización.'],
+    interpretation:['Usar como referencia individual reproducible.','Comparar solo con el mismo protocolo y una configuración equivalente.','No aplicar baremos automáticos no validados ni convertir el resultado en una puntuación global.'],
+    visual:{kind:'chair-stand',start:'Sentado · pies estables',finish:'De pie · ciclo completo',validCue:'60 s exactos y ciclos completos',invalidCue:'Apoyo no documentado o repetición parcial'},
     form:{variant:'cardioProtocol',configuration:'cardioConfiguration',valid:'cardioValid',adaptation:'cardioAdaptationReason',stop:'cardioStopReason',target:'cardioProtocol'},sides:['not-applicable'],
   },
 ].map(freezeProtocol);
@@ -264,7 +264,7 @@ function inferredProtocolValidity(protocolId,result,parts){
   if(protocolId==='chair-stand-30s'||protocolId==='push-test'||protocolId==='trx-row')return result.valid===true;
   if(protocolId==='core-plank')return result.frontPlankSeconds!==null;
   if(protocolId==='posterior-chain-endurance')return result.equipmentCompatible===true&&result.seconds!==null&&String(result.protocol||'')!=='not-performed';
-  if(protocolId==='three-minute-step')return result.valid===true&&result.finalHr!==null&&result.oneMinuteHr!==null&&result.durationSeconds!==null;
+  if(protocolId==='one-minute-sit-to-stand')return result.valid===true&&result.repetitions!==null&&result.durationSeconds===60;
   return resultExists(result);
 }
 
@@ -281,7 +281,7 @@ function protocolResult(protocolId,side,parts){
   if(protocolId==='trx-row')return {...(strength.trxRow||{})};
   if(protocolId==='core-plank')return {...(strength.core||{})};
   if(protocolId==='posterior-chain-endurance')return {...(strength.posteriorChain||{})};
-  if(protocolId==='three-minute-step')return {...cardio};
+  if(protocolId==='one-minute-sit-to-stand')return {...cardio};
   return {};
 }
 
@@ -298,7 +298,7 @@ function generatedConfiguration(protocolId,raw,parts){
   if(protocolId==='trx-row')return [strength.trxRow?.handleHeightCm!==null?`asas ${strength.trxRow.handleHeightCm} cm`:'',strength.trxRow?.heelDistanceCm!==null?`talones ${strength.trxRow.heelDistanceCm} cm`:'',strength.trxRow?.position].filter(Boolean).join(' · ');
   if(protocolId==='core-plank')return [raw.coreProtocolVariant||'',strength.core?.quality&&`calidad: ${strength.core.quality}`].filter(Boolean).join(' · ');
   if(protocolId==='posterior-chain-endurance')return [strength.posteriorChain?.protocol,strength.posteriorChain?.equipmentCompatible?'equipo compatible':'equipo no confirmado'].filter(Boolean).join(' · ');
-  if(protocolId==='three-minute-step')return [`escalón ${cardio.stepHeightCm??'—'} cm`,`cadencia ${cardio.cadenceBpm??'—'} bpm`,`duración ${cardio.durationSeconds??'—'} s`].join(' · ');
+  if(protocolId==='one-minute-sit-to-stand')return [`silla ${cardio.chairHeightCm??'—'} cm`,`duración ${cardio.durationSeconds??'—'} s`,`repeticiones ${cardio.repetitions??'—'}`].join(' · ');
   return '';
 }
 

@@ -24,7 +24,7 @@ function coreDomainCoverage(draft = {}) {
   const cardioSkipped = draft.cardio?.skipped === true;
   const bodyMeasured = !bodySkipped && hasObjectiveMeasurement(draft.bodyComposition);
   const strengthMeasured = !strengthSkipped && hasObjectiveMeasurement(draft.strengthPatterns);
-  const cardioMeasured = !cardioSkipped && finite(draft.stepFinalHr) && finite(draft.stepOneMinuteHr);
+  const cardioMeasured = !cardioSkipped && ((draft.cardio?.protocol === '1msts-standard' && draft.cardio?.valid === true && Number(draft.cardio?.durationSeconds) === 60 && finite(draft.cardio?.repetitions)) || (draft.cardio?.protocol !== '1msts-standard' && finite(draft.stepFinalHr) && finite(draft.stepOneMinuteHr)));
   const states = Object.freeze({
     bodyComposition: bodyMeasured,
     strength: strengthMeasured,
@@ -65,7 +65,14 @@ export function validateIriDraft(draft = {}) {
   if (!coverage.complete) errors.push('coreDomains');
 
   if (!coverage.skipped.cardio) {
-    if (!finite(draft.stepFinalHr) || !finite(draft.stepOneMinuteHr)) {
+    if (draft.cardio?.protocol === '1msts-standard') {
+      if (!finite(draft.cardio?.repetitions)) errors.push('cardioRepetitions');
+      if (Number(draft.cardio?.durationSeconds) !== 60) errors.push('cardioDuration');
+      if (draft.cardio?.valid !== true) errors.push('cardioValid');
+      const hasFinal=finite(draft.stepFinalHr),hasRecovery=finite(draft.stepOneMinuteHr);
+      if (hasFinal !== hasRecovery) errors.push('cardioHeartRatePair');
+      if (hasFinal && hasRecovery && computeDeltaFc(draft.stepFinalHr,draft.stepOneMinuteHr)<0) errors.push('deltaFc');
+    } else if (!finite(draft.stepFinalHr) || !finite(draft.stepOneMinuteHr)) {
       errors.push('cardioHeartRate');
     } else if (computeDeltaFc(draft.stepFinalHr, draft.stepOneMinuteHr) < 0) {
       errors.push('deltaFc');
@@ -124,7 +131,7 @@ export function buildIriCommand(draft, revision = 0) {
     payload: {
       patch: {
         ...structuredClone(normalized),
-        deltaFc: coverage.skipped.cardio ? null : computeDeltaFc(draft.stepFinalHr, draft.stepOneMinuteHr),
+        deltaFc: coverage.skipped.cardio || !finite(draft.stepFinalHr) || !finite(draft.stepOneMinuteHr) ? null : computeDeltaFc(draft.stepFinalHr, draft.stepOneMinuteHr),
         evidenceCoverage: coverage,
         normContextSnapshot,
         normScoring: scoring,
