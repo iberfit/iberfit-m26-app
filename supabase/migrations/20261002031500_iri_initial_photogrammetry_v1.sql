@@ -1,25 +1,6 @@
 -- IBERFIT IRI v4 · initial diagnostic + private photogrammetry foundation
 -- Additive security-first migration. No production data is rewritten.
 
-alter table public.iri_assessments
-  add constraint iri_assessments_initial_only_v4
-  check (assessment_type = 'inicial');
-
-alter table public.iri_assessments
-  alter column assessment_type set default 'inicial',
-  alter column protocol_version set default '4.0.0';
-
-alter table public.iri_assessments
-  add constraint iri_assessments_step_v4
-  check (current_step = any(array[
-    'contexto','composicion','fotografia','movilidad','fuerza','capacidad','interpretacion','planAccion'
-  ]::text[]));
-
-create unique index if not exists iri_one_initial_per_client_v1
-  on public.iri_assessments(client_id);
-
-revoke delete on public.iri_assessments from authenticated, anon;
-
 -- IBERFIT-TABLE-ACCESS: public.iri_consents_v1 :: Coach/Admin may read consent history through client-scoped RLS; all writes use audited guarded RPCs.
 -- IBERFIT-POLICY: public.iri_consents_v1 = rls-client
 create table if not exists public.iri_consents_v1 (
@@ -143,10 +124,6 @@ begin
   return new;
 end
 $$;
-
-create trigger iri_require_physical_consent_v1
-before update of status on public.iri_assessments
-for each row execute function public.iberfit_require_physical_consent_before_iri_confirm_v1();
 
 -- IBERFIT-TABLE-ACCESS: public.iri_photogrammetry_captures_v1 :: Coach/Admin may read capture metadata through client-scoped RLS; lifecycle writes use guarded RPCs and private Storage policies.
 -- IBERFIT-POLICY: public.iri_photogrammetry_captures_v1 = rls-client
