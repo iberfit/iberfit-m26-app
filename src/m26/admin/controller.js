@@ -327,6 +327,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           birthDate:profile.birthDate,
           sexForNorms:profile.sexForNorms,
           initialAssessmentMode:profile.initialAssessmentMode,
+          initialLifecycleStatus:text(data,'serviceIntent',40)==='iri_only'?'iri_only':'onboarding',
           coachUserId:text(data,'coachUserId',200),
           modality:profile.modality,
           weeklyFrequency:profile.weeklyFrequency,
