@@ -124,8 +124,11 @@ export async function verifyEmailAsset(reference,{baseUrl=DEFAULT_BASE_URL,fetch
     assertNoRedirect(head,'IBERFIT_AUTH_EMAIL_ASSET_HEAD');
     const headMime=String(head.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
     if(!headMime.startsWith('image/'))fail('IBERFIT_AUTH_EMAIL_ASSET_HEAD_MIME_NOT_IMAGE');
-    const headLength=Number(head.headers.get('content-length'));
-    if(Number.isFinite(headLength)&&headLength<=0)fail('IBERFIT_AUTH_EMAIL_ASSET_HEAD_LENGTH_INVALID');
+    const headLengthHeader=head.headers.get('content-length');
+    if(headLengthHeader!==null){
+      const headLength=Number(headLengthHeader);
+      if(!Number.isFinite(headLength)||headLength<0)fail('IBERFIT_AUTH_EMAIL_ASSET_HEAD_LENGTH_INVALID');
+    }
   }
 
   const response=await fetchImpl(target,{method:'GET',redirect:'manual',headers:commonHeaders});
@@ -134,8 +137,11 @@ export async function verifyEmailAsset(reference,{baseUrl=DEFAULT_BASE_URL,fetch
   if(!contentType.toLowerCase().startsWith('image/'))fail('IBERFIT_AUTH_EMAIL_ASSET_GET_MIME_NOT_IMAGE');
   const body=new Uint8Array(await response.arrayBuffer());
   const info=inspectImagePayload(body,{url:target,contentType,maxBytes});
-  const declaredLength=Number(response.headers.get('content-length'));
-  if(Number.isFinite(declaredLength)&&declaredLength<=0)fail('IBERFIT_AUTH_EMAIL_ASSET_GET_LENGTH_INVALID');
+  const declaredLengthHeader=response.headers.get('content-length');
+  const declaredLength=declaredLengthHeader===null?null:Number(declaredLengthHeader);
+  if(declaredLength!==null&&(!Number.isFinite(declaredLength)||declaredLength<0)){
+    fail('IBERFIT_AUTH_EMAIL_ASSET_GET_LENGTH_INVALID');
+  }
 
   return Object.freeze({
     reference,
@@ -143,7 +149,7 @@ export async function verifyEmailAsset(reference,{baseUrl=DEFAULT_BASE_URL,fetch
     headStatus:head.status,
     getStatus:response.status,
     contentType:contentType.split(';')[0].trim().toLowerCase(),
-    declaredLength:Number.isFinite(declaredLength)?declaredLength:null,
+    declaredLength,
     bytes:body.length,
     cacheControl:response.headers.get('cache-control')||null,
     cfCacheStatus:response.headers.get('cf-cache-status')||null,
