@@ -17,6 +17,7 @@ import {
 import {renderIriRoute} from '../src/m26/modules/route-render.js';
 import {buildIriReportHtml} from '../src/m26/workflows/iri-report-document.js';
 import {applyIriSetupPreset} from '../src/m26/workflows/iri-setup-presets.js';
+import {buildIriCommand,validateIriDraft} from '../src/m26/workflows/iri-workflow.js';
 
 const reportCss=fs.readFileSync(new URL('../public/m26/iri-report.css',import.meta.url),'utf8');
 
@@ -253,6 +254,16 @@ test('modo terreno registra sentadilla 60 s y cinta 3 min sin apropiarse de bare
   assert.equal(treadmill.valid,true);
   assert.equal(treadmill.normEligible,false);
   assert.equal(treadmill.trackingComparable,true);
+  const commandDraft=buildIriCommandDraftFromFirstSession(draft,{id:'IRI-V12'});
+  const command=buildIriCommand(commandDraft,0);
+  assert.equal(command.payload.patch.cardio.protocol,'treadmill-3min-field');
+  assert.equal(command.payload.patch.evidenceCoverage.states.cardio,true);
+  assert.equal(command.payload.patch.deltaFc,32);
+  for(const missing of ['speedKmh','inclinePercent','locomotionMode','hrMethod','recoveryMode']){
+    const incomplete=structuredClone(commandDraft);
+    incomplete.cardio[missing]=null;
+    assert.equal(validateIriDraft(incomplete).ok,false,missing);
+  }
   const html=buildIriReportHtml({draft,variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
   assert.match(html,/Cinta · 3 minutos/);
   assert.match(html,/HRR1/);
@@ -284,6 +295,7 @@ test('YMCA estándar exige su configuración y no comparte contrato con 1MSTS',(
   assert.equal(draft.cardio.cadenceBpm,96);
   assert.equal(draft.cardio.durationSeconds,180);
   assert.ok(draft.protocolRecords.some((item)=>item.testId==='ymca-three-minute-step'));
+  assert.equal(buildIriCommand(buildIriCommandDraftFromFirstSession(draft,{id:'IRI-V12'})).payload.patch.cardio.protocol,'ymca-3min-standard');
   assert.equal(draft.protocolRecords.some((item)=>item.testId==='one-minute-sit-to-stand'),false);
 });
 

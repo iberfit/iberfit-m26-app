@@ -12,7 +12,9 @@ PR #678, base `841e0fb65bbe2667d134d040f3ac9bdd48fef281`. Drafts #676/#677 son i
 - [x] QA transaccional sin residuos: creación/idempotencia/conversión/un único IRI/métricas/guards/ACL.
 - [x] Suite oficial offline: 3.098 PASS, 1 SKIP, 0 FAIL.
 - [x] 12 specs nuevas PASS locales Chromium 141 (desktop/tablet vertical/horizontal/móvil).
-- [ ] Todos los gates y Matrix CI del HEAD final; no reutilizar el CI de fbedf29c.
+- [x] Corregir validación final del comando cinta de 3 min y variables FC de YMCA/adaptado; regresiones generan el comando real.
+- [ ] QA: consentimiento → IRI_COMPLETAR terreno por RPC → persistencia → conversión sin alterar el baseline, todo en ROLLBACK.
+- [ ] Todos los gates y Matrix CI del HEAD final; no reutilizar el CI de commits anteriores.
 - [ ] Integración + deploy exacto/certificación Canary.
 - [ ] Preflight y migración canónica PROD; promoción frontend reversible.
 - [ ] LIVE de principio a fin con Solo IRI y fidelidad de protocolo.
