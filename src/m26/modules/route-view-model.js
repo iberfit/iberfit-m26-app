@@ -853,6 +853,7 @@ if (area === 'clientes') {
 
   if (area === 'sesion') {
     const clientId = routeClientId(shellVm, state);
+    const iriOnly=isIriOnlyClient(state,clientId);
     const sessions = recordsForClient(state, 'sessions', clientId);
     const executions = recordsForClient(state, 'sessionExecutions', clientId);
     const role = String(shellVm.identity?.role || '');
@@ -865,7 +866,7 @@ if (area === 'clientes') {
         ]),
     );
     const nextSessionPreparation=
-      clientId&&['admin','coach'].includes(role)
+      clientId&&!iriOnly&&['admin','coach'].includes(role)
         ?buildNextSessionPreparation(
             state,
             clientId,
@@ -881,7 +882,8 @@ if (area === 'clientes') {
       kind: 'sesion',
       clientId,
       role,
-      canBuild: ['admin', 'coach'].includes(role),
+      serviceKind:iriOnly?'iri_only':'training',
+      canBuild: !iriOnly&&['admin', 'coach'].includes(role),
       sessions: Object.freeze(publicationItems(sessions, 'session', role)),
       sessionCounts: publicationCounts(sessions),
       executions: Object.freeze(executions.map(compactActivity)),
@@ -891,6 +893,7 @@ if (area === 'clientes') {
 
   if (area === 'informes') {
     const clientId = routeClientId(shellVm, state);
+    const iriOnly=isIriOnlyClient(state,clientId);
     const reports = recordsForClient(state, 'reports', clientId);
     const role = String(shellVm.identity?.role || '');
     const iriAssessments = recordsForClient(state, 'iriAssessments', clientId)
@@ -908,6 +911,7 @@ if (area === 'clientes') {
     return Object.freeze({
       kind: 'informes',
       clientId,
+      serviceKind:iriOnly?'iri_only':'training',
       role,
       canManage: ['admin', 'coach'].includes(role),
       reports: Object.freeze(
@@ -928,11 +932,12 @@ if (area === 'clientes') {
 
   if (area === 'inteligencia') {
     const clientId = routeClientId(shellVm, state);
+    const iriOnly=isIriOnlyClient(state,clientId);
     const runs = recordsForClient(state, 'intelligenceRuns', clientId);
-    const summary = clientId
+    const summary = clientId&&!iriOnly
       ? computeProgressSummary(state, clientId, { now })
       : null;
-    const alerts = clientId
+    const alerts = clientId&&!iriOnly
       ? deriveAdherenceAlerts(state, clientId, { now, summary })
       : [];
     const rawProfile = recordsForClient(state, 'clientProfiles', clientId)[0] || null;
@@ -954,6 +959,7 @@ if (area === 'clientes') {
     return Object.freeze({
       kind: 'inteligencia',
       clientId,
+      serviceKind:iriOnly?'iri_only':'training',
       role: shellVm.identity?.role,
       runs: Object.freeze(runs.map(compactActivity)),
       summary,
@@ -962,7 +968,7 @@ if (area === 'clientes') {
       profile,
       ageYears,
       birthDate: birthDate || null,
-      canGenerate: ['admin', 'coach'].includes(
+      canGenerate: !iriOnly&&['admin', 'coach'].includes(
         String(shellVm.identity?.role || '')
       ),
     });
