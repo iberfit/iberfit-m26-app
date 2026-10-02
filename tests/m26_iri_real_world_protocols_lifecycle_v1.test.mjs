@@ -132,7 +132,7 @@ test('Coach 360 preserves IRI authorization assignment but excludes IRI-only fro
     coaches:[{userId:'coach-1',name:'Coach'}],
     clients:[
       {id:'active-1',name:'Activa',lifecycle:{status:'active'}},
-      {id:'iri-1',name:'Solo IRI',lifecycle:{status:'iri_only'}},
+      {id:'iri-1',name:'Solo IRI',lifecycle:{status:'inactive',serviceKind:'iri_only'}},
     ],
     assignments:[
       {coachUserId:'coach-1',clientId:'active-1',status:'active'},
@@ -147,7 +147,7 @@ test('Coach 360 preserves IRI authorization assignment but excludes IRI-only fro
 test('Admin Command Center separates people, active clients and IRI-only',()=>{
   const cc=deriveAdminCommandCenter({clients:[
     {id:'active-1',name:'Activa',lifecycle:{status:'active'},experience:{stage:'active'},assignments:[{id:'a'}]},
-    {id:'iri-1',name:'Solo IRI',lifecycle:{status:'iri_only'},experience:{stage:'evaluation'},assignments:[{id:'b'}]},
+    {id:'iri-1',name:'Solo IRI',lifecycle:{status:'inactive',serviceKind:'iri_only'},experience:{stage:'evaluation'},assignments:[{id:'b'}]},
   ]});
   assert.equal(cc.summary.totalPeople,2);
   assert.equal(cc.summary.activeClients,1);
@@ -158,6 +158,7 @@ test('Admin Command Center separates people, active clients and IRI-only',()=>{
 test('lifecycle migration explicitly supports iri_only without removing assignment semantics',()=>{
   const sql=fs.readFileSync('supabase/migrations/20261002164000_client_lifecycle_iri_only_v1.sql','utf8');
   assert.match(sql,/iri_only/);
-  assert.match(sql,/status = any/);
-  assert.doesNotMatch(sql,/coach_client_assignments.*delete/is);
+  assert.match(sql,/service_kind/);
+  assert.match(sql,/generated always/);
+  assert.doesNotMatch(sql,/drop constraint|drop column|delete from/is);
 });
