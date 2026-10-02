@@ -852,9 +852,14 @@ if (area === 'clientes') {
     const clientId = routeClientId(shellVm, state);
     const reports = recordsForClient(state, 'reports', clientId);
     const role = String(shellVm.identity?.role || '');
-    const iriAssessments = recordsForClient(state, 'iriAssessments', clientId).sort((a, b) =>
-      String(domainDate(b) || '').localeCompare(String(domainDate(a) || ''))
-    );
+    const iriAssessments = recordsForClient(state, 'iriAssessments', clientId)
+      .filter((record)=>{
+        const type=String(text(record,'assessmentType','assessment_type')||'').trim().toLowerCase();
+        return !type||type==='inicial';
+      })
+      .sort((a, b) =>
+        String(domainDate(a) || '').localeCompare(String(domainDate(b) || ''))
+      );
     const iri = iriAssessments.find(
       (record) => text(record, 'id') === state.selectedIriAssessmentId && compactIri(record)?.confirmed
     ) || iriAssessments.find((record)=>compactIri(record)?.confirmed) || null;

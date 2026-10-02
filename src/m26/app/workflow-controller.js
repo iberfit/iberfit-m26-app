@@ -436,8 +436,13 @@ export function createWorkflowController({
   function requireVisibleClient(clientId){const {state}=context();if(!clientId||(state.collections.clients||[]).every((item)=>item.id!==clientId))throw new Error('M26_CLIENT_NOT_VISIBLE');return clientId;}
   function currentIriRecord(form=null){
     const {clientId,state}=context();const entityId=String(form?.elements?.namedItem?.('entityId')?.value||state.selectedIriAssessmentId||'');
-    const records=(state.collections.iriAssessments||[]).filter((item)=>(item.clientId||item.client_id)===clientId);
-    return (entityId?records.find((item)=>String(item.id)===entityId):null)||records.sort((a,b)=>String(b.assessmentDate||b.assessment_date||b.createdAt||'').localeCompare(String(a.assessmentDate||a.assessment_date||a.createdAt||'')))[0]||{};
+    const records=(state.collections.iriAssessments||[]).filter((item)=>{
+      if((item.clientId||item.client_id)!==clientId)return false;
+      const body=recordBody(item);
+      const type=String(item.assessmentType||item.assessment_type||body.assessmentType||body.assessment_type||'').trim().toLowerCase();
+      return !type||type==='inicial';
+    });
+    return (entityId?records.find((item)=>String(item.id)===entityId):null)||records.sort((a,b)=>String(a.assessmentDate||a.assessment_date||a.createdAt||'').localeCompare(String(b.assessmentDate||b.assessment_date||b.createdAt||'')))[0]||{};
   }
   function recordId(record){return String(record?.id||record?.body?.id||'').trim();}
   function recordClientId(record){return String(record?.clientId||record?.client_id||record?.body?.clientId||record?.body?.client_id||'').trim();}
