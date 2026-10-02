@@ -41,6 +41,44 @@ export const EVIDENCE_REGISTRY = Object.freeze({
     ]),
     limitations:'No se extrapolan tablas fuera del sexo, edad y protocolo estudiados. La escala masculina disponible es histórica y no participa en la puntuación global IRI.'
   }),
+  modified_push_up_female: Object.freeze({
+    testId:'modified_push_up_female',
+    label:'Flexiones con apoyo de rodillas',
+    unit:'repeticiones',
+    protocol:'Máximo número de repeticiones continuas válidas con apoyo de rodillas, manos a anchura de hombros, tronco alineado, descenso estandarizado y sin descanso.',
+    sexSensitive:true,
+    ageSensitive:true,
+    compositeEligible:true,
+    domain:'strength',
+    sourceId:'essa-acsm-2006-modified-pushup',
+    confidence:'moderate_legacy',
+    tables:Object.freeze([
+      {sex:NORM_SEX.FEMALE,minAge:20,maxAge:29,categories:[{min:0,max:5,key:'poor',label:'Bajo',score:20},{min:6,max:16,key:'fair',label:'Mejorable',score:40},{min:17,max:33,key:'average',label:'Promedio',score:60},{min:34,max:48,key:'good',label:'Bueno',score:80},{min:49,max:Infinity,key:'excellent',label:'Excelente',score:95}]},
+      {sex:NORM_SEX.FEMALE,minAge:30,maxAge:39,categories:[{min:0,max:3,key:'poor',label:'Bajo',score:20},{min:4,max:11,key:'fair',label:'Mejorable',score:40},{min:12,max:24,key:'average',label:'Promedio',score:60},{min:25,max:39,key:'good',label:'Bueno',score:80},{min:40,max:Infinity,key:'excellent',label:'Excelente',score:95}]},
+      {sex:NORM_SEX.FEMALE,minAge:40,maxAge:49,categories:[{min:0,max:2,key:'poor',label:'Bajo',score:20},{min:3,max:7,key:'fair',label:'Mejorable',score:40},{min:8,max:19,key:'average',label:'Promedio',score:60},{min:20,max:34,key:'good',label:'Bueno',score:80},{min:35,max:Infinity,key:'excellent',label:'Excelente',score:95}]},
+      {sex:NORM_SEX.FEMALE,minAge:50,maxAge:59,categories:[{min:0,max:1,key:'poor',label:'Bajo',score:20},{min:2,max:5,key:'fair',label:'Mejorable',score:40},{min:6,max:14,key:'average',label:'Promedio',score:60},{min:15,max:29,key:'good',label:'Bueno',score:80},{min:30,max:Infinity,key:'excellent',label:'Excelente',score:95}]},
+      {sex:NORM_SEX.FEMALE,minAge:60,maxAge:100,categories:[{min:0,max:0,key:'poor',label:'Bajo',score:20},{min:1,max:2,key:'fair',label:'Mejorable',score:40},{min:3,max:4,key:'average',label:'Promedio',score:60},{min:5,max:19,key:'good',label:'Bueno',score:80},{min:20,max:Infinity,key:'excellent',label:'Excelente',score:95}]},
+    ].map((item)=>Object.freeze({...item,categories:Object.freeze(item.categories.map((category)=>Object.freeze(category)))}))),
+    limitations:'Referencia histórica para la variante modificada femenina. Se usa sólo cuando la técnica coincide; no se extrapola a flexiones estándar, inclinadas ni a hombres.'
+  }),
+  forearm_plank: Object.freeze({
+    testId:'forearm_plank',
+    label:'Plancha frontal sobre antebrazos',
+    unit:'segundos',
+    protocol:'Plancha prono sobre antebrazos y puntas de pies hasta fallo técnico o voluntario, con criterios de alineación estandarizados.',
+    sexSensitive:true,
+    ageSensitive:true,
+    compositeEligible:true,
+    domain:'strength',
+    sourceId:'strand-2014-plank-college',
+    confidence:'moderate_limited_population',
+    percentileKeys:Object.freeze([10,20,30,40,50,60,70,80,90]),
+    bands:Object.freeze({
+      female:Object.freeze({'18-29':Object.freeze([35,48,58,63,72,84,95,108,142])}),
+      male:Object.freeze({'18-29':Object.freeze([62,79,89,97,110,122,137,157,201])}),
+    }),
+    limitations:'Percentiles de adultos universitarios jóvenes; no se extrapolan automáticamente fuera de 18–29 años ni a variantes con rodillas apoyadas.'
+  }),
   chair_stand_30s: Object.freeze({
     testId:'chair_stand_30s',
     label:'Sentarse y levantarse en 30 segundos',
@@ -164,7 +202,9 @@ export const EVIDENCE_REGISTRY = Object.freeze({
 export const EVIDENCE_SOURCES = Object.freeze({
   'adams-2022-standard-pushup-female': Object.freeze({doi:'10.70252/XIJI4089',year:2022,title:'Development of a Standard Push-up Scale for College-Aged Females'}),
   'cass-acsm-legacy-20-29-male': Object.freeze({year:1987,title:'CASS/ACSM historical push-up categories for ages 20–29',reviewRequired:true}),
-  'barros-poblete-2025-chile': Object.freeze({pmid:'40526861',doi:'10.4067/s0034-98872025000500329',year:2025,title:'30 Seconds Sit-to-Stand Test: Reference Values for the Chilean Population'}),
+  'essa-acsm-2006-modified-pushup': Object.freeze({year:2006,title:'ACSM/ESSA modified push-up age bands (historical reference)',reviewRequired:true}),
+  'strand-2014-plank-college': Object.freeze({pmid:'25031677',doi:'10.2478/hukin-2014-0011',year:2014,title:'Norms for an isometric muscle endurance test'}),
+    'barros-poblete-2025-chile': Object.freeze({pmid:'40526861',doi:'10.4067/s0034-98872025000500329',year:2025,title:'30 Seconds Sit-to-Stand Test: Reference Values for the Chilean Population'}),
   'otto-yanez-2025-chile-1msts': Object.freeze({pmid:'39879255',doi:'10.1371/journal.pone.0317594',year:2025,title:'One-minute sit-to-stand test: Reference values for the Chilean population'}),
   'tomkinson-2024-international-handgrip': Object.freeze({doi:'10.1016/j.jshs.2024.101014',year:2024,title:'International norms for adult handgrip strength'}),
   'mcbride-2026-wblt': Object.freeze({pmid:'41723909',doi:'10.1016/j.msksp.2026.103525',year:2026,title:'International normative values for the weight-bearing lunge test across age and sex in 899 healthy adults'}),

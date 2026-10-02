@@ -135,6 +135,11 @@ Deno.serve(async(req:Request)=>{
       };
     }
 
+    const engagementType=String((normalized.command.payload as Record<string,unknown>||{}).engagementType||'training').toLowerCase();
+    if(normalized.type==='ADMIN_CLIENTE_CREAR'&&engagementType==='iri_only'){
+      return reply(200,{...createReceipt,ok:true,version:FUNCTION_VERSION,engagementType:'iri_only',invitation:{deliveryStatus:null,accessStatus:'sin_acceso',reason:'iri_only_no_invitation',email:null}},origin);
+    }
+
     const {data:prepareData,error:prepareError}=await userClient.rpc('iberfit_admin_client_invitation_prepare_v26',{p_client_id:clientId,p_operation_id:normalized.operationId});
     if(prepareError)throw prepareError;
     const prepared=(Array.isArray(prepareData)?prepareData[0]:prepareData) as Record<string,unknown>|null;

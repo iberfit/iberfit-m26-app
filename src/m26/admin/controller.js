@@ -108,7 +108,7 @@ function closeClientEditDialog(root){
   return true;
 }
 
-function invitationSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();if(delivery==='sent')return 'Cliente creado. Invitación enviada correctamente.';if(delivery==='error')return 'Cliente creado, pero la invitación no pudo enviarse. Queda pendiente para reintento.';if(delivery==='pending')return 'Cliente creado. Invitación en proceso.';return 'Cliente creado y acceso preparado.';}
+function invitationSuccess(result={}){const response=Array.isArray(result?.response)?result.response[0]:result?.response;if(String(response?.engagementType||result?.engagementType||'')==='iri_only')return 'Persona Solo IRI creada. Sin entrenamiento activo ni invitación automática.';const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();if(delivery==='sent')return 'Cliente creado. Invitación enviada correctamente.';if(delivery==='error')return 'Cliente creado, pero la invitación no pudo enviarse. Queda pendiente para reintento.';if(delivery==='pending')return 'Cliente creado. Invitación en proceso.';return 'Cliente creado y acceso preparado.';}
 function invitationResendSuccess(result={}){const invitation=result?.response?.invitation||result?.invitation||{};const delivery=String(invitation.deliveryStatus||'').toLowerCase();const reason=String(invitation.reason||'').toLowerCase();if(delivery==='sent')return 'Invitación reenviada correctamente.';if(reason==='already_sent')return 'La invitación ya constaba como enviada; no se duplicó el correo.';if(delivery==='pending')return 'Reenvío solicitado. La invitación queda pendiente de confirmación.';if(delivery==='error')return 'El reenvío no pudo completarse. La invitación sigue pendiente para reintento.';return 'Estado de invitación actualizado.';}
 function createdClientId(result={}){
   const response=Array.isArray(result?.response)?result.response[0]:result?.response;
@@ -260,7 +260,8 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           modality:text(data,'modality',40),
           weeklyFrequency:Number(weeklyFrequency)||null,
           sessionDurationMinutes:Number(text(data,'sessionDurationMinutes',20))||null,
-          initialAssessmentMode:text(data,'initialAssessmentMode',30)||'iri',
+          engagementType,
+        initialAssessmentMode:engagementType==='iri_only'?'iri':text(data,'initialAssessmentMode',30)||'iri',
           zone:text(data,'zone',120),
           address:text(data,'address',300),
           preferredSchedule:text(data,'preferredSchedule',240),
@@ -284,8 +285,9 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
 
     if(kind==='client-create'){
       if(!clientWizard.validateForSubmit(form))return false;
-      const weeklyFrequency=text(data,'weeklyFrequency',20);
-      const frequency=text(data,'frequency',100)||(weeklyFrequency?`${weeklyFrequency} sesiones por semana`:'');
+      const engagementType=text(data,'engagementType',30)||'training';
+      const weeklyFrequency=engagementType==='iri_only'?'':text(data,'weeklyFrequency',20);
+      const frequency=engagementType==='iri_only'?'Solo IRI · sin recurrencia':text(data,'frequency',100)||(weeklyFrequency?`${weeklyFrequency} sesiones por semana`:'');
       const profile={
         initialAssessmentMode:text(data,'initialAssessmentMode',30)||'iri',
         birthDate:text(data,'birthDate',20),
@@ -323,14 +325,15 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         payload:{
           name:text(data,'name',200),
           email:text(data,'email',254),
+          engagementType,
           phone:text(data,'phone',80),
           birthDate:profile.birthDate,
           sexForNorms:profile.sexForNorms,
           initialAssessmentMode:profile.initialAssessmentMode,
           coachUserId:text(data,'coachUserId',200),
           modality:profile.modality,
-          weeklyFrequency:profile.weeklyFrequency,
-          sessionDurationMinutes:profile.sessionDurationMinutes,
+          weeklyFrequency:engagementType==='iri_only'?null:profile.weeklyFrequency,
+          sessionDurationMinutes:engagementType==='iri_only'?null:profile.sessionDurationMinutes,
           preferredSchedule:profile.preferredSchedule,
           objective:profile.primaryObjective,
           primaryObjective:profile.primaryObjective,

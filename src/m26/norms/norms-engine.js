@@ -53,6 +53,13 @@ function percentileEvidence(norm,quantiles){
     percentileAnchors:{p2_5:quantiles[0],p25:quantiles[1],p50:quantiles[2],p75:quantiles[3],p97_5:quantiles[4]},
   };
 }
+function scoreCategoricalReference(out,norm,ctx,raw){
+  const table=(norm.tables||[]).find((item)=>item.sex===ctx.sexForNorms&&ctx.ageYears>=item.minAge&&ctx.ageYears<=item.maxAge);
+  if(!table){out.warnings.push('NORM_NO_VALIDATED_TABLE_FOR_SEX_AGE');return out;}
+  const category=(table.categories||[]).find((item)=>raw>=item.min&&raw<=item.max);
+  if(!category){out.warnings.push('NORM_REFERENCE_CATEGORY_MISSING');return out;}
+  return {...out,scored:true,score:Number(category.score),grade10:Number((Number(category.score)/10).toFixed(1)),category:{key:category.key,label:category.label},evidence:{sourceId:table.sourceId||norm.sourceId,confidence:table.confidence||norm.confidence,population:table.population||null},warnings:(table.confidence||norm.confidence||'').includes('legacy')?['NORM_LEGACY_REFERENCE_REVIEW_REQUIRED']:[]};
+}
 function scorePercentileReference(out,norm,ctx,raw){
   const band=ageBand(ctx.ageYears);const q=band&&norm.bands?.[ctx.sexForNorms]?.[band];
   if(!q){out.warnings.push('NORM_NO_VALIDATED_TABLE_FOR_SEX_AGE');return out;}
@@ -82,11 +89,11 @@ export function scoreNormedTest({testId,value,context={},protocolId=null}){
   if(norm.status==='reference_import_required'){out.evidence={sourceId:norm.sourceId,confidence:norm.confidence,status:norm.status};out.warnings.push('NORM_REFERENCE_TABLE_PENDING');return out;}
   if(testId==='push_up_standard'){
     if(protocolId&&protocolId!=='standard_max_valid_reps'){out.warnings.push('NORM_PROTOCOL_MISMATCH');return out;}
-    const table=norm.tables.find((item)=>item.sex===ctx.sexForNorms&&ctx.ageYears>=item.minAge&&ctx.ageYears<=item.maxAge);
-    if(!table){out.warnings.push('NORM_NO_VALIDATED_TABLE_FOR_SEX_AGE');return out;}
-    const category=table.categories.find((item)=>raw>=item.min&&raw<=item.max);
-    if(!category){out.warnings.push('NORM_REFERENCE_CATEGORY_MISSING');return out;}
-    return {...out,scored:true,score:category.score,grade10:Number((category.score/10).toFixed(1)),category:{key:category.key,label:category.label},evidence:{sourceId:table.sourceId,confidence:table.confidence,population:table.population},warnings:table.confidence==='low_legacy'?['NORM_LEGACY_REFERENCE_REVIEW_REQUIRED']:[]};
+    return scoreCategoricalReference(out,norm,ctx,raw);
+  }
+  if(testId==='modified_push_up_female'){
+    if(protocolId&&protocolId!=='modified_knee_max_valid_reps'){out.warnings.push('NORM_PROTOCOL_MISMATCH');return out;}
+    return scoreCategoricalReference(out,norm,ctx,raw);
   }
   if(testId==='chair_stand_30s'){
     if(protocolId&&protocolId!=='chair_stand_30s_standard'){out.warnings.push('NORM_PROTOCOL_MISMATCH');return out;}
@@ -96,7 +103,11 @@ export function scoreNormedTest({testId,value,context={},protocolId=null}){
     if(protocolId&&protocolId!=='1msts_standard_60s'){out.warnings.push('NORM_PROTOCOL_MISMATCH');return out;}
     return scorePercentileReference(out,norm,ctx,raw);
   }
-  if(testId==='weight_bearing_lunge'){
+  if(testId==='forearm_plank'){
+    if(protocolId&&protocolId!=='forearm_plank_to_technical_failure'){out.warnings.push('NORM_PROTOCOL_MISMATCH');return out;}
+    return scorePercentileReference(out,norm,ctx,raw);
+  }
+    if(testId==='weight_bearing_lunge'){
     if(protocolId&&protocolId!=='wblt_distance_cm'){out.warnings.push('NORM_PROTOCOL_MISMATCH');return out;}
     return scoreWblt(out,norm,ctx,raw);
   }
@@ -104,7 +115,7 @@ export function scoreNormedTest({testId,value,context={},protocolId=null}){
 }
 
 export function explainSexSpecificDifference(testId,value,ageYears){
-  const protocolId=testId==='push_up_standard'?'standard_max_valid_reps':testId==='chair_stand_30s'?'chair_stand_30s_standard':testId==='one_minute_sit_to_stand'?'1msts_standard_60s':testId==='weight_bearing_lunge'?'wblt_distance_cm':null;
+  const protocolId=testId==='push_up_standard'?'standard_max_valid_reps':testId==='modified_push_up_female'?'modified_knee_max_valid_reps':testId==='forearm_plank'?'forearm_plank_to_technical_failure':testId==='chair_stand_30s'?'chair_stand_30s_standard':testId==='one_minute_sit_to_stand'?'1msts_standard_60s':testId==='weight_bearing_lunge'?'wblt_distance_cm':null;
   const female=scoreNormedTest({testId,value,context:{sexForNorms:'female',ageYears},protocolId});
   const male=scoreNormedTest({testId,value,context:{sexForNorms:'male',ageYears},protocolId});
   return {testId,value,ageYears,female,male,sameClassification:female.category?.key===male.category?.key};

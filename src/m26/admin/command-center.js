@@ -9,7 +9,9 @@ function stageKind(stage){if(stage==='onboarding'||stage==='evaluation')return '
 function stageLabel(stage){if(stage==='onboarding')return 'Alta incompleta';if(stage==='evaluation')return 'IRI pendiente';if(stage==='planning')return 'Planificación pendiente';if(stage==='scheduling')return 'Próxima cita pendiente';return 'Seguimiento activo';}
 
 export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
-  const normalizedClients=arr(clients).map((client)=>{
+  const allClients=arr(clients);
+  const iriOnlyPeople=allClients.filter((client)=>text(client?.lifecycle?.status).toLowerCase()==='iri_only');
+  const normalizedClients=allClients.filter((client)=>text(client?.lifecycle?.status).toLowerCase()!=='iri_only').map((client)=>{
     const experience=client?.experience||{};
     const stage=text(experience.stage,'active');
     const assignments=arr(client?.assignments);
@@ -76,7 +78,8 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
     iriPending:countStage('evaluation'),
     planningPending:countStage('planning'),
     schedulingPending:countStage('scheduling'),
-    activeClients:countStage('active'),
+    activeClients:normalizedClients.filter((client)=>text(allClients.find((row)=>text(row?.id)===client.clientId)?.lifecycle?.status).toLowerCase()==='active').length,
+    iriOnlyPeople:iriOnlyPeople.length,
     openTasks:openTasks.length,
     criticalTasks:criticalTasks.length,
     coachesNearCapacity:coachLoad.filter((coach)=>coach.status==='near'||coach.status==='full').length,
