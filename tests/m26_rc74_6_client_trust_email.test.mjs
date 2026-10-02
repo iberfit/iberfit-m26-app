@@ -107,8 +107,9 @@ test('activación y recuperación priorizan un CTA real y accesible',async()=>{
   assert.match(invite,/Tu espacio IBERFIT/u);
   assert.match(invite,/href="\{\{ \.ConfirmationURL \}\}"/u);
   assert.match(invite,/Activar mi acceso/u);
-  assert.match(invite,/src="\/public\/iberfit-email-access-hero\.jpg"/u);
-  assert.doesNotMatch(recovery,/iberfit-email-access-hero\.jpg/u);
+  assert.match(invite,/src="\/public\/iberfit\/email\/access-hero-v3-c3a8345b\.jpg"/u);
+  assert.doesNotMatch(invite,/src="\/public\/iberfit-email-access-hero\.jpg"/u);
+  assert.doesNotMatch(recovery,/access-hero-v3-c3a8345b\.jpg|iberfit-email-access-hero\.jpg/u);
   assert.match(recovery,/href="\{\{ \.ConfirmationURL \}\}"/u);
   assert.match(recovery,/Recuperar mi acceso/u);
   assert.doesNotMatch(invite,/\{\{ \.Token \}\}/u);
@@ -122,5 +123,5 @@ test('activación y recuperación priorizan un CTA real y accesible',async()=>{
   const publishedRecovery=String(patch[recoveryEntry.contentKey]||'');
   assert.ok(publishedInvite.includes(__hostedAuthEmailInternals.PUBLIC_HERO_URL));
   assert.ok(publishedInvite.includes(__hostedAuthEmailInternals.PUBLIC_EMAIL_ISOTYPE_URL));
-  assert.doesNotMatch(publishedRecovery,/iberfit-email-access-hero\.jpg/u);
+  assert.doesNotMatch(publishedRecovery,/access-hero-v3-c3a8345b\.jpg|iberfit-email-access-hero\.jpg/u);
 });
