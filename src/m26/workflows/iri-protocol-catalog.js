@@ -341,7 +341,7 @@ function inferredProtocolValidity(protocolId,result,parts){
   if(protocolId==='modified-thomas')return Boolean(result.observation);
   if(protocolId==='hip-rotation-observation')return Boolean(result.result);
   if(protocolId==='assisted-squat')return Boolean(result.depth);
-  if(protocolId==='chair-stand-30s'||protocolId==='push-test'||protocolId==='trx-row'||protocolId==='bodyweight-squat-60s')return result.valid===true;
+  if(protocolId==='chair-stand-30s'||protocolId==='push-test'||protocolId==='trx-row'||protocolId==='bodyweight-squat-60s')return result.valid===true&&result.repetitions!=null;
   if(protocolId==='core-plank')return result.frontPlankSeconds!==null;
   if(protocolId==='posterior-chain-endurance')return result.equipmentCompatible===true&&result.seconds!==null&&String(result.protocol||'')!=='not-performed';
   if(protocolId==='one-minute-sit-to-stand')return result.valid===true&&result.repetitions!==null&&result.durationSeconds===60;
@@ -372,14 +372,14 @@ function protocolResult(protocolId,side,parts){
 function generatedConfiguration(protocolId,raw,parts){
   const {bodyComposition,strength,cardio}=parts;
   if(protocolId==='body-composition')return [bodyComposition.method,bodyComposition.device,bodyComposition.measurementConditions].filter(Boolean).join(' · ');
-  if(protocolId==='weight-bearing-lunge')return 'Pared vertical · cinta perpendicular · superficie firme · tres intentos por lado';
-  if(protocolId==='back-saver')return 'Cajón o banco estable · escala en centímetros · tres intentos por lado';
-  if(protocolId==='modified-thomas')return ['Borde de camilla o banco estable',raw.thomasPelvicControl&&`control pélvico: ${raw.thomasPelvicControl}`].filter(Boolean).join(' · ');
+  if(protocolId==='weight-bearing-lunge')return [raw.ankleProtocolVariant||'standard-barefoot',`intentos I/D: ${parts.mobility.ankle?.leftTrials?.length||0}/${parts.mobility.ankle?.rightTrials?.length||0}`].join(' · ');
+  if(protocolId==='back-saver')return [raw.posteriorProtocolVariant||'box-standard',`intentos I/D: ${parts.mobility.posteriorChain?.leftTrials?.length||0}/${parts.mobility.posteriorChain?.rightTrials?.length||0}`].join(' · ');
+  if(protocolId==='modified-thomas')return [raw.thomasProtocolVariant||'table-edge-standard',raw.thomasPelvicControl&&`control pélvico: ${raw.thomasPelvicControl}`].filter(Boolean).join(' · ');
   if(protocolId==='hip-rotation-observation')return 'Posición bilateral reproducible · pelvis y tronco controlados';
   if(protocolId==='assisted-squat')return [raw.squatAssistanceResponse&&`asistencia: ${raw.squatAssistanceResponse}`,raw.squatHeels&&`talones: ${raw.squatHeels}`].filter(Boolean).join(' · ')||'Base y asistencia documentadas';
   if(protocolId==='chair-stand-30s')return [strength.chairStand?.chairHeightCm!==null?`silla ${strength.chairStand.chairHeightCm} cm`:'',raw.chairStandProtocolVariant||''].filter(Boolean).join(' · ');
-  if(protocolId==='push-test')return [strength.push?.variant,strength.push?.supportHeightCm!==null?`apoyo ${strength.push.supportHeightCm} cm`:''].filter(Boolean).join(' · ');
-  if(protocolId==='trx-row')return [strength.trxRow?.handleHeightCm!==null?`asas ${strength.trxRow.handleHeightCm} cm`:'',strength.trxRow?.heelDistanceCm!==null?`talones ${strength.trxRow.heelDistanceCm} cm`:'',strength.trxRow?.position].filter(Boolean).join(' · ');
+  if(protocolId==='push-test')return [strength.push?.variant,strength.push?.durationSeconds!=null?`${strength.push.durationSeconds} s`:'',strength.push?.supportHeightCm!==null?`apoyo ${strength.push.supportHeightCm} cm`:''].filter(Boolean).join(' · ');
+  if(protocolId==='trx-row')return [strength.trxRow?.bodyAngleDeg!=null?`ángulo ${strength.trxRow.bodyAngleDeg}°`:'',strength.trxRow?.durationSeconds!=null?`${strength.trxRow.durationSeconds} s`:'',strength.trxRow?.handleHeightCm!==null?`asas ${strength.trxRow.handleHeightCm} cm`:'',strength.trxRow?.heelDistanceCm!==null?`talones ${strength.trxRow.heelDistanceCm} cm`:'',strength.trxRow?.position].filter(Boolean).join(' · ');
   if(protocolId==='core-plank')return [raw.coreProtocolVariant||'',strength.core?.quality&&`calidad: ${strength.core.quality}`].filter(Boolean).join(' · ');
   if(protocolId==='bodyweight-squat-60s')return ['60 s',strength.squat60?.depthCriterion&&`profundidad: ${strength.squat60.depthCriterion}`,strength.squat60?.stance&&`base: ${strength.squat60.stance}`].filter(Boolean).join(' · ');
   if(protocolId==='posterior-chain-endurance')return [strength.posteriorChain?.protocol,strength.posteriorChain?.equipmentCompatible?'equipo compatible':'equipo no confirmado'].filter(Boolean).join(' · ');
@@ -394,7 +394,7 @@ function protocolNormEligible(protocolId,{valid,variant,adaptationReason,result}
   if(protocolId==='weight-bearing-lunge')return ['standard-barefoot','standard-footwear'].includes(variant);
   if(protocolId==='chair-stand-30s')return variant==='standard-arms-crossed'&&Number(result?.chairHeightCm)>=43&&Number(result?.chairHeightCm)<=46;
   if(protocolId==='one-minute-sit-to-stand')return Number(result?.chairHeightCm)>=43&&Number(result?.chairHeightCm)<=46&&Number(result?.durationSeconds)===60;
-  if(protocolId==='push-test')return variant==='standard';
+  if(protocolId==='push-test')return variant==='standard'&&result?.durationSeconds==null;
   return false;
 }
 function protocolMeasurementClass(protocol,{valid,variant,adaptationReason,normEligible,configuration}={}){
@@ -415,7 +415,7 @@ export function buildIriProtocolRecords({raw={},existingRecords=[],assessmentDat
       const explicit=explicitBool(raw,protocol.form.valid);
       const variant=text(firstDefined(raw[protocol.form.variant],previous.variant,protocol.defaultVariant),120);
       const configuration=text(firstDefined(raw[protocol.form.configuration],previous.configuration,generatedConfiguration(protocol.id,raw,parts)),800);
-      const valid=explicit===null?(previous.valid!==undefined?Boolean(previous.valid):inferredValid):explicit;
+      const valid=inferredValid&&(explicit===null?(previous.valid!==undefined?Boolean(previous.valid):true):explicit);
       const adaptationReason=text(firstDefined(raw[protocol.form.adaptation],previous.adaptationReason),600);
       const normEligible=protocolNormEligible(protocol.id,{valid,variant,adaptationReason,result});
       records.push(Object.freeze({
@@ -430,7 +430,8 @@ export function buildIriProtocolRecords({raw={},existingRecords=[],assessmentDat
         valid,
         executionValid:valid,
         normEligible,
-        trackingComparable:Boolean(valid&&configuration),
+        trackingComparable:Boolean(valid&&configuration&&repeatableSetup(protocol.id,result)),
+        protocolMode:normEligible?'standard':(Boolean(adaptationReason)||variant!==protocol.defaultVariant)?'adapted_comparable':'baseline_only',
         measurementClass:protocolMeasurementClass(protocol,{valid,variant,adaptationReason,normEligible,configuration}),
         adaptationReason,
         stopReason:text(firstDefined(raw[protocol.form.stop],previous.stopReason),600),
@@ -455,7 +456,21 @@ export function flattenIriProtocolRecords(records=[]){
 }
 
 function comparableValue(value){return text(value,800).toLocaleLowerCase('es-ES');}
-const CARDIO_PROTOCOL_TEST_IDS=new Set(['one-minute-sit-to-stand','ymca-three-minute-step','legacy-iberfit-three-minute-step-adapted']);
+const CARDIO_PROTOCOL_TEST_IDS=new Set(['one-minute-sit-to-stand','ymca-three-minute-step','treadmill-three-minute-field','legacy-iberfit-three-minute-step-adapted']);
+const SETUP_FIELDS=Object.freeze({
+  'trx-row':['handleHeightCm','heelDistanceCm','bodyAngleDeg','position','durationSeconds'],
+  'push-test':['variant','supportHeightCm','durationSeconds'],
+  'bodyweight-squat-60s':['depthCriterion','stance'],
+  'chair-stand-30s':['chairHeightCm'],
+  'one-minute-sit-to-stand':['chairHeightCm','durationSeconds'],
+  'treadmill-three-minute-field':['durationSeconds','speedKmh','inclinePercent','locomotionMode','hrMethod','recoveryMode'],
+});
+function repeatableSetup(id,result={}){
+  if(id==='trx-row')return result.handleHeightCm!=null&&(result.heelDistanceCm!=null||result.bodyAngleDeg!=null)&&Boolean(result.position);
+  if(id==='bodyweight-squat-60s')return Boolean(result.depthCriterion&&result.stance);
+  if(id==='treadmill-three-minute-field')return SETUP_FIELDS[id].every((key)=>result[key]!=null&&result[key]!=='');
+  return true;
+}
 export function protocolComparabilityWarnings(previousRecords=[],currentRecords=[]){
   const previousRows=Array.isArray(previousRecords)?previousRecords:[];
   const currentRows=Array.isArray(currentRecords)?currentRecords:[];
@@ -467,6 +482,8 @@ export function protocolComparabilityWarnings(previousRecords=[],currentRecords=
   }
   for(const current of currentRows){
     const prior=previous.get(recordKey(current));if(!prior||!resultExists(prior.result)||!resultExists(current.result))continue;
+    const setupChanged=(SETUP_FIELDS[current.testId]||[]).some((key)=>comparableValue(prior.result?.[key])!==comparableValue(current.result?.[key]));
+    if(setupChanged)warnings.push(`“${current.testName}” cambió su configuración medida; los resultados no son directamente comparables.`);
     const side=current.side&&current.side!=='not-applicable'?` · ${current.side==='left'?'izquierda':current.side==='right'?'derecha':current.side}`:'';
     if(prior.protocolVersion&&current.protocolVersion&&prior.protocolVersion!==current.protocolVersion){warnings.push(`“${current.testName}${side}” cambió de versión (${prior.protocolVersion} → ${current.protocolVersion}); los resultados no son directamente comparables.`);continue;}
     if(comparableValue(prior.variant)!==comparableValue(current.variant)){warnings.push(`“${current.testName}${side}” se realizó antes con la variante “${prior.variant||'sin registrar'}”. Mantén la misma variante o interpreta la evolución como no comparable.`);continue;}

@@ -5,39 +5,32 @@ Estado: fuente de verdad operativa para LIVE, Canary y Auth.
 
 ## WIP activo de evolución · 2026-10-02
 
-- WIP=1: PR #672 — `feat(iri): initial diagnosis and private photogrammetry v1`.
-- Rama: `feat/iri-photogrammetry-v1`.
-- Base/Canary actual comprobado: `2bc5f7b01c4fac656a4c78e6235beaf0067cca0a`.
-- HEAD funcional comprobado antes de esta actualización documental: `90c1f47695e34299cfc31bfc33e150a6fb673077`.
-- PR: OPEN + DRAFT + mergeable.
-- IMPLEMENTADO: baseline IRI inicial único; seguimiento/evolución desacoplado de `iri_assessments`; 1MSTS separado de YMCA; informe baseline-only; fotos excluidas por defecto; consentimiento físico persistido; consentimiento fotográfico independiente; workspace privado de 4 vistas; originales inmutables con SHA-256; flujo recuperable `prepare → upload → finalize`; landmarks manuales editables/validados; geometría aspect-ratio aware; UI keyboard/touch/mobile; acceso de aplicación sólo Coach/Admin.
-- TESTEADO/QA: foundation/RLS/RPC/Storage certificados en QA; bucket privado presente; Cliente privado denegado y Coach asignado permitido en gate autenticado; función trigger no ejecutable directamente por `anon` ni `authenticated`; cobertura explícita añadida para contexto Admin. El CI exhaustivo del HEAD documental final sigue pendiente.
-- CI previo: Fast Lane, M26 CI, Production Data Safety, QA Real Write, Continuous Audit, Authenticated Client, Admin Interaction Matrix y Daily Visual llegaron a GREEN. Device Experience reprodujo dos shutdowns dentro de la spec de fotogrametría; la causa raíz se aisló en el `MutationObserver` del controller, que podía reaccionar a su propio `render()` durante la carga inicial y encadenar nuevas cargas antes de resolver el estado remoto. `90c1f47695e34299cfc31bfc33e150a6fb673077` ignora mutaciones internas del workspace y conserva recarga ante cambios externos de ruta/contexto, con test de regresión específico. Tras ese fix el matrix recorrió las 60 pruebas: 55 pasaron y 5 touch fallaron sólo en viewports bajos porque el harness hacía `touchscreen.tap` con coordenadas absolutas después de desplazar el chip de landmark; el canvas podía quedar fuera del viewport. La spec se endurece para traer el canvas a viewport y validar las coordenadas antes del tap, manteniendo la misma exigencia de movimiento del landmark. Canary Policy sigue siendo dependiente del Device gate. No reutilizar CI anterior como evidencia del HEAD final.
-- QA DB contiene historia de experimentos de cutover; el forward path de PROD sigue siendo `foundation backward-compatible → frontend LIVE → post-deploy contract`.
-- PROD preflight read-only 02/10: #672 aún no está aplicado (sin tablas nuevas ni bucket); existe 1 IRI `inicial`, estado `revisión`, 1 cliente y 0 clientes duplicados. Esto justifica que el guard físico proteja `revisión/aprobado/publicado` cuando se active el contract phase.
-- CANARY: NO integrado ni certificado para #672.
-- PROD: NO mutado por #672.
-- LIVE VERIFICADO: NO para #672.
-- Siguiente acción exacta: completar CI del HEAD final; sólo con todos los gates verdes pasar PR a ready, integrar en Canary y ejecutar el cutover canónico con verificación real en cada fase.
+- WIP=1: PR #678 · Personas + IRI real en terreno + Solo IRI.
+- Rama: `feat/iri-field-service-lifecycle-v1`; base Canary comprobada `841e0fb65bbe2667d134d040f3ac9bdd48fef281`.
+- El checkpoint remoto previo a esta corrección es `407aee869e84c91775a06bccb23980c5972cda82`. La evidencia final debe corresponder al HEAD nuevo, no reutilizar CI anterior.
+- IMPLEMENTADO: `iri_only` en lifecycle canónico; alta Admin sin frecuencia de entrenamiento obligatoria; filtro Personas; conversión de la misma persona a activa; asignación Coach conservada. Bootstrap proyecta sólo el status de clientes ya autorizados; no añade una colección global. Capacidad, cartera activa y alertas de entrenamiento excluyen Solo IRI, incluidas renovaciones antiguas.
+- IMPLEMENTADO: variantes en colchoneta, empuje con rodillas y duración, TRX con geometría y duración, sentadilla libre 60 s separada de silla/1MSTS, cinta submáxima 3 min con FC final/+1/+2, HRR descriptiva, carga, método y recuperación. Presets sólo de preparación; no inventan resultados ni validez. Cambios medidos de configuración invalidan comparabilidad aunque no se edite el texto libre. Informe baseline independiente.
+- QA DB: migración canónica aplicada sólo a `gjztkdwfmunnzhtvxrsu`; `qa/iri-only-lifecycle-transaction.sql` certificó alta/replay, Coach, proyección scoped, un único IRI inicial intacto tras conversión, métrica activa +1 sólo al activar, rechazo de correo real y origen ajeno QA, y ACL privada. Fixtures/roles/assurance se revierten con ROLLBACK. Es certificación de rol DB, no login HTTP.
+- QA mantiene la tabla experimental de servicio de drafts anteriores sin uso; no se crea ni se usa en PROD. La fuente de verdad comercial es lifecycle, no un booleano ni una segunda tabla.
+- TESTS: suite oficial sin red 3.099 tests, 3.098 PASS, 1 SKIP, 0 FAIL antes del cierre documental; regresiones específicas de protocolos, métricas y gate aditivo. Repetir sólo si hay cambios funcionales posteriores.
+- Navegador local: descarga de Chromium falló; las nuevas specs de filtros/conversión, wizard Solo IRI y preparación de terreno se ejecutarán en Admin Interaction Matrix del HEAD nuevo (Chromium/WebKit/Firefox y dispositivos). No marcarlas verificadas hasta ese gate.
+- CANARY: pendiente de integración y certificación para #678.
+- PROD: sin mutaciones por #678. LIVE del WIP: NO verificado.
+- Siguiente acción: actualizar #678 y exigir todos los gates del HEAD exacto; corregir cualquier fallo; ready/merge → Canary exact deploy + autenticación/QA → preflight y migración PROD backward-compatible → promoción canónica → verificación LIVE end-to-end.
 
-Regla: cualquier avance de este WIP debe actualizar este bloque sólo con hechos comprobados y distinguir implementación, test, Canary, PROD y LIVE.
+Regla: distinguir implementación, test, Canary, PROD y LIVE; no cerrar con sólo CI o pantalla de acceso.
 
 ## Producción LIVE
 
-- Dominio: `https://app.iberfit.cl`
-- Estado: PRODUCCIÓN REAL.
-- Source SHA LIVE verificado: `be39ea321cd5b476066381f64e88c5ecdf78a5a7`
-- Release branch: `release/prod-be39ea321cd5`
-- Promotion run: [`36791716608 = SUCCESS`](https://github.com/iberfit/iberfit-m26-app/actions/runs/36791716608)
-- Cloudflare Pages productivo: `iberfit-m26-production`
-- Supabase PROD: `pjhmrhejsoofmouedavw`
+- Dominio: `https://app.iberfit.cl`; PRODUCCIÓN REAL.
+- Source SHA LIVE verificado independientemente en `/m26/version.json`: `841e0fb65bbe2667d134d040f3ac9bdd48fef281`.
+- Runtime: PRODUCTION, proyecto `pjhmrhejsoofmouedavw`, QA desactivado.
+- Release branch: `release/prod-841e0fb65bbe`; manifest commit `9541bbe4c4373700c9912da1722d766fbe0ceb7b`.
+- Promotion run: [37027187997 = SUCCESS](https://github.com/iberfit/iberfit-m26-app/actions/runs/37027187997).
+- PRs #674/#675: IRI v2 cerrado y publicado según checkpoint; identidad de release comprobada en esta ronda. No confundir esto con certificación LIVE del nuevo WIP #678.
+- Rollback de frontend de #678: este source exacto de IRI v2. No deshacer datos lifecycle ni consentimientos para un rollback de frontend.
 
-La promoción de Retos personales canónicos (PR #631 y corrección del gate de privacidad #658) terminó a las 23:36 UTC. LIVE verificó identidad SHA, runtime PROD sin QA, entrada interactiva Chromium (3 pruebas) y auditoría integral de sólo lectura.
-
-- Deployment exacto: `6c2e3a06-b386-431b-80f7-60e37a8307cf`.
-- Rollback frontend anterior: `d6752de2-8bac-4d27-8c8c-ce3809d6bf60`, SHA `b62eb0468dc972b4555c4ae2b29c564ebabb01f7`.
-- Evidencia de promoción: [artifact 11131709849](https://github.com/iberfit/iberfit-m26-app/actions/runs/36791716608/artifacts/11131709849).
-- Navegador LIVE independiente: carga finalizada, formulario de acceso visible y botón Entrar disponible. No se inició una sesión autenticada PROD en esta ronda.
+La siguiente evidencia de Retos es histórica del release `be39ea321cd5b476066381f64e88c5ecdf78a5a7`, no el source LIVE actual.
 
 ### Retos: migración y alcance certificado
 
@@ -53,7 +46,11 @@ La promoción de Retos personales canónicos (PR #631 y corrección del gate de 
 
 No considerar releases posteriores en PROD sin otra promoción y verificación LIVE explícitas.
 
-## Canary certificado para esta promoción
+## Canary actual
+
+Rama `canary/rc74-4`, HEAD comprobado `841e0fb65bbe2667d134d040f3ac9bdd48fef281`; #678 todavía no integrado.
+
+## Canary certificado histórico · Retos
 
 - Rama: `canary/rc74-4`
 - Source certificado: `be39ea321cd5b476066381f64e88c5ecdf78a5a7`

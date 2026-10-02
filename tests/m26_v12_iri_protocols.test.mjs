@@ -16,8 +16,17 @@ import {
 } from '../src/m26/workflows/iri-first-session.js';
 import {renderIriRoute} from '../src/m26/modules/route-render.js';
 import {buildIriReportHtml} from '../src/m26/workflows/iri-report-document.js';
+import {applyIriSetupPreset} from '../src/m26/workflows/iri-setup-presets.js';
 
 const reportCss=fs.readFileSync(new URL('../public/m26/iri-report.css',import.meta.url),'utf8');
+
+test('field preparation preserves measured outcomes and validity',()=>{
+  const controls=new Map(['trxHandleHeightCm','trxPosition','trxDurationSeconds','trxRowRepetitions','trxValid'].map((name)=>[name,{value:name==='trxRowRepetitions'?'14':'',checked:false}]));
+  assert.equal(applyIriSetupPreset({elements:{namedItem:(name)=>controls.get(name)}},'trx'),true);
+  assert.equal(controls.get('trxHandleHeightCm').value,'100');
+  assert.equal(controls.get('trxRowRepetitions').value,'14');
+  assert.equal(controls.get('trxValid').checked,false);
+});
 
 function validRaw(overrides={}){
   return {
@@ -34,6 +43,36 @@ function validRaw(overrides={}){
 function validDraft(overrides={}){
   return normalizeFirstSessionDraft(validRaw(overrides),{id:'IRI-V12'},'CLIENT-V12');
 }
+
+test('explicit validity cannot manufacture a missing result',()=>{
+  const draft=validDraft({pushUps:'',pushValid:'on',frontPlankSeconds:'',coreProtocolValid:'on'});
+  assert.equal(draft.protocolRecords.find((r)=>r.testId==='push-test').valid,false);
+  assert.equal(draft.protocolRecords.find((r)=>r.testId==='core-plank').valid,false);
+});
+
+test('timed knee push-ups and measured TRX changes stay descriptive and noncomparable',()=>{
+  const previous=validDraft({pushVariant:'knees',pushDurationSeconds:'60',trxDurationSeconds:'60'});
+  const push=previous.protocolRecords.find((r)=>r.testId==='push-test');
+  assert.equal(push.normEligible,false);
+  assert.equal(push.protocolMode,'adapted_comparable');
+  assert.equal(previous.strength.push.durationSeconds,60);
+  assert.equal(flattenFirstSessionDraft(previous).pushDurationSeconds,60);
+  const current=structuredClone(previous.protocolRecords);
+  current.find((r)=>r.testId==='trx-row').result.bodyAngleDeg=45;
+  assert.ok(protocolComparabilityWarnings(previous.protocolRecords,current).some((s)=>/configuración medida/.test(s)));
+  const timedStandard=validDraft({pushDurationSeconds:'60'}).protocolRecords.find((r)=>r.testId==='push-test');
+  assert.equal(timedStandard.normEligible,false);
+  const command=buildIriCommandDraftFromFirstSession(validDraft({pushDurationSeconds:'60'}),{id:'IRI-V12',body:{pushUps:999,push_ups:999}});
+  assert.equal('pushUps' in command,false);
+  assert.equal('push_ups' in command,false);
+});
+
+test('mat adaptation reports the actual setup and never claims a bench',()=>{
+  const draft=validDraft({posteriorProtocolVariant:'floor-mat-adapted',posteriorConfiguration:'',posteriorLeft2:'',posteriorLeft3:'',posteriorRight2:'',posteriorRight3:''});
+  const back=draft.protocolRecords.find((r)=>r.testId==='back-saver');
+  assert.match(back.configuration,/floor-mat-adapted/);
+  assert.doesNotMatch(back.configuration,/banco|3 intentos/);
+});
 
 test('catálogo IRI V12 cubre todas las pruebas con protocolo técnico completo y versionado',()=>{
   const protocols=Object.values(IRI_PROTOCOL_CATALOG);

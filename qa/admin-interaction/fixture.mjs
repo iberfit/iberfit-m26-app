@@ -11,6 +11,12 @@ const COACH='22222222-2222-4222-8222-222222222222';
 const CLIENT='33333333-3333-4333-8333-333333333333';
 const CLIENT_ID='44444444-4444-4444-8444-444444444444';
 const ORG='00000000-0000-4000-8000-000000000140';
+const lifecycleQA=new URLSearchParams(location.search).has('lifecycle');
+const people=lifecycleQA?[
+  {id:'iri-person',name:'Persona Solo IRI',status:'active',lifecycle:{status:'iri_only'},coachNames:['Coach Interacción']},
+  {id:'active-person',name:'Cliente activo',status:'active',lifecycle:{status:'active'},coachNames:['Coach Interacción']},
+]:[];
+const commands=[];
 
 const route=new URLSearchParams(location.search).get('route')==='clients'?'clients':'users';
 const activeArea=route==='clients'?'admin-clientes':'admin-usuarios';
@@ -31,7 +37,7 @@ const state={
   rejectedOperations:[],
   metrics:{},
   collections:{
-    clients:[],
+    clients:structuredClone(people),
     appointments:[],
     sessions:[],
     clientAccess:[],
@@ -82,7 +88,7 @@ function clientsVm(){
     currentUserId:CURRENT_ADMIN,
     canManage:true,
     leads:[],
-    clients:[],
+    clients:structuredClone(people),
   };
 }
 
@@ -95,7 +101,13 @@ function render(){
 
 const service={
   async execute(input){
+    commands.push(structuredClone(input));
     const type=String(input?.type||'');
+    if(type==='ADMIN_CLIENTE_CAMBIAR_CICLO'){
+      const person=people.find((item)=>item.id===input.payload.clientId);
+      if(person)person.lifecycle.status=input.payload.status;
+      vm=clientsVm();
+    }
     if(type==='ADMIN_USUARIO_CAMBIAR_ESTADO'){
       const target=users.find((item)=>item.userId===input.payload?.userId);
       if(target){
@@ -128,4 +140,5 @@ globalThis.__IBERFIT_ADMIN_INTERACTION_QA__=Object.freeze({
   route,
   mounted:true,
   ids:Object.freeze({CURRENT_ADMIN,COACH,CLIENT,CLIENT_ID,ORG}),
+  commands:()=>structuredClone(commands),
 });

@@ -11,7 +11,6 @@ export {deriveCoachLaunchJourney} from '../onboarding/coach-launch-journey.js';
 const clone=(v)=>v==null?v:structuredClone(v);
 function clientRows(state){
   const life=new Map(adminCollection(state,'clientLifecycle').map((x)=>[String(x.clientId),x]));
-  const services=new Map(adminCollection(state,'clientServices').map((x)=>[String(x.clientId),x]));
   const assignments=new Map();
   for(const x of adminCollection(state,'coachClientAssignments')){
     if(x.status!=='active')continue;
@@ -42,7 +41,7 @@ function clientRows(state){
     const now=!Number.isNaN(parsedNow.getTime())?parsedNow:new Date();
     const adaptiveContext=buildAdaptiveSessionContext(state,id,{now});
     const adaptiveExperience=deriveAdaptiveExperience({experience,baseAction:structuralNextAction,adaptiveContext,role:'admin'});
-    const nextAction=adaptiveExperience.action;
+    const nextAction=String(life.get(id)?.status||'')==='iri_only'?{key:'review_iri',label:'Revisar IRI e informe',area:'iri',reason:'Persona evaluada · Solo IRI'}:adaptiveExperience.action;
     const rawProfile=profiles.get(id)||null;
     const profile=rawProfile?.profile&&typeof rawProfile.profile==='object'&&!Array.isArray(rawProfile.profile)?clone(rawProfile.profile):{};
     const access=clone(accessByClient.get(id)||null);
@@ -61,9 +60,8 @@ function clientRows(state){
       profile:Object.freeze(profile),
       access,
       lifecycle:clone(life.get(id)||null),
-      service:clone(services.get(id)||null),
       lifecycleStatus:String(life.get(id)?.status||x.status||''),
-      serviceKind:String(services.get(id)?.serviceKind||'training'),
+      serviceKind:String(life.get(id)?.status||x.status||'')==='iri_only'?'iri_only':'training',
       assignments:activeAssignments,
       coachNames,
       primaryCoachName:coachNames[0]||null,
@@ -242,7 +240,7 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
   const activeAssignments=(assignments||[]).filter((assignment)=>String(assignment?.status||'active').toLowerCase()==='active');
   const trainingAssignment=(assignment)=>{
     const client=clientById.get(recordId(assignment?.clientId));
-    return normalizeStatus(client?.serviceKind||client?.service?.serviceKind||'training')!=='iri_only';
+    return normalizeStatus(client?.lifecycle?.status||client?.status)!=='iri_only';
   };
   return Object.freeze(coachSubjects(coaches,users).map(({coachId,coach,user})=>{
     const ownAssignments=activeAssignments.filter((assignment)=>recordId(assignment?.coachUserId)===coachId&&trainingAssignment(assignment));

@@ -30,7 +30,8 @@ test('ADMIN clients surface exposes a guided create-and-invite flow', () => {
 
 test('ADMIN client access state remains visible after bootstrap refresh', () => {
   assert.match(state, /'clientAccess'/);
-  assert.match(state, /'clientServices'/);
+  assert.match(state, /'clientLifecycle'/);
+  assert.doesNotMatch(state, /'clientServices'/);
   assert.match(state, /lastInvitationAttemptAt/);
   assert.match(state, /invitationDeliveryStatus/);
   assert.match(state, /access:accessByClient/);

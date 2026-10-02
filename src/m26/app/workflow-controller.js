@@ -1,4 +1,5 @@
 import {buildIriCommand} from '../workflows/iri-workflow.js';
+import {applyIriSetupPreset} from '../workflows/iri-setup-presets.js';
 import {buildCycleCommand} from '../workflows/planning-workflow.js';
 import {buildAppointmentCommand,buildConfirmAppointmentCommand} from '../workflows/agenda-workflow.js';
 import {applyAdaptiveContext} from '../intelligence/adaptive-context.js';
@@ -486,7 +487,8 @@ export function createWorkflowController({
     syncIriConditionalFields(form);
     const raw=iriRaw(form);const weight=Number(raw.weightKg),height=Number(raw.heightCm);const bmi=Number.isFinite(weight)&&Number.isFinite(height)&&height>0?weight/((height/100)**2):null;
     const bmiField=form.elements?.namedItem?.('bmiPreview');if(bmiField)bmiField.value=bmi?bmi.toFixed(1):'';
-    const finalHr=Number(raw.stepFinalHr),oneHr=Number(raw.stepOneMinuteHr),twoHr=Number(raw.twoMinuteHr);
+    const hrValue=(value)=>value===null||value===undefined||String(value).trim()===''?NaN:Number(value);
+    const finalHr=hrValue(raw.stepFinalHr),oneHr=hrValue(raw.stepOneMinuteHr),twoHr=hrValue(raw.twoMinuteHr);
     const delta=Number.isFinite(finalHr)&&Number.isFinite(oneHr)?finalHr-oneHr:null;
     const deltaTwo=Number.isFinite(finalHr)&&Number.isFinite(twoHr)?finalHr-twoHr:null;
     const deltaField=form.elements?.namedItem?.('deltaFcPreview');if(deltaField)deltaField.value=delta===null?'':String(delta);
@@ -503,7 +505,8 @@ export function createWorkflowController({
       ankleRight:mobilityTests.find((item)=>item.side==='right')||null,
       chairStand30s:scoring?.domainScores?.strength?.tests?.[0]||null,
       oneMinuteSitToStandRepetitions:scoring?.domainScores?.cardio?.tests?.[0]||null,
-      pushUps:scoreNormedTest({testId:'push_up_standard',value:raw.pushUps,context:normContext,protocolId:'standard_max_valid_reps'}),
+      pushUps:normalized?.protocolRecords?.find((record)=>record.testId==='push-test')?.normEligible
+        ?scoreNormedTest({testId:'push_up_standard',value:raw.pushUps,context:normContext,protocolId:'standard_max_valid_reps'}):null,
     };
     for(const [field,result] of Object.entries(normResults)){
       const node=form.querySelector?.(`[data-iri-norm="${field}"]`);if(!node)continue;
@@ -575,7 +578,7 @@ export function createWorkflowController({
     setIriConditionalControl(stepHeight,{enabled:!skipped&&(isYmca||isLegacy),required:isYmca||isLegacy,readonly:isYmca});
     setIriConditionalControl(cadence,{enabled:!skipped&&(isYmca||isLegacy),required:isYmca||isLegacy,readonly:isYmca});
     setIriConditionalControl(duration,{enabled:!skipped&&hasProtocol,required:hasProtocol,readonly:true});
-    setIriConditionalControl(finalHr,{enabled:!skipped&&hasProtocol,required:isYmca||isLegacy});
+    setIriConditionalControl(finalHr,{enabled:!skipped&&hasProtocol,required:isYmca||isLegacy||isTreadmill});
     setIriConditionalControl(recoveryHr,{enabled:!skipped&&hasProtocol,required:isYmca||isLegacy||isTreadmill});
     setIriConditionalControl(treadmillSpeed,{enabled:!skipped&&isTreadmill,required:isTreadmill});
     setIriConditionalControl(treadmillIncline,{enabled:!skipped&&isTreadmill,required:isTreadmill});
@@ -610,7 +613,7 @@ export function createWorkflowController({
     if(!form)return;
     const bodySkipped=syncIriSkippedGroup(form,{toggleName:'bodyCompositionSkipped',fieldNames:['weightKg','heightCm','bodyFatPercent','leanMassKg','muscleMassKg','bodyWaterPercent','waistCm','visceralFatLevel','bodyCompositionMethod','bodyCompositionDevice','measurementConditions','bodyCompositionAttachment','bodyCompositionNotes','bodyCompositionProtocolConfiguration','bodyCompositionValid','bodyCompositionAdaptationReason','bodyCompositionProtocolStopReason'],reasonName:'bodyCompositionSkipReason'});
     const mobilitySkipped=syncIriSkippedGroup(form,{toggleName:'mobilitySkipped',fieldNames:['ankleLeft1','ankleLeft2','ankleLeft3','ankleRight1','ankleRight2','ankleRight3','posteriorLeft1','posteriorLeft2','posteriorLeft3','posteriorRight1','posteriorRight2','posteriorRight3','anklePain','ankleCompensation','posteriorPain','thomasLeft','thomasRight','thomasPelvicControl','thomasPain','hipRotationResult','hipRotationPain','hipRotationCompensation','squatDepth','squatHeels','squatKnees','squatTrunk','squatShift','squatAssistanceResponse','squatPain','mobilityNotes','ankleProtocolVariant','ankleConfiguration','ankleValid','ankleAdaptationReason','ankleStopReason','posteriorProtocolVariant','posteriorConfiguration','posteriorValid','posteriorAdaptationReason','posteriorStopReason','thomasProtocolVariant','thomasConfiguration','thomasValid','thomasAdaptationReason','thomasStopReason','hipRotationProtocolVariant','hipRotationConfiguration','hipRotationValid','hipRotationAdaptationReason','hipRotationStopReason','squatProtocolVariant','squatConfiguration','squatValid','squatAdaptationReason','squatStopReason'],reasonName:'mobilitySkipReason'});
-    const strengthSkipped=syncIriSkippedGroup(form,{toggleName:'strengthSkipped',fieldNames:['chairStand30s','chairHeightCm','chairStandValid','chairStandNotes','squat60Repetitions','squat60DepthCriterion','squat60Stance','squat60Valid','squat60Notes','squat60ProtocolVariant','squat60Configuration','squat60AdaptationReason','squat60StopReason','pushVariant','pushUps','pushSupportHeightCm','pushValid','pushNotes','trxRowRepetitions','trxHandleHeightCm','trxHeelDistanceCm','trxBodyAngleDeg','trxPosition','trxValid','trxNotes','frontPlankSeconds','sidePlankLeftSeconds','sidePlankRightSeconds','coreQuality','corePain','posteriorChainProtocol','posteriorChainSeconds','posteriorEquipmentCompatible','posteriorNotPerformedReason','posteriorChainPain','strengthNotes','chairStandProtocolVariant','chairStandConfiguration','chairStandAdaptationReason','chairStandStopReason','pushConfiguration','pushAdaptationReason','pushStopReason','trxProtocolVariant','trxConfiguration','trxAdaptationReason','trxStopReason','coreProtocolVariant','coreConfiguration','coreValid','coreAdaptationReason','coreStopReason','posteriorChainConfiguration','posteriorChainValid','posteriorChainAdaptationReason','posteriorChainStopReason'],reasonName:'strengthSkipReason'});
+    const strengthSkipped=syncIriSkippedGroup(form,{toggleName:'strengthSkipped',fieldNames:['chairStand30s','chairHeightCm','chairStandValid','chairStandNotes','squat60Repetitions','squat60DepthCriterion','squat60Stance','squat60Valid','squat60Notes','squat60ProtocolVariant','squat60Configuration','squat60AdaptationReason','squat60StopReason','pushDurationSeconds','pushVariant','pushUps','pushSupportHeightCm','pushValid','pushNotes','trxDurationSeconds','trxRowRepetitions','trxHandleHeightCm','trxHeelDistanceCm','trxBodyAngleDeg','trxPosition','trxValid','trxNotes','frontPlankSeconds','sidePlankLeftSeconds','sidePlankRightSeconds','coreQuality','corePain','posteriorChainProtocol','posteriorChainSeconds','posteriorEquipmentCompatible','posteriorNotPerformedReason','posteriorChainPain','strengthNotes','chairStandProtocolVariant','chairStandConfiguration','chairStandAdaptationReason','chairStandStopReason','pushConfiguration','pushAdaptationReason','pushStopReason','trxProtocolVariant','trxConfiguration','trxAdaptationReason','trxStopReason','coreProtocolVariant','coreConfiguration','coreValid','coreAdaptationReason','coreStopReason','posteriorChainConfiguration','posteriorChainValid','posteriorChainAdaptationReason','posteriorChainStopReason'],reasonName:'strengthSkipReason'});
     const cardioSkipped=syncIriSkippedGroup(form,{toggleName:'cardioSkipped',fieldNames:['cardioProtocol','cardioChairHeightCm','oneMinuteSitToStandRepetitions','stepHeightCm','cadenceBpm','treadmillSpeedKmh','treadmillInclinePercent','treadmillLocomotionMode','cardioHrMethod','cardioRecoveryMode','cardioDurationSeconds','restingHr','stepFinalHr','stepOneMinuteHr','twoMinuteHr','cardioRpe','cardioValid','cardioSymptoms','cardioStopReason','cardioNotes','cardioConfiguration','cardioAdaptationReason'],reasonName:'cardioSkipReason'});
     syncIriCardioProtocol(form,{skipped:cardioSkipped});
     const modality=String(form.elements?.namedItem?.('modality')?.value||'');
@@ -830,6 +833,17 @@ export function createWorkflowController({
     finally{if(button){button.disabled=wasDisabled;button.removeAttribute?.('aria-busy');}}
   }
   async function onClick(event){
+    const preset=event.target.closest?.('[data-iri-setup-preset]');
+    if(preset){
+      event.preventDefault?.();requireCoach();
+      const form=preset.closest?.('[data-workflow-form="iri"]');
+      if(applyIriSetupPreset(form,preset.getAttribute('data-iri-setup-preset'))){
+        computed(form);queueIriSave();
+        const notice=form.querySelector('[data-iri-preset-status]');
+        if(notice)notice.textContent='Preparación aplicada. Ajusta la configuración al material real antes de medir.';
+      }
+      return;
+    }
     const clearClients=event.target.closest?.('[data-client-clear]');if(clearClients){event.preventDefault?.();cancelScheduledClientListUpdate();const search=root.querySelector?.('[data-client-search]');if(search)search.value='';for(const node of root.querySelectorAll?.('[data-client-filter]')||[])node.value='';const sort=root.querySelector?.('[data-client-sort]');if(sort)sort.value='priority';updateClientList();return;}
     const clearLibrary=event.target.closest?.('[data-library-clear]');if(clearLibrary){event.preventDefault?.();const search=root.querySelector?.('[data-library-search]');if(search)search.value='';for(const node of root.querySelectorAll?.('[data-library-filter]')||[])node.value='';updateLibrary();return;}
     const registerProtocol=event.target.closest?.('[data-iri-register-target]');if(registerProtocol){event.preventDefault?.();const form=registerProtocol.closest?.('[data-workflow-form="iri"]');const target=form?.elements?.namedItem?.(registerProtocol.getAttribute?.('data-iri-register-target'));const card=registerProtocol.closest?.('[data-iri-protocol]');if(card)card.open=false;target?.scrollIntoView?.({block:'center',behavior:'smooth'});target?.focus?.();return;}

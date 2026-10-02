@@ -10,8 +10,8 @@ function stageLabel(stage){if(stage==='onboarding')return 'Alta incompleta';if(s
 
 export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
   const sourceClients=arr(clients);
-  const iriOnlyPeople=sourceClients.filter((client)=>text(client?.serviceKind||client?.service?.serviceKind||'training').toLowerCase()==='iri_only');
-  const normalizedClients=sourceClients.filter((client)=>text(client?.serviceKind||client?.service?.serviceKind||'training').toLowerCase()!=='iri_only').map((client)=>{
+  const iriOnlyPeople=sourceClients.filter((client)=>text(client?.lifecycle?.status||client?.lifecycleStatus||client?.status).toLowerCase()==='iri_only');
+  const normalizedClients=sourceClients.filter((client)=>text(client?.lifecycle?.status||client?.lifecycleStatus||client?.status).toLowerCase()!=='iri_only').map((client)=>{
     const experience=client?.experience||{};
     const stage=text(experience.stage,'active');
     const assignments=arr(client?.assignments);

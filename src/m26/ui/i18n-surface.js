@@ -5,6 +5,13 @@ import {iberfitExtraSurfaceTranslate} from './i18n-surface-extra.js';
 // Static, deterministic surface catalogue. Spanish is the canonical source text;
 // EN/FR/PT values are committed with the application and never generated at runtime.
 const ROWS=Object.freeze([
+  ['Revisar IRI e informe','Review IRI and report','Revoir IRI et rapport','Rever IRI e relatório'],
+  ['Filtrar estado','Filter status','Filtrer le statut','Filtrar estado'],
+  ['Todas las personas','All people','Toutes les personnes','Todas as pessoas'],
+  ['Clientes activos','Active clients','Clients actifs','Clientes ativos'],
+  ['Inactivos','Inactive','Inactifs','Inativos'],
+  ['No hay personas con este estado.','No people with this status.','Aucune personne avec ce statut.','Nenhuma pessoa com este estado.'],
+  ['Duración si fue cronometrada (s)','Duration if timed (s)','Durée si chronométrée (s)','Duração se cronometrada (s)'],
   ['Persona','Person','Personne','Pessoa'],
   ['Personas con expediente','People with records','Personnes avec dossier','Pessoas com registo'],
   ['Solo IRI','IRI only','IRI uniquement','Apenas IRI'],

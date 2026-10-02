@@ -1,5 +1,5 @@
 import {createPermissionSet} from '../shared/permission-set.js';
-export const M26_ADMIN_COLLECTION_KEYS=Object.freeze(['organizationUsers','applicationRoles','coachProfiles','coachClientAssignments','leads','clientLifecycle','clientServices','clientAccess','operationalTasks','notificationTemplates','notificationDeliveries','automationRules','auditEvents']);
+export const M26_ADMIN_COLLECTION_KEYS=Object.freeze(['organizationUsers','applicationRoles','coachProfiles','coachClientAssignments','leads','clientLifecycle','clientAccess','operationalTasks','notificationTemplates','notificationDeliveries','automationRules','auditEvents']);
 const ALLOWED=Object.freeze({
   organizationUsers:['id','userId','email','name','status','primaryRole','roles','lastAccessAt','createdAt','updatedAt','revision'],
   applicationRoles:['id','userId','role','active','grantedAt','grantedBy','revision'],
@@ -7,7 +7,6 @@ const ALLOWED=Object.freeze({
   coachClientAssignments:['id','coachUserId','clientId','status','startsAt','endsAt','reason','createdAt','updatedAt','revision'],
   leads:['id','name','email','phone','source','objective','status','ownerUserId','nextActionAt','createdAt','updatedAt','revision'],
   clientLifecycle:['id','clientId','status','reason','effectiveAt','changedBy','createdAt','revision'],
-  clientServices:['id','clientId','serviceKind','reason','changedBy','effectiveAt','createdAt'],
   clientAccess:['id','clientId','authUserId','email','status','revision','invitationAttemptCount','lastInvitationAttemptAt','invitationSentAt','invitationDeliveryStatus','invitationErrorCode','activatedAt','updatedAt'],
   operationalTasks:['id','type','entityType','entityId','clientId','assigneeUserId','status','priority','title','detail','dueAt','createdAt','updatedAt','resolvedAt','resolutionNote','revision'],
   notificationTemplates:['id','key','name','channel','subject','body','status','createdAt','updatedAt','revision'],

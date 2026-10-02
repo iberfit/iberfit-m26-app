@@ -28,8 +28,8 @@ test('Command Center prioriza cliente sin Coach antes de recorrido pendiente',()
 test('Solo IRI permanece fuera del Command Center operativo',()=>{
   const cc=deriveAdminCommandCenter({
     clients:[
-      {id:'C-ACTIVE',name:'Activa',serviceKind:'training',lifecycle:{status:'active'},assignments:[{id:'A1'}],experience:{stage:'active'}},
-      {id:'C-IRI',name:'Solo informe',serviceKind:'iri_only',lifecycle:{status:'onboarding'},assignments:[{id:'A2'}],experience:{stage:'onboarding'}},
+      {id:'C-ACTIVE',name:'Activa',lifecycle:{status:'active'},assignments:[{id:'A1'}],experience:{stage:'active'}},
+      {id:'C-IRI',name:'Solo informe',lifecycle:{status:'iri_only'},assignments:[{id:'A2'}],experience:{stage:'onboarding'}},
     ],
     coaches:[],tasks:[],
   });

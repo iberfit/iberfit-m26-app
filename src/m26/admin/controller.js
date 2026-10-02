@@ -327,7 +327,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
           birthDate:profile.birthDate,
           sexForNorms:profile.sexForNorms,
           initialAssessmentMode:profile.initialAssessmentMode,
-          initialServiceKind:text(data,'serviceIntent',40)==='iri_only'?'iri_only':'training',
+          initialLifecycleStatus:text(data,'serviceIntent',40)==='iri_only'?'iri_only':'onboarding',
           coachUserId:text(data,'coachUserId',200),
           modality:profile.modality,
           weeklyFrequency:profile.weeklyFrequency,
@@ -372,7 +372,6 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         payload:{clientId},
       },invitationResendSuccess);
     }
-    if(kind==='client-service')return run({type:'ADMIN_CLIENTE_CAMBIAR_SERVICIO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),serviceKind:text(data,'serviceKind',40)}},'Servicio actualizado.');
     if(kind==='client-lifecycle')return run({type:'ADMIN_CLIENTE_CAMBIAR_CICLO',entityId:text(data,'clientId',200),organizationId:org,reason:text(data,'reason',500),payload:{clientId:text(data,'clientId',200),status:text(data,'status',40)}},'Ciclo actualizado.');
     if(kind==='client-delete'){
       const clientId=text(data,'clientId',200);
@@ -393,6 +392,17 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     void onSubmit(event).catch((error)=>toast(/ADMIN_CONFIGURATION_JSON_INVALID/.test(String(error?.message||error))?'La configuración JSON no es válida.':'No fue posible procesar la operación administrativa.'));
   }
   function onDirectoryFilter(event){
+    const personFilter=event.target?.closest?.('[data-admin-person-filter]');
+    if(personFilter){
+      const selected=String(personFilter.value||'all');let visible=0;
+      for(const row of root.querySelectorAll?.('[data-admin-person-status]')||[]){
+        row.hidden=selected!=='all'&&row.getAttribute('data-admin-person-status')!==selected;
+        if(!row.hidden)visible+=1;
+      }
+      const feedback=root.querySelector?.('[data-admin-person-filter-status]');
+      if(feedback)feedback.textContent=visible?`${visible} personas visibles`:'No hay personas con este estado.';
+      return;
+    }
     if(!event.target?.closest?.('[data-admin-user-search],[data-admin-user-filter]'))return;
     applyUserDirectoryFilters(root);
   }
