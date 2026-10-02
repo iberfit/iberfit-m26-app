@@ -243,7 +243,8 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
     if(kind==='lead-create')return run({type:'ADMIN_LEAD_CREAR',entityId:org,organizationId:org,payload:{name:text(data,'name',200),email:text(data,'email',254),phone:text(data,'phone',80),source:text(data,'source',120),objective:text(data,'objective',1000)}},'Lead registrado.');
     if(kind==='lead-update')return run({type:'ADMIN_LEAD_ACTUALIZAR',entityId:text(data,'leadId',200),organizationId:org,baseRevision:rev(data),reason:text(data,'reason',500),payload:{leadId:text(data,'leadId',200),status:text(data,'status',40),nextActionAt:text(data,'nextActionAt',80)}},'Lead actualizado.');
     if(kind==='client-profile-update'){
-      const weeklyFrequency=text(data,'weeklyFrequency',20);
+      const relationshipType=text(data,'relationshipType',30)||'training';
+      const weeklyFrequency=relationshipType==='iri_only'?'':text(data,'weeklyFrequency',20);
       return run({
         type:'ADMIN_CLIENTE_ACTUALIZAR_FICHA',
         entityId:text(data,'clientId',200),
@@ -251,6 +252,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
         baseRevision:rev(data),
         payload:{
           clientId:text(data,'clientId',200),
+          relationshipType,
           name:text(data,'name',200),
           phone:text(data,'phone',80),
           birthDate:text(data,'birthDate',20),
@@ -288,6 +290,7 @@ export function createAdminController({root,store,service,render=()=>{}}={}){
       const weeklyFrequency=relationshipType==='iri_only'?'':text(data,'weeklyFrequency',20);
       const frequency=text(data,'frequency',100)||(weeklyFrequency?`${weeklyFrequency} sesiones por semana`:'');
       const profile={
+        relationshipType,
         initialAssessmentMode:text(data,'initialAssessmentMode',30)||'iri',
         birthDate:text(data,'birthDate',20),
         sexForNorms:text(data,'sexForNorms',20),
