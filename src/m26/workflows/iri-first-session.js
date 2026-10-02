@@ -1,6 +1,7 @@
 import {buildIriProtocolRecords,flattenIriProtocolRecords} from './iri-protocol-catalog.js';
 const SCHEMA='iberfit-iri-first-session-v1';
-export const IRI_FIRST_SESSION_STEPS=Object.freeze(['perfil','entrevista','composicion','movilidad','fuerza','cardio','revision']);
+export const IRI_FIRST_SESSION_STEPS=Object.freeze(['perfil','entrevista','composicion','movilidad','fuerza','cardio','fotografia','revision']);
+const IRI_REQUIRED_SESSION_STEPS=Object.freeze(IRI_FIRST_SESSION_STEPS.filter((step)=>step!=='fotografia'));
 const IRI_PRIORITY_DOMAINS=Object.freeze(['general','composition','mobility','strength','cardio','recovery','adherence','other']);
 const IRI_PRIORITY_STATUSES=Object.freeze(['active','maintain','completed','paused']);
 
@@ -221,7 +222,7 @@ export function confirmedFirstSessionDraft(record={},clientId=''){
 }
 
 export function validateFirstSessionDraft(draft){const byStep=Object.fromEntries(IRI_FIRST_SESSION_STEPS.map((step)=>[step,stepErrors(draft,step)]));const errors=Object.values(byStep).flat();return Object.freeze({ok:errors.length===0,errors:Object.freeze([...new Set(errors)]),byStep:Object.freeze(byStep),completion:Object.freeze(firstSessionCompletion(draft))});}
-export function firstSessionCompletion(draft){const steps=IRI_FIRST_SESSION_STEPS.map((step)=>({step,complete:stepErrors(draft,step).length===0}));const complete=steps.filter((item)=>item.complete).length;return {complete,total:steps.length,percent:Math.round((complete/steps.length)*100),steps};}
+export function firstSessionCompletion(draft){const steps=IRI_REQUIRED_SESSION_STEPS.map((step)=>({step,complete:stepErrors(draft,step).length===0}));const complete=steps.filter((item)=>item.complete).length;return {complete,total:steps.length,percent:Math.round((complete/steps.length)*100),steps};}
 
 export function buildIriCommandDraftFromFirstSession(draft,current={}){
   const check=validateFirstSessionDraft(draft);if(!check.ok)throw new Error(`M26_IRI_FIRST_SESSION_INVALID:${check.errors.join(',')}`);
