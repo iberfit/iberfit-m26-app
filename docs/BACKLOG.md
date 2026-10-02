@@ -6,6 +6,23 @@ Promotion run LIVE: `35259458571 = SUCCESS`
 Canary actual: `b23688196e49f6dc26d2762ef592e80ab1b8ed80`
 Último merge funcional: PR #477 · reintento seguro de invitaciones Admin.
 
+## WIP ACTIVO · 2026-10-02
+
+PR #672 — IRI inicial + fotogrametría privada v1.
+- [x] Baseline IRI inicial único y contrato de privacidad/fotogrametría base en rama.
+- [x] Consentimientos auditables y storage privado base.
+- [x] Motor geométrico puro + tests iniciales.
+- [ ] UI captura 4 vistas + editor manual.
+- [ ] 1MSTS como protocolo separado.
+- [ ] Desacoplar evolución/reevaluación de `iri_assessments`.
+- [ ] Reporte IRI baseline-only; fotos fuera por defecto.
+- [ ] QA + CI del SHA final.
+- [ ] Canary live.
+- [ ] PROD + verificación live.
+
+Canary base comprobado al iniciar el WIP: `2bc5f7b01c4fac656a4c78e6235beaf0067cca0a`.
+No abrir otro WIP de producto hasta cerrar o bloquear realmente #672.
+
 ## P0 · guardrails permanentes
 
 - [ ] Mantener P0=0 en auth, WebAuthn, roles, RLS, cross-tenant, integridad y disponibilidad.
