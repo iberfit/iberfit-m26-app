@@ -5,24 +5,26 @@ function text(value,fallback=''){const clean=String(value??'').trim();return cle
 function number(value){const n=Number(value);return Number.isFinite(n)?n:null;}
 function openTask(task={}){return !['resolved','cancelled','closed'].includes(text(task.status).toLowerCase());}
 function taskPriority(task={}){const p=text(task.priority,'normal').toLowerCase();return p==='critical'?0:p==='high'?1:2;}
-function stageKind(stage){if(stage==='onboarding'||stage==='evaluation')return 'warning';if(stage==='planning'||stage==='scheduling')return 'process';return 'clear';}
-function stageLabel(stage){if(stage==='onboarding')return 'Alta incompleta';if(stage==='evaluation')return 'IRI pendiente';if(stage==='planning')return 'Planificación pendiente';if(stage==='scheduling')return 'Próxima cita pendiente';return 'Seguimiento activo';}
+function stageKind(stage){if(stage==='iri_only')return 'clear';if(stage==='onboarding'||stage==='evaluation')return 'warning';if(stage==='planning'||stage==='scheduling')return 'process';return 'clear';}
+function stageLabel(stage){if(stage==='iri_only')return 'Solo IRI';if(stage==='onboarding')return 'Alta incompleta';if(stage==='evaluation')return 'IRI pendiente';if(stage==='planning')return 'Planificación pendiente';if(stage==='scheduling')return 'Próxima cita pendiente';return 'Seguimiento activo';}
 
 export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
   const normalizedClients=arr(clients).map((client)=>{
     const experience=client?.experience||{};
-    const stage=text(experience.stage,'active');
+    const lifecycleStatus=text(client?.lifecycle?.status||client?.status).toLowerCase();
+    const stage=lifecycleStatus==='iri_only'?'iri_only':text(experience.stage,'active');
     const assignments=arr(client?.assignments);
     const assigned=assignments.length>0;
     const nextAction=client?.nextAction||{};
     const adaptive=client?.adaptiveExperience||{};
     const adaptiveKind=['critical','warning'].includes(text(adaptive.kind).toLowerCase())?text(adaptive.kind).toLowerCase():null;
-    const kind=!assigned?'critical':adaptiveKind||stageKind(stage);
+    const kind=lifecycleStatus==='iri_only'?'clear':!assigned?'critical':adaptiveKind||stageKind(stage);
     return Object.freeze({
       clientId:text(client?.id),
       clientName:text(client?.name,'Cliente'),
       stage,
-      stageLabel:text(experience.stageLabel,stageLabel(stage)),
+      lifecycleStatus,
+      stageLabel:lifecycleStatus==='iri_only'?'Solo IRI':text(experience.stageLabel,stageLabel(stage)),
       experiencePriority:Number.isFinite(Number(experience.priority))?Number(experience.priority):5,
       assigned,
       coachNames:Object.freeze(arr(client?.coachNames).map((x)=>text(x)).filter(Boolean)),
@@ -69,14 +71,17 @@ export function deriveAdminCommandCenter({clients=[],coaches=[],tasks=[]}={}){
     .sort((a,b)=>taskPriority(a)-taskPriority(b));
 
   const countStage=(stage)=>normalizedClients.filter((client)=>client.stage===stage).length;
+  const trainingClients=normalizedClients.filter((client)=>client.lifecycleStatus!=='iri_only');
   const summary=Object.freeze({
-    totalClients:normalizedClients.length,
-    unassignedClients:normalizedClients.filter((client)=>!client.assigned).length,
+    totalPeople:normalizedClients.length,
+    totalClients:trainingClients.length,
+    iriOnlyPeople:normalizedClients.filter((client)=>client.lifecycleStatus==='iri_only').length,
+    unassignedClients:trainingClients.filter((client)=>!client.assigned).length,
     onboardingPending:countStage('onboarding'),
     iriPending:countStage('evaluation'),
     planningPending:countStage('planning'),
     schedulingPending:countStage('scheduling'),
-    activeClients:countStage('active'),
+    activeClients:normalizedClients.filter((client)=>client.lifecycleStatus==='active').length,
     openTasks:openTasks.length,
     criticalTasks:criticalTasks.length,
     coachesNearCapacity:coachLoad.filter((coach)=>coach.status==='near'||coach.status==='full').length,
