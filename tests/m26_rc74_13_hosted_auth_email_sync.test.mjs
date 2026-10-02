@@ -31,27 +31,45 @@ test('la reautenticación usa el OTP oficial sin exponer TokenHash ni secretos',
   const html=read('supabase/templates/iberfit-reauthentication.html');
   assert.match(html,/\{\{ \.Token \}\}/u);
   assert.doesNotMatch(html,/TokenHash|service[_ -]?role|supabase\.co/iu);
-  assert.match(html,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
+  assert.match(html,/data-iberfit-email="v2"/u);
+  assert.match(html,/data-iberfit-layout="code"/u);
+  assert.match(html,/src="\/public\/iberfit-email-isotipo\.png"/u);
+  assert.doesNotMatch(html,/isotipo-iberfit\.png/u);
+  assert.doesNotMatch(html,/iberfit-email-access-hero\.jpg/u);
   assert.match(html,/Confirma que eres tú/u);
 });
 
-test('OTP y recuperación usan el sistema visual claro premium y evitan arte roto',()=>{
+test('OTP y recuperación usan el sistema visual premium V2 sin arte roto ni peso editorial innecesario',()=>{
   const magic=read('supabase/templates/iberfit-magic-link.html');
   const reauth=read('supabase/templates/iberfit-reauthentication.html');
   const recovery=read('supabase/templates/iberfit-recovery.html');
 
   for(const html of [magic,reauth,recovery]){
-    assert.match(html,/background:#f3f0e8/u);
+    assert.match(html,/data-iberfit-email="v2"/u);
+    assert.match(html,/background:#F3EEE3/u);
+    assert.match(html,/background:#0B1310/u);
     assert.match(html,/font-family:Georgia,'Times New Roman',serif/u);
-    assert.match(html,/https:\/\/app\.iberfit\.cl\/public\/isotipo-iberfit\.png/u);
-    assert.doesNotMatch(html,/https:\/\/app\.iberfit\.cl\/isotipo-iberfit\.png/u);
+    assert.match(html,/font-family:Arial,Helvetica,sans-serif/u);
+    assert.match(html,/src="\/public\/iberfit-email-isotipo\.png"/u);
+    assert.doesNotMatch(html,/isotipo-iberfit\.png/u);
+    assert.doesNotMatch(html,/iberfit-email-access-hero\.jpg/u);
   }
 
-  assert.match(magic,/font-size:38px/u);
-  assert.match(magic,/border:2px solid #c8a24a/u);
-  assert.match(magic,/mailto:\{\{ \.Email \}\}/u);
-  assert.match(magic,/color:#9b7429/u);
-  assert.match(reauth,/font-size:38px/u);
+  assert.match(magic,/data-iberfit-layout="code"/u);
+  assert.match(magic,/\{\{ \.Token \}\}/u);
+  assert.match(magic,/\{\{ \.Email \}\}/u);
+  assert.match(magic,/font-size:32px/u);
+  assert.match(magic,/border:1px solid rgba\(197,160,89,\.28\)/u);
+  assert.match(magic,/color:#8A6C31/u);
+  assert.doesNotMatch(magic,/mailto:/u);
+
+  assert.match(reauth,/data-iberfit-layout="code"/u);
+  assert.match(reauth,/font-size:32px/u);
+  assert.match(reauth,/\{\{ \.Token \}\}/u);
+
+  assert.match(recovery,/data-iberfit-layout="action"/u);
+  assert.match(recovery,/href="\{\{ \.ConfirmationURL \}\}"/u);
+  assert.match(recovery,/bgcolor="#C5A059"/u);
   assert.doesNotMatch(recovery,/Experiencia IBERFIT|iberfit-email-access-hero\.jpg/u);
 });
 
