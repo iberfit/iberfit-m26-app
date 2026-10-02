@@ -87,7 +87,7 @@ test('el contenido Cliente conserva los días de inicio y término',()=>{
   );
 });
 
-test('el historial IRI Coach muestra la fecha civil exacta',()=>{
+test('el baseline IRI Coach muestra la fecha civil exacta sin convertirlo en historial',()=>{
   const base=createProductionState();
   const clientId='CLI-RC31-DATE';
 
@@ -101,6 +101,7 @@ test('el historial IRI Coach muestra la fecha civil exacta',()=>{
       iriAssessments:[{
         id:'IRI-RC31-DATE',
         clientId,
+        assessmentType:'inicial',
         assessmentDate:'2026-07-17',
         status:'completado',
       }],
@@ -116,9 +117,9 @@ test('el historial IRI Coach muestra la fecha civil exacta',()=>{
     new Date('2026-07-24T12:00:00.000Z')
   );
 
-  assert.equal(vm.history.length,1);
-  assert.equal(vm.history[0].dateLabel,expected17);
-  assert.doesNotMatch(vm.history[0].dateLabel,/16/);
+  assert.equal(vm.history.length,0);
+  assert.equal(vm.baselineRecord.dateLabel,expected17);
+  assert.doesNotMatch(vm.baselineRecord.dateLabel,/16/);
 });
 
 test('la cronología de progreso no desplaza una evaluación al día anterior',()=>{
