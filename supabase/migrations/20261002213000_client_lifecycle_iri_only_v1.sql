@@ -1,15 +1,6 @@
--- IBERFIT lifecycle · distinguish Solo IRI people from active training clients
--- Additive lifecycle semantics. Existing rows are untouched; latest event remains source of truth.
-
-alter table public.iberfit_client_lifecycle_events
-  drop constraint if exists iberfit_client_lifecycle_events_status_check;
-
-alter table public.iberfit_client_lifecycle_events
-  add constraint iberfit_client_lifecycle_events_status_check
-  check (status = any(array[
-    'lead'::text,'iri_only'::text,'onboarding'::text,'active'::text,
-    'paused'::text,'inactive'::text,'reactivation'::text
-  ]));
+-- IBERFIT relationship model · Solo IRI versus active training
+-- Safe additive runtime contract: no historical constraint replacement and no existing rows are rewritten.
+-- relationshipType is persisted in the client profile JSON; lifecycle continues to describe training activity.
 
 create or replace function public.iberfit_admin_create_client_v26(
   p_command jsonb,
@@ -25,19 +16,19 @@ declare
   v_payload jsonb:=coalesce(p_command->'payload','{}'::jsonb);
   v_actor uuid:=auth.uid();
   v_org uuid;
-  v_relationship text:=lower(btrim(coalesce(v_payload->>'relationshipType','training')));
+  v_relationship text:=lower(btrim(coalesce(v_payload->>'relationshipType',v_payload#>>'{profile,relationshipType}','training')));
   v_coach_raw text:=btrim(coalesce(v_payload->>'coachUserId',''));
   v_coach uuid;
   v_client text;
   v_assignment uuid;
   v_result jsonb;
+  v_latest_status text;
 begin
   perform public.iberfit_require_privileged_assurance_v65d();
 
   if v_actor is null then
     raise exception 'V26_ADMIN_CLIENT_CREATE_AUTH_REQUIRED' using errcode='28000';
   end if;
-
   if v_relationship not in ('training','iri_only') then
     raise exception 'V26_ADMIN_CLIENT_CREATE_RELATIONSHIP_INVALID' using errcode='22023';
   end if;
@@ -48,8 +39,7 @@ begin
   end if;
 
   if v_coach_raw<>'' then
-    begin
-      v_coach:=v_coach_raw::uuid;
+    begin v_coach:=v_coach_raw::uuid;
     exception when others then
       raise exception 'V26_ADMIN_CLIENT_CREATE_COACH_INVALID' using errcode='22023';
     end;
@@ -65,29 +55,30 @@ begin
   if v_client='' then
     raise exception 'V26_ADMIN_CLIENT_CREATE_RESULT_INVALID' using errcode='P0001';
   end if;
-
   perform public.iberfit_assert_client_org_scope_v65e(v_org,v_client);
 
-  if v_relationship='iri_only' and not exists(
-    select 1
+  -- A Solo IRI person has no active training lifecycle. Keep the standard lifecycle
+  -- vocabulary and append an inactive event instead of mutating historical constraints.
+  if v_relationship='iri_only' then
+    select e.status into v_latest_status
     from public.iberfit_client_lifecycle_events e
     where e.organization_id=v_org and e.client_id=v_client
-      and e.status='iri_only'
-      and e.effective_at=(
-        select max(e2.effective_at)
-        from public.iberfit_client_lifecycle_events e2
-        where e2.organization_id=v_org and e2.client_id=v_client
-      )
-  ) then
-    insert into public.iberfit_client_lifecycle_events(
-      organization_id,client_id,status,reason,changed_by
-    ) values(
-      v_org,v_client,'iri_only',
-      'Alta como persona evaluada con Diagnóstico IRI, sin servicio activo de entrenamiento.',
-      v_actor
-    );
+    order by e.effective_at desc,e.created_at desc,e.id desc
+    limit 1;
+
+    if v_latest_status is distinct from 'inactive' then
+      insert into public.iberfit_client_lifecycle_events(
+        organization_id,client_id,status,reason,changed_by
+      ) values(
+        v_org,v_client,'inactive',
+        'Servicio puntual Diagnóstico IRI; sin servicio activo de entrenamiento.',
+        v_actor
+      );
+    end if;
   end if;
 
+  -- The Coach relationship remains active for IRI authorization and document custody.
+  -- It is not used as a proxy for active training client metrics.
   if v_coach is null then
     return v_result||jsonb_build_object('relationshipType',v_relationship);
   end if;
