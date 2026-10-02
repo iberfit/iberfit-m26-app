@@ -392,9 +392,17 @@ export function flattenIriProtocolRecords(records=[]){
 }
 
 function comparableValue(value){return text(value,800).toLocaleLowerCase('es-ES');}
+const CARDIO_PROTOCOL_TEST_IDS=new Set(['one-minute-sit-to-stand','ymca-three-minute-step','legacy-iberfit-three-minute-step-adapted']);
 export function protocolComparabilityWarnings(previousRecords=[],currentRecords=[]){
-  const previous=recordMap(previousRecords);const warnings=[];
-  for(const current of Array.isArray(currentRecords)?currentRecords:[]){
+  const previousRows=Array.isArray(previousRecords)?previousRecords:[];
+  const currentRows=Array.isArray(currentRecords)?currentRecords:[];
+  const previous=recordMap(previousRows);const warnings=[];
+  const priorCardio=previousRows.find((record)=>CARDIO_PROTOCOL_TEST_IDS.has(record?.testId)&&resultExists(record?.result));
+  const currentCardio=currentRows.find((record)=>CARDIO_PROTOCOL_TEST_IDS.has(record?.testId)&&resultExists(record?.result));
+  if(priorCardio&&currentCardio&&priorCardio.testId!==currentCardio.testId){
+    warnings.push(`Capacidad de esfuerzo: “${priorCardio.testName}” y “${currentCardio.testName}” son protocolos distintos; sus resultados no son directamente comparables.`);
+  }
+  for(const current of currentRows){
     const prior=previous.get(recordKey(current));if(!prior||!resultExists(prior.result)||!resultExists(current.result))continue;
     const side=current.side&&current.side!=='not-applicable'?` · ${current.side==='left'?'izquierda':current.side==='right'?'derecha':current.side}`:'';
     if(prior.protocolVersion&&current.protocolVersion&&prior.protocolVersion!==current.protocolVersion){warnings.push(`“${current.testName}${side}” cambió de versión (${prior.protocolVersion} → ${current.protocolVersion}); los resultados no son directamente comparables.`);continue;}
