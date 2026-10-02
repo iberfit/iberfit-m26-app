@@ -708,6 +708,7 @@ grant execute on function public.iberfit_photo_point_valid_v1(jsonb) to authenti
 grant execute on function public.iberfit_photo_landmarks_complete_v1(jsonb) to authenticated,service_role;
 grant execute on function public.iberfit_photo_measurements_valid_v1(jsonb) to authenticated,service_role;
 
+revoke all on function public.iberfit_require_physical_consent_before_iri_confirm_v1() from public;
 revoke all on function public.iberfit_can_manage_iri_private_v1(uuid) from public;
 revoke all on function public.iberfit_iri_consent_active_v1(uuid,text) from public;
 revoke all on function public.iberfit_record_iri_consent_v1(uuid,uuid,text,text,text,text) from public;
@@ -723,6 +724,9 @@ grant execute on function public.iberfit_finalize_iri_photo_v1(uuid,uuid,uuid) t
 grant execute on function public.iberfit_save_iri_photogrammetry_analysis_v1(uuid,uuid,bigint,uuid,uuid,uuid,uuid,jsonb,jsonb,boolean) to authenticated,service_role;
 
 -- Path helpers are needed by Storage RLS but disclose no data.
+revoke all on function public.iberfit_photo_path_uuid_part_v1(text,integer) from public;
+revoke all on function public.iberfit_photo_path_view_v1(text) from public;
+revoke all on function public.iberfit_photo_path_is_canonical_v1(text) from public;
 grant execute on function public.iberfit_photo_path_uuid_part_v1(text,integer) to authenticated,service_role;
 grant execute on function public.iberfit_photo_path_view_v1(text) to authenticated,service_role;
 grant execute on function public.iberfit_photo_path_is_canonical_v1(text) to authenticated,service_role;

@@ -111,6 +111,10 @@ test('IRI v4 migration makes initial diagnosis unique and photogrammetry private
   assert.match(sql,/physical_assessment/u);
   assert.match(sql,/photography/u);
   assert.match(sql,/IRI_V4_PHYSICAL_CONSENT_REQUIRED/u);
+  assert.match(sql,/revoke all on function public\.iberfit_require_physical_consent_before_iri_confirm_v1\(\) from public/u);
+  assert.match(sql,/revoke all on function public\.iberfit_photo_path_uuid_part_v1\(text,integer\) from public/u);
+  assert.match(sql,/revoke all on function public\.iberfit_photo_path_view_v1\(text\) from public/u);
+  assert.match(sql,/revoke all on function public\.iberfit_photo_path_is_canonical_v1\(text\) from public/u);
   assert.match(sql,/public\.iri_photogrammetry_captures_v1/u);
   assert.match(sql,/public\.iri_photogrammetry_analyses_v1/u);
   assert.match(sql,/iberfit-iri-photogrammetry/u);
