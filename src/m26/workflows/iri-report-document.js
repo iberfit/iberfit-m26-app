@@ -61,6 +61,7 @@ function cardioProtocolLabel(cardio={}){
   const protocol=String(cardio?.protocol||'');
   if(protocol==='1msts-standard')return '1MSTS · 60 segundos';
   if(protocol==='ymca-3min-standard')return 'YMCA Step Test · 3 minutos';
+  if(protocol==='treadmill-3min-submax')return 'Cinta · carrera submáxima 3 minutos';
   if(protocol==='iberfit-3min-adapted')return 'Step 3 min adaptado · histórico';
   return 'Protocolo no identificado';
 }
@@ -77,6 +78,12 @@ function cardioProtocolReady(cardio={}){
       Number(cardio?.cadenceBpm)===96&&
       finiteValue(cardio?.finalHr)&&finiteValue(cardio?.oneMinuteHr);
   }
+  if(protocol==='treadmill-3min-submax'){
+    return Number(cardio?.durationSeconds)===180&&
+      finiteValue(cardio?.treadmillSpeedKph)&&finiteValue(cardio?.treadmillInclinePercent)&&
+      finiteValue(cardio?.finalHr)&&finiteValue(cardio?.oneMinuteHr)&&finiteValue(cardio?.twoMinuteHr)&&
+      Boolean(cardio?.recoveryMode);
+  }
   if(protocol==='iberfit-3min-adapted'){
     return Number(cardio?.durationSeconds)===180&&
       finiteValue(cardio?.stepHeightCm)&&finiteValue(cardio?.cadenceBpm)&&
@@ -90,6 +97,11 @@ function cardioResultDetail(cardio={}){
     const chair=finiteValue(cardio?.chairHeightCm)?` · silla ${number(cardio.chairHeightCm,1)} cm`:'';
     return `${number(cardio?.repetitions)} repeticiones en 60 s${chair}`;
   }
+  if(protocol==='treadmill-3min-submax'){
+    const delta60=finiteValue(cardio?.deltaOneMinute)?` · ΔFC60 ${number(cardio.deltaOneMinute)} lpm`:'';
+    const delta120=finiteValue(cardio?.deltaTwoMinute)?` · ΔFC120 ${number(cardio.deltaTwoMinute)} lpm`:'';
+    return `${number(cardio?.treadmillSpeedKph,1)} km/h · ${number(cardio?.treadmillInclinePercent,1)}% · FC final ${number(cardio?.finalHr)} lpm${delta60}${delta120}`;
+  }
   if(['ymca-3min-standard','iberfit-3min-adapted'].includes(protocol)){
     const delta=finiteValue(cardio?.deltaOneMinute)?` · recuperación 1 min ${number(cardio.deltaOneMinute)} lpm`:'';
     return `FC final ${number(cardio?.finalHr)} lpm${delta}`;
@@ -100,6 +112,7 @@ function cardioProtocolNote(cardio={}){
   const protocol=String(cardio?.protocol||'');
   if(protocol==='1msts-standard')return 'Las repeticiones son el resultado principal; la FC es complementaria y opcional.';
   if(protocol==='ymca-3min-standard')return 'Comparar sólo con YMCA realizado a 30,5 cm, 96 bpm y 180 s.';
+  if(protocol==='treadmill-3min-submax')return 'Baseline individual: repetir velocidad, pendiente y modo de recuperación. ΔFC60/ΔFC120 no se clasifica con umbrales clínicos de otros protocolos.';
   if(protocol==='iberfit-3min-adapted')return 'Registro histórico: no equivale a YMCA y no utiliza sus baremos.';
   return 'No comparar con otros protocolos.';
 }
@@ -111,7 +124,7 @@ function domainEvidenceGrid(draft){
   const body=draft.bodyComposition||{},mobility=draft.mobility||{},strength=draft.strength||{},cardio=draft.cardio||{};
   const bodyCount=[body.weightKg,body.bodyFatPercent,body.leanMassKg,body.muscleMassKg,body.bodyWaterPercent,body.waistCm,body.visceralFatLevel].filter((value)=>value!==null&&value!==undefined&&value!=='').length;
   const mobilityCount=[mobility.ankle?.leftBest,mobility.ankle?.rightBest,mobility.posteriorChain?.leftBest,mobility.posteriorChain?.rightBest,mobility.hipRotation?.result,mobility.assistedSquat?.depth].filter((value)=>value!==null&&value!==undefined&&value!=='').length;
-  const validStrength=[strength.chairStand?.valid,strength.push?.valid,strength.trxRow?.valid].filter((value)=>value===true).length;
+  const validStrength=[strength.chairStand?.valid,strength.airSquat60s?.valid,strength.push?.valid,strength.trxRow?.valid,strength.core?.valid].filter((value)=>value===true).length;
   const cardioReady=cardioProtocolReady(cardio);
   const bodyState=body.skipped?'No evaluado':bodyCount?'Registrado':'Pendiente';
   const mobilityState=mobility.skipped?'No evaluado':mobilityCount?'Registrado':'Pendiente';
@@ -124,7 +137,8 @@ function clientTestExplanation({title,observed,importance,result,decision}){retu
 function protocolTraceRows(records=[]){return (Array.isArray(records)?records:[]).map((record)=>[record.testName,record.side==='left'?'Izquierda':record.side==='right'?'Derecha':record.side==='bilateral'?'Bilateral':'—',record.variant,record.configuration,record.protocolVersion,record.valid===true?'Válida':record.valid===false?'No válida':'Sin confirmar',[record.adaptationReason,record.stopReason].filter(Boolean).join(' · ')||'—']);}
 
 function strengthRows(draft){const s=draft.strength||{};return [
-  ['Silla 30 s',s.chairStand?.repetitions,' rep',40,'Protocolo estandarizado'],
+  ['Silla 30 s',s.chairStand?.repetitions,' rep',40,'Protocolo normativo cuando es compatible'],
+  ['Sentadilla libre 60 s',s.airSquat60s?.repetitions,' rep',80,s.airSquat60s?.valid?'Baseline individual válido':'Baseline individual'],
   [`Empuje · ${label(s.push?.variant,'variante')}`,s.push?.repetitions,' rep',35,s.push?.supportHeightCm?`Apoyo ${number(s.push.supportHeightCm)} cm`:''],
   ['Remo TRX',s.trxRow?.repetitions,' rep',35,s.trxRow?.handleHeightCm?`Asas ${number(s.trxRow.handleHeightCm)} cm`:'Referencia individual'],
   ['Plancha frontal',s.core?.frontPlankSeconds,' s',180,'Calidad técnica registrada'],
@@ -132,15 +146,17 @@ function strengthRows(draft){const s=draft.strength||{};return [
   ['Plancha lateral derecha',s.core?.sidePlankRightSeconds,' s',180,''],
 ];}
 function compositionDonut(body={}){const fat=Number(body.bodyFatPercent);const fatPct=Number.isFinite(fat)?Math.max(0,Math.min(100,fat)):0;const circumference=251.33;const dash=(circumference*fatPct/100).toFixed(2);const gap=(circumference-Number(dash)).toFixed(2);return `<svg class="donut-svg" viewBox="0 0 120 120" role="img" aria-label="Porcentaje de grasa corporal"><circle cx="60" cy="60" r="40" class="donut-base"/><circle cx="60" cy="60" r="40" class="donut-value" stroke-dasharray="${dash} ${gap}" transform="rotate(-90 60 60)"/><circle cx="60" cy="60" r="27" class="donut-center"/><text x="60" y="58" text-anchor="middle" class="donut-number">${Number.isFinite(fat)?number(fat,1)+'%':'—'}</text><text x="60" y="75" text-anchor="middle" class="donut-label">grasa</text></svg>`;}
-function completionPanel(completion,draft){const valid=[draft.strength?.chairStand?.valid,draft.strength?.push?.valid,draft.strength?.trxRow?.valid,draft.cardio?.valid].filter((value)=>value===true).length;const scoring=scoreIriPerformance(draft);const global=scoring.global||{};return `<section class="completion-panel"><div><span>Completitud del proceso</span><strong>${completion.percent}%</strong><small>${completion.complete} de ${completion.total} etapas</small></div><div><span>Puntuación funcional IRI</span><strong>${global.available?number(global.score10,1)+'/10':'—'}</strong><small>${global.available?global.coverage.scoredDomains+'/3 dominios puntuables':'Cobertura insuficiente'}</small></div><div><span>Confianza de la nota</span><strong>${global.confidence==='high'?'Alta':global.confidence==='moderate'?'Moderada':'Insuficiente'}</strong><small>Composición y fotogrametría no alteran esta nota</small></div></section>`;}
+function completionPanel(completion,draft){const scoring=scoreIriPerformance(draft);const global=scoring.global||{};const confidence=global.confidence==='high'?'Alta':global.confidence==='moderate'?'Moderada':global.confidence==='contextual'?'Contextual':'Insuficiente';const basis=global.basis==='mixed_normative_criterial'?'Normativa + técnica IBERFIT':global.basis==='normative'?'Normativa':'Cobertura parcial';return `<section class="completion-panel"><div><span>Completitud del proceso</span><strong>${completion.percent}%</strong><small>${completion.complete} de ${completion.total} etapas</small></div><div><span>Nota IRI</span><strong>${global.available?number(global.score10,1)+'/10':'—'}</strong><small>${global.available?global.coverage.scoredDomains+'/3 dominios puntuados':'Cobertura insuficiente'}</small></div><div><span>Base y confianza</span><strong>${confidence}</strong><small>${basis} · composición y fotogrametría fuera de la nota</small></div></section>`;}
 function domainScorePanel(draft){
   const scoring=scoreIriPerformance(draft);const domains=scoring.domainScores||{};
   const item=(key,labelText)=>{
     const domain=domains[key]||{};const score=domain.score10;
-    const detail=key==='mobility'
-      ?domain.tests?.map((test)=>test.scored?`${test.side==='left'?'Izq.':test.side==='right'?'Der.':'Bilateral'} ${number(test.grade10,1)}/10 · ${test.percentileLabel||test.category?.label||''}`:'').filter(Boolean).join(' · ')
-      :domain.tests?.[0]?.scored?`${domain.tests[0].percentileLabel||domain.tests[0].category?.label||'Referencia compatible'}`:domain.note||'Sin baremo compatible';
-    return `<article class="metric"><span>${escapeHtml(labelText)}</span><strong>${score===null||score===undefined?'—':escapeHtml(number(score,1)+'/10')}</strong><small>${escapeHtml(detail||'Sin nota disponible')}</small></article>`;
+    let detail=domain.note||'Sin nota disponible';
+    if(key==='mobility')detail=domain.tests?.map((test)=>test.scored?`${test.side==='left'?'Izq.':test.side==='right'?'Der.':'Bilateral'} ${number(test.grade10,1)}/10 · ${test.percentileLabel||test.category?.label||''}`:'').filter(Boolean).join(' · ')||detail;
+    else if(domain.scoreType==='normative'&&domain.tests?.[0]?.scored)detail=`Nota normativa · ${domain.tests[0].percentileLabel||domain.tests[0].category?.label||'referencia compatible'}`;
+    else if(domain.scoreType==='criterial'&&domain.scored)detail=`Nota técnica IBERFIT · ${domain.tests.filter((test)=>test.scoreType==='criterial'&&test.scored).length} pruebas observadas`;
+    else if(key==='cardio'&&!domain.scored)detail=domain.note||'Baseline individual sin nota poblacional';
+    return `<article class="metric"><span>${escapeHtml(labelText)}</span><strong>${score===null||score===undefined?'—':escapeHtml(number(score,1)+'/10')}</strong><small>${escapeHtml(detail)}</small></article>`;
   };
   return `<section class="metrics iri-domain-scores">${item('mobility','Movilidad')}${item('strength','Fuerza funcional')}${item('cardio','Capacidad funcional')}</section>`;
 }
