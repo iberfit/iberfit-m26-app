@@ -29,24 +29,23 @@ function coreDomainCoverage(draft = {}) {
   const cardioProtocol=String(draft.cardio?.protocol||'');
   const cardioFinalHr=draft.cardio?.finalHr??draft.stepFinalHr;
   const cardioRecoveryHr=draft.cardio?.oneMinuteHr??draft.stepOneMinuteHr;
-  const cardioMeasured = !cardioSkipped && (legacyCardioContract || (draft.cardio?.valid === true && (
-    (cardioProtocol === '1msts-standard' &&
-      Number(draft.cardio?.durationSeconds) === 60 &&
+  const modernCardioMeasured=draft.cardio?.valid===true&&(
+    (cardioProtocol==='1msts-standard'&&
+      Number(draft.cardio?.durationSeconds)===60&&
       finite(draft.cardio?.repetitions)) ||
-    (cardioProtocol === 'ymca-3min-standard' &&
-      Number(draft.cardio?.durationSeconds) === 180 &&
-      finite(draft.cardio?.stepHeightCm) &&
-      Math.abs(Number(draft.cardio.stepHeightCm)-30.5)<=0.05 &&
-      Number(draft.cardio?.cadenceBpm)===96 &&
-      finite(cardioFinalHr) &&
-      finite(cardioRecoveryHr)) ||
-    (cardioProtocol === 'iberfit-3min-adapted' &&
-      Number(draft.cardio?.durationSeconds) === 180 &&
-      finite(draft.cardio?.stepHeightCm) &&
-      finite(draft.cardio?.cadenceBpm) &&
-      finite(cardioFinalHr) &&
-      finite(cardioRecoveryHr)))
+    (cardioProtocol==='ymca-3min-standard'&&
+      Number(draft.cardio?.durationSeconds)===180&&
+      finite(draft.cardio?.stepHeightCm)&&
+      Math.abs(Number(draft.cardio.stepHeightCm)-30.5)<=0.05&&
+      Number(draft.cardio?.cadenceBpm)===96&&
+      finite(cardioFinalHr)&&finite(cardioRecoveryHr)) ||
+    (cardioProtocol==='iberfit-3min-adapted'&&
+      Number(draft.cardio?.durationSeconds)===180&&
+      finite(draft.cardio?.stepHeightCm)&&
+      finite(draft.cardio?.cadenceBpm)&&
+      finite(cardioFinalHr)&&finite(cardioRecoveryHr))
   );
+  const cardioMeasured=!cardioSkipped&&(legacyCardioContract||modernCardioMeasured);
   const states = Object.freeze({
     bodyComposition: bodyMeasured,
     strength: strengthMeasured,
