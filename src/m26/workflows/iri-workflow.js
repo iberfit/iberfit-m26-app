@@ -24,10 +24,12 @@ function coreDomainCoverage(draft = {}) {
   const cardioSkipped = draft.cardio?.skipped === true;
   const bodyMeasured = !bodySkipped && hasObjectiveMeasurement(draft.bodyComposition);
   const strengthMeasured = !strengthSkipped && hasObjectiveMeasurement(draft.strengthPatterns);
+  const modernCardio=Boolean(draft.cardio&&typeof draft.cardio==='object'&&!Array.isArray(draft.cardio));
+  const legacyCardioContract=!modernCardio&&finite(draft.stepFinalHr)&&finite(draft.stepOneMinuteHr);
   const cardioProtocol=String(draft.cardio?.protocol||'');
   const cardioFinalHr=draft.cardio?.finalHr??draft.stepFinalHr;
   const cardioRecoveryHr=draft.cardio?.oneMinuteHr??draft.stepOneMinuteHr;
-  const cardioMeasured = !cardioSkipped && draft.cardio?.valid === true && (
+  const cardioMeasured = !cardioSkipped && (legacyCardioContract || (draft.cardio?.valid === true && (
     (cardioProtocol === '1msts-standard' &&
       Number(draft.cardio?.durationSeconds) === 60 &&
       finite(draft.cardio?.repetitions)) ||
@@ -43,7 +45,7 @@ function coreDomainCoverage(draft = {}) {
       finite(draft.cardio?.stepHeightCm) &&
       finite(draft.cardio?.cadenceBpm) &&
       finite(cardioFinalHr) &&
-      finite(cardioRecoveryHr))
+      finite(cardioRecoveryHr)))
   );
   const states = Object.freeze({
     bodyComposition: bodyMeasured,
@@ -85,7 +87,11 @@ export function validateIriDraft(draft = {}) {
   if (!coverage.complete) errors.push('coreDomains');
 
   if (!coverage.skipped.cardio) {
-    if (draft.cardio?.protocol === '1msts-standard') {
+    const modernCardio=Boolean(draft.cardio&&typeof draft.cardio==='object'&&!Array.isArray(draft.cardio));
+    const legacyCardioContract=!modernCardio&&finite(draft.stepFinalHr)&&finite(draft.stepOneMinuteHr);
+    if (legacyCardioContract) {
+      if (computeDeltaFc(draft.stepFinalHr,draft.stepOneMinuteHr)<0) errors.push('deltaFc');
+    } else if (draft.cardio?.protocol === '1msts-standard') {
       if (!finite(draft.cardio?.repetitions)) errors.push('cardioRepetitions');
       if (Number(draft.cardio?.durationSeconds) !== 60) errors.push('cardioDuration');
       if (draft.cardio?.valid !== true) errors.push('cardioValid');
