@@ -548,7 +548,19 @@ th{color:var(--iberfit-color-forest-700);font-size:5.4pt;text-transform:uppercas
 }
 .iri-report-toolbar button[data-iri-report-print]{background:var(--iberfit-color-gold-500);color:var(--iberfit-color-forest-950);border-color:var(--iberfit-color-gold-500)}
 .iri-report-toolbar button:disabled{opacity:.5;cursor:not-allowed}
-.iri-report-toolbar button:focus-visible{outline:2px solid var(--iberfit-color-focus);outline-offset:2px}
+.iri-report-error{
+  min-height:100svh;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  background:var(--iberfit-color-forest-950);
+  color:var(--iberfit-color-cream-100);
+}
+.iri-report-error>div{width:min(560px,100%);padding:24px;border:1px solid var(--iberfit-color-border-strong)}
+.iri-report-error h1{margin:0 0 12px;font-family:var(--iberfit-font-family-editorial);font-size:24pt;font-weight:var(--iberfit-font-weight-medium)}
+.iri-report-error p{font-size:10pt;color:var(--iberfit-color-cream-300)}
+.iri-report-error button{min-height:44px;padding:0 16px;border:1px solid var(--iberfit-color-gold-500);background:var(--iberfit-color-gold-500);color:var(--iberfit-color-forest-950);font:inherit;font-weight:var(--iberfit-font-weight-semibold);cursor:pointer}
+.iri-report-toolbar button:focus-visible,.iri-report-error button:focus-visible{outline:3px solid var(--iberfit-color-focus);outline-offset:3px}
 .pdf-page.iri-report-fit-98 .report-page-content{transform:scale(.98);width:102.04082%}
 .pdf-page.iri-report-fit-96 .report-page-content{transform:scale(.96);width:104.16667%}
 .pdf-page.iri-report-fit-94 .report-page-content{transform:scale(.94);width:106.38298%}
@@ -655,6 +667,10 @@ th{color:var(--iberfit-color-forest-700);font-size:5.4pt;text-transform:uppercas
 .w-pct-98{width:98%}.col-w-98{width:98%}
 .w-pct-99{width:99%}.col-w-99{width:99%}
 .w-pct-100{width:100%}.col-w-100{width:100%}
+@media (forced-colors:active){
+  .iri-report-toolbar button:focus-visible,.iri-report-error button:focus-visible{outline-color:Highlight}
+  .iri-report-toolbar,.iri-report-error>div,.iri-report-toolbar button,.iri-report-error button{border-color:CanvasText}
+}
 @media screen and (max-width:720px){
   body{padding:12px 0 28px}
   .pdf-page{width:calc(100vw - 16px);min-height:0;overflow:visible}
