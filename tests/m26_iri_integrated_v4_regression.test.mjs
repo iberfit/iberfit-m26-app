@@ -79,7 +79,8 @@ test('Solo IRI autoriza adjuntos por la asignación canónica activa sin depende
 test('una etapa IRI validada no queda atrapada por el respaldo local ni por el cálculo visual',()=>{
   const workflow=read('src/m26/app/workflow-controller.js');
   assert.match(workflow,/async function persistIriDraftBackup/u);
-  assert.match(workflow,/await persistIriDraftBackup\(clientId,draft,form\)/u);
+  assert.match(workflow,/const saved=await persistIriDraftBackup\(clientId,draft,form,\{syncRemote\}\)/u);
+  assert.match(workflow,/await draftRepository\.save\(clientId,iriDraftStorageScope\(draft,form\),draft\)/u);
   assert.match(workflow,/try\{computed\(form,draft\);\}catch\{\}/u);
   assert.match(workflow,/'ankle-left':normalized\.mobility\?\.ankle\?\.leftBest/u);
   assert.match(workflow,/'posterior-diff':normalized\.mobility\?\.posteriorChain\?\.asymmetryCm/u);
@@ -94,7 +95,9 @@ test('el IRI activo usa la evaluación inicial más reciente y aísla el borrado
   assert.match(workflow,/String\(b\.assessmentDate\|\|b\.assessment_date\|\|b\.updatedAt/u);
   assert.ok(workflow.includes('return assessmentId?`${IRI_DRAFT_SCOPE}:${assessmentId}`:IRI_DRAFT_SCOPE;'));
   assert.match(workflow,/legacyAssessmentId===currentAssessmentId/u);
-  assert.match(workflow,/draftRepository\?\.remove\?\.\(draft\.clientId,iriDraftStorageScope\(draft,form\)\)/u);
+  assert.match(workflow,/async function clearIriDraftBackups\(clientId,draft,form=null\)/u);
+  assert.match(workflow,/new Set\(\[iriDraftStorageScope\(draft,form\),IRI_DRAFT_SCOPE\]\)/u);
+  assert.match(workflow,/await clearIriDraftBackups\(draft\.clientId,draft,form\)/u);
 });
 
 test('el stepper no puede saltar etapas futuras y el consentimiento físico se persiste antes de las pruebas',()=>{

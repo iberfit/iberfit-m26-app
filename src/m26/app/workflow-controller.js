@@ -39,6 +39,7 @@ import {rankCoachClientDocuments} from '../productivity/coach-productivity.js';
 import {classifyCoachListMeasurement,decideCoachVirtualization,markCoachListMeasurement} from '../productivity/large-list-policy.js';
 
 const IRI_DRAFT_SCOPE='iri-first-session';
+const IRI_REMOTE_SYNC_DELAY_MS=4_000;
 const PUBLISHED_SESSION_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
 const IRI_FIELD_LABELS=Object.freeze({
   assessmentDate:'fecha de evaluación',birthDate:'fecha de nacimiento',sexForNorms:'sexo para baremos',email:'correo electrónico',phone:'teléfono',modality:'modalidad',trainingAddress:'dirección de entrenamiento',primaryObjective:'objetivo principal',screeningAccepted:'cribado y seguridad',trainingExperience:'experiencia',availability:'disponibilidad',bodyCompositionSkipReason:'motivo de no realización',bodyCompositionMeasurement:'al menos una medición corporal',mobilitySkipReason:'motivo de no realización',ankleTrials:'mediciones de tobillo',posteriorTrials:'mediciones de cadena posterior',hipRotationResult:'rotación de cadera',squatDepth:'sentadilla asistida',strengthSkipReason:'motivo de no realización',lowerBodyStrength:'una prueba válida de tren inferior (Silla 30 s o Sentadilla 60 s)',chairStand30s:'silla 30 segundos',pushTest:'prueba de empuje',trxRow:'remo TRX',frontPlank:'plancha frontal',cardioSkipReason:'motivo de no realización',cardioProtocol:'protocolo de capacidad',cardioValid:'validez del test',cardioRepetitions:'repeticiones completas del 1MSTS',cardioHeartRate:'frecuencia cardiaca final y al minuto',cardioHeartRatePair:'frecuencia cardiaca final y al minuto deben registrarse juntas',cardioStepHeight:'altura del escalón',cardioCadence:'cadencia del step test',cardioYmcaStandard:'configuración YMCA estándar',cardioTreadmillLoad:'velocidad e inclinación de la cinta',cardioTreadmillContext:'modo, método de FC y recuperación de la cinta',cardioDuration:'duración del test',diagnosisStrengths:'fortalezas',diagnosisPriorities:'prioridades',coachInterpretation:'interpretación del Coach',initialPlan:'plan inicial',reviewAccepted:'revisión profesional',coreDomains:'al menos dos dominios objetivos completos',weeklyFrequency:'frecuencia semanal',sessionDurationMinutes:'duración habitual',
@@ -172,10 +173,12 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
 
 export function createWorkflowController({
   root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,createCustomExercise=null,renameExercise=null,refreshCatalog=async()=>catalog,
-  getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,ensureIriPhysicalConsent=null,isOnline=()=>globalThis.navigator?.onLine!==false,
+  getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,ensureIriPhysicalConsent=null,
+  getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
-  let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,onboardingSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null,clientListScheduledGrid=null;
+  let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,iriRemoteSaveTimer=null,onboardingSaveTimer=null,iriTimer=null,clientListRaf=null,pendingClientQuery=null,clientListScheduledGrid=null;
+  let iriRemoteSaveChain=Promise.resolve();
   let clientListMeasurementGrid=null;
   const clientListMeasurements=[];
   const initializedClientGrids=new WeakSet();
@@ -719,22 +722,70 @@ export function createWorkflowController({
     const assessmentId=String(draft?.assessmentId||recordId(currentIriRecord(form))||'').trim();
     return assessmentId?`${IRI_DRAFT_SCOPE}:${assessmentId}`:IRI_DRAFT_SCOPE;
   }
-  async function persistIriDraftBackup(clientId,draft,form=null){
-    if(!draftRepository?.save)return true;
-    try{await draftRepository.save(clientId,iriDraftStorageScope(draft,form),draft);return true;}
+  function iriDraftMatchesCurrent(value,clientId,form=null){
+    if(!value||String(value.clientId||'')!==String(clientId||''))return false;
+    const currentAssessmentId=String(recordId(currentIriRecord(form))||'').trim();
+    const savedAssessmentId=String(value.assessmentId||'').trim();
+    return !currentAssessmentId||!savedAssessmentId||savedAssessmentId===currentAssessmentId;
+  }
+  async function persistIriRemoteDraft(clientId,draft,form=null){
+    if(typeof upsertRemoteDraft!=='function'||!isOnline())return false;
+    const assessmentId=String(draft?.assessmentId||recordId(currentIriRecord(form))||'').trim();
+    if(!assessmentId)return false;
+    const snapshot=structuredClone(draft);
+    const payload={
+      clientId,
+      assessmentId,
+      revision:Number(currentIriRecord(form)?.revision||0),
+      draft:snapshot,
+    };
+    const queued=iriRemoteSaveChain.catch(()=>{}).then(()=>Promise.resolve(upsertRemoteDraft(payload)));
+    iriRemoteSaveChain=queued.then(()=>undefined,()=>undefined);
+    try{await queued;return true;}
     catch(error){
-      emit(root,'m26:workflow-error',{action:'save-iri-draft-local',code:String(error?.message||error||'M26_IRI_LOCAL_DRAFT_SAVE_FAILED')});
+      emit(root,'m26:workflow-error',{action:'save-iri-draft-remote',code:String(error?.message||error||'M26_IRI_REMOTE_DRAFT_SAVE_FAILED')});
       return false;
     }
   }
-  async function saveIriDraft({silent=false}={}){
+  async function persistIriDraftBackup(clientId,draft,form=null,{syncRemote=true}={}){
+    let local=false,remote=false;
+    if(draftRepository?.save){
+      try{await draftRepository.save(clientId,iriDraftStorageScope(draft,form),draft);local=true;}
+      catch(error){emit(root,'m26:workflow-error',{action:'save-iri-draft-local',code:String(error?.message||error||'M26_IRI_LOCAL_DRAFT_SAVE_FAILED')});}
+    }
+    if(syncRemote)remote=await persistIriRemoteDraft(clientId,draft,form);
+    return Object.freeze({local,remote});
+  }
+  async function clearIriDraftBackups(clientId,draft,form=null){
+    clearTimeout(iriSaveTimer);
+    clearTimeout(iriRemoteSaveTimer);
+    await iriRemoteSaveChain.catch(()=>{});
+    for(const scope of new Set([iriDraftStorageScope(draft,form),IRI_DRAFT_SCOPE])){
+      try{await draftRepository?.remove?.(clientId,scope);}
+      catch(error){emit(root,'m26:workflow-error',{action:'delete-iri-draft-local',code:String(error?.message||error||'M26_IRI_LOCAL_DRAFT_DELETE_FAILED')});}
+    }
+    const assessmentId=String(draft?.assessmentId||recordId(currentIriRecord(form))||'').trim();
+    if(assessmentId&&typeof deleteRemoteDraft==='function'&&isOnline()){
+      try{await Promise.resolve(deleteRemoteDraft(clientId,assessmentId));}
+      catch(error){emit(root,'m26:workflow-error',{action:'delete-iri-draft-remote',code:String(error?.message||error||'M26_IRI_REMOTE_DRAFT_DELETE_FAILED')});}
+    }
+  }
+  async function saveIriDraft({silent=false,syncRemote=true}={}){
     requireCoach();const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)throw new Error('M26_IRI_FORM_REQUIRED');assertIriRawRanges(form);const draft=iriDraft(form);const {clientId}=context();
-    const saved=await persistIriDraftBackup(clientId,draft,form);
+    const saved=await persistIriDraftBackup(clientId,draft,form,{syncRemote});
     try{computed(form,draft);}catch{}
-    if(!silent)status(root,'iri',saved?'Borrador guardado en este dispositivo.':'La etapa queda disponible para continuar, aunque el respaldo local no pudo actualizarse.','success');
+    if(!silent){
+      const message=saved.remote?'Borrador guardado y sincronizado de forma segura.':saved.local?'Borrador guardado en este dispositivo. La sincronización remota queda pendiente.':'La etapa sigue abierta, pero no fue posible actualizar el respaldo del borrador.';
+      status(root,'iri',message,saved.remote?'success':saved.local?'pending':'error');
+    }
     return draft;
   }
-  function queueIriSave(){clearTimeout(iriSaveTimer);iriSaveTimer=setTimeout(()=>{void saveIriDraft({silent:true}).catch(()=>{});},650);}
+  function queueIriSave(){
+    clearTimeout(iriSaveTimer);
+    iriSaveTimer=setTimeout(()=>{void saveIriDraft({silent:true,syncRemote:false}).catch(()=>{});},650);
+    clearTimeout(iriRemoteSaveTimer);
+    iriRemoteSaveTimer=setTimeout(()=>{void saveIriDraft({silent:true,syncRemote:true}).catch(()=>{});},IRI_REMOTE_SYNC_DELAY_MS);
+  }
   function onboardingRaw(form){return values(form);}
   async function saveOnboardingDraft(form,{silent=true}={}){
     if(!form)return null;const raw=onboardingRaw(form);await draftRepository?.save?.(CLIENT_ONBOARDING_LOCAL_ID,CLIENT_ONBOARDING_DRAFT_SCOPE,raw);
@@ -755,19 +806,46 @@ export function createWorkflowController({
     if(!form||initializedIriForms.has(form))return;initializedIriForms.add(form);const {clientId}=context();if(!clientId)return;
     try{
       const scope=iriDraftStorageScope(null,form);
-      let saved=await draftRepository?.load?.(clientId,scope);
-      if(!saved?.value&&scope!==IRI_DRAFT_SCOPE){
+      let localRecord=await draftRepository?.load?.(clientId,scope);
+      if(!localRecord?.value&&scope!==IRI_DRAFT_SCOPE){
         const legacy=await draftRepository?.load?.(clientId,IRI_DRAFT_SCOPE);
         const legacyAssessmentId=String(legacy?.value?.assessmentId||'').trim();
         const currentAssessmentId=recordId(currentIriRecord(form));
         if(legacy?.value?.clientId===clientId&&(!legacyAssessmentId||legacyAssessmentId===currentAssessmentId)){
-          saved=legacy;
+          localRecord=legacy;
           await draftRepository?.save?.(clientId,scope,legacy.value);
         }
       }
-      if(saved?.value?.clientId===clientId){populateForm(form,flattenFirstSessionDraft(saved.value));status(root,'iri','Borrador recuperado desde este dispositivo.','success');}
+      if(localRecord?.value&&!iriDraftMatchesCurrent(localRecord.value,clientId,form))localRecord=null;
+
+      let remoteRecord=null;
+      const currentAssessmentId=String(recordId(currentIriRecord(form))||'').trim();
+      if(currentAssessmentId&&typeof getRemoteDraft==='function'&&isOnline()){
+        try{
+          const result=await Promise.resolve(getRemoteDraft(clientId,currentAssessmentId));
+          if(result?.found===true&&String(result.assessmentId||'')===currentAssessmentId&&iriDraftMatchesCurrent(result.draft,clientId,form)){
+            remoteRecord={value:structuredClone(result.draft),updatedAt:result.updatedAt||null,remote:true};
+          }
+        }catch(error){
+          emit(root,'m26:workflow-error',{action:'load-iri-draft-remote',code:String(error?.message||error||'M26_IRI_REMOTE_DRAFT_LOAD_FAILED')});
+        }
+      }
+
+      const localTime=localRecord?.updatedAt?new Date(localRecord.updatedAt).getTime():0;
+      const remoteTime=remoteRecord?.updatedAt?new Date(remoteRecord.updatedAt).getTime():0;
+      const selected=remoteRecord&&(!localRecord||remoteTime>=localTime)?remoteRecord:localRecord;
+      if(selected?.value){
+        populateForm(form,flattenFirstSessionDraft(selected.value));
+        if(selected===remoteRecord){
+          try{await draftRepository?.save?.(clientId,scope,remoteRecord.value);}catch{}
+          status(root,'iri','Borrador recuperado desde el respaldo seguro.','success');
+        }else{
+          status(root,'iri','Borrador recuperado desde este dispositivo.','success');
+          if(isOnline()&&typeof upsertRemoteDraft==='function'&&(!remoteRecord||localTime>remoteTime))void persistIriRemoteDraft(clientId,selected.value,form);
+        }
+      }
     }
-    catch{status(root,'iri','No fue posible recuperar el borrador local.','error');}
+    catch{status(root,'iri','No fue posible recuperar el borrador del IRI.','error');}
     computed(form);setIriStep(form,Number(form.dataset.iriStepIndex||0));
   }
   function scanRouteForms(){
@@ -800,7 +878,7 @@ export function createWorkflowController({
     const result=await withTimeout(commandBus.execute(buildIriCommand(commandDraft,Number(current.revision||0))),20_000,'M26_IRI_CONFIRM_TIMEOUT');
     if(!result.ok){const reason=String(result?.response?.reason||'');if(result.kind==='conflict'&&reason==='V26_IRI_PROFILE_REVISION_CONFLICT'){status(root,'iri','La ficha cambió mientras preparabas el IRI. El borrador se conserva: revisa de nuevo los datos del expediente antes de confirmar.','error');return result;}status(root,'iri','La evaluación permanece pendiente de revisión. El borrador local se conserva.','pending');return result;}
     const confirmed=await refreshAndFind('iriAssessments',current.id,draft.clientId);const body=recordBody(confirmed||{});if(!confirmed||!body.firstSessionCompletedAt)throw new Error('M26_IRI_CONFIRM_NOT_PERSISTED');
-    await draftRepository?.remove?.(draft.clientId,iriDraftStorageScope(draft,form));await draftRepository?.remove?.(draft.clientId,IRI_DRAFT_SCOPE);status(root,'iri','Primera sesión e IRI confirmados y visibles en el expediente.','success');onRender();return result;
+    await clearIriDraftBackups(draft.clientId,draft,form);status(root,'iri','Primera sesión e IRI confirmados y visibles en el expediente.','success');onRender();return result;
   }
   async function persistPhysicalConsentBeforeTesting(form,draft){
     assertPhysicalAssessmentConsent(form);
@@ -954,9 +1032,9 @@ export function createWorkflowController({
   }
   function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;try{computed(iriForm);}catch{}queueIriSave();}
 
-  function onPageHide(){const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(form)void saveOnboardingDraft(form).catch(()=>{});}
+  function onPageHide(){const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(form)void saveOnboardingDraft(form).catch(()=>{});const iriForm=root.querySelector?.('[data-workflow-form="iri"]');if(iriForm)void saveIriDraft({silent:true,syncRemote:false}).catch(()=>{});}
   return Object.freeze({
     mount(){if(mounted)return;root.addEventListener('click',onClick);root.addEventListener('submit',onSubmit);root.addEventListener('input',onInput);root.addEventListener('change',onChange);globalThis.addEventListener?.('pagehide',onPageHide);if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>queueScan());observer.observe(root,{childList:true,subtree:true});}queueScan();mounted=true;},
-    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(onboardingSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
+    destroy(){if(!mounted)return;clearTimeout(iriSaveTimer);clearTimeout(iriRemoteSaveTimer);clearTimeout(onboardingSaveTimer);cancelScheduledClientListUpdate();stopIriTimer();observer?.disconnect?.();observer=null;root.removeEventListener('click',onClick);root.removeEventListener('submit',onSubmit);root.removeEventListener('input',onInput);root.removeEventListener('change',onChange);globalThis.removeEventListener?.('pagehide',onPageHide);clearAllStatuses(root);mounted=false;},
   });
 }
