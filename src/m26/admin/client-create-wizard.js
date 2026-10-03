@@ -147,8 +147,11 @@ function updateServiceIntent(form){
   if(assessment){
     const deferred=[...(assessment.options||[])].find((option)=>option.value==='deferred');
     if(iriOnly)assessment.value='iri';
+    assessment.disabled=iriOnly;
+    assessment.setAttribute?.('aria-disabled',iriOnly?'true':'false');
     if(deferred){
       deferred.disabled=iriOnly;
+      if(iriOnly)deferred.setAttribute?.('disabled','');else deferred.removeAttribute?.('disabled');
       deferred.hidden=iriOnly;
     }
   }
