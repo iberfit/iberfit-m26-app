@@ -114,31 +114,22 @@ test('server report renderer is decoupled from browser-only external-report cont
   assert.match(source,/issuedArtifactAnnex/u);
 });
 
-test('emission broker uses a private Cloudflare Browser Run binding renderer',()=>{
+test('emission broker renders immutable PDFs inside Supabase with IBERFIT tokens',()=>{
   const source=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
-  const worker=fs.readFileSync(new URL('../cloudflare/iri-report-renderer/worker.mjs',import.meta.url),'utf8');
-  const qaConfig=fs.readFileSync(new URL('../cloudflare/iri-report-renderer/wrangler.qa.jsonc',import.meta.url),'utf8');
-  assert.match(source,/IBERFIT_IRI_RENDERER_URL/u);
-  assert.match(source,/IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64/u);
-  assert.match(source,/IBERFIT_IRI_RENDERER_AUDIENCE/u);
-  assert.match(source,/x-iberfit-renderer-signature/u);
-  assert.match(source,/cloudflare-browser-run\/worker-binding-pdf/u);
+  assert.match(source,/PDFDocument,StandardFonts,rgb/u);
+  assert.match(source,/pdf-lib\/deterministic-v1/u);
+  assert.match(source,/scoreIriPerformance/u);
+  assert.match(source,/firstSessionCompletion/u);
+  assert.match(source,/forest|PDF_C/u);
+  assert.match(source,/197\/255,160\/255,89\/255/u);
+  assert.match(source,/245\/255,245\/255,240\/255/u);
+  assert.match(source,/Fotogrametría/u);
+  assert.match(source,/Bioimpedancia original/u);
   assert.doesNotMatch(source,/browser-rendering\/pdf/u);
-  assert.doesNotMatch(source,/CLOUDFLARE_BROWSER_API_TOKEN/u);
-  assert.match(worker,/BROWSER\.quickAction\('pdf'/u);
-  assert.match(worker,/IRI_RENDERER_PUBLIC_KEY_SPKI_B64/u);
-  assert.match(worker,/crypto\.subtle\.verify/u);
-  assert.match(worker,/x-iberfit-renderer-signature/u);
-  assert.ok(worker.includes("waitForSelector:{selector:'.pdf-page'"));
-  assert.match(worker,/preferCSSPageSize:true/u);
-  assert.match(worker,/printBackground:true/u);
-  assert.match(worker,/tagged:true/u);
-  assert.match(worker,/outline:true/u);
-  assert.match(qaConfig,/"binding":\s*"BROWSER"/u);
-  assert.match(qaConfig,/"compatibility_date":\s*"2026-10-03"/u);
-  assert.doesNotMatch(source,/actionTimeout/u);
+  assert.doesNotMatch(source,/cloudflare-browser-run/u);
+  assert.doesNotMatch(source,/IBERFIT_IRI_RENDERER_/u);
+  assert.doesNotMatch(source,/buildIriReportHtml/u);
   assert.doesNotMatch(source,/\.\.\/\.\.\/\.\.\/src\/m26\//u);
-  assert.match(source,/\.\/vendor\/workflows\/iri-report-document\.js/u);
   assert.match(source,/artifact_sha256/u);
   assert.match(source,/source_sha256/u);
 });
@@ -170,17 +161,13 @@ test('issuance authorization is low-friction but withdrawal remains privileged',
   assert.match(base,/perform public\.iberfit_require_privileged_assurance_v65d\(\)/u);
 });
 
-test('QA real-write gate deploys and certifies the exact report broker',()=>{
+test('QA real-write gate deploys and certifies the exact self-contained report broker',()=>{
   const workflow=fs.readFileSync(new URL('../.github/workflows/qa-real-write-cert.yml',import.meta.url),'utf8');
   const gate=fs.readFileSync(new URL('../scripts/remote-gates/run_qa_iri_report_emission_gate.mjs',import.meta.url),'utf8');
   assert.match(workflow,/supabase@2\.117\.0 functions deploy iberfit-iri-report-emission-v1/u);
-  assert.match(workflow,/workers\/scripts\/\\\$\{WORKER_NAME\}/u);
-  assert.match(workflow,/bindings:\[/u);
-  assert.match(workflow,/type:'browser',name:'BROWSER'/u);
-  assert.match(workflow,/IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64/u);
-  assert.match(workflow,/IRI_RENDERER_PUBLIC_KEY_SPKI_B64/u);
-  assert.doesNotMatch(workflow,/wrangler@4\.120\.0 secret put/u);
-  assert.match(workflow,/cloudflare\/iri-report-renderer\/worker\.mjs/u);
+  assert.doesNotMatch(workflow,/CLOUDFLARE_/u);
+  assert.doesNotMatch(workflow,/IRI_RENDERER_/u);
+  assert.doesNotMatch(workflow,/workers\/scripts/u);
   assert.match(workflow,/run_qa_iri_report_emission_gate\.mjs/u);
   assert.match(gate,/IRI_REPORT_QA_PDF_MAGIC_INVALID/u);
   assert.match(gate,/clientHistoryPrivateMetadataHidden:true/u);
