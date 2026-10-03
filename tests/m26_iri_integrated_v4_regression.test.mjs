@@ -80,6 +80,9 @@ test('una etapa IRI validada no queda atrapada por el respaldo local ni por el c
   assert.match(workflow,/async function persistIriDraftBackup/u);
   assert.match(workflow,/await persistIriDraftBackup\(clientId,draft\)/u);
   assert.match(workflow,/try\{computed\(form,draft\);\}catch\{\}/u);
-  assert.match(workflow,/data-iri-computed="ankle-left"/u);
-  assert.match(workflow,/data-iri-computed="posterior-diff"/u);
+  assert.match(workflow,/'ankle-left':normalized\.mobility\?\.ankle\?\.leftBest/u);
+  assert.match(workflow,/'posterior-diff':normalized\.mobility\?\.posteriorChain\?\.asymmetryCm/u);
+  const route=read('src/m26/modules/route-render.js');
+  assert.match(route,/data-iri-computed="ankle-left"/u);
+  assert.match(route,/data-iri-computed="posterior-diff"/u);
 });
