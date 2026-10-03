@@ -274,6 +274,23 @@ p,li{
 }
 .composition-facts span{color:var(--iberfit-color-forest-700);font-size:6.7pt}
 .composition-facts strong{font-family:var(--iberfit-font-family-editorial);font-size:13pt;font-weight:var(--iberfit-font-weight-medium)}
+.composition-context{
+  margin-top:7mm;
+  padding-top:4mm;
+  border-top:.3mm solid color-mix(in srgb,var(--iberfit-color-forest-950) 15%,transparent);
+}
+.composition-context span{
+  display:block;
+  margin-bottom:1.5mm;
+  color:var(--iberfit-color-gold-600);
+  font-size:6pt;
+  font-weight:var(--iberfit-font-weight-bold);
+  letter-spacing:.11em;
+  text-transform:uppercase;
+}
+.composition-context p{margin:0 0 1.5mm;font-size:7.5pt;line-height:1.45}
+.composition-context small{color:var(--iberfit-color-forest-700);font-size:6.2pt;line-height:1.4}
+
 .iri-complement{
   display:grid;
   grid-template-columns:1fr auto;
@@ -451,21 +468,30 @@ th{color:var(--iberfit-color-forest-700);font-size:5.4pt;text-transform:uppercas
 .cover{
   min-height:297mm;
   background:
-    radial-gradient(circle at 82% 18%,color-mix(in srgb,var(--iberfit-color-gold-500) 12%,transparent),transparent 44mm),
-    radial-gradient(circle at 14% 88%,color-mix(in srgb,var(--iberfit-color-cream-100) 4%,transparent),transparent 54mm),
+    radial-gradient(circle at 85% 16%,color-mix(in srgb,var(--iberfit-color-gold-500) 13%,transparent),transparent 43mm),
+    radial-gradient(circle at 18% 84%,color-mix(in srgb,var(--iberfit-color-cream-100) 5%,transparent),transparent 62mm),
     var(--iberfit-color-forest-950);
   color:var(--iberfit-color-cream-100);
 }
 .cover main{min-height:297mm;padding:0 18mm}
 .cover footer,.cover .premium-header{display:none}
+.cover-accent{
+  position:absolute;
+  z-index:1;
+  left:0;
+  top:0;
+  bottom:0;
+  width:1.4mm;
+  background:var(--iberfit-color-gold-500);
+}
 .cover-watermark{
   position:absolute;
-  right:-4mm;
-  top:50mm;
-  width:103mm;
-  height:103mm;
+  right:-18mm;
+  top:41mm;
+  width:128mm;
+  height:128mm;
   object-fit:contain;
-  opacity:.05;
+  opacity:.045;
   filter:none!important;
   pointer-events:none;
 }
@@ -474,52 +500,120 @@ th{color:var(--iberfit-color-forest-700);font-size:5.4pt;text-transform:uppercas
   z-index:2;
   display:flex;
   align-items:center;
-  gap:4mm;
+  gap:4.5mm;
   padding-top:18mm;
 }
-.cover-isotipo{display:block;width:15mm;height:18mm;object-fit:contain;filter:none!important}
+.cover-isotipo{display:block;width:13mm;height:15mm;object-fit:contain;filter:none!important}
+.cover-lockup div{display:grid;gap:.8mm}
 .cover-lockup span{
   color:var(--iberfit-color-cream-100);
-  font-size:7.2pt;
+  font-size:7.5pt;
   font-weight:var(--iberfit-font-weight-bold);
   letter-spacing:.22em;
+}
+.cover-lockup small{
+  color:var(--iberfit-color-gold-300);
+  font-size:5.6pt;
+  font-weight:var(--iberfit-font-weight-semibold);
+  letter-spacing:.14em;
+  text-transform:uppercase;
 }
 .cover-copy{
   position:relative;
   z-index:2;
-  margin-top:37mm;
-  max-width:150mm;
+  margin-top:31mm;
+  max-width:158mm;
 }
-.cover-copy>p{margin:0;color:var(--iberfit-color-gold-300);font-size:6.5pt;font-weight:var(--iberfit-font-weight-bold);letter-spacing:.18em}
+.cover-copy>p{
+  margin:0;
+  color:var(--iberfit-color-gold-300);
+  font-size:6.2pt;
+  font-weight:var(--iberfit-font-weight-bold);
+  letter-spacing:.17em;
+}
 .cover-copy h1{
-  margin:5mm 0 6mm;
+  margin:6mm 0 7mm;
+  max-width:150mm;
   font-family:var(--iberfit-font-family-editorial);
-  font-size:55pt;
-  line-height:.84;
+  font-size:62pt;
+  line-height:.86;
   font-weight:var(--iberfit-font-weight-regular);
-  letter-spacing:-.055em;
+  letter-spacing:-.06em;
   color:var(--iberfit-color-cream-100);
 }
-.gold-line{width:31mm;height:.5mm;margin:0 0 6mm;background:var(--iberfit-color-gold-500)}
-.cover-claim{display:block;color:var(--iberfit-color-cream-300);font-family:var(--iberfit-font-family-editorial);font-size:10pt;line-height:1.45}
+.gold-line{width:38mm;height:.55mm;margin:0 0 6mm;background:var(--iberfit-color-gold-500)}
+.cover-claim{
+  display:block;
+  max-width:118mm;
+  color:var(--iberfit-color-cream-300);
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:11.5pt;
+  line-height:1.45;
+}
+.cover-person{
+  position:absolute;
+  z-index:2;
+  left:18mm;
+  right:18mm;
+  bottom:57mm;
+  padding-top:5mm;
+  border-top:.25mm solid color-mix(in srgb,var(--iberfit-color-cream-100) 24%,transparent);
+}
+.cover-person span{
+  display:block;
+  margin-bottom:2mm;
+  color:var(--iberfit-color-gold-300);
+  font-size:5.8pt;
+  font-weight:var(--iberfit-font-weight-bold);
+  letter-spacing:.15em;
+}
+.cover-person strong{
+  display:block;
+  max-width:164mm;
+  color:var(--iberfit-color-cream-100);
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:22pt;
+  line-height:1.08;
+  font-weight:var(--iberfit-font-weight-medium);
+  letter-spacing:-.025em;
+  overflow-wrap:anywhere;
+}
+.cover-person p{
+  margin:2.2mm 0 0;
+  color:var(--iberfit-color-muted);
+  font-size:7pt;
+}
 .cover-data{
   position:absolute;
   z-index:2;
   left:18mm;
   right:18mm;
-  bottom:20mm;
+  bottom:16mm;
   display:grid;
-  grid-template-columns:1.2fr .8fr;
-  gap:5mm 11mm;
-  padding-top:6mm;
-  border-top:.4mm solid var(--iberfit-color-gold-500);
+  grid-template-columns:.8fr 1.2fr;
+  gap:4mm 10mm;
+  padding-top:5mm;
+  border-top:.45mm solid var(--iberfit-color-gold-500);
 }
 .cover-data>div{min-width:0}
-.cover-data span{display:block;margin-bottom:1.5mm;color:var(--iberfit-color-muted);font-size:5.7pt;letter-spacing:.1em;text-transform:uppercase}
-.cover-data strong{display:block;color:var(--iberfit-color-cream-100);font-family:var(--iberfit-font-family-editorial);font-size:10pt;font-weight:var(--iberfit-font-weight-medium);overflow-wrap:anywhere}
-.cover-data-primary,.cover-service{grid-column:1/-1}
-.cover-data-primary strong{font-size:17pt}
-.cover-service strong{color:var(--iberfit-color-gold-300)}
+.cover-data span{
+  display:block;
+  margin-bottom:1.3mm;
+  color:var(--iberfit-color-muted);
+  font-size:5.4pt;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.cover-data strong{
+  display:block;
+  color:var(--iberfit-color-cream-100);
+  font-family:var(--iberfit-font-family-editorial);
+  font-size:9pt;
+  font-weight:var(--iberfit-font-weight-medium);
+  overflow-wrap:anywhere;
+}
+.cover-service{grid-column:1/-1}
+.cover-service strong{color:var(--iberfit-color-gold-300);font-size:8.4pt}
 .iri-report-toolbar{
   position:relative;
   z-index:20;
