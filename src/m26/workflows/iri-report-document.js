@@ -1,18 +1,15 @@
 import {firstSessionCompletion} from './iri-first-session.js';
 import {scoreIriPerformance} from '../norms/iri-scoring.js';
 import {iriExternalReportAppUrl} from './iri-external-report-controller.js';
+import {
+  renderEffortCurve,
+  renderFunctionalProfile,
+  renderMobilityMap,
+  renderPhotogrammetryReport,
+  renderSignatureSlot,
+  renderStrengthPatterns,
+} from './iri-report-visuals.js';
 
-const PALETTE=Object.freeze({
-  ivory:'#faf6ed',
-  paper:'#fffdf8',
-  forest:'#082218',
-  forestText:'#183328',
-  forestSoft:'#315246',
-  gold:'#b9944f',
-  goldLight:'#d9bf82',
-  muted:'#64736b',
-  line:'#dfd2ba',
-});
 
 function escapeHtml(value){return String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
 function clean(value,max=4000){return String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -48,10 +45,9 @@ function page({number,title,eyebrow='INFORME IRI',content,logoUrl,cover=false,in
   const sectionNumber=sectionMatch?.[1]||String(number).padStart(2,'0');
   const sectionLabel=sectionMatch?.[2]||String(eyebrow||'INFORME IRI');
   const watermark=!cover?`<img class="watermark premium-watermark" src="${escapeHtml(logoUrl)}" alt="" aria-hidden="true">`:'';
-  const ornaments=!cover?'<i class="page-orbit page-orbit-one" aria-hidden="true"></i><i class="page-orbit page-orbit-two" aria-hidden="true"></i>':'';
-  const header=cover?'':`<header class="premium-header"><div class="section-tab"><span class="section-index">${escapeHtml(sectionNumber)}</span><div class="section-copy"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(sectionLabel)}</p></div></div></header>`;
-  const pageCount=internal?`Página ${number}`:`${String(number).padStart(2,'0')} / 07`;
-  return `<section class="pdf-page m26-premium-report-v2 report-page-${number}${cover?' cover':''}${internal?' internal':''}${annex?' annex':''}">${ornaments}${watermark}${header}<main><div class="report-page-content">${content}</div></main><footer><span><b>IBERFIT</b> · Diagnóstico, planificación, control y seguimiento</span><span>${pageCount}</span></footer></section>`;
+  const header=cover?'':`<header class="premium-header"><span class="section-index">${escapeHtml(sectionNumber)}</span><div class="section-copy"><p>${escapeHtml(sectionLabel)}</p><h1>${escapeHtml(title)}</h1></div></header>`;
+  const pageCount=internal?`Página ${number}`:`${String(number).padStart(2,'0')}`;
+  return `<section class="pdf-page m26-premium-report-v3 report-page-${number}${cover?' cover':''}${internal?' internal':''}${annex?' annex':''}">${watermark}${header}<main><div class="report-page-content">${content}</div></main><footer><span><b>IBERFIT</b> · Diagnóstico, planificación, control y seguimiento</span><span>${pageCount}</span></footer></section>`;
 }
 function ratioBar(labelText,value,max=100,note='',suffix=''){const numeric=Number(value);const width=Number.isFinite(numeric)&&max>0?Math.max(0,Math.min(100,(numeric/max)*100)):0;return `<div class="bar-row"><div><span>${escapeHtml(labelText)}</span>${note?`<small>${escapeHtml(note)}</small>`:''}</div><div class="bar-track"><i class="${percentWidthClass(width)}"></i></div><strong>${Number.isFinite(numeric)?escapeHtml(number(numeric,numeric%1?1:0)+suffix):'—'}</strong></div>`;}
 function symmetryRow(name,left,right,unit=''){const l=Number(left),r=Number(right),max=Math.max(l||0,r||0,1);const leftWidth=Number.isFinite(l)?Math.min(100,l/max*100):0;const rightWidth=Number.isFinite(r)?Math.min(100,r/max*100):0;return `<div class="symmetry-row"><span>${escapeHtml(name)}</span><div class="side left"><b>${Number.isFinite(l)?escapeHtml(number(l,1)+unit):'—'}</b><i class="${percentWidthClass(leftWidth)}"></i></div><div class="body-dot"></div><div class="side right"><i class="${percentWidthClass(rightWidth)}"></i><b>${Number.isFinite(r)?escapeHtml(number(r,1)+unit):'—'}</b></div></div>`;}
@@ -96,8 +92,8 @@ function cardioResultDetail(cardio={}){
     return `${number(cardio?.repetitions)} repeticiones en 60 s${chair}`;
   }
   if(protocol==='treadmill-3min-field'){
-    const hrr1=finiteValue(cardio?.deltaOneMinute)?` · HRR1 ${number(cardio.deltaOneMinute)} lpm`:'';
-    const hrr2=finiteValue(cardio?.deltaTwoMinute)?` · HRR2 ${number(cardio.deltaTwoMinute)} lpm`:'';
+    const hrr1=finiteValue(cardio?.deltaOneMinute)?` · recuperación 1 min ${number(cardio.deltaOneMinute)} lpm`:'';
+    const hrr2=finiteValue(cardio?.deltaTwoMinute)?` · recuperación 2 min ${number(cardio.deltaTwoMinute)} lpm`:'';
     return `${number(cardio?.speedKmh,1)} km/h · ${number(cardio?.inclinePercent,1)}% · FC final ${number(cardio?.finalHr)} lpm${hrr1}${hrr2}`;
   }
   if(['ymca-3min-standard','iberfit-3min-adapted'].includes(protocol)){
@@ -110,7 +106,7 @@ function cardioProtocolNote(cardio={}){
   const protocol=String(cardio?.protocol||'');
   if(protocol==='1msts-standard')return 'Las repeticiones son el resultado principal; la FC es complementaria y opcional.';
   if(protocol==='ymca-3min-standard')return 'Comparar sólo con YMCA realizado a 30,5 cm, 96 bpm y 180 s.';
-  if(protocol==='treadmill-3min-field')return 'Baseline individual: repetir la misma velocidad, inclinación y recuperación. HRR1/HRR2 son descriptivos; no se aplican puntos de corte pronósticos de otros protocolos.';
+  if(protocol==='treadmill-3min-field')return 'Referencia inicial individual: repetir la misma velocidad, inclinación y recuperación. La recuperación de frecuencia cardiaca a 1 y 2 minutos es descriptiva; no se aplican puntos de corte pronósticos de otros protocolos.';
   if(protocol==='iberfit-3min-adapted')return 'Registro histórico: no equivale a YMCA y no utiliza sus baremos.';
   return 'No comparar con otros protocolos.';
 }
@@ -145,12 +141,12 @@ function domainEvidenceGrid(draft){
 }
 function coverageScore(draft){return firstSessionCompletion(draft).percent;}
 function clientTestExplanation({title,observed,importance,result,decision}){return `<section class="client-test-explanation"><h3>${escapeHtml(title)}</h3><div><p><span>Qué observamos</span><strong>${escapeHtml(label(observed))}</strong></p><p><span>Por qué importa</span><strong>${escapeHtml(label(importance))}</strong></p><p><span>Resultado</span><strong>${escapeHtml(label(result))}</strong></p><p><span>Decisión</span><strong>${escapeHtml(label(decision))}</strong></p></div></section>`;}
-function protocolUsage(record={}){if(record.valid===false)return 'No interpretable';if(record.normEligible===true)return 'Baremado';if(record.valid===true&&record.trackingComparable===true)return 'Baseline comparable';if(record.valid===true)return 'Baseline';return 'Sin confirmar';}
+function protocolUsage(record={}){if(record.valid===false)return 'No interpretable';if(record.normEligible===true)return 'Baremado';if(record.valid===true&&record.trackingComparable===true)return 'Referencia inicial comparable';if(record.valid===true)return 'Referencia inicial';return 'Sin confirmar';}
 function protocolTraceRows(records=[]){return (Array.isArray(records)?records:[]).map((record)=>[record.testName,record.side==='left'?'Izquierda':record.side==='right'?'Derecha':record.side==='bilateral'?'Bilateral':'—',record.variant,record.configuration,record.protocolVersion,record.valid===true?'Válida':record.valid===false?'No válida':'Sin confirmar',protocolUsage(record),[record.adaptationReason,record.stopReason].filter(Boolean).join(' · ')||'—']);}
 
 function strengthRows(draft){const s=draft.strength||{};return [
   ['Silla 30 s',s.lowerBody?.skipped?null:s.chairStand?.repetitions,' rep',40,s.lowerBody?.skipped?`No realizado: ${label(s.lowerBody?.skipReason)}`:'Protocolo estandarizado'],
-  ['Sentadilla libre 60 s',s.lowerBody?.skipped?null:s.squat60?.repetitions,' rep',60,s.lowerBody?.skipped?`No realizada: ${label(s.lowerBody?.skipReason)}`:s.squat60?.depthCriterion?`Profundidad: ${s.squat60.depthCriterion}`:'Baseline individual'],
+  ['Sentadilla libre 60 s',s.lowerBody?.skipped?null:s.squat60?.repetitions,' rep',60,s.lowerBody?.skipped?`No realizada: ${label(s.lowerBody?.skipReason)}`:s.squat60?.depthCriterion?`Profundidad: ${s.squat60.depthCriterion}`:'Referencia inicial individual'],
   [`Empuje · ${s.push?.skipped?'no realizado':label(s.push?.variant,'variante')}`,s.push?.skipped?null:s.push?.repetitions,' rep',35,s.push?.skipped?`Motivo: ${label(s.push?.skipReason)}`:s.push?.supportHeightCm?`Apoyo ${number(s.push.supportHeightCm)} cm`:''],
   ['Remo TRX',s.trxRow?.skipped?null:s.trxRow?.repetitions,' rep',35,s.trxRow?.skipped?`No realizado: ${label(s.trxRow?.skipReason)}`:s.trxRow?.handleHeightCm?`Asas ${number(s.trxRow.handleHeightCm)} cm`:'Referencia individual'],
   ['Plancha frontal',s.core?.skipped?null:s.core?.frontPlankSeconds,' s',180,s.core?.skipped?`No realizada: ${label(s.core?.skipReason)}`:'Calidad técnica registrada'],
@@ -176,40 +172,126 @@ function clientIriExternalReportComplement(draft,report,appOrigin){
   const href=iriExternalReportAppUrl(draft.assessmentId,{origin:appOrigin});
   const format=report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':report.mimeType==='image/png'?'PNG':'';
   if(!format)return '';
-  return card('Documento complementario',`<div class="iri-complement"><p class="iri-complement-kicker">Informe de bioimpedancia</p><p>Este documento complementa los resultados de composición corporal del Diagnóstico IRI.</p><small>${escapeHtml(format)} · versión ${escapeHtml(report.version||1)}</small><a class="iri-complement-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir informe de bioimpedancia</a></div>`,'soft');
+  const embedded=Array.isArray(report?.printPreview?.pages)&&report.printPreview.pages.length>0;
+  const detail=embedded?` · ${report.printPreview.pages.length} ${report.printPreview.pages.length===1?'página incorporada':'páginas incorporadas'} al informe`:' · documento vinculado; previsualización no incorporada';
+  return card('Documento complementario',`<div class="iri-complement"><p class="iri-complement-kicker">Informe de bioimpedancia</p><p>Este documento complementa los resultados de composición corporal del Diagnóstico IRI.</p><small>${escapeHtml(format)} · versión ${escapeHtml(report.version||1)}${escapeHtml(detail)}</small><a class="iri-complement-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir documento original</a></div>`,'soft');
 }
-function reportCover({clientName,date,coachName,logoUrl,internal,clientId=''}){return page({number:1,cover:true,internal,logoUrl,title:'',content:`<img class="cover-watermark" src="${escapeHtml(logoUrl)}" alt="" aria-hidden="true"><div class="cover-orbit one"></div><div class="cover-orbit two"></div><div class="cover-lockup"><img class="cover-isotipo" src="${escapeHtml(logoUrl)}" alt="Isotipo IBERFIT"><div class="cover-wordmark"><strong>IBERFIT</strong><span>Entrenamiento personal<br>con criterio</span></div></div><div class="cover-copy"><p>${internal?'INFORME IRI · COACH / ADMIN':'INFORME DE EVALUACIÓN IRI'}</p><h1>Índice de<br>Rendimiento<br>IBERFIT</h1><div class="gold-line"></div><span class="cover-claim">Diagnóstico · Planificación · Control · Seguimiento</span></div><div class="cover-data"><div class="cover-data-primary"><span>Cliente</span><strong>${escapeHtml(clientName)}</strong></div><div><span>Fecha de evaluación</span><strong>${escapeHtml(dateLabel(date,'Fecha no disponible'))}</strong></div><div><span>Entrenador</span><strong>${escapeHtml(coachName)}</strong></div>${internal?`<div><span>Expediente</span><strong>${escapeHtml(label(clientId,'Sin identificador'))}</strong></div>`:''}<div class="cover-tags"><em>${internal?'USO INTERNO':'INFORME CLIENTE'}</em><em>DATOS TRAZABLES</em></div></div>`});}
+
+function clientIriExternalReportPages(draft,report,logoUrl,startNumber,appOrigin){
+  if(!report||report.visibleToClient!==true||clean(report.assessmentId,80)!==clean(draft.assessmentId,80))return [];
+  const previewPages=Array.isArray(report?.printPreview?.pages)?report.printPreview.pages.filter(Boolean).slice(0,4):[];
+  if(!previewPages.length)return [];
+  const href=iriExternalReportAppUrl(draft.assessmentId,{origin:appOrigin});
+  const format=report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':report.mimeType==='image/png'?'PNG':'Documento';
+  const totalOriginal=Number(report?.printPreview?.totalPages||previewPages.length);
+  return previewPages.map((src,index)=>page({
+    number:startNumber+index,
+    title:'Informe de bioimpedancia',
+    eyebrow:'DOCUMENTO COMPLEMENTARIO · BIOIMPEDANCIA',
+    logoUrl,
+    content:`<div class="iri-bioimp-page"><div class="iri-bioimp-meta"><div><span>Documento original</span><strong>${escapeHtml(format)} · versión ${escapeHtml(report.version||1)}</strong></div><div><span>Página incorporada</span><strong>${index+1} de ${totalOriginal}</strong></div></div><figure><img src="${escapeHtml(src)}" alt="Informe de bioimpedancia · página ${index+1}" referrerpolicy="no-referrer"></figure>${report?.printPreview?.truncated&&index===previewPages.length-1?`<p class="method-note">El documento original contiene ${totalOriginal} páginas. Por seguridad de maquetación se incorporan las primeras ${previewPages.length}; el archivo original permanece disponible desde IBERFIT.</p>`:''}<a class="iri-complement-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir documento original en IBERFIT</a></div>`
+  }));
+}
+function coachIriExternalReportPages(draft,report,logoUrl,startNumber,appOrigin){
+  if(!report||clean(report.assessmentId,80)!==clean(draft.assessmentId,80))return [];
+  const previewPages=Array.isArray(report?.printPreview?.pages)?report.printPreview.pages.filter(Boolean).slice(0,4):[];
+  if(!previewPages.length)return [];
+  const href=iriExternalReportAppUrl(draft.assessmentId,{origin:appOrigin});
+  const format=report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':report.mimeType==='image/png'?'PNG':'Documento';
+  const totalOriginal=Number(report?.printPreview?.totalPages||previewPages.length);
+  return previewPages.map((src,index)=>page({
+    number:startNumber+index,
+    title:'Bioimpedancia · documento original',
+    eyebrow:'ANEXO TÉCNICO · BIOIMPEDANCIA',
+    logoUrl,
+    internal:true,
+    annex:true,
+    content:`<div class="iri-bioimp-page"><div class="iri-bioimp-meta"><div><span>Archivo vinculado al IRI</span><strong>${escapeHtml(format)} · versión ${escapeHtml(report.version||1)}</strong></div><div><span>Página incorporada</span><strong>${index+1} de ${totalOriginal}</strong></div></div><figure><img src="${escapeHtml(src)}" alt="Bioimpedancia · página ${index+1}" referrerpolicy="no-referrer"></figure><p class="method-note">Documento técnico incorporado desde el archivo privado vinculado a esta evaluación. Su visibilidad para el cliente se gestiona de forma independiente.</p><a class="iri-complement-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir documento original en IBERFIT</a></div>`
+  }));
+}
+
+function reportCover({clientName,date,coachName,logoUrl,internal,clientId='',iriOnly=false}){return page({number:1,cover:true,internal,logoUrl,title:'',content:`<img class="cover-watermark" src="${escapeHtml(logoUrl)}" alt="" aria-hidden="true"><div class="cover-lockup"><img class="cover-isotipo" src="${escapeHtml(logoUrl)}" alt="Isotipo oficial IBERFIT"><span>IBERFIT</span></div><div class="cover-copy"><p>${internal?'DOSSIER TÉCNICO · COACH / ADMIN':'DIAGNÓSTICO INICIAL'}</p><h1>INFORME<br>IRI</h1><div class="gold-line"></div><span class="cover-claim">Entrenamiento personal con criterio:<br>diagnóstico, planificación, control y seguimiento.</span></div><div class="cover-data"><div class="cover-data-primary"><span>Persona evaluada</span><strong>${escapeHtml(clientName)}</strong></div><div><span>Fecha</span><strong>${escapeHtml(dateLabel(date,'Fecha no disponible'))}</strong></div><div><span>Entrenador</span><strong>${escapeHtml(coachName)}</strong></div>${internal?`<div><span>Expediente</span><strong>${escapeHtml(label(clientId,'Sin identificador'))}</strong></div>`:''}<div class="cover-service"><span>Modalidad del informe</span><strong>${iriOnly?'Solo IRI · evaluación independiente':internal?'Uso interno':'Diagnóstico IRI'}</strong></div></div>`});}
 function clientPages(draft,context){
-  const {clientName,coachName,logoUrl,externalReport,appOrigin}=context;
+  const {clientName,coachName,logoUrl,signatureUrl='',externalReport,appOrigin,photogrammetryReport=null,iriOnly=false}=context;
   const p=draft.personProfile||{},i=draft.interview||{},b=draft.bodyComposition||{},m=draft.mobility||{},s=draft.strength||{},c=draft.cardio||{},d=draft.diagnosis||{};
-  const completion=firstSessionCompletion(draft);const pages=[];
-  pages.push(reportCover({clientName,date:draft.assessmentDate,coachName,logoUrl,internal:false}));
-  pages.push(page({number:2,title:'Tu punto de partida',eyebrow:'01 · RESUMEN EJECUTIVO',logoUrl,content:`<p class="lead">Esta evaluación resume tu situación actual y orienta un plan alineado con tus objetivos.</p>${completionPanel(completion,draft)}${domainScorePanel(draft)}<div class="summary-layout"><div>${card('Tus fortalezas',`<ul class="checks">${listItems(d.strengths,3)}</ul>`)}${card('Tus prioridades',`<ol class="priorities">${listItems(d.priorities,3)}</ol>`)}</div>${card('Evidencia por áreas',`${domainEvidenceGrid(draft)}<p class="caption">Cada área muestra datos disponibles, validez y limitaciones. La nota global sólo integra dominios con baremos compatibles y declara su cobertura.</p>`,'chart-card domain-card')}
-</div><div class="summary-band"><div><span>Confianza de la evaluación</span><strong>${completion.percent===100&&d.reviewAccepted?'Alta':'En revisión'}</strong></div><div><span>Rol de este informe</span><strong>Baseline inicial</strong><small>El seguimiento longitudinal se mantiene fuera del Diagnóstico IRI.</small></div><div><span>Próxima revisión</span><strong>${escapeHtml(dateLabel(d.reevaluationDate,'Por definir'))}</strong></div></div>`}));
-  pages.push(page({number:3,title:'Contexto y objetivos',eyebrow:'02 · TU CONTEXTO',logoUrl,content:`<p class="lead">Comprender tu realidad permite planificar con más precisión y continuidad.</p><div class="context-grid">${card('Objetivo principal',`<p>${escapeHtml(label(p.primaryObjective))}</p>`)}${card('Objetivos secundarios',`<ul>${listItems(p.secondaryObjectives,5)}</ul>`)}${card('Experiencia y actividad actual',`<p><strong>${escapeHtml(label(i.trainingExperience))}</strong></p><p>${escapeHtml(excerpt(i.currentTraining,380,'Sin entrenamiento actual registrado'))}</p>`)}${card('Disponibilidad',`<p><strong>${escapeHtml(label(i.availability))}</strong></p>${distinctText(i.availability,p.preferredSchedule)?`<p>${escapeHtml(distinctText(i.availability,p.preferredSchedule))}</p>`:''}`)}${card('Entorno de entrenamiento',`<p><strong>${escapeHtml(label(p.modality))}</strong></p><p>${escapeHtml(label(p.locationType,'Tipo de lugar por definir'))}</p>`)}${card('Material disponible',`<p>${escapeHtml(safeList(p.equipment).join(' · ')||'Sin registro')}</p>`)}${card('Preferencias',`<p>${escapeHtml(excerpt(i.preferences,460,'Sin preferencias especiales registradas'))}</p>`,'wide')}${card('Consideraciones declaradas',`<p>${escapeHtml(excerpt(i.restrictions,460,'Sin restricciones declaradas'))}</p>`,'wide soft') }</div>`}));
-  pages.push(page({number:4,title:'Tu composición actual',eyebrow:'03 · COMPOSICIÓN CORPORAL',logoUrl,content:`<p class="lead">Datos descriptivos obtenidos mediante el método y las condiciones registradas. La bioimpedancia es una estimación para seguimiento y no constituye una puntuación, diagnóstico ni valoración personal.</p><div class="metrics four">${metric('Peso',b.weightKg!==null?`${number(b.weightKg,1)} kg`:'—')}${metric('Grasa corporal',b.bodyFatPercent!==null?`${number(b.bodyFatPercent,1)}%`:'—')}${metric('Masa magra',b.leanMassKg!==null?`${number(b.leanMassKg,1)} kg`:'—')}${metric('Agua corporal',b.bodyWaterPercent!==null?`${number(b.bodyWaterPercent,1)}%`:'—')}</div><div class="two-col composition"><div>${card('Resumen visual',`${compositionDonut(b)}<div class="mini-list">${row('Método',b.method)}${row('Equipo',b.device)}${row('IMC calculado',b.bmi!==undefined?number(b.bmi,1):'—')}</div>`,'chart-card')}</div><div>${card('Medidas complementarias',`<div class="mini-list">${row('Talla',b.heightCm!==null?number(b.heightCm,1)+' cm':'—')}${row('Cintura',b.waistCm!==null?number(b.waistCm,1)+' cm':'—')}${row('Masa muscular',b.muscleMassKg!==null?number(b.muscleMassKg,1)+' kg':'—')}${row('Grasa visceral',b.visceralFatLevel!==null?number(b.visceralFatLevel):'—')}</div>`)}${clientIriExternalReportComplement(draft,externalReport,appOrigin)}</div></div>`}));
-  pages.push(page({number:5,title:'Movimiento y movilidad',eyebrow:'04 · MOVILIDAD',logoUrl,content:`<div class="two-col"><div>${card('Simetría izquierda–derecha',`${symmetryRow('Tobillo',m.ankle?.leftBest,m.ankle?.rightBest,' cm')}${symmetryRow('Cadena posterior',m.posteriorChain?.leftBest,m.posteriorChain?.rightBest,' cm')}<p class="caption">Se muestran los mejores valores registrados por lado.</p>`,'chart-card')}</div><div>${card('Observación estructurada',`<div class="mini-list">${row('Thomas modificado · izquierda',m.modifiedThomas?.left)}${row('Thomas modificado · derecha',m.modifiedThomas?.right)}${row('Rotación de cadera',m.hipRotation?.result)}${row('Sentadilla · profundidad',m.assistedSquat?.depth)}${row('Respuesta a asistencia',m.assistedSquat?.assistanceResponse)}</div>`)}</div></div><div class="two-col">${card('Dolor y compensaciones',`<p><strong>Tobillo:</strong> ${escapeHtml(label(m.ankle?.pain,'Sin dolor registrado'))}</p><p><strong>Cadena posterior:</strong> ${escapeHtml(label(m.posteriorChain?.pain,'Sin dolor registrado'))}</p><p><strong>Compensaciones:</strong> ${escapeHtml(excerpt(m.ankle?.compensation||m.hipRotation?.compensation,360,'Sin compensaciones relevantes registradas'))}</p>`)}${card('Lectura del Coach',`<p>${escapeHtml(excerpt(d.coachInterpretation,430,'Interpretación pendiente de revisión por el Coach'))}</p>`,'highlight')}</div>${clientTestExplanation({title:'Rodilla a pared',observed:'Movilidad del tobillo en apoyo.',importance:'Puede influir en la profundidad y el control de movimientos como la sentadilla.',result:`Izquierda ${number(m.ankle?.leftBest,1)} cm · derecha ${number(m.ankle?.rightBest,1)} cm.`,decision:excerpt(d.trainingImplications,420,'Mantener o mejorar la movilidad con trabajo individualizado.')})}` }));
-  pages.push(page({number:6,title:'Fuerza por patrones',eyebrow:'05 · FUERZA',logoUrl,content:`<p class="lead">Cada resultado conserva su variante y configuración. Las pruebas adaptadas se comparan únicamente consigo mismas.</p>${card('Resultados principales',`<div class="bars">${strengthRows(draft).map(([name,value,unit,max,note])=>ratioBar(name,value,max,note,unit)).join('')}</div><p class="caption">Las barras ordenan visualmente los resultados; no representan un baremo universal.</p>`,'chart-card')}<div class="two-col">${card('Calidad y validez',`<div class="mini-list">${row('Silla 30 s válida',yesNo(s.chairStand?.valid))}${row('Sentadilla 60 s válida',yesNo(s.squat60?.valid))}${row('Empuje válido',yesNo(s.push?.valid))}${row('Remo TRX válido',yesNo(s.trxRow?.valid))}${row('Calidad del core',s.core?.quality)}</div>`)}${card('Prioridad de fuerza',`<p>${escapeHtml(excerpt(d.trainingImplications,430,'Implicaciones pendientes de revisión'))}</p>`,'highlight')}</div>${clientTestExplanation({title:'Fuerza funcional',observed:'Capacidad de levantarse, empujar, traccionar y estabilizar el tronco.',importance:'Ayuda a seleccionar ejercicios, variantes y progresiones adecuadas.',result:`${finiteValue(s.chairStand?.repetitions)?'Silla '+number(s.chairStand.repetitions)+' rep':'Sentadilla 60 s '+number(s.squat60?.repetitions)+' rep'} · empuje ${number(s.push?.repetitions)} rep · TRX ${number(s.trxRow?.repetitions)} rep.`,decision:excerpt(d.trainingImplications,420,'Progresar con técnica y configuración comparables.')})}` }));
+  const completion=firstSessionCompletion(draft);const scoring=scoreIriPerformance(draft);const pages=[];
+  pages.push(reportCover({clientName,date:draft.assessmentDate,coachName,logoUrl,internal:false,iriOnly}));
+  pages.push(page({number:2,title:'Tu punto de partida',eyebrow:'01 · SÍNTESIS',logoUrl,content:`<div class="editorial-intro"><p class="lead">Este informe ordena lo que sabemos hoy sobre tu punto de partida y separa con claridad lo medido, lo interpretable y lo que todavía requiere seguimiento.</p><p class="coverage-note">Cobertura del proceso: <strong>${completion.complete}/${completion.total}</strong> etapas · Puntuación funcional IRI: ${scoring.global?.available?`<strong>${number(scoring.global.score10,1)}/10</strong> con ${scoring.global.coverage.scoredDomains}/3 dominios puntuables`:'no emitida por cobertura insuficiente'}. Este diagnóstico representa la referencia inicial; el seguimiento y la evolución se registran por separado.</p></div><div class="summary-editorial">${renderFunctionalProfile(scoring)}<div class="summary-copy"><section><span>Fortaleza principal</span><h2>${escapeHtml(safeList(d.strengths)[0]||'Fortaleza pendiente de interpretación')}</h2></section><section><span>Principal oportunidad</span><h2>${escapeHtml(safeList(d.priorities)[0]||'Prioridad pendiente de interpretación')}</h2></section><section class="summary-caution"><span>Qué no hace esta síntesis</span><p>La composición corporal, la fotogrametría y los protocolos no baremados no se fuerzan dentro de una escala común.</p></section></div></div>`}));
+  pages.push(page({number:3,title:'Contexto y objetivos',eyebrow:'02 · TU CONTEXTO',logoUrl,content:`<p class="lead">Comprender tu realidad permite planificar con más precisión y continuidad.</p><div class="context-grid">${card('Objetivo principal',`<p>${escapeHtml(label(p.primaryObjective))}</p>`)}${card('Objetivos secundarios',`<ul>${listItems(p.secondaryObjectives,5)}</ul>`)}${card('Experiencia y actividad actual',`<p><strong>${escapeHtml(label(i.trainingExperience))}</strong></p><p>${escapeHtml(excerpt(i.currentTraining,380,'Sin entrenamiento actual registrado'))}</p>`)}${card('Disponibilidad',`<p><strong>${escapeHtml(label(i.availability))}</strong></p>${distinctText(i.availability,p.preferredSchedule)?`<p>${escapeHtml(distinctText(i.availability,p.preferredSchedule))}</p>`:''}`)}${card('Entorno de entrenamiento',`<p><strong>${escapeHtml(label(p.modality))}</strong></p><p>${escapeHtml(label(p.locationType,'Tipo de lugar por definir'))}</p>`)}${card('Material disponible',`<p>${escapeHtml(safeList(p.equipment).join(' · ')||'Sin registro')}</p>`)}${card('Preferencias',`<p>${escapeHtml(excerpt(i.preferences,460,'Sin preferencias especiales registradas'))}</p>`,'wide')}${card('Consideraciones declaradas',`<p>${escapeHtml(excerpt(i.restrictions,460,'Sin restricciones declaradas'))}</p>`,'wide soft')}</div>`}));
+  pages.push(page({number:4,title:'Composición corporal',eyebrow:'03 · COMPOSICIÓN CORPORAL',logoUrl,content:`<p class="lead">Lectura descriptiva del método registrado. Estas cifras sirven para contextualizar y seguir cambios; no forman parte de la puntuación funcional IRI.</p><div class="composition-editorial"><div class="composition-hero"><span>${finiteValue(b.bodyFatPercent)?'Grasa corporal':finiteValue(b.weightKg)?'Peso':'Composición'}</span><strong>${finiteValue(b.bodyFatPercent)?number(b.bodyFatPercent,1)+'%':finiteValue(b.weightKg)?number(b.weightKg,1)+' kg':'—'}</strong><small>${escapeHtml(b.method?('Método · '+label(b.method)):'Método no registrado')}</small></div><div class="composition-facts"><p><span>Masa magra</span><strong>${finiteValue(b.leanMassKg)?number(b.leanMassKg,1)+' kg':'—'}</strong></p><p><span>Agua corporal</span><strong>${finiteValue(b.bodyWaterPercent)?number(b.bodyWaterPercent,1)+'%':'—'}</strong></p><p><span>Grasa visceral</span><strong>${finiteValue(b.visceralFatLevel)?number(b.visceralFatLevel):'—'}</strong></p><p><span>Cintura</span><strong>${finiteValue(b.waistCm)?number(b.waistCm,1)+' cm':'—'}</strong></p><p><span>Equipo</span><strong>${escapeHtml(label(b.device,'No registrado'))}</strong></p></div></div>${clientIriExternalReportComplement(draft,externalReport,appOrigin)}<p class="method-note">Interpretación basada únicamente en los datos y condiciones registradas. Una medición ausente permanece ausente.</p>`}));
+  let nextPage=5;
+  const bioimpPages=clientIriExternalReportPages(draft,externalReport,logoUrl,nextPage,appOrigin);
+  pages.push(...bioimpPages);nextPage+=bioimpPages.length;
+  pages.push(page({number:nextPage++,title:'Movimiento y movilidad',eyebrow:'04 · MOVIMIENTO Y MOVILIDAD',logoUrl,content:`<div class="movement-editorial">${renderMobilityMap(m)}<div class="movement-reading"><section><span>Tobillo</span><strong>Izquierda ${finiteValue(m.ankle?.leftBest)?number(m.ankle.leftBest,1)+' cm':'no medido'} · derecha ${finiteValue(m.ankle?.rightBest)?number(m.ankle.rightBest,1)+' cm':'no medido'}</strong><p>${m.ankle?.skipped?escapeHtml('No realizado: '+label(m.ankle.skipReason)):escapeHtml(m.ankle?.pain?('Dolor/síntoma: '+label(m.ankle.pain)):'Sin dolor registrado')}</p></section><section><span>Cadena posterior</span><strong>Izquierda ${finiteValue(m.posteriorChain?.leftBest)?number(m.posteriorChain.leftBest,1)+' cm':'no medido'} · derecha ${finiteValue(m.posteriorChain?.rightBest)?number(m.posteriorChain.rightBest,1)+' cm':'no medido'}</strong></section><section><span>Sentadilla observada</span><strong>${escapeHtml(label(m.assistedSquat?.depth,'No registrada'))}</strong><p>${escapeHtml(m.assistedSquat?.assistanceResponse?('Respuesta a asistencia: '+m.assistedSquat.assistanceResponse):'')}</p></section><section class="movement-coach"><span>Lectura del entrenador</span><p>${escapeHtml(excerpt(d.coachInterpretation,520,'Interpretación pendiente de revisión'))}</p></section></div></div>${clientTestExplanation({title:'Rodilla a pared',observed:'Distancia máxima alcanzada manteniendo el talón apoyado y la rodilla orientada hacia la pared.',importance:'Aporta una referencia de movilidad de tobillo útil para interpretar sentadilla, zancadas y otras tareas.',result:m.ankle?.skipped?'No realizada':`Izquierda ${finiteValue(m.ankle?.leftBest)?number(m.ankle.leftBest,1)+' cm':'no medido'} · derecha ${finiteValue(m.ankle?.rightBest)?number(m.ankle.rightBest,1)+' cm':'no medido'}`,decision:excerpt(d.trainingImplications,360,'Usar el resultado para ajustar selección y progresión de ejercicios.')})}`}));
+  pages.push(page({number:nextPage++,title:'Fotogrametría',eyebrow:'05 · REGISTRO FOTOGRÁFICO',logoUrl,content:`<p class="lead">Las fotografías documentan el punto de partida visual de esta evaluación. Sólo se incorporan capturas privadas con consentimiento fotográfico activo.</p>${renderPhotogrammetryReport(photogrammetryReport)}`}));
+  pages.push(page({number:nextPage++,title:'Fuerza',eyebrow:'06 · FUERZA POR PATRONES',logoUrl,content:`<p class="lead">Cada prueba conserva su variante y configuración real. Las cifras se presentan como resultados observados; sólo se bareman cuando existe una referencia compatible.</p>${renderStrengthPatterns(s)}<div class="strength-reading"><section><span>Qué significa</span><p>La fuerza se lee por patrones —tren inferior, empuje, tracción y estabilidad— para orientar elecciones de ejercicio sin mezclar variantes distintas.</p></section><section><span>Decisión que apoya</span><p>${escapeHtml(excerpt(d.trainingImplications,520,'Implicaciones pendientes de revisión por el entrenador'))}</p></section></div>`}));
   const clientCardioContent=c.skipped
-    ?`<div class="two-col cardio"><div>${card('Capacidad de esfuerzo',`<div class="not-evaluated-panel"><span>NO EVALUADO</span><h3>La prueba no se realizó</h3><p>${escapeHtml(label(c.skipReason,'Motivo no registrado'))}</p></div>`,'chart-card')}</div><div>${card('Qué significa',`<p>No se inventa ningún resultado ni se sustituye la prueba por una estimación.</p><p>La ausencia queda documentada para que el Coach decida cuándo completarla.</p>`,'highlight')}</div></div>`
+    ?`<div class="two-col cardio"><div>${card('Capacidad de esfuerzo',`<div class="not-evaluated-panel"><span>NO EVALUADO</span><h3>La prueba no se realizó</h3><p>${escapeHtml(label(c.skipReason,'Motivo no registrado'))}</p></div>`,'chart-card')}</div><div>${card('Qué significa',`<p>No se inventa ningún resultado ni se sustituye la prueba por una estimación.</p><p>La ausencia queda documentada para que el entrenador decida cuándo completarla.</p>`,'highlight')}</div></div>`
     :c.protocol==='1msts-standard'
-      ?`<div class="two-col cardio"><div>${card('1MSTS · 60 segundos',`<div class="metrics compact">${metric('Repeticiones',finiteValue(c.repetitions)?number(c.repetitions):'—')}${metric('Silla',finiteValue(c.chairHeightCm)?number(c.chairHeightCm,1)+' cm':'—')}${metric('RPE',finiteValue(c.rpe)?number(c.rpe,1)+'/10':'—')}</div>${finiteValue(c.finalHr)&&finiteValue(c.oneMinuteHr)?heartRateChart(c):'<p class="caption">Frecuencia cardiaca no registrada; no es requisito universal del 1MSTS.</p>'}`,'chart-card')}</div><div>${card('Interpretación',`<div class="mini-list">${row('Protocolo',cardioProtocolLabel(c))}${row('Resultado',cardioResultDetail(c))}${row('Validez',yesNo(c.valid))}${row('Síntomas',excerpt(c.symptoms,420))}</div><p>${escapeHtml(excerpt(d.trainingImplications,440,'La interpretación final será revisada por el Coach.'))}</p>`)}${card('Comparabilidad',`<p>${escapeHtml(cardioProtocolNote(c))}</p>`,'soft')}</div></div>${clientTestExplanation({title:'1MSTS · Sit-to-Stand de 1 minuto',observed:'Número de ciclos completos de sentarse y levantarse en 60 segundos.',importance:'Aporta una referencia funcional submáxima reproducible.',result:cardioResultDetail(c),decision:excerpt(d.trainingImplications,420,'Ajustar la progresión a la respuesta funcional observada.')})}`
+      ?`<div class="two-col cardio"><div>${card('1MSTS · 60 segundos',`<div class="metrics compact">${metric('Repeticiones',finiteValue(c.repetitions)?number(c.repetitions):'—')}${metric('Silla',finiteValue(c.chairHeightCm)?number(c.chairHeightCm,1)+' cm':'—')}${metric('Esfuerzo percibido',finiteValue(c.rpe)?number(c.rpe,1)+'/10':'—')}</div>${finiteValue(c.finalHr)&&finiteValue(c.oneMinuteHr)?renderEffortCurve(c):'<p class="caption">Frecuencia cardiaca no registrada; no es requisito universal del 1MSTS.</p>'}`,'chart-card')}</div><div>${card('Interpretación',`<div class="mini-list">${row('Protocolo',cardioProtocolLabel(c))}${row('Resultado',cardioResultDetail(c))}${row('Validez',yesNo(c.valid))}${row('Síntomas',excerpt(c.symptoms,420))}</div><p>${escapeHtml(excerpt(d.trainingImplications,440,'La interpretación final será revisada por el entrenador.'))}</p>`)}${card('Comparabilidad',`<p>${escapeHtml(cardioProtocolNote(c))}</p>`,'soft')}</div></div>`
       :c.protocol==='treadmill-3min-field'
-        ?`<div class="two-col cardio"><div>${card('Cinta · 3 minutos',`${heartRateChart(c)}<div class="metrics compact">${metric('Velocidad',finiteValue(c.speedKmh)?number(c.speedKmh,1)+' km/h':'—')}${metric('Inclinación',finiteValue(c.inclinePercent)?number(c.inclinePercent,1)+'%':'—')}${metric('HRR1',finiteValue(c.deltaOneMinute)?number(c.deltaOneMinute)+' lpm':'—')}${metric('HRR2',finiteValue(c.deltaTwoMinute)?number(c.deltaTwoMinute)+' lpm':'—')}</div>`,'chart-card')}</div><div>${card('Cómo se realizó',`<div class="mini-list">${row('Modo',c.locomotionMode)}${row('Método de FC',c.hrMethod)}${row('Recuperación',c.recoveryMode)}${row('RPE final',c.rpe!==null?number(c.rpe,1)+'/10':'—')}${row('Validez',yesNo(c.valid))}</div><p>${escapeHtml(cardioProtocolNote(c))}</p>`)}${card('Decisión del Coach',`<p>${escapeHtml(excerpt(d.trainingImplications,440,'La interpretación final será revisada por el Coach.'))}</p>`,'soft')}</div></div>`
-        :`<div class="two-col cardio"><div>${card(cardioProtocolLabel(c),`${heartRateChart(c)}<div class="metrics compact">${metric('FC reposo',c.restingHr!==null?`${number(c.restingHr)} lpm`:'—')}${metric('FC final',c.finalHr!==null?`${number(c.finalHr)} lpm`:'—')}${metric('Recuperación 1 min',c.deltaOneMinute!==null?`${number(c.deltaOneMinute)} lpm`:'—')}</div>`,'chart-card')}</div><div>${card('Registro técnico',`<div class="mini-list">${row('Protocolo',cardioProtocolLabel(c))}${row('Escalón',c.stepHeightCm!==null?number(c.stepHeightCm,1)+' cm':'—')}${row('Cadencia',c.cadenceBpm!==null?number(c.cadenceBpm)+' pulsos/min':'—')}${row('RPE final',c.rpe!==null?number(c.rpe,1)+'/10':'—')}${row('Validez',yesNo(c.valid))}</div><p>${escapeHtml(cardioProtocolNote(c))}</p>`)}${card('Decisión del Coach',`<p>${escapeHtml(excerpt(d.trainingImplications,440,'La interpretación final será revisada por el Coach.'))}</p>`,'soft')}</div></div>`;
-  pages.push(page({number:7,title:'Capacidad de esfuerzo y plan',eyebrow:'06 · CAPACIDAD Y PRÓXIMOS PASOS',logoUrl,content:`${clientCardioContent}<section class="plan-band"><h3>Recomendaciones y próximos pasos</h3><p>${escapeHtml(excerpt(d.initialPlan,620,'Plan inicial pendiente'))}</p><div><p class="caption">Este informe representa tu punto de partida actual. Las recomendaciones no implican un servicio de entrenamiento contratado.</p><span>Frecuencia recomendada</span><strong>${escapeHtml(label(d.recommendedFrequency,'Por definir'))}</strong></div></section>`}));
+        ?`<div class="two-col cardio"><div>${card('Cinta · 3 minutos',`${renderEffortCurve(c)}<div class="metrics compact">${metric('Velocidad',finiteValue(c.speedKmh)?number(c.speedKmh,1)+' km/h':'—')}${metric('Inclinación',finiteValue(c.inclinePercent)?number(c.inclinePercent,1)+'%':'—')}${metric('Recuperación 1 min',finiteValue(c.deltaOneMinute)?number(c.deltaOneMinute)+' lpm':'—')}${metric('Recuperación 2 min',finiteValue(c.deltaTwoMinute)?number(c.deltaTwoMinute)+' lpm':'—')}</div>`,'chart-card')}</div><div>${card('Cómo se realizó',`<div class="mini-list">${row('Modo',c.locomotionMode)}${row('Método de frecuencia cardiaca',c.hrMethod)}${row('Recuperación',c.recoveryMode)}${row('Esfuerzo percibido final',c.rpe!==null?number(c.rpe,1)+'/10':'—')}${row('Validez',yesNo(c.valid))}</div><p>${escapeHtml(cardioProtocolNote(c))}</p>`)}${card('Decisión del entrenador',`<p>${escapeHtml(excerpt(d.trainingImplications,440,'La interpretación final será revisada por el entrenador.'))}</p>`,'soft')}</div></div>`
+        :`<div class="two-col cardio"><div>${card(cardioProtocolLabel(c),`${renderEffortCurve(c)}<div class="metrics compact">${metric('FC reposo',c.restingHr!==null?`${number(c.restingHr)} lpm`:'—')}${metric('FC final',c.finalHr!==null?`${number(c.finalHr)} lpm`:'—')}${metric('Recuperación 1 min',c.deltaOneMinute!==null?`${number(c.deltaOneMinute)} lpm`:'—')}</div>`,'chart-card')}</div><div>${card('Registro técnico',`<div class="mini-list">${row('Protocolo',cardioProtocolLabel(c))}${row('Escalón',c.stepHeightCm!==null?number(c.stepHeightCm,1)+' cm':'—')}${row('Cadencia',c.cadenceBpm!==null?number(c.cadenceBpm)+' pulsos/min':'—')}${row('Esfuerzo percibido final',c.rpe!==null?number(c.rpe,1)+'/10':'—')}${row('Validez',yesNo(c.valid))}</div><p>${escapeHtml(cardioProtocolNote(c))}</p>`)}${card('Decisión del entrenador',`<p>${escapeHtml(excerpt(d.trainingImplications,440,'La interpretación final será revisada por el entrenador.'))}</p>`,'soft')}</div></div>`;
+  const clientCardioExplanation=c.skipped?'':clientTestExplanation({
+    title:cardioProtocolLabel(c),
+    observed:c.protocol==='1msts-standard'?'Número de ciclos completos de sentarse y levantarse en 60 segundos.':c.protocol==='treadmill-3min-field'?'Respuesta de frecuencia cardiaca al esfuerzo y durante la recuperación manteniendo velocidad e inclinación registradas.':'Respuesta al protocolo de esfuerzo registrado con su configuración exacta.',
+    importance:c.protocol==='1msts-standard'?'Aporta una referencia funcional submáxima reproducible.':c.protocol==='treadmill-3min-field'?'Establece una referencia individual reproducible de esfuerzo y recuperación.':c.protocol==='ymca-3min-standard'?'Permite interpretar la respuesta al protocolo estándar cuando configuración y validez coinciden.':'Documenta la respuesta al esfuerzo sin apropiarse de baremos de otro protocolo.',
+    result:cardioResultDetail(c),
+    decision:excerpt(d.trainingImplications,420,'Ajustar la progresión a la respuesta funcional observada.'),
+  });
+  pages.push(page({number:nextPage++,title:'Capacidad de esfuerzo',eyebrow:'07 · CAPACIDAD DE ESFUERZO',logoUrl,content:`${clientCardioContent}${clientCardioExplanation}<p class="method-note">La interpretación respeta el protocolo realizado. La cinta de 3 minutos se presenta como referencia individual y no hereda baremos YMCA ni puntos de corte de otros protocolos.</p>`}));
+  const primaryPriority=safeList(d.priorities)[0]||'Prioridad pendiente de revisión';
+  const secondPriority=safeList(d.priorities)[1]||'';
+  const preservedStrength=safeList(d.strengths)[0]||'Fortaleza pendiente de revisión';
+  pages.push(page({number:nextPage++,title:'Tu prioridad',eyebrow:'08 · DECISIÓN',logoUrl,content:`<div class="priority-page"><span>PRIORIDAD PRINCIPAL</span><h2>${escapeHtml(primaryPriority)}</h2><p>${escapeHtml(excerpt(d.trainingImplications,620,'La aplicación práctica será definida a partir de los resultados registrados.'))}</p><div class="priority-support"><section><span>Fortaleza que conviene preservar</span><strong>${escapeHtml(preservedStrength)}</strong></section>${secondPriority?`<section><span>Segunda prioridad</span><strong>${escapeHtml(secondPriority)}</strong></section>`:''}</div></div>`}));
+  const closingBody=iriOnly
+    ?`<div class="closing-page"><span>QUÉ SABEMOS AHORA</span><h2>Tu punto de partida queda documentado.</h2><p>${escapeHtml(excerpt(d.coachInterpretation,720,'El diagnóstico resume los resultados disponibles y las prioridades identificadas.'))}</p><div class="next-step"><span>Siguiente paso</span><strong>Conservar este informe como referencia y decidir, si procede, cómo abordar las prioridades identificadas.</strong><p>Este documento corresponde a un servicio Solo IRI. No implica planificación, frecuencia contractual ni seguimiento de entrenamiento activo.</p></div>${renderSignatureSlot(coachName,signatureUrl)}</div>`
+    :`<div class="closing-page"><span>QUÉ SABEMOS AHORA</span><h2>El diagnóstico orienta la planificación.</h2><p>${escapeHtml(excerpt(d.coachInterpretation,620,'La interpretación profesional queda vinculada a este punto de partida.'))}</p><div class="next-step"><span>Impacto sobre la planificación</span><strong>${escapeHtml(excerpt(d.initialPlan,620,'Plan inicial pendiente de definición'))}</strong><p>Frecuencia orientativa registrada: ${escapeHtml(label(d.recommendedFrequency,'Por definir'))}. Próxima revisión: ${escapeHtml(dateLabel(d.reevaluationDate,'Por definir'))}.</p></div>${renderSignatureSlot(coachName,signatureUrl)}</div>`;
+  pages.push(page({number:nextPage++,title:'Cierre',eyebrow:'09 · SIGUIENTE PASO',logoUrl,content:closingBody}));
   return pages;
 }
 
 function mobilityTrialRows(mobility={}){const ankle=mobility.ankle||{},posterior=mobility.posteriorChain||{};const max=Math.max(ankle.leftTrials?.length||0,ankle.rightTrials?.length||0,posterior.leftTrials?.length||0,posterior.rightTrials?.length||0,3);return Array.from({length:max},(_,index)=>[String(index+1),ankle.leftTrials?.[index]!==undefined?`${number(ankle.leftTrials[index],1)} cm`:'—',ankle.rightTrials?.[index]!==undefined?`${number(ankle.rightTrials[index],1)} cm`:'—',posterior.leftTrials?.[index]!==undefined?`${number(posterior.leftTrials[index],1)} cm`:'—',posterior.rightTrials?.[index]!==undefined?`${number(posterior.rightTrials[index],1)} cm`:'—']);}
-function rawDataPages(draft,context,startNumber){const raw=JSON.stringify({reportContext:{clientName:context.clientName,coachName:context.coachName,clientId:context.clientId},draft},null,2);const lines=raw.split('\n');const chunks=[];let current=[];let count=0;for(const line of lines){const length=line.length+1;if(current.length&&count+length>1500){chunks.push(current.join('\n'));current=[];count=0;}current.push(line);count+=length;}if(current.length)chunks.push(current.join('\n'));return chunks.map((chunk,index)=>page({number:startNumber+index,title:`Anexo íntegro de datos · ${index+1}/${chunks.length}`,eyebrow:'ANEXO DINÁMICO · TRAZABILIDAD',logoUrl:context.logoUrl,internal:true,annex:true,content:`<p class="annex-intro">Representación completa del borrador normalizado utilizado para generar este informe. Conserva campos, valores nulos, variantes y observaciones.</p><pre class="raw-data">${escapeHtml(chunk)}</pre>`}));}
+function rawDataPages(draft,context,startNumber){
+  const external=context.externalReport?{
+    id:context.externalReport.id||null,
+    assessmentId:context.externalReport.assessmentId||null,
+    fileName:context.externalReport.fileName||null,
+    mimeType:context.externalReport.mimeType||null,
+    sizeBytes:context.externalReport.sizeBytes??null,
+    version:context.externalReport.version??null,
+    visibleToClient:context.externalReport.visibleToClient===true,
+    uploadedAt:context.externalReport.uploadedAt||null,
+    previewAvailable:context.externalReport.printPreviewAvailable===true,
+  }:null;
+  const photo=context.photogrammetryReport?{
+    assessmentId:context.photogrammetryReport.assessmentId||null,
+    available:context.photogrammetryReport.available===true,
+    quality:context.photogrammetryReport.quality||null,
+    analysisStatus:context.photogrammetryReport.analysisStatus||null,
+    measurements:context.photogrammetryReport.measurements||{},
+    interpretation:context.photogrammetryReport.interpretation||null,
+    photos:(Array.isArray(context.photogrammetryReport.photos)?context.photogrammetryReport.photos:[]).map((item)=>({
+      view:item.view||null,capturedAt:item.capturedAt||null,widthPx:item.widthPx??null,heightPx:item.heightPx??null,
+    })),
+  }:null;
+  const raw=JSON.stringify({
+    reportContext:{clientName:context.clientName,coachName:context.coachName,clientId:context.clientId},
+    attachments:{bioimpedance:external,photogrammetry:photo},
+    draft,
+  },null,2);
+  const lines=raw.split('\n');const chunks=[];let current=[];let count=0;
+  for(const line of lines){const length=line.length+1;if(current.length&&count+length>1500){chunks.push(current.join('\n'));current=[];count=0;}current.push(line);count+=length;}
+  if(current.length)chunks.push(current.join('\n'));
+  return chunks.map((chunk,index)=>page({number:startNumber+index,title:`Anexo íntegro de datos · ${index+1}/${chunks.length}`,eyebrow:'ANEXO DINÁMICO · TRAZABILIDAD',logoUrl:context.logoUrl,internal:true,annex:true,content:`<p class="annex-intro">Representación completa del borrador normalizado y de la trazabilidad documental segura utilizada para generar este informe. No incluye URLs firmadas ni rutas privadas de almacenamiento.</p><pre class="raw-data">${escapeHtml(chunk)}</pre>`}));
+}
 
 function coachPages(draft,context){
-  const {clientName,coachName,logoUrl,clientId='',externalReport=null}=context;
+  const {clientName,coachName,logoUrl,clientId='',externalReport=null,photogrammetryReport=null,appOrigin}=context;
   const p=draft.personProfile||{},i=draft.interview||{},b=draft.bodyComposition||{},m=draft.mobility||{},s=draft.strength||{},c=draft.cardio||{},d=draft.diagnosis||{};
   const completion=firstSessionCompletion(draft);const pages=[];
   pages.push(reportCover({clientName,date:draft.assessmentDate,coachName,logoUrl,internal:true,clientId}));
-  pages.push(page({number:2,title:'Resumen técnico',eyebrow:'01 · PANORAMA GENERAL DEL IRI',logoUrl,internal:true,content:`<p class="lead">Perfil técnico de primera sesión. Los resultados se interpretan por protocolo, contexto, validez y calidad de dato.</p>${completionPanel(completion,draft)}${domainScorePanel(draft)}<div class="summary-layout internal-summary"><div>${card('Calidad de datos',`<div class="quality">${row('Completitud',completion.percent+'%')}${row('Coherencia',completion.percent===100?'Alta':'Revisar pendientes')}${row('Sexo para baremos',['female','male'].includes(p.sexForNorms)?p.sexForNorms:'Pendiente')}${row('Revisión Coach',d.reviewAccepted?'Aceptada':'Pendiente')}</div>`)}${card('Fortalezas',`<ul class="checks">${listItems(d.strengths,6)}</ul>`)}</div>${card('Evidencia y calidad por áreas',`${domainEvidenceGrid(draft)}<p class="caption">Resumen técnico de disponibilidad y validez. La puntuación funcional usa sólo dominios normados compatibles y conserva la trazabilidad del protocolo.</p>`,'chart-card domain-card')}
+  pages.push(page({number:2,title:'Resumen técnico',eyebrow:'01 · PANORAMA GENERAL DEL IRI',logoUrl,internal:true,content:`<p class="lead">Perfil técnico de primera sesión. Los resultados se interpretan por protocolo, contexto, validez y calidad de dato.</p>${completionPanel(completion,draft)}${domainScorePanel(draft)}<div class="summary-layout internal-summary"><div>${card('Calidad de datos',`<div class="quality">${row('Completitud',completion.percent+'%')}${row('Coherencia',completion.percent===100?'Alta':'Revisar pendientes')}${row('Sexo para baremos',['female','male'].includes(p.sexForNorms)?p.sexForNorms:'Pendiente')}${row('Revisión del entrenador',d.reviewAccepted?'Aceptada':'Pendiente')}</div>`)}${card('Fortalezas',`<ul class="checks">${listItems(d.strengths,6)}</ul>`)}</div>${card('Evidencia y calidad por áreas',`${domainEvidenceGrid(draft)}<p class="caption">Resumen técnico de disponibilidad y validez. La puntuación funcional usa sólo dominios normados compatibles y conserva la trazabilidad del protocolo.</p>`,'chart-card domain-card')}
 </div>${card('Prioridades',`<ol class="priorities">${listItems(d.priorities,6)}</ol>`,'wide')}` }));
   pages.push(page({number:3,title:'Identificación, contacto y logística',eyebrow:'02 · EXPEDIENTE',logoUrl,internal:true,content:`<div class="profile-grid">${card('Identificación',`<div class="mini-list">${row('Cliente',clientName)}${row('Expediente',clientId)}${row('Fecha de nacimiento',dateLabel(p.birthDate))}${row('Sexo para baremos',p.sexForNorms)}${row('Identidad de género',p.genderIdentity)}${row('Pronombres',p.pronouns)}</div>`)}${card('Contacto autorizado',`<div class="mini-list">${row('Correo',p.email)}${row('Teléfono',p.phone)}${row('Canal preferido',p.preferredContactChannel)}${row('Horario de contacto',p.preferredContactTime)}${row('Zona horaria',p.timezone)}</div>`)}${card('Logística de entrenamiento',`<div class="mini-list">${row('Modalidad',p.modality)}${row('Dirección',p.trainingAddress)}${row('Comuna',p.commune)}${row('Tipo de lugar',p.locationType)}${row('Punto de encuentro / acceso',p.accessInstructions)}</div>`)}${card('Servicio y emergencia',`<div class="mini-list">${row('Horario preferido',p.preferredSchedule)}${row('Frecuencia semanal',p.weeklyFrequency!==null?number(p.weeklyFrequency):'—')}${row('Duración habitual',p.sessionDurationMinutes!==null?number(p.sessionDurationMinutes)+' min':'—')}${row('Contacto emergencia',p.emergencyContactName)}${row('Relación',p.emergencyContactRelation)}${row('Teléfono emergencia',p.emergencyContactPhone)}</div>`)}</div>`}));
   pages.push(page({number:4,title:'Entrevista inicial completa',eyebrow:'03 · CONTEXTO DE ENTRENAMIENTO',logoUrl,internal:true,content:`<div class="two-col">${card('Objetivos',`<p><strong>Principal:</strong> ${escapeHtml(excerpt(p.primaryObjective,520))}</p><p><strong>Secundarios:</strong> ${escapeHtml(safeList(p.secondaryObjectives).join(' · ')||'Sin registro')}</p>`)}${card('Experiencia y trayectoria',`<p><strong>Nivel:</strong> ${escapeHtml(label(i.trainingExperience))}</p><p>${escapeHtml(excerpt(i.trainingHistory,650))}</p>`)}${card('Entrenamiento actual',`<p>${escapeHtml(excerpt(i.currentTraining,650))}</p>`)}${card('Disponibilidad',`<p>${escapeHtml(excerpt(i.availability,480))}</p><p><strong>Material:</strong> ${escapeHtml(safeList(p.equipment).join(' · ')||'Sin registro')}</p>`)}</div>${card('Preferencias y observaciones de contexto',`<p>${escapeHtml(excerpt(i.preferences,900))}</p>`,'wide highlight')}` }));
@@ -222,277 +304,37 @@ function coachPages(draft,context){
   const coachCardioContent=c.skipped
     ?`${card('Prueba no realizada',`<div class="not-evaluated-panel"><span>NO EVALUADO</span><h3>Sin medición de capacidad de esfuerzo</h3><p>${escapeHtml(label(c.skipReason,'Motivo no registrado'))}</p></div>`,'highlight')}${card('Trazabilidad de la ausencia',`<div class="mini-list">${row('Estado','No evaluado')}${row('Motivo',c.skipReason)}${row('Baremo','No aplicado')}${row('Clasificación','No emitida')}</div>`,'soft')}`
     :c.protocol==='1msts-standard'
-      ?`<div class="protocol-strip"><span>1MSTS estándar</span><span>Silla ${finiteValue(c.chairHeightCm)?number(c.chairHeightCm,1)+' cm':'—'}</span><span>60 s</span><span>${finiteValue(c.repetitions)?number(c.repetitions)+' rep':'Repeticiones pendientes'}</span></div><div class="two-col"><div>${card('Resultado funcional',`<div class="metrics compact">${metric('Repeticiones',finiteValue(c.repetitions)?number(c.repetitions):'—')}${metric('RPE',finiteValue(c.rpe)?number(c.rpe,1)+'/10':'—')}${metric('Validez',c.valid?'Sí':'No')}</div>${finiteValue(c.finalHr)&&finiteValue(c.oneMinuteHr)?heartRateChart(c):'<p class="caption">FC no registrada: dato opcional para este protocolo.</p>'}`,'chart-card')}</div><div>${card('Registro técnico',`<div class="mini-list">${row('Configuración',c.configuration)}${row('Síntomas',excerpt(c.symptoms,420))}${row('Motivo de detención',excerpt(c.stopReason,420))}${row('Notas',excerpt(c.notes,520))}</div><p>${escapeHtml(cardioProtocolNote(c))}</p>`)}</div></div>`
+      ?`<div class="protocol-strip"><span>1MSTS estándar</span><span>Silla ${finiteValue(c.chairHeightCm)?number(c.chairHeightCm,1)+' cm':'—'}</span><span>60 s</span><span>${finiteValue(c.repetitions)?number(c.repetitions)+' rep':'Repeticiones pendientes'}</span></div><div class="two-col"><div>${card('Resultado funcional',`<div class="metrics compact">${metric('Repeticiones',finiteValue(c.repetitions)?number(c.repetitions):'—')}${metric('Esfuerzo percibido (RPE)',finiteValue(c.rpe)?number(c.rpe,1)+'/10':'—')}${metric('Validez',c.valid?'Sí':'No')}</div>${finiteValue(c.finalHr)&&finiteValue(c.oneMinuteHr)?renderEffortCurve(c):'<p class="caption">FC no registrada: dato opcional para este protocolo.</p>'}`,'chart-card')}</div><div>${card('Registro técnico',`<div class="mini-list">${row('Configuración',c.configuration)}${row('Síntomas',excerpt(c.symptoms,420))}${row('Motivo de detención',excerpt(c.stopReason,420))}${row('Notas',excerpt(c.notes,520))}</div><p>${escapeHtml(cardioProtocolNote(c))}</p>`)}</div></div>`
       :c.protocol==='treadmill-3min-field'
-        ?`<div class="protocol-strip"><span>Cinta 3 min</span><span>${finiteValue(c.speedKmh)?number(c.speedKmh,1)+' km/h':'—'}</span><span>${finiteValue(c.inclinePercent)?number(c.inclinePercent,1)+'% inclinación':'—'}</span><span>${c.durationSeconds!==null?number(c.durationSeconds)+' s':'Duración pendiente'}</span></div><div class="two-col"><div>${card('Recuperación de frecuencia cardiaca',`${heartRateChart(c)}<div class="metrics compact">${metric('FC final',c.finalHr!==null?number(c.finalHr)+' lpm':'—')}${metric('HRR1',c.deltaOneMinute!==null?number(c.deltaOneMinute)+' lpm':'—')}${metric('HRR2',c.deltaTwoMinute!==null?number(c.deltaTwoMinute)+' lpm':'—')}</div>`,'chart-card')}</div><div>${card('Registro técnico',`<div class="mini-list">${row('Modo',c.locomotionMode)}${row('Método FC',c.hrMethod)}${row('Recuperación',c.recoveryMode)}${row('FC +1 min',c.oneMinuteHr!==null?number(c.oneMinuteHr)+' lpm':'—')}${row('FC +2 min',c.twoMinuteHr!==null?number(c.twoMinuteHr)+' lpm':'—')}${row('RPE',c.rpe!==null?number(c.rpe,1)+'/10':'—')}${row('Válida',yesNo(c.valid))}${row('Síntomas',excerpt(c.symptoms,420))}</div><p>${escapeHtml(cardioProtocolNote(c))}</p>`)}</div></div>`
-        :`<div class="protocol-strip"><span>${escapeHtml(cardioProtocolLabel(c))}</span><span>Escalón ${c.stepHeightCm!==null?number(c.stepHeightCm,1)+' cm':'—'}</span><span>${c.cadenceBpm!==null?number(c.cadenceBpm)+' pulsos/min':'Cadencia pendiente'}</span><span>${c.durationSeconds!==null?number(c.durationSeconds)+' s':'Duración pendiente'}</span></div><div class="two-col"><div>${card('Recuperación de frecuencia cardiaca',`${heartRateChart(c)}<div class="metrics compact">${metric('FC reposo',c.restingHr!==null?number(c.restingHr)+' lpm':'—')}${metric('FC final',c.finalHr!==null?number(c.finalHr)+' lpm':'—')}${metric('ΔFC 1 min',c.deltaOneMinute!==null?number(c.deltaOneMinute)+' lpm':'—')}</div>`,'chart-card')}</div><div>${card('Registro técnico',`<div class="mini-list">${row('FC al minuto',c.oneMinuteHr!==null?number(c.oneMinuteHr)+' lpm':'—')}${row('RPE',c.rpe!==null?number(c.rpe,1)+'/10':'—')}${row('Válida',yesNo(c.valid))}${row('Síntomas',excerpt(c.symptoms,420))}${row('Motivo de detención',excerpt(c.stopReason,420))}</div><p>${escapeHtml(cardioProtocolNote(c))}</p>`)}</div></div>`;
+        ?`<div class="protocol-strip"><span>Cinta 3 min</span><span>${finiteValue(c.speedKmh)?number(c.speedKmh,1)+' km/h':'—'}</span><span>${finiteValue(c.inclinePercent)?number(c.inclinePercent,1)+'% inclinación':'—'}</span><span>${c.durationSeconds!==null?number(c.durationSeconds)+' s':'Duración pendiente'}</span></div><div class="two-col"><div>${card('Recuperación de frecuencia cardiaca',`${renderEffortCurve(c)}<div class="metrics compact">${metric('FC final',c.finalHr!==null?number(c.finalHr)+' lpm':'—')}${metric('Recuperación 1 min',c.deltaOneMinute!==null?number(c.deltaOneMinute)+' lpm':'—')}${metric('Recuperación 2 min',c.deltaTwoMinute!==null?number(c.deltaTwoMinute)+' lpm':'—')}</div>`,'chart-card')}</div><div>${card('Registro técnico',`<div class="mini-list">${row('Modo',c.locomotionMode)}${row('Método FC',c.hrMethod)}${row('Recuperación',c.recoveryMode)}${row('FC +1 min',c.oneMinuteHr!==null?number(c.oneMinuteHr)+' lpm':'—')}${row('FC +2 min',c.twoMinuteHr!==null?number(c.twoMinuteHr)+' lpm':'—')}${row('Esfuerzo percibido (RPE)',c.rpe!==null?number(c.rpe,1)+'/10':'—')}${row('Válida',yesNo(c.valid))}${row('Síntomas',excerpt(c.symptoms,420))}</div><p>${escapeHtml(cardioProtocolNote(c))}</p>`)}</div></div>`
+        :`<div class="protocol-strip"><span>${escapeHtml(cardioProtocolLabel(c))}</span><span>Escalón ${c.stepHeightCm!==null?number(c.stepHeightCm,1)+' cm':'—'}</span><span>${c.cadenceBpm!==null?number(c.cadenceBpm)+' pulsos/min':'Cadencia pendiente'}</span><span>${c.durationSeconds!==null?number(c.durationSeconds)+' s':'Duración pendiente'}</span></div><div class="two-col"><div>${card('Recuperación de frecuencia cardiaca',`${renderEffortCurve(c)}<div class="metrics compact">${metric('FC reposo',c.restingHr!==null?number(c.restingHr)+' lpm':'—')}${metric('FC final',c.finalHr!==null?number(c.finalHr)+' lpm':'—')}${metric('ΔFC 1 min',c.deltaOneMinute!==null?number(c.deltaOneMinute)+' lpm':'—')}</div>`,'chart-card')}</div><div>${card('Registro técnico',`<div class="mini-list">${row('FC al minuto',c.oneMinuteHr!==null?number(c.oneMinuteHr)+' lpm':'—')}${row('Esfuerzo percibido (RPE)',c.rpe!==null?number(c.rpe,1)+'/10':'—')}${row('Válida',yesNo(c.valid))}${row('Síntomas',excerpt(c.symptoms,420))}${row('Motivo de detención',excerpt(c.stopReason,420))}</div><p>${escapeHtml(cardioProtocolNote(c))}</p>`)}</div></div>`;
   pages.push(page({number:11,title:'Capacidad de esfuerzo',eyebrow:'10 · CAPACIDAD FUNCIONAL / CARDIORRESPIRATORIA',logoUrl,internal:true,content:coachCardioContent}));
   pages.push(page({number:12,title:'Diagnóstico por dominios',eyebrow:'11 · COBERTURA, VALIDEZ Y LIMITACIONES',logoUrl,internal:true,content:`<div class="two-col">${card('Composición corporal',`<p>${b.skipped?'No realizada: '+escapeHtml(label(b.skipReason)):escapeHtml(`Mediciones registradas: ${[b.weightKg,b.bodyFatPercent,b.leanMassKg,b.muscleMassKg,b.waistCm].filter((value)=>value!==null).length}. Interpretación descriptiva.`)}</p>`)}${card('Movilidad',`<p>${m.skipped?'No realizada: '+escapeHtml(label(m.skipReason)):escapeHtml(`Tobillo: asimetría ${number(m.ankle?.asymmetryCm,1)} cm. Cadena posterior: ${number(m.posteriorChain?.asymmetryCm,1)} cm.`)}</p>`)}${card('Fuerza',`<p>${s.skipped?'No realizada: '+escapeHtml(label(s.skipReason)):escapeHtml(`Silla, empuje, TRX y tronco registrados. Variantes y validez conservadas individualmente.`)}</p>`)}${card('Capacidad de esfuerzo',`<p>${c.skipped?'No realizada: '+escapeHtml(label(c.skipReason)):escapeHtml(`Protocolo ${cardioProtocolLabel(c)}. ${cardioResultDetail(c)}. Validez: ${yesNo(c.valid)}.`)}</p>`)}</div>${card('Justificación del resultado global',`<p>La puntuación funcional IRI se calcula únicamente cuando existen al menos dos dominios con baremos compatibles. La composición corporal y la fotogrametría se mantienen fuera de la nota; cada resultado conserva protocolo, sexo, edad, cobertura y limitaciones.</p>`,'highlight')}${card('Fuentes y baremos',`<div class="mini-list">${row('Sexo para baremos',p.sexForNorms)}${row('Fecha evaluación',dateLabel(draft.assessmentDate))}${row('Motor',draft.schema||draft.firstSessionSchema||'iberfit-iri-first-session-v1')}${row('Motor de baremos',scoreIriPerformance(draft).engineVersion)}${row('Cobertura normativa', scoreIriPerformance(draft).global.coverage.scoredDomains+'/3 dominios puntuables')}${row('Protocolos adaptados', 'Referencia individual; no se mezclan con el protocolo estándar')}</div>`,'soft')}` }));
-  pages.push(page({number:13,title:'Interpretación y planificación',eyebrow:'12 · DECISIÓN DEL COACH',logoUrl,internal:true,content:`${card('Interpretación completa del Coach',`<p>${escapeHtml(excerpt(d.coachInterpretation,1100))}</p>`,'highlight')}${card('Implicaciones para el entrenamiento',`<p>${escapeHtml(excerpt(d.trainingImplications,1050))}</p><ul class="checks">${listItems(d.priorities,6)}</ul>`)}<div class="two-col">${card('Plan inicial',`<p>${escapeHtml(excerpt(d.initialPlan,760))}</p><div class="mini-list">${row('Frecuencia recomendada',d.recommendedFrequency)}</div>`)}${card('Reevaluación y control',`<div class="mini-list">${row('Fecha',dateLabel(d.reevaluationDate,'Por definir'))}${row('Revisión aceptada',yesNo(d.reviewAccepted))}${row('Actualización del borrador',dateLabel(draft.updatedAt?.slice?.(0,10)))}${row('Criterio', 'Repetir protocolos comparables y documentar cambios')}</div>`)}</div>${card('Trazabilidad',`<div class="mini-list">${row('Esquema',draft.schema||'iberfit-iri-first-session-v1')}${row('Cliente',clientId)}${row('Completitud',completion.complete+'/'+completion.total)}${row('Advertencia','Evaluación de rendimiento; no sustituye una evaluación clínica')}${row('Anexo íntegro','Incluido a continuación con todos los campos normalizados')}</div>`,'soft')}` }));
+  pages.push(page({number:13,title:'Interpretación y planificación',eyebrow:'12 · DECISIÓN DEL COACH',logoUrl,internal:true,content:`${card('Interpretación completa del entrenador',`<p>${escapeHtml(excerpt(d.coachInterpretation,1100))}</p>`,'highlight')}${card('Implicaciones para el entrenamiento',`<p>${escapeHtml(excerpt(d.trainingImplications,1050))}</p><ul class="checks">${listItems(d.priorities,6)}</ul>`)}<div class="two-col">${card('Plan inicial',`<p>${escapeHtml(excerpt(d.initialPlan,760))}</p><div class="mini-list">${row('Frecuencia recomendada',d.recommendedFrequency)}</div>`)}${card('Reevaluación y control',`<div class="mini-list">${row('Fecha',dateLabel(d.reevaluationDate,'Por definir'))}${row('Revisión aceptada',yesNo(d.reviewAccepted))}${row('Actualización del borrador',dateLabel(draft.updatedAt?.slice?.(0,10)))}${row('Criterio', 'Repetir protocolos comparables y documentar cambios')}</div>`)}</div>${card('Trazabilidad',`<div class="mini-list">${row('Esquema',draft.schema||'iberfit-iri-first-session-v1')}${row('Cliente',clientId)}${row('Completitud',completion.complete+'/'+completion.total)}${row('Advertencia','Evaluación de rendimiento; no sustituye una evaluación clínica')}${row('Anexo íntegro','Incluido a continuación con todos los campos normalizados')}</div>`,'soft')}` }));
   pages.push(page({number:14,title:'Trazabilidad de protocolos',eyebrow:'13 · VERSIONES Y COMPARABILIDAD',logoUrl,internal:true,content:`${card('Registro por prueba',compactTable(['Prueba','Lado','Variante','Configuración','Versión','Validez','Uso','Adaptación o suspensión'],protocolTraceRows(draft.protocolRecords||[]),['13%','6%','11%','20%','12%','8%','12%','18%']),'table-card')}<p class="caption">Una reevaluación solo se considera directamente comparable cuando coinciden la versión, la variante y la configuración registrada.</p>`}));
-  pages.push(...rawDataPages(draft,context,15));
+  let nextAnnexPage=15;
+  pages.push(page({number:nextAnnexPage++,title:'Fotogrametría · registro técnico',eyebrow:'ANEXO TÉCNICO · FOTOGRAMETRÍA',logoUrl,internal:true,annex:true,content:`<p class="lead">Registro visual privado del punto de partida. Se muestran únicamente las capturas consentidas y, cuando existen, los puntos y mediciones validados por el entrenador.</p>${renderPhotogrammetryReport(photogrammetryReport)}`}));
+  const bioimpedanceAnnex=coachIriExternalReportPages(draft,externalReport,logoUrl,nextAnnexPage,appOrigin);
+  pages.push(...bioimpedanceAnnex);nextAnnexPage+=bioimpedanceAnnex.length;
+  pages.push(...rawDataPages(draft,context,nextAnnexPage));
   return pages;
 }
 
-const REPORT_CSS=`
-@page{size:A4;margin:0}
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;background:#d7ddd9;color:${PALETTE.forestText};font-family:Inter,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{padding:14mm 0}
-.pdf-page{position:relative;width:210mm;height:297mm;margin:0 auto 12mm;overflow:hidden;background:${PALETTE.ivory};padding:16mm 16mm 14mm;box-shadow:0 18px 52px rgba(4,24,16,.22);page-break-after:always}
-.pdf-page::before{content:"";position:absolute;inset:0 0 auto 0;height:1.8mm;background:linear-gradient(90deg,${PALETTE.forest},${PALETTE.gold},${PALETTE.forest});opacity:.95}
-.pdf-page:last-child{page-break-after:auto}
-.pdf-page header{height:25mm;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:.3mm solid ${PALETTE.line};padding-bottom:5mm}
-.heading span{font-size:7.2pt;letter-spacing:.16em;color:#86672f;font-weight:800}
-.heading h1{margin:2.4mm 0 0;font-family:Georgia,serif;font-weight:500;font-size:22pt;line-height:1.05;color:${PALETTE.forest}}
-.header-brand{display:flex;align-items:center;gap:2.6mm;color:${PALETTE.forest};font-family:Georgia,serif;letter-spacing:.12em;font-size:8pt}
-.brand-seal{width:15mm;height:15mm;border-radius:50%;display:grid;place-items:center;background:${PALETTE.forest};box-shadow:0 3mm 8mm rgba(8,34,24,.16);border:.45mm solid ${PALETTE.goldLight}}
-.brand-seal img{width:10mm;height:10mm;object-fit:contain;filter:drop-shadow(0 .4mm .7mm rgba(0,0,0,.18))}
-.pdf-page main{height:237mm;padding-top:8mm;overflow:hidden}
-.pdf-page footer{position:absolute;left:16mm;right:16mm;bottom:7mm;display:flex;justify-content:space-between;border-top:.22mm solid ${PALETTE.line};padding-top:2.5mm;font-size:6.6pt;color:${PALETTE.muted}}
-.watermark{position:absolute;left:50%;bottom:12mm;width:31mm;height:31mm;object-fit:contain;opacity:.028;transform:translateX(-50%);filter:grayscale(1) brightness(.38) sepia(.22);pointer-events:none}
-.cover{padding:0;background:radial-gradient(circle at 82% 12%,rgba(217,191,130,.20),transparent 48mm),linear-gradient(145deg,#0c3021 0%,${PALETTE.forest} 48%,#03130d 100%);color:#fff9e9}
-.cover::before{height:2.2mm;background:linear-gradient(90deg,${PALETTE.gold},#f0db9b,${PALETTE.gold})}
-.cover main{height:100%;padding:18mm 19mm}
-.cover footer{color:#d7d0bd;border-color:rgba(217,191,130,.32)}
-.cover-glow{position:absolute;width:92mm;height:92mm;right:-14mm;top:18mm;border-radius:50%;background:radial-gradient(circle,rgba(217,191,130,.18),transparent 68%);filter:blur(1mm)}
-.cover-brand{display:flex;align-items:center;gap:6mm;position:relative;z-index:2}
-.cover-mark{width:35mm;height:35mm;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.02));border:.6mm solid rgba(217,191,130,.8);box-shadow:0 8mm 22mm rgba(0,0,0,.24),inset 0 0 0 1.4mm rgba(8,34,24,.9)}
-.cover-mark img{width:25mm;height:25mm;object-fit:contain;filter:drop-shadow(0 1.2mm 2mm rgba(0,0,0,.35))}
-.cover-brand strong{display:block;color:#efd99c;font-family:Georgia,serif;font-size:22pt;letter-spacing:.07em}
-.cover-brand span{font-size:7.2pt;letter-spacing:.13em;line-height:1.55;color:#f7eed9}
-.cover-copy{margin-top:25mm;width:145mm;position:relative;z-index:2}
-.cover-copy>p{font-size:8pt;letter-spacing:.19em;color:#e7ca84;font-weight:800}
-.cover-copy h1{margin:5mm 0 6mm;font-family:Georgia,serif;font-size:40pt;line-height:1.04;font-weight:500;color:#fff9e9}
-.gold-line{height:.7mm;width:30mm;background:linear-gradient(90deg,${PALETTE.gold},#f0db9b);margin-bottom:11mm}
-.cover-copy dl{display:grid;grid-template-columns:1fr 1fr;gap:6mm 10mm;max-width:155mm}
-.cover-copy dl div{display:grid;gap:1.5mm;min-width:0}
-.cover-copy dt{font-size:6.8pt;color:#cfc5ad;text-transform:uppercase;letter-spacing:.12em}
-.cover-copy dd{margin:0;font-family:Georgia,serif;font-size:15pt;color:#efd28b;overflow-wrap:anywhere}
-.cover-note{position:absolute;left:19mm;bottom:27mm;width:97mm;padding:5mm;border:.35mm solid rgba(217,191,130,.58);border-radius:3mm;background:linear-gradient(145deg,rgba(20,67,47,.78),rgba(7,30,21,.82));box-shadow:0 5mm 16mm rgba(0,0,0,.18)}
-.cover-note strong{font-size:7.3pt;color:#efd28b;letter-spacing:.13em}
-.cover-note p{font-size:9pt;line-height:1.46;margin:2mm 0 0;color:#fff9e9}
-.cover-orbit{position:absolute;border:.42mm solid rgba(217,191,130,.44);border-radius:50%}
-.cover-orbit.one{width:120mm;height:120mm;right:-49mm;top:-33mm}
-.cover-orbit.two{width:86mm;height:86mm;right:-38mm;bottom:-28mm}
-.lead{font-family:Georgia,serif;font-size:11.5pt;line-height:1.54;color:#44594e;margin:0 0 6mm;max-width:155mm}
-.not-evaluated-panel{min-height:57mm;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:8mm;border:.45mm dashed #b9944f;border-radius:3mm;background:linear-gradient(145deg,#f4ead6,#fffdf8)}.not-evaluated-panel span{font-size:6.4pt;letter-spacing:.14em;color:#86672f;font-weight:800}.not-evaluated-panel h3{margin:3mm 0 2mm;font-family:Georgia,serif;font-size:17pt;color:#082218;text-transform:none;letter-spacing:0}.not-evaluated-panel p{font-size:9pt;line-height:1.5;color:#315246}
-.completion-panel{display:grid;grid-template-columns:repeat(3,1fr);gap:3.5mm;background:${PALETTE.forest};color:#fff9e9;padding:5mm;border-radius:3.4mm;box-shadow:0 4mm 13mm rgba(8,34,24,.14);margin-bottom:6mm}
-.completion-panel div{padding:1mm 3mm;border-left:.25mm solid rgba(217,191,130,.34);min-width:0}.completion-panel div:first-child{border-left:0}
-.completion-panel span{display:block;font-size:6.1pt;text-transform:uppercase;letter-spacing:.1em;color:#d9d3c1}
-.completion-panel strong{display:block;margin-top:2mm;font-family:Georgia,serif;font-size:15pt;color:#efd28b;overflow-wrap:anywhere}
-.completion-panel small{display:block;margin-top:1.2mm;font-size:6.2pt;line-height:1.3;color:#f3ebd8}
-.summary-layout{display:grid;grid-template-columns:.88fr 1.12fr;gap:5mm;align-items:start}
-.internal-summary{grid-template-columns:1fr 1fr}
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:5mm;align-items:start}
-.card{border:.28mm solid ${PALETTE.line};border-radius:3.2mm;background:${PALETTE.paper};padding:4.7mm;margin-bottom:4.5mm;break-inside:avoid;overflow:hidden;box-shadow:0 2.2mm 7mm rgba(37,51,43,.055)}
-.card h3{margin:0 0 3.2mm;font-size:7.8pt;color:#344a3f;text-transform:uppercase;letter-spacing:.105em}
-.card p{font-size:8.8pt;line-height:1.45;margin:0 0 2.5mm;overflow-wrap:anywhere}.card p:last-child{margin-bottom:0}
-.card.highlight{background:linear-gradient(145deg,#f4ead6,#fffdf8);border-color:#cfb273;box-shadow:0 2.4mm 8mm rgba(185,148,79,.10)}
-.card.soft{background:#f4f0e7}.card.wide{grid-column:1/-1;flex-basis:100%}.chart-card{padding:4.4mm}.domain-card{min-height:86mm}
-.checks,.priorities,.card ul,.card ol{margin:0;padding-left:5mm}.checks li,.priorities li,.card li{font-size:8.3pt;line-height:1.42;margin:0 0 2.2mm;overflow-wrap:anywhere}.checks li::marker{color:#176442}.priorities li::marker{color:#9a6f29;font-weight:800}
-.summary-band{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;padding:4.8mm;border-radius:3mm;background:linear-gradient(135deg,#14392a,${PALETTE.forest});color:#fff9e9;margin-top:5mm}.summary-band div{display:grid;gap:1.4mm}.summary-band span{font-size:6.2pt;color:#d4cdb9;text-transform:uppercase;letter-spacing:.09em}.summary-band strong{font-size:8.5pt;color:#efd28b;overflow-wrap:anywhere}.summary-band small{display:block;font-size:5.9pt;line-height:1.25;color:#eee5d1}
-.plan-band{display:block;margin-top:5mm;padding:5mm;border-radius:3.2mm;background:linear-gradient(135deg,#14392a,${PALETTE.forest});color:#fff9e9;box-shadow:0 4mm 12mm rgba(8,34,24,.13)}.plan-band h3{margin:0 0 2mm;color:#efd28b;font-family:Georgia,serif;font-size:14pt}.plan-band p{font-size:8.7pt;line-height:1.44;margin:0 0 2.5mm;overflow-wrap:anywhere}.plan-band span{font-size:6.2pt;color:#d4cdb9;text-transform:uppercase;letter-spacing:.09em}.plan-band strong{display:block;margin-top:1mm;font-size:8.7pt}.plan-band div+div{margin-top:2.4mm;padding-top:2.2mm;border-top:.22mm solid rgba(217,191,130,.24)}
-.client-test-explanation{margin-top:4mm;padding:4mm;border:.3mm solid #c9a95c;border-radius:3mm;background:linear-gradient(145deg,#f5ead0,#fffdf8)}.client-test-explanation h3{margin:0 0 2.5mm;color:#082218;font-family:Georgia,serif;font-size:12pt}.client-test-explanation>div{display:grid;grid-template-columns:repeat(2,1fr);gap:2.4mm}.client-test-explanation p{display:grid;gap:1mm;margin:0;padding:2.4mm;border-radius:2mm;background:rgba(255,255,255,.68)}.client-test-explanation span{font-size:5.8pt;color:#86672f;text-transform:uppercase;letter-spacing:.08em}.client-test-explanation strong{font-size:7.2pt;line-height:1.35;color:#183328}
-.context-grid,.profile-grid{display:flex;flex-wrap:wrap;gap:4.5mm}.context-grid>.card,.profile-grid>.card{flex:1 1 calc(50% - 3mm);min-width:0;margin-bottom:0}.context-grid>.card.wide,.profile-grid>.card.wide{flex-basis:100%}
-.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:3.5mm;margin-bottom:5mm}.metrics.four{grid-template-columns:repeat(4,1fr)}.metrics.compact{margin:3.5mm 0 0;gap:2.8mm}
-.metric{border:.25mm solid ${PALETTE.line};border-radius:2.8mm;padding:3.6mm;background:${PALETTE.paper};min-height:20mm;display:flex;flex-direction:column;justify-content:center;overflow:hidden;box-shadow:0 1.6mm 5mm rgba(37,51,43,.05)}.metric span{font-size:6.1pt;color:${PALETTE.muted};text-transform:uppercase;letter-spacing:.08em}.metric strong{margin-top:1.7mm;font-family:Georgia,serif;font-size:14pt;color:${PALETTE.forest}}.metric small{font-size:6.2pt;color:${PALETTE.muted};margin-top:1mm}
-.mini-list{display:grid;gap:2.2mm}.mini-list p,.quality p{display:flex;justify-content:space-between;gap:4mm;border-bottom:.2mm solid #e9dfce;padding-bottom:1.7mm}.mini-list span,.quality span{font-size:6.8pt;color:#707a73;flex:0 0 41%}.mini-list strong,.quality strong{font-size:7.7pt;text-align:right;max-width:59%;overflow-wrap:anywhere}.muted,.caption{color:${PALETTE.muted}!important}.caption{font-size:6.4pt!important;line-height:1.35!important;margin-top:2mm!important}
-.donut-svg{display:block;width:43mm;height:43mm;margin:1mm auto 4mm}.donut-base{fill:none;stroke:${PALETTE.forest};stroke-width:15}.donut-value{fill:none;stroke:${PALETTE.gold};stroke-width:15}.donut-center{fill:${PALETTE.paper}}.donut-number{fill:${PALETTE.forest};font-size:18px;font-family:Georgia,serif}.donut-label{fill:${PALETTE.muted};font-size:9px}
-.symmetry-row{display:grid;grid-template-columns:24mm 1fr 5mm 1fr;align-items:center;gap:2mm;margin:3.5mm 0}.symmetry-row>span{font-size:7.2pt;font-weight:800}.side{display:flex;align-items:center;gap:2mm}.side.left{justify-content:flex-end}.side i{height:2.5mm;background:linear-gradient(90deg,${PALETTE.gold},${PALETTE.forestSoft});border-radius:99px;min-width:1mm}.side.right i{background:linear-gradient(90deg,${PALETTE.forestSoft},${PALETTE.gold})}.side b{font-size:6.8pt;min-width:12mm}.body-dot{width:4mm;height:12mm;border-radius:50%;background:#d5d1c7}
-.bars{display:grid;gap:2.8mm}.bar-row{display:grid;grid-template-columns:36mm 1fr 17mm;gap:3mm;align-items:center}.bar-row>div:first-child{display:grid}.bar-row span{font-size:6.8pt;font-weight:800}.bar-row small{font-size:5.7pt;color:${PALETTE.muted}}.bar-track{height:3mm;background:#e4e3dc;border-radius:99px;overflow:hidden}.bar-track i{display:block;height:100%;background:linear-gradient(90deg,${PALETTE.forest},#5f8b70);border-radius:99px}.bar-row strong{font-size:6.8pt;text-align:right}
-.line-chart{width:100%;height:47mm}.line-chart line{stroke:#c8cec9;stroke-width:1}.line-chart path{stroke:${PALETTE.forest};stroke-width:3;fill:none}.line-chart circle{fill:${PALETTE.forest};stroke:${PALETTE.gold};stroke-width:2}.line-chart text{font-size:10px;fill:#46584e}.chart-empty{height:47mm;display:grid;place-items:center;color:${PALETTE.muted};font-size:8pt}
-.domain-evidence{display:grid;grid-template-columns:1fr 1fr;gap:3mm}.evidence-item{min-height:31mm;padding:3.8mm;border:.25mm solid #ded7c8;border-left:1.25mm solid #b5b9b3;border-radius:2.5mm;background:#fffdf8;overflow:hidden}.evidence-item.is-complete{border-left-color:#2d6e50}.evidence-item.is-skipped{border-left-color:#a78145;background:#f7f1e5}.evidence-item.is-pending{border-left-color:#8b9690}.evidence-item>div{display:flex;justify-content:space-between;gap:3mm;align-items:flex-start}.evidence-item span{font-size:6.4pt;color:#64736b;text-transform:uppercase;letter-spacing:.07em}.evidence-item strong{font-size:7pt;color:#183328;text-align:right}.evidence-item p{margin:2.3mm 0 0;font-size:7.4pt;line-height:1.35}.evidence-item small{display:block;margin-top:1.7mm;font-size:6pt;line-height:1.3;color:#64736b}
-.protocol-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:4.5mm}.protocol-strip span{padding:2.8mm;border:.25mm solid ${PALETTE.line};border-radius:2.4mm;text-align:center;font-size:6.7pt;background:${PALETTE.paper};overflow-wrap:anywhere}
-table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border-bottom:.2mm solid #e3d8c3;padding:2.1mm 1.8mm;text-align:left;font-size:6.9pt;line-height:1.28;overflow-wrap:anywhere;vertical-align:top}th{color:#5f6d65;text-transform:uppercase;letter-spacing:.055em;font-size:5.8pt;background:#f2ebdf}.table-card{padding:3.5mm}
-.internal header h1{font-size:20pt}.internal main{font-size:7.8pt}.internal .card{padding:4mm;margin-bottom:3.7mm}.internal .card p{font-size:7.7pt}.internal .metric{min-height:18mm}.internal .profile-grid{gap:3.8mm}.internal .completion-panel{margin-bottom:4.5mm}
-.annex-intro{font-size:7.5pt;line-height:1.4;color:${PALETTE.muted};margin:0 0 4mm}.raw-data{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:4mm;border:.25mm solid ${PALETTE.line};border-radius:2.5mm;background:${PALETTE.paper};font:6.3pt/1.36 ui-monospace,SFMono-Regular,Consolas,monospace;color:#243c31;max-height:210mm;overflow:hidden}
-@media print{body{padding:0;background:#fff}.pdf-page{margin:0;box-shadow:none}}
-`;
-
-const PREMIUM_RC36_CSS=`
-/* RC36 V2 · dirección visual IBERFIT ultra premium */
-html,body{background:#eee5d3}
-body{padding:10mm 0}
-.pdf-page.m26-premium-report-v2{
-  background:
-    radial-gradient(circle at 94% 5%,rgba(231,211,154,.34),transparent 46mm),
-    radial-gradient(circle at 4% 96%,rgba(31,90,64,.10),transparent 40mm),
-    linear-gradient(180deg,#fffdf7 0%,#f5eedc 100%);
-  color:#17342a;
-  padding:14mm 13mm 13mm;
-  box-shadow:0 7mm 22mm rgba(8,37,26,.14);
-}
-.pdf-page.m26-premium-report-v2::before{
-  height:1.4mm;
-  background:linear-gradient(90deg,#08251a 0%,#c9a95c 48%,#08251a 100%);
-}
-.pdf-page.m26-premium-report-v2 main{height:229mm;padding-top:7mm;overflow:hidden}
-.pdf-page.m26-premium-report-v2 footer{left:13mm;right:13mm;bottom:6mm;color:#68796f;border-color:#d8c8a6}
-.pdf-page.m26-premium-report-v2 footer b{color:#1f5a40;letter-spacing:.055em}
-.premium-header{height:31mm;border:0;padding:0;display:block}
-.section-tab{
-  width:100%;height:27mm;display:grid;grid-template-columns:18mm minmax(0,1fr);
-  align-items:center;gap:5mm;padding:3.2mm 7mm 3.2mm 3.4mm;border-radius:5.5mm;
-  background:
-    radial-gradient(circle at 92% 50%,rgba(231,211,154,.30),transparent 36mm),
-    linear-gradient(105deg,#08251a 0%,#0e3b2a 63%,#234d3a 100%);
-  border:.35mm solid rgba(201,169,92,.72);
-  box-shadow:0 3mm 9mm rgba(8,37,26,.13);overflow:hidden;
-}
-.section-index{
-  width:16mm;height:16mm;border-radius:4.2mm;display:grid;place-items:center;
-  background:linear-gradient(145deg,#e7d39a,#c9a95c);color:#08251a;
-  font:800 13pt/1 Inter,Arial,sans-serif;box-shadow:inset 0 .3mm .6mm rgba(255,255,255,.38);
-}
-.section-copy{min-width:0;overflow:hidden}
-.section-copy h1{
-  margin:0;color:#fffdf7;font-family:Georgia,serif;font-size:20pt;line-height:1.02;
-  font-weight:500;white-space:normal;overflow-wrap:anywhere;word-break:normal;
-}
-.section-copy p{
-  margin:1.5mm 0 0;color:#e7d39a;font:700 6.4pt/1.25 Inter,Arial,sans-serif;
-  letter-spacing:.065em;text-transform:uppercase;white-space:normal;
-  overflow-wrap:anywhere;word-break:normal;max-width:100%;
-}
-.premium-watermark{
-  left:auto;right:8mm;bottom:10mm;width:48mm;height:48mm;opacity:.034;
-  transform:none;filter:grayscale(1) sepia(.55) hue-rotate(78deg) saturate(.9) brightness(.67);
-}
-.page-orbit{position:absolute;border-radius:50%;pointer-events:none;z-index:0}
-.page-orbit-one{width:70mm;height:70mm;right:-37mm;top:-37mm;border:.35mm solid rgba(201,169,92,.18)}
-.page-orbit-two{width:53mm;height:53mm;left:-34mm;bottom:-31mm;background:rgba(31,90,64,.035)}
-.pdf-page.m26-premium-report-v2 main,.pdf-page.m26-premium-report-v2 header{position:relative;z-index:2}.pdf-page.m26-premium-report-v2 footer{position:absolute;z-index:2}
-.card{
-  border:.28mm solid #d8c8a6;border-radius:4mm;background:rgba(255,253,248,.94);
-  box-shadow:0 2.2mm 6.8mm rgba(35,64,49,.07);overflow:hidden;
-}
-.card h3{color:#17342a;overflow-wrap:anywhere;word-break:normal}
-.card.highlight{background:linear-gradient(145deg,#f4e8c8,#fffdf8);border-color:#c9a95c}
-.card.soft{background:linear-gradient(145deg,#f0eadc,#fffdf8)}
-.metric{
-  position:relative;border-color:#d8c8a6;border-radius:3.8mm;
-  background:linear-gradient(155deg,#fffdf8 0%,#f8f1e3 100%);
-  box-shadow:0 1.8mm 5.5mm rgba(35,64,49,.065);overflow:hidden;
-}
-.metric::before{content:"";position:absolute;left:0;right:0;top:0;height:1.2mm;background:linear-gradient(90deg,#08251a,#c9a95c)}
-.metric span,.metric strong,.metric small{overflow-wrap:anywhere;word-break:normal}
-.completion-panel{
-  background:transparent;color:#17342a;padding:0;box-shadow:none;gap:3.2mm;
-}
-.completion-panel div{
-  border:.25mm solid #d8c8a6!important;border-top:1.2mm solid #c9a95c!important;
-  border-radius:3.6mm;background:linear-gradient(155deg,#fffdf8,#f6eddb);
-  padding:3.7mm;box-shadow:0 1.8mm 5mm rgba(35,64,49,.055);overflow:hidden;
-}
-.completion-panel span{color:#80652f}
-.completion-panel strong{color:#08251a;font-size:14pt;overflow-wrap:anywhere}
-.completion-panel small{color:#68796f}
-.summary-band,.plan-band{
-  background:
-    radial-gradient(circle at 93% 0%,rgba(231,211,154,.22),transparent 30mm),
-    linear-gradient(135deg,#08251a,#123d2c);
-  border:.3mm solid rgba(201,169,92,.58);box-shadow:0 3.5mm 10mm rgba(8,37,26,.12);
-}
-.summary-band strong,.plan-band h3{color:#e7d39a}
-.domain-evidence{gap:3.2mm}
-.evidence-item{
-  border:.25mm solid #d8c8a6;border-left:1.25mm solid #a7afa9;border-radius:3.2mm;
-  background:linear-gradient(150deg,#fffdf8,#f7f0e2);box-shadow:0 1.5mm 4.6mm rgba(35,64,49,.05);
-}
-.evidence-item.is-complete{border-left-color:#1f5a40}
-.evidence-item.is-skipped{border-left-color:#c9a95c;background:#f4e8c8}
-.evidence-item strong{color:#08251a}
-.donut-base{stroke:#eadfca}.donut-value{stroke:#c9a95c}.donut-center{fill:#fffdf8}
-.bar-track{background:#dfe7e1}.bar-track i{background:linear-gradient(90deg,#c9a95c,#e7d39a)}
-.line-chart path{stroke:#1f5a40}.line-chart circle{fill:#c9a95c;stroke:#08251a}
-.symmetry-row .side i{background:linear-gradient(90deg,#1f5a40,#c9a95c)}
-.symmetry-row .side.right i{background:linear-gradient(90deg,#c9a95c,#1f5a40)}
-.cover.m26-premium-report-v2{
-  padding:0;background:
-    radial-gradient(circle at 86% 12%,rgba(231,211,154,.16),transparent 45mm),
-    radial-gradient(circle at 76% 76%,rgba(255,253,247,.035),transparent 62mm),
-    linear-gradient(145deg,#123d2c 0%,#08251a 56%,#04140e 100%);
-  color:#fffdf7;
-}
-.cover.m26-premium-report-v2 main{height:100%;padding:17mm 17mm}
-.cover.m26-premium-report-v2::after{
-  content:"";position:absolute;right:-17mm;top:-10mm;width:58mm;height:156mm;
-  border-left:.75mm solid #c9a95c;border-radius:50%;transform:rotate(8deg);opacity:.82;
-}
-.cover-lockup{position:relative;z-index:3;display:flex;align-items:center;gap:5mm;width:100mm;min-height:25mm}
-.cover-isotipo{
-  display:block;width:22mm;height:25mm;object-fit:contain;object-position:center;
-  filter:drop-shadow(0 1.2mm 2.5mm rgba(0,0,0,.20));
-}
-.cover-wordmark{display:grid;gap:1.1mm;min-width:0}
-.cover-wordmark strong{
-  color:#fffdf7;font-family:Georgia,serif;font-size:20pt;font-weight:600;
-  letter-spacing:.12em;line-height:1;white-space:nowrap;
-}
-.cover-wordmark span{
-  color:#e7d39a;font:700 7.2pt/1.28 Inter,Arial,sans-serif;
-  letter-spacing:.025em;white-space:normal;
-}
-.cover-watermark{
-  position:absolute;right:10mm;bottom:32mm;width:64mm;height:64mm;object-fit:contain;
-  opacity:.055;filter:grayscale(1) sepia(.45) brightness(1.8);pointer-events:none;
-}
-.cover-copy{margin-top:22mm;width:152mm;position:relative;z-index:3}
-.cover-copy>p{font-size:7.6pt;letter-spacing:.17em;color:#e7d39a;font-weight:800}
-.cover-copy h1{
-  margin:5mm 0 5mm;color:#fffdf7;font-family:Georgia,serif;font-size:36pt;
-  line-height:1.04;font-weight:500;overflow-wrap:anywhere;word-break:normal;
-}
-.cover-claim{display:block;color:#e7d39a;font-size:7.8pt;letter-spacing:.055em}
-.cover-data{
-  position:absolute;left:17mm;right:17mm;bottom:28mm;z-index:3;
-  display:grid;grid-template-columns:1.2fr .8fr;gap:5mm 8mm;padding:7mm;
-  border:.3mm solid rgba(216,200,166,.92);border-radius:5mm;
-  background:linear-gradient(145deg,rgba(255,253,248,.98),rgba(244,232,200,.96));
-  color:#17342a;box-shadow:0 5mm 18mm rgba(0,0,0,.20);overflow:hidden;
-}
-.cover-data>div{display:grid;gap:1.2mm;min-width:0}
-.cover-data span{font-size:6pt;color:#80652f;text-transform:uppercase;letter-spacing:.1em}
-.cover-data strong{font-family:Georgia,serif;font-size:11.5pt;color:#08251a;overflow-wrap:anywhere;word-break:normal}
-.cover-data-primary{grid-column:1/-1}
-.cover-data-primary strong{font-size:16pt}
-.cover-tags{grid-column:1/-1;display:flex!important;flex-direction:row;gap:3mm!important}
-.cover-tags em{
-  display:inline-flex;align-items:center;min-height:6.5mm;padding:0 3mm;border-radius:99px;
-  background:#e4eee7;color:#1f5a40;font:800 5.7pt/1 Inter,Arial,sans-serif;
-  letter-spacing:.055em;font-style:normal;white-space:nowrap;
-}
-.cover-tags em+em{background:#f4e8c8;color:#80652f}
-.internal .section-copy h1{font-size:17pt}
-.internal .section-copy p{font-size:5.8pt}
-.internal .premium-header{height:29mm}
-@media print{
-  html,body{margin:0!important;padding:0!important;background:#fff}
-  .pdf-page.m26-premium-report-v2{width:210mm;height:297mm;margin:0!important;box-shadow:none;break-after:page;page-break-after:always}
-  .pdf-page.m26-premium-report-v2:last-child{break-after:auto;page-break-after:auto}
-}
-`;
-const REPORT_FIT_LEVELS=Object.freeze([100,98,96,94,92,90,88,86,84,82]);
-const REPORT_DYNAMIC_CSS=[
-  '.col-w-7{width:7%}.col-w-9{width:9%}.col-w-10{width:10%}.col-w-13{width:13%}.col-w-14{width:14%}.col-w-15{width:15%}.col-w-20{width:20%}.col-w-22{width:22%}.col-w-22_5{width:22.5%}',
-  '.iri-complement{display:grid;gap:2mm}.iri-complement-kicker{font-family:Georgia,serif;font-size:12pt!important;color:#082218}.iri-complement small{color:#64736b}.iri-complement-link{display:inline-flex;align-items:center;justify-content:center;min-height:9mm;padding:2mm 4mm;border-radius:99px;background:#08251a;color:#fffdf8!important;font-weight:800;text-decoration:none}',
-  '.report-page-content{width:100%;transform-origin:top left}',
-  '.report-page-2 main{display:flex}.report-page-2 .report-page-content{min-height:100%;display:flex;flex-direction:column}.report-page-2 .lead{margin-bottom:3.5mm}.report-page-2 .completion-panel{margin-bottom:3.5mm}.report-page-2 .completion-panel div{padding:2.8mm}.report-page-2 .domain-card{min-height:72mm}.report-page-2 .evidence-item{min-height:25.5mm;padding:2.8mm}.report-page-2 .card{margin-bottom:3.2mm}.report-page-2 .summary-band{margin-top:auto;padding:3.7mm;flex:0 0 auto}',
-  '.evidence-item>div{display:grid;grid-template-columns:minmax(0,1fr) max-content;gap:2mm;align-items:start}.evidence-item>div span{min-width:0;overflow-wrap:anywhere}.evidence-item>div strong{display:inline-flex;max-width:27mm;min-width:0;justify-self:end;align-items:center;padding:.8mm 1.5mm;border-radius:99px;background:#e8eee9;white-space:normal;overflow-wrap:anywhere;word-break:normal;line-height:1.15}.evidence-item.is-skipped>div{grid-template-columns:minmax(0,1fr)}.evidence-item.is-skipped>div strong{justify-self:start;max-width:100%;margin-top:.8mm;background:#ead9ad;color:#6f521d}',
-  ...REPORT_FIT_LEVELS.filter((level)=>level<100).map((level)=>`.pdf-page.iri-report-fit-${level} .report-page-content{transform:scale(${level/100});width:${(10000/level).toFixed(5)}%}`),
-  ...Array.from({length:101},(_,index)=>`.w-pct-${index}{width:${index}%}`),
-].join('');
-const REPORT_STYLESHEET=`${REPORT_CSS}${PREMIUM_RC36_CSS}${REPORT_DYNAMIC_CSS}`;
-export function buildIriReportHtml({draft,variant='client',clientName='Cliente IBERFIT',coachName='Coach IBERFIT',clientId='',logoUrl='/public/isotipo-iberfit.png',stylesheetHref='',externalReport=null,appOrigin=undefined}={}){
+const REPORT_TOKEN_IMPORTS="@import url('/src/m26/design/tokens.css');\n@import url('/src/m26/design/typography.css');\n";
+const REPORT_CSS=REPORT_TOKEN_IMPORTS;
+const PREMIUM_RC36_CSS='';
+const REPORT_DYNAMIC_CSS='';
+const REPORT_STYLESHEET=REPORT_TOKEN_IMPORTS;
+const REPORT_FIT_LEVELS=Object.freeze([100,98,96,94]);
+export function buildIriReportHtml({draft,variant='client',clientName='Cliente IBERFIT',coachName='Coach IBERFIT',clientId='',logoUrl='/public/isotipo-iberfit.png',signatureUrl='',stylesheetHref='',externalReport=null,photogrammetryReport=null,appOrigin=undefined,iriOnly=false}={}){
   if(!draft||!['client','coach'].includes(variant))throw new Error('M26_IRI_REPORT_DOCUMENT_INVALID');
-  const context={clientName:clean(clientName,160)||'Cliente IBERFIT',coachName:clean(coachName,160)||'Coach IBERFIT',clientId:clean(clientId,200),logoUrl,externalReport,appOrigin};
+  const context={clientName:clean(clientName,160)||'Cliente IBERFIT',coachName:clean(coachName,160)||'Coach IBERFIT',clientId:clean(clientId,200),logoUrl,signatureUrl:clean(signatureUrl,2000),externalReport,photogrammetryReport,appOrigin,iriOnly:Boolean(iriOnly)};
   const pages=variant==='client'?clientPages(draft,context):coachPages(draft,context);
-  if(variant==='client'&&pages.length!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
-  if(variant==='coach'&&pages.length<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
+  if(variant==='client'&&pages.length<10)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
+  if(variant==='coach'&&pages.length<16)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
   const title=`Informe IRI IBERFIT · ${variant==='client'?'Cliente':'Coach / Admin'} · ${context.clientName}`;
   const externalStylesheet=clean(stylesheetHref,2048);
-  const stylesheetHrefSafe=externalStylesheet||'/m26/iri-report.css?v=m26-rc45-6-launch-hardening-v1';
+  const stylesheetHrefSafe=externalStylesheet||'/m26/iri-report.css?v=m26-iri-report-premium-v1';
   const stylesheet=`<link rel="stylesheet" href="${escapeHtml(stylesheetHrefSafe)}" data-iri-report-stylesheet>`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title>${stylesheet}</head><body>${pages.join('')}</body></html>`;
 }
@@ -500,7 +342,7 @@ export function buildIriReportHtml({draft,variant='client',clientName='Cliente I
 function reportStylesheetUrl(locationLike=globalThis.location){
   const origin=clean(locationLike?.origin,512);
   if(!/^https?:\/\//u.test(origin))throw new Error('M26_IRI_REPORT_ORIGIN_UNAVAILABLE');
-  const url=new URL('/m26/iri-report.css?v=m26-rc45-6-launch-hardening-v1',origin);
+  const url=new URL('/m26/iri-report.css?v=m26-iri-report-premium-v1',origin);
   if(url.origin!==origin)throw new Error('M26_IRI_REPORT_STYLESHEET_ORIGIN_INVALID');
   return url.href;
 }
@@ -566,15 +408,17 @@ function reportLayoutReady(popup,doc){
 }
 function waitForReportAssets(doc){
   const fontsReady=doc?.fonts?.ready&&typeof doc.fonts.ready.then==='function'?doc.fonts.ready:Promise.resolve();
-  const images=Array.from(doc?.images||[]);
-  const imagesReady=Promise.all(images.map((image)=>{
-    if(image?.complete)return Promise.resolve();
+  const assets=Array.from(doc?.querySelectorAll?.('img,svg image')||[]);
+  const assetsReady=Promise.all(assets.map((asset)=>{
+    if(asset?.tagName?.toLowerCase?.()==='img'&&asset.complete)return Promise.resolve();
     return new Promise((resolve)=>{
-      image?.addEventListener?.('load',resolve,{once:true});
-      image?.addEventListener?.('error',resolve,{once:true});
+      let timer=null;const done=()=>{if(timer!==null)clearTimeout(timer);resolve();};
+      asset?.addEventListener?.('load',done,{once:true});
+      asset?.addEventListener?.('error',done,{once:true});
+      timer=setTimeout(done,5000);
     });
   }));
-  return Promise.all([fontsReady,imagesReady]);
+  return Promise.all([fontsReady,assetsReady]);
 }
 function bindDirectIriReportWindow(popup){
   const doc=popup?.document;if(!doc?.querySelector)throw new Error('M26_IRI_REPORT_WINDOW_UNAVAILABLE');
@@ -653,12 +497,12 @@ export function prepareIriReportPrintTarget(openWindow=globalThis.open){
   try{popup.opener=null;}catch{}
   return popup;
 }
-export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,externalReport=null,printTarget=null,openWindow=globalThis.open,locationLike=globalThis.location}={}){
+export function openIriReportPrint({draft,variant='client',clientName,coachName,clientId,logoUrl,signatureUrl='',externalReport=null,photogrammetryReport=null,iriOnly=false,printTarget=null,openWindow=globalThis.open,locationLike=globalThis.location}={}){
   const stylesheetHref=reportStylesheetUrl(locationLike);
-  const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl,stylesheetHref,externalReport,appOrigin:locationLike?.origin});
+  const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl,signatureUrl,stylesheetHref,externalReport,photogrammetryReport,appOrigin:locationLike?.origin,iriOnly});
   const pageCount=(html.match(/class="pdf-page(?:\s|")/gu)||[]).length;
-  if(variant==='client'&&pageCount!==7)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
-  if(variant==='coach'&&pageCount<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
+  if(variant==='client'&&pageCount<10)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
+  if(variant==='coach'&&pageCount<16)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
   const popup=printTarget||prepareIriReportPrintTarget(openWindow);
   if(!popup?.document)throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
   try{

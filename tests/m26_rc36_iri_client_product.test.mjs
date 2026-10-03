@@ -19,10 +19,10 @@ function validDraft(){
   },{id:'IRI-RC36'},'CLIENT-RC36');
 }
 
-test('Informe IRI elimina el radar no normativo y presenta evidencia explícita por áreas',()=>{
+test('Informe IRI sólo compara dominios con escala normalizada compatible',()=>{
   const html=buildIriReportHtml({draft:validDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',logoUrl:'/public/isotipo-iberfit.png'});
-  assert.match(html,/Evidencia por áreas/);
-  assert.match(html,/Puntuación funcional IRI/iu);
+  assert.match(html,/Perfil funcional disponible/);
+  assert.match(html,/no permite construir un perfil completo sin fingir comparabilidad/i);
   assert.match(html,/Composición corporal/);
   assert.match(html,/Capacidad de esfuerzo/);
   assert.doesNotMatch(html,/class="radar"|radar-value|Perfil por dominios/);
@@ -31,18 +31,21 @@ test('Informe IRI elimina el radar no normativo y presenta evidencia explícita 
 });
 
 
-test('Informe IRI aplica la dirección visual ultra premium IBERFIT sin solapamientos',()=>{
+test('Informe IRI v3 consume marca y tipografía canónicas sin reinterpretar el isotipo',()=>{
   const source=read('src/m26/workflows/iri-report-document.js');
-  assert.match(source,/PREMIUM_RC36_CSS/);
-  assert.match(source,/m26-premium-report-v2/);
+  const css=read('public/m26/iri-report.css');
+  assert.match(source,/m26-premium-report-v3/);
   assert.match(source,/class="cover-lockup"/);
   assert.match(source,/class="cover-isotipo"/);
-  assert.match(source,/Entrenamiento personal<br>con criterio/);
-  assert.match(source,/class="section-tab"/);
-  assert.match(source,/overflow-wrap:anywhere/);
-  assert.match(source,/word-break:normal/);
-  assert.match(source,/linear-gradient\(145deg,#123d2c 0%,#08251a/);
+  assert.match(source,/Entrenamiento personal con criterio/);
+  assert.match(source,/class="section-copy"/);
   assert.match(source,/premium-watermark/);
+  assert.doesNotMatch(source,/const PALETTE=/);
+  assert.match(css,/@import url\('\/src\/m26\/design\/tokens\.css'\)/);
+  assert.match(css,/@import url\('\/src\/m26\/design\/typography\.css'\)/);
+  assert.match(css,/\.premium-watermark\{filter:none!important\}/);
+  assert.match(css,/\.cover-isotipo[^}]*filter:none!important/s);
+  assert.doesNotMatch(css,/grayscale\(|sepia\(|hue-rotate\(/);
 });
 
 test('Bioimpedancia queda orientada por método, equipo y condiciones sin exigir grasa corporal',()=>{

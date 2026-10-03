@@ -106,7 +106,7 @@ test('IRI 2.0 refuses direct strength comparison when the exercise protocol chan
   assert.equal(push.comparable,false);
 });
 
-test('premium client report remains exactly 7 pages and baseline-only even if history is supplied by an old caller',()=>{
+test('premium client report remains a 10-page initial diagnosis even if history is supplied by an old caller',()=>{
   const previous=makeDraft({id:'11111111-1111-4111-8111-111111111111',date:'2026-06-11',chair:14,push:8,weight:67});
   const current=makeDraft({id:'22222222-2222-4222-8222-222222222222',date:'2026-09-11',chair:18,push:10,weight:65});
   const html=buildIriReportHtml({
@@ -116,10 +116,10 @@ test('premium client report remains exactly 7 pages and baseline-only even if hi
     coachName:'Coach IBERFIT',
     longitudinalHistory:[previous],
   });
-  assert.equal((html.match(/class="pdf-page/g)||[]).length,7);
-  assert.match(html,/INFORME DE EVALUACIÓN IRI/u);
-  assert.match(html,/Baseline inicial/u);
-  assert.match(html,/seguimiento longitudinal se mantiene fuera del Diagnóstico IRI/u);
+  assert.equal((html.match(/class="pdf-page/g)||[]).length,10);
+  assert.match(html,/INFORME<br>IRI/u);
+  assert.match(html,/referencia inicial/u);
+  assert.match(html,/seguimiento y la evolución se registran por separado/u);
   assert.doesNotMatch(html,/Evolución y seguimiento|Evolución IRI 2\.0/u);
   assert.doesNotMatch(html,/Cambios comparables desde la evaluación anterior|Silla 30 s \+4 rep/u);
   assert.match(html,/Puntuación funcional IRI/iu);

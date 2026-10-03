@@ -34,21 +34,22 @@ test('la hoja externa contiene exactamente los estilos del informe y los control
   assert.ok(normalizeLineEndings(css.replace(/\n/gu,'\r\n')).startsWith(expected));
   assert.match(css,/\.pdf-page/);
   assert.match(css,/\.report-page-content/);
-  assert.match(css,/iri-report-fit-82/);
+  assert.match(css,/iri-report-fit-94/);
+  assert.doesNotMatch(css,/iri-report-fit-82/);
   assert.match(css,/\.iri-report-toolbar/);
-  assert.match(css,/@media print\{\.iri-report-toolbar\{display:none!important\}\}/);
+  assert.match(css,/@media print\{[\s\S]*?\.iri-report-toolbar\{display:none!important\}/);
 });
 
 test('el HTML generado no depende de atributos style bloqueables por CSP',()=>{
   const html=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
   const css=read('public/m26/iri-report.css');
-  assert.equal((html.match(/class="pdf-page/g)||[]).length,7);
+  assert.equal((html.match(/class="pdf-page/g)||[]).length,10);
   assert.doesNotMatch(html,/\sstyle="/u);
   assert.match(html,/w-pct-\d+/);
   assert.match(css,/\.col-w-\d+\{width:/u);
   assert.match(html,/class="report-page-content"/);
   assert.match(html,/report-page-2/);
-  const external=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',stylesheetHref:'https://m26-canary.iberfit.cl/m26/iri-report.css?v=m26-rc45-6-launch-hardening-v1'});
+  const external=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',stylesheetHref:'https://m26-canary.iberfit.cl/m26/iri-report.css?v=m26-iri-report-premium-v1'});
   assert.match(external,/rel="stylesheet"[^>]+data-iri-report-stylesheet/);
   assert.doesNotMatch(external,/<style>/);
 });
@@ -68,12 +69,12 @@ test('el renderizador primario usa CSS same-origin permitido por CSP y bloquea i
   assert.match(source,/reportPageContentFits/);
   assert.match(source,/Encabezados y pies de página/);
   assert.match(source,/M26_IRI_REPORT_LAYOUT_NOT_READY/);
-  assert.match(source,/m26-rc45-6-launch-hardening-v1/);
+  assert.match(source,/m26-iri-report-premium-v1/);
   assert.doesNotMatch(source,/localStorage\.setItem\(token/);
   assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
   assert.match(page,/localStorage\.getItem\(token\)/);
-  assert.match(page,/CLIENT_PAGE_COUNT=7/);
-  assert.match(page,/COACH_MIN_PAGE_COUNT=13/);
+  assert.match(page,/CLIENT_MIN_PAGE_COUNT=10/);
+  assert.match(page,/COACH_MIN_PAGE_COUNT=16/);
   assert.match(page,/Imprimir o guardar como PDF/);
 });
 
@@ -90,17 +91,18 @@ test('las fechas del informe conservan el día civil exacto y no desplazan por z
   assert.equal(__iriReportInternals.dateLabel('','Por definir'),'Por definir');
 });
 
-test('la página resumen mantiene estado, fecha y controles dentro de su caja A4',()=>{
+test('la síntesis editorial, A4 y controles mantienen una caja segura y legible',()=>{
   const css=read('public/m26/iri-report.css');
-  assert.match(css,/\.report-page-2 \.report-page-content\{min-height:100%;display:flex;flex-direction:column\}/);
-  assert.match(css,/\.report-page-2 \.summary-band\{margin-top:auto;/);
-  assert.match(css,/\.pdf-page\.m26-premium-report-v2 main\{height:229mm;/);
-  assert.match(css,/\.evidence-item\.is-skipped>div\{grid-template-columns:minmax\(0,1fr\)\}/);
-  assert.match(css,/\.evidence-item\.is-skipped>div strong\{justify-self:start;max-width:100%/);
-  assert.match(css,/\.pdf-page\.m26-premium-report-v2 footer\{position:absolute;z-index:2\}/);
-  assert.match(css,/\.iri-report-toolbar\{position:relative;/);
-  assert.doesNotMatch(css,/\.iri-report-toolbar\{position:fixed;/);
+  assert.match(css,/\.summary-editorial\{/);
+  assert.match(css,/\.pdf-page\{/);
+  assert.match(css,/@media print\{[\s\S]*?\.pdf-page\{[\s\S]*?height:297mm!important/);
+  assert.match(css,/\.iri-report-toolbar\{\s*position:relative;/);
+  assert.doesNotMatch(css,/\.iri-report-toolbar\{\s*position:fixed;/);
+  assert.match(css,/\.premium-watermark\{filter:none!important\}/);
   const html=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
+  assert.match(html,/m26-premium-report-v3/);
   assert.match(html,/30 de julio de 2026/);
-  assert.match(html,/No evaluado/);
+  assert.match(html,/NO EVALUADO/);
+  assert.match(html,/Perfil funcional disponible/);
+  assert.doesNotMatch(html,/\sstyle="/u);
 });

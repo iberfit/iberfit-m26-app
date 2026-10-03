@@ -393,5 +393,5 @@ test('Premium Report Parity queda fijado como gate transversal al nivel IRI',()=
   assert.match(spec,/activity \/ device-data report/u);
   assert.match(spec,/A4\/PDF-grade output/u);
   assert.match(workflow,/format:'a4-premium'/u);
-  assert.match(iri,/m26-premium-report-v2/u);
+  assert.match(iri,/m26-premium-report-v3/u);
 });

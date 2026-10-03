@@ -291,6 +291,46 @@ export function createIriPhotogrammetryController({
     if(contextKey!==key)return null;
     render();return remote;
   }
+  async function clientSnapshotForPdf(assessmentId){
+    const requested=clean(assessmentId,80);
+    const ctx=context();
+    if(!requested||!ctx.canManage||ctx.assessmentId!==requested)throw new Error('M26_IRI_PHOTO_SCOPE_MISMATCH');
+    if(!isOnline())throw new Error('M26_IRI_PHOTO_OFFLINE');
+    const token=await getToken();
+    const snapshot=await service.state(token,{assessmentId:requested});
+    if(!granted(snapshot.photographyConsent,'photography',IRI_PHOTO_CONSENT_VERSION)){
+      return Object.freeze({assessmentId:requested,available:false,reason:'consent',photos:Object.freeze([]),quality:Object.freeze({level:'sin_datos',capturedViews:0,analyzedViews:0,validated:false}),interpretation:null});
+    }
+    const latest=snapshot.latestCaptures||{};
+    const linkedLandmarks=landmarksForLatestCaptures(snapshot.analysis,latest);
+    const validation=validateManualLandmarks(linkedLandmarks,ALL_VIEWS.filter((view)=>latest?.[view]));
+    const validated=Boolean(
+      snapshot.analysis?.status==='validated'&&validation.ok&&ALL_VIEWS.every((view)=>iriPhotoAnalysisMatchesCapture(snapshot.analysis,latest?.[view],view))
+    );
+    const quality=photogrammetryDataQuality({captures:Object.values(latest),landmarks:linkedLandmarks,validated});
+    const interpretation=interpretPhotogrammetryMeasurements(snapshot.analysis?.measurements||{}, {quality});
+    const urls=await signedUrlsFor(snapshot,token);
+    const photos=ALL_VIEWS.flatMap((view)=>{
+      const capture=latest?.[view],url=urls?.[view];
+      if(!capture||!url)return [];
+      return [Object.freeze({
+        view,url,capturedAt:capture.capturedAt||capture.createdAt||null,
+        widthPx:Number(capture.widthPx)||null,heightPx:Number(capture.heightPx)||null,
+      })];
+    });
+    return Object.freeze({
+      assessmentId:requested,
+      available:photos.length>0,
+      reason:photos.length?'':'unavailable',
+      photos:Object.freeze(photos),
+      landmarks:structuredClone(linkedLandmarks),
+      quality,
+      analysisStatus:snapshot.analysis?.status||null,
+      measurements:snapshot.analysis?.measurements&&typeof snapshot.analysis.measurements==='object'?structuredClone(snapshot.analysis.measurements):{},
+      interpretation,
+    });
+  }
+
   async function ensurePhysicalConsent({clientId,assessmentId,accepted,note=''}={}){
     if(!accepted)throw new Error('M26_IRI_PHYSICAL_CONSENT_REQUIRED');
     const ctx=context();
@@ -453,7 +493,7 @@ export function createIriPhotogrammetryController({
     root.removeEventListener('pointerdown',onPointerDown);root.removeEventListener('keydown',onKeyDown);
     mounted=false;remote=null;signedUrls={};landmarks={};activeMarker=null;contextKey='';
   }
-  return Object.freeze({mount,destroy,load,ensurePhysicalConsent});
+  return Object.freeze({mount,destroy,load,ensurePhysicalConsent,clientSnapshotForPdf});
 }
 
 export const __iriPhotogrammetryControllerInternals=Object.freeze({

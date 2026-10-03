@@ -163,7 +163,7 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
 
 export function createWorkflowController({
   root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,renameExercise=null,refreshCatalog=async()=>catalog,
-  getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,isOnline=()=>globalThis.navigator?.onLine!==false,
+  getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
   let mounted=false,observer=null,scanQueued=false,iriSaveTimer=null,onboardingSaveTimer=null,iriTimer=null;
@@ -460,8 +460,8 @@ export function createWorkflowController({
   async function jumpIri(index){
     const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)return;const current=Number(form.dataset.iriStepIndex||0);if(index>current){assertIriRawRanges(form);const step=IRI_FIRST_SESSION_STEPS[current];const check=validateFirstSessionStep(iriDraft(form),step);showStepValidation(form,step,check.errors);if(!check.ok){focusIriValidationError(form,check.errors);status(root,'iri','Completa la etapa actual antes de avanzar.','error');return;}await saveIriDraft({silent:true});}setIriStep(form,index,{focus:true});computed(form);
   }
-  function reportContext(draft){const {state,clientId}=context();const client=(state.collections.clients||[]).find((item)=>item.id===clientId);const identity=state.identity||{};let logoUrl='/public/isotipo-iberfit.png';try{logoUrl=new URL('/public/isotipo-iberfit.png',globalThis.location?.origin||'https://m26-canary.iberfit.cl').href;}catch{}
-    return {draft,clientId,clientName:clientName(client),coachName:String(identity.name||identity.fullName||identity.email||'Coach IBERFIT'),logoUrl};
+  function reportContext(draft){const {state,clientId}=context();const client=(state.collections.clients||[]).find((item)=>item.id===clientId);const identity=state.identity||{};const lifecycle=String(client?.lifecycleStatus||client?.lifecycle_status||client?.lifecycle?.status||'').trim().toLowerCase();const coachName=String(identity.name||identity.fullName||identity.email||'Coach IBERFIT');const coachIdentity=[identity.name,identity.fullName,identity.email].filter(Boolean).join(' ').toLowerCase();let logoUrl='/public/isotipo-iberfit.png';let signatureUrl=/carlos|iberfit\.cl@gmail\.com/u.test(coachIdentity)?'/m26/assets/iberfit-signature-carlos.svg':'';try{const origin=globalThis.location?.origin||'https://m26-canary.iberfit.cl';logoUrl=new URL('/public/isotipo-iberfit.png',origin).href;if(signatureUrl)signatureUrl=new URL(signatureUrl,origin).href;}catch{}
+    return {draft,clientId,clientName:clientName(client),coachName,logoUrl,signatureUrl,iriOnly:lifecycle==='iri_only'};
   }
   function iriReportStatusScope(){return root.querySelector?.('[data-workflow-form="iri"]')?'iri':'iri-report';}
   async function generateIriReport(variant){
@@ -470,14 +470,17 @@ export function createWorkflowController({
     if(variant==='coach')requireCoach();
     requireVisibleClient(clientId);
     const confirmedRecord=currentIriRecord();const confirmedBody=recordBody(confirmedRecord);if(!confirmedBody?.firstSessionCompletedAt&&!confirmedBody?.first_session_completed_at)throw new Error('M26_IRI_REPORT_REQUIRES_CONFIRMATION');const draft=confirmedFirstSessionDraft(confirmedRecord,clientId);const check=validateFirstSessionDraft(draft);if(!check.ok){const error=new Error(`M26_IRI_CONFIRMED_REPORT_DATA_INVALID:${check.errors.join(',')}`);error.userMessage=`El IRI confirmado no puede convertirse todavía en informe: ${check.errors.map((item)=>IRI_FIELD_LABELS[item]||item).join(', ')}.`;throw error;}
-    let externalReport=null;let printTarget=null;
+    let externalReport=null;let photogrammetryReport=null;let printTarget=null;
     try{
       if(variant==='client'){
         printTarget=prepareIriReportPrintTarget();
         if(!printTarget)throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
-        externalReport=await getIriExternalReport(draft.assessmentId);
       }
-      const result=openIriReportPrint({...reportContext(draft),variant,externalReport,printTarget});status(root,iriReportStatusScope(),variant==='client'?'Informe Cliente preparado para guardar como PDF.':'Informe Coach / Admin preparado para guardar como PDF.','success');return result;
+      [externalReport,photogrammetryReport]=await Promise.all([
+        getIriExternalReport(draft.assessmentId,{variant}),
+        getIriPhotogrammetryReport(draft.assessmentId),
+      ]);
+      const result=openIriReportPrint({...reportContext(draft),variant,externalReport,photogrammetryReport,printTarget});status(root,iriReportStatusScope(),variant==='client'?'Informe Cliente preparado para guardar como PDF.':'Informe Coach / Admin preparado para guardar como PDF.','success');return result;
     }catch(error){try{printTarget?.close?.();}catch{}throw error;}
   }
 
