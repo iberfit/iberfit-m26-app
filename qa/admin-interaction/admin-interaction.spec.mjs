@@ -25,6 +25,8 @@ test('Solo IRI wizard submits without a weekly training frequency',async({page})
   await form.locator('[name="name"]').fill('Persona IRI QA');
   await form.locator('[name="email"]').fill('qa-persona@example.invalid');
   await form.locator('[name="phone"]').fill('+56 9 5555 0202');
+  await form.locator('[name="birthDate"]').fill('1990-04-10');
+  await form.locator('[name="sexForNorms"]').selectOption('female');
   await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
   await form.locator('[name="serviceIntent"]').selectOption('iri_only');
   await form.locator('[name="modality"]').selectOption('Presencial');
