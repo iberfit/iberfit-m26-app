@@ -23,7 +23,7 @@ function validRaw(overrides={}){
   return {
     assessmentDate:'2026-07-27',birthDate:'1992-04-11',sexForNorms:'female',email:'cliente@example.com',phone:'+56 9 1111 2222',modality:'hibrido',trainingAddress:'Av. IBERFIT 123',weeklyFrequency:'3',sessionDurationMinutes:'60',primaryObjective:'Mejorar fuerza general y capacidad física.',
     trainingExperience:'Intermedia',availability:'Tres días por semana',screeningAccepted:'on',sleepScore:'7',stressScore:'4',energyScore:'8',
-    weightKg:'64.2',heightCm:'166',bodyFatPercent:'27.4',leanMassKg:'46.6',bodyWaterPercent:'53',bodyCompositionMethod:'BIA',bodyCompositionDevice:'InBody 270',
+    weightKg:'64.2',heightCm:'166',bodyFatPercent:'27.4',fatMassKg:'17.6',leanMassKg:'46.6',bodyWaterPercent:'53',bodyCompositionMethod:'BIA',bodyCompositionDevice:'InBody 270',
     ankleLeft1:'8.1',ankleLeft2:'8.4',ankleLeft3:'8.3',ankleRight1:'7.1',ankleRight2:'7.3',ankleRight3:'7.2',posteriorLeft1:'24',posteriorLeft2:'25',posteriorLeft3:'24.5',posteriorRight1:'22',posteriorRight2:'22.5',posteriorRight3:'22.2',hipRotationResult:'Asimetría leve',squatDepth:'Paralela',squatHeels:'Apoyados',squatKnees:'Alineadas',
     chairStand30s:'18',chairHeightCm:'45',chairStandValid:'on',pushVariant:'standard',pushUps:'12',pushValid:'on',trxRowRepetitions:'15',trxHandleHeightCm:'110',trxHeelDistanceCm:'85',trxPosition:'Rodillas extendidas',trxValid:'on',frontPlankSeconds:'55',sidePlankLeftSeconds:'35',sidePlankRightSeconds:'32',coreQuality:'Adecuada',posteriorChainProtocol:'',posteriorNotPerformedReason:'No se dispone de banco compatible.',
     cardioProtocol:'ymca-3min-standard',stepHeightCm:'30.5',cadenceBpm:'96',cardioDurationSeconds:'180',restingHr:'72',stepFinalHr:'156',stepOneMinuteHr:'127',twoMinuteHr:'108',cardioRpe:'6',cardioValid:'on',
@@ -42,7 +42,7 @@ test('primera sesión completa produce draft trazable para IRI existente',()=>{
   const draft=normalizeFirstSessionDraft(validRaw(),{id:'IRI-RC33',clientId:'CLIENT-RC33'},'CLIENT-RC33');
   const check=validateFirstSessionDraft(draft);assert.equal(check.ok,true,check.errors.join(','));assert.equal(firstSessionCompletion(draft).percent,100);assert.equal(firstSessionCompletion(draft).total,7);assert.equal(draft.cardio.deltaOneMinute,29);assert.equal(draft.mobility.ankle.leftBest,8.4);
   const commandDraft=buildIriCommandDraftFromFirstSession(draft,{id:'IRI-RC33',clientId:'CLIENT-RC33',revision:2});
-  assert.equal(commandDraft.pushUps,12);assert.equal(commandDraft.chairStand30s,18);assert.equal(commandDraft.firstSessionSchema,'iberfit-iri-first-session-v1');assert.equal(commandDraft.cardio.protocol,'ymca-3min-standard');
+  assert.equal(commandDraft.pushUps,12);assert.equal(commandDraft.chairStand30s,18);assert.equal(commandDraft.bodyComposition.fatMassKg,17.6);assert.equal(commandDraft.firstSessionSchema,'iberfit-iri-first-session-v1');assert.equal(commandDraft.cardio.protocol,'ymca-3min-standard');
 });
 
 test('IRI protege la revisión canónica y no la restaura desde un borrador local',()=>{
@@ -81,10 +81,10 @@ test('informes Cliente y Coach usan A4, isotipo, marca de agua y páginas cerrad
   const draft=normalizeFirstSessionDraft(validRaw(),{id:'IRI-RC33'},'CLIENT-RC33');
   const client=buildIriReportHtml({draft,variant:'client',clientName:'María González',coachName:'Carlos Ríos',logoUrl:'/public/isotipo-iberfit.png'});
   const coach=buildIriReportHtml({draft,variant:'coach',clientName:'María González',coachName:'Carlos Ríos',clientId:'CLIENT-RC33',logoUrl:'/public/isotipo-iberfit.png'});
-  assert.equal((client.match(/class="pdf-page/g)||[]).length,10);assert.ok((coach.match(/class="pdf-page/g)||[]).length>=16);
+  assert.equal((client.match(/class="pdf-page/g)||[]).length,9);assert.ok((coach.match(/class="pdf-page/g)||[]).length>=15);
   assert.match(reportCss,/@page\{size:A4/u);assert.match(reportCss,/overflow:hidden/u);assert.match(reportCss,/width:210mm!important;[\s\S]*height:297mm!important/u);
   for(const html of [client,coach]){assert.match(html,/rel="stylesheet"[^>]+data-iri-report-stylesheet/u);assert.doesNotMatch(html,/<style\b/iu);assert.match(html,/class="[^"]*watermark[^"]*"/);assert.match(html,/isotipo-iberfit\.png/);assert.doesNotMatch(html,/IRI global[^<]*68|68\/100/i);}
-  assert.match(client,/INFORME<br>IRI/);assert.match(client,/Cobertura del proceso/);assert.doesNotMatch(client,/cliente@example\.com|\+56 9 1111 2222/);assert.match(coach,/Coach \/ Admin|USO INTERNO/);assert.match(coach,/Anexo íntegro de datos/);assert.match(coach,/cliente@example\.com/);assert.match(coach,/trainingHistory/);
+  assert.match(client,/Tu punto<br>de partida\./);assert.match(client,/Cobertura del proceso/);assert.doesNotMatch(client,/cliente@example\.com|\+56 9 1111 2222/);assert.match(coach,/Coach \/ Admin|USO INTERNO/);assert.match(coach,/Anexo íntegro de datos/);assert.match(coach,/cliente@example\.com/);assert.match(coach,/trainingHistory/);
 });
 
 test('rutas RC33 contienen alta y wizard completo sin handlers inline',()=>{
