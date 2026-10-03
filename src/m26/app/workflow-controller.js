@@ -174,6 +174,7 @@ export function syncAppointmentFormState(form,root=form?.ownerDocument||null){
 export function createWorkflowController({
   root,store,commandBus,catalog,mediaMap,draftRepository=null,createClientDraft=null,createCustomExercise=null,renameExercise=null,refreshCatalog=async()=>catalog,
   getRegistry=()=>[],onRender=()=>{},refreshState=async()=>{},getIriExternalReport=async()=>null,getIriPhotogrammetryReport=async()=>null,ensureIriPhysicalConsent=null,
+  issueIriReport=null,getIriReportHistory=null,openIriIssuedReport=null,withdrawIriIssuedReport=null,
   getRemoteDraft=null,upsertRemoteDraft=null,deleteRemoteDraft=null,isOnline=()=>globalThis.navigator?.onLine!==false,
 }={}){
   if(!root?.addEventListener||!store?.getState||!commandBus?.execute)throw new Error('M26_WORKFLOW_CONTROLLER_REQUIRED');
@@ -940,6 +941,83 @@ export function createWorkflowController({
     }catch(error){try{printTarget?.close?.();}catch{}throw error;}
   }
 
+  function iriIssuedHistoryHost(){return root.querySelector?.('[data-iri-issued-history]')||null;}
+  function iriIssuedDate(value){
+    const date=new Date(value||'');
+    return Number.isNaN(date.getTime())?'Fecha no disponible':new Intl.DateTimeFormat('es-CL',{dateStyle:'medium',timeStyle:'short'}).format(date);
+  }
+  function renderIriIssuedHistory(history){
+    const host=iriIssuedHistoryHost();if(!host)return false;
+    const items=Array.isArray(history?.items)?history.items:[];
+    if(!items.length){
+      host.innerHTML='<div class="m26-notice"><strong>Sin documentos emitidos</strong><p>Generar una vista previa no crea una emisión. Las versiones definitivas aparecerán aquí.</p></div>';
+      return true;
+    }
+    const manager=history?.manager===true;
+    host.innerHTML=`<div class="m26-issued-report-list">${items.map((item)=>{
+      const label=item.audience==='cliente'?'Cliente':'Coach / Admin';
+      const withdrawn=item.withdrawn===true;
+      const hash=item.artifactSha256?escape(String(item.artifactSha256).slice(0,12)+'…'):'';
+      const withdrawal=manager&&!withdrawn
+        ?`<input type="text" data-iri-withdraw-reason maxlength="1200" minlength="3" placeholder="Motivo de retirada" aria-label="Motivo de retirada"><button type="button" data-workflow-action="withdraw-issued-iri-report" data-issuance-id="${escape(item.issuanceId)}">Retirar</button>`
+        :'';
+      return `<article class="m26-issued-report-item${withdrawn?' is-withdrawn':''}" data-iri-issued-item="${escape(item.issuanceId)}"><div><span>${escape(label)} · v${Number(item.version||0)}</span><strong>${escape(iriIssuedDate(item.issuedAt))}</strong><small>${withdrawn?'Retirado':hash?'SHA-256 '+hash:'Documento inmutable'}</small></div><div class="m26-inline-actions"><button type="button" data-workflow-action="open-issued-iri-report" data-issuance-id="${escape(item.issuanceId)}">${withdrawn?'Abrir versión retirada':'Abrir PDF emitido'}</button>${withdrawal}</div>${withdrawn&&manager&&item.withdrawnReason?`<p class="m26-field-help">Motivo: ${escape(item.withdrawnReason)}</p>`:''}</article>`;
+    }).join('')}</div>`;
+    return true;
+  }
+  async function loadIriIssuedHistory(){
+    if(typeof getIriReportHistory!=='function')throw new Error('M26_IRI_REPORT_GOVERNANCE_UNAVAILABLE');
+    const assessmentId=recordId(currentIriRecord());
+    if(!assessmentId)throw new Error('M26_IRI_REPORT_ASSESSMENT_INVALID');
+    status(root,iriReportStatusScope(),'Cargando historial de documentos emitidos…','pending');
+    const history=await withTimeout(Promise.resolve(getIriReportHistory(assessmentId)),35_000,'M26_IRI_REPORT_HISTORY_TIMEOUT');
+    renderIriIssuedHistory(history);
+    status(root,iriReportStatusScope(),'Historial documental actualizado.','success');
+    return history;
+  }
+  async function issueIriReportDocument(variant){
+    requireCoach();
+    if(typeof issueIriReport!=='function')throw new Error('M26_IRI_REPORT_GOVERNANCE_UNAVAILABLE');
+    const record=currentIriRecord(),assessmentId=recordId(record),body=recordBody(record);
+    if(!assessmentId||(!body?.firstSessionCompletedAt&&!body?.first_session_completed_at))throw new Error('M26_IRI_REPORT_REQUIRES_CONFIRMATION');
+    let target=null;
+    try{target=prepareIriReportPrintTarget();}catch{}
+    status(root,iriReportStatusScope(),variant==='client'?'Emitiendo y archivando el PDF Cliente…':'Emitiendo y archivando el dossier Coach / Admin…','pending');
+    try{
+      const issued=await withTimeout(Promise.resolve(issueIriReport(assessmentId,{variant})),180_000,'M26_IRI_REPORT_EMISSION_TIMEOUT');
+      if(issued?.signedUrl&&target?.location?.replace)target.location.replace(issued.signedUrl);else try{target?.close?.();}catch{}
+      try{const history=await getIriReportHistory?.(assessmentId);if(history)renderIriIssuedHistory(history);}catch{}
+      status(root,iriReportStatusScope(),`Documento emitido y archivado como versión ${Number(issued?.version||0)}. La versión emitida queda inmutable.`,'success');
+      return issued;
+    }catch(error){try{target?.close?.();}catch{}throw error;}
+  }
+  async function openIriIssued(button){
+    if(typeof openIriIssuedReport!=='function')throw new Error('M26_IRI_REPORT_GOVERNANCE_UNAVAILABLE');
+    const issuanceId=String(button?.dataset?.issuanceId||'').trim();
+    if(!issuanceId)throw new Error('M26_IRI_REPORT_ISSUANCE_INVALID');
+    let target=null;
+    try{target=prepareIriReportPrintTarget();}catch{}
+    try{
+      const opened=await withTimeout(Promise.resolve(openIriIssuedReport(issuanceId)),35_000,'M26_IRI_REPORT_OPEN_TIMEOUT');
+      if(!opened?.signedUrl)throw new Error('M26_IRI_REPORT_SIGNED_URL_REQUIRED');
+      if(target?.location?.replace)target.location.replace(opened.signedUrl);
+      else throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
+      return opened;
+    }catch(error){try{target?.close?.();}catch{}throw error;}
+  }
+  async function withdrawIriIssued(button){
+    requireCoach();
+    if(typeof withdrawIriIssuedReport!=='function')throw new Error('M26_IRI_REPORT_GOVERNANCE_UNAVAILABLE');
+    const issuanceId=String(button?.dataset?.issuanceId||'').trim();
+    const item=button?.closest?.('[data-iri-issued-item]');
+    const reason=String(item?.querySelector?.('[data-iri-withdraw-reason]')?.value||'').trim();
+    if(reason.length<3)throw new Error('M26_IRI_REPORT_WITHDRAW_REASON_INVALID');
+    status(root,iriReportStatusScope(),'Retirando la versión sin alterar el artefacto archivado…','pending');
+    await withTimeout(Promise.resolve(withdrawIriIssuedReport(issuanceId,reason)),35_000,'M26_IRI_REPORT_WITHDRAW_TIMEOUT');
+    await loadIriIssuedHistory();
+    status(root,iriReportStatusScope(),'Versión retirada. El historial permanece íntegro y auditable.','success');
+  }
+
   async function validatePlan(){requireCoach();const form=root.querySelector?.('[data-workflow-form="planning"]');if(!form)throw new Error('M26_PLAN_FORM_REQUIRED');ensureValidForm(form);const raw=values(form);const {clientId,state}=context();requireVisibleClient(clientId);const draft={id:raw.entityId||createM26Id(),clientId,name:String(raw.name||'').trim(),startDate:raw.startDate,endDate:raw.endDate,goal:String(raw.goal||'').trim(),weeklyFrequency:Number(raw.weeklyFrequency||0)||null,sessionDurationMinutes:Number(raw.sessionDurationMinutes||0)||null,modality:normalizeClientModality(raw.modality)||null};const current=(state.collections.trainingCycles||[]).find((item)=>String(item.id)===String(draft.id)&&(item.clientId||item.client_id)===clientId);await draftRepository?.save?.(clientId,'planning-cycle',draft);status(root,'planning','Validando y guardando el ciclo…','pending');const result=await withTimeout(commandBus.execute(buildCycleCommand(draft,Number(current?.revision||0))),20_000,'M26_PLAN_CONFIRM_TIMEOUT');if(!result.ok){status(root,'planning','El ciclo no quedó confirmado. El borrador local se conserva.','pending');return result;}const confirmed=await refreshAndFind('trainingCycles',draft.id,clientId);if(!confirmed)throw new Error('M26_PLAN_CONFIRM_NOT_PERSISTED');await draftRepository?.remove?.(clientId,'planning-cycle');status(root,'planning','Ciclo validado y visible en Planificación.','success');onRender();return result;}
   async function createAppointment(){requireCoach();const form=root.querySelector?.('[data-workflow-form="appointment"]');if(!form)throw new Error('M26_APPOINTMENT_FORM_REQUIRED');syncAppointmentFormState(form,root);ensureValidForm(form);const raw=values(form);const clientId=requireVisibleClient(String(raw.clientId||''));const start=new Date(raw.startAt),end=new Date(raw.endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))throw new Error('M26_APPOINTMENT_DATE_INVALID');const modality=normalizeAppointmentModality(raw.modality);if(!modality)throw new Error('M26_APPOINTMENT_MODALITY_INVALID');const draft={clientId,startAt:start.toISOString(),endAt:end.toISOString(),modality,location:String(raw.location||'').trim().slice(0,300)};status(root,'appointment','Creando propuesta interna…','pending');const result=await withTimeout(commandBus.execute(buildAppointmentCommand(draft,0)),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');if(!result.ok){status(root,'appointment','La propuesta está pendiente de confirmación.','pending');return result;}await withTimeout(Promise.resolve(refreshState({reason:'appointment-created'})),15_000,'M26_WORKFLOW_REFRESH_TIMEOUT');status(root,'appointment','Propuesta de cita creada. Aún no es visible para el cliente.','success');form.reset();initializedAppointmentForms.delete(form);syncAppointmentFormState(form,root);initializedAppointmentForms.add(form);onRender();return result;}
   async function confirmAppointment(button){requireCoach();if(!isOnline())throw new Error('M26_OFFLINE_APPOINTMENT_CONFIRM_NOT_ALLOWED');const appointmentId=String(button?.dataset?.entityId||'').trim();if(!appointmentId)throw new Error('M26_APPOINTMENT_ID_REQUIRED');const {state}=context();const record=(state.collections.appointments||[]).find((item)=>String(item?.id||item?.body?.id||'')===appointmentId);if(!record)throw new Error('M26_APPOINTMENT_NOT_FOUND');const body=recordBody(record);const clientId=requireVisibleClient(String(record.clientId||record.client_id||body.clientId||body.client_id||''));status(root,'appointment','Confirmando la cita y preparando su visibilidad para el cliente…','pending');const result=await withTimeout(commandBus.execute(buildConfirmAppointmentCommand({clientId,appointmentId},Number(record.revision||body.revision||0))),20_000,'M26_APPOINTMENT_CONFIRM_TIMEOUT');if(!result.ok){status(root,'appointment','La cita sigue como propuesta y requiere revisión.','pending');return result;}const confirmed=await refreshAndFind('appointments',appointmentId,clientId);if(!confirmed||!/confirm/i.test(normalizedStatus(confirmed)))throw new Error('M26_APPOINTMENT_CONFIRM_NOT_PERSISTED');status(root,'appointment','Cita confirmada y visible para el cliente.','success');onRender();return result;}
@@ -995,8 +1073,8 @@ export function createWorkflowController({
   async function executeWorkflowAction(action,button){
     const wasDisabled=Boolean(button?.disabled);if(button){button.disabled=true;button.setAttribute?.('aria-busy','true');}
     try{
-      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder();else if(action==='start-published-session')startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
-    }catch(error){const isIriReport=['generate-client-iri-report','generate-coach-iri-report'].includes(action);const scope=isIriReport?iriReportStatusScope():action?.includes('iri')?'iri':action?.includes('client')?'client-onboarding':action?.includes('plan')?'planning':action?.includes('appointment')?'appointment':action?.includes('intelligence')?'intelligence':action?.includes('report')?'report':button?.dataset?.publicationEntity==='report'?'report':button?.dataset?.publicationEntity==='planning'?'planning':'session';status(root,scope,friendlyError(error),'error');emit(root,'m26:workflow-error',{action,code:String(error?.message||error)});}
+      if(action==='create-client-draft')await createClient();else if(action==='complete-iri')await completeIri();else if(action==='save-iri-draft')await saveIriDraft();else if(action==='iri-prev')await moveIri(-1);else if(action==='iri-next')await moveIri(1);else if(action==='generate-client-iri-report')await generateIriReport('client');else if(action==='generate-coach-iri-report')await generateIriReport('coach');else if(action==='issue-client-iri-report')await issueIriReportDocument('client');else if(action==='issue-coach-iri-report')await issueIriReportDocument('coach');else if(action==='refresh-issued-iri-history')await loadIriIssuedHistory();else if(action==='open-issued-iri-report')await openIriIssued(button);else if(action==='withdraw-issued-iri-report')await withdrawIriIssued(button);else if(action==='validate-plan')await validatePlan();else if(action==='create-appointment')await createAppointment();else if(action==='confirm-appointment')await confirmAppointment(button);else if(action==='reuse-session')reuseSession(button);else if(action==='open-session-builder')openBuilder();else if(action==='start-published-session')startSession(button);else if(action==='generate-intelligence')generateIntelligence();else if(action==='manage-publication')await managePublication(button);else if(action==='approve-report')await approveReport();else throw new Error('M26_WORKFLOW_ACTION_UNKNOWN');
+    }catch(error){const isIriReport=['generate-client-iri-report','generate-coach-iri-report','issue-client-iri-report','issue-coach-iri-report','refresh-issued-iri-history','open-issued-iri-report','withdraw-issued-iri-report'].includes(action);const scope=isIriReport?iriReportStatusScope():action?.includes('iri')?'iri':action?.includes('client')?'client-onboarding':action?.includes('plan')?'planning':action?.includes('appointment')?'appointment':action?.includes('intelligence')?'intelligence':action?.includes('report')?'report':button?.dataset?.publicationEntity==='report'?'report':button?.dataset?.publicationEntity==='planning'?'planning':'session';status(root,scope,friendlyError(error),'error');emit(root,'m26:workflow-error',{action,code:String(error?.message||error)});}
     finally{if(button){button.disabled=wasDisabled;button.removeAttribute?.('aria-busy');}}
   }
   async function onClick(event){

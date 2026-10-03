@@ -421,3 +421,10 @@ verify_jwt = true
 # production deployment and avoids gateway drift between QA and PROD.
 [functions.iberfit-admin-client-invite-v1]
 verify_jwt = false
+
+
+# IRI issued-report broker performs its own bearer validation with auth.getUser()
+# and then calls fail-closed authorization RPCs. This keeps QA/PROD behavior
+# identical while avoiding gateway JWT drift.
+[functions.iberfit-iri-report-emission-v1]
+verify_jwt = false

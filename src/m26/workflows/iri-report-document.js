@@ -1,6 +1,5 @@
 import {firstSessionCompletion} from './iri-first-session.js';
 import {scoreIriPerformance} from '../norms/iri-scoring.js';
-import {iriExternalReportAppUrl} from './iri-external-report-controller.js';
 import {
   renderEffortCurve,
   renderFunctionalProfile,
@@ -234,21 +233,41 @@ function renderClientFollowUpPlan(draft={},photogrammetryReport=null){
   return `<div class="followup-plan">${items.map((item)=>`<article><span>${escapeHtml(item.name)}</span><strong>${escapeHtml(item.method)}</strong><small>${escapeHtml(item.reason)}</small></article>`).join('')}</div>`;
 }
 
+function iriExternalReportAppUrl(assessmentId,{origin}={}){
+  const assessment=clean(assessmentId,80);
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(assessment))throw new Error('M26_IRI_EXTERNAL_REPORT_ASSESSMENT_INVALID');
+  const raw=clean(origin,512);
+  let base;try{base=new URL(raw);}catch{throw new Error('M26_IRI_EXTERNAL_REPORT_APP_ORIGIN_INVALID');}
+  const allowed=new Map([
+    ['https://m26-canary.iberfit.cl','https://m26-canary.iberfit.cl'],
+    ['https://app.iberfit.cl','https://app.iberfit.cl'],
+    ['https://coach.iberfit.cl','https://app.iberfit.cl'],
+  ]);
+  const target=allowed.get(base.origin);
+  if(!target)throw new Error('M26_IRI_EXTERNAL_REPORT_APP_ORIGIN_INVALID');
+  const url=new URL('/',target);
+  url.searchParams.set('area','informes');
+  url.searchParams.set('assessmentId',assessment);
+  url.searchParams.set('open','bioimpedancia');
+  return url.href;
+}
+
 function clientIriExternalReportComplement(draft,report,appOrigin){
   if(!report||report.visibleToClient!==true||clean(report.assessmentId,80)!==clean(draft.assessmentId,80))return '';
   const href=iriExternalReportAppUrl(draft.assessmentId,{origin:appOrigin});
   const format=report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':report.mimeType==='image/png'?'PNG':'';
   if(!format)return '';
   const embedded=Array.isArray(report?.printPreview?.pages)&&report.printPreview.pages.length>0;
-  const detail=embedded?` · ${report.printPreview.pages.length} ${report.printPreview.pages.length===1?'página incorporada':'páginas incorporadas'} al informe`:' · documento vinculado; previsualización no incorporada';
+  const detail=embedded?` · ${report.printPreview.pages.length} ${report.printPreview.pages.length===1?'página incorporada':'páginas incorporadas'} al informe`:report?.issuedArtifactAnnex===true?' · documento original incorporado al PDF emitido':' · documento vinculado; previsualización no incorporada';
   return card('Documento complementario',`<div class="iri-complement"><p class="iri-complement-kicker">Informe de bioimpedancia</p><p>Este documento complementa los resultados de composición corporal del Diagnóstico IRI.</p><small>${escapeHtml(format)} · versión ${escapeHtml(report.version||1)}${escapeHtml(detail)}</small><a class="iri-complement-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir documento original</a></div>`,'soft');
 }
 
 function clientIriExternalReportPages(draft,report,logoUrl,startNumber,appOrigin){
   if(!report||report.visibleToClient!==true||clean(report.assessmentId,80)!==clean(draft.assessmentId,80))return [];
   const previewPages=Array.isArray(report?.printPreview?.pages)?report.printPreview.pages.filter(Boolean):[];
-  if(!previewPages.length)return [];
   const href=iriExternalReportAppUrl(draft.assessmentId,{origin:appOrigin});
+  if(!previewPages.length&&report?.issuedArtifactAnnex===true)return [page({number:startNumber,title:'Informe de bioimpedancia · original',eyebrow:'DOCUMENTO COMPLEMENTARIO · ORIGINAL',logoUrl,annex:true,content:`<div class="iri-bioimp-page"><div class="iri-bioimp-meta"><div><span>Documento original</span><strong>${escapeHtml(report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':'PNG')} · versión ${escapeHtml(report.version||1)}</strong></div><div><span>Integridad</span><strong>Archivado con el documento emitido</strong></div></div><p class="lead">El archivo original de bioimpedancia se incorpora íntegramente a continuación como anexo del PDF emitido. No depende de enlaces temporales para conservar su evidencia.</p></div>`})];
+  if(!previewPages.length)return [];
   const format=report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':report.mimeType==='image/png'?'PNG':'Documento';
   const totalOriginal=Number(report?.printPreview?.totalPages||previewPages.length);
   return previewPages.map((src,index)=>page({
@@ -262,8 +281,9 @@ function clientIriExternalReportPages(draft,report,logoUrl,startNumber,appOrigin
 function coachIriExternalReportPages(draft,report,logoUrl,startNumber,appOrigin){
   if(!report||clean(report.assessmentId,80)!==clean(draft.assessmentId,80))return [];
   const previewPages=Array.isArray(report?.printPreview?.pages)?report.printPreview.pages.filter(Boolean):[];
-  if(!previewPages.length)return [];
   const href=iriExternalReportAppUrl(draft.assessmentId,{origin:appOrigin});
+  if(!previewPages.length&&report?.issuedArtifactAnnex===true)return [page({number:startNumber,title:'Bioimpedancia · documento original',eyebrow:'ANEXO TÉCNICO · ORIGINAL',logoUrl,internal:true,annex:true,content:`<div class="iri-bioimp-page"><div class="iri-bioimp-meta"><div><span>Archivo vinculado al IRI</span><strong>${escapeHtml(report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':'PNG')} · versión ${escapeHtml(report.version||1)}</strong></div><div><span>Integridad</span><strong>Original archivado en el PDF emitido</strong></div></div><p class="lead">El archivo original de bioimpedancia se incorpora íntegramente a continuación como anexo técnico. Su visibilidad para el cliente permanece gestionada de forma independiente.</p></div>`})];
+  if(!previewPages.length)return [];
   const format=report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':report.mimeType==='image/png'?'PNG':'Documento';
   const totalOriginal=Number(report?.printPreview?.totalPages||previewPages.length);
   return previewPages.map((src,index)=>page({
