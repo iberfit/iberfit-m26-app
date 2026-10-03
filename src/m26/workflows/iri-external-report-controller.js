@@ -23,6 +23,10 @@ export const IRI_EXTERNAL_REPORT_MIME_TYPES = Object.freeze([
 ]);
 
 const MIME_TYPES = new Set(IRI_EXTERNAL_REPORT_MIME_TYPES);
+const PDFJS_SCRIPT_URL='/m26/vendor/pdfjs-3.2.146/pdf.min.js';
+const PDFJS_WORKER_URL='/m26/vendor/pdfjs-3.2.146/pdf.worker.min.js';
+const PDFJS_PRINT_MAX_PAGES=4;
+let pdfJsLoadPromise=null;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const IRI_EXTERNAL_REPORT_INTENT_KEYS = new Set(['area', 'assessmentId', 'open']);
 const REPORT_SELECT = [
@@ -528,6 +532,59 @@ export function createIriExternalReportService({ runtime, fetchImpl = globalThis
   }
 
   return Object.freeze({ getReport, uploadObject, registerReport, signedUrl });
+}
+
+function loadPdfJsForPrint({documentLike=globalThis.document}={}){
+  if(globalThis.pdfjsLib?.getDocument)return Promise.resolve(globalThis.pdfjsLib);
+  if(pdfJsLoadPromise)return pdfJsLoadPromise;
+  if(!documentLike?.createElement||!documentLike?.head)throw new Error('M26_IRI_EXTERNAL_REPORT_PDF_RENDERER_UNAVAILABLE');
+  pdfJsLoadPromise=new Promise((resolve,reject)=>{
+    const existing=documentLike.querySelector?.('script[data-iri-pdfjs]');
+    const ready=()=>{if(globalThis.pdfjsLib?.getDocument){globalThis.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER_URL;resolve(globalThis.pdfjsLib);}else reject(new Error('M26_IRI_EXTERNAL_REPORT_PDF_RENDERER_LOAD_FAILED'));};
+    if(existing){existing.addEventListener?.('load',ready,{once:true});existing.addEventListener?.('error',()=>reject(new Error('M26_IRI_EXTERNAL_REPORT_PDF_RENDERER_LOAD_FAILED')),{once:true});return;}
+    const script=documentLike.createElement('script');
+    script.src=PDFJS_SCRIPT_URL;script.async=true;script.dataset.iriPdfjs='true';script.referrerPolicy='no-referrer';
+    script.addEventListener('load',ready,{once:true});
+    script.addEventListener('error',()=>reject(new Error('M26_IRI_EXTERNAL_REPORT_PDF_RENDERER_LOAD_FAILED')),{once:true});
+    documentLike.head.append(script);
+  }).catch((error)=>{pdfJsLoadPromise=null;throw error;});
+  return pdfJsLoadPromise;
+}
+
+async function renderPdfPrintPreview(url,{fetchImpl=globalThis.fetch,documentLike=globalThis.document,maxPages=PDFJS_PRINT_MAX_PAGES}={}){
+  if(typeof fetchImpl!=='function'||!documentLike?.createElement)throw new Error('M26_IRI_EXTERNAL_REPORT_PDF_PREVIEW_UNAVAILABLE');
+  const pdfjs=await loadPdfJsForPrint({documentLike});
+  const response=await fetchImpl(url,{credentials:'omit',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer'});
+  if(!response?.ok)throw new Error(`M26_IRI_EXTERNAL_REPORT_PDF_FETCH_${Number(response?.status||0)}`);
+  const data=new Uint8Array(await response.arrayBuffer());
+  const task=pdfjs.getDocument({data});
+  const pdf=await task.promise;
+  const totalPages=Number(pdf.numPages||0);
+  if(totalPages<1){await pdf.destroy?.();throw new Error('M26_IRI_EXTERNAL_REPORT_PDF_EMPTY');}
+  const limit=Math.max(1,Math.min(Number(maxPages)||PDFJS_PRINT_MAX_PAGES,totalPages,PDFJS_PRINT_MAX_PAGES));
+  const pages=[];
+  try{
+    for(let index=1;index<=limit;index+=1){
+      const page=await pdf.getPage(index);
+      const base=page.getViewport({scale:1});
+      const scale=Math.min(2.4,Math.max(1,1600/Math.max(1,base.width)));
+      const viewport=page.getViewport({scale});
+      const canvas=documentLike.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(viewport.width));
+      canvas.height=Math.max(1,Math.round(viewport.height));
+      const ctx=canvas.getContext?.('2d',{alpha:false});
+      if(!ctx)throw new Error('M26_IRI_EXTERNAL_REPORT_CANVAS_UNAVAILABLE');
+      await page.render({canvasContext:ctx,viewport,background:'#FFFFFF'}).promise;
+      const dataUrl=canvas.toDataURL?.('image/jpeg',0.9);
+      if(!dataUrl||!dataUrl.startsWith('data:image/jpeg'))throw new Error('M26_IRI_EXTERNAL_REPORT_PDF_RASTER_FAILED');
+      pages.push(dataUrl);
+      page.cleanup?.();
+      canvas.width=1;canvas.height=1;
+    }
+  }finally{
+    await pdf.destroy?.();
+  }
+  return Object.freeze({kind:'pdf-raster',pages:Object.freeze(pages),totalPages,truncated:totalPages>pages.length});
 }
 
 function formatBytes(value) {
@@ -1132,8 +1189,13 @@ export function createIriExternalReportController({
       open: 'bioimpedancia',
     });
     const context = resolveIriExternalReportIntent(store.getState(), intent);
-    const report = await load(context, { throwOnError: true });
-    return reportForContext(context, report, { requireClientVisible: true });
+    const report = reportForContext(context, await load(context, { throwOnError: true }), { requireClientVisible: true });
+    if(!report)return null;
+    const signed=await api.signedUrl(await token(),{objectPath:report.objectPath,expiresIn:300});
+    const printPreview=report.mimeType==='application/pdf'
+      ?await renderPdfPrintPreview(signed)
+      :Object.freeze({kind:'image',pages:Object.freeze([signed]),totalPages:1,truncated:false});
+    return Object.freeze({...report,printPreview});
   }
 
   async function openAssessmentReport(assessmentId) {
