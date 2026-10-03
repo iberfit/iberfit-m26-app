@@ -43,7 +43,7 @@ test('la hoja externa contiene exactamente los estilos del informe y los control
 test('el HTML generado no depende de atributos style bloqueables por CSP',()=>{
   const html=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
   const css=read('public/m26/iri-report.css');
-  assert.equal((html.match(/class="pdf-page/g)||[]).length,7);
+  assert.equal((html.match(/class="pdf-page/g)||[]).length,10);
   assert.doesNotMatch(html,/\sstyle="/u);
   assert.match(html,/w-pct-\d+/);
   assert.match(css,/\.col-w-\d+\{width:/u);
