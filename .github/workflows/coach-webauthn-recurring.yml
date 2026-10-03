@@ -5,7 +5,9 @@ on:
     branches: [canary/rc74-4]
     paths:
       - 'qa/coach-webauthn-recurring/**'
+      - 'qa/coach-iri-document-privileged/**'
       - 'playwright.coach-webauthn-recurring.config.mjs'
+      - 'playwright.coach-iri-document-privileged.config.mjs'
       - 'supabase/functions/iberfit-qa-webauthn-cert-broker/**'
       - 'tests/m26_coach_webauthn_recurring_contract.test.mjs'
       - 'docs/DEVICE_EXPERIENCE_POLICY.md'
@@ -104,6 +106,31 @@ jobs:
           M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
           M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
         run: npx playwright test --config playwright.coach-webauthn-recurring.config.mjs
+      - name: Reset Coach QA WebAuthn fixture before privileged IRI certification
+        shell: bash
+        env:
+          OIDC_AUDIENCE: iberfit-webauthn-qa-cert
+          BROKER_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co/functions/v1/iberfit-qa-webauthn-cert-broker
+        run: |
+          set -euo pipefail
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          sep='?'; [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] && sep='&'
+          oidc="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${OIDC_AUDIENCE}" | jq -r '.value')"
+          test "${#oidc}" -gt 100
+          echo "::add-mask::$oidc"
+          payload="$(jq -nc --arg sourceSha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" '{action:"reset",sourceSha:$sourceSha,runId:$runId}')"
+          curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer ${oidc}" -H 'Content-Type: application/json' "$BROKER_URL" -d "$payload" | tee recovery-coach-reset-before-iri-document.json
+          jq -e '.ok == true and .action == "reset" and .target == "qa.rc74.coach@iberfit.cl" and .state.activeCredentials == 0 and .state.activeChallenges == 0 and .state.activeAssurance == 0' recovery-coach-reset-before-iri-document.json >/dev/null
+      - name: Certify privileged IRI document routes through the real Coach UI
+        env:
+          M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
+          M26_QA_ONLY: 'true'
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+        run: npx playwright test --config playwright.coach-iri-document-privileged.config.mjs
       - name: Cleanup Coach QA WebAuthn fixture
         if: always()
         shell: bash
@@ -126,7 +153,9 @@ jobs:
           name: coach-webauthn-recurring-${{ github.run_id }}
           path: |
             recovery/coach-webauthn-recurring/
+            recovery/coach-iri-document-privileged/
             recovery-coach-reset-before.json
+            recovery-coach-reset-before-iri-document.json
             recovery-coach-reset-after.json
             test-results/
           if-no-files-found: warn
