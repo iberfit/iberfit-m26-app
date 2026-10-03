@@ -53,6 +53,7 @@ test('authenticated application mounts and destroys photogrammetry controller',(
   assert.match(source,/createIriPhotogrammetryController/u);
   assert.match(source,/name:'iri-photogrammetry',controller:iriPhotogrammetry/u);
   assert.match(source,/ensureIriPhysicalConsent:\(payload\)=>iriPhotogrammetry\.ensurePhysicalConsent\(payload\)/u);
+  assert.match(source,/getIriPhotogrammetryReport:\(assessmentId\)=>iriPhotogrammetry\.clientSnapshotForPdf\(assessmentId\)/u);
   assert.match(source,/iriPhotogrammetry\?\.destroy\?\.\(\)/u);
 });
 
@@ -64,11 +65,17 @@ test('IRI confirmation fails closed without physical consent service',()=>{
   assert.match(source,/ensureIriPhysicalConsent/u);
 });
 
-test('photo originals stay outside baseline report contract by default',()=>{
+test('report generation uses consent-gated photogrammetry without exposing storage paths',()=>{
   const report=fs.readFileSync(new URL('../src/m26/workflows/iri-report-document.js',import.meta.url),'utf8');
-  assert.doesNotMatch(report,/iri_photogrammetry_captures|iri-photogrammetry|objectPath|signedUrl/iu);
   const controller=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-controller.js',import.meta.url),'utf8');
-  assert.match(controller,/No se incluyen en el informe por defecto/u);
+  const app=fs.readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+  assert.match(report,/renderPhotogrammetryReport/u);
+  assert.match(report,/REGISTRO FOTOGRÁFICO/u);
+  assert.doesNotMatch(report,/iri_photogrammetry_captures_v1|object_path/iu);
+  assert.match(controller,/clientSnapshotForPdf/u);
+  assert.match(controller,/photographyConsent/u);
+  assert.match(controller,/signedUrlsFor\(snapshot,token\)/u);
+  assert.match(app,/getIriPhotogrammetryReport:\(assessmentId\)=>iriPhotogrammetry\.clientSnapshotForPdf\(assessmentId\)/u);
 });
 
 test('photogrammetry workspace has mobile, keyboard, touch and strict-CSP affordances',()=>{
