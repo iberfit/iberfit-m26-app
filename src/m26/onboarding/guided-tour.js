@@ -693,6 +693,13 @@ function createCoreGuidedTourController({
     removeDialog();
   }
 
+  function pauseForExplicitNavigation(){
+    const contextValue=context();
+    if(contextValue)writeProgress(contextValue,{status:'in-progress',activeStepId});
+    suppressed=true;
+    removeDialog({restoreFocus:false});
+  }
+
   function skip(){
     const contextValue=context();
     if(contextValue)writeProgress(contextValue,{
@@ -744,6 +751,11 @@ function createCoreGuidedTourController({
   }
 
   function onRootClick(event){
+    const mobileMoreSummary=event.target?.closest?.('.m26-mobile-more > summary');
+    if(mobileMoreSummary){
+      if(open)pauseForExplicitNavigation();
+      return;
+    }
     if(!event.target?.closest?.('[data-m26-guided-tour-open]'))return;
     queueMicrotask(()=>openTour({restart:true}));
   }
