@@ -131,3 +131,13 @@ test('la cobertura mínima usa Movilidad + Fuerza + Cardio y deja composición f
   assert.equal(onlyStrength.states.cardio,false);
   assert.equal(onlyStrength.complete,false);
 });
+
+
+test('el consentimiento previo a pruebas es fail-soft sin conexión y fail-closed al confirmar',()=>{
+  const workflow=read('src/m26/app/workflow-controller.js');
+  assert.match(workflow,/Consentimiento registrado en el borrador\. Sin conexión/u);
+  assert.match(workflow,/return Object\.freeze\(\{ok:false,deferred:true,reason:'offline'\}\)/u);
+  assert.match(workflow,/se verificará obligatoriamente antes de confirmar/u);
+  assert.match(workflow,/Registrando consentimiento y confirmando la evaluación/u);
+  assert.match(workflow,/M26_IRI_PHYSICAL_CONSENT_TIMEOUT/u);
+});
