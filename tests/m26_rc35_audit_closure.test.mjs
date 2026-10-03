@@ -223,12 +223,12 @@ test('informe directo ajusta cada página a A4, verifica la maquetación y solo 
   const printButton={disabled:true,addEventListener:(event,handler)=>{listeners.print=handler;}};
   const closeButton={addEventListener:(event,handler)=>{listeners.close=handler;}};
   const status={textContent:''};
-  const classes=new Set(['pdf-page','m26-premium-report-v2','report-page-2']);
+  const classes=new Set(['pdf-page','m26-premium-report-v3','report-page-2']);
   const classList={add:(value)=>classes.add(value),remove:(value)=>classes.delete(value)};
   const scale=()=>{const match=[...classes].map((value)=>value.match(/^iri-report-fit-(\d+)$/u)).find(Boolean);return match?Number(match[1])/100:1;};
   const content={scrollHeight:820,getBoundingClientRect:()=>({top:100,bottom:100+820*scale(),height:820*scale(),right:700})};
   const footer={getBoundingClientRect:()=>({top:850,bottom:870})};
-  const reportPage={className:'pdf-page m26-premium-report-v2 report-page-2',classList,getBoundingClientRect:()=>({right:793.7}),querySelector:(selector)=>selector==='.report-page-content'?content:selector==='footer'?footer:null};
+  const reportPage={className:'pdf-page m26-premium-report-v3 report-page-2',classList,getBoundingClientRect:()=>({right:793.7}),querySelector:(selector)=>selector==='.report-page-content'?content:selector==='footer'?footer:null};
   Object.defineProperty(reportPage,'className',{get:()=>[...classes].join(' ')});
   const controls={
     '[data-iri-report-stylesheet]':stylesheet,
@@ -253,15 +253,15 @@ test('informe directo ajusta cada página a A4, verifica la maquetación y solo 
   };
   const result=openIriReportPrint({draft:validReportDraft(),variant:'client',locationLike:{origin:'https://m26-canary.iberfit.cl'},openWindow:(url)=>{openedUrl=url;return popup;}});
   await new Promise((resolve)=>setTimeout(resolve,0));
-  assert.equal(result.mode,'direct-window');assert.equal(result.pages,7);assert.equal(openedUrl,'about:blank');
-  assert.match(written,/rel="stylesheet" href="https:\/\/m26-canary\.iberfit\.cl\/m26\/iri-report\.css\?v=m26-rc45-6-launch-hardening-v1"/);
+  assert.equal(result.mode,'direct-window');assert.equal(result.pages,10);assert.equal(openedUrl,'about:blank');
+  assert.match(written,/rel="stylesheet" href="https:\/\/m26-canary\.iberfit\.cl\/m26\/iri-report\.css\?v=m26-iri-report-premium-v1"/);
   assert.match(written,/data-iri-report-print disabled/);assert.doesNotMatch(written,/<style>/);
   assert.ok([...classes].some((value)=>/^iri-report-fit-\d+$/u.test(value)));
   assert.equal(printButton.disabled,false);assert.match(status.textContent,/Informe A4 listo/);assert.match(status.textContent,/Encabezados y pies de página/);
   await listeners.print();listeners.close();assert.equal(printed,1);assert.equal(closed,1);assert.ok(focused>=2);
   const source=read('src/m26/workflows/iri-report-document.js');const css=read('public/m26/iri-report.css');
   assert.match(source,/openWindow\('about:blank','_blank'\)/);assert.doesNotMatch(source,/document\.write\s*\(/);assert.match(source,/parseFromString\(String\(html\|\|''\),'text\/html'\)/);assert.match(source,/doc\.importNode\(parsed\.documentElement,true\)/);assert.match(source,/doc\.replaceChild\(imported,doc\.documentElement\)/);assert.match(source,/fitReportPages/);assert.match(source,/reportPageContentFits/);assert.doesNotMatch(source,/\/m26\/iri-report\.html#/);
-  assert.match(css,/\.report-page-content/);assert.match(css,/iri-report-fit-82/);assert.match(css,/\.iri-report-toolbar/);
+  assert.match(css,/\.report-page-content/);assert.match(css,/iri-report-fit-94/);assert.doesNotMatch(css,/iri-report-fit-82/);assert.match(css,/\.iri-report-toolbar/);
 });
 
 test('Expediente enumera los campos esenciales pendientes y ofrece una acción para completarlos',()=>{
