@@ -208,30 +208,24 @@ async function annexInfo(externalBytes:any){
   if(['image/jpeg','image/png'].includes(externalBytes.mimeType))return {kind:'image',totalPages:1,displayPages:1,truncated:false};
   throw new Error('IRI_REPORT_EXTERNAL_MIME_UNSUPPORTED');
 }
-async function renderPdf(html:string,accountId:string,apiToken:string){
-  if(!accountId||!apiToken)throw new Error('IRI_REPORT_BROWSER_RENDER_CONFIG_MISSING');
-  const response=await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/browser-rendering/pdf`,{
+async function renderPdf(html:string,rendererUrl:string,rendererSecret:string){
+  if(!rendererUrl||!rendererSecret)throw new Error('IRI_REPORT_RENDERER_CONFIG_MISSING');
+  let endpoint:URL;
+  try{endpoint=new URL(rendererUrl);}catch{throw new Error('IRI_REPORT_RENDERER_CONFIG_INVALID');}
+  if(endpoint.protocol!=='https:'||!endpoint.hostname.endsWith('.workers.dev')||endpoint.username||endpoint.password){
+    throw new Error('IRI_REPORT_RENDERER_CONFIG_INVALID');
+  }
+  const response=await fetch(endpoint.toString(),{
     method:'POST',
-    headers:{authorization:`Bearer ${apiToken}`,'content-type':'application/json'},
-    body:JSON.stringify({
-      html,
-      waitForSelector:{selector:'.pdf-page',visible:true,timeout:10_000},
-      waitForTimeout:750,
-      pdfOptions:{
-        printBackground:true,
-        preferCSSPageSize:true,
-        tagged:true,
-        outline:true,
-        timeout:60_000,
-      },
-    }),
+    headers:{authorization:`Bearer ${rendererSecret}`,'content-type':'application/json'},
+    body:JSON.stringify({html}),
   });
   if(!response.ok){
-    const detail=text(await response.text().catch(()=>''),1000);
-    throw new Error(`IRI_REPORT_BROWSER_RENDER_FAILED:${response.status}:${detail}`);
+    const detail=text(await response.text().catch(()=>''),600);
+    throw new Error(`IRI_REPORT_RENDERER_FAILED:${response.status}:${detail}`);
   }
   const bytes=new Uint8Array(await response.arrayBuffer());
-  if(bytes.byteLength<1000||new TextDecoder().decode(bytes.slice(0,5))!=='%PDF-')throw new Error('IRI_REPORT_BROWSER_RENDER_INVALID_PDF');
+  if(bytes.byteLength<1000||new TextDecoder().decode(bytes.slice(0,5))!=='%PDF-')throw new Error('IRI_REPORT_RENDERER_INVALID_PDF');
   return bytes;
 }
 async function appendExternal(mainBytes:Uint8Array,externalBytes:any,info:any){
@@ -265,7 +259,7 @@ function reportDraft(assessment:any){
   if(!record.assessmentDate&&assessment.evaluated_at)record.assessmentDate=String(assessment.evaluated_at).slice(0,10);
   return confirmedFirstSessionDraft(record,assessment.client_id);
 }
-async function issueReport({userClient,service,actorUserId,assessmentId,audience,appOrigin,cloudflareAccount,cloudflareToken}:any){
+async function issueReport({userClient,service,actorUserId,assessmentId,audience,appOrigin,rendererUrl,rendererSecret}:any){
   const authz=await userClient.rpc('iberfit_authorize_iri_report_issue_v1',{p_assessment_id:assessmentId,p_audience:audience});
   if(authz.error)throw authz.error;
   if(!authz.data?.ok)throw new Error('IRI_REPORT_ISSUE_NOT_AUTHORIZED');
@@ -332,7 +326,7 @@ async function issueReport({userClient,service,actorUserId,assessmentId,audience
   const sourceHash=await sha256(sourceJson);
   if(!SHA256.test(sourceHash))throw new Error('IRI_REPORT_SOURCE_HASH_INVALID');
 
-  let pdf=await renderPdf(html,cloudflareAccount,cloudflareToken);
+  let pdf=await renderPdf(html,rendererUrl,rendererSecret);
   pdf=await appendExternal(pdf,externalBytes,annex);
   if(pdf.byteLength<=1000||pdf.byteLength>MAX_ARTIFACT_BYTES)throw new Error('IRI_REPORT_ARTIFACT_SIZE_INVALID');
   const artifactHash=await sha256(pdf);
@@ -355,7 +349,7 @@ async function issueReport({userClient,service,actorUserId,assessmentId,audience
   const renderManifest={
     schema:'iberfit.iri.render-manifest.v1',
     templateVersion:TEMPLATE_VERSION,engineVersion:ENGINE_VERSION,
-    renderer:'cloudflare-browser-rendering/pdf',
+    renderer:'cloudflare-browser-run/worker-binding-pdf',
     taggedRequested:true,outlineRequested:true,preferCssPageSize:true,printBackground:true,
     postProcessedWithPdfLib:Boolean(externalBytes),
     pdfUaCertified:false,
@@ -430,11 +424,11 @@ Deno.serve(async(req:Request)=>{
       if(context.error||context.data?.ok!==true)throw context.error||new Error('IRI_REPORT_APPLICATION_CONTEXT_REQUIRED');
       const roles=Array.isArray(context.data?.roles)?context.data.roles.map((value:unknown)=>String(value||'').toLowerCase()):[];
       if(!roles.some((role:string)=>role==='admin'||role==='coach'))throw new Error('IRI_REPORT_HEALTH_SCOPE_FORBIDDEN');
-      const cloudflareAccount=String(Deno.env.get('CLOUDFLARE_BROWSER_ACCOUNT_ID')||'').trim();
-      const cloudflareToken=String(Deno.env.get('CLOUDFLARE_BROWSER_API_TOKEN')||'').trim();
+      const rendererUrl=String(Deno.env.get('IBERFIT_IRI_RENDERER_URL')||'').trim();
+      const rendererSecret=String(Deno.env.get('IBERFIT_IRI_RENDERER_SHARED_SECRET')||'').trim();
       return json(200,{
         ok:true,version:FUNCTION_VERSION,projectRef,
-        rendererConfigured:Boolean(cloudflareAccount&&cloudflareToken),
+        rendererConfigured:Boolean(rendererUrl&&rendererSecret),
         issuedBucket:ISSUED_BUCKET,
       },origin,allowed);
     }
@@ -443,8 +437,8 @@ Deno.serve(async(req:Request)=>{
       const audience=audienceDb(body?.audience);
       const result=await issueReport({
         userClient,service,actorUserId,assessmentId,audience,appOrigin,
-        cloudflareAccount:String(Deno.env.get('CLOUDFLARE_BROWSER_ACCOUNT_ID')||'').trim(),
-        cloudflareToken:String(Deno.env.get('CLOUDFLARE_BROWSER_API_TOKEN')||'').trim(),
+        rendererUrl:String(Deno.env.get('IBERFIT_IRI_RENDERER_URL')||'').trim(),
+        rendererSecret:String(Deno.env.get('IBERFIT_IRI_RENDERER_SHARED_SECRET')||'').trim(),
       });
       return json(200,{ok:true,version:FUNCTION_VERSION,...result},origin,allowed);
     }
@@ -468,7 +462,7 @@ Deno.serve(async(req:Request)=>{
     return json(400,{ok:false,code:'IRI_REPORT_ACTION_INVALID',version:FUNCTION_VERSION},origin,allowed);
   }catch(error){
     const code=codeOf(error);
-    const status=/AUTH_REQUIRED/u.test(code)?401:/FORBIDDEN|SCOPE|PRIVILEGED|ASSURANCE|WEBAUTHN/u.test(code)?403:/NOT_FOUND/u.test(code)?404:/BROWSER_RENDER|SERVER_CONFIG/u.test(code)?503:400;
+    const status=/AUTH_REQUIRED/u.test(code)?401:/FORBIDDEN|SCOPE|PRIVILEGED|ASSURANCE|WEBAUTHN/u.test(code)?403:/NOT_FOUND/u.test(code)?404:/RENDERER|SERVER_CONFIG/u.test(code)?503:400;
     console.error('[iri-report-emission]',code);
     return json(status,{ok:false,code,version:FUNCTION_VERSION},origin,allowed);
   }
