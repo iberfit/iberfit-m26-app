@@ -48,7 +48,7 @@ test('dos dominios objetivos omitidos siguen bloqueando la confirmación con err
 test('informe Cliente documenta cardio no evaluado sin inventar FC, delta, baremo ni clasificación',()=>{
   const draft=normalizeFirstSessionDraft(raw(),{id:'11111111-1111-4111-8111-111111111111'},'CLIENT-QA');
   const html=buildIriReportHtml({draft,variant:'client',clientName:'Adriana QA',coachName:'Coach QA',logoUrl:'/public/isotipo-iberfit.png'});
-  assert.equal((html.match(/class="pdf-page/g)||[]).length,9);
+  assert.equal((html.match(/class="pdf-page/g)||[]).length,10);
   assert.match(html,/NO EVALUADO/);
   assert.match(html,/No se realizó por falta de tiempo en la sesión/);
   assert.match(html,/No se inventa ningún resultado ni se sustituye la prueba por una estimación/);
