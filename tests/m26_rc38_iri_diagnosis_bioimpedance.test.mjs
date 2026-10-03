@@ -80,7 +80,7 @@ test('informe IRI presenta nota global y por dominios con cobertura explícita',
   assert.match(html,/Movilidad/);
   assert.match(html,/Fuerza funcional/);
   assert.match(html,/Capacidad funcional/);
-  assert.match(html,/dominios puntuables|Cobertura insuficiente/);
+  assert.match(html,/dominios puntuables|cobertura insuficiente/i);
   assert.match(html,/composición.*fotogrametría.*no alteran esta puntuación/is);
 });
 
