@@ -63,7 +63,7 @@ const clientIssue=await action(client.token,'issue',{assessmentId,audience:'clie
 assert(clientIssue.status===403,'IRI_REPORT_QA_CLIENT_ISSUE_NOT_DENIED');
 
 const issued=await action(coach.token,'issue',{assessmentId,audience:'client'});
-assert(issued.status===200&&issued.body?.ok===true,'IRI_REPORT_QA_ISSUE_FAILED');
+assert(issued.status===200&&issued.body?.ok===true,`IRI_REPORT_QA_ISSUE_FAILED:${issued.status}:${String(issued.body?.code||'NO_CODE')}`);
 assert(/^[0-9a-f-]{36}$/iu.test(String(issued.body?.issuanceId||'')),'IRI_REPORT_QA_ISSUANCE_ID_INVALID');
 assert(Number(issued.body?.version||0)>=1,'IRI_REPORT_QA_VERSION_INVALID');
 assert(hash.test(String(issued.body?.artifactSha256||'')),'IRI_REPORT_QA_ARTIFACT_HASH_INVALID');

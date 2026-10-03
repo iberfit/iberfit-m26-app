@@ -466,6 +466,7 @@ Deno.serve(async(req:Request)=>{
   }catch(error){
     const code=codeOf(error);
     const status=/AUTH_REQUIRED/u.test(code)?401:/FORBIDDEN|SCOPE|PRIVILEGED|ASSURANCE|WEBAUTHN/u.test(code)?403:/NOT_FOUND/u.test(code)?404:/BROWSER_RENDER|SERVER_CONFIG/u.test(code)?503:400;
+    console.error('[iri-report-emission]',code);
     return json(status,{ok:false,code,version:FUNCTION_VERSION},origin,allowed);
   }
 });
