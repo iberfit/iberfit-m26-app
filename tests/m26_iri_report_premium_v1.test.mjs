@@ -23,7 +23,7 @@ test('informe cliente v3 usa diez páginas base y separa Solo IRI de entrenamien
   const active=buildIriReportHtml({draft:draft(),variant:'client',clientName:'Cliente Demo',coachName:'Carlos',iriOnly:false});
   assert.equal((iriOnly.match(/class="pdf-page/g)||[]).length,10);
   assert.equal((active.match(/class="pdf-page/g)||[]).length,10);
-  assert.match(iriOnly,/Solo IRI · evaluación independiente/);
+  assert.match(iriOnly,/EVALUACIÓN INDEPENDIENTE · SOLO IRI/);
   assert.match(iriOnly,/No implica planificación, frecuencia contractual ni seguimiento de entrenamiento activo/);
   assert.doesNotMatch(iriOnly,/Impacto sobre la planificación/);
   assert.match(active,/Impacto sobre la planificación/);
