@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {createIriReportGovernanceService,IRI_REPORT_EMISSION_FUNCTION} from '../src/m26/workflows/iri-report-governance-service.js';
+import {createIriReportGovernanceService,IRI_REPORT_EMISSION_FUNCTION} from '../src/m26/workflows/iri-external-report-controller.js';
 
 const QA_RUNTIME=Object.freeze({
   enabled:true,
@@ -92,13 +92,16 @@ test('IRI report history never invents privileged fields for client-safe payload
   assert.equal('sourceSnapshot' in history.items[0],false);
 });
 
-test('document-governance hardening closes direct client ledger exposure and locks finalized bytes',()=>{
-  const sql=fs.readFileSync(new URL('../supabase/migrations/20261003204500_iri_document_governance_hardening_v1.sql',import.meta.url),'utf8');
-  assert.match(sql,/drop policy if exists iri_report_issuance_read_client_v1/u);
-  assert.match(sql,/drop policy if exists iri_issued_object_read_client_v1/u);
-  assert.match(sql,/iri_report_issuance_append_only_v1/u);
-  assert.match(sql,/iri_report_withdrawal_append_only_v1/u);
-  assert.match(sql,/iri_guard_issued_storage_object_v1/u);
+test('document-governance migration creates final client-safe immutable state without destructive migration SQL',()=>{
+  const sql=fs.readFileSync(new URL('../supabase/migrations/20261003213000_iri_document_governance_v1.sql',import.meta.url),'utf8');
+  assert.doesNotMatch(sql,/iri_report_issuance_read_client_v1/u);
+  assert.doesNotMatch(sql,/iri_issued_object_read_client_v1/u);
+  assert.doesNotMatch(sql,/\\bDROP\\s+POLICY\\b/iu);
+  assert.doesNotMatch(sql,/\\bDROP\\s+TRIGGER\\b/iu);
+  assert.doesNotMatch(sql,/\\bDO\\s+\\$/iu);
+  assert.match(sql,/iri_report_issuance_append_only_v2/u);
+  assert.match(sql,/iri_report_withdrawal_append_only_v2/u);
+  assert.match(sql,/iri_guard_issued_storage_object_v2/u);
   assert.match(sql,/iberfit_iri_report_history_v1/u);
   assert.match(sql,/iberfit_authorize_iri_report_artifact_v1/u);
   assert.doesNotMatch(sql,/grant select on public\.iri_report_issuances_v1 to anon/iu);
@@ -134,4 +137,12 @@ test('UI separates preview from immutable emission',()=>{
   assert.match(controller,/issue-client-iri-report/u);
   assert.match(controller,/withdraw-issued-iri-report/u);
   assert.match(controller,/Documento emitido y archivado como versión/u);
+});
+
+
+test('report governance reuses the existing report controller module so PWA shell does not grow',()=>{
+  const app=fs.readFileSync(new URL('../src/m26/app/application.js',import.meta.url),'utf8');
+  const controller=fs.readFileSync(new URL('../src/m26/workflows/iri-external-report-controller.js',import.meta.url),'utf8');
+  assert.doesNotMatch(app,/iri-report-governance-service\.js/u);
+  assert.match(controller,/export function createIriReportGovernanceService/u);
 });

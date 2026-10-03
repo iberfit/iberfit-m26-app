@@ -54,12 +54,12 @@ import {createExerciseVideoExperienceController} from '../library/exercise-video
 import {waitForCreatedClient} from '../workflows/client-onboarding.js';
 import {
   createIriExternalReportController,
+  createIriReportGovernanceService,
   iriExternalReportAppUrl,
   parseIriExternalReportIntent,
   resolveIriExternalReportIntent,
 } from '../workflows/iri-external-report-controller.js';
 import {createIriPhotogrammetryController} from '../workflows/iri-photogrammetry-controller.js';
-import {createIriReportGovernanceService} from '../workflows/iri-report-governance-service.js';
 
 export const EMAIL_OTP_DEPLOYMENT_READY=true;
 const MFA_BACKEND_TIMEOUT_MS=10_000;
