@@ -1,16 +1,10 @@
-interface Env {
-  BROWSER: BrowserRun;
-  IRI_RENDERER_PUBLIC_KEY_SPKI_B64: string;
-  IRI_RENDERER_AUDIENCE: string;
-}
-
 const MAX_BODY_BYTES=4_000_000;
 const MAX_KEY_CHARS=4096;
 const MAX_SIGNATURE_CHARS=256;
 const MAX_SKEW_SECONDS=120;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
-function response(status:number,body:string,contentType='text/plain; charset=utf-8'){
+function response(status,body,contentType='text/plain; charset=utf-8'){
   return new Response(body,{
     status,
     headers:{
@@ -20,17 +14,17 @@ function response(status:number,body:string,contentType='text/plain; charset=utf
     },
   });
 }
-function b64Bytes(value:string){
+function b64Bytes(value){
   const normalized=String(value||'').replace(/-/g,'+').replace(/_/g,'/');
   const padded=normalized+'='.repeat((4-normalized.length%4)%4);
   const binary=atob(padded);
   return Uint8Array.from(binary,(char)=>char.charCodeAt(0));
 }
-async function sha256Hex(value:string){
+async function sha256Hex(value){
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map((byte)=>byte.toString(16).padStart(2,'0')).join('');
 }
-async function verifyRequest(request:Request,env:Env,raw:string){
+async function verifyRequest(request,env,raw){
   const publicKeyB64=String(env.IRI_RENDERER_PUBLIC_KEY_SPKI_B64||'').trim();
   const expectedAudience=String(env.IRI_RENDERER_AUDIENCE||'').trim();
   if(!publicKeyB64||publicKeyB64.length>MAX_KEY_CHARS||!expectedAudience)return false;
@@ -46,7 +40,7 @@ async function verifyRequest(request:Request,env:Env,raw:string){
   const nowSeconds=Math.floor(Date.now()/1000);
   if(!Number.isInteger(timestampSeconds)||Math.abs(nowSeconds-timestampSeconds)>MAX_SKEW_SECONDS)return false;
 
-  let publicKey:CryptoKey;
+  let publicKey;
   try{
     publicKey=await crypto.subtle.importKey(
       'spki',
@@ -70,7 +64,7 @@ async function verifyRequest(request:Request,env:Env,raw:string){
 }
 
 export default {
-  async fetch(request:Request,env:Env):Promise<Response>{
+  async fetch(request,env){
     if(request.method!=='POST')return response(405,'METHOD_NOT_ALLOWED');
 
     const declared=Number(request.headers.get('content-length')||0);
@@ -79,7 +73,7 @@ export default {
     if(!raw||new TextEncoder().encode(raw).byteLength>MAX_BODY_BYTES)return response(413,'BODY_TOO_LARGE');
     if(!(await verifyRequest(request,env,raw)))return response(401,'UNAUTHORIZED');
 
-    let payload:{html?:unknown};
+    let payload;
     try{payload=JSON.parse(raw);}catch{return response(400,'BODY_INVALID');}
     const html=typeof payload.html==='string'?payload.html:'';
     if(!html.trim()||html.length>MAX_BODY_BYTES)return response(400,'HTML_INVALID');
@@ -109,4 +103,4 @@ export default {
       return response(502,'BROWSER_RUN_FAILED');
     }
   },
-} satisfies ExportedHandler<Env>;
+};

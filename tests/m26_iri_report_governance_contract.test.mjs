@@ -116,7 +116,7 @@ test('server report renderer is decoupled from browser-only external-report cont
 
 test('emission broker uses a private Cloudflare Browser Run binding renderer',()=>{
   const source=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
-  const worker=fs.readFileSync(new URL('../cloudflare/iri-report-renderer/worker.ts',import.meta.url),'utf8');
+  const worker=fs.readFileSync(new URL('../cloudflare/iri-report-renderer/worker.mjs',import.meta.url),'utf8');
   const qaConfig=fs.readFileSync(new URL('../cloudflare/iri-report-renderer/wrangler.qa.jsonc',import.meta.url),'utf8');
   assert.match(source,/IBERFIT_IRI_RENDERER_URL/u);
   assert.match(source,/IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64/u);
@@ -174,11 +174,13 @@ test('QA real-write gate deploys and certifies the exact report broker',()=>{
   const workflow=fs.readFileSync(new URL('../.github/workflows/qa-real-write-cert.yml',import.meta.url),'utf8');
   const gate=fs.readFileSync(new URL('../scripts/remote-gates/run_qa_iri_report_emission_gate.mjs',import.meta.url),'utf8');
   assert.match(workflow,/supabase@2\.117\.0 functions deploy iberfit-iri-report-emission-v1/u);
-  assert.match(workflow,/wrangler@4\.120\.0 deploy/u);
+  assert.match(workflow,/workers\/scripts\/\\\$\{WORKER_NAME\}/u);
+  assert.match(workflow,/bindings:\[/u);
+  assert.match(workflow,/type:'browser',name:'BROWSER'/u);
   assert.match(workflow,/IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64/u);
   assert.match(workflow,/IRI_RENDERER_PUBLIC_KEY_SPKI_B64/u);
   assert.doesNotMatch(workflow,/wrangler@4\.120\.0 secret put/u);
-  assert.match(workflow,/cloudflare\/iri-report-renderer\/wrangler\.qa\.jsonc/u);
+  assert.match(workflow,/cloudflare\/iri-report-renderer\/worker\.mjs/u);
   assert.match(workflow,/run_qa_iri_report_emission_gate\.mjs/u);
   assert.match(gate,/IRI_REPORT_QA_PDF_MAGIC_INVALID/u);
   assert.match(gate,/clientHistoryPrivateMetadataHidden:true/u);

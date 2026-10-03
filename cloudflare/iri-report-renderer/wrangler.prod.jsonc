@@ -1,6 +1,6 @@
 {
-  "name": "iberfit-iri-report-renderer-prod-v2",
-  "main": "./worker.ts",
+  "name": "iberfit-iri-report-renderer-prod-v3",
+  "main": "./worker.mjs",
   "compatibility_date": "2026-10-03",
   "workers_dev": true,
   "browser": {
