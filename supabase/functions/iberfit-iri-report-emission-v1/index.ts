@@ -322,7 +322,7 @@ function measureLines(value:any,prefix='',depth=0,out:string[]=[]){
   }
   return out;
 }
-async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoReport,annex,appOrigin}:any){
+async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoReport,annex,appOrigin,assessmentMeta}:any){
   const doc=await PDFDocument.create();
   doc.setTitle('Informe IRI · '+pdfSafe(clientName,120));
   doc.setAuthor('IBERFIT');
@@ -452,8 +452,8 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     n+=1;
     const page=pdfPage(doc,fonts,n,audience,'05','Trazabilidad técnica','Solo Coach/Admin · reproducibilidad y criterios de comparación');
     let y=674;
-    y=pdfField(page,fonts,'VERSIÓN DE PROTOCOLO',draft?.protocolVersion||'Sin versión registrada',y);
-    y=pdfField(page,fonts,'CIERRE DE LA SESIÓN',draft?.firstSessionCompletedAt||'Sin registro',y);
+    y=pdfField(page,fonts,'VERSIÓN DE PROTOCOLO',assessmentMeta?.protocolVersion||'Sin versión registrada',y);
+    y=pdfField(page,fonts,'CIERRE DE LA SESIÓN',assessmentMeta?.completedAt||draft?.updatedAt||'Sin registro',y);
     page.drawText('Protocolos registrados',{x:PDF_M,y,size:10.5,font:fonts.bold,color:PDF_C.ink});
     y-=19;
     const records=Array.isArray(draft?.protocolRecords)?draft.protocolRecords.slice(0,12):[];
@@ -558,7 +558,7 @@ async function issueReport({userClient,service,actorUserId,assessmentId,audience
   const sourceHash=await sha256(sourceJson);
   if(!SHA256.test(sourceHash))throw new Error('IRI_REPORT_SOURCE_HASH_INVALID');
 
-  let pdf=await renderPdf({draft,audience,clientName:clientResult.data.name||'Cliente IBERFIT',coachName,iriOnly:authz.data?.iriOnly===true,photoReport:photoState.report,annex,appOrigin});
+  let pdf=await renderPdf({draft,audience,clientName:clientResult.data.name||'Cliente IBERFIT',coachName,iriOnly:authz.data?.iriOnly===true,photoReport:photoState.report,annex,appOrigin,assessmentMeta:{protocolVersion:assessment.protocol_version,completedAt:assessment.completed_at}});
   pdf=await appendExternal(pdf,externalBytes,annex);
   if(pdf.byteLength<=1000||pdf.byteLength>MAX_ARTIFACT_BYTES)throw new Error('IRI_REPORT_ARTIFACT_SIZE_INVALID');
   const artifactHash=await sha256(pdf);
