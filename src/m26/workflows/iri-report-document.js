@@ -347,15 +347,17 @@ function reportLayoutReady(popup,doc){
 }
 function waitForReportAssets(doc){
   const fontsReady=doc?.fonts?.ready&&typeof doc.fonts.ready.then==='function'?doc.fonts.ready:Promise.resolve();
-  const images=Array.from(doc?.images||[]);
-  const imagesReady=Promise.all(images.map((image)=>{
-    if(image?.complete)return Promise.resolve();
+  const assets=Array.from(doc?.querySelectorAll?.('img,svg image')||[]);
+  const assetsReady=Promise.all(assets.map((asset)=>{
+    if(asset?.tagName?.toLowerCase?.()==='img'&&asset.complete)return Promise.resolve();
     return new Promise((resolve)=>{
-      image?.addEventListener?.('load',resolve,{once:true});
-      image?.addEventListener?.('error',resolve,{once:true});
+      let timer=null;const done=()=>{if(timer!==null)clearTimeout(timer);resolve();};
+      asset?.addEventListener?.('load',done,{once:true});
+      asset?.addEventListener?.('error',done,{once:true});
+      timer=setTimeout(done,5000);
     });
   }));
-  return Promise.all([fontsReady,imagesReady]);
+  return Promise.all([fontsReady,assetsReady]);
 }
 function bindDirectIriReportWindow(popup){
   const doc=popup?.document;if(!doc?.querySelector)throw new Error('M26_IRI_REPORT_WINDOW_UNAVAILABLE');
