@@ -1351,7 +1351,7 @@ function normalizeGovernanceHistory(payload={}){
         issuanceId,
         documentId:govClean(item?.documentId,80)||null,
         assessmentId:govClean(item?.assessmentId,80),
-        governanceAudience:govClean(item?.governanceAudience,20),
+        audience:govClean(item?.audience,20),
         version:Number(item?.version||0),
         templateVersion:govClean(item?.templateVersion,100),
         engineVersion:govClean(item?.engineVersion,100),
@@ -1396,13 +1396,13 @@ export function createIriReportGovernanceService({runtime,fetchImpl=globalThis.f
       throw error;
     }finally{clearTimeout(timer);}
   }
-  async function issue(token,{assessmentId,governanceAudience:target}={}){
+  async function issue(token,{assessmentId,audience:target}={}){
     const assessment=governanceUuid(assessmentId,'M26_IRI_REPORT_ASSESSMENT_INVALID');
-    const body=await request(token,{action:'issue',assessmentId:assessment,governanceAudience:governanceAudience(target)},{timeoutMs:180_000});
+    const body=await request(token,{action:'issue',assessmentId:assessment,audience:governanceAudience(target)},{timeoutMs:180_000});
     const issuanceId=governanceUuid(body.issuanceId,'M26_IRI_REPORT_ISSUANCE_INVALID_RESPONSE');
     return Object.freeze({
       issuanceId,documentId:govClean(body.documentId,80),assessmentId:assessment,
-      governanceAudience:govClean(body.governanceAudience,20),version:Number(body.version||0),
+      audience:govClean(body.audience,20),version:Number(body.version||0),
       artifactSha256:govClean(body.artifactSha256,64),sourceSha256:govClean(body.sourceSha256,64),
       signedUrl:governanceSafeSignedUrl(body.signedUrl,config.origin),expiresIn:Number(body.expiresIn||0),
     });
@@ -1415,7 +1415,7 @@ export function createIriReportGovernanceService({runtime,fetchImpl=globalThis.f
     const id=governanceUuid(issuanceId,'M26_IRI_REPORT_ISSUANCE_INVALID');
     const body=await request(token,{action:'open',issuanceId:id},{timeoutMs:30_000});
     return Object.freeze({
-      issuanceId:id,assessmentId:govClean(body.assessmentId,80),governanceAudience:govClean(body.governanceAudience,20),
+      issuanceId:id,assessmentId:govClean(body.assessmentId,80),audience:govClean(body.audience,20),
       version:Number(body.version||0),withdrawn:body.withdrawn===true,
       artifactSha256:govClean(body.artifactSha256,64),artifactSizeBytes:Number(body.artifactSizeBytes||0),
       signedUrl:governanceSafeSignedUrl(body.signedUrl,config.origin),expiresIn:Number(body.expiresIn||0),
