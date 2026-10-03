@@ -1,5 +1,6 @@
 import { scoreIriPerformance } from '../norms/iri-scoring.js';
 import { validateIriProfile } from './iri-profile.js';
+import { coreDomainCoverage as firstSessionCoreDomainCoverage } from './iri-first-session.js';
 
 const REQUIRED = [
   'clientId',
@@ -19,6 +20,31 @@ function hasObjectiveMeasurement(value) {
 }
 
 function coreDomainCoverage(draft = {}) {
+  const firstSessionSchema = String(draft.firstSessionSchema || '').trim();
+  const modernFirstSession =
+    firstSessionSchema === 'iberfit-iri-first-session-v1' &&
+    draft.mobility &&
+    draft.strengthAssessment &&
+    draft.cardio;
+
+  if (modernFirstSession) {
+    const functional = firstSessionCoreDomainCoverage({
+      mobility: draft.mobility,
+      strength: draft.strengthAssessment,
+      cardio: draft.cardio,
+      bodyComposition: draft.bodyComposition,
+    });
+    return Object.freeze({
+      ...functional,
+      skipped: Object.freeze({
+        bodyComposition: draft.bodyComposition?.skipped === true,
+        mobility: draft.mobility?.skipped === true,
+        strength: draft.strengthAssessment?.skipped === true,
+        cardio: draft.cardio?.skipped === true,
+      }),
+    });
+  }
+
   const bodySkipped = draft.bodyComposition?.skipped === true;
   const strengthSkipped = draft.strengthAssessment?.skipped === true || draft.strengthPatterns?.skipped === true;
   const cardioSkipped = draft.cardio?.skipped === true;
