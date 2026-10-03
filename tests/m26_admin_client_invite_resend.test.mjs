@@ -18,7 +18,7 @@ test('invitation resend is a registered privileged client command routed through
 });
 
 test('resend command is client-scoped and cannot accidentally create another client',()=>{
-  assert.match(edge,/const FUNCTION_VERSION='admin-client-invite-v26\.4'/u);
+  assert.match(edge,/const FUNCTION_VERSION='admin-client-invite-v26\.5'/u);
   assert.match(edge,/\['ADMIN_CLIENTE_CREAR','ADMIN_CLIENTE_REENVIAR_INVITACION'\]\.includes\(type\)/u);
   assert.match(edge,/if\(type==='ADMIN_CLIENTE_REENVIAR_INVITACION'\)[\s\S]{0,500}V26_INVITATION_CLIENT_INVALID/u);
 
