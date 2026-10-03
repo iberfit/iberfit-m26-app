@@ -178,6 +178,8 @@ test('QA real-write gate deploys and certifies the exact self-contained report b
   assert.doesNotMatch(workflow,/IRI_RENDERER_/u);
   assert.doesNotMatch(workflow,/workers\/scripts/u);
   assert.match(workflow,/run_qa_iri_report_emission_gate\.mjs/u);
+  assert.match(workflow,/prepare_qa_iri_document_fixture\.mjs/u);
+  assert.match(workflow,/qa-fixture-evidence\.json/u);
   assert.match(gate,/IRI_REPORT_QA_PDF_MAGIC_INVALID/u);
   assert.match(gate,/clientHistoryPrivateMetadataHidden:true/u);
   assert.match(gate,/withdrawalRequiresPrivilegedAssurance:true/u);
