@@ -807,13 +807,27 @@ export function createWorkflowController({
     const current=currentIriRecord(form),assessmentId=recordId(current);
     if(!assessmentId)throw new Error('M26_IRI_PHYSICAL_CONSENT_ASSESSMENT_REQUIRED');
     if(typeof ensureIriPhysicalConsent!=='function')throw new Error('M26_IRI_PHYSICAL_CONSENT_SERVICE_UNAVAILABLE');
+    if(!isOnline()){
+      status(root,'iri','Consentimiento registrado en el borrador. Sin conexión: se verificará en el servidor antes de confirmar el IRI.','pending');
+      return Object.freeze({ok:false,deferred:true,reason:'offline'});
+    }
     status(root,'iri','Registrando consentimiento antes de iniciar las pruebas físicas…','pending');
-    await withTimeout(Promise.resolve(ensureIriPhysicalConsent({
-      clientId:draft.clientId,
-      assessmentId,
-      accepted:true,
-      note:'Consentimiento para evaluación física IRI registrado antes de iniciar movilidad, fuerza y capacidad de esfuerzo.'
-    })),15_000,'M26_IRI_PHYSICAL_CONSENT_TIMEOUT');
+    try{
+      return await withTimeout(Promise.resolve(ensureIriPhysicalConsent({
+        clientId:draft.clientId,
+        assessmentId,
+        accepted:true,
+        note:'Consentimiento para evaluación física IRI registrado antes de iniciar movilidad, fuerza y capacidad de esfuerzo.'
+      })),15_000,'M26_IRI_PHYSICAL_CONSENT_TIMEOUT');
+    }catch(error){
+      const code=String(error?.message||error||'');
+      if(/NETWORK|FETCH|TIMEOUT|OFFLINE|AbortError/i.test(code)){
+        emit(root,'m26:workflow-error',{action:'persist-iri-physical-consent-deferred',code});
+        status(root,'iri','No se pudo sincronizar el consentimiento ahora. La evaluación puede continuar y se verificará obligatoriamente antes de confirmar.','pending');
+        return Object.freeze({ok:false,deferred:true,reason:'connectivity'});
+      }
+      throw error;
+    }
   }
   async function moveIri(direction){
     requireCoach();const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)throw new Error('M26_IRI_FORM_REQUIRED');const index=Number(form.dataset.iriStepIndex||0);
