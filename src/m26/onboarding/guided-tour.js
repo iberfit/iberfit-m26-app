@@ -744,6 +744,11 @@ function createCoreGuidedTourController({
   }
 
   function onRootClick(event){
+    const mobileMoreSummary=event.target?.closest?.('.m26-mobile-more > summary');
+    if(mobileMoreSummary){
+      if(open)pause();
+      return;
+    }
     if(!event.target?.closest?.('[data-m26-guided-tour-open]'))return;
     queueMicrotask(()=>openTour({restart:true}));
   }
