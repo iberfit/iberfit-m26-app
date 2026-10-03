@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const migration=fs.readFileSync('supabase/migrations/20261002234000_solo_iri_access_mode_v1.sql','utf8');
+const correctiveMigration=fs.readFileSync('supabase/migrations/20261003021000_solo_iri_restore_client_create_least_privilege_v1.sql','utf8');
 const edge=fs.readFileSync('supabase/functions/iberfit-admin-client-invite-v1/index.ts','utf8');
 const controller=fs.readFileSync('src/m26/admin/controller.js','utf8');
 const viewModel=fs.readFileSync('src/m26/modules/route-view-model.js','utf8');
@@ -51,10 +52,11 @@ test('Solo IRI surfaces explain evaluation-only state instead of training action
   assert.match(render,/Ver informe IRI/u);
 });
 
-test('least privilege of client creation helpers is preserved',()=>{
-  assert.match(migration,/revoke all on function public\.iberfit_admin_create_client_v26_pre_privileged_assurance\(jsonb,jsonb\) from public,anon,authenticated/u);
-  assert.match(migration,/grant execute on function public\.iberfit_admin_create_client_v26_pre_privileged_assurance\(jsonb,jsonb\) to service_role/u);
-  assert.match(migration,/revoke all on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\)[\s\S]*?from public,anon,authenticated/u);
-  assert.doesNotMatch(migration,/grant execute on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\) to authenticated/u);
-  assert.match(migration,/grant execute on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\)[\s\S]*?to service_role/u);
+test('least privilege is restored append-only after the immutable Solo IRI migration',()=>{
+  assert.match(migration,/grant execute on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\) to authenticated,service_role/u);
+  assert.match(correctiveMigration,/revoke all on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\)[\s\S]*?from public,anon,authenticated/u);
+  assert.match(correctiveMigration,/grant execute on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\)[\s\S]*?to service_role/u);
+  assert.match(correctiveMigration,/revoke all on function public\.iberfit_admin_create_client_v26_pre_privileged_assurance\(jsonb,jsonb\)[\s\S]*?from public,anon,authenticated/u);
+  assert.match(correctiveMigration,/grant execute on function public\.iberfit_admin_create_client_v26_pre_privileged_assurance\(jsonb,jsonb\)[\s\S]*?to service_role/u);
+  assert.doesNotMatch(correctiveMigration,/grant execute[\s\S]*?to authenticated/u);
 });
