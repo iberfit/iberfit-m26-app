@@ -64,7 +64,7 @@ test('subida externa acepta PDF JPG PNG y ya no limita el documento a cuatro pá
   const document=read('src/m26/workflows/iri-report-document.js');
   assert.match(route,/accept="application\/pdf,image\/png,image\/jpeg"/u);
   assert.match(external,/PDFJS_PRINT_MAX_PAGES=24/u);
-  assert.doesNotMatch(document,/printPreview\?\.pages\.filter\(Boolean\)\.slice\(0,4\)/u);
+  assert.doesNotMatch(document,/\.filter\(Boolean\)\.slice\(0,4\)/u);
 });
 
 test('Solo IRI autoriza adjuntos por la asignación canónica activa sin depender de la tabla legacy',()=>{
