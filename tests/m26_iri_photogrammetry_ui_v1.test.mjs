@@ -81,7 +81,8 @@ test('report generation uses consent-gated photogrammetry without exposing stora
 test('photogrammetry workspace has mobile, keyboard, touch and strict-CSP affordances',()=>{
   const css=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry.css',import.meta.url),'utf8');
   const controller=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-controller.js',import.meta.url),'utf8');
-  assert.match(css,/touch-action:pan-y pinch-zoom/u);\n  assert.match(css,/\\.m26-photo-point\\{[^}]*touch-action:none/u);
+  assert.match(css,/touch-action:pan-y pinch-zoom/u);
+  assert.match(css,/\\.m26-photo-point\\{[^}]*touch-action:none/u);
   assert.match(css,/:focus-visible/u);
   assert.match(css,/@media\(max-width:640px\)/u);
   assert.match(css,/\.m26-photo-point-hit/u);
