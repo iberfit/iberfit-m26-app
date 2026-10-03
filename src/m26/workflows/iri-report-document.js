@@ -173,7 +173,7 @@ function clientIriExternalReportComplement(draft,report,appOrigin){
   const format=report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':report.mimeType==='image/png'?'PNG':'';
   if(!format)return '';
   const embedded=Array.isArray(report?.printPreview?.pages)&&report.printPreview.pages.length>0;
-  const detail=embedded?` · ${report.printPreview.pages.length} ${report.printPreview.pages.length===1?'página incorporada':'páginas incorporadas'} al informe`:'';
+  const detail=embedded?` · ${report.printPreview.pages.length} ${report.printPreview.pages.length===1?'página incorporada':'páginas incorporadas'} al informe`:' · documento vinculado; previsualización no incorporada';
   return card('Documento complementario',`<div class="iri-complement"><p class="iri-complement-kicker">Informe de bioimpedancia</p><p>Este documento complementa los resultados de composición corporal del Diagnóstico IRI.</p><small>${escapeHtml(format)} · versión ${escapeHtml(report.version||1)}${escapeHtml(detail)}</small><a class="iri-complement-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir documento original</a></div>`,'soft');
 }
 
@@ -245,7 +245,39 @@ function clientPages(draft,context){
 }
 
 function mobilityTrialRows(mobility={}){const ankle=mobility.ankle||{},posterior=mobility.posteriorChain||{};const max=Math.max(ankle.leftTrials?.length||0,ankle.rightTrials?.length||0,posterior.leftTrials?.length||0,posterior.rightTrials?.length||0,3);return Array.from({length:max},(_,index)=>[String(index+1),ankle.leftTrials?.[index]!==undefined?`${number(ankle.leftTrials[index],1)} cm`:'—',ankle.rightTrials?.[index]!==undefined?`${number(ankle.rightTrials[index],1)} cm`:'—',posterior.leftTrials?.[index]!==undefined?`${number(posterior.leftTrials[index],1)} cm`:'—',posterior.rightTrials?.[index]!==undefined?`${number(posterior.rightTrials[index],1)} cm`:'—']);}
-function rawDataPages(draft,context,startNumber){const raw=JSON.stringify({reportContext:{clientName:context.clientName,coachName:context.coachName,clientId:context.clientId},draft},null,2);const lines=raw.split('\n');const chunks=[];let current=[];let count=0;for(const line of lines){const length=line.length+1;if(current.length&&count+length>1500){chunks.push(current.join('\n'));current=[];count=0;}current.push(line);count+=length;}if(current.length)chunks.push(current.join('\n'));return chunks.map((chunk,index)=>page({number:startNumber+index,title:`Anexo íntegro de datos · ${index+1}/${chunks.length}`,eyebrow:'ANEXO DINÁMICO · TRAZABILIDAD',logoUrl:context.logoUrl,internal:true,annex:true,content:`<p class="annex-intro">Representación completa del borrador normalizado utilizado para generar este informe. Conserva campos, valores nulos, variantes y observaciones.</p><pre class="raw-data">${escapeHtml(chunk)}</pre>`}));}
+function rawDataPages(draft,context,startNumber){
+  const external=context.externalReport?{
+    id:context.externalReport.id||null,
+    assessmentId:context.externalReport.assessmentId||null,
+    fileName:context.externalReport.fileName||null,
+    mimeType:context.externalReport.mimeType||null,
+    sizeBytes:context.externalReport.sizeBytes??null,
+    version:context.externalReport.version??null,
+    visibleToClient:context.externalReport.visibleToClient===true,
+    uploadedAt:context.externalReport.uploadedAt||null,
+    previewAvailable:context.externalReport.printPreviewAvailable===true,
+  }:null;
+  const photo=context.photogrammetryReport?{
+    assessmentId:context.photogrammetryReport.assessmentId||null,
+    available:context.photogrammetryReport.available===true,
+    quality:context.photogrammetryReport.quality||null,
+    analysisStatus:context.photogrammetryReport.analysisStatus||null,
+    measurements:context.photogrammetryReport.measurements||{},
+    interpretation:context.photogrammetryReport.interpretation||null,
+    photos:(Array.isArray(context.photogrammetryReport.photos)?context.photogrammetryReport.photos:[]).map((item)=>({
+      view:item.view||null,capturedAt:item.capturedAt||null,widthPx:item.widthPx??null,heightPx:item.heightPx??null,
+    })),
+  }:null;
+  const raw=JSON.stringify({
+    reportContext:{clientName:context.clientName,coachName:context.coachName,clientId:context.clientId},
+    attachments:{bioimpedance:external,photogrammetry:photo},
+    draft,
+  },null,2);
+  const lines=raw.split('\n');const chunks=[];let current=[];let count=0;
+  for(const line of lines){const length=line.length+1;if(current.length&&count+length>1500){chunks.push(current.join('\n'));current=[];count=0;}current.push(line);count+=length;}
+  if(current.length)chunks.push(current.join('\n'));
+  return chunks.map((chunk,index)=>page({number:startNumber+index,title:`Anexo íntegro de datos · ${index+1}/${chunks.length}`,eyebrow:'ANEXO DINÁMICO · TRAZABILIDAD',logoUrl:context.logoUrl,internal:true,annex:true,content:`<p class="annex-intro">Representación completa del borrador normalizado y de la trazabilidad documental segura utilizada para generar este informe. No incluye URLs firmadas ni rutas privadas de almacenamiento.</p><pre class="raw-data">${escapeHtml(chunk)}</pre>`}));
+}
 
 function coachPages(draft,context){
   const {clientName,coachName,logoUrl,clientId='',externalReport=null,photogrammetryReport=null,appOrigin}=context;
