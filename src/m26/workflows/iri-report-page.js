@@ -1,6 +1,6 @@
 const MAX_AGE_MS=120_000;
 const CLIENT_MIN_PAGE_COUNT=10;
-const COACH_MIN_PAGE_COUNT=13;
+const COACH_MIN_PAGE_COUNT=16;
 
 function reportFailure(message){
   document.documentElement.dataset.iriReportState='error';
