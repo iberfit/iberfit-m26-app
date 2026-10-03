@@ -5,6 +5,11 @@
 -- Draft local-first. Strictly additive over the existing IRI/document model.
 begin;
 
+-- IBERFIT-TABLE-ACCESS: public.iri_report_issuances_v1 :: Direct SELECT is limited by RLS to in-scope Coach/Admin; clients consume only the safe projected history/artifact authorization RPCs, while writes remain broker/service-role controlled.
+-- IBERFIT-POLICY: public.iri_report_issuances_v1 = rls-client
+-- IBERFIT-TABLE-ACCESS: public.iri_report_withdrawals_v1 :: Direct SELECT is limited by RLS to in-scope Coach/Admin for audit traceability; clients never read this ledger directly and writes remain controlled RPC/service-role operations.
+-- IBERFIT-POLICY: public.iri_report_withdrawals_v1 = rls-client
+
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values(
   'iberfit-iri-issued-reports',
