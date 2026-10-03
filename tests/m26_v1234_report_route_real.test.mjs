@@ -49,7 +49,7 @@ test('el HTML generado no depende de atributos style bloqueables por CSP',()=>{
   assert.match(css,/\.col-w-\d+\{width:/u);
   assert.match(html,/class="report-page-content"/);
   assert.match(html,/report-page-2/);
-  const external=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',stylesheetHref:'https://m26-canary.iberfit.cl/m26/iri-report.css?v=m26-rc45-6-launch-hardening-v1'});
+  const external=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA',stylesheetHref:'https://m26-canary.iberfit.cl/m26/iri-report.css?v=m26-iri-report-premium-v1'});
   assert.match(external,/rel="stylesheet"[^>]+data-iri-report-stylesheet/);
   assert.doesNotMatch(external,/<style>/);
 });
