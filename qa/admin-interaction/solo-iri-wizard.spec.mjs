@@ -35,16 +35,12 @@ test('Solo IRI changes the real Admin wizard immediately, survives navigation an
   await expect(notice).toContainText('Se creará una persona con expediente IRI, sin entrenamiento activo.');
   await expect(submit).toHaveText('Crear persona Solo IRI');
 
-  await form.locator('[data-client-wizard-prev]').filter({visible:true}).click().catch(async()=>{
-    await serviceStep.locator('[data-client-wizard-prev]').click();
-  });
+  await serviceStep.locator('[data-client-wizard-prev]').click();
   await expect(form.locator('[data-client-step="1"]')).toBeVisible();
   await expect(form.locator('[name="birthDate"]')).toHaveAttribute('required','');
   await expect(form.locator('[name="sexForNorms"]')).toHaveAttribute('required','');
 
-  await form.locator('[data-client-wizard-next]').filter({visible:true}).click().catch(async()=>{
-    await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
-  });
+  await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
   await expect(serviceStep).toBeVisible();
   await expect(intent).toHaveValue('iri_only');
 
@@ -71,10 +67,11 @@ test('Solo IRI changes the real Admin wizard immediately, survives navigation an
   await expect(restored.locator('[name="accessMode"]')).toHaveValue('internal');
 
   if(touch){
-    for(const control of [intent,frequency,duration,assessment,access]){
-      const locator=control.or?.(restored.locator('[name="'+await control.getAttribute('name')+'"]'))||control;
-      const box=await locator.boundingBox().catch(()=>null);
-      if(box&&!await locator.isHidden())expect(box.height).toBeGreaterThanOrEqual(44);
+    for(const name of ['serviceIntent','initialAssessmentMode','accessMode']){
+      const control=restored.locator(`[name="${name}"]`);
+      const box=await control.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box.height).toBeGreaterThanOrEqual(44);
     }
   }
 });
