@@ -311,9 +311,10 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
 export function augmentAdminShellViewModel(vm,state){
   if(vm?.mode!=='authenticated'||vm?.identity?.role!=='admin')return vm;
   const preferenceScope=String(vm?.identity?.id||state?.identity?.id||'');
+  const contextual=/^admin-(?:expediente|iri|informes|notas)$/u.test(String(vm?.activeArea||''));
   return Object.freeze({
     ...vm,
-    selectedClient:null,
+    selectedClient:contextual?vm.selectedClient:null,
     clientOptions:Object.freeze([]),
     canChangeClient:false,
     experiencePreferences:readIberfitExperiencePreferences(preferenceScope),
