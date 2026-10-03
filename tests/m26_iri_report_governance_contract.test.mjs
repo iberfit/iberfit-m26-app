@@ -114,22 +114,30 @@ test('server report renderer is decoupled from browser-only external-report cont
   assert.match(source,/issuedArtifactAnnex/u);
 });
 
-test('emission broker uses current Cloudflare PDF API contract without unsupported actionTimeout',()=>{
+test('emission broker uses a private Cloudflare Browser Run binding renderer',()=>{
   const source=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
-  assert.match(source,/browser-rendering\/pdf/u);
-  assert.match(source,/pdfOptions:\s*\{/u);
-  assert.ok(source.includes("waitForSelector:{selector:"));
-  assert.match(source,/preferCSSPageSize:true/u);
-  assert.match(source,/printBackground:true/u);
-  assert.match(source,/tagged:true/u);
-  assert.match(source,/outline:true/u);
+  const worker=fs.readFileSync(new URL('../cloudflare/iri-report-renderer/worker.ts',import.meta.url),'utf8');
+  const qaConfig=fs.readFileSync(new URL('../cloudflare/iri-report-renderer/wrangler.qa.jsonc',import.meta.url),'utf8');
+  assert.match(source,/IBERFIT_IRI_RENDERER_URL/u);
+  assert.match(source,/IBERFIT_IRI_RENDERER_SHARED_SECRET/u);
+  assert.match(source,/cloudflare-browser-run\/worker-binding-pdf/u);
+  assert.doesNotMatch(source,/browser-rendering\/pdf/u);
+  assert.doesNotMatch(source,/CLOUDFLARE_BROWSER_API_TOKEN/u);
+  assert.match(worker,/BROWSER\.quickAction\('pdf'/u);
+  assert.match(worker,/IRI_RENDERER_SHARED_SECRET/u);
+  assert.ok(worker.includes("waitForSelector:{selector:'.pdf-page'"));
+  assert.match(worker,/preferCSSPageSize:true/u);
+  assert.match(worker,/printBackground:true/u);
+  assert.match(worker,/tagged:true/u);
+  assert.match(worker,/outline:true/u);
+  assert.match(qaConfig,/"binding":\s*"BROWSER"/u);
+  assert.match(qaConfig,/"compatibility_date":\s*"2026-10-03"/u);
   assert.doesNotMatch(source,/actionTimeout/u);
   assert.doesNotMatch(source,/\.\.\/\.\.\/\.\.\/src\/m26\//u);
   assert.match(source,/\.\/vendor\/workflows\/iri-report-document\.js/u);
   assert.match(source,/artifact_sha256/u);
   assert.match(source,/source_sha256/u);
 });
-
 test('UI separates preview from immutable emission',()=>{
   const route=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
   const controller=fs.readFileSync(new URL('../src/m26/app/workflow-controller.js',import.meta.url),'utf8');
@@ -162,7 +170,9 @@ test('QA real-write gate deploys and certifies the exact report broker',()=>{
   const workflow=fs.readFileSync(new URL('../.github/workflows/qa-real-write-cert.yml',import.meta.url),'utf8');
   const gate=fs.readFileSync(new URL('../scripts/remote-gates/run_qa_iri_report_emission_gate.mjs',import.meta.url),'utf8');
   assert.match(workflow,/supabase@2\.117\.0 functions deploy iberfit-iri-report-emission-v1/u);
-  assert.match(workflow,/CLOUDFLARE_BROWSER_API_TOKEN/u);
+  assert.match(workflow,/wrangler@4\.120\.0 deploy/u);
+  assert.match(workflow,/IBERFIT_IRI_RENDERER_SHARED_SECRET/u);
+  assert.match(workflow,/cloudflare\/iri-report-renderer\/wrangler\.qa\.jsonc/u);
   assert.match(workflow,/run_qa_iri_report_emission_gate\.mjs/u);
   assert.match(gate,/IRI_REPORT_QA_PDF_MAGIC_INVALID/u);
   assert.match(gate,/clientHistoryPrivateMetadataHidden:true/u);
