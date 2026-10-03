@@ -179,7 +179,7 @@ function clientIriExternalReportComplement(draft,report,appOrigin){
 
 function clientIriExternalReportPages(draft,report,logoUrl,startNumber,appOrigin){
   if(!report||report.visibleToClient!==true||clean(report.assessmentId,80)!==clean(draft.assessmentId,80))return [];
-  const previewPages=Array.isArray(report?.printPreview?.pages)?report.printPreview.pages.filter(Boolean).slice(0,4):[];
+  const previewPages=Array.isArray(report?.printPreview?.pages)?report.printPreview.pages.filter(Boolean):[];
   if(!previewPages.length)return [];
   const href=iriExternalReportAppUrl(draft.assessmentId,{origin:appOrigin});
   const format=report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':report.mimeType==='image/png'?'PNG':'Documento';
@@ -189,12 +189,12 @@ function clientIriExternalReportPages(draft,report,logoUrl,startNumber,appOrigin
     title:'Informe de bioimpedancia',
     eyebrow:'DOCUMENTO COMPLEMENTARIO · BIOIMPEDANCIA',
     logoUrl,
-    content:`<div class="iri-bioimp-page"><div class="iri-bioimp-meta"><div><span>Documento original</span><strong>${escapeHtml(format)} · versión ${escapeHtml(report.version||1)}</strong></div><div><span>Página incorporada</span><strong>${index+1} de ${totalOriginal}</strong></div></div><figure><img src="${escapeHtml(src)}" alt="Informe de bioimpedancia · página ${index+1}" referrerpolicy="no-referrer"></figure>${report?.printPreview?.truncated&&index===previewPages.length-1?`<p class="method-note">El documento original contiene ${totalOriginal} páginas. Por seguridad de maquetación se incorporan las primeras ${previewPages.length}; el archivo original permanece disponible desde IBERFIT.</p>`:''}<a class="iri-complement-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir documento original en IBERFIT</a></div>`
+    content:`<div class="iri-bioimp-page"><div class="iri-bioimp-meta"><div><span>Documento original</span><strong>${escapeHtml(format)} · versión ${escapeHtml(report.version||1)}</strong></div><div><span>Página incorporada</span><strong>${index+1} de ${totalOriginal}</strong></div></div><figure><img src="${escapeHtml(src)}" alt="Informe de bioimpedancia · página ${index+1}" referrerpolicy="no-referrer"></figure>${report?.printPreview?.truncated&&index===previewPages.length-1?`<p class="method-note">El documento original contiene ${totalOriginal} páginas. Se incorporan todas las páginas procesadas por IBERFIT. El documento original contiene ${totalOriginal} páginas y permanece disponible desde IBERFIT.</p>`:''}<a class="iri-complement-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir documento original en IBERFIT</a></div>`
   }));
 }
 function coachIriExternalReportPages(draft,report,logoUrl,startNumber,appOrigin){
   if(!report||clean(report.assessmentId,80)!==clean(draft.assessmentId,80))return [];
-  const previewPages=Array.isArray(report?.printPreview?.pages)?report.printPreview.pages.filter(Boolean).slice(0,4):[];
+  const previewPages=Array.isArray(report?.printPreview?.pages)?report.printPreview.pages.filter(Boolean):[];
   if(!previewPages.length)return [];
   const href=iriExternalReportAppUrl(draft.assessmentId,{origin:appOrigin});
   const format=report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':report.mimeType==='image/png'?'PNG':'Documento';
