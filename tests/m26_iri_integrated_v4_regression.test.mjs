@@ -91,7 +91,7 @@ test('una etapa IRI validada no queda atrapada por el respaldo local ni por el c
 test('el IRI activo usa la evaluación inicial más reciente y aísla el borrador por assessment',()=>{
   const workflow=read('src/m26/app/workflow-controller.js');
   assert.match(workflow,/String\(b\.assessmentDate\|\|b\.assessment_date\|\|b\.updatedAt/u);
-  assert.match(workflow,/return assessmentId\\?`\\$\\{IRI_DRAFT_SCOPE\\}:\\$\\{assessmentId\\}`:IRI_DRAFT_SCOPE/u);
+  assert.ok(workflow.includes('return assessmentId?`${IRI_DRAFT_SCOPE}:${assessmentId}`:IRI_DRAFT_SCOPE;'));
   assert.match(workflow,/legacyAssessmentId===currentAssessmentId/u);
   assert.match(workflow,/draftRepository\?\.remove\?\.\(draft\.clientId,iriDraftStorageScope\(draft,form\)\)/u);
 });
