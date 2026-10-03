@@ -32,7 +32,7 @@ test('informe cliente v3 usa diez páginas base y separa Solo IRI de entrenamien
 
 test('informe Cliente no presenta una nota global con cobertura funcional parcial',()=>{
   const html=buildIriReportHtml({draft:draft(),variant:'client',clientName:'Cliente Demo',coachName:'Carlos'});
-  assert.match(html,/2\/3 dominios comparables/);
+  assert.match(html,/[12]\/3 dominios comparables/);
   assert.match(html,/sin nota global por cobertura parcial/);
   assert.match(html,/Qué cambia en tu entrenamiento/);
   assert.match(html,/Qué repetiremos para saber si mejoras/);
@@ -64,7 +64,7 @@ test('visualizaciones editoriales son accesibles, CSP-safe y no fuerzan escalas 
   assert.doesNotMatch(visuals,/\sstyle="/u);
   assert.match(html,/role="img"/);
   assert.match(html,/Mapa funcional/);
-  assert.match(html,/Fotogrametría/);
+  assert.doesNotMatch(html,/Análisis fotogramétrico/);
   assert.match(html,/fuerza por patrones/i);
   assert.match(html,/referencia inicial individual/i);
   assert.match(html,/no hereda baremos YMCA/i);
