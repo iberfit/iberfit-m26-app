@@ -1,5 +1,5 @@
 const MAX_AGE_MS=120_000;
-const CLIENT_PAGE_COUNT=9;
+const CLIENT_MIN_PAGE_COUNT=10;
 const COACH_MIN_PAGE_COUNT=13;
 
 function reportFailure(message){
@@ -31,7 +31,7 @@ function validatedRecord(token){
 
 function reportPages(parsed,variant){
   const pages=[...parsed.body.querySelectorAll('.pdf-page')];
-  const validCount=variant==='client'?pages.length===CLIENT_PAGE_COUNT:pages.length>=COACH_MIN_PAGE_COUNT;
+  const validCount=variant==='client'?pages.length>=CLIENT_MIN_PAGE_COUNT:pages.length>=COACH_MIN_PAGE_COUNT;
   return validCount?pages:[];
 }
 
@@ -66,4 +66,4 @@ async function load(){
 
 void load().catch(()=>reportFailure('Ocurrió un error inesperado al preparar el documento. Vuelve a generarlo desde IBERFIT.'));
 
-export const __iriReportPageInternals=Object.freeze({MAX_AGE_MS,CLIENT_PAGE_COUNT,COACH_MIN_PAGE_COUNT,validatedRecord,reportPages});
+export const __iriReportPageInternals=Object.freeze({MAX_AGE_MS,CLIENT_MIN_PAGE_COUNT,COACH_MIN_PAGE_COUNT,validatedRecord,reportPages});
