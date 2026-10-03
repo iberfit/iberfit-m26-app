@@ -13,7 +13,6 @@ on:
       - 'supabase/migrations/**'
       - 'supabase/functions/iberfit-admin-client-invite-v1/**'
       - 'supabase/functions/iberfit-iri-report-emission-v1/**'
-      - 'cloudflare/iri-report-renderer/**'
   push:
     branches: [canary/rc74-4]
     paths:
@@ -26,7 +25,6 @@ on:
       - 'supabase/migrations/**'
       - 'supabase/functions/iberfit-admin-client-invite-v1/**'
       - 'supabase/functions/iberfit-iri-report-emission-v1/**'
-      - 'cloudflare/iri-report-renderer/**'
   workflow_dispatch:
 
 permissions:
@@ -53,124 +51,13 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Configure signed QA PDF renderer and deploy exact IRI report broker
+      - name: Deploy exact QA IRI report emission broker
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: '5b03d387427d367674b9d05b8bdf7c84'
           M26_PROJECT_REF: gjztkdwfmunnzhtvxrsu
         run: |
           set -euo pipefail
           test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo 'SUPABASE_ACCESS_TOKEN_MISSING'; exit 41; }
-          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN_MISSING'; exit 42; }
-
-          openssl ecparam -name prime256v1 -genkey -noout -out /tmp/iri-renderer-key.pem
-          openssl pkcs8 -topk8 -nocrypt -in /tmp/iri-renderer-key.pem -outform DER | base64 -w0 > /tmp/iri-renderer-private.b64
-          openssl pkey -in /tmp/iri-renderer-key.pem -pubout -outform DER | base64 -w0 > /tmp/iri-renderer-public.b64
-          RENDER_PRIVATE_KEY="$(cat /tmp/iri-renderer-private.b64)"
-          RENDER_PUBLIC_KEY="$(cat /tmp/iri-renderer-public.b64)"
-          RENDER_AUDIENCE='iri-report-renderer-qa'
-          echo "::add-mask::${RENDER_PRIVATE_KEY}"
-
-          WORKER_NAME='iberfit-iri-report-renderer-qa-v3'
-          export RENDER_PUBLIC_KEY RENDER_AUDIENCE
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const metadata={
-            main_module:'worker.mjs',
-            bindings:[
-              {type:'browser',name:'BROWSER'},
-              {type:'plain_text',name:'IRI_RENDERER_PUBLIC_KEY_SPKI_B64',text:process.env.RENDER_PUBLIC_KEY},
-              {type:'plain_text',name:'IRI_RENDERER_AUDIENCE',text:process.env.RENDER_AUDIENCE},
-            ],
-            compatibility_date:'2026-10-03',
-          };
-          fs.writeFileSync('/tmp/iri-renderer-metadata.json',JSON.stringify(metadata));
-          NODE
-
-          curl --fail-with-body --silent --show-error -X PUT \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -F "metadata=@/tmp/iri-renderer-metadata.json;type=application/json" \
-            -F "worker.mjs=@cloudflare/iri-report-renderer/worker.mjs;type=application/javascript+module" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${WORKER_NAME}" \
-            -o /tmp/iri-renderer-upload.json
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const body=JSON.parse(fs.readFileSync('/tmp/iri-renderer-upload.json','utf8'));
-          if(body?.success!==true)throw new Error(`IRI_RENDERER_UPLOAD_FAILED:${JSON.stringify(body?.errors||[]).slice(0,500)}`);
-          NODE
-
-          curl --fail-with-body --silent --show-error -X POST \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H 'Content-Type: application/json' \
-            --data '{"enabled":true,"previews_enabled":false}' \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${WORKER_NAME}/subdomain" \
-            -o /tmp/iri-renderer-script-subdomain.json
-          curl --fail-with-body --silent --show-error \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain" \
-            -o /tmp/iri-renderer-account-subdomain.json
-          WORKERS_SUBDOMAIN="$(node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const script=JSON.parse(fs.readFileSync('/tmp/iri-renderer-script-subdomain.json','utf8'));
-          const account=JSON.parse(fs.readFileSync('/tmp/iri-renderer-account-subdomain.json','utf8'));
-          if(script?.success!==true||script?.result?.enabled!==true)throw new Error('IRI_RENDERER_SUBDOMAIN_ENABLE_FAILED');
-          if(account?.success!==true||!account?.result?.subdomain)throw new Error('IRI_RENDERER_ACCOUNT_SUBDOMAIN_MISSING');
-          process.stdout.write(String(account.result.subdomain));
-          NODE
-          )"
-          RENDER_URL="https://${WORKER_NAME}.${WORKERS_SUBDOMAIN}.workers.dev"
-          test -n "${RENDER_URL:-}" || { echo 'IRI_RENDERER_URL_MISSING'; exit 43; }
-
-          IBERFIT_IRI_RENDERER_URL="${RENDER_URL}" IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64="${RENDER_PRIVATE_KEY}" IBERFIT_IRI_RENDERER_AUDIENCE="${RENDER_AUDIENCE}" node --input-type=module <<'NODE'
-          import {createHash,createPrivateKey,randomUUID,sign} from 'node:crypto';
-          const url=process.env.IBERFIT_IRI_RENDERER_URL;
-          const privateKey=createPrivateKey({
-            key:Buffer.from(process.env.IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64,'base64'),
-            format:'der',
-            type:'pkcs8',
-          });
-          const audience=process.env.IBERFIT_IRI_RENDERER_AUDIENCE;
-          const raw=JSON.stringify({html:'<!doctype html><html><body><main class="pdf-page"><h1>IBERFIT QA renderer</h1></main></body></html>'});
-          const timestamp=String(Math.floor(Date.now()/1000));
-          const nonce=randomUUID();
-          const bodySha256=createHash('sha256').update(raw).digest('hex');
-          const signedPayload=`v1\n${timestamp}\n${nonce}\n${audience}\n${bodySha256}`;
-          const signature=sign('sha256',Buffer.from(signedPayload),{key:privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url');
-          let response=null;
-          for(let attempt=0;attempt<3;attempt+=1){
-            try{
-              response=await fetch(url,{
-                method:'POST',
-                headers:{
-                  'content-type':'application/json',
-                  'x-iberfit-renderer-version':'1',
-                  'x-iberfit-renderer-ts':timestamp,
-                  'x-iberfit-renderer-nonce':nonce,
-                  'x-iberfit-renderer-audience':audience,
-                  'x-iberfit-renderer-signature':signature,
-                },
-                body:raw,
-                signal:AbortSignal.timeout(90_000),
-              });
-            }catch{}
-            if(response?.ok)break;
-            await new Promise(resolve=>setTimeout(resolve,1_000));
-          }
-          if(!response?.ok)throw new Error(`IRI_RENDERER_SMOKE_FAILED:${response?.status||0}`);
-          const bytes=new Uint8Array(await response.arrayBuffer());
-          if(bytes.byteLength<1000||new TextDecoder().decode(bytes.slice(0,5))!=='%PDF-'){
-            throw new Error('IRI_RENDERER_SMOKE_PDF_INVALID');
-          }
-          console.log('IRI_RENDERER_QA_SMOKE=GREEN');
-          NODE
-
-          npx --yes supabase@2.117.0 secrets set \
-            IBERFIT_IRI_RENDERER_URL="${RENDER_URL}" \
-            IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64="${RENDER_PRIVATE_KEY}" \
-            IBERFIT_IRI_RENDERER_AUDIENCE="${RENDER_AUDIENCE}" \
-            --project-ref "${M26_PROJECT_REF}"
-
           npx --yes supabase@2.117.0 functions deploy iberfit-iri-report-emission-v1 \
             --project-ref "${M26_PROJECT_REF}" \
             --no-verify-jwt
