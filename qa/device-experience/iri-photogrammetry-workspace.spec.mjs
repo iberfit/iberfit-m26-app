@@ -52,6 +52,8 @@ test('Coach photogrammetry workspace stays usable by keyboard, touch and compact
     if(url.pathname==='/rest/v1/iri_consents_v1')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(consents)});
     if(url.pathname==='/rest/v1/iri_photogrammetry_captures_v1')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(captures)});
     if(url.pathname==='/rest/v1/iri_photogrammetry_analyses_v1')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([analysis])});
+    if(url.pathname==='/rest/v1/iri_photogrammetry_analyses_v2')return route.fulfill({status:200,contentType:'application/json',body:'[]'});
+    if(url.pathname==='/rest/v1/iri_photo_report_permissions_v1')return route.fulfill({status:200,contentType:'application/json',body:'[]'});
     if(url.pathname.startsWith('/storage/v1/object/sign/')){
       if(request.method()==='POST'){
         return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({signedURL:`${url.pathname}?token=qa-device`})});
@@ -97,7 +99,7 @@ test('Coach photogrammetry workspace stays usable by keyboard, touch and compact
   await expect(page.locator('[data-iri-photo-file]:enabled')).toHaveCount(4);
   await expect(page.locator('[name="physicalAssessmentConsent"]')).toBeChecked();
   await expect(page.locator('[data-iri-photo-analysis="validate"]')).toBeEnabled();
-  await expect(shell).toContainText('Sin diagnóstico automático');
+  await expect(shell).toContainText('Sin diagnóstico médico automático');
 
   const point=page.locator('[data-iri-photo-point="front:shoulderLeft"]').first();
   await point.focus();

@@ -66,7 +66,12 @@ export function renderEffortCurve(cardio={}){
 
 const PHOTO_VIEW_LABELS=Object.freeze({front:'Frontal',back:'Posterior',left:'Lateral izquierda',right:'Lateral derecha'});
 
-function iriPhotoSvg(photo,landmarks={},measurements={}){
+function iriMetricValue(item={}){
+  const value=Number(item?.value);
+  if(!Number.isFinite(value))return '—';
+  return `${fmt(value,1)}${item?.unit==='cm'?' cm':'°'}`;
+}
+function iriPhotoSvg(photo,landmarks={},measurements={},calibration={}){
   const width=Number(photo?.widthPx)>0?Number(photo.widthPx):1000;
   const height=Number(photo?.heightPx)>0?Number(photo.heightPx):1500;
   const view=photo?.view;
@@ -80,25 +85,39 @@ function iriPhotoSvg(photo,landmarks={},measurements={}){
     :[['ear','shoulder'],['shoulder','hip'],['hip','ankle']];
   const lines=pairs.map(([a,b])=>{const p1=point(a),p2=point(b);return p1&&p2?`<line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}"/>`:'';}).join('');
   const dots=Object.keys(points).map((key)=>{const p=point(key);return p?`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${Math.max(5,Math.min(width,height)*.008).toFixed(1)}"/>`:'';}).join('');
+  const scale=calibration?.[view];
+  const scaleLine=scale?.pointA&&scale?.pointB
+    ?`<g class="iri-photo-scale"><line x1="${Number(scale.pointA.x)*width}" y1="${Number(scale.pointA.y)*height}" x2="${Number(scale.pointB.x)*width}" y2="${Number(scale.pointB.y)*height}"/><text x="${((Number(scale.pointA.x)+Number(scale.pointB.x))/2)*width}" y="${((Number(scale.pointA.y)+Number(scale.pointB.y))/2)*height}" text-anchor="middle">${esc(fmt(scale.knownLengthCm,1))} cm</text></g>`
+    :'';
   const rows=Array.isArray(measurements?.metrics)?measurements.metrics.filter((item)=>item?.view===view):[];
-  const metricText=rows.slice(0,3).map((item)=>`${item.label}: ${fmt(item.value,1)}°`).join(' · ');
-  return `<figure><svg class="iri-photo-figure-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Fotogrametría · ${esc(PHOTO_VIEW_LABELS[view])}"><image href="${esc(photo.url)}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid meet" referrerpolicy="no-referrer"></image><g class="iri-photo-overlay">${lines}${dots}</g></svg><figcaption><div><strong>${esc(PHOTO_VIEW_LABELS[view])}</strong><span>${photo.capturedAt?esc(String(photo.capturedAt).slice(0,10)):''}</span></div>${metricText?`<small>${esc(metricText)}</small>`:''}</figcaption></figure>`;
+  const metricText=rows.slice(0,5).map((item)=>`${item.label}: ${iriMetricValue(item)}`).join(' · ');
+  return `<figure><svg class="iri-photo-figure-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Fotogrametría · ${esc(PHOTO_VIEW_LABELS[view])}"><image href="${esc(photo.url)}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid meet" referrerpolicy="no-referrer"></image><g class="iri-photo-overlay">${scaleLine}${lines}${dots}</g></svg><figcaption><div><strong>${esc(PHOTO_VIEW_LABELS[view])}</strong><span>${photo.capturedAt?esc(String(photo.capturedAt).slice(0,10)):''}</span></div>${metricText?`<small>${esc(metricText)}</small>`:''}</figcaption></figure>`;
 }
 
 export function renderPhotogrammetryReport(report={}){
   const photos=Array.isArray(report?.photos)?report.photos.filter((item)=>item?.url&&PHOTO_VIEW_LABELS[item?.view]):[];
   const quality=report?.quality||{};
-  if(!photos.length){
-    const detail=report?.reason==='consent'?'No hay consentimiento fotográfico activo para incorporar imágenes.':'No hay capturas disponibles para incorporar a este informe.';
-    return `<section class="iri-photo-report-empty"><span>Fotogrametría</span><h3>No incorporada</h3><p>${esc(detail)}</p><small>La ausencia de fotografías no se transforma en un hallazgo ni modifica la puntuación funcional.</small></section>`;
-  }
+  const measurementRows=Array.isArray(report?.measurements?.metrics)?report.measurements.metrics:[];
+  const support=report?.decisionSupport||{};
+  const supportFindings=Array.isArray(support?.findings)?support.findings:[];
   const signals=Array.isArray(report?.interpretation?.reproducibleSignals)?report.interpretation.reproducibleSignals:[];
   const differences=Array.isArray(report?.interpretation?.observations)?report.interpretation.observations.filter((item)=>item?.kind==='bilateral_difference'):[];
   const findings=[
+    ...supportFindings.slice(0,3).map((item)=>`${item.title}: ${item.meaning}`),
     ...signals.slice(0,2).map((item)=>`${item.label}: ${item.direction} · frontal ${fmt(item.frontDeg,1)}° · posterior ${fmt(item.backDeg,1)}°`),
     ...differences.slice(0,2).map((item)=>`${item.label}: diferencia ${fmt(item.differenceDeg,1)}°`),
   ];
-  return `<div class="iri-photo-report"><div class="iri-photo-report-grid">${photos.map((photo)=>iriPhotoSvg(photo,report?.landmarks||{},report?.measurements||{})).join('')}</div><div class="iri-photo-report-reading"><div><span>Calidad del registro</span><strong>${esc(quality.level==='completa'?'Completa y validada':quality.level==='parcial'?'Parcial':quality.level==='capturas_sin_analisis'?'Capturas sin análisis validado':'Registro disponible')}</strong><small>${esc(`${Number(quality.capturedViews||photos.length)} vistas capturadas · ${Number(quality.analyzedViews||0)} analizadas`)}</small></div>${findings.length?`<ul>${findings.map((item)=>`<li>${esc(item)}</li>`).join('')}</ul>`:'<p>Sin señales geométricas reproducibles destacadas en el análisis validado.</p>'}</div><p class="iri-photo-safety"><strong>Lectura geométrica orientativa.</strong> Una captura estática no define una postura ideal, lesión ni diagnóstico. Se interpreta junto con síntomas, movilidad, fuerza, técnica y repetibilidad.</p></div>`;
+  const meta=`<div class="iri-photo-report-reading"><div><span>Calidad del registro</span><strong>${esc(quality.level==='completa'?'Completa y validada':quality.level==='parcial'?'Parcial':quality.level==='capturas_sin_analisis'?'Capturas sin análisis validado':'Registro disponible')}</strong><small>${esc(`${Number(quality.capturedViews||photos.length)} vistas capturadas · ${Number(quality.analyzedViews||0)} analizadas · ${Number(quality.calibratedViews||0)} calibradas`)}</small></div><div><span>Trazabilidad</span><strong>Revisión ${esc(String(report?.analysisRevision||'—'))}</strong><small>${esc(report?.protocolVersion||'Protocolo histórico')}</small></div>${findings.length?`<ul>${findings.map((item)=>`<li>${esc(item)}</li>`).join('')}</ul>`:'<p>Sin señales geométricas reproducibles destacadas en el análisis validado.</p>'}</div>`;
+  if(!photos.length){
+    const permissionBlocked=report?.reason==='report-permission'||report?.photosAllowed===false;
+    const detail=report?.reason==='consent'
+      ?'No hay consentimiento fotográfico activo para consultar las capturas.'
+      :permissionBlocked
+        ?'El análisis técnico está disponible, pero las fotografías no están autorizadas para aparecer en este informe Cliente.'
+        :'No hay capturas disponibles para incorporar a este documento.';
+    return `<section class="iri-photo-report iri-photo-report-without-images"><div class="iri-photo-report-empty"><span>Fotogrametría</span><h3>Análisis sin imágenes publicadas</h3><p>${esc(detail)}</p><small>${measurementRows.length?'Las medidas y la lectura validada se conservan sin exponer el original.':'La ausencia de fotografías no se transforma en un hallazgo.'}</small></div>${meta}<p class="iri-photo-safety"><strong>Lectura de apoyo al entrenamiento.</strong> Una captura estática no define postura ideal, lesión ni diagnóstico médico.</p></section>`;
+  }
+  return `<div class="iri-photo-report"><div class="iri-photo-report-grid">${photos.map((photo)=>iriPhotoSvg(photo,report?.landmarks||{},report?.measurements||{},report?.calibration||{})).join('')}</div>${meta}<p class="iri-photo-safety"><strong>Lectura de apoyo al entrenamiento.</strong> Una captura estática no define una postura ideal, lesión ni diagnóstico médico. Se interpreta junto con síntomas, movilidad, fuerza, técnica y repetibilidad.</p></div>`;
 }
 
 export function renderSignatureSlot(coachName='Entrenador IBERFIT',signatureUrl=''){
