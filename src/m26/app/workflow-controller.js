@@ -785,7 +785,7 @@ export function createWorkflowController({
         if(!printTarget)throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
       }
       [externalReport,photogrammetryReport]=await Promise.all([
-        getIriExternalReport(draft.assessmentId),
+        getIriExternalReport(draft.assessmentId,{variant}),
         getIriPhotogrammetryReport(draft.assessmentId),
       ]);
       const result=openIriReportPrint({...reportContext(draft),variant,externalReport,photogrammetryReport,printTarget});status(root,iriReportStatusScope(),variant==='client'?'Informe Cliente preparado para guardar como PDF.':'Informe Coach / Admin preparado para guardar como PDF.','success');return result;
