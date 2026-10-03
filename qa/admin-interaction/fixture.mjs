@@ -89,6 +89,7 @@ function clientsVm(){
     canManage:true,
     leads:[],
     clients:structuredClone(people),
+    coaches:[{id:COACH,userId:COACH,name:'Coach Interacción',email:'coach.interaccion@iberfit.cl',status:'active'}],
   };
 }
 
