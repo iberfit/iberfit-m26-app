@@ -63,6 +63,26 @@ export function renderEffortCurve(cardio={}){
   return `<figure class="iri-effort-curve"><svg viewBox="0 0 420 190" role="img" aria-label="Curva de frecuencia cardiaca y recuperación"><line x1="40" y1="150" x2="380" y2="150" class="iri-effort-axis"/><path d="${path}" class="iri-effort-path"/>${pts.map((point,index)=>`<g><circle cx="${point.x}" cy="${point.y}" r="4.5"/><text x="${point.x}" y="${point.y-12}" text-anchor="middle" class="iri-effort-value">${point.value}</text><text x="${point.x}" y="173" text-anchor="middle" class="iri-effort-label">${esc(series[index][0])}</text></g>`).join('')}</svg></figure>`;
 }
 
-export function renderSignatureSlot(coachName='Entrenador IBERFIT'){
-  return `<div class="iri-signature-slot" aria-label="Espacio reservado para la firma real del entrenador"><span>Firma del entrenador</span><div aria-hidden="true"></div><strong>${esc(coachName||'Entrenador IBERFIT')}</strong></div>`;
+
+const PHOTO_VIEW_LABELS=Object.freeze({front:'Frontal',back:'Posterior',left:'Lateral izquierda',right:'Lateral derecha'});
+
+export function renderPhotogrammetryReport(report={}){
+  const photos=Array.isArray(report?.photos)?report.photos.filter((item)=>item?.url&&PHOTO_VIEW_LABELS[item?.view]):[];
+  const quality=report?.quality||{};
+  if(!photos.length){
+    const detail=report?.reason==='consent'?'No hay consentimiento fotográfico activo para incorporar imágenes.':'No hay capturas disponibles para incorporar a este informe.';
+    return `<section class="iri-photo-report-empty"><span>Fotogrametría</span><h3>No incorporada</h3><p>${esc(detail)}</p><small>La ausencia de fotografías no se transforma en un hallazgo ni modifica la puntuación funcional.</small></section>`;
+  }
+  const signals=Array.isArray(report?.interpretation?.reproducibleSignals)?report.interpretation.reproducibleSignals:[];
+  const differences=Array.isArray(report?.interpretation?.observations)?report.interpretation.observations.filter((item)=>item?.kind==='bilateral_difference'):[];
+  const findings=[
+    ...signals.slice(0,2).map((item)=>`${item.label}: ${item.direction} · frontal ${fmt(item.frontDeg,1)}° · posterior ${fmt(item.backDeg,1)}°`),
+    ...differences.slice(0,2).map((item)=>`${item.label}: diferencia ${fmt(item.differenceDeg,1)}°`),
+  ];
+  return `<div class="iri-photo-report"><div class="iri-photo-report-grid">${photos.map((photo)=>`<figure><img src="${esc(photo.url)}" alt="Fotogrametría · ${esc(PHOTO_VIEW_LABELS[photo.view])}" referrerpolicy="no-referrer"><figcaption><strong>${esc(PHOTO_VIEW_LABELS[photo.view])}</strong><span>${photo.capturedAt?esc(String(photo.capturedAt).slice(0,10)):''}</span></figcaption></figure>`).join('')}</div><div class="iri-photo-report-reading"><div><span>Calidad del registro</span><strong>${esc(quality.level==='completa'?'Completa y validada':quality.level==='parcial'?'Parcial':quality.level==='capturas_sin_analisis'?'Capturas sin análisis validado':'Registro disponible')}</strong><small>${esc(`${Number(quality.capturedViews||photos.length)} vistas capturadas · ${Number(quality.analyzedViews||0)} analizadas`)}</small></div>${findings.length?`<ul>${findings.map((item)=>`<li>${esc(item)}</li>`).join('')}</ul>`:'<p>Sin señales geométricas reproducibles destacadas en el análisis validado.</p>'}</div><p class="iri-photo-safety"><strong>Lectura geométrica orientativa.</strong> Una captura estática no define una postura ideal, lesión ni diagnóstico. Se interpreta junto con síntomas, movilidad, fuerza, técnica y repetibilidad.</p></div>`;
+}
+
+export function renderSignatureSlot(coachName='Entrenador IBERFIT',signatureUrl=''){
+  const image=signatureUrl?`<img class="iri-signature-image" src="${esc(signatureUrl)}" alt="Firma de ${esc(coachName||'Entrenador IBERFIT')}">`:'<div class="iri-signature-line" aria-hidden="true"></div>';
+  return `<div class="iri-signature-slot" aria-label="Firma del entrenador"><span>Firma del entrenador</span>${image}<strong>${esc(coachName||'Entrenador IBERFIT')}</strong></div>`;
 }
