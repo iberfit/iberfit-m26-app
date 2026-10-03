@@ -39,7 +39,6 @@ import {rankCoachClientDocuments} from '../productivity/coach-productivity.js';
 import {classifyCoachListMeasurement,decideCoachVirtualization,markCoachListMeasurement} from '../productivity/large-list-policy.js';
 
 const IRI_DRAFT_SCOPE='iri-first-session';
-const IRI_REMOTE_DRAFT_SCOPE='iri-first-session';
 const IRI_REMOTE_SYNC_DELAY_MS=4_000;
 const PUBLISHED_SESSION_STATES=new Set(['published','publicado','active','activo','enabled','habilitado']);
 const IRI_FIELD_LABELS=Object.freeze({
@@ -731,10 +730,12 @@ export function createWorkflowController({
   }
   async function persistIriRemoteDraft(clientId,draft,form=null){
     if(typeof upsertRemoteDraft!=='function'||!isOnline())return false;
+    const assessmentId=String(draft?.assessmentId||recordId(currentIriRecord(form))||'').trim();
+    if(!assessmentId)return false;
     const snapshot=structuredClone(draft);
     const payload={
       clientId,
-      scope:IRI_REMOTE_DRAFT_SCOPE,
+      assessmentId,
       revision:Number(currentIriRecord(form)?.revision||0),
       draft:snapshot,
     };
@@ -756,12 +757,16 @@ export function createWorkflowController({
     return Object.freeze({local,remote});
   }
   async function clearIriDraftBackups(clientId,draft,form=null){
+    clearTimeout(iriSaveTimer);
+    clearTimeout(iriRemoteSaveTimer);
+    await iriRemoteSaveChain.catch(()=>{});
     for(const scope of new Set([iriDraftStorageScope(draft,form),IRI_DRAFT_SCOPE])){
       try{await draftRepository?.remove?.(clientId,scope);}
       catch(error){emit(root,'m26:workflow-error',{action:'delete-iri-draft-local',code:String(error?.message||error||'M26_IRI_LOCAL_DRAFT_DELETE_FAILED')});}
     }
-    if(typeof deleteRemoteDraft==='function'&&isOnline()){
-      try{await Promise.resolve(deleteRemoteDraft(clientId,IRI_REMOTE_DRAFT_SCOPE));}
+    const assessmentId=String(draft?.assessmentId||recordId(currentIriRecord(form))||'').trim();
+    if(assessmentId&&typeof deleteRemoteDraft==='function'&&isOnline()){
+      try{await Promise.resolve(deleteRemoteDraft(clientId,assessmentId));}
       catch(error){emit(root,'m26:workflow-error',{action:'delete-iri-draft-remote',code:String(error?.message||error||'M26_IRI_REMOTE_DRAFT_DELETE_FAILED')});}
     }
   }
@@ -814,10 +819,11 @@ export function createWorkflowController({
       if(localRecord?.value&&!iriDraftMatchesCurrent(localRecord.value,clientId,form))localRecord=null;
 
       let remoteRecord=null;
-      if(typeof getRemoteDraft==='function'&&isOnline()){
+      const currentAssessmentId=String(recordId(currentIriRecord(form))||'').trim();
+      if(currentAssessmentId&&typeof getRemoteDraft==='function'&&isOnline()){
         try{
-          const result=await Promise.resolve(getRemoteDraft(clientId,IRI_REMOTE_DRAFT_SCOPE));
-          if(result?.found===true&&iriDraftMatchesCurrent(result.draft,clientId,form)){
+          const result=await Promise.resolve(getRemoteDraft(clientId,currentAssessmentId));
+          if(result?.found===true&&String(result.assessmentId||'')===currentAssessmentId&&iriDraftMatchesCurrent(result.draft,clientId,form)){
             remoteRecord={value:structuredClone(result.draft),updatedAt:result.updatedAt||null,remote:true};
           }
         }catch(error){
