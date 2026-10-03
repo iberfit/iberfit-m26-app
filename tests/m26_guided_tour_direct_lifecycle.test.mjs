@@ -74,10 +74,19 @@ function createHarness(){
     },
     emit(type,event){for(const handler of documentListeners.get(type)||[])handler(event);},
   };
+  const rootListeners=new Map();
   const root={
     ownerDocument:documentLike,
-    addEventListener(){},
-    removeEventListener(){},
+    addEventListener(type,handler){
+      const list=rootListeners.get(type)||[];
+      list.push(handler);
+      rootListeners.set(type,list);
+    },
+    removeEventListener(type,handler){
+      const list=rootListeners.get(type)||[];
+      rootListeners.set(type,list.filter((item)=>item!==handler));
+    },
+    emit(type,event){for(const handler of rootListeners.get(type)||[])handler(event);},
     dispatchEvent(){},
     querySelector(selector){
       if(selector==='[data-m26-area][aria-current="page"]')return activeArea;
@@ -200,3 +209,33 @@ test('skip and finish also reconcile direct open state without callback failures
     controller.destroy();
   }
 });
+
+test('opening mobile Más pauses the guided tour without losing its in-progress step',()=>{
+  const harness=createHarness();
+  const controller=publicApi.createGuidedTourController({
+    ...harness,
+    identityProvider:()=>({role:'admin',userId:'admin-mobile-more-user'}),
+  });
+
+  controller.mount();
+  assert.equal(controller.open(),true);
+  const before=controller.getState();
+  assert.equal(before?.status,'in-progress');
+  assert.ok(before?.activeStepId);
+  assert.equal(controller.isOpen(),true);
+
+  harness.root.emit('click',{
+    target:{
+      closest(selector){
+        return selector==='.m26-mobile-more > summary'?{}:null;
+      },
+    },
+  });
+
+  assert.equal(controller.isOpen(),false,'explicit mobile navigation must take interaction priority over onboarding');
+  const after=controller.getState();
+  assert.equal(after?.status,'in-progress','opening Más must pause rather than skip or complete onboarding');
+  assert.equal(after?.activeStepId,before.activeStepId,'the same guided step must remain available for the next continuation');
+  controller.destroy();
+});
+
