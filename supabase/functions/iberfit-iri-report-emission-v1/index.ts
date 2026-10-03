@@ -303,6 +303,15 @@ async function pdfImage(doc:any,url:string){
   }catch{}
   return null;
 }
+async function pdfSvgPath(url:string){
+  try{
+    const response=await fetch(url,{signal:AbortSignal.timeout(12_000)});
+    if(!response.ok)return '';
+    const svg=await response.text();
+    return svg.match(/<path\b[^>]*\bd=["']([^"']+)["']/iu)?.[1]||'';
+  }catch{return '';}
+}
+
 function pdfFit(image:any,w:number,h:number){
   const scale=Math.min(w/image.width,h/image.height);
   return {w:image.width*scale,h:image.height*scale};
@@ -380,7 +389,7 @@ function pdfPhotoDecisionRows(report:any){
   const considerations=Array.isArray(support?.trainingConsiderations)?support.trainingConsiderations.slice(0,2):[];
   return considerations.map((item:any)=>pdfSafe(item,300));
 }
-async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoReport,annex,appOrigin,assessmentMeta}:any){
+async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoReport,annex,appOrigin,assessmentMeta,signatureEligible}:any){
   const doc=await PDFDocument.create();
   doc.setTitle('Informe IRI · '+pdfSafe(clientName,120));
   doc.setAuthor('IBERFIT');
@@ -399,6 +408,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
   const global=scoring?.global||{};
   const completion=firstSessionCompletion(draft);
   const logo=await pdfImage(doc,appOrigin+'/public/isotipo-iberfit.png');
+  const signaturePath=signatureEligible?await pdfSvgPath(appOrigin+'/m26/assets/iberfit-signature-carlos.svg'):'';
   if(logo)fonts.brandMark=logo;
 
   let n=1;
@@ -529,6 +539,10 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     y=pdfField(page,fonts,'REVISIÓN / REEVALUACIÓN',diagnosis?.reevaluationDate?pdfDate(diagnosis.reevaluationDate):'Fecha por definir',y);
     const protocols=(Array.isArray(draft?.protocolRecords)?draft.protocolRecords:[]).slice(0,6).map((record:any)=>pdfJoin([record?.testName,record?.variant,record?.configuration,record?.protocolVersion]));
     pdfField(page,fonts,'QUÉ DEBE REPETIRSE DE FORMA COMPARABLE',protocols.length?protocols.join(' | '):'Repetir las mismas variantes, configuraciones y protocolos registrados cuando corresponda',y);
+    if(signaturePath){
+      page.drawSvgPath(signaturePath,{x:PDF_W-PDF_M-150,y:190,scale:.23,color:PDF_C.ink,opacity:.92});
+      page.drawText('Carlos · IBERFIT',{x:PDF_W-PDF_M-142,y:116,size:7.2,font:fonts.serifItalic,color:PDF_C.muted});
+    }
     pdfText(page,fonts.regular,'La puntuación funcional no incorpora composición corporal ni fotogrametría. Las decisiones se apoyan en resultados, contexto, calidad de dato y criterio profesional.',PDF_M,78,PDF_W-PDF_M*2,8.4,11.5,PDF_C.ink2,5);
   }
 
@@ -748,7 +762,7 @@ function reportDraft(assessment:any){
   if(!record.assessmentDate&&assessment.evaluated_at)record.assessmentDate=String(assessment.evaluated_at).slice(0,10);
   return confirmedFirstSessionDraft(record,assessment.client_id);
 }
-async function issueReport({userClient,service,actorUserId,assessmentId,audience,appOrigin}:any){
+async function issueReport({userClient,service,actorUserId,actorEmail,assessmentId,audience,appOrigin}:any){
   const authz=await userClient.rpc('iberfit_authorize_iri_report_issue_v1',{p_assessment_id:assessmentId,p_audience:audience});
   if(authz.error)throw authz.error;
   if(!authz.data?.ok)throw new Error('IRI_REPORT_ISSUE_NOT_AUTHORIZED');
@@ -798,7 +812,7 @@ async function issueReport({userClient,service,actorUserId,assessmentId,audience
   const sourceHash=await sha256(sourceJson);
   if(!SHA256.test(sourceHash))throw new Error('IRI_REPORT_SOURCE_HASH_INVALID');
 
-  let pdf=await renderPdf({draft,audience,clientName:clientResult.data.name||'Cliente IBERFIT',coachName,iriOnly:authz.data?.iriOnly===true,photoReport:photoState.report,annex,appOrigin,assessmentMeta:{protocolVersion:assessment.protocol_version,completedAt:assessment.completed_at}});
+  let pdf=await renderPdf({draft,audience,clientName:clientResult.data.name||'Cliente IBERFIT',coachName,iriOnly:authz.data?.iriOnly===true,photoReport:photoState.report,annex,appOrigin,assessmentMeta:{protocolVersion:assessment.protocol_version,completedAt:assessment.completed_at},signatureEligible:/carlos/iu.test(coachName)||String(actorEmail||'').toLowerCase()==='iberfit.cl@gmail.com'});
   pdf=await appendExternal(pdf,externalBytes,annex);
   if(pdf.byteLength<=1000||pdf.byteLength>MAX_ARTIFACT_BYTES)throw new Error('IRI_REPORT_ARTIFACT_SIZE_INVALID');
   const artifactHash=await sha256(pdf);
@@ -887,6 +901,7 @@ Deno.serve(async(req:Request)=>{
   });
   const auth=await userClient.auth.getUser(token);
   const actorUserId=String(auth.data?.user?.id||'');
+  const actorEmail=String(auth.data?.user?.email||'').trim().toLowerCase();
   if(auth.error||!UUID.test(actorUserId))return json(401,{ok:false,code:'IRI_REPORT_AUTH_REQUIRED',version:FUNCTION_VERSION},origin,allowed);
   const service=createClient(supabaseUrl,secretKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
 
@@ -907,7 +922,7 @@ Deno.serve(async(req:Request)=>{
       const assessmentId=assertUuid(body?.assessmentId,'IRI_REPORT_ASSESSMENT_INVALID');
       const audience=audienceDb(body?.audience);
       const result=await issueReport({
-        userClient,service,actorUserId,assessmentId,audience,appOrigin,
+        userClient,service,actorUserId,actorEmail,assessmentId,audience,appOrigin,
       });
       return json(200,{ok:true,version:FUNCTION_VERSION,...result},origin,allowed);
     }
