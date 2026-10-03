@@ -134,6 +134,10 @@ test('emission broker renders immutable PDFs inside Supabase with IBERFIT tokens
   assert.match(source,/source_sha256/u);
   assert.match(source,/assessmentMeta\?\.protocolVersion/u);
   assert.match(source,/assessmentMeta\?\.completedAt/u);
+  assert.match(source,/fonts\.brandMark/u);
+  assert.match(source,/pdfStrengthVariant/u);
+  assert.match(source,/pdfPhotoMeasurementRows/u);
+  assert.match(source,/Lectura para entrenamiento/u);
 });
 test('UI separates preview from immutable emission',()=>{
   const route=fs.readFileSync(new URL('../src/m26/modules/route-render.js',import.meta.url),'utf8');
