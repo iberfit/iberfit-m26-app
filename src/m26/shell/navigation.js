@@ -5,15 +5,15 @@ export const M26_AREAS = Object.freeze({
   acceso: Object.freeze({ key: 'acceso', label: 'Acceso', title: 'Acceso IBERFIT', scope: 'public', roles: [] }),
   hoy: Object.freeze({ key: 'hoy', label: 'Hoy', title: 'Hoy en IBERFIT', scope: 'global', roles: ['coach', 'client'] }),
   clientes: Object.freeze({ key: 'clientes', label: 'Clientes', title: 'Clientes', scope: 'global', roles: ['coach'] }),
-  expediente: Object.freeze({ key: 'expediente', label: 'Expediente', title: 'Expediente IBERFIT', scope: 'selected-client', roles: ['coach','admin'] }),
-  iri: Object.freeze({ key: 'iri', label: 'Diagnóstico IRI', title: 'Diagnóstico IRI', scope: 'selected-client', roles: ['coach','admin'] }),
-  informes: Object.freeze({ key: 'informes', label: 'Informes', title: 'Informes', scope: 'client-context', roles: ['coach','client','admin'] }),
+  expediente: Object.freeze({ key: 'expediente', label: 'Expediente', title: 'Expediente IBERFIT', scope: 'selected-client', roles: ['coach'] }),
+  iri: Object.freeze({ key: 'iri', label: 'Diagnóstico IRI', title: 'Diagnóstico IRI', scope: 'selected-client', roles: ['coach'] }),
+  informes: Object.freeze({ key: 'informes', label: 'Informes', title: 'Informes', scope: 'client-context', roles: ['coach','client'] }),
   planificacion: Object.freeze({ key: 'planificacion', label: 'Planificación', title: 'Planificación', scope: 'client-context', roles: ['coach', 'client'] }),
   agenda: Object.freeze({ key: 'agenda', label: 'Agenda', title: 'Agenda', scope: 'global', roles: ['coach'] }),
   sesion: Object.freeze({ key: 'sesion', label: 'Sesiones', title: 'Sesiones', scope: 'client-context', roles: ['coach', 'client'] }),
   progreso: Object.freeze({ key: 'progreso', label: 'Progreso', title: 'Progreso y seguimiento', scope: 'client-context', roles: ['coach', 'client'] }),
   actividad: Object.freeze({ key: 'actividad', label: 'Actividad', title: 'Actividad, hábitos y dispositivos', scope: 'client-context', roles: ['coach', 'client'] }),
-  notas: Object.freeze({ key: 'notas', label: 'Notas privadas', title: 'Notas privadas del entrenador', scope: 'selected-client', roles: ['coach','admin'] }),
+  notas: Object.freeze({ key: 'notas', label: 'Notas privadas', title: 'Notas privadas del entrenador', scope: 'selected-client', roles: ['coach'] }),
   inteligencia: Object.freeze({ key: 'inteligencia', label: 'Inteligencia', title: 'Inteligencia IBERFIT', scope: 'selected-client', roles: ['coach'] }),
   biblioteca: Object.freeze({ key: 'biblioteca', label: 'Biblioteca', title: 'Biblioteca visual', scope: 'global', roles: ['coach','admin'] }),
   retos: Object.freeze({ key: 'retos', label: 'Retos y comunidad', title: 'Retos y comunidad', scope: 'client-context', roles: ['coach', 'client'] }),
@@ -53,7 +53,6 @@ export function areaDefinition(value){const key=canonicalArea(value);return key?
 function resolveItems(keys){return keys.map((key)=>M26_AREAS[key]);}
 export function navigationForRole(value){const role=assertKnownRole(value);const model=NAVIGATION[role];return Object.freeze({role,primary:Object.freeze(resolveItems(model.primary)),context:Object.freeze(resolveItems(model.context)),tools:Object.freeze(resolveItems(model.tools)),mobile:Object.freeze(resolveItems(model.mobile))});}
 export function roleHome(value){const role=assertKnownRole(value);return role==='admin'?'admin-inicio':'hoy';}
-const ADMIN_CONTEXT_AREAS=new Set(['expediente','iri','informes','notas']);
 export function areaAllowedForRole(area,role){
   const definition=areaDefinition(area);
   const normalized=assertKnownRole(role);
@@ -61,7 +60,7 @@ export function areaAllowedForRole(area,role){
     const key=definition?.key||'';
     return Boolean(
       definition?.roles?.includes('admin')&&
-      (key.startsWith('admin-')||key==='biblioteca'||ADMIN_CONTEXT_AREAS.has(key))
+      (key.startsWith('admin-')||key==='biblioteca')
     );
   }
   return Boolean(definition?.roles?.includes(normalized));
