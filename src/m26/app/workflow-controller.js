@@ -501,7 +501,21 @@ export function createWorkflowController({
     let ageYears=null;
     try{ageYears=deriveAgeYears(birthDate,raw.assessmentDate||normalized?.assessmentDate||new Date().toISOString().slice(0,10));}catch{}
     const normContext={sexForNorms:raw.sexForNorms||normalized?.personProfile?.sexForNorms,ageYears};
-    const scoring=normalized?scoreIriPerformance({...normalized,ageYears}):null;
+    let scoring=null;
+    try{scoring=normalized?scoreIriPerformance({...normalized,ageYears}):null;}catch{}
+    if(normalized){
+      const derived={
+        'ankle-left':normalized.mobility?.ankle?.leftBest,
+        'ankle-right':normalized.mobility?.ankle?.rightBest,
+        'ankle-diff':normalized.mobility?.ankle?.asymmetryCm,
+        'posterior-diff':normalized.mobility?.posteriorChain?.asymmetryCm,
+      };
+      for(const [key,value] of Object.entries(derived)){
+        const node=form.querySelector?.(`[data-iri-computed="${key}"]`);
+        if(!node)continue;
+        node.textContent=value===null||value===undefined||!Number.isFinite(Number(value))?'—':`${Number(value).toFixed(1)} cm`;
+      }
+    }
     const mobilityTests=scoring?.domainScores?.mobility?.tests||[];
     const normResults={
       ankleLeft:mobilityTests.find((item)=>item.side==='left'||item.side==='bilateral')||null,
@@ -701,9 +715,20 @@ export function createWorkflowController({
     try{control?.focus?.();}catch{}
     throw error;
   }
+  async function persistIriDraftBackup(clientId,draft){
+    if(!draftRepository?.save)return true;
+    try{await draftRepository.save(clientId,IRI_DRAFT_SCOPE,draft);return true;}
+    catch(error){
+      emit(root,'m26:workflow-error',{action:'save-iri-draft-local',code:String(error?.message||error||'M26_IRI_LOCAL_DRAFT_SAVE_FAILED')});
+      return false;
+    }
+  }
   async function saveIriDraft({silent=false}={}){
     requireCoach();const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)throw new Error('M26_IRI_FORM_REQUIRED');assertIriRawRanges(form);const draft=iriDraft(form);const {clientId}=context();
-    await draftRepository?.save?.(clientId,IRI_DRAFT_SCOPE,draft);computed(form,draft);if(!silent)status(root,'iri','Borrador guardado en este dispositivo.','success');return draft;
+    const saved=await persistIriDraftBackup(clientId,draft);
+    try{computed(form,draft);}catch{}
+    if(!silent)status(root,'iri',saved?'Borrador guardado en este dispositivo.':'La etapa queda disponible para continuar, aunque el respaldo local no pudo actualizarse.','success');
+    return draft;
   }
   function queueIriSave(){clearTimeout(iriSaveTimer);iriSaveTimer=setTimeout(()=>{void saveIriDraft({silent:true}).catch(()=>{});},650);}
   function onboardingRaw(form){return values(form);}
@@ -751,7 +776,7 @@ export function createWorkflowController({
   async function completeIri(){
     requireCoach();const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)throw new Error('M26_IRI_FORM_REQUIRED');const current=currentIriRecord(form);const draft=iriDraft(form);const check=validateFirstSessionDraft(draft);
     if(!check.ok){const first=IRI_FIRST_SESSION_STEPS.find((step)=>check.byStep[step]?.length)||'revision';const pending=Object.entries(check.byStep).flatMap(([step,items])=>items.map((item)=>({step,item,label:IRI_FIELD_LABELS[item]||item})));setIriStep(form,IRI_FIRST_SESSION_STEPS.indexOf(first));showStepValidation(form,first,check.byStep[first]);focusIriValidationError(form,check.byStep[first]);const error=new Error(`M26_IRI_FIRST_SESSION_INVALID:${check.errors.join(',')}`);error.userMessage=`No puedes confirmar todavía: faltan ${pending.length} ${pending.length===1?'elemento':'elementos'}. ${pending.map(({label})=>label).join(', ')}.`;throw error;}
-    assertPhysicalAssessmentConsent(form);assertNormContextAccepted(form);assertNoUnpersistedIriAttachment(form);assertIriRawRanges(form);const commandDraft=buildIriCommandDraftFromFirstSession(draft,current);await draftRepository?.save?.(draft.clientId,IRI_DRAFT_SCOPE,draft);
+    assertPhysicalAssessmentConsent(form);assertNormContextAccepted(form);assertNoUnpersistedIriAttachment(form);assertIriRawRanges(form);const commandDraft=buildIriCommandDraftFromFirstSession(draft,current);await persistIriDraftBackup(draft.clientId,draft);
     if(typeof ensureIriPhysicalConsent!=='function')throw new Error('M26_IRI_PHYSICAL_CONSENT_SERVICE_UNAVAILABLE');
     status(root,'iri','Registrando consentimiento y confirmando la evaluación…','pending');
     await withTimeout(Promise.resolve(ensureIriPhysicalConsent({clientId:draft.clientId,assessmentId:current.id,accepted:true,note:'Consentimiento para evaluación física IRI registrado al confirmar el baseline inicial.'})),15_000,'M26_IRI_PHYSICAL_CONSENT_TIMEOUT');
@@ -763,10 +788,10 @@ export function createWorkflowController({
   async function moveIri(direction){
     requireCoach();const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)throw new Error('M26_IRI_FORM_REQUIRED');const index=Number(form.dataset.iriStepIndex||0);
     if(direction>0){assertIriRawRanges(form);const step=IRI_FIRST_SESSION_STEPS[index];if(step==='entrevista')assertPhysicalAssessmentConsent(form);const draft=iriDraft(form);const check=validateFirstSessionStep(draft,step);showStepValidation(form,step,check.errors);if(!check.ok){focusIriValidationError(form,check.errors);throw new Error(`M26_IRI_STEP_INVALID:${step}:${check.errors.join(',')}`);}await saveIriDraft({silent:true});}
-    setIriStep(form,index+direction,{focus:true});computed(form);
+    setIriStep(form,index+direction,{focus:true});try{computed(form);}catch{}
   }
   async function jumpIri(index){
-    const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)return;const current=Number(form.dataset.iriStepIndex||0);if(index>current){assertIriRawRanges(form);const step=IRI_FIRST_SESSION_STEPS[current];if(step==='entrevista')assertPhysicalAssessmentConsent(form);const check=validateFirstSessionStep(iriDraft(form),step);showStepValidation(form,step,check.errors);if(!check.ok){focusIriValidationError(form,check.errors);status(root,'iri','Completa la etapa actual antes de avanzar.','error');return;}await saveIriDraft({silent:true});}setIriStep(form,index,{focus:true});computed(form);
+    const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)return;const current=Number(form.dataset.iriStepIndex||0);if(index>current){assertIriRawRanges(form);const step=IRI_FIRST_SESSION_STEPS[current];if(step==='entrevista')assertPhysicalAssessmentConsent(form);const check=validateFirstSessionStep(iriDraft(form),step);showStepValidation(form,step,check.errors);if(!check.ok){focusIriValidationError(form,check.errors);status(root,'iri','Completa la etapa actual antes de avanzar.','error');return;}await saveIriDraft({silent:true});}setIriStep(form,index,{focus:true});try{computed(form);}catch{}
   }
   function reportContext(draft){const {state,clientId}=context();const client=(state.collections.clients||[]).find((item)=>item.id===clientId);const identity=state.identity||{};const lifecycle=String(client?.lifecycleStatus||client?.lifecycle_status||client?.lifecycle?.status||'').trim().toLowerCase();const coachName=String(identity.name||identity.fullName||identity.email||'Coach IBERFIT');const coachIdentity=[identity.name,identity.fullName,identity.email].filter(Boolean).join(' ').toLowerCase();let logoUrl='/public/isotipo-iberfit.png';let signatureUrl=/carlos|iberfit\.cl@gmail\.com/u.test(coachIdentity)?'/m26/assets/iberfit-signature-carlos.svg':'';try{const origin=globalThis.location?.origin||'https://m26-canary.iberfit.cl';logoUrl=new URL('/public/isotipo-iberfit.png',origin).href;if(signatureUrl)signatureUrl=new URL(signatureUrl,origin).href;}catch{}
     return {draft,clientId,clientName:clientName(client),coachName,logoUrl,signatureUrl,iriOnly:lifecycle==='iri_only'};
@@ -875,14 +900,14 @@ export function createWorkflowController({
   async function onSubmit(event){const createForm=event.target.closest?.('[data-exercise-create-form]');if(createForm){event.preventDefault?.();await createLibraryExercise(createForm);return;}const renameForm=event.target.closest?.('[data-exercise-rename-form]');if(renameForm){event.preventDefault?.();await renameLibraryExercise(renameForm);return;}const form=event.target.closest?.('[data-workflow-form]');if(!form)return;event.preventDefault?.();const button=event.submitter?.matches?.('[data-workflow-action]')?event.submitter:form.querySelector?.('[data-workflow-action][type="submit"]');if(!button)return;await executeWorkflowAction(button.getAttribute('data-workflow-action'),button);}
   function onInput(event){
     const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(iriForm){
-      computed(iriForm);clearStatus(root,'iri');queueIriSave();return;
+      try{computed(iriForm);}catch{}clearStatus(root,'iri');queueIriSave();return;
     }
     const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');queueOnboardingSave(onboardingForm);return;}
     const appointmentForm=event.target.closest?.('[data-workflow-form="appointment"]');if(appointmentForm){clearControlValidation(event.target);clearStatus(root,'appointment');syncAppointmentFormState(appointmentForm,root);return;}
     const clientSearch=event.target.closest?.('[data-client-search]');if(clientSearch){scheduleClientListUpdate(clientSearch.value);return;}
     const search=event.target.closest?.('[data-library-search]');if(search){updateLibrary();return;}
   }
-  function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;computed(iriForm);queueIriSave();}
+  function onChange(event){const onboardingForm=event.target.closest?.('[data-workflow-form="client-onboarding"]');if(onboardingForm){editedOnboardingForms.add(onboardingForm);clearControlValidation(event.target);clearStatus(root,'client-onboarding');syncOnboardingFormState(onboardingForm);queueOnboardingSave(onboardingForm);return;}const clientControl=event.target.closest?.('[data-client-filter],[data-client-sort]');if(clientControl){cancelScheduledClientListUpdate();updateClientList();return;}const filter=event.target.closest?.('[data-library-filter]');if(filter){updateLibrary();return;}const iriForm=event.target.closest?.('[data-workflow-form="iri"]');if(!iriForm)return;try{computed(iriForm);}catch{}queueIriSave();}
 
   function onPageHide(){const form=root.querySelector?.('[data-workflow-form="client-onboarding"]');if(form)void saveOnboardingDraft(form).catch(()=>{});}
   return Object.freeze({
