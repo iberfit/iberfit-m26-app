@@ -15,16 +15,21 @@ test('mobile guided tour clears the bottom navigation and stays below the open M
   const openNavRule=shell.match(/\.m26-mobile-nav:has\(\.m26-mobile-more\[open\]\)\s*\{\s*z-index:\s*(\d+);\s*\}/u);
   assert.ok(openNavRule,'la navegación móvil debe elevarse sólo cuando Más está abierto');
 
+  const openShellRule=shell.match(/\.m26-shell:has\(\.m26-mobile-more\[open\]\)\s*\{\s*z-index:\s*(\d+);\s*\}/u);
+  assert.ok(openShellRule,'el shell aislado debe elevar su stacking context mientras Más está abierto');
+
   const menuRule=shell.match(/\.m26-mobile-more-menu\s*\{[^}]*position:\s*fixed;[^}]*z-index:\s*(\d+);[^}]*\}/su);
   assert.ok(menuRule,'Más debe conservar una capa explícita dentro del stacking context elevado');
 
   const guidedTourZ=Number(tourRule[1]);
   const baseNavZ=Number(baseNavRule[1]);
   const openNavZ=Number(openNavRule[1]);
+  const openShellZ=Number(openShellRule[1]);
   const menuZ=Number(menuRule[1]);
-  assert.ok([guidedTourZ,baseNavZ,openNavZ,menuZ].every(Number.isFinite));
+  assert.ok([guidedTourZ,baseNavZ,openNavZ,openShellZ,menuZ].every(Number.isFinite));
   assert.ok(baseNavZ<guidedTourZ,'el Genio debe seguir por encima de la barra móvil cuando Más está cerrado');
-  assert.ok(openNavZ>guidedTourZ,'Más debe elevar todo su stacking context por encima del Genio mientras está abierto');
+  assert.ok(openNavZ>guidedTourZ,'Más debe elevar su navegación por encima del Genio mientras está abierto');
+  assert.ok(openShellZ>guidedTourZ,'el stacking context raíz del shell debe superar al Genio mientras Más está abierto');
   assert.ok(menuZ>0,'el menú debe conservar una capa interna explícita');
 
   assert.doesNotMatch(
