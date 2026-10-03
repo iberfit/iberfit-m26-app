@@ -175,6 +175,8 @@ test('QA real-write gate deploys and certifies the exact self-contained report b
   assert.match(gate,/clientHistoryPrivateMetadataHidden:true/u);
   assert.match(gate,/withdrawalRequiresPrivilegedAssurance:true/u);
   assert.match(workflow,/qa-issued-report\.pdf/u);
+  assert.match(workflow,/qa-issued-client\.pdf/u);
+  assert.match(workflow,/qa-issued-coach\.pdf/u);
   assert.match(gate,/fs\.writeFileSync\(pdfEvidencePath,pdfBytes\)/u);
 });
 
