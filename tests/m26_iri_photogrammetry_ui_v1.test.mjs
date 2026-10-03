@@ -53,7 +53,7 @@ test('authenticated application mounts and destroys photogrammetry controller',(
   assert.match(source,/createIriPhotogrammetryController/u);
   assert.match(source,/name:'iri-photogrammetry',controller:iriPhotogrammetry/u);
   assert.match(source,/ensureIriPhysicalConsent:\(payload\)=>iriPhotogrammetry\.ensurePhysicalConsent\(payload\)/u);
-  assert.match(source,/getIriPhotogrammetryReport:\(assessmentId\)=>iriPhotogrammetry\.clientSnapshotForPdf\(assessmentId\)/u);
+  assert.match(source,/getIriPhotogrammetryReport:\(assessmentId,\{variant='client'\}=\{\}\)=>iriPhotogrammetry\.clientSnapshotForPdf\(assessmentId,\{audience:variant==='coach'\?'coach':'client'\}\)/u);
   assert.match(source,/iriPhotogrammetry\?\.destroy\?\.\(\)/u);
 });
 
@@ -74,15 +74,15 @@ test('report generation uses consent-gated photogrammetry without exposing stora
   assert.doesNotMatch(report,/iri_photogrammetry_captures_v1|object_path/iu);
   assert.match(controller,/clientSnapshotForPdf/u);
   assert.match(controller,/photographyConsent/u);
-  assert.match(controller,/signedUrlsFor\(snapshot,token\)/u);
-  assert.match(app,/getIriPhotogrammetryReport:\(assessmentId\)=>iriPhotogrammetry\.clientSnapshotForPdf\(assessmentId\)/u);
+  assert.match(controller,/const urls=photosAllowed\?await signedUrlsFor\(snapshot,token\):\{\}/u);
+  assert.match(app,/getIriPhotogrammetryReport:\(assessmentId,\{variant='client'\}=\{\}\)=>iriPhotogrammetry\.clientSnapshotForPdf\(assessmentId,\{audience:variant==='coach'\?'coach':'client'\}\)/u);
 });
 
 test('photogrammetry workspace has mobile, keyboard, touch and strict-CSP affordances',()=>{
   const css=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry.css',import.meta.url),'utf8');
   const controller=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-controller.js',import.meta.url),'utf8');
   assert.match(css,/touch-action:pan-y pinch-zoom/u);
-  assert.match(css,/\\.m26-photo-point\\{[^}]*touch-action:none/u);
+  assert.match(css,/\.m26-photo-point\{[^}]*touch-action:none/u);
   assert.match(css,/:focus-visible/u);
   assert.match(css,/@media\(max-width:640px\)/u);
   assert.match(css,/\.m26-photo-point-hit/u);
