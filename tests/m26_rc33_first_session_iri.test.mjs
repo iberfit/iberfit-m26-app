@@ -84,7 +84,7 @@ test('informes Cliente y Coach usan A4, isotipo, marca de agua y páginas cerrad
   assert.equal((client.match(/class="pdf-page/g)||[]).length,10);assert.ok((coach.match(/class="pdf-page/g)||[]).length>=16);
   assert.match(reportCss,/@page\{size:A4/u);assert.match(reportCss,/overflow:hidden/u);assert.match(reportCss,/width:210mm!important;[\s\S]*height:297mm!important/u);
   for(const html of [client,coach]){assert.match(html,/rel="stylesheet"[^>]+data-iri-report-stylesheet/u);assert.doesNotMatch(html,/<style\b/iu);assert.match(html,/class="[^"]*watermark[^"]*"/);assert.match(html,/isotipo-iberfit\.png/);assert.doesNotMatch(html,/IRI global[^<]*68|68\/100/i);}
-  assert.match(client,/INFORME<br>IRI/);assert.match(client,/Cobertura del proceso/);assert.doesNotMatch(client,/cliente@example\.com|\+56 9 1111 2222/);assert.match(coach,/Coach \/ Admin|USO INTERNO/);assert.match(coach,/Anexo íntegro de datos/);assert.match(coach,/cliente@example\.com/);assert.match(coach,/trainingHistory/);
+  assert.match(client,/INFORME<br>IRI/);assert.match(client,/Perfil funcional/);assert.doesNotMatch(client,/cliente@example\.com|\+56 9 1111 2222/);assert.match(coach,/Coach \/ Admin|USO INTERNO/);assert.match(coach,/Anexo íntegro de datos/);assert.match(coach,/cliente@example\.com/);assert.match(coach,/trainingHistory/);
 });
 
 test('rutas RC33 contienen alta y wizard completo sin handlers inline',()=>{
