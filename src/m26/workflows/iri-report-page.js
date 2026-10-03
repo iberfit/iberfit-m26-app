@@ -1,5 +1,5 @@
 const MAX_AGE_MS=120_000;
-const CLIENT_PAGE_COUNT=7;
+const CLIENT_PAGE_COUNT=9;
 const COACH_MIN_PAGE_COUNT=13;
 
 function reportFailure(message){
