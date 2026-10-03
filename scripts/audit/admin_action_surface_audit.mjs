@@ -30,7 +30,7 @@ const CAPABILITIES=Object.freeze([
   'analytics.read','audit.read',
 ]);
 
-const ADMIN_CONTEXT_AREAS=new Set(['expediente','iri','informes','notas']);
+const ADMIN_CONTEXT_AREAS=new Set(['admin-expediente','admin-iri','admin-informes','admin-notas']);
 
 const ACTIONABLE_AREAS=Object.freeze([
   'admin-inicio','admin-usuarios','admin-equipo','admin-clientes',
