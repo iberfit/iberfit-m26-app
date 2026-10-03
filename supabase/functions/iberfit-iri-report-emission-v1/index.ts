@@ -406,6 +406,22 @@ function pdfProtocolVariant(record:any){
   if(String(record?.testId||'')==='push-test')return pdfStrengthVariant(variant);
   return pdfSafe(variant.replaceAll('-',' '),120);
 }
+function pdfClientProtocolRows(records:any[]){
+  const groups=new Map<string,{name:string,sides:string[],variants:string[],configurations:string[]}>();
+  for(const record of Array.isArray(records)?records:[]){
+    const key=String(record?.testId||record?.testName||'prueba');
+    const group=groups.get(key)||{name:pdfSafe(record?.testName||'Prueba',100),sides:[],variants:[],configurations:[]};
+    const side=pdfProtocolSide(record?.side),variant=pdfProtocolVariant(record),configuration=pdfSafe(record?.configuration,150);
+    if(side&&!group.sides.includes(side))group.sides.push(side);
+    if(variant&&!group.variants.includes(variant))group.variants.push(variant);
+    if(configuration&&!group.configurations.includes(configuration))group.configurations.push(configuration);
+    groups.set(key,group);
+  }
+  return [...groups.values()].slice(0,6).map((group)=>{
+    const sides=group.sides.length?group.sides.join(' y '):'';
+    return pdfJoin([group.name,sides,group.variants.join(' / '),group.configurations.join(' / ')]);
+  }).filter(Boolean);
+}
 function pdfPhotoView(value:unknown){
   const view=String(value||'').trim().toLowerCase();
   return ({front:'Frontal',back:'Posterior',left:'Lateral izquierda',right:'Lateral derecha'} as Record<string,string>)[view]||pdfSafe(value,60)||'Vista';
@@ -575,13 +591,12 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     y=pdfField(page,fonts,'FRECUENCIA',diagnosis?.recommendedFrequency||String(draft?.personProfile?.weeklyFrequency||'—')+' sesiones/semana',y);
     y=pdfField(page,fonts,'PLAN INICIAL',diagnosis?.initialPlan||'Plan pendiente de validación',y);
     y=pdfField(page,fonts,'REVISIÓN / REEVALUACIÓN',diagnosis?.reevaluationDate?pdfDate(diagnosis.reevaluationDate):'Fecha por definir',y);
-    const protocols=(Array.isArray(draft?.protocolRecords)?draft.protocolRecords:[]).slice(0,6).map((record:any)=>pdfJoin([
-      record?.testName,
-      pdfProtocolSide(record?.side),
-      pdfProtocolVariant(record),
-      record?.configuration,
-    ]));
-    pdfField(page,fonts,'QUÉ DEBE REPETIRSE DE FORMA COMPARABLE',protocols.length?protocols.join(' | '):'Repetir las mismas variantes, configuraciones y protocolos registrados cuando corresponda',y);
+    const protocols=pdfClientProtocolRows(Array.isArray(draft?.protocolRecords)?draft.protocolRecords:[]);
+    pdfBullets(
+      page,fonts,'Para comparar bien en la reevaluación',
+      protocols.length?protocols:['Repetir las mismas variantes y configuraciones registradas cuando corresponda.'],
+      PDF_M,y-2,PDF_W-PDF_M*2,
+    );
     if(signaturePath){
       page.drawSvgPath(signaturePath,{x:PDF_W-PDF_M-150,y:190,scale:.23,color:PDF_C.ink,opacity:.92});
       page.drawText('Carlos · IBERFIT',{x:PDF_W-PDF_M-142,y:116,size:7.2,font:fonts.serifItalic,color:PDF_C.muted});
