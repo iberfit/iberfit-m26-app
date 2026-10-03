@@ -2353,6 +2353,10 @@ export function renderExpedienteRoute(vm) {
 
   const displayStatus=/no informado/i.test(data.status||'')?'Estado por definir':data.status;
   const iriOnly=vm.serviceKind==='iri_only'||data.experience?.serviceKind==='iri_only'||data.lifecycleStatus==='iri_only';
+  const adminContext=String(vm.role||'')==='admin';
+  const iriArea=adminContext?'admin-iri':'iri';
+  const reportsArea=adminContext?'admin-informes':'informes';
+  const notesArea=adminContext?'admin-notas':'notas';
 
   if(iriOnly){
     const iriStatus=iri?.confirmed
@@ -2366,6 +2370,7 @@ export function renderExpedienteRoute(vm) {
     const nextArea=data.nextAction?.area||(
       iri?.confirmed?'informes':'iri'
     );
+    const nextTarget=nextArea==='informes'?reportsArea:iriArea;
     return `<div class="m26-route m26-solo-iri-expediente" data-service-kind="iri_only">
       <section class="m26-route-intro">
         <div>
@@ -2387,9 +2392,9 @@ export function renderExpedienteRoute(vm) {
           <div class="m26-panel-heading"><div><p class="m26-eyebrow">Siguiente acción</p><h2>${escapeHtml(nextLabel)}</h2></div>${badge(iri?.confirmed?'Evaluación confirmada':'Evaluación pendiente',iri?.confirmed?'success':'pending')}</div>
           <p>Completa o revisa el diagnóstico inicial, consentimientos, fotografías privadas y trazabilidad del IRI.</p>
           <div class="m26-action-grid">
-            <button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(nextArea)}">${escapeHtml(nextLabel)}</button>
-            <button type="button" data-m26-area="iri">Abrir evaluación IRI</button>
-            <button type="button" data-m26-area="informes">Informes IRI</button>
+            <button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(nextTarget)}">${escapeHtml(nextLabel)}</button>
+            <button type="button" data-m26-area="${escapeHtml(iriArea)}">Abrir evaluación IRI</button>
+            <button type="button" data-m26-area="${escapeHtml(reportsArea)}">Informes IRI</button>
           </div>
         </article>
         <article class="m26-panel m26-panel-soft">
@@ -2403,7 +2408,52 @@ export function renderExpedienteRoute(vm) {
           </div>
         </article>
       </section>
-      ${['coach','admin'].includes(String(vm.role||''))?'<section class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Uso profesional</p><h2>Documentación y notas</h2><div class="m26-action-grid"><button type="button" data-m26-area="informes">Generar / revisar informe IRI</button><button type="button" data-m26-area="notas">Notas privadas</button></div></section>':''}
+      ${['coach','admin'].includes(String(vm.role||''))?`<section class="m26-panel m26-panel-soft"><p class="m26-eyebrow">Uso profesional</p><h2>Documentación y notas</h2><div class="m26-action-grid"><button type="button" data-m26-area="${escapeHtml(reportsArea)}">Generar / revisar informe IRI</button><button type="button" data-m26-area="${escapeHtml(notesArea)}">Notas privadas</button></div></section>`:''}
+    </div>`;
+  }
+
+  if(adminContext){
+    return `<div class="m26-route m26-admin-client-context" data-m26-admin-client-context="expediente">
+      <section class="m26-route-intro">
+        <div>
+          <p class="m26-eyebrow">Expediente técnico</p>
+          <h2>${escapeHtml(data.name)}</h2>
+          <p>Expediente de persona</p>
+        </div>
+        ${badge(displayStatus,/activ/i.test(displayStatus)?'success':'neutral')}
+      </section>
+
+      ${profileMissingNotice(profile)}
+
+      <section class="m26-stat-grid">
+        ${stat('Perfil esencial',`${profile.completeness??0}%`,profile.missing?.length?`${profile.missing.length} campos pendientes`:'Datos esenciales completos')}
+        ${stat('Evaluación IRI',iri?iri.processLabel:'Pendiente',iri?iri.coverageLabel:'Sin evaluación IRI confirmada')}
+        ${stat('Acceso',data.accessKnown?(data.access||'Configurado'):'Sin acceso','Estado de acceso al expediente')}
+        ${stat('Modalidad',data.modality||'Sin dato','Servicio registrado')}
+      </section>
+
+      <section class="m26-content-grid">
+        <article class="m26-panel">
+          <p class="m26-eyebrow">Expediente técnico</p>
+          <h2>Expediente de persona</h2>
+          <div class="m26-field-grid">
+            ${field('Estado',displayStatus)}
+            ${field('Modalidad',data.modality)}
+            ${field('Objetivo principal',profile.primaryObjective)}
+            ${field('Contacto de emergencia',emergency)}
+          </div>
+        </article>
+
+        <article class="m26-panel m26-panel-soft">
+          <p class="m26-eyebrow">Gestión</p>
+          <h2>Diagnóstico IRI · Admin</h2>
+          <div class="m26-action-grid">
+            <button type="button" class="m26-primary-action" data-m26-area="admin-iri">Diagnóstico IRI</button>
+            <button type="button" data-m26-area="admin-informes">Informes IRI</button>
+            <button type="button" data-m26-area="admin-notas">Notas internas</button>
+          </div>
+        </article>
+      </section>
     </div>`;
   }
 
