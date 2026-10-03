@@ -39,6 +39,8 @@ test('Solo IRI changes the real Admin wizard immediately, survives navigation an
   await expect(form.locator('[data-client-step="1"]')).toBeVisible();
   await expect(form.locator('[name="birthDate"]')).toHaveAttribute('required','');
   await expect(form.locator('[name="sexForNorms"]')).toHaveAttribute('required','');
+  await form.locator('[name="birthDate"]').fill('1990-04-10');
+  await form.locator('[name="sexForNorms"]').selectOption('female');
 
   await form.locator('[data-client-step="1"] [data-client-wizard-next]').click();
   await expect(serviceStep).toBeVisible();
