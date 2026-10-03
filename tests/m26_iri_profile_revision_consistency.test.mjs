@@ -65,7 +65,7 @@ test('a profile revision conflict preserves the IRI draft and asks for re-review
   const end=controller.indexOf('async function moveIri',start);
   assert.ok(start>=0&&end>start);
   const block=controller.slice(start,end);
-  const save=block.indexOf('draftRepository?.save?.(draft.clientId,IRI_DRAFT_SCOPE,draft)');
+  const save=block.indexOf('persistIriDraftBackup(draft.clientId,draft)');
   const execute=block.indexOf('commandBus.execute');
   assert.ok(save>=0&&execute>save);
   assert.match(block,/V26_IRI_PROFILE_REVISION_CONFLICT/u);
