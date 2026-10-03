@@ -372,7 +372,23 @@ function pdfStrengthVariant(value:unknown){
 }
 function pdfProtocolSide(value:unknown){
   const side=String(value||'').trim().toLowerCase();
-  return ({left:'Izquierda',right:'Derecha',bilateral:'Bilateral',both:'Bilateral','not-applicable':'','not applicable':'','not_applicable':'',na:'','n/a':''} as Record<string,string>)[side]||pdfSafe(String(value||'').replaceAll('-',' '),70);
+  const labels=({left:'Izquierda',right:'Derecha',bilateral:'Bilateral',both:'Bilateral','not-applicable':'','not applicable':'','not_applicable':'',na:'','n/a':''} as Record<string,string>);
+  if(Object.prototype.hasOwnProperty.call(labels,side))return labels[side];
+  return pdfSafe(String(value||'').replaceAll('-',' '),70);
+}
+function pdfTraceVersion(value:unknown){
+  const raw=String(value||'').trim();
+  if(!raw)return '';
+  const match=raw.match(/^iri-scoring-(\d{4}\.\d{2})-v(\d+)$/u);
+  if(match)return 'Motor IRI '+match[1]+' · v'+match[2];
+  return pdfSafe(raw.replaceAll('_',' ').replaceAll('-',' '),90);
+}
+function pdfTraceDateTime(value:unknown){
+  const raw=String(value||'').trim();
+  if(!raw)return 'Sin registro';
+  const date=new Date(raw);
+  if(Number.isNaN(date.getTime()))return pdfSafe(raw,80);
+  return new Intl.DateTimeFormat('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Santiago'}).format(date).replace(',', ' ·');
 }
 function pdfProtocolVersion(value:unknown){
   const raw=String(value||'').trim();
@@ -744,8 +760,8 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       const page=pdfPage(doc,fonts,n,audience,sectionIndex(),'Trazabilidad técnica','Versiones, comparabilidad y evidencia del documento emitido');
       let y=674;
       y=pdfField(page,fonts,'VERSIÓN DE PROTOCOLO',assessmentMeta?.protocolVersion||'Sin versión registrada',y);
-      y=pdfField(page,fonts,'CIERRE DE LA SESIÓN',assessmentMeta?.completedAt||draft?.updatedAt||'Sin registro',y);
-      y=pdfField(page,fonts,'MOTOR DE BAREMOS',scoring?.engineVersion||'Sin versión registrada',y);
+      y=pdfField(page,fonts,'CIERRE DE LA SESIÓN',pdfTraceDateTime(assessmentMeta?.completedAt||draft?.updatedAt),y);
+      y=pdfField(page,fonts,'MOTOR DE BAREMOS',pdfTraceVersion(scoring?.engineVersion)||'Sin versión registrada',y);
       y=pdfField(page,fonts,'EXPEDIENTE',profile?.email?pdfJoin([profile?.email,profile?.phone]):'Identidad vinculada al cliente del expediente',y);
       page.drawText('Protocolos registrados',{x:PDF_M,y,size:10.5,font:fonts.bold,color:PDF_C.ink});
       y-=19;
