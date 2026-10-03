@@ -722,7 +722,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
 
   if(annex){
     n+=1;
-    const page=pdfPage(doc,fonts,n,audience,audience==='cliente'?'05':'06','Bioimpedancia original','Anexo incorporado al documento emitido');
+    const page=pdfPage(doc,fonts,n,audience,sectionIndex(),'Bioimpedancia original','Anexo incorporado al documento emitido');
     page.drawText('Documento original incorporado',{x:PDF_M,y:640,size:15,font:fonts.serifBold,color:PDF_C.ink});
     pdfText(page,fonts.regular,annex.kind==='pdf'?'Se adjuntan '+String(annex.displayPages)+' de '+String(annex.totalPages)+' página(s) del documento original de bioimpedancia a continuación.':'La imagen original de bioimpedancia se incorpora como la siguiente página del informe.',PDF_M,610,PDF_W-PDF_M*2,10,15,PDF_C.ink2,5);
     if(annex.truncated)pdfText(page,fonts.bold,'Por seguridad de tamaño, el anexo visible se limita a '+String(annex.displayPages)+' páginas. El original se conserva vinculado al IRI.',PDF_M,540,PDF_W-PDF_M*2,9.2,13,PDF_C.gold,4);
