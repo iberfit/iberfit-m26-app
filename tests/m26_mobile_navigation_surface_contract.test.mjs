@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {navigationForRole} from '../src/m26/shell/navigation.js';
 
 const shell=await readFile(new URL('../src/m26/shell/shell-render.js',import.meta.url),'utf8');
 const smoke=await readFile(new URL('../qa/rc64/authenticated-current-contract.spec.mjs',import.meta.url),'utf8');
@@ -17,4 +18,14 @@ test('authenticated smoke clicks the real sidebar or mobile navigation, not arbi
   assert.match(smoke,/\.m26-mobile-nav \[data-m26-area\]/u);
   assert.match(smoke,/\.m26-sidebar \[data-m26-area\]/u);
   assert.doesNotMatch(smoke,/const targetAreaButton=page\.locator\('\[data-m26-area\]:not/u);
+});
+
+
+test('Admin mobile More never exposes person-context routes without an explicit person selection',()=>{
+  const nav=navigationForRole('admin');
+  const globalKeys=[...nav.primary,...nav.context,...nav.tools].map((item)=>item.key);
+  for(const area of ['admin-expediente','admin-iri','admin-informes','admin-notas']){
+    assert.equal(globalKeys.includes(area),false,area);
+  }
+  assert.equal(globalKeys.includes('biblioteca'),true);
 });
