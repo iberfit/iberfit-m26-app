@@ -282,3 +282,14 @@ test('issued IRI trace suppresses non-applicable sides and humanizes technical m
   assert.match(renderer,/timeZone:'America\/Santiago'/u);
   assert.doesNotMatch(renderer,/\[side\]\|\|pdfSafe/u);
 });
+
+
+test('Client reevaluation guidance stays readable while Coach trace remains complete',()=>{
+  const renderer=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
+  assert.match(renderer,/function pdfClientProtocolRows/u);
+  assert.match(renderer,/Para comparar bien en la reevaluación/u);
+  assert.match(renderer,/group\.sides\.join\(' y '\)/u);
+  assert.doesNotMatch(renderer,/QUÉ DEBE REPETIRSE DE FORMA COMPARABLE/u);
+  assert.match(renderer,/Protocolos registrados/u);
+  assert.match(renderer,/pdfProtocolVersion\(record\?\.protocolVersion\)/u);
+});
