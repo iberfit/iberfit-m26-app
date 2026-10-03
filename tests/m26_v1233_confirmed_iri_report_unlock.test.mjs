@@ -71,7 +71,7 @@ test('el informe se reconstruye desde la entidad remota confirmada sin depender 
   assert.equal(draft.strength.chairStand.repetitions,18);
   assert.equal(draft.personProfile.email,'qa@example.com');
   const html=buildIriReportHtml({draft,variant:'client',clientName:'Adriana QA',coachName:'Coach QA',logoUrl:'/public/isotipo-iberfit.png'});
-  assert.equal((html.match(/class="pdf-page/g)||[]).length,7);
+  assert.equal((html.match(/class="pdf-page/g)||[]).length,9);
   assert.match(html,/NO EVALUADO/);
 });
 
