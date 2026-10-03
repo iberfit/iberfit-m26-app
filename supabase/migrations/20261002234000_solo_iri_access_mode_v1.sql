@@ -293,10 +293,7 @@ begin
 end
 $function$;
 
--- Preserve the existing least-privilege contract: browser roles must use the
--- audited public Admin command gateway (iberfit_admin_execute_v14). This helper
--- remains unavailable for direct execution by authenticated/anon clients.
-revoke all on function public.iberfit_admin_create_client_v26(jsonb,jsonb)
-  from public,anon,authenticated;
-grant execute on function public.iberfit_admin_create_client_v26(jsonb,jsonb)
-  to service_role;
+-- Keep the public admin command wrapper authenticated; privileged assurance and
+-- role checks remain server-side. The pre-assurance helper stays service-only.
+revoke all on function public.iberfit_admin_create_client_v26(jsonb,jsonb) from public,anon;
+grant execute on function public.iberfit_admin_create_client_v26(jsonb,jsonb) to authenticated,service_role;
