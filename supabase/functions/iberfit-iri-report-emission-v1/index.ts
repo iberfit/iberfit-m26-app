@@ -372,7 +372,14 @@ function pdfStrengthVariant(value:unknown){
 }
 function pdfProtocolSide(value:unknown){
   const side=String(value||'').trim().toLowerCase();
-  return ({left:'Izquierda',right:'Derecha',bilateral:'Bilateral',both:'Bilateral','not-applicable':''} as Record<string,string>)[side]||pdfSafe(String(value||'').replaceAll('-',' '),70);
+  return ({left:'Izquierda',right:'Derecha',bilateral:'Bilateral',both:'Bilateral','not-applicable':'','not applicable':'','not_applicable':'',na:'','n/a':''} as Record<string,string>)[side]||pdfSafe(String(value||'').replaceAll('-',' '),70);
+}
+function pdfProtocolVersion(value:unknown){
+  const raw=String(value||'').trim();
+  if(!raw)return '';
+  const catalog=raw.match(/^iri-protocols-(\d{4}\.\d{2})-v(\d+)$/u);
+  if(catalog)return 'Catálogo IRI '+catalog[1]+' · v'+catalog[2];
+  return pdfSafe(raw.replaceAll('_',' ').replaceAll('-',' '),90);
 }
 function pdfProtocolVariant(record:any){
   const variant=String(record?.variant||'').trim();
@@ -552,7 +559,12 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     y=pdfField(page,fonts,'FRECUENCIA',diagnosis?.recommendedFrequency||String(draft?.personProfile?.weeklyFrequency||'—')+' sesiones/semana',y);
     y=pdfField(page,fonts,'PLAN INICIAL',diagnosis?.initialPlan||'Plan pendiente de validación',y);
     y=pdfField(page,fonts,'REVISIÓN / REEVALUACIÓN',diagnosis?.reevaluationDate?pdfDate(diagnosis.reevaluationDate):'Fecha por definir',y);
-    const protocols=(Array.isArray(draft?.protocolRecords)?draft.protocolRecords:[]).slice(0,6).map((record:any)=>pdfJoin([record?.testName,record?.variant,record?.configuration,record?.protocolVersion]));
+    const protocols=(Array.isArray(draft?.protocolRecords)?draft.protocolRecords:[]).slice(0,6).map((record:any)=>pdfJoin([
+      record?.testName,
+      pdfProtocolSide(record?.side),
+      pdfProtocolVariant(record),
+      record?.configuration,
+    ]));
     pdfField(page,fonts,'QUÉ DEBE REPETIRSE DE FORMA COMPARABLE',protocols.length?protocols.join(' | '):'Repetir las mismas variantes, configuraciones y protocolos registrados cuando corresponda',y);
     if(signaturePath){
       page.drawSvgPath(signaturePath,{x:PDF_W-PDF_M-150,y:190,scale:.23,color:PDF_C.ink,opacity:.92});
@@ -742,7 +754,8 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       for(const record of records){
         const sideLabel=pdfProtocolSide(record?.side);
         const variantLabel=pdfProtocolVariant(record);
-        const row=[record?.testName||'Prueba',sideLabel,variantLabel&&'variante '+variantLabel,record?.configuration&&'config. '+record.configuration,record?.protocolVersion&&'v. '+record.protocolVersion,record?.valid===true?'válida':record?.valid===false?'no válida':'sin confirmar'].filter(Boolean).join(' · ');
+        const versionLabel=pdfProtocolVersion(record?.protocolVersion);
+        const row=[record?.testName||'Prueba',sideLabel,variantLabel&&'variante '+variantLabel,record?.configuration&&'config. '+record.configuration,versionLabel&&'versión '+versionLabel,record?.valid===true?'válida':record?.valid===false?'no válida':'sin confirmar'].filter(Boolean).join(' · ');
         y=pdfText(page,fonts.regular,row,PDF_M,y,PDF_W-PDF_M*2,8.2,10.8,PDF_C.ink2,2)-4;
         if(y<120)break;
       }

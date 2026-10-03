@@ -258,3 +258,16 @@ test('bioimpedance annex divider distinguishes original evidence from IRI interp
   assert.match(renderer,/Evidencia complementaria/u);
   assert.match(renderer,/no inventa métricas a partir de esta hoja/u);
 });
+
+
+test('issued IRI documents never expose raw protocol ids on user-facing pages',()=>{
+  const renderer=fs.readFileSync(new URL('../supabase/functions/iberfit-iri-report-emission-v1/index.ts',import.meta.url),'utf8');
+  assert.match(renderer,/function pdfProtocolVersion/u);
+  assert.match(renderer,/Catálogo IRI/u);
+  assert.match(renderer,/pdfProtocolVariant\(record\)/u);
+  assert.match(renderer,/pdfProtocolSide\(record\?\.side\)/u);
+  assert.doesNotMatch(renderer,/pdfJoin\(\[record\?\.testName,record\?\.variant,record\?\.configuration,record\?\.protocolVersion\]\)/u);
+  assert.doesNotMatch(renderer,/'v\. '\+record\.protocolVersion/u);
+  const broker=fs.readFileSync(new URL('../supabase/functions/iberfit-qa-iri-document-fixture/index.ts',import.meta.url),'utf8');
+  assert.match(broker,/testId:"treadmill-three-minute-field"/u);
+});

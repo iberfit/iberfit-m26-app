@@ -220,7 +220,7 @@ function enrichedSections(raw:any){
       {testId:"push-test",testName:"Prueba de empuje",side:"not-applicable",variant:"knees",configuration:"60 s · apoyo de rodillas",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
       {testId:"trx-row",testName:"Remo TRX",side:"not-applicable",variant:"standing-row-standard",configuration:"Asas 100 cm · talones 100 cm · 45°",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
       {testId:"core-plank",testName:"Plancha",side:"bilateral",variant:"front-and-side-standard",configuration:"Frontal y laterales · técnica estable",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
-      {testId:"treadmill-3min",testName:"Cinta · 3 minutos",side:"not-applicable",variant:"treadmill-3min-self-selected",configuration:"5,5 km/h · 2% · banda pectoral",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
+      {testId:"treadmill-three-minute-field",testName:"Cinta · 3 minutos",side:"not-applicable",variant:"treadmill-3min-self-selected",configuration:"5,5 km/h · 2% · banda pectoral",protocolVersion:"iri-protocols-2026.10-v3",valid:true},
     ],
   };
 }
