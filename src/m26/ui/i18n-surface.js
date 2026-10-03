@@ -30,6 +30,11 @@ const ROWS=Object.freeze([
   ['Informes IRI · Admin','IRI reports · Admin','Rapports IRI · Admin','Relatórios IRI · Admin'],
   ['Notas internas','Internal notes','Notes internes','Notas internas'],
   ['Notas privadas · Admin','Private notes · Admin','Notes privées · Admin','Notas privadas · Admin'],
+  ['Estado de acceso al expediente','Record access status','Statut d’accès au dossier','Estado de acesso ao processo'],
+  ['Servicio registrado','Recorded service','Service enregistré','Serviço registado'],
+  ['Objetivo principal','Main goal','Objectif principal','Objetivo principal'],
+  ['Sin evaluación IRI confirmada','No confirmed IRI assessment','Aucune évaluation IRI confirmée','Sem avaliação IRI confirmada'],
+  ['Datos esenciales completos','Essential data complete','Données essentielles complètes','Dados essenciais completos'],
 
   ['Entrenamiento personal','Personal training','Entraînement personnel','Treino personalizado'],
   ['Tipo de servicio','Service type','Type de service','Tipo de serviço'],
