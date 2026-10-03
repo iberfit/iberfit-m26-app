@@ -154,3 +154,17 @@ test('Cliente y Coach reservan la ventana de informe antes de esperar evidencias
   assert.ok(reserve>=0&&evidence>reserve);
   assert.doesNotMatch(block,/if\(variant==='client'\)\{\s*printTarget=prepareIriReportPrintTarget/u);
 });
+
+
+test('Cliente y Coach usan la misma lectura coherente de masa grasa y masa libre de grasa',()=>{
+  const draft=normalizeFirstSessionDraft(raw(),{id:'11111111-1111-4111-8111-111111111111'},'CLIENT-QA');
+  const client=buildIriReportHtml({draft,variant:'client',clientName:'Patricia QA',coachName:'Carlos'});
+  const coach=buildIriReportHtml({draft,variant:'coach',clientName:'Patricia QA',coachName:'Carlos',clientId:'CLIENT-QA'});
+  for(const html of [client,coach]){
+    assert.match(html,/Masa grasa/u);
+    assert.match(html,/18\.3 kg/u);
+    assert.match(html,/Masa libre de grasa/u);
+    assert.match(html,/70\.5 kg/u);
+  }
+  assert.doesNotMatch(coach,/Masa magra<\/span><strong>18\.3 kg/u);
+});
