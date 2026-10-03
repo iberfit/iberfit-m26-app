@@ -1191,11 +1191,20 @@ export function createIriExternalReportController({
     const context = resolveIriExternalReportIntent(store.getState(), intent);
     const report = reportForContext(context, await load(context, { throwOnError: true }), { requireClientVisible:Boolean(requireClientVisible) });
     if(!report)return null;
-    const signed=await api.signedUrl(await token(),{objectPath:report.objectPath,expiresIn:300});
-    const printPreview=report.mimeType==='application/pdf'
-      ?await renderPdfPrintPreview(signed)
-      :Object.freeze({kind:'image',pages:Object.freeze([signed]),totalPages:1,truncated:false});
-    return Object.freeze({...report,printPreview});
+    try{
+      const signed=await api.signedUrl(await token(),{objectPath:report.objectPath,expiresIn:300});
+      const printPreview=report.mimeType==='application/pdf'
+        ?await renderPdfPrintPreview(signed)
+        :Object.freeze({kind:'image',pages:Object.freeze([signed]),totalPages:1,truncated:false});
+      return Object.freeze({...report,printPreview,printPreviewAvailable:true});
+    }catch(error){
+      return Object.freeze({
+        ...report,
+        printPreview:Object.freeze({kind:'unavailable',pages:Object.freeze([]),totalPages:0,truncated:false}),
+        printPreviewAvailable:false,
+        printPreviewError:clean(error?.message,120)||'M26_IRI_EXTERNAL_REPORT_PREVIEW_UNAVAILABLE',
+      });
+    }
   }
 
   function clientReportForPdf(assessmentId){
