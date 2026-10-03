@@ -74,14 +74,14 @@ test('evaluación QA histórica con estado confirmado habilita el Diagnóstico I
   assert.match(renderReportsRoute(vm),/data-iri-diagnosis/);
 });
 
-test('informe IRI presenta nota global y por dominios con cobertura explícita',()=>{
+test('informe IRI presenta perfil por dominios y evita nota global con cobertura parcial',()=>{
   const html=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
-  assert.match(html,/Puntuación funcional IRI/);
+  assert.match(html,/Perfil funcional/);
   assert.match(html,/Movilidad/);
   assert.match(html,/Fuerza funcional/);
   assert.match(html,/Capacidad funcional/);
-  assert.match(html,/dominios puntuables|cobertura insuficiente/i);
-  assert.match(html,/composición.*fotogrametría.*no alteran esta puntuación/is);
+  assert.match(html,/dominios comparables|Sin puntuación global/i);
+  assert.match(html,/sin nota global por cobertura parcial|3\/3 dominios comparables/i);
 });
 
 test('App Cliente presenta Diagnóstico IRI como unidad documental con PDF y bioimpedancia integrados',()=>{
