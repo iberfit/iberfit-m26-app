@@ -686,11 +686,11 @@ function createCoreGuidedTourController({
     return renderStep(contextValue,activeStepId);
   }
 
-  function pause(){
+  function pause({restoreFocus=true}={}){
     const contextValue=context();
     if(contextValue)writeProgress(contextValue,{status:'in-progress',activeStepId});
     suppressed=true;
-    removeDialog();
+    removeDialog({restoreFocus});
   }
 
   function skip(){
@@ -746,7 +746,7 @@ function createCoreGuidedTourController({
   function onRootClick(event){
     const mobileMoreSummary=event.target?.closest?.('.m26-mobile-more > summary');
     if(mobileMoreSummary){
-      if(open)pause();
+      if(open)pause({restoreFocus:false});
       return;
     }
     if(!event.target?.closest?.('[data-m26-guided-tour-open]'))return;
