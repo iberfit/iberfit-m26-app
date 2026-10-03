@@ -323,6 +323,7 @@ export function createIriPhotogrammetryController({
       available:photos.length>0,
       reason:photos.length?'':'unavailable',
       photos:Object.freeze(photos),
+      landmarks:structuredClone(linkedLandmarks),
       quality,
       analysisStatus:snapshot.analysis?.status||null,
       measurements:snapshot.analysis?.measurements&&typeof snapshot.analysis.measurements==='object'?structuredClone(snapshot.analysis.measurements):{},
