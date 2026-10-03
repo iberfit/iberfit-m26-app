@@ -256,6 +256,13 @@ function pdfFooter(page:any,fonts:any,n:number,audience:string){
 function pdfPage(doc:any,fonts:any,n:number,audience:string,index:string,title:string,subtitle=''){
   const page=doc.addPage([PDF_W,PDF_H]);
   page.drawRectangle({x:0,y:0,width:PDF_W,height:PDF_H,color:PDF_C.cream});
+  if(fonts.brandMark){
+    const watermark=pdfFit(fonts.brandMark,180,180);
+    page.drawImage(fonts.brandMark,{
+      x:(PDF_W-watermark.w)/2,y:(PDF_H-watermark.h)/2-24,
+      width:watermark.w,height:watermark.h,opacity:.028,
+    });
+  }
   page.drawRectangle({x:0,y:PDF_H-18,width:PDF_W,height:18,color:PDF_C.ink});
   page.drawText('IBERFIT',{x:PDF_W-92,y:PDF_H-15,size:7.5,font:fonts.bold,color:PDF_C.gold2});
   page.drawText(index,{x:PDF_M,y:PDF_H-65,size:10,font:fonts.bold,color:PDF_C.gold});
@@ -345,6 +352,34 @@ function pdfProtocolName(cardio:any){
   if(protocol==='iberfit-3min-adapted')return 'Step 3 min adaptado';
   return protocol||'Protocolo no identificado';
 }
+function pdfStrengthVariant(value:unknown){
+  const variant=String(value||'').trim().toLowerCase();
+  if(variant==='standard')return 'Flexión estándar';
+  if(variant==='incline')return 'Flexión inclinada';
+  if(variant==='knees'||variant==='knees-supported')return 'Apoyo de rodillas';
+  return pdfSafe(value,80)||'Variante no registrada';
+}
+function pdfPhotoView(value:unknown){
+  const view=String(value||'').trim().toLowerCase();
+  return ({front:'Frontal',back:'Posterior',left:'Lateral izquierda',right:'Lateral derecha'} as Record<string,string>)[view]||pdfSafe(value,60)||'Vista';
+}
+function pdfPhotoMeasurementRows(measurements:any){
+  const metrics=Array.isArray(measurements?.metrics)?measurements.metrics:[];
+  return metrics.flatMap((item:any)=>{
+    const n=Number(item?.value);
+    if(!Number.isFinite(n))return [];
+    const unit=String(item?.unit||'').toLowerCase();
+    const suffix=unit==='deg'?'°':unit==='cm'?' cm':unit?' '+pdfSafe(unit,12):'';
+    return [pdfPhotoView(item?.view)+' · '+pdfSafe(item?.label||item?.id||'Medición',110)+': '+pdfNum(n,1)+suffix];
+  }).slice(0,8);
+}
+function pdfPhotoDecisionRows(report:any){
+  const support=report?.decisionSupport&&typeof report.decisionSupport==='object'?report.decisionSupport:{};
+  const findings=Array.isArray(support?.findings)?support.findings.slice(0,2):[];
+  if(findings.length)return findings.map((item:any)=>pdfSafe(item?.title||'Hallazgo',90)+': '+pdfSafe(item?.action||item?.meaning||'',260));
+  const considerations=Array.isArray(support?.trainingConsiderations)?support.trainingConsiderations.slice(0,2):[];
+  return considerations.map((item:any)=>pdfSafe(item,300));
+}
 async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoReport,annex,appOrigin,assessmentMeta}:any){
   const doc=await PDFDocument.create();
   doc.setTitle('Informe IRI · '+pdfSafe(clientName,120));
@@ -352,7 +387,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
   doc.setSubject(audience==='cliente'?'Diagnóstico inicial IRI':'Dossier técnico IRI');
   doc.setCreator('IBERFIT '+ENGINE_VERSION);
   doc.setProducer('pdf-lib');
-  const fonts={
+  const fonts:any={
     regular:await doc.embedFont(StandardFonts.Helvetica),
     bold:await doc.embedFont(StandardFonts.HelveticaBold),
     serifBold:await doc.embedFont(StandardFonts.TimesRomanBold),
@@ -364,6 +399,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
   const global=scoring?.global||{};
   const completion=firstSessionCompletion(draft);
   const logo=await pdfImage(doc,appOrigin+'/public/isotipo-iberfit.png');
+  if(logo)fonts.brandMark=logo;
 
   let n=1;
   const sectionIndex=()=>String(n-1).padStart(2,'0');
@@ -443,7 +479,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     const strength=draft?.strengthAssessment||draft?.strength||{};
     const cardio=draft?.cardio||{};
     pdfMetric(page,fonts,'Silla 30 s',strength?.lowerBody?.skipped?'No evaluado':pdfNum(strength?.chairStand?.repetitions)+' rep',PDF_M,674);
-    pdfMetric(page,fonts,'Empuje',strength?.push?.skipped?'No evaluado':pdfNum(strength?.push?.repetitions)+' rep',PDF_M+160,674,147,pdfSafe(strength?.push?.variant,45));
+    pdfMetric(page,fonts,'Empuje',strength?.push?.skipped?'No evaluado':pdfNum(strength?.push?.repetitions)+' rep',PDF_M+160,674,147,pdfStrengthVariant(strength?.push?.variant));
     pdfMetric(page,fonts,'Remo TRX',strength?.trxRow?.skipped?'No evaluado':pdfNum(strength?.trxRow?.repetitions)+' rep',PDF_M+320,674);
     pdfMetric(page,fonts,'Plancha frontal',strength?.core?.skipped?'No evaluado':pdfNum(strength?.core?.frontPlankSeconds)+' s',PDF_M,605);
     pdfMetric(page,fonts,'Lateral izq.',strength?.core?.skipped?'No evaluado':pdfNum(strength?.core?.sidePlankLeftSeconds)+' s',PDF_M+160,605);
@@ -500,9 +536,19 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
     n+=1;
     const page=pdfPage(doc,fonts,n,audience,sectionIndex(),'Fotogrametría','Mediciones posturales con trazabilidad y calidad de dato');
     page.drawText('Estado: '+photoQuality(photoReport)+' · revisión '+String(Number(photoReport.analysisRevision||0)),{x:PDF_M,y:674,size:9.5,font:fonts.bold,color:PDF_C.gold});
-    const lines=measureLines(photoReport?.measurements||{}).slice(0,8);
+    const lines=pdfPhotoMeasurementRows(photoReport?.measurements||{});
     let y=650;
     for(const line of lines)y=pdfText(page,fonts.regular,line,PDF_M,y,225,8.4,11,PDF_C.ink2,2)-3;
+    const decisions=pdfPhotoDecisionRows(photoReport);
+    if(decisions.length){
+      y=Math.min(y-6,455);
+      page.drawText('Lectura para entrenamiento',{x:PDF_M,y,size:9.5,font:fonts.bold,color:PDF_C.ink});
+      y-=17;
+      for(const item of decisions){
+        page.drawCircle({x:PDF_M+3,y:y+3,size:1.6,color:PDF_C.gold});
+        y=pdfText(page,fonts.regular,item,PDF_M+12,y,213,8.1,10.8,PDF_C.ink2,5)-5;
+      }
+    }
     const photos=Array.isArray(photoReport?.photos)?photoReport.photos.slice(0,4):[];
     const slots=[{x:315,y:510},{x:425,y:510},{x:315,y:340},{x:425,y:340}];
     for(let i=0;i<photos.length;i+=1){
@@ -511,7 +557,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
       const slot=slots[i],fit=pdfFit(image,100,145);
       page.drawRectangle({x:slot.x-3,y:slot.y-3,width:106,height:151,borderColor:PDF_C.gold,borderWidth:.5,borderOpacity:.35});
       page.drawImage(image,{x:slot.x+(100-fit.w)/2,y:slot.y+(145-fit.h)/2,width:fit.w,height:fit.h});
-      page.drawText(pdfSafe(photos[i]?.view||'Vista '+String(i+1),40),{x:slot.x,y:slot.y-14,size:6.7,font:fonts.bold,color:PDF_C.muted});
+      page.drawText(pdfPhotoView(photos[i]?.view||'Vista '+String(i+1)),{x:slot.x,y:slot.y-14,size:6.7,font:fonts.bold,color:PDF_C.muted});
     }
     pdfText(page,fonts.regular,'La fotogrametría describe alineación y asimetrías visibles bajo las condiciones de captura. No constituye por sí sola un diagnóstico médico.',PDF_M,165,PDF_W-PDF_M*2,8.8,12,PDF_C.ink2,5);
   }
@@ -570,7 +616,7 @@ async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoRepor
         Number.isFinite(Number(strength?.squat60?.repetitions))&&'sentadilla 60 s '+pdfNum(strength.squat60.repetitions)+' rep',
       ]),y);
       y=pdfField(page,fonts,'EMPUJE',strength?.push?.skipped?('No realizado: '+pdfSafe(strength?.push?.skipReason,180)):pdfJoin([
-        strength?.push?.variant,
+        pdfStrengthVariant(strength?.push?.variant),
         pdfNum(strength?.push?.repetitions)+' rep',
         Number.isFinite(Number(strength?.push?.supportHeightCm))&&'apoyo '+pdfNum(strength.push.supportHeightCm,1)+' cm',
         'válida '+pdfBool(strength?.push?.valid),
