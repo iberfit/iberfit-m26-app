@@ -76,6 +76,14 @@ jobs:
           M26_QA_CLIENT_B_PASSWORD: ${{ secrets.M26_QA_CLIENT_B_PASSWORD }}
         run: node scripts/remote-gates/run_qa_real_write_gate.mjs
 
+      - name: Prepare synthetic private IRI document fixture
+        env:
+          M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
+          M26_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.M26_SUPABASE_PUBLISHABLE_KEY }}
+          M26_QA_COACH_EMAIL: ${{ secrets.M26_QA_COACH_EMAIL }}
+          M26_QA_COACH_PASSWORD: ${{ secrets.M26_QA_COACH_PASSWORD }}
+        run: node scripts/remote-gates/prepare_qa_iri_document_fixture.mjs
+
       - name: Certify immutable IRI PDF emission end to end in QA
         env:
           M26_SUPABASE_URL: https://gjztkdwfmunnzhtvxrsu.supabase.co
@@ -94,6 +102,7 @@ jobs:
           path: |
             recovery/P0_QA_REAL_WRITE_EVIDENCE.json
             recovery/iri-report-emission/qa-evidence.json
+            recovery/iri-report-emission/qa-fixture-evidence.json
             recovery/iri-report-emission/qa-issued-report.pdf
             recovery/iri-report-emission/qa-issued-client.pdf
             recovery/iri-report-emission/qa-issued-coach.pdf
