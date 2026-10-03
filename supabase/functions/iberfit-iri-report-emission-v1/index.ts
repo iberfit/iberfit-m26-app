@@ -71,7 +71,7 @@ function json(status:number,body:unknown,origin:string,allowed:Set<string>){
 }
 function codeOf(error:unknown,fallback='IRI_REPORT_EMISSION_FAILED'){
   const raw=String((error as {message?:string})?.message||error||'').toUpperCase();
-  return raw.match(/\b(?:IRI|M26|V26)_[A-Z0-9_:-]{3,120}\b/u)?.[0]||fallback;
+  return raw.match(/\b(?:IBERFIT|IRI|M26|V26)_[A-Z0-9_:-]{3,120}\b/u)?.[0]||fallback;
 }
 function assertUuid(value:unknown,code:string){
   const id=text(value,80);if(!UUID.test(id))throw new Error(code);return id;
