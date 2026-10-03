@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "2490e00f4f58efbad0476318a628526540da4c19",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "IRI v4 integrado: informe premium, fotogrametría/bioimpedancia, Solo IRI upload hotfix, movilidad derivada y avance resistente."
+}
