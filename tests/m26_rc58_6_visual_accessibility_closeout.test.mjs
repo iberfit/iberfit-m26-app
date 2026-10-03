@@ -48,7 +48,7 @@ test('RC58.6 mantiene touch target minimo en controles IRI interactivos',()=>{
 test('RC58.6 da foco explicito a controles independientes del informe',()=>{
   assert.match(
     report,
-    /\.iri-report-toolbar button:focus-visible,.iri-report-error button:focus-visible\{outline:3px solid #f2dca8;outline-offset:3px\}/u
+    /\.iri-report-toolbar button:focus-visible,.iri-report-error button:focus-visible\{outline:3px solid var\(--iberfit-color-focus\);outline-offset:3px\}/u
   );
 });
 
