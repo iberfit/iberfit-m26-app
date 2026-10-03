@@ -46,6 +46,11 @@ const RC431_RPC=Object.freeze({
   upsertDraft:'m26_draft_upsert_v431',
   deleteDraft:'m26_draft_delete_v431',
 });
+const IRI_DRAFT_RPC=Object.freeze({
+  get:'m26_iri_draft_get_v1',
+  upsert:'m26_iri_draft_upsert_v1',
+  delete:'m26_iri_draft_delete_v1',
+});
 const RC44_RPC=Object.freeze({
   health:'m26_wearable_health_v44',
   bootstrap:'m26_wearable_bootstrap_v44',
@@ -745,10 +750,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     return request('/rest/v1/rpc/'+name,{method:'POST',token,body:JSON.stringify(params)});
   }
 
-  const REMOTE_DRAFT_SCOPES=new Set(['session-builder','iri-first-session']);
   function normalizeDraftScope(value='session-builder'){
     const scope=String(value||'').trim();
-    if(!REMOTE_DRAFT_SCOPES.has(scope))throw new Error('M26_RC431_DRAFT_SCOPE_INVALID');
+    if(scope!=='session-builder')throw new Error('M26_RC431_DRAFT_SCOPE_INVALID');
     return scope;
   }
 
@@ -817,6 +821,62 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
       ),
       'M26_RC431_DRAFT_DELETE_INVALID_RESPONSE',
     );
+  }
+
+  async function iriDraftRpc(name,token,params={}){
+    if(!token)throw new Error('M26_AUTH_REQUIRED');
+    if(!Object.values(IRI_DRAFT_RPC).includes(name))throw new Error('M26_IRI_DRAFT_RPC_NOT_ALLOWED');
+    return request('/rest/v1/rpc/'+name,{method:'POST',token,body:JSON.stringify(params)});
+  }
+
+  function normalizeIriDraftId(value,code){
+    const id=String(value||'').trim();
+    if(!UUID_PATTERN.test(id))throw new Error(code);
+    return id;
+  }
+
+  async function getIriDraft(token,clientId,assessmentId){
+    const safeClientId=normalizeIriDraftId(clientId,'M26_IRI_DRAFT_CLIENT_INVALID');
+    const safeAssessmentId=normalizeIriDraftId(assessmentId,'M26_IRI_DRAFT_ASSESSMENT_INVALID');
+    const item=await iriDraftRpc(IRI_DRAFT_RPC.get,token,{
+      p_client_id:safeClientId,
+      p_assessment_id:safeAssessmentId,
+    });
+    const result=Array.isArray(item)?item[0]:item;
+    if(!result||typeof result!=='object'||result.ok!==true)throw new Error('M26_IRI_DRAFT_GET_INVALID_RESPONSE');
+    if(result.found===true&&(!result.draft||typeof result.draft!=='object'||Array.isArray(result.draft)))throw new Error('M26_IRI_DRAFT_GET_INVALID_RESPONSE');
+    return Object.freeze({...result});
+  }
+
+  async function upsertIriDraft(token,payload={}){
+    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('M26_IRI_DRAFT_PAYLOAD_INVALID');
+    const clientId=normalizeIriDraftId(payload.clientId,'M26_IRI_DRAFT_CLIENT_INVALID');
+    const assessmentId=normalizeIriDraftId(payload.assessmentId,'M26_IRI_DRAFT_ASSESSMENT_INVALID');
+    if(!payload.draft||typeof payload.draft!=='object'||Array.isArray(payload.draft))throw new Error('M26_IRI_DRAFT_PAYLOAD_INVALID');
+    const safePayload={
+      clientId,
+      assessmentId,
+      revision:Math.max(0,Number(payload.revision)||0),
+      draft:payload.draft,
+    };
+    const body=JSON.stringify({p_payload:safePayload});
+    if(body.length<20||body.length>125000)throw new Error('M26_IRI_DRAFT_PAYLOAD_INVALID');
+    const item=await iriDraftRpc(IRI_DRAFT_RPC.upsert,token,{p_payload:safePayload});
+    const result=Array.isArray(item)?item[0]:item;
+    if(!result||typeof result!=='object'||result.ok!==true||result.saved!==true||!UUID_PATTERN.test(String(result.id||'')))throw new Error('M26_IRI_DRAFT_SAVE_INVALID_RESPONSE');
+    return Object.freeze({...result});
+  }
+
+  async function deleteIriDraft(token,clientId,assessmentId){
+    const safeClientId=normalizeIriDraftId(clientId,'M26_IRI_DRAFT_CLIENT_INVALID');
+    const safeAssessmentId=normalizeIriDraftId(assessmentId,'M26_IRI_DRAFT_ASSESSMENT_INVALID');
+    const item=await iriDraftRpc(IRI_DRAFT_RPC.delete,token,{
+      p_client_id:safeClientId,
+      p_assessment_id:safeAssessmentId,
+    });
+    const result=Array.isArray(item)?item[0]:item;
+    if(!result||typeof result!=='object'||result.ok!==true)throw new Error('M26_IRI_DRAFT_DELETE_INVALID_RESPONSE');
+    return Object.freeze({...result});
   }
 
   async function rc44Rpc(name,token,params={}){
@@ -1169,6 +1229,9 @@ export function createM26Transport(rawRuntime, dependencies = {}) {
     getSessionDraft,
     upsertSessionDraft,
     deleteSessionDraft,
+    getIriDraft,
+    upsertIriDraft,
+    deleteIriDraft,
     wearableHealth,
     wearableBootstrap,
     importWearableSummaries,
