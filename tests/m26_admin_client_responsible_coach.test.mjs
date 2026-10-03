@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const migration=fs.readFileSync('supabase/migrations/20260914062000_admin_client_create_responsible_coach_v26.sql','utf8');
+const soloIriMigration=fs.readFileSync('supabase/migrations/20261002234000_solo_iri_access_mode_v1.sql','utf8');
 const render=fs.readFileSync('src/m26/admin/route-render.js','utf8');
 const controller=fs.readFileSync('src/m26/admin/controller.js','utf8');
 const viewModel=fs.readFileSync('src/m26/admin/view-model.js','utf8');
@@ -14,7 +15,7 @@ test('real client onboarding exposes an optional responsible Coach and defaults 
   assert.match(render,/selfCoach\|\|\(eligibleCoaches\.length===1\?eligibleCoaches\[0\]:null\)/u);
   assert.match(render,/Asignar después/u);
   assert.match(controller,/coachUserId:text\(data,'coachUserId',200\)/u);
-  assert.match(wizard,/service:\['serviceIntent','modality','weeklyFrequency','sessionDurationMinutes','coachUserId'\]/u);
+  assert.match(wizard,/const names=iriOnly\s*\?\['serviceIntent','modality','coachUserId'\]\s*:\['serviceIntent','modality','weeklyFrequency','sessionDurationMinutes','coachUserId'\]/u);
 });
 
 test('responsible Coach assignment is validated before client creation and written atomically',()=>{
@@ -32,4 +33,12 @@ test('responsible Coach assignment is optional, replay-safe and preserves least 
   assert.match(migration,/select a\.id into v_assignment[\s\S]*?a\.status='active'/u);
   assert.match(migration,/if v_assignment is null then[\s\S]*?insert into public\.iberfit_coach_client_assignments/u);
   assert.match(migration,/revoke all on function public\.iberfit_admin_create_client_v26\(jsonb,jsonb\)[\s\S]*?from public,anon,authenticated/u);
+});
+
+
+test('Solo IRI Coach assignment remains technical and does not create an inactive lifecycle event',()=>{
+  assert.match(soloIriMigration,/v_initial_lifecycle='iri_only'/u);
+  assert.match(soloIriMigration,/Asignación responsable para custodia y gestión del Diagnóstico IRI/u);
+  assert.doesNotMatch(soloIriMigration,/status,reason,changed_by[\s\S]{0,600}'inactive'/u);
+  assert.match(soloIriMigration,/return v_result\|\|jsonb_build_object\([\s\S]*?'relationshipType',v_relationship,[\s\S]*?'accessMode',v_access_mode/u);
 });
