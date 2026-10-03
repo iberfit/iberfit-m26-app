@@ -14,6 +14,7 @@ const origin='https://m26-canary.iberfit.cl';
 const assessmentId='7a000000-0000-4000-8000-000000000001';
 const endpoint=`${base}/functions/v1/iberfit-iri-report-emission-v1`;
 const evidencePath='recovery/iri-report-emission/qa-evidence.json';
+const pdfEvidencePath='recovery/iri-report-emission/qa-issued-report.pdf';
 const hash=/^[0-9a-f]{64}$/u;
 
 async function request(url,init={},attempts=2){
@@ -89,6 +90,8 @@ assert(pdfResponse.ok,'IRI_REPORT_QA_PDF_DOWNLOAD_FAILED');
 const pdfBytes=new Uint8Array(await pdfResponse.arrayBuffer());
 assert(pdfBytes.byteLength>1_000,'IRI_REPORT_QA_PDF_TOO_SMALL');
 assert(new TextDecoder().decode(pdfBytes.slice(0,5))==='%PDF-','IRI_REPORT_QA_PDF_MAGIC_INVALID');
+fs.mkdirSync(path.dirname(pdfEvidencePath),{recursive:true});
+fs.writeFileSync(pdfEvidencePath,pdfBytes);
 
 const withdraw=await action(coach.token,'withdraw',{issuanceId:issued.body.issuanceId,reason:'QA debe exigir assurance reforzada para retirar'});
 assert(withdraw.status===403,'IRI_REPORT_QA_WITHDRAW_NOT_ASSURANCE_PROTECTED');
@@ -99,6 +102,7 @@ const evidence={
   projectRef:health.body.projectRef,
   functionVersion:health.body.version,
   rendererConfigured:true,
+  renderer:String(health.body.renderer||''),
   assessmentId,
   issuanceId:issued.body.issuanceId,
   version:Number(issued.body.version),
