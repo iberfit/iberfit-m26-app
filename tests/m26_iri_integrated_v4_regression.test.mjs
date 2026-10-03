@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import {normalizeFirstSessionDraft,__iriFirstSessionInternals} from '../src/m26/workflows/iri-first-session.js';
+import {buildIriCommandDraftFromFirstSession,normalizeFirstSessionDraft,__iriFirstSessionInternals} from '../src/m26/workflows/iri-first-session.js';
 import {buildIriReportHtml,__iriReportInternals} from '../src/m26/workflows/iri-report-document.js';
+import {buildIriCommand} from '../src/m26/workflows/iri-workflow.js';
 
 const read=(path)=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
@@ -155,6 +156,27 @@ test('Cliente y Coach reservan la ventana de informe antes de esperar evidencias
   assert.doesNotMatch(block,/if\(variant==='client'\)\{\s*printTarget=prepareIriReportPrintTarget/u);
 });
 
+
+test('la confirmación final conserva la regla funcional 2 de 3 y no sustituye movilidad por composición corporal',()=>{
+  const input={
+    ...raw(),
+    bodyCompositionSkipped:'on',
+    bodyCompositionSkipReason:'Bioimpedancia no disponible durante esta evaluación.',
+    cardioSkipped:'on',
+    cardioSkipReason:'Capacidad de esfuerzo no realizada en esta sesión.',
+  };
+  const current={id:'11111111-1111-4111-8111-111111111111',revision:0};
+  const firstSession=normalizeFirstSessionDraft(input,current,'CLIENT-QA');
+  const functional=__iriFirstSessionInternals.coreDomainCoverage(firstSession);
+  assert.deepEqual(functional.states,{mobility:true,strength:true,cardio:false});
+  assert.equal(functional.complete,true);
+  assert.equal(functional.bodyCompositionRecorded,false);
+
+  const commandDraft=buildIriCommandDraftFromFirstSession(firstSession,current);
+  const command=buildIriCommand(commandDraft,0);
+  assert.deepEqual(command.payload.patch.evidenceCoverage.states,{mobility:true,strength:true,cardio:false});
+  assert.equal(command.payload.patch.evidenceCoverage.complete,true);
+});
 
 test('Cliente y Coach usan la misma lectura coherente de masa grasa y masa libre de grasa',()=>{
   const draft=normalizeFirstSessionDraft(raw(),{id:'11111111-1111-4111-8111-111111111111'},'CLIENT-QA');
