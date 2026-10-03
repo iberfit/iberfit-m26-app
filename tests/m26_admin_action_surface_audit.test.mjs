@@ -52,7 +52,7 @@ test('Admin audit exercises operational routes and real management actions',asyn
     const library=report.routes.find((item)=>item.area==='biblioteca');
     assert.ok(library,'missing shared Admin library route');
     assert.equal(library.kind,'biblioteca');
-    for(const area of ['expediente','iri','informes','notas']){
+    for(const area of ['admin-expediente','admin-iri','admin-informes','admin-notas']){
       const route=report.routes.find((item)=>item.area===area);
       assert.ok(route,`missing bounded Admin context route ${area}`);
       assert.notEqual(route.kind,'admin-unavailable');
