@@ -1178,7 +1178,7 @@ export function createIriExternalReportController({
     closeViewer();
   }
 
-  async function clientReportForPdf(assessmentId) {
+  async function reportSnapshotForPdf(assessmentId,{requireClientVisible=false}={}) {
     const intent = Object.freeze({
       status: 'valid',
       area: 'informes',
@@ -1189,13 +1189,21 @@ export function createIriExternalReportController({
       open: 'bioimpedancia',
     });
     const context = resolveIriExternalReportIntent(store.getState(), intent);
-    const report = reportForContext(context, await load(context, { throwOnError: true }), { requireClientVisible: true });
+    const report = reportForContext(context, await load(context, { throwOnError: true }), { requireClientVisible:Boolean(requireClientVisible) });
     if(!report)return null;
     const signed=await api.signedUrl(await token(),{objectPath:report.objectPath,expiresIn:300});
     const printPreview=report.mimeType==='application/pdf'
       ?await renderPdfPrintPreview(signed)
       :Object.freeze({kind:'image',pages:Object.freeze([signed]),totalPages:1,truncated:false});
     return Object.freeze({...report,printPreview});
+  }
+
+  function clientReportForPdf(assessmentId){
+    return reportSnapshotForPdf(assessmentId,{requireClientVisible:true});
+  }
+
+  function coachReportForPdf(assessmentId){
+    return reportSnapshotForPdf(assessmentId,{requireClientVisible:false});
   }
 
   async function openAssessmentReport(assessmentId) {
@@ -1238,6 +1246,7 @@ export function createIriExternalReportController({
 
   return Object.freeze({
     clientReportForPdf,
+    coachReportForPdf,
     openAssessmentReport,
     mount() {
       if (mounted) return;
