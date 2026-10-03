@@ -1067,10 +1067,10 @@ function field(label, value) {
 }
 
 const PROFILE_FIELD_LABELS=Object.freeze({birthDate:'fecha de nacimiento',sexForNorms:'sexo para baremos',email:'correo electrónico',phone:'teléfono',modality:'modalidad',trainingAddress:'dirección de entrenamiento'});
-function profileMissingNotice(profile={}){
+function profileMissingNotice(profile={},targetArea='iri'){
   const missing=(profile.missing||[]).map((key)=>PROFILE_FIELD_LABELS[key]||key);
   if(!missing.length)return '';
-  return `<section class="m26-notice is-warning m26-profile-missing" role="status"><div><strong>Completa el perfil esencial</strong><p>Falta registrar: ${escapeHtml(missing.join(', '))}.</p></div><button type="button" class="m26-primary-action" data-m26-area="iri">Completar en Diagnóstico IRI</button></section>`;
+  return `<section class="m26-notice is-warning m26-profile-missing" role="status"><div><strong>Completa el perfil esencial</strong><p>Falta registrar: ${escapeHtml(missing.join(', '))}.</p></div><button type="button" class="m26-primary-action" data-m26-area="${escapeHtml(targetArea)}">Completar en Diagnóstico IRI</button></section>`;
 }
 
 function listValue(value) {
@@ -2380,7 +2380,7 @@ export function renderExpedienteRoute(vm) {
         </div>
         ${badge('Solo IRI','neutral')}
       </section>
-      ${profileMissingNotice(profile)}
+      ${profileMissingNotice(profile,iriArea)}
       <section class="m26-stat-grid">
         ${stat('Perfil esencial',`${profile.completeness??0}%`,profile.missing?.length?`${profile.missing.length} campos pendientes`:'Datos esenciales completos')}
         ${stat('Evaluación IRI',iriStatus,iri?.dateLabel||'Punto de partida')}
@@ -2423,7 +2423,7 @@ export function renderExpedienteRoute(vm) {
         ${badge(displayStatus,/activ/i.test(displayStatus)?'success':'neutral')}
       </section>
 
-      ${profileMissingNotice(profile)}
+      ${profileMissingNotice(profile,iriArea)}
 
       <section class="m26-stat-grid">
         ${stat('Perfil esencial',`${profile.completeness??0}%`,profile.missing?.length?`${profile.missing.length} campos pendientes`:'Datos esenciales completos')}
@@ -3161,7 +3161,7 @@ ${summarySurface}
 
     <div class="m26-client360-context" data-m26-expediente-section="contexto">${recentContext}${vm.coachCockpit?renderCoachFollowUpPlan(vm.alerts):''}</div>
 
-    <div data-m26-expediente-section="perfil">${profileMissingNotice(profile)}</div>
+    <div data-m26-expediente-section="perfil">${profileMissingNotice(profile,iriArea)}</div>
 
     <section class="m26-stat-grid" data-m26-expediente-section="perfil">
       ${summaryStats.join('')}
