@@ -16,7 +16,7 @@ export function renderFunctionalProfile(scoring={}){
     const labels=axis.map(({item,x,y},index)=>`<g><text x="${x.toFixed(1)}" y="${(y+(index===0?-7:15)).toFixed(1)}" text-anchor="middle" class="iri-profile-label">${esc(item.label)}</text><text x="${x.toFixed(1)}" y="${(y+(index===0?7:29)).toFixed(1)}" text-anchor="middle" class="iri-profile-value">${esc(fmt(item.score/10,1))}/10</text></g>`).join('');
     return `<figure class="iri-functional-profile"><figcaption>Perfil funcional normalizado</figcaption><svg viewBox="0 0 240 210" role="img" aria-label="Perfil funcional normalizado de movilidad, fuerza funcional y capacidad funcional"><circle cx="${cx}" cy="${cy}" r="${r}" class="iri-profile-grid"/><circle cx="${cx}" cy="${cy}" r="${r/2}" class="iri-profile-grid"/>${axes}<polygon points="${points}" class="iri-profile-shape"/>${labels}</svg><p>Compara únicamente los dominios que el motor IRI expresa en una escala normalizada compatible. La composición corporal y la fotogrametría no alteran esta puntuación.</p></figure>`;
   }
-  return `<figure class="iri-functional-profile is-partial"><figcaption>Perfil funcional disponible</figcaption><div class="iri-profile-list">${domains.map((item)=>`<div><span>${esc(item.label)}</span><strong>${item.score===null?'No puntuable':esc(fmt(item.score/10,1)+'/10')}</strong><i aria-hidden="true"><b class="w-pct-${item.score===null?0:Math.round(item.score)}"></b></i></div>`).join('')}</div><p>La cobertura actual no permite construir un perfil completo sin fingir comparabilidad. Los dominios ausentes permanecen como no puntuables.</p></figure>`;
+  return `<figure class="iri-functional-profile is-partial"><figcaption>Perfil funcional disponible</figcaption><div class="iri-profile-list">${domains.map((item)=>`<div><span>${esc(item.label)}</span><strong>${item.score===null?'No puntuable':esc(fmt(item.score/10,1)+'/10')}</strong><i aria-hidden="true"><b class="w-pct-${item.score===null?0:Math.round(item.score)}"></b></i></div>`).join('')}</div><p>La cobertura actual no permite construir un perfil completo sin fingir comparabilidad. Los dominios ausentes permanecen como no puntuables. La composición corporal y la fotogrametría no alteran esta puntuación.</p></figure>`;
 }
 
 function marker(label,x,y,value,unit=''){
@@ -43,7 +43,7 @@ function strengthItem(label,value,unit,note,icon){
 
 export function renderStrengthPatterns(strength={}){
   const lower=strength?.lowerBody?.skipped?null:(strength?.chairStand?.repetitions??strength?.squat60?.repetitions);
-  const lowerLabel=finite(strength?.chairStand?.repetitions)?'Tren inferior · silla 30 s':'Tren inferior · sentadilla 60 s';
+  const lowerLabel=finite(strength?.chairStand?.repetitions)?'Silla 30 s':'Sentadilla libre 60 s';
   const push=strength?.push||{},trx=strength?.trxRow||{},core=strength?.core||{};
   const iconLower='<svg viewBox="0 0 40 40"><path d="M9 31h22M14 31V20h12v11M20 8v12M14 14h12"/></svg>';
   const iconPush='<svg viewBox="0 0 40 40"><path d="M7 29h26M10 24l20-8M13 15l8 5M27 12l-8-4"/></svg>';
