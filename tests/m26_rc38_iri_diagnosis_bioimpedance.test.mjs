@@ -81,7 +81,7 @@ test('informe IRI presenta nota global y por dominios con cobertura explícita',
   assert.match(html,/Fuerza funcional/);
   assert.match(html,/Capacidad funcional/);
   assert.match(html,/dominios puntuables|Cobertura insuficiente/);
-  assert.match(html,/composición.*fotogrametría.*no alteran esta nota/is);
+  assert.match(html,/composición.*fotogrametría.*no alteran esta puntuación/is);
 });
 
 test('App Cliente presenta Diagnóstico IRI como unidad documental con PDF y bioimpedancia integrados',()=>{
