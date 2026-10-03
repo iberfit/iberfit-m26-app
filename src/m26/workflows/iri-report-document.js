@@ -167,6 +167,73 @@ function domainScorePanel(draft){
   return `<section class="metrics iri-domain-scores">${item('mobility','Movilidad')}${item('strength','Fuerza funcional')}${item('cardio','Capacidad funcional')}</section>`;
 }
 
+function clientFunctionalSummary(scoring={}){
+  const scored=Number(scoring?.global?.coverage?.scoredDomains||0);
+  if(scored===3&&scoring?.global?.available===true){
+    return `<strong>${escapeHtml(number(scoring.global.score10,1))}/10</strong> · 3/3 dominios comparables`;
+  }
+  if(scored>0)return `<strong>${scored}/3 dominios comparables</strong> · sin nota global por cobertura parcial`;
+  return '<strong>Sin puntuación global</strong> · cobertura insuficiente para una comparación funcional';
+}
+function clientPriorityRecords(diagnosis={}){
+  const records=(Array.isArray(diagnosis?.priorityRecords)?diagnosis.priorityRecords:[])
+    .filter((item)=>item&&typeof item==='object')
+    .slice(0,3)
+    .map((item,index)=>Object.freeze({
+      title:clean(item.rationale||item.target||diagnosis?.priorities?.[index]||`Prioridad ${index+1}`,320),
+      domain:clean(item.domain||'general',80),
+      target:clean(item.target,320),
+      strategy:clean(item.strategy,520),
+      reviewDate:clean(item.reviewDate,40),
+    }));
+  if(records.length)return records;
+  return safeList(diagnosis?.priorities).slice(0,3).map((item,index)=>Object.freeze({
+    title:item,domain:'general',target:'',strategy:index===0?clean(diagnosis?.trainingImplications,520):'',reviewDate:'',
+  }));
+}
+function renderClientDecisionMatrix(diagnosis={},iriOnly=false){
+  const rows=clientPriorityRecords(diagnosis);
+  if(!rows.length)return '<div class="decision-empty"><strong>Sin prioridades confirmadas</strong><p>El informe conserva los resultados sin inventar una decisión que todavía no ha sido validada.</p></div>';
+  return `<div class="decision-matrix">${rows.map((item,index)=>`<article><span>${String(index+1).padStart(2,'0')}</span><div><small>${escapeHtml(item.domain==='general'?'Prioridad':item.domain)}</small><h3>${escapeHtml(item.title)}</h3>${item.target?`<p><b>Objetivo:</b> ${escapeHtml(item.target)}</p>`:''}${item.strategy?`<p><b>${iriOnly?'Orientación':'Aplicación'}:</b> ${escapeHtml(item.strategy)}</p>`:''}${item.reviewDate?`<p><b>Revisión:</b> ${escapeHtml(dateLabel(item.reviewDate,'Por definir'))}</p>`:''}</div></article>`).join('')}</div>`;
+}
+function comparableFollowUpItems(draft={},photogrammetryReport=null){
+  const items=[];
+  const seen=new Set();
+  for(const record of Array.isArray(draft?.protocolRecords)?draft.protocolRecords:[]){
+    if(record?.valid!==true)continue;
+    const name=clean(record.testName||record.testId,120);
+    if(!name||seen.has(name))continue;
+    seen.add(name);
+    const configuration=[record.variant,record.configuration].map((value)=>clean(value,180)).filter(Boolean).join(' · ');
+    items.push(Object.freeze({
+      name,
+      method:configuration||'Repetir la misma variante y configuración',
+      reason:record.normEligible===true?'Permite comparar con la misma referencia compatible.':'Sirve como referencia inicial individual si se repite igual.',
+    }));
+  }
+  const body=draft?.bodyComposition||{};
+  if((finiteValue(body.weightKg)||finiteValue(body.bodyFatPercent))&&clean(body.method,120)){
+    items.push(Object.freeze({
+      name:'Composición corporal',
+      method:[clean(body.method,120),clean(body.device,120),clean(body.measurementConditions,180)].filter(Boolean).join(' · '),
+      reason:'Comparar sólo con condiciones suficientemente equivalentes de medición.',
+    }));
+  }
+  if(photogrammetryReport?.available===true){
+    items.push(Object.freeze({
+      name:'Fotogrametría',
+      method:`${clean(photogrammetryReport.protocolVersion,120)||'Mismo protocolo de captura'} · misma distancia, altura de cámara, posición de pies y calibración cuando exista`,
+      reason:'Los cambios pequeños sólo son interpretables si la captura es reproducible.',
+    }));
+  }
+  return items.slice(0,7);
+}
+function renderClientFollowUpPlan(draft={},photogrammetryReport=null){
+  const items=comparableFollowUpItems(draft,photogrammetryReport);
+  if(!items.length)return '<div class="decision-empty"><strong>Sin pruebas comparables definidas</strong><p>El seguimiento se configurará cuando exista una referencia suficientemente reproducible.</p></div>';
+  return `<div class="followup-plan">${items.map((item)=>`<article><span>${escapeHtml(item.name)}</span><strong>${escapeHtml(item.method)}</strong><small>${escapeHtml(item.reason)}</small></article>`).join('')}</div>`;
+}
+
 function clientIriExternalReportComplement(draft,report,appOrigin){
   if(!report||report.visibleToClient!==true||clean(report.assessmentId,80)!==clean(draft.assessmentId,80))return '';
   const href=iriExternalReportAppUrl(draft.assessmentId,{origin:appOrigin});
@@ -240,7 +307,7 @@ function clientPages(draft,context){
   const p=draft.personProfile||{},i=draft.interview||{},b=draft.bodyComposition||{},m=draft.mobility||{},s=draft.strength||{},c=draft.cardio||{},d=draft.diagnosis||{};
   const completion=firstSessionCompletion(draft);const scoring=scoreIriPerformance(draft);const pages=[];
   pages.push(reportCover({clientName,date:draft.assessmentDate,coachName,logoUrl,internal:false,iriOnly}));
-  pages.push(page({number:2,title:'Tu punto de partida',eyebrow:'01 · SÍNTESIS',logoUrl,content:`<div class="editorial-intro"><p class="lead">Este informe ordena lo que sabemos hoy sobre tu punto de partida y separa con claridad lo medido, lo interpretable y lo que todavía requiere seguimiento.</p><p class="coverage-note">Cobertura del proceso: <strong>${completion.complete}/${completion.total}</strong> etapas · Puntuación funcional IRI: ${scoring.global?.available?`<strong>${number(scoring.global.score10,1)}/10</strong> con ${scoring.global.coverage.scoredDomains}/3 dominios puntuables`:'no emitida por cobertura insuficiente'}. Este diagnóstico representa la referencia inicial; el seguimiento y la evolución se registran por separado.</p></div><div class="summary-editorial">${renderFunctionalProfile(scoring)}<div class="summary-copy"><section><span>Fortaleza principal</span><h2>${escapeHtml(safeList(d.strengths)[0]||'Fortaleza pendiente de interpretación')}</h2></section><section><span>Principal oportunidad</span><h2>${escapeHtml(safeList(d.priorities)[0]||'Prioridad pendiente de interpretación')}</h2></section><section class="summary-caution"><span>Lectura IBERFIT</span><p>Resultados objetivos, contexto y criterio profesional se leen juntos para definir prioridades útiles, sin convertir datos incomparables en una puntuación artificial.</p></section></div></div>`}));
+  pages.push(page({number:2,title:'Tu punto de partida',eyebrow:'01 · SÍNTESIS',logoUrl,content:`<div class="editorial-intro"><p class="lead">Este informe ordena lo que sabemos hoy sobre tu punto de partida y convierte la evaluación en prioridades que puedan guiar decisiones reales.</p><p class="coverage-note">Perfil funcional: ${clientFunctionalSummary(scoring)}. Este IRI representa la referencia inicial; el seguimiento y la evolución se registran por separado.</p></div><div class="summary-editorial">${renderFunctionalProfile(scoring)}<div class="summary-copy"><section><span>Fortaleza principal</span><h2>${escapeHtml(safeList(d.strengths)[0]||'Fortaleza pendiente de interpretación')}</h2></section><section><span>Principal oportunidad</span><h2>${escapeHtml(safeList(d.priorities)[0]||'Prioridad pendiente de interpretación')}</h2></section><section class="summary-caution"><span>Lectura IBERFIT</span><p>Resultados objetivos, contexto y criterio profesional se leen juntos. Una nota global sólo se muestra cuando los tres dominios funcionales tienen referencias compatibles.</p></section></div></div>`}));
   pages.push(page({number:3,title:'Contexto y objetivos',eyebrow:'02 · TU CONTEXTO',logoUrl,content:`<p class="lead">Comprender tu realidad permite planificar con más precisión y continuidad.</p><div class="context-grid">${card('Objetivo principal',`<p>${escapeHtml(label(p.primaryObjective))}</p>`)}${card('Objetivos secundarios',`<ul>${listItems(p.secondaryObjectives,5)}</ul>`)}${card('Experiencia y actividad actual',`<p><strong>${escapeHtml(label(i.trainingExperience))}</strong></p><p>${escapeHtml(excerpt(i.currentTraining,380,'Sin entrenamiento actual registrado'))}</p>`)}${card('Disponibilidad',`<p><strong>${escapeHtml(label(i.availability))}</strong></p>${distinctText(i.availability,p.preferredSchedule)?`<p>${escapeHtml(distinctText(i.availability,p.preferredSchedule))}</p>`:''}`)}${card('Entorno de entrenamiento',`<p><strong>${escapeHtml(label(p.modality))}</strong></p><p>${escapeHtml(label(p.locationType,'Tipo de lugar por definir'))}</p>`)}${card('Material disponible',`<p>${escapeHtml(safeList(p.equipment).join(' · ')||'Sin registro')}</p>`)}${card('Preferencias',`<p>${escapeHtml(excerpt(i.preferences,460,'Sin preferencias especiales registradas'))}</p>`,'wide')}${card('Consideraciones declaradas',`<p>${escapeHtml(excerpt(i.restrictions,460,'Sin restricciones declaradas'))}</p>`,'wide soft')}</div>`}));
   const bodyView=bodyCompositionView(b);
   pages.push(page({number:4,title:'Composición corporal',eyebrow:'03 · COMPOSICIÓN CORPORAL',logoUrl,content:`<p class="lead">La composición corporal describe el punto de partida medido y las condiciones de esa medición. Se utiliza para seguimiento, no como juicio estético ni como nota funcional.</p><div class="composition-editorial"><div class="composition-hero"><span>${finiteValue(b.bodyFatPercent)?'Grasa corporal':finiteValue(b.weightKg)?'Peso':'Composición'}</span><strong>${finiteValue(b.bodyFatPercent)?number(b.bodyFatPercent,1)+'%':finiteValue(b.weightKg)?number(b.weightKg,1)+' kg':'—'}</strong><small>${escapeHtml(b.method?('Método · '+label(b.method)):'Método no registrado')}</small></div><div class="composition-facts"><p><span>Peso</span><strong>${finiteValue(b.weightKg)?number(b.weightKg,1)+' kg':'—'}</strong></p><p><span>Masa grasa</span><strong>${finiteValue(bodyView.fatMassKg)?number(bodyView.fatMassKg,1)+' kg':'—'}</strong></p><p><span>Masa libre de grasa</span><strong>${finiteValue(bodyView.leanMassKg)?number(bodyView.leanMassKg,1)+' kg':'—'}</strong></p><p><span>Masa muscular</span><strong>${finiteValue(b.muscleMassKg)?number(b.muscleMassKg,1)+' kg':'—'}</strong></p><p><span>Agua corporal</span><strong>${finiteValue(b.bodyWaterPercent)?number(b.bodyWaterPercent,1)+'%':'—'}</strong></p><p><span>Cintura</span><strong>${finiteValue(b.waistCm)?number(b.waistCm,1)+' cm':'—'}</strong></p><p><span>Grasa visceral</span><strong>${finiteValue(b.visceralFatLevel)?number(b.visceralFatLevel):'—'}</strong></p></div></div>${clientIriExternalReportComplement(draft,externalReport,appOrigin)}<div class="composition-context"><span>Condiciones registradas</span><p>${escapeHtml(excerpt(b.measurementConditions,420,'Sin condiciones especiales registradas.'))}</p><small>${escapeHtml(label(b.device,'Equipo no registrado'))}${bodyView.leanMassDerived?' · masa libre de grasa calculada a partir de peso y porcentaje de grasa cuando el valor registrado no era fisiológicamente coherente.':''}</small></div>`}));
@@ -265,11 +332,9 @@ function clientPages(draft,context){
     decision:excerpt(d.trainingImplications,420,'Ajustar la progresión a la respuesta funcional observada.'),
   });
   pages.push(page({number:nextPage++,title:'Capacidad de esfuerzo',eyebrow:'07 · CAPACIDAD DE ESFUERZO',logoUrl,content:`${clientCardioContent}${clientCardioExplanation}<p class="method-note">La interpretación respeta el protocolo realizado. La cinta de 3 minutos se presenta como referencia individual y no hereda baremos YMCA ni puntos de corte de otros protocolos.</p>`}));
-  const primaryPriority=safeList(d.priorities)[0]||'Prioridad pendiente de revisión';
-  const secondPriority=safeList(d.priorities)[1]||'';
   const preservedStrength=safeList(d.strengths)[0]||'Fortaleza pendiente de revisión';
-  pages.push(page({number:nextPage++,title:'Tu prioridad',eyebrow:'08 · DECISIÓN',logoUrl,content:`<div class="priority-page"><span>PRIORIDAD PRINCIPAL</span><h2>${escapeHtml(primaryPriority)}</h2><p>${escapeHtml(excerpt(d.trainingImplications,620,'La aplicación práctica será definida a partir de los resultados registrados.'))}</p><div class="priority-support"><section><span>Fortaleza que conviene preservar</span><strong>${escapeHtml(preservedStrength)}</strong></section>${secondPriority?`<section><span>Segunda prioridad</span><strong>${escapeHtml(secondPriority)}</strong></section>`:''}</div></div>`}));
-  pages.push(page({number:nextPage++,title:'Cómo leer este IRI',eyebrow:'09 · CLAVES DE LECTURA',logoUrl,content:`<p class="lead">Este documento combina mediciones, observación y criterio profesional. Su valor está en saber qué dato responde a qué pregunta y qué debe repetirse de la misma manera.</p><div class="context-grid">${card('Lo medido',`<h3>Resultados del día de evaluación</h3><p>Composición corporal, movilidad, fuerza y capacidad de esfuerzo se presentan con el protocolo y la configuración realmente utilizados.</p>`)}${card('Lo interpretado',`<h3>Criterio del entrenador</h3><p>${escapeHtml(excerpt(d.coachInterpretation,420,'La interpretación profesional queda vinculada a los resultados disponibles.'))}</p>`)}${card('Bioimpedancia',`<h3>${externalReport?'Documento de máquina incorporado':'Sin documento externo incorporado'}</h3><p>${externalReport?'El informe original se conserva como evidencia y puede añadir páginas a este dossier.':'Los valores registrados permanecen disponibles, pero no se presenta un archivo externo que no exista.'}</p>`)}${card('Fotogrametría',`<h3>${hasPhotogrammetryReport(photogrammetryReport)?'Vistas incorporadas':'Sin capturas incorporadas'}</h3><p>${hasPhotogrammetryReport(photogrammetryReport)?'Las fotografías consentidas se muestran en su propia sección y se interpretan junto con el resto de la evaluación.':'La ausencia de fotografías no se convierte en una página vacía ni en una conclusión clínica.'}</p>`)}${card('Para comparar en el futuro',`<h3>Repetir protocolo, configuración y condiciones</h3><p>Los cambios sólo son directamente comparables cuando la prueba se repite con condiciones suficientemente equivalentes. El seguimiento y la evolución se registran por separado del Diagnóstico IRI inicial.</p>`,'wide soft')}</div>`}));
+  pages.push(page({number:nextPage++,title:iriOnly?'Qué merece atención':'Qué cambia en tu entrenamiento',eyebrow:'08 · DECISIÓN',logoUrl,content:`<div class="priority-page"><span>${iriOnly?'LECTURA DEL DIAGNÓSTICO':'TRADUCCIÓN A ENTRENAMIENTO'}</span><h2>${escapeHtml(safeList(d.priorities)[0]||'Prioridades pendientes de revisión')}</h2><p>${escapeHtml(excerpt(d.trainingImplications,620,iriOnly?'Las prioridades quedan documentadas para orientar decisiones posteriores.':'La aplicación práctica se define a partir de los resultados confirmados.'))}</p><div class="priority-support"><section><span>Fortaleza que conviene preservar</span><strong>${escapeHtml(preservedStrength)}</strong></section></div></div>${renderClientDecisionMatrix(d,iriOnly)}`}));
+  pages.push(page({number:nextPage++,title:'Qué repetiremos para saber si mejoras',eyebrow:'09 · COMPARABILIDAD FUTURA',logoUrl,content:`<p class="lead">El seguimiento sólo tiene valor cuando repetimos pruebas y condiciones suficientemente equivalentes. Este IRI define qué merece convertirse en referencia individual.</p>${renderClientFollowUpPlan(draft,photogrammetryReport)}<div class="method-note"><strong>Importante.</strong> Esta página no muestra evolución: define cómo deberá medirse en el futuro. El seguimiento permanece separado del Diagnóstico IRI inicial.</div>`}));
   const closingBody=iriOnly
     ?`<div class="closing-page"><span>QUÉ SABEMOS AHORA</span><h2>Tu punto de partida queda documentado.</h2><p>${escapeHtml(excerpt(d.coachInterpretation,720,'El diagnóstico resume los resultados disponibles y las prioridades identificadas.'))}</p><div class="next-step"><span>Siguiente paso</span><strong>Conservar este informe como referencia y decidir, si procede, cómo abordar las prioridades identificadas.</strong><p>Este documento corresponde a un servicio Solo IRI. No implica planificación, frecuencia contractual ni seguimiento de entrenamiento activo.</p></div>${renderSignatureSlot(coachName,signatureUrl)}</div>`
     :`<div class="closing-page"><span>QUÉ SABEMOS AHORA</span><h2>El diagnóstico orienta la planificación.</h2><p>${escapeHtml(excerpt(d.coachInterpretation,620,'La interpretación profesional queda vinculada a este punto de partida.'))}</p><div class="next-step"><span>Impacto sobre la planificación</span><strong>${escapeHtml(excerpt(d.initialPlan,620,'Plan inicial pendiente de definición'))}</strong><p>Frecuencia orientativa registrada: ${escapeHtml(label(d.recommendedFrequency,'Por definir'))}. Próxima revisión: ${escapeHtml(dateLabel(d.reevaluationDate,'Por definir'))}.</p></div>${renderSignatureSlot(coachName,signatureUrl)}</div>`;
