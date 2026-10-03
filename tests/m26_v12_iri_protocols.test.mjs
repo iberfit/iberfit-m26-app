@@ -271,6 +271,60 @@ test('modo terreno registra sentadilla 60 s y cinta 3 min sin apropiarse de bare
   assert.match(html,/Sentadilla libre 60 s/);
 });
 
+test('subpruebas no realizadas quedan trazadas sin inventar cero ni conservar resultados antiguos',()=>{
+  const draft=validDraft({
+    posteriorMobilitySkipped:'on',
+    posteriorMobilitySkipReason:'No había banco ni superficie compatible.',
+    hipRotationSkipped:'on',
+    hipRotationSkipReason:'No realizada por tiempo disponible.',
+    pushSkipped:'on',
+    pushSkipReason:'Dolor de muñeca durante la preparación.',
+  });
+  const check=validateFirstSessionDraft(draft);
+  assert.equal(check.ok,true,check.errors.join(','));
+  assert.equal(draft.mobility.posteriorChain.skipped,true);
+  assert.equal(draft.mobility.posteriorChain.leftBest,null);
+  assert.deepEqual(draft.mobility.posteriorChain.leftTrials,[]);
+  assert.equal(draft.mobility.hipRotation.result,'');
+  assert.equal(draft.strength.push.skipped,true);
+  assert.equal(draft.strength.push.repetitions,null);
+  assert.equal(draft.strength.push.valid,false);
+  assert.equal(draft.protocolRecords.some((item)=>item.testId==='back-saver'),false);
+  assert.equal(draft.protocolRecords.some((item)=>item.testId==='hip-rotation-observation'),false);
+  assert.equal(draft.protocolRecords.some((item)=>item.testId==='push-test'),false);
+  const flat=flattenFirstSessionDraft(draft);
+  assert.equal(flat.posteriorMobilitySkipped,true);
+  assert.match(flat.posteriorMobilitySkipReason,/banco/u);
+  assert.equal(flat.pushSkipped,true);
+  assert.match(flat.pushSkipReason,/muñeca/u);
+});
+
+test('omitir una subprueba exige motivo explícito y no cuenta como dominio medido',()=>{
+  const missingReason=validDraft({pushSkipped:'on',pushSkipReason:''});
+  const check=validateFirstSessionDraft(missingReason);
+  assert.equal(check.ok,false);
+  assert.ok(check.errors.includes('pushSkipReason'));
+
+  const mostlyOmitted=validDraft({
+    lowerBodySkipped:'on',lowerBodySkipReason:'No indicado en esta evaluación.',
+    pushSkipped:'on',pushSkipReason:'No indicado.',
+    trxSkipped:'on',trxSkipReason:'Sin TRX disponible.',
+    frontPlankSeconds:'50',
+  });
+  assert.equal(mostlyOmitted.strength.lowerBody.skipped,true);
+  assert.equal(mostlyOmitted.strength.push.skipped,true);
+  assert.equal(mostlyOmitted.strength.trxRow.skipped,true);
+  assert.equal(mostlyOmitted.strength.core.skipped,false);
+  assert.equal(mostlyOmitted.protocolRecords.some((item)=>item.testId==='chair-stand-30s'),false);
+  assert.equal(mostlyOmitted.protocolRecords.some((item)=>item.testId==='bodyweight-squat-60s'),false);
+  assert.equal(mostlyOmitted.protocolRecords.some((item)=>item.testId==='push-test'),false);
+  assert.equal(mostlyOmitted.protocolRecords.some((item)=>item.testId==='trx-row'),false);
+  assert.equal(mostlyOmitted.coreDomainCoverage?.states?.strength,undefined);
+  const command=buildIriCommandDraftFromFirstSession(mostlyOmitted,{id:'IRI-V12'});
+  assert.equal(command.coreDomainCoverage.states.strength,false);
+  assert.equal(command.coreDomainCoverage.complete,true);
+});
+
 test('adaptación de campo puede ser válida y comparable sin convertirse en baremo',()=>{
   const draft=validDraft({
     ankleProtocolVariant:'supported-adaptation',
