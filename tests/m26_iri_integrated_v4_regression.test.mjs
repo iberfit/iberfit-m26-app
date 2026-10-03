@@ -162,9 +162,9 @@ test('Cliente y Coach usan la misma lectura coherente de masa grasa y masa libre
   const coach=buildIriReportHtml({draft,variant:'coach',clientName:'Patricia QA',coachName:'Carlos',clientId:'CLIENT-QA'});
   for(const html of [client,coach]){
     assert.match(html,/Masa grasa/u);
-    assert.match(html,/18\.3 kg/u);
+    assert.match(html,/18[,.]3 kg/u);
     assert.match(html,/Masa libre de grasa/u);
-    assert.match(html,/70\.5 kg/u);
+    assert.match(html,/70[,.]5 kg/u);
   }
-  assert.doesNotMatch(coach,/Masa magra<\/span><strong>18\.3 kg/u);
+  assert.doesNotMatch(coach,/Masa magra<\/span><strong>18[,.]3 kg/u);
 });
