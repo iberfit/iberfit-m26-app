@@ -66,3 +66,44 @@ test('autoajuste A4 no reduce silenciosamente el informe por debajo del 94 por c
   assert.match(css,/iri-report-fit-94/);
   assert.doesNotMatch(css,/iri-report-fit-(?:92|90|88|86|84|82)/);
 });
+
+
+test('dossier Coach/Admin incorpora anexos técnicos sin depender de visibilidad Cliente',()=>{
+  const base=draft();
+  const externalReport={
+    assessmentId:base.assessmentId,
+    mimeType:'application/pdf',
+    version:3,
+    visibleToClient:false,
+    printPreview:{kind:'pdf-raster',pages:['data:image/jpeg;base64,ZmFrZQ=='],totalPages:1,truncated:false},
+  };
+  const photogrammetryReport={
+    available:true,
+    photos:[{view:'front',url:'data:image/jpeg;base64,ZmFrZQ==',widthPx:1000,heightPx:1500,capturedAt:'2026-10-03'}],
+    landmarks:{front:{}},
+    quality:{level:'completa',capturedViews:1,analyzedViews:1,validated:true},
+    interpretation:{reproducibleSignals:[],observations:[]},
+    measurements:{metrics:[]},
+  };
+  const html=buildIriReportHtml({
+    draft:base,variant:'coach',clientName:'Cliente Demo',coachName:'Carlos',clientId:'CLIENT-DEMO',
+    externalReport,photogrammetryReport,
+  });
+  assert.ok((html.match(/class="pdf-page/g)||[]).length>=17);
+  assert.match(html,/ANEXO TÉCNICO · FOTOGRAMETRÍA/);
+  assert.match(html,/ANEXO TÉCNICO · BIOIMPEDANCIA/);
+  assert.match(html,/Su visibilidad para el cliente se gestiona de forma independiente/);
+  assert.match(html,/Anexo íntegro de datos/);
+});
+
+test('autorización del adjunto distingue Cliente de Coach/Admin',()=>{
+  const controller=read('src/m26/workflows/iri-external-report-controller.js');
+  const app=read('src/m26/app/application.js');
+  const workflow=read('src/m26/app/workflow-controller.js');
+  assert.match(controller,/clientReportForPdf/);
+  assert.match(controller,/coachReportForPdf/);
+  assert.match(controller,/requireClientVisible:true/);
+  assert.match(controller,/requireClientVisible:false/);
+  assert.match(app,/variant==='coach'\?iriExternalReports\.coachReportForPdf/);
+  assert.match(workflow,/getIriExternalReport\(draft\.assessmentId,\{variant\}\)/);
+});
