@@ -137,6 +137,9 @@ test('emission broker renders immutable PDFs inside Supabase with IBERFIT tokens
   assert.match(source,/fonts\.brandMark/u);
   assert.match(source,/pdfStrengthVariant/u);
   assert.match(source,/pdfPhotoMeasurementRows/u);
+  assert.match(source,/buildIriPhotogrammetryDecisionSupport/u);
+  assert.match(source,/decisionSupportAvailable/u);
+  assert.match(source,/iri-evidence-engine\.js/u);
   assert.match(source,/Lectura para entrenamiento/u);
   assert.match(source,/sectionIndex\(\),'Bioimpedancia original'/u);
   assert.doesNotMatch(source,/audience==='cliente'\?'05':'06'/u);
