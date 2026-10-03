@@ -17,6 +17,7 @@ const evidencePath='recovery/iri-report-emission/qa-evidence.json';
 const clientPdfPath='recovery/iri-report-emission/qa-issued-client.pdf';
 const coachPdfPath='recovery/iri-report-emission/qa-issued-coach.pdf';
 const pdfEvidencePath='recovery/iri-report-emission/qa-issued-report.pdf';
+const bioFixtureEvidencePath='recovery/iri-report-emission/qa-bioimpedance-fixture-evidence.json';
 const hash=/^[0-9a-f]{64}$/u;
 
 async function request(url,init={},attempts=2){
@@ -79,6 +80,32 @@ assert(Number(coachIssued.body?.version||0)>=1,'IRI_REPORT_QA_COACH_VERSION_INVA
 assert(hash.test(String(coachIssued.body?.artifactSha256||'')),'IRI_REPORT_QA_COACH_ARTIFACT_HASH_INVALID');
 assert(hash.test(String(coachIssued.body?.sourceSha256||'')),'IRI_REPORT_QA_COACH_SOURCE_HASH_INVALID');
 assert(coachIssued.body.artifactSha256!==issued.body.artifactSha256,'IRI_REPORT_QA_AUDIENCE_ARTIFACTS_NOT_DISTINCT');
+
+const bioFixture=JSON.parse(fs.readFileSync(bioFixtureEvidencePath,'utf8'));
+assert(bioFixture?.ok===true&&bioFixture?.synthetic===true&&bioFixture?.realPersonData===false,'IRI_REPORT_QA_BIOIMPEDANCE_FIXTURE_INVALID');
+assert(bioFixture?.mime_type==='application/pdf'&&bioFixture?.visible_to_client===true,'IRI_REPORT_QA_BIOIMPEDANCE_FIXTURE_METADATA_INVALID');
+
+const manifestParams=new URLSearchParams({
+  select:'id,audience,evidence_manifest',
+  assessment_id:`eq.${assessmentId}`,
+  id:`in.(${issued.body.issuanceId},${coachIssued.body.issuanceId})`,
+});
+const manifestResponse=await request(`${base}/rest/v1/iri_report_issuances_v1?${manifestParams}`,{
+  method:'GET',headers:authHeaders(coach.token),
+});
+const manifestRows=await manifestResponse.json().catch(()=>[]);
+assert(manifestResponse.ok&&Array.isArray(manifestRows)&&manifestRows.length===2,'IRI_REPORT_QA_MANIFEST_READ_FAILED');
+const clientManifest=manifestRows.find((row)=>row?.id===issued.body.issuanceId);
+const coachManifest=manifestRows.find((row)=>row?.id===coachIssued.body.issuanceId);
+assert(clientManifest?.evidence_manifest?.externalReport?.included===true,'IRI_REPORT_QA_CLIENT_BIOIMPEDANCE_NOT_INCLUDED');
+assert(clientManifest?.evidence_manifest?.externalReport?.mimeType==='application/pdf','IRI_REPORT_QA_CLIENT_BIOIMPEDANCE_MIME_INVALID');
+assert(clientManifest?.evidence_manifest?.externalReport?.originalAttached===true,'IRI_REPORT_QA_CLIENT_BIOIMPEDANCE_ORIGINAL_NOT_ATTACHED');
+assert(clientManifest?.evidence_manifest?.photogrammetry?.included===true,'IRI_REPORT_QA_CLIENT_PHOTOGRAMMETRY_NOT_INCLUDED');
+assert(clientManifest?.evidence_manifest?.photogrammetry?.photosPublished===false,'IRI_REPORT_QA_CLIENT_PHOTOS_PUBLISHED_WITHOUT_PERMISSION');
+assert(coachManifest?.evidence_manifest?.externalReport?.included===true,'IRI_REPORT_QA_COACH_BIOIMPEDANCE_NOT_INCLUDED');
+assert(coachManifest?.evidence_manifest?.externalReport?.originalAttached===true,'IRI_REPORT_QA_COACH_BIOIMPEDANCE_ORIGINAL_NOT_ATTACHED');
+assert(coachManifest?.evidence_manifest?.photogrammetry?.included===true,'IRI_REPORT_QA_COACH_PHOTOGRAMMETRY_NOT_INCLUDED');
+assert(coachManifest?.evidence_manifest?.photogrammetry?.photosPublished===true,'IRI_REPORT_QA_COACH_PHOTOS_NOT_PUBLISHED');
 
 const history=await action(coach.token,'history',{assessmentId});
 assert(history.status===200&&history.body?.ok===true,'IRI_REPORT_QA_HISTORY_FAILED');
@@ -146,6 +173,10 @@ const evidence={
   clientOpenVerified:true,
   coachDocumentHiddenFromClient:true,
   coachOpenVerified:true,
+  bioimpedanceOriginalIncluded:true,
+  photogrammetryIncluded:true,
+  clientPhotosSuppressedWithoutPermission:true,
+  coachPhotosPublished:true,
   withdrawalRequiresPrivilegedAssurance:true,
   generatedAt:new Date().toISOString(),
 };
