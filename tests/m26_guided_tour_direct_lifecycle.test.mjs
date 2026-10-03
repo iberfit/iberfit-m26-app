@@ -90,7 +90,7 @@ function createHarness(){
     dispatchEvent(){},
     querySelector(selector){
       if(selector==='[data-m26-area][aria-current="page"]')return activeArea;
-      if(selector==='[data-m26-area="hoy"]')return target;
+      if(selector==='[data-m26-area="hoy"]'||selector==='[data-m26-area="admin-inicio"]')return target;
       return null;
     },
     querySelectorAll(selector){
