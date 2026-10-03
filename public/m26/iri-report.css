@@ -370,9 +370,27 @@ p,li{
 .next-step{max-width:138mm;margin-top:8mm;padding-top:4mm;border-top:.4mm solid var(--iberfit-color-gold-500)}
 .next-step strong{display:block;font-family:var(--iberfit-font-family-editorial);font-size:14pt;font-weight:var(--iberfit-font-weight-medium);line-height:1.35}
 .next-step p{margin:2mm 0 0;color:var(--iberfit-color-forest-700)}
+.iri-photo-report{display:grid;gap:5mm}
+.iri-photo-report-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4mm}
+.iri-photo-report-grid figure{margin:0;min-width:0}
+.iri-photo-report-grid img{display:block;width:100%;height:70mm;object-fit:cover;object-position:center;background:color-mix(in srgb,var(--iberfit-color-forest-700) 6%,transparent)}
+.iri-photo-report-grid figcaption{display:flex;justify-content:space-between;gap:4mm;margin-top:1.5mm;color:var(--iberfit-color-forest-700);font-size:6pt}
+.iri-photo-report-grid figcaption strong{color:var(--iberfit-color-forest-950);font-weight:var(--iberfit-font-weight-semibold)}
+.iri-photo-report-reading{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:7mm;padding-top:3mm;border-top:.3mm solid var(--iberfit-color-gold-500)}
+.iri-photo-report-reading span{display:block;color:var(--iberfit-color-forest-700);font-size:6pt;text-transform:uppercase;letter-spacing:.08em}
+.iri-photo-report-reading strong{display:block;margin-top:1mm;font-family:var(--iberfit-font-family-editorial);font-size:11pt;font-weight:var(--iberfit-font-weight-medium)}
+.iri-photo-report-reading small{display:block;margin-top:1mm;color:var(--iberfit-color-forest-700);font-size:6pt}
+.iri-photo-report-reading ul{margin:0;padding-left:5mm}.iri-photo-report-reading li{font-size:6.8pt;line-height:1.4;margin-bottom:1.5mm}
+.iri-photo-report-reading p{margin:0;color:var(--iberfit-color-forest-700);font-size:7pt}
+.iri-photo-safety{margin:0;padding-top:3mm;border-top:.2mm solid color-mix(in srgb,var(--iberfit-color-forest-950) 12%,transparent);color:var(--iberfit-color-forest-700);font-size:6.4pt!important}
+.iri-photo-report-empty{min-height:120mm;display:flex;flex-direction:column;justify-content:center;padding-top:5mm;border-top:.4mm solid var(--iberfit-color-gold-500)}
+.iri-photo-report-empty span{color:var(--iberfit-color-gold-500);font-size:6pt;font-weight:var(--iberfit-font-weight-bold);letter-spacing:.12em;text-transform:uppercase}
+.iri-photo-report-empty h3{margin:2mm 0 4mm;font-family:var(--iberfit-font-family-editorial);font-size:22pt;font-weight:var(--iberfit-font-weight-regular)}
+.iri-photo-report-empty p{max-width:110mm}.iri-photo-report-empty small{max-width:110mm;color:var(--iberfit-color-forest-700);font-size:6.5pt;line-height:1.45}
 .iri-signature-slot{width:74mm;margin-top:22mm}
 .iri-signature-slot span{display:block;color:var(--iberfit-color-forest-700);font-size:6pt;text-transform:uppercase;letter-spacing:.1em}
-.iri-signature-slot div{height:16mm;border-bottom:.25mm solid color-mix(in srgb,var(--iberfit-color-forest-950) 32%,transparent)}
+.iri-signature-line{height:16mm;border-bottom:.25mm solid color-mix(in srgb,var(--iberfit-color-forest-950) 32%,transparent)}
+.iri-signature-image{display:block;width:70mm;max-height:28mm;object-fit:contain;object-position:left center;margin:3mm 0 1mm;filter:none!important}
 .iri-signature-slot strong{display:block;margin-top:2mm;font-family:var(--iberfit-font-family-editorial);font-size:9pt;font-weight:var(--iberfit-font-weight-medium)}
 .protocol-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3mm;margin:0 0 5mm}
 .protocol-strip span{padding:2.5mm 0;border-top:.25mm solid var(--iberfit-color-gold-500);font-size:6.3pt}
@@ -634,6 +652,9 @@ th{color:var(--iberfit-color-forest-700);font-size:5.4pt;text-transform:uppercas
   .pdf-page footer{position:relative;left:auto;right:auto;bottom:auto;margin:8vw;padding:3vw 0 0}
   .two-col,.profile-grid,.context-grid,.summary-layout,.summary-editorial,.composition-editorial,.movement-editorial,.strength-reading,.editorial-intro{grid-template-columns:1fr}
   .iri-strength-patterns{grid-template-columns:1fr}
+  .iri-photo-report-grid{grid-template-columns:1fr 1fr}
+  .iri-photo-report-grid img{height:46vw;max-height:74mm}
+  .iri-photo-report-reading{grid-template-columns:1fr}
   .metrics,.metrics.four,.completion-panel,.summary-band{grid-template-columns:repeat(2,minmax(0,1fr))}
   .priority-support{grid-template-columns:1fr}
   .composition-hero{min-height:0}.composition-hero strong{font-size:42pt}
