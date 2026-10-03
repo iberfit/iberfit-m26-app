@@ -94,12 +94,13 @@ test('las fechas del informe conservan el día civil exacto y no desplazan por z
 test('la síntesis editorial, A4 y controles mantienen una caja segura y legible',()=>{
   const css=read('public/m26/iri-report.css');
   assert.match(css,/\.summary-editorial\{/);
-  assert.match(css,/\.pdf-page\.m26-premium-report-v3/);
+  assert.match(css,/\.pdf-page\{/);
   assert.match(css,/@media print\{[\s\S]*?\.pdf-page\{[\s\S]*?height:297mm!important/);
   assert.match(css,/\.iri-report-toolbar\{\s*position:relative;/);
   assert.doesNotMatch(css,/\.iri-report-toolbar\{\s*position:fixed;/);
   assert.match(css,/\.premium-watermark\{filter:none!important\}/);
   const html=buildIriReportHtml({draft:reportDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
+  assert.match(html,/m26-premium-report-v3/);
   assert.match(html,/30 de julio de 2026/);
   assert.match(html,/NO EVALUADO/);
   assert.match(html,/Perfil funcional disponible/);
