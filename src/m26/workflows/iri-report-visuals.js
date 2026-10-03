@@ -66,6 +66,25 @@ export function renderEffortCurve(cardio={}){
 
 const PHOTO_VIEW_LABELS=Object.freeze({front:'Frontal',back:'Posterior',left:'Lateral izquierda',right:'Lateral derecha'});
 
+function iriPhotoSvg(photo,landmarks={},measurements={}){
+  const width=Number(photo?.widthPx)>0?Number(photo.widthPx):1000;
+  const height=Number(photo?.heightPx)>0?Number(photo.heightPx):1500;
+  const view=photo?.view;
+  const points=landmarks?.[view]||{};
+  const point=(key)=>{
+    const p=points?.[key];if(!p||!Number.isFinite(Number(p.x))||!Number.isFinite(Number(p.y)))return null;
+    return {x:Math.max(0,Math.min(1,Number(p.x)))*width,y:Math.max(0,Math.min(1,Number(p.y)))*height};
+  };
+  const pairs=view==='front'||view==='back'
+    ?[['shoulderLeft','shoulderRight'],['pelvisLeft','pelvisRight']]
+    :[['ear','shoulder'],['shoulder','hip'],['hip','ankle']];
+  const lines=pairs.map(([a,b])=>{const p1=point(a),p2=point(b);return p1&&p2?`<line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}"/>`:'';}).join('');
+  const dots=Object.keys(points).map((key)=>{const p=point(key);return p?`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${Math.max(5,Math.min(width,height)*.008).toFixed(1)}"/>`:'';}).join('');
+  const rows=Array.isArray(measurements?.metrics)?measurements.metrics.filter((item)=>item?.view===view):[];
+  const metricText=rows.slice(0,3).map((item)=>`${item.label}: ${fmt(item.value,1)}°`).join(' · ');
+  return `<figure><svg class="iri-photo-figure-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Fotogrametría · ${esc(PHOTO_VIEW_LABELS[view])}"><image href="${esc(photo.url)}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid meet" referrerpolicy="no-referrer"></image><g class="iri-photo-overlay">${lines}${dots}</g></svg><figcaption><div><strong>${esc(PHOTO_VIEW_LABELS[view])}</strong><span>${photo.capturedAt?esc(String(photo.capturedAt).slice(0,10)):''}</span></div>${metricText?`<small>${esc(metricText)}</small>`:''}</figcaption></figure>`;
+}
+
 export function renderPhotogrammetryReport(report={}){
   const photos=Array.isArray(report?.photos)?report.photos.filter((item)=>item?.url&&PHOTO_VIEW_LABELS[item?.view]):[];
   const quality=report?.quality||{};
@@ -79,7 +98,7 @@ export function renderPhotogrammetryReport(report={}){
     ...signals.slice(0,2).map((item)=>`${item.label}: ${item.direction} · frontal ${fmt(item.frontDeg,1)}° · posterior ${fmt(item.backDeg,1)}°`),
     ...differences.slice(0,2).map((item)=>`${item.label}: diferencia ${fmt(item.differenceDeg,1)}°`),
   ];
-  return `<div class="iri-photo-report"><div class="iri-photo-report-grid">${photos.map((photo)=>`<figure><img src="${esc(photo.url)}" alt="Fotogrametría · ${esc(PHOTO_VIEW_LABELS[photo.view])}" referrerpolicy="no-referrer"><figcaption><strong>${esc(PHOTO_VIEW_LABELS[photo.view])}</strong><span>${photo.capturedAt?esc(String(photo.capturedAt).slice(0,10)):''}</span></figcaption></figure>`).join('')}</div><div class="iri-photo-report-reading"><div><span>Calidad del registro</span><strong>${esc(quality.level==='completa'?'Completa y validada':quality.level==='parcial'?'Parcial':quality.level==='capturas_sin_analisis'?'Capturas sin análisis validado':'Registro disponible')}</strong><small>${esc(`${Number(quality.capturedViews||photos.length)} vistas capturadas · ${Number(quality.analyzedViews||0)} analizadas`)}</small></div>${findings.length?`<ul>${findings.map((item)=>`<li>${esc(item)}</li>`).join('')}</ul>`:'<p>Sin señales geométricas reproducibles destacadas en el análisis validado.</p>'}</div><p class="iri-photo-safety"><strong>Lectura geométrica orientativa.</strong> Una captura estática no define una postura ideal, lesión ni diagnóstico. Se interpreta junto con síntomas, movilidad, fuerza, técnica y repetibilidad.</p></div>`;
+  return `<div class="iri-photo-report"><div class="iri-photo-report-grid">${photos.map((photo)=>iriPhotoSvg(photo,report?.landmarks||{},report?.measurements||{})).join('')}</div><div class="iri-photo-report-reading"><div><span>Calidad del registro</span><strong>${esc(quality.level==='completa'?'Completa y validada':quality.level==='parcial'?'Parcial':quality.level==='capturas_sin_analisis'?'Capturas sin análisis validado':'Registro disponible')}</strong><small>${esc(`${Number(quality.capturedViews||photos.length)} vistas capturadas · ${Number(quality.analyzedViews||0)} analizadas`)}</small></div>${findings.length?`<ul>${findings.map((item)=>`<li>${esc(item)}</li>`).join('')}</ul>`:'<p>Sin señales geométricas reproducibles destacadas en el análisis validado.</p>'}</div><p class="iri-photo-safety"><strong>Lectura geométrica orientativa.</strong> Una captura estática no define una postura ideal, lesión ni diagnóstico. Se interpreta junto con síntomas, movilidad, fuerza, técnica y repetibilidad.</p></div>`;
 }
 
 export function renderSignatureSlot(coachName='Entrenador IBERFIT',signatureUrl=''){
