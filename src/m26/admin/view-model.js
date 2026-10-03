@@ -257,7 +257,10 @@ export function buildCoach360Rows({coaches=[],users=[],clients=[],assignments=[]
       nextActionLabel:String(client.nextAction?.label||client.adaptiveExperience?.action?.label||'Seguimiento'),
     })));
     const sessions=(appointments||[])
-      .filter((appointment)=>appointmentCoachId(appointment)===coachId)
+      .filter((appointment)=>
+        appointmentCoachId(appointment)===coachId&&
+        clientIdSet.has(appointmentClientId(appointment))
+      )
       .map((appointment)=>{
         const clientId=appointmentClientId(appointment);
         const client=clientById.get(clientId);
