@@ -3,6 +3,7 @@
 begin;
 
 -- Explicit, independent permission to place private IRI photographs in a client-facing report.
+-- IBERFIT-POLICY: public.iri_photo_report_permissions_v1 = service-role-only
 create table if not exists public.iri_photo_report_permissions_v1 (
   id uuid primary key default gen_random_uuid(),
   client_id uuid not null references public.clients(id) on delete cascade,
@@ -33,6 +34,7 @@ grant select on public.iri_photo_report_permissions_v1 to authenticated;
 grant all on public.iri_photo_report_permissions_v1 to service_role;
 
 -- v2 is immutable by revision: saves append; old v1 analysis rows are never rewritten.
+-- IBERFIT-POLICY: public.iri_photogrammetry_analyses_v2 = service-role-only
 create table if not exists public.iri_photogrammetry_analyses_v2 (
   id uuid primary key default gen_random_uuid(),
   client_id uuid not null references public.clients(id) on delete cascade,
