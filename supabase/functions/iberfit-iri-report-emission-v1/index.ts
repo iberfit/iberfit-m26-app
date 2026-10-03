@@ -2,6 +2,7 @@ import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 import {PDFDocument,StandardFonts,rgb} from 'npm:pdf-lib@1.17.1';
 import {confirmedFirstSessionDraft,firstSessionCompletion,validateFirstSessionDraft} from './vendor/workflows/iri-first-session.js';
 import {scoreIriPerformance} from './vendor/norms/iri-scoring.js';
+import {buildIriPhotogrammetryDecisionSupport} from './vendor/workflows/iri-evidence-engine.js';
 import {
   IRI_PHOTO_VIEWS,
   normalizeManualLandmarks,
@@ -783,6 +784,17 @@ async function issueReport({userClient,service,actorUserId,actorEmail,assessment
   const draft=reportDraft(assessment);
   const validation=validateFirstSessionDraft(draft);
   if(!validation.ok)throw new Error(`IRI_REPORT_SOURCE_INVALID:${validation.errors.join(',')}`);
+  let photoReport=photoState.report;
+  if(photoReport&&!photoReport.decisionSupport){
+    photoReport={
+      ...photoReport,
+      decisionSupport:buildIriPhotogrammetryDecisionSupport({
+        measurements:photoReport.measurements||{},
+        quality:photoReport.quality||{},
+        draft,
+      }),
+    };
+  }
 
   const externalBytes=await loadExternalBytes(service,external);
   const annex=await annexInfo(externalBytes);
@@ -812,7 +824,7 @@ async function issueReport({userClient,service,actorUserId,actorEmail,assessment
   const sourceHash=await sha256(sourceJson);
   if(!SHA256.test(sourceHash))throw new Error('IRI_REPORT_SOURCE_HASH_INVALID');
 
-  let pdf=await renderPdf({draft,audience,clientName:clientResult.data.name||'Cliente IBERFIT',coachName,iriOnly:authz.data?.iriOnly===true,photoReport:photoState.report,annex,appOrigin,assessmentMeta:{protocolVersion:assessment.protocol_version,completedAt:assessment.completed_at},signatureEligible:/carlos/iu.test(coachName)||String(actorEmail||'').toLowerCase()==='iberfit.cl@gmail.com'});
+  let pdf=await renderPdf({draft,audience,clientName:clientResult.data.name||'Cliente IBERFIT',coachName,iriOnly:authz.data?.iriOnly===true,photoReport,annex,appOrigin,assessmentMeta:{protocolVersion:assessment.protocol_version,completedAt:assessment.completed_at},signatureEligible:/carlos/iu.test(coachName)||String(actorEmail||'').toLowerCase()==='iberfit.cl@gmail.com'});
   pdf=await appendExternal(pdf,externalBytes,annex);
   if(pdf.byteLength<=1000||pdf.byteLength>MAX_ARTIFACT_BYTES)throw new Error('IRI_REPORT_ARTIFACT_SIZE_INVALID');
   const artifactHash=await sha256(pdf);
@@ -827,9 +839,10 @@ async function issueReport({userClient,service,actorUserId,actorEmail,assessment
     schema:'iberfit.iri.evidence-manifest.v1',
     externalReport:external?{included:true,mimeType:external.mime_type,originalAttached:true,...annex}:null,
     photogrammetry:{
-      included:Boolean(photoState.report),photosPublished:Boolean(photoState.report?.photos?.length),
-      analysisRevision:Number(photoState.report?.analysisRevision||0),
-      protocolVersion:photoState.report?.protocolVersion||null,
+      included:Boolean(photoReport),photosPublished:Boolean(photoReport?.photos?.length),
+      analysisRevision:Number(photoReport?.analysisRevision||0),
+      protocolVersion:photoReport?.protocolVersion||null,
+      decisionSupportAvailable:photoReport?.decisionSupport?.available===true,
     },
   };
   const renderManifest={
