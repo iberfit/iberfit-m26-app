@@ -297,6 +297,12 @@ test('subpruebas no realizadas quedan trazadas sin inventar cero ni conservar re
   assert.match(flat.posteriorMobilitySkipReason,/banco/u);
   assert.equal(flat.pushSkipped,true);
   assert.match(flat.pushSkipReason,/muñeca/u);
+  for(const variant of ['client','coach']){
+    const html=buildIriReportHtml({draft,variant,clientName:'Persona Solo IRI QA',coachName:'Coach QA'});
+    assert.match(html,/Empuje · no realizado/u);
+    assert.match(html,/Dolor de muñeca/u);
+    assert.doesNotMatch(html,/>12 rep</u);
+  }
 });
 
 test('omitir una subprueba exige motivo explícito y no cuenta como dominio medido',()=>{
