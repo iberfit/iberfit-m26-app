@@ -102,10 +102,12 @@ assert(clientManifest?.evidence_manifest?.externalReport?.mimeType==='applicatio
 assert(clientManifest?.evidence_manifest?.externalReport?.originalAttached===true,'IRI_REPORT_QA_CLIENT_BIOIMPEDANCE_ORIGINAL_NOT_ATTACHED');
 assert(clientManifest?.evidence_manifest?.photogrammetry?.included===true,'IRI_REPORT_QA_CLIENT_PHOTOGRAMMETRY_NOT_INCLUDED');
 assert(clientManifest?.evidence_manifest?.photogrammetry?.photosPublished===false,'IRI_REPORT_QA_CLIENT_PHOTOS_PUBLISHED_WITHOUT_PERMISSION');
+assert(clientManifest?.evidence_manifest?.photogrammetry?.decisionSupportAvailable===true,'IRI_REPORT_QA_CLIENT_DECISION_SUPPORT_MISSING');
 assert(coachManifest?.evidence_manifest?.externalReport?.included===true,'IRI_REPORT_QA_COACH_BIOIMPEDANCE_NOT_INCLUDED');
 assert(coachManifest?.evidence_manifest?.externalReport?.originalAttached===true,'IRI_REPORT_QA_COACH_BIOIMPEDANCE_ORIGINAL_NOT_ATTACHED');
 assert(coachManifest?.evidence_manifest?.photogrammetry?.included===true,'IRI_REPORT_QA_COACH_PHOTOGRAMMETRY_NOT_INCLUDED');
 assert(coachManifest?.evidence_manifest?.photogrammetry?.photosPublished===true,'IRI_REPORT_QA_COACH_PHOTOS_NOT_PUBLISHED');
+assert(coachManifest?.evidence_manifest?.photogrammetry?.decisionSupportAvailable===true,'IRI_REPORT_QA_COACH_DECISION_SUPPORT_MISSING');
 
 const history=await action(coach.token,'history',{assessmentId});
 assert(history.status===200&&history.body?.ok===true,'IRI_REPORT_QA_HISTORY_FAILED');
@@ -177,6 +179,7 @@ const evidence={
   photogrammetryIncluded:true,
   clientPhotosSuppressedWithoutPermission:true,
   coachPhotosPublished:true,
+  photoDecisionSupportVerified:true,
   withdrawalRequiresPrivilegedAssurance:true,
   generatedAt:new Date().toISOString(),
 };
