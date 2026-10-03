@@ -289,6 +289,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   /* Explicit navigation takes temporary interaction priority over onboarding.
      The ordinary bottom bar remains at z=60 when the disclosure is closed. */
   .m26-mobile-nav:has(.m26-mobile-more[open]) { z-index: 1700; }
+  /* The premium shell itself is an isolated stacking context. Raise that root
+     context too, otherwise a body-level guided-tour dialog can still cover the
+     open Más sheet even when the nav/menu descendants have larger z-indices. */
+  .m26-shell:has(.m26-mobile-more[open]) { z-index: 1700; }
 }
 
 /* RC17: el editor de cada bloque ocupa una sola columna; su cabecera gestiona la jerarquía interna. */
