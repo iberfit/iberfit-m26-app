@@ -31,9 +31,10 @@ test('client-report image permission is independent from private photography con
 
 test('workspace exposes live segments and calibrated measurements while remaining non-medical',()=>{
   const controller=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-controller.js',import.meta.url),'utf8');
+  const geometry=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry-v2.js',import.meta.url),'utf8');
   const css=fs.readFileSync(new URL('../src/m26/workflows/iri-photogrammetry.css',import.meta.url),'utf8');
   assert.match(controller,/data-iri-photo-segment/u);
-  assert.match(controller,/Diferencia vertical/u);
+  assert.match(geometry,/Diferencia vertical/u);
   assert.match(controller,/Escala física opcional/u);
   assert.match(controller,/Sin diagnóstico médico automático/u);
   assert.match(css,/\.m26-photo-segment line/u);
