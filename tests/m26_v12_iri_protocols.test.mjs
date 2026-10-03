@@ -266,8 +266,8 @@ test('modo terreno registra sentadilla 60 s y cinta 3 min sin apropiarse de bare
   }
   const html=buildIriReportHtml({draft,variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
   assert.match(html,/Cinta · 3 minutos/);
-  assert.match(html,/HRR1/);
-  assert.match(html,/HRR2/);
+  assert.match(html,/Recuperación 1 min/);
+  assert.match(html,/Recuperación 2 min/);
   assert.match(html,/Sentadilla libre 60 s/);
 });
 
@@ -359,14 +359,14 @@ test('YMCA estándar exige su configuración y no comparte contrato con 1MSTS',(
   assert.equal(draft.protocolRecords.some((item)=>item.testId==='one-minute-sit-to-stand'),false);
 });
 
-test('informe IRI permanece baseline-only aunque reciba historia longitudinal',()=>{
+test('informe IRI permanece como referencia inicial aunque reciba historia longitudinal',()=>{
   const draft=validDraft();
   const html=buildIriReportHtml({
     draft,variant:'client',clientName:'Cliente QA',coachName:'Coach QA',
     longitudinalHistory:[validDraft({assessmentDate:'2026-06-30'})],
   });
-  assert.match(html,/Baseline inicial/);
-  assert.match(html,/seguimiento longitudinal se mantiene fuera del Diagnóstico IRI/);
+  assert.match(html,/referencia inicial/i);
+  assert.match(html,/seguimiento y la evolución se registran por separado/i);
   assert.doesNotMatch(html,/Cambios comparables desde la evaluación anterior/);
 });
 
@@ -381,8 +381,9 @@ test('CSS de impresión elimina rellenos externos y mantiene una página A4 por 
   const html=buildIriReportHtml({draft:validDraft(),variant:'client',clientName:'Cliente QA',coachName:'Coach QA'});
   assert.match(html,/rel="stylesheet"[^>]+data-iri-report-stylesheet/u);
   assert.doesNotMatch(html,/<style\b/iu);
-  assert.match(reportCss,/@media print\{[\s\S]*html,body\{margin:0!important;padding:0!important/u);
-  assert.match(reportCss,/width:210mm;height:297mm;margin:0!important/u);
+  assert.match(reportCss,/html,body\{margin:0;padding:0\}/u);
+  assert.match(reportCss,/@media print\{[\s\S]*body\{padding:0\}/u);
+  assert.match(reportCss,/width:210mm!important;[\s\S]*height:297mm!important;[\s\S]*margin:0!important/u);
   assert.match(reportCss,/last-child\{break-after:auto;page-break-after:auto\}/u);
 });
 
