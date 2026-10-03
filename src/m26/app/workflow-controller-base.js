@@ -460,8 +460,8 @@ export function createWorkflowController({
   async function jumpIri(index){
     const form=root.querySelector?.('[data-workflow-form="iri"]');if(!form)return;const current=Number(form.dataset.iriStepIndex||0);if(index>current){assertIriRawRanges(form);const step=IRI_FIRST_SESSION_STEPS[current];const check=validateFirstSessionStep(iriDraft(form),step);showStepValidation(form,step,check.errors);if(!check.ok){focusIriValidationError(form,check.errors);status(root,'iri','Completa la etapa actual antes de avanzar.','error');return;}await saveIriDraft({silent:true});}setIriStep(form,index,{focus:true});computed(form);
   }
-  function reportContext(draft){const {state,clientId}=context();const client=(state.collections.clients||[]).find((item)=>item.id===clientId);const identity=state.identity||{};let logoUrl='/public/isotipo-iberfit.png';try{logoUrl=new URL('/public/isotipo-iberfit.png',globalThis.location?.origin||'https://m26-canary.iberfit.cl').href;}catch{}
-    return {draft,clientId,clientName:clientName(client),coachName:String(identity.name||identity.fullName||identity.email||'Coach IBERFIT'),logoUrl};
+  function reportContext(draft){const {state,clientId}=context();const client=(state.collections.clients||[]).find((item)=>item.id===clientId);const identity=state.identity||{};const lifecycle=String(client?.lifecycleStatus||client?.lifecycle_status||client?.lifecycle?.status||'').trim().toLowerCase();let logoUrl='/public/isotipo-iberfit.png';try{logoUrl=new URL('/public/isotipo-iberfit.png',globalThis.location?.origin||'https://m26-canary.iberfit.cl').href;}catch{}
+    return {draft,clientId,clientName:clientName(client),coachName:String(identity.name||identity.fullName||identity.email||'Coach IBERFIT'),logoUrl,iriOnly:lifecycle==='iri_only'};
   }
   function iriReportStatusScope(){return root.querySelector?.('[data-workflow-form="iri"]')?'iri':'iri-report';}
   async function generateIriReport(variant){
