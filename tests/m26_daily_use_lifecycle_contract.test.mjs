@@ -82,8 +82,12 @@ function iriRaw(profile){
     bodyCompositionMethod:'Bioimpedancia',
     bodyCompositionDevice:'IBERFIT',
 
-    mobilitySkipped:'on',
-    mobilitySkipReason:'No necesaria para este contrato de continuidad.',
+    ankleLeft1:'8',
+    ankleRight1:'8',
+    posteriorLeft1:'24',
+    posteriorRight1:'24',
+    hipRotationResult:'Simétrica',
+    squatDepth:'Paralela',
 
     chairStand30s:'15',
     chairHeightCm:'45',

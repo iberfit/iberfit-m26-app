@@ -179,18 +179,24 @@ export function normalizeFirstSessionDraft(raw={},current={},clientId=''){
 
 function hasBodyMeasurement(value){return [value.weightKg,value.bodyFatPercent,value.fatMassKg,value.leanMassKg,value.muscleMassKg,value.waistCm].some((item)=>item!==null);}
 export function coreDomainCoverage(draft={}){
-  const bodyMeasured=!draft.bodyComposition?.skipped&&hasBodyMeasurement(draft.bodyComposition||{});
-  const strengthSignals=[
-    (draft.strength?.chairStand?.repetitions!==null&&draft.strength?.chairStand?.valid===true)||(draft.strength?.squat60?.repetitions!==null&&draft.strength?.squat60?.valid===true),
-    !draft.strength?.push?.skipped&&draft.strength?.push?.variant&&draft.strength?.push?.repetitions!==null&&draft.strength?.push?.valid===true,
-    !draft.strength?.trxRow?.skipped&&draft.strength?.trxRow?.repetitions!==null&&draft.strength?.trxRow?.valid===true,
-    !draft.strength?.core?.skipped&&draft.strength?.core?.frontPlankSeconds!==null,
-  ].filter(Boolean).length;
-  const strengthMeasured=!draft.strength?.skipped&&strengthSignals>=2;
+  const ankleMeasured=!draft.mobility?.ankle?.skipped&&draft.mobility?.ankle?.leftBest!==null&&draft.mobility?.ankle?.rightBest!==null;
+  const posteriorMeasured=!draft.mobility?.posteriorChain?.skipped&&draft.mobility?.posteriorChain?.leftBest!==null&&draft.mobility?.posteriorChain?.rightBest!==null;
+  const mobilityMeasured=!draft.mobility?.skipped&&(ankleMeasured||posteriorMeasured);
+  const lowerBodyMeasured=!draft.strength?.lowerBody?.skipped&&(
+    (draft.strength?.chairStand?.repetitions!==null&&draft.strength?.chairStand?.valid===true)||
+    (draft.strength?.squat60?.repetitions!==null&&draft.strength?.squat60?.valid===true)
+  );
+  const strengthMeasured=!draft.strength?.skipped&&lowerBodyMeasured;
   const cardioMeasured=!draft.cardio?.skipped&&draft.cardio?.valid===true&&((draft.cardio?.protocol==='1msts-standard'&&draft.cardio?.durationSeconds===60&&draft.cardio?.repetitions!==null)||(['ymca-3min-standard','iberfit-3min-adapted'].includes(draft.cardio?.protocol)&&draft.cardio?.durationSeconds===180&&draft.cardio?.stepHeightCm!==null&&draft.cardio?.cadenceBpm!==null&&draft.cardio?.finalHr!==null&&draft.cardio?.oneMinuteHr!==null)||(draft.cardio?.protocol==='treadmill-3min-field'&&draft.cardio?.durationSeconds===180&&draft.cardio?.speedKmh!==null&&draft.cardio?.inclinePercent!==null&&draft.cardio?.finalHr!==null&&draft.cardio?.oneMinuteHr!==null&&Boolean(draft.cardio?.recoveryMode)));
-  const states=Object.freeze({bodyComposition:bodyMeasured,strength:strengthMeasured,cardio:cardioMeasured});
+  const states=Object.freeze({mobility:mobilityMeasured,strength:strengthMeasured,cardio:cardioMeasured});
   const measured=Object.values(states).filter(Boolean).length;
-  return Object.freeze({states,measured,required:2,complete:measured>=2});
+  return Object.freeze({
+    states,
+    measured,
+    required:2,
+    complete:measured>=2,
+    bodyCompositionRecorded:!draft.bodyComposition?.skipped&&hasBodyMeasurement(draft.bodyComposition||{}),
+  });
 }
 function stepErrors(draft,step){const errors=[];const profile=draft.personProfile;
   if(step==='perfil'){

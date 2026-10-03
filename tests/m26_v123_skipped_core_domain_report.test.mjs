@@ -25,7 +25,8 @@ function raw(overrides={}){
 test('un dominio objetivo no evaluado con motivo permite cerrar el IRI cuando existen otros dos',()=>{
   const draft=normalizeFirstSessionDraft(raw(),{id:'11111111-1111-4111-8111-111111111111'},'CLIENT-QA');
   const coverage=coreDomainCoverage(draft);
-  assert.deepEqual(coverage.states,{bodyComposition:true,strength:true,cardio:false});
+  assert.deepEqual(coverage.states,{mobility:true,strength:true,cardio:false});
+  assert.equal(coverage.bodyCompositionRecorded,true);
   assert.equal(coverage.measured,2);
   assert.equal(validateFirstSessionDraft(draft).ok,true);
   const commandDraft=buildIriCommandDraftFromFirstSession(draft,{id:'11111111-1111-4111-8111-111111111111'});
@@ -37,8 +38,8 @@ test('un dominio objetivo no evaluado con motivo permite cerrar el IRI cuando ex
   assert.equal(command.payload.patch.evidenceCoverage.measured,2);
 });
 
-test('dos dominios objetivos omitidos siguen bloqueando la confirmación con error explícito',()=>{
-  const draft=normalizeFirstSessionDraft(raw({bodyCompositionSkipped:'on',bodyCompositionSkipReason:'No disponible'}),{id:'11111111-1111-4111-8111-111111111111'},'CLIENT-QA');
+test('dos dominios funcionales omitidos siguen bloqueando la confirmación con error explícito',()=>{
+  const draft=normalizeFirstSessionDraft(raw({mobilitySkipped:'on',mobilitySkipReason:'No evaluada',cardioSkipped:'on',cardioSkipReason:'No evaluada'}),{id:'11111111-1111-4111-8111-111111111111'},'CLIENT-QA');
   const check=validateFirstSessionDraft(draft);
   assert.equal(check.ok,false);
   assert.ok(check.byStep.revision.includes('coreDomains'));
