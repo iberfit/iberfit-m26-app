@@ -78,22 +78,27 @@ test('Cliente conserva Retos y Ajustes permitidos',()=>{
   }
 });
 
-test('Admin mantiene aislamiento y sólo abre contexto profesional acotado del expediente',()=>{
+test('Admin mantiene namespace propio y sólo abre contexto profesional acotado',()=>{
   assert.equal(M26_AREAS.retos.roles.includes('admin'),false);
   assert.equal(M26_AREAS.ajustes.roles.includes('admin'),false);
   assert.deepEqual(M26_AREAS.biblioteca.roles,['coach','admin']);
-  for(const area of ['biblioteca','expediente','iri','informes','notas']){
+
+  for(const area of ['biblioteca','admin-expediente','admin-iri','admin-informes','admin-notas']){
     assert.equal(areaAllowedForRole(area,'admin'),true,area);
   }
-  for(const area of ['retos','ajustes','planificacion','sesion','progreso','actividad','inteligencia']){
+  for(const area of ['expediente','iri','informes','notas','retos','ajustes','planificacion','sesion','progreso','actividad','inteligencia']){
     assert.equal(areaAllowedForRole(area,'admin'),false,area);
   }
+
   assert.equal(resolveM26Route(readyState('admin'),'retos').area,'admin-inicio');
   assert.equal(resolveM26Route(readyState('admin'),'planificacion').area,'admin-inicio');
-  const iri=resolveM26Route(readyState('admin'),'iri');
-  assert.equal(iri.area,'iri');
-  assert.equal(iri.allowed,true);
-  const library=resolveM26Route(readyState('admin'),'biblioteca');
+  assert.equal(resolveM26Route(readyState('admin'),'iri').area,'admin-inicio');
+
+  const state=readyState('admin');
+  const contextual=resolveM26Route(state,'admin-iri');
+  assert.equal(contextual.area,'admin-iri');
+  assert.equal(contextual.allowed,true);
+  const library=resolveM26Route(state,'biblioteca');
   assert.equal(library.area,'biblioteca');
   assert.equal(library.allowed,true);
 });
