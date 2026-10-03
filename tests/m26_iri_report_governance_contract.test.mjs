@@ -180,6 +180,9 @@ test('QA real-write gate deploys and certifies the exact self-contained report b
   assert.match(workflow,/run_qa_iri_report_emission_gate\.mjs/u);
   assert.match(workflow,/prepare_qa_iri_document_fixture\.mjs/u);
   assert.match(workflow,/qa-fixture-evidence\.json/u);
+  assert.match(workflow,/iberfit-qa-iri-document-fixture/u);
+  assert.match(workflow,/id-token: write/u);
+  assert.match(workflow,/qa-bioimpedance-fixture-evidence\.json/u);
   assert.match(gate,/IRI_REPORT_QA_PDF_MAGIC_INVALID/u);
   assert.match(gate,/clientHistoryPrivateMetadataHidden:true/u);
   assert.match(gate,/withdrawalRequiresPrivilegedAssurance:true/u);
@@ -197,4 +200,18 @@ test('production promotion deploys the exact self-contained IRI report broker',(
   assert.ok(workflow.includes('--project-ref "${PROD_SUPABASE_REF}"'));
   assert.match(workflow,/supabase@2\.117\.0 functions list/u);
   assert.doesNotMatch(workflow,/IBERFIT_IRI_RENDERER_/u);
+  assert.doesNotMatch(workflow,/iberfit-qa-iri-document-fixture/u);
+});
+
+test('QA bioimpedance fixture broker is OIDC-bound and synthetic-only',()=>{
+  const broker=fs.readFileSync(new URL('../supabase/functions/iberfit-qa-iri-document-fixture/index.ts',import.meta.url),'utf8');
+  assert.match(broker,/const QA_REF="gjztkdwfmunnzhtvxrsu"/u);
+  assert.match(broker,/OIDC_AUDIENCE="iberfit-iri-document-qa-fixture"/u);
+  assert.match(broker,/EXPECTED_WORKFLOW_PATH="iberfit\/iberfit-m26-app\/\.github\/workflows\/qa-real-write-cert\.yml"/u);
+  assert.match(broker,/ASSESSMENT_ID="7a000000-0000-4000-8000-000000000001"/u);
+  assert.match(broker,/CLIENT_ID="57f56a87-d04e-47d5-b1cc-8d4939d7c804"/u);
+  assert.match(broker,/FILE_NAME="qa-bioimpedancia-sintetica\.pdf"/u);
+  assert.match(broker,/realPersonData:false/u);
+  assert.match(broker,/fixture sint/u);
+  assert.doesNotMatch(broker,/pjhmrhejsoofmouedavw/u);
 });
