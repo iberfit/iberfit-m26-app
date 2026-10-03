@@ -1,7 +1,7 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
-import {PDFDocument} from 'npm:pdf-lib@1.17.1';
-import {buildIriReportHtml} from './vendor/workflows/iri-report-document.js';
-import {confirmedFirstSessionDraft,validateFirstSessionDraft} from './vendor/workflows/iri-first-session.js';
+import {PDFDocument,StandardFonts,rgb} from 'npm:pdf-lib@1.17.1';
+import {confirmedFirstSessionDraft,firstSessionCompletion,validateFirstSessionDraft} from './vendor/workflows/iri-first-session.js';
+import {scoreIriPerformance} from './vendor/norms/iri-scoring.js';
 import {
   IRI_PHOTO_VIEWS,
   normalizeManualLandmarks,
@@ -208,69 +208,275 @@ async function annexInfo(externalBytes:any){
   if(['image/jpeg','image/png'].includes(externalBytes.mimeType))return {kind:'image',totalPages:1,displayPages:1,truncated:false};
   throw new Error('IRI_REPORT_EXTERNAL_MIME_UNSUPPORTED');
 }
-function b64Bytes(value:string){
-  const normalized=String(value||'').replace(/-/g,'+').replace(/_/g,'/');
-  const padded=normalized+'='.repeat((4-normalized.length%4)%4);
-  const binary=atob(padded);
-  return Uint8Array.from(binary,(char)=>char.charCodeAt(0));
+
+const PDF_W=595.28,PDF_H=841.89,PDF_M=48;
+const PDF_C=Object.freeze({
+  dark:rgb(11/255,19/255,16/255),
+  ink:rgb(19/255,34/255,28/255),
+  ink2:rgb(37/255,67/255,56/255),
+  gold:rgb(197/255,160/255,89/255),
+  gold2:rgb(215/255,186/255,124/255),
+  cream:rgb(245/255,245/255,240/255),
+  cream2:rgb(205/255,212/255,208/255),
+  muted:rgb(154/255,168/255,161/255),
+});
+function pdfSafe(value:unknown,max=4000){
+  return text(value,max).replace(/[–—]/gu,'-').replace(/[“”]/gu,'"').replace(/[‘’]/gu,"'").replace(/[^\u0020-\u00ff]/gu,' ');
 }
-function b64Url(bytes:Uint8Array){
-  let binary='';
-  for(const byte of bytes)binary+=String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/u,'');
+function pdfNum(value:unknown,digits=0){
+  const n=Number(value);
+  return Number.isFinite(n)?n.toLocaleString('es-ES',{minimumFractionDigits:digits,maximumFractionDigits:digits}):'—';
 }
-async function rendererSignature(raw:string,privateKeyB64:string,audience:string){
-  if(!privateKeyB64||privateKeyB64.length>16_000||!audience)throw new Error('IRI_REPORT_RENDERER_CONFIG_MISSING');
-  let privateKey:CryptoKey;
+function pdfDate(value:unknown){
+  const raw=pdfSafe(value,64),m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/u);
+  return m?m[3]+'/'+m[2]+'/'+m[1]:(raw||'Sin fecha');
+}
+function pdfWrap(font:any,size:number,value:unknown,maxWidth:number){
+  const words=pdfSafe(value).split(/\s+/u).filter(Boolean),lines:string[]=[];
+  let line='';
+  for(const word of words){
+    const next=line?line+' '+word:word;
+    if(font.widthOfTextAtSize(next,size)<=maxWidth){line=next;continue;}
+    if(line)lines.push(line);
+    line=word;
+  }
+  if(line)lines.push(line);
+  return lines.length?lines:['—'];
+}
+function pdfText(page:any,font:any,value:unknown,x:number,y:number,width:number,size=9.2,lineHeight=12.5,color=PDF_C.ink,maxLines=8){
+  const lines=pdfWrap(font,size,value,width).slice(0,maxLines);
+  lines.forEach((line,index)=>page.drawText(line,{x,y:y-index*lineHeight,size,font,color}));
+  return y-lines.length*lineHeight;
+}
+function pdfFooter(page:any,fonts:any,n:number,audience:string){
+  page.drawLine({start:{x:PDF_M,y:35},end:{x:PDF_W-PDF_M,y:35},thickness:.55,color:PDF_C.gold,opacity:.35});
+  page.drawText('IBERFIT · Diagnóstico, planificación, control y seguimiento',{x:PDF_M,y:19,size:7.2,font:fonts.regular,color:PDF_C.muted});
+  page.drawText((audience==='cliente'?'Cliente':'Coach/Admin')+' · '+String(n).padStart(2,'0'),{x:PDF_W-PDF_M-88,y:19,size:7.2,font:fonts.regular,color:PDF_C.muted});
+}
+function pdfPage(doc:any,fonts:any,n:number,audience:string,index:string,title:string,subtitle=''){
+  const page=doc.addPage([PDF_W,PDF_H]);
+  page.drawRectangle({x:0,y:0,width:PDF_W,height:PDF_H,color:PDF_C.cream});
+  page.drawRectangle({x:0,y:PDF_H-18,width:PDF_W,height:18,color:PDF_C.ink});
+  page.drawText('IBERFIT',{x:PDF_W-92,y:PDF_H-15,size:7.5,font:fonts.bold,color:PDF_C.gold2});
+  page.drawText(index,{x:PDF_M,y:PDF_H-65,size:10,font:fonts.bold,color:PDF_C.gold});
+  page.drawText(pdfSafe(title,120),{x:PDF_M+28,y:PDF_H-70,size:21,font:fonts.serifBold,color:PDF_C.ink});
+  if(subtitle)page.drawText(pdfSafe(subtitle,180),{x:PDF_M+28,y:PDF_H-90,size:8.2,font:fonts.regular,color:PDF_C.muted});
+  page.drawLine({start:{x:PDF_M,y:PDF_H-105},end:{x:PDF_W-PDF_M,y:PDF_H-105},thickness:1,color:PDF_C.gold,opacity:.55});
+  pdfFooter(page,fonts,n,audience);
+  return page;
+}
+function pdfMetric(page:any,fonts:any,label:string,value:unknown,x:number,y:number,w=147,note=''){
+  page.drawRectangle({x,y:y-54,width:w,height:54,color:PDF_C.cream,borderColor:PDF_C.gold,borderWidth:.6,borderOpacity:.35});
+  page.drawText(pdfSafe(label,64).toUpperCase(),{x:x+10,y:y-16,size:6.8,font:fonts.bold,color:PDF_C.muted});
+  page.drawText(pdfSafe(value,80),{x:x+10,y:y-35,size:14,font:fonts.serifBold,color:PDF_C.ink});
+  if(note)page.drawText(pdfSafe(note,90),{x:x+10,y:y-48,size:6.1,font:fonts.regular,color:PDF_C.muted});
+}
+function pdfField(page:any,fonts:any,label:string,value:unknown,y:number){
+  page.drawText(pdfSafe(label,70),{x:PDF_M,y,size:7,font:fonts.bold,color:PDF_C.muted});
+  return pdfText(page,fonts.regular,value||'—',PDF_M,y-14,PDF_W-PDF_M*2,9.2,12.5,PDF_C.ink,5)-7;
+}
+function pdfBullets(page:any,fonts:any,title:string,items:unknown[],x:number,y:number,w:number){
+  page.drawText(pdfSafe(title,80),{x,y,size:10.5,font:fonts.bold,color:PDF_C.ink});
+  let cy=y-18;
+  const list=(Array.isArray(items)?items:[]).map((v)=>pdfSafe(v,420)).filter(Boolean).slice(0,6);
+  for(const item of list.length?list:['Sin registro']){
+    page.drawCircle({x:x+3,y:cy+3,size:1.7,color:PDF_C.gold});
+    cy=pdfText(page,fonts.regular,item,x+12,cy,w-12,9,12,PDF_C.ink2,4)-4;
+  }
+  return cy;
+}
+async function pdfImage(doc:any,url:string){
   try{
-    privateKey=await crypto.subtle.importKey(
-      'pkcs8',
-      b64Bytes(privateKeyB64),
-      {name:'ECDSA',namedCurve:'P-256'},
-      false,
-      ['sign'],
-    );
-  }catch{throw new Error('IRI_REPORT_RENDERER_CONFIG_INVALID');}
-  const timestamp=String(Math.floor(Date.now()/1000));
-  const nonce=crypto.randomUUID();
-  const bodySha256=await sha256(raw);
-  const signedPayload=`v1\n${timestamp}\n${nonce}\n${audience}\n${bodySha256}`;
-  const signature=new Uint8Array(await crypto.subtle.sign(
-    {name:'ECDSA',hash:'SHA-256'},
-    privateKey,
-    new TextEncoder().encode(signedPayload),
-  ));
-  return {timestamp,nonce,signature:b64Url(signature)};
+    const response=await fetch(url,{signal:AbortSignal.timeout(12_000)});
+    if(!response.ok)return null;
+    const bytes=new Uint8Array(await response.arrayBuffer());
+    const type=String(response.headers.get('content-type')||'').toLowerCase();
+    if(type.includes('png'))return await doc.embedPng(bytes);
+    if(type.includes('jpeg')||type.includes('jpg'))return await doc.embedJpg(bytes);
+  }catch{}
+  return null;
 }
-async function renderPdf(html:string,rendererUrl:string,rendererPrivateKey:string,rendererAudience:string){
-  if(!rendererUrl||!rendererPrivateKey||!rendererAudience)throw new Error('IRI_REPORT_RENDERER_CONFIG_MISSING');
-  let endpoint:URL;
-  try{endpoint=new URL(rendererUrl);}catch{throw new Error('IRI_REPORT_RENDERER_CONFIG_INVALID');}
-  if(endpoint.protocol!=='https:'||!endpoint.hostname.endsWith('.workers.dev')||endpoint.username||endpoint.password){
-    throw new Error('IRI_REPORT_RENDERER_CONFIG_INVALID');
-  }
-  const raw=JSON.stringify({html});
-  const signed=await rendererSignature(raw,rendererPrivateKey,rendererAudience);
-  const response=await fetch(endpoint.toString(),{
-    method:'POST',
-    headers:{
-      'content-type':'application/json',
-      'x-iberfit-renderer-version':'1',
-      'x-iberfit-renderer-ts':signed.timestamp,
-      'x-iberfit-renderer-nonce':signed.nonce,
-      'x-iberfit-renderer-audience':rendererAudience,
-      'x-iberfit-renderer-signature':signed.signature,
-    },
-    body:raw,
-  });
-  if(!response.ok){
-    const detail=text(await response.text().catch(()=>''),600);
-    throw new Error(`IRI_REPORT_RENDERER_FAILED:${response.status}:${detail}`);
-  }
-  const bytes=new Uint8Array(await response.arrayBuffer());
-  if(bytes.byteLength<1000||new TextDecoder().decode(bytes.slice(0,5))!=='%PDF-')throw new Error('IRI_REPORT_RENDERER_INVALID_PDF');
-  return bytes;
+function pdfFit(image:any,w:number,h:number){
+  const scale=Math.min(w/image.width,h/image.height);
+  return {w:image.width*scale,h:image.height*scale};
 }
+function photoQuality(report:any){
+  const raw=String(report?.quality?.level||report?.quality?.status||report?.quality?.grade||'').toLowerCase();
+  if(raw.includes('high')||raw.includes('alta')||raw==='good')return 'Alta';
+  if(raw.includes('medium')||raw.includes('moder')||raw.includes('media'))return 'Moderada';
+  if(raw.includes('low')||raw.includes('baja'))return 'Baja';
+  return report?.analysisStatus==='validated'?'Validada':'Pendiente de validación';
+}
+function measureLines(value:any,prefix='',depth=0,out:string[]=[]){
+  if(depth>2||out.length>=10||value===null||value===undefined)return out;
+  if(['number','string','boolean'].includes(typeof value)){
+    out.push((prefix||'Medición').replaceAll('_',' ')+': '+pdfSafe(value,100));
+    return out;
+  }
+  if(Array.isArray(value)){
+    value.slice(0,5).forEach((item,index)=>measureLines(item,(prefix+' '+String(index+1)).trim(),depth+1,out));
+    return out;
+  }
+  if(typeof value==='object'){
+    Object.entries(value).slice(0,10).forEach(([key,item])=>measureLines(item,prefix?prefix+' · '+key:key,depth+1,out));
+  }
+  return out;
+}
+async function renderPdf({draft,audience,clientName,coachName,iriOnly,photoReport,annex,appOrigin}:any){
+  const doc=await PDFDocument.create();
+  doc.setTitle('Informe IRI · '+pdfSafe(clientName,120));
+  doc.setAuthor('IBERFIT');
+  doc.setSubject(audience==='cliente'?'Diagnóstico inicial IRI':'Dossier técnico IRI');
+  doc.setCreator('IBERFIT '+ENGINE_VERSION);
+  doc.setProducer('pdf-lib');
+  const fonts={
+    regular:await doc.embedFont(StandardFonts.Helvetica),
+    bold:await doc.embedFont(StandardFonts.HelveticaBold),
+    serifBold:await doc.embedFont(StandardFonts.TimesRomanBold),
+    serifItalic:await doc.embedFont(StandardFonts.TimesRomanItalic),
+  };
+  const client=pdfSafe(clientName,140)||'Cliente IBERFIT';
+  const coach=pdfSafe(coachName,140)||'Coach IBERFIT';
+  const scoring=scoreIriPerformance(draft);
+  const global=scoring?.global||{};
+  const completion=firstSessionCompletion(draft);
+  const logo=await pdfImage(doc,appOrigin+'/public/isotipo-iberfit.png');
+
+  let n=1;
+  const cover=doc.addPage([PDF_W,PDF_H]);
+  cover.drawRectangle({x:0,y:0,width:PDF_W,height:PDF_H,color:PDF_C.dark});
+  cover.drawRectangle({x:0,y:0,width:14,height:PDF_H,color:PDF_C.gold});
+  if(logo){
+    const fit=pdfFit(logo,74,74);
+    cover.drawImage(logo,{x:PDF_W-PDF_M-fit.w,y:PDF_H-112,width:fit.w,height:fit.h,opacity:.96});
+  }
+  cover.drawText('INFORME IRI',{x:48,y:671,size:11,font:fonts.bold,color:PDF_C.gold2});
+  cover.drawText(audience==='cliente'?'Diagnóstico inicial':'Dossier técnico del diagnóstico inicial',{x:48,y:618,size:25,font:fonts.serifBold,color:PDF_C.cream});
+  cover.drawText(client,{x:48,y:568,size:18,font:fonts.regular,color:PDF_C.cream2});
+  cover.drawText(iriOnly?'Evaluación IRI independiente':'Punto de partida para la planificación',{x:48,y:539,size:10,font:fonts.regular,color:PDF_C.gold2});
+  cover.drawText(pdfDate(draft?.assessmentDate),{x:48,y:514,size:9.5,font:fonts.regular,color:PDF_C.muted});
+  cover.drawText('Entrenamiento personal con criterio:',{x:48,y:115,size:10,font:fonts.bold,color:PDF_C.cream2});
+  cover.drawText('diagnóstico, planificación, control y seguimiento.',{x:48,y:96,size:10,font:fonts.regular,color:PDF_C.cream2});
+  cover.drawText(coach,{x:48,y:59,size:8.5,font:fonts.serifItalic,color:PDF_C.gold2});
+
+  n+=1;
+  {
+    const page=pdfPage(doc,fonts,n,audience,'01','Lectura ejecutiva','Qué encontramos y cómo condiciona la planificación');
+    pdfMetric(page,fonts,'Completitud',String(Number(completion?.percent||0))+'%',PDF_M,674,147,String(completion?.complete||0)+'/'+String(completion?.total||0)+' etapas');
+    pdfMetric(page,fonts,'Puntuación funcional',global?.available?pdfNum(global.score10,1)+'/10':'—',PDF_M+160,674,147,global?.available?String(global?.coverage?.scoredDomains||0)+'/3 dominios':'Cobertura insuficiente');
+    pdfMetric(page,fonts,'Confianza',global?.confidence==='high'?'Alta':global?.confidence==='moderate'?'Moderada':'Insuficiente',PDF_M+320,674,147,'Sin sobreinterpretar datos');
+    let y=588;
+    y=pdfField(page,fonts,'OBJETIVO PRINCIPAL',draft?.personProfile?.primaryObjective||'Sin objetivo registrado',y);
+    y=pdfField(page,fonts,'FRECUENCIA RECOMENDADA',draft?.diagnosis?.recommendedFrequency||String(draft?.personProfile?.weeklyFrequency||'—')+' sesiones/semana',y);
+    y=pdfField(page,fonts,'PLAN INICIAL',draft?.diagnosis?.initialPlan,y);
+    y=pdfField(page,fonts,'IMPLICACIONES PARA EL ENTRENAMIENTO',draft?.diagnosis?.trainingImplications,y);
+    const leftY=pdfBullets(page,fonts,'Fortalezas',draft?.diagnosis?.strengths||[],PDF_M,315,230);
+    pdfBullets(page,fonts,'Prioridades',draft?.diagnosis?.priorities||[],PDF_M+270,315,230);
+    page.drawText('Interpretación del coach',{x:PDF_M,y:Math.min(leftY,195),size:10.5,font:fonts.bold,color:PDF_C.ink});
+    pdfText(page,fonts.regular,draft?.diagnosis?.coachInterpretation||'Sin interpretación adicional registrada.',PDF_M,Math.min(leftY,177),PDF_W-PDF_M*2,9,12,PDF_C.ink2,7);
+  }
+
+  n+=1;
+  {
+    const page=pdfPage(doc,fonts,n,audience,'02','Composición y movilidad','Referencia inicial; no sustituye valoración clínica');
+    const body=draft?.bodyComposition||{};
+    const mobility=draft?.mobility||{};
+    pdfMetric(page,fonts,'Peso',body?.skipped?'No evaluado':pdfNum(body.weightKg,1)+' kg',PDF_M,674);
+    pdfMetric(page,fonts,'Grasa corporal',body?.skipped?'No evaluado':pdfNum(body.bodyFatPercent,1)+' %',PDF_M+160,674);
+    pdfMetric(page,fonts,'Masa magra',body?.skipped?'No evaluado':pdfNum(body.leanMassKg,1)+' kg',PDF_M+320,674);
+    pdfMetric(page,fonts,'Cintura',body?.skipped?'No evaluado':pdfNum(body.waistCm,1)+' cm',PDF_M,605);
+    pdfMetric(page,fonts,'Agua corporal',body?.skipped?'No evaluado':pdfNum(body.bodyWaterPercent,1)+' %',PDF_M+160,605);
+    pdfMetric(page,fonts,'Grasa visceral',body?.skipped?'No evaluado':pdfNum(body.visceralFatLevel),PDF_M+320,605);
+    let y=515;
+    y=pdfField(page,fonts,'TOBILLO · RODILLA A PARED',mobility?.ankle?.skipped?'No evaluado':'Izq. '+pdfNum(mobility?.ankle?.leftBest,1)+' cm · Der. '+pdfNum(mobility?.ankle?.rightBest,1)+' cm · asimetría '+pdfNum(mobility?.ankle?.asymmetryCm,1)+' cm',y);
+    y=pdfField(page,fonts,'CADENA POSTERIOR',mobility?.posteriorChain?.skipped?'No evaluado':'Izq. '+pdfNum(mobility?.posteriorChain?.leftBest,1)+' cm · Der. '+pdfNum(mobility?.posteriorChain?.rightBest,1)+' cm · asimetría '+pdfNum(mobility?.posteriorChain?.asymmetryCm,1)+' cm',y);
+    y=pdfField(page,fonts,'ROTACIÓN DE CADERA',mobility?.hipRotation?.skipped?'No evaluado':mobility?.hipRotation?.result,y);
+    y=pdfField(page,fonts,'SENTADILLA ASISTIDA',mobility?.assistedSquat?.skipped?'No evaluado':[mobility?.assistedSquat?.depth,mobility?.assistedSquat?.heels,mobility?.assistedSquat?.knees,mobility?.assistedSquat?.trunk].filter(Boolean).join(' · ')||'Sin detalle',y);
+    y=pdfField(page,fonts,'MÉTODO DE COMPOSICIÓN',body?.skipped?body?.skipReason:(body?.method||body?.device||'Sin método registrado'),y);
+    pdfField(page,fonts,'CONDICIONES DE MEDICIÓN',body?.measurementConditions||'Sin observaciones adicionales',y);
+  }
+
+  n+=1;
+  {
+    const page=pdfPage(doc,fonts,n,audience,'03','Fuerza y capacidad funcional','Comparar siempre con la misma variante y configuración');
+    const strength=draft?.strengthAssessment||draft?.strength||{};
+    const cardio=draft?.cardio||{};
+    pdfMetric(page,fonts,'Silla 30 s',strength?.lowerBody?.skipped?'No evaluado':pdfNum(strength?.chairStand?.repetitions)+' rep',PDF_M,674);
+    pdfMetric(page,fonts,'Empuje',strength?.push?.skipped?'No evaluado':pdfNum(strength?.push?.repetitions)+' rep',PDF_M+160,674,147,pdfSafe(strength?.push?.variant,45));
+    pdfMetric(page,fonts,'Remo TRX',strength?.trxRow?.skipped?'No evaluado':pdfNum(strength?.trxRow?.repetitions)+' rep',PDF_M+320,674);
+    pdfMetric(page,fonts,'Plancha frontal',strength?.core?.skipped?'No evaluado':pdfNum(strength?.core?.frontPlankSeconds)+' s',PDF_M,605);
+    pdfMetric(page,fonts,'Lateral izq.',strength?.core?.skipped?'No evaluado':pdfNum(strength?.core?.sidePlankLeftSeconds)+' s',PDF_M+160,605);
+    pdfMetric(page,fonts,'Lateral der.',strength?.core?.skipped?'No evaluado':pdfNum(strength?.core?.sidePlankRightSeconds)+' s',PDF_M+320,605);
+    const protocol=String(cardio?.protocol||'');
+    const protocolLabel=protocol==='treadmill-3min-field'?'Cinta · 3 minutos':protocol==='ymca-3min-standard'?'YMCA Step Test · 3 minutos':protocol==='1msts-standard'?'1MSTS · 60 segundos':protocol==='iberfit-3min-adapted'?'Step 3 min adaptado':'Protocolo no identificado';
+    let y=515;
+    y=pdfField(page,fonts,'PROTOCOLO DE ESFUERZO',cardio?.skipped?'No evaluado':protocolLabel,y);
+    y=pdfField(page,fonts,'RESULTADO',cardio?.skipped?cardio?.skipReason:[
+      Number.isFinite(Number(cardio?.speedKmh))&&pdfNum(cardio.speedKmh,1)+' km/h',
+      Number.isFinite(Number(cardio?.inclinePercent))&&pdfNum(cardio.inclinePercent,1)+'% inclinación',
+      Number.isFinite(Number(cardio?.repetitions))&&pdfNum(cardio.repetitions)+' rep',
+      Number.isFinite(Number(cardio?.finalHr))&&'FC final '+pdfNum(cardio.finalHr)+' lpm',
+      Number.isFinite(Number(cardio?.oneMinuteHr))&&'FC 1 min '+pdfNum(cardio.oneMinuteHr)+' lpm',
+      Number.isFinite(Number(cardio?.deltaOneMinute))&&'recuperación '+pdfNum(cardio.deltaOneMinute)+' lpm',
+    ].filter(Boolean).join(' · ')||'Sin resultado interpretable',y);
+    y=pdfField(page,fonts,'CONFIGURACIÓN TRX',strength?.trxRow?.skipped?'No evaluado':[
+      Number.isFinite(Number(strength?.trxRow?.handleHeightCm))&&'asas '+pdfNum(strength.trxRow.handleHeightCm)+' cm',
+      Number.isFinite(Number(strength?.trxRow?.heelDistanceCm))&&'talones '+pdfNum(strength.trxRow.heelDistanceCm)+' cm',
+      Number.isFinite(Number(strength?.trxRow?.bodyAngleDeg))&&'ángulo '+pdfNum(strength.trxRow.bodyAngleDeg)+'°',
+    ].filter(Boolean).join(' · ')||strength?.trxRow?.position||'Sin detalle',y);
+    y=pdfField(page,fonts,'OBSERVACIONES DE FUERZA',strength?.notes||'Sin observaciones adicionales',y);
+    pdfField(page,fonts,'OBSERVACIONES DE ESFUERZO',cardio?.notes||'Sin observaciones adicionales',y);
+  }
+
+  if(photoReport?.available){
+    n+=1;
+    const page=pdfPage(doc,fonts,n,audience,'04','Fotogrametría','Mediciones posturales con trazabilidad y calidad de dato');
+    page.drawText('Estado: '+photoQuality(photoReport)+' · revisión '+String(Number(photoReport.analysisRevision||0)),{x:PDF_M,y:674,size:9.5,font:fonts.bold,color:PDF_C.gold});
+    const lines=measureLines(photoReport?.measurements||{}).slice(0,8);
+    let y=650;
+    for(const line of lines)y=pdfText(page,fonts.regular,line,PDF_M,y,225,8.4,11,PDF_C.ink2,2)-3;
+    const photos=Array.isArray(photoReport?.photos)?photoReport.photos.slice(0,4):[];
+    const slots=[{x:315,y:510},{x:425,y:510},{x:315,y:340},{x:425,y:340}];
+    for(let i=0;i<photos.length;i+=1){
+      const image=await pdfImage(doc,String(photos[i]?.url||''));
+      if(!image)continue;
+      const slot=slots[i],fit=pdfFit(image,100,145);
+      page.drawRectangle({x:slot.x-3,y:slot.y-3,width:106,height:151,borderColor:PDF_C.gold,borderWidth:.5,borderOpacity:.35});
+      page.drawImage(image,{x:slot.x+(100-fit.w)/2,y:slot.y+(145-fit.h)/2,width:fit.w,height:fit.h});
+      page.drawText(pdfSafe(photos[i]?.view||'Vista '+String(i+1),40),{x:slot.x,y:slot.y-14,size:6.7,font:fonts.bold,color:PDF_C.muted});
+    }
+    pdfText(page,fonts.regular,'La fotogrametría describe alineación y asimetrías visibles bajo las condiciones de captura. No constituye por sí sola un diagnóstico médico.',PDF_M,165,PDF_W-PDF_M*2,8.8,12,PDF_C.ink2,5);
+  }
+
+  if(audience==='coach'){
+    n+=1;
+    const page=pdfPage(doc,fonts,n,audience,'05','Trazabilidad técnica','Solo Coach/Admin · reproducibilidad y criterios de comparación');
+    let y=674;
+    y=pdfField(page,fonts,'VERSIÓN DE PROTOCOLO',draft?.protocolVersion||'Sin versión registrada',y);
+    y=pdfField(page,fonts,'CIERRE DE LA SESIÓN',draft?.firstSessionCompletedAt||'Sin registro',y);
+    page.drawText('Protocolos registrados',{x:PDF_M,y,size:10.5,font:fonts.bold,color:PDF_C.ink});
+    y-=19;
+    const records=Array.isArray(draft?.protocolRecords)?draft.protocolRecords.slice(0,12):[];
+    if(!records.length)page.drawText('Sin registros adicionales.',{x:PDF_M,y,size:9,font:fonts.regular,color:PDF_C.muted});
+    for(const record of records){
+      const row=[record?.testName||'Prueba',record?.variant&&'variante '+record.variant,record?.configuration&&'config. '+record.configuration,record?.valid===true?'válida':record?.valid===false?'no válida':'sin confirmar'].filter(Boolean).join(' · ');
+      y=pdfText(page,fonts.regular,row,PDF_M,y,PDF_W-PDF_M*2,8.4,11,PDF_C.ink2,2)-4;
+      if(y<120)break;
+    }
+    pdfText(page,fonts.regular,'El Diagnóstico IRI conserva el punto de partida. El seguimiento y la evolución permanecen separados para no mezclar la evaluación inicial con el progreso posterior.',PDF_M,92,PDF_W-PDF_M*2,8.8,12,PDF_C.ink2,5);
+  }
+
+  if(annex){
+    n+=1;
+    const page=pdfPage(doc,fonts,n,audience,audience==='cliente'?'05':'06','Bioimpedancia original','Anexo incorporado al documento emitido');
+    page.drawText('Documento original incorporado',{x:PDF_M,y:640,size:15,font:fonts.serifBold,color:PDF_C.ink});
+    pdfText(page,fonts.regular,annex.kind==='pdf'?'Se adjuntan '+String(annex.displayPages)+' de '+String(annex.totalPages)+' página(s) del documento original de bioimpedancia a continuación.':'La imagen original de bioimpedancia se incorpora como la siguiente página del informe.',PDF_M,610,PDF_W-PDF_M*2,10,15,PDF_C.ink2,5);
+    if(annex.truncated)pdfText(page,fonts.bold,'Por seguridad de tamaño, el anexo visible se limita a '+String(annex.displayPages)+' páginas. El original se conserva vinculado al IRI.',PDF_M,540,PDF_W-PDF_M*2,9.2,13,PDF_C.gold,4);
+  }
+
+  return new Uint8Array(await doc.save({useObjectStreams:true,addDefaultPage:false}));
+}
+
 async function appendExternal(mainBytes:Uint8Array,externalBytes:any,info:any){
   if(!externalBytes||!info)return mainBytes;
   const output=await PDFDocument.load(mainBytes);
@@ -302,7 +508,7 @@ function reportDraft(assessment:any){
   if(!record.assessmentDate&&assessment.evaluated_at)record.assessmentDate=String(assessment.evaluated_at).slice(0,10);
   return confirmedFirstSessionDraft(record,assessment.client_id);
 }
-async function issueReport({userClient,service,actorUserId,assessmentId,audience,appOrigin,rendererUrl,rendererPrivateKey,rendererAudience}:any){
+async function issueReport({userClient,service,actorUserId,assessmentId,audience,appOrigin}:any){
   const authz=await userClient.rpc('iberfit_authorize_iri_report_issue_v1',{p_assessment_id:assessmentId,p_audience:audience});
   if(authz.error)throw authz.error;
   if(!authz.data?.ok)throw new Error('IRI_REPORT_ISSUE_NOT_AUTHORIZED');
@@ -326,27 +532,10 @@ async function issueReport({userClient,service,actorUserId,assessmentId,audience
 
   const externalBytes=await loadExternalBytes(service,external);
   const annex=await annexInfo(externalBytes);
-  const externalForRender=external?{
-    id:external.id,assessmentId:external.assessment_id,fileName:external.file_name,
-    mimeType:external.mime_type,sizeBytes:external.size_bytes,visibleToClient:external.visible_to_client,
-    version:external.version,uploadedAt:external.uploaded_at,issuedArtifactAnnex:Boolean(annex),
-    issuedArtifactAnnexPageCount:annex?.displayPages||0,
-    issuedArtifactAnnexTotalPages:annex?.totalPages||0,
-    issuedArtifactAnnexTruncated:Boolean(annex?.truncated),
-    printPreview:{pages:[]},
-  }:null;
   const coachName=text(profileResult.data?.display_name,160)||'Coach IBERFIT';
   const logoUrl=`${appOrigin}/public/isotipo-iberfit.png`;
   const signatureUrl=/carlos|iberfit\.cl@gmail\.com/u.test(coachName.toLowerCase())
     ?`${appOrigin}/m26/assets/iberfit-signature-carlos.svg`:'';
-  const html=buildIriReportHtml({
-    draft,variant:audienceRenderer(audience),clientName:clientResult.data.name||'Cliente IBERFIT',
-    coachName,clientId:assessment.client_id,logoUrl,signatureUrl,
-    stylesheetHref:`${appOrigin}/m26/iri-report.css?v=${TEMPLATE_VERSION}`,
-    externalReport:externalForRender,photogrammetryReport:photoState.report,
-    appOrigin,iriOnly:authz.data?.iriOnly===true,
-  });
-
   const sourceSnapshot={
     schema:'iberfit.iri.issued-source.v1',
     assessment:{
@@ -369,7 +558,7 @@ async function issueReport({userClient,service,actorUserId,assessmentId,audience
   const sourceHash=await sha256(sourceJson);
   if(!SHA256.test(sourceHash))throw new Error('IRI_REPORT_SOURCE_HASH_INVALID');
 
-  let pdf=await renderPdf(html,rendererUrl,rendererPrivateKey,rendererAudience);
+  let pdf=await renderPdf({draft,audience,clientName:clientResult.data.name||'Cliente IBERFIT',coachName,iriOnly:authz.data?.iriOnly===true,photoReport:photoState.report,annex,appOrigin});
   pdf=await appendExternal(pdf,externalBytes,annex);
   if(pdf.byteLength<=1000||pdf.byteLength>MAX_ARTIFACT_BYTES)throw new Error('IRI_REPORT_ARTIFACT_SIZE_INVALID');
   const artifactHash=await sha256(pdf);
@@ -392,9 +581,9 @@ async function issueReport({userClient,service,actorUserId,assessmentId,audience
   const renderManifest={
     schema:'iberfit.iri.render-manifest.v1',
     templateVersion:TEMPLATE_VERSION,engineVersion:ENGINE_VERSION,
-    renderer:'cloudflare-browser-run/worker-binding-pdf',
-    taggedRequested:true,outlineRequested:true,preferCssPageSize:true,printBackground:true,
-    postProcessedWithPdfLib:Boolean(externalBytes),
+    renderer:'pdf-lib/deterministic-v1',
+    taggedRequested:false,outlineRequested:false,preferCssPageSize:false,printBackground:false,deterministicLayout:true,
+    postProcessedWithPdfLib:true,
     pdfUaCertified:false,
     generatedAt:new Date().toISOString(),
   };
@@ -467,12 +656,10 @@ Deno.serve(async(req:Request)=>{
       if(context.error||context.data?.ok!==true)throw context.error||new Error('IRI_REPORT_APPLICATION_CONTEXT_REQUIRED');
       const roles=Array.isArray(context.data?.roles)?context.data.roles.map((value:unknown)=>String(value||'').toLowerCase()):[];
       if(!roles.some((role:string)=>role==='admin'||role==='coach'))throw new Error('IRI_REPORT_HEALTH_SCOPE_FORBIDDEN');
-      const rendererUrl=String(Deno.env.get('IBERFIT_IRI_RENDERER_URL')||'').trim();
-      const rendererPrivateKey=String(Deno.env.get('IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64')||'').trim();
-      const rendererAudience=String(Deno.env.get('IBERFIT_IRI_RENDERER_AUDIENCE')||'').trim();
       return json(200,{
         ok:true,version:FUNCTION_VERSION,projectRef,
-        rendererConfigured:Boolean(rendererUrl&&rendererPrivateKey&&rendererAudience),
+        rendererConfigured:true,
+        renderer:'pdf-lib/deterministic-v1',
         issuedBucket:ISSUED_BUCKET,
       },origin,allowed);
     }
@@ -481,9 +668,6 @@ Deno.serve(async(req:Request)=>{
       const audience=audienceDb(body?.audience);
       const result=await issueReport({
         userClient,service,actorUserId,assessmentId,audience,appOrigin,
-        rendererUrl:String(Deno.env.get('IBERFIT_IRI_RENDERER_URL')||'').trim(),
-        rendererPrivateKey:String(Deno.env.get('IBERFIT_IRI_RENDERER_PRIVATE_KEY_PKCS8_B64')||'').trim(),
-        rendererAudience:String(Deno.env.get('IBERFIT_IRI_RENDERER_AUDIENCE')||'').trim(),
       });
       return json(200,{ok:true,version:FUNCTION_VERSION,...result},origin,allowed);
     }
@@ -507,7 +691,7 @@ Deno.serve(async(req:Request)=>{
     return json(400,{ok:false,code:'IRI_REPORT_ACTION_INVALID',version:FUNCTION_VERSION},origin,allowed);
   }catch(error){
     const code=codeOf(error);
-    const status=/AUTH_REQUIRED/u.test(code)?401:/FORBIDDEN|SCOPE|PRIVILEGED|ASSURANCE|WEBAUTHN/u.test(code)?403:/NOT_FOUND/u.test(code)?404:/RENDERER|SERVER_CONFIG/u.test(code)?503:400;
+    const status=/AUTH_REQUIRED/u.test(code)?401:/FORBIDDEN|SCOPE|PRIVILEGED|ASSURANCE|WEBAUTHN/u.test(code)?403:/NOT_FOUND/u.test(code)?404:/SERVER_CONFIG/u.test(code)?503:400;
     console.error('[iri-report-emission]',code);
     return json(status,{ok:false,code,version:FUNCTION_VERSION},origin,allowed);
   }
