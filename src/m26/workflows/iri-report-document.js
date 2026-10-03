@@ -192,6 +192,24 @@ function clientIriExternalReportPages(draft,report,logoUrl,startNumber,appOrigin
     content:`<div class="iri-bioimp-page"><div class="iri-bioimp-meta"><div><span>Documento original</span><strong>${escapeHtml(format)} · versión ${escapeHtml(report.version||1)}</strong></div><div><span>Página incorporada</span><strong>${index+1} de ${totalOriginal}</strong></div></div><figure><img src="${escapeHtml(src)}" alt="Informe de bioimpedancia · página ${index+1}" referrerpolicy="no-referrer"></figure>${report?.printPreview?.truncated&&index===previewPages.length-1?`<p class="method-note">El documento original contiene ${totalOriginal} páginas. Por seguridad de maquetación se incorporan las primeras ${previewPages.length}; el archivo original permanece disponible desde IBERFIT.</p>`:''}<a class="iri-complement-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir documento original en IBERFIT</a></div>`
   }));
 }
+function coachIriExternalReportPages(draft,report,logoUrl,startNumber,appOrigin){
+  if(!report||clean(report.assessmentId,80)!==clean(draft.assessmentId,80))return [];
+  const previewPages=Array.isArray(report?.printPreview?.pages)?report.printPreview.pages.filter(Boolean).slice(0,4):[];
+  if(!previewPages.length)return [];
+  const href=iriExternalReportAppUrl(draft.assessmentId,{origin:appOrigin});
+  const format=report.mimeType==='application/pdf'?'PDF':report.mimeType==='image/jpeg'?'JPEG':report.mimeType==='image/png'?'PNG':'Documento';
+  const totalOriginal=Number(report?.printPreview?.totalPages||previewPages.length);
+  return previewPages.map((src,index)=>page({
+    number:startNumber+index,
+    title:'Bioimpedancia · documento original',
+    eyebrow:'ANEXO TÉCNICO · BIOIMPEDANCIA',
+    logoUrl,
+    internal:true,
+    annex:true,
+    content:`<div class="iri-bioimp-page"><div class="iri-bioimp-meta"><div><span>Archivo vinculado al IRI</span><strong>${escapeHtml(format)} · versión ${escapeHtml(report.version||1)}</strong></div><div><span>Página incorporada</span><strong>${index+1} de ${totalOriginal}</strong></div></div><figure><img src="${escapeHtml(src)}" alt="Bioimpedancia · página ${index+1}" referrerpolicy="no-referrer"></figure><p class="method-note">Documento técnico incorporado desde el archivo privado vinculado a esta evaluación. Su visibilidad para el cliente se gestiona de forma independiente.</p><a class="iri-complement-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir documento original en IBERFIT</a></div>`
+  }));
+}
+
 function reportCover({clientName,date,coachName,logoUrl,internal,clientId='',iriOnly=false}){return page({number:1,cover:true,internal,logoUrl,title:'',content:`<img class="cover-watermark" src="${escapeHtml(logoUrl)}" alt="" aria-hidden="true"><div class="cover-lockup"><img class="cover-isotipo" src="${escapeHtml(logoUrl)}" alt="Isotipo oficial IBERFIT"><span>IBERFIT</span></div><div class="cover-copy"><p>${internal?'DOSSIER TÉCNICO · COACH / ADMIN':'DIAGNÓSTICO INICIAL'}</p><h1>INFORME<br>IRI</h1><div class="gold-line"></div><span class="cover-claim">Entrenamiento personal con criterio:<br>diagnóstico, planificación, control y seguimiento.</span></div><div class="cover-data"><div class="cover-data-primary"><span>Persona evaluada</span><strong>${escapeHtml(clientName)}</strong></div><div><span>Fecha</span><strong>${escapeHtml(dateLabel(date,'Fecha no disponible'))}</strong></div><div><span>Entrenador</span><strong>${escapeHtml(coachName)}</strong></div>${internal?`<div><span>Expediente</span><strong>${escapeHtml(label(clientId,'Sin identificador'))}</strong></div>`:''}<div class="cover-service"><span>Modalidad del informe</span><strong>${iriOnly?'Solo IRI · evaluación independiente':internal?'Uso interno':'Diagnóstico IRI'}</strong></div></div>`});}
 function clientPages(draft,context){
   const {clientName,coachName,logoUrl,signatureUrl='',externalReport,appOrigin,photogrammetryReport=null,iriOnly=false}=context;
@@ -230,7 +248,7 @@ function mobilityTrialRows(mobility={}){const ankle=mobility.ankle||{},posterior
 function rawDataPages(draft,context,startNumber){const raw=JSON.stringify({reportContext:{clientName:context.clientName,coachName:context.coachName,clientId:context.clientId},draft},null,2);const lines=raw.split('\n');const chunks=[];let current=[];let count=0;for(const line of lines){const length=line.length+1;if(current.length&&count+length>1500){chunks.push(current.join('\n'));current=[];count=0;}current.push(line);count+=length;}if(current.length)chunks.push(current.join('\n'));return chunks.map((chunk,index)=>page({number:startNumber+index,title:`Anexo íntegro de datos · ${index+1}/${chunks.length}`,eyebrow:'ANEXO DINÁMICO · TRAZABILIDAD',logoUrl:context.logoUrl,internal:true,annex:true,content:`<p class="annex-intro">Representación completa del borrador normalizado utilizado para generar este informe. Conserva campos, valores nulos, variantes y observaciones.</p><pre class="raw-data">${escapeHtml(chunk)}</pre>`}));}
 
 function coachPages(draft,context){
-  const {clientName,coachName,logoUrl,clientId='',externalReport=null}=context;
+  const {clientName,coachName,logoUrl,clientId='',externalReport=null,photogrammetryReport=null,appOrigin}=context;
   const p=draft.personProfile||{},i=draft.interview||{},b=draft.bodyComposition||{},m=draft.mobility||{},s=draft.strength||{},c=draft.cardio||{},d=draft.diagnosis||{};
   const completion=firstSessionCompletion(draft);const pages=[];
   pages.push(reportCover({clientName,date:draft.assessmentDate,coachName,logoUrl,internal:true,clientId}));
@@ -255,7 +273,11 @@ function coachPages(draft,context){
   pages.push(page({number:12,title:'Diagnóstico por dominios',eyebrow:'11 · COBERTURA, VALIDEZ Y LIMITACIONES',logoUrl,internal:true,content:`<div class="two-col">${card('Composición corporal',`<p>${b.skipped?'No realizada: '+escapeHtml(label(b.skipReason)):escapeHtml(`Mediciones registradas: ${[b.weightKg,b.bodyFatPercent,b.leanMassKg,b.muscleMassKg,b.waistCm].filter((value)=>value!==null).length}. Interpretación descriptiva.`)}</p>`)}${card('Movilidad',`<p>${m.skipped?'No realizada: '+escapeHtml(label(m.skipReason)):escapeHtml(`Tobillo: asimetría ${number(m.ankle?.asymmetryCm,1)} cm. Cadena posterior: ${number(m.posteriorChain?.asymmetryCm,1)} cm.`)}</p>`)}${card('Fuerza',`<p>${s.skipped?'No realizada: '+escapeHtml(label(s.skipReason)):escapeHtml(`Silla, empuje, TRX y tronco registrados. Variantes y validez conservadas individualmente.`)}</p>`)}${card('Capacidad de esfuerzo',`<p>${c.skipped?'No realizada: '+escapeHtml(label(c.skipReason)):escapeHtml(`Protocolo ${cardioProtocolLabel(c)}. ${cardioResultDetail(c)}. Validez: ${yesNo(c.valid)}.`)}</p>`)}</div>${card('Justificación del resultado global',`<p>La puntuación funcional IRI se calcula únicamente cuando existen al menos dos dominios con baremos compatibles. La composición corporal y la fotogrametría se mantienen fuera de la nota; cada resultado conserva protocolo, sexo, edad, cobertura y limitaciones.</p>`,'highlight')}${card('Fuentes y baremos',`<div class="mini-list">${row('Sexo para baremos',p.sexForNorms)}${row('Fecha evaluación',dateLabel(draft.assessmentDate))}${row('Motor',draft.schema||draft.firstSessionSchema||'iberfit-iri-first-session-v1')}${row('Motor de baremos',scoreIriPerformance(draft).engineVersion)}${row('Cobertura normativa', scoreIriPerformance(draft).global.coverage.scoredDomains+'/3 dominios puntuables')}${row('Protocolos adaptados', 'Referencia individual; no se mezclan con el protocolo estándar')}</div>`,'soft')}` }));
   pages.push(page({number:13,title:'Interpretación y planificación',eyebrow:'12 · DECISIÓN DEL COACH',logoUrl,internal:true,content:`${card('Interpretación completa del Coach',`<p>${escapeHtml(excerpt(d.coachInterpretation,1100))}</p>`,'highlight')}${card('Implicaciones para el entrenamiento',`<p>${escapeHtml(excerpt(d.trainingImplications,1050))}</p><ul class="checks">${listItems(d.priorities,6)}</ul>`)}<div class="two-col">${card('Plan inicial',`<p>${escapeHtml(excerpt(d.initialPlan,760))}</p><div class="mini-list">${row('Frecuencia recomendada',d.recommendedFrequency)}</div>`)}${card('Reevaluación y control',`<div class="mini-list">${row('Fecha',dateLabel(d.reevaluationDate,'Por definir'))}${row('Revisión aceptada',yesNo(d.reviewAccepted))}${row('Actualización del borrador',dateLabel(draft.updatedAt?.slice?.(0,10)))}${row('Criterio', 'Repetir protocolos comparables y documentar cambios')}</div>`)}</div>${card('Trazabilidad',`<div class="mini-list">${row('Esquema',draft.schema||'iberfit-iri-first-session-v1')}${row('Cliente',clientId)}${row('Completitud',completion.complete+'/'+completion.total)}${row('Advertencia','Evaluación de rendimiento; no sustituye una evaluación clínica')}${row('Anexo íntegro','Incluido a continuación con todos los campos normalizados')}</div>`,'soft')}` }));
   pages.push(page({number:14,title:'Trazabilidad de protocolos',eyebrow:'13 · VERSIONES Y COMPARABILIDAD',logoUrl,internal:true,content:`${card('Registro por prueba',compactTable(['Prueba','Lado','Variante','Configuración','Versión','Validez','Uso','Adaptación o suspensión'],protocolTraceRows(draft.protocolRecords||[]),['13%','6%','11%','20%','12%','8%','12%','18%']),'table-card')}<p class="caption">Una reevaluación solo se considera directamente comparable cuando coinciden la versión, la variante y la configuración registrada.</p>`}));
-  pages.push(...rawDataPages(draft,context,15));
+  let nextAnnexPage=15;
+  pages.push(page({number:nextAnnexPage++,title:'Fotogrametría · registro técnico',eyebrow:'ANEXO TÉCNICO · FOTOGRAMETRÍA',logoUrl,internal:true,annex:true,content:`<p class="lead">Registro visual privado del punto de partida. Se muestran únicamente las capturas consentidas y, cuando existen, los puntos y mediciones validados por el entrenador.</p>${renderPhotogrammetryReport(photogrammetryReport)}`}));
+  const bioimpedanceAnnex=coachIriExternalReportPages(draft,externalReport,logoUrl,nextAnnexPage,appOrigin);
+  pages.push(...bioimpedanceAnnex);nextAnnexPage+=bioimpedanceAnnex.length;
+  pages.push(...rawDataPages(draft,context,nextAnnexPage));
   return pages;
 }
 
@@ -270,7 +292,7 @@ export function buildIriReportHtml({draft,variant='client',clientName='Cliente I
   const context={clientName:clean(clientName,160)||'Cliente IBERFIT',coachName:clean(coachName,160)||'Coach IBERFIT',clientId:clean(clientId,200),logoUrl,signatureUrl:clean(signatureUrl,2000),externalReport,photogrammetryReport,appOrigin,iriOnly:Boolean(iriOnly)};
   const pages=variant==='client'?clientPages(draft,context):coachPages(draft,context);
   if(variant==='client'&&pages.length<10)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
-  if(variant==='coach'&&pages.length<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
+  if(variant==='coach'&&pages.length<16)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
   const title=`Informe IRI IBERFIT · ${variant==='client'?'Cliente':'Coach / Admin'} · ${context.clientName}`;
   const externalStylesheet=clean(stylesheetHref,2048);
   const stylesheetHrefSafe=externalStylesheet||'/m26/iri-report.css?v=m26-iri-report-premium-v1';
@@ -441,7 +463,7 @@ export function openIriReportPrint({draft,variant='client',clientName,coachName,
   const html=buildIriReportHtml({draft,variant,clientName,coachName,clientId,logoUrl,signatureUrl,stylesheetHref,externalReport,photogrammetryReport,appOrigin:locationLike?.origin,iriOnly});
   const pageCount=(html.match(/class="pdf-page(?:\s|")/gu)||[]).length;
   if(variant==='client'&&pageCount<10)throw new Error('M26_IRI_REPORT_CLIENT_PAGE_COUNT');
-  if(variant==='coach'&&pageCount<13)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
+  if(variant==='coach'&&pageCount<16)throw new Error('M26_IRI_REPORT_COACH_PAGE_COUNT');
   const popup=printTarget||prepareIriReportPrintTarget(openWindow);
   if(!popup?.document)throw new Error('M26_IRI_REPORT_POPUP_BLOCKED');
   try{
