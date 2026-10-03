@@ -750,6 +750,7 @@ if (area === 'clientes') {
     return Object.freeze({
       kind: 'notas',
       clientId,
+      role:String(shellVm.identity?.role||''),
       capability: capabilities.privateNotes,
       notes: Object.freeze(
         recordsForClient(state, 'privateNotes', clientId).map(compactActivity)
