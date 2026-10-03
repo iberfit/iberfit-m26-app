@@ -15,12 +15,20 @@ import {buildSessionEntryDecision} from '../intelligence/session-entry-policy.js
 import {revalidatePendingSessionEntry} from '../intelligence/session-entry-intent.js';
 import {createRouteViewModel} from '../modules/route-view-model.js';
 import {runRouteViewTransition} from '../experience/route-view-transitions.js';
+import {adminClientContextArea} from '../admin/navigation.js';
 
 const ACTION_CENTER_TITLE_ID='m26-coach-action-center-title';
 const ACTION_CENTER_CARD_SELECTOR='.m26-coach-priority-card';
 
 function coachActionText(key,params={}){
   return iberfitDomainTranslate(key,{params});
+}
+
+function roleScopedArea(state,area){
+  const value=String(area||'').trim();
+  return String(state?.identity?.role||'').trim().toLowerCase()==='admin'
+    ?adminClientContextArea(value)
+    :value;
 }
 
 function coachTodayViewModel(shellVm,state){
@@ -659,7 +667,8 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
     try{
       const requestedClientId=source?.getAttribute?.('data-m26-client-id')||source?.getAttribute?.('data-m26-select-client');
       const clientId=guardClientSelection(current,requestedClientId);
-      const targetArea=String(source?.getAttribute?.('data-m26-open-client-area')||'expediente').trim()||'expediente';
+      const rawTargetArea=String(source?.getAttribute?.('data-m26-open-client-area')||'expediente').trim()||'expediente';
+      const targetArea=roleScopedArea(current,rawTargetArea);
       const candidate={...current,selectedClientId:clientId};
       const decision=resolveM26Route(candidate,targetArea);
       if(!decision.allowed)throw new Error(decision.reason||'M26_ROUTE_FORBIDDEN');
@@ -763,8 +772,9 @@ export function createShellController({ root, store, renderRoute = () => '' }) {
         clientBottomMore.removeAttribute?.('open');
         clientBottomMore.querySelector?.(':scope > summary')?.setAttribute?.('aria-expanded','false');
       }
-      const nextArea = areaButton.getAttribute('data-m26-area');
+      const rawNextArea = areaButton.getAttribute('data-m26-area');
       const current=store.getState();
+      const nextArea=roleScopedArea(current,rawNextArea);
       const decision = resolveM26Route(current, nextArea);
       if(String(current.activeArea||'')===String(decision.area||'')){
         reconcileRouteRender(decision.area);
