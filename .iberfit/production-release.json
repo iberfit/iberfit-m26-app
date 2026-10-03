@@ -1,0 +1,9 @@
+{
+  "schema": "iberfit.production.release.v1",
+  "sourceSha": "80667dc4c70240a8c3a608600ca580e5aa8ac0ed",
+  "sourceBranch": "canary/rc74-4",
+  "target": "iberfit-m26-production",
+  "domain": "app.iberfit.cl",
+  "promote": true,
+  "notes": "IRI hardening: continuidad por assessment, stepper secuencial, consentimiento físico robusto, cobertura funcional corregida, movilidad derivada y copy de fotogrametría coherente."
+}
