@@ -20,7 +20,7 @@ function tx(key,fallback='',params={}){
 const ROLE_NAV_GROUPS=Object.freeze({
   admin:Object.freeze([
     Object.freeze({labelKey:'nav.admin.direction',keys:Object.freeze(['admin-inicio','admin-analitica'])}),
-    Object.freeze({labelKey:'nav.admin.people',keys:Object.freeze(['admin-usuarios','admin-equipo','admin-clientes','admin-agenda'])}),
+    Object.freeze({labelKey:'nav.admin.people',keys:Object.freeze(['admin-usuarios','admin-equipo','admin-clientes','admin-expediente','admin-iri','admin-informes','admin-notas','admin-agenda'])}),
     Object.freeze({labelKey:'nav.admin.operation',keys:Object.freeze(['admin-operaciones','admin-comunicacion','admin-automatizaciones','biblioteca'])}),
     Object.freeze({labelKey:'nav.admin.control',keys:Object.freeze(['admin-auditoria','admin-configuracion'])}),
   ]),
@@ -72,7 +72,7 @@ function groupedNavigation(vm){
     items.forEach((item)=>used.add(item.key));
     if(!items.length)return '';
     return `<section class="m26-nav-group"><h2>${escapeHtml(tx(group.labelKey,group.labelKey))}</h2><div>${items.map((item)=>{
-      const needsClient=vm.identity.role==='coach'&&!vm.selectedClient&&['selected-client','client-context'].includes(String(item.scope||''));
+      const needsClient=['coach','admin'].includes(vm.identity.role)&&!vm.selectedClient&&['selected-client','client-context'].includes(String(item.scope||''));
       return navItem(item,vm.activeArea,{disabled:needsClient});
     }).join('')}</div></section>`;
   }).join('');
